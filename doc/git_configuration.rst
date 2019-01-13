@@ -47,6 +47,15 @@ After a complete working set of related changes are made:
 -------------------------------------
 Step 5: Push changes to the main repo
 -------------------------------------
+
+^^^^^^^^^^^^^^^^
+For contributors
+^^^^^^^^^^^^^^^^
+To create a Pull Request (PR), refer to https://help.github.com/articles/about-pull-requests/
+
+^^^^^^^^^^^^^^^^^^^
+For core developers
+^^^^^^^^^^^^^^^^^^^
 If there are only a few, unrelated commits:
 
 ::
