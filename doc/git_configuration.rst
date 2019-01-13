@@ -20,6 +20,7 @@ Step 2: Keep in sync with changes in Ross
 -----------------------------------------
 
 ::
+
     git config branch.master.remote upstream
     git config branch.master.merge refs/heads/master
 
