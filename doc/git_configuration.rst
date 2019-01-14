@@ -4,9 +4,13 @@ Git configuration
 
 In order to use git to contribute to ROSS project, follow the steps bellow:
 
+
 ----------------------------------------
 Step 1: Make you own copy (fork) of ROSS
 ----------------------------------------
+Go to https://github.com/ross-rotordynamics/ross
+In the top-right corner of the page, click Fork, to fork it to your GitHub account.
+
 From the command line:
 
 ::
@@ -14,6 +18,7 @@ From the command line:
     git clone https://github.com/your-user-name/ross.git
     cd ross
     git remote add upstream https://github.com/ross-rotordynamics/ross.git
+
 
 -----------------------------------------
 Step 2: Keep in sync with changes in Ross
