@@ -11,7 +11,7 @@ From the command line:
 
 ::
 
-    git clone https://github.com/ross-rotordynamics/ross.git
+    git clone https://github.com/your-user-name/ross.git
     cd ross
     git remote add upstream https://github.com/ross-rotordynamics/ross.git
 
