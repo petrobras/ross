@@ -4,13 +4,7 @@ import pandas as pd
 import scipy.interpolate as interpolate
 import matplotlib.pyplot as plt
 import matplotlib.patches as mpatches
-from ross.data_io.read_xl import (
-    load_bearing_seals_from_yaml,
-    load_bearing_seals_from_xltrc,
-    load_disks_from_xltrc,
-    load_shaft_from_xltrc,
-)
-
+from abc import ABC
 
 __all__ = [
     "BearingElement",
@@ -18,9 +12,7 @@ __all__ = [
     "IsotSealElement",
 ]
 
-
-
-class Element:
+class Element(ABC):
     """Element class."""
 
     def __init__(self):
@@ -34,7 +26,15 @@ class Element:
         attributes["type"] = self.__class__.__name__
         return pd.Series(attributes)
 
-
+    # These are the abstract classes for mass, damping and stiffness matrices
+    def M(self):
+        pass
+    
+    def C(self):
+        pass
+    
+    def K(self):
+        pass
 
 class _Coefficient:
     def __init__(self, coefficient, w=None, interpolated=None):
@@ -96,7 +96,7 @@ class _Damping_Coefficient(_Coefficient):
 
 
 class BearingElement(Element):
-    #  TODO detail this class attributes inside the docstring
+
     """A bearing element.
     This class will create a bearing element.
     Parameters can be a constant value or speed dependent.
@@ -134,13 +134,6 @@ class BearingElement(Element):
     --------
     """
 
-    #  TODO implement for more complex cases (kxy, kthetatheta etc.)
-    #  TODO consider kxx, kxy, kyx, kyy, cxx, cxy, cyx, cyy, mxx, myy, myx, myy (to import from XLTRC)
-    #  TODO add speed as an argument
-    #  TODO arguments should be lists related to speed
-    #  TODO evaluate the use of pandas tables to display
-    #  TODO create tests to evaluate interpolation
-    #  TODO create tests for different cases of bearing instantiation
 
     def __init__(
         self, n, kxx, cxx, kyy=None, kxy=0, kyx=0, cyy=None, cxy=0, cyx=0, w=None
@@ -239,18 +232,6 @@ class BearingElement(Element):
         ]
         ax.add_patch(mpatches.Polygon(bearing_points, color=self.color, picker=True))
 
-    @classmethod
-    def load_from_yaml(cls, n, file):
-        kwargs = load_bearing_seals_from_yaml(file)
-        return cls(n, **kwargs)
-
-    @classmethod
-    def load_from_xltrc(cls, n, file, sheet_name="XLUseKCM"):
-        kwargs = load_bearing_seals_from_xltrc(file, sheet_name)
-        return cls(n, **kwargs)
-
-
-
 class SealElement(BearingElement):
     def __init__(
         self,
@@ -298,7 +279,6 @@ class SealElement(BearingElement):
         """
         zpos, ypos = position
         hw = 0.05
-        # TODO adapt hw according to bal drum diameter
 
         #  node (x pos), outer diam. (y pos)
         seal_points_u = [
