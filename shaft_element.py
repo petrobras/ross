@@ -156,19 +156,20 @@ class ShaftElement(Element):
         phi = 0
 
         # picking a method to calculate the shear coefficient
-        # method1 - kappa as per Hutchinson (2001)
-        # method2 - kappa as per Cowper (1996)
+        # List of avaible methods:
+        # hutchinson - kappa as per Hutchinson (2001)
+        # cowper - kappa as per Cowper (1996)
         if shear_effects:
             r = i_d / o_d
             r2 = r * r
             r12 = (1 + r2) ** 2        
-            if shear_method_calc == "method1":
+            if shear_method_calc == "hutchinson":
                 # Shear coefficient (phi)
                 # kappa as per Hutchinson (2001)
                 kappa = 6*r12*((1+self.poisson)/
                         ((r12*(7 + 12*self.poisson + 4*self.poisson**2) + 
                         4*r2*(5 + 6*self.poisson + 2*self.poisson**2))))
-            elif shear_method_calc == "method2":   
+            elif shear_method_calc == "cowper":   
                 # kappa as per Cowper (1996)
                 # fmt: off
                 kappa = 6 * r12 * (
@@ -177,8 +178,7 @@ class ShaftElement(Element):
                 )
                 # fmt: on
             else:
-                raise Warning("This method of calculating shear coefficients is not implemented.\
-                              See guide for futher informations.")
+                raise Warning("This method of calculating shear coefficients is not implemented. See guide for futher informations.")
             
             phi = 12 * self.E * self.Ie / (self.G_s * kappa * self.A * L ** 2)
 
