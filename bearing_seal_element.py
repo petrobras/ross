@@ -9,7 +9,6 @@ from abc import ABC
 __all__ = [
     "BearingElement",
     "SealElement",
-    "IsotSealElement",
 ]
 
 class Element(ABC):
@@ -26,13 +25,11 @@ class Element(ABC):
         attributes["type"] = self.__class__.__name__
         return pd.Series(attributes)
 
-    # These are the abstract classes for mass, damping and stiffness matrices
-    def M(self):
-        pass
-    
+    @ABC.abstractmethod
     def C(self):
         pass
     
+    @ABC.abstractmethod
     def K(self):
         pass
 
@@ -299,130 +296,3 @@ class SealElement(BearingElement):
         ]
         ax.add_patch(mpatches.Polygon(seal_points_u, facecolor=self.color))
         ax.add_patch(mpatches.Polygon(seal_points_l, facecolor=self.color))
-
-
-class IsotSealElement(SealElement):
-    def __init__(
-        self,
-        n,
-        kxx,
-        cxx,
-        kyy=None,
-        kxy=0,
-        kyx=0,
-        cyy=None,
-        cxy=0,
-        cyx=0,
-        w=None,
-        exit_axial_mach_number=None,
-        exit_axial_reynolds_number=None,
-        exit_circumferential_reynolds_number=None,
-        kxx_fd=None,
-        cxx_fd=None,
-        kyy_fd=None,
-        kxy_fd=None,
-        kyx_fd=None,
-        cyy_fd=None,
-        cxy_fd=None,
-        cyx_fd=None,
-        w_fd=None,
-        wfr=None,
-        seal_leakage=None,
-        absolute_viscosity=None,
-        cell_vol_to_area_ratio=None,
-        compressibility_factor=None,
-        entrance_loss_coefficient=None,
-        exit_clearance=None,
-        exit_recovery_factor=None,
-        inlet_clearance=None,
-        inlet_preswirl_ratio=None,
-        molecular_weight=None,
-        number_integr_steps=None,
-        p_exit=None,
-        p_supply=None,
-        reservoir_temperature=None,
-        seal_diameter=None,
-        seal_length=None,
-        specific_heat_ratio=None,
-        speed=None,
-        tolerance_percentage=None,
-        turbulence_coef_mr=None,
-        turbulence_coef_ms=None,
-        turbulence_coef_nr=None,
-        turbulence_coef_ns=None,
-    ):
-        super().__init__(
-            n=n,
-            w=w,
-            kxx=kxx,
-            kxy=kxy,
-            kyx=kyx,
-            kyy=kyy,
-            cxx=cxx,
-            cxy=cxy,
-            cyx=cyx,
-            cyy=cyy,
-            seal_leakage=seal_leakage,
-        )
-
-        self.absolute_viscosity = absolute_viscosity
-        self.cell_vol_to_area_ratio = cell_vol_to_area_ratio
-        self.compressibility_factor = compressibility_factor
-        self.entrance_loss_coefficient = entrance_loss_coefficient
-        self.exit_clearance = exit_clearance
-        self.exit_recovery_factor = exit_recovery_factor
-        self.inlet_clearance = inlet_clearance
-        self.inlet_preswirl_ratio = inlet_preswirl_ratio
-        self.molecular_weight = molecular_weight
-        self.number_integr_steps = number_integr_steps
-        self.p_exit = p_exit
-        self.p_supply = p_supply
-        self.reservoir_temperature = reservoir_temperature
-        self.seal_diameter = seal_diameter
-        self.seal_length = seal_length
-        self.specific_heat_ratio = specific_heat_ratio
-        self.speed = speed
-        self.tolerance_percentage = tolerance_percentage
-        self.turbulence_coef_mr = turbulence_coef_mr
-        self.turbulence_coef_ms = turbulence_coef_ms
-        self.turbulence_coef_nr = turbulence_coef_nr
-        self.turbulence_coef_ns = turbulence_coef_ns
-        self.exit_axial_mach_number = exit_axial_mach_number,
-        self.exit_axial_reynolds_number = exit_axial_reynolds_number,
-        self.exit_circumferential_reynolds_number = exit_circumferential_reynolds_number
-        self.kxx_fd = kxx_fd
-        self.cxx_fd = cxx_fd
-        self.kyy_fd = kyy_fd
-        self.kxy_fd = kxy_fd
-        self.kyx_fd = kyx_fd
-        self.cyy_fd = cyy_fd
-        self.cxy_fd = cxy_fd
-        self.cyx_fd = cyx_fd
-        self.w_fd = w_fd
-        self.wfr = wfr
-
-    def kxx_eff(self):
-        return (self.kxx.coefficient + self.cxy.coefficient
-                * self.kxx.w)
-
-    def cxx_eff(self):
-        return (self.cxx.coefficient - self.kxy.coefficient
-                / self.cxx.w)
-
-    def kxx_fd_eff(self):
-        return (self.kxx_fd + self.cxy_fd
-                * self.w_fd)
-
-    def cxx_fd_eff(self):
-        return (self.cxx_fd - self.kxy_fd
-                / self.w_fd)
-
-    def effective_acoustic_velocity(self, gamma=0.69):
-        zc = self.compressibility_factor  # dimensionless
-        Rg = 8.3144598  # joule / (kelvin mole)
-        T = self.reservoir_temperature + 273.15  # kelvin
-        mw = self.molecular_weight / 1000  # kilogram / mole
-        H = self.inlet_clearance / 1000  # meter
-        Hd = self.cell_vol_to_area_ratio / 1000 / gamma  # meter
-        c0 = ((zc * T * Rg/mw) / (1 + (Hd / H))) ** 0.5
-        return c0
