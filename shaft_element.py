@@ -70,6 +70,9 @@ class ShaftElement(Element):
     gyroscopic : bool
         Determine if gyroscopic effects are taken into account.
         Default is False.
+    shear_method_calc : string
+        Determines which shear calculation method the user will adopt
+        Default is 'hutchinson'
     Returns
     -------
     Attributes
@@ -117,7 +120,7 @@ class ShaftElement(Element):
         shear_effects=True,
         rotary_inertia=True,
         gyroscopic=True,
-        shear_method_calc=None,
+        shear_method_calc='hutchinson',
     ):
 
         self.shear_effects = shear_effects
