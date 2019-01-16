@@ -21,13 +21,15 @@ class Element(ABC):
         attributes["type"] = self.__class__.__name__
         return pd.Series(attributes)
 
-    # These are the abstract classes for mass, damping and stiffness matrices
+    @ABC.abstractmethod
     def M(self):
         pass
-    
+
+    @ABC.abstractmethod
     def C(self):
         pass
     
+    @ABC.abstractmethod
     def K(self):
         pass
 
