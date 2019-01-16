@@ -145,13 +145,6 @@ class ShaftElement(Element):
         self.i_d_r = float(i_d)
         self.o_d_r = float(o_d)
 
-        self.material = material
-        self.material_name = material.name
-        self.E = material.E
-        self.G_s = material.G_s
-        self.Poisson = material.Poisson
-        self.color = material.color
-        self.rho = material.rho
         self.A = np.pi * (o_d ** 2 - i_d ** 2) / 4
         self.volume = self.A * self.L
         self.m = self.rho * self.volume
