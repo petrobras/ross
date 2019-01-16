@@ -309,20 +309,3 @@ class _Coefficient:
         ax.ticklabel_format(style="sci", scilimits=(0, 0), axis="y")
 
         return ax
-
-
-class _Stiffness_Coefficient(_Coefficient):
-    def plot(self, **kwargs):
-        ax = super().plot(**kwargs)
-        ax.set_ylabel("Stiffness ($N/m$)")
-
-        return ax
-
-
-class _Damping_Coefficient(_Coefficient):
-    def plot(self, **kwargs):
-        ax = super().plot(**kwargs)
-        ax.set_ylabel("Damping ($Ns/m$)")
-
-        return ax
-
