@@ -1,6 +1,5 @@
 import numpy as np
 import pandas as pd
-import scipy.interpolate as interpolate
 import matplotlib.patches as mpatches
 
 __all__ = [
@@ -269,43 +268,3 @@ class DiskElement(LumpedDiskElement):
         ]
         ax.add_patch(mpatches.Polygon(disk_points_u, facecolor=self.color))
         ax.add_patch(mpatches.Polygon(disk_points_l, facecolor=self.color))
-
-
-class _Coefficient:
-    def __init__(self, coefficient, w=None, interpolated=None):
-        if isinstance(coefficient, (int, float)):
-            if w is not None:
-                coefficient = [coefficient for _ in range(len(w))]
-            else:
-                coefficient = [coefficient]
-
-        self.coefficient = coefficient
-        self.w = w
-
-        if len(self.coefficient) > 1:
-            try:
-                with warnings.catch_warnings():
-                    warnings.simplefilter("ignore")
-                    self.interpolated = interpolate.UnivariateSpline(
-                        self.w, self.coefficient
-                    )
-            #  dfitpack.error is not exposed by scipy
-            #  so a bare except is used
-            except:
-                raise ValueError(
-                    "Arguments (coefficients and w)" " must have the same dimension"
-                )
-        else:
-            self.interpolated = lambda x: np.array(self.coefficient[0])
-
-    def plot(self, ax=None, **kwargs):
-        if ax is None:
-            ax = plt.gca()
-
-        w_range = np.linspace(min(self.w), max(self.w), 30)
-
-        ax.plot(w_range, self.interpolated(w_range), **kwargs)
-        ax.set_xlabel("Speed (rad/s)")
-        ax.ticklabel_format(style="sci", scilimits=(0, 0), axis="y")
-
-        return ax
