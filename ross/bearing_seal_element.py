@@ -5,7 +5,7 @@ import scipy.interpolate as interpolate
 import matplotlib.pyplot as plt
 import matplotlib.patches as mpatches
 from abc import ABC
-from ross.ross.element.py import *
+from element import Element
 
 __all__ = [
     "BearingElement",
