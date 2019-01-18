@@ -2,7 +2,7 @@ import numpy as np
 import pandas as pd
 import matplotlib.patches as mpatches
 from abc import ABC
-from ross.ross.element.py import *
+from element import Element
 
 __all__ = [
     "ShaftElement"
