@@ -62,14 +62,12 @@ class Material:
     def dump_data(data):
         with open("available_materials.toml", "w") as f:
             toml.dump(data, f)
-            f.close()
 
     @staticmethod
     def load_data():
         try:
             with open("available_materials.toml", "r") as f:
                 data = toml.load(f)
-                f.close()
         except FileNotFoundError:
             data = {'Materials': {}}
             Material.dump_data(data)
