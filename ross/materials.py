@@ -20,11 +20,11 @@ class Material:
     name : str
         Material name.
     E : float
-        Young's modulus.
+        Young's modulus (N/m**2).
     G_s : float
-        Shear modulus.
+        Shear modulus (N/m**2).
     rho : float
-        Density.
+        Density (N/m**3).
     color : str
         Can be used on plots.
 
