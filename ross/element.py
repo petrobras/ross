@@ -18,14 +18,14 @@ class Element(ABC):
         attributes["type"] = self.__class__.__name__
         return pd.Series(attributes)
     
-    @ABC.abstractmethod    
+    @abstractmethod    
     def M(self):
         pass
     
-    @ABC.abstractmethod    
+    @abstractmethod    
     def C(self):
         pass
     
-    @ABC.abstractmethod    
+    @abstractmethod    
     def K(self):
         pass
