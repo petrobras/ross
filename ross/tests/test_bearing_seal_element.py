@@ -5,9 +5,6 @@ from materials import steel
 import numpy as np
 from numpy.testing import assert_almost_equal, assert_allclose
 
-###############################################################################
-# Bearing and Seal Elements tests
-###############################################################################
 
 @pytest.fixture
 def bearing0():
