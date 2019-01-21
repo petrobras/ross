@@ -7,7 +7,7 @@ from ross.materials import steel
 
 @pytest.fixture
 def disk():
-    return DiskElement(0, steel, 0.07, 0.05, 0.28)
+    return DiskElement.from_geometry(0, steel, 0.07, 0.05, 0.28)
 
 
 def test_mass_matrix_disk(disk):

@@ -152,7 +152,7 @@ class DiskElement(Element):
         )
 
     @classmethod
-    def DiskElement_from_geometry(cls, n, material, width, i_d, o_d):
+    def from_geometry(cls, n, material, width, i_d, o_d):
         """A disk element.
         This class will create a disk element from input data of geometry.
         Parameters
@@ -182,81 +182,15 @@ class DiskElement(Element):
         Examples
         --------
         >>> from ross.materials import steel
-        >>> disk = DiskElement(0, steel, 0.07, 0.05, 0.28)
+        >>> disk = DiskElement.from_geometry(0, steel, 0.07, 0.05, 0.28)
         >>> disk.Ip
         0.32956362089137037
         """
+        m = 0.25 * material.rho * np.pi * width * (o_d ** 2 - i_d ** 2)
+        Id = (
+            0.015625 * material.rho * np.pi * width * (o_d ** 4 - i_d ** 4)
+            + m * (width ** 2) / 12
+            )
+        Ip = 0.03125 * material.rho * np.pi * width * (o_d ** 4 - i_d ** 4)
 
-        def __init__(self, n, material, width, i_d, o_d):
-            if not isinstance(n, int):
-                raise TypeError(f"n should be int, not {n.__class__.__name__}")
-            self.n = n
-            self.n_l = n
-            self.n_r = n
-            
-            self.material = material
-            self.rho = material.rho
-            self.width = width
-        
-                # diameters
-            self.i_d = i_d
-            self.o_d = o_d
-            self.i_d_l = i_d
-            self.o_d_l = o_d
-            self.i_d_r = i_d
-            self.o_d_r = o_d
-    
-            self.m = 0.25 * self.rho * np.pi * width * (o_d ** 2 - i_d ** 2)
-            self.Id = (
-                0.015625 * self.rho * np.pi * width * (o_d ** 4 - i_d ** 4)
-                + self.m * (width ** 2) / 12
-                )
-            self.Ip = 0.03125 * self.rho * np.pi * width * (o_d ** 4 - i_d ** 4)
-            self.color = "#bc625b"
-            
-            Ip = self.Ip
-            Id = self.Id
-            m = self.m
-            
-            return cls(n, m, Id, Ip)
-                
-        def patch(self, ax, position):
-            """Disk element patch.
-            Patch that will be used to draw the disk element.
-            Parameters
-            ----------
-            ax : matplotlib axes, optional
-                Axes in which the plot will be drawn.
-            position : float
-                Position in which the patch will be drawn.
-            Returns
-            -------
-            ax : matplotlib axes
-                Returns the axes object with the plot.
-            """
-            if isinstance(position, tuple):
-                position = position[0]
-            zpos = position
-            ypos = self.i_d
-            D = self.o_d
-            hw = self.width / 2  # half width
-    
-            #  node (x pos), outer diam. (y pos)
-            disk_points_u = [
-                [zpos, ypos],  # upper
-                [zpos + hw, ypos + 0.1 * D],
-                [zpos + hw, ypos + 0.9 * D],
-                [zpos - hw, ypos + 0.9 * D],
-                [zpos - hw, ypos + 0.1 * D],
-                [zpos, ypos],
-            ]
-            disk_points_l = [
-                [zpos, -ypos],  # lower
-                [zpos + hw, -(ypos + 0.1 * D)],
-                [zpos + hw, -(ypos + 0.9 * D)],
-                [zpos - hw, -(ypos + 0.9 * D)],
-                [zpos - hw, -(ypos + 0.1 * D)],
-                [zpos, -ypos],
-            ]
-            ax.add_patch(mpatches.Polygon(disk_points_u, facecolor=self.color))
-            ax.add_patch(mpatches.Polygon(disk_points_l, facecolor=self.color))
+        return cls(n, m, Id, Ip)
