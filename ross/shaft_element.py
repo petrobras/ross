@@ -2,36 +2,11 @@ import numpy as np
 import pandas as pd
 import matplotlib.patches as mpatches
 from abc import ABC
+from element import Element
 
 __all__ = [
     "ShaftElement"
 ]
-
-class Element(ABC):
-    """Element class."""
-
-    def __init__(self):
-        pass
-
-    def summary(self):
-        """A summary for the element.
-        A pandas series with the element properties as variables.
-        """
-        attributes = self.__dict__
-        attributes["type"] = self.__class__.__name__
-        return pd.Series(attributes)
-
-    @ABC.abstractmethod
-    def M(self):
-        pass
-
-    @ABC.abstractmethod
-    def C(self):
-        pass
-    
-    @ABC.abstractmethod
-    def K(self):
-        pass
 
 class ShaftElement(Element):
     r"""A shaft element.

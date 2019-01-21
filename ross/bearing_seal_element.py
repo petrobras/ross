@@ -5,33 +5,13 @@ import scipy.interpolate as interpolate
 import matplotlib.pyplot as plt
 import matplotlib.patches as mpatches
 from abc import ABC
+from element import Element
 
 __all__ = [
     "BearingElement",
     "SealElement",
 ]
-
-class Element(ABC):
-    """Element class."""
-
-    def __init__(self):
-        pass
-
-    def summary(self):
-        """A summary for the element.
-        A pandas series with the element properties as variables.
-        """
-        attributes = self.__dict__
-        attributes["type"] = self.__class__.__name__
-        return pd.Series(attributes)
-
-    @ABC.abstractmethod
-    def C(self):
-        pass
-    
-    @ABC.abstractmethod
-    def K(self):
-        pass
+   
 
 class _Coefficient:
     def __init__(self, coefficient, w=None, interpolated=None):
@@ -73,7 +53,6 @@ class _Coefficient:
         return ax
 
 
-
 class _Stiffness_Coefficient(_Coefficient):
     def plot(self, **kwargs):
         ax = super().plot(**kwargs)
@@ -82,14 +61,12 @@ class _Stiffness_Coefficient(_Coefficient):
         return ax
 
 
-
 class _Damping_Coefficient(_Coefficient):
     def plot(self, **kwargs):
         ax = super().plot(**kwargs)
         ax.set_ylabel("Damping ($Ns/m$)")
 
         return ax
-
 
 
 class BearingElement(Element):
