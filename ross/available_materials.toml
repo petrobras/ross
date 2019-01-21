@@ -1,0 +1,15 @@
+[Materials.AISI4140]
+name = "AISI4140"
+rho = 7850
+E = 203200000000.0
+Poisson = 0.27
+G_s = 80000000000.0
+color = "#525252"
+
+[Materials.Steel]
+name = "Steel"
+rho = 7810
+E = 211000000000.0
+Poisson = 0.2992610837438423
+G_s = 81200000000.0
+color = "#525252"

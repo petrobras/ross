@@ -3,7 +3,7 @@
 This module defines the Material class and defines
 some of the most common materials used in rotors.
 """
-import json
+import toml
 
 
 class Material:
@@ -60,16 +60,14 @@ class Material:
 
     @staticmethod
     def dump_data(data):
-        with open("available_materials.json", "w") as f:
-            json.dump(data, f)
-            f.close()
+        with open("available_materials.toml", "w") as f:
+            toml.dump(data, f)
 
     @staticmethod
     def load_data():
         try:
-            with open("available_materials.json", "r") as f:            
-                data = json.load(f)
-                f.close()
+            with open("available_materials.toml", "r") as f:
+                data = toml.load(f)
         except FileNotFoundError:
             data = {'Materials': {}}
             Material.dump_data(data)
