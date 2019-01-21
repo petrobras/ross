@@ -33,7 +33,7 @@ class DiskElement(Element):
      """
 
     def __init__(self, n, m, Id, Ip):
-        self.n = n
+        self.n = int(n)
         self.n_l = n
         self.n_r = n
 

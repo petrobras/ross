@@ -24,9 +24,3 @@ def test_gyroscopic_matrix_disk(disk):
                     [ 0.     ,  0.     ,  0.     ,  0.32956],
                     [ 0.     ,  0.     , -0.32956,  0.     ]])
     assert_almost_equal(disk.G(), Gd1, decimal=5)
-
-
-def test_errors():
-    with pytest.raises(TypeError) as ex:
-        DiskElement(1.0, steel, 0.07, 0.05, 0.28)
-    assert 'n should be int, not float' == str(ex.value)
