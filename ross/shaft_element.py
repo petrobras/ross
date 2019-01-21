@@ -94,7 +94,7 @@ class ShaftElement(Element):
         shear_effects=True,
         rotary_inertia=True,
         gyroscopic=True,
-        shear_method_calc='hutchinson',
+        shear_method_calc='cowper',
     ):
 
         self.material = material
