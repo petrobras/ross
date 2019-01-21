@@ -97,6 +97,7 @@ class ShaftElement(Element):
         shear_method_calc='hutchinson',
     ):
 
+        self.material = material
         self.shear_effects = shear_effects
         self.rotary_inertia = rotary_inertia
         self.gyroscopic = gyroscopic
@@ -121,7 +122,7 @@ class ShaftElement(Element):
 
         self.A = np.pi * (o_d ** 2 - i_d ** 2) / 4
         self.volume = self.A * self.L
-        self.m = self.rho * self.volume
+        self.m = self.material.rho * self.volume
         #  Ie is the second moment of area of the cross section about
         #  the neutral plane Ie = pi*r**2/4
         self.Ie = np.pi * (o_d ** 4 - i_d ** 4) / 64
@@ -138,21 +139,21 @@ class ShaftElement(Element):
             if shear_method_calc == "hutchinson":
                 # Shear coefficient (phi)
                 # kappa as per Hutchinson (2001)
-                kappa = 6*r12*((1+self.poisson)/
-                        ((r12*(7 + 12*self.poisson + 4*self.poisson**2) + 
-                        4*r2*(5 + 6*self.poisson + 2*self.poisson**2))))
+                kappa = 6*r12*((1+self.material.Poisson)/
+                        ((r12*(7 + 12*self.material.Poisson + 4*self.material.Poisson**2) +
+                        4*r2*(5 + 6*self.material.Poisson + 2*self.material.Poisson**2))))
             elif shear_method_calc == "cowper":   
                 # kappa as per Cowper (1996)
                 # fmt: off
                 kappa = 6 * r12 * (
-                    (1 + self.Poisson)
-                    / (r12 * (7 + 6 * self.Poisson) + r2 * (20 + 12 * self.Poisson))
+                    (1 + self.material.Poisson)
+                    / (r12 * (7 + 6 * self.material.Poisson) + r2 * (20 + 12 * self.material.Poisson))
                 )
                 # fmt: on
             else:
                 raise Warning("This method of calculating shear coefficients is not implemented. See guide for futher informations.")
             
-            phi = 12 * self.E * self.Ie / (self.G_s * kappa * self.A * L ** 2)
+            phi = 12 * self.material.E * self.Ie / (self.material.G_s * kappa * self.A * L ** 2)
 
         self.phi = phi
 
@@ -216,7 +217,7 @@ class ShaftElement(Element):
                       [  0, -m04,  m06,    0,    0,  m02,  m05,    0],
                       [m04,    0,    0,  m06, -m02,    0,    0,  m05]])
         # fmt: on
-        M = self.rho * self.A * self.L * M / (840 * (1 + phi) ** 2)
+        M = self.material.rho * self.A * self.L * M / (840 * (1 + phi) ** 2)
 
         if self.rotary_inertia:
             ms1 = 36
@@ -233,7 +234,7 @@ class ShaftElement(Element):
                            [   0, -ms2,  ms4,    0,    0,  ms2,  ms3,    0],
                            [ ms2,    0,    0,  ms4, -ms2,    0,    0,  ms3]])
             # fmt: on
-            Ms = self.rho * self.Ie * Ms / (30 * L * (1 + phi) ** 2)
+            Ms = self.material.rho * self.Ie * Ms / (30 * L * (1 + phi) ** 2)
             M = M + Ms
 
         return M
@@ -269,7 +270,7 @@ class ShaftElement(Element):
             [6*L,    0,            0, (2-phi)*L**2, -6*L,     0,            0, (4+phi)*L**2]
         ])
         # fmt: on
-        K = self.E * self.Ie * K / ((1 + phi) * L ** 3)
+        K = self.material.E * self.Ie * K / ((1 + phi) * L ** 3)
 
         return K
 
@@ -324,7 +325,7 @@ class ShaftElement(Element):
                           [-g2,   0,   0, -g4,  g2,   0,   0, -g3],
                           [  0, -g2,  g4,   0,   0,  g2,  g3,   0]])
             # fmt: on
-            G = -self.rho * self.Ie * G / (15 * L * (1 + phi) ** 2)
+            G = -self.material.rho * self.Ie * G / (15 * L * (1 + phi) ** 2)
 
         return G
 
