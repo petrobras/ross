@@ -1,6 +1,7 @@
 import pandas as pd
 from abc import ABC, abstractmethod
 
+
 class Element(ABC):
     """Element class.
     This class is a general class to be called for other files which

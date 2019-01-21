@@ -1,10 +1,11 @@
 import numpy as np
 import matplotlib.patches as mpatches
-from element import Element
+from ross.element import Element
 
 __all__ = [
     "ShaftElement"
 ]
+
 
 class ShaftElement(Element):
     r"""A shaft element.
