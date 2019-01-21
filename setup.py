@@ -21,7 +21,8 @@ VERSION = '0.0.1'
 REQUIRED = [
     'numpy',
     'scipy',
-    'matplotlib'
+    'matplotlib',
+    'toml'
 ]
 
 # What packages are optional?
@@ -111,6 +112,8 @@ setup(
     # },
     install_requires=REQUIRED,
     extras_require=EXTRAS,
+    setup_requires=['pytest-runner'],
+    tests_requires=['pytest'],
     include_package_data=True,
     license='MIT',
     classifiers=[
