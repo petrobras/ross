@@ -245,7 +245,7 @@ class ShaftElement(Element):
         Stiffness matrix for the shaft element.
         Examples
         --------
-        >>> from lavirot.materials import steel
+        >>> from ross.materials import steel
         >>> Timoshenko_Element = ShaftElement(0.25, 0, 0.05, steel,
         ...                                  rotary_inertia=True,
         ...                                  shear_effects=True)
@@ -280,7 +280,7 @@ class ShaftElement(Element):
         Gyroscopic matrix for the shaft element.
         Examples
         --------
-        >>> from lavirot.materials import steel
+        >>> from ross.materials import steel
         >>> # Timoshenko is the default shaft element
         >>> Timoshenko_Element = ShaftElement(0.25, 0, 0.05, steel)
         >>> Timoshenko_Element.G()[:4, :4]
