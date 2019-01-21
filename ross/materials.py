@@ -112,3 +112,6 @@ class Material:
             f"\nYoung`s modulus (N/m**2): {float(self.E):{2}.{8}}"
             f"\nShear modulus   (N/m**2): {float(self.G_s):{2}.{8}}"
             f"\nPoisson coefficient     : {float(self.Poisson):{2}.{8}}")
+
+
+steel = Material(name="Steel", rho=7810, E=211e9, G_s=81.2e9)
