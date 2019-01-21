@@ -104,3 +104,8 @@ Thumbs.db
 # pytest generated files #
 ##########################
 /.pytest_cache
+
+# notebooks #
+#############
+.ipynb_checkpoints/
+notebooks/
