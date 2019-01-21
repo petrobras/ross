@@ -71,6 +71,16 @@ class DiskElement(Element):
         # fmt: on
         return M
 
+    def K(self):
+        K = np.zeros((4, 4))
+
+        return K
+
+    def C(self):
+        C = np.zeros((4, 4))
+
+        return C
+
     def G(self):
         """
         This method will return the gyroscopic matrix for an instance of a disk
