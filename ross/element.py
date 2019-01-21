@@ -1,4 +1,3 @@
-import pandas as pd
 from abc import ABC, abstractmethod
 
 
@@ -11,15 +10,7 @@ class Element(ABC):
     def __init__(self):
         pass
 
-    def summary(self):
-        """A summary for the element.
-        A pandas series with the element properties as variables.
-        """
-        attributes = self.__dict__
-        attributes["type"] = self.__class__.__name__
-        return pd.Series(attributes)
-    
-    @abstractmethod    
+    @abstractmethod
     def M(self):
         pass
     
