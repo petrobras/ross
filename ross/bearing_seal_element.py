@@ -68,7 +68,6 @@ class _Damping_Coefficient(_Coefficient):
 
 
 class BearingElement(Element):
-
     """A bearing element.
     This class will create a bearing element.
     Parameters can be a constant value or speed dependent.
@@ -155,6 +154,11 @@ class BearingElement(Element):
 
     def __repr__(self):
         return "%s" % self.__class__.__name__
+
+    def M(self):
+        M = np.zeros((4, 4))
+
+        return M
 
     def K(self, w):
         kxx = self.kxx.interpolated(w)
