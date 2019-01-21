@@ -1,11 +1,12 @@
 import numpy as np
-import pandas as pd
 import matplotlib.patches as mpatches
-from element import Element
+from ross.element import Element
+
 
 __all__ = [
     "DiskElement",
 ]
+
 
 class DiskElement(Element):
     """A disk element.

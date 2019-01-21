@@ -1,8 +1,8 @@
 import pytest
-from disk_element import DiskElement
-from ross.materials import steel
 import numpy as np
 from numpy.testing import assert_almost_equal, assert_allclose
+from ross.disk_element import DiskElement
+from ross.materials import steel
 
 
 @pytest.fixture
