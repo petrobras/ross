@@ -273,6 +273,21 @@ class ShaftElement(Element):
 
         return K
 
+    def C(self):
+        """Stiffness matrix for an instance of a shaft element.
+
+        Returns
+        -------
+        C : np.array
+           Damping matrix for the shaft element.
+
+        Examples
+        --------
+        """
+        C = np.zeros((8, 8))
+
+        return C
+
     def G(self):
         """Gyroscopic matrix for an instance of a shaft element.
         Returns
