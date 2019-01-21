@@ -1,13 +1,9 @@
 import pytest
 import os
-from bearing_seal_element import BearingElement 
-from materials import steel
 import numpy as np
 from numpy.testing import assert_almost_equal, assert_allclose
+from ross.bearing_seal_element import BearingElement
 
-###############################################################################
-# Bearing and Seal Elements tests
-###############################################################################
 
 @pytest.fixture
 def bearing0():
@@ -125,45 +121,3 @@ def bearing_constant():
 def test_bearing_constant(bearing_constant):
     assert_allclose(bearing_constant.kxx.interpolated(314.2), 8e7, rtol=1e5)
     assert_allclose(bearing_constant.cxx.interpolated(300.9), 0, rtol=1e5)
-
-
-def test_load_shaft_from_xltrc():
-    file = os.path.join(test_dir, 'data/xl_rotor.xls')
-
-    shaft = ShaftElement.load_from_xltrc(file)
-    assert len(shaft) == 93
-    assert_allclose(shaft[0].L, 0.0355)
-    assert_allclose(shaft[0].i_d, 0.1409954)
-    assert_allclose(shaft[0].o_d, 0.151003)
-    assert_allclose(shaft[0].rho, 7833.4128)
-    assert_allclose(shaft[0].E, 206842710000.0)
-    assert_allclose(shaft[0].Poisson, 0.25)
-
-
-def test_load_bearing_from_xltrc():
-    file = os.path.join(test_dir, 'data/xl_bearing.xls')
-
-    bearing = BearingElement.load_from_xltrc(0, file)
-
-    K0 = np.array([[1.056079e+07, -6.877765e+02],
-                   [6.594875e+02,  6.551263e+07]])
-    C0 = np.array([[1.881813e+05, -1.512049e-01],
-                   [-9.357054e-02, 3.402098e+05]])
-
-    assert_allclose(bearing.w[0], 314.159265)
-
-    assert_allclose(bearing.K(0), K0, rtol=1e-3)
-    assert_allclose(bearing.C(0), C0, rtol=1e-3)
-
-
-def test_load_lumped_disk_from_xltrc():
-    file = os.path.join(test_dir, 'data/xl_rotor.xls')
-
-    disks = LumpedDiskElement.load_from_xltrc(file)
-    disk1_M = np.array([[ 6.909992,  0.      ,  0.      ,  0.      ],
-                        [ 0.      ,  6.909992,  0.      ,  0.      ],
-                        [ 0.      ,  0.      ,  0.025   ,  0.      ],
-                        [ 0.      ,  0.      ,  0.      ,  0.025   ]])
-
-    assert_allclose(disks[1].M(), disk1_M, rtol=1e-4)
-

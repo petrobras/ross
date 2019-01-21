@@ -1,13 +1,10 @@
 import pytest
 import os
-from shaft_element import ShaftElement
-from materials import steel
 import numpy as np
 from numpy.testing import assert_almost_equal, assert_allclose
+from ross.materials import steel
+from ross.shaft_element import ShaftElement
 
-###############################################################################
-# Shaft Element tests
-###############################################################################
 
 test_dir = os.path.dirname(__file__)
 
@@ -27,10 +24,10 @@ def test_parameters_eb(eb):
     assert eb.L == 0.25
     assert eb.i_d == 0
     assert eb.o_d == 0.05
-    assert eb.E == 211e9
-    assert eb.G_s == 81.2e9
-    assert eb.rho == 7810
-    assert_almost_equal(eb.Poisson, 0.29926108)
+    assert eb.material.E == 211e9
+    assert eb.material.G_s == 81.2e9
+    assert eb.material.rho == 7810
+    assert_almost_equal(eb.material.Poisson, 0.29926108)
     assert_almost_equal(eb.A, 0.00196349)
     assert_almost_equal(eb.Ie*1e7, 3.06796157)
 
@@ -73,7 +70,7 @@ def tim():
 
 def test_parameters_tim(tim):
     assert_almost_equal(tim.phi, 0.08795566)
-    assert_almost_equal(tim.Poisson, 0.29926108)
+    assert_almost_equal(tim.material.Poisson, 0.29926108)
     assert_almost_equal(tim.A, 0.00196349)
     assert_almost_equal(tim.Ie*1e7, 3.06796157)
 
