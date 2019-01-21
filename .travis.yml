@@ -1,9 +1,11 @@
+sudo: required
+dist: xenial
+language: python
+
 matrix:
   include:
     - python: 3.6
     - python: 3.7
-      dist: xenial
-      sudo: true
 
 # command to run tests
 script: python setup.py test
