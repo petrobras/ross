@@ -1,9 +1,8 @@
 import pytest
 import os
-from bearing_seal_element import BearingElement 
-from materials import steel
 import numpy as np
 from numpy.testing import assert_almost_equal, assert_allclose
+from ross.bearing_seal_element import BearingElement
 
 
 @pytest.fixture

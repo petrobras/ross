@@ -1,11 +1,9 @@
 import warnings
 import numpy as np
-import pandas as pd
 import scipy.interpolate as interpolate
 import matplotlib.pyplot as plt
 import matplotlib.patches as mpatches
-from abc import ABC
-from element import Element
+from ross.element import Element
 
 __all__ = [
     "BearingElement",
@@ -107,8 +105,6 @@ class BearingElement(Element):
     Examples
     --------
     """
-
-
     def __init__(
         self, n, kxx, cxx, kyy=None, kxy=0, kyx=0, cyy=None, cxy=0, cyx=0, w=None
     ):
@@ -205,6 +201,7 @@ class BearingElement(Element):
             [zpos, ypos],
         ]
         ax.add_patch(mpatches.Polygon(bearing_points, color=self.color, picker=True))
+
 
 class SealElement(BearingElement):
     def __init__(
