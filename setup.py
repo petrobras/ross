@@ -21,7 +21,8 @@ VERSION = '0.0.1'
 REQUIRED = [
     'numpy',
     'scipy',
-    'matplotlib'
+    'matplotlib',
+    'toml'
 ]
 
 # What packages are optional?
