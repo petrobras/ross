@@ -3,7 +3,11 @@ from ross.materials import *
 from numpy.testing import assert_allclose
 
 
-AISI4140 = Material.use_material('AISI4140')
+AISI4140 = Material(name= 'AISI4140', rho = 7850,
+                    E=203200000000.0,
+                    Poisson=0.27,
+                    G_s=80000000000.0,
+                    color="#525252")
 
 
 def test_raise_name_material():
