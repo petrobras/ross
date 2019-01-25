@@ -41,7 +41,6 @@ class Material:
         assert name is not None, "Name not provided"
         assert type(name) is str, "Name must be a string"
         assert " " not in name, "Spaces are not allowed in Material name"
-        assert rho is not None, "Density (rho) not provided"
         assert sum([1 if i in ["E", "G_s", "Poisson"] else 0 for i in kwargs]) > 1,"At least 2 arguments from E, G_s and Poisson should be provided"
 
         self.name = name
@@ -80,7 +79,7 @@ class Material:
             material = data['Materials'][name]
             return Material(**material)
         except KeyError:
-            return "There isn't a instanced material with this name." 
+            raise KeyError("There isn't a instanced material with this name.")
 
     @staticmethod
     def remove_material(name):
@@ -88,13 +87,16 @@ class Material:
         try:
             del data["Materials"][name]
         except KeyError:
-            return "There isn't a saved material with this name."            
+            return "There isn't a saved material with this name."
         Material.dump_data(data)
 
     @staticmethod
     def available_materials():
-        data = Material.load_data()
-        return list(data['Materials'].keys())                
+        try:
+            data = Material.load_data()
+            return list(data['Materials'].keys())
+        except FileNotFoundError:
+            return 'There is no saved materials.'
 
     def save_material(self):
         data = Material.load_data()
