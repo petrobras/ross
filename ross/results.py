@@ -15,7 +15,6 @@ class Results(np.ndarray):
     def __new__(cls, input_array, new_attributes=None):
         obj = np.asarray(input_array).view(cls)
 
-        
         for k, v in new_attributes.items():
             setattr(obj, k, v)
 
@@ -39,7 +38,7 @@ class Results(np.ndarray):
         pickled_state = super().__reduce__()
         new_state = pickled_state[2] + (self._new_attributes,)
 
-        return (pickled_state[0], pickled_state[1], new_state)
+        return pickled_state[0], pickled_state[1], new_state
 
     def __setstate__(self, state):
         self._new_attributes = state[-1]
