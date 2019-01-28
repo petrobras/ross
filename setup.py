@@ -22,7 +22,7 @@ REQUIRED = [
     'numpy',
     'scipy',
     'matplotlib',
-    'toml'
+    'toml',
     'pandas'
 ]
 
