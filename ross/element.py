@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-
+import pandas as pd
 
 class Element(ABC):
     """Element class.
@@ -21,3 +21,12 @@ class Element(ABC):
     @abstractmethod    
     def K(self):
         pass
+
+    def summary(self):
+        """A summary for the element.
+
+        A pandas series with the element properties as variables.
+        """
+        attributes = self.__dict__
+        attributes["type"] = self.__class__.__name__
+        return pd.Series(attributes)
