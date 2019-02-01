@@ -1,2 +1,7 @@
-from . import materials
+from . import materials as mtr
 from . import element
+from . import bearing_seal_element as bse
+from . import disk_element as disk
+from . import results as rst
+from . import rotor_assembly as rotor
+from . import shaft_element as shaft
