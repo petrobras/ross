@@ -39,7 +39,7 @@ class Convergence(object):
         Rotor speed.
     nel_r : int
         Initial number or elements per shaft region.
-        Default is 2
+        Default is 1
     eigval : int
         Indicates which eingenvalue convergence to check.
         default is 7 (7th eigenvalue).
@@ -95,7 +95,7 @@ class Convergence(object):
                  brg_seal_data = None,
                  #pos_bearing=None,             
                  w=0,
-                 nel_r=2,
+                 nel_r=1,
                  eigval=7,
                  err_max=0.01
                  ):
@@ -130,7 +130,7 @@ class Convergence(object):
         if len(self.leng_data) != (len(self.o_ds_data) or len(self.o_ds_data)):
             raise ValueError('The matrices lenght do not match')
     
-    def rotor_regions(self, nel_r=2):
+    def rotor_regions(self, nel_r=1):
         
         regions = self.regions
         regions = []
@@ -205,7 +205,7 @@ class Convergence(object):
         eigv_arr = np.append(eigv_arr, rotor0.wn[self.eigval])
 
         error = 1  #this value is up to start the loop while
-        nel_r = 3
+        nel_r = 2
         
         while error > self.err_max:
                 
@@ -219,7 +219,7 @@ class Convergence(object):
             error = 1 - error
             error_arr = np.append(error_arr, error)
                         
-            nel_r += 1
+            nel_r *= 2
         
         return el_num, eigv_arr, error_arr
         
