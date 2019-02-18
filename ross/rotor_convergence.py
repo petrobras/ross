@@ -1,5 +1,5 @@
 import numpy as np
-import matplotlib as plt
+import matplotlib.pyplot as plt
 from ross.bearing_seal_element import BearingElement 
 from ross.disk_element import DiskElement            
 from ross.shaft_element import ShaftElement          
@@ -221,24 +221,25 @@ class Convergence(object):
                         
             nel_r *= 2
         
-        return el_num, eigv_arr, error_arr
-        
         # eigenvalue graph plot    
         ax = np.linspace(0, el_num[-1], len(el_num))
         ay = eigv_arr
         
-        plt.figure()
+        plt.figure(1)
         plt.plot(ax, ay)
-        plt.ylabel('Relative error')
+        plt.ylabel('Frequency (Hz)')
         plt.xlabel('Number of elements')
         plt.show()
         
         # relative error graph plot
-        az = error_arr
-        plt.figure()
+        ax = np.linspace(el_num[1], el_num[-1], len(el_num)-1)
+        az = error_arr[1:]
+        
+        plt.figure(2)
         plt.plot(ax, az)
-        plt.ylabel('Relative error')
+        plt.ylabel('Relative error (%)')
         plt.xlabel('Number of elements')
         plt.show()
         
+        return el_num, eigv_arr, error_arr        
         
