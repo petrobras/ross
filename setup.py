@@ -22,7 +22,8 @@ REQUIRED = [
     'numpy',
     'scipy',
     'matplotlib',
-    'toml'
+    'toml',
+    'pytest'
 ]
 
 # What packages are optional?
