@@ -1,6 +1,5 @@
-=================
-Git configuration
-=================
+How to contribute to ROSS using git
+===================================
 
 In order to use git to contribute to ROSS project, follow the steps bellow:
 
