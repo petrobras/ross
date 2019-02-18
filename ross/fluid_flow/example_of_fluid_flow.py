@@ -1,105 +1,116 @@
-# Todo: translate comments, names of variables and functions.
 # Todo: check PEP 8
 
 from ross.fluid_flow import fluid_flow as flow
 import numpy as np
+import matplotlib.pyplot as plt
 
 # These are the data related to the fluid flow problem
 
 # GRID:
-# Número de pontos ao longo da direção Z (direção do escoamento):
-#NZ=150
-#NZ =100
-NZ = 10
+# Number of points along the Z direction (direction of flow):
+#nz = 150
+#nz = 100
+nz = 30
 
-# Número de pontos ao longo da direção TETA:
-#OBS: NTETA deve ser ímpar!
-#NTETA=37
-#NTETA =17
-NTETA = 20
+# Number of points along the direction THETA:
+# NOTE: ntheta must be odd!
+#ntheta = 37
+#ntheta = 17
+ntheta = 48
 
-#Número de pontos ao longo da direção r:
-NRAIO =11
+# Number of points along the direction r:
+# nradius = 11
+nradius = 30
 
-# Número de intervalo em Z:
-NintervZ=NZ-1
+# Number of intervals on Z:
+n_interv_z = nz-1
 
-#Número de intervalo em TETA:
-NintervTETA=NTETA-1
+# Number of intervals on THETA:
+n_interv_theta = ntheta-1
 
-# Número de intervalo em r:
-NintervRAIO=NRAIO-1
+# Number of intervals on r:
+n_interv_radius = nradius-1
 
-# Comprimento na direção Z (m):
-Lb=1.
+# Length in the Z direction (m):
+lb = 1.
 
-# Comprimento na direção TETA (rad):
-Lteta=2.*np.pi
+# Length in the THETA direction (rad):
+ltheta = 2.*np.pi
 
-# Tamanho do intervalo na direção Z:
-DZ=Lb/NintervZ
+# Range size in the Z direction:
+dz = lb/n_interv_z
 
-# Tamanho do intervalo na direção TETA:
-DTETA=Lteta/NintervTETA
+# Range size in the THETA direction:
+dtheta = ltheta/n_interv_theta
 
-# Número de nós na malha:
-NTOTAL=NZ*NTETA
-
-###########################################################################
-#CONDIÇÕES DE OPERAÇÃO
-
-# Rotação do rotor (rad/s):
-omega=100.*2*np.pi/60
-#omega=5*np.pi/3
-
-# Pressão de Entrada (Pa):
-Pent=392266.
-#Pent=192244
-
-# Pressão de Saída (Pa):
-Ps=100000.
+# Number of nodes in the grid:
+ntotal = nz*ntheta
 
 ###########################################################################
-#DADOS GEOMÉTRICOS DO PROBLEMA
+# OPERATION CONDITIONS
 
-# Raio menor do rotor (m):
-raioVale = 0.034
-#raioVale=0.036
+# Rotation of the rotor (rad/s):
+omega = -100.*2*np.pi/60
+#omega = 5*np.pi/3
 
-# Raio maior do rotor (m):
-raioCrista=0.039
-#raioCrista=0.037
+# Input Pressure (Pa):
+p_in = 392266.
+#p_in=192244
 
-# Raio do estator (m):
-Ro=0.04
-
-# Passo do rotor (m) (comprimento de onda senoidal):
-lOnda=0.18
-#lOnda=0.059995
-
-# Excentricidade (m) (distância entre os centros do rotor e do estator):
-Xe = 0.
-#Xe = 0.001;
-Ye = 0.
-#%Ye = 0.001
+# Output Pressure (Pa):
+p_out = 100000.
+# p_out = 392266.
 
 ###########################################################################
-# CARACTERÍSTICAS DO FLUIDO:
+# GEOMETRIC DATA OF THE PROBLEM
 
-# Viscosidade (Pa.s):
-visc=0.001 # Água
+# Smallest rotor radius (m):
+radius_valley = 0.034
+#radius_valley = 0.036
+
+# Larger rotor radius (m):
+radius_crest = 0.039
+#radius_crest = 0.037
+
+# Stator Radius (m):
+radius_stator = 0.04
+
+# Rotor step (m) (sine wave length):
+lwave = 0.18
+#lwave = 0.059995
+
+# Eccentricity (m) (distance between rotor and stator centers):
+# xe = 0.
+# xe = 0.01
+# xe = 0.0015
+xe = 0.002
+
+# ye = 0.
+# ye = 0.01
+# ye = 0.0015
+ye = 0.002
+
+###########################################################################
+# FLUID CHARACTERISTICS:
+
+# Viscosity (Pa.s):
+visc=0.001 # Water
 #visc=0.042 # Purolub 46
 #visc=0.433 # Purolub 150
 
-# Densidade do fluido(Kg/m^3):
-Rho=1000. # Água
-#Rho=868. # Purolub 46
-# Rho=885. # Purolub 150
+# Fluid density(Kg/m^3):
+rho = 1000. # agua
+#rho = 868. # Purolub 46
+# rho=885. # Purolub 150
 
 
 if __name__ == "__main__":
-    my_pressure_matrix = flow.PressureMatrix(NZ, NTETA, NRAIO, NintervZ, NintervTETA, NintervRAIO, Lb, Lteta, DZ,
-                                             DTETA, NTOTAL, omega, Pent, Ps, raioVale, raioCrista, Ro, lOnda, Xe,
-                                             Ye, visc, Rho)
+    my_pressure_matrix = flow.PressureMatrix(nz, ntheta, nradius, n_interv_z, n_interv_theta, n_interv_radius, lb, ltheta, dz,
+                                             dtheta, ntotal, omega, p_in, p_out, radius_valley, radius_crest, radius_stator, lwave, xe,
+                                             ye, visc, rho)
     P = my_pressure_matrix.calculate_pressure_matrix()
-    print(P)
+    # print(P)
+    my_pressure_matrix.plot_pressure_z()
+    my_pressure_matrix.plot_shape()
+    my_pressure_matrix.plot_pressure_theta()
+    plt.show()
