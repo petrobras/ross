@@ -525,7 +525,6 @@ def test_freq_response(rotor4):
     assert_allclose(magdb[:4, :4, :4], magdb_exp_modes_4)
 
 
-
 def test_freq_response_w_force(rotor4):
     F0 = np.array([[0.0 + 0.j, 0.0 + 0.j, 0.0 + 0.j, 0.0 + 0.j],
                    [0.0 + 0.j, 0.0 + 0.j, 0.0 + 0.j, 0.0 + 0.j],

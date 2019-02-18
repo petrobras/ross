@@ -23,7 +23,7 @@ REQUIRED = [
     'scipy',
     'matplotlib',
     'toml',
-    'pandas'
+    'pytest'
 ]
 
 # What packages are optional?

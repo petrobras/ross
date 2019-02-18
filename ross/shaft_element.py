@@ -1,6 +1,7 @@
 import numpy as np
 import matplotlib.patches as mpatches
 from ross.element import Element
+from ross.materials import steel
 
 __all__ = [
     "ShaftElement"
@@ -119,6 +120,7 @@ class ShaftElement(Element):
         self.o_d_l = float(o_d)
         self.i_d_r = float(i_d)
         self.o_d_r = float(o_d)
+        self.color = self.material.color
 
         self.A = np.pi * (o_d ** 2 - i_d ** 2) / 4
         self.volume = self.A * self.L
@@ -447,3 +449,22 @@ class ShaftElement(Element):
         ]
 
         return elements
+
+#    @classmethod
+#    def tapered(cls,i_d ,first_diameter ,final_diameter, L, material, n=None, axial_force=0,
+#        torque=0,
+#        shear_effects=True,
+#        rotary_inertia=True,
+#        gyroscopic=True,
+#        shear_method_calc='cowper',
+#        n_el):
+#        return [cls(i_d=i_d,o_d= first_diameter + np.absolute(first_diameter - final_diameter)*(i/n_el)
+#        L=L,
+#        material=material,
+#        axial_force=axial_force,
+#        torque=0,
+#        shear_effects=shear_method_calc,
+#        rotary_inertia=rotary_inertia,
+#        gyroscopic=gyroscopic,
+#        shear_method_calc=shear_method_calc) for i in range(n_el) ]
+
