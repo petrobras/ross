@@ -23,6 +23,7 @@ REQUIRED = [
     'scipy',
     'matplotlib',
     'toml',
+    'pytest',
     'pandas'
 ]
 
