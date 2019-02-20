@@ -3,9 +3,7 @@ import matplotlib.patches as mpatches
 from ross.element import Element
 
 
-__all__ = [
-    "DiskElement",
-]
+__all__ = ["DiskElement"]
 
 
 class DiskElement(Element):
@@ -190,7 +188,7 @@ class DiskElement(Element):
         Id = (
             0.015625 * material.rho * np.pi * width * (o_d ** 4 - i_d ** 4)
             + m * (width ** 2) / 12
-            )
+        )
         Ip = 0.03125 * material.rho * np.pi * width * (o_d ** 4 - i_d ** 4)
 
         return cls(n, m, Id, Ip)
