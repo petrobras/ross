@@ -1,6 +1,7 @@
 from abc import ABC, abstractmethod
 import pandas as pd
 
+
 class Element(ABC):
     """Element class.
     This class is a general class to be called for other files which
@@ -13,12 +14,12 @@ class Element(ABC):
     @abstractmethod
     def M(self):
         pass
-    
-    @abstractmethod    
+
+    @abstractmethod
     def C(self):
         pass
-    
-    @abstractmethod    
+
+    @abstractmethod
     def K(self):
         pass
 
