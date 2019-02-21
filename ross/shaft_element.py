@@ -2,9 +2,7 @@ import numpy as np
 import matplotlib.patches as mpatches
 from ross.element import Element
 
-__all__ = [
-    "ShaftElement"
-]
+__all__ = ["ShaftElement"]
 
 
 class ShaftElement(Element):
@@ -94,7 +92,7 @@ class ShaftElement(Element):
         shear_effects=True,
         rotary_inertia=True,
         gyroscopic=True,
-        shear_method_calc='cowper',
+        shear_method_calc="cowper",
     ):
 
         self.material = material
@@ -135,14 +133,16 @@ class ShaftElement(Element):
         if shear_effects:
             r = i_d / o_d
             r2 = r * r
-            r12 = (1 + r2) ** 2        
+            r12 = (1 + r2) ** 2
             if shear_method_calc == "hutchinson":
                 # Shear coefficient (phi)
                 # kappa as per Hutchinson (2001)
+                # fmt: off
                 kappa = 6*r12*((1+self.material.Poisson)/
                         ((r12*(7 + 12*self.material.Poisson + 4*self.material.Poisson**2) +
                         4*r2*(5 + 6*self.material.Poisson + 2*self.material.Poisson**2))))
-            elif shear_method_calc == "cowper":   
+                # fmt: on
+            elif shear_method_calc == "cowper":
                 # kappa as per Cowper (1996)
                 # fmt: off
                 kappa = 6 * r12 * (
@@ -151,9 +151,13 @@ class ShaftElement(Element):
                 )
                 # fmt: on
             else:
-                raise Warning("This method of calculating shear coefficients is not implemented. See guide for futher informations.")
-            
+                raise Warning(
+                    "This method of calculating shear coefficients is not implemented. See guide for futher informations."
+                )
+
+            # fmt: off
             phi = 12 * self.material.E * self.Ie / (self.material.G_s * kappa * self.A * L ** 2)
+            # fmt: on
 
         self.phi = phi
 
