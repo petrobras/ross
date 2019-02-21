@@ -35,13 +35,16 @@ class Material:
     >>> AISI4140.Poisson
     0.27
 
-    """ 
+    """
+
     def __init__(self, name, rho, **kwargs):
 
         assert name is not None, "Name not provided"
         assert type(name) is str, "Name must be a string"
         assert " " not in name, "Spaces are not allowed in Material name"
-        assert sum([1 if i in ["E", "G_s", "Poisson"] else 0 for i in kwargs]) > 1,"At least 2 arguments from E, G_s and Poisson should be provided"
+        assert (
+            sum([1 if i in ["E", "G_s", "Poisson"] else 0 for i in kwargs]) > 1
+        ), "At least 2 arguments from E, G_s and Poisson should be provided"
 
         self.name = name
         self.rho = rho
@@ -68,7 +71,7 @@ class Material:
             with open("available_materials.toml", "r") as f:
                 data = toml.load(f)
         except FileNotFoundError:
-            data = {'Materials': {}}
+            data = {"Materials": {}}
             Material.dump_data(data)
         return data
 
@@ -76,7 +79,7 @@ class Material:
     def use_material(name):
         data = Material.load_data()
         try:
-            material = data['Materials'][name]
+            material = data["Materials"][name]
             return Material(**material)
         except KeyError:
             raise KeyError("There isn't a instanced material with this name.")
@@ -94,13 +97,13 @@ class Material:
     def available_materials():
         try:
             data = Material.load_data()
-            return list(data['Materials'].keys())
+            return list(data["Materials"].keys())
         except FileNotFoundError:
-            return 'There is no saved materials.'
+            return "There is no saved materials."
 
     def save_material(self):
         data = Material.load_data()
-        data['Materials'][self.name] = self.__dict__
+        data["Materials"][self.name] = self.__dict__
         Material.dump_data(data)
 
     def __repr__(self):
@@ -113,7 +116,8 @@ class Material:
             f"\nDensity         (N/m**3): {float(self.rho):{2}.{8}}"
             f"\nYoung`s modulus (N/m**2): {float(self.E):{2}.{8}}"
             f"\nShear modulus   (N/m**2): {float(self.G_s):{2}.{8}}"
-            f"\nPoisson coefficient     : {float(self.Poisson):{2}.{8}}")
+            f"\nPoisson coefficient     : {float(self.Poisson):{2}.{8}}"
+        )
 
 
 steel = Material(name="Steel", rho=7810, E=211e9, G_s=81.2e9)
