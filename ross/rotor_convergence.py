@@ -1,15 +1,16 @@
 import numpy as np
 import matplotlib.pyplot as plt
-from ross.bearing_seal_element import BearingElement 
-from ross.disk_element import DiskElement            
-from ross.shaft_element import ShaftElement          
-from ross.materials import Material                  
-from ross.rotor_assembly import Rotor                
+from ross.bearing_seal_element import BearingElement
+from ross.disk_element import DiskElement
+from ross.shaft_element import ShaftElement
+from ross.materials import Material
+from ross.rotor_assembly import Rotor
 
-steel = Material(name='steel', E=211e9,G_s=81.2e9, rho=7810)
+steel = Material(name="steel", E=211e9, G_s=81.2e9, rho=7810)
+
 
 class Convergence(object):
-    
+
     r"""A rotor class 
     
     This class will verify the eigenvalues calculation, done by
@@ -85,26 +86,27 @@ class Convergence(object):
      array([0.00000000e+00, 8.16102012e-07]))
     
     """
-    
-    def __init__(self, 
-                 leng_data=list, 
-                 o_ds_data=list,
-                 i_ds_data=list,
-                 disk_data = None,
-                 #pos_disk=None,              
-                 brg_seal_data = None,
-                 #pos_bearing=None,             
-                 w=0,
-                 nel_r=1,
-                 eigval=7,
-                 err_max=0.01
-                 ):
-        
-        #each item added to these three lists below means a new region created
+
+    def __init__(
+        self,
+        leng_data=list,
+        o_ds_data=list,
+        i_ds_data=list,
+        disk_data=None,
+        # pos_disk=None,
+        brg_seal_data=None,
+        # pos_bearing=None,
+        w=0,
+        nel_r=1,
+        eigval=7,
+        err_max=0.01,
+    ):
+
+        # each item added to these three lists below means a new region created
         self.leng_data = leng_data
         self.o_ds_data = o_ds_data
         self.i_ds_data = i_ds_data
-        
+
         r"""
         
         Instructions to positioning elements:
@@ -116,130 +118,156 @@ class Convergence(object):
         
         """
         self.disk_data = disk_data
-        #self.pos_disk = pos_disk
+        # self.pos_disk = pos_disk
         self.brg_seal_data = brg_seal_data
-        #self.pos_bearing = pos_bearing
+        # self.pos_bearing = pos_bearing
         self.eigval = eigval
         self.err_max = err_max
         self.w = w
-        
+
         self.regions = []
         self.nel_r = nel_r
-        
-        #check if all regions lists have the same lenght
+
+        # check if all regions lists have the same lenght
         if len(self.leng_data) != (len(self.o_ds_data) or len(self.o_ds_data)):
-            raise ValueError('The matrices lenght do not match')
-    
+            raise ValueError("The matrices lenght do not match")
+
     def rotor_regions(self, nel_r=1):
-        
+
         regions = self.regions
         regions = []
         shaft_elm = []
         disk_elm = []
         brng_elm = []
-        #nel_r = initial number of elements per regions
-       
-        #loop through rotor regions    
-        for i in range(len(self.leng_data)): 
-            
-            le = self.leng_data[i]/nel_r
+        # nel_r = initial number of elements per regions
+
+        # loop through rotor regions
+        for i in range(len(self.leng_data)):
+
+            le = self.leng_data[i] / nel_r
             o_ds = self.o_ds_data[i]
             i_ds = self.i_ds_data[i]
-            
-            for j in range(nel_r): #loop to generate n elements per region
-                 shaft_elm.append(ShaftElement(le, i_ds, o_ds, material=steel,
-                                               shear_effects=True,
-                                               rotary_inertia=True,
-                                               gyroscopic=True))
-        
+
+            for j in range(nel_r):  # loop to generate n elements per region
+                shaft_elm.append(
+                    ShaftElement(
+                        le,
+                        i_ds,
+                        o_ds,
+                        material=steel,
+                        shear_effects=True,
+                        rotary_inertia=True,
+                        gyroscopic=True,
+                    )
+                )
+
         regions.extend([shaft_elm])
 
-        for i in range(len(self.leng_data)):   
+        for i in range(len(self.leng_data)):
             for j in range(len(self.disk_data)):
-                if self.disk_data != None and len(self.disk_data[j]) == 5 and i == self.disk_data[j][0]:
-                    disk_elm.append(DiskElement.from_geometry(n=i*nel_r, 
-                                                              material=self.disk_data[j][1], 
-                                                              width=self.disk_data[j][2], 
-                                                              i_d=self.disk_data[j][3], 
-                                                              o_d=self.disk_data[j][4]))
-                
-        for i in range(len(self.leng_data)):   
+                if (
+                    self.disk_data != None
+                    and len(self.disk_data[j]) == 5
+                    and i == self.disk_data[j][0]
+                ):
+                    disk_elm.append(
+                        DiskElement.from_geometry(
+                            n=i * nel_r,
+                            material=self.disk_data[j][1],
+                            width=self.disk_data[j][2],
+                            i_d=self.disk_data[j][3],
+                            o_d=self.disk_data[j][4],
+                        )
+                    )
+
+        for i in range(len(self.leng_data)):
             for j in range(len(self.disk_data)):
-                if self.disk_data != None and len(self.disk_data[j]) == 4 and i == self.disk_data[j][0]:
-                    disk_elm.append(DiskElement(n=i*nel_r, 
-                                                m=self.disk_data[j][1], 
-                                                Id=self.disk_data[j][2], 
-                                                Ip=self.disk_data[j][3]))
-            
-        for i in range(len(self.leng_data)+1):   
+                if (
+                    self.disk_data != None
+                    and len(self.disk_data[j]) == 4
+                    and i == self.disk_data[j][0]
+                ):
+                    disk_elm.append(
+                        DiskElement(
+                            n=i * nel_r,
+                            m=self.disk_data[j][1],
+                            Id=self.disk_data[j][2],
+                            Ip=self.disk_data[j][3],
+                        )
+                    )
+
+        for i in range(len(self.leng_data) + 1):
             for j in range(len(self.brg_seal_data)):
-                if self.brg_seal_data != None and i == self.brg_seal_data[j][0]:            
-                    brng_elm.append(BearingElement(n=i*nel_r, 
-                                                   kxx=self.brg_seal_data[j][1], 
-                                                   cxx=self.brg_seal_data[j][2],
-                                                   kyy=self.brg_seal_data[j][3], 
-                                                   kxy=self.brg_seal_data[j][4],
-                                                   kyx=self.brg_seal_data[j][5],
-                                                   cyy=self.brg_seal_data[j][6],
-                                                   cxy=self.brg_seal_data[j][7],
-                                                   cyx=self.brg_seal_data[j][8],
-                                                   w=self.brg_seal_data[j][9]))
-                
+                if self.brg_seal_data != None and i == self.brg_seal_data[j][0]:
+                    brng_elm.append(
+                        BearingElement(
+                            n=i * nel_r,
+                            kxx=self.brg_seal_data[j][1],
+                            cxx=self.brg_seal_data[j][2],
+                            kyy=self.brg_seal_data[j][3],
+                            kxy=self.brg_seal_data[j][4],
+                            kyx=self.brg_seal_data[j][5],
+                            cyy=self.brg_seal_data[j][6],
+                            cxy=self.brg_seal_data[j][7],
+                            cyx=self.brg_seal_data[j][8],
+                            w=self.brg_seal_data[j][9],
+                        )
+                    )
+
         regions.append(disk_elm)
         regions.append(brng_elm)
         self.regions = regions
-        
+
         return regions
-        
+
     def conv_analysis(self):
-            
+
         regions = self.regions
         w = self.w
         nel_r = self.nel_r
-        
-        el_num = np.array([nel_r*len(self.leng_data)])
+
+        el_num = np.array([nel_r * len(self.leng_data)])
         eigv_arr = np.array([])
         error_arr = np.array([0])
-        
-        rotor0 = Rotor(regions[0],regions[1],regions[2], w=w, n_eigen=16)
+
+        rotor0 = Rotor(regions[0], regions[1], regions[2], w=w, n_eigen=16)
         eigv_arr = np.append(eigv_arr, rotor0.wn[self.eigval])
 
-        error = 1  #this value is up to start the loop while
+        error = 1  # this value is up to start the loop while
         nel_r = 2
-        
+
         while error > self.err_max:
-                
+
             regions = self.rotor_regions(nel_r)
             rotor = Rotor(regions[0], regions[1], regions[2], w=w, n_eigen=16)
-             
+
             eigv_arr = np.append(eigv_arr, rotor.wn[self.eigval])
-            el_num = np.append(el_num, nel_r*len(self.leng_data))
-            
+            el_num = np.append(el_num, nel_r * len(self.leng_data))
+
             error = min(eigv_arr[-1], eigv_arr[-2]) / max(eigv_arr[-1], eigv_arr[-2])
             error = 1 - error
             error_arr = np.append(error_arr, error)
-                        
+
             nel_r *= 2
-        
-        # eigenvalue graph plot    
+
+        # eigenvalue graph plot
         ax = np.linspace(0, el_num[-1], len(el_num))
         ay = eigv_arr
-        
+
         plt.figure(1)
         plt.plot(ax, ay)
-        plt.ylabel('Frequency (Hz)')
-        plt.xlabel('Number of elements')
+        plt.ylabel("Frequency (Hz)")
+        plt.xlabel("Number of elements")
         plt.show()
-        
+
         # relative error graph plot
-        ax = np.linspace(el_num[1], el_num[-1], len(el_num)-1)
+        ax = np.linspace(el_num[1], el_num[-1], len(el_num) - 1)
         az = error_arr[1:]
-        
+
         plt.figure(2)
         plt.plot(ax, az)
-        plt.ylabel('Relative error (%)')
-        plt.xlabel('Number of elements')
+        plt.ylabel("Relative error (%)")
+        plt.xlabel("Number of elements")
         plt.show()
-        
-        return el_num, eigv_arr, error_arr        
-        
+
+        return el_num, eigv_arr, error_arr
