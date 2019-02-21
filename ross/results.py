@@ -12,6 +12,7 @@ class Results(np.ndarray):
     used on plot configurations and so on.
     Additional attributes can be passed as a dictionary in new_attributes kwarg.
     """
+
     def __new__(cls, input_array, new_attributes=None):
         obj = np.asarray(input_array).view(cls)
 
@@ -34,7 +35,7 @@ class Results(np.ndarray):
             return
 
     def __reduce__(self):
-        
+
         pickled_state = super().__reduce__()
         new_state = pickled_state[2] + (self._new_attributes,)
 
@@ -47,7 +48,7 @@ class Results(np.ndarray):
         super().__setstate__(state[0:-1])
 
     def save(self, file):
-        with open(file, mode='wb') as f:
+        with open(file, mode="wb") as f:
             pickle.dump(self, f)
 
     def plot(self, *args, **kwargs):
@@ -84,12 +85,11 @@ class CampbellResults(Results):
         whirl = self[..., 2]
         speed_range = self[..., 3]
 
-        default_values = dict(cmap='RdBu', vmin=0.1, vmax=2., s=20, alpha=0.5)
+        default_values = dict(cmap="RdBu", vmin=0.1, vmax=2., s=20, alpha=0.5)
         for k, v in default_values.items():
             kwargs.setdefault(k, v)
 
-        for mark, whirl_dir in zip(['^', 'o', 'v'],
-                                   [0., 0.5, 1.]):
+        for mark, whirl_dir in zip(["^", "o", "v"], [0., 0.5, 1.]):
             num_frequencies = wd.shape[1]
             for i in range(num_frequencies):
                 if wn is True:
@@ -100,43 +100,47 @@ class CampbellResults(Results):
                 log_dec_i = log_dec[:, i]
                 speed_range_i = speed_range[:, i]
 
-                whirl_mask = (whirl_i == whirl_dir)
+                whirl_mask = whirl_i == whirl_dir
                 if whirl_mask.shape[0] == 0:
                     continue
                 else:
-                    im = ax.scatter(speed_range_i[whirl_mask], w_i[whirl_mask],
-                                    c=log_dec_i[whirl_mask],
-                                    marker=mark, **kwargs)
+                    im = ax.scatter(
+                        speed_range_i[whirl_mask],
+                        w_i[whirl_mask],
+                        c=log_dec_i[whirl_mask],
+                        marker=mark,
+                        **kwargs,
+                    )
 
         if len(fig.axes) == 1:
             cbar = fig.colorbar(im)
-            cbar.ax.set_ylabel('log dec')
+            cbar.ax.set_ylabel("log dec")
             cbar.solids.set_edgecolor("face")
 
-            forward_label = mpl.lines.Line2D([], [], marker='^', lw=0,
-                                             color='tab:blue', alpha=0.3,
-                                             label='Forward')
-            backward_label = mpl.lines.Line2D([], [], marker='v', lw=0,
-                                              color='tab:blue', alpha=0.3,
-                                              label='Backward')
-            mixed_label = mpl.lines.Line2D([], [], marker='o', lw=0,
-                                           color='tab:blue', alpha=0.3,
-                                           label='Mixed')
+            forward_label = mpl.lines.Line2D(
+                [], [], marker="^", lw=0, color="tab:blue", alpha=0.3, label="Forward"
+            )
+            backward_label = mpl.lines.Line2D(
+                [], [], marker="v", lw=0, color="tab:blue", alpha=0.3, label="Backward"
+            )
+            mixed_label = mpl.lines.Line2D(
+                [], [], marker="o", lw=0, color="tab:blue", alpha=0.3, label="Mixed"
+            )
 
             legend = plt.legend(
-                handles=[forward_label, backward_label, mixed_label], loc=2)
+                handles=[forward_label, backward_label, mixed_label], loc=2
+            )
 
             ax.add_artist(legend)
 
-            ax.set_xlabel('Rotor speed ($rad/s$)')
-            ax.set_ylabel('Damped natural frequencies ($rad/s$)')
+            ax.set_xlabel("Rotor speed ($rad/s$)")
+            ax.set_ylabel("Damped natural frequencies ($rad/s$)")
 
         return fig, ax
 
 
 class FrequencyResponseResults(Results):
-    def plot_magnitude(self, inp, out, ax=None, units='m',
-                       **kwargs):
+    def plot_magnitude(self, inp, out, ax=None, units="m", **kwargs):
         """Plot frequency response.
         This method plots the frequency response magnitude given an output and
         an input.
@@ -169,24 +173,21 @@ class FrequencyResponseResults(Results):
         ax.plot(omega, mag[:, inp, out], **kwargs)
 
         ax.set_xlim(0, max(omega))
-        ax.yaxis.set_major_locator(
-            mpl.ticker.MaxNLocator(prune='lower'))
-        ax.yaxis.set_major_locator(
-            mpl.ticker.MaxNLocator(prune='upper'))
+        ax.yaxis.set_major_locator(mpl.ticker.MaxNLocator(prune="lower"))
+        ax.yaxis.set_major_locator(mpl.ticker.MaxNLocator(prune="upper"))
 
-        if units == 'm':
-            ax.set_ylabel('Amplitude $(m)$')
-        elif units == 'mic-pk-pk':
-            ax.set_ylabel('Amplitude $(\mu pk-pk)$')
+        if units == "m":
+            ax.set_ylabel("Amplitude $(m)$")
+        elif units == "mic-pk-pk":
+            ax.set_ylabel("Amplitude $(\mu pk-pk)$")
         else:
-            ax.set_ylabel('Amplitude $(dB)$')
+            ax.set_ylabel("Amplitude $(dB)$")
 
-        ax.set_xlabel('Frequency (rad/s)')
+        ax.set_xlabel("Frequency (rad/s)")
 
         return ax
 
-    def plot_phase(self, inp, out, ax=None,
-                   **kwargs):
+    def plot_phase(self, inp, out, ax=None, **kwargs):
         """Plot frequency response.
         This method plots the frequency response phase given an output and
         an input.
@@ -220,18 +221,15 @@ class FrequencyResponseResults(Results):
         ax.plot(omega, phase[:, inp, out], **kwargs)
 
         ax.set_xlim(0, max(omega))
-        ax.yaxis.set_major_locator(
-            mpl.ticker.MaxNLocator(prune='lower'))
-        ax.yaxis.set_major_locator(
-            mpl.ticker.MaxNLocator(prune='upper'))
+        ax.yaxis.set_major_locator(mpl.ticker.MaxNLocator(prune="lower"))
+        ax.yaxis.set_major_locator(mpl.ticker.MaxNLocator(prune="upper"))
 
-        ax.set_ylabel('Phase')
-        ax.set_xlabel('Frequency (rad/s)')
+        ax.set_ylabel("Phase")
+        ax.set_xlabel("Frequency (rad/s)")
 
         return ax
 
-    def plot(self, inp, out, ax0=None, ax1=None,
-             **kwargs):
+    def plot(self, inp, out, ax0=None, ax1=None, **kwargs):
         """Plot frequency response.
         This method plots the frequency response given
         an output and an input.
@@ -265,12 +263,12 @@ class FrequencyResponseResults(Results):
         ax0 = self.plot_magnitude(inp, out, ax=ax0)
         ax1 = self.plot_phase(inp, out, ax=ax1)
 
-        ax0.set_xlabel('')
+        ax0.set_xlabel("")
 
         return ax0, ax1
 
     def plot_freq_response_grid(self, outs, inps, ax=None, **kwargs):
-        
+
         """Plot frequency response.
         This method plots the frequency response given
         an output and an input.
@@ -305,31 +303,29 @@ class FrequencyResponseResults(Results):
         array([[<matplotlib.axes._...
         """
         if ax is None:
-            fig, ax = plt.subplots(len(inps) * 2, len(outs),
-                                   sharex=True,
-                                   figsize=(4 * len(outs), 3 * len(inps)))
+            fig, ax = plt.subplots(
+                len(inps) * 2,
+                len(outs),
+                sharex=True,
+                figsize=(4 * len(outs), 3 * len(inps)),
+            )
             fig.subplots_adjust(hspace=0.001, wspace=0.25)
 
         if len(outs) > 1:
             for i, out in enumerate(outs):
                 for j, inp in enumerate(inps):
-                    self.plot_magnitude(out, inp,
-                                        ax=ax[2 * i, j], **kwargs)
-                    self.plot_phase(out, inp,
-                                    ax=ax[2 * i + 1, j], **kwargs)
+                    self.plot_magnitude(out, inp, ax=ax[2 * i, j], **kwargs)
+                    self.plot_phase(out, inp, ax=ax[2 * i + 1, j], **kwargs)
         else:
             for i, inp in enumerate(inps):
-                self.plot_magnitude(outs[0], inp,
-                                    ax=ax[2 * i], **kwargs)
-                self.plot_phase(outs[0], inp,
-                                ax=ax[2 * i + 1], **kwargs)
+                self.plot_magnitude(outs[0], inp, ax=ax[2 * i], **kwargs)
+                self.plot_phase(outs[0], inp, ax=ax[2 * i + 1], **kwargs)
 
         return ax
 
 
 class ForcedResponseResults(Results):
-    def plot_magnitude(self, dof, ax=None, units='m',
-                       **kwargs):
+    def plot_magnitude(self, dof, ax=None, units="m", **kwargs):
         """Plot frequency response.
         This method plots the frequency response magnitude given an output and
         an input.
@@ -358,27 +354,24 @@ class ForcedResponseResults(Results):
         frequency_range = self.frequency_range
         mag = self.magnitude
 
-        if units == 'm':
-            ax.set_ylabel('Amplitude $(m)$')
-        elif units == 'mic-pk-pk':
-            mag = 2*mag*1e6
-            ax.set_ylabel('Amplitude $(\mu pk-pk)$')
+        if units == "m":
+            ax.set_ylabel("Amplitude $(m)$")
+        elif units == "mic-pk-pk":
+            mag = 2 * mag * 1e6
+            ax.set_ylabel("Amplitude $(\mu pk-pk)$")
 
         ax.plot(frequency_range, mag[dof], **kwargs)
 
         ax.set_xlim(0, max(frequency_range))
-        ax.yaxis.set_major_locator(
-            mpl.ticker.MaxNLocator(prune='lower'))
-        ax.yaxis.set_major_locator(
-            mpl.ticker.MaxNLocator(prune='upper'))
+        ax.yaxis.set_major_locator(mpl.ticker.MaxNLocator(prune="lower"))
+        ax.yaxis.set_major_locator(mpl.ticker.MaxNLocator(prune="upper"))
 
-        ax.set_xlabel('Frequency (rad/s)')
+        ax.set_xlabel("Frequency (rad/s)")
         ax.legend()
 
         return ax
 
-    def plot_phase(self, dof, ax=None,
-                   **kwargs):
+    def plot_phase(self, dof, ax=None, **kwargs):
         """Plot frequency response.
         This method plots the frequency response phase given an output and
         an input.
@@ -410,20 +403,17 @@ class ForcedResponseResults(Results):
         ax.plot(frequency_range, phase[dof], **kwargs)
 
         ax.set_xlim(0, max(frequency_range))
-        ax.yaxis.set_major_locator(
-            mpl.ticker.MaxNLocator(prune='lower'))
-        ax.yaxis.set_major_locator(
-            mpl.ticker.MaxNLocator(prune='upper'))
+        ax.yaxis.set_major_locator(mpl.ticker.MaxNLocator(prune="lower"))
+        ax.yaxis.set_major_locator(mpl.ticker.MaxNLocator(prune="upper"))
 
-        ax.set_ylabel('Phase')
-        ax.set_xlabel('Frequency (rad/s)')
+        ax.set_ylabel("Phase")
+        ax.set_xlabel("Frequency (rad/s)")
 
         ax.legend()
 
         return ax
 
-    def plot(self, dof, ax0=None, ax1=None,
-             **kwargs):
+    def plot(self, dof, ax0=None, ax1=None, **kwargs):
         """Plot frequency response.
         This method plots the frequency response given
         an output and an input.
@@ -454,11 +444,11 @@ class ForcedResponseResults(Results):
 
         ax0 = self.plot_magnitude(dof, ax=ax0, **kwargs)
         # remove label from phase plot
-        kwargs.pop('label', None)
-        kwargs.pop('units', None)
+        kwargs.pop("label", None)
+        kwargs.pop("units", None)
         ax1 = self.plot_phase(dof, ax=ax1, **kwargs)
 
-        ax0.set_xlabel('')
+        ax0.set_xlabel("")
         ax0.legend()
 
         return ax0, ax1
@@ -468,7 +458,7 @@ class ModeShapeResults(Results):
     def plot(self, mode=None, evec=None, fig=None, ax=None):
         if ax is None:
             fig = plt.figure()
-            ax = fig.gca(projection='3d')
+            ax = fig.gca(projection="3d")
 
         evec0 = self[:, mode]
         nodes = self.nodes
@@ -523,7 +513,6 @@ class ModeShapeResults(Results):
         N3 = 3 * zeta ** 2 - 2 * zeta ** 3
         N4 = -zeta ** 2 + zeta ** 3
 
-       
         for Le, n in zip(elements_length, nodes):
             node_pos = nodes_pos[n]
             Nx = np.hstack((N1, Le * N2, N3, Le * N4))
@@ -539,31 +528,39 @@ class ModeShapeResults(Results):
             zn[pos0:pos1] = (node_pos * onn + Le * zeta).reshape(nn)
 
         for node in nodes:
-            ax.plot(x_circles[10:, node],
-                    y_circles[10:, node],
-                    z_circles_pos[10:, node],
-                    color=kappa_mode[node],
-                    linewidth=0.5, zdir='x')
-            ax.scatter(x_circles[10, node],
-                       y_circles[10, node],
-                       z_circles_pos[10, node],
-                       s=5,
-                       color=kappa_mode[node], zdir='x')
+            ax.plot(
+                x_circles[10:, node],
+                y_circles[10:, node],
+                z_circles_pos[10:, node],
+                color=kappa_mode[node],
+                linewidth=0.5,
+                zdir="x",
+            )
+            ax.scatter(
+                x_circles[10, node],
+                y_circles[10, node],
+                z_circles_pos[10, node],
+                s=5,
+                color=kappa_mode[node],
+                zdir="x",
+            )
 
-        ax.plot(xn, yn, zn, 'k--', zdir='x')
+        ax.plot(xn, yn, zn, "k--", zdir="x")
 
         # plot center line
         zn_cl0 = -(zn[-1] * 0.1)
         zn_cl1 = zn[-1] * 1.1
         zn_cl = np.linspace(zn_cl0, zn_cl1, 30)
-        ax.plot(zn_cl * 0, zn_cl * 0, zn_cl, 'k-.', linewidth=0.8, zdir='x')
+        ax.plot(zn_cl * 0, zn_cl * 0, zn_cl, "k-.", linewidth=0.8, zdir="x")
 
         ax.set_zlim(-2, 2)
         ax.set_ylim(-2, 2)
         ax.set_xlim(zn_cl0 - 0.1, zn_cl1 + 0.1)
 
-        ax.set_title(f'$speed$ = {self.w:.1f} rad/s\n$'
-                     f'\omega_d$ = {self.wd[mode]:.1f} rad/s\n'
-                     f'$log dec$ = {self.log_dec[mode]:.1f}')
+        ax.set_title(
+            f"$speed$ = {self.w:.1f} rad/s\n$"
+            f"\omega_d$ = {self.wd[mode]:.1f} rad/s\n"
+            f"$log dec$ = {self.log_dec[mode]:.1f}"
+        )
 
         return fig, ax

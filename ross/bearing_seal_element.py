@@ -5,11 +5,8 @@ import matplotlib.pyplot as plt
 import matplotlib.patches as mpatches
 from ross.element import Element
 
-__all__ = [
-    "BearingElement",
-    "SealElement",
-]
-   
+__all__ = ["BearingElement", "SealElement"]
+
 
 class _Coefficient:
     def __init__(self, coefficient, w=None, interpolated=None):
@@ -104,6 +101,7 @@ class BearingElement(Element):
     Examples
     --------
     """
+
     def __init__(
         self, n, kxx, cxx, kyy=None, kxy=0, kyx=0, cyy=None, cxy=0, cyx=0, w=None
     ):
