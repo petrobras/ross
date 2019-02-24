@@ -41,6 +41,7 @@ _orig_rc_params = mpl.rcParams.copy()
 seaborn_colors = ['#4c72b0', '#55a868', '#c44e52',
                   '#8172b2', '#ccb974', '#64b5cd']
 
+home = os.path.expanduser('s')
 
 class Rotor(object):
     r"""A rotor object.
@@ -182,13 +183,10 @@ class Rotor(object):
         df_shaft['nodes_pos_l'] = nodes_pos_l
         df_shaft['nodes_pos_r'] = nodes_pos_r
         # bearings
-       
 
         df = pd.concat([df_shaft, df_disks, df_bearings])
         df = df.sort_values(by='n_l')
         df = df.reset_index(drop=True)
-        
-        
 
         # check consistence for disks and bearings location
         if df.n_l.max() > df[df.type == 'ShaftElement'].n_r.max():
@@ -217,9 +215,8 @@ class Rotor(object):
         self.m_disks = np.sum([disk.m for disk in self.disk_elements])
         self.m_shaft = np.sum([sh_el.m for sh_el in self.shaft_elements])
         self.m = self.m_disks + self.m_shaft
-        
 
-        # values for evalues and evectors will be calculated by self._calc_system
+        # values for evalues and evectors will be calculated by self.run
         self.evalues = None
         self.evectors = None
         self.wn = None
@@ -228,17 +225,14 @@ class Rotor(object):
 
         self._v0 = None  # used to call eigs
         
-        
         # number of dofs
         self.ndof = 4 * max([el.n for el in shaft_elements]) + 8
-
         
         #  diameter at node position
 
-        # call self._calc_system() to calculate current evalues and evectors
-        self._calc_system()
+        self.plot_rotor()
 
-    def _calc_system(self):
+    def run(self):
         self.evalues, self.evectors = self._eigen(self.w)
         wn_len = len(self.evalues) // 2
         self.wn = (np.absolute(self.evalues))[:wn_len]
@@ -258,7 +252,7 @@ class Rotor(object):
     @w.setter
     def w(self, value):
         self._w = value
-        self._calc_system()
+        self.run()
 
     def _dofs(self, element):
         
@@ -273,7 +267,6 @@ class Rotor(object):
         if isinstance(element, BearingElement):
             n2 = n1 + 2
 
-        
         return n1, n2
 
     def M(self):
@@ -673,7 +666,6 @@ class Rotor(object):
         nv = Tvals['nv']
 
         lam = la.eig(H)[0]
-
         
         # lam is the eigenvalue -> sqrt(lam) is the minor/major axis.
         # kappa encodes the relation between the axis and the precession.
@@ -783,8 +775,7 @@ class Rotor(object):
 
         # calculate eigenvalues and eigenvectors using la.eig to get
         # left and right eigenvectors.
-        
-        
+
         evals, psi, = la.eig(self.A(w))
         
         psi_inv = la.inv(psi)
@@ -1311,6 +1302,10 @@ class Rotor(object):
         """
         with open(file_name, 'rb') as f:
             return pickle.load(f)
+
+    def save_rotor(self):
+        main_directory = os.getcwd()
+
 
 
 def rotor_example():

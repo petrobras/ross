@@ -1,5 +1,6 @@
-How to contribute to ROSS using git
-===================================
+=================
+Git configuration
+=================
 
 In order to use git to contribute to ROSS project, follow the steps bellow:
 
@@ -23,35 +24,10 @@ From the command line:
 Step 2: Keep in sync with changes in Ross
 -----------------------------------------
 
-Setup your local repository so it pulls from upstream by default:
-
 ::
 
     git config branch.master.remote upstream
     git config branch.master.merge refs/heads/master
-
-This can also be done by editing the config file inside your .git directory.
-It should look like this:
-
-::
-
-    [core]
-            repositoryformatversion = 0
-            filemode = true
-            bare = false
-            logallrefupdates = true
-    [remote "origin"]
-            url = https://github.com/your-user-name/ross.git
-            fetch = +refs/heads/*:refs/remotes/origin/*
-    [remote "upstream"]
-            url = https://github.com/ross-rotordynamics/ross.git
-            fetch = +refs/heads/*:refs/remotes/upstream/*
-            fetch = +refs/pull/*/head:refs/remotes/upstream/pr/*
-    [branch "master"]
-            remote = origin
-            merge = refs/heads/master
-
-The part :code:`fetch = +refs/pull/*/head:refs/remotes/upstream/pr/*` will make pull requests available.
 
 ---------------------------------
 Step 3: Make a new feature branch
