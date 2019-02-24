@@ -1,7 +1,9 @@
 import pytest
 from ross.materials import *
 from numpy.testing import assert_allclose
+import os
 
+os.chdir(os.getcwd()[:os.getcwd().find('tests')])
 
 AISI4140 = Material(name= 'AISI4140', rho = 7850,
                     E=203200000000.0,
