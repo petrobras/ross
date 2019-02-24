@@ -43,6 +43,7 @@ seaborn_colors = ['#4c72b0', '#55a868', '#c44e52',
 
 home = os.path.expanduser('s')
 
+
 class Rotor(object):
     r"""A rotor object.
 
@@ -231,6 +232,7 @@ class Rotor(object):
         #  diameter at node position
 
         self.plot_rotor()
+        print("To calculate eigenvalues and frequencies, use the method run().")
 
     def run(self):
         self.evalues, self.evectors = self._eigen(self.w)
@@ -328,7 +330,7 @@ class Rotor(object):
             K0[n1:n2, n1:n2] += elm.K(w)
         #  Skew-symmetric speed dependent contribution to element stiffness matrix
         #  from the internal damping.
-        
+
 
         return K0
 
@@ -1302,10 +1304,6 @@ class Rotor(object):
         """
         with open(file_name, 'rb') as f:
             return pickle.load(f)
-
-    def save_rotor(self):
-        main_directory = os.getcwd()
-
 
 
 def rotor_example():
