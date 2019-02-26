@@ -1,0 +1,503 @@
+
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN"
+  "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+
+<html xmlns="http://www.w3.org/1999/xhtml">
+  <head>
+    <meta http-equiv="X-UA-Compatible" content="IE=Edge" />
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8" />
+    <title>ross.shaft_element &#8212; ross 1.0 documentation</title>
+    <link rel="stylesheet" href="../../_static/haiku.css" type="text/css" />
+    <link rel="stylesheet" href="../../_static/pygments.css" type="text/css" />
+    <script type="text/javascript" id="documentation_options" data-url_root="../../" src="../../_static/documentation_options.js"></script>
+    <script type="text/javascript" src="../../_static/jquery.js"></script>
+    <script type="text/javascript" src="../../_static/underscore.js"></script>
+    <script type="text/javascript" src="../../_static/doctools.js"></script>
+    <link rel="index" title="Index" href="../../genindex.html" />
+    <link rel="search" title="Search" href="../../search.html" /> 
+  </head><body>
+      <div class="header" role="banner"><h1 class="heading"><a href="../../index.html">
+          <span>ross 1.0 documentation</span></a></h1>
+        <h2 class="heading"><span>ross.shaft_element</span></h2>
+      </div>
+      <div class="topnav" role="navigation" aria-label="top navigation">
+      
+        <p>
+        <a class="uplink" href="../../index.html">Contents</a>
+        </p>
+
+      </div>
+      <div class="content">
+        
+        
+  <h1>Source code for ross.shaft_element</h1><div class="highlight"><pre>
+<span></span><span class="kn">import</span> <span class="nn">numpy</span> <span class="k">as</span> <span class="nn">np</span>
+<span class="kn">import</span> <span class="nn">matplotlib.patches</span> <span class="k">as</span> <span class="nn">mpatches</span>
+<span class="kn">from</span> <span class="nn">ross.element</span> <span class="k">import</span> <span class="n">Element</span>
+
+<span class="n">__all__</span> <span class="o">=</span> <span class="p">[</span><span class="s2">&quot;ShaftElement&quot;</span><span class="p">]</span>
+
+
+<div class="viewcode-block" id="ShaftElement"><a class="viewcode-back" href="../../api.html#ross.shaft_element.ShaftElement">[docs]</a><span class="k">class</span> <span class="nc">ShaftElement</span><span class="p">(</span><span class="n">Element</span><span class="p">):</span>
+    <span class="sa">r</span><span class="sd">&quot;&quot;&quot;A shaft element.</span>
+<span class="sd">    This class will create a shaft element that may take into</span>
+<span class="sd">    account shear, rotary inertia an gyroscopic effects.</span>
+<span class="sd">    The matrices will be defined considering the following local</span>
+<span class="sd">    coordinate vector:</span>
+<span class="sd">    .. math:: [x_1, y_1, \alpha_1, \beta_1, x_2, y_2, \alpha_2, \beta_2]^T</span>
+<span class="sd">    Where :math:`\alpha_1` and :math:`\alpha_2` are the bending on the yz plane and</span>
+<span class="sd">    :math:`\beta_1` and :math:`\beta_2` are the bending on the xz plane.</span>
+<span class="sd">    Parameters</span>
+<span class="sd">    ----------</span>
+<span class="sd">    L : float</span>
+<span class="sd">        Element length.</span>
+<span class="sd">    i_d : float</span>
+<span class="sd">        Inner diameter of the element.</span>
+<span class="sd">    o_d : float</span>
+<span class="sd">        Outer diameter of the element.</span>
+<span class="sd">    material : ross.material</span>
+<span class="sd">        Shaft material.</span>
+<span class="sd">    n : int, optional</span>
+<span class="sd">        Element number (coincident with it&#39;s first node).</span>
+<span class="sd">        If not given, it will be set when the rotor is assembled</span>
+<span class="sd">        according to the element&#39;s position in the list supplied to</span>
+<span class="sd">        the rotor constructor.</span>
+<span class="sd">    axial_force : float</span>
+<span class="sd">        Axial force.</span>
+<span class="sd">    torque : float</span>
+<span class="sd">        Torque.</span>
+<span class="sd">    shear_effects : bool</span>
+<span class="sd">        Determine if shear effects are taken into account.</span>
+<span class="sd">        Default is False.</span>
+<span class="sd">    rotary_inertia : bool</span>
+<span class="sd">        Determine if rotary_inertia effects are taken into account.</span>
+<span class="sd">        Default is False.</span>
+<span class="sd">    gyroscopic : bool</span>
+<span class="sd">        Determine if gyroscopic effects are taken into account.</span>
+<span class="sd">        Default is False.</span>
+<span class="sd">    shear_method_calc : string</span>
+<span class="sd">        Determines which shear calculation method the user will adopt</span>
+<span class="sd">        Default is &#39;hutchinson&#39;</span>
+<span class="sd">    Returns</span>
+<span class="sd">    -------</span>
+<span class="sd">    Attributes</span>
+<span class="sd">    ----------</span>
+<span class="sd">    Poisson : float</span>
+<span class="sd">        Poisson coefficient for the element.</span>
+<span class="sd">    A : float</span>
+<span class="sd">        Element section area.</span>
+<span class="sd">    Ie : float</span>
+<span class="sd">        Ie is the second moment of area of the cross section about</span>
+<span class="sd">        the neutral plane Ie = pi*r**2/4</span>
+<span class="sd">    phi : float</span>
+<span class="sd">        Constant that is used according to [1]_ to consider rotary</span>
+<span class="sd">        inertia and shear effects. If these are not considered phi=0.</span>
+<span class="sd">    References</span>
+<span class="sd">    ----------</span>
+<span class="sd">    .. [1] &#39;Dynamics of Rotating Machinery&#39; by MI Friswell, JET Penny, SD Garvey</span>
+<span class="sd">       &amp; AW Lees, published by Cambridge University Press, 2010 pp. 158-166.</span>
+<span class="sd">    Examples</span>
+<span class="sd">    --------</span>
+<span class="sd">    &gt;&gt;&gt; from ross.materials import steel</span>
+<span class="sd">    &gt;&gt;&gt; le = 0.25</span>
+<span class="sd">    &gt;&gt;&gt; i_d = 0</span>
+<span class="sd">    &gt;&gt;&gt; o_d = 0.05</span>
+<span class="sd">    &gt;&gt;&gt; Euler_Bernoulli_Element = ShaftElement(le, i_d, o_d, steel,</span>
+<span class="sd">    ...                                        shear_effects=False, rotary_inertia=False)</span>
+<span class="sd">    &gt;&gt;&gt; Euler_Bernoulli_Element.phi</span>
+<span class="sd">    0</span>
+<span class="sd">    &gt;&gt;&gt; Timoshenko_Element = ShaftElement(le, i_d, o_d, steel,</span>
+<span class="sd">    ...                                   rotary_inertia=True,</span>
+<span class="sd">    ...                                   shear_effects=True)</span>
+<span class="sd">    &gt;&gt;&gt; Timoshenko_Element.phi</span>
+<span class="sd">    0.08795566502463055</span>
+<span class="sd">    &quot;&quot;&quot;</span>
+
+    <span class="k">def</span> <span class="nf">__init__</span><span class="p">(</span>
+        <span class="bp">self</span><span class="p">,</span>
+        <span class="n">L</span><span class="p">,</span>
+        <span class="n">i_d</span><span class="p">,</span>
+        <span class="n">o_d</span><span class="p">,</span>
+        <span class="n">material</span><span class="p">,</span>
+        <span class="n">n</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+        <span class="n">axial_force</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span>
+        <span class="n">torque</span><span class="o">=</span><span class="mi">0</span><span class="p">,</span>
+        <span class="n">shear_effects</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+        <span class="n">rotary_inertia</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+        <span class="n">gyroscopic</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+        <span class="n">shear_method_calc</span><span class="o">=</span><span class="s2">&quot;cowper&quot;</span><span class="p">,</span>
+    <span class="p">):</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">material</span> <span class="o">=</span> <span class="n">material</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">shear_effects</span> <span class="o">=</span> <span class="n">shear_effects</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">rotary_inertia</span> <span class="o">=</span> <span class="n">rotary_inertia</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">gyroscopic</span> <span class="o">=</span> <span class="n">gyroscopic</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">_n</span> <span class="o">=</span> <span class="n">n</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">n_l</span> <span class="o">=</span> <span class="n">n</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">n_r</span> <span class="o">=</span> <span class="kc">None</span>
+        <span class="k">if</span> <span class="n">n</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">n_r</span> <span class="o">=</span> <span class="n">n</span> <span class="o">+</span> <span class="mi">1</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">shear_method_calc</span> <span class="o">=</span> <span class="n">shear_method_calc</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">L</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">L</span><span class="p">)</span>
+
+        <span class="c1"># diameters</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">i_d</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">i_d</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">o_d</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">o_d</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">i_d_l</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">i_d</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">o_d_l</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">o_d</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">i_d_r</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">i_d</span><span class="p">)</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">o_d_r</span> <span class="o">=</span> <span class="nb">float</span><span class="p">(</span><span class="n">o_d</span><span class="p">)</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">A</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">pi</span> <span class="o">*</span> <span class="p">(</span><span class="n">o_d</span> <span class="o">**</span> <span class="mi">2</span> <span class="o">-</span> <span class="n">i_d</span> <span class="o">**</span> <span class="mi">2</span><span class="p">)</span> <span class="o">/</span> <span class="mi">4</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">volume</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">A</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">L</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">m</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">material</span><span class="o">.</span><span class="n">rho</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">volume</span>
+        <span class="c1">#  Ie is the second moment of area of the cross section about</span>
+        <span class="c1">#  the neutral plane Ie = pi*r**2/4</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">Ie</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">pi</span> <span class="o">*</span> <span class="p">(</span><span class="n">o_d</span> <span class="o">**</span> <span class="mi">4</span> <span class="o">-</span> <span class="n">i_d</span> <span class="o">**</span> <span class="mi">4</span><span class="p">)</span> <span class="o">/</span> <span class="mi">64</span>
+        <span class="n">phi</span> <span class="o">=</span> <span class="mi">0</span>
+
+        <span class="c1"># picking a method to calculate the shear coefficient</span>
+        <span class="c1"># List of avaible methods:</span>
+        <span class="c1"># hutchinson - kappa as per Hutchinson (2001)</span>
+        <span class="c1"># cowper - kappa as per Cowper (1996)</span>
+        <span class="k">if</span> <span class="n">shear_effects</span><span class="p">:</span>
+            <span class="n">r</span> <span class="o">=</span> <span class="n">i_d</span> <span class="o">/</span> <span class="n">o_d</span>
+            <span class="n">r2</span> <span class="o">=</span> <span class="n">r</span> <span class="o">*</span> <span class="n">r</span>
+            <span class="n">r12</span> <span class="o">=</span> <span class="p">(</span><span class="mi">1</span> <span class="o">+</span> <span class="n">r2</span><span class="p">)</span> <span class="o">**</span> <span class="mi">2</span>
+            <span class="k">if</span> <span class="n">shear_method_calc</span> <span class="o">==</span> <span class="s2">&quot;hutchinson&quot;</span><span class="p">:</span>
+                <span class="c1"># Shear coefficient (phi)</span>
+                <span class="c1"># kappa as per Hutchinson (2001)</span>
+                <span class="c1"># fmt: off</span>
+                <span class="n">kappa</span> <span class="o">=</span> <span class="mi">6</span><span class="o">*</span><span class="n">r12</span><span class="o">*</span><span class="p">((</span><span class="mi">1</span><span class="o">+</span><span class="bp">self</span><span class="o">.</span><span class="n">material</span><span class="o">.</span><span class="n">Poisson</span><span class="p">)</span><span class="o">/</span>
+                        <span class="p">((</span><span class="n">r12</span><span class="o">*</span><span class="p">(</span><span class="mi">7</span> <span class="o">+</span> <span class="mi">12</span><span class="o">*</span><span class="bp">self</span><span class="o">.</span><span class="n">material</span><span class="o">.</span><span class="n">Poisson</span> <span class="o">+</span> <span class="mi">4</span><span class="o">*</span><span class="bp">self</span><span class="o">.</span><span class="n">material</span><span class="o">.</span><span class="n">Poisson</span><span class="o">**</span><span class="mi">2</span><span class="p">)</span> <span class="o">+</span>
+                        <span class="mi">4</span><span class="o">*</span><span class="n">r2</span><span class="o">*</span><span class="p">(</span><span class="mi">5</span> <span class="o">+</span> <span class="mi">6</span><span class="o">*</span><span class="bp">self</span><span class="o">.</span><span class="n">material</span><span class="o">.</span><span class="n">Poisson</span> <span class="o">+</span> <span class="mi">2</span><span class="o">*</span><span class="bp">self</span><span class="o">.</span><span class="n">material</span><span class="o">.</span><span class="n">Poisson</span><span class="o">**</span><span class="mi">2</span><span class="p">))))</span>
+                <span class="c1"># fmt: on</span>
+            <span class="k">elif</span> <span class="n">shear_method_calc</span> <span class="o">==</span> <span class="s2">&quot;cowper&quot;</span><span class="p">:</span>
+                <span class="c1"># kappa as per Cowper (1996)</span>
+                <span class="c1"># fmt: off</span>
+                <span class="n">kappa</span> <span class="o">=</span> <span class="mi">6</span> <span class="o">*</span> <span class="n">r12</span> <span class="o">*</span> <span class="p">(</span>
+                    <span class="p">(</span><span class="mi">1</span> <span class="o">+</span> <span class="bp">self</span><span class="o">.</span><span class="n">material</span><span class="o">.</span><span class="n">Poisson</span><span class="p">)</span>
+                    <span class="o">/</span> <span class="p">(</span><span class="n">r12</span> <span class="o">*</span> <span class="p">(</span><span class="mi">7</span> <span class="o">+</span> <span class="mi">6</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">material</span><span class="o">.</span><span class="n">Poisson</span><span class="p">)</span> <span class="o">+</span> <span class="n">r2</span> <span class="o">*</span> <span class="p">(</span><span class="mi">20</span> <span class="o">+</span> <span class="mi">12</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">material</span><span class="o">.</span><span class="n">Poisson</span><span class="p">))</span>
+                <span class="p">)</span>
+                <span class="c1"># fmt: on</span>
+            <span class="k">else</span><span class="p">:</span>
+                <span class="k">raise</span> <span class="ne">Warning</span><span class="p">(</span>
+                    <span class="s2">&quot;This method of calculating shear coefficients is not implemented. See guide for futher informations.&quot;</span>
+                <span class="p">)</span>
+
+            <span class="c1"># fmt: off</span>
+            <span class="n">phi</span> <span class="o">=</span> <span class="mi">12</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">material</span><span class="o">.</span><span class="n">E</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">Ie</span> <span class="o">/</span> <span class="p">(</span><span class="bp">self</span><span class="o">.</span><span class="n">material</span><span class="o">.</span><span class="n">G_s</span> <span class="o">*</span> <span class="n">kappa</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">A</span> <span class="o">*</span> <span class="n">L</span> <span class="o">**</span> <span class="mi">2</span><span class="p">)</span>
+            <span class="c1"># fmt: on</span>
+
+        <span class="bp">self</span><span class="o">.</span><span class="n">phi</span> <span class="o">=</span> <span class="n">phi</span>
+
+    <span class="nd">@property</span>
+    <span class="k">def</span> <span class="nf">n</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="bp">self</span><span class="o">.</span><span class="n">_n</span>
+
+    <span class="nd">@n</span><span class="o">.</span><span class="n">setter</span>
+    <span class="k">def</span> <span class="nf">n</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">value</span><span class="p">):</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">_n</span> <span class="o">=</span> <span class="n">value</span>
+        <span class="bp">self</span><span class="o">.</span><span class="n">n_l</span> <span class="o">=</span> <span class="n">value</span>
+        <span class="k">if</span> <span class="n">value</span> <span class="ow">is</span> <span class="ow">not</span> <span class="kc">None</span><span class="p">:</span>
+            <span class="bp">self</span><span class="o">.</span><span class="n">n_r</span> <span class="o">=</span> <span class="n">value</span> <span class="o">+</span> <span class="mi">1</span>
+
+    <span class="k">def</span> <span class="nf">__repr__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="n">f</span><span class="s2">&quot;</span><span class="si">{self.__class__.__name__}</span><span class="s2">&quot;</span> <span class="n">f</span><span class="s2">&quot;(L={self.L:</span><span class="si">{0}</span><span class="s2">.</span><span class="si">{5}</span><span class="s2">}, i_d={self.i_d:</span><span class="si">{0}</span><span class="s2">.</span><span class="si">{5}</span><span class="s2">}, &quot;</span> <span class="n">f</span><span class="s2">&quot;o_d={self.o_d:</span><span class="si">{0}</span><span class="s2">.</span><span class="si">{5}</span><span class="s2">}, material=</span><span class="si">{self.material!r}</span><span class="s2">, &quot;</span> <span class="n">f</span><span class="s2">&quot;n=</span><span class="si">{self.n}</span><span class="s2">)&quot;</span>
+
+    <span class="k">def</span> <span class="nf">__str__</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="k">return</span> <span class="p">(</span>
+            <span class="n">f</span><span class="s2">&quot;</span><span class="se">\n</span><span class="s2">Elem. N:    </span><span class="si">{self.n}</span><span class="s2">&quot;</span>
+            <span class="n">f</span><span class="s2">&quot;</span><span class="se">\n</span><span class="s2">Lenght:     {self.L:</span><span class="si">{10}</span><span class="s2">.</span><span class="si">{5}</span><span class="s2">}&quot;</span>
+            <span class="n">f</span><span class="s2">&quot;</span><span class="se">\n</span><span class="s2">Int. Diam.: {self.i_d:</span><span class="si">{10}</span><span class="s2">.</span><span class="si">{5}</span><span class="s2">}&quot;</span>
+            <span class="n">f</span><span class="s2">&quot;</span><span class="se">\n</span><span class="s2">Out. Diam.: {self.o_d:</span><span class="si">{10}</span><span class="s2">.</span><span class="si">{5}</span><span class="s2">}&quot;</span>
+            <span class="n">f</span><span class="s1">&#39;</span><span class="se">\n</span><span class="s1">{35*&quot;-&quot;}&#39;</span>
+            <span class="n">f</span><span class="s2">&quot;</span><span class="se">\n</span><span class="si">{self.material}</span><span class="s2">&quot;</span>
+            <span class="n">f</span><span class="s2">&quot;</span><span class="se">\n</span><span class="s2">&quot;</span>
+        <span class="p">)</span>
+
+<div class="viewcode-block" id="ShaftElement.M"><a class="viewcode-back" href="../../api.html#ross.shaft_element.ShaftElement.M">[docs]</a>    <span class="k">def</span> <span class="nf">M</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sa">r</span><span class="sd">&quot;&quot;&quot;Mass matrix for an instance of a shaft element.</span>
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        Mass matrix for the shaft element.</span>
+<span class="sd">        Examples</span>
+<span class="sd">        --------</span>
+<span class="sd">        &gt;&gt;&gt; Timoshenko_Element = ShaftElement(0.25, 0, 0.05, steel,</span>
+<span class="sd">        ...                                  rotary_inertia=True,</span>
+<span class="sd">        ...                                  shear_effects=True)</span>
+<span class="sd">        &gt;&gt;&gt; Timoshenko_Element.M()[:4, :4]</span>
+<span class="sd">        array([[ 1.42050794,  0.        ,  0.        ,  0.04931719],</span>
+<span class="sd">               [ 0.        ,  1.42050794, -0.04931719,  0.        ],</span>
+<span class="sd">               [ 0.        , -0.04931719,  0.00231392,  0.        ],</span>
+<span class="sd">               [ 0.04931719,  0.        ,  0.        ,  0.00231392]])</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">phi</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">phi</span>
+        <span class="n">L</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">L</span>
+
+        <span class="n">m01</span> <span class="o">=</span> <span class="mi">312</span> <span class="o">+</span> <span class="mi">588</span> <span class="o">*</span> <span class="n">phi</span> <span class="o">+</span> <span class="mi">280</span> <span class="o">*</span> <span class="n">phi</span> <span class="o">**</span> <span class="mi">2</span>
+        <span class="n">m02</span> <span class="o">=</span> <span class="p">(</span><span class="mi">44</span> <span class="o">+</span> <span class="mi">77</span> <span class="o">*</span> <span class="n">phi</span> <span class="o">+</span> <span class="mi">35</span> <span class="o">*</span> <span class="n">phi</span> <span class="o">**</span> <span class="mi">2</span><span class="p">)</span> <span class="o">*</span> <span class="n">L</span>
+        <span class="n">m03</span> <span class="o">=</span> <span class="mi">108</span> <span class="o">+</span> <span class="mi">252</span> <span class="o">*</span> <span class="n">phi</span> <span class="o">+</span> <span class="mi">140</span> <span class="o">*</span> <span class="n">phi</span> <span class="o">**</span> <span class="mi">2</span>
+        <span class="n">m04</span> <span class="o">=</span> <span class="o">-</span><span class="p">(</span><span class="mi">26</span> <span class="o">+</span> <span class="mi">63</span> <span class="o">*</span> <span class="n">phi</span> <span class="o">+</span> <span class="mi">35</span> <span class="o">*</span> <span class="n">phi</span> <span class="o">**</span> <span class="mi">2</span><span class="p">)</span> <span class="o">*</span> <span class="n">L</span>
+        <span class="n">m05</span> <span class="o">=</span> <span class="p">(</span><span class="mi">8</span> <span class="o">+</span> <span class="mi">14</span> <span class="o">*</span> <span class="n">phi</span> <span class="o">+</span> <span class="mi">7</span> <span class="o">*</span> <span class="n">phi</span> <span class="o">**</span> <span class="mi">2</span><span class="p">)</span> <span class="o">*</span> <span class="n">L</span> <span class="o">**</span> <span class="mi">2</span>
+        <span class="n">m06</span> <span class="o">=</span> <span class="o">-</span><span class="p">(</span><span class="mi">6</span> <span class="o">+</span> <span class="mi">14</span> <span class="o">*</span> <span class="n">phi</span> <span class="o">+</span> <span class="mi">7</span> <span class="o">*</span> <span class="n">phi</span> <span class="o">**</span> <span class="mi">2</span><span class="p">)</span> <span class="o">*</span> <span class="n">L</span> <span class="o">**</span> <span class="mi">2</span>
+        <span class="c1"># fmt: off</span>
+        <span class="n">M</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([[</span><span class="n">m01</span><span class="p">,</span>    <span class="mi">0</span><span class="p">,</span>    <span class="mi">0</span><span class="p">,</span>  <span class="n">m02</span><span class="p">,</span>  <span class="n">m03</span><span class="p">,</span>    <span class="mi">0</span><span class="p">,</span>    <span class="mi">0</span><span class="p">,</span>  <span class="n">m04</span><span class="p">],</span>
+                      <span class="p">[</span>  <span class="mi">0</span><span class="p">,</span>  <span class="n">m01</span><span class="p">,</span> <span class="o">-</span><span class="n">m02</span><span class="p">,</span>    <span class="mi">0</span><span class="p">,</span>    <span class="mi">0</span><span class="p">,</span>  <span class="n">m03</span><span class="p">,</span> <span class="o">-</span><span class="n">m04</span><span class="p">,</span>    <span class="mi">0</span><span class="p">],</span>
+                      <span class="p">[</span>  <span class="mi">0</span><span class="p">,</span> <span class="o">-</span><span class="n">m02</span><span class="p">,</span>  <span class="n">m05</span><span class="p">,</span>    <span class="mi">0</span><span class="p">,</span>    <span class="mi">0</span><span class="p">,</span>  <span class="n">m04</span><span class="p">,</span>  <span class="n">m06</span><span class="p">,</span>    <span class="mi">0</span><span class="p">],</span>
+                      <span class="p">[</span><span class="n">m02</span><span class="p">,</span>    <span class="mi">0</span><span class="p">,</span>    <span class="mi">0</span><span class="p">,</span>  <span class="n">m05</span><span class="p">,</span> <span class="o">-</span><span class="n">m04</span><span class="p">,</span>    <span class="mi">0</span><span class="p">,</span>    <span class="mi">0</span><span class="p">,</span>  <span class="n">m06</span><span class="p">],</span>
+                      <span class="p">[</span><span class="n">m03</span><span class="p">,</span>    <span class="mi">0</span><span class="p">,</span>    <span class="mi">0</span><span class="p">,</span> <span class="o">-</span><span class="n">m04</span><span class="p">,</span>  <span class="n">m01</span><span class="p">,</span>    <span class="mi">0</span><span class="p">,</span>    <span class="mi">0</span><span class="p">,</span> <span class="o">-</span><span class="n">m02</span><span class="p">],</span>
+                      <span class="p">[</span>  <span class="mi">0</span><span class="p">,</span>  <span class="n">m03</span><span class="p">,</span>  <span class="n">m04</span><span class="p">,</span>    <span class="mi">0</span><span class="p">,</span>    <span class="mi">0</span><span class="p">,</span>  <span class="n">m01</span><span class="p">,</span>  <span class="n">m02</span><span class="p">,</span>    <span class="mi">0</span><span class="p">],</span>
+                      <span class="p">[</span>  <span class="mi">0</span><span class="p">,</span> <span class="o">-</span><span class="n">m04</span><span class="p">,</span>  <span class="n">m06</span><span class="p">,</span>    <span class="mi">0</span><span class="p">,</span>    <span class="mi">0</span><span class="p">,</span>  <span class="n">m02</span><span class="p">,</span>  <span class="n">m05</span><span class="p">,</span>    <span class="mi">0</span><span class="p">],</span>
+                      <span class="p">[</span><span class="n">m04</span><span class="p">,</span>    <span class="mi">0</span><span class="p">,</span>    <span class="mi">0</span><span class="p">,</span>  <span class="n">m06</span><span class="p">,</span> <span class="o">-</span><span class="n">m02</span><span class="p">,</span>    <span class="mi">0</span><span class="p">,</span>    <span class="mi">0</span><span class="p">,</span>  <span class="n">m05</span><span class="p">]])</span>
+        <span class="c1"># fmt: on</span>
+        <span class="n">M</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">material</span><span class="o">.</span><span class="n">rho</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">A</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">L</span> <span class="o">*</span> <span class="n">M</span> <span class="o">/</span> <span class="p">(</span><span class="mi">840</span> <span class="o">*</span> <span class="p">(</span><span class="mi">1</span> <span class="o">+</span> <span class="n">phi</span><span class="p">)</span> <span class="o">**</span> <span class="mi">2</span><span class="p">)</span>
+
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">rotary_inertia</span><span class="p">:</span>
+            <span class="n">ms1</span> <span class="o">=</span> <span class="mi">36</span>
+            <span class="n">ms2</span> <span class="o">=</span> <span class="p">(</span><span class="mi">3</span> <span class="o">-</span> <span class="mi">15</span> <span class="o">*</span> <span class="n">phi</span><span class="p">)</span> <span class="o">*</span> <span class="n">L</span>
+            <span class="n">ms3</span> <span class="o">=</span> <span class="p">(</span><span class="mi">4</span> <span class="o">+</span> <span class="mi">5</span> <span class="o">*</span> <span class="n">phi</span> <span class="o">+</span> <span class="mi">10</span> <span class="o">*</span> <span class="n">phi</span> <span class="o">**</span> <span class="mi">2</span><span class="p">)</span> <span class="o">*</span> <span class="n">L</span> <span class="o">**</span> <span class="mi">2</span>
+            <span class="n">ms4</span> <span class="o">=</span> <span class="p">(</span><span class="o">-</span><span class="mi">1</span> <span class="o">-</span> <span class="mi">5</span> <span class="o">*</span> <span class="n">phi</span> <span class="o">+</span> <span class="mi">5</span> <span class="o">*</span> <span class="n">phi</span> <span class="o">**</span> <span class="mi">2</span><span class="p">)</span> <span class="o">*</span> <span class="n">L</span> <span class="o">**</span> <span class="mi">2</span>
+            <span class="c1"># fmt: off</span>
+            <span class="n">Ms</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([[</span> <span class="n">ms1</span><span class="p">,</span>    <span class="mi">0</span><span class="p">,</span>    <span class="mi">0</span><span class="p">,</span>  <span class="n">ms2</span><span class="p">,</span> <span class="o">-</span><span class="n">ms1</span><span class="p">,</span>    <span class="mi">0</span><span class="p">,</span>    <span class="mi">0</span><span class="p">,</span>  <span class="n">ms2</span><span class="p">],</span>
+                           <span class="p">[</span>   <span class="mi">0</span><span class="p">,</span>  <span class="n">ms1</span><span class="p">,</span> <span class="o">-</span><span class="n">ms2</span><span class="p">,</span>    <span class="mi">0</span><span class="p">,</span>    <span class="mi">0</span><span class="p">,</span> <span class="o">-</span><span class="n">ms1</span><span class="p">,</span> <span class="o">-</span><span class="n">ms2</span><span class="p">,</span>    <span class="mi">0</span><span class="p">],</span>
+                           <span class="p">[</span>   <span class="mi">0</span><span class="p">,</span> <span class="o">-</span><span class="n">ms2</span><span class="p">,</span>  <span class="n">ms3</span><span class="p">,</span>    <span class="mi">0</span><span class="p">,</span>    <span class="mi">0</span><span class="p">,</span>  <span class="n">ms2</span><span class="p">,</span>  <span class="n">ms4</span><span class="p">,</span>    <span class="mi">0</span><span class="p">],</span>
+                           <span class="p">[</span> <span class="n">ms2</span><span class="p">,</span>    <span class="mi">0</span><span class="p">,</span>    <span class="mi">0</span><span class="p">,</span>  <span class="n">ms3</span><span class="p">,</span> <span class="o">-</span><span class="n">ms2</span><span class="p">,</span>    <span class="mi">0</span><span class="p">,</span>    <span class="mi">0</span><span class="p">,</span>  <span class="n">ms4</span><span class="p">],</span>
+                           <span class="p">[</span><span class="o">-</span><span class="n">ms1</span><span class="p">,</span>    <span class="mi">0</span><span class="p">,</span>    <span class="mi">0</span><span class="p">,</span> <span class="o">-</span><span class="n">ms2</span><span class="p">,</span>  <span class="n">ms1</span><span class="p">,</span>    <span class="mi">0</span><span class="p">,</span>    <span class="mi">0</span><span class="p">,</span> <span class="o">-</span><span class="n">ms2</span><span class="p">],</span>
+                           <span class="p">[</span>   <span class="mi">0</span><span class="p">,</span> <span class="o">-</span><span class="n">ms1</span><span class="p">,</span>  <span class="n">ms2</span><span class="p">,</span>    <span class="mi">0</span><span class="p">,</span>    <span class="mi">0</span><span class="p">,</span>  <span class="n">ms1</span><span class="p">,</span>  <span class="n">ms2</span><span class="p">,</span>    <span class="mi">0</span><span class="p">],</span>
+                           <span class="p">[</span>   <span class="mi">0</span><span class="p">,</span> <span class="o">-</span><span class="n">ms2</span><span class="p">,</span>  <span class="n">ms4</span><span class="p">,</span>    <span class="mi">0</span><span class="p">,</span>    <span class="mi">0</span><span class="p">,</span>  <span class="n">ms2</span><span class="p">,</span>  <span class="n">ms3</span><span class="p">,</span>    <span class="mi">0</span><span class="p">],</span>
+                           <span class="p">[</span> <span class="n">ms2</span><span class="p">,</span>    <span class="mi">0</span><span class="p">,</span>    <span class="mi">0</span><span class="p">,</span>  <span class="n">ms4</span><span class="p">,</span> <span class="o">-</span><span class="n">ms2</span><span class="p">,</span>    <span class="mi">0</span><span class="p">,</span>    <span class="mi">0</span><span class="p">,</span>  <span class="n">ms3</span><span class="p">]])</span>
+            <span class="c1"># fmt: on</span>
+            <span class="n">Ms</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">material</span><span class="o">.</span><span class="n">rho</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">Ie</span> <span class="o">*</span> <span class="n">Ms</span> <span class="o">/</span> <span class="p">(</span><span class="mi">30</span> <span class="o">*</span> <span class="n">L</span> <span class="o">*</span> <span class="p">(</span><span class="mi">1</span> <span class="o">+</span> <span class="n">phi</span><span class="p">)</span> <span class="o">**</span> <span class="mi">2</span><span class="p">)</span>
+            <span class="n">M</span> <span class="o">=</span> <span class="n">M</span> <span class="o">+</span> <span class="n">Ms</span>
+
+        <span class="k">return</span> <span class="n">M</span></div>
+
+<div class="viewcode-block" id="ShaftElement.K"><a class="viewcode-back" href="../../api.html#ross.shaft_element.ShaftElement.K">[docs]</a>    <span class="k">def</span> <span class="nf">K</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sa">r</span><span class="sd">&quot;&quot;&quot;Stiffness matrix for an instance of a shaft element.</span>
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        Stiffness matrix for the shaft element.</span>
+<span class="sd">        Examples</span>
+<span class="sd">        --------</span>
+<span class="sd">        &gt;&gt;&gt; from ross.materials import steel</span>
+<span class="sd">        &gt;&gt;&gt; Timoshenko_Element = ShaftElement(0.25, 0, 0.05, steel,</span>
+<span class="sd">        ...                                  rotary_inertia=True,</span>
+<span class="sd">        ...                                  shear_effects=True)</span>
+<span class="sd">        &gt;&gt;&gt; Timoshenko_Element.K()[:4, :4]/1e6</span>
+<span class="sd">        array([[ 45.69644273,   0.        ,   0.        ,   5.71205534],</span>
+<span class="sd">               [  0.        ,  45.69644273,  -5.71205534,   0.        ],</span>
+<span class="sd">               [  0.        ,  -5.71205534,   0.97294287,   0.        ],</span>
+<span class="sd">               [  5.71205534,   0.        ,   0.        ,   0.97294287]])</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">phi</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">phi</span>
+        <span class="n">L</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">L</span>
+        <span class="c1"># fmt: off</span>
+        <span class="n">K</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([</span>
+            <span class="p">[</span><span class="mi">12</span><span class="p">,</span>     <span class="mi">0</span><span class="p">,</span>            <span class="mi">0</span><span class="p">,</span>          <span class="mi">6</span><span class="o">*</span><span class="n">L</span><span class="p">,</span>  <span class="o">-</span><span class="mi">12</span><span class="p">,</span>     <span class="mi">0</span><span class="p">,</span>            <span class="mi">0</span><span class="p">,</span>          <span class="mi">6</span><span class="o">*</span><span class="n">L</span><span class="p">],</span>
+            <span class="p">[</span><span class="mi">0</span><span class="p">,</span>     <span class="mi">12</span><span class="p">,</span>         <span class="o">-</span><span class="mi">6</span><span class="o">*</span><span class="n">L</span><span class="p">,</span>            <span class="mi">0</span><span class="p">,</span>    <span class="mi">0</span><span class="p">,</span>   <span class="o">-</span><span class="mi">12</span><span class="p">,</span>         <span class="o">-</span><span class="mi">6</span><span class="o">*</span><span class="n">L</span><span class="p">,</span>            <span class="mi">0</span><span class="p">],</span>
+            <span class="p">[</span><span class="mi">0</span><span class="p">,</span>   <span class="o">-</span><span class="mi">6</span><span class="o">*</span><span class="n">L</span><span class="p">,</span> <span class="p">(</span><span class="mi">4</span><span class="o">+</span><span class="n">phi</span><span class="p">)</span><span class="o">*</span><span class="n">L</span><span class="o">**</span><span class="mi">2</span><span class="p">,</span>            <span class="mi">0</span><span class="p">,</span>    <span class="mi">0</span><span class="p">,</span>   <span class="mi">6</span><span class="o">*</span><span class="n">L</span><span class="p">,</span> <span class="p">(</span><span class="mi">2</span><span class="o">-</span><span class="n">phi</span><span class="p">)</span><span class="o">*</span><span class="n">L</span><span class="o">**</span><span class="mi">2</span><span class="p">,</span>            <span class="mi">0</span><span class="p">],</span>
+            <span class="p">[</span><span class="mi">6</span><span class="o">*</span><span class="n">L</span><span class="p">,</span>    <span class="mi">0</span><span class="p">,</span>            <span class="mi">0</span><span class="p">,</span> <span class="p">(</span><span class="mi">4</span><span class="o">+</span><span class="n">phi</span><span class="p">)</span><span class="o">*</span><span class="n">L</span><span class="o">**</span><span class="mi">2</span><span class="p">,</span> <span class="o">-</span><span class="mi">6</span><span class="o">*</span><span class="n">L</span><span class="p">,</span>     <span class="mi">0</span><span class="p">,</span>            <span class="mi">0</span><span class="p">,</span> <span class="p">(</span><span class="mi">2</span><span class="o">-</span><span class="n">phi</span><span class="p">)</span><span class="o">*</span><span class="n">L</span><span class="o">**</span><span class="mi">2</span><span class="p">],</span>
+            <span class="p">[</span><span class="o">-</span><span class="mi">12</span><span class="p">,</span>    <span class="mi">0</span><span class="p">,</span>            <span class="mi">0</span><span class="p">,</span>         <span class="o">-</span><span class="mi">6</span><span class="o">*</span><span class="n">L</span><span class="p">,</span>   <span class="mi">12</span><span class="p">,</span>     <span class="mi">0</span><span class="p">,</span>            <span class="mi">0</span><span class="p">,</span>         <span class="o">-</span><span class="mi">6</span><span class="o">*</span><span class="n">L</span><span class="p">],</span>
+            <span class="p">[</span><span class="mi">0</span><span class="p">,</span>    <span class="o">-</span><span class="mi">12</span><span class="p">,</span>          <span class="mi">6</span><span class="o">*</span><span class="n">L</span><span class="p">,</span>            <span class="mi">0</span><span class="p">,</span>    <span class="mi">0</span><span class="p">,</span>    <span class="mi">12</span><span class="p">,</span>          <span class="mi">6</span><span class="o">*</span><span class="n">L</span><span class="p">,</span>            <span class="mi">0</span><span class="p">],</span>
+            <span class="p">[</span><span class="mi">0</span><span class="p">,</span>   <span class="o">-</span><span class="mi">6</span><span class="o">*</span><span class="n">L</span><span class="p">,</span> <span class="p">(</span><span class="mi">2</span><span class="o">-</span><span class="n">phi</span><span class="p">)</span><span class="o">*</span><span class="n">L</span><span class="o">**</span><span class="mi">2</span><span class="p">,</span>            <span class="mi">0</span><span class="p">,</span>    <span class="mi">0</span><span class="p">,</span>   <span class="mi">6</span><span class="o">*</span><span class="n">L</span><span class="p">,</span> <span class="p">(</span><span class="mi">4</span><span class="o">+</span><span class="n">phi</span><span class="p">)</span><span class="o">*</span><span class="n">L</span><span class="o">**</span><span class="mi">2</span><span class="p">,</span>            <span class="mi">0</span><span class="p">],</span>
+            <span class="p">[</span><span class="mi">6</span><span class="o">*</span><span class="n">L</span><span class="p">,</span>    <span class="mi">0</span><span class="p">,</span>            <span class="mi">0</span><span class="p">,</span> <span class="p">(</span><span class="mi">2</span><span class="o">-</span><span class="n">phi</span><span class="p">)</span><span class="o">*</span><span class="n">L</span><span class="o">**</span><span class="mi">2</span><span class="p">,</span> <span class="o">-</span><span class="mi">6</span><span class="o">*</span><span class="n">L</span><span class="p">,</span>     <span class="mi">0</span><span class="p">,</span>            <span class="mi">0</span><span class="p">,</span> <span class="p">(</span><span class="mi">4</span><span class="o">+</span><span class="n">phi</span><span class="p">)</span><span class="o">*</span><span class="n">L</span><span class="o">**</span><span class="mi">2</span><span class="p">]</span>
+        <span class="p">])</span>
+        <span class="c1"># fmt: on</span>
+        <span class="n">K</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">material</span><span class="o">.</span><span class="n">E</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">Ie</span> <span class="o">*</span> <span class="n">K</span> <span class="o">/</span> <span class="p">((</span><span class="mi">1</span> <span class="o">+</span> <span class="n">phi</span><span class="p">)</span> <span class="o">*</span> <span class="n">L</span> <span class="o">**</span> <span class="mi">3</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">K</span></div>
+
+<div class="viewcode-block" id="ShaftElement.C"><a class="viewcode-back" href="../../api.html#ross.shaft_element.ShaftElement.C">[docs]</a>    <span class="k">def</span> <span class="nf">C</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Stiffness matrix for an instance of a shaft element.</span>
+
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        C : np.array</span>
+<span class="sd">           Damping matrix for the shaft element.</span>
+
+<span class="sd">        Examples</span>
+<span class="sd">        --------</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">C</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">((</span><span class="mi">8</span><span class="p">,</span> <span class="mi">8</span><span class="p">))</span>
+
+        <span class="k">return</span> <span class="n">C</span></div>
+
+<div class="viewcode-block" id="ShaftElement.G"><a class="viewcode-back" href="../../api.html#ross.shaft_element.ShaftElement.G">[docs]</a>    <span class="k">def</span> <span class="nf">G</span><span class="p">(</span><span class="bp">self</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Gyroscopic matrix for an instance of a shaft element.</span>
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        Gyroscopic matrix for the shaft element.</span>
+<span class="sd">        Examples</span>
+<span class="sd">        --------</span>
+<span class="sd">        &gt;&gt;&gt; from ross.materials import steel</span>
+<span class="sd">        &gt;&gt;&gt; # Timoshenko is the default shaft element</span>
+<span class="sd">        &gt;&gt;&gt; Timoshenko_Element = ShaftElement(0.25, 0, 0.05, steel)</span>
+<span class="sd">        &gt;&gt;&gt; Timoshenko_Element.G()[:4, :4]</span>
+<span class="sd">        array([[-0.        ,  0.01943344, -0.00022681, -0.        ],</span>
+<span class="sd">               [-0.01943344, -0.        , -0.        , -0.00022681],</span>
+<span class="sd">               [ 0.00022681, -0.        , -0.        ,  0.0001524 ],</span>
+<span class="sd">               [-0.        ,  0.00022681, -0.0001524 , -0.        ]])</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">phi</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">phi</span>
+        <span class="n">L</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">L</span>
+
+        <span class="n">G</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">zeros</span><span class="p">((</span><span class="mi">8</span><span class="p">,</span> <span class="mi">8</span><span class="p">))</span>
+
+        <span class="k">if</span> <span class="bp">self</span><span class="o">.</span><span class="n">gyroscopic</span><span class="p">:</span>
+            <span class="n">g1</span> <span class="o">=</span> <span class="mi">36</span>
+            <span class="n">g2</span> <span class="o">=</span> <span class="p">(</span><span class="mi">3</span> <span class="o">-</span> <span class="mi">15</span> <span class="o">*</span> <span class="n">phi</span><span class="p">)</span> <span class="o">*</span> <span class="n">L</span>
+            <span class="n">g3</span> <span class="o">=</span> <span class="p">(</span><span class="mi">4</span> <span class="o">+</span> <span class="mi">5</span> <span class="o">*</span> <span class="n">phi</span> <span class="o">+</span> <span class="mi">10</span> <span class="o">*</span> <span class="n">phi</span> <span class="o">**</span> <span class="mi">2</span><span class="p">)</span> <span class="o">*</span> <span class="n">L</span> <span class="o">**</span> <span class="mi">2</span>
+            <span class="n">g4</span> <span class="o">=</span> <span class="p">(</span><span class="o">-</span><span class="mi">1</span> <span class="o">-</span> <span class="mi">5</span> <span class="o">*</span> <span class="n">phi</span> <span class="o">+</span> <span class="mi">5</span> <span class="o">*</span> <span class="n">phi</span> <span class="o">**</span> <span class="mi">2</span><span class="p">)</span> <span class="o">*</span> <span class="n">L</span> <span class="o">**</span> <span class="mi">2</span>
+            <span class="c1"># fmt: off</span>
+            <span class="n">G</span> <span class="o">=</span> <span class="n">np</span><span class="o">.</span><span class="n">array</span><span class="p">([[</span>  <span class="mi">0</span><span class="p">,</span> <span class="o">-</span><span class="n">g1</span><span class="p">,</span>  <span class="n">g2</span><span class="p">,</span>   <span class="mi">0</span><span class="p">,</span>   <span class="mi">0</span><span class="p">,</span>  <span class="n">g1</span><span class="p">,</span>  <span class="n">g2</span><span class="p">,</span>   <span class="mi">0</span><span class="p">],</span>
+                          <span class="p">[</span> <span class="n">g1</span><span class="p">,</span>   <span class="mi">0</span><span class="p">,</span>   <span class="mi">0</span><span class="p">,</span>  <span class="n">g2</span><span class="p">,</span> <span class="o">-</span><span class="n">g1</span><span class="p">,</span>   <span class="mi">0</span><span class="p">,</span>   <span class="mi">0</span><span class="p">,</span>  <span class="n">g2</span><span class="p">],</span>
+                          <span class="p">[</span><span class="o">-</span><span class="n">g2</span><span class="p">,</span>   <span class="mi">0</span><span class="p">,</span>   <span class="mi">0</span><span class="p">,</span> <span class="o">-</span><span class="n">g3</span><span class="p">,</span>  <span class="n">g2</span><span class="p">,</span>   <span class="mi">0</span><span class="p">,</span>   <span class="mi">0</span><span class="p">,</span> <span class="o">-</span><span class="n">g4</span><span class="p">],</span>
+                          <span class="p">[</span>  <span class="mi">0</span><span class="p">,</span> <span class="o">-</span><span class="n">g2</span><span class="p">,</span>  <span class="n">g3</span><span class="p">,</span>   <span class="mi">0</span><span class="p">,</span>   <span class="mi">0</span><span class="p">,</span>  <span class="n">g2</span><span class="p">,</span>  <span class="n">g4</span><span class="p">,</span>   <span class="mi">0</span><span class="p">],</span>
+                          <span class="p">[</span>  <span class="mi">0</span><span class="p">,</span>  <span class="n">g1</span><span class="p">,</span> <span class="o">-</span><span class="n">g2</span><span class="p">,</span>   <span class="mi">0</span><span class="p">,</span>   <span class="mi">0</span><span class="p">,</span> <span class="o">-</span><span class="n">g1</span><span class="p">,</span> <span class="o">-</span><span class="n">g2</span><span class="p">,</span>   <span class="mi">0</span><span class="p">],</span>
+                          <span class="p">[</span><span class="o">-</span><span class="n">g1</span><span class="p">,</span>   <span class="mi">0</span><span class="p">,</span>   <span class="mi">0</span><span class="p">,</span> <span class="o">-</span><span class="n">g2</span><span class="p">,</span>  <span class="n">g1</span><span class="p">,</span>   <span class="mi">0</span><span class="p">,</span>   <span class="mi">0</span><span class="p">,</span> <span class="o">-</span><span class="n">g2</span><span class="p">],</span>
+                          <span class="p">[</span><span class="o">-</span><span class="n">g2</span><span class="p">,</span>   <span class="mi">0</span><span class="p">,</span>   <span class="mi">0</span><span class="p">,</span> <span class="o">-</span><span class="n">g4</span><span class="p">,</span>  <span class="n">g2</span><span class="p">,</span>   <span class="mi">0</span><span class="p">,</span>   <span class="mi">0</span><span class="p">,</span> <span class="o">-</span><span class="n">g3</span><span class="p">],</span>
+                          <span class="p">[</span>  <span class="mi">0</span><span class="p">,</span> <span class="o">-</span><span class="n">g2</span><span class="p">,</span>  <span class="n">g4</span><span class="p">,</span>   <span class="mi">0</span><span class="p">,</span>   <span class="mi">0</span><span class="p">,</span>  <span class="n">g2</span><span class="p">,</span>  <span class="n">g3</span><span class="p">,</span>   <span class="mi">0</span><span class="p">]])</span>
+            <span class="c1"># fmt: on</span>
+            <span class="n">G</span> <span class="o">=</span> <span class="o">-</span><span class="bp">self</span><span class="o">.</span><span class="n">material</span><span class="o">.</span><span class="n">rho</span> <span class="o">*</span> <span class="bp">self</span><span class="o">.</span><span class="n">Ie</span> <span class="o">*</span> <span class="n">G</span> <span class="o">/</span> <span class="p">(</span><span class="mi">15</span> <span class="o">*</span> <span class="n">L</span> <span class="o">*</span> <span class="p">(</span><span class="mi">1</span> <span class="o">+</span> <span class="n">phi</span><span class="p">)</span> <span class="o">**</span> <span class="mi">2</span><span class="p">)</span>
+
+        <span class="k">return</span> <span class="n">G</span></div>
+
+<div class="viewcode-block" id="ShaftElement.patch"><a class="viewcode-back" href="../../api.html#ross.shaft_element.ShaftElement.patch">[docs]</a>    <span class="k">def</span> <span class="nf">patch</span><span class="p">(</span><span class="bp">self</span><span class="p">,</span> <span class="n">ax</span><span class="p">,</span> <span class="n">position</span><span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Shaft element patch.</span>
+<span class="sd">        Patch that will be used to draw the shaft element.</span>
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        ax : matplotlib axes, optional</span>
+<span class="sd">            Axes in which the plot will be drawn.</span>
+<span class="sd">        position : float</span>
+<span class="sd">            Position in which the patch will be drawn.</span>
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        ax : matplotlib axes</span>
+<span class="sd">            Returns the axes object with the plot.</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+        <span class="n">position_u</span> <span class="o">=</span> <span class="p">[</span><span class="n">position</span><span class="p">,</span> <span class="bp">self</span><span class="o">.</span><span class="n">i_d</span><span class="p">]</span>  <span class="c1"># upper</span>
+        <span class="n">position_l</span> <span class="o">=</span> <span class="p">[</span><span class="n">position</span><span class="p">,</span> <span class="o">-</span><span class="bp">self</span><span class="o">.</span><span class="n">o_d</span><span class="p">]</span>  <span class="c1"># lower</span>
+        <span class="n">width</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">L</span>
+        <span class="n">height</span> <span class="o">=</span> <span class="bp">self</span><span class="o">.</span><span class="n">o_d</span> <span class="o">-</span> <span class="bp">self</span><span class="o">.</span><span class="n">i_d</span>
+
+        <span class="c1">#  plot the upper half of the shaft</span>
+        <span class="n">ax</span><span class="o">.</span><span class="n">add_patch</span><span class="p">(</span>
+            <span class="n">mpatches</span><span class="o">.</span><span class="n">Rectangle</span><span class="p">(</span>
+                <span class="n">position_u</span><span class="p">,</span>
+                <span class="n">width</span><span class="p">,</span>
+                <span class="n">height</span><span class="p">,</span>
+                <span class="n">linestyle</span><span class="o">=</span><span class="s2">&quot;--&quot;</span><span class="p">,</span>
+                <span class="n">linewidth</span><span class="o">=</span><span class="mf">0.5</span><span class="p">,</span>
+                <span class="n">ec</span><span class="o">=</span><span class="s2">&quot;k&quot;</span><span class="p">,</span>
+                <span class="n">fc</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">color</span><span class="p">,</span>
+                <span class="n">alpha</span><span class="o">=</span><span class="mf">0.8</span><span class="p">,</span>
+            <span class="p">)</span>
+        <span class="p">)</span>
+        <span class="c1">#  plot the lower half of the shaft</span>
+        <span class="n">ax</span><span class="o">.</span><span class="n">add_patch</span><span class="p">(</span>
+            <span class="n">mpatches</span><span class="o">.</span><span class="n">Rectangle</span><span class="p">(</span>
+                <span class="n">position_l</span><span class="p">,</span>
+                <span class="n">width</span><span class="p">,</span>
+                <span class="n">height</span><span class="p">,</span>
+                <span class="n">linestyle</span><span class="o">=</span><span class="s2">&quot;--&quot;</span><span class="p">,</span>
+                <span class="n">linewidth</span><span class="o">=</span><span class="mf">0.5</span><span class="p">,</span>
+                <span class="n">ec</span><span class="o">=</span><span class="s2">&quot;k&quot;</span><span class="p">,</span>
+                <span class="n">fc</span><span class="o">=</span><span class="bp">self</span><span class="o">.</span><span class="n">color</span><span class="p">,</span>
+                <span class="n">alpha</span><span class="o">=</span><span class="mf">0.8</span><span class="p">,</span>
+            <span class="p">)</span>
+        <span class="p">)</span></div>
+
+<div class="viewcode-block" id="ShaftElement.section"><a class="viewcode-back" href="../../api.html#ross.shaft_element.ShaftElement.section">[docs]</a>    <span class="nd">@classmethod</span>
+    <span class="k">def</span> <span class="nf">section</span><span class="p">(</span>
+        <span class="bp">cls</span><span class="p">,</span>
+        <span class="n">L</span><span class="p">,</span>
+        <span class="n">ne</span><span class="p">,</span>
+        <span class="n">si_d</span><span class="p">,</span>
+        <span class="n">so_d</span><span class="p">,</span>
+        <span class="n">material</span><span class="p">,</span>
+        <span class="n">n</span><span class="o">=</span><span class="kc">None</span><span class="p">,</span>
+        <span class="n">shear_effects</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+        <span class="n">rotary_inertia</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+        <span class="n">gyroscopic</span><span class="o">=</span><span class="kc">True</span><span class="p">,</span>
+    <span class="p">):</span>
+        <span class="sd">&quot;&quot;&quot;Shaft section constructor.</span>
+<span class="sd">        This method will create a shaft section with length &#39;L&#39;</span>
+<span class="sd">        divided into &#39;ne&#39; elements.</span>
+<span class="sd">        Parameters</span>
+<span class="sd">        ----------</span>
+<span class="sd">        i_d : float</span>
+<span class="sd">            Inner diameter of the section.</span>
+<span class="sd">        o_d : float</span>
+<span class="sd">            Outer diameter of the section.</span>
+<span class="sd">        E : float</span>
+<span class="sd">            Young&#39;s modulus.</span>
+<span class="sd">        G_s : float</span>
+<span class="sd">            Shear modulus.</span>
+<span class="sd">        material : ross.material</span>
+<span class="sd">            Shaft material.</span>
+<span class="sd">        n : int, optional</span>
+<span class="sd">            Element number (coincident with it&#39;s first node).</span>
+<span class="sd">            If not given, it will be set when the rotor is assembled</span>
+<span class="sd">            according to the element&#39;s position in the list supplied to</span>
+<span class="sd">            the rotor constructor.</span>
+<span class="sd">        axial_force : float</span>
+<span class="sd">            Axial force.</span>
+<span class="sd">        torque : float</span>
+<span class="sd">            Torque.</span>
+<span class="sd">        shear_effects : bool</span>
+<span class="sd">            Determine if shear effects are taken into account.</span>
+<span class="sd">            Default is False.</span>
+<span class="sd">        rotary_inertia : bool</span>
+<span class="sd">            Determine if rotary_inertia effects are taken into account.</span>
+<span class="sd">            Default is False.</span>
+<span class="sd">        gyroscopic : bool</span>
+<span class="sd">            Determine if gyroscopic effects are taken into account.</span>
+<span class="sd">            Default is False.</span>
+<span class="sd">        Returns</span>
+<span class="sd">        -------</span>
+<span class="sd">        elements: list</span>
+<span class="sd">            List with the &#39;ne&#39; shaft elements.</span>
+<span class="sd">        Examples</span>
+<span class="sd">        --------</span>
+<span class="sd">        &gt;&gt;&gt; # shaft material</span>
+<span class="sd">        &gt;&gt;&gt; from ross.materials import steel</span>
+<span class="sd">        &gt;&gt;&gt; # shaft inner and outer diameters</span>
+<span class="sd">        &gt;&gt;&gt; si_d = 0</span>
+<span class="sd">        &gt;&gt;&gt; so_d = 0.01585</span>
+<span class="sd">        &gt;&gt;&gt; sec = ShaftElement.section(247.65e-3, 4, 0, 15.8e-3, steel)</span>
+<span class="sd">        &gt;&gt;&gt; len(sec)</span>
+<span class="sd">        4</span>
+<span class="sd">        &gt;&gt;&gt; sec[0].i_d</span>
+<span class="sd">        0</span>
+<span class="sd">        &quot;&quot;&quot;</span>
+
+        <span class="n">le</span> <span class="o">=</span> <span class="n">L</span> <span class="o">/</span> <span class="n">ne</span>
+
+        <span class="n">elements</span> <span class="o">=</span> <span class="p">[</span>
+            <span class="bp">cls</span><span class="p">(</span><span class="n">le</span><span class="p">,</span> <span class="n">si_d</span><span class="p">,</span> <span class="n">so_d</span><span class="p">,</span> <span class="n">material</span><span class="p">,</span> <span class="n">n</span><span class="p">,</span> <span class="n">shear_effects</span><span class="p">,</span> <span class="n">rotary_inertia</span><span class="p">,</span> <span class="n">gyroscopic</span><span class="p">)</span>
+            <span class="k">for</span> <span class="n">_</span> <span class="ow">in</span> <span class="nb">range</span><span class="p">(</span><span class="n">ne</span><span class="p">)</span>
+        <span class="p">]</span>
+
+        <span class="k">return</span> <span class="n">elements</span></div></div>
+</pre></div>
+
+      </div>
+      <div class="bottomnav" role="navigation" aria-label="bottom navigation">
+      
+        <p>
+        <a class="uplink" href="../../index.html">Contents</a>
+        </p>
+
+      </div>
+
+    <div class="footer" role="contentinfo">
+        &#169; Copyright 2019, Team Ross.
+      Created using <a href="http://sphinx-doc.org/">Sphinx</a> 1.8.2.
+    </div>
+  </body>
+</html>
