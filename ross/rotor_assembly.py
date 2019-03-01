@@ -217,6 +217,8 @@ class Rotor(object):
         df = df.sort_values(by="n_l")
         df = df.reset_index(drop=True)
 
+        self.df_disks = df_disks
+
         # check consistence for disks and bearings location
         if df.n_l.max() > df[df.type == "ShaftElement"].n_r.max():
             raise ValueError("Trying to set disk or bearing outside shaft")
@@ -1028,7 +1030,7 @@ class Rotor(object):
 
         #  plot shaft centerline
         shaft_end = self.nodes_pos[-1]
-        ax.plot([-.2 * shaft_end, 1.2 * shaft_end], [0, 0], "k-.")
+        ax.plot([-0.2 * shaft_end, 1.2 * shaft_end], [0, 0], "k-.")
         try:
             max_diameter = max([disk.o_d for disk in self.disk_elements])
         except (ValueError, AttributeError):
@@ -1388,6 +1390,28 @@ class Rotor(object):
         """
         with open(file_name, "rb") as f:
             return pickle.load(f)
+
+    def static(self):
+        """This function calculates the static displacement of a rotor
+        due the disks' weight, and returns an array with the nodal displacement
+        The calculation is done from the stiffness and mass matrix of a rotor.
+        """
+        # gravity aceleration vector
+        grav = np.zeros((len(self.M()), 1))
+
+        # place gravity effect on disk nodes
+        for i in self.df_disks["n"]:
+            grav[4 * i - 3] = -9.8065
+
+        # calculates x, for [K]*[x] = [M]*[g]
+        disp = la.solve(self.K(0), np.matmul(self.M(), grav))
+        disp = disp.flatten()
+
+        disp_y = np.array([])
+        for i in range(int(len(disp) / 4)):
+            disp_y = np.append(disp_y, disp[4 * i - 3])
+
+        return disp_y
 
 
 def rotor_example():
