@@ -5,7 +5,7 @@ import pytest
 steel = mtr.steel
 
 
-def rotor_example1(w, n_el):
+def rotor_example1(w=0, n_el=48):
     """
     This function instantiate a rotor similar to the example  5.9.1, page 206 (Dynamics of rotating machine, FRISSWELL)
     The following functions test_example1_w_equals0rpm() and test_example1_w_equals4000rpm() are the test functions of
@@ -43,7 +43,7 @@ def test_example1_w_equals_4000rpm():
                                                                 , 1e-3)
 
 
-def rotor_example2(w, n_el):
+def rotor_example2(w=0, n_el=48):
     """
     This function instantiate a overhung rotor similar to the example  5.9.9, page 218 (Dynamics of rotating machine,
     FRISSWELL).
@@ -82,7 +82,7 @@ def test_example2_w_eq_4000rpm():
                                                                                   634.23, 647.75, 1174.2])
 
 
-def rotor_example3(w, n_el):
+def rotor_example3(w=0, n_el=48):
     """
     This function instantiate a rotor similar to the example  5.9.2, page 208 (Dynamics of rotating machine, FRISSWELL)
     The following functions test_example3_w_equals0rpm() and test_example3_w_equals4000rpm() are the test functions of
@@ -120,7 +120,7 @@ def test_example3_w_equals_4000rpm():
                                                                                  806.89])
 
 
-def rotor_example4(w, n_el):
+def rotor_example4(w=0, n_el=48):
     """
     This function instantiate a rotor similar to the example  5.9.5, page 212 (Dynamics of rotating machine, FRISSWELL)
     The following functions test_example4_w_equals0rpm() and test_example4_w_equals4000rpm() are the test functions of
@@ -153,17 +153,16 @@ def test_example4_w_equals_0rpm():
     assert pytest.approx(wd_hertz, 1e-2) == np.array([13.89, 13.89, 46.54, 46.54, 103.22, 103.22])
 
 
-@pytest.mark.skip(reason='Unknown reason')
 def test_example4_w_equals_4000rpm():
     ROT = rotor_example4((4000 * np.pi) / 30, 6)
     ROT.run()
     wn_hertz = ROT.wn/(2*np.pi)
     wd_hertz = ROT.wd/(2*np.pi)
-    assert pytest.approx(wn_hertz, 1e-1) == np.array([13.91, 13.91, 48.18, 48.18, 137.06, 137.06])
-    assert pytest.approx(wd_hertz, 1e-1) == np.array([13.89, 13.89, 46.54, 46.54, 103.22, 103.22])
+    assert pytest.approx(wn_hertz, 1e-1) == np.array([13.70, 14.09, 43.61, 52.18, 122.37, 149.81])
+    assert pytest.approx(wd_hertz, 1e-1) == np.array([13.68, 14.07, 41.98, 50.65, 104.25, 105.66])
 
 
-def rotor_example5(w, n_el):
+def rotor_example5(w=0, n_el=48):
     """
     This function instantiate a rotor similar to the example  5.9.3, page 209 (Dynamics of rotating machine, FRISSWELL)
     The following function, test_example5_w_equals4000rpm() is the test function of
@@ -195,7 +194,7 @@ def test_example5_w_equals4000rpm():
     assert pytest.approx(wn_hertz, 1) == (np.array([8.545, 13.77, 22.35, 44.06, 78.76, 120.4]))/(2*np.pi)
 
 
-def rotor_example6(w, n_el):
+def rotor_example6(w=0, n_el=48):
     """
     This function instantiate a rotor similar to the example  5.9.4, page 210 (Dynamics of rotating machine, FRISSWELL)
     The following functions test_example6_w_equals0rpm() and test_example6_w_equals4000rpm() are the test functions of
@@ -227,7 +226,7 @@ def test_example6_w_equals4000rpm():
     assert pytest.approx(wn_hertz, 1) == (np.array([11.66, 14.80, 33.97, 49.19, 97.97, 126.61]))
 
 
-def rotor_example7(w, n_el):
+def rotor_example7(w=0, n_el=48):
     """
     This function instantiate a rotor similar to the example  5.9.10, page 219 (Dynamics of rotating machine, FRISSWELL)
     The following functions test_example7_w_equals0rpm() and test_example7_w_equals4000rpm() are the test functions of
