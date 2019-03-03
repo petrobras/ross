@@ -2,6 +2,10 @@ import numpy as np
 import matplotlib.patches as mpatches
 from ross.element import Element
 from ross.materials import steel
+from ross.materials import Material
+import os
+import ross
+from pathlib import Path
 
 __all__ = [
     "ShaftElement"
@@ -98,11 +102,17 @@ class ShaftElement(Element):
         shear_method_calc='cowper',
     ):
 
-        self.material = material
+        if type(material) is str:
+            os.chdir(Path(os.path.dirname(ross.__file__)))
+            self.material = Material.use_material(material)
+        else:
+            self.material = material
+
         self.shear_effects = shear_effects
         self.rotary_inertia = rotary_inertia
         self.gyroscopic = gyroscopic
-
+        self.axial_force = axial_force
+        self.torque = torque
         self._n = n
         self.n_l = n
         self.n_r = None
