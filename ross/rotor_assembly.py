@@ -1,6 +1,5 @@
 import os
 import warnings
-import pickle
 import numpy as np
 import pandas as pd
 import scipy.linalg as la
@@ -1503,7 +1502,7 @@ class Rotor(object):
 
     @staticmethod
     def available_rotors():
-        return [x for x in os.listdir(Path(os.getcwd())/'rotors')]
+        return [x for x in os.listdir(Path(os.path.dirname(ross.__file__))/'rotors')]
 
 
 def rotor_example():
@@ -1538,8 +1537,8 @@ def rotor_example():
         for l in L
     ]
 
-    disk0 = DiskElement(2, steel, 0.07, 0.05, 0.28)
-    disk1 = DiskElement(4, steel, 0.07, 0.05, 0.35)
+    disk0 = DiskElement.from_geometry(n=2, material=steel, width=0.07, i_d=0.05, o_d=0.28)
+    disk1 = DiskElement.from_geometry(n=4,  material=steel, width=0.07, i_d=0.05, o_d=0.28)
 
     stfx = 1e6
     stfy = 0.8e6
