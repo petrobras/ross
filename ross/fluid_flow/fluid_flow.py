@@ -1,13 +1,17 @@
-# Todo: check PEP 8
-# Todo: explain functions
-
 import numpy as np
 import matplotlib.pyplot as plt
 
 
 class PressureMatrix:
-    def __init__(self, nz, ntheta, nradius, n_interv_z, n_interv_theta, n_interv_radius, lb, ltheta, dz, dtheta, ntotal,
-                 omega, p_in, p_out, radius_valley, radius_crest, radius_stator, lwave, xe, ye, visc, rho):
+    """Pressure Matrix
+    Creates the pressure matrix
+    """
+    def __init__(
+            self, nz, ntheta, nradius, n_interv_z, n_interv_theta,
+            n_interv_radius, lb, ltheta, dz, dtheta, ntotal, omega, p_in,
+            p_out, radius_valley, radius_crest, radius_stator, lwave, xe,
+            ye, visc, rho
+            ):
         self.nz = nz
         self.ntheta = ntheta
         self.nradius = nradius
@@ -46,26 +50,30 @@ class PressureMatrix:
         self.P = None
 
     def calculate_pressure_matrix(self):
+        """Calculate pressure matrix
+        This function calculates the pressure matrix
+        """
         M, f = self.mounting_matrix()
         self.P = self.resolves_matrix(M, f)
         self.p_matrix(self.P)
         return self.p_mat
 
-    #==========================================================================
-    # calculate_coefficients
-    # This function calculates the constants that form the Poisson equation of 
-    # the discrete pressure (central differences in the second derivatives)
-    #==========================================================================
     def calculate_coefficients(self):
+        """Calculate coeddicients
+        This function calculates the constants that form the Poisson equation
+        of the discrete pressure (central differences in the second
+        derivatives)
+        """
         plt.figure(0)
-        # Assembling the matrices of each coefficient:
         for i in range(self.nz):
             zno = i * self.dz
             self.z[0][i] = zno
             for j in range(self.ntheta):
-                gama = j * self.dtheta  # mudei de j-1 para j pela mesma razao
-                [radius_external, self.xre[i][j], self.yre[i][j]] = self.external_radius_function(gama)
-                [radius_internal, self.xri[i][j], self.yri[i][j]] = self.internal_radius_function(zno, gama)
+                gama = j * self.dtheta
+                [radius_external, self.xre[i][j], self.yre[i][j]] =\
+                    self.external_radius_function(gama)
+                [radius_internal, self.xri[i][j], self.yri[i][j]] =\
+                    self.internal_radius_function(zno, gama)
 
                 # Plot a cut at z=0:
                 if i == 0:
@@ -79,46 +87,80 @@ class PressureMatrix:
 
                 w = self.omega * radius_internal
 
-                k = (1. / (radius_internal ** 2 - radius_external ** 2)) * ((radius_external ** 2) * (-(1. / 2)
-                                                                                          + np.log(radius_external)) - (
-                                                                            radius_internal ** 2) * (
-                                                                            -(1. / 2) + np.log(radius_internal)))
+                k = (1. / (radius_internal ** 2 - radius_external ** 2)) *\
+                    (
+                            (radius_external**2) *
+                            (-(1./2) + np.log(radius_external)) -
+                            (radius_internal**2) *
+                            (-(1./2) + np.log(radius_internal))
+                    )
 
-                self.c1[i][j] = (1. / (4 * self.visc)) * ((radius_external ** 2) * (np.log(radius_external))
-                                                - (radius_internal ** 2) * (np.log(radius_internal))
-                                                + (radius_external ** 2 - radius_internal ** 2) * (k - 1))
-                - ((radius_external ** 2) / (2 * self.visc)) * ((np.log(radius_external) + k - 1 / 2)
-                                                       * np.log(radius_external / radius_internal))
+                self.c1[i][j] = (1./(4 * self.visc)) *\
+                (
+                        (radius_external**2) * (np.log(radius_external)) -
+                        (radius_internal**2) * (np.log(radius_internal)) +
+                        (radius_external**2 - radius_internal**2) * (k - 1)
+                ) -\
+                (
+                        (radius_external**2) / (2 * self.visc)
+                ) *\
+                (
+                        (np.log(radius_external) + k - 1/2) *
+                        np.log(radius_external / radius_internal)
+                )
 
-                self.c2[i][j] = - ((radius_internal ** 2) / (8. * self.visc)) * ((radius_external ** 2
-                                                                    - radius_internal ** 2 - (radius_external ** 4
-                                                                                          - radius_internal ** 4) / (
-                                                                            2 * (radius_internal ** 2)))
-                                                                   + ((radius_external ** 2 - radius_internal ** 2) / (
-                                (radius_internal ** 2)
-                                * (np.log(radius_external / radius_internal)))) * ((radius_external ** 2)
-                                                                           * np.log(radius_external / radius_internal)
-                                                                           - (
-                                                                                   radius_external ** 2 - radius_internal ** 2) / 2.))
+                self.c2[i][j] = - ((radius_internal**2) / (8. * self.visc)) *\
+                (
+                    (
+                            radius_external**2 - radius_internal**2 -
+                            (radius_external**4 - radius_internal**4) /
+                            (2 * (radius_internal ** 2))
+                    ) +
+                    (
+                            (radius_external ** 2 - radius_internal ** 2) /
+                            (
+                                    (radius_internal ** 2) *
+                                    (np.log(radius_external / radius_internal))
+                            )
+                    ) *
+                    (
+                            (radius_external ** 2) * np.log
+                        (
+                        radius_external / radius_internal
+                        ) - (
+                            radius_external**2 - radius_internal**2
+                            ) / 2.
+                    )
+                )
 
-                self.c0w[i][j] = - (w * radius_internal) * (((np.log(radius_external / radius_internal))
-                                                    * (1 + (radius_internal ** 2) / (radius_external ** 2
-                                                                                 - radius_internal ** 2))) - (1. / 2))
+                self.c0w[i][j] = - (w * radius_internal) * (
+                    (
+                        (np.log(radius_external / radius_internal)) *
+                        (
+                            1 + (radius_internal ** 2) /
+                            (radius_external**2 - radius_internal ** 2)
+                        )
+                    ) - (1. / 2)
+                    )
 
                 self.re[i][j] = radius_external
 
                 self.ri[i][j] = radius_internal
-        # plt.show()
 
-    #==========================================================================
-    # external_radius_function
-    # This function calculates the radius of the stator in the center of coordinates 
-    # given the theta angle, the value of the eccentricity and its radius
-    #==========================================================================
     def external_radius_function(self, gama):
+        """External radius function
+        This function calculates the radius of the stator in the center of
+        coordinates given the theta angle, the value of the eccentricity
+        and its radius.
+        Parameters
+        ----------
+        betha: float
+            Betha is the angle that indicates the location of the eccentricity.
+        alpha: float
+            Alpha is the angle between THETA and eccentricity (betha).
+        """
         e = np.sqrt(self.xe ** 2 + self.ye ** 2)
         if (self.xe > 0. and self.ye >= 0.) or (self.xe > 0 and self.ye < 0):
-            # Betha is the angle that indicates the location of the eccentricity
             betha = np.arctan(self.ye / self.xe)
         if (self.xe < 0. and self.ye <= 0.) or (self.xe < 0 and self.ye > 0):
             betha = -np.pi + np.arctan(self.ye / self.xe)
@@ -127,60 +169,44 @@ class PressureMatrix:
                 betha = np.pi / 2.
             else:
                 betha = -np.pi / 2.
-        # Alpha is the angle between THETA and eccentricity (betha):
         alpha = gama - betha
-        radius_external = e * np.cos(alpha) + np.sqrt(self.radius_stator ** 2 - (e * np.sin(alpha)) ** 2)
+        radius_external = e * np.cos(alpha) + np.sqrt(
+            self.radius_stator ** 2 - (e * np.sin(alpha)) ** 2
+            )
         xre = radius_external * np.cos(gama)
         yre = radius_external * np.sin(gama)
         return radius_external, xre, yre
 
-    #==========================================================================
-    # internal_radius_function
-    # This function calculates the radius of the rotor given the crest radius, 
-    # the valley radius and the position z
-    #==========================================================================
     def internal_radius_function(self, z, gama):
-        # Cylindrical Case
-        # radius_internal = self.radius_valley
+        """Internal radius function
+        This function calculates the radius of the rotor given the crest
+        radius, the valley radius and the position z.
+        Examples
+        --------
+        >>>CYLINDRICAL CASE = (radius_internal = self.radius_valley)
+        >>>CONICAL CASE = (radius_internal = self.radius_valley +
+        ((self.radius_crest - self.radius_valley)/self.lb) * z)
+        >>>SINUSOIDAL CASE = (radius_internal = (self.radius_valley +
+        self.radius_crest)/2. + ((self.radius_crest - self.radius_valley)/2.)
+        * np.sin((2*np.pi/self.lwave)*z + np.pi/2.))
+        """
 
-        # Conical Case
-        radius_internal = self.radius_valley + ((self.radius_crest - self.radius_valley)/self.lb)*z
-
-        # Sinusoidal Case
-        # radius_internal = (self.radius_valley + self.radius_crest)/2. + ((self.radius_crest - self.radius_valley)/2.)*np.sin((2*np.pi/self.lwave)*z + np.pi/2.)
-
-        # Square Wave Case
-        # z = int(round(z*100.)+1.)
-        # n = 200
-        # v = (self.radius_crest - self.radius_valley)
-        # n_of_steps = self.nz
-        # step = self.lb/n_of_steps
-        # x = np.zeros(n_of_steps + 1)
-        # for i in range(1, n_of_steps + 1):
-        #     x[i] = i*step
-        # f = 0.034 + v/2 + np.zeros(n_of_steps + 1)
-        # for i in range(1, 2, n + 1):  # Todo: run on MATLAB and compare
-        #     a = 2*v/np.pi/i
-        #     f = f - a*np.sin(13*np.pi*i*x)
-        # f[0] = f[1]
-        # f[n_of_steps] = f[n_of_steps - 1]
-        # radius_internal = f[z]  #(PROBLEMA AQUI: o parametro z calculado na funcao seguinte sempre ultrapassa o tamanho do vetor)
-
+        radius_internal = self.radius_valley + (
+            (self.radius_crest - self.radius_valley)/self.lb
+            )*z
         xri = radius_internal * np.cos(gama)
         yri = radius_internal * np.sin(gama)
 
         return radius_internal, xri, yri
 
-    #==========================================================================
-    # mounting_matrix
-    # This function assembles the matrix M and the independent vector f
-    #==========================================================================
     def mounting_matrix(self):
-        # Creating matrix and vector of zeros:
+        """Mounting matrix
+        This function assembles the matrix M and the independent vector f.
+        """
         M = np.zeros([self.ntotal, self.ntotal])
         f = np.zeros([self.ntotal, 1])
 
-        # Applying the boundary conditions in Z=0 e Z=L:
+        """ Applying the boundary conditions in Z=0 e Z=L:"""
         counter = 0
         for x in range(self.ntheta):
             M[counter][counter] = 1
@@ -190,14 +216,14 @@ class PressureMatrix:
             f[counter][0] = self.p_out
             counter = counter + 1
 
-        # Applying the boundary conditions p(theta=0)=P(theta=pi):):
-        counter = 0;
+        """Applying the boundary conditions p(theta=0)=P(theta=pi):):"""
+        counter = 0
         for x in range(self.nz - 2):
             M[self.ntotal - self.nz + 1 + counter][1 + counter] = 1
             M[self.ntotal - self.nz + 1 + counter][self.ntotal - self.nz + 1 + counter] = -1
             counter = counter + 1
 
-        # Border nodes with periodic boundary condition:
+        """Border nodes with periodic boundary condition:"""
         counter = 1
         j = 0
         for i in range(1, self.nz - 1):
@@ -205,7 +231,9 @@ class PressureMatrix:
             M[counter][self.ntotal - 2 * self.nz + counter] = a
             b = (1 / self.dz ** 2) * (self.c2[i - 1, j])
             M[counter][counter - 1] = b
-            c = -((1 / self.dtheta ** 2) * ((self.c1[i][j]) + self.c1[i][self.ntheta - 1]) + (1 / self.dz ** 2) * (self.c2[i][j] + self.c2[i - 1][j]))
+            c = -((1 / self.dtheta ** 2) * (
+                (self.c1[i][j]) + self.c1[i][self.ntheta - 1]
+                ) + (1 / self.dz ** 2) * (self.c2[i][j] + self.c2[i - 1][j]))
             M[counter, counter] = c
             d = (1 / self.dz ** 2) * (self.c2[i][j])
             M[counter][counter + 1] = d
@@ -221,7 +249,10 @@ class PressureMatrix:
                 M[counter][counter - self.nz] = a
                 b = (1 / self.dz ** 2) * (self.c2[i - 1][j])
                 M[counter][counter - 1] = b
-                c = -((1 / self.dtheta ** 2) * ((self.c1[i][j]) + self.c1[i][j - 1]) + (1 / self.dz ** 2) * (self.c2[i][j] + self.c2[i - 1][j]))
+                c = -((1 / self.dtheta ** 2) * (
+                    (self.c1[i][j]) + self.c1[i][j - 1]) + (1 / self.dz ** 2) *
+                    (self.c2[i][j] + self.c2[i - 1][j])
+                    )
                 M[counter, counter] = c
                 d = (1 / self.dz ** 2) * (self.c2[i][j])
                 M[counter][counter + 1] = d
@@ -235,43 +266,42 @@ class PressureMatrix:
         for j in range(self.ntheta - 1):
             for i in range(1, self.nz - 1):
                 if j == 0:
-                    l = ((self.c0w[i][j] - self.c0w[i][self.ntheta - 1]) / (self.dtheta))
+                    l = (
+                        (self.c0w[i][j] - self.c0w[i][self.ntheta - 1]) /
+                        (self.dtheta)
+                        )
                     f[counter][0] = l
                 else:
                     l = ((self.c0w[i, j] - self.c0w[i, j - 1]) / (self.dtheta))
                     f[counter][0] = l
                 counter = counter + 1
             counter = counter + 2
-
         return M, f
 
-    #==========================================================================
-    # resolves_matrix
-    # This function resolves the linear system [M]{P}={f}
-    #==========================================================================
     def resolves_matrix(self, M, f):
+        """Resolves matrix
+        This function resolves the linear system [M]{P}={f}.
+        """
         P = np.linalg.solve(M, f)
         return P
-        # print(P)
 
-    # ==========================================================================
-    # p_matrix
-    # This function creates the pressure matrix
-    # ==========================================================================
     def p_matrix(self, P):
+        """P matrix
+        This function creates the pressure matrix.
+        """
         for i in range(self.nz):
             for j in range(self.ntheta):
                 k = j * self.nz + i
                 self.p_mat[i][j] = P[k]
 
-    #==========================================================================
-    # Graphics
-    # Plots the graphs of interest
-    #==========================================================================
-
-    # Assemble graphic of pressure
+    """Graphics
+    Plots the graphs of interest.
+    """
 
     def plot_pressure_z(self):
+        """Plot pressure z
+        Assemble pressure graph along the z-axis.
+        """
         plt.figure(1)
         for i in range(0, self.nz):
             plt.plot(i*self.dz, self.P[i], 'bo')
@@ -281,6 +311,9 @@ class PressureMatrix:
         plt.show(block=False)
 
     def plot_shape(self, theta=0):
+        """Plot shape
+        Assemble a graph representing the geometry of the rotor.
+        """
         plt.figure(2)
         x = np.zeros(self.nz)
         y_re = np.zeros(self.nz)
@@ -294,9 +327,14 @@ class PressureMatrix:
         plt.show(block=False)
 
     def plot_pressure_theta(self):
+        """Plot pressure theta
+        Assemble pressure graph in the theta direction.
+        """
         middle_section = int(self.nz/2)
 
-        r = np.arange(0, self.radius_stator + 0.0001, (self.radius_stator - self.radius_valley)/self.nradius)
+        r = np.arange(0, self.radius_stator + 0.0001, (
+            self.radius_stator - self.radius_valley)/self.nradius
+            )
         theta = np.arange(0, 2*np.pi + self.dtheta/2, self.dtheta)
 
         pressure_along_theta = np.zeros(self.ntheta)
@@ -322,8 +360,3 @@ class PressureMatrix:
         fig, ax = plt.subplots(subplot_kw=dict(projection='polar'))
         ax.contourf(theta_matrix, r_matrix, z_matrix, cmap='coolwarm')
         plt.show(block=False)
-
-
-
-
-
