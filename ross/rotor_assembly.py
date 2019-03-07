@@ -271,7 +271,7 @@ class Rotor(object):
         print("To calculate eigenvalues and frequencies, use the method run().")
 
     def __eq__(self, other):
-        if self.__dict__ == other.__dict__:
+        if self.elements == other.elements and self.parameters == other.parameters:
             return True
         else:
             return False

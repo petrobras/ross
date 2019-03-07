@@ -14,6 +14,7 @@ install:
   - "%PYTHON%\\python.exe -m pip install toml"
   - "%PYTHON%\\python.exe -m pip install pytest"
   - "%PYTHON%\\python.exe -m pip install pandas"
+  - "%PYTHON%\\python.exe -m pip install coverage"
 
 build: off
 
@@ -21,6 +22,7 @@ test_script:
   - "%PYTHON%\\python.exe setup.py test"
 
 after_test:
+  - "%PYTHON%\\python.exe setup.py bdist_wheel"
   - "%PYTHON%\\python.exe setup.py bdist_wheel"
 
 artifacts:

@@ -5,6 +5,7 @@ import matplotlib.pyplot as plt
 import matplotlib.patches as mpatches
 from ross.element import Element
 import pytest
+
 __all__ = ["BearingElement", "SealElement"]
 
 
@@ -36,7 +37,7 @@ class _Coefficient:
             self.interpolated = lambda x: np.array(self.coefficient[0])
 
     def __eq__(self, other):
-        if pytest.approx(self.__dict__['coefficient']) == other.__dict__['coefficient']:
+        if pytest.approx(self.__dict__["coefficient"]) == other.__dict__["coefficient"]:
             return True
         else:
             return False
@@ -160,24 +161,26 @@ class BearingElement(Element):
         return "%s" % self.__class__.__name__
 
     def __eq__(self, other):
-        false_number = 0
-        for i in self.__dict__:
-            try:
-                if pytest.approx(self.__dict__[i]) == other.__dict__[i]:
-                    pass
-                else:
-                    false_number += 1
+        try:
+            if pytest.approx(self.__dict__) == other.__dict__:
+                return True
+            else:
+                return False
 
-            except TypeError:
-                if self.__dict__[i] == other.__dict__[i]:
-                    pass
-                else:
-                    false_number +=1
+        except TypeError:
 
-        if false_number == 0:
-            return True
-        else:
-            return False
+            self_dict = self.__dict__
+            other_dict = other.__dict__
+
+            self_dict["w"] = 0
+            other_dict["w"] = 0
+
+            if (
+                self.__dict__["w"] == other.__dict__["w"]
+            ).__bool__() and self_dict == other_dict:
+                return True
+            else:
+                return False
 
     def M(self):
         M = np.zeros((4, 4))

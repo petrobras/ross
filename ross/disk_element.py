@@ -53,7 +53,7 @@ class DiskElement(Element):
                 if self.__dict__[i] == other.__dict__[i]:
                     pass
                 else:
-                    false_number +=1
+                    false_number += 1
 
         if false_number == 0:
             return True
