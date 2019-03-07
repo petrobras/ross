@@ -85,11 +85,11 @@ class CampbellResults(Results):
         whirl = self[..., 2]
         speed_range = self[..., 3]
 
-        default_values = dict(cmap="RdBu", vmin=0.1, vmax=2., s=20, alpha=0.5)
+        default_values = dict(cmap="RdBu", vmin=0.1, vmax=2.0, s=20, alpha=0.5)
         for k, v in default_values.items():
             kwargs.setdefault(k, v)
 
-        for mark, whirl_dir in zip(["^", "o", "v"], [0., 0.5, 1.]):
+        for mark, whirl_dir in zip(["^", "o", "v"], [0.0, 0.5, 1.0]):
             num_frequencies = wd.shape[1]
             for i in range(num_frequencies):
                 if wn is True:

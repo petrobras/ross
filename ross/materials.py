@@ -60,6 +60,12 @@ class Material:
         elif self.Poisson is None:
             self.Poisson = (self.E / (2 * self.G_s)) - 1
 
+    def __eq__(self, other):
+        if self.__dict__ == other.__dict__:
+            return True
+        else:
+            return False
+
     @staticmethod
     def dump_data(data):
         with open("available_materials.toml", "w") as f:

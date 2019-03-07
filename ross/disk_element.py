@@ -1,7 +1,7 @@
 import numpy as np
 import matplotlib.patches as mpatches
 from ross.element import Element
-
+import pytest
 
 __all__ = ["DiskElement"]
 
@@ -39,6 +39,26 @@ class DiskElement(Element):
         self.Id = Id
         self.Ip = Ip
         self.color = "#bc625b"
+
+    def __eq__(self, other):
+        false_number = 0
+        for i in self.__dict__:
+            try:
+                if pytest.approx(self.__dict__[i]) == other.__dict__[i]:
+                    pass
+                else:
+                    false_number += 1
+
+            except TypeError:
+                if self.__dict__[i] == other.__dict__[i]:
+                    pass
+                else:
+                    false_number += 1
+
+        if false_number == 0:
+            return True
+        else:
+            return False
 
     def M(self):
         """

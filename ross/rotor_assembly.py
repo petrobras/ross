@@ -17,12 +17,16 @@ from ross.bearing_seal_element import BearingElement
 from ross.disk_element import DiskElement
 from ross.shaft_element import ShaftElement
 from ross.materials import steel
-from ross.results import (CampbellResults, FrequencyResponseResults,
-                          ForcedResponseResults, ModeShapeResults)
+from ross.results import (
+    CampbellResults,
+    FrequencyResponseResults,
+    ForcedResponseResults,
+    ModeShapeResults,
+)
 import toml
 import ross
 
-__all__ = ['Rotor', 'rotor_example']
+__all__ = ["Rotor", "rotor_example"]
 
 # set style and colors
 plt.style.use("seaborn-white")
@@ -120,7 +124,14 @@ class Rotor(object):
         rated_w=None,
     ):
 
-        self.parameters = {'w': w, 'sparse': True, 'n_eigen': n_eigen, 'min_w': min_w, 'max_w': max_w, 'rated_w': rated_w}
+        self.parameters = {
+            "w": w,
+            "sparse": True,
+            "n_eigen": n_eigen,
+            "min_w": min_w,
+            "max_w": max_w,
+            "rated_w": rated_w,
+        }
         self._w = w
 
         ####################################################
@@ -258,6 +269,12 @@ class Rotor(object):
 
         self.plot_rotor()
         print("To calculate eigenvalues and frequencies, use the method run().")
+
+    def __eq__(self, other):
+        if self.elements == other.elements and self.parameters == other.parameters:
+            return True
+        else:
+            return False
 
     def run(self):
         self.evalues, self.evectors = self._eigen(self.w)
@@ -1025,7 +1042,7 @@ class Rotor(object):
 
         #  plot shaft centerline
         shaft_end = self.nodes_pos[-1]
-        ax.plot([-.2 * shaft_end, 1.2 * shaft_end], [0, 0], "k-.")
+        ax.plot([-0.2 * shaft_end, 1.2 * shaft_end], [0, 0], "k-.")
         try:
             max_diameter = max([disk.o_d for disk in self.disk_elements])
         except (ValueError, AttributeError):
@@ -1370,34 +1387,38 @@ class Rotor(object):
         """
         main_path = os.path.dirname(ross.__file__)
         path = Path(main_path)
-        path_rotors = path / 'rotors'
+        path_rotors = path / "rotors"
 
-        if os.path.isdir(path_rotors/file_name):
-            if int(input('There is a rotor with this file_name, do you want to overwrite it? (1 for yes and 0 for no)')):
-                shutil.rmtree(path_rotors/file_name)
+        if os.path.isdir(path_rotors / file_name):
+            if int(
+                input(
+                    "There is a rotor with this file_name, do you want to overwrite it? (1 for yes and 0 for no)"
+                )
+            ):
+                shutil.rmtree(path_rotors / file_name)
             else:
-                return 'The rotor was not saved.'
+                return "The rotor was not saved."
 
         os.chdir(path_rotors)
-        current = Path('.')
+        current = Path(".")
 
         os.mkdir(file_name)
         os.chdir(current / file_name)
 
-        with open('properties.toml', 'w') as f:
-            toml.dump({'parameters': self.parameters}, f)
-        os.mkdir('results')
-        os.mkdir('elements')
-        current = Path('.')
+        with open("properties.toml", "w") as f:
+            toml.dump({"parameters": self.parameters}, f)
+        os.mkdir("results")
+        os.mkdir("elements")
+        current = Path(".")
 
-        os.chdir(current/'elements')
+        os.chdir(current / "elements")
 
         for element in self.shaft_elements:
-            Rotor.save_shaft_element(element, 'shaft_elements.toml')
+            Rotor.save_shaft_element(element, "shaft_elements.toml")
         for element in self.disk_elements:
-            Rotor.save_disk_element(element, 'disk_elements.toml')
+            Rotor.save_disk_element(element, "disk_elements.toml")
         for element in self.bearing_seal_elements:
-            Rotor.save_bearing_seal_element(element, 'bearing_seal_elements.toml')
+            Rotor.save_bearing_seal_element(element, "bearing_seal_elements.toml")
         os.chdir(main_path)
 
     @staticmethod
@@ -1409,29 +1430,47 @@ class Rotor(object):
                 w = list(element.w)
             except IndexError:
                 w = []
-        data[file_name[:-6]][str(element.n)] = {'n': element.n, 'kxx': element.kxx.coefficient[0],
-                                                'cxx': element.cxx.coefficient[0], 'kyy': element.kyy.coefficient[0],
-                                                'kxy': element.kxy.coefficient[0], 'kyx': element.kyx.coefficient[0],
-                                                'cyy': element.cyy.coefficient[0], 'cxy': element.cxy.coefficient[0],
-                                                'cyx': element.kxx.coefficient[0], 'w': w}
+        data[file_name[:-6]][str(element.n)] = {
+            "n": element.n,
+            "kxx": element.kxx.coefficient[0],
+            "cxx": element.cxx.coefficient[0],
+            "kyy": element.kyy.coefficient[0],
+            "kxy": element.kxy.coefficient[0],
+            "kyx": element.kyx.coefficient[0],
+            "cyy": element.cyy.coefficient[0],
+            "cxy": element.cxy.coefficient[0],
+            "cyx": element.cyx.coefficient[0],
+            "w": w,
+        }
         Rotor.dump_data(data, file_name)
 
     @staticmethod
     def save_shaft_element(element, file_name):
         data = Rotor.load_data(file_name)
-        data[file_name[:-6]][str(element.n)] = {'L': element.L, 'i_d': element.i_d, 'o_d': element.o_d,
-                                                'material': element.material, 'n': element.n,
-                                                'axial_force': element.axial_force, 'torque': element.torque,
-                                                'shear_effects':element.shear_effects,
-                                                'rotary_inertia': element.rotary_inertia,
-                                                'gyroscopic': element.gyroscopic,
-                                                'shear_method_calc':element.shear_method_calc}
+        data[file_name[:-6]][str(element.n)] = {
+            "L": element.L,
+            "i_d": element.i_d,
+            "o_d": element.o_d,
+            "material": element.material,
+            "n": element.n,
+            "axial_force": element.axial_force,
+            "torque": element.torque,
+            "shear_effects": element.shear_effects,
+            "rotary_inertia": element.rotary_inertia,
+            "gyroscopic": element.gyroscopic,
+            "shear_method_calc": element.shear_method_calc,
+        }
         Rotor.dump_data(data, file_name)
 
     @staticmethod
     def save_disk_element(element, file_name):
         data = Rotor.load_data(file_name)
-        data[file_name[:-6]][str(element.n)] = {'n': element.n, 'm': element.m, 'Id':element.Id, 'Ip':element.Ip}
+        data[file_name[:-6]][str(element.n)] = {
+            "n": element.n,
+            "m": element.m,
+            "Id": element.Id,
+            "Ip": element.Ip,
+        }
         Rotor.dump_data(data, file_name)
 
     @staticmethod
@@ -1439,7 +1478,7 @@ class Rotor(object):
         try:
             with open(file_name, "r") as f:
                 data = toml.load(f)
-                if data == {'': {}}:
+                if data == {"": {}}:
                     data = {file_name[:-6]: {}}
 
         except FileNotFoundError:
@@ -1465,44 +1504,81 @@ class Rotor(object):
         rotor : ross.rotor.Rotor
         """
         main_path = os.path.dirname(ross.__file__)
-        rotor_path = Path(main_path) / 'rotors' / file_name
+        rotor_path = Path(main_path) / "rotors" / file_name
         try:
-            os.chdir(rotor_path/'elements')
+            os.chdir(rotor_path / "elements")
         except FileNotFoundError:
-            return 'A rotor with this name does not exist, check the rotors folder.'
+            return "A rotor with this name does not exist, check the rotors folder."
 
         shaft_elements = []
-        with open('shaft_elements.toml', 'r') as f:
+        with open("shaft_elements.toml", "r") as f:
             shaft_elements_dict = toml.load(f)
-            for element in shaft_elements_dict['shaft_element']:
-                shaft_elements.append(ShaftElement(**shaft_elements_dict['shaft_element'][element]))
-        os.chdir(rotor_path /'elements')
+            for element in shaft_elements_dict["shaft_element"]:
+                shaft_elements.append(
+                    ShaftElement(**shaft_elements_dict["shaft_element"][element])
+                )
+        os.chdir(rotor_path / "elements")
 
         disk_elements = []
-        with open('disk_elements.toml', 'r') as f:
+        with open("disk_elements.toml", "r") as f:
             disk_elements_dict = toml.load(f)
-            for element in disk_elements_dict['disk_element']:
-                disk_elements.append(DiskElement(**disk_elements_dict['disk_element'][element]))
-        os.chdir(rotor_path / 'elements')
+            for element in disk_elements_dict["disk_element"]:
+                disk_elements.append(
+                    DiskElement(**disk_elements_dict["disk_element"][element])
+                )
+        os.chdir(rotor_path / "elements")
 
         bearing_seal_elements = []
-        with open('bearing_seal_elements.toml', 'r') as f:
-            bearing_seal_elements_dict = toml.load(f)
-            for element in bearing_seal_elements_dict['bearing_seal_element']:
-                bearing_seal_elements.append(BearingElement(**bearing_seal_elements_dict['bearing_seal_element'][element]))
+        bearing_seal_elements_dict = Rotor.load_data("bearing_seal_elements.toml")
+        for element in bearing_seal_elements_dict["bearing_seal_element"]:
+            bearing = BearingElement(
+                **bearing_seal_elements_dict["bearing_seal_element"][element]
+            )
+            bearing.kxx.coefficient = [
+                bearing_seal_elements_dict["bearing_seal_element"][element]["kxx"]
+            ]
+            bearing.kxy.coefficient = [
+                bearing_seal_elements_dict["bearing_seal_element"][element]["kxy"]
+            ]
+            bearing.kyx.coefficient = [
+                bearing_seal_elements_dict["bearing_seal_element"][element]["kyx"]
+            ]
+            bearing.kyy.coefficient = [
+                bearing_seal_elements_dict["bearing_seal_element"][element]["kyy"]
+            ]
+            bearing.cxx.coefficient = [
+                bearing_seal_elements_dict["bearing_seal_element"][element]["cxx"]
+            ]
+            bearing.cxy.coefficient = [
+                bearing_seal_elements_dict["bearing_seal_element"][element]["cxy"]
+            ]
+            bearing.cyx.coefficient = [
+                bearing_seal_elements_dict["bearing_seal_element"][element]["cyx"]
+            ]
+            bearing.cyy.coefficient = [
+                bearing_seal_elements_dict["bearing_seal_element"][element]["cyy"]
+            ]
+            bearing_seal_elements.append(bearing)
 
         os.chdir(rotor_path)
-        with open('properties.toml', 'r') as f:
-            parameters = toml.load(f)['parameters']
+        with open("properties.toml", "r") as f:
+            parameters = toml.load(f)["parameters"]
 
         os.chdir(main_path)
-        return Rotor(shaft_elements=shaft_elements, bearing_seal_elements=bearing_seal_elements,
-                     disk_elements=disk_elements, **parameters
-                     )
+        return Rotor(
+            shaft_elements=shaft_elements,
+            bearing_seal_elements=bearing_seal_elements,
+            disk_elements=disk_elements,
+            **parameters,
+        )
 
     @staticmethod
     def available_rotors():
-        return [x for x in os.listdir(Path(os.path.dirname(ross.__file__))/'rotors')]
+        return [x for x in os.listdir(Path(os.path.dirname(ross.__file__)) / "rotors")]
+
+    @staticmethod
+    def remove(rotor_name):
+        shutil.rmtree(Path(os.path.dirname(ross.__file__)) / "rotors" / rotor_name)
 
 
 def rotor_example():
@@ -1537,8 +1613,12 @@ def rotor_example():
         for l in L
     ]
 
-    disk0 = DiskElement.from_geometry(n=2, material=steel, width=0.07, i_d=0.05, o_d=0.28)
-    disk1 = DiskElement.from_geometry(n=4,  material=steel, width=0.07, i_d=0.05, o_d=0.28)
+    disk0 = DiskElement.from_geometry(
+        n=2, material=steel, width=0.07, i_d=0.05, o_d=0.28
+    )
+    disk1 = DiskElement.from_geometry(
+        n=4, material=steel, width=0.07, i_d=0.05, o_d=0.28
+    )
 
     stfx = 1e6
     stfy = 0.8e6

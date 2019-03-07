@@ -4,6 +4,7 @@ import scipy.interpolate as interpolate
 import matplotlib.pyplot as plt
 import matplotlib.patches as mpatches
 from ross.element import Element
+import pytest
 
 __all__ = ["BearingElement", "SealElement"]
 
@@ -34,6 +35,12 @@ class _Coefficient:
                 )
         else:
             self.interpolated = lambda x: np.array(self.coefficient[0])
+
+    def __eq__(self, other):
+        if pytest.approx(self.__dict__["coefficient"]) == other.__dict__["coefficient"]:
+            return True
+        else:
+            return False
 
     def plot(self, ax=None, **kwargs):
         if ax is None:
@@ -120,7 +127,7 @@ class BearingElement(Element):
         for arg in args:
             if arg[0] == "k":
                 coefficients[arg] = _Stiffness_Coefficient(
-                    args_dict[arg], args_dict["w"]
+                    coefficient=args_dict[arg], w=args_dict["w"]
                 )
             else:
                 coefficients[arg] = _Damping_Coefficient(args_dict[arg], args_dict["w"])
@@ -152,6 +159,28 @@ class BearingElement(Element):
 
     def __repr__(self):
         return "%s" % self.__class__.__name__
+
+    def __eq__(self, other):
+        try:
+            if pytest.approx(self.__dict__) == other.__dict__:
+                return True
+            else:
+                return False
+
+        except TypeError:
+
+            self_dict = self.__dict__
+            other_dict = other.__dict__
+
+            self_dict["w"] = 0
+            other_dict["w"] = 0
+
+            if (
+                self.__dict__["w"] == other.__dict__["w"]
+            ).__bool__() and self_dict == other_dict:
+                return True
+            else:
+                return False
 
     def M(self):
         M = np.zeros((4, 4))
