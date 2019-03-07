@@ -6,42 +6,45 @@ import ross
 
 os.chdir(os.path.dirname(ross.__file__))
 
-AISI4140 = Material(name= 'AISI4140', rho = 7850,
-                    E=203200000000.0,
-                    Poisson=0.27,
-                    G_s=80000000000.0,
-                    color="#525252")
+AISI4140 = Material(
+    name="AISI4140",
+    rho=7850,
+    E=203200000000.0,
+    Poisson=0.27,
+    G_s=80000000000.0,
+    color="#525252",
+)
 
 
 def test_raise_name_material():
     with pytest.raises(AssertionError) as excinfo:
-        mat = Material('with space', rho=7850, G_s=80e9, Poisson=0.27)
-    assert 'Spaces are not allowed' in str(excinfo.value)
+        mat = Material("with space", rho=7850, G_s=80e9, Poisson=0.27)
+    assert "Spaces are not allowed" in str(excinfo.value)
 
 
 def test_E():
-    mat = Material(name='test', rho=7850, G_s=80e9, Poisson=0.27)
+    mat = Material(name="test", rho=7850, G_s=80e9, Poisson=0.27)
     assert_allclose(mat.E, 203.2e9)
     assert_allclose(mat.G_s, 80e9)
     assert_allclose(mat.Poisson, 0.27)
 
 
 def test_G_s():
-    mat = Material(name='test', rho=7850, E=203.2e9, Poisson=0.27)
+    mat = Material(name="test", rho=7850, E=203.2e9, Poisson=0.27)
     assert_allclose(mat.E, 203.2e9)
     assert_allclose(mat.G_s, 80e9)
     assert_allclose(mat.Poisson, 0.27)
 
 
 def test_Poisson():
-    mat = Material(name='test', rho=7850, E=203.2e9, G_s=80e9)
+    mat = Material(name="test", rho=7850, E=203.2e9, G_s=80e9)
     assert_allclose(mat.E, 203.2e9)
     assert_allclose(mat.G_s, 80e9)
     assert_allclose(mat.Poisson, 0.27)
 
 
 def test_E_G_s_Poisson():
-    mat = Material(name='test', rho=7850, E=203.2e9, G_s=80e9, Poisson=0.27)
+    mat = Material(name="test", rho=7850, E=203.2e9, G_s=80e9, Poisson=0.27)
     assert_allclose(mat.E, 203.2e9)
     assert_allclose(mat.G_s, 80e9)
     assert_allclose(mat.Poisson, 0.27)
@@ -56,15 +59,16 @@ def test_specific_material():
 
 def test_error_rho():
     with pytest.raises(TypeError) as ex:
-        Material(name='test', E=203.2e9, G_s=80e9)
+        Material(name="test", E=203.2e9, G_s=80e9)
 
     assert "__init__() missing 1 required positional argument: 'rho'" == str(ex.value)
 
 
 def test_error_E_G_s_Poisson():
     with pytest.raises(AssertionError) as ex:
-        Material(name='test', rho=785, E=203.2e9)
-    assert 'At least 2 arguments from E' in str(ex.value)
+        Material(name="test", rho=785, E=203.2e9)
+    assert "At least 2 arguments from E" in str(ex.value)
+
 
 # Serialization tests.
 
@@ -75,11 +79,11 @@ def test_available_materials():
 
 def test_serialization():
     available = Material.available_materials()
-    obj1 = Material(name='obj1', rho =92e1, E=281.21, G_s=20e9)
+    obj1 = Material(name="obj1", rho=92e1, E=281.21, G_s=20e9)
     obj1.save_material()
-    obj2 = Material.use_material('obj1')
+    obj2 = Material.use_material("obj1")
     assert obj1.__dict__ == obj2.__dict__
 
-    obj1.remove_material('obj1')
+    obj1.remove_material("obj1")
     available_after = Material.available_materials()
     assert available == available_after

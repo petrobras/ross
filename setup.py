@@ -18,7 +18,16 @@ REQUIRES_PYTHON = ">=3.6.0"
 VERSION = "0.0.1"
 
 # What packages are required for this module to be executed?
-REQUIRED = ["numpy", "scipy", "matplotlib", "toml", "pandas"]
+REQUIRED = [
+    "numpy",
+    "scipy",
+    "matplotlib",
+    "toml",
+    "pandas",
+    "pytest",
+    "bokeh",
+    "coverage",
+]
 
 # What packages are optional?
 EXTRAS = {

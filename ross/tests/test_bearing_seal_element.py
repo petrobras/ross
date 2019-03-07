@@ -7,22 +7,22 @@ from ross.bearing_seal_element import BearingElement
 
 @pytest.fixture
 def bearing0():
-    Kxx_bearing = np.array([8.5e+07, 1.1e+08, 1.3e+08, 1.6e+08, 1.8e+08,
-                           2.0e+08, 2.3e+08, 2.5e+08, 2.6e+08])
-    Kyy_bearing = np.array([9.2e+07, 1.1e+08, 1.4e+08, 1.6e+08, 1.9e+08,
-                            2.1e+08, 2.3e+08, 2.5e+08, 2.6e+08])
-    Cxx_bearing = np.array([226837, 211247, 197996, 185523, 174610,
-                            163697, 153563, 144209, 137973])
-    Cyy_bearing = np.array([235837, 211247, 197996, 185523, 174610,
-                            163697, 153563, 144209, 137973])
-    wb = np.array([314.2, 418.9, 523.6, 628.3, 733.,
-                   837.8, 942.5, 1047.2, 1151.9])
-    bearing0 = BearingElement(4,
-                              kxx=Kxx_bearing,
-                              kyy=Kyy_bearing,
-                              cxx=Cxx_bearing,
-                              cyy=Cyy_bearing,
-                              w=wb)
+    Kxx_bearing = np.array(
+        [8.5e07, 1.1e08, 1.3e08, 1.6e08, 1.8e08, 2.0e08, 2.3e08, 2.5e08, 2.6e08]
+    )
+    Kyy_bearing = np.array(
+        [9.2e07, 1.1e08, 1.4e08, 1.6e08, 1.9e08, 2.1e08, 2.3e08, 2.5e08, 2.6e08]
+    )
+    Cxx_bearing = np.array(
+        [226837, 211247, 197996, 185523, 174610, 163697, 153563, 144209, 137973]
+    )
+    Cyy_bearing = np.array(
+        [235837, 211247, 197996, 185523, 174610, 163697, 153563, 144209, 137973]
+    )
+    wb = np.array([314.2, 418.9, 523.6, 628.3, 733.0, 837.8, 942.5, 1047.2, 1151.9])
+    bearing0 = BearingElement(
+        4, kxx=Kxx_bearing, kyy=Kyy_bearing, cxx=Cxx_bearing, cyy=Cyy_bearing, w=wb
+    )
     return bearing0
 
 
@@ -49,22 +49,30 @@ def test_bearing_interpol_cyy(bearing0):
 @pytest.fixture
 def bearing1():
     # using lists
-    Kxx_bearing = [8.5e+07, 1.1e+08, 1.3e+08, 1.6e+08, 1.8e+08,
-                   2.0e+08, 2.3e+08, 2.5e+08, 2.6e+08]
-    Kyy_bearing = np.array([9.2e+07, 1.1e+08, 1.4e+08, 1.6e+08, 1.9e+08,
-                            2.1e+08, 2.3e+08, 2.5e+08, 2.6e+08])
-    Cxx_bearing = np.array([226837, 211247, 197996, 185523, 174610,
-                            163697, 153563, 144209, 137973])
-    Cyy_bearing = np.array([235837, 211247, 197996, 185523, 174610,
-                            163697, 153563, 144209, 137973])
-    wb = [314.2, 418.9, 523.6, 628.3, 733.,
-          837.8, 942.5, 1047.2, 1151.9]
-    bearing1 = BearingElement(4,
-                              kxx=Kxx_bearing,
-                              kyy=Kyy_bearing,
-                              cxx=Cxx_bearing,
-                              cyy=Cyy_bearing,
-                              w=wb)
+    Kxx_bearing = [
+        8.5e07,
+        1.1e08,
+        1.3e08,
+        1.6e08,
+        1.8e08,
+        2.0e08,
+        2.3e08,
+        2.5e08,
+        2.6e08,
+    ]
+    Kyy_bearing = np.array(
+        [9.2e07, 1.1e08, 1.4e08, 1.6e08, 1.9e08, 2.1e08, 2.3e08, 2.5e08, 2.6e08]
+    )
+    Cxx_bearing = np.array(
+        [226837, 211247, 197996, 185523, 174610, 163697, 153563, 144209, 137973]
+    )
+    Cyy_bearing = np.array(
+        [235837, 211247, 197996, 185523, 174610, 163697, 153563, 144209, 137973]
+    )
+    wb = [314.2, 418.9, 523.6, 628.3, 733.0, 837.8, 942.5, 1047.2, 1151.9]
+    bearing1 = BearingElement(
+        4, kxx=Kxx_bearing, kyy=Kyy_bearing, cxx=Cxx_bearing, cyy=Cyy_bearing, w=wb
+    )
     return bearing1
 
 
@@ -94,22 +102,25 @@ def test_bearing_error1():
     cx = 1e8 * speed
     with pytest.raises(Exception) as excinfo:
         BearingElement(-1, kxx=kx, cxx=cx)
-    assert 'Arguments (coefficients and w)' \
-           ' must have the same dimension' in str(excinfo.value)
+    assert "Arguments (coefficients and w)" " must have the same dimension" in str(
+        excinfo.value
+    )
 
 
 def test_bearing_error2():
     with pytest.raises(ValueError) as excinfo:
-        BearingElement(4, kxx=[7e8, 8e8, 9e8],
-                       cxx=[0, 0, 0, 0], w=[10, 100, 1000, 10000])
-    assert 'Arguments (coefficients and w) ' \
-           'must have the same dimension' in str(excinfo.value)
+        BearingElement(
+            4, kxx=[7e8, 8e8, 9e8], cxx=[0, 0, 0, 0], w=[10, 100, 1000, 10000]
+        )
+    assert "Arguments (coefficients and w) " "must have the same dimension" in str(
+        excinfo.value
+    )
 
     with pytest.raises(ValueError) as excinfo:
-        BearingElement(4, kxx=[6e8, 7e8, 8e8, 9e8],
-                       cxx=[0, 0, 0, 0, 0])
-    assert 'Arguments (coefficients and w) ' \
-           'must have the same dimension' in str(excinfo.value)
+        BearingElement(4, kxx=[6e8, 7e8, 8e8, 9e8], cxx=[0, 0, 0, 0, 0])
+    assert "Arguments (coefficients and w) " "must have the same dimension" in str(
+        excinfo.value
+    )
 
 
 @pytest.fixture

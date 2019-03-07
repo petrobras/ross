@@ -173,6 +173,12 @@ class ShaftElement(Element):
 
         self.phi = phi
 
+    def __eq__(self, other):
+        if self.__dict__ == other.__dict__:
+            return True
+        else:
+            return False
+
     @property
     def n(self):
         return self._n
@@ -185,7 +191,12 @@ class ShaftElement(Element):
             self.n_r = value + 1
 
     def __repr__(self):
-        return f"{self.__class__.__name__}" f"(L={self.L:{0}.{5}}, i_d={self.i_d:{0}.{5}}, " f"o_d={self.o_d:{0}.{5}}, material={self.material!r}, " f"n={self.n})"
+        return (
+            f"{self.__class__.__name__}"
+            f"(L={self.L:{0}.{5}}, i_d={self.i_d:{0}.{5}}, "
+            f"o_d={self.o_d:{0}.{5}}, material={self.material!r}, "
+            f"n={self.n})"
+        )
 
     def __str__(self):
         return (
