@@ -1,28 +1,143 @@
 import numpy as np
 import matplotlib.pyplot as plt
+import sys
 
 
 class PressureMatrix:
-    """Pressure Matrix
-    Creates the pressure matrix
+    r"""This class calculates the pressure matrix of the object with the given parameters.
+
+    It is supposed to be an attribute of a bearing or seal element,
+    but can work on its on to provide graphics for the user.
+
+    Parameters
+    ----------
+    Grid related
+    ^^^^^^^^^^^^
+    Describes the discretization of the problem
+    nz: int
+        Number of points along the Z direction (direction of flow).
+    ntheta: int
+        Number of points along the direction theta. NOTE: ntheta must be odd.
+    nradius: int
+        Number of points along the direction r.
+    lb: float
+        Length in the Z direction (m).
+
+    Operation conditions
+    ^^^^^^^^^^^^^^^^^^^^
+    Describes the operation conditions.
+    omega: float
+        Rotation of the rotor (rad/s).
+    p_in: float
+        Input Pressure (Pa).
+    p_out: float
+        Output Pressure (Pa).
+
+    Geometric data of the problem
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    Describes the geometric data of the problem.
+    radius_valley: float
+        Smallest rotor radius (m).
+    radius_crest: float
+        Larger rotor radius (m).
+    radius_stator: float
+        Stator Radius (m).
+    lwave: float
+        Rotor step (m) (sine wave length).
+    xe: float
+        Eccentricity (m) (distance between rotor and stator centers) on the x-axis.
+    ye: float
+        Eccentricity (m) (distance between rotor and stator centers) on the y-axis.
+
+    Fluid characteristics
+    ^^^^^^^^^^^^^^^^^^^^^
+    Describes the fluid characteristics.
+    visc: float
+        Viscosity (Pa.s).
+    rho: float
+        Fluid density(Kg/m^3).
+
+    Returns
+    -------
+    An object containing the pressure matrix and its data.
+
+    Attributes
+    ----------
+    ltheta: float
+        Length in the theta direction (rad).
+    dz: float
+        Range size in the Z direction.
+    dtheta: float
+        Range size in the theta direction.
+    ntotal: int
+        Number of nodes in the grid., ntheta, nradius, n_interv_z, n_interv_theta,
+    n_interv_z: int
+        Number of intervals on Z.
+    n_interv_theta: int
+      Number of intervals on theta.
+    n_interv_radius: int
+        Number of intervals on r.
+    p_mat : array of shape (nz, ntheta)
+        The pressure matrix.
+    re : array of shape (nz, ntheta)
+        The external radius in each position of the grid.
+    ri : array of shape (nz, ntheta)
+        The internal radius in each position of the grid.
+    z : array of shape (1, nz)
+        z along the object. It goes from 0 to lb.
+    xre : array of shape (nz, ntheta)
+        x value of the external radius.
+    xri : array of shape (nz, ntheta)
+        x value of the internal radius.
+    yre : array of shape (nz, ntheta)
+        y value of the external radius.
+    yri : array of shape (nz, ntheta)
+        y value of the internal radius.
+
+    Examples
+    --------
+    >>> from ross.fluid_flow import fluid_flow as flow
+    >>> import matplotlib.pyplot as plt
+    >>> nz = 150
+    >>> ntheta = 37
+    >>> nradius = 11
+    >>> lb = 1.
+    >>> omega = -100.*2*np.pi/60
+    >>> p_in = 392266.
+    >>> p_out = 100000.
+    >>> radius_valley = 0.034
+    >>> radius_crest = 0.039
+    >>> radius_stator = 0.04
+    >>> lwave = 0.18
+    >>> xe = 0.
+    >>> ye = 0.
+    >>> visc = 0.001
+    >>> rho = 1000.
+    >>> my_pressure_matrix = flow.PressureMatrix(nz, ntheta, nradius, lb,
+    ...                                          omega, p_in, p_out, radius_valley,
+    ...                                          radius_crest, radius_stator,
+    ...                                          lwave, xe, ye,  visc, rho, plot_eccentricity=True)
+    >>> P = my_pressure_matrix.calculate_pressure_matrix()
+    >>> my_pressure_matrix.plot_pressure_z(show_immediately=False)
+    >>> my_pressure_matrix.plot_shape(show_immediately=False)
+    >>> my_pressure_matrix.plot_pressure_theta(z=int(nz/2), show_immediately=False)
+    >>> plt.show()
+
     """
-    def __init__(
-            self, nz, ntheta, nradius, n_interv_z, n_interv_theta,
-            n_interv_radius, lb, ltheta, dz, dtheta, ntotal, omega, p_in,
-            p_out, radius_valley, radius_crest, radius_stator, lwave, xe,
-            ye, visc, rho
-            ):
+    def __init__(self, nz, ntheta, nradius, lb, omega, p_in,
+                 p_out, radius_valley, radius_crest, radius_stator, lwave, xe,
+                 ye, visc, rho, plot_eccentricity=False):
         self.nz = nz
         self.ntheta = ntheta
         self.nradius = nradius
-        self.n_interv_z = n_interv_z
-        self.n_interv_theta = n_interv_theta
-        self.n_interv_radius = n_interv_radius
+        self.n_interv_z = nz - 1
+        self.n_interv_theta = ntheta - 1
+        self.n_interv_radius = nradius - 1
         self.lb = lb
-        self.ltheta = ltheta
-        self.dz = dz
-        self.dtheta = dtheta
-        self.ntotal = ntotal
+        self.ltheta = 2.*np.pi
+        self.dz = lb / self.n_interv_z
+        self.dtheta = self.ltheta / self.n_interv_theta
+        self.ntotal = self.nz * self.ntheta
         self.omega = omega
         self.p_in = p_in
         self.p_out = p_out
@@ -45,26 +160,34 @@ class PressureMatrix:
         self.yre = np.zeros([self.nz, self.ntheta])
         self.yri = np.zeros([self.nz, self.ntheta])
         self.p_mat = np.zeros([self.nz, self.ntheta])
-        self.calculate_coefficients()
+        self.calculate_coefficients(plot_eccentricity)
         self.pressure_matrix_available = False
-        self.P = None
+        self.pressure_array = None
 
     def calculate_pressure_matrix(self):
-        """Calculate pressure matrix
-        This function calculates the pressure matrix
+        """This function calculates the pressure matrix
         """
-        M, f = self.mounting_matrix()
-        self.P = self.resolves_matrix(M, f)
-        self.p_matrix(self.P)
+        m, f = self.mounting_matrix()
+        self.pressure_array = np.linalg.solve(m, f)
+        for i in range(self.nz):
+            for j in range(self.ntheta):
+                k = j * self.nz + i
+                self.p_mat[i][j] = self.pressure_array[k]
+        self.pressure_matrix_available = True
         return self.p_mat
 
-    def calculate_coefficients(self):
-        """Calculate coeddicients
-        This function calculates the constants that form the Poisson equation
+    def calculate_coefficients(self, plot_cut=False):
+        """This function calculates the constants that form the Poisson equation
         of the discrete pressure (central differences in the second
-        derivatives)
+        derivatives). It is executed when the class is instantiated.
+        Parameters
+        ----------
+        plot_cut: bool
+            If True, plots a cut at z=0 and show, so the user can check the
+            internal and external radius as well as eccentricity.
         """
-        plt.figure(0)
+        if plot_cut:
+            plt.figure(0)
         for i in range(self.nz):
             zno = i * self.dz
             self.z[0][i] = zno
@@ -75,15 +198,16 @@ class PressureMatrix:
                 [radius_internal, self.xri[i][j], self.yri[i][j]] =\
                     self.internal_radius_function(zno, gama)
 
-                # Plot a cut at z=0:
-                if i == 0:
-                    plt.plot(self.xre[i][j], self.yre[i][j], 'r.')
-                    plt.plot(self.xri[i][j], self.yri[i][j], 'b.')
-                    plt.plot(0, 0, '*')
-                    plt.title('Cut in plane z=0')
-                    plt.xlabel('X axis')
-                    plt.ylabel('Y axis')
-                    plt.axis('equal')
+                if plot_cut:
+                    # Plot a cut at z=0:
+                    if i == 0:
+                        plt.plot(self.xre[i][j], self.yre[i][j], 'r.')
+                        plt.plot(self.xri[i][j], self.yri[i][j], 'b.')
+                        plt.plot(0, 0, '*')
+                        plt.title('Cut in plane z=0')
+                        plt.xlabel('X axis')
+                        plt.ylabel('Y axis')
+                        plt.axis('equal')
 
                 w = self.omega * radius_internal
 
@@ -96,42 +220,39 @@ class PressureMatrix:
                     )
 
                 self.c1[i][j] = (1./(4 * self.visc)) *\
-                (
-                        (radius_external**2) * (np.log(radius_external)) -
-                        (radius_internal**2) * (np.log(radius_internal)) +
-                        (radius_external**2 - radius_internal**2) * (k - 1)
-                ) -\
-                (
-                        (radius_external**2) / (2 * self.visc)
-                ) *\
-                (
-                        (np.log(radius_external) + k - 1/2) *
-                        np.log(radius_external / radius_internal)
-                )
+                    (
+                            (radius_external**2) * (np.log(radius_external)) -
+                            (radius_internal**2) * (np.log(radius_internal)) +
+                            (radius_external**2 - radius_internal**2) * (k - 1)
+                    ) -\
+                    (
+                            (radius_external**2) / (2 * self.visc)
+                    ) *\
+                    (
+                            (np.log(radius_external) + k - 1/2) *
+                            np.log(radius_external / radius_internal)
+                    )
 
                 self.c2[i][j] = - ((radius_internal**2) / (8. * self.visc)) *\
-                (
                     (
-                            radius_external**2 - radius_internal**2 -
-                            (radius_external**4 - radius_internal**4) /
-                            (2 * (radius_internal ** 2))
-                    ) +
-                    (
-                            (radius_external ** 2 - radius_internal ** 2) /
-                            (
-                                    (radius_internal ** 2) *
-                                    (np.log(radius_external / radius_internal))
-                            )
-                    ) *
-                    (
-                            (radius_external ** 2) * np.log
                         (
-                        radius_external / radius_internal
-                        ) - (
-                            radius_external**2 - radius_internal**2
-                            ) / 2.
+                                radius_external**2 - radius_internal**2 -
+                                (radius_external**4 - radius_internal**4) /
+                                (2 * (radius_internal ** 2))
+                        ) +
+                        (
+                                (radius_external ** 2 - radius_internal ** 2) /
+                                (
+                                        (radius_internal ** 2) *
+                                        (np.log(radius_external / radius_internal))
+                                )
+                        ) *
+                        (
+                                (radius_external ** 2) * np.log(
+                                        radius_external / radius_internal
+                                    ) - (radius_external**2 - radius_internal**2) / 2.
+                        )
                     )
-                )
 
                 self.c0w[i][j] = - (w * radius_internal) * (
                     (
@@ -146,30 +267,29 @@ class PressureMatrix:
                 self.re[i][j] = radius_external
 
                 self.ri[i][j] = radius_internal
+        if plot_cut:
+            plt.show()
 
     def external_radius_function(self, gama):
-        """External radius function
-        This function calculates the radius of the stator in the center of
+        """This function calculates the radius of the stator in the center of
         coordinates given the theta angle, the value of the eccentricity
         and its radius.
         Parameters
         ----------
-        betha: float
-            Betha is the angle that indicates the location of the eccentricity.
-        alpha: float
-            Alpha is the angle between THETA and eccentricity (betha).
+        gama: float
+            Gama is the distance in the theta-axis. It should range from 0 to 2*np.pi.
         """
         e = np.sqrt(self.xe ** 2 + self.ye ** 2)
-        if (self.xe > 0. and self.ye >= 0.) or (self.xe > 0 and self.ye < 0):
-            betha = np.arctan(self.ye / self.xe)
-        if (self.xe < 0. and self.ye <= 0.) or (self.xe < 0 and self.ye > 0):
-            betha = -np.pi + np.arctan(self.ye / self.xe)
-        if self.xe == 0.:
+        if self.xe > 0:
+            beta = np.arctan(self.ye / self.xe)
+        elif self.xe < 0:
+            beta = -np.pi + np.arctan(self.ye / self.xe)
+        else:
             if self.ye > 0.:
-                betha = np.pi / 2.
+                beta = np.pi / 2.
             else:
-                betha = -np.pi / 2.
-        alpha = gama - betha
+                beta = -np.pi / 2.
+        alpha = gama - beta
         radius_external = e * np.cos(alpha) + np.sqrt(
             self.radius_stator ** 2 - (e * np.sin(alpha)) ** 2
             )
@@ -177,18 +297,16 @@ class PressureMatrix:
         yre = radius_external * np.sin(gama)
         return radius_external, xre, yre
 
+    # Todo: This function should offer choices to the user regarding the shape of the internal radius.
     def internal_radius_function(self, z, gama):
-        """Internal radius function
-        This function calculates the radius of the rotor given the crest
+        """This function calculates the radius of the rotor given the crest
         radius, the valley radius and the position z.
-        Examples
-        --------
-        >>>CYLINDRICAL CASE = (radius_internal = self.radius_valley)
-        >>>CONICAL CASE = (radius_internal = self.radius_valley +
-        ((self.radius_crest - self.radius_valley)/self.lb) * z)
-        >>>SINUSOIDAL CASE = (radius_internal = (self.radius_valley +
-        self.radius_crest)/2. + ((self.radius_crest - self.radius_valley)/2.)
-        * np.sin((2*np.pi/self.lwave)*z + np.pi/2.))
+        Parameters
+        ----------
+        z: float
+            Distance along the z-axis.
+        gama: float
+            Gama is the distance in the theta-axis. It should range from 0 to 2*np.pi.
         """
 
         radius_internal = self.radius_valley + (
@@ -203,24 +321,24 @@ class PressureMatrix:
         """Mounting matrix
         This function assembles the matrix M and the independent vector f.
         """
-        M = np.zeros([self.ntotal, self.ntotal])
+        m = np.zeros([self.ntotal, self.ntotal])
         f = np.zeros([self.ntotal, 1])
 
         """ Applying the boundary conditions in Z=0 e Z=L:"""
         counter = 0
         for x in range(self.ntheta):
-            M[counter][counter] = 1
+            m[counter][counter] = 1
             f[counter][0] = self.p_in
             counter = counter + self.nz - 1
-            M[counter][counter] = 1
+            m[counter][counter] = 1
             f[counter][0] = self.p_out
             counter = counter + 1
 
         """Applying the boundary conditions p(theta=0)=P(theta=pi):):"""
         counter = 0
         for x in range(self.nz - 2):
-            M[self.ntotal - self.nz + 1 + counter][1 + counter] = 1
-            M[self.ntotal - self.nz + 1 + counter][self.ntotal - self.nz + 1 + counter] = -1
+            m[self.ntotal - self.nz + 1 + counter][1 + counter] = 1
+            m[self.ntotal - self.nz + 1 + counter][self.ntotal - self.nz + 1 + counter] = -1
             counter = counter + 1
 
         """Border nodes with periodic boundary condition:"""
@@ -228,17 +346,17 @@ class PressureMatrix:
         j = 0
         for i in range(1, self.nz - 1):
             a = (1 / self.dtheta ** 2) * (self.c1[i][self.ntheta - 1])
-            M[counter][self.ntotal - 2 * self.nz + counter] = a
+            m[counter][self.ntotal - 2 * self.nz + counter] = a
             b = (1 / self.dz ** 2) * (self.c2[i - 1, j])
-            M[counter][counter - 1] = b
+            m[counter][counter - 1] = b
             c = -((1 / self.dtheta ** 2) * (
                 (self.c1[i][j]) + self.c1[i][self.ntheta - 1]
                 ) + (1 / self.dz ** 2) * (self.c2[i][j] + self.c2[i - 1][j]))
-            M[counter, counter] = c
+            m[counter, counter] = c
             d = (1 / self.dz ** 2) * (self.c2[i][j])
-            M[counter][counter + 1] = d
+            m[counter][counter + 1] = d
             e = (1 / self.dtheta ** 2) * (self.c1[i][j])
-            M[counter][counter + self.nz] = e
+            m[counter][counter + self.nz] = e
             counter = counter + 1
 
         # Internal nodes
@@ -246,18 +364,18 @@ class PressureMatrix:
         for j in range(1, self.ntheta - 1):
             for i in range(1, self.nz - 1):
                 a = (1 / self.dtheta ** 2) * (self.c1[i, j - 1])
-                M[counter][counter - self.nz] = a
+                m[counter][counter - self.nz] = a
                 b = (1 / self.dz ** 2) * (self.c2[i - 1][j])
-                M[counter][counter - 1] = b
+                m[counter][counter - 1] = b
                 c = -((1 / self.dtheta ** 2) * (
                     (self.c1[i][j]) + self.c1[i][j - 1]) + (1 / self.dz ** 2) *
                     (self.c2[i][j] + self.c2[i - 1][j])
                     )
-                M[counter, counter] = c
+                m[counter, counter] = c
                 d = (1 / self.dz ** 2) * (self.c2[i][j])
-                M[counter][counter + 1] = d
+                m[counter][counter + 1] = d
                 e = (1 / self.dtheta ** 2) * (self.c1[i][j])
-                M[counter][counter + self.nz] = e
+                m[counter][counter + self.nz] = e
                 counter = counter + 1
             counter = counter + 2
 
@@ -266,72 +384,79 @@ class PressureMatrix:
         for j in range(self.ntheta - 1):
             for i in range(1, self.nz - 1):
                 if j == 0:
-                    l = (
+                    k = (
                         (self.c0w[i][j] - self.c0w[i][self.ntheta - 1]) /
-                        (self.dtheta)
+                        self.dtheta
                         )
-                    f[counter][0] = l
+                    f[counter][0] = k
                 else:
-                    l = ((self.c0w[i, j] - self.c0w[i, j - 1]) / (self.dtheta))
-                    f[counter][0] = l
+                    k = ((self.c0w[i, j] - self.c0w[i, j - 1]) / self.dtheta)
+                    f[counter][0] = k
                 counter = counter + 1
             counter = counter + 2
-        return M, f
-
-    def resolves_matrix(self, M, f):
-        """Resolves matrix
-        This function resolves the linear system [M]{P}={f}.
-        """
-        P = np.linalg.solve(M, f)
-        return P
-
-    def p_matrix(self, P):
-        """P matrix
-        This function creates the pressure matrix.
-        """
-        for i in range(self.nz):
-            for j in range(self.ntheta):
-                k = j * self.nz + i
-                self.p_mat[i][j] = P[k]
+        return m, f
 
     """Graphics
     Plots the graphs of interest.
     """
 
-    def plot_pressure_z(self):
-        """Plot pressure z
-        Assemble pressure graph along the z-axis.
+    def plot_pressure_z(self, show_immediately=True):
+        """This function assembles pressure graphic along the z-axis.
+        Parameters
+        ----------
+        show_immediately: bool
+            If True, immediately plots the graphic. Otherwise, the user should call plt.show()
+            at some point. It is useful in case the user wants to see one graphic alongside another.
         """
+        if not self.pressure_matrix_available:
+            sys.exit('Must calculate the pressure matrix.'
+                     'Try calling calculate_pressure_matrix first.')
         plt.figure(1)
         for i in range(0, self.nz):
-            plt.plot(i*self.dz, self.P[i], 'bo')
+            plt.plot(i*self.dz, self.pressure_array[i], 'bo')
         plt.title('Pressure along the Z direction (direction of flow)')
         plt.xlabel('Points along the Z direction')
         plt.ylabel('Pressure')
-        plt.show(block=False)
+        plt.show(block=show_immediately)
 
-    def plot_shape(self, theta=0):
-        """Plot shape
-        Assemble a graph representing the geometry of the rotor.
+    def plot_shape(self, theta=0, show_immediately=True):
+        """This function assembles a graphic representing the geometry of the rotor.
+        Parameters
+        ----------
+        theta: int
+            The theta to be considered.
+        show_immediately: bool
+            If True, immediately plots the graphic. Otherwise, the user should call plt.show()
+            at some point. It is useful in case the user wants to see one graphic alongside another.
         """
+        if not self.pressure_matrix_available:
+            sys.exit('Must calculate the pressure matrix.'
+                     'Try calling calculate_pressure_matrix first.')
         plt.figure(2)
         x = np.zeros(self.nz)
         y_re = np.zeros(self.nz)
         y_ri = np.zeros(self.nz)
         for i in range(0, self.nz):
             x[i] = i * self.dz
-            y_re[i] = self.re[i, theta]
-            y_ri[i] = self.ri[i, theta]
+            y_re[i] = self.re[i][theta]
+            y_ri[i] = self.ri[i][theta]
         plt.plot(x, y_re, 'r')
         plt.plot(x, y_ri, 'b')
-        plt.show(block=False)
+        plt.show(block=show_immediately)
 
-    def plot_pressure_theta(self):
-        """Plot pressure theta
-        Assemble pressure graph in the theta direction.
+    def plot_pressure_theta(self, z=0, show_immediately=True):
+        """This function assembles pressure graphic in the theta direction for a given z.
+        Parameters
+        ----------
+        z: int
+            The distance along z-axis to be considered.
+        show_immediately: bool
+            If True, immediately plots the graphic. Otherwise, the user should call plt.show()
+            at some point. It is useful in case the user wants to see one graphic alongside another.
         """
-        middle_section = int(self.nz/2)
-
+        if not self.pressure_matrix_available:
+            sys.exit('Must calculate the pressure matrix.'
+                     'Try calling calculate_pressure_matrix first.')
         r = np.arange(0, self.radius_stator + 0.0001, (
             self.radius_stator - self.radius_valley)/self.nradius
             )
@@ -339,7 +464,7 @@ class PressureMatrix:
 
         pressure_along_theta = np.zeros(self.ntheta)
         for i in range(0, self.ntheta):
-            pressure_along_theta[i] = self.P[middle_section + i*self.nz]
+            pressure_along_theta[i] = self.pressure_array[z + i*self.nz]
 
         min_pressure = np.amin(pressure_along_theta)
 
@@ -348,8 +473,8 @@ class PressureMatrix:
         inner_radius_list = np.zeros(self.ntheta)
         pressure_list = np.zeros((theta.size, r.size))
         for i in range(0, theta.size):
-            new_x = self.xri[middle_section][i] - self.xe
-            new_y = self.yri[middle_section][i] - self.ye
+            new_x = self.xri[z][i] - self.xe
+            new_y = self.yri[z][i] - self.ye
             inner_radius = np.sqrt(new_x * new_x + new_y * new_y)
             inner_radius_list[i] = inner_radius
             for j in range(0, r.size):
@@ -359,4 +484,4 @@ class PressureMatrix:
                 z_matrix[i][j] = pressure_along_theta[i] - min_pressure + 0.01
         fig, ax = plt.subplots(subplot_kw=dict(projection='polar'))
         ax.contourf(theta_matrix, r_matrix, z_matrix, cmap='coolwarm')
-        plt.show(block=False)
+        plt.show(block=show_immediately)
