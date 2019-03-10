@@ -1392,24 +1392,23 @@ class Rotor(object):
             return pickle.load(f)
 
     def static(self):
-        """This function calculates the static displacement of a rotor
-        due the disks' weight, and returns an array with the nodal displacement
-        The calculation is done from the stiffness and mass matrix of a rotor.
-        """
-        # gravity aceleration vector
+
+        # grav = gravity aceleration vector
         grav = np.zeros((len(self.M()), 1))
 
         # place gravity effect on disk nodes
-        for i in self.df_disks["n"]:
-            grav[4 * i - 3] = -9.8065
+        for disk_node in self.df_disks['n']:
+            grav[4*disk_node-3] = -9.8065
 
         # calculates x, for [K]*[x] = [M]*[g]
-        disp = la.solve(self.K(0), np.matmul(self.M(), grav))
+        disp = la.solve(self.K(0), self.M() @ grav)
         disp = disp.flatten()
-
+        
+        # get the displacement values in the same direction of gravity
+        # dof = degree of freedom
         disp_y = np.array([])
-        for i in range(int(len(disp) / 4)):
-            disp_y = np.append(disp_y, disp[4 * i - 3])
+        for node_dof in range(int(len(disp)/4)):
+            disp_y = np.append(disp_y, disp[4*node_dof-3])
 
         return disp_y
 
