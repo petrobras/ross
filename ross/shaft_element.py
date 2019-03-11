@@ -1,6 +1,11 @@
 import numpy as np
 import matplotlib.patches as mpatches
 from ross.element import Element
+from ross.materials import steel
+from ross.materials import Material
+import os
+import ross
+from pathlib import Path
 
 __all__ = ["ShaftElement"]
 
@@ -95,11 +100,17 @@ class ShaftElement(Element):
         shear_method_calc="cowper",
     ):
 
-        self.material = material
+        if type(material) is str:
+            os.chdir(Path(os.path.dirname(ross.__file__)))
+            self.material = Material.use_material(material)
+        else:
+            self.material = material
+
         self.shear_effects = shear_effects
         self.rotary_inertia = rotary_inertia
         self.gyroscopic = gyroscopic
-
+        self.axial_force = axial_force
+        self.torque = torque
         self._n = n
         self.n_l = n
         self.n_r = None
@@ -117,6 +128,7 @@ class ShaftElement(Element):
         self.o_d_l = float(o_d)
         self.i_d_r = float(i_d)
         self.o_d_r = float(o_d)
+        self.color = self.material.color
 
         self.A = np.pi * (o_d ** 2 - i_d ** 2) / 4
         self.volume = self.A * self.L
@@ -161,6 +173,12 @@ class ShaftElement(Element):
 
         self.phi = phi
 
+    def __eq__(self, other):
+        if self.__dict__ == other.__dict__:
+            return True
+        else:
+            return False
+
     @property
     def n(self):
         return self._n
@@ -173,7 +191,12 @@ class ShaftElement(Element):
             self.n_r = value + 1
 
     def __repr__(self):
-        return f"{self.__class__.__name__}" f"(L={self.L:{0}.{5}}, i_d={self.i_d:{0}.{5}}, " f"o_d={self.o_d:{0}.{5}}, material={self.material!r}, " f"n={self.n})"
+        return (
+            f"{self.__class__.__name__}"
+            f"(L={self.L:{0}.{5}}, i_d={self.i_d:{0}.{5}}, "
+            f"o_d={self.o_d:{0}.{5}}, material={self.material!r}, "
+            f"n={self.n})"
+        )
 
     def __str__(self):
         return (

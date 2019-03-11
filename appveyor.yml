@@ -1,0 +1,30 @@
+environment:
+
+  matrix:
+    - PYTHON: "C:\\Python36"
+    - PYTHON: "C:\\Python37"
+    - PYTHON: "C:\\Python36-x64"
+    - PYTHON: "C:\\Python37-x64"
+
+install:
+  - "%PYTHON%\\python.exe -m pip install wheel"
+  - "%PYTHON%\\python.exe -m pip install numpy"
+  - "%PYTHON%\\python.exe -m pip install scipy"
+  - "%PYTHON%\\python.exe -m pip install matplotlib"
+  - "%PYTHON%\\python.exe -m pip install toml"
+  - "%PYTHON%\\python.exe -m pip install pytest"
+  - "%PYTHON%\\python.exe -m pip install pandas"
+  - "%PYTHON%\\python.exe -m pip install coverage"
+
+build: off
+
+test_script:
+  - "%PYTHON%\\python.exe setup.py test"
+
+after_test:
+  - "%PYTHON%\\python.exe setup.py bdist_wheel"
+  - "%PYTHON%\\python.exe setup.py bdist_wheel"
+
+artifacts:
+  - path: dist\*
+
