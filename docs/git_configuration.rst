@@ -77,7 +77,7 @@ The following blog posts have some good information on how to write commit messa
 
 `A Note About Git Commit Messages <https://tbaggery.com/2008/04/19/a-note-about-git-commit-messages.html>`_
 
-`On commit messages <https://tbaggery.com/2008/04/19/a-note-about-git-commit-messages.html>`_
+`On commit messages <https://who-t.blogspot.com/2009/12/on-commit-messages.html>`_
 
 -------------------------------------
 Step 5: Push changes to the main repo
