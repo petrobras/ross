@@ -93,6 +93,8 @@ class PressureMatrix:
         y value of the external radius.
     yri : array of shape (nz, ntheta)
         y value of the internal radius.
+    distance_between_centers : float
+        distance between the center of the rotor and the stator.
 
     Examples
     --------
@@ -163,6 +165,7 @@ class PressureMatrix:
         self.calculate_coefficients(plot_eccentricity)
         self.pressure_matrix_available = False
         self.pressure_array = None
+        self.distance_between_centers = np.sqrt((xe**2 + ye**2))
 
     def calculate_pressure_matrix(self):
         """This function calculates the pressure matrix
@@ -309,9 +312,7 @@ class PressureMatrix:
             Gama is the distance in the theta-axis. It should range from 0 to 2*np.pi.
         """
 
-        radius_internal = self.radius_valley + (
-            (self.radius_crest - self.radius_valley)/self.lb
-            )*z
+        radius_internal = self.radius_valley
         xri = radius_internal * np.cos(gama)
         yri = radius_internal * np.sin(gama)
 
