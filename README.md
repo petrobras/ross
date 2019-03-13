@@ -1,3 +1,3 @@
-# ross
+# Rotodynamic Open Source Software (ROSS)
 
-Documentation [here](https://ross-rotordynamics.github.io/ross/).
+Access the documentation [here](https://ross-rotordynamics.github.io/ross/).
