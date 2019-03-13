@@ -11,6 +11,9 @@ from collections import Iterable
 import shutil
 import matplotlib as mpl
 import matplotlib.pyplot as plt
+from bokeh.models import ColumnDataSource
+from bokeh.layouts import gridplot
+from bokeh.plotting import figure, output_file, show
 from cycler import cycler
 from pathlib import Path
 from ross.bearing_seal_element import BearingElement
@@ -1583,23 +1586,69 @@ class Rotor(object):
         shutil.rmtree(Path(os.path.dirname(ross.__file__)) / "rotors" / rotor_name)
 
     def static(self):
-
-        # grav = gravity aceleration vector
+        # gravity aceleration vector
         grav = np.zeros((len(self.M()), 1))
 
-        # place gravity effect on disk nodes
-        for disk_node in self.df_disks['n']:
-            grav[4*disk_node-3] = -9.8065
+        # place gravity effect on
+        for node_y in range(int(len(self.M())/4)):
+            grav[4*node_y+1] = -9.8065
 
         # calculates x, for [K]*[x] = [M]*[g]
         disp = la.solve(self.K(0), self.M() @ grav)
         disp = disp.flatten()
-        
+
         # get the displacement values in the same direction of gravity
         # dof = degree of freedom
         disp_y = np.array([])
         for node_dof in range(int(len(disp)/4)):
-            disp_y = np.append(disp_y, disp[4*node_dof-3])
+            disp_y = np.append(disp_y, disp[4*node_dof+1])
+
+        output_file("static.html")
+        source = ColumnDataSource(data=dict(x0=self.nodes_pos, y0=disp_y * 1000))
+        TOOLS = "pan,wheel_zoom,box_zoom,reset,save,box_select,lasso_select"
+
+        # create a new plot and add a renderer
+        disp_graph = figure(
+            tools=TOOLS,
+            width=700,
+            height=350,
+            title="Static Analysis",
+            x_axis_label="shaft lenght(m)",
+            y_axis_label="lateral displacement (mm)",
+        )
+        disp_graph.line(
+            "x0",
+            "y0",
+            source=source,
+            legend="Deformed shaft",
+            line_width=3,
+            line_color="crimson",
+        )
+        disp_graph.circle(
+            "x0",
+            "y0",
+            source=source,
+            legend="Deformed shaft",
+            size=8,
+            fill_color="crimson",
+        )
+        disp_graph.line(
+            self.nodes_pos,
+            [0] * len(self.nodes_pos),
+            legend="underformed shaft",
+            line_width=3,
+            line_color="darkslategray",
+        )
+        disp_graph.circle(
+            self.nodes_pos,
+            [0] * len(self.nodes_pos),
+            legend="underformed shaft",
+            size=8,
+            fill_color="darkslategray",
+        )
+
+        # show the results
+        show(disp_graph)
 
         return disp_y
 
@@ -1777,6 +1826,45 @@ class Rotor(object):
         disk_elements = regions[1]
         bearing_seal_elements = regions[2]
 
+        output_file("convergence.html")
+        source = ColumnDataSource(
+            data=dict(x0=el_num[1:], y0=eigv_arr[1:], x1=el_num[1:], y1=error_arr[1:])
+        )
+
+        TOOLS = "pan,wheel_zoom,box_zoom,reset,save,box_select,lasso_select"
+
+        # create a new plot and add a renderer
+        freq_arr = figure(
+            tools=TOOLS,
+            width=500,
+            height=500,
+            title="Frequency Evaluation",
+            x_axis_label="Numer of Elements",
+            y_axis_label="Frequency (Hz)",
+        )
+        freq_arr.line("x0", "y0", source=source, line_width=3, line_color="crimson")
+        freq_arr.circle("x0", "y0", source=source, fill_color="crimson", size=8)
+
+        # create another new plot and add a renderer
+        rel_error = figure(
+            tools=TOOLS,
+            width=500,
+            height=500,
+            title="Relative Error Evaluation",
+            x_axis_label="Number of Rlements",
+            y_axis_label="Relative Rrror",
+        )
+        rel_error.line(
+            "x1", "y1", source=source, line_width=3, line_color="darkslategray"
+        )
+        rel_error.circle("x1", "y1", source=source, fill_color="darkslategray", size=8)
+
+        # put the subplots in a gridplot
+        p = gridplot([[freq_arr, rel_error]])
+
+        # show the results
+        show(p)      
+        
         return cls(
             shaft_elements,
             disk_elements,
