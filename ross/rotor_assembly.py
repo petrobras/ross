@@ -1589,7 +1589,7 @@ class Rotor(object):
         # gravity aceleration vector
         grav = np.zeros((len(self.M()), 1))
 
-        # place gravity effect on
+        # place gravity effect on shaft and disks nodes
         for node_y in range(int(len(self.M())/4)):
             grav[4*node_y+1] = -9.8065
 
@@ -1802,6 +1802,7 @@ class Rotor(object):
 
         regions0 = rotor_regions(nel_r)
         rotor0 = Rotor(regions0[0], regions0[1], regions0[2], w=w, n_eigen=12)
+        rotor0.run()
 
         eigv_arr = np.append(eigv_arr, rotor0.wn[n_eigval])
         # this value is up to start the loop while
@@ -1812,6 +1813,7 @@ class Rotor(object):
 
             regions = rotor_regions(nel_r)
             rotor = Rotor(regions[0], regions[1], regions[2], w=w, n_eigen=12)
+            rotor.run()
 
             eigv_arr = np.append(eigv_arr, rotor.wn[n_eigval])
             el_num = np.append(el_num, nel_r * len(leng_data))
