@@ -1,5 +1,6 @@
 import numpy as np
 import matplotlib.patches as mpatches
+import bokeh.palettes as bp
 from ross.element import Element
 from ross.materials import steel
 from ross.materials import Material
@@ -8,6 +9,8 @@ import ross
 from pathlib import Path
 
 __all__ = ["ShaftElement"]
+
+bokeh_colors = bp.RdGy[11]
 
 
 class ShaftElement(Element):
@@ -356,7 +359,7 @@ class ShaftElement(Element):
 
         return G
 
-    def patch(self, ax, position):
+    def patch(self, ax, position, axis):
         """Shaft element patch.
         Patch that will be used to draw the shaft element.
         Parameters
@@ -401,6 +404,17 @@ class ShaftElement(Element):
                 alpha=0.8,
             )
         )
+
+        # plot the shaft
+        axis.quad(top=self.o_d,
+                  bottom=-self.o_d,
+                  left=position,
+                  right=position + self.L,
+                  line_color=bokeh_colors[0],
+                  line_width=1,
+                  fill_alpha=0.5,
+                  fill_color=bokeh_colors[1]
+                  )
 
     @classmethod
     def section(
