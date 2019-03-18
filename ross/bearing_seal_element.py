@@ -3,10 +3,12 @@ import numpy as np
 import scipy.interpolate as interpolate
 import matplotlib.pyplot as plt
 import matplotlib.patches as mpatches
+import bokeh.palettes as bp
 from ross.element import Element
 import pytest
 
 __all__ = ["BearingElement", "SealElement"]
+bokeh_colors = bp.RdGy[11]
 
 
 class _Coefficient:
@@ -207,7 +209,7 @@ class BearingElement(Element):
 
         return C
 
-    def patch(self, ax, position):
+    def patch(self, ax, position, axis):
         """Bearing element patch.
         Patch that will be used to draw the bearing element.
         Parameters
@@ -222,7 +224,7 @@ class BearingElement(Element):
             Returns the axes object with the plot.
         """
         zpos, ypos = position
-        h = -0.75 * ypos  # height
+        h = -0.5 * ypos  # height
 
         #  node (x pos), outer diam. (y pos)
         bearing_points = [
@@ -233,6 +235,17 @@ class BearingElement(Element):
         ]
         ax.add_patch(mpatches.Polygon(bearing_points, color=self.color, picker=True))
 
+        # bokeh plot - node (x pos), outer diam. (y pos)
+        bk_bearing_points = [
+            [zpos, zpos + 1.4*h, zpos - 1.4*h],
+            [ypos, ypos - h, ypos - h]
+        ]
+
+        # bokeh plot - plot disks elements
+        axis.patch(
+            bk_bearing_points[0], bk_bearing_points[1],
+            alpha=1, line_width=2, color=bokeh_colors[0]
+        )
 
 class SealElement(BearingElement):
     def __init__(
@@ -265,7 +278,7 @@ class SealElement(BearingElement):
         self.seal_leakage = seal_leakage
         self.color = "#77ACA2"
 
-    def patch(self, ax, position):
+    def patch(self, ax, position, axis):
         """Seal element patch.
         Patch that will be used to draw the seal element.
         Parameters
@@ -301,3 +314,25 @@ class SealElement(BearingElement):
         ]
         ax.add_patch(mpatches.Polygon(seal_points_u, facecolor=self.color))
         ax.add_patch(mpatches.Polygon(seal_points_l, facecolor=self.color))
+
+        # bokeh plot - node (x pos), outer diam. (y pos)
+        bk_seal_points_u = [
+            [zpos, zpos + hw, zpos + hw, zpos - hw, zpos - hw],
+            [ypos * 1.1, ypos * 1.1, ypos * 1.3, ypos * 1.3, ypos * 1.1]
+        ]
+
+        bk_seal_points_l = [
+            [zpos, zpos + hw, zpos + hw, zpos - hw, zpos - hw],
+            [ypos * 1.1, ypos * 1.1, ypos * 1.3, ypos * 1.3, ypos * 1.1]
+        ]
+
+        # bokeh plot - plot disks elements
+        axis.patch(
+             bk_seal_points_u[0], bk_seal_points_u[1],
+             alpha=0.5, line_width=2, color=bokeh_colors[6]
+        )
+
+        axis.patch(
+            bk_seal_points_l[0], bk_seal_points_l[1],
+            alpha=0.5, line_width=2, color=bokeh_colors[6]
+        )
