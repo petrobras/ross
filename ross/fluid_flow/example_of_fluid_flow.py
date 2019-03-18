@@ -46,7 +46,7 @@ def plot_pressure_graph(pressure_matrix):
         pressure_book.append(calculate_pressure(epi, C, pressure_matrix.radius_valley, phi, pressure_matrix.visc,
                                                 pressure_matrix.omega,
                                                 pressure_matrix.p_mat[int(pressure_matrix.nz/2)][0]))
-        theta_list.append(theta)
+        theta_list.append(theta*pressure_matrix.dtheta)
         plt.plot()
     plt.plot(theta_list, pressure_book, 'r')
     plt.plot(theta_list, pressure_matrix.p_mat[int(pressure_matrix.nz/2)], 'b')
