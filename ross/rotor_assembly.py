@@ -11,7 +11,9 @@ from collections import Iterable
 import shutil
 import matplotlib as mpl
 import matplotlib.pyplot as plt
+import bokeh.palettes as bp
 from bokeh.models import ColumnDataSource
+from bokeh.models.glyphs import Text
 from bokeh.layouts import gridplot
 from bokeh.plotting import figure, output_file, show
 from cycler import cycler
@@ -28,6 +30,7 @@ from ross.results import (
 )
 import toml
 import ross
+
 
 __all__ = ["Rotor", "rotor_example"]
 
@@ -48,6 +51,9 @@ plt.style.use(
 _orig_rc_params = mpl.rcParams.copy()
 
 seaborn_colors = ["#4c72b0", "#55a868", "#c44e52", "#8172b2", "#ccb974", "#64b5cd"]
+
+# set bokeh palette of colors
+bokeh_colors = bp.RdGy[11]
 
 
 class Rotor(object):
@@ -1022,7 +1028,7 @@ class Rotor(object):
         """
         return signal.lsim(self.lti, F, t, X0=ic)
 
-    def plot_rotor(self, nodes=1, ax=None):
+    def plot_rotor(self, nodes=1, ax=None, axis=None):
         """Plots a rotor object.
 
         This function will take a rotor object and plot its shaft,
@@ -1048,6 +1054,7 @@ class Rotor(object):
         #  plot shaft centerline
         shaft_end = self.nodes_pos[-1]
         ax.plot([-0.2 * shaft_end, 1.2 * shaft_end], [0, 0], "k-.")
+
         try:
             max_diameter = max([disk.o_d for disk in self.disk_elements])
         except (ValueError, AttributeError):
@@ -1058,8 +1065,28 @@ class Rotor(object):
         ax.set_xlabel("Axial location (m)")
         ax.set_ylabel("Shaft radius (m)")
 
-        #  plot nodes
+        # bokeh plot - output to static HTML file
+        output_file("rotor.html")
+
+        # bokeh plot - create a new plot
+        axis = figure(
+           tools="pan, box_zoom, wheel_zoom, reset, save",
+           width=900, height=500,
+           y_range=[-6 * max_diameter, 6 * max_diameter], title="Rotor model",
+           x_axis_label='Axial location (m)', y_axis_label='Shaft radius (m)')
+
+        # bokeh plot - plot shaft centerline
+        axis.line([-0.2 * shaft_end, 1.2 * shaft_end], [0, 0],
+                  line_width=3,
+                  line_dash="dotdash",
+                  line_color=bokeh_colors[0]  # dark-dark blue
+                  )
+
+        # plot nodes
+        text = []
         for node, position in enumerate(self.nodes_pos[::nodes]):
+            text.append(str(node))
+
             ax.plot(
                 position,
                 0,
@@ -1079,22 +1106,46 @@ class Rotor(object):
                 verticalalignment="center",
             )
 
+        # bokeh plot - plot nodes
+        x_pos = np.linspace(0, self.nodes_pos[-1], len(self.nodes_pos))
+        y_pos = np.linspace(0, 0, len(self.nodes_pos))
+
+        source = ColumnDataSource(dict(x=x_pos, y=y_pos, text=text))
+
+        axis.square(x=x_pos,
+                    y=y_pos,
+                    size=30,
+                    angle=np.pi/4,
+                    fill_alpha=0.8,
+                    fill_color=bokeh_colors[6]
+                    )
+
+        glyph = Text(x="x",
+                     y="y",
+                     text="text",
+                     text_alpha=1.0,
+                     text_color=bokeh_colors[1]
+                     )
+        axis.add_glyph(source, glyph)
+
         # plot shaft elements
         for sh_elm in self.shaft_elements:
             position = self.nodes_pos[sh_elm.n]
-            sh_elm.patch(ax, position)
+            sh_elm.patch(ax, position, axis)
 
         # plot disk elements
         for disk in self.disk_elements:
             position = (self.nodes_pos[disk.n], self.nodes_o_d[disk.n])
-            disk.patch(ax, position)
+            disk.patch(ax, position, axis)
 
         # plot bearings
         for bearing in self.bearing_seal_elements:
             position = (self.nodes_pos[bearing.n], -self.nodes_o_d[bearing.n])
-            bearing.patch(ax, position)
+            bearing.patch(ax, position, axis)
 
-        return ax
+        show(axis)
+
+        return ax, axis
 
     def campbell(self, speed_range, frequencies=6, frequency_type="wd"):
         """Calculates the Campbell diagram.
