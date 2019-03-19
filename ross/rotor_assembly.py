@@ -31,7 +31,6 @@ from ross.results import (
 import toml
 import ross
 
-
 __all__ = ["Rotor", "rotor_example"]
 
 # set style and colors
@@ -48,12 +47,12 @@ plt.style.use(
     }
 )
 
+# set bokeh palette of colors
+bokeh_colors = bp.RdGy[11]
+
 _orig_rc_params = mpl.rcParams.copy()
 
 seaborn_colors = ["#4c72b0", "#55a868", "#c44e52", "#8172b2", "#ccb974", "#64b5cd"]
-
-# set bokeh palette of colors
-bokeh_colors = bp.RdGy[11]
 
 
 class Rotor(object):
@@ -230,7 +229,7 @@ class Rotor(object):
         df_shaft["nodes_pos_r"] = nodes_pos_r
         # bearings
 
-        df = pd.concat([df_shaft, df_disks, df_bearings])
+        df = pd.concat([df_shaft, df_disks, df_bearings], sort=True)
         df = df.sort_values(by="n_l")
         df = df.reset_index(drop=True)
 
@@ -1028,7 +1027,7 @@ class Rotor(object):
         """
         return signal.lsim(self.lti, F, t, X0=ic)
 
-    def plot_rotor(self, nodes=1, ax=None, axis=None):
+    def plot_rotor(self, nodes=1, axis=None):
         """Plots a rotor object.
 
         This function will take a rotor object and plot its shaft,
@@ -1048,22 +1047,13 @@ class Rotor(object):
 
         Examples:
         """
-        if ax is None:
-            ax = plt.gca()
-
         #  plot shaft centerline
         shaft_end = self.nodes_pos[-1]
-        ax.plot([-0.2 * shaft_end, 1.2 * shaft_end], [0, 0], "k-.")
 
         try:
             max_diameter = max([disk.o_d for disk in self.disk_elements])
         except (ValueError, AttributeError):
             max_diameter = max([shaft.o_d for shaft in self.shaft_elements])
-
-        ax.set_ylim(-1.2 * max_diameter, 1.2 * max_diameter)
-        ax.axis("equal")
-        ax.set_xlabel("Axial location (m)")
-        ax.set_ylabel("Shaft radius (m)")
 
         # bokeh plot - output to static HTML file
         output_file("rotor.html")
@@ -1087,25 +1077,6 @@ class Rotor(object):
         for node, position in enumerate(self.nodes_pos[::nodes]):
             text.append(str(node))
 
-            ax.plot(
-                position,
-                0,
-                zorder=2,
-                ls="",
-                marker="D",
-                color="#6caed6",
-                markersize=10,
-                alpha=0.6,
-            )
-            ax.text(
-                position,
-                0,
-                f"{node*nodes}",
-                size="smaller",
-                horizontalalignment="center",
-                verticalalignment="center",
-            )
-
         # bokeh plot - plot nodes
         x_pos = np.linspace(0, self.nodes_pos[-1], len(self.nodes_pos))
         y_pos = np.linspace(0, 0, len(self.nodes_pos))
@@ -1123,29 +1094,32 @@ class Rotor(object):
         glyph = Text(x="x",
                      y="y",
                      text="text",
+                     text_font_style="bold",
+                     text_baseline="middle",
+                     text_align="center",
                      text_alpha=1.0,
-                     text_color=bokeh_colors[1]
+                     text_color=bokeh_colors[0]
                      )
         axis.add_glyph(source, glyph)
 
         # plot shaft elements
         for sh_elm in self.shaft_elements:
             position = self.nodes_pos[sh_elm.n]
-            sh_elm.patch(ax, position, axis)
+            sh_elm.patch(position, axis)
 
         # plot disk elements
         for disk in self.disk_elements:
             position = (self.nodes_pos[disk.n], self.nodes_o_d[disk.n])
-            disk.patch(ax, position, axis)
+            disk.patch(position, axis)
 
         # plot bearings
         for bearing in self.bearing_seal_elements:
             position = (self.nodes_pos[bearing.n], -self.nodes_o_d[bearing.n])
-            bearing.patch(ax, position, axis)
+            bearing.patch(position, axis)
 
         show(axis)
 
-        return ax, axis
+        return axis
 
     def campbell(self, speed_range, frequencies=6, frequency_type="wd"):
         """Calculates the Campbell diagram.
@@ -1655,12 +1629,20 @@ class Rotor(object):
             disp_y = np.append(disp_y, disp[4*node_dof+1])
 
         output_file("static.html")
-        source = ColumnDataSource(data=dict(x0=self.nodes_pos, y0=disp_y * 1000))
-        TOOLS = "pan,wheel_zoom,box_zoom,reset,save,box_select,lasso_select"
+        source = ColumnDataSource(
+            data=dict(x0=self.nodes_pos, y0=disp_y*1000,
+                      y1=[0]*len(self.nodes_pos)))
+        TOOLS = "pan,wheel_zoom,box_zoom,reset,save,box_select,hover"
+        TOOLTIPS = [
+            ('Shaft lenght:', '@x0 m'),
+            ('Underformed:', '@y1 mm'),
+            ('Displacement', '@y0 mm')
+        ]
 
         # create a new plot and add a renderer
         disp_graph = figure(
             tools=TOOLS,
+            tooltips=TOOLTIPS,
             width=700,
             height=350,
             title="Static Analysis",
@@ -1673,7 +1655,7 @@ class Rotor(object):
             source=source,
             legend="Deformed shaft",
             line_width=3,
-            line_color="crimson",
+            line_color=bokeh_colors[9]
         )
         disp_graph.circle(
             "x0",
@@ -1681,21 +1663,23 @@ class Rotor(object):
             source=source,
             legend="Deformed shaft",
             size=8,
-            fill_color="crimson",
+            fill_color=bokeh_colors[9]
         )
         disp_graph.line(
-            self.nodes_pos,
-            [0] * len(self.nodes_pos),
+            "x0",
+            "y1",
+            source=source,
             legend="underformed shaft",
             line_width=3,
-            line_color="darkslategray",
+            line_color=bokeh_colors[0]
         )
         disp_graph.circle(
-            self.nodes_pos,
-            [0] * len(self.nodes_pos),
+            "x0",
+            "y1",
+            source=source,
             legend="underformed shaft",
             size=8,
-            fill_color="darkslategray",
+            fill_color=bokeh_colors[0]
         )
 
         # show the results
@@ -1884,11 +1868,19 @@ class Rotor(object):
             data=dict(x0=el_num[1:], y0=eigv_arr[1:], x1=el_num[1:], y1=error_arr[1:])
         )
 
-        TOOLS = "pan,wheel_zoom,box_zoom,reset,save,box_select,lasso_select"
-
+        TOOLS = "pan,wheel_zoom,box_zoom,hover,reset,save,"
+        TOOLTIPS1 = [
+            ('Frquency:', '@y0 Hz'),
+            ('Number of Elements', '@x0')
+        ]
+        TOOLTIPS2 = [
+            ('Relative Error:', '@y1'),
+            ('Number of Elements', '@x1')
+        ]
         # create a new plot and add a renderer
         freq_arr = figure(
             tools=TOOLS,
+            tooltips=TOOLTIPS1,
             width=500,
             height=500,
             title="Frequency Evaluation",
@@ -1901,6 +1893,7 @@ class Rotor(object):
         # create another new plot and add a renderer
         rel_error = figure(
             tools=TOOLS,
+            tooltips=TOOLTIPS2,
             width=500,
             height=500,
             title="Relative Error Evaluation",
