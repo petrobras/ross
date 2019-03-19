@@ -130,7 +130,7 @@ class DiskElement(Element):
         # fmt: on
         return G
 
-    def patch(self, ax, position, axis):
+    def patch(self, position, axis):
         """Disk element patch.
         Patch that will be used to draw the disk element.
         Parameters
@@ -147,30 +147,6 @@ class DiskElement(Element):
         zpos, ypos = position
         D = ypos * 1.5
         hw = 0.02
-
-        #  node (x pos), outer diam. (y pos)
-        disk_points_u = [
-            [zpos, ypos],  # upper
-            [zpos + hw, ypos + D],
-            [zpos - hw, ypos + D],
-            [zpos, ypos],
-        ]
-        disk_points_l = [
-            [zpos, -ypos],  # lower
-            [zpos + hw, -(ypos + D)],
-            [zpos - hw, -(ypos + D)],
-            [zpos, -ypos],
-        ]
-
-        ax.add_patch(mpatches.Polygon(disk_points_u, facecolor=self.color))
-        ax.add_patch(mpatches.Polygon(disk_points_l, facecolor=self.color))
-
-        ax.add_patch(
-            mpatches.Circle(xy=(zpos, ypos + D), radius=0.01, color=self.color)
-        )
-        ax.add_patch(
-            mpatches.Circle(xy=(zpos, -(ypos + D)), radius=0.01, color=self.color)
-        )
 
         # bokeh plot - plot disks elements
 
@@ -189,7 +165,8 @@ class DiskElement(Element):
             y=bk_disk_points_u[1],
             alpha=1,
             line_width=2,
-            color=bokeh_colors[9]
+            color=bokeh_colors[9],
+            legend="Disk"
         )
         axis.patch(
             x=bk_disk_points_l[0],
