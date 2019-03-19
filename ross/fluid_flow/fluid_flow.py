@@ -103,35 +103,37 @@ class PressureMatrix:
         type of structure. 0: short; 1: long; 2: in between short and long.
         if length/radius_stator <= 1/8 it is short.
         if length/radius_stator > 4 it is long.
+    plot_counter: int
+        for each plot, it increments this counter, in order to plot
+        figures with unique IDs.
 
     Examples
     --------
     >>> from ross.fluid_flow import fluid_flow as flow
     >>> import matplotlib.pyplot as plt
-    >>> nz = 150
-    >>> ntheta = 37
+    >>> nz = 20
+    >>> ntheta = 100
     >>> nradius = 11
-    >>> lb = 1.
+    >>> length = 0.01
     >>> omega = -100.*2*np.pi/60
-    >>> p_in = 392266.
-    >>> p_out = 100000.
-    >>> radius_valley = 0.034
-    >>> radius_crest = 0.039
-    >>> radius_stator = 0.04
-    >>> lwave = 0.18
-    >>> xe = 0.
-    >>> ye = 0.
-    >>> visc = 0.001
-    >>> rho = 1000.
-    >>> my_pressure_matrix = flow.PressureMatrix(nz, ntheta, nradius, lb,
-    ...                                          omega, p_in, p_out, radius_valley,
-    ...                                          radius_crest, radius_stator,
-    ...                                          lwave, xe, ye,  visc, rho, plot_eccentricity=True)
+    >>> p_in = 1.
+    >>> p_out = 1.
+    >>> radius_rotor = 0.08
+    >>> radius_stator = 0.1
+    >>> xi = 0.007
+    >>> yi = -0.007
+    >>> visc = 0.015
+    >>> rho = 860.
+    >>> my_pressure_matrix = flow.PressureMatrix(nz, ntheta, nradius, length,
+    ...                                          omega, p_in, p_out, radius_rotor,
+    ...                                          radius_stator, xi, yi,  visc, rho, plot_eccentricity=True)
     >>> P = my_pressure_matrix.calculate_pressure_matrix()
     >>> my_pressure_matrix.plot_pressure_z(show_immediately=False)
     >>> my_pressure_matrix.plot_shape(show_immediately=False)
+    >>> my_pressure_matrix.plot_pressure_theta_cylindrical(z=int(nz/2), show_immediately=False)
     >>> my_pressure_matrix.plot_pressure_theta(z=int(nz/2), show_immediately=False)
     >>> plt.show()
+    >>> plt.close('all')
 
     """
     def __init__(self, nz, ntheta, nradius, length, omega, p_in,
@@ -166,6 +168,7 @@ class PressureMatrix:
         self.yri = np.zeros([self.nz, self.ntheta])
         self.p_mat = np.zeros([self.nz, self.ntheta])
         self.bearing_seal_type = -1
+        self.plot_counter = 0
         self.calculate_coefficients(plot_eccentricity)
         self.pressure_matrix_available = False
         self.distance_between_centers = np.sqrt((xi**2 + yi**2))
@@ -202,7 +205,8 @@ class PressureMatrix:
         else:
             self.bearing_seal_type = 2
         if plot_cut:
-            plt.figure(0)
+            plt.figure(self.plot_counter)
+            self.plot_counter += 1
         for i in range(self.nz):
             zno = i * self.dz
             self.z[0][i] = zno
@@ -219,7 +223,7 @@ class PressureMatrix:
                         plt.plot(self.xre[i][j], self.yre[i][j], 'r.')
                         plt.plot(self.xri[i][j], self.yri[i][j], 'b.')
                         plt.plot(0, 0, '*')
-                        plt.title('Cut in plane z=0')
+                        plt.title('Cut in plane Z=0')
                         plt.xlabel('X axis')
                         plt.ylabel('Y axis')
                         plt.axis('equal')
@@ -229,6 +233,7 @@ class PressureMatrix:
                 self.ri[i][j] = radius_internal
         if plot_cut:
             plt.show()
+            plt.close('all')
 
     def internal_radius_function(self, z, gama):
         """This function calculates the radius of the rotor given the
@@ -273,89 +278,6 @@ class PressureMatrix:
 
         return radius_internal, xri, yri
 
-    def mounting_matrix(self):
-        """Mounting matrix
-        This function assembles the matrix M and the independent vector f.
-        """
-        m = np.zeros([self.ntotal, self.ntotal])
-        f = np.zeros([self.ntotal, 1])
-
-        """ Applying the boundary conditions in Z=0 e Z=L:"""
-        counter = 0
-        for x in range(self.ntheta):
-            m[counter][counter] = 1
-            f[counter][0] = self.p_in
-            counter = counter + self.nz - 1
-            m[counter][counter] = 1
-            f[counter][0] = self.p_out
-            counter = counter + 1
-
-        """Applying the boundary conditions p(theta=0)=P(theta=pi):):"""
-        counter = 0
-        for x in range(self.nz - 2):
-            m[self.ntotal - self.nz + 1 + counter][1 + counter] = 1
-            m[self.ntotal - self.nz + 1 + counter][self.ntotal - self.nz + 1 + counter] = -1
-            counter = counter + 1
-
-        """Border nodes with periodic boundary condition:"""
-        counter = 1
-        j = 0
-        for i in range(1, self.nz - 1):
-            a = (1 / self.dtheta ** 2) * (self.c1[i][self.ntheta - 1])
-            m[counter][self.ntotal - 2 * self.nz + counter] = a
-            b = (1 / self.dz ** 2) * (self.c2[i - 1, j])
-            m[counter][counter - 1] = b
-            c = -((1 / self.dtheta ** 2) * (
-                (self.c1[i][j]) + self.c1[i][self.ntheta - 1]
-                ) + (1 / self.dz ** 2) * (self.c2[i][j] + self.c2[i - 1][j]))
-            m[counter, counter] = c
-            d = (1 / self.dz ** 2) * (self.c2[i][j])
-            m[counter][counter + 1] = d
-            e = (1 / self.dtheta ** 2) * (self.c1[i][j])
-            m[counter][counter + self.nz] = e
-            counter = counter + 1
-
-        # Internal nodes
-        counter = self.nz + 1
-        for j in range(1, self.ntheta - 1):
-            for i in range(1, self.nz - 1):
-                a = (1 / self.dtheta ** 2) * (self.c1[i, j - 1])
-                m[counter][counter - self.nz] = a
-                b = (1 / self.dz ** 2) * (self.c2[i - 1][j])
-                m[counter][counter - 1] = b
-                c = -((1 / self.dtheta ** 2) * (
-                    (self.c1[i][j]) + self.c1[i][j - 1]) + (1 / self.dz ** 2) *
-                    (self.c2[i][j] + self.c2[i - 1][j])
-                    )
-                m[counter, counter] = c
-                d = (1 / self.dz ** 2) * (self.c2[i][j])
-                m[counter][counter + 1] = d
-                e = (1 / self.dtheta ** 2) * (self.c1[i][j])
-                m[counter][counter + self.nz] = e
-                counter = counter + 1
-            counter = counter + 2
-
-        # Assembling the vector f:
-        counter = 1
-        for j in range(self.ntheta - 1):
-            for i in range(1, self.nz - 1):
-                if j == 0:
-                    k = (
-                        (self.c0w[i][j] - self.c0w[i][self.ntheta - 1]) /
-                        self.dtheta
-                        )
-                    f[counter][0] = k
-                else:
-                    k = ((self.c0w[i, j] - self.c0w[i, j - 1]) / self.dtheta)
-                    f[counter][0] = k
-                counter = counter + 1
-            counter = counter + 2
-        return m, f
-
-    """Graphics
-    Plots the graphs of interest.
-    """
-
     def plot_pressure_z(self, show_immediately=True):
         """This function assembles pressure graphic along the z-axis.
         Parameters
@@ -367,13 +289,16 @@ class PressureMatrix:
         if not self.pressure_matrix_available:
             sys.exit('Must calculate the pressure matrix.'
                      'Try calling calculate_pressure_matrix first.')
-        plt.figure(1)
+        plt.figure(self.plot_counter)
+        self.plot_counter += 1
         for i in range(0, self.nz):
             plt.plot(i*self.dz, self.p_mat[i][0], 'bo')
-        plt.title('Pressure along the Z direction (direction of flow)')
-        plt.xlabel('Points along the Z direction')
+        plt.title('Pressure along the Z direction (direction of flow); Theta=0')
+        plt.xlabel('Points along Z')
         plt.ylabel('Pressure')
         plt.show(block=show_immediately)
+        if show_immediately:
+            plt.close('all')
 
     def plot_shape(self, theta=0, show_immediately=True):
         """This function assembles a graphic representing the geometry of the rotor.
@@ -385,10 +310,8 @@ class PressureMatrix:
             If True, immediately plots the graphic. Otherwise, the user should call plt.show()
             at some point. It is useful in case the user wants to see one graphic alongside another.
         """
-        if not self.pressure_matrix_available:
-            sys.exit('Must calculate the pressure matrix.'
-                     'Try calling calculate_pressure_matrix first.')
-        plt.figure(2)
+        plt.figure(self.plot_counter)
+        self.plot_counter += 1
         x = np.zeros(self.nz)
         y_re = np.zeros(self.nz)
         y_ri = np.zeros(self.nz)
@@ -398,10 +321,15 @@ class PressureMatrix:
             y_ri[i] = self.ri[i][theta]
         plt.plot(x, y_re, 'r')
         plt.plot(x, y_ri, 'b')
+        plt.title('Shapes of stator and rotor along Z; Theta='+str(theta))
+        plt.xlabel('Points along Z')
+        plt.ylabel('Radial direction')
         plt.show(block=show_immediately)
+        if show_immediately:
+            plt.close('all')
 
-    def plot_pressure_theta(self, z=0, show_immediately=True):
-        """This function assembles pressure graphic in the theta direction for a given z.
+    def plot_pressure_theta_cylindrical(self, z=0, show_immediately=True):
+        """This function assembles cylindrical pressure graphic in the theta direction for a given z.
         Parameters
         ----------
         z: int
@@ -437,20 +365,36 @@ class PressureMatrix:
                 pressure_list[i][j] = pressure_along_theta[i]
                 z_matrix[i][j] = pressure_along_theta[i] - min_pressure + 0.01
         fig, ax = plt.subplots(subplot_kw=dict(projection='polar'))
+        self.plot_counter += 1
         ax.contourf(theta_matrix, r_matrix, z_matrix, cmap='coolwarm')
+        plt.title('Pressure along Theta; Z='+str(z))
         plt.show(block=show_immediately)
+        if show_immediately:
+            plt.close('all')
 
-    def plot_pressure_graph(self, show_immediately=True):
-        """ Given an instantiated PressureMatrix, plot its pressure along theta in z = length/2 and compare with
-            Tribology Series's results.
+    def plot_pressure_theta(self, z=0, show_immediately=True):
+        """This function assembles pressure graphic in the theta direction for a given z.
+        Parameters
+        ----------
+        z: int
+            The distance along z-axis to be considered.
+        show_immediately: bool
+            If True, immediately plots the graphic. Otherwise, the user should call plt.show()
+            at some point. It is useful in case the user wants to see one graphic alongside another.
         """
-        plt.figure(3)
+        plt.figure(self.plot_counter)
+        self.plot_counter += 1
         if not self.pressure_matrix_available:
             sys.exit('Must calculate the pressure matrix.'
                      'Try calling calculate_pressure_matrix first.')
         theta_list = []
         for theta in range(0, self.ntheta):
             theta_list.append(theta * self.dtheta)
-        plt.plot(theta_list, self.p_mat[int(self.nz / 2)], 'b')
+        plt.plot(theta_list, self.p_mat[z], 'b')
+        plt.title('Pressure along Theta; Z='+str(z))
+        plt.xlabel('Points along Theta')
+        plt.ylabel('Pressure')
         plt.show(block=show_immediately)
+        if show_immediately:
+            plt.close('all')
 

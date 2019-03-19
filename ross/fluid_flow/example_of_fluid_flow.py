@@ -37,9 +37,10 @@ if __name__ == "__main__":
     P = my_pressure_matrix.calculate_pressure_matrix()
     my_pressure_matrix.plot_pressure_z(show_immediately=False)
     my_pressure_matrix.plot_shape(show_immediately=False)
+    my_pressure_matrix.plot_pressure_theta_cylindrical(z=int(nz/2), show_immediately=False)
     my_pressure_matrix.plot_pressure_theta(z=int(nz/2), show_immediately=False)
-    my_pressure_matrix.plot_pressure_graph(show_immediately=False)
     plt.show()
+    plt.close('all')
 
 
 
