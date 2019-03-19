@@ -209,7 +209,7 @@ class BearingElement(Element):
 
         return C
 
-    def patch(self, ax, position, axis):
+    def patch(self, position, axis):
         """Bearing element patch.
         Patch that will be used to draw the bearing element.
         Parameters
@@ -224,28 +224,29 @@ class BearingElement(Element):
             Returns the axes object with the plot.
         """
         zpos, ypos = position
-        h = -0.5 * ypos  # height
 
-        #  node (x pos), outer diam. (y pos)
-        bearing_points = [
-            [zpos, ypos],  # upper
-            [zpos + h / 2, ypos - h],
-            [zpos - h / 2, ypos - h],
-            [zpos, ypos],
-        ]
-        ax.add_patch(mpatches.Polygon(bearing_points, color=self.color, picker=True))
+        # bokeh plot - upper bearing visual representarion
+        axis.quad(top=-ypos,
+                  bottom=-2 * ypos,
+                  left=zpos - ypos,
+                  right=zpos + ypos,
+                  line_color=bokeh_colors[0],
+                  line_width=1,
+                  fill_alpha=1,
+                  fill_color=bokeh_colors[1],
+                  legend="Bearing"
+                  )
+        # bokeh plot - lower bearing visual representation
+        axis.quad(top=ypos,
+                  bottom=2 * ypos,
+                  left=zpos - ypos,
+                  right=zpos + ypos,
+                  line_color=bokeh_colors[0],
+                  line_width=1,
+                  fill_alpha=1,
+                  fill_color=bokeh_colors[1]
+                  )
 
-        # bokeh plot - node (x pos), outer diam. (y pos)
-        bk_bearing_points = [
-            [zpos, zpos + 1.4*h, zpos - 1.4*h],
-            [ypos, ypos - h, ypos - h]
-        ]
-
-        # bokeh plot - plot disks elements
-        axis.patch(
-            bk_bearing_points[0], bk_bearing_points[1],
-            alpha=1, line_width=2, color=bokeh_colors[0]
-        )
 
 class SealElement(BearingElement):
     def __init__(
@@ -278,7 +279,7 @@ class SealElement(BearingElement):
         self.seal_leakage = seal_leakage
         self.color = "#77ACA2"
 
-    def patch(self, ax, position, axis):
+    def patch(self, position, axis):
         """Seal element patch.
         Patch that will be used to draw the seal element.
         Parameters
@@ -294,26 +295,6 @@ class SealElement(BearingElement):
         """
         zpos, ypos = position
         hw = 0.05
-
-        #  node (x pos), outer diam. (y pos)
-        seal_points_u = [
-            [zpos, ypos * 1.1],  # upper
-            [zpos + hw, ypos * 1.1],
-            [zpos + hw, ypos * 1.3],
-            [zpos - hw, ypos * 1.3],
-            [zpos - hw, ypos * 1.1],
-            [zpos, ypos * 1.1],
-        ]
-        seal_points_l = [
-            [zpos, -ypos * 1.1],  # lower
-            [zpos + hw, -(ypos * 1.1)],
-            [zpos + hw, -(ypos * 1.3)],
-            [zpos - hw, -(ypos * 1.3)],
-            [zpos - hw, -(ypos * 1.1)],
-            [zpos, -ypos * 1.1],
-        ]
-        ax.add_patch(mpatches.Polygon(seal_points_u, facecolor=self.color))
-        ax.add_patch(mpatches.Polygon(seal_points_l, facecolor=self.color))
 
         # bokeh plot - node (x pos), outer diam. (y pos)
         bk_seal_points_u = [
