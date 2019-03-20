@@ -231,6 +231,14 @@ class PressureMatrix:
             Distance along the z-axis.
         gama: float
             Gama is the distance in the theta-axis. It should range from 0 to 2*np.pi.
+        Returns
+        -------
+        radius_internal: float
+            The size of the internal radius at that point.
+        xri: float
+            The position x of the returned internal radius.
+        yri: float
+            The position y of the returned internal radius.
         """
         e = np.sqrt(self.xi ** 2 + self.yi ** 2)
         if self.xi > 0:
@@ -243,12 +251,12 @@ class PressureMatrix:
             else:
                 beta = -np.pi / 2.
         alpha = gama - beta
-        radius_external = e * np.cos(alpha) + np.sqrt(
+        radius_internal = e * np.cos(alpha) + np.sqrt(
             self.radius_rotor ** 2 - (e * np.sin(alpha)) ** 2
             )
-        xre = radius_external * np.cos(gama)
-        yre = radius_external * np.sin(gama)
-        return radius_external, xre, yre
+        xri = radius_internal * np.cos(gama)
+        yri = radius_internal * np.sin(gama)
+        return radius_internal, xri, yri
 
     def external_radius_function(self, gama):
         """This function calculates the radius of the stator.
@@ -256,12 +264,20 @@ class PressureMatrix:
         ----------
         gama: float
             Gama is the distance in the theta-axis. It should range from 0 to 2*np.pi.
+        Returns
+        -------
+        radius_external: float
+            The size of the external radius at that point.
+        xre: float
+            The position x of the returned external radius.
+        yre: float
+            The position y of the returned external radius.
         """
-        radius_internal = self.radius_stator
-        xri = radius_internal * np.cos(gama)
-        yri = radius_internal * np.sin(gama)
+        radius_external = self.radius_stator
+        xre = radius_external * np.cos(gama)
+        yre = radius_external * np.sin(gama)
 
-        return radius_internal, xri, yri
+        return radius_external, xre, yre
 
     def plot_eccentricity(self, z=0, show_immediately=True):
         """This function assembles pressure graphic along the z-axis.
