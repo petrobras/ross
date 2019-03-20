@@ -217,24 +217,10 @@ class PressureMatrix:
                     self.external_radius_function(gama)
                 [radius_internal, self.xri[i][j], self.yri[i][j]] =\
                     self.internal_radius_function(zno, gama)
-
-                if plot_cut:
-                    # Plot a cut at z=0:
-                    if i == 0:
-                        plt.plot(self.xre[i][j], self.yre[i][j], 'r.')
-                        plt.plot(self.xri[i][j], self.yri[i][j], 'b.')
-                        plt.plot(0, 0, '*')
-                        plt.title('Cut in plane Z=0')
-                        plt.xlabel('X axis')
-                        plt.ylabel('Y axis')
-                        plt.axis('equal')
-
                 self.re[i][j] = radius_external
-
                 self.ri[i][j] = radius_internal
         if plot_cut:
-            plt.show()
-            plt.close('all')
+            self.plot_eccentricity()
 
     def internal_radius_function(self, z, gama):
         """This function calculates the radius of the rotor given the
@@ -246,7 +232,6 @@ class PressureMatrix:
         gama: float
             Gama is the distance in the theta-axis. It should range from 0 to 2*np.pi.
         """
-
         e = np.sqrt(self.xi ** 2 + self.yi ** 2)
         if self.xi > 0:
             beta = np.arctan(self.yi / self.xi)
@@ -272,12 +257,33 @@ class PressureMatrix:
         gama: float
             Gama is the distance in the theta-axis. It should range from 0 to 2*np.pi.
         """
-
         radius_internal = self.radius_stator
         xri = radius_internal * np.cos(gama)
         yri = radius_internal * np.sin(gama)
 
         return radius_internal, xri, yri
+
+    def plot_eccentricity(self, z=0, show_immediately=True):
+        """This function assembles pressure graphic along the z-axis.
+        Parameters
+        ----------
+        z: int
+            The distance in z where to cut and plot.
+        show_immediately: bool
+            If True, immediately plots the graphic. Otherwise, the user should call plt.show()
+            at some point. It is useful in case the user wants to see one graphic alongside another.
+        """
+        for j in range(0, self.ntheta):
+            plt.plot(self.xre[z][j], self.yre[z][j], 'r.')
+            plt.plot(self.xri[z][j], self.yri[z][j], 'b.')
+            plt.plot(0, 0, '*')
+            plt.title('Cut in plane Z=' + str(z))
+            plt.xlabel('X axis')
+            plt.ylabel('Y axis')
+            plt.axis('equal')
+        plt.show(block=show_immediately)
+        if show_immediately:
+            plt.close('all')
 
     def plot_pressure_z(self, show_immediately=True):
         """This function assembles pressure graphic along the z-axis.
