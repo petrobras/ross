@@ -99,8 +99,9 @@ class PressureMatrix:
         distance between the radius of the stator and the radius of the rotor.
     eccentricity_ratio: float
         distance_between_centers/difference_between_radius
-    bearing_seal_type: int
-        type of structure. 0: short; 1: long; 2: in between short and long.
+    bearing_seal_type: str
+        type of structure. 'short_size': short; 'long_size': long;
+        'medium_size': in between short and long.
         if length/radius_stator <= 1/8 it is short.
         if length/radius_stator > 4 it is long.
     plot_counter: int
@@ -167,7 +168,7 @@ class PressureMatrix:
         self.yre = np.zeros([self.nz, self.ntheta])
         self.yri = np.zeros([self.nz, self.ntheta])
         self.p_mat = np.zeros([self.nz, self.ntheta])
-        self.bearing_seal_type = -1
+        self.bearing_seal_type = ''
         self.plot_counter = 0
         self.calculate_coefficients(plot_eccentricity)
         self.pressure_matrix_available = False
@@ -178,7 +179,7 @@ class PressureMatrix:
     def calculate_pressure_matrix(self):
         """This function calculates the pressure matrix
         """
-        if self.bearing_seal_type == 0:
+        if self.bearing_seal_type == 'short_size':
             for i in range(self.nz):
                 for j in range(self.ntheta):
                     self.p_mat[i][j] = ((-3*self.visc*self.omega)/self.difference_between_radius**2)*\
@@ -199,11 +200,11 @@ class PressureMatrix:
             internal and external radius as well as eccentricity.
         """
         if self.length/self.radius_stator <= 1/8:
-            self.bearing_seal_type = 0
+            self.bearing_seal_type = 'short_size'
         elif self.length/self.radius_stator > 4:
-            self.bearing_seal_type = 1
+            self.bearing_seal_type = 'long_size'
         else:
-            self.bearing_seal_type = 2
+            self.bearing_seal_type = 'medium_size'
         if plot_cut:
             plt.figure(self.plot_counter)
             self.plot_counter += 1
