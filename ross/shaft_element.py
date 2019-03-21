@@ -359,12 +359,14 @@ class ShaftElement(Element):
 
         return G
 
-    def patch(self, position, axis):
+    def patch(self, position, ax, bk_ax):
         """Shaft element patch.
         Patch that will be used to draw the shaft element.
         Parameters
         ----------
         ax : matplotlib axes, optional
+            Axes in which the plot will be drawn.
+        bk_ax : bokeh plotting axes, optional
             Axes in which the plot will be drawn.
         position : float
             Position in which the patch will be drawn.
@@ -372,19 +374,51 @@ class ShaftElement(Element):
         -------
         ax : matplotlib axes
             Returns the axes object with the plot.
+        bk_ax : bokeh plotting axes
+            Returns the axes object with the plot.
         """
+        position_u = [position, self.i_d]  # upper
+        position_l = [position, -self.o_d]  # lower
+        width = self.L
+        height = self.o_d - self.i_d
 
-        # plot the shaft
-        axis.quad(top=self.o_d,
-                  bottom=-self.o_d,
-                  left=position,
-                  right=position + self.L,
-                  line_color=bokeh_colors[0],
-                  line_width=1,
-                  fill_alpha=0.5,
-                  fill_color=bokeh_colors[2],
-                  legend="Shaft"
-                  )
+        #  matplotlib - plot the upper half of the shaft
+        ax.add_patch(
+            mpatches.Rectangle(
+                position_u,
+                width,
+                height,
+                linestyle="--",
+                linewidth=0.5,
+                ec="k",
+                fc=self.color,
+                alpha=0.8,
+            )
+        )
+        #  matplotlib - plot the lower half of the shaft
+        ax.add_patch(
+            mpatches.Rectangle(
+                position_l,
+                width,
+                height,
+                linestyle="--",
+                linewidth=0.5,
+                ec="k",
+                fc=self.color,
+                alpha=0.8,
+            )
+        )
+        # bokeh plot - plot the shaft
+        bk_ax.quad(top=self.o_d,
+                   bottom=-self.o_d,
+                   left=position,
+                   right=position + self.L,
+                   line_color=bokeh_colors[0],
+                   line_width=1,
+                   fill_alpha=0.5,
+                   fill_color=bokeh_colors[2],
+                   legend="Shaft"
+                   )
 
     @classmethod
     def section(
