@@ -130,12 +130,14 @@ class DiskElement(Element):
         # fmt: on
         return G
 
-    def patch(self, position, axis):
+    def patch(self, position, ax, bk_ax):
         """Disk element patch.
         Patch that will be used to draw the disk element.
         Parameters
         ----------
         ax : matplotlib axes, optional
+            Axes in which the plot will be drawn.
+        bk_ax : bokeh plotting axes, optional
             Axes in which the plot will be drawn.
         position : float
             Position in which the patch will be drawn.
@@ -143,13 +145,38 @@ class DiskElement(Element):
         -------
         ax : matplotlib axes
             Returns the axes object with the plot.
+        bk_ax : bokeh plotting axes
+            Returns the axes object with the plot.
         """
         zpos, ypos = position
-        D = ypos * 1.5
+        D = ypos * 2
         hw = 0.02
 
-        # bokeh plot - plot disks elements
+        #  matplotlib node (x pos), outer diam. (y pos)
+        disk_points_u = [
+            [zpos, ypos],  # upper
+            [zpos + hw, ypos + D],
+            [zpos - hw, ypos + D],
+            [zpos, ypos],
+        ]
+        disk_points_l = [
+            [zpos, -ypos],  # lower
+            [zpos + hw, -(ypos + D)],
+            [zpos - hw, -(ypos + D)],
+            [zpos, -ypos],
+        ]
 
+        ax.add_patch(mpatches.Polygon(disk_points_u, facecolor=self.color))
+        ax.add_patch(mpatches.Polygon(disk_points_l, facecolor=self.color))
+
+        ax.add_patch(
+            mpatches.Circle(xy=(zpos, ypos + D), radius=0.01, color=self.color)
+        )
+        ax.add_patch(
+            mpatches.Circle(xy=(zpos, -(ypos + D)), radius=0.01, color=self.color)
+        )
+
+        # bokeh plot - plot disks elements
         bk_disk_points_u = [
             [zpos, zpos + hw, zpos - hw],
             [ypos, ypos + D, ypos + D]
@@ -160,7 +187,7 @@ class DiskElement(Element):
             [-ypos, -(ypos + D), -(ypos + D)]
         ]
 
-        axis.patch(
+        bk_ax.patch(
             x=bk_disk_points_u[0],
             y=bk_disk_points_u[1],
             alpha=1,
@@ -168,24 +195,24 @@ class DiskElement(Element):
             color=bokeh_colors[9],
             legend="Disk"
         )
-        axis.patch(
+        bk_ax.patch(
             x=bk_disk_points_l[0],
             y=bk_disk_points_l[1],
             alpha=1,
             line_width=2,
             color=bokeh_colors[9]
         )
-        axis.circle(
+        bk_ax.circle(
             x=zpos,
             y=ypos + D,
-            radius=0.03,
+            radius=0.02,
             fill_alpha=1,
             color=bokeh_colors[9]
             )
-        axis.circle(
+        bk_ax.circle(
             x=zpos,
             y=-(ypos + D),
-            radius=0.03,
+            radius=0.02,
             fill_alpha=1,
             color=bokeh_colors[9]
             )
