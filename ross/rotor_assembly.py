@@ -1026,8 +1026,8 @@ class Rotor(object):
         --------
         """
         return signal.lsim(self.lti, F, t, X0=ic)
-
-    def plot_rotor(self, nodes=1, axis=None):
+    
+    def plot_rotor(self, nodes=1, ax=None, bk_ax=None):
         """Plots a rotor object.
 
         This function will take a rotor object and plot its shaft,
@@ -1039,43 +1039,78 @@ class Rotor(object):
             Increment that will be used to plot nodes label.
         ax : matplotlib axes, optional
             Axes in which the plot will be drawn.
+        bk_ax : bokeh plotting axes, optional
+            Axes in which the plot will be drawn.
 
         Returns
         -------
         ax : matplotlib axes
             Returns the axes object with the plot.
+        bk_ax : bokeh plotting axes
+            Returns the axes object with the plot.
 
         Examples:
         """
+        if ax is None:
+            ax = plt.gca()
+
         #  plot shaft centerline
         shaft_end = self.nodes_pos[-1]
+        ax.plot([-0.2 * shaft_end, 1.2 * shaft_end], [0, 0], "k-.")
 
         try:
             max_diameter = max([disk.o_d for disk in self.disk_elements])
         except (ValueError, AttributeError):
             max_diameter = max([shaft.o_d for shaft in self.shaft_elements])
 
+        # matplotlib
+        ax.set_ylim(-1.2 * max_diameter, 1.2 * max_diameter)
+        ax.axis("equal")
+        ax.set_xlabel("Axial location (m)")
+        ax.set_ylabel("Shaft radius (m)")
+
         # bokeh plot - output to static HTML file
         output_file("rotor.html")
 
         # bokeh plot - create a new plot
-        axis = figure(
+        bk_ax = figure(
            tools="pan, box_zoom, wheel_zoom, reset, save",
            width=900, height=500,
            y_range=[-6 * max_diameter, 6 * max_diameter], title="Rotor model",
            x_axis_label='Axial location (m)', y_axis_label='Shaft radius (m)')
 
         # bokeh plot - plot shaft centerline
-        axis.line([-0.2 * shaft_end, 1.2 * shaft_end], [0, 0],
-                  line_width=3,
-                  line_dash="dotdash",
-                  line_color=bokeh_colors[0]  # dark-dark blue
-                  )
+        bk_ax.line([-0.2 * shaft_end, 1.2 * shaft_end], [0, 0],
+                   line_width=3,
+                   line_dash="dotdash",
+                   line_color=bokeh_colors[0]  # dark-dark blue
+                   )
 
         # plot nodes
         text = []
         for node, position in enumerate(self.nodes_pos[::nodes]):
+            # bokeh plot
             text.append(str(node))
+
+            # matplotlib
+            ax.plot(
+                position,
+                0,
+                zorder=2,
+                ls="",
+                marker="D",
+                color="#6caed6",
+                markersize=10,
+                alpha=0.6,
+            )
+            ax.text(
+                position,
+                0,
+                f"{node*nodes}",
+                size="smaller",
+                horizontalalignment="center",
+                verticalalignment="center",
+            )
 
         # bokeh plot - plot nodes
         x_pos = np.linspace(0, self.nodes_pos[-1], len(self.nodes_pos))
@@ -1083,13 +1118,13 @@ class Rotor(object):
 
         source = ColumnDataSource(dict(x=x_pos, y=y_pos, text=text))
 
-        axis.square(x=x_pos,
-                    y=y_pos,
-                    size=30,
-                    angle=np.pi/4,
-                    fill_alpha=0.8,
-                    fill_color=bokeh_colors[6]
-                    )
+        bk_ax.square(x=x_pos,
+                     y=y_pos,
+                     size=30,
+                     angle=np.pi/4,
+                     fill_alpha=0.8,
+                     fill_color=bokeh_colors[6]
+                     )
 
         glyph = Text(x="x",
                      y="y",
@@ -1100,26 +1135,26 @@ class Rotor(object):
                      text_alpha=1.0,
                      text_color=bokeh_colors[0]
                      )
-        axis.add_glyph(source, glyph)
+        bk_ax.add_glyph(source, glyph)
 
         # plot shaft elements
         for sh_elm in self.shaft_elements:
             position = self.nodes_pos[sh_elm.n]
-            sh_elm.patch(position, axis)
+            sh_elm.patch(position, ax, bk_ax)
 
         # plot disk elements
         for disk in self.disk_elements:
             position = (self.nodes_pos[disk.n], self.nodes_o_d[disk.n])
-            disk.patch(position, axis)
+            disk.patch(position, ax, bk_ax)
 
         # plot bearings
         for bearing in self.bearing_seal_elements:
             position = (self.nodes_pos[bearing.n], -self.nodes_o_d[bearing.n])
-            bearing.patch(position, axis)
+            bearing.patch(position, ax, bk_ax)
 
-        show(axis)
+        show(bk_ax)
 
-        return axis
+        return bk_ax, ax
 
     def campbell(self, speed_range, frequencies=6, frequency_type="wd"):
         """Calculates the Campbell diagram.
