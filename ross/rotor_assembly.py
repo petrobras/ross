@@ -12,7 +12,7 @@ import shutil
 import matplotlib as mpl
 import matplotlib.pyplot as plt
 import bokeh.palettes as bp
-from bokeh.models import ColumnDataSource
+from bokeh.models import ColumnDataSource, Arrow, NormalHead, Label
 from bokeh.models.glyphs import Text
 from bokeh.layouts import gridplot
 from bokeh.plotting import figure, output_file, show
@@ -234,6 +234,8 @@ class Rotor(object):
         df = df.reset_index(drop=True)
 
         self.df_disks = df_disks
+        self.df_bearings = df_bearings
+        self.df_shaft = df_shaft
 
         # check consistence for disks and bearings location
         if df.n_l.max() > df[df.type == "ShaftElement"].n_r.max():
@@ -1075,16 +1077,22 @@ class Rotor(object):
         # bokeh plot - create a new plot
         bk_ax = figure(
            tools="pan, box_zoom, wheel_zoom, reset, save",
-           width=900, height=500,
-           y_range=[-6 * max_diameter, 6 * max_diameter], title="Rotor model",
-           x_axis_label='Axial location (m)', y_axis_label='Shaft radius (m)')
+           width=900,
+           height=500,
+           y_range=[-6 * max_diameter, 6 * max_diameter],
+           title="Rotor model",
+           x_axis_label='Axial location (m)',
+           y_axis_label='Shaft radius (m)'
+        )
 
         # bokeh plot - plot shaft centerline
-        bk_ax.line([-0.2 * shaft_end, 1.2 * shaft_end], [0, 0],
-                   line_width=3,
-                   line_dash="dotdash",
-                   line_color=bokeh_colors[0]  # dark-dark blue
-                   )
+        bk_ax.line(
+            [-0.2 * shaft_end, 1.2 * shaft_end], 
+            [0, 0],
+            line_width=3,
+            line_dash="dotdash",
+            line_color=bokeh_colors[0]
+        )
 
         # plot nodes
         text = []
@@ -1650,36 +1658,36 @@ class Rotor(object):
         grav = np.zeros((len(self.M()), 1))
 
         # place gravity effect on shaft and disks nodes
-        for node_y in range(int(len(self.M())/4)):
-            grav[4*node_y+1] = -9.8065
+        for node_y in range(int(len(self.M()) / 4)):
+            grav[4 * node_y + 1] = -9.8065
 
-        # calculates x, for [K]*[x] = [M]*[g]
-        disp = la.solve(self.K(0), self.M() @ grav)
-        disp = disp.flatten()
+        # calculates x, for [K]*(x) = [M]*(g)
+        disp = (la.solve(self.K(0), self.M() @ grav)).flatten()
 
-        # get the displacement values in the same direction of gravity
+        # calculates displacement values in gravity's direction
         # dof = degree of freedom
         disp_y = np.array([])
-        for node_dof in range(int(len(disp)/4)):
-            disp_y = np.append(disp_y, disp[4*node_dof+1])
+        for node_dof in range(int(len(disp) / 4)):
+            disp_y = np.append(disp_y, disp[4 * node_dof + 1])
 
         output_file("static.html")
         source = ColumnDataSource(
-            data=dict(x0=self.nodes_pos, y0=disp_y*1000,
-                      y1=[0]*len(self.nodes_pos)))
+            data=dict(x0=self.nodes_pos, y0=disp_y * 1000, y1=[0] * len(self.nodes_pos))
+        )
+
         TOOLS = "pan,wheel_zoom,box_zoom,reset,save,box_select,hover"
         TOOLTIPS = [
-            ('Shaft lenght:', '@x0 m'),
-            ('Underformed:', '@y1 mm'),
-            ('Displacement', '@y0 mm')
+            ("Shaft lenght:", "@x0 m"),
+            ("Underformed:", "@y1 mm"),
+            ("Displacement:", "@y0 mm"),
         ]
 
         # create a new plot and add a renderer
         disp_graph = figure(
             tools=TOOLS,
             tooltips=TOOLTIPS,
-            width=700,
-            height=350,
+            width=800,
+            height=400,
             title="Static Analysis",
             x_axis_label="shaft lenght(m)",
             y_axis_label="lateral displacement (mm)",
@@ -1690,7 +1698,7 @@ class Rotor(object):
             source=source,
             legend="Deformed shaft",
             line_width=3,
-            line_color=bokeh_colors[9]
+            line_color=bokeh_colors[9],
         )
         disp_graph.circle(
             "x0",
@@ -1698,7 +1706,7 @@ class Rotor(object):
             source=source,
             legend="Deformed shaft",
             size=8,
-            fill_color=bokeh_colors[9]
+            fill_color=bokeh_colors[9],
         )
         disp_graph.line(
             "x0",
@@ -1706,7 +1714,7 @@ class Rotor(object):
             source=source,
             legend="underformed shaft",
             line_width=3,
-            line_color=bokeh_colors[0]
+            line_color=bokeh_colors[0],
         )
         disp_graph.circle(
             "x0",
@@ -1714,13 +1722,136 @@ class Rotor(object):
             source=source,
             legend="underformed shaft",
             size=8,
-            fill_color=bokeh_colors[0]
+            fill_color=bokeh_colors[0],
         )
 
-        # show the results
-        show(disp_graph)
+        # create a new plot for free diagram body
+        y_range = []
+        for i, node in enumerate(self.df_bearings["n"]):
+            y_range.append(
+                -disp_y[node] * self.df_bearings.loc[i, "kyy"].coefficient[0]
+            )
 
-        return disp_y
+        shaft_end = self.nodes_pos[-1]
+        diagram = figure(
+            tools=TOOLS,
+            width=800,
+            height=400,
+            title="Free-Body Diagram",
+            x_axis_label="shaft lenght (m)",
+            y_axis_label="Force (N)",
+            x_range=[-0.1 * shaft_end, 1.1 * shaft_end],
+            y_range=[-max(y_range) * 1.5, max(y_range) * 1.5],
+        )
+
+        diagram.line(
+            "x0", "y1", source=source, line_width=5, line_color=bokeh_colors[0]
+        )
+
+        # plot arrows indicating shaft weight distribution
+        sh_weight = sum(self.df_shaft["m"].values) * 9.8065
+        text = str("%.1f" % sh_weight)
+        diagram.line(
+            x=self.nodes_pos,
+            y=[sh_weight] * len(self.nodes_pos),
+            line_width=2,
+            line_color=bokeh_colors[0],
+        )
+
+        for node in self.nodes_pos:
+            diagram.add_layout(
+                Arrow(
+                    end=NormalHead(
+                        fill_color=bokeh_colors[7],
+                        fill_alpha=1.0,
+                        size=16,
+                        line_width=2,
+                        line_color=bokeh_colors[0],
+                    ),
+                    x_start=node,
+                    y_start=sh_weight,
+                    x_end=node,
+                    y_end=0,
+                )
+            )
+
+        diagram.add_layout(
+            Label(
+                x=self.nodes_pos[0],
+                y=sh_weight,
+                text="W = " + text + "N",
+                text_font_style="bold",
+                text_baseline="top",
+                text_align="left",
+                y_offset=20,
+            )
+        )
+
+        # calculate the reaction force of bearings and plot arrows
+        for i, node in enumerate(self.df_bearings["n"]):
+            Fb = -disp_y[node] * self.df_bearings.loc[i, "kyy"].coefficient[0]
+            text = str("%.1f" % Fb)
+            diagram.add_layout(
+                Arrow(
+                    end=NormalHead(
+                        fill_color=bokeh_colors[7],
+                        fill_alpha=1.0,
+                        size=16,
+                        line_width=2,
+                        line_color=bokeh_colors[0],
+                    ),
+                    x_start=self.nodes_pos[node],
+                    y_start=-Fb,
+                    x_end=self.nodes_pos[node],
+                    y_end=0,
+                )
+            )
+            diagram.add_layout(
+                Label(
+                    x=self.nodes_pos[node],
+                    y=-Fb,
+                    text="Fb = " + text + "N",
+                    text_font_style="bold",
+                    text_baseline="bottom",
+                    text_align="center",
+                    y_offset=-20,
+                )
+            )
+
+        # plot arrows indicating disk weight
+        for i, node in enumerate(self.df_disks["n"]):
+            Fd = self.df_disks.loc[i, "m"] * 9.8065
+            text = str("%.1f" % Fd)
+            diagram.add_layout(
+                Arrow(
+                    end=NormalHead(
+                        fill_color=bokeh_colors[7],
+                        fill_alpha=1.0,
+                        size=16,
+                        line_width=2,
+                        line_color=bokeh_colors[0],
+                    ),
+                    x_start=self.nodes_pos[node],
+                    y_start=Fd,
+                    x_end=self.nodes_pos[node],
+                    y_end=0,
+                )
+            )
+            diagram.add_layout(
+                Label(
+                    x=self.nodes_pos[node],
+                    y=Fd,
+                    text="Fd = " + text + "N",
+                    text_font_style="bold",
+                    text_baseline="top",
+                    text_align="center",
+                    y_offset=20,
+                )
+            )
+
+        # show the results
+        grid_plots = gridplot([[diagram], [disp_graph]])
+        show(grid_plots)
 
     @classmethod
     def from_section(
