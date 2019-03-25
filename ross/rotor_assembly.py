@@ -1952,7 +1952,7 @@ class Rotor(object):
 
             regions.extend([shaft_elements])
 
-            for i, leng in enumerate(leng_data):
+            for i in range(len(leng_data) + 1):
                 for j, disk in enumerate(disk_data):
                     if disk_data is not None and len(disk) == 5 and i == disk[0]:
                         disk_elements.append(
@@ -1965,7 +1965,7 @@ class Rotor(object):
                             )
                         )
 
-            for i, leng in enumerate(leng_data):
+            for i in range(len(leng_data) + 1):
                 for j, disk in enumerate(disk_data):
                     if disk_data is not None and len(disk) == 4 and i == disk[0]:
                         disk_elements.append(
