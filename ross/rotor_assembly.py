@@ -1905,17 +1905,17 @@ class Rotor(object):
 
         Example
         -------
+
         >>> rotor = Rotor.from_section(leng_data=[0.5,0.5,0.5],
         ...             o_ds_data=[0.05,0.05,0.05],
         ...             i_ds_data=[0,0,0],
-        ...             disk_data=[[1, steel, 0.07, 0, 0.28],
-        ...                        [2, steel, 0.07, 0, 0.35]],
-        ...             brg_seal_data=[[0, 1e6, 0, 1e6, 0,0,0,0,0,None],
-        ...                            [3, 1e6, 0, 1e6,0,0,0,0,0,None]],
+        ...             disk_data=[DiskElement(n=1, material=steel, width=0.07, i_d=0, o_d=0.28),
+        ...                        DiskElement(n=2, material=steel, width=0.07, i_d=0, o_d=0.35)],
+        ...             brg_seal_data=[BearingElement(n=0, kxx=1e6, cxx=0, kyy=1e6, cyy=0, kxy=0, cxy=0, kyx=0, cyx=0),
+        ...                            BearingElement(n=3, kxx=1e6, cxx=0, kyy=1e6, cyy=0, kxy=0, cxy=0, kyx=0, cyx=0)],
         ...             w=0, nel_r=1, n_eigval=1, err_max=1e-07)
         >>> rotor.wn[:]
-        array([ 85.76222593,  85.76222594, 271.86711771, 271.86711774,
-               716.27524675, 716.27524696])
+
         """
 
         if len(leng_data) != len(o_ds_data) or len(leng_data) != len(i_ds_data):
@@ -1952,45 +1952,12 @@ class Rotor(object):
 
             regions.extend([shaft_elements])
 
-            for i, leng in enumerate(leng_data):
-                for j, disk in enumerate(disk_data):
-                    if disk_data is not None and len(disk) == 5 and i == disk[0]:
-                        disk_elements.append(
-                            DiskElement.from_geometry(
-                                n=nel_r * disk[0],
-                                material=disk[1],
-                                width=disk[2],
-                                i_d=disk[3],
-                                o_d=disk[4],
-                            )
-                        )
+            for DiskEl in disk_data:
+                DiskEl.n = nel_r * DiskEl.n
 
-            for i, leng in enumerate(leng_data):
-                for j, disk in enumerate(disk_data):
-                    if disk_data is not None and len(disk) == 4 and i == disk[0]:
-                        disk_elements.append(
-                            DiskElement(
-                                n=nel_r * disk[0], m=disk[1], Id=disk[2], Ip=disk[3]
-                            )
-                        )
+            for Brg_SealEl in brg_seal_data:
+                Brg_SealEl.n = nel_r * Brg_SealEl.n
 
-            for i in range(len(leng_data) + 1):
-                for j, brg in enumerate(brg_seal_data):
-                    if brg_seal_data is not None and i == brg[0]:
-                        bearing_seal_elements.append(
-                            BearingElement(
-                                n=i * nel_r,
-                                kxx=brg[1],
-                                cxx=brg[2],
-                                kyy=brg[3],
-                                kxy=brg[4],
-                                kyx=brg[5],
-                                cyy=brg[6],
-                                cxy=brg[7],
-                                cyx=brg[8],
-                                w=brg[9],
-                            )
-                        )
 
             regions.append(disk_elements)
             regions.append(bearing_seal_elements)
