@@ -205,9 +205,6 @@ class PressureMatrix:
             self.bearing_type = 'long_bearing'
         else:
             self.bearing_type = 'medium_size'
-        if plot_cut:
-            plt.figure(self.plot_counter)
-            self.plot_counter += 1
         for i in range(self.nz):
             zno = i * self.dz
             self.z[0][i] = zno
