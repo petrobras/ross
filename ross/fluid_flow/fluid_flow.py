@@ -182,9 +182,9 @@ class PressureMatrix:
         if self.bearing_seal_type == 'short_size':
             for i in range(self.nz):
                 for j in range(self.ntheta):
-                    self.p_mat[i][j] = ((-3*self.visc*self.omega)/self.difference_between_radius**2)*\
-                                       ((i*self.dz)**2 - (self.length**2)/4)*\
-                                       (self.eccentricity_ratio*np.sin(j*self.dtheta))/\
+                    self.p_mat[i][j] = ((-3*self.visc*self.omega)/self.difference_between_radius**2) * \
+                                       ((i*self.dz)**2 - (self.length**2)/4) * \
+                                       (self.eccentricity_ratio*np.sin(j*self.dtheta)) / \
                                        (1 + self.eccentricity_ratio*np.sin(j*self.dtheta))**3
             self.pressure_matrix_available = True
         return self.p_mat
@@ -281,6 +281,7 @@ class PressureMatrix:
 
     def plot_eccentricity(self, z=0, show_immediately=True):
         """This function assembles pressure graphic along the z-axis.
+        The first few plots are of a different color to indicate where theta begins.
         Parameters
         ----------
         z: int
@@ -289,9 +290,15 @@ class PressureMatrix:
             If True, immediately plots the graphic. Otherwise, the user should call plt.show()
             at some point. It is useful in case the user wants to see one graphic alongside another.
         """
+        plt.figure(self.plot_counter)
+        self.plot_counter += 1
         for j in range(0, self.ntheta):
-            plt.plot(self.xre[z][j], self.yre[z][j], 'r.')
-            plt.plot(self.xri[z][j], self.yri[z][j], 'b.')
+            if j < 5:
+                plt.plot(self.xre[z][j], self.yre[z][j], 'k.')
+                plt.plot(self.xri[z][j], self.yri[z][j], 'k.')
+            else:
+                plt.plot(self.xre[z][j], self.yre[z][j], 'r.')
+                plt.plot(self.xri[z][j], self.yri[z][j], 'b.')
             plt.plot(0, 0, '*')
             plt.title('Cut in plane Z=' + str(z))
             plt.xlabel('X axis')
