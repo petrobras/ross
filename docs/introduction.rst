@@ -8,8 +8,13 @@ Programming language: Python
 
 ROSS is an application that runs in Python, a high level programming language.
 If you don't have Python installed in your machine, the first thing you should do is install it.
-Refer to the `Python website
-<http://www.python.org/>`_ to do so. ROSS's code was tested in Python 3.6 and higher, so make sure you
+You may refer to the `Python website
+<http://www.python.org/>`_ to do so, but because ROSS requires a number of packages to be installed besides
+Python, such as numpy, we recommend installing Anaconda instead.
+`Anaconda <https://www.anaconda.com/distribution/>`_ is a distribution of Python for scientific computing
+that aims to simplify package management and deployment. It contains Python and a large number
+of packages that are commonly used.
+ROSS's code was tested in Python 3.6 and higher, so make sure you
 get a similar version.
 Although you don't need to know Python to run ROSS,
 you need to be able to follow the instructions in :ref:`tutorial`, some coding included.
