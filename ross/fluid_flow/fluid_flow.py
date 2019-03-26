@@ -6,7 +6,7 @@ import sys
 class PressureMatrix:
     r"""This class calculates the pressure matrix of the object with the given parameters.
 
-    It is supposed to be an attribute of a bearing or seal element,
+    It is supposed to be an attribute of a bearing element,
     but can work on its on to provide graphics for the user.
 
     Parameters
@@ -99,8 +99,8 @@ class PressureMatrix:
         distance between the radius of the stator and the radius of the rotor.
     eccentricity_ratio: float
         distance_between_centers/difference_between_radius
-    bearing_seal_type: str
-        type of structure. 'short_size': short; 'long_size': long;
+    bearing_type: str
+        type of structure. 'short_bearing': short; 'long_bearing': long;
         'medium_size': in between short and long.
         if length/radius_stator <= 1/8 it is short.
         if length/radius_stator > 4 it is long.
@@ -168,7 +168,7 @@ class PressureMatrix:
         self.yre = np.zeros([self.nz, self.ntheta])
         self.yri = np.zeros([self.nz, self.ntheta])
         self.p_mat = np.zeros([self.nz, self.ntheta])
-        self.bearing_seal_type = ''
+        self.bearing_type = ''
         self.plot_counter = 0
         self.calculate_coefficients(plot_eccentricity)
         self.pressure_matrix_available = False
@@ -179,7 +179,7 @@ class PressureMatrix:
     def calculate_pressure_matrix(self):
         """This function calculates the pressure matrix
         """
-        if self.bearing_seal_type == 'short_size':
+        if self.bearing_type == 'short_bearing':
             for i in range(self.nz):
                 for j in range(self.ntheta):
                     self.p_mat[i][j] = ((-3*self.visc*self.omega)/self.difference_between_radius**2) * \
@@ -200,11 +200,11 @@ class PressureMatrix:
             internal and external radius as well as eccentricity.
         """
         if self.length/self.radius_stator <= 1/8:
-            self.bearing_seal_type = 'short_size'
+            self.bearing_type = 'short_bearing'
         elif self.length/self.radius_stator > 4:
-            self.bearing_seal_type = 'long_size'
+            self.bearing_type = 'long_bearing'
         else:
-            self.bearing_seal_type = 'medium_size'
+            self.bearing_type = 'medium_size'
         if plot_cut:
             plt.figure(self.plot_counter)
             self.plot_counter += 1
