@@ -13,6 +13,7 @@ Welcome to ross's documentation!
    tutorial
    git_configuration
    api
+   introduction
 
 
 Indices and tables
