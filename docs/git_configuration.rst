@@ -1,8 +1,10 @@
 How to contribute to ROSS using git
 ===================================
 
-In order to use git to contribute to ROSS project, follow the steps bellow:
+.. _git-configuration:
 
+In order to use git to contribute to ROSS project, follow the steps bellow:
+*For Windows users: commands provided here can be executed using Git Bash instead of Git GUI.*
 
 ----------------------------------------
 Step 1: Make you own copy (fork) of ROSS

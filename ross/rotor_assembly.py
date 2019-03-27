@@ -6,11 +6,16 @@ import scipy.linalg as la
 import scipy.sparse.linalg as las
 import scipy.signal as signal
 import scipy.io as sio
-from copy import copy
+from copy import copy, deepcopy
 from collections import Iterable
 import shutil
 import matplotlib as mpl
 import matplotlib.pyplot as plt
+import bokeh.palettes as bp
+from bokeh.models import ColumnDataSource, Arrow, NormalHead, Label
+from bokeh.models.glyphs import Text
+from bokeh.layouts import gridplot
+from bokeh.plotting import figure, output_file, show
 from cycler import cycler
 from pathlib import Path
 from ross.bearing_seal_element import BearingElement
@@ -41,6 +46,9 @@ plt.style.use(
         "legend.framealpha": 0.2,
     }
 )
+
+# set bokeh palette of colors
+bokeh_colors = bp.RdGy[11]
 
 _orig_rc_params = mpl.rcParams.copy()
 
@@ -221,11 +229,13 @@ class Rotor(object):
         df_shaft["nodes_pos_r"] = nodes_pos_r
         # bearings
 
-        df = pd.concat([df_shaft, df_disks, df_bearings])
+        df = pd.concat([df_shaft, df_disks, df_bearings], sort=True)
         df = df.sort_values(by="n_l")
         df = df.reset_index(drop=True)
 
         self.df_disks = df_disks
+        self.df_bearings = df_bearings
+        self.df_shaft = df_shaft
 
         # check consistence for disks and bearings location
         if df.n_l.max() > df[df.type == "ShaftElement"].n_r.max():
@@ -539,7 +549,7 @@ class Rotor(object):
         if self.sparse is True:
             try:
                 evalues, evectors = las.eigs(
-                    A, k=self.n_eigen, sigma=0, ncv=24, which="LM", v0=self._v0
+                    A, k=self.n_eigen, sigma=0, ncv=2*self.n_eigen, which="LM", v0=self._v0
                 )
                 # store v0 as a linear combination of the previously
                 # calculated eigenvectors to use in the next call to eigs
@@ -1018,8 +1028,8 @@ class Rotor(object):
         --------
         """
         return signal.lsim(self.lti, F, t, X0=ic)
-
-    def plot_rotor(self, nodes=1, ax=None):
+    
+    def plot_rotor(self, nodes=1, ax=None, bk_ax=None):
         """Plots a rotor object.
 
         This function will take a rotor object and plot its shaft,
@@ -1031,10 +1041,14 @@ class Rotor(object):
             Increment that will be used to plot nodes label.
         ax : matplotlib axes, optional
             Axes in which the plot will be drawn.
+        bk_ax : bokeh plotting axes, optional
+            Axes in which the plot will be drawn.
 
         Returns
         -------
         ax : matplotlib axes
+            Returns the axes object with the plot.
+        bk_ax : bokeh plotting axes
             Returns the axes object with the plot.
 
         Examples:
@@ -1045,18 +1059,48 @@ class Rotor(object):
         #  plot shaft centerline
         shaft_end = self.nodes_pos[-1]
         ax.plot([-0.2 * shaft_end, 1.2 * shaft_end], [0, 0], "k-.")
+
         try:
             max_diameter = max([disk.o_d for disk in self.disk_elements])
         except (ValueError, AttributeError):
             max_diameter = max([shaft.o_d for shaft in self.shaft_elements])
 
+        # matplotlib
         ax.set_ylim(-1.2 * max_diameter, 1.2 * max_diameter)
         ax.axis("equal")
         ax.set_xlabel("Axial location (m)")
         ax.set_ylabel("Shaft radius (m)")
 
-        #  plot nodes
+        # bokeh plot - output to static HTML file
+        output_file("rotor.html")
+
+        # bokeh plot - create a new plot
+        bk_ax = figure(
+           tools="pan, box_zoom, wheel_zoom, reset, save",
+           width=900,
+           height=500,
+           y_range=[-6 * max_diameter, 6 * max_diameter],
+           title="Rotor model",
+           x_axis_label='Axial location (m)',
+           y_axis_label='Shaft radius (m)'
+        )
+
+        # bokeh plot - plot shaft centerline
+        bk_ax.line(
+            [-0.2 * shaft_end, 1.2 * shaft_end], 
+            [0, 0],
+            line_width=3,
+            line_dash="dotdash",
+            line_color=bokeh_colors[0]
+        )
+
+        # plot nodes
+        text = []
         for node, position in enumerate(self.nodes_pos[::nodes]):
+            # bokeh plot
+            text.append(str(node))
+
+            # matplotlib
             ax.plot(
                 position,
                 0,
@@ -1076,22 +1120,49 @@ class Rotor(object):
                 verticalalignment="center",
             )
 
+        # bokeh plot - plot nodes
+        x_pos = np.linspace(0, self.nodes_pos[-1], len(self.nodes_pos))
+        y_pos = np.linspace(0, 0, len(self.nodes_pos))
+
+        source = ColumnDataSource(dict(x=x_pos, y=y_pos, text=text))
+
+        bk_ax.square(x=x_pos,
+                     y=y_pos,
+                     size=30,
+                     angle=np.pi/4,
+                     fill_alpha=0.8,
+                     fill_color=bokeh_colors[6]
+                     )
+
+        glyph = Text(x="x",
+                     y="y",
+                     text="text",
+                     text_font_style="bold",
+                     text_baseline="middle",
+                     text_align="center",
+                     text_alpha=1.0,
+                     text_color=bokeh_colors[0]
+                     )
+        bk_ax.add_glyph(source, glyph)
+
         # plot shaft elements
         for sh_elm in self.shaft_elements:
             position = self.nodes_pos[sh_elm.n]
-            sh_elm.patch(ax, position)
+            sh_elm.patch(position, ax, bk_ax)
 
         # plot disk elements
         for disk in self.disk_elements:
             position = (self.nodes_pos[disk.n], self.nodes_o_d[disk.n])
-            disk.patch(ax, position)
+            disk.patch(position, ax, bk_ax)
 
         # plot bearings
         for bearing in self.bearing_seal_elements:
             position = (self.nodes_pos[bearing.n], -self.nodes_o_d[bearing.n])
-            bearing.patch(ax, position)
+            bearing.patch(position, ax, bk_ax)
 
-        return ax
+        show(bk_ax)
+
+        return bk_ax, ax
 
     def campbell(self, speed_range, frequencies=6, frequency_type="wd"):
         """Calculates the Campbell diagram.
@@ -1583,25 +1654,204 @@ class Rotor(object):
         shutil.rmtree(Path(os.path.dirname(ross.__file__)) / "rotors" / rotor_name)
 
     def static(self):
-
-        # grav = gravity aceleration vector
+        # gravity aceleration vector
         grav = np.zeros((len(self.M()), 1))
 
-        # place gravity effect on disk nodes
-        for disk_node in self.df_disks['n']:
-            grav[4*disk_node-3] = -9.8065
+        # place gravity effect on shaft and disks nodes
+        for node_y in range(int(len(self.M()) / 4)):
+            grav[4 * node_y + 1] = -9.8065
 
-        # calculates x, for [K]*[x] = [M]*[g]
-        disp = la.solve(self.K(0), self.M() @ grav)
-        disp = disp.flatten()
-        
-        # get the displacement values in the same direction of gravity
+        # calculates x, for [K]*(x) = [M]*(g)
+        disp = (la.solve(self.K(0), self.M() @ grav)).flatten()
+
+        # calculates displacement values in gravity's direction
         # dof = degree of freedom
         disp_y = np.array([])
-        for node_dof in range(int(len(disp)/4)):
-            disp_y = np.append(disp_y, disp[4*node_dof-3])
+        for node_dof in range(int(len(disp) / 4)):
+            disp_y = np.append(disp_y, disp[4 * node_dof + 1])
 
-        return disp_y
+        output_file("static.html")
+        source = ColumnDataSource(
+            data=dict(x0=self.nodes_pos, y0=disp_y * 1000, y1=[0] * len(self.nodes_pos))
+        )
+
+        TOOLS = "pan,wheel_zoom,box_zoom,reset,save,box_select,hover"
+        TOOLTIPS = [
+            ("Shaft lenght:", "@x0 m"),
+            ("Underformed:", "@y1 mm"),
+            ("Displacement:", "@y0 mm"),
+        ]
+
+        # create a new plot and add a renderer
+        disp_graph = figure(
+            tools=TOOLS,
+            tooltips=TOOLTIPS,
+            width=800,
+            height=400,
+            title="Static Analysis",
+            x_axis_label="shaft lenght(m)",
+            y_axis_label="lateral displacement (mm)",
+        )
+        disp_graph.line(
+            "x0",
+            "y0",
+            source=source,
+            legend="Deformed shaft",
+            line_width=3,
+            line_color=bokeh_colors[9],
+        )
+        disp_graph.circle(
+            "x0",
+            "y0",
+            source=source,
+            legend="Deformed shaft",
+            size=8,
+            fill_color=bokeh_colors[9],
+        )
+        disp_graph.line(
+            "x0",
+            "y1",
+            source=source,
+            legend="underformed shaft",
+            line_width=3,
+            line_color=bokeh_colors[0],
+        )
+        disp_graph.circle(
+            "x0",
+            "y1",
+            source=source,
+            legend="underformed shaft",
+            size=8,
+            fill_color=bokeh_colors[0],
+        )
+
+        # create a new plot for free diagram body
+        y_range = []
+        for i, node in enumerate(self.df_bearings["n"]):
+            y_range.append(
+                -disp_y[node] * self.df_bearings.loc[i, "kyy"].coefficient[0]
+            )
+
+        shaft_end = self.nodes_pos[-1]
+        diagram = figure(
+            tools=TOOLS,
+            width=800,
+            height=400,
+            title="Free-Body Diagram",
+            x_axis_label="shaft lenght (m)",
+            y_axis_label="Force (N)",
+            x_range=[-0.1 * shaft_end, 1.1 * shaft_end],
+            y_range=[-max(y_range) * 1.5, max(y_range) * 1.5],
+        )
+
+        diagram.line(
+            "x0", "y1", source=source, line_width=5, line_color=bokeh_colors[0]
+        )
+
+        # plot arrows indicating shaft weight distribution
+        sh_weight = sum(self.df_shaft["m"].values) * 9.8065
+        text = str("%.1f" % sh_weight)
+        diagram.line(
+            x=self.nodes_pos,
+            y=[sh_weight] * len(self.nodes_pos),
+            line_width=2,
+            line_color=bokeh_colors[0],
+        )
+
+        for node in self.nodes_pos:
+            diagram.add_layout(
+                Arrow(
+                    end=NormalHead(
+                        fill_color=bokeh_colors[7],
+                        fill_alpha=1.0,
+                        size=16,
+                        line_width=2,
+                        line_color=bokeh_colors[0],
+                    ),
+                    x_start=node,
+                    y_start=sh_weight,
+                    x_end=node,
+                    y_end=0,
+                )
+            )
+
+        diagram.add_layout(
+            Label(
+                x=self.nodes_pos[0],
+                y=sh_weight,
+                text="W = " + text + "N",
+                text_font_style="bold",
+                text_baseline="top",
+                text_align="left",
+                y_offset=20,
+            )
+        )
+
+        # calculate the reaction force of bearings and plot arrows
+        for i, node in enumerate(self.df_bearings["n"]):
+            Fb = -disp_y[node] * self.df_bearings.loc[i, "kyy"].coefficient[0]
+            text = str("%.1f" % Fb)
+            diagram.add_layout(
+                Arrow(
+                    end=NormalHead(
+                        fill_color=bokeh_colors[7],
+                        fill_alpha=1.0,
+                        size=16,
+                        line_width=2,
+                        line_color=bokeh_colors[0],
+                    ),
+                    x_start=self.nodes_pos[node],
+                    y_start=-Fb,
+                    x_end=self.nodes_pos[node],
+                    y_end=0,
+                )
+            )
+            diagram.add_layout(
+                Label(
+                    x=self.nodes_pos[node],
+                    y=-Fb,
+                    text="Fb = " + text + "N",
+                    text_font_style="bold",
+                    text_baseline="bottom",
+                    text_align="center",
+                    y_offset=-20,
+                )
+            )
+
+        # plot arrows indicating disk weight
+        for i, node in enumerate(self.df_disks["n"]):
+            Fd = self.df_disks.loc[i, "m"] * 9.8065
+            text = str("%.1f" % Fd)
+            diagram.add_layout(
+                Arrow(
+                    end=NormalHead(
+                        fill_color=bokeh_colors[7],
+                        fill_alpha=1.0,
+                        size=16,
+                        line_width=2,
+                        line_color=bokeh_colors[0],
+                    ),
+                    x_start=self.nodes_pos[node],
+                    y_start=Fd,
+                    x_end=self.nodes_pos[node],
+                    y_end=0,
+                )
+            )
+            diagram.add_layout(
+                Label(
+                    x=self.nodes_pos[node],
+                    y=Fd,
+                    text="Fd = " + text + "N",
+                    text_font_style="bold",
+                    text_baseline="top",
+                    text_align="center",
+                    y_offset=20,
+                )
+            )
+
+        # show the results
+        grid_plots = gridplot([[diagram], [disp_graph]])
+        show(grid_plots)
 
     @classmethod
     def from_section(
@@ -1611,6 +1861,9 @@ class Rotor(object):
         i_ds_data,
         disk_data=None,
         brg_seal_data=None,
+        sparse=True,
+        min_w=None,
+        max_w=None,
         w=0,
         nel_r=1,
         n_eigval=1,
@@ -1655,23 +1908,23 @@ class Rotor(object):
 
         Example
         -------
+
         >>> rotor = Rotor.from_section(leng_data=[0.5,0.5,0.5],
         ...             o_ds_data=[0.05,0.05,0.05],
         ...             i_ds_data=[0,0,0],
-        ...             disk_data=[[1, steel, 0.07, 0, 0.28],
-        ...                        [2, steel, 0.07, 0, 0.35]],
-        ...             brg_seal_data=[[0, 1e6, 0, 1e6, 0,0,0,0,0,None],
-        ...                            [3, 1e6, 0, 1e6,0,0,0,0,0,None]],
+        ...             disk_data=[DiskElement.from_geometry(n=1, material=steel, width=0.07, i_d=0, o_d=0.28),
+        ...                        DiskElement.from_geometry(n=2, material=steel, width=0.07, i_d=0, o_d=0.35)],
+        ...             brg_seal_data=[BearingElement(n=0, kxx=1e6, cxx=0, kyy=1e6, cyy=0, kxy=0, cxy=0, kyx=0, cyx=0),
+        ...                            BearingElement(n=3, kxx=1e6, cxx=0, kyy=1e6, cyy=0, kxy=0, cxy=0, kyx=0, cyx=0)],
         ...             w=0, nel_r=1, n_eigval=1, err_max=1e-07)
         >>> rotor.wn[:]
-        array([ 85.76222593,  85.76222594, 271.86711771, 271.86711774,
-               716.27524675, 716.27524696])
         """
 
+        n_eigen = 2 * n_eigval + 2
         if len(leng_data) != len(o_ds_data) or len(leng_data) != len(i_ds_data):
             raise ValueError("The matrices lenght do not match.")
 
-        def rotor_regions(nel_r=1):
+        def rotor_regions(nel_r):
 
             regions = []
             shaft_elements = []
@@ -1702,45 +1955,15 @@ class Rotor(object):
 
             regions.extend([shaft_elements])
 
-            for i, leng in enumerate(leng_data):
-                for j, disk in enumerate(disk_data):
-                    if disk_data is not None and len(disk) == 5 and i == disk[0]:
-                        disk_elements.append(
-                            DiskElement.from_geometry(
-                                n=nel_r * disk[0],
-                                material=disk[1],
-                                width=disk[2],
-                                i_d=disk[3],
-                                o_d=disk[4],
-                            )
-                        )
+            for DiskEl in disk_data:
+                aux_DiskEl = deepcopy(DiskEl)
+                aux_DiskEl.n = nel_r * DiskEl.n
+                disk_elements.append(aux_DiskEl)
 
-            for i, leng in enumerate(leng_data):
-                for j, disk in enumerate(disk_data):
-                    if disk_data is not None and len(disk) == 4 and i == disk[0]:
-                        disk_elements.append(
-                            DiskElement(
-                                n=nel_r * disk[0], m=disk[1], Id=disk[2], Ip=disk[3]
-                            )
-                        )
-
-            for i in range(len(leng_data) + 1):
-                for j, brg in enumerate(brg_seal_data):
-                    if brg_seal_data is not None and i == brg[0]:
-                        bearing_seal_elements.append(
-                            BearingElement(
-                                n=i * nel_r,
-                                kxx=brg[1],
-                                cxx=brg[2],
-                                kyy=brg[3],
-                                kxy=brg[4],
-                                kyx=brg[5],
-                                cyy=brg[6],
-                                cxy=brg[7],
-                                cyx=brg[8],
-                                w=brg[9],
-                            )
-                        )
+            for Brg_SealEl in brg_seal_data:
+                aux_Brg_SealEl = deepcopy(Brg_SealEl)
+                aux_Brg_SealEl.n = nel_r * Brg_SealEl.n
+                bearing_seal_elements.append(aux_Brg_SealEl)
 
             regions.append(disk_elements)
             regions.append(bearing_seal_elements)
@@ -1752,17 +1975,19 @@ class Rotor(object):
         error_arr = np.array([0])
 
         regions0 = rotor_regions(nel_r)
-        rotor0 = Rotor(regions0[0], regions0[1], regions0[2], w=w, n_eigen=12)
+        rotor0 = Rotor(regions0[0], regions0[1], regions0[2], w=w, n_eigen=n_eigen)
+        rotor0.run()
 
         eigv_arr = np.append(eigv_arr, rotor0.wn[n_eigval])
         # this value is up to start the loop while
         error = 1
-        nel_r = nel_r * 2
+        nel_r *= 2
 
         while error > err_max:
 
             regions = rotor_regions(nel_r)
-            rotor = Rotor(regions[0], regions[1], regions[2], w=w, n_eigen=12)
+            rotor = Rotor(regions[0], regions[1], regions[2], w=w, n_eigen=n_eigen)
+            rotor.run()
 
             eigv_arr = np.append(eigv_arr, rotor.wn[n_eigval])
             el_num = np.append(el_num, nel_r * len(leng_data))
@@ -1770,22 +1995,69 @@ class Rotor(object):
             error = min(eigv_arr[-1], eigv_arr[-2]) / max(eigv_arr[-1], eigv_arr[-2])
             error = 1 - error
             error_arr = np.append(error_arr, 100 * error)
-
             nel_r *= 2
 
         shaft_elements = regions[0]
         disk_elements = regions[1]
         bearing_seal_elements = regions[2]
 
+        output_file("convergence.html")
+        source = ColumnDataSource(
+            data=dict(x0=el_num[1:], y0=eigv_arr[1:], x1=el_num[1:], y1=error_arr[1:])
+        )
+
+        TOOLS = "pan,wheel_zoom,box_zoom,hover,reset,save,"
+        TOOLTIPS1 = [
+            ('Frquency:', '@y0 Hz'),
+            ('Number of Elements', '@x0')
+        ]
+        TOOLTIPS2 = [
+            ('Relative Error:', '@y1'),
+            ('Number of Elements', '@x1')
+        ]
+        # create a new plot and add a renderer
+        freq_arr = figure(
+            tools=TOOLS,
+            tooltips=TOOLTIPS1,
+            width=500,
+            height=500,
+            title="Frequency Evaluation",
+            x_axis_label="Numer of Elements",
+            y_axis_label="Frequency (Hz)",
+        )
+        freq_arr.line("x0", "y0", source=source, line_width=3, line_color="crimson")
+        freq_arr.circle("x0", "y0", source=source, fill_color="crimson", size=8)
+
+        # create another new plot and add a renderer
+        rel_error = figure(
+            tools=TOOLS,
+            tooltips=TOOLTIPS2,
+            width=500,
+            height=500,
+            title="Relative Error Evaluation",
+            x_axis_label="Number of Rlements",
+            y_axis_label="Relative Rrror",
+        )
+        rel_error.line(
+            "x1", "y1", source=source, line_width=3, line_color="darkslategray"
+        )
+        rel_error.circle("x1", "y1", source=source, fill_color="darkslategray", size=8)
+
+        # put the subplots in a gridplot
+        p = gridplot([[freq_arr, rel_error]])
+
+        # show the results
+        show(p)
+
         return cls(
             shaft_elements,
             disk_elements,
             bearing_seal_elements,
-            w=0,
-            sparse=True,
-            n_eigen=12,
-            min_w=None,
-            max_w=None,
+            w=w,
+            sparse=sparse,
+            n_eigen=n_eigen,
+            min_w=min_w,
+            max_w=max_w,
             rated_w=None,
         )
 

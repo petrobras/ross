@@ -3,10 +3,12 @@ import numpy as np
 import scipy.interpolate as interpolate
 import matplotlib.pyplot as plt
 import matplotlib.patches as mpatches
+import bokeh.palettes as bp
 from ross.element import Element
 import pytest
 
 __all__ = ["BearingElement", "SealElement"]
+bokeh_colors = bp.RdGy[11]
 
 
 class _Coefficient:
@@ -207,12 +209,14 @@ class BearingElement(Element):
 
         return C
 
-    def patch(self, ax, position):
+    def patch(self, position, ax, bk_ax):
         """Bearing element patch.
         Patch that will be used to draw the bearing element.
         Parameters
         ----------
         ax : matplotlib axes, optional
+            Axes in which the plot will be drawn.
+        bk_ax : bokeh plotting axes, optional
             Axes in which the plot will be drawn.
         position : tuple
             Position (z, y) in which the patch will be drawn.
@@ -220,9 +224,12 @@ class BearingElement(Element):
         -------
         ax : matplotlib axes
             Returns the axes object with the plot.
+        bk_ax : bokeh plotting axes
+            Returns the axes object with the plot.
         """
         zpos, ypos = position
-        h = -0.75 * ypos  # height
+
+        h = -0.5 * ypos  # height
 
         #  node (x pos), outer diam. (y pos)
         bearing_points = [
@@ -231,7 +238,31 @@ class BearingElement(Element):
             [zpos - h / 2, ypos - h],
             [zpos, ypos],
         ]
-        ax.add_patch(mpatches.Polygon(bearing_points, color=self.color, picker=True))
+        ax.add_patch(
+            mpatches.Polygon(bearing_points, color=self.color, picker=True)
+        )
+
+        # bokeh plot - upper bearing visual representarion
+        bk_ax.quad(top=-ypos,
+                   bottom=-2 * ypos,
+                   left=zpos - ypos,
+                   right=zpos + ypos,
+                   line_color=bokeh_colors[0],
+                   line_width=1,
+                   fill_alpha=1,
+                   fill_color=bokeh_colors[1],
+                   legend="Bearing"
+                   )
+        # bokeh plot - lower bearing visual representation
+        bk_ax.quad(top=ypos,
+                   bottom=2 * ypos,
+                   left=zpos - ypos,
+                   right=zpos + ypos,
+                   line_color=bokeh_colors[0],
+                   line_width=1,
+                   fill_alpha=1,
+                   fill_color=bokeh_colors[1]
+                   )
 
 
 class SealElement(BearingElement):
@@ -265,18 +296,22 @@ class SealElement(BearingElement):
         self.seal_leakage = seal_leakage
         self.color = "#77ACA2"
 
-    def patch(self, ax, position):
+    def patch(self, position, ax, bk_ax):
         """Seal element patch.
         Patch that will be used to draw the seal element.
         Parameters
         ----------
         ax : matplotlib axes, optional
             Axes in which the plot will be drawn.
+        bk_ax : bokeh plotting axes, optional
+            Axes in which the plot will be drawn.
         position : tuple
             Position in which the patch will be drawn.
         Returns
         -------
         ax : matplotlib axes
+            Returns the axes object with the plot.
+        bk_ax : bokeh plotting axes
             Returns the axes object with the plot.
         """
         zpos, ypos = position
@@ -301,3 +336,26 @@ class SealElement(BearingElement):
         ]
         ax.add_patch(mpatches.Polygon(seal_points_u, facecolor=self.color))
         ax.add_patch(mpatches.Polygon(seal_points_l, facecolor=self.color))
+
+
+        # bokeh plot - node (x pos), outer diam. (y pos)
+        bk_seal_points_u = [
+            [zpos, zpos + hw, zpos + hw, zpos - hw, zpos - hw],
+            [ypos * 1.1, ypos * 1.1, ypos * 1.3, ypos * 1.3, ypos * 1.1]
+        ]
+
+        bk_seal_points_l = [
+            [zpos, zpos + hw, zpos + hw, zpos - hw, zpos - hw],
+            [ypos * 1.1, ypos * 1.1, ypos * 1.3, ypos * 1.3, ypos * 1.1]
+        ]
+
+        # bokeh plot - plot disks elements
+        bk_ax.patch(
+             bk_seal_points_u[0], bk_seal_points_u[1],
+             alpha=0.5, line_width=2, color=bokeh_colors[6]
+        )
+
+        bk_ax.patch(
+            bk_seal_points_l[0], bk_seal_points_l[1],
+            alpha=0.5, line_width=2, color=bokeh_colors[6]
+        )
