@@ -1691,10 +1691,7 @@ class Rotor(object):
         Vx_axis = []
         for i in range(int(len(self.nodes))):
             Vx_axis.append(self.nodes_pos[i])
-            if i == 0:
-                Vx[i] = Vx[i] + BrgForce[i] + DskForce[i]
-            else:
-                Vx[i] = Vx[i - 1] + BrgForce[i] + DskForce[i] + SchForce[i]
+            Vx[i] = Vx[i - 1] + BrgForce[i] + DskForce[i] + SchForce[i]
 
         for i in range(len(Vx) + len(self.df_disks) + len(self.df_bearings)):
             if DskForce[i] != 0:
