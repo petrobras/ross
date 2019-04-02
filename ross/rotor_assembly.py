@@ -1707,6 +1707,21 @@ class Rotor(object):
                 DskForce.insert(i + 1, 0)
                 SchForce.insert(i + 1, 0)
                 Vx_axis.insert(i, Vx_axis[i])
+        Vx = [x*-1 for x in Vx]
+
+        # Bending Moment vector
+        Mx = []
+        for i in range(len(Vx)-1):
+            if Vx_axis[i] == Vx_axis[i+1]:
+                pass
+            else:
+                Mx.append(((Vx_axis[i+1]*Vx[i+1]) +
+                          (Vx_axis[i+1]*Vx[i]) -
+                          (Vx_axis[i]*Vx[i+1]) -
+                          (Vx_axis[i]*Vx[i])) / 2)
+        Bm = [0]
+        for i in range(len(Mx)):
+            Bm.append(Bm[i] + Mx[i])
 
         output_file("static.html")
         source = ColumnDataSource(
@@ -1910,8 +1925,33 @@ class Rotor(object):
             line_color=bokeh_colors[0],
         )
 
+        # Bending Moment Diagram plot (BM)
+        source_BM = ColumnDataSource(data=dict(x=self.nodes_pos, y=Bm))
+        TOOLTIPS_BM = [("Bending Moment:", "@y N.m")]
+        BM = figure(
+            tools=TOOLS,
+            tooltips=TOOLTIPS_BM,
+            width=800,
+            height=400,
+            title="Bending Moment Diagram",
+            x_axis_label="Shaft lenght (m)",
+            y_axis_label="Bending Moment (N.m)",
+            x_range=[-0.1 * shaft_end, 1.1 * shaft_end],
+        )
+        BM.line("x", "y", source=source_BM, line_width=4, line_color=bokeh_colors[0])
+        BM.circle("x", "y", source=source_BM, size=8, fill_color=bokeh_colors[0])
+
+        # BM - plot centerline
+        BM.line(
+            [-0.1 * shaft_end, 1.1 * shaft_end],
+            [0, 0],
+            line_width=3,
+            line_dash="dotdash",
+            line_color=bokeh_colors[0],
+        )
+
         # show the results
-        grid_plots = gridplot([[FBD, SF], [disp_graph]])
+        grid_plots = gridplot([[FBD, SF], [disp_graph, BM]])
         show(grid_plots)
 
     @classmethod
