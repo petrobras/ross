@@ -279,8 +279,8 @@ class Rotor(object):
 
         #  diameter at node position
 
-        self.plot_rotor()
-        print("To calculate eigenvalues and frequencies, use the method run().")
+        print("To check the rotor geometry, use the method plot_rotor()\n"
+              "To calculate the rotor state, use the method run()")
 
     def __eq__(self, other):
         if self.elements == other.elements and self.parameters == other.parameters:
