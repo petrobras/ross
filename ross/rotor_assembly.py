@@ -116,6 +116,7 @@ class Rotor(object):
     >>> bearing0 = rs.BearingElement(0, kxx=stf, cxx=0)
     >>> bearing1 = rs.BearingElement(2, kxx=stf, cxx=0)
     >>> rotor = rs.Rotor(shaft_elm, [disk0], [bearing0, bearing1])
+    >>> rotor.run()
     >>> rotor.wd[0] # doctest: +ELLIPSIS
     215.3707...
     """
