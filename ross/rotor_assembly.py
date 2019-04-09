@@ -1670,6 +1670,59 @@ class Rotor(object):
         for node_dof in range(int(len(disp) / 4)):
             disp_y = np.append(disp_y, disp[4 * node_dof + 1])
 
+        # Shearing Force
+        BrgForce = [0] * len(self.nodes_pos)
+        DskForce = [0] * len(self.nodes_pos)
+        SchForce = [0] * len(self.nodes_pos)
+
+        for i, node in enumerate(self.df_bearings["n"]):
+            BrgForce[node] = (
+                -disp_y[node] * self.df_bearings.loc[i, "kyy"].coefficient[0]
+            )
+
+        for i, node in enumerate(self.df_disks["n"]):
+            DskForce[node] = self.df_disks.loc[i, "m"] * -9.8065
+
+        for i, node in enumerate(self.df_shaft["_n"]):
+            SchForce[node + 1] = self.df_shaft.loc[i, "m"] * -9.8065
+
+        # Shearing Force vector
+        Vx = [0] * (len(self.nodes_pos))
+        Vx_axis = []
+        for i in range(int(len(self.nodes))):
+            Vx_axis.append(self.nodes_pos[i])
+            Vx[i] = Vx[i - 1] + BrgForce[i] + DskForce[i] + SchForce[i]
+
+        for i in range(len(Vx) + len(self.df_disks) + len(self.df_bearings)):
+            if DskForce[i] != 0:
+                Vx.insert(i, Vx[i - 1] + SchForce[i])
+                DskForce.insert(i + 1, 0)
+                SchForce.insert(i + 1, 0)
+                BrgForce.insert(i + 1, 0)
+                Vx_axis.insert(i, Vx_axis[i])
+
+            if BrgForce[i] != 0:
+                Vx.insert(i, Vx[i - 1] + SchForce[i])
+                BrgForce.insert(i + 1, 0)
+                DskForce.insert(i + 1, 0)
+                SchForce.insert(i + 1, 0)
+                Vx_axis.insert(i, Vx_axis[i])
+        Vx = [x*-1 for x in Vx]
+
+        # Bending Moment vector
+        Mx = []
+        for i in range(len(Vx)-1):
+            if Vx_axis[i] == Vx_axis[i+1]:
+                pass
+            else:
+                Mx.append(((Vx_axis[i+1]*Vx[i+1]) +
+                          (Vx_axis[i+1]*Vx[i]) -
+                          (Vx_axis[i]*Vx[i+1]) -
+                          (Vx_axis[i]*Vx[i])) / 2)
+        Bm = [0]
+        for i in range(len(Mx)):
+            Bm.append(Bm[i] + Mx[i])
+
         output_file("static.html")
         source = ColumnDataSource(
             data=dict(x0=self.nodes_pos, y0=disp_y * 1000, y1=[0] * len(self.nodes_pos))
@@ -1682,7 +1735,7 @@ class Rotor(object):
             ("Displacement:", "@y0 mm"),
         ]
 
-        # create a new plot and add a renderer
+        # create displacement plot
         disp_graph = figure(
             tools=TOOLS,
             tooltips=TOOLTIPS,
@@ -1725,7 +1778,7 @@ class Rotor(object):
             fill_color=bokeh_colors[0],
         )
 
-        # create a new plot for free diagram body
+        # create a new plot for free body diagram (FDB)
         y_range = []
         for i, node in enumerate(self.df_bearings["n"]):
             y_range.append(
@@ -1733,7 +1786,7 @@ class Rotor(object):
             )
 
         shaft_end = self.nodes_pos[-1]
-        diagram = figure(
+        FBD = figure(
             tools=TOOLS,
             width=800,
             height=400,
@@ -1741,17 +1794,15 @@ class Rotor(object):
             x_axis_label="shaft lenght (m)",
             y_axis_label="Force (N)",
             x_range=[-0.1 * shaft_end, 1.1 * shaft_end],
-            y_range=[-max(y_range) * 1.5, max(y_range) * 1.5],
+            y_range=[-max(y_range) * 1.4, max(y_range) * 1.4],
         )
 
-        diagram.line(
-            "x0", "y1", source=source, line_width=5, line_color=bokeh_colors[0]
-        )
+        FBD.line("x0", "y1", source=source, line_width=5, line_color=bokeh_colors[0])
 
-        # plot arrows indicating shaft weight distribution
+        # FBD - plot arrows indicating shaft weight distribution
         sh_weight = sum(self.df_shaft["m"].values) * 9.8065
         text = str("%.1f" % sh_weight)
-        diagram.line(
+        FBD.line(
             x=self.nodes_pos,
             y=[sh_weight] * len(self.nodes_pos),
             line_width=2,
@@ -1759,7 +1810,7 @@ class Rotor(object):
         )
 
         for node in self.nodes_pos:
-            diagram.add_layout(
+            FBD.add_layout(
                 Arrow(
                     end=NormalHead(
                         fill_color=bokeh_colors[7],
@@ -1775,7 +1826,7 @@ class Rotor(object):
                 )
             )
 
-        diagram.add_layout(
+        FBD.add_layout(
             Label(
                 x=self.nodes_pos[0],
                 y=sh_weight,
@@ -1787,11 +1838,11 @@ class Rotor(object):
             )
         )
 
-        # calculate the reaction force of bearings and plot arrows
+        # FBD - calculate the reaction force of bearings and plot arrows
         for i, node in enumerate(self.df_bearings["n"]):
             Fb = -disp_y[node] * self.df_bearings.loc[i, "kyy"].coefficient[0]
             text = str("%.1f" % Fb)
-            diagram.add_layout(
+            FBD.add_layout(
                 Arrow(
                     end=NormalHead(
                         fill_color=bokeh_colors[7],
@@ -1806,7 +1857,7 @@ class Rotor(object):
                     y_end=0,
                 )
             )
-            diagram.add_layout(
+            FBD.add_layout(
                 Label(
                     x=self.nodes_pos[node],
                     y=-Fb,
@@ -1818,11 +1869,11 @@ class Rotor(object):
                 )
             )
 
-        # plot arrows indicating disk weight
+        # FBD - plot arrows indicating disk weight
         for i, node in enumerate(self.df_disks["n"]):
             Fd = self.df_disks.loc[i, "m"] * 9.8065
             text = str("%.1f" % Fd)
-            diagram.add_layout(
+            FBD.add_layout(
                 Arrow(
                     end=NormalHead(
                         fill_color=bokeh_colors[7],
@@ -1837,7 +1888,7 @@ class Rotor(object):
                     y_end=0,
                 )
             )
-            diagram.add_layout(
+            FBD.add_layout(
                 Label(
                     x=self.nodes_pos[node],
                     y=Fd,
@@ -1849,8 +1900,58 @@ class Rotor(object):
                 )
             )
 
+        # Shearing Force Diagram plot (SF)
+        source_SF = ColumnDataSource(data=dict(x=Vx_axis, y=Vx))
+        TOOLTIPS_SF = [("Shearing Force:", "@y N")]
+        SF = figure(
+            tools=TOOLS,
+            tooltips=TOOLTIPS_SF,
+            width=800,
+            height=400,
+            title="Shearing Force Diagram",
+            x_axis_label="Shaft lenght (m)",
+            y_axis_label="Force (N)",
+            x_range=[-0.1 * shaft_end, 1.1 * shaft_end],
+        )
+        SF.line("x", "y", source=source_SF, line_width=4, line_color=bokeh_colors[0])
+        SF.circle("x", "y", source=source_SF, size=8, fill_color=bokeh_colors[0])
+
+        # SF - plot centerline
+        SF.line(
+            [-0.1 * shaft_end, 1.1 * shaft_end],
+            [0, 0],
+            line_width=3,
+            line_dash="dotdash",
+            line_color=bokeh_colors[0],
+        )
+
+        # Bending Moment Diagram plot (BM)
+        source_BM = ColumnDataSource(data=dict(x=self.nodes_pos, y=Bm))
+        TOOLTIPS_BM = [("Bending Moment:", "@y N.m")]
+        BM = figure(
+            tools=TOOLS,
+            tooltips=TOOLTIPS_BM,
+            width=800,
+            height=400,
+            title="Bending Moment Diagram",
+            x_axis_label="Shaft lenght (m)",
+            y_axis_label="Bending Moment (N.m)",
+            x_range=[-0.1 * shaft_end, 1.1 * shaft_end],
+        )
+        BM.line("x", "y", source=source_BM, line_width=4, line_color=bokeh_colors[0])
+        BM.circle("x", "y", source=source_BM, size=8, fill_color=bokeh_colors[0])
+
+        # BM - plot centerline
+        BM.line(
+            [-0.1 * shaft_end, 1.1 * shaft_end],
+            [0, 0],
+            line_width=3,
+            line_dash="dotdash",
+            line_color=bokeh_colors[0],
+        )
+
         # show the results
-        grid_plots = gridplot([[diagram], [disp_graph]])
+        grid_plots = gridplot([[FBD, SF], [disp_graph, BM]])
         show(grid_plots)
 
     @classmethod
