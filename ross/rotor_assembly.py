@@ -111,7 +111,7 @@ class Rotor(object):
     ...                        rotary_inertia=True,
     ...                        gyroscopic=True)
     >>> shaft_elm = [tim0, tim1]
-    >>> disk0 = rs.DiskElement(1, 0.07, 0.05, 0.28)
+    >>> disk0 = rs.DiskElement.from_geometry(1, steel, 0.07, 0.05, 0.28)
     >>> stf = 1e6
     >>> bearing0 = rs.BearingElement(0, kxx=stf, cxx=0)
     >>> bearing1 = rs.BearingElement(2, kxx=stf, cxx=0)
