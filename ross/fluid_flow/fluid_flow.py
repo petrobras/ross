@@ -40,13 +40,8 @@ class PressureMatrix:
         Rotor radius (m).
     radius_stator: float
         Stator Radius (m).
-    xi: float
-        Eccentricity (m) (distance between rotor and stator centers) on the x-axis.
-        It is the position of the center of the rotor.
-        The center of the stator is in position (0,0).
-    yi: float
-        Eccentricity (m) (distance between rotor and stator centers) on the y-axis.
-        It is the position of the center of the rotor.
+    eccentricity: float
+        Eccentricity (m) is the euclidean distance between rotor and stator centers.
         The center of the stator is in position (0,0).
 
     Fluid characteristics
@@ -79,6 +74,14 @@ class PressureMatrix:
         Number of intervals on r.
     p_mat : array of shape (nz, ntheta)
         The pressure matrix.
+    xi: float
+        Eccentricity (m) (distance between rotor and stator centers) on the x-axis.
+        It is the position of the center of the rotor.
+        The center of the stator is in position (0,0).
+    yi: float
+        Eccentricity (m) (distance between rotor and stator centers) on the y-axis.
+        It is the position of the center of the rotor.
+        The center of the stator is in position (0,0).
     re : array of shape (nz, ntheta)
         The external radius in each position of the grid.
     ri : array of shape (nz, ntheta)
@@ -93,12 +96,12 @@ class PressureMatrix:
         y value of the external radius.
     yri : array of shape (nz, ntheta)
         y value of the internal radius.
-    distance_between_centers : float
+    eccentricity : float
         distance between the center of the rotor and the stator.
     difference_between_radius: float
         distance between the radius of the stator and the radius of the rotor.
     eccentricity_ratio: float
-        distance_between_centers/difference_between_radius
+        eccentricity/difference_between_radius
     bearing_type: str
         type of structure. 'short_bearing': short; 'long_bearing': long;
         'medium_size': in between short and long.
@@ -138,8 +141,8 @@ class PressureMatrix:
 
     """
     def __init__(self, nz, ntheta, nradius, length, omega, p_in,
-                 p_out, radius_rotor, radius_stator, xi,
-                 yi, visc, rho, plot_eccentricity=False):
+                 p_out, radius_rotor, radius_stator, eccentricity,
+                 visc, rho, plot_eccentricity=False):
         self.nz = nz
         self.ntheta = ntheta
         self.nradius = nradius
@@ -156,8 +159,9 @@ class PressureMatrix:
         self.p_out = p_out
         self.radius_rotor = radius_rotor
         self.radius_stator = radius_stator
-        self.xi = xi
-        self.yi = yi
+        self.eccentricity = eccentricity
+        self.xi = np.sqrt(2)*eccentricity/2
+        self.yi = -self.xi
         self.visc = visc
         self.rho = rho
         self.re = np.zeros([self.nz, self.ntheta])
@@ -172,9 +176,8 @@ class PressureMatrix:
         self.plot_counter = 0
         self.calculate_coefficients(plot_eccentricity)
         self.pressure_matrix_available = False
-        self.distance_between_centers = np.sqrt((xi**2 + yi**2))
         self.difference_between_radius = radius_stator - radius_rotor
-        self.eccentricity_ratio = self.distance_between_centers/self.difference_between_radius
+        self.eccentricity_ratio = self.eccentricity/self.difference_between_radius
 
     def calculate_pressure_matrix(self):
         """This function calculates the pressure matrix
@@ -237,23 +240,10 @@ class PressureMatrix:
         yri: float
             The position y of the returned internal radius.
         """
-        e = np.sqrt(self.xi ** 2 + self.yi ** 2)
-        if self.xi > 0:
-            beta = np.arctan(self.yi / self.xi)
-        elif self.xi < 0:
-            beta = -np.pi + np.arctan(self.yi / self.xi)
-        else:
-            if self.yi > 0.:
-                beta = np.pi / 2.
-            else:
-                beta = -np.pi / 2.
-        alpha = gama - beta
-        radius_internal = e * np.cos(alpha) + np.sqrt(
-            self.radius_rotor ** 2 - (e * np.sin(alpha)) ** 2
-            )
-        xri = radius_internal * np.cos(gama)
-        yri = radius_internal * np.sin(gama)
-        return radius_internal, xri, yri
+        radius_internal = self.radius_rotor
+        xri = radius_internal * np.cos(gama - np.pi/4)
+        yri = radius_internal * np.sin(gama - np.pi/4)
+        return radius_internal, xri + self.xi, yri + self.yi
 
     def external_radius_function(self, gama):
         """This function calculates the radius of the stator.
@@ -271,8 +261,8 @@ class PressureMatrix:
             The position y of the returned external radius.
         """
         radius_external = self.radius_stator
-        xre = radius_external * np.cos(gama)
-        yre = radius_external * np.sin(gama)
+        xre = radius_external * np.cos(gama - np.pi/4)
+        yre = radius_external * np.sin(gama - np.pi/4)
 
         return radius_external, xre, yre
 
@@ -371,7 +361,7 @@ class PressureMatrix:
         r = np.arange(0, self.radius_stator + 0.0001, (
             self.radius_stator - self.radius_rotor)/self.nradius
             )
-        theta = np.arange(0, 2*np.pi + self.dtheta/2, self.dtheta)
+        theta = np.arange(-np.pi*0.25, 1.75*np.pi + self.dtheta/2, self.dtheta)
 
         pressure_along_theta = np.zeros(self.ntheta)
         for i in range(0, self.ntheta):
