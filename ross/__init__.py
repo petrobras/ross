@@ -1,4 +1,3 @@
-from . import materials as mtr
 from . import element
 from . import bearing_seal_element as bse
 from . import disk_element as disk

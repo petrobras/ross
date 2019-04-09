@@ -1,8 +1,7 @@
 from ross import *
+from ross.materials import steel
 import numpy as np
 import pytest
-
-steel = mtr.steel
 
 
 def rotor_example1(w=0, n_el=48):
