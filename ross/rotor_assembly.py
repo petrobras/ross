@@ -1669,6 +1669,7 @@ class Rotor(object):
         disp_y = np.array([])
         for node_dof in range(int(len(disp) / 4)):
             disp_y = np.append(disp_y, disp[4 * node_dof + 1])
+        self.disp_y = disp_y
 
         # Shearing Force
         BrgForce = [0] * len(self.nodes_pos)
@@ -1688,6 +1689,7 @@ class Rotor(object):
 
         # Shearing Force vector
         Vx = [0] * (len(self.nodes_pos))
+        self.Vx = Vx
         Vx_axis = []
         for i in range(int(len(self.nodes))):
             Vx_axis.append(self.nodes_pos[i])
@@ -1720,6 +1722,7 @@ class Rotor(object):
                           (Vx_axis[i]*Vx[i+1]) -
                           (Vx_axis[i]*Vx[i])) / 2)
         Bm = [0]
+        self.Bm = Bm
         for i in range(len(Mx)):
             Bm.append(Bm[i] + Mx[i])
 
