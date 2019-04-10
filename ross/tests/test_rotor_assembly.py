@@ -1390,6 +1390,134 @@ def test_freq_response_w_force(rotor4):
     assert_allclose(mag[:4, :4], mag_exp_2_unb)
 
 
+def test_static_rotor3(rotor3):
+    rotor3.run()
+    rotor3.static()
+
+    assert_allclose(
+        rotor3.disp_y,
+        ([-0.00054047, -0.00091442, -0.00118923, -0.00128644, -0.00118923,
+          -0.00091442, -0.00054047]),
+        rtol=1e-07,
+    )
+    assert_allclose(
+        rotor3.Vx,
+        [0, 432.3774, 394.7820, 357.1865,  37.5954, 0, -37.5954, -357.1865,
+         -394.7820, -432.3774, 0],
+        rtol=1e-03,
+    )
+    assert_allclose(
+        rotor3.Bm,
+        [0, -103.3949, -197.3910, -202.0904, -197.3910, -103.3949, 0],
+        rtol=1e-03,
+    )
+
+
+@pytest.fixture
+def rotor5():
+    #  Rotor without damping with 10 shaft elements 2 disks and 2 bearings
+    i_d = 0
+    o_d = 0.05
+    n = 10
+    L = [0.25 for _ in range(n)]
+
+    shaft_elem = [
+        ShaftElement(
+            l, i_d, o_d, steel, shear_effects=True, rotary_inertia=True, gyroscopic=True
+        )
+        for l in L
+    ]
+
+    disk0 = DiskElement.from_geometry(4, steel, 0.07, 0.05, 0.28)
+    disk1 = DiskElement.from_geometry(6, steel, 0.07, 0.05, 0.35)
+
+    stfx = 1e6
+    stfy = 1e6
+    bearing0 = BearingElement(2, kxx=stfx, kyy=stfy, cxx=0)
+    bearing1 = BearingElement(8, kxx=stfx, kyy=stfy, cxx=0)
+
+    return Rotor(shaft_elem, [disk0, disk1], [bearing0, bearing1])
+
+
+def test_static_rotor5(rotor5):
+    rotor5.run()
+    rotor5.static()
+
+    assert_allclose(
+        rotor3.disp_y,
+        ([0.00026382, -0.00015021, -0.00056947, -0.00098566, -0.00130592,
+          -0.00143686, -0.00134669, -0.00104446, -0.00063136, -0.00021282,
+          0.0002005]),
+        rtol=1e-07,
+    )
+    assert_allclose(
+        rotor3.Vx,
+        [0, -37.5954, -75.1908, 494.2745, 456.6791, 419.08368, 99.4925,
+         61.8971, 24.3016, -480.9807, -518.5762, -556.1716, 75.1908, 37.5954,
+         0],
+        rtol=1e-03,
+    )
+    assert_allclose(
+        rotor3.Bm,
+        [0, 4.6994, 18.7977, -100.0714, -209.5418, -229.7155, -240.4903,
+         -115.5457, 18.7977, 4.6994, 0],
+        rtol=1e-03,
+    )
+
+
+@pytest.fixture
+def rotor6():
+    #  Overhung rotor without damping with 10 shaft elements 
+    #  2 disks and 2 bearings
+    i_d = 0
+    o_d = 0.05
+    n = 10
+    L = [0.25 for _ in range(n)]
+
+    shaft_elem = [
+        ShaftElement(
+            l, i_d, o_d, steel, shear_effects=True, rotary_inertia=True, gyroscopic=True
+        )
+        for l in L
+    ]
+
+    disk0 = DiskElement.from_geometry(5, steel, 0.07, 0.05, 0.28)
+    disk1 = DiskElement.from_geometry(10, steel, 0.07, 0.05, 0.35)
+
+    stfx = 1e6
+    stfy = 1e6
+    bearing0 = BearingElement(2, kxx=stfx, kyy=stfy, cxx=0)
+    bearing1 = BearingElement(8, kxx=stfx, kyy=stfy, cxx=0)
+
+    return Rotor(shaft_elem, [disk0, disk1], [bearing0, bearing1])
+
+
+def test_static_rotor6(rotor6):
+    rotor6.run()
+    rotor6.static()
+
+    assert_allclose(
+        rotor3.disp_y,
+        ([1.14204981e-05, -1.12297431e-04, -2.41242305e-04, -3.79747796e-04,
+          -5.01548984e-04, -5.80177374e-04, -6.10530303e-04, -6.49137429e-04,
+          -7.73894245e-04, -1.04200711e-03, -1.39248741e-03]),
+        rtol=1e-07,
+    )
+    assert_allclose(
+        rotor3.Vx,
+        [0, -37.5954, -75.1908, 166.0514, 128.4560, 90.8606, 53.2651,
+         -266.3259, -303.9213, -341.5168, -379.1122, 394.7820, 357.1865,
+         319.59116422954526, 0],
+        rtol=1e-03,
+    )
+    assert_allclose(
+        rotor3.Bm,
+        [0, 4.6994, 18.7977, -18.0157, -45.4303, -63.4460, 7.8348,
+         88.5146, 178.5932, 84.5972, 0],
+        rtol=1e-03,
+    )
+
+
 def test_save_load():
 
     a = rotor_example()
