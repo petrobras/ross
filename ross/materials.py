@@ -13,7 +13,7 @@ class Material:
     """Material.
 
     Class used to create a material and define its properties.
-    Density and at least at least 2 arguments from E, G_s and
+    Density and at least 2 arguments from E, G_s and
     Poisson should be provided.
 
     Run Material.available_materials() for materials already provided.
