@@ -6,6 +6,9 @@ some of the most common materials used in rotors.
 import toml
 
 
+__all__ = ["Material", "steel"]
+
+
 class Material:
     """Material.
 

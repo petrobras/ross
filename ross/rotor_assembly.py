@@ -96,25 +96,27 @@ class Rotor(object):
     Examples
     --------
     >>> #  Rotor without damping with 2 shaft elements 1 disk and 2 bearings
-    >>> from ross.materials import steel
+    >>> import ross as rs
+    >>> steel = rs.materials.steel
     >>> z = 0
     >>> le = 0.25
     >>> i_d = 0
     >>> o_d = 0.05
-    >>> tim0 = ShaftElement(le, i_d, o_d, steel,
-    ...                    shear_effects=True,
-    ...                    rotary_inertia=True,
-    ...                    gyroscopic=True)
-    >>> tim1 = ShaftElement(le, i_d, o_d, steel,
-    ...                    shear_effects=True,
-    ...                    rotary_inertia=True,
-    ...                    gyroscopic=True)
+    >>> tim0 = rs.ShaftElement(le, i_d, o_d, steel,
+    ...                        shear_effects=True,
+    ...                        rotary_inertia=True,
+    ...                        gyroscopic=True)
+    >>> tim1 = rs.ShaftElement(le, i_d, o_d, steel,
+    ...                        shear_effects=True,
+    ...                        rotary_inertia=True,
+    ...                        gyroscopic=True)
     >>> shaft_elm = [tim0, tim1]
-    >>> disk0 = DiskElement(1, steel, 0.07, 0.05, 0.28)
+    >>> disk0 = rs.DiskElement.from_geometry(1, steel, 0.07, 0.05, 0.28)
     >>> stf = 1e6
-    >>> bearing0 = BearingElement(0, kxx=stf, cxx=0)
-    >>> bearing1 = BearingElement(2, kxx=stf, cxx=0)
-    >>> rotor = Rotor(shaft_elm, [disk0], [bearing0, bearing1])
+    >>> bearing0 = rs.BearingElement(0, kxx=stf, cxx=0)
+    >>> bearing1 = rs.BearingElement(2, kxx=stf, cxx=0)
+    >>> rotor = rs.Rotor(shaft_elm, [disk0], [bearing0, bearing1])
+    >>> rotor.run()
     >>> rotor.wd[0] # doctest: +ELLIPSIS
     215.3707...
     """
@@ -279,8 +281,10 @@ class Rotor(object):
 
         #  diameter at node position
 
-        print("To check the rotor geometry, use the method plot_rotor()\n"
-              "To calculate the rotor state, use the method run()")
+        print(
+            "To check the rotor geometry, use the method plot_rotor()\n"
+            "To calculate the rotor state, use the method run()"
+        )
 
     def __eq__(self, other):
         if self.elements == other.elements and self.parameters == other.parameters:
@@ -549,7 +553,12 @@ class Rotor(object):
         if self.sparse is True:
             try:
                 evalues, evectors = las.eigs(
-                    A, k=self.n_eigen, sigma=0, ncv=2*self.n_eigen, which="LM", v0=self._v0
+                    A,
+                    k=self.n_eigen,
+                    sigma=0,
+                    ncv=2 * self.n_eigen,
+                    which="LM",
+                    v0=self._v0,
                 )
                 # store v0 as a linear combination of the previously
                 # calculated eigenvectors to use in the next call to eigs
@@ -1028,7 +1037,7 @@ class Rotor(object):
         --------
         """
         return signal.lsim(self.lti, F, t, X0=ic)
-    
+
     def plot_rotor(self, nodes=1, ax=None, bk_ax=None):
         """Plots a rotor object.
 
@@ -1076,22 +1085,22 @@ class Rotor(object):
 
         # bokeh plot - create a new plot
         bk_ax = figure(
-           tools="pan, box_zoom, wheel_zoom, reset, save",
-           width=900,
-           height=500,
-           y_range=[-6 * max_diameter, 6 * max_diameter],
-           title="Rotor model",
-           x_axis_label='Axial location (m)',
-           y_axis_label='Shaft radius (m)'
+            tools="pan, box_zoom, wheel_zoom, reset, save",
+            width=900,
+            height=500,
+            y_range=[-6 * max_diameter, 6 * max_diameter],
+            title="Rotor model",
+            x_axis_label="Axial location (m)",
+            y_axis_label="Shaft radius (m)",
         )
 
         # bokeh plot - plot shaft centerline
         bk_ax.line(
-            [-0.2 * shaft_end, 1.2 * shaft_end], 
+            [-0.2 * shaft_end, 1.2 * shaft_end],
             [0, 0],
             line_width=3,
             line_dash="dotdash",
-            line_color=bokeh_colors[0]
+            line_color=bokeh_colors[0],
         )
 
         # plot nodes
@@ -1126,23 +1135,25 @@ class Rotor(object):
 
         source = ColumnDataSource(dict(x=x_pos, y=y_pos, text=text))
 
-        bk_ax.square(x=x_pos,
-                     y=y_pos,
-                     size=30,
-                     angle=np.pi/4,
-                     fill_alpha=0.8,
-                     fill_color=bokeh_colors[6]
-                     )
+        bk_ax.square(
+            x=x_pos,
+            y=y_pos,
+            size=30,
+            angle=np.pi / 4,
+            fill_alpha=0.8,
+            fill_color=bokeh_colors[6],
+        )
 
-        glyph = Text(x="x",
-                     y="y",
-                     text="text",
-                     text_font_style="bold",
-                     text_baseline="middle",
-                     text_align="center",
-                     text_alpha=1.0,
-                     text_color=bokeh_colors[0]
-                     )
+        glyph = Text(
+            x="x",
+            y="y",
+            text="text",
+            text_font_style="bold",
+            text_baseline="middle",
+            text_align="center",
+            text_alpha=1.0,
+            text_color=bokeh_colors[0],
+        )
         bk_ax.add_glyph(source, glyph)
 
         # plot shaft elements
@@ -2108,14 +2119,8 @@ class Rotor(object):
         )
 
         TOOLS = "pan,wheel_zoom,box_zoom,hover,reset,save,"
-        TOOLTIPS1 = [
-            ('Frquency:', '@y0 Hz'),
-            ('Number of Elements', '@x0')
-        ]
-        TOOLTIPS2 = [
-            ('Relative Error:', '@y1'),
-            ('Number of Elements', '@x1')
-        ]
+        TOOLTIPS1 = [("Frquency:", "@y0 Hz"), ("Number of Elements", "@x0")]
+        TOOLTIPS2 = [("Relative Error:", "@y1"), ("Number of Elements", "@x1")]
         # create a new plot and add a renderer
         freq_arr = figure(
             tools=TOOLS,

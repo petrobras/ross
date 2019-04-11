@@ -1,8 +1,7 @@
-from ross import *
+import ross as rs
+from ross.materials import steel
 import numpy as np
 import pytest
-
-steel = mtr.steel
 
 
 def rotor_example1(w=0, n_el=48):
@@ -21,19 +20,19 @@ def rotor_example1(w=0, n_el=48):
     shaft_elm = []
     for i in range(n_el):
         shaft_elm.append(
-            shaft.ShaftElement(L=1.5 / n_el, material=steel, n=i, i_d=0, o_d=0.05)
+            rs.ShaftElement(L=1.5 / n_el, material=steel, n=i, i_d=0, o_d=0.05)
         )
-    disk0 = disk.DiskElement.from_geometry(
+    disk0 = rs.DiskElement.from_geometry(
         n=(n_el / 1.5) * 0.5, material=steel, width=0.07, i_d=0.05, o_d=0.28
     )
-    disk1 = disk.DiskElement.from_geometry(
+    disk1 = rs.DiskElement.from_geometry(
         n=(n_el / 1.5), material=steel, width=0.07, i_d=0.05, o_d=0.35
     )
 
-    bearing0 = bse.BearingElement(n=0, kxx=1e6, kyy=1e6, cxx=0, cyy=0)
-    bearing1 = bse.BearingElement(n=n_el, kxx=1e6, kyy=1e6, cxx=0, cyy=0)
+    bearing0 = rs.BearingElement(n=0, kxx=1e6, kyy=1e6, cxx=0, cyy=0)
+    bearing1 = rs.BearingElement(n=n_el, kxx=1e6, kyy=1e6, cxx=0, cyy=0)
 
-    return rotor.Rotor(shaft_elm, [disk0, disk1], [bearing0, bearing1], w=w)
+    return rs.Rotor(shaft_elm, [disk0, disk1], [bearing0, bearing1], w=w)
 
 
 def test_example1_w_equals_0rpm():
@@ -69,18 +68,18 @@ def rotor_example2(w=0, n_el=48):
     shaft_elm = []
     for i in range(n_el):
         shaft_elm.append(
-            shaft.ShaftElement(L=1.5 / n_el, material=steel, n=i, i_d=0, o_d=0.05)
+            rs.ShaftElement(L=1.5 / n_el, material=steel, n=i, i_d=0, o_d=0.05)
         )
-    return rotor.Rotor(
+    return rs.Rotor(
         shaft_elm,
         [
-            disk.DiskElement.from_geometry(
+            rs.DiskElement.from_geometry(
                 n=n_el, material=steel, width=0.07, i_d=0.05, o_d=0.35
             )
         ],
         [
-            bse.BearingElement(n=0, kxx=10e6, kyy=10e6, cxx=0, cyy=0),
-            bse.BearingElement(n=int((n_el / 1.5)), kxx=10e6, kyy=10e6, cxx=0, cyy=0),
+            rs.BearingElement(n=0, kxx=10e6, kyy=10e6, cxx=0, cyy=0),
+            rs.BearingElement(n=int((n_el / 1.5)), kxx=10e6, kyy=10e6, cxx=0, cyy=0),
         ],
         w=w,
     )
@@ -118,19 +117,19 @@ def rotor_example3(w=0, n_el=48):
     shaft_elm = []
     for i in range(n_el):
         shaft_elm.append(
-            shaft.ShaftElement(L=1.5 / n_el, material=steel, n=i, i_d=0, o_d=0.05)
+            rs.ShaftElement(L=1.5 / n_el, material=steel, n=i, i_d=0, o_d=0.05)
         )
-    disk0 = disk.DiskElement.from_geometry(
+    disk0 = rs.DiskElement.from_geometry(
         n=(n_el / 3), material=steel, width=0.07, i_d=0.05, o_d=0.28
     )
-    disk1 = disk.DiskElement.from_geometry(
+    disk1 = rs.DiskElement.from_geometry(
         n=(n_el / 1.5), material=steel, width=0.07, i_d=0.05, o_d=0.35
     )
 
-    bearing0 = bse.BearingElement(n=0, kxx=1e6, kyy=8e5, cxx=0, cyy=0)
-    bearing1 = bse.BearingElement(n=n_el, kxx=1e6, kyy=8e5, cxx=0, cyy=0)
+    bearing0 = rs.BearingElement(n=0, kxx=1e6, kyy=8e5, cxx=0, cyy=0)
+    bearing1 = rs.BearingElement(n=n_el, kxx=1e6, kyy=8e5, cxx=0, cyy=0)
 
-    return rotor.Rotor(shaft_elm, [disk0, disk1], [bearing0, bearing1], w=w)
+    return rs.Rotor(shaft_elm, [disk0, disk1], [bearing0, bearing1], w=w)
 
 
 def test_example3_w_equals_0rpm():
@@ -164,19 +163,19 @@ def rotor_example4(w=0, n_el=48):
     shaft_elm = []
     for i in range(n_el):
         shaft_elm.append(
-            shaft.ShaftElement(L=1.5 / n_el, material=steel, n=i, i_d=0, o_d=0.05)
+            rs.ShaftElement(L=1.5 / n_el, material=steel, n=i, i_d=0, o_d=0.05)
         )
-    disk0 = disk.DiskElement.from_geometry(
+    disk0 = rs.DiskElement.from_geometry(
         n=(n_el / 1.5) * 0.5, material=steel, width=0.07, i_d=0.05, o_d=0.28
     )
-    disk1 = disk.DiskElement.from_geometry(
+    disk1 = rs.DiskElement.from_geometry(
         n=(n_el / 1.5), material=steel, width=0.07, i_d=0.05, o_d=0.35
     )
 
-    bearing0 = bse.BearingElement(n=0, kxx=1e6, kyy=1e6, cxx=3e3, cyy=3e3)
-    bearing1 = bse.BearingElement(n=n_el, kxx=1e6, kyy=1e6, cxx=3e3, cyy=3e3)
+    bearing0 = rs.BearingElement(n=0, kxx=1e6, kyy=1e6, cxx=3e3, cyy=3e3)
+    bearing1 = rs.BearingElement(n=n_el, kxx=1e6, kyy=1e6, cxx=3e3, cyy=3e3)
 
-    return rotor.Rotor(shaft_elm, [disk0, disk1], [bearing0, bearing1], w=w)
+    return rs.Rotor(shaft_elm, [disk0, disk1], [bearing0, bearing1], w=w)
 
 
 def test_example4_w_equals_0rpm():
@@ -221,19 +220,19 @@ def rotor_example5(w=0, n_el=48):
     shaft_elm = []
     for i in range(n_el):
         shaft_elm.append(
-            shaft.ShaftElement(L=1.5 / n_el, material=steel, n=i, i_d=0, o_d=0.05)
+            rs.ShaftElement(L=1.5 / n_el, material=steel, n=i, i_d=0, o_d=0.05)
         )
-    disk0 = disk.DiskElement.from_geometry(
+    disk0 = rs.DiskElement.from_geometry(
         n=(n_el / 3), material=steel, width=0.07, i_d=0.05, o_d=0.28
     )
-    disk1 = disk.DiskElement.from_geometry(
+    disk1 = rs.DiskElement.from_geometry(
         n=(n_el / 1.5), material=steel, width=0.07, i_d=0.05, o_d=0.35
     )
 
-    bearing0 = bse.BearingElement(n=0, kxx=1e6, kyy=2e5, cxx=0, cyy=0)
-    bearing1 = bse.BearingElement(n=n_el, kxx=1e6, kyy=2e5, cxx=0, cyy=0)
+    bearing0 = rs.BearingElement(n=0, kxx=1e6, kyy=2e5, cxx=0, cyy=0)
+    bearing1 = rs.BearingElement(n=n_el, kxx=1e6, kyy=2e5, cxx=0, cyy=0)
 
-    return rotor.Rotor(shaft_elm, [disk0, disk1], [bearing0, bearing1], w=w)
+    return rs.Rotor(shaft_elm, [disk0, disk1], [bearing0, bearing1], w=w)
 
 
 def test_example5_w_equals4000rpm():
@@ -261,19 +260,19 @@ def rotor_example6(w=0, n_el=48):
     shaft_elm = []
     for i in range(n_el):
         shaft_elm.append(
-            shaft.ShaftElement(L=1.5 / n_el, material=steel, n=i, i_d=0, o_d=0.05)
+            rs.ShaftElement(L=1.5 / n_el, material=steel, n=i, i_d=0, o_d=0.05)
         )
-    disk0 = disk.DiskElement.from_geometry(
+    disk0 = rs.DiskElement.from_geometry(
         n=(n_el / 1.5) * 0.5, material=steel, width=0.07, i_d=0.05, o_d=0.28
     )
-    disk1 = disk.DiskElement.from_geometry(
+    disk1 = rs.DiskElement.from_geometry(
         n=(n_el / 1.5), material=steel, width=0.07, i_d=0.05, o_d=0.35
     )
 
-    bearing0 = bse.BearingElement(n=0, kxx=1e6, kyy=1e6, cxx=0, kxy=5e5, cyy=0)
-    bearing1 = bse.BearingElement(n=n_el, kxx=1e6, kyy=1e6, cxx=0, kxy=5e5, cyy=0)
+    bearing0 = rs.BearingElement(n=0, kxx=1e6, kyy=1e6, cxx=0, kxy=5e5, cyy=0)
+    bearing1 = rs.BearingElement(n=n_el, kxx=1e6, kyy=1e6, cxx=0, kxy=5e5, cyy=0)
 
-    return rotor.Rotor(shaft_elm, [disk0, disk1], [bearing0, bearing1], w=w)
+    return rs.Rotor(shaft_elm, [disk0, disk1], [bearing0, bearing1], w=w)
 
 
 def test_example6_w_equals4000rpm():
@@ -300,19 +299,19 @@ def rotor_example7(w=0, n_el=48):
     shaft_elm = []
     for i in range(n_el):
         shaft_elm.append(
-            shaft.ShaftElement(
+            rs.ShaftElement(
                 L=1.5 / n_el, material=steel, n=i, i_d=0, o_d=0.025 + 0.015 * (i / n_el)
             )
         )
 
-    disk0 = disk.DiskElement.from_geometry(
+    disk0 = rs.DiskElement.from_geometry(
         n=(n_el / 2), material=steel, width=0.07, i_d=0.05, o_d=0.28
     )
 
-    bearing0 = bse.BearingElement(n=0, kxx=1e7, kyy=1e7, cxx=1e3, cyy=1e3)
-    bearing1 = bse.BearingElement(n=n_el, kxx=1e7, kyy=1e7, cxx=1e3, cyy=1e3)
+    bearing0 = rs.BearingElement(n=0, kxx=1e7, kyy=1e7, cxx=1e3, cyy=1e3)
+    bearing1 = rs.BearingElement(n=n_el, kxx=1e7, kyy=1e7, cxx=1e3, cyy=1e3)
 
-    return rotor.Rotor(shaft_elm, [disk0], [bearing0, bearing1], w=w)
+    return rs.Rotor(shaft_elm, [disk0], [bearing0, bearing1], w=w)
 
 
 def test_example7_w_equals3000rpm():
