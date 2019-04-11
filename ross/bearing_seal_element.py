@@ -83,6 +83,8 @@ class BearingElement(Element):
     Values for each parameter will be interpolated for the speed.
     Parameters
     ----------
+    n: int
+        Node in which the bearing will be located
     kxx: float, array
         Direct stiffness in the x direction.
     cxx: float, array
@@ -109,6 +111,35 @@ class BearingElement(Element):
         Array with the speeds (rad/s).
     Examples
     --------
+    >>> # A bearing element located in the first rotor node, with these
+    >>> # following stiffness and damping coefficients and speed range from
+    >>> # 0 to 200 rad/s
+    >>> Kxx = 1e6
+    >>> Kyy = 0.8e6
+    >>> Cxx = 2e2
+    >>> Cyy = 1.5e2
+    >>> W = np.linspace(0,200,11)
+    >>> bearing0 = BearingElement(n=0, kxx=Kxx, kyy=Kyy, cxx=Cxx, cyy=Cyy, w=W)
+    >>> bearing0.K(W)
+    array([[[1000000., 1000000., 1000000., 1000000., 1000000., 1000000.,
+         1000000., 1000000., 1000000., 1000000., 1000000.],
+        [      0.,       0.,       0.,       0.,       0.,       0.,
+               0.,       0.,       0.,       0.,       0.]],
+
+       [[      0.,       0.,       0.,       0.,       0.,       0.,
+               0.,       0.,       0.,       0.,       0.],
+        [ 800000.,  800000.,  800000.,  800000.,  800000.,  800000.,
+          800000.,  800000.,  800000.,  800000.,  800000.]]])
+    >>> bearing0.C(W)
+    array([[[200., 200., 200., 200., 200., 200., 200., 200., 200., 200.,
+         200.],
+        [  0.,   0.,   0.,   0.,   0.,   0.,   0.,   0.,   0.,   0.,
+           0.]],
+
+       [[  0.,   0.,   0.,   0.,   0.,   0.,   0.,   0.,   0.,   0.,
+           0.],
+        [150., 150., 150., 150., 150., 150., 150., 150., 150., 150.,
+         150.]]])
     """
 
     def __init__(
