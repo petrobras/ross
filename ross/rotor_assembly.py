@@ -277,6 +277,11 @@ class Rotor(object):
         # number of dofs
         self.ndof = 4 * max([el.n for el in shaft_elements]) + 8
 
+        # values for static analysis will be calculated by def static
+        self.Vx = None
+        self.Bm = None
+        self.disp_y = None
+
         #  diameter at node position
 
         print("To check the rotor geometry, use the method plot_rotor()\n"
