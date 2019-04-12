@@ -6,6 +6,8 @@ import matplotlib.patches as mpatches
 import bokeh.palettes as bp
 from ross.element import Element
 import pytest
+import pandas as pd
+import sys
 
 __all__ = ["BearingElement", "SealElement"]
 bokeh_colors = bp.RdGy[11]
@@ -359,3 +361,19 @@ class SealElement(BearingElement):
             bk_seal_points_l[0], bk_seal_points_l[1],
             alpha=0.5, line_width=2, color=bokeh_colors[6]
         )
+
+
+def bearing_element_from_excel(n, file):
+    try:
+        df = pd.read_excel(file)
+    except FileNotFoundError:
+        sys.exit(file + " not found.")
+    try:
+        return BearingElement(n, kxx=df['kxx'].tolist(), cxx=df['cxx'].tolist(), kyy=df['kyy'].tolist(),
+                              kxy=df['kxy'].tolist(), kyx=df['kyx'].tolist(), cyy=df['cyy'].tolist(),
+                              cxy=df['cxy'].tolist(), cyx=df['cyx'].tolist(), w=df['w'].tolist())
+    except KeyError:
+        sys.exit("One or more column names did not match the expected. "
+                 "Make sure the table header contains the parameters for the "
+                 "BearingElement class.")
+
