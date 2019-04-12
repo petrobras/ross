@@ -1694,7 +1694,7 @@ class Rotor(object):
 
         # Shearing Force vector
         Vx = [0] * (len(self.nodes_pos))
-        self.Vx = Vx
+
         Vx_axis = []
         for i in range(int(len(self.nodes))):
             Vx_axis.append(self.nodes_pos[i])
@@ -1714,7 +1714,8 @@ class Rotor(object):
                 DskForce.insert(i + 1, 0)
                 SchForce.insert(i + 1, 0)
                 Vx_axis.insert(i, Vx_axis[i])
-        Vx = [x*-1 for x in Vx]
+        self.Vx = [x*-1 for x in Vx]
+        Vx = self.Vx
 
         # Bending Moment vector
         Mx = []
