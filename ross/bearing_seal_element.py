@@ -364,6 +364,15 @@ class SealElement(BearingElement):
 
 
 def bearing_element_from_excel(n, file):
+    """Instantiate a bearing using inputs from an excel file.
+    Parameters
+    ----------
+    n : int. The node in which the bearing will be located in the rotor.
+    file: str. Path to the excel file containing the bearing parameters.
+    Returns
+    -------
+    A bearing object.
+    """
     try:
         df = pd.read_excel(file)
     except FileNotFoundError:
