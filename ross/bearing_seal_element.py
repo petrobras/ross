@@ -8,6 +8,7 @@ from ross.element import Element
 import pytest
 import pandas as pd
 import sys
+import xlrd
 
 __all__ = ["BearingElement", "SealElement"]
 bokeh_colors = bp.RdGy[11]
@@ -363,12 +364,12 @@ class SealElement(BearingElement):
         )
 
 
-def bearing_element_from_excel(n, file):
-    """Instantiate a bearing using inputs from an excel file.
+def bearing_element_from_table(n, file):
+    """Instantiate a bearing using inputs from a table, either excel or csv.
     Parameters
     ----------
     n : int. The node in which the bearing will be located in the rotor.
-    file: str. Path to the excel file containing the bearing parameters.
+    file: str. Path to the file containing the bearing parameters.
     Returns
     -------
     A bearing object.
@@ -377,6 +378,8 @@ def bearing_element_from_excel(n, file):
         df = pd.read_excel(file)
     except FileNotFoundError:
         sys.exit(file + " not found.")
+    except xlrd.biffh.XLRDError:
+        df = pd.read_csv(file)
     try:
         return BearingElement(n, kxx=df['kxx'].tolist(), cxx=df['cxx'].tolist(), kyy=df['kyy'].tolist(),
                               kxy=df['kxy'].tolist(), kyx=df['kyx'].tolist(), cyy=df['cyy'].tolist(),
@@ -385,4 +388,3 @@ def bearing_element_from_excel(n, file):
         sys.exit("One or more column names did not match the expected. "
                  "Make sure the table header contains the parameters for the "
                  "BearingElement class.")
-
