@@ -4,9 +4,30 @@
 import io
 import os
 import sys
+import re
 from shutil import rmtree
 
 from setuptools import find_packages, setup, Command
+
+
+def read(path, encoding="utf-8"):
+    path = os.path.join(os.path.dirname(__file__), path)
+    with io.open(path, encoding=encoding) as fp:
+        return fp.read()
+
+
+def version(path):
+    """Obtain the packge version from a python file e.g. pkg/__init__.py
+    See <https://packaging.python.org/en/latest/single_source_version.html>.
+    """
+    version_file = read(path)
+    version_match = re.search(
+        r"""^__version__ = ['"]([^'"]*)['"]""", version_file, re.M
+    )
+    if version_match:
+        return version_match.group(1)
+    raise RuntimeError("Unable to find version string.")
+
 
 # Package meta-data.
 NAME = "ross"
@@ -15,7 +36,7 @@ URL = "https://github.com/ross-rotordynamics/ross"
 EMAIL = "raphaelts@gmail.com"
 AUTHOR = "ross developers"
 REQUIRES_PYTHON = ">=3.6.0"
-VERSION = "0.0.1"
+VERSION = version("ross/__init__.py")
 
 # What packages are required for this module to be executed?
 REQUIRED = [
@@ -48,14 +69,6 @@ try:
         long_description = "\n" + f.read()
 except FileNotFoundError:
     long_description = DESCRIPTION
-
-# Load the package's __version__.py module as a dictionary.
-about = {}
-if not VERSION:
-    with open(os.path.join(here, NAME, "__version__.py")) as f:
-        exec(f.read(), about)
-else:
-    about["__version__"] = VERSION
 
 
 class UploadCommand(Command):
