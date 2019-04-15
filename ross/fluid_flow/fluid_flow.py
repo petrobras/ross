@@ -1,6 +1,7 @@
 import numpy as np
 import matplotlib.pyplot as plt
 import sys
+from bokeh.plotting import figure, output_file, show
 
 
 class PressureMatrix:
@@ -130,14 +131,13 @@ class PressureMatrix:
     >>> rho = 860.
     >>> my_pressure_matrix = flow.PressureMatrix(nz, ntheta, nradius, length,
     ...                                          omega, p_in, p_out, radius_rotor,
-    ...                                          radius_stator, xi, yi,  visc, rho, plot_eccentricity=True)
-    >>> P = my_pressure_matrix.calculate_pressure_matrix()
-    >>> my_pressure_matrix.plot_pressure_z(show_immediately=False)
-    >>> my_pressure_matrix.plot_shape(show_immediately=False)
-    >>> my_pressure_matrix.plot_pressure_theta_cylindrical(z=int(nz/2), show_immediately=False)
-    >>> my_pressure_matrix.plot_pressure_theta(z=int(nz/2), show_immediately=False)
-    >>> plt.show()
-    >>> plt.close('all')
+    ...                                          radius_stator, xi, yi,  visc, rho)
+    >>> my_pressure_matrix.calculate_pressure_matrix()
+    >>> my_pressure_matrix.plot_eccentricity()
+    >>> my_pressure_matrix.plot_pressure_z()
+    >>> my_pressure_matrix.plot_shape()
+    >>> my_pressure_matrix.plot_pressure_theta_cylindrical(z=int(nz/2))
+    >>> my_pressure_matrix.plot_pressure_theta(z=int(nz/2))
 
     """
     def __init__(self, nz, ntheta, nradius, length, omega, p_in,
@@ -266,69 +266,54 @@ class PressureMatrix:
 
         return radius_external, xre, yre
 
-    def plot_eccentricity(self, z=0, show_immediately=True):
+    def plot_eccentricity(self, z=0):
         """This function assembles pressure graphic along the z-axis.
         The first few plots are of a different color to indicate where theta begins.
         Parameters
         ----------
         z: int
             The distance in z where to cut and plot.
-        show_immediately: bool
-            If True, immediately plots the graphic. Otherwise, the user should call plt.show()
-            at some point. It is useful in case the user wants to see one graphic alongside another.
         """
-        plt.figure(self.plot_counter)
-        self.plot_counter += 1
+        output_file("plot_eccentricity.html")
+        p = figure(title="Cut in plane Z=" + str(z), x_axis_label='X axis', y_axis_label='Y axis')
         for j in range(0, self.ntheta):
             if j < 5:
-                plt.plot(self.xre[z][j], self.yre[z][j], 'k.')
-                plt.plot(self.xri[z][j], self.yri[z][j], 'k.')
+                p.circle(self.xre[z][j], self.yre[z][j], color="black")
+                p.circle(self.xri[z][j], self.yri[z][j], color="black")
             else:
-                plt.plot(self.xre[z][j], self.yre[z][j], 'r.')
-                plt.plot(self.xri[z][j], self.yri[z][j], 'b.')
-            plt.plot(0, 0, '*')
-            plt.title('Cut in plane Z=' + str(z))
-            plt.xlabel('X axis')
-            plt.ylabel('Y axis')
-            plt.axis('equal')
-        plt.show(block=show_immediately)
-        if show_immediately:
-            plt.close('all')
+                p.circle(self.xre[z][j], self.yre[z][j], color="red")
+                p.circle(self.xri[z][j], self.yri[z][j], color="blue")
+        show(p)
 
-    def plot_pressure_z(self, show_immediately=True):
+    def plot_pressure_z(self, theta=0):
         """This function assembles pressure graphic along the z-axis.
         Parameters
         ----------
-        show_immediately: bool
-            If True, immediately plots the graphic. Otherwise, the user should call plt.show()
-            at some point. It is useful in case the user wants to see one graphic alongside another.
+        theta: int
+            The theta to be considered.
         """
         if not self.pressure_matrix_available:
             sys.exit('Must calculate the pressure matrix.'
                      'Try calling calculate_pressure_matrix first.')
-        plt.figure(self.plot_counter)
-        self.plot_counter += 1
+        output_file("plot_pressure_z.html")
+        x = []
+        y = []
         for i in range(0, self.nz):
-            plt.plot(i*self.dz, self.p_mat[i][0], 'bo')
-        plt.title('Pressure along the Z direction (direction of flow); Theta=0')
-        plt.xlabel('Points along Z')
-        plt.ylabel('Pressure')
-        plt.show(block=show_immediately)
-        if show_immediately:
-            plt.close('all')
+            x.append(i*self.dz)
+            y.append(self.p_mat[i][theta])
+        p = figure(title="Pressure along the Z direction (direction of flow); Theta=" + str(theta),
+                   x_axis_label='Points along Z')
+        p.line(x, y, legend="Pressure", line_width=2)
+        show(p)
 
-    def plot_shape(self, theta=0, show_immediately=True):
+    def plot_shape(self, theta=0):
         """This function assembles a graphic representing the geometry of the rotor.
         Parameters
         ----------
         theta: int
             The theta to be considered.
-        show_immediately: bool
-            If True, immediately plots the graphic. Otherwise, the user should call plt.show()
-            at some point. It is useful in case the user wants to see one graphic alongside another.
         """
-        plt.figure(self.plot_counter)
-        self.plot_counter += 1
+        output_file("plot_shape.html")
         x = np.zeros(self.nz)
         y_re = np.zeros(self.nz)
         y_ri = np.zeros(self.nz)
@@ -336,14 +321,11 @@ class PressureMatrix:
             x[i] = i * self.dz
             y_re[i] = self.re[i][theta]
             y_ri[i] = self.ri[i][theta]
-        plt.plot(x, y_re, 'r')
-        plt.plot(x, y_ri, 'b')
-        plt.title('Shapes of stator and rotor along Z; Theta='+str(theta))
-        plt.xlabel('Points along Z')
-        plt.ylabel('Radial direction')
-        plt.show(block=show_immediately)
-        if show_immediately:
-            plt.close('all')
+        p = figure(title='Shapes of stator and rotor along Z; Theta='+str(theta),
+                   x_axis_label='Points along Z', y_axis_label='Radial direction')
+        p.line(x, y_re, line_width=2, color="red")
+        p.line(x, y_ri, line_width=2, color="blue")
+        show(p)
 
     def plot_pressure_theta_cylindrical(self, z=0, show_immediately=True):
         """This function assembles cylindrical pressure graphic in the theta direction for a given z.
@@ -414,4 +396,156 @@ class PressureMatrix:
         plt.show(block=show_immediately)
         if show_immediately:
             plt.close('all')
+
+    def matplot_eccentricity(self, z=0, show_immediately=True):
+        """This function assembles pressure graphic along the z-axis using matplotlib.
+        The first few plots are of a different color to indicate where theta begins.
+        Parameters
+        ----------
+        z: int
+            The distance in z where to cut and plot.
+        show_immediately: bool
+            If True, immediately plots the graphic. Otherwise, the user should call plt.show()
+            at some point. It is useful in case the user wants to see one graphic alongside another.
+        """
+        plt.figure(self.plot_counter)
+        self.plot_counter += 1
+        for j in range(0, self.ntheta):
+            if j < 5:
+                plt.plot(self.xre[z][j], self.yre[z][j], 'k.')
+                plt.plot(self.xri[z][j], self.yri[z][j], 'k.')
+            else:
+                plt.plot(self.xre[z][j], self.yre[z][j], 'r.')
+                plt.plot(self.xri[z][j], self.yri[z][j], 'b.')
+            plt.plot(0, 0, '*')
+            plt.title('Cut in plane Z=' + str(z))
+            plt.xlabel('X axis')
+            plt.ylabel('Y axis')
+            plt.axis('equal')
+        plt.show(block=show_immediately)
+        if show_immediately:
+            plt.close('all')
+
+    def matplot_pressure_z(self, show_immediately=True):
+        """This function assembles pressure graphic along the z-axis using matplotlib.
+        Parameters
+        ----------
+        show_immediately: bool
+            If True, immediately plots the graphic. Otherwise, the user should call plt.show()
+            at some point. It is useful in case the user wants to see one graphic alongside another.
+        """
+        if not self.pressure_matrix_available:
+            sys.exit('Must calculate the pressure matrix.'
+                     'Try calling calculate_pressure_matrix first.')
+        plt.figure(self.plot_counter)
+        self.plot_counter += 1
+        for i in range(0, self.nz):
+            plt.plot(i*self.dz, self.p_mat[i][0], 'bo')
+        plt.title('Pressure along the Z direction (direction of flow); Theta=0')
+        plt.xlabel('Points along Z')
+        plt.ylabel('Pressure')
+        plt.show(block=show_immediately)
+        if show_immediately:
+            plt.close('all')
+
+    def matplot_shape(self, theta=0, show_immediately=True):
+        """This function assembles a graphic representing the geometry of the rotor using matplotlib.
+        Parameters
+        ----------
+        theta: int
+            The theta to be considered.
+        show_immediately: bool
+            If True, immediately plots the graphic. Otherwise, the user should call plt.show()
+            at some point. It is useful in case the user wants to see one graphic alongside another.
+        """
+        plt.figure(self.plot_counter)
+        self.plot_counter += 1
+        x = np.zeros(self.nz)
+        y_re = np.zeros(self.nz)
+        y_ri = np.zeros(self.nz)
+        for i in range(0, self.nz):
+            x[i] = i * self.dz
+            y_re[i] = self.re[i][theta]
+            y_ri[i] = self.ri[i][theta]
+        plt.plot(x, y_re, 'r')
+        plt.plot(x, y_ri, 'b')
+        plt.title('Shapes of stator and rotor along Z; Theta='+str(theta))
+        plt.xlabel('Points along Z')
+        plt.ylabel('Radial direction')
+        plt.show(block=show_immediately)
+        if show_immediately:
+            plt.close('all')
+
+    def matplot_pressure_theta_cylindrical(self, z=0, show_immediately=True):
+        """This function assembles cylindrical pressure graphic in the theta direction for a given z,
+        using matplotlib.
+        Parameters
+        ----------
+        z: int
+            The distance along z-axis to be considered.
+        show_immediately: bool
+            If True, immediately plots the graphic. Otherwise, the user should call plt.show()
+            at some point. It is useful in case the user wants to see one graphic alongside another.
+        """
+        if not self.pressure_matrix_available:
+            sys.exit('Must calculate the pressure matrix.'
+                     'Try calling calculate_pressure_matrix first.')
+        r = np.arange(0, self.radius_stator + 0.0001, (
+            self.radius_stator - self.radius_rotor)/self.nradius
+            )
+        theta = np.arange(-np.pi*0.25, 1.75*np.pi + self.dtheta/2, self.dtheta)
+
+        pressure_along_theta = np.zeros(self.ntheta)
+        for i in range(0, self.ntheta):
+            pressure_along_theta[i] = self.p_mat[0][i]
+
+        min_pressure = np.amin(pressure_along_theta)
+
+        r_matrix, theta_matrix = np.meshgrid(r, theta)
+        z_matrix = np.zeros((theta.size, r.size))
+        inner_radius_list = np.zeros(self.ntheta)
+        pressure_list = np.zeros((theta.size, r.size))
+        for i in range(0, theta.size):
+            inner_radius = np.sqrt(self.xri[z][i] * self.xri[z][i] + self.yri[z][i] * self.yri[z][i])
+            inner_radius_list[i] = inner_radius
+            for j in range(0, r.size):
+                if r_matrix[i][j] < inner_radius:
+                    continue
+                pressure_list[i][j] = pressure_along_theta[i]
+                z_matrix[i][j] = pressure_along_theta[i] - min_pressure + 0.01
+        fig, ax = plt.subplots(subplot_kw=dict(projection='polar'))
+        self.plot_counter += 1
+        ax.contourf(theta_matrix, r_matrix, z_matrix, cmap='coolwarm')
+        plt.title('Pressure along Theta; Z='+str(z))
+        plt.show(block=show_immediately)
+        if show_immediately:
+            plt.close('all')
+
+    def matplot_pressure_theta(self, z=0, show_immediately=True):
+        """This function assembles pressure graphic in the theta direction for a given z,
+        using matplotlib.
+        Parameters
+        ----------
+        z: int
+            The distance along z-axis to be considered.
+        show_immediately: bool
+            If True, immediately plots the graphic. Otherwise, the user should call plt.show()
+            at some point. It is useful in case the user wants to see one graphic alongside another.
+        """
+        plt.figure(self.plot_counter)
+        self.plot_counter += 1
+        if not self.pressure_matrix_available:
+            sys.exit('Must calculate the pressure matrix.'
+                     'Try calling calculate_pressure_matrix first.')
+        theta_list = []
+        for theta in range(0, self.ntheta):
+            theta_list.append(theta * self.dtheta)
+        plt.plot(theta_list, self.p_mat[z], 'b')
+        plt.title('Pressure along Theta; Z='+str(z))
+        plt.xlabel('Points along Theta')
+        plt.ylabel('Pressure')
+        plt.show(block=show_immediately)
+        if show_immediately:
+            plt.close('all')
+
 
