@@ -26,10 +26,12 @@ project = "ross"
 copyright = "2019, Team Ross"
 author = "Team Ross"
 
+import ross
+
 # The short X.Y version
-version = ""
+version = ross.__version__
 # The full version, including alpha/beta/rc tags
-release = "1.0"
+release = ross.__version__
 
 
 # -- General configuration ---------------------------------------------------
@@ -122,7 +124,7 @@ colors = {
 # theme further.
 html_theme_options = {
     # Navigation bar title. (Default: ``project`` value)
-    "navbar_title": "Demo",
+    "navbar_title": "ross",
     # Tab name for entire site. (Default: "Site")
     "navbar_site_name": "Site",
     # A list of tuples containing pages or urls to link to.
@@ -132,9 +134,13 @@ html_theme_options = {
     #    (name, "http://example.com", True) # arbitrary absolute url
     # Note the "1" or "True" value above as the third argument to indicate
     # an arbitrary url.
-    "navbar_links": [("Examples", "examples"), ("Link", "http://example.com", True)],
+    "navbar_links": [
+        ("API", "api/index"),
+        ("Tutorial", "tutorial/index"),
+        ("Examples", "gallery/index"),
+    ],
     # Render the next and previous page links in navbar. (Default: true)
-    "navbar_sidebarrel": True,
+    "navbar_sidebarrel": False,
     # Render the current pages TOC in the navbar. (Default: true)
     "navbar_pagenav": True,
     # Tab name for the current pages TOC. (Default: "Page")
