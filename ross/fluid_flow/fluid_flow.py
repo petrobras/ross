@@ -135,8 +135,8 @@ class PressureMatrix:
     >>> my_pressure_matrix.plot_eccentricity()
     >>> my_pressure_matrix.plot_pressure_z()
     >>> my_pressure_matrix.plot_shape()
-    >>> my_pressure_matrix.plot_pressure_theta_cylindrical(z=int(nz/2))
     >>> my_pressure_matrix.plot_pressure_theta(z=int(nz/2))
+    >>> my_pressure_matrix.plot_pressure_theta_cylindrical(z=int(nz/2))
 
     """
     def __init__(self, nz, ntheta, nradius, length, omega, p_in,
@@ -319,50 +319,6 @@ class PressureMatrix:
         p.line(x, y_ri, line_width=2, color="blue")
         show(p)
 
-    def plot_pressure_theta_cylindrical(self, z=0, show_immediately=True):
-        """This function assembles cylindrical pressure graphic in the theta direction for a given z.
-        Parameters
-        ----------
-        z: int
-            The distance along z-axis to be considered.
-        show_immediately: bool
-            If True, immediately plots the graphic. Otherwise, the user should call plt.show()
-            at some point. It is useful in case the user wants to see one graphic alongside another.
-        """
-        if not self.pressure_matrix_available:
-            sys.exit('Must calculate the pressure matrix.'
-                     'Try calling calculate_pressure_matrix first.')
-        r = np.arange(0, self.radius_stator + 0.0001, (
-            self.radius_stator - self.radius_rotor)/self.nradius
-            )
-        theta = np.arange(-np.pi*0.25, 1.75*np.pi + self.dtheta/2, self.dtheta)
-
-        pressure_along_theta = np.zeros(self.ntheta)
-        for i in range(0, self.ntheta):
-            pressure_along_theta[i] = self.p_mat[0][i]
-
-        min_pressure = np.amin(pressure_along_theta)
-
-        r_matrix, theta_matrix = np.meshgrid(r, theta)
-        z_matrix = np.zeros((theta.size, r.size))
-        inner_radius_list = np.zeros(self.ntheta)
-        pressure_list = np.zeros((theta.size, r.size))
-        for i in range(0, theta.size):
-            inner_radius = np.sqrt(self.xri[z][i] * self.xri[z][i] + self.yri[z][i] * self.yri[z][i])
-            inner_radius_list[i] = inner_radius
-            for j in range(0, r.size):
-                if r_matrix[i][j] < inner_radius:
-                    continue
-                pressure_list[i][j] = pressure_along_theta[i]
-                z_matrix[i][j] = pressure_along_theta[i] - min_pressure + 0.01
-        fig, ax = plt.subplots(subplot_kw=dict(projection='polar'))
-        self.plot_counter += 1
-        ax.contourf(theta_matrix, r_matrix, z_matrix, cmap='coolwarm')
-        plt.title('Pressure along Theta; Z='+str(z))
-        plt.show(block=show_immediately)
-        if show_immediately:
-            plt.close('all')
-
     def plot_pressure_theta(self, z=0):
         """This function assembles pressure graphic in the theta direction for a given z.
         Parameters
@@ -461,7 +417,7 @@ class PressureMatrix:
         if show_immediately:
             plt.close('all')
 
-    def matplot_pressure_theta_cylindrical(self, z=0, show_immediately=True):
+    def plot_pressure_theta_cylindrical(self, z=0, show_immediately=True):
         """This function assembles cylindrical pressure graphic in the theta direction for a given z,
         using matplotlib.
         Parameters
