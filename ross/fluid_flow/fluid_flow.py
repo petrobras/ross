@@ -125,13 +125,12 @@ class PressureMatrix:
     >>> p_out = 1.
     >>> radius_rotor = 0.08
     >>> radius_stator = 0.1
-    >>> xi = 0.007
-    >>> yi = -0.007
+    >>> eccentricity = 0.01
     >>> visc = 0.015
     >>> rho = 860.
     >>> my_pressure_matrix = flow.PressureMatrix(nz, ntheta, nradius, length,
     ...                                          omega, p_in, p_out, radius_rotor,
-    ...                                          radius_stator, xi, yi,  visc, rho)
+    ...                                          radius_stator, eccentricity,  visc, rho)
     >>> my_pressure_matrix.calculate_pressure_matrix()
     >>> my_pressure_matrix.plot_eccentricity()
     >>> my_pressure_matrix.plot_pressure_z()
@@ -142,7 +141,7 @@ class PressureMatrix:
     """
     def __init__(self, nz, ntheta, nradius, length, omega, p_in,
                  p_out, radius_rotor, radius_stator, eccentricity,
-                 visc, rho, plot_eccentricity=False):
+                 visc, rho):
         self.nz = nz
         self.ntheta = ntheta
         self.nradius = nradius
@@ -174,7 +173,7 @@ class PressureMatrix:
         self.p_mat = np.zeros([self.nz, self.ntheta])
         self.bearing_type = ''
         self.plot_counter = 0
-        self.calculate_coefficients(plot_eccentricity)
+        self.calculate_coefficients()
         self.pressure_matrix_available = False
         self.difference_between_radius = radius_stator - radius_rotor
         self.eccentricity_ratio = self.eccentricity/self.difference_between_radius
@@ -192,7 +191,7 @@ class PressureMatrix:
             self.pressure_matrix_available = True
         return self.p_mat
 
-    def calculate_coefficients(self, plot_cut=False):
+    def calculate_coefficients(self):
         """This function calculates the constants that form the Poisson equation
         of the discrete pressure (central differences in the second
         derivatives). It is executed when the class is instantiated.
@@ -219,8 +218,6 @@ class PressureMatrix:
                     self.internal_radius_function(zno, gama)
                 self.re[i][j] = radius_external
                 self.ri[i][j] = radius_internal
-        if plot_cut:
-            self.plot_eccentricity()
 
     def internal_radius_function(self, z, gama):
         """This function calculates the radius of the rotor given the
