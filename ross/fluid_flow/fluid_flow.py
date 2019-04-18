@@ -195,11 +195,6 @@ class PressureMatrix:
         """This function calculates the constants that form the Poisson equation
         of the discrete pressure (central differences in the second
         derivatives). It is executed when the class is instantiated.
-        Parameters
-        ----------
-        plot_cut: bool
-            If True, plots a cut at z=0 and show, so the user can check the
-            internal and external radius as well as eccentricity.
         """
         if self.length/self.radius_stator <= 1/8:
             self.bearing_type = 'short_bearing'
@@ -368,31 +363,24 @@ class PressureMatrix:
         if show_immediately:
             plt.close('all')
 
-    def plot_pressure_theta(self, z=0, show_immediately=True):
+    def plot_pressure_theta(self, z=0):
         """This function assembles pressure graphic in the theta direction for a given z.
         Parameters
         ----------
         z: int
             The distance along z-axis to be considered.
-        show_immediately: bool
-            If True, immediately plots the graphic. Otherwise, the user should call plt.show()
-            at some point. It is useful in case the user wants to see one graphic alongside another.
         """
-        plt.figure(self.plot_counter)
-        self.plot_counter += 1
         if not self.pressure_matrix_available:
             sys.exit('Must calculate the pressure matrix.'
                      'Try calling calculate_pressure_matrix first.')
+        output_file("plot_pressure_theta.html")
         theta_list = []
         for theta in range(0, self.ntheta):
             theta_list.append(theta * self.dtheta)
-        plt.plot(theta_list, self.p_mat[z], 'b')
-        plt.title('Pressure along Theta; Z='+str(z))
-        plt.xlabel('Points along Theta')
-        plt.ylabel('Pressure')
-        plt.show(block=show_immediately)
-        if show_immediately:
-            plt.close('all')
+        p = figure(title='Pressure along Theta; Z=' + str(z),
+                   x_axis_label='Points along Theta', y_axis_label='Pressure')
+        p.line(theta_list, self.p_mat[z], line_width=2)
+        show(p)
 
     def matplot_eccentricity(self, z=0, show_immediately=True):
         """This function assembles pressure graphic along the z-axis using matplotlib.
