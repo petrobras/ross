@@ -1513,7 +1513,7 @@ class Rotor(object):
                 element.w[0]
                 w = list(element.w)
             except IndexError:
-                w = []
+                w = None
         data[file_name[:-6]][str(element.n)] = {
             "n": element.n,
             "kxx": element.kxx.coefficient,
