@@ -1618,30 +1618,22 @@ class Rotor(object):
             bearing = BearingElement(
                 **bearing_seal_elements_dict["bearing_seal_element"][element]
             )
-            bearing.kxx.coefficient = [
-                bearing_seal_elements_dict["bearing_seal_element"][element]["kxx"]
-            ]
-            bearing.kxy.coefficient = [
-                bearing_seal_elements_dict["bearing_seal_element"][element]["kxy"]
-            ]
-            bearing.kyx.coefficient = [
-                bearing_seal_elements_dict["bearing_seal_element"][element]["kyx"]
-            ]
-            bearing.kyy.coefficient = [
-                bearing_seal_elements_dict["bearing_seal_element"][element]["kyy"]
-            ]
-            bearing.cxx.coefficient = [
-                bearing_seal_elements_dict["bearing_seal_element"][element]["cxx"]
-            ]
-            bearing.cxy.coefficient = [
-                bearing_seal_elements_dict["bearing_seal_element"][element]["cxy"]
-            ]
-            bearing.cyx.coefficient = [
-                bearing_seal_elements_dict["bearing_seal_element"][element]["cyx"]
-            ]
-            bearing.cyy.coefficient = [
-                bearing_seal_elements_dict["bearing_seal_element"][element]["cyy"]
-            ]
+            bearing.kxx.coefficient = bearing_seal_elements_dict["bearing_seal_element"][element]["kxx"]
+
+            bearing.kxy.coefficient = bearing_seal_elements_dict["bearing_seal_element"][element]["kxy"]
+
+            bearing.kyx.coefficient = bearing_seal_elements_dict["bearing_seal_element"][element]["kyx"]
+
+            bearing.kyy.coefficient = bearing_seal_elements_dict["bearing_seal_element"][element]["kyy"]
+
+            bearing.cxx.coefficient = bearing_seal_elements_dict["bearing_seal_element"][element]["cxx"]
+
+            bearing.cxy.coefficient = bearing_seal_elements_dict["bearing_seal_element"][element]["cxy"]
+
+            bearing.cyx.coefficient = bearing_seal_elements_dict["bearing_seal_element"][element]["cyx"]
+
+            bearing.cyy.coefficient = bearing_seal_elements_dict["bearing_seal_element"][element]["cyy"]
+
             bearing_seal_elements.append(bearing)
 
         os.chdir(rotor_path)
