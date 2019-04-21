@@ -1516,14 +1516,14 @@ class Rotor(object):
                 w = []
         data[file_name[:-6]][str(element.n)] = {
             "n": element.n,
-            "kxx": element.kxx.coefficient[0],
-            "cxx": element.cxx.coefficient[0],
-            "kyy": element.kyy.coefficient[0],
-            "kxy": element.kxy.coefficient[0],
-            "kyx": element.kyx.coefficient[0],
-            "cyy": element.cyy.coefficient[0],
-            "cxy": element.cxy.coefficient[0],
-            "cyx": element.cyx.coefficient[0],
+            "kxx": element.kxx.coefficient,
+            "cxx": element.cxx.coefficient,
+            "kyy": element.kyy.coefficient,
+            "kxy": element.kxy.coefficient,
+            "kyx": element.kyx.coefficient,
+            "cyy": element.cyy.coefficient,
+            "cxy": element.cxy.coefficient,
+            "cyx": element.cyx.coefficient,
             "w": w,
         }
         Rotor.dump_data(data, file_name)
