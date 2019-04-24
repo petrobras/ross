@@ -114,6 +114,7 @@ class BearingElement(Element):
     >>> # A bearing element located in the first rotor node, with these
     >>> # following stiffness and damping coefficients and speed range from
     >>> # 0 to 200 rad/s
+    >>> import ross as rs
     >>> Kxx = 1e6
     >>> Kyy = 0.8e6
     >>> Cxx = 2e2
