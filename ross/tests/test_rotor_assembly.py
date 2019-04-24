@@ -1393,22 +1393,22 @@ def test_freq_response_w_force(rotor4):
 def test_static_analysis_rotor3(rotor3):
     rotor3.static()
 
-    assert_allclose(
+    assert_almost_equal(
         rotor3.disp_y,
         ([-0.00061784, -0.00108199, -0.00143205, -0.00157464, -0.00147798,
           -0.00115111, -0.00069521]),
-        rtol=1e-07,
+        decimal=6,
     )
-    assert_allclose(
+    assert_almost_equal(
         rotor3.Vx,
         [0, -494.2745, -456.6791, -419.0836, -99.4925, -61.8971, -24.3016,
          480.9807, 518.5762, 556.1716, 0],
-        rtol=1e-03,
+        decimal=3,
     )
-    assert_allclose(
+    assert_almost_equal(
         rotor3.Bm,
         [0, -118.8692, -228.3395, -248.5132, -259.2881, -134.3434, 0],
-        rtol=1e-03,
+        decimal=3,
     )
 
 
@@ -1441,25 +1441,25 @@ def rotor5():
 def test_static_analysis_rotor5(rotor5):
     rotor5.static()
 
-    assert_allclose(
+    assert_almost_equal(
         rotor5.disp_y,
         ([0.00026382, -0.00015021, -0.00056947, -0.00098566, -0.00130592,
           -0.00143686, -0.00134669, -0.00104446, -0.00063136, -0.00021282,
           0.0002005]),
-        rtol=1e-07,
+        decimal=6,
     )
-    assert_allclose(
+    assert_almost_equal(
         rotor5.Vx,
         [0, 37.5954, 75.1908, -494.2745, -456.6791, -419.08368, -99.4925,
          -61.8971, -24.3016, 480.9807, 518.5762, 556.1716, -75.1908, -37.5954,
          0],
-        rtol=1e-03,
+        decimal=3,
     )
-    assert_allclose(
+    assert_almost_equal(
         rotor5.Bm,
         [0, 4.6994, 18.7977, -100.0714, -209.5418, -229.7155, -240.4903,
          -115.5457, 18.7977, 4.6994, 0],
-        rtol=1e-03,
+        decimal=3,
     )
 
 
@@ -1493,24 +1493,24 @@ def rotor6():
 def test_static_analysis_rotor6(rotor6):
     rotor6.static()
 
-    assert_allclose(
+    assert_almost_equal(
         rotor6.disp_y,
         ([-2.58459386e-06, -8.83514255e-05, -1.79345202e-04, -2.82280131e-04,
           -3.83451012e-04, -4.71329601e-04, -5.55753491e-04, -7.08192594e-04,
           -1.02148266e-03, -1.55824814e-03, -2.22220183e-03]),
-        rtol=1e-07,
+        decimal=6,
     )
-    assert_allclose(
+    assert_almost_equal(
         rotor6.Vx,
         [0, 37.5954, 75.1908, -104.1543, -66.5589, -28.9635, 8.6319, 328.2230,
          365.8184, 403.4139, 441.0093, -580.4733, -542.8778, -505.2824, 0],
-        rtol=1e-03,
+        decimal=3,
     )
-    assert_allclose(
+    assert_almost_equal(
         rotor6.Bm,
-        [0, 4.6994, 18.7977, -2.5414, -14.4817, -17.0232, 69.7319, 165.8860, 
+        [0, 4.6994, 18.7977, -2.5414, -14.4817, -17.0232, 69.7319, 165.8860,
          271.4389, 131.0200, 0],
-        rtol=1e-03,
+        decimal=3,
     )
 
 
