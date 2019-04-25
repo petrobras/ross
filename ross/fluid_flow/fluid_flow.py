@@ -136,7 +136,7 @@ class PressureMatrix:
     >>> my_pressure_matrix.plot_pressure_z()
     >>> my_pressure_matrix.plot_shape()
     >>> my_pressure_matrix.plot_pressure_theta(z=int(nz/2))
-    >>> my_pressure_matrix.plot_pressure_theta_cylindrical(z=int(nz/2))
+    >>> my_pressure_matrix.matplot_pressure_theta_cylindrical(z=int(nz/2), show_immediately=True)
 
     """
     def __init__(self, nz, ntheta, nradius, length, omega, p_in,
@@ -417,7 +417,7 @@ class PressureMatrix:
         if show_immediately:
             plt.close('all')
 
-    def plot_pressure_theta_cylindrical(self, z=0, show_immediately=True):
+    def matplot_pressure_theta_cylindrical(self, z=0, show_immediately=True):
         """This function assembles cylindrical pressure graphic in the theta direction for a given z,
         using matplotlib.
         Parameters
@@ -478,10 +478,10 @@ class PressureMatrix:
         if not self.pressure_matrix_available:
             sys.exit('Must calculate the pressure matrix.'
                      'Try calling calculate_pressure_matrix first.')
-        theta_list = []
-        for theta in range(0, self.ntheta):
-            theta_list.append(theta * self.dtheta)
-        plt.plot(theta_list, self.p_mat[z], 'b')
+        list_of_thetas = []
+        for t in range(0, self.ntheta):
+            list_of_thetas.append(t * self.dtheta)
+        plt.plot(list_of_thetas, self.p_mat[z], 'b')
         plt.title('Pressure along Theta; Z='+str(z))
         plt.xlabel('Points along Theta')
         plt.ylabel('Pressure')
