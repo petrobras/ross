@@ -1390,6 +1390,34 @@ def test_freq_response_w_force(rotor4):
     assert_allclose(mag[:4, :4], mag_exp_2_unb)
 
 
+def test_mesh_convergence(rotor3):
+    rotor3.convergence(n_eigval=0, err_max=1e-08)
+
+    assert_allclose(
+            len(rotor3.shaft_elements), 96, rtol=0
+    )
+    assert_allclose(
+            rotor3.wn[0], 82.653037335, atol=1e-08
+    )
+    assert_allclose(
+            rotor3.shaft_elements[0].L, 0.015625, atol=1e-06
+    )
+    assert_allclose(
+            rotor3.disk_elements[0].n, 32, atol=0
+    )
+    assert_allclose(
+            rotor3.disk_elements[1].n, 64, atol=0
+    )
+    assert_allclose(
+            rotor3.bearing_seal_elements[0].n, 0, atol=0
+    )
+    assert_allclose(
+            rotor3.bearing_seal_elements[1].n, 96, atol=0
+    )
+    assert_allclose(
+            rotor3.error_arr[-1], 4.39544301e-07, atol=1e-08)
+
+    
 def test_static_analysis_rotor3(rotor3):
     rotor3.static()
 
