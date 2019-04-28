@@ -4,6 +4,7 @@ import bokeh.palettes as bp
 from ross.element import Element
 from ross.materials import steel
 from ross.materials import Material
+from ross.rotor_assembly import Rotor
 import os
 import ross
 from pathlib import Path
