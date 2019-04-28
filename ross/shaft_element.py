@@ -181,7 +181,24 @@ class ShaftElement(Element):
             return True
         else:
             return False
-
+        
+    def save_shaft_element(self, file_name):
+        data = Rotor.load_data(file_name)
+        data[file_name[:-6]][str(self.n)] = {
+            "L": self.L,
+            "i_d": self.i_d,
+            "o_d": self.o_d,
+            "material": self.material,
+            "n": self.n,
+            "axial_force": self.axial_force,
+            "torque": self.torque,
+            "shear_effects": self.shear_effects,
+            "rotary_inertia": self.rotary_inertia,
+            "gyroscopic": self.gyroscopic,
+            "shear_method_calc": self.shear_method_calc,
+        }
+        Rotor.dump_data(data, file_name)
+        
     @property
     def n(self):
         return self._n
