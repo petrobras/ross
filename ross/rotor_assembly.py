@@ -1463,7 +1463,7 @@ class Rotor(object):
         sio.savemat("%s/%s.mat" % (os.getcwd(), file_name), dic)
 
     def save(self, file_name):
-        """Save rotor to binary file.
+        """Save rotor to toml file.
 
         Parameters
         ----------
@@ -1498,64 +1498,15 @@ class Rotor(object):
         os.chdir(current / "elements")
 
         for element in self.shaft_elements:
-            Rotor.save_shaft_element(element, "shaft_elements.toml")
+            element.save_shaft_element("shaft_elements.toml")
+            
         for element in self.disk_elements:
-            Rotor.save_disk_element(element, "disk_elements.toml")
+            element.save_disk_element("disk_elements.toml")
+            
         for element in self.bearing_seal_elements:
-            Rotor.save_bearing_seal_element(element, "bearing_seal_elements.toml")
+            element.save_bearing_seal_element("bearing_seal_elements.toml")
+            
         os.chdir(main_path)
-
-    @staticmethod
-    def save_bearing_seal_element(element, file_name):
-        data = Rotor.load_data(file_name)
-        if type(element.w) == np.ndarray:
-            try:
-                element.w[0]
-                w = list(element.w)
-            except IndexError:
-                w = None
-        data[file_name[:-6]][str(element.n)] = {
-            "n": element.n,
-            "kxx": element.kxx.coefficient,
-            "cxx": element.cxx.coefficient,
-            "kyy": element.kyy.coefficient,
-            "kxy": element.kxy.coefficient,
-            "kyx": element.kyx.coefficient,
-            "cyy": element.cyy.coefficient,
-            "cxy": element.cxy.coefficient,
-            "cyx": element.cyx.coefficient,
-            "w": w,
-        }
-        Rotor.dump_data(data, file_name)
-
-    @staticmethod
-    def save_shaft_element(element, file_name):
-        data = Rotor.load_data(file_name)
-        data[file_name[:-6]][str(element.n)] = {
-            "L": element.L,
-            "i_d": element.i_d,
-            "o_d": element.o_d,
-            "material": element.material,
-            "n": element.n,
-            "axial_force": element.axial_force,
-            "torque": element.torque,
-            "shear_effects": element.shear_effects,
-            "rotary_inertia": element.rotary_inertia,
-            "gyroscopic": element.gyroscopic,
-            "shear_method_calc": element.shear_method_calc,
-        }
-        Rotor.dump_data(data, file_name)
-
-    @staticmethod
-    def save_disk_element(element, file_name):
-        data = Rotor.load_data(file_name)
-        data[file_name[:-6]][str(element.n)] = {
-            "n": element.n,
-            "m": element.m,
-            "Id": element.Id,
-            "Ip": element.Ip,
-        }
-        Rotor.dump_data(data, file_name)
 
     @staticmethod
     def load_data(file_name):
@@ -1577,7 +1528,7 @@ class Rotor(object):
 
     @staticmethod
     def load(file_name):
-        """Load rotor from binary file.
+        """Load rotor from toml file.
 
         Parameters
         ----------
