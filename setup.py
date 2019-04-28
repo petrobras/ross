@@ -48,6 +48,7 @@ REQUIRED = [
     "pytest",
     "bokeh",
     "coverage",
+    "xlrd",
 ]
 
 # What packages are optional?
