@@ -1,5 +1,6 @@
 from abc import ABC, abstractmethod
 import pandas as pd
+import toml
 
 
 class Element(ABC):
@@ -9,6 +10,13 @@ class Element(ABC):
     """
 
     def __init__(self):
+        pass
+
+    def save(self, file_name):
+        pass
+
+    @staticmethod
+    def load(self, file_name):
         pass
 
     @abstractmethod
@@ -31,3 +39,22 @@ class Element(ABC):
         attributes = self.__dict__
         attributes["type"] = self.__class__.__name__
         return pd.Series(attributes)
+
+    @staticmethod
+    def load_data(file_name):
+        try:
+            with open(file_name, "r") as f:
+                data = toml.load(f)
+                if data == {"": {}}:
+                    data = {file_name[:-5]: {}}
+
+        except FileNotFoundError:
+            data = {file_name[:-5]: {}}
+            Element.dump_data(data, file_name)
+        return data
+
+    @staticmethod
+    def dump_data(data, file_name):
+        with open(file_name, "w") as f:
+            toml.dump(data, f)
+

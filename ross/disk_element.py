@@ -3,6 +3,7 @@ import matplotlib.patches as mpatches
 import bokeh.palettes as bp
 from ross.element import Element
 import pytest
+import toml
 
 __all__ = ["DiskElement"]
 bokeh_colors = bp.RdGy[11]
@@ -62,16 +63,26 @@ class DiskElement(Element):
         else:
             return False
         
-    def save_disk_element(self, file_name):
-        data = Rotor.load_data(file_name)
-        data[file_name[:-6]][str(self.n)] = {
+    def save(self, file_name):
+        data = self.load_data(file_name)
+        data["DiskElement"][str(self.n)] = {
             "n": self.n,
             "m": self.m,
             "Id": self.Id,
             "Ip": self.Ip,
         }
-        Rotor.dump_data(data, file_name)
-        
+        self.dump_data(data, file_name)
+
+    @staticmethod
+    def load(file_name="DiskElement"):
+        disk_elements = []
+        with open("DiskElement.toml", "r") as f:
+            disk_elements_dict = toml.load(f)
+            for element in disk_elements_dict["DiskElement"]:
+                disk_elements.append(
+                    DiskElement(**disk_elements_dict["DiskElement"][element])
+                )
+        return disk_elements
     def M(self):
         """
         This method will return the mass matrix for an instance of a disk

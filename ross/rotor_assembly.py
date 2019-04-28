@@ -1497,34 +1497,10 @@ class Rotor(object):
 
         os.chdir(current / "elements")
 
-        for element in self.shaft_elements:
-            element.save_shaft_element("shaft_elements.toml")
-            
-        for element in self.disk_elements:
-            element.save_disk_element("disk_elements.toml")
-            
-        for element in self.bearing_seal_elements:
-            element.save_bearing_seal_element("bearing_seal_elements.toml")
-            
+        for element in self.elements:
+            element.save(type(element).__name__+".toml")
+
         os.chdir(main_path)
-
-    @staticmethod
-    def load_data(file_name):
-        try:
-            with open(file_name, "r") as f:
-                data = toml.load(f)
-                if data == {"": {}}:
-                    data = {file_name[:-6]: {}}
-
-        except FileNotFoundError:
-            data = {file_name[:-6]: {}}
-            Rotor.dump_data(data, file_name)
-        return data
-
-    @staticmethod
-    def dump_data(data, file_name):
-        with open(file_name, "w") as f:
-            toml.dump(data, f)
 
     @staticmethod
     def load(file_name):
@@ -1545,47 +1521,12 @@ class Rotor(object):
         except FileNotFoundError:
             return "A rotor with this name does not exist, check the rotors folder."
 
-        shaft_elements = []
-        with open("shaft_elements.toml", "r") as f:
-            shaft_elements_dict = toml.load(f)
-            for element in shaft_elements_dict["shaft_element"]:
-                shaft_elements.append(
-                    ShaftElement(**shaft_elements_dict["shaft_element"][element])
-                )
         os.chdir(rotor_path / "elements")
-
-        disk_elements = []
-        with open("disk_elements.toml", "r") as f:
-            disk_elements_dict = toml.load(f)
-            for element in disk_elements_dict["disk_element"]:
-                disk_elements.append(
-                    DiskElement(**disk_elements_dict["disk_element"][element])
-                )
+        shaft_elements = ShaftElement.load()
         os.chdir(rotor_path / "elements")
-
-        bearing_seal_elements = []
-        bearing_seal_elements_dict = Rotor.load_data("bearing_seal_elements.toml")
-        for element in bearing_seal_elements_dict["bearing_seal_element"]:
-            bearing = BearingElement(
-                **bearing_seal_elements_dict["bearing_seal_element"][element]
-            )
-            bearing.kxx.coefficient = bearing_seal_elements_dict["bearing_seal_element"][element]["kxx"]
-
-            bearing.kxy.coefficient = bearing_seal_elements_dict["bearing_seal_element"][element]["kxy"]
-
-            bearing.kyx.coefficient = bearing_seal_elements_dict["bearing_seal_element"][element]["kyx"]
-
-            bearing.kyy.coefficient = bearing_seal_elements_dict["bearing_seal_element"][element]["kyy"]
-
-            bearing.cxx.coefficient = bearing_seal_elements_dict["bearing_seal_element"][element]["cxx"]
-
-            bearing.cxy.coefficient = bearing_seal_elements_dict["bearing_seal_element"][element]["cxy"]
-
-            bearing.cyx.coefficient = bearing_seal_elements_dict["bearing_seal_element"][element]["cyx"]
-
-            bearing.cyy.coefficient = bearing_seal_elements_dict["bearing_seal_element"][element]["cyy"]
-
-            bearing_seal_elements.append(bearing)
+        disk_elements = DiskElement.load()
+        bearing_elements = BearingElement.load()
+        seal_elements = []
 
         os.chdir(rotor_path)
         with open("properties.toml", "r") as f:
@@ -1594,7 +1535,7 @@ class Rotor(object):
         os.chdir(main_path)
         return Rotor(
             shaft_elements=shaft_elements,
-            bearing_seal_elements=bearing_seal_elements,
+            bearing_seal_elements=bearing_elements + seal_elements,
             disk_elements=disk_elements,
             **parameters,
         )

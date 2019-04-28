@@ -184,16 +184,16 @@ class BearingElement(Element):
             else:
                 return False
             
-    def save_bearing_seal_element(self, file_name):
-        data = Rotor.load_data(file_name)
+    def save(self, file_name):
+        data = self.load_data(file_name)
         if type(self.w) == np.ndarray:
             try:
                 self.w[0]
-                w = list(element.w)
+                w = list(self.w)
             except IndexError:
                 w = None
-        data[file_name[:-6]][str(element.n)] = {
-            "n": element.n,
+        data["BearingElement"][str(self.n)] = {
+            "n": self.n,
             "kxx": self.kxx.coefficient,
             "cxx": self.cxx.coefficient,
             "kyy": self.kyy.coefficient,
@@ -205,7 +205,33 @@ class BearingElement(Element):
             "w": w,
         }
         self.dump_data(data, file_name)
-        
+
+    @staticmethod
+    def load(file_name="BearingElement"):
+        bearing_elements = []
+        bearing_elements_dict = BearingElement.load_data(file_name="BearingElement.toml")
+        for element in bearing_elements_dict["BearingElement"]:
+            bearing = BearingElement(
+                **bearing_elements_dict["BearingElement"][element]
+            )
+            bearing.kxx.coefficient = bearing_elements_dict["BearingElement"][element]["kxx"]
+
+            bearing.kxy.coefficient = bearing_elements_dict["BearingElement"][element]["kxy"]
+
+            bearing.kyx.coefficient = bearing_elements_dict["BearingElement"][element]["kyx"]
+
+            bearing.kyy.coefficient = bearing_elements_dict["BearingElement"][element]["kyy"]
+
+            bearing.cxx.coefficient = bearing_elements_dict["BearingElement"][element]["cxx"]
+
+            bearing.cxy.coefficient = bearing_elements_dict["BearingElement"][element]["cxy"]
+
+            bearing.cyx.coefficient = bearing_elements_dict["BearingElement"][element]["cyx"]
+
+            bearing.cyy.coefficient = bearing_elements_dict["BearingElement"][element]["cyy"]
+
+            bearing_elements.append(bearing)
+        return bearing_elements
     def M(self):
         M = np.zeros((4, 4))
 

@@ -4,10 +4,10 @@ import bokeh.palettes as bp
 from ross.element import Element
 from ross.materials import steel
 from ross.materials import Material
-from ross.rotor_assembly import Rotor
 import os
 import ross
 from pathlib import Path
+import toml
 
 __all__ = ["ShaftElement"]
 
@@ -183,9 +183,9 @@ class ShaftElement(Element):
         else:
             return False
         
-    def save_shaft_element(self, file_name):
-        data = Rotor.load_data(file_name)
-        data[file_name[:-6]][str(self.n)] = {
+    def save(self, file_name):
+        data = self.load_data(file_name)
+        data["ShaftElement"][str(self.n)] = {
             "L": self.L,
             "i_d": self.i_d,
             "o_d": self.o_d,
@@ -198,8 +198,19 @@ class ShaftElement(Element):
             "gyroscopic": self.gyroscopic,
             "shear_method_calc": self.shear_method_calc,
         }
-        Rotor.dump_data(data, file_name)
-        
+        self.dump_data(data, file_name)
+
+    @staticmethod
+    def load(file_name="ShaftElement"):
+        shaft_elements = []
+        with open("ShaftElement.toml", "r") as f:
+            shaft_elements_dict = toml.load(f)
+            for element in shaft_elements_dict["ShaftElement"]:
+                shaft_elements.append(
+                    ShaftElement(**shaft_elements_dict["ShaftElement"][element])
+                )
+        return shaft_elements
+
     @property
     def n(self):
         return self._n
