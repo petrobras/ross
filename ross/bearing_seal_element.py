@@ -183,7 +183,29 @@ class BearingElement(Element):
                 return True
             else:
                 return False
-
+            
+    def save_bearing_seal_element(self, file_name):
+        data = Rotor.load_data(file_name)
+        if type(element.w) == np.ndarray:
+            try:
+                element.w[0]
+                w = list(element.w)
+            except IndexError:
+                w = None
+        data[file_name[:-6]][str(element.n)] = {
+            "n": element.n,
+            "kxx": element.kxx.coefficient,
+            "cxx": element.cxx.coefficient,
+            "kyy": element.kyy.coefficient,
+            "kxy": element.kxy.coefficient,
+            "kyx": element.kyx.coefficient,
+            "cyy": element.cyy.coefficient,
+            "cxy": element.cxy.coefficient,
+            "cyx": element.cyx.coefficient,
+            "w": w,
+        }
+        self.dump_data(data, file_name)
+        
     def M(self):
         M = np.zeros((4, 4))
 
