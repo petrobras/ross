@@ -61,7 +61,17 @@ class DiskElement(Element):
             return True
         else:
             return False
-
+        
+    def save_disk_element(self, file_name):
+        data = Rotor.load_data(file_name)
+        data[file_name[:-6]][str(self.n)] = {
+            "n": self.n,
+            "m": self.m,
+            "Id": self.Id,
+            "Ip": self.Ip,
+        }
+        Rotor.dump_data(data, file_name)
+        
     def M(self):
         """
         This method will return the mass matrix for an instance of a disk
