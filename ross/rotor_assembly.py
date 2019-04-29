@@ -282,6 +282,9 @@ class Rotor(object):
         self.Bm = None
         self.disp_y = None
 
+        #  values for convergence analysis
+        self.error_arr = None
+
         #  diameter at node position
 
         print("To check the rotor geometry, use the method plot_rotor()\n"
