@@ -6,6 +6,7 @@ import scipy.linalg as la
 import scipy.sparse.linalg as las
 import scipy.signal as signal
 import scipy.io as sio
+import scipy.interpolate as interpolate
 from copy import copy, deepcopy
 from collections import Iterable
 import shutil
@@ -1784,7 +1785,6 @@ class Rotor(object):
         disp_y = np.array([])
         for node_dof in range(int(len(disp) / 4)):
             disp_y = np.append(disp_y, disp[4 * node_dof + 1])
-        self.disp_y = disp_y
 
         # Shearing Force
         BrgForce = [0] * len(self.nodes_pos)
@@ -1864,10 +1864,22 @@ class Rotor(object):
             x_axis_label="shaft lenght(m)",
             y_axis_label="lateral displacement (mm)",
         )
+
+        interpolated = interpolate.interp1d(source.data['x0'], source.data['y0'], kind='cubic')
+        xnew = np.linspace(source.data['x0'][0],
+                           source.data['x0'][-1],
+                           num=len(self.nodes_pos) * 20,
+                           endpoint=True)
+
+        ynew = interpolated(xnew)
+        auxsource = ColumnDataSource(
+            data=dict(x0=xnew, y0=ynew, y1=[0] * len(xnew))
+        )
+
         disp_graph.line(
             "x0",
             "y0",
-            source=source,
+            source=auxsource,
             legend="Deformed shaft",
             line_width=3,
             line_color=bokeh_colors[9],
@@ -2057,7 +2069,23 @@ class Rotor(object):
             y_axis_label="Bending Moment (N.m)",
             x_range=[-0.1 * shaft_end, 1.1 * shaft_end],
         )
-        BM.line("x", "y", source=source_BM, line_width=4, line_color=bokeh_colors[0])
+        i=0
+        while True:
+            if i+3> len(self.nodes):
+                break
+
+            interpolated_BM = interpolate.interp1d(self.nodes_pos[i:i+3], Bm[i:i+3], kind='quadratic')
+            xnew_BM = np.linspace(self.nodes_pos[i],
+                                  self.nodes_pos[i + 2],
+                                  num=42,
+                                  endpoint=True)
+
+            ynew_BM = interpolated_BM(xnew_BM)
+            auxsource_BM = ColumnDataSource(
+                data=dict(x=xnew_BM, y=ynew_BM)
+                                 )
+            BM.line("x", "y", source=auxsource_BM, line_width=4, line_color=bokeh_colors[0])
+            i += 2
         BM.circle("x", "y", source=source_BM, size=8, fill_color=bokeh_colors[0])
 
         # BM - plot centerline
