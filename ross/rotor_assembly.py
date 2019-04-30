@@ -373,9 +373,7 @@ class Rotor(object):
             error_arr = np.append(error_arr, 100 * error)
             nel_r *= 2
 
-        self.shaft_elements = rotor.shaft_elements
-        self.disk_elements = rotor.disk_elements
-        self.bearing_seal_elements = rotor.bearing_seal_elements
+        self.__dict__ = rotor.__dict__
 
         output_file("convergence.html")
         source = ColumnDataSource(
