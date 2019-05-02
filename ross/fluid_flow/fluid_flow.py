@@ -126,13 +126,13 @@ class PressureMatrix:
     >>> p_out = 1.
     >>> radius_rotor = 0.08
     >>> radius_stator = 0.1
-    >>> xi = 0.007
-    >>> yi = -0.007
+    >>> eccentricity = 0.001
     >>> visc = 0.015
     >>> rho = 860.
     >>> my_pressure_matrix = flow.PressureMatrix(nz, ntheta, nradius, length,
     ...                                          omega, p_in, p_out, radius_rotor,
-    ...                                          radius_stator, xi, yi,  visc, rho, plot_eccentricity=True)
+    ...                                          radius_stator, eccentricity, visc, rho,
+    ...                                          plot_eccentricity=True)
     >>> P = my_pressure_matrix.calculate_pressure_matrix()
     >>> my_pressure_matrix.plot_pressure_z(show_immediately=False)
     >>> my_pressure_matrix.plot_shape(show_immediately=False)
