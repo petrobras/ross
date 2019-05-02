@@ -166,13 +166,12 @@ class FrequencyResponseResults(Results):
         if ax is None:
             ax = plt.gca()
 
-        omega = self.omega
-        mag = self[:, :, :, 0]
-        units = self.units
+        frequency_range = self.frequency_range
+        mag = self.magnitude
 
-        ax.plot(omega, mag[:, inp, out], **kwargs)
+        ax.plot(frequency_range, mag[inp, out, :], **kwargs)
 
-        ax.set_xlim(0, max(omega))
+        ax.set_xlim(0, max(frequency_range))
         ax.yaxis.set_major_locator(mpl.ticker.MaxNLocator(prune="lower"))
         ax.yaxis.set_major_locator(mpl.ticker.MaxNLocator(prune="upper"))
 
@@ -215,12 +214,12 @@ class FrequencyResponseResults(Results):
         if ax is None:
             ax = plt.gca()
 
-        omega = self.omega
-        phase = self[:, :, :, 1]
+        frequency_range = self.frequency_range
+        phase = self.phase
 
-        ax.plot(omega, phase[:, inp, out], **kwargs)
+        ax.plot(frequency_range, phase[inp, out, :], **kwargs)
 
-        ax.set_xlim(0, max(omega))
+        ax.set_xlim(0, max(frequency_range))
         ax.yaxis.set_major_locator(mpl.ticker.MaxNLocator(prune="lower"))
         ax.yaxis.set_major_locator(mpl.ticker.MaxNLocator(prune="upper"))
 
