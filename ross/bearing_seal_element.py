@@ -6,6 +6,9 @@ import matplotlib.patches as mpatches
 import bokeh.palettes as bp
 from ross.element import Element
 import pytest
+import pandas as pd
+import sys
+import xlrd
 
 __all__ = ["BearingElement", "SealElement"]
 bokeh_colors = bp.RdGy[11]
@@ -263,6 +266,59 @@ class BearingElement(Element):
                    fill_alpha=1,
                    fill_color=bokeh_colors[1]
                    )
+
+    @classmethod
+    def table_to_toml(cls, n, file):
+        """Convert a table with parameters of a bearing element to a dictionary ready to save
+        to a toml file that can be later loaded by ross.
+        Parameters
+        ----------
+        :param n : int. The node in which the bearing will be located in the rotor.
+        :param file: str. Path to the file containing the bearing parameters.
+        Returns
+        -------
+        :return: dict that is ready to save to toml and readable by ross.
+        """
+        b_elem = cls.from_table(n, file)
+        data = {
+            "n": b_elem.n,
+            "kxx": b_elem.kxx.coefficient,
+            "cxx": b_elem.cxx.coefficient,
+            "kyy": b_elem.kyy.coefficient,
+            "kxy": b_elem.kxy.coefficient,
+            "kyx": b_elem.kyx.coefficient,
+            "cyy": b_elem.cyy.coefficient,
+            "cxy": b_elem.cxy.coefficient,
+            "cyx": b_elem.cyx.coefficient,
+            "w": b_elem.w,
+        }
+        return data
+
+    @classmethod
+    def from_table(cls, n, file):
+        """Instantiate a bearing using inputs from a table, either excel or csv.
+        Parameters
+        ----------
+        :param n : int. The node in which the bearing will be located in the rotor.
+        :param file: str. Path to the file containing the bearing parameters.
+        Returns
+        -------
+        :return: A bearing object.
+        """
+        try:
+            df = pd.read_excel(file)
+        except FileNotFoundError:
+            sys.exit(file + " not found.")
+        except xlrd.biffh.XLRDError:
+            df = pd.read_csv(file)
+        try:
+            return cls(n, kxx=df['kxx'].tolist(), cxx=df['cxx'].tolist(), kyy=df['kyy'].tolist(),
+                       kxy=df['kxy'].tolist(), kyx=df['kyx'].tolist(), cyy=df['cyy'].tolist(),
+                       cxy=df['cxy'].tolist(), cyx=df['cyx'].tolist(), w=df['w'].tolist())
+        except KeyError:
+            sys.exit("One or more column names did not match the expected. "
+                     "Make sure the table header contains the parameters for the "
+                     "BearingElement class.")
 
 
 class SealElement(BearingElement):
