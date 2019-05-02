@@ -110,6 +110,8 @@ class PressureMatrix:
     plot_counter: int
         for each plot, it increments this counter, in order to plot
         figures with unique IDs.
+    radial_clearance: float
+        Difference between both stator and rotor radius, regardless of eccentricity.
 
     Examples
     --------
@@ -178,6 +180,7 @@ class PressureMatrix:
         self.pressure_matrix_available = False
         self.difference_between_radius = radius_stator - radius_rotor
         self.eccentricity_ratio = self.eccentricity/self.difference_between_radius
+        self.radial_clearance = self.radius_stator - self.radius_rotor
 
     def calculate_pressure_matrix(self):
         """This function calculates the pressure matrix
@@ -265,6 +268,31 @@ class PressureMatrix:
         yre = radius_external * np.sin(gama - np.pi/4)
 
         return radius_external, xre, yre
+
+    def sommerfeld_number(self):
+        """Return the modified sommerfeld number.
+        :return: float
+            The modified sommerfeld number.
+        """
+        f = -((np.pi*self.radius_stator*2*self.omega*self.visc*(self.length**3)*self.eccentricity_ratio)
+              / (8*(self.radial_clearance**2)*((1 - self.eccentricity_ratio**2)**2))) \
+            * np.sqrt((16/np.pi - 1)*self.eccentricity_ratio + 1)
+        return (self.radius_stator*2*self.omega*self.visc*(self.length**3)) / \
+               (8*f*(self.radial_clearance**2))
+
+    def calculate_eccentricity_ratio(self):
+        """Calculate the eccentricity ratio using the modified sommerfeld number.
+
+        :return: float.
+            The eccentricity ratio.
+        """
+        s = self.sommerfeld_number()
+        coefficients = [1, -4, (6 - (s**2)*(16 - np.pi**2)), -(4 + (np.pi**2)*(s**2)), 1]
+        roots = np.roots(coefficients)
+        for i in range(0, len(roots)):
+            if 0 <= roots[i] <= 1:
+                return np.sqrt(roots[i])
+        sys.exit("Eccentricity ratio could not be calculated.")
 
     def plot_eccentricity(self, z=0, show_immediately=True):
         """This function assembles pressure graphic along the z-axis.
