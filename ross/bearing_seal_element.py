@@ -312,6 +312,12 @@ class BearingElement(Element):
         except xlrd.biffh.XLRDError:
             df = pd.read_csv(file)
         try:
+            for index, row in df.iterrows():
+                for i in range(0, row.size):
+                    if pd.isna(row[i]):
+                        warnings.warn("NaN found in row " + str(index) + " column " + str(i) + ".\n"
+                                      "It will be replaced with zero.")
+                        row[i] = 0
             return cls(n, kxx=df['kxx'].tolist(), cxx=df['cxx'].tolist(), kyy=df['kyy'].tolist(),
                        kxy=df['kxy'].tolist(), kyx=df['kyx'].tolist(), cyy=df['cyy'].tolist(),
                        cxy=df['cxy'].tolist(), cyx=df['cyx'].tolist(), w=df['w'].tolist())
