@@ -8,8 +8,8 @@ def test_sommerfeld_number():
     expected results for the sommerfeld number.
     Taken from example 5.5.1, page 181 (Dynamics of rotating machine, FRISSWELL)
     """
-    nz = 20
-    ntheta = 100
+    nz = 30
+    ntheta = 20
     nradius = 11
     length = 0.03
     omega = 157.1
