@@ -269,14 +269,22 @@ class PressureMatrix:
 
         return radius_external, xre, yre
 
-    def sommerfeld_number(self):
+    def get_rotor_load(self):
+        """Returns the load applied to the rotor.
+        :return: float.
+            Load applied to the rotor.
+        """
+        return -((np.pi*self.radius_stator*2*self.omega*self.visc*(self.length**3)*self.eccentricity_ratio)
+                 / (8*(self.radial_clearance**2)*((1 - self.eccentricity_ratio**2)**2))) \
+            * np.sqrt((16/np.pi - 1)*self.eccentricity_ratio + 1)
+
+    def sommerfeld_number(self, f):
         """Return the modified sommerfeld number.
+        :param f: float
+            Load applied to the rotor.
         :return: float
             The modified sommerfeld number.
         """
-        f = -((np.pi*self.radius_stator*2*self.omega*self.visc*(self.length**3)*self.eccentricity_ratio)
-              / (8*(self.radial_clearance**2)*((1 - self.eccentricity_ratio**2)**2))) \
-            * np.sqrt((16/np.pi - 1)*self.eccentricity_ratio + 1)
         return (self.radius_stator*2*self.omega*self.visc*(self.length**3)) / \
                (8*f*(self.radial_clearance**2))
 
