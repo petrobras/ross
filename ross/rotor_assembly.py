@@ -259,7 +259,7 @@ class Rotor(object):
         self.nodes_o_d = nodes_o_d
 
         self.nodes = list(range(len(self.nodes_pos)))
-        self.elements_length = self.df.groupby("n_l")["L"].max()
+        self.elements_length = [sh_el.L for sh_el in self.shaft_elements]
         self.L = nodes_pos[-1]
 
         # rotor mass can also be calculated with self.M()[::4, ::4].sum()
@@ -1718,18 +1718,23 @@ class Rotor(object):
                 DskForce.insert(i + 1, 0)
                 SchForce.insert(i + 1, 0)
                 Vx_axis.insert(i, Vx_axis[i])
-        Vx = [x*-1 for x in Vx]
+        Vx = [x * -1 for x in Vx]
 
         # Bending Moment vector
         Mx = []
-        for i in range(len(Vx)-1):
-            if Vx_axis[i] == Vx_axis[i+1]:
+        for i in range(len(Vx) - 1):
+            if Vx_axis[i] == Vx_axis[i + 1]:
                 pass
             else:
-                Mx.append(((Vx_axis[i+1]*Vx[i+1]) +
-                          (Vx_axis[i+1]*Vx[i]) -
-                          (Vx_axis[i]*Vx[i+1]) -
-                          (Vx_axis[i]*Vx[i])) / 2)
+                Mx.append(
+                    (
+                        (Vx_axis[i + 1] * Vx[i + 1])
+                        + (Vx_axis[i + 1] * Vx[i])
+                        - (Vx_axis[i] * Vx[i + 1])
+                        - (Vx_axis[i] * Vx[i])
+                    )
+                    / 2
+                )
         Bm = [0]
         for i in range(len(Mx)):
             Bm.append(Bm[i] + Mx[i])
