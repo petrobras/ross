@@ -7,6 +7,7 @@ from ross.materials import Material
 import os
 import ross
 from pathlib import Path
+import toml
 
 __all__ = ["ShaftElement"]
 
@@ -181,6 +182,34 @@ class ShaftElement(Element):
             return True
         else:
             return False
+        
+    def save(self, file_name):
+        data = self.load_data(file_name)
+        data["ShaftElement"][str(self.n)] = {
+            "L": self.L,
+            "i_d": self.i_d,
+            "o_d": self.o_d,
+            "material": self.material,
+            "n": self.n,
+            "axial_force": self.axial_force,
+            "torque": self.torque,
+            "shear_effects": self.shear_effects,
+            "rotary_inertia": self.rotary_inertia,
+            "gyroscopic": self.gyroscopic,
+            "shear_method_calc": self.shear_method_calc,
+        }
+        self.dump_data(data, file_name)
+
+    @staticmethod
+    def load(file_name="ShaftElement"):
+        shaft_elements = []
+        with open("ShaftElement.toml", "r") as f:
+            shaft_elements_dict = toml.load(f)
+            for element in shaft_elements_dict["ShaftElement"]:
+                shaft_elements.append(
+                    ShaftElement(**shaft_elements_dict["ShaftElement"][element])
+                )
+        return shaft_elements
 
     @property
     def n(self):
