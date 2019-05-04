@@ -10,10 +10,12 @@ ross: rotordynamic open-source software
    :maxdepth: 2
    :caption: Contents:
 
+   introduction
+   installing
    tutorial
+   examples
    git_configuration
    api
-   introduction
 
 
 Indices and tables
