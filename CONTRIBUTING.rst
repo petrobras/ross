@@ -1,3 +1,9 @@
+Feedback and Contribution
+-------------------------
+We welcome any contribution via `ross's issue tracker<https://github.com/ross-rotordynamics/ross/issues>`_.
+These include bug reports, problems on the documentation, feedback, enhancement proposals etc.
+The issue tracker can also be used for questions and further information, since the project does not use a mailing list.
+
 Version-control system: Git
 ---------------------------
 
