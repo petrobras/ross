@@ -23,6 +23,12 @@ You don't need a Github account to download and use ross, but you will need one 
 want to contribute to its development. Refer to :ref:`git-configuration` if you want to
 know how to contribute to ross.
 
+Code style: Black
+-----------------
+Code formatting is done with `Black<https://black.readthedocs.io/en/stable/>`_, which is the *"uncompromising Python
+code formatter"*. You can configure your development environment to use Black before a commit. More information on how
+to set this is given at `Black's documentation<https://black.readthedocs.io/en/stable/editor_integration.html>`_.
+
 Integrated development environment: PyCharm
 -------------------------------------------
 
