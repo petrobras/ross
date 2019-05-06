@@ -31,7 +31,7 @@ def version(path):
 
 # Package meta-data.
 NAME = "ross"
-DESCRIPTION = "Rotordynamic Open-Source Software"
+DESCRIPTION = "ross: rotordynamic open-source software"
 URL = "https://github.com/ross-rotordynamics/ross"
 EMAIL = "raphaelts@gmail.com"
 AUTHOR = "ross developers"

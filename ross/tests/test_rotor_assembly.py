@@ -30,19 +30,6 @@ def rotor1():
     return Rotor(shaft_elm, [], [])
 
 
-def test_rotor_attributes(rotor1):
-    assert len(rotor1.nodes) == 3
-    assert len(rotor1.nodes_i_d) == 3
-    assert len(rotor1.nodes_o_d) == 3
-    assert rotor1.L == 0.5
-    assert rotor1.m_disks == 0
-    assert rotor1.m_shaft == 7.6674495701675891
-    assert rotor1.m == 7.6674495701675891
-    assert rotor1.nodes_pos[0] == 0
-    assert rotor1.nodes_pos[1] == 0.25
-    assert rotor1.nodes_pos[-1] == 0.5
-
-
 def test_index_eigenvalues_rotor1(rotor1):
     evalues = np.array(
         [
@@ -429,6 +416,48 @@ def rotor3():
     bearing1 = BearingElement(6, kxx=stfx, kyy=stfy, cxx=0)
 
     return Rotor(shaft_elem, [disk0, disk1], [bearing0, bearing1])
+
+
+@pytest.fixture
+def rotor3_odd():
+    #  Rotor without damping with odd number of shaft elements (7)
+    #  2 disks and 2 bearings
+    i_d = 0
+    o_d = 0.05
+    n = 7
+    L = [0.25 for _ in range(n)]
+
+    shaft_elem = [
+        ShaftElement(
+            l, i_d, o_d, steel, shear_effects=True, rotary_inertia=True, gyroscopic=True
+        )
+        for l in L
+    ]
+
+    disk0 = DiskElement.from_geometry(2, steel, 0.07, 0.05, 0.28)
+    disk1 = DiskElement.from_geometry(4, steel, 0.07, 0.05, 0.35)
+
+    stfx = 1e6
+    stfy = 0.8e6
+    bearing0 = BearingElement(0, kxx=stfx, kyy=stfy, cxx=0)
+    bearing1 = BearingElement(6, kxx=stfx, kyy=stfy, cxx=0)
+
+    return Rotor(shaft_elem, [disk0, disk1], [bearing0, bearing1])
+
+
+def test_rotor_attributes(rotor1, rotor3, rotor3_odd):
+    assert len(rotor1.nodes) == 3
+    assert len(rotor1.nodes_i_d) == 3
+    assert len(rotor1.nodes_o_d) == 3
+    assert rotor1.L == 0.5
+    assert rotor1.m_disks == 0
+    assert rotor1.m_shaft == 7.6674495701675891
+    assert rotor1.m == 7.6674495701675891
+    assert rotor1.nodes_pos[0] == 0
+    assert rotor1.nodes_pos[1] == 0.25
+    assert rotor1.nodes_pos[-1] == 0.5
+    assert len(rotor3.elements_length) == 6
+    assert len(rotor3_odd.elements_length) == 7
 
 
 def test_evects_sorted_rotor3(rotor3):

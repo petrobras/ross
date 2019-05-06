@@ -186,7 +186,55 @@ class BearingElement(Element):
                 return True
             else:
                 return False
+            
+    def save(self, file_name):
+        data = self.load_data(file_name)
+        if type(self.w) == np.ndarray:
+            try:
+                self.w[0]
+                w = list(self.w)
+            except IndexError:
+                w = None
+        data["BearingElement"][str(self.n)] = {
+            "n": self.n,
+            "kxx": self.kxx.coefficient,
+            "cxx": self.cxx.coefficient,
+            "kyy": self.kyy.coefficient,
+            "kxy": self.kxy.coefficient,
+            "kyx": self.kyx.coefficient,
+            "cyy": self.cyy.coefficient,
+            "cxy": self.cxy.coefficient,
+            "cyx": self.cyx.coefficient,
+            "w": w,
+        }
+        self.dump_data(data, file_name)
 
+    @staticmethod
+    def load(file_name="BearingElement"):
+        bearing_elements = []
+        bearing_elements_dict = BearingElement.load_data(file_name="BearingElement.toml")
+        for element in bearing_elements_dict["BearingElement"]:
+            bearing = BearingElement(
+                **bearing_elements_dict["BearingElement"][element]
+            )
+            bearing.kxx.coefficient = bearing_elements_dict["BearingElement"][element]["kxx"]
+
+            bearing.kxy.coefficient = bearing_elements_dict["BearingElement"][element]["kxy"]
+
+            bearing.kyx.coefficient = bearing_elements_dict["BearingElement"][element]["kyx"]
+
+            bearing.kyy.coefficient = bearing_elements_dict["BearingElement"][element]["kyy"]
+
+            bearing.cxx.coefficient = bearing_elements_dict["BearingElement"][element]["cxx"]
+
+            bearing.cxy.coefficient = bearing_elements_dict["BearingElement"][element]["cxy"]
+
+            bearing.cyx.coefficient = bearing_elements_dict["BearingElement"][element]["cyx"]
+
+            bearing.cyy.coefficient = bearing_elements_dict["BearingElement"][element]["cyy"]
+
+            bearing_elements.append(bearing)
+        return bearing_elements
     def M(self):
         M = np.zeros((4, 4))
 
@@ -312,6 +360,12 @@ class BearingElement(Element):
         except xlrd.biffh.XLRDError:
             df = pd.read_csv(file)
         try:
+            for index, row in df.iterrows():
+                for i in range(0, row.size):
+                    if pd.isna(row[i]):
+                        warnings.warn("NaN found in row " + str(index) + " column " + str(i) + ".\n"
+                                      "It will be replaced with zero.")
+                        row[i] = 0
             return cls(n, kxx=df['kxx'].tolist(), cxx=df['cxx'].tolist(), kyy=df['kyy'].tolist(),
                        kxy=df['kxy'].tolist(), kyx=df['kyx'].tolist(), cyy=df['cyy'].tolist(),
                        cxy=df['cxy'].tolist(), cyx=df['cyx'].tolist(), w=df['w'].tolist())

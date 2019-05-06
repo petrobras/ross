@@ -259,7 +259,7 @@ class Rotor(object):
         self.nodes_o_d = nodes_o_d
 
         self.nodes = list(range(len(self.nodes_pos)))
-        self.elements_length = self.df.groupby("n_l")["L"].max()
+        self.elements_length = [sh_el.L for sh_el in self.shaft_elements]
         self.L = nodes_pos[-1]
 
         # rotor mass can also be calculated with self.M()[::4, ::4].sum()
@@ -1463,7 +1463,7 @@ class Rotor(object):
         sio.savemat("%s/%s.mat" % (os.getcwd(), file_name), dic)
 
     def save(self, file_name):
-        """Save rotor to binary file.
+        """Save rotor to toml file.
 
         Parameters
         ----------
@@ -1497,87 +1497,14 @@ class Rotor(object):
 
         os.chdir(current / "elements")
 
-        for element in self.shaft_elements:
-            Rotor.save_shaft_element(element, "shaft_elements.toml")
-        for element in self.disk_elements:
-            Rotor.save_disk_element(element, "disk_elements.toml")
-        for element in self.bearing_seal_elements:
-            Rotor.save_bearing_seal_element(element, "bearing_seal_elements.toml")
+        for element in self.elements:
+            element.save(type(element).__name__+".toml")
+
         os.chdir(main_path)
 
     @staticmethod
-    def save_bearing_seal_element(element, file_name):
-        data = Rotor.load_data(file_name)
-        if type(element.w) == np.ndarray:
-            try:
-                element.w[0]
-                w = list(element.w)
-            except IndexError:
-                w = []
-        data[file_name[:-6]][str(element.n)] = {
-            "n": element.n,
-            "kxx": element.kxx.coefficient[0],
-            "cxx": element.cxx.coefficient[0],
-            "kyy": element.kyy.coefficient[0],
-            "kxy": element.kxy.coefficient[0],
-            "kyx": element.kyx.coefficient[0],
-            "cyy": element.cyy.coefficient[0],
-            "cxy": element.cxy.coefficient[0],
-            "cyx": element.cyx.coefficient[0],
-            "w": w,
-        }
-        Rotor.dump_data(data, file_name)
-
-    @staticmethod
-    def save_shaft_element(element, file_name):
-        data = Rotor.load_data(file_name)
-        data[file_name[:-6]][str(element.n)] = {
-            "L": element.L,
-            "i_d": element.i_d,
-            "o_d": element.o_d,
-            "material": element.material,
-            "n": element.n,
-            "axial_force": element.axial_force,
-            "torque": element.torque,
-            "shear_effects": element.shear_effects,
-            "rotary_inertia": element.rotary_inertia,
-            "gyroscopic": element.gyroscopic,
-            "shear_method_calc": element.shear_method_calc,
-        }
-        Rotor.dump_data(data, file_name)
-
-    @staticmethod
-    def save_disk_element(element, file_name):
-        data = Rotor.load_data(file_name)
-        data[file_name[:-6]][str(element.n)] = {
-            "n": element.n,
-            "m": element.m,
-            "Id": element.Id,
-            "Ip": element.Ip,
-        }
-        Rotor.dump_data(data, file_name)
-
-    @staticmethod
-    def load_data(file_name):
-        try:
-            with open(file_name, "r") as f:
-                data = toml.load(f)
-                if data == {"": {}}:
-                    data = {file_name[:-6]: {}}
-
-        except FileNotFoundError:
-            data = {file_name[:-6]: {}}
-            Rotor.dump_data(data, file_name)
-        return data
-
-    @staticmethod
-    def dump_data(data, file_name):
-        with open(file_name, "w") as f:
-            toml.dump(data, f)
-
-    @staticmethod
     def load(file_name):
-        """Load rotor from binary file.
+        """Load rotor from toml file.
 
         Parameters
         ----------
@@ -1594,55 +1521,12 @@ class Rotor(object):
         except FileNotFoundError:
             return "A rotor with this name does not exist, check the rotors folder."
 
-        shaft_elements = []
-        with open("shaft_elements.toml", "r") as f:
-            shaft_elements_dict = toml.load(f)
-            for element in shaft_elements_dict["shaft_element"]:
-                shaft_elements.append(
-                    ShaftElement(**shaft_elements_dict["shaft_element"][element])
-                )
         os.chdir(rotor_path / "elements")
-
-        disk_elements = []
-        with open("disk_elements.toml", "r") as f:
-            disk_elements_dict = toml.load(f)
-            for element in disk_elements_dict["disk_element"]:
-                disk_elements.append(
-                    DiskElement(**disk_elements_dict["disk_element"][element])
-                )
+        shaft_elements = ShaftElement.load()
         os.chdir(rotor_path / "elements")
-
-        bearing_seal_elements = []
-        bearing_seal_elements_dict = Rotor.load_data("bearing_seal_elements.toml")
-        for element in bearing_seal_elements_dict["bearing_seal_element"]:
-            bearing = BearingElement(
-                **bearing_seal_elements_dict["bearing_seal_element"][element]
-            )
-            bearing.kxx.coefficient = [
-                bearing_seal_elements_dict["bearing_seal_element"][element]["kxx"]
-            ]
-            bearing.kxy.coefficient = [
-                bearing_seal_elements_dict["bearing_seal_element"][element]["kxy"]
-            ]
-            bearing.kyx.coefficient = [
-                bearing_seal_elements_dict["bearing_seal_element"][element]["kyx"]
-            ]
-            bearing.kyy.coefficient = [
-                bearing_seal_elements_dict["bearing_seal_element"][element]["kyy"]
-            ]
-            bearing.cxx.coefficient = [
-                bearing_seal_elements_dict["bearing_seal_element"][element]["cxx"]
-            ]
-            bearing.cxy.coefficient = [
-                bearing_seal_elements_dict["bearing_seal_element"][element]["cxy"]
-            ]
-            bearing.cyx.coefficient = [
-                bearing_seal_elements_dict["bearing_seal_element"][element]["cyx"]
-            ]
-            bearing.cyy.coefficient = [
-                bearing_seal_elements_dict["bearing_seal_element"][element]["cyy"]
-            ]
-            bearing_seal_elements.append(bearing)
+        disk_elements = DiskElement.load()
+        bearing_elements = BearingElement.load()
+        seal_elements = []
 
         os.chdir(rotor_path)
         with open("properties.toml", "r") as f:
@@ -1651,7 +1535,7 @@ class Rotor(object):
         os.chdir(main_path)
         return Rotor(
             shaft_elements=shaft_elements,
-            bearing_seal_elements=bearing_seal_elements,
+            bearing_seal_elements=bearing_elements + seal_elements,
             disk_elements=disk_elements,
             **parameters,
         )
@@ -1718,18 +1602,23 @@ class Rotor(object):
                 DskForce.insert(i + 1, 0)
                 SchForce.insert(i + 1, 0)
                 Vx_axis.insert(i, Vx_axis[i])
-        Vx = [x*-1 for x in Vx]
+        Vx = [x * -1 for x in Vx]
 
         # Bending Moment vector
         Mx = []
-        for i in range(len(Vx)-1):
-            if Vx_axis[i] == Vx_axis[i+1]:
+        for i in range(len(Vx) - 1):
+            if Vx_axis[i] == Vx_axis[i + 1]:
                 pass
             else:
-                Mx.append(((Vx_axis[i+1]*Vx[i+1]) +
-                          (Vx_axis[i+1]*Vx[i]) -
-                          (Vx_axis[i]*Vx[i+1]) -
-                          (Vx_axis[i]*Vx[i])) / 2)
+                Mx.append(
+                    (
+                        (Vx_axis[i + 1] * Vx[i + 1])
+                        + (Vx_axis[i + 1] * Vx[i])
+                        - (Vx_axis[i] * Vx[i + 1])
+                        - (Vx_axis[i] * Vx[i])
+                    )
+                    / 2
+                )
         Bm = [0]
         for i in range(len(Mx)):
             Bm.append(Bm[i] + Mx[i])
