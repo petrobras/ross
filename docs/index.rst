@@ -16,6 +16,7 @@ ross: rotordynamic open-source software
    examples
    git_configuration
    api
+   examples/Tutorial
 
 
 Indices and tables
