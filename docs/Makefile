@@ -18,5 +18,5 @@ help:
 %: Makefile
 	@$(SPHINXBUILD) -M $@ "$(SOURCEDIR)" "$(BUILDDIR)" $(SPHINXOPTS) $(O)
 
-tutorial: Tutorial.ipynb
-	tools/nb_to_doc.py Tutorial
+tutorial: 
+	tools/nb_to_doc.py examples/Tutorial
