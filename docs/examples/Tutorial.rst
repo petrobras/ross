@@ -80,8 +80,8 @@ parameter.
 
     steel = rs.Material.use_material('Steel')
 
-# Element
----------
+Element
+=======
 
 | Element is an abstract class(not directly used in the program), this
   class is mainly used to organize the code and make it more intuitive.
@@ -89,8 +89,8 @@ parameter.
   their respective names. - Every element is placed in a node, which is
   the junction of two elements.
 
-# ShaftElement
---------------
+ShaftElement
+============
 
 | There are two methods that you could use to model this element:
 | \* Euler–Bernoulli beam Theory \* Timoshenko beam Theory (used as
@@ -120,8 +120,8 @@ parameter.
                                       gyroscopic=True
                                       ) for l in l_list]
 
-# DiskElement
--------------
+DiskElement
+===========
 
 | As the name says this class represents a Disk.
 | We can see an example of instantiation of this class in the following
@@ -141,11 +141,11 @@ All the values are following the S.I. convention.
 
 .. parsed-literal::
 
-    <ross.disk_element.DiskElement object at 0x7fc50ef3e6a0>
+    <ross.disk_element.DiskElement object at 0x7f1402f98e48>
 
 
 From geometry DiskElement instatiation
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+======================================
 
 | Besides the instatiation previously explained, there is a way to
   instantiate a DiskElement with only geometrical parameters (for
@@ -206,8 +206,8 @@ Instantiating bearings from excel archives
 There’s a class method to instantiate a bearing from excel tables, as we
 can see in the following code.
 
-There will be a class method to instantiate a bearing from excel tables. - work in progress
-'''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''''
+**There will be a class method to instantiate a bearing from excel
+tables. - work in progress**
 
 # Rotor
 -------
@@ -300,7 +300,7 @@ From section instantiation of a Rotor
     
     
     
-      <div class="bk-root" id="206dfaad-fb94-4d5b-8f5b-ef234632bef1" data-root-id="1117"></div>
+      <div class="bk-root" id="e93417d1-c9de-46e8-bb2e-a7a77d855c64" data-root-id="1117"></div>
 
 
 
@@ -335,7 +335,7 @@ you can either turn on or off the matplotlib one.
     
     
     
-      <div class="bk-root" id="8eaf358e-c331-4131-b620-aeee7d231d00" data-root-id="1320"></div>
+      <div class="bk-root" id="3a951c87-f7d3-4ccf-97a2-83a8428e52b8" data-root-id="1320"></div>
 
 
 
@@ -346,7 +346,7 @@ you can either turn on or off the matplotlib one.
 .. parsed-literal::
 
     (Figure(id='1320', ...),
-     <matplotlib.axes._subplots.AxesSubplot at 0x7fc50ef3e4e0>)
+     <matplotlib.axes._subplots.AxesSubplot at 0x7f1402facb38>)
 
 
 
@@ -366,8 +366,8 @@ run() method like the code bellow.
     rotor1.run()
     rotor2.run()
 
-# Obtaining results
--------------------
+Obtaining results
+-----------------
 
 These are the following analysis you can do with the program: - Static
 analysis - Campbell Diagram - Frequency response - Forced response -
@@ -394,7 +394,7 @@ response to gravity effects.
     
     
     
-      <div class="bk-root" id="14811fcf-5ee6-41df-8d18-e09c43f4aa59" data-root-id="2835"></div>
+      <div class="bk-root" id="700428f7-42dc-47d8-b608-d1f69767a94c" data-root-id="2835"></div>
 
 
 
@@ -416,7 +416,7 @@ In this example we can see the campbell diagram from 0 to 4000 RPM.
 .. parsed-literal::
 
     (<Figure size 432x288 with 2 Axes>,
-     <matplotlib.axes._subplots.AxesSubplot at 0x7fc50d883b38>)
+     <matplotlib.axes._subplots.AxesSubplot at 0x7f1401929d30>)
 
 
 
