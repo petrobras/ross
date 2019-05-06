@@ -271,7 +271,9 @@ class PressureMatrix:
 
     def get_rotor_load(self):
         """Returns the load applied to the rotor.
-        :return: float.
+        Returns
+        -------
+        float
             Load applied to the rotor.
         """
         return -((np.pi*self.radius_stator*2*self.omega*self.visc*(self.length**3)*self.eccentricity_ratio)
@@ -280,9 +282,13 @@ class PressureMatrix:
 
     def sommerfeld_number(self, f):
         """Return the sommerfeld number.
-        :param f: float
+        Parameters
+        ----------
+        f: float
             Load applied to the rotor.
-        :return: float
+        Returns
+        -------
+        float
             The sommerfeld number.
         """
         modified_s = (self.radius_stator*2*self.omega*self.visc*(self.length**3)) / \
@@ -291,9 +297,13 @@ class PressureMatrix:
 
     def calculate_eccentricity_ratio(self, f):
         """Calculate the eccentricity ratio using the sommerfeld number.
-        :param f: float
+        Parameters
+        ----------
+        f: float
             Load applied to the rotor.
-        :return: float.
+        Returns
+        -------
+        float
             The eccentricity ratio.
         """
         s = self.sommerfeld_number(f)
