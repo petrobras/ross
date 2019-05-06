@@ -233,9 +233,9 @@ class PressureMatrix:
             The position y of the returned internal radius.
         """
         radius_internal = self.radius_rotor
-        xri = radius_internal * np.cos(gama - np.pi/4)
-        yri = radius_internal * np.sin(gama - np.pi/4)
-        return radius_internal, xri + self.xi, yri + self.yi
+        xri = radius_internal * np.cos(gama)
+        yri = radius_internal * np.sin(gama)
+        return radius_internal, xri, yri
 
     def external_radius_function(self, gama):
         """This function calculates the radius of the stator.
@@ -252,9 +252,11 @@ class PressureMatrix:
         yre: float
             The position y of the returned external radius.
         """
-        radius_external = self.radius_stator
-        xre = radius_external * np.cos(gama - np.pi/4)
-        yre = radius_external * np.sin(gama - np.pi/4)
+        betha = -np.pi/4
+        alpha = betha - gama
+        radius_external = np.sqrt(self.radius_stator**2 - (self.eccentricity * np.sin(alpha))**2) + self.eccentricity * np.cos(alpha)
+        xre = radius_external * np.cos(gama)
+        yre = radius_external * np.sin(gama)
 
         return radius_external, xre, yre
 
@@ -275,6 +277,7 @@ class PressureMatrix:
             else:
                 p.circle(self.xre[z][j], self.yre[z][j], color="red")
                 p.circle(self.xri[z][j], self.yri[z][j], color="blue")
+        p.circle(0, 0, color="black")
         show(p)
 
     def plot_pressure_z(self, theta=0):
