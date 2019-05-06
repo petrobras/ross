@@ -115,7 +115,7 @@ class PressureMatrix:
     Examples
     --------
     >>> from ross.fluid_flow import fluid_flow as flow
-    >>> import matplotlib.pyplot as plt
+    >>> import numpy as np
     >>> nz = 20
     >>> ntheta = 100
     >>> nradius = 11
