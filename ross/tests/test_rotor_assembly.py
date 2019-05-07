@@ -1419,6 +1419,157 @@ def test_freq_response_w_force(rotor4):
     assert_allclose(mag[:4, :4], mag_exp_2_unb)
 
 
+def test_mesh_convergence(rotor3):
+    rotor3.convergence(n_eigval=0, err_max=1e-08)
+
+    assert_allclose(
+            len(rotor3.shaft_elements), 96, atol=0
+    )
+    assert_allclose(
+            rotor3.wn[0], 82.653037335, atol=1e-02
+    )
+    assert_allclose(
+            rotor3.shaft_elements[0].L, 0.015625, atol=1e-06
+    )
+    assert_allclose(
+            rotor3.disk_elements[0].n, 32, atol=0
+    )
+    assert_allclose(
+            rotor3.disk_elements[1].n, 64, atol=0
+    )
+    assert_allclose(
+            rotor3.bearing_seal_elements[0].n, 0, atol=0
+    )
+    assert_allclose(
+            rotor3.bearing_seal_elements[1].n, 96, atol=0
+    )
+    assert rotor3.error_arr[-1] <= 1e-08 * 100
+
+
+def test_static_analysis_rotor3(rotor3):
+    rotor3.static()
+
+    assert_almost_equal(
+        rotor3.disp_y,
+        ([-0.00061784, -0.00108199, -0.00143205, -0.00157464, -0.00147798,
+          -0.00115111, -0.00069521]),
+        decimal=6,
+    )
+    assert_almost_equal(
+        rotor3.Vx,
+        [0, -494.2745, -456.6791, -419.0836, -99.4925, -61.8971, -24.3016,
+         480.9807, 518.5762, 556.1716, 0],
+        decimal=3,
+    )
+    assert_almost_equal(
+        rotor3.Bm,
+        [0, -118.8692, -228.3395, -248.5132, -259.2881, -134.3434, 0],
+        decimal=3,
+    )
+
+
+@pytest.fixture
+def rotor5():
+    #  Rotor without damping with 10 shaft elements 2 disks and 2 bearings
+    i_d = 0
+    o_d = 0.05
+    n = 10
+    L = [0.25 for _ in range(n)]
+
+    shaft_elem = [
+        ShaftElement(
+            l, i_d, o_d, steel, shear_effects=True, rotary_inertia=True, gyroscopic=True
+        )
+        for l in L
+    ]
+
+    disk0 = DiskElement.from_geometry(4, steel, 0.07, 0.05, 0.28)
+    disk1 = DiskElement.from_geometry(6, steel, 0.07, 0.05, 0.35)
+
+    stfx = 1e6
+    stfy = 1e6
+    bearing0 = BearingElement(2, kxx=stfx, kyy=stfy, cxx=0)
+    bearing1 = BearingElement(8, kxx=stfx, kyy=stfy, cxx=0)
+
+    return Rotor(shaft_elem, [disk0, disk1], [bearing0, bearing1])
+
+
+def test_static_analysis_rotor5(rotor5):
+    rotor5.static()
+
+    assert_almost_equal(
+        rotor5.disp_y,
+        ([0.00026382, -0.00015021, -0.00056947, -0.00098566, -0.00130592,
+          -0.00143686, -0.00134669, -0.00104446, -0.00063136, -0.00021282,
+          0.0002005]),
+        decimal=6,
+    )
+    assert_almost_equal(
+        rotor5.Vx,
+        [0, 37.5954, 75.1908, -494.2745, -456.6791, -419.08368, -99.4925,
+         -61.8971, -24.3016, 480.9807, 518.5762, 556.1716, -75.1908, -37.5954,
+         0],
+        decimal=3,
+    )
+    assert_almost_equal(
+        rotor5.Bm,
+        [0, 4.6994, 18.7977, -100.0714, -209.5418, -229.7155, -240.4903,
+         -115.5457, 18.7977, 4.6994, 0],
+        decimal=3,
+    )
+
+
+@pytest.fixture
+def rotor6():
+    #  Overhung rotor without damping with 10 shaft elements 
+    #  2 disks and 2 bearings
+    i_d = 0
+    o_d = 0.05
+    n = 10
+    L = [0.25 for _ in range(n)]
+
+    shaft_elem = [
+        ShaftElement(
+            l, i_d, o_d, steel, shear_effects=True, rotary_inertia=True, gyroscopic=True
+        )
+        for l in L
+    ]
+
+    disk0 = DiskElement.from_geometry(5, steel, 0.07, 0.05, 0.28)
+    disk1 = DiskElement.from_geometry(10, steel, 0.07, 0.05, 0.35)
+
+    stfx = 1e6
+    stfy = 1e6
+    bearing0 = BearingElement(2, kxx=stfx, kyy=stfy, cxx=0)
+    bearing1 = BearingElement(8, kxx=stfx, kyy=stfy, cxx=0)
+
+    return Rotor(shaft_elem, [disk0, disk1], [bearing0, bearing1])
+
+
+def test_static_analysis_rotor6(rotor6):
+    rotor6.static()
+
+    assert_almost_equal(
+        rotor6.disp_y,
+        ([-2.58459386e-06, -8.83514255e-05, -1.79345202e-04, -2.82280131e-04,
+          -3.83451012e-04, -4.71329601e-04, -5.55753491e-04, -7.08192594e-04,
+          -1.02148266e-03, -1.55824814e-03, -2.22220183e-03]),
+        decimal=6,
+    )
+    assert_almost_equal(
+        rotor6.Vx,
+        [0, 37.5954, 75.1908, -104.1543, -66.5589, -28.9635, 8.6319, 328.2230,
+         365.8184, 403.4139, 441.0093, -580.4733, -542.8778, -505.2824, 0],
+        decimal=3,
+    )
+    assert_almost_equal(
+        rotor6.Bm,
+        [0, 4.6994, 18.7977, -2.5414, -14.4817, -17.0232, 69.7319, 165.8860,
+         271.4389, 131.0200, 0],
+        decimal=3,
+    )
+
+
 def test_save_load():
 
     a = rotor_example()
