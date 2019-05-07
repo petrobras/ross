@@ -111,6 +111,8 @@ class PressureMatrix:
     plot_counter: int
         for each plot, it increments this counter, in order to plot
         figures with unique IDs.
+    radial_clearance: float
+        Difference between both stator and rotor radius, regardless of eccentricity.
 
     Examples
     --------
@@ -177,6 +179,7 @@ class PressureMatrix:
         self.pressure_matrix_available = False
         self.difference_between_radius = radius_stator - radius_rotor
         self.eccentricity_ratio = self.eccentricity/self.difference_between_radius
+        self.radial_clearance = self.radius_stator - self.radius_rotor
 
     def calculate_pressure_matrix(self):
         """This function calculates the pressure matrix
@@ -259,6 +262,51 @@ class PressureMatrix:
         yre = radius_external * np.sin(gama)
 
         return radius_external, xre, yre
+
+    def get_rotor_load(self):
+        """Returns the load applied to the rotor.
+        Returns
+        -------
+        float
+            Load applied to the rotor.
+        """
+        return -((np.pi*self.radius_stator*2*self.omega*self.visc*(self.length**3)*self.eccentricity_ratio)
+                 / (8*(self.radial_clearance**2)*((1 - self.eccentricity_ratio**2)**2))) \
+            * np.sqrt((16/np.pi - 1)*self.eccentricity_ratio + 1)
+
+    def sommerfeld_number(self, f):
+        """Return the sommerfeld number.
+        Parameters
+        ----------
+        f: float
+            Load applied to the rotor.
+        Returns
+        -------
+        float
+            The sommerfeld number.
+        """
+        modified_s = (self.radius_stator*2*self.omega*self.visc*(self.length**3)) / \
+                     (8*f*(self.radial_clearance**2))
+        return (modified_s/np.pi)*(self.radius_stator*2/self.length)**2
+
+    def calculate_eccentricity_ratio(self, f):
+        """Calculate the eccentricity ratio using the sommerfeld number.
+        Parameters
+        ----------
+        f: float
+            Load applied to the rotor.
+        Returns
+        -------
+        float
+            The eccentricity ratio.
+        """
+        s = self.sommerfeld_number(f)
+        coefficients = [1, -4, (6 - (s**2)*(16 - np.pi**2)), -(4 + (np.pi**2)*(s**2)), 1]
+        roots = np.roots(coefficients)
+        for i in range(0, len(roots)):
+            if 0 <= roots[i] <= 1:
+                return np.sqrt(roots[i])
+        sys.exit("Eccentricity ratio could not be calculated.")
 
     def plot_eccentricity(self, z=0):
         """This function assembles pressure graphic along the z-axis.
