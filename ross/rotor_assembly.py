@@ -8,6 +8,7 @@ import scipy.signal as signal
 import scipy.io as sio
 from copy import copy, deepcopy
 from collections import Iterable
+from scipy import interpolate
 import shutil
 import matplotlib as mpl
 import matplotlib.pyplot as plt
