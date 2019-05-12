@@ -62,7 +62,15 @@ class DiskElement(Element):
             return True
         else:
             return False
-        
+
+    def __repr__(self):
+        return (
+            f"{self.__class__.__name__}"
+            f"(Id={self.Id:{0}.{5}}, Ip={self.Ip:{0}.{5}}, "
+            f"m={self.m:{0}.{5}}, color={self.color!r}, "
+            f"n={self.n})"
+        )
+
     def save(self, file_name):
         data = self.load_data(file_name)
         data["DiskElement"][str(self.n)] = {
