@@ -69,6 +69,23 @@ class Material:
         else:
             return False
 
+    def __repr__(self):
+        return (
+            f"{self.__class__.__name__}"
+            f"(name={self.name}, rho={self.rho:{0}.{5}}, G_s={self.G_s:{0}.{5}} "
+            f"E={self.E:{0}.{5}}, Poisson={self.Poisson:{0}.{5}} color={self.color!r}"
+        )
+
+    def __str__(self):
+        return (
+            f"{self.name}"
+            f'\n{35*"-"}'
+            f"\nDensity         (N/m**3): {float(self.rho):{2}.{8}}"
+            f"\nYoung`s modulus (N/m**2): {float(self.E):{2}.{8}}"
+            f"\nShear modulus   (N/m**2): {float(self.G_s):{2}.{8}}"
+            f"\nPoisson coefficient     : {float(self.Poisson):{2}.{8}}"
+        )
+
     @staticmethod
     def dump_data(data):
         with open("available_materials.toml", "w") as f:
@@ -114,19 +131,6 @@ class Material:
         data = Material.load_data()
         data["Materials"][self.name] = self.__dict__
         Material.dump_data(data)
-
-    def __repr__(self):
-        return f"{self.name}"
-
-    def __str__(self):
-        return (
-            f"{self.name}"
-            f'\n{35*"-"}'
-            f"\nDensity         (N/m**3): {float(self.rho):{2}.{8}}"
-            f"\nYoung`s modulus (N/m**2): {float(self.E):{2}.{8}}"
-            f"\nShear modulus   (N/m**2): {float(self.G_s):{2}.{8}}"
-            f"\nPoisson coefficient     : {float(self.Poisson):{2}.{8}}"
-        )
 
 
 steel = Material(name="Steel", rho=7810, E=211e9, G_s=81.2e9)
