@@ -117,7 +117,7 @@ class PressureMatrix:
     Examples
     --------
     >>> from ross.fluid_flow import fluid_flow as flow
-    >>> import matplotlib.pyplot as plt
+    >>> import numpy as np
     >>> nz = 20
     >>> ntheta = 100
     >>> nradius = 11
@@ -208,6 +208,8 @@ class PressureMatrix:
         for i in range(self.nz):
             zno = i * self.dz
             self.z[0][i] = zno
+            plot_eccentricity_error = False
+            position = -1
             for j in range(self.ntheta):
                 gama = j * self.dtheta
                 [radius_external, self.xre[i][j], self.yre[i][j]] =\
@@ -216,6 +218,14 @@ class PressureMatrix:
                     self.internal_radius_function(zno, gama)
                 self.re[i][j] = radius_external
                 self.ri[i][j] = radius_internal
+                if not plot_eccentricity_error:
+                    if abs(self.xri[i][j]) > abs(self.xre[i][j]) or abs(self.yri[i][j]) > abs(self.yre[i][j]):
+                        plot_eccentricity_error = True
+                        position = i
+            if plot_eccentricity_error:
+                self.plot_eccentricity(position)
+                sys.exit("Error: The given parameters create a rotor that is not inside the stator. "
+                         "Check the plotted figure and fix accordingly.")
 
     def internal_radius_function(self, z, gama):
         """This function calculates the radius of the rotor given the
