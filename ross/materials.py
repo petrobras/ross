@@ -70,10 +70,15 @@ class Material:
             return False
 
     def __repr__(self):
+        selfE = "{:.2e}".format(self.E)
+        selfPoisson = "{:.2e}".format(self.Poisson)
+        selfrho = "{:.2e}".format(self.rho)
+        selfGs = "{:.2e}".format(self.G_s)
+
         return (
-            f"{self.__class__.__name__}"
-            f"(name={self.name}, rho={self.rho:{0}.{5}}, G_s={self.G_s:{0}.{5}} "
-            f"E={self.E:{0}.{5}}, Poisson={self.Poisson:{0}.{5}} color={self.color!r}"
+            f"Material"
+            f"(name={self.name}, rho={selfrho}, G_s={selfGs} "
+            f"E={selfE}, Poisson={selfPoisson} color={self.color!r}"
         )
 
     def __str__(self):
