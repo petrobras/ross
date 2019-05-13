@@ -3,6 +3,14 @@ import numpy as np
 import matplotlib as mpl
 import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
+import bokeh.palettes as bp
+from bokeh.transform import linear_cmap
+from bokeh.layouts import gridplot
+from bokeh.plotting import figure, output_file, show
+from bokeh.models import ColumnDataSource, ColorBar
+
+# set bokeh palette of colors
+bokeh_colors = bp.RdGy[11]
 
 
 class Results(np.ndarray):
@@ -90,7 +98,26 @@ class CampbellResults(Results):
         for k, v in default_values.items():
             kwargs.setdefault(k, v)
 
-        for mark, whirl_dir in zip(["^", "o", "v"], [0.0, 0.5, 1.0]):
+        # bokeh plot - output to static HTML file
+        output_file("Campbell_diagram.html")
+
+        log_dec_map = log_dec.flatten()
+
+        # bokeh plot - create a new plot
+        camp = figure(
+           tools="pan, box_zoom, wheel_zoom, reset, save",
+           width=900,
+           height=500,
+           title="Campbell Diagram",
+           x_axis_label="Rotor speed (rad/s)",
+           y_axis_label="Damped natural frequencies (rad/s)"
+        )
+
+        for mark, whirl_dir, legend in zip(
+                ["^", "o", "v"],
+                [0.0, 0.5, 1.0],
+                ["Foward", "Mixed", "Backward"]
+            ):
             num_frequencies = wd.shape[1]
             for i in range(num_frequencies):
                 if wn is True:
@@ -112,6 +139,61 @@ class CampbellResults(Results):
                         marker=mark,
                         **kwargs,
                     )
+
+                    # Bokeh plot
+                    source = ColumnDataSource(
+                            dict(x=speed_range_i[whirl_mask],
+                                 y=w_i[whirl_mask],
+                                 color=log_dec_i[whirl_mask]
+                                 )
+                    )
+                    color_mapper = linear_cmap(
+                            field_name='color',
+                            palette=bp.magma(256),
+                            low=min(log_dec_map),
+                            high=max(log_dec_map)
+                    )
+                    camp.scatter(
+                        x='x',
+                        y='y',
+                        color=color_mapper,
+                        marker=mark,
+                        fill_alpha=1.0,
+                        size=5,
+                        muted_color=color_mapper,
+                        muted_alpha=0.2, 
+                        source=source,
+                        legend=legend
+                    )
+
+        ax.plot(speed_range[:, 0],
+                speed_range[:, 0],
+                color='k',
+                linewidth=1.5,
+                linestyle="-.",
+                alpha=0.75,
+                label="Rotor speed"
+        )
+
+        camp.line(x=speed_range[:, 0],
+                  y=speed_range[:, 0],
+                  line_width=3,
+                  color=bokeh_colors[0],
+                  line_dash="dotdash",
+                  line_alpha=0.75,
+                  legend="Rotor speed",
+                  muted_color=bokeh_colors[0],
+                  muted_alpha=0.2,
+        )
+
+        color_bar = ColorBar(
+                color_mapper=color_mapper['transform'], width=8, location=(0, 0)
+        )
+
+        camp.legend.click_policy = "mute"
+        camp.legend.location = "top_left"
+        camp.add_layout(color_bar, 'right')
+        show(camp)
 
         if len(fig.axes) == 1:
             cbar = fig.colorbar(im)
@@ -160,7 +242,9 @@ class FrequencyResponseResults(Results):
         Returns
         -------
         ax : matplotlib.axes
-            Matplotlib axes with phase plot.
+            Matplotlib axes with amplitude plot.
+        mag_plot : bokeh plot axes
+            Bokeh plot axes with amplitude plot.
         Examples
         --------
         """
@@ -178,14 +262,35 @@ class FrequencyResponseResults(Results):
 
         if units == "m":
             ax.set_ylabel("Amplitude $(m)$")
+            y_axis_label = "Amplitude (m)"
         elif units == "mic-pk-pk":
             ax.set_ylabel("Amplitude $(\mu pk-pk)$")
+            y_axis_label = ("Amplitude (\mu pk-pk)")
         else:
             ax.set_ylabel("Amplitude $(dB)$")
+            y_axis_label = ("Amplitude (dB")
 
         ax.set_xlabel("Frequency (rad/s)")
 
-        return ax
+        # bokeh plot - create a new plot
+        mag_plot = figure(
+                tools="pan, box_zoom, wheel_zoom, reset, save",
+                width=900,
+                height=400,
+                title="Frequency Response - Magnitude",
+                x_axis_label="Frequency",
+                y_axis_label=y_axis_label
+        )
+        source = ColumnDataSource(dict(x=frequency_range, y=mag[inp, out, :]))
+        mag_plot.line(x='x',
+                      y='y',
+                      source=source,
+                      line_color=bokeh_colors[0],
+                      line_alpha=1.0,
+                      line_width=3,
+                      )
+
+        return ax, mag_plot
 
     def plot_phase(self, inp, out, ax=None, **kwargs):
         """Plot frequency response.
@@ -205,10 +310,10 @@ class FrequencyResponseResults(Results):
             the plot (e.g. linestyle='--')
         Returns
         -------
-        ax0 : matplotlib.axes
-            Matplotlib axes with amplitude plot.
-        ax1 : matplotlib.axes
+        ax : matplotlib.axes
             Matplotlib axes with phase plot.
+        phase_plot : bokeh plot axes
+            Bokeh plot axes with phase plot.
         Examples
         --------
         """
@@ -227,7 +332,25 @@ class FrequencyResponseResults(Results):
         ax.set_ylabel("Phase")
         ax.set_xlabel("Frequency (rad/s)")
 
-        return ax
+        # bokeh plot - create a new plot
+        phase_plot = figure(
+                tools="pan, box_zoom, wheel_zoom, reset, save",
+                width=900,
+                height=400,
+                title="Frequency Response - Phase",
+                x_axis_label="Frequency",
+                y_axis_label="Phase"
+        )
+        source = ColumnDataSource(dict(x=frequency_range, y=phase[inp, out, :]))
+        phase_plot.line(x='x',
+                        y='y',
+                        source=source,
+                        line_color=bokeh_colors[0],
+                        line_alpha=1.0,
+                        line_width=3,
+                        )
+
+        return ax, phase_plot
 
     def plot(self, inp, out, ax0=None, ax1=None, **kwargs):
         """Plot frequency response.
@@ -239,11 +362,11 @@ class FrequencyResponseResults(Results):
             Input.
         out : int
             Output.
-        ax0 : matplotlib.axes, optional
-            Matplotlib axes where the amplitude will be plotted.
+        ax0 : matplotlib.axes, bokeh plot axes optional
+            Matplotlib and bokeh plot axes where the amplitude will be plotted.
             If None creates a new.
-        ax1 : matplotlib.axes, optional
-            Matplotlib axes where the phase will be plotted.
+        ax1 : matplotlib.axes, bokeh plot axes optional
+            Matplotlib and bokeh plot axes where the phase will be plotted.
             If None creates a new.
         kwargs : optional
             Additional key word arguments can be passed to change
@@ -254,18 +377,34 @@ class FrequencyResponseResults(Results):
             Matplotlib axes with amplitude plot.
         ax1 : matplotlib.axes
             Matplotlib axes with phase plot.
+        bk_ax0 : bokeh plot axes
+            Bokeh plot axes with amplitude plot
+        bk_ax1 : bokeh plot axes
+            Bokeh plot axes with phase plot
         Examples
         --------
         """
         if ax0 is None and ax1 is None:
             fig, (ax0, ax1) = plt.subplots(2)
 
-        ax0 = self.plot_magnitude(inp, out, ax=ax0)
-        ax1 = self.plot_phase(inp, out, ax=ax1)
+        # bokeh plot - output to static HTML file
+        output_file("plot_freq_response.html")
+
+        # matplotlib axes
+        ax0 = self.plot_magnitude(inp, out, ax=ax0)[0]
+        ax1 = self.plot_phase(inp, out, ax=ax1)[0]
+
+        # bokeh plot axes
+        bk_ax0 = self.plot_magnitude(inp, out, ax=ax0)[1]
+        bk_ax1 = self.plot_phase(inp, out, ax=ax1)[1]
 
         ax0.set_xlabel("")
 
-        return ax0, ax1
+        # show the bokeh plot results
+        grid_plots = gridplot([[bk_ax0], [bk_ax1]])
+        show(grid_plots)
+
+        return ax0, ax1, bk_ax0, bk_ax1
 
     def plot_freq_response_grid(self, outs, inps, ax=None, **kwargs):
 
@@ -559,7 +698,7 @@ class ModeShapeResults(Results):
 
         ax.set_title(
             f"$speed$ = {self.w:.1f} rad/s\n$"
-            f"\omega_d$ = {self.wd[mode]:.1f} rad/s\n"
+            f"\frequency_range_d$ = {self.wd[mode]:.1f} rad/s\n"
             f"$log dec$ = {self.log_dec[mode]:.1f}"
         )
 

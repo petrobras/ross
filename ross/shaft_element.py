@@ -439,7 +439,7 @@ class ShaftElement(Element):
         )
         # bokeh plot - plot the shaft
         bk_ax.quad(top=self.o_d,
-                   bottom=-self.o_d,
+                   bottom=self.i_d,
                    left=position,
                    right=position + self.L,
                    line_color=bokeh_colors[0],
@@ -447,6 +447,15 @@ class ShaftElement(Element):
                    fill_alpha=0.5,
                    fill_color=bokeh_colors[2],
                    legend="Shaft"
+                   )
+        bk_ax.quad(top=-self.i_d,
+                   bottom=-self.o_d,
+                   left=position,
+                   right=position + self.L,
+                   line_color=bokeh_colors[0],
+                   line_width=1,
+                   fill_alpha=0.5,
+                   fill_color=bokeh_colors[2],
                    )
 
     @classmethod
