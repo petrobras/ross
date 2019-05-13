@@ -226,7 +226,7 @@ class ShaftElement(Element):
         return (
             f"{self.__class__.__name__}"
             f"(L={self.L:{0}.{5}}, i_d={self.i_d:{0}.{5}}, "
-            f"o_d={self.o_d:{0}.{5}}, material={self.material!r}, "
+            f"o_d={self.o_d:{0}.{5}}, material={self.material.name!r}, "
             f"n={self.n})"
         )
 
