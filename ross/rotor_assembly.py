@@ -280,6 +280,11 @@ class Rotor(object):
         # number of dofs
         self.ndof = 4 * max([el.n for el in shaft_elements]) + 8
 
+        #  values for static analysis will be calculated by def static
+        self.Vx = None
+        self.Bm = None
+        self.disp_y = None
+        
         #  diameter at node position
 
         print(
@@ -307,6 +312,146 @@ class Rotor(object):
                 2 * np.pi * self.damping_ratio / np.sqrt(1 - self.damping_ratio ** 2)
             )
         self.lti = self._lti()
+
+    def convergence(self, n_eigval=0, err_max=1e-02):
+        """
+        Function to analyze the eigenvalues convergence through the number of
+        shaft elements. Every new run doubles the number os shaft elements.
+
+        -----------
+        Parameters:
+        -----------
+        n_eigval : int
+            The nth eigenvalue which the convergence analysis will run.
+            Default is 0 (the first eigenvalue).
+        err_max : float
+            Maximum allowable convergence error.
+            Default is 1e-02
+
+        Example:
+        --------
+        >>> i_d = 0
+        >>> o_d = 0.05
+        >>> n = 6
+        >>> L = [0.25 for _ in range(n)]
+        ...
+        >>> shaft_elem = [rs.ShaftElement(l, i_d, o_d, steel,
+        shear_effects=True, rotary_inertia=True, gyroscopic=True) for l in L]
+        ...
+        >>> disk0 = DiskElement.from_geometry(2, steel, 0.07, 0.05, 0.28)
+        >>> disk1 = DiskElement.from_geometry(4, steel, 0.07, 0.05, 0.35)
+        >>> bearing0 = BearingElement(0, kxx=1e6, kyy=8e5, cxx=2e3)
+        >>> bearing1 = BearingElement(6, kxx=1e6, kyy=8e5, cxx=2e3)
+        >>> rotor0 = Rotor(shaft_elem, [disk0, disk1], [bearing0, bearing1])
+        >>> len(rotor0.shaft_elements)
+        6
+        >>> rotor0.convergence(n_eigval=0, err_max=1e-08)
+        >>> len(rotor0.shaft_elements)
+        96
+        """
+        el_num = np.array([len(self.shaft_elements)])
+        eigv_arr = np.array([])
+        error_arr = np.array([0])
+
+        self.run()
+        eigv_arr = np.append(eigv_arr, self.wn[n_eigval])
+
+        # this value is up to start the loop while
+        error = 1
+        nel_r = 2
+
+        while error > err_max:
+            shaft_elem = []
+            disk_elem = []
+            brgs_elem = []
+
+            for i, leng in enumerate(self.shaft_elements):
+                le = self.shaft_elements[i].L / nel_r
+                o_ds = self.shaft_elements[i].o_d
+                i_ds = self.shaft_elements[i].i_d
+
+                # loop to double the number of element
+                for j in range(nel_r):
+                    shaft_elem.append(
+                        ShaftElement(
+                            le,
+                            i_ds,
+                            o_ds,
+                            material=self.shaft_elements[i].material,
+                            shear_effects=True,
+                            rotary_inertia=True,
+                            gyroscopic=True,
+                        )
+                    )
+
+            for DiskEl in self.disk_elements:
+                aux_DiskEl = deepcopy(DiskEl)
+                aux_DiskEl.n = nel_r * DiskEl.n
+                disk_elem.append(aux_DiskEl)
+
+            for Brg_SealEl in self.bearing_seal_elements:
+                aux_Brg_SealEl = deepcopy(Brg_SealEl)
+                aux_Brg_SealEl.n = nel_r * Brg_SealEl.n
+                brgs_elem.append(aux_Brg_SealEl)
+
+            rotor = Rotor(
+                shaft_elem, disk_elem, brgs_elem, w=self.w, n_eigen=self.n_eigen
+            )
+            rotor.run()
+
+            eigv_arr = np.append(eigv_arr, rotor.wn[n_eigval])
+            el_num = np.append(el_num, len(shaft_elem))
+
+            error = min(eigv_arr[-1], eigv_arr[-2]) / max(eigv_arr[-1], eigv_arr[-2])
+            error = 1 - error
+
+            error_arr = np.append(error_arr, 100 * error)
+            nel_r *= 2
+
+        self.__dict__ = rotor.__dict__
+        self.error_arr = error_arr
+
+        output_file("convergence.html")
+        source = ColumnDataSource(
+            data=dict(x0=el_num[1:], y0=eigv_arr[1:], x1=el_num[1:], y1=error_arr[1:])
+        )
+
+        TOOLS = "pan,wheel_zoom,box_zoom,hover,reset,save,"
+        TOOLTIPS1 = [("Frquency:", "@y0 Hz"), ("Number of Elements", "@x0")]
+        TOOLTIPS2 = [("Relative Error:", "@y1"), ("Number of Elements", "@x1")]
+        # create a new plot and add a renderer
+        freq_arr = figure(
+            tools=TOOLS,
+            tooltips=TOOLTIPS1,
+            width=500,
+            height=500,
+            title="Frequency Evaluation",
+            x_axis_label="Numer of Elements",
+            y_axis_label="Frequency (Hz)",
+        )
+        freq_arr.line("x0", "y0", source=source, line_width=3, line_color="crimson")
+        freq_arr.circle("x0", "y0", source=source, fill_color="crimson", size=8)
+
+        # create another new plot and add a renderer
+        rel_error = figure(
+            tools=TOOLS,
+            tooltips=TOOLTIPS2,
+            width=500,
+            height=500,
+            title="Relative Error Evaluation",
+            x_axis_label="Number of Rlements",
+            y_axis_label="Relative Rrror",
+        )
+        rel_error.line(
+            "x1", "y1", source=source, line_width=3, line_color="darkslategray"
+        )
+        rel_error.circle("x1", "y1", source=source, fill_color="darkslategray", size=8)
+
+        # put the subplots in a gridplot
+        p = gridplot([[freq_arr, rel_error]])
+
+        # show the results
+        show(p)
 
     @property
     def w(self):
@@ -1565,6 +1710,7 @@ class Rotor(object):
         disp_y = np.array([])
         for node_dof in range(int(len(disp) / 4)):
             disp_y = np.append(disp_y, disp[4 * node_dof + 1])
+        self.disp_y = disp_y
 
         # Shearing Force
         BrgForce = [0] * len(self.nodes_pos)
@@ -1603,7 +1749,8 @@ class Rotor(object):
                 DskForce.insert(i + 1, 0)
                 SchForce.insert(i + 1, 0)
                 Vx_axis.insert(i, Vx_axis[i])
-        Vx = [x * -1 for x in Vx]
+        self.Vx = [x * -1 for x in Vx]
+        Vx = self.Vx
 
         # Bending Moment vector
         Mx = []
@@ -1623,6 +1770,7 @@ class Rotor(object):
         Bm = [0]
         for i in range(len(Mx)):
             Bm.append(Bm[i] + Mx[i])
+        self.Bm = Bm
 
         output_file("static.html")
         source = ColumnDataSource(
@@ -1631,9 +1779,9 @@ class Rotor(object):
 
         TOOLS = "pan,wheel_zoom,box_zoom,reset,save,box_select,hover"
         TOOLTIPS = [
-            ("Shaft lenght:", "@x0 m"),
-            ("Underformed:", "@y1 mm"),
-            ("Displacement:", "@y0 mm"),
+            ("Shaft lenght:", "@x0"),
+            ("Underformed:", "@y1"),
+            ("Displacement:", "@y0"),
         ]
 
         # create displacement plot
@@ -1643,8 +1791,8 @@ class Rotor(object):
             width=800,
             height=400,
             title="Static Analysis",
-            x_axis_label="shaft lenght(m)",
-            y_axis_label="lateral displacement (mm)",
+            x_axis_label="shaft lenght",
+            y_axis_label="lateral displacement",
         )
 
         interpolated = interpolate.interp1d(source.data['x0'], source.data['y0'], kind='cubic')
@@ -1704,8 +1852,8 @@ class Rotor(object):
             width=800,
             height=400,
             title="Free-Body Diagram",
-            x_axis_label="shaft lenght (m)",
-            y_axis_label="Force (N)",
+            x_axis_label="shaft lenght",
+            y_axis_label="Force",
             x_range=[-0.1 * shaft_end, 1.1 * shaft_end],
             y_range=[-max(y_range) * 1.4, max(y_range) * 1.4],
         )
@@ -1815,15 +1963,15 @@ class Rotor(object):
 
         # Shearing Force Diagram plot (SF)
         source_SF = ColumnDataSource(data=dict(x=Vx_axis, y=Vx))
-        TOOLTIPS_SF = [("Shearing Force:", "@y N")]
+        TOOLTIPS_SF = [("Shearing Force:", "@y")]
         SF = figure(
             tools=TOOLS,
             tooltips=TOOLTIPS_SF,
             width=800,
             height=400,
             title="Shearing Force Diagram",
-            x_axis_label="Shaft lenght (m)",
-            y_axis_label="Force (N)",
+            x_axis_label="Shaft lenght",
+            y_axis_label="Force",
             x_range=[-0.1 * shaft_end, 1.1 * shaft_end],
         )
         SF.line("x", "y", source=source_SF, line_width=4, line_color=bokeh_colors[0])
@@ -1840,15 +1988,15 @@ class Rotor(object):
 
         # Bending Moment Diagram plot (BM)
         source_BM = ColumnDataSource(data=dict(x=self.nodes_pos, y=Bm))
-        TOOLTIPS_BM = [("Bending Moment:", "@y N.m")]
+        TOOLTIPS_BM = [("Bending Moment:", "@y")]
         BM = figure(
             tools=TOOLS,
             tooltips=TOOLTIPS_BM,
             width=800,
             height=400,
             title="Bending Moment Diagram",
-            x_axis_label="Shaft lenght (m)",
-            y_axis_label="Bending Moment (N.m)",
+            x_axis_label="Shaft lenght",
+            y_axis_label="Bending Moment",
             x_range=[-0.1 * shaft_end, 1.1 * shaft_end],
         )
         i=0
@@ -1883,6 +2031,7 @@ class Rotor(object):
         grid_plots = gridplot([[FBD, SF], [disp_graph, BM]])
         show(grid_plots)
 
+
     @classmethod
     def from_section(
         cls,
@@ -1894,17 +2043,13 @@ class Rotor(object):
         sparse=True,
         min_w=None,
         max_w=None,
+        n_eigen=12,
         w=0,
         nel_r=1,
-        n_eigval=1,
-        err_max=1e-02,
     ):
 
         """This class is an alternative to build rotors from separated
         sections. Each section has the same number (n) of shaft elements.
-
-        This class will verify the eigenvalues calculation
-        and check its convergence to minimize the numerical errors.
 
         Parameters
         ----------
@@ -1914,27 +2059,29 @@ class Rotor(object):
             List with the outer diameters of rotor regions.
         i_d_data : list
             List with the inner diameters of rotor regions.
-        disk_data : list, optional
-            List holding lists of disks datas.
-            Example : disk_data = [[n, material, width, i_d, o_d], [n, ...]]
+        disk_data : dict, optional
+            Dict holding disks datas.
+            Example : disk_data=DiskElement.from_geometry(n=2,
+                                                          material=steel,
+                                                          width=0.07,
+                                                          i_d=0,
+                                                          o_d=0.28
+                                                          )
             ***See 'disk_element.py' docstring for more information***
-        brg_seal_data : list, optional
-            list holding lists of bearings and seals datas.
-            Example : brg_seal_data=[[n, kxx, cxx, kyy=None, kxy=0, kyx=0,
-                                      cyy=None, cxy=0, cyx=0, w=None],
-                                     [n, ...]]
+        brg_seal_data : dict, optional
+            Dict holding lists of bearings and seals datas.
+            Example : brg_seal_data=BearingElement(n=1, kxx=1e6, cxx=0,
+                                                   kyy=1e6, cyy=0, kxy=0,
+                                                   cxy=0, kyx=0, cyx=0)
             ***See 'bearing_seal_element.py' docstring for more information***
         w : float, optional
             Rotor speed.
-        nel_r : int
-            Initial number or elements per shaft region.
+        nel_r : int, optional
+            Number or elements per shaft region.
             Default is 1
-        eigval : int
-            Indicates which eingenvalue convergence to check.
-            default is 1 (1st eigenvalue).
-        err_max : float, optional
-            maximum allowed for eigenvalues calculation.
-            default is 0.01 (or 1%).
+        n_eigen : int, optional
+            Number of eigenvalues calculated by arpack.
+            Default is 12.
 
         Example
         -------
@@ -1946,11 +2093,11 @@ class Rotor(object):
         ...                        DiskElement.from_geometry(n=2, material=steel, width=0.07, i_d=0, o_d=0.35)],
         ...             brg_seal_data=[BearingElement(n=0, kxx=1e6, cxx=0, kyy=1e6, cyy=0, kxy=0, cxy=0, kyx=0, cyx=0),
         ...                            BearingElement(n=3, kxx=1e6, cxx=0, kyy=1e6, cyy=0, kxy=0, cxy=0, kyx=0, cyx=0)],
-        ...             w=0, nel_r=1, n_eigval=1, err_max=1e-07)
+        ...             w=0, nel_r=1)
+        >>> rotor.run()
         >>> rotor.wn[:]
         """
 
-        n_eigen = 2 * n_eigval + 2
         if len(leng_data) != len(o_ds_data) or len(leng_data) != len(i_ds_data):
             raise ValueError("The matrices lenght do not match.")
 
@@ -2000,78 +2147,10 @@ class Rotor(object):
 
             return regions
 
-        el_num = np.array([nel_r * len(leng_data)])
-        eigv_arr = np.array([])
-        error_arr = np.array([0])
-
-        regions0 = rotor_regions(nel_r)
-        rotor0 = Rotor(regions0[0], regions0[1], regions0[2], w=w, n_eigen=n_eigen)
-        rotor0.run()
-
-        eigv_arr = np.append(eigv_arr, rotor0.wn[n_eigval])
-        # this value is up to start the loop while
-        error = 1
-        nel_r *= 2
-
-        while error > err_max:
-
-            regions = rotor_regions(nel_r)
-            rotor = Rotor(regions[0], regions[1], regions[2], w=w, n_eigen=n_eigen)
-            rotor.run()
-
-            eigv_arr = np.append(eigv_arr, rotor.wn[n_eigval])
-            el_num = np.append(el_num, nel_r * len(leng_data))
-
-            error = min(eigv_arr[-1], eigv_arr[-2]) / max(eigv_arr[-1], eigv_arr[-2])
-            error = 1 - error
-            error_arr = np.append(error_arr, 100 * error)
-            nel_r *= 2
-
+        regions = rotor_regions(nel_r)
         shaft_elements = regions[0]
         disk_elements = regions[1]
         bearing_seal_elements = regions[2]
-
-        output_file("convergence.html")
-        source = ColumnDataSource(
-            data=dict(x0=el_num[1:], y0=eigv_arr[1:], x1=el_num[1:], y1=error_arr[1:])
-        )
-
-        TOOLS = "pan,wheel_zoom,box_zoom,hover,reset,save,"
-        TOOLTIPS1 = [("Frquency:", "@y0 Hz"), ("Number of Elements", "@x0")]
-        TOOLTIPS2 = [("Relative Error:", "@y1"), ("Number of Elements", "@x1")]
-        # create a new plot and add a renderer
-        freq_arr = figure(
-            tools=TOOLS,
-            tooltips=TOOLTIPS1,
-            width=500,
-            height=500,
-            title="Frequency Evaluation",
-            x_axis_label="Numer of Elements",
-            y_axis_label="Frequency (Hz)",
-        )
-        freq_arr.line("x0", "y0", source=source, line_width=3, line_color="crimson")
-        freq_arr.circle("x0", "y0", source=source, fill_color="crimson", size=8)
-
-        # create another new plot and add a renderer
-        rel_error = figure(
-            tools=TOOLS,
-            tooltips=TOOLTIPS2,
-            width=500,
-            height=500,
-            title="Relative Error Evaluation",
-            x_axis_label="Number of Rlements",
-            y_axis_label="Relative Rrror",
-        )
-        rel_error.line(
-            "x1", "y1", source=source, line_width=3, line_color="darkslategray"
-        )
-        rel_error.circle("x1", "y1", source=source, fill_color="darkslategray", size=8)
-
-        # put the subplots in a gridplot
-        p = gridplot([[freq_arr, rel_error]])
-
-        # show the results
-        show(p)
 
         return cls(
             shaft_elements,
