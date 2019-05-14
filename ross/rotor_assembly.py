@@ -6,7 +6,7 @@ import scipy.linalg as la
 import scipy.sparse.linalg as las
 import scipy.signal as signal
 import scipy.io as sio
-import scipy.interpolate as interpolate
+from scipy import interpolate
 from copy import copy, deepcopy
 from collections import Iterable
 import shutil
