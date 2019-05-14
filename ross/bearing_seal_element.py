@@ -47,6 +47,12 @@ class _Coefficient:
         else:
             return False
 
+    def __repr__(self):
+        coef = []
+        for i in self.coefficient:
+            coef.append("{:.2e}".format(i))
+        return f"{coef}"
+
     def plot(self, ax=None, **kwargs):
         if ax is None:
             ax = plt.gca()
@@ -178,7 +184,15 @@ class BearingElement(Element):
         self.color = "#355d7a"
 
     def __repr__(self):
-        return "%s" % self.__class__.__name__
+        return (
+            f"{self.__class__.__name__}"
+            f"(n={self.n},\n"
+            f" kxx={self.kxx}, kxy={self.kxy},\n"
+            f" kyx={self.kyx}, kyy={self.kxy},\n"
+            f" cxx={self.cxx}, cxy={self.cxy},\n"
+            f" cyx={self.cyx}, cyy={self.cyy},\n"
+            f" w={self.w})"
+        )
 
     def __eq__(self, other):
         try:

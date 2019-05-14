@@ -4,7 +4,8 @@ This module defines the Material class and defines
 some of the most common materials used in rotors.
 """
 import toml
-
+import ross as rs
+import os
 
 __all__ = ["Material", "steel"]
 
@@ -69,6 +70,28 @@ class Material:
         else:
             return False
 
+    def __repr__(self):
+        selfE = "{:.2e}".format(self.E)
+        selfPoisson = "{:.2e}".format(self.Poisson)
+        selfrho = "{:.2e}".format(self.rho)
+        selfGs = "{:.2e}".format(self.G_s)
+
+        return (
+            f"Material"
+            f"(name={self.name}, rho={selfrho}, G_s={selfGs} "
+            f"E={selfE}, Poisson={selfPoisson} color={self.color!r}"
+        )
+
+    def __str__(self):
+        return (
+            f"{self.name}"
+            f'\n{35*"-"}'
+            f"\nDensity         (N/m**3): {float(self.rho):{2}.{8}}"
+            f"\nYoung`s modulus (N/m**2): {float(self.E):{2}.{8}}"
+            f"\nShear modulus   (N/m**2): {float(self.G_s):{2}.{8}}"
+            f"\nPoisson coefficient     : {float(self.Poisson):{2}.{8}}"
+        )
+
     @staticmethod
     def dump_data(data):
         with open("available_materials.toml", "w") as f:
@@ -86,47 +109,53 @@ class Material:
 
     @staticmethod
     def use_material(name):
+        run_path = os.getcwd()
+        ross_path = os.path.dirname(rs.__file__)
+        os.chdir(ross_path)
+
         data = Material.load_data()
         try:
             material = data["Materials"][name]
             return Material(**material)
         except KeyError:
             raise KeyError("There isn't a instanced material with this name.")
+        os.chdir(run_path)
 
     @staticmethod
     def remove_material(name):
+        run_path = os.getcwd()
+        ross_path = os.path.dirname(rs.__file__)
+        os.chdir(ross_path)
+
         data = Material.load_data()
         try:
             del data["Materials"][name]
         except KeyError:
             return "There isn't a saved material with this name."
         Material.dump_data(data)
+        os.chdir(run_path)
 
     @staticmethod
     def available_materials():
+        run_path = os.getcwd()
+        ross_path = os.path.dirname(rs.__file__)
+        os.chdir(ross_path)
+
         try:
             data = Material.load_data()
             return list(data["Materials"].keys())
         except FileNotFoundError:
             return "There is no saved materials."
+        os.chdir(run_path)
 
     def save_material(self):
+        run_path = os.getcwd()
+        ross_path = os.path.dirname(rs.__file__)
+        os.chdir(ross_path)
+
         data = Material.load_data()
         data["Materials"][self.name] = self.__dict__
         Material.dump_data(data)
-
-    def __repr__(self):
-        return f"{self.name}"
-
-    def __str__(self):
-        return (
-            f"{self.name}"
-            f'\n{35*"-"}'
-            f"\nDensity         (N/m**3): {float(self.rho):{2}.{8}}"
-            f"\nYoung`s modulus (N/m**2): {float(self.E):{2}.{8}}"
-            f"\nShear modulus   (N/m**2): {float(self.G_s):{2}.{8}}"
-            f"\nPoisson coefficient     : {float(self.Poisson):{2}.{8}}"
-        )
 
 
 steel = Material(name="Steel", rho=7810, E=211e9, G_s=81.2e9)
