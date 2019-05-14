@@ -189,7 +189,7 @@ class ShaftElement(Element):
             "L": self.L,
             "i_d": self.i_d,
             "o_d": self.o_d,
-            "material": self.material,
+            "material": self.material.name,
             "n": self.n,
             "axial_force": self.axial_force,
             "torque": self.torque,
