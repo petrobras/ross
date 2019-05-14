@@ -4,7 +4,8 @@ This module defines the Material class and defines
 some of the most common materials used in rotors.
 """
 import toml
-
+import ross as rs
+import os
 
 __all__ = ["Material", "steel"]
 
@@ -108,31 +109,50 @@ class Material:
 
     @staticmethod
     def use_material(name):
+        run_path = os.getcwd()
+        ross_path = os.path.dirname(rs.__file__)
+        os.chdir(ross_path)
+
         data = Material.load_data()
         try:
             material = data["Materials"][name]
             return Material(**material)
         except KeyError:
             raise KeyError("There isn't a instanced material with this name.")
+        os.chdir(run_path)
 
     @staticmethod
     def remove_material(name):
+        run_path = os.getcwd()
+        ross_path = os.path.dirname(rs.__file__)
+        os.chdir(ross_path)
+
         data = Material.load_data()
         try:
             del data["Materials"][name]
         except KeyError:
             return "There isn't a saved material with this name."
         Material.dump_data(data)
+        os.chdir(run_path)
 
     @staticmethod
     def available_materials():
+        run_path = os.getcwd()
+        ross_path = os.path.dirname(rs.__file__)
+        os.chdir(ross_path)
+
         try:
             data = Material.load_data()
             return list(data["Materials"].keys())
         except FileNotFoundError:
             return "There is no saved materials."
+        os.chdir(run_path)
 
     def save_material(self):
+        run_path = os.getcwd()
+        ross_path = os.path.dirname(rs.__file__)
+        os.chdir(ross_path)
+
         data = Material.load_data()
         data["Materials"][self.name] = self.__dict__
         Material.dump_data(data)
