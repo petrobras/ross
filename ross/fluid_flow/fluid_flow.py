@@ -265,9 +265,10 @@ class PressureMatrix:
         yre: float
             The position y of the returned external radius.
         """
-        betha = -np.pi/4
-        alpha = betha - gama
-        radius_external = np.sqrt(self.radius_stator**2 - (self.eccentricity * np.sin(alpha))**2) + self.eccentricity * np.cos(alpha)
+        beta = -np.pi/4
+        alpha = beta - gama
+        radius_external = (np.sqrt(self.radius_stator**2 - (self.eccentricity * np.sin(alpha))**2) +
+                           self.eccentricity * np.cos(alpha))
         xre = radius_external * np.cos(gama)
         yre = radius_external * np.sin(gama)
 
@@ -280,12 +281,12 @@ class PressureMatrix:
         float
             Load applied to the rotor.
         """
-        return -((np.pi*self.radius_stator*2*self.omega*self.visc*(self.length**3)*self.eccentricity_ratio)
-                 / (8*(self.radial_clearance**2)*((1 - self.eccentricity_ratio**2)**2))) \
-            * np.sqrt((16/np.pi - 1)*self.eccentricity_ratio + 1)
+        return ((np.pi*self.radius_stator*2*self.omega*self.visc*(self.length**3)*self.eccentricity_ratio)
+                / (8*(self.radial_clearance**2)*((1 - self.eccentricity_ratio**2)**2))) \
+            * (np.sqrt((16/(np.pi**2) - 1)*self.eccentricity_ratio**2 + 1))
 
     def modified_sommerfeld_number(self, f):
-        """Return the modified sommerfeld number.
+        """Returns the modified sommerfeld number.
         Parameters
         ----------
         f: float
@@ -299,7 +300,7 @@ class PressureMatrix:
                (8*f*(self.radial_clearance**2))
 
     def sommerfeld_number(self, f):
-        """Return the sommerfeld number.
+        """Returns the sommerfeld number.
         Parameters
         ----------
         f: float
@@ -313,7 +314,7 @@ class PressureMatrix:
         return (modified_s/np.pi)*(self.radius_stator*2/self.length)**2
 
     def calculate_eccentricity_ratio(self, f):
-        """Calculate the eccentricity ratio using the sommerfeld number.
+        """Calculate the eccentricity ratio for a given load using the sommerfeld number.
         Parameters
         ----------
         f: float
@@ -330,6 +331,30 @@ class PressureMatrix:
             if 0 <= roots[i] <= 1:
                 return np.sqrt(roots[i])
         sys.exit("Eccentricity ratio could not be calculated.")
+
+    def get_analytical_stiffness_matrix(self):
+        """Returns the stiffness matrix calculated analytically.
+        Returns
+        -------
+        list of floats
+            A list of length four including stiffness floats in this order: kxx, kxy, kyx, kyy
+        """
+        f = self.get_rotor_load()
+        h0 = 1/(((np.pi**2)*(1 - self.eccentricity_ratio**2) + 16*self.eccentricity_ratio**2)**1.5)
+        kxx = (f/self.radial_clearance)*h0*4*((np.pi**2) *
+                                              (2 - self.eccentricity_ratio**2) + 16*self.eccentricity_ratio**2)
+        kxy = ((f/self.radial_clearance)*h0*np.pi*((np.pi**2)*(1 - self.eccentricity_ratio**2)**2 -
+                                                   16*self.eccentricity_ratio**4) /
+               (self.eccentricity_ratio*np.sqrt(1 - self.eccentricity_ratio**2)))
+        kyx = (-(f/self.radial_clearance)*h0*np.pi*((np.pi**2)*(1 - self.eccentricity_ratio**2) *
+                                                    (1 + 2*self.eccentricity_ratio**2) +
+               (32*self.eccentricity_ratio**2)*(1 + self.eccentricity_ratio**2)) /
+               (self.eccentricity_ratio*np.sqrt(1 - self.eccentricity_ratio**2)))
+        kyy = (f/self.radial_clearance)*h0*4*((np.pi**2)*(1 + 2*self.eccentricity_ratio**2) +
+                                              32*self.eccentricity_ratio**2 *
+                                              (1 + self.eccentricity_ratio**2) /
+                                              (self.eccentricity_ratio*np.sqrt(1 - self.eccentricity_ratio**2)))
+        return [kxx, kxy, kyx, kyy]
 
     def plot_eccentricity(self, z=0):
         """This function assembles pressure graphic along the z-axis.
