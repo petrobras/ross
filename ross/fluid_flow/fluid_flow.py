@@ -350,10 +350,10 @@ class PressureMatrix:
                (1 + 2*self.eccentricity_ratio**2) +
                (32*self.eccentricity_ratio**2)*(1 + self.eccentricity_ratio**2)) /
                (self.eccentricity_ratio*np.sqrt(1 - self.eccentricity_ratio**2)))
-        kyy = a*h0*4*((np.pi**2)*(1 + 2*self.eccentricity_ratio**2) +
-                                 ((32*self.eccentricity_ratio**2 *
-                                  (1 + self.eccentricity_ratio**2)) /
-                                  (1 - self.eccentricity_ratio**2)))
+        kyy = (a*h0*4*((np.pi**2)*(1 + 2*self.eccentricity_ratio**2) +
+                                  ((32*self.eccentricity_ratio**2) *
+                                   (1 + self.eccentricity_ratio**2)) /
+                                   (1 - self.eccentricity_ratio**2)))
         return [kxx, kxy, kyx, kyy]
 
     def get_analytical_damping_matrix(self):
@@ -370,7 +370,7 @@ class PressureMatrix:
                ((np.pi**2)*(1 + 2*self.eccentricity_ratio**2) - 16*self.eccentricity_ratio**2)/self.eccentricity_ratio)
         cxy = (-a*h0*8*((np.pi**2)*(1 + 2*self.eccentricity_ratio**2) - 16*self.eccentricity_ratio**2))
         cyx = cxy
-        cyy = (a*h0*(2*np.pi*((np.pi**2)*(1 - 2*self.eccentricity_ratio**2)**2 + 48*self.eccentricity_ratio**2))/
+        cyy = (a*h0*(2*np.pi*((np.pi**2)*(1 - self.eccentricity_ratio**2)**2 + 48*self.eccentricity_ratio**2))/
                (self.eccentricity_ratio*np.sqrt(1 - self.eccentricity_ratio**2)))
         return [cxx, cxy, cyx, cyy]
 
