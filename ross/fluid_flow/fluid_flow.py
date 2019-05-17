@@ -340,7 +340,7 @@ class PressureMatrix:
             A list of length four including stiffness floats in this order: kxx, kxy, kyx, kyy
         """
         f = self.get_rotor_load()
-        h0 = 1/(((np.pi**2)*(1 - self.eccentricity_ratio**2) + 16*self.eccentricity_ratio**2)**1.5)
+        h0 = 1.0/(((np.pi**2)*(1 - self.eccentricity_ratio**2) + 16*self.eccentricity_ratio**2)**1.5)
         kxx = (f/self.radial_clearance)*h0*4*((np.pi**2) *
                                               (2 - self.eccentricity_ratio**2) + 16*self.eccentricity_ratio**2)
         kxy = ((f/self.radial_clearance)*h0*np.pi*((np.pi**2)*(1 - self.eccentricity_ratio**2)**2 -
@@ -351,9 +351,9 @@ class PressureMatrix:
                (32*self.eccentricity_ratio**2)*(1 + self.eccentricity_ratio**2)) /
                (self.eccentricity_ratio*np.sqrt(1 - self.eccentricity_ratio**2)))
         kyy = (f/self.radial_clearance)*h0*4*((np.pi**2)*(1 + 2*self.eccentricity_ratio**2) +
-                                              32*self.eccentricity_ratio**2 *
-                                              (1 + self.eccentricity_ratio**2) /
-                                              (self.eccentricity_ratio*np.sqrt(1 - self.eccentricity_ratio**2)))
+                                              ((32*self.eccentricity_ratio**2 *
+                                               (1 + self.eccentricity_ratio**2)) /
+                                               (1 - self.eccentricity_ratio**2)))
         return [kxx, kxy, kyx, kyy]
 
     def plot_eccentricity(self, z=0):
