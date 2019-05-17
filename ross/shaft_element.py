@@ -142,6 +142,10 @@ class ShaftElement(Element):
         self.Ie = np.pi * (o_d ** 4 - i_d ** 4) / 64
         phi = 0
 
+        # Slenderness ratio of beam elements (G*A*L^2) / (E*I)
+        sld = (self.material.G_s * self.A * self.L ** 2) / (self.material.E * self.Ie)
+        self.sld_ratio = sld        
+
         # picking a method to calculate the shear coefficient
         # List of avaible methods:
         # hutchinson - kappa as per Hutchinson (2001)
@@ -406,10 +410,10 @@ class ShaftElement(Element):
         bk_ax : bokeh plotting axes
             Returns the axes object with the plot.
         """
-        position_u = [position, self.i_d]  # upper
-        position_l = [position, -self.o_d]  # lower
+        position_u = [position, self.i_d/2]  # upper
+        position_l = [position, -self.o_d/2]  # lower
         width = self.L
-        height = self.o_d - self.i_d
+        height = self.o_d/2 - self.i_d/2
 
         #  matplotlib - plot the upper half of the shaft
         ax.add_patch(
@@ -438,8 +442,8 @@ class ShaftElement(Element):
             )
         )
         # bokeh plot - plot the shaft
-        bk_ax.quad(top=self.o_d,
-                   bottom=self.i_d,
+        bk_ax.quad(top=self.o_d/2,
+                   bottom=self.i_d/2,
                    left=position,
                    right=position + self.L,
                    line_color=bokeh_colors[0],
@@ -448,8 +452,8 @@ class ShaftElement(Element):
                    fill_color=bokeh_colors[2],
                    legend="Shaft"
                    )
-        bk_ax.quad(top=-self.i_d,
-                   bottom=-self.o_d,
+        bk_ax.quad(top=-self.i_d/2,
+                   bottom=-self.o_d/2,
                    left=position,
                    right=position + self.L,
                    line_color=bokeh_colors[0],
