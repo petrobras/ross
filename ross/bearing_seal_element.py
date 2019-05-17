@@ -289,7 +289,7 @@ class BearingElement(Element):
 
         return C
 
-    def patch(self, position, ax, bk_ax):
+    def patch(self, position, length, ax, bk_ax):
         """Bearing element patch.
         Patch that will be used to draw the bearing element.
         Parameters
@@ -300,6 +300,8 @@ class BearingElement(Element):
             Axes in which the plot will be drawn.
         position : tuple
             Position (z, y) in which the patch will be drawn.
+        length : float
+            minimum length of shaft elements
         Returns
         -------
         ax : matplotlib axes
@@ -308,7 +310,7 @@ class BearingElement(Element):
             Returns the axes object with the plot.
         """
         zpos, ypos = position
-
+        le = length
         h = -0.5 * ypos  # height
 
         #  node (x pos), outer diam. (y pos)
@@ -323,10 +325,10 @@ class BearingElement(Element):
         )
 
         # bokeh plot - upper bearing visual representarion
-        bk_ax.quad(top=-ypos,
-                   bottom=-2 * ypos,
-                   left=zpos - ypos,
-                   right=zpos + ypos,
+        bk_ax.quad(top=-ypos+le/3,
+                   bottom=-ypos,
+                   left=zpos-le/6,
+                   right=zpos+le/6,
                    line_color=bokeh_colors[0],
                    line_width=1,
                    fill_alpha=1,
@@ -335,9 +337,9 @@ class BearingElement(Element):
                    )
         # bokeh plot - lower bearing visual representation
         bk_ax.quad(top=ypos,
-                   bottom=2 * ypos,
-                   left=zpos - ypos,
-                   right=zpos + ypos,
+                   bottom=ypos-le/3,
+                   left=zpos-le/6,
+                   right=zpos+le/6,
                    line_color=bokeh_colors[0],
                    line_width=1,
                    fill_alpha=1,
