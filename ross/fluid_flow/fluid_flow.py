@@ -341,20 +341,38 @@ class PressureMatrix:
         """
         f = self.get_rotor_load()
         h0 = 1.0/(((np.pi**2)*(1 - self.eccentricity_ratio**2) + 16*self.eccentricity_ratio**2)**1.5)
-        kxx = (f/self.radial_clearance)*h0*4*((np.pi**2) *
-                                              (2 - self.eccentricity_ratio**2) + 16*self.eccentricity_ratio**2)
-        kxy = ((f/self.radial_clearance)*h0*np.pi*((np.pi**2)*(1 - self.eccentricity_ratio**2)**2 -
-                                                   16*self.eccentricity_ratio**4) /
+        a = f/self.radial_clearance
+        kxx = a*h0*4*((np.pi**2)*(2 - self.eccentricity_ratio**2) + 16*self.eccentricity_ratio**2)
+        kxy = (a*h0*np.pi*((np.pi**2)*(1 - self.eccentricity_ratio**2)**2 -
+               16*self.eccentricity_ratio**4) /
                (self.eccentricity_ratio*np.sqrt(1 - self.eccentricity_ratio**2)))
-        kyx = (-(f/self.radial_clearance)*h0*np.pi*((np.pi**2)*(1 - self.eccentricity_ratio**2) *
-                                                    (1 + 2*self.eccentricity_ratio**2) +
+        kyx = (-a*h0*np.pi*((np.pi**2)*(1 - self.eccentricity_ratio**2) *
+               (1 + 2*self.eccentricity_ratio**2) +
                (32*self.eccentricity_ratio**2)*(1 + self.eccentricity_ratio**2)) /
                (self.eccentricity_ratio*np.sqrt(1 - self.eccentricity_ratio**2)))
-        kyy = (f/self.radial_clearance)*h0*4*((np.pi**2)*(1 + 2*self.eccentricity_ratio**2) +
-                                              ((32*self.eccentricity_ratio**2 *
-                                               (1 + self.eccentricity_ratio**2)) /
-                                               (1 - self.eccentricity_ratio**2)))
+        kyy = a*h0*4*((np.pi**2)*(1 + 2*self.eccentricity_ratio**2) +
+                                 ((32*self.eccentricity_ratio**2 *
+                                  (1 + self.eccentricity_ratio**2)) /
+                                  (1 - self.eccentricity_ratio**2)))
         return [kxx, kxy, kyx, kyy]
+
+    def get_analytical_damping_matrix(self):
+        """Returns the damping matrix calculated analytically.
+        Returns
+        -------
+        list of floats
+            A list of length four including stiffness floats in this order: cxx, cxy, cyx, cyy
+        """
+        f = self.get_rotor_load()
+        h0 = 1.0/(((np.pi**2)*(1 - self.eccentricity_ratio**2) + 16*self.eccentricity_ratio**2)**1.5)
+        a = f/(self.radial_clearance * self.omega)
+        cxx = (a*h0*2*np.pi*np.sqrt(1 - self.eccentricity_ratio**2) *
+               ((np.pi**2)*(1 + 2*self.eccentricity_ratio**2) - 16*self.eccentricity_ratio**2)/self.eccentricity_ratio)
+        cxy = (-a*h0*8*((np.pi**2)*(1 + 2*self.eccentricity_ratio**2) - 16*self.eccentricity_ratio**2))
+        cyx = cxy
+        cyy = (a*h0*(2*np.pi*((np.pi**2)*(1 - 2*self.eccentricity_ratio**2)**2 + 48*self.eccentricity_ratio**2))/
+               (self.eccentricity_ratio*np.sqrt(1 - self.eccentricity_ratio**2)))
+        return [cxx, cxy, cyx, cyy]
 
     def plot_eccentricity(self, z=0):
         """This function assembles pressure graphic along the z-axis.
