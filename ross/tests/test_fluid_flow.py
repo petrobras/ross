@@ -23,6 +23,6 @@ def test_sommerfeld_number():
     bearing = flow.PressureMatrix(nz, ntheta, nradius, length, omega, p_in,
                                   p_out, radius_rotor, radius_stator,
                                   eccentricity, visc, rho)
-    s = bearing.sommerfeld_number(525)
-    assert math.isclose(s, 3.571, rel_tol=0.001)
+    e = bearing.calculate_eccentricity_ratio(525)
+    assert math.isclose(e, 0.2663, rel_tol=0.001)
 
