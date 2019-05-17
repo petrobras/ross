@@ -350,11 +350,14 @@ class BearingElement(Element):
         to a toml file that can be later loaded by ross.
         Parameters
         ----------
-        :param n : int. The node in which the bearing will be located in the rotor.
-        :param file: str. Path to the file containing the bearing parameters.
+        n : int
+            The node in which the bearing will be located in the rotor.
+        file: str
+            Path to the file containing the bearing parameters.
         Returns
         -------
-        :return: dict that is ready to save to toml and readable by ross.
+        dict
+            A dict that is ready to save to toml and readable by ross.
         """
         b_elem = cls.from_table(n, file)
         data = {
@@ -376,11 +379,13 @@ class BearingElement(Element):
         """Instantiate a bearing using inputs from a table, either excel or csv.
         Parameters
         ----------
-        :param n : int. The node in which the bearing will be located in the rotor.
-        :param file: str. Path to the file containing the bearing parameters.
+        n : int
+            The node in which the bearing will be located in the rotor.
+        file: str
+            Path to the file containing the bearing parameters.
         Returns
         -------
-        :return: A bearing object.
+        A bearing object.
         """
         try:
             df = pd.read_excel(file)
