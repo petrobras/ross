@@ -53,4 +53,18 @@ def test_stiffness_matrix():
     assert math.isclose(kxx/10**6, 12.81, rel_tol=0.01)
     assert math.isclose(kxy/10**6, 16.39, rel_tol=0.01)
     assert math.isclose(kyx/10**6, -25.06, rel_tol=0.01)
-    # assert math.isclose(kyy/10**6, 8.15, rel_tol=0.01)
+    assert math.isclose(kyy/10**6, 8.15, rel_tol=0.01)
+
+
+def test_damping_matrix():
+    """
+    This function instantiate a bearing using the fluid flow class and test if it matches the
+    expected results for the damping matrix, given the eccentricity ratio.
+    Taken from example 5.5.1, page 181 (Dynamics of rotating machine, FRISSWELL)
+    """
+    bearing = fluid_flow0(0.2663)
+    cxx, cxy, cyx, cyy = bearing.get_analytical_damping_matrix()
+    assert math.isclose(cxx/10**3, 232.9, rel_tol=0.01)
+    assert math.isclose(cxy/10**3, -81.92, rel_tol=0.01)
+    assert math.isclose(cyx/10**3, -81.92, rel_tol=0.01)
+    assert math.isclose(cyy/10**3, 294.9, rel_tol=0.01)
