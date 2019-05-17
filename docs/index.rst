@@ -3,7 +3,9 @@
    You can adapt this file completely to your liking, but it should at least
    contain the root `toctree` directive.
 
-ross: rotordynamic open-source software
+.. |ross-logo| image:: ross-logo.svg
+
+|ross-logo| ross: rotordynamic open-source software
 =======================================
 
 .. toctree::
