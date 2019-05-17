@@ -484,6 +484,8 @@ class ForcedResponseResults(Results):
         -------
         ax : matplotlib.axes
             Matplotlib axes with phase plot.
+        mag_plot : bokeh axes
+            bokeh axes with magnitude plot
         Examples
         --------
         """
@@ -495,10 +497,13 @@ class ForcedResponseResults(Results):
 
         if units == "m":
             ax.set_ylabel("Amplitude $(m)$")
+            y_axis_label = "Amplitude (m)"
         elif units == "mic-pk-pk":
             mag = 2 * mag * 1e6
             ax.set_ylabel("Amplitude $(\mu pk-pk)$")
+            y_axis_label = "Amplitude $(\mu pk-pk)$"
 
+        # matplotlib plotting
         ax.plot(frequency_range, mag[dof], **kwargs)
 
         ax.set_xlim(0, max(frequency_range))
@@ -508,7 +513,26 @@ class ForcedResponseResults(Results):
         ax.set_xlabel("Frequency (rad/s)")
         ax.legend()
 
-        return ax
+        # bokeh plot - create a new plot
+        mag_plot = figure(
+                tools="pan, box_zoom, wheel_zoom, reset, save",
+                width=900,
+                height=400,
+                title="Forced Response - Magnitude",
+                x_axis_label="Frequency",
+                x_range=[0, max(frequency_range)],
+                y_axis_label=y_axis_label
+        )
+        source = ColumnDataSource(dict(x=frequency_range, y=mag[dof]))
+        mag_plot.line(x='x',
+                      y='y',
+                      source=source,
+                      line_color=bokeh_colors[0],
+                      line_alpha=1.0,
+                      line_width=3,
+                      )
+
+        return ax, mag_plot
 
     def plot_phase(self, dof, ax=None, **kwargs):
         """Plot frequency response.
@@ -526,10 +550,10 @@ class ForcedResponseResults(Results):
             the plot (e.g. linestyle='--')
         Returns
         -------
-        ax0 : matplotlib.axes
-            Matplotlib axes with amplitude plot.
-        ax1 : matplotlib.axes
+        ax : matplotlib.axes
             Matplotlib axes with phase plot.
+        phase_plot : bokeh axes
+            Bokeh axes with phase plot
         Examples
         --------
         """
@@ -547,10 +571,28 @@ class ForcedResponseResults(Results):
 
         ax.set_ylabel("Phase")
         ax.set_xlabel("Frequency (rad/s)")
-
         ax.legend()
 
-        return ax
+        # bokeh plot - create a new plot
+        phase_plot = figure(
+                tools="pan, box_zoom, wheel_zoom, reset, save",
+                width=900,
+                height=400,
+                title="Forced Response - Magnitude",
+                x_axis_label="Frequency",
+                x_range=[0, max(frequency_range)],
+                y_axis_label="Phase"
+        )
+        source = ColumnDataSource(dict(x=frequency_range, y=phase[dof]))
+        phase_plot.line(x='x',
+                        y='y',
+                        source=source,
+                        line_color=bokeh_colors[0],
+                        line_alpha=1.0,
+                        line_width=3,
+                        )
+
+        return ax, phase_plot
 
     def plot(self, dof, ax0=None, ax1=None, **kwargs):
         """Plot frequency response.
@@ -575,22 +617,34 @@ class ForcedResponseResults(Results):
             Matplotlib axes with amplitude plot.
         ax1 : matplotlib.axes
             Matplotlib axes with phase plot.
+        bk_ax0 : bokeh axes
+            Bokeh axes with amplitude plot.
+        bk_ax1 : bokeh axes
+            Bokeh axes with phase plot.
         Examples
         --------
         """
         if ax0 is None and ax1 is None:
             fig, (ax0, ax1) = plt.subplots(2)
 
-        ax0 = self.plot_magnitude(dof, ax=ax0, **kwargs)
+        ax0 = self.plot_magnitude(dof, ax=ax0, **kwargs)[0]
         # remove label from phase plot
         kwargs.pop("label", None)
         kwargs.pop("units", None)
-        ax1 = self.plot_phase(dof, ax=ax1, **kwargs)
+        ax1 = self.plot_phase(dof, ax=ax1, **kwargs)[0]
 
         ax0.set_xlabel("")
         ax0.legend()
 
-        return ax0, ax1
+        # bokeh plot axes
+        bk_ax0 = self.plot_magnitude(dof, ax=ax0, **kwargs)[1]
+        bk_ax1 = self.plot_phase(dof, ax=ax1, **kwargs)[1]
+
+        # show the bokeh plot results
+        grid_plots = gridplot([[bk_ax0], [bk_ax1]])
+        show(grid_plots)
+
+        return ax0, ax1, bk_ax0, bk_ax1
 
 
 class ModeShapeResults(Results):
