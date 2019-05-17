@@ -1208,6 +1208,18 @@ class Rotor(object):
 
         Examples:
         """
+
+        # check slenderness ratio of beam elements
+        SR = np.array([])
+        for shaft in self.shaft_elements:
+            if shaft.sld_ratio < 30:
+                SR = np.append(SR, shaft.n)
+        if len(SR) != 0:
+            print(
+                "Warning: The beam elements " + str(SR) + " have slenderness\n"
+                "ratio (G*A*L^2 / EI) greater than 30. Results may not converge correctly"
+            )
+
         if ax is None:
             ax = plt.gca()
 
@@ -1231,13 +1243,15 @@ class Rotor(object):
 
         # bokeh plot - create a new plot
         bk_ax = figure(
-            tools="pan, box_zoom, wheel_zoom, reset, save",
-            width=900,
-            height=500,
-            y_range=[-6 * max_diameter, 6 * max_diameter],
+            tools="pan, wheel_zoom, reset, save",
+            width=1800,
+            height=900,
+            x_range=[-0.1 * shaft_end, 1.1 * shaft_end],
+            y_range=[-0.3 * shaft_end, 0.3 * shaft_end],
             title="Rotor model",
-            x_axis_label="Axial location (m)",
-            y_axis_label="Shaft radius (m)",
+            x_axis_label="Axial location",
+            y_axis_label="Shaft radius",
+            match_aspect=True,
         )
 
         # bokeh plot - plot shaft centerline
@@ -1281,13 +1295,8 @@ class Rotor(object):
 
         source = ColumnDataSource(dict(x=x_pos, y=y_pos, text=text))
 
-        bk_ax.square(
-            x=x_pos,
-            y=y_pos,
-            size=30,
-            angle=np.pi / 4,
-            fill_alpha=0.8,
-            fill_color=bokeh_colors[6],
+        bk_ax.circle(
+            x=x_pos, y=y_pos, size=30, fill_alpha=0.8, fill_color=bokeh_colors[6]
         )
 
         glyph = Text(
@@ -1309,13 +1318,15 @@ class Rotor(object):
 
         # plot disk elements
         for disk in self.disk_elements:
-            position = (self.nodes_pos[disk.n], self.nodes_o_d[disk.n])
-            disk.patch(position, ax, bk_ax)
+            position = (self.nodes_pos[disk.n], self.nodes_o_d[disk.n] / 2)
+            length = min(self.nodes_le)
+            disk.patch(position, length, ax, bk_ax)
 
         # plot bearings
         for bearing in self.bearing_seal_elements:
-            position = (self.nodes_pos[bearing.n], -self.nodes_o_d[bearing.n])
-            bearing.patch(position, ax, bk_ax)
+            position = (self.nodes_pos[bearing.n], -self.nodes_o_d[bearing.n] / 2)
+            length = min(self.nodes_le)
+            bearing.patch(position, length, ax, bk_ax)
 
         show(bk_ax)
 
