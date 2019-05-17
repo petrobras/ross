@@ -111,7 +111,8 @@ htlm_theme_path = sphinx_bootstrap_theme.get_html_theme_path()
 # html_theme_options = {}
 # (Optional) Logo. Should be small enough to fit the navbar (ideally 24x24).
 # Path should be relative to the ``_static`` files directory.
-# html_logo = "my_logo.png"
+html_logo = "ross-logo.svg"
+html_favicon = "ross-logo.ico"
 colors = {
     "charleston-green": "#222831",
     "arsenic": "#393e46",
