@@ -259,6 +259,10 @@ class Rotor(object):
         nodes_o_d.append(df_shaft["o_d"].iloc[-1])
         self.nodes_o_d = nodes_o_d
 
+        nodes_le = list(df_shaft.groupby("n_l")["L"].min())
+        nodes_le.append(df_shaft["L"].iloc[-1])
+        self.nodes_le = nodes_le
+
         self.nodes = list(range(len(self.nodes_pos)))
         self.elements_length = [sh_el.L for sh_el in self.shaft_elements]
         self.L = nodes_pos[-1]
