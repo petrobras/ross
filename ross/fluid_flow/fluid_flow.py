@@ -284,6 +284,20 @@ class PressureMatrix:
                  / (8*(self.radial_clearance**2)*((1 - self.eccentricity_ratio**2)**2))) \
             * np.sqrt((16/np.pi - 1)*self.eccentricity_ratio + 1)
 
+    def modified_sommerfeld_number(self, f):
+        """Return the modified sommerfeld number.
+        Parameters
+        ----------
+        f: float
+            Load applied to the rotor.
+        Returns
+        -------
+        float
+            The modified sommerfeld number.
+        """
+        return (self.radius_stator*2*self.omega*self.visc*(self.length**3)) / \
+               (8*f*(self.radial_clearance**2))
+
     def sommerfeld_number(self, f):
         """Return the sommerfeld number.
         Parameters
@@ -295,8 +309,7 @@ class PressureMatrix:
         float
             The sommerfeld number.
         """
-        modified_s = (self.radius_stator*2*self.omega*self.visc*(self.length**3)) / \
-                     (8*f*(self.radial_clearance**2))
+        modified_s = self.modified_sommerfeld_number(f)
         return (modified_s/np.pi)*(self.radius_stator*2/self.length)**2
 
     def calculate_eccentricity_ratio(self, f):
@@ -310,7 +323,7 @@ class PressureMatrix:
         float
             The eccentricity ratio.
         """
-        s = self.sommerfeld_number(f)
+        s = self.modified_sommerfeld_number(f)
         coefficients = [1, -4, (6 - (s**2)*(16 - np.pi**2)), -(4 + (np.pi**2)*(s**2)), 1]
         roots = np.roots(coefficients)
         for i in range(0, len(roots)):
