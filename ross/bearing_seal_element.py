@@ -9,6 +9,8 @@ import pytest
 import pandas as pd
 import sys
 import xlrd
+from ross.fluid_flow import fluid_flow as flow
+
 
 __all__ = ["BearingElement", "SealElement"]
 bokeh_colors = bp.RdGy[11]
@@ -264,6 +266,7 @@ class BearingElement(Element):
 
             bearing_elements.append(bearing)
         return bearing_elements
+
     def M(self):
         M = np.zeros((4, 4))
 
@@ -407,6 +410,68 @@ class BearingElement(Element):
             sys.exit("One or more column names did not match the expected. "
                      "Make sure the table header contains the parameters for the "
                      "BearingElement class.")
+
+    @classmethod
+    def from_fluid_flow(cls, n, nz, ntheta, nradius, length, omega, p_in,
+                        p_out, radius_rotor, radius_stator, eccentricity,
+                        visc, rho):
+        """Instantiate a bearing using inputs from its fluid flow.
+        Parameters
+        ----------
+        n : int
+            The node in which the bearing will be located in the rotor.
+        Grid related
+        ^^^^^^^^^^^^
+        Describes the discretization of the problem
+        nz: int
+            Number of points along the Z direction (direction of flow).
+        ntheta: int
+            Number of points along the direction theta. NOTE: ntheta must be odd.
+        nradius: int
+            Number of points along the direction r.
+        length: float
+            Length in the Z direction (m).
+
+        Operation conditions
+        ^^^^^^^^^^^^^^^^^^^^
+        Describes the operation conditions.
+        omega: float
+            Rotation of the rotor (rad/s).
+        p_in: float
+            Input Pressure (Pa).
+        p_out: float
+            Output Pressure (Pa).
+
+        Geometric data of the problem
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+        Describes the geometric data of the problem.
+        radius_rotor: float
+            Rotor radius (m).
+        radius_stator: float
+            Stator Radius (m).
+        eccentricity: float
+            Eccentricity (m) is the euclidean distance between rotor and stator centers.
+            The center of the stator is in position (0,0).
+
+        Fluid characteristics
+        ^^^^^^^^^^^^^^^^^^^^^
+        Describes the fluid characteristics.
+        visc: float
+            Viscosity (Pa.s).
+        rho: float
+            Fluid density(Kg/m^3).
+        Returns
+        -------
+        A bearing object.
+        """
+        fluid_flow = flow.PressureMatrix(nz, ntheta, nradius, length, omega, p_in,
+                                         p_out, radius_rotor, radius_stator,
+                                         eccentricity, visc, rho)
+        k = fluid_flow.get_analytical_damping_matrix()
+        c = fluid_flow.get_analytical_stiffness_matrix()
+        return cls(n, kxx=k[0], cxx=c[0], kyy=k[3],
+                   kxy=k[1], kyx=k[2], cyy=c[3],
+                   cxy=c[1], cyx=c[2], w=fluid_flow.omega)
 
 
 class SealElement(BearingElement):
