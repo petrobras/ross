@@ -421,7 +421,7 @@ class Rotor(object):
         )
 
         TOOLS = "pan,wheel_zoom,box_zoom,hover,reset,save,"
-        TOOLTIPS1 = [("Frquency:", "@y0 Hz"), ("Number of Elements", "@x0")]
+        TOOLTIPS1 = [("Frequency:", "@y0 Hz"), ("Number of Elements", "@x0")]
         TOOLTIPS2 = [("Relative Error:", "@y1"), ("Number of Elements", "@x1")]
         # create a new plot and add a renderer
         freq_arr = figure(
@@ -443,7 +443,7 @@ class Rotor(object):
             width=500,
             height=500,
             title="Relative Error Evaluation",
-            x_axis_label="Number of Rlements",
+            x_axis_label="Number of Elements",
             y_axis_label="Relative Rrror",
         )
         rel_error.line(
@@ -1216,12 +1216,14 @@ class Rotor(object):
         # check slenderness ratio of beam elements
         SR = np.array([])
         for shaft in self.shaft_elements:
-            if shaft.sld_ratio < 30:
+            if shaft.slenderness_ratio < 30:
                 SR = np.append(SR, shaft.n)
         if len(SR) != 0:
-            print(
-                "Warning: The beam elements " + str(SR) + " have slenderness\n"
-                "ratio (G*A*L^2 / EI) greater than 30. Results may not converge correctly"
+            warnings.warn(
+                "The beam elements "
+                + str(SR)
+                + " have slenderness ratio (G*A*L^2 / EI) greater than 30."
+                + " Results may not converge correctly"
             )
 
         if ax is None:
@@ -1253,8 +1255,8 @@ class Rotor(object):
             x_range=[-0.1 * shaft_end, 1.1 * shaft_end],
             y_range=[-0.3 * shaft_end, 0.3 * shaft_end],
             title="Rotor model",
-            x_axis_label="Axial location",
-            y_axis_label="Shaft radius",
+            x_axis_label="Axial location (m)",
+            y_axis_label="Shaft radius (m)",
             match_aspect=True,
         )
 
@@ -1269,9 +1271,11 @@ class Rotor(object):
 
         # plot nodes
         text = []
+        x_pos = []
         for node, position in enumerate(self.nodes_pos[::nodes]):
             # bokeh plot
             text.append(str(node))
+            x_pos.append(position)
 
             # matplotlib
             ax.plot(
@@ -1294,7 +1298,6 @@ class Rotor(object):
             )
 
         # bokeh plot - plot nodes
-        x_pos = np.linspace(0, self.nodes_pos[-1], len(self.nodes_pos))
         y_pos = np.linspace(0, 0, len(self.nodes_pos))
 
         source = ColumnDataSource(dict(x=x_pos, y=y_pos, text=text))
@@ -1318,7 +1321,7 @@ class Rotor(object):
         # plot shaft elements
         for sh_elm in self.shaft_elements:
             position = self.nodes_pos[sh_elm.n]
-            sh_elm.patch(position, ax, bk_ax)
+            sh_elm.patch(position, SR, ax, bk_ax)
 
         # plot disk elements
         for disk in self.disk_elements:
