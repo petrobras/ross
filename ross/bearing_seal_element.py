@@ -304,10 +304,6 @@ class BearingElement(Element):
             minimum length of shaft elements
         Returns
         -------
-        ax : matplotlib axes
-            Returns the axes object with the plot.
-        bk_ax : bokeh plotting axes
-            Returns the axes object with the plot.
         """
         zpos, ypos = position
         le = length
@@ -327,8 +323,8 @@ class BearingElement(Element):
         # bokeh plot - upper bearing visual representarion
         bk_ax.quad(top=-ypos+le/3,
                    bottom=-ypos,
-                   left=zpos-le/6,
-                   right=zpos+le/6,
+                   left=zpos - le/6,
+                   right=zpos + le/6,
                    line_color=bokeh_colors[0],
                    line_width=1,
                    fill_alpha=1,
@@ -338,8 +334,8 @@ class BearingElement(Element):
         # bokeh plot - lower bearing visual representation
         bk_ax.quad(top=ypos,
                    bottom=ypos-le/3,
-                   left=zpos-le/6,
-                   right=zpos+le/6,
+                   left=zpos - le/6,
+                   right=zpos + le/6,
                    line_color=bokeh_colors[0],
                    line_width=1,
                    fill_alpha=1,
