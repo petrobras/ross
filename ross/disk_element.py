@@ -1,6 +1,7 @@
 import numpy as np
 import matplotlib.patches as mpatches
 import bokeh.palettes as bp
+from bokeh.models import ColumnDataSource
 from ross.element import Element
 import pytest
 import toml
@@ -91,6 +92,7 @@ class DiskElement(Element):
                     DiskElement(**disk_elements_dict["DiskElement"][element])
                 )
         return disk_elements
+
     def M(self):
         """
         This method will return the mass matrix for an instance of a disk
@@ -208,46 +210,44 @@ class DiskElement(Element):
             mpatches.Circle(xy=(zpos, -(ypos + D)), radius=0.01, color=self.color)
         )
 
-        # bokeh plot - plot disks elements
-        bk_disk_points_u = [
-            [zpos, zpos + le, zpos - le],
-            [ypos, ypos*4, ypos*4]
-        ]
+        # bokeh plot - coordinates to plot disks elements
+        z_upper = [zpos, zpos + le, zpos - le]
+        y_upper = [ypos, ypos * 4, ypos * 4]
 
-        bk_disk_points_l = [
-            [zpos, zpos + le, zpos - le],
-            [-ypos, -ypos*4, -ypos*4]
-        ]
+        z_lower = [zpos, zpos + le, zpos - le]
+        y_lower = [-ypos, -ypos * 4, -ypos * 4]
+
+        z_circle = z_upper[0]
+        y_circle = y_upper[1]
+
+        source = ColumnDataSource(
+            dict(z_l=z_lower, y_l=y_lower, z_u=z_upper, y_u=y_upper)
+        )
 
         bk_ax.patch(
-            x=bk_disk_points_u[0],
-            y=bk_disk_points_u[1],
+            x="z_u",
+            y="y_u",
+            source=source,
             alpha=1,
             line_width=2,
             color=bokeh_colors[9],
-            legend="Disk"
+            legend="Disk",
         )
         bk_ax.patch(
-            x=bk_disk_points_l[0],
-            y=bk_disk_points_l[1],
+            x="z_l",
+            y="y_l",
+            source=source,
             alpha=1,
             line_width=2,
-            color=bokeh_colors[9]
+            color=bokeh_colors[9],
         )
         bk_ax.circle(
-            x=bk_disk_points_u[0][0],
-            y=bk_disk_points_u[1][1],
-            radius=le,
-            fill_alpha=1,
-            color=bokeh_colors[9]
-            )
+            x=z_circle, y=y_circle, radius=le, fill_alpha=1, color=bokeh_colors[9]
+        )
         bk_ax.circle(
-            x=bk_disk_points_l[0][0],
-            y=bk_disk_points_l[1][1],
-            radius=le,
-            fill_alpha=1,
-            color=bokeh_colors[9]
-            )
+            x=z_circle, y=-y_circle, radius=le, fill_alpha=1, color=bokeh_colors[9]
+        )
+
 
     @classmethod
     def from_geometry(cls, n, material, width, i_d, o_d):
