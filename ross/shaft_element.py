@@ -144,7 +144,7 @@ class ShaftElement(Element):
 
         # Slenderness ratio of beam elements (G*A*L^2) / (E*I)
         sld = (self.material.G_s * self.A * self.L ** 2) / (self.material.E * self.Ie)
-        self.sld_ratio = sld        
+        self.slenderness_ratio = sld    
 
         # picking a method to calculate the shear coefficient
         # List of avaible methods:
@@ -392,7 +392,7 @@ class ShaftElement(Element):
 
         return G
 
-    def patch(self, position, ax, bk_ax):
+    def patch(self, position, SR, ax, bk_ax):
         """Shaft element patch.
         Patch that will be used to draw the shaft element.
         Parameters
@@ -405,15 +405,19 @@ class ShaftElement(Element):
             Position in which the patch will be drawn.
         Returns
         -------
-        ax : matplotlib axes
-            Returns the axes object with the plot.
-        bk_ax : bokeh plotting axes
-            Returns the axes object with the plot.
         """
-        position_u = [position, self.i_d/2]  # upper
-        position_l = [position, -self.o_d/2]  # lower
+        position_u = [position, self.i_d / 2]  # upper
+        position_l = [position, -self.o_d / 2]  # lower
         width = self.L
-        height = self.o_d/2 - self.i_d/2
+        height = self.o_d / 2 - self.i_d / 2
+        if self.n in SR:
+            mpl_color = "yellow"
+            bk_color = "yellow"
+            legend = "Shaft - Slenderness Ratio < 30"
+        else:
+            mpl_color = self.color
+            bk_color = bokeh_colors[2]
+            legend = "Shaft"
 
         #  matplotlib - plot the upper half of the shaft
         ax.add_patch(
@@ -424,8 +428,9 @@ class ShaftElement(Element):
                 linestyle="--",
                 linewidth=0.5,
                 ec="k",
-                fc=self.color,
+                fc=mpl_color,
                 alpha=0.8,
+                label=legend,
             )
         )
         #  matplotlib - plot the lower half of the shaft
@@ -437,30 +442,33 @@ class ShaftElement(Element):
                 linestyle="--",
                 linewidth=0.5,
                 ec="k",
-                fc=self.color,
+                fc=mpl_color,
                 alpha=0.8,
             )
         )
+
         # bokeh plot - plot the shaft
-        bk_ax.quad(top=self.o_d/2,
-                   bottom=self.i_d/2,
-                   left=position,
-                   right=position + self.L,
-                   line_color=bokeh_colors[0],
-                   line_width=1,
-                   fill_alpha=0.5,
-                   fill_color=bokeh_colors[2],
-                   legend="Shaft"
-                   )
-        bk_ax.quad(top=-self.i_d/2,
-                   bottom=-self.o_d/2,
-                   left=position,
-                   right=position + self.L,
-                   line_color=bokeh_colors[0],
-                   line_width=1,
-                   fill_alpha=0.5,
-                   fill_color=bokeh_colors[2],
-                   )
+        bk_ax.quad(
+            top=self.o_d / 2,
+            bottom=self.i_d / 2,
+            left=position,
+            right=position + self.L,
+            line_color=bokeh_colors[0],
+            line_width=1,
+            fill_alpha=0.5,
+            fill_color=bk_color,
+            legend=legend,
+        )
+        bk_ax.quad(
+            top=-self.i_d / 2,
+            bottom=-self.o_d / 2,
+            left=position,
+            right=position + self.L,
+            line_color=bokeh_colors[0],
+            line_width=1,
+            fill_alpha=0.5,
+            fill_color=bk_color,
+        )
 
     @classmethod
     def section(
