@@ -1628,6 +1628,8 @@ class Rotor(object):
         -------
         ax : matplotlib axes
             Returns the axes object with the plot.
+        bk_ax : bokeh plot axes
+            Returns the axes object with the plot
 
         Examples:
         ---------
@@ -1658,7 +1660,25 @@ class Rotor(object):
             "Response for node %s and degree of freedom %s" % (dof // 4, obs_dof)
         )
 
-        return ax
+        # bokeh plot - output to static HTML file
+        output_file("time_response.html")
+
+        # bokeh plot - create a new plot
+        bk_ax = figure(
+            tools="pan, box_zoom, wheel_zoom, reset, save",
+            width=1200,
+            height=900,
+            title="Response for node %s and degree of freedom %s" % (dof // 4, obs_dof),
+            x_axis_label="Time (s)",
+            y_axis_label="Amplitude (%s)" % amp,
+        )
+
+        # bokeh plot - plot shaft centerline
+        bk_ax.line(t, yout[:, dof], line_width=3, line_color=bokeh_colors[0])
+
+        show(bk_ax)
+
+        return ax, bk_ax
 
     def save_mat(self, file_name):
         """Save matrices and rotor model to a .mat file."""
