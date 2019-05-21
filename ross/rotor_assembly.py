@@ -1434,7 +1434,9 @@ class Rotor(object):
         -------
         ax : matplotlib axes
             Returns the axes object with the plot.
-        """
+        bk_ax : bokeh plot axes
+            Returns the axes object with the plot. 
+       """
         if ax is None:
             ax = plt.gca()
 
@@ -1460,6 +1462,7 @@ class Rotor(object):
             rotor = self.__class__(
                 self.shaft_elements, self.disk_elements, bearings, n_eigen=16
             )
+            rotor.run()
             rotor_wn[:, i] = rotor.wn[:8:2]
 
         ax.set_prop_cycle(cycler("color", seaborn_colors))
@@ -1491,6 +1494,47 @@ class Rotor(object):
         )
         ax.legend()
 
+        # bokeh plot - output to static HTML file
+        output_file("Plot_UCS.html")
+
+        # bokeh plot - create a new plot
+        bk_ax = figure(
+            tools="pan, box_zoom, wheel_zoom, reset, save",
+            width=1200,
+            height=900,
+            title="Undamped critical speed map",
+            x_axis_label="Bearing Stiffness (N/m)",
+            y_axis_label="Critical Speed (rad/s)",
+            x_axis_type="log",
+            y_axis_type="log",
+        )
+
+        # bokeh plot - plot shaft centerline
+        bk_ax.circle(
+                bearing0.kxx.interpolated(bearing0.w),
+                bearing0.w,
+                size=5,
+                fill_alpha=0.5,
+                fill_color=bokeh_colors[0],
+                legend="Kxx",
+        )
+        bk_ax.square(
+                bearing0.kyy.interpolated(bearing0.w),
+                bearing0.w,
+                size=5,
+                fill_alpha=0.5,
+                fill_color=bokeh_colors[0],
+                legend="Kyy",
+        )
+        for j in range(rotor_wn.T.shape[1]):
+            bk_ax.line(
+                    stiffness_log,
+                    np.transpose(rotor_wn.T)[j],
+                    line_width=3,
+                    line_color=bokeh_colors[-j+1],
+            )
+        show(bk_ax)
+
         return ax
 
     def plot_level1(self, n=None, stiffness_range=None, num=5, ax=None, **kwargs):
@@ -1512,6 +1556,8 @@ class Rotor(object):
         Returns
         -------
         ax : matplotlib axes
+            Returns the axes object with the plot.
+        bk_ax : bokeh plot axes
             Returns the axes object with the plot.
         """
         if ax is None:
@@ -1540,7 +1586,25 @@ class Rotor(object):
         ax.set_xlabel("Applied Cross Coupled Stiffness, Q (N/m)")
         ax.set_ylabel("Log Dec")
 
-        return ax
+        # bokeh plot - output to static HTML file
+        output_file("Plot_level1.html")
+
+        # bokeh plot - create a new plot
+        bk_ax = figure(
+            tools="pan, box_zoom, wheel_zoom, reset, save",
+            width=1200,
+            height=900,
+            title="Level 1 stability analysis",
+            x_axis_label="Applied Cross Coupled Stiffness, Q (N/m)",
+            y_axis_label="Log Dec",
+        )
+
+        # bokeh plot - plot shaft centerline
+        bk_ax.line(stiffness, log_dec, line_width=3, line_color=bokeh_colors[0])
+
+        show(bk_ax)
+
+        return ax, bk_ax
 
     def plot_time_response(self, F, t, dof, ax=None):
         """Plot the time response.
