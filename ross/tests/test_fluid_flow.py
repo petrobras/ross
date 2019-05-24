@@ -53,7 +53,7 @@ def test_stiffness_matrix():
     assert math.isclose(kxx/10**6, 12.81, rel_tol=0.01)
     assert math.isclose(kxy/10**6, 16.39, rel_tol=0.01)
     assert math.isclose(kyx/10**6, -25.06, rel_tol=0.01)
-    assert math.isclose(kyy/10**6, 8.15, rel_tol=0.01)
+    assert math.isclose(kyy/10**6, 8.815, rel_tol=0.01)
 
 
 def test_damping_matrix():
