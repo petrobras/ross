@@ -34,6 +34,8 @@ class PressureMatrix:
         Input Pressure (Pa).
     p_out: float
         Output Pressure (Pa).
+    load: float
+        Load applied to the rotor (N).
 
     Geometric data of the problem
     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -133,7 +135,7 @@ class PressureMatrix:
     >>> rho = 860.
     >>> my_pressure_matrix = flow.PressureMatrix(nz, ntheta, nradius, length,
     ...                                          omega, p_in, p_out, radius_rotor,
-    ...                                          radius_stator, eccentricity,  visc, rho)
+    ...                                          radius_stator, visc, rho, eccentricity=eccentricity)
     >>> my_pressure_matrix.calculate_pressure_matrix()
     >>> my_pressure_matrix.plot_eccentricity()
     >>> my_pressure_matrix.plot_pressure_z()
@@ -143,8 +145,9 @@ class PressureMatrix:
 
     """
     def __init__(self, nz, ntheta, nradius, length, omega, p_in,
-                 p_out, radius_rotor, radius_stator, eccentricity,
-                 visc, rho):
+                 p_out, radius_rotor, radius_stator, visc, rho, eccentricity=None, load=None):
+        if load is None and eccentricity is None:
+            sys.exit("Either load or eccentricity must be given.")
         self.nz = nz
         self.ntheta = ntheta
         self.nradius = nradius
@@ -161,11 +164,27 @@ class PressureMatrix:
         self.p_out = p_out
         self.radius_rotor = radius_rotor
         self.radius_stator = radius_stator
-        self.eccentricity = eccentricity
-        self.xi = np.sqrt(2)*eccentricity/2
-        self.yi = -self.xi
         self.visc = visc
         self.rho = rho
+        self.radial_clearance = self.radius_stator - self.radius_rotor
+        self.difference_between_radius = radius_stator - radius_rotor
+        self.bearing_type = ''
+        if self.length/self.radius_stator <= 1/8:
+            self.bearing_type = 'short_bearing'
+        elif self.length/self.radius_stator > 4:
+            self.bearing_type = 'long_bearing'
+        else:
+            self.bearing_type = 'medium_size'
+        self.eccentricity = eccentricity
+        self.eccentricity_ratio = None
+        self.load = load
+        if self.eccentricity is None:
+            self.eccentricity = self.calculate_eccentricity_ratio()*self.difference_between_radius
+        self.eccentricity_ratio = self.eccentricity / self.difference_between_radius
+        if self.load is None:
+            self.load = self.get_rotor_load()
+        self.xi = np.sqrt(2)*self.eccentricity/2
+        self.yi = -self.xi
         self.re = np.zeros([self.nz, self.ntheta])
         self.ri = np.zeros([self.nz, self.ntheta])
         self.z = np.zeros([1, self.nz])
@@ -174,13 +193,9 @@ class PressureMatrix:
         self.yre = np.zeros([self.nz, self.ntheta])
         self.yri = np.zeros([self.nz, self.ntheta])
         self.p_mat = np.zeros([self.nz, self.ntheta])
-        self.bearing_type = ''
         self.plot_counter = 0
         self.calculate_coefficients()
         self.pressure_matrix_available = False
-        self.difference_between_radius = radius_stator - radius_rotor
-        self.eccentricity_ratio = self.eccentricity/self.difference_between_radius
-        self.radial_clearance = self.radius_stator - self.radius_rotor
 
     def calculate_pressure_matrix(self):
         """This function calculates the pressure matrix
@@ -200,12 +215,6 @@ class PressureMatrix:
         of the discrete pressure (central differences in the second
         derivatives). It is executed when the class is instantiated.
         """
-        if self.length/self.radius_stator <= 1/8:
-            self.bearing_type = 'short_bearing'
-        elif self.length/self.radius_stator > 4:
-            self.bearing_type = 'long_bearing'
-        else:
-            self.bearing_type = 'medium_size'
         for i in range(self.nz):
             zno = i * self.dz
             self.z[0][i] = zno
@@ -276,7 +285,7 @@ class PressureMatrix:
         return radius_external, xre, yre
 
     def get_rotor_load(self):
-        """Returns the load applied to the rotor.
+        """Returns the load applied to the rotor, based on the eccentricity ratio.
         Suitable only for short bearings.
         Returns
         -------
@@ -291,41 +300,29 @@ class PressureMatrix:
                 / (8*(self.radial_clearance**2)*((1 - self.eccentricity_ratio**2)**2))) \
             * (np.sqrt((16/(np.pi**2) - 1)*self.eccentricity_ratio**2 + 1))
 
-    def modified_sommerfeld_number(self, f):
+    def modified_sommerfeld_number(self):
         """Returns the modified sommerfeld number.
-        Parameters
-        ----------
-        f: float
-            Load applied to the rotor.
         Returns
         -------
         float
             The modified sommerfeld number.
         """
         return (self.radius_stator*2*self.omega*self.visc*(self.length**3)) / \
-               (8*f*(self.radial_clearance**2))
+               (8*self.load*(self.radial_clearance**2))
 
-    def sommerfeld_number(self, f):
+    def sommerfeld_number(self):
         """Returns the sommerfeld number.
-        Parameters
-        ----------
-        f: float
-            Load applied to the rotor.
         Returns
         -------
         float
             The sommerfeld number.
         """
-        modified_s = self.modified_sommerfeld_number(f)
+        modified_s = self.modified_sommerfeld_number()
         return (modified_s/np.pi)*(self.radius_stator*2/self.length)**2
 
-    def calculate_eccentricity_ratio(self, f):
+    def calculate_eccentricity_ratio(self):
         """Calculate the eccentricity ratio for a given load using the sommerfeld number.
         Suitable only for short bearings.
-        Parameters
-        ----------
-        f: float
-            Load applied to the rotor.
         Returns
         -------
         float
@@ -335,7 +332,7 @@ class PressureMatrix:
             warnings.warn("Function calculate_eccentricity_ratio suitable only for short bearings. "
                           "The ratio between the bearing length and its radius should be less or "
                           "equal to 0.125. Currently we have "+str(self.length/self.radius_stator)+".")
-        s = self.modified_sommerfeld_number(f)
+        s = self.modified_sommerfeld_number()
         coefficients = [1, -4, (6 - (s**2)*(16 - np.pi**2)), -(4 + (np.pi**2)*(s**2)), 1]
         roots = np.roots(coefficients)
         for i in range(0, len(roots)):
