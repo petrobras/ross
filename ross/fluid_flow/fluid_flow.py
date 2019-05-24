@@ -2,6 +2,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 import sys
 from bokeh.plotting import figure, output_file, show
+import warnings
 
 
 class PressureMatrix:
@@ -276,11 +277,16 @@ class PressureMatrix:
 
     def get_rotor_load(self):
         """Returns the load applied to the rotor.
+        Suitable only for short bearings.
         Returns
         -------
         float
             Load applied to the rotor.
         """
+        if not self.bearing_type == 'short_bearing':
+            warnings.warn("Function get_rotor_load suitable only for short bearings. "
+                          "The ratio between the bearing length and its radius should be less or "
+                          "equal to 0.125. Currently we have "+str(self.length/self.radius_stator)+".")
         return ((np.pi*self.radius_stator*2*self.omega*self.visc*(self.length**3)*self.eccentricity_ratio)
                 / (8*(self.radial_clearance**2)*((1 - self.eccentricity_ratio**2)**2))) \
             * (np.sqrt((16/(np.pi**2) - 1)*self.eccentricity_ratio**2 + 1))
@@ -315,6 +321,7 @@ class PressureMatrix:
 
     def calculate_eccentricity_ratio(self, f):
         """Calculate the eccentricity ratio for a given load using the sommerfeld number.
+        Suitable only for short bearings.
         Parameters
         ----------
         f: float
@@ -324,6 +331,10 @@ class PressureMatrix:
         float
             The eccentricity ratio.
         """
+        if not self.bearing_type == 'short_bearing':
+            warnings.warn("Function calculate_eccentricity_ratio suitable only for short bearings. "
+                          "The ratio between the bearing length and its radius should be less or "
+                          "equal to 0.125. Currently we have "+str(self.length/self.radius_stator)+".")
         s = self.modified_sommerfeld_number(f)
         coefficients = [1, -4, (6 - (s**2)*(16 - np.pi**2)), -(4 + (np.pi**2)*(s**2)), 1]
         roots = np.roots(coefficients)
@@ -334,11 +345,16 @@ class PressureMatrix:
 
     def get_analytical_stiffness_matrix(self):
         """Returns the stiffness matrix calculated analytically.
+        Suitable only for short bearings.
         Returns
         -------
         list of floats
             A list of length four including stiffness floats in this order: kxx, kxy, kyx, kyy
         """
+        if not self.bearing_type == 'short_bearing':
+            warnings.warn("Function get_analytical_stiffness_matrix suitable only for short bearings. "
+                          "The ratio between the bearing length and its radius should be less or "
+                          "equal to 0.125. Currently we have "+str(self.length/self.radius_stator)+".")
         f = self.get_rotor_load()
         h0 = 1.0/(((np.pi**2)*(1 - self.eccentricity_ratio**2) + 16*self.eccentricity_ratio**2)**1.5)
         a = f/self.radial_clearance
@@ -357,11 +373,16 @@ class PressureMatrix:
 
     def get_analytical_damping_matrix(self):
         """Returns the damping matrix calculated analytically.
+        Suitable only for short bearings.
         Returns
         -------
         list of floats
             A list of length four including stiffness floats in this order: cxx, cxy, cyx, cyy
         """
+        if not self.bearing_type == 'short_bearing':
+            warnings.warn("Function get_analytical_damping_matrix suitable only for short bearings. "
+                          "The ratio between the bearing length and its radius should be less or "
+                          "equal to 0.125. Currently we have "+str(self.length/self.radius_stator)+".")
         f = self.get_rotor_load()
         h0 = 1.0/(((np.pi**2)*(1 - self.eccentricity_ratio**2) + 16*self.eccentricity_ratio**2)**1.5)
         a = f/(self.radial_clearance * self.omega)
