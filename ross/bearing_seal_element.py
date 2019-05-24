@@ -413,8 +413,8 @@ class BearingElement(Element):
 
     @classmethod
     def from_fluid_flow(cls, n, nz, ntheta, nradius, length, omega, p_in,
-                        p_out, radius_rotor, radius_stator, eccentricity,
-                        visc, rho):
+                        p_out, radius_rotor, radius_stator, visc, rho,
+                        eccentricity=None, load=None):
         """Instantiate a bearing using inputs from its fluid flow.
         Parameters
         ----------
@@ -441,6 +441,8 @@ class BearingElement(Element):
             Input Pressure (Pa).
         p_out: float
             Output Pressure (Pa).
+        load: float
+            Load applied to the rotor (N).
 
         Geometric data of the problem
         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -466,7 +468,7 @@ class BearingElement(Element):
         """
         fluid_flow = flow.PressureMatrix(nz, ntheta, nradius, length, omega, p_in,
                                          p_out, radius_rotor, radius_stator,
-                                         eccentricity, visc, rho)
+                                         visc, rho, eccentricity=eccentricity, load=load)
         k = fluid_flow.get_analytical_damping_matrix()
         c = fluid_flow.get_analytical_stiffness_matrix()
         return cls(n, kxx=k[0], cxx=c[0], kyy=k[3],
