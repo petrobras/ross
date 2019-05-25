@@ -11,7 +11,7 @@ ROSS Quick Start
   classes for a quick start to use ROSS.
 
 Materials
-=========
+---------
 
 There is a class called Material to hold material’s properties.
 
@@ -46,7 +46,7 @@ There is a class called Material to hold material’s properties.
   of the following parameters: ‘E’, ‘G_s’ ,‘rho’.
 
 Saving a Material
------------------
+~~~~~~~~~~~~~~~~~
 
 To save an already instantiated Material object, you need to use the
 following method.
@@ -56,7 +56,7 @@ following method.
     Steel.save_material()
 
 Loading a Material
-------------------
+~~~~~~~~~~~~~~~~~~
 
 To load a material, first of all, use the available_materials() method
 to check if your material is instantiated, then you should use the
@@ -72,7 +72,7 @@ parameter.
 
 .. parsed-literal::
 
-    ['Steel']
+    ['AISI4140', 'Steel']
 
 
 
@@ -81,7 +81,7 @@ parameter.
     steel = rs.Material.use_material('Steel')
 
 Element
-=======
+-------
 
 | Element is an abstract class(not directly used in the program), this
   class is mainly used to organize the code and make it more intuitive.
@@ -90,7 +90,7 @@ Element
   the junction of two elements.
 
 ShaftElement
-============
+------------
 
 | There are two methods that you could use to model this element:
 | \* Euler–Bernoulli beam Theory \* Timoshenko beam Theory (used as
@@ -121,7 +121,7 @@ ShaftElement
                                       ) for l in l_list]
 
 DiskElement
-===========
+-----------
 
 | As the name says this class represents a Disk.
 | We can see an example of instantiation of this class in the following
@@ -141,11 +141,11 @@ All the values are following the S.I. convention.
 
 .. parsed-literal::
 
-    <ross.disk_element.DiskElement object at 0x7f1402f98e48>
+    DiskElement(Id=0.17809, Ip=0.32956, m=32.59, color='#bc625b', n=0)
 
 
 From geometry DiskElement instatiation
-======================================
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 | Besides the instatiation previously explained, there is a way to
   instantiate a DiskElement with only geometrical parameters (for
@@ -173,8 +173,8 @@ From geometry DiskElement instatiation
                                       )
     disks = [disk0,disk1]
 
-# BearingElement
-----------------
+BearingElement
+--------------
 
 | As it says on the name, this class is a bearing.
 | The following code demonstrate how to properly instantiate it. - ‘n’
@@ -201,7 +201,7 @@ give cross-coupled coefficients.
     bearings = [bearing0, bearing1]
 
 Instantiating bearings from excel archives
-------------------------------------------
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 There’s a class method to instantiate a bearing from excel tables, as we
 can see in the following code.
@@ -209,8 +209,8 @@ can see in the following code.
 **There will be a class method to instantiate a bearing from excel
 tables. - work in progress**
 
-# Rotor
--------
+Rotor
+-----
 
 This class unifies all the Element classes in the program and assembles
 the mass, damping and stiffness matrices of each element, building up
@@ -235,7 +235,7 @@ elements in a list format, as it follows.
 
 
 From section instantiation of a Rotor
--------------------------------------
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 | In this form of instantiation, the number of shaft elements used in
   FEM are not fixed, instead, the program does a convergence analysis,
@@ -287,33 +287,10 @@ From section instantiation of a Rotor
 
     To check the rotor geometry, use the method plot_rotor()
     To calculate the rotor state, use the method run()
-    To check the rotor geometry, use the method plot_rotor()
-    To calculate the rotor state, use the method run()
-
-
-
-.. raw:: html
-
-    
-    
-    
-    
-    
-    
-      <div class="bk-root" id="e93417d1-c9de-46e8-bb2e-a7a77d855c64" data-root-id="1117"></div>
-
-
-
-
-
-.. parsed-literal::
-
-    To check the rotor geometry, use the method plot_rotor()
-    To calculate the rotor state, use the method run()
 
 
 Visualizing the Rotor
----------------------
+~~~~~~~~~~~~~~~~~~~~~
 
 It is interesting to plot the rotor to check if it’s really what you
 wanted to instantiate, you can plot it with the following code.
@@ -335,7 +312,7 @@ you can either turn on or off the matplotlib one.
     
     
     
-      <div class="bk-root" id="3a951c87-f7d3-4ccf-97a2-83a8428e52b8" data-root-id="1320"></div>
+      <div class="bk-root" id="b83f1bbc-3fc3-470b-95a4-47765a656831" data-root-id="1003"></div>
 
 
 
@@ -345,8 +322,8 @@ you can either turn on or off the matplotlib one.
 
 .. parsed-literal::
 
-    (Figure(id='1320', ...),
-     <matplotlib.axes._subplots.AxesSubplot at 0x7f1402facb38>)
+    (Figure(id='1003', ...),
+     <matplotlib.axes._subplots.AxesSubplot at 0x7f9c1c792358>)
 
 
 
@@ -355,7 +332,7 @@ you can either turn on or off the matplotlib one.
 
 
 Running the simulation
-----------------------
+~~~~~~~~~~~~~~~~~~~~~~
 
 After you verify that everything is fine with the rotor, you should run
 the simulation and obtain results. To do that you only need to use the
@@ -373,8 +350,8 @@ These are the following analysis you can do with the program: - Static
 analysis - Campbell Diagram - Frequency response - Forced response -
 Mode Shapes
 
-## Static analysis
-------------------
+Static analysis
+~~~~~~~~~~~~~~~
 
 This method gives a free body diagram and a exagerated plot of the rotor
 response to gravity effects.
@@ -394,14 +371,14 @@ response to gravity effects.
     
     
     
-      <div class="bk-root" id="700428f7-42dc-47d8-b608-d1f69767a94c" data-root-id="2835"></div>
+      <div class="bk-root" id="561b1624-8381-47ca-a90f-a0194ded9af6" data-root-id="2618"></div>
 
 
 
 
 
 Campbell Diagram
-================
+~~~~~~~~~~~~~~~~
 
 In this example we can see the campbell diagram from 0 to 4000 RPM.
 
@@ -412,20 +389,35 @@ In this example we can see the campbell diagram from 0 to 4000 RPM.
 
 
 
+.. raw:: html
+
+    
+    
+    
+    
+    
+    
+      <div class="bk-root" id="9ae7e39e-cc6a-4004-9d1a-66d85ac8fdde" data-root-id="3448"></div>
+
+
+
+
+
+
 
 .. parsed-literal::
 
     (<Figure size 432x288 with 2 Axes>,
-     <matplotlib.axes._subplots.AxesSubplot at 0x7f1401929d30>)
+     <matplotlib.axes._subplots.AxesSubplot at 0x7f9bf0040cf8>)
 
 
 
 
-.. image:: Tutorial_files/Tutorial_29_1.png
+.. image:: Tutorial_files/Tutorial_29_3.png
 
 
 Frenquency Response
-===================
+~~~~~~~~~~~~~~~~~~~
 
 We can put the frequency response of
 
@@ -436,5 +428,20 @@ We can put the frequency response of
 
 
 
-.. image:: Tutorial_files/Tutorial_31_0.png
+.. raw:: html
+
+    
+    
+    
+    
+    
+    
+      <div class="bk-root" id="73d57aef-b024-4a27-b41a-f7f228ad5016" data-root-id="5116"></div>
+
+
+
+
+
+
+.. image:: Tutorial_files/Tutorial_31_2.png
 
