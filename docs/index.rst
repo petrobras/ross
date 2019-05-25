@@ -8,8 +8,11 @@
 |ross-logo| ross: rotordynamic open-source software
 =======================================
 
+Ross is a library written in Python for rotordynamic analysis. The source is
+available at `github <https://github.com/ross-rotordynamics/ross>`_.
+
 .. toctree::
-   :maxdepth: 2
+   :maxdepth: 1
    :caption: Contents:
 
    introduction

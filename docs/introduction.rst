@@ -1,13 +1,12 @@
-What you need to do to start using ross 
-=======================================
+Installation
+============
 
 .. _introduction:
 
-Programming language: Python
-----------------------------
+Install Python
+--------------
 
-Ross - rotordynamic open-source software is an Python application for rotordynamic
-analysis. If you don't have Python installed in your machine, the first thing you should do is install it.
+If you don't have Python installed in your machine, the first thing you should do is install it.
 
 Since ross requires a number of packages to be installed besides
 Python, such as numpy, we recommend installing Anaconda 
@@ -16,9 +15,16 @@ that aims to simplify package management and deployment. It contains Python and 
 of packages that are commonly used.
 Alternativaly, you may refer to the `Python website
 <http://www.python.org/>`_.
-Ross's code was tested in Python 3.6 and higher, so make sure you
-get a similar version.
-Although you don't need to know Python to run ross,
-you need to be able to follow the instructions in :ref:`tutorial`, some coding included.
+Ross's code was tested in Python 3.6 and higher.
 
+Install ross
+------------
+
+You can install the latest release version with::
+
+    pip install ross-rotordynamics
+
+Alternatively, you can install the development version from github::
+
+    pip install git+https://github.com/ross-rotordynamics/ross.git
 
