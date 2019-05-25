@@ -37,7 +37,6 @@ def rotor_example1(w=0, n_el=48):
 
 def test_example1_w_equals_0rpm():
     ROT = rotor_example1(0, 6)
-    ROT.run()
     assert ROT.wn == pytest.approx(
         np.array([86.66, 86.66, 274.31, 274.31, 716.78, 716.78]), 1e-3
     )
@@ -45,7 +44,6 @@ def test_example1_w_equals_0rpm():
 
 def test_example1_w_equals_4000rpm():
     ROT = rotor_example1(4000 * np.pi / 30, 6)
-    ROT.run()
     assert ROT.wn == pytest.approx(
         np.array([85.39, 87.80, 251.78, 294.71, 600.18, 827.08]), 1e-3
     )
@@ -87,7 +85,6 @@ def rotor_example2(w=0, n_el=48):
 
 def test_example2_w_eq_0rpm():
     ROT = rotor_example2(0, 6)
-    ROT.run()
     assert pytest.approx(ROT.wn, 1e-3) == np.array(
         [90.14, 90.14, 630.73, 630.73, 830.43, 830.43]
     )
@@ -95,7 +92,6 @@ def test_example2_w_eq_0rpm():
 
 def test_example2_w_eq_4000rpm():
     ROT = rotor_example2(4000 * np.pi / 30, 6)
-    ROT.run()
     assert pytest.approx(ROT.wn, 1e-3) == np.array(
         [76.19, 103.91, 565.99, 634.23, 647.75, 1174.2]
     )
@@ -134,7 +130,6 @@ def rotor_example3(w=0, n_el=48):
 
 def test_example3_w_equals_0rpm():
     ROT = rotor_example3(0, 48)
-    ROT.run()
     assert pytest.approx(ROT.wn, 1e-3) == np.array(
         [82.65, 86.66, 254.52, 274.31, 679.49, 716.79]
     )
@@ -142,7 +137,6 @@ def test_example3_w_equals_0rpm():
 
 def test_example3_w_equals_4000rpm():
     ROT = rotor_example3(4000 * np.pi / 30, 48)
-    ROT.run()
     assert pytest.approx(ROT.wn, 1e-3) == np.array(
         [82.33, 86.86, 239.64, 287.25, 583.49, 806.89]
     )
@@ -180,7 +174,6 @@ def rotor_example4(w=0, n_el=48):
 
 def test_example4_w_equals_0rpm():
     ROT = rotor_example4(0, 6)
-    ROT.run()
     wn_hertz = ROT.wn / (2 * np.pi)
     wd_hertz = ROT.wd / (2 * np.pi)
     assert pytest.approx(wn_hertz, 1e-2) == np.array(
@@ -193,7 +186,6 @@ def test_example4_w_equals_0rpm():
 
 def test_example4_w_equals_4000rpm():
     ROT = rotor_example4((4000 * np.pi) / 30, 6)
-    ROT.run()
     wn_hertz = ROT.wn / (2 * np.pi)
     wd_hertz = ROT.wd / (2 * np.pi)
     assert pytest.approx(wn_hertz, 1e-1) == np.array(
@@ -237,7 +229,6 @@ def rotor_example5(w=0, n_el=48):
 
 def test_example5_w_equals4000rpm():
     ROT = rotor_example5((4000 * np.pi) / 30, 48)
-    ROT.run()
     wn_hertz = ROT.wn / (2 * np.pi)
     assert pytest.approx(wn_hertz, 1) == (
         np.array([8.545, 13.77, 22.35, 44.06, 78.76, 120.4])
@@ -277,7 +268,6 @@ def rotor_example6(w=0, n_el=48):
 
 def test_example6_w_equals4000rpm():
     ROT = rotor_example6((4000 * np.pi) / 30, 48)
-    ROT.run()
     wn_hertz = ROT.wn / (2 * np.pi)
     assert pytest.approx(wn_hertz, 1) == (
         np.array([11.66, 14.80, 33.97, 49.19, 97.97, 126.61])

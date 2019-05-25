@@ -384,7 +384,7 @@ def test_evals_sorted_rotor2(rotor2):
             -4.838034e-14 - 34.822138j,
         ]
     )
-    rotor2.run()
+    rotor2.run_modal()
     rotor2_evals, rotor2_evects = rotor2._eigen()
     assert_allclose(rotor2_evals, evals_sorted, rtol=1e-3)
     assert_allclose(rotor2.evalues, evals_sorted, rtol=1e-3)
@@ -461,7 +461,7 @@ def test_rotor_attributes(rotor1, rotor3, rotor3_odd):
 
 
 def test_evects_sorted_rotor3(rotor3):
-    rotor3.run()
+    rotor3.run_modal()
     evects_sorted = np.array(
         [
             [
@@ -1166,7 +1166,7 @@ def test_evects_not_sorted_rotor3(rotor3):
 
 
 def test_kappa_rotor3(rotor3):
-    rotor3.run()
+    rotor3.run_modal()
     assert_allclose(rotor3.kappa(0, 0)["Frequency"], 82.653037, rtol=1e-3)
     assert_allclose(rotor3.kappa(0, 0)["Major axes"], 0.001454062985920231, rtol=1e-3)
     assert_allclose(
@@ -1349,7 +1349,7 @@ def test_freq_response(rotor4):
 
 
 def test_freq_response_w_force(rotor4):
-    rotor4.run()
+    rotor4.run_modal()
     F0 = np.array(
         [
             [0.0 + 0.0j, 0.0 + 0.0j, 0.0 + 0.0j, 0.0 + 0.0j],

@@ -117,7 +117,7 @@ class Rotor(object):
     >>> bearing0 = rs.BearingElement(0, kxx=stf, cxx=0)
     >>> bearing1 = rs.BearingElement(2, kxx=stf, cxx=0)
     >>> rotor = rs.Rotor(shaft_elm, [disk0], [bearing0, bearing1])
-    >>> rotor.run()
+    >>> rotor.run_modal()
     >>> rotor.wd[0] # doctest: +ELLIPSIS
     215.3707...
     """
@@ -288,13 +288,9 @@ class Rotor(object):
         self.Vx = None
         self.Bm = None
         self.disp_y = None
-        
-        #  diameter at node position
 
-        print(
-            "To check the rotor geometry, use the method plot_rotor()\n"
-            "To calculate the rotor state, use the method run()"
-        )
+        #  diameter at node position
+        self.run_modal()
 
     def __eq__(self, other):
         if self.elements == other.elements and self.parameters == other.parameters:
@@ -302,18 +298,18 @@ class Rotor(object):
         else:
             return False
 
-    def run(self):
+    def run_modal(self):
         self.evalues, self.evectors = self._eigen(self.w)
         wn_len = len(self.evalues) // 2
         self.wn = (np.absolute(self.evalues))[:wn_len]
         self.wd = (np.imag(self.evalues))[:wn_len]
         self.damping_ratio = (-np.real(self.evalues) / np.absolute(self.evalues))[
-            :wn_len
-        ]
+                             :wn_len
+                             ]
         with warnings.catch_warnings():
             warnings.simplefilter("ignore")
             self.log_dec = (
-                2 * np.pi * self.damping_ratio / np.sqrt(1 - self.damping_ratio ** 2)
+                    2 * np.pi * self.damping_ratio / np.sqrt(1 - self.damping_ratio ** 2)
             )
         self.lti = self._lti()
 
@@ -357,7 +353,7 @@ class Rotor(object):
         eigv_arr = np.array([])
         error_arr = np.array([0])
 
-        self.run()
+        self.run_modal()
         eigv_arr = np.append(eigv_arr, self.wn[n_eigval])
 
         # this value is up to start the loop while
@@ -401,7 +397,7 @@ class Rotor(object):
             rotor = Rotor(
                 shaft_elem, disk_elem, brgs_elem, w=self.w, n_eigen=self.n_eigen
             )
-            rotor.run()
+            rotor.run_modal()
 
             eigv_arr = np.append(eigv_arr, rotor.wn[n_eigval])
             el_num = np.append(el_num, len(shaft_elem))
@@ -464,7 +460,7 @@ class Rotor(object):
     @w.setter
     def w(self, value):
         self._w = value
-        self.run()
+        self.run_modal()
 
     def _dofs(self, element):
 
@@ -626,7 +622,7 @@ class Rotor(object):
         # fmt: off
         A = np.vstack(
             [np.hstack([Z, I]),
-             np.hstack([la.solve(-self.M(), self.K(w)), la.solve(-self.M(), (self.C(w) + self.G()*w))])])
+             np.hstack([la.solve(-self.M(), self.K(w)), la.solve(-self.M(), (self.C(w) + self.G() * w))])])
         # fmt: on
 
         return A
@@ -663,7 +659,7 @@ class Rotor(object):
         b = np.absolute(evals_truncated)  # Second column
         ind = np.lexsort((b, a))  # Sort by imag, then by absolute
         # Positive eigenvalues first
-        positive = [i for i in ind[len(a) // 2 :]]
+        positive = [i for i in ind[len(a) // 2:]]
         negative = [i for i in ind[: len(a) // 2]]
 
         idx = np.array([positive, negative]).flatten()
@@ -1020,7 +1016,7 @@ class Rotor(object):
 
         return H
 
-    def freq_response(self, frequency_range=None, modes=None):
+    def run_freq_response(self, frequency_range=None, modes=None):
         """Frequency response for a mdof system.
 
         This method returns the frequency response for a mdof system
@@ -1075,7 +1071,7 @@ class Rotor(object):
         return results
 
     def forced_response(self, force=None, frequency_range=None, modes=None):
-        freq_resp = self.freq_response(frequency_range=frequency_range, modes=modes)
+        freq_resp = self.run_freq_response(frequency_range=frequency_range, modes=modes)
 
         forced_resp = np.zeros(
             (self.ndof, len(freq_resp.frequency_range)), dtype=np.complex
@@ -2133,7 +2129,6 @@ class Rotor(object):
         grid_plots = gridplot([[FBD, SF], [disp_graph, BM]])
         show(grid_plots)
 
-
     @classmethod
     def from_section(
         cls,
@@ -2196,7 +2191,7 @@ class Rotor(object):
         ...             brg_seal_data=[BearingElement(n=0, kxx=1e6, cxx=0, kyy=1e6, cyy=0, kxy=0, cxy=0, kyx=0, cyx=0),
         ...                            BearingElement(n=3, kxx=1e6, cxx=0, kyy=1e6, cyy=0, kxy=0, cxy=0, kyx=0, cyx=0)],
         ...             w=0, nel_r=1)
-        >>> rotor.run()
+        >>> rotor.run_modal()
         >>> rotor.wn[:]
         """
 
