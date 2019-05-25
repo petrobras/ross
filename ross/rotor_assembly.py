@@ -259,6 +259,10 @@ class Rotor(object):
         nodes_o_d.append(df_shaft["o_d"].iloc[-1])
         self.nodes_o_d = nodes_o_d
 
+        nodes_le = list(df_shaft.groupby("n_l")["L"].min())
+        nodes_le.append(df_shaft["L"].iloc[-1])
+        self.nodes_le = nodes_le
+
         self.nodes = list(range(len(self.nodes_pos)))
         self.elements_length = [sh_el.L for sh_el in self.shaft_elements]
         self.L = nodes_pos[-1]
@@ -417,7 +421,7 @@ class Rotor(object):
         )
 
         TOOLS = "pan,wheel_zoom,box_zoom,hover,reset,save,"
-        TOOLTIPS1 = [("Frquency:", "@y0 Hz"), ("Number of Elements", "@x0")]
+        TOOLTIPS1 = [("Frequency:", "@y0 Hz"), ("Number of Elements", "@x0")]
         TOOLTIPS2 = [("Relative Error:", "@y1"), ("Number of Elements", "@x1")]
         # create a new plot and add a renderer
         freq_arr = figure(
@@ -439,7 +443,7 @@ class Rotor(object):
             width=500,
             height=500,
             title="Relative Error Evaluation",
-            x_axis_label="Number of Rlements",
+            x_axis_label="Number of Elements",
             y_axis_label="Relative Rrror",
         )
         rel_error.line(
@@ -1208,6 +1212,20 @@ class Rotor(object):
 
         Examples:
         """
+
+        # check slenderness ratio of beam elements
+        SR = np.array([])
+        for shaft in self.shaft_elements:
+            if shaft.slenderness_ratio < 30:
+                SR = np.append(SR, shaft.n)
+        if len(SR) != 0:
+            warnings.warn(
+                "The beam elements "
+                + str(SR)
+                + " have slenderness ratio (G*A*L^2 / EI) greater than 30."
+                + " Results may not converge correctly"
+            )
+
         if ax is None:
             ax = plt.gca()
 
@@ -1231,13 +1249,15 @@ class Rotor(object):
 
         # bokeh plot - create a new plot
         bk_ax = figure(
-            tools="pan, box_zoom, wheel_zoom, reset, save",
-            width=900,
-            height=500,
-            y_range=[-6 * max_diameter, 6 * max_diameter],
+            tools="pan, wheel_zoom, reset, save",
+            width=1800,
+            height=900,
+            x_range=[-0.1 * shaft_end, 1.1 * shaft_end],
+            y_range=[-0.3 * shaft_end, 0.3 * shaft_end],
             title="Rotor model",
             x_axis_label="Axial location (m)",
             y_axis_label="Shaft radius (m)",
+            match_aspect=True,
         )
 
         # bokeh plot - plot shaft centerline
@@ -1251,9 +1271,11 @@ class Rotor(object):
 
         # plot nodes
         text = []
+        x_pos = []
         for node, position in enumerate(self.nodes_pos[::nodes]):
             # bokeh plot
             text.append(str(node))
+            x_pos.append(position)
 
             # matplotlib
             ax.plot(
@@ -1276,18 +1298,12 @@ class Rotor(object):
             )
 
         # bokeh plot - plot nodes
-        x_pos = np.linspace(0, self.nodes_pos[-1], len(self.nodes_pos))
         y_pos = np.linspace(0, 0, len(self.nodes_pos))
 
         source = ColumnDataSource(dict(x=x_pos, y=y_pos, text=text))
 
-        bk_ax.square(
-            x=x_pos,
-            y=y_pos,
-            size=30,
-            angle=np.pi / 4,
-            fill_alpha=0.8,
-            fill_color=bokeh_colors[6],
+        bk_ax.circle(
+            x=x_pos, y=y_pos, size=30, fill_alpha=0.8, fill_color=bokeh_colors[6]
         )
 
         glyph = Text(
@@ -1305,17 +1321,19 @@ class Rotor(object):
         # plot shaft elements
         for sh_elm in self.shaft_elements:
             position = self.nodes_pos[sh_elm.n]
-            sh_elm.patch(position, ax, bk_ax)
+            sh_elm.patch(position, SR, ax, bk_ax)
 
         # plot disk elements
         for disk in self.disk_elements:
-            position = (self.nodes_pos[disk.n], self.nodes_o_d[disk.n])
-            disk.patch(position, ax, bk_ax)
+            position = (self.nodes_pos[disk.n], self.nodes_o_d[disk.n] / 2)
+            length = min(self.nodes_le)
+            disk.patch(position, length, ax, bk_ax)
 
         # plot bearings
         for bearing in self.bearing_seal_elements:
-            position = (self.nodes_pos[bearing.n], -self.nodes_o_d[bearing.n])
-            bearing.patch(position, ax, bk_ax)
+            position = (self.nodes_pos[bearing.n], -self.nodes_o_d[bearing.n] / 2)
+            length = min(self.nodes_le)
+            bearing.patch(position, length, ax, bk_ax)
 
         show(bk_ax)
 
