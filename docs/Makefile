@@ -19,4 +19,4 @@ help:
 	@$(SPHINXBUILD) -M $@ "$(SOURCEDIR)" "$(BUILDDIR)" $(SPHINXOPTS) $(O)
 
 tutorial: 
-	tools/nb_to_doc.py examples/Tutorial
+	tools/nb_to_doc.py examples/tutorial

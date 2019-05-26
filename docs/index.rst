@@ -16,7 +16,7 @@ available at `github <https://github.com/ross-rotordynamics/ross>`_.
    :caption: Contents:
 
    installation
-   examples/Tutorial
+   examples/tutorial
    examples
    api
 
