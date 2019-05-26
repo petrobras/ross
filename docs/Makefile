@@ -11,7 +11,7 @@ BUILDDIR      = _build
 help:
 	@$(SPHINXBUILD) -M help "$(SOURCEDIR)" "$(BUILDDIR)" $(SPHINXOPTS) $(O)
 
-.PHONY: help Makefile
+.PHONY: help Makefile examples
 
 # Catch-all target: route all unknown targets to Sphinx using the new
 # "make mode" option.  $(O) is meant as a shortcut for $(SPHINXOPTS).
@@ -20,3 +20,6 @@ help:
 
 tutorial: 
 	tools/nb_to_doc.py examples/tutorial
+
+examples:
+	tools/nb_to_doc.py examples/example_05_08_01 examples/example_05_08_02
