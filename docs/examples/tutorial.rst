@@ -227,13 +227,6 @@ elements in a list format, as it follows.
                       bearings 
                       )
 
-
-.. parsed-literal::
-
-    To check the rotor geometry, use the method plot_rotor()
-    To calculate the rotor state, use the method run()
-
-
 From section instantiation of a Rotor
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
@@ -282,13 +275,6 @@ From section instantiation of a Rotor
                                   )
 
 
-
-.. parsed-literal::
-
-    To check the rotor geometry, use the method plot_rotor()
-    To calculate the rotor state, use the method run()
-
-
 Visualizing the Rotor
 ~~~~~~~~~~~~~~~~~~~~~
 
@@ -312,7 +298,7 @@ you can either turn on or off the matplotlib one.
     
     
     
-      <div class="bk-root" id="b83f1bbc-3fc3-470b-95a4-47765a656831" data-root-id="1003"></div>
+      <div class="bk-root" id="f1c32c2a-e199-4a26-be2b-dc81ab682b6d" data-root-id="1003"></div>
 
 
 
@@ -323,12 +309,12 @@ you can either turn on or off the matplotlib one.
 .. parsed-literal::
 
     (Figure(id='1003', ...),
-     <matplotlib.axes._subplots.AxesSubplot at 0x7f9c1c792358>)
+     <matplotlib.axes._subplots.AxesSubplot at 0x7f4c376be668>)
 
 
 
 
-.. image:: Tutorial_files/Tutorial_23_3.png
+.. image:: tutorial_files/tutorial_23_3.png
 
 
 Running the simulation
@@ -340,8 +326,8 @@ run() method like the code bellow.
 
 .. code:: ipython3
 
-    rotor1.run()
-    rotor2.run()
+    rotor1.run_modal()
+    rotor2.run_modal()
 
 Obtaining results
 -----------------
@@ -371,7 +357,7 @@ response to gravity effects.
     
     
     
-      <div class="bk-root" id="561b1624-8381-47ca-a90f-a0194ded9af6" data-root-id="2618"></div>
+      <div class="bk-root" id="0bf03278-3350-4728-b5cc-497caf3e68bf" data-root-id="2618"></div>
 
 
 
@@ -397,7 +383,7 @@ In this example we can see the campbell diagram from 0 to 4000 RPM.
     
     
     
-      <div class="bk-root" id="9ae7e39e-cc6a-4004-9d1a-66d85ac8fdde" data-root-id="3448"></div>
+      <div class="bk-root" id="883cdad2-d8b0-4078-83d0-216cd0e31257" data-root-id="3448"></div>
 
 
 
@@ -408,12 +394,12 @@ In this example we can see the campbell diagram from 0 to 4000 RPM.
 .. parsed-literal::
 
     (<Figure size 432x288 with 2 Axes>,
-     <matplotlib.axes._subplots.AxesSubplot at 0x7f9bf0040cf8>)
+     <matplotlib.axes._subplots.AxesSubplot at 0x7f4c34867400>)
 
 
 
 
-.. image:: Tutorial_files/Tutorial_29_3.png
+.. image:: tutorial_files/tutorial_29_3.png
 
 
 Frenquency Response
@@ -423,7 +409,7 @@ We can put the frequency response of
 
 .. code:: ipython3
 
-    rotor1.freq_response().plot(inp=0,out=0)
+    rotor1.run_freq_response().plot(inp=0,out=0)
     plt.rcParams["figure.figsize"] = (15,10)
 
 
@@ -436,12 +422,12 @@ We can put the frequency response of
     
     
     
-      <div class="bk-root" id="73d57aef-b024-4a27-b41a-f7f228ad5016" data-root-id="5116"></div>
+      <div class="bk-root" id="a9ea1b3b-8290-43d6-8f67-c43f7816d6f9" data-root-id="5116"></div>
 
 
 
 
 
 
-.. image:: Tutorial_files/Tutorial_31_2.png
+.. image:: tutorial_files/tutorial_31_2.png
 

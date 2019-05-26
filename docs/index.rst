@@ -15,14 +15,10 @@ available at `github <https://github.com/ross-rotordynamics/ross>`_.
    :maxdepth: 1
    :caption: Contents:
 
-   introduction
-   installing
-   tutorial
+   installation
+   examples/tutorial
    examples
-   git_configuration
    api
-   examples/Tutorial
-
 
 Indices and tables
 ==================
