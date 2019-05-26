@@ -10,7 +10,7 @@ Git is a version-control system (VCS) for tracking changes in code during softwa
 In order to download the ross source code and contribute to its development,
 you need Git installed in your machine. Refer to the `Git website
 <https://git-scm.com/>`_ and follow the instructions to download and install it.
-Once you have Git installed, you will be able to follow the instructions in :ref:`git-configuration`,
+Once you have Git installed, you will be able to follow the instructions in `How to contribute to ross using git`_
 which explains how to download and contribute to ross.
 
 Code style: Black
@@ -21,15 +21,13 @@ to set this is given at `Black's documentation<https://black.readthedocs.io/en/s
 
 Integrated development environment: PyCharm
 -------------------------------------------
-
 The ross development team adopted PyCharm as integrated development environment (IDE).
 You don't need PyCharm to run or contribute to ross, as you can choose your preferred IDE or
 even no IDE at all. But in case you want to use PyCharm, go to the `PyCharm website
 <https://www.jetbrains.com/pycharm/>`_ to download and install it.
 
-How to contribute to ROSS using git
+How to contribute to ross using git
 ===================================
-
 .. _git-configuration:
 
 In order to use git to contribute to ROSS project, follow the steps bellow:
@@ -53,7 +51,6 @@ From the command line:
 -----------------------------------------
 Step 2: Keep in sync with changes in Ross
 -----------------------------------------
-
 Setup your local repository so it pulls from upstream by default:
 
 ::
@@ -87,7 +84,6 @@ The part :code:`fetch = +refs/pull/*/head:refs/remotes/upstream/pr/*` will make 
 ---------------------------------
 Step 3: Make a new feature branch
 ---------------------------------
-
 ::
 
     git fetch upstream
@@ -113,7 +109,6 @@ The following blog posts have some good information on how to write commit messa
 -------------------------------------
 Step 5: Push changes to the main repo
 -------------------------------------
-
 ^^^^^^^^^^^^^^^^
 For contributors
 ^^^^^^^^^^^^^^^^
