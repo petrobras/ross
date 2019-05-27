@@ -1,27 +1,30 @@
 import os
-import warnings
-import numpy as np
-import pandas as pd
-import scipy.linalg as la
-import scipy.sparse.linalg as las
-import scipy.signal as signal
-import scipy.io as sio
-from scipy import interpolate
-from copy import copy, deepcopy
-from collections import Iterable
 import shutil
+import warnings
+from collections import Iterable
+from copy import copy, deepcopy
+from pathlib import Path
+
+import bokeh.palettes as bp
 import matplotlib as mpl
 import matplotlib.pyplot as plt
-import bokeh.palettes as bp
+import numpy as np
+import pandas as pd
+import scipy.io as sio
+import scipy.linalg as la
+import scipy.signal as signal
+import scipy.sparse.linalg as las
+import toml
+from bokeh.layouts import gridplot
 from bokeh.models import ColumnDataSource, Arrow, NormalHead, Label
 from bokeh.models.glyphs import Text
-from bokeh.layouts import gridplot
 from bokeh.plotting import figure, output_file, show
 from cycler import cycler
-from pathlib import Path
+from scipy import interpolate
+
+import ross
 from ross.bearing_seal_element import BearingElement
 from ross.disk_element import DiskElement
-from ross.shaft_element import ShaftElement
 from ross.materials import steel
 from ross.results import (
     CampbellResults,
@@ -29,8 +32,7 @@ from ross.results import (
     ForcedResponseResults,
     ModeShapeResults,
 )
-import toml
-import ross
+from ross.shaft_element import ShaftElement
 
 __all__ = ["Rotor", "rotor_example"]
 

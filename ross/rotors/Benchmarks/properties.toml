@@ -1,0 +1,4 @@
+[parameters]
+w = 0
+sparse = true
+n_eigen = 12

@@ -1,8 +1,9 @@
-import numpy as np
-import matplotlib.pyplot as plt
 import sys
-from bokeh.plotting import figure, output_file, show
 import warnings
+
+import matplotlib.pyplot as plt
+import numpy as np
+from bokeh.plotting import figure, output_file, show
 
 
 class PressureMatrix:

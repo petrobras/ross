@@ -1,10 +1,11 @@
-import numpy as np
-import matplotlib.patches as mpatches
 import bokeh.palettes as bp
-from bokeh.models import ColumnDataSource
-from ross.element import Element
+import matplotlib.patches as mpatches
+import numpy as np
 import pytest
 import toml
+from bokeh.models import ColumnDataSource
+
+from ross.element import Element
 
 __all__ = ["DiskElement"]
 bokeh_colors = bp.RdGy[11]

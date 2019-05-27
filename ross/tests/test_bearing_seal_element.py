@@ -1,7 +1,7 @@
-import pytest
-import os
 import numpy as np
-from numpy.testing import assert_almost_equal, assert_allclose
+import pytest
+from numpy.testing import assert_allclose
+
 from ross.bearing_seal_element import BearingElement
 
 
