@@ -582,8 +582,8 @@ class PressureMatrix:
             theta_list.append(theta * self.dtheta)
         p = figure(title='Pressure along Theta; Z=' + str(z),
                    x_axis_label='Points along Theta', y_axis_label='Pressure')
-        p.line(theta_list, self.p_mat_analytical[z], line_width=2)
-        p.line(theta_list, self.p_mat_numerical[z], line_width=3)
+        p.line(theta_list, self.p_mat_analytical[z], line_width=2, color="red")
+        p.line(theta_list, self.p_mat_numerical[z], line_width=2, color="blue")
         show(p)
 
     def matplot_eccentricity(self, z=0, show_immediately=True):
