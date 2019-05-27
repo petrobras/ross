@@ -7,14 +7,21 @@ Path = pathlib.Path
 
 current_path = os.getcwd()
 bench_dir = Path(os.path.dirname(rs.__file__))/'Benchmarks'
+
+if not os.path.isdir(bench_dir/'Snakeviz_inputs'):
+    os.mkdir(bench_dir/'Snakeviz_inputs')
+
 os.chdir(bench_dir/'Snakeviz_inputs')
 
-bench_type = input(f"What kind of Benchmarks do you want to run?"
-      f"   \n 1 - Campbell Diagram"
-      f"   \n 2 - Convergence Analysis"
-      f"   \n 3 - Frequency Response"
-      f"   \n 4 - Modal Analysis"
-      f"   \n 5 - Static Analysis\n")
+bench_type = input(f"\nRunning ross_benchmarks in version: {rs.__version__}\n\n"
+                   f"What kind of Benchmarks do you want to run?"
+                   f"       \n 1 - Campbell Diagram"
+                   f"       \n 2 - Convergence Analysis"
+                   f"       \n 3 - Frequency Response"
+                   f"       \n 4 - Modal Analysis"
+                   f"       \n 5 - Static Analysis\n"
+                   )
+
 
 inputs = os.listdir(bench_dir/"Snakeviz_inputs")
 saving_path = f"version_{rs.__version__}"
