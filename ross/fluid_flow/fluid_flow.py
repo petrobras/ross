@@ -199,6 +199,9 @@ class PressureMatrix:
         self.yre = np.zeros([self.nz, self.ntheta])
         self.yri = np.zeros([self.nz, self.ntheta])
         self.p_mat_analytical = np.zeros([self.nz, self.ntheta])
+        self.c1 = np.zeros([self.nz, self.ntheta])
+        self.c2 = np.zeros([self.nz, self.ntheta])
+        self.c0w = np.zeros([self.nz, self.ntheta])
         self.plot_counter = 0
         self.calculate_coefficients()
         self.pressure_matrix_available = False
@@ -221,19 +224,47 @@ class PressureMatrix:
         of the discrete pressure (central differences in the second
         derivatives). It is executed when the class is instantiated.
         """
+
         for i in range(self.nz):
             zno = i * self.dz
             self.z[0][i] = zno
             plot_eccentricity_error = False
             position = -1
             for j in range(self.ntheta):
-                gama = j * self.dtheta
+                gama = j * self.dtheta + self.beta
                 [radius_external, self.xre[i][j], self.yre[i][j]] =\
                     self.external_radius_function(gama)
                 [radius_internal, self.xri[i][j], self.yri[i][j]] =\
                     self.internal_radius_function(zno, gama)
                 self.re[i][j] = radius_external
                 self.ri[i][j] = radius_internal
+
+                w = self.omega * self.ri[i][j]
+
+                k = (self.re[i][j] ** 2 * (np.log(self.re[i][j]) - 1 / 2) - self.ri[i][j] ** 2 *
+                     (np.log(self.ri[i][j]) - 1 / 2)) / (self.ri[i][j] ** 2 - self.re[i][j] ** 2)
+
+                self.c1[i][j] = (1 / (4 * self.visc)) * ((self.re[i][j] ** 2 * np.log(self.re[i][j]) -
+                                                          self.ri[i][j] ** 2 * np.log(self.ri[i][j]) +
+                                                          (self.re[i][j] ** 2 - self.ri[i][j] ** 2) *
+                                                          (k - 1)) - 2 * self.re[i][j] ** 2 *
+                                                         ((np.log(self.re[i][j]) + k - 1 / 2) * np.log(self.re[i][j] /
+                                                                                                       self.ri[i][j])))
+
+                self.c2[i][j] = (- self.ri[i][j] ** 2) / (8 * self.visc) *\
+                                ((self.re[i][j] ** 2 - self.ri[i][j] ** 2 -
+                                  (self.re[i][j] ** 4 - self.ri[i][j] ** 4) /
+                                  (2 * self.ri[i][j] ** 2)) +
+                                 ((self.re[i][j] ** 2 - self.ri[i][j] ** 2) /
+                                  (self.ri[i][j] ** 2 *
+                                   np.log(self.re[i][j] / self.ri[i][j]))) *
+                                 (self.re[i][j] ** 2 * np.log(self.re[i][j] / self.ri[i][j]) -
+                                  (self.re[i][j] ** 2 - self.ri[i][j] ** 2) / 2))
+
+                self.c0w[i][j] = (- w * self.ri[i][j] *
+                                  (np.log(self.re[i][j] / self.ri[i][j]) *
+                                  (1 + (self.ri[i][j] ** 2) / (self.re[i][j] ** 2 - self.ri[i][j] ** 2)) - 1 / 2))
+
                 if not plot_eccentricity_error:
                     if abs(self.xri[i][j]) > abs(self.xre[i][j]) or abs(self.yri[i][j]) > abs(self.yre[i][j]):
                         plot_eccentricity_error = True
