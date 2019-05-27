@@ -202,8 +202,11 @@ class PressureMatrix:
         self.c1 = np.zeros([self.nz, self.ntheta])
         self.c2 = np.zeros([self.nz, self.ntheta])
         self.c0w = np.zeros([self.nz, self.ntheta])
+        self.M = np.zeros([self.ntotal, self.ntotal])
+        self.f = np.zeros([self.ntotal, 1])
         self.plot_counter = 0
         self.calculate_coefficients()
+        self.mounting_matrix()
         self.pressure_matrix_available = False
 
     def calculate_pressure_matrix_analytical(self):
@@ -273,6 +276,64 @@ class PressureMatrix:
                 self.plot_eccentricity(position)
                 sys.exit("Error: The given parameters create a rotor that is not inside the stator. "
                          "Check the plotted figure and fix accordingly.")
+
+    def mounting_matrix(self):
+        """This function assembles the matrix M and the independent vector f
+        """
+
+        count = 0
+        for x in range(self.ntheta):
+            self.M[count][count] = 1
+            self.f[count][0] = self.p_in
+            count = count + self.nz - 1
+            self.M[count][count] = 1
+            self.f[count][0] = self.p_out
+            count = count + 1
+        count = 0
+        for x in range(self.nz - 2):
+            self.M[self.ntotal - self.nz + 1 + count][1 + count] = 1
+            self.M[self.ntotal - self.nz + 1 + count][self.ntotal - self.nz + 1 + count] = -1
+            count = count + 1
+        count = 1
+        j = 0
+        for i in range(1, self.nz - 1):
+            a = (1/self.dtheta**2)*(self.c1[i][self.ntheta-1])
+            self.M[count][self.ntotal - 2 * self.nz + count] = a
+            b = (1 / self.dz ** 2) * (self.c2[i - 1, j])
+            self.M[count][count - 1] = b
+            c = -((1/self.dtheta**2) * ((self.c1[i][j]) + self.c1[i][self.ntheta-1])
+                  + (1/self.dz**2) * (self.c2[i][j] + self.c2[i-1][j]))
+            self.M[count, count] = c
+            d = (1 / self.dz ** 2) * (self.c2[i][j])
+            self.M[count][count + 1] = d
+            e = (1/self.dtheta**2) * (self.c1[i][j])
+            self.M[count][count + self.nz] = e
+            count = count + 1
+        count = self.nz + 1
+        for j in range(1, self.ntheta - 1):
+            for i in range(1, self.nz - 1):
+                a = (1/self.dtheta**2) * (self.c1[i, j-1])
+                self.M[count][count - self.nz] = a
+                b = (1 / self.dz ** 2) * (self.c2[i - 1][j])
+                self.M[count][count - 1] = b
+                c = -((1 / self.dtheta**2) * ((self.c1[i][j]) + self.c1[i][j-1])
+                      + (1 / self.dz**2) * (self.c2[i][j] + self.c2[i-1][j]))
+                self.M[count, count] = c
+                d = (1 / self.dz ** 2) * (self.c2[i][j])
+                self.M[count][count + 1] = d
+                e = (1 / self.dtheta**2) * (self.c1[i][j])
+                self.M[count][count + self.nz] = e
+                count = count + 1
+            count = count + 2
+        count = 1
+        for j in range(self.ntheta - 1):
+            for i in range(1, self.nz - 1):
+                if j == 0:
+                    self.f[count][0] = (self.c0w[i][j] - self.c0w[i][self.ntheta - 1]) / self.dtheta
+                else:
+                    self.f[count][0] = (self.c0w[i, j] - self.c0w[i, j - 1]) / self.dtheta
+                count = count + 1
+            count = count + 2
 
     def internal_radius_function(self, z, gama):
         """This function calculates the radius of the rotor given the
