@@ -85,11 +85,11 @@ def test_damping_matrix():
     assert math.isclose(cyy/10**3, 294.9, rel_tol=0.01)
 
 def test_numerical_fluid_flow():
-    nz = 20
-    ntheta = 100
+    nz = 8
+    ntheta = 64
     nradius = 11
     length = 0.01
-    omega = -100. * 2 * np.pi / 60
+    omega = 100. * 2 * np.pi / 60
     p_in = 1.
     p_out = 1.
     radius_rotor = 0.08

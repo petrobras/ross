@@ -125,11 +125,11 @@ class PressureMatrix:
     --------
     >>> from ross.fluid_flow import fluid_flow as flow
     >>> import numpy as np
-    >>> nz = 20
-    >>> ntheta = 100
+    >>> nz = 8
+    >>> ntheta = 64
     >>> nradius = 11
     >>> length = 0.01
-    >>> omega = -100.*2*np.pi/60
+    >>> omega = 100.*2*np.pi/60
     >>> p_in = 1.
     >>> p_out = 1.
     >>> radius_rotor = 0.08
@@ -142,6 +142,7 @@ class PressureMatrix:
     ...                                          omega, p_in, p_out, radius_rotor,
     ...                                          radius_stator, visc, rho, beta, eccentricity=eccentricity, load=load)
     >>> my_pressure_matrix.calculate_pressure_matrix_analytical()
+    >>> my_pressure_matrix.calculate_pressure_matrix_numerical()
     >>> my_pressure_matrix.plot_eccentricity()
     >>> my_pressure_matrix.plot_pressure_z()
     >>> my_pressure_matrix.plot_shape()
@@ -541,7 +542,7 @@ class PressureMatrix:
             y.append(self.p_mat_analytical[i][theta])
         p = figure(title="Pressure along the Z direction (direction of flow); Theta=" + str(theta),
                    x_axis_label='Points along Z')
-        p.line(x, y, legend="Pressure", line_width=2)
+        p.line(x, y, legend="Analytical pressure", line_width=2)
         show(p)
 
     def plot_shape(self, theta=0):
@@ -582,6 +583,7 @@ class PressureMatrix:
         p = figure(title='Pressure along Theta; Z=' + str(z),
                    x_axis_label='Points along Theta', y_axis_label='Pressure')
         p.line(theta_list, self.p_mat_analytical[z], line_width=2)
+        p.line(theta_list, self.p_mat_numerical[z], line_width=3)
         show(p)
 
     def matplot_eccentricity(self, z=0, show_immediately=True):
