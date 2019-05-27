@@ -205,6 +205,7 @@ class PressureMatrix:
         self.M = np.zeros([self.ntotal, self.ntotal])
         self.f = np.zeros([self.ntotal, 1])
         self.P = np.zeros([self.ntotal, 1])
+        self.p_mat_numerical = np.zeros([self.nz, self.ntheta])
         self.plot_counter = 0
         self.calculate_coefficients()
         self.mounting_matrix()
@@ -341,6 +342,15 @@ class PressureMatrix:
         """This function resolves the linear system [M]{P}={f}
         """
         self.P = np.linalg.solve(self.M, self.f)
+
+    def calculate_pressure_matrix_numerical(self):
+        """This function calculates the numerical pressure matrix
+        """
+        for i in range(self.nz):
+            for j in range(self.ntheta):
+                k = j * self.nz + i
+                self.p_mat_numerical[i][j] = self.P[k]
+        return self.p_mat_numerical
 
     def internal_radius_function(self, z, gama):
         """This function calculates the radius of the rotor given the
