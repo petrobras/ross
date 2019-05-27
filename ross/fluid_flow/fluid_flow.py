@@ -140,7 +140,7 @@ class PressureMatrix:
     >>> beta =  np.pi
     >>> my_pressure_matrix = flow.PressureMatrix(nz, ntheta, nradius, length,
     ...                                          omega, p_in, p_out, radius_rotor,
-    ...                                          radius_stator, visc, rho, eccentricity=eccentricity, beta, load)
+    ...                                          radius_stator, visc, rho, beta, eccentricity=eccentricity, load=load)
     >>> my_pressure_matrix.calculate_pressure_matrix_analytical()
     >>> my_pressure_matrix.plot_eccentricity()
     >>> my_pressure_matrix.plot_pressure_z()
@@ -150,7 +150,7 @@ class PressureMatrix:
     """
 
     def __init__(self, nz, ntheta, nradius, length, omega, p_in,
-                 p_out, radius_rotor, radius_stator, visc, rho, eccentricity=None, beta, load=None):
+                 p_out, radius_rotor, radius_stator, visc, rho, beta, eccentricity=None, load=None):
         if load is None and eccentricity is None:
             sys.exit("Either load or eccentricity must be given.")
         self.nz = nz
@@ -189,8 +189,8 @@ class PressureMatrix:
         self.eccentricity_ratio = self.eccentricity / self.difference_between_radius
         if self.load is None:
             self.load = self.get_rotor_load()
-        self.xe = np.sqrt(2)*self.eccentricity/2
-        self.ye = -self.xi
+        self.xe = eccentricity*np.cos(beta)
+        self.ye = eccentricity*np.sin(beta)
         self.re = np.zeros([self.nz, self.ntheta])
         self.ri = np.zeros([self.nz, self.ntheta])
         self.z = np.zeros([1, self.nz])
@@ -209,7 +209,7 @@ class PressureMatrix:
         if self.bearing_type == 'short_bearing':
             for i in range(self.nz):
                 for j in range(self.ntheta):
-                    self.p_mat[i][j] = (((-3*self.visc*self.omega)/self.difference_between_radius**2) *
+                    self.p_mat_analytical[i][j] = (((-3*self.visc*self.omega)/self.difference_between_radius**2) *
                                         ((i * self.dz - (self.length / 2)) ** 2 - (self.length ** 2) / 4) *
                                         (self.eccentricity_ratio * np.sin(j * self.dtheta)) /
                                         (1 + self.eccentricity_ratio * np.cos(j * self.dtheta))**3)
@@ -281,10 +281,9 @@ class PressureMatrix:
         yre: float
             The position y of the returned external radius.
         """
-        beta = -np.pi/4
-        alpha = beta - gama
-        radius_external = (np.sqrt(self.radius_stator**2 - (self.eccentricity * np.sin(alpha))**2) +
-                           self.eccentricity * np.cos(alpha))
+        alpha = np.absolute(self.beta - gama)
+        radius_external = np.sqrt(self.radius_stator ** 2 -
+                                  (self.eccentricity * np.sin(alpha)) ** 2) + self.eccentricity * np.cos(alpha)
         xre = radius_external * np.cos(gama)
         yre = radius_external * np.sin(gama)
 
@@ -408,12 +407,10 @@ class PressureMatrix:
         output_file("plot_eccentricity.html")
         p = figure(title="Cut in plane Z=" + str(z), x_axis_label='X axis', y_axis_label='Y axis')
         for j in range(0, self.ntheta):
-            if j < 5:
-                p.circle(self.xre[z][j], self.yre[z][j], color="black")
-                p.circle(self.xri[z][j], self.yri[z][j], color="black")
-            else:
-                p.circle(self.xre[z][j], self.yre[z][j], color="red")
-                p.circle(self.xri[z][j], self.yri[z][j], color="blue")
+            p.circle(self.xre[z][j], self.yre[z][j], color="red")
+            p.circle(self.xri[z][j], self.yri[z][j], color="blue")
+            p.circle(0, 0, color="blue")
+            p.circle(self.xe, self.ye, color="red")
         p.circle(0, 0, color="black")
         show(p)
 
@@ -432,7 +429,7 @@ class PressureMatrix:
         y = []
         for i in range(0, self.nz):
             x.append(i*self.dz)
-            y.append(self.p_mat[i][theta])
+            y.append(self.p_mat_analytical[i][theta])
         p = figure(title="Pressure along the Z direction (direction of flow); Theta=" + str(theta),
                    x_axis_label='Points along Z')
         p.line(x, y, legend="Pressure", line_width=2)
@@ -475,7 +472,7 @@ class PressureMatrix:
             theta_list.append(theta * self.dtheta)
         p = figure(title='Pressure along Theta; Z=' + str(z),
                    x_axis_label='Points along Theta', y_axis_label='Pressure')
-        p.line(theta_list, self.p_mat[z], line_width=2)
+        p.line(theta_list, self.p_mat_analytical[z], line_width=2)
         show(p)
 
     def matplot_eccentricity(self, z=0, show_immediately=True):
@@ -492,13 +489,10 @@ class PressureMatrix:
         plt.figure(self.plot_counter)
         self.plot_counter += 1
         for j in range(0, self.ntheta):
-            if j < 5:
-                plt.plot(self.xre[z][j], self.yre[z][j], 'k.')
-                plt.plot(self.xri[z][j], self.yri[z][j], 'k.')
-            else:
-                plt.plot(self.xre[z][j], self.yre[z][j], 'r.')
-                plt.plot(self.xri[z][j], self.yri[z][j], 'b.')
-            plt.plot(0, 0, '*')
+            plt.plot(self.xre[z][j], self.yre[z][j], 'r.')
+            plt.plot(self.xri[z][j], self.yri[z][j], 'b.')
+            plt.plot(0, 0, 'b*')
+            plt.plot(self.xe, self.ye, 'r*')
             plt.title('Cut in plane Z=' + str(z))
             plt.xlabel('X axis')
             plt.ylabel('Y axis')
@@ -521,7 +515,7 @@ class PressureMatrix:
         plt.figure(self.plot_counter)
         self.plot_counter += 1
         for i in range(0, self.nz):
-            plt.plot(i*self.dz, self.p_mat[i][0], 'bo')
+            plt.plot(i*self.dz, self.p_mat_analytical[i][0], 'bo')
         plt.title('Pressure along the Z direction (direction of flow); Theta=0')
         plt.xlabel('Points along Z')
         plt.ylabel('Pressure')
@@ -578,7 +572,7 @@ class PressureMatrix:
 
         pressure_along_theta = np.zeros(self.ntheta)
         for i in range(0, self.ntheta):
-            pressure_along_theta[i] = self.p_mat[0][i]
+            pressure_along_theta[i] = self.p_mat_analytical[0][i]
 
         min_pressure = np.amin(pressure_along_theta)
 
@@ -621,7 +615,7 @@ class PressureMatrix:
         list_of_thetas = []
         for t in range(0, self.ntheta):
             list_of_thetas.append(t * self.dtheta)
-        plt.plot(list_of_thetas, self.p_mat[z], 'b')
+        plt.plot(list_of_thetas, self.p_mat_analytical[z], 'b')
         plt.title('Pressure along Theta; Z='+str(z))
         plt.xlabel('Points along Theta')
         plt.ylabel('Pressure')
