@@ -151,7 +151,7 @@ class PressureMatrix:
     """
 
     def __init__(self, nz, ntheta, nradius, length, omega, p_in,
-                 p_out, radius_rotor, radius_stator, visc, rho, beta=None, eccentricity=None, load=None):
+                 p_out, radius_rotor, radius_stator, visc, rho, beta=2.356, eccentricity=None, load=None):
         if load is None and eccentricity is None:
             sys.exit("Either load or eccentricity must be given.")
         self.nz = nz
