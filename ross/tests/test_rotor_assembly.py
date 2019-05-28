@@ -1246,7 +1246,7 @@ def test_evals_rotor3_rotor4(rotor3, rotor4):
 
 def test_campbell(rotor4):
     speed = np.linspace(0, 300, 3)
-    camp = rotor4.campbell(speed)[:, :, 0]
+    camp = rotor4.run_campbell(speed)[:, :, 0]
     camp_desired = np.array(
         [
             [
@@ -1339,11 +1339,11 @@ def test_freq_response(rotor4):
     )
 
     omega = np.linspace(0.0, 450.0, 4)
-    freq_resp = rotor4.freq_response(frequency_range=omega)
+    freq_resp = rotor4.run_freq_response(frequency_range=omega)
     magdb = 20.0 * np.log10(freq_resp.magnitude)
     assert_allclose(magdb[:4, :4, :4], magdb_exp)
 
-    freq_resp = rotor4.freq_response(frequency_range=omega, modes=list(range(4)))
+    freq_resp = rotor4.run_freq_response(frequency_range=omega, modes=list(range(4)))
     magdb = 20.0 * np.log10(freq_resp.magnitude)
     assert_allclose(magdb[:4, :4, :4], magdb_exp_modes_4)
 
@@ -1400,7 +1400,7 @@ def test_freq_response_w_force(rotor4):
     )
 
     omega = np.linspace(0.0, 450.0, 4)
-    freq_resp = rotor4.forced_response(force=F0, frequency_range=omega)
+    freq_resp = rotor4.run_forced_response(force=F0, frequency_range=omega)
     mag = freq_resp.magnitude
     assert_allclose(mag[:4, :4], mag_exp)
 
@@ -1447,7 +1447,7 @@ def test_mesh_convergence(rotor3):
 
 
 def test_static_analysis_rotor3(rotor3):
-    rotor3.static()
+    rotor3.run_static()
 
     assert_almost_equal(
         rotor3.disp_y,
@@ -1495,7 +1495,7 @@ def rotor5():
 
 
 def test_static_analysis_rotor5(rotor5):
-    rotor5.static()
+    rotor5.run_static()
 
     assert_almost_equal(
         rotor5.disp_y,
@@ -1547,7 +1547,7 @@ def rotor6():
 
 
 def test_static_analysis_rotor6(rotor6):
-    rotor6.static()
+    rotor6.run_static()
 
     assert_almost_equal(
         rotor6.disp_y,
