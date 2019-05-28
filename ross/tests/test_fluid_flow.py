@@ -2,6 +2,7 @@ from ross.fluid_flow import fluid_flow as flow
 import math
 import numpy as np
 
+
 def fluid_flow_eccentricity():
     nz = 30
     ntheta = 20
@@ -18,6 +19,7 @@ def fluid_flow_eccentricity():
     return flow.PressureMatrix(nz, ntheta, nradius, length, omega, p_in,
                                p_out, radius_rotor, radius_stator,
                                visc, rho, eccentricity=eccentricity)
+
 
 def fluid_flow_load():
     nz = 30
@@ -84,6 +86,7 @@ def test_damping_matrix():
     assert math.isclose(cyx/10**3, -81.92, rel_tol=0.01)
     assert math.isclose(cyy/10**3, 294.9, rel_tol=0.01)
 
+
 def test_numerical_fluid_flow():
     nz = 8
     ntheta = 64
@@ -97,7 +100,7 @@ def test_numerical_fluid_flow():
     visc = 0.015
     rho = 860.
     beta = np.pi
-    eccentricity = 0.01
+    eccentricity = 0.001
     return flow.PressureMatrix(nz, ntheta, nradius, length,
-                                         omega, p_in, p_out, radius_rotor,
-                                         radius_stator, visc, rho, beta, eccentricity = eccentricity)
+                               omega, p_in, p_out, radius_rotor,
+                               radius_stator, visc, rho, beta=beta, eccentricity=eccentricity)

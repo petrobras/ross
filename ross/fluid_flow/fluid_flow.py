@@ -136,11 +136,11 @@ class PressureMatrix:
     >>> radius_stator = 0.1
     >>> visc = 0.015
     >>> rho = 860.
-    >>> eccentricity = 0.01
+    >>> eccentricity = 0.001
     >>> beta =  np.pi
     >>> my_pressure_matrix = flow.PressureMatrix(nz, ntheta, nradius, length,
     ...                                          omega, p_in, p_out, radius_rotor,
-    ...                                          radius_stator, visc, rho, beta, eccentricity=eccentricity, load=load)
+    ...                                          radius_stator, visc, rho, beta=beta, eccentricity=eccentricity)
     >>> my_pressure_matrix.calculate_pressure_matrix_analytical()
     >>> my_pressure_matrix.calculate_pressure_matrix_numerical()
     >>> my_pressure_matrix.plot_eccentricity()
@@ -151,7 +151,7 @@ class PressureMatrix:
     """
 
     def __init__(self, nz, ntheta, nradius, length, omega, p_in,
-                 p_out, radius_rotor, radius_stator, visc, rho, beta, eccentricity=None, load=None):
+                 p_out, radius_rotor, radius_stator, visc, rho, beta=None, eccentricity=None, load=None):
         if load is None and eccentricity is None:
             sys.exit("Either load or eccentricity must be given.")
         self.nz = nz
@@ -220,9 +220,9 @@ class PressureMatrix:
             for i in range(self.nz):
                 for j in range(self.ntheta):
                     self.p_mat_analytical[i][j] = (((-3*self.visc*self.omega)/self.difference_between_radius**2) *
-                                        ((i * self.dz - (self.length / 2)) ** 2 - (self.length ** 2) / 4) *
-                                        (self.eccentricity_ratio * np.sin(j * self.dtheta)) /
-                                        (1 + self.eccentricity_ratio * np.cos(j * self.dtheta))**3)
+                                                   ((i * self.dz - (self.length / 2)) ** 2 - (self.length ** 2) / 4) *
+                                                   (self.eccentricity_ratio * np.sin(j * self.dtheta)) /
+                                                   (1 + self.eccentricity_ratio * np.cos(j * self.dtheta))**3)
             self.pressure_matrix_available = True
         return self.p_mat_analytical
 
@@ -733,5 +733,3 @@ class PressureMatrix:
         plt.show(block=show_immediately)
         if show_immediately:
             plt.close('all')
-
-
