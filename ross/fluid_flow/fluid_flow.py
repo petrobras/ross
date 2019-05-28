@@ -190,8 +190,8 @@ class PressureMatrix:
         self.eccentricity_ratio = self.eccentricity / self.difference_between_radius
         if self.load is None:
             self.load = self.get_rotor_load()
-        self.xe = eccentricity*np.cos(beta)
-        self.ye = eccentricity*np.sin(beta)
+        self.xe = self.eccentricity*np.cos(beta)
+        self.ye = self.eccentricity*np.sin(beta)
         self.re = np.zeros([self.nz, self.ntheta])
         self.ri = np.zeros([self.nz, self.ntheta])
         self.z = np.zeros([1, self.nz])
