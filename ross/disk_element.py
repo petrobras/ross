@@ -204,10 +204,10 @@ class DiskElement(Element):
         ax.add_patch(mpatches.Polygon(disk_points_l, facecolor=self.color))
 
         ax.add_patch(
-            mpatches.Circle(xy=(zpos, ypos + D), radius=0.01, color=self.color)
+            mpatches.Circle(xy=(zpos, ypos + D), radius=hw, color=self.color)
         )
         ax.add_patch(
-            mpatches.Circle(xy=(zpos, -(ypos + D)), radius=0.01, color=self.color)
+            mpatches.Circle(xy=(zpos, -(ypos + D)), radius=hw, color=self.color)
         )
 
         # bokeh plot - coordinates to plot disks elements
