@@ -81,7 +81,7 @@ at 0 and 4,000 rev/min.
     
     
     
-      <div class="bk-root" id="c615944e-2a22-4816-b09e-d12a8ae03102" data-root-id="1003"></div>
+      <div class="bk-root" id="6c53a5dc-dc1b-44f3-bf63-b29d4b0ed672" data-root-id="1003"></div>
 
 
 
@@ -92,7 +92,7 @@ at 0 and 4,000 rev/min.
 .. parsed-literal::
 
     (Figure(id='1003', ...),
-     <matplotlib.axes._subplots.AxesSubplot at 0x7ff0c8af76d8>)
+     <matplotlib.axes._subplots.AxesSubplot at 0x7fc6c79335c0>)
 
 
 
@@ -144,7 +144,7 @@ at 0 and 4,000 rev/min.
     
     
     
-      <div class="bk-root" id="49d3ca31-bb62-40f5-a2b1-63ba8b0124aa" data-root-id="2244"></div>
+      <div class="bk-root" id="cdce31ba-1343-4ad7-9ab2-75f70cf3231f" data-root-id="2244"></div>
 
 
 
@@ -155,7 +155,7 @@ at 0 and 4,000 rev/min.
 .. parsed-literal::
 
     (Figure(id='2244', ...),
-     <matplotlib.axes._subplots.AxesSubplot at 0x7ff0c5e141d0>)
+     <matplotlib.axes._subplots.AxesSubplot at 0x7fc6c4c4f320>)
 
 
 
@@ -166,7 +166,7 @@ at 0 and 4,000 rev/min.
 .. code:: ipython3
 
     #Obtaining results (wn is in rad/s)
-    rotor591c.campbell(np.linspace(0,4000*np.pi/30,250)).plot()
+    rotor591c.run_campbell(np.linspace(0,4000*np.pi/30,250)).plot()
     
     print('Normal Instantiation =', rotor591c.wn)
     print('\n')
@@ -182,7 +182,7 @@ at 0 and 4,000 rev/min.
     
     
     
-      <div class="bk-root" id="0cb039d2-aa1d-4d56-8cf6-9dcdf57cf07b" data-root-id="3299"></div>
+      <div class="bk-root" id="11cd7f0a-d14a-4469-bfd0-1473d1931d07" data-root-id="3299"></div>
 
 
 

@@ -1070,8 +1070,8 @@ class Rotor(object):
 
         return results
 
-    def forced_response(self, force=None, frequency_range=None, modes=None):
-        freq_resp = self.run_freq_response(frequency_range=frequency_range, modes=modes)
+    def run_forced_response(self, force=None, frequency_range=None, modes=None):
+        freq_resp = self.run_freq_respoimnse(frequency_range=frequency_range, modes=modes)
 
         forced_resp = np.zeros(
             (self.ndof, len(freq_resp.frequency_range)), dtype=np.complex
@@ -1150,7 +1150,7 @@ class Rotor(object):
         except TypeError:
             force = self._unbalance_force(node, magnitude, phase, frequency_range)
 
-        forced_response = self.forced_response(force, frequency_range)
+        forced_response = self.run_forced_response(force, frequency_range)
 
         return forced_response
 
@@ -1212,13 +1212,13 @@ class Rotor(object):
         # check slenderness ratio of beam elements
         SR = np.array([])
         for shaft in self.shaft_elements:
-            if shaft.slenderness_ratio < 30:
+            if shaft.slenderness_ratio < 1.6:
                 SR = np.append(SR, shaft.n)
         if len(SR) != 0:
             warnings.warn(
                 "The beam elements "
                 + str(SR)
-                + " have slenderness ratio (G*A*L^2 / EI) greater than 30."
+                + " have slenderness ratio (G*A*L^2 / EI) of less than 1.6."
                 + " Results may not converge correctly"
             )
 
@@ -1335,7 +1335,7 @@ class Rotor(object):
 
         return bk_ax, ax
 
-    def campbell(self, speed_range, frequencies=6, frequency_type="wd"):
+    def run_campbell(self, speed_range, frequencies=6, frequency_type="wd"):
         """Calculates the Campbell diagram.
 
         This function will calculate the damped natural frequencies
@@ -1401,7 +1401,7 @@ class Rotor(object):
 
         return results
 
-    def mode_shapes(self):
+    def run_mode_shapes(self):
 
         kappa_modes = []
         for mode in range(len(self.wn)):
@@ -1792,7 +1792,7 @@ class Rotor(object):
     def remove(rotor_name):
         shutil.rmtree(Path(os.path.dirname(ross.__file__)) / "rotors" / rotor_name)
 
-    def static(self):
+    def run_static(self):
         # gravity aceleration vector
         grav = np.zeros((len(self.M()), 1))
 

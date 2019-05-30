@@ -74,7 +74,7 @@ rev/min and plot the natural frequency map for rotational speeds up to
     
     
     
-      <div class="bk-root" id="adb3f0a0-9937-4337-9b28-d49da015fa48" data-root-id="1003"></div>
+      <div class="bk-root" id="1dabfbab-a86e-4f6c-8167-e914db88df27" data-root-id="1003"></div>
 
 
 
@@ -85,7 +85,7 @@ rev/min and plot the natural frequency map for rotational speeds up to
 .. parsed-literal::
 
     (Figure(id='1003', ...),
-     <matplotlib.axes._subplots.AxesSubplot at 0x7f7c4b866518>)
+     <matplotlib.axes._subplots.AxesSubplot at 0x7fcc937fe400>)
 
 
 
@@ -136,7 +136,7 @@ rev/min and plot the natural frequency map for rotational speeds up to
     
     
     
-      <div class="bk-root" id="16ad8c20-7e56-40a2-8d1c-69c383b514f9" data-root-id="2244"></div>
+      <div class="bk-root" id="8a62bd60-4740-4e84-8eba-d2a778897627" data-root-id="2244"></div>
 
 
 
@@ -147,7 +147,7 @@ rev/min and plot the natural frequency map for rotational speeds up to
 .. parsed-literal::
 
     (Figure(id='2244', ...),
-     <matplotlib.axes._subplots.AxesSubplot at 0x7f7c48b80160>)
+     <matplotlib.axes._subplots.AxesSubplot at 0x7fcc90b10160>)
 
 
 
@@ -191,7 +191,7 @@ rev/min and plot the natural frequency map for rotational speeds up to
 
 .. code:: ipython3
 
-    rotor592c.campbell(np.linspace(0,4000*np.pi/30,100)).plot()
+    rotor592c.run_campbell(np.linspace(0,4000*np.pi/30,100)).plot()
 
 
 
@@ -203,7 +203,7 @@ rev/min and plot the natural frequency map for rotational speeds up to
     
     
     
-      <div class="bk-root" id="8cb3e9a4-faea-4be5-8d57-e02abf03fd27" data-root-id="3299"></div>
+      <div class="bk-root" id="32012e2d-1dda-4f30-9082-13d4b6587bed" data-root-id="3299"></div>
 
 
 
@@ -214,7 +214,7 @@ rev/min and plot the natural frequency map for rotational speeds up to
 .. parsed-literal::
 
     (<Figure size 432x288 with 2 Axes>,
-     <matplotlib.axes._subplots.AxesSubplot at 0x7f7c48a7f0b8>)
+     <matplotlib.axes._subplots.AxesSubplot at 0x7fcc90a6d438>)
 
 
 

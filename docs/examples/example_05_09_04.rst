@@ -21,7 +21,7 @@ between the x and y directions. The bearings have direct stiffnesses of
     
         <div class="bk-root">
             <a href="https://bokeh.pydata.org" target="_blank" class="bk-logo bk-logo-small bk-logo-notebook"></a>
-            <span id="1001"></span>
+            <span id="1001">Loading BokehJS ...</span>
         </div>
 
 
@@ -72,7 +72,7 @@ between the x and y directions. The bearings have direct stiffnesses of
     
     
     
-      <div class="bk-root" id="4038d56b-4897-4bc7-9e5a-8056d55f5e65" data-root-id="1003"></div>
+      <div class="bk-root" id="db0283c3-536a-423b-8400-e03ad41f129c" data-root-id="1003"></div>
 
 
 
@@ -83,7 +83,7 @@ between the x and y directions. The bearings have direct stiffnesses of
 .. parsed-literal::
 
     (Figure(id='1003', ...),
-     <matplotlib.axes._subplots.AxesSubplot at 0x7fc5e0f94470>)
+     <matplotlib.axes._subplots.AxesSubplot at 0x7f334e052438>)
 
 
 
@@ -135,7 +135,7 @@ between the x and y directions. The bearings have direct stiffnesses of
     
     
     
-      <div class="bk-root" id="5ed80a27-fc49-439a-a849-8c52acd70ce1" data-root-id="2244"></div>
+      <div class="bk-root" id="12ae825c-f3fe-4c63-a433-4cd456e15c1a" data-root-id="2244"></div>
 
 
 
@@ -146,7 +146,7 @@ between the x and y directions. The bearings have direct stiffnesses of
 .. parsed-literal::
 
     (Figure(id='2244', ...),
-     <matplotlib.axes._subplots.AxesSubplot at 0x7fc5de2ad0b8>)
+     <matplotlib.axes._subplots.AxesSubplot at 0x7f334bb6c160>)
 
 
 
