@@ -21,7 +21,7 @@ between the x and y directions. The bearings have direct stiffnesses of
     
         <div class="bk-root">
             <a href="https://bokeh.pydata.org" target="_blank" class="bk-logo bk-logo-small bk-logo-notebook"></a>
-            <span id="1001">Loading BokehJS ...</span>
+            <span id="1001"></span>
         </div>
 
 
