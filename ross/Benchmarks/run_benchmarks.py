@@ -39,16 +39,22 @@ if bench_type == '2':
 elif bench_type == '1':
     bashCommand = f"python -m cProfile -o Campbell.prof {bench_dir}/cProfile/Benchmark_Campbell_diagram.py"
     process = subprocess.Popen(bashCommand.split(), stdout=subprocess.PIPE)
-    bashCommand = f"snakeviz Convergence.prof"
+    bashCommand = f"snakeviz Campbell.prof"
     process = subprocess.Popen(bashCommand.split(), stdout=subprocess.PIPE)
 elif bench_type == '3':
     bashCommand = f"python -m cProfile -o Freq_response.prof {bench_dir}/cProfile/Benchmark_Freq_response.py"
     process = subprocess.Popen(bashCommand.split(), stdout=subprocess.PIPE)
+    bashCommand = f"snakeviz Freq_response.prof"
+    process = subprocess.Popen(bashCommand.split(), stdout=subprocess.PIPE)
 elif bench_type == '4':
     bashCommand = f"python -m cProfile -o Modal.prof {bench_dir}/cProfile/Benchmark_Modal.py"
     process = subprocess.Popen(bashCommand.split(), stdout=subprocess.PIPE)
+    bashCommand = f"snakeviz Modal.prof"
+    process = subprocess.Popen(bashCommand.split(), stdout=subprocess.PIPE)
 elif bench_type == '5':
     bashCommand = f"python -m cProfile -o Static.prof {bench_dir}/cProfile/Benchmark_Static_analysis.py"
+    process = subprocess.Popen(bashCommand.split(), stdout=subprocess.PIPE)
+    bashCommand = f"snakeviz Static.prof"
     process = subprocess.Popen(bashCommand.split(), stdout=subprocess.PIPE)
 
 
