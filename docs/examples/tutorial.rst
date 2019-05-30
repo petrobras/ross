@@ -1,6 +1,6 @@
 
-ROSS Quick Start
-================
+Tutorial
+========
 
 | This is a basic tutorial on how to properly use ROSS (Rotordynamics
   open-source software), a simulator for rotating machinery. The
@@ -298,7 +298,7 @@ you can either turn on or off the matplotlib one.
     
     
     
-      <div class="bk-root" id="f1c32c2a-e199-4a26-be2b-dc81ab682b6d" data-root-id="1003"></div>
+      <div class="bk-root" id="da6c3615-7357-4b15-864f-f941966f2622" data-root-id="1003"></div>
 
 
 
@@ -309,7 +309,7 @@ you can either turn on or off the matplotlib one.
 .. parsed-literal::
 
     (Figure(id='1003', ...),
-     <matplotlib.axes._subplots.AxesSubplot at 0x7f4c376be668>)
+     <matplotlib.axes._subplots.AxesSubplot at 0x7f34165cff28>)
 
 
 
@@ -344,8 +344,7 @@ response to gravity effects.
 
 .. code:: ipython3
 
-    rotor1.static()
-
+    rotor1.run_static()
 
 
 
@@ -357,7 +356,7 @@ response to gravity effects.
     
     
     
-      <div class="bk-root" id="0bf03278-3350-4728-b5cc-497caf3e68bf" data-root-id="2618"></div>
+      <div class="bk-root" id="775aafcc-46f6-4754-b722-06fbc458588b" data-root-id="2618"></div>
 
 
 
@@ -370,7 +369,7 @@ In this example we can see the campbell diagram from 0 to 4000 RPM.
 
 .. code:: ipython3
 
-    campbell = rotor1.campbell(np.linspace(0,200,101))
+    campbell = rotor1.run_campbell(np.linspace(0,200,101))
     campbell.plot()
 
 
@@ -383,7 +382,7 @@ In this example we can see the campbell diagram from 0 to 4000 RPM.
     
     
     
-      <div class="bk-root" id="883cdad2-d8b0-4078-83d0-216cd0e31257" data-root-id="3448"></div>
+      <div class="bk-root" id="f903cb73-51d6-4d43-830c-fc46154c68d0" data-root-id="3448"></div>
 
 
 
@@ -394,7 +393,7 @@ In this example we can see the campbell diagram from 0 to 4000 RPM.
 .. parsed-literal::
 
     (<Figure size 432x288 with 2 Axes>,
-     <matplotlib.axes._subplots.AxesSubplot at 0x7f4c34867400>)
+     <matplotlib.axes._subplots.AxesSubplot at 0x7f340f7e9a90>)
 
 
 
@@ -422,7 +421,7 @@ We can put the frequency response of
     
     
     
-      <div class="bk-root" id="a9ea1b3b-8290-43d6-8f67-c43f7816d6f9" data-root-id="5116"></div>
+      <div class="bk-root" id="db007bb9-7c0b-4bec-a2bb-3ecf8d0b281c" data-root-id="5116"></div>
 
 
 
