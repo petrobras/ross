@@ -1,6 +1,7 @@
-from ross.fluid_flow import fluid_flow as flow
 import math
 import numpy as np
+
+from ross.fluid_flow import fluid_flow as flow
 
 
 def fluid_flow_eccentricity():

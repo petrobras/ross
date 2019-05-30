@@ -1,13 +1,15 @@
-import numpy as np
-import matplotlib.patches as mpatches
-import bokeh.palettes as bp
-from ross.element import Element
-from ross.materials import steel
-from ross.materials import Material
 import os
-import ross
 from pathlib import Path
+
+import bokeh.palettes as bp
+import matplotlib.patches as mpatches
+import numpy as np
 import toml
+
+import ross
+from ross.element import Element
+from ross.materials import Material
+from ross.materials import steel
 
 __all__ = ["ShaftElement"]
 

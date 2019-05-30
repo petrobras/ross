@@ -1,10 +1,11 @@
-import pytest
 import os
+
 import numpy as np
+import pytest
 from numpy.testing import assert_almost_equal, assert_allclose
+
 from ross.materials import steel
 from ross.shaft_element import ShaftElement
-
 
 test_dir = os.path.dirname(__file__)
 

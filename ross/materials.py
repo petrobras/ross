@@ -3,9 +3,11 @@
 This module defines the Material class and defines
 some of the most common materials used in rotors.
 """
-import toml
-import ross as rs
 import os
+
+import toml
+
+import ross as rs
 
 __all__ = ["Material", "steel"]
 
