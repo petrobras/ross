@@ -75,7 +75,7 @@ Example 5.5.1.
     
     
     
-      <div class="bk-root" id="8064eab9-0dcc-43ad-b33b-78aba8c18342" data-root-id="1003"></div>
+      <div class="bk-root" id="565da099-764b-4c5f-bc99-4c3a2547b812" data-root-id="1003"></div>
 
 
 
@@ -86,7 +86,7 @@ Example 5.5.1.
 .. parsed-literal::
 
     (Figure(id='1003', ...),
-     <matplotlib.axes._subplots.AxesSubplot at 0x7fe4a7758748>)
+     <matplotlib.axes._subplots.AxesSubplot at 0x7f96c46936d8>)
 
 
 
@@ -138,7 +138,7 @@ Example 5.5.1.
     
     
     
-      <div class="bk-root" id="b8ac3a74-af06-4d56-ad49-048f43b994d0" data-root-id="2244"></div>
+      <div class="bk-root" id="03665734-15e7-49aa-9b5d-d8b3741ef46a" data-root-id="2244"></div>
 
 
 
@@ -149,7 +149,7 @@ Example 5.5.1.
 .. parsed-literal::
 
     (Figure(id='2244', ...),
-     <matplotlib.axes._subplots.AxesSubplot at 0x7fe4a4a86400>)
+     <matplotlib.axes._subplots.AxesSubplot at 0x7f96c19bf0f0>)
 
 
 
@@ -208,7 +208,7 @@ Example 5.5.1.
     
     
     
-      <div class="bk-root" id="d2098761-ca36-45b8-8a47-85d96f6f8ec8" data-root-id="3299"></div>
+      <div class="bk-root" id="79a6b1a8-7f5d-488f-a3d8-8884bbe9557f" data-root-id="3299"></div>
 
 
 
@@ -219,7 +219,7 @@ Example 5.5.1.
 .. parsed-literal::
 
     (<Figure size 432x288 with 2 Axes>,
-     <matplotlib.axes._subplots.AxesSubplot at 0x7fe4a4956748>)
+     <matplotlib.axes._subplots.AxesSubplot at 0x7f96c19949b0>)
 
 
 

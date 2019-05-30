@@ -81,7 +81,7 @@ at 0 and 4,000 rev/min.
     
     
     
-      <div class="bk-root" id="6c53a5dc-dc1b-44f3-bf63-b29d4b0ed672" data-root-id="1003"></div>
+      <div class="bk-root" id="e425309c-7ae5-45be-bf4a-7da5c78fc060" data-root-id="1003"></div>
 
 
 
@@ -92,7 +92,7 @@ at 0 and 4,000 rev/min.
 .. parsed-literal::
 
     (Figure(id='1003', ...),
-     <matplotlib.axes._subplots.AxesSubplot at 0x7fc6c79335c0>)
+     <matplotlib.axes._subplots.AxesSubplot at 0x7f3f832fc588>)
 
 
 
@@ -144,7 +144,7 @@ at 0 and 4,000 rev/min.
     
     
     
-      <div class="bk-root" id="cdce31ba-1343-4ad7-9ab2-75f70cf3231f" data-root-id="2244"></div>
+      <div class="bk-root" id="e6377a7e-86ad-4a30-b438-898b9d1e6079" data-root-id="2244"></div>
 
 
 
@@ -155,7 +155,7 @@ at 0 and 4,000 rev/min.
 .. parsed-literal::
 
     (Figure(id='2244', ...),
-     <matplotlib.axes._subplots.AxesSubplot at 0x7fc6c4c4f320>)
+     <matplotlib.axes._subplots.AxesSubplot at 0x7f3f80d9b630>)
 
 
 
@@ -182,7 +182,7 @@ at 0 and 4,000 rev/min.
     
     
     
-      <div class="bk-root" id="11cd7f0a-d14a-4469-bfd0-1473d1931d07" data-root-id="3299"></div>
+      <div class="bk-root" id="d826ddbc-debb-40d0-a38e-248fac1b2a46" data-root-id="3299"></div>
 
 
 

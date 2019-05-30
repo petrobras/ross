@@ -72,7 +72,7 @@ between the x and y directions. The bearings have direct stiffnesses of
     
     
     
-      <div class="bk-root" id="db0283c3-536a-423b-8400-e03ad41f129c" data-root-id="1003"></div>
+      <div class="bk-root" id="18560ba3-33b3-4975-ad29-96e3fbafdf4d" data-root-id="1003"></div>
 
 
 
@@ -83,7 +83,7 @@ between the x and y directions. The bearings have direct stiffnesses of
 .. parsed-literal::
 
     (Figure(id='1003', ...),
-     <matplotlib.axes._subplots.AxesSubplot at 0x7f334e052438>)
+     <matplotlib.axes._subplots.AxesSubplot at 0x7f4d00e1e4e0>)
 
 
 
@@ -135,7 +135,7 @@ between the x and y directions. The bearings have direct stiffnesses of
     
     
     
-      <div class="bk-root" id="12ae825c-f3fe-4c63-a433-4cd456e15c1a" data-root-id="2244"></div>
+      <div class="bk-root" id="657f6c61-222d-466f-9f33-f1d57fa2efe3" data-root-id="2244"></div>
 
 
 
@@ -146,7 +146,7 @@ between the x and y directions. The bearings have direct stiffnesses of
 .. parsed-literal::
 
     (Figure(id='2244', ...),
-     <matplotlib.axes._subplots.AxesSubplot at 0x7f334bb6c160>)
+     <matplotlib.axes._subplots.AxesSubplot at 0x7f4cfe128fd0>)
 
 
 

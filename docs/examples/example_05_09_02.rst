@@ -74,7 +74,7 @@ rev/min and plot the natural frequency map for rotational speeds up to
     
     
     
-      <div class="bk-root" id="1dabfbab-a86e-4f6c-8167-e914db88df27" data-root-id="1003"></div>
+      <div class="bk-root" id="b8a65bdd-7630-4818-a2c5-37c37e4f2897" data-root-id="1003"></div>
 
 
 
@@ -85,7 +85,7 @@ rev/min and plot the natural frequency map for rotational speeds up to
 .. parsed-literal::
 
     (Figure(id='1003', ...),
-     <matplotlib.axes._subplots.AxesSubplot at 0x7fcc937fe400>)
+     <matplotlib.axes._subplots.AxesSubplot at 0x7f29eb625390>)
 
 
 
@@ -136,7 +136,7 @@ rev/min and plot the natural frequency map for rotational speeds up to
     
     
     
-      <div class="bk-root" id="8a62bd60-4740-4e84-8eba-d2a778897627" data-root-id="2244"></div>
+      <div class="bk-root" id="1f2e4d17-a950-41d8-a3d7-f2292f4c8b1e" data-root-id="2244"></div>
 
 
 
@@ -147,7 +147,7 @@ rev/min and plot the natural frequency map for rotational speeds up to
 .. parsed-literal::
 
     (Figure(id='2244', ...),
-     <matplotlib.axes._subplots.AxesSubplot at 0x7fcc90b10160>)
+     <matplotlib.axes._subplots.AxesSubplot at 0x7f29e913a0b8>)
 
 
 
@@ -203,7 +203,7 @@ rev/min and plot the natural frequency map for rotational speeds up to
     
     
     
-      <div class="bk-root" id="32012e2d-1dda-4f30-9082-13d4b6587bed" data-root-id="3299"></div>
+      <div class="bk-root" id="fb2e5533-a98a-447b-97f5-bf6812288947" data-root-id="3299"></div>
 
 
 
@@ -214,7 +214,7 @@ rev/min and plot the natural frequency map for rotational speeds up to
 .. parsed-literal::
 
     (<Figure size 432x288 with 2 Axes>,
-     <matplotlib.axes._subplots.AxesSubplot at 0x7fcc90a6d438>)
+     <matplotlib.axes._subplots.AxesSubplot at 0x7f29e90069e8>)
 
 
 
