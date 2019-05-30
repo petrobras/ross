@@ -22,4 +22,4 @@ tutorial:
 	tools/nb_to_doc.py examples/tutorial
 
 examples:
-	tools/nb_to_doc.py examples/example_05_08_01 examples/example_05_08_02
+	tools/nb_to_doc.py examples/example_05_09_02
