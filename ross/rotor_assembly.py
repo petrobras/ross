@@ -1071,7 +1071,7 @@ class Rotor(object):
         return results
 
     def run_forced_response(self, force=None, frequency_range=None, modes=None):
-        freq_resp = self.run_freq_respoimnse(frequency_range=frequency_range, modes=modes)
+        freq_resp = self.run_freq_response(frequency_range=frequency_range, modes=modes)
 
         forced_resp = np.zeros(
             (self.ndof, len(freq_resp.frequency_range)), dtype=np.complex
