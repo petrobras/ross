@@ -126,16 +126,17 @@ class BearingElement(Element):
     >>> # A bearing element located in the first rotor node, with these
     >>> # following stiffness and damping coefficients and speed range from
     >>> # 0 to 200 rad/s
-    >>> Kxx = 1e6
-    >>> Kyy = 0.8e6
-    >>> Cxx = 2e2
-    >>> Cyy = 1.5e2
-    >>> W = np.linspace(0,200,11)
-    >>> bearing0 = rs.BearingElement(n=0, kxx=Kxx, kyy=Kyy, cxx=Cxx, cyy=Cyy, w=W)
-    >>> bearing0.K(W)
-    array([[[1000000., 1000000., ... , 800000.,  800000.]]])
-    >>> bearing0.C(W)
-    array([[[200., 200., ... , 150., 150.]]])
+    >>> import ross as rs
+    >>> kxx = 1e6
+    >>> kyy = 0.8e6
+    >>> cxx = 2e2
+    >>> cyy = 1.5e2
+    >>> w = np.linspace(0, 200, 11)
+    >>> bearing0 = rs.BearingElement(n=0, kxx=kxx, kyy=kyy, cxx=cxx, cyy=cyy, w=w)
+    >>> bearing0.K(w) # doctest: +ELLIPSIS
+    array([[[1000000., 1000000., ...
+    >>> bearing0.C(w) # doctest: +ELLIPSIS
+    array([[[200., 200., ...
     """
 
     def __init__(
@@ -218,7 +219,7 @@ class BearingElement(Element):
                 return True
             else:
                 return False
-            
+
     def save(self, file_name):
         data = self.load_data(file_name)
         if type(self.w) == np.ndarray:
@@ -244,26 +245,42 @@ class BearingElement(Element):
     @staticmethod
     def load(file_name="BearingElement"):
         bearing_elements = []
-        bearing_elements_dict = BearingElement.load_data(file_name="BearingElement.toml")
+        bearing_elements_dict = BearingElement.load_data(
+            file_name="BearingElement.toml"
+        )
         for element in bearing_elements_dict["BearingElement"]:
-            bearing = BearingElement(
-                **bearing_elements_dict["BearingElement"][element]
-            )
-            bearing.kxx.coefficient = bearing_elements_dict["BearingElement"][element]["kxx"]
+            bearing = BearingElement(**bearing_elements_dict["BearingElement"][element])
+            bearing.kxx.coefficient = bearing_elements_dict["BearingElement"][element][
+                "kxx"
+            ]
 
-            bearing.kxy.coefficient = bearing_elements_dict["BearingElement"][element]["kxy"]
+            bearing.kxy.coefficient = bearing_elements_dict["BearingElement"][element][
+                "kxy"
+            ]
 
-            bearing.kyx.coefficient = bearing_elements_dict["BearingElement"][element]["kyx"]
+            bearing.kyx.coefficient = bearing_elements_dict["BearingElement"][element][
+                "kyx"
+            ]
 
-            bearing.kyy.coefficient = bearing_elements_dict["BearingElement"][element]["kyy"]
+            bearing.kyy.coefficient = bearing_elements_dict["BearingElement"][element][
+                "kyy"
+            ]
 
-            bearing.cxx.coefficient = bearing_elements_dict["BearingElement"][element]["cxx"]
+            bearing.cxx.coefficient = bearing_elements_dict["BearingElement"][element][
+                "cxx"
+            ]
 
-            bearing.cxy.coefficient = bearing_elements_dict["BearingElement"][element]["cxy"]
+            bearing.cxy.coefficient = bearing_elements_dict["BearingElement"][element][
+                "cxy"
+            ]
 
-            bearing.cyx.coefficient = bearing_elements_dict["BearingElement"][element]["cyx"]
+            bearing.cyx.coefficient = bearing_elements_dict["BearingElement"][element][
+                "cyx"
+            ]
 
-            bearing.cyy.coefficient = bearing_elements_dict["BearingElement"][element]["cyy"]
+            bearing.cyy.coefficient = bearing_elements_dict["BearingElement"][element][
+                "cyy"
+            ]
 
             bearing_elements.append(bearing)
         return bearing_elements
@@ -296,6 +313,7 @@ class BearingElement(Element):
     def patch(self, position, length, ax, bk_ax):
         """Bearing element patch.
         Patch that will be used to draw the bearing element.
+
         Parameters
         ----------
         ax : matplotlib axes, optional
@@ -306,6 +324,7 @@ class BearingElement(Element):
             Position (z, y) in which the patch will be drawn.
         length : float
             minimum length of shaft elements
+
         Returns
         -------
         """
@@ -320,31 +339,31 @@ class BearingElement(Element):
             [zpos - h / 2, ypos - h],
             [zpos, ypos],
         ]
-        ax.add_patch(
-            mpatches.Polygon(bearing_points, color=self.color, picker=True)
-        )
+        ax.add_patch(mpatches.Polygon(bearing_points, color=self.color, picker=True))
 
         # bokeh plot - upper bearing visual representarion
-        bk_ax.quad(top=-ypos+le/3,
-                   bottom=-ypos,
-                   left=zpos - le/6,
-                   right=zpos + le/6,
-                   line_color=bokeh_colors[0],
-                   line_width=1,
-                   fill_alpha=1,
-                   fill_color=bokeh_colors[1],
-                   legend="Bearing"
-                   )
+        bk_ax.quad(
+            top=-ypos + le / 3,
+            bottom=-ypos,
+            left=zpos - le / 6,
+            right=zpos + le / 6,
+            line_color=bokeh_colors[0],
+            line_width=1,
+            fill_alpha=1,
+            fill_color=bokeh_colors[1],
+            legend="Bearing",
+        )
         # bokeh plot - lower bearing visual representation
-        bk_ax.quad(top=ypos,
-                   bottom=ypos-le/3,
-                   left=zpos - le/6,
-                   right=zpos + le/6,
-                   line_color=bokeh_colors[0],
-                   line_width=1,
-                   fill_alpha=1,
-                   fill_color=bokeh_colors[1]
-                   )
+        bk_ax.quad(
+            top=ypos,
+            bottom=ypos - le / 3,
+            left=zpos - le / 6,
+            right=zpos + le / 6,
+            line_color=bokeh_colors[0],
+            line_width=1,
+            fill_alpha=1,
+            fill_color=bokeh_colors[1],
+        )
 
     @classmethod
     def table_to_toml(cls, n, file):
@@ -399,21 +418,52 @@ class BearingElement(Element):
             for index, row in df.iterrows():
                 for i in range(0, row.size):
                     if pd.isna(row[i]):
-                        warnings.warn("NaN found in row " + str(index) + " column " + str(i) + ".\n"
-                                      "It will be replaced with zero.")
+                        warnings.warn(
+                            "NaN found in row "
+                            + str(index)
+                            + " column "
+                            + str(i)
+                            + ".\n"
+                            "It will be replaced with zero."
+                        )
                         row[i] = 0
-            return cls(n, kxx=df['kxx'].tolist(), cxx=df['cxx'].tolist(), kyy=df['kyy'].tolist(),
-                       kxy=df['kxy'].tolist(), kyx=df['kyx'].tolist(), cyy=df['cyy'].tolist(),
-                       cxy=df['cxy'].tolist(), cyx=df['cyx'].tolist(), w=df['w'].tolist())
+            return cls(
+                n,
+                kxx=df["kxx"].tolist(),
+                cxx=df["cxx"].tolist(),
+                kyy=df["kyy"].tolist(),
+                kxy=df["kxy"].tolist(),
+                kyx=df["kyx"].tolist(),
+                cyy=df["cyy"].tolist(),
+                cxy=df["cxy"].tolist(),
+                cyx=df["cyx"].tolist(),
+                w=df["w"].tolist(),
+            )
         except KeyError:
-            sys.exit("One or more column names did not match the expected. "
-                     "Make sure the table header contains the parameters for the "
-                     "BearingElement class.")
+            sys.exit(
+                "One or more column names did not match the expected. "
+                "Make sure the table header contains the parameters for the "
+                "BearingElement class."
+            )
 
     @classmethod
-    def from_fluid_flow(cls, n, nz, ntheta, nradius, length, omega, p_in,
-                        p_out, radius_rotor, radius_stator, visc, rho,
-                        eccentricity=None, load=None):
+    def from_fluid_flow(
+        cls,
+        n,
+        nz,
+        ntheta,
+        nradius,
+        length,
+        omega,
+        p_in,
+        p_out,
+        radius_rotor,
+        radius_stator,
+        visc,
+        rho,
+        eccentricity=None,
+        load=None,
+    ):
         """Instantiate a bearing using inputs from its fluid flow.
         Parameters
         ----------
@@ -465,14 +515,35 @@ class BearingElement(Element):
         -------
         A bearing object.
         """
-        fluid_flow = flow.PressureMatrix(nz, ntheta, nradius, length, omega, p_in,
-                                         p_out, radius_rotor, radius_stator,
-                                         visc, rho, eccentricity=eccentricity, load=load)
+        fluid_flow = flow.PressureMatrix(
+            nz,
+            ntheta,
+            nradius,
+            length,
+            omega,
+            p_in,
+            p_out,
+            radius_rotor,
+            radius_stator,
+            visc,
+            rho,
+            eccentricity=eccentricity,
+            load=load,
+        )
         k = fluid_flow.get_analytical_damping_matrix()
         c = fluid_flow.get_analytical_stiffness_matrix()
-        return cls(n, kxx=k[0], cxx=c[0], kyy=k[3],
-                   kxy=k[1], kyx=k[2], cyy=c[3],
-                   cxy=c[1], cyx=c[2], w=fluid_flow.omega)
+        return cls(
+            n,
+            kxx=k[0],
+            cxx=c[0],
+            kyy=k[3],
+            kxy=k[1],
+            kyx=k[2],
+            cyy=c[3],
+            cxy=c[1],
+            cyx=c[2],
+            w=fluid_flow.omega,
+        )
 
 
 class SealElement(BearingElement):
@@ -547,25 +618,30 @@ class SealElement(BearingElement):
         ax.add_patch(mpatches.Polygon(seal_points_u, facecolor=self.color))
         ax.add_patch(mpatches.Polygon(seal_points_l, facecolor=self.color))
 
-
         # bokeh plot - node (x pos), outer diam. (y pos)
         bk_seal_points_u = [
             [zpos, zpos + hw, zpos + hw, zpos - hw, zpos - hw],
-            [ypos * 1.1, ypos * 1.1, ypos * 1.3, ypos * 1.3, ypos * 1.1]
+            [ypos * 1.1, ypos * 1.1, ypos * 1.3, ypos * 1.3, ypos * 1.1],
         ]
 
         bk_seal_points_l = [
             [zpos, zpos + hw, zpos + hw, zpos - hw, zpos - hw],
-            [ypos * 1.1, ypos * 1.1, ypos * 1.3, ypos * 1.3, ypos * 1.1]
+            [ypos * 1.1, ypos * 1.1, ypos * 1.3, ypos * 1.3, ypos * 1.1],
         ]
 
         # bokeh plot - plot disks elements
         bk_ax.patch(
-             bk_seal_points_u[0], bk_seal_points_u[1],
-             alpha=0.5, line_width=2, color=bokeh_colors[6]
+            bk_seal_points_u[0],
+            bk_seal_points_u[1],
+            alpha=0.5,
+            line_width=2,
+            color=bokeh_colors[6],
         )
 
         bk_ax.patch(
-            bk_seal_points_l[0], bk_seal_points_l[1],
-            alpha=0.5, line_width=2, color=bokeh_colors[6]
+            bk_seal_points_l[0],
+            bk_seal_points_l[1],
+            alpha=0.5,
+            line_width=2,
+            color=bokeh_colors[6],
         )
