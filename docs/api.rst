@@ -1,4 +1,4 @@
-The ROSS project API
+API reference
 ====================
 
 The Rotor module

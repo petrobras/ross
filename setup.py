@@ -3,8 +3,8 @@
 
 import io
 import os
-import sys
 import re
+import sys
 from shutil import rmtree
 
 from setuptools import find_packages, setup, Command
@@ -30,7 +30,7 @@ def version(path):
 
 
 # Package meta-data.
-NAME = "ross"
+NAME = "ross-rotordynamics"
 DESCRIPTION = "ross: rotordynamic open-source software"
 URL = "https://github.com/ross-rotordynamics/ross"
 EMAIL = "raphaelts@gmail.com"

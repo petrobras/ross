@@ -1,10 +1,11 @@
-import numpy as np
-import matplotlib.patches as mpatches
 import bokeh.palettes as bp
-from bokeh.models import ColumnDataSource
-from ross.element import Element
+import matplotlib.patches as mpatches
+import numpy as np
 import pytest
 import toml
+from bokeh.models import ColumnDataSource
+
+from ross.element import Element
 
 __all__ = ["DiskElement"]
 bokeh_colors = bp.RdGy[11]
@@ -204,10 +205,10 @@ class DiskElement(Element):
         ax.add_patch(mpatches.Polygon(disk_points_l, facecolor=self.color))
 
         ax.add_patch(
-            mpatches.Circle(xy=(zpos, ypos + D), radius=0.01, color=self.color)
+            mpatches.Circle(xy=(zpos, ypos + D), radius=hw, color=self.color)
         )
         ax.add_patch(
-            mpatches.Circle(xy=(zpos, -(ypos + D)), radius=0.01, color=self.color)
+            mpatches.Circle(xy=(zpos, -(ypos + D)), radius=hw, color=self.color)
         )
 
         # bokeh plot - coordinates to plot disks elements

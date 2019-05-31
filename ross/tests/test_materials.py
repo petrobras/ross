@@ -1,8 +1,10 @@
-import pytest
-from ross.materials import *
-from numpy.testing import assert_allclose
 import os
+
+import pytest
+from numpy.testing import assert_allclose
+
 import ross
+from ross.materials import *
 
 os.chdir(os.path.dirname(ross.__file__))
 

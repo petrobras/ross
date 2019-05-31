@@ -1,13 +1,13 @@
 import pickle
-import numpy as np
+
+import bokeh.palettes as bp
 import matplotlib as mpl
 import matplotlib.pyplot as plt
-from mpl_toolkits.mplot3d import Axes3D
-import bokeh.palettes as bp
-from bokeh.transform import linear_cmap
+import numpy as np
 from bokeh.layouts import gridplot
-from bokeh.plotting import figure, output_file, show
 from bokeh.models import ColumnDataSource, ColorBar
+from bokeh.plotting import figure, output_file, show
+from bokeh.transform import linear_cmap
 
 # set bokeh palette of colors
 bokeh_colors = bp.RdGy[11]

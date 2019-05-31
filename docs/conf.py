@@ -14,6 +14,7 @@
 #
 import os
 import sys
+
 import sphinx_bootstrap_theme
 
 # sys.path.insert(0, os.path.abspath('.'))
@@ -136,9 +137,9 @@ html_theme_options = {
     # Note the "1" or "True" value above as the third argument to indicate
     # an arbitrary url.
     "navbar_links": [
-        ("API", "api/index"),
         ("Tutorial", "tutorial/index"),
         ("Examples", "gallery/index"),
+        ("API", "api/index"),
     ],
     # Render the next and previous page links in navbar. (Default: true)
     "navbar_sidebarrel": False,

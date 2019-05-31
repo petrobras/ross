@@ -1,8 +1,9 @@
-import numpy as np
-import matplotlib.pyplot as plt
 import sys
-from bokeh.plotting import figure, output_file, show
 import warnings
+
+import matplotlib.pyplot as plt
+import numpy as np
+from bokeh.plotting import figure, output_file, show
 
 
 class PressureMatrix:
@@ -47,6 +48,8 @@ class PressureMatrix:
     eccentricity: float
         Eccentricity (m) is the euclidean distance between rotor and stator centers.
         The center of the stator is in position (0,0).
+    beta: float
+        Angle between the origin and the eccentricity (rad).
 
     Fluid characteristics
     ^^^^^^^^^^^^^^^^^^^^^
@@ -76,16 +79,18 @@ class PressureMatrix:
       Number of intervals on theta.
     n_interv_radius: int
         Number of intervals on r.
-    p_mat : array of shape (nz, ntheta)
-        The pressure matrix.
-    xi: float
+    p_mat_analytical : array of shape (nz, ntheta)
+        The analytical pressure matrix.
+    p_mat_numerical : array of shape (nz, ntheta)
+        The numerical pressure matrix.
+    xe: float
         Eccentricity (m) (distance between rotor and stator centers) on the x-axis.
-        It is the position of the center of the rotor.
-        The center of the stator is in position (0,0).
-    yi: float
+        It is the position of the center of the stator.
+        The center of the rotor is in position (0,0).
+    ye: float
         Eccentricity (m) (distance between rotor and stator centers) on the y-axis.
-        It is the position of the center of the rotor.
-        The center of the stator is in position (0,0).
+        It is the position of the center of the stator.
+        The center of the rotor is in position (0,0).
     re : array of shape (nz, ntheta)
         The external radius in each position of the grid.
     ri : array of shape (nz, ntheta)
@@ -121,31 +126,33 @@ class PressureMatrix:
     --------
     >>> from ross.fluid_flow import fluid_flow as flow
     >>> import numpy as np
-    >>> nz = 20
-    >>> ntheta = 100
+    >>> nz = 8
+    >>> ntheta = 64
     >>> nradius = 11
     >>> length = 0.01
-    >>> omega = -100.*2*np.pi/60
+    >>> omega = 100.*2*np.pi/60
     >>> p_in = 1.
     >>> p_out = 1.
     >>> radius_rotor = 0.08
     >>> radius_stator = 0.1
-    >>> eccentricity = 0.01
     >>> visc = 0.015
     >>> rho = 860.
+    >>> eccentricity = 0.001
+    >>> beta =  np.pi
     >>> my_pressure_matrix = flow.PressureMatrix(nz, ntheta, nradius, length,
     ...                                          omega, p_in, p_out, radius_rotor,
-    ...                                          radius_stator, visc, rho, eccentricity=eccentricity)
-    >>> my_pressure_matrix.calculate_pressure_matrix()
+    ...                                          radius_stator, visc, rho, beta=beta, eccentricity=eccentricity)
+    >>> my_pressure_matrix.calculate_pressure_matrix_analytical()
+    >>> my_pressure_matrix.calculate_pressure_matrix_numerical()
     >>> my_pressure_matrix.plot_eccentricity()
     >>> my_pressure_matrix.plot_pressure_z()
     >>> my_pressure_matrix.plot_shape()
     >>> my_pressure_matrix.plot_pressure_theta(z=int(nz/2))
     >>> my_pressure_matrix.matplot_pressure_theta_cylindrical(z=int(nz/2), show_immediately=True)
-
     """
+
     def __init__(self, nz, ntheta, nradius, length, omega, p_in,
-                 p_out, radius_rotor, radius_stator, visc, rho, eccentricity=None, load=None):
+                 p_out, radius_rotor, radius_stator, visc, rho, beta=2.356, eccentricity=None, load=None):
         if load is None and eccentricity is None:
             sys.exit("Either load or eccentricity must be given.")
         self.nz = nz
@@ -176,6 +183,7 @@ class PressureMatrix:
         else:
             self.bearing_type = 'medium_size'
         self.eccentricity = eccentricity
+        self.beta = beta
         self.eccentricity_ratio = None
         self.load = load
         if self.eccentricity is None:
@@ -183,8 +191,8 @@ class PressureMatrix:
         self.eccentricity_ratio = self.eccentricity / self.difference_between_radius
         if self.load is None:
             self.load = self.get_rotor_load()
-        self.xi = np.sqrt(2)*self.eccentricity/2
-        self.yi = -self.xi
+        self.xe = self.eccentricity*np.cos(beta)
+        self.ye = self.eccentricity*np.sin(beta)
         self.re = np.zeros([self.nz, self.ntheta])
         self.ri = np.zeros([self.nz, self.ntheta])
         self.z = np.zeros([1, self.nz])
@@ -192,42 +200,79 @@ class PressureMatrix:
         self.xri = np.zeros([self.nz, self.ntheta])
         self.yre = np.zeros([self.nz, self.ntheta])
         self.yri = np.zeros([self.nz, self.ntheta])
-        self.p_mat = np.zeros([self.nz, self.ntheta])
+        self.p_mat_analytical = np.zeros([self.nz, self.ntheta])
+        self.c1 = np.zeros([self.nz, self.ntheta])
+        self.c2 = np.zeros([self.nz, self.ntheta])
+        self.c0w = np.zeros([self.nz, self.ntheta])
+        self.M = np.zeros([self.ntotal, self.ntotal])
+        self.f = np.zeros([self.ntotal, 1])
+        self.P = np.zeros([self.ntotal, 1])
+        self.p_mat_numerical = np.zeros([self.nz, self.ntheta])
         self.plot_counter = 0
         self.calculate_coefficients()
+        self.mounting_matrix()
+        self.resolves_matrix()
         self.pressure_matrix_available = False
 
-    def calculate_pressure_matrix(self):
-        """This function calculates the pressure matrix
+    def calculate_pressure_matrix_analytical(self):
+        """This function calculates the analytical pressure matrix
         """
         if self.bearing_type == 'short_bearing':
             for i in range(self.nz):
                 for j in range(self.ntheta):
-                    self.p_mat[i][j] = ((-3*self.visc*self.omega)/self.difference_between_radius**2) * \
-                                       ((i*self.dz)**2 - (self.length**2)/4) * \
-                                       (self.eccentricity_ratio*np.sin(j*self.dtheta)) / \
-                                       (1 + self.eccentricity_ratio*np.sin(j*self.dtheta))**3
+                    self.p_mat_analytical[i][j] = (((-3*self.visc*self.omega)/self.difference_between_radius**2) *
+                                                   ((i * self.dz - (self.length / 2)) ** 2 - (self.length ** 2) / 4) *
+                                                   (self.eccentricity_ratio * np.sin(j * self.dtheta)) /
+                                                   (1 + self.eccentricity_ratio * np.cos(j * self.dtheta))**3)
             self.pressure_matrix_available = True
-        return self.p_mat
+        return self.p_mat_analytical
 
     def calculate_coefficients(self):
         """This function calculates the constants that form the Poisson equation
         of the discrete pressure (central differences in the second
         derivatives). It is executed when the class is instantiated.
         """
+
         for i in range(self.nz):
             zno = i * self.dz
             self.z[0][i] = zno
             plot_eccentricity_error = False
             position = -1
             for j in range(self.ntheta):
-                gama = j * self.dtheta
+                gama = j * self.dtheta + self.beta
                 [radius_external, self.xre[i][j], self.yre[i][j]] =\
                     self.external_radius_function(gama)
                 [radius_internal, self.xri[i][j], self.yri[i][j]] =\
                     self.internal_radius_function(zno, gama)
                 self.re[i][j] = radius_external
                 self.ri[i][j] = radius_internal
+
+                w = self.omega * self.ri[i][j]
+
+                k = (self.re[i][j] ** 2 * (np.log(self.re[i][j]) - 1 / 2) - self.ri[i][j] ** 2 *
+                     (np.log(self.ri[i][j]) - 1 / 2)) / (self.ri[i][j] ** 2 - self.re[i][j] ** 2)
+
+                self.c1[i][j] = (1 / (4 * self.visc)) * ((self.re[i][j] ** 2 * np.log(self.re[i][j]) -
+                                                          self.ri[i][j] ** 2 * np.log(self.ri[i][j]) +
+                                                          (self.re[i][j] ** 2 - self.ri[i][j] ** 2) *
+                                                          (k - 1)) - 2 * self.re[i][j] ** 2 *
+                                                         ((np.log(self.re[i][j]) + k - 1 / 2) * np.log(self.re[i][j] /
+                                                                                                       self.ri[i][j])))
+
+                self.c2[i][j] = (- self.ri[i][j] ** 2) / (8 * self.visc) *\
+                                ((self.re[i][j] ** 2 - self.ri[i][j] ** 2 -
+                                  (self.re[i][j] ** 4 - self.ri[i][j] ** 4) /
+                                  (2 * self.ri[i][j] ** 2)) +
+                                 ((self.re[i][j] ** 2 - self.ri[i][j] ** 2) /
+                                  (self.ri[i][j] ** 2 *
+                                   np.log(self.re[i][j] / self.ri[i][j]))) *
+                                 (self.re[i][j] ** 2 * np.log(self.re[i][j] / self.ri[i][j]) -
+                                  (self.re[i][j] ** 2 - self.ri[i][j] ** 2) / 2))
+
+                self.c0w[i][j] = (- w * self.ri[i][j] *
+                                  (np.log(self.re[i][j] / self.ri[i][j]) *
+                                  (1 + (self.ri[i][j] ** 2) / (self.re[i][j] ** 2 - self.ri[i][j] ** 2)) - 1 / 2))
+
                 if not plot_eccentricity_error:
                     if abs(self.xri[i][j]) > abs(self.xre[i][j]) or abs(self.yri[i][j]) > abs(self.yre[i][j]):
                         plot_eccentricity_error = True
@@ -236,6 +281,78 @@ class PressureMatrix:
                 self.plot_eccentricity(position)
                 sys.exit("Error: The given parameters create a rotor that is not inside the stator. "
                          "Check the plotted figure and fix accordingly.")
+
+    def mounting_matrix(self):
+        """This function assembles the matrix M and the independent vector f
+        """
+
+        count = 0
+        for x in range(self.ntheta):
+            self.M[count][count] = 1
+            self.f[count][0] = self.p_in
+            count = count + self.nz - 1
+            self.M[count][count] = 1
+            self.f[count][0] = self.p_out
+            count = count + 1
+        count = 0
+        for x in range(self.nz - 2):
+            self.M[self.ntotal - self.nz + 1 + count][1 + count] = 1
+            self.M[self.ntotal - self.nz + 1 + count][self.ntotal - self.nz + 1 + count] = -1
+            count = count + 1
+        count = 1
+        j = 0
+        for i in range(1, self.nz - 1):
+            a = (1/self.dtheta**2)*(self.c1[i][self.ntheta-1])
+            self.M[count][self.ntotal - 2 * self.nz + count] = a
+            b = (1 / self.dz ** 2) * (self.c2[i - 1, j])
+            self.M[count][count - 1] = b
+            c = -((1/self.dtheta**2) * ((self.c1[i][j]) + self.c1[i][self.ntheta-1])
+                  + (1/self.dz**2) * (self.c2[i][j] + self.c2[i-1][j]))
+            self.M[count, count] = c
+            d = (1 / self.dz ** 2) * (self.c2[i][j])
+            self.M[count][count + 1] = d
+            e = (1/self.dtheta**2) * (self.c1[i][j])
+            self.M[count][count + self.nz] = e
+            count = count + 1
+        count = self.nz + 1
+        for j in range(1, self.ntheta - 1):
+            for i in range(1, self.nz - 1):
+                a = (1/self.dtheta**2) * (self.c1[i, j-1])
+                self.M[count][count - self.nz] = a
+                b = (1 / self.dz ** 2) * (self.c2[i - 1][j])
+                self.M[count][count - 1] = b
+                c = -((1 / self.dtheta**2) * ((self.c1[i][j]) + self.c1[i][j-1])
+                      + (1 / self.dz**2) * (self.c2[i][j] + self.c2[i-1][j]))
+                self.M[count, count] = c
+                d = (1 / self.dz ** 2) * (self.c2[i][j])
+                self.M[count][count + 1] = d
+                e = (1 / self.dtheta**2) * (self.c1[i][j])
+                self.M[count][count + self.nz] = e
+                count = count + 1
+            count = count + 2
+        count = 1
+        for j in range(self.ntheta - 1):
+            for i in range(1, self.nz - 1):
+                if j == 0:
+                    self.f[count][0] = (self.c0w[i][j] - self.c0w[i][self.ntheta - 1]) / self.dtheta
+                else:
+                    self.f[count][0] = (self.c0w[i, j] - self.c0w[i, j - 1]) / self.dtheta
+                count = count + 1
+            count = count + 2
+
+    def resolves_matrix(self):
+        """This function resolves the linear system [M]{P}={f}
+        """
+        self.P = np.linalg.solve(self.M, self.f)
+
+    def calculate_pressure_matrix_numerical(self):
+        """This function calculates the numerical pressure matrix
+        """
+        for i in range(self.nz):
+            for j in range(self.ntheta):
+                k = j * self.nz + i
+                self.p_mat_numerical[i][j] = self.P[k]
+        return self.p_mat_numerical
 
     def internal_radius_function(self, z, gama):
         """This function calculates the radius of the rotor given the
@@ -275,10 +392,9 @@ class PressureMatrix:
         yre: float
             The position y of the returned external radius.
         """
-        beta = -np.pi/4
-        alpha = beta - gama
-        radius_external = (np.sqrt(self.radius_stator**2 - (self.eccentricity * np.sin(alpha))**2) +
-                           self.eccentricity * np.cos(alpha))
+        alpha = np.absolute(self.beta - gama)
+        radius_external = np.sqrt(self.radius_stator ** 2 -
+                                  (self.eccentricity * np.sin(alpha)) ** 2) + self.eccentricity * np.cos(alpha)
         xre = radius_external * np.cos(gama)
         yre = radius_external * np.sin(gama)
 
@@ -402,12 +518,10 @@ class PressureMatrix:
         output_file("plot_eccentricity.html")
         p = figure(title="Cut in plane Z=" + str(z), x_axis_label='X axis', y_axis_label='Y axis')
         for j in range(0, self.ntheta):
-            if j < 5:
-                p.circle(self.xre[z][j], self.yre[z][j], color="black")
-                p.circle(self.xri[z][j], self.yri[z][j], color="black")
-            else:
-                p.circle(self.xre[z][j], self.yre[z][j], color="red")
-                p.circle(self.xri[z][j], self.yri[z][j], color="blue")
+            p.circle(self.xre[z][j], self.yre[z][j], color="red")
+            p.circle(self.xri[z][j], self.yri[z][j], color="blue")
+            p.circle(0, 0, color="blue")
+            p.circle(self.xe, self.ye, color="red")
         p.circle(0, 0, color="black")
         show(p)
 
@@ -426,10 +540,10 @@ class PressureMatrix:
         y = []
         for i in range(0, self.nz):
             x.append(i*self.dz)
-            y.append(self.p_mat[i][theta])
+            y.append(self.p_mat_analytical[i][theta])
         p = figure(title="Pressure along the Z direction (direction of flow); Theta=" + str(theta),
                    x_axis_label='Points along Z')
-        p.line(x, y, legend="Pressure", line_width=2)
+        p.line(x, y, legend="Analytical pressure", line_width=2)
         show(p)
 
     def plot_shape(self, theta=0):
@@ -469,7 +583,8 @@ class PressureMatrix:
             theta_list.append(theta * self.dtheta)
         p = figure(title='Pressure along Theta; Z=' + str(z),
                    x_axis_label='Points along Theta', y_axis_label='Pressure')
-        p.line(theta_list, self.p_mat[z], line_width=2)
+        p.line(theta_list, self.p_mat_analytical[z], line_width=2, color="red")
+        p.line(theta_list, self.p_mat_numerical[z], line_width=2, color="blue")
         show(p)
 
     def matplot_eccentricity(self, z=0, show_immediately=True):
@@ -486,13 +601,10 @@ class PressureMatrix:
         plt.figure(self.plot_counter)
         self.plot_counter += 1
         for j in range(0, self.ntheta):
-            if j < 5:
-                plt.plot(self.xre[z][j], self.yre[z][j], 'k.')
-                plt.plot(self.xri[z][j], self.yri[z][j], 'k.')
-            else:
-                plt.plot(self.xre[z][j], self.yre[z][j], 'r.')
-                plt.plot(self.xri[z][j], self.yri[z][j], 'b.')
-            plt.plot(0, 0, '*')
+            plt.plot(self.xre[z][j], self.yre[z][j], 'r.')
+            plt.plot(self.xri[z][j], self.yri[z][j], 'b.')
+            plt.plot(0, 0, 'b*')
+            plt.plot(self.xe, self.ye, 'r*')
             plt.title('Cut in plane Z=' + str(z))
             plt.xlabel('X axis')
             plt.ylabel('Y axis')
@@ -515,7 +627,7 @@ class PressureMatrix:
         plt.figure(self.plot_counter)
         self.plot_counter += 1
         for i in range(0, self.nz):
-            plt.plot(i*self.dz, self.p_mat[i][0], 'bo')
+            plt.plot(i*self.dz, self.p_mat_analytical[i][0], 'bo')
         plt.title('Pressure along the Z direction (direction of flow); Theta=0')
         plt.xlabel('Points along Z')
         plt.ylabel('Pressure')
@@ -572,7 +684,7 @@ class PressureMatrix:
 
         pressure_along_theta = np.zeros(self.ntheta)
         for i in range(0, self.ntheta):
-            pressure_along_theta[i] = self.p_mat[0][i]
+            pressure_along_theta[i] = self.p_mat_analytical[0][i]
 
         min_pressure = np.amin(pressure_along_theta)
 
@@ -615,12 +727,10 @@ class PressureMatrix:
         list_of_thetas = []
         for t in range(0, self.ntheta):
             list_of_thetas.append(t * self.dtheta)
-        plt.plot(list_of_thetas, self.p_mat[z], 'b')
+        plt.plot(list_of_thetas, self.p_mat_analytical[z], 'b')
         plt.title('Pressure along Theta; Z='+str(z))
         plt.xlabel('Points along Theta')
         plt.ylabel('Pressure')
         plt.show(block=show_immediately)
         if show_immediately:
             plt.close('all')
-
-

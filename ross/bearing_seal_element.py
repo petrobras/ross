@@ -1,16 +1,17 @@
-import warnings
-import numpy as np
-import scipy.interpolate as interpolate
-import matplotlib.pyplot as plt
-import matplotlib.patches as mpatches
-import bokeh.palettes as bp
-from ross.element import Element
-import pytest
-import pandas as pd
 import sys
-import xlrd
-from ross.fluid_flow import fluid_flow as flow
+import warnings
 
+import bokeh.palettes as bp
+import matplotlib.patches as mpatches
+import matplotlib.pyplot as plt
+import numpy as np
+import pandas as pd
+import pytest
+import scipy.interpolate as interpolate
+import xlrd
+
+from ross.element import Element
+from ross.fluid_flow import fluid_flow as flow
 
 __all__ = ["BearingElement", "SealElement"]
 bokeh_colors = bp.RdGy[11]

@@ -1,13 +1,15 @@
 import os
+
+import numpy as np
 import pytest
-from ross.shaft_element import *
+from numpy.testing import assert_almost_equal, assert_allclose
+
 from ross.bearing_seal_element import *
 from ross.disk_element import *
+from ross.materials import steel
 from ross.rotor_assembly import *
 from ross.rotor_assembly import MAC_modes
-from ross.materials import steel
-import numpy as np
-from numpy.testing import assert_almost_equal, assert_allclose
+from ross.shaft_element import *
 
 test_dir = os.path.dirname(__file__)
 
@@ -1246,7 +1248,7 @@ def test_evals_rotor3_rotor4(rotor3, rotor4):
 
 def test_campbell(rotor4):
     speed = np.linspace(0, 300, 3)
-    camp = rotor4.campbell(speed)[:, :, 0]
+    camp = rotor4.run_campbell(speed)[:, :, 0]
     camp_desired = np.array(
         [
             [
@@ -1339,11 +1341,11 @@ def test_freq_response(rotor4):
     )
 
     omega = np.linspace(0.0, 450.0, 4)
-    freq_resp = rotor4.freq_response(frequency_range=omega)
+    freq_resp = rotor4.run_freq_response(frequency_range=omega)
     magdb = 20.0 * np.log10(freq_resp.magnitude)
     assert_allclose(magdb[:4, :4, :4], magdb_exp)
 
-    freq_resp = rotor4.freq_response(frequency_range=omega, modes=list(range(4)))
+    freq_resp = rotor4.run_freq_response(frequency_range=omega, modes=list(range(4)))
     magdb = 20.0 * np.log10(freq_resp.magnitude)
     assert_allclose(magdb[:4, :4, :4], magdb_exp_modes_4)
 
@@ -1400,7 +1402,7 @@ def test_freq_response_w_force(rotor4):
     )
 
     omega = np.linspace(0.0, 450.0, 4)
-    freq_resp = rotor4.forced_response(force=F0, frequency_range=omega)
+    freq_resp = rotor4.run_forced_response(force=F0, frequency_range=omega)
     mag = freq_resp.magnitude
     assert_allclose(mag[:4, :4], mag_exp)
 
@@ -1447,7 +1449,7 @@ def test_mesh_convergence(rotor3):
 
 
 def test_static_analysis_rotor3(rotor3):
-    rotor3.static()
+    rotor3.run_static()
 
     assert_almost_equal(
         rotor3.disp_y,
@@ -1495,7 +1497,7 @@ def rotor5():
 
 
 def test_static_analysis_rotor5(rotor5):
-    rotor5.static()
+    rotor5.run_static()
 
     assert_almost_equal(
         rotor5.disp_y,
@@ -1547,7 +1549,7 @@ def rotor6():
 
 
 def test_static_analysis_rotor6(rotor6):
-    rotor6.static()
+    rotor6.run_static()
 
     assert_almost_equal(
         rotor6.disp_y,
@@ -1568,6 +1570,69 @@ def test_static_analysis_rotor6(rotor6):
          271.4389, 131.0200, 0],
         decimal=3,
     )
+
+
+def test_from_section():
+    #  Rotor built from classmethod from_section
+    #  2 disks and 2 bearings
+    leng_data = [0.5, 1.0, 2.0, 1.0, 0.5]
+    leng_data2 = [0.5, 1.0, 2.0, 1.0]
+    o_ds_data = [0.1, 0.2, 0.3, 0.2, 0.1]
+    o_ds_data2 = [0.1, 0.2, 0.3, 0.2]    
+    i_ds_data = [0, 0, 0, 0, 0]
+    disk_data = [
+        DiskElement.from_geometry(n=2, material=steel, width=0.07, i_d=0.05, o_d=0.28),
+        DiskElement.from_geometry(n=3, material=steel, width=0.07, i_d=0.05, o_d=0.35),
+    ]
+    brg_seal_data = [
+        BearingElement(n=0, kxx=1e6, cxx=0, kyy=1e6, cyy=0),
+        BearingElement(n=5, kxx=1e6, cxx=0, kyy=1e6, cyy=0),
+    ]
+
+    rotor1 = Rotor.from_section(
+        leng_data=leng_data,
+        o_ds_data=o_ds_data,
+        i_ds_data=i_ds_data,
+        disk_data=disk_data,
+        brg_seal_data=brg_seal_data,
+        w=0,
+        nel_r=4,
+    )
+
+    assert_allclose(len(rotor1.shaft_elements), 20, atol=0)
+    assert_allclose(rotor1.shaft_elements[0].L, 0.125, atol=0)
+    assert_allclose(rotor1.shaft_elements[4].L, 0.25, atol=0)
+    assert_allclose(rotor1.shaft_elements[8].L, 0.5, atol=0)
+    assert_allclose(rotor1.shaft_elements[12].L, 0.25, atol=0)
+    assert_allclose(rotor1.shaft_elements[16].L, 0.125, atol=0)
+    assert_allclose(rotor1.disk_elements[0].n, 8, atol=0)
+    assert_allclose(rotor1.disk_elements[1].n, 12, atol=0)
+    assert_allclose(rotor1.bearing_seal_elements[0].n, 0, atol=0)
+    assert_allclose(rotor1.bearing_seal_elements[1].n, 20, atol=0)
+
+    with pytest.raises(ValueError) as excinfo:
+        Rotor.from_section(
+            leng_data=leng_data2,
+            o_ds_data=o_ds_data,
+            i_ds_data=i_ds_data,
+            disk_data=disk_data,
+            brg_seal_data=brg_seal_data,
+            w=0,
+            nel_r=4,
+        )
+    assert "The matrices lenght do not match." == str(excinfo.value)
+
+    with pytest.raises(ValueError) as excinfo:
+        Rotor.from_section(
+            leng_data=leng_data,
+            o_ds_data=o_ds_data2,
+            i_ds_data=i_ds_data,
+            disk_data=disk_data,
+            brg_seal_data=brg_seal_data,
+            w=0,
+            nel_r=4,
+        )
+    assert "The matrices lenght do not match." == str(excinfo.value)
 
 
 def test_save_load():
