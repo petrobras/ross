@@ -339,14 +339,14 @@ class Rotor(object):
 
         Example
         -------
+        >>> import ross as rs
         >>> i_d = 0
         >>> o_d = 0.05
         >>> n = 6
         >>> L = [0.25 for _ in range(n)]
         ...
         >>> shaft_elem = [rs.ShaftElement(l, i_d, o_d, steel,
-        shear_effects=True, rotary_inertia=True, gyroscopic=True) for l in L]
-        ...
+        ... shear_effects=True, rotary_inertia=True, gyroscopic=True) for l in L]
         >>> disk0 = DiskElement.from_geometry(2, steel, 0.07, 0.05, 0.28)
         >>> disk1 = DiskElement.from_geometry(4, steel, 0.07, 0.05, 0.35)
         >>> bearing0 = BearingElement(0, kxx=1e6, kyy=8e5, cxx=2e3)
@@ -354,7 +354,7 @@ class Rotor(object):
         >>> rotor0 = Rotor(shaft_elem, [disk0, disk1], [bearing0, bearing1])
         >>> len(rotor0.shaft_elements)
         6
-        >>> rotor0.convergence(n_eigval=0, err_max=1e-08)
+        >>> convergence = rotor0.convergence(n_eigval=0, err_max=1e-08)
         >>> len(rotor0.shaft_elements)
         96
         """
@@ -525,10 +525,10 @@ class Rotor(object):
         --------
         >>> rotor = rotor_example()
         >>> np.round(rotor.K()[:4, :4]/1e6)
-        array([[ 47.,   0.,   0.,   6.],
-               [  0.,  46.,  -6.,   0.],
-               [  0.,  -6.,   1.,   0.],
-               [  6.,   0.,   0.,   1.]])
+        array([[47.,  0.,  0.,  6.],
+               [ 0., 46., -6.,  0.],
+               [ 0., -6.,  1.,  0.],
+               [ 6.,  0.,  0.,  1.]])
         """
         if w is None:
             w = self.w
@@ -558,10 +558,10 @@ class Rotor(object):
         --------
         >>> rotor = rotor_example()
         >>> rotor.C()[:4, :4]
-        array([[ 0.,  0.,  0.,  0.],
-               [ 0.,  0.,  0.,  0.],
-               [ 0.,  0.,  0.,  0.],
-               [ 0.,  0.,  0.,  0.]])
+        array([[0., 0., 0., 0.],
+               [0., 0., 0., 0.],
+               [0., 0., 0., 0.],
+               [0., 0., 0., 0.]])
         """
         if w is None:
             w = self.w
@@ -614,12 +614,12 @@ class Rotor(object):
         --------
         >>> rotor = rotor_example()
         >>> np.round(rotor.A()[50:56, :2])
-        array([[     0.,  11110.],
-               [-11106.,     -0.],
-               [  -169.,     -0.],
-               [    -0.,   -169.],
-               [    -0.,  10511.],
-               [-10507.,     -0.]])
+        array([[     0.,  10927.],
+               [-10924.,     -0.],
+               [  -174.,      0.],
+               [    -0.,   -174.],
+               [    -0.,  10723.],
+               [-10719.,     -0.]])
         """
         if w is None:
             w = self.w
@@ -697,7 +697,7 @@ class Rotor(object):
         >>> rotor = rotor_example()
         >>> evalues, evectors = rotor._eigen(0)
         >>> evalues[0].imag # doctest: +ELLIPSIS
-        82.653...
+        91.796...
         """
         if w is None:
             w = self.w
@@ -803,10 +803,8 @@ class Rotor(object):
         >>> rotor = rotor_example()
         >>> # H matrix for the 0th node
         >>> rotor.H_kappa(0, 0) # doctest: +ELLIPSIS
-        array([[  8.78547006e-30,  -4.30647963e-18],
-               [ -4.30647963e-18,   2.11429917e-06]])
-
-
+        array([[1.04039379e-27, 4.55965906e-17],
+               [4.55965906e-17, 1.99856891e-06]])
         """
         # get vector of interest based on freqs
         vector = self.evectors[4 * node : 4 * node + 2, w]
@@ -872,10 +870,10 @@ class Rotor(object):
         >>> # kappa for each node of the first natural frequency
         >>> # Major axes for node 0 and natural frequency (mode) 0.
         >>> rotor.kappa(0, 0)['Major axes'] # doctest: +ELLIPSIS
-        0.00145...
+        0.00141...
         >>> # kappa for node 2 and natural frequency (mode) 3.
         >>> rotor.kappa(2, 3)['kappa'] # doctest: +ELLIPSIS
-        8.539...e-14
+        -3.720...e-13
         """
         if wd:
             nat_freq = self.wd[w]
@@ -941,7 +939,7 @@ class Rotor(object):
         >>> rotor = rotor_example()
         >>> # kappa for each node of the first natural frequency
         >>> rotor.kappa_mode(0) # doctest: +ELLIPSIS
-        [-0.0, -0.0, -0.0, -0.0, -1.153...e-08, -0.0, -1.239...e-08]
+        [0.0, 0.0, 1.300...e-08, 0.0, 1.300...e-08, 0.0, 1.455...e-08]
         """
         kappa_mode = [self.kappa(node, w)["kappa"] for node in self.nodes]
         return kappa_mode
@@ -1371,11 +1369,9 @@ class Rotor(object):
         --------
         >>> rotor1 = rotor_example()
         >>> speed = np.linspace(0, 400, 101)
-        >>> camp = rotor1.campbell(speed)
-        >>> np.round(camp[:, 0], 1) #  damped natural frequencies at the first rotor speed (0 rad/s)
-        array([  82.7,   86.7,  254.5,  274.3,  679.5,  716.8])
-        >>> np.round(camp[:, 10], 1) # damped natural frequencies at 40 rad/s
-        array([  82.6,   86.7,  254.3,  274.5,  676.5,  719.7])
+        >>> camp = rotor1.run_campbell(speed)
+        >>> camp.plot() # doctest: +ELLIPSIS
+        (<Figure ...
         """
         rotor_current_speed = self.w
 
@@ -2236,7 +2232,9 @@ class Rotor(object):
         ...                            BearingElement(n=3, kxx=1e6, cxx=0, kyy=1e6, cyy=0, kxy=0, cxy=0, kyx=0, cyx=0)],
         ...             w=0, nel_r=1)
         >>> rotor.run_modal()
-        >>> rotor.wn[:]
+        >>> rotor.wn
+        array([ 85.76341374,  85.76341374, 271.93258207, 271.93258207,
+               718.58003871, 718.58003871])
         """
 
         if len(leng_data) != len(o_ds_data) or len(leng_data) != len(i_ds_data):
@@ -2323,9 +2321,9 @@ def rotor_example():
     --------
     >>> rotor = rotor_example()
     >>> np.round(rotor.wd[:4])
-    array([  83.,   87.,  255.,  274.])
+    array([ 92.,  96., 275., 297.])
     """
-    #  Rotor without damping with 2 shaft elements 1 disk and 2 bearings
+    #  Rotor without damping with 6 shaft elements 2 disks and 2 bearings
     i_d = 0
     o_d = 0.05
     n = 6
