@@ -306,12 +306,12 @@ class Rotor(object):
         self.wn = (np.absolute(self.evalues))[:wn_len]
         self.wd = (np.imag(self.evalues))[:wn_len]
         self.damping_ratio = (-np.real(self.evalues) / np.absolute(self.evalues))[
-                             :wn_len
-                             ]
+            :wn_len
+        ]
         with warnings.catch_warnings():
             warnings.simplefilter("ignore")
             self.log_dec = (
-                    2 * np.pi * self.damping_ratio / np.sqrt(1 - self.damping_ratio ** 2)
+                2 * np.pi * self.damping_ratio / np.sqrt(1 - self.damping_ratio ** 2)
             )
         self.lti = self._lti()
 
@@ -320,9 +320,8 @@ class Rotor(object):
         Function to analyze the eigenvalues convergence through the number of
         shaft elements. Every new run doubles the number os shaft elements.
 
-        -----------
-        Parameters:
-        -----------
+        Parameters
+        ----------
         n_eigval : int
             The nth eigenvalue which the convergence analysis will run.
             Default is 0 (the first eigenvalue).
@@ -333,8 +332,13 @@ class Rotor(object):
             outputs a html file.
             Default is False
 
-        Example:
-        --------
+        Returns
+        -------
+        p : bokeh.figure
+            Bokeh plot showing the results.
+
+        Example
+        -------
         >>> i_d = 0
         >>> o_d = 0.05
         >>> n = 6
@@ -455,8 +459,7 @@ class Rotor(object):
         # put the subplots in a gridplot
         p = gridplot([[freq_arr, rel_error]])
 
-        # show the results
-        show(p)
+        return p
 
     @property
     def w(self):
@@ -664,7 +667,7 @@ class Rotor(object):
         b = np.absolute(evals_truncated)  # Second column
         ind = np.lexsort((b, a))  # Sort by imag, then by absolute
         # Positive eigenvalues first
-        positive = [i for i in ind[len(a) // 2:]]
+        positive = [i for i in ind[len(a) // 2 :]]
         negative = [i for i in ind[: len(a) // 2]]
 
         idx = np.array([positive, negative]).flatten()
@@ -1538,33 +1541,35 @@ class Rotor(object):
 
         # bokeh plot - plot shaft centerline
         bk_ax.circle(
-                bearing0.kxx.interpolated(bearing0.w),
-                bearing0.w,
-                size=5,
-                fill_alpha=0.5,
-                fill_color=bokeh_colors[0],
-                legend="Kxx",
+            bearing0.kxx.interpolated(bearing0.w),
+            bearing0.w,
+            size=5,
+            fill_alpha=0.5,
+            fill_color=bokeh_colors[0],
+            legend="Kxx",
         )
         bk_ax.square(
-                bearing0.kyy.interpolated(bearing0.w),
-                bearing0.w,
-                size=5,
-                fill_alpha=0.5,
-                fill_color=bokeh_colors[0],
-                legend="Kyy",
+            bearing0.kyy.interpolated(bearing0.w),
+            bearing0.w,
+            size=5,
+            fill_alpha=0.5,
+            fill_color=bokeh_colors[0],
+            legend="Kyy",
         )
         for j in range(rotor_wn.T.shape[1]):
             bk_ax.line(
-                    stiffness_log,
-                    np.transpose(rotor_wn.T)[j],
-                    line_width=3,
-                    line_color=bokeh_colors[-j+1],
+                stiffness_log,
+                np.transpose(rotor_wn.T)[j],
+                line_width=3,
+                line_color=bokeh_colors[-j + 1],
             )
         show(bk_ax)
 
         return ax
 
-    def plot_level1(self, n=None, stiffness_range=None, num=5, ax=None,output_html=False, **kwargs):
+    def plot_level1(
+        self, n=None, stiffness_range=None, num=5, ax=None, output_html=False, **kwargs
+    ):
         """Plot level 1 stability analysis.
 
         This method will plot the stability 1 analysis for a
@@ -1763,7 +1768,7 @@ class Rotor(object):
         os.chdir(current / "elements")
 
         for element in self.elements:
-            element.save(type(element).__name__+".toml")
+            element.save(type(element).__name__ + ".toml")
 
         os.chdir(main_path)
 
@@ -1814,6 +1819,21 @@ class Rotor(object):
         shutil.rmtree(Path(os.path.dirname(ross.__file__)) / "rotors" / rotor_name)
 
     def run_static(self, output_html=False):
+        """
+        Static analysis calculates free-body diagram, deformed shaft, shearing
+        force diagram and bending moment diagram.
+
+        Parameters
+        ----------
+        output_html : Boolean, optional
+            outputs a html file.
+            Default is False
+
+        Returns
+        -------
+            grid_plots : bokeh.gridplot
+
+        """
         # gravity aceleration vector
         grav = np.zeros((len(self.M()), 1))
 
@@ -1914,16 +1934,18 @@ class Rotor(object):
             y_axis_label="lateral displacement",
         )
 
-        interpolated = interpolate.interp1d(source.data['x0'], source.data['y0'], kind='cubic')
-        xnew = np.linspace(source.data['x0'][0],
-                           source.data['x0'][-1],
-                           num=len(self.nodes_pos) * 20,
-                           endpoint=True)
+        interpolated = interpolate.interp1d(
+            source.data["x0"], source.data["y0"], kind="cubic"
+        )
+        xnew = np.linspace(
+            source.data["x0"][0],
+            source.data["x0"][-1],
+            num=len(self.nodes_pos) * 20,
+            endpoint=True,
+        )
 
         ynew = interpolated(xnew)
-        auxsource = ColumnDataSource(
-            data=dict(x0=xnew, y0=ynew, y1=[0] * len(xnew))
-        )
+        auxsource = ColumnDataSource(data=dict(x0=xnew, y0=ynew, y1=[0] * len(xnew)))
 
         disp_graph.line(
             "x0",
@@ -2118,22 +2140,23 @@ class Rotor(object):
             y_axis_label="Bending Moment",
             x_range=[-0.1 * shaft_end, 1.1 * shaft_end],
         )
-        i=0
+        i = 0
         while True:
-            if i+3> len(self.nodes):
+            if i + 3 > len(self.nodes):
                 break
 
-            interpolated_BM = interpolate.interp1d(self.nodes_pos[i:i+3], Bm[i:i+3], kind='quadratic')
-            xnew_BM = np.linspace(self.nodes_pos[i],
-                                  self.nodes_pos[i + 2],
-                                  num=42,
-                                  endpoint=True)
+            interpolated_BM = interpolate.interp1d(
+                self.nodes_pos[i : i + 3], Bm[i : i + 3], kind="quadratic"
+            )
+            xnew_BM = np.linspace(
+                self.nodes_pos[i], self.nodes_pos[i + 2], num=42, endpoint=True
+            )
 
             ynew_BM = interpolated_BM(xnew_BM)
-            auxsource_BM = ColumnDataSource(
-                data=dict(x=xnew_BM, y=ynew_BM)
-                                 )
-            BM.line("x", "y", source=auxsource_BM, line_width=4, line_color=bokeh_colors[0])
+            auxsource_BM = ColumnDataSource(data=dict(x=xnew_BM, y=ynew_BM))
+            BM.line(
+                "x", "y", source=auxsource_BM, line_width=4, line_color=bokeh_colors[0]
+            )
             i += 2
         BM.circle("x", "y", source=source_BM, size=8, fill_color=bokeh_colors[0])
 
@@ -2146,9 +2169,9 @@ class Rotor(object):
             line_color=bokeh_colors[0],
         )
 
-        # show the results
         grid_plots = gridplot([[FBD, SF], [disp_graph, BM]])
-        show(grid_plots)
+
+        return grid_plots
 
     @classmethod
     def from_section(
