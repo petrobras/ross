@@ -315,7 +315,7 @@ class Rotor(object):
             )
         self.lti = self._lti()
 
-    def convergence(self, n_eigval=0, err_max=1e-02):
+    def convergence(self, n_eigval=0, err_max=1e-02, output_html=False):
         """
         Function to analyze the eigenvalues convergence through the number of
         shaft elements. Every new run doubles the number os shaft elements.
@@ -329,6 +329,9 @@ class Rotor(object):
         err_max : float
             Maximum allowable convergence error.
             Default is 1e-02
+        output_html : Boolean, optional
+            outputs a html file.
+            Default is False
 
         Example:
         --------
@@ -412,8 +415,8 @@ class Rotor(object):
 
         self.__dict__ = rotor.__dict__
         self.error_arr = error_arr
-
-        output_file("convergence.html")
+        if output_html:
+            output_file("convergence.html")
         source = ColumnDataSource(
             data=dict(x0=el_num[1:], y0=eigv_arr[1:], x1=el_num[1:], y1=error_arr[1:])
         )
@@ -1186,7 +1189,7 @@ class Rotor(object):
         """
         return signal.lsim(self.lti, F, t, X0=ic)
 
-    def plot_rotor(self, nodes=1, ax=None, bk_ax=None):
+    def plot_rotor(self, nodes=1, ax=None, output_html=False, bk_ax=None):
         """Plots a rotor object.
 
         This function will take a rotor object and plot its shaft,
@@ -1200,6 +1203,9 @@ class Rotor(object):
             Axes in which the plot will be drawn.
         bk_ax : bokeh plotting axes, optional
             Axes in which the plot will be drawn.
+        output_html : Boolean, optional
+            outputs a html file.
+            Default is False
 
         Returns
         -------
@@ -1243,7 +1249,8 @@ class Rotor(object):
         ax.set_ylabel("Shaft radius (m)")
 
         # bokeh plot - output to static HTML file
-        output_file("rotor.html")
+        if output_html:
+            output_file("rotor.html")
 
         # bokeh plot - create a new plot
         bk_ax = figure(
@@ -1429,7 +1436,7 @@ class Rotor(object):
 
         return mode_shapes
 
-    def plot_ucs(self, stiffness_range=None, num=20, ax=None):
+    def plot_ucs(self, stiffness_range=None, num=20, ax=None, output_html=False):
         """Plot undamped critical speed map.
 
         This method will plot the undamped critical speed map for a given range
@@ -1445,6 +1452,9 @@ class Rotor(object):
             Default is 20.
         ax : matplotlib axes, optional
             Axes in which the plot will be drawn.
+        output_html : Boolean, optional
+            outputs a html file.
+            Default is False
 
         Returns
         -------
@@ -1511,7 +1521,8 @@ class Rotor(object):
         ax.legend()
 
         # bokeh plot - output to static HTML file
-        output_file("Plot_UCS.html")
+        if output_html:
+            output_file("Plot_UCS.html")
 
         # bokeh plot - create a new plot
         bk_ax = figure(
@@ -1553,7 +1564,7 @@ class Rotor(object):
 
         return ax
 
-    def plot_level1(self, n=None, stiffness_range=None, num=5, ax=None, **kwargs):
+    def plot_level1(self, n=None, stiffness_range=None, num=5, ax=None,output_html=False, **kwargs):
         """Plot level 1 stability analysis.
 
         This method will plot the stability 1 analysis for a
@@ -1568,6 +1579,9 @@ class Rotor(object):
             Default is 5.
         ax : matplotlib axes, optional
             Axes in which the plot will be drawn.
+        output_html : Boolean, optional
+            outputs a html file.
+            Default is False
 
         Returns
         -------
@@ -1603,7 +1617,8 @@ class Rotor(object):
         ax.set_ylabel("Log Dec")
 
         # bokeh plot - output to static HTML file
-        output_file("Plot_level1.html")
+        if output_html:
+            output_file("Plot_level1.html")
 
         # bokeh plot - create a new plot
         bk_ax = figure(
@@ -1622,7 +1637,7 @@ class Rotor(object):
 
         return ax, bk_ax
 
-    def plot_time_response(self, F, t, dof, ax=None):
+    def plot_time_response(self, F, t, dof, ax=None, output_html=False):
         """Plot the time response.
 
         This function will take a rotor object and plot its time response
@@ -1639,6 +1654,9 @@ class Rotor(object):
             Degree of freedom that will be observed.
         ax : matplotlib axes, optional
             Axes in which the plot will be drawn.
+        output_html : Boolean, optional
+            outputs a html file.
+            Default is False
 
         Returns
         -------
@@ -1677,7 +1695,8 @@ class Rotor(object):
         )
 
         # bokeh plot - output to static HTML file
-        output_file("time_response.html")
+        if output_html:
+            output_file("time_response.html")
 
         # bokeh plot - create a new plot
         bk_ax = figure(
@@ -1794,7 +1813,7 @@ class Rotor(object):
     def remove(rotor_name):
         shutil.rmtree(Path(os.path.dirname(ross.__file__)) / "rotors" / rotor_name)
 
-    def run_static(self):
+    def run_static(self, output_html=False):
         # gravity aceleration vector
         grav = np.zeros((len(self.M()), 1))
 
@@ -1871,8 +1890,8 @@ class Rotor(object):
         for i in range(len(Mx)):
             Bm.append(Bm[i] + Mx[i])
         self.Bm = Bm
-
-        output_file("static.html")
+        if output_html:
+            output_file("static.html")
         source = ColumnDataSource(
             data=dict(x0=self.nodes_pos, y0=disp_y * 1000, y1=[0] * len(self.nodes_pos))
         )
