@@ -6,7 +6,7 @@ import ross as rs
 Path = pathlib.Path
 
 current_path = os.getcwd()
-bench_dir = Path(os.path.dirname(rs.__file__))/'Benchmarks'
+bench_dir = Path(os.path.dirname(os.path.dirname(rs.__file__)))/'Benchmarks'
 
 if not os.path.isdir(bench_dir/'Snakeviz_inputs'):
     os.mkdir(bench_dir/'Snakeviz_inputs')
