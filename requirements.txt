@@ -5,3 +5,4 @@ seaborn
 bokeh
 xlrd
 toml
+pytest
