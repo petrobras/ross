@@ -39,24 +39,20 @@ def disk_from_geometry():
 
 
 def test_mass_matrix_disk1(disk_from_geometry):
-    Md1 = np.array(
-        [
-            [32.58973, 0.0, 0.0, 0.0],
-            [0.0, 32.58973, 0.0, 0.0],
-            [0.0, 0.0, 0.17809, 0.0],
-            [0.0, 0.0, 0.0, 0.17809],
-        ]
-    )
+    # fmt: off
+    Md1 = np.array([[ 32.58973,   0.     ,   0.     ,   0.     ],
+                    [  0.     ,  32.58973,   0.     ,   0.     ],
+                    [  0.     ,   0.     ,   0.17809,   0.     ],
+                    [  0.     ,   0.     ,   0.     ,   0.17809]])
+    # fmt: on
     assert_almost_equal(disk_from_geometry.M(), Md1, decimal=5)
 
 
 def test_gyroscopic_matrix_disk1(disk_from_geometry):
-    Gd1 = np.array(
-        [
-            [0.0, 0.0, 0.0, 0.0],
-            [0.0, 0.0, 0.0, 0.0],
-            [0.0, 0.0, 0.0, 0.32956],
-            [0.0, 0.0, -0.32956, 0.0],
-        ]
-    )
+    # fmt: off
+    Gd1 = np.array([[ 0.     ,  0.     ,  0.     ,  0.     ],
+                    [ 0.     ,  0.     ,  0.     ,  0.     ],
+                    [ 0.     ,  0.     ,  0.     ,  0.32956],
+                    [ 0.     ,  0.     , -0.32956,  0.     ]])
+    # fmt: on
     assert_almost_equal(disk_from_geometry.G(), Gd1, decimal=5)
