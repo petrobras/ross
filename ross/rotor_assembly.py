@@ -802,9 +802,9 @@ class Rotor(object):
         --------
         >>> rotor = rotor_example()
         >>> # H matrix for the 0th node
-        >>> rotor.H_kappa(0, 0) # doctest: +ELLIPSIS
-        array([[1.04039379e-27, 4.55965906e-17],
-               [4.55965906e-17, 1.99856891e-06]])
+        >>> rotor.H_kappa(0, 0).round(6) # doctest: +ELLIPSIS
+        array([[0.e+00, 0.e+00],
+               [0.e+00, 2.e-06]])
         """
         # get vector of interest based on freqs
         vector = self.evectors[4 * node : 4 * node + 2, w]
@@ -872,8 +872,8 @@ class Rotor(object):
         >>> rotor.kappa(0, 0)['Major axes'] # doctest: +ELLIPSIS
         0.00141...
         >>> # kappa for node 2 and natural frequency (mode) 3.
-        >>> rotor.kappa(2, 3)['kappa'] # doctest: +ELLIPSIS
-        -3.720...e-13
+        >>> rotor.kappa(2, 3)['kappa'].round(2) # doctest: +ELLIPSIS
+        -0.0
         """
         if wd:
             nat_freq = self.wd[w]
@@ -938,8 +938,8 @@ class Rotor(object):
         --------
         >>> rotor = rotor_example()
         >>> # kappa for each node of the first natural frequency
-        >>> rotor.kappa_mode(0) # doctest: +ELLIPSIS
-        [0.0, 0.0, 1.300...e-08, 0.0, 1.300...e-08, 0.0, 1.455...e-08]
+        >>> list(map(round, rotor.kappa_mode(0))) # doctest: +ELLIPSIS
+        [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
         """
         kappa_mode = [self.kappa(node, w)["kappa"] for node in self.nodes]
         return kappa_mode
