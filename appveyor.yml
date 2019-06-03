@@ -19,7 +19,7 @@ install:
 build: off
 
 test_script:
-  - "%PYTHON%\\python.exe setup.py test"
+  - "%PYTHON%\\python.exe pytest ross"
 
 after_test:
   - "%PYTHON%\\python.exe setup.py bdist_wheel"
