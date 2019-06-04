@@ -137,9 +137,9 @@ html_theme_options = {
     # Note the "1" or "True" value above as the third argument to indicate
     # an arbitrary url.
     "navbar_links": [
-        ("Tutorial", "tutorial/index"),
-        ("Examples", "gallery/index"),
-        ("API", "api/index"),
+        ("Tutorial", "examples/tutorial"),
+        ("Examples", "examples"),
+        ("API", "api"),
     ],
     # Render the next and previous page links in navbar. (Default: true)
     "navbar_sidebarrel": False,
