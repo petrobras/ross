@@ -659,7 +659,7 @@ class Rotor(object):
         >>> evalues, evectors = rotor._eigen(0, sorted_=True)
         >>> idx = rotor._index(evalues)
         >>> idx[:6] # doctest: +ELLIPSIS
-        array([0, 1, 2, 3, 4, 5], ...
+        array([0, 1, 2, 3, 4, ...
         """
         # avoid float point errors when sorting
         evals_truncated = np.around(eigenvalues, decimals=10)
@@ -2232,7 +2232,7 @@ class Rotor(object):
         ...                            BearingElement(n=3, kxx=1e6, cxx=0, kyy=1e6, cyy=0, kxy=0, cxy=0, kyx=0, cyx=0)],
         ...             w=0, nel_r=1)
         >>> rotor.run_modal()
-        >>> rotor.wn
+        >>> rotor.wn.round(4)
         array([ 85.76341374,  85.76341374, 271.93258207, 271.93258207,
                718.58003871, 718.58003871])
         """
