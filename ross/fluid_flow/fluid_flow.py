@@ -151,7 +151,7 @@ class PressureMatrix:
     >>> my_pressure_matrix.plot_shape()
     >>> my_pressure_matrix.plot_pressure_theta(z=int(nz/2))
     >>> my_pressure_matrix.matplot_pressure_theta_cylindrical(z=int(nz/2),
-    ... show_immediately=True)
+    ... show_immediately=False)
     """
 
     def __init__(
