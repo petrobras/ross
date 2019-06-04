@@ -14,10 +14,6 @@ build: off
 test_script:
   - "%PYTHON%\\python.exe -m pytest ross"
 
-after_test:
-  - "%PYTHON%\\python.exe setup.py bdist_wheel"
-  - "%PYTHON%\\python.exe setup.py bdist_wheel"
-
 artifacts:
   - path: dist\*
 
