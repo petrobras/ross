@@ -2233,8 +2233,8 @@ class Rotor(object):
         ...             w=0, nel_r=1)
         >>> rotor.run_modal()
         >>> rotor.wn.round(4)
-        array([ 85.76341374,  85.76341374, 271.93258207, 271.93258207,
-               718.58003871, 718.58003871])
+        array([ 85.7634,  85.7634, 271.9326, 271.9326, 718.58  , 718.58  ])
+
         """
 
         if len(leng_data) != len(o_ds_data) or len(leng_data) != len(i_ds_data):
