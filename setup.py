@@ -45,16 +45,13 @@ REQUIRED = [
     "matplotlib",
     "toml",
     "pandas",
-    "pytest",
     "bokeh",
     "coverage",
     "xlrd",
 ]
 
 # What packages are optional?
-EXTRAS = {
-    # 'fancy feature': ['django'],
-}
+EXTRAS = {"dev": ["pytest"]}
 
 # The rest you shouldn't have to touch too much :)
 # ------------------------------------------------

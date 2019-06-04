@@ -1,8 +1,0 @@
-numpy
-scipy
-matplotlib
-seaborn
-bokeh
-xlrd
-toml
-pytest
