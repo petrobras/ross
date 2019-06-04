@@ -108,18 +108,18 @@ class DiskElement(Element):
         --------
         >>> disk = DiskElement(0, 32.58972765, 0.17808928, 0.32956362)
         >>> disk.M()
-        array([[ 32.58972765,   0.        ,   0.        ,   0.        ],
-               [  0.        ,  32.58972765,   0.        ,   0.        ],
-               [  0.        ,   0.        ,   0.17808928,   0.        ],
-               [  0.        ,   0.        ,   0.        ,   0.17808928]])
+        array([[32.58972765,  0.        ,  0.        ,  0.        ],
+               [ 0.        , 32.58972765,  0.        ,  0.        ],
+               [ 0.        ,  0.        ,  0.17808928,  0.        ],
+               [ 0.        ,  0.        ,  0.        ,  0.17808928]])
         """
         m = self.m
         Id = self.Id
         # fmt: off
         M = np.array([[m, 0,  0,  0],
-                       [0, m,  0,  0],
-                       [0, 0, Id,  0],
-                       [0, 0,  0, Id]])
+                      [0, m,  0,  0],
+                      [0, 0, Id,  0],
+                      [0, 0,  0, Id]])
         # fmt: on
         return M
 
@@ -204,9 +204,7 @@ class DiskElement(Element):
         ax.add_patch(mpatches.Polygon(disk_points_u, facecolor=self.color))
         ax.add_patch(mpatches.Polygon(disk_points_l, facecolor=self.color))
 
-        ax.add_patch(
-            mpatches.Circle(xy=(zpos, ypos + D), radius=hw, color=self.color)
-        )
+        ax.add_patch(mpatches.Circle(xy=(zpos, ypos + D), radius=hw, color=self.color))
         ax.add_patch(
             mpatches.Circle(xy=(zpos, -(ypos + D)), radius=hw, color=self.color)
         )
@@ -249,7 +247,6 @@ class DiskElement(Element):
             x=z_circle, y=-y_circle, radius=le, fill_alpha=1, color=bokeh_colors[9]
         )
 
-
     @classmethod
     def from_geometry(cls, n, material, width, i_d, o_d):
         """A disk element.
@@ -286,10 +283,12 @@ class DiskElement(Element):
         0.32956362089137037
         """
         m = 0.25 * material.rho * np.pi * width * (o_d ** 2 - i_d ** 2)
+        # fmt: off
         Id = (
             0.015625 * material.rho * np.pi * width * (o_d ** 4 - i_d ** 4)
             + m * (width ** 2) / 12
         )
+        # fmt: on
         Ip = 0.03125 * material.rho * np.pi * width * (o_d ** 4 - i_d ** 4)
 
         return cls(n, m, Id, Ip)

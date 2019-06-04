@@ -105,19 +105,17 @@ class CampbellResults(Results):
 
         # bokeh plot - create a new plot
         camp = figure(
-           tools="pan, box_zoom, wheel_zoom, reset, save",
-           width=900,
-           height=500,
-           title="Campbell Diagram",
-           x_axis_label="Rotor speed (rad/s)",
-           y_axis_label="Damped natural frequencies (rad/s)"
+            tools="pan, box_zoom, wheel_zoom, reset, save",
+            width=900,
+            height=500,
+            title="Campbell Diagram",
+            x_axis_label="Rotor speed (rad/s)",
+            y_axis_label="Damped natural frequencies (rad/s)",
         )
 
         for mark, whirl_dir, legend in zip(
-                ["^", "o", "v"],
-                [0.0, 0.5, 1.0],
-                ["Foward", "Mixed", "Backward"]
-            ):
+            ["^", "o", "v"], [0.0, 0.5, 1.0], ["Foward", "Mixed", "Backward"]
+        ):
             num_frequencies = wd.shape[1]
             for i in range(num_frequencies):
                 if wn is True:
@@ -142,57 +140,60 @@ class CampbellResults(Results):
 
                     # Bokeh plot
                     source = ColumnDataSource(
-                            dict(x=speed_range_i[whirl_mask],
-                                 y=w_i[whirl_mask],
-                                 color=log_dec_i[whirl_mask]
-                                 )
+                        dict(
+                            x=speed_range_i[whirl_mask],
+                            y=w_i[whirl_mask],
+                            color=log_dec_i[whirl_mask],
+                        )
                     )
                     color_mapper = linear_cmap(
-                            field_name='color',
-                            palette=bp.magma(256),
-                            low=min(log_dec_map),
-                            high=max(log_dec_map)
+                        field_name="color",
+                        palette=bp.magma(256),
+                        low=min(log_dec_map),
+                        high=max(log_dec_map),
                     )
                     camp.scatter(
-                        x='x',
-                        y='y',
+                        x="x",
+                        y="y",
                         color=color_mapper,
                         marker=mark,
                         fill_alpha=1.0,
                         size=5,
                         muted_color=color_mapper,
-                        muted_alpha=0.2, 
+                        muted_alpha=0.2,
                         source=source,
-                        legend=legend
+                        legend=legend,
                     )
 
-        ax.plot(speed_range[:, 0],
-                speed_range[:, 0],
-                color='k',
-                linewidth=1.5,
-                linestyle="-.",
-                alpha=0.75,
-                label="Rotor speed"
+        ax.plot(
+            speed_range[:, 0],
+            speed_range[:, 0],
+            color="k",
+            linewidth=1.5,
+            linestyle="-.",
+            alpha=0.75,
+            label="Rotor speed",
         )
 
-        camp.line(x=speed_range[:, 0],
-                  y=speed_range[:, 0],
-                  line_width=3,
-                  color=bokeh_colors[0],
-                  line_dash="dotdash",
-                  line_alpha=0.75,
-                  legend="Rotor speed",
-                  muted_color=bokeh_colors[0],
-                  muted_alpha=0.2,
+        camp.line(
+            x=speed_range[:, 0],
+            y=speed_range[:, 0],
+            line_width=3,
+            color=bokeh_colors[0],
+            line_dash="dotdash",
+            line_alpha=0.75,
+            legend="Rotor speed",
+            muted_color=bokeh_colors[0],
+            muted_alpha=0.2,
         )
 
         color_bar = ColorBar(
-                color_mapper=color_mapper['transform'], width=8, location=(0, 0)
+            color_mapper=color_mapper["transform"], width=8, location=(0, 0)
         )
 
         camp.legend.click_policy = "mute"
         camp.legend.location = "top_left"
-        camp.add_layout(color_bar, 'right')
+        camp.add_layout(color_bar, "right")
         show(camp)
 
         if len(fig.axes) == 1:
@@ -265,30 +266,31 @@ class FrequencyResponseResults(Results):
             y_axis_label = "Amplitude (m)"
         elif units == "mic-pk-pk":
             ax.set_ylabel("Amplitude $(\mu pk-pk)$")
-            y_axis_label = ("Amplitude (\mu pk-pk)")
+            y_axis_label = "Amplitude (\mu pk-pk)"
         else:
             ax.set_ylabel("Amplitude $(dB)$")
-            y_axis_label = ("Amplitude (dB")
+            y_axis_label = "Amplitude (dB"
 
         ax.set_xlabel("Frequency (rad/s)")
 
         # bokeh plot - create a new plot
         mag_plot = figure(
-                tools="pan, box_zoom, wheel_zoom, reset, save",
-                width=900,
-                height=400,
-                title="Frequency Response - Magnitude",
-                x_axis_label="Frequency",
-                y_axis_label=y_axis_label
+            tools="pan, box_zoom, wheel_zoom, reset, save",
+            width=900,
+            height=400,
+            title="Frequency Response - Magnitude",
+            x_axis_label="Frequency",
+            y_axis_label=y_axis_label,
         )
         source = ColumnDataSource(dict(x=frequency_range, y=mag[inp, out, :]))
-        mag_plot.line(x='x',
-                      y='y',
-                      source=source,
-                      line_color=bokeh_colors[0],
-                      line_alpha=1.0,
-                      line_width=3,
-                      )
+        mag_plot.line(
+            x="x",
+            y="y",
+            source=source,
+            line_color=bokeh_colors[0],
+            line_alpha=1.0,
+            line_width=3,
+        )
 
         return ax, mag_plot
 
@@ -334,21 +336,22 @@ class FrequencyResponseResults(Results):
 
         # bokeh plot - create a new plot
         phase_plot = figure(
-                tools="pan, box_zoom, wheel_zoom, reset, save",
-                width=900,
-                height=400,
-                title="Frequency Response - Phase",
-                x_axis_label="Frequency",
-                y_axis_label="Phase"
+            tools="pan, box_zoom, wheel_zoom, reset, save",
+            width=900,
+            height=400,
+            title="Frequency Response - Phase",
+            x_axis_label="Frequency",
+            y_axis_label="Phase",
         )
         source = ColumnDataSource(dict(x=frequency_range, y=phase[inp, out, :]))
-        phase_plot.line(x='x',
-                        y='y',
-                        source=source,
-                        line_color=bokeh_colors[0],
-                        line_alpha=1.0,
-                        line_width=3,
-                        )
+        phase_plot.line(
+            x="x",
+            y="y",
+            source=source,
+            line_color=bokeh_colors[0],
+            line_alpha=1.0,
+            line_width=3,
+        )
 
         return ax, phase_plot
 
@@ -407,7 +410,6 @@ class FrequencyResponseResults(Results):
         return ax0, ax1, bk_ax0, bk_ax1
 
     def plot_freq_response_grid(self, outs, inps, ax=None, **kwargs):
-
         """Plot frequency response.
         This method plots the frequency response given
         an output and an input.
@@ -424,22 +426,6 @@ class FrequencyResponseResults(Results):
         -------
         ax : array with matplotlib.axes, optional
             Matplotlib axes array created with plt.subplots.
-        Examples
-        --------
-        >>> m0, m1 = 1, 1
-        >>> c0, c1, c2 = 1, 1, 1
-        >>> k0, k1, k2 = 1e3, 1e3, 1e3
-        >>> M = np.array([[m0, 0],
-        ...               [0, m1]])
-        >>> C = np.array([[c0+c1, -c2],
-        ...               [-c1, c2+c2]])
-        >>> K = np.array([[k0+k1, -k2],
-        ...               [-k1, k2+k2]])
-        >>> sys = VibeSystem(M, C, K) # create the system
-        >>> # plot frequency response for inputs at [0, 1]
-        >>> # and outputs at [0, 1]
-        >>> sys.plot_freq_response_grid(outs=[0, 1], inps=[0, 1])
-        array([[<matplotlib.axes._...
         """
         if ax is None:
             fig, ax = plt.subplots(
@@ -515,22 +501,23 @@ class ForcedResponseResults(Results):
 
         # bokeh plot - create a new plot
         mag_plot = figure(
-                tools="pan, box_zoom, wheel_zoom, reset, save",
-                width=900,
-                height=400,
-                title="Forced Response - Magnitude",
-                x_axis_label="Frequency",
-                x_range=[0, max(frequency_range)],
-                y_axis_label=y_axis_label
+            tools="pan, box_zoom, wheel_zoom, reset, save",
+            width=900,
+            height=400,
+            title="Forced Response - Magnitude",
+            x_axis_label="Frequency",
+            x_range=[0, max(frequency_range)],
+            y_axis_label=y_axis_label,
         )
         source = ColumnDataSource(dict(x=frequency_range, y=mag[dof]))
-        mag_plot.line(x='x',
-                      y='y',
-                      source=source,
-                      line_color=bokeh_colors[0],
-                      line_alpha=1.0,
-                      line_width=3,
-                      )
+        mag_plot.line(
+            x="x",
+            y="y",
+            source=source,
+            line_color=bokeh_colors[0],
+            line_alpha=1.0,
+            line_width=3,
+        )
 
         return ax, mag_plot
 
@@ -575,22 +562,23 @@ class ForcedResponseResults(Results):
 
         # bokeh plot - create a new plot
         phase_plot = figure(
-                tools="pan, box_zoom, wheel_zoom, reset, save",
-                width=900,
-                height=400,
-                title="Forced Response - Magnitude",
-                x_axis_label="Frequency",
-                x_range=[0, max(frequency_range)],
-                y_axis_label="Phase"
+            tools="pan, box_zoom, wheel_zoom, reset, save",
+            width=900,
+            height=400,
+            title="Forced Response - Magnitude",
+            x_axis_label="Frequency",
+            x_range=[0, max(frequency_range)],
+            y_axis_label="Phase",
         )
         source = ColumnDataSource(dict(x=frequency_range, y=phase[dof]))
-        phase_plot.line(x='x',
-                        y='y',
-                        source=source,
-                        line_color=bokeh_colors[0],
-                        line_alpha=1.0,
-                        line_width=3,
-                        )
+        phase_plot.line(
+            x="x",
+            y="y",
+            source=source,
+            line_color=bokeh_colors[0],
+            line_alpha=1.0,
+            line_width=3,
+        )
 
         return ax, phase_plot
 
