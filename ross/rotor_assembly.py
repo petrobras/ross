@@ -656,10 +656,10 @@ class Rotor(object):
         Examples
         --------
         >>> rotor = rotor_example()
-        >>> evalues, evectors = rotor._eigen(0, sorted_=False)
+        >>> evalues, evectors = rotor._eigen(0, sorted_=True)
         >>> idx = rotor._index(evalues)
         >>> idx[:6] # doctest: +ELLIPSIS
-        array([ 1,  3,  5,  7,  9, 11]...
+        array([0, 1, 2, 3, 4, 5])...
         """
         # avoid float point errors when sorting
         evals_truncated = np.around(eigenvalues, decimals=10)
