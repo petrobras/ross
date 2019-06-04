@@ -802,9 +802,7 @@ class Rotor(object):
         --------
         >>> rotor = rotor_example()
         >>> # H matrix for the 0th node
-        >>> rotor.H_kappa(3, 2).round(6) # doctest: +ELLIPSIS
-        array([[0., 0.],
-               [0., 0.]])
+        >>> h_kappa = rotor.H_kappa(0, 0)
         """
         # get vector of interest based on freqs
         vector = self.evectors[4 * node : 4 * node + 2, w]
