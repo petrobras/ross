@@ -2411,8 +2411,8 @@ def whirl(kappa_mode):
 def whirl_to_cmap(whirl):
     """Maps the whirl to a value"""
     if whirl == "Forward":
-        return 0
+        return 0.
     elif whirl == "Backward":
-        return 1
-    else:
+        return 1.
+    elif whirl == "Mixed":
         return 0.5
