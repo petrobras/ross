@@ -765,7 +765,7 @@ class ModeShapeResults(Results):
 
         ax.set_title(
             f"$speed$ = {self.w:.1f} rad/s\n$"
-            f"\frequency_range_d$ = {self.wd[mode]:.1f} rad/s\n"
+            f"\omega_d$ = {self.wd[mode]:.1f} rad/s\n"
             f"$log dec$ = {self.log_dec[mode]:.1f}"
         )
 
