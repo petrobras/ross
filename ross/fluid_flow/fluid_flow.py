@@ -227,8 +227,6 @@ class PressureMatrix:
         self.P = np.zeros([self.ntotal, 1])
         self.p_mat_numerical = np.zeros([self.nz, self.ntheta])
         self.calculate_coefficients()
-        self.mounting_matrix()
-        self.resolves_matrix()
         self.pressure_matrix_available = False
 
     def calculate_pressure_matrix_analytical(self):
@@ -243,7 +241,7 @@ class PressureMatrix:
                                                    (self.eccentricity_ratio * np.sin(j * self.dtheta)) /
                                                    (1 + self.eccentricity_ratio * np.cos(j * self.dtheta))**3)
                     # fmt: on
-            self.pressure_matrix_available = True
+        self.pressure_matrix_available = True
         return self.p_mat_analytical
 
     def calculate_coefficients(self):
@@ -374,10 +372,13 @@ class PressureMatrix:
     def calculate_pressure_matrix_numerical(self):
         """This function calculates the numerical pressure matrix
         """
+        self.mounting_matrix()
+        self.resolves_matrix()
         for i in range(self.nz):
             for j in range(self.ntheta):
                 k = j * self.nz + i
                 self.p_mat_numerical[i][j] = self.P[k]
+        self.pressure_matrix_available = True
         return self.p_mat_numerical
 
     def internal_radius_function(self, z, gama):
