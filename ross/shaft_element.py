@@ -146,7 +146,7 @@ class ShaftElement(Element):
 
         # Slenderness ratio of beam elements (G*A*L^2) / (E*I)
         sld = (self.material.G_s * self.A * self.L ** 2) / (self.material.E * self.Ie)
-        self.slenderness_ratio = sld    
+        self.slenderness_ratio = sld
 
         # picking a method to calculate the shear coefficient
         # List of avaible methods:
@@ -188,7 +188,7 @@ class ShaftElement(Element):
             return True
         else:
             return False
-        
+
     def save(self, file_name):
         data = self.load_data(file_name)
         data["ShaftElement"][str(self.n)] = {
@@ -316,10 +316,10 @@ class ShaftElement(Element):
         ...                                  rotary_inertia=True,
         ...                                  shear_effects=True)
         >>> Timoshenko_Element.K()[:4, :4]/1e6
-        array([[ 45.69644273,   0.        ,   0.        ,   5.71205534],
-               [  0.        ,  45.69644273,  -5.71205534,   0.        ],
-               [  0.        ,  -5.71205534,   0.97294287,   0.        ],
-               [  5.71205534,   0.        ,   0.        ,   0.97294287]])
+        array([[45.69644273,  0.        ,  0.        ,  5.71205534],
+               [ 0.        , 45.69644273, -5.71205534,  0.        ],
+               [ 0.        , -5.71205534,  0.97294287,  0.        ],
+               [ 5.71205534,  0.        ,  0.        ,  0.97294287]])
         """
         phi = self.phi
         L = self.L
@@ -533,7 +533,7 @@ class ShaftElement(Element):
         >>> len(sec)
         4
         >>> sec[0].i_d
-        0
+        0.0
         """
 
         le = L / ne

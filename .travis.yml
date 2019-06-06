@@ -8,10 +8,10 @@ matrix:
     - python: 3.7
 
 install:
-  - pip install codecov
+  - pip install -e .[dev]
 
 script:
-  - coverage run setup.py test
+  - pytest ross
 
 after_success:
   - codecov

@@ -88,14 +88,14 @@ def test_damping_matrix():
     assert math.isclose(cyy/10**3, 294.9, rel_tol=0.01)
 
 
-def test_numerical_fluid_flow():
+def fluid_flow_numerical():
     nz = 8
     ntheta = 64
     nradius = 11
     length = 0.01
     omega = 100. * 2 * np.pi / 60
-    p_in = 1.
-    p_out = 1.
+    p_in = 0.
+    p_out = 0.
     radius_rotor = 0.08
     radius_stator = 0.1
     visc = 0.015
@@ -105,3 +105,12 @@ def test_numerical_fluid_flow():
     return flow.PressureMatrix(nz, ntheta, nradius, length,
                                omega, p_in, p_out, radius_rotor,
                                radius_stator, visc, rho, beta=beta, eccentricity=eccentricity)
+
+
+def test_numerical_abs_error():
+    bearing = fluid_flow_numerical()
+    bearing.calculate_pressure_matrix_analytical()
+    bearing.calculate_pressure_matrix_numerical()
+    error = np.linalg.norm(bearing.p_mat_analytical[:][int(bearing.nz / 2)] -
+                           bearing.p_mat_numerical[:][int(bearing.nz / 2)], ord=np.inf)
+    assert math.isclose(error, 0, abs_tol=0.001)
