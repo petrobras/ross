@@ -19,6 +19,7 @@ available at `github <https://github.com/ross-rotordynamics/ross>`_.
    examples/tutorial
    examples
    api
+   release_notes
 
 Indices and tables
 ==================
