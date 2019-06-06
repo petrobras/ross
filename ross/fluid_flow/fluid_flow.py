@@ -691,10 +691,10 @@ class PressureMatrix:
             ax.plot(self.xri[z][j], self.yri[z][j], "b.")
             ax.plot(0, 0, "b*")
             ax.plot(self.xe, self.ye, "r*")
-            ax.title("Cut in plane Z=" + str(z))
-            ax.xlabel("X axis")
-            ax.ylabel("Y axis")
-            ax.axis("equal")
+        ax.set_title("Cut in plane Z=" + str(z))
+        ax.set_xlabel("X axis")
+        ax.set_ylabel("Y axis")
+        plt.axis("equal")
         return ax
 
     def matplot_pressure_z(self, ax=None):
@@ -717,9 +717,9 @@ class PressureMatrix:
             ax = plt.gca()
         for i in range(0, self.nz):
             ax.plot(i * self.dz, self.p_mat_analytical[i][0], "bo")
-        ax.title("Pressure along the Z direction (direction of flow); Theta=0")
-        ax.xlabel("Points along Z")
-        ax.ylabel("Pressure")
+        ax.set_title("Pressure along the Z direction (direction of flow); Theta=0")
+        ax.set_xlabel("Points along Z")
+        ax.set_ylabel("Pressure")
         return ax
 
     def matplot_shape(self, theta=0, ax=None):
@@ -746,9 +746,9 @@ class PressureMatrix:
             y_ri[i] = self.ri[i][theta]
         ax.plot(x, y_re, "r")
         ax.plot(x, y_ri, "b")
-        ax.title("Shapes of stator and rotor along Z; Theta=" + str(theta))
-        ax.xlabel("Points along Z")
-        ax.ylabel("Radial direction")
+        ax.set_title("Shapes of stator and rotor along Z; Theta=" + str(theta))
+        ax.set_xlabel("Points along Z")
+        ax.set_ylabel("Radial direction")
         return ax
 
     def matplot_pressure_theta_cylindrical(self, z=0, ax=None):
@@ -800,7 +800,7 @@ class PressureMatrix:
                 pressure_list[i][j] = pressure_along_theta[i]
                 z_matrix[i][j] = pressure_along_theta[i] - min_pressure + 0.01
         ax.contourf(theta_matrix, r_matrix, z_matrix, cmap="coolwarm")
-        ax.title("Pressure along Theta; Z=" + str(z))
+        ax.set_title("Pressure along Theta; Z=" + str(z))
         return ax
 
     def matplot_pressure_theta(self, z=0, ax=None):
@@ -828,8 +828,8 @@ class PressureMatrix:
         for t in range(0, self.ntheta):
             list_of_thetas.append(t * self.dtheta)
         ax.plot(list_of_thetas, self.p_mat_analytical[z], "b")
-        ax.title("Pressure along Theta; Z=" + str(z))
-        ax.xlabel("Points along Theta")
-        ax.ylabel("Pressure")
+        ax.set_title("Pressure along Theta; Z=" + str(z))
+        ax.set_xlabel("Points along Theta")
+        ax.set_ylabel("Pressure")
         return ax
 
