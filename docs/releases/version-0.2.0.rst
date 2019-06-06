@@ -80,6 +80,12 @@ Convergence.prof`.
 Those changes are some import optimization and turning static() method
 into run_static() method.
 
+Added user guide on how to use ross
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+A tutorial has been added to the documentation. This is available as a
+jupyter notebook and is also rendered in the :ref:`tutorial <tutorial>`
+documentation page.
+
 Jupyter examples
 ~~~~~~~~~~~~~~~~
 Implementation of the following examples, taken from Frisswell:
