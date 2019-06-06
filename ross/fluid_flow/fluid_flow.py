@@ -123,6 +123,7 @@ class PressureMatrix:
     --------
     >>> from ross.fluid_flow import fluid_flow as flow
     >>> import numpy as np
+    >>> import matplotlib.pyplot as plt
     >>> nz = 8
     >>> ntheta = 64
     >>> nradius = 11
@@ -147,8 +148,8 @@ class PressureMatrix:
     >>> my_pressure_matrix.plot_pressure_z()
     >>> my_pressure_matrix.plot_shape()
     >>> my_pressure_matrix.plot_pressure_theta(z=int(nz/2))
-    >>> my_pressure_matrix.matplot_pressure_theta_cylindrical(z=int(nz/2),
-    ... show_immediately=False)
+    >>> my_pressure_matrix.matplot_pressure_theta_cylindrical(z=int(nz/2))
+    >>> plt.show()
     """
 
     def __init__(
