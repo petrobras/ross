@@ -45,10 +45,10 @@ class PressureMatrix:
         Rotor radius (m).
     radius_stator: float
         Stator Radius (m).
-    eccentricity: float
+    eccentricity: float, optional
         Eccentricity (m) is the euclidean distance between rotor and stator centers.
         The center of the stator is in position (0,0).
-    beta: float
+    beta: float, optional
         Angle between the origin and the eccentricity (rad).
 
     Fluid characteristics
@@ -585,8 +585,12 @@ class PressureMatrix:
         The first few plots are of a different color to indicate where theta begins.
         Parameters
         ----------
-        z: int
+        z: int, optional
             The distance in z where to cut and plot.
+        Returns
+        -------
+        Figure
+            An object containing the plot.
         """
         output_file("plot_eccentricity.html")
         p = figure(
@@ -600,7 +604,7 @@ class PressureMatrix:
             p.circle(0, 0, color="blue")
             p.circle(self.xe, self.ye, color="red")
         p.circle(0, 0, color="black")
-        show(p)
+        return p
 
     def plot_pressure_z(self, theta=0):
         """This function assembles pressure graphic along the z-axis for one or both the
@@ -608,8 +612,12 @@ class PressureMatrix:
         one or both were calculated.
         Parameters
         ----------
-        theta: int
+        theta: int, optional
             The theta to be considered.
+        Returns
+        -------
+        Figure
+            An object containing the plot.
         """
         if not self.numerical_pressure_matrix_available and not self.analytical_pressure_matrix_available:
             sys.exit(
@@ -633,14 +641,18 @@ class PressureMatrix:
             p.line(x, y_n, legend="Numerical pressure", color="blue", line_width=2)
         if self.analytical_pressure_matrix_available:
             p.line(x, y_a, legend="Analytical pressure", color="red", line_width=2)
-        show(p)
+        return p
 
     def plot_shape(self, theta=0):
         """This function assembles a graphic representing the geometry of the rotor.
         Parameters
         ----------
-        theta: int
+        theta: int, optional
             The theta to be considered.
+        Returns
+        -------
+        Figure
+            An object containing the plot.
         """
         output_file("plot_shape.html")
         x = np.zeros(self.nz)
@@ -657,7 +669,7 @@ class PressureMatrix:
         )
         p.line(x, y_re, line_width=2, color="red")
         p.line(x, y_ri, line_width=2, color="blue")
-        show(p)
+        return p
 
     def plot_pressure_theta(self, z=0):
         """This function assembles pressure graphic in the theta direction for a given z
@@ -665,8 +677,12 @@ class PressureMatrix:
         depending on if one or both were calculated.
         Parameters
         ----------
-        z: int
+        z: int, optional
             The distance along z-axis to be considered.
+        Returns
+        -------
+        Figure
+            An object containing the plot.
         """
         if not self.numerical_pressure_matrix_available and not self.analytical_pressure_matrix_available:
             sys.exit(
@@ -686,21 +702,21 @@ class PressureMatrix:
             p.line(theta_list, self.p_mat_numerical[z], legend="Numerical pressure", line_width=2, color="blue")
         if self.analytical_pressure_matrix_available:
             p.line(theta_list, self.p_mat_analytical[z], legend="Analytical pressure", line_width=2, color="red")
-        show(p)
+        return p
 
     def matplot_eccentricity(self, z=0, ax=None):
         """This function assembles pressure graphic along the z-axis using matplotlib.
         The first few plots are of a different color to indicate where theta begins.
         Parameters
         ----------
-        z: int
+        z: int, optional
             The distance in z where to cut and plot.
-        ax: int
-            The axes in which the figure will be plotted. If None is given, a new one is created.
+        ax : matplotlib axes, optional
+            Axes in which the plot will be drawn.
         Returns
         -------
-        Axes
-            A matplotlib object containing the plot information.
+        ax : matplotlib axes
+            Returns the axes object with the plot.
         """
         if ax is None:
             ax = plt.gca()
@@ -721,14 +737,14 @@ class PressureMatrix:
         depending on if one or both were calculated.
         Parameters
         ----------
-        theta: int
+        theta: int, optional
             The distance in theta where to cut and plot.
-        ax: int
-            The axes in which the figure will be plotted. If None is given, a new one is created.
+        ax : matplotlib axes, optional
+            Axes in which the plot will be drawn.
         Returns
         -------
-        Axes
-            A matplotlib object containing the plot information.
+        ax : matplotlib axes
+            Returns the axes object with the plot.
         """
         if not self.numerical_pressure_matrix_available and not self.analytical_pressure_matrix_available:
             sys.exit(
@@ -757,14 +773,14 @@ class PressureMatrix:
         """This function assembles a graphic representing the geometry of the rotor using matplotlib.
         Parameters
         ----------
-        theta: int
+        theta: int, optional
             The theta to be considered.
-        ax: int
-            The axes in which the figure will be plotted. If None is given, a new one is created.
+        ax : matplotlib axes, optional
+            Axes in which the plot will be drawn.
         Returns
         -------
-        Axes
-            A matplotlib object containing the plot information.
+        ax : matplotlib axes
+            Returns the axes object with the plot.
         """
         if ax is None:
             ax = plt.gca()
@@ -787,19 +803,19 @@ class PressureMatrix:
         using matplotlib.
         Parameters
         ----------
-        z: int
+        z: int, optional
             The distance along z-axis to be considered.
-        from_numerical: bool
+        from_numerical: bool, optional
             If True, takes the numerically calculated pressure matrix as entry.
             If False, takes the analytically calculated one instead.
             If condition cannot be satisfied (matrix not calculated), it will take the one that is available
             and raise a warning.
-        ax: int
-            The axes in which the figure will be plotted. If None is given, a new one is created.
+        ax : matplotlib axes, optional
+            Axes in which the plot will be drawn.
         Returns
         -------
-        Axes
-            A matplotlib object containing the plot information.
+        ax : matplotlib axes
+            Returns the axes object with the plot.
         """
         if not self.numerical_pressure_matrix_available and not self.analytical_pressure_matrix_available:
             sys.exit(
@@ -859,14 +875,14 @@ class PressureMatrix:
         using matplotlib.
         Parameters
         ----------
-        z: int
+        z: int, optional
             The distance along z-axis to be considered.
-        ax: int
-            The axes in which the figure will be plotted. If None is given, a new one is created.
+        ax : matplotlib axes, optional
+            Axes in which the plot will be drawn.
         Returns
         -------
-        Axes
-            A matplotlib object containing the plot information.
+        ax : matplotlib axes
+            Returns the axes object with the plot.
         """
         if not self.numerical_pressure_matrix_available and not self.analytical_pressure_matrix_available:
             sys.exit(
