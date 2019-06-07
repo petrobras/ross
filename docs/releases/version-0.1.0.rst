@@ -1,4 +1,4 @@
-Version 0.2.0 (alpha release)
+Version 0.1.0 (alpha release)
 -----------------------------
 
 For the alpha release, the main classes have been created and the more
