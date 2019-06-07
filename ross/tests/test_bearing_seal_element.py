@@ -132,3 +132,10 @@ def bearing_constant():
 def test_bearing_constant(bearing_constant):
     assert_allclose(bearing_constant.kxx.interpolated(314.2), 8e7, rtol=1e5)
     assert_allclose(bearing_constant.cxx.interpolated(300.9), 0, rtol=1e5)
+
+
+def test_equality(bearing0, bearing1, bearing_constant):
+    assert bearing0 == bearing0
+    assert bearing0 == bearing1
+    assert not bearing0 == bearing_constant
+    assert not bearing0 == 1

@@ -199,26 +199,26 @@ class BearingElement(Element):
         )
 
     def __eq__(self, other):
-        try:
-            if pytest.approx(self.__dict__) == other.__dict__:
-                return True
-            else:
-                return False
-
-        except TypeError:
-
-            self_dict = self.__dict__
-            other_dict = other.__dict__
-
-            self_dict["w"] = 0
-            other_dict["w"] = 0
-
-            if (
-                self.__dict__["w"] == other.__dict__["w"]
-            ).__bool__() and self_dict == other_dict:
-                return True
-            else:
-                return False
+        compared_attributes = [
+            "kxx",
+            "kyy",
+            "kxy",
+            "kyx",
+            "cxx",
+            "cyy",
+            "cxy",
+            "cyx",
+            "w",
+        ]
+        if isinstance(other, self.__class__):
+            return all(
+                (
+                    np.array(getattr(self, attr)).all()
+                    == np.array(getattr(other, attr)).all()
+                    for attr in compared_attributes
+                )
+            )
+        return False
 
     def save(self, file_name):
         data = self.load_data(file_name)
