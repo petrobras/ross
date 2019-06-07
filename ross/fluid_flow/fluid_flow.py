@@ -118,6 +118,10 @@ class PressureMatrix:
         if length/radius_stator > 4 it is long.
     radial_clearance: float
         Difference between both stator and rotor radius, regardless of eccentricity.
+    analytical_pressure_matrix_available: bool
+        True if analytically calculated pressure matrix is available.
+    numerical_pressure_matrix_available: bool
+        True if numerically calculated pressure matrix is available.
 
     Examples
     --------
@@ -136,7 +140,7 @@ class PressureMatrix:
     >>> visc = 0.015
     >>> rho = 860.
     >>> eccentricity = 0.001
-    >>> beta =  np.pi
+    >>> beta = np.pi
     >>> my_pressure_matrix = flow.PressureMatrix(nz, ntheta, nradius, length,
     ...                                          omega, p_in, p_out, radius_rotor,
     ...                                          radius_stator, visc, rho, beta=beta, eccentricity=eccentricity)
@@ -227,10 +231,11 @@ class PressureMatrix:
         self.P = np.zeros([self.ntotal, 1])
         self.p_mat_numerical = np.zeros([self.nz, self.ntheta])
         self.calculate_coefficients()
-        self.pressure_matrix_available = False
+        self.analytical_pressure_matrix_available = False
+        self.numerical_pressure_matrix_available = False
 
     def calculate_pressure_matrix_analytical(self):
-        """This function calculates the analytical pressure matrix
+        """This function calculates the pressure matrix analytically.
         """
         if self.bearing_type == "short_bearing":
             for i in range(self.nz):
@@ -241,7 +246,7 @@ class PressureMatrix:
                                                    (self.eccentricity_ratio * np.sin(j * self.dtheta)) /
                                                    (1 + self.eccentricity_ratio * np.cos(j * self.dtheta))**3)
                     # fmt: on
-        self.pressure_matrix_available = True
+        self.analytical_pressure_matrix_available = True
         return self.p_mat_analytical
 
     def calculate_coefficients(self):
@@ -365,12 +370,12 @@ class PressureMatrix:
         # fmt: on
 
     def resolves_matrix(self):
-        """This function resolves the linear system [M]{P}={f}
+        """This function resolves the linear system [M]{P}={f}.
         """
         self.P = np.linalg.solve(self.M, self.f)
 
     def calculate_pressure_matrix_numerical(self):
-        """This function calculates the numerical pressure matrix
+        """This function calculates the pressure matrix numerically.
         """
         self.mounting_matrix()
         self.resolves_matrix()
@@ -378,7 +383,7 @@ class PressureMatrix:
             for j in range(self.ntheta):
                 k = j * self.nz + i
                 self.p_mat_numerical[i][j] = self.P[k]
-        self.pressure_matrix_available = True
+        self.numerical_pressure_matrix_available = True
         return self.p_mat_numerical
 
     def internal_radius_function(self, z, gama):
@@ -598,29 +603,36 @@ class PressureMatrix:
         show(p)
 
     def plot_pressure_z(self, theta=0):
-        """This function assembles pressure graphic along the z-axis.
+        """This function assembles pressure graphic along the z-axis for one or both the
+        numerically (blue) and analytically (red) calculated pressure matrices, depending on if
+        one or both were calculated.
         Parameters
         ----------
         theta: int
             The theta to be considered.
         """
-        if not self.pressure_matrix_available:
+        if not self.numerical_pressure_matrix_available and not self.analytical_pressure_matrix_available:
             sys.exit(
-                "Must calculate the pressure matrix."
-                "Try calling calculate_pressure_matrix first."
+                "Must calculate the pressure matrix. "
+                "Try calling calculate_pressure_matrix_numerical() or calculate_pressure_matrix_analytical() first."
             )
         output_file("plot_pressure_z.html")
         x = []
-        y = []
+        y_n = []
+        y_a = []
         for i in range(0, self.nz):
             x.append(i * self.dz)
-            y.append(self.p_mat_analytical[i][theta])
+            y_n.append(self.p_mat_numerical[i][theta])
+            y_a.append(self.p_mat_analytical[i][theta])
         p = figure(
             title="Pressure along the Z direction (direction of flow); Theta="
             + str(theta),
             x_axis_label="Points along Z",
         )
-        p.line(x, y, legend="Analytical pressure", line_width=2)
+        if self.numerical_pressure_matrix_available:
+            p.line(x, y_n, legend="Numerical pressure", color="blue", line_width=2)
+        if self.analytical_pressure_matrix_available:
+            p.line(x, y_a, legend="Analytical pressure", color="red", line_width=2)
         show(p)
 
     def plot_shape(self, theta=0):
@@ -648,16 +660,18 @@ class PressureMatrix:
         show(p)
 
     def plot_pressure_theta(self, z=0):
-        """This function assembles pressure graphic in the theta direction for a given z.
+        """This function assembles pressure graphic in the theta direction for a given z
+        for one or both the numerically (blue) and analytically (red) calculated pressure matrices,
+        depending on if one or both were calculated.
         Parameters
         ----------
         z: int
             The distance along z-axis to be considered.
         """
-        if not self.pressure_matrix_available:
+        if not self.numerical_pressure_matrix_available and not self.analytical_pressure_matrix_available:
             sys.exit(
-                "Must calculate the pressure matrix."
-                "Try calling calculate_pressure_matrix first."
+                "Must calculate the pressure matrix. "
+                "Try calling calculate_pressure_matrix_numerical() or calculate_pressure_matrix_analytical() first."
             )
         output_file("plot_pressure_theta.html")
         theta_list = []
@@ -668,8 +682,10 @@ class PressureMatrix:
             x_axis_label="Points along Theta",
             y_axis_label="Pressure",
         )
-        p.line(theta_list, self.p_mat_analytical[z], line_width=2, color="red")
-        p.line(theta_list, self.p_mat_numerical[z], line_width=2, color="blue")
+        if self.numerical_pressure_matrix_available:
+            p.line(theta_list, self.p_mat_numerical[z], legend="Numerical pressure", line_width=2, color="blue")
+        if self.analytical_pressure_matrix_available:
+            p.line(theta_list, self.p_mat_analytical[z], legend="Analytical pressure", line_width=2, color="red")
         show(p)
 
     def matplot_eccentricity(self, z=0, ax=None):
@@ -699,10 +715,14 @@ class PressureMatrix:
         plt.axis("equal")
         return ax
 
-    def matplot_pressure_z(self, ax=None):
-        """This function assembles pressure graphic along the z-axis using matplotlib.
+    def matplot_pressure_z(self, theta=0, ax=None):
+        """This function assembles pressure graphic along the z-axis using matplotlib
+        for one or both the numerically (blue) and analytically (red) calculated pressure matrices,
+        depending on if one or both were calculated.
         Parameters
         ----------
+        theta: int
+            The distance in theta where to cut and plot.
         ax: int
             The axes in which the figure will be plotted. If None is given, a new one is created.
         Returns
@@ -710,16 +730,25 @@ class PressureMatrix:
         Axes
             A matplotlib object containing the plot information.
         """
-        if not self.pressure_matrix_available:
+        if not self.numerical_pressure_matrix_available and not self.analytical_pressure_matrix_available:
             sys.exit(
-                "Must calculate the pressure matrix."
-                "Try calling calculate_pressure_matrix first."
+                "Must calculate the pressure matrix. "
+                "Try calling calculate_pressure_matrix_numerical() or calculate_pressure_matrix_analytical() first."
             )
         if ax is None:
             ax = plt.gca()
+        x = np.zeros(self.nz)
+        y_n = np.zeros(self.nz)
+        y_a = np.zeros(self.nz)
         for i in range(0, self.nz):
-            ax.plot(i * self.dz, self.p_mat_analytical[i][0], "bo")
-        ax.set_title("Pressure along the Z direction (direction of flow); Theta=0")
+            x[i] = i * self.dz
+            y_n[i] = self.p_mat_numerical[i][theta]
+            y_a[i] = self.p_mat_analytical[i][theta]
+        if self.numerical_pressure_matrix_available:
+            ax.plot(x, y_n, "b", label='Numerical pressure')
+        if self.analytical_pressure_matrix_available:
+            ax.plot(x, y_a, "r", label='Analytical pressure')
+        ax.set_title("Pressure along the Z direction (direction of flow); Theta=" + str(theta))
         ax.set_xlabel("Points along Z")
         ax.set_ylabel("Pressure")
         return ax
@@ -753,13 +782,18 @@ class PressureMatrix:
         ax.set_ylabel("Radial direction")
         return ax
 
-    def matplot_pressure_theta_cylindrical(self, z=0, ax=None):
+    def matplot_pressure_theta_cylindrical(self, z=0, from_numerical=True, ax=None):
         """This function assembles cylindrical pressure graphic in the theta direction for a given z,
         using matplotlib.
         Parameters
         ----------
         z: int
             The distance along z-axis to be considered.
+        from_numerical: bool
+            If True, takes the numerically calculated pressure matrix as entry.
+            If False, takes the analytically calculated one instead.
+            If condition cannot be satisfied (matrix not calculated), it will take the one that is available
+            and raise a warning.
         ax: int
             The axes in which the figure will be plotted. If None is given, a new one is created.
         Returns
@@ -767,11 +801,26 @@ class PressureMatrix:
         Axes
             A matplotlib object containing the plot information.
         """
-        if not self.pressure_matrix_available:
+        if not self.numerical_pressure_matrix_available and not self.analytical_pressure_matrix_available:
             sys.exit(
-                "Must calculate the pressure matrix."
-                "Try calling calculate_pressure_matrix first."
+                "Must calculate the pressure matrix. "
+                "Try calling calculate_pressure_matrix_numerical() or calculate_pressure_matrix_analytical() first."
             )
+        p_mat = None
+        if from_numerical:
+            if self.numerical_pressure_matrix_available:
+                p_mat = self.p_mat_numerical
+            else:
+                p_mat = self.p_mat_analytical
+                warnings.warn("Plotting from analytically calculated pressure matrix, as numerically calculated "
+                              "one is not available.")
+        else:
+            if self.analytical_pressure_matrix_available:
+                p_mat = self.p_mat_analytical
+            else:
+                p_mat = self.p_mat_numerical
+                warnings.warn("Plotting from numerically calculated pressure matrix, as analytically calculated "
+                              "one is not available.")
         if ax is None:
             fig, ax = plt.subplots(subplot_kw=dict(projection="polar"))
         r = np.arange(
@@ -783,7 +832,7 @@ class PressureMatrix:
 
         pressure_along_theta = np.zeros(self.ntheta)
         for i in range(0, self.ntheta):
-            pressure_along_theta[i] = self.p_mat_analytical[0][i]
+            pressure_along_theta[i] = p_mat[0][i]
 
         min_pressure = np.amin(pressure_along_theta)
 
@@ -819,17 +868,20 @@ class PressureMatrix:
         Axes
             A matplotlib object containing the plot information.
         """
-        if not self.pressure_matrix_available:
+        if not self.numerical_pressure_matrix_available and not self.analytical_pressure_matrix_available:
             sys.exit(
-                "Must calculate the pressure matrix."
-                "Try calling calculate_pressure_matrix first."
+                "Must calculate the pressure matrix. "
+                "Try calling calculate_pressure_matrix_numerical() or calculate_pressure_matrix_analytical() first."
             )
         if ax is None:
             ax = plt.gca()
         list_of_thetas = []
         for t in range(0, self.ntheta):
             list_of_thetas.append(t * self.dtheta)
-        ax.plot(list_of_thetas, self.p_mat_analytical[z], "b")
+        if self.numerical_pressure_matrix_available:
+            ax.plot(list_of_thetas, self.p_mat_numerical[z], "b", label='Numerical pressure')
+        if self.analytical_pressure_matrix_available:
+            ax.plot(list_of_thetas, self.p_mat_analytical[z], "r", label='Analytical pressure')
         ax.set_title("Pressure along Theta; Z=" + str(z))
         ax.set_xlabel("Points along Theta")
         ax.set_ylabel("Pressure")
