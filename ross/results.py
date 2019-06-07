@@ -749,6 +749,21 @@ class ModeShapeResults(Results):
 
 class StaticResults(Results):
     def plot(self):
+        """Plot static analysis graphs.
+        This method plots:
+            free-body diagram,
+            deformed shaft,
+            shearing force diagram,
+            bending moment diagram.
+
+        Parameters
+        ----------
+
+        Returns
+        -------
+        grid_plots : bokeh.gridplot
+        --------
+        """
 
         disp_y = np.array(self[0])
         Vx = np.array(self[1])
