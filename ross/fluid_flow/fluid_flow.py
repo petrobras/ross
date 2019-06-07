@@ -145,11 +145,14 @@ class PressureMatrix:
     >>> my_fluid_flow = flow.PressureMatrix(nz, ntheta, nradius, length,
     ...                                          omega, p_in, p_out, radius_rotor,
     ...                                          radius_stator, visc, rho, beta=beta, eccentricity=eccentricity)
-    >>> my_fluid_flow.calculate_pressure_matrix_analytical()
-    >>> my_fluid_flow.calculate_pressure_matrix_numerical()
+    >>> my_fluid_flow.calculate_pressure_matrix_analytical() # doctest: +ELLIPSIS
+    array([[-0.00000...
+    >>> my_fluid_flow.calculate_pressure_matrix_numerical() # doctest: +ELLIPSIS
+    array([[-3...
     >>> show(my_fluid_flow.plot_eccentricity())
     >>> show(my_fluid_flow.plot_pressure_theta(z=int(nz/2)))
-    >>> my_fluid_flow.matplot_pressure_theta(z=int(nz/2))
+    >>> my_fluid_flow.matplot_pressure_theta(z=int(nz/2)) # doctest: +ELLIPSIS
+    <matplotlib.axes._subplots.AxesSubplot object at...
     >>> plt.show()
     """
 
