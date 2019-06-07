@@ -30,6 +30,7 @@ from ross.results import (
     FrequencyResponseResults,
     ForcedResponseResults,
     ModeShapeResults,
+    StaticResults
 )
 from ross.shaft_element import ShaftElement
 
