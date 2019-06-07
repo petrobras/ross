@@ -3,7 +3,7 @@ import warnings
 
 import matplotlib.pyplot as plt
 import numpy as np
-from bokeh.plotting import figure, output_file, show
+from bokeh.plotting import figure, output_file
 
 
 class PressureMatrix:
@@ -127,32 +127,31 @@ class PressureMatrix:
     --------
     >>> from ross.fluid_flow import fluid_flow as flow
     >>> import numpy as np
+    >>> from bokeh.plotting import show
     >>> import matplotlib.pyplot as plt
     >>> nz = 8
     >>> ntheta = 64
     >>> nradius = 11
     >>> length = 0.01
     >>> omega = 100.*2*np.pi/60
-    >>> p_in = 1.
-    >>> p_out = 1.
+    >>> p_in = 0.
+    >>> p_out = 0.
     >>> radius_rotor = 0.08
     >>> radius_stator = 0.1
     >>> visc = 0.015
     >>> rho = 860.
     >>> eccentricity = 0.001
     >>> beta = np.pi
-    >>> my_pressure_matrix = flow.PressureMatrix(nz, ntheta, nradius, length,
+    >>> my_fluid_flow = flow.PressureMatrix(nz, ntheta, nradius, length,
     ...                                          omega, p_in, p_out, radius_rotor,
     ...                                          radius_stator, visc, rho, beta=beta, eccentricity=eccentricity)
-    >>> my_pressure_matrix.calculate_pressure_matrix_analytical() # doctest: +ELLIPSIS
+    >>> my_fluid_flow.calculate_pressure_matrix_analytical() # doctest: +ELLIPSIS
     array([[-0.00000...
-    >>> my_pressure_matrix.calculate_pressure_matrix_numerical() # doctest: +ELLIPSIS
+    >>> my_fluid_flow.calculate_pressure_matrix_numerical() # doctest: +ELLIPSIS
     array([[1...
-    >>> my_pressure_matrix.plot_eccentricity()
-    >>> my_pressure_matrix.plot_pressure_z()
-    >>> my_pressure_matrix.plot_shape()
-    >>> my_pressure_matrix.plot_pressure_theta(z=int(nz/2))
-    >>> my_pressure_matrix.matplot_pressure_theta_cylindrical(z=int(nz/2))
+    >>> show(my_fluid_flow.plot_eccentricity())
+    >>> show(my_fluid_flow.plot_pressure_theta(z=int(nz/2)))
+    >>> my_fluid_flow.matplot_pressure_theta(z=int(nz/2))
     >>> plt.show()
     """
 
