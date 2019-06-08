@@ -5,9 +5,10 @@ import matplotlib as mpl
 import matplotlib.pyplot as plt
 import numpy as np
 from bokeh.layouts import gridplot
-from bokeh.models import ColumnDataSource, ColorBar
+from bokeh.models import ColumnDataSource, ColorBar, Arrow, NormalHead, Label
 from bokeh.plotting import figure, output_file, show
 from bokeh.transform import linear_cmap
+from scipy import interpolate
 
 # set bokeh palette of colors
 bokeh_colors = bp.RdGy[11]
@@ -745,3 +746,295 @@ class ModeShapeResults(Results):
         )
 
         return fig, ax
+
+class StaticResults(Results):
+    def plot(self):
+        """Plot static analysis graphs.
+        This method plots:
+            free-body diagram,
+            deformed shaft,
+            shearing force diagram,
+            bending moment diagram.
+
+        Parameters
+        ----------
+
+        Returns
+        -------
+        grid_plots : bokeh.gridplot
+        --------
+        """
+
+        disp_y = np.array(self[0])
+        Vx = np.array(self[1])
+        Bm = np.array(self[2])
+
+        df_shaft = self.df_shaft
+        df_disks = self.df_disks
+        df_bearings = self.df_bearings
+        nodes = self.nodes
+        nodes_pos = self.nodes_pos
+        Vx_axis = self.Vx_axis
+
+        source = ColumnDataSource(
+            data=dict(x0=nodes_pos, y0=disp_y * 1000, y1=[0] * len(nodes_pos))
+        )
+
+        TOOLS = "pan,wheel_zoom,box_zoom,reset,save,box_select,hover"
+        TOOLTIPS = [
+            ("Shaft lenght:", "@x0"),
+            ("Underformed:", "@y1"),
+            ("Displacement:", "@y0"),
+        ]
+
+        # create displacement plot
+        disp_graph = figure(
+            tools=TOOLS,
+            tooltips=TOOLTIPS,
+            width=800,
+            height=400,
+            title="Static Analysis",
+            x_axis_label="shaft lenght",
+            y_axis_label="lateral displacement",
+        )
+
+        interpolated = interpolate.interp1d(
+            source.data["x0"], source.data["y0"], kind="cubic"
+        )
+        xnew = np.linspace(
+            source.data["x0"][0],
+            source.data["x0"][-1],
+            num=len(nodes_pos) * 20,
+            endpoint=True,
+        )
+
+        ynew = interpolated(xnew)
+        auxsource = ColumnDataSource(data=dict(x0=xnew, y0=ynew, y1=[0] * len(xnew)))
+
+        disp_graph.line(
+            "x0",
+            "y0",
+            source=auxsource,
+            legend="Deformed shaft",
+            line_width=3,
+            line_color=bokeh_colors[9],
+        )
+        disp_graph.circle(
+            "x0",
+            "y0",
+            source=source,
+            legend="Deformed shaft",
+            size=8,
+            fill_color=bokeh_colors[9],
+        )
+        disp_graph.line(
+            "x0",
+            "y1",
+            source=source,
+            legend="underformed shaft",
+            line_width=3,
+            line_color=bokeh_colors[0],
+        )
+        disp_graph.circle(
+            "x0",
+            "y1",
+            source=source,
+            legend="underformed shaft",
+            size=8,
+            fill_color=bokeh_colors[0],
+        )
+
+        # create a new plot for free body diagram (FDB)
+        y_range = []
+        sh_weight = sum(df_shaft["m"].values) * 9.8065
+        y_range.append(sh_weight)
+        for i, node in enumerate(df_bearings["n"]):
+            y_range.append(
+                -disp_y[node] * df_bearings.loc[i, "kyy"].coefficient[0]
+            )
+
+        shaft_end = nodes_pos[-1]
+        FBD = figure(
+            tools=TOOLS,
+            width=800,
+            height=400,
+            title="Free-Body Diagram",
+            x_axis_label="shaft lenght",
+            y_axis_label="Force",
+            x_range=[-0.1 * shaft_end, 1.1 * shaft_end],
+            y_range=[-max(y_range) * 1.4, max(y_range) * 1.4],
+        )
+
+        FBD.line("x0", "y1", source=source, line_width=5, line_color=bokeh_colors[0])
+
+        # FBD - plot arrows indicating shaft weight distribution
+        text = str("%.1f" % sh_weight)
+        FBD.line(
+            x=nodes_pos,
+            y=[sh_weight] * len(nodes_pos),
+            line_width=2,
+            line_color=bokeh_colors[0],
+        )
+
+        for node in nodes_pos:
+            FBD.add_layout(
+                Arrow(
+                    end=NormalHead(
+                        fill_color=bokeh_colors[7],
+                        fill_alpha=1.0,
+                        size=16,
+                        line_width=2,
+                        line_color=bokeh_colors[0],
+                    ),
+                    x_start=node,
+                    y_start=sh_weight,
+                    x_end=node,
+                    y_end=0,
+                )
+            )
+
+        FBD.add_layout(
+            Label(
+                x=nodes_pos[0],
+                y=sh_weight,
+                text="W = " + text + "N",
+                text_font_style="bold",
+                text_baseline="top",
+                text_align="left",
+                y_offset=20,
+            )
+        )
+
+        # FBD - calculate the reaction force of bearings and plot arrows
+        for i, node in enumerate(df_bearings["n"]):
+            Fb = -disp_y[node] * df_bearings.loc[i, "kyy"].coefficient[0]
+            text = str("%.1f" % Fb)
+            FBD.add_layout(
+                Arrow(
+                    end=NormalHead(
+                        fill_color=bokeh_colors[7],
+                        fill_alpha=1.0,
+                        size=16,
+                        line_width=2,
+                        line_color=bokeh_colors[0],
+                    ),
+                    x_start=nodes_pos[node],
+                    y_start=-Fb,
+                    x_end=nodes_pos[node],
+                    y_end=0,
+                )
+            )
+            FBD.add_layout(
+                Label(
+                    x=nodes_pos[node],
+                    y=-Fb,
+                    text="Fb = " + text + "N",
+                    text_font_style="bold",
+                    text_baseline="bottom",
+                    text_align="center",
+                    y_offset=-20,
+                )
+            )
+
+        # FBD - plot arrows indicating disk weight
+        if len(df_disks) != 0:
+            for i, node in enumerate(df_disks["n"]):
+                Fd = df_disks.loc[i, "m"] * 9.8065
+                text = str("%.1f" % Fd)
+                FBD.add_layout(
+                    Arrow(
+                        end=NormalHead(
+                            fill_color=bokeh_colors[7],
+                            fill_alpha=1.0,
+                            size=16,
+                            line_width=2,
+                            line_color=bokeh_colors[0],
+                        ),
+                        x_start=nodes_pos[node],
+                        y_start=Fd,
+                        x_end=nodes_pos[node],
+                        y_end=0,
+                    )
+                )
+                FBD.add_layout(
+                    Label(
+                        x=nodes_pos[node],
+                        y=Fd,
+                        text="Fd = " + text + "N",
+                        text_font_style="bold",
+                        text_baseline="top",
+                        text_align="center",
+                        y_offset=20,
+                    )
+                )
+
+        # Shearing Force Diagram plot (SF)
+        source_SF = ColumnDataSource(data=dict(x=Vx_axis, y=Vx))
+        TOOLTIPS_SF = [("Shearing Force:", "@y")]
+        SF = figure(
+            tools=TOOLS,
+            tooltips=TOOLTIPS_SF,
+            width=800,
+            height=400,
+            title="Shearing Force Diagram",
+            x_axis_label="Shaft lenght",
+            y_axis_label="Force",
+            x_range=[-0.1 * shaft_end, 1.1 * shaft_end],
+        )
+        SF.line("x", "y", source=source_SF, line_width=4, line_color=bokeh_colors[0])
+        SF.circle("x", "y", source=source_SF, size=8, fill_color=bokeh_colors[0])
+
+        # SF - plot centerline
+        SF.line(
+            [-0.1 * shaft_end, 1.1 * shaft_end],
+            [0, 0],
+            line_width=3,
+            line_dash="dotdash",
+            line_color=bokeh_colors[0],
+        )
+
+        # Bending Moment Diagram plot (BM)
+        source_BM = ColumnDataSource(data=dict(x=nodes_pos, y=Bm))
+        TOOLTIPS_BM = [("Bending Moment:", "@y")]
+        BM = figure(
+            tools=TOOLS,
+            tooltips=TOOLTIPS_BM,
+            width=800,
+            height=400,
+            title="Bending Moment Diagram",
+            x_axis_label="Shaft lenght",
+            y_axis_label="Bending Moment",
+            x_range=[-0.1 * shaft_end, 1.1 * shaft_end],
+        )
+        i = 0
+        while True:
+            if i + 3 > len(nodes):
+                break
+
+            interpolated_BM = interpolate.interp1d(
+                nodes_pos[i : i + 3], Bm[i : i + 3], kind="quadratic"
+            )
+            xnew_BM = np.linspace(
+                nodes_pos[i], nodes_pos[i + 2], num=42, endpoint=True
+            )
+
+            ynew_BM = interpolated_BM(xnew_BM)
+            auxsource_BM = ColumnDataSource(data=dict(x=xnew_BM, y=ynew_BM))
+            BM.line(
+                "x", "y", source=auxsource_BM, line_width=4, line_color=bokeh_colors[0]
+            )
+            i += 2
+        BM.circle("x", "y", source=source_BM, size=8, fill_color=bokeh_colors[0])
+
+        # BM - plot centerline
+        BM.line(
+            [-0.1 * shaft_end, 1.1 * shaft_end],
+            [0, 0],
+            line_width=3,
+            line_dash="dotdash",
+            line_color=bokeh_colors[0],
+        )
+
+        grid_plots = gridplot([[FBD, SF], [disp_graph, BM]])
+
+        show(grid_plots)
