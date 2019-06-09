@@ -2,6 +2,9 @@
 Tutorial
 ========
 
+`Download This
+Notebook <https://ross-rotordynamics.github.io/ross-website/_downloads/51a7c8bd4026689b99005339576b2193/tutorial.ipynb>`__
+
 | This is a basic tutorial on how to properly use ROSS (Rotordynamics
   open-source software), a simulator for rotating machinery. The
   majority of this code follows object-oriented coding, which is
@@ -161,16 +164,14 @@ From geometry DiskElement instatiation
 
     disk0 = rs.DiskElement.from_geometry(n=2,
                                          material=steel,
-                                       width=0.07,
-                                      i_d=0.05,
-                                      o_d=0.28
-                                      )
+                                         width=0.07,
+                                         i_d=0.05,
+                                         o_d=0.28)
     disk1 = rs.DiskElement.from_geometry(n=4,
-                                      material=steel,
-                                      width=0.07,
-                                      i_d=0.05,
-                                      o_d=0.28
-                                      )
+                                         material=steel,
+                                         width=0.07,
+                                         i_d=0.05,
+                                         o_d=0.28)
     disks = [disk0,disk1]
 
 BearingElement
@@ -298,7 +299,7 @@ you can either turn on or off the matplotlib one.
     
     
     
-      <div class="bk-root" id="da6c3615-7357-4b15-864f-f941966f2622" data-root-id="1003"></div>
+      <div class="bk-root" id="64e8712d-0845-4005-9ec3-53121ee43dbc" data-root-id="1003"></div>
 
 
 
@@ -309,12 +310,12 @@ you can either turn on or off the matplotlib one.
 .. parsed-literal::
 
     (Figure(id='1003', ...),
-     <matplotlib.axes._subplots.AxesSubplot at 0x7f34165cff28>)
+     <matplotlib.axes._subplots.AxesSubplot at 0x7f8dd1ee3d68>)
 
 
 
 
-.. image:: tutorial_files/tutorial_23_3.png
+.. image:: tutorial_files/tutorial_25_3.png
 
 
 Running the simulation
@@ -348,16 +349,25 @@ response to gravity effects.
 
 
 
+
 .. raw:: html
 
-    
-    
-    
-    
-    
-    
-      <div class="bk-root" id="775aafcc-46f6-4754-b722-06fbc458588b" data-root-id="2618"></div>
-
+    <div style="display: table;"><div style="display: table-row;"><div style="display: table-cell;"><b title="bokeh.models.layouts.Column">Column</b>(</div><div style="display: table-cell;">id&nbsp;=&nbsp;'2232', <span id="2234" style="cursor: pointer;">&hellip;)</span></div></div><div class="2233" style="display: none;"><div style="display: table-cell;"></div><div style="display: table-cell;">children&nbsp;=&nbsp;[ToolbarBox(id='2231', ...), Column(id='2229', ...)],</div></div><div class="2233" style="display: none;"><div style="display: table-cell;"></div><div style="display: table-cell;">css_classes&nbsp;=&nbsp;[],</div></div><div class="2233" style="display: none;"><div style="display: table-cell;"></div><div style="display: table-cell;">disabled&nbsp;=&nbsp;False,</div></div><div class="2233" style="display: none;"><div style="display: table-cell;"></div><div style="display: table-cell;">height&nbsp;=&nbsp;None,</div></div><div class="2233" style="display: none;"><div style="display: table-cell;"></div><div style="display: table-cell;">js_event_callbacks&nbsp;=&nbsp;{},</div></div><div class="2233" style="display: none;"><div style="display: table-cell;"></div><div style="display: table-cell;">js_property_callbacks&nbsp;=&nbsp;{},</div></div><div class="2233" style="display: none;"><div style="display: table-cell;"></div><div style="display: table-cell;">name&nbsp;=&nbsp;None,</div></div><div class="2233" style="display: none;"><div style="display: table-cell;"></div><div style="display: table-cell;">sizing_mode&nbsp;=&nbsp;'fixed',</div></div><div class="2233" style="display: none;"><div style="display: table-cell;"></div><div style="display: table-cell;">subscribed_events&nbsp;=&nbsp;[],</div></div><div class="2233" style="display: none;"><div style="display: table-cell;"></div><div style="display: table-cell;">tags&nbsp;=&nbsp;[],</div></div><div class="2233" style="display: none;"><div style="display: table-cell;"></div><div style="display: table-cell;">width&nbsp;=&nbsp;None)</div></div></div>
+    <script>
+    (function() {
+      var expanded = false;
+      var ellipsis = document.getElementById("2234");
+      ellipsis.addEventListener("click", function() {
+        var rows = document.getElementsByClassName("2233");
+        for (var i = 0; i < rows.length; i++) {
+          var el = rows[i];
+          el.style.display = expanded ? "none" : "table-row";
+        }
+        ellipsis.innerHTML = expanded ? "&hellip;)" : "&lsaquo;&lsaquo;&lsaquo;";
+        expanded = !expanded;
+      });
+    })();
+    </script>
 
 
 
@@ -382,7 +392,7 @@ In this example we can see the campbell diagram from 0 to 4000 RPM.
     
     
     
-      <div class="bk-root" id="f903cb73-51d6-4d43-830c-fc46154c68d0" data-root-id="3448"></div>
+      <div class="bk-root" id="5732b868-9bad-4e1b-9e22-3e258fd06638" data-root-id="2236"></div>
 
 
 
@@ -393,12 +403,12 @@ In this example we can see the campbell diagram from 0 to 4000 RPM.
 .. parsed-literal::
 
     (<Figure size 432x288 with 2 Axes>,
-     <matplotlib.axes._subplots.AxesSubplot at 0x7f340f7e9a90>)
+     <matplotlib.axes._subplots.AxesSubplot at 0x7f8dd014f940>)
 
 
 
 
-.. image:: tutorial_files/tutorial_29_3.png
+.. image:: tutorial_files/tutorial_31_3.png
 
 
 Frenquency Response
@@ -421,12 +431,12 @@ We can put the frequency response of
     
     
     
-      <div class="bk-root" id="db007bb9-7c0b-4bec-a2bb-3ecf8d0b281c" data-root-id="5116"></div>
+      <div class="bk-root" id="ea651a0f-268a-45b3-ac5d-3c487de4955e" data-root-id="3856"></div>
 
 
 
 
 
 
-.. image:: tutorial_files/tutorial_31_2.png
+.. image:: tutorial_files/tutorial_33_2.png
 

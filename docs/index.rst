@@ -18,6 +18,7 @@ available at `github <https://github.com/ross-rotordynamics/ross>`_.
    installation
    examples/tutorial
    examples
+   download
    api
    release_notes
 
