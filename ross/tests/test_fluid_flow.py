@@ -114,3 +114,12 @@ def test_numerical_abs_error():
     error = np.linalg.norm(bearing.p_mat_analytical[:][int(bearing.nz / 2)] -
                            bearing.p_mat_numerical[:][int(bearing.nz / 2)], ord=np.inf)
     assert math.isclose(error, 0, abs_tol=0.001)
+
+
+def test_numerical_abs_error2():
+    bearing = fluid_flow_numerical()
+    bearing.calculate_pressure_matrix_analytical2()
+    bearing.calculate_pressure_matrix_numerical()
+    error = np.linalg.norm(bearing.p_mat_analytical[:][int(bearing.nz / 2)] -
+                           bearing.p_mat_numerical[:][int(bearing.nz / 2)], ord=np.inf)
+    assert math.isclose(error, 0, abs_tol=0.001)
