@@ -249,6 +249,22 @@ class PressureMatrix:
         self.analytical_pressure_matrix_available = True
         return self.p_mat_analytical
 
+    def calculate_pressure_matrix_analytical2(self):
+        """This function calculates the pressure matrix analytically, based on the chapter Linear and Nonlinear
+        Rotordynamics, by Ishida and Yamamoto, from the book Flow-Induced Vibrations.
+        """
+        if self.bearing_type == "short_bearing":
+            for i in range(self.nz):
+                for j in range(self.ntheta):
+                    # fmt: off
+                    self.p_mat_analytical[i][j] = (3*self.visc/((self.difference_between_radius**2) *
+                                                   (1. + self.eccentricity_ratio*np.cos(j*self.dtheta))**3)) *\
+                                                   (-self.eccentricity_ratio*self.omega*np.sin(j*self.dtheta)) *\
+                                                   (((i*self.dz - (self.length/2))**2)-(self.length**2)/4)
+                    # fmt: on
+        self.analytical_pressure_matrix_available = True
+        return self.p_mat_analytical
+
     def calculate_coefficients(self):
         """This function calculates the constants that form the Poisson equation
         of the discrete pressure (central differences in the second
