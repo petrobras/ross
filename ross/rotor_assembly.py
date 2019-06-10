@@ -1813,16 +1813,13 @@ class Rotor(object):
     def remove(rotor_name):
         shutil.rmtree(Path(os.path.dirname(ross.__file__)) / "rotors" / rotor_name)
 
-    def run_static(self, output_html=False):
+    def run_static(self):
         """
         Static analysis calculates free-body diagram, deformed shaft, shearing
         force diagram and bending moment diagram.
 
         Parameters
         ----------
-        output_html : Boolean, optional
-            outputs a html file.
-            Default is False
 
         Returns
         -------
@@ -1927,9 +1924,6 @@ class Rotor(object):
             for i in range(len(Mx)):
                 Bm = np.append(Bm, Bm[i] + Mx[i])
             self.Bm = Bm
-
-            if output_html:
-                output_file("static.html")
 
             sh_weight = sum(self.df_shaft["m"].values) * 9.8065
 
