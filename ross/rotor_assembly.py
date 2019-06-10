@@ -1360,8 +1360,9 @@ class Rotor(object):
         Returns
         -------
         results : array
-            Array with the natural frequencies corresponding to each speed
-            of the speed_rad array. It will be returned if plot=False.
+            Array with the damped natural frequencies, log dec and precessions
+            corresponding to each speed of the speed_rad array.
+            It will be returned if plot=False.
 
         Examples
         --------
