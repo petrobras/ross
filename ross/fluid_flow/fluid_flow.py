@@ -114,8 +114,8 @@ class PressureMatrix:
     bearing_type: str
         type of structure. 'short_bearing': short; 'long_bearing': long;
         'medium_size': in between short and long.
-        if length/radius_stator <= 1/8 it is short.
-        if length/radius_stator > 4 it is long.
+        if length/radius_stator <= 1/4 it is short.
+        if length/radius_stator > 8 it is long.
     radial_clearance: float
         Difference between both stator and rotor radius, regardless of eccentricity.
     analytical_pressure_matrix_available: bool
@@ -153,6 +153,7 @@ class PressureMatrix:
     >>> show(my_fluid_flow.plot_pressure_theta(z=int(nz/2)))
     >>> my_fluid_flow.matplot_pressure_theta(z=int(nz/2)) # doctest: +ELLIPSIS
     <matplotlib.axes._subplots.AxesSubplot object at...
+    >>> plt.show()
     """
 
     def __init__(
@@ -195,9 +196,9 @@ class PressureMatrix:
         self.radial_clearance = self.radius_stator - self.radius_rotor
         self.difference_between_radius = radius_stator - radius_rotor
         self.bearing_type = ""
-        if self.length / self.radius_stator <= 1 / 8:
+        if self.length / self.radius_stator <= 1 / 4:
             self.bearing_type = "short_bearing"
-        elif self.length / self.radius_stator > 4:
+        elif self.length / self.radius_stator > 8:
             self.bearing_type = "long_bearing"
         else:
             self.bearing_type = "medium_size"
