@@ -66,7 +66,7 @@ class Results(np.ndarray):
 
 
 class CampbellResults(Results):
-    def plot(self, harmonics=[1], wn=False, fig=None, ax=None, **kwargs):
+    def plot(self, harmonics=[1], wn=False, output_html=False, fig=None, ax=None, **kwargs):
         """Plot campbell results.
         Parameters
         ----------
@@ -77,6 +77,9 @@ class CampbellResults(Results):
             Figure to insert axes with log_dec colorbar.
         ax : matplotlib axes, optional
             Axes in which the plot will be drawn.
+        output_html : Boolean, optional
+            outputs a html file.
+            Default is False
         Returns
         -------
         ax : matplotlib axes
@@ -100,7 +103,8 @@ class CampbellResults(Results):
             kwargs.setdefault(k, v)
 
         # bokeh plot - output to static HTML file
-        output_file("Campbell_diagram.html")
+        if output_html:
+            output_file("Campbell_diagram.html")
 
         log_dec_map = log_dec.flatten()
 
@@ -356,7 +360,7 @@ class FrequencyResponseResults(Results):
 
         return ax, phase_plot
 
-    def plot(self, inp, out, ax0=None, ax1=None, **kwargs):
+    def plot(self, inp, out, output_html=False, ax0=None, ax1=None, **kwargs):
         """Plot frequency response.
         This method plots the frequency response given
         an output and an input.
@@ -366,6 +370,9 @@ class FrequencyResponseResults(Results):
             Input.
         out : int
             Output.
+        output_html : Boolean, optional
+            outputs a html file.
+            Default is False
         ax0 : matplotlib.axes, bokeh plot axes optional
             Matplotlib and bokeh plot axes where the amplitude will be plotted.
             If None creates a new.
@@ -392,7 +399,8 @@ class FrequencyResponseResults(Results):
             fig, (ax0, ax1) = plt.subplots(2)
 
         # bokeh plot - output to static HTML file
-        output_file("plot_freq_response.html")
+        if output_html:
+            output_file("freq_response.html")
 
         # matplotlib axes
         ax0 = self.plot_magnitude(inp, out, ax=ax0)[0]
@@ -583,7 +591,7 @@ class ForcedResponseResults(Results):
 
         return ax, phase_plot
 
-    def plot(self, dof, ax0=None, ax1=None, **kwargs):
+    def plot(self, dof, output_html=False, ax0=None, ax1=None, **kwargs):
         """Plot frequency response.
         This method plots the frequency response given
         an output and an input.
@@ -591,6 +599,9 @@ class ForcedResponseResults(Results):
         ----------
         dof : int
             Degree of freedom.
+        output_html : Boolean, optional
+            outputs a html file.
+            Default is False
         ax0 : matplotlib.axes, optional
             Matplotlib axes where the amplitude will be plotted.
             If None creates a new.
@@ -624,6 +635,10 @@ class ForcedResponseResults(Results):
 
         ax0.set_xlabel("")
         ax0.legend()
+
+        # bokeh plot - output to static HTML file
+        if output_html:
+            output_file("forced_rsponse.html")
 
         # bokeh plot axes
         bk_ax0 = self.plot_magnitude(dof, ax=ax0, **kwargs)[1]
@@ -748,7 +763,7 @@ class ModeShapeResults(Results):
         return fig, ax
 
 class StaticResults(Results):
-    def plot(self):
+    def plot(self, output_html=False):
         """Plot static analysis graphs.
         This method plots:
             free-body diagram,
@@ -758,6 +773,9 @@ class StaticResults(Results):
 
         Parameters
         ----------
+        output_html : Boolean, optional
+            outputs a html file.
+            Default is False
 
         Returns
         -------
@@ -765,6 +783,10 @@ class StaticResults(Results):
         --------
         """
 
+        # bokeh plot - output to static HTML file
+        if output_html:
+            output_file("static_analysis.html")
+        
         disp_y = np.array(self[0])
         Vx = np.array(self[1])
         Bm = np.array(self[2])
@@ -1038,3 +1060,75 @@ class StaticResults(Results):
         grid_plots = gridplot([[FBD, SF], [disp_graph, BM]])
 
         show(grid_plots)
+
+
+class ConvergenceResults(Results):
+    def plot(self, output_html=False):
+        """This method plots:
+            Natural Frequency vs Number of Elements
+            Relative Error vs Number of Elements
+
+        Parameters
+        ----------
+        output_html : Boolean, optional
+            outputs a html file.
+            Default is False
+
+        Returns
+        -------
+        plot : bokeh.figure
+            Bokeh plot showing the results
+        --------
+        """
+
+        el_num = np.array(self[0])
+        eigv_arr = np.array(self[1])
+        error_arr = np.array(self[2])
+
+        if output_html:
+            output_file("convergence.html")
+
+        source = ColumnDataSource(
+            data=dict(x0=el_num, y0=eigv_arr, x1=el_num, y1=error_arr)
+        )
+
+        TOOLS = "pan,wheel_zoom,box_zoom,hover,reset,save,"
+        TOOLTIPS1 = [("Frequency:", "@y0"), ("Number of Elements", "@x0")]
+        TOOLTIPS2 = [("Relative Error:", "@y1"), ("Number of Elements", "@x1")]
+
+        # create a new plot and add a renderer
+        freq_arr = figure(
+            tools=TOOLS,
+            tooltips=TOOLTIPS1,
+            width=800,
+            height=600,
+            title="Frequency Evaluation",
+            x_axis_label="Numer of Elements",
+            y_axis_label="Frequency (rad/s)",
+        )
+        freq_arr.line("x0", "y0", source=source, line_width=3, line_color="crimson")
+        freq_arr.circle("x0", "y0", source=source, size=8, fill_color="crimson")
+
+        # create another new plot and add a renderer
+        rel_error = figure(
+            tools=TOOLS,
+            tooltips=TOOLTIPS2,
+            width=800,
+            height=600,
+            title="Relative Error Evaluation",
+            x_axis_label="Number of Elements",
+            y_axis_label="Relative Error (%)",
+        )
+        rel_error.line(
+            "x1", "y1", source=source, line_width=3, line_color="darkslategray"
+        )
+        rel_error.circle(
+            "x1", "y1", source=source, fill_color="darkslategray", size=8
+        )
+
+        # put the subplots in a gridplot
+        plot = gridplot([[freq_arr, rel_error]])
+        # show the plots
+        show(plot)
+
+        return plot

@@ -30,7 +30,8 @@ from ross.results import (
     FrequencyResponseResults,
     ForcedResponseResults,
     ModeShapeResults,
-    StaticResults
+    StaticResults,
+    ConvergenceResults
 )
 from ross.shaft_element import ShaftElement
 
@@ -315,7 +316,7 @@ class Rotor(object):
             )
         self.lti = self._lti()
 
-    def convergence(self, n_eigval=0, err_max=1e-02, output_html=False):
+    def convergence(self, n_eigval=0, err_max=1e-02):
         """
         Function to analyze the eigenvalues convergence through the number of
         shaft elements. Every new run doubles the number os shaft elements.
@@ -328,14 +329,13 @@ class Rotor(object):
         err_max : float
             Maximum allowable convergence error.
             Default is 1e-02
-        output_html : Boolean, optional
-            outputs a html file.
-            Default is False
 
         Returns
         -------
-        p : bokeh.figure
-            Bokeh plot showing the results.
+        Lists containing the information about:
+            The number or elements in each run;
+            The relative error calculated in each run;
+            The natural frequency calculated in each run.
 
         Example
         -------
@@ -419,47 +419,13 @@ class Rotor(object):
 
         self.__dict__ = rotor.__dict__
         self.error_arr = error_arr
-        if output_html:
-            output_file("convergence.html")
-        source = ColumnDataSource(
-            data=dict(x0=el_num[1:], y0=eigv_arr[1:], x1=el_num[1:], y1=error_arr[1:])
+
+        results = ConvergenceResults(
+            np.array([el_num[1:], eigv_arr[1:], error_arr[1:]]),
+            new_attributes={},
         )
 
-        TOOLS = "pan,wheel_zoom,box_zoom,hover,reset,save,"
-        TOOLTIPS1 = [("Frequency:", "@y0 Hz"), ("Number of Elements", "@x0")]
-        TOOLTIPS2 = [("Relative Error:", "@y1"), ("Number of Elements", "@x1")]
-        # create a new plot and add a renderer
-        freq_arr = figure(
-            tools=TOOLS,
-            tooltips=TOOLTIPS1,
-            width=500,
-            height=500,
-            title="Frequency Evaluation",
-            x_axis_label="Numer of Elements",
-            y_axis_label="Frequency (Hz)",
-        )
-        freq_arr.line("x0", "y0", source=source, line_width=3, line_color="crimson")
-        freq_arr.circle("x0", "y0", source=source, fill_color="crimson", size=8)
-
-        # create another new plot and add a renderer
-        rel_error = figure(
-            tools=TOOLS,
-            tooltips=TOOLTIPS2,
-            width=500,
-            height=500,
-            title="Relative Error Evaluation",
-            x_axis_label="Number of Elements",
-            y_axis_label="Relative Rrror",
-        )
-        rel_error.line(
-            "x1", "y1", source=source, line_width=3, line_color="darkslategray"
-        )
-        rel_error.circle("x1", "y1", source=source, fill_color="darkslategray", size=8)
-
-        # put the subplots in a gridplot
-        p = gridplot([[freq_arr, rel_error]])
-
-        return p
+        return results
 
     @property
     def w(self):
@@ -1360,8 +1326,9 @@ class Rotor(object):
         Returns
         -------
         results : array
-            Array with the natural frequencies corresponding to each speed
-            of the speed_rad array. It will be returned if plot=False.
+            Array with the damped natural frequencies, log dec and precessions
+            corresponding to each speed of the speed_rad array.
+            It will be returned if plot=False.
 
         Examples
         --------
@@ -1812,16 +1779,13 @@ class Rotor(object):
     def remove(rotor_name):
         shutil.rmtree(Path(os.path.dirname(ross.__file__)) / "rotors" / rotor_name)
 
-    def run_static(self, output_html=False):
+    def run_static(self):
         """
         Static analysis calculates free-body diagram, deformed shaft, shearing
         force diagram and bending moment diagram.
 
         Parameters
         ----------
-        output_html : Boolean, optional
-            outputs a html file.
-            Default is False
 
         Returns
         -------
@@ -1926,9 +1890,6 @@ class Rotor(object):
             for i in range(len(Mx)):
                 Bm = np.append(Bm, Bm[i] + Mx[i])
             self.Bm = Bm
-
-            if output_html:
-                output_file("static.html")
 
             sh_weight = sum(self.df_shaft["m"].values) * 9.8065
 
