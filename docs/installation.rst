@@ -20,7 +20,7 @@ Ross's code was tested in Python 3.6 and higher.
 Install ross
 ------------
 
-You can install the latest release version with::
+Using the terminal (or the Anaconda prompt if on Windows) you can install the latest release version with::
 
     pip install ross-rotordynamics
 
