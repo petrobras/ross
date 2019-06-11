@@ -637,7 +637,7 @@ class ForcedResponseResults(Results):
 
 
 class ModeShapeResults(Results):
-    def plot(self, mode=None, evec=None, fig=None, ax=None):
+    def plot(self, mode, evec=None, fig=None, ax=None):
         """Plot mode shape.
 
         Parameters
