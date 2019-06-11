@@ -98,7 +98,16 @@ class CampbellResults(Results):
         whirl = self[..., 2]
         speed_range = self[..., 3]
 
-        default_values = dict(cmap="RdBu", vmin=0.1, vmax=2.0, s=20, alpha=0.5)
+        log_dec_map = log_dec.flatten()
+
+        default_values = dict(
+            cmap="viridis",
+            vmin=min(log_dec_map),
+            vmax=max(log_dec_map),
+            s=30,
+            alpha=1.0,
+        )
+
         for k, v in default_values.items():
             kwargs.setdefault(k, v)
 
@@ -106,14 +115,11 @@ class CampbellResults(Results):
         if output_html:
             output_file("Campbell_diagram.html")
 
-        log_dec_map = log_dec.flatten()
-
         # bokeh plot - create a new plot
         camp = figure(
             tools="pan, box_zoom, wheel_zoom, reset, save",
-            width=900,
-            height=500,
-            title="Campbell Diagram",
+            sizing_mode="stretch_both",
+            title="Campbell Diagram - Damped Natural Frequency Map",
             x_axis_label="Rotor speed (rad/s)",
             y_axis_label="Damped natural frequencies (rad/s)",
         )
@@ -153,7 +159,7 @@ class CampbellResults(Results):
                     )
                     color_mapper = linear_cmap(
                         field_name="color",
-                        palette=bp.magma(256),
+                        palette=bp.viridis(256),
                         low=min(log_dec_map),
                         high=max(log_dec_map),
                     )
@@ -163,7 +169,7 @@ class CampbellResults(Results):
                         color=color_mapper,
                         marker=mark,
                         fill_alpha=1.0,
-                        size=5,
+                        size=9,
                         muted_color=color_mapper,
                         muted_alpha=0.2,
                         source=source,
@@ -193,9 +199,15 @@ class CampbellResults(Results):
         )
 
         color_bar = ColorBar(
-            color_mapper=color_mapper["transform"], width=8, location=(0, 0)
+            color_mapper=color_mapper["transform"],
+            width=8,
+            location=(0, 0),
+            title="log dec",
+            title_text_font_style="bold italic",
+            title_text_align="center",
         )
 
+        camp.legend.background_fill_alpha = 0.1
         camp.legend.click_policy = "mute"
         camp.legend.location = "top_left"
         camp.add_layout(color_bar, "right")
@@ -207,13 +219,13 @@ class CampbellResults(Results):
             cbar.solids.set_edgecolor("face")
 
             forward_label = mpl.lines.Line2D(
-                [], [], marker="^", lw=0, color="tab:blue", alpha=0.3, label="Forward"
+                [], [], marker="^", lw=0, color="tab:blue", alpha=1.0, label="Forward"
             )
             backward_label = mpl.lines.Line2D(
-                [], [], marker="v", lw=0, color="tab:blue", alpha=0.3, label="Backward"
+                [], [], marker="v", lw=0, color="tab:blue", alpha=1.0, label="Backward"
             )
             mixed_label = mpl.lines.Line2D(
-                [], [], marker="o", lw=0, color="tab:blue", alpha=0.3, label="Mixed"
+                [], [], marker="o", lw=0, color="tab:blue", alpha=1.0, label="Mixed"
             )
 
             legend = plt.legend(
@@ -224,6 +236,7 @@ class CampbellResults(Results):
 
             ax.set_xlabel("Rotor speed ($rad/s$)")
             ax.set_ylabel("Damped natural frequencies ($rad/s$)")
+            ax.set_title("Campbell Diagram - Damped Natural Frequency Map")
 
         return fig, ax
 
