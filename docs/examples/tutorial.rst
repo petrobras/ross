@@ -142,7 +142,7 @@ All the values are following the S.I. convention.
     print(Disk)
 
 
-.. code-block: blocks are removed and the format for the ipython3 (input cells) and python (output cells) are edited.c: python
+.. code-block:: python
 
     DiskElement(Id=0.17809, Ip=0.32956, m=32.59, color='#bc625b', n=0)
 
