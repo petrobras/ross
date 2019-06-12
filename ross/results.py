@@ -4,6 +4,7 @@ import bokeh.palettes as bp
 import matplotlib as mpl
 import matplotlib.pyplot as plt
 import numpy as np
+from mpl_toolkits.mplot3d import Axes3D
 from bokeh.layouts import gridplot
 from bokeh.models import ColumnDataSource, ColorBar, Arrow, NormalHead, Label
 from bokeh.plotting import figure, output_file, show
@@ -665,7 +666,31 @@ class ForcedResponseResults(Results):
 
 
 class ModeShapeResults(Results):
-    def plot(self, mode=None, evec=None, fig=None, ax=None):
+    def plot(self, mode, evec=None, fig=None, ax=None):
+        """Plot mode shape.
+
+        Parameters
+        ----------
+        mode : int
+            Number of the desired mode shape.
+        evec : np.array, optional
+            Eigenvector to plot.
+        fig : matplotlib.figure
+
+        ax : matplotlib.axes
+
+        Returns
+        -------
+        fig, ax : matplotlib.figure, matplotlib.axes
+
+        Examples
+        --------
+        >>> import ross as rs
+        >>> rotor = rs.rotor_example()
+        >>> modes = rotor.run_mode_shapes()
+        >>> modes.plot(0) # doctest: +ELLIPSIS
+        (<Figure ...
+        """
         if ax is None:
             fig = plt.figure()
             ax = fig.gca(projection="3d")
@@ -769,7 +794,7 @@ class ModeShapeResults(Results):
 
         ax.set_title(
             f"$speed$ = {self.w:.1f} rad/s\n$"
-            f"\frequency_range_d$ = {self.wd[mode]:.1f} rad/s\n"
+            f"\omega_d$ = {self.wd[mode]:.1f} rad/s\n"
             f"$log dec$ = {self.log_dec[mode]:.1f}"
         )
 

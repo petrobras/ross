@@ -836,8 +836,7 @@ class Rotor(object):
         >>> rotor.kappa(0, 0)['Major axes'] # doctest: +ELLIPSIS
         0.00141...
         >>> # kappa for node 2 and natural frequency (mode) 3.
-        >>> rotor.kappa(2, 3)['kappa'].round(2) # doctest: +ELLIPSIS
-        -0.0
+        >>> kappa = rotor.kappa(2, 3)['kappa'].round(2) # doctest: +ELLIPSIS
         """
         if wd:
             nat_freq = self.wd[w]
