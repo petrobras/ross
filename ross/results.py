@@ -65,7 +65,13 @@ class Results(np.ndarray):
         raise NotImplementedError
 
 
-class CampbellResults(Results):
+class CampbellResults:
+    def __init__(self, speed_range, wd, log_dec, whirl_values):
+        self.speed_range = speed_range
+        self.wd = wd
+        self.log_dec = log_dec
+        self.whirl_values = whirl_values
+
     def plot(self, harmonics=[1], wn=False, fig=None, ax=None, **kwargs):
         """Plot campbell results.
         Parameters
@@ -747,6 +753,7 @@ class ModeShapeResults(Results):
 
         return fig, ax
 
+
 class StaticResults(Results):
     def plot(self):
         """Plot static analysis graphs.
@@ -849,9 +856,7 @@ class StaticResults(Results):
         sh_weight = sum(df_shaft["m"].values) * 9.8065
         y_range.append(sh_weight)
         for i, node in enumerate(df_bearings["n"]):
-            y_range.append(
-                -disp_y[node] * df_bearings.loc[i, "kyy"].coefficient[0]
-            )
+            y_range.append(-disp_y[node] * df_bearings.loc[i, "kyy"].coefficient[0])
 
         shaft_end = nodes_pos[-1]
         FBD = figure(
@@ -1014,9 +1019,7 @@ class StaticResults(Results):
             interpolated_BM = interpolate.interp1d(
                 nodes_pos[i : i + 3], Bm[i : i + 3], kind="quadratic"
             )
-            xnew_BM = np.linspace(
-                nodes_pos[i], nodes_pos[i + 2], num=42, endpoint=True
-            )
+            xnew_BM = np.linspace(nodes_pos[i], nodes_pos[i + 2], num=42, endpoint=True)
 
             ynew_BM = interpolated_BM(xnew_BM)
             auxsource_BM = ColumnDataSource(data=dict(x=xnew_BM, y=ynew_BM))

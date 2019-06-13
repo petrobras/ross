@@ -30,7 +30,7 @@ from ross.results import (
     FrequencyResponseResults,
     ForcedResponseResults,
     ModeShapeResults,
-    StaticResults
+    StaticResults,
 )
 from ross.shaft_element import ShaftElement
 
@@ -1394,13 +1394,10 @@ class Rotor(object):
             results[i, :, 4] = self.wn[:frequencies]
 
         results = CampbellResults(
-            results,
-            new_attributes={
-                "speed_range": speed_range,
-                "wd": results[..., 0],
-                "log_dec": results[..., 1],
-                "whirl_values": results[..., 2],
-            },
+            speed_range=speed_range,
+            wd=results[..., 0],
+            log_dec=results[..., 1],
+            whirl_values=results[..., 2],
         )
 
         self.w = rotor_current_speed
@@ -1866,7 +1863,8 @@ class Rotor(object):
                     -disp_y[node] * self.df_bearings.loc[i, "kyy"].coefficient[0]
                 )
                 BrgForceToReturn.append(
-                    "%.1f" % (-disp_y[node] * self.df_bearings.loc[i, "kyy"].coefficient[0])
+                    "%.1f"
+                    % (-disp_y[node] * self.df_bearings.loc[i, "kyy"].coefficient[0])
                 )
 
             # Disk Forces
@@ -1935,7 +1933,7 @@ class Rotor(object):
             force_data = {
                 "Shaft Total Weight": "%.1f" % sh_weight,
                 "Disks Forces": DskForceToReturn,
-                "Bearings Reaction Forces": BrgForceToReturn
+                "Bearings Reaction Forces": BrgForceToReturn,
             }
 
             results = StaticResults(
@@ -2196,8 +2194,8 @@ def whirl(kappa_mode):
 def whirl_to_cmap(whirl):
     """Maps the whirl to a value"""
     if whirl == "Forward":
-        return 0.
+        return 0.0
     elif whirl == "Backward":
-        return 1.
+        return 1.0
     elif whirl == "Mixed":
         return 0.5
