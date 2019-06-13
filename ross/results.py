@@ -6,7 +6,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 from bokeh.layouts import gridplot
 from bokeh.models import ColumnDataSource, ColorBar, Arrow, NormalHead, Label
-from bokeh.plotting import figure, output_file, show
+from bokeh.plotting import figure, show
 from bokeh.transform import linear_cmap
 from scipy import interpolate
 
@@ -104,9 +104,6 @@ class CampbellResults:
         default_values = dict(cmap="RdBu", vmin=0.1, vmax=2.0, s=20, alpha=0.5)
         for k, v in default_values.items():
             kwargs.setdefault(k, v)
-
-        # bokeh plot - output to static HTML file
-        output_file("Campbell_diagram.html")
 
         log_dec_map = log_dec.flatten()
 
@@ -396,9 +393,6 @@ class FrequencyResponseResults(Results):
         """
         if ax0 is None and ax1 is None:
             fig, (ax0, ax1) = plt.subplots(2)
-
-        # bokeh plot - output to static HTML file
-        output_file("plot_freq_response.html")
 
         # matplotlib axes
         ax0 = self.plot_magnitude(inp, out, ax=ax0)[0]
