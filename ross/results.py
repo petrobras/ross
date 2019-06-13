@@ -72,60 +72,27 @@ class CampbellResults:
         self.log_dec = log_dec
         self.whirl_values = whirl_values
 
-    def plot(self, harmonics=[1], wn=False, fig=None, ax=None, **kwargs):
-        """Plot campbell results.
-        Parameters
-        ----------
-        harmonics: list, optional
-            List withe the harmonics to be plotted.
-            The default is to plot 1x.
-        fig : matplotlib figure, optional
-            Figure to insert axes with log_dec colorbar.
-        ax : matplotlib axes, optional
-            Axes in which the plot will be drawn.
-        Returns
-        -------
-        ax : matplotlib axes
-            Returns the axes object with the plot.
-        """
-
-        # results for campbell is an array with [speed_range, wd/log_dec/whirl]
-
+    def _plot_matplotlib(self, harmonics=[1], fig=None, ax=None, **kwargs):
         if fig is None and ax is None:
             fig, ax = plt.subplots()
 
-        wd = self[..., 0]
-        if wn is True:
-            wn = self[..., 4]
-        log_dec = self[..., 1]
-        whirl = self[..., 2]
-        speed_range = self[..., 3]
+        wd = self.wd
+        num_frequencies = wd.shape[1]
+        log_dec = self.log_dec
+        whirl = self.whirl_values
+        speed_range = np.repeat(
+            self.speed_range[:, np.newaxis], num_frequencies, axis=1
+        )
 
         default_values = dict(cmap="RdBu", vmin=0.1, vmax=2.0, s=20, alpha=0.5)
         for k, v in default_values.items():
             kwargs.setdefault(k, v)
 
-        log_dec_map = log_dec.flatten()
-
-        # bokeh plot - create a new plot
-        camp = figure(
-            tools="pan, box_zoom, wheel_zoom, reset, save",
-            width=900,
-            height=500,
-            title="Campbell Diagram",
-            x_axis_label="Rotor speed (rad/s)",
-            y_axis_label="Damped natural frequencies (rad/s)",
-        )
-
         for mark, whirl_dir, legend in zip(
             ["^", "o", "v"], [0.0, 0.5, 1.0], ["Foward", "Mixed", "Backward"]
         ):
-            num_frequencies = wd.shape[1]
             for i in range(num_frequencies):
-                if wn is True:
-                    w_i = wn[:, i]
-                else:
-                    w_i = wd[:, i]
+                w_i = wd[:, i]
                 whirl_i = whirl[:, i]
                 log_dec_i = log_dec[:, i]
                 speed_range_i = speed_range[:, i]
@@ -142,63 +109,16 @@ class CampbellResults:
                         **kwargs,
                     )
 
-                    # Bokeh plot
-                    source = ColumnDataSource(
-                        dict(
-                            x=speed_range_i[whirl_mask],
-                            y=w_i[whirl_mask],
-                            color=log_dec_i[whirl_mask],
-                        )
-                    )
-                    color_mapper = linear_cmap(
-                        field_name="color",
-                        palette=bp.magma(256),
-                        low=min(log_dec_map),
-                        high=max(log_dec_map),
-                    )
-                    camp.scatter(
-                        x="x",
-                        y="y",
-                        color=color_mapper,
-                        marker=mark,
-                        fill_alpha=1.0,
-                        size=5,
-                        muted_color=color_mapper,
-                        muted_alpha=0.2,
-                        source=source,
-                        legend=legend,
-                    )
-
-        ax.plot(
-            speed_range[:, 0],
-            speed_range[:, 0],
-            color="k",
-            linewidth=1.5,
-            linestyle="-.",
-            alpha=0.75,
-            label="Rotor speed",
-        )
-
-        camp.line(
-            x=speed_range[:, 0],
-            y=speed_range[:, 0],
-            line_width=3,
-            color=bokeh_colors[0],
-            line_dash="dotdash",
-            line_alpha=0.75,
-            legend="Rotor speed",
-            muted_color=bokeh_colors[0],
-            muted_alpha=0.2,
-        )
-
-        color_bar = ColorBar(
-            color_mapper=color_mapper["transform"], width=8, location=(0, 0)
-        )
-
-        camp.legend.click_policy = "mute"
-        camp.legend.location = "top_left"
-        camp.add_layout(color_bar, "right")
-        show(camp)
+        for harm in harmonics:
+            ax.plot(
+                speed_range[:, 0],
+                harm * speed_range[:, 0],
+                color="k",
+                linewidth=1.5,
+                linestyle="-.",
+                alpha=0.75,
+                label="Rotor speed",
+            )
 
         if len(fig.axes) == 1:
             cbar = fig.colorbar(im)
@@ -225,6 +145,129 @@ class CampbellResults:
             ax.set_ylabel("Damped natural frequencies ($rad/s$)")
 
         return fig, ax
+
+    def _plot_bokeh(self, harmonics=[1], **kwargs):
+        wd = self.wd
+        num_frequencies = wd.shape[1]
+        log_dec = self.log_dec
+        whirl = self.whirl_values
+        speed_range = np.repeat(
+            self.speed_range[:, np.newaxis], num_frequencies, axis=1
+        )
+
+        log_dec_map = log_dec.flatten()
+
+        default_values = dict(
+            cmap="viridis",
+            vmin=min(log_dec_map),
+            vmax=max(log_dec_map),
+            s=30,
+            alpha=1.0,
+        )
+
+        for k, v in default_values.items():
+            kwargs.setdefault(k, v)
+
+        camp = figure(
+            tools="pan, box_zoom, wheel_zoom, reset, save",
+            title="Campbell Diagram - Damped Natural Frequency Map",
+            x_axis_label="Rotor speed (rad/s)",
+            y_axis_label="Damped natural frequencies (rad/s)",
+        )
+
+        for mark, whirl_dir, legend in zip(
+            ["^", "o", "v"], [0.0, 0.5, 1.0], ["Foward", "Mixed", "Backward"]
+        ):
+            num_frequencies = wd.shape[1]
+            for i in range(num_frequencies):
+                w_i = wd[:, i]
+                whirl_i = whirl[:, i]
+                log_dec_i = log_dec[:, i]
+                speed_range_i = speed_range[:, i]
+
+                whirl_mask = whirl_i == whirl_dir
+                if whirl_mask.shape[0] == 0:
+                    continue
+                else:
+                    source = ColumnDataSource(
+                        dict(
+                            x=speed_range_i[whirl_mask],
+                            y=w_i[whirl_mask],
+                            color=log_dec_i[whirl_mask],
+                        )
+                    )
+                    color_mapper = linear_cmap(
+                        field_name="color",
+                        palette=bp.viridis(256),
+                        low=min(log_dec_map),
+                        high=max(log_dec_map),
+                    )
+                    camp.scatter(
+                        x="x",
+                        y="y",
+                        color=color_mapper,
+                        marker=mark,
+                        fill_alpha=1.0,
+                        size=9,
+                        muted_color=color_mapper,
+                        muted_alpha=0.2,
+                        source=source,
+                        legend=legend,
+                    )
+
+        for harm in harmonics:
+            camp.line(
+                x=speed_range[:, 0],
+                y=harm * speed_range[:, 0],
+                line_width=3,
+                color=bokeh_colors[0],
+                line_dash="dotdash",
+                line_alpha=0.75,
+                legend="Rotor speed",
+                muted_color=bokeh_colors[0],
+                muted_alpha=0.2,
+            )
+        color_bar = ColorBar(
+            color_mapper=color_mapper["transform"],
+            width=8,
+            location=(0, 0),
+            title="log dec",
+            title_text_font_style="bold italic",
+            title_text_align="center",
+        )
+
+        camp.legend.background_fill_alpha = 0.1
+        camp.legend.click_policy = "mute"
+        camp.legend.location = "top_left"
+        camp.add_layout(color_bar, "right")
+
+        return camp
+
+    def plot(self, *args, plot_type="matplotlib", **kwargs):
+        """Plot campbell results.
+        Parameters
+        ----------
+        harmonics: list, optional
+            List withe the harmonics to be plotted.
+            The default is to plot 1x.
+        plot_type: str
+            Matplotlib or bokeh.
+            The default is matplotlib
+        fig : matplotlib figure, optional
+            Figure to insert axes with log_dec colorbar.
+        ax : matplotlib axes, optional
+            Axes in which the plot will be drawn.
+        Returns
+        -------
+        ax : matplotlib axes
+            Returns the axes object with the plot.
+        """
+        if plot_type == "matplotlib":
+            return self._plot_matplotlib(*args, **kwargs)
+        elif plot_type == "bokeh":
+            return self._plot_bokeh(*args, **kwargs)
+        else:
+            raise ValueError(f"")
 
 
 class FrequencyResponseResults(Results):
