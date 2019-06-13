@@ -158,6 +158,6 @@ class Material:
         data = Material.load_data()
         data["Materials"][self.name] = self.__dict__
         Material.dump_data(data)
-
+        os.chdir(run_path)
 
 steel = Material(name="Steel", rho=7810, E=211e9, G_s=81.2e9)

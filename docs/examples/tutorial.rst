@@ -73,7 +73,7 @@ parameter.
 
 
 
-.. parsed-literal::
+.. code-block:: python
 
     ['AISI4140', 'Steel']
 
@@ -142,13 +142,13 @@ All the values are following the S.I. convention.
     print(Disk)
 
 
-.. parsed-literal::
+.. code-block:: python
 
     DiskElement(Id=0.17809, Ip=0.32956, m=32.59, color='#bc625b', n=0)
 
 
-From geometry DiskElement instatiation
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+From geometry DiskElement instantiation
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 | Besides the instatiation previously explained, there is a way to
   instantiate a DiskElement with only geometrical parameters (for
@@ -299,7 +299,7 @@ you can either turn on or off the matplotlib one.
     
     
     
-      <div class="bk-root" id="64e8712d-0845-4005-9ec3-53121ee43dbc" data-root-id="1003"></div>
+      <div class="bk-root" id="e35e0b01-b5b2-4ff2-ac8f-786cacfef798" data-root-id="1003"></div>
 
 
 
@@ -307,10 +307,10 @@ you can either turn on or off the matplotlib one.
 
 
 
-.. parsed-literal::
+.. code-block:: python
 
     (Figure(id='1003', ...),
-     <matplotlib.axes._subplots.AxesSubplot at 0x7f8dd1ee3d68>)
+     <matplotlib.axes._subplots.AxesSubplot at 0x7f5ac9c67a20>)
 
 
 
@@ -350,25 +350,17 @@ response to gravity effects.
 
 
 
-.. raw:: html
+.. code-block:: python
 
-    <div style="display: table;"><div style="display: table-row;"><div style="display: table-cell;"><b title="bokeh.models.layouts.Column">Column</b>(</div><div style="display: table-cell;">id&nbsp;=&nbsp;'2232', <span id="2234" style="cursor: pointer;">&hellip;)</span></div></div><div class="2233" style="display: none;"><div style="display: table-cell;"></div><div style="display: table-cell;">children&nbsp;=&nbsp;[ToolbarBox(id='2231', ...), Column(id='2229', ...)],</div></div><div class="2233" style="display: none;"><div style="display: table-cell;"></div><div style="display: table-cell;">css_classes&nbsp;=&nbsp;[],</div></div><div class="2233" style="display: none;"><div style="display: table-cell;"></div><div style="display: table-cell;">disabled&nbsp;=&nbsp;False,</div></div><div class="2233" style="display: none;"><div style="display: table-cell;"></div><div style="display: table-cell;">height&nbsp;=&nbsp;None,</div></div><div class="2233" style="display: none;"><div style="display: table-cell;"></div><div style="display: table-cell;">js_event_callbacks&nbsp;=&nbsp;{},</div></div><div class="2233" style="display: none;"><div style="display: table-cell;"></div><div style="display: table-cell;">js_property_callbacks&nbsp;=&nbsp;{},</div></div><div class="2233" style="display: none;"><div style="display: table-cell;"></div><div style="display: table-cell;">name&nbsp;=&nbsp;None,</div></div><div class="2233" style="display: none;"><div style="display: table-cell;"></div><div style="display: table-cell;">sizing_mode&nbsp;=&nbsp;'fixed',</div></div><div class="2233" style="display: none;"><div style="display: table-cell;"></div><div style="display: table-cell;">subscribed_events&nbsp;=&nbsp;[],</div></div><div class="2233" style="display: none;"><div style="display: table-cell;"></div><div style="display: table-cell;">tags&nbsp;=&nbsp;[],</div></div><div class="2233" style="display: none;"><div style="display: table-cell;"></div><div style="display: table-cell;">width&nbsp;=&nbsp;None)</div></div></div>
-    <script>
-    (function() {
-      var expanded = false;
-      var ellipsis = document.getElementById("2234");
-      ellipsis.addEventListener("click", function() {
-        var rows = document.getElementsByClassName("2233");
-        for (var i = 0; i < rows.length; i++) {
-          var el = rows[i];
-          el.style.display = expanded ? "none" : "table-row";
-        }
-        ellipsis.innerHTML = expanded ? "&hellip;)" : "&lsaquo;&lsaquo;&lsaquo;";
-        expanded = !expanded;
-      });
-    })();
-    </script>
-
+    StaticResults([array([-0.00054047, -0.00091442, -0.00118923, -0.00128644, -0.00118923,
+           -0.00091442, -0.00054047]),
+                   array([ 2.94875235e-12, -4.32377431e+02, -3.94782008e+02, -3.57186586e+02,
+           -3.75954221e+01, -2.74269496e-12,  3.75954221e+01,  3.57186586e+02,
+            3.94782008e+02,  4.32377431e+02,  2.94875235e-12]),
+                   array([ 0.00000000e+00, -1.03394930e+02, -1.97391004e+02, -2.02090432e+02,
+           -1.97391004e+02, -1.03394930e+02, -3.97903932e-12]),
+                   {'Shaft Total Weight': '225.6', 'Disks Forces': ['-319.6', '-319.6'], 'Bearings Reaction Forces': ['432.4', '432.4']}],
+                  dtype=object)
 
 
 
@@ -392,7 +384,7 @@ In this example we can see the campbell diagram from 0 to 4000 RPM.
     
     
     
-      <div class="bk-root" id="5732b868-9bad-4e1b-9e22-3e258fd06638" data-root-id="2236"></div>
+      <div class="bk-root" id="424f5d69-1213-400d-9e54-ea8ab3451912" data-root-id="1858"></div>
 
 
 
@@ -400,10 +392,10 @@ In this example we can see the campbell diagram from 0 to 4000 RPM.
 
 
 
-.. parsed-literal::
+.. code-block:: python
 
     (<Figure size 432x288 with 2 Axes>,
-     <matplotlib.axes._subplots.AxesSubplot at 0x7f8dd014f940>)
+     <matplotlib.axes._subplots.AxesSubplot at 0x7f5ac8b36278>)
 
 
 
@@ -431,7 +423,7 @@ We can put the frequency response of
     
     
     
-      <div class="bk-root" id="ea651a0f-268a-45b3-ac5d-3c487de4955e" data-root-id="3856"></div>
+      <div class="bk-root" id="9e18a974-9a62-4916-96a5-4d693d503956" data-root-id="3478"></div>
 
 
 

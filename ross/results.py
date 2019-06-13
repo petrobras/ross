@@ -4,6 +4,7 @@ import bokeh.palettes as bp
 import matplotlib as mpl
 import matplotlib.pyplot as plt
 import numpy as np
+from mpl_toolkits.mplot3d import Axes3D
 from bokeh.layouts import gridplot
 from bokeh.models import ColumnDataSource, ColorBar, Arrow, NormalHead, Label
 from bokeh.plotting import figure, show
@@ -1061,7 +1062,7 @@ class ModeShapeResults(Results):
 
         ax.set_title(
             f"$speed$ = {self.w:.1f} rad/s\n$"
-            f"\frequency_range_d$ = {self.wd[mode]:.1f} rad/s\n"
+            f"\omega_d$ = {self.wd[mode]:.1f} rad/s\n"
             f"$log dec$ = {self.log_dec[mode]:.1f}"
         )
 
@@ -1355,3 +1356,73 @@ class StaticResults(Results):
         grid_plots = gridplot([[FBD, SF], [disp_graph, BM]])
 
         show(grid_plots)
+
+
+class ConvergenceResults(Results):
+    def plot(self, output_html=False):
+        """This method plots:
+            Natural Frequency vs Number of Elements
+            Relative Error vs Number of Elements
+
+        Parameters
+        ----------
+        output_html : Boolean, optional
+            outputs a html file.
+            Default is False
+
+        Returns
+        -------
+        plot : bokeh.figure
+            Bokeh plot showing the results
+        --------
+        """
+
+        el_num = np.array(self[0])
+        eigv_arr = np.array(self[1])
+        error_arr = np.array(self[2])
+
+        if output_html:
+            output_file("convergence.html")
+
+        source = ColumnDataSource(
+            data=dict(x0=el_num, y0=eigv_arr, x1=el_num, y1=error_arr)
+        )
+
+        TOOLS = "pan,wheel_zoom,box_zoom,hover,reset,save,"
+        TOOLTIPS1 = [("Frequency:", "@y0"), ("Number of Elements", "@x0")]
+        TOOLTIPS2 = [("Relative Error:", "@y1"), ("Number of Elements", "@x1")]
+
+        # create a new plot and add a renderer
+        freq_arr = figure(
+            tools=TOOLS,
+            tooltips=TOOLTIPS1,
+            width=800,
+            height=600,
+            title="Frequency Evaluation",
+            x_axis_label="Numer of Elements",
+            y_axis_label="Frequency (rad/s)",
+        )
+        freq_arr.line("x0", "y0", source=source, line_width=3, line_color="crimson")
+        freq_arr.circle("x0", "y0", source=source, size=8, fill_color="crimson")
+
+        # create another new plot and add a renderer
+        rel_error = figure(
+            tools=TOOLS,
+            tooltips=TOOLTIPS2,
+            width=800,
+            height=600,
+            title="Relative Error Evaluation",
+            x_axis_label="Number of Elements",
+            y_axis_label="Relative Error (%)",
+        )
+        rel_error.line(
+            "x1", "y1", source=source, line_width=3, line_color="darkslategray"
+        )
+        rel_error.circle("x1", "y1", source=source, fill_color="darkslategray", size=8)
+
+        # put the subplots in a gridplot
+        plot = gridplot([[freq_arr, rel_error]])
+        # show the plots
+        show(plot)
+
+        return plot
