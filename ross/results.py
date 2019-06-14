@@ -376,67 +376,6 @@ class FrequencyResponseResults(Results):
 
         return mag_plot
 
-    def plot_phase(self, inp, out, ax=None, **kwargs):
-        """Plot frequency response.
-        This method plots the frequency response phase given an output and
-        an input.
-        Parameters
-        ----------
-        inp : int
-            Input.
-        out : int
-            Output.
-        ax : matplotlib.axes, optional
-            Matplotlib axes where the phase will be plotted.
-            If None creates a new.
-        kwargs : optional
-            Additional key word arguments can be passed to change
-            the plot (e.g. linestyle='--')
-        Returns
-        -------
-        ax : matplotlib.axes
-            Matplotlib axes with phase plot.
-        phase_plot : bokeh plot axes
-            Bokeh plot axes with phase plot.
-        Examples
-        --------
-        """
-        if ax is None:
-            ax = plt.gca()
-
-        frequency_range = self.frequency_range
-        phase = self.phase
-
-        ax.plot(frequency_range, phase[inp, out, :], **kwargs)
-
-        ax.set_xlim(0, max(frequency_range))
-        ax.yaxis.set_major_locator(mpl.ticker.MaxNLocator(prune="lower"))
-        ax.yaxis.set_major_locator(mpl.ticker.MaxNLocator(prune="upper"))
-
-        ax.set_ylabel("Phase")
-        ax.set_xlabel("Frequency (rad/s)")
-
-        # bokeh plot - create a new plot
-        phase_plot = figure(
-            tools="pan, box_zoom, wheel_zoom, reset, save",
-            width=900,
-            height=400,
-            title="Frequency Response - Phase",
-            x_axis_label="Frequency",
-            y_axis_label="Phase",
-        )
-        source = ColumnDataSource(dict(x=frequency_range, y=phase[inp, out, :]))
-        phase_plot.line(
-            x="x",
-            y="y",
-            source=source,
-            line_color=bokeh_colors[0],
-            line_alpha=1.0,
-            line_width=3,
-        )
-
-        return ax, phase_plot
-
     def plot_phase_matplotlib(self, inp, out, ax=None, **kwargs):
         """Plot frequency response.
         This method plots the frequency response phase given an output and
@@ -623,6 +562,9 @@ class FrequencyResponseResults(Results):
             Input.
         out : int
             Output.
+        plot_type: str
+            Matplotlib or bokeh.
+            The default is matplotlib
         ax0 : matplotlib.axes, bokeh plot axes optional
             Matplotlib and bokeh plot axes where the amplitude will be plotted.
             If None creates a new.
@@ -772,11 +714,9 @@ class ForcedResponseResults(Results):
         mag = self.magnitude
 
         if units == "m":
-            ax.set_ylabel("Amplitude $(m)$")
             y_axis_label = "Amplitude (m)"
         elif units == "mic-pk-pk":
             mag = 2 * mag * 1e6
-            ax.set_ylabel("Amplitude $(\mu pk-pk)$")
             y_axis_label = "Amplitude $(\mu pk-pk)$"
 
         # bokeh plot - create a new plot
@@ -799,7 +739,7 @@ class ForcedResponseResults(Results):
             line_width=3,
         )
 
-        return ax, mag_plot
+        return mag_plot
 
     def plot_phase_matplotlib(self, dof, ax=None, **kwargs):
         """Plot frequency response.
@@ -907,8 +847,8 @@ class ForcedResponseResults(Results):
 
     def _plot_bokeh(self, dof, **kwargs):
         # bokeh plot axes
-        bk_ax0 = self.plot_magnitude(dof, ax=ax0, **kwargs)[1]
-        bk_ax1 = self.plot_phase(dof, ax=ax1, **kwargs)[1]
+        bk_ax0 = self.plot_magnitude_bokeh(dof, **kwargs)
+        bk_ax1 = self.plot_phase_bokeh(dof, **kwargs)
 
         # show the bokeh plot results
         grid_plots = gridplot([[bk_ax0], [bk_ax1]])
@@ -950,9 +890,9 @@ class ForcedResponseResults(Results):
         --------
         """
         if plot_type == "matplotlib":
-            return self._plot_matplotlib(dof, *args, **kwargs)
+            return self._plot_matplotlib(dof, **kwargs)
         elif plot_type == "bokeh":
-            return self._plot_bokeh(dof, *args, **kwargs)
+            return self._plot_bokeh(dof, **kwargs)
         else:
             raise ValueError(f"{plot_type} is not a valid plot type.")
 
@@ -1380,9 +1320,6 @@ class ConvergenceResults(Results):
         el_num = np.array(self[0])
         eigv_arr = np.array(self[1])
         error_arr = np.array(self[2])
-
-        if output_html:
-            output_file("convergence.html")
 
         source = ColumnDataSource(
             data=dict(x0=el_num, y0=eigv_arr, x1=el_num, y1=error_arr)
