@@ -272,7 +272,7 @@ class CampbellResults:
 
 
 class FrequencyResponseResults(Results):
-    def plot_magnitude_matplotlib(self, inp, out, ax=None, units="m", **kwargs):
+    def plot_magnitude_matplotlib(self, inp, out, ax=None, units="mic-pk-pk", **kwargs):
         """Plot frequency response.
         This method plots the frequency response magnitude given an output and
         an input.
@@ -309,14 +309,9 @@ class FrequencyResponseResults(Results):
         ax.yaxis.set_major_locator(mpl.ticker.MaxNLocator(prune="lower"))
         ax.yaxis.set_major_locator(mpl.ticker.MaxNLocator(prune="upper"))
 
-        if units == "m":
-            ax.set_ylabel("Amplitude $(m)$")
-        elif units == "mic-pk-pk":
-            ax.set_ylabel("Amplitude $(\mu pk-pk)$")
-        else:
-            ax.set_ylabel("Amplitude $(dB)$")
-
+        ax.set_ylabel("Mag H$(j\omega)$")
         ax.set_xlabel("Frequency (rad/s)")
+        ax.ticklabel_format(style="sci", axis="y", scilimits=(0, 0))
 
         return ax
 
