@@ -1374,7 +1374,8 @@ class Rotor(object):
         Examples:
         >>> import ross as rs
         >>> rotor = rs.rotor_example()
-        >>> rotor.plot_rotor()
+        >>> rotor.plot_rotor() # doctest: +ELLIPSIS
+        <matplotlib.axes...
         """
         if plot_type == "matplotlib":
             return self._plot_rotor_matplotlib(*args, **kwargs)
