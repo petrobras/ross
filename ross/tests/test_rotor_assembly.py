@@ -611,11 +611,11 @@ def test_freq_response(rotor4):
     )
 
     omega = np.linspace(0.0, 450.0, 4)
-    freq_resp = rotor4.run_freq_response(frequency_range=omega)
+    freq_resp = rotor4.run_freq_response(speed_range=omega)
     magdb = 20.0 * np.log10(freq_resp.magnitude)
     assert_allclose(magdb[:4, :4, :4], magdb_exp)
 
-    freq_resp = rotor4.run_freq_response(frequency_range=omega, modes=list(range(4)))
+    freq_resp = rotor4.run_freq_response(speed_range=omega, modes=list(range(4)))
     magdb = 20.0 * np.log10(freq_resp.magnitude)
     assert_allclose(magdb[:4, :4, :4], magdb_exp_modes_4)
 
@@ -672,7 +672,7 @@ def test_freq_response_w_force(rotor4):
     )
 
     omega = np.linspace(0.0, 450.0, 4)
-    freq_resp = rotor4.run_forced_response(force=F0, frequency_range=omega)
+    freq_resp = rotor4.run_forced_response(force=F0, speed_range=omega)
     mag = freq_resp.magnitude
     assert_allclose(mag[:4, :4], mag_exp)
 
