@@ -109,3 +109,6 @@ Thumbs.db
 #############
 .ipynb_checkpoints/
 notebooks/
+
+# docs #
+/docs/examples/*_files
