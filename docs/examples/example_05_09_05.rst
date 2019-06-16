@@ -63,31 +63,15 @@ kNs/m in each direction.
 
 
 
-.. raw:: html
 
-    
-    
-    
-    
-    
-    
-      <div class="bk-root" id="005aa0e2-465a-4c99-a3ef-cc33126c23df" data-root-id="1003"></div>
+.. code-block:: python
+
+    <matplotlib.axes._subplots.AxesSubplot at 0x7f66b2c60208>
 
 
 
 
-
-
-
-.. parsed-literal::
-
-    (Figure(id='1003', ...),
-     <matplotlib.axes._subplots.AxesSubplot at 0x7fa953506470>)
-
-
-
-
-.. image:: example_05_09_05_files/example_05_09_05_2_3.png
+.. image:: example_05_09_05_files/example_05_09_05_2_1.png
 
 
 .. code:: ipython3
@@ -126,31 +110,15 @@ kNs/m in each direction.
 
 
 
-.. raw:: html
 
-    
-    
-    
-    
-    
-    
-      <div class="bk-root" id="e979f317-64d2-4ce0-924a-51c200266081" data-root-id="2244"></div>
+.. code-block:: python
+
+    <matplotlib.axes._subplots.AxesSubplot at 0x7f66b002ef28>
 
 
 
 
-
-
-
-.. parsed-literal::
-
-    (Figure(id='2244', ...),
-     <matplotlib.axes._subplots.AxesSubplot at 0x7fa950813f60>)
-
-
-
-
-.. image:: example_05_09_05_files/example_05_09_05_3_3.png
+.. image:: example_05_09_05_files/example_05_09_05_3_1.png
 
 
 .. code:: ipython3
@@ -162,7 +130,7 @@ kNs/m in each direction.
     print('From Section Instantiation =', rotor595fs.wn/(2*np.pi),'[RPM]')
 
 
-.. parsed-literal::
+.. code-block:: python
 
     Normal Instantiation = [ 13.90536812  13.90536812  48.17762373  48.17762373 137.06057752
      137.06057752] [RPM]
@@ -181,7 +149,7 @@ kNs/m in each direction.
     print('Normal Instantiation =', rotor595c.wn/(2*np.pi))
 
 
-.. parsed-literal::
+.. code-block:: python
 
     Normal Instantiation = [ 13.69730748  14.09185971  43.60796387  52.17870498 122.36522778
      149.80603898]
@@ -193,30 +161,15 @@ kNs/m in each direction.
 
 
 
-.. raw:: html
 
-    
-    
-    
-    
-    
-    
-      <div class="bk-root" id="1adeba3d-3f8f-46d9-a194-ea774a305778" data-root-id="3299"></div>
-
-
-
-
-
-
-
-.. parsed-literal::
+.. code-block:: python
 
     (<Figure size 432x288 with 2 Axes>,
-     <matplotlib.axes._subplots.AxesSubplot at 0x7fa950786320>)
+     <matplotlib.axes._subplots.AxesSubplot at 0x7f66a3f9a668>)
 
 
 
 
-.. image:: example_05_09_05_files/example_05_09_05_6_3.png
+.. image:: example_05_09_05_files/example_05_09_05_6_1.png
 
 

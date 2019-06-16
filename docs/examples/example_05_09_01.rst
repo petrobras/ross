@@ -73,31 +73,15 @@ at 0 and 4,000 rev/min.
 
 
 
-.. raw:: html
 
-    
-    
-    
-    
-    
-    
-      <div class="bk-root" id="e425309c-7ae5-45be-bf4a-7da5c78fc060" data-root-id="1003"></div>
+.. code-block:: python
+
+    <matplotlib.axes._subplots.AxesSubplot at 0x7f02d6b33390>
 
 
 
 
-
-
-
-.. parsed-literal::
-
-    (Figure(id='1003', ...),
-     <matplotlib.axes._subplots.AxesSubplot at 0x7f3f832fc588>)
-
-
-
-
-.. image:: example_05_09_01_files/example_05_09_01_2_3.png
+.. image:: example_05_09_01_files/example_05_09_01_2_1.png
 
 
 .. code:: ipython3
@@ -136,31 +120,15 @@ at 0 and 4,000 rev/min.
 
 
 
-.. raw:: html
 
-    
-    
-    
-    
-    
-    
-      <div class="bk-root" id="e6377a7e-86ad-4a30-b438-898b9d1e6079" data-root-id="2244"></div>
+.. code-block:: python
+
+    <matplotlib.axes._subplots.AxesSubplot at 0x7f02d46f94a8>
 
 
 
 
-
-
-
-.. parsed-literal::
-
-    (Figure(id='2244', ...),
-     <matplotlib.axes._subplots.AxesSubplot at 0x7f3f80d9b630>)
-
-
-
-
-.. image:: example_05_09_01_files/example_05_09_01_3_3.png
+.. image:: example_05_09_01_files/example_05_09_01_3_1.png
 
 
 .. code:: ipython3
@@ -173,22 +141,7 @@ at 0 and 4,000 rev/min.
     print('From Section Instantiation =', rotor591fs.wn)
 
 
-
-.. raw:: html
-
-    
-    
-    
-    
-    
-    
-      <div class="bk-root" id="d826ddbc-debb-40d0-a38e-248fac1b2a46" data-root-id="3299"></div>
-
-
-
-
-
-.. parsed-literal::
+.. code-block:: python
 
     Normal Instantiation = [ 86.65811435  86.65811435 274.31285391 274.31285391 716.78631221
      716.78631221]
@@ -199,7 +152,7 @@ at 0 and 4,000 rev/min.
 
 
 
-.. image:: example_05_09_01_files/example_05_09_01_4_3.png
+.. image:: example_05_09_01_files/example_05_09_01_4_1.png
 
 
 .. code:: ipython3
@@ -211,7 +164,7 @@ at 0 and 4,000 rev/min.
     print('Normal Instantiation =', rotor591c.wn)
 
 
-.. parsed-literal::
+.. code-block:: python
 
     Normal Instantiation = [ 85.389467    87.7958637  251.78460413 294.71333087 600.17936195
      827.07536193]

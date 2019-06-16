@@ -64,31 +64,15 @@ between the x and y directions. The bearings have direct stiffnesses of
 
 
 
-.. raw:: html
 
-    
-    
-    
-    
-    
-    
-      <div class="bk-root" id="18560ba3-33b3-4975-ad29-96e3fbafdf4d" data-root-id="1003"></div>
+.. code-block:: python
+
+    <matplotlib.axes._subplots.AxesSubplot at 0x7fe0b7682390>
 
 
 
 
-
-
-
-.. parsed-literal::
-
-    (Figure(id='1003', ...),
-     <matplotlib.axes._subplots.AxesSubplot at 0x7f4d00e1e4e0>)
-
-
-
-
-.. image:: example_05_09_04_files/example_05_09_04_2_3.png
+.. image:: example_05_09_04_files/example_05_09_04_2_1.png
 
 
 .. code:: ipython3
@@ -127,31 +111,15 @@ between the x and y directions. The bearings have direct stiffnesses of
 
 
 
-.. raw:: html
 
-    
-    
-    
-    
-    
-    
-      <div class="bk-root" id="657f6c61-222d-466f-9f33-f1d57fa2efe3" data-root-id="2244"></div>
+.. code-block:: python
+
+    <matplotlib.axes._subplots.AxesSubplot at 0x7fe0b5256b00>
 
 
 
 
-
-
-
-.. parsed-literal::
-
-    (Figure(id='2244', ...),
-     <matplotlib.axes._subplots.AxesSubplot at 0x7f4cfe128fd0>)
-
-
-
-
-.. image:: example_05_09_04_files/example_05_09_04_3_3.png
+.. image:: example_05_09_04_files/example_05_09_04_3_1.png
 
 
 .. code:: ipython3
@@ -164,7 +132,7 @@ between the x and y directions. The bearings have direct stiffnesses of
     print('From Section Instantiation =', rotor594fs.wn)
 
 
-.. parsed-literal::
+.. code-block:: python
 
     Normal Instantiation = [ 86.65808619  86.65814251 274.31285373 274.31285411 716.78471745
      716.78790695]
@@ -183,7 +151,7 @@ between the x and y directions. The bearings have direct stiffnesses of
     print('Normal Instantiation =', rotor594c.wn)
 
 
-.. parsed-literal::
+.. code-block:: python
 
     Normal Instantiation = [ 84.19790045  89.03269396 246.44121183 301.08623205 594.81950178
      834.0420378 ]

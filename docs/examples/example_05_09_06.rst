@@ -67,31 +67,15 @@ Example 5.5.1.
 
 
 
-.. raw:: html
 
-    
-    
-    
-    
-    
-    
-      <div class="bk-root" id="565da099-764b-4c5f-bc99-4c3a2547b812" data-root-id="1003"></div>
+.. code-block:: python
+
+    <matplotlib.axes._subplots.AxesSubplot at 0x7faf809795c0>
 
 
 
 
-
-
-
-.. parsed-literal::
-
-    (Figure(id='1003', ...),
-     <matplotlib.axes._subplots.AxesSubplot at 0x7f96c46936d8>)
-
-
-
-
-.. image:: example_05_09_06_files/example_05_09_06_2_3.png
+.. image:: example_05_09_06_files/example_05_09_06_2_1.png
 
 
 .. code:: ipython3
@@ -130,31 +114,15 @@ Example 5.5.1.
 
 
 
-.. raw:: html
 
-    
-    
-    
-    
-    
-    
-      <div class="bk-root" id="03665734-15e7-49aa-9b5d-d8b3741ef46a" data-root-id="2244"></div>
+.. code-block:: python
+
+    <matplotlib.axes._subplots.AxesSubplot at 0x7faf7dd58f98>
 
 
 
 
-
-
-
-.. parsed-literal::
-
-    (Figure(id='2244', ...),
-     <matplotlib.axes._subplots.AxesSubplot at 0x7f96c19bf0f0>)
-
-
-
-
-.. image:: example_05_09_06_files/example_05_09_06_3_3.png
+.. image:: example_05_09_06_files/example_05_09_06_3_1.png
 
 
 .. code:: ipython3
@@ -170,7 +138,7 @@ Example 5.5.1.
     print('From Section Instantiation =', rotor596fs.wn/(2*np.pi),'[Hz]')
 
 
-.. parsed-literal::
+.. code-block:: python
 
     Normal Instantiation = [14.65456496 15.00342392 17.29602598 17.6304386  69.39050339 69.45679729] [Hz]
     
@@ -189,7 +157,7 @@ Example 5.5.1.
     print('Normal Instantiation =', rotor596c.wn/(2*np.pi))
 
 
-.. parsed-literal::
+.. code-block:: python
 
     Normal Instantiation = [14.65397309 15.00828414 17.08915063 17.78723718 67.06556436 71.29745535]
 
@@ -200,29 +168,14 @@ Example 5.5.1.
 
 
 
-.. raw:: html
 
-    
-    
-    
-    
-    
-    
-      <div class="bk-root" id="79a6b1a8-7f5d-488f-a3d8-8884bbe9557f" data-root-id="3299"></div>
-
-
-
-
-
-
-
-.. parsed-literal::
+.. code-block:: python
 
     (<Figure size 432x288 with 2 Axes>,
-     <matplotlib.axes._subplots.AxesSubplot at 0x7f96c19949b0>)
+     <matplotlib.axes._subplots.AxesSubplot at 0x7faf7dcd6e80>)
 
 
 
 
-.. image:: example_05_09_06_files/example_05_09_06_6_3.png
+.. image:: example_05_09_06_files/example_05_09_06_6_1.png
 
