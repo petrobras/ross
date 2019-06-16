@@ -31,7 +31,7 @@ from ross.results import (
     ForcedResponseResults,
     ModeShapeResults,
     StaticResults,
-    ConvergenceResults
+    ConvergenceResults,
 )
 from ross.shaft_element import ShaftElement
 
@@ -421,8 +421,7 @@ class Rotor(object):
         self.error_arr = error_arr
 
         results = ConvergenceResults(
-            np.array([el_num[1:], eigv_arr[1:], error_arr[1:]]),
-            new_attributes={},
+            np.array([el_num[1:], eigv_arr[1:], error_arr[1:]]), new_attributes={}
         )
 
         return results
@@ -1153,7 +1152,80 @@ class Rotor(object):
         """
         return signal.lsim(self.lti, F, t, X0=ic)
 
-    def plot_rotor(self, nodes=1, ax=None, output_html=False, bk_ax=None):
+    def _plot_rotor_matplotlib(self, nodes=1, ax=None):
+        # check slenderness ratio of beam elements
+        SR = np.array([])
+        for shaft in self.shaft_elements:
+            if shaft.slenderness_ratio < 1.6:
+                SR = np.append(SR, shaft.n)
+        if len(SR) != 0:
+            warnings.warn(
+                "The beam elements "
+                + str(SR)
+                + " have slenderness ratio (G*A*L^2 / EI) of less than 1.6."
+                + " Results may not converge correctly"
+            )
+
+        if ax is None:
+            ax = plt.gca()
+
+        #  plot shaft centerline
+        shaft_end = self.nodes_pos[-1]
+        ax.plot([-0.2 * shaft_end, 1.2 * shaft_end], [0, 0], "k-.")
+
+        try:
+            max_diameter = max([disk.o_d for disk in self.disk_elements])
+        except (ValueError, AttributeError):
+            max_diameter = max([shaft.o_d for shaft in self.shaft_elements])
+
+        ax.set_ylim(-1.2 * max_diameter, 1.2 * max_diameter)
+        ax.axis("equal")
+        ax.set_xlabel("Axial location (m)")
+        ax.set_ylabel("Shaft radius (m)")
+
+        # plot nodes
+        text = []
+        x_pos = []
+        for node, position in enumerate(self.nodes_pos[::nodes]):
+            ax.plot(
+                position,
+                0,
+                zorder=2,
+                ls="",
+                marker="D",
+                color="#6caed6",
+                markersize=10,
+                alpha=0.6,
+            )
+            ax.text(
+                position,
+                0,
+                f"{node*nodes}",
+                size="smaller",
+                horizontalalignment="center",
+                verticalalignment="center",
+            )
+
+        # plot shaft elements
+        for sh_elm in self.shaft_elements:
+            position = self.nodes_pos[sh_elm.n]
+            sh_elm.patch(position, SR, ax)
+
+        # plot disk elements
+        for disk in self.disk_elements:
+            position = (self.nodes_pos[disk.n], self.nodes_o_d[disk.n] / 2)
+            length = min(self.nodes_le)
+            disk.patch(position, length, ax)
+
+        # plot bearings
+        for bearing in self.bearing_seal_elements:
+            position = (self.nodes_pos[bearing.n], -self.nodes_o_d[bearing.n] / 2)
+            length = min(self.nodes_le)
+            bearing.patch(position, length, ax)
+
+        return ax
+
+    def _plot_rotor_bokeh(self, nodes=1, bk_ax=None):
         """Plots a rotor object.
 
         This function will take a rotor object and plot its shaft,
@@ -1194,27 +1266,13 @@ class Rotor(object):
                 + " Results may not converge correctly"
             )
 
-        if ax is None:
-            ax = plt.gca()
-
         #  plot shaft centerline
         shaft_end = self.nodes_pos[-1]
-        ax.plot([-0.2 * shaft_end, 1.2 * shaft_end], [0, 0], "k-.")
 
         try:
             max_diameter = max([disk.o_d for disk in self.disk_elements])
         except (ValueError, AttributeError):
             max_diameter = max([shaft.o_d for shaft in self.shaft_elements])
-
-        # matplotlib
-        ax.set_ylim(-1.2 * max_diameter, 1.2 * max_diameter)
-        ax.axis("equal")
-        ax.set_xlabel("Axial location (m)")
-        ax.set_ylabel("Shaft radius (m)")
-
-        # bokeh plot - output to static HTML file
-        if output_html:
-            output_file("rotor.html")
 
         # bokeh plot - create a new plot
         bk_ax = figure(
@@ -1246,26 +1304,6 @@ class Rotor(object):
             text.append(str(node))
             x_pos.append(position)
 
-            # matplotlib
-            ax.plot(
-                position,
-                0,
-                zorder=2,
-                ls="",
-                marker="D",
-                color="#6caed6",
-                markersize=10,
-                alpha=0.6,
-            )
-            ax.text(
-                position,
-                0,
-                f"{node*nodes}",
-                size="smaller",
-                horizontalalignment="center",
-                verticalalignment="center",
-            )
-
         # bokeh plot - plot nodes
         y_pos = np.linspace(0, 0, len(self.nodes_pos))
 
@@ -1290,23 +1328,61 @@ class Rotor(object):
         # plot shaft elements
         for sh_elm in self.shaft_elements:
             position = self.nodes_pos[sh_elm.n]
-            sh_elm.patch(position, SR, ax, bk_ax)
+            sh_elm.bokeh_patch(position, SR, bk_ax)
 
         # plot disk elements
         for disk in self.disk_elements:
             position = (self.nodes_pos[disk.n], self.nodes_o_d[disk.n] / 2)
             length = min(self.nodes_le)
-            disk.patch(position, length, ax, bk_ax)
+            disk.bokeh_patch(position, length, bk_ax)
 
         # plot bearings
         for bearing in self.bearing_seal_elements:
             position = (self.nodes_pos[bearing.n], -self.nodes_o_d[bearing.n] / 2)
             length = min(self.nodes_le)
-            bearing.patch(position, length, ax, bk_ax)
+            bearing.bokeh_patch(position, length, bk_ax)
 
         show(bk_ax)
 
-        return bk_ax, ax
+        return bk_ax
+
+    def plot_rotor(self, *args, plot_type="matplotlib", **kwargs):
+        """Plots a rotor object.
+
+        This function will take a rotor object and plot its shaft,
+        disks and bearing elements
+
+        Parameters
+        ----------
+        nodes : int, optional
+            Increment that will be used to plot nodes label.
+        plot_type : str
+            Matplotlib or bokeh.
+            Default is matplotlib.
+        ax : matplotlib axes, optional
+            Axes in which the plot will be drawn.
+        bk_ax : bokeh plotting axes, optional
+            Axes in which the plot will be drawn.
+
+        Returns
+        -------
+        ax : matplotlib axes
+            Returns the axes object with the plot.
+        bk_ax : bokeh plotting axes
+            Returns the axes object with the plot.
+
+        Examples:
+        >>> import ross as rs
+        >>> rotor = rs.rotor_example()
+        >>> rotor.plot_rotor() # doctest: +ELLIPSIS
+        <matplotlib.axes...
+        """
+        if plot_type == "matplotlib":
+            return self._plot_rotor_matplotlib(*args, **kwargs)
+        elif plot_type == "bokeh":
+            return self._plot_rotor_bokeh(*args, **kwargs)
+        else:
+            raise ValueError(f"{plot_type} is not a valid plot type.")
 
     def run_campbell(self, speed_range, frequencies=6, frequency_type="wd"):
         """Calculates the Campbell diagram.
@@ -1360,13 +1436,10 @@ class Rotor(object):
             results[i, :, 4] = self.wn[:frequencies]
 
         results = CampbellResults(
-            results,
-            new_attributes={
-                "speed_range": speed_range,
-                "wd": results[..., 0],
-                "log_dec": results[..., 1],
-                "whirl_values": results[..., 2],
-            },
+            speed_range=speed_range,
+            wd=results[..., 0],
+            log_dec=results[..., 1],
+            whirl_values=results[..., 2],
         )
 
         self.w = rotor_current_speed
@@ -1829,7 +1902,8 @@ class Rotor(object):
                     -disp_y[node] * self.df_bearings.loc[i, "kyy"].coefficient[0]
                 )
                 BrgForceToReturn.append(
-                    "%.1f" % (-disp_y[node] * self.df_bearings.loc[i, "kyy"].coefficient[0])
+                    "%.1f"
+                    % (-disp_y[node] * self.df_bearings.loc[i, "kyy"].coefficient[0])
                 )
 
             # Disk Forces
@@ -1895,7 +1969,7 @@ class Rotor(object):
             force_data = {
                 "Shaft Total Weight": "%.1f" % sh_weight,
                 "Disks Forces": DskForceToReturn,
-                "Bearings Reaction Forces": BrgForceToReturn
+                "Bearings Reaction Forces": BrgForceToReturn,
             }
 
             results = StaticResults(
@@ -2156,8 +2230,8 @@ def whirl(kappa_mode):
 def whirl_to_cmap(whirl):
     """Maps the whirl to a value"""
     if whirl == "Forward":
-        return 0.
+        return 0.0
     elif whirl == "Backward":
-        return 1.
+        return 1.0
     elif whirl == "Mixed":
         return 0.5

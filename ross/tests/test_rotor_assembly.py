@@ -539,13 +539,15 @@ def test_evals_rotor3_rotor4(rotor3, rotor4):
 
 def test_campbell(rotor4):
     speed = np.linspace(0, 300, 3)
-    camp = rotor4.run_campbell(speed)[:, :, 0]
+    camp = rotor4.run_campbell(speed)
+
+    camp_calculated = camp.wd
     # fmt: off
     camp_desired = np.array([[82.65303734,  86.65811435, 254.52047828, 274.31285391, 679.48903239, 716.78631221],
                              [82.60929602,  86.68625235, 251.70037114, 276.87787937, 652.85679897, 742.60864608],
                              [82.48132723,  86.76734307, 245.49092844, 282.33294699, 614.05536277, 779.07778334]])
     # fmt: on
-    assert_allclose(camp, camp_desired)
+    assert_allclose(camp_calculated, camp_desired)
 
 
 @pytest.mark.skip(reason="Needs investigation. It fails depending on system.")
