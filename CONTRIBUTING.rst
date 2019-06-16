@@ -123,16 +123,5 @@ If there are only a few, unrelated commits:
 
     git fetch upstream
     git rebase upstream/master
-    git log -p upstream/master..
-    git log --oneline --graph
     git push upstream my-feature-branch:master
 
-Otherwise, if all commits are related:
-
-::
-
-    git fetch upstream
-    git merge --no-ff upstream/master
-    git log -p upstream/master..
-    git log --oneline --graph
-    git push upstream my-feature-branch:master
