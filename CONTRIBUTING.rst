@@ -19,6 +19,15 @@ Code formatting is done with `Black <https://black.readthedocs.io/en/stable/>`_,
 code formatter"*. You can configure your development environment to use Black before a commit. More information on how
 to set this is given at `Black's documentation<https://black.readthedocs.io/en/stable/editor_integration.html>`_.
 
+Tests
+-----
+We use pytest to test the code. Unit tests are placed in the `~/ross/ross/tests` folder. We also test our docstrings to
+assure that the examples are working.
+If you want to run all the tests you can do it with (from the `~/ross/ross` folder):
+
+.. code-block:: text
+    $ pytest
+
 Integrated development environment: PyCharm
 -------------------------------------------
 The ross development team adopted PyCharm as integrated development environment (IDE).
@@ -27,15 +36,14 @@ even no IDE at all. But in case you want to use PyCharm, go to the `PyCharm webs
 <https://www.jetbrains.com/pycharm/>`_ to download and install it.
 
 How to contribute to ross using git
-===================================
+-----------------------------------
 .. _git-configuration:
 
 In order to use git to contribute to ROSS project, follow the steps bellow:
 *For Windows users: commands provided here can be executed using Git Bash instead of Git GUI.*
 
-----------------------------------------
 Step 1: Make you own copy (fork) of ROSS
-----------------------------------------
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 Go to https://github.com/ross-rotordynamics/ross
 In the top-right corner of the page, click Fork, to fork it to your GitHub account.
 
@@ -48,9 +56,8 @@ From the command line:
     git remote add upstream https://github.com/ross-rotordynamics/ross.git
 
 
------------------------------------------
 Step 2: Keep in sync with changes in Ross
------------------------------------------
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 Setup your local repository so it pulls from upstream by default:
 
 ::
@@ -81,17 +88,15 @@ It should look like this:
 
 The part :code:`fetch = +refs/pull/*/head:refs/remotes/upstream/pr/*` will make pull requests available.
 
----------------------------------
 Step 3: Make a new feature branch
----------------------------------
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 ::
 
     git fetch upstream
     git checkout -b my-new-feature upstream/master
 
--------------------------------------------
 Step 4: Push changes to your git repository
--------------------------------------------
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 After a complete working set of related changes are made:
 
 ::
@@ -106,17 +111,15 @@ The following blog posts have some good information on how to write commit messa
 
 `On commit messages <https://who-t.blogspot.com/2009/12/on-commit-messages.html>`_
 
--------------------------------------
 Step 5: Push changes to the main repo
--------------------------------------
-^^^^^^^^^^^^^^^^
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
 For contributors
-^^^^^^^^^^^^^^^^
+++++++++++++++++
 To create a Pull Request (PR), refer to https://help.github.com/articles/about-pull-requests/
 
-^^^^^^^^^^^^^^^^^^^
 For core developers
-^^^^^^^^^^^^^^^^^^^
++++++++++++++++++++
 If there are only a few, unrelated commits:
 
 ::

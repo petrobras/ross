@@ -20,6 +20,7 @@ available at `github <https://github.com/ross-rotordynamics/ross>`_.
    examples
    download
    api
+   contributing
    release_notes
 
 Indices and tables
