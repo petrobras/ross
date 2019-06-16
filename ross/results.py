@@ -271,7 +271,13 @@ class CampbellResults:
             raise ValueError(f"")
 
 
-class FrequencyResponseResults(Results):
+class FrequencyResponseResults:
+    def __init__(self, freq_resp, speed_range, magnitude, phase):
+        self.freq_resp = freq_resp
+        self.speed_range = speed_range
+        self.magnitude = magnitude
+        self.phase = phase
+
     def plot_magnitude_matplotlib(self, inp, out, ax=None, units="mic-pk-pk", **kwargs):
         """Plot frequency response.
         This method plots the frequency response magnitude given an output and
@@ -300,7 +306,7 @@ class FrequencyResponseResults(Results):
         if ax is None:
             ax = plt.gca()
 
-        frequency_range = self.frequency_range
+        frequency_range = self.speed_range
         mag = self.magnitude
 
         ax.plot(frequency_range, mag[inp, out, :], **kwargs)
@@ -340,7 +346,7 @@ class FrequencyResponseResults(Results):
         Examples
         --------
         """
-        frequency_range = self.frequency_range
+        frequency_range = self.speed_range
         mag = self.magnitude
 
         if units == "m":
@@ -399,7 +405,7 @@ class FrequencyResponseResults(Results):
         if ax is None:
             ax = plt.gca()
 
-        frequency_range = self.frequency_range
+        frequency_range = self.speed_range
         phase = self.phase
 
         ax.plot(frequency_range, phase[inp, out, :], **kwargs)
@@ -438,7 +444,7 @@ class FrequencyResponseResults(Results):
         Examples
         --------
         """
-        frequency_range = self.frequency_range
+        frequency_range = self.speed_range
         phase = self.phase
 
         # bokeh plot - create a new plot
@@ -629,7 +635,13 @@ class FrequencyResponseResults(Results):
         return ax
 
 
-class ForcedResponseResults(Results):
+class ForcedResponseResults:
+    def __init__(self, forced_resp, speed_range, magnitude, phase):
+        self.forced_resp = forced_resp
+        self.speed_range = speed_range
+        self.magnitude = magnitude
+        self.phase = phase
+
     def plot_magnitude_matplotlib(self, dof, ax=None, units="m", **kwargs):
         """Plot frequency response.
         This method plots the frequency response magnitude given an output and
@@ -658,7 +670,7 @@ class ForcedResponseResults(Results):
         if ax is None:
             ax = plt.gca()
 
-        frequency_range = self.frequency_range
+        frequency_range = self.speed_range
         mag = self.magnitude
 
         if units == "m":
@@ -705,7 +717,7 @@ class ForcedResponseResults(Results):
         Examples
         --------
         """
-        frequency_range = self.frequency_range
+        frequency_range = self.speed_range
         mag = self.magnitude
 
         if units == "m":
@@ -762,7 +774,7 @@ class ForcedResponseResults(Results):
         if ax is None:
             ax = plt.gca()
 
-        frequency_range = self.frequency_range
+        frequency_range = self.speed_range
         phase = self.phase
 
         ax.plot(frequency_range, phase[dof], **kwargs)
@@ -800,7 +812,7 @@ class ForcedResponseResults(Results):
         Examples
         --------
         """
-        frequency_range = self.frequency_range
+        frequency_range = self.speed_range
         phase = self.phase
 
         phase_plot = figure(
@@ -892,13 +904,35 @@ class ForcedResponseResults(Results):
             raise ValueError(f"{plot_type} is not a valid plot type.")
 
 
-class ModeShapeResults(Results):
+class ModeShapeResults:
+    def __init__(
+        self,
+        modes,
+        ndof,
+        nodes,
+        nodes_pos,
+        elements_length,
+        w,
+        wd,
+        log_dec,
+        kappa_modes,
+    ):
+        self.modes = modes
+        self.ndof = ndof
+        self.nodes = nodes
+        self.nodes_pos = nodes_pos
+        self.elements_length = elements_length
+        self.w = w
+        self.wd = wd
+        self.log_dec = log_dec
+        self.kappa_modes = kappa_modes
+
     def plot(self, mode=None, evec=None, fig=None, ax=None):
         if ax is None:
             fig = plt.figure()
             ax = fig.gca(projection="3d")
 
-        evec0 = self[:, mode]
+        evec0 = self.modes[:, mode]
         nodes = self.nodes
         nodes_pos = self.nodes_pos
         kappa_modes = self.kappa_modes

@@ -984,7 +984,7 @@ class Rotor(object):
 
         return H
 
-    def run_freq_response(self, frequency_range=None, modes=None):
+    def run_freq_response(self, speed_range=None, modes=None):
         """Frequency response for a mdof system.
 
         This method returns the frequency response for a mdof system
@@ -1016,45 +1016,41 @@ class Rotor(object):
         Examples
         --------
         """
-        if frequency_range is None:
-            frequency_range = np.linspace(0, max(self.evalues.imag) * 1.5, 1000)
+        if speed_range is None:
+            speed_range = np.linspace(0, max(self.evalues.imag) * 1.5, 1000)
 
         freq_resp = np.empty(
-            (self.lti.inputs, self.lti.outputs, len(frequency_range)), dtype=np.complex
+            (self.lti.inputs, self.lti.outputs, len(speed_range)), dtype=np.complex
         )
 
-        for i, w in enumerate(frequency_range):
+        for i, w in enumerate(speed_range):
             H = self.transfer_matrix(w=w, modes=modes)
             freq_resp[..., i] = H
 
         results = FrequencyResponseResults(
-            freq_resp,
-            new_attributes={
-                "frequency_range": frequency_range,
-                "magnitude": abs(freq_resp),
-                "phase": np.angle(freq_resp),
-            },
+            freq_resp=freq_resp,
+            speed_range=speed_range,
+            magnitude=abs(freq_resp),
+            phase=np.angle(freq_resp),
         )
 
         return results
 
-    def run_forced_response(self, force=None, frequency_range=None, modes=None):
-        freq_resp = self.run_freq_response(frequency_range=frequency_range, modes=modes)
+    def run_forced_response(self, force=None, speed_range=None, modes=None):
+        freq_resp = self.run_freq_response(speed_range=speed_range, modes=modes)
 
         forced_resp = np.zeros(
-            (self.ndof, len(freq_resp.frequency_range)), dtype=np.complex
+            (self.ndof, len(freq_resp.speed_range)), dtype=np.complex
         )
 
-        for i in range(len(freq_resp.frequency_range)):
-            forced_resp[:, i] = freq_resp[..., i] @ force[..., i]
+        for i in range(len(freq_resp.speed_range)):
+            forced_resp[:, i] = freq_resp.freq_resp[..., i] @ force[..., i]
 
         forced_resp = ForcedResponseResults(
-            forced_resp,
-            new_attributes={
-                "frequency_range": frequency_range,
-                "magnitude": abs(forced_resp),
-                "phase": np.angle(forced_resp),
-            },
+            forced_resp=forced_resp,
+            speed_range=speed_range,
+            magnitude=abs(forced_resp),
+            phase=np.angle(forced_resp),
         )
 
         return forced_resp
@@ -1457,17 +1453,15 @@ class Rotor(object):
             kappa_modes.append(kappa_color)
 
         mode_shapes = ModeShapeResults(
-            self.evectors[: self.ndof],
-            new_attributes={
-                "ndof": self.ndof,
-                "nodes": self.nodes,
-                "nodes_pos": self.nodes_pos,
-                "elements_length": self.elements_length,
-                "w": self.w,
-                "wd": self.wd,
-                "log_dec": self.log_dec,
-                "kappa_modes": kappa_modes,
-            },
+            modes=self.evectors[: self.ndof],
+            ndof=self.ndof,
+            nodes=self.nodes,
+            nodes_pos=self.nodes_pos,
+            elements_length=self.elements_length,
+            w=self.w,
+            wd=self.wd,
+            log_dec=self.log_dec,
+            kappa_modes=kappa_modes,
         )
 
         return mode_shapes

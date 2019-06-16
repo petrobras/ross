@@ -5,18 +5,13 @@ Tutorial
 `Download This
 Notebook <https://ross-rotordynamics.github.io/ross-website/_downloads/51a7c8bd4026689b99005339576b2193/tutorial.ipynb>`__
 
-| This is a basic tutorial on how to properly use ROSS (Rotordynamics
-  open-source software), a simulator for rotating machinery. The
-  majority of this code follows object-oriented coding, which is
-  represented in this `UML
+| This is a basic tutorial on how to use ross (rotordynamics open-source
+  software), a Python library for rotordynamic analysis. The majority of
+  this code follows object-oriented coding, which is represented in this
+  `UML
   DIAGRAM <https://user-images.githubusercontent.com/32821252/50386686-131c5200-06d3-11e9-9806-f5746295be81.png>`__.
 | In the following topics we are going to discuss the most relevant
   classes for a quick start to use ROSS.
-
-Materials
----------
-
-There is a class called Material to hold material’s properties.
 
 .. code:: ipython3
 
@@ -26,8 +21,6 @@ There is a class called Material to hold material’s properties.
     import matplotlib.pyplot as plt
     
     output_notebook()
-    
-    Steel = rs.Material(name="Steel", rho=7810, E=211e9, G_s=81.2e9)
 
 
 
@@ -42,11 +35,28 @@ There is a class called Material to hold material’s properties.
 
 
 
-| Where: - ‘name’ is a parameter used to identificate the material. -
-  ‘rho’ is the density of this material - ‘E’ is the Young’s modulus. -
-  ‘G_s’ is the Shear modulus.
-| Note that, to instatiate a Material class, you only need to give 2 out
-  of the following parameters: ‘E’, ‘G_s’ ,‘rho’.
+Materials
+---------
+
+There is a class called Material to hold material’s properties, where:
+
+.. code:: text
+
+   name : str
+       Material name.
+   E : float
+       Young's modulus (N/m**2).
+   G_s : float
+       Shear modulus (N/m**2).
+   rho : float
+       Density (N/m**3).
+
+Note that, to instatiate a Material class, you only need to give 2 out
+of the following parameters: ‘E’, ‘G_s’ ,‘Poisson’.
+
+.. code:: ipython3
+
+    Steel = rs.Material(name="Steel", rho=7810, E=211e9, G_s=81.2e9)
 
 Saving a Material
 ~~~~~~~~~~~~~~~~~
@@ -62,9 +72,9 @@ Loading a Material
 ~~~~~~~~~~~~~~~~~~
 
 To load a material, first of all, use the available_materials() method
-to check if your material is instantiated, then you should use the
-Material.use_material(‘name’) method with the name of the material as a
-parameter.
+to check if your material is available in the database, then you should
+use the Material.use_material(‘name’) method with the name of the
+material as a parameter.
 
 .. code:: ipython3
 
@@ -86,26 +96,42 @@ parameter.
 Element
 -------
 
-| Element is an abstract class(not directly used in the program), this
-  class is mainly used to organize the code and make it more intuitive.
-| - All the classes which derives from Element ends with Element in
-  their respective names. - Every element is placed in a node, which is
-  the junction of two elements.
+Element is an abstract class (not directly used in the program), this
+class is mainly used to organize the code and make it more intuitive.
+
+-  All the classes which derives from Element ends with Element in their
+   respective names.
+-  Every element is placed in a node, which is the junction of two
+   elements.
 
 ShaftElement
 ------------
 
-| There are two methods that you could use to model this element:
-| \* Euler–Bernoulli beam Theory \* Timoshenko beam Theory (used as
-  default)
+There are two methods that you could use to model this element:
+
+-  Euler–Bernoulli beam Theory
+-  Timoshenko beam Theory (used as default)
 
 | This Element represents the rotor’s shaft, all the other elements are
   correlated with this one.
-| This class can be instantiated as the code that follows.
-| Where: - ‘i_d’: the shaft’s internal diameter (zero when dealing with
-  a solid shaft). - ‘o_d’: the shaft’s outter diameter. - ‘n’: the node
-  where the shaft elements starts. - ‘L’: the length of the shaft
-  element.
+| This class can be instantiated as the code that follows. Where (as per
+  the documentation):
+
+.. code:: text
+
+   L : float
+       Element length.
+   i_d : float
+       Inner diameter of the element.
+   o_d : float
+       Outer diameter of the element.
+   material : ross.material
+       Shaft material.
+   n : int, optional
+       Element number (coincident with it's first node).
+       If not given, it will be set when the rotor is assembled
+       according to the element's position in the list supplied to
+       the rotor constructor.
 
 .. code:: ipython3
 
@@ -126,15 +152,25 @@ ShaftElement
 DiskElement
 -----------
 
-| As the name says this class represents a Disk.
-| We can see an example of instantiation of this class in the following
-  lines of code.
+This class represents a Disk element. We can see an example of
+instantiation of this class in the following lines of code.
 
-Where: - ‘n’ is the node where this disk is stored. - ‘Id’ is the
-Diametral moment of inertia. - ‘Ip’ is the Polar moment of inertia. -
-‘m’ is the mass of the Disk.
+Where:
 
-All the values are following the S.I. convention.
+This class can be instantiated as the code that follows.
+
+.. code:: text
+
+   n: int
+       Node in which the disk will be inserted.
+   m : float
+       Mass of the disk element.
+   Id : float
+       Diametral moment of inertia.
+   Ip : float
+       Polar moment of inertia
+
+All the values are following the S.I. convention for the units.
 
 .. code:: ipython3
 
@@ -150,15 +186,23 @@ All the values are following the S.I. convention.
 From geometry DiskElement instantiation
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-| Besides the instatiation previously explained, there is a way to
-  instantiate a DiskElement with only geometrical parameters (for
-  cylindrical disks) and the material which this disk is made of, as we
-  can see in the following code.
-| - ‘n’ is the node where the disk is stored. - ‘i_d’ is the internal
-  diameter of the disk(usually it’s the same as the outter diameter of
-  the shaft where the disk is placed. - ‘o_d’ is the outter diameter of
-  the disk. - ‘material’ is the material which the disk is made of. -
-  ‘width’ is the disk’s width
+Besides the instatiation previously explained, there is a way to
+instantiate a DiskElement with only geometrical parameters (for
+cylindrical disks) and the material which this disk is made of, as we
+can see in the following code.
+
+.. code:: text
+
+   n: int
+       Node in which the disk will be inserted.
+   material : lavirot.Material
+        Shaft material.
+   width: float
+       The disk width.
+   i_d: float
+       Inner diameter.
+   o_d: float
+       Outer diameter.
 
 .. code:: ipython3
 
@@ -178,20 +222,41 @@ BearingElement
 --------------
 
 | As it says on the name, this class is a bearing.
-| The following code demonstrate how to properly instantiate it. - ‘n’
-  is the node in which the bearing is located. - ‘kxx’ is a stiffness
-  coefficient that corresponds to the term from the stiffness matrix. -
-  ‘kyy’ is a stiffness coefficient that corresponds to the term from the
-  stiffness matrix. - ‘cxx’ is a damping coefficient that corresponds to
-  the term from the damping matrix.
+| The following code demonstrate how to properly instantiate it.
+
+.. code:: text
+
+   n: int
+       Node which the bearing will be located in
+   kxx: float, array
+       Direct stiffness in the x direction.
+   cxx: float, array
+       Direct damping in the x direction.
+   kyy: float, array, optional
+       Direct stiffness in the y direction.
+       (defaults to kxx)
+   cyy: float, array, optional
+       Direct damping in the y direction.
+       (defaults to cxx)
+   kxy: float, array, optional
+       Cross coupled stiffness in the x direction.
+       (defaults to 0)
+   cxy: float, array, optional
+       Cross coupled damping in the x direction.
+       (defaults to 0)
+   kyx: float, array, optional
+       Cross coupled stiffness in the y direction.
+       (defaults to 0)
+   cyx: float, array, optional
+       Cross coupled damping in the y direction.
+       (defaults to 0)
+   w: array, optional
+       Array with the speeds (rad/s).
 
 P.S.: Note that the coefficients could be an array with different
 coefficients for different rotation speeds, in that case you only have
 to give a parameter ‘w’ which is a array with the same size as the
 coefficients array.
-
-P.S.2: The coefficients are not limitated by kxx and kyy, you can also
-give cross-coupled coefficients.
 
 .. code:: ipython3
 
@@ -213,12 +278,12 @@ tables. - work in progress**
 Rotor
 -----
 
-This class unifies all the Element classes in the program and assembles
-the mass, damping and stiffness matrices of each element, building up
-matrices for the global system. Apart from that, it also outputs all the
-results classes obtained by the simulation.
+This class takes as argument lists with all elements program and
+assembles the mass, damping and stiffness global matrices for the
+system. It also outputs all the results classes obtained by the
+simulation.
 
-To use this class you only have to give all the already instantiated
+To use this class, you only have to give all the already instantiated
 elements in a list format, as it follows.
 
 .. code:: ipython3
@@ -279,11 +344,11 @@ From section instantiation of a Rotor
 Visualizing the Rotor
 ~~~~~~~~~~~~~~~~~~~~~
 
-It is interesting to plot the rotor to check if it’s really what you
-wanted to instantiate, you can plot it with the following code.
+It is interesting to plot the rotor to check if the geometry checks with
+what you wanted to instantiate, you can plot it with the following code.
 
-Note: There are two plots, one with bokeh plot and one with matplotlib,
-you can either turn on or off the matplotlib one.
+Note: For almost every plot functions, there are two options for plots,
+one with bokeh library and one with matplotlib.
 
 .. code:: ipython3
 
@@ -291,31 +356,15 @@ you can either turn on or off the matplotlib one.
 
 
 
-.. raw:: html
-
-    
-    
-    
-    
-    
-    
-      <div class="bk-root" id="e35e0b01-b5b2-4ff2-ac8f-786cacfef798" data-root-id="1003"></div>
-
-
-
-
-
-
 
 .. code-block:: python
 
-    (Figure(id='1003', ...),
-     <matplotlib.axes._subplots.AxesSubplot at 0x7f5ac9c67a20>)
+    <matplotlib.axes._subplots.AxesSubplot at 0x7f2be30dd240>
 
 
 
 
-.. image:: tutorial_files/tutorial_25_3.png
+.. image:: tutorial_files/tutorial_36_1.png
 
 
 Running the simulation
@@ -323,7 +372,8 @@ Running the simulation
 
 After you verify that everything is fine with the rotor, you should run
 the simulation and obtain results. To do that you only need to use the
-run() method like the code bellow.
+one of the ``run_()`` methods available, as shown in like the code
+bellow.
 
 .. code:: ipython3
 
@@ -340,29 +390,12 @@ Mode Shapes
 Static analysis
 ~~~~~~~~~~~~~~~
 
-This method gives a free body diagram and a exagerated plot of the rotor
-response to gravity effects.
+This method gives a free body diagram and a amplificated plot of the
+rotor response to gravity effects.
 
 .. code:: ipython3
 
-    rotor1.run_static()
-
-
-
-
-.. code-block:: python
-
-    StaticResults([array([-0.00054047, -0.00091442, -0.00118923, -0.00128644, -0.00118923,
-           -0.00091442, -0.00054047]),
-                   array([ 2.94875235e-12, -4.32377431e+02, -3.94782008e+02, -3.57186586e+02,
-           -3.75954221e+01, -2.74269496e-12,  3.75954221e+01,  3.57186586e+02,
-            3.94782008e+02,  4.32377431e+02,  2.94875235e-12]),
-                   array([ 0.00000000e+00, -1.03394930e+02, -1.97391004e+02, -2.02090432e+02,
-           -1.97391004e+02, -1.03394930e+02, -3.97903932e-12]),
-                   {'Shaft Total Weight': '225.6', 'Disks Forces': ['-319.6', '-319.6'], 'Bearings Reaction Forces': ['432.4', '432.4']}],
-                  dtype=object)
-
-
+    static = rotor1.run_static()
 
 Campbell Diagram
 ~~~~~~~~~~~~~~~~
@@ -376,37 +409,23 @@ In this example we can see the campbell diagram from 0 to 4000 RPM.
 
 
 
-.. raw:: html
-
-    
-    
-    
-    
-    
-    
-      <div class="bk-root" id="424f5d69-1213-400d-9e54-ea8ab3451912" data-root-id="1858"></div>
-
-
-
-
-
-
 
 .. code-block:: python
 
     (<Figure size 432x288 with 2 Axes>,
-     <matplotlib.axes._subplots.AxesSubplot at 0x7f5ac8b36278>)
+     <matplotlib.axes._subplots.AxesSubplot at 0x7f2be2054ef0>)
 
 
 
 
-.. image:: tutorial_files/tutorial_31_3.png
+.. image:: tutorial_files/tutorial_42_1.png
 
 
 Frenquency Response
 ~~~~~~~~~~~~~~~~~~~
 
-We can put the frequency response of
+We can put the frequency response of selecting the input and output
+node.
 
 .. code:: ipython3
 
@@ -415,20 +434,29 @@ We can put the frequency response of
 
 
 
-.. raw:: html
-
-    
-    
-    
-    
-    
-    
-      <div class="bk-root" id="9e18a974-9a62-4916-96a5-4d693d503956" data-root-id="3478"></div>
+.. image:: tutorial_files/tutorial_44_0.png
 
 
+Mode Shapes
+~~~~~~~~~~~
+
+You can also generate the plot for each mode shape.
+
+.. code:: ipython3
+
+    modes = rotor1.run_mode_shapes()
+    modes.plot(0)
 
 
 
 
-.. image:: tutorial_files/tutorial_33_2.png
+.. code-block:: python
+
+    (<Figure size 1080x720 with 1 Axes>,
+     <matplotlib.axes._subplots.Axes3DSubplot at 0x7f2be1efd828>)
+
+
+
+
+.. image:: tutorial_files/tutorial_46_1.png
 
