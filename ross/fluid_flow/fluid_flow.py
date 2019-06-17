@@ -114,8 +114,8 @@ class PressureMatrix:
     bearing_type: str
         type of structure. 'short_bearing': short; 'long_bearing': long;
         'medium_size': in between short and long.
-        if length/radius_stator <= 1/8 it is short.
-        if length/radius_stator > 4 it is long.
+        if length/radius_stator <= 1/4 it is short.
+        if length/radius_stator > 8 it is long.
     radial_clearance: float
         Difference between both stator and rotor radius, regardless of eccentricity.
     analytical_pressure_matrix_available: bool
