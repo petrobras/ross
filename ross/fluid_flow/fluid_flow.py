@@ -461,7 +461,7 @@ class PressureMatrix:
             warnings.warn(
                 "Function get_rotor_load suitable only for short bearings. "
                 "The ratio between the bearing length and its radius should be less or "
-                "equal to 0.125. Currently we have "
+                "equal to 0.25. Currently we have "
                 + str(self.length / self.radius_stator)
                 + "."
             )
@@ -515,7 +515,7 @@ class PressureMatrix:
             warnings.warn(
                 "Function calculate_eccentricity_ratio suitable only for short bearings. "
                 "The ratio between the bearing length and its radius should be less or "
-                "equal to 0.125. Currently we have "
+                "equal to 0.25. Currently we have "
                 + str(self.length / self.radius_stator)
                 + "."
             )
@@ -545,7 +545,7 @@ class PressureMatrix:
             warnings.warn(
                 "Function get_analytical_stiffness_matrix suitable only for short bearings. "
                 "The ratio between the bearing length and its radius should be less or "
-                "equal to 0.125. Currently we have "
+                "equal to 0.25. Currently we have "
                 + str(self.length / self.radius_stator)
                 + "."
             )
@@ -579,7 +579,7 @@ class PressureMatrix:
             warnings.warn(
                 "Function get_analytical_damping_matrix suitable only for short bearings. "
                 "The ratio between the bearing length and its radius should be less or "
-                "equal to 0.125. Currently we have "
+                "equal to 0.25. Currently we have "
                 + str(self.length / self.radius_stator)
                 + "."
             )
