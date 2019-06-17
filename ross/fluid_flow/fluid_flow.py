@@ -153,7 +153,7 @@ class PressureMatrix:
     >>> show(my_fluid_flow.plot_pressure_theta(z=int(nz/2)))
     >>> my_fluid_flow.matplot_pressure_theta(z=int(nz/2)) # doctest: +ELLIPSIS
     <matplotlib.axes._subplots.AxesSubplot object at...
-    >>> plt.show()
+    >>> plt.show(block=False)
     """
 
     def __init__(
