@@ -234,7 +234,8 @@ class PressureMatrix:
         self.numerical_pressure_matrix_available = False
 
     def calculate_pressure_matrix_analytical(self):
-        """This function calculates the pressure matrix analytically.
+        """This function calculates the pressure matrix analytically, based on the book Tribology Series vol. 33, by
+        Frene et al., chapter 5.
         """
         if self.bearing_type == "short_bearing":
             for i in range(self.nz):
