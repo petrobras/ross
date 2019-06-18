@@ -173,9 +173,15 @@ class CampbellResults:
             tools="pan, box_zoom, wheel_zoom, reset, save",
             title="Campbell Diagram - Damped Natural Frequency Map",
             width=1600,
-            height= 900,
+            height=900,
             x_axis_label="Rotor speed (rad/s)",
             y_axis_label="Damped natural frequencies (rad/s)",
+        )
+        color_mapper = linear_cmap(
+                field_name="color",
+                palette=bp.viridis(256),
+                low=min(log_dec_map),
+                high=max(log_dec_map),
         )
 
         for mark, whirl_dir, legend in zip(
@@ -198,12 +204,6 @@ class CampbellResults:
                             y=w_i[whirl_mask],
                             color=log_dec_i[whirl_mask],
                         )
-                    )
-                    color_mapper = linear_cmap(
-                        field_name="color",
-                        palette=bp.viridis(256),
-                        low=min(log_dec_map),
-                        high=max(log_dec_map),
                     )
                     camp.scatter(
                         x="x",
