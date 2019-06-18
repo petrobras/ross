@@ -177,6 +177,9 @@ class CampbellResults:
             x_axis_label="Rotor speed (rad/s)",
             y_axis_label="Damped natural frequencies (rad/s)",
         )
+        camp.xaxis.axis_label_text_font_size = "14pt"
+        camp.yaxis.axis_label_text_font_size = "14pt"
+
         color_mapper = linear_cmap(
                 field_name="color",
                 palette=bp.viridis(256),
@@ -369,6 +372,9 @@ class FrequencyResponseResults:
             x_axis_label="Frequency",
             y_axis_label=y_axis_label,
         )
+        mag_plot.xaxis.axis_label_text_font_size = "14pt"
+        mag_plot.yaxis.axis_label_text_font_size = "14pt"
+
         source = ColumnDataSource(dict(x=frequency_range, y=mag[inp, out, :]))
         mag_plot.line(
             x="x",
@@ -460,6 +466,9 @@ class FrequencyResponseResults:
             x_axis_label="Frequency",
             y_axis_label="Phase",
         )
+        phase_plot.xaxis.axis_label_text_font_size = "14pt"
+        phase_plot.yaxis.axis_label_text_font_size = "14pt"
+
         source = ColumnDataSource(dict(x=frequency_range, y=phase[inp, out, :]))
         phase_plot.line(
             x="x",
@@ -679,11 +688,9 @@ class ForcedResponseResults:
 
         if units == "m":
             ax.set_ylabel("Amplitude $(m)$")
-            y_axis_label = "Amplitude (m)"
         elif units == "mic-pk-pk":
             mag = 2 * mag * 1e6
             ax.set_ylabel("Amplitude $(\mu pk-pk)$")
-            y_axis_label = "Amplitude $(\mu pk-pk)$"
 
         ax.plot(frequency_range, mag[dof], **kwargs)
 
@@ -740,6 +747,9 @@ class ForcedResponseResults:
             x_range=[0, max(frequency_range)],
             y_axis_label=y_axis_label,
         )
+        mag_plot.xaxis.axis_label_text_font_size = "14pt"
+        mag_plot.yaxis.axis_label_text_font_size = "14pt"
+
         source = ColumnDataSource(dict(x=frequency_range, y=mag[dof]))
         mag_plot.line(
             x="x",
@@ -837,6 +847,8 @@ class ForcedResponseResults:
             line_alpha=1.0,
             line_width=3,
         )
+        phase_plot.xaxis.axis_label_text_font_size = "14pt"
+        phase_plot.yaxis.axis_label_text_font_size = "14pt"
 
         return phase_plot
 
@@ -1092,6 +1104,8 @@ class StaticResults(Results):
             x_axis_label="shaft lenght",
             y_axis_label="lateral displacement",
         )
+        disp_graph.xaxis.axis_label_text_font_size = "14pt"
+        disp_graph.yaxis.axis_label_text_font_size = "14pt"
 
         interpolated = interpolate.interp1d(
             source.data["x0"], source.data["y0"], kind="cubic"
@@ -1157,6 +1171,8 @@ class StaticResults(Results):
             x_range=[-0.1 * shaft_end, 1.1 * shaft_end],
             y_range=[-max(y_range) * 1.4, max(y_range) * 1.4],
         )
+        FBD.xaxis.axis_label_text_font_size = "14pt"
+        FBD.yaxis.axis_label_text_font_size = "14pt"
 
         FBD.line("x0", "y1", source=source, line_width=5, line_color=bokeh_colors[0])
 
@@ -1274,6 +1290,9 @@ class StaticResults(Results):
             y_axis_label="Force",
             x_range=[-0.1 * shaft_end, 1.1 * shaft_end],
         )
+        SF.xaxis.axis_label_text_font_size = "14pt"
+        SF.yaxis.axis_label_text_font_size = "14pt"
+
         SF.line("x", "y", source=source_SF, line_width=4, line_color=bokeh_colors[0])
         SF.circle("x", "y", source=source_SF, size=8, fill_color=bokeh_colors[0])
 
@@ -1299,6 +1318,9 @@ class StaticResults(Results):
             y_axis_label="Bending Moment",
             x_range=[-0.1 * shaft_end, 1.1 * shaft_end],
         )
+        BM.xaxis.axis_label_text_font_size = "14pt"
+        BM.yaxis.axis_label_text_font_size = "14pt"
+
         i = 0
         while True:
             if i + 3 > len(nodes):
@@ -1372,6 +1394,9 @@ class ConvergenceResults(Results):
             x_axis_label="Numer of Elements",
             y_axis_label="Frequency (rad/s)",
         )
+        freq_arr.xaxis.axis_label_text_font_size = "14pt"
+        freq_arr.yaxis.axis_label_text_font_size = "14pt"
+
         freq_arr.line("x0", "y0", source=source, line_width=3, line_color="crimson")
         freq_arr.circle("x0", "y0", source=source, size=8, fill_color="crimson")
 
@@ -1385,6 +1410,9 @@ class ConvergenceResults(Results):
             x_axis_label="Number of Elements",
             y_axis_label="Relative Error (%)",
         )
+        rel_error.xaxis.axis_label_text_font_size = "14pt"
+        rel_error.yaxis.axis_label_text_font_size = "14pt"
+
         rel_error.line(
             "x1", "y1", source=source, line_width=3, line_color="darkslategray"
         )
