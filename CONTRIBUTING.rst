@@ -2,22 +2,51 @@ Feedback and Contribution
 -------------------------
 We welcome any contribution via `ross's issue tracker <https://github.com/ross-rotordynamics/ross/issues>`_.
 These include bug reports, problems on the documentation, feedback, enhancement proposals etc.
-The issue tracker can also be used for questions and further information, since the project does not use a mailing list.
+The issue tracker can also be used for questions and further information since the project does not use a mailing list.
 
 Version-control system: Git
 ---------------------------
-Git is a version-control system (VCS) for tracking changes in code during software development.
-In order to download the ross source code and contribute to its development,
+Git is a version control system (VCS) for tracking changes in code during software development.
+To download the ross source code and contribute to its development,
 you need Git installed in your machine. Refer to the `Git website
 <https://git-scm.com/>`_ and follow the instructions to download and install it.
-Once you have Git installed, you will be able to follow the instructions in `How to contribute to ross using git`_
+Once you have Git installed, you will be able to follow the instructions in `How to contribute to ross using git`_,
 which explains how to download and contribute to ross.
 
 Code style: Black
 -----------------
-Code formatting is done with `Black <https://black.readthedocs.io/en/stable/>`_, which is the *"uncompromising Python
+To format our code we use `Black <https://black.readthedocs.io/en/stable/>`_, which is the *"uncompromising Python
 code formatter"*. You can configure your development environment to use Black before a commit. More information on how
-to set this is given at `Black's documentation<https://black.readthedocs.io/en/stable/editor_integration.html>`_.
+to set this is given at `Black's documentation <https://black.readthedocs.io/en/stable/editor_integration.html>`_.
+
+Tests
+-----
+We use pytest to test the code. Unit tests are placed in the `~/ross/ross/tests` folder. We also test our docstrings to
+assure that the examples are working.
+If you want to run all the tests you can do it with (from the `~/ross/ross` folder):
+
+.. code-block:: text
+    $ pytest
+
+Code is only merged to master if tests pass. This is checked by services such as Travis CI and Appveyor, so make sure
+tests are passing before pushing your code to github.
+
+Documentation
+-------------
+We use `sphinx <http://www.sphinx-doc.org/en/master/>`_ to generate the project's documentation. We keep the source
+files at ~/ross/docs, and we keep the html files used to build the website in a
+`separate repository <https://github.com/ross-rotordynamics/ross-website>`_. If you want to modify the documentation,
+modify the source files and them do the following to modify the website:
+
+- Clone the ross-website to ~/ross-website/html:
+
+``$ git clone https://github.com/ross-rotordynamics/ross-website ~/ross-website/html``
+
+- From the docs source directory <~/ross/docs/> run sphinx:
+
+``$ make html BUILDDIR=~/ross-website``
+
+After that you can push the updated html files to the ross-website repository.
 
 Integrated development environment: PyCharm
 -------------------------------------------
@@ -27,15 +56,14 @@ even no IDE at all. But in case you want to use PyCharm, go to the `PyCharm webs
 <https://www.jetbrains.com/pycharm/>`_ to download and install it.
 
 How to contribute to ross using git
-===================================
+-----------------------------------
 .. _git-configuration:
 
-In order to use git to contribute to ROSS project, follow the steps bellow:
+To use git to contribute to ross project, follow the steps below:
 *For Windows users: commands provided here can be executed using Git Bash instead of Git GUI.*
 
-----------------------------------------
-Step 1: Make you own copy (fork) of ROSS
-----------------------------------------
+Step 1: Make your copy (fork) of ross
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 Go to https://github.com/ross-rotordynamics/ross
 In the top-right corner of the page, click Fork, to fork it to your GitHub account.
 
@@ -48,10 +76,9 @@ From the command line:
     git remote add upstream https://github.com/ross-rotordynamics/ross.git
 
 
------------------------------------------
 Step 2: Keep in sync with changes in Ross
------------------------------------------
-Setup your local repository so it pulls from upstream by default:
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+Setup your local repository, so it pulls from upstream by default:
 
 ::
 
@@ -81,17 +108,15 @@ It should look like this:
 
 The part :code:`fetch = +refs/pull/*/head:refs/remotes/upstream/pr/*` will make pull requests available.
 
----------------------------------
 Step 3: Make a new feature branch
----------------------------------
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 ::
 
     git fetch upstream
     git checkout -b my-new-feature upstream/master
 
--------------------------------------------
 Step 4: Push changes to your git repository
--------------------------------------------
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 After a complete working set of related changes are made:
 
 ::
@@ -106,33 +131,20 @@ The following blog posts have some good information on how to write commit messa
 
 `On commit messages <https://who-t.blogspot.com/2009/12/on-commit-messages.html>`_
 
--------------------------------------
 Step 5: Push changes to the main repo
--------------------------------------
-^^^^^^^^^^^^^^^^
-For contributors
-^^^^^^^^^^^^^^^^
-To create a Pull Request (PR), refer to https://help.github.com/articles/about-pull-requests/
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-^^^^^^^^^^^^^^^^^^^
+For contributors
+++++++++++++++++
+To create a Pull Request (PR), refer to `the github PR guide <https://help.github.com/articles/about-pull-requests/>`_.
+
 For core developers
-^^^^^^^^^^^^^^^^^^^
++++++++++++++++++++
 If there are only a few, unrelated commits:
 
 ::
 
     git fetch upstream
     git rebase upstream/master
-    git log -p upstream/master..
-    git log --oneline --graph
     git push upstream my-feature-branch:master
 
-Otherwise, if all commits are related:
-
-::
-
-    git fetch upstream
-    git merge --no-ff upstream/master
-    git log -p upstream/master..
-    git log --oneline --graph
-    git push upstream my-feature-branch:master

@@ -199,26 +199,26 @@ class BearingElement(Element):
         )
 
     def __eq__(self, other):
-        try:
-            if pytest.approx(self.__dict__) == other.__dict__:
-                return True
-            else:
-                return False
-
-        except TypeError:
-
-            self_dict = self.__dict__
-            other_dict = other.__dict__
-
-            self_dict["w"] = 0
-            other_dict["w"] = 0
-
-            if (
-                self.__dict__["w"] == other.__dict__["w"]
-            ).__bool__() and self_dict == other_dict:
-                return True
-            else:
-                return False
+        compared_attributes = [
+            "kxx",
+            "kyy",
+            "kxy",
+            "kyx",
+            "cxx",
+            "cyy",
+            "cxy",
+            "cyx",
+            "w",
+        ]
+        if isinstance(other, self.__class__):
+            return all(
+                (
+                    np.array(getattr(self, attr)).all()
+                    == np.array(getattr(other, attr)).all()
+                    for attr in compared_attributes
+                )
+            )
+        return False
 
     def save(self, file_name):
         data = self.load_data(file_name)
@@ -310,7 +310,7 @@ class BearingElement(Element):
 
         return C
 
-    def patch(self, position, length, ax, bk_ax):
+    def patch(self, position, length, ax):
         """Bearing element patch.
         Patch that will be used to draw the bearing element.
 
@@ -341,7 +341,28 @@ class BearingElement(Element):
         ]
         ax.add_patch(mpatches.Polygon(bearing_points, color=self.color, picker=True))
 
-        # bokeh plot - upper bearing visual representarion
+    def bokeh_patch(self, position, length, bk_ax):
+        """Bearing element patch.
+        Patch that will be used to draw the bearing element.
+
+        Parameters
+        ----------
+        ax : matplotlib axes, optional
+            Axes in which the plot will be drawn.
+        bk_ax : bokeh plotting axes, optional
+            Axes in which the plot will be drawn.
+        position : tuple
+            Position (z, y) in which the patch will be drawn.
+        length : float
+            minimum length of shaft elements
+
+        Returns
+        -------
+        """
+        zpos, ypos = position
+        le = length
+
+        # bokeh plot - upper bearing visual representation
         bk_ax.quad(
             top=-ypos + le / 3,
             bottom=-ypos,
@@ -577,7 +598,7 @@ class SealElement(BearingElement):
         self.seal_leakage = seal_leakage
         self.color = "#77ACA2"
 
-    def patch(self, position, ax, bk_ax):
+    def patch(self, position, ax):
         """Seal element patch.
         Patch that will be used to draw the seal element.
         Parameters
@@ -617,6 +638,27 @@ class SealElement(BearingElement):
         ]
         ax.add_patch(mpatches.Polygon(seal_points_u, facecolor=self.color))
         ax.add_patch(mpatches.Polygon(seal_points_l, facecolor=self.color))
+
+    def bokeh_patch(self, position, bk_ax):
+        """Seal element patch.
+        Patch that will be used to draw the seal element.
+        Parameters
+        ----------
+        ax : matplotlib axes, optional
+            Axes in which the plot will be drawn.
+        bk_ax : bokeh plotting axes, optional
+            Axes in which the plot will be drawn.
+        position : tuple
+            Position in which the patch will be drawn.
+        Returns
+        -------
+        ax : matplotlib axes
+            Returns the axes object with the plot.
+        bk_ax : bokeh plotting axes
+            Returns the axes object with the plot.
+        """
+        zpos, ypos = position
+        hw = 0.05
 
         # bokeh plot - node (x pos), outer diam. (y pos)
         bk_seal_points_u = [

@@ -66,31 +66,15 @@ rev/min and plot the natural frequency map for rotational speeds up to
 
 
 
-.. raw:: html
 
-    
-    
-    
-    
-    
-    
-      <div class="bk-root" id="b8a65bdd-7630-4818-a2c5-37c37e4f2897" data-root-id="1003"></div>
+.. code-block:: python
+
+    <matplotlib.axes._subplots.AxesSubplot at 0x7fd4abca82b0>
 
 
 
 
-
-
-
-.. parsed-literal::
-
-    (Figure(id='1003', ...),
-     <matplotlib.axes._subplots.AxesSubplot at 0x7f29eb625390>)
-
-
-
-
-.. image:: example_05_09_02_files/example_05_09_02_2_3.png
+.. image:: example_05_09_02_files/example_05_09_02_2_1.png
 
 
 .. code:: ipython3
@@ -128,31 +112,15 @@ rev/min and plot the natural frequency map for rotational speeds up to
 
 
 
-.. raw:: html
 
-    
-    
-    
-    
-    
-    
-      <div class="bk-root" id="1f2e4d17-a950-41d8-a3d7-f2292f4c8b1e" data-root-id="2244"></div>
+.. code-block:: python
+
+    <matplotlib.axes._subplots.AxesSubplot at 0x7fd4a907bf98>
 
 
 
 
-
-
-
-.. parsed-literal::
-
-    (Figure(id='2244', ...),
-     <matplotlib.axes._subplots.AxesSubplot at 0x7f29e913a0b8>)
-
-
-
-
-.. image:: example_05_09_02_files/example_05_09_02_3_3.png
+.. image:: example_05_09_02_files/example_05_09_02_3_1.png
 
 
 .. code:: ipython3
@@ -164,7 +132,7 @@ rev/min and plot the natural frequency map for rotational speeds up to
     print('From Section Instantiation =', rotor592fs.wn)
 
 
-.. parsed-literal::
+.. code-block:: python
 
     Normal Instantiation = [ 82.65303734  86.65811435 254.52047828 274.31285391 679.48903239
      716.78631221]
@@ -183,7 +151,7 @@ rev/min and plot the natural frequency map for rotational speeds up to
     print('Normal Instantiation =', rotor592c.wn)
 
 
-.. parsed-literal::
+.. code-block:: python
 
     Normal Instantiation = [ 82.32547398  86.86369902 239.64228361 287.24958074 583.48782916
      806.8872843 ]
@@ -195,29 +163,14 @@ rev/min and plot the natural frequency map for rotational speeds up to
 
 
 
-.. raw:: html
 
-    
-    
-    
-    
-    
-    
-      <div class="bk-root" id="fb2e5533-a98a-447b-97f5-bf6812288947" data-root-id="3299"></div>
-
-
-
-
-
-
-
-.. parsed-literal::
+.. code-block:: python
 
     (<Figure size 432x288 with 2 Axes>,
-     <matplotlib.axes._subplots.AxesSubplot at 0x7f29e90069e8>)
+     <matplotlib.axes._subplots.AxesSubplot at 0x7fd4a90bf240>)
 
 
 
 
-.. image:: example_05_09_02_files/example_05_09_02_6_3.png
+.. image:: example_05_09_02_files/example_05_09_02_6_1.png
 

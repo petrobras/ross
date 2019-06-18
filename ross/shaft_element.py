@@ -394,7 +394,7 @@ class ShaftElement(Element):
 
         return G
 
-    def patch(self, position, SR, ax, bk_ax):
+    def patch(self, position, SR, ax):
         """Shaft element patch.
         Patch that will be used to draw the shaft element.
         Parameters
@@ -448,6 +448,29 @@ class ShaftElement(Element):
                 alpha=0.8,
             )
         )
+
+    def bokeh_patch(self, position, SR, bk_ax):
+        """Shaft element patch.
+        Patch that will be used to draw the shaft element.
+        Parameters
+        ----------
+        bk_ax : bokeh plotting axes, optional
+            Axes in which the plot will be drawn.
+        position : float
+            Position in which the patch will be drawn.
+        Returns
+        -------
+        """
+        position_u = [position, self.i_d / 2]  # upper
+        position_l = [position, -self.o_d / 2]  # lower
+        width = self.L
+        height = self.o_d / 2 - self.i_d / 2
+        if self.n in SR:
+            bk_color = "yellow"
+            legend = "Shaft - Slenderness Ratio < 30"
+        else:
+            bk_color = bokeh_colors[2]
+            legend = "Shaft"
 
         # bokeh plot - plot the shaft
         bk_ax.quad(

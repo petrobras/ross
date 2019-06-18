@@ -162,7 +162,7 @@ class DiskElement(Element):
         # fmt: on
         return G
 
-    def patch(self, position, length, ax, bk_ax):
+    def patch(self, position, length, ax):
         """Disk element patch.
         Patch that will be used to draw the disk element.
         Parameters
@@ -208,6 +208,29 @@ class DiskElement(Element):
         ax.add_patch(
             mpatches.Circle(xy=(zpos, -(ypos + D)), radius=hw, color=self.color)
         )
+
+    def bokeh_patch(self, position, length, bk_ax):
+        """Disk element patch.
+        Patch that will be used to draw the disk element.
+        Parameters
+        ----------
+        ax : matplotlib axes, optional
+            Axes in which the plot will be drawn.
+        bk_ax : bokeh plotting axes, optional
+            Axes in which the plot will be drawn.
+        position : float
+            Position in which the patch will be drawn.
+        length : float
+            minimum length of shaft elements
+        Returns
+        -------
+        ax : matplotlib axes
+            Returns the axes object with the plot.
+        bk_ax : bokeh plotting axes
+            Returns the axes object with the plot.
+        """
+        zpos, ypos = position
+        le = length / 8
 
         # bokeh plot - coordinates to plot disks elements
         z_upper = [zpos, zpos + le, zpos - le]

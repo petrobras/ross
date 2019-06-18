@@ -4,6 +4,9 @@ Convert empty IPython notebook to a sphinx doc page.
 """
 import sys
 from subprocess import check_call as sh
+from tempfile import mkstemp
+from shutil import move
+from os import fdopen, remove
 
 
 def convert_nb(nbname):
@@ -42,7 +45,20 @@ def convert_nb(nbname):
     sh(["touch", nbname + ".rst"])
 
 
-if __name__ == "__main__":
+def replace(file_path, pattern, subst):
+    # Create temp file
+    fh, abs_path = mkstemp()
+    with fdopen(fh, "w") as new_file:
+        with open(file_path) as old_file:
+            for line in old_file:
+                new_file.write(line.replace(pattern, subst))
+    # Remove original file
+    remove(file_path)
+    # Move new file
+    move(abs_path, file_path)
 
+
+if __name__ == "__main__":
     for nbname in sys.argv[1:]:
         convert_nb(nbname)
+        replace((nbname + ".rst"), ".. parsed-literal::", ".. code-block:: python")

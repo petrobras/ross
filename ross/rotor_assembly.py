@@ -20,7 +20,6 @@ from bokeh.models import ColumnDataSource, Arrow, NormalHead, Label
 from bokeh.models.glyphs import Text
 from bokeh.plotting import figure, output_file, show
 from cycler import cycler
-from scipy import interpolate
 
 import ross
 from ross.bearing_seal_element import BearingElement
@@ -31,6 +30,8 @@ from ross.results import (
     FrequencyResponseResults,
     ForcedResponseResults,
     ModeShapeResults,
+    StaticResults,
+    ConvergenceResults,
 )
 from ross.shaft_element import ShaftElement
 
@@ -315,7 +316,7 @@ class Rotor(object):
             )
         self.lti = self._lti()
 
-    def convergence(self, n_eigval=0, err_max=1e-02, output_html=False):
+    def convergence(self, n_eigval=0, err_max=1e-02):
         """
         Function to analyze the eigenvalues convergence through the number of
         shaft elements. Every new run doubles the number os shaft elements.
@@ -328,14 +329,13 @@ class Rotor(object):
         err_max : float
             Maximum allowable convergence error.
             Default is 1e-02
-        output_html : Boolean, optional
-            outputs a html file.
-            Default is False
 
         Returns
         -------
-        p : bokeh.figure
-            Bokeh plot showing the results.
+        Lists containing the information about:
+            The number or elements in each run;
+            The relative error calculated in each run;
+            The natural frequency calculated in each run.
 
         Example
         -------
@@ -419,47 +419,12 @@ class Rotor(object):
 
         self.__dict__ = rotor.__dict__
         self.error_arr = error_arr
-        if output_html:
-            output_file("convergence.html")
-        source = ColumnDataSource(
-            data=dict(x0=el_num[1:], y0=eigv_arr[1:], x1=el_num[1:], y1=error_arr[1:])
+
+        results = ConvergenceResults(
+            np.array([el_num[1:], eigv_arr[1:], error_arr[1:]]), new_attributes={}
         )
 
-        TOOLS = "pan,wheel_zoom,box_zoom,hover,reset,save,"
-        TOOLTIPS1 = [("Frequency:", "@y0 Hz"), ("Number of Elements", "@x0")]
-        TOOLTIPS2 = [("Relative Error:", "@y1"), ("Number of Elements", "@x1")]
-        # create a new plot and add a renderer
-        freq_arr = figure(
-            tools=TOOLS,
-            tooltips=TOOLTIPS1,
-            width=500,
-            height=500,
-            title="Frequency Evaluation",
-            x_axis_label="Numer of Elements",
-            y_axis_label="Frequency (Hz)",
-        )
-        freq_arr.line("x0", "y0", source=source, line_width=3, line_color="crimson")
-        freq_arr.circle("x0", "y0", source=source, fill_color="crimson", size=8)
-
-        # create another new plot and add a renderer
-        rel_error = figure(
-            tools=TOOLS,
-            tooltips=TOOLTIPS2,
-            width=500,
-            height=500,
-            title="Relative Error Evaluation",
-            x_axis_label="Number of Elements",
-            y_axis_label="Relative Rrror",
-        )
-        rel_error.line(
-            "x1", "y1", source=source, line_width=3, line_color="darkslategray"
-        )
-        rel_error.circle("x1", "y1", source=source, fill_color="darkslategray", size=8)
-
-        # put the subplots in a gridplot
-        p = gridplot([[freq_arr, rel_error]])
-
-        return p
+        return results
 
     @property
     def w(self):
@@ -870,8 +835,7 @@ class Rotor(object):
         >>> rotor.kappa(0, 0)['Major axes'] # doctest: +ELLIPSIS
         0.00141...
         >>> # kappa for node 2 and natural frequency (mode) 3.
-        >>> rotor.kappa(2, 3)['kappa'].round(2) # doctest: +ELLIPSIS
-        -0.0
+        >>> kappa = rotor.kappa(2, 3)['kappa'].round(2) # doctest: +ELLIPSIS
         """
         if wd:
             nat_freq = self.wd[w]
@@ -1020,7 +984,7 @@ class Rotor(object):
 
         return H
 
-    def run_freq_response(self, frequency_range=None, modes=None):
+    def run_freq_response(self, speed_range=None, modes=None):
         """Frequency response for a mdof system.
 
         This method returns the frequency response for a mdof system
@@ -1052,45 +1016,41 @@ class Rotor(object):
         Examples
         --------
         """
-        if frequency_range is None:
-            frequency_range = np.linspace(0, max(self.evalues.imag) * 1.5, 1000)
+        if speed_range is None:
+            speed_range = np.linspace(0, max(self.evalues.imag) * 1.5, 1000)
 
         freq_resp = np.empty(
-            (self.lti.inputs, self.lti.outputs, len(frequency_range)), dtype=np.complex
+            (self.lti.inputs, self.lti.outputs, len(speed_range)), dtype=np.complex
         )
 
-        for i, w in enumerate(frequency_range):
+        for i, w in enumerate(speed_range):
             H = self.transfer_matrix(w=w, modes=modes)
             freq_resp[..., i] = H
 
         results = FrequencyResponseResults(
-            freq_resp,
-            new_attributes={
-                "frequency_range": frequency_range,
-                "magnitude": abs(freq_resp),
-                "phase": np.angle(freq_resp),
-            },
+            freq_resp=freq_resp,
+            speed_range=speed_range,
+            magnitude=abs(freq_resp),
+            phase=np.angle(freq_resp),
         )
 
         return results
 
-    def run_forced_response(self, force=None, frequency_range=None, modes=None):
-        freq_resp = self.run_freq_response(frequency_range=frequency_range, modes=modes)
+    def run_forced_response(self, force=None, speed_range=None, modes=None):
+        freq_resp = self.run_freq_response(speed_range=speed_range, modes=modes)
 
         forced_resp = np.zeros(
-            (self.ndof, len(freq_resp.frequency_range)), dtype=np.complex
+            (self.ndof, len(freq_resp.speed_range)), dtype=np.complex
         )
 
-        for i in range(len(freq_resp.frequency_range)):
-            forced_resp[:, i] = freq_resp[..., i] @ force[..., i]
+        for i in range(len(freq_resp.speed_range)):
+            forced_resp[:, i] = freq_resp.freq_resp[..., i] @ force[..., i]
 
         forced_resp = ForcedResponseResults(
-            forced_resp,
-            new_attributes={
-                "frequency_range": frequency_range,
-                "magnitude": abs(forced_resp),
-                "phase": np.angle(forced_resp),
-            },
+            forced_resp=forced_resp,
+            speed_range=speed_range,
+            magnitude=abs(forced_resp),
+            phase=np.angle(forced_resp),
         )
 
         return forced_resp
@@ -1188,7 +1148,80 @@ class Rotor(object):
         """
         return signal.lsim(self.lti, F, t, X0=ic)
 
-    def plot_rotor(self, nodes=1, ax=None, output_html=False, bk_ax=None):
+    def _plot_rotor_matplotlib(self, nodes=1, ax=None):
+        # check slenderness ratio of beam elements
+        SR = np.array([])
+        for shaft in self.shaft_elements:
+            if shaft.slenderness_ratio < 1.6:
+                SR = np.append(SR, shaft.n)
+        if len(SR) != 0:
+            warnings.warn(
+                "The beam elements "
+                + str(SR)
+                + " have slenderness ratio (G*A*L^2 / EI) of less than 1.6."
+                + " Results may not converge correctly"
+            )
+
+        if ax is None:
+            ax = plt.gca()
+
+        #  plot shaft centerline
+        shaft_end = self.nodes_pos[-1]
+        ax.plot([-0.2 * shaft_end, 1.2 * shaft_end], [0, 0], "k-.")
+
+        try:
+            max_diameter = max([disk.o_d for disk in self.disk_elements])
+        except (ValueError, AttributeError):
+            max_diameter = max([shaft.o_d for shaft in self.shaft_elements])
+
+        ax.set_ylim(-1.2 * max_diameter, 1.2 * max_diameter)
+        ax.axis("equal")
+        ax.set_xlabel("Axial location (m)")
+        ax.set_ylabel("Shaft radius (m)")
+
+        # plot nodes
+        text = []
+        x_pos = []
+        for node, position in enumerate(self.nodes_pos[::nodes]):
+            ax.plot(
+                position,
+                0,
+                zorder=2,
+                ls="",
+                marker="D",
+                color="#6caed6",
+                markersize=10,
+                alpha=0.6,
+            )
+            ax.text(
+                position,
+                0,
+                f"{node*nodes}",
+                size="smaller",
+                horizontalalignment="center",
+                verticalalignment="center",
+            )
+
+        # plot shaft elements
+        for sh_elm in self.shaft_elements:
+            position = self.nodes_pos[sh_elm.n]
+            sh_elm.patch(position, SR, ax)
+
+        # plot disk elements
+        for disk in self.disk_elements:
+            position = (self.nodes_pos[disk.n], self.nodes_o_d[disk.n] / 2)
+            length = min(self.nodes_le)
+            disk.patch(position, length, ax)
+
+        # plot bearings
+        for bearing in self.bearing_seal_elements:
+            position = (self.nodes_pos[bearing.n], -self.nodes_o_d[bearing.n] / 2)
+            length = min(self.nodes_le)
+            bearing.patch(position, length, ax)
+
+        return ax
+
+    def _plot_rotor_bokeh(self, nodes=1, bk_ax=None):
         """Plots a rotor object.
 
         This function will take a rotor object and plot its shaft,
@@ -1229,27 +1262,13 @@ class Rotor(object):
                 + " Results may not converge correctly"
             )
 
-        if ax is None:
-            ax = plt.gca()
-
         #  plot shaft centerline
         shaft_end = self.nodes_pos[-1]
-        ax.plot([-0.2 * shaft_end, 1.2 * shaft_end], [0, 0], "k-.")
 
         try:
             max_diameter = max([disk.o_d for disk in self.disk_elements])
         except (ValueError, AttributeError):
             max_diameter = max([shaft.o_d for shaft in self.shaft_elements])
-
-        # matplotlib
-        ax.set_ylim(-1.2 * max_diameter, 1.2 * max_diameter)
-        ax.axis("equal")
-        ax.set_xlabel("Axial location (m)")
-        ax.set_ylabel("Shaft radius (m)")
-
-        # bokeh plot - output to static HTML file
-        if output_html:
-            output_file("rotor.html")
 
         # bokeh plot - create a new plot
         bk_ax = figure(
@@ -1281,26 +1300,6 @@ class Rotor(object):
             text.append(str(node))
             x_pos.append(position)
 
-            # matplotlib
-            ax.plot(
-                position,
-                0,
-                zorder=2,
-                ls="",
-                marker="D",
-                color="#6caed6",
-                markersize=10,
-                alpha=0.6,
-            )
-            ax.text(
-                position,
-                0,
-                f"{node*nodes}",
-                size="smaller",
-                horizontalalignment="center",
-                verticalalignment="center",
-            )
-
         # bokeh plot - plot nodes
         y_pos = np.linspace(0, 0, len(self.nodes_pos))
 
@@ -1325,23 +1324,61 @@ class Rotor(object):
         # plot shaft elements
         for sh_elm in self.shaft_elements:
             position = self.nodes_pos[sh_elm.n]
-            sh_elm.patch(position, SR, ax, bk_ax)
+            sh_elm.bokeh_patch(position, SR, bk_ax)
 
         # plot disk elements
         for disk in self.disk_elements:
             position = (self.nodes_pos[disk.n], self.nodes_o_d[disk.n] / 2)
             length = min(self.nodes_le)
-            disk.patch(position, length, ax, bk_ax)
+            disk.bokeh_patch(position, length, bk_ax)
 
         # plot bearings
         for bearing in self.bearing_seal_elements:
             position = (self.nodes_pos[bearing.n], -self.nodes_o_d[bearing.n] / 2)
             length = min(self.nodes_le)
-            bearing.patch(position, length, ax, bk_ax)
+            bearing.bokeh_patch(position, length, bk_ax)
 
         show(bk_ax)
 
-        return bk_ax, ax
+        return bk_ax
+
+    def plot_rotor(self, *args, plot_type="matplotlib", **kwargs):
+        """Plots a rotor object.
+
+        This function will take a rotor object and plot its shaft,
+        disks and bearing elements
+
+        Parameters
+        ----------
+        nodes : int, optional
+            Increment that will be used to plot nodes label.
+        plot_type : str
+            Matplotlib or bokeh.
+            Default is matplotlib.
+        ax : matplotlib axes, optional
+            Axes in which the plot will be drawn.
+        bk_ax : bokeh plotting axes, optional
+            Axes in which the plot will be drawn.
+
+        Returns
+        -------
+        ax : matplotlib axes
+            Returns the axes object with the plot.
+        bk_ax : bokeh plotting axes
+            Returns the axes object with the plot.
+
+        Examples:
+        >>> import ross as rs
+        >>> rotor = rs.rotor_example()
+        >>> rotor.plot_rotor() # doctest: +ELLIPSIS
+        <matplotlib.axes...
+        """
+        if plot_type == "matplotlib":
+            return self._plot_rotor_matplotlib(*args, **kwargs)
+        elif plot_type == "bokeh":
+            return self._plot_rotor_bokeh(*args, **kwargs)
+        else:
+            raise ValueError(f"{plot_type} is not a valid plot type.")
 
     def run_campbell(self, speed_range, frequencies=6, frequency_type="wd"):
         """Calculates the Campbell diagram.
@@ -1360,8 +1397,9 @@ class Rotor(object):
         Returns
         -------
         results : array
-            Array with the natural frequencies corresponding to each speed
-            of the speed_rad array. It will be returned if plot=False.
+            Array with the damped natural frequencies, log dec and precessions
+            corresponding to each speed of the speed_rad array.
+            It will be returned if plot=False.
 
         Examples
         --------
@@ -1394,13 +1432,10 @@ class Rotor(object):
             results[i, :, 4] = self.wn[:frequencies]
 
         results = CampbellResults(
-            results,
-            new_attributes={
-                "speed_range": speed_range,
-                "wd": results[..., 0],
-                "log_dec": results[..., 1],
-                "whirl_values": results[..., 2],
-            },
+            speed_range=speed_range,
+            wd=results[..., 0],
+            log_dec=results[..., 1],
+            whirl_values=results[..., 2],
         )
 
         self.w = rotor_current_speed
@@ -1418,17 +1453,15 @@ class Rotor(object):
             kappa_modes.append(kappa_color)
 
         mode_shapes = ModeShapeResults(
-            self.evectors[: self.ndof],
-            new_attributes={
-                "ndof": self.ndof,
-                "nodes": self.nodes,
-                "nodes_pos": self.nodes_pos,
-                "elements_length": self.elements_length,
-                "w": self.w,
-                "wd": self.wd,
-                "log_dec": self.log_dec,
-                "kappa_modes": kappa_modes,
-            },
+            modes=self.evectors[: self.ndof],
+            ndof=self.ndof,
+            nodes=self.nodes,
+            nodes_pos=self.nodes_pos,
+            elements_length=self.elements_length,
+            w=self.w,
+            wd=self.wd,
+            log_dec=self.log_dec,
+            kappa_modes=kappa_modes,
         )
 
         return mode_shapes
@@ -1812,360 +1845,140 @@ class Rotor(object):
     def remove(rotor_name):
         shutil.rmtree(Path(os.path.dirname(ross.__file__)) / "rotors" / rotor_name)
 
-    def run_static(self, output_html=False):
+    def run_static(self):
         """
         Static analysis calculates free-body diagram, deformed shaft, shearing
         force diagram and bending moment diagram.
 
         Parameters
         ----------
-        output_html : Boolean, optional
-            outputs a html file.
-            Default is False
 
         Returns
         -------
-            grid_plots : bokeh.gridplot
-
+        A dictionary containing the information about: 
+            Static displacement vector,
+            Shearing force vector,
+            Bending moment vector,
+            Shaft total weight,
+            Disks forces,
+            Bearings reaction forces
         """
-        # gravity aceleration vector
-        grav = np.zeros((len(self.M()), 1))
+        if len(self.df_bearings) == 0:
+            raise ValueError("Rotor has no bearings")
 
-        # place gravity effect on shaft and disks nodes
-        for node_y in range(int(len(self.M()) / 4)):
-            grav[4 * node_y + 1] = -9.8065
+        else:
+            # gravity aceleration vector
+            grav = np.zeros((len(self.M()), 1))
 
-        # calculates x, for [K]*(x) = [M]*(g)
-        disp = (la.solve(self.K(0), self.M() @ grav)).flatten()
+            # place gravity effect on shaft and disks nodes
+            for node_y in range(int(len(self.M()) / 4)):
+                grav[4 * node_y + 1] = -9.8065
 
-        # calculates displacement values in gravity's direction
-        # dof = degree of freedom
-        disp_y = np.array([])
-        for node_dof in range(int(len(disp) / 4)):
-            disp_y = np.append(disp_y, disp[4 * node_dof + 1])
-        self.disp_y = disp_y
+            # calculates x, for [K]*(x) = [M]*(g)
+            disp = (la.solve(self.K(0), self.M() @ grav)).flatten()
 
-        # Shearing Force
-        BrgForce = [0] * len(self.nodes_pos)
-        DskForce = [0] * len(self.nodes_pos)
-        SchForce = [0] * len(self.nodes_pos)
+            # calculates displacement values in gravity's direction
+            # dof = degree of freedom
+            disp_y = np.array([])
+            for node_dof in range(int(len(disp) / 4)):
+                disp_y = np.append(disp_y, disp[4 * node_dof + 1])
+            self.disp_y = disp_y
 
-        for i, node in enumerate(self.df_bearings["n"]):
-            BrgForce[node] = (
-                -disp_y[node] * self.df_bearings.loc[i, "kyy"].coefficient[0]
-            )
+            # Shearing Force
+            BrgForce = [0] * len(self.nodes_pos)
+            DskForce = [0] * len(self.nodes_pos)
+            SchForce = [0] * len(self.nodes_pos)
 
-        for i, node in enumerate(self.df_disks["n"]):
-            DskForce[node] = self.df_disks.loc[i, "m"] * -9.8065
+            # Bearing Forces
+            BrgForceToReturn = []
+            for i, node in enumerate(self.df_bearings["n"]):
+                BrgForce[node] = (
+                    -disp_y[node] * self.df_bearings.loc[i, "kyy"].coefficient[0]
+                )
+                BrgForceToReturn.append(
+                    "%.1f"
+                    % (-disp_y[node] * self.df_bearings.loc[i, "kyy"].coefficient[0])
+                )
 
-        for i, node in enumerate(self.df_shaft["_n"]):
-            SchForce[node + 1] = self.df_shaft.loc[i, "m"] * -9.8065
-
-        # Shearing Force vector
-        Vx = [0] * (len(self.nodes_pos))
-        Vx_axis = []
-        for i in range(int(len(self.nodes))):
-            Vx_axis.append(self.nodes_pos[i])
-            Vx[i] = Vx[i - 1] + BrgForce[i] + DskForce[i] + SchForce[i]
-
-        for i in range(len(Vx) + len(self.df_disks) + len(self.df_bearings)):
-            if DskForce[i] != 0:
-                Vx.insert(i, Vx[i - 1] + SchForce[i])
-                DskForce.insert(i + 1, 0)
-                SchForce.insert(i + 1, 0)
-                BrgForce.insert(i + 1, 0)
-                Vx_axis.insert(i, Vx_axis[i])
-
-            if BrgForce[i] != 0:
-                Vx.insert(i, Vx[i - 1] + SchForce[i])
-                BrgForce.insert(i + 1, 0)
-                DskForce.insert(i + 1, 0)
-                SchForce.insert(i + 1, 0)
-                Vx_axis.insert(i, Vx_axis[i])
-        self.Vx = [x * -1 for x in Vx]
-        Vx = self.Vx
-
-        # Bending Moment vector
-        Mx = []
-        for i in range(len(Vx) - 1):
-            if Vx_axis[i] == Vx_axis[i + 1]:
-                pass
-            else:
-                Mx.append(
-                    (
-                        (Vx_axis[i + 1] * Vx[i + 1])
-                        + (Vx_axis[i + 1] * Vx[i])
-                        - (Vx_axis[i] * Vx[i + 1])
-                        - (Vx_axis[i] * Vx[i])
+            # Disk Forces
+            DskForceToReturn = []
+            if len(self.df_disks) != 0:
+                for i, node in enumerate(self.df_disks["n"]):
+                    DskForce[node] = self.df_disks.loc[i, "m"] * -9.8065
+                    DskForceToReturn.append(
+                        "%.1f" % (self.df_disks.loc[i, "m"] * -9.8065)
                     )
-                    / 2
-                )
-        Bm = [0]
-        for i in range(len(Mx)):
-            Bm.append(Bm[i] + Mx[i])
-        self.Bm = Bm
-        if output_html:
-            output_file("static.html")
-        source = ColumnDataSource(
-            data=dict(x0=self.nodes_pos, y0=disp_y * 1000, y1=[0] * len(self.nodes_pos))
-        )
 
-        TOOLS = "pan,wheel_zoom,box_zoom,reset,save,box_select,hover"
-        TOOLTIPS = [
-            ("Shaft lenght:", "@x0"),
-            ("Underformed:", "@y1"),
-            ("Displacement:", "@y0"),
-        ]
+            # Shaft Weight Forces
+            for i, node in enumerate(self.df_shaft["_n"]):
+                SchForce[node + 1] = self.df_shaft.loc[i, "m"] * -9.8065
 
-        # create displacement plot
-        disp_graph = figure(
-            tools=TOOLS,
-            tooltips=TOOLTIPS,
-            width=800,
-            height=400,
-            title="Static Analysis",
-            x_axis_label="shaft lenght",
-            y_axis_label="lateral displacement",
-        )
+            # Shearing Force vector
+            Vx = [0] * (len(self.nodes_pos))
+            Vx_axis = []
+            for i in range(int(len(self.nodes))):
+                Vx_axis.append(self.nodes_pos[i])
+                Vx[i] = Vx[i - 1] + BrgForce[i] + DskForce[i] + SchForce[i]
 
-        interpolated = interpolate.interp1d(
-            source.data["x0"], source.data["y0"], kind="cubic"
-        )
-        xnew = np.linspace(
-            source.data["x0"][0],
-            source.data["x0"][-1],
-            num=len(self.nodes_pos) * 20,
-            endpoint=True,
-        )
+            for i in range(len(Vx) + len(self.df_disks) + len(self.df_bearings)):
+                if DskForce[i] != 0:
+                    Vx.insert(i, Vx[i - 1] + SchForce[i])
+                    DskForce.insert(i + 1, 0)
+                    SchForce.insert(i + 1, 0)
+                    BrgForce.insert(i + 1, 0)
+                    Vx_axis.insert(i, Vx_axis[i])
 
-        ynew = interpolated(xnew)
-        auxsource = ColumnDataSource(data=dict(x0=xnew, y0=ynew, y1=[0] * len(xnew)))
+                if BrgForce[i] != 0:
+                    Vx.insert(i, Vx[i - 1] + SchForce[i])
+                    BrgForce.insert(i + 1, 0)
+                    DskForce.insert(i + 1, 0)
+                    SchForce.insert(i + 1, 0)
+                    Vx_axis.insert(i, Vx_axis[i])
+            self.Vx = [x * -1 for x in Vx]
+            Vx = np.array(self.Vx)
 
-        disp_graph.line(
-            "x0",
-            "y0",
-            source=auxsource,
-            legend="Deformed shaft",
-            line_width=3,
-            line_color=bokeh_colors[9],
-        )
-        disp_graph.circle(
-            "x0",
-            "y0",
-            source=source,
-            legend="Deformed shaft",
-            size=8,
-            fill_color=bokeh_colors[9],
-        )
-        disp_graph.line(
-            "x0",
-            "y1",
-            source=source,
-            legend="underformed shaft",
-            line_width=3,
-            line_color=bokeh_colors[0],
-        )
-        disp_graph.circle(
-            "x0",
-            "y1",
-            source=source,
-            legend="underformed shaft",
-            size=8,
-            fill_color=bokeh_colors[0],
-        )
+            # Bending Moment vector
+            Mx = []
+            for i in range(len(Vx) - 1):
+                if Vx_axis[i] == Vx_axis[i + 1]:
+                    pass
+                else:
+                    Mx.append(
+                        (
+                            (Vx_axis[i + 1] * Vx[i + 1])
+                            + (Vx_axis[i + 1] * Vx[i])
+                            - (Vx_axis[i] * Vx[i + 1])
+                            - (Vx_axis[i] * Vx[i])
+                        )
+                        / 2
+                    )
 
-        # create a new plot for free body diagram (FDB)
-        y_range = []
-        for i, node in enumerate(self.df_bearings["n"]):
-            y_range.append(
-                -disp_y[node] * self.df_bearings.loc[i, "kyy"].coefficient[0]
+            Bm = np.zeros(1)
+            for i in range(len(Mx)):
+                Bm = np.append(Bm, Bm[i] + Mx[i])
+            self.Bm = Bm
+
+            sh_weight = sum(self.df_shaft["m"].values) * 9.8065
+
+            force_data = {
+                "Shaft Total Weight": "%.1f" % sh_weight,
+                "Disks Forces": DskForceToReturn,
+                "Bearings Reaction Forces": BrgForceToReturn,
+            }
+
+            results = StaticResults(
+                np.array([disp_y, Vx, Bm, force_data]),
+                new_attributes={
+                    "Vx_axis": Vx_axis,
+                    "df_shaft": self.df_shaft,
+                    "df_disks": self.df_disks,
+                    "df_bearings": self.df_bearings,
+                    "nodes": self.nodes,
+                    "nodes_pos": self.nodes_pos,
+                },
             )
 
-        shaft_end = self.nodes_pos[-1]
-        FBD = figure(
-            tools=TOOLS,
-            width=800,
-            height=400,
-            title="Free-Body Diagram",
-            x_axis_label="shaft lenght",
-            y_axis_label="Force",
-            x_range=[-0.1 * shaft_end, 1.1 * shaft_end],
-            y_range=[-max(y_range) * 1.4, max(y_range) * 1.4],
-        )
-
-        FBD.line("x0", "y1", source=source, line_width=5, line_color=bokeh_colors[0])
-
-        # FBD - plot arrows indicating shaft weight distribution
-        sh_weight = sum(self.df_shaft["m"].values) * 9.8065
-        text = str("%.1f" % sh_weight)
-        FBD.line(
-            x=self.nodes_pos,
-            y=[sh_weight] * len(self.nodes_pos),
-            line_width=2,
-            line_color=bokeh_colors[0],
-        )
-
-        for node in self.nodes_pos:
-            FBD.add_layout(
-                Arrow(
-                    end=NormalHead(
-                        fill_color=bokeh_colors[7],
-                        fill_alpha=1.0,
-                        size=16,
-                        line_width=2,
-                        line_color=bokeh_colors[0],
-                    ),
-                    x_start=node,
-                    y_start=sh_weight,
-                    x_end=node,
-                    y_end=0,
-                )
-            )
-
-        FBD.add_layout(
-            Label(
-                x=self.nodes_pos[0],
-                y=sh_weight,
-                text="W = " + text + "N",
-                text_font_style="bold",
-                text_baseline="top",
-                text_align="left",
-                y_offset=20,
-            )
-        )
-
-        # FBD - calculate the reaction force of bearings and plot arrows
-        for i, node in enumerate(self.df_bearings["n"]):
-            Fb = -disp_y[node] * self.df_bearings.loc[i, "kyy"].coefficient[0]
-            text = str("%.1f" % Fb)
-            FBD.add_layout(
-                Arrow(
-                    end=NormalHead(
-                        fill_color=bokeh_colors[7],
-                        fill_alpha=1.0,
-                        size=16,
-                        line_width=2,
-                        line_color=bokeh_colors[0],
-                    ),
-                    x_start=self.nodes_pos[node],
-                    y_start=-Fb,
-                    x_end=self.nodes_pos[node],
-                    y_end=0,
-                )
-            )
-            FBD.add_layout(
-                Label(
-                    x=self.nodes_pos[node],
-                    y=-Fb,
-                    text="Fb = " + text + "N",
-                    text_font_style="bold",
-                    text_baseline="bottom",
-                    text_align="center",
-                    y_offset=-20,
-                )
-            )
-
-        # FBD - plot arrows indicating disk weight
-        for i, node in enumerate(self.df_disks["n"]):
-            Fd = self.df_disks.loc[i, "m"] * 9.8065
-            text = str("%.1f" % Fd)
-            FBD.add_layout(
-                Arrow(
-                    end=NormalHead(
-                        fill_color=bokeh_colors[7],
-                        fill_alpha=1.0,
-                        size=16,
-                        line_width=2,
-                        line_color=bokeh_colors[0],
-                    ),
-                    x_start=self.nodes_pos[node],
-                    y_start=Fd,
-                    x_end=self.nodes_pos[node],
-                    y_end=0,
-                )
-            )
-            FBD.add_layout(
-                Label(
-                    x=self.nodes_pos[node],
-                    y=Fd,
-                    text="Fd = " + text + "N",
-                    text_font_style="bold",
-                    text_baseline="top",
-                    text_align="center",
-                    y_offset=20,
-                )
-            )
-
-        # Shearing Force Diagram plot (SF)
-        source_SF = ColumnDataSource(data=dict(x=Vx_axis, y=Vx))
-        TOOLTIPS_SF = [("Shearing Force:", "@y")]
-        SF = figure(
-            tools=TOOLS,
-            tooltips=TOOLTIPS_SF,
-            width=800,
-            height=400,
-            title="Shearing Force Diagram",
-            x_axis_label="Shaft lenght",
-            y_axis_label="Force",
-            x_range=[-0.1 * shaft_end, 1.1 * shaft_end],
-        )
-        SF.line("x", "y", source=source_SF, line_width=4, line_color=bokeh_colors[0])
-        SF.circle("x", "y", source=source_SF, size=8, fill_color=bokeh_colors[0])
-
-        # SF - plot centerline
-        SF.line(
-            [-0.1 * shaft_end, 1.1 * shaft_end],
-            [0, 0],
-            line_width=3,
-            line_dash="dotdash",
-            line_color=bokeh_colors[0],
-        )
-
-        # Bending Moment Diagram plot (BM)
-        source_BM = ColumnDataSource(data=dict(x=self.nodes_pos, y=Bm))
-        TOOLTIPS_BM = [("Bending Moment:", "@y")]
-        BM = figure(
-            tools=TOOLS,
-            tooltips=TOOLTIPS_BM,
-            width=800,
-            height=400,
-            title="Bending Moment Diagram",
-            x_axis_label="Shaft lenght",
-            y_axis_label="Bending Moment",
-            x_range=[-0.1 * shaft_end, 1.1 * shaft_end],
-        )
-        i = 0
-        while True:
-            if i + 3 > len(self.nodes):
-                break
-
-            interpolated_BM = interpolate.interp1d(
-                self.nodes_pos[i : i + 3], Bm[i : i + 3], kind="quadratic"
-            )
-            xnew_BM = np.linspace(
-                self.nodes_pos[i], self.nodes_pos[i + 2], num=42, endpoint=True
-            )
-
-            ynew_BM = interpolated_BM(xnew_BM)
-            auxsource_BM = ColumnDataSource(data=dict(x=xnew_BM, y=ynew_BM))
-            BM.line(
-                "x", "y", source=auxsource_BM, line_width=4, line_color=bokeh_colors[0]
-            )
-            i += 2
-        BM.circle("x", "y", source=source_BM, size=8, fill_color=bokeh_colors[0])
-
-        # BM - plot centerline
-        BM.line(
-            [-0.1 * shaft_end, 1.1 * shaft_end],
-            [0, 0],
-            line_width=3,
-            line_dash="dotdash",
-            line_color=bokeh_colors[0],
-        )
-
-        grid_plots = gridplot([[FBD, SF], [disp_graph, BM]])
-
-        return grid_plots
+        return results
 
     @classmethod
     def from_section(
@@ -2411,8 +2224,8 @@ def whirl(kappa_mode):
 def whirl_to_cmap(whirl):
     """Maps the whirl to a value"""
     if whirl == "Forward":
-        return 0.
+        return 0.0
     elif whirl == "Backward":
-        return 1.
+        return 1.0
     elif whirl == "Mixed":
         return 0.5
