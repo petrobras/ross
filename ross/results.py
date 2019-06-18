@@ -172,6 +172,8 @@ class CampbellResults:
         camp = figure(
             tools="pan, box_zoom, wheel_zoom, reset, save",
             title="Campbell Diagram - Damped Natural Frequency Map",
+            width=1600,
+            height= 900,
             x_axis_label="Rotor speed (rad/s)",
             y_axis_label="Damped natural frequencies (rad/s)",
         )
@@ -235,12 +237,14 @@ class CampbellResults:
             title="log dec",
             title_text_font_style="bold italic",
             title_text_align="center",
+            major_label_text_align="left",
         )
 
         camp.legend.background_fill_alpha = 0.1
         camp.legend.click_policy = "mute"
         camp.legend.location = "top_left"
         camp.add_layout(color_bar, "right")
+        show(camp)
 
         return camp
 
