@@ -1,14 +1,17 @@
 
-EXAMPLE 5.9.6.
-==============
+Example 7 - Hydrodinamic Bearings
+=================================
 
-Hydrodynamic Bearings. Repeat the analysis of Example 5.9.1 when the
-bearings are replaced with hydrodynamic bearings. The oil-film bearings
-have a diameter of 100 mm, are 30 mm long, and each supports a static
-load of 525 N, which represents half of the weight of the rotor. The
-radial clearance in the bearings is 0.1 mm and the oil film has a
-viscosity of 0.1 Pa s. These bearings have the same characteristics as
-Example 5.5.1.
+In this example, we use the rotor seen in Example 5.9.6 from ‘Dynamics
+of Rotating Machinery’ by MI Friswell, JET Penny, SD Garvey & AW Lees,
+published by Cambridge University Press, 2010.
+
+Same rotor of Example 3, but the bearings are replaced with hydrodynamic
+bearings. The oil-film bearings have a diameter of 100 mm, are 30 mm
+long, and each supports a static load of 525 N, which represents half of
+the weight of the rotor. The radial clearance in the bearings is 0.1 mm
+and the oil film has a viscosity of 0.1 Pa s. These bearings have the
+same characteristics as Example 5.5.1.
 
 .. code:: ipython3
 
@@ -70,7 +73,7 @@ Example 5.5.1.
 
 .. code-block:: python
 
-    <matplotlib.axes._subplots.AxesSubplot at 0x7faf809795c0>
+    <matplotlib.axes._subplots.AxesSubplot at 0x7f86bd0e2198>
 
 
 
@@ -117,7 +120,7 @@ Example 5.5.1.
 
 .. code-block:: python
 
-    <matplotlib.axes._subplots.AxesSubplot at 0x7faf7dd58f98>
+    <matplotlib.axes._subplots.AxesSubplot at 0x7f86bc0c4c50>
 
 
 
@@ -172,7 +175,7 @@ Example 5.5.1.
 .. code-block:: python
 
     (<Figure size 432x288 with 2 Axes>,
-     <matplotlib.axes._subplots.AxesSubplot at 0x7faf7dcd6e80>)
+     <matplotlib.axes._subplots.AxesSubplot at 0x7f86bc036908>)
 
 
 

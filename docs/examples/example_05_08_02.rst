@@ -1,6 +1,10 @@
 
-Example 5.8.2
-=============
+Example 2 - Effect of varying slenderness ratio
+===============================================
+
+In this example, we use the rotor seen in Example 5.8.2 from ‘Dynamics
+of Rotating Machinery’ by MI Friswell, JET Penny, SD Garvey & AW Lees,
+published by Cambridge University Press, 2010.
 
 .. code:: ipython3
 
@@ -55,6 +59,8 @@ Example 5.8.2
             / rotor_80.wn[:n_eigen])
     
     fig, ax = plt.subplots()
+    ax.set_xlabel('number of elements')
+    ax.set_ylabel('Natural Frequency error(%)')
     for i in range(8):
         ax.semilogy(number_of_elements, errors[:, i])
 
@@ -84,11 +90,12 @@ Example 5.8.2
             / rotor_ref.wn[:n_eigen])
     
     fig, ax = plt.subplots()
+    ax.set_xlabel('Slenderness ratio')
+    ax.set_ylabel('Natural Frequency error(%)')
     for i in range(8):
         ax.semilogy(R_list, errors[:, i])
 
 
 
 .. image:: example_05_08_02_files/example_05_08_02_6_0.png
-
 

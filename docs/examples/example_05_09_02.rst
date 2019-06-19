@@ -1,13 +1,15 @@
 
-EXAMPLE 5.9.2.
-==============
+Example 4 - Anisotropic Bearings.
+=================================
 
-This system is the same as that of Example 5.9.1 except that the
-isotropic bearings are replaced by anisotropic bearings. Both bearings
-have a stiffness of 1 MN/m in the x direction and 0.8 MN/m in the y
-direction. Calculate the eigenvalues and mode shapes at 0 and 4,000
-rev/min and plot the natural frequency map for rotational speeds up to
-4,500 rev/min.
+In this example, we use the rotor seen in Example 5.9.2 from ‘Dynamics
+of Rotating Machinery’ by MI Friswell, JET Penny, SD Garvey & AW Lees,
+published by Cambridge University Press, 2010.
+
+Both bearings have a stiffness of 1 MN/m in the x direction and 0.8 MN/m
+in the y direction. Calculate the eigenvalues and mode shapes at 0 and
+4,000 rev/min and plot the natural frequency map for rotational speeds
+up to 4,500 rev/min.
 
 .. code:: ipython3
 
@@ -69,7 +71,7 @@ rev/min and plot the natural frequency map for rotational speeds up to
 
 .. code-block:: python
 
-    <matplotlib.axes._subplots.AxesSubplot at 0x7fd4abca82b0>
+    <matplotlib.axes._subplots.AxesSubplot at 0x7ffb8562cf98>
 
 
 
@@ -115,7 +117,7 @@ rev/min and plot the natural frequency map for rotational speeds up to
 
 .. code-block:: python
 
-    <matplotlib.axes._subplots.AxesSubplot at 0x7fd4a907bf98>
+    <matplotlib.axes._subplots.AxesSubplot at 0x7ffb845b5978>
 
 
 
@@ -157,9 +159,13 @@ rev/min and plot the natural frequency map for rotational speeds up to
      806.8872843 ]
 
 
+-  Campbell Diagram
+
 .. code:: ipython3
 
-    rotor592c.run_campbell(np.linspace(0,4000*np.pi/30,100)).plot()
+    campbell = rotor592c.run_campbell(np.linspace(0,4000*np.pi/30,100))
+    campbell.plot()
+
 
 
 
@@ -167,10 +173,44 @@ rev/min and plot the natural frequency map for rotational speeds up to
 .. code-block:: python
 
     (<Figure size 432x288 with 2 Axes>,
-     <matplotlib.axes._subplots.AxesSubplot at 0x7fd4a90bf240>)
+     <matplotlib.axes._subplots.AxesSubplot at 0x7ffb84610320>)
 
 
 
 
-.. image:: example_05_09_02_files/example_05_09_02_6_1.png
+.. image:: example_05_09_02_files/example_05_09_02_7_1.png
+
+
+-  Mode Shapes
+
+.. code:: ipython3
+
+    mode_shapes = rotor592c.run_mode_shapes()
+    
+    for i in np.arange(0,5.1,1):
+        mode_shapes.plot(mode=int(i))
+
+
+
+.. image:: example_05_09_02_files/example_05_09_02_9_0.png
+
+
+
+.. image:: example_05_09_02_files/example_05_09_02_9_1.png
+
+
+
+.. image:: example_05_09_02_files/example_05_09_02_9_2.png
+
+
+
+.. image:: example_05_09_02_files/example_05_09_02_9_3.png
+
+
+
+.. image:: example_05_09_02_files/example_05_09_02_9_4.png
+
+
+
+.. image:: example_05_09_02_files/example_05_09_02_9_5.png
 

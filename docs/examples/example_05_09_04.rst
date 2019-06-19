@@ -1,11 +1,15 @@
 
-EXAMPLE 5.9.4.
-==============
+Example 5 - Cross-coupled bearings.
+===================================
 
-Cross-Coupling in the Bearings. This system is the same as that of
-Example 5.9.1 except that some coupling is introduced in the bearings
-between the x and y directions. The bearings have direct stiffnesses of
-1 MN/m and cross-coupling stiffnesses of 0.5 MN/m.
+In this example, we use the rotor seen in Example 5.9.4 from ‘Dynamics
+of Rotating Machinery’ by MI Friswell, JET Penny, SD Garvey & AW Lees,
+published by Cambridge University Press, 2010.
+
+This system is the same as that of Example 3, except that some coupling
+is introduced in the bearings between the x and y directions. The
+bearings have direct stiffnesses of :math:`1 MN/m` and cross-coupling
+stiffnesses of :math:`0.5 MN/m`.
 
 .. code:: ipython3
 
@@ -67,7 +71,7 @@ between the x and y directions. The bearings have direct stiffnesses of
 
 .. code-block:: python
 
-    <matplotlib.axes._subplots.AxesSubplot at 0x7fe0b7682390>
+    <matplotlib.axes._subplots.AxesSubplot at 0x7fc98fed70f0>
 
 
 
@@ -114,7 +118,7 @@ between the x and y directions. The bearings have direct stiffnesses of
 
 .. code-block:: python
 
-    <matplotlib.axes._subplots.AxesSubplot at 0x7fe0b5256b00>
+    <matplotlib.axes._subplots.AxesSubplot at 0x7fc98eeb7ba8>
 
 
 
@@ -155,5 +159,4 @@ between the x and y directions. The bearings have direct stiffnesses of
 
     Normal Instantiation = [ 84.19790045  89.03269396 246.44121183 301.08623205 594.81950178
      834.0420378 ]
-
 
