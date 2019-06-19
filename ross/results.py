@@ -197,6 +197,26 @@ class CampbellResults:
                 log_dec_i = log_dec[:, i]
                 speed_range_i = speed_range[:, i]
 
+                idx = np.argwhere(np.diff(np.sign(w_i - speed_range_i))).flatten()
+                if len(idx) != 0:
+                    idx = idx[0]
+
+                    interpolated = interpolate.interp1d(
+                        x=[speed_range_i[idx], speed_range_i[idx+1]],
+                        y=[w_i[idx], w_i[idx+1]],
+                        kind="linear"
+                    )
+                    xnew = np.linspace(
+                        speed_range_i[idx],
+                        speed_range_i[idx+1],
+                        num=20,
+                        endpoint=True,
+                    )
+                    ynew = interpolated(xnew)
+                    idx = np.argwhere(np.diff(np.sign(ynew - xnew))).flatten()
+
+                    camp.asterisk(xnew[idx], ynew[idx], size=15, color="red")
+
                 whirl_mask = whirl_i == whirl_dir
                 if whirl_mask.shape[0] == 0:
                     continue
