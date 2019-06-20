@@ -1,6 +1,5 @@
 import sys
 import warnings
-
 import matplotlib.pyplot as plt
 import numpy as np
 from bokeh.plotting import figure, output_file
@@ -128,7 +127,6 @@ class PressureMatrix:
     >>> from ross.fluid_flow import fluid_flow as flow
     >>> import numpy as np
     >>> from bokeh.plotting import show
-    >>> import matplotlib.pyplot as plt
     >>> nz = 8
     >>> ntheta = 64
     >>> nradius = 11
@@ -530,7 +528,7 @@ class PressureMatrix:
         roots = np.roots(coefficients)
         for i in range(0, len(roots)):
             if 0 <= roots[i] <= 1:
-                return np.sqrt(roots[i])
+                return np.sqrt(roots[i].real)
         sys.exit("Eccentricity ratio could not be calculated.")
 
     def get_analytical_stiffness_matrix(self):
