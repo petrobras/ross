@@ -85,7 +85,7 @@ class CampbellResults:
             self.speed_range[:, np.newaxis], num_frequencies, axis=1
         )
 
-        default_values = dict(cmap="RdBu", vmin=0.1, vmax=2.0, s=20, alpha=0.5)
+        default_values = dict(cmap="RdBu", vmin=0.1, vmax=2.0, s=30, alpha=0.5)
         for k, v in default_values.items():
             kwargs.setdefault(k, v)
 
@@ -98,6 +98,37 @@ class CampbellResults:
                 log_dec_i = log_dec[:, i]
                 speed_range_i = speed_range[:, i]
 
+                for harm in harmonics:
+                    ax.plot(
+                        speed_range[:, 0],
+                        harm * speed_range[:, 0],
+                        color="k",
+                        linewidth=1.5,
+                        linestyle="-.",
+                        alpha=0.75,
+                        label="Rotor speed",
+                    )
+
+                    idx = np.argwhere(np.diff(np.sign(w_i - harm*speed_range_i))).flatten()
+                    if len(idx) != 0:
+                        idx = idx[0]
+
+                        interpolated = interpolate.interp1d(
+                            x=[speed_range_i[idx], speed_range_i[idx+1]],
+                            y=[w_i[idx], w_i[idx+1]],
+                            kind="linear"
+                        )
+                        xnew = np.linspace(
+                            speed_range_i[idx],
+                            speed_range_i[idx+1],
+                            num=20,
+                            endpoint=True,
+                        )
+                        ynew = interpolated(xnew)
+                        idx = np.argwhere(np.diff(np.sign(ynew - harm*xnew))).flatten()
+
+                        ax.scatter(xnew[idx], ynew[idx], marker="X", s=30, c="g")
+
                 whirl_mask = whirl_i == whirl_dir
                 if whirl_mask.shape[0] == 0:
                     continue
@@ -109,17 +140,6 @@ class CampbellResults:
                         marker=mark,
                         **kwargs,
                     )
-
-        for harm in harmonics:
-            ax.plot(
-                speed_range[:, 0],
-                harm * speed_range[:, 0],
-                color="k",
-                linewidth=1.5,
-                linestyle="-.",
-                alpha=0.75,
-                label="Rotor speed",
-            )
 
         if len(fig.axes) == 1:
             cbar = fig.colorbar(im)
