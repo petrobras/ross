@@ -197,25 +197,38 @@ class CampbellResults:
                 log_dec_i = log_dec[:, i]
                 speed_range_i = speed_range[:, i]
 
-                idx = np.argwhere(np.diff(np.sign(w_i - speed_range_i))).flatten()
-                if len(idx) != 0:
-                    idx = idx[0]
-
-                    interpolated = interpolate.interp1d(
-                        x=[speed_range_i[idx], speed_range_i[idx+1]],
-                        y=[w_i[idx], w_i[idx+1]],
-                        kind="linear"
+                for harm in harmonics:
+                    camp.line(
+                        x=speed_range[:, 0],
+                        y=harm * speed_range[:, 0],
+                        line_width=3,
+                        color=bokeh_colors[0],
+                        line_dash="dotdash",
+                        line_alpha=0.75,
+                        legend="Rotor speed",
+                        muted_color=bokeh_colors[0],
+                        muted_alpha=0.2,
                     )
-                    xnew = np.linspace(
-                        speed_range_i[idx],
-                        speed_range_i[idx+1],
-                        num=20,
-                        endpoint=True,
-                    )
-                    ynew = interpolated(xnew)
-                    idx = np.argwhere(np.diff(np.sign(ynew - xnew))).flatten()
 
-                    camp.asterisk(xnew[idx], ynew[idx], size=15, color="red")
+                    idx = np.argwhere(np.diff(np.sign(w_i - harm*speed_range_i))).flatten()
+                    if len(idx) != 0:
+                        idx = idx[0]
+
+                        interpolated = interpolate.interp1d(
+                            x=[speed_range_i[idx], speed_range_i[idx+1]],
+                            y=[w_i[idx], w_i[idx+1]],
+                            kind="linear"
+                        )
+                        xnew = np.linspace(
+                            speed_range_i[idx],
+                            speed_range_i[idx+1],
+                            num=20,
+                            endpoint=True,
+                        )
+                        ynew = interpolated(xnew)
+                        idx = np.argwhere(np.diff(np.sign(ynew - harm*xnew))).flatten()
+
+                        camp.square(xnew[idx], ynew[idx], size=10, color="red")
 
                 whirl_mask = whirl_i == whirl_dir
                 if whirl_mask.shape[0] == 0:
@@ -241,18 +254,6 @@ class CampbellResults:
                         legend=legend,
                     )
 
-        for harm in harmonics:
-            camp.line(
-                x=speed_range[:, 0],
-                y=harm * speed_range[:, 0],
-                line_width=3,
-                color=bokeh_colors[0],
-                line_dash="dotdash",
-                line_alpha=0.75,
-                legend="Rotor speed",
-                muted_color=bokeh_colors[0],
-                muted_alpha=0.2,
-            )
         color_bar = ColorBar(
             color_mapper=color_mapper["transform"],
             width=8,
@@ -267,7 +268,6 @@ class CampbellResults:
         camp.legend.click_policy = "mute"
         camp.legend.location = "top_left"
         camp.add_layout(color_bar, "right")
-        show(camp)
 
         return camp
 
