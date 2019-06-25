@@ -1,15 +1,22 @@
 import pickle
+import numpy as np
+from scipy import interpolate
 
-import bokeh.palettes as bp
 import matplotlib as mpl
 import matplotlib.pyplot as plt
-import numpy as np
+import bokeh.palettes as bp
 from mpl_toolkits.mplot3d import Axes3D
 from bokeh.layouts import gridplot
-from bokeh.models import ColumnDataSource, ColorBar, Arrow, NormalHead, Label
 from bokeh.plotting import figure, show
 from bokeh.transform import linear_cmap
-from scipy import interpolate
+from bokeh.models import (
+        ColumnDataSource,
+        ColorBar,
+        Arrow,
+        NormalHead,
+        Label,
+        HoverTool
+)
 
 # set bokeh palette of colors
 bokeh_colors = bp.RdGy[11]
@@ -242,13 +249,29 @@ class CampbellResults:
                         xnew = np.linspace(
                             speed_range_i[idx],
                             speed_range_i[idx+1],
-                            num=20,
+                            num=30,
                             endpoint=True,
                         )
                         ynew = interpolated(xnew)
                         idx = np.argwhere(np.diff(np.sign(ynew - harm*xnew))).flatten()
 
-                        camp.square(xnew[idx], ynew[idx], size=10, color="red")
+                        source = ColumnDataSource(
+                                dict(xnew=xnew[idx], ynew=ynew[idx])
+                        )
+                        camp.square(
+                                "xnew",
+                                "ynew",
+                                source=source,
+                                size=10,
+                                color=bokeh_colors[9],
+                                name="critspeed"
+                        )
+                        hover = HoverTool(names=["critspeed"])
+                        hover.tooltips = [
+                                ("Frequency :", "@xnew"),
+                                ("Critical Speed :", "@ynew")
+                        ]
+                        hover.mode = "mouse"
 
                 whirl_mask = whirl_i == whirl_dir
                 if whirl_mask.shape[0] == 0:
@@ -283,7 +306,7 @@ class CampbellResults:
             title_text_align="center",
             major_label_text_align="left",
         )
-
+        camp.add_tools(hover)
         camp.legend.background_fill_alpha = 0.1
         camp.legend.click_policy = "mute"
         camp.legend.location = "top_left"
