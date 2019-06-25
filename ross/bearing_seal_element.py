@@ -20,7 +20,7 @@ bokeh_colors = bp.RdGy[11]
 class _Coefficient:
     def __init__(self, coefficient, w=None, interpolated=None):
         if isinstance(coefficient, (int, float)):
-            if w is not None:
+            if w is not None and type(w) != float:
                 coefficient = [coefficient for _ in range(len(w))]
             else:
                 coefficient = [coefficient]
@@ -164,7 +164,7 @@ class BearingElement(Element):
 
         coefficients_len = [len(v.coefficient) for v in coefficients.values()]
 
-        if w is not None:
+        if w is not None and type(w) != float:
             coefficients_len.append(len(args_dict["w"]))
             if len(set(coefficients_len)) > 1:
                 raise ValueError(
