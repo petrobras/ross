@@ -1,14 +1,15 @@
 
-Example 5.9.9
-=============
+Example 8 - Overhung rotor.
+===========================
 
-An Overhung Rotor. Consider the overhung rotor shown in Figure 5.44. The
-shaft is 1.5m-long and the diameter is 50 mm with a disk of diameter
-350mm and thickness 70 mm. The two bearings, with positions given in
-Figure 5.44, have a stiffness of 10 MN/m in each direction. The shaft
-and disk are made of steel, with material properties E = 211 GN/m², G =
-81.2 GN/m²,and p = 7,810 kg/m3. Damping is neglected. Estimate the first
-six natural frequencies and mode shapes between 0 and 4,000 rev/min.
+In this example, we use the rotor seen in Example 5.9.9 from ‘Dynamics
+of Rotating Machinery’ by MI Friswell, JET Penny, SD Garvey & AW Lees,
+published by Cambridge University Press, 2010.
+
+The shaft is :math:`1.5m` long and the diameter is :math:`50 mm` with a
+disk of diameter :math:`350mm` and thickness :math:`70 mm`. The two
+bearings, have a stiffness of :math:`10 MN/m` in each direction. The
+shaft and disk are made of steel. Damping is neglected.
 
 .. code:: ipython3
 
@@ -65,7 +66,7 @@ six natural frequencies and mode shapes between 0 and 4,000 rev/min.
 
 .. code-block:: python
 
-    <matplotlib.axes._subplots.AxesSubplot at 0x7f906461d5c0>
+    <matplotlib.axes._subplots.AxesSubplot at 0x7fad358a7c88>
 
 
 
@@ -95,7 +96,7 @@ six natural frequencies and mode shapes between 0 and 4,000 rev/min.
 .. code-block:: python
 
     (<Figure size 432x288 with 2 Axes>,
-     <matplotlib.axes._subplots.AxesSubplot at 0x7f9063e473c8>)
+     <matplotlib.axes._subplots.AxesSubplot at 0x7fad350ca6d8>)
 
 
 

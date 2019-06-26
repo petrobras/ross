@@ -1,11 +1,14 @@
 
-EXAMPLE 5.9.5.
-==============
+Example 6 - Isotropic bearings with damping.
+============================================
 
-Isotropic Bearings with Damping. The isotropic bearing Example 5.9.1 is
-repeated but with damping in the bearings. The, x and y directions are
-uncoupled, with a translational stiffness of 1 MN/m and a damping of 3
-kNs/m in each direction.
+In this example, we use the rotor seen in Example 5.9.5 from ‘Dynamics
+of Rotating Machinery’ by MI Friswell, JET Penny, SD Garvey & AW Lees,
+published by Cambridge University Press, 2010.
+
+The isotropic bearing Example 3 is repeated but with damping in the
+bearings. The, x and y directions are uncoupled, with a translational
+stiffness of 1 MN/m and a damping of 3 kNs/m in each direction.
 
 .. code:: ipython3
 
@@ -66,7 +69,7 @@ kNs/m in each direction.
 
 .. code-block:: python
 
-    <matplotlib.axes._subplots.AxesSubplot at 0x7f66b2c60208>
+    <matplotlib.axes._subplots.AxesSubplot at 0x7fe07b24af98>
 
 
 
@@ -113,7 +116,7 @@ kNs/m in each direction.
 
 .. code-block:: python
 
-    <matplotlib.axes._subplots.AxesSubplot at 0x7f66b002ef28>
+    <matplotlib.axes._subplots.AxesSubplot at 0x7fe07a1eac18>
 
 
 
@@ -165,11 +168,10 @@ kNs/m in each direction.
 .. code-block:: python
 
     (<Figure size 432x288 with 2 Axes>,
-     <matplotlib.axes._subplots.AxesSubplot at 0x7f66a3f9a668>)
+     <matplotlib.axes._subplots.AxesSubplot at 0x7fe07a15e9e8>)
 
 
 
 
 .. image:: example_05_09_05_files/example_05_09_05_6_1.png
-
 

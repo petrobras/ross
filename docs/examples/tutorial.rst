@@ -359,7 +359,7 @@ one with bokeh library and one with matplotlib.
 
 .. code-block:: python
 
-    <matplotlib.axes._subplots.AxesSubplot at 0x7f2be30dd240>
+    <matplotlib.axes._subplots.AxesSubplot at 0x7fc323db8320>
 
 
 
@@ -413,7 +413,7 @@ In this example we can see the campbell diagram from 0 to 4000 RPM.
 .. code-block:: python
 
     (<Figure size 432x288 with 2 Axes>,
-     <matplotlib.axes._subplots.AxesSubplot at 0x7f2be2054ef0>)
+     <matplotlib.axes._subplots.AxesSubplot at 0x7fc322d7a978>)
 
 
 
@@ -453,7 +453,7 @@ You can also generate the plot for each mode shape.
 .. code-block:: python
 
     (<Figure size 1080x720 with 1 Axes>,
-     <matplotlib.axes._subplots.Axes3DSubplot at 0x7f2be1efd828>)
+     <matplotlib.axes._subplots.Axes3DSubplot at 0x7fc322b7c240>)
 
 
 

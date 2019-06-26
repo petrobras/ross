@@ -1,21 +1,23 @@
 
-EXAMPLE 5.9.1.
-==============
+Example 3 - Isotropic Bearings, asymmetrical rotor.
+===================================================
 
-A 1.5-m-long shaft, has a diameter of 0.05 m. The disks are keyed to the
-shaft at 0.5 and 1 m from one end. The left disk is 0.07 m thick with a
-diameter of 0.28 m; the right disk is 0.07 m thick with a diameter of
-0.35 m. For the shaft, :math:`E = 211 GN/m^2` and
-:math:`G = 81.2 GN/m^2`. There is no internal shaft damping. For both
-the shaft and the disks, :math:`\rho = 7,810 kg/m^3`. The shaft is
-supported by identical bearings at its ends.
+In this example, we use the rotor seen in Example 5.9.1 from ‘Dynamics
+of Rotating Machinery’ by MI Friswell, JET Penny, SD Garvey & AW Lees,
+published by Cambridge University Press, 2010. A 1.5-m-long shaft, with
+a diameter of :math:`0.05 m`. The disks are keyed to the shaft at
+:math:`0.5` and :math:`1 m` from one end. The left disk is
+:math:`0.07 m` thick with a diameter of :math:`0.28 m`; the right disk
+is :math:`0.07 m` thick with a diameter of :math:`0.35 m`. For the
+shaft, :math:`E = 211 GN/m^2` and :math:`G = 81.2 GN/m^2`. There is no
+internal shaft damping. For both the shaft and the disks,
+:math:`\rho = 7,810 kg/m^3`. The shaft is supported by identical
+bearings at its ends.
 
-These bearings are isotropic and have a stiffness of 1 MN/m in both the
-x and y directions. The bearings contribute no additional stiffness to
-the rotational degrees of freedom and there is no damping or
-cross-coupling in the bearings. Create an FE model of the shaft using
-six Timoshenko beam elements and investigate the dynamics of the machine
-at 0 and 4,000 rev/min.
+These bearings are isotropic and have a stiffness of :math:`1 MN/m` in
+both the x and y directions. The bearings contribute no additional
+stiffness to the rotational degrees of freedom and there is no damping
+or cross-coupling in the bearings.
 
 .. code:: ipython3
 
@@ -76,7 +78,7 @@ at 0 and 4,000 rev/min.
 
 .. code-block:: python
 
-    <matplotlib.axes._subplots.AxesSubplot at 0x7f02d6b33390>
+    <matplotlib.axes._subplots.AxesSubplot at 0x7f9d7a899128>
 
 
 
@@ -123,7 +125,7 @@ at 0 and 4,000 rev/min.
 
 .. code-block:: python
 
-    <matplotlib.axes._subplots.AxesSubplot at 0x7f02d46f94a8>
+    <matplotlib.axes._subplots.AxesSubplot at 0x7f9d79866b38>
 
 
 
@@ -168,5 +170,4 @@ at 0 and 4,000 rev/min.
 
     Normal Instantiation = [ 85.389467    87.7958637  251.78460413 294.71333087 600.17936195
      827.07536193]
-
 

@@ -1,6 +1,5 @@
 import sys
 import warnings
-
 import matplotlib.pyplot as plt
 import numpy as np
 from bokeh.plotting import figure, output_file
@@ -114,8 +113,8 @@ class PressureMatrix:
     bearing_type: str
         type of structure. 'short_bearing': short; 'long_bearing': long;
         'medium_size': in between short and long.
-        if length/radius_stator <= 1/8 it is short.
-        if length/radius_stator > 4 it is long.
+        if length/radius_stator <= 1/4 it is short.
+        if length/radius_stator > 8 it is long.
     radial_clearance: float
         Difference between both stator and rotor radius, regardless of eccentricity.
     analytical_pressure_matrix_available: bool
@@ -128,7 +127,6 @@ class PressureMatrix:
     >>> from ross.fluid_flow import fluid_flow as flow
     >>> import numpy as np
     >>> from bokeh.plotting import show
-    >>> import matplotlib.pyplot as plt
     >>> nz = 8
     >>> ntheta = 64
     >>> nradius = 11
@@ -195,9 +193,9 @@ class PressureMatrix:
         self.radial_clearance = self.radius_stator - self.radius_rotor
         self.difference_between_radius = radius_stator - radius_rotor
         self.bearing_type = ""
-        if self.length / self.radius_stator <= 1 / 8:
+        if self.length / self.radius_stator <= 1 / 4:
             self.bearing_type = "short_bearing"
-        elif self.length / self.radius_stator > 4:
+        elif self.length / self.radius_stator > 8:
             self.bearing_type = "long_bearing"
         else:
             self.bearing_type = "medium_size"
@@ -234,7 +232,8 @@ class PressureMatrix:
         self.numerical_pressure_matrix_available = False
 
     def calculate_pressure_matrix_analytical(self):
-        """This function calculates the pressure matrix analytically.
+        """This function calculates the pressure matrix analytically, based on the book Tribology Series vol. 33, by
+        Frene et al., chapter 5.
         """
         if self.bearing_type == "short_bearing":
             for i in range(self.nz):
@@ -247,6 +246,22 @@ class PressureMatrix:
                     # fmt: on
         self.analytical_pressure_matrix_available = True
         return self.p_mat_analytical
+
+    def calculate_pressure_matrix_analytical2(self):
+        """This function calculates the pressure matrix analytically, based on the chapter Linear and Nonlinear
+        Rotordynamics, by Ishida and Yamamoto, from the book Flow-Induced Vibrations.
+        """
+        if self.bearing_type == "short_bearing":
+            for i in range(self.nz):
+                for j in range(self.ntheta):
+                    # fmt: off
+                    self.p_mat_analytical[i][j] = (3 * self.visc / ((self.difference_between_radius ** 2) *
+                                                                    (1. + self.eccentricity_ratio * np.cos(
+                                                                        j * self.dtheta)) ** 3)) * \
+                                                  (-self.eccentricity_ratio * self.omega * np.sin(j * self.dtheta)) * \
+                                                  (((i * self.dz - (self.length / 2)) ** 2) - (self.length ** 2) / 4)
+                    # fmt: on
+        self.analytical_pressure_matrix_available = True
 
     def calculate_coefficients(self):
         """This function calculates the constants that form the Poisson equation
@@ -444,7 +459,7 @@ class PressureMatrix:
             warnings.warn(
                 "Function get_rotor_load suitable only for short bearings. "
                 "The ratio between the bearing length and its radius should be less or "
-                "equal to 0.125. Currently we have "
+                "equal to 0.25. Currently we have "
                 + str(self.length / self.radius_stator)
                 + "."
             )
@@ -498,7 +513,7 @@ class PressureMatrix:
             warnings.warn(
                 "Function calculate_eccentricity_ratio suitable only for short bearings. "
                 "The ratio between the bearing length and its radius should be less or "
-                "equal to 0.125. Currently we have "
+                "equal to 0.25. Currently we have "
                 + str(self.length / self.radius_stator)
                 + "."
             )
@@ -513,7 +528,7 @@ class PressureMatrix:
         roots = np.roots(coefficients)
         for i in range(0, len(roots)):
             if 0 <= roots[i] <= 1:
-                return np.sqrt(roots[i])
+                return np.sqrt(roots[i].real)
         sys.exit("Eccentricity ratio could not be calculated.")
 
     def get_analytical_stiffness_matrix(self):
@@ -528,7 +543,7 @@ class PressureMatrix:
             warnings.warn(
                 "Function get_analytical_stiffness_matrix suitable only for short bearings. "
                 "The ratio between the bearing length and its radius should be less or "
-                "equal to 0.125. Currently we have "
+                "equal to 0.25. Currently we have "
                 + str(self.length / self.radius_stator)
                 + "."
             )
@@ -562,7 +577,7 @@ class PressureMatrix:
             warnings.warn(
                 "Function get_analytical_damping_matrix suitable only for short bearings. "
                 "The ratio between the bearing length and its radius should be less or "
-                "equal to 0.125. Currently we have "
+                "equal to 0.25. Currently we have "
                 + str(self.length / self.radius_stator)
                 + "."
             )
