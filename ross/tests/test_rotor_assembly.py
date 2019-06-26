@@ -2,7 +2,7 @@ import os
 
 import numpy as np
 import pytest
-from numpy.testing import assert_almost_equal, assert_allclose
+from numpy.testing import assert_almost_equal, assert_allclose, assert_equal
 
 from ross.bearing_seal_element import *
 from ross.disk_element import *
@@ -1021,6 +1021,10 @@ def test_whirl_values(rotor7):
                 rotor7.whirl_values(),
                 [1., 0., 1., 0., 1., 0.],
                 atol=0
+        )
+        assert_equal(
+                rotor7.whirl_direction(),
+                np.array(['Backward', 'Forward', 'Backward', 'Forward', 'Backward', 'Forward'], dtype='<U8')
         )
 
 
