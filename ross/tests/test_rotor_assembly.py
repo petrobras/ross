@@ -986,6 +986,44 @@ def test_from_section():
     assert "The matrices lenght do not match." == str(excinfo.value)
 
 
+@pytest.fixture
+def rotor7():
+    #  Rotor with damping
+    #  Rotor with 6 shaft elements, 2 disks and 2 bearings
+    i_d = 0
+    o_d = 0.05
+    n = 6
+    L = [0.25 for _ in range(n)]
+
+    shaft_elem = [
+        ShaftElement(
+            l, i_d, o_d, steel, shear_effects=True, rotary_inertia=True, gyroscopic=True
+        )
+        for l in L
+    ]
+
+    disk0 = DiskElement.from_geometry(2, steel, 0.07, 0.05, 0.28)
+    disk1 = DiskElement.from_geometry(4, steel, 0.07, 0.05, 0.35)
+
+    stfx = 1e6
+    stfy = 1e6
+    bearing0 = BearingElement(0, kxx=stfx, kyy=stfy, cxx=1e3, cyy=1e3)
+    bearing1 = BearingElement(6, kxx=stfx, kyy=stfy, cxx=1e3, cyy=1e3)
+
+    return Rotor(shaft_elem, [disk0, disk1], [bearing0, bearing1])
+
+
+def test_whirl_values(rotor7):
+    speed_range = np.linspace(50, 500, 10)
+    for speed in speed_range:
+        rotor7.w = speed
+        assert_allclose(
+                rotor7.whirl_values(),
+                [1., 0., 1., 0., 1., 0.],
+                atol=0
+        )
+
+
 def test_save_load():
 
     a = rotor_example()
