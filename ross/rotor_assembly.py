@@ -1282,6 +1282,8 @@ class Rotor(object):
             y_axis_label="Shaft radius (m)",
             match_aspect=True,
         )
+        bk_ax.xaxis.axis_label_text_font_size = "14pt"
+        bk_ax.yaxis.axis_label_text_font_size = "14pt"
 
         # bokeh plot - plot shaft centerline
         bk_ax.line(
@@ -1565,6 +1567,8 @@ class Rotor(object):
             x_axis_type="log",
             y_axis_type="log",
         )
+        bk_ax.xaxis.axis_label_text_font_size = "14pt"
+        bk_ax.yaxis.axis_label_text_font_size = "14pt"
 
         # bokeh plot - plot shaft centerline
         bk_ax.circle(
@@ -1661,6 +1665,8 @@ class Rotor(object):
             x_axis_label="Applied Cross Coupled Stiffness, Q (N/m)",
             y_axis_label="Log Dec",
         )
+        bk_ax.xaxis.axis_label_text_font_size = "14pt"
+        bk_ax.yaxis.axis_label_text_font_size = "14pt"
 
         # bokeh plot - plot shaft centerline
         bk_ax.line(stiffness, log_dec, line_width=3, line_color=bokeh_colors[0])
@@ -1739,6 +1745,8 @@ class Rotor(object):
             x_axis_label="Time (s)",
             y_axis_label="Amplitude (%s)" % amp,
         )
+        bk_ax.xaxis.axis_label_text_font_size = "14pt"
+        bk_ax.yaxis.axis_label_text_font_size = "14pt"
 
         # bokeh plot - plot shaft centerline
         bk_ax.line(t, yout[:, dof], line_width=3, line_color=bokeh_colors[0])

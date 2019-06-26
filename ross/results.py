@@ -1,15 +1,22 @@
 import pickle
+import numpy as np
+from scipy import interpolate
 
-import bokeh.palettes as bp
 import matplotlib as mpl
 import matplotlib.pyplot as plt
-import numpy as np
+import bokeh.palettes as bp
 from mpl_toolkits.mplot3d import Axes3D
 from bokeh.layouts import gridplot
-from bokeh.models import ColumnDataSource, ColorBar, Arrow, NormalHead, Label
 from bokeh.plotting import figure, show
 from bokeh.transform import linear_cmap
-from scipy import interpolate
+from bokeh.models import (
+        ColumnDataSource,
+        ColorBar,
+        Arrow,
+        NormalHead,
+        Label,
+        HoverTool
+)
 
 # set bokeh palette of colors
 bokeh_colors = bp.RdGy[11]
@@ -85,7 +92,7 @@ class CampbellResults:
             self.speed_range[:, np.newaxis], num_frequencies, axis=1
         )
 
-        default_values = dict(cmap="RdBu", vmin=0.1, vmax=2.0, s=20, alpha=0.5)
+        default_values = dict(cmap="RdBu", vmin=0.1, vmax=2.0, s=30, alpha=0.5)
         for k, v in default_values.items():
             kwargs.setdefault(k, v)
 
@@ -98,6 +105,37 @@ class CampbellResults:
                 log_dec_i = log_dec[:, i]
                 speed_range_i = speed_range[:, i]
 
+                for harm in harmonics:
+                    ax.plot(
+                        speed_range[:, 0],
+                        harm * speed_range[:, 0],
+                        color="k",
+                        linewidth=1.5,
+                        linestyle="-.",
+                        alpha=0.75,
+                        label="Rotor speed",
+                    )
+
+                    idx = np.argwhere(np.diff(np.sign(w_i - harm*speed_range_i))).flatten()
+                    if len(idx) != 0:
+                        idx = idx[0]
+
+                        interpolated = interpolate.interp1d(
+                            x=[speed_range_i[idx], speed_range_i[idx+1]],
+                            y=[w_i[idx], w_i[idx+1]],
+                            kind="linear"
+                        )
+                        xnew = np.linspace(
+                            speed_range_i[idx],
+                            speed_range_i[idx+1],
+                            num=20,
+                            endpoint=True,
+                        )
+                        ynew = interpolated(xnew)
+                        idx = np.argwhere(np.diff(np.sign(ynew - harm*xnew))).flatten()
+
+                        ax.scatter(xnew[idx], ynew[idx], marker="X", s=30, c="g")
+
                 whirl_mask = whirl_i == whirl_dir
                 if whirl_mask.shape[0] == 0:
                     continue
@@ -109,17 +147,6 @@ class CampbellResults:
                         marker=mark,
                         **kwargs,
                     )
-
-        for harm in harmonics:
-            ax.plot(
-                speed_range[:, 0],
-                harm * speed_range[:, 0],
-                color="k",
-                linewidth=1.5,
-                linestyle="-.",
-                alpha=0.75,
-                label="Rotor speed",
-            )
 
         if len(fig.axes) == 1:
             cbar = fig.colorbar(im)
@@ -172,8 +199,19 @@ class CampbellResults:
         camp = figure(
             tools="pan, box_zoom, wheel_zoom, reset, save",
             title="Campbell Diagram - Damped Natural Frequency Map",
+            width=1600,
+            height=900,
             x_axis_label="Rotor speed (rad/s)",
             y_axis_label="Damped natural frequencies (rad/s)",
+        )
+        camp.xaxis.axis_label_text_font_size = "14pt"
+        camp.yaxis.axis_label_text_font_size = "14pt"
+
+        color_mapper = linear_cmap(
+                field_name="color",
+                palette=bp.viridis(256),
+                low=min(log_dec_map),
+                high=max(log_dec_map),
         )
 
         for mark, whirl_dir, legend in zip(
@@ -186,6 +224,55 @@ class CampbellResults:
                 log_dec_i = log_dec[:, i]
                 speed_range_i = speed_range[:, i]
 
+                for harm in harmonics:
+                    camp.line(
+                        x=speed_range[:, 0],
+                        y=harm * speed_range[:, 0],
+                        line_width=3,
+                        color=bokeh_colors[0],
+                        line_dash="dotdash",
+                        line_alpha=0.75,
+                        legend="Rotor speed",
+                        muted_color=bokeh_colors[0],
+                        muted_alpha=0.2,
+                    )
+
+                    idx = np.argwhere(np.diff(np.sign(w_i - harm*speed_range_i))).flatten()
+                    if len(idx) != 0:
+                        idx = idx[0]
+
+                        interpolated = interpolate.interp1d(
+                            x=[speed_range_i[idx], speed_range_i[idx+1]],
+                            y=[w_i[idx], w_i[idx+1]],
+                            kind="linear"
+                        )
+                        xnew = np.linspace(
+                            speed_range_i[idx],
+                            speed_range_i[idx+1],
+                            num=30,
+                            endpoint=True,
+                        )
+                        ynew = interpolated(xnew)
+                        idx = np.argwhere(np.diff(np.sign(ynew - harm*xnew))).flatten()
+
+                        source = ColumnDataSource(
+                                dict(xnew=xnew[idx], ynew=ynew[idx])
+                        )
+                        camp.square(
+                                "xnew",
+                                "ynew",
+                                source=source,
+                                size=10,
+                                color=bokeh_colors[9],
+                                name="critspeed"
+                        )
+                        hover = HoverTool(names=["critspeed"])
+                        hover.tooltips = [
+                                ("Frequency :", "@xnew"),
+                                ("Critical Speed :", "@ynew")
+                        ]
+                        hover.mode = "mouse"
+
                 whirl_mask = whirl_i == whirl_dir
                 if whirl_mask.shape[0] == 0:
                     continue
@@ -196,12 +283,6 @@ class CampbellResults:
                             y=w_i[whirl_mask],
                             color=log_dec_i[whirl_mask],
                         )
-                    )
-                    color_mapper = linear_cmap(
-                        field_name="color",
-                        palette=bp.viridis(256),
-                        low=min(log_dec_map),
-                        high=max(log_dec_map),
                     )
                     camp.scatter(
                         x="x",
@@ -216,18 +297,6 @@ class CampbellResults:
                         legend=legend,
                     )
 
-        for harm in harmonics:
-            camp.line(
-                x=speed_range[:, 0],
-                y=harm * speed_range[:, 0],
-                line_width=3,
-                color=bokeh_colors[0],
-                line_dash="dotdash",
-                line_alpha=0.75,
-                legend="Rotor speed",
-                muted_color=bokeh_colors[0],
-                muted_alpha=0.2,
-            )
         color_bar = ColorBar(
             color_mapper=color_mapper["transform"],
             width=8,
@@ -235,8 +304,9 @@ class CampbellResults:
             title="log dec",
             title_text_font_style="bold italic",
             title_text_align="center",
+            major_label_text_align="left",
         )
-
+        camp.add_tools(hover)
         camp.legend.background_fill_alpha = 0.1
         camp.legend.click_policy = "mute"
         camp.legend.location = "top_left"
@@ -365,6 +435,9 @@ class FrequencyResponseResults:
             x_axis_label="Frequency",
             y_axis_label=y_axis_label,
         )
+        mag_plot.xaxis.axis_label_text_font_size = "14pt"
+        mag_plot.yaxis.axis_label_text_font_size = "14pt"
+
         source = ColumnDataSource(dict(x=frequency_range, y=mag[inp, out, :]))
         mag_plot.line(
             x="x",
@@ -456,6 +529,9 @@ class FrequencyResponseResults:
             x_axis_label="Frequency",
             y_axis_label="Phase",
         )
+        phase_plot.xaxis.axis_label_text_font_size = "14pt"
+        phase_plot.yaxis.axis_label_text_font_size = "14pt"
+
         source = ColumnDataSource(dict(x=frequency_range, y=phase[inp, out, :]))
         phase_plot.line(
             x="x",
@@ -675,11 +751,9 @@ class ForcedResponseResults:
 
         if units == "m":
             ax.set_ylabel("Amplitude $(m)$")
-            y_axis_label = "Amplitude (m)"
         elif units == "mic-pk-pk":
             mag = 2 * mag * 1e6
             ax.set_ylabel("Amplitude $(\mu pk-pk)$")
-            y_axis_label = "Amplitude $(\mu pk-pk)$"
 
         ax.plot(frequency_range, mag[dof], **kwargs)
 
@@ -736,6 +810,9 @@ class ForcedResponseResults:
             x_range=[0, max(frequency_range)],
             y_axis_label=y_axis_label,
         )
+        mag_plot.xaxis.axis_label_text_font_size = "14pt"
+        mag_plot.yaxis.axis_label_text_font_size = "14pt"
+
         source = ColumnDataSource(dict(x=frequency_range, y=mag[dof]))
         mag_plot.line(
             x="x",
@@ -833,6 +910,8 @@ class ForcedResponseResults:
             line_alpha=1.0,
             line_width=3,
         )
+        phase_plot.xaxis.axis_label_text_font_size = "14pt"
+        phase_plot.yaxis.axis_label_text_font_size = "14pt"
 
         return phase_plot
 
@@ -1088,6 +1167,8 @@ class StaticResults(Results):
             x_axis_label="shaft lenght",
             y_axis_label="lateral displacement",
         )
+        disp_graph.xaxis.axis_label_text_font_size = "14pt"
+        disp_graph.yaxis.axis_label_text_font_size = "14pt"
 
         interpolated = interpolate.interp1d(
             source.data["x0"], source.data["y0"], kind="cubic"
@@ -1153,6 +1234,8 @@ class StaticResults(Results):
             x_range=[-0.1 * shaft_end, 1.1 * shaft_end],
             y_range=[-max(y_range) * 1.4, max(y_range) * 1.4],
         )
+        FBD.xaxis.axis_label_text_font_size = "14pt"
+        FBD.yaxis.axis_label_text_font_size = "14pt"
 
         FBD.line("x0", "y1", source=source, line_width=5, line_color=bokeh_colors[0])
 
@@ -1270,6 +1353,9 @@ class StaticResults(Results):
             y_axis_label="Force",
             x_range=[-0.1 * shaft_end, 1.1 * shaft_end],
         )
+        SF.xaxis.axis_label_text_font_size = "14pt"
+        SF.yaxis.axis_label_text_font_size = "14pt"
+
         SF.line("x", "y", source=source_SF, line_width=4, line_color=bokeh_colors[0])
         SF.circle("x", "y", source=source_SF, size=8, fill_color=bokeh_colors[0])
 
@@ -1295,6 +1381,9 @@ class StaticResults(Results):
             y_axis_label="Bending Moment",
             x_range=[-0.1 * shaft_end, 1.1 * shaft_end],
         )
+        BM.xaxis.axis_label_text_font_size = "14pt"
+        BM.yaxis.axis_label_text_font_size = "14pt"
+
         i = 0
         while True:
             if i + 3 > len(nodes):
@@ -1368,6 +1457,9 @@ class ConvergenceResults(Results):
             x_axis_label="Numer of Elements",
             y_axis_label="Frequency (rad/s)",
         )
+        freq_arr.xaxis.axis_label_text_font_size = "14pt"
+        freq_arr.yaxis.axis_label_text_font_size = "14pt"
+
         freq_arr.line("x0", "y0", source=source, line_width=3, line_color="crimson")
         freq_arr.circle("x0", "y0", source=source, size=8, fill_color="crimson")
 
@@ -1381,6 +1473,9 @@ class ConvergenceResults(Results):
             x_axis_label="Number of Elements",
             y_axis_label="Relative Error (%)",
         )
+        rel_error.xaxis.axis_label_text_font_size = "14pt"
+        rel_error.yaxis.axis_label_text_font_size = "14pt"
+
         rel_error.line(
             "x1", "y1", source=source, line_width=3, line_color="darkslategray"
         )
