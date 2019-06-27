@@ -94,6 +94,9 @@ class DiskElement(Element):
                 )
         return disk_elements
 
+    def dof_mapping(self):
+        return dict(x0=0, y0=1, alpha0=2, beta0=3)
+
     def M(self):
         """
         This method will return the mass matrix for an instance of a disk

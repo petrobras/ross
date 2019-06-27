@@ -76,6 +76,16 @@ def bearing1():
     return bearing1
 
 
+def test_index(bearing1):
+    assert bearing1.dof_local_index()[0] == 0
+    assert bearing1.dof_local_index().x0 == 0
+    assert bearing1.dof_local_index()[1] == 1
+    assert bearing1.dof_local_index().y0 == 1
+    assert bearing1.dof_global_index().x0 == 16
+    assert bearing1.dof_global_index().y0 == 17
+    assert bearing1.dof_global_index()[-1] == 17
+
+
 def test_bearing1_interpol_kxx(bearing1):
     assert_allclose(bearing1.kxx.interpolated(314.2), 8.5e7)
     assert_allclose(bearing1.kxx.interpolated(1151.9), 2.6e8)
@@ -94,6 +104,17 @@ def test_bearing1_interpol_cxx(bearing1):
 def test_bearing1_interpol_cyy(bearing1):
     assert_allclose(bearing1.kxx.interpolated(314.2), 235837, rtol=1e5)
     assert_allclose(bearing1.kxx.interpolated(1151.9), 2.6e8, rtol=1e5)
+
+
+def test_bearing1_matrices(bearing1):
+    # fmt: off
+    K = np.array([[85000000.043218,        0.      ],
+                  [       0.      , 91999999.891728]])
+    C = np.array([[226836.917649,      0.          ],
+                  [       0.      , 235836.850213  ]])
+    # fmt: on
+    assert_allclose(bearing1.K(314.2), K)
+    assert_allclose(bearing1.C(314.2), C)
 
 
 def test_bearing_error1():

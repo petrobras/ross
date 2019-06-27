@@ -17,8 +17,19 @@ def eb():
     i_d_ = 0
     o_d_ = 0.05
     return ShaftElement(
-        le_, i_d_, o_d_, steel, shear_effects=False, rotary_inertia=False
+        le_, i_d_, o_d_, steel, shear_effects=False, rotary_inertia=False, n=3
     )
+
+
+def test_index(eb):
+    assert eb.dof_local_index().x0 == 0
+    assert eb.dof_local_index().y0 == 1
+    assert eb.dof_local_index().alpha0 == 2
+    assert eb.dof_local_index().beta0 == 3
+    assert eb.dof_global_index().x0 == 12
+    assert eb.dof_global_index().y0 == 13
+    assert eb.dof_global_index().alpha0 == 14
+    assert eb.dof_global_index().beta0 == 15
 
 
 def test_parameters_eb(eb):

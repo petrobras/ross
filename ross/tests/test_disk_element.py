@@ -11,6 +11,17 @@ def disk():
     return DiskElement(0, 0.07, 0.05, 0.32956)
 
 
+def test_index(disk):
+    assert disk.dof_local_index().x0 == 0
+    assert disk.dof_local_index().y0 == 1
+    assert disk.dof_local_index().alpha0 == 2
+    assert disk.dof_local_index().beta0 == 3
+    assert disk.dof_global_index().x0 == 0
+    assert disk.dof_global_index().y0 == 1
+    assert disk.dof_global_index().alpha0 == 2
+    assert disk.dof_global_index().beta0 == 3
+
+
 def test_mass_matrix_disk(disk):
     # fmt: off
     Md1 = np.array([[0.07, 0., 0., 0.],

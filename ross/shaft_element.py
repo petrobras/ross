@@ -22,9 +22,9 @@ class ShaftElement(Element):
     account shear, rotary inertia an gyroscopic effects.
     The matrices will be defined considering the following local
     coordinate vector:
-    .. math:: [x_1, y_1, \alpha_1, \beta_1, x_2, y_2, \alpha_2, \beta_2]^T
-    Where :math:`\alpha_1` and :math:`\alpha_2` are the bending on the yz plane and
-    :math:`\beta_1` and :math:`\beta_2` are the bending on the xz plane.
+    .. math:: [x_0, y_0, \alpha_0, \beta_0, x_1, y_1, \alpha_1, \beta_1]^T
+    Where :math:`\alpha_0` and :math:`\alpha_1` are the bending on the yz plane and
+    :math:`\beta_0` and :math:`\beta_1` are the bending on the xz plane.
     Parameters
     ----------
     L : float
@@ -227,6 +227,9 @@ class ShaftElement(Element):
         self.n_l = value
         if value is not None:
             self.n_r = value + 1
+
+    def dof_mapping(self):
+        return dict(x0=0, y0=1, alpha0=2, beta0=3, x1=4, y1=5, alpha1=6, beta1=7)
 
     def __repr__(self):
         return (

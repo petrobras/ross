@@ -285,8 +285,11 @@ class BearingElement(Element):
             bearing_elements.append(bearing)
         return bearing_elements
 
+    def dof_mapping(self):
+        return dict(x0=0, y0=1)
+
     def M(self):
-        M = np.zeros((4, 4))
+        M = np.zeros((2, 2))
 
         return M
 
@@ -309,6 +312,11 @@ class BearingElement(Element):
         C = np.array([[cxx, cxy], [cyx, cyy]])
 
         return C
+
+    def G(self):
+        G = np.zeros((2, 2))
+
+        return G
 
     def patch(self, position, length, ax):
         """Bearing element patch.
