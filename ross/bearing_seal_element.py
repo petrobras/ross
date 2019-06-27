@@ -289,7 +289,7 @@ class BearingElement(Element):
         return dict(x0=0, y0=1)
 
     def M(self):
-        M = np.zeros((4, 4))
+        M = np.zeros((2, 2))
 
         return M
 
