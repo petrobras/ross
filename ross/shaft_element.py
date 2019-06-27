@@ -228,6 +228,9 @@ class ShaftElement(Element):
         if value is not None:
             self.n_r = value + 1
 
+    def dof_mapping(self):
+        return dict(x0=0, y0=1, alpha0=2, beta0=3, x1=4, y1=5, alpha1=6, beta1=7)
+
     def __repr__(self):
         return (
             f"{self.__class__.__name__}"
