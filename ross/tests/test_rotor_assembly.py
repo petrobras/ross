@@ -1017,183 +1017,200 @@ def test_whirl_values(rotor7):
     speed_range = np.linspace(50, 500, 10)
     for speed in speed_range:
         rotor7.w = speed
-        assert_allclose(
-                rotor7.whirl_values(),
-                [1., 0., 1., 0., 1., 0.],
-                atol=0
-        )
+        assert_allclose(rotor7.whirl_values(), [1.0, 0.0, 1.0, 0.0, 1.0, 0.0], atol=0)
         assert_equal(
-                rotor7.whirl_direction(),
-                np.array(['Backward', 'Forward', 'Backward', 'Forward', 'Backward', 'Forward'], dtype='<U8')
+            rotor7.whirl_direction(),
+            np.array(
+                ["Backward", "Forward", "Backward", "Forward", "Backward", "Forward"],
+                dtype="<U8",
+            ),
         )
 
 
 def test_kappa_mode(rotor7):
     rotor7.w = 100.0
     assert_allclose(
-            rotor7.kappa_mode(0),
-            [-0.999999999989335, -0.9999999999893868, -0.9999999999894262,
-             -0.9999999999894176, -0.9999999999893875, -0.9999999999893159,
-             -0.9999999999891641],
-            rtol=1e-7
-            )
+        rotor7.kappa_mode(0),
+        [
+            -0.999999999989335,
+            -0.9999999999893868,
+            -0.9999999999894262,
+            -0.9999999999894176,
+            -0.9999999999893875,
+            -0.9999999999893159,
+            -0.9999999999891641,
+        ],
+        rtol=1e-7,
+    )
     assert_allclose(
-            rotor7.kappa_mode(1),
-            [0.9999999999926857, 0.9999999999925702, 0.9999999999925301,
-             0.9999999999924822, 0.9999999999924919, 0.9999999999925321,
-             0.9999999999926336],
-            rtol=1e-7
-            )
+        rotor7.kappa_mode(1),
+        [
+            0.9999999999926857,
+            0.9999999999925702,
+            0.9999999999925301,
+            0.9999999999924822,
+            0.9999999999924919,
+            0.9999999999925321,
+            0.9999999999926336,
+        ],
+        rtol=1e-7,
+    )
     assert_allclose(
-            rotor7.kappa_mode(2),
-            [-0.9999999999586078, -0.9999999999590045, -0.9999999999595016,
-             -0.9999999999682825, -0.9999999999577597, -0.999999999961294,
-             -0.9999999999628185],
-            rtol=1e-7
-            )
+        rotor7.kappa_mode(2),
+        [
+            -0.9999999999586078,
+            -0.9999999999590045,
+            -0.9999999999595016,
+            -0.9999999999682825,
+            -0.9999999999577597,
+            -0.999999999961294,
+            -0.9999999999628185,
+        ],
+        rtol=1e-7,
+    )
 
     rotor7.w = 250.0
     assert_allclose(
-            rotor7.kappa_mode(0),
-            [-0.9999999999996795, -0.9999999999997023, -0.9999999999997117,
-             -0.9999999999997297, -0.9999999999997392, -0.9999999999997269,
-             -0.9999999999997203],
-            rtol=1e-7
-            )
+        rotor7.kappa_mode(0),
+        [
+            -0.9999999999996795,
+            -0.9999999999997023,
+            -0.9999999999997117,
+            -0.9999999999997297,
+            -0.9999999999997392,
+            -0.9999999999997269,
+            -0.9999999999997203,
+        ],
+        rtol=1e-7,
+    )
     assert_allclose(
-            rotor7.kappa_mode(1),
-            [0.9999999999992075, 0.999999999999222, 0.9999999999992263,
-             0.9999999999992275, 0.9999999999992394, 0.9999999999992564,
-             0.9999999999992875],
-            rtol=1e-7
-            )
+        rotor7.kappa_mode(1),
+        [
+            0.9999999999992075,
+            0.999999999999222,
+            0.9999999999992263,
+            0.9999999999992275,
+            0.9999999999992394,
+            0.9999999999992564,
+            0.9999999999992875,
+        ],
+        rtol=1e-7,
+    )
     assert_allclose(
-            rotor7.kappa_mode(2),
-            [-0.9999999999955613, -0.999999999995006, -0.9999999999949597,
-             -0.9999999999897796, -0.999999999996037, -0.9999999999966488,
-             -0.9999999999969151],
-            rtol=1e-7
-            )
+        rotor7.kappa_mode(2),
+        [
+            -0.9999999999955613,
+            -0.999999999995006,
+            -0.9999999999949597,
+            -0.9999999999897796,
+            -0.999999999996037,
+            -0.9999999999966488,
+            -0.9999999999969151,
+        ],
+        rtol=1e-7,
+    )
 
     rotor7.w = 500.0
     assert_allclose(
-            rotor7.kappa_mode(0),
-            [-0.9999999999986061, -0.999999999998796, -0.9999999999988834,
-             -0.9999999999989619, -0.999999999998994, -0.9999999999989716,
-             -0.9999999999989015],
-            rtol=1e-7
-            )
+        rotor7.kappa_mode(0),
+        [
+            -0.9999999999986061,
+            -0.999999999998796,
+            -0.9999999999988834,
+            -0.9999999999989619,
+            -0.999999999998994,
+            -0.9999999999989716,
+            -0.9999999999989015,
+        ],
+        rtol=1e-7,
+    )
     assert_allclose(
-            rotor7.kappa_mode(1),
-            [0.9999999999995656, 0.9999999999993939, 0.9999999999993113,
-             0.9999999999992302, 0.999999999999194, 0.9999999999992081,
-             0.9999999999992395],
-            rtol=1e-7
-            )
+        rotor7.kappa_mode(1),
+        [
+            0.9999999999995656,
+            0.9999999999993939,
+            0.9999999999993113,
+            0.9999999999992302,
+            0.999999999999194,
+            0.9999999999992081,
+            0.9999999999992395,
+        ],
+        rtol=1e-7,
+    )
     assert_allclose(
-            rotor7.kappa_mode(2),
-            [-0.999999999997584, -0.9999999999976369, -0.9999999999979048,
-             -0.9999999999986678, -0.9999999999977003, -0.9999999999983235,
-             -0.9999999999986461],
-            rtol=1e-7
-            )
+        rotor7.kappa_mode(2),
+        [
+            -0.999999999997584,
+            -0.9999999999976369,
+            -0.9999999999979048,
+            -0.9999999999986678,
+            -0.9999999999977003,
+            -0.9999999999983235,
+            -0.9999999999986461,
+        ],
+        rtol=1e-7,
+    )
 
 
 def test_kappa_axes_values(rotor7):
     rotor7.w = 50
+    assert_allclose(rotor7.kappa(3, 0)["Minor axes"], 0.0024460977827471028, atol=1e-6)
+    assert_allclose(rotor7.kappa(3, 1)["Minor axes"], 0.0024415401094917922, atol=1e-6)
+    assert_allclose(rotor7.kappa(3, 2)["Minor axes"], 7.753006465896838e-05, atol=1e-8)
+    assert_allclose(rotor7.kappa(3, 0)["Major axes"], 0.0024460977827550083, atol=1e-6)
+    assert_allclose(rotor7.kappa(3, 1)["Major axes"], 0.0024415401094980776, atol=1e-6)
+    assert_allclose(rotor7.kappa(3, 2)["Major axes"], 7.753006466024783e-05, atol=1e-8)
+
+    rotor7.w = 200
+    assert_allclose(rotor7.kappa(3, 0)["Minor axes"], 0.002453197790184042, atol=1e-6)
+    assert_allclose(rotor7.kappa(3, 1)["Minor axes"], 0.0024349531472631354, atol=1e-6)
+    assert_allclose(rotor7.kappa(3, 2)["Minor axes"], 8.081580235887124e-05, atol=1e-8)
+    assert_allclose(rotor7.kappa(3, 0)["Major axes"], 0.002453197790191339, atol=1e-6)
+    assert_allclose(rotor7.kappa(3, 1)["Major axes"], 0.0024349531472711047, atol=1e-6)
+    assert_allclose(rotor7.kappa(3, 2)["Major axes"], 8.081580235956821e-05, atol=1e-8)
+
+    rotor7.w = 400
+    assert_allclose(rotor7.kappa(3, 0)["Minor axes"], 0.002463187671800876, atol=1e-6)
+    assert_allclose(rotor7.kappa(3, 1)["Minor axes"], 0.0024266089747119572, atol=1e-6)
+    assert_allclose(rotor7.kappa(3, 2)["Minor axes"], 8.480305842194371e-05, atol=1e-8)
+    assert_allclose(rotor7.kappa(3, 0)["Major axes"], 0.002463187671801488, atol=1e-6)
+    assert_allclose(rotor7.kappa(3, 1)["Major axes"], 0.0024266089747121845, atol=1e-6)
+    assert_allclose(rotor7.kappa(3, 2)["Major axes"], 8.480305842205874e-05, atol=1e-8)
+
+
+def test_H_kappa(rotor7):
+    rotor7.w = 400
     assert_allclose(
-            rotor7.kappa(3, 0)["Minor axes"],
-            0.0024460977827471028,
-            atol=1e-6
+        rotor7.H_kappa(3, 0),
+        [[6.06729351e-06, -6.33478357e-19], [-6.33478357e-19, 6.06729351e-06]],
+        rtol=1e-2,
     )
     assert_allclose(
-            rotor7.kappa(3, 1)["Minor axes"],
-            0.0024415401094917922,
-            atol=1e-6
+        rotor7.H_kappa(3, 0),
+        [[5.88843112e-06, 2.88604638e-20], [2.88604638e-20, 5.88843112e-06]],
+        rtol=1e-2,
     )
     assert_allclose(
-            rotor7.kappa(3, 2)["Minor axes"],
-            7.753006465896838e-05,
-            atol=1e-8
-    )
-    assert_allclose(
-            rotor7.kappa(3, 0)["Major axes"],
-            0.0024460977827550083,
-            atol=1e-6
-    )
-    assert_allclose(
-            rotor7.kappa(3, 1)["Major axes"],
-            0.0024415401094980776,
-            atol=1e-6
-    )
-    assert_allclose(
-            rotor7.kappa(3, 2)["Major axes"],
-            7.753006466024783e-05,
-            atol=1e-8
+        rotor7.H_kappa(3, 0),
+        [[7.19155872e-09, 9.75123448e-21], [9.75123448e-21, 7.19155872e-09]],
+        rtol=1e-2,
     )
 
     rotor7.w = 200
     assert_allclose(
-            rotor7.kappa(3, 0)["Minor axes"],
-            0.002453197790184042,
-            atol=1e-6
+        rotor7.H_kappa(3, 0),
+        [[6.0181794e-06, 1.9785678e-18], [1.9785678e-18, 6.0181794e-06]],
+        rtol=1e-2,
     )
     assert_allclose(
-            rotor7.kappa(3, 1)["Minor axes"],
-            0.0024349531472631354,
-            atol=1e-6
+        rotor7.H_kappa(3, 0),
+        [[ 5.92899683e-06, -1.24262274e-17], [-1.24262274e-17, 5.92899683e-06]],
+        rtol=1e-2,
     )
     assert_allclose(
-            rotor7.kappa(3, 2)["Minor axes"],
-            8.081580235887124e-05,
-            atol=1e-8
-    )
-    assert_allclose(
-            rotor7.kappa(3, 0)["Major axes"],
-            0.002453197790191339,
-            atol=1e-6
-    )
-    assert_allclose(
-            rotor7.kappa(3, 1)["Major axes"],
-            0.0024349531472711047,
-            atol=1e-6
-    )
-    assert_allclose(
-            rotor7.kappa(3, 2)["Major axes"],
-            8.081580235956821e-05,
-            atol=1e-8
-    )
-
-    rotor7.w = 400
-    assert_allclose(
-            rotor7.kappa(3, 0)["Minor axes"],
-            0.002463187671800876,
-            atol=1e-6
-    )
-    assert_allclose(
-            rotor7.kappa(3, 1)["Minor axes"],
-            0.0024266089747119572,
-            atol=1e-6
-    )
-    assert_allclose(
-            rotor7.kappa(3, 2)["Minor axes"],
-            8.480305842194371e-05,
-            atol=1e-8
-    )
-    assert_allclose(
-            rotor7.kappa(3, 0)["Major axes"],
-            0.002463187671801488,
-            atol=1e-6
-    )
-    assert_allclose(
-            rotor7.kappa(3, 1)["Major axes"],
-            0.0024266089747121845,
-            atol=1e-6
-    )
-    assert_allclose(
-            rotor7.kappa(3, 2)["Major axes"],
-            8.480305842205874e-05,
-            atol=1e-8
+        rotor7.H_kappa(3, 0),
+        [[6.53119391e-09, 4.73407722e-20], [4.73407722e-20, 6.53119391e-09]],
+        rtol=1e-2,
     )
 
 
