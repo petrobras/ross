@@ -418,7 +418,7 @@ class ShaftElement(Element):
         if self.n in SR:
             mpl_color = "yellow"
             bk_color = "yellow"
-            legend = "Shaft - Slenderness Ratio < 30"
+            legend = "Shaft - Slenderness Ratio < 1.6"
         else:
             mpl_color = self.color
             bk_color = bokeh_colors[2]
@@ -464,39 +464,78 @@ class ShaftElement(Element):
         Returns
         -------
         """
-        position_u = [position, self.i_d / 2]  # upper
-        position_l = [position, -self.o_d / 2]  # lower
-        width = self.L
-        height = self.o_d / 2 - self.i_d / 2
+
         if self.n in SR:
             bk_color = "yellow"
-            legend = "Shaft - Slenderness Ratio < 30"
+            legend = "Shaft - Slenderness Ratio < 1.6"
         else:
             bk_color = bokeh_colors[2]
             legend = "Shaft"
 
+        source_u = ColumnDataSource(dict(
+                top=[self.o_d / 2],
+                bottom=[self.i_d / 2],
+                left=[position],
+                right=[position + self.L],
+                elnum=[self.n],
+                out_d=[self.o_d],
+                in_d=[self.i_d],
+                length=[self.L],
+                mat=[self.material.name]
+            )
+        )
+
+        source_l = ColumnDataSource(dict(
+                top=[-self.o_d / 2],
+                bottom=[-self.i_d / 2],
+                left=[position],
+                right=[position + self.L],
+                elnum=[self.n],
+                out_d=[self.o_d],
+                in_d=[self.i_d],
+                length=[self.L],
+                mat=[self.material.name]
+            )
+        )
+
         # bokeh plot - plot the shaft
         bk_ax.quad(
-            top=self.o_d / 2,
-            bottom=self.i_d / 2,
-            left=position,
-            right=position + self.L,
+            top="top",
+            bottom="bottom",
+            left="left",
+            right="right",
+            source=source_u,
             line_color=bokeh_colors[0],
             line_width=1,
             fill_alpha=0.5,
             fill_color=bk_color,
             legend=legend,
+            name="u_shaft",
         )
         bk_ax.quad(
-            top=-self.i_d / 2,
-            bottom=-self.o_d / 2,
-            left=position,
-            right=position + self.L,
+            top="top",
+            bottom="bottom",
+            left="left",
+            right="right",
+            source=source_l,
             line_color=bokeh_colors[0],
             line_width=1,
             fill_alpha=0.5,
             fill_color=bk_color,
+            name="l_shaft",
         )
+        hover = HoverTool(names=["u_shaft", "l_shaft"])
+        hover.tooltips = [
+                ("Element Number :", "@elnum"),
+                ("Outer Diameter :", "@out_d"),
+                ("Internal Diameter :", "@in_d"),
+                ("Element Length :", "@length"),
+                ("Material :", "@mat"),
+        ]
+        hover.mode = "mouse"
+
+        if len(bk_ax.hover) == 0:
+            bk_ax.add_tools(hover)
 
     @classmethod
     def section(
