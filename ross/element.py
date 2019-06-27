@@ -28,11 +28,13 @@ class Element(ABC):
         pass
 
     @abstractmethod
-    def C(self):
+    def C(self, frequency):
+        """Frequency dependent damping coefficients matrix."""
         pass
 
     @abstractmethod
-    def K(self):
+    def K(self, frequency):
+        """Frequency dependent stiffness coefficients matrix."""
         pass
 
     def summary(self):
