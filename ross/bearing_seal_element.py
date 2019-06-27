@@ -313,6 +313,11 @@ class BearingElement(Element):
 
         return C
 
+    def G(self):
+        G = np.zeros((2, 2))
+
+        return G
+
     def patch(self, position, length, ax):
         """Bearing element patch.
         Patch that will be used to draw the bearing element.
