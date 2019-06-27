@@ -147,8 +147,9 @@ class PressureMatrix:
     array([[-0.00000...
     >>> my_fluid_flow.calculate_pressure_matrix_numerical() # doctest: +ELLIPSIS
     array([[...
-    >>> show(my_fluid_flow.plot_eccentricity())
-    >>> show(my_fluid_flow.plot_pressure_theta(z=int(nz/2)))
+    >>> # to show the plots you can use:
+    >>> # show(my_fluid_flow.plot_eccentricity())
+    >>> # show(my_fluid_flow.plot_pressure_theta(z=int(nz/2)))
     >>> my_fluid_flow.matplot_pressure_theta(z=int(nz/2)) # doctest: +ELLIPSIS
     <matplotlib.axes._subplots.AxesSubplot object at...
     """
