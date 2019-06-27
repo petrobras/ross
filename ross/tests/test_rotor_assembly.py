@@ -1099,6 +1099,104 @@ def test_kappa_mode(rotor7):
             )
 
 
+def test_kappa_axes_values(rotor7):
+    rotor7.w = 50
+    assert_allclose(
+            rotor7.kappa(3, 0)["Minor axes"],
+            0.0024460977827471028,
+            atol=1e-6
+    )
+    assert_allclose(
+            rotor7.kappa(3, 1)["Minor axes"],
+            0.0024415401094917922,
+            atol=1e-6
+    )
+    assert_allclose(
+            rotor7.kappa(3, 2)["Minor axes"],
+            7.753006465896838e-05,
+            atol=1e-8
+    )
+    assert_allclose(
+            rotor7.kappa(3, 0)["Major axes"],
+            0.0024460977827550083,
+            atol=1e-6
+    )
+    assert_allclose(
+            rotor7.kappa(3, 1)["Major axes"],
+            0.0024415401094980776,
+            atol=1e-6
+    )
+    assert_allclose(
+            rotor7.kappa(3, 2)["Major axes"],
+            7.753006466024783e-05,
+            atol=1e-8
+    )
+
+    rotor7.w = 200
+    assert_allclose(
+            rotor7.kappa(3, 0)["Minor axes"],
+            0.002453197790184042,
+            atol=1e-6
+    )
+    assert_allclose(
+            rotor7.kappa(3, 1)["Minor axes"],
+            0.0024349531472631354,
+            atol=1e-6
+    )
+    assert_allclose(
+            rotor7.kappa(3, 2)["Minor axes"],
+            8.081580235887124e-05,
+            atol=1e-8
+    )
+    assert_allclose(
+            rotor7.kappa(3, 0)["Major axes"],
+            0.002453197790191339,
+            atol=1e-6
+    )
+    assert_allclose(
+            rotor7.kappa(3, 1)["Major axes"],
+            0.0024349531472711047,
+            atol=1e-6
+    )
+    assert_allclose(
+            rotor7.kappa(3, 2)["Major axes"],
+            8.081580235956821e-05,
+            atol=1e-8
+    )
+
+    rotor7.w = 400
+    assert_allclose(
+            rotor7.kappa(3, 0)["Minor axes"],
+            0.002463187671800876,
+            atol=1e-6
+    )
+    assert_allclose(
+            rotor7.kappa(3, 1)["Minor axes"],
+            0.0024266089747119572,
+            atol=1e-6
+    )
+    assert_allclose(
+            rotor7.kappa(3, 2)["Minor axes"],
+            8.480305842194371e-05,
+            atol=1e-8
+    )
+    assert_allclose(
+            rotor7.kappa(3, 0)["Major axes"],
+            0.002463187671801488,
+            atol=1e-6
+    )
+    assert_allclose(
+            rotor7.kappa(3, 1)["Major axes"],
+            0.0024266089747121845,
+            atol=1e-6
+    )
+    assert_allclose(
+            rotor7.kappa(3, 2)["Major axes"],
+            8.480305842205874e-05,
+            atol=1e-8
+    )
+
+
 def test_save_load():
 
     a = rotor_example()
