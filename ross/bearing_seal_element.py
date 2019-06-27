@@ -285,6 +285,9 @@ class BearingElement(Element):
             bearing_elements.append(bearing)
         return bearing_elements
 
+    def dof_mapping(self):
+        return dict(x0=0, y0=1)
+
     def M(self):
         M = np.zeros((4, 4))
 
