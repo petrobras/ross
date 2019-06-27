@@ -435,21 +435,6 @@ class Rotor(object):
         self._w = value
         self.run_modal()
 
-    def _dofs(self, element):
-
-        """The first and last dof for a given element"""
-        node = element.n
-        n1 = 4 * node
-
-        if isinstance(element, ShaftElement):
-            n2 = n1 + 8
-        if isinstance(element, DiskElement):
-            n2 = n1 + 4
-        if isinstance(element, BearingElement):
-            n2 = n1 + 2
-
-        return n1, n2
-
     def M(self):
         r"""Mass matrix for an instance of a rotor.
 
