@@ -106,6 +106,17 @@ def test_bearing1_interpol_cyy(bearing1):
     assert_allclose(bearing1.kxx.interpolated(1151.9), 2.6e8, rtol=1e5)
 
 
+def test_bearing1_matrices(bearing1):
+    # fmt: off
+    K = np.array([[85000000.043218,        0.      ],
+                  [       0.      , 91999999.891728]])
+    C = np.array([[226836.917649,      0.          ],
+                  [       0.      , 235836.850213  ]])
+    # fmt: on
+    assert_allclose(bearing1.K(314.2), K)
+    assert_allclose(bearing1.C(314.2), C)
+
+
 def test_bearing_error1():
     speed = np.linspace(0, 10000, 5)
     kx = 1e8 * speed
