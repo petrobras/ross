@@ -466,21 +466,23 @@ class Rotor(object):
                [ 0.        , -0.04931719,  0.00231392,  0.        ],
                [ 0.04931719,  0.        ,  0.        ,  0.00231392]])
         """
-        #  Create the matrices
         M0 = np.zeros((self.ndof, self.ndof))
 
-        for elm in self.shaft_elements:
-            n1, n2 = self._dofs(elm)
-            M0[n1:n2, n1:n2] += elm.M()
-
-        for elm in self.disk_elements:
-            n1, n2 = self._dofs(elm)
-            M0[n1:n2, n1:n2] += elm.M()
+        for elm in self.elements:
+            dofs = elm.dof_global_index()
+            n0 = dofs[0]
+            n1 = dofs[-1] + 1  # +1 to include this dof in the slice
+            M0[n0:n1, n0:n1] += elm.M()
 
         return M0
 
-    def K(self, w=None):
+    def K(self, frequency=None):
         """Stiffness matrix for an instance of a rotor.
+
+        Parameters
+        ----------
+        frequency : float, optional
+            Excitation frequency. Default is rotor speed.
 
         Returns
         -------
@@ -495,25 +497,29 @@ class Rotor(object):
                [ 0., -6.,  1.,  0.],
                [ 6.,  0.,  0.,  1.]])
         """
-        if w is None:
-            w = self.w
-        #  Create the matrices
+        if frequency is None:
+            frequency = self.w
+
         K0 = np.zeros((self.ndof, self.ndof))
 
-        for elm in self.shaft_elements:
-            n1, n2 = self._dofs(elm)
-            K0[n1:n2, n1:n2] += elm.K()
-
-        for elm in self.bearing_seal_elements:
-            n1, n2 = self._dofs(elm)
-            K0[n1:n2, n1:n2] += elm.K(w)
-        #  Skew-symmetric speed dependent contribution to element stiffness matrix
-        #  from the internal damping.
+        for elm in self.elements:
+            dofs = elm.dof_global_index()
+            n0 = dofs[0]
+            n1 = dofs[-1] + 1  # +1 to include this dof in the slice
+            try:
+                K0[n0:n1, n0:n1] += elm.K(frequency)
+            except TypeError:
+                K0[n0:n1, n0:n1] += elm.K()
 
         return K0
 
-    def C(self, w=None):
+    def C(self, frequency=None):
         """Damping matrix for an instance of a rotor.
+
+        Parameters
+        ----------
+        frequency : float, optional
+            Excitation frequency. Default is rotor speed.
 
         Returns
         -------
@@ -528,14 +534,19 @@ class Rotor(object):
                [0., 0., 0., 0.],
                [0., 0., 0., 0.]])
         """
-        if w is None:
-            w = self.w
-        #  Create the matrices
+        if frequency is None:
+            frequency = self.w
+
         C0 = np.zeros((self.ndof, self.ndof))
 
-        for elm in self.bearing_seal_elements:
-            n1, n2 = self._dofs(elm)
-            C0[n1:n2, n1:n2] += elm.C(w)
+        for elm in self.elements:
+            dofs = elm.dof_global_index()
+            n0 = dofs[0]
+            n1 = dofs[-1] + 1  # +1 to include this dof in the slice
+            try:
+                C0[n0:n1, n0:n1] += elm.C(frequency)
+            except TypeError:
+                C0[n0:n1, n0:n1] += elm.C()
 
         return C0
 
@@ -555,21 +566,23 @@ class Rotor(object):
                [ 0.00022681,  0.        ,  0.        ,  0.0001524 ],
                [ 0.        ,  0.00022681, -0.0001524 ,  0.        ]])
         """
-        #  Create the matrices
         G0 = np.zeros((self.ndof, self.ndof))
 
-        for elm in self.shaft_elements:
-            n1, n2 = self._dofs(elm)
-            G0[n1:n2, n1:n2] += elm.G()
-
-        for elm in self.disk_elements:
-            n1, n2 = self._dofs(elm)
-            G0[n1:n2, n1:n2] += elm.G()
+        for elm in self.elements:
+            dofs = elm.dof_global_index()
+            n0 = dofs[0]
+            n1 = dofs[-1] + 1  # +1 to include this dof in the slice
+            G0[n0:n1, n0:n1] += elm.G()
 
         return G0
 
-    def A(self, w=None):
+    def A(self, frequency=None, speed=None):
         """State space matrix for an instance of a rotor.
+
+        Parameters
+        ----------
+        frequency : float, optional
+            Excitation frequency. Default is rotor speed.
 
         Returns
         -------
@@ -586,8 +599,10 @@ class Rotor(object):
                [    -0.,  10723.],
                [-10719.,     -0.]])
         """
-        if w is None:
-            w = self.w
+        if frequency is None:
+            frequency = self.w
+        if speed is None:
+            speed = self.w
 
         Z = np.zeros((self.ndof, self.ndof))
         I = np.eye(self.ndof)
@@ -595,7 +610,7 @@ class Rotor(object):
         # fmt: off
         A = np.vstack(
             [np.hstack([Z, I]),
-             np.hstack([la.solve(-self.M(), self.K(w)), la.solve(-self.M(), (self.C(w) + self.G() * w))])])
+             np.hstack([la.solve(-self.M(), self.K(frequency)), la.solve(-self.M(), (self.C(frequency) + self.G() * speed))])])
         # fmt: on
 
         return A
@@ -954,7 +969,7 @@ class Rotor(object):
 
         return sys
 
-    def transfer_matrix(self, w=None, modes=None):
+    def transfer_matrix(self, frequency=None, speed=None, modes=None):
         B = self.lti.B
         C = self.lti.C
         D = self.lti.D
@@ -962,7 +977,7 @@ class Rotor(object):
         # calculate eigenvalues and eigenvectors using la.eig to get
         # left and right eigenvectors.
 
-        evals, psi, = la.eig(self.A(w))
+        evals, psi, = la.eig(self.A(frequency, speed))
 
         psi_inv = la.inv(psi)
 
@@ -978,7 +993,7 @@ class Rotor(object):
             psi = psi[np.ix_(range(2 * n), idx)]
             psi_inv = psi_inv[np.ix_(idx, range(2 * n))]
 
-        diag = np.diag([1 / (1j * w - lam) for lam in evals])
+        diag = np.diag([1 / (1j * speed - lam) for lam in evals])
 
         H = C @ psi @ diag @ psi_inv @ B + D
 
@@ -995,7 +1010,7 @@ class Rotor(object):
         force : array, optional
             Force array (needs to have the same length as frequencies array).
             If not given the impulse response is calculated.
-        omega : array, optional
+        speed_range : array, optional
             Array with the desired range of frequencies (the default
              is 0 to 1.5 x highest damped natural frequency.
         modes : list, optional
@@ -1023,8 +1038,8 @@ class Rotor(object):
             (self.lti.inputs, self.lti.outputs, len(speed_range)), dtype=np.complex
         )
 
-        for i, w in enumerate(speed_range):
-            H = self.transfer_matrix(w=w, modes=modes)
+        for i, speed in enumerate(speed_range):
+            H = self.transfer_matrix(speed=speed, modes=modes)
             freq_resp[..., i] = H
 
         results = FrequencyResponseResults(

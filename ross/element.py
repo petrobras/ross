@@ -25,6 +25,7 @@ class Element(ABC):
 
     @abstractmethod
     def M(self):
+        """Mass matrix."""
         pass
 
     @abstractmethod
@@ -35,6 +36,11 @@ class Element(ABC):
     @abstractmethod
     def K(self, frequency):
         """Frequency dependent stiffness coefficients matrix."""
+        pass
+
+    @abstractmethod
+    def G(self):
+        """Giroscopic matrix."""
         pass
 
     def summary(self):
