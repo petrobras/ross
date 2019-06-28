@@ -1,9 +1,9 @@
 import bokeh.palettes as bp
+from bokeh.models import ColumnDataSource, HoverTool
 import matplotlib.patches as mpatches
 import numpy as np
 import pytest
 import toml
-from bokeh.models import ColumnDataSource
 
 from ross.element import Element
 
@@ -182,8 +182,6 @@ class DiskElement(Element):
         -------
         ax : matplotlib axes
             Returns the axes object with the plot.
-        bk_ax : bokeh plotting axes
-            Returns the axes object with the plot.
         """
         zpos, ypos = position
         le = length / 8
@@ -227,8 +225,6 @@ class DiskElement(Element):
             minimum length of shaft elements
         Returns
         -------
-        ax : matplotlib axes
-            Returns the axes object with the plot.
         bk_ax : bokeh plotting axes
             Returns the axes object with the plot.
         """
@@ -242,11 +238,20 @@ class DiskElement(Element):
         z_lower = [zpos, zpos + le, zpos - le]
         y_lower = [-ypos, -ypos * 4, -ypos * 4]
 
-        z_circle = z_upper[0]
-        y_circle = y_upper[1]
-
         source = ColumnDataSource(
             dict(z_l=z_lower, y_l=y_lower, z_u=z_upper, y_u=y_upper)
+        )
+        source_c = ColumnDataSource(
+            dict(
+                z_circle=[z_upper[0]],
+                yu_circle=[y_upper[1]],
+                yl_circle=[-y_upper[1]],
+                radius=[le],
+                elnum=[self.n],
+                IP=[self.Ip],
+                ID=[self.Id],
+                mass=[self.m],
+            )
         )
 
         bk_ax.patch(
@@ -267,11 +272,35 @@ class DiskElement(Element):
             color=bokeh_colors[9],
         )
         bk_ax.circle(
-            x=z_circle, y=y_circle, radius=le, fill_alpha=1, color=bokeh_colors[9]
+            x="z_circle",
+            y="yu_circle",
+            radius="radius",
+            source=source_c,
+            fill_alpha=1,
+            color=bokeh_colors[9],
+            name="uc_disk",
         )
         bk_ax.circle(
-            x=z_circle, y=-y_circle, radius=le, fill_alpha=1, color=bokeh_colors[9]
+            x="z_circle",
+            y="yl_circle",
+            radius="radius",
+            source=source_c,
+            fill_alpha=1,
+            color=bokeh_colors[9],
+            name="lc_disk",
         )
+
+        hover = HoverTool(names=["uc_disk", "lc_disk"])
+        hover.tooltips = [
+            ("Node :", "@elnum"),
+            ("Polar Moment of Inertia :", "@IP"),
+            ("Diametral Moment of Inertia :", "@ID"),
+            ("disk mass :", "@mass"),
+        ]
+        hover.mode = "mouse"
+
+        if len(bk_ax.hover) == 1:
+            bk_ax.add_tools(hover)
 
     @classmethod
     def from_geometry(cls, n, material, width, i_d, o_d):
