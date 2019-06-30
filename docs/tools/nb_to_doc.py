@@ -45,13 +45,17 @@ def convert_nb(nbname):
     sh(["touch", nbname + ".rst"])
 
 
-def replace(file_path, pattern, subst):
+def replace(file_path, patterns):
+    """Replace pattern substitution tuples."""
     # Create temp file
     fh, abs_path = mkstemp()
     with fdopen(fh, "w") as new_file:
         with open(file_path) as old_file:
             for line in old_file:
-                new_file.write(line.replace(pattern, subst))
+                for pattern in patterns:
+                    p, s = pattern
+                    line = line.replace(p, s)
+                new_file.write(line)
     # Remove original file
     remove(file_path)
     # Move new file
@@ -61,4 +65,10 @@ def replace(file_path, pattern, subst):
 if __name__ == "__main__":
     for nbname in sys.argv[1:]:
         convert_nb(nbname)
-        replace((nbname + ".rst"), ".. parsed-literal::", ".. code-block:: python")
+        replace(
+            (nbname + ".rst"),
+            [
+                (".. parsed-literal::", ".. code-block:: text"),
+                (".. code:: text", ".. code-block:: text"),
+            ],
+        )
