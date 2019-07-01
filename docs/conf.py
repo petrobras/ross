@@ -18,7 +18,7 @@ import sys
 import sphinx_bootstrap_theme
 
 # sys.path.insert(0, os.path.abspath('.'))
-
+sys.path.insert(0, os.path.abspath("sphinxext"))
 sys.path.append(os.path.abspath("../../ross"))
 
 # -- Project information -----------------------------------------------------
@@ -45,14 +45,6 @@ release = ross.__version__
 # extensions coming with Sphinx (named 'sphinx.ext.*') or your custom
 # ones.
 extensions = [
-    # 'sphinx.ext.autodoc',
-    # 'sphinx.ext.doctest',
-    # 'sphinx.ext.mathjax',
-    # 'sphinx.ext.viewcode',
-    # 'numpydoc',
-    # 'sphinx.ext.autosummary',
-    # 'sphinx.ext.doctest',
-    # 'sphinx.ext.inheritance_diagram',
     "sphinx.ext.githubpages",
     "sphinx.ext.autodoc",
     "sphinx.ext.autosummary",
@@ -62,11 +54,7 @@ extensions = [
     "sphinx.ext.viewcode",
     "sphinx.ext.coverage",
     "numpydoc",
-    # 'plot_generator',
-    # 'plot_directive',
-    # 'ipython_directive',
-    # 'ipython_console_highlighting',
-    # 'sphinxcontrib.bibtex'
+    "sphinx_copybutton",
 ]
 
 # Add any paths that contain templates here, relative to this directory.
@@ -277,3 +265,4 @@ epub_exclude_files = ["search.html"]
 # -- Extension configuration -------------------------------------------------
 def setup(app):
     app.add_stylesheet("style.css")
+    app.add_stylesheet("copybutton.css")
