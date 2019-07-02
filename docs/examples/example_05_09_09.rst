@@ -66,7 +66,7 @@ shaft and disk are made of steel. Damping is neglected.
 
 .. code-block:: text
 
-    <matplotlib.axes._subplots.AxesSubplot at 0x7f2ae54b4320>
+    <matplotlib.axes._subplots.AxesSubplot at 0x...>
 
 
 
@@ -96,7 +96,7 @@ shaft and disk are made of steel. Damping is neglected.
 .. code-block:: text
 
     (<Figure size 432x288 with 2 Axes>,
-     <matplotlib.axes._subplots.AxesSubplot at 0x7f2ae553f9b0>)
+     <matplotlib.axes._subplots.AxesSubplot at 0x...>)
 
 
 

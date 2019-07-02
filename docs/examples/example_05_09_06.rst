@@ -97,7 +97,7 @@ clearance in the bearings is 0.1 mm and the oil film has a viscosity of
 
 .. code-block:: text
 
-    <matplotlib.axes._subplots.AxesSubplot at 0x7fcdf7057fd0>
+    <matplotlib.axes._subplots.AxesSubplot at 0x...>
 
 
 
@@ -144,7 +144,7 @@ clearance in the bearings is 0.1 mm and the oil film has a viscosity of
 
 .. code-block:: text
 
-    <matplotlib.axes._subplots.AxesSubplot at 0x7fcdf43fb588>
+    <matplotlib.axes._subplots.AxesSubplot at 0x...>
 
 
 
@@ -201,7 +201,7 @@ clearance in the bearings is 0.1 mm and the oil film has a viscosity of
 .. code-block:: text
 
     (<Figure size 432x288 with 2 Axes>,
-     <matplotlib.axes._subplots.AxesSubplot at 0x7fcdf704d1d0>)
+     <matplotlib.axes._subplots.AxesSubplot at 0x...>)
 
 
 

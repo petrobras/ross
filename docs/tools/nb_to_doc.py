@@ -3,6 +3,7 @@
 Convert empty IPython notebook to a sphinx doc page.
 """
 import sys
+import re
 from subprocess import check_call as sh
 from tempfile import mkstemp
 from shutil import move
@@ -46,15 +47,14 @@ def convert_nb(nbname):
 
 
 def replace(file_path, patterns):
-    """Replace pattern substitution tuples."""
+    """Replaces complete line with pattern substitution tuples."""
     # Create temp file
     fh, abs_path = mkstemp()
     with fdopen(fh, "w") as new_file:
         with open(file_path) as old_file:
             for line in old_file:
                 for pattern in patterns:
-                    p, s = pattern
-                    line = line.replace(p, s)
+                    line = re.sub(*pattern, line)
                 new_file.write(line)
     # Remove original file
     remove(file_path)
@@ -68,7 +68,8 @@ if __name__ == "__main__":
         replace(
             (nbname + ".rst"),
             [
-                (".. parsed-literal::", ".. code-block:: text"),
-                (".. code:: text", ".. code-block:: text"),
+                (r"(.. parsed-literal::)", ".. code-block:: text"),
+                (r"(.. code:: text)", ".. code-block:: text"),
+                (r"(0x).{12}", "0x..."),
             ],
         )

@@ -71,7 +71,7 @@ stiffnesses of :math:`0.5 MN/m`.
 
 .. code-block:: text
 
-    <matplotlib.axes._subplots.AxesSubplot at 0x7f9e3d642550>
+    <matplotlib.axes._subplots.AxesSubplot at 0x...>
 
 
 
@@ -118,7 +118,7 @@ stiffnesses of :math:`0.5 MN/m`.
 
 .. code-block:: text
 
-    <matplotlib.axes._subplots.AxesSubplot at 0x7f9e3b261e48>
+    <matplotlib.axes._subplots.AxesSubplot at 0x...>
 
 
 
@@ -159,5 +159,4 @@ stiffnesses of :math:`0.5 MN/m`.
 
     Normal Instantiation = [ 84.19790045  89.03269396 246.44121183 301.08623205 594.81950178
      834.0420378 ]
-
 

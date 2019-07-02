@@ -78,7 +78,7 @@ or cross-coupling in the bearings.
 
 .. code-block:: text
 
-    <matplotlib.axes._subplots.AxesSubplot at 0x7fd748c8b438>
+    <matplotlib.axes._subplots.AxesSubplot at 0x...>
 
 
 
@@ -125,7 +125,7 @@ or cross-coupling in the bearings.
 
 .. code-block:: text
 
-    <matplotlib.axes._subplots.AxesSubplot at 0x7fd7468944a8>
+    <matplotlib.axes._subplots.AxesSubplot at 0x...>
 
 
 

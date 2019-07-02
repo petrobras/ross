@@ -71,7 +71,7 @@ up to 4,500 rev/min.
 
 .. code-block:: text
 
-    <matplotlib.axes._subplots.AxesSubplot at 0x7f2da071c4e0>
+    <matplotlib.axes._subplots.AxesSubplot at 0x...>
 
 
 
@@ -117,7 +117,7 @@ up to 4,500 rev/min.
 
 .. code-block:: text
 
-    <matplotlib.axes._subplots.AxesSubplot at 0x7f2d9db39908>
+    <matplotlib.axes._subplots.AxesSubplot at 0x...>
 
 
 
@@ -173,7 +173,7 @@ up to 4,500 rev/min.
 .. code-block:: text
 
     (<Figure size 432x288 with 2 Axes>,
-     <matplotlib.axes._subplots.AxesSubplot at 0x7f2d9dad0240>)
+     <matplotlib.axes._subplots.AxesSubplot at 0x...>)
 
 
 

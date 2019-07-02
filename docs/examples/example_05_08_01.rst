@@ -127,7 +127,7 @@ short and the disk has a diameter of :math:`400 mm` and a thickness of
 .. code-block:: text
 
     (<Figure size 432x288 with 2 Axes>,
-     <matplotlib.axes._subplots.AxesSubplot at 0x7f3cf36f4f60>)
+     <matplotlib.axes._subplots.AxesSubplot at 0x...>)
 
 
 

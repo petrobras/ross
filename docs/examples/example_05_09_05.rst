@@ -69,7 +69,7 @@ stiffness of 1 MN/m and a damping of 3 kNs/m in each direction.
 
 .. code-block:: text
 
-    <matplotlib.axes._subplots.AxesSubplot at 0x7f6be2f4ea20>
+    <matplotlib.axes._subplots.AxesSubplot at 0x...>
 
 
 
@@ -116,7 +116,7 @@ stiffness of 1 MN/m and a damping of 3 kNs/m in each direction.
 
 .. code-block:: text
 
-    <matplotlib.axes._subplots.AxesSubplot at 0x7f6be0b33908>
+    <matplotlib.axes._subplots.AxesSubplot at 0x...>
 
 
 
@@ -168,7 +168,7 @@ stiffness of 1 MN/m and a damping of 3 kNs/m in each direction.
 .. code-block:: text
 
     (<Figure size 432x288 with 2 Axes>,
-     <matplotlib.axes._subplots.AxesSubplot at 0x7f6be0a69278>)
+     <matplotlib.axes._subplots.AxesSubplot at 0x...>)
 
 
 
