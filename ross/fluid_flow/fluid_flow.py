@@ -723,7 +723,7 @@ class PressureMatrix:
                 line_width=2,
                 color="blue",
             )
-        if self.analytical_pressure_matrix_available:
+        elif self.analytical_pressure_matrix_available:
             p.line(
                 theta_list,
                 self.p_mat_analytical[z],
@@ -942,7 +942,7 @@ class PressureMatrix:
             ax.plot(
                 list_of_thetas, self.p_mat_numerical[z], "b", label="Numerical pressure"
             )
-        if self.analytical_pressure_matrix_available:
+        elif self.analytical_pressure_matrix_available:
             ax.plot(
                 list_of_thetas,
                 self.p_mat_analytical[z],
