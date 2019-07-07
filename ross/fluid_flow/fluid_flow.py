@@ -48,14 +48,14 @@ class PressureMatrix:
         Eccentricity (m) is the euclidean distance between rotor and stator centers.
         The center of the stator is in position (0,0).
     beta: float, optional
-        Angle between the origin and the eccentricity (rad).
+        Attitude angle. Angle between the origin and the eccentricity (rad).
 
     Fluid characteristics
     ^^^^^^^^^^^^^^^^^^^^^
     Describes the fluid characteristics.
-    visc: float
+    viscosity: float
         Viscosity (Pa.s).
-    rho: float
+    density: float
         Fluid density(Kg/m^3).
 
     Returns
@@ -82,14 +82,14 @@ class PressureMatrix:
         The analytical pressure matrix.
     p_mat_numerical : array of shape (nz, ntheta)
         The numerical pressure matrix.
-    xe: float
+    xi: float
         Eccentricity (m) (distance between rotor and stator centers) on the x-axis.
-        It is the position of the center of the stator.
-        The center of the rotor is in position (0,0).
-    ye: float
+        It is the position of the center of the rotor.
+        The center of the stator is in position (0,0).
+    yi: float
         Eccentricity (m) (distance between rotor and stator centers) on the y-axis.
-        It is the position of the center of the stator.
-        The center of the rotor is in position (0,0).
+        It is the position of the center of the rotor.
+        The center of the stator is in position (0,0).
     re : array of shape (nz, ntheta)
         The external radius in each position of the grid.
     ri : array of shape (nz, ntheta)
@@ -136,13 +136,13 @@ class PressureMatrix:
     >>> p_out = 0.
     >>> radius_rotor = 0.08
     >>> radius_stator = 0.1
-    >>> visc = 0.015
-    >>> rho = 860.
+    >>> viscosity = 0.015
+    >>> density = 860.
     >>> eccentricity = 0.001
     >>> beta = np.pi
     >>> my_fluid_flow = flow.PressureMatrix(nz, ntheta, nradius, length,
     ...                                          omega, p_in, p_out, radius_rotor,
-    ...                                          radius_stator, visc, rho, beta=beta, eccentricity=eccentricity)
+    ...                                          radius_stator, viscosity, density, beta=beta, eccentricity=eccentricity)
     >>> my_fluid_flow.calculate_pressure_matrix_analytical() # doctest: +ELLIPSIS
     array([[-0.00000...
     >>> my_fluid_flow.calculate_pressure_matrix_numerical() # doctest: +ELLIPSIS
@@ -165,8 +165,8 @@ class PressureMatrix:
         p_out,
         radius_rotor,
         radius_stator,
-        visc,
-        rho,
+        viscosity,
+        density,
         beta=2.356,
         eccentricity=None,
         load=None,
@@ -189,8 +189,8 @@ class PressureMatrix:
         self.p_out = p_out
         self.radius_rotor = radius_rotor
         self.radius_stator = radius_stator
-        self.visc = visc
-        self.rho = rho
+        self.viscosity = viscosity
+        self.density = density
         self.radial_clearance = self.radius_stator - self.radius_rotor
         self.difference_between_radius = radius_stator - radius_rotor
         self.bearing_type = ""
@@ -211,8 +211,8 @@ class PressureMatrix:
         self.eccentricity_ratio = self.eccentricity / self.difference_between_radius
         if self.load is None:
             self.load = self.get_rotor_load()
-        self.xe = self.eccentricity * np.cos(beta)
-        self.ye = self.eccentricity * np.sin(beta)
+        self.xi = self.eccentricity * np.cos(2*np.pi - beta)
+        self.yi = self.eccentricity * np.sin(2*np.pi - beta)
         self.re = np.zeros([self.nz, self.ntheta])
         self.ri = np.zeros([self.nz, self.ntheta])
         self.z = np.zeros([1, self.nz])
@@ -240,7 +240,7 @@ class PressureMatrix:
             for i in range(self.nz):
                 for j in range(self.ntheta):
                     # fmt: off
-                    self.p_mat_analytical[i][j] = (((-3*self.visc*self.omega)/self.difference_between_radius**2) *
+                    self.p_mat_analytical[i][j] = (((-3*self.viscosity*self.omega)/self.difference_between_radius**2) *
                                                    ((i * self.dz - (self.length / 2)) ** 2 - (self.length ** 2) / 4) *
                                                    (self.eccentricity_ratio * np.sin(j * self.dtheta)) /
                                                    (1 + self.eccentricity_ratio * np.cos(j * self.dtheta))**3)
@@ -256,7 +256,7 @@ class PressureMatrix:
             for i in range(self.nz):
                 for j in range(self.ntheta):
                     # fmt: off
-                    self.p_mat_analytical[i][j] = (3 * self.visc / ((self.difference_between_radius ** 2) *
+                    self.p_mat_analytical[i][j] = (3 * self.viscosity / ((self.difference_between_radius ** 2) *
                                                                     (1. + self.eccentricity_ratio * np.cos(
                                                                         j * self.dtheta)) ** 3)) * \
                                                   (-self.eccentricity_ratio * self.omega * np.sin(j * self.dtheta)) * \
@@ -277,7 +277,7 @@ class PressureMatrix:
             position = -1
             for j in range(self.ntheta):
                 # fmt: off
-                gama = j * self.dtheta + self.beta
+                gama = j * self.dtheta + (np.pi - self.beta)
                 [radius_external, self.xre[i][j], self.yre[i][j]] =\
                     self.external_radius_function(gama)
                 [radius_internal, self.xri[i][j], self.yri[i][j]] =\
@@ -290,14 +290,14 @@ class PressureMatrix:
                 k = (self.re[i][j] ** 2 * (np.log(self.re[i][j]) - 1 / 2) - self.ri[i][j] ** 2 *
                      (np.log(self.ri[i][j]) - 1 / 2)) / (self.ri[i][j] ** 2 - self.re[i][j] ** 2)
 
-                self.c1[i][j] = (1 / (4 * self.visc)) * ((self.re[i][j] ** 2 * np.log(self.re[i][j]) -
+                self.c1[i][j] = (1 / (4 * self.viscosity)) * ((self.re[i][j] ** 2 * np.log(self.re[i][j]) -
                                                           self.ri[i][j] ** 2 * np.log(self.ri[i][j]) +
                                                           (self.re[i][j] ** 2 - self.ri[i][j] ** 2) *
                                                           (k - 1)) - 2 * self.re[i][j] ** 2 *
                                                          ((np.log(self.re[i][j]) + k - 1 / 2) * np.log(self.re[i][j] /
                                                                                                        self.ri[i][j])))
 
-                self.c2[i][j] = (- self.ri[i][j] ** 2) / (8 * self.visc) *\
+                self.c2[i][j] = (- self.ri[i][j] ** 2) / (8 * self.viscosity) *\
                                 ((self.re[i][j] ** 2 - self.ri[i][j] ** 2 -
                                   (self.re[i][j] ** 4 - self.ri[i][j] ** 4) /
                                   (2 * self.ri[i][j] ** 2)) +
@@ -419,9 +419,20 @@ class PressureMatrix:
         yri: float
             The position y of the returned internal radius.
         """
-        radius_internal = self.radius_rotor
-        xri = radius_internal * np.cos(gama)
-        yri = radius_internal * np.sin(gama)
+        if gama > (np.pi - self.beta) and gama < (2*np.pi - self.beta):
+            alpha = np.absolute(2*np.pi - gama - self.beta)
+            radius_internal = np.sqrt(self.radius_rotor ** 2
+                                      - (self.eccentricity * np.sin(alpha)) ** 2) + self.eccentricity * np.cos(alpha)
+            xri = radius_internal * np.cos(gama)
+            yri = radius_internal * np.sin(gama)
+
+        else:
+            alpha = self.beta + gama
+            radius_internal = np.sqrt(self.radius_rotor ** 2
+                                      - (self.eccentricity * np.sin(alpha)) ** 2) + self.eccentricity * np.cos(alpha)
+            xri = radius_internal * np.cos(gama)
+            yri = radius_internal * np.sin(gama)
+
         return radius_internal, xri, yri
 
     def external_radius_function(self, gama):
@@ -439,10 +450,7 @@ class PressureMatrix:
         yre: float
             The position y of the returned external radius.
         """
-        alpha = np.absolute(self.beta - gama)
-        radius_external = np.sqrt(
-            self.radius_stator ** 2 - (self.eccentricity * np.sin(alpha)) ** 2
-        ) + self.eccentricity * np.cos(alpha)
+        radius_external = self.radius_stator
         xre = radius_external * np.cos(gama)
         yre = radius_external * np.sin(gama)
 
@@ -470,7 +478,7 @@ class PressureMatrix:
                 * self.radius_stator
                 * 2
                 * self.omega
-                * self.visc
+                * self.viscosity
                 * (self.length ** 3)
                 * self.eccentricity_ratio
             )
@@ -489,7 +497,7 @@ class PressureMatrix:
             The modified sommerfeld number.
         """
         return (
-            self.radius_stator * 2 * self.omega * self.visc * (self.length ** 3)
+            self.radius_stator * 2 * self.omega * self.viscosity * (self.length ** 3)
         ) / (8 * self.load * (self.radial_clearance ** 2))
 
     def sommerfeld_number(self):
@@ -616,7 +624,7 @@ class PressureMatrix:
             p.circle(self.xre[z][j], self.yre[z][j], color="red")
             p.circle(self.xri[z][j], self.yri[z][j], color="blue")
             p.circle(0, 0, color="blue")
-            p.circle(self.xe, self.ye, color="red")
+            p.circle(self.xi, self.yi, color="red")
         p.circle(0, 0, color="black")
         return p
 
@@ -752,8 +760,8 @@ class PressureMatrix:
         for j in range(0, self.ntheta):
             ax.plot(self.xre[z][j], self.yre[z][j], "r.")
             ax.plot(self.xri[z][j], self.yri[z][j], "b.")
-            ax.plot(0, 0, "b*")
-            ax.plot(self.xe, self.ye, "r*")
+            ax.plot(0, 0, "r*")
+            ax.plot(self.xi, self.yi, "b*")
         ax.set_title("Cut in plane Z=" + str(z))
         ax.set_xlabel("X axis")
         ax.set_ylabel("Y axis")
