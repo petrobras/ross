@@ -88,7 +88,7 @@ const addCopyButtonToCodeCells = () => {
     return
   }
 
-  const codeCells = document.querySelectorAll('div.highlight-ipython3 pre')
+  const codeCells = document.querySelectorAll('div.highlight-ipython3 pre, div.highlight-default pre')
   codeCells.forEach((codeCell, index) => {
     const id = codeCellId(index)
     codeCell.setAttribute('id', id)
