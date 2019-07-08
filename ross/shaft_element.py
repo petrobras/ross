@@ -223,8 +223,7 @@ class ShaftElement(Element):
         return shaft_elements
 
     @classmethod
-    def from_table(cls, file, shear_effects=True, rotary_inertia=True, gyroscopic=True,
-                   shear_method_calc="cowper"):
+    def from_table(cls, file):
         """Instantiate one or more shafts using inputs from a table, either excel or csv.
         Parameters
         ----------
@@ -232,18 +231,6 @@ class ShaftElement(Element):
             Path to the file containing the shaft parameters. The input table should contain
             a header with column names equal to parameter names in the ShaftElement class, except for
             shear_effects, rotary_inertia, gyroscopic, and shear_method_calc.
-        shear_effects : bool, optional
-            Determine if shear effects are taken into account.
-            Default is True.
-        rotary_inertia : bool, optional
-            Determine if rotary_inertia effects are taken into account.
-            Default is True.
-        gyroscopic : bool, optional
-            Determine if gyroscopic effects are taken into account.
-            Default is True.
-        shear_method_calc : string, optional
-            Determines which shear calculation method the user will adopt
-            Default is 'cowper'
         Returns
         -------
         shaft : list
@@ -268,13 +255,33 @@ class ShaftElement(Element):
                               "It will be replaced with zero."
                         )
                         row[i] = 0
-            list_of_shafts = [cls(row.L, row.i_d, row.o_d,
-                                  Material.use_material(row.material), n=row.n,
-                                  axial_force=row.axial_force, torque=row.torque,
-                                  shear_effects=shear_effects, rotary_inertia=rotary_inertia,
-                                  gyroscopic=gyroscopic, shear_method_calc=shear_method_calc)
-                              for i, row in df.iterrows()]
-
+            list_of_shafts = []
+            for i, row in df.iterrows():
+                shear_effects = True
+                rotary_inertia = True
+                gyroscopic = True
+                shear_method_calc = "cowper"
+                try:
+                    shear_effects = bool(row["shear_effects"])
+                except KeyError:
+                    pass
+                try:
+                    rotary_inertia = bool(row["rotary_inertia"])
+                except KeyError:
+                    pass
+                try:
+                    gyroscopic = bool(row["gyroscopic"])
+                except KeyError:
+                    pass
+                try:
+                    shear_method_calc = row["shear_method_calc"]
+                except KeyError:
+                    pass
+                list_of_shafts.append(cls(row.L, row.i_d, row.o_d,
+                                          Material.use_material(row.material), n=row.n,
+                                          axial_force=row.axial_force, torque=row.torque,
+                                          shear_effects=shear_effects, rotary_inertia=rotary_inertia,
+                                          gyroscopic=gyroscopic, shear_method_calc=shear_method_calc))
             return list_of_shafts
         except KeyError:
             sys.exit(
