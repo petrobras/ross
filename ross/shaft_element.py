@@ -1,3 +1,5 @@
+import sys
+import warnings
 import os
 from pathlib import Path
 
@@ -6,6 +8,8 @@ from bokeh.models import HoverTool, ColumnDataSource
 import matplotlib.patches as mpatches
 import numpy as np
 import toml
+import pandas as pd
+import xlrd
 
 import ross
 from ross.element import Element
@@ -217,6 +221,69 @@ class ShaftElement(Element):
                     ShaftElement(**shaft_elements_dict["ShaftElement"][element])
                 )
         return shaft_elements
+
+    @classmethod
+    def from_table(cls, file, shear_effects=True, rotary_inertia=True, gyroscopic=True,
+                   shear_method_calc="cowper"):
+        """Instantiate one or more shafts using inputs from a table, either excel or csv.
+        Parameters
+        ----------
+        file: str
+            Path to the file containing the shaft parameters. The input table should contain
+            a header with column names equal to parameter names in the ShaftElement class, except for
+            shear_effects, rotary_inertia, gyroscopic, and shear_method_calc.
+        shear_effects : bool, optional
+            Determine if shear effects are taken into account.
+            Default is True.
+        rotary_inertia : bool, optional
+            Determine if rotary_inertia effects are taken into account.
+            Default is True.
+        gyroscopic : bool, optional
+            Determine if gyroscopic effects are taken into account.
+            Default is True.
+        shear_method_calc : string, optional
+            Determines which shear calculation method the user will adopt
+            Default is 'cowper'
+        Returns
+        -------
+        shaft : list
+            A list of shaft objects.
+        """
+        try:
+            df = pd.read_excel(file)
+        except FileNotFoundError:
+            sys.exit(file + " not found.")
+        except xlrd.biffh.XLRDError:
+            df = pd.read_csv(file)
+        try:
+            for index, row in df.iterrows():
+                for i in range(0, row.size):
+                    if pd.isna(row[i]):
+                        warnings.warn(
+                            "NaN found in row "
+                            + str(index)
+                            + " column "
+                            + str(i)
+                            + ".\n"
+                              "It will be replaced with zero."
+                        )
+                        row[i] = 0
+            print(df.head())
+            list_of_shafts = [cls(row.L, row.i_d, row.o_d,
+                                  Material.use_material(row.material), n=row.n,
+                                  axial_force=row.axial_force, torque=row.torque,
+                                  shear_effects=shear_effects, rotary_inertia=rotary_inertia,
+                                  gyroscopic=gyroscopic, shear_method_calc=shear_method_calc)
+                              for i, row in df.iterrows()]
+
+            return list_of_shafts
+        except KeyError:
+            sys.exit(
+                "One or more column names did not match the expected. "
+                "Make sure the table header contains the parameters for the "
+                "ShaftElement class. Also, make sure you have a material "
+                "with the given name."
+            )
 
     @property
     def n(self):
