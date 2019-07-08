@@ -268,7 +268,6 @@ class ShaftElement(Element):
                               "It will be replaced with zero."
                         )
                         row[i] = 0
-            print(df.head())
             list_of_shafts = [cls(row.L, row.i_d, row.o_d,
                                   Material.use_material(row.material), n=row.n,
                                   axial_force=row.axial_force, torque=row.torque,
