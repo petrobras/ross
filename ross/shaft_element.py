@@ -45,22 +45,22 @@ class ShaftElement(Element):
         If not given, it will be set when the rotor is assembled
         according to the element's position in the list supplied to
         the rotor constructor.
-    axial_force : float
+    axial_force : float, optional
         Axial force.
-    torque : float
+    torque : float, optional
         Torque.
-    shear_effects : bool
+    shear_effects : bool, optional
         Determine if shear effects are taken into account.
-        Default is False.
-    rotary_inertia : bool
+        Default is True.
+    rotary_inertia : bool, optional
         Determine if rotary_inertia effects are taken into account.
-        Default is False.
-    gyroscopic : bool
+        Default is True.
+    gyroscopic : bool, optional
         Determine if gyroscopic effects are taken into account.
-        Default is False.
-    shear_method_calc : string
+        Default is True.
+    shear_method_calc : string, optional
         Determines which shear calculation method the user will adopt
-        Default is 'hutchinson'
+        Default is 'cowper'
     Returns
     -------
     Attributes
