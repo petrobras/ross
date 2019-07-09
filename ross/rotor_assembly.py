@@ -421,7 +421,7 @@ class Rotor(object):
         self.error_arr = error_arr
 
         results = ConvergenceResults(
-            np.array([el_num[1:], eigv_arr[1:], error_arr[1:]]), new_attributes={}
+            el_num[1:], eigv_arr[1:], error_arr[1:]
         )
 
         return results
@@ -1964,21 +1964,24 @@ class Rotor(object):
             sh_weight = sum(self.df_shaft["m"].values) * 9.8065
 
             force_data = {
+                "Static displacement vector": disp_y,
+                "Shearing force vector": Vx,
+                "Bending moment vector": Bm,
                 "Shaft Total Weight": "%.1f" % sh_weight,
                 "Disks Forces": DskForceToReturn,
                 "Bearings Reaction Forces": BrgForceToReturn,
             }
 
             results = StaticResults(
-                np.array([disp_y, Vx, Bm, force_data]),
-                new_attributes={
-                    "Vx_axis": Vx_axis,
-                    "df_shaft": self.df_shaft,
-                    "df_disks": self.df_disks,
-                    "df_bearings": self.df_bearings,
-                    "nodes": self.nodes,
-                    "nodes_pos": self.nodes_pos,
-                },
+                self.disp_y,
+                self.Vx,
+                self.Bm,
+                self.df_shaft,
+                self.df_disks,
+                self.df_bearings,
+                self.nodes,
+                self.nodes_pos,
+                Vx_axis,
             )
 
         return results
