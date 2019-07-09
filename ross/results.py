@@ -1117,7 +1117,30 @@ class ModeShapeResults:
         return fig, ax
 
 
-class StaticResults(Results):
+class StaticResults():
+    def __init__(
+        self,
+        disp_y,
+        Vx,
+        Bm,
+        df_shaft,
+        df_disks,
+        df_bearings,
+        nodes,
+        nodes_pos,
+        Vx_axis,
+    ):
+
+        self.disp_y = disp_y
+        self.Vx = Vx
+        self.Bm = Bm
+        self.df_shaft = df_shaft
+        self.df_disks = df_disks
+        self.df_bearings = df_bearings
+        self.nodes = nodes
+        self.nodes_pos = nodes_pos
+        self.Vx_axis = Vx_axis
+
     def plot(self):
         """Plot static analysis graphs.
         This method plots:
@@ -1134,20 +1157,12 @@ class StaticResults(Results):
         grid_plots : bokeh.gridplot
         --------
         """
-
-        disp_y = np.array(self[0])
-        Vx = np.array(self[1])
-        Bm = np.array(self[2])
-
-        df_shaft = self.df_shaft
-        df_disks = self.df_disks
-        df_bearings = self.df_bearings
-        nodes = self.nodes
-        nodes_pos = self.nodes_pos
-        Vx_axis = self.Vx_axis
-
         source = ColumnDataSource(
-            data=dict(x0=nodes_pos, y0=disp_y * 1000, y1=[0] * len(nodes_pos))
+            data=dict(
+                x0=self.nodes_pos,
+                y0=self.disp_y * 1000,
+                y1=[0] * len(self.nodes_pos)
+            )
         )
 
         TOOLS = "pan,wheel_zoom,box_zoom,reset,save,box_select,hover"
@@ -1176,7 +1191,7 @@ class StaticResults(Results):
         xnew = np.linspace(
             source.data["x0"][0],
             source.data["x0"][-1],
-            num=len(nodes_pos) * 20,
+            num=len(self.nodes_pos) * 20,
             endpoint=True,
         )
 
@@ -1218,12 +1233,12 @@ class StaticResults(Results):
 
         # create a new plot for free body diagram (FDB)
         y_range = []
-        sh_weight = sum(df_shaft["m"].values) * 9.8065
+        sh_weight = sum(self.df_shaft["m"].values) * 9.8065
         y_range.append(sh_weight)
-        for i, node in enumerate(df_bearings["n"]):
-            y_range.append(-disp_y[node] * df_bearings.loc[i, "kyy"].coefficient[0])
+        for i, node in enumerate(self.df_bearings["n"]):
+            y_range.append(-self.disp_y[node] * self.df_bearings.loc[i, "kyy"].coefficient[0])
 
-        shaft_end = nodes_pos[-1]
+        shaft_end = self.nodes_pos[-1]
         FBD = figure(
             tools=TOOLS,
             width=800,
@@ -1242,13 +1257,13 @@ class StaticResults(Results):
         # FBD - plot arrows indicating shaft weight distribution
         text = str("%.1f" % sh_weight)
         FBD.line(
-            x=nodes_pos,
-            y=[sh_weight] * len(nodes_pos),
+            x=self.nodes_pos,
+            y=[sh_weight] * len(self.nodes_pos),
             line_width=2,
             line_color=bokeh_colors[0],
         )
 
-        for node in nodes_pos:
+        for node in self.nodes_pos:
             FBD.add_layout(
                 Arrow(
                     end=NormalHead(
@@ -1267,7 +1282,7 @@ class StaticResults(Results):
 
         FBD.add_layout(
             Label(
-                x=nodes_pos[0],
+                x=self.nodes_pos[0],
                 y=sh_weight,
                 text="W = " + text + "N",
                 text_font_style="bold",
@@ -1278,8 +1293,8 @@ class StaticResults(Results):
         )
 
         # FBD - calculate the reaction force of bearings and plot arrows
-        for i, node in enumerate(df_bearings["n"]):
-            Fb = -disp_y[node] * df_bearings.loc[i, "kyy"].coefficient[0]
+        for i, node in enumerate(self.df_bearings["n"]):
+            Fb = -self.disp_y[node] * self.df_bearings.loc[i, "kyy"].coefficient[0]
             text = str("%.1f" % Fb)
             FBD.add_layout(
                 Arrow(
@@ -1290,15 +1305,15 @@ class StaticResults(Results):
                         line_width=2,
                         line_color=bokeh_colors[0],
                     ),
-                    x_start=nodes_pos[node],
+                    x_start=self.nodes_pos[node],
                     y_start=-Fb,
-                    x_end=nodes_pos[node],
+                    x_end=self.nodes_pos[node],
                     y_end=0,
                 )
             )
             FBD.add_layout(
                 Label(
-                    x=nodes_pos[node],
+                    x=self.nodes_pos[node],
                     y=-Fb,
                     text="Fb = " + text + "N",
                     text_font_style="bold",
@@ -1309,9 +1324,9 @@ class StaticResults(Results):
             )
 
         # FBD - plot arrows indicating disk weight
-        if len(df_disks) != 0:
-            for i, node in enumerate(df_disks["n"]):
-                Fd = df_disks.loc[i, "m"] * 9.8065
+        if len(self.df_disks) != 0:
+            for i, node in enumerate(self.df_disks["n"]):
+                Fd = self.df_disks.loc[i, "m"] * 9.8065
                 text = str("%.1f" % Fd)
                 FBD.add_layout(
                     Arrow(
@@ -1322,15 +1337,15 @@ class StaticResults(Results):
                             line_width=2,
                             line_color=bokeh_colors[0],
                         ),
-                        x_start=nodes_pos[node],
+                        x_start=self.nodes_pos[node],
                         y_start=Fd,
-                        x_end=nodes_pos[node],
+                        x_end=self.nodes_pos[node],
                         y_end=0,
                     )
                 )
                 FBD.add_layout(
                     Label(
-                        x=nodes_pos[node],
+                        x=self.nodes_pos[node],
                         y=Fd,
                         text="Fd = " + text + "N",
                         text_font_style="bold",
@@ -1341,7 +1356,7 @@ class StaticResults(Results):
                 )
 
         # Shearing Force Diagram plot (SF)
-        source_SF = ColumnDataSource(data=dict(x=Vx_axis, y=Vx))
+        source_SF = ColumnDataSource(data=dict(x=self.Vx_axis, y=self.Vx))
         TOOLTIPS_SF = [("Shearing Force:", "@y")]
         SF = figure(
             tools=TOOLS,
@@ -1369,7 +1384,7 @@ class StaticResults(Results):
         )
 
         # Bending Moment Diagram plot (BM)
-        source_BM = ColumnDataSource(data=dict(x=nodes_pos, y=Bm))
+        source_BM = ColumnDataSource(data=dict(x=self.nodes_pos, y=self.Bm))
         TOOLTIPS_BM = [("Bending Moment:", "@y")]
         BM = figure(
             tools=TOOLS,
@@ -1386,13 +1401,13 @@ class StaticResults(Results):
 
         i = 0
         while True:
-            if i + 3 > len(nodes):
+            if i + 3 > len(self.nodes):
                 break
 
             interpolated_BM = interpolate.interp1d(
-                nodes_pos[i : i + 3], Bm[i : i + 3], kind="quadratic"
+                self.nodes_pos[i : i + 3], self.Bm[i : i + 3], kind="quadratic"
             )
-            xnew_BM = np.linspace(nodes_pos[i], nodes_pos[i + 2], num=42, endpoint=True)
+            xnew_BM = np.linspace(self.nodes_pos[i], self.nodes_pos[i + 2], num=42, endpoint=True)
 
             ynew_BM = interpolated_BM(xnew_BM)
             auxsource_BM = ColumnDataSource(data=dict(x=xnew_BM, y=ynew_BM))
@@ -1416,17 +1431,19 @@ class StaticResults(Results):
         show(grid_plots)
 
 
-class ConvergenceResults(Results):
-    def plot(self, output_html=False):
+class ConvergenceResults:
+    def __init__(self, el_num, eigv_arr, error_arr):
+        self.el_num = el_num
+        self.eigv_arr = eigv_arr
+        self.error_arr = error_arr
+
+    def plot(self):
         """This method plots:
             Natural Frequency vs Number of Elements
             Relative Error vs Number of Elements
 
         Parameters
         ----------
-        output_html : Boolean, optional
-            outputs a html file.
-            Default is False
 
         Returns
         -------
@@ -1434,18 +1451,13 @@ class ConvergenceResults(Results):
             Bokeh plot showing the results
         --------
         """
-
-        el_num = np.array(self[0])
-        eigv_arr = np.array(self[1])
-        error_arr = np.array(self[2])
-
         source = ColumnDataSource(
-            data=dict(x0=el_num, y0=eigv_arr, x1=el_num, y1=error_arr)
+            data=dict(x0=self.el_num, y0=self.eigv_arr, y1=self.error_arr)
         )
 
         TOOLS = "pan,wheel_zoom,box_zoom,hover,reset,save,"
         TOOLTIPS1 = [("Frequency:", "@y0"), ("Number of Elements", "@x0")]
-        TOOLTIPS2 = [("Relative Error:", "@y1"), ("Number of Elements", "@x1")]
+        TOOLTIPS2 = [("Relative Error:", "@y1"), ("Number of Elements", "@x0")]
 
         # create a new plot and add a renderer
         freq_arr = figure(
@@ -1477,9 +1489,9 @@ class ConvergenceResults(Results):
         rel_error.yaxis.axis_label_text_font_size = "14pt"
 
         rel_error.line(
-            "x1", "y1", source=source, line_width=3, line_color="darkslategray"
+            "x0", "y1", source=source, line_width=3, line_color="darkslategray"
         )
-        rel_error.circle("x1", "y1", source=source, fill_color="darkslategray", size=8)
+        rel_error.circle("x0", "y1", source=source, fill_color="darkslategray", size=8)
 
         # put the subplots in a gridplot
         plot = gridplot([[freq_arr, rel_error]])
