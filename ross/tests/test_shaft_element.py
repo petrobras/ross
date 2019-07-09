@@ -133,7 +133,7 @@ def test_gyroscopic_matrix_tim(tim):
     assert_almost_equal(tim.G() * 1e3, G0e_tim, decimal=5)
 
 
-@pytest.skip("Wait for .from_table() modification.")
+@pytest.mark.skip("Wait for .from_table() modification.")
 def test_from_table():
     for shaft_file in ["/data/shaft_us.xls", "/data/shaft_si.xls"]:
         shaft = ShaftElement.from_table(str(Path.cwd()) + shaft_file, sheet="Model")
