@@ -64,9 +64,9 @@ shaft and disk are made of steel. Damping is neglected.
 
 
 
-.. code-block:: python
+.. code-block:: text
 
-    <matplotlib.axes._subplots.AxesSubplot at 0x7fad358a7c88>
+    <matplotlib.axes._subplots.AxesSubplot at 0x...>
 
 
 
@@ -80,7 +80,7 @@ shaft and disk are made of steel. Damping is neglected.
     print('From section approach =',overhung_from_section_rotor.wn/(2*np.pi))
 
 
-.. code-block:: python
+.. code-block:: text
 
     From section approach = [ 14.34690401  14.34690401 109.31683436 109.31683436 134.05186826
      134.05186826]
@@ -93,10 +93,10 @@ shaft and disk are made of steel. Damping is neglected.
 
 
 
-.. code-block:: python
+.. code-block:: text
 
     (<Figure size 432x288 with 2 Axes>,
-     <matplotlib.axes._subplots.AxesSubplot at 0x7fad350ca6d8>)
+     <matplotlib.axes._subplots.AxesSubplot at 0x...>)
 
 
 

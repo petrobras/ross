@@ -38,13 +38,13 @@ files at ~/ross/docs, and we keep the html files used to build the website in a
 `separate repository <https://github.com/ross-rotordynamics/ross-website>`_. If you want to modify the documentation,
 modify the source files and them do the following to modify the website:
 
-- Clone the ross-website to ~/ross-website/html:
+- Clone the ross-website to ``~/ross-website/html``::
 
-``$ git clone https://github.com/ross-rotordynamics/ross-website ~/ross-website/html``
+    $ git clone https://github.com/ross-rotordynamics/ross-website ~/ross-website/html
 
-- From the docs source directory <~/ross/docs/> run sphinx:
+- From the docs source directory <~/ross/docs/> run sphinx::
 
-``$ make html BUILDDIR=~/ross-website``
+    $ make html BUILDDIR=~/ross-website
 
 After that you can push the updated html files to the ross-website repository.
 

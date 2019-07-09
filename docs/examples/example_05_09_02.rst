@@ -69,9 +69,9 @@ up to 4,500 rev/min.
 
 
 
-.. code-block:: python
+.. code-block:: text
 
-    <matplotlib.axes._subplots.AxesSubplot at 0x7ffb8562cf98>
+    <matplotlib.axes._subplots.AxesSubplot at 0x...>
 
 
 
@@ -115,9 +115,9 @@ up to 4,500 rev/min.
 
 
 
-.. code-block:: python
+.. code-block:: text
 
-    <matplotlib.axes._subplots.AxesSubplot at 0x7ffb845b5978>
+    <matplotlib.axes._subplots.AxesSubplot at 0x...>
 
 
 
@@ -134,7 +134,7 @@ up to 4,500 rev/min.
     print('From Section Instantiation =', rotor592fs.wn)
 
 
-.. code-block:: python
+.. code-block:: text
 
     Normal Instantiation = [ 82.65303734  86.65811435 254.52047828 274.31285391 679.48903239
      716.78631221]
@@ -153,7 +153,7 @@ up to 4,500 rev/min.
     print('Normal Instantiation =', rotor592c.wn)
 
 
-.. code-block:: python
+.. code-block:: text
 
     Normal Instantiation = [ 82.32547398  86.86369902 239.64228361 287.24958074 583.48782916
      806.8872843 ]
@@ -170,10 +170,10 @@ up to 4,500 rev/min.
 
 
 
-.. code-block:: python
+.. code-block:: text
 
     (<Figure size 432x288 with 2 Axes>,
-     <matplotlib.axes._subplots.AxesSubplot at 0x7ffb84610320>)
+     <matplotlib.axes._subplots.AxesSubplot at 0x...>)
 
 
 

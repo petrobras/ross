@@ -992,9 +992,6 @@ class Rotor(object):
 
         Parameters
         ----------
-        force : array, optional
-            Force array (needs to have the same length as frequencies array).
-            If not given the impulse response is calculated.
         speed_range : array, optional
             Array with the desired range of frequencies (the default
              is 0 to 1.5 x highest damped natural frequency.
@@ -1004,15 +1001,10 @@ class Rotor(object):
 
         Returns
         -------
-        omega : array
-            Array with the frequencies
-        magdb : array
-            Magnitude (dB) of the frequency response for each pair input/output.
-            The order of the array is: [output, input, magnitude]
-        phase : array
-            Phase of the frequency response for each pair input/output.
-            The order of the array is: [output, input, phase]
-
+        results : array
+            Array with the frequencies, magnitude (dB) of the frequency response for each
+            pair input/output, phase of the frequency response for each pair input/output..
+            It will be returned if plot=False.
         Examples
         --------
         """
@@ -1078,10 +1070,11 @@ class Rotor(object):
         return F0
 
     def unbalance_response(self, node, magnitude, phase, frequency_range=None):
-        """frequency response for a mdof system.
+        """Unbalanced response for a mdof system.
 
-        This method returns the frequency response for a mdof system
-        given a range of frequencies and the modes that will be used.
+        This method returns the unbalanced response for a mdof system
+        given magnitide and phase of the unbalance, the node where it's
+        applied and a frequency range.
 
         Parameters
         ----------
@@ -1091,6 +1084,8 @@ class Rotor(object):
             Unbalance magnitude (kg.m)
         phase : list, float
             Unbalance phase (rad)
+        frequency_range : list, float
+            Array with the desired range of frequencies
 
         Returns
         -------

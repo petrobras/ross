@@ -920,11 +920,11 @@ class ForcedResponseResults:
         if ax0 is None and ax1 is None:
             fig, (ax0, ax1) = plt.subplots(2)
 
-        ax0 = self.plot_magnitude(dof, ax=ax0, **kwargs)[0]
+        ax0 = self.plot_magnitude_matplotlib(dof, ax=ax0, **kwargs)
         # remove label from phase plot
         kwargs.pop("label", None)
         kwargs.pop("units", None)
-        ax1 = self.plot_phase(dof, ax=ax1, **kwargs)[0]
+        ax1 = self.plot_phase_matplotlib(dof, ax=ax1, **kwargs)
 
         ax0.set_xlabel("")
         ax0.legend()

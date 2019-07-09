@@ -67,9 +67,9 @@ stiffness of 1 MN/m and a damping of 3 kNs/m in each direction.
 
 
 
-.. code-block:: python
+.. code-block:: text
 
-    <matplotlib.axes._subplots.AxesSubplot at 0x7fe07b24af98>
+    <matplotlib.axes._subplots.AxesSubplot at 0x...>
 
 
 
@@ -114,9 +114,9 @@ stiffness of 1 MN/m and a damping of 3 kNs/m in each direction.
 
 
 
-.. code-block:: python
+.. code-block:: text
 
-    <matplotlib.axes._subplots.AxesSubplot at 0x7fe07a1eac18>
+    <matplotlib.axes._subplots.AxesSubplot at 0x...>
 
 
 
@@ -133,7 +133,7 @@ stiffness of 1 MN/m and a damping of 3 kNs/m in each direction.
     print('From Section Instantiation =', rotor595fs.wn/(2*np.pi),'[RPM]')
 
 
-.. code-block:: python
+.. code-block:: text
 
     Normal Instantiation = [ 13.90536812  13.90536812  48.17762373  48.17762373 137.06057752
      137.06057752] [RPM]
@@ -152,7 +152,7 @@ stiffness of 1 MN/m and a damping of 3 kNs/m in each direction.
     print('Normal Instantiation =', rotor595c.wn/(2*np.pi))
 
 
-.. code-block:: python
+.. code-block:: text
 
     Normal Instantiation = [ 13.69730748  14.09185971  43.60796387  52.17870498 122.36522778
      149.80603898]
@@ -165,10 +165,10 @@ stiffness of 1 MN/m and a damping of 3 kNs/m in each direction.
 
 
 
-.. code-block:: python
+.. code-block:: text
 
     (<Figure size 432x288 with 2 Axes>,
-     <matplotlib.axes._subplots.AxesSubplot at 0x7fe07a15e9e8>)
+     <matplotlib.axes._subplots.AxesSubplot at 0x...>)
 
 
 

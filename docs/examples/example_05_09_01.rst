@@ -76,9 +76,9 @@ or cross-coupling in the bearings.
 
 
 
-.. code-block:: python
+.. code-block:: text
 
-    <matplotlib.axes._subplots.AxesSubplot at 0x7f9d7a899128>
+    <matplotlib.axes._subplots.AxesSubplot at 0x...>
 
 
 
@@ -123,9 +123,9 @@ or cross-coupling in the bearings.
 
 
 
-.. code-block:: python
+.. code-block:: text
 
-    <matplotlib.axes._subplots.AxesSubplot at 0x7f9d79866b38>
+    <matplotlib.axes._subplots.AxesSubplot at 0x...>
 
 
 
@@ -143,7 +143,7 @@ or cross-coupling in the bearings.
     print('From Section Instantiation =', rotor591fs.wn)
 
 
-.. code-block:: python
+.. code-block:: text
 
     Normal Instantiation = [ 86.65811435  86.65811435 274.31285391 274.31285391 716.78631221
      716.78631221]
@@ -166,7 +166,7 @@ or cross-coupling in the bearings.
     print('Normal Instantiation =', rotor591c.wn)
 
 
-.. code-block:: python
+.. code-block:: text
 
     Normal Instantiation = [ 85.389467    87.7958637  251.78460413 294.71333087 600.17936195
      827.07536193]

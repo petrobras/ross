@@ -1,10 +1,15 @@
+import sys
+import warnings
 import os
 from pathlib import Path
 
 import bokeh.palettes as bp
+from bokeh.models import HoverTool, ColumnDataSource
 import matplotlib.patches as mpatches
 import numpy as np
 import toml
+import pandas as pd
+import xlrd
 
 import ross
 from ross.element import Element
@@ -40,22 +45,22 @@ class ShaftElement(Element):
         If not given, it will be set when the rotor is assembled
         according to the element's position in the list supplied to
         the rotor constructor.
-    axial_force : float
+    axial_force : float, optional
         Axial force.
-    torque : float
+    torque : float, optional
         Torque.
-    shear_effects : bool
+    shear_effects : bool, optional
         Determine if shear effects are taken into account.
-        Default is False.
-    rotary_inertia : bool
+        Default is True.
+    rotary_inertia : bool, optional
         Determine if rotary_inertia effects are taken into account.
-        Default is False.
-    gyroscopic : bool
+        Default is True.
+    gyroscopic : bool, optional
         Determine if gyroscopic effects are taken into account.
-        Default is False.
-    shear_method_calc : string
+        Default is True.
+    shear_method_calc : string, optional
         Determines which shear calculation method the user will adopt
-        Default is 'hutchinson'
+        Default is 'cowper'
     Returns
     -------
     Attributes
@@ -216,6 +221,75 @@ class ShaftElement(Element):
                     ShaftElement(**shaft_elements_dict["ShaftElement"][element])
                 )
         return shaft_elements
+
+    @classmethod
+    def from_table(cls, file):
+        """Instantiate one or more shafts using inputs from a table, either excel or csv.
+        Parameters
+        ----------
+        file: str
+            Path to the file containing the shaft parameters. The input table should contain
+            a header with column names equal to parameter names in the ShaftElement class, except for
+            shear_effects, rotary_inertia, gyroscopic, and shear_method_calc.
+        Returns
+        -------
+        shaft : list
+            A list of shaft objects.
+        """
+        try:
+            df = pd.read_excel(file)
+        except FileNotFoundError:
+            sys.exit(file + " not found.")
+        except xlrd.biffh.XLRDError:
+            df = pd.read_csv(file)
+        try:
+            for index, row in df.iterrows():
+                for i in range(0, row.size):
+                    if pd.isna(row[i]):
+                        warnings.warn(
+                            "NaN found in row "
+                            + str(index)
+                            + " column "
+                            + str(i)
+                            + ".\n"
+                              "It will be replaced with zero."
+                        )
+                        row[i] = 0
+            list_of_shafts = []
+            for i, row in df.iterrows():
+                shear_effects = True
+                rotary_inertia = True
+                gyroscopic = True
+                shear_method_calc = "cowper"
+                try:
+                    shear_effects = bool(row["shear_effects"])
+                except KeyError:
+                    pass
+                try:
+                    rotary_inertia = bool(row["rotary_inertia"])
+                except KeyError:
+                    pass
+                try:
+                    gyroscopic = bool(row["gyroscopic"])
+                except KeyError:
+                    pass
+                try:
+                    shear_method_calc = row["shear_method_calc"]
+                except KeyError:
+                    pass
+                list_of_shafts.append(cls(row.L, row.i_d, row.o_d,
+                                          Material.use_material(row.material), n=row.n,
+                                          axial_force=row.axial_force, torque=row.torque,
+                                          shear_effects=shear_effects, rotary_inertia=rotary_inertia,
+                                          gyroscopic=gyroscopic, shear_method_calc=shear_method_calc))
+            return list_of_shafts
+        except KeyError:
+            sys.exit(
+                "One or more column names did not match the expected. "
+                "Make sure the table header contains the parameters for the "
+                "ShaftElement class. Also, make sure you have a material "
+                "with the given name."
+            )
 
     @property
     def n(self):
@@ -418,7 +492,7 @@ class ShaftElement(Element):
         if self.n in SR:
             mpl_color = "yellow"
             bk_color = "yellow"
-            legend = "Shaft - Slenderness Ratio < 30"
+            legend = "Shaft - Slenderness Ratio < 1.6"
         else:
             mpl_color = self.color
             bk_color = bokeh_colors[2]
@@ -464,39 +538,78 @@ class ShaftElement(Element):
         Returns
         -------
         """
-        position_u = [position, self.i_d / 2]  # upper
-        position_l = [position, -self.o_d / 2]  # lower
-        width = self.L
-        height = self.o_d / 2 - self.i_d / 2
+
         if self.n in SR:
             bk_color = "yellow"
-            legend = "Shaft - Slenderness Ratio < 30"
+            legend = "Shaft - Slenderness Ratio < 1.6"
         else:
             bk_color = bokeh_colors[2]
             legend = "Shaft"
 
+        source_u = ColumnDataSource(dict(
+                top=[self.o_d / 2],
+                bottom=[self.i_d / 2],
+                left=[position],
+                right=[position + self.L],
+                elnum=[self.n],
+                out_d=[self.o_d],
+                in_d=[self.i_d],
+                length=[self.L],
+                mat=[self.material.name]
+            )
+        )
+
+        source_l = ColumnDataSource(dict(
+                top=[-self.o_d / 2],
+                bottom=[-self.i_d / 2],
+                left=[position],
+                right=[position + self.L],
+                elnum=[self.n],
+                out_d=[self.o_d],
+                in_d=[self.i_d],
+                length=[self.L],
+                mat=[self.material.name]
+            )
+        )
+
         # bokeh plot - plot the shaft
         bk_ax.quad(
-            top=self.o_d / 2,
-            bottom=self.i_d / 2,
-            left=position,
-            right=position + self.L,
+            top="top",
+            bottom="bottom",
+            left="left",
+            right="right",
+            source=source_u,
             line_color=bokeh_colors[0],
             line_width=1,
             fill_alpha=0.5,
             fill_color=bk_color,
             legend=legend,
+            name="u_shaft",
         )
         bk_ax.quad(
-            top=-self.i_d / 2,
-            bottom=-self.o_d / 2,
-            left=position,
-            right=position + self.L,
+            top="top",
+            bottom="bottom",
+            left="left",
+            right="right",
+            source=source_l,
             line_color=bokeh_colors[0],
             line_width=1,
             fill_alpha=0.5,
             fill_color=bk_color,
+            name="l_shaft",
         )
+        hover = HoverTool(names=["u_shaft", "l_shaft"])
+        hover.tooltips = [
+                ("Element Number :", "@elnum"),
+                ("Outer Diameter :", "@out_d"),
+                ("Internal Diameter :", "@in_d"),
+                ("Element Length :", "@length"),
+                ("Material :", "@mat"),
+        ]
+        hover.mode = "mouse"
+
+        if len(bk_ax.hover) == 0:
+            bk_ax.add_tools(hover)
 
     @classmethod
     def section(

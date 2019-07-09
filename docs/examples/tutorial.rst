@@ -40,7 +40,7 @@ Materials
 
 There is a class called Material to hold material’s properties, where:
 
-.. code:: text
+.. code-block:: text
 
    name : str
        Material name.
@@ -83,7 +83,7 @@ material as a parameter.
 
 
 
-.. code-block:: python
+.. code-block:: text
 
     ['AISI4140', 'Steel']
 
@@ -117,7 +117,7 @@ There are two methods that you could use to model this element:
 | This class can be instantiated as the code that follows. Where (as per
   the documentation):
 
-.. code:: text
+.. code-block:: text
 
    L : float
        Element length.
@@ -159,7 +159,7 @@ Where:
 
 This class can be instantiated as the code that follows.
 
-.. code:: text
+.. code-block:: text
 
    n: int
        Node in which the disk will be inserted.
@@ -178,7 +178,7 @@ All the values are following the S.I. convention for the units.
     print(Disk)
 
 
-.. code-block:: python
+.. code-block:: text
 
     DiskElement(Id=0.17809, Ip=0.32956, m=32.59, color='#bc625b', n=0)
 
@@ -191,7 +191,7 @@ instantiate a DiskElement with only geometrical parameters (for
 cylindrical disks) and the material which this disk is made of, as we
 can see in the following code.
 
-.. code:: text
+.. code-block:: text
 
    n: int
        Node in which the disk will be inserted.
@@ -224,7 +224,7 @@ BearingElement
 | As it says on the name, this class is a bearing.
 | The following code demonstrate how to properly instantiate it.
 
-.. code:: text
+.. code-block:: text
 
    n: int
        Node which the bearing will be located in
@@ -357,9 +357,9 @@ one with bokeh library and one with matplotlib.
 
 
 
-.. code-block:: python
+.. code-block:: text
 
-    <matplotlib.axes._subplots.AxesSubplot at 0x7fc323db8320>
+    <matplotlib.axes._subplots.AxesSubplot at 0x...>
 
 
 
@@ -410,10 +410,10 @@ In this example we can see the campbell diagram from 0 to 4000 RPM.
 
 
 
-.. code-block:: python
+.. code-block:: text
 
     (<Figure size 432x288 with 2 Axes>,
-     <matplotlib.axes._subplots.AxesSubplot at 0x7fc322d7a978>)
+     <matplotlib.axes._subplots.AxesSubplot at 0x...>)
 
 
 
@@ -450,10 +450,10 @@ You can also generate the plot for each mode shape.
 
 
 
-.. code-block:: python
+.. code-block:: text
 
-    (<Figure size 1080x720 with 1 Axes>,
-     <matplotlib.axes._subplots.Axes3DSubplot at 0x7fc322b7c240>)
+    (<Figure size 1080x...xes>,
+     <matplotlib.axes._subplots.Axes3DSubplot at 0x...>)
 
 
 

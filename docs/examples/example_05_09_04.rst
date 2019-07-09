@@ -69,9 +69,9 @@ stiffnesses of :math:`0.5 MN/m`.
 
 
 
-.. code-block:: python
+.. code-block:: text
 
-    <matplotlib.axes._subplots.AxesSubplot at 0x7fc98fed70f0>
+    <matplotlib.axes._subplots.AxesSubplot at 0x...>
 
 
 
@@ -116,9 +116,9 @@ stiffnesses of :math:`0.5 MN/m`.
 
 
 
-.. code-block:: python
+.. code-block:: text
 
-    <matplotlib.axes._subplots.AxesSubplot at 0x7fc98eeb7ba8>
+    <matplotlib.axes._subplots.AxesSubplot at 0x...>
 
 
 
@@ -136,7 +136,7 @@ stiffnesses of :math:`0.5 MN/m`.
     print('From Section Instantiation =', rotor594fs.wn)
 
 
-.. code-block:: python
+.. code-block:: text
 
     Normal Instantiation = [ 86.65808619  86.65814251 274.31285373 274.31285411 716.78471745
      716.78790695]
@@ -155,7 +155,7 @@ stiffnesses of :math:`0.5 MN/m`.
     print('Normal Instantiation =', rotor594c.wn)
 
 
-.. code-block:: python
+.. code-block:: text
 
     Normal Instantiation = [ 84.19790045  89.03269396 246.44121183 301.08623205 594.81950178
      834.0420378 ]
