@@ -136,7 +136,7 @@ def test_gyroscopic_matrix_tim(tim):
 @pytest.skip("Wait for .from_table() modification.")
 def test_from_table():
     for shaft_file in ["/data/shaft_us.xls", "/data/shaft_si.xls"]:
-        shaft = ShaftElement.from_table(str(Path.cwd()) + shaft_file, sheet="Sheet1")
+        shaft = ShaftElement.from_table(str(Path.cwd()) + shaft_file, sheet="Model")
         el0 = shaft[0]
         assert el0.n == 0
         assert_allclose(el0.i_d, 0.1409954)
