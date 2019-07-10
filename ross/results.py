@@ -722,6 +722,7 @@ class ForcedResponseResults:
         """Plot frequency response.
         This method plots the frequency response magnitude given an output and
         an input.
+
         Parameters
         ----------
         dof : int
@@ -734,12 +735,12 @@ class ForcedResponseResults:
         kwargs : optional
             Additional key word arguments can be passed to change
             the plot (e.g. linestyle='--')
+
         Returns
         -------
         ax : matplotlib.axes
             Matplotlib axes with phase plot.
-        mag_plot : bokeh axes
-            bokeh axes with magnitude plot
+
         Examples
         --------
         """
@@ -770,24 +771,22 @@ class ForcedResponseResults:
         """Plot frequency response.
         This method plots the frequency response magnitude given an output and
         an input.
+
         Parameters
         ----------
         dof : int
             Degree of freedom.
-        ax : matplotlib.axes, optional
-            Matplotlib axes where the phase will be plotted.
-            If None creates a new.
         units : str
             Units to plot the magnitude ('m' or 'mic-pk-pk')
         kwargs : optional
             Additional key word arguments can be passed to change
             the plot (e.g. linestyle='--')
+
         Returns
         -------
-        ax : matplotlib.axes
-            Matplotlib axes with phase plot.
         mag_plot : bokeh axes
             bokeh axes with magnitude plot
+
         Examples
         --------
         """
@@ -829,6 +828,7 @@ class ForcedResponseResults:
         """Plot frequency response.
         This method plots the frequency response phase given an output and
         an input.
+
         Parameters
         ----------
         dof : int
@@ -839,12 +839,12 @@ class ForcedResponseResults:
         kwargs : optional
             Additional key word arguments can be passed to change
             the plot (e.g. linestyle='--')
+
         Returns
         -------
         ax : matplotlib.axes
             Matplotlib axes with phase plot.
-        phase_plot : bokeh axes
-            Bokeh axes with phase plot
+
         Examples
         --------
         """
@@ -870,22 +870,20 @@ class ForcedResponseResults:
         """Plot frequency response.
         This method plots the frequency response phase given an output and
         an input.
+
         Parameters
         ----------
         dof : int
             Degree of freedom.
-        ax : matplotlib.axes, optional
-            Matplotlib axes where the phase will be plotted.
-            If None creates a new.
         kwargs : optional
             Additional key word arguments can be passed to change
             the plot (e.g. linestyle='--')
+
         Returns
         -------
-        ax : matplotlib.axes
-            Matplotlib axes with phase plot.
         phase_plot : bokeh axes
             Bokeh axes with phase plot
+
         Examples
         --------
         """
@@ -946,6 +944,7 @@ class ForcedResponseResults:
         """Plot frequency response.
         This method plots the frequency response given
         an output and an input.
+
         Parameters
         ----------
         dof : int
@@ -953,25 +952,13 @@ class ForcedResponseResults:
         plot_type: str
             Matplotlib or bokeh.
             The default is matplotlib
-        ax0 : matplotlib.axes, optional
-            Matplotlib axes where the amplitude will be plotted.
-            If None creates a new.
-        ax1 : matplotlib.axes, optional
-            Matplotlib axes where the phase will be plotted.
-            If None creates a new.
         kwargs : optional
             Additional key word arguments can be passed to change
             the plot (e.g. linestyle='--')
+
         Returns
         -------
-        ax0 : matplotlib.axes
-            Matplotlib axes with amplitude plot.
-        ax1 : matplotlib.axes
-            Matplotlib axes with phase plot.
-        bk_ax0 : bokeh axes
-            Bokeh axes with amplitude plot.
-        bk_ax1 : bokeh axes
-            Bokeh axes with phase plot.
+
         Examples
         --------
         """
