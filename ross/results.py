@@ -722,6 +722,7 @@ class ForcedResponseResults:
         """Plot frequency response.
         This method plots the frequency response magnitude given an output and
         an input.
+
         Parameters
         ----------
         dof : int
@@ -734,12 +735,12 @@ class ForcedResponseResults:
         kwargs : optional
             Additional key word arguments can be passed to change
             the plot (e.g. linestyle='--')
+
         Returns
         -------
         ax : matplotlib.axes
             Matplotlib axes with phase plot.
-        mag_plot : bokeh axes
-            bokeh axes with magnitude plot
+
         Examples
         --------
         """
@@ -770,24 +771,22 @@ class ForcedResponseResults:
         """Plot frequency response.
         This method plots the frequency response magnitude given an output and
         an input.
+
         Parameters
         ----------
         dof : int
             Degree of freedom.
-        ax : matplotlib.axes, optional
-            Matplotlib axes where the phase will be plotted.
-            If None creates a new.
         units : str
             Units to plot the magnitude ('m' or 'mic-pk-pk')
         kwargs : optional
             Additional key word arguments can be passed to change
             the plot (e.g. linestyle='--')
+
         Returns
         -------
-        ax : matplotlib.axes
-            Matplotlib axes with phase plot.
         mag_plot : bokeh axes
             bokeh axes with magnitude plot
+
         Examples
         --------
         """
@@ -829,6 +828,7 @@ class ForcedResponseResults:
         """Plot frequency response.
         This method plots the frequency response phase given an output and
         an input.
+
         Parameters
         ----------
         dof : int
@@ -839,12 +839,12 @@ class ForcedResponseResults:
         kwargs : optional
             Additional key word arguments can be passed to change
             the plot (e.g. linestyle='--')
+
         Returns
         -------
         ax : matplotlib.axes
             Matplotlib axes with phase plot.
-        phase_plot : bokeh axes
-            Bokeh axes with phase plot
+
         Examples
         --------
         """
@@ -870,22 +870,20 @@ class ForcedResponseResults:
         """Plot frequency response.
         This method plots the frequency response phase given an output and
         an input.
+
         Parameters
         ----------
         dof : int
             Degree of freedom.
-        ax : matplotlib.axes, optional
-            Matplotlib axes where the phase will be plotted.
-            If None creates a new.
         kwargs : optional
             Additional key word arguments can be passed to change
             the plot (e.g. linestyle='--')
+
         Returns
         -------
-        ax : matplotlib.axes
-            Matplotlib axes with phase plot.
         phase_plot : bokeh axes
             Bokeh axes with phase plot
+
         Examples
         --------
         """
@@ -946,6 +944,7 @@ class ForcedResponseResults:
         """Plot frequency response.
         This method plots the frequency response given
         an output and an input.
+
         Parameters
         ----------
         dof : int
@@ -953,25 +952,13 @@ class ForcedResponseResults:
         plot_type: str
             Matplotlib or bokeh.
             The default is matplotlib
-        ax0 : matplotlib.axes, optional
-            Matplotlib axes where the amplitude will be plotted.
-            If None creates a new.
-        ax1 : matplotlib.axes, optional
-            Matplotlib axes where the phase will be plotted.
-            If None creates a new.
         kwargs : optional
             Additional key word arguments can be passed to change
             the plot (e.g. linestyle='--')
+
         Returns
         -------
-        ax0 : matplotlib.axes
-            Matplotlib axes with amplitude plot.
-        ax1 : matplotlib.axes
-            Matplotlib axes with phase plot.
-        bk_ax0 : bokeh axes
-            Bokeh axes with amplitude plot.
-        bk_ax1 : bokeh axes
-            Bokeh axes with phase plot.
+
         Examples
         --------
         """
@@ -1499,3 +1486,104 @@ class ConvergenceResults:
         show(plot)
 
         return plot
+
+
+class TimeResponseResults:
+    def __init__(self, t, yout, xout, dof):
+        self.t = t
+        self.yout = yout
+        self.xout = xout
+        self.dof = dof
+
+    def _plot_matplotlib(self, ax=None):
+
+        if ax is None:
+            ax = plt.gca()
+
+        ax.plot(self.t, self.yout[:, self.dof])
+
+        if self.dof % 4 == 0:
+            obs_dof = "x"
+            amp = "m"
+        elif self.dof % 4 == 1:
+            obs_dof = "y"
+            amp = "m"
+        elif self.dof % 4 == 2:
+            obs_dof = "\u03B1"  # unicode for alpha
+            amp = "rad"
+        elif self.dof % 4 == 3:
+            obs_dof = "\u03B2"  # unicode for beta
+            amp = "rad"
+
+        ax.set_xlabel("Time (s)")
+        ax.set_ylabel("Amplitude (%s)" % amp)
+        ax.set_title(
+            "Response for node %s and degree of freedom %s" % (self.dof // 4, obs_dof)
+        )
+
+    def _plot_bokeh(self):
+
+        if self.dof % 4 == 0:
+            obs_dof = "x"
+            amp = "m"
+        elif self.dof % 4 == 1:
+            obs_dof = "y"
+            amp = "m"
+        elif self.dof % 4 == 2:
+            obs_dof = "\u03B1"  # unicode for alpha
+            amp = "rad"
+        elif self.dof % 4 == 3:
+            obs_dof = "\u03B2"  # unicode for beta
+            amp = "rad"
+
+        # bokeh plot - create a new plot
+        bk_ax = figure(
+            tools="pan, box_zoom, wheel_zoom, reset, save",
+            width=1200,
+            height=900,
+            title="Response for node %s and degree of freedom %s" % (self.dof // 4, obs_dof),
+            x_axis_label="Time (s)",
+            y_axis_label="Amplitude (%s)" % amp,
+        )
+        bk_ax.xaxis.axis_label_text_font_size = "14pt"
+        bk_ax.yaxis.axis_label_text_font_size = "14pt"
+
+        # bokeh plot - plot shaft centerline
+        bk_ax.line(
+                self.t,
+                self.yout[:, self.dof],
+                line_width=3,
+                line_color=bokeh_colors[0]
+        )
+
+        show(bk_ax)
+
+    def plot(self, plot_type="matplotlib", **kwargs):
+        """Plot time response.
+
+        This function will take a rotor object and plot its time response
+        given a force and a time.
+
+        Parameters
+        ----------
+        dof : int
+            Degree of freedom.
+        plot_type: str
+            Matplotlib or bokeh.
+            The default is matplotlib
+        kwargs : optional
+            Additional key word arguments can be passed to change
+            the plot (e.g. linestyle='--')
+
+        Returns
+        -------
+
+        Examples
+        --------
+        """
+        if plot_type == "matplotlib":
+            return self._plot_matplotlib(**kwargs)
+        elif plot_type == "bokeh":
+            return self._plot_bokeh(**kwargs)
+        else:
+            raise ValueError(f"{plot_type} is not a valid plot type.")
