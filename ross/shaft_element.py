@@ -311,6 +311,50 @@ class ShaftElement(Element):
             convert_to_metric = False
             if df_unit["Length"][1] != "meters":
                 convert_to_metric = True
+            material_name = []
+            material_rho = []
+            material_e = []
+            material_g_s = []
+            for index, row in df1.iterrows():
+                if not pd.isna(row["matno"]):
+                    material_name.append(int(row["matno"]))
+                    material_rho.append(row["rhoa"])
+                    material_e.append(row["ea"])
+                    material_g_s.append(row["ga"])
+            if convert_to_metric:
+                for i in range(0, len(material_name)):
+                    material_rho[i] = material_rho[i] * 27679.904
+                    material_e[i] = material_e[i] * 6894.757
+                    material_g_s[i] = material_g_s[i] * 6894.757
+            for i in range(0, len(material_name)):
+                new_material = Material(name="shaft_mat_" + str(material_name[i]),
+                                        rho=material_rho[i], E=material_e[i], G_s=material_g_s[i])
+                new_material.save_material()
+            shaft_l = []
+            shaft_i_d = []
+            shaft_o_d = []
+            shaft_material = []
+            shaft_n = []
+            shaft_axial_force = []
+            for index, row in df2.iterrows():
+                shaft_l.append(row["length"])
+                shaft_i_d.append(row["id_Left"])
+                shaft_o_d.append(row["od_Left"])
+                shaft_material.append(int(row["matnum"]))
+                shaft_n.append(row["elemnum"] - 1)
+                shaft_axial_force.append(row["axial"])
+            if convert_to_metric:
+                for i in range(0, len(shaft_n)):
+                    shaft_l[i] = shaft_l[i] * 0.0254
+                    shaft_i_d[i] = shaft_i_d[i] * 0.0254
+                    shaft_o_d[i] = shaft_o_d[i] * 0.0254
+                    shaft_axial_force[i] = shaft_axial_force[i] * 4.44822161
+            list_of_shafts = []
+            for i in range(0, len(shaft_n)):
+                list_of_shafts.append(cls(shaft_l[i], shaft_i_d[i], shaft_o_d[i],
+                                          Material.use_material("shaft_mat_" + str(shaft_material[i])),
+                                          n=shaft_n[i], axial_force=shaft_axial_force[i]))
+            return list_of_shafts
         else:
             sys.exit(
                 "A valid choice must be given for the parameter 'sheet'. Either 'Simple' or 'Model' "
