@@ -2,7 +2,6 @@ import os
 
 import numpy as np
 import pytest
-from pathlib import Path
 from numpy.testing import assert_almost_equal, assert_allclose
 
 from ross.materials import steel
@@ -134,7 +133,7 @@ def test_gyroscopic_matrix_tim(tim):
 
 
 def test_from_table():
-    for shaft_file in [str(Path.cwd()) + "/data/shaft_us.xls", str(Path.cwd()) + "/data/shaft_si.xls"]:
+    for shaft_file in [str(os.getcwd()) + "/data/shaft_us.xls", str(os.getcwd()) + "/data/shaft_si.xls"]:
         shaft = ShaftElement.from_table(shaft_file, sheet="Model")
         el0 = shaft[0]
         assert el0.n == 0
