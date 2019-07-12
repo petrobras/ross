@@ -1,0 +1,72 @@
+import numpy as np
+from rotor_assembly import Rotor
+from results import (
+    CampbellResults,
+    FrequencyResponseResults,
+    ForcedResponseResults,
+    ModeShapeResults,
+    StaticResults,
+    ConvergenceResults,
+    TimeResponseResults,
+)
+
+class Report:
+    def __init__(self, rotor):
+        """Report according to standard analysis.
+
+        Parameters
+        ----------
+        rotor : ross.Rotor
+
+        """
+        pass
+
+    def unbalance_response(self, clearances):
+        """Evaluates the unbalance response for the rotor.
+
+        This analysis takes the critical speeds of interest, calculates the
+        position and weight of the required unbalance and performs the analysis
+        including:
+         - Check if vibration at MCS is below the limit with the applied weight;
+         - Check if the clearances are ok if the vibration deteriorate to the
+         limit level;
+
+        Parameters
+        ----------
+        clearances : dict
+            Dict mapping between node and its clearance in meters.
+            (e.g. clearances = dict(3=0.001, 5=0.002...)
+        """
+
+    def stability_level_1(self):
+        """Stability analysis level 1.
+
+        This analysis consider a anticipated cross coupling QA based on
+        conditions at the normal operating point and the cross-coupling
+        required to produce a zero log decrement, Q0.
+
+        Components such as seals and impellers are not considered in this
+        analysis.
+
+        Parameters
+        ----------
+        (Check what we need to calculate the applied cross coupling and list
+         them as parameters)
+        """
+        pass
+
+    def stability_level_2(self):
+        """Stability analysis level 2.
+
+        For the level 2 stability analysis additional sources that contribute
+        to the rotor stability shall be considered such as:
+        a)  labyrinth seals;
+        b)  damper seals;
+        c)  impeller/blade flow aerodynamic effects;
+        d)  internal friction.
+
+        Parameters
+        ----------
+        (Check what we need to calculate the applied cross coupling and list
+        them as parameters)
+        """
