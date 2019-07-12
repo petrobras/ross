@@ -259,7 +259,7 @@ class ShaftElement(Element):
                                 + " column "
                                 + str(i)
                                 + ".\n"
-                                  "It will be replaced with zero."
+                                "It will be replaced with zero."
                             )
                             row[i] = 0
                 list_of_shafts = []
@@ -284,11 +284,21 @@ class ShaftElement(Element):
                         shear_method_calc = row["shear_method_calc"]
                     except KeyError:
                         pass
-                    list_of_shafts.append(cls(row.L, row.i_d, row.o_d,
-                                              Material.use_material(row.material), n=row.n,
-                                              axial_force=row.axial_force, torque=row.torque,
-                                              shear_effects=shear_effects, rotary_inertia=rotary_inertia,
-                                              gyroscopic=gyroscopic, shear_method_calc=shear_method_calc))
+                    list_of_shafts.append(
+                        cls(
+                            row.L,
+                            row.i_d,
+                            row.o_d,
+                            Material.use_material(row.material),
+                            n=row.n,
+                            axial_force=row.axial_force,
+                            torque=row.torque,
+                            shear_effects=shear_effects,
+                            rotary_inertia=rotary_inertia,
+                            gyroscopic=gyroscopic,
+                            shear_method_calc=shear_method_calc,
+                        )
+                    )
                 return list_of_shafts
             except KeyError:
                 sys.exit(
@@ -315,6 +325,7 @@ class ShaftElement(Element):
             material_rho = []
             material_e = []
             material_g_s = []
+            new_materials = {}
             for index, row in df1.iterrows():
                 if not pd.isna(row["matno"]):
                     material_name.append(int(row["matno"]))
@@ -327,9 +338,13 @@ class ShaftElement(Element):
                     material_e[i] = material_e[i] * 6894.757
                     material_g_s[i] = material_g_s[i] * 6894.757
             for i in range(0, len(material_name)):
-                new_material = Material(name="shaft_mat_" + str(material_name[i]),
-                                        rho=material_rho[i], E=material_e[i], G_s=material_g_s[i])
-                new_material.save_material()
+                new_material = Material(
+                    name="shaft_mat_" + str(material_name[i]),
+                    rho=material_rho[i],
+                    E=material_e[i],
+                    G_s=material_g_s[i],
+                )
+                new_materials["shaft_mat_" + str(material_name[i])] = new_material
             shaft_l = []
             shaft_i_d = []
             shaft_o_d = []
@@ -348,12 +363,19 @@ class ShaftElement(Element):
                     shaft_l[i] = shaft_l[i] * 0.0254
                     shaft_i_d[i] = shaft_i_d[i] * 0.0254
                     shaft_o_d[i] = shaft_o_d[i] * 0.0254
-                    shaft_axial_force[i] = shaft_axial_force[i] * 4.44822161
+                    shaft_axial_force[i] = shaft_axial_force[i] * 4.448_221_61
             list_of_shafts = []
             for i in range(0, len(shaft_n)):
-                list_of_shafts.append(cls(shaft_l[i], shaft_i_d[i], shaft_o_d[i],
-                                          Material.use_material("shaft_mat_" + str(shaft_material[i])),
-                                          n=shaft_n[i], axial_force=shaft_axial_force[i]))
+                list_of_shafts.append(
+                    cls(
+                        shaft_l[i],
+                        shaft_i_d[i],
+                        shaft_o_d[i],
+                        new_materials["shaft_mat_" + str(shaft_material[i])],
+                        n=shaft_n[i],
+                        axial_force=shaft_axial_force[i],
+                    )
+                )
             return list_of_shafts
         else:
             sys.exit(
@@ -616,7 +638,8 @@ class ShaftElement(Element):
             bk_color = bokeh_colors[2]
             legend = "Shaft"
 
-        source_u = ColumnDataSource(dict(
+        source_u = ColumnDataSource(
+            dict(
                 top=[self.o_d / 2],
                 bottom=[self.i_d / 2],
                 left=[position],
@@ -625,11 +648,12 @@ class ShaftElement(Element):
                 out_d=[self.o_d],
                 in_d=[self.i_d],
                 length=[self.L],
-                mat=[self.material.name]
+                mat=[self.material.name],
             )
         )
 
-        source_l = ColumnDataSource(dict(
+        source_l = ColumnDataSource(
+            dict(
                 top=[-self.o_d / 2],
                 bottom=[-self.i_d / 2],
                 left=[position],
@@ -638,7 +662,7 @@ class ShaftElement(Element):
                 out_d=[self.o_d],
                 in_d=[self.i_d],
                 length=[self.L],
-                mat=[self.material.name]
+                mat=[self.material.name],
             )
         )
 
@@ -670,11 +694,11 @@ class ShaftElement(Element):
         )
         hover = HoverTool(names=["u_shaft", "l_shaft"])
         hover.tooltips = [
-                ("Element Number :", "@elnum"),
-                ("Outer Diameter :", "@out_d"),
-                ("Internal Diameter :", "@in_d"),
-                ("Element Length :", "@length"),
-                ("Material :", "@mat"),
+            ("Element Number :", "@elnum"),
+            ("Outer Diameter :", "@out_d"),
+            ("Internal Diameter :", "@in_d"),
+            ("Element Length :", "@length"),
+            ("Material :", "@mat"),
         ]
         hover.mode = "mouse"
 
