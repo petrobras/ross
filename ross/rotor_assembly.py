@@ -985,7 +985,7 @@ class Rotor(object):
 
         return H
 
-    def run_freq_response(self, speed_range=None, modes=None):
+    def run_freq_response(self, speed_range=None, modes=None, Report=False):
         """Frequency response for a mdof system.
 
         This method returns the frequency response for a mdof system
@@ -999,6 +999,9 @@ class Rotor(object):
         modes : list, optional
             Modes that will be used to calculate the frequency response
             (all modes will be used if a list is not given).
+        Report : boolean, optional
+            Trigger for API report format. If true, graphs will be plotted
+            in API format.
 
         Returns
         -------
@@ -1025,11 +1028,12 @@ class Rotor(object):
             speed_range=speed_range,
             magnitude=abs(freq_resp),
             phase=np.angle(freq_resp),
+            Report=Report,
         )
 
         return results
 
-    def run_forced_response(self, force=None, speed_range=None, modes=None):
+    def run_forced_response(self, force=None, speed_range=None, modes=None, Report=False):
         freq_resp = self.run_freq_response(speed_range=speed_range, modes=modes)
 
         forced_resp = np.zeros(
@@ -1044,6 +1048,7 @@ class Rotor(object):
             speed_range=speed_range,
             magnitude=abs(forced_resp),
             phase=np.angle(forced_resp),
+            Report=Report,
         )
 
         return forced_resp
@@ -1070,7 +1075,14 @@ class Rotor(object):
 
         return F0
 
-    def unbalance_response(self, node, magnitude, phase, frequency_range=None):
+    def unbalance_response(
+            self,
+            node,
+            magnitude,
+            phase,
+            frequency_range=None,
+            Report=False
+    ):
         """Unbalanced response for a mdof system.
 
         This method returns the unbalanced response for a mdof system
@@ -1110,7 +1122,7 @@ class Rotor(object):
         except TypeError:
             force = self._unbalance_force(node, magnitude, phase, frequency_range)
 
-        forced_response = self.run_forced_response(force, frequency_range)
+        forced_response = self.run_forced_response(force, frequency_range, Report)
 
         return forced_response
 
