@@ -1,7 +1,7 @@
 import pickle
 import numpy as np
 from scipy import interpolate
-
+from scipy.signal import argrelextrema
 import matplotlib as mpl
 import matplotlib.pyplot as plt
 import bokeh.palettes as bp
@@ -342,11 +342,12 @@ class CampbellResults:
 
 
 class FrequencyResponseResults:
-    def __init__(self, freq_resp, speed_range, magnitude, phase):
+    def __init__(self, freq_resp, speed_range, magnitude, phase, Report=False):
         self.freq_resp = freq_resp
         self.speed_range = speed_range
         self.magnitude = magnitude
         self.phase = phase
+        self.Report = Report
 
     def plot_magnitude_matplotlib(self, inp, out, ax=None, units="mic-pk-pk", **kwargs):
         """Plot frequency response.
@@ -429,14 +430,100 @@ class FrequencyResponseResults:
         # bokeh plot - create a new plot
         mag_plot = figure(
             tools="pan, box_zoom, wheel_zoom, reset, save",
-            width=900,
-            height=400,
+            width=1000,
+            height=450,
             title="Frequency Response - Magnitude",
             x_axis_label="Frequency",
             y_axis_label=y_axis_label,
         )
         mag_plot.xaxis.axis_label_text_font_size = "14pt"
         mag_plot.yaxis.axis_label_text_font_size = "14pt"
+
+        minspeed = 150
+        maxspeed = 400
+
+        if self.Report:
+            idx_max = argrelextrema(mag[inp, out, :], np.greater)
+
+            for i, peak in enumerate(mag[inp, out, :][idx_max[0]]):
+                peak_n = 0.707 * peak
+                peak_aux = np.linspace(peak_n, peak_n, len(frequency_range))
+
+                idx = np.argwhere(
+                    np.diff(np.sign(peak_aux - mag[inp, out, :]))
+                ).flatten()
+                idx = np.sort(np.append(idx, idx_max[0][i]))
+                idx_aux = [
+                    list(idx).index(idx_max[0][i]) - 1,
+                    list(idx).index(idx_max[0][i]) + 1,
+                ]
+                idx = idx[idx_aux]
+
+                # Amplification Factor (AF)
+                AF = frequency_range[idx_max[0][i]] / (
+                    frequency_range[idx[1]] - frequency_range[idx[0]]
+                )
+
+                # Separation Margin (SM)
+                if AF > 2.5 and frequency_range[idx_max[0][i]] < minspeed:
+                    SM = min([16, 17 * (1 - 1 / (AF - 1.5))])
+                    SMspeed = frequency_range[idx_max[0][i]] * (1 + SM / 100)
+                    source = ColumnDataSource(
+                        dict(
+                            top=[max(mag[inp, out, :][idx_max[0]])],
+                            bottom=[0],
+                            left=[frequency_range[idx_max[0][i]]],
+                            right=[SMspeed],
+                            tag1=[frequency_range[idx_max[0][i]]],
+                            tag2=[SMspeed],
+                        )
+                    )
+
+                if AF > 2.5 and frequency_range[idx_max[0][i]] > maxspeed:
+                    SM = min([26, 10 + 17 * (1 - 1 / (AF - 1.5))])
+                    SMspeed = frequency_range[idx_max[0][i]] * (1 - SM / 100)
+                    source = ColumnDataSource(
+                        dict(
+                            top=[max(mag[inp, out, :][idx_max[0]])],
+                            bottom=[0],
+                            left=[SMspeed],
+                            right=[frequency_range[idx_max[0][i]]],
+                            tag1=[frequency_range[idx_max[0][i]]],
+                            tag2=[SMspeed],
+                        )
+                    )
+
+                mag_plot.quad(
+                    top="top",
+                    bottom="bottom",
+                    left="left",
+                    right="right",
+                    source=source,
+                    line_color=bokeh_colors[8],
+                    line_width=0.8,
+                    fill_alpha=0.2,
+                    fill_color=bokeh_colors[8],
+                    legend="Separation Margin",
+                    name="SM2",
+                )
+                hover = HoverTool(names=["SM2"])
+                hover.tooltips = [
+                    ("Critical Speed :", "@tag1"),
+                    ("Speed at 0.707 x peak amplitude :", "@tag2"),
+                ]
+
+            mag_plot.quad(
+                top=max(mag[inp, out, :][idx_max[0]]),
+                bottom=0,
+                left=minspeed,
+                right=maxspeed,
+                line_color="green",
+                line_width=0.8,
+                fill_alpha=0.2,
+                fill_color="green",
+                legend="Operation Speed Range",
+            )
+            mag_plot.add_tools(hover)
 
         source = ColumnDataSource(dict(x=frequency_range, y=mag[inp, out, :]))
         mag_plot.line(
@@ -523,8 +610,8 @@ class FrequencyResponseResults:
         # bokeh plot - create a new plot
         phase_plot = figure(
             tools="pan, box_zoom, wheel_zoom, reset, save",
-            width=900,
-            height=400,
+            width=1000,
+            height=450,
             title="Frequency Response - Phase",
             x_axis_label="Frequency",
             y_axis_label="Phase",
