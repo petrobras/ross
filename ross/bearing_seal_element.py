@@ -6,7 +6,6 @@ import matplotlib.patches as mpatches
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
-import pytest
 import scipy.interpolate as interpolate
 import xlrd
 
@@ -45,7 +44,7 @@ class _Coefficient:
             self.interpolated = lambda x: np.array(self.coefficient[0])
 
     def __eq__(self, other):
-        if pytest.approx(self.__dict__["coefficient"]) == other.__dict__["coefficient"]:
+        if np.allclose(self.__dict__["coefficient"]),other.__dict__["coefficient"]):
             return True
         else:
             return False
