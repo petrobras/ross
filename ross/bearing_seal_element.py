@@ -44,7 +44,7 @@ class _Coefficient:
             self.interpolated = lambda x: np.array(self.coefficient[0])
 
     def __eq__(self, other):
-        if np.allclose(self.__dict__["coefficient"]),other.__dict__["coefficient"]):
+        if np.allclose(self.__dict__["coefficient"],other.__dict__["coefficient"]):
             return True
         else:
             return False
