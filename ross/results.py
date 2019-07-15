@@ -6,9 +6,10 @@ import matplotlib as mpl
 import matplotlib.pyplot as plt
 import bokeh.palettes as bp
 from mpl_toolkits.mplot3d import Axes3D
-from bokeh.layouts import gridplot
+from bokeh.layouts import gridplot, widgetbox
 from bokeh.plotting import figure, show
 from bokeh.transform import linear_cmap
+from bokeh.models.widgets import DataTable, TableColumn, NumberFormatter
 from bokeh.models import (
         ColumnDataSource,
         ColorBar,
@@ -439,11 +440,15 @@ class FrequencyResponseResults:
         mag_plot.xaxis.axis_label_text_font_size = "14pt"
         mag_plot.yaxis.axis_label_text_font_size = "14pt"
 
-        minspeed = 150
-        maxspeed = 400
+        minspeed = 320
+        maxspeed = 450
 
         if self.Report:
             idx_max = argrelextrema(mag[inp, out, :], np.greater)
+            wn = frequency_range[idx_max[0]]
+            AF_table = []
+            SM_table = []
+            SM_ref_table = []
 
             for i, peak in enumerate(mag[inp, out, :][idx_max[0]]):
                 peak_n = 0.707 * peak
@@ -460,38 +465,49 @@ class FrequencyResponseResults:
                 idx = idx[idx_aux]
 
                 # Amplification Factor (AF)
-                AF = frequency_range[idx_max[0][i]] / (
+                AF = wn[i] / (
                     frequency_range[idx[1]] - frequency_range[idx[0]]
                 )
 
                 # Separation Margin (SM)
-                if AF > 2.5 and frequency_range[idx_max[0][i]] < minspeed:
-                    SM = min([16, 17 * (1 - 1 / (AF - 1.5))])
-                    SMspeed = frequency_range[idx_max[0][i]] * (1 + SM / 100)
+                if AF > 2.5 and wn[i] < minspeed:
+                    SM = min([16, 17 * (1 - 1 / (AF - 1.5))]) / 100
+                    SMspeed = wn[i] * (1 + SM)
+                    SM_ref = (minspeed - wn[i]) / wn[i]
                     source = ColumnDataSource(
                         dict(
                             top=[max(mag[inp, out, :][idx_max[0]])],
                             bottom=[0],
-                            left=[frequency_range[idx_max[0][i]]],
+                            left=[wn[i]],
                             right=[SMspeed],
-                            tag1=[frequency_range[idx_max[0][i]]],
+                            tag1=[wn[i]],
                             tag2=[SMspeed],
                         )
                     )
 
-                if AF > 2.5 and frequency_range[idx_max[0][i]] > maxspeed:
-                    SM = min([26, 10 + 17 * (1 - 1 / (AF - 1.5))])
-                    SMspeed = frequency_range[idx_max[0][i]] * (1 - SM / 100)
+                elif AF > 2.5 and wn[i] > maxspeed:
+                    SM = min([26, 10 + 17 * (1 - 1 / (AF - 1.5))]) /100
+                    SMspeed = wn[i] * (1 - SM)
+                    SM_ref = (wn[i] - maxspeed) / maxspeed
                     source = ColumnDataSource(
                         dict(
                             top=[max(mag[inp, out, :][idx_max[0]])],
                             bottom=[0],
                             left=[SMspeed],
-                            right=[frequency_range[idx_max[0][i]]],
-                            tag1=[frequency_range[idx_max[0][i]]],
+                            right=[wn[i]],
+                            tag1=[wn[i]],
                             tag2=[SMspeed],
                         )
                     )
+
+                else:
+                    SM = None
+                    SM_ref = None
+                    SMspeed = None
+
+                AF_table.append(AF)
+                SM_table.append(SM)
+                SM_ref_table.append(SM_ref)
 
                 mag_plot.quad(
                     top="top",
@@ -511,6 +527,35 @@ class FrequencyResponseResults:
                     ("Critical Speed :", "@tag1"),
                     ("Speed at 0.707 x peak amplitude :", "@tag2"),
                 ]
+
+            table_source = ColumnDataSource(
+                    dict(
+                        Wd=frequency_range[idx_max[0]],
+                        SM_table=SM_table,
+                        AF_table=AF_table,
+                        SM_ref_table=SM_ref_table,
+                    )
+            )
+            form1 = NumberFormatter(format='0.00')
+            form2 = NumberFormatter(format='0.00%')
+            columns = [
+                    TableColumn(
+                        field="Wd", title="Critical Speed", formatter=form1
+                    ),
+                    TableColumn(
+                        field="SM_table", title="Required Separation Margin", formatter=form2
+                    ),
+                    TableColumn(
+                        field="SM_ref_table", title="Available Separation Margin", formatter=form2
+                    ),
+                    TableColumn(
+                        field="AF_table", title="Amplification Factor", formatter=form1
+                    )
+                ]
+            data_table = DataTable(
+                    source=table_source, columns=columns, width=700, height=450
+            )
+            table = widgetbox(data_table)
 
             mag_plot.quad(
                 top=max(mag[inp, out, :][idx_max[0]]),
@@ -535,7 +580,7 @@ class FrequencyResponseResults:
             line_width=3,
         )
 
-        return mag_plot
+        return mag_plot, table
 
     def plot_phase_matplotlib(self, inp, out, ax=None, **kwargs):
         """Plot frequency response.
@@ -707,11 +752,11 @@ class FrequencyResponseResults:
         --------
         """
         # bokeh plot axes
-        bk_ax0 = self.plot_magnitude_bokeh(inp, out, ax=ax0)
+        bk_ax0, table = self.plot_magnitude_bokeh(inp, out, ax=ax0)
         bk_ax1 = self.plot_phase_bokeh(inp, out, ax=ax1)
 
         # show the bokeh plot results
-        grid_plots = gridplot([[bk_ax0], [bk_ax1]])
+        grid_plots = gridplot([[bk_ax0, table], [bk_ax1]])
         show(grid_plots)
 
         return bk_ax0, bk_ax1
