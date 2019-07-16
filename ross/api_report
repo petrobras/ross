@@ -1,14 +1,14 @@
 import numpy as np
+from scipy.signal import argrelextrema
 from rotor_assembly import Rotor
-from results import (
-    CampbellResults,
-    FrequencyResponseResults,
-    ForcedResponseResults,
-    ModeShapeResults,
-    StaticResults,
-    ConvergenceResults,
-    TimeResponseResults,
-)
+from bokeh.layouts import widgetbox
+from bokeh.models.widgets import DataTable, TableColumn, NumberFormatter
+from bokeh.models import ColumnDataSource, HoverTool
+import bokeh.palettes as bp
+from results import FrequencyResponseResults, ForcedResponseResults
+
+# set bokeh palette of colors
+bokeh_colors = bp.RdGy[11]
 
 class Report:
     def __init__(self, rotor):
@@ -21,7 +21,7 @@ class Report:
         """
         pass
 
-    def unbalance_response(self, clearances):
+    def unbalance_response(self, clearances, op_speed, unit="rpm"):
         """Evaluates the unbalance response for the rotor.
 
         This analysis takes the critical speeds of interest, calculates the
@@ -36,7 +36,172 @@ class Report:
         clearances : dict
             Dict mapping between node and its clearance in meters.
             (e.g. clearances = dict(3=0.001, 5=0.002...)
+        op_speed : list
+            List with mininum and maximum rotor operation speed.
+            (e.g. op_speed = [100, 550], where 100 is the min and 550 is the
+            max speed)
+        units : str
+            rotor speed units
+            String defining the unit for rotor speed (can be rad/s or rpm)
         """
+
+        if unit == "rpm":
+            op_speed = [2 * np.pi * v / 60 for v in op_speed]
+
+        minspeed = min(op_speed)
+        maxspeed = max(op_speed)
+
+        response = Rotor.unbalance_response(node, force, phase, freq_range)
+        mag = response.magnitude
+        frequency_range = response.speed_range
+
+        mag_plot = response.plot_magnitude_bokeh(dof, plot_type="bokeh")
+
+        idx_max = argrelextrema(mag[inp, out, :], np.greater)
+        wn = frequency_range[idx_max[0]]
+
+        AF_table = []
+        SM_table = []
+        SM_ref_table = []
+
+        for i, peak in enumerate(mag[inp, out, :][idx_max[0]]):
+            peak_n = 0.707 * peak
+            peak_aux = np.linspace(peak_n, peak_n, len(frequency_range))
+
+            idx = np.argwhere(
+                np.diff(np.sign(peak_aux - mag[inp, out, :]))
+            ).flatten()
+            idx = np.sort(np.append(idx, idx_max[0][i]))
+
+            # if speed range is not long enough to catch the magnitudes
+            try:
+                idx_aux = [
+                    list(idx).index(idx_max[0][i]) - 1,
+                    list(idx).index(idx_max[0][i]) + 1,
+                ]
+                idx = idx[idx_aux]
+            except IndexError:
+                idx = [list(idx).index(idx_max[0][i]) - 1,
+                       len(frequency_range) - 1
+                ]
+
+            # Amplification Factor (AF)
+            AF = wn[i] / (
+                frequency_range[idx[1]] - frequency_range[idx[0]]
+            )
+
+            # Separation Margin (SM)
+            if AF > 2.5 and wn[i] < minspeed:
+                SM = min([16, 17 * (1 - 1 / (AF - 1.5))]) / 100
+                SMspeed = wn[i] * (1 + SM)
+                SM_ref = (minspeed - wn[i]) / wn[i]
+                source = ColumnDataSource(
+                    dict(
+                        top=[max(mag[inp, out, :][idx_max[0]])],
+                        bottom=[0],
+                        left=[wn[i]],
+                        right=[SMspeed],
+                        tag1=[wn[i]],
+                        tag2=[SMspeed],
+                    )
+                )
+
+            elif AF > 2.5 and wn[i] > maxspeed:
+                SM = min([26, 10 + 17 * (1 - 1 / (AF - 1.5))]) /100
+                SMspeed = wn[i] * (1 - SM)
+                SM_ref = (wn[i] - maxspeed) / maxspeed
+                source = ColumnDataSource(
+                    dict(
+                        top=[max(mag[inp, out, :][idx_max[0]])],
+                        bottom=[0],
+                        left=[SMspeed],
+                        right=[wn[i]],
+                        tag1=[wn[i]],
+                        tag2=[SMspeed],
+                    )
+                )
+
+            else:
+                SM = None
+                SM_ref = None
+                SMspeed = None
+
+            AF_table.append(AF)
+            SM_table.append(SM)
+            SM_ref_table.append(SM_ref)
+
+            mag_plot.quad(
+                top="top",
+                bottom="bottom",
+                left="left",
+                right="right",
+                source=source,
+                line_color=bokeh_colors[8],
+                line_width=0.8,
+                fill_alpha=0.2,
+                fill_color=bokeh_colors[8],
+                legend="Separation Margin",
+                name="SM2",
+            )
+            hover = HoverTool(names=["SM2"])
+            hover.tooltips = [
+                ("Critical Speed :", "@tag1"),
+                ("Speed at 0.707 x peak amplitude :", "@tag2"),
+            ]
+
+        table_source = ColumnDataSource(
+                dict(
+                    Wd=frequency_range[idx_max[0]],
+                    SM_table=SM_table,
+                    AF_table=AF_table,
+                    SM_ref_table=SM_ref_table,
+                )
+        )
+        form1 = NumberFormatter(format='0.00')
+        form2 = NumberFormatter(format='0.00%')
+        columns = [
+                TableColumn(
+                    field="Wd", title="Critical Speed", formatter=form1
+                ),
+                TableColumn(
+                    field="SM_table", title="Required Separation Margin", formatter=form2
+                ),
+                TableColumn(
+                    field="SM_ref_table", title="Available Separation Margin", formatter=form2
+                ),
+                TableColumn(
+                    field="AF_table", title="Amplification Factor", formatter=form1
+                )
+            ]
+        data_table = DataTable(
+                source=table_source, columns=columns, width=700, height=450
+        )
+        table = widgetbox(data_table)
+
+        mag_plot.quad(
+            top=max(mag[inp, out, :][idx_max[0]]),
+            bottom=0,
+            left=minspeed,
+            right=maxspeed,
+            line_color="green",
+            line_width=0.8,
+            fill_alpha=0.2,
+            fill_color="green",
+            legend="Operation Speed Range",
+        )
+        mag_plot.add_tools(hover)
+
+        source = ColumnDataSource(dict(x=frequency_range, y=mag[inp, out, :]))
+        mag_plot.line(
+            x="x",
+            y="y",
+            source=source,
+            line_color=bokeh_colors[0],
+            line_alpha=1.0,
+            line_width=3,
+        )
+
+        return mag_plot, table
 
     def stability_level_1(self):
         """Stability analysis level 1.
