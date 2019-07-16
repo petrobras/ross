@@ -343,12 +343,11 @@ class CampbellResults:
 
 
 class FrequencyResponseResults:
-    def __init__(self, freq_resp, speed_range, magnitude, phase, Report=False):
+    def __init__(self, freq_resp, speed_range, magnitude, phase):
         self.freq_resp = freq_resp
         self.speed_range = speed_range
         self.magnitude = magnitude
         self.phase = phase
-        self.Report = Report
 
     def plot_magnitude_matplotlib(self, inp, out, ax=None, units="mic-pk-pk", **kwargs):
         """Plot frequency response.
@@ -443,132 +442,139 @@ class FrequencyResponseResults:
         minspeed = 320
         maxspeed = 450
 
-        if self.Report:
-            idx_max = argrelextrema(mag[inp, out, :], np.greater)
-            wn = frequency_range[idx_max[0]]
-            AF_table = []
-            SM_table = []
-            SM_ref_table = []
+        idx_max = argrelextrema(mag[inp, out, :], np.greater)
+        wn = frequency_range[idx_max[0]]
 
-            for i, peak in enumerate(mag[inp, out, :][idx_max[0]]):
-                peak_n = 0.707 * peak
-                peak_aux = np.linspace(peak_n, peak_n, len(frequency_range))
+        AF_table = []
+        SM_table = []
+        SM_ref_table = []
 
-                idx = np.argwhere(
-                    np.diff(np.sign(peak_aux - mag[inp, out, :]))
-                ).flatten()
-                idx = np.sort(np.append(idx, idx_max[0][i]))
+        for i, peak in enumerate(mag[inp, out, :][idx_max[0]]):
+            peak_n = 0.707 * peak
+            peak_aux = np.linspace(peak_n, peak_n, len(frequency_range))
+
+            idx = np.argwhere(
+                np.diff(np.sign(peak_aux - mag[inp, out, :]))
+            ).flatten()
+            idx = np.sort(np.append(idx, idx_max[0][i]))
+
+            # if speed range is not long enough to catch the magnitudes
+            try:
                 idx_aux = [
                     list(idx).index(idx_max[0][i]) - 1,
                     list(idx).index(idx_max[0][i]) + 1,
                 ]
                 idx = idx[idx_aux]
-
-                # Amplification Factor (AF)
-                AF = wn[i] / (
-                    frequency_range[idx[1]] - frequency_range[idx[0]]
-                )
-
-                # Separation Margin (SM)
-                if AF > 2.5 and wn[i] < minspeed:
-                    SM = min([16, 17 * (1 - 1 / (AF - 1.5))]) / 100
-                    SMspeed = wn[i] * (1 + SM)
-                    SM_ref = (minspeed - wn[i]) / wn[i]
-                    source = ColumnDataSource(
-                        dict(
-                            top=[max(mag[inp, out, :][idx_max[0]])],
-                            bottom=[0],
-                            left=[wn[i]],
-                            right=[SMspeed],
-                            tag1=[wn[i]],
-                            tag2=[SMspeed],
-                        )
-                    )
-
-                elif AF > 2.5 and wn[i] > maxspeed:
-                    SM = min([26, 10 + 17 * (1 - 1 / (AF - 1.5))]) /100
-                    SMspeed = wn[i] * (1 - SM)
-                    SM_ref = (wn[i] - maxspeed) / maxspeed
-                    source = ColumnDataSource(
-                        dict(
-                            top=[max(mag[inp, out, :][idx_max[0]])],
-                            bottom=[0],
-                            left=[SMspeed],
-                            right=[wn[i]],
-                            tag1=[wn[i]],
-                            tag2=[SMspeed],
-                        )
-                    )
-
-                else:
-                    SM = None
-                    SM_ref = None
-                    SMspeed = None
-
-                AF_table.append(AF)
-                SM_table.append(SM)
-                SM_ref_table.append(SM_ref)
-
-                mag_plot.quad(
-                    top="top",
-                    bottom="bottom",
-                    left="left",
-                    right="right",
-                    source=source,
-                    line_color=bokeh_colors[8],
-                    line_width=0.8,
-                    fill_alpha=0.2,
-                    fill_color=bokeh_colors[8],
-                    legend="Separation Margin",
-                    name="SM2",
-                )
-                hover = HoverTool(names=["SM2"])
-                hover.tooltips = [
-                    ("Critical Speed :", "@tag1"),
-                    ("Speed at 0.707 x peak amplitude :", "@tag2"),
+            except IndexError:
+                idx = [list(idx).index(idx_max[0][i]) - 1,
+                       len(frequency_range) - 1
                 ]
 
-            table_source = ColumnDataSource(
+            # Amplification Factor (AF)
+            AF = wn[i] / (
+                frequency_range[idx[1]] - frequency_range[idx[0]]
+            )
+
+            # Separation Margin (SM)
+            if AF > 2.5 and wn[i] < minspeed:
+                SM = min([16, 17 * (1 - 1 / (AF - 1.5))]) / 100
+                SMspeed = wn[i] * (1 + SM)
+                SM_ref = (minspeed - wn[i]) / wn[i]
+                source = ColumnDataSource(
                     dict(
-                        Wd=frequency_range[idx_max[0]],
-                        SM_table=SM_table,
-                        AF_table=AF_table,
-                        SM_ref_table=SM_ref_table,
+                        top=[max(mag[inp, out, :][idx_max[0]])],
+                        bottom=[0],
+                        left=[wn[i]],
+                        right=[SMspeed],
+                        tag1=[wn[i]],
+                        tag2=[SMspeed],
                     )
-            )
-            form1 = NumberFormatter(format='0.00')
-            form2 = NumberFormatter(format='0.00%')
-            columns = [
-                    TableColumn(
-                        field="Wd", title="Critical Speed", formatter=form1
-                    ),
-                    TableColumn(
-                        field="SM_table", title="Required Separation Margin", formatter=form2
-                    ),
-                    TableColumn(
-                        field="SM_ref_table", title="Available Separation Margin", formatter=form2
-                    ),
-                    TableColumn(
-                        field="AF_table", title="Amplification Factor", formatter=form1
+                )
+
+            elif AF > 2.5 and wn[i] > maxspeed:
+                SM = min([26, 10 + 17 * (1 - 1 / (AF - 1.5))]) /100
+                SMspeed = wn[i] * (1 - SM)
+                SM_ref = (wn[i] - maxspeed) / maxspeed
+                source = ColumnDataSource(
+                    dict(
+                        top=[max(mag[inp, out, :][idx_max[0]])],
+                        bottom=[0],
+                        left=[SMspeed],
+                        right=[wn[i]],
+                        tag1=[wn[i]],
+                        tag2=[SMspeed],
                     )
-                ]
-            data_table = DataTable(
-                    source=table_source, columns=columns, width=700, height=450
-            )
-            table = widgetbox(data_table)
+                )
+
+            else:
+                SM = None
+                SM_ref = None
+                SMspeed = None
+
+            AF_table.append(AF)
+            SM_table.append(SM)
+            SM_ref_table.append(SM_ref)
 
             mag_plot.quad(
-                top=max(mag[inp, out, :][idx_max[0]]),
-                bottom=0,
-                left=minspeed,
-                right=maxspeed,
-                line_color="green",
+                top="top",
+                bottom="bottom",
+                left="left",
+                right="right",
+                source=source,
+                line_color=bokeh_colors[8],
                 line_width=0.8,
                 fill_alpha=0.2,
-                fill_color="green",
-                legend="Operation Speed Range",
+                fill_color=bokeh_colors[8],
+                legend="Separation Margin",
+                name="SM2",
             )
-            mag_plot.add_tools(hover)
+            hover = HoverTool(names=["SM2"])
+            hover.tooltips = [
+                ("Critical Speed :", "@tag1"),
+                ("Speed at 0.707 x peak amplitude :", "@tag2"),
+            ]
+
+        table_source = ColumnDataSource(
+                dict(
+                    Wd=frequency_range[idx_max[0]],
+                    SM_table=SM_table,
+                    AF_table=AF_table,
+                    SM_ref_table=SM_ref_table,
+                )
+        )
+        form1 = NumberFormatter(format='0.00')
+        form2 = NumberFormatter(format='0.00%')
+        columns = [
+                TableColumn(
+                    field="Wd", title="Critical Speed", formatter=form1
+                ),
+                TableColumn(
+                    field="SM_table", title="Required Separation Margin", formatter=form2
+                ),
+                TableColumn(
+                    field="SM_ref_table", title="Available Separation Margin", formatter=form2
+                ),
+                TableColumn(
+                    field="AF_table", title="Amplification Factor", formatter=form1
+                )
+            ]
+        data_table = DataTable(
+                source=table_source, columns=columns, width=700, height=450
+        )
+        table = widgetbox(data_table)
+
+        mag_plot.quad(
+            top=max(mag[inp, out, :][idx_max[0]]),
+            bottom=0,
+            left=minspeed,
+            right=maxspeed,
+            line_color="green",
+            line_width=0.8,
+            fill_alpha=0.2,
+            fill_color="green",
+            legend="Operation Speed Range",
+        )
+        mag_plot.add_tools(hover)
 
         source = ColumnDataSource(dict(x=frequency_range, y=mag[inp, out, :]))
         mag_plot.line(
