@@ -437,17 +437,22 @@ class BearingElement(Element):
         A bearing object.
         """
         try:
-            df = pd.read_excel(file)
+            df = pd.read_excel(file, header=None)
         except FileNotFoundError:
             sys.exit(file + " not found.")
         except xlrd.biffh.XLRDError:
-            df = pd.read_csv(file)
+            df = pd.read_csv(file, header=None)
         header_index = -1
+        header_found = False
         for index, row in df.iterrows():
             for i in range(0, row.size):
                 if isinstance(row[i], str):
-                    header_index = index
-                    break
+                    if row[i].lower() == 'kxx':
+                        header_index = index
+                        header_found = True
+                        break
+            if header_found:
+                break
         if header_index < 0:
             sys.exit("Could not find the header. Make sure the sheet has a header "
                      "containing the names of the columns.")
