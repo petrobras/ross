@@ -1254,6 +1254,7 @@ class StaticResults():
         nodes,
         nodes_pos,
         Vx_axis,
+        force_data,
     ):
 
         self.disp_y = disp_y
@@ -1265,6 +1266,7 @@ class StaticResults():
         self.nodes = nodes
         self.nodes_pos = nodes_pos
         self.Vx_axis = Vx_axis
+        self.force_data = force_data
 
     def plot(self):
         """Plot static analysis graphs.
