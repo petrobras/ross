@@ -23,10 +23,9 @@ Tests
 -----
 We use pytest to test the code. Unit tests are placed in the `~/ross/ross/tests` folder. We also test our docstrings to
 assure that the examples are working.
-If you want to run all the tests you can do it with (from the `~/ross/ross` folder):
+If you want to run all the tests you can do it with (from the `~/ross/ross` folder)::
 
-.. code-block:: text
-    $ pytest
+   $ pytest
 
 Code is only merged to master if tests pass. This is checked by services such as Travis CI and Appveyor, so make sure
 tests are passing before pushing your code to github.
