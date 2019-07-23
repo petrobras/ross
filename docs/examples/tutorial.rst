@@ -1,4 +1,3 @@
-.. _tutorial:
 
 Tutorial
 ========
@@ -150,6 +149,40 @@ There are two methods that you could use to model this element:
                                       gyroscopic=True
                                       ) for l in l_list]
 
+Instantiating shafts from table files
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+There is a class method to instantiate a shaft from excel or csv table
+files. There are two possible formats that a table can be presented in
+in order for the program to read it: a ‘Simple’ format and a ‘Model’
+format. Both return a list of shaft elements, one per row of data.
+
+The ‘Simple’ format requires only that the first row of the table acts
+like a header with the column names matching the exact names of the
+parameters, such as the example below:
+
++--------+-------+-------+----------+---+-------------+--------+
+| L      | i_d   | o_d   | material | n | axial_force | torque |
++========+=======+=======+==========+===+=============+========+
+| 2.3976 | 6.945 | 6.551 | steel    | 1 | 6           | 4      |
++--------+-------+-------+----------+---+-------------+--------+
+| 3.3976 | 7.945 | 7.551 | steel    | 2 | 7           | 5      |
++--------+-------+-------+----------+---+-------------+--------+
+
+Any used material must be saved before calling the method.
+
+The ‘Model’ format contains more details and does not require a material
+to be saved prior to calling the method. Instead, the user must especify
+the material details in the table. It also converts tha data to the
+Metric System in case ‘Length’ unit is not specified as ‘meters’. In
+that case, it assumes the data to be in Imperial System and converts it.
+`This
+link <https://github.com/ross-rotordynamics/ross/blob/master/ross/tests/data/shaft_si.xls>`__
+leads to an example table in the ‘Model’ format.
+
+The following code gives an example of shaft instantiation through table
+file:
+
 DiskElement
 -----------
 
@@ -267,14 +300,34 @@ coefficients array.
     bearing1 = rs.BearingElement(n=6, kxx=stfx, kyy=stfy, cxx=1e3, w=np.linspace(0,200,101))
     bearings = [bearing0, bearing1]
 
-Instantiating bearings from excel archives
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Instantiating bearings from table files
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-There’s a class method to instantiate a bearing from excel tables, as we
-can see in the following code.
+There is a class method to instantiate a bearing from excel or csv table
+files. The table must be presented in a certain format in order for the
+program to read it: the names of the parameters must be presented in a
+header row with the data below it, expect for the parameter n, that must
+be passed through the code. Any number of data rows may follow the
+header, such as in this example with two rows of data:
 
-**There will be a class method to instantiate a bearing from excel
-tables. - work in progress**
++-------+----------+-----+-----+----------+--------+-----+-----+--------+-----+-----+-----+-----+
+| Speed | Kxx      | Kxy | Kyx | Kyy      | Cxx    | Cxy | Cyx | Cyy    | Mxx | Mxy | Myx | Myy |
++=======+==========+=====+=====+==========+========+=====+=====+========+=====+=====+=====+=====+
+| 3000  | 13798100 | 0   | 0   | 13798100 | 102506 | 0   | 0   | 102506 | 0   | 0   | 0   | 0   |
++-------+----------+-----+-----+----------+--------+-----+-----+--------+-----+-----+-----+-----+
+| 4000  | 29951900 | 0   | 0   | 29951900 | 127450 | 0   | 0   | 127450 | 0   | 0   | 0   | 0   |
++-------+----------+-----+-----+----------+--------+-----+-----+--------+-----+-----+-----+-----+
+
+The program will look for a cell with ‘Kxx’ in order to determine where
+the header is (it can also be written as ‘kxx’ or ‘KXX’). Then it will
+look for the first cell cointaining a number bellow the header to
+determine where the data starts. That means the user can have any number
+of rows with notes for themself before and after the header. A table
+example can be found and downloaded in ROSS repository through `this
+link <https://github.com/ross-rotordynamics/ross/blob/master/ross/tests/data/bearing_seal.xls>`__.
+
+The following code gives an example of bearing instantiation through
+table file:
 
 Rotor
 -----
