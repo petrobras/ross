@@ -45,6 +45,7 @@ release = ross.__version__
 # extensions coming with Sphinx (named 'sphinx.ext.*') or your custom
 # ones.
 extensions = [
+    "nbsphinx",
     "sphinx.ext.githubpages",
     "sphinx.ext.autodoc",
     "sphinx.ext.autosummary",
@@ -90,6 +91,7 @@ pygments_style = "abap"
 # The theme to use for HTML and HTML Help pages.  See the documentation for
 # a list of builtin themes.
 #
+nbsphinx_allow_errors = True
 html_theme = "bootstrap"
 htlm_theme_path = sphinx_bootstrap_theme.get_html_theme_path()
 
