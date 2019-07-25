@@ -1039,7 +1039,7 @@ class ShaftTaperedElement(Element):
         --------
         >>> Timoshenko_Element = ShaftTaperedElement(
         ...                         0.5, 0.05, 0.05, 0.1,
-        ...                         0.15 steel,
+        ...                         0.15, steel,
         ...                         rotary_inertia=True,
         ...                         shear_effects=True)
         >>> Timoshenko_Element.M()[:4, :4]
@@ -1189,7 +1189,7 @@ class ShaftTaperedElement(Element):
         >>> from ross.materials import steel
         >>> Timoshenko_Element = ShaftTaperedElement(
         ...                         0.5, 0.05, 0.05, 0.1,
-        ...                         0.15 steel,
+        ...                         0.15, steel,
         ...                         rotary_inertia=True,
         ...                         shear_effects=True)
         >>> Timoshenko_Element.K()[:4, :4]/1e6
@@ -1308,7 +1308,7 @@ class ShaftTaperedElement(Element):
         >>> # Timoshenko is the default shaft element
         >>> Timoshenko_Element = ShaftTaperedElement(
         ...                         0.5, 0.05, 0.05, 0.1,
-        ...                         0.15 steel,
+        ...                         0.15, steel,
         ...                         rotary_inertia=True,
         ...                         shear_effects=True)
         >>> Timoshenko_Element.G()[:4, :4]
