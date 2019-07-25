@@ -1037,7 +1037,7 @@ class ShaftTaperedElement(Element):
         Mass matrix for the shaft tapered element.
         Examples
         --------
-        >>> Timoshenko_Element = ShaftTapereddElement(
+        >>> Timoshenko_Element = ShaftTaperedElement(
         ...                         0.5, 0.05, 0.05, 0.1,
         ...                         0.15 steel,
         ...                         rotary_inertia=True,
@@ -1187,7 +1187,7 @@ class ShaftTaperedElement(Element):
         Examples
         --------
         >>> from ross.materials import steel
-        >>> Timoshenko_Element = ShaftTapereddElement(
+        >>> Timoshenko_Element = ShaftTaperedElement(
         ...                         0.5, 0.05, 0.05, 0.1,
         ...                         0.15 steel,
         ...                         rotary_inertia=True,
@@ -1306,7 +1306,7 @@ class ShaftTaperedElement(Element):
         --------
         >>> from ross.materials import steel
         >>> # Timoshenko is the default shaft element
-        >>> Timoshenko_Element = ShaftTapereddElement(
+        >>> Timoshenko_Element = ShaftTaperedElement(
         ...                         0.5, 0.05, 0.05, 0.1,
         ...                         0.15 steel,
         ...                         rotary_inertia=True,
