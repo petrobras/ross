@@ -2,7 +2,6 @@ import os
 
 import numpy as np
 import pytest
-from pathlib import Path
 from numpy.testing import assert_almost_equal, assert_allclose
 
 from ross.materials import steel
@@ -133,22 +132,22 @@ def test_gyroscopic_matrix_tim(tim):
     assert_almost_equal(tim.G() * 1e3, G0e_tim, decimal=5)
 
 
-@pytest.mark.skip("Wait for .from_table() modification.")
 def test_from_table():
-    for shaft_file in ["/data/shaft_us.xls", "/data/shaft_si.xls"]:
-        shaft = ShaftElement.from_table(str(Path.cwd()) + shaft_file, sheet="Model")
+    for shaft_file in [os.path.dirname(os.path.realpath(__file__)) + "/data/shaft_us.xls",
+                       os.path.dirname(os.path.realpath(__file__)) + "/data/shaft_si.xls"]:
+        shaft = ShaftElement.from_table(shaft_file, sheet="Model")
         el0 = shaft[0]
         assert el0.n == 0
         assert_allclose(el0.i_d, 0.1409954)
         assert_allclose(el0.o_d, 0.151003)
 
         mat0 = el0.material
-        assert_allclose(mat0.rho, 7833.41)
-        assert_allclose(mat0.E, 206842718795.05)
-        assert_allclose(mat0.G_s, 82737087518.02)
+        assert_allclose(mat0.rho, 7833.41, atol=0.003)
+        assert_allclose(mat0.E, 206842718795.05, rtol=3e-06)
+        assert_allclose(mat0.G_s, 82737087518.02, rtol=2e-06)
 
         # test if node is the same for elements in different layers
         assert shaft[8].n == 8
         assert shaft[9].n == 8
-        assert_allclose(shaft[8].material.E, 206842718795.05)
-        assert_allclose(shaft[9].material.E, 6894.75)
+        assert_allclose(shaft[8].material.E, 206842718795.05, rtol=3e-06)
+        assert_allclose(shaft[9].material.E, 6894.75, atol=0.008)

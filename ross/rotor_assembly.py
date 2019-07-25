@@ -32,6 +32,7 @@ from ross.results import (
     ModeShapeResults,
     StaticResults,
     ConvergenceResults,
+    TimeResponseResults,
 )
 from ross.shaft_element import ShaftElement
 
@@ -421,7 +422,7 @@ class Rotor(object):
         self.error_arr = error_arr
 
         results = ConvergenceResults(
-            np.array([el_num[1:], eigv_arr[1:], error_arr[1:]]), new_attributes={}
+            el_num[1:], eigv_arr[1:], error_arr[1:]
         )
 
         return results
@@ -1670,8 +1671,8 @@ class Rotor(object):
 
         return ax, bk_ax
 
-    def plot_time_response(self, F, t, dof, ax=None, output_html=False):
-        """Plot the time response.
+    def run_time_response(self, F, t, dof):
+        """Calculates the time response.
 
         This function will take a rotor object and plot its time response
         given a force and a time.
@@ -1685,70 +1686,22 @@ class Rotor(object):
             Time array.
         dof : int
             Degree of freedom that will be observed.
-        ax : matplotlib axes, optional
-            Axes in which the plot will be drawn.
-        output_html : Boolean, optional
-            outputs a html file.
-            Default is False
 
         Returns
         -------
-        ax : matplotlib axes
-            Returns the axes object with the plot.
-        bk_ax : bokeh plot axes
-            Returns the axes object with the plot
+        results : array
+            Array containing the time array, the system response, and the
+            time evolution of the state vector.
+            It will be returned if plot=False.
 
         Examples:
         ---------
         """
         t_, yout, xout = self.time_response(F, t)
 
-        if ax is None:
-            ax = plt.gca()
+        results = TimeResponseResults(t, yout, xout, dof)
 
-        ax.plot(t, yout[:, dof])
-
-        if dof % 4 == 0:
-            obs_dof = "$x$"
-            amp = "m"
-        elif dof + 1 % 4 == 0:
-            obs_dof = "$y$"
-            amp = "m"
-        elif dof + 2 % 4 == 0:
-            obs_dof = "$\alpha$"
-            amp = "rad"
-        else:
-            obs_dof = "$\beta$"
-            amp = "rad"
-
-        ax.set_xlabel("Time (s)")
-        ax.set_ylabel("Amplitude (%s)" % amp)
-        ax.set_title(
-            "Response for node %s and degree of freedom %s" % (dof // 4, obs_dof)
-        )
-
-        # bokeh plot - output to static HTML file
-        if output_html:
-            output_file("time_response.html")
-
-        # bokeh plot - create a new plot
-        bk_ax = figure(
-            tools="pan, box_zoom, wheel_zoom, reset, save",
-            width=1200,
-            height=900,
-            title="Response for node %s and degree of freedom %s" % (dof // 4, obs_dof),
-            x_axis_label="Time (s)",
-            y_axis_label="Amplitude (%s)" % amp,
-        )
-        bk_ax.xaxis.axis_label_text_font_size = "14pt"
-        bk_ax.yaxis.axis_label_text_font_size = "14pt"
-
-        # bokeh plot - plot shaft centerline
-        bk_ax.line(t, yout[:, dof], line_width=3, line_color=bokeh_colors[0])
-
-        show(bk_ax)
-
-        return ax, bk_ax
+        return results
 
     def save_mat(self, file_name):
         """Save matrices and rotor model to a .mat file."""
@@ -1964,21 +1917,24 @@ class Rotor(object):
             sh_weight = sum(self.df_shaft["m"].values) * 9.8065
 
             force_data = {
+                "Static displacement vector": disp_y,
+                "Shearing force vector": Vx,
+                "Bending moment vector": Bm,
                 "Shaft Total Weight": "%.1f" % sh_weight,
                 "Disks Forces": DskForceToReturn,
                 "Bearings Reaction Forces": BrgForceToReturn,
             }
 
             results = StaticResults(
-                np.array([disp_y, Vx, Bm, force_data]),
-                new_attributes={
-                    "Vx_axis": Vx_axis,
-                    "df_shaft": self.df_shaft,
-                    "df_disks": self.df_disks,
-                    "df_bearings": self.df_bearings,
-                    "nodes": self.nodes,
-                    "nodes_pos": self.nodes_pos,
-                },
+                self.disp_y,
+                self.Vx,
+                self.Bm,
+                self.df_shaft,
+                self.df_disks,
+                self.df_bearings,
+                self.nodes,
+                self.nodes_pos,
+                Vx_axis,
             )
 
         return results

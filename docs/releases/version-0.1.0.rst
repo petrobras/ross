@@ -85,7 +85,7 @@ into run_static() method.
 Added user guide on how to use ross
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 A tutorial has been added to the documentation. This is available as a
-jupyter notebook and is also rendered in the :ref:`tutorial <tutorial>`
+jupyter notebook and is also rendered in the :ref:`tutorial`
 documentation page.
 
 Jupyter examples
@@ -114,7 +114,7 @@ The modal analysis changed from ``.run()`` to ``.run_modal()``.
 
 Change methods' names
 ^^^^^^^^^^^^^^^^^^^^^
-This is mostly to add "run_" to some Rotor methods, like:
+This is mostly to add ``run_`` to some Rotor methods, like:
  * campbell;
  * forced_response;
  * mode_shape;

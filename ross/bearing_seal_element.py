@@ -6,7 +6,6 @@ import matplotlib.patches as mpatches
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
-import pytest
 import scipy.interpolate as interpolate
 import xlrd
 
@@ -45,7 +44,7 @@ class _Coefficient:
             self.interpolated = lambda x: np.array(self.coefficient[0])
 
     def __eq__(self, other):
-        if pytest.approx(self.__dict__["coefficient"]) == other.__dict__["coefficient"]:
+        if np.allclose(self.__dict__["coefficient"],other.__dict__["coefficient"]):
             return True
         else:
             return False
@@ -438,42 +437,72 @@ class BearingElement(Element):
         A bearing object.
         """
         try:
-            df = pd.read_excel(file)
+            df = pd.read_excel(file, header=None)
         except FileNotFoundError:
             sys.exit(file + " not found.")
         except xlrd.biffh.XLRDError:
-            df = pd.read_csv(file)
+            df = pd.read_csv(file, header=None)
+        header_index = -1
+        header_found = False
+        for index, row in df.iterrows():
+            for i in range(0, row.size):
+                if isinstance(row[i], str):
+                    if row[i].lower() == 'kxx':
+                        header_index = index
+                        header_found = True
+                        break
+            if header_found:
+                break
+        if header_index < 0:
+            sys.exit("Could not find the header. Make sure the sheet has a header "
+                     "containing the names of the columns.")
         try:
-            for index, row in df.iterrows():
-                for i in range(0, row.size):
-                    if pd.isna(row[i]):
-                        warnings.warn(
-                            "NaN found in row "
-                            + str(index)
-                            + " column "
-                            + str(i)
-                            + ".\n"
-                            "It will be replaced with zero."
-                        )
-                        row[i] = 0
-            return cls(
-                n,
-                kxx=df["kxx"].tolist(),
-                cxx=df["cxx"].tolist(),
-                kyy=df["kyy"].tolist(),
-                kxy=df["kxy"].tolist(),
-                kyx=df["kyx"].tolist(),
-                cyy=df["cyy"].tolist(),
-                cxy=df["cxy"].tolist(),
-                cyx=df["cyx"].tolist(),
-                w=df["w"].tolist(),
-            )
-        except KeyError:
-            sys.exit(
-                "One or more column names did not match the expected. "
-                "Make sure the table header contains the parameters for the "
-                "BearingElement class."
-            )
+            df = pd.read_excel(file, header=header_index)
+        except xlrd.biffh.XLRDError:
+            df = pd.read_csv(file, header=header_index)
+        first_data_row = -1
+        for index, row in df.iterrows():
+            if isinstance(row[0], int) or isinstance(row[0], float):
+                first_data_row = index
+                break
+        if first_data_row < 0:
+            sys.exit("Could not find the data. Make sure you have at least one row containing "
+                     "data below the header.")
+        for i in range(0, first_data_row):
+            df = df.drop(i)
+        nan_found = False
+        for index, row in df.iterrows():
+            for i in range(first_data_row, row.size):
+                if pd.isna(row[i]):
+                    nan_found = True
+                    row[i] = 0
+        if nan_found:
+            warnings.warn("One or more NaN found. They were replaced with zeros.")
+        parameters = []
+        possible_names = [["kxx", "Kxx", "KXX"], ["cxx", "Cxx", "CXX"], ["kyy", "Kyy", "KYY"],
+                          ["kxy", "Kxy", "KXY"], ["kyx", "Kyx", "KYX"], ["cyy", "Cyy", "CYY"],
+                          ["cxy", "Cxy", "CXY"], ["cyx", "Cyx", "CYX"],
+                          ["w", "W", "speed", "Speed", "SPEED"]]
+        for name_group in possible_names:
+            for name in name_group:
+                try:
+                    parameter = df[name].tolist()
+                    parameters.append(parameter)
+                    break
+                except KeyError:
+                    continue
+        return cls(
+            n,
+            kxx=parameters[0],
+            cxx=parameters[1],
+            kyy=parameters[2],
+            kxy=parameters[3],
+            kyx=parameters[4],
+            cyy=parameters[5],
+            cxy=parameters[6],
+            cyx=parameters[7],
+            w=parameters[8],
+        )
 
     @classmethod
     def from_fluid_flow(

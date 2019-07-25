@@ -223,72 +223,164 @@ class ShaftElement(Element):
         return shaft_elements
 
     @classmethod
-    def from_table(cls, file):
+    def from_table(cls, file, sheet="Simple"):
         """Instantiate one or more shafts using inputs from a table, either excel or csv.
         Parameters
         ----------
         file: str
-            Path to the file containing the shaft parameters. The input table should contain
-            a header with column names equal to parameter names in the ShaftElement class, except for
-            shear_effects, rotary_inertia, gyroscopic, and shear_method_calc.
+            Path to the file containing the shaft parameters.
+        sheet: str, optional
+            Describes the kind of sheet the function should expect:
+                Simple: The input table should contain a header with column names equal
+                to parameter names in the ShaftElement class, except for
+                shear_effects, rotary_inertia, gyroscopic, and shear_method_calc.
+                Model: The sheet must follow the expected format. The function will look
+                for the parameters according to this format, in the positions they are supposed
+                to be found. Headers should be in rows 4 and 20, just before parameters.
         Returns
         -------
         shaft : list
             A list of shaft objects.
         """
-        try:
-            df = pd.read_excel(file)
-        except FileNotFoundError:
-            sys.exit(file + " not found.")
-        except xlrd.biffh.XLRDError:
-            df = pd.read_csv(file)
-        try:
-            for index, row in df.iterrows():
-                for i in range(0, row.size):
-                    if pd.isna(row[i]):
-                        warnings.warn(
-                            "NaN found in row "
-                            + str(index)
-                            + " column "
-                            + str(i)
-                            + ".\n"
-                              "It will be replaced with zero."
+        if sheet == "Simple":
+            try:
+                df = pd.read_excel(file)
+            except FileNotFoundError:
+                sys.exit(file + " not found.")
+            except xlrd.biffh.XLRDError:
+                df = pd.read_csv(file)
+            try:
+                for index, row in df.iterrows():
+                    for i in range(0, row.size):
+                        if pd.isna(row[i]):
+                            warnings.warn(
+                                "NaN found in row "
+                                + str(index)
+                                + " column "
+                                + str(i)
+                                + ".\n"
+                                "It will be replaced with zero."
+                            )
+                            row[i] = 0
+                list_of_shafts = []
+                for i, row in df.iterrows():
+                    shear_effects = True
+                    rotary_inertia = True
+                    gyroscopic = True
+                    shear_method_calc = "cowper"
+                    try:
+                        shear_effects = bool(row["shear_effects"])
+                    except KeyError:
+                        pass
+                    try:
+                        rotary_inertia = bool(row["rotary_inertia"])
+                    except KeyError:
+                        pass
+                    try:
+                        gyroscopic = bool(row["gyroscopic"])
+                    except KeyError:
+                        pass
+                    try:
+                        shear_method_calc = row["shear_method_calc"]
+                    except KeyError:
+                        pass
+                    list_of_shafts.append(
+                        cls(
+                            row.L,
+                            row.i_d,
+                            row.o_d,
+                            Material.use_material(row.material),
+                            n=row.n,
+                            axial_force=row.axial_force,
+                            torque=row.torque,
+                            shear_effects=shear_effects,
+                            rotary_inertia=rotary_inertia,
+                            gyroscopic=gyroscopic,
+                            shear_method_calc=shear_method_calc,
                         )
-                        row[i] = 0
+                    )
+                return list_of_shafts
+            except KeyError:
+                sys.exit(
+                    "One or more column names did not match the expected. "
+                    "Make sure the table header contains the parameters for the "
+                    "ShaftElement class. Also, make sure you have a material "
+                    "with the given name."
+                )
+        elif sheet == "Model":
+            try:
+                df1 = pd.read_excel(file, header=3, nrows=10)
+                df2 = pd.read_excel(file, header=19)
+                df_unit = pd.read_excel(file, header=16, nrows=2)
+            except FileNotFoundError:
+                sys.exit(file + " not found.")
+            except xlrd.biffh.XLRDError:
+                df1 = pd.read_csv(file, header=3, nrows=10)
+                df2 = pd.read_csv(file, header=19)
+                df_unit = pd.read_csv(file, header=16, nrows=2)
+            convert_to_metric = False
+            if df_unit["Length"][1] != "meters":
+                convert_to_metric = True
+            material_name = []
+            material_rho = []
+            material_e = []
+            material_g_s = []
+            new_materials = {}
+            for index, row in df1.iterrows():
+                if not pd.isna(row["matno"]):
+                    material_name.append(int(row["matno"]))
+                    material_rho.append(row["rhoa"])
+                    material_e.append(row["ea"])
+                    material_g_s.append(row["ga"])
+            if convert_to_metric:
+                for i in range(0, len(material_name)):
+                    material_rho[i] = material_rho[i] * 27679.904
+                    material_e[i] = material_e[i] * 6894.757
+                    material_g_s[i] = material_g_s[i] * 6894.757
+            for i in range(0, len(material_name)):
+                new_material = Material(
+                    name="shaft_mat_" + str(material_name[i]),
+                    rho=material_rho[i],
+                    E=material_e[i],
+                    G_s=material_g_s[i],
+                )
+                new_materials["shaft_mat_" + str(material_name[i])] = new_material
+            shaft_l = []
+            shaft_i_d = []
+            shaft_o_d = []
+            shaft_material = []
+            shaft_n = []
+            shaft_axial_force = []
+            for index, row in df2.iterrows():
+                shaft_l.append(row["length"])
+                shaft_i_d.append(row["id_Left"])
+                shaft_o_d.append(row["od_Left"])
+                shaft_material.append(int(row["matnum"]))
+                shaft_n.append(row["elemnum"] - 1)
+                shaft_axial_force.append(row["axial"])
+            if convert_to_metric:
+                for i in range(0, len(shaft_n)):
+                    shaft_l[i] = shaft_l[i] * 0.0254
+                    shaft_i_d[i] = shaft_i_d[i] * 0.0254
+                    shaft_o_d[i] = shaft_o_d[i] * 0.0254
+                    shaft_axial_force[i] = shaft_axial_force[i] * 4.448_221_61
             list_of_shafts = []
-            for i, row in df.iterrows():
-                shear_effects = True
-                rotary_inertia = True
-                gyroscopic = True
-                shear_method_calc = "cowper"
-                try:
-                    shear_effects = bool(row["shear_effects"])
-                except KeyError:
-                    pass
-                try:
-                    rotary_inertia = bool(row["rotary_inertia"])
-                except KeyError:
-                    pass
-                try:
-                    gyroscopic = bool(row["gyroscopic"])
-                except KeyError:
-                    pass
-                try:
-                    shear_method_calc = row["shear_method_calc"]
-                except KeyError:
-                    pass
-                list_of_shafts.append(cls(row.L, row.i_d, row.o_d,
-                                          Material.use_material(row.material), n=row.n,
-                                          axial_force=row.axial_force, torque=row.torque,
-                                          shear_effects=shear_effects, rotary_inertia=rotary_inertia,
-                                          gyroscopic=gyroscopic, shear_method_calc=shear_method_calc))
+            for i in range(0, len(shaft_n)):
+                list_of_shafts.append(
+                    cls(
+                        shaft_l[i],
+                        shaft_i_d[i],
+                        shaft_o_d[i],
+                        new_materials["shaft_mat_" + str(shaft_material[i])],
+                        n=shaft_n[i],
+                        axial_force=shaft_axial_force[i],
+                    )
+                )
             return list_of_shafts
-        except KeyError:
+        else:
             sys.exit(
-                "One or more column names did not match the expected. "
-                "Make sure the table header contains the parameters for the "
-                "ShaftElement class. Also, make sure you have a material "
-                "with the given name."
+                "A valid choice must be given for the parameter 'sheet'. Either 'Simple' or 'Model' "
+                "were expected. It was given " + sheet + "."
             )
 
     @property
@@ -546,7 +638,8 @@ class ShaftElement(Element):
             bk_color = bokeh_colors[2]
             legend = "Shaft"
 
-        source_u = ColumnDataSource(dict(
+        source_u = ColumnDataSource(
+            dict(
                 top=[self.o_d / 2],
                 bottom=[self.i_d / 2],
                 left=[position],
@@ -555,11 +648,12 @@ class ShaftElement(Element):
                 out_d=[self.o_d],
                 in_d=[self.i_d],
                 length=[self.L],
-                mat=[self.material.name]
+                mat=[self.material.name],
             )
         )
 
-        source_l = ColumnDataSource(dict(
+        source_l = ColumnDataSource(
+            dict(
                 top=[-self.o_d / 2],
                 bottom=[-self.i_d / 2],
                 left=[position],
@@ -568,7 +662,7 @@ class ShaftElement(Element):
                 out_d=[self.o_d],
                 in_d=[self.i_d],
                 length=[self.L],
-                mat=[self.material.name]
+                mat=[self.material.name],
             )
         )
 
@@ -600,11 +694,11 @@ class ShaftElement(Element):
         )
         hover = HoverTool(names=["u_shaft", "l_shaft"])
         hover.tooltips = [
-                ("Element Number :", "@elnum"),
-                ("Outer Diameter :", "@out_d"),
-                ("Internal Diameter :", "@in_d"),
-                ("Element Length :", "@length"),
-                ("Material :", "@mat"),
+            ("Element Number :", "@elnum"),
+            ("Outer Diameter :", "@out_d"),
+            ("Internal Diameter :", "@in_d"),
+            ("Element Length :", "@length"),
+            ("Material :", "@mat"),
         ]
         hover.mode = "mouse"
 

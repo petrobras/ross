@@ -6,7 +6,7 @@
 .. |ross-logo| image:: ross-logo.svg
 
 |ross-logo| ross: rotordynamic open-source software
-=======================================
+===================================================
 
 Ross is a library written in Python for rotordynamic analysis. The source is
 available at `github <https://github.com/ross-rotordynamics/ross>`_.

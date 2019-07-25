@@ -2,7 +2,6 @@ import bokeh.palettes as bp
 from bokeh.models import ColumnDataSource, HoverTool
 import matplotlib.patches as mpatches
 import numpy as np
-import pytest
 import toml
 
 from ross.element import Element
@@ -49,7 +48,7 @@ class DiskElement(Element):
         false_number = 0
         for i in self.__dict__:
             try:
-                if pytest.approx(self.__dict__[i]) == other.__dict__[i]:
+                if np.allclose(self.__dict__[i], other.__dict__[i]):
                     pass
                 else:
                     false_number += 1
