@@ -5,7 +5,7 @@ import pytest
 from numpy.testing import assert_almost_equal, assert_allclose
 
 from ross.materials import steel
-from ross.shaft_element import ShaftElement
+from ross.shaft_element import ShaftElement, ShaftTaperedElement
 
 test_dir = os.path.dirname(__file__)
 
