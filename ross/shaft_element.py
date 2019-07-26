@@ -583,11 +583,9 @@ class ShaftElement(Element):
         height = self.o_d / 2 - self.i_d / 2
         if self.n in SR:
             mpl_color = "yellow"
-            bk_color = "yellow"
             legend = "Shaft - Slenderness Ratio < 1.6"
         else:
             mpl_color = self.color
-            bk_color = bokeh_colors[2]
             legend = "Shaft"
 
         #  matplotlib - plot the upper half of the shaft
@@ -645,8 +643,10 @@ class ShaftElement(Element):
                 left=[position],
                 right=[position + self.L],
                 elnum=[self.n],
-                out_d=[self.o_d],
-                in_d=[self.i_d],
+                out_d_l=[self.o_d_l],
+                out_d_r=[self.o_d_r],
+                in_d_l=[self.i_d_l],
+                in_d_r=[self.i_d_r],
                 length=[self.L],
                 mat=[self.material.name],
             )
@@ -659,8 +659,10 @@ class ShaftElement(Element):
                 left=[position],
                 right=[position + self.L],
                 elnum=[self.n],
-                out_d=[self.o_d],
-                in_d=[self.i_d],
+                out_d_l=[self.o_d_l],
+                out_d_r=[self.o_d_r],
+                in_d_l=[self.i_d_l],
+                in_d_r=[self.i_d_r],
                 length=[self.L],
                 mat=[self.material.name],
             )
@@ -695,15 +697,16 @@ class ShaftElement(Element):
         hover = HoverTool(names=["u_shaft", "l_shaft"])
         hover.tooltips = [
             ("Element Number :", "@elnum"),
-            ("Outer Diameter :", "@out_d"),
-            ("Internal Diameter :", "@in_d"),
+            ("Left Outer Diameter :", "@out_d_l"),
+            ("Left Inner Diameter :", "@in_d_l"),
+            ("Right Outer Diameter :", "@out_d_r"),
+            ("Right Inner Diameter :", "@in_d_r"),
             ("Element Length :", "@length"),
             ("Material :", "@mat"),
         ]
         hover.mode = "mouse"
 
-        if len(bk_ax.hover) == 0:
-            bk_ax.add_tools(hover)
+        return hover
 
     @classmethod
     def section(
@@ -864,6 +867,8 @@ class ShaftTaperedElement(Element):
         self.L = float(L)
 
         # diameters
+        self.o_d = (float(o_d_l) + float(o_d_r)) / 2
+        self.i_d = (float(i_d_l) + float(i_d_r)) / 2
         self.i_d_l = float(i_d_l)
         self.o_d_l = float(o_d_l)
         self.i_d_r = float(i_d_r)
@@ -894,7 +899,7 @@ class ShaftTaperedElement(Element):
         a1 = 2 * np.pi * (roj * delta_ro - rij * delta_ri) / A_l
         a2 = np.pi * (roj ** 3 * delta_ro - rij ** 3 * delta_ri) / Ie_l
         b1 = np.pi * (delta_ro ** 2 - delta_ri ** 2) / A_l
-        b2 = 3 * np.pi * (roj ** 2 * delta_ro ** 2 - rij ** 2 * delta_ri ** 2) / 2 * Ie_l
+        b2 = 3 * np.pi * (roj ** 2 * delta_ro ** 2 - rij ** 2 * delta_ri ** 2) / (2 * Ie_l)
         gama = np.pi * (roj * delta_ro ** 3 - rij * delta_ri ** 3) / Ie_l
         delta = np.pi * (delta_ro ** 4 - delta_ri ** 4) / 4 * Ie_l
 
@@ -1043,10 +1048,10 @@ class ShaftTaperedElement(Element):
         ...                         rotary_inertia=True,
         ...                         shear_effects=True)
         >>> Timoshenko_Element.M()[:4, :4]
-        array([[11.36019439,  0.        ,  0.        ,  0.8624537 ],
-               [ 0.        , 11.36019439, -0.8624537 ,  0.        ],
-               [ 0.        , -0.8624537 ,  0.08654813,  0.        ],
-               [ 0.8624537 ,  0.        ,  0.        ,  0.08654813]])
+        array([[11.35295267,  0.        ,  0.        ,  0.85960486],
+               [ 0.        , 11.35295267, -0.85960486,  0.        ],
+               [ 0.        , -0.85960486,  0.08653475,  0.        ],
+               [ 0.85960486,  0.        ,  0.        ,  0.08653475]])
         """
         phi = self.phi
         L = self.L
@@ -1193,10 +1198,10 @@ class ShaftTaperedElement(Element):
         ...                         rotary_inertia=True,
         ...                         shear_effects=True)
         >>> Timoshenko_Element.K()[:4, :4]/1e6
-        array([[153.15321568,   0.        ,   0.        ,  46.18368933],
-               [  0.        , 153.15321568, -46.18368933,   0.        ],
-               [  0.        , -46.18368933,  13.68871702,   0.        ],
-               [ 46.18368933,   0.        ,   0.        ,  13.68871702]])
+        array([[211.30832227,   0.        ,   0.        ,  54.96237663],
+               [  0.        , 211.30832227, -54.96237663,   0.        ],
+               [  0.        , -54.96237663,  15.71572869,   0.        ],
+               [ 54.96237663,   0.        ,   0.        ,  15.71572869]])
         """
         phi = self.phi
         L = self.L
@@ -1312,10 +1317,10 @@ class ShaftTaperedElement(Element):
         ...                         rotary_inertia=True,
         ...                         shear_effects=True)
         >>> Timoshenko_Element.G()[:4, :4]
-        array([[ 0.        ,  0.26269332,  0.00793177,  0.        ],
-               [ 0.26269332,  0.        ,  0.        , -0.00793177],
-               [-0.00793177,  0.        ,  0.        ,  0.00623696],
-               [ 0.        ,  0.00793177,  0.00623696,  0.        ]])
+        array([[ 0.        ,  0.2998902 ,  0.00955058,  0.        ],
+               [ 0.2998902 ,  0.        ,  0.        , -0.00955058],
+               [-0.00955058,  0.        ,  0.        ,  0.00663842],
+               [ 0.        ,  0.00955058,  0.00663842,  0.        ]])
         """
 
         G = np.zeros((8, 8))
@@ -1407,18 +1412,18 @@ class ShaftTaperedElement(Element):
             legend = "Shaft"
 
         shaft_points_u = [
-            [position, self.i_d_l],
-            [position, self.o_d_l],
-            [position + self.L, self.o_d_r],
-            [position + self.L, self.i_d_r],
-            [position, self.i_d_l],
+            [position, self.i_d_l / 2],
+            [position, self.o_d_l / 2],
+            [position + self.L, self.o_d_r / 2],
+            [position + self.L, self.i_d_r / 2],
+            [position, self.i_d_l / 2],
         ]
         shaft_points_l = [
-            [position, -self.i_d_l],
-            [position, -self.o_d_l],
-            [position + self.L, -self.o_d_r],
-            [position + self.L, -self.i_d_r],
-            [position, -self.i_d_l],
+            [position, -self.i_d_l / 2],
+            [position, -self.o_d_l / 2],
+            [position + self.L, -self.o_d_r / 2],
+            [position + self.L, -self.i_d_r / 2],
+            [position, -self.i_d_l / 2],
         ]
 
         # matplotlib - plot the upper half of the shaft
@@ -1466,9 +1471,9 @@ class ShaftTaperedElement(Element):
 
         # bokeh plot - plot the shaft
         z_upper = [position, position, position + self.L, position + self.L]
-        y_upper = [self.i_d_l, self.o_d_l, self.o_d_r, self.i_d_r]
+        y_upper = [self.i_d_l / 2, self.o_d_l / 2, self.o_d_r / 2, self.i_d_r / 2]
         z_lower = [position, position, position + self.L, position + self.L]
-        y_lower = [-self.i_d_l, -self.o_d_l, -self.o_d_r, -self.i_d_r]
+        y_lower = [-self.i_d_l / 2, -self.o_d_l / 2, -self.o_d_r / 2, -self.i_d_r / 2]
 
         source = ColumnDataSource(
             dict(
@@ -1476,13 +1481,13 @@ class ShaftTaperedElement(Element):
                 y_l=y_lower,
                 z_u=z_upper,
                 y_u=y_upper,
-                elnum=[self.n],
-                out_d_l=[self.o_d_l],
-                out_d_r=[self.o_d_r],
-                in_d_l=[self.i_d_l],
-                in_d_r=[self.i_d_r],
-                length=[self.L],
-                mat=[self.material.name],
+                elnum=[self.n]*4,
+                out_d_l=[self.o_d_l]*4,
+                out_d_r=[self.o_d_r]*4,
+                in_d_l=[self.i_d_l]*4,
+                in_d_r=[self.i_d_r]*4,
+                length=[self.L]*4,
+                mat=[self.material.name]*4,
             )
         )
 
@@ -1521,5 +1526,4 @@ class ShaftTaperedElement(Element):
         ]
         hover.mode = "mouse"
 
-        if len(bk_ax.hover) == 0:
-            bk_ax.add_tools(hover)
+        return hover
