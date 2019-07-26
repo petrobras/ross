@@ -245,7 +245,7 @@ class Rotor(object):
         self.df_shaft = df_shaft
 
         # check consistence for disks and bearings location
-        if df.n_l.max() > df[df.type == "ShaftElement"].n_r.max():
+        if df.n_l.max() > df_shaft.n_r.max():
             raise ValueError("Trying to set disk or bearing outside shaft")
 
         self.df = df
@@ -1168,7 +1168,7 @@ class Rotor(object):
         try:
             max_diameter = max([disk.o_d for disk in self.disk_elements])
         except (ValueError, AttributeError):
-            max_diameter = max([shaft.o_d for shaft in self.shaft_elements])
+            max_diameter = max([shaft.o_d_l for shaft in self.shaft_elements])
 
         ax.set_ylim(-1.2 * max_diameter, 1.2 * max_diameter)
         ax.axis("equal")
@@ -1176,8 +1176,6 @@ class Rotor(object):
         ax.set_ylabel("Shaft radius (m)")
 
         # plot nodes
-        text = []
-        x_pos = []
         for node, position in enumerate(self.nodes_pos[::nodes]):
             ax.plot(
                 position,
@@ -1261,11 +1259,6 @@ class Rotor(object):
         #  plot shaft centerline
         shaft_end = self.nodes_pos[-1]
 
-        try:
-            max_diameter = max([disk.o_d for disk in self.disk_elements])
-        except (ValueError, AttributeError):
-            max_diameter = max([shaft.o_d for shaft in self.shaft_elements])
-
         # bokeh plot - create a new plot
         bk_ax = figure(
             tools="pan, wheel_zoom, reset, save",
@@ -1295,7 +1288,7 @@ class Rotor(object):
         x_pos = []
         for node, position in enumerate(self.nodes_pos[::nodes]):
             # bokeh plot
-            text.append(str(node))
+            text.append(str(node*nodes))
             x_pos.append(position)
 
         # bokeh plot - plot nodes
@@ -1322,13 +1315,17 @@ class Rotor(object):
         # plot shaft elements
         for sh_elm in self.shaft_elements:
             position = self.nodes_pos[sh_elm.n]
-            sh_elm.bokeh_patch(position, SR, bk_ax)
+            hover = sh_elm.bokeh_patch(position, SR, bk_ax)
+
+        bk_ax.add_tools(hover)
 
         # plot disk elements
         for disk in self.disk_elements:
             position = (self.nodes_pos[disk.n], self.nodes_o_d[disk.n] / 2)
             length = min(self.nodes_le)
-            disk.bokeh_patch(position, length, bk_ax)
+            hover = disk.bokeh_patch(position, length, bk_ax)
+
+        bk_ax.add_tools(hover)
 
         # plot bearings
         for bearing in self.bearing_seal_elements:
@@ -1340,7 +1337,7 @@ class Rotor(object):
 
         return bk_ax
 
-    def plot_rotor(self, *args, plot_type="matplotlib", **kwargs):
+    def plot_rotor(self, nodes=1, *args, plot_type="matplotlib", **kwargs):
         """Plots a rotor object.
 
         This function will take a rotor object and plot its shaft,
@@ -1372,9 +1369,9 @@ class Rotor(object):
         <matplotlib.axes...
         """
         if plot_type == "matplotlib":
-            return self._plot_rotor_matplotlib(*args, **kwargs)
+            return self._plot_rotor_matplotlib(nodes=nodes, *args, **kwargs)
         elif plot_type == "bokeh":
-            return self._plot_rotor_bokeh(*args, **kwargs)
+            return self._plot_rotor_bokeh(nodes=nodes, *args, **kwargs)
         else:
             raise ValueError(f"{plot_type} is not a valid plot type.")
 
