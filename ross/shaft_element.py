@@ -223,13 +223,13 @@ class ShaftElement(Element):
         return shaft_elements
 
     @classmethod
-    def from_table(cls, file, sheet="Simple"):
+    def from_table(cls, file, sheet_name="Simple"):
         """Instantiate one or more shafts using inputs from a table, either excel or csv.
         Parameters
         ----------
         file: str
             Path to the file containing the shaft parameters.
-        sheet: str, optional
+        sheet_name: str, optional
             Describes the kind of sheet the function should expect:
                 Simple: The input table should contain a header with column names equal
                 to parameter names in the ShaftElement class, except for
@@ -242,7 +242,7 @@ class ShaftElement(Element):
         shaft : list
             A list of shaft objects.
         """
-        if sheet == "Simple":
+        if sheet_name == "Simple":
             try:
                 df = pd.read_excel(file)
             except FileNotFoundError:
@@ -307,11 +307,11 @@ class ShaftElement(Element):
                     "ShaftElement class. Also, make sure you have a material "
                     "with the given name."
                 )
-        elif sheet == "Model":
+        elif sheet_name == "Model":
             try:
-                df1 = pd.read_excel(file, header=3, nrows=10)
-                df2 = pd.read_excel(file, header=19)
-                df_unit = pd.read_excel(file, header=16, nrows=2)
+                df1 = pd.read_excel(file, header=3, nrows=10, sheet_name=sheet_name)
+                df2 = pd.read_excel(file, header=19, sheet_name=sheet_name)
+                df_unit = pd.read_excel(file, header=16, nrows=2, sheet_name=sheet_name)
             except FileNotFoundError:
                 sys.exit(file + " not found.")
             except xlrd.biffh.XLRDError:
@@ -379,8 +379,8 @@ class ShaftElement(Element):
             return list_of_shafts
         else:
             sys.exit(
-                "A valid choice must be given for the parameter 'sheet'. Either 'Simple' or 'Model' "
-                "were expected. It was given " + sheet + "."
+                "A valid choice must be given for the parameter 'sheet_name'. Either 'Simple' or 'Model' "
+                "were expected. It was given " + sheet_name + "."
             )
 
     @property
