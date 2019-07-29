@@ -1,6 +1,7 @@
+import os
 import numpy as np
 import pytest
-from numpy.testing import assert_almost_equal
+from numpy.testing import assert_almost_equal, assert_allclose
 
 from ross.disk_element import DiskElement
 from ross.materials import steel
@@ -67,3 +68,14 @@ def test_gyroscopic_matrix_disk1(disk_from_geometry):
                     [ 0.     ,  0.     , -0.32956,  0.     ]])
     # fmt: on
     assert_almost_equal(disk_from_geometry.G(), Gd1, decimal=5)
+
+
+@pytest.mark.skip("Needs to implement .from_table() method")
+def test_from_table():
+    for file_name in ["/data/shaft_us.xls", "/data/shaft_si.xls"]:
+        file_name = os.path.dirname(os.path.realpath(__file__)) + file_name
+        disks = DiskElement.from_table(file_name, sheet_name="More")
+
+        assert_allclose(disks[0].m, 6.9308914136)
+        assert_allclose(disks[0].Ip, 0.04700085473726382)
+        assert_allclose(disks[0].Id, 0.02500020559245656)
