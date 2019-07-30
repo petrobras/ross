@@ -3,6 +3,9 @@ from bokeh.models import ColumnDataSource, HoverTool
 import matplotlib.patches as mpatches
 import numpy as np
 import toml
+import pandas as pd
+import sys
+import warnings
 
 from ross.element import Element
 
@@ -346,3 +349,89 @@ class DiskElement(Element):
         Ip = 0.03125 * material.rho * np.pi * width * (o_d ** 4 - i_d ** 4)
 
         return cls(n, m, Id, Ip)
+
+    @classmethod
+    def from_table(cls, file, sheet_name=0):
+        """Instantiate one or more disks using inputs from a table, either excel or csv.
+        Parameters
+        ----------
+        file: str
+            Path to the file containing the disk parameters.
+        sheet_name: int or str, optional
+            Position of the sheet in the file (starting from 0) or its name. If none is passed, it is
+            assumed to be the first sheet in the file.
+        Returns
+        -------
+        disk : list
+            A list of disk objects.
+        """
+        try:
+            df = pd.read_excel(file, sheet_name=sheet_name, header=None)
+        except FileNotFoundError:
+            sys.exit(file + " not found.")
+        header_index = -1
+        header_found = False
+        for index, row in df.iterrows():
+            for i in range(0, row.size):
+                if isinstance(row[i], str):
+                    if row[i].lower() == 'ip':
+                        header_index = index
+                        header_found = True
+                        break
+            if header_found:
+                break
+        if header_index < 0:
+            sys.exit("Could not find the header. Make sure the sheet has a header "
+                     "containing the names of the columns.")
+        df = pd.read_excel(file, header=header_index, sheet_name=sheet_name)
+        df_unit = pd.read_excel(file, header=header_index, nrows=2, sheet_name=sheet_name)
+        convert_to_metric = True
+        for index, row in df_unit.iterrows():
+            for i in range(0, row.size):
+                if isinstance(row[i], str):
+                    if 'kg' in row[i].lower():
+                        convert_to_metric = False
+                        break
+            if not convert_to_metric:
+                break
+        first_data_row = -1
+        for index, row in df.iterrows():
+            if isinstance(row[0], int) or isinstance(row[0], float):
+                first_data_row = index
+                break
+        if first_data_row < 0:
+            sys.exit("Could not find the data. Make sure you have at least one row containing "
+                     "data below the header.")
+        for i in range(0, first_data_row):
+            df = df.drop(i)
+        nan_found = False
+        for index, row in df.iterrows():
+            for i in range(first_data_row, row.size):
+                if pd.isna(row[i]):
+                    nan_found = True
+                    row[i] = 0
+        if nan_found:
+            warnings.warn("One or more NaN found. They were replaced with zeros.")
+        parameters = []
+        possible_names = [["Unnamed: 0", "n", "N"], ["m", "M", "mass", "Mass", "MASS"],
+                          ["ip", "Ip", "IP"],
+                          ["it", "It", "IT", "id", "Id", "ID"]]
+        for name_group in possible_names:
+            for name in name_group:
+                try:
+                    parameter = df[name].tolist()
+                    parameters.append(parameter)
+                    break
+                except KeyError:
+                    continue
+        disk_list = []
+        convert_factor = [1, 1]
+        if convert_to_metric:
+            convert_factor[0] = 0.45359237
+            convert_factor[1] = 0.0002926397
+        for i in range(0, len(parameters[0])):
+            disk_list.append(cls(n=parameters[0][i],
+                                 m=parameters[1][i]*convert_factor[0],
+                                 Ip=parameters[2][i]*convert_factor[1],
+                                 Id=parameters[3][i]*convert_factor[1]))
+        return disk_list
