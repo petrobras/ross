@@ -570,8 +570,8 @@ class ShaftElement(Element):
         ----------
         ax : matplotlib axes, optional
             Axes in which the plot will be drawn.
-        bk_ax : bokeh plotting axes, optional
-            Axes in which the plot will be drawn.
+        SR : list
+            list of slenderness ratio of shaft elements
         position : float
             Position in which the patch will be drawn.
         Returns
@@ -623,6 +623,8 @@ class ShaftElement(Element):
         ----------
         bk_ax : bokeh plotting axes, optional
             Axes in which the plot will be drawn.
+        SR : list
+            list of slenderness ratio of shaft elements
         position : float
             Position in which the patch will be drawn.
         Returns
@@ -1396,8 +1398,8 @@ class ShaftTaperedElement(Element):
         ----------
         ax : matplotlib axes, optional
             Axes in which the plot will be drawn.
-        bk_ax : bokeh plotting axes, optional
-            Axes in which the plot will be drawn.
+        SR : list
+            list of slenderness ratio of shaft elements
         position : float
             Position in which the patch will be drawn.
         Returns
@@ -1457,6 +1459,8 @@ class ShaftTaperedElement(Element):
         ----------
         bk_ax : bokeh plotting axes, optional
             Axes in which the plot will be drawn.
+        SR : list
+            list of slenderness ratio of shaft elements
         position : float
             Position in which the patch will be drawn.
         Returns
