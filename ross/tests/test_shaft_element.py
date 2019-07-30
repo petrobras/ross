@@ -137,7 +137,7 @@ def test_from_table():
         os.path.dirname(os.path.realpath(__file__)) + "/data/shaft_us.xls",
         os.path.dirname(os.path.realpath(__file__)) + "/data/shaft_si.xls",
     ]:
-        shaft = ShaftElement.from_table(shaft_file, sheet_name="Model")
+        shaft = ShaftElement.from_table(shaft_file, sheet_type="Model", sheet_name="Model")
         el0 = shaft[0]
         assert el0.n == 0
         assert_allclose(el0.i_d, 0.1409954)
