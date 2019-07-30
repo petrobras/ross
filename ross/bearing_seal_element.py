@@ -7,7 +7,6 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import scipy.interpolate as interpolate
-import xlrd
 
 from ross.element import Element
 from ross.fluid_flow import fluid_flow as flow
@@ -424,7 +423,7 @@ class BearingElement(Element):
         return data
 
     @classmethod
-    def from_table(cls, n, file):
+    def from_table(cls, n, file, sheet_name=0):
         """Instantiate a bearing using inputs from a table, either excel or csv.
         Parameters
         ----------
@@ -432,16 +431,17 @@ class BearingElement(Element):
             The node in which the bearing will be located in the rotor.
         file: str
             Path to the file containing the bearing parameters.
+        sheet_name: int or str, optional
+            Position of the sheet in the file (starting from 0) or its name. If none is passed, it is
+            assumed to be the first sheet in the file.
         Returns
         -------
         A bearing object.
         """
         try:
-            df = pd.read_excel(file, header=None)
+            df = pd.read_excel(file, header=None, sheet_name=sheet_name)
         except FileNotFoundError:
             sys.exit(file + " not found.")
-        except xlrd.biffh.XLRDError:
-            df = pd.read_csv(file, header=None)
         header_index = -1
         header_found = False
         for index, row in df.iterrows():
@@ -456,10 +456,7 @@ class BearingElement(Element):
         if header_index < 0:
             sys.exit("Could not find the header. Make sure the sheet has a header "
                      "containing the names of the columns.")
-        try:
-            df = pd.read_excel(file, header=header_index)
-        except xlrd.biffh.XLRDError:
-            df = pd.read_csv(file, header=header_index)
+        df = pd.read_excel(file, header=header_index, sheet_name=sheet_name)
         first_data_row = -1
         for index, row in df.iterrows():
             if isinstance(row[0], int) or isinstance(row[0], float):

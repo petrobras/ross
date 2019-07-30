@@ -9,7 +9,6 @@ import matplotlib.patches as mpatches
 import numpy as np
 import toml
 import pandas as pd
-import xlrd
 
 import ross
 from ross.element import Element
@@ -250,8 +249,6 @@ class ShaftElement(Element):
                 df = pd.read_excel(file, sheet_name=sheet_name)
             except FileNotFoundError:
                 sys.exit(file + " not found.")
-            except xlrd.biffh.XLRDError:
-                df = pd.read_csv(file, sheet_name=sheet_name)
             try:
                 for index, row in df.iterrows():
                     for i in range(0, row.size):
@@ -317,10 +314,6 @@ class ShaftElement(Element):
                 df_unit = pd.read_excel(file, header=16, nrows=2, sheet_name=sheet_name)
             except FileNotFoundError:
                 sys.exit(file + " not found.")
-            except xlrd.biffh.XLRDError:
-                df1 = pd.read_csv(file, header=3, nrows=10, sheet_name=sheet_name)
-                df2 = pd.read_csv(file, header=19, sheet_name=sheet_name)
-                df_unit = pd.read_csv(file, header=16, nrows=2, sheet_name=sheet_name)
             convert_to_metric = False
             if df_unit["Length"][1] != "meters":
                 convert_to_metric = True
