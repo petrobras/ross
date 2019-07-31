@@ -198,6 +198,17 @@ def read_table_file(file, element, sheet_name=0, n=0, sheet_type="Model"):
     if element == "shaft" and sheet_type == "Model":
         for i in range(0, len(parameters[3])):
             parameters[3][i] = "shaft_mat_" + str(parameters[3][i])
+    if convert_to_metric:
+        for i in range(0, len(parameters[1])):
+            if element == "shaft":
+                parameters[0][i] = parameters[0][i] * 0.0254
+                parameters[1][i] = parameters[1][i] * 0.0254
+                parameters[2][i] = parameters[2][i] * 0.0254
+                parameters[5][i] = parameters[5][i] * 4.44822161
+            elif element == "disk":
+                parameters[1][i] = parameters[1][i] * 0.45359237
+                parameters[2][i] = parameters[2][i] * 0.0002926397
+                parameters[3][i] = parameters[3][i] * 0.0002926397
     return parameters
 
 
