@@ -195,9 +195,12 @@ def read_table_file(file, element, sheet_name=0, n=0, sheet_type="Model"):
                     parameters.append([default_list[i]]*df.shape[0])
                 else:
                     continue
-    if element == "shaft" and sheet_type == "Model":
-        for i in range(0, len(parameters[3])):
-            parameters[3][i] = "shaft_mat_" + str(parameters[3][i])
+    if element == "shaft":
+        for i in range(0, len(parameters[4])):
+            parameters[4][i] = parameters[4][i] - 1
+        if sheet_type == "Model":
+            for i in range(0, len(parameters[3])):
+                parameters[3][i] = "shaft_mat_" + str(int(parameters[3][i]))
     if convert_to_metric:
         for i in range(0, len(parameters[1])):
             if element == "shaft":
