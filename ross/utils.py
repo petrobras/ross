@@ -131,6 +131,8 @@ def read_table_file(file, element, sheet_name=0, n=0, sheet_type="Model"):
 
     # Build parameters list
     parameters = []
+    if element == "bearing":
+        parameters.append(n)
     for name_group in parameter_columns:
         for name in name_group:
             try:
