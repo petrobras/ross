@@ -1,6 +1,7 @@
 import pandas as pd
 import xlrd
 import sys
+from ross.materials import Material
 
 
 def read_table_file(file, element, sheet_name=0, n=0, sheet_type="Model"):
@@ -107,8 +108,48 @@ def read_table_file(file, element, sheet_name=0, n=0, sheet_type="Model"):
 
     if not is_csv:
         df = pd.read_excel(file, header=header_index, sheet_name=sheet_name)
+        df_unit = pd.read_excel(file, header=header_index, nrows=2, sheet_name=sheet_name)
     else:
         df = pd.read_csv(file, header=header_index)
+        df_unit = pd.read_csv(file, header=header_index, nrows=2)
+
+    # Define if it needs to be converted
+    convert_to_metric = False
+    for index, row in df_unit.iterrows():
+        for i in range(0, row.size):
+            if isinstance(row[i], str):
+                if 'inches' in row[i].lower() or 'lbm' in row[i].lower():
+                    convert_to_metric = True
+
+    # Get specific data from the file
+    if element == "shaft" and sheet_type == "Model":
+        df_material = pd.read_excel(file, header=3, sheet_name=sheet_name)
+        material_name = []
+        material_rho = []
+        material_e = []
+        material_g_s = []
+        new_materials = {}
+        for index, row in df_material.iterrows():
+            if not pd.isna(row["matno"]):
+                material_name.append(int(row["matno"]))
+                material_rho.append(row["rhoa"])
+                material_e.append(row["ea"])
+                material_g_s.append(row["ga"])
+            else:
+                break
+        if convert_to_metric:
+            for i in range(0, len(material_name)):
+                material_rho[i] = material_rho[i] * 27679.904
+                material_e[i] = material_e[i] * 6894.757
+                material_g_s[i] = material_g_s[i] * 6894.757
+        for i in range(0, len(material_name)):
+            new_material = Material(
+                name="shaft_mat_" + str(material_name[i]),
+                rho=material_rho[i],
+                E=material_e[i],
+                G_s=material_g_s[i],
+            )
+            new_materials["shaft_mat_" + str(material_name[i])] = new_material
 
     # Find and isolate data rows
     first_data_row_found = False
@@ -154,6 +195,9 @@ def read_table_file(file, element, sheet_name=0, n=0, sheet_type="Model"):
                     parameters.append([default_list[i]]*df.shape[0])
                 else:
                     continue
+    if element == "shaft" and sheet_type == "Model":
+        for i in range(0, len(parameters[3])):
+            parameters[3][i] = "shaft_mat_" + str(parameters[3][i])
     return parameters
 
 
