@@ -87,8 +87,8 @@ def read_table_file(file, element, sheet_name=0, n=0, sheet_type="Model"):
         header_key_word = "ip"
         parameter_columns.append(["Unnamed: 0", "n", "N"])
         parameter_columns.append(["m", "M", "mass", "Mass", "MASS"])
-        parameter_columns.append(["ip", "Ip", "IP"])
         parameter_columns.append(["it", "It", "IT", "id", "Id", "ID"])
+        parameter_columns.append(["ip", "Ip", "IP"])
 
     # Find table header and define if conversion is needed
     header_index = -1
