@@ -3,10 +3,7 @@ from bokeh.models import ColumnDataSource, HoverTool
 import matplotlib.patches as mpatches
 import numpy as np
 import toml
-import pandas as pd
-import sys
-import warnings
-import xlrd
+from ross.utils import read_table_file
 
 from ross.element import Element
 
@@ -366,81 +363,9 @@ class DiskElement(Element):
         disk : list
             A list of disk objects.
         """
-        is_csv = False
-        try:
-            df = pd.read_excel(file, sheet_name=sheet_name, header=None)
-        except FileNotFoundError:
-            sys.exit(file + " not found.")
-        except xlrd.biffh.XLRDError:
-            df = pd.read_csv(file)
-            is_csv = True
-        header_index = -1
-        header_found = False
-        for index, row in df.iterrows():
-            for i in range(0, row.size):
-                if isinstance(row[i], str):
-                    if row[i].lower() == 'ip':
-                        header_index = index
-                        header_found = True
-                        break
-            if header_found:
-                break
-        if header_index < 0:
-            sys.exit("Could not find the header. Make sure the sheet has a header "
-                     "containing the names of the columns.")
-        if not is_csv:
-            df = pd.read_excel(file, header=header_index, sheet_name=sheet_name)
-            df_unit = pd.read_excel(file, header=header_index, nrows=2, sheet_name=sheet_name)
-        else:
-            df = pd.read_csv(file, header=header_index)
-            df_unit = pd.read_csv(file, header=header_index, nrows=2)
-        convert_to_metric = True
-        for index, row in df_unit.iterrows():
-            for i in range(0, row.size):
-                if isinstance(row[i], str):
-                    if 'kg' in row[i].lower():
-                        convert_to_metric = False
-                        break
-            if not convert_to_metric:
-                break
-        first_data_row = -1
-        for index, row in df.iterrows():
-            if isinstance(row[0], int) or isinstance(row[0], float):
-                first_data_row = index
-                break
-        if first_data_row < 0:
-            sys.exit("Could not find the data. Make sure you have at least one row containing "
-                     "data below the header.")
-        for i in range(0, first_data_row):
-            df = df.drop(i)
-        nan_found = False
-        for index, row in df.iterrows():
-            for i in range(first_data_row, row.size):
-                if pd.isna(row[i]):
-                    nan_found = True
-                    row[i] = 0
-        if nan_found:
-            warnings.warn("One or more NaN found. They were replaced with zeros.")
-        parameters = []
-        possible_names = [["Unnamed: 0", "n", "N"], ["m", "M", "mass", "Mass", "MASS"],
-                          ["ip", "Ip", "IP"],
-                          ["it", "It", "IT", "id", "Id", "ID"]]
-        for name_group in possible_names:
-            for name in name_group:
-                try:
-                    parameter = df[name].tolist()
-                    parameters.append(parameter)
-                    break
-                except KeyError:
-                    continue
-        disk_list = []
-        convert_factor = [1, 1]
-        if convert_to_metric:
-            convert_factor[0] = 0.45359237
-            convert_factor[1] = 0.0002926397
+        parameters = read_table_file(file, 'disk', sheet_name=sheet_name)
+        list_of_disks = []
         for i in range(0, len(parameters[0])):
-            disk_list.append(cls(n=parameters[0][i],
-                                 m=parameters[1][i]*convert_factor[0],
-                                 Ip=parameters[2][i]*convert_factor[1],
-                                 Id=parameters[3][i]*convert_factor[1]))
-        return disk_list
+            list_of_disks.append(cls(n=parameters[0][i], m=parameters[1][i],
+                                     Id=parameters[2][i], Ip=parameters[3][i]))
+        return list_of_disks
