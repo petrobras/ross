@@ -6,6 +6,7 @@ import toml
 import pandas as pd
 import sys
 import warnings
+import xlrd
 
 from ross.element import Element
 
@@ -365,10 +366,14 @@ class DiskElement(Element):
         disk : list
             A list of disk objects.
         """
+        is_csv = False
         try:
             df = pd.read_excel(file, sheet_name=sheet_name, header=None)
         except FileNotFoundError:
             sys.exit(file + " not found.")
+        except xlrd.biffh.XLRDError:
+            df = pd.read_csv(file)
+            is_csv = True
         header_index = -1
         header_found = False
         for index, row in df.iterrows():
@@ -383,8 +388,12 @@ class DiskElement(Element):
         if header_index < 0:
             sys.exit("Could not find the header. Make sure the sheet has a header "
                      "containing the names of the columns.")
-        df = pd.read_excel(file, header=header_index, sheet_name=sheet_name)
-        df_unit = pd.read_excel(file, header=header_index, nrows=2, sheet_name=sheet_name)
+        if not is_csv:
+            df = pd.read_excel(file, header=header_index, sheet_name=sheet_name)
+            df_unit = pd.read_excel(file, header=header_index, nrows=2, sheet_name=sheet_name)
+        else:
+            df = pd.read_csv(file, header=header_index)
+            df_unit = pd.read_csv(file, header=header_index, nrows=2)
         convert_to_metric = True
         for index, row in df_unit.iterrows():
             for i in range(0, row.size):

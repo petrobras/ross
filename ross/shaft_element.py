@@ -2,6 +2,7 @@ import sys
 import warnings
 import os
 from pathlib import Path
+import xlrd
 
 import bokeh.palettes as bp
 from bokeh.models import HoverTool, ColumnDataSource
@@ -249,6 +250,8 @@ class ShaftElement(Element):
                 df = pd.read_excel(file, sheet_name=sheet_name)
             except FileNotFoundError:
                 sys.exit(file + " not found.")
+            except xlrd.biffh.XLRDError:
+                df = pd.read_csv(file)
             try:
                 for index, row in df.iterrows():
                     for i in range(0, row.size):
