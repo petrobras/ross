@@ -38,6 +38,7 @@ def read_table_file(file, element, sheet_name=0, n=0, sheet_type="Model"):
     optional_parameter_columns = []
     header_key_word = ""
     default_list = []
+    parameters = []
     if element == "bearing":
         header_key_word = "kxx"
         parameter_columns.append(["kxx", "Kxx", "KXX"])
@@ -89,46 +90,52 @@ def read_table_file(file, element, sheet_name=0, n=0, sheet_type="Model"):
         parameter_columns.append(["ip", "Ip", "IP"])
         parameter_columns.append(["it", "It", "IT", "id", "Id", "ID"])
 
-    # Find table header
+    # Find table header and define if conversion is needed
     header_index = -1
     header_found = False
+    convert_to_metric = False
     for index, row in df.iterrows():
         for i in range(0, row.size):
             if isinstance(row[i], str):
-                if row[i].lower() == header_key_word:
-                    header_index = index
-                    header_found = True
+                if not header_found:
+                    if row[i].lower() == header_key_word:
+                        header_index = index
+                        header_found = True
+                if 'inches' in row[i].lower() or 'lbm' in row[i].lower():
+                    convert_to_metric = True
+                if header_found and convert_to_metric:
                     break
-        if header_found:
+        if header_found and convert_to_metric:
             break
     if not header_found:
         sys.exit("Could not find the header. Make sure the table has a header "
                  "containing the names of the columns. In the case of a " + element + ", "
                  "there should be a column named " + header_key_word + ".")
 
-    if not is_csv:
-        df = pd.read_excel(file, header=header_index, sheet_name=sheet_name)
-        df_unit = pd.read_excel(file, header=header_index, nrows=2, sheet_name=sheet_name)
-    else:
-        df = pd.read_csv(file, header=header_index)
-        df_unit = pd.read_csv(file, header=header_index, nrows=2)
-
-    # Define if it needs to be converted
-    convert_to_metric = False
-    for index, row in df_unit.iterrows():
-        for i in range(0, row.size):
-            if isinstance(row[i], str):
-                if 'inches' in row[i].lower() or 'lbm' in row[i].lower():
-                    convert_to_metric = True
-
     # Get specific data from the file
+    new_materials = {}
     if element == "shaft" and sheet_type == "Model":
-        df_material = pd.read_excel(file, header=3, sheet_name=sheet_name)
+        material_header_index = -1
+        material_header_found = False
+        material_header_key_word = "matno"
+        for index, row in df.iterrows():
+            for i in range(0, row.size):
+                if isinstance(row[i], str):
+                    if row[i].lower() == material_header_key_word:
+                        material_header_index = index
+                        material_header_found = True
+                        break
+            if material_header_found:
+                break
+        if not material_header_found:
+            sys.exit("Could not find the header for the materials. Make sure the table has a header "
+                     "with the parameters for the materials that will be used. There should be a column "
+                     "named " + material_header_key_word + ".")
+        df_material = pd.read_excel(file, header=material_header_index, sheet_name=sheet_name)
         material_name = []
         material_rho = []
         material_e = []
         material_g_s = []
-        new_materials = {}
         for index, row in df_material.iterrows():
             if not pd.isna(row["matno"]):
                 material_name.append(int(row["matno"]))
@@ -151,6 +158,11 @@ def read_table_file(file, element, sheet_name=0, n=0, sheet_type="Model"):
             )
             new_materials["shaft_mat_" + str(material_name[i])] = new_material
 
+    if not is_csv:
+        df = pd.read_excel(file, header=header_index, sheet_name=sheet_name)
+    else:
+        df = pd.read_csv(file, header=header_index)
+
     # Find and isolate data rows
     first_data_row_found = False
     indexes_to_drop = []
@@ -171,7 +183,6 @@ def read_table_file(file, element, sheet_name=0, n=0, sheet_type="Model"):
         df = df.drop(indexes_to_drop)
 
     # Build parameters list
-    parameters = []
     if element == "bearing":
         parameters.append(n)
     for name_group in parameter_columns:
@@ -212,7 +223,11 @@ def read_table_file(file, element, sheet_name=0, n=0, sheet_type="Model"):
                 parameters[1][i] = parameters[1][i] * 0.45359237
                 parameters[2][i] = parameters[2][i] * 0.0002926397
                 parameters[3][i] = parameters[3][i] * 0.0002926397
-    return parameters
+    if element == "shaft" and sheet_type == "Model":
+        parameters.append(new_materials)
+        return parameters
+    else:
+        return parameters
 
 
 
