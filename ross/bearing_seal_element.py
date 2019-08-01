@@ -1,14 +1,12 @@
-import sys
 import warnings
-import xlrd
 
 import bokeh.palettes as bp
 import matplotlib.patches as mpatches
 import matplotlib.pyplot as plt
 import numpy as np
-import pandas as pd
 import scipy.interpolate as interpolate
 
+from ross.utils import read_table_file
 from ross.element import Element
 from ross.fluid_flow import fluid_flow as flow
 
@@ -439,74 +437,18 @@ class BearingElement(Element):
         -------
         A bearing object.
         """
-        is_csv = False
-        try:
-            df = pd.read_excel(file, header=None, sheet_name=sheet_name)
-        except FileNotFoundError:
-            sys.exit(file + " not found.")
-        except xlrd.biffh.XLRDError:
-            df = pd.read_csv(file)
-            is_csv = True
-        header_index = -1
-        header_found = False
-        for index, row in df.iterrows():
-            for i in range(0, row.size):
-                if isinstance(row[i], str):
-                    if row[i].lower() == 'kxx':
-                        header_index = index
-                        header_found = True
-                        break
-            if header_found:
-                break
-        if header_index < 0:
-            sys.exit("Could not find the header. Make sure the sheet has a header "
-                     "containing the names of the columns.")
-        if not is_csv:
-            df = pd.read_excel(file, header=header_index, sheet_name=sheet_name)
-        else:
-            df = pd.read_csv(file, header=header_index)
-        first_data_row = -1
-        for index, row in df.iterrows():
-            if isinstance(row[0], int) or isinstance(row[0], float):
-                first_data_row = index
-                break
-        if first_data_row < 0:
-            sys.exit("Could not find the data. Make sure you have at least one row containing "
-                     "data below the header.")
-        for i in range(0, first_data_row):
-            df = df.drop(i)
-        nan_found = False
-        for index, row in df.iterrows():
-            for i in range(first_data_row, row.size):
-                if pd.isna(row[i]):
-                    nan_found = True
-                    row[i] = 0
-        if nan_found:
-            warnings.warn("One or more NaN found. They were replaced with zeros.")
-        parameters = []
-        possible_names = [["kxx", "Kxx", "KXX"], ["cxx", "Cxx", "CXX"], ["kyy", "Kyy", "KYY"],
-                          ["kxy", "Kxy", "KXY"], ["kyx", "Kyx", "KYX"], ["cyy", "Cyy", "CYY"],
-                          ["cxy", "Cxy", "CXY"], ["cyx", "Cyx", "CYX"],
-                          ["w", "W", "speed", "Speed", "SPEED"]]
-        for name_group in possible_names:
-            for name in name_group:
-                try:
-                    parameter = df[name].tolist()
-                    parameters.append(parameter)
-                    break
-                except KeyError:
-                    continue
+        parameters = read_table_file(file, 'bearing', sheet_name, n)
         return cls(
-            n,
-            kxx=parameters[0],
-            cxx=parameters[1],
-            kyy=parameters[2],
-            kxy=parameters[3],
-            kyx=parameters[4],
-            cyy=parameters[5],
-            cxy=parameters[6],
-            cyx=parameters[7],
-            w=parameters[8],
+            n=parameters[0],
+            kxx=parameters[1],
+            cxx=parameters[2],
+            kyy=parameters[3],
+            kxy=parameters[4],
+            kyx=parameters[5],
+            cyy=parameters[6],
+            cxy=parameters[7],
+            cyx=parameters[8],
+            w=parameters[9],
         )
 
     @classmethod

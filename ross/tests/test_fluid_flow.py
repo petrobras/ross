@@ -2,6 +2,8 @@ import math
 import numpy as np
 
 from ross.fluid_flow import fluid_flow as flow
+from bokeh.plotting import figure
+import matplotlib.pyplot as plt
 
 
 def fluid_flow_eccentricity():
@@ -124,3 +126,22 @@ def test_numerical_abs_error2():
                            bearing.p_mat_numerical[:][int(bearing.nz / 2)], ord=np.inf)
     assert math.isclose(error, 0, abs_tol=0.001)
 
+
+def test_bokeh_plots():
+    bearing = fluid_flow_numerical()
+    bearing.calculate_pressure_matrix_numerical()
+    figure_type = type(figure())
+    assert isinstance(bearing.plot_shape(), figure_type)
+    assert isinstance(bearing.plot_eccentricity(), figure_type)
+    assert isinstance(bearing.plot_pressure_theta(), figure_type)
+    assert isinstance(bearing.plot_pressure_z(), figure_type)
+
+
+def test_matplotlib_plots():
+    bearing = fluid_flow_numerical()
+    bearing.calculate_pressure_matrix_analytical()
+    ax_type = type(plt.gca())
+    assert isinstance(bearing.matplot_eccentricity(), ax_type)
+    assert isinstance(bearing.matplot_pressure_theta(), ax_type)
+    assert isinstance(bearing.matplot_pressure_z(), ax_type)
+    assert isinstance(bearing.matplot_shape(), ax_type)
