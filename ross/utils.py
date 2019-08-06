@@ -41,15 +41,15 @@ def read_table_file(file, element, sheet_name=0, n=0, sheet_type="Model"):
     parameters = []
     if element == "bearing":
         header_key_word = "kxx"
-        parameter_columns.append(["kxx", "Kxx", "KXX"])
-        parameter_columns.append(["cxx", "Cxx", "CXX"])
-        optional_parameter_columns.append(["kyy", "Kyy", "KYY"])
-        optional_parameter_columns.append(["kxy", "Kxy", "KXY"])
-        optional_parameter_columns.append(["kyx", "Kyx", "KYX"])
-        optional_parameter_columns.append(["cyy", "Cyy", "CYY"])
-        optional_parameter_columns.append(["cxy", "Cxy", "CXY"])
-        optional_parameter_columns.append(["cyx", "Cyx", "CYX"])
-        optional_parameter_columns.append(["w", "W", "speed", "Speed", "SPEED"])
+        parameter_columns.append(["kxx"])
+        parameter_columns.append(["cxx"])
+        optional_parameter_columns.append(["kyy"])
+        optional_parameter_columns.append(["kxy"])
+        optional_parameter_columns.append(["kyx"])
+        optional_parameter_columns.append(["cyy"])
+        optional_parameter_columns.append(["cxy"])
+        optional_parameter_columns.append(["cyx"])
+        optional_parameter_columns.append(["w", "speed"])
         default_list.append(None)
         default_list.append(0)
         default_list.append(0)
@@ -62,20 +62,17 @@ def read_table_file(file, element, sheet_name=0, n=0, sheet_type="Model"):
             header_key_word = "od_left"
         else:
             header_key_word = "material"
-        parameter_columns.append(["length", "Length", "LENGTH"])
-        parameter_columns.append(["i_d", "I_D", "id", "ID", "id_left", "id_Left", "ID_LEFT"])
-        parameter_columns.append(["o_d", "O_D", "od", "OD", "od_left", "od_Left", "OD_LEFT"])
-        parameter_columns.append(["material", "Material", "MATERIAL",
-                                  "matnum"])
-        optional_parameter_columns.append(["n", "N", "elemnum"])
-        optional_parameter_columns.append(["axial_force", "axial force", "Axial Force", "AXIAL FORCE",
-                                           "axial", "Axial", "AXIAL"])
-        optional_parameter_columns.append(["torque", "Torque", "TORQUE"])
-        optional_parameter_columns.append(["shear_effects", "shear effects", "Shear Effects", "SHEAR EFFECTS"])
-        optional_parameter_columns.append(["rotary_inertia", "rotary inertia", "Rotary Inertia", "ROTARY INERTIA"])
-        optional_parameter_columns.append(["gyroscopic", "Gyroscopic", "GYROSCOPIC"])
-        optional_parameter_columns.append(["shear_method_calc", "shear method calc", "Shear Method Calc",
-                                           "SHEAR METHOD CALC"])
+        parameter_columns.append(["length"])
+        parameter_columns.append(["i_d", "id", "id_left"])
+        parameter_columns.append(["o_d", "od", "od_left"])
+        parameter_columns.append(["material", "matnum"])
+        optional_parameter_columns.append(["n", "elemnum"])
+        optional_parameter_columns.append(["axial_force", "axial force", "axial"])
+        optional_parameter_columns.append(["torque"])
+        optional_parameter_columns.append(["shear_effects", "shear effects"])
+        optional_parameter_columns.append(["rotary_inertia", "rotary inertia"])
+        optional_parameter_columns.append(["gyroscopic"])
+        optional_parameter_columns.append(["shear_method_calc", "shear method calc"])
         default_list.append(None)
         default_list.append(0)
         default_list.append(0)
@@ -85,10 +82,10 @@ def read_table_file(file, element, sheet_name=0, n=0, sheet_type="Model"):
         default_list.append("cowper")
     elif element == "disk":
         header_key_word = "ip"
-        parameter_columns.append(["Unnamed: 0", "n", "N"])
-        parameter_columns.append(["m", "M", "mass", "Mass", "MASS"])
-        parameter_columns.append(["it", "It", "IT", "id", "Id", "ID"])
-        parameter_columns.append(["ip", "Ip", "IP"])
+        parameter_columns.append(["unnamed: 0", "n"])
+        parameter_columns.append(["m", "mass"])
+        parameter_columns.append(["it", "id"])
+        parameter_columns.append(["ip"])
 
     # Find table header and define if conversion is needed
     header_index = -1
@@ -162,6 +159,7 @@ def read_table_file(file, element, sheet_name=0, n=0, sheet_type="Model"):
         df = pd.read_excel(file, header=header_index, sheet_name=sheet_name)
     else:
         df = pd.read_csv(file, header=header_index)
+    df.columns = df.columns.str.lower()
 
     # Find and isolate data rows
     first_data_row_found = False
