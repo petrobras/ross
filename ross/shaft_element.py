@@ -243,32 +243,32 @@ class ShaftElement(Element):
         parameters = read_table_file(file, 'shaft', sheet_name=sheet_name, sheet_type=sheet_type)
         list_of_shafts = []
         if sheet_type == "Model":
-            for i in range(0, len(parameters[0])):
-                list_of_shafts.append(cls(L=parameters[0][i],
-                                          i_d=parameters[1][i],
-                                          o_d=parameters[2][i],
-                                          material=parameters[11][parameters[3][i]],
-                                          n=parameters[4][i],
-                                          axial_force=parameters[5][i],
-                                          torque=parameters[6][i],
-                                          shear_effects=parameters[7][i],
-                                          rotary_inertia=parameters[8][i],
-                                          gyroscopic=parameters[9][i],
-                                          shear_method_calc=parameters[10][i]
+            for i in range(0, len(parameters['L'])):
+                list_of_shafts.append(cls(L=parameters['L'][i],
+                                          i_d=parameters['i_d'][i],
+                                          o_d=parameters['o_d'][i],
+                                          material=parameters[parameters['material'][i]],
+                                          n=parameters['n'][i],
+                                          axial_force=parameters['axial_force'][i],
+                                          torque=parameters['torque'][i],
+                                          shear_effects=parameters['shear_effects'][i],
+                                          rotary_inertia=parameters['rotary_inertia'][i],
+                                          gyroscopic=parameters['gyroscopic'][i],
+                                          shear_method_calc=parameters['shear_method_calc'][i]
                                           ))
         elif sheet_type == "Simple":
-            for i in range(0, len(parameters[0])):
-                list_of_shafts.append(cls(L=parameters[0][i],
-                                          i_d=parameters[1][i],
-                                          o_d=parameters[2][i],
-                                          material=parameters[3][i],
-                                          n=parameters[4][i],
-                                          axial_force=parameters[5][i],
-                                          torque=parameters[6][i],
-                                          shear_effects=parameters[7][i],
-                                          rotary_inertia=parameters[8][i],
-                                          gyroscopic=parameters[9][i],
-                                          shear_method_calc=parameters[10][i]
+            for i in range(0, len(parameters['L'])):
+                list_of_shafts.append(cls(L=parameters['L'][i],
+                                          i_d=parameters['i_d'][i],
+                                          o_d=parameters['o_d'][i],
+                                          material=parameters['material'][i],
+                                          n=parameters['n'][i],
+                                          axial_force=parameters['axial_force'][i],
+                                          torque=parameters['torque'][i],
+                                          shear_effects=parameters['shear_effects'][i],
+                                          rotary_inertia=parameters['rotary_inertia'][i],
+                                          gyroscopic=parameters['gyroscopic'][i],
+                                          shear_method_calc=parameters['shear_method_calc'][i]
                                           ))
         return list_of_shafts
 

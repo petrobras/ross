@@ -22,7 +22,7 @@ def read_table_file(file, element, sheet_name=0, n=0, sheet_type="Model"):
         such as the material parameters.
     Returns
     -------
-    A matrix of parameters.
+    A dictionary of parameters.
     """
     is_csv = False
     try:
@@ -34,58 +34,58 @@ def read_table_file(file, element, sheet_name=0, n=0, sheet_type="Model"):
         is_csv = True
 
     # Assign specific values to variables
-    parameter_columns = []
-    optional_parameter_columns = []
-    header_key_word = ""
-    default_list = []
-    parameters = []
-    if element == "bearing":
-        header_key_word = "kxx"
-        parameter_columns.append(["kxx"])
-        parameter_columns.append(["cxx"])
-        optional_parameter_columns.append(["kyy"])
-        optional_parameter_columns.append(["kxy"])
-        optional_parameter_columns.append(["kyx"])
-        optional_parameter_columns.append(["cyy"])
-        optional_parameter_columns.append(["cxy"])
-        optional_parameter_columns.append(["cyx"])
-        optional_parameter_columns.append(["w", "speed"])
-        default_list.append(None)
-        default_list.append(0)
-        default_list.append(0)
-        default_list.append(None)
-        default_list.append(0)
-        default_list.append(0)
-        default_list.append(None)
-    elif element == "shaft":
-        if sheet_type == "Model":
-            header_key_word = "od_left"
+    parameter_columns = {}
+    optional_parameter_columns = {}
+    header_key_word = ''
+    default_dictionary = {}
+    parameters = {}
+    if element == 'bearing':
+        header_key_word = 'kxx'
+        parameter_columns['kxx'] = ['kxx']
+        parameter_columns['cxx'] = ['cxx']
+        optional_parameter_columns['kyy'] = ['kyy']
+        optional_parameter_columns['kxy'] = ['kxy']
+        optional_parameter_columns['kyx'] = ['kyx']
+        optional_parameter_columns['cyy'] = ['cyy']
+        optional_parameter_columns['cxy'] = ['cxy']
+        optional_parameter_columns['cyx'] = ['cyx']
+        optional_parameter_columns['w'] = ['w', 'speed']
+        default_dictionary['kyy'] = None
+        default_dictionary['kxy'] = 0
+        default_dictionary['kyx'] = 0
+        default_dictionary['cyy'] = None
+        default_dictionary['cxy'] = 0
+        default_dictionary['cyx'] = 0
+        default_dictionary['w'] = None
+    elif element == 'shaft':
+        if sheet_type == 'Model':
+            header_key_word = 'od_left'
         else:
-            header_key_word = "material"
-        parameter_columns.append(["length"])
-        parameter_columns.append(["i_d", "id", "id_left"])
-        parameter_columns.append(["o_d", "od", "od_left"])
-        parameter_columns.append(["material", "matnum"])
-        optional_parameter_columns.append(["n", "elemnum"])
-        optional_parameter_columns.append(["axial_force", "axial force", "axial"])
-        optional_parameter_columns.append(["torque"])
-        optional_parameter_columns.append(["shear_effects", "shear effects"])
-        optional_parameter_columns.append(["rotary_inertia", "rotary inertia"])
-        optional_parameter_columns.append(["gyroscopic"])
-        optional_parameter_columns.append(["shear_method_calc", "shear method calc"])
-        default_list.append(None)
-        default_list.append(0)
-        default_list.append(0)
-        default_list.append(True)
-        default_list.append(True)
-        default_list.append(True)
-        default_list.append("cowper")
-    elif element == "disk":
-        header_key_word = "ip"
-        parameter_columns.append(["unnamed: 0", "n"])
-        parameter_columns.append(["m", "mass"])
-        parameter_columns.append(["it", "id"])
-        parameter_columns.append(["ip"])
+            header_key_word = 'material'
+        parameter_columns['L'] = ['length']
+        parameter_columns['i_d'] = ['i_d', 'id', 'id_left']
+        parameter_columns['o_d'] = ['o_d', 'od', 'od_left']
+        parameter_columns['material'] = ['material', 'matnum']
+        optional_parameter_columns['n'] = ['n', 'elemnum']
+        optional_parameter_columns['axial_force'] = ['axial_force', 'axial force', 'axial']
+        optional_parameter_columns['torque'] = ['torque']
+        optional_parameter_columns['shear_effects'] = ['shear_effects', 'shear effects']
+        optional_parameter_columns['rotary_inertia'] = ['rotary_inertia', 'rotary inertia']
+        optional_parameter_columns['gyroscopic'] = ['gyroscopic']
+        optional_parameter_columns['shear_method_calc'] = ['shear_method_calc', 'shear method calc']
+        default_dictionary['n'] = None
+        default_dictionary['axial_force'] = 0
+        default_dictionary['torque'] = 0
+        default_dictionary['shear_effects'] = True
+        default_dictionary['rotary_inertia'] = True
+        default_dictionary['gyroscopic'] = True
+        default_dictionary['shear_method_calc'] = 'cowper'
+    elif element == 'disk':
+        header_key_word = 'ip'
+        parameter_columns['n'] = ['unnamed: 0', 'n']
+        parameter_columns['m'] = ['m', 'mass']
+        parameter_columns['Id'] = ['it', 'id']
+        parameter_columns['Ip'] = ['ip']
 
     # Find table header and define if conversion is needed
     header_index = -1
@@ -111,10 +111,10 @@ def read_table_file(file, element, sheet_name=0, n=0, sheet_type="Model"):
 
     # Get specific data from the file
     new_materials = {}
-    if element == "shaft" and sheet_type == "Model":
+    if element == 'shaft' and sheet_type == 'Model':
         material_header_index = -1
         material_header_found = False
-        material_header_key_word = "matno"
+        material_header_key_word = 'matno'
         for index, row in df.iterrows():
             for i in range(0, row.size):
                 if isinstance(row[i], str):
@@ -134,11 +134,11 @@ def read_table_file(file, element, sheet_name=0, n=0, sheet_type="Model"):
         material_e = []
         material_g_s = []
         for index, row in df_material.iterrows():
-            if not pd.isna(row["matno"]):
-                material_name.append(int(row["matno"]))
-                material_rho.append(row["rhoa"])
-                material_e.append(row["ea"])
-                material_g_s.append(row["ga"])
+            if not pd.isna(row['matno']):
+                material_name.append(int(row['matno']))
+                material_rho.append(row['rhoa'])
+                material_e.append(row['ea'])
+                material_g_s.append(row['ga'])
             else:
                 break
         if convert_to_metric:
@@ -148,12 +148,12 @@ def read_table_file(file, element, sheet_name=0, n=0, sheet_type="Model"):
                 material_g_s[i] = material_g_s[i] * 6894.757
         for i in range(0, len(material_name)):
             new_material = Material(
-                name="shaft_mat_" + str(material_name[i]),
+                name='shaft_mat_' + str(material_name[i]),
                 rho=material_rho[i],
                 E=material_e[i],
                 G_s=material_g_s[i],
             )
-            new_materials["shaft_mat_" + str(material_name[i])] = new_material
+            new_materials['shaft_mat_' + str(material_name[i])] = new_material
 
     if not is_csv:
         df = pd.read_excel(file, header=header_index, sheet_name=sheet_name)
@@ -181,51 +181,50 @@ def read_table_file(file, element, sheet_name=0, n=0, sheet_type="Model"):
         df = df.drop(indexes_to_drop)
 
     # Build parameters list
-    if element == "bearing":
-        parameters.append(n)
-    for name_group in parameter_columns:
-        for name in name_group:
+    if element == 'bearing':
+        parameters['n'] = n
+    for key, value in parameter_columns.items():
+        for name in value:
             try:
-                parameter = df[name].tolist()
-                parameters.append(parameter)
+                parameters[key] = df[name].tolist()
                 break
             except KeyError:
-                if name == name_group[-1]:
-                    sys.exit("Could not find a column with one of these names: " + str(name_group))
+                if name == value[-1]:
+                    sys.exit("Could not find a column with one of these names: " + str(value))
                 continue
-    for i in range(0, len(optional_parameter_columns)):
-        for name in optional_parameter_columns[i]:
+    for key, value in optional_parameter_columns.items():
+        for name in value:
             try:
-                parameter = df[name].tolist()
-                parameters.append(parameter)
+                parameters[key] = df[name].tolist()
                 break
             except KeyError:
-                if name == optional_parameter_columns[i][-1]:
-                    parameters.append([default_list[i]]*df.shape[0])
+                if name == value[-1]:
+                    parameters[key] = [default_dictionary[key]]*df.shape[0]
                 else:
                     continue
-    if element == "shaft":
-        for i in range(0, len(parameters[4])):
-            parameters[4][i] = parameters[4][i] - 1
-        if sheet_type == "Model":
-            for i in range(0, len(parameters[3])):
-                parameters[3][i] = "shaft_mat_" + str(int(parameters[3][i]))
+    if element == 'shaft':
+        new_n = parameters['n']
+        for i in range(0, df.shape[0]):
+            new_n[i] -= 1
+        parameters['n'] = new_n
+        if sheet_type == 'Model':
+            new_material = parameters['material']
+            for i in range(0, df.shape[0]):
+                new_material[i] = 'shaft_mat_' + str(int(new_material[i]))
+            parameters['material'] = new_material
     if convert_to_metric:
-        for i in range(0, len(parameters[1])):
-            if element == "shaft":
-                parameters[0][i] = parameters[0][i] * 0.0254
-                parameters[1][i] = parameters[1][i] * 0.0254
-                parameters[2][i] = parameters[2][i] * 0.0254
-                parameters[5][i] = parameters[5][i] * 4.44822161
-            elif element == "disk":
-                parameters[1][i] = parameters[1][i] * 0.45359237
-                parameters[2][i] = parameters[2][i] * 0.0002926397
-                parameters[3][i] = parameters[3][i] * 0.0002926397
-    if element == "shaft" and sheet_type == "Model":
-        parameters.append(new_materials)
-        return parameters
-    else:
-        return parameters
+        for i in range(0, df.shape[0]):
+            if element == 'shaft':
+                parameters['L'][i] = parameters['L'][i] * 0.0254
+                parameters['i_d'][i] = parameters['i_d'][i] * 0.0254
+                parameters['o_d'][i] = parameters['o_d'][i] * 0.0254
+                parameters['axial_force'][i] = parameters['axial_force'][i] * 4.44822161
+            elif element == 'disk':
+                parameters['m'][i] = parameters['m'][i] * 0.45359237
+                parameters['Id'][i] = parameters['Id'][i] * 0.0002926397
+                parameters['Ip'][i] = parameters['Ip'][i] * 0.0002926397
+    parameters.update(new_materials)
+    return parameters
 
 
 

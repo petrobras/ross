@@ -439,16 +439,16 @@ class BearingElement(Element):
         """
         parameters = read_table_file(file, 'bearing', sheet_name, n)
         return cls(
-            n=parameters[0],
-            kxx=parameters[1],
-            cxx=parameters[2],
-            kyy=parameters[3],
-            kxy=parameters[4],
-            kyx=parameters[5],
-            cyy=parameters[6],
-            cxy=parameters[7],
-            cyx=parameters[8],
-            w=parameters[9],
+            n=parameters['n'],
+            kxx=parameters['kxx'],
+            cxx=parameters['cxx'],
+            kyy=parameters['kyy'],
+            kxy=parameters['kxy'],
+            kyx=parameters['kyx'],
+            cyy=parameters['cyy'],
+            cxy=parameters['cxy'],
+            cyx=parameters['cyx'],
+            w=parameters['w'],
         )
 
     @classmethod

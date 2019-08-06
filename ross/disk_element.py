@@ -365,7 +365,7 @@ class DiskElement(Element):
         """
         parameters = read_table_file(file, 'disk', sheet_name=sheet_name)
         list_of_disks = []
-        for i in range(0, len(parameters[0])):
-            list_of_disks.append(cls(n=parameters[0][i], m=parameters[1][i],
-                                     Id=parameters[2][i], Ip=parameters[3][i]))
+        for i in range(0, len(parameters['n'])):
+            list_of_disks.append(cls(n=parameters['n'][i], m=parameters['m'][i],
+                                     Id=parameters['Id'][i], Ip=parameters['Ip'][i]))
         return list_of_disks
