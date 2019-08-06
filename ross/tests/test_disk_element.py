@@ -70,12 +70,11 @@ def test_gyroscopic_matrix_disk1(disk_from_geometry):
     assert_almost_equal(disk_from_geometry.G(), Gd1, decimal=5)
 
 
-@pytest.mark.skip("Needs to implement .from_table() method")
 def test_from_table():
     for file_name in ["/data/shaft_us.xls", "/data/shaft_si.xls"]:
         file_name = os.path.dirname(os.path.realpath(__file__)) + file_name
         disks = DiskElement.from_table(file_name, sheet_name="More")
 
-        assert_allclose(disks[0].m, 6.9308914136)
-        assert_allclose(disks[0].Ip, 0.04700085473726382)
-        assert_allclose(disks[0].Id, 0.02500020559245656)
+        assert_allclose(disks[1].m, 6.90999178227835)
+        assert_allclose(disks[1].Ip, 0.0469996988106328, atol=1.6e-07)
+        assert_allclose(disks[1].Id, 0.0249998397928898, atol=1.6e-07)

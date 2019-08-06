@@ -3,6 +3,7 @@ from bokeh.models import ColumnDataSource, HoverTool
 import matplotlib.patches as mpatches
 import numpy as np
 import toml
+from ross.utils import read_table_file
 
 from ross.element import Element
 
@@ -346,3 +347,25 @@ class DiskElement(Element):
         Ip = 0.03125 * material.rho * np.pi * width * (o_d ** 4 - i_d ** 4)
 
         return cls(n, m, Id, Ip)
+
+    @classmethod
+    def from_table(cls, file, sheet_name=0):
+        """Instantiate one or more disks using inputs from an Excel table.
+        Parameters
+        ----------
+        file: str
+            Path to the file containing the disk parameters.
+        sheet_name: int or str, optional
+            Position of the sheet in the file (starting from 0) or its name. If none is passed, it is
+            assumed to be the first sheet in the file.
+        Returns
+        -------
+        disk : list
+            A list of disk objects.
+        """
+        parameters = read_table_file(file, 'disk', sheet_name=sheet_name)
+        list_of_disks = []
+        for i in range(0, len(parameters['n'])):
+            list_of_disks.append(cls(n=parameters['n'][i], m=parameters['m'][i],
+                                     Id=parameters['Id'][i], Ip=parameters['Ip'][i]))
+        return list_of_disks
