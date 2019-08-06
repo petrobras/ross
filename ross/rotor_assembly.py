@@ -421,9 +421,7 @@ class Rotor(object):
         self.__dict__ = rotor.__dict__
         self.error_arr = error_arr
 
-        results = ConvergenceResults(
-            el_num[1:], eigv_arr[1:], error_arr[1:]
-        )
+        results = ConvergenceResults(el_num[1:], eigv_arr[1:], error_arr[1:])
 
         return results
 
@@ -631,7 +629,7 @@ class Rotor(object):
         evals_truncated = np.around(eigenvalues, decimals=10)
         a = np.imag(evals_truncated)  # First column
         b = np.absolute(evals_truncated)  # Second column
-        ind = np.lexsort((b, a))  # Sort by imag, then by absolute
+        ind = np.lexsort((b, a))  # Sort by imag (wd), then by absolute (wn)
         # Positive eigenvalues first
         positive = [i for i in ind[len(a) // 2 :]]
         negative = [i for i in ind[: len(a) // 2]]
@@ -1288,7 +1286,7 @@ class Rotor(object):
         x_pos = []
         for node, position in enumerate(self.nodes_pos[::nodes]):
             # bokeh plot
-            text.append(str(node*nodes))
+            text.append(str(node * nodes))
             x_pos.append(position)
 
         # bokeh plot - plot nodes
