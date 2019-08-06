@@ -27,8 +27,6 @@ def read_table_file(file, element, sheet_name=0, n=0, sheet_type="Model"):
     is_csv = False
     try:
         df = pd.read_excel(file, header=None, sheet_name=sheet_name)
-    except FileNotFoundError:
-        sys.exit(file + " not found.")
     except xlrd.biffh.XLRDError:
         df = pd.read_csv(file, header=None)
         is_csv = True
@@ -105,9 +103,9 @@ def read_table_file(file, element, sheet_name=0, n=0, sheet_type="Model"):
         if header_found and convert_to_metric:
             break
     if not header_found:
-        sys.exit("Could not find the header. Make sure the table has a header "
-                 "containing the names of the columns. In the case of a " + element + ", "
-                 "there should be a column named " + header_key_word + ".")
+        raise ValueError("Could not find the header. Make sure the table has a header "
+                         "containing the names of the columns. In the case of a " + element + ", "
+                         "there should be a column named " + header_key_word + ".")
 
     # Get specific data from the file
     new_materials = {}
@@ -125,9 +123,9 @@ def read_table_file(file, element, sheet_name=0, n=0, sheet_type="Model"):
             if material_header_found:
                 break
         if not material_header_found:
-            sys.exit("Could not find the header for the materials. Make sure the table has a header "
-                     "with the parameters for the materials that will be used. There should be a column "
-                     "named " + material_header_key_word + ".")
+            raise ValueError("Could not find the header for the materials. Make sure the table has a header "
+                             "with the parameters for the materials that will be used. There should be a column "
+                             "named " + material_header_key_word + ".")
         df_material = pd.read_excel(file, header=material_header_index, sheet_name=sheet_name)
         material_name = []
         material_rho = []
@@ -175,8 +173,8 @@ def read_table_file(file, element, sheet_name=0, n=0, sheet_type="Model"):
             else:
                 indexes_to_drop.append(index)
     if not first_data_row_found:
-        sys.exit("Could not find the data. Make sure you have at least one row containing "
-                 "data below the header.")
+        raise ValueError("Could not find the data. Make sure you have at least one row containing "
+                         "data below the header.")
     if len(indexes_to_drop) > 0:
         df = df.drop(indexes_to_drop)
 
@@ -190,7 +188,7 @@ def read_table_file(file, element, sheet_name=0, n=0, sheet_type="Model"):
                 break
             except KeyError:
                 if name == value[-1]:
-                    sys.exit("Could not find a column with one of these names: " + str(value))
+                    raise ValueError("Could not find a column with one of these names: " + str(value))
                 continue
     for key, value in optional_parameter_columns.items():
         for name in value:
