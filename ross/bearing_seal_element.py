@@ -423,7 +423,7 @@ class BearingElement(Element):
 
     @classmethod
     def from_table(cls, n, file, sheet_name=0):
-        """Instantiate a bearing using inputs from a table, either excel or csv.
+        """Instantiate a bearing using inputs from an Excel table.
         Parameters
         ----------
         n : int

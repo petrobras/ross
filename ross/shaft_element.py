@@ -221,7 +221,7 @@ class ShaftElement(Element):
 
     @classmethod
     def from_table(cls, file, sheet_type="Simple", sheet_name=0):
-        """Instantiate one or more shafts using inputs from a table, either excel or csv.
+        """Instantiate one or more shafts using inputs from an Excel table.
         Parameters
         ----------
         file: str

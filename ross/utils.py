@@ -5,7 +5,7 @@ from ross.materials import Material
 
 
 def read_table_file(file, element, sheet_name=0, n=0, sheet_type="Model"):
-    """Instantiate one or more element objects using inputs from an Excel table, csv, or similar.
+    """Instantiate one or more element objects using inputs from an Excel table.
     Parameters
     ----------
     file: str
@@ -24,12 +24,7 @@ def read_table_file(file, element, sheet_name=0, n=0, sheet_type="Model"):
     -------
     A dictionary of parameters.
     """
-    is_csv = False
-    try:
-        df = pd.read_excel(file, header=None, sheet_name=sheet_name)
-    except xlrd.biffh.XLRDError:
-        df = pd.read_csv(file, header=None)
-        is_csv = True
+    df = pd.read_excel(file, header=None, sheet_name=sheet_name)
 
     # Assign specific values to variables
     parameter_columns = {}
@@ -153,10 +148,7 @@ def read_table_file(file, element, sheet_name=0, n=0, sheet_type="Model"):
             )
             new_materials['shaft_mat_' + str(material_name[i])] = new_material
 
-    if not is_csv:
-        df = pd.read_excel(file, header=header_index, sheet_name=sheet_name)
-    else:
-        df = pd.read_csv(file, header=header_index)
+    df = pd.read_excel(file, header=header_index, sheet_name=sheet_name)
     df.columns = df.columns.str.lower()
 
     # Find and isolate data rows

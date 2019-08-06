@@ -350,7 +350,7 @@ class DiskElement(Element):
 
     @classmethod
     def from_table(cls, file, sheet_name=0):
-        """Instantiate one or more disks using inputs from a table, either excel or csv.
+        """Instantiate one or more disks using inputs from an Excel table.
         Parameters
         ----------
         file: str
