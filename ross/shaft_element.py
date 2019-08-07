@@ -563,17 +563,17 @@ class ShaftElement(Element):
 
         return G
 
-    def patch(self, position, SR, ax):
+    def patch(self, position, check_sld, ax):
         """Shaft element patch.
         Patch that will be used to draw the shaft element.
         Parameters
         ----------
-        ax : matplotlib axes, optional
-            Axes in which the plot will be drawn.
-        SR : list
-            list of slenderness ratio of shaft elements
         position : float
             Position in which the patch will be drawn.
+        check_sld : bool
+            If True, HoverTool displays only the slenderness ratio
+        ax : matplotlib axes, optional
+            Axes in which the plot will be drawn.
         Returns
         -------
         """
@@ -581,7 +581,7 @@ class ShaftElement(Element):
         position_l = [position, -self.o_d / 2]  # lower
         width = self.L
         height = self.o_d / 2 - self.i_d / 2
-        if self.n in SR:
+        if check_sld is True and self.slenderness_ratio < 1.6:
             mpl_color = "yellow"
             legend = "Shaft - Slenderness Ratio < 1.6"
         else:
@@ -616,24 +616,23 @@ class ShaftElement(Element):
             )
         )
 
-    def bokeh_patch(self, position, SR, check_sld, bk_ax):
+    def bokeh_patch(self, position, check_sld, bk_ax):
         """Shaft element patch.
         Patch that will be used to draw the shaft element.
         Parameters
         ----------
-        bk_ax : bokeh plotting axes, optional
-            Axes in which the plot will be drawn.
-        SR : list
-            list of slenderness ratio of shaft elements
-        check_sld : bool
-            If True, HoverTool displays only the slenderness ratio
         position : float
             Position in which the patch will be drawn.
+        check_sld : bool
+            If True, HoverTool displays only the slenderness ratio
+        bk_ax : bokeh plotting axes, optional
+            Axes in which the plot will be drawn.
         Returns
         -------
+        hover : Bokeh HoverTool
+            Bokeh HoverTool axes
         """
-
-        if self.n in SR:
+        if check_sld is True and self.slenderness_ratio < 1.6:
             bk_color = "yellow"
             legend = "Shaft - Slenderness Ratio < 1.6"
         else:
