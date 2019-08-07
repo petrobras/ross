@@ -172,42 +172,38 @@ class DiskElement(Element):
         ----------
         ax : matplotlib axes, optional
             Axes in which the plot will be drawn.
-        bk_ax : bokeh plotting axes, optional
-            Axes in which the plot will be drawn.
         position : float
             Position in which the patch will be drawn.
-        length : float
-            minimum length of shaft elements
         Returns
         -------
         ax : matplotlib axes
             Returns the axes object with the plot.
         """
         zpos, ypos = position
-        le = length / 8
-        D = ypos * 2
-        hw = 0.02
+        step = ypos / 5
 
         #  matplotlib node (x pos), outer diam. (y pos)
         disk_points_u = [
             [zpos, ypos],  # upper
-            [zpos + hw, ypos + D],
-            [zpos - hw, ypos + D],
+            [zpos + step, ypos * 4],
+            [zpos - step, ypos * 4],
             [zpos, ypos],
         ]
         disk_points_l = [
             [zpos, -ypos],  # lower
-            [zpos + hw, -(ypos + D)],
-            [zpos - hw, -(ypos + D)],
+            [zpos + step, -ypos * 4],
+            [zpos - step, -ypos * 4],
             [zpos, -ypos],
         ]
 
         ax.add_patch(mpatches.Polygon(disk_points_u, facecolor=self.color))
         ax.add_patch(mpatches.Polygon(disk_points_l, facecolor=self.color))
 
-        ax.add_patch(mpatches.Circle(xy=(zpos, ypos + D), radius=hw, color=self.color))
         ax.add_patch(
-            mpatches.Circle(xy=(zpos, -(ypos + D)), radius=hw, color=self.color)
+            mpatches.Circle(xy=(zpos, ypos*4), radius=step, color=self.color)
+        )
+        ax.add_patch(
+            mpatches.Circle(xy=(zpos, -ypos*4), radius=step, color=self.color)
         )
 
     def bokeh_patch(self, position, length, bk_ax):
@@ -215,38 +211,43 @@ class DiskElement(Element):
         Patch that will be used to draw the disk element.
         Parameters
         ----------
-        ax : matplotlib axes, optional
-            Axes in which the plot will be drawn.
         bk_ax : bokeh plotting axes, optional
             Axes in which the plot will be drawn.
         position : float
             Position in which the patch will be drawn.
-        length : float
-            minimum length of shaft elements
         Returns
         -------
         bk_ax : bokeh plotting axes
             Returns the axes object with the plot.
         """
         zpos, ypos = position
-        le = length / 8
+        step = ypos / 5
 
         # bokeh plot - coordinates to plot disks elements
-        z_upper = [zpos, zpos + le, zpos - le]
+        z_upper = [zpos, zpos + step, zpos - step]
         y_upper = [ypos, ypos * 4, ypos * 4]
 
-        z_lower = [zpos, zpos + le, zpos - le]
+        z_lower = [zpos, zpos + step, zpos - step]
         y_lower = [-ypos, -ypos * 4, -ypos * 4]
 
         source = ColumnDataSource(
-            dict(z_l=z_lower, y_l=y_lower, z_u=z_upper, y_u=y_upper)
+            dict(
+                z_l=[z_lower],
+                y_l=[y_lower],
+                z_u=[z_upper],
+                y_u=[y_upper],
+                elnum=[self.n],
+                IP=[self.Ip],
+                ID=[self.Id],
+                mass=[self.m],
+            )
         )
         source_c = ColumnDataSource(
             dict(
                 z_circle=[z_upper[0]],
                 yu_circle=[y_upper[1]],
                 yl_circle=[-y_upper[1]],
-                radius=[le],
+                radius=[step],
                 elnum=[self.n],
                 IP=[self.Ip],
                 ID=[self.Id],
@@ -254,22 +255,24 @@ class DiskElement(Element):
             )
         )
 
-        bk_ax.patch(
-            x="z_u",
-            y="y_u",
+        bk_ax.patches(
+            xs="z_u",
+            ys="y_u",
             source=source,
             alpha=1,
             line_width=2,
             color=bokeh_colors[9],
             legend="Disk",
+            name="ub_disk",
         )
-        bk_ax.patch(
-            x="z_l",
-            y="y_l",
+        bk_ax.patches(
+            xs="z_l",
+            ys="y_l",
             source=source,
             alpha=1,
             line_width=2,
             color=bokeh_colors[9],
+            name="ub_disk",
         )
         bk_ax.circle(
             x="z_circle",
@@ -290,7 +293,7 @@ class DiskElement(Element):
             name="lc_disk",
         )
 
-        hover = HoverTool(names=["uc_disk", "lc_disk"])
+        hover = HoverTool(names=["uc_disk", "lc_disk", "ub_disk", "lb_disk"])
         hover.tooltips = [
             ("Disk Node :", "@elnum"),
             ("Polar Moment of Inertia :", "@IP"),
@@ -299,8 +302,7 @@ class DiskElement(Element):
         ]
         hover.mode = "mouse"
 
-        if len(bk_ax.hover) == 1:
-            bk_ax.add_tools(hover)
+        return hover
 
     @classmethod
     def from_geometry(cls, n, material, width, i_d, o_d):
