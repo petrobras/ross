@@ -51,7 +51,7 @@ REQUIRED = [
 ]
 
 # What packages are optional?
-EXTRAS = {"dev": ["pytest", "pytest-cov", "codecov"]}
+EXTRAS = {"dev": ["pytest", "pytest-cov", "coverage", "codecov"]}
 
 # The rest you shouldn't have to touch too much :)
 # ------------------------------------------------
