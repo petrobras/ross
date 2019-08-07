@@ -150,6 +150,8 @@ def read_table_file(file, element, sheet_name=0, n=0, sheet_type="Model"):
 
     df = pd.read_excel(file, header=header_index, sheet_name=sheet_name)
     df.columns = df.columns.str.lower()
+    df.dropna(axis=1, how='all', inplace=True)
+    df.dropna(inplace=True)
 
     # Find and isolate data rows
     first_data_row_found = False
