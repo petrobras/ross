@@ -150,19 +150,21 @@ def read_table_file(file, element, sheet_name=0, n=0, sheet_type="Model"):
 
     df = pd.read_excel(file, header=header_index, sheet_name=sheet_name)
     df.columns = df.columns.str.lower()
-    df.dropna(axis=1, how='all', inplace=True)
-    df.dropna(inplace=True)
+    df.dropna(axis=0, how='all', inplace=True)
 
     # Find and isolate data rows
     first_data_row_found = False
     indexes_to_drop = []
     for index, row in df.iterrows():
-        if not first_data_row_found and (isinstance(row[0], int) or isinstance(row[0], float)):
+        if not first_data_row_found \
+                and (isinstance(row[header_key_word], int) or isinstance(row[header_key_word], float)) \
+                and not pd.isna(row[header_key_word]):
             first_data_row_found = True
         elif not first_data_row_found:
             indexes_to_drop.append(index)
         elif first_data_row_found:
-            if isinstance(row[0], int) or isinstance(row[0], float):
+            if (isinstance(row[header_key_word], int) or isinstance(row[header_key_word], float))\
+                    and not pd.isna(row[header_key_word]):
                 continue
             else:
                 indexes_to_drop.append(index)
