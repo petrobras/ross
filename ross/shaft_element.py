@@ -452,17 +452,17 @@ class ShaftElement(Element):
 
         return G
 
-    def patch(self, position, SR, ax):
+    def patch(self, position, check_sld, ax):
         """Shaft element patch.
         Patch that will be used to draw the shaft element.
         Parameters
         ----------
-        ax : matplotlib axes, optional
-            Axes in which the plot will be drawn.
-        bk_ax : bokeh plotting axes, optional
-            Axes in which the plot will be drawn.
         position : float
             Position in which the patch will be drawn.
+        check_sld : bool
+            If True, HoverTool displays only the slenderness ratio
+        ax : matplotlib axes, optional
+            Axes in which the plot will be drawn.
         Returns
         -------
         """
@@ -470,7 +470,7 @@ class ShaftElement(Element):
         position_l = [position, -self.o_d / 2]  # lower
         width = self.L
         height = self.o_d / 2 - self.i_d / 2
-        if self.n in SR:
+        if check_sld is True and self.slenderness_ratio < 1.6:
             mpl_color = "yellow"
             legend = "Shaft - Slenderness Ratio < 1.6"
         else:
@@ -505,20 +505,23 @@ class ShaftElement(Element):
             )
         )
 
-    def bokeh_patch(self, position, SR, bk_ax):
+    def bokeh_patch(self, position, check_sld, bk_ax):
         """Shaft element patch.
         Patch that will be used to draw the shaft element.
         Parameters
         ----------
-        bk_ax : bokeh plotting axes, optional
-            Axes in which the plot will be drawn.
         position : float
             Position in which the patch will be drawn.
+        check_sld : bool
+            If True, HoverTool displays only the slenderness ratio
+        bk_ax : bokeh plotting axes, optional
+            Axes in which the plot will be drawn.
         Returns
         -------
+        hover : Bokeh HoverTool
+            Bokeh HoverTool axes
         """
-
-        if self.n in SR:
+        if check_sld is True and self.slenderness_ratio < 1.6:
             bk_color = "yellow"
             legend = "Shaft - Slenderness Ratio < 1.6"
         else:
@@ -531,6 +534,7 @@ class ShaftElement(Element):
                 bottom=[self.i_d / 2],
                 left=[position],
                 right=[position + self.L],
+                sld=[self.slenderness_ratio],
                 elnum=[self.n],
                 out_d_l=[self.o_d_l],
                 out_d_r=[self.o_d_r],
@@ -547,6 +551,7 @@ class ShaftElement(Element):
                 bottom=[-self.i_d / 2],
                 left=[position],
                 right=[position + self.L],
+                sld=[self.slenderness_ratio],
                 elnum=[self.n],
                 out_d_l=[self.o_d_l],
                 out_d_r=[self.o_d_r],
@@ -584,15 +589,22 @@ class ShaftElement(Element):
             name="l_shaft",
         )
         hover = HoverTool(names=["u_shaft", "l_shaft"])
-        hover.tooltips = [
-            ("Element Number :", "@elnum"),
-            ("Left Outer Diameter :", "@out_d_l"),
-            ("Left Inner Diameter :", "@in_d_l"),
-            ("Right Outer Diameter :", "@out_d_r"),
-            ("Right Inner Diameter :", "@in_d_r"),
-            ("Element Length :", "@length"),
-            ("Material :", "@mat"),
-        ]
+
+        if check_sld:
+            hover.tooltips = [
+                ("Element Number :", "@elnum"),
+                ("Slenderness Ratio :", "@sld"),
+            ]
+        else:
+            hover.tooltips = [
+                ("Element Number :", "@elnum"),
+                ("Left Outer Diameter :", "@out_d_l"),
+                ("Left Inner Diameter :", "@in_d_l"),
+                ("Right Outer Diameter :", "@out_d_r"),
+                ("Right Inner Diameter :", "@in_d_r"),
+                ("Element Length :", "@length"),
+                ("Material :", "@mat"),
+            ]
         hover.mode = "mouse"
 
         return hover
@@ -1285,8 +1297,8 @@ class ShaftTaperedElement(Element):
         ----------
         ax : matplotlib axes, optional
             Axes in which the plot will be drawn.
-        bk_ax : bokeh plotting axes, optional
-            Axes in which the plot will be drawn.
+        SR : list
+            list of slenderness ratio of shaft elements
         position : float
             Position in which the patch will be drawn.
         Returns
@@ -1339,13 +1351,17 @@ class ShaftTaperedElement(Element):
             )
         )
 
-    def bokeh_patch(self, position, SR, bk_ax):
+    def bokeh_patch(self, position, SR, check_sld, bk_ax):
         """Shaft element patch.
         Patch that will be used to draw the shaft element.
         Parameters
         ----------
         bk_ax : bokeh plotting axes, optional
             Axes in which the plot will be drawn.
+        SR : list
+            list of slenderness ratio of shaft elements
+        check_sld : bool
+            If True, HoverTool displays only the slenderness ratio
         position : float
             Position in which the patch will be drawn.
         Returns
@@ -1366,23 +1382,24 @@ class ShaftTaperedElement(Element):
 
         source = ColumnDataSource(
             dict(
-                z_l=z_lower,
-                y_l=y_lower,
-                z_u=z_upper,
-                y_u=y_upper,
-                elnum=[self.n]*4,
-                out_d_l=[self.o_d_l]*4,
-                out_d_r=[self.o_d_r]*4,
-                in_d_l=[self.i_d_l]*4,
-                in_d_r=[self.i_d_r]*4,
-                length=[self.L]*4,
-                mat=[self.material.name]*4,
+                z_l=[z_lower],
+                y_l=[y_lower],
+                z_u=[z_upper],
+                y_u=[y_upper],
+                sld=[self.slenderness_ratio],
+                elnum=[self.n],
+                out_d_l=[self.o_d_l],
+                out_d_r=[self.o_d_r],
+                in_d_l=[self.i_d_l],
+                in_d_r=[self.i_d_r],
+                length=[self.L],
+                mat=[self.material.name],
             )
         )
 
-        bk_ax.patch(
-            x="z_u",
-            y="y_u",
+        bk_ax.patches(
+            xs="z_u",
+            ys="y_u",
             source=source,
             line_color=bokeh_colors[0],
             line_width=1,
@@ -1391,9 +1408,9 @@ class ShaftTaperedElement(Element):
             legend=legend,
             name="u_shaft",
         )
-        bk_ax.patch(
-            x="z_l",
-            y="y_l",
+        bk_ax.patches(
+            xs="z_l",
+            ys="y_l",
             source=source,
             line_color=bokeh_colors[0],
             line_width=1,
@@ -1403,16 +1420,22 @@ class ShaftTaperedElement(Element):
             name="l_shaft",
         )
 
-        hover = HoverTool(names=["u_shaft", "l_shaft"])
-        hover.tooltips = [
-            ("Element Number :", "@elnum"),
-            ("Left Outer Diameter :", "@out_d_l"),
-            ("Left Inner Diameter :", "@in_d_l"),
-            ("Right Outer Diameter :", "@out_d_r"),
-            ("Right Inner Diameter :", "@in_d_r"),
-            ("Element Length :", "@length"),
-            ("Material :", "@mat"),
-        ]
+        hover = HoverTool(names=["l_shaft", "u_shaft"])
+        if check_sld:
+            hover.tooltips = [
+                ("Element Number :", "@elnum"),
+                ("Slenderness Ratio :", "@sld"),
+            ]
+        else:
+            hover.tooltips = [
+                ("Element Number :", "@elnum"),
+                ("Left Outer Diameter :", "@out_d_l"),
+                ("Left Inner Diameter :", "@in_d_l"),
+                ("Right Outer Diameter :", "@out_d_r"),
+                ("Right Inner Diameter :", "@in_d_r"),
+                ("Element Length :", "@length"),
+                ("Material :", "@mat"),
+            ]
         hover.mode = "mouse"
 
         return hover

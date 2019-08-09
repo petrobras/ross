@@ -1141,21 +1141,28 @@ class Rotor(object):
         --------
         """
         return signal.lsim(self.lti, F, t, X0=ic)
+    def _plot_rotor_matplotlib(self, nodes=1, check_sld=False, ax=None):
+        """Plots a rotor object.
 
-    def _plot_rotor_matplotlib(self, nodes=1, ax=None):
-        # check slenderness ratio of beam elements
-        SR = np.array([])
-        for shaft in self.shaft_elements:
-            if shaft.slenderness_ratio < 1.6:
-                SR = np.append(SR, shaft.n)
-        if len(SR) != 0:
-            warnings.warn(
-                "The beam elements "
-                + str(SR)
-                + " have slenderness ratio (G*A*L^2 / EI) of less than 1.6."
-                + " Results may not converge correctly"
-            )
+        This function will take a rotor object and plot its shaft,
+        disks and bearing elements
 
+        Parameters
+        ----------
+        nodes : int, optional
+            Increment that will be used to plot nodes label.
+        check_sld : bool
+            If True, checks the slenderness ratio for each element
+        ax : matplotlib plotting axes, optional
+            Axes in which the plot will be drawn.
+
+        Returns
+        -------
+        ax : matplotlib axes
+            Returns the axes object with the plot.
+
+        Examples:
+        """
         if ax is None:
             ax = plt.gca()
 
@@ -1197,7 +1204,7 @@ class Rotor(object):
         # plot shaft elements
         for sh_elm in self.shaft_elements:
             position = self.nodes_pos[sh_elm.n]
-            sh_elm.patch(position, SR, ax)
+            sh_elm.patch(position, check_sld, ax)
 
         # plot disk elements
         for disk in self.disk_elements:
@@ -1213,7 +1220,7 @@ class Rotor(object):
 
         return ax
 
-    def _plot_rotor_bokeh(self, nodes=1, bk_ax=None):
+    def _plot_rotor_bokeh(self, nodes=1, check_sld=False, bk_ax=None):
         """Plots a rotor object.
 
         This function will take a rotor object and plot its shaft,
@@ -1223,37 +1230,18 @@ class Rotor(object):
         ----------
         nodes : int, optional
             Increment that will be used to plot nodes label.
-        ax : matplotlib axes, optional
-            Axes in which the plot will be drawn.
+        check_sld : bool
+            If True, checks the slenderness ratio for each element
         bk_ax : bokeh plotting axes, optional
             Axes in which the plot will be drawn.
-        output_html : Boolean, optional
-            outputs a html file.
-            Default is False
 
         Returns
         -------
-        ax : matplotlib axes
-            Returns the axes object with the plot.
         bk_ax : bokeh plotting axes
             Returns the axes object with the plot.
 
         Examples:
         """
-
-        # check slenderness ratio of beam elements
-        SR = np.array([])
-        for shaft in self.shaft_elements:
-            if shaft.slenderness_ratio < 1.6:
-                SR = np.append(SR, shaft.n)
-        if len(SR) != 0:
-            warnings.warn(
-                "The beam elements "
-                + str(SR)
-                + " have slenderness ratio (G*A*L^2 / EI) of less than 1.6."
-                + " Results may not converge correctly"
-            )
-
         #  plot shaft centerline
         shaft_end = self.nodes_pos[-1]
 
@@ -1313,7 +1301,7 @@ class Rotor(object):
         # plot shaft elements
         for sh_elm in self.shaft_elements:
             position = self.nodes_pos[sh_elm.n]
-            hover = sh_elm.bokeh_patch(position, SR, bk_ax)
+            hover = sh_elm.bokeh_patch(position, check_sld, bk_ax)
 
         bk_ax.add_tools(hover)
 
@@ -1367,9 +1355,57 @@ class Rotor(object):
         <matplotlib.axes...
         """
         if plot_type == "matplotlib":
-            return self._plot_rotor_matplotlib(nodes=nodes, *args, **kwargs)
+            return self._plot_rotor_matplotlib(
+                    nodes=nodes, check_sld=False, *args, **kwargs
+            )
         elif plot_type == "bokeh":
-            return self._plot_rotor_bokeh(nodes=nodes, *args, **kwargs)
+            return self._plot_rotor_bokeh(
+                    nodes=nodes, check_sld=False, *args, **kwargs
+            )
+        else:
+            raise ValueError(f"{plot_type} is not a valid plot type.")
+
+    def check_slenderness_ratio(self, nodes=1, *args, plot_type="matplotlib", **kwargs):
+        """Plots a rotor object and check the slenderness ratio
+
+        Parameters
+        ----------
+        nodes : int, optional
+            Increment that will be used to plot nodes label.
+        plot_type : str
+            Matplotlib or bokeh.
+            Default is matplotlib.
+
+        Returns
+        -------
+        ax : matplotlib axes
+            Returns the axes object with the plot.
+        bk_ax : bokeh plotting axes
+            Returns the axes object with the plot.
+        Examples:
+        """
+
+        # check slenderness ratio of beam elements
+        SR = np.array([])
+        for shaft in self.shaft_elements:
+            if shaft.slenderness_ratio < 1.6:
+                SR = np.append(SR, shaft.n)
+        if len(SR) != 0:
+            warnings.warn(
+                "The beam elements "
+                + str(SR)
+                + " have slenderness ratio (G*A*L^2 / EI) of less than 1.6."
+                + " Results may not converge correctly"
+            )
+
+        if plot_type == "matplotlib":
+            return self._plot_rotor_matplotlib(
+                    nodes=nodes, check_sld=True, *args, **kwargs
+            )
+        elif plot_type == "bokeh":
+            return self._plot_rotor_bokeh(
+                    nodes=nodes, check_sld=True, *args, **kwargs
+            )
         else:
             raise ValueError(f"{plot_type} is not a valid plot type.")
 
