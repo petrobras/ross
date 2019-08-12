@@ -120,7 +120,7 @@ def test_numerical_abs_error():
 
 def test_numerical_abs_error2():
     bearing = fluid_flow_numerical()
-    bearing.calculate_pressure_matrix_analytical2()
+    bearing.calculate_pressure_matrix_analytical(method=1)
     bearing.calculate_pressure_matrix_numerical()
     error = np.linalg.norm(bearing.p_mat_analytical[:][int(bearing.nz / 2)] -
                            bearing.p_mat_numerical[:][int(bearing.nz / 2)], ord=np.inf)
