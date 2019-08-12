@@ -2,7 +2,7 @@ import sys
 import warnings
 import matplotlib.pyplot as plt
 import numpy as np
-from bokeh.plotting import figure, output_file
+from bokeh.plotting import figure
 
 
 class PressureMatrix:
@@ -232,37 +232,43 @@ class PressureMatrix:
         self.analytical_pressure_matrix_available = False
         self.numerical_pressure_matrix_available = False
 
-    def calculate_pressure_matrix_analytical(self):
-        """This function calculates the pressure matrix analytically, based on the book Tribology Series vol. 33, by
-        Frene et al., chapter 5.
+    def calculate_pressure_matrix_analytical(self, method=0):
+        """This function calculates the pressure matrix analytically.
+        Parameters
+        ----------
+        method: int
+            Determines the analytical method to be used, when more than one is available.
+            In case of a short bearing:
+                0: Based on the book Tribology Series vol. 33, by Frene et al., chapter 5.
+                1: based on the chapter Linear and Nonlinear Rotordynamics, by Ishida and
+                Yamamoto, from the book Flow-Induced Vibrations.
+
         """
         if self.bearing_type == "short_bearing":
-            for i in range(self.nz):
-                for j in range(self.ntheta):
-                    # fmt: off
-                    self.p_mat_analytical[i][j] = (((-3*self.viscosity*self.omega)/self.difference_between_radius**2) *
-                                                   ((i * self.dz - (self.length / 2)) ** 2 - (self.length ** 2) / 4) *
-                                                   (self.eccentricity_ratio * np.sin(j * self.dtheta)) /
-                                                   (1 + self.eccentricity_ratio * np.cos(j * self.dtheta))**3)
-                    # fmt: on
+            if method == 0:
+                for i in range(self.nz):
+                    for j in range(self.ntheta):
+                        # fmt: off
+                        self.p_mat_analytical[i][j] = (
+                                ((-3 * self.viscosity * self.omega) / self.difference_between_radius ** 2) *
+                                ((i * self.dz - (self.length / 2)) ** 2 - (self.length ** 2) / 4) *
+                                (self.eccentricity_ratio * np.sin(j * self.dtheta)) /
+                                (1 + self.eccentricity_ratio * np.cos(j * self.dtheta)) ** 3)
+                        # fmt: on
+            elif method == 1:
+                for i in range(self.nz):
+                    for j in range(self.ntheta):
+                        # fmt: off
+                        self.p_mat_analytical[i][j] = (3 * self.viscosity / ((self.difference_between_radius ** 2) *
+                                                                             (1. + self.eccentricity_ratio * np.cos(
+                                                                                 j * self.dtheta)) ** 3)) * \
+                                                      (-self.eccentricity_ratio * self.omega * np.sin(
+                                                          j * self.dtheta)) * \
+                                                      (((i * self.dz - (self.length / 2)) ** 2) - (
+                                                              self.length ** 2) / 4)
+                        # fmt: on
         self.analytical_pressure_matrix_available = True
         return self.p_mat_analytical
-
-    def calculate_pressure_matrix_analytical2(self):
-        """This function calculates the pressure matrix analytically, based on the chapter Linear and Nonlinear
-        Rotordynamics, by Ishida and Yamamoto, from the book Flow-Induced Vibrations.
-        """
-        if self.bearing_type == "short_bearing":
-            for i in range(self.nz):
-                for j in range(self.ntheta):
-                    # fmt: off
-                    self.p_mat_analytical[i][j] = (3 * self.viscosity / ((self.difference_between_radius ** 2) *
-                                                                    (1. + self.eccentricity_ratio * np.cos(
-                                                                        j * self.dtheta)) ** 3)) * \
-                                                  (-self.eccentricity_ratio * self.omega * np.sin(j * self.dtheta)) * \
-                                                  (((i * self.dz - (self.length / 2)) ** 2) - (self.length ** 2) / 4)
-                    # fmt: on
-        self.analytical_pressure_matrix_available = True
 
     def calculate_coefficients(self):
         """This function calculates the constants that form the Poisson equation
