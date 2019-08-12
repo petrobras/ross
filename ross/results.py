@@ -1163,8 +1163,8 @@ class StaticResults():
         disp_graph = figure(
             tools=TOOLS,
             tooltips=TOOLTIPS,
-            width=800,
-            height=400,
+            width=900,
+            height=450,
             title="Static Analysis",
             x_axis_label="shaft lenght",
             y_axis_label="lateral displacement",
@@ -1219,25 +1219,21 @@ class StaticResults():
         )
 
         # create a new plot for free body diagram (FDB)
-        y_range = []
+        y_start = 5.0
         sh_weight = sum(self.df_shaft["m"].values) * 9.8065
-        y_range.append(sh_weight)
-        for i, node in enumerate(self.df_bearings["n"]):
-            y_range.append(-self.disp_y[node] * self.df_bearings.loc[i, "kyy"].coefficient[0])
 
         shaft_end = self.nodes_pos[-1]
         FBD = figure(
             tools=TOOLS,
-            width=800,
-            height=400,
+            width=900,
+            height=450,
             title="Free-Body Diagram",
             x_axis_label="shaft lenght",
-            y_axis_label="Force",
             x_range=[-0.1 * shaft_end, 1.1 * shaft_end],
-            y_range=[-max(y_range) * 1.4, max(y_range) * 1.4],
+            y_range=[-3*y_start, 3*y_start],
         )
+        FBD.yaxis.visible = False
         FBD.xaxis.axis_label_text_font_size = "14pt"
-        FBD.yaxis.axis_label_text_font_size = "14pt"
 
         FBD.line("x0", "y1", source=source, line_width=5, line_color=bokeh_colors[0])
 
@@ -1245,23 +1241,26 @@ class StaticResults():
         text = str("%.1f" % sh_weight)
         FBD.line(
             x=self.nodes_pos,
-            y=[sh_weight] * len(self.nodes_pos),
+            y=[y_start] * len(self.nodes_pos),
             line_width=2,
             line_color=bokeh_colors[0],
         )
 
-        for node in self.nodes_pos:
+        ini = self.nodes_pos[0]
+        fin = self.nodes_pos[-1]        
+        arrows_list = np.arange(ini, 1.01*fin, fin/5.)
+        for node in arrows_list:
             FBD.add_layout(
                 Arrow(
                     end=NormalHead(
-                        fill_color=bokeh_colors[7],
+                        fill_color=bokeh_colors[2],
                         fill_alpha=1.0,
                         size=16,
                         line_width=2,
                         line_color=bokeh_colors[0],
                     ),
                     x_start=node,
-                    y_start=sh_weight,
+                    y_start=y_start,
                     x_end=node,
                     y_end=0,
                 )
@@ -1270,9 +1269,10 @@ class StaticResults():
         FBD.add_layout(
             Label(
                 x=self.nodes_pos[0],
-                y=sh_weight,
+                y=y_start,
                 text="W = " + text + "N",
                 text_font_style="bold",
+                text_font_size="10pt",
                 text_baseline="top",
                 text_align="left",
                 y_offset=20,
@@ -1286,14 +1286,14 @@ class StaticResults():
             FBD.add_layout(
                 Arrow(
                     end=NormalHead(
-                        fill_color=bokeh_colors[7],
+                        fill_color=bokeh_colors[6],
                         fill_alpha=1.0,
                         size=16,
                         line_width=2,
                         line_color=bokeh_colors[0],
                     ),
                     x_start=self.nodes_pos[node],
-                    y_start=-Fb,
+                    y_start=-2*y_start,
                     x_end=self.nodes_pos[node],
                     y_end=0,
                 )
@@ -1301,12 +1301,14 @@ class StaticResults():
             FBD.add_layout(
                 Label(
                     x=self.nodes_pos[node],
-                    y=-Fb,
+                    y=-2*y_start,
+                    angle=np.pi/2,
                     text="Fb = " + text + "N",
                     text_font_style="bold",
-                    text_baseline="bottom",
+                    text_font_size="10pt",
+                    text_baseline="top",
                     text_align="center",
-                    y_offset=-20,
+                    x_offset=2,
                 )
             )
 
@@ -1318,14 +1320,14 @@ class StaticResults():
                 FBD.add_layout(
                     Arrow(
                         end=NormalHead(
-                            fill_color=bokeh_colors[7],
+                            fill_color=bokeh_colors[9],
                             fill_alpha=1.0,
                             size=16,
                             line_width=2,
                             line_color=bokeh_colors[0],
                         ),
                         x_start=self.nodes_pos[node],
-                        y_start=Fd,
+                        y_start=2*y_start,
                         x_end=self.nodes_pos[node],
                         y_end=0,
                     )
@@ -1333,12 +1335,14 @@ class StaticResults():
                 FBD.add_layout(
                     Label(
                         x=self.nodes_pos[node],
-                        y=Fd,
+                        y=2*y_start,
+                        angle=np.pi/2,
                         text="Fd = " + text + "N",
                         text_font_style="bold",
+                        text_font_size="10pt",
                         text_baseline="top",
                         text_align="center",
-                        y_offset=20,
+                        x_offset=2,
                     )
                 )
 
@@ -1348,8 +1352,8 @@ class StaticResults():
         SF = figure(
             tools=TOOLS,
             tooltips=TOOLTIPS_SF,
-            width=800,
-            height=400,
+            width=900,
+            height=450,
             title="Shearing Force Diagram",
             x_axis_label="Shaft lenght",
             y_axis_label="Force",
@@ -1376,8 +1380,8 @@ class StaticResults():
         BM = figure(
             tools=TOOLS,
             tooltips=TOOLTIPS_BM,
-            width=800,
-            height=400,
+            width=900,
+            height=450,
             title="Bending Moment Diagram",
             x_axis_label="Shaft lenght",
             y_axis_label="Bending Moment",

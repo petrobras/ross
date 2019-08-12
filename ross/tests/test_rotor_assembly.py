@@ -50,14 +50,6 @@ def test_index_eigenvalues_rotor1(rotor1):
     assert_almost_equal([4, 2, 0, 1, 3, 5], rotor1._index(evalues2))
 
 
-def test_evals_sorted_rotor_example():
-    rotor = rotor_example()
-    evalues, evectors = rotor._eigen(0, sorted_=False)
-    idx = rotor._index(evalues)
-    expected_idx = np.array([1, 3, 5, 7, 9, 11])
-    assert_allclose(expected_idx, idx[:6])
-
-
 def test_mass_matrix_rotor1(rotor1):
     # fmt: off
     Mr1 = np.array([[ 1.421,  0.   ,  0.   ,  0.049,  0.496,  0.   ,  0.   , -0.031,  0.   ,  0.   ,  0.   ,  0.   ],

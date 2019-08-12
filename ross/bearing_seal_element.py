@@ -1,14 +1,12 @@
-import sys
 import warnings
 
 import bokeh.palettes as bp
 import matplotlib.patches as mpatches
 import matplotlib.pyplot as plt
 import numpy as np
-import pandas as pd
 import scipy.interpolate as interpolate
-import xlrd
 
+from ross.utils import read_table_file
 from ross.element import Element
 from ross.fluid_flow import fluid_flow as flow
 
@@ -329,24 +327,34 @@ class BearingElement(Element):
             Axes in which the plot will be drawn.
         position : tuple
             Position (z, y) in which the patch will be drawn.
-        length : float
-            minimum length of shaft elements
-
         Returns
         -------
         """
         zpos, ypos = position
-        le = length
-        h = -0.5 * ypos  # height
+        step = ypos / 3
 
         #  node (x pos), outer diam. (y pos)
-        bearing_points = [
-            [zpos, ypos],  # upper
-            [zpos + h / 2, ypos - h],
-            [zpos - h / 2, ypos - h],
-            [zpos, ypos],
+        bearing_points_u = [
+            [zpos - step, ypos],  # upper
+            [zpos - step, ypos + 2*step],
+            [zpos + step, ypos + 2*step],
+            [zpos + step, ypos],
+            [zpos - step, ypos],
         ]
-        ax.add_patch(mpatches.Polygon(bearing_points, color=self.color, picker=True))
+        bearing_points_l = [
+            [zpos - step, -ypos],  # upper
+            [zpos - step, -ypos - 2*step],
+            [zpos + step, -ypos - 2*step],
+            [zpos + step, -ypos],
+            [zpos - step, -ypos],
+        ]
+
+        ax.add_patch(
+            mpatches.Polygon(bearing_points_u, color=self.color, picker=True)
+        )
+        ax.add_patch(
+            mpatches.Polygon(bearing_points_l, color=self.color, picker=True)
+        )
 
     def bokeh_patch(self, position, length, bk_ax):
         """Bearing element patch.
@@ -367,29 +375,29 @@ class BearingElement(Element):
         -------
         """
         zpos, ypos = position
-        le = length
+        step = ypos / 3
 
         # bokeh plot - upper bearing visual representation
         bk_ax.quad(
-            top=-ypos + le / 3,
-            bottom=-ypos,
-            left=zpos - le / 6,
-            right=zpos + le / 6,
+            top=ypos + 2*step,
+            bottom=ypos,
+            left=zpos - step,
+            right=zpos + step,
             line_color=bokeh_colors[0],
             line_width=1,
-            fill_alpha=1,
+            fill_alpha=0.8,
             fill_color=bokeh_colors[1],
             legend="Bearing",
         )
         # bokeh plot - lower bearing visual representation
         bk_ax.quad(
-            top=ypos,
-            bottom=ypos - le / 3,
-            left=zpos - le / 6,
-            right=zpos + le / 6,
+            top=-ypos,
+            bottom=-ypos - 2*step,
+            left=zpos - step,
+            right=zpos + step,
             line_color=bokeh_colors[0],
             line_width=1,
-            fill_alpha=1,
+            fill_alpha=0.8,
             fill_color=bokeh_colors[1],
         )
 
@@ -424,84 +432,33 @@ class BearingElement(Element):
         return data
 
     @classmethod
-    def from_table(cls, n, file):
-        """Instantiate a bearing using inputs from a table, either excel or csv.
+    def from_table(cls, n, file, sheet_name=0):
+        """Instantiate a bearing using inputs from an Excel table.
         Parameters
         ----------
         n : int
             The node in which the bearing will be located in the rotor.
         file: str
             Path to the file containing the bearing parameters.
+        sheet_name: int or str, optional
+            Position of the sheet in the file (starting from 0) or its name. If none is passed, it is
+            assumed to be the first sheet in the file.
         Returns
         -------
         A bearing object.
         """
-        try:
-            df = pd.read_excel(file, header=None)
-        except FileNotFoundError:
-            sys.exit(file + " not found.")
-        except xlrd.biffh.XLRDError:
-            df = pd.read_csv(file, header=None)
-        header_index = -1
-        header_found = False
-        for index, row in df.iterrows():
-            for i in range(0, row.size):
-                if isinstance(row[i], str):
-                    if row[i].lower() == 'kxx':
-                        header_index = index
-                        header_found = True
-                        break
-            if header_found:
-                break
-        if header_index < 0:
-            sys.exit("Could not find the header. Make sure the sheet has a header "
-                     "containing the names of the columns.")
-        try:
-            df = pd.read_excel(file, header=header_index)
-        except xlrd.biffh.XLRDError:
-            df = pd.read_csv(file, header=header_index)
-        first_data_row = -1
-        for index, row in df.iterrows():
-            if isinstance(row[0], int) or isinstance(row[0], float):
-                first_data_row = index
-                break
-        if first_data_row < 0:
-            sys.exit("Could not find the data. Make sure you have at least one row containing "
-                     "data below the header.")
-        for i in range(0, first_data_row):
-            df = df.drop(i)
-        nan_found = False
-        for index, row in df.iterrows():
-            for i in range(first_data_row, row.size):
-                if pd.isna(row[i]):
-                    nan_found = True
-                    row[i] = 0
-        if nan_found:
-            warnings.warn("One or more NaN found. They were replaced with zeros.")
-        parameters = []
-        possible_names = [["kxx", "Kxx", "KXX"], ["cxx", "Cxx", "CXX"], ["kyy", "Kyy", "KYY"],
-                          ["kxy", "Kxy", "KXY"], ["kyx", "Kyx", "KYX"], ["cyy", "Cyy", "CYY"],
-                          ["cxy", "Cxy", "CXY"], ["cyx", "Cyx", "CYX"],
-                          ["w", "W", "speed", "Speed", "SPEED"]]
-        for name_group in possible_names:
-            for name in name_group:
-                try:
-                    parameter = df[name].tolist()
-                    parameters.append(parameter)
-                    break
-                except KeyError:
-                    continue
+        parameters = read_table_file(file, 'bearing', sheet_name, n)
         return cls(
-            n,
-            kxx=parameters[0],
-            cxx=parameters[1],
-            kyy=parameters[2],
-            kxy=parameters[3],
-            kyx=parameters[4],
-            cyy=parameters[5],
-            cxy=parameters[6],
-            cyx=parameters[7],
-            w=parameters[8],
+            n=parameters['n'],
+            kxx=parameters['kxx'],
+            cxx=parameters['cxx'],
+            kyy=parameters['kyy'],
+            kxy=parameters['kxy'],
+            kyx=parameters['kyx'],
+            cyy=parameters['cyy'],
+            cxy=parameters['cxy'],
+            cyx=parameters['cyx'],
+            w=parameters['w'],
         )
 
     @classmethod
@@ -635,14 +592,12 @@ class SealElement(BearingElement):
         self.seal_leakage = seal_leakage
         self.color = "#77ACA2"
 
-    def patch(self, position, ax):
+    def patch(self, position, length, ax):
         """Seal element patch.
         Patch that will be used to draw the seal element.
         Parameters
         ----------
         ax : matplotlib axes, optional
-            Axes in which the plot will be drawn.
-        bk_ax : bokeh plotting axes, optional
             Axes in which the plot will be drawn.
         position : tuple
             Position in which the patch will be drawn.
@@ -650,77 +605,70 @@ class SealElement(BearingElement):
         -------
         ax : matplotlib axes
             Returns the axes object with the plot.
-        bk_ax : bokeh plotting axes
-            Returns the axes object with the plot.
         """
         zpos, ypos = position
-        hw = 0.05
+        step = ypos / 3
 
         #  node (x pos), outer diam. (y pos)
-        seal_points_u = [
-            [zpos, ypos * 1.1],  # upper
-            [zpos + hw, ypos * 1.1],
-            [zpos + hw, ypos * 1.3],
-            [zpos - hw, ypos * 1.3],
-            [zpos - hw, ypos * 1.1],
-            [zpos, ypos * 1.1],
+        bearing_points_u = [
+            [zpos - step, 1.1*ypos],  # upper
+            [zpos - step, 1.1*ypos + 2*step],
+            [zpos + step, 1.1*ypos + 2*step],
+            [zpos + step, 1.1*ypos],
+            [zpos - step, 1.1*ypos],
         ]
-        seal_points_l = [
-            [zpos, -ypos * 1.1],  # lower
-            [zpos + hw, -(ypos * 1.1)],
-            [zpos + hw, -(ypos * 1.3)],
-            [zpos - hw, -(ypos * 1.3)],
-            [zpos - hw, -(ypos * 1.1)],
-            [zpos, -ypos * 1.1],
+        bearing_points_l = [
+            [zpos - step, -1.1*ypos],  # upper
+            [zpos - step, -1.1*ypos - 2*step],
+            [zpos + step, -1.1*ypos - 2*step],
+            [zpos + step, -1.1*ypos],
+            [zpos - step, -1.1*ypos],
         ]
-        ax.add_patch(mpatches.Polygon(seal_points_u, facecolor=self.color))
-        ax.add_patch(mpatches.Polygon(seal_points_l, facecolor=self.color))
 
-    def bokeh_patch(self, position, bk_ax):
+        ax.add_patch(
+            mpatches.Polygon(bearing_points_u, color=self.color, picker=True)
+        )
+        ax.add_patch(
+            mpatches.Polygon(bearing_points_l, color=self.color, picker=True)
+        )
+
+    def bokeh_patch(self, position, length, bk_ax):
         """Seal element patch.
         Patch that will be used to draw the seal element.
         Parameters
         ----------
-        ax : matplotlib axes, optional
-            Axes in which the plot will be drawn.
         bk_ax : bokeh plotting axes, optional
             Axes in which the plot will be drawn.
         position : tuple
             Position in which the patch will be drawn.
         Returns
         -------
-        ax : matplotlib axes
-            Returns the axes object with the plot.
         bk_ax : bokeh plotting axes
             Returns the axes object with the plot.
         """
         zpos, ypos = position
-        hw = 0.05
+        step = ypos / 3
 
-        # bokeh plot - node (x pos), outer diam. (y pos)
-        bk_seal_points_u = [
-            [zpos, zpos + hw, zpos + hw, zpos - hw, zpos - hw],
-            [ypos * 1.1, ypos * 1.1, ypos * 1.3, ypos * 1.3, ypos * 1.1],
-        ]
-
-        bk_seal_points_l = [
-            [zpos, zpos + hw, zpos + hw, zpos - hw, zpos - hw],
-            [ypos * 1.1, ypos * 1.1, ypos * 1.3, ypos * 1.3, ypos * 1.1],
-        ]
-
-        # bokeh plot - plot disks elements
-        bk_ax.patch(
-            bk_seal_points_u[0],
-            bk_seal_points_u[1],
-            alpha=0.5,
-            line_width=2,
-            color=bokeh_colors[6],
+        # bokeh plot - upper seal visual representation
+        bk_ax.quad(
+            top=1.1*ypos + 2*step,
+            bottom=1.1*ypos,
+            left=zpos - step,
+            right=zpos + step,
+            line_color=bokeh_colors[6],
+            line_width=1,
+            fill_alpha=0.8,
+            fill_color=bokeh_colors[6],
+            legend="Seal",
         )
-
-        bk_ax.patch(
-            bk_seal_points_l[0],
-            bk_seal_points_l[1],
-            alpha=0.5,
-            line_width=2,
-            color=bokeh_colors[6],
+        # bokeh plot - lower seal visual representation
+        bk_ax.quad(
+            top=-1.1*ypos,
+            bottom=-1.1*ypos - 2*step,
+            left=zpos - step,
+            right=zpos + step,
+            line_color=bokeh_colors[6],
+            line_width=1,
+            fill_alpha=0.8,
+            fill_color=bokeh_colors[6],
         )
