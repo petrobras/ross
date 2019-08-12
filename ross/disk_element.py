@@ -165,7 +165,7 @@ class DiskElement(Element):
         # fmt: on
         return G
 
-    def patch(self, position, length, ax):
+    def patch(self, position, ax):
         """Disk element patch.
         Patch that will be used to draw the disk element.
         Parameters
@@ -206,7 +206,7 @@ class DiskElement(Element):
             mpatches.Circle(xy=(zpos, -ypos*4), radius=step, color=self.color)
         )
 
-    def bokeh_patch(self, position, length, bk_ax):
+    def bokeh_patch(self, position, bk_ax):
         """Disk element patch.
         Patch that will be used to draw the disk element.
         Parameters
