@@ -239,10 +239,10 @@ class PressureMatrix:
         method: int
             Determines the analytical method to be used, when more than one is available.
             In case of a short bearing:
-                0: Based on the book Tribology Series vol. 33, by Frene et al., chapter 5.
+                0: based on the book Tribology Series vol. 33, by Frene et al., chapter 5.
                 1: based on the chapter Linear and Nonlinear Rotordynamics, by Ishida and
                 Yamamoto, from the book Flow-Induced Vibrations.
-
+                2: based on the Fundamentals of Fluid Flow Lubrification, by Hamrock, chapter 10.
         """
         if self.bearing_type == "short_bearing":
             if method == 0:
@@ -255,6 +255,8 @@ class PressureMatrix:
                                 (self.eccentricity_ratio * np.sin(j * self.dtheta)) /
                                 (1 + self.eccentricity_ratio * np.cos(j * self.dtheta)) ** 3)
                         # fmt: on
+                        if self.p_mat_analytical[i][j] < 0:
+                            self.p_mat_analytical[i][j] = 0
             elif method == 1:
                 for i in range(self.nz):
                     for j in range(self.ntheta):
@@ -267,6 +269,20 @@ class PressureMatrix:
                                                       (((i * self.dz - (self.length / 2)) ** 2) - (
                                                               self.length ** 2) / 4)
                         # fmt: on
+                        if self.p_mat_analytical[i][j] < 0:
+                            self.p_mat_analytical[i][j] = 0
+            elif method == 2:
+                for i in range(self.nz):
+                    for j in range(self.ntheta):
+                        gama = j * self.dtheta + (np.pi - self.beta)
+                        self.p_mat_analytical[i][j] = -(3 * self.viscosity * self.omega * self.eccentricity_ratio /
+                                                        (self.re[i][j] - self.ri[i][j]) ** 2) * (
+                                                              (self.length ** 2 / 4) - (i * self.dz) ** 2) * (
+                                                              np.sin(gama) / (
+                                                                  1 + self.eccentricity_ratio * np.cos(gama)) ** 3)
+
+                        if self.p_mat_analytical[i][j] < 0:
+                            self.p_mat_analytical[i][j] = 0
         self.analytical_pressure_matrix_available = True
         return self.p_mat_analytical
 
@@ -297,11 +313,10 @@ class PressureMatrix:
                      (np.log(self.ri[i][j]) - 1 / 2)) / (self.ri[i][j] ** 2 - self.re[i][j] ** 2)
 
                 self.c1[i][j] = (1 / (4 * self.viscosity)) * ((self.re[i][j] ** 2 * np.log(self.re[i][j]) -
-                                                          self.ri[i][j] ** 2 * np.log(self.ri[i][j]) +
-                                                          (self.re[i][j] ** 2 - self.ri[i][j] ** 2) *
-                                                          (k - 1)) - 2 * self.re[i][j] ** 2 *
-                                                         ((np.log(self.re[i][j]) + k - 1 / 2) * np.log(self.re[i][j] /
-                                                                                                       self.ri[i][j])))
+                                                               self.ri[i][j] ** 2 * np.log(self.ri[i][j]) +
+                                                               (self.re[i][j] ** 2 - self.ri[i][j] ** 2) *
+                                                               (k - 1)) - 2 * self.re[i][j] ** 2 * (
+                        (np.log(self.re[i][j]) + k - 1 / 2) * np.log(self.re[i][j] / self.ri[i][j])))
 
                 self.c2[i][j] = (- self.ri[i][j] ** 2) / (8 * self.viscosity) *\
                                 ((self.re[i][j] ** 2 - self.ri[i][j] ** 2 -
@@ -403,7 +418,10 @@ class PressureMatrix:
         for i in range(self.nz):
             for j in range(self.ntheta):
                 k = j * self.nz + i
-                self.p_mat_numerical[i][j] = self.P[k]
+                if self.P[k] < 0:
+                    self.p_mat_numerical[i][j] = 0
+                else:
+                    self.p_mat_numerical[i][j] = self.P[k]
         self.numerical_pressure_matrix_available = True
         return self.p_mat_numerical
 
@@ -425,7 +443,7 @@ class PressureMatrix:
         yri: float
             The position y of the returned internal radius.
         """
-        if gama > (np.pi - self.beta) and gama < (2*np.pi - self.beta):
+        if (np.pi - self.beta) < gama < (2*np.pi - self.beta):
             alpha = np.absolute(2*np.pi - gama - self.beta)
             radius_internal = np.sqrt(self.radius_rotor ** 2
                                       - (self.eccentricity * np.sin(alpha)) ** 2) + self.eccentricity * np.cos(alpha)
