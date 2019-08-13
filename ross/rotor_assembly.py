@@ -1212,10 +1212,11 @@ class Rotor(object):
             position = (self.nodes_pos[disk.n], self.nodes_o_d[disk.n] / 2)
             disk.patch(position, ax)
 
+        mean_od = np.mean(self.nodes_o_d)
         # plot bearings
         for bearing in self.bearing_seal_elements:
             position = (self.nodes_pos[bearing.n], self.nodes_o_d[bearing.n] / 2)
-            bearing.patch(position, ax)
+            bearing.patch(position, mean_od, ax)
 
         return ax
 
@@ -1311,10 +1312,11 @@ class Rotor(object):
 
         bk_ax.add_tools(hover)
 
+        mean_od = np.mean(self.nodes_o_d) / 2
         # plot bearings
         for bearing in self.bearing_seal_elements:
             position = (self.nodes_pos[bearing.n], self.nodes_o_d[bearing.n] / 2)
-            bearing.bokeh_patch(position, bk_ax)
+            bearing.bokeh_patch(position, mean_od, bk_ax)
 
         show(bk_ax)
 
