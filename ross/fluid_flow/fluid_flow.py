@@ -197,7 +197,7 @@ class PressureMatrix:
         self.bearing_type = ""
         if self.length / self.radius_stator <= 1 / 4:
             self.bearing_type = "short_bearing"
-        elif self.length / self.radius_stator > 8:
+        elif self.length / self.radius_stator >= 8:
             self.bearing_type = "long_bearing"
         else:
             self.bearing_type = "medium_size"
@@ -229,11 +229,12 @@ class PressureMatrix:
         self.f = np.zeros([self.ntotal, 1])
         self.P = np.zeros([self.ntotal, 1])
         self.p_mat_numerical = np.zeros([self.nz, self.ntheta])
+        self.gama = np.zeros([self.nz, self.ntheta])
         self.calculate_coefficients()
         self.analytical_pressure_matrix_available = False
         self.numerical_pressure_matrix_available = False
 
-    def calculate_pressure_matrix_analytical(self, method=0):
+    def calculate_pressure_matrix_analytical(self, method=0, force_type=None):
         """This function calculates the pressure matrix analytically.
         Parameters
         ----------
@@ -243,12 +244,15 @@ class PressureMatrix:
                 0: based on the book Tribology Series vol. 33, by Frene et al., chapter 5.
                 1: based on the chapter Linear and Nonlinear Rotordynamics, by Ishida and
                 Yamamoto, from the book Flow-Induced Vibrations.
-                2: based on the Fundamentals of Fluid Flow Lubrification, by Hamrock, chapter 10.
+            In case of a long bearing:
+                0: based on the Fundamentals of Fluid Flow Lubrification, by Hamrock, chapter 10.
+        force_type: str
+            If set, calculates the pressure matrix analytically considering the chosen type: 'short' or 'long'.
         """
-        if self.bearing_type == "short_bearing":
+        if self.bearing_type == "short_bearing" or force_type == 'short':
             if method == 0:
-                for i in range(self.nz):
-                    for j in range(self.ntheta):
+                for i in range(0, self.nz):
+                    for j in range(0, self.ntheta):
                         # fmt: off
                         self.p_mat_analytical[i][j] = (
                                 ((-3 * self.viscosity * self.omega) / self.difference_between_radius ** 2) *
@@ -259,8 +263,8 @@ class PressureMatrix:
                         if self.p_mat_analytical[i][j] < 0:
                             self.p_mat_analytical[i][j] = 0
             elif method == 1:
-                for i in range(self.nz):
-                    for j in range(self.ntheta):
+                for i in range(0, self.nz):
+                    for j in range(0, self.ntheta):
                         # fmt: off
                         self.p_mat_analytical[i][j] = (3 * self.viscosity / ((self.difference_between_radius ** 2) *
                                                                              (1. + self.eccentricity_ratio * np.cos(
@@ -272,18 +276,23 @@ class PressureMatrix:
                         # fmt: on
                         if self.p_mat_analytical[i][j] < 0:
                             self.p_mat_analytical[i][j] = 0
-            elif method == 2:
-                for i in range(self.nz):
-                    for j in range(self.ntheta):
-                        gama = j * self.dtheta + (np.pi - self.beta)
-                        self.p_mat_analytical[i][j] = -(3 * self.viscosity * self.omega * self.eccentricity_ratio /
-                                                        (self.re[i][j] - self.ri[i][j]) ** 2) * (
-                                                              (self.length ** 2 / 4) - (i * self.dz) ** 2) * (
-                                                              np.sin(gama) / (
-                                                                  1 + self.eccentricity_ratio * np.cos(gama)) ** 3)
-
+        elif self.bearing_type == "long_bearing" or force_type == 'long':
+            if method == 0:
+                for i in range(0, self.nz):
+                    for j in range(0, self.ntheta):
+                        self.p_mat_analytical[i][j] = (6 * self.viscosity * self.omega *
+                                                       (self.ri[i][j] / self.difference_between_radius) ** 2 *
+                                                       self.eccentricity_ratio * np.sin(self.gama[i][j]) *
+                                                       (2 + self.eccentricity_ratio * np.cos(self.gama[i][j]))) / (
+                                                       (2 + self.eccentricity_ratio ** 2) *
+                                                       (1 + self.eccentricity_ratio * np.cos(self.gama[i][j])) ** 2) +\
+                                                       self.p_in
                         if self.p_mat_analytical[i][j] < 0:
                             self.p_mat_analytical[i][j] = 0
+        elif self.bearing_type == "medium_size":
+            raise ValueError("The pressure matrix for a bearing that is neither short or long can only be calculated "
+                             "numerically. Try calling calculate_pressure_matrix_numerical or setting force_type "
+                             "to either 'short' or 'long' in calculate_pressure_matrix_analytical.")
         self.analytical_pressure_matrix_available = True
         return self.p_mat_analytical
 
@@ -292,19 +301,18 @@ class PressureMatrix:
         of the discrete pressure (central differences in the second
         derivatives). It is executed when the class is instantiated.
         """
-
-        for i in range(self.nz):
+        for i in range(0, self.nz):
             zno = i * self.dz
             self.z[0][i] = zno
             plot_eccentricity_error = False
             position = -1
-            for j in range(self.ntheta):
+            for j in range(0, self.ntheta):
                 # fmt: off
-                gama = j * self.dtheta + (np.pi - self.beta)
+                self.gama[i][j] = j * self.dtheta + (np.pi - self.beta)
                 [radius_external, self.xre[i][j], self.yre[i][j]] =\
-                    self.external_radius_function(gama)
+                    self.external_radius_function(self.gama[i][j])
                 [radius_internal, self.xri[i][j], self.yri[i][j]] =\
-                    self.internal_radius_function(zno, gama)
+                    self.internal_radius_function(zno, self.gama[i][j])
                 self.re[i][j] = radius_external
                 self.ri[i][j] = radius_internal
 
@@ -349,7 +357,6 @@ class PressureMatrix:
     def mounting_matrix(self):
         """This function assembles the matrix M and the independent vector f
         """
-
         # fmt: off
         count = 0
         for x in range(self.ntheta):
@@ -974,7 +981,7 @@ class PressureMatrix:
             ax.plot(
                 list_of_thetas, self.p_mat_numerical[z], "b", label="Numerical pressure"
             )
-        elif self.analytical_pressure_matrix_available:
+        if self.analytical_pressure_matrix_available:
             ax.plot(
                 list_of_thetas,
                 self.p_mat_analytical[z],
