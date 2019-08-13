@@ -142,7 +142,8 @@ class PressureMatrix:
     >>> beta = np.pi
     >>> my_fluid_flow = flow.PressureMatrix(nz, ntheta, nradius, length,
     ...                                          omega, p_in, p_out, radius_rotor,
-    ...                                          radius_stator, viscosity, density, beta=beta, eccentricity=eccentricity)
+    ...                                          radius_stator, viscosity, density,
+    ...                                          beta=beta, eccentricity=eccentricity)
     >>> my_fluid_flow.calculate_pressure_matrix_analytical() # doctest: +ELLIPSIS
     array([[-0.00000...
     >>> my_fluid_flow.calculate_pressure_matrix_numerical() # doctest: +ELLIPSIS
@@ -891,7 +892,6 @@ class PressureMatrix:
                 "Must calculate the pressure matrix. "
                 "Try calling calculate_pressure_matrix_numerical() or calculate_pressure_matrix_analytical() first."
             )
-        p_mat = None
         if from_numerical:
             if self.numerical_pressure_matrix_available:
                 p_mat = self.p_mat_numerical
