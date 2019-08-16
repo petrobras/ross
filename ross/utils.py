@@ -4,6 +4,13 @@ import sys
 from ross.materials import Material
 
 
+class DataNotFoundError(Exception):
+    """
+    An exception indicating that the data could not be found in the file.
+    """
+    pass
+
+
 def read_table_file(file, element, sheet_name=0, n=0, sheet_type="Model"):
     """Instantiate one or more element objects using inputs from an Excel table.
     Parameters
@@ -169,8 +176,8 @@ def read_table_file(file, element, sheet_name=0, n=0, sheet_type="Model"):
             else:
                 indexes_to_drop.append(index)
     if not first_data_row_found:
-        raise ValueError("Could not find the data. Make sure you have at least one row containing "
-                         "data below the header.")
+        raise DataNotFoundError("Could not find the data. Make sure you have at least one row containing "
+                                "data below the header.")
     if len(indexes_to_drop) > 0:
         df = df.drop(indexes_to_drop)
 
