@@ -2,6 +2,7 @@ import numpy as np
 import pytest
 import os
 from numpy.testing import assert_allclose
+import math
 
 from ross.bearing_seal_element import BearingElement
 
@@ -167,4 +168,4 @@ def test_from_table():
     bearing_file = os.path.dirname(os.path.realpath(__file__)) + "/data/bearing_seal.xls"
     bearing = BearingElement.from_table(0, bearing_file)
     assert bearing.n == 0
-    assert bearing.w[2] == 5000
+    assert math.isclose(bearing.w[2], 523.6, abs_tol=0.1)
