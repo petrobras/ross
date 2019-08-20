@@ -189,7 +189,7 @@ class BearingElement(Element):
             f"{self.__class__.__name__}"
             f"(n={self.n},\n"
             f" kxx={self.kxx}, kxy={self.kxy},\n"
-            f" kyx={self.kyx}, kyy={self.kxy},\n"
+            f" kyx={self.kyx}, kyy={self.kyy},\n"
             f" cxx={self.cxx}, cxy={self.cxy},\n"
             f" cyx={self.cyx}, cyy={self.cyy},\n"
             f" w={self.w})"
