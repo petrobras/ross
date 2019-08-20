@@ -4,6 +4,13 @@ import sys
 from ross.materials import Material
 
 
+class DataNotFoundError(Exception):
+    """
+    An exception indicating that the data could not be found in the file.
+    """
+    pass
+
+
 def read_table_file(file, element, sheet_name=0, n=0, sheet_type="Model"):
     """Instantiate one or more element objects using inputs from an Excel table.
     Parameters
@@ -84,6 +91,7 @@ def read_table_file(file, element, sheet_name=0, n=0, sheet_type="Model"):
     header_index = -1
     header_found = False
     convert_to_metric = False
+    convert_to_rad_per_sec = False
     for index, row in df.iterrows():
         for i in range(0, row.size):
             if isinstance(row[i], str):
@@ -93,7 +101,9 @@ def read_table_file(file, element, sheet_name=0, n=0, sheet_type="Model"):
                         header_found = True
                 if 'inches' in row[i].lower() or 'lbm' in row[i].lower():
                     convert_to_metric = True
-                if header_found and convert_to_metric:
+                if 'rpm' in row[i].lower():
+                    convert_to_rad_per_sec = True
+                if header_found and convert_to_metric and convert_to_rad_per_sec:
                     break
         if header_found and convert_to_metric:
             break
@@ -169,8 +179,8 @@ def read_table_file(file, element, sheet_name=0, n=0, sheet_type="Model"):
             else:
                 indexes_to_drop.append(index)
     if not first_data_row_found:
-        raise ValueError("Could not find the data. Make sure you have at least one row containing "
-                         "data below the header.")
+        raise DataNotFoundError("Could not find the data. Make sure you have at least one row containing "
+                                "data below the header.")
     if len(indexes_to_drop) > 0:
         df = df.drop(indexes_to_drop)
 
@@ -208,15 +218,28 @@ def read_table_file(file, element, sheet_name=0, n=0, sheet_type="Model"):
             parameters['material'] = new_material
     if convert_to_metric:
         for i in range(0, df.shape[0]):
+            if element == 'bearing':
+                parameters['kxx'][i] = parameters['kxx'][i] * 175.1268369864
+                parameters['cxx'][i] = parameters['cxx'][i] * 175.1268369864
+                parameters['kyy'][i] = parameters['kyy'][i] * 175.1268369864
+                parameters['kxy'][i] = parameters['kxy'][i] * 175.1268369864
+                parameters['kyx'][i] = parameters['kyx'][i] * 175.1268369864
+                parameters['cyy'][i] = parameters['cyy'][i] * 175.1268369864
+                parameters['cxy'][i] = parameters['cxy'][i] * 175.1268369864
+                parameters['cyx'][i] = parameters['cyx'][i] * 175.1268369864
             if element == 'shaft':
                 parameters['L'][i] = parameters['L'][i] * 0.0254
                 parameters['i_d'][i] = parameters['i_d'][i] * 0.0254
                 parameters['o_d'][i] = parameters['o_d'][i] * 0.0254
-                parameters['axial_force'][i] = parameters['axial_force'][i] * 4.44822161
+                parameters['axial_force'][i] = parameters['axial_force'][i] * 4.448221615255
             elif element == 'disk':
                 parameters['m'][i] = parameters['m'][i] * 0.45359237
                 parameters['Id'][i] = parameters['Id'][i] * 0.0002926397
                 parameters['Ip'][i] = parameters['Ip'][i] * 0.0002926397
+    if convert_to_rad_per_sec:
+        for i in range(0, df.shape[0]):
+            if element == 'bearing':
+                parameters['w'][i] = parameters['w'][i] * 0.1047197551197
     parameters.update(new_materials)
     return parameters
 
