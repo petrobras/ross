@@ -2,7 +2,7 @@ import sys
 import warnings
 import matplotlib.pyplot as plt
 import numpy as np
-from bokeh.plotting import figure, output_file
+from bokeh.plotting import figure
 
 
 class PressureMatrix:
@@ -142,7 +142,8 @@ class PressureMatrix:
     >>> beta = np.pi
     >>> my_fluid_flow = flow.PressureMatrix(nz, ntheta, nradius, length,
     ...                                          omega, p_in, p_out, radius_rotor,
-    ...                                          radius_stator, viscosity, density, beta=beta, eccentricity=eccentricity)
+    ...                                          radius_stator, viscosity, density,
+    ...                                          beta=beta, eccentricity=eccentricity)
     >>> my_fluid_flow.calculate_pressure_matrix_analytical() # doctest: +ELLIPSIS
     array([[-0.00000...
     >>> my_fluid_flow.calculate_pressure_matrix_numerical() # doctest: +ELLIPSIS
@@ -196,7 +197,7 @@ class PressureMatrix:
         self.bearing_type = ""
         if self.length / self.radius_stator <= 1 / 4:
             self.bearing_type = "short_bearing"
-        elif self.length / self.radius_stator > 8:
+        elif self.length / self.radius_stator >= 8:
             self.bearing_type = "long_bearing"
         else:
             self.bearing_type = "medium_size"
@@ -228,60 +229,90 @@ class PressureMatrix:
         self.f = np.zeros([self.ntotal, 1])
         self.P = np.zeros([self.ntotal, 1])
         self.p_mat_numerical = np.zeros([self.nz, self.ntheta])
+        self.gama = np.zeros([self.nz, self.ntheta])
         self.calculate_coefficients()
         self.analytical_pressure_matrix_available = False
         self.numerical_pressure_matrix_available = False
 
-    def calculate_pressure_matrix_analytical(self):
-        """This function calculates the pressure matrix analytically, based on the book Tribology Series vol. 33, by
-        Frene et al., chapter 5.
+    def calculate_pressure_matrix_analytical(self, method=0, force_type=None):
+        """This function calculates the pressure matrix analytically.
+        Parameters
+        ----------
+        method: int
+            Determines the analytical method to be used, when more than one is available.
+            In case of a short bearing:
+                0: based on the book Tribology Series vol. 33, by Frene et al., chapter 5.
+                1: based on the chapter Linear and Nonlinear Rotordynamics, by Ishida and
+                Yamamoto, from the book Flow-Induced Vibrations.
+            In case of a long bearing:
+                0: based on the Fundamentals of Fluid Flow Lubrification, by Hamrock, chapter 10.
+        force_type: str
+            If set, calculates the pressure matrix analytically considering the chosen type: 'short' or 'long'.
         """
-        if self.bearing_type == "short_bearing":
-            for i in range(self.nz):
-                for j in range(self.ntheta):
-                    # fmt: off
-                    self.p_mat_analytical[i][j] = (((-3*self.viscosity*self.omega)/self.difference_between_radius**2) *
-                                                   ((i * self.dz - (self.length / 2)) ** 2 - (self.length ** 2) / 4) *
-                                                   (self.eccentricity_ratio * np.sin(j * self.dtheta)) /
-                                                   (1 + self.eccentricity_ratio * np.cos(j * self.dtheta))**3)
-                    # fmt: on
+        if self.bearing_type == "short_bearing" or force_type == 'short':
+            if method == 0:
+                for i in range(0, self.nz):
+                    for j in range(0, self.ntheta):
+                        # fmt: off
+                        self.p_mat_analytical[i][j] = (
+                                ((-3 * self.viscosity * self.omega) / self.difference_between_radius ** 2) *
+                                ((i * self.dz - (self.length / 2)) ** 2 - (self.length ** 2) / 4) *
+                                (self.eccentricity_ratio * np.sin(j * self.dtheta)) /
+                                (1 + self.eccentricity_ratio * np.cos(j * self.dtheta)) ** 3)
+                        # fmt: on
+                        if self.p_mat_analytical[i][j] < 0:
+                            self.p_mat_analytical[i][j] = 0
+            elif method == 1:
+                for i in range(0, self.nz):
+                    for j in range(0, self.ntheta):
+                        # fmt: off
+                        self.p_mat_analytical[i][j] = (3 * self.viscosity / ((self.difference_between_radius ** 2) *
+                                                                             (1. + self.eccentricity_ratio * np.cos(
+                                                                                 j * self.dtheta)) ** 3)) * \
+                                                      (-self.eccentricity_ratio * self.omega * np.sin(
+                                                          j * self.dtheta)) * \
+                                                      (((i * self.dz - (self.length / 2)) ** 2) - (
+                                                              self.length ** 2) / 4)
+                        # fmt: on
+                        if self.p_mat_analytical[i][j] < 0:
+                            self.p_mat_analytical[i][j] = 0
+        elif self.bearing_type == "long_bearing" or force_type == 'long':
+            if method == 0:
+                for i in range(0, self.nz):
+                    for j in range(0, self.ntheta):
+                        self.p_mat_analytical[i][j] = (6 * self.viscosity * self.omega *
+                                                       (self.ri[i][j] / self.difference_between_radius) ** 2 *
+                                                       self.eccentricity_ratio * np.sin(self.gama[i][j]) *
+                                                       (2 + self.eccentricity_ratio * np.cos(self.gama[i][j]))) / (
+                                                       (2 + self.eccentricity_ratio ** 2) *
+                                                       (1 + self.eccentricity_ratio * np.cos(self.gama[i][j])) ** 2) +\
+                                                       self.p_in
+                        if self.p_mat_analytical[i][j] < 0:
+                            self.p_mat_analytical[i][j] = 0
+        elif self.bearing_type == "medium_size":
+            raise ValueError("The pressure matrix for a bearing that is neither short or long can only be calculated "
+                             "numerically. Try calling calculate_pressure_matrix_numerical or setting force_type "
+                             "to either 'short' or 'long' in calculate_pressure_matrix_analytical.")
         self.analytical_pressure_matrix_available = True
         return self.p_mat_analytical
-
-    def calculate_pressure_matrix_analytical2(self):
-        """This function calculates the pressure matrix analytically, based on the chapter Linear and Nonlinear
-        Rotordynamics, by Ishida and Yamamoto, from the book Flow-Induced Vibrations.
-        """
-        if self.bearing_type == "short_bearing":
-            for i in range(self.nz):
-                for j in range(self.ntheta):
-                    # fmt: off
-                    self.p_mat_analytical[i][j] = (3 * self.viscosity / ((self.difference_between_radius ** 2) *
-                                                                    (1. + self.eccentricity_ratio * np.cos(
-                                                                        j * self.dtheta)) ** 3)) * \
-                                                  (-self.eccentricity_ratio * self.omega * np.sin(j * self.dtheta)) * \
-                                                  (((i * self.dz - (self.length / 2)) ** 2) - (self.length ** 2) / 4)
-                    # fmt: on
-        self.analytical_pressure_matrix_available = True
 
     def calculate_coefficients(self):
         """This function calculates the constants that form the Poisson equation
         of the discrete pressure (central differences in the second
         derivatives). It is executed when the class is instantiated.
         """
-
-        for i in range(self.nz):
+        for i in range(0, self.nz):
             zno = i * self.dz
             self.z[0][i] = zno
             plot_eccentricity_error = False
             position = -1
-            for j in range(self.ntheta):
+            for j in range(0, self.ntheta):
                 # fmt: off
-                gama = j * self.dtheta + (np.pi - self.beta)
+                self.gama[i][j] = j * self.dtheta + (np.pi - self.beta)
                 [radius_external, self.xre[i][j], self.yre[i][j]] =\
-                    self.external_radius_function(gama)
+                    self.external_radius_function(self.gama[i][j])
                 [radius_internal, self.xri[i][j], self.yri[i][j]] =\
-                    self.internal_radius_function(zno, gama)
+                    self.internal_radius_function(zno, self.gama[i][j])
                 self.re[i][j] = radius_external
                 self.ri[i][j] = radius_internal
 
@@ -291,11 +322,10 @@ class PressureMatrix:
                      (np.log(self.ri[i][j]) - 1 / 2)) / (self.ri[i][j] ** 2 - self.re[i][j] ** 2)
 
                 self.c1[i][j] = (1 / (4 * self.viscosity)) * ((self.re[i][j] ** 2 * np.log(self.re[i][j]) -
-                                                          self.ri[i][j] ** 2 * np.log(self.ri[i][j]) +
-                                                          (self.re[i][j] ** 2 - self.ri[i][j] ** 2) *
-                                                          (k - 1)) - 2 * self.re[i][j] ** 2 *
-                                                         ((np.log(self.re[i][j]) + k - 1 / 2) * np.log(self.re[i][j] /
-                                                                                                       self.ri[i][j])))
+                                                               self.ri[i][j] ** 2 * np.log(self.ri[i][j]) +
+                                                               (self.re[i][j] ** 2 - self.ri[i][j] ** 2) *
+                                                               (k - 1)) - 2 * self.re[i][j] ** 2 * (
+                        (np.log(self.re[i][j]) + k - 1 / 2) * np.log(self.re[i][j] / self.ri[i][j])))
 
                 self.c2[i][j] = (- self.ri[i][j] ** 2) / (8 * self.viscosity) *\
                                 ((self.re[i][j] ** 2 - self.ri[i][j] ** 2 -
@@ -327,7 +357,6 @@ class PressureMatrix:
     def mounting_matrix(self):
         """This function assembles the matrix M and the independent vector f
         """
-
         # fmt: off
         count = 0
         for x in range(self.ntheta):
@@ -397,7 +426,10 @@ class PressureMatrix:
         for i in range(self.nz):
             for j in range(self.ntheta):
                 k = j * self.nz + i
-                self.p_mat_numerical[i][j] = self.P[k]
+                if self.P[k] < 0:
+                    self.p_mat_numerical[i][j] = 0
+                else:
+                    self.p_mat_numerical[i][j] = self.P[k]
         self.numerical_pressure_matrix_available = True
         return self.p_mat_numerical
 
@@ -419,7 +451,7 @@ class PressureMatrix:
         yri: float
             The position y of the returned internal radius.
         """
-        if gama > (np.pi - self.beta) and gama < (2*np.pi - self.beta):
+        if (np.pi - self.beta) < gama < (2*np.pi - self.beta):
             alpha = np.absolute(2*np.pi - gama - self.beta)
             radius_internal = np.sqrt(self.radius_rotor ** 2
                                       - (self.eccentricity * np.sin(alpha)) ** 2) + self.eccentricity * np.cos(alpha)
@@ -867,7 +899,6 @@ class PressureMatrix:
                 "Must calculate the pressure matrix. "
                 "Try calling calculate_pressure_matrix_numerical() or calculate_pressure_matrix_analytical() first."
             )
-        p_mat = None
         if from_numerical:
             if self.numerical_pressure_matrix_available:
                 p_mat = self.p_mat_numerical
@@ -950,7 +981,7 @@ class PressureMatrix:
             ax.plot(
                 list_of_thetas, self.p_mat_numerical[z], "b", label="Numerical pressure"
             )
-        elif self.analytical_pressure_matrix_available:
+        if self.analytical_pressure_matrix_available:
             ax.plot(
                 list_of_thetas,
                 self.p_mat_analytical[z],
