@@ -259,7 +259,7 @@ class Rotor(object):
         nodes_i_d.append(df_shaft["i_d"].iloc[-1])
         self.nodes_i_d = nodes_i_d
 
-        nodes_o_d = list(df_shaft.groupby("n_l")["o_d"].min())
+        nodes_o_d = list(df_shaft.groupby("n_l")["o_d"].max())
         nodes_o_d.append(df_shaft["o_d"].iloc[-1])
         self.nodes_o_d = nodes_o_d
 
@@ -1141,6 +1141,7 @@ class Rotor(object):
         --------
         """
         return signal.lsim(self.lti, F, t, X0=ic)
+
     def _plot_rotor_matplotlib(self, nodes=1, check_sld=False, ax=None):
         """Plots a rotor object.
 
@@ -1209,14 +1210,13 @@ class Rotor(object):
         # plot disk elements
         for disk in self.disk_elements:
             position = (self.nodes_pos[disk.n], self.nodes_o_d[disk.n] / 2)
-            length = min(self.nodes_le)
-            disk.patch(position, length, ax)
+            disk.patch(position, ax)
 
+        mean_od = np.mean(self.nodes_o_d)
         # plot bearings
         for bearing in self.bearing_seal_elements:
-            position = (self.nodes_pos[bearing.n], -self.nodes_o_d[bearing.n] / 2)
-            length = min(self.nodes_le)
-            bearing.patch(position, length, ax)
+            position = (self.nodes_pos[bearing.n], self.nodes_o_d[bearing.n] / 2)
+            bearing.patch(position, mean_od, ax)
 
         return ax
 
@@ -1308,16 +1308,15 @@ class Rotor(object):
         # plot disk elements
         for disk in self.disk_elements:
             position = (self.nodes_pos[disk.n], self.nodes_o_d[disk.n] / 2)
-            length = min(self.nodes_le)
-            hover = disk.bokeh_patch(position, length, bk_ax)
+            hover = disk.bokeh_patch(position, bk_ax)
 
         bk_ax.add_tools(hover)
 
+        mean_od = np.mean(self.nodes_o_d) / 2
         # plot bearings
         for bearing in self.bearing_seal_elements:
-            position = (self.nodes_pos[bearing.n], -self.nodes_o_d[bearing.n] / 2)
-            length = min(self.nodes_le)
-            bearing.bokeh_patch(position, length, bk_ax)
+            position = (self.nodes_pos[bearing.n], self.nodes_o_d[bearing.n] / 2)
+            bearing.bokeh_patch(position, mean_od, bk_ax)
 
         show(bk_ax)
 
