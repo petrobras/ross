@@ -2,7 +2,7 @@ import sys
 import warnings
 import matplotlib.pyplot as plt
 import numpy as np
-from bokeh.plotting import figure
+from bokeh.plotting import figure, show
 
 
 class PressureMatrix:
@@ -646,6 +646,11 @@ class PressureMatrix:
         -------
         Figure
             An object containing the plot.
+        Examples
+        --------
+        >>> my_fluid_flow = pressure_matrix_example()
+        >>> fig = my_fluid_flow.plot_eccentricity(z=int(my_fluid_flow.nz/2))
+        >>> show(fig)
         """
         p = figure(
             title="Cut in plane Z=" + str(z),
@@ -672,6 +677,13 @@ class PressureMatrix:
         -------
         Figure
             An object containing the plot.
+        Examples
+        --------
+        >>> my_fluid_flow = pressure_matrix_example()
+        >>> my_fluid_flow.calculate_pressure_matrix_numerical() # doctest: +ELLIPSIS
+        array([[...
+        >>> fig = my_fluid_flow.plot_pressure_z(theta=int(my_fluid_flow.ntheta/2))
+        >>> show(fig)
         """
         if (
             not self.numerical_pressure_matrix_available
@@ -709,6 +721,11 @@ class PressureMatrix:
         -------
         Figure
             An object containing the plot.
+        Examples
+        --------
+        >>> my_fluid_flow = pressure_matrix_example()
+        >>> fig = my_fluid_flow.plot_shape(theta=int(my_fluid_flow.ntheta/2))
+        >>> show(fig)
         """
         x = np.zeros(self.nz)
         y_re = np.zeros(self.nz)
@@ -738,6 +755,13 @@ class PressureMatrix:
         -------
         Figure
             An object containing the plot.
+        Examples
+        --------
+        >>> my_fluid_flow = pressure_matrix_example()
+        >>> my_fluid_flow.calculate_pressure_matrix_numerical() # doctest: +ELLIPSIS
+        array([[...
+        >>> fig = my_fluid_flow.plot_pressure_theta(z=int(my_fluid_flow.nz/2))
+        >>> show(fig)
         """
         if (
             not self.numerical_pressure_matrix_available
@@ -786,6 +810,11 @@ class PressureMatrix:
         -------
         ax : matplotlib axes
             Returns the axes object with the plot.
+        Examples
+        --------
+        >>> my_fluid_flow = pressure_matrix_example()
+        >>> ax = my_fluid_flow.matplot_eccentricity(z=int(my_fluid_flow.nz/2))
+        >>> plt.show()
         """
         if ax is None:
             ax = plt.gca()
@@ -814,6 +843,13 @@ class PressureMatrix:
         -------
         ax : matplotlib axes
             Returns the axes object with the plot.
+        Examples
+        --------
+        >>> my_fluid_flow = pressure_matrix_example()
+        >>> my_fluid_flow.calculate_pressure_matrix_numerical() # doctest: +ELLIPSIS
+        array([[...
+        >>> ax = my_fluid_flow.matplot_pressure_z(theta=int(my_fluid_flow.ntheta/2))
+        >>> plt.show()
         """
         if (
             not self.numerical_pressure_matrix_available
@@ -855,18 +891,23 @@ class PressureMatrix:
         -------
         ax : matplotlib axes
             Returns the axes object with the plot.
+        Examples
+        --------
+        >>> my_fluid_flow = pressure_matrix_example()
+        >>> ax = my_fluid_flow.matplot_shape(theta=int(my_fluid_flow.ntheta/2))
+        >>> plt.show()
         """
         if ax is None:
             ax = plt.gca()
         x = np.zeros(self.nz)
-        y_re = np.zeros(self.nz)
-        y_ri = np.zeros(self.nz)
+        y_ext = np.zeros(self.nz)
+        y_int = np.zeros(self.nz)
         for i in range(0, self.nz):
             x[i] = i * self.dz
-            y_re[i] = self.re[i][theta]
-            y_ri[i] = self.ri[i][theta]
-        ax.plot(x, y_re, "r")
-        ax.plot(x, y_ri, "b")
+            y_ext[i] = self.re[i][theta]
+            y_int[i] = self.ri[i][theta]
+        ax.plot(x, y_ext, "r")
+        ax.plot(x, y_int, "b")
         ax.set_title("Shapes of stator and rotor along Z; Theta=" + str(theta))
         ax.set_xlabel("Points along Z")
         ax.set_ylabel("Radial direction")
@@ -890,6 +931,13 @@ class PressureMatrix:
         -------
         ax : matplotlib axes
             Returns the axes object with the plot.
+        Examples
+        --------
+        >>> my_fluid_flow = pressure_matrix_example()
+        >>> my_fluid_flow.calculate_pressure_matrix_numerical() # doctest: +ELLIPSIS
+        array([[...
+        >>> ax = my_fluid_flow.matplot_pressure_theta_cylindrical(z=int(my_fluid_flow.nz/2))
+        >>> plt.show()
         """
         if (
             not self.numerical_pressure_matrix_available
@@ -963,6 +1011,13 @@ class PressureMatrix:
         -------
         ax : matplotlib axes
             Returns the axes object with the plot.
+        Examples
+        --------
+        >>> my_fluid_flow = pressure_matrix_example()
+        >>> my_fluid_flow.calculate_pressure_matrix_numerical() # doctest: +ELLIPSIS
+        array([[...
+        >>> ax = my_fluid_flow.matplot_pressure_theta(z=int(my_fluid_flow.nz/2))
+        >>> plt.show()
         """
         if (
             not self.numerical_pressure_matrix_available
@@ -992,3 +1047,30 @@ class PressureMatrix:
         ax.set_xlabel("Points along Theta")
         ax.set_ylabel("Pressure")
         return ax
+
+
+def pressure_matrix_example():
+    """This function returns an instance of a simple pressure matrix.
+    The purpose is to make available a simple model
+    so that doctest can be written using it.
+
+    Parameters
+    ----------
+
+    Returns
+    -------
+    An instance of a pressure matrix object.
+
+    Examples
+    --------
+    >>> my_fluid_flow = pressure_matrix_example()
+    >>> my_fluid_flow.eccentricity
+    0.001
+    """
+    my_pressure_matrix = PressureMatrix(nz=8, ntheta=64, nradius=11, length=0.01, omega=100.*2*np.pi/60,
+                                        p_in=0., p_out=0., radius_rotor=0.08, radius_stator=0.1,
+                                        viscosity=0.015, density=860., eccentricity=0.001, beta=np.pi)
+    return my_pressure_matrix
+
+
+
