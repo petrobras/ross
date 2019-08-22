@@ -1,27 +1,89 @@
 import numpy as np
 from scipy.signal import argrelextrema
+
 from rotor_assembly import Rotor
-from bokeh.layouts import widgetbox
-from bokeh.models.widgets import DataTable, TableColumn, NumberFormatter
-from bokeh.models import ColumnDataSource, HoverTool
-import bokeh.palettes as bp
 from results import FrequencyResponseResults, ForcedResponseResults
+import ross as rs
+
+from bokeh.layouts import widgetbox, gridplot
+from bokeh.models.widgets import DataTable, TableColumn, NumberFormatter
+from bokeh.plotting import figure, show
+import bokeh.palettes as bp
+
+from bokeh.models import (
+        ColumnDataSource,
+        HoverTool,
+        Span,
+        Label,
+)
 
 # set bokeh palette of colors
 bokeh_colors = bp.RdGy[11]
 
+
 class Report:
-    def __init__(self, rotor):
+    def __init__(self, rotor, safety_factor):
         """Report according to standard analysis.
+
+        - Perform Stability_level1 analysis
+        - Apply Level 1 Screening Criteria
+        - Perform Stability_level2 analysis
 
         Parameters
         ----------
         rotor : ross.Rotor
 
         """
-        pass
+        self.rotor = rotor
 
-    def unbalance_response(self, clearances, op_speed, unit="rpm"):
+    @classmethod
+    def from_saved_rotors(cls, path):
+        rotor = rs.Rotor.load(path)
+        return cls(rotor)
+
+    def static_forces(self, maxspeed, mode):
+        """
+        Static analysis to caculate the reaction forces
+
+        Parameters
+        ----------
+        maxspeed : float
+            Maximum operation speed
+        mode : int
+            n'th mode shape
+
+        Returns
+        -------
+        U : list
+            Unbalancing forces
+
+        Example
+        -------
+        """
+
+        N = maxspeed
+        # get reaction forces on bearings
+        Fb = self.rotor.run_static().force_data['Bearings Reaction Forces']
+        Fb = np.array(Fb) / 9.8065
+
+        # adicionar caso se não houver discos - eixo em balanço
+
+        # get disk masses
+        W3 = 0
+        for disk in self.rotor.disk_elements:
+            if disk.n > self.rotor.df_bearings['n'].iloc[-1]:
+                W3 += disk.m
+        U = [6350 * W3 / N]
+
+        if mode == 0 or mode == 1:
+            U = [4 * max(6350 * np.sum(Fb) / N, 250e-6 * np.sum(Fb))]
+
+        if mode == 2 or mode == 3:
+            U = 4 * max(6350 * Fb / N, 250e-6 * Fb)
+
+        return U
+
+    def unbalance_response(self, clearances, freq_range, mode, unit="rpm"):
         """Evaluates the unbalance response for the rotor.
 
         This analysis takes the critical speeds of interest, calculates the
@@ -36,68 +98,97 @@ class Report:
         clearances : dict
             Dict mapping between node and its clearance in meters.
             (e.g. clearances = dict(3=0.001, 5=0.002...)
-        op_speed : list
-            List with mininum and maximum rotor operation speed.
-            (e.g. op_speed = [100, 550], where 100 is the min and 550 is the
-            max speed)
+        freq_range : list
+            List with rotor operation speed.
+            (e.g. freq_range = np.linspace(100, 550, 101), where 100 is the
+            min and 550 is the max speed)
+        mode : int
+            n'th mode shape
         units : str
             rotor speed units
             String defining the unit for rotor speed (can be rad/s or rpm)
+
+        Returns
+        -------
+        mag_plot : bokeh axes
+            Bokeh plot axes with amplitude plot.
+        table : bokeh table
+            Table with information according API
+
+        Example
+        -------
         """
-
         if unit == "rpm":
-            op_speed = [2 * np.pi * v / 60 for v in op_speed]
+            freq_range = [2 * np.pi * v / 60 for v in freq_range]
+        else:
+            raise ValueError("Invalid unit input. Select rpm or rad/s")
 
-        minspeed = min(op_speed)
-        maxspeed = max(op_speed)
+        minspeed = min(freq_range)
+        maxspeed = max(freq_range)
 
-        response = Rotor.unbalance_response(node, force, phase, freq_range)
+        # returns de nodes where forces will be applied
+        node_min, node_max = self.mode_shape(mode)
+        nodes = [node_min, node_max]
+        nodes = [item for sub_nodes in nodes for item in sub_nodes]
+
+        force = self.static_forces(maxspeed, mode)
+
+        phase = []
+        for node in nodes:
+            phase.append(np.pi)
+
+        response = self.rotor.unbalance_response(nodes, force, phase, freq_range)
         mag = response.magnitude
         frequency_range = response.speed_range
 
-        mag_plot = response.plot_magnitude_bokeh(dof, plot_type="bokeh")
+        dof = 4 * nodes + 1
+        mag_plot = response.plot_magnitude_bokeh(dof)
 
-        idx_max = argrelextrema(mag[inp, out, :], np.greater)
-        wn = frequency_range[idx_max[0]]
+        self.mag = mag
+
+        magnitude = mag[dof, dof, :]
+        idx_max = argrelextrema(magnitude, np.greater)[0].tolist()
+        wn = frequency_range[idx_max]
 
         AF_table = []
         SM_table = []
         SM_ref_table = []
 
-        for i, peak in enumerate(mag[inp, out, :][idx_max[0]]):
+        for i, peak in enumerate(magnitude[idx_max]):
             peak_n = 0.707 * peak
             peak_aux = np.linspace(peak_n, peak_n, len(frequency_range))
 
             idx = np.argwhere(
-                np.diff(np.sign(peak_aux - mag[inp, out, :]))
+                np.diff(np.sign(peak_aux - magnitude))
             ).flatten()
-            idx = np.sort(np.append(idx, idx_max[0][i]))
+            idx = np.sort(np.append(idx, idx_max[i]))
 
             # if speed range is not long enough to catch the magnitudes
             try:
                 idx_aux = [
-                    list(idx).index(idx_max[0][i]) - 1,
-                    list(idx).index(idx_max[0][i]) + 1,
+                    list(idx).index(idx_max[i]) - 1,
+                    list(idx).index(idx_max[i]) + 1,
                 ]
                 idx = idx[idx_aux]
             except IndexError:
-                idx = [list(idx).index(idx_max[0][i]) - 1,
-                       len(frequency_range) - 1
+                idx = [
+                    list(idx).index(idx_max[i]) - 1,
+                    len(frequency_range) - 1
                 ]
 
-            # Amplification Factor (AF)
+            # Amplification Factor (AF) - API684 - SP6.8.2.1
             AF = wn[i] / (
                 frequency_range[idx[1]] - frequency_range[idx[0]]
             )
 
-            # Separation Margin (SM)
+            # Separation Margin (SM) - API684 - SP6.8.2.10
             if AF > 2.5 and wn[i] < minspeed:
                 SM = min([16, 17 * (1 - 1 / (AF - 1.5))]) / 100
                 SMspeed = wn[i] * (1 + SM)
                 SM_ref = (minspeed - wn[i]) / wn[i]
                 source = ColumnDataSource(
                     dict(
-                        top=[max(mag[inp, out, :][idx_max[0]])],
+                        top=[max(magnitude[idx_max])],
                         bottom=[0],
                         left=[wn[i]],
                         right=[SMspeed],
@@ -107,12 +198,12 @@ class Report:
                 )
 
             elif AF > 2.5 and wn[i] > maxspeed:
-                SM = min([26, 10 + 17 * (1 - 1 / (AF - 1.5))]) /100
+                SM = min([26, 10 + 17 * (1 - 1 / (AF - 1.5))]) / 100
                 SMspeed = wn[i] * (1 - SM)
                 SM_ref = (wn[i] - maxspeed) / maxspeed
                 source = ColumnDataSource(
                     dict(
-                        top=[max(mag[inp, out, :][idx_max[0]])],
+                        top=[max(magnitude[idx_max])],
                         bottom=[0],
                         left=[SMspeed],
                         right=[wn[i]],
@@ -151,7 +242,7 @@ class Report:
 
         table_source = ColumnDataSource(
                 dict(
-                    Wd=frequency_range[idx_max[0]],
+                    Wd=frequency_range[idx_max],
                     SM_table=SM_table,
                     AF_table=AF_table,
                     SM_ref_table=SM_ref_table,
@@ -161,16 +252,24 @@ class Report:
         form2 = NumberFormatter(format='0.00%')
         columns = [
                 TableColumn(
-                    field="Wd", title="Critical Speed", formatter=form1
+                    field="Wd",
+                    title="Critical Speed",
+                    formatter=form1
                 ),
                 TableColumn(
-                    field="SM_table", title="Required Separation Margin", formatter=form2
+                    field="SM_table",
+                    title="Required Separation Margin",
+                    formatter=form2
                 ),
                 TableColumn(
-                    field="SM_ref_table", title="Available Separation Margin", formatter=form2
+                    field="SM_ref_table",
+                    title="Available Separation Margin",
+                    formatter=form2
                 ),
                 TableColumn(
-                    field="AF_table", title="Amplification Factor", formatter=form1
+                    field="AF_table",
+                    title="Amplification Factor",
+                    formatter=form1
                 )
             ]
         data_table = DataTable(
@@ -178,8 +277,17 @@ class Report:
         )
         table = widgetbox(data_table)
 
+        # amplitude limit in micrometers (A1) - API684 - SP6.8.2.11
+        A1 = 25.4 * np.sqrt(12000 / (60 * maxspeed / 2 * np.pi))
+
+        # amplitude from mode shape analysis
+        Amax = max(mag[dof, dof, :][idx_max])
+
+        # scale factor (Scc) - API684 - SP6.8.2.11
+        Scc = max(A1 / Amax, 0.5)
+
         mag_plot.quad(
-            top=max(mag[inp, out, :][idx_max[0]]),
+            top=max(mag[dof, dof, :][idx_max]),
             bottom=0,
             left=minspeed,
             right=maxspeed,
@@ -191,7 +299,9 @@ class Report:
         )
         mag_plot.add_tools(hover)
 
-        source = ColumnDataSource(dict(x=frequency_range, y=mag[inp, out, :]))
+        source = ColumnDataSource(
+                dict(x=frequency_range, y=mag[dof, dof, :])
+        )
         mag_plot.line(
             x="x",
             y="y",
