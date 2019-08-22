@@ -434,6 +434,9 @@ class BearingElement(Element):
     @classmethod
     def from_table(cls, n, file, sheet_name=0):
         """Instantiate a bearing using inputs from an Excel table.
+        A header with the names of the columns is required. These names should match the names expected by the routine
+        (usually the names of the parameters, but also similar ones). The program will read every row bellow the header
+        until they end or it reaches a NaN.
         Parameters
         ----------
         n : int

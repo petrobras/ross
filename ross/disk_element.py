@@ -353,6 +353,9 @@ class DiskElement(Element):
     @classmethod
     def from_table(cls, file, sheet_name=0):
         """Instantiate one or more disks using inputs from an Excel table.
+        A header with the names of the columns is required. These names should match the names expected by the routine
+        (usually the names of the parameters, but also similar ones). The program will read every row bellow the header
+        until they end or it reaches a NaN.
         Parameters
         ----------
         file: str
