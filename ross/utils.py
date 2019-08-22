@@ -160,10 +160,10 @@ def read_table_file(file, element, sheet_name=0, n=0, sheet_type="Model"):
 
     df = pd.read_excel(file, header=header_index, sheet_name=sheet_name)
     df.columns = df.columns.str.lower()
-    df.dropna(axis=0, how='all', inplace=True)
 
     # Find and isolate data rows
     first_data_row_found = False
+    last_data_row_found = False
     indexes_to_drop = []
     for index, row in df.iterrows():
         if not first_data_row_found \
@@ -172,12 +172,15 @@ def read_table_file(file, element, sheet_name=0, n=0, sheet_type="Model"):
             first_data_row_found = True
         elif not first_data_row_found:
             indexes_to_drop.append(index)
-        elif first_data_row_found:
+        elif first_data_row_found and not last_data_row_found:
             if (isinstance(row[header_key_word], int) or isinstance(row[header_key_word], float))\
                     and not pd.isna(row[header_key_word]):
                 continue
             else:
+                last_data_row_found = True
                 indexes_to_drop.append(index)
+        elif last_data_row_found:
+            indexes_to_drop.append(index)
     if not first_data_row_found:
         raise DataNotFoundError("Could not find the data. Make sure you have at least one row containing "
                                 "data below the header.")
