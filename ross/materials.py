@@ -67,6 +67,8 @@ class Material:
             self.Poisson = (self.E / (2 * self.G_s)) - 1
 
     def __eq__(self, other):
+        """Material is considered equal if properties are equal."""
+
         if self.__dict__ == other.__dict__:
             return True
         else:
@@ -80,8 +82,8 @@ class Material:
 
         return (
             f"Material"
-            f"(name={self.name}, rho={selfrho}, G_s={selfGs} "
-            f"E={selfE}, Poisson={selfPoisson} color={self.color!r}"
+            f'(name="{self.name}", rho={selfrho}, G_s={selfGs}, '
+            f"E={selfE}, Poisson={selfPoisson}, color={self.color!r})"
         )
 
     def __str__(self):
@@ -159,5 +161,6 @@ class Material:
         data["Materials"][self.name] = self.__dict__
         Material.dump_data(data)
         os.chdir(run_path)
+
 
 steel = Material(name="Steel", rho=7810, E=211e9, G_s=81.2e9)
