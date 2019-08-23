@@ -89,3 +89,9 @@ def test_serialization():
     obj1.remove_material("obj1")
     available_after = Material.available_materials()
     assert available == available_after
+
+
+def test_repr():
+    mat0 = Material(name="obj1", rho=92e1, E=281.21, G_s=20e9)
+    mat1 = eval(repr(mat0))
+    assert mat0 == mat1
