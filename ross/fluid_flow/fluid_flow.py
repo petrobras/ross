@@ -721,7 +721,8 @@ class PressureMatrix:
         --------
         >>> my_fluid_flow = pressure_matrix_example()
         >>> fig = my_fluid_flow.plot_eccentricity(z=int(my_fluid_flow.nz/2))
-        >>> show(fig)
+        >>> # to show the plots you can use:
+        >>> # show(fig)
         """
         p = figure(
             title="Cut in plane Z=" + str(z),
@@ -754,7 +755,8 @@ class PressureMatrix:
         >>> my_fluid_flow.calculate_pressure_matrix_numerical() # doctest: +ELLIPSIS
         array([[...
         >>> fig = my_fluid_flow.plot_pressure_z(theta=int(my_fluid_flow.ntheta/2))
-        >>> show(fig)
+        >>> # to show the plots you can use:
+        >>> # show(fig)
         """
         if (
             not self.numerical_pressure_matrix_available
@@ -796,7 +798,8 @@ class PressureMatrix:
         --------
         >>> my_fluid_flow = pressure_matrix_example()
         >>> fig = my_fluid_flow.plot_shape(theta=int(my_fluid_flow.ntheta/2))
-        >>> show(fig)
+        >>> # to show the plots you can use:
+        >>> # show(fig)
         """
         x = np.zeros(self.nz)
         y_re = np.zeros(self.nz)
@@ -832,7 +835,8 @@ class PressureMatrix:
         >>> my_fluid_flow.calculate_pressure_matrix_numerical() # doctest: +ELLIPSIS
         array([[...
         >>> fig = my_fluid_flow.plot_pressure_theta(z=int(my_fluid_flow.nz/2))
-        >>> show(fig)
+        >>> # to show the plots you can use:
+        >>> # show(fig)
         """
         if (
             not self.numerical_pressure_matrix_available
@@ -885,7 +889,8 @@ class PressureMatrix:
         --------
         >>> my_fluid_flow = pressure_matrix_example()
         >>> ax = my_fluid_flow.matplot_eccentricity(z=int(my_fluid_flow.nz/2))
-        >>> plt.show()
+        >>> # to show the plots you can use:
+        >>> # plt.show()
         """
         if ax is None:
             ax = plt.gca()
@@ -920,7 +925,8 @@ class PressureMatrix:
         >>> my_fluid_flow.calculate_pressure_matrix_numerical() # doctest: +ELLIPSIS
         array([[...
         >>> ax = my_fluid_flow.matplot_pressure_z(theta=int(my_fluid_flow.ntheta/2))
-        >>> plt.show()
+        >>> # to show the plots you can use:
+        >>> # plt.show()
         """
         if (
             not self.numerical_pressure_matrix_available
@@ -966,7 +972,8 @@ class PressureMatrix:
         --------
         >>> my_fluid_flow = pressure_matrix_example()
         >>> ax = my_fluid_flow.matplot_shape(theta=int(my_fluid_flow.ntheta/2))
-        >>> plt.show()
+        >>> # to show the plots you can use:
+        >>> # plt.show()
         """
         if ax is None:
             ax = plt.gca()
@@ -1008,7 +1015,8 @@ class PressureMatrix:
         >>> my_fluid_flow.calculate_pressure_matrix_numerical() # doctest: +ELLIPSIS
         array([[...
         >>> ax = my_fluid_flow.matplot_pressure_theta_cylindrical(z=int(my_fluid_flow.nz/2))
-        >>> plt.show()
+        >>> # to show the plots you can use:
+        >>> # plt.show()
         """
         if (
             not self.numerical_pressure_matrix_available
@@ -1088,7 +1096,8 @@ class PressureMatrix:
         >>> my_fluid_flow.calculate_pressure_matrix_numerical() # doctest: +ELLIPSIS
         array([[...
         >>> ax = my_fluid_flow.matplot_pressure_theta(z=int(my_fluid_flow.nz/2))
-        >>> plt.show()
+        >>> # to show the plots you can use:
+        >>> # plt.show()
         """
         if (
             not self.numerical_pressure_matrix_available
