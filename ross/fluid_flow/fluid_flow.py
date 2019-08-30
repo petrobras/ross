@@ -2,7 +2,7 @@ import sys
 import warnings
 import matplotlib.pyplot as plt
 import numpy as np
-from bokeh.plotting import figure
+from bokeh.plotting import figure, show
 
 
 class PressureMatrix:
@@ -248,6 +248,15 @@ class PressureMatrix:
                 0: based on the Fundamentals of Fluid Flow Lubrification, by Hamrock, chapter 10.
         force_type: str
             If set, calculates the pressure matrix analytically considering the chosen type: 'short' or 'long'.
+        Returns
+        -------
+        p_mat_analytical: matrix of float
+            Pressure matrix of size (nz x ntheta)
+        Examples
+        --------
+        >>> my_fluid_flow = pressure_matrix_example()
+        >>> my_fluid_flow.calculate_pressure_matrix_analytical() # doctest: +ELLIPSIS
+        array([[...
         """
         if self.bearing_type == "short_bearing" or force_type == 'short':
             if method == 0:
@@ -300,6 +309,12 @@ class PressureMatrix:
         """This function calculates the constants that form the Poisson equation
         of the discrete pressure (central differences in the second
         derivatives). It is executed when the class is instantiated.
+        Examples
+        --------
+        >>> my_fluid_flow = pressure_matrix_example()
+        >>> my_fluid_flow.calculate_coefficients()
+        >>> my_fluid_flow.c0w # doctest: +ELLIPSIS
+        array([[...
         """
         for i in range(0, self.nz):
             zno = i * self.dz
@@ -355,7 +370,13 @@ class PressureMatrix:
                 )
 
     def mounting_matrix(self):
-        """This function assembles the matrix M and the independent vector f
+        """This function assembles the matrix M and the independent vector f.
+        Examples
+        --------
+        >>> my_fluid_flow = pressure_matrix_example()
+        >>> my_fluid_flow.mounting_matrix()
+        >>> my_fluid_flow.M # doctest: +ELLIPSIS
+        array([[...
         """
         # fmt: off
         count = 0
@@ -415,11 +436,27 @@ class PressureMatrix:
 
     def resolves_matrix(self):
         """This function resolves the linear system [M]{P}={f}.
+        Examples
+        --------
+        >>> my_fluid_flow = pressure_matrix_example()
+        >>> my_fluid_flow.mounting_matrix()
+        >>> my_fluid_flow.resolves_matrix()
+        >>> my_fluid_flow.P # doctest: +ELLIPSIS
+        array([[...
         """
         self.P = np.linalg.solve(self.M, self.f)
 
     def calculate_pressure_matrix_numerical(self):
         """This function calculates the pressure matrix numerically.
+        Returns
+        -------
+        p_mat_numerical: matrix of float
+            Pressure matrix of size (nz x ntheta)
+        Examples
+        --------
+        >>> my_fluid_flow = pressure_matrix_example()
+        >>> my_fluid_flow.calculate_pressure_matrix_numerical() # doctest: +ELLIPSIS
+        array([[...
         """
         self.mounting_matrix()
         self.resolves_matrix()
@@ -450,6 +487,12 @@ class PressureMatrix:
             The position x of the returned internal radius.
         yri: float
             The position y of the returned internal radius.
+        Examples
+        --------
+        >>> my_fluid_flow = pressure_matrix_example()
+        >>> radius_internal, xri, yri = my_fluid_flow.internal_radius_function(z=0, gama=0)
+        >>> radius_internal
+        0.079
         """
         if (np.pi - self.beta) < gama < (2*np.pi - self.beta):
             alpha = np.absolute(2*np.pi - gama - self.beta)
@@ -481,6 +524,12 @@ class PressureMatrix:
             The position x of the returned external radius.
         yre: float
             The position y of the returned external radius.
+        Examples
+        --------
+        >>> my_fluid_flow = pressure_matrix_example()
+        >>> radius_external, xre, yre = my_fluid_flow.external_radius_function(gama=0)
+        >>> radius_external
+        0.1
         """
         radius_external = self.radius_stator
         xre = radius_external * np.cos(gama)
@@ -495,6 +544,11 @@ class PressureMatrix:
         -------
         float
             Load applied to the rotor.
+        Examples
+        --------
+        >>> my_fluid_flow = pressure_matrix_example()
+        >>> my_fluid_flow.get_rotor_load() # doctest: +ELLIPSIS
+        1.5...
         """
         if not self.bearing_type == "short_bearing":
             warnings.warn(
@@ -527,6 +581,11 @@ class PressureMatrix:
         -------
         float
             The modified sommerfeld number.
+        Examples
+        --------
+        >>> my_fluid_flow = pressure_matrix_example()
+        >>> my_fluid_flow.modified_sommerfeld_number() # doctest: +ELLIPSIS
+        6...
         """
         return (
             self.radius_stator * 2 * self.omega * self.viscosity * (self.length ** 3)
@@ -538,6 +597,11 @@ class PressureMatrix:
         -------
         float
             The sommerfeld number.
+        Examples
+        --------
+        >>> my_fluid_flow = pressure_matrix_example()
+        >>> my_fluid_flow.sommerfeld_number() # doctest: +ELLIPSIS
+        805...
         """
         modified_s = self.modified_sommerfeld_number()
         return (modified_s / np.pi) * (self.radius_stator * 2 / self.length) ** 2
@@ -549,6 +613,11 @@ class PressureMatrix:
         -------
         float
             The eccentricity ratio.
+        Examples
+        --------
+        >>> my_fluid_flow = pressure_matrix_example()
+        >>> my_fluid_flow.calculate_eccentricity_ratio() # doctest: +ELLIPSIS
+        0.0...
         """
         if not self.bearing_type == "short_bearing":
             warnings.warn(
@@ -579,6 +648,11 @@ class PressureMatrix:
         -------
         list of floats
             A list of length four including stiffness floats in this order: kxx, kxy, kyx, kyy
+        Examples
+        --------
+        >>> my_fluid_flow = pressure_matrix_example()
+        >>> my_fluid_flow.get_analytical_stiffness_matrix() # doctest: +ELLIPSIS
+        [...
         """
         if not self.bearing_type == "short_bearing":
             warnings.warn(
@@ -613,6 +687,11 @@ class PressureMatrix:
         -------
         list of floats
             A list of length four including stiffness floats in this order: cxx, cxy, cyx, cyy
+        Examples
+        --------
+        >>> my_fluid_flow = pressure_matrix_example()
+        >>> my_fluid_flow.get_analytical_damping_matrix() # doctest: +ELLIPSIS
+        [...
         """
         if not self.bearing_type == "short_bearing":
             warnings.warn(
@@ -646,6 +725,12 @@ class PressureMatrix:
         -------
         Figure
             An object containing the plot.
+        Examples
+        --------
+        >>> my_fluid_flow = pressure_matrix_example()
+        >>> fig = my_fluid_flow.plot_eccentricity(z=int(my_fluid_flow.nz/2))
+        >>> # to show the plots you can use:
+        >>> # show(fig)
         """
         p = figure(
             title="Cut in plane Z=" + str(z),
@@ -672,6 +757,14 @@ class PressureMatrix:
         -------
         Figure
             An object containing the plot.
+        Examples
+        --------
+        >>> my_fluid_flow = pressure_matrix_example()
+        >>> my_fluid_flow.calculate_pressure_matrix_numerical() # doctest: +ELLIPSIS
+        array([[...
+        >>> fig = my_fluid_flow.plot_pressure_z(theta=int(my_fluid_flow.ntheta/2))
+        >>> # to show the plots you can use:
+        >>> # show(fig)
         """
         if (
             not self.numerical_pressure_matrix_available
@@ -709,6 +802,12 @@ class PressureMatrix:
         -------
         Figure
             An object containing the plot.
+        Examples
+        --------
+        >>> my_fluid_flow = pressure_matrix_example()
+        >>> fig = my_fluid_flow.plot_shape(theta=int(my_fluid_flow.ntheta/2))
+        >>> # to show the plots you can use:
+        >>> # show(fig)
         """
         x = np.zeros(self.nz)
         y_re = np.zeros(self.nz)
@@ -738,6 +837,14 @@ class PressureMatrix:
         -------
         Figure
             An object containing the plot.
+        Examples
+        --------
+        >>> my_fluid_flow = pressure_matrix_example()
+        >>> my_fluid_flow.calculate_pressure_matrix_numerical() # doctest: +ELLIPSIS
+        array([[...
+        >>> fig = my_fluid_flow.plot_pressure_theta(z=int(my_fluid_flow.nz/2))
+        >>> # to show the plots you can use:
+        >>> # show(fig)
         """
         if (
             not self.numerical_pressure_matrix_available
@@ -786,6 +893,12 @@ class PressureMatrix:
         -------
         ax : matplotlib axes
             Returns the axes object with the plot.
+        Examples
+        --------
+        >>> my_fluid_flow = pressure_matrix_example()
+        >>> ax = my_fluid_flow.matplot_eccentricity(z=int(my_fluid_flow.nz/2))
+        >>> # to show the plots you can use:
+        >>> # plt.show()
         """
         if ax is None:
             ax = plt.gca()
@@ -814,6 +927,14 @@ class PressureMatrix:
         -------
         ax : matplotlib axes
             Returns the axes object with the plot.
+        Examples
+        --------
+        >>> my_fluid_flow = pressure_matrix_example()
+        >>> my_fluid_flow.calculate_pressure_matrix_numerical() # doctest: +ELLIPSIS
+        array([[...
+        >>> ax = my_fluid_flow.matplot_pressure_z(theta=int(my_fluid_flow.ntheta/2))
+        >>> # to show the plots you can use:
+        >>> # plt.show()
         """
         if (
             not self.numerical_pressure_matrix_available
@@ -855,18 +976,24 @@ class PressureMatrix:
         -------
         ax : matplotlib axes
             Returns the axes object with the plot.
+        Examples
+        --------
+        >>> my_fluid_flow = pressure_matrix_example()
+        >>> ax = my_fluid_flow.matplot_shape(theta=int(my_fluid_flow.ntheta/2))
+        >>> # to show the plots you can use:
+        >>> # plt.show()
         """
         if ax is None:
             ax = plt.gca()
         x = np.zeros(self.nz)
-        y_re = np.zeros(self.nz)
-        y_ri = np.zeros(self.nz)
+        y_ext = np.zeros(self.nz)
+        y_int = np.zeros(self.nz)
         for i in range(0, self.nz):
             x[i] = i * self.dz
-            y_re[i] = self.re[i][theta]
-            y_ri[i] = self.ri[i][theta]
-        ax.plot(x, y_re, "r")
-        ax.plot(x, y_ri, "b")
+            y_ext[i] = self.re[i][theta]
+            y_int[i] = self.ri[i][theta]
+        ax.plot(x, y_ext, "r")
+        ax.plot(x, y_int, "b")
         ax.set_title("Shapes of stator and rotor along Z; Theta=" + str(theta))
         ax.set_xlabel("Points along Z")
         ax.set_ylabel("Radial direction")
@@ -890,6 +1017,14 @@ class PressureMatrix:
         -------
         ax : matplotlib axes
             Returns the axes object with the plot.
+        Examples
+        --------
+        >>> my_fluid_flow = pressure_matrix_example()
+        >>> my_fluid_flow.calculate_pressure_matrix_numerical() # doctest: +ELLIPSIS
+        array([[...
+        >>> ax = my_fluid_flow.matplot_pressure_theta_cylindrical(z=int(my_fluid_flow.nz/2))
+        >>> # to show the plots you can use:
+        >>> # plt.show()
         """
         if (
             not self.numerical_pressure_matrix_available
@@ -963,6 +1098,14 @@ class PressureMatrix:
         -------
         ax : matplotlib axes
             Returns the axes object with the plot.
+        Examples
+        --------
+        >>> my_fluid_flow = pressure_matrix_example()
+        >>> my_fluid_flow.calculate_pressure_matrix_numerical() # doctest: +ELLIPSIS
+        array([[...
+        >>> ax = my_fluid_flow.matplot_pressure_theta(z=int(my_fluid_flow.nz/2))
+        >>> # to show the plots you can use:
+        >>> # plt.show()
         """
         if (
             not self.numerical_pressure_matrix_available
@@ -992,3 +1135,30 @@ class PressureMatrix:
         ax.set_xlabel("Points along Theta")
         ax.set_ylabel("Pressure")
         return ax
+
+
+def pressure_matrix_example():
+    """This function returns an instance of a simple pressure matrix.
+    The purpose is to make available a simple model
+    so that doctest can be written using it.
+
+    Parameters
+    ----------
+
+    Returns
+    -------
+    An instance of a pressure matrix object.
+
+    Examples
+    --------
+    >>> my_fluid_flow = pressure_matrix_example()
+    >>> my_fluid_flow.eccentricity
+    0.001
+    """
+    my_pressure_matrix = PressureMatrix(nz=8, ntheta=64, nradius=11, length=0.01, omega=100.*2*np.pi/60,
+                                        p_in=0., p_out=0., radius_rotor=0.08, radius_stator=0.1,
+                                        viscosity=0.015, density=860., eccentricity=0.001, beta=np.pi)
+    return my_pressure_matrix
+
+
+
