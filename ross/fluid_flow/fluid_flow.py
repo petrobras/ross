@@ -248,6 +248,10 @@ class PressureMatrix:
                 0: based on the Fundamentals of Fluid Flow Lubrification, by Hamrock, chapter 10.
         force_type: str
             If set, calculates the pressure matrix analytically considering the chosen type: 'short' or 'long'.
+        Returns
+        -------
+        p_mat_analytical: matrix of float
+            Pressure matrix of size (nz x ntheta)
         Examples
         --------
         >>> my_fluid_flow = pressure_matrix_example()
@@ -444,6 +448,10 @@ class PressureMatrix:
 
     def calculate_pressure_matrix_numerical(self):
         """This function calculates the pressure matrix numerically.
+        Returns
+        -------
+        p_mat_numerical: matrix of float
+            Pressure matrix of size (nz x ntheta)
         Examples
         --------
         >>> my_fluid_flow = pressure_matrix_example()
