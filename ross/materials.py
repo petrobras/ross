@@ -4,7 +4,7 @@ This module defines the Material class and defines
 some of the most common materials used in rotors.
 """
 import os
-
+import numpy as np
 import toml
 
 import ross as rs
@@ -68,17 +68,19 @@ class Material:
 
     def __eq__(self, other):
         """Material is considered equal if properties are equal."""
+        self_list = [v for v in self.__dict__.values() if isinstance(v, (float, int))]
+        other_list = [v for v in self.__dict__.values() if isinstance(v, (float, int))]
 
-        if self.__dict__ == other.__dict__:
+        if np.allclose(self_list, other_list):
             return True
         else:
             return False
 
     def __repr__(self):
-        selfE = "{:.2e}".format(self.E)
-        selfPoisson = "{:.2e}".format(self.Poisson)
-        selfrho = "{:.2e}".format(self.rho)
-        selfGs = "{:.2e}".format(self.G_s)
+        selfE = "{:.3e}".format(self.E)
+        selfPoisson = "{:.3e}".format(self.Poisson)
+        selfrho = "{:.3e}".format(self.rho)
+        selfGs = "{:.3e}".format(self.G_s)
 
         return (
             f"Material"
