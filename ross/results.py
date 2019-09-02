@@ -1131,19 +1131,15 @@ class ModeShapeResults:
         self.log_dec = log_dec
         self.kappa_modes = kappa_modes
 
-    def plot(self, mode=None, evec=None, fig=None, ax=None):
-        if ax is None:
-            fig = plt.figure()
-            ax = fig.gca(projection="3d")
-
+    def calc_mode_shape(self, mode=None, evec=None):
         evec0 = self.modes[:, mode]
         nodes = self.nodes
         nodes_pos = self.nodes_pos
-        kappa_modes = self.kappa_modes
         elements_length = self.elements_length
 
         modex = evec0[0::4]
         modey = evec0[1::4]
+
         xmax, ixmax = max(abs(modex)), np.argmax(abs(modex))
         ymax, iymax = max(abs(modey)), np.argmax(abs(modey))
 
@@ -1162,8 +1158,6 @@ class ModeShapeResults:
         x_circles = np.zeros((num_points, len(nodes)))
         y_circles = np.zeros((num_points, len(nodes)))
         z_circles_pos = np.zeros((num_points, len(nodes)))
-
-        kappa_mode = kappa_modes[mode]
 
         for node in nodes:
             x = modex[node] * circle
@@ -1199,23 +1193,35 @@ class ModeShapeResults:
 
             pos0 = nn * n
             pos1 = nn * (n + 1)
+
             xn[pos0:pos1] = Nx @ evec0[xx].real
             yn[pos0:pos1] = Ny @ evec0[yy].real
             zn[pos0:pos1] = (node_pos * onn + Le * zeta).reshape(nn)
 
+        return xn, yn, zn, x_circles, y_circles, z_circles_pos, nn
+
+    def plot(self, mode=None, evec=None, fig=None, ax=None):
+        if ax is None:
+            fig = plt.figure()
+            ax = fig.gca(projection="3d")
+
+        nodes = self.nodes
+        kappa_mode = self.kappa_modes[mode]
+        xn, yn, zn, xc, yc, zc_pos, nn = self.calc_mode_shape(mode=mode, evec=evec)
+
         for node in nodes:
             ax.plot(
-                x_circles[10:, node],
-                y_circles[10:, node],
-                z_circles_pos[10:, node],
+                xc[10:, node],
+                yc[10:, node],
+                zc_pos[10:, node],
                 color=kappa_mode[node],
                 linewidth=0.5,
                 zdir="x",
             )
             ax.scatter(
-                x_circles[10, node],
-                y_circles[10, node],
-                z_circles_pos[10, node],
+                xc[10, node],
+                yc[10, node],
+                zc_pos[10, node],
                 s=5,
                 color=kappa_mode[node],
                 zdir="x",
