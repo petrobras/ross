@@ -18,7 +18,13 @@ bokeh_colors = bp.RdGy[11]
 
 
 class Report:
-    def __init__(self, rotor, safety_factor=1.0):
+    def __init__(
+            self,
+            rotor,
+            minspeed,
+            maxspeed,
+            speed_units="rpm",
+    ):
         """Report according to standard analysis.
 
         - Perform Stability_level1 analysis
@@ -28,47 +34,88 @@ class Report:
         Parameters
         ----------
         rotor : object
-            A rotor built from rotor_assembly
+            A rotor built from rotor_assembly.
+        maxspeed : float
+            Maximum operation speed.
+        minspeed : float
+            Minimum operation speed.
+        speed_units : str
+            String defining the unit for rotor speed.
+            Default is "rpm".
+            
+        Return
+        ------
+
+        Example
+        -------
+        >>> rotor = rotor_example()
+        >>> report = Report(rotor=rotor,
+                            minspeed=400,
+                            maxspeed=1000) # doctest: +ELLIPSIS
+        [...]
         """
         self.rotor = rotor
-        self.safety_factor = safety_factor
+        self.maxspeed = maxspeed
+        self.minspeed = minspeed
+        self.speed_units = speed_units
+
+        if speed_units == "rpm":
+            minspeed = minspeed * np.pi / 30
+            maxspeed = maxspeed * np.pi / 30
 
     @classmethod
     def from_saved_rotors(cls, path):
         rotor = rs.Rotor.load(path)
         return cls(rotor)
 
-    def static_forces(self, maxspeed, mode):
+    def static_forces(self):
         """
-        Static analysis to caculate the reaction forces
-
-        Parameters
-        ----------
-        maxspeed : float
-            Maximum operation speed
-        mode : int
-            n'th mode shape
+        Method to calculate the bearing reaction forces.
 
         Returns
         -------
-        U : list
-            Unbalancing forces
+        Fb : list
+            Bearing reaction forces.
 
         Example
         -------
         >>> rotor = rotor_example()
-        >>> report = Report(rotor=rotor)
-        >>> report.static_forces(maxspeed=1000, mode=0) # doctest: +ELLIPSIS
+        >>> report = Report(rotor=rotor, minspeed=400, maxspeed=1000)
+        >>> report.static_forces() # doctest: +ELLIPSIS
         [...]
         """
-
-        N = 60 * maxspeed / (2 * np.pi)
-
         # get reaction forces on bearings
         Fb = self.rotor.run_static().force_data['Bearings Reaction Forces']
         Fb = np.array(Fb) / 9.8065
 
-        # adicionar caso se não houver discos - eixo em balanço
+        return Fb
+
+    def unbalance_forces(self, mode):
+        """
+        Method to calculate the unbalance forces.
+
+        Parameters
+        ----------
+        mode : int
+            n'th mode shape.
+
+        Returns
+        -------
+        U : list
+            Unbalancing forces.
+
+        Example
+        -------
+        >>> rotor = rotor_example()
+        >>> report = Report(rotor=rotor, minspeed=400, maxspeed=1000)
+        >>> report.unbalance_forces(mode=0) # doctest: +ELLIPSIS
+        [...]
+        """
+
+        N = 60 * self.maxspeed / (2 * np.pi)
+
+        # get reaction forces on bearings
+        Fb = self.static_forces()
 
         if mode == 0 or mode == 1:
             U = [4 * max(6350 * np.sum(Fb) / N, 250e-3 * np.sum(Fb))]
@@ -88,10 +135,7 @@ class Report:
     def unbalance_response(
             self,
             clearances,
-            minspeed,
-            maxspeed,
             mode,
-            speed_unit="rpm"
     ):
         """Evaluates the unbalance response for the rotor.
 
@@ -107,15 +151,8 @@ class Report:
         clearances : dict
             Dict mapping between node and its clearance in meters.
             (e.g. clearances = dict(3=0.001, 5=0.002...)
-        minspeed : float
-            Minimum operation speed
-        maxspeed : float
-            Maximum operation speed
         mode : int
-            n'th mode shape
-        units : str
-            rotor speed units
-            String defining the unit for rotor speed (can be rad/s or rpm)
+            n'th mode shape.
 
         Returns
         -------
@@ -128,27 +165,20 @@ class Report:
         >>> report = Report(rotor=rotor)
         >>> clearances = dict(3=0.001, 5=0.002)
         >>> report.unbalance_response(clearances=clearances,
-                                      minspeed=400,
-                                      maxspeed=1000,
                                       mode=0,
-                                      unit="rad/s") # doctest: +ELLIPSIS
+                                      ) # doctest: +ELLIPSIS
         [...]
         """
+        maxspeed = self.maxspeed
+        minspeed = self.minspeed
         freq_range = np.linspace(0, 1.25 * maxspeed, 201)
-
-        if speed_unit == "rad/s":
-            freq_range = freq_range
-        elif speed_unit == "rpm":
-            freq_range = np.pi * freq_range / 30
-        else:
-            raise ValueError("Invalid unit input. Select rpm or rad/s")
 
         # returns de nodes where forces will be applied
         node_min, node_max = self.mode_shape(mode)
 
         nodes = [int(node) for sub_nodes in [node_min, node_max] for node in sub_nodes]
 
-        force = self.static_forces(maxspeed, mode)
+        force = self.unbalance_forces(mode)
 
         phase = []
         for node in nodes:
@@ -272,18 +302,15 @@ class Report:
                 SM_ref = None
                 SMspeed = None
 
-            AF_table.append(AF)
-            SM_table.append(SM)
-            SM_ref_table.append(SM_ref)
-
         # amplitude limit in micrometers (A1) - API684 - SP6.8.2.11
         A1 = 25.4 * np.sqrt(12000 / (30 * maxspeed / np.pi))
 
         # amplitude from mode shape analysis
         Amax = max(mag[dof])
 
-        # Correction Factor (CF) - API684 - SP6.8.2.11
-        CF = max(A1 / Amax, 0.5)
+        # Scale Factor (Scc) - API684 - SP6.8.2.11 / API617 - 4.8.2.11
+        Scc = max(A1 / Amax, 0.5)
+        Scc = min(Scc, 6.0)
 
         mag_plot.quad(
             top=max(mag[dof]),
@@ -306,6 +333,30 @@ class Report:
             line_alpha=1.0,
             line_width=3,
         )
+        mag_plot.line(
+            x=[minspeed, maxspeed],
+            y=[A1, A1],
+            line_dash="dotdash",
+            line_width=2.0,
+            line_color=bokeh_colors[1],
+            legend="Av1 - Mechanical test vibration limit",
+        )
+        mag_plot.add_layout(
+            Label(
+                x=(minspeed+maxspeed)/2,
+                y=A1,
+                angle=0,
+                text="Av1",
+                text_font_style="bold",
+                text_font_size="12pt",
+                text_baseline="top",
+                text_align="center",
+                y_offset=20,
+            )
+        )
+        mag_plot.width = 1280
+        mag_plot.height = 720
+        mag_plot.title.text_font_size = "14pt"
 
         return mag_plot
 
