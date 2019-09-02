@@ -385,71 +385,9 @@ class Report:
         >>> report.mode_shpae(mode=0) # doctest: +ELLIPSIS
         [...]
         """
-        modes = (self.rotor.evectors[: self.rotor.ndof]),
-        evec0 = modes[0][:, mode]
-        nodes = self.rotor.nodes
         nodes_pos = self.rotor.nodes_pos
-        elements_length = self.rotor.elements_length
 
-        modex = evec0[0::4]
-        modey = evec0[1::4]
-
-        xmax, ixmax = max(abs(modex)), np.argmax(abs(modex))
-        ymax, iymax = max(abs(modey)), np.argmax(abs(modey))
-
-        if ymax > 0.4 * xmax:
-            evec0 /= modey[iymax]
-        else:
-            evec0 /= modex[ixmax]
-
-        modex = evec0[0::4]
-        modey = evec0[1::4]
-
-        num_points = 201
-        c = np.linspace(0, 2 * np.pi, num_points)
-        circle = np.exp(1j * c)
-
-        x_circles = np.zeros((num_points, len(nodes)))
-        y_circles = np.zeros((num_points, len(nodes)))
-        z_circles_pos = np.zeros((num_points, len(nodes)))
-
-        for node in nodes:
-            x = modex[node] * circle
-            x_circles[:, node] = np.real(x)
-            y = modey[node] * circle
-            y_circles[:, node] = np.real(y)
-            z_circles_pos[:, node] = nodes_pos[node]
-
-        # plot lines
-        nn = 31
-        zeta = np.linspace(0, 1, nn)
-        onn = np.ones_like(zeta)
-
-        zeta = zeta.reshape(nn, 1)
-        onn = onn.reshape(nn, 1)
-
-        xn = np.zeros(nn * (len(nodes) - 1))
-        yn = np.zeros(nn * (len(nodes) - 1))
-        zn = np.zeros(nn * (len(nodes) - 1))
-
-        N1 = onn - 3 * zeta ** 2 + 2 * zeta ** 3
-        N2 = zeta - 2 * zeta ** 2 + zeta ** 3
-        N3 = 3 * zeta ** 2 - 2 * zeta ** 3
-        N4 = -zeta ** 2 + zeta ** 3
-
-        for Le, n in zip(elements_length, nodes):
-            node_pos = nodes_pos[n]
-            Nx = np.hstack((N1, Le * N2, N3, Le * N4))
-            Ny = np.hstack((N1, -Le * N2, N3, -Le * N4))
-
-            xx = [4 * n, 4 * n + 3, 4 * n + 4, 4 * n + 7]
-            yy = [4 * n + 1, 4 * n + 2, 4 * n + 5, 4 * n + 6]
-
-            pos0 = nn * n
-            pos1 = nn * (n + 1)
-            xn[pos0:pos1] = Nx @ evec0[xx].real
-            yn[pos0:pos1] = Ny @ evec0[yy].real
-            zn[pos0:pos1] = (node_pos * onn + Le * zeta).reshape(nn)
+        xn, yn, zn, xc, yc, zc_pos, nn = self.rotor.run_mode_shapes().calc_mode_shape(mode=mode)
 
         # reduce 3D view to 2D view
         vn = np.zeros(len(zn))
