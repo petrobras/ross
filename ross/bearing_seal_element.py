@@ -125,6 +125,9 @@ class BearingElement(Element):
         (defaults to 0)
     w: array, optional
         Array with the speeds (rad/s).
+     tag : str, optional
+         A tag to name the element
+         Default is None
     Examples
     --------
     >>> # A bearing element located in the first rotor node, with these
@@ -144,7 +147,7 @@ class BearingElement(Element):
     """
 
     def __init__(
-        self, n, kxx, cxx, kyy=None, kxy=0, kyx=0, cyy=None, cxy=0, cyx=0, w=None
+        self, n, kxx, cxx, kyy=None, kxy=0, kyx=0, cyy=None, cxy=0, cyx=0, w=None, tag=None
     ):
 
         args = ["kxx", "kyy", "kxy", "kyx", "cxx", "cyy", "cxy", "cyx"]
@@ -189,6 +192,7 @@ class BearingElement(Element):
         self.n_r = n
 
         self.w = np.array(w, dtype=np.float64)
+        self.tag = tag
         self.color = "#355d7a"
 
     def __repr__(self):
@@ -199,7 +203,7 @@ class BearingElement(Element):
             f" kyx={self.kyx}, kyy={self.kyy},\n"
             f" cxx={self.cxx}, cxy={self.cxy},\n"
             f" cyx={self.cyx}, cyy={self.cyy},\n"
-            f" w={self.w})"
+            f" w={self.w}, tag={self.tag!r})"
         )
 
     def __eq__(self, other):
@@ -243,6 +247,7 @@ class BearingElement(Element):
             "cxy": self.cxy.coefficient,
             "cyx": self.cyx.coefficient,
             "w": w,
+            "tag": self.tag,
         }
         self.dump_data(data, file_name)
 
@@ -719,6 +724,7 @@ class SealElement(BearingElement):
         cyx=0,
         w=None,
         seal_leakage=None,
+        tag=None,
     ):
         super().__init__(
             n=n,
@@ -731,6 +737,7 @@ class SealElement(BearingElement):
             cxy=cxy,
             cyx=cyx,
             cyy=cyy,
+            tag=tag,
         )
 
         self.seal_leakage = seal_leakage

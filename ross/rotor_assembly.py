@@ -185,6 +185,16 @@ class Rotor(object):
         if bearing_seal_elements is None:
             bearing_seal_elements = []
 
+        for i, disk in enumerate(disk_elements):
+            if disk.tag is None:
+                disk.tag = "Disk " + str(i)
+
+        for i, brg in enumerate(bearing_seal_elements):
+            if brg.__class__.__name__ == "BearingElement" and brg.tag is None:
+                brg.tag = "Bearing " + str(i)
+            if brg.__class__.__name__ == "SealElement" and brg.tag is None:
+                brg.tag = "Seal " + str(i)
+
         self.shaft_elements = shaft_elements
         self.bearing_seal_elements = bearing_seal_elements
         self.disk_elements = disk_elements
@@ -212,6 +222,7 @@ class Rotor(object):
             "rho",
             "volume",
             "m",
+            "tag",
         ]
 
         df_shaft = pd.DataFrame([el.summary() for el in self.shaft_elements])
