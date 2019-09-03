@@ -1,14 +1,15 @@
 import pickle
 import numpy as np
 from scipy import interpolate
-
+from scipy.signal import argrelextrema
 import matplotlib as mpl
 import matplotlib.pyplot as plt
 import bokeh.palettes as bp
 from mpl_toolkits.mplot3d import Axes3D
-from bokeh.layouts import gridplot
+from bokeh.layouts import gridplot, widgetbox
 from bokeh.plotting import figure, show
 from bokeh.transform import linear_cmap
+from bokeh.models.widgets import DataTable, TableColumn, NumberFormatter
 from bokeh.models import (
         ColumnDataSource,
         ColorBar,
@@ -429,14 +430,151 @@ class FrequencyResponseResults:
         # bokeh plot - create a new plot
         mag_plot = figure(
             tools="pan, box_zoom, wheel_zoom, reset, save",
-            width=900,
-            height=400,
+            width=1000,
+            height=450,
             title="Frequency Response - Magnitude",
             x_axis_label="Frequency",
             y_axis_label=y_axis_label,
         )
         mag_plot.xaxis.axis_label_text_font_size = "14pt"
         mag_plot.yaxis.axis_label_text_font_size = "14pt"
+
+        minspeed = 320
+        maxspeed = 450
+
+        idx_max = argrelextrema(mag[inp, out, :], np.greater)
+        wn = frequency_range[idx_max[0]]
+
+        AF_table = []
+        SM_table = []
+        SM_ref_table = []
+
+        for i, peak in enumerate(mag[inp, out, :][idx_max[0]]):
+            peak_n = 0.707 * peak
+            peak_aux = np.linspace(peak_n, peak_n, len(frequency_range))
+
+            idx = np.argwhere(
+                np.diff(np.sign(peak_aux - mag[inp, out, :]))
+            ).flatten()
+            idx = np.sort(np.append(idx, idx_max[0][i]))
+
+            # if speed range is not long enough to catch the magnitudes
+            try:
+                idx_aux = [
+                    list(idx).index(idx_max[0][i]) - 1,
+                    list(idx).index(idx_max[0][i]) + 1,
+                ]
+                idx = idx[idx_aux]
+            except IndexError:
+                idx = [list(idx).index(idx_max[0][i]) - 1,
+                       len(frequency_range) - 1
+                ]
+
+            # Amplification Factor (AF)
+            AF = wn[i] / (
+                frequency_range[idx[1]] - frequency_range[idx[0]]
+            )
+
+            # Separation Margin (SM)
+            if AF > 2.5 and wn[i] < minspeed:
+                SM = min([16, 17 * (1 - 1 / (AF - 1.5))]) / 100
+                SMspeed = wn[i] * (1 + SM)
+                SM_ref = (minspeed - wn[i]) / wn[i]
+                source = ColumnDataSource(
+                    dict(
+                        top=[max(mag[inp, out, :][idx_max[0]])],
+                        bottom=[0],
+                        left=[wn[i]],
+                        right=[SMspeed],
+                        tag1=[wn[i]],
+                        tag2=[SMspeed],
+                    )
+                )
+
+            elif AF > 2.5 and wn[i] > maxspeed:
+                SM = min([26, 10 + 17 * (1 - 1 / (AF - 1.5))]) /100
+                SMspeed = wn[i] * (1 - SM)
+                SM_ref = (wn[i] - maxspeed) / maxspeed
+                source = ColumnDataSource(
+                    dict(
+                        top=[max(mag[inp, out, :][idx_max[0]])],
+                        bottom=[0],
+                        left=[SMspeed],
+                        right=[wn[i]],
+                        tag1=[wn[i]],
+                        tag2=[SMspeed],
+                    )
+                )
+
+            else:
+                SM = None
+                SM_ref = None
+                SMspeed = None
+
+            AF_table.append(AF)
+            SM_table.append(SM)
+            SM_ref_table.append(SM_ref)
+
+            mag_plot.quad(
+                top="top",
+                bottom="bottom",
+                left="left",
+                right="right",
+                source=source,
+                line_color=bokeh_colors[8],
+                line_width=0.8,
+                fill_alpha=0.2,
+                fill_color=bokeh_colors[8],
+                legend="Separation Margin",
+                name="SM2",
+            )
+            hover = HoverTool(names=["SM2"])
+            hover.tooltips = [
+                ("Critical Speed :", "@tag1"),
+                ("Speed at 0.707 x peak amplitude :", "@tag2"),
+            ]
+
+        table_source = ColumnDataSource(
+                dict(
+                    Wd=frequency_range[idx_max[0]],
+                    SM_table=SM_table,
+                    AF_table=AF_table,
+                    SM_ref_table=SM_ref_table,
+                )
+        )
+        form1 = NumberFormatter(format='0.00')
+        form2 = NumberFormatter(format='0.00%')
+        columns = [
+                TableColumn(
+                    field="Wd", title="Critical Speed", formatter=form1
+                ),
+                TableColumn(
+                    field="SM_table", title="Required Separation Margin", formatter=form2
+                ),
+                TableColumn(
+                    field="SM_ref_table", title="Available Separation Margin", formatter=form2
+                ),
+                TableColumn(
+                    field="AF_table", title="Amplification Factor", formatter=form1
+                )
+            ]
+        data_table = DataTable(
+                source=table_source, columns=columns, width=700, height=450
+        )
+        table = widgetbox(data_table)
+
+        mag_plot.quad(
+            top=max(mag[inp, out, :][idx_max[0]]),
+            bottom=0,
+            left=minspeed,
+            right=maxspeed,
+            line_color="green",
+            line_width=0.8,
+            fill_alpha=0.2,
+            fill_color="green",
+            legend="Operation Speed Range",
+        )
+        mag_plot.add_tools(hover)
 
         source = ColumnDataSource(dict(x=frequency_range, y=mag[inp, out, :]))
         mag_plot.line(
@@ -448,7 +586,7 @@ class FrequencyResponseResults:
             line_width=3,
         )
 
-        return mag_plot
+        return mag_plot, table
 
     def plot_phase_matplotlib(self, inp, out, ax=None, **kwargs):
         """Plot frequency response.
@@ -523,8 +661,8 @@ class FrequencyResponseResults:
         # bokeh plot - create a new plot
         phase_plot = figure(
             tools="pan, box_zoom, wheel_zoom, reset, save",
-            width=900,
-            height=400,
+            width=1000,
+            height=450,
             title="Frequency Response - Phase",
             x_axis_label="Frequency",
             y_axis_label="Phase",
@@ -620,11 +758,11 @@ class FrequencyResponseResults:
         --------
         """
         # bokeh plot axes
-        bk_ax0 = self.plot_magnitude_bokeh(inp, out, ax=ax0)
+        bk_ax0, table = self.plot_magnitude_bokeh(inp, out, ax=ax0)
         bk_ax1 = self.plot_phase_bokeh(inp, out, ax=ax1)
 
         # show the bokeh plot results
-        grid_plots = gridplot([[bk_ax0], [bk_ax1]])
+        grid_plots = gridplot([[bk_ax0, table], [bk_ax1]])
         show(grid_plots)
 
         return bk_ax0, bk_ax1
@@ -993,19 +1131,15 @@ class ModeShapeResults:
         self.log_dec = log_dec
         self.kappa_modes = kappa_modes
 
-    def plot(self, mode=None, evec=None, fig=None, ax=None):
-        if ax is None:
-            fig = plt.figure()
-            ax = fig.gca(projection="3d")
-
+    def calc_mode_shape(self, mode=None, evec=None):
         evec0 = self.modes[:, mode]
         nodes = self.nodes
         nodes_pos = self.nodes_pos
-        kappa_modes = self.kappa_modes
         elements_length = self.elements_length
 
         modex = evec0[0::4]
         modey = evec0[1::4]
+
         xmax, ixmax = max(abs(modex)), np.argmax(abs(modex))
         ymax, iymax = max(abs(modey)), np.argmax(abs(modey))
 
@@ -1024,8 +1158,6 @@ class ModeShapeResults:
         x_circles = np.zeros((num_points, len(nodes)))
         y_circles = np.zeros((num_points, len(nodes)))
         z_circles_pos = np.zeros((num_points, len(nodes)))
-
-        kappa_mode = kappa_modes[mode]
 
         for node in nodes:
             x = modex[node] * circle
@@ -1061,23 +1193,35 @@ class ModeShapeResults:
 
             pos0 = nn * n
             pos1 = nn * (n + 1)
+
             xn[pos0:pos1] = Nx @ evec0[xx].real
             yn[pos0:pos1] = Ny @ evec0[yy].real
             zn[pos0:pos1] = (node_pos * onn + Le * zeta).reshape(nn)
 
+        return xn, yn, zn, x_circles, y_circles, z_circles_pos, nn
+
+    def plot(self, mode=None, evec=None, fig=None, ax=None):
+        if ax is None:
+            fig = plt.figure()
+            ax = fig.gca(projection="3d")
+
+        nodes = self.nodes
+        kappa_mode = self.kappa_modes[mode]
+        xn, yn, zn, xc, yc, zc_pos, nn = self.calc_mode_shape(mode=mode, evec=evec)
+
         for node in nodes:
             ax.plot(
-                x_circles[10:, node],
-                y_circles[10:, node],
-                z_circles_pos[10:, node],
+                xc[10:, node],
+                yc[10:, node],
+                zc_pos[10:, node],
                 color=kappa_mode[node],
                 linewidth=0.5,
                 zdir="x",
             )
             ax.scatter(
-                x_circles[10, node],
-                y_circles[10, node],
-                z_circles_pos[10, node],
+                xc[10, node],
+                yc[10, node],
+                zc_pos[10, node],
                 s=5,
                 color=kappa_mode[node],
                 zdir="x",
@@ -1116,6 +1260,7 @@ class StaticResults():
         nodes,
         nodes_pos,
         Vx_axis,
+        force_data,
     ):
 
         self.disp_y = disp_y
@@ -1127,6 +1272,7 @@ class StaticResults():
         self.nodes = nodes
         self.nodes_pos = nodes_pos
         self.Vx_axis = Vx_axis
+        self.force_data = force_data
 
     def plot(self):
         """Plot static analysis graphs.
