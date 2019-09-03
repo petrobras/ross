@@ -119,7 +119,7 @@ def test_bearing1_matrices(bearing1):
     assert_allclose(bearing1.C(314.2), C)
 
 
-def test_bearing_error1():
+def test_bearing_error_speed_not_given():
     speed = np.linspace(0, 10000, 5)
     kx = 1e8 * speed
     cx = 1e8 * speed
@@ -157,6 +157,38 @@ def test_bearing_constant(bearing_constant):
     assert_allclose(bearing_constant.cxx.interpolated(300.9), 0, rtol=1e5)
 
 
+def test_bearing_len_2():
+    bearing = BearingElement(
+        n=0,
+        kxx=[481, 4810],
+        cxx=[3.13, 10.81],
+        kyy=[481, 4810],
+        kxy=[194, 2078],
+        kyx=[-194, -2078],
+        cyy=[3.13, 10.81],
+        cxy=[0.276, 0.69],
+        cyx=[-0.276, -0.69],
+        w=[115.19, 345.575],
+    )
+    assert_allclose(bearing.kxx.interpolated(115.19), 481, rtol=1e5)
+
+
+def test_bearing_len_3():
+    bearing = BearingElement(
+        n=0,
+        kxx=[481, 4810, 18810],
+        cxx=[3.13, 10.81, 22.99],
+        kyy=[481, 4810, 18810],
+        kxy=[194, 2078, 8776],
+        kyx=[-194, -2078, -8776],
+        cyy=[3.13, 10.81, 22.99],
+        cxy=[0.276, 0.69, 1.19],
+        cyx=[-0.276, -0.69, -1.19],
+        w=[115.19, 345.575, 691.15],
+    )
+    assert_allclose(bearing.kxx.interpolated(115.19), 481, rtol=1e5)
+
+
 def test_equality(bearing0, bearing1, bearing_constant):
     assert bearing0 == bearing0
     assert bearing0 == bearing1
@@ -165,7 +197,9 @@ def test_equality(bearing0, bearing1, bearing_constant):
 
 
 def test_from_table():
-    bearing_file = os.path.dirname(os.path.realpath(__file__)) + "/data/bearing_seal.xls"
+    bearing_file = (
+        os.path.dirname(os.path.realpath(__file__)) + "/data/bearing_seal.xls"
+    )
     bearing = BearingElement.from_table(0, bearing_file)
     assert bearing.n == 0
     assert math.isclose(bearing.w[2], 523.6, abs_tol=0.1)
