@@ -695,6 +695,7 @@ class ShaftTaperedElement(Element):
     .. math:: [x_0, y_0, \alpha_0, \beta_0, x_1, y_1, \alpha_1, \beta_1]^T
     Where :math:`\alpha_0` and :math:`\alpha_1` are the bending on the yz plane
     and :math:`\beta_0` and :math:`\beta_1` are the bending on the xz plane.
+
     Parameters
     ----------
     L : float
@@ -730,6 +731,44 @@ class ShaftTaperedElement(Element):
     shear_method_calc : string, optional
         Determines which shear calculation method the user will adopt
         Default is 'cowper'
+
+    Returns
+    -------
+    A shaft element
+
+    Attributes
+    ----------
+    Poisson : float
+        Poisson coefficient for the element.
+    A : float
+        Element mid-section area.
+    Ie : float
+        Ie is the second moment of area of the mid cross section about
+        the neutral plane Ie = pi*r**2/4
+    phi : float
+        Constant that is used according to [1] to consider rotary
+        inertia and shear effects. If these are not considered phi=0.
+    References
+    ----------
+    .. [1] 'Dynamics of Rotating Machinery' by MI Friswell, JET Penny, SD Garvey
+       & AW Lees, published by Cambridge University Press, 2010 pp. 158-166.
+    Examples
+    --------
+    >>> from ross.materials import steel
+    >>> Euler_Bernoulli_Element = ShaftTaperedElement(
+    ...                         L=0.5, i_d_l=0.05, i_d_r=0.05, o_d_l=0.1,
+    ...                         o_d_r=0.15, material=steel,
+    ...                         rotary_inertia=False,
+    ...                         shear_effects=False)
+    >>> Euler_Bernoulli_Element.phi
+    0
+    >>> Timoshenko_Element = ShaftTaperedElement(
+    ...                         L=0.5, i_d_l=0.05, i_d_r=0.05, o_d_l=0.1,
+    ...                         o_d_r=0.15, material=steel,
+    ...                         rotary_inertia=True,
+    ...                         shear_effects=True)
+    >>> Timoshenko_Element.phi
+    0.21026260191948362
     """
 
     def __init__(
@@ -770,7 +809,6 @@ class ShaftTaperedElement(Element):
 
         self.L = float(L)
 
-        # diameters
         self.o_d = (float(o_d_l) + float(o_d_r)) / 2
         self.i_d = (float(i_d_l) + float(i_d_r)) / 2
         self.i_d_l = float(i_d_l)
@@ -805,7 +843,7 @@ class ShaftTaperedElement(Element):
         b1 = np.pi * (delta_ro ** 2 - delta_ri ** 2) / A_l
         b2 = 3 * np.pi * (roj ** 2 * delta_ro ** 2 - rij ** 2 * delta_ri ** 2) / (2 * Ie_l)
         gama = np.pi * (roj * delta_ro ** 3 - rij * delta_ri ** 3) / Ie_l
-        delta = np.pi * (delta_ro ** 4 - delta_ri ** 4) / 4 * Ie_l
+        delta = np.pi * (delta_ro ** 4 - delta_ri ** 4) / (4 * Ie_l)
 
         self.a1 = a1
         self.a2 = a2
@@ -835,7 +873,7 @@ class ShaftTaperedElement(Element):
         # hutchinson - kappa as per Hutchinson (2001)
         # cowper - kappa as per Cowper (1996)
         if shear_effects:
-            r = i_d_l / o_d_l
+            r = ((i_d_l + i_d_r) / 2) / ((o_d_l + o_d_r) / 2)
             r2 = r * r
             r12 = (1 + r2) ** 2
             if shear_method_calc == "hutchinson":
@@ -941,9 +979,11 @@ class ShaftTaperedElement(Element):
 
     def M(self):
         r"""Mass matrix for an instance of a shaft tapered element.
+
         Returns
         -------
         Mass matrix for the shaft tapered element.
+
         Examples
         --------
         >>> Timoshenko_Element = ShaftTaperedElement(
@@ -952,10 +992,10 @@ class ShaftTaperedElement(Element):
         ...                         rotary_inertia=True,
         ...                         shear_effects=True)
         >>> Timoshenko_Element.M()[:4, :4]
-        array([[11.35295267,  0.        ,  0.        ,  0.85960486],
-               [ 0.        , 11.35295267, -0.85960486,  0.        ],
-               [ 0.        , -0.85960486,  0.08653475,  0.        ],
-               [ 0.85960486,  0.        ,  0.        ,  0.08653475]])
+        array([[11.36986417,  0.        ,  0.        ,  0.86197637],
+               [ 0.        , 11.36986417, -0.86197637,  0.        ],
+               [ 0.        , -0.86197637,  0.08667495,  0.        ],
+               [ 0.86197637,  0.        ,  0.        ,  0.08667495]])
         """
         phi = self.phi
         L = self.L
@@ -1090,9 +1130,11 @@ class ShaftTaperedElement(Element):
 
     def K(self):
         r"""Stiffness matrix for an instance of a shaft tapered element.
+
         Returns
         -------
         Stiffness matrix for the shaft tapered element.
+
         Examples
         --------
         >>> from ross.materials import steel
@@ -1102,13 +1144,13 @@ class ShaftTaperedElement(Element):
         ...                         rotary_inertia=True,
         ...                         shear_effects=True)
         >>> Timoshenko_Element.K()[:4, :4]/1e6
-        array([[211.30832227,   0.        ,   0.        ,  54.96237663],
-               [  0.        , 211.30832227, -54.96237663,   0.        ],
-               [  0.        , -54.96237663,  15.71572869,   0.        ],
-               [ 54.96237663,   0.        ,   0.        ,  15.71572869]])
+        array([[209.25641985,   0.        ,   0.        ,  38.62129051],
+               [  0.        , 209.25641985, -38.62129051,   0.        ],
+               [  0.        , -38.62129051,  11.56619973,   0.        ],
+               [ 38.62129051,   0.        ,   0.        ,  11.56619973]])
         """
-        phi = self.phi
         L = self.L
+        phi = self.phi
         a1 = self.a1
         a2 = self.a2
         b1 = self.b1
@@ -1116,10 +1158,9 @@ class ShaftTaperedElement(Element):
         delta = self.delta
         gama = self.gama
         Ie_l = self.Ie_l
-        A_l = self.A_l
 
         # fmt: off
-        k1 = 630 * a2 + 504 * b2 + 441 * gama + 396 * delta
+        k1 = 1260 + 630 * a2 + 504 * b2 + 441 * gama + 396 * delta
         k2 = (
             630
             + 210 * a2
@@ -1161,7 +1202,7 @@ class ShaftTaperedElement(Element):
         k8 = 6 + 3 * a1 + 2 * b1
         k9 = 3 + 1.5 * a1 + b1
 
-        K = np.array([
+        K1 = np.array([
             [  k1,     0,       0,    L*k2,   -k1,    0,       0,    L*k3],
             [   0,    k1,   -L*k2,       0,     0,  -k1,   -L*k3,       0],
             [   0, -L*k2, L**2*k4,       0,     0, L*k2, L**2*k5,       0],
@@ -1172,20 +1213,18 @@ class ShaftTaperedElement(Element):
             [L*k3,     0,       0, L**2*k5, -L*k3,    0,       0, L**2*k6],
         ])
 
-        K = self.material.E * Ie_l * K / (105 * L ** 3 * (1 + phi) ** 2)
-
         K2 = np.array([
             [  k7,     0,       0,    L*k8,   -k7,     0,       0,    L*k8],
             [   0,    k7,   -L*k8,       0,     0,   -k7,   -L*k8,       0],
             [   0, -L*k8, L**2*k9,       0,     0,  L*k8, L**2*k9,       0],
             [L*k8,     0,       0, L**2*k9, -L*k8,     0,       0, L**2*k9],
-            [ -k7,     0,       0,   -L*k8,    k7,     0,       0,    L*k8],
-            [   0,   -k7,    L*k8,       0,     0,    k7,   -L*k8,       0],
-            [   0, -L*k8, L**2*k9,       0,     0, -L*k8, L**2*k9,       0],
-            [L*k8,     0,       0, L**2*k9,  L*k8,     0,       0, L**2*k9],
+            [ -k7,     0,       0,   -L*k8,    k7,     0,       0,   -L*k8],
+            [   0,   -k7,    L*k8,       0,     0,    k7,    L*k8,       0],
+            [   0, -L*k8, L**2*k9,       0,     0,  L*k8, L**2*k9,       0],
+            [L*k8,     0,       0, L**2*k9, -L*k8,     0,       0, L**2*k9],
         ])
-        K2 = self.material.G_s * A_l * phi ** 2 * K2 / (12 * self.kappa * L * (1 + phi) ** 2)
-        K = K + K2
+
+        K = self.material.E * Ie_l / (105 * L ** 3 * (1 + phi) ** 2) * (K1 + 105 * phi * K2)
         # fmt: on
 
         return K
@@ -1200,6 +1239,17 @@ class ShaftTaperedElement(Element):
 
         Examples
         --------
+        >>> from ross.materials import steel
+        >>> Timoshenko_Element = ShaftTaperedElement(
+        ...                         0.5, 0.05, 0.05, 0.1,
+        ...                         0.15, steel,
+        ...                         rotary_inertia=True,
+        ...                         shear_effects=True)
+        >>> Timoshenko_Element.C()[:4, :4]
+        array([[0., 0., 0., 0.],
+               [0., 0., 0., 0.],
+               [0., 0., 0., 0.],
+               [0., 0., 0., 0.]])
         """
         C = np.zeros((8, 8))
 
@@ -1207,9 +1257,11 @@ class ShaftTaperedElement(Element):
 
     def G(self):
         """Gyroscopic matrix for an instance of a shaft tapred element.
+
         Returns
         -------
         Gyroscopic matrix for the shaft tapered element.
+ 
         Examples
         --------
         >>> from ross.materials import steel
@@ -1220,10 +1272,10 @@ class ShaftTaperedElement(Element):
         ...                         rotary_inertia=True,
         ...                         shear_effects=True)
         >>> Timoshenko_Element.G()[:4, :4]
-        array([[ 0.        ,  0.2998902 , -0.00955058,  0.        ],
-               [-0.2998902 ,  0.        ,  0.        , -0.00955058],
-               [ 0.00955058,  0.        ,  0.        ,  0.00663842],
-               [ 0.        ,  0.00955058, -0.00663842,  0.        ]])
+        array([[ 0.        ,  0.30940809, -0.01085902,  0.        ],
+               [-0.30940809,  0.        ,  0.        , -0.01085902],
+               [ 0.01085902,  0.        ,  0.        ,  0.0067206 ],
+               [ 0.        ,  0.01085902, -0.0067206 ,  0.        ]])
         """
 
         G = np.zeros((8, 8))
