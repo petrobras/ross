@@ -48,21 +48,22 @@ class Report:
 
         Example
         -------
-        >>> rotor = rotor_example()
+        >>> rotor = rs.rotor_example()
         >>> report = Report(rotor=rotor,
                             minspeed=400,
                             maxspeed=1000) # doctest: +ELLIPSIS
         [...]
         """
         self.rotor = rotor
-        self.maxspeed = maxspeed
-        self.minspeed = minspeed
         self.speed_units = speed_units
 
         if speed_units == "rpm":
             minspeed = minspeed * np.pi / 30
             maxspeed = maxspeed * np.pi / 30
-
+ 
+        self.maxspeed = maxspeed
+        self.minspeed = minspeed
+                
     @classmethod
     def from_saved_rotors(cls, path):
         rotor = rs.Rotor.load(path)
@@ -79,7 +80,7 @@ class Report:
 
         Example
         -------
-        >>> rotor = rotor_example()
+        >>> rotor = rs.rotor_example()
         >>> report = Report(rotor=rotor, minspeed=400, maxspeed=1000)
         >>> report.static_forces() # doctest: +ELLIPSIS
         [...]
@@ -106,7 +107,7 @@ class Report:
 
         Example
         -------
-        >>> rotor = rotor_example()
+        >>> rotor = rs.rotor_example()
         >>> report = Report(rotor=rotor, minspeed=400, maxspeed=1000)
         >>> report.unbalance_forces(mode=0) # doctest: +ELLIPSIS
         [...]
@@ -161,7 +162,7 @@ class Report:
 
         Example
         -------
-        >>> rotor = rotor_example()
+        >>> rotor = rs.rotor_example()
         >>> report = Report(rotor=rotor)
         >>> clearances = dict(3=0.001, 5=0.002)
         >>> report.unbalance_response(clearances=clearances,
@@ -380,7 +381,7 @@ class Report:
 
         Example
         -------
-        >>> rotor = rotor_example()
+        >>> rotor = rs.rotor_example()
         >>> report = Report(rotor=rotor)
         >>> report.mode_shpae(mode=0) # doctest: +ELLIPSIS
         [...]
