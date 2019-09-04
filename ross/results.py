@@ -1109,6 +1109,39 @@ class ForcedResponseResults:
 
 
 class ModeShapeResults:
+    """Evaluates the mode shapes for the rotor.
+
+    This analysis presents the vibration mode for each critical speed.
+
+    Parameters
+    ----------
+    modes : list
+        list of eigenvectors
+    ndof : int
+        Number of degrees of freedom of the system
+    nodes : list
+        list of node numbers
+    nodes_pos : list
+        list of nodes positions
+    elements_length : list
+        list with length of each shaft element
+    w : float, list
+        rotor speed
+    wd : list
+        list with damped natural frequency
+    log_dec : list
+        list with logarithmic decrements
+    kappa_modes : list
+        list with values of kappa
+
+    Returns
+    -------
+        A graphic object
+
+    Example
+    -------
+    """
+
     def __init__(
         self,
         modes,
@@ -1132,6 +1165,37 @@ class ModeShapeResults:
         self.kappa_modes = kappa_modes
 
     def calc_mode_shape(self, mode=None, evec=None):
+        """
+        Method that calculate the arrays describing the mode shapes.
+
+        Parameters
+        ----------
+        mode : int
+            The n'th vibration mode
+            Default is None
+        evec : array
+            Array containing the system eigenvectors
+
+        Returns
+        -------
+        xn : array
+            absolut nodal displacement - X direction
+        yn : array
+            absolut nodal displacement - Y direction
+        zn : array
+            absolut nodal displacement - Z direction
+        x_circles : array
+            orbit description - X direction
+        y_circles : array
+            orbit description - Y direction
+        z_circles_pos : array
+            axial location of each orbit
+        nn : int
+            number of points to plot lines
+
+        Example
+        -------
+        """
         evec0 = self.modes[:, mode]
         nodes = self.nodes
         nodes_pos = self.nodes_pos
@@ -1201,6 +1265,31 @@ class ModeShapeResults:
         return xn, yn, zn, x_circles, y_circles, z_circles_pos, nn
 
     def plot(self, mode=None, evec=None, fig=None, ax=None):
+        """
+        Method that calculate the arrays describing the mode shapes.
+
+        Parameters
+        ----------
+        mode : int
+            The n'th vibration mode
+            Default is None
+        evec : array
+            Array containing the system eigenvectors
+        fig : matplotlib figure
+            The figure object with the plot.
+        ax : matplotlib axes
+            The axes object with the plot.
+
+        Returns
+        -------
+        fig : matplotlib figure
+            Returns the figure object with the plot.
+        ax : matplotlib axes
+            Returns the axes object with the plot.
+
+        Example
+        -------
+        """
         if ax is None:
             fig = plt.figure()
             ax = fig.gca(projection="3d")
