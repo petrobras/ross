@@ -24,6 +24,9 @@ class DiskElement(Element):
          Diametral moment of inertia.
      Ip : float
          Polar moment of inertia
+     tag : str, optional
+         A tag to name the element
+         Default is None
      References
      ----------
      .. [1] 'Dynamics of Rotating Machinery' by MI Friswell, JET Penny, SD Garvey
@@ -35,7 +38,7 @@ class DiskElement(Element):
      0.32956362
      """
 
-    def __init__(self, n, m, Id, Ip):
+    def __init__(self, n, m, Id, Ip, tag=None):
         self.n = int(n)
         self.n_l = n
         self.n_r = n
@@ -43,6 +46,7 @@ class DiskElement(Element):
         self.m = m
         self.Id = Id
         self.Ip = Ip
+        self.tag = tag
         self.color = "#bc625b"
 
     def __eq__(self, other):
@@ -70,7 +74,7 @@ class DiskElement(Element):
             f"{self.__class__.__name__}"
             f"(Id={self.Id:{0}.{5}}, Ip={self.Ip:{0}.{5}}, "
             f"m={self.m:{0}.{5}}, color={self.color!r}, "
-            f"n={self.n})"
+            f"n={self.n}, tag={self.tag!r})"
         )
 
     def save(self, file_name):
@@ -80,6 +84,7 @@ class DiskElement(Element):
             "m": self.m,
             "Id": self.Id,
             "Ip": self.Ip,
+            "tag": self.tag,
         }
         self.dump_data(data, file_name)
 
@@ -240,6 +245,7 @@ class DiskElement(Element):
                 IP=[self.Ip],
                 ID=[self.Id],
                 mass=[self.m],
+                tag=[self.tag],
             )
         )
         source_c = ColumnDataSource(
@@ -252,6 +258,7 @@ class DiskElement(Element):
                 IP=[self.Ip],
                 ID=[self.Id],
                 mass=[self.m],
+                tag=[self.tag],
             )
         )
 
@@ -299,13 +306,15 @@ class DiskElement(Element):
             ("Polar Moment of Inertia :", "@IP"),
             ("Diametral Moment of Inertia :", "@ID"),
             ("Disk mass :", "@mass"),
+            ("Tag :", "@tag")
         ]
         hover.mode = "mouse"
 
         return hover
 
+
     @classmethod
-    def from_geometry(cls, n, material, width, i_d, o_d):
+    def from_geometry(cls, n, material, width, i_d, o_d, tag=None):
         """A disk element.
         This class will create a disk element from input data of geometry.
         Parameters
@@ -328,6 +337,9 @@ class DiskElement(Element):
             Diametral moment of inertia.
         Ip : float
             Polar moment of inertia
+        tag : str, optional
+            A tag to name the element
+            Default is None
         References
         ----------
         .. [1] 'Dynamics of Rotating Machinery' by MI Friswell, JET Penny, SD Garvey
@@ -348,7 +360,9 @@ class DiskElement(Element):
         # fmt: on
         Ip = 0.03125 * material.rho * np.pi * width * (o_d ** 4 - i_d ** 4)
 
-        return cls(n, m, Id, Ip)
+        tag = tag
+
+        return cls(n, m, Id, Ip, tag)
 
     @classmethod
     def from_table(cls, file, sheet_name=0):

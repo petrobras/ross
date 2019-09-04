@@ -36,14 +36,20 @@ class _Coefficient:
             #  dfitpack.error is not exposed by scipy
             #  so a bare except is used
             except:
-                raise ValueError(
-                    "Arguments (coefficients and w)" " must have the same dimension"
-                )
+                try:
+                    if len(self.w) in (2, 3):
+                        self.interpolated = interpolate.interp1d(
+                            self.w, self.coefficient, kind=len(self.w) - 1
+                        )
+                except:
+                    raise ValueError(
+                        "Arguments (coefficients and w)" " must have the same dimension"
+                    )
         else:
             self.interpolated = lambda x: np.array(self.coefficient[0])
 
     def __eq__(self, other):
-        if np.allclose(self.__dict__["coefficient"],other.__dict__["coefficient"]):
+        if np.allclose(self.__dict__["coefficient"], other.__dict__["coefficient"]):
             return True
         else:
             return False
@@ -119,6 +125,9 @@ class BearingElement(Element):
         (defaults to 0)
     w: array, optional
         Array with the speeds (rad/s).
+     tag : str, optional
+         A tag to name the element
+         Default is None
     Examples
     --------
     >>> # A bearing element located in the first rotor node, with these
@@ -138,7 +147,7 @@ class BearingElement(Element):
     """
 
     def __init__(
-        self, n, kxx, cxx, kyy=None, kxy=0, kyx=0, cyy=None, cxy=0, cyx=0, w=None
+        self, n, kxx, cxx, kyy=None, kxy=0, kyx=0, cyy=None, cxy=0, cyx=0, w=None, tag=None
     ):
 
         args = ["kxx", "kyy", "kxy", "kyx", "cxx", "cyy", "cxy", "cyx"]
@@ -183,6 +192,7 @@ class BearingElement(Element):
         self.n_r = n
 
         self.w = np.array(w, dtype=np.float64)
+        self.tag = tag
         self.color = "#355d7a"
 
     def __repr__(self):
@@ -193,7 +203,7 @@ class BearingElement(Element):
             f" kyx={self.kyx}, kyy={self.kyy},\n"
             f" cxx={self.cxx}, cxy={self.cxy},\n"
             f" cyx={self.cyx}, cyy={self.cyy},\n"
-            f" w={self.w})"
+            f" w={self.w}, tag={self.tag!r})"
         )
 
     def __eq__(self, other):
@@ -237,6 +247,7 @@ class BearingElement(Element):
             "cxy": self.cxy.coefficient,
             "cyx": self.cyx.coefficient,
             "w": w,
+            "tag": self.tag,
         }
         self.dump_data(data, file_name)
 
@@ -332,19 +343,19 @@ class BearingElement(Element):
         Returns
         -------
         """
-        default_values = dict(lw=1., alpha=1., c='k')
+        default_values = dict(lw=1.0, alpha=1.0, c="k")
         for k, v in default_values.items():
             kwargs.setdefault(k, v)
 
         # geometric factors
         zpos, ypos = position
-        coils = 6               # number of points to generate spring
-        step = mean / 5         # spring step
-        a = 2.2                 # range(1.8 to 2.8)
-        b = 1.4                 # range(1.2 to 1.5)
-        c = mean / 2.9          # defines width
-        d = (coils / a)*step    # modifies damper width
-        n = 5                   # number of ground lines
+        coils = 6  # number of points to generate spring
+        step = mean / 5  # spring step
+        a = 2.2  # range(1.8 to 2.8)
+        b = 1.4  # range(1.2 to 1.5)
+        c = mean / 2.9  # defines width
+        d = (coils / a) * step  # modifies damper width
+        n = 5  # number of ground lines
 
         zs0 = zpos - c
         zs1 = zpos + c
@@ -363,7 +374,7 @@ class BearingElement(Element):
             b * ys0 + (coils + 1) * step,
             ys0 + (coils + 1) * step,
             ys0 + (coils + 1) * step,
-            ys0 + (coils + 1) * step
+            ys0 + (coils + 1) * step,
         ]
         yu_top = [-y for y in yl_top]
 
@@ -379,7 +390,7 @@ class BearingElement(Element):
 
         step2 = (zl_g[1] - zl_g[0]) / n
         for i in range(n + 1):
-            zl_g2 = [(zs0 - step) + step2*(i), (zs0 - step) + step2*(i+1)]
+            zl_g2 = [(zs0 - step) + step2 * (i), (zs0 - step) + step2 * (i + 1)]
             yl_g2 = [yl_g[0], 1.1 * yl_g[0]]
             yu_g2 = [-y for y in yl_g2]
             ax.add_line(mlines.Line2D(zl_g2, yl_g2, **kwargs))
@@ -388,11 +399,7 @@ class BearingElement(Element):
         # plot spring
         z_spring = np.array([zs0, zs0, zs0, zs0])
         yl_spring = np.array(
-            [ys0,
-             ys0 + step,
-             ys0 + coils * step,
-             ys0 + (coils + 1) * step
-             ]
+            [ys0, ys0 + step, ys0 + coils * step, ys0 + (coils + 1) * step]
         )
 
         for i in range(coils):
@@ -423,7 +430,7 @@ class BearingElement(Element):
             ys0 + 1.5 * d,
             ys0 + 1.5 * d,
             ys0 + 1.5 * d,
-            ys0 + (coils + 1) * step
+            ys0 + (coils + 1) * step,
         ]
         yu_damper3 = [-y for y in yl_damper3]
 
@@ -452,13 +459,13 @@ class BearingElement(Element):
 
         # geometric factors
         zpos, ypos = position
-        coils = 6               # number of points to generate spring
-        step = mean / 5         # spring step
-        a = 2.2                 # range(1.8 to 2.8)
-        b = 1.4                 # range(1.2 to 1.5)
-        c = mean / 2.9          # defines width
-        d = (coils / a)*step    # modifies damper width
-        n = 5                   # number of ground lines
+        coils = 6  # number of points to generate spring
+        step = mean / 5  # spring step
+        a = 2.2  # range(1.8 to 2.8)
+        b = 1.4  # range(1.2 to 1.5)
+        c = mean / 2.9  # defines width
+        d = (coils / a) * step  # modifies damper width
+        n = 5  # number of ground lines
 
         zs0 = zpos - c
         zs1 = zpos + c
@@ -477,7 +484,7 @@ class BearingElement(Element):
             b * ys0 + (coils + 1) * step,
             ys0 + (coils + 1) * step,
             ys0 + (coils + 1) * step,
-            ys0 + (coils + 1) * step
+            ys0 + (coils + 1) * step,
         ]
         yu_top = [-y for y in yl_top]
 
@@ -492,8 +499,8 @@ class BearingElement(Element):
         bk_ax.line(x=zl_g, y=yu_g, **kwargs)
 
         step2 = (zl_g[1] - zl_g[0]) / n
-        for i in range(n+1):
-            zl_g2 = [(zs0 - step) + step2*(i), (zs0 - step) + step2*(i+1)]
+        for i in range(n + 1):
+            zl_g2 = [(zs0 - step) + step2 * (i), (zs0 - step) + step2 * (i + 1)]
             yl_g2 = [yl_g[0], 1.1 * yl_g[0]]
             yu_g2 = [-y for y in yl_g2]
             bk_ax.line(x=zl_g2, y=yl_g2, **kwargs)
@@ -502,11 +509,7 @@ class BearingElement(Element):
         # plot spring
         z_spring = np.array([zs0, zs0, zs0, zs0])
         yl_spring = np.array(
-            [ys0,
-             ys0 + step,
-             ys0 + coils * step,
-             ys0 + (coils + 1) * step
-             ]
+            [ys0, ys0 + step, ys0 + coils * step, ys0 + (coils + 1) * step]
         )
 
         for i in range(coils):
@@ -537,7 +540,7 @@ class BearingElement(Element):
             ys0 + 1.5 * d,
             ys0 + 1.5 * d,
             ys0 + 1.5 * d,
-            ys0 + (coils + 1) * step
+            ys0 + (coils + 1) * step,
         ]
         yu_damper3 = [-y for y in yl_damper3]
 
@@ -593,18 +596,18 @@ class BearingElement(Element):
         -------
         A bearing object.
         """
-        parameters = read_table_file(file, 'bearing', sheet_name, n)
+        parameters = read_table_file(file, "bearing", sheet_name, n)
         return cls(
-            n=parameters['n'],
-            kxx=parameters['kxx'],
-            cxx=parameters['cxx'],
-            kyy=parameters['kyy'],
-            kxy=parameters['kxy'],
-            kyx=parameters['kyx'],
-            cyy=parameters['cyy'],
-            cxy=parameters['cxy'],
-            cyx=parameters['cyx'],
-            w=parameters['w'],
+            n=parameters["n"],
+            kxx=parameters["kxx"],
+            cxx=parameters["cxx"],
+            kyy=parameters["kyy"],
+            kxy=parameters["kxy"],
+            kyx=parameters["kyx"],
+            cyy=parameters["cyy"],
+            cxy=parameters["cxy"],
+            cyx=parameters["cyx"],
+            w=parameters["w"],
         )
 
     @classmethod
@@ -721,6 +724,7 @@ class SealElement(BearingElement):
         cyx=0,
         w=None,
         seal_leakage=None,
+        tag=None,
     ):
         super().__init__(
             n=n,
@@ -733,6 +737,7 @@ class SealElement(BearingElement):
             cxy=cxy,
             cyx=cyx,
             cyy=cyy,
+            tag=tag,
         )
 
         self.seal_leakage = seal_leakage
@@ -757,26 +762,22 @@ class SealElement(BearingElement):
 
         #  node (x pos), outer diam. (y pos)
         bearing_points_u = [
-            [zpos - step, 1.1*ypos],  # upper
-            [zpos - step, 1.1*ypos + 2*step],
-            [zpos + step, 1.1*ypos + 2*step],
-            [zpos + step, 1.1*ypos],
-            [zpos - step, 1.1*ypos],
+            [zpos - step, 1.1 * ypos],  # upper
+            [zpos - step, 1.1 * ypos + 2 * step],
+            [zpos + step, 1.1 * ypos + 2 * step],
+            [zpos + step, 1.1 * ypos],
+            [zpos - step, 1.1 * ypos],
         ]
         bearing_points_l = [
-            [zpos - step, -1.1*ypos],  # upper
-            [zpos - step, -1.1*ypos - 2*step],
-            [zpos + step, -1.1*ypos - 2*step],
-            [zpos + step, -1.1*ypos],
-            [zpos - step, -1.1*ypos],
+            [zpos - step, -1.1 * ypos],  # upper
+            [zpos - step, -1.1 * ypos - 2 * step],
+            [zpos + step, -1.1 * ypos - 2 * step],
+            [zpos + step, -1.1 * ypos],
+            [zpos - step, -1.1 * ypos],
         ]
 
-        ax.add_patch(
-            mpatches.Polygon(bearing_points_u, color=self.color, picker=True)
-        )
-        ax.add_patch(
-            mpatches.Polygon(bearing_points_l, color=self.color, picker=True)
-        )
+        ax.add_patch(mpatches.Polygon(bearing_points_u, color=self.color, picker=True))
+        ax.add_patch(mpatches.Polygon(bearing_points_l, color=self.color, picker=True))
 
     def bokeh_patch(self, position, length, bk_ax):
         """Seal element patch.
@@ -797,8 +798,8 @@ class SealElement(BearingElement):
 
         # bokeh plot - upper seal visual representation
         bk_ax.quad(
-            top=1.1*ypos + 2*step,
-            bottom=1.1*ypos,
+            top=1.1 * ypos + 2 * step,
+            bottom=1.1 * ypos,
             left=zpos - step,
             right=zpos + step,
             line_color=bokeh_colors[6],
@@ -809,8 +810,8 @@ class SealElement(BearingElement):
         )
         # bokeh plot - lower seal visual representation
         bk_ax.quad(
-            top=-1.1*ypos,
-            bottom=-1.1*ypos - 2*step,
+            top=-1.1 * ypos,
+            bottom=-1.1 * ypos - 2 * step,
             left=zpos - step,
             right=zpos + step,
             line_color=bokeh_colors[6],

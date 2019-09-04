@@ -185,6 +185,16 @@ class Rotor(object):
         if bearing_seal_elements is None:
             bearing_seal_elements = []
 
+        for i, disk in enumerate(disk_elements):
+            if disk.tag is None:
+                disk.tag = "Disk " + str(i)
+
+        for i, brg in enumerate(bearing_seal_elements):
+            if brg.__class__.__name__ == "BearingElement" and brg.tag is None:
+                brg.tag = "Bearing " + str(i)
+            if brg.__class__.__name__ == "SealElement" and brg.tag is None:
+                brg.tag = "Seal " + str(i)
+
         self.shaft_elements = shaft_elements
         self.bearing_seal_elements = bearing_seal_elements
         self.disk_elements = disk_elements
@@ -212,6 +222,7 @@ class Rotor(object):
             "rho",
             "volume",
             "m",
+            "tag",
         ]
 
         df_shaft = pd.DataFrame([el.summary() for el in self.shaft_elements])
@@ -1882,8 +1893,7 @@ class Rotor(object):
                     -disp_y[node] * self.df_bearings.loc[i, "kyy"].coefficient[0]
                 )
                 BrgForceToReturn.append(
-                    "%.1f"
-                    % (-disp_y[node] * self.df_bearings.loc[i, "kyy"].coefficient[0])
+                    np.around(-disp_y[node] * self.df_bearings.loc[i, "kyy"].coefficient[0], decimals=1)
                 )
 
             # Disk Forces
@@ -1892,7 +1902,7 @@ class Rotor(object):
                 for i, node in enumerate(self.df_disks["n"]):
                     DskForce[node] = self.df_disks.loc[i, "m"] * -9.8065
                     DskForceToReturn.append(
-                        "%.1f" % (self.df_disks.loc[i, "m"] * -9.8065)
+                        np.around(self.df_disks.loc[i, "m"] * -9.8065, decimals=1)
                     )
 
             # Shaft Weight Forces
@@ -1944,13 +1954,15 @@ class Rotor(object):
                 Bm = np.append(Bm, Bm[i] + Mx[i])
             self.Bm = Bm
 
-            sh_weight = sum(self.df_shaft["m"].values) * 9.8065
+            sh_weight = np.around(
+                    sum(self.df_shaft["m"].values) * 9.8065, decimals=1
+            )
 
             force_data = {
                 "Static displacement vector": disp_y,
                 "Shearing force vector": Vx,
                 "Bending moment vector": Bm,
-                "Shaft Total Weight": "%.1f" % sh_weight,
+                "Shaft Total Weight": sh_weight,
                 "Disks Forces": DskForceToReturn,
                 "Bearings Reaction Forces": BrgForceToReturn,
             }
@@ -1965,6 +1977,7 @@ class Rotor(object):
                 self.nodes,
                 self.nodes_pos,
                 Vx_axis,
+                force_data,
             )
 
         return results
