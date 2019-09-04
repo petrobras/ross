@@ -1,7 +1,7 @@
 import numpy as np
 from scipy.signal import argrelextrema
 
-from rotor_assembly import Rotor
+from ross.rotor_assembly import Rotor
 import ross as rs
 
 import bokeh.palettes as bp
