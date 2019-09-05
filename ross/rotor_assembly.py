@@ -20,6 +20,7 @@ from bokeh.models import ColumnDataSource, Arrow, NormalHead, Label
 from bokeh.models.glyphs import Text
 from bokeh.plotting import figure, output_file, show
 from cycler import cycler
+from itertools import chain
 
 import ross
 from ross.bearing_seal_element import BearingElement
@@ -74,6 +75,8 @@ class Rotor(object):
         List with the disk elements
     bearing_seal_elements : list
         List with the bearing elements
+    point_mass_elements: list
+        List with the point mass elements
     w : float, optional
         Rotor speed. Defaults to 0.
     sparse : bool, optional
@@ -131,6 +134,7 @@ class Rotor(object):
         shaft_elements,
         disk_elements=None,
         bearing_seal_elements=None,
+        point_mass_elements=None,
         w=0,
         sparse=True,
         n_eigen=12,
@@ -184,6 +188,8 @@ class Rotor(object):
             disk_elements = []
         if bearing_seal_elements is None:
             bearing_seal_elements = []
+        if point_mass_elements is None:
+            point_mass_elements = []
 
         for i, disk in enumerate(disk_elements):
             if disk.tag is None:
@@ -198,10 +204,16 @@ class Rotor(object):
         self.shaft_elements = shaft_elements
         self.bearing_seal_elements = bearing_seal_elements
         self.disk_elements = disk_elements
+        self.point_mass_elements = point_mass_elements
         self.elements = [
             el
             for el in flatten(
-                [self.shaft_elements, self.disk_elements, self.bearing_seal_elements]
+                [
+                    self.shaft_elements,
+                    self.disk_elements,
+                    self.bearing_seal_elements,
+                    self.point_mass_elements,
+                ]
             )
         ]
 
@@ -228,6 +240,7 @@ class Rotor(object):
         df_shaft = pd.DataFrame([el.summary() for el in self.shaft_elements])
         df_disks = pd.DataFrame([el.summary() for el in self.disk_elements])
         df_bearings = pd.DataFrame([el.summary() for el in self.bearing_seal_elements])
+        df_point_mass = pd.DataFrame([el.summary() for el in self.point_mass_elements])
 
         nodes_pos_l = np.zeros(len(df_shaft.n_l))
         nodes_pos_r = np.zeros(len(df_shaft.n_l))
@@ -245,15 +258,15 @@ class Rotor(object):
 
         df_shaft["nodes_pos_l"] = nodes_pos_l
         df_shaft["nodes_pos_r"] = nodes_pos_r
-        # bearings
 
-        df = pd.concat([df_shaft, df_disks, df_bearings], sort=True)
+        df = pd.concat([df_shaft, df_disks, df_bearings, df_point_mass], sort=True)
         df = df.sort_values(by="n_l")
         df = df.reset_index(drop=True)
 
         self.df_disks = df_disks
         self.df_bearings = df_bearings
         self.df_shaft = df_shaft
+        self.df_point_mass = df_point_mass
 
         # check consistence for disks and bearings location
         if df.n_l.max() > df_shaft.n_r.max():
@@ -287,7 +300,7 @@ class Rotor(object):
         self.m_shaft = np.sum([sh_el.m for sh_el in self.shaft_elements])
         self.m = self.m_disks + self.m_shaft
 
-        # values for evalues and evectors will be calculated by self._calc_system
+        # values for evalues and evectors will be calculated by self.run_modal
         self.evalues = None
         self.evectors = None
         self.wn = None
@@ -297,14 +310,15 @@ class Rotor(object):
         self._v0 = None  # used to call eigs
 
         # number of dofs
-        self.ndof = 4 * max([el.n for el in shaft_elements]) + 8
+        self.ndof = (
+            4 * max([el.n for el in chain(shaft_elements, point_mass_elements)]) + 8
+        )
 
         #  values for static analysis will be calculated by def static
         self.Vx = None
         self.Bm = None
         self.disp_y = None
 
-        #  diameter at node position
         self.run_modal()
 
     def __eq__(self, other):
@@ -1366,12 +1380,10 @@ class Rotor(object):
         """
         if plot_type == "matplotlib":
             return self._plot_rotor_matplotlib(
-                    nodes=nodes, check_sld=False, *args, **kwargs
+                nodes=nodes, check_sld=False, *args, **kwargs
             )
         elif plot_type == "bokeh":
-            return self._plot_rotor_bokeh(
-                    nodes=nodes, check_sld=False, *args, **kwargs
-            )
+            return self._plot_rotor_bokeh(nodes=nodes, check_sld=False, *args, **kwargs)
         else:
             raise ValueError(f"{plot_type} is not a valid plot type.")
 
@@ -1410,12 +1422,10 @@ class Rotor(object):
 
         if plot_type == "matplotlib":
             return self._plot_rotor_matplotlib(
-                    nodes=nodes, check_sld=True, *args, **kwargs
+                nodes=nodes, check_sld=True, *args, **kwargs
             )
         elif plot_type == "bokeh":
-            return self._plot_rotor_bokeh(
-                    nodes=nodes, check_sld=True, *args, **kwargs
-            )
+            return self._plot_rotor_bokeh(nodes=nodes, check_sld=True, *args, **kwargs)
         else:
             raise ValueError(f"{plot_type} is not a valid plot type.")
 
@@ -1893,7 +1903,10 @@ class Rotor(object):
                     -disp_y[node] * self.df_bearings.loc[i, "kyy"].coefficient[0]
                 )
                 BrgForceToReturn.append(
-                    np.around(-disp_y[node] * self.df_bearings.loc[i, "kyy"].coefficient[0], decimals=1)
+                    np.around(
+                        -disp_y[node] * self.df_bearings.loc[i, "kyy"].coefficient[0],
+                        decimals=1,
+                    )
                 )
 
             # Disk Forces
@@ -1954,9 +1967,7 @@ class Rotor(object):
                 Bm = np.append(Bm, Bm[i] + Mx[i])
             self.Bm = Bm
 
-            sh_weight = np.around(
-                    sum(self.df_shaft["m"].values) * 9.8065, decimals=1
-            )
+            sh_weight = np.around(sum(self.df_shaft["m"].values) * 9.8065, decimals=1)
 
             force_data = {
                 "Static displacement vector": disp_y,
