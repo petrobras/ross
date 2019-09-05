@@ -125,9 +125,13 @@ class BearingElement(Element):
         (defaults to 0)
     w: array, optional
         Array with the speeds (rad/s).
-     tag : str, optional
-         A tag to name the element
-         Default is None
+    tag: str, optional
+        A tag to name the element
+        Default is None.
+    n_link: int, optional
+        Node to which the bearing will connect. If None the bearing is
+        connected to ground.
+        Default is None.
     Examples
     --------
     >>> # A bearing element located in the first rotor node, with these
@@ -147,7 +151,19 @@ class BearingElement(Element):
     """
 
     def __init__(
-        self, n, kxx, cxx, kyy=None, kxy=0, kyx=0, cyy=None, cxy=0, cyx=0, w=None, tag=None
+        self,
+        n,
+        kxx,
+        cxx,
+        kyy=None,
+        kxy=0,
+        kyx=0,
+        cyy=None,
+        cxy=0,
+        cyx=0,
+        w=None,
+        tag=None,
+        n_link=None,
     ):
 
         args = ["kxx", "kyy", "kxy", "kyx", "cxx", "cyy", "cxy", "cyx"]
