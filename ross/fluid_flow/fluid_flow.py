@@ -168,7 +168,7 @@ class PressureMatrix:
         radius_stator,
         viscosity,
         density,
-        beta=2.356,
+        beta=None,
         eccentricity=None,
         load=None,
     ):
@@ -202,7 +202,6 @@ class PressureMatrix:
         else:
             self.bearing_type = "medium_size"
         self.eccentricity = eccentricity
-        self.beta = beta
         self.eccentricity_ratio = None
         self.load = load
         if self.eccentricity is None:
@@ -212,8 +211,12 @@ class PressureMatrix:
         self.eccentricity_ratio = self.eccentricity / self.difference_between_radius
         if self.load is None:
             self.load = self.get_rotor_load()
-        self.xi = self.eccentricity * np.cos(2*np.pi - beta)
-        self.yi = self.eccentricity * np.sin(2*np.pi - beta)
+        if beta is None:
+            self.beta = self.calculate_attitude_angle()
+        else:
+            self.beta = beta
+        self.xi = self.eccentricity * np.cos(2*np.pi - self.beta)
+        self.yi = self.eccentricity * np.sin(2*np.pi - self.beta)
         self.re = np.zeros([self.nz, self.ntheta])
         self.ri = np.zeros([self.nz, self.ntheta])
         self.z = np.zeros([1, self.nz])
@@ -233,6 +236,20 @@ class PressureMatrix:
         self.calculate_coefficients()
         self.analytical_pressure_matrix_available = False
         self.numerical_pressure_matrix_available = False
+
+    def calculate_attitude_angle(self):
+        """Calculates the attitude angle based on the eccentricity.
+        Returns
+        -------
+        float
+            Attitude angle
+        Examples
+        --------
+        >>> my_fluid_flow = pressure_matrix_example()
+        >>> my_fluid_flow.calculate_attitude_angle() # doctest: +ELLIPSIS
+        1.5...
+        """
+        return np.arctan(np.pi*(1 - self.eccentricity_ratio**2)/(4*self.eccentricity_ratio))
 
     def calculate_pressure_matrix_analytical(self, method=0, force_type=None):
         """This function calculates the pressure matrix analytically.
