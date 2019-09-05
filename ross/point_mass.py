@@ -9,19 +9,21 @@ __all__ = ["PointMass"]
 
 
 class PointMass(Element):
+    """A point mass element.
+
+    This class will create a point mass element.
+    This element can be used to link other elements in the analysis.
+
+    Parameters
+    ----------
+    n: int
+        Node which the bearing will be located in.
+    m: float
+        Mass for the element.
+    """
+
     def __init__(self, n=None, m=None):
-        """A point mass element.
 
-        This class will create a point mass element.
-        This element can be used to link other elements in the analysis.
-
-        Parameters
-        ----------
-        n: int
-            Node which the bearing will be located in.
-        m: float
-            Mass for the element.
-        """
         self.n = n
         self.m = m
 
