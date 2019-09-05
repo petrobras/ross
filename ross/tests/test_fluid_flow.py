@@ -92,14 +92,14 @@ def test_damping_matrix():
 
 def fluid_flow_short_numerical():
     nz = 8
-    ntheta = 64
+    ntheta = 132
     nradius = 11
-    length = 0.01
+    length = 0.04004
     omega = 100. * 2 * np.pi / 60
     p_in = 0.
     p_out = 0.
-    radius_rotor = 0.08
-    radius_stator = 0.1
+    radius_rotor = 0.2
+    radius_stator = 0.2002
     visc = 0.015
     rho = 860.
     beta = np.pi
