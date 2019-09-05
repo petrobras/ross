@@ -1902,8 +1902,15 @@ class Rotor(object):
             for node_y in range(int(len(self.M()) / 4)):
                 grav[4 * node_y + 1] = -9.8065
 
+            aux_brg = []
+            for n in self.df_bearings["n"]:
+                aux_brg.append(BearingElement(n=n, kxx=1e14, cxx=0))
+
+            aux_rotor = Rotor(self.shaft_elements, self.disk_elements, aux_brg)
+            aux_K = aux_rotor.K(0)
+
             # calculates x, for [K]*(x) = [M]*(g)
-            disp = (la.solve(self.K(0), self.M() @ grav)).flatten()
+            disp = (la.solve(aux_K, self.M() @ grav)).flatten()
 
             # calculates displacement values in gravity's direction
             # dof = degree of freedom
@@ -1921,10 +1928,10 @@ class Rotor(object):
             BrgForceToReturn = []
             for i, node in enumerate(self.df_bearings["n"]):
                 BrgForce[node] = (
-                    -disp_y[node] * self.df_bearings.loc[i, "kyy"].coefficient[0]
+                    -disp_y[node] * aux_rotor.df_bearings.loc[i, "kyy"].coefficient[0]
                 )
                 BrgForceToReturn.append(
-                    np.around(-disp_y[node] * self.df_bearings.loc[i, "kyy"].coefficient[0], decimals=1)
+                    np.around(-disp_y[node] * aux_rotor.df_bearings.loc[i, "kyy"].coefficient[0], decimals=1)
                 )
 
             # Disk Forces
@@ -2004,7 +2011,7 @@ class Rotor(object):
                 self.Bm,
                 self.df_shaft,
                 self.df_disks,
-                self.df_bearings,
+                aux_rotor.df_bearings,
                 self.nodes,
                 self.nodes_pos,
                 Vx_axis,
