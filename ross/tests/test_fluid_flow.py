@@ -156,6 +156,28 @@ def test_long_bearing():
     assert math.isclose(error, 0, abs_tol=0.02)
 
 
+def test_oil_film_force_short():
+    bearing = fluid_flow_short_numerical()
+    bearing.calculate_pressure_matrix_numerical()
+    n, t = bearing.calculate_oil_film_force()
+    n_numerical, t_numerical = bearing.calculate_oil_film_force(force_type='numerical')
+    error_n = (n - n_numerical) / n_numerical
+    error_t = (t - t_numerical) / t_numerical
+    assert math.isclose(error_n, 0, abs_tol=0.05)
+    assert math.isclose(error_t, 0, abs_tol=0.004)
+
+
+def test_oil_film_force_long():
+    bearing = fluid_flow_long_numerical()
+    bearing.calculate_pressure_matrix_numerical()
+    n, t = bearing.calculate_oil_film_force()
+    n_numerical, t_numerical = bearing.calculate_oil_film_force(force_type='numerical')
+    error_n = (n - n_numerical) / n_numerical
+    error_t = (t - t_numerical) / t_numerical
+    assert math.isclose(error_n, 0, abs_tol=0.15)
+    assert math.isclose(error_t, 0, abs_tol=0.25)
+
+
 def test_bokeh_plots():
     bearing = fluid_flow_short_numerical()
     bearing.calculate_pressure_matrix_numerical()

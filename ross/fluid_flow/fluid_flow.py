@@ -738,7 +738,7 @@ class PressureMatrix:
         return [cxx, cxy, cyx, cyy]
 
     def calculate_oil_film_force(self, force_type=None):
-        """This function analytically calculates the forces of the oil film in the N and T directions, ie in the
+        """This function calculates the forces of the oil film in the N and T directions, ie in the
         opposite direction to the eccentricity and in the tangential direction.
                 Parameters
                 ----------
