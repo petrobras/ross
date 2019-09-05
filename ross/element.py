@@ -40,7 +40,7 @@ class Element(ABC):
 
     @abstractmethod
     def G(self):
-        """Giroscopic matrix."""
+        """Gyroscopic matrix."""
         pass
 
     def summary(self):
