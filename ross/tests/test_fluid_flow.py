@@ -4,6 +4,7 @@ import numpy as np
 from ross.fluid_flow import fluid_flow as flow
 from bokeh.plotting import figure
 import matplotlib.pyplot as plt
+from numpy.testing import assert_allclose
 
 
 def fluid_flow_short_eccentricity():
@@ -92,7 +93,7 @@ def test_damping_matrix():
 
 def fluid_flow_short_numerical():
     nz = 8
-    ntheta = 64
+    ntheta = 132
     nradius = 11
     length = 0.01
     omega = 100. * 2 * np.pi / 60
@@ -154,6 +155,28 @@ def test_long_bearing():
     error = (max(bearing.p_mat_analytical[int(bearing.nz / 2)]) -
              max(bearing.p_mat_numerical[int(bearing.nz / 2)])) / max(bearing.p_mat_numerical[int(bearing.nz / 2)])
     assert math.isclose(error, 0, abs_tol=0.02)
+
+
+def test_oil_film_force_short():
+    bearing = fluid_flow_short_numerical()
+    bearing.calculate_pressure_matrix_numerical()
+    n, t = bearing.calculate_oil_film_force()
+    n_numerical, t_numerical = bearing.calculate_oil_film_force(force_type='numerical')
+    error_n = (n - n_numerical) / n_numerical
+    error_t = (t - t_numerical) / t_numerical
+    assert_allclose(error_n, 0, atol=0.009)
+    assert_allclose(error_t, 0, atol=0.7)
+
+
+def test_oil_film_force_long():
+    bearing = fluid_flow_long_numerical()
+    bearing.calculate_pressure_matrix_numerical()
+    n, t = bearing.calculate_oil_film_force()
+    n_numerical, t_numerical = bearing.calculate_oil_film_force(force_type='numerical')
+    error_n = (n - n_numerical) / n_numerical
+    error_t = (t - t_numerical) / t_numerical
+    assert_allclose(error_n, 0, atol=0.2)
+    assert_allclose(error_t, 0, atol=0.4)
 
 
 def test_bokeh_plots():
