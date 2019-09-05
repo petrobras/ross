@@ -227,7 +227,12 @@ class Rotor(object):
 
         df_shaft = pd.DataFrame([el.summary() for el in self.shaft_elements])
         df_disks = pd.DataFrame([el.summary() for el in self.disk_elements])
-        df_bearings = pd.DataFrame([el.summary() for el in self.bearing_seal_elements])
+        df_bearings = pd.DataFrame(
+                [el.summary() for el in self.bearing_seal_elements if (
+                        el.__class__.__name__ == 'BearingElement')])
+        df_seals = pd.DataFrame(
+                [el.summary() for el in self.bearing_seal_elements if (
+                        el.__class__.__name__ == 'SealElement')])
 
         nodes_pos_l = np.zeros(len(df_shaft.n_l))
         nodes_pos_r = np.zeros(len(df_shaft.n_l))
@@ -245,15 +250,15 @@ class Rotor(object):
 
         df_shaft["nodes_pos_l"] = nodes_pos_l
         df_shaft["nodes_pos_r"] = nodes_pos_r
-        # bearings
 
-        df = pd.concat([df_shaft, df_disks, df_bearings], sort=True)
+        df = pd.concat([df_shaft, df_disks, df_bearings, df_seals], sort=True)
         df = df.sort_values(by="n_l")
         df = df.reset_index(drop=True)
 
         self.df_disks = df_disks
         self.df_bearings = df_bearings
         self.df_shaft = df_shaft
+        self.df_seals = df_seals
 
         # check consistence for disks and bearings location
         if df.n_l.max() > df_shaft.n_r.max():
