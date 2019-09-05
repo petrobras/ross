@@ -740,22 +740,22 @@ class PressureMatrix:
     def calculate_oil_film_force(self, force_type=None):
         """This function calculates the forces of the oil film in the N and T directions, ie in the
         opposite direction to the eccentricity and in the tangential direction.
-                Parameters
-                ----------
-                force_type: str
-                    If set, calculates the pressure matrix analytically considering the chosen type: 'short' or 'long'.
-                Returns
-                -------
-                normal_force: float
-                    Force of the oil film in the opposite direction to the eccentricity direction.
-                tangential_force: float
-                    Force of the oil film in the tangential direction
-                Examples
-                --------
-                >>> my_fluid_flow = pressure_matrix_example()
-                >>> my_fluid_flow.calculate_oil_film_force() # doctest: +ELLIPSIS
-                [...
-                """
+        Parameters
+        ----------
+        force_type: str
+            If set, calculates the pressure matrix analytically considering the chosen type: 'short' or 'long'.
+        Returns
+        -------
+        normal_force: float
+            Force of the oil film in the opposite direction to the eccentricity direction.
+        tangential_force: float
+            Force of the oil film in the tangential direction
+        Examples
+        --------
+        >>> my_fluid_flow = pressure_matrix_example()
+        >>> my_fluid_flow.calculate_oil_film_force() # doctest: +ELLIPSIS
+        (...
+        """
         if force_type != 'numerical' and (force_type == 'short' or self.bearing_type == 'short_bearing'):
             normal_force = 0.5 * self.viscosity * (self.radius_rotor / self.difference_between_radius) ** 2 * \
                            (self.length ** 3 / self.radius_rotor) * ((2 * self.eccentricity_ratio ** 2 * self.omega) /
