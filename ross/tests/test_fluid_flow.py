@@ -4,6 +4,7 @@ import numpy as np
 from ross.fluid_flow import fluid_flow as flow
 from bokeh.plotting import figure
 import matplotlib.pyplot as plt
+from numpy.testing import assert_allclose
 
 
 def fluid_flow_short_eccentricity():
@@ -94,12 +95,12 @@ def fluid_flow_short_numerical():
     nz = 8
     ntheta = 132
     nradius = 11
-    length = 0.04004
+    length = 0.01
     omega = 100. * 2 * np.pi / 60
     p_in = 0.
     p_out = 0.
-    radius_rotor = 0.2
-    radius_stator = 0.2002
+    radius_rotor = 0.08
+    radius_stator = 0.1
     visc = 0.015
     rho = 860.
     beta = np.pi
@@ -163,8 +164,8 @@ def test_oil_film_force_short():
     n_numerical, t_numerical = bearing.calculate_oil_film_force(force_type='numerical')
     error_n = (n - n_numerical) / n_numerical
     error_t = (t - t_numerical) / t_numerical
-    assert math.isclose(error_n, 0, abs_tol=0.05)
-    assert math.isclose(error_t, 0, abs_tol=0.004)
+    assert_allclose(error_n, 0, atol=0.009)
+    assert_allclose(error_t, 0, atol=0.7)
 
 
 def test_oil_film_force_long():
@@ -174,8 +175,8 @@ def test_oil_film_force_long():
     n_numerical, t_numerical = bearing.calculate_oil_film_force(force_type='numerical')
     error_n = (n - n_numerical) / n_numerical
     error_t = (t - t_numerical) / t_numerical
-    assert math.isclose(error_n, 0, abs_tol=0.15)
-    assert math.isclose(error_t, 0, abs_tol=0.25)
+    assert_allclose(error_n, 0, atol=0.2)
+    assert_allclose(error_t, 0, atol=0.4)
 
 
 def test_bokeh_plots():
