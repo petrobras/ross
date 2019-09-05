@@ -1,7 +1,7 @@
 import numpy as np
 from scipy.signal import argrelextrema
 
-from rotor_assembly import Rotor
+from ross.rotor_assembly import Rotor, rotor_example
 import ross as rs
 
 import bokeh.palettes as bp
@@ -42,7 +42,7 @@ class Report:
         speed_units : str
             String defining the unit for rotor speed.
             Default is "rpm".
-            
+
         Return
         ------
 
@@ -50,19 +50,20 @@ class Report:
         -------
         >>> rotor = rotor_example()
         >>> report = Report(rotor=rotor,
-                            minspeed=400,
-                            maxspeed=1000) # doctest: +ELLIPSIS
-        [...]
+        ...                 minspeed=400,
+        ...                 maxspeed=1000,
+        ...                 speed_units="rad/s")
         """
         self.rotor = rotor
-        self.maxspeed = maxspeed
-        self.minspeed = minspeed
         self.speed_units = speed_units
 
         if speed_units == "rpm":
             minspeed = minspeed * np.pi / 30
             maxspeed = maxspeed * np.pi / 30
 
+        self.maxspeed = maxspeed
+        self.minspeed = minspeed
+                
     @classmethod
     def from_saved_rotors(cls, path):
         rotor = rs.Rotor.load(path)
@@ -80,9 +81,12 @@ class Report:
         Example
         -------
         >>> rotor = rotor_example()
-        >>> report = Report(rotor=rotor, minspeed=400, maxspeed=1000)
-        >>> report.static_forces() # doctest: +ELLIPSIS
-        [...]
+        >>> report = Report(rotor=rotor,
+        ...                 minspeed=400,
+        ...                 maxspeed=1000,
+        ...                 speed_units="rad/s")
+        >>> report.static_forces()
+        array([44.09320349, 44.09320349])
         """
         # get reaction forces on bearings
         Fb = self.rotor.run_static().force_data['Bearings Reaction Forces']
@@ -107,9 +111,12 @@ class Report:
         Example
         -------
         >>> rotor = rotor_example()
-        >>> report = Report(rotor=rotor, minspeed=400, maxspeed=1000)
-        >>> report.unbalance_forces(mode=0) # doctest: +ELLIPSIS
-        [...]
+        >>> report = Report(rotor=rotor,
+        ...                 minspeed=400,
+        ...                 maxspeed=1000,
+        ...                 speed_units="rad/s")
+        >>> report.unbalance_forces(mode=0)
+        [234.5654171598467]
         """
 
         N = 60 * self.maxspeed / (2 * np.pi)
@@ -161,13 +168,16 @@ class Report:
 
         Example
         -------
+        """
+        """
         >>> rotor = rotor_example()
-        >>> report = Report(rotor=rotor)
-        >>> clearances = dict(3=0.001, 5=0.002)
-        >>> report.unbalance_response(clearances=clearances,
-                                      mode=0,
-                                      ) # doctest: +ELLIPSIS
-        [...]
+        >>> report = Report(rotor=rotor,
+        ...                 minspeed=400,
+        ...                 maxspeed=1000,
+        ...                 speed_units="rad/s")
+        >>> clearances = {3:0.001, 5:0.002}
+        >>> report.unbalance_response(clearances=clearances, mode=0)
+        Figure(id='1372', ...)
         """
         maxspeed = self.maxspeed
         minspeed = self.minspeed
@@ -381,9 +391,12 @@ class Report:
         Example
         -------
         >>> rotor = rotor_example()
-        >>> report = Report(rotor=rotor)
-        >>> report.mode_shpae(mode=0) # doctest: +ELLIPSIS
-        [...]
+        >>> report = Report(rotor=rotor,
+        ...                 minspeed=400,
+        ...                 maxspeed=1000,
+        ...                 speed_units="rad/s")
+        >>> report.mode_shape(mode=0)
+        ([], array([3.]))
         """
         nodes_pos = self.rotor.nodes_pos
 
