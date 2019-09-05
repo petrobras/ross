@@ -5,6 +5,8 @@ This module defines the PointMass class which will be used to link elements.
 import numpy as np
 from .element import Element
 
+__all__ = ["PointMass"]
+
 
 class PointMass(Element):
     def __init__(self, n=None, m=None):

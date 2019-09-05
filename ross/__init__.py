@@ -5,3 +5,4 @@ from .disk_element import *
 from .materials import *
 from .rotor_assembly import *
 from .shaft_element import *
+from .point_mass import *
