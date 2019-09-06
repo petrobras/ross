@@ -374,7 +374,6 @@ class Rotor(object):
         eigv_arr = np.array([])
         error_arr = np.array([0])
 
-        self.run_modal()
         eigv_arr = np.append(eigv_arr, self.wn[n_eigval])
 
         # this value is up to start the loop while
@@ -386,22 +385,30 @@ class Rotor(object):
             disk_elem = []
             brgs_elem = []
 
-            for i, leng in enumerate(self.shaft_elements):
-                le = self.shaft_elements[i].L / nel_r
-                o_ds = self.shaft_elements[i].o_d
-                i_ds = self.shaft_elements[i].i_d
+            for shaft in self.shaft_elements:
+                le = shaft.L / nel_r
+                odl = shaft.o_d_l
+                odr = shaft.o_d_r
+                idl = shaft.i_d_l
+                idr = shaft.i_d_r
 
                 # loop to double the number of element
                 for j in range(nel_r):
+                    o_d_r = ((nel_r - j - 1) * odl + (j + 1) * odr) / nel_r
+                    i_d_r = ((nel_r - j - 1) * idl + (j + 1) * idr) / nel_r
+                    o_d_l = ((nel_r - j) * odl + j * odr) / nel_r
+                    i_d_l = ((nel_r - j) * idl + j * idr) / nel_r
                     shaft_elem.append(
-                        ShaftElement(
+                        ShaftTaperedElement(
                             le,
-                            i_ds,
-                            o_ds,
-                            material=self.shaft_elements[i].material,
-                            shear_effects=True,
-                            rotary_inertia=True,
-                            gyroscopic=True,
+                            i_d_l,
+                            i_d_r,
+                            o_d_l,
+                            o_d_r,
+                            material=shaft.material,
+                            shear_effects=shaft.shear_effects,
+                            rotary_inertia=shaft.rotary_inertia,
+                            gyroscopic=shaft.gyroscopic,
                         )
                     )
 
@@ -415,12 +422,11 @@ class Rotor(object):
                 aux_Brg_SealEl.n = nel_r * Brg_SealEl.n
                 brgs_elem.append(aux_Brg_SealEl)
 
-            rotor = Rotor(
+            aux_rotor = Rotor(
                 shaft_elem, disk_elem, brgs_elem, w=self.w, n_eigen=self.n_eigen
             )
-            rotor.run_modal()
 
-            eigv_arr = np.append(eigv_arr, rotor.wn[n_eigval])
+            eigv_arr = np.append(eigv_arr, aux_rotor.wn[n_eigval])
             el_num = np.append(el_num, len(shaft_elem))
 
             error = min(eigv_arr[-1], eigv_arr[-2]) / max(eigv_arr[-1], eigv_arr[-2])
@@ -429,7 +435,7 @@ class Rotor(object):
             error_arr = np.append(error_arr, 100 * error)
             nel_r *= 2
 
-        self.__dict__ = rotor.__dict__
+        self.__dict__ = aux_rotor.__dict__
         self.error_arr = error_arr
 
         results = ConvergenceResults(el_num[1:], eigv_arr[1:], error_arr[1:])
