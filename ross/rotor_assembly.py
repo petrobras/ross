@@ -308,10 +308,11 @@ class Rotor(object):
         self.lti = None
 
         self._v0 = None  # used to call eigs
-
         # number of dofs
         self.ndof = (
-            4 * max([el.n for el in chain(shaft_elements, point_mass_elements)]) + 8
+            4 * max([el.n for el in shaft_elements])
+            + 8
+            + 2 * len([el for el in point_mass_elements])
         )
 
         #  values for static analysis will be calculated by def static
