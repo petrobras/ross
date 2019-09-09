@@ -479,9 +479,7 @@ class Rotor(object):
 
         for elm in self.elements:
             dofs = elm.dof_global_index()
-            n0 = dofs[0]
-            n1 = dofs[-1] + 1  # +1 to include this dof in the slice
-            M0[n0:n1, n0:n1] += elm.M()
+            M0[np.ix_(dofs, dofs)] += elm.M()
 
         return M0
 
@@ -513,12 +511,10 @@ class Rotor(object):
 
         for elm in self.elements:
             dofs = elm.dof_global_index()
-            n0 = dofs[0]
-            n1 = dofs[-1] + 1  # +1 to include this dof in the slice
             try:
-                K0[n0:n1, n0:n1] += elm.K(frequency)
+                K0[np.ix_(dofs, dofs)] += elm.K(frequency)
             except TypeError:
-                K0[n0:n1, n0:n1] += elm.K()
+                K0[np.ix_(dofs, dofs)] += elm.K()
 
         return K0
 
@@ -550,12 +546,11 @@ class Rotor(object):
 
         for elm in self.elements:
             dofs = elm.dof_global_index()
-            n0 = dofs[0]
-            n1 = dofs[-1] + 1  # +1 to include this dof in the slice
+
             try:
-                C0[n0:n1, n0:n1] += elm.C(frequency)
+                C0[np.ix_(dofs, dofs)] += elm.C(frequency)
             except TypeError:
-                C0[n0:n1, n0:n1] += elm.C()
+                C0[np.ix_(dofs, dofs)] += elm.C()
 
         return C0
 
@@ -579,9 +574,7 @@ class Rotor(object):
 
         for elm in self.elements:
             dofs = elm.dof_global_index()
-            n0 = dofs[0]
-            n1 = dofs[-1] + 1  # +1 to include this dof in the slice
-            G0[n0:n1, n0:n1] += elm.G()
+            G0[np.ix_(dofs, dofs)] += elm.G()
 
         return G0
 
