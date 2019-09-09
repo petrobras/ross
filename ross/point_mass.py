@@ -30,7 +30,12 @@ class PointMass(Element):
     def M(self):
         """Mass matrix."""
         m = self.m
-        return np.array([[m, 0], [0, m]])
+        # fmt: off
+        M = np.array([[m, 0],
+                      [0, m]])
+        # fmt: on
+
+        return M
 
     def C(self):
         """Damping coefficients matrix."""

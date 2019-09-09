@@ -329,7 +329,7 @@ class BearingElement(Element):
         return global_index
 
     def M(self):
-        M = np.zeros((2, 2))
+        M = np.zeros_like(self.K(0))
 
         return M
 
@@ -342,7 +342,10 @@ class BearingElement(Element):
         K = np.array([[kxx, kxy], [kyx, kyy]])
 
         if self.n_link is not None:
-            K = np.vstack((np.hstack([K, -K]), np.hstack([-K, K])))
+            # fmt: off
+            K = np.vstack((np.hstack([K, -K]),
+                           np.hstack([-K, K])))
+            # fmt: on
 
         return K
 
@@ -355,12 +358,15 @@ class BearingElement(Element):
         C = np.array([[cxx, cxy], [cyx, cyy]])
 
         if self.n_link is not None:
-            C = np.vstack((np.hstack([C, -C]), np.hstack([-C, C])))
+            # fmt: off
+            C = np.vstack((np.hstack([C, -C]),
+                           np.hstack([-C, C])))
+            # fmt: on
 
         return C
 
     def G(self):
-        G = np.zeros((2, 2))
+        G = np.zeros_like(self.K(0))
 
         return G
 
