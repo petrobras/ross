@@ -203,3 +203,18 @@ def test_from_table():
     bearing = BearingElement.from_table(0, bearing_file)
     assert bearing.n == 0
     assert math.isclose(bearing.w[2], 523.6, abs_tol=0.1)
+
+
+def test_bearing_link():
+    b0 = BearingElement(n=0, n_link=3, kxx=1, cxx=1)
+    # fmt: off
+    M = np.array(
+        [[1, 0, -1, 0],
+         [0, 1, 0, -1],
+         [-1, 0, 1, 0],
+         [0, -1, 0, 1]]
+    )
+    # fmt: on
+
+    assert_allclose(b0.K(0), M)
+    assert_allclose(b0.C(0), M)

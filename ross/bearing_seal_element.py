@@ -7,6 +7,7 @@ import matplotlib.lines as mlines
 import numpy as np
 import scipy.interpolate as interpolate
 
+from collections import namedtuple
 from ross.utils import read_table_file
 from ross.element import Element
 from ross.fluid_flow import fluid_flow as flow
@@ -204,6 +205,7 @@ class BearingElement(Element):
             setattr(self, k, v)
 
         self.n = n
+        self.n_link = n_link
         self.n_l = n
         self.n_r = n
 
@@ -313,6 +315,19 @@ class BearingElement(Element):
     def dof_mapping(self):
         return dict(x0=0, y0=1)
 
+    def dof_global_index(self):
+        """Get the global index for a element specific degree of freedom."""
+        global_index = super().dof_global_index()
+
+        if self.n_link is not None:
+            global_index = global_index._asdict()
+            global_index["x1"] = 4 * self.n_link
+            global_index["y1"] = 4 * self.n_link + 1
+            dof_tuple = namedtuple("GlobalIndex", global_index)
+            global_index = dof_tuple(**global_index)
+
+        return global_index
+
     def M(self):
         M = np.zeros((2, 2))
 
@@ -326,6 +341,9 @@ class BearingElement(Element):
 
         K = np.array([[kxx, kxy], [kyx, kyy]])
 
+        if self.n_link is not None:
+            K = np.vstack((np.hstack([K, -K]), np.hstack([-K, K])))
+
         return K
 
     def C(self, w):
@@ -335,6 +353,9 @@ class BearingElement(Element):
         cyx = self.cyx.interpolated(w)
 
         C = np.array([[cxx, cxy], [cyx, cyy]])
+
+        if self.n_link is not None:
+            C = np.vstack((np.hstack([C, -C]), np.hstack([-C, C])))
 
         return C
 
