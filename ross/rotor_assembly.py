@@ -227,7 +227,12 @@ class Rotor(object):
 
         df_shaft = pd.DataFrame([el.summary() for el in self.shaft_elements])
         df_disks = pd.DataFrame([el.summary() for el in self.disk_elements])
-        df_bearings = pd.DataFrame([el.summary() for el in self.bearing_seal_elements])
+        df_bearings = pd.DataFrame(
+                [el.summary() for el in self.bearing_seal_elements if (
+                        el.__class__.__name__ == 'BearingElement')])
+        df_seals = pd.DataFrame(
+                [el.summary() for el in self.bearing_seal_elements if (
+                        el.__class__.__name__ == 'SealElement')])
 
         nodes_pos_l = np.zeros(len(df_shaft.n_l))
         nodes_pos_r = np.zeros(len(df_shaft.n_l))
@@ -245,15 +250,15 @@ class Rotor(object):
 
         df_shaft["nodes_pos_l"] = nodes_pos_l
         df_shaft["nodes_pos_r"] = nodes_pos_r
-        # bearings
 
-        df = pd.concat([df_shaft, df_disks, df_bearings], sort=True)
+        df = pd.concat([df_shaft, df_disks, df_bearings, df_seals], sort=True)
         df = df.sort_values(by="n_l")
         df = df.reset_index(drop=True)
 
         self.df_disks = df_disks
         self.df_bearings = df_bearings
         self.df_shaft = df_shaft
+        self.df_seals = df_seals
 
         # check consistence for disks and bearings location
         if df.n_l.max() > df_shaft.n_r.max():
@@ -498,10 +503,10 @@ class Rotor(object):
                [ 0., -6.,  1.,  0.],
                [ 6.,  0.,  0.,  1.]])
         """
+        K0 = np.zeros((self.ndof, self.ndof))
+
         if frequency is None:
             frequency = self.w
-
-        K0 = np.zeros((self.ndof, self.ndof))
 
         for elm in self.elements:
             dofs = elm.dof_global_index()
@@ -535,10 +540,10 @@ class Rotor(object):
                [0., 0., 0., 0.],
                [0., 0., 0., 0.]])
         """
+        C0 = np.zeros((self.ndof, self.ndof))
+
         if frequency is None:
             frequency = self.w
-
-        C0 = np.zeros((self.ndof, self.ndof))
 
         for elm in self.elements:
             dofs = elm.dof_global_index()
@@ -1877,8 +1882,25 @@ class Rotor(object):
             for node_y in range(int(len(self.M()) / 4)):
                 grav[4 * node_y + 1] = -9.8065
 
+            aux_brg = []
+            for n in self.df_bearings["n"]:
+                aux_brg.append(BearingElement(n=n, kxx=1e14, cxx=0))
+
+            aux_rotor = Rotor(self.shaft_elements, self.disk_elements, aux_brg)
+            aux_K = np.zeros((aux_rotor.ndof, aux_rotor.ndof))
+
+            for elm in aux_rotor.elements:
+                if elm.__class__.__name__ != "SealElement":
+                    dofs = elm.dof_global_index()
+                    n0 = dofs[0]
+                    n1 = dofs[-1] + 1  # +1 to include this dof in the slice
+                    try:
+                        aux_K[n0:n1, n0:n1] += elm.K(0)
+                    except TypeError:
+                        aux_K[n0:n1, n0:n1] += elm.K()
+
             # calculates x, for [K]*(x) = [M]*(g)
-            disp = (la.solve(self.K(0), self.M() @ grav)).flatten()
+            disp = (la.solve(aux_K, self.M() @ grav)).flatten()
 
             # calculates displacement values in gravity's direction
             # dof = degree of freedom
@@ -1896,10 +1918,10 @@ class Rotor(object):
             BrgForceToReturn = []
             for i, node in enumerate(self.df_bearings["n"]):
                 BrgForce[node] = (
-                    -disp_y[node] * self.df_bearings.loc[i, "kyy"].coefficient[0]
+                    -disp_y[node] * aux_rotor.df_bearings.loc[i, "kyy"].coefficient[0]
                 )
                 BrgForceToReturn.append(
-                    np.around(-disp_y[node] * self.df_bearings.loc[i, "kyy"].coefficient[0], decimals=1)
+                    np.around(-disp_y[node] * aux_rotor.df_bearings.loc[i, "kyy"].coefficient[0], decimals=1)
                 )
 
             # Disk Forces
@@ -1979,7 +2001,7 @@ class Rotor(object):
                 self.Bm,
                 self.df_shaft,
                 self.df_disks,
-                self.df_bearings,
+                aux_rotor.df_bearings,
                 self.nodes,
                 self.nodes_pos,
                 Vx_axis,
