@@ -502,27 +502,14 @@ class Rotor(object):
         if frequency is None:
             frequency = self.w
 
-        # If frequency equals 0, stiffness from seals is not included
-        if frequency == 0.0:
-            for elm in self.elements:
-                if elm.__class__.__name__ != "SealElement":
-                    dofs = elm.dof_global_index()
-                    n0 = dofs[0]
-                    n1 = dofs[-1] + 1  # +1 to include this dof in the slice
-                    try:
-                        K0[n0:n1, n0:n1] += elm.K(frequency)
-                    except TypeError:
-                        K0[n0:n1, n0:n1] += elm.K()
-
-        else:
-            for elm in self.elements:
-                dofs = elm.dof_global_index()
-                n0 = dofs[0]
-                n1 = dofs[-1] + 1  # +1 to include this dof in the slice
-                try:
-                    K0[n0:n1, n0:n1] += elm.K(frequency)
-                except TypeError:
-                    K0[n0:n1, n0:n1] += elm.K()
+        for elm in self.elements:
+            dofs = elm.dof_global_index()
+            n0 = dofs[0]
+            n1 = dofs[-1] + 1  # +1 to include this dof in the slice
+            try:
+                K0[n0:n1, n0:n1] += elm.K(frequency)
+            except TypeError:
+                K0[n0:n1, n0:n1] += elm.K()
 
         return K0
 
@@ -552,27 +539,14 @@ class Rotor(object):
         if frequency is None:
             frequency = self.w
 
-        # If frequency equals 0, damping from seals is not included
-        if frequency == 0.0:
-            for elm in self.elements:
-                if elm.__class__.__name__ != "SealElement":
-                    dofs = elm.dof_global_index()
-                    n0 = dofs[0]
-                    n1 = dofs[-1] + 1  # +1 to include this dof in the slice
-                    try:
-                        C0[n0:n1, n0:n1] += elm.C(frequency)
-                    except TypeError:
-                        C0[n0:n1, n0:n1] += elm.C()
-
-        else:
-            for elm in self.elements:
-                dofs = elm.dof_global_index()
-                n0 = dofs[0]
-                n1 = dofs[-1] + 1  # +1 to include this dof in the slice
-                try:
-                    C0[n0:n1, n0:n1] += elm.C(frequency)
-                except TypeError:
-                    C0[n0:n1, n0:n1] += elm.C()
+        for elm in self.elements:
+            dofs = elm.dof_global_index()
+            n0 = dofs[0]
+            n1 = dofs[-1] + 1  # +1 to include this dof in the slice
+            try:
+                C0[n0:n1, n0:n1] += elm.C(frequency)
+            except TypeError:
+                C0[n0:n1, n0:n1] += elm.C()
 
         return C0
 
@@ -1907,7 +1881,17 @@ class Rotor(object):
                 aux_brg.append(BearingElement(n=n, kxx=1e14, cxx=0))
 
             aux_rotor = Rotor(self.shaft_elements, self.disk_elements, aux_brg)
-            aux_K = aux_rotor.K(0)
+            aux_K = np.zeros((aux_rotor.ndof, aux_rotor.ndof))
+
+            for elm in aux_rotor.elements:
+                if elm.__class__.__name__ != "SealElement":
+                    dofs = elm.dof_global_index()
+                    n0 = dofs[0]
+                    n1 = dofs[-1] + 1  # +1 to include this dof in the slice
+                    try:
+                        aux_K[n0:n1, n0:n1] += elm.K(0)
+                    except TypeError:
+                        aux_K[n0:n1, n0:n1] += elm.K()
 
             # calculates x, for [K]*(x) = [M]*(g)
             disp = (la.solve(aux_K, self.M() @ grav)).flatten()
