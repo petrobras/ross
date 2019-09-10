@@ -243,36 +243,44 @@ class ShaftElement(Element):
         shaft : list
             A list of shaft objects.
         """
-        parameters = read_table_file(file, 'shaft', sheet_name=sheet_name, sheet_type=sheet_type)
+        parameters = read_table_file(
+            file, "shaft", sheet_name=sheet_name, sheet_type=sheet_type
+        )
         list_of_shafts = []
         if sheet_type == "Model":
-            for i in range(0, len(parameters['L'])):
-                list_of_shafts.append(cls(L=parameters['L'][i],
-                                          i_d=parameters['i_d'][i],
-                                          o_d=parameters['o_d'][i],
-                                          material=parameters[parameters['material'][i]],
-                                          n=parameters['n'][i],
-                                          axial_force=parameters['axial_force'][i],
-                                          torque=parameters['torque'][i],
-                                          shear_effects=parameters['shear_effects'][i],
-                                          rotary_inertia=parameters['rotary_inertia'][i],
-                                          gyroscopic=parameters['gyroscopic'][i],
-                                          shear_method_calc=parameters['shear_method_calc'][i]
-                                          ))
+            for i in range(0, len(parameters["L"])):
+                list_of_shafts.append(
+                    cls(
+                        L=parameters["L"][i],
+                        i_d=parameters["i_d"][i],
+                        o_d=parameters["o_d"][i],
+                        material=parameters[parameters["material"][i]],
+                        n=parameters["n"][i],
+                        axial_force=parameters["axial_force"][i],
+                        torque=parameters["torque"][i],
+                        shear_effects=parameters["shear_effects"][i],
+                        rotary_inertia=parameters["rotary_inertia"][i],
+                        gyroscopic=parameters["gyroscopic"][i],
+                        shear_method_calc=parameters["shear_method_calc"][i],
+                    )
+                )
         elif sheet_type == "Simple":
-            for i in range(0, len(parameters['L'])):
-                list_of_shafts.append(cls(L=parameters['L'][i],
-                                          i_d=parameters['i_d'][i],
-                                          o_d=parameters['o_d'][i],
-                                          material=parameters['material'][i],
-                                          n=parameters['n'][i],
-                                          axial_force=parameters['axial_force'][i],
-                                          torque=parameters['torque'][i],
-                                          shear_effects=parameters['shear_effects'][i],
-                                          rotary_inertia=parameters['rotary_inertia'][i],
-                                          gyroscopic=parameters['gyroscopic'][i],
-                                          shear_method_calc=parameters['shear_method_calc'][i]
-                                          ))
+            for i in range(0, len(parameters["L"])):
+                list_of_shafts.append(
+                    cls(
+                        L=parameters["L"][i],
+                        i_d=parameters["i_d"][i],
+                        o_d=parameters["o_d"][i],
+                        material=parameters["material"][i],
+                        n=parameters["n"][i],
+                        axial_force=parameters["axial_force"][i],
+                        torque=parameters["torque"][i],
+                        shear_effects=parameters["shear_effects"][i],
+                        rotary_inertia=parameters["rotary_inertia"][i],
+                        gyroscopic=parameters["gyroscopic"][i],
+                        shear_method_calc=parameters["shear_method_calc"][i],
+                    )
+                )
         return list_of_shafts
 
     @property
@@ -287,7 +295,9 @@ class ShaftElement(Element):
             self.n_r = value + 1
 
     def dof_mapping(self):
-        return dict(x0=0, y0=1, alpha0=2, beta0=3, x1=4, y1=5, alpha1=6, beta1=7)
+        return dict(
+            x_0=0, y_0=1, alpha_0=2, beta_0=3, x_1=4, y_1=5, alpha_1=6, beta_1=7
+        )
 
     def __repr__(self):
         return (
@@ -841,7 +851,12 @@ class ShaftTaperedElement(Element):
         a1 = 2 * np.pi * (roj * delta_ro - rij * delta_ri) / A_l
         a2 = np.pi * (roj ** 3 * delta_ro - rij ** 3 * delta_ri) / Ie_l
         b1 = np.pi * (delta_ro ** 2 - delta_ri ** 2) / A_l
-        b2 = 3 * np.pi * (roj ** 2 * delta_ro ** 2 - rij ** 2 * delta_ri ** 2) / (2 * Ie_l)
+        b2 = (
+            3
+            * np.pi
+            * (roj ** 2 * delta_ro ** 2 - rij ** 2 * delta_ri ** 2)
+            / (2 * Ie_l)
+        )
         gama = np.pi * (roj * delta_ro ** 3 - rij * delta_ri ** 3) / Ie_l
         delta = np.pi * (delta_ro ** 4 - delta_ri ** 4) / (4 * Ie_l)
 
@@ -953,7 +968,9 @@ class ShaftTaperedElement(Element):
             self.n_r = value + 1
 
     def dof_mapping(self):
-        return dict(x0=0, y0=1, alpha0=2, beta0=3, x1=4, y1=5, alpha1=6, beta1=7)
+        return dict(
+            x_0=0, y_0=1, alpha_0=2, beta_0=3, x_1=4, y_1=5, alpha_1=6, beta_1=7
+        )
 
     def __repr__(self):
         return (

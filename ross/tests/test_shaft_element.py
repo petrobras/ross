@@ -22,14 +22,14 @@ def eb():
 
 
 def test_index(eb):
-    assert eb.dof_local_index().x0 == 0
-    assert eb.dof_local_index().y0 == 1
-    assert eb.dof_local_index().alpha0 == 2
-    assert eb.dof_local_index().beta0 == 3
-    assert eb.dof_global_index().x0 == 12
-    assert eb.dof_global_index().y0 == 13
-    assert eb.dof_global_index().alpha0 == 14
-    assert eb.dof_global_index().beta0 == 15
+    assert eb.dof_local_index().x_0 == 0
+    assert eb.dof_local_index().y_0 == 1
+    assert eb.dof_local_index().alpha_0 == 2
+    assert eb.dof_local_index().beta_0 == 3
+    assert eb.dof_global_index().x_3 == 12
+    assert eb.dof_global_index().y_3 == 13
+    assert eb.dof_global_index().alpha_3 == 14
+    assert eb.dof_global_index().beta_3 == 15
 
 
 def test_parameters_eb(eb):
@@ -137,7 +137,9 @@ def test_from_table():
         os.path.dirname(os.path.realpath(__file__)) + "/data/shaft_us.xls",
         os.path.dirname(os.path.realpath(__file__)) + "/data/shaft_si.xls",
     ]:
-        shaft = ShaftElement.from_table(shaft_file, sheet_type="Model", sheet_name="Model")
+        shaft = ShaftElement.from_table(
+            shaft_file, sheet_type="Model", sheet_name="Model"
+        )
         el0 = shaft[0]
         assert el0.n == 0
         assert_allclose(el0.i_d, 0.1409954)
@@ -160,25 +162,42 @@ def test_from_table():
 def tap_tim():
     #  Timoshenko element
     L = 0.4
-    i_d_l = 0.
-    i_d_r = 0.
+    i_d_l = 0.0
+    i_d_r = 0.0
     o_d_l = 0.25
     o_d_r = 0.10
 
     return ShaftTaperedElement(
-        L, i_d_l, i_d_r, o_d_l, o_d_r, steel, shear_effects=True, rotary_inertia=True, n=3
+        L,
+        i_d_l,
+        i_d_r,
+        o_d_l,
+        o_d_r,
+        steel,
+        shear_effects=True,
+        rotary_inertia=True,
+        n=3,
     )
 
 
 def test_tapered_index(tap_tim):
-    assert tap_tim.dof_local_index().x0 == 0
-    assert tap_tim.dof_local_index().y0 == 1
-    assert tap_tim.dof_local_index().alpha0 == 2
-    assert tap_tim.dof_local_index().beta0 == 3
-    assert tap_tim.dof_global_index().x0 == 12
-    assert tap_tim.dof_global_index().y0 == 13
-    assert tap_tim.dof_global_index().alpha0 == 14
-    assert tap_tim.dof_global_index().beta0 == 15
+    assert tap_tim.dof_local_index().x_0 == 0
+    assert tap_tim.dof_local_index().y_0 == 1
+    assert tap_tim.dof_local_index().alpha_0 == 2
+    assert tap_tim.dof_local_index().beta_0 == 3
+    assert tap_tim.dof_local_index().x_1 == 4
+    assert tap_tim.dof_local_index().y_1 == 5
+    assert tap_tim.dof_local_index().alpha_1 == 6
+    assert tap_tim.dof_local_index().beta_1 == 7
+    print(tap_tim.dof_global_index())
+    assert tap_tim.dof_global_index().x_3 == 12
+    assert tap_tim.dof_global_index().y_3 == 13
+    assert tap_tim.dof_global_index().alpha_3 == 14
+    assert tap_tim.dof_global_index().beta_3 == 15
+    assert tap_tim.dof_global_index().x_4 == 16
+    assert tap_tim.dof_global_index().y_4 == 17
+    assert tap_tim.dof_global_index().alpha_4 == 18
+    assert tap_tim.dof_global_index().beta_4 == 19
 
 
 def test_parameters_tap_tim(tap_tim):
@@ -194,7 +213,7 @@ def test_parameters_tap_tim(tap_tim):
     assert tap_tim.material.rho == 7810
     assert_almost_equal(tap_tim.material.Poisson, 0.29926108)
     assert_almost_equal(tap_tim.A, 0.024052818754)
-    assert_almost_equal(tap_tim.Ie * 1e5,  4.60385984)
+    assert_almost_equal(tap_tim.Ie * 1e5, 4.60385984)
     assert_almost_equal(tap_tim.phi, 0.4208816002)
 
 
@@ -247,8 +266,8 @@ def test_gyroscopic_matrix_tap_tim(tap_tim):
 def tap2():
     #  Timoshenko element
     L = 0.4
-    i_d_l = 0.
-    i_d_r = 0.
+    i_d_l = 0.0
+    i_d_r = 0.0
     o_d_l = 0.25
     o_d_r = 0.25
 
@@ -263,9 +282,7 @@ def tim2():
     le_ = 0.4
     i_d_ = 0
     o_d_ = 0.25
-    return ShaftElement(
-            le_, i_d_, o_d_, steel, rotary_inertia=True, shear_effects=True
-    )
+    return ShaftElement(le_, i_d_, o_d_, steel, rotary_inertia=True, shear_effects=True)
 
 
 def test_match_mass_matrix(tap2, tim2):

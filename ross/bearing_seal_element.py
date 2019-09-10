@@ -147,7 +147,18 @@ class BearingElement(Element):
     """
 
     def __init__(
-        self, n, kxx, cxx, kyy=None, kxy=0, kyx=0, cyy=None, cxy=0, cyx=0, w=None, tag=None
+        self,
+        n,
+        kxx,
+        cxx,
+        kyy=None,
+        kxy=0,
+        kyx=0,
+        cyy=None,
+        cxy=0,
+        cyx=0,
+        w=None,
+        tag=None,
     ):
 
         args = ["kxx", "kyy", "kxy", "kyx", "cxx", "cyy", "cxy", "cyx"]
@@ -295,7 +306,7 @@ class BearingElement(Element):
         return bearing_elements
 
     def dof_mapping(self):
-        return dict(x0=0, y0=1)
+        return dict(x_0=0, y_0=1)
 
     def M(self):
         M = np.zeros((2, 2))

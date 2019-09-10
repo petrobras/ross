@@ -80,11 +80,11 @@ def bearing1():
 
 def test_index(bearing1):
     assert bearing1.dof_local_index()[0] == 0
-    assert bearing1.dof_local_index().x0 == 0
+    assert bearing1.dof_local_index().x_0 == 0
     assert bearing1.dof_local_index()[1] == 1
-    assert bearing1.dof_local_index().y0 == 1
-    assert bearing1.dof_global_index().x0 == 16
-    assert bearing1.dof_global_index().y0 == 17
+    assert bearing1.dof_local_index().y_0 == 1
+    assert bearing1.dof_global_index().x_4 == 16
+    assert bearing1.dof_global_index().y_4 == 17
     assert bearing1.dof_global_index()[-1] == 17
 
 
