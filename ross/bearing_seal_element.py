@@ -260,6 +260,22 @@ class BearingElement(Element):
         return False
 
     def save(self, file_name):
+        """Saves a bearing element in a toml format. It works as an auxiliary function of
+        the save function in the Rotor class.
+        Parameters
+        ----------
+        file_name: string
+            The name of the file the bearing element will be saved in.
+
+        Returns
+        -------
+        None
+
+        Examples
+        --------
+        >>> bearing = bearing_example()
+        >>> bearing.save('BearingElement.toml')
+        """
         data = self.load_data(file_name)
         if type(self.w) == np.ndarray:
             try:
