@@ -182,6 +182,8 @@ class Rotor(object):
         for i, sh in enumerate(shaft_elements):
             if sh.n is None:
                 sh.n = i
+            if sh.tag is None:
+                sh.tag = sh.__class__.__name__ + " " + str(i) + f" i_d={sh.i_d}"
 
         if disk_elements is None:
             disk_elements = []

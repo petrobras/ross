@@ -39,7 +39,7 @@ class PointMass(Element):
            [0, 3]])
     """
 
-    def __init__(self, n=None, m=None, mx=None, my=None):
+    def __init__(self, n=None, m=None, mx=None, my=None, tag=None):
         self.n = n
         self.m = m
 
@@ -49,6 +49,10 @@ class PointMass(Element):
 
         self.mx = mx
         self.my = my
+
+        if tag is None:
+            tag = self.__class__.__name__ + " " + str(self.n)
+        self.tag = tag
 
     def M(self):
         """Mass matrix."""

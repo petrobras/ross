@@ -106,6 +106,7 @@ class ShaftElement(Element):
         rotary_inertia=True,
         gyroscopic=True,
         shear_method_calc="cowper",
+        tag=None,
     ):
 
         if type(material) is str:
@@ -126,6 +127,7 @@ class ShaftElement(Element):
             self.n_r = n + 1
 
         self.shear_method_calc = shear_method_calc
+        self.tag = tag
 
         self.L = float(L)
 
