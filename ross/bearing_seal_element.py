@@ -889,6 +889,63 @@ class BearingElement(Element):
 
 
 class SealElement(BearingElement):
+    """A seal element.
+    This class will create a seal element.
+    Parameters can be a constant value or speed dependent.
+    For speed dependent parameters, each argument should be passed
+    as an array and the correspondent speed values should also be
+    passed as an array.
+    Values for each parameter will be interpolated for the speed.
+    Parameters
+    ----------
+    n: int
+        Node which the bearing will be located in
+    kxx: float, array
+        Direct stiffness in the x direction.
+    cxx: float, array
+        Direct damping in the x direction.
+    kyy: float, array, optional
+        Direct stiffness in the y direction.
+        (defaults to kxx)
+    cyy: float, array, optional
+        Direct damping in the y direction.
+        (defaults to cxx)
+    kxy: float, array, optional
+        Cross coupled stiffness in the x direction.
+        (defaults to 0)
+    cxy: float, array, optional
+        Cross coupled damping in the x direction.
+        (defaults to 0)
+    kyx: float, array, optional
+        Cross coupled stiffness in the y direction.
+        (defaults to 0)
+    cyx: float, array, optional
+        Cross coupled damping in the y direction.
+        (defaults to 0)
+    w: array, optional
+        Array with the speeds (rad/s).
+    seal_leakage: float, optional
+        Amount of leakage
+    tag : str, optional
+        A tag to name the element
+        Default is None
+    Examples
+    --------
+    >>> # A seal element located in the first rotor node, with these
+    >>> # following stiffness and damping coefficients and speed range from
+    >>> # 0 to 200 rad/s
+    >>> import ross as rs
+    >>> kxx = 1e6
+    >>> kyy = 0.8e6
+    >>> cxx = 2e2
+    >>> cyy = 1.5e2
+    >>> w = np.linspace(0, 200, 11)
+    >>> seal = rs.SealElement(n=0, kxx=kxx, kyy=kyy, cxx=cxx, cyy=cyy, w=w)
+    >>> seal.K(w) # doctest: +ELLIPSIS
+    array([[[1000000., 1000000., ...
+    >>> seal.C(w) # doctest: +ELLIPSIS
+    array([[[200., 200., ...
+    """
     def __init__(
         self,
         n,
@@ -1025,6 +1082,32 @@ def bearing_example():
     bearing = BearingElement(n=0, kxx=kxx, kyy=kyy, cxx=cxx, cyy=cyy, w=w)
     return bearing
 
+
+def seal_example():
+    """This function returns an instance of a simple seal.
+    The purpose is to make available a simple model
+    so that doctest can be written using it.
+
+    Parameters
+    ----------
+
+    Returns
+    -------
+    An instance of a seal object.
+
+    Examples
+    --------
+    >>> seal = bearing_example()
+    >>> seal.w[0]
+    0.0
+    """
+    kxx = 1e6
+    kyy = 0.8e6
+    cxx = 2e2
+    cyy = 1.5e2
+    w = np.linspace(0, 200, 11)
+    seal = SealElement(n=0, kxx=kxx, kyy=kyy, cxx=cxx, cyy=cyy, w=w)
+    return seal
 
 
 
