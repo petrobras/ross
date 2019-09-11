@@ -397,6 +397,23 @@ class BearingElement(Element):
         return M
 
     def K(self, w):
+        """Returns the stiffness matrix for a given speed.
+        Parameters
+        ----------
+        w: float
+            The speeds (rad/s) to consider.
+
+        Returns
+        -------
+        A 2x2 matrix of floats containing the kxx, kxy, kyx, and kyy values.
+
+        Examples
+        --------
+        >>> bearing = bearing_example()
+        >>> bearing.K(0)
+        array([[1000000.,       0.],
+               [      0.,  800000.]])
+        """
         kxx = self.kxx.interpolated(w)
         kyy = self.kyy.interpolated(w)
         kxy = self.kxy.interpolated(w)
@@ -407,6 +424,23 @@ class BearingElement(Element):
         return K
 
     def C(self, w):
+        """Returns the damping matrix for a given speed.
+        Parameters
+        ----------
+        w: float
+            The speeds (rad/s) to consider.
+
+        Returns
+        -------
+        A 2x2 matrix of floats containing the cxx, cxy, cyx, and cyy values.
+
+        Examples
+        --------
+        >>> bearing = bearing_example()
+        >>> bearing.C(0)
+        array([[200.,   0.],
+               [  0., 150.]])
+        """
         cxx = self.cxx.interpolated(w)
         cyy = self.cyy.interpolated(w)
         cxy = self.cxy.interpolated(w)
