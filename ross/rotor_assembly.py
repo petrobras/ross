@@ -313,12 +313,53 @@ class Rotor(object):
         self.run_modal()
 
     def __eq__(self, other):
+        """
+        Equality method for comparasions
+
+        Parameters
+        ----------
+        other : obj
+            parameter for comparasion
+
+        Returns
+        -------
+        True if other is equal to the reference parameter.
+        False if not.
+        """
         if self.elements == other.elements and self.parameters == other.parameters:
             return True
         else:
             return False
 
     def run_modal(self):
+        """
+        Method to calculate eigenvalues and eigvectors for a given rotor system
+        This method is automatically called when a rotor is instantiated.
+
+        Parameters
+        ----------
+
+        Returns
+        -------
+        evalues : array
+            Eigenvalues array
+        evectors : array
+            Eigenvectors array
+        wn : array
+            Undamped natural frequencies array
+        wd : array
+            Damped natural frequencies array
+        log_dec : array
+            Logarithmic decrement array
+
+        Example
+        -------
+        >>> rotor = rotor_example()
+        >>> rotor.wn[:3]
+        array([ 91.79655318,  96.28899977, 274.56594513])
+        >>> rotor.wd[:2]
+        array([91.79655318, 96.28899977])
+        """
         self.evalues, self.evectors = self._eigen(self.w)
         wn_len = len(self.evalues) // 2
         self.wn = (np.absolute(self.evalues))[:wn_len]
@@ -449,10 +490,51 @@ class Rotor(object):
 
     @property
     def w(self):
+        """
+        Set rotor speed as property
+
+        Parameters
+        ----------
+
+        Returns
+        -------
+        w : float
+            Rotor speed
+
+        Example
+        -------
+        >>> rotor = rotor_example()
+        >>> rotor.w = 1000.0
+        >>> rotor.w
+        1000.0
+        """
         return self._w
 
     @w.setter
     def w(self, value):
+        """
+        Method to set a new value for rotor speed. Automatically re-run
+        run_modal()
+
+        Parameters
+        ----------
+        value : float
+            rotor speed
+
+        Returns
+        -------
+
+        Example
+        -------
+        >>> rotor = rotor_example()
+        >>> rotor.w
+        0
+        >>> rotor.wn[0]
+        91.7965531755082
+        >>> rotor.w = 1000.0
+        >>> rotor.wn[0]
+        90.93010826954236
+        """
         self._w = value
         self.run_modal()
 
@@ -948,6 +1030,22 @@ class Rotor(object):
         time invariant system for the mdof system.
         From this system we can obtain poles, impulse response,
         generate a bode, etc.
+
+        Parameters
+        ----------
+
+        Returns
+        -------
+        sys : StateSpaceContinuous
+            Space State Continuos with A, B, C and D matrices
+
+        Example
+        -------
+        >>> rotor = rotor_example()
+        >>> A = rotor._lti().A
+        >>> B = rotor._lti().B
+        >>> C = rotor._lti().C
+        >>> D = rotor._lti().D
         """
         Z = np.zeros((self.ndof, self.ndof))
         I = np.eye(self.ndof)
@@ -976,6 +1074,31 @@ class Rotor(object):
         return sys
 
     def transfer_matrix(self, frequency=None, speed=None, modes=None):
+        """
+        Calculates the fer matrix for the frequency response function (FRF)
+
+        Paramenters
+        -----------
+        frequency : float, optional
+            Excitation frequency. Default is rotor speed.
+        speed : float, optional
+            Rotating speed. Default is rotor speed (w).
+        modes : list, optional
+            List with modes used to calculate the matrix.
+            (all modes will be used if a list is not given).
+
+        Returns
+        -------
+        H : matrix
+            System transfer matrix
+
+        Example
+        -------
+        >>> rotor = rotor_example()
+        >>> speed = 100.0
+        >>> rotor.transfer_matrix(speed=speed) # doctest: +ELLIPSIS
+        array([[-1.70184858e-06-4.58073029e-19j, ...
+        """
         B = self.lti.B
         C = self.lti.C
         D = self.lti.D
@@ -1023,11 +1146,18 @@ class Rotor(object):
         Returns
         -------
         results : array
-            Array with the frequencies, magnitude (dB) of the frequency response for each
-            pair input/output, phase of the frequency response for each pair input/output..
+            Array with the frequencies, magnitude (dB) of the frequency
+            response for each pair input/output, and
+            phase of the frequency response for each pair input/output..
             It will be returned if plot=False.
+
         Examples
         --------
+        >>> rotor = rotor_example()
+        >>> speed = np.linspace(0, 1000, 101)
+        >>> response = rotor.run_freq_response(speed_range=speed)
+        >>> response.magnitude # doctest: +ELLIPSIS
+        array([[[1.00000000e-06, 1.00261725e-06, 1.01076952e-06, ...
         """
         if speed_range is None:
             speed_range = np.linspace(0, max(self.evalues.imag) * 1.5, 1000)
@@ -1050,6 +1180,42 @@ class Rotor(object):
         return results
 
     def run_forced_response(self, force=None, speed_range=None, modes=None):
+        """Unbalanced response for a mdof system.
+
+        This method returns the unbalanced response for a mdof system
+        given magnitide and phase of the unbalance, the node where it's
+        applied and a frequency range.
+
+        Parameters
+        ----------
+        force : list
+            Unbalance force in each degree of freedom for each value in omega
+        speed_range : list, float
+            Array with the desired range of frequencies
+        modes : list, optional
+            Modes that will be used to calculate the frequency response
+            (all modes will be used if a list is not given).
+
+        Returns
+        -------
+        force_resp : array
+            Array with the force response for each node for each frequency
+        speed_range : array
+            Array with the frequencies
+        magnitude : array
+            Magnitude (dB) of the frequency response for node for each frequency
+        phase : array
+            Phase of the frequency response for node for each frequency
+
+        Examples
+        --------
+        >>> rotor = rotor_example()
+        >>> speed = np.linspace(0, 1000, 101)
+        >>> force = rotor._unbalance_force(3, 10.0, 0.0, speed)
+        >>> resp = rotor.run_forced_response(force=force, speed_range=speed)
+        >>> resp.magnitude # doctest: +ELLIPSIS
+        array([[0.00000000e+00, 5.06073311e-04, 2.10044826e-03, ...
+        """
         freq_resp = self.run_freq_response(speed_range=speed_range, modes=modes)
 
         forced_resp = np.zeros(
@@ -1069,7 +1235,33 @@ class Rotor(object):
         return forced_resp
 
     def _unbalance_force(self, node, magnitude, phase, omega):
-        """Function to calculate unbalance force"""
+        """
+        Function to calculate unbalance force
+
+        Parameters
+        ----------
+        node : int
+            Node where the unbalance is applied.
+        magnitude : float
+            Unbalance magnitude (kg.m)
+        phase : float
+            Unbalance phase (rad)
+        omega : list, float
+            Array with the desired range of frequencies
+
+        Returns
+        -------
+        F0 : list
+            Unbalance force in each degree of freedom for each value in omega
+
+        Examples
+        --------
+        >>> rotor = rotor_example()
+        >>> speed = np.linspace(0, 1000, 101)
+        >>> force = rotor._unbalance_force(3, 10.0, 0.0, speed)
+        >>> force[12] # doctest: +ELLIPSIS
+        array([0.000e+00+0.j, 1.000e+03+0.j, 4.000e+03+0.j, 9.000e+03+0.j, ...
+        """
 
         F0 = np.zeros((self.ndof, len(omega)), dtype=np.complex128)
         me = magnitude
@@ -1110,7 +1302,9 @@ class Rotor(object):
 
         Returns
         -------
-        frequency_range : array
+        force_resp : array
+            Array with the force response for each node for each frequency
+        speed_range : array
             Array with the frequencies
         magdb : array
             Magnitude (dB) of the frequency response for each pair input/output.
@@ -1121,6 +1315,11 @@ class Rotor(object):
 
         Examples
         --------
+        >>> rotor = rotor_example()
+        >>> speed = np.linspace(0, 1000, 101)
+        >>> response = rotor.unbalance_response(node=3, magnitude=10.0, phase=0.0, frequency_range=speed)
+        >>> response.magnitude # doctest: +ELLIPSIS
+        array([[0.00000000e+00, 5.06073311e-04, 2.10044826e-03, ...
         """
         force = np.zeros((self.ndof, len(frequency_range)), dtype=np.complex)
 
@@ -1145,7 +1344,7 @@ class Rotor(object):
         F : array
             Force array (needs to have the same length as time array).
         t : array
-            Time array.
+            Time array. (must have the same length than lti.B matrix)
         ic : array, optional
             The initial conditions on the state vector (zero by default).
 
@@ -1158,9 +1357,14 @@ class Rotor(object):
         xout : array
             Time evolution of the state vector.
 
-
         Examples
         --------
+        >>> rotor = rotor_example()
+        >>> size = rotor.lti.B.shape[1]
+        >>> t = np.linspace(0, 5, size)
+        >>> F = np.ones((size, size))
+        >>> rotor.time_response(F, t) # doctest: +ELLIPSIS
+        (array([0.        , 0.18518519, 0.37037037, ...
         """
         return signal.lsim(self.lti, F, t, X0=ic)
 
@@ -1746,8 +1950,16 @@ class Rotor(object):
             time evolution of the state vector.
             It will be returned if plot=False.
 
-        Examples:
-        ---------
+        Examples
+        --------
+        >>> rotor = rotor_example()
+        >>> size = rotor.lti.B.shape[1]
+        >>> t = np.linspace(0, 5, size)
+        >>> F = np.ones((size, size))
+        >>> dof = 13
+        >>> response = rotor.run_time_response(F, t, dof) # doctest: +ELLIPSIS
+        >>> response.yout[:, dof]
+        array([ 0.00000000e+00,  1.06327334e-05,  1.54684988e-05, ...
         """
         t_, yout, xout = self.time_response(F, t)
 
@@ -1863,13 +2075,20 @@ class Rotor(object):
 
         Returns
         -------
-        A dictionary containing the information about: 
+        A dictionary containing the information about:
             Static displacement vector,
             Shearing force vector,
             Bending moment vector,
             Shaft total weight,
             Disks forces,
             Bearings reaction forces
+
+        Example
+        -------
+        >>> rotor = rotor_example()
+        >>> static = rotor.run_static()
+        >>> static.force_data['Bearings Reaction Forces']
+        [432.4, 432.4]
         """
         if len(self.df_bearings) == 0:
             raise ValueError("Rotor has no bearings")
@@ -2075,7 +2294,6 @@ class Rotor(object):
         >>> rotor.run_modal()
         >>> rotor.wn.round(4)
         array([ 85.7634,  85.7634, 271.9326, 271.9326, 718.58  , 718.58  ])
-
         """
 
         if len(leng_data) != len(o_ds_data) or len(leng_data) != len(i_ds_data):
@@ -2240,7 +2458,24 @@ def MAC_modes(U, V, n=None, plot=True):
 
 
 def whirl(kappa_mode):
-    """Evaluates the whirl of a mode"""
+    """Evaluates the whirl of a mode
+
+    Parameters
+    ----------
+    kappa_mode: list
+        A list with the value of kappa for each node related
+        to the mode/natural frequency of interest.
+
+    Returns
+    -------
+    A string indicating the direction of precession related to the kappa_mode
+
+    Example
+    -------
+    >>> kappa_mode = [-5.06e-13, -3.09e-13, -2.91e-13, 0.011, -4.03e-13, -2.72e-13, -2.72e-13]
+    >>> whirl(kappa_mode)
+    'Forward'
+    """
     if all(kappa >= -1e-3 for kappa in kappa_mode):
         whirldir = "Forward"
     elif all(kappa <= 1e-3 for kappa in kappa_mode):
@@ -2252,7 +2487,23 @@ def whirl(kappa_mode):
 
 @np.vectorize
 def whirl_to_cmap(whirl):
-    """Maps the whirl to a value"""
+    """Maps the whirl to a value
+
+    Parameters
+    ----------
+    whirl: string
+        A string indicating the whirl direction related to the kappa_mode
+
+    Returns
+    -------
+    An array with reference index for the whirl direction
+
+    Example
+    -------
+    >>> whirl = 'Backward'
+    >>> whirl_to_cmap(whirl)
+    array(1.)
+    """
     if whirl == "Forward":
         return 0.0
     elif whirl == "Backward":
