@@ -224,6 +224,8 @@ class BearingElement(Element):
         """This function allows bearing elements to be compared.
         Parameters
         ----------
+        other: object
+            The second object to be compared with.
 
         Returns
         -------
