@@ -801,6 +801,7 @@ class ShaftTaperedElement(Element):
         rotary_inertia=True,
         gyroscopic=True,
         shear_method_calc="cowper",
+        tag=None,
     ):
 
         if type(material) is str:
@@ -819,6 +820,8 @@ class ShaftTaperedElement(Element):
         self.n_r = None
         if n is not None:
             self.n_r = n + 1
+
+        self.tag = tag
 
         self.shear_method_calc = shear_method_calc
 

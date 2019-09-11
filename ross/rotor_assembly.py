@@ -224,9 +224,11 @@ class Rotor(object):
         columns = [
             "type",
             "n",
+            "n_link",
             "L",
             "node_pos",
             "node_pos_r",
+            "y_pos",
             "i_d",
             "o_d",
             "i_d_r",
@@ -293,9 +295,6 @@ class Rotor(object):
         max_location = max(df_shaft.n_r.max(), max_loc_point_mass)
         if df.n_l.max() > max_location:
             raise ValueError("Trying to set disk or bearing outside shaft")
-
-        self.df = df
-
         # nodes axial position and diameter
         nodes_pos = list(df_shaft.groupby("n_l")["nodes_pos_l"].max())
         nodes_pos.append(df_shaft["nodes_pos_r"].iloc[-1])
@@ -342,6 +341,21 @@ class Rotor(object):
         self.Vx = None
         self.Bm = None
         self.disp_y = None
+
+        # define positions for disks
+        for disk in disk_elements:
+            z_pos = nodes_pos[disk.n]
+            y_pos = nodes_o_d[disk.n]
+            df.loc[df.tag == disk.tag, "nodes_pos_l"] = z_pos
+            df.loc[df.tag == disk.tag, "nodes_pos_r"] = z_pos
+            df.loc[df.tag == disk.tag, "y_pos"] = y_pos
+
+        # define positions for bearings
+        # TODO group bearings that share the same node
+
+        # define positions for point masses
+
+        self.df = df
 
         self.run_modal()
 
