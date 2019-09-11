@@ -34,7 +34,7 @@ from ross.results import (
     ConvergenceResults,
     TimeResponseResults,
 )
-from ross.shaft_element import ShaftElement
+from ross.shaft_element import ShaftElement, ShaftTaperedElement
 
 __all__ = ["Rotor", "rotor_example"]
 
@@ -227,7 +227,12 @@ class Rotor(object):
 
         df_shaft = pd.DataFrame([el.summary() for el in self.shaft_elements])
         df_disks = pd.DataFrame([el.summary() for el in self.disk_elements])
-        df_bearings = pd.DataFrame([el.summary() for el in self.bearing_seal_elements])
+        df_bearings = pd.DataFrame(
+                [el.summary() for el in self.bearing_seal_elements if (
+                        el.__class__.__name__ == 'BearingElement')])
+        df_seals = pd.DataFrame(
+                [el.summary() for el in self.bearing_seal_elements if (
+                        el.__class__.__name__ == 'SealElement')])
 
         nodes_pos_l = np.zeros(len(df_shaft.n_l))
         nodes_pos_r = np.zeros(len(df_shaft.n_l))
@@ -245,15 +250,15 @@ class Rotor(object):
 
         df_shaft["nodes_pos_l"] = nodes_pos_l
         df_shaft["nodes_pos_r"] = nodes_pos_r
-        # bearings
 
-        df = pd.concat([df_shaft, df_disks, df_bearings], sort=True)
+        df = pd.concat([df_shaft, df_disks, df_bearings, df_seals], sort=True)
         df = df.sort_values(by="n_l")
         df = df.reset_index(drop=True)
 
         self.df_disks = df_disks
         self.df_bearings = df_bearings
         self.df_shaft = df_shaft
+        self.df_seals = df_seals
 
         # check consistence for disks and bearings location
         if df.n_l.max() > df_shaft.n_r.max():
@@ -374,7 +379,6 @@ class Rotor(object):
         eigv_arr = np.array([])
         error_arr = np.array([0])
 
-        self.run_modal()
         eigv_arr = np.append(eigv_arr, self.wn[n_eigval])
 
         # this value is up to start the loop while
@@ -386,22 +390,30 @@ class Rotor(object):
             disk_elem = []
             brgs_elem = []
 
-            for i, leng in enumerate(self.shaft_elements):
-                le = self.shaft_elements[i].L / nel_r
-                o_ds = self.shaft_elements[i].o_d
-                i_ds = self.shaft_elements[i].i_d
+            for shaft in self.shaft_elements:
+                le = shaft.L / nel_r
+                odl = shaft.o_d_l
+                odr = shaft.o_d_r
+                idl = shaft.i_d_l
+                idr = shaft.i_d_r
 
                 # loop to double the number of element
                 for j in range(nel_r):
+                    o_d_r = ((nel_r - j - 1) * odl + (j + 1) * odr) / nel_r
+                    i_d_r = ((nel_r - j - 1) * idl + (j + 1) * idr) / nel_r
+                    o_d_l = ((nel_r - j) * odl + j * odr) / nel_r
+                    i_d_l = ((nel_r - j) * idl + j * idr) / nel_r
                     shaft_elem.append(
-                        ShaftElement(
+                        ShaftTaperedElement(
                             le,
-                            i_ds,
-                            o_ds,
-                            material=self.shaft_elements[i].material,
-                            shear_effects=True,
-                            rotary_inertia=True,
-                            gyroscopic=True,
+                            i_d_l,
+                            i_d_r,
+                            o_d_l,
+                            o_d_r,
+                            material=shaft.material,
+                            shear_effects=shaft.shear_effects,
+                            rotary_inertia=shaft.rotary_inertia,
+                            gyroscopic=shaft.gyroscopic,
                         )
                     )
 
@@ -415,12 +427,11 @@ class Rotor(object):
                 aux_Brg_SealEl.n = nel_r * Brg_SealEl.n
                 brgs_elem.append(aux_Brg_SealEl)
 
-            rotor = Rotor(
+            aux_rotor = Rotor(
                 shaft_elem, disk_elem, brgs_elem, w=self.w, n_eigen=self.n_eigen
             )
-            rotor.run_modal()
 
-            eigv_arr = np.append(eigv_arr, rotor.wn[n_eigval])
+            eigv_arr = np.append(eigv_arr, aux_rotor.wn[n_eigval])
             el_num = np.append(el_num, len(shaft_elem))
 
             error = min(eigv_arr[-1], eigv_arr[-2]) / max(eigv_arr[-1], eigv_arr[-2])
@@ -429,7 +440,7 @@ class Rotor(object):
             error_arr = np.append(error_arr, 100 * error)
             nel_r *= 2
 
-        self.__dict__ = rotor.__dict__
+        self.__dict__ = aux_rotor.__dict__
         self.error_arr = error_arr
 
         results = ConvergenceResults(el_num[1:], eigv_arr[1:], error_arr[1:])
@@ -492,10 +503,10 @@ class Rotor(object):
                [ 0., -6.,  1.,  0.],
                [ 6.,  0.,  0.,  1.]])
         """
+        K0 = np.zeros((self.ndof, self.ndof))
+
         if frequency is None:
             frequency = self.w
-
-        K0 = np.zeros((self.ndof, self.ndof))
 
         for elm in self.elements:
             dofs = elm.dof_global_index()
@@ -529,10 +540,10 @@ class Rotor(object):
                [0., 0., 0., 0.],
                [0., 0., 0., 0.]])
         """
+        C0 = np.zeros((self.ndof, self.ndof))
+
         if frequency is None:
             frequency = self.w
-
-        C0 = np.zeros((self.ndof, self.ndof))
 
         for elm in self.elements:
             dofs = elm.dof_global_index()
@@ -1871,8 +1882,25 @@ class Rotor(object):
             for node_y in range(int(len(self.M()) / 4)):
                 grav[4 * node_y + 1] = -9.8065
 
+            aux_brg = []
+            for n in self.df_bearings["n"]:
+                aux_brg.append(BearingElement(n=n, kxx=1e14, cxx=0))
+
+            aux_rotor = Rotor(self.shaft_elements, self.disk_elements, aux_brg)
+            aux_K = np.zeros((aux_rotor.ndof, aux_rotor.ndof))
+
+            for elm in aux_rotor.elements:
+                if elm.__class__.__name__ != "SealElement":
+                    dofs = elm.dof_global_index()
+                    n0 = dofs[0]
+                    n1 = dofs[-1] + 1  # +1 to include this dof in the slice
+                    try:
+                        aux_K[n0:n1, n0:n1] += elm.K(0)
+                    except TypeError:
+                        aux_K[n0:n1, n0:n1] += elm.K()
+
             # calculates x, for [K]*(x) = [M]*(g)
-            disp = (la.solve(self.K(0), self.M() @ grav)).flatten()
+            disp = (la.solve(aux_K, self.M() @ grav)).flatten()
 
             # calculates displacement values in gravity's direction
             # dof = degree of freedom
@@ -1890,10 +1918,10 @@ class Rotor(object):
             BrgForceToReturn = []
             for i, node in enumerate(self.df_bearings["n"]):
                 BrgForce[node] = (
-                    -disp_y[node] * self.df_bearings.loc[i, "kyy"].coefficient[0]
+                    -disp_y[node] * aux_rotor.df_bearings.loc[i, "kyy"].coefficient[0]
                 )
                 BrgForceToReturn.append(
-                    np.around(-disp_y[node] * self.df_bearings.loc[i, "kyy"].coefficient[0], decimals=1)
+                    np.around(-disp_y[node] * aux_rotor.df_bearings.loc[i, "kyy"].coefficient[0], decimals=1)
                 )
 
             # Disk Forces
@@ -1973,7 +2001,7 @@ class Rotor(object):
                 self.Bm,
                 self.df_shaft,
                 self.df_disks,
-                self.df_bearings,
+                aux_rotor.df_bearings,
                 self.nodes,
                 self.nodes_pos,
                 Vx_axis,
