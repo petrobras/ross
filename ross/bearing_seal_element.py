@@ -383,7 +383,7 @@ class BearingElement(Element):
         --------
         >>> bearing = bearing_example()
         >>> bearing.dof_mapping()
-        {'x0': 0, 'y0': 1}
+        {'x_0': 0, 'y_0': 1}
         """
         return dict(x_0=0, y_0=1)
 
