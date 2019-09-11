@@ -377,6 +377,21 @@ class BearingElement(Element):
         return dict(x0=0, y0=1)
 
     def M(self):
+        """Returns the mass matrix.
+        Parameters
+        ----------
+
+        Returns
+        -------
+        A matrix of floats.
+
+        Examples
+        --------
+        >>> bearing = bearing_example()
+        >>> bearing.M()
+        array([[0., 0.],
+               [0., 0.]])
+        """
         M = np.zeros((2, 2))
 
         return M
