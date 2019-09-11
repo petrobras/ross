@@ -819,3 +819,34 @@ class SealElement(BearingElement):
             fill_alpha=0.8,
             fill_color=bokeh_colors[6],
         )
+
+
+def bearing_example():
+    """This function returns an instance of a simple bearing.
+    The purpose is to make available a simple model
+    so that doctest can be written using it.
+
+    Parameters
+    ----------
+
+    Returns
+    -------
+    An instance of a bearing object.
+
+    Examples
+    --------
+    >>> bearing = bearing_example()
+    >>> bearing.w[0]
+    0.0
+    """
+    kxx = 1e6
+    kyy = 0.8e6
+    cxx = 2e2
+    cyy = 1.5e2
+    w = np.linspace(0, 200, 11)
+    bearing = BearingElement(n=0, kxx=kxx, kyy=kyy, cxx=cxx, cyy=cyy, w=w)
+    return bearing
+
+
+
+
