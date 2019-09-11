@@ -451,6 +451,21 @@ class BearingElement(Element):
         return C
 
     def G(self):
+        """Returns the giroscopic matrix.
+        Parameters
+        ----------
+
+        Returns
+        -------
+        A matrix of floats.
+
+        Examples
+        --------
+        >>> bearing = bearing_example()
+        >>> bearing.G()
+        array([[0., 0.],
+               [0., 0.]])
+        """
         G = np.zeros((2, 2))
 
         return G
