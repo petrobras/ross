@@ -77,6 +77,9 @@ class DiskElement(Element):
             f"n={self.n}, tag={self.tag!r})"
         )
 
+    def __hash__(self):
+        return hash(self.tag)
+
     def save(self, file_name):
         data = self.load_data(file_name)
         data["DiskElement"][str(self.n)] = {

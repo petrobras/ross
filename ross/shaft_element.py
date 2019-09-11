@@ -193,6 +193,9 @@ class ShaftElement(Element):
         else:
             return False
 
+    def __hash__(self):
+        return hash(self.tag)
+
     def save(self, file_name):
         data = self.load_data(file_name)
         data["ShaftElement"][str(self.n)] = {
@@ -925,6 +928,9 @@ class ShaftTaperedElement(Element):
             return True
         else:
             return False
+
+    def __hash__(self):
+        return hash(self.tag)
 
     def save(self, file_name):
         data = self.load_data(file_name)

@@ -246,6 +246,9 @@ class BearingElement(Element):
             )
         return False
 
+    def __hash__(self):
+        return hash(self.tag)
+
     def save(self, file_name):
         data = self.load_data(file_name)
         if type(self.w) == np.ndarray:

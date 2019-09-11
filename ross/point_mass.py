@@ -54,6 +54,9 @@ class PointMass(Element):
             tag = self.__class__.__name__ + " " + str(self.n)
         self.tag = tag
 
+    def __hash__(self):
+        return hash(self.tag)
+
     def M(self):
         """Mass matrix."""
         mx = self.mx
