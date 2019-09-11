@@ -284,7 +284,7 @@ class Rotor(object):
         self.df_seals = df_seals
 
         # check consistence for disks and bearings location
-        if df.n_l.max() > df_shaft.n_r.max():
+        if df.n_l.max() > df_shaft.n_r.max() and df.n_l.max() > df_point_mass.n.max():
             raise ValueError("Trying to set disk or bearing outside shaft")
 
         self.df = df
