@@ -196,6 +196,20 @@ class BearingElement(Element):
         self.color = "#355d7a"
 
     def __repr__(self):
+        """This function returns a string representation of a bearing element.
+        Parameters
+        ----------
+
+        Returns
+        -------
+        A string representation of a bearing object.
+        Examples
+        --------
+        >>> bearing = bearing_example()
+        >>> bearing # doctest: +ELLIPSIS
+        BearingElement(n=0,
+         kxx=[...
+        """
         return (
             f"{self.__class__.__name__}"
             f"(n={self.n},\n"
