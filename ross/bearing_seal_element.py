@@ -747,6 +747,13 @@ class BearingElement(Element):
         Returns
         -------
         A bearing object.
+        Examples
+        --------
+        >>> import os
+        >>> file_path = os.path.dirname(os.path.realpath(__file__)) + '/tests/data/bearing_seal.xls'
+        >>> BearingElement.from_table(0, file_path) # doctest: +ELLIPSIS
+        BearingElement(n=0,
+         kxx=[...
         """
         parameters = read_table_file(file, "bearing", sheet_name, n)
         return cls(
@@ -830,6 +837,25 @@ class BearingElement(Element):
         Returns
         -------
         A bearing object.
+        Examples
+        --------
+        >>> nz = 30
+        >>> ntheta = 20
+        >>> nradius = 11
+        >>> length = 0.03
+        >>> omega = 157.1
+        >>> p_in = 0.
+        >>> p_out = 0.
+        >>> radius_rotor = 0.0499
+        >>> radius_stator = 0.05
+        >>> eccentricity = (radius_stator - radius_rotor)*0.2663
+        >>> visc = 0.1
+        >>> rho = 860.
+        >>> BearingElement.from_fluid_flow(0, nz, ntheta, nradius, length, omega, p_in,
+        ...                                p_out, radius_rotor, radius_stator,
+        ...                                visc, rho, eccentricity=eccentricity) # doctest: +ELLIPSIS
+        BearingElement(n=0,
+         kxx=[...
         """
         fluid_flow = flow.PressureMatrix(
             nz,
