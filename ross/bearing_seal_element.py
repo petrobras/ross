@@ -707,6 +707,12 @@ class BearingElement(Element):
         -------
         dict
             A dict that is ready to save to toml and readable by ross.
+        Examples
+        --------
+        >>> import os
+        >>> file_path = os.path.dirname(os.path.realpath(__file__)) + '/tests/data/bearing_seal.xls'
+        >>> BearingElement.table_to_toml(0, file_path) # doctest: +ELLIPSIS
+        {'n': 0, 'kxx': [...
         """
         b_elem = cls.from_table(n, file)
         data = {
