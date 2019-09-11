@@ -300,6 +300,24 @@ class BearingElement(Element):
 
     @staticmethod
     def load(file_name="BearingElement"):
+        """Loads a list of bearing elements saved in a toml format.
+        Parameters
+        ----------
+        file_name: string
+            The name of the file the bearing element to be loaded.
+
+        Returns
+        -------
+        A list of bearing elements.
+
+        Examples
+        --------
+        >>> bearing1 = bearing_example()
+        >>> bearing1.save('BearingElement.toml')
+        >>> list_of_bearings = BearingElement.load('BearingElement.toml')
+        >>> bearing1 == list_of_bearings[0]
+        True
+        """
         bearing_elements = []
         bearing_elements_dict = BearingElement.load_data(
             file_name="BearingElement.toml"
