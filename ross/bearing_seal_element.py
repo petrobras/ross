@@ -313,7 +313,7 @@ class BearingElement(Element):
         return bearing_elements
 
     def dof_mapping(self):
-        return dict(x0=0, y0=1)
+        return dict(x_0=0, y_0=1)
 
     def dof_global_index(self):
         """Get the global index for a element specific degree of freedom."""

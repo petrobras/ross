@@ -10,14 +10,7 @@ from bokeh.layouts import gridplot, widgetbox
 from bokeh.plotting import figure, show
 from bokeh.transform import linear_cmap
 from bokeh.models.widgets import DataTable, TableColumn, NumberFormatter
-from bokeh.models import (
-        ColumnDataSource,
-        ColorBar,
-        Arrow,
-        NormalHead,
-        Label,
-        HoverTool
-)
+from bokeh.models import ColumnDataSource, ColorBar, Arrow, NormalHead, Label, HoverTool
 
 # set bokeh palette of colors
 bokeh_colors = bp.RdGy[11]
@@ -117,23 +110,27 @@ class CampbellResults:
                         label="Rotor speed",
                     )
 
-                    idx = np.argwhere(np.diff(np.sign(w_i - harm*speed_range_i))).flatten()
+                    idx = np.argwhere(
+                        np.diff(np.sign(w_i - harm * speed_range_i))
+                    ).flatten()
                     if len(idx) != 0:
                         idx = idx[0]
 
                         interpolated = interpolate.interp1d(
-                            x=[speed_range_i[idx], speed_range_i[idx+1]],
-                            y=[w_i[idx], w_i[idx+1]],
-                            kind="linear"
+                            x=[speed_range_i[idx], speed_range_i[idx + 1]],
+                            y=[w_i[idx], w_i[idx + 1]],
+                            kind="linear",
                         )
                         xnew = np.linspace(
                             speed_range_i[idx],
-                            speed_range_i[idx+1],
+                            speed_range_i[idx + 1],
                             num=20,
                             endpoint=True,
                         )
                         ynew = interpolated(xnew)
-                        idx = np.argwhere(np.diff(np.sign(ynew - harm*xnew))).flatten()
+                        idx = np.argwhere(
+                            np.diff(np.sign(ynew - harm * xnew))
+                        ).flatten()
 
                         ax.scatter(xnew[idx], ynew[idx], marker="X", s=30, c="g")
 
@@ -209,10 +206,10 @@ class CampbellResults:
         camp.yaxis.axis_label_text_font_size = "14pt"
 
         color_mapper = linear_cmap(
-                field_name="color",
-                palette=bp.viridis(256),
-                low=min(log_dec_map),
-                high=max(log_dec_map),
+            field_name="color",
+            palette=bp.viridis(256),
+            low=min(log_dec_map),
+            high=max(log_dec_map),
         )
 
         for mark, whirl_dir, legend in zip(
@@ -238,39 +235,41 @@ class CampbellResults:
                         muted_alpha=0.2,
                     )
 
-                    idx = np.argwhere(np.diff(np.sign(w_i - harm*speed_range_i))).flatten()
+                    idx = np.argwhere(
+                        np.diff(np.sign(w_i - harm * speed_range_i))
+                    ).flatten()
                     if len(idx) != 0:
                         idx = idx[0]
 
                         interpolated = interpolate.interp1d(
-                            x=[speed_range_i[idx], speed_range_i[idx+1]],
-                            y=[w_i[idx], w_i[idx+1]],
-                            kind="linear"
+                            x=[speed_range_i[idx], speed_range_i[idx + 1]],
+                            y=[w_i[idx], w_i[idx + 1]],
+                            kind="linear",
                         )
                         xnew = np.linspace(
                             speed_range_i[idx],
-                            speed_range_i[idx+1],
+                            speed_range_i[idx + 1],
                             num=30,
                             endpoint=True,
                         )
                         ynew = interpolated(xnew)
-                        idx = np.argwhere(np.diff(np.sign(ynew - harm*xnew))).flatten()
+                        idx = np.argwhere(
+                            np.diff(np.sign(ynew - harm * xnew))
+                        ).flatten()
 
-                        source = ColumnDataSource(
-                                dict(xnew=xnew[idx], ynew=ynew[idx])
-                        )
+                        source = ColumnDataSource(dict(xnew=xnew[idx], ynew=ynew[idx]))
                         camp.square(
-                                "xnew",
-                                "ynew",
-                                source=source,
-                                size=10,
-                                color=bokeh_colors[9],
-                                name="critspeed"
+                            "xnew",
+                            "ynew",
+                            source=source,
+                            size=10,
+                            color=bokeh_colors[9],
+                            name="critspeed",
                         )
                         hover = HoverTool(names=["critspeed"])
                         hover.tooltips = [
-                                ("Frequency :", "@xnew"),
-                                ("Critical Speed :", "@ynew")
+                            ("Frequency :", "@xnew"),
+                            ("Critical Speed :", "@ynew"),
                         ]
                         hover.mode = "mouse"
 
@@ -1200,7 +1199,7 @@ class ModeShapeResults:
         return fig, ax
 
 
-class StaticResults():
+class StaticResults:
     def __init__(
         self,
         disp_y,
@@ -1244,17 +1243,15 @@ class StaticResults():
         """
         source = ColumnDataSource(
             data=dict(
-                x0=self.nodes_pos,
-                y0=self.disp_y * 1000,
-                y1=[0] * len(self.nodes_pos)
+                x0=self.nodes_pos, y0=self.disp_y * 1000, y1=[0] * len(self.nodes_pos)
             )
         )
 
         TOOLS = "pan,wheel_zoom,box_zoom,reset,save,box_select,hover"
         TOOLTIPS = [
-            ("Shaft lenght:", "@x0"),
+            ("Shaft lenght:", "@x_0"),
             ("Underformed:", "@y1"),
-            ("Displacement:", "@y0"),
+            ("Displacement:", "@y_0"),
         ]
 
         # create displacement plot
@@ -1271,11 +1268,11 @@ class StaticResults():
         disp_graph.yaxis.axis_label_text_font_size = "14pt"
 
         interpolated = interpolate.interp1d(
-            source.data["x0"], source.data["y0"], kind="cubic"
+            source.data["x_0"], source.data["y_0"], kind="cubic"
         )
         xnew = np.linspace(
-            source.data["x0"][0],
-            source.data["x0"][-1],
+            source.data["x_0"][0],
+            source.data["x_0"][-1],
             num=len(self.nodes_pos) * 20,
             endpoint=True,
         )
@@ -1284,23 +1281,23 @@ class StaticResults():
         auxsource = ColumnDataSource(data=dict(x0=xnew, y0=ynew, y1=[0] * len(xnew)))
 
         disp_graph.line(
-            "x0",
-            "y0",
+            "x_0",
+            "y_0",
             source=auxsource,
             legend="Deformed shaft",
             line_width=3,
             line_color=bokeh_colors[9],
         )
         disp_graph.circle(
-            "x0",
-            "y0",
+            "x_0",
+            "y_0",
             source=source,
             legend="Deformed shaft",
             size=8,
             fill_color=bokeh_colors[9],
         )
         disp_graph.line(
-            "x0",
+            "x_0",
             "y1",
             source=source,
             legend="underformed shaft",
@@ -1308,7 +1305,7 @@ class StaticResults():
             line_color=bokeh_colors[0],
         )
         disp_graph.circle(
-            "x0",
+            "x_0",
             "y1",
             source=source,
             legend="underformed shaft",
@@ -1328,12 +1325,12 @@ class StaticResults():
             title="Free-Body Diagram",
             x_axis_label="shaft lenght",
             x_range=[-0.1 * shaft_end, 1.1 * shaft_end],
-            y_range=[-3*y_start, 3*y_start],
+            y_range=[-3 * y_start, 3 * y_start],
         )
         FBD.yaxis.visible = False
         FBD.xaxis.axis_label_text_font_size = "14pt"
 
-        FBD.line("x0", "y1", source=source, line_width=5, line_color=bokeh_colors[0])
+        FBD.line("x_0", "y1", source=source, line_width=5, line_color=bokeh_colors[0])
 
         # FBD - plot arrows indicating shaft weight distribution
         text = str("%.1f" % sh_weight)
@@ -1345,8 +1342,8 @@ class StaticResults():
         )
 
         ini = self.nodes_pos[0]
-        fin = self.nodes_pos[-1]        
-        arrows_list = np.arange(ini, 1.01*fin, fin/5.)
+        fin = self.nodes_pos[-1]
+        arrows_list = np.arange(ini, 1.01 * fin, fin / 5.0)
         for node in arrows_list:
             FBD.add_layout(
                 Arrow(
@@ -1391,7 +1388,7 @@ class StaticResults():
                         line_color=bokeh_colors[0],
                     ),
                     x_start=self.nodes_pos[node],
-                    y_start=-2*y_start,
+                    y_start=-2 * y_start,
                     x_end=self.nodes_pos[node],
                     y_end=0,
                 )
@@ -1399,8 +1396,8 @@ class StaticResults():
             FBD.add_layout(
                 Label(
                     x=self.nodes_pos[node],
-                    y=-2*y_start,
-                    angle=np.pi/2,
+                    y=-2 * y_start,
+                    angle=np.pi / 2,
                     text="Fb = " + text + "N",
                     text_font_style="bold",
                     text_font_size="10pt",
@@ -1425,7 +1422,7 @@ class StaticResults():
                             line_color=bokeh_colors[0],
                         ),
                         x_start=self.nodes_pos[node],
-                        y_start=2*y_start,
+                        y_start=2 * y_start,
                         x_end=self.nodes_pos[node],
                         y_end=0,
                     )
@@ -1433,8 +1430,8 @@ class StaticResults():
                 FBD.add_layout(
                     Label(
                         x=self.nodes_pos[node],
-                        y=2*y_start,
-                        angle=np.pi/2,
+                        y=2 * y_start,
+                        angle=np.pi / 2,
                         text="Fd = " + text + "N",
                         text_font_style="bold",
                         text_font_size="10pt",
@@ -1496,7 +1493,9 @@ class StaticResults():
             interpolated_BM = interpolate.interp1d(
                 self.nodes_pos[i : i + 3], self.Bm[i : i + 3], kind="quadratic"
             )
-            xnew_BM = np.linspace(self.nodes_pos[i], self.nodes_pos[i + 2], num=42, endpoint=True)
+            xnew_BM = np.linspace(
+                self.nodes_pos[i], self.nodes_pos[i + 2], num=42, endpoint=True
+            )
 
             ynew_BM = interpolated_BM(xnew_BM)
             auxsource_BM = ColumnDataSource(data=dict(x=xnew_BM, y=ynew_BM))
@@ -1545,8 +1544,8 @@ class ConvergenceResults:
         )
 
         TOOLS = "pan,wheel_zoom,box_zoom,hover,reset,save,"
-        TOOLTIPS1 = [("Frequency:", "@y0"), ("Number of Elements", "@x0")]
-        TOOLTIPS2 = [("Relative Error:", "@y1"), ("Number of Elements", "@x0")]
+        TOOLTIPS1 = [("Frequency:", "@y_0"), ("Number of Elements", "@x_0")]
+        TOOLTIPS2 = [("Relative Error:", "@y1"), ("Number of Elements", "@x_0")]
 
         # create a new plot and add a renderer
         freq_arr = figure(
@@ -1561,8 +1560,8 @@ class ConvergenceResults:
         freq_arr.xaxis.axis_label_text_font_size = "14pt"
         freq_arr.yaxis.axis_label_text_font_size = "14pt"
 
-        freq_arr.line("x0", "y0", source=source, line_width=3, line_color="crimson")
-        freq_arr.circle("x0", "y0", source=source, size=8, fill_color="crimson")
+        freq_arr.line("x_0", "y_0", source=source, line_width=3, line_color="crimson")
+        freq_arr.circle("x_0", "y_0", source=source, size=8, fill_color="crimson")
 
         # create another new plot and add a renderer
         rel_error = figure(
@@ -1578,9 +1577,9 @@ class ConvergenceResults:
         rel_error.yaxis.axis_label_text_font_size = "14pt"
 
         rel_error.line(
-            "x0", "y1", source=source, line_width=3, line_color="darkslategray"
+            "x_0", "y1", source=source, line_width=3, line_color="darkslategray"
         )
-        rel_error.circle("x0", "y1", source=source, fill_color="darkslategray", size=8)
+        rel_error.circle("x_0", "y1", source=source, fill_color="darkslategray", size=8)
 
         # put the subplots in a gridplot
         plot = gridplot([[freq_arr, rel_error]])
@@ -1643,7 +1642,8 @@ class TimeResponseResults:
             tools="pan, box_zoom, wheel_zoom, reset, save",
             width=1200,
             height=900,
-            title="Response for node %s and degree of freedom %s" % (self.dof // 4, obs_dof),
+            title="Response for node %s and degree of freedom %s"
+            % (self.dof // 4, obs_dof),
             x_axis_label="Time (s)",
             y_axis_label="Amplitude (%s)" % amp,
         )
@@ -1652,10 +1652,7 @@ class TimeResponseResults:
 
         # bokeh plot - plot shaft centerline
         bk_ax.line(
-                self.t,
-                self.yout[:, self.dof],
-                line_width=3,
-                line_color=bokeh_colors[0]
+            self.t, self.yout[:, self.dof], line_width=3, line_color=bokeh_colors[0]
         )
 
         show(bk_ax)

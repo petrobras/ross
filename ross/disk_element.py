@@ -100,7 +100,7 @@ class DiskElement(Element):
         return disk_elements
 
     def dof_mapping(self):
-        return dict(x0=0, y0=1, alpha0=2, beta0=3)
+        return dict(x_0=0, y_0=1, alpha_0=2, beta_0=3)
 
     def M(self):
         """
@@ -205,10 +205,10 @@ class DiskElement(Element):
         ax.add_patch(mpatches.Polygon(disk_points_l, facecolor=self.color))
 
         ax.add_patch(
-            mpatches.Circle(xy=(zpos, ypos*4), radius=step, color=self.color)
+            mpatches.Circle(xy=(zpos, ypos * 4), radius=step, color=self.color)
         )
         ax.add_patch(
-            mpatches.Circle(xy=(zpos, -ypos*4), radius=step, color=self.color)
+            mpatches.Circle(xy=(zpos, -ypos * 4), radius=step, color=self.color)
         )
 
     def bokeh_patch(self, position, bk_ax):
@@ -306,12 +306,11 @@ class DiskElement(Element):
             ("Polar Moment of Inertia :", "@IP"),
             ("Diametral Moment of Inertia :", "@ID"),
             ("Disk mass :", "@mass"),
-            ("Tag :", "@tag")
+            ("Tag :", "@tag"),
         ]
         hover.mode = "mouse"
 
         return hover
-
 
     @classmethod
     def from_geometry(cls, n, material, width, i_d, o_d, tag=None):
@@ -382,9 +381,15 @@ class DiskElement(Element):
         disk : list
             A list of disk objects.
         """
-        parameters = read_table_file(file, 'disk', sheet_name=sheet_name)
+        parameters = read_table_file(file, "disk", sheet_name=sheet_name)
         list_of_disks = []
-        for i in range(0, len(parameters['n'])):
-            list_of_disks.append(cls(n=parameters['n'][i], m=parameters['m'][i],
-                                     Id=parameters['Id'][i], Ip=parameters['Ip'][i]))
+        for i in range(0, len(parameters["n"])):
+            list_of_disks.append(
+                cls(
+                    n=parameters["n"][i],
+                    m=parameters["m"][i],
+                    Id=parameters["Id"][i],
+                    Ip=parameters["Ip"][i],
+                )
+            )
         return list_of_disks

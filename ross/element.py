@@ -78,14 +78,14 @@ class Element(ABC):
         Example considering a shaft element:
         def dof_mapping(self):
             return dict(
-                x0=0,
-                y0=1,
-                alpha0=2,
-                beta0=3,
-                x1=4,
-                y1=5,
-                alpha1=6,
-                beta1=7,
+                x_0=0,
+                y_0=1,
+                alpha_0=2,
+                beta_0=3,
+                x_1=4,
+                y_1=5,
+                alpha_1=6,
+                beta_1=7,
             )
         """
         pass
@@ -101,11 +101,15 @@ class Element(ABC):
     def dof_global_index(self):
         """Get the global index for a element specific degree of freedom."""
         dof_mapping = self.dof_mapping()
-        dof_tuple = namedtuple("GlobalIndex", dof_mapping)
-
+        global_dof_mapping = {}
         for k, v in dof_mapping.items():
-            dof_mapping[k] = 4 * self.n + v
+            dof_letter, dof_number = k.split("_")
+            global_dof_mapping[dof_letter + "_" + str(int(dof_number) + self.n)] = v
+        dof_tuple = namedtuple("GlobalIndex", global_dof_mapping)
 
-        global_index = dof_tuple(**dof_mapping)
+        for k, v in global_dof_mapping.items():
+            global_dof_mapping[k] = 4 * self.n + v
+
+        global_index = dof_tuple(**global_dof_mapping)
 
         return global_index
