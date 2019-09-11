@@ -1,12 +1,10 @@
 import numpy as np
 import pandas as pd
-import xlrd
-import sys
-from ross.materials import Material
-from bokeh.io import show, output_notebook
-from bokeh.plotting import figure, ColumnDataSource
+from bokeh.models import LogColorMapper
 from bokeh.palettes import Viridis256
-from bokeh.models import LinearColorMapper, LogColorMapper
+from bokeh.plotting import figure
+
+from ross.materials import Material
 
 
 class DataNotFoundError(Exception):
