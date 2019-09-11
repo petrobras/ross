@@ -321,8 +321,8 @@ class BearingElement(Element):
 
         if self.n_link is not None:
             global_index = global_index._asdict()
-            global_index["x1"] = 4 * self.n_link
-            global_index["y1"] = 4 * self.n_link + 1
+            global_index[f"x_{self.n_link}"] = 4 * self.n_link
+            global_index[f"y_{self.n_link}"] = 4 * self.n_link + 1
             dof_tuple = namedtuple("GlobalIndex", global_index)
             global_index = dof_tuple(**global_index)
 

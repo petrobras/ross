@@ -208,10 +208,11 @@ def test_from_table():
 def test_bearing_link_global_index():
     b0 = BearingElement(n=0, n_link=3, kxx=1, cxx=1)
     idx = b0.dof_global_index()
-    assert idx.x0 == 0
-    assert idx.y0 == 1
-    assert idx.x1 == 12
-    assert idx.y1 == 13
+    assert idx.x_0 == 0
+    assert idx.y_0 == 1
+    print(idx)
+    assert idx.x_3 == 12
+    assert idx.y_3 == 13
 
 
 def test_bearing_link_matrices():
