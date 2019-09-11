@@ -535,11 +535,12 @@ class BearingElement(Element):
         bk_ax.line(x=x_top, y=yu_top, legend="Bearing", **kwargs)
 
         # plot ground
-        zl_g = [zs0 - step, zs1 + step]
-        yl_g = [yl_top[0], yl_top[0]]
-        yu_g = [-y for y in yl_g]
-        bk_ax.line(x=zl_g, y=yl_g, **kwargs)
-        bk_ax.line(x=zl_g, y=yu_g, **kwargs)
+        if self.n_link is not None:
+            zl_g = [zs0 - step, zs1 + step]
+            yl_g = [yl_top[0], yl_top[0]]
+            yu_g = [-y for y in yl_g]
+            bk_ax.line(x=zl_g, y=yl_g, **kwargs)
+            bk_ax.line(x=zl_g, y=yu_g, **kwargs)
 
         step2 = (zl_g[1] - zl_g[0]) / n
         for i in range(n + 1):
