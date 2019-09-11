@@ -221,6 +221,21 @@ class BearingElement(Element):
         )
 
     def __eq__(self, other):
+        """This function allows bearing elements to be compared.
+        Parameters
+        ----------
+
+        Returns
+        -------
+        bool
+            True if the comparison is true; False otherwise.
+        Examples
+        --------
+        >>> bearing1 = bearing_example()
+        >>> bearing2 = bearing_example()
+        >>> bearing1 == bearing2
+        True
+        """
         compared_attributes = [
             "kxx",
             "kyy",
