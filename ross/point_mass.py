@@ -3,7 +3,7 @@
 This module defines the PointMass class which will be used to link elements.
 """
 import numpy as np
-from .element import Element
+from ross.element import Element
 
 __all__ = ["PointMass"]
 
@@ -13,26 +13,50 @@ class PointMass(Element):
 
     This class will create a point mass element.
     This element can be used to link other elements in the analysis.
+    The mass provided to the element can be different on the x and y direction
+    (e.g. different support inertia for x and y directions).
 
     Parameters
     ----------
     n: int
         Node which the bearing will be located in.
-    m: float
+    m: float, optional
         Mass for the element.
+    mx: float, optional
+        Mass for the element on the x direction.
+    my: float, optional
+        Mass for the element on the y direction.
+
+    Examples
+    --------
+    >>> p0 = PointMass(n=0, m=2)
+    >>> p0.M()
+    array([[2, 0],
+           [0, 2]])
+    >>> p1 = PointMass(n=0, mx=2, my=3)
+    >>> p1.M()
+    array([[2, 0],
+           [0, 3]])
     """
 
-    def __init__(self, n=None, m=None):
-
+    def __init__(self, n=None, m=None, mx=None, my=None):
         self.n = n
         self.m = m
 
+        if mx is None and my is None:
+            mx = m
+            my = m
+
+        self.mx = mx
+        self.my = my
+
     def M(self):
         """Mass matrix."""
-        m = self.m
+        mx = self.mx
+        my = self.my
         # fmt: off
-        M = np.array([[m, 0],
-                      [0, m]])
+        M = np.array([[mx, 0],
+                      [0, my]])
         # fmt: on
 
         return M
