@@ -538,7 +538,7 @@ class BearingElement(Element):
         bk_ax.line(x=x_top, y=yu_top, legend="Bearing", **kwargs)
 
         # plot ground
-        if self.n_link is not None:
+        if self.n_link is None:
             zl_g = [zs0 - step, zs1 + step]
             yl_g = [yl_top[0], yl_top[0]]
             yu_g = [-y for y in yl_g]
