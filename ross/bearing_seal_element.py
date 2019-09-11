@@ -485,6 +485,9 @@ class BearingElement(Element):
 
         Returns
         -------
+
+        Examples
+        --------
         """
         default_values = dict(lw=1.0, alpha=1.0, c="k")
         for k, v in default_values.items():
