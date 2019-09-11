@@ -360,6 +360,20 @@ class BearingElement(Element):
         return bearing_elements
 
     def dof_mapping(self):
+        """Returns a dictionary with a mapping between degree of freedom and its index.
+        Parameters
+        ----------
+
+        Returns
+        -------
+        A dictionary containing the degrees of freedom and their indexes.
+
+        Examples
+        --------
+        >>> bearing = bearing_example()
+        >>> bearing.dof_mapping()
+        {'x0': 0, 'y0': 1}
+        """
         return dict(x0=0, y0=1)
 
     def M(self):
