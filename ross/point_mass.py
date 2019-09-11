@@ -50,4 +50,4 @@ class PointMass(Element):
         return np.zeros((2, 2))
 
     def dof_mapping(self):
-        return dict(x0=0, y0=1)
+        return dict(x_0=0, y_0=1)
