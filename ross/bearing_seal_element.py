@@ -147,7 +147,18 @@ class BearingElement(Element):
     """
 
     def __init__(
-        self, n, kxx, cxx, kyy=None, kxy=0, kyx=0, cyy=None, cxy=0, cyx=0, w=None, tag=None
+        self,
+        n,
+        kxx,
+        cxx,
+        kyy=None,
+        kxy=0,
+        kyx=0,
+        cyy=None,
+        cxy=0,
+        cyx=0,
+        w=None,
+        tag=None,
     ):
 
         args = ["kxx", "kyy", "kxy", "kyx", "cxx", "cyy", "cxy", "cyx"]
@@ -374,7 +385,7 @@ class BearingElement(Element):
         >>> bearing.dof_mapping()
         {'x0': 0, 'y0': 1}
         """
-        return dict(x0=0, y0=1)
+        return dict(x_0=0, y_0=1)
 
     def M(self):
         """Returns the mass matrix.
