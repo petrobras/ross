@@ -2173,11 +2173,8 @@ class Rotor(object):
         
         Example
         -------
-        >>> rotor = rotor_example()
-        >>> rotor.save('new_rotor2')
         >>> Rotor.available_rotors()
-        ['Rotor_format', 'new_rotor2', 'Benchmarks']
-        >>> Rotor.remove('new_rotor2')
+        ['Rotor_format', 'Benchmarks']
         """
         return [x for x in os.listdir(Path(os.path.dirname(ross.__file__)) / "rotors")]
 
@@ -2195,7 +2192,7 @@ class Rotor(object):
         >>> rotor = rotor_example()
         >>> rotor.save('new_rotor2')
         >>> Rotor.available_rotors()
-        ['Rotor_format', 'new_rotor2', 'Benchmarks']
+        ['Rotor_format', 'Benchmarks', 'new_rotor2']
         >>> Rotor.remove('new_rotor2')
         >>> Rotor.available_rotors()
         ['Rotor_format', 'Benchmarks']
