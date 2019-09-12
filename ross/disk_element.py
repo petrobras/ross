@@ -50,6 +50,23 @@ class DiskElement(Element):
         self.color = "#bc625b"
 
     def __eq__(self, other):
+        """This function allows disk elements to be compared.
+        Parameters
+        ----------
+        other: object
+            The second object to be compared with.
+
+        Returns
+        -------
+        bool
+            True if the comparison is true; False otherwise.
+        Examples
+        --------
+        >>> disk1 = disk_example()
+        >>> disk2 = disk_example()
+        >>> disk1 == disk2
+        True
+        """
         false_number = 0
         for i in self.__dict__:
             try:
