@@ -356,7 +356,7 @@ class Rotor(object):
         -------
         >>> rotor = rotor_example()
         >>> rotor.wn[:2]
-        array([91.79655318,  96.28899977])
+        array([91.79655318, 96.28899977])
         >>> rotor.wd[:2]
         array([91.79655318, 96.28899977])
         """
@@ -1781,33 +1781,28 @@ class Rotor(object):
 
         Example
         -------
-        >>> import ross as rs
         >>> i_d = 0
         >>> o_d = 0.05
         >>> n = 6
         >>> L = [0.25 for _ in range(n)]
-
         >>> shaft_elem = [
-        ...     rs.ShaftElement(
+        ...     ShaftElement(
         ...         l, i_d, o_d, steel, shear_effects=True,
         ...         rotary_inertia=True, gyroscopic=True
         ...     )
         ...     for l in L
         ... ]
-
-        >>> disk0 = rs.DiskElement.from_geometry(
+        >>> disk0 = DiskElement.from_geometry(
         ...     n=2, material=steel, width=0.07, i_d=0.05, o_d=0.28
         ... )
-        >>> disk1 = rs.DiskElement.from_geometry(
+        >>> disk1 = DiskElement.from_geometry(
         ...     n=4, material=steel, width=0.07, i_d=0.05, o_d=0.28
         ... )
-
         >>> stfx = [1e6, 2e7, 3e8]
         >>> stfy = [0.8e6, 1.6e7, 2.4e8]
-        >>> bearing0 = rs.BearingElement(0, kxx=stfx, kyy=stfy, cxx=0, w=[0,1000, 2000])
-        >>> bearing1 = rs.BearingElement(6, kxx=stfx, kyy=stfy, cxx=0, w=[0,1000, 2000])
-
-        >>> rotor = rs.Rotor(shaft_elem, [disk0, disk1], [bearing0, bearing1])
+        >>> bearing0 = BearingElement(0, kxx=stfx, kyy=stfy, cxx=0, w=[0,1000, 2000])
+        >>> bearing1 = BearingElement(6, kxx=stfx, kyy=stfy, cxx=0, w=[0,1000, 2000])
+        >>> rotor = Rotor(shaft_elem, [disk0, disk1], [bearing0, bearing1])
         >>> rotor.plot_ucs() # doctest: +ELLIPSIS
         (<matplotlib.axes._subplots.AxesSubplot ...
         """
@@ -1836,7 +1831,6 @@ class Rotor(object):
             rotor = self.__class__(
                 self.shaft_elements, self.disk_elements, bearings, n_eigen=16
             )
-            rotor.run()
             rotor_wn[:, i] = rotor.wn[:8:2]
 
         ax.set_prop_cycle(cycler("color", seaborn_colors))
@@ -1941,6 +1935,32 @@ class Rotor(object):
             Returns the axes object with the plot.
         bk_ax : bokeh plot axes
             Returns the axes object with the plot.
+        Example
+        -------
+        >>> i_d = 0
+        >>> o_d = 0.05
+        >>> n = 6
+        >>> L = [0.25 for _ in range(n)]
+        >>> shaft_elem = [
+        ...     ShaftElement(
+        ...         l, i_d, o_d, steel, shear_effects=True,
+        ...         rotary_inertia=True, gyroscopic=True
+        ...     )
+        ...     for l in L
+        ... ]
+        >>> disk0 = DiskElement.from_geometry(
+        ...     n=2, material=steel, width=0.07, i_d=0.05, o_d=0.28
+        ... )
+        >>> disk1 = DiskElement.from_geometry(
+        ...     n=4, material=steel, width=0.07, i_d=0.05, o_d=0.28
+        ... )
+        >>> stfx = 1e6
+        >>> stfy = 0.8e6
+        >>> bearing0 = BearingElement(0, kxx=stfx, kyy=stfy, cxx=0)
+        >>> bearing1 = BearingElement(6, kxx=stfx, kyy=stfy, cxx=0)
+        >>> rotor = Rotor(shaft_elem, [disk0, disk1], [bearing0, bearing1], rated_w=0)
+        >>> rotor.plot_level1(n=0, stiffness_range=(1e6, 1e11)) # doctest: +ELLIPSIS
+        (<matplotlib.axes._subplots.AxesSubplot ...
         """
         if ax is None:
             ax = plt.gca()
