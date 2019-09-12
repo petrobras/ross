@@ -393,3 +393,26 @@ class DiskElement(Element):
                 )
             )
         return list_of_disks
+
+
+def disk_example():
+    """This function returns an instance of a simple disk.
+    The purpose is to make available a simple model
+    so that doctest can be written using it.
+
+    Parameters
+    ----------
+
+    Returns
+    -------
+    An instance of a disk object.
+
+    Examples
+    --------
+    >>> disk = disk_example()
+    >>> disk.Ip
+    0.32956362
+    """
+    disk = DiskElement(0, 32.58972765, 0.17808928, 0.32956362)
+    return disk
+
