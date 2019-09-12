@@ -232,6 +232,23 @@ class DiskElement(Element):
         return K
 
     def C(self):
+        """Returns the damping matrix.
+        Parameters
+        ----------
+
+        Returns
+        -------
+        A matrix of floats containing the values of the damping matrix.
+
+        Examples
+        --------
+        >>> disk = disk_example()
+        >>> disk.C()
+        array([[0., 0., 0., 0.],
+               [0., 0., 0., 0.],
+               [0., 0., 0., 0.],
+               [0., 0., 0., 0.]])
+        """
         C = np.zeros((4, 4))
 
         return C
