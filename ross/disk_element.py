@@ -108,6 +108,22 @@ class DiskElement(Element):
         )
 
     def save(self, file_name):
+        """Saves a disk element in a toml format. It works as an auxiliary function of
+        the save function in the Rotor class.
+        Parameters
+        ----------
+        file_name: string
+            The name of the file the disk element will be saved in.
+
+        Returns
+        -------
+        None
+
+        Examples
+        --------
+        >>> disk = disk_example()
+        >>> disk.save('DiskElement.toml')
+        """
         data = self.load_data(file_name)
         data["DiskElement"][str(self.n)] = {
             "n": self.n,
