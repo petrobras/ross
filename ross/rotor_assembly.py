@@ -2083,7 +2083,8 @@ class Rotor(object):
         Examples
         --------
         >>> rotor = rotor_example()
-        >>> rotor.save('new_rotor.toml')
+        >>> rotor.save('new_rotor')
+        >>> Rotor.remove('new_rotor')
         """
         main_path = os.path.dirname(ross.__file__)
         path = Path(main_path)
@@ -2133,10 +2134,11 @@ class Rotor(object):
         Example
         -------
         >>> rotor1 = rotor_example()
-        >>> rotor1.save('new_rotor.toml')
-        >>> rotor2 = Rotor.load('new_rotor.toml')
+        >>> rotor1.save('new_rotor1')
+        >>> rotor2 = Rotor.load('new_rotor1')
         >>> rotor1 == rotor2
-        True   
+        True
+        >>> Rotor.remove('new_rotor1')
         """
         main_path = os.path.dirname(ross.__file__)
         rotor_path = Path(main_path) / "rotors" / file_name
@@ -2172,9 +2174,10 @@ class Rotor(object):
         Example
         -------
         >>> rotor = rotor_example()
-        >>> rotor.save('new_rotor.toml')
+        >>> rotor.save('new_rotor2')
         >>> Rotor.available_rotors()
-        ['new_rotor.toml']
+        ['Rotor_format', 'new_rotor2', 'Benchmarks']
+        >>> Rotor.remove('new_rotor2')
         """
         return [x for x in os.listdir(Path(os.path.dirname(ross.__file__)) / "rotors")]
 
@@ -2189,15 +2192,13 @@ class Rotor(object):
 
         Example
         -------
-        >>> rotor1 = rotor_example()
-        >>> rotor2 = rotor_example()
-        >>> rotor1.save('new_rotor1.toml')
-        >>> rotor2.save('new_rotor2.toml')
+        >>> rotor = rotor_example()
+        >>> rotor.save('new_rotor2')
         >>> Rotor.available_rotors()
-        ['new_rotor1.toml', 'new_rotor2.toml']
-        >>> Rotor.remove('new_rotor2.toml')
+        ['Rotor_format', 'new_rotor2', 'Benchmarks']
+        >>> Rotor.remove('new_rotor2')
         >>> Rotor.available_rotors()
-        ['new_rotor1.toml']
+        ['Rotor_format', 'Benchmarks']
         """
         shutil.rmtree(Path(os.path.dirname(ross.__file__)) / "rotors" / rotor_name)
 
