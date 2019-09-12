@@ -87,6 +87,19 @@ class DiskElement(Element):
             return False
 
     def __repr__(self):
+        """This function returns a string representation of a disk element.
+        Parameters
+        ----------
+
+        Returns
+        -------
+        A string representation of a disk object.
+        Examples
+        --------
+        >>> disk = disk_example()
+        >>> disk # doctest: +ELLIPSIS
+        DiskElement(Id=0.17809, Ip=0.32956...
+        """
         return (
             f"{self.__class__.__name__}"
             f"(Id={self.Id:{0}.{5}}, Ip={self.Ip:{0}.{5}}, "
