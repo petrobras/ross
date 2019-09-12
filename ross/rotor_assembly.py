@@ -1096,8 +1096,7 @@ class Rotor(object):
         -------
         >>> rotor = rotor_example()
         >>> speed = 100.0
-        >>> rotor.transfer_matrix(speed=speed) # doctest: +ELLIPSIS
-        array([[-1.70184858e-06-4.58073029e-19j, ...
+        >>> H = rotor.transfer_matrix(speed=speed)
         """
         B = self.lti.B
         C = self.lti.C
@@ -1258,9 +1257,8 @@ class Rotor(object):
         --------
         >>> rotor = rotor_example()
         >>> speed = np.linspace(0, 1000, 101)
-        >>> force = rotor._unbalance_force(3, 10.0, 0.0, speed)
-        >>> force[12] # doctest: +ELLIPSIS
-        array([0.000e+00+0.j, 1.000e+03+0.j, 4.000e+03+0.j, 9.000e+03+0.j, ...
+        >>> rotor._unbalance_force(3, 10.0, 0.0, speed)[12] # doctest: +ELLIPSIS
+        array([0.000e+00+0.j, 1.000e+03+0.j, 4.000e+03+0.j, ...
         """
 
         F0 = np.zeros((self.ndof, len(omega)), dtype=np.complex128)
@@ -1388,7 +1386,12 @@ class Rotor(object):
         ax : matplotlib axes
             Returns the axes object with the plot.
 
-        Examples:
+        Example
+        -------
+        >>> import ross as rs
+        >>> rotor = rs.rotor_example()
+        >>> rotor._plot_rotor_matplotlib() # doctest: +ELLIPSIS
+        <matplotlib.axes...
         """
         if ax is None:
             ax = plt.gca()
@@ -1466,7 +1469,11 @@ class Rotor(object):
         bk_ax : bokeh plotting axes
             Returns the axes object with the plot.
 
-        Examples:
+        Example
+        -------
+        >>> import ross as rs
+        >>> rotor = rs.rotor_example()
+        >>> figure = rotor._plot_rotor_bokeh()
         """
         #  plot shaft centerline
         shaft_end = self.nodes_pos[-1]
@@ -1607,7 +1614,13 @@ class Rotor(object):
             Returns the axes object with the plot.
         bk_ax : bokeh plotting axes
             Returns the axes object with the plot.
-        Examples:
+
+        Example
+        -------
+        >>> import ross as rs
+        >>> rotor = rs.rotor_example()
+        >>> rotor.check_slenderness_ratio() # doctest: +ELLIPSIS
+        <matplotlib.axes...
         """
 
         # check slenderness ratio of beam elements
@@ -1697,7 +1710,26 @@ class Rotor(object):
         return results
 
     def run_mode_shapes(self):
+        """Evaluates the mode shapes for the rotor.
 
+        This analysis presents the vibration mode for each critical speed.
+
+        Parameters
+        ----------
+
+        Returns
+        -------
+        mode_shapes
+            An array with the modes, number of dof, nodes list, nodes position,
+            lenght of shaft elements, the rotor speed, damped natural frequency,
+            logarithmic decrement and the kappa modes
+
+        Example
+        -------
+        >>> rotor = rotor_example()
+        >>> rotor.run_mode_shapes() #doctest: +ELLIPSIS
+         <ross.results.ModeShapeResults ...
+        """
         kappa_modes = []
         for mode in range(len(self.wn)):
             kappa_color = []
@@ -1745,8 +1777,39 @@ class Rotor(object):
         ax : matplotlib axes
             Returns the axes object with the plot.
         bk_ax : bokeh plot axes
-            Returns the axes object with the plot. 
-       """
+            Returns the axes object with the plot.
+
+        Example
+        -------
+        >>> i_d = 0
+        >>> o_d = 0.05
+        >>> n = 6
+        >>> L = [0.25 for _ in range(n)]
+
+        >>> shaft_elem = [
+        ...     ShaftElement(
+        ...         l, i_d, o_d, steel, shear_effects=True,
+        ...         rotary_inertia=True, gyroscopic=True
+        ...     )
+        ...     for l in L
+        ... ]
+
+        >>> disk0 = DiskElement.from_geometry(
+        ...     n=2, material=steel, width=0.07, i_d=0.05, o_d=0.28
+        ... )
+        >>> disk1 = DiskElement.from_geometry(
+        ...     n=4, material=steel, width=0.07, i_d=0.05, o_d=0.28
+        ... )
+
+        >>> stfx = [1e6, 2e7, 3e8]
+        >>> stfy = [0.8e6, 1.6e7, 2.4e8]
+        >>> bearing0 = BearingElement(0, kxx=stfx, kyy=stfy, cxx=0, w=[0,1000, 2000])
+        >>> bearing1 = BearingElement(6, kxx=stfx, kyy=stfy, cxx=0, w=[0,1000, 2000])
+
+        >>> rotor = Rotor(shaft_elem, [disk0, disk1], [bearing0, bearing1])
+        >>> rotor.plot_ucs() # doctest: +ELLIPSIS
+        (<matplotlib.axes._subplots.AxesSubplot ...
+        """
         if ax is None:
             ax = plt.gca()
 
@@ -2280,6 +2343,10 @@ class Rotor(object):
             Number of eigenvalues calculated by arpack.
             Default is 12.
 
+        Returns
+        -------
+        A rotor object
+
         Example
         -------
 
@@ -2300,7 +2367,22 @@ class Rotor(object):
             raise ValueError("The matrices lenght do not match.")
 
         def rotor_regions(nel_r):
+            """
+            A subroutine to discretize each rotor region into n elements
 
+            Parameters
+            ----------
+            nel_r : int
+                Number of elements per region
+
+            Returns
+            -------
+            regions : list
+                List with elements
+
+            Example
+            -------
+            """
             regions = []
             shaft_elements = []
             disk_elements = []
