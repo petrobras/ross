@@ -259,7 +259,7 @@ class DiskElement(Element):
         element.
         Parameters
         ----------
-        self
+
         Returns
         -------
         Gyroscopic matrix for the disk element.
@@ -492,6 +492,13 @@ class DiskElement(Element):
         -------
         disk : list
             A list of disk objects.
+        Examples
+        --------
+        >>> import os
+        >>> file_path = os.path.dirname(os.path.realpath(__file__)) + '/tests/data/shaft_si.xls'
+        >>> list_of_disks = DiskElement.from_table(file_path, sheet_name="More")
+        >>> list_of_disks[0]
+        DiskElement(Id=0.0, Ip=0.0, m=15.12, color='#bc625b', n=4, tag=None)
         """
         parameters = read_table_file(file, "disk", sheet_name=sheet_name)
         list_of_disks = []
@@ -500,8 +507,8 @@ class DiskElement(Element):
                 cls(
                     n=parameters["n"][i],
                     m=parameters["m"][i],
-                    Id=parameters["Id"][i],
-                    Ip=parameters["Ip"][i],
+                    Id=float(parameters["Id"][i]),
+                    Ip=float(parameters["Ip"][i]),
                 )
             )
         return list_of_disks
