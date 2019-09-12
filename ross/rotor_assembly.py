@@ -1804,7 +1804,7 @@ class Rotor(object):
         >>> bearing1 = BearingElement(6, kxx=stfx, kyy=stfy, cxx=0, w=[0,1000, 2000])
         >>> rotor = Rotor(shaft_elem, [disk0, disk1], [bearing0, bearing1])
         >>> rotor.plot_ucs() # doctest: +ELLIPSIS
-        (<matplotlib.axes._subplots.AxesSubplot ...
+        <matplotlib.axes._subplots.AxesSubplot ...
         """
         if ax is None:
             ax = plt.gca()
@@ -2052,7 +2052,17 @@ class Rotor(object):
         return results
 
     def save_mat(self, file_name):
-        """Save matrices and rotor model to a .mat file."""
+        """Save matrices and rotor model to a .mat file.
+
+        Parameters
+        ----------
+        file_name : str
+
+        Examples
+        --------
+        >>> rotor = rotor_example()
+        >>> rotor.save_mat('new_matrices.mat')
+        """
         dic = {
             "M": self.M(),
             "K": self.K(),
@@ -2069,6 +2079,11 @@ class Rotor(object):
         Parameters
         ----------
         file_name : str
+
+        Examples
+        --------
+        >>> rotor = rotor_example()
+        >>> rotor.save('new_rotor.toml')
         """
         main_path = os.path.dirname(ross.__file__)
         path = Path(main_path)
@@ -2114,6 +2129,14 @@ class Rotor(object):
         Returns
         -------
         rotor : ross.rotor.Rotor
+
+        Example
+        -------
+        >>> rotor1 = rotor_example()
+        >>> rotor1.save('new_rotor.toml')
+        >>> rotor2 = Rotor.load('new_rotor.toml')
+        >>> rotor1 == rotor2
+        True   
         """
         main_path = os.path.dirname(ross.__file__)
         rotor_path = Path(main_path) / "rotors" / file_name
@@ -2143,10 +2166,39 @@ class Rotor(object):
 
     @staticmethod
     def available_rotors():
+        """
+        Displays previously saved rotors
+        
+        Example
+        -------
+        >>> rotor = rotor_example()
+        >>> rotor.save('new_rotor.toml')
+        >>> Rotor.available_rotors()
+        ['new_rotor.toml']
+        """
         return [x for x in os.listdir(Path(os.path.dirname(ross.__file__)) / "rotors")]
 
     @staticmethod
     def remove(rotor_name):
+        """
+        Remove a previously saved rotor
+
+        Parameters
+        ----------
+        file_name : str
+
+        Example
+        -------
+        >>> rotor1 = rotor_example()
+        >>> rotor2 = rotor_example()
+        >>> rotor1.save('new_rotor1.toml')
+        >>> rotor2.save('new_rotor2.toml')
+        >>> Rotor.available_rotors()
+        ['new_rotor1.toml', 'new_rotor2.toml']
+        >>> Rotor.remove('new_rotor2.toml')
+        >>> Rotor.available_rotors()
+        ['new_rotor1.toml']
+        """
         shutil.rmtree(Path(os.path.dirname(ross.__file__)) / "rotors" / rotor_name)
 
     def run_static(self):
