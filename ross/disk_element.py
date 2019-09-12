@@ -164,6 +164,20 @@ class DiskElement(Element):
         return disk_elements
 
     def dof_mapping(self):
+        """Returns a dictionary with a mapping between degree of freedom and its index.
+        Parameters
+        ----------
+
+        Returns
+        -------
+        A dictionary containing the degrees of freedom and their indexes.
+
+        Examples
+        --------
+        >>> disk = disk_example()
+        >>> disk.dof_mapping()
+        {'x_0': 0, 'y_0': 1, 'alpha_0': 2, 'beta_0': 3}
+        """
         return dict(x_0=0, y_0=1, alpha_0=2, beta_0=3)
 
     def M(self):
