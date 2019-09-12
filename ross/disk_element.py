@@ -136,6 +136,24 @@ class DiskElement(Element):
 
     @staticmethod
     def load(file_name="DiskElement"):
+        """Loads a list of disk elements saved in a toml format.
+        Parameters
+        ----------
+        file_name: string
+            The name of the file of the disk element to be loaded.
+
+        Returns
+        -------
+        A list of disk elements.
+
+        Examples
+        --------
+        >>> disk1 = disk_example()
+        >>> disk1.save('DiskElement.toml')
+        >>> list_of_disks = DiskElement.load('DiskElement.toml')
+        >>> disk1 == list_of_disks[0]
+        True
+        """
         disk_elements = []
         with open("DiskElement.toml", "r") as f:
             disk_elements_dict = toml.load(f)
