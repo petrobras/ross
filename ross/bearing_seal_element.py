@@ -235,6 +235,7 @@ class BearingElement(Element):
             "cxy",
             "cyx",
             "w",
+            "n",
         ]
         if isinstance(other, self.__class__):
             return all(
