@@ -186,7 +186,7 @@ class DiskElement(Element):
         element.
         Parameters
         ----------
-        self
+
         Returns
         -------
         Mass matrix for the disk element.
@@ -210,6 +210,23 @@ class DiskElement(Element):
         return M
 
     def K(self):
+        """Returns the stiffness matrix.
+        Parameters
+        ----------
+
+        Returns
+        -------
+        A matrix of floats containing the values of the stiffness matrix.
+
+        Examples
+        --------
+        >>> disk = disk_example()
+        >>> disk.K()
+        array([[0., 0., 0., 0.],
+               [0., 0., 0., 0.],
+               [0., 0., 0., 0.],
+               [0., 0., 0., 0.]])
+        """
         K = np.zeros((4, 4))
 
         return K
