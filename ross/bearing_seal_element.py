@@ -546,13 +546,13 @@ class BearingElement(Element):
             bk_ax.line(x=zl_g, y=yl_g, **kwargs)
             bk_ax.line(x=zl_g, y=yu_g, **kwargs)
 
-        step2 = (zl_g[1] - zl_g[0]) / n
-        for i in range(n + 1):
-            zl_g2 = [(zs0 - step) + step2 * (i), (zs0 - step) + step2 * (i + 1)]
-            yl_g2 = [yl_g[0], 1.1 * yl_g[0]]
-            yu_g2 = [-y for y in yl_g2]
-            bk_ax.line(x=zl_g2, y=yl_g2, **kwargs)
-            bk_ax.line(x=zl_g2, y=yu_g2, **kwargs)
+            step2 = (zl_g[1] - zl_g[0]) / n
+            for i in range(n + 1):
+                zl_g2 = [(zs0 - step) + step2 * (i), (zs0 - step) + step2 * (i + 1)]
+                yl_g2 = [yl_g[0], 1.1 * yl_g[0]]
+                yu_g2 = [-y for y in yl_g2]
+                bk_ax.line(x=zl_g2, y=yl_g2, **kwargs)
+                bk_ax.line(x=zl_g2, y=yu_g2, **kwargs)
 
         # plot spring
         z_spring = np.array([zs0, zs0, zs0, zs0])

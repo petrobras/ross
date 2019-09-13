@@ -386,11 +386,11 @@ class Rotor(object):
         for z_pos in z_positions:
             dfb_z_pos = dfb[dfb.nodes_pos_l == z_pos]
             dfb_z_pos = dfb_z_pos.sort_values(by="n_l")
-            y_pos = nodes_o_d[int(dfb_z_pos.iloc[0]["n_l"])]
+            y_pos = nodes_o_d[int(dfb_z_pos.iloc[0]["n_l"])] / 2
             mean_od = np.mean(nodes_o_d)
             for t in dfb_z_pos.tag:
                 df.loc[df.tag == t, "y_pos"] = y_pos
-                y_pos += mean_od / 2
+                y_pos += mean_od
 
         # define position for point mass elements
         dfb = df[df.type == "BearingElement"]
@@ -1320,7 +1320,7 @@ class Rotor(object):
             position = (self.nodes_pos[disk.n], self.nodes_o_d[disk.n] / 2)
             disk.patch(position, ax)
 
-        mean_od = np.mean(self.nodes_o_d)
+        mean_od = np.mean(self.nodes_o_d) / 2
         # plot bearings
         for bearing in self.bearing_seal_elements:
             position = (self.nodes_pos[bearing.n], self.nodes_o_d[bearing.n] / 2)
@@ -1423,7 +1423,9 @@ class Rotor(object):
         mean_od = np.mean(self.nodes_o_d) / 2
         # plot bearings
         for bearing in self.bearing_seal_elements:
-            position = (self.nodes_pos[bearing.n], self.nodes_o_d[bearing.n] / 2)
+            z_pos = self.df[self.df.tag == bearing.tag]["nodes_pos_l"].values[0]
+            y_pos = self.df[self.df.tag == bearing.tag]["y_pos"].values[0]
+            position = (z_pos, y_pos)
             bearing.bokeh_patch(position, mean_od, bk_ax)
 
         show(bk_ax)
