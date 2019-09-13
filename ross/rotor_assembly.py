@@ -4,6 +4,7 @@ import warnings
 from collections import Iterable
 from copy import copy, deepcopy
 from pathlib import Path
+from itertools import cycle
 
 import bokeh.palettes as bp
 import matplotlib as mpl
@@ -351,9 +352,45 @@ class Rotor(object):
             df.loc[df.tag == disk.tag, "y_pos"] = y_pos
 
         # define positions for bearings
-        # TODO group bearings that share the same node
+        # check if there are bearings without location
+        bearings_no_zloc = {
+            b
+            for b in bearing_seal_elements
+            if pd.isna(df.loc[df.tag == b.tag, "nodes_pos_l"]).all()
+        }
+        # cycle while there are bearings without a z location
+        for b in cycle(bearing_seal_elements):
+            if bearings_no_zloc:
+                if b in bearings_no_zloc:
+                    # first check if b.n is on list, if not, check for n_link
+                    node_l = df.loc[(df.n_l == b.n) & (df.tag != b.tag), "nodes_pos_l"]
+                    node_r = df.loc[(df.n_r == b.n) & (df.tag != b.tag), "nodes_pos_r"]
+                    if len(node_l) == 0 and len(node_r) == 0:
+                        node_l = df.loc[
+                            (df.n_link == b.n) & (df.tag != b.tag), "nodes_pos_l"
+                        ]
+                        node_r = node_l
+                    if len(node_l):
+                        df.loc[df.tag == b.tag, "nodes_pos_l"] = node_l.values[0]
+                        df.loc[df.tag == b.tag, "nodes_pos_r"] = node_l.values[0]
+                        bearings_no_zloc.discard(b)
+                    elif len(node_r):
+                        df.loc[df.tag == b.tag, "nodes_pos_l"] = node_r.values[0]
+                        df.loc[df.tag == b.tag, "nodes_pos_r"] = node_r.values[0]
+                        bearings_no_zloc.discard(b)
+            else:
+                break
 
-        # define positions for point masses
+        dfb = df[df.type == "BearingElement"]
+        z_positions = [pos for pos in dfb["nodes_pos_l"]]
+        for z_pos in z_positions:
+            dfb_z_pos = dfb[dfb.nodes_pos_l == z_pos]
+            dfb_z_pos = dfb_z_pos.sort_values(by="n_l")
+            y_pos = nodes_o_d[int(dfb_z_pos.iloc[0]["n_l"])]
+            mean_od = np.mean(nodes_o_d)
+            for t in dfb_z_pos.tag:
+                df.loc[df.tag == t, "y_pos"] = y_pos
+                y_pos += mean_od / 2
 
         self.df = df
 
