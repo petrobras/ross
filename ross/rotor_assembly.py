@@ -392,6 +392,15 @@ class Rotor(object):
                 df.loc[df.tag == t, "y_pos"] = y_pos
                 y_pos += mean_od / 2
 
+        # define position for point mass elements
+        dfb = df[df.type == "BearingElement"]
+        for p in point_mass_elements:
+            z_pos = dfb[dfb.n_l == p.n]["nodes_pos_l"].values[0]
+            y_pos = dfb[dfb.n_l == p.n]["y_pos"].values[0]
+            df.loc[df.tag == p.tag, "nodes_pos_l"] = z_pos
+            df.loc[df.tag == p.tag, "nodes_pos_r"] = z_pos
+            df.loc[df.tag == p.tag, "y_pos"] = y_pos
+
         self.df = df
 
         self.run_modal()
