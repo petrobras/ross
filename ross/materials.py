@@ -177,6 +177,16 @@ class Material:
 
     @staticmethod
     def load_data():
+        """Auxiliary function to load all saved materials properties in the use_material method.
+
+        Parameters
+        ----------
+
+        Returns
+        ----------
+        data : dict
+            Containing all data needed to instantiate a Material Object.
+        """
         try:
             with open("available_materials.toml", "r") as f:
                 data = toml.load(f)
