@@ -96,6 +96,23 @@ class Material:
             return False
 
     def __repr__(self):
+        """Function used to give a representation of a Material element, when called.
+
+        Parameters
+        ----------
+        self : Material
+
+        Returns
+        ----------
+        string : Representation of the given Material.
+
+        Examples
+        ----------
+        >>> import ross as rs
+        >>> steel = rs.steel
+        >>> steel # doctest: +ELLIPSIS
+        Material(name="Steel", rho=7.810e+03, G_s=8.120e+10, E=2.110e+11, Poisson=2.993e-01, color='#525252')
+        """
         selfE = "{:.3e}".format(self.E)
         selfPoisson = "{:.3e}".format(self.Poisson)
         selfrho = "{:.3e}".format(self.rho)
