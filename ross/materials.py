@@ -125,6 +125,28 @@ class Material:
         )
 
     def __str__(self):
+        """Function used to set what is shown when a Material is printed.
+
+        Parameters
+        ----------
+        self : Material
+
+        Returns
+        ----------
+        str
+            Containing all the Materials properties organized in a table.
+
+        Examples
+        ----------
+        >>> import ross as rs
+        >>> print(rs.steel)
+        Steel
+        -----------------------------------
+        Density         (N/m**3): 7810.0
+        Young`s modulus (N/m**2): 2.11e+11
+        Shear modulus   (N/m**2): 8.12e+10
+        Poisson coefficient     : 0.29926108
+        """
         return (
             f"{self.name}"
             f'\n{35*"-"}'
