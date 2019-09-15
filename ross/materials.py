@@ -88,7 +88,7 @@ class Material:
         False
         """
         self_list = [v for v in self.__dict__.values() if isinstance(v, (float, int))]
-        other_list = [v for v in self.__dict__.values() if isinstance(v, (float, int))]
+        other_list = [v for v in other.__dict__.values() if isinstance(v, (float, int))]
 
         if np.allclose(self_list, other_list):
             return True
