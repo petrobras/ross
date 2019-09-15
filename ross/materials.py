@@ -158,6 +158,20 @@ class Material:
 
     @staticmethod
     def dump_data(data):
+        """Auxiliary function to save the materials properties in the save method.
+
+
+        Parameters
+        ----------
+
+        data : dict
+            Dictionary containing all data needed to instantiate the Object.
+
+        Returns
+        ----------
+
+
+        """
         with open("available_materials.toml", "w") as f:
             toml.dump(data, f)
 
