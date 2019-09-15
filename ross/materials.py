@@ -228,6 +228,23 @@ class Material:
 
     @staticmethod
     def remove_material(name):
+        """Function used to delete a saved material.
+
+        Parameters
+        ----------
+        name : Name of Material Object to be deleted.
+
+        Returns
+        ----------
+
+        Examples
+        ----------
+        >>> import ross as rs
+        >>> steel = rs.steel
+        >>> steel.name = 'test_material'
+        >>> steel.save_material()
+        >>> steel.remove_material('test_material')
+        """
         run_path = os.getcwd()
         ross_path = os.path.dirname(rs.__file__)
         os.chdir(ross_path)
