@@ -67,7 +67,26 @@ class Material:
             self.Poisson = (self.E / (2 * self.G_s)) - 1
 
     def __eq__(self, other):
-        """Material is considered equal if properties are equal."""
+        """Function used to compare two Materials.
+
+        Parameters
+        ----------
+        self : Material
+        other: Material
+
+        Returns
+        ----------
+        bool
+            True if all the Materials properties are equivalent.
+
+        Examples
+        ----------
+        >>> import ross as rs
+        >>> steel = rs.steel
+        >>> AISI4140 = rs.Material.use_material('AISI4140')
+        >>> steel == AISI4140
+        False
+        """
         self_list = [v for v in self.__dict__.values() if isinstance(v, (float, int))]
         other_list = [v for v in self.__dict__.values() if isinstance(v, (float, int))]
 
