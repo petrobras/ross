@@ -197,6 +197,23 @@ class Material:
 
     @staticmethod
     def use_material(name):
+        """Function to load the materials properties and instantiate a Material Object.
+
+        Parameters
+        ----------
+        name : Material's name.
+
+        Returns
+        ----------
+        Material : Material Object
+
+        Examples
+        ----------
+        >>> import ross as rs
+        >>> AISI4140 = rs.Material.use_material('AISI4140')
+        >>> AISI4140
+        Material(name="AISI4140", rho=7.850e+03, G_s=8.000e+10, E=2.032e+11, Poisson=2.700e-01, color='#525252')
+        """
         run_path = os.getcwd()
         ross_path = os.path.dirname(rs.__file__)
         os.chdir(ross_path)
