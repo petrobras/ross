@@ -259,6 +259,24 @@ class Material:
 
     @staticmethod
     def available_materials():
+        """Function used to get a list of all saved material's names.
+
+        Parameters
+        ----------
+
+
+        Returns
+        ----------
+        list
+            A list containing all saved material's names.
+        Examples
+        ----------
+        >>> import ross as rs
+        >>> steel = rs.steel
+        >>> steel.name = 'test_material'
+        >>> steel.save_material()
+        >>> steel.remove_material('test_material')
+        """
         run_path = os.getcwd()
         ross_path = os.path.dirname(rs.__file__)
         os.chdir(ross_path)
@@ -271,6 +289,23 @@ class Material:
         os.chdir(run_path)
 
     def save_material(self):
+        """Function used to delete a saved material.
+
+        Parameters
+        ----------
+        self : Material.
+
+        Returns
+        ----------
+
+        Examples
+        ----------
+        >>> import ross as rs
+        >>> steel = rs.steel
+        >>> steel.name = 'test_material'
+        >>> steel.save_material()
+        >>> steel.remove_material('test_material')
+        """
         run_path = os.getcwd()
         ross_path = os.path.dirname(rs.__file__)
         os.chdir(ross_path)
