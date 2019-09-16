@@ -1010,14 +1010,36 @@ class Rotor(object):
         return kappa_mode
 
     def whirl_direction(self):
-        """Get the whirl direction for each frequency."""
+        """Get the whirl direction for each frequency.
+
+        Parameters
+        ----------
+
+        Returns
+        -------
+        whirl_w : array
+            An array of strings indicating the direction of precession related
+            to the kappa_mode. Backward, Mixed or Forward depending on values
+            of kappa_mode.
+        """
         # whirl direction/values are methods because they are expensive.
         whirl_w = [whirl(self.kappa_mode(wd)) for wd in range(len(self.wd))]
 
         return np.array(whirl_w)
 
     def whirl_values(self):
-        """Get the whirl value (0., 0.5, or 1.) for each frequency."""
+        """Get the whirl value (0., 0.5, or 1.) for each frequency.
+
+        Parameters
+        ----------
+
+        Returns
+        -------
+        whirl_to_cmap
+            0.0 - if the whirl is Forward
+            0.5 - if the whirl is Mixed
+            1.0 - if the whirl is Backward
+        """
         return whirl_to_cmap(self.whirl_direction())
 
     def orbit(self):
@@ -2170,11 +2192,11 @@ class Rotor(object):
     def available_rotors():
         """
         Displays previously saved rotors
-        
+
         Example
         -------
         >>> sorted(Rotor.available_rotors())
-        ['Benchmarks', 'Rotor_format' ]
+        ['Benchmarks', 'Rotor_format']
         """
         return [x for x in os.listdir(Path(os.path.dirname(ross.__file__)) / "rotors")]
 
