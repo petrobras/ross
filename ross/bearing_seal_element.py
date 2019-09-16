@@ -326,7 +326,7 @@ class BearingElement(Element):
         Parameters
         ----------
         file_name: string
-            The name of the file the bearing element to be loaded.
+            The name of the file of the bearing element to be loaded.
 
         Returns
         -------
