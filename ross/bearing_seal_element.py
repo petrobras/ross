@@ -214,6 +214,20 @@ class BearingElement(Element):
         self.color = "#355d7a"
 
     def __repr__(self):
+        """This function returns a string representation of a bearing element.
+        Parameters
+        ----------
+
+        Returns
+        -------
+        A string representation of a bearing object.
+        Examples
+        --------
+        >>> bearing = bearing_example()
+        >>> bearing # doctest: +ELLIPSIS
+        BearingElement(n=0,
+         kxx=[...
+        """
         return (
             f"{self.__class__.__name__}"
             f"(n={self.n},\n"
@@ -225,6 +239,23 @@ class BearingElement(Element):
         )
 
     def __eq__(self, other):
+        """This function allows bearing elements to be compared.
+        Parameters
+        ----------
+        other: object
+            The second object to be compared with.
+
+        Returns
+        -------
+        bool
+            True if the comparison is true; False otherwise.
+        Examples
+        --------
+        >>> bearing1 = bearing_example()
+        >>> bearing2 = bearing_example()
+        >>> bearing1 == bearing2
+        True
+        """
         compared_attributes = [
             "kxx",
             "kyy",
@@ -251,6 +282,22 @@ class BearingElement(Element):
         return hash(self.tag)
 
     def save(self, file_name):
+        """Saves a bearing element in a toml format. It works as an auxiliary function of
+        the save function in the Rotor class.
+        Parameters
+        ----------
+        file_name: string
+            The name of the file the bearing element will be saved in.
+
+        Returns
+        -------
+        None
+
+        Examples
+        --------
+        >>> bearing = bearing_example()
+        >>> bearing.save('BearingElement.toml')
+        """
         data = self.load_data(file_name)
         if type(self.w) == np.ndarray:
             try:
@@ -275,6 +322,24 @@ class BearingElement(Element):
 
     @staticmethod
     def load(file_name="BearingElement"):
+        """Loads a list of bearing elements saved in a toml format.
+        Parameters
+        ----------
+        file_name: string
+            The name of the file the bearing element to be loaded.
+
+        Returns
+        -------
+        A list of bearing elements.
+
+        Examples
+        --------
+        >>> bearing1 = bearing_example()
+        >>> bearing1.save('BearingElement.toml')
+        >>> list_of_bearings = BearingElement.load('BearingElement.toml')
+        >>> bearing1 == list_of_bearings[0]
+        True
+        """
         bearing_elements = []
         bearing_elements_dict = BearingElement.load_data(
             file_name="BearingElement.toml"
@@ -317,6 +382,20 @@ class BearingElement(Element):
         return bearing_elements
 
     def dof_mapping(self):
+        """Returns a dictionary with a mapping between degree of freedom and its index.
+        Parameters
+        ----------
+
+        Returns
+        -------
+        A dictionary containing the degrees of freedom and their indexes.
+
+        Examples
+        --------
+        >>> bearing = bearing_example()
+        >>> bearing.dof_mapping()
+        {'x_0': 0, 'y_0': 1}
+        """
         return dict(x_0=0, y_0=1)
 
     def dof_global_index(self):
@@ -333,11 +412,43 @@ class BearingElement(Element):
         return global_index
 
     def M(self):
+        """Returns the mass matrix.
+        Parameters
+        ----------
+
+        Returns
+        -------
+        A matrix of floats.
+
+        Examples
+        --------
+        >>> bearing = bearing_example()
+        >>> bearing.M()
+        array([[0., 0.],
+               [0., 0.]])
+        """
         M = np.zeros_like(self.K(0))
 
         return M
 
     def K(self, w):
+        """Returns the stiffness matrix for a given speed.
+        Parameters
+        ----------
+        w: float
+            The speeds (rad/s) to consider.
+
+        Returns
+        -------
+        A 2x2 matrix of floats containing the kxx, kxy, kyx, and kyy values.
+
+        Examples
+        --------
+        >>> bearing = bearing_example()
+        >>> bearing.K(0)
+        array([[1000000.,       0.],
+               [      0.,  800000.]])
+        """
         kxx = self.kxx.interpolated(w)
         kyy = self.kyy.interpolated(w)
         kxy = self.kxy.interpolated(w)
@@ -354,6 +465,23 @@ class BearingElement(Element):
         return K
 
     def C(self, w):
+        """Returns the damping matrix for a given speed.
+        Parameters
+        ----------
+        w: float
+            The speeds (rad/s) to consider.
+
+        Returns
+        -------
+        A 2x2 matrix of floats containing the cxx, cxy, cyx, and cyy values.
+
+        Examples
+        --------
+        >>> bearing = bearing_example()
+        >>> bearing.C(0)
+        array([[200.,   0.],
+               [  0., 150.]])
+        """
         cxx = self.cxx.interpolated(w)
         cyy = self.cyy.interpolated(w)
         cxy = self.cxy.interpolated(w)
@@ -370,6 +498,21 @@ class BearingElement(Element):
         return C
 
     def G(self):
+        """Returns the giroscopic matrix.
+        Parameters
+        ----------
+
+        Returns
+        -------
+        A matrix of floats.
+
+        Examples
+        --------
+        >>> bearing = bearing_example()
+        >>> bearing.G()
+        array([[0., 0.],
+               [0., 0.]])
+        """
         G = np.zeros_like(self.K(0))
 
         return G
@@ -389,6 +532,9 @@ class BearingElement(Element):
 
         Returns
         -------
+
+        Examples
+        --------
         """
         default_values = dict(lw=1.0, alpha=1.0, c="k")
         for k, v in default_values.items():
@@ -609,6 +755,12 @@ class BearingElement(Element):
         -------
         dict
             A dict that is ready to save to toml and readable by ross.
+        Examples
+        --------
+        >>> import os
+        >>> file_path = os.path.dirname(os.path.realpath(__file__)) + '/tests/data/bearing_seal.xls'
+        >>> BearingElement.table_to_toml(0, file_path) # doctest: +ELLIPSIS
+        {'n': 0, 'kxx': [...
         """
         b_elem = cls.from_table(n, file)
         data = {
@@ -643,6 +795,13 @@ class BearingElement(Element):
         Returns
         -------
         A bearing object.
+        Examples
+        --------
+        >>> import os
+        >>> file_path = os.path.dirname(os.path.realpath(__file__)) + '/tests/data/bearing_seal.xls'
+        >>> BearingElement.from_table(0, file_path) # doctest: +ELLIPSIS
+        BearingElement(n=0,
+         kxx=[...
         """
         parameters = read_table_file(file, "bearing", sheet_name, n)
         return cls(
@@ -726,6 +885,25 @@ class BearingElement(Element):
         Returns
         -------
         A bearing object.
+        Examples
+        --------
+        >>> nz = 30
+        >>> ntheta = 20
+        >>> nradius = 11
+        >>> length = 0.03
+        >>> omega = 157.1
+        >>> p_in = 0.
+        >>> p_out = 0.
+        >>> radius_rotor = 0.0499
+        >>> radius_stator = 0.05
+        >>> eccentricity = (radius_stator - radius_rotor)*0.2663
+        >>> visc = 0.1
+        >>> rho = 860.
+        >>> BearingElement.from_fluid_flow(0, nz, ntheta, nradius, length, omega, p_in,
+        ...                                p_out, radius_rotor, radius_stator,
+        ...                                visc, rho, eccentricity=eccentricity) # doctest: +ELLIPSIS
+        BearingElement(n=0,
+         kxx=[...
         """
         fluid_flow = flow.PressureMatrix(
             nz,
@@ -759,6 +937,64 @@ class BearingElement(Element):
 
 
 class SealElement(BearingElement):
+    """A seal element.
+    This class will create a seal element.
+    Parameters can be a constant value or speed dependent.
+    For speed dependent parameters, each argument should be passed
+    as an array and the correspondent speed values should also be
+    passed as an array.
+    Values for each parameter will be interpolated for the speed.
+    Parameters
+    ----------
+    n: int
+        Node which the bearing will be located in
+    kxx: float, array
+        Direct stiffness in the x direction.
+    cxx: float, array
+        Direct damping in the x direction.
+    kyy: float, array, optional
+        Direct stiffness in the y direction.
+        (defaults to kxx)
+    cyy: float, array, optional
+        Direct damping in the y direction.
+        (defaults to cxx)
+    kxy: float, array, optional
+        Cross coupled stiffness in the x direction.
+        (defaults to 0)
+    cxy: float, array, optional
+        Cross coupled damping in the x direction.
+        (defaults to 0)
+    kyx: float, array, optional
+        Cross coupled stiffness in the y direction.
+        (defaults to 0)
+    cyx: float, array, optional
+        Cross coupled damping in the y direction.
+        (defaults to 0)
+    w: array, optional
+        Array with the speeds (rad/s).
+    seal_leakage: float, optional
+        Amount of leakage
+    tag : str, optional
+        A tag to name the element
+        Default is None
+    Examples
+    --------
+    >>> # A seal element located in the first rotor node, with these
+    >>> # following stiffness and damping coefficients and speed range from
+    >>> # 0 to 200 rad/s
+    >>> import ross as rs
+    >>> kxx = 1e6
+    >>> kyy = 0.8e6
+    >>> cxx = 2e2
+    >>> cyy = 1.5e2
+    >>> w = np.linspace(0, 200, 11)
+    >>> seal = rs.SealElement(n=0, kxx=kxx, kyy=kyy, cxx=cxx, cyy=cyy, w=w)
+    >>> seal.K(w) # doctest: +ELLIPSIS
+    array([[[1000000., 1000000., ...
+    >>> seal.C(w) # doctest: +ELLIPSIS
+    array([[[200., 200., ...
+    """
+
     def __init__(
         self,
         n,
@@ -867,3 +1103,57 @@ class SealElement(BearingElement):
             fill_alpha=0.8,
             fill_color=bokeh_colors[6],
         )
+
+
+def bearing_example():
+    """This function returns an instance of a simple bearing.
+    The purpose is to make available a simple model
+    so that doctest can be written using it.
+
+    Parameters
+    ----------
+
+    Returns
+    -------
+    An instance of a bearing object.
+
+    Examples
+    --------
+    >>> bearing = bearing_example()
+    >>> bearing.w[0]
+    0.0
+    """
+    kxx = 1e6
+    kyy = 0.8e6
+    cxx = 2e2
+    cyy = 1.5e2
+    w = np.linspace(0, 200, 11)
+    bearing = BearingElement(n=0, kxx=kxx, kyy=kyy, cxx=cxx, cyy=cyy, w=w)
+    return bearing
+
+
+def seal_example():
+    """This function returns an instance of a simple seal.
+    The purpose is to make available a simple model
+    so that doctest can be written using it.
+
+    Parameters
+    ----------
+
+    Returns
+    -------
+    An instance of a seal object.
+
+    Examples
+    --------
+    >>> seal = bearing_example()
+    >>> seal.w[0]
+    0.0
+    """
+    kxx = 1e6
+    kyy = 0.8e6
+    cxx = 2e2
+    cyy = 1.5e2
+    w = np.linspace(0, 200, 11)
+    seal = SealElement(n=0, kxx=kxx, kyy=kyy, cxx=cxx, cyy=cyy, w=w)
+    return seal
