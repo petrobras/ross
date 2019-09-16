@@ -2173,8 +2173,7 @@ class Rotor(object):
         
         Example
         -------
-        >>> rotors = Rotor.available_rotors().sort()
-        >>> rotors
+        >>> sorted(Rotor.available_rotors())
         ['Benchmarks', 'Rotor_format' ]
         """
         return [x for x in os.listdir(Path(os.path.dirname(ross.__file__)) / "rotors")]
@@ -2192,12 +2191,10 @@ class Rotor(object):
         -------
         >>> rotor = rotor_example()
         >>> rotor.save('new_rotor2')
-        >>> rotors = Rotor.available_rotors().sort()
-        >>> rotors
-        ['Benchmarks', 'new_rotor2', 'Rotor_format']
+        >>> sorted(Rotor.available_rotors())
+        ['Benchmarks', 'Rotor_format', 'new_rotor2']
         >>> Rotor.remove('new_rotor2')
-        >>> rotors = Rotor.available_rotors().sort()
-        >>> rotors
+        >>> sorted(Rotor.available_rotors())
         ['Benchmarks', 'Rotor_format']
         """
         shutil.rmtree(Path(os.path.dirname(ross.__file__)) / "rotors" / rotor_name)
