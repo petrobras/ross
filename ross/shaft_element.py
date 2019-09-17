@@ -1616,22 +1616,21 @@ class ShaftTaperedElement(Element):
 
         return G
 
-    def patch(self, position, SR, ax):
+    def patch(self, position, check_sld, ax):
         """Shaft element patch.
         Patch that will be used to draw the shaft element.
         Parameters
         ----------
-        ax : matplotlib axes, optional
-            Axes in which the plot will be drawn.
-        SR : list
-            list of slenderness ratio of shaft elements
         position : float
             Position in which the patch will be drawn.
+        check_sld : bool
+            If True, color the elements in yellow if slenderness ratio < 1.6
+        ax : matplotlib axes, optional
+            Axes in which the plot will be drawn.
         Returns
         -------
         """
-
-        if self.n in SR:
+        if check_sld is True and self.slenderness_ratio < 1.6:
             mpl_color = "yellow"
             legend = "Shaft - Slenderness Ratio < 1.6"
         else:
@@ -1677,23 +1676,24 @@ class ShaftTaperedElement(Element):
             )
         )
 
-    def bokeh_patch(self, position, SR, check_sld, bk_ax):
+    def bokeh_patch(self, position, check_sld, bk_ax):
         """Shaft element patch.
         Patch that will be used to draw the shaft element.
         Parameters
         ----------
-        bk_ax : bokeh plotting axes, optional
-            Axes in which the plot will be drawn.
-        SR : list
-            list of slenderness ratio of shaft elements
-        check_sld : bool
-            If True, HoverTool displays only the slenderness ratio
         position : float
             Position in which the patch will be drawn.
+        check_sld : bool
+            If True, HoverTool displays only the slenderness ratio and color
+            the elements in yellow if slenderness ratio < 1.6
+        bk_ax : bokeh plotting axes, optional
+            Axes in which the plot will be drawn.
         Returns
         -------
+        hover : Bokeh HoverTool
+            Bokeh HoverTool axes
         """
-        if self.n in SR:
+        if check_sld is True and self.slenderness_ratio < 1.6:
             bk_color = "yellow"
             legend = "Shaft - Slenderness Ratio < 1.6"
         else:
