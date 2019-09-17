@@ -112,3 +112,4 @@ notebooks/
 
 # docs #
 /docs/examples/*_files
+/docs/generated/
