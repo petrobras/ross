@@ -427,6 +427,15 @@ class ShaftElement(Element):
         )
 
     def __str__(self):
+        """
+        Method to convert object into string
+        
+        Parameters
+        ----------
+        Returns
+        -------
+        The object's parameters translated to strings
+        """
         return (
             f"\nElem. N:    {self.n}"
             f"\nLenght:     {self.L:{10}.{5}}"
@@ -1219,6 +1228,15 @@ class ShaftTaperedElement(Element):
         )
 
     def __str__(self):
+        """
+        Method to convert object into string
+        
+        Parameters
+        ----------
+        Returns
+        -------
+        The object's parameters translated to strings
+        """
         return (
             f"\nElem. N:    {self.n}"
             f"\nLenght:     {self.L:{10}.{5}}"
