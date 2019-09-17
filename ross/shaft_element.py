@@ -350,21 +350,75 @@ class ShaftElement(Element):
 
     @property
     def n(self):
+        """
+        Set the element number as property
+
+        Parameters
+        ----------
+        Returns
+        -------
+        n : int
+            Element number
+        """
         return self._n
 
     @n.setter
     def n(self, value):
+        """
+        Method to set a new value for the element number.
+
+        Parameters
+        ----------
+        value : int
+            element number
+
+        Returns
+        -------
+        Examples
+        --------
+        >>> from ross.materials import steel
+        >>> shaft1 = ShaftElement(L=0.25, i_d=0, o_d=0.05, material=steel,
+        ...                       rotary_inertia=True, shear_effects=True)
+        >>> shaft1.n = 0
+        >>> shaft1
+        ShaftElement(L=0.25, i_d=0.0, o_d=0.05, material='Steel', n=0)
+        """
         self._n = value
         self.n_l = value
         if value is not None:
             self.n_r = value + 1
 
     def dof_mapping(self):
+        """
+        Method to map the element's degrees of freedom
+
+        Parameters
+        ----------
+        Returns
+        -------
+        The numbering of degrees of freedom of each element node.
+        """
         return dict(
             x_0=0, y_0=1, alpha_0=2, beta_0=3, x_1=4, y_1=5, alpha_1=6, beta_1=7
         )
 
     def __repr__(self):
+        """This function returns a string representation of a shaft element.
+
+        Parameters
+        ----------
+        Returns
+        -------
+        A string representation of a shaft object.
+
+        Examples
+        --------
+        >>> from ross.materials import steel
+        >>> shaft1 = ShaftElement(L=0.25, i_d=0, o_d=0.05, material=steel,
+        ...                       rotary_inertia=True, shear_effects=True)
+        >>> shaft1
+        ShaftElement(L=0.25, i_d=0.0, o_d=0.05, material='Steel', n=0)
+        """
         return (
             f"{self.__class__.__name__}"
             f"(L={self.L:{0}.{5}}, i_d={self.i_d:{0}.{5}}, "
@@ -1083,21 +1137,79 @@ class ShaftTaperedElement(Element):
 
     @property
     def n(self):
+        """
+        Set the element number as property
+
+        Parameters
+        ----------
+        Returns
+        -------
+        n : int
+            Element number
+        """
         return self._n
 
     @n.setter
     def n(self, value):
+        """
+        Method to set a new value for the element number.
+
+        Parameters
+        ----------
+        value : int
+            element number
+
+        Returns
+        -------
+        Example
+        -------
+        >>> from ross.materials import steel
+        >>> shaft1 = ShaftTaperedElement(
+        ...        L=0.25, i_d_l=0, i_d_r=0, o_d_l=0.05, o_d_r=0.08,
+        ...        material=steel, rotary_inertia=True, shear_effects=True
+        ... )
+        >>> shaft1.n = 0
+        >>> shaft1 # doctest: +ELLIPSIS
+        ShaftTaperedElement(L=0.25, i_d_l=0.0...
+        """
         self._n = value
         self.n_l = value
         if value is not None:
             self.n_r = value + 1
 
     def dof_mapping(self):
+        """
+        Method to map the element's degrees of freedom
+
+        Parameters
+        ----------
+        Returns
+        -------
+        The numbering of degrees of freedom of each element node.
+        """
         return dict(
             x_0=0, y_0=1, alpha_0=2, beta_0=3, x_1=4, y_1=5, alpha_1=6, beta_1=7
         )
 
     def __repr__(self):
+        """This function returns a string representation of a shaft element.
+
+        Parameters
+        ----------
+        Returns
+        -------
+        A string representation of a shaft object.
+
+        Examples
+        --------
+        >>> from ross.materials import steel
+        >>> shaft1 = ShaftTaperedElement(
+        ...        L=0.25, i_d_l=0, i_d_r=0, o_d_l=0.05, o_d_r=0.08,
+        ...        material=steel, rotary_inertia=True, shear_effects=True
+        ... )
+        >>> shaft1 # doctest: +ELLIPSIS
+        ShaftTaperedElement(L=0.25, i_d_l=0.0...
+        """
         return (
             f"{self.__class__.__name__}"
             f"(L={self.L:{0}.{5}}, i_d_l={self.i_d_l:{0}.{5}}, "
