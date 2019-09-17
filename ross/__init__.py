@@ -6,3 +6,4 @@ from .materials import *
 from .rotor_assembly import *
 from .shaft_element import *
 from .utils import visualize_matrix
+from .point_mass import *

@@ -4,6 +4,7 @@ import warnings
 from collections import Iterable
 from copy import copy, deepcopy
 from pathlib import Path
+from itertools import cycle
 
 import bokeh.palettes as bp
 import matplotlib as mpl
@@ -74,6 +75,8 @@ class Rotor(object):
         List with the disk elements
     bearing_seal_elements : list
         List with the bearing elements
+    point_mass_elements: list
+        List with the point mass elements
     w : float, optional
         Rotor speed. Defaults to 0.
     sparse : bool, optional
@@ -131,6 +134,7 @@ class Rotor(object):
         shaft_elements,
         disk_elements=None,
         bearing_seal_elements=None,
+        point_mass_elements=None,
         w=0,
         sparse=True,
         n_eigen=12,
@@ -179,11 +183,15 @@ class Rotor(object):
         for i, sh in enumerate(shaft_elements):
             if sh.n is None:
                 sh.n = i
+            if sh.tag is None:
+                sh.tag = sh.__class__.__name__ + " " + str(i) + f" i_d={sh.i_d}"
 
         if disk_elements is None:
             disk_elements = []
         if bearing_seal_elements is None:
             bearing_seal_elements = []
+        if point_mass_elements is None:
+            point_mass_elements = []
 
         for i, disk in enumerate(disk_elements):
             if disk.tag is None:
@@ -198,10 +206,16 @@ class Rotor(object):
         self.shaft_elements = shaft_elements
         self.bearing_seal_elements = bearing_seal_elements
         self.disk_elements = disk_elements
+        self.point_mass_elements = point_mass_elements
         self.elements = [
             el
             for el in flatten(
-                [self.shaft_elements, self.disk_elements, self.bearing_seal_elements]
+                [
+                    self.shaft_elements,
+                    self.disk_elements,
+                    self.bearing_seal_elements,
+                    self.point_mass_elements,
+                ]
             )
         ]
 
@@ -211,9 +225,11 @@ class Rotor(object):
         columns = [
             "type",
             "n",
+            "n_link",
             "L",
             "node_pos",
             "node_pos_r",
+            "y_pos",
             "i_d",
             "o_d",
             "i_d_r",
@@ -228,11 +244,20 @@ class Rotor(object):
         df_shaft = pd.DataFrame([el.summary() for el in self.shaft_elements])
         df_disks = pd.DataFrame([el.summary() for el in self.disk_elements])
         df_bearings = pd.DataFrame(
-                [el.summary() for el in self.bearing_seal_elements if (
-                        el.__class__.__name__ == 'BearingElement')])
+            [
+                el.summary()
+                for el in self.bearing_seal_elements
+                if (el.__class__.__name__ == "BearingElement")
+            ]
+        )
         df_seals = pd.DataFrame(
-                [el.summary() for el in self.bearing_seal_elements if (
-                        el.__class__.__name__ == 'SealElement')])
+            [
+                el.summary()
+                for el in self.bearing_seal_elements
+                if (el.__class__.__name__ == "SealElement")
+            ]
+        )
+        df_point_mass = pd.DataFrame([el.summary() for el in self.point_mass_elements])
 
         nodes_pos_l = np.zeros(len(df_shaft.n_l))
         nodes_pos_r = np.zeros(len(df_shaft.n_l))
@@ -251,21 +276,26 @@ class Rotor(object):
         df_shaft["nodes_pos_l"] = nodes_pos_l
         df_shaft["nodes_pos_r"] = nodes_pos_r
 
-        df = pd.concat([df_shaft, df_disks, df_bearings, df_seals], sort=True)
+        df = pd.concat(
+            [df_shaft, df_disks, df_bearings, df_point_mass, df_seals], sort=True
+        )
         df = df.sort_values(by="n_l")
         df = df.reset_index(drop=True)
 
         self.df_disks = df_disks
         self.df_bearings = df_bearings
         self.df_shaft = df_shaft
+        self.df_point_mass = df_point_mass
         self.df_seals = df_seals
 
         # check consistence for disks and bearings location
-        if df.n_l.max() > df_shaft.n_r.max():
+        if len(df_point_mass) > 0:
+            max_loc_point_mass = df_point_mass.n.max()
+        else:
+            max_loc_point_mass = 0
+        max_location = max(df_shaft.n_r.max(), max_loc_point_mass)
+        if df.n_l.max() > max_location:
             raise ValueError("Trying to set disk or bearing outside shaft")
-
-        self.df = df
-
         # nodes axial position and diameter
         nodes_pos = list(df_shaft.groupby("n_l")["nodes_pos_l"].max())
         nodes_pos.append(df_shaft["nodes_pos_r"].iloc[-1])
@@ -292,7 +322,7 @@ class Rotor(object):
         self.m_shaft = np.sum([sh_el.m for sh_el in self.shaft_elements])
         self.m = self.m_disks + self.m_shaft
 
-        # values for evalues and evectors will be calculated by self._calc_system
+        # values for evalues and evectors will be calculated by self.run_modal
         self.evalues = None
         self.evectors = None
         self.wn = None
@@ -302,14 +332,77 @@ class Rotor(object):
         self._v0 = None  # used to call eigs
 
         # number of dofs
-        self.ndof = 4 * max([el.n for el in shaft_elements]) + 8
+        self.ndof = (
+            4 * max([el.n for el in shaft_elements])
+            + 8
+            + 2 * len([el for el in point_mass_elements])
+        )
 
         #  values for static analysis will be calculated by def static
         self.Vx = None
         self.Bm = None
         self.disp_y = None
 
-        #  diameter at node position
+        # define positions for disks
+        for disk in disk_elements:
+            z_pos = nodes_pos[disk.n]
+            y_pos = nodes_o_d[disk.n]
+            df.loc[df.tag == disk.tag, "nodes_pos_l"] = z_pos
+            df.loc[df.tag == disk.tag, "nodes_pos_r"] = z_pos
+            df.loc[df.tag == disk.tag, "y_pos"] = y_pos
+
+        # define positions for bearings
+        # check if there are bearings without location
+        bearings_no_zloc = {
+            b
+            for b in bearing_seal_elements
+            if pd.isna(df.loc[df.tag == b.tag, "nodes_pos_l"]).all()
+        }
+        # cycle while there are bearings without a z location
+        for b in cycle(bearing_seal_elements):
+            if bearings_no_zloc:
+                if b in bearings_no_zloc:
+                    # first check if b.n is on list, if not, check for n_link
+                    node_l = df.loc[(df.n_l == b.n) & (df.tag != b.tag), "nodes_pos_l"]
+                    node_r = df.loc[(df.n_r == b.n) & (df.tag != b.tag), "nodes_pos_r"]
+                    if len(node_l) == 0 and len(node_r) == 0:
+                        node_l = df.loc[
+                            (df.n_link == b.n) & (df.tag != b.tag), "nodes_pos_l"
+                        ]
+                        node_r = node_l
+                    if len(node_l):
+                        df.loc[df.tag == b.tag, "nodes_pos_l"] = node_l.values[0]
+                        df.loc[df.tag == b.tag, "nodes_pos_r"] = node_l.values[0]
+                        bearings_no_zloc.discard(b)
+                    elif len(node_r):
+                        df.loc[df.tag == b.tag, "nodes_pos_l"] = node_r.values[0]
+                        df.loc[df.tag == b.tag, "nodes_pos_r"] = node_r.values[0]
+                        bearings_no_zloc.discard(b)
+            else:
+                break
+
+        dfb = df[df.type == "BearingElement"]
+        z_positions = [pos for pos in dfb["nodes_pos_l"]]
+        for z_pos in z_positions:
+            dfb_z_pos = dfb[dfb.nodes_pos_l == z_pos]
+            dfb_z_pos = dfb_z_pos.sort_values(by="n_l")
+            y_pos = nodes_o_d[int(dfb_z_pos.iloc[0]["n_l"])] / 2
+            mean_od = np.mean(nodes_o_d)
+            for t in dfb_z_pos.tag:
+                df.loc[df.tag == t, "y_pos"] = y_pos
+                y_pos += mean_od
+
+        # define position for point mass elements
+        dfb = df[df.type == "BearingElement"]
+        for p in point_mass_elements:
+            z_pos = dfb[dfb.n_l == p.n]["nodes_pos_l"].values[0]
+            y_pos = dfb[dfb.n_l == p.n]["y_pos"].values[0]
+            df.loc[df.tag == p.tag, "nodes_pos_l"] = z_pos
+            df.loc[df.tag == p.tag, "nodes_pos_r"] = z_pos
+            df.loc[df.tag == p.tag, "y_pos"] = y_pos
+
+        self.df = df
+
         self.run_modal()
 
     def __eq__(self, other):
@@ -476,9 +569,7 @@ class Rotor(object):
 
         for elm in self.elements:
             dofs = elm.dof_global_index()
-            n0 = dofs[0]
-            n1 = dofs[-1] + 1  # +1 to include this dof in the slice
-            M0[n0:n1, n0:n1] += elm.M()
+            M0[np.ix_(dofs, dofs)] += elm.M()
 
         return M0
 
@@ -503,19 +594,17 @@ class Rotor(object):
                [ 0., -6.,  1.,  0.],
                [ 6.,  0.,  0.,  1.]])
         """
-        K0 = np.zeros((self.ndof, self.ndof))
-
         if frequency is None:
             frequency = self.w
 
+        K0 = np.zeros((self.ndof, self.ndof))
+
         for elm in self.elements:
             dofs = elm.dof_global_index()
-            n0 = dofs[0]
-            n1 = dofs[-1] + 1  # +1 to include this dof in the slice
             try:
-                K0[n0:n1, n0:n1] += elm.K(frequency)
+                K0[np.ix_(dofs, dofs)] += elm.K(frequency)
             except TypeError:
-                K0[n0:n1, n0:n1] += elm.K()
+                K0[np.ix_(dofs, dofs)] += elm.K()
 
         return K0
 
@@ -540,19 +629,18 @@ class Rotor(object):
                [0., 0., 0., 0.],
                [0., 0., 0., 0.]])
         """
-        C0 = np.zeros((self.ndof, self.ndof))
-
         if frequency is None:
             frequency = self.w
 
+        C0 = np.zeros((self.ndof, self.ndof))
+
         for elm in self.elements:
             dofs = elm.dof_global_index()
-            n0 = dofs[0]
-            n1 = dofs[-1] + 1  # +1 to include this dof in the slice
+
             try:
-                C0[n0:n1, n0:n1] += elm.C(frequency)
+                C0[np.ix_(dofs, dofs)] += elm.C(frequency)
             except TypeError:
-                C0[n0:n1, n0:n1] += elm.C()
+                C0[np.ix_(dofs, dofs)] += elm.C()
 
         return C0
 
@@ -576,9 +664,7 @@ class Rotor(object):
 
         for elm in self.elements:
             dofs = elm.dof_global_index()
-            n0 = dofs[0]
-            n1 = dofs[-1] + 1  # +1 to include this dof in the slice
-            G0[n0:n1, n0:n1] += elm.G()
+            G0[np.ix_(dofs, dofs)] += elm.G()
 
         return G0
 
@@ -1234,7 +1320,7 @@ class Rotor(object):
             position = (self.nodes_pos[disk.n], self.nodes_o_d[disk.n] / 2)
             disk.patch(position, ax)
 
-        mean_od = np.mean(self.nodes_o_d)
+        mean_od = np.mean(self.nodes_o_d) / 2
         # plot bearings
         for bearing in self.bearing_seal_elements:
             position = (self.nodes_pos[bearing.n], self.nodes_o_d[bearing.n] / 2)
@@ -1337,7 +1423,9 @@ class Rotor(object):
         mean_od = np.mean(self.nodes_o_d) / 2
         # plot bearings
         for bearing in self.bearing_seal_elements:
-            position = (self.nodes_pos[bearing.n], self.nodes_o_d[bearing.n] / 2)
+            z_pos = self.df[self.df.tag == bearing.tag]["nodes_pos_l"].values[0]
+            y_pos = self.df[self.df.tag == bearing.tag]["y_pos"].values[0]
+            position = (z_pos, y_pos)
             bearing.bokeh_patch(position, mean_od, bk_ax)
 
         show(bk_ax)
@@ -1377,12 +1465,10 @@ class Rotor(object):
         """
         if plot_type == "matplotlib":
             return self._plot_rotor_matplotlib(
-                    nodes=nodes, check_sld=False, *args, **kwargs
+                nodes=nodes, check_sld=False, *args, **kwargs
             )
         elif plot_type == "bokeh":
-            return self._plot_rotor_bokeh(
-                    nodes=nodes, check_sld=False, *args, **kwargs
-            )
+            return self._plot_rotor_bokeh(nodes=nodes, check_sld=False, *args, **kwargs)
         else:
             raise ValueError(f"{plot_type} is not a valid plot type.")
 
@@ -1421,12 +1507,10 @@ class Rotor(object):
 
         if plot_type == "matplotlib":
             return self._plot_rotor_matplotlib(
-                    nodes=nodes, check_sld=True, *args, **kwargs
+                nodes=nodes, check_sld=True, *args, **kwargs
             )
         elif plot_type == "bokeh":
-            return self._plot_rotor_bokeh(
-                    nodes=nodes, check_sld=True, *args, **kwargs
-            )
+            return self._plot_rotor_bokeh(nodes=nodes, check_sld=True, *args, **kwargs)
         else:
             raise ValueError(f"{plot_type} is not a valid plot type.")
 
@@ -1921,7 +2005,11 @@ class Rotor(object):
                     -disp_y[node] * aux_rotor.df_bearings.loc[i, "kyy"].coefficient[0]
                 )
                 BrgForceToReturn.append(
-                    np.around(-disp_y[node] * aux_rotor.df_bearings.loc[i, "kyy"].coefficient[0], decimals=1)
+                    np.around(
+                        -disp_y[node]
+                        * aux_rotor.df_bearings.loc[i, "kyy"].coefficient[0],
+                        decimals=1,
+                    )
                 )
 
             # Disk Forces
@@ -1982,9 +2070,7 @@ class Rotor(object):
                 Bm = np.append(Bm, Bm[i] + Mx[i])
             self.Bm = Bm
 
-            sh_weight = np.around(
-                    sum(self.df_shaft["m"].values) * 9.8065, decimals=1
-            )
+            sh_weight = np.around(sum(self.df_shaft["m"].values) * 9.8065, decimals=1)
 
             force_data = {
                 "Static displacement vector": disp_y,

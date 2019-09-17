@@ -1,12 +1,10 @@
 import numpy as np
 import pandas as pd
-import xlrd
-import sys
-from ross.materials import Material
-from bokeh.io import show, output_notebook
-from bokeh.plotting import figure, ColumnDataSource
+from bokeh.models import LogColorMapper
 from bokeh.palettes import Viridis256
-from bokeh.models import LinearColorMapper, LogColorMapper
+from bokeh.plotting import figure
+
+from ross.materials import Material
 
 
 class DataNotFoundError(Exception):
@@ -376,9 +374,8 @@ def visualize_matrix(rotor, matrix=None, frequency=None):
     fig.grid.grid_line_color = None
     fig.axis.axis_line_color = None
     fig.axis.major_tick_line_color = None
-    fig.axis.major_label_text_font_size = "5pt"
+    fig.axis.major_label_text_font_size = "7pt"
     fig.axis.major_label_standoff = 0
-    # p.xaxis.major_label_orientation = np.pi/3
     fig.xaxis.ticker = [i for i in range(len(dof_list))]
     fig.yaxis.ticker = [i for i in range(len(dof_list))]
 
@@ -402,7 +399,7 @@ def visualize_matrix(rotor, matrix=None, frequency=None):
         0.95,
         0.95,
         source=data,
-        fill_color={"field": "value", "transform": mapper},
+        fill_color={"field": "pos_value", "transform": mapper},
         line_color=None,
     )
 

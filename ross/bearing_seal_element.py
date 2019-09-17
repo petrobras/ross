@@ -7,6 +7,7 @@ import matplotlib.lines as mlines
 import numpy as np
 import scipy.interpolate as interpolate
 
+from collections import namedtuple
 from ross.utils import read_table_file
 from ross.element import Element
 from ross.fluid_flow import fluid_flow as flow
@@ -125,9 +126,13 @@ class BearingElement(Element):
         (defaults to 0)
     w: array, optional
         Array with the speeds (rad/s).
-     tag : str, optional
-         A tag to name the element
-         Default is None
+    tag: str, optional
+        A tag to name the element
+        Default is None.
+    n_link: int, optional
+        Node to which the bearing will connect. If None the bearing is
+        connected to ground.
+        Default is None.
     Examples
     --------
     >>> # A bearing element located in the first rotor node, with these
@@ -159,6 +164,7 @@ class BearingElement(Element):
         cyx=0,
         w=None,
         tag=None,
+        n_link=None,
     ):
 
         args = ["kxx", "kyy", "kxy", "kyx", "cxx", "cyy", "cxy", "cyx"]
@@ -199,6 +205,7 @@ class BearingElement(Element):
             setattr(self, k, v)
 
         self.n = n
+        self.n_link = n_link
         self.n_l = n
         self.n_r = n
 
@@ -259,6 +266,7 @@ class BearingElement(Element):
             "cxy",
             "cyx",
             "w",
+            "n",
         ]
         if isinstance(other, self.__class__):
             return all(
@@ -269,6 +277,9 @@ class BearingElement(Element):
                 )
             )
         return False
+
+    def __hash__(self):
+        return hash(self.tag)
 
     def save(self, file_name):
         """Saves a bearing element in a toml format. It works as an auxiliary function of
@@ -387,6 +398,19 @@ class BearingElement(Element):
         """
         return dict(x_0=0, y_0=1)
 
+    def dof_global_index(self):
+        """Get the global index for a element specific degree of freedom."""
+        global_index = super().dof_global_index()
+
+        if self.n_link is not None:
+            global_index = global_index._asdict()
+            global_index[f"x_{self.n_link}"] = 4 * self.n_link
+            global_index[f"y_{self.n_link}"] = 4 * self.n_link + 1
+            dof_tuple = namedtuple("GlobalIndex", global_index)
+            global_index = dof_tuple(**global_index)
+
+        return global_index
+
     def M(self):
         """Returns the mass matrix.
         Parameters
@@ -403,7 +427,7 @@ class BearingElement(Element):
         array([[0., 0.],
                [0., 0.]])
         """
-        M = np.zeros((2, 2))
+        M = np.zeros_like(self.K(0))
 
         return M
 
@@ -432,6 +456,12 @@ class BearingElement(Element):
 
         K = np.array([[kxx, kxy], [kyx, kyy]])
 
+        if self.n_link is not None:
+            # fmt: off
+            K = np.vstack((np.hstack([K, -K]),
+                           np.hstack([-K, K])))
+            # fmt: on
+
         return K
 
     def C(self, w):
@@ -459,6 +489,12 @@ class BearingElement(Element):
 
         C = np.array([[cxx, cxy], [cyx, cyy]])
 
+        if self.n_link is not None:
+            # fmt: off
+            C = np.vstack((np.hstack([C, -C]),
+                           np.hstack([-C, C])))
+            # fmt: on
+
         return C
 
     def G(self):
@@ -477,7 +513,7 @@ class BearingElement(Element):
         array([[0., 0.],
                [0., 0.]])
         """
-        G = np.zeros((2, 2))
+        G = np.zeros_like(self.K(0))
 
         return G
 
@@ -649,19 +685,20 @@ class BearingElement(Element):
         bk_ax.line(x=x_top, y=yu_top, legend="Bearing", **kwargs)
 
         # plot ground
-        zl_g = [zs0 - step, zs1 + step]
-        yl_g = [yl_top[0], yl_top[0]]
-        yu_g = [-y for y in yl_g]
-        bk_ax.line(x=zl_g, y=yl_g, **kwargs)
-        bk_ax.line(x=zl_g, y=yu_g, **kwargs)
+        if self.n_link is None:
+            zl_g = [zs0 - step, zs1 + step]
+            yl_g = [yl_top[0], yl_top[0]]
+            yu_g = [-y for y in yl_g]
+            bk_ax.line(x=zl_g, y=yl_g, **kwargs)
+            bk_ax.line(x=zl_g, y=yu_g, **kwargs)
 
-        step2 = (zl_g[1] - zl_g[0]) / n
-        for i in range(n + 1):
-            zl_g2 = [(zs0 - step) + step2 * (i), (zs0 - step) + step2 * (i + 1)]
-            yl_g2 = [yl_g[0], 1.1 * yl_g[0]]
-            yu_g2 = [-y for y in yl_g2]
-            bk_ax.line(x=zl_g2, y=yl_g2, **kwargs)
-            bk_ax.line(x=zl_g2, y=yu_g2, **kwargs)
+            step2 = (zl_g[1] - zl_g[0]) / n
+            for i in range(n + 1):
+                zl_g2 = [(zs0 - step) + step2 * (i), (zs0 - step) + step2 * (i + 1)]
+                yl_g2 = [yl_g[0], 1.1 * yl_g[0]]
+                yu_g2 = [-y for y in yl_g2]
+                bk_ax.line(x=zl_g2, y=yl_g2, **kwargs)
+                bk_ax.line(x=zl_g2, y=yu_g2, **kwargs)
 
         # plot spring
         z_spring = np.array([zs0, zs0, zs0, zs0])
@@ -957,6 +994,7 @@ class SealElement(BearingElement):
     >>> seal.C(w) # doctest: +ELLIPSIS
     array([[[200., 200., ...
     """
+
     def __init__(
         self,
         n,
@@ -1119,6 +1157,3 @@ def seal_example():
     w = np.linspace(0, 200, 11)
     seal = SealElement(n=0, kxx=kxx, kyy=kyy, cxx=cxx, cyy=cyy, w=w)
     return seal
-
-
-

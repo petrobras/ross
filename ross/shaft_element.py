@@ -106,6 +106,7 @@ class ShaftElement(Element):
         rotary_inertia=True,
         gyroscopic=True,
         shear_method_calc="cowper",
+        tag=None,
     ):
 
         if type(material) is str:
@@ -126,6 +127,7 @@ class ShaftElement(Element):
             self.n_r = n + 1
 
         self.shear_method_calc = shear_method_calc
+        self.tag = tag
 
         self.L = float(L)
 
@@ -190,6 +192,9 @@ class ShaftElement(Element):
             return True
         else:
             return False
+
+    def __hash__(self):
+        return hash(self.tag)
 
     def save(self, file_name):
         data = self.load_data(file_name)
@@ -796,6 +801,7 @@ class ShaftTaperedElement(Element):
         rotary_inertia=True,
         gyroscopic=True,
         shear_method_calc="cowper",
+        tag=None,
     ):
 
         if type(material) is str:
@@ -814,6 +820,8 @@ class ShaftTaperedElement(Element):
         self.n_r = None
         if n is not None:
             self.n_r = n + 1
+
+        self.tag = tag
 
         self.shear_method_calc = shear_method_calc
 
@@ -923,6 +931,9 @@ class ShaftTaperedElement(Element):
             return True
         else:
             return False
+
+    def __hash__(self):
+        return hash(self.tag)
 
     def save(self, file_name):
         data = self.load_data(file_name)

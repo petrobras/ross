@@ -107,6 +107,9 @@ class DiskElement(Element):
             f"n={self.n}, tag={self.tag!r})"
         )
 
+    def __hash__(self):
+        return hash(self.tag)
+
     def save(self, file_name):
         """Saves a disk element in a toml format. It works as an auxiliary function of
         the save function in the Rotor class.

@@ -40,7 +40,7 @@ class Element(ABC):
 
     @abstractmethod
     def G(self):
-        """Giroscopic matrix."""
+        """Gyroscopic matrix."""
         pass
 
     def summary(self):
@@ -94,9 +94,9 @@ class Element(ABC):
         """Get the local index for a element specific degree of freedom."""
         dof_mapping = self.dof_mapping()
         dof_tuple = namedtuple("LocalIndex", dof_mapping)
-        global_index = dof_tuple(**dof_mapping)
+        local_index = dof_tuple(**dof_mapping)
 
-        return global_index
+        return local_index
 
     def dof_global_index(self):
         """Get the global index for a element specific degree of freedom."""
