@@ -1130,8 +1130,8 @@ class ShaftTaperedElement(Element):
         ... )
         >>> shaft1.save('ShaftTaperedElement.toml')
         >>> shaft2 = ShaftTaperedElement.load("ShaftTaperedElement.toml")
-        >>> shaft2
-        [ShaftTaperedElement(L=0.25, i_d_l=0.0, i_d_r=0.0, o_d_l=0.05, o_d_r=0.08, material='Steel', n=None)]
+        >>> shaft2 # doctest: +ELLIPSIS
+        [ShaftTaperedElement(L=0.25, i_d_l=0.0...
         """
         shaft_elements = []
         with open("ShaftTaperedElement.toml", "r") as f:
