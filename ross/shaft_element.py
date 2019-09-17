@@ -186,12 +186,57 @@ class ShaftElement(Element):
         self.phi = phi
 
     def __eq__(self, other):
+        """
+        Equality method for comparasions
+
+        Parameters
+        ----------
+        other : obj
+            parameter for comparasion
+
+        Returns
+        -------
+        True if other is equal to the reference parameter.
+        False if not.
+
+        Example
+        -------
+        >>> from ross.materials import steel
+        >>> le = 0.25
+        >>> i_d = 0
+        >>> o_d = 0.05
+        >>> shaft1 = ShaftElement(
+        ...        le, i_d, o_d, steel, rotary_inertia=True, shear_effects=True
+        ... )
+        >>> shaft2 = ShaftElement(
+        ...        le, i_d, o_d, steel, rotary_inertia=True, shear_effects=True
+        ... )
+        >>> shaft1 == shaft2
+        True
+        """
         if self.__dict__ == other.__dict__:
             return True
         else:
             return False
 
     def save(self, file_name):
+        """Save shaft elements to toml file.
+
+        Parameters
+        ----------
+        file_name : str
+
+        Examples
+        --------
+        >>> from ross.materials import steel
+        >>> le = 0.25
+        >>> i_d = 0
+        >>> o_d = 0.05
+        >>> shaft1 = ShaftElement(
+        ...     le, i_d, o_d, steel, rotary_inertia=True, shear_effects=True
+        ... )
+        >>> shaft1.save('ShaftElement.toml')
+        """
         data = self.load_data(file_name)
         data["ShaftElement"][str(self.n)] = {
             "L": self.L,
@@ -210,6 +255,26 @@ class ShaftElement(Element):
 
     @staticmethod
     def load(file_name="ShaftElement"):
+        """Load previously saved shaft elements from toml file.
+
+        Parameters
+        ----------
+        file_name : str, optional
+
+        Examples
+        --------
+        >>> from ross.materials import steel
+        >>> le = 0.25
+        >>> i_d = 0
+        >>> o_d = 0.05
+        >>> shaft1 = ShaftElement(
+        ...     le, i_d, o_d, steel, rotary_inertia=True, shear_effects=True
+        ... )
+        >>> shaft1.save('ShaftElement.toml')
+        >>> shaft2 = ShaftElement.load("ShaftElement.toml")
+        >>> shaft2
+        [ShaftElement(L=0.25, i_d=0.0, o_d=0.05, material='Steel', n=None)]
+        """ 
         shaft_elements = []
         with open("ShaftElement.toml", "r") as f:
             shaft_elements_dict = toml.load(f)
@@ -919,12 +984,54 @@ class ShaftTaperedElement(Element):
         self.phi = phi
 
     def __eq__(self, other):
+        """
+        Equality method for comparasions
+
+        Parameters
+        ----------
+        other : obj
+            parameter for comparasion
+
+        Returns
+        -------
+        True if other is equal to the reference parameter.
+        False if not.
+
+        Example
+        -------
+        >>> from ross.materials import steel
+        >>> shaft1 = ShaftTaperedElement(
+        ...        L=0.25, i_d_l=0, i_d_r=0, o_d_l=0.05, o_d_r=0.08,
+        ...        material=steel, rotary_inertia=True, shear_effects=True
+        ... )
+        >>> shaft2 = ShaftTaperedElement(
+        ...        L=0.25, i_d_l=0, i_d_r=0, o_d_l=0.05, o_d_r=0.08,
+        ...        material=steel, rotary_inertia=True, shear_effects=True
+        ... )
+        >>> shaft1 == shaft2
+        True
+        """
         if self.__dict__ == other.__dict__:
             return True
         else:
             return False
 
     def save(self, file_name):
+        """Save shaft elements to toml file.
+
+        Parameters
+        ----------
+        file_name : str
+
+        Examples
+        --------
+        >>> from ross.materials import steel
+        >>> shaft1 = ShaftTaperedElement(
+        ...        L=0.25, i_d_l=0, i_d_r=0, o_d_l=0.05, o_d_r=0.08,
+        ...        material=steel, rotary_inertia=True, shear_effects=True
+        ... )
+        >>> shaft1.save('ShaftTaperedElement.toml')
+        """
         data = self.load_data(file_name)
         data["ShaftTaperedElement"][str(self.n)] = {
             "L": self.L,
@@ -945,6 +1052,24 @@ class ShaftTaperedElement(Element):
 
     @staticmethod
     def load(file_name="ShaftTaperedElement"):
+        """Load previously saved shaft elements from toml file.
+
+        Parameters
+        ----------
+        file_name : str, optional
+
+        Examples
+        --------
+        >>> from ross.materials import steel
+        >>> shaft1 = ShaftTaperedElement(
+        ...        L=0.25, i_d_l=0, i_d_r=0, o_d_l=0.05, o_d_r=0.08,
+        ...        material=steel, rotary_inertia=True, shear_effects=True
+        ... )
+        >>> shaft1.save('ShaftTaperedElement.toml')
+        >>> shaft2 = ShaftTaperedElement.load("ShaftTaperedElement.toml")
+        >>> shaft2
+        [ShaftTaperedElement(L=0.25, i_d_l=0.0, i_d_r=0.0, o_d_l=0.05, o_d_r=0.08, material='Steel', n=None)]
+        """
         shaft_elements = []
         with open("ShaftTaperedElement.toml", "r") as f:
             shaft_elements_dict = toml.load(f)
