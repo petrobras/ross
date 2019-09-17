@@ -493,7 +493,18 @@ class Report:
 
         return node_min, node_max
 
-    def stability_level_1(self):
+    def stability_level_1(
+            self,
+            machine_type,
+            D,
+            H,
+            HP,
+            N,
+            RHOd,
+            RHOs,
+            steps=21,
+            unit="m",
+    ):
         """Stability analysis level 1.
 
         This analysis consider a anticipated cross coupling QA based on
@@ -505,10 +516,161 @@ class Report:
 
         Parameters
         ----------
-        (Check what we need to calculate the applied cross coupling and list
-         them as parameters)
+        machine_type : str
+            Choose the rotating machine type
+            Options: "compressor", "turbine" or "axial flow"
+        D : list
+            Impeller diameter, m (in.),
+            Blade pitch diameter, m (in.),
+        H : list
+            Minimum diffuser width per impeller, m (in.),
+            Effective blade height, m (in.),
+        HP : list
+            Rated power per stage/impeller, W (HP),
+        N : float
+            Operating speed, rpm,
+        RHOd : float
+            Discharge gas density per impeller, kg/m3 (lbm/in.3),
+        RHOs : float
+            Suction gas density per impeller, kg/m3 (lbm/in.3).
+        steps : int
+            Number of steps in the range.
+            Default is 11.
+        unit : str
+            Adopted unit system.
+            Default is "m"
+
+        Return
+        ------
+
+        Example
+        -------
+
         """
-        pass
+        if unit == "m":
+            C = 9.55
+        elif unit == "in":
+            C = 63.0
+        else:
+            raise TypeError("choose between meters (m) or inches (in)")
+
+        if len(D) != len(H):
+            raise Exception("length of D must be the same of H")
+
+        # Qa - Antecipated cross-coupling - API 684 - SP6.8.5.6
+        if machine_type == "compressor":
+            Bc = 3.
+            Dc, Hc = D, H
+            Qa = 0.
+            for i in range(len(self.rotor.disk_elements)):
+                qi = (HP[i] * Bc * C * RHOd) / (Dc[i] * Hc[i] * N * RHOs)
+                Qa = Qa + qi
+
+        # Qa - Antecipated cross-coupling - API 684 - SP6.8.5.6
+        if machine_type == "turbine" or machine_type == "axial flow":
+            Bt = 1.5
+            Dt, Ht = D, H
+            Qa = 0.
+            for i in range(len(self.rotor.disk_elements)):
+                qi = (HP[i] * Bt * C) / (Dt[i] * Ht[i] * N)
+                Qa = Qa + qi
+
+        bearings = [copy(b) for b in self.rotor.bearing_seal_elements]
+        for brg in self.rotor.bearing_seal_elements:
+            cross_coupling = BearingElement(n=brg.n, kxx=0, cxx=0, kxy=Qa, kyx=-Qa)
+            bearings.append(cross_coupling)
+        rotor0 = Rotor(
+            self.rotor.shaft_elements,
+            self.rotor.disk_elements,
+            bearings,
+            self.rotor.rated_w
+        )
+        non_backward = rotor0.whirl_direction() != "Backward"
+        log_dec_a = rotor0.log_dec[non_backward][0]
+
+        stiffness = np.linspace(0, 10 * Qa, steps)
+
+        log_dec = np.zeros(len(stiffness))
+
+        for i, Q in enumerate(stiffness):
+            bearings = [copy(b) for b in self.rotor.bearing_seal_elements]
+            for brg in self.rotor.bearing_seal_elements:
+                cross_coupling = BearingElement(n=brg.n, kxx=0, cxx=0, kxy=Q, kyx=-Q)
+                bearings.append(cross_coupling)
+            rotor1 = Rotor(
+                self.rotor.shaft_elements,
+                self.rotor.disk_elements,
+                bearings,
+                self.rotor.rated_w
+            )
+            non_backward = rotor1.whirl_direction() != "Backward"
+            log_dec[i] = rotor1.log_dec[non_backward][0]
+
+        g = interp1d(stiffness, log_dec, fill_value='extrapolate', kind="linear")
+
+        stiff = stiffness[-1] * (1 + 1 / (len(stiffness)))
+        while g(stiff) > 0:
+            log_dec = np.append(log_dec, g(stiff))
+            stiffness = np.append(stiffness, stiff)
+            stiff += stiffness[-1] / (len(stiffness))
+
+        # Cross-coupled required to prodeuce zero log dec - API 684 - SP6.8.5.8
+        Q0 = stiffness[-1]
+
+        # CSR - Critical Speed Ratio
+        CSR = self.maxspeed / self.rotor.wn[0]
+
+        # RHO_mean - Average gas density
+        RHO_mean = (RHOd + RHOs) / 2
+        RHO = np.linspace(0, RHO_mean * 5, 201)
+        Qc = np.piecewise(
+                RHO,
+                [RHO <= 16.53, RHO > 16.53, RHO == 60],
+                [2.5, lambda RHO: (-0.0115 * RHO + 2.69), 2.0]
+        )
+        #######################################################################
+        # Plot area
+        fig1 = figure(
+            tools="pan, box_zoom, wheel_zoom, reset, save",
+            title="Applied Cross-Coupled Stiffness vs. Log Decrement",
+            x_axis_label="Applied Cross-Coupled Stiffness, Q (N/m)",
+            y_axis_label="Log Dec",
+        )
+        fig1.title.text_font_size = "14pt"
+        fig1.xaxis.axis_label_text_font_size = "14pt"
+        fig1.yaxis.axis_label_text_font_size = "14pt"
+
+        fig1.line(stiffness, log_dec, line_width=3, line_color=bokeh_colors[0])
+        fig1.circle(Qa, log_dec_a, size=10, fill_color=bokeh_colors[0])
+        fig1.add_layout(
+            Span(
+                location=Qa,
+                dimension='height',
+                line_color='black',
+                line_dash='dashed',
+                line_width=3,
+            )
+        )
+
+        fig2 = figure(
+            tools="pan, box_zoom, wheel_zoom, reset, save",
+            title="CSR vs. Average gas density - (API 684 - SP 6.8.5.10)",
+            x_axis_label="Average Gas Density kg/m³ (lbm/ft³)",
+            y_axis_label="MCSR",
+        )
+        fig2.title.text_font_size = "14pt"
+        fig2.xaxis.axis_label_text_font_size = "14pt"
+        fig2.yaxis.axis_label_text_font_size = "14pt"
+
+        fig2.line(x=RHO, y=Qc)
+
+        plot = gridplot([[fig1, fig2]])
+        show(plot)
+        #######################################################################
+
+        #######################################################################
+        # Level 1 screening criteria
+        #######################################################################
 
     def stability_level_2(self):
         """Stability analysis level 2.
