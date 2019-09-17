@@ -2586,13 +2586,50 @@ def rotor_example():
 
 
 def MAC(u, v):
-    """MAC for two vectors"""
+    """MAC - Modal Assurance Criterion
+
+    MAC for a single pair of vectors.
+    The Modal Assurance Criterion (MAC) analysis is used to determine
+    the similarity of two mode shapes.
+
+    Parameters
+    ----------
+    u : array
+        complex modal vector
+    v : array
+        complex modal vector
+
+    Returns
+    -------
+    MAC from 'u' and 'v'
+    """
     H = lambda a: a.T.conj()
     return np.absolute((H(u) @ v) ** 2 / ((H(u) @ u) * (H(v) @ v)))
 
 
 def MAC_modes(U, V, n=None, plot=True):
-    """MAC for multiple vectors"""
+    """MAC - Modal Assurance Criterion
+
+    MAC for multiple vectors
+    The Modal Assurance Criterion (MAC) analysis is used to determine
+    the similarity of two mode shapes.
+
+    Parameters
+    ----------
+    U : matrix
+        complex modal matrix
+    V : matrix
+        complex modal matrix
+    n : int
+        number of vectors to be analyzed
+    plot : bool
+        if True, returns a plot
+        if False, returns the macs values
+
+    Returns
+    -------
+    The macs values from 'U' and 'V'
+    """
     # n is the number of modes to be evaluated
     if n is None:
         n = U.shape[1]
