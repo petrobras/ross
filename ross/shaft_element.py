@@ -417,7 +417,7 @@ class ShaftElement(Element):
         >>> shaft1 = ShaftElement(L=0.25, i_d=0, o_d=0.05, material=steel,
         ...                       rotary_inertia=True, shear_effects=True)
         >>> shaft1
-        ShaftElement(L=0.25, i_d=0.0, o_d=0.05, material='Steel', n=0)
+        ShaftElement(L=0.25, i_d=0.0, o_d=0.05, material='Steel', n=None)
         """
         return (
             f"{self.__class__.__name__}"
