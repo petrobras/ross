@@ -1589,8 +1589,8 @@ class Rotor(object):
         # bokeh plot - create a new plot
         bk_ax = figure(
             tools="pan, wheel_zoom, reset, save",
-            width=1800,
-            height=900,
+            width=800,
+            height=600,
             x_range=[-0.1 * shaft_end, 1.1 * shaft_end],
             y_range=[-0.3 * shaft_end, 0.3 * shaft_end],
             title="Rotor model",
