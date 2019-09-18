@@ -7,7 +7,7 @@ import matplotlib.pyplot as plt
 import bokeh.palettes as bp
 from mpl_toolkits.mplot3d import Axes3D
 from bokeh.layouts import gridplot, widgetbox
-from bokeh.plotting import figure, show
+from bokeh.plotting import figure
 from bokeh.transform import linear_cmap
 from bokeh.models.widgets import DataTable, TableColumn, NumberFormatter
 from bokeh.models import ColumnDataSource, ColorBar, Arrow, NormalHead, Label, HoverTool
@@ -197,8 +197,8 @@ class CampbellResults:
         camp = figure(
             tools="pan, box_zoom, wheel_zoom, reset, save",
             title="Campbell Diagram - Damped Natural Frequency Map",
-            width=1600,
-            height=900,
+            width=640,
+            height=480,
             x_axis_label="Rotor speed (rad/s)",
             y_axis_label="Damped natural frequencies (rad/s)",
         )
@@ -314,7 +314,7 @@ class CampbellResults:
 
         return camp
 
-    def plot(self, *args, plot_type="matplotlib", **kwargs):
+    def plot(self, *args, plot_type="bokeh", **kwargs):
         """Plot campbell results.
         Parameters
         ----------
@@ -429,8 +429,8 @@ class FrequencyResponseResults:
         # bokeh plot - create a new plot
         mag_plot = figure(
             tools="pan, box_zoom, wheel_zoom, reset, save",
-            width=1000,
-            height=450,
+            width=600,
+            height=240,
             title="Frequency Response - Magnitude",
             x_axis_label="Frequency",
             y_axis_label=y_axis_label,
@@ -523,8 +523,8 @@ class FrequencyResponseResults:
         # bokeh plot - create a new plot
         phase_plot = figure(
             tools="pan, box_zoom, wheel_zoom, reset, save",
-            width=1000,
-            height=450,
+            width=600,
+            height=240,
             title="Frequency Response - Phase",
             x_axis_label="Frequency",
             y_axis_label="Phase",
@@ -625,11 +625,11 @@ class FrequencyResponseResults:
 
         # show the bokeh plot results
         grid_plots = gridplot([[bk_ax0], [bk_ax1]])
-        show(grid_plots)
+        grid_plots
 
-        return bk_ax0, bk_ax1
+        return grid_plots
 
-    def plot(self, inp, out, *args, plot_type="matplotlib", **kwargs):
+    def plot(self, inp, out, *args, plot_type="bokeh", **kwargs):
         """Plot frequency response.
         This method plots the frequency response given
         an output and an input.
@@ -936,11 +936,11 @@ class ForcedResponseResults:
 
         # show the bokeh plot results
         grid_plots = gridplot([[bk_ax0], [bk_ax1]])
-        show(grid_plots)
+        grid_plots
 
-        return bk_ax0, bk_ax1
+        return grid_plots
 
-    def plot(self, dof, plot_type="matplotlib", **kwargs):
+    def plot(self, dof, plot_type="bokeh", **kwargs):
         """Plot frequency response.
         This method plots the frequency response given
         an output and an input.
@@ -1249,9 +1249,9 @@ class StaticResults:
 
         TOOLS = "pan,wheel_zoom,box_zoom,reset,save,box_select,hover"
         TOOLTIPS = [
-            ("Shaft lenght:", "@x_0"),
+            ("Shaft lenght:", "@x0"),
             ("Underformed:", "@y1"),
-            ("Displacement:", "@y_0"),
+            ("Displacement:", "@y0"),
         ]
 
         # create displacement plot
@@ -1268,11 +1268,11 @@ class StaticResults:
         disp_graph.yaxis.axis_label_text_font_size = "14pt"
 
         interpolated = interpolate.interp1d(
-            source.data["x_0"], source.data["y_0"], kind="cubic"
+            source.data["x0"], source.data["y0"], kind="cubic"
         )
         xnew = np.linspace(
-            source.data["x_0"][0],
-            source.data["x_0"][-1],
+            source.data["x0"][0],
+            source.data["x0"][-1],
             num=len(self.nodes_pos) * 20,
             endpoint=True,
         )
@@ -1281,23 +1281,23 @@ class StaticResults:
         auxsource = ColumnDataSource(data=dict(x0=xnew, y0=ynew, y1=[0] * len(xnew)))
 
         disp_graph.line(
-            "x_0",
-            "y_0",
+            "x0",
+            "y0",
             source=auxsource,
             legend="Deformed shaft",
             line_width=3,
             line_color=bokeh_colors[9],
         )
         disp_graph.circle(
-            "x_0",
-            "y_0",
+            "x0",
+            "y0",
             source=source,
             legend="Deformed shaft",
             size=8,
             fill_color=bokeh_colors[9],
         )
         disp_graph.line(
-            "x_0",
+            "x0",
             "y1",
             source=source,
             legend="underformed shaft",
@@ -1305,7 +1305,7 @@ class StaticResults:
             line_color=bokeh_colors[0],
         )
         disp_graph.circle(
-            "x_0",
+            "x0",
             "y1",
             source=source,
             legend="underformed shaft",
@@ -1330,7 +1330,7 @@ class StaticResults:
         FBD.yaxis.visible = False
         FBD.xaxis.axis_label_text_font_size = "14pt"
 
-        FBD.line("x_0", "y1", source=source, line_width=5, line_color=bokeh_colors[0])
+        FBD.line("x0", "y1", source=source, line_width=5, line_color=bokeh_colors[0])
 
         # FBD - plot arrows indicating shaft weight distribution
         text = str("%.1f" % sh_weight)
@@ -1516,7 +1516,7 @@ class StaticResults:
 
         grid_plots = gridplot([[FBD, SF], [disp_graph, BM]])
 
-        show(grid_plots)
+        return grid_plots
 
 
 class ConvergenceResults:
@@ -1544,15 +1544,15 @@ class ConvergenceResults:
         )
 
         TOOLS = "pan,wheel_zoom,box_zoom,hover,reset,save,"
-        TOOLTIPS1 = [("Frequency:", "@y_0"), ("Number of Elements", "@x_0")]
-        TOOLTIPS2 = [("Relative Error:", "@y1"), ("Number of Elements", "@x_0")]
+        TOOLTIPS1 = [("Frequency:", "@y0"), ("Number of Elements", "@x0")]
+        TOOLTIPS2 = [("Relative Error:", "@y1"), ("Number of Elements", "@x0")]
 
         # create a new plot and add a renderer
         freq_arr = figure(
             tools=TOOLS,
             tooltips=TOOLTIPS1,
-            width=800,
-            height=600,
+            width=640,
+            height=480,
             title="Frequency Evaluation",
             x_axis_label="Numer of Elements",
             y_axis_label="Frequency (rad/s)",
@@ -1560,15 +1560,15 @@ class ConvergenceResults:
         freq_arr.xaxis.axis_label_text_font_size = "14pt"
         freq_arr.yaxis.axis_label_text_font_size = "14pt"
 
-        freq_arr.line("x_0", "y_0", source=source, line_width=3, line_color="crimson")
-        freq_arr.circle("x_0", "y_0", source=source, size=8, fill_color="crimson")
+        freq_arr.line("x0", "y0", source=source, line_width=3, line_color="crimson")
+        freq_arr.circle("x0", "y0", source=source, size=8, fill_color="crimson")
 
         # create another new plot and add a renderer
         rel_error = figure(
             tools=TOOLS,
             tooltips=TOOLTIPS2,
-            width=800,
-            height=600,
+            width=640,
+            height=480,
             title="Relative Error Evaluation",
             x_axis_label="Number of Elements",
             y_axis_label="Relative Error (%)",
@@ -1577,14 +1577,12 @@ class ConvergenceResults:
         rel_error.yaxis.axis_label_text_font_size = "14pt"
 
         rel_error.line(
-            "x_0", "y1", source=source, line_width=3, line_color="darkslategray"
+            "x0", "y1", source=source, line_width=3, line_color="darkslategray"
         )
-        rel_error.circle("x_0", "y1", source=source, fill_color="darkslategray", size=8)
+        rel_error.circle("x0", "y1", source=source, fill_color="darkslategray", size=8)
 
         # put the subplots in a gridplot
         plot = gridplot([[freq_arr, rel_error]])
-        # show the plots
-        show(plot)
 
         return plot
 
@@ -1640,8 +1638,8 @@ class TimeResponseResults:
         # bokeh plot - create a new plot
         bk_ax = figure(
             tools="pan, box_zoom, wheel_zoom, reset, save",
-            width=1200,
-            height=900,
+            width=640,
+            height=480,
             title="Response for node %s and degree of freedom %s"
             % (self.dof // 4, obs_dof),
             x_axis_label="Time (s)",
@@ -1655,9 +1653,9 @@ class TimeResponseResults:
             self.t, self.yout[:, self.dof], line_width=3, line_color=bokeh_colors[0]
         )
 
-        show(bk_ax)
+        return bk_ax
 
-    def plot(self, plot_type="matplotlib", **kwargs):
+    def plot(self, plot_type="bokeh", **kwargs):
         """Plot time response.
 
         This function will take a rotor object and plot its time response
