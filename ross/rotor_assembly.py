@@ -1663,7 +1663,7 @@ class Rotor(object):
 
         return bk_ax
 
-    def plot_rotor(self, nodes=1, *args, plot_type="matplotlib", **kwargs):
+    def plot_rotor(self, nodes=1, *args, plot_type="bokeh", **kwargs):
         """Plots a rotor object.
 
         This function will take a rotor object and plot its shaft,
