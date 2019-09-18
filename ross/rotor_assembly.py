@@ -1661,8 +1661,6 @@ class Rotor(object):
             position = (z_pos, y_pos)
             bearing.bokeh_patch(position, mean_od, bk_ax)
 
-        show(bk_ax)
-
         return bk_ax
 
     def plot_rotor(self, nodes=1, *args, plot_type="matplotlib", **kwargs):
