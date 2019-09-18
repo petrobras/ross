@@ -1692,7 +1692,7 @@ class Rotor(object):
         >>> import ross as rs
         >>> rotor = rs.rotor_example()
         >>> rotor.plot_rotor() # doctest: +ELLIPSIS
-        <matplotlib.axes...
+        Figure...
         """
         if plot_type == "matplotlib":
             return self._plot_rotor_matplotlib(
@@ -1778,7 +1778,7 @@ class Rotor(object):
         >>> speed = np.linspace(0, 400, 101)
         >>> camp = rotor1.run_campbell(speed)
         >>> camp.plot() # doctest: +ELLIPSIS
-        (<Figure ...
+        Figure...
         """
         rotor_current_speed = self.w
 
