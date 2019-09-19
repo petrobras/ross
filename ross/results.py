@@ -737,10 +737,13 @@ class FrequencyResponseResults:
         -------
         ax0 : matplotlib.axes
             Matplotlib axes with amplitude plot.
+            if plot_type == "matplotlib"
         ax1 : matplotlib.axes
             Matplotlib axes with phase plot.
+            if plot_type == "matplotlib"
         grid_plots : bokeh column
             Bokeh column with amplitude and phase plot
+            if plot_type == "bokeh"
         """
         if plot_type == "matplotlib":
             return self._plot_matplotlib(inp, out, *args, **kwargs)
@@ -792,6 +795,35 @@ class FrequencyResponseResults:
 
 
 class ForcedResponseResults:
+    """Class used to store results and provide plots for Unbalance and Forced
+    Response analysis.
+
+    Two options for plooting are available: Matplotlib and Bokeh. The user
+    chooses between them using the attribute plot_type. The default is bokeh
+
+    Parameters
+    ----------
+    force_resp : array
+        Array with the force response for each node for each frequency
+    speed_range : array
+        Array with the frequencies
+    magnitude : array
+        Magnitude (dB) of the frequency response for node for each frequency
+    phase : array
+        Phase of the frequency response for node for each frequency
+
+    Returns
+    -------
+    ax0 : matplotlib.axes
+        Matplotlib axes with magnitude plot.
+        if plot_type == "matplotlib"
+    ax1 : matplotlib.axes
+        Matplotlib axes with phase plot.
+        if plot_type == "matplotlib"
+    grid_plots : bokeh column
+        Bokeh colum with magnitude and phase plot
+        if plot_type == "bokeh"
+    """
     def __init__(self, forced_resp, speed_range, magnitude, phase):
         self.forced_resp = forced_resp
         self.speed_range = speed_range
@@ -801,17 +833,18 @@ class ForcedResponseResults:
     def plot_magnitude_matplotlib(self, dof, ax=None, units="m", **kwargs):
         """Plot frequency response.
         This method plots the frequency response magnitude given an output and
-        an input.
+        an input using Matplotlib.
 
         Parameters
         ----------
         dof : int
             Degree of freedom.
         ax : matplotlib.axes, optional
-            Matplotlib axes where the phase will be plotted.
+            Matplotlib axes where the magnitude will be plotted.
             If None creates a new.
         units : str
             Units to plot the magnitude ('m' or 'mic-pk-pk')
+            Default is 'm'
         kwargs : optional
             Additional key word arguments can be passed to change
             the plot (e.g. linestyle='--')
@@ -819,10 +852,7 @@ class ForcedResponseResults:
         Returns
         -------
         ax : matplotlib.axes
-            Matplotlib axes with phase plot.
-
-        Examples
-        --------
+            Matplotlib axes with magnitude plot.
         """
         if ax is None:
             ax = plt.gca()
@@ -850,7 +880,7 @@ class ForcedResponseResults:
     def plot_magnitude_bokeh(self, dof, units="m", **kwargs):
         """Plot frequency response.
         This method plots the frequency response magnitude given an output and
-        an input.
+        an input using Bokeh.
 
         Parameters
         ----------
@@ -858,6 +888,7 @@ class ForcedResponseResults:
             Degree of freedom.
         units : str
             Units to plot the magnitude ('m' or 'mic-pk-pk')
+            Default is 'm'
         kwargs : optional
             Additional key word arguments can be passed to change
             the plot (e.g. linestyle='--')
@@ -866,9 +897,6 @@ class ForcedResponseResults:
         -------
         mag_plot : bokeh axes
             bokeh axes with magnitude plot
-
-        Examples
-        --------
         """
         frequency_range = self.speed_range
         mag = self.magnitude
@@ -907,7 +935,7 @@ class ForcedResponseResults:
     def plot_phase_matplotlib(self, dof, ax=None, **kwargs):
         """Plot frequency response.
         This method plots the frequency response phase given an output and
-        an input.
+        an input using Matplotlib.
 
         Parameters
         ----------
@@ -924,9 +952,6 @@ class ForcedResponseResults:
         -------
         ax : matplotlib.axes
             Matplotlib axes with phase plot.
-
-        Examples
-        --------
         """
         if ax is None:
             ax = plt.gca()
@@ -949,7 +974,7 @@ class ForcedResponseResults:
     def plot_phase_bokeh(self, dof, **kwargs):
         """Plot frequency response.
         This method plots the frequency response phase given an output and
-        an input.
+        an input using Bokeh.
 
         Parameters
         ----------
@@ -963,9 +988,6 @@ class ForcedResponseResults:
         -------
         phase_plot : bokeh axes
             Bokeh axes with phase plot
-
-        Examples
-        --------
         """
         frequency_range = self.speed_range
         phase = self.phase
@@ -994,7 +1016,31 @@ class ForcedResponseResults:
         return phase_plot
 
     def _plot_matplotlib(self, dof, ax0=None, ax1=None, **kwargs):
+        """Plot frequency response.
+        This method plots the frequency response magnitude and phase given
+        an output and an input using Matplotlib.
 
+        Parameters
+        ----------
+        dof : int
+            Degree of freedom.
+        ax0 : matplotlib.axes, optional
+            Matplotlib axes where the magnitude will be plotted.
+            If None creates a new.
+        ax1 : matplotlib.axes, optional
+            Matplotlib axes where the phase will be plotted.
+            If None creates a new.            
+        kwargs : optional
+            Additional key word arguments can be passed to change
+            the plot (e.g. linestyle='--')
+
+        Returns
+        -------
+        ax0 : matplotlib.axes
+            Matplotlib axes with magnitude plot.
+        ax1 : matplotlib.axes
+            Matplotlib axes with phase plot.
+        """
         if ax0 is None and ax1 is None:
             fig, (ax0, ax1) = plt.subplots(2)
 
@@ -1010,6 +1056,23 @@ class ForcedResponseResults:
         return ax0, ax1
 
     def _plot_bokeh(self, dof, **kwargs):
+        """Plot frequency response.
+        This method plots the frequency response magnitude and phase given
+        an output and an input using Bokeh.
+
+        Parameters
+        ----------
+        dof : int
+            Degree of freedom.
+        kwargs : optional
+            Additional key word arguments can be passed to change
+            the plot (e.g. linestyle='--')
+
+        Returns
+        -------
+        grid_plots : bokeh column
+            Bokeh colum with magnitude and phase plot
+        """
         # bokeh plot axes
         bk_ax0 = self.plot_magnitude_bokeh(dof, **kwargs)
         bk_ax1 = self.plot_phase_bokeh(dof, **kwargs)
@@ -1022,8 +1085,7 @@ class ForcedResponseResults:
 
     def plot(self, dof, plot_type="bokeh", **kwargs):
         """Plot frequency response.
-        This method plots the frequency response given
-        an output and an input.
+        This method plots the frequency response given an output and an input.
 
         Parameters
         ----------
@@ -1031,16 +1093,22 @@ class ForcedResponseResults:
             Degree of freedom.
         plot_type: str
             Matplotlib or bokeh.
-            The default is matplotlib
+            The default is bokeh
         kwargs : optional
             Additional key word arguments can be passed to change
             the plot (e.g. linestyle='--')
 
         Returns
         -------
-
-        Examples
-        --------
+        ax0 : matplotlib.axes
+            Matplotlib axes with magnitude plot.
+            if plot_type == "matplotlib"
+        ax1 : matplotlib.axes
+            Matplotlib axes with phase plot.
+            if plot_type == "matplotlib"
+        grid_plots : bokeh column
+            Bokeh colum with magnitude and phase plot
+            if plot_type == "bokeh"
         """
         if plot_type == "matplotlib":
             return self._plot_matplotlib(dof, **kwargs)
