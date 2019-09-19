@@ -1125,8 +1125,8 @@ class ModeShapeResults:
 
     Parameters
     ----------
-    modes : list
-        list of eigenvectors
+    modes : array
+        Array of eigenvectors
     ndof : int
         Number of degrees of freedom of the system
     nodes : list
@@ -1146,10 +1146,7 @@ class ModeShapeResults:
 
     Returns
     -------
-        A graphic object
-
-    Example
-    -------
+    A graphic object
     """
 
     def __init__(
@@ -1202,9 +1199,6 @@ class ModeShapeResults:
             axial location of each orbit
         nn : int
             number of points to plot lines
-
-        Example
-        -------
         """
         evec0 = self.modes[:, mode]
         nodes = self.nodes
@@ -1276,7 +1270,7 @@ class ModeShapeResults:
 
     def plot(self, mode=None, evec=None, fig=None, ax=None):
         """
-        Method that calculate the arrays describing the mode shapes.
+        Method that plots the mode shapes.
 
         Parameters
         ----------
@@ -1296,9 +1290,6 @@ class ModeShapeResults:
             Returns the figure object with the plot.
         ax : matplotlib axes
             Returns the axes object with the plot.
-
-        Example
-        -------
         """
         if ax is None:
             fig = plt.figure()
