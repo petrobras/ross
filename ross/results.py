@@ -417,6 +417,33 @@ class CampbellResults:
 
 
 class FrequencyResponseResults:
+    """Class used to store results and provide plots for Frequency Response.
+
+    Two options for plooting are available: Matplotlib and Bokeh. The user
+    chooses between them using the attribute plot_type. The default is bokeh
+
+    Parameters
+    ----------
+    freq_resp : array
+        Array with the transfer matrix
+    speed_range : array
+        Array with the speed range in rad/s.
+    magnitude : array
+        Array with the frequencies, magnitude (dB) of the frequency
+        response for each pair input/output
+    phase : array
+        Array with the frequencies, phase of the frequency
+        response for each pair input/output
+
+    Returns
+    -------
+    ax : matplotlib axes
+        Returns the matplotlib axes object with the plot
+        if plot_type == "matplotlib"
+    bk_ax : bokeh axes
+        Returns the bokeh axes object with the plot
+        if plot_type == "bokeh"
+    """
     def __init__(self, freq_resp, speed_range, magnitude, phase):
         self.freq_resp = freq_resp
         self.speed_range = speed_range
@@ -426,7 +453,8 @@ class FrequencyResponseResults:
     def plot_magnitude_matplotlib(self, inp, out, ax=None, units="mic-pk-pk", **kwargs):
         """Plot frequency response.
         This method plots the frequency response magnitude given an output and
-        an input.
+        an input using Matplotlib.
+
         Parameters
         ----------
         inp : int
@@ -434,19 +462,19 @@ class FrequencyResponseResults:
         out : int
             Output.
         ax : matplotlib.axes, optional
-            Matplotlib axes where the phase will be plotted.
+            Matplotlib axes to plot the magnitude.
             If None creates a new.
+        units : str
+            Unit system
+            Default is "mic-pk-pk"
         kwargs : optional
             Additional key word arguments can be passed to change
             the plot (e.g. linestyle='--')
+
         Returns
         -------
         ax : matplotlib.axes
-            Matplotlib axes with amplitude plot.
-        mag_plot : bokeh plot axes
-            Bokeh plot axes with amplitude plot.
-        Examples
-        --------
+            Matplotlib axes with magnitude plot.
         """
         if ax is None:
             ax = plt.gca()
@@ -466,30 +494,28 @@ class FrequencyResponseResults:
 
         return ax
 
-    def plot_magnitude_bokeh(self, inp, out, units="m", **kwargs):
+    def plot_magnitude_bokeh(self, inp, out, units="mic-pk-pk", **kwargs):
         """Plot frequency response.
         This method plots the frequency response magnitude given an output and
-        an input.
+        an input using Bokeh.
+
         Parameters
         ----------
         inp : int
             Input.
         out : int
             Output.
-        ax : matplotlib.axes, optional
-            Matplotlib axes where the phase will be plotted.
-            If None creates a new.
+        units : str
+            Unit system
+            Default is "mic-pk-pk"
         kwargs : optional
             Additional key word arguments can be passed to change
             the plot (e.g. linestyle='--')
+
         Returns
         -------
-        ax : matplotlib.axes
-            Matplotlib axes with amplitude plot.
         mag_plot : bokeh plot axes
-            Bokeh plot axes with amplitude plot.
-        Examples
-        --------
+            Bokeh plot axes with magnitude plot.
         """
         frequency_range = self.speed_range
         mag = self.magnitude
@@ -497,7 +523,7 @@ class FrequencyResponseResults:
         if units == "m":
             y_axis_label = "Amplitude (m)"
         elif units == "mic-pk-pk":
-            y_axis_label = "Amplitude (\mu pk-pk)"
+            y_axis_label = "Amplitude ($\mu$ pk-pk)"
         else:
             y_axis_label = "Amplitude (dB)"
 
@@ -528,7 +554,8 @@ class FrequencyResponseResults:
     def plot_phase_matplotlib(self, inp, out, ax=None, **kwargs):
         """Plot frequency response.
         This method plots the frequency response phase given an output and
-        an input.
+        an input using Matplotlib.
+
         Parameters
         ----------
         inp : int
@@ -541,14 +568,11 @@ class FrequencyResponseResults:
         kwargs : optional
             Additional key word arguments can be passed to change
             the plot (e.g. linestyle='--')
+
         Returns
         -------
         ax : matplotlib.axes
             Matplotlib axes with phase plot.
-        phase_plot : bokeh plot axes
-            Bokeh plot axes with phase plot.
-        Examples
-        --------
         """
         if ax is None:
             ax = plt.gca()
@@ -570,27 +594,22 @@ class FrequencyResponseResults:
     def plot_phase_bokeh(self, inp, out, **kwargs):
         """Plot frequency response.
         This method plots the frequency response phase given an output and
-        an input.
+        an input using bokeh.
+
         Parameters
         ----------
         inp : int
             Input.
         out : int
             Output.
-        ax : matplotlib.axes, optional
-            Matplotlib axes where the phase will be plotted.
-            If None creates a new.
         kwargs : optional
             Additional key word arguments can be passed to change
             the plot (e.g. linestyle='--')
+
         Returns
         -------
-        ax : matplotlib.axes
-            Matplotlib axes with phase plot.
         phase_plot : bokeh plot axes
             Bokeh plot axes with phase plot.
-        Examples
-        --------
         """
         frequency_range = self.speed_range
         phase = self.phase
@@ -622,34 +641,30 @@ class FrequencyResponseResults:
     def _plot_matplotlib(self, inp, out, ax0=None, ax1=None, **kwargs):
         """Plot frequency response.
         This method plots the frequency response given
-        an output and an input.
+        an output and an input using Matplotib.
+
         Parameters
         ----------
         inp : int
             Input.
         out : int
             Output.
-        ax0 : matplotlib.axes, bokeh plot axes optional
-            Matplotlib and bokeh plot axes where the amplitude will be plotted.
+        ax0 : matplotlib.axes, optional
+            Matplotlib axes where the magnitude will be plotted.
             If None creates a new.
-        ax1 : matplotlib.axes, bokeh plot axes optional
-            Matplotlib and bokeh plot axes where the phase will be plotted.
+        ax1 : matplotlib.axes, optional
+            Matplotlib axes where the phase will be plotted.
             If None creates a new.
         kwargs : optional
             Additional key word arguments can be passed to change
             the plot (e.g. linestyle='--')
+
         Returns
         -------
         ax0 : matplotlib.axes
             Matplotlib axes with amplitude plot.
         ax1 : matplotlib.axes
             Matplotlib axes with phase plot.
-        bk_ax0 : bokeh plot axes
-            Bokeh plot axes with amplitude plot
-        bk_ax1 : bokeh plot axes
-            Bokeh plot axes with phase plot
-        Examples
-        --------
         """
         if ax0 is None and ax1 is None:
             fig, (ax0, ax1) = plt.subplots(2)
@@ -665,34 +680,28 @@ class FrequencyResponseResults:
     def _plot_bokeh(self, inp, out, ax0=None, ax1=None, **kwargs):
         """Plot frequency response.
         This method plots the frequency response given
-        an output and an input.
+        an output and an input using Bokeh.
+
         Parameters
         ----------
         inp : int
             Input.
         out : int
             Output.
-        ax0 : matplotlib.axes, bokeh plot axes optional
-            Matplotlib and bokeh plot axes where the amplitude will be plotted.
+        ax0 : bokeh axes, optional
+            Bokeh plot axes where the magnitude will be plotted.
             If None creates a new.
-        ax1 : matplotlib.axes, bokeh plot axes optional
-            Matplotlib and bokeh plot axes where the phase will be plotted.
+        ax1 : bokeh axes, optional
+            Bokeh plot axes where the phase will be plotted.
             If None creates a new.
         kwargs : optional
             Additional key word arguments can be passed to change
             the plot (e.g. linestyle='--')
+
         Returns
         -------
-        ax0 : matplotlib.axes
-            Matplotlib axes with amplitude plot.
-        ax1 : matplotlib.axes
-            Matplotlib axes with phase plot.
-        bk_ax0 : bokeh plot axes
-            Bokeh plot axes with amplitude plot
-        bk_ax1 : bokeh plot axes
-            Bokeh plot axes with phase plot
-        Examples
-        --------
+        grid_plots : bokeh column
+            Bokeh column with magnitude and phase plots.
         """
         # bokeh plot axes
         bk_ax0 = self.plot_magnitude_bokeh(inp, out, ax=ax0)
@@ -708,36 +717,30 @@ class FrequencyResponseResults:
         """Plot frequency response.
         This method plots the frequency response given
         an output and an input.
+
         Parameters
         ----------
         inp : int
             Input.
         out : int
             Output.
+        args : optional
+            Additional bokeh plot axes or matplolib.axes
         plot_type: str
             Matplotlib or bokeh.
             The default is matplotlib
-        ax0 : matplotlib.axes, bokeh plot axes optional
-            Matplotlib and bokeh plot axes where the amplitude will be plotted.
-            If None creates a new.
-        ax1 : matplotlib.axes, bokeh plot axes optional
-            Matplotlib and bokeh plot axes where the phase will be plotted.
-            If None creates a new.
         kwargs : optional
             Additional key word arguments can be passed to change
             the plot (e.g. linestyle='--')
+
         Returns
         -------
         ax0 : matplotlib.axes
             Matplotlib axes with amplitude plot.
         ax1 : matplotlib.axes
             Matplotlib axes with phase plot.
-        bk_ax0 : bokeh plot axes
-            Bokeh plot axes with amplitude plot
-        bk_ax1 : bokeh plot axes
-            Bokeh plot axes with phase plot
-        Examples
-        --------
+        grid_plots : bokeh column
+            Bokeh column with amplitude and phase plot
         """
         if plot_type == "matplotlib":
             return self._plot_matplotlib(inp, out, *args, **kwargs)
@@ -750,6 +753,7 @@ class FrequencyResponseResults:
         """Plot frequency response.
         This method plots the frequency response given
         an output and an input.
+
         Parameters
         ----------
         outs : list
@@ -759,6 +763,7 @@ class FrequencyResponseResults:
         ax : array with matplotlib.axes, optional
             Matplotlib axes array created with plt.subplots.
             It needs to have a shape of (2*inputs, outputs).
+
         Returns
         -------
         ax : array with matplotlib.axes, optional
