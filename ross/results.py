@@ -102,7 +102,7 @@ class CampbellResults:
         self.whirl_values = whirl_values
 
     def _plot_matplotlib(self, harmonics=[1], fig=None, ax=None, **kwargs):
-       """
+        """
         Method to create Campbell Diagram figure using Matplotlib library.
 
         Parameters
