@@ -1619,7 +1619,7 @@ class Rotor(object):
             x_pos.append(position)
 
         # bokeh plot - plot nodes
-        y_pos = np.linspace(0, 0, len(self.nodes_pos))
+        y_pos = np.linspace(0, 0, len(self.nodes_pos[::nodes]))
 
         source = ColumnDataSource(dict(x=x_pos, y=y_pos, text=text))
 
