@@ -1698,6 +1698,26 @@ class StaticResults:
 
 
 class ConvergenceResults:
+    """Class used to store results and provide plots for Convergence Analysis.
+
+    This class plots:
+        Natural Frequency vs Number of Elements
+        Relative Error vs Number of Elements
+
+    Parameters
+    ----------
+    el_num : array
+        Array with number of elements in each iteraction
+    eigv_arr : array
+        Array with the n'th natural frequency in each iteraction
+    error_arr : array
+        Array with the relative error in each iteraction
+
+    Returns
+    -------
+    plot : bokeh.gridplot
+        Bokeh column with Convergence Analysis plots
+    """
     def __init__(self, el_num, eigv_arr, error_arr):
         self.el_num = el_num
         self.eigv_arr = eigv_arr
@@ -1713,9 +1733,8 @@ class ConvergenceResults:
 
         Returns
         -------
-        plot : bokeh.figure
-            Bokeh plot showing the results
-        --------
+        plot : bokeh.gridplot
+            Bokeh column with Convergence Analysis plots
         """
         source = ColumnDataSource(
             data=dict(x0=self.el_num, y0=self.eigv_arr, y1=self.error_arr)
