@@ -65,9 +65,38 @@ class Report:
         self.minspeed = minspeed
                 
     @classmethod
-    def from_saved_rotors(cls, path):
+    def from_saved_rotors(cls, path, minspeed, maxspeed, speed_units="rpm"):
+        """
+        Instantiate a rotor from a previously saved rotor model
+
+        Parameters
+        ----------
+        path : str
+            File name
+        maxspeed : float
+            Maximum operation speed.
+        minspeed : float
+            Minimum operation speed.
+        speed_units : str
+            String defining the unit for rotor speed.
+            Default is "rpm".
+
+        Returns
+        -------
+        Report : obj
+            A report object based on the rotor loaded
+
+        Examples
+        --------
+        >>> rotor = rotor_example()
+        >>> rotor.save('rotor_example')
+        >>> report = Report.from_saved_rotors(
+        ...     path='rotor_example', minspeed=400, maxspeed=1000, speed_units="rad/s"
+        ... )
+        >>> Rotor.remove('rotor_example')
+        """
         rotor = rs.Rotor.load(path)
-        return cls(rotor)
+        return cls(rotor, minspeed, maxspeed, speed_units="rpm")
 
     def static_forces(self):
         """
@@ -168,16 +197,14 @@ class Report:
 
         Example
         -------
-        """
-        """
         >>> rotor = rotor_example()
         >>> report = Report(rotor=rotor,
         ...                 minspeed=400,
         ...                 maxspeed=1000,
         ...                 speed_units="rad/s")
         >>> clearances = {3:0.001, 5:0.002}
-        >>> report.unbalance_response(clearances=clearances, mode=0)
-        Figure(id='1372', ...)
+        >>> report.unbalance_response(clearances=clearances, mode=0) # doctest: +ELLIPSIS
+        Figure...
         """
         maxspeed = self.maxspeed
         minspeed = self.minspeed

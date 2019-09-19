@@ -10,6 +10,7 @@ from ross.materials import steel
 from ross.rotor_assembly import *
 from ross.rotor_assembly import MAC_modes
 from ross.shaft_element import *
+from ross.point_mass import PointMass
 
 test_dir = os.path.dirname(__file__)
 
@@ -717,7 +718,7 @@ def test_static_analysis_rotor3(rotor3):
                 -9.18114192e-04,
                 -8.08560219e-04,
                 -4.68788888e-04,
-                -5.56171636e-12
+                -5.56171636e-12,
             ]
         ),
         decimal=6,
@@ -789,7 +790,7 @@ def test_static_analysis_rotor5(rotor5):
                 -4.23416398e-04,
                 -6.31362481e-12,
                 4.28859620e-04,
-                8.52492302e-04
+                8.52492302e-04,
             ]
         ),
         decimal=6,
@@ -878,7 +879,7 @@ def test_static_analysis_rotor6(rotor6):
                 1.72933811e-04,
                 -1.02148266e-11,
                 -3.96409257e-04,
-                -9.20006704e-04
+                -9.20006704e-04,
             ]
         ),
         decimal=6,
@@ -1223,3 +1224,43 @@ def test_save_load():
     Rotor.remove("teste00000000000000001")
 
     assert a == b
+
+
+def test_rotor_link():
+    i_d = 0
+    o_d = 0.05
+    n = 6
+    L = [0.25 for _ in range(n)]
+
+    shaft_elem = [
+        ShaftElement(
+            l, i_d, o_d, steel, shear_effects=True, rotary_inertia=True, gyroscopic=True
+        )
+        for l in L
+    ]
+
+    disk0 = DiskElement.from_geometry(
+        n=2, material=steel, width=0.07, i_d=0.05, o_d=0.28
+    )
+    disk1 = DiskElement.from_geometry(
+        n=4, material=steel, width=0.07, i_d=0.05, o_d=0.28
+    )
+
+    stfx = 1e6
+    stfy = 0.8e6
+    bearing0 = BearingElement(0, n_link=7, kxx=stfx, kyy=stfy, cxx=0)
+    support = BearingElement(7, kxx=stfx, kyy=stfy, cxx=0)
+    bearing1 = BearingElement(6, kxx=stfx, kyy=stfy, cxx=0)
+
+    point_mass = PointMass(7, m=1.0)
+
+    rotor = Rotor(
+        shaft_elem, [disk0, disk1], [bearing0, support, bearing1], [point_mass]
+    )
+    rotor.w = 1000 / 9.5492965964254
+
+    wn_expected = np.array(
+        [82.43809938, 87.5639844, 239.36021417, 261.15187937, 646.59858922, 688.428424]
+    )
+
+    assert_allclose(rotor.wn, wn_expected)

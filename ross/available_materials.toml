@@ -1,3 +1,11 @@
+[Materials.Steel]
+name = "Steel"
+rho = 7810
+E = 211000000000.0
+Poisson = 0.2992610837438423
+G_s = 81200000000.0
+color = "#525252"
+
 [Materials.AISI4140]
 name = "AISI4140"
 rho = 7850
@@ -6,10 +14,10 @@ Poisson = 0.27
 G_s = 80000000000.0
 color = "#525252"
 
-[Materials.Steel]
-name = "Steel"
-rho = 7810
-E = 211000000000.0
-Poisson = 0.2992610837438423
-G_s = 81200000000.0
+[Materials.A216WCB]
+name = "A216WCB"
+rho = 7820
+E = 210000000000.0
+Poisson = 0.29
+G_s = 81395348837.2093
 color = "#525252"

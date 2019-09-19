@@ -106,6 +106,7 @@ class ShaftElement(Element):
         rotary_inertia=True,
         gyroscopic=True,
         shear_method_calc="cowper",
+        tag=None,
     ):
 
         if type(material) is str:
@@ -126,6 +127,7 @@ class ShaftElement(Element):
             self.n_r = n + 1
 
         self.shear_method_calc = shear_method_calc
+        self.tag = tag
 
         self.L = float(L)
 
@@ -186,12 +188,60 @@ class ShaftElement(Element):
         self.phi = phi
 
     def __eq__(self, other):
+        """
+        Equality method for comparasions
+
+        Parameters
+        ----------
+        other : obj
+            parameter for comparasion
+
+        Returns
+        -------
+        True if other is equal to the reference parameter.
+        False if not.
+
+        Example
+        -------
+        >>> from ross.materials import steel
+        >>> le = 0.25
+        >>> i_d = 0
+        >>> o_d = 0.05
+        >>> shaft1 = ShaftElement(
+        ...        le, i_d, o_d, steel, rotary_inertia=True, shear_effects=True
+        ... )
+        >>> shaft2 = ShaftElement(
+        ...        le, i_d, o_d, steel, rotary_inertia=True, shear_effects=True
+        ... )
+        >>> shaft1 == shaft2
+        True
+        """
         if self.__dict__ == other.__dict__:
             return True
         else:
             return False
 
+    def __hash__(self):
+        return hash(self.tag)
+
     def save(self, file_name):
+        """Save shaft elements to toml file.
+
+        Parameters
+        ----------
+        file_name : str
+
+        Examples
+        --------
+        >>> from ross.materials import steel
+        >>> le = 0.25
+        >>> i_d = 0
+        >>> o_d = 0.05
+        >>> shaft1 = ShaftElement(
+        ...     le, i_d, o_d, steel, rotary_inertia=True, shear_effects=True
+        ... )
+        >>> shaft1.save('ShaftElement.toml')
+        """
         data = self.load_data(file_name)
         data["ShaftElement"][str(self.n)] = {
             "L": self.L,
@@ -210,6 +260,26 @@ class ShaftElement(Element):
 
     @staticmethod
     def load(file_name="ShaftElement"):
+        """Load previously saved shaft elements from toml file.
+
+        Parameters
+        ----------
+        file_name : str, optional
+
+        Examples
+        --------
+        >>> from ross.materials import steel
+        >>> le = 0.25
+        >>> i_d = 0
+        >>> o_d = 0.05
+        >>> shaft1 = ShaftElement(
+        ...     le, i_d, o_d, steel, rotary_inertia=True, shear_effects=True
+        ... )
+        >>> shaft1.save('ShaftElement.toml')
+        >>> shaft2 = ShaftElement.load("ShaftElement.toml")
+        >>> shaft2
+        [ShaftElement(L=0.25, i_d=0.0, o_d=0.05, material='Steel', n=None)]
+        """ 
         shaft_elements = []
         with open("ShaftElement.toml", "r") as f:
             shaft_elements_dict = toml.load(f)
@@ -285,21 +355,75 @@ class ShaftElement(Element):
 
     @property
     def n(self):
+        """
+        Set the element number as property
+
+        Parameters
+        ----------
+        Returns
+        -------
+        n : int
+            Element number
+        """
         return self._n
 
     @n.setter
     def n(self, value):
+        """
+        Method to set a new value for the element number.
+
+        Parameters
+        ----------
+        value : int
+            element number
+
+        Returns
+        -------
+        Examples
+        --------
+        >>> from ross.materials import steel
+        >>> shaft1 = ShaftElement(L=0.25, i_d=0, o_d=0.05, material=steel,
+        ...                       rotary_inertia=True, shear_effects=True)
+        >>> shaft1.n = 0
+        >>> shaft1
+        ShaftElement(L=0.25, i_d=0.0, o_d=0.05, material='Steel', n=0)
+        """
         self._n = value
         self.n_l = value
         if value is not None:
             self.n_r = value + 1
 
     def dof_mapping(self):
+        """
+        Method to map the element's degrees of freedom
+
+        Parameters
+        ----------
+        Returns
+        -------
+        The numbering of degrees of freedom of each element node.
+        """
         return dict(
             x_0=0, y_0=1, alpha_0=2, beta_0=3, x_1=4, y_1=5, alpha_1=6, beta_1=7
         )
 
     def __repr__(self):
+        """This function returns a string representation of a shaft element.
+
+        Parameters
+        ----------
+        Returns
+        -------
+        A string representation of a shaft object.
+
+        Examples
+        --------
+        >>> from ross.materials import steel
+        >>> shaft1 = ShaftElement(L=0.25, i_d=0, o_d=0.05, material=steel,
+        ...                       rotary_inertia=True, shear_effects=True)
+        >>> shaft1
+        ShaftElement(L=0.25, i_d=0.0, o_d=0.05, material='Steel', n=None)
+        """
         return (
             f"{self.__class__.__name__}"
             f"(L={self.L:{0}.{5}}, i_d={self.i_d:{0}.{5}}, "
@@ -308,6 +432,15 @@ class ShaftElement(Element):
         )
 
     def __str__(self):
+        """
+        Method to convert object into string
+        
+        Parameters
+        ----------
+        Returns
+        -------
+        The object's parameters translated to strings
+        """
         return (
             f"\nElem. N:    {self.n}"
             f"\nLenght:     {self.L:{10}.{5}}"
@@ -796,6 +929,7 @@ class ShaftTaperedElement(Element):
         rotary_inertia=True,
         gyroscopic=True,
         shear_method_calc="cowper",
+        tag=None,
     ):
 
         if type(material) is str:
@@ -814,6 +948,8 @@ class ShaftTaperedElement(Element):
         self.n_r = None
         if n is not None:
             self.n_r = n + 1
+
+        self.tag = tag
 
         self.shear_method_calc = shear_method_calc
 
@@ -919,12 +1055,57 @@ class ShaftTaperedElement(Element):
         self.phi = phi
 
     def __eq__(self, other):
+        """
+        Equality method for comparasions
+
+        Parameters
+        ----------
+        other : obj
+            parameter for comparasion
+
+        Returns
+        -------
+        True if other is equal to the reference parameter.
+        False if not.
+
+        Example
+        -------
+        >>> from ross.materials import steel
+        >>> shaft1 = ShaftTaperedElement(
+        ...        L=0.25, i_d_l=0, i_d_r=0, o_d_l=0.05, o_d_r=0.08,
+        ...        material=steel, rotary_inertia=True, shear_effects=True
+        ... )
+        >>> shaft2 = ShaftTaperedElement(
+        ...        L=0.25, i_d_l=0, i_d_r=0, o_d_l=0.05, o_d_r=0.08,
+        ...        material=steel, rotary_inertia=True, shear_effects=True
+        ... )
+        >>> shaft1 == shaft2
+        True
+        """
         if self.__dict__ == other.__dict__:
             return True
         else:
             return False
 
+    def __hash__(self):
+        return hash(self.tag)
+
     def save(self, file_name):
+        """Save shaft elements to toml file.
+
+        Parameters
+        ----------
+        file_name : str
+
+        Examples
+        --------
+        >>> from ross.materials import steel
+        >>> shaft1 = ShaftTaperedElement(
+        ...        L=0.25, i_d_l=0, i_d_r=0, o_d_l=0.05, o_d_r=0.08,
+        ...        material=steel, rotary_inertia=True, shear_effects=True
+        ... )
+        >>> shaft1.save('ShaftTaperedElement.toml')
+        """
         data = self.load_data(file_name)
         data["ShaftTaperedElement"][str(self.n)] = {
             "L": self.L,
@@ -945,6 +1126,24 @@ class ShaftTaperedElement(Element):
 
     @staticmethod
     def load(file_name="ShaftTaperedElement"):
+        """Load previously saved shaft elements from toml file.
+
+        Parameters
+        ----------
+        file_name : str, optional
+
+        Examples
+        --------
+        >>> from ross.materials import steel
+        >>> shaft1 = ShaftTaperedElement(
+        ...        L=0.25, i_d_l=0, i_d_r=0, o_d_l=0.05, o_d_r=0.08,
+        ...        material=steel, rotary_inertia=True, shear_effects=True
+        ... )
+        >>> shaft1.save('ShaftTaperedElement.toml')
+        >>> shaft2 = ShaftTaperedElement.load("ShaftTaperedElement.toml")
+        >>> shaft2 # doctest: +ELLIPSIS
+        [ShaftTaperedElement(L=0.25, i_d_l=0.0...
+        """
         shaft_elements = []
         with open("ShaftTaperedElement.toml", "r") as f:
             shaft_elements_dict = toml.load(f)
@@ -958,21 +1157,79 @@ class ShaftTaperedElement(Element):
 
     @property
     def n(self):
+        """
+        Set the element number as property
+
+        Parameters
+        ----------
+        Returns
+        -------
+        n : int
+            Element number
+        """
         return self._n
 
     @n.setter
     def n(self, value):
+        """
+        Method to set a new value for the element number.
+
+        Parameters
+        ----------
+        value : int
+            element number
+
+        Returns
+        -------
+        Example
+        -------
+        >>> from ross.materials import steel
+        >>> shaft1 = ShaftTaperedElement(
+        ...        L=0.25, i_d_l=0, i_d_r=0, o_d_l=0.05, o_d_r=0.08,
+        ...        material=steel, rotary_inertia=True, shear_effects=True
+        ... )
+        >>> shaft1.n = 0
+        >>> shaft1 # doctest: +ELLIPSIS
+        ShaftTaperedElement(L=0.25, i_d_l=0.0...
+        """
         self._n = value
         self.n_l = value
         if value is not None:
             self.n_r = value + 1
 
     def dof_mapping(self):
+        """
+        Method to map the element's degrees of freedom
+
+        Parameters
+        ----------
+        Returns
+        -------
+        The numbering of degrees of freedom of each element node.
+        """
         return dict(
             x_0=0, y_0=1, alpha_0=2, beta_0=3, x_1=4, y_1=5, alpha_1=6, beta_1=7
         )
 
     def __repr__(self):
+        """This function returns a string representation of a shaft element.
+
+        Parameters
+        ----------
+        Returns
+        -------
+        A string representation of a shaft object.
+
+        Examples
+        --------
+        >>> from ross.materials import steel
+        >>> shaft1 = ShaftTaperedElement(
+        ...        L=0.25, i_d_l=0, i_d_r=0, o_d_l=0.05, o_d_r=0.08,
+        ...        material=steel, rotary_inertia=True, shear_effects=True
+        ... )
+        >>> shaft1 # doctest: +ELLIPSIS
+        ShaftTaperedElement(L=0.25, i_d_l=0.0...
+        """
         return (
             f"{self.__class__.__name__}"
             f"(L={self.L:{0}.{5}}, i_d_l={self.i_d_l:{0}.{5}}, "
@@ -982,6 +1239,15 @@ class ShaftTaperedElement(Element):
         )
 
     def __str__(self):
+        """
+        Method to convert object into string
+        
+        Parameters
+        ----------
+        Returns
+        -------
+        The object's parameters translated to strings
+        """
         return (
             f"\nElem. N:    {self.n}"
             f"\nLenght:     {self.L:{10}.{5}}"
@@ -1361,22 +1627,21 @@ class ShaftTaperedElement(Element):
 
         return G
 
-    def patch(self, position, SR, ax):
+    def patch(self, position, check_sld, ax):
         """Shaft element patch.
         Patch that will be used to draw the shaft element.
         Parameters
         ----------
-        ax : matplotlib axes, optional
-            Axes in which the plot will be drawn.
-        SR : list
-            list of slenderness ratio of shaft elements
         position : float
             Position in which the patch will be drawn.
+        check_sld : bool
+            If True, color the elements in yellow if slenderness ratio < 1.6
+        ax : matplotlib axes, optional
+            Axes in which the plot will be drawn.
         Returns
         -------
         """
-
-        if self.n in SR:
+        if check_sld is True and self.slenderness_ratio < 1.6:
             mpl_color = "yellow"
             legend = "Shaft - Slenderness Ratio < 1.6"
         else:
@@ -1422,23 +1687,24 @@ class ShaftTaperedElement(Element):
             )
         )
 
-    def bokeh_patch(self, position, SR, check_sld, bk_ax):
+    def bokeh_patch(self, position, check_sld, bk_ax):
         """Shaft element patch.
         Patch that will be used to draw the shaft element.
         Parameters
         ----------
-        bk_ax : bokeh plotting axes, optional
-            Axes in which the plot will be drawn.
-        SR : list
-            list of slenderness ratio of shaft elements
-        check_sld : bool
-            If True, HoverTool displays only the slenderness ratio
         position : float
             Position in which the patch will be drawn.
+        check_sld : bool
+            If True, HoverTool displays only the slenderness ratio and color
+            the elements in yellow if slenderness ratio < 1.6
+        bk_ax : bokeh plotting axes, optional
+            Axes in which the plot will be drawn.
         Returns
         -------
+        hover : Bokeh HoverTool
+            Bokeh HoverTool axes
         """
-        if self.n in SR:
+        if check_sld is True and self.slenderness_ratio < 1.6:
             bk_color = "yellow"
             legend = "Shaft - Slenderness Ratio < 1.6"
         else:
