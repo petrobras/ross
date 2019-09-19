@@ -1339,6 +1339,45 @@ class ModeShapeResults:
 
 
 class StaticResults:
+    """Class used to store results and provide plots for Static Analysis.
+
+    This class plots free-body diagram, deformed shaft, shearing
+    force diagram and bending moment diagram.
+
+    Parameters
+    ----------
+    disp_y : array
+        shaft displacement in y direction
+    Vx : array
+        shearing force array
+    Bm : array
+        bending moment array
+    df_shaft : dataframe
+        shaft dataframe
+    df_disks : dataframe
+        disks dataframe
+    df_bearings : dataframe
+        bearing dataframe
+    nodes : list
+        list of nodes numbers
+    nodes_pos : list
+        list of nodes positions
+    Vx_axis : array
+        X axis for displaying shearing force
+    force_data : dict
+        A dictionary containing the information about:
+        Static displacement vector,
+        Shearing force vector,
+        Bending moment vector,
+        Shaft total weight,
+        Disks forces,
+        Bearings reaction forces
+
+    Returns
+    -------
+    grid_plots : bokeh.gridplot
+        Bokeh column with Static Analysis plots
+    """
     def __init__(
         self,
         disp_y,
@@ -1378,7 +1417,7 @@ class StaticResults:
         Returns
         -------
         grid_plots : bokeh.gridplot
-        --------
+            Bokeh column with Static Analysis plots
         """
         source = ColumnDataSource(
             data=dict(
