@@ -68,6 +68,33 @@ class Results(np.ndarray):
 
 
 class CampbellResults:
+    """Class used to store results and provide plots for Campbell Diagram.
+
+    It's possible to visualize multiples harmonics in a single plot to check
+    other speeds which also excite a specific natural frequency.
+    Two options for plooting are available: Matplotlib and Bokeh. The user
+    chooses between them using the attribute plot_type. The default is bokeh
+
+    Parameters
+    ----------
+    speed_range : array
+        Array with the speed range in rad/s.
+    wd : array
+        Array with the damped natural frequencies
+    log_dec : array
+        Array with the Logarithmic decrement
+    whirl_values : array
+        Array with the whirl values (0, 0.5 or 1)
+
+    Returns
+    -------
+    ax : matplotlib axes
+        Returns the matplotlib axes object with the plot
+        if plot_type == "matplotlib"
+    bk_ax : bokeh axes
+        Returns the bokeh axes object with the plot
+        if plot_type == "bokeh"
+    """
     def __init__(self, speed_range, wd, log_dec, whirl_values):
         self.speed_range = speed_range
         self.wd = wd
@@ -75,6 +102,31 @@ class CampbellResults:
         self.whirl_values = whirl_values
 
     def _plot_matplotlib(self, harmonics=[1], fig=None, ax=None, **kwargs):
+       """
+        Method to create Campbell Diagram figure using Matplotlib library.
+
+        Parameters
+        ----------
+        harmonics: list, optional
+            List withe the harmonics to be plotted.
+            The default is to plot 1x.
+        fig : matplotlib figure, optional
+            Figure in which the plot will be drawn
+            Default is None
+        ax : matplotlib plotting axes, optional
+            Axes which the plot will take to draw.
+            Default is None
+        kwargs : optional
+            Additional key word arguments can be passed to change
+            the plot (e.g. linestyle='--')
+
+        Returns
+        -------
+        fig : matplotlib figure
+            A figure with the Campbell Diagram plot
+        ax : matplotlib plotting axes
+            The axes from Campbell Diagram plot
+        """
         if fig is None and ax is None:
             fig, ax = plt.subplots()
 
@@ -173,6 +225,23 @@ class CampbellResults:
         return fig, ax
 
     def _plot_bokeh(self, harmonics=[1], **kwargs):
+        """
+        Method to create Campbell Diagram figure using Bokeh library.
+
+        Parameters
+        ----------
+        harmonics: list, optional
+            List withe the harmonics to be plotted.
+            The default is to plot 1x.
+        kwargs : optional
+            Additional key word arguments can be passed to change
+            the plot (e.g. linestyle='--')
+
+        Returns
+        -------
+        camp : Bokeh axes
+            The bokeh axes object with the plot
+        """
         wd = self.wd
         num_frequencies = wd.shape[1]
         log_dec = self.log_dec
@@ -316,22 +385,28 @@ class CampbellResults:
 
     def plot(self, *args, plot_type="bokeh", **kwargs):
         """Plot campbell results.
+
         Parameters
         ----------
-        harmonics: list, optional
-            List withe the harmonics to be plotted.
-            The default is to plot 1x.
+        args: optional
+            harmonics : list, optional
+                List with the harmonics to be plotted.
+                The default is to plot 1x.
         plot_type: str
             Matplotlib or bokeh.
-            The default is matplotlib
-        fig : matplotlib figure, optional
-            Figure to insert axes with log_dec colorbar.
-        ax : matplotlib axes, optional
-            Axes in which the plot will be drawn.
+            The default is bokeh
+        kwargs : optional
+            Additional key word arguments can be passed to change
+            the plot (e.g. linestyle='--')
+
         Returns
         -------
         ax : matplotlib axes
-            Returns the axes object with the plot.
+            Returns the matplotlib axes object with the plot
+            if plot_type == "matplotlib"
+        bk_ax : bokeh axes
+            Returns the bokeh axes object with the plot
+            if plot_type == "bokeh"
         """
         if plot_type == "matplotlib":
             return self._plot_matplotlib(*args, **kwargs)
