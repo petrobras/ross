@@ -728,7 +728,7 @@ class FrequencyResponseResults:
             Additional bokeh plot axes or matplolib.axes
         plot_type: str
             Matplotlib or bokeh.
-            The default is matplotlib
+            The default is bokeh
         kwargs : optional
             Additional key word arguments can be passed to change
             the plot (e.g. linestyle='--')
@@ -1785,6 +1785,32 @@ class ConvergenceResults:
 
 
 class TimeResponseResults:
+    """Class used to store results and provide plots for Time Response
+    Analysis.
+
+    This class takes the results from time response analysis and creates a
+    plot given a force and a time.
+
+    Parameters
+    ----------
+    t : array
+        Time values for the output.
+    yout : array
+        System response.
+    xout : array
+        Time evolution of the state vector.
+    dof : int
+        Degree of freedom
+
+    Returns
+    -------
+    ax : matplotlib.axes
+        Matplotlib axes with time response plot.
+        if plot_type == "matplotlib"
+    bk_ax : bokeh axes
+        Bokeh axes with time response plot
+        if plot_type == "bokeh"
+    """
     def __init__(self, t, yout, xout, dof):
         self.t = t
         self.yout = yout
@@ -1792,7 +1818,22 @@ class TimeResponseResults:
         self.dof = dof
 
     def _plot_matplotlib(self, ax=None):
+        """Plot time response.
 
+        This function will take a rotor object and plot its time response
+        using Matplotlib
+
+        Parameters
+        ----------
+        ax : matplotlib.axes
+            Matplotlib axes where time response will be plotted.
+            if None, creates a new one
+
+        Returns
+        -------
+        ax : matplotlib.axes
+            Matplotlib axes with time response plot.
+        """
         if ax is None:
             ax = plt.gca()
 
@@ -1818,7 +1859,20 @@ class TimeResponseResults:
         )
 
     def _plot_bokeh(self):
+        """Plot time response.
 
+        This function will take a rotor object and plot its time response
+        using Bokeh
+
+        Parameters
+        ----------
+
+        Returns
+        -------
+        bk_ax : bokeh axes
+            Bokeh axes with time response plot
+            if plot_type == "bokeh"
+        """
         if self.dof % 4 == 0:
             obs_dof = "x"
             amp = "m"
@@ -1856,24 +1910,24 @@ class TimeResponseResults:
         """Plot time response.
 
         This function will take a rotor object and plot its time response
-        given a force and a time.
 
         Parameters
         ----------
-        dof : int
-            Degree of freedom.
         plot_type: str
             Matplotlib or bokeh.
-            The default is matplotlib
+            The default is bokeh
         kwargs : optional
             Additional key word arguments can be passed to change
             the plot (e.g. linestyle='--')
 
         Returns
         -------
-
-        Examples
-        --------
+        ax : matplotlib.axes
+            Matplotlib axes with time response plot.
+            if plot_type == "matplotlib"
+        bk_ax : bokeh axes
+            Bokeh axes with time response plot
+            if plot_type == "bokeh"
         """
         if plot_type == "matplotlib":
             return self._plot_matplotlib(**kwargs)
