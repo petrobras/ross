@@ -7,8 +7,8 @@ import toml
 
 class Element(ABC):
     """Element class.
-    This class is a general class to be called for other files which
-    create specific elements for the user
+    This class is a general abstract class to be implemented in other files, in order to
+    create specific elements for the user.
     """
 
     def __init__(self, n):
@@ -17,10 +17,31 @@ class Element(ABC):
         pass
 
     def save(self, file_name):
+        """Saves the element in a file.
+        Parameters
+        ----------
+        file_name: string
+            The name of the file the element will be saved in.
+        Returns
+        -------
+        None
+        Examples
+        --------
+        >>> # Example using DiskElement
+        >>> from ross.disk_element import disk_example
+        >>> disk = disk_example()
+        >>> disk.save('DiskElement.toml')
+        """
         pass
 
     @staticmethod
-    def load(self, file_name):
+    def load(file_name):
+        """Loads elements saved in a file.
+        Parameters
+        ----------
+        file_name: string
+            The name of the file to be loaded.
+        """
         pass
 
     @abstractmethod
@@ -47,6 +68,9 @@ class Element(ABC):
         """A summary for the element.
 
         A pandas series with the element properties as variables.
+        Returns
+        -------
+        A pandas series.
         """
         attributes = self.__dict__
         attributes["type"] = self.__class__.__name__
@@ -54,6 +78,17 @@ class Element(ABC):
 
     @staticmethod
     def load_data(file_name):
+        """Loads elements data saved in a toml format.
+        Parameters
+        ----------
+        file_name: string
+            The name of the file to be loaded.
+
+        Returns
+        -------
+        dict
+            The element parameters presented as a dictionary.
+        """
         try:
             with open(file_name, "r") as f:
                 data = toml.load(f)
@@ -67,6 +102,14 @@ class Element(ABC):
 
     @staticmethod
     def dump_data(data, file_name):
+        """Dumps element data in a toml file.
+        Parameters
+        ----------
+        data: dict
+            The data that should be dumped.
+        file_name: string
+            The name of the file the data will be dumped in.
+        """
         with open(file_name, "w") as f:
             toml.dump(data, f)
 
