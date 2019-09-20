@@ -316,8 +316,8 @@ def test_rotor_attributes(rotor1, rotor3, rotor3_odd):
     assert rotor1.nodes_pos[0] == 0
     assert rotor1.nodes_pos[1] == 0.25
     assert rotor1.nodes_pos[-1] == 0.5
-    assert len(rotor3.elements_length) == 6
-    assert len(rotor3_odd.elements_length) == 7
+    assert len(rotor3.shaft_elements_length) == 6
+    assert len(rotor3_odd.shaft_elements_length) == 7
 
 
 def test_evects_sorted_rotor3(rotor3):
