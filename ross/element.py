@@ -59,31 +59,119 @@ class Element(ABC):
 
     @abstractmethod
     def M(self):
-        """Mass matrix."""
+        """Mass matrix.
+        Parameters
+        ----------
+
+        Returns
+        -------
+        A matrix of floats.
+
+        Examples
+        --------
+        >>> # Example using BearingElement
+        >>> from ross.bearing_seal_element import bearing_example
+        >>> bearing = bearing_example()
+        >>> bearing.M()
+        array([[0., 0.],
+               [0., 0.]])
+        """
         pass
 
     @abstractmethod
     def C(self, frequency):
-        """Frequency dependent damping coefficients matrix."""
+        """Frequency dependent damping coefficients matrix.
+        Parameters
+        ----------
+        frequency: float
+            The frequency in which the coefficients depend on.
+
+        Returns
+        -------
+        A matrix of floats.
+
+        Examples
+        --------
+        >>> # Example using BearingElement
+        >>> from ross.bearing_seal_element import bearing_example
+        >>> bearing = bearing_example()
+        >>> bearing.C(0)
+        array([[200.,   0.],
+               [  0., 150.]])
+        """
         pass
 
     @abstractmethod
     def K(self, frequency):
-        """Frequency dependent stiffness coefficients matrix."""
+        """Frequency dependent stiffness coefficients matrix.
+        Parameters
+        ----------
+        frequency: float
+            The frequency in which the coefficients depend on.
+
+        Returns
+        -------
+        A matrix of floats.
+
+        Examples
+        --------
+        >>> # Example using BearingElement
+        >>> from ross.bearing_seal_element import bearing_example
+        >>> bearing = bearing_example()
+        >>> bearing.K(0)
+        array([[1000000.,       0.],
+               [      0.,  800000.]])
+        """
         pass
 
     @abstractmethod
     def G(self):
-        """Gyroscopic matrix."""
+        """Gyroscopic matrix.
+        Parameters
+        ----------
+
+        Returns
+        -------
+        A matrix of floats.
+
+        Examples
+        --------
+        >>> # Example using BearingElement
+        >>> from ross.bearing_seal_element import bearing_example
+        >>> bearing = bearing_example()
+        >>> bearing.G()
+        array([[0., 0.],
+               [0., 0.]])
+        """
         pass
 
     def summary(self):
         """A summary for the element.
 
         A pandas series with the element properties as variables.
+        Parameters
+        ----------
+
         Returns
         -------
         A pandas series.
+
+        Examples
+        --------
+        >>> # Example using DiskElement
+        >>> from ross.disk_element import disk_example
+        >>> disk = disk_example()
+        >>> disk.summary()
+        n                  0
+        n_l                0
+        n_r                0
+        m            32.5897
+        Id          0.178089
+        Ip          0.329564
+        tag             None
+        color        #bc625b
+        type     DiskElement
+        dtype: object
         """
         attributes = self.__dict__
         attributes["type"] = self.__class__.__name__
@@ -101,6 +189,15 @@ class Element(ABC):
         -------
         dict
             The element parameters presented as a dictionary.
+        Examples
+        --------
+        >>> # Example using BearingElement
+        >>> from ross.bearing_seal_element import bearing_example
+        >>> from ross.bearing_seal_element import BearingElement
+        >>> bearing = bearing_example()
+        >>> bearing.save('BearingElement.toml')
+        >>> BearingElement.load_data('BearingElement.toml') # doctest: +ELLIPSIS
+        {'BearingElement': {'0': {'n': 0, 'kxx': [1000000.0, 1000000.0,...
         """
         try:
             with open(file_name, "r") as f:
@@ -122,6 +219,18 @@ class Element(ABC):
             The data that should be dumped.
         file_name: string
             The name of the file the data will be dumped in.
+        Returns
+        -------
+
+        Examples
+        --------
+        >>> # Example using BearingElement
+        >>> from ross.bearing_seal_element import bearing_example
+        >>> from ross.bearing_seal_element import BearingElement
+        >>> bearing = bearing_example()
+        >>> bearing.save('BearingElement.toml')
+        >>> data = BearingElement.load_data('BearingElement.toml')
+        >>> BearingElement.dump_data(data, 'bearing_data.toml')
         """
         with open(file_name, "w") as f:
             toml.dump(data, f)
@@ -130,24 +239,40 @@ class Element(ABC):
     def dof_mapping(self):
         """Should return a dictionary with a mapping between degree of freedom
         and its index.
+        Parameters
+        ----------
 
-        Example considering a shaft element:
-        def dof_mapping(self):
-            return dict(
-                x_0=0,
-                y_0=1,
-                alpha_0=2,
-                beta_0=3,
-                x_1=4,
-                y_1=5,
-                alpha_1=6,
-                beta_1=7,
-            )
+        Returns
+        -------
+        A dictionary of degrees of freedom.
+
+        Examples
+        --------
+        >>> # Example using BearingElement
+        >>> from ross.bearing_seal_element import bearing_example
+        >>> bearing = bearing_example()
+        >>> bearing.dof_mapping()
+        {'x_0': 0, 'y_0': 1}
         """
         pass
 
     def dof_local_index(self):
-        """Get the local index for a element specific degree of freedom."""
+        """Get the local index for a element specific degree of freedom.
+        Parameters
+        ----------
+
+        Returns
+        -------
+        A named tuple containing the local index.
+
+        Examples
+        --------
+        >>> # Example using BearingElement
+        >>> from ross.bearing_seal_element import bearing_example
+        >>> bearing = bearing_example()
+        >>> bearing.dof_local_index()
+        LocalIndex(x_0=0, y_0=1)
+        """
         dof_mapping = self.dof_mapping()
         dof_tuple = namedtuple("LocalIndex", dof_mapping)
         local_index = dof_tuple(**dof_mapping)
@@ -155,7 +280,22 @@ class Element(ABC):
         return local_index
 
     def dof_global_index(self):
-        """Get the global index for a element specific degree of freedom."""
+        """Get the global index for a element specific degree of freedom.
+        Parameters
+        ----------
+
+        Returns
+        -------
+        A named tuple containing the global index.
+
+        Examples
+        --------
+        >>> # Example using BearingElement
+        >>> from ross.bearing_seal_element import bearing_example
+        >>> bearing = bearing_example()
+        >>> bearing.dof_global_index()
+        GlobalIndex(x_0=0, y_0=1)
+        """
         dof_mapping = self.dof_mapping()
         global_dof_mapping = {}
         for k, v in dof_mapping.items():
