@@ -279,7 +279,7 @@ class ShaftElement(Element):
         >>> shaft2 = ShaftElement.load("ShaftElement.toml")
         >>> shaft2
         [ShaftElement(L=0.25, i_d=0.0, o_d=0.05, material='Steel', n=None)]
-        """ 
+        """
         shaft_elements = []
         with open("ShaftElement.toml", "r") as f:
             shaft_elements_dict = toml.load(f)
@@ -671,7 +671,7 @@ class ShaftElement(Element):
             bk_color = "yellow"
             legend = "Shaft - Slenderness Ratio < 1.6"
         else:
-            bk_color = bokeh_colors[2]
+            bk_color = self.material.color
             legend = "Shaft"
 
         source_u = ColumnDataSource(
@@ -1708,7 +1708,7 @@ class ShaftTaperedElement(Element):
             bk_color = "yellow"
             legend = "Shaft - Slenderness Ratio < 1.6"
         else:
-            bk_color = bokeh_colors[2]
+            bk_color = self.material.color
             legend = "Shaft"
 
         # bokeh plot - plot the shaft
