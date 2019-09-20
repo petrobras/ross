@@ -41,6 +41,19 @@ class Element(ABC):
         ----------
         file_name: string
             The name of the file to be loaded.
+        Returns
+        -------
+        The element object.
+        Examples
+        --------
+        >>> # Example using BearingElement
+        >>> from ross.bearing_seal_element import bearing_example
+        >>> from ross.bearing_seal_element import BearingElement
+        >>> bearing1 = bearing_example()
+        >>> bearing1.save('BearingElement.toml')
+        >>> list_of_bearings = BearingElement.load('BearingElement.toml')
+        >>> bearing1 == list_of_bearings[0]
+        True
         """
         pass
 
