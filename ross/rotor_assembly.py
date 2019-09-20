@@ -203,7 +203,7 @@ class Rotor(object):
             if brg.__class__.__name__ == "SealElement" and brg.tag is None:
                 brg.tag = "Seal " + str(i)
 
-        self.shaft_elements = shaft_elements
+        self.shaft_elements = sorted(shaft_elements, key=lambda el: el.n)
         self.bearing_seal_elements = bearing_seal_elements
         self.disk_elements = disk_elements
         self.point_mass_elements = point_mass_elements
