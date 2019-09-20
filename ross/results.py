@@ -95,6 +95,7 @@ class CampbellResults:
         Returns the bokeh axes object with the plot
         if plot_type == "bokeh"
     """
+
     def __init__(self, speed_range, wd, log_dec, whirl_values):
         self.speed_range = speed_range
         self.wd = wd
@@ -444,6 +445,7 @@ class FrequencyResponseResults:
         Returns the bokeh axes object with the plot
         if plot_type == "bokeh"
     """
+
     def __init__(self, freq_resp, speed_range, magnitude, phase):
         self.freq_resp = freq_resp
         self.speed_range = speed_range
@@ -824,6 +826,7 @@ class ForcedResponseResults:
         Bokeh colum with magnitude and phase plot
         if plot_type == "bokeh"
     """
+
     def __init__(self, forced_resp, speed_range, magnitude, phase):
         self.forced_resp = forced_resp
         self.speed_range = speed_range
@@ -1155,7 +1158,7 @@ class ModeShapeResults:
         ndof,
         nodes,
         nodes_pos,
-        elements_length,
+        shaft_elements_length,
         w,
         wd,
         log_dec,
@@ -1165,7 +1168,7 @@ class ModeShapeResults:
         self.ndof = ndof
         self.nodes = nodes
         self.nodes_pos = nodes_pos
-        self.elements_length = elements_length
+        self.shaft_elements_length = shaft_elements_length
         self.w = w
         self.wd = wd
         self.log_dec = log_dec
@@ -1203,7 +1206,7 @@ class ModeShapeResults:
         evec0 = self.modes[:, mode]
         nodes = self.nodes
         nodes_pos = self.nodes_pos
-        elements_length = self.elements_length
+        shaft_elements_length = self.shaft_elements_length
 
         modex = evec0[0::4]
         modey = evec0[1::4]
@@ -1251,7 +1254,7 @@ class ModeShapeResults:
         N3 = 3 * zeta ** 2 - 2 * zeta ** 3
         N4 = -zeta ** 2 + zeta ** 3
 
-        for Le, n in zip(elements_length, nodes):
+        for Le, n in zip(shaft_elements_length, nodes):
             node_pos = nodes_pos[n]
             Nx = np.hstack((N1, Le * N2, N3, Le * N4))
             Ny = np.hstack((N1, -Le * N2, N3, -Le * N4))
@@ -1378,6 +1381,7 @@ class StaticResults:
     grid_plots : bokeh.gridplot
         Bokeh column with Static Analysis plots
     """
+
     def __init__(
         self,
         disp_y,
@@ -1718,6 +1722,7 @@ class ConvergenceResults:
     plot : bokeh.gridplot
         Bokeh column with Convergence Analysis plots
     """
+
     def __init__(self, el_num, eigv_arr, error_arr):
         self.el_num = el_num
         self.eigv_arr = eigv_arr
@@ -1811,6 +1816,7 @@ class TimeResponseResults:
         Bokeh axes with time response plot
         if plot_type == "bokeh"
     """
+
     def __init__(self, t, yout, xout, dof):
         self.t = t
         self.yout = yout
