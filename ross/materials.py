@@ -201,7 +201,8 @@ class Material:
 
         Parameters
         ----------
-        name : Material's name.
+        name : string
+            Material's name.
 
         Returns
         ----------
@@ -232,7 +233,8 @@ class Material:
 
         Parameters
         ----------
-        name : Name of Material Object to be deleted.
+        name : string
+            Name of Material Object to be deleted.
 
         Returns
         ----------
