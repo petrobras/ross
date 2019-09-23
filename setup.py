@@ -48,6 +48,7 @@ REQUIRED = [
     "bokeh",
     "coverage",
     "xlrd",
+    "path",
 ]
 
 # What packages are optional?
