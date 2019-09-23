@@ -93,5 +93,5 @@ def test_serialization():
 
 def test_repr():
     mat0 = Material(name="obj1", rho=92e1, E=281.21, G_s=20e9)
-    mat1 = eval(repr(mat0))
-    assert mat0 == mat1
+    assert mat0.__repr__() ==\
+               'Material(name="obj1", rho=9.200e+02, G_s=2.000e+10, E=2.812e+02, Poisson=-1.000e+00, color=\'#525252\')'
