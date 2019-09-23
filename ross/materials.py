@@ -90,7 +90,7 @@ class Material:
         self_list = [v for v in self.__dict__.values() if isinstance(v, (float, int))]
         other_list = [v for v in other.__dict__.values() if isinstance(v, (float, int))]
 
-        if np.allclose(self_list, other_list):
+        if np.allclose(self_list, other_list, rtol=0.01):
             return True
         else:
             return False
