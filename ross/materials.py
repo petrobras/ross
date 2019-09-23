@@ -6,7 +6,7 @@ some of the most common materials used in rotors.
 import os
 import numpy as np
 import toml
-
+from path import Path
 import ross as rs
 
 __all__ = ["Material", "steel"]
@@ -176,7 +176,7 @@ class Material:
             toml.dump(data, f)
 
     @staticmethod
-    def load_data():
+    def load_data(path):
         """Auxiliary function to load all saved materials properties in the use_material method.
 
         Parameters
@@ -188,7 +188,7 @@ class Material:
             Containing all data needed to instantiate a Material Object.
         """
         try:
-            with open("available_materials.toml", "r") as f:
+            with open(path, "r") as f:
                 data = toml.load(f)
         except FileNotFoundError:
             data = {"Materials": {}}
@@ -215,17 +215,16 @@ class Material:
         >>> AISI4140
         Material(name="AISI4140", rho=7.850e+03, G_s=8.000e+10, E=2.032e+11, Poisson=2.700e-01, color='#525252')
         """
-        run_path = os.getcwd()
-        ross_path = os.path.dirname(rs.__file__)
-        os.chdir(ross_path)
 
-        data = Material.load_data()
+        ross_path = Path(os.path.dirname(rs.__file__))/"available_materials.toml"
+
+        data = Material.load_data(ross_path)
         try:
             material = data["Materials"][name]
             return Material(**material)
         except KeyError:
             raise KeyError("There isn't a instanced material with this name.")
-        os.chdir(run_path)
+
 
     @staticmethod
     def remove_material(name):
@@ -247,17 +246,14 @@ class Material:
         >>> steel.save_material()
         >>> steel.remove_material('test_material')
         """
-        run_path = os.getcwd()
-        ross_path = os.path.dirname(rs.__file__)
-        os.chdir(ross_path)
+        ross_path = Path(os.path.dirname(rs.__file__))/"available_materials.toml"
 
-        data = Material.load_data()
+        data = Material.load_data(ross_path)
         try:
             del data["Materials"][name]
         except KeyError:
             return "There isn't a saved material with this name."
         Material.dump_data(data)
-        os.chdir(run_path)
 
     @staticmethod
     def available_materials():
@@ -279,16 +275,13 @@ class Material:
         >>> steel.save_material()
         >>> steel.remove_material('test_material')
         """
-        run_path = os.getcwd()
-        ross_path = os.path.dirname(rs.__file__)
-        os.chdir(ross_path)
+        ross_path = Path(os.path.dirname(rs.__file__))/"available_materials.toml"
 
         try:
-            data = Material.load_data()
+            data = Material.load_data(ross_path)
             return list(data["Materials"].keys())
         except FileNotFoundError:
             return "There is no saved materials."
-        os.chdir(run_path)
 
     def save_material(self):
         """Function used to delete a saved material.
@@ -308,14 +301,11 @@ class Material:
         >>> steel.save_material()
         >>> steel.remove_material('test_material')
         """
-        run_path = os.getcwd()
-        ross_path = os.path.dirname(rs.__file__)
-        os.chdir(ross_path)
+        ross_path = Path(os.path.dirname(rs.__file__))/"available_materials.toml"
 
-        data = Material.load_data()
+        data = Material.load_data(ross_path)
         data["Materials"][self.name] = self.__dict__
         Material.dump_data(data)
-        os.chdir(run_path)
 
 
 steel = Material(name="Steel", rho=7810, E=211e9, G_s=81.2e9)
