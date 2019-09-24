@@ -132,18 +132,4 @@ The following blog posts have some good information on how to write commit messa
 
 Step 5: Push changes to the main repo
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-
-For contributors
-++++++++++++++++
 To create a Pull Request (PR), refer to `the github PR guide <https://help.github.com/articles/about-pull-requests/>`_.
-
-For core developers
-+++++++++++++++++++
-If there are only a few, unrelated commits:
-
-::
-
-    git fetch upstream
-    git rebase upstream/master
-    git push upstream my-feature-branch:master
-
