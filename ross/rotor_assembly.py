@@ -203,7 +203,7 @@ class Rotor(object):
             if brg.__class__.__name__ == "SealElement" and brg.tag is None:
                 brg.tag = "Seal " + str(i)
 
-        self.shaft_elements = shaft_elements
+        self.shaft_elements = sorted(shaft_elements, key=lambda el: el.n)
         self.bearing_seal_elements = bearing_seal_elements
         self.disk_elements = disk_elements
         self.point_mass_elements = point_mass_elements
@@ -309,12 +309,10 @@ class Rotor(object):
         nodes_o_d.append(df_shaft["o_d"].iloc[-1])
         self.nodes_o_d = nodes_o_d
 
-        nodes_le = list(df_shaft.groupby("n_l")["L"].min())
-        nodes_le.append(df_shaft["L"].iloc[-1])
-        self.nodes_le = nodes_le
+        shaft_elements_length = list(df_shaft.groupby("n_l")["L"].min())
+        self.shaft_elements_length = shaft_elements_length
 
         self.nodes = list(range(len(self.nodes_pos)))
-        self.elements_length = [sh_el.L for sh_el in self.shaft_elements]
         self.L = nodes_pos[-1]
 
         # rotor mass can also be calculated with self.M()[::4, ::4].sum()
@@ -1847,7 +1845,7 @@ class Rotor(object):
             ndof=self.ndof,
             nodes=self.nodes,
             nodes_pos=self.nodes_pos,
-            elements_length=self.elements_length,
+            shaft_elements_length=self.shaft_elements_length,
             w=self.w,
             wd=self.wd,
             log_dec=self.log_dec,
