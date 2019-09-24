@@ -1378,10 +1378,10 @@ class StaticResults:
 
     Returns
     -------
-    grid_plots : bokeh.gridplot
-        Bokeh column with Static Analysis plots
+    fig : bokeh figures
+        Bokeh figure with Static Analysis plots depending on which method
+        is called.
     """
-
     def __init__(
         self,
         disp_y,
@@ -1407,87 +1407,85 @@ class StaticResults:
         self.Vx_axis = Vx_axis
         self.force_data = force_data
 
-    def plot(self):
-        """Plot static analysis graphs.
+    def plot_deformation(self):
+        """Plot the shaft static deformation.
+
         This method plots:
-            free-body diagram,
-            deformed shaft,
-            shearing force diagram,
-            bending moment diagram.
+            deformed shaft
 
         Parameters
         ----------
 
         Returns
         -------
-        grid_plots : bokeh.gridplot
-            Bokeh column with Static Analysis plots
+        fig : bokeh figure
+            Bokeh figure with static deformation plot
         """
         source = ColumnDataSource(
             data=dict(
-                x0=self.nodes_pos, y0=self.disp_y * 1000, y1=[0] * len(self.nodes_pos)
+                x=self.nodes_pos, y0=self.disp_y * 1000, y1=[0] * len(self.nodes_pos)
             )
         )
 
-        TOOLS = "pan,wheel_zoom,box_zoom,reset,save,box_select,hover"
         TOOLTIPS = [
-            ("Shaft lenght:", "@x0"),
+            ("Shaft lenght:", "@x"),
             ("Underformed:", "@y1"),
             ("Displacement:", "@y0"),
         ]
 
         # create displacement plot
-        disp_graph = figure(
-            tools=TOOLS,
+        fig = figure(
+            tools="pan, wheel_zoom, box_zoom, reset, save, box_select, hover",
             tooltips=TOOLTIPS,
-            width=900,
-            height=450,
+            width=640,
+            height=480,
             title="Static Analysis",
-            x_axis_label="shaft lenght",
-            y_axis_label="lateral displacement",
+            x_axis_label="Shaft lenght",
+            y_axis_label="Lateral displacement",
         )
-        disp_graph.xaxis.axis_label_text_font_size = "14pt"
-        disp_graph.yaxis.axis_label_text_font_size = "14pt"
+        fig.xaxis.axis_label_text_font_size = "14pt"
+        fig.yaxis.axis_label_text_font_size = "14pt"
+        fig.title.text_font_size = "14pt"
 
         interpolated = interpolate.interp1d(
-            source.data["x0"], source.data["y0"], kind="cubic"
+            source.data["x"], source.data["y0"], kind="cubic"
         )
         xnew = np.linspace(
-            source.data["x0"][0],
-            source.data["x0"][-1],
+            source.data["x"][0],
+            source.data["x"][-1],
             num=len(self.nodes_pos) * 20,
             endpoint=True,
         )
 
         ynew = interpolated(xnew)
-        auxsource = ColumnDataSource(data=dict(x0=xnew, y0=ynew, y1=[0] * len(xnew)))
+        auxsource = ColumnDataSource(data=dict(x=xnew, y0=ynew, y1=[0] * len(xnew)))
 
-        disp_graph.line(
-            "x0",
+        fig.line(
+            "x",
             "y0",
             source=auxsource,
             legend="Deformed shaft",
             line_width=3,
             line_color=bokeh_colors[9],
         )
-        disp_graph.circle(
-            "x0",
+        fig.circle(
+            "x",
             "y0",
             source=source,
             legend="Deformed shaft",
             size=8,
             fill_color=bokeh_colors[9],
         )
-        disp_graph.line(
-            "x0",
+        fig.line(
+            "x",
             "y1",
             source=source,
             legend="underformed shaft",
             line_width=3,
             line_color=bokeh_colors[0],
         )
-        disp_graph.circle(
-            "x0",
+        fig.circle(
+            "x",
             "y1",
             source=source,
             legend="underformed shaft",
@@ -1495,28 +1493,50 @@ class StaticResults:
             fill_color=bokeh_colors[0],
         )
 
-        # create a new plot for free body diagram (FDB)
+        return fig
+
+    def plot_free_body_diagram(self):
+        """Plot the rotor free-body diagram.
+
+        This method plots:
+            free-body diagram.
+
+        Parameters
+        ----------
+
+        Returns
+        -------
+        fig : bokeh figure
+            Bokeh figure with the free-body diagram plot
+        """
+        source = ColumnDataSource(
+            data=dict(
+                x=self.nodes_pos, y0=self.disp_y * 1000, y1=[0] * len(self.nodes_pos)
+            )
+        )
+
         y_start = 5.0
         sh_weight = sum(self.df_shaft["m"].values) * 9.8065
 
         shaft_end = self.nodes_pos[-1]
-        FBD = figure(
-            tools=TOOLS,
-            width=900,
-            height=450,
+        fig = figure(
+            tools="pan, wheel_zoom, box_zoom, reset, save, box_select, hover",
+            width=640,
+            height=480,
             title="Free-Body Diagram",
             x_axis_label="shaft lenght",
             x_range=[-0.1 * shaft_end, 1.1 * shaft_end],
             y_range=[-3 * y_start, 3 * y_start],
         )
-        FBD.yaxis.visible = False
-        FBD.xaxis.axis_label_text_font_size = "14pt"
+        fig.yaxis.visible = False
+        fig.xaxis.axis_label_text_font_size = "14pt"
+        fig.title.text_font_size = "14pt"
 
-        FBD.line("x0", "y1", source=source, line_width=5, line_color=bokeh_colors[0])
+        fig.line("x", "y1", source=source, line_width=5, line_color=bokeh_colors[0])
 
-        # FBD - plot arrows indicating shaft weight distribution
+        # fig - plot arrows indicating shaft weight distribution
         text = str("%.1f" % sh_weight)
-        FBD.line(
+        fig.line(
             x=self.nodes_pos,
             y=[y_start] * len(self.nodes_pos),
             line_width=2,
@@ -1527,7 +1547,7 @@ class StaticResults:
         fin = self.nodes_pos[-1]
         arrows_list = np.arange(ini, 1.01 * fin, fin / 5.0)
         for node in arrows_list:
-            FBD.add_layout(
+            fig.add_layout(
                 Arrow(
                     end=NormalHead(
                         fill_color=bokeh_colors[2],
@@ -1543,7 +1563,7 @@ class StaticResults:
                 )
             )
 
-        FBD.add_layout(
+        fig.add_layout(
             Label(
                 x=self.nodes_pos[0],
                 y=y_start,
@@ -1556,11 +1576,11 @@ class StaticResults:
             )
         )
 
-        # FBD - calculate the reaction force of bearings and plot arrows
+        # fig - calculate the reaction force of bearings and plot arrows
         for i, node in enumerate(self.df_bearings["n"]):
             Fb = -self.disp_y[node] * self.df_bearings.loc[i, "kyy"].coefficient[0]
             text = str("%.1f" % Fb)
-            FBD.add_layout(
+            fig.add_layout(
                 Arrow(
                     end=NormalHead(
                         fill_color=bokeh_colors[6],
@@ -1575,7 +1595,7 @@ class StaticResults:
                     y_end=0,
                 )
             )
-            FBD.add_layout(
+            fig.add_layout(
                 Label(
                     x=self.nodes_pos[node],
                     y=-2 * y_start,
@@ -1589,12 +1609,12 @@ class StaticResults:
                 )
             )
 
-        # FBD - plot arrows indicating disk weight
+        # fig - plot arrows indicating disk weight
         if len(self.df_disks) != 0:
             for i, node in enumerate(self.df_disks["n"]):
                 Fd = self.df_disks.loc[i, "m"] * 9.8065
                 text = str("%.1f" % Fd)
-                FBD.add_layout(
+                fig.add_layout(
                     Arrow(
                         end=NormalHead(
                             fill_color=bokeh_colors[9],
@@ -1609,7 +1629,7 @@ class StaticResults:
                         y_end=0,
                     )
                 )
-                FBD.add_layout(
+                fig.add_layout(
                     Label(
                         x=self.nodes_pos[node],
                         y=2 * y_start,
@@ -1623,27 +1643,44 @@ class StaticResults:
                     )
                 )
 
-        # Shearing Force Diagram plot (SF)
+        return fig
+
+    def plot_shearing_force(self):
+        """Plot the rotor shearing force diagram.
+
+        This method plots:
+            shearing force diagram.
+
+        Parameters
+        ----------
+
+        Returns
+        -------
+        fig : bokeh figure
+            Bokeh figure with the shearing force diagram plot
+        """
+        shaft_end = self.nodes_pos[-1]
         source_SF = ColumnDataSource(data=dict(x=self.Vx_axis, y=self.Vx))
         TOOLTIPS_SF = [("Shearing Force:", "@y")]
-        SF = figure(
-            tools=TOOLS,
+        fig = figure(
+            tools="pan, wheel_zoom, box_zoom, reset, save, box_select, hover",
             tooltips=TOOLTIPS_SF,
-            width=900,
-            height=450,
+            width=640,
+            height=480,
             title="Shearing Force Diagram",
             x_axis_label="Shaft lenght",
             y_axis_label="Force",
             x_range=[-0.1 * shaft_end, 1.1 * shaft_end],
         )
-        SF.xaxis.axis_label_text_font_size = "14pt"
-        SF.yaxis.axis_label_text_font_size = "14pt"
+        fig.xaxis.axis_label_text_font_size = "14pt"
+        fig.yaxis.axis_label_text_font_size = "14pt"
+        fig.title.text_font_size = "14pt"
 
-        SF.line("x", "y", source=source_SF, line_width=4, line_color=bokeh_colors[0])
-        SF.circle("x", "y", source=source_SF, size=8, fill_color=bokeh_colors[0])
+        fig.line("x", "y", source=source_SF, line_width=4, line_color=bokeh_colors[0])
+        fig.circle("x", "y", source=source_SF, size=8, fill_color=bokeh_colors[0])
 
-        # SF - plot centerline
-        SF.line(
+        # fig - plot centerline
+        fig.line(
             [-0.1 * shaft_end, 1.1 * shaft_end],
             [0, 0],
             line_width=3,
@@ -1651,21 +1688,38 @@ class StaticResults:
             line_color=bokeh_colors[0],
         )
 
-        # Bending Moment Diagram plot (BM)
+        return fig
+
+    def plot_bending_moment(self):
+        """Plot the rotor bending moment diagram.
+
+        This method plots:
+            bending moment diagram.
+
+        Parameters
+        ----------
+
+        Returns
+        -------
+        fig : bokeh figure
+            Bokeh figure with the bending moment diagram plot
+        """
+        shaft_end = self.nodes_pos[-1]
         source_BM = ColumnDataSource(data=dict(x=self.nodes_pos, y=self.Bm))
         TOOLTIPS_BM = [("Bending Moment:", "@y")]
-        BM = figure(
-            tools=TOOLS,
+        fig = figure(
+            tools="pan, wheel_zoom, box_zoom, reset, save, box_select, hover",
             tooltips=TOOLTIPS_BM,
-            width=900,
-            height=450,
+            width=640,
+            height=480,
             title="Bending Moment Diagram",
             x_axis_label="Shaft lenght",
             y_axis_label="Bending Moment",
             x_range=[-0.1 * shaft_end, 1.1 * shaft_end],
         )
-        BM.xaxis.axis_label_text_font_size = "14pt"
-        BM.yaxis.axis_label_text_font_size = "14pt"
+        fig.xaxis.axis_label_text_font_size = "14pt"
+        fig.yaxis.axis_label_text_font_size = "14pt"
+        fig.title.text_font_size = "14pt"
 
         i = 0
         while True:
@@ -1681,14 +1735,14 @@ class StaticResults:
 
             ynew_BM = interpolated_BM(xnew_BM)
             auxsource_BM = ColumnDataSource(data=dict(x=xnew_BM, y=ynew_BM))
-            BM.line(
+            fig.line(
                 "x", "y", source=auxsource_BM, line_width=4, line_color=bokeh_colors[0]
             )
             i += 2
-        BM.circle("x", "y", source=source_BM, size=8, fill_color=bokeh_colors[0])
+        fig.circle("x", "y", source=source_BM, size=8, fill_color=bokeh_colors[0])
 
-        # BM - plot centerline
-        BM.line(
+        # fig - plot centerline
+        fig.line(
             [-0.1 * shaft_end, 1.1 * shaft_end],
             [0, 0],
             line_width=3,
@@ -1696,9 +1750,7 @@ class StaticResults:
             line_color=bokeh_colors[0],
         )
 
-        grid_plots = gridplot([[FBD, SF], [disp_graph, BM]])
-
-        return grid_plots
+        return fig
 
 
 class ConvergenceResults:
