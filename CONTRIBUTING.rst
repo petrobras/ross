@@ -133,3 +133,14 @@ The following blog posts have some good information on how to write commit messa
 Step 5: Push changes to the main repo
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 To create a Pull Request (PR), refer to `the github PR guide <https://help.github.com/articles/about-pull-requests/>`_.
+
+Making new releases
+-------------------
+To make a new release we need only to create a tag using git and push to GitHub:
+
+    $ git tag <version number>
+
+    $ git push upstream --tags
+
+Pushing the new tag to the GitHub repository will start a new build on Travis CI. If all the tests succeed, Travis will
+upload the new package to PyPI (see the deploy command on .travis.yml).
