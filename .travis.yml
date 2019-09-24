@@ -1,17 +1,21 @@
 sudo: required
 dist: xenial
 language: python
-
 matrix:
   include:
-    - python: 3.6
-    - python: 3.7
-
+  - python: 3.6
+  - python: 3.7
 install:
-  - pip install -e .[dev]
-
+- pip install -e .[dev]
 script:
-  - pytest ross --cov=ross
-
+- pytest ross --cov=ross
 after_success:
-  - codecov
+- codecov
+deploy:
+  provider: pypi
+  user: raphaelts
+  password:
+    secure: FAcb+ptQpLXR85S1J+O24R/+2T15o0cO0pE2KIEW0UG+QoIP8s1GIsPG9iv3qwgLV53R6o16eRLSL6s32MF62uZOM7tjLdlpv+GQFVejkieYECXaVX+AbXtSCRMkrdYqYnwX+mgR7PwAM7XARnSxx5eWYvHMj6mbjkt9NjDEVioGmq1CfYeM7nXn8pYgfGAvQwM3O+3iSKrpUW2Q58fw6yTOOLTOu8QvmrXpyJo2oWJBB1AecR2OMSHySQhIYd7tnaDTru9AYrZMeGV0SfOBaY/Tm+DhZPidS4OjdBNuUPDGLDY61NYgXFfFWQz23aFqaNUNdbBGIUQRjqNee4RKFEivcMgDc4/RccunUmxx29ai6rhsH5quGReyPNIogCdxM8nWotMC8rdQqwXdgKg2QOKKfHqUq3sUQ9tivfEJQBEqv5tReUc6Wdl3aIRrQPYTC1+A+X3dKr6YXC1waLzYHLfArM+n4WXIMFaFD2rBHsiLxfP7zO0bFH+To+9ieqinELW62Ja8O+if0F84NMUONmkoviNguTtE5zPaEpPChKzoizYnXXF3GKpCDVvBkXLM5TUn9GfNtn+yxfb+lBmt54aTglS1pIvzocf84OMuFDCTlFO/tIj6x/T4ItWVefrcos4yIaLTkZ41ZzLLry1+0BI4ModXeceCUFizmA7Aars=
+  on:
+    tags: true
+  server: https://test.pypi.org/
