@@ -4,7 +4,11 @@ import os
 from numpy.testing import assert_allclose
 import math
 
-from ross.bearing_seal_element import BearingElement
+from ross.bearing_seal_element import (
+        BearingElement,
+        BallBearingElement,
+        RollerBearingElement
+)
 
 
 @pytest.fixture
@@ -228,3 +232,61 @@ def test_bearing_link_matrices():
 
     assert_allclose(b0.K(0), M)
     assert_allclose(b0.C(0), M)
+
+
+def test_ball_bearing_element():
+    n = 0
+    n_balls = 8
+    d_balls = 0.03
+    fs = 500.0
+    alpha = np.pi / 6
+    tag = "ballbearing"
+    ballbearing = BallBearingElement(
+            n=n,
+            n_balls=n_balls,
+            d_balls=d_balls,
+            fs=fs,
+            alpha=alpha,
+            tag=tag
+    )
+
+    M = np.zeros((2, 2))
+    K = np.array([[4.64168838e+07, 0.00000000e+00],
+                  [0.00000000e+00, 1.00906269e+08]])
+    C = np.array([[ 580.2110481 ,    0.        ],
+                  [   0.        , 1261.32836543]])
+    G = np.zeros((2, 2))
+
+    assert_allclose(ballbearing.M(), M)
+    assert_allclose(ballbearing.K(0), K)
+    assert_allclose(ballbearing.C(0), C)
+    assert_allclose(ballbearing.G(), G)
+
+
+def test_roller_bearing_element():
+    n = 0
+    n_rollers = 8
+    l_rollers = 0.03
+    fs = 500.0
+    alpha = np.pi / 6
+    tag = "rollerbearing"
+    rollerbearing = RollerBearingElement(
+            n=n,
+            n_rollers=n_rollers,
+            l_rollers=l_rollers,
+            fs=fs,
+            alpha=alpha,
+            tag=tag
+    )
+
+    M = np.zeros((2, 2))
+    K = np.array([[2.72821927e+08, 0.00000000e+00],
+                  [0.00000000e+00, 5.56779444e+08]])
+    C = np.array([[3410.27409251,    0.        ],
+                  [   0.        , 6959.74304593]])
+    G = np.zeros((2, 2))
+
+    assert_allclose(rollerbearing.M(), M)
+    assert_allclose(rollerbearing.K(0), K)
+    assert_allclose(rollerbearing.C(0), C)
+    assert_allclose(rollerbearing.G(), G)
