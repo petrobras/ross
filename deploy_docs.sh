@@ -6,7 +6,7 @@ set -e # Exit with nonzero exit code if anything fails
 
 cd $HOME
 # clone with ssh
-git clone git@github.com:ross-rotordynamics/ross-website.git ross-website/html
+git clone https://github.com/ross-rotordynamics/ross-website.git ross-website/html
 
 # Delete all existing contents except .git and deploy_key.enc (we will re-create them)
 echo "Removing existing content"
@@ -39,4 +39,4 @@ eval `ssh-agent -s`
 ssh-add deploy_key
 
 echo "Pushing to repository"
-git push origin master
+git push git@github.com:ross-rotordynamics/ross.git master
