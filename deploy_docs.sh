@@ -39,6 +39,8 @@ git add .
 git commit -m "Docs deployed from Travis CI - build: $TRAVIS_BUILD_NUMBER"
 
 echo "Getting keys on $PWD"
+echo "key: $encrypted_b7aa2d550089_key"
+echo "iv: $encrypted_b7aa2d550089_iv"
 
 openssl aes-256-cbc -K $encrypted_b7aa2d550089_key -iv $encrypted_b7aa2d550089_iv -in deploy_key.enc -out deploy_key -d
 chmod 600 deploy_key
