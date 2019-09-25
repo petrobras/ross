@@ -4,6 +4,8 @@
 echo "Building and deploying ross-website"
 set -e # Exit with nonzero exit code if anything fails
 
+echo "Python version: $TRAVIS_PYTHON_VERSION"
+
 cd $HOME
 # clone with ssh
 git clone https://github.com/ross-rotordynamics/ross-website.git ross-website/html
