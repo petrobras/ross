@@ -13,7 +13,7 @@ echo "Removing existing content"
 cd $HOME/ross-website/html
 find -maxdepth 1 ! -name .git ! -name deploy_key.enc ! -name . | xargs rm -rf
 
-cd $HOME/ross-rotordynamics/ross/docs
+cd $HOME/build/ross-rotordynamics/ross/docs
 echo "Building html files"
 make html BUILDDIR=$HOME/ross-website
 
