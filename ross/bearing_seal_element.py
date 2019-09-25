@@ -1143,8 +1143,9 @@ class BallBearingElement(BearingElement):
     >>> tag = "ballbearing"
     >>> bearing = BallBearingElement(n=n, n_balls=n_balls, d_balls=d_balls,
     ...                              fs=fs, alpha=alpha, tag=tag)
-    >>> bearing # doctest: +ELLIPSIS
-    BallBearingElement(n=0, kxx=['4.64e+07'], kxy=['0.00e+00']...
+    >>> bearing.K(0)
+    array([[4.64168838e+07, 0.00000000e+00],
+           [0.00000000e+00, 1.00906269e+08]])
     """
     def __init__(
         self,
@@ -1453,10 +1454,11 @@ class RollerBearingElement(BearingElement):
     >>> fs = 500.0
     >>> alpha = np.pi / 6
     >>> tag = "rollerbearing"
-    >>> brg = RollerBearingElement(n=n, n_rollers=n_rollers, l_rollers=l_rollers,
+    >>> bearing = RollerBearingElement(n=n, n_rollers=n_rollers, l_rollers=l_rollers,
     ...                            fs=fs, alpha=alpha, tag=tag)
-    >>> brg # doctest: +ELLIPSIS
-    RollerBearingElement(n=0, kxx=['2.73e+08'], kxy=['0.00e+00']...
+    >>> bearing.K(0)
+    array([[2.72821927e+08, 0.00000000e+00],
+           [0.00000000e+00, 5.56779444e+08]])
     """
     def __init__(
         self,
