@@ -10,14 +10,24 @@ if [ $TRAVIS_PYTHON_VERSION != '3.7' ]; then
     exit 0
 fi
 
+# get ssh keys
+echo "Getting keys on $PWD"
+echo "key: $encrypted_904ffbd6830c_key"
+echo "iv: $encrypted_904ffbd6830c_iv"
+
+openssl aes-256-cbc -K $encrypted_904ffbd6830c_key -iv $encrypted_904ffbd6830c_iv -in deploy_key.enc -out deploy_key -d
+chmod 600 deploy_key
+eval `ssh-agent -s`
+ssh-add deploy_key
+
 cd $HOME
 # clone with ssh
-git clone https://github.com/ross-rotordynamics/ross-website.git ross-website/html
+git clone git@github.com:ross-rotordynamics/ross-website.git ross-website/html
 
 # Delete all existing contents except .git and deploy_key.enc (we will re-create them)
 echo "Removing existing content"
 cd $HOME/ross-website/html
-find -maxdepth 1 ! -name .git ! -name .gitignore ! -name deploy_key.enc ! -name . | xargs rm -rf
+find -maxdepth 1 ! -name .git ! -name .gitignore ! -name . | xargs rm -rf
 
 cd $HOME/build/ross-rotordynamics/ross/docs
 echo "Building html files"
@@ -38,14 +48,5 @@ echo "Commiting changes"
 git add .
 git commit -m "Docs deployed from Travis CI - build: $TRAVIS_BUILD_NUMBER"
 
-echo "Getting keys on $PWD"
-echo "key: $encrypted_904ffbd6830c_key"
-echo "iv: $encrypted_904ffbd6830c_iv"
-
-openssl aes-256-cbc -K $encrypted_904ffbd6830c_key -iv $encrypted_904ffbd6830c_iv -in deploy_key.enc -out deploy_key -d
-chmod 600 deploy_key
-eval `ssh-agent -s`
-ssh-add deploy_key
-
 echo "Pushing to repository"
-git push git@github.com:ross-rotordynamics/ross.git master
+git push git@github.com:ross-rotordynamics/ross-website.git master
