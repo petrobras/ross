@@ -17,7 +17,7 @@ git clone https://github.com/ross-rotordynamics/ross-website.git ross-website/ht
 # Delete all existing contents except .git and deploy_key.enc (we will re-create them)
 echo "Removing existing content"
 cd $HOME/ross-website/html
-find -maxdepth 1 ! -name .git ! -name deploy_key.enc ! -name . | xargs rm -rf
+find -maxdepth 1 ! -name .git ! -name .gitignore ! -name deploy_key.enc ! -name . | xargs rm -rf
 
 cd $HOME/build/ross-rotordynamics/ross/docs
 echo "Building html files"
@@ -38,7 +38,8 @@ echo "Commiting changes"
 git add .
 git commit -m "Docs deployed from Travis CI - build: $TRAVIS_BUILD_NUMBER"
 
-echo "Getting keys"
+echo "Getting keys on $PWD"
+
 openssl aes-256-cbc -K $encrypted_b7aa2d550089_key -iv $encrypted_b7aa2d550089_iv -in deploy_key.enc -out deploy_key -d
 chmod 600 deploy_key
 eval `ssh-agent -s`
