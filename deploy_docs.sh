@@ -4,6 +4,11 @@
 echo "Building and deploying ross-website"
 set -e # Exit with nonzero exit code if anything fails
 
+if [ "$TRAVIS_PULL_REQUEST" != "false" -o "$TRAVIS_BRANCH" != "master" ]; then
+    echo "Skipping deploy. This is done only on master build."
+    exit 0
+fi
+
 echo "Python version: $TRAVIS_PYTHON_VERSION"
 if [ $TRAVIS_PYTHON_VERSION != '3.7' ]; then
     echo "Skipping documentation deployment. This is done only on the 3.7 build"
