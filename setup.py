@@ -60,6 +60,7 @@ EXTRAS = {
         "sphinx",
         "sphinx_bootstrap_theme",
         "nbsphinx",
+        "numpydoc",
     ]
 }
 

@@ -5,6 +5,10 @@ echo "Building and deploying ross-website"
 set -e # Exit with nonzero exit code if anything fails
 
 echo "Python version: $TRAVIS_PYTHON_VERSION"
+if [ $TRAVIS_PYTHON_VERSION != '3.7' ]; then
+    echo "Skipping documentation deployment. This is done only on the 3.7 build"
+    exit 0
+fi
 
 cd $HOME
 # clone with ssh
