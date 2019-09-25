@@ -11,6 +11,7 @@ script:
 - pytest ross --cov=ross
 after_success:
 - codecov
+- bash ./deploy_docs.sh
 deploy:
   provider: pypi
   user: raphaelts
