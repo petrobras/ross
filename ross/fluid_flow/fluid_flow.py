@@ -5,7 +5,7 @@ import numpy as np
 from bokeh.plotting import figure, show
 from scipy import integrate
 from ross.fluid_flow.fluid_flow_geometry import calculate_attitude_angle, internal_radius_function,\
-    external_radius_function, modified_sommerfeld_number, calculate_eccentricity_ratio
+    external_radius_function, modified_sommerfeld_number, calculate_eccentricity_ratio, calculate_rotor_load
 
 
 class PressureMatrix:
@@ -216,7 +216,8 @@ class PressureMatrix:
             )
         self.eccentricity_ratio = self.eccentricity / self.difference_between_radius
         if self.load is None:
-            self.load = self.get_rotor_load()
+            self.load = calculate_rotor_load(self.radius_stator, self.omega, self.viscosity,
+                                             self.length, self.radial_clearance, self.eccentricity_ratio)
         if beta is None:
             self.beta = calculate_attitude_angle(self.eccentricity_ratio)
         else:
@@ -481,44 +482,6 @@ class PressureMatrix:
                     self.p_mat_numerical[i][j] = self.P[k]
         self.numerical_pressure_matrix_available = True
         return self.p_mat_numerical
-
-    def get_rotor_load(self):
-        """Returns the load applied to the rotor, based on the eccentricity ratio.
-        Suitable only for short bearings.
-        Returns
-        -------
-        float
-            Load applied to the rotor.
-        Examples
-        --------
-        >>> my_fluid_flow = pressure_matrix_example()
-        >>> my_fluid_flow.get_rotor_load() # doctest: +ELLIPSIS
-        1.5...
-        """
-        if not self.bearing_type == "short_bearing":
-            warnings.warn(
-                "Function get_rotor_load suitable only for short bearings. "
-                "The ratio between the bearing length and its radius should be less or "
-                "equal to 0.25. Currently we have "
-                + str(self.length / self.radius_stator)
-                + "."
-            )
-        return (
-                       (
-                               np.pi
-                               * self.radius_stator
-                               * 2
-                               * self.omega
-                               * self.viscosity
-                               * (self.length ** 3)
-                               * self.eccentricity_ratio
-                       )
-                       / (
-                               8
-                               * (self.radial_clearance ** 2)
-                               * ((1 - self.eccentricity_ratio ** 2) ** 2)
-                       )
-               ) * (np.sqrt((16 / (np.pi ** 2) - 1) * self.eccentricity_ratio ** 2 + 1))
 
     def get_analytical_stiffness_matrix(self):
         """Returns the stiffness matrix calculated analytically.
