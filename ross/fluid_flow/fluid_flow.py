@@ -4,6 +4,8 @@ import matplotlib.pyplot as plt
 import numpy as np
 from bokeh.plotting import figure, show
 from scipy import integrate
+from ross.fluid_flow.fluid_flow_geometry import calculate_attitude_angle, internal_radius_function,\
+    external_radius_function
 
 
 class PressureMatrix:
@@ -213,7 +215,7 @@ class PressureMatrix:
         if self.load is None:
             self.load = self.get_rotor_load()
         if beta is None:
-            self.beta = self.calculate_attitude_angle()
+            self.beta = calculate_attitude_angle(self.eccentricity_ratio)
         else:
             self.beta = beta
         self.xi = self.eccentricity * np.cos(2 * np.pi - self.beta)
@@ -237,20 +239,6 @@ class PressureMatrix:
         self.calculate_coefficients()
         self.analytical_pressure_matrix_available = False
         self.numerical_pressure_matrix_available = False
-
-    def calculate_attitude_angle(self):
-        """Calculates the attitude angle based on the eccentricity.
-        Returns
-        -------
-        float
-            Attitude angle
-        Examples
-        --------
-        >>> my_fluid_flow = pressure_matrix_example()
-        >>> my_fluid_flow.calculate_attitude_angle() # doctest: +ELLIPSIS
-        1.5...
-        """
-        return np.arctan(np.pi * (1 - self.eccentricity_ratio ** 2) / (4 * self.eccentricity_ratio))
 
     def calculate_pressure_matrix_analytical(self, method=0, force_type=None):
         """This function calculates the pressure matrix analytically.
@@ -344,9 +332,10 @@ class PressureMatrix:
                 # fmt: off
                 self.gama[i][j] = j * self.dtheta + (np.pi - self.beta)
                 [radius_external, self.xre[i][j], self.yre[i][j]] = \
-                    self.external_radius_function(self.gama[i][j])
+                    external_radius_function(self.gama[i][j], self.radius_stator)
                 [radius_internal, self.xri[i][j], self.yri[i][j]] = \
-                    self.internal_radius_function(zno, self.gama[i][j])
+                    internal_radius_function(self.gama[i][j], self.beta, self.radius_rotor,
+                                             self.eccentricity)
                 self.re[i][j] = radius_external
                 self.ri[i][j] = radius_internal
 
@@ -489,73 +478,6 @@ class PressureMatrix:
                     self.p_mat_numerical[i][j] = self.P[k]
         self.numerical_pressure_matrix_available = True
         return self.p_mat_numerical
-
-    def internal_radius_function(self, z, gama):
-        """This function calculates the radius of the rotor given the
-        radius and the position z.
-        Parameters
-        ----------
-        z: float
-            Distance along the z-axis.
-        gama: float
-            Gama is the distance in the theta-axis. It should range from 0 to 2*np.pi.
-        Returns
-        -------
-        radius_internal: float
-            The size of the internal radius at that point.
-        xri: float
-            The position x of the returned internal radius.
-        yri: float
-            The position y of the returned internal radius.
-        Examples
-        --------
-        >>> my_fluid_flow = pressure_matrix_example()
-        >>> radius_internal, xri, yri = my_fluid_flow.internal_radius_function(z=0, gama=0)
-        >>> radius_internal
-        0.079
-        """
-        if (np.pi - self.beta) < gama < (2 * np.pi - self.beta):
-            alpha = np.absolute(2 * np.pi - gama - self.beta)
-            radius_internal = np.sqrt(self.radius_rotor ** 2
-                                      - (self.eccentricity * np.sin(alpha)) ** 2) + self.eccentricity * np.cos(alpha)
-            xri = radius_internal * np.cos(gama)
-            yri = radius_internal * np.sin(gama)
-
-        else:
-            alpha = self.beta + gama
-            radius_internal = np.sqrt(self.radius_rotor ** 2
-                                      - (self.eccentricity * np.sin(alpha)) ** 2) + self.eccentricity * np.cos(alpha)
-            xri = radius_internal * np.cos(gama)
-            yri = radius_internal * np.sin(gama)
-
-        return radius_internal, xri, yri
-
-    def external_radius_function(self, gama):
-        """This function calculates the radius of the stator.
-        Parameters
-        ----------
-        gama: float
-            Gama is the distance in the theta-axis. It should range from 0 to 2*np.pi.
-        Returns
-        -------
-        radius_external: float
-            The size of the external radius at that point.
-        xre: float
-            The position x of the returned external radius.
-        yre: float
-            The position y of the returned external radius.
-        Examples
-        --------
-        >>> my_fluid_flow = pressure_matrix_example()
-        >>> radius_external, xre, yre = my_fluid_flow.external_radius_function(gama=0)
-        >>> radius_external
-        0.1
-        """
-        radius_external = self.radius_stator
-        xre = radius_external * np.cos(gama)
-        yre = radius_external * np.sin(gama)
-
-        return radius_external, xre, yre
 
     def get_rotor_load(self):
         """Returns the load applied to the rotor, based on the eccentricity ratio.
