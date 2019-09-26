@@ -899,29 +899,28 @@ class ShaftTaperedElement(Element):
     --------
     >>> from ross.materials import steel
     >>> Euler_Bernoulli_Element = ShaftTaperedElement(
-    ...                         L=0.5, i_d_l=0.05, i_d_r=0.05, o_d_l=0.1,
-    ...                         o_d_r=0.15, material=steel,
+    ...                         material=steel, L=0.5, i_d_l=0.05, o_d_l=0.1,
+    ...                         i_d_r=0.05, o_d_r=0.15,
     ...                         rotary_inertia=False,
     ...                         shear_effects=False)
     >>> Euler_Bernoulli_Element.phi
     0
     >>> Timoshenko_Element = ShaftTaperedElement(
-    ...                         L=0.5, i_d_l=0.05, i_d_r=0.05, o_d_l=0.1,
-    ...                         o_d_r=0.15, material=steel,
+    ...                         material=steel, L=0.5, i_d_l=0.05, o_d_l=0.1,
     ...                         rotary_inertia=True,
     ...                         shear_effects=True)
     >>> Timoshenko_Element.phi
-    0.21026260191948362
+    0.1571268472906404
     """
 
     def __init__(
         self,
+        material,
         L,
         i_d_l,
-        i_d_r,
         o_d_l,
-        o_d_r,
-        material,
+        i_d_r=None,
+        o_d_r=None,
         n=None,
         axial_force=0,
         torque=0,
@@ -931,6 +930,11 @@ class ShaftTaperedElement(Element):
         shear_method_calc="cowper",
         tag=None,
     ):
+
+        if i_d_r is None:
+            i_d_r = i_d_l
+        if o_d_r is None:
+            o_d_r = o_d_l
 
         if type(material) is str:
             os.chdir(Path(os.path.dirname(ross.__file__)))
@@ -1270,8 +1274,8 @@ class ShaftTaperedElement(Element):
         Examples
         --------
         >>> Timoshenko_Element = ShaftTaperedElement(
-        ...                         0.5, 0.05, 0.05, 0.1,
-        ...                         0.15, steel,
+        ...                         L=0.5, i_d_l=0.05, i_d_r=0.05, o_d_l=0.1,
+        ...                         o_d_r=0.15, material=steel,
         ...                         rotary_inertia=True,
         ...                         shear_effects=True)
         >>> Timoshenko_Element.M()[:4, :4]
@@ -1422,8 +1426,8 @@ class ShaftTaperedElement(Element):
         --------
         >>> from ross.materials import steel
         >>> Timoshenko_Element = ShaftTaperedElement(
-        ...                         0.5, 0.05, 0.05, 0.1,
-        ...                         0.15, steel,
+        ...                         L=0.5, i_d_l=0.05, i_d_r=0.05, o_d_l=0.1,
+        ...                         o_d_r=0.15, material=steel,
         ...                         rotary_inertia=True,
         ...                         shear_effects=True)
         >>> Timoshenko_Element.K()[:4, :4]/1e6
@@ -1524,8 +1528,8 @@ class ShaftTaperedElement(Element):
         --------
         >>> from ross.materials import steel
         >>> Timoshenko_Element = ShaftTaperedElement(
-        ...                         0.5, 0.05, 0.05, 0.1,
-        ...                         0.15, steel,
+        ...                         L=0.5, i_d_l=0.05, i_d_r=0.05, o_d_l=0.1,
+        ...                         o_d_r=0.15, material=steel,
         ...                         rotary_inertia=True,
         ...                         shear_effects=True)
         >>> Timoshenko_Element.C()[:4, :4]
@@ -1550,8 +1554,8 @@ class ShaftTaperedElement(Element):
         >>> from ross.materials import steel
         >>> # Timoshenko is the default shaft element
         >>> Timoshenko_Element = ShaftTaperedElement(
-        ...                         0.5, 0.05, 0.05, 0.1,
-        ...                         0.15, steel,
+        ...                         L=0.5, i_d_l=0.05, i_d_r=0.05, o_d_l=0.1,
+        ...                         o_d_r=0.15, material=steel,
         ...                         rotary_inertia=True,
         ...                         shear_effects=True)
         >>> Timoshenko_Element.G()[:4, :4]
