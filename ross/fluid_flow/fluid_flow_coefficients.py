@@ -111,7 +111,7 @@ def calculate_oil_film_force(pressure_matrix_object, force_type=None):
     --------
     >>> from ross.fluid_flow.fluid_flow import pressure_matrix_example
     >>> my_fluid_flow = pressure_matrix_example()
-    >>> my_fluid_flow.calculate_oil_film_force(my_fluid_flow) # doctest: +ELLIPSIS
+    >>> calculate_oil_film_force(my_fluid_flow) # doctest: +ELLIPSIS
     (...
     """
     if force_type != 'numerical' and (force_type == 'short' or pressure_matrix_object.bearing_type == 'short_bearing'):
