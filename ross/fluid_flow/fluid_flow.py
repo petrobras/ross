@@ -5,7 +5,7 @@ import numpy as np
 from bokeh.plotting import figure, show
 from scipy import integrate
 from ross.fluid_flow.fluid_flow_geometry import calculate_attitude_angle, internal_radius_function,\
-    external_radius_function
+    external_radius_function, modified_sommerfeld_number, calculate_eccentricity_ratio
 
 
 class PressureMatrix:
@@ -208,8 +208,11 @@ class PressureMatrix:
         self.eccentricity_ratio = None
         self.load = load
         if self.eccentricity is None:
+            modified_s = modified_sommerfeld_number(
+                       self.radius_stator, self.omega, self.viscosity, self.length,
+                       self.load, self.radial_clearance)
             self.eccentricity = (
-                    self.calculate_eccentricity_ratio() * self.difference_between_radius
+                    calculate_eccentricity_ratio(modified_s) * self.difference_between_radius
             )
         self.eccentricity_ratio = self.eccentricity / self.difference_between_radius
         if self.load is None:
@@ -516,72 +519,6 @@ class PressureMatrix:
                                * ((1 - self.eccentricity_ratio ** 2) ** 2)
                        )
                ) * (np.sqrt((16 / (np.pi ** 2) - 1) * self.eccentricity_ratio ** 2 + 1))
-
-    def modified_sommerfeld_number(self):
-        """Returns the modified sommerfeld number.
-        Returns
-        -------
-        float
-            The modified sommerfeld number.
-        Examples
-        --------
-        >>> my_fluid_flow = pressure_matrix_example()
-        >>> my_fluid_flow.modified_sommerfeld_number() # doctest: +ELLIPSIS
-        6...
-        """
-        return (
-                       self.radius_stator * 2 * self.omega * self.viscosity * (self.length ** 3)
-               ) / (8 * self.load * (self.radial_clearance ** 2))
-
-    def sommerfeld_number(self):
-        """Returns the sommerfeld number.
-        Returns
-        -------
-        float
-            The sommerfeld number.
-        Examples
-        --------
-        >>> my_fluid_flow = pressure_matrix_example()
-        >>> my_fluid_flow.sommerfeld_number() # doctest: +ELLIPSIS
-        805...
-        """
-        modified_s = self.modified_sommerfeld_number()
-        return (modified_s / np.pi) * (self.radius_stator * 2 / self.length) ** 2
-
-    def calculate_eccentricity_ratio(self):
-        """Calculate the eccentricity ratio for a given load using the sommerfeld number.
-        Suitable only for short bearings.
-        Returns
-        -------
-        float
-            The eccentricity ratio.
-        Examples
-        --------
-        >>> my_fluid_flow = pressure_matrix_example()
-        >>> my_fluid_flow.calculate_eccentricity_ratio() # doctest: +ELLIPSIS
-        0.0...
-        """
-        if not self.bearing_type == "short_bearing":
-            warnings.warn(
-                "Function calculate_eccentricity_ratio suitable only for short bearings. "
-                "The ratio between the bearing length and its radius should be less or "
-                "equal to 0.25. Currently we have "
-                + str(self.length / self.radius_stator)
-                + "."
-            )
-        s = self.modified_sommerfeld_number()
-        coefficients = [
-            1,
-            -4,
-            (6 - (s ** 2) * (16 - np.pi ** 2)),
-            -(4 + (np.pi ** 2) * (s ** 2)),
-            1,
-        ]
-        roots = np.roots(coefficients)
-        for i in range(0, len(roots)):
-            if 0 <= roots[i] <= 1:
-                return np.sqrt(roots[i].real)
-        sys.exit("Eccentricity ratio could not be calculated.")
 
     def get_analytical_stiffness_matrix(self):
         """Returns the stiffness matrix calculated analytically.
