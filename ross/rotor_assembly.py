@@ -537,12 +537,12 @@ class Rotor(object):
                     i_d_l = ((nel_r - j) * idl + j * idr) / nel_r
                     shaft_elem.append(
                         ShaftTaperedElement(
-                            le,
-                            i_d_l,
-                            i_d_r,
-                            o_d_l,
-                            o_d_r,
                             material=shaft.material,
+                            L=le,
+                            i_d_l=i_d_l,
+                            o_d_l=o_d_l,
+                            i_d_r=i_d_r,
+                            o_d_r=o_d_r,
                             shear_effects=shaft.shear_effects,
                             rotary_inertia=shaft.rotary_inertia,
                             gyroscopic=shaft.gyroscopic,

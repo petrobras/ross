@@ -168,12 +168,12 @@ def tap_tim():
     o_d_r = 0.10
 
     return ShaftTaperedElement(
+        steel,
         L,
         i_d_l,
-        i_d_r,
         o_d_l,
+        i_d_r,
         o_d_r,
-        steel,
         shear_effects=True,
         rotary_inertia=True,
         n=3,
@@ -272,7 +272,7 @@ def tap2():
     o_d_r = 0.25
 
     return ShaftTaperedElement(
-        L, i_d_l, i_d_r, o_d_l, o_d_r, steel, shear_effects=True, rotary_inertia=True
+        steel, L, i_d_l, o_d_l, i_d_r, o_d_r, shear_effects=True, rotary_inertia=True
     )
 
 
