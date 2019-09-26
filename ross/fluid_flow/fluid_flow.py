@@ -3,7 +3,6 @@ import warnings
 import matplotlib.pyplot as plt
 import numpy as np
 from bokeh.plotting import figure, show
-from scipy import integrate
 from ross.fluid_flow.fluid_flow_geometry import calculate_attitude_angle, internal_radius_function,\
     external_radius_function, modified_sommerfeld_number, calculate_eccentricity_ratio, calculate_rotor_load
 
@@ -226,7 +225,7 @@ class PressureMatrix:
         self.yi = self.eccentricity * np.sin(2 * np.pi - self.beta)
         self.re = np.zeros([self.nz, self.ntheta])
         self.ri = np.zeros([self.nz, self.ntheta])
-        self.z = np.zeros([1, self.nz])
+        self.z_list = np.zeros(self.nz)
         self.xre = np.zeros([self.nz, self.ntheta])
         self.xri = np.zeros([self.nz, self.ntheta])
         self.yre = np.zeros([self.nz, self.ntheta])
@@ -329,7 +328,7 @@ class PressureMatrix:
         """
         for i in range(0, self.nz):
             zno = i * self.dz
-            self.z[0][i] = zno
+            self.z_list[i] = zno
             plot_eccentricity_error = False
             position = -1
             for j in range(0, self.ntheta):
@@ -482,70 +481,6 @@ class PressureMatrix:
                     self.p_mat_numerical[i][j] = self.P[k]
         self.numerical_pressure_matrix_available = True
         return self.p_mat_numerical
-
-    def calculate_oil_film_force(self, force_type=None):
-        """This function calculates the forces of the oil film in the N and T directions, ie in the
-        opposite direction to the eccentricity and in the tangential direction.
-        Parameters
-        ----------
-        force_type: str
-            If set, calculates the pressure matrix analytically considering the chosen type: 'short' or 'long'.
-        Returns
-        -------
-        normal_force: float
-            Force of the oil film in the opposite direction to the eccentricity direction.
-        tangential_force: float
-            Force of the oil film in the tangential direction
-        Examples
-        --------
-        >>> my_fluid_flow = pressure_matrix_example()
-        >>> my_fluid_flow.calculate_oil_film_force() # doctest: +ELLIPSIS
-        (...
-        """
-        if force_type != 'numerical' and (force_type == 'short' or self.bearing_type == 'short_bearing'):
-            normal_force = 0.5 * self.viscosity * (self.radius_rotor / self.difference_between_radius) ** 2 * \
-                           (self.length ** 3 / self.radius_rotor) * ((2 * self.eccentricity_ratio ** 2 * self.omega) /
-                                                                     (1 - self.eccentricity_ratio ** 2) ** 2)
-            tangential_force = 0.5 * self.viscosity * (self.radius_rotor / self.difference_between_radius) ** 2 * \
-                               (self.length ** 3 / self.radius_rotor) * (
-                                           (np.pi * self.eccentricity_ratio * self.omega) /
-                                           (2 * (1 - self.eccentricity_ratio ** 2) ** (3. / 2)))
-        elif force_type != 'numerical' and (force_type == 'long' or self.bearing_type == 'long_bearing'):
-            normal_force = 6 * self.viscosity * (self.radius_rotor / self.difference_between_radius) ** 2 * \
-                           self.radius_rotor * self.length * ((2 * self.eccentricity_ratio ** 2 * self.omega) /
-                                                              ((2 + self.eccentricity_ratio ** 2) *
-                                                               (1 - self.eccentricity_ratio ** 2)))
-            tangential_force = 6 * self.viscosity * (self.radius_rotor / self.difference_between_radius) ** 2 * \
-                               self.radius_rotor * self.length * ((np.pi * self.eccentricity_ratio * self.omega) /
-                                                                  ((2 + self.eccentricity_ratio ** 2) *
-                                                                   (1 - self.eccentricity_ratio ** 2) ** 0.5))
-        else:
-            p_mat = self.p_mat_numerical
-            a = np.zeros([self.nz, self.ntheta])
-            b = np.zeros([self.nz, self.ntheta])
-            g1 = np.zeros(self.nz)
-            g2 = np.zeros(self.nz)
-            theta_list = np.zeros(self.ntheta)
-            z_list = np.zeros(self.nz)
-            for i in range(self.nz):
-                z_list[i] = i * self.dz
-                for j in range(self.ntheta):
-                    theta_list[j] = j * self.dtheta + (np.pi - self.beta)
-                    gama = j * self.dtheta + (np.pi - self.beta)
-
-                    a[i][j] = p_mat[i][j] * np.cos(gama)
-                    b[i][j] = p_mat[i][j] * np.sin(gama)
-
-            for i in range(self.nz):
-                g1[i] = integrate.simps(a[i][:], theta_list)
-                g2[i] = integrate.simps(b[i][:], theta_list)
-
-            integral1 = integrate.simps(g1, z_list)
-            integral2 = integrate.simps(g2, z_list)
-
-            normal_force = - self.radius_rotor * integral1
-            tangential_force = self.radius_rotor * integral2
-        return normal_force, tangential_force
 
     def plot_eccentricity(self, z=0):
         """This function assembles pressure graphic along the z-axis.
