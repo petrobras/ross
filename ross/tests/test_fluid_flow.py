@@ -7,6 +7,8 @@ import matplotlib.pyplot as plt
 from numpy.testing import assert_allclose
 from ross.fluid_flow.fluid_flow_coefficients import calculate_analytical_damping_matrix,\
     calculate_analytical_stiffness_matrix, calculate_oil_film_force
+from ross.fluid_flow.fluid_flow_graphics import plot_shape, plot_eccentricity, plot_pressure_theta,\
+    plot_pressure_z, matplot_shape, matplot_eccentricity, matplot_pressure_theta, matplot_pressure_z
 
 
 def fluid_flow_short_eccentricity():
@@ -190,17 +192,17 @@ def test_bokeh_plots():
     bearing = fluid_flow_short_numerical()
     bearing.calculate_pressure_matrix_numerical()
     figure_type = type(figure())
-    assert isinstance(bearing.plot_shape(), figure_type)
-    assert isinstance(bearing.plot_eccentricity(), figure_type)
-    assert isinstance(bearing.plot_pressure_theta(), figure_type)
-    assert isinstance(bearing.plot_pressure_z(), figure_type)
+    assert isinstance(plot_shape(bearing), figure_type)
+    assert isinstance(plot_eccentricity(bearing), figure_type)
+    assert isinstance(plot_pressure_theta(bearing), figure_type)
+    assert isinstance(plot_pressure_z(bearing), figure_type)
 
 
 def test_matplotlib_plots():
     bearing = fluid_flow_short_numerical()
     bearing.calculate_pressure_matrix_analytical()
     ax_type = type(plt.gca())
-    assert isinstance(bearing.matplot_eccentricity(), ax_type)
-    assert isinstance(bearing.matplot_pressure_theta(), ax_type)
-    assert isinstance(bearing.matplot_pressure_z(), ax_type)
-    assert isinstance(bearing.matplot_shape(), ax_type)
+    assert isinstance(matplot_eccentricity(bearing), ax_type)
+    assert isinstance(matplot_pressure_theta(bearing), ax_type)
+    assert isinstance(matplot_pressure_z(bearing), ax_type)
+    assert isinstance(matplot_shape(bearing), ax_type)
