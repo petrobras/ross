@@ -203,5 +203,57 @@ def calculate_eccentricity_ratio(modified_s):
     raise ValueError("Eccentricity ratio could not be calculated.")
 
 
+def calculate_rotor_load(radius_stator, omega, viscosity, length, radial_clearance, eccentricity_ratio):
+    """Returns the load applied to the rotor, based on the eccentricity ratio.
+    Suitable only for short bearings.
+    Parameters
+    ----------
+    radius_stator : float
+        The external radius of the bearing.
+    omega: float
+        Rotation of the rotor (rad/s).
+    viscosity: float
+        Viscosity (Pa.s).
+    length: float
+        Length in the Z direction (m).
+    radial_clearance: float
+        Difference between both stator and rotor radius, regardless of eccentricity.
+    eccentricity_ratio: float
+        The ratio between the journal displacement, called just eccentricity, and
+        the radial clearance.
+    Returns
+    -------
+    float
+        Load applied to the rotor.
+    Examples
+    --------
+    >>> from ross.fluid_flow.fluid_flow import pressure_matrix_example
+    >>> my_fluid_flow = pressure_matrix_example()
+    >>> radius_stator = my_fluid_flow.radius_stator
+    >>> omega = my_fluid_flow.omega
+    >>> viscosity = my_fluid_flow.viscosity
+    >>> length = my_fluid_flow.length
+    >>> radial_clearance = my_fluid_flow.radial_clearance
+    >>> eccentricity_ratio = my_fluid_flow.eccentricity_ratio
+    >>> calculate_rotor_load(radius_stator, omega, viscosity,
+    ...                      length, radial_clearance, eccentricity_ratio) # doctest: +ELLIPSIS
+    1.5...
+    """
+    return (
+                   (
+                           np.pi
+                           * radius_stator
+                           * 2
+                           * omega
+                           * viscosity
+                           * (length ** 3)
+                           * eccentricity_ratio
+                   )
+                   / (
+                           8
+                           * (radial_clearance ** 2)
+                           * ((1 - eccentricity_ratio ** 2) ** 2)
+                   )
+           ) * (np.sqrt((16 / (np.pi ** 2) - 1) * eccentricity_ratio ** 2 + 1))
 
 
