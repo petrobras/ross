@@ -505,9 +505,8 @@ class PressureMatrix:
                 + "."
             )
         # fmt: off
-        f = self.get_rotor_load()
         h0 = 1.0 / (((np.pi ** 2) * (1 - self.eccentricity_ratio ** 2) + 16 * self.eccentricity_ratio ** 2) ** 1.5)
-        a = f / self.radial_clearance
+        a = self.load / self.radial_clearance
         kxx = a * h0 * 4 * ((np.pi ** 2) * (2 - self.eccentricity_ratio ** 2) + 16 * self.eccentricity_ratio ** 2)
         kxy = (a * h0 * np.pi * ((np.pi ** 2) * (1 - self.eccentricity_ratio ** 2) ** 2 -
                                  16 * self.eccentricity_ratio ** 4) /
@@ -544,9 +543,8 @@ class PressureMatrix:
                 + "."
             )
         # fmt: off
-        f = self.get_rotor_load()
         h0 = 1.0 / (((np.pi ** 2) * (1 - self.eccentricity_ratio ** 2) + 16 * self.eccentricity_ratio ** 2) ** 1.5)
-        a = f / (self.radial_clearance * self.omega)
+        a = self.load / (self.radial_clearance * self.omega)
         cxx = (a * h0 * 2 * np.pi * np.sqrt(1 - self.eccentricity_ratio ** 2) *
                ((np.pi ** 2) * (
                            1 + 2 * self.eccentricity_ratio ** 2) - 16 * self.eccentricity_ratio ** 2) / self.eccentricity_ratio)
