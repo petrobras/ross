@@ -98,3 +98,110 @@ def external_radius_function(gama, radius_stator):
     yre = radius_external * np.sin(gama)
 
     return radius_external, xre, yre
+
+
+def modified_sommerfeld_number(radius_stator, omega, viscosity, length, load, radial_clearance):
+    """Returns the modified sommerfeld number.
+    Parameters
+    ----------
+    radius_stator : float
+        The external radius of the bearing.
+    omega: float
+        Rotation of the rotor (rad/s).
+    viscosity: float
+        Viscosity (Pa.s).
+    length: float
+        Length in the Z direction (m).
+    load: float
+        Load applied to the rotor (N).
+    radial_clearance: float
+        Difference between both stator and rotor radius, regardless of eccentricity.
+
+    Returns
+    -------
+    float
+        The modified sommerfeld number.
+    Examples
+    --------
+    >>> from ross.fluid_flow.fluid_flow import pressure_matrix_example
+    >>> my_fluid_flow = pressure_matrix_example()
+    >>> radius_stator = my_fluid_flow.radius_stator
+    >>> omega = my_fluid_flow.omega
+    >>> viscosity = my_fluid_flow.viscosity
+    >>> length = my_fluid_flow.length
+    >>> load = my_fluid_flow.load
+    >>> radial_clearance = my_fluid_flow.radial_clearance
+    >>> modified_sommerfeld_number(radius_stator, omega, viscosity,
+    ...                            length, load, radial_clearance) # doctest: +ELLIPSIS
+    6.32...
+    """
+    return (
+                   radius_stator * 2 * omega * viscosity * (length ** 3)
+           ) / (8 * load * (radial_clearance ** 2))
+
+
+def sommerfeld_number(modified_s, radius_stator, length):
+    """Returns the sommerfeld number, based on the modified sommerfeld number.
+    Parameters
+    ----------
+    modified_s: float
+        The modified sommerfeld number.
+    radius_stator : float
+        The external radius of the bearing.
+    length: float
+        Length in the Z direction (m).
+    Returns
+    -------
+    float
+        The sommerfeld number.
+    Examples
+    --------
+    >>> from ross.fluid_flow.fluid_flow import pressure_matrix_example
+    >>> my_fluid_flow = pressure_matrix_example()
+    >>> radius_stator = my_fluid_flow.radius_stator
+    >>> omega = my_fluid_flow.omega
+    >>> viscosity = my_fluid_flow.viscosity
+    >>> length = my_fluid_flow.length
+    >>> load = my_fluid_flow.load
+    >>> radial_clearance = my_fluid_flow.radial_clearance
+    >>> modified_s = modified_sommerfeld_number(radius_stator, omega, viscosity,
+    ...                            length, load, radial_clearance) # doctest: +ELLIPSIS
+    >>> sommerfeld_number(modified_s, radius_stator, length) # doctest: +ELLIPSIS
+    805...
+    """
+    return (modified_s / np.pi) * (radius_stator * 2 / length) ** 2
+
+
+def calculate_eccentricity_ratio(modified_s):
+    """Calculate the eccentricity ratio for a given load using the sommerfeld number.
+    Suitable only for short bearings.
+    Parameters
+    ----------
+    modified_s: float
+        The modified sommerfeld number.
+    Returns
+    -------
+    float
+        The eccentricity ratio.
+    Examples
+    --------
+    >>> modified_s = 6.329494061103412
+    >>> calculate_eccentricity_ratio(modified_s) # doctest: +ELLIPSIS
+    0.04999...
+    """
+    coefficients = [
+        1,
+        -4,
+        (6 - (modified_s ** 2) * (16 - np.pi ** 2)),
+        -(4 + (np.pi ** 2) * (modified_s ** 2)),
+        1,
+    ]
+    roots = np.roots(coefficients)
+    for i in range(0, len(roots)):
+        if 0 <= roots[i] <= 1:
+            return np.sqrt(roots[i].real)
+    raise ValueError("Eccentricity ratio could not be calculated.")
+
+
+
+
