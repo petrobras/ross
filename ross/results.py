@@ -1423,7 +1423,7 @@ class StaticResults:
         """
         source = ColumnDataSource(
             data=dict(
-                x=self.nodes_pos, y0=self.disp_y * 1000, y1=[0] * len(self.nodes_pos)
+                x=self.nodes_pos, y0=self.disp_y, y1=[0] * len(self.nodes_pos)
             )
         )
 
