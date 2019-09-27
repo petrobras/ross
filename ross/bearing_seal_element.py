@@ -11,6 +11,8 @@ from collections import namedtuple
 from ross.utils import read_table_file
 from ross.element import Element
 from ross.fluid_flow import fluid_flow as flow
+from ross.fluid_flow.fluid_flow_coefficients import calculate_analytical_stiffness_matrix,\
+    calculate_analytical_damping_matrix
 
 __all__ = ["BearingElement", "SealElement"]
 bokeh_colors = bp.RdGy[11]
@@ -920,8 +922,10 @@ class BearingElement(Element):
             eccentricity=eccentricity,
             load=load,
         )
-        k = fluid_flow.get_analytical_damping_matrix()
-        c = fluid_flow.get_analytical_stiffness_matrix()
+        c = calculate_analytical_damping_matrix(fluid_flow.load, fluid_flow.eccentricity_ratio,
+                                                fluid_flow.radial_clearance, fluid_flow.omega)
+        k = calculate_analytical_stiffness_matrix(fluid_flow.load, fluid_flow.eccentricity_ratio,
+                                                  fluid_flow.radial_clearance)
         return cls(
             n,
             kxx=k[0],
