@@ -399,7 +399,7 @@ def matplot_pressure_theta(pressure_matrix_object, z=0, ax=None):
     >>> my_fluid_flow = pressure_matrix_example()
     >>> my_fluid_flow.calculate_pressure_matrix_numerical() # doctest: +ELLIPSIS
     array([[...
-    >>> ax = matplot_pressure_theta(z=int(my_fluid_flow.nz/2))
+    >>> ax = matplot_pressure_theta(my_fluid_flow, z=int(my_fluid_flow.nz/2))
     >>> # to show the plots you can use:
     >>> # plt.show()
     """
@@ -407,22 +407,22 @@ def matplot_pressure_theta(pressure_matrix_object, z=0, ax=None):
             not pressure_matrix_object.numerical_pressure_matrix_available
             and not pressure_matrix_object.analytical_pressure_matrix_available
     ):
-        sys.exit(
+        raise ValueError(
             "Must calculate the pressure matrix. "
             "Try calling calculate_pressure_matrix_numerical() or calculate_pressure_matrix_analytical() first."
         )
     if ax is None:
         ax = plt.gca()
-    list_of_thetas = []
-    for t in range(0, pressure_matrix_object.ntheta):
-        list_of_thetas.append(t * pressure_matrix_object.dtheta)
     if pressure_matrix_object.numerical_pressure_matrix_available:
         ax.plot(
-            list_of_thetas, pressure_matrix_object.p_mat_numerical[z], "b", label="Numerical pressure"
+            pressure_matrix_object.gama[z],
+            pressure_matrix_object.p_mat_numerical[z],
+            "b",
+            label="Numerical pressure"
         )
     if pressure_matrix_object.analytical_pressure_matrix_available:
         ax.plot(
-            list_of_thetas,
+            pressure_matrix_object.gama[z],
             pressure_matrix_object.p_mat_analytical[z],
             "r",
             label="Analytical pressure",
