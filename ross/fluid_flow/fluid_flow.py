@@ -1,9 +1,7 @@
 import sys
-import warnings
-import matplotlib.pyplot as plt
 import numpy as np
-from bokeh.plotting import figure, show
-from scipy import integrate
+from ross.fluid_flow.fluid_flow_geometry import calculate_attitude_angle, internal_radius_function,\
+    external_radius_function, modified_sommerfeld_number, calculate_eccentricity_ratio, calculate_rotor_load
 
 
 class PressureMatrix:
@@ -95,7 +93,7 @@ class PressureMatrix:
         The external radius in each position of the grid.
     ri : array of shape (nz, ntheta)
         The internal radius in each position of the grid.
-    z : array of shape (1, nz)
+    z_list : array of shape (1, nz)
         z along the object. It goes from 0 to lb.
     xre : array of shape (nz, ntheta)
         x value of the external radius.
@@ -126,6 +124,7 @@ class PressureMatrix:
     Examples
     --------
     >>> from ross.fluid_flow import fluid_flow as flow
+    >>> from ross.fluid_flow.fluid_flow_graphics import matplot_pressure_theta
     >>> import numpy as np
     >>> from bokeh.plotting import show
     >>> nz = 8
@@ -152,7 +151,7 @@ class PressureMatrix:
     >>> # to show the plots you can use:
     >>> # show(my_fluid_flow.plot_eccentricity())
     >>> # show(my_fluid_flow.plot_pressure_theta(z=int(nz/2)))
-    >>> my_fluid_flow.matplot_pressure_theta(z=int(nz/2)) # doctest: +ELLIPSIS
+    >>> matplot_pressure_theta(my_fluid_flow, z=int(nz/2)) # doctest: +ELLIPSIS
     <matplotlib.axes._subplots.AxesSubplot object at...
     """
 
@@ -206,21 +205,25 @@ class PressureMatrix:
         self.eccentricity_ratio = None
         self.load = load
         if self.eccentricity is None:
+            modified_s = modified_sommerfeld_number(
+                       self.radius_stator, self.omega, self.viscosity, self.length,
+                       self.load, self.radial_clearance)
             self.eccentricity = (
-                    self.calculate_eccentricity_ratio() * self.difference_between_radius
+                    calculate_eccentricity_ratio(modified_s) * self.difference_between_radius
             )
         self.eccentricity_ratio = self.eccentricity / self.difference_between_radius
         if self.load is None:
-            self.load = self.get_rotor_load()
+            self.load = calculate_rotor_load(self.radius_stator, self.omega, self.viscosity,
+                                             self.length, self.radial_clearance, self.eccentricity_ratio)
         if beta is None:
-            self.beta = self.calculate_attitude_angle()
+            self.beta = calculate_attitude_angle(self.eccentricity_ratio)
         else:
             self.beta = beta
         self.xi = self.eccentricity * np.cos(2 * np.pi - self.beta)
         self.yi = self.eccentricity * np.sin(2 * np.pi - self.beta)
         self.re = np.zeros([self.nz, self.ntheta])
         self.ri = np.zeros([self.nz, self.ntheta])
-        self.z = np.zeros([1, self.nz])
+        self.z_list = np.zeros(self.nz)
         self.xre = np.zeros([self.nz, self.ntheta])
         self.xri = np.zeros([self.nz, self.ntheta])
         self.yre = np.zeros([self.nz, self.ntheta])
@@ -237,20 +240,6 @@ class PressureMatrix:
         self.calculate_coefficients()
         self.analytical_pressure_matrix_available = False
         self.numerical_pressure_matrix_available = False
-
-    def calculate_attitude_angle(self):
-        """Calculates the attitude angle based on the eccentricity.
-        Returns
-        -------
-        float
-            Attitude angle
-        Examples
-        --------
-        >>> my_fluid_flow = pressure_matrix_example()
-        >>> my_fluid_flow.calculate_attitude_angle() # doctest: +ELLIPSIS
-        1.5...
-        """
-        return np.arctan(np.pi * (1 - self.eccentricity_ratio ** 2) / (4 * self.eccentricity_ratio))
 
     def calculate_pressure_matrix_analytical(self, method=0, force_type=None):
         """This function calculates the pressure matrix analytically.
@@ -337,16 +326,16 @@ class PressureMatrix:
         """
         for i in range(0, self.nz):
             zno = i * self.dz
-            self.z[0][i] = zno
-            plot_eccentricity_error = False
-            position = -1
+            self.z_list[i] = zno
+            eccentricity_error = False
             for j in range(0, self.ntheta):
                 # fmt: off
                 self.gama[i][j] = j * self.dtheta + (np.pi - self.beta)
                 [radius_external, self.xre[i][j], self.yre[i][j]] = \
-                    self.external_radius_function(self.gama[i][j])
+                    external_radius_function(self.gama[i][j], self.radius_stator)
                 [radius_internal, self.xri[i][j], self.yri[i][j]] = \
-                    self.internal_radius_function(zno, self.gama[i][j])
+                    internal_radius_function(self.gama[i][j], self.beta, self.radius_rotor,
+                                             self.eccentricity)
                 self.re[i][j] = radius_external
                 self.ri[i][j] = radius_internal
 
@@ -360,7 +349,7 @@ class PressureMatrix:
                                                                (self.re[i][j] ** 2 - self.ri[i][j] ** 2) *
                                                                (k - 1)) - 2 * self.re[i][j] ** 2 * (
                                                                       (np.log(self.re[i][j]) + k - 1 / 2) * np.log(
-                                                                  self.re[i][j] / self.ri[i][j])))
+                                                                       self.re[i][j] / self.ri[i][j])))
 
                 self.c2[i][j] = (- self.ri[i][j] ** 2) / (8 * self.viscosity) * \
                                 ((self.re[i][j] ** 2 - self.ri[i][j] ** 2 -
@@ -376,17 +365,15 @@ class PressureMatrix:
                                   (np.log(self.re[i][j] / self.ri[i][j]) *
                                    (1 + (self.ri[i][j] ** 2) / (self.re[i][j] ** 2 - self.ri[i][j] ** 2)) - 1 / 2))
                 # fmt: on
-                if not plot_eccentricity_error:
+                if not eccentricity_error:
                     if abs(self.xri[i][j]) > abs(self.xre[i][j]) or abs(
                             self.yri[i][j]
                     ) > abs(self.yre[i][j]):
-                        plot_eccentricity_error = True
-                        position = i
-            if plot_eccentricity_error:
-                self.plot_eccentricity(position)
-                sys.exit(
+                        eccentricity_error = True
+            if eccentricity_error:
+                raise ValueError(
                     "Error: The given parameters create a rotor that is not inside the stator. "
-                    "Check the plotted figure and fix accordingly."
+                    "Check parameters and fix accordingly."
                 )
 
     def mounting_matrix(self):
@@ -490,739 +477,6 @@ class PressureMatrix:
         self.numerical_pressure_matrix_available = True
         return self.p_mat_numerical
 
-    def internal_radius_function(self, z, gama):
-        """This function calculates the radius of the rotor given the
-        radius and the position z.
-        Parameters
-        ----------
-        z: float
-            Distance along the z-axis.
-        gama: float
-            Gama is the distance in the theta-axis. It should range from 0 to 2*np.pi.
-        Returns
-        -------
-        radius_internal: float
-            The size of the internal radius at that point.
-        xri: float
-            The position x of the returned internal radius.
-        yri: float
-            The position y of the returned internal radius.
-        Examples
-        --------
-        >>> my_fluid_flow = pressure_matrix_example()
-        >>> radius_internal, xri, yri = my_fluid_flow.internal_radius_function(z=0, gama=0)
-        >>> radius_internal
-        0.079
-        """
-        if (np.pi - self.beta) < gama < (2 * np.pi - self.beta):
-            alpha = np.absolute(2 * np.pi - gama - self.beta)
-            radius_internal = np.sqrt(self.radius_rotor ** 2
-                                      - (self.eccentricity * np.sin(alpha)) ** 2) + self.eccentricity * np.cos(alpha)
-            xri = radius_internal * np.cos(gama)
-            yri = radius_internal * np.sin(gama)
-
-        else:
-            alpha = self.beta + gama
-            radius_internal = np.sqrt(self.radius_rotor ** 2
-                                      - (self.eccentricity * np.sin(alpha)) ** 2) + self.eccentricity * np.cos(alpha)
-            xri = radius_internal * np.cos(gama)
-            yri = radius_internal * np.sin(gama)
-
-        return radius_internal, xri, yri
-
-    def external_radius_function(self, gama):
-        """This function calculates the radius of the stator.
-        Parameters
-        ----------
-        gama: float
-            Gama is the distance in the theta-axis. It should range from 0 to 2*np.pi.
-        Returns
-        -------
-        radius_external: float
-            The size of the external radius at that point.
-        xre: float
-            The position x of the returned external radius.
-        yre: float
-            The position y of the returned external radius.
-        Examples
-        --------
-        >>> my_fluid_flow = pressure_matrix_example()
-        >>> radius_external, xre, yre = my_fluid_flow.external_radius_function(gama=0)
-        >>> radius_external
-        0.1
-        """
-        radius_external = self.radius_stator
-        xre = radius_external * np.cos(gama)
-        yre = radius_external * np.sin(gama)
-
-        return radius_external, xre, yre
-
-    def get_rotor_load(self):
-        """Returns the load applied to the rotor, based on the eccentricity ratio.
-        Suitable only for short bearings.
-        Returns
-        -------
-        float
-            Load applied to the rotor.
-        Examples
-        --------
-        >>> my_fluid_flow = pressure_matrix_example()
-        >>> my_fluid_flow.get_rotor_load() # doctest: +ELLIPSIS
-        1.5...
-        """
-        if not self.bearing_type == "short_bearing":
-            warnings.warn(
-                "Function get_rotor_load suitable only for short bearings. "
-                "The ratio between the bearing length and its radius should be less or "
-                "equal to 0.25. Currently we have "
-                + str(self.length / self.radius_stator)
-                + "."
-            )
-        return (
-                       (
-                               np.pi
-                               * self.radius_stator
-                               * 2
-                               * self.omega
-                               * self.viscosity
-                               * (self.length ** 3)
-                               * self.eccentricity_ratio
-                       )
-                       / (
-                               8
-                               * (self.radial_clearance ** 2)
-                               * ((1 - self.eccentricity_ratio ** 2) ** 2)
-                       )
-               ) * (np.sqrt((16 / (np.pi ** 2) - 1) * self.eccentricity_ratio ** 2 + 1))
-
-    def modified_sommerfeld_number(self):
-        """Returns the modified sommerfeld number.
-        Returns
-        -------
-        float
-            The modified sommerfeld number.
-        Examples
-        --------
-        >>> my_fluid_flow = pressure_matrix_example()
-        >>> my_fluid_flow.modified_sommerfeld_number() # doctest: +ELLIPSIS
-        6...
-        """
-        return (
-                       self.radius_stator * 2 * self.omega * self.viscosity * (self.length ** 3)
-               ) / (8 * self.load * (self.radial_clearance ** 2))
-
-    def sommerfeld_number(self):
-        """Returns the sommerfeld number.
-        Returns
-        -------
-        float
-            The sommerfeld number.
-        Examples
-        --------
-        >>> my_fluid_flow = pressure_matrix_example()
-        >>> my_fluid_flow.sommerfeld_number() # doctest: +ELLIPSIS
-        805...
-        """
-        modified_s = self.modified_sommerfeld_number()
-        return (modified_s / np.pi) * (self.radius_stator * 2 / self.length) ** 2
-
-    def calculate_eccentricity_ratio(self):
-        """Calculate the eccentricity ratio for a given load using the sommerfeld number.
-        Suitable only for short bearings.
-        Returns
-        -------
-        float
-            The eccentricity ratio.
-        Examples
-        --------
-        >>> my_fluid_flow = pressure_matrix_example()
-        >>> my_fluid_flow.calculate_eccentricity_ratio() # doctest: +ELLIPSIS
-        0.0...
-        """
-        if not self.bearing_type == "short_bearing":
-            warnings.warn(
-                "Function calculate_eccentricity_ratio suitable only for short bearings. "
-                "The ratio between the bearing length and its radius should be less or "
-                "equal to 0.25. Currently we have "
-                + str(self.length / self.radius_stator)
-                + "."
-            )
-        s = self.modified_sommerfeld_number()
-        coefficients = [
-            1,
-            -4,
-            (6 - (s ** 2) * (16 - np.pi ** 2)),
-            -(4 + (np.pi ** 2) * (s ** 2)),
-            1,
-        ]
-        roots = np.roots(coefficients)
-        for i in range(0, len(roots)):
-            if 0 <= roots[i] <= 1:
-                return np.sqrt(roots[i].real)
-        sys.exit("Eccentricity ratio could not be calculated.")
-
-    def get_analytical_stiffness_matrix(self):
-        """Returns the stiffness matrix calculated analytically.
-        Suitable only for short bearings.
-        Returns
-        -------
-        list of floats
-            A list of length four including stiffness floats in this order: kxx, kxy, kyx, kyy
-        Examples
-        --------
-        >>> my_fluid_flow = pressure_matrix_example()
-        >>> my_fluid_flow.get_analytical_stiffness_matrix() # doctest: +ELLIPSIS
-        [...
-        """
-        if not self.bearing_type == "short_bearing":
-            warnings.warn(
-                "Function get_analytical_stiffness_matrix suitable only for short bearings. "
-                "The ratio between the bearing length and its radius should be less or "
-                "equal to 0.25. Currently we have "
-                + str(self.length / self.radius_stator)
-                + "."
-            )
-        # fmt: off
-        f = self.get_rotor_load()
-        h0 = 1.0 / (((np.pi ** 2) * (1 - self.eccentricity_ratio ** 2) + 16 * self.eccentricity_ratio ** 2) ** 1.5)
-        a = f / self.radial_clearance
-        kxx = a * h0 * 4 * ((np.pi ** 2) * (2 - self.eccentricity_ratio ** 2) + 16 * self.eccentricity_ratio ** 2)
-        kxy = (a * h0 * np.pi * ((np.pi ** 2) * (1 - self.eccentricity_ratio ** 2) ** 2 -
-                                 16 * self.eccentricity_ratio ** 4) /
-               (self.eccentricity_ratio * np.sqrt(1 - self.eccentricity_ratio ** 2)))
-        kyx = (-a * h0 * np.pi * ((np.pi ** 2) * (1 - self.eccentricity_ratio ** 2) *
-                                  (1 + 2 * self.eccentricity_ratio ** 2) +
-                                  (32 * self.eccentricity_ratio ** 2) * (1 + self.eccentricity_ratio ** 2)) /
-               (self.eccentricity_ratio * np.sqrt(1 - self.eccentricity_ratio ** 2)))
-        kyy = (a * h0 * 4 * ((np.pi ** 2) * (1 + 2 * self.eccentricity_ratio ** 2) +
-                             ((32 * self.eccentricity_ratio ** 2) *
-                              (1 + self.eccentricity_ratio ** 2)) / (1 - self.eccentricity_ratio ** 2)))
-        # fmt: on
-        return [kxx, kxy, kyx, kyy]
-
-    def get_analytical_damping_matrix(self):
-        """Returns the damping matrix calculated analytically.
-        Suitable only for short bearings.
-        Returns
-        -------
-        list of floats
-            A list of length four including stiffness floats in this order: cxx, cxy, cyx, cyy
-        Examples
-        --------
-        >>> my_fluid_flow = pressure_matrix_example()
-        >>> my_fluid_flow.get_analytical_damping_matrix() # doctest: +ELLIPSIS
-        [...
-        """
-        if not self.bearing_type == "short_bearing":
-            warnings.warn(
-                "Function get_analytical_damping_matrix suitable only for short bearings. "
-                "The ratio between the bearing length and its radius should be less or "
-                "equal to 0.25. Currently we have "
-                + str(self.length / self.radius_stator)
-                + "."
-            )
-        # fmt: off
-        f = self.get_rotor_load()
-        h0 = 1.0 / (((np.pi ** 2) * (1 - self.eccentricity_ratio ** 2) + 16 * self.eccentricity_ratio ** 2) ** 1.5)
-        a = f / (self.radial_clearance * self.omega)
-        cxx = (a * h0 * 2 * np.pi * np.sqrt(1 - self.eccentricity_ratio ** 2) *
-               ((np.pi ** 2) * (
-                           1 + 2 * self.eccentricity_ratio ** 2) - 16 * self.eccentricity_ratio ** 2) / self.eccentricity_ratio)
-        cxy = (-a * h0 * 8 * (
-                    (np.pi ** 2) * (1 + 2 * self.eccentricity_ratio ** 2) - 16 * self.eccentricity_ratio ** 2))
-        cyx = cxy
-        cyy = (a * h0 * (2 * np.pi * (
-                    (np.pi ** 2) * (1 - self.eccentricity_ratio ** 2) ** 2 + 48 * self.eccentricity_ratio ** 2)) /
-               (self.eccentricity_ratio * np.sqrt(1 - self.eccentricity_ratio ** 2)))
-        # fmt: on
-        return [cxx, cxy, cyx, cyy]
-
-    def calculate_oil_film_force(self, force_type=None):
-        """This function calculates the forces of the oil film in the N and T directions, ie in the
-        opposite direction to the eccentricity and in the tangential direction.
-        Parameters
-        ----------
-        force_type: str
-            If set, calculates the pressure matrix analytically considering the chosen type: 'short' or 'long'.
-        Returns
-        -------
-        normal_force: float
-            Force of the oil film in the opposite direction to the eccentricity direction.
-        tangential_force: float
-            Force of the oil film in the tangential direction
-        Examples
-        --------
-        >>> my_fluid_flow = pressure_matrix_example()
-        >>> my_fluid_flow.calculate_oil_film_force() # doctest: +ELLIPSIS
-        (...
-        """
-        if force_type != 'numerical' and (force_type == 'short' or self.bearing_type == 'short_bearing'):
-            normal_force = 0.5 * self.viscosity * (self.radius_rotor / self.difference_between_radius) ** 2 * \
-                           (self.length ** 3 / self.radius_rotor) * ((2 * self.eccentricity_ratio ** 2 * self.omega) /
-                                                                     (1 - self.eccentricity_ratio ** 2) ** 2)
-            tangential_force = 0.5 * self.viscosity * (self.radius_rotor / self.difference_between_radius) ** 2 * \
-                               (self.length ** 3 / self.radius_rotor) * (
-                                           (np.pi * self.eccentricity_ratio * self.omega) /
-                                           (2 * (1 - self.eccentricity_ratio ** 2) ** (3. / 2)))
-        elif force_type != 'numerical' and (force_type == 'long' or self.bearing_type == 'long_bearing'):
-            normal_force = 6 * self.viscosity * (self.radius_rotor / self.difference_between_radius) ** 2 * \
-                           self.radius_rotor * self.length * ((2 * self.eccentricity_ratio ** 2 * self.omega) /
-                                                              ((2 + self.eccentricity_ratio ** 2) *
-                                                               (1 - self.eccentricity_ratio ** 2)))
-            tangential_force = 6 * self.viscosity * (self.radius_rotor / self.difference_between_radius) ** 2 * \
-                               self.radius_rotor * self.length * ((np.pi * self.eccentricity_ratio * self.omega) /
-                                                                  ((2 + self.eccentricity_ratio ** 2) *
-                                                                   (1 - self.eccentricity_ratio ** 2) ** 0.5))
-        else:
-            p_mat = self.p_mat_numerical
-            a = np.zeros([self.nz, self.ntheta])
-            b = np.zeros([self.nz, self.ntheta])
-            g1 = np.zeros(self.nz)
-            g2 = np.zeros(self.nz)
-            theta_list = np.zeros(self.ntheta)
-            z_list = np.zeros(self.nz)
-            for i in range(self.nz):
-                z_list[i] = i * self.dz
-                for j in range(self.ntheta):
-                    theta_list[j] = j * self.dtheta + (np.pi - self.beta)
-                    gama = j * self.dtheta + (np.pi - self.beta)
-
-                    a[i][j] = p_mat[i][j] * np.cos(gama)
-                    b[i][j] = p_mat[i][j] * np.sin(gama)
-
-            for i in range(self.nz):
-                g1[i] = integrate.simps(a[i][:], theta_list)
-                g2[i] = integrate.simps(b[i][:], theta_list)
-
-            integral1 = integrate.simps(g1, z_list)
-            integral2 = integrate.simps(g2, z_list)
-
-            normal_force = - self.radius_rotor * integral1
-            tangential_force = self.radius_rotor * integral2
-        return normal_force, tangential_force
-
-    def plot_eccentricity(self, z=0):
-        """This function assembles pressure graphic along the z-axis.
-        The first few plots are of a different color to indicate where theta begins.
-        Parameters
-        ----------
-        z: int, optional
-            The distance in z where to cut and plot.
-        Returns
-        -------
-        Figure
-            An object containing the plot.
-        Examples
-        --------
-        >>> my_fluid_flow = pressure_matrix_example()
-        >>> fig = my_fluid_flow.plot_eccentricity(z=int(my_fluid_flow.nz/2))
-        >>> # to show the plots you can use:
-        >>> # show(fig)
-        """
-        p = figure(
-            title="Cut in plane Z=" + str(z),
-            x_axis_label="X axis",
-            y_axis_label="Y axis",
-        )
-        for j in range(0, self.ntheta):
-            p.circle(self.xre[z][j], self.yre[z][j], color="red")
-            p.circle(self.xri[z][j], self.yri[z][j], color="blue")
-            p.circle(0, 0, color="blue")
-            p.circle(self.xi, self.yi, color="red")
-        p.circle(0, 0, color="black")
-        return p
-
-    def plot_pressure_z(self, theta=0):
-        """This function assembles pressure graphic along the z-axis for one or both the
-        numerically (blue) and analytically (red) calculated pressure matrices, depending on if
-        one or both were calculated.
-        Parameters
-        ----------
-        theta: int, optional
-            The theta to be considered.
-        Returns
-        -------
-        Figure
-            An object containing the plot.
-        Examples
-        --------
-        >>> my_fluid_flow = pressure_matrix_example()
-        >>> my_fluid_flow.calculate_pressure_matrix_numerical() # doctest: +ELLIPSIS
-        array([[...
-        >>> fig = my_fluid_flow.plot_pressure_z(theta=int(my_fluid_flow.ntheta/2))
-        >>> # to show the plots you can use:
-        >>> # show(fig)
-        """
-        if (
-                not self.numerical_pressure_matrix_available
-                and not self.analytical_pressure_matrix_available
-        ):
-            sys.exit(
-                "Must calculate the pressure matrix. "
-                "Try calling calculate_pressure_matrix_numerical() or calculate_pressure_matrix_analytical() first."
-            )
-        x = []
-        y_n = []
-        y_a = []
-        for i in range(0, self.nz):
-            x.append(i * self.dz)
-            y_n.append(self.p_mat_numerical[i][theta])
-            y_a.append(self.p_mat_analytical[i][theta])
-        p = figure(
-            title="Pressure along the Z direction (direction of flow); Theta="
-                  + str(theta),
-            x_axis_label="Points along Z",
-        )
-        if self.numerical_pressure_matrix_available:
-            p.line(x, y_n, legend="Numerical pressure", color="blue", line_width=2)
-        if self.analytical_pressure_matrix_available:
-            p.line(x, y_a, legend="Analytical pressure", color="red", line_width=2)
-        return p
-
-    def plot_shape(self, theta=0):
-        """This function assembles a graphic representing the geometry of the rotor.
-        Parameters
-        ----------
-        theta: int, optional
-            The theta to be considered.
-        Returns
-        -------
-        Figure
-            An object containing the plot.
-        Examples
-        --------
-        >>> my_fluid_flow = pressure_matrix_example()
-        >>> fig = my_fluid_flow.plot_shape(theta=int(my_fluid_flow.ntheta/2))
-        >>> # to show the plots you can use:
-        >>> # show(fig)
-        """
-        x = np.zeros(self.nz)
-        y_re = np.zeros(self.nz)
-        y_ri = np.zeros(self.nz)
-        for i in range(0, self.nz):
-            x[i] = i * self.dz
-            y_re[i] = self.re[i][theta]
-            y_ri[i] = self.ri[i][theta]
-        p = figure(
-            title="Shapes of stator and rotor along Z; Theta=" + str(theta),
-            x_axis_label="Points along Z",
-            y_axis_label="Radial direction",
-        )
-        p.line(x, y_re, line_width=2, color="red")
-        p.line(x, y_ri, line_width=2, color="blue")
-        return p
-
-    def plot_pressure_theta(self, z=0):
-        """This function assembles pressure graphic in the theta direction for a given z
-        for one or both the numerically (blue) and analytically (red) calculated pressure matrices,
-        depending on if one or both were calculated.
-        Parameters
-        ----------
-        z: int, optional
-            The distance along z-axis to be considered.
-        Returns
-        -------
-        Figure
-            An object containing the plot.
-        Examples
-        --------
-        >>> my_fluid_flow = pressure_matrix_example()
-        >>> my_fluid_flow.calculate_pressure_matrix_numerical() # doctest: +ELLIPSIS
-        array([[...
-        >>> fig = my_fluid_flow.plot_pressure_theta(z=int(my_fluid_flow.nz/2))
-        >>> # to show the plots you can use:
-        >>> # show(fig)
-        """
-        if (
-                not self.numerical_pressure_matrix_available
-                and not self.analytical_pressure_matrix_available
-        ):
-            sys.exit(
-                "Must calculate the pressure matrix. "
-                "Try calling calculate_pressure_matrix_numerical() or calculate_pressure_matrix_analytical() first."
-            )
-        theta_list = []
-        for theta in range(0, self.ntheta):
-            theta_list.append(theta * self.dtheta)
-        p = figure(
-            title="Pressure along Theta; Z=" + str(z),
-            x_axis_label="Points along Theta",
-            y_axis_label="Pressure",
-        )
-        if self.numerical_pressure_matrix_available:
-            p.line(
-                theta_list,
-                self.p_mat_numerical[z],
-                legend="Numerical pressure",
-                line_width=2,
-                color="blue",
-            )
-        elif self.analytical_pressure_matrix_available:
-            p.line(
-                theta_list,
-                self.p_mat_analytical[z],
-                legend="Analytical pressure",
-                line_width=2,
-                color="red",
-            )
-        return p
-
-    def matplot_eccentricity(self, z=0, ax=None):
-        """This function assembles pressure graphic along the z-axis using matplotlib.
-        The first few plots are of a different color to indicate where theta begins.
-        Parameters
-        ----------
-        z: int, optional
-            The distance in z where to cut and plot.
-        ax : matplotlib axes, optional
-            Axes in which the plot will be drawn.
-        Returns
-        -------
-        ax : matplotlib axes
-            Returns the axes object with the plot.
-        Examples
-        --------
-        >>> my_fluid_flow = pressure_matrix_example()
-        >>> ax = my_fluid_flow.matplot_eccentricity(z=int(my_fluid_flow.nz/2))
-        >>> # to show the plots you can use:
-        >>> # plt.show()
-        """
-        if ax is None:
-            ax = plt.gca()
-        for j in range(0, self.ntheta):
-            ax.plot(self.xre[z][j], self.yre[z][j], "r.")
-            ax.plot(self.xri[z][j], self.yri[z][j], "b.")
-            ax.plot(0, 0, "r*")
-            ax.plot(self.xi, self.yi, "b*")
-        ax.set_title("Cut in plane Z=" + str(z))
-        ax.set_xlabel("X axis")
-        ax.set_ylabel("Y axis")
-        plt.axis("equal")
-        return ax
-
-    def matplot_pressure_z(self, theta=0, ax=None):
-        """This function assembles pressure graphic along the z-axis using matplotlib
-        for one or both the numerically (blue) and analytically (red) calculated pressure matrices,
-        depending on if one or both were calculated.
-        Parameters
-        ----------
-        theta: int, optional
-            The distance in theta where to cut and plot.
-        ax : matplotlib axes, optional
-            Axes in which the plot will be drawn.
-        Returns
-        -------
-        ax : matplotlib axes
-            Returns the axes object with the plot.
-        Examples
-        --------
-        >>> my_fluid_flow = pressure_matrix_example()
-        >>> my_fluid_flow.calculate_pressure_matrix_numerical() # doctest: +ELLIPSIS
-        array([[...
-        >>> ax = my_fluid_flow.matplot_pressure_z(theta=int(my_fluid_flow.ntheta/2))
-        >>> # to show the plots you can use:
-        >>> # plt.show()
-        """
-        if (
-                not self.numerical_pressure_matrix_available
-                and not self.analytical_pressure_matrix_available
-        ):
-            sys.exit(
-                "Must calculate the pressure matrix. "
-                "Try calling calculate_pressure_matrix_numerical() or calculate_pressure_matrix_analytical() first."
-            )
-        if ax is None:
-            ax = plt.gca()
-        x = np.zeros(self.nz)
-        y_n = np.zeros(self.nz)
-        y_a = np.zeros(self.nz)
-        for i in range(0, self.nz):
-            x[i] = i * self.dz
-            y_n[i] = self.p_mat_numerical[i][theta]
-            y_a[i] = self.p_mat_analytical[i][theta]
-        if self.numerical_pressure_matrix_available:
-            ax.plot(x, y_n, "b", label="Numerical pressure")
-        if self.analytical_pressure_matrix_available:
-            ax.plot(x, y_a, "r", label="Analytical pressure")
-        ax.set_title(
-            "Pressure along the Z direction (direction of flow); Theta=" + str(theta)
-        )
-        ax.set_xlabel("Points along Z")
-        ax.set_ylabel("Pressure")
-        return ax
-
-    def matplot_shape(self, theta=0, ax=None):
-        """This function assembles a graphic representing the geometry of the rotor using matplotlib.
-        Parameters
-        ----------
-        theta: int, optional
-            The theta to be considered.
-        ax : matplotlib axes, optional
-            Axes in which the plot will be drawn.
-        Returns
-        -------
-        ax : matplotlib axes
-            Returns the axes object with the plot.
-        Examples
-        --------
-        >>> my_fluid_flow = pressure_matrix_example()
-        >>> ax = my_fluid_flow.matplot_shape(theta=int(my_fluid_flow.ntheta/2))
-        >>> # to show the plots you can use:
-        >>> # plt.show()
-        """
-        if ax is None:
-            ax = plt.gca()
-        x = np.zeros(self.nz)
-        y_ext = np.zeros(self.nz)
-        y_int = np.zeros(self.nz)
-        for i in range(0, self.nz):
-            x[i] = i * self.dz
-            y_ext[i] = self.re[i][theta]
-            y_int[i] = self.ri[i][theta]
-        ax.plot(x, y_ext, "r")
-        ax.plot(x, y_int, "b")
-        ax.set_title("Shapes of stator and rotor along Z; Theta=" + str(theta))
-        ax.set_xlabel("Points along Z")
-        ax.set_ylabel("Radial direction")
-        return ax
-
-    def matplot_pressure_theta_cylindrical(self, z=0, from_numerical=True, ax=None):
-        """This function assembles cylindrical pressure graphic in the theta direction for a given z,
-        using matplotlib.
-        Parameters
-        ----------
-        z: int, optional
-            The distance along z-axis to be considered.
-        from_numerical: bool, optional
-            If True, takes the numerically calculated pressure matrix as entry.
-            If False, takes the analytically calculated one instead.
-            If condition cannot be satisfied (matrix not calculated), it will take the one that is available
-            and raise a warning.
-        ax : matplotlib axes, optional
-            Axes in which the plot will be drawn.
-        Returns
-        -------
-        ax : matplotlib axes
-            Returns the axes object with the plot.
-        Examples
-        --------
-        >>> my_fluid_flow = pressure_matrix_example()
-        >>> my_fluid_flow.calculate_pressure_matrix_numerical() # doctest: +ELLIPSIS
-        array([[...
-        >>> ax = my_fluid_flow.matplot_pressure_theta_cylindrical(z=int(my_fluid_flow.nz/2))
-        >>> # to show the plots you can use:
-        >>> # plt.show()
-        """
-        if (
-                not self.numerical_pressure_matrix_available
-                and not self.analytical_pressure_matrix_available
-        ):
-            sys.exit(
-                "Must calculate the pressure matrix. "
-                "Try calling calculate_pressure_matrix_numerical() or calculate_pressure_matrix_analytical() first."
-            )
-        if from_numerical:
-            if self.numerical_pressure_matrix_available:
-                p_mat = self.p_mat_numerical
-            else:
-                p_mat = self.p_mat_analytical
-                warnings.warn(
-                    "Plotting from analytically calculated pressure matrix, as numerically calculated "
-                    "one is not available."
-                )
-        else:
-            if self.analytical_pressure_matrix_available:
-                p_mat = self.p_mat_analytical
-            else:
-                p_mat = self.p_mat_numerical
-                warnings.warn(
-                    "Plotting from numerically calculated pressure matrix, as analytically calculated "
-                    "one is not available."
-                )
-        if ax is None:
-            fig, ax = plt.subplots(subplot_kw=dict(projection="polar"))
-        r = np.arange(
-            0,
-            self.radius_stator + 0.0001,
-            (self.radius_stator - self.radius_rotor) / self.nradius,
-        )
-        theta = np.arange(-np.pi * 0.25, 1.75 * np.pi + self.dtheta / 2, self.dtheta)
-
-        pressure_along_theta = np.zeros(self.ntheta)
-        for i in range(0, self.ntheta):
-            pressure_along_theta[i] = p_mat[0][i]
-
-        min_pressure = np.amin(pressure_along_theta)
-
-        r_matrix, theta_matrix = np.meshgrid(r, theta)
-        z_matrix = np.zeros((theta.size, r.size))
-        inner_radius_list = np.zeros(self.ntheta)
-        pressure_list = np.zeros((theta.size, r.size))
-        for i in range(0, theta.size):
-            inner_radius = np.sqrt(
-                self.xri[z][i] * self.xri[z][i] + self.yri[z][i] * self.yri[z][i]
-            )
-            inner_radius_list[i] = inner_radius
-            for j in range(0, r.size):
-                if r_matrix[i][j] < inner_radius:
-                    continue
-                pressure_list[i][j] = pressure_along_theta[i]
-                z_matrix[i][j] = pressure_along_theta[i] - min_pressure + 0.01
-        ax.contourf(theta_matrix, r_matrix, z_matrix, cmap="coolwarm")
-        ax.set_title("Pressure along Theta; Z=" + str(z))
-        return ax
-
-    def matplot_pressure_theta(self, z=0, ax=None):
-        """This function assembles pressure graphic in the theta direction for a given z,
-        using matplotlib.
-        Parameters
-        ----------
-        z: int, optional
-            The distance along z-axis to be considered.
-        ax : matplotlib axes, optional
-            Axes in which the plot will be drawn.
-        Returns
-        -------
-        ax : matplotlib axes
-            Returns the axes object with the plot.
-        Examples
-        --------
-        >>> my_fluid_flow = pressure_matrix_example()
-        >>> my_fluid_flow.calculate_pressure_matrix_numerical() # doctest: +ELLIPSIS
-        array([[...
-        >>> ax = my_fluid_flow.matplot_pressure_theta(z=int(my_fluid_flow.nz/2))
-        >>> # to show the plots you can use:
-        >>> # plt.show()
-        """
-        if (
-                not self.numerical_pressure_matrix_available
-                and not self.analytical_pressure_matrix_available
-        ):
-            sys.exit(
-                "Must calculate the pressure matrix. "
-                "Try calling calculate_pressure_matrix_numerical() or calculate_pressure_matrix_analytical() first."
-            )
-        if ax is None:
-            ax = plt.gca()
-        list_of_thetas = []
-        for t in range(0, self.ntheta):
-            list_of_thetas.append(t * self.dtheta)
-        if self.numerical_pressure_matrix_available:
-            ax.plot(
-                list_of_thetas, self.p_mat_numerical[z], "b", label="Numerical pressure"
-            )
-        if self.analytical_pressure_matrix_available:
-            ax.plot(
-                list_of_thetas,
-                self.p_mat_analytical[z],
-                "r",
-                label="Analytical pressure",
-            )
-        ax.set_title("Pressure along Theta; Z=" + str(z))
-        ax.set_xlabel("Points along Theta")
-        ax.set_ylabel("Pressure")
-        return ax
-
 
 def pressure_matrix_example():
     """This function returns an instance of a simple pressure matrix.
@@ -1246,3 +500,8 @@ def pressure_matrix_example():
                                         p_in=0., p_out=0., radius_rotor=0.08, radius_stator=0.1,
                                         viscosity=0.015, density=860., eccentricity=0.001, beta=np.pi)
     return my_pressure_matrix
+
+
+
+
+
