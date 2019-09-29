@@ -1,17 +1,24 @@
 sudo: required
 dist: xenial
 language: python
-
 matrix:
   include:
-    - python: 3.6
-    - python: 3.7
-
+  - python: 3.6
+  - python: 3.7
+before_install:
+- sudo apt-get install pandoc
 install:
-  - pip install -e .[dev]
-
+- pip install -e .[dev]
 script:
-  - pytest ross --cov=ross
-
+- pytest ross --cov=ross
 after_success:
-  - codecov
+- codecov
+- bash ./deploy_docs.sh
+deploy:
+  provider: pypi
+  user: raphaelts
+  password:
+    secure: GgnV7C40a+CXKa+y35qSb9SMcceVM42LZrEfqh983m8fEpP+B6LyM5bWlvAsP2rLIkjiZl0zU5ZzgzAmV8buSUqwOmVnagjeaaicrOpWCeuc+1A8Uz0amoII8cZQJCvyYJScxiYhxap8eOqwXFZ2SKnVPzxaToF1T5NaJxoESIriuXD6mW0UOUaXaEX8qKB37iFVIyFy/YYdmdBG6atRnL2VEBzC/Gi4GTFim1tSRkEE9MX6TFzF7v9UqXcrdFcCdQt5KtKWcFTMlV8QTPiT+ZZqPXbjliwF78z/rOpDe1Cv0quMbGLEBvZjxUHJFNfyA4+s6hqGgC+3VXKNZ0f0nIa6mjt1rvd/UJM3105iaGG51xjCHyw+CpEPASjB3i15wMwevKV2di/ecGA0hZSXVdycENymf9TArjEEU/bXJnByQY/ejFJScueBmYnE3U8kn87eT2Dtz3GbipHiHqrhNLyCbe+PdpsZH8y7cF9BWeUTxRQlp8+Y/67jM2bCeGtuxiLksucipkssg5a6ek59SPRGb50hDjQEwk/EdDlON/4Exu6ABBVNBskjXiSX3HzIcHa+jz3Xr84SblPbFzn4ymd706/kWhk73wiRaYGkPgV6l7fdckCO23K0bAiCZWSojf2WgbA1rKbs7/yzK3HJbEu+TUVq9QBwj4RLnFw2P7M=
+  on:
+    tags: true
+    python: 3.7

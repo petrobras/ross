@@ -51,7 +51,18 @@ REQUIRED = [
 ]
 
 # What packages are optional?
-EXTRAS = {"dev": ["pytest", "pytest-cov", "coverage", "codecov"]}
+EXTRAS = {
+    "dev": [
+        "pytest",
+        "pytest-cov",
+        "coverage",
+        "codecov",
+        "sphinx",
+        "sphinx_bootstrap_theme",
+        "nbsphinx",
+        "numpydoc",
+    ]
+}
 
 # The rest you shouldn't have to touch too much :)
 # ------------------------------------------------

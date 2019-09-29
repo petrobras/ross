@@ -6,15 +6,13 @@ Installation
 Install Python
 --------------
 
-If you don't have Python installed in your machine, the first thing you should do is install it.
-
-Since ross requires a number of packages to be installed besides
-Python, such as numpy, we recommend installing `Anaconda <https://www.anaconda.com/distribution/>`_ (version 3.6 or higher) which is a distribution of Python for scientific computing
-that aims to simplify package management and deployment. It contains Python and a large number
-of packages that are commonly used.
-Alternativaly, you may refer to the `Python website
+The first step is to install Python. Since ross requires several packages to be installed besides Python, such as
+numpy, scipy and bokeh we recommend installing `Anaconda <https://www.anaconda.com/distribution/>`_ (version 3.6 or higher) which is a
+scientific Python distribution that aims to simplify package management and deployment. It contains Python and a large
+number of packages that are commonly used.
+Alternatively, you may refer to the `Python website
 <http://www.python.org/>`_.
-Ross's code was tested in Python 3.6 and higher.
+Ross’s code is tested in Python 3.6 and higher.
 
 Install ross
 ------------
