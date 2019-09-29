@@ -6,7 +6,7 @@ from bokeh.plotting import figure
 import matplotlib.pyplot as plt
 from numpy.testing import assert_allclose
 from ross.fluid_flow.fluid_flow_coefficients import calculate_analytical_damping_matrix,\
-    calculate_analytical_stiffness_matrix, calculate_oil_film_force
+    calculate_analytical_stiffness_matrix, calculate_oil_film_force, calculate_stiffness_matrix
 from ross.fluid_flow.fluid_flow_graphics import plot_shape, plot_eccentricity, plot_pressure_theta,\
     plot_pressure_z, matplot_shape, matplot_eccentricity, matplot_pressure_theta, matplot_pressure_z
 
@@ -206,3 +206,11 @@ def test_matplotlib_plots():
     assert isinstance(matplot_pressure_theta(bearing), ax_type)
     assert isinstance(matplot_pressure_z(bearing), ax_type)
     assert isinstance(matplot_shape(bearing), ax_type)
+
+
+def test_numerical_stiffness_matrix_short():
+    bearing = fluid_flow_short_eccentricity()
+    bearing.calculate_pressure_matrix_numerical()
+    stiffness_matrix_numerical = calculate_stiffness_matrix(bearing)
+    stiffness_matrix_analytical = calculate_analytical_stiffness_matrix(bearing)
+    assert_allclose(stiffness_matrix_numerical, stiffness_matrix_analytical)

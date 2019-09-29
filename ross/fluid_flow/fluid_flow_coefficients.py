@@ -103,7 +103,7 @@ def calculate_oil_film_force(pressure_matrix_object, force_type=None):
         If set to 'numerical', calculates the oil film force numerically.
     Returns
     -------
-    normal_force: float
+    radial_force: float
         Force of the oil film in the opposite direction to the eccentricity direction.
     tangential_force: float
         Force of the oil film in the tangential direction
@@ -115,7 +115,7 @@ def calculate_oil_film_force(pressure_matrix_object, force_type=None):
     (...
     """
     if force_type != 'numerical' and (force_type == 'short' or pressure_matrix_object.bearing_type == 'short_bearing'):
-        normal_force = 0.5 * \
+        radial_force = 0.5 * \
            pressure_matrix_object.viscosity * \
            (pressure_matrix_object.radius_rotor / pressure_matrix_object.difference_between_radius) ** 2 * \
            (pressure_matrix_object.length ** 3 / pressure_matrix_object.radius_rotor) * \
@@ -128,7 +128,7 @@ def calculate_oil_film_force(pressure_matrix_object, force_type=None):
              (np.pi * pressure_matrix_object.eccentricity_ratio * pressure_matrix_object.omega) /
              (2 * (1 - pressure_matrix_object.eccentricity_ratio ** 2) ** (3. / 2)))
     elif force_type != 'numerical' and (force_type == 'long' or pressure_matrix_object.bearing_type == 'long_bearing'):
-        normal_force = 6 * pressure_matrix_object.viscosity * \
+        radial_force = 6 * pressure_matrix_object.viscosity * \
             (pressure_matrix_object.radius_rotor / pressure_matrix_object.difference_between_radius) ** 2 * \
             pressure_matrix_object.radius_rotor * pressure_matrix_object.length * \
             ((2 * pressure_matrix_object.eccentricity_ratio ** 2 * pressure_matrix_object.omega) /
@@ -157,16 +157,46 @@ def calculate_oil_film_force(pressure_matrix_object, force_type=None):
         integral1 = integrate.simps(g1, pressure_matrix_object.z_list)
         integral2 = integrate.simps(g2, pressure_matrix_object.z_list)
 
-        normal_force = - pressure_matrix_object.radius_rotor * integral1
+        radial_force = - pressure_matrix_object.radius_rotor * integral1
         tangential_force = pressure_matrix_object.radius_rotor * integral2
-    return normal_force, tangential_force
+    return radial_force, tangential_force
 
-
-
-
-
-
-
-
-
-
+def calculate_stiffness_matrix(pressure_matrix_object, oil_film_force=None):
+    """This function calculates the bearing stiffness matrix numerically.
+    Parameters
+    ----------
+    oil_film_force: str
+        If set, calculates the oil film force analytically considering the chosen type: 'short' or 'long'.
+    Returns
+    -------
+    list of floats
+        A list of length four including stiffness floats in this order: kxx, kxy, kyx, kyy
+    Examples
+    --------
+    >>> from ross.fluid_flow.fluid_flow import pressure_matrix_example
+    >>> my_fluid_flow = pressure_matrix_example()
+    >>> calculate_stiffness_matrix(my_fluid_flow)
+    """
+    [radial_force, tangential_force] = pressure_matrix_object.calculate_oil_film_force(force_type=oil_film_force)
+    temp = pressure_matrix_object.eccentricity
+    e = pressure_matrix_object.eccentricity
+    delta_x = pressure_matrix_object.difference_between_radius / 100
+    eccentricity_x = e ** 2 + delta_x ** 2 - 2 * e * delta_x * np.cos(np.pi - pressure_matrix_object.beta)
+    pressure_matrix_object.eccentricity = eccentricity_x
+    pressure_matrix_object.calculate_coefficients()
+    pressure_matrix_object.calculate_pressure_matrix_numerical()
+    [radial_force_x, tangential_force_x] = pressure_matrix_object.calculate_oil_film_force(force_type=oil_film_force)
+    delta_y = pressure_matrix_object.difference_between_radius / 100
+    eccentricity_y = e ** 2 + delta_y ** 2 - 2 * e * delta_y * np.cos(np.pi / 2 - pressure_matrix_object.beta)
+    pressure_matrix_object.eccentricity = eccentricity_y
+    pressure_matrix_object.calculate_coefficients()
+    pressure_matrix_object.calculate_pressure_matrix_numerical()
+    [radial_force_y, tangential_force_y] = pressure_matrix_object.calculate_oil_film_force(force_type=oil_film_force)
+    k_xx = (radial_force - radial_force_x) / delta_x
+    k_yx = (tangential_force - tangential_force_x) / delta_x
+    k_xy = (radial_force - radial_force_y) / delta_y
+    k_yy = (tangential_force - tangential_force_y) / delta_y
+    pressure_matrix_object.eccentricity = temp
+    pressure_matrix_object.calculate_coefficients()
+    pressure_matrix_object.calculate_pressure_matrix_numerical()
+    return [k_xx, k_yx, k_xy, k_yy]
