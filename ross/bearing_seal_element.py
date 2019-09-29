@@ -569,27 +569,20 @@ class BearingElement(Element):
         ax.add_line(mlines.Line2D(x_top, yu_top, **kwargs))
 
         # plot ground
-        zl_g = [zs0 - step, zs1 + step]
-        yl_g = [yl_top[0], yl_top[0]]
-        yu_g = [-y for y in yl_g]
-        ax.add_line(mlines.Line2D(zl_g, yl_g, **kwargs))
-        ax.add_line(mlines.Line2D(zl_g, yu_g, **kwargs))
-
-        # plot ground
         if self.n_link is None:
             zl_g = [zs0 - step, zs1 + step]
             yl_g = [yl_top[0], yl_top[0]]
             yu_g = [-y for y in yl_g]
-            ax.add_line(mlines.Line2D(x=zl_g, y=yl_g, **kwargs))
-            ax.add_line(mlines.Line2D(x=zl_g, y=yu_g, **kwargs))
+            ax.add_line(mlines.Line2D(zl_g, yl_g, **kwargs))
+            ax.add_line(mlines.Line2D(zl_g, yu_g, **kwargs))
 
             step2 = (zl_g[1] - zl_g[0]) / n
             for i in range(n + 1):
                 zl_g2 = [(zs0 - step) + step2 * (i), (zs0 - step) + step2 * (i + 1)]
                 yl_g2 = [yl_g[0], 1.1 * yl_g[0]]
                 yu_g2 = [-y for y in yl_g2]
-                ax.add_line(mlines.Line2D(x=zl_g2, y=yl_g2, **kwargs))
-                ax.add_line(mlines.Line2D(x=zl_g2, y=yu_g2, **kwargs))
+                ax.add_line(mlines.Line2D(zl_g2, yl_g2, **kwargs))
+                ax.add_line(mlines.Line2D(zl_g2, yu_g2, **kwargs))
 
         # plot spring
         z_spring = np.array([zs0, zs0, zs0, zs0])
@@ -1245,27 +1238,20 @@ class BallBearingElement(BearingElement):
         ax.add_line(mlines.Line2D(x_top, yu_top, **kwargs))
 
         # plot ground
-        zl_g = [zs0 - step, zs1 + step]
-        yl_g = [yl_top[0], yl_top[0]]
-        yu_g = [-y for y in yl_g]
-        ax.add_line(mlines.Line2D(zl_g, yl_g, **kwargs))
-        ax.add_line(mlines.Line2D(zl_g, yu_g, **kwargs))
-
-        # plot ground
         if self.n_link is None:
             zl_g = [zs0 - step, zs1 + step]
             yl_g = [yl_top[0], yl_top[0]]
             yu_g = [-y for y in yl_g]
-            ax.add_line(mlines.Line2D(x=zl_g, y=yl_g, **kwargs))
-            ax.add_line(mlines.Line2D(x=zl_g, y=yu_g, **kwargs))
+            ax.add_line(mlines.Line2D(zl_g, yl_g, **kwargs))
+            ax.add_line(mlines.Line2D(zl_g, yu_g, **kwargs))
 
             step2 = (zl_g[1] - zl_g[0]) / n
             for i in range(n + 1):
                 zl_g2 = [(zs0 - step) + step2 * (i), (zs0 - step) + step2 * (i + 1)]
                 yl_g2 = [yl_g[0], 1.1 * yl_g[0]]
                 yu_g2 = [-y for y in yl_g2]
-                ax.add_line(mlines.Line2D(x=zl_g2, y=yl_g2, **kwargs))
-                ax.add_line(mlines.Line2D(x=zl_g2, y=yu_g2, **kwargs))
+                ax.add_line(mlines.Line2D(zl_g2, yl_g2, **kwargs))
+                ax.add_line(mlines.Line2D(zl_g2, yu_g2, **kwargs))
 
         # plot spring
         z_spring = np.array([zs0, zs0, zs0, zs0])
@@ -1556,27 +1542,20 @@ class RollerBearingElement(BearingElement):
         ax.add_line(mlines.Line2D(x_top, yu_top, **kwargs))
 
         # plot ground
-        zl_g = [zs0 - step, zs1 + step]
-        yl_g = [yl_top[0], yl_top[0]]
-        yu_g = [-y for y in yl_g]
-        ax.add_line(mlines.Line2D(zl_g, yl_g, **kwargs))
-        ax.add_line(mlines.Line2D(zl_g, yu_g, **kwargs))
-
-        # plot ground
         if self.n_link is None:
             zl_g = [zs0 - step, zs1 + step]
             yl_g = [yl_top[0], yl_top[0]]
             yu_g = [-y for y in yl_g]
-            ax.add_line(mlines.Line2D(x=zl_g, y=yl_g, **kwargs))
-            ax.add_line(mlines.Line2D(x=zl_g, y=yu_g, **kwargs))
+            ax.add_line(mlines.Line2D(zl_g, yl_g, **kwargs))
+            ax.add_line(mlines.Line2D(zl_g, yu_g, **kwargs))
 
             step2 = (zl_g[1] - zl_g[0]) / n
             for i in range(n + 1):
                 zl_g2 = [(zs0 - step) + step2 * (i), (zs0 - step) + step2 * (i + 1)]
                 yl_g2 = [yl_g[0], 1.1 * yl_g[0]]
                 yu_g2 = [-y for y in yl_g2]
-                ax.add_line(mlines.Line2D(x=zl_g2, y=yl_g2, **kwargs))
-                ax.add_line(mlines.Line2D(x=zl_g2, y=yu_g2, **kwargs))
+                ax.add_line(mlines.Line2D(zl_g2, yl_g2, **kwargs))
+                ax.add_line(mlines.Line2D(zl_g2, yu_g2, **kwargs))
 
         # plot spring
         z_spring = np.array([zs0, zs0, zs0, zs0])
