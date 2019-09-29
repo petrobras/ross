@@ -14,7 +14,7 @@ from ross.fluid_flow import fluid_flow as flow
 from ross.fluid_flow.fluid_flow_coefficients import calculate_analytical_stiffness_matrix,\
     calculate_analytical_damping_matrix
 
-__all__ = ["BearingElement", "SealElement"]
+__all__ = ["BearingElement", "SealElement", "BallBearingElement", "RollerBearingElement"]
 bokeh_colors = bp.RdGy[11]
 
 
@@ -534,9 +534,6 @@ class BearingElement(Element):
 
         Returns
         -------
-
-        Examples
-        --------
         """
         default_values = dict(lw=1.0, alpha=1.0, c="k")
         for k, v in default_values.items():
@@ -545,16 +542,12 @@ class BearingElement(Element):
         # geometric factors
         zpos, ypos = position
         coils = 6  # number of points to generate spring
-        step = mean / 5  # spring step
-        a = 2.2  # range(1.8 to 2.8)
-        b = 1.4  # range(1.2 to 1.5)
-        c = mean / 2.9  # defines width
-        d = (coils / a) * step  # modifies damper width
         n = 5  # number of ground lines
+        step = mean / (coils + 1)  # spring step
 
-        zs0 = zpos - c
-        zs1 = zpos + c
-        ys0 = ypos + mean / 2
+        zs0 = zpos - (mean / 2.0)
+        zs1 = zpos + (mean / 2.0)
+        ys0 = ypos + 0.5 * mean
 
         # plot bottom base
         x_bot = [zpos, zpos, zs0, zs1]
@@ -566,13 +559,12 @@ class BearingElement(Element):
         # plot top base
         x_top = [zpos, zpos, zs0, zs1]
         yl_top = [
-            b * ys0 + (coils + 1) * step,
-            ys0 + (coils + 1) * step,
-            ys0 + (coils + 1) * step,
-            ys0 + (coils + 1) * step,
+            ypos + 2 * mean,
+            ypos + 1.5 * mean,
+            ypos + 1.5 * mean,
+            ypos + 1.5 * mean,
         ]
         yu_top = [-y for y in yl_top]
-
         ax.add_line(mlines.Line2D(x_top, yl_top, **kwargs))
         ax.add_line(mlines.Line2D(x_top, yu_top, **kwargs))
 
@@ -583,19 +575,25 @@ class BearingElement(Element):
         ax.add_line(mlines.Line2D(zl_g, yl_g, **kwargs))
         ax.add_line(mlines.Line2D(zl_g, yu_g, **kwargs))
 
-        step2 = (zl_g[1] - zl_g[0]) / n
-        for i in range(n + 1):
-            zl_g2 = [(zs0 - step) + step2 * (i), (zs0 - step) + step2 * (i + 1)]
-            yl_g2 = [yl_g[0], 1.1 * yl_g[0]]
-            yu_g2 = [-y for y in yl_g2]
-            ax.add_line(mlines.Line2D(zl_g2, yl_g2, **kwargs))
-            ax.add_line(mlines.Line2D(zl_g2, yu_g2, **kwargs))
+        # plot ground
+        if self.n_link is None:
+            zl_g = [zs0 - step, zs1 + step]
+            yl_g = [yl_top[0], yl_top[0]]
+            yu_g = [-y for y in yl_g]
+            ax.add_line(mlines.Line2D(x=zl_g, y=yl_g, **kwargs))
+            ax.add_line(mlines.Line2D(x=zl_g, y=yu_g, **kwargs))
+
+            step2 = (zl_g[1] - zl_g[0]) / n
+            for i in range(n + 1):
+                zl_g2 = [(zs0 - step) + step2 * (i), (zs0 - step) + step2 * (i + 1)]
+                yl_g2 = [yl_g[0], 1.1 * yl_g[0]]
+                yu_g2 = [-y for y in yl_g2]
+                ax.add_line(mlines.Line2D(x=zl_g2, y=yl_g2, **kwargs))
+                ax.add_line(mlines.Line2D(x=zl_g2, y=yu_g2, **kwargs))
 
         # plot spring
         z_spring = np.array([zs0, zs0, zs0, zs0])
-        yl_spring = np.array(
-            [ys0, ys0 + step, ys0 + coils * step, ys0 + (coils + 1) * step]
-        )
+        yl_spring = np.array([ys0, ys0 + step, ys0 + mean - step, ys0 + mean])
 
         for i in range(coils):
             z_spring = np.insert(z_spring, i + 2, zs0 - (-1) ** i * step)
@@ -605,27 +603,29 @@ class BearingElement(Element):
         ax.add_line(mlines.Line2D(z_spring, yl_spring, **kwargs))
         ax.add_line(mlines.Line2D(z_spring, yu_spring, **kwargs))
 
-        # plot damper
+        # plot damper - base
         z_damper1 = [zs1, zs1]
-        yl_damper1 = [ys0, ys0 + d]
+        yl_damper1 = [ys0, ys0 + 2 * step]
         yu_damper1 = [-y for y in yl_damper1]
 
         ax.add_line(mlines.Line2D(z_damper1, yl_damper1, **kwargs))
         ax.add_line(mlines.Line2D(z_damper1, yu_damper1, **kwargs))
 
-        z_damper2 = [zs1 - step, zs1 - step, zs1 + step, zs1 + step]
-        yl_damper2 = [ys0 + 2 * d, ys0 + d, ys0 + d, ys0 + 2 * d]
+        # plot damper - center
+        z_damper2 = [zs1 - 2 * step, zs1 - 2 * step, zs1 + 2 * step, zs1 + 2 * step]
+        yl_damper2 = [ys0 + 5 * step, ys0 + 2 * step, ys0 + 2 * step, ys0 + 5 * step]
         yu_damper2 = [-y for y in yl_damper2]
 
         ax.add_line(mlines.Line2D(z_damper2, yl_damper2, **kwargs))
         ax.add_line(mlines.Line2D(z_damper2, yu_damper2, **kwargs))
 
-        z_damper3 = [zs1 - step, zs1 + step, zs1, zs1]
+        # plot damper - top
+        z_damper3 = [z_damper2[0], z_damper2[2], zs1, zs1]
         yl_damper3 = [
-            ys0 + 1.5 * d,
-            ys0 + 1.5 * d,
-            ys0 + 1.5 * d,
-            ys0 + (coils + 1) * step,
+            ys0 + 4 * step,
+            ys0 + 4 * step,
+            ys0 + 4 * step,
+            ypos + 1.5 * mean,
         ]
         yu_damper3 = [-y for y in yl_damper3]
 
@@ -655,16 +655,12 @@ class BearingElement(Element):
         # geometric factors
         zpos, ypos = position
         coils = 6  # number of points to generate spring
-        step = mean / 5  # spring step
-        a = 2.2  # range(1.8 to 2.8)
-        b = 1.4  # range(1.2 to 1.5)
-        c = mean / 2.9  # defines width
-        d = (coils / a) * step  # modifies damper width
         n = 5  # number of ground lines
+        step = mean / (coils + 1)  # spring step
 
-        zs0 = zpos - c
-        zs1 = zpos + c
-        ys0 = ypos + mean / 2
+        zs0 = zpos - (mean / 2.0)
+        zs1 = zpos + (mean / 2.0)
+        ys0 = ypos + 0.5 * mean
 
         # plot bottom base
         x_bot = [zpos, zpos, zs0, zs1]
@@ -676,13 +672,12 @@ class BearingElement(Element):
         # plot top base
         x_top = [zpos, zpos, zs0, zs1]
         yl_top = [
-            b * ys0 + (coils + 1) * step,
-            ys0 + (coils + 1) * step,
-            ys0 + (coils + 1) * step,
-            ys0 + (coils + 1) * step,
+            ypos + 2 * mean,
+            ypos + 1.5 * mean,
+            ypos + 1.5 * mean,
+            ypos + 1.5 * mean,
         ]
         yu_top = [-y for y in yl_top]
-
         bk_ax.line(x=x_top, y=yl_top, legend="Bearing", **kwargs)
         bk_ax.line(x=x_top, y=yu_top, legend="Bearing", **kwargs)
 
@@ -704,9 +699,7 @@ class BearingElement(Element):
 
         # plot spring
         z_spring = np.array([zs0, zs0, zs0, zs0])
-        yl_spring = np.array(
-            [ys0, ys0 + step, ys0 + coils * step, ys0 + (coils + 1) * step]
-        )
+        yl_spring = np.array([ys0, ys0 + step, ys0 + mean - step, ys0 + mean])
 
         for i in range(coils):
             z_spring = np.insert(z_spring, i + 2, zs0 - (-1) ** i * step)
@@ -716,27 +709,29 @@ class BearingElement(Element):
         bk_ax.line(x=z_spring, y=yl_spring, **kwargs)
         bk_ax.line(x=z_spring, y=yu_spring, **kwargs)
 
-        # plot damper
+        # plot damper - base
         z_damper1 = [zs1, zs1]
-        yl_damper1 = [ys0, ys0 + d]
+        yl_damper1 = [ys0, ys0 + 2 * step]
         yu_damper1 = [-y for y in yl_damper1]
 
         bk_ax.line(x=z_damper1, y=yl_damper1, **kwargs)
         bk_ax.line(x=z_damper1, y=yu_damper1, **kwargs)
 
-        z_damper2 = [zs1 - step, zs1 - step, zs1 + step, zs1 + step]
-        yl_damper2 = [ys0 + 2 * d, ys0 + d, ys0 + d, ys0 + 2 * d]
+        # plot damper - center
+        z_damper2 = [zs1 - 2 * step, zs1 - 2 * step, zs1 + 2 * step, zs1 + 2 * step]
+        yl_damper2 = [ys0 + 5 * step, ys0 + 2 * step, ys0 + 2 * step, ys0 + 5 * step]
         yu_damper2 = [-y for y in yl_damper2]
 
         bk_ax.line(x=z_damper2, y=yl_damper2, **kwargs)
         bk_ax.line(x=z_damper2, y=yu_damper2, **kwargs)
 
-        z_damper3 = [zs1 - step, zs1 + step, zs1, zs1]
+        # plot damper - top
+        z_damper3 = [z_damper2[0], z_damper2[2], zs1, zs1]
         yl_damper3 = [
-            ys0 + 1.5 * d,
-            ys0 + 1.5 * d,
-            ys0 + 1.5 * d,
-            ys0 + (coils + 1) * step,
+            ys0 + 4 * step,
+            ys0 + 4 * step,
+            ys0 + 4 * step,
+            ypos + 1.5 * mean,
         ]
         yu_damper3 = [-y for y in yl_damper3]
 
@@ -1223,16 +1218,12 @@ class BallBearingElement(BearingElement):
         # geometric factors
         zpos, ypos = position
         coils = 6  # number of points to generate spring
-        step = mean / 5  # spring step
-        a = 2.2  # range(1.8 to 2.8)
-        b = 1.4  # range(1.2 to 1.5)
-        c = mean / 2.9  # defines width
-        d = (coils / a) * step  # modifies damper width
         n = 5  # number of ground lines
+        step = mean / (coils + 1)  # spring step
 
-        zs0 = zpos - c
-        zs1 = zpos + c
-        ys0 = ypos + mean / 2
+        zs0 = zpos - (mean / 2.0)
+        zs1 = zpos + (mean / 2.0)
+        ys0 = ypos + 0.5 * mean
 
         # plot bottom base
         x_bot = [zpos, zpos, zs0, zs1]
@@ -1244,13 +1235,12 @@ class BallBearingElement(BearingElement):
         # plot top base
         x_top = [zpos, zpos, zs0, zs1]
         yl_top = [
-            b * ys0 + (coils + 1) * step,
-            ys0 + (coils + 1) * step,
-            ys0 + (coils + 1) * step,
-            ys0 + (coils + 1) * step,
+            ypos + 2 * mean,
+            ypos + 1.5 * mean,
+            ypos + 1.5 * mean,
+            ypos + 1.5 * mean,
         ]
         yu_top = [-y for y in yl_top]
-
         ax.add_line(mlines.Line2D(x_top, yl_top, **kwargs))
         ax.add_line(mlines.Line2D(x_top, yu_top, **kwargs))
 
@@ -1261,19 +1251,25 @@ class BallBearingElement(BearingElement):
         ax.add_line(mlines.Line2D(zl_g, yl_g, **kwargs))
         ax.add_line(mlines.Line2D(zl_g, yu_g, **kwargs))
 
-        step2 = (zl_g[1] - zl_g[0]) / n
-        for i in range(n + 1):
-            zl_g2 = [(zs0 - step) + step2 * (i), (zs0 - step) + step2 * (i + 1)]
-            yl_g2 = [yl_g[0], 1.1 * yl_g[0]]
-            yu_g2 = [-y for y in yl_g2]
-            ax.add_line(mlines.Line2D(zl_g2, yl_g2, **kwargs))
-            ax.add_line(mlines.Line2D(zl_g2, yu_g2, **kwargs))
+        # plot ground
+        if self.n_link is None:
+            zl_g = [zs0 - step, zs1 + step]
+            yl_g = [yl_top[0], yl_top[0]]
+            yu_g = [-y for y in yl_g]
+            ax.add_line(mlines.Line2D(x=zl_g, y=yl_g, **kwargs))
+            ax.add_line(mlines.Line2D(x=zl_g, y=yu_g, **kwargs))
+
+            step2 = (zl_g[1] - zl_g[0]) / n
+            for i in range(n + 1):
+                zl_g2 = [(zs0 - step) + step2 * (i), (zs0 - step) + step2 * (i + 1)]
+                yl_g2 = [yl_g[0], 1.1 * yl_g[0]]
+                yu_g2 = [-y for y in yl_g2]
+                ax.add_line(mlines.Line2D(x=zl_g2, y=yl_g2, **kwargs))
+                ax.add_line(mlines.Line2D(x=zl_g2, y=yu_g2, **kwargs))
 
         # plot spring
         z_spring = np.array([zs0, zs0, zs0, zs0])
-        yl_spring = np.array(
-            [ys0, ys0 + step, ys0 + coils * step, ys0 + (coils + 1) * step]
-        )
+        yl_spring = np.array([ys0, ys0 + step, ys0 + mean - step, ys0 + mean])
 
         for i in range(coils):
             z_spring = np.insert(z_spring, i + 2, zs0 - (-1) ** i * step)
@@ -1283,27 +1279,29 @@ class BallBearingElement(BearingElement):
         ax.add_line(mlines.Line2D(z_spring, yl_spring, **kwargs))
         ax.add_line(mlines.Line2D(z_spring, yu_spring, **kwargs))
 
-        # plot damper
+        # plot damper - base
         z_damper1 = [zs1, zs1]
-        yl_damper1 = [ys0, ys0 + d]
+        yl_damper1 = [ys0, ys0 + 2 * step]
         yu_damper1 = [-y for y in yl_damper1]
 
         ax.add_line(mlines.Line2D(z_damper1, yl_damper1, **kwargs))
         ax.add_line(mlines.Line2D(z_damper1, yu_damper1, **kwargs))
 
-        z_damper2 = [zs1 - step, zs1 - step, zs1 + step, zs1 + step]
-        yl_damper2 = [ys0 + 2 * d, ys0 + d, ys0 + d, ys0 + 2 * d]
+        # plot damper - center
+        z_damper2 = [zs1 - 2 * step, zs1 - 2 * step, zs1 + 2 * step, zs1 + 2 * step]
+        yl_damper2 = [ys0 + 5 * step, ys0 + 2 * step, ys0 + 2 * step, ys0 + 5 * step]
         yu_damper2 = [-y for y in yl_damper2]
 
         ax.add_line(mlines.Line2D(z_damper2, yl_damper2, **kwargs))
         ax.add_line(mlines.Line2D(z_damper2, yu_damper2, **kwargs))
 
-        z_damper3 = [zs1 - step, zs1 + step, zs1, zs1]
+        # plot damper - top
+        z_damper3 = [z_damper2[0], z_damper2[2], zs1, zs1]
         yl_damper3 = [
-            ys0 + 1.5 * d,
-            ys0 + 1.5 * d,
-            ys0 + 1.5 * d,
-            ys0 + (coils + 1) * step,
+            ys0 + 4 * step,
+            ys0 + 4 * step,
+            ys0 + 4 * step,
+            ypos + 1.5 * mean,
         ]
         yu_damper3 = [-y for y in yl_damper3]
 
@@ -1333,16 +1331,12 @@ class BallBearingElement(BearingElement):
         # geometric factors
         zpos, ypos = position
         coils = 6  # number of points to generate spring
-        step = mean / 5  # spring step
-        a = 2.2  # range(1.8 to 2.8)
-        b = 1.4  # range(1.2 to 1.5)
-        c = mean / 2.9  # defines width
-        d = (coils / a) * step  # modifies damper width
         n = 5  # number of ground lines
+        step = mean / (coils + 1)  # spring step
 
-        zs0 = zpos - c
-        zs1 = zpos + c
-        ys0 = ypos + mean / 2
+        zs0 = zpos - (mean / 2.0)
+        zs1 = zpos + (mean / 2.0)
+        ys0 = ypos + 0.5 * mean
 
         # plot bottom base
         x_bot = [zpos, zpos, zs0, zs1]
@@ -1354,13 +1348,12 @@ class BallBearingElement(BearingElement):
         # plot top base
         x_top = [zpos, zpos, zs0, zs1]
         yl_top = [
-            b * ys0 + (coils + 1) * step,
-            ys0 + (coils + 1) * step,
-            ys0 + (coils + 1) * step,
-            ys0 + (coils + 1) * step,
+            ypos + 2 * mean,
+            ypos + 1.5 * mean,
+            ypos + 1.5 * mean,
+            ypos + 1.5 * mean,
         ]
         yu_top = [-y for y in yl_top]
-
         bk_ax.line(x=x_top, y=yl_top, legend="Bearing", **kwargs)
         bk_ax.line(x=x_top, y=yu_top, legend="Bearing", **kwargs)
 
@@ -1382,9 +1375,7 @@ class BallBearingElement(BearingElement):
 
         # plot spring
         z_spring = np.array([zs0, zs0, zs0, zs0])
-        yl_spring = np.array(
-            [ys0, ys0 + step, ys0 + coils * step, ys0 + (coils + 1) * step]
-        )
+        yl_spring = np.array([ys0, ys0 + step, ys0 + mean - step, ys0 + mean])
 
         for i in range(coils):
             z_spring = np.insert(z_spring, i + 2, zs0 - (-1) ** i * step)
@@ -1394,27 +1385,29 @@ class BallBearingElement(BearingElement):
         bk_ax.line(x=z_spring, y=yl_spring, **kwargs)
         bk_ax.line(x=z_spring, y=yu_spring, **kwargs)
 
-        # plot damper
+        # plot damper - base
         z_damper1 = [zs1, zs1]
-        yl_damper1 = [ys0, ys0 + d]
+        yl_damper1 = [ys0, ys0 + 2 * step]
         yu_damper1 = [-y for y in yl_damper1]
 
         bk_ax.line(x=z_damper1, y=yl_damper1, **kwargs)
         bk_ax.line(x=z_damper1, y=yu_damper1, **kwargs)
 
-        z_damper2 = [zs1 - step, zs1 - step, zs1 + step, zs1 + step]
-        yl_damper2 = [ys0 + 2 * d, ys0 + d, ys0 + d, ys0 + 2 * d]
+        # plot damper - center
+        z_damper2 = [zs1 - 2 * step, zs1 - 2 * step, zs1 + 2 * step, zs1 + 2 * step]
+        yl_damper2 = [ys0 + 5 * step, ys0 + 2 * step, ys0 + 2 * step, ys0 + 5 * step]
         yu_damper2 = [-y for y in yl_damper2]
 
         bk_ax.line(x=z_damper2, y=yl_damper2, **kwargs)
         bk_ax.line(x=z_damper2, y=yu_damper2, **kwargs)
 
-        z_damper3 = [zs1 - step, zs1 + step, zs1, zs1]
+        # plot damper - top
+        z_damper3 = [z_damper2[0], z_damper2[2], zs1, zs1]
         yl_damper3 = [
-            ys0 + 1.5 * d,
-            ys0 + 1.5 * d,
-            ys0 + 1.5 * d,
-            ys0 + (coils + 1) * step,
+            ys0 + 4 * step,
+            ys0 + 4 * step,
+            ys0 + 4 * step,
+            ypos + 1.5 * mean,
         ]
         yu_damper3 = [-y for y in yl_damper3]
 
@@ -1528,9 +1521,6 @@ class RollerBearingElement(BearingElement):
 
         Returns
         -------
-
-        Examples
-        --------
         """
         default_values = dict(lw=1.0, alpha=1.0, c="k")
         for k, v in default_values.items():
@@ -1539,16 +1529,12 @@ class RollerBearingElement(BearingElement):
         # geometric factors
         zpos, ypos = position
         coils = 6  # number of points to generate spring
-        step = mean / 5  # spring step
-        a = 2.2  # range(1.8 to 2.8)
-        b = 1.4  # range(1.2 to 1.5)
-        c = mean / 2.9  # defines width
-        d = (coils / a) * step  # modifies damper width
         n = 5  # number of ground lines
+        step = mean / (coils + 1)  # spring step
 
-        zs0 = zpos - c
-        zs1 = zpos + c
-        ys0 = ypos + mean / 2
+        zs0 = zpos - (mean / 2.0)
+        zs1 = zpos + (mean / 2.0)
+        ys0 = ypos + 0.5 * mean
 
         # plot bottom base
         x_bot = [zpos, zpos, zs0, zs1]
@@ -1560,13 +1546,12 @@ class RollerBearingElement(BearingElement):
         # plot top base
         x_top = [zpos, zpos, zs0, zs1]
         yl_top = [
-            b * ys0 + (coils + 1) * step,
-            ys0 + (coils + 1) * step,
-            ys0 + (coils + 1) * step,
-            ys0 + (coils + 1) * step,
+            ypos + 2 * mean,
+            ypos + 1.5 * mean,
+            ypos + 1.5 * mean,
+            ypos + 1.5 * mean,
         ]
         yu_top = [-y for y in yl_top]
-
         ax.add_line(mlines.Line2D(x_top, yl_top, **kwargs))
         ax.add_line(mlines.Line2D(x_top, yu_top, **kwargs))
 
@@ -1577,19 +1562,25 @@ class RollerBearingElement(BearingElement):
         ax.add_line(mlines.Line2D(zl_g, yl_g, **kwargs))
         ax.add_line(mlines.Line2D(zl_g, yu_g, **kwargs))
 
-        step2 = (zl_g[1] - zl_g[0]) / n
-        for i in range(n + 1):
-            zl_g2 = [(zs0 - step) + step2 * (i), (zs0 - step) + step2 * (i + 1)]
-            yl_g2 = [yl_g[0], 1.1 * yl_g[0]]
-            yu_g2 = [-y for y in yl_g2]
-            ax.add_line(mlines.Line2D(zl_g2, yl_g2, **kwargs))
-            ax.add_line(mlines.Line2D(zl_g2, yu_g2, **kwargs))
+        # plot ground
+        if self.n_link is None:
+            zl_g = [zs0 - step, zs1 + step]
+            yl_g = [yl_top[0], yl_top[0]]
+            yu_g = [-y for y in yl_g]
+            ax.add_line(mlines.Line2D(x=zl_g, y=yl_g, **kwargs))
+            ax.add_line(mlines.Line2D(x=zl_g, y=yu_g, **kwargs))
+
+            step2 = (zl_g[1] - zl_g[0]) / n
+            for i in range(n + 1):
+                zl_g2 = [(zs0 - step) + step2 * (i), (zs0 - step) + step2 * (i + 1)]
+                yl_g2 = [yl_g[0], 1.1 * yl_g[0]]
+                yu_g2 = [-y for y in yl_g2]
+                ax.add_line(mlines.Line2D(x=zl_g2, y=yl_g2, **kwargs))
+                ax.add_line(mlines.Line2D(x=zl_g2, y=yu_g2, **kwargs))
 
         # plot spring
         z_spring = np.array([zs0, zs0, zs0, zs0])
-        yl_spring = np.array(
-            [ys0, ys0 + step, ys0 + coils * step, ys0 + (coils + 1) * step]
-        )
+        yl_spring = np.array([ys0, ys0 + step, ys0 + mean - step, ys0 + mean])
 
         for i in range(coils):
             z_spring = np.insert(z_spring, i + 2, zs0 - (-1) ** i * step)
@@ -1599,27 +1590,29 @@ class RollerBearingElement(BearingElement):
         ax.add_line(mlines.Line2D(z_spring, yl_spring, **kwargs))
         ax.add_line(mlines.Line2D(z_spring, yu_spring, **kwargs))
 
-        # plot damper
+        # plot damper - base
         z_damper1 = [zs1, zs1]
-        yl_damper1 = [ys0, ys0 + d]
+        yl_damper1 = [ys0, ys0 + 2 * step]
         yu_damper1 = [-y for y in yl_damper1]
 
         ax.add_line(mlines.Line2D(z_damper1, yl_damper1, **kwargs))
         ax.add_line(mlines.Line2D(z_damper1, yu_damper1, **kwargs))
 
-        z_damper2 = [zs1 - step, zs1 - step, zs1 + step, zs1 + step]
-        yl_damper2 = [ys0 + 2 * d, ys0 + d, ys0 + d, ys0 + 2 * d]
+        # plot damper - center
+        z_damper2 = [zs1 - 2 * step, zs1 - 2 * step, zs1 + 2 * step, zs1 + 2 * step]
+        yl_damper2 = [ys0 + 5 * step, ys0 + 2 * step, ys0 + 2 * step, ys0 + 5 * step]
         yu_damper2 = [-y for y in yl_damper2]
 
         ax.add_line(mlines.Line2D(z_damper2, yl_damper2, **kwargs))
         ax.add_line(mlines.Line2D(z_damper2, yu_damper2, **kwargs))
 
-        z_damper3 = [zs1 - step, zs1 + step, zs1, zs1]
+        # plot damper - top
+        z_damper3 = [z_damper2[0], z_damper2[2], zs1, zs1]
         yl_damper3 = [
-            ys0 + 1.5 * d,
-            ys0 + 1.5 * d,
-            ys0 + 1.5 * d,
-            ys0 + (coils + 1) * step,
+            ys0 + 4 * step,
+            ys0 + 4 * step,
+            ys0 + 4 * step,
+            ypos + 1.5 * mean,
         ]
         yu_damper3 = [-y for y in yl_damper3]
 
@@ -1649,16 +1642,12 @@ class RollerBearingElement(BearingElement):
         # geometric factors
         zpos, ypos = position
         coils = 6  # number of points to generate spring
-        step = mean / 5  # spring step
-        a = 2.2  # range(1.8 to 2.8)
-        b = 1.4  # range(1.2 to 1.5)
-        c = mean / 2.9  # defines width
-        d = (coils / a) * step  # modifies damper width
         n = 5  # number of ground lines
+        step = mean / (coils + 1)  # spring step
 
-        zs0 = zpos - c
-        zs1 = zpos + c
-        ys0 = ypos + mean / 2
+        zs0 = zpos - (mean / 2.0)
+        zs1 = zpos + (mean / 2.0)
+        ys0 = ypos + 0.5 * mean
 
         # plot bottom base
         x_bot = [zpos, zpos, zs0, zs1]
@@ -1670,13 +1659,12 @@ class RollerBearingElement(BearingElement):
         # plot top base
         x_top = [zpos, zpos, zs0, zs1]
         yl_top = [
-            b * ys0 + (coils + 1) * step,
-            ys0 + (coils + 1) * step,
-            ys0 + (coils + 1) * step,
-            ys0 + (coils + 1) * step,
+            ypos + 2 * mean,
+            ypos + 1.5 * mean,
+            ypos + 1.5 * mean,
+            ypos + 1.5 * mean,
         ]
         yu_top = [-y for y in yl_top]
-
         bk_ax.line(x=x_top, y=yl_top, legend="Bearing", **kwargs)
         bk_ax.line(x=x_top, y=yu_top, legend="Bearing", **kwargs)
 
@@ -1698,9 +1686,7 @@ class RollerBearingElement(BearingElement):
 
         # plot spring
         z_spring = np.array([zs0, zs0, zs0, zs0])
-        yl_spring = np.array(
-            [ys0, ys0 + step, ys0 + coils * step, ys0 + (coils + 1) * step]
-        )
+        yl_spring = np.array([ys0, ys0 + step, ys0 + mean - step, ys0 + mean])
 
         for i in range(coils):
             z_spring = np.insert(z_spring, i + 2, zs0 - (-1) ** i * step)
@@ -1710,27 +1696,29 @@ class RollerBearingElement(BearingElement):
         bk_ax.line(x=z_spring, y=yl_spring, **kwargs)
         bk_ax.line(x=z_spring, y=yu_spring, **kwargs)
 
-        # plot damper
+        # plot damper - base
         z_damper1 = [zs1, zs1]
-        yl_damper1 = [ys0, ys0 + d]
+        yl_damper1 = [ys0, ys0 + 2 * step]
         yu_damper1 = [-y for y in yl_damper1]
 
         bk_ax.line(x=z_damper1, y=yl_damper1, **kwargs)
         bk_ax.line(x=z_damper1, y=yu_damper1, **kwargs)
 
-        z_damper2 = [zs1 - step, zs1 - step, zs1 + step, zs1 + step]
-        yl_damper2 = [ys0 + 2 * d, ys0 + d, ys0 + d, ys0 + 2 * d]
+        # plot damper - center
+        z_damper2 = [zs1 - 2 * step, zs1 - 2 * step, zs1 + 2 * step, zs1 + 2 * step]
+        yl_damper2 = [ys0 + 5 * step, ys0 + 2 * step, ys0 + 2 * step, ys0 + 5 * step]
         yu_damper2 = [-y for y in yl_damper2]
 
         bk_ax.line(x=z_damper2, y=yl_damper2, **kwargs)
         bk_ax.line(x=z_damper2, y=yu_damper2, **kwargs)
 
-        z_damper3 = [zs1 - step, zs1 + step, zs1, zs1]
+        # plot damper - top
+        z_damper3 = [z_damper2[0], z_damper2[2], zs1, zs1]
         yl_damper3 = [
-            ys0 + 1.5 * d,
-            ys0 + 1.5 * d,
-            ys0 + 1.5 * d,
-            ys0 + (coils + 1) * step,
+            ys0 + 4 * step,
+            ys0 + 4 * step,
+            ys0 + 4 * step,
+            ypos + 1.5 * mean,
         ]
         yu_damper3 = [-y for y in yl_damper3]
 
