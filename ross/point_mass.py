@@ -50,10 +50,6 @@ class PointMass(Element):
         self.mx = mx
         self.my = my
 
-        if tag is None:
-            tag = self.__class__.__name__ + " " + str(self.n)
-        self.tag = tag
-
     def __hash__(self):
         return hash(self.tag)
 
