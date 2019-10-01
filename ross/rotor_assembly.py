@@ -2284,6 +2284,7 @@ class Rotor(object):
         disk_elements = DiskElement.load()
         bearing_elements = BearingElement.load()
         seal_elements = []
+        point_mass_elements = PointMass.load()
 
         os.chdir(rotor_path)
         with open("properties.toml", "r") as f:
@@ -2294,6 +2295,7 @@ class Rotor(object):
             shaft_elements=shaft_elements,
             bearing_seal_elements=bearing_elements + seal_elements,
             disk_elements=disk_elements,
+            point_mass_elements=point_mass_elements,
             **parameters,
         )
 
