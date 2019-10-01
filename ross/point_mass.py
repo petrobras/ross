@@ -26,6 +26,8 @@ class PointMass(Element):
         Mass for the element on the x direction.
     my: float, optional
         Mass for the element on the y direction.
+    tag: str
+        A tag to name the element
 
     Examples
     --------
@@ -53,6 +55,51 @@ class PointMass(Element):
 
     def __hash__(self):
         return hash(self.tag)
+
+    def __eq__(self, other):
+        """This function allows point mass elements to be compared.
+        Parameters
+        ----------
+        other : obj
+            parameter for comparasion
+
+        Returns
+        -------
+        True if other is equal to the reference parameter.
+        False if not.
+
+        Example
+        -------
+        >>> pointmass1 = point_mass_example()
+        >>> pointmass2 = point_mass_example()
+        >>> pointmass1 == pointmass2
+        True
+        """
+        if self.__dict__ == other.__dict__:
+            return True
+        else:
+            return False
+
+    def __repr__(self):
+        """This function returns a string representation of a point mass
+        element.
+        Parameters
+        ----------
+
+        Returns
+        -------
+        A string representation of a bearing object.
+        Examples
+        --------
+        >>> point_mass = point_mass_example()
+        >>> point_mass
+        PointMass(n=0, mx=1.0, my=2.0, tag='pointmass')
+        """
+        return (
+            f"{self.__class__.__name__}"
+            f"(n={self.n}, mx={self.mx:{0}.{5}},"
+            f" my={self.my:{0}.{5}}, tag={self.tag!r})"
+        )
 
     def M(self):
         """Mass matrix."""
@@ -191,3 +238,28 @@ class PointMass(Element):
         hover.mode = "mouse"
 
         return hover
+
+
+def point_mass_example():
+    """This function returns an instance of a simple point mass.
+    The purpose is to make available a simple model
+    so that doctest can be written using it.
+
+    Parameters
+    ----------
+
+    Returns
+    -------
+    An instance of a point mass object.
+
+    Examples
+    --------
+    >>> pointmass = point_mass_example()
+    >>> pointmass.mx
+    1.0
+    """
+    n = 0
+    mx = 1.0
+    my = 2.0
+    point_mass = PointMass(n=n, mx=mx, my=my, tag="pointmass")
+    return point_mass
