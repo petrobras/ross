@@ -101,6 +101,61 @@ class PointMass(Element):
             f" my={self.my:{0}.{5}}, tag={self.tag!r})"
         )
 
+    def save(self, file_name):
+        """Saves a point mass element in a toml format. It works as an
+        auxiliary function of the save function in the Rotor class.
+        Parameters
+        ----------
+        file_name: string
+            The name of the file the point mass element will be saved in.
+
+        Returns
+        -------
+        None
+
+        Examples
+        --------
+        >>> pointmass = point_mass_example()
+        >>> pointmass.save('PointMass.toml')
+        """
+        data = self.load_data(file_name)
+        data["PointMass"][str(self.n)] = {
+            "n": self.n,
+            "mx": self.mx,
+            "my": self.my,
+            "tag": self.tag,
+        }
+        self.dump_data(data, file_name)
+
+    @staticmethod
+    def load(file_name="PointMass"):
+        """Loads a list of point mass elements saved in a toml format.
+        Parameters
+        ----------
+        file_name: string
+            The name of the file of the point mass element to be loaded.
+
+        Returns
+        -------
+        A list of point mass elements.
+
+        Examples
+        --------
+        >>> pointmass = point_mass_example()
+        >>> pointmass.save('PointMass.toml')
+        >>> list_of_point_mass = PointMass.load('PointMass.toml')
+        >>> pointmass == list_of_point_mass[0]
+        True
+        """
+        pm_elements = []
+        with open("PointMass.toml", "r") as f:
+            pm_elements_dict = toml.load(f)
+            for element in pm_elements_dict["PointMass"]:
+                pm_elements.append(
+                    PointMass(**pm_elements_dict["PointMass"][element])
+                )
+        return pm_elements
+
     def M(self):
         """Mass matrix."""
         mx = self.mx
