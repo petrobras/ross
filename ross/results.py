@@ -16,57 +16,6 @@ from bokeh.models import ColumnDataSource, ColorBar, Arrow, NormalHead, Label, H
 bokeh_colors = bp.RdGy[11]
 
 
-class Results(np.ndarray):
-    """Class used to store results and provide plots.
-    This class subclasses np.ndarray to provide additional info and a plot
-    method to the calculated results from Rotor.
-    Metadata about the results should be stored on info as a dictionary to be
-    used on plot configurations and so on.
-    Additional attributes can be passed as a dictionary in new_attributes kwarg.
-    """
-
-    def __new__(cls, input_array, new_attributes=None):
-        obj = np.asarray(input_array).view(cls)
-
-        for k, v in new_attributes.items():
-            setattr(obj, k, v)
-
-        # save new attributes names to create them on array finalize
-        obj._new_attributes = new_attributes
-
-        return obj
-
-    def __array_finalize__(self, obj):
-        if obj is None:
-            return
-
-        try:
-            for k, v in obj._new_attributes.items():
-                setattr(self, k, getattr(obj, k, v))
-        except AttributeError:
-            return
-
-    def __reduce__(self):
-
-        pickled_state = super().__reduce__()
-        new_state = pickled_state[2] + (self._new_attributes,)
-
-        return pickled_state[0], pickled_state[1], new_state
-
-    def __setstate__(self, state):
-        self._new_attributes = state[-1]
-        for k, v in self._new_attributes.items():
-            setattr(self, k, v)
-        super().__setstate__(state[0:-1])
-
-    def save(self, file):
-        with open(file, mode="wb") as f:
-            pickle.dump(self, f)
-
-    def plot(self, *args, **kwargs):
-        raise NotImplementedError
-
-
 class CampbellResults:
     """Class used to store results and provide plots for Campbell Diagram.
 
@@ -1382,6 +1331,7 @@ class StaticResults:
         Bokeh figure with Static Analysis plots depending on which method
         is called.
     """
+
     def __init__(
         self,
         disp_y,
@@ -1422,9 +1372,7 @@ class StaticResults:
             Bokeh figure with static deformation plot
         """
         source = ColumnDataSource(
-            data=dict(
-                x=self.nodes_pos, y0=self.disp_y, y1=[0] * len(self.nodes_pos)
-            )
+            data=dict(x=self.nodes_pos, y0=self.disp_y, y1=[0] * len(self.nodes_pos))
         )
 
         TOOLTIPS = [
