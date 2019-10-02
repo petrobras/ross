@@ -2278,13 +2278,35 @@ class Rotor(object):
         except FileNotFoundError:
             return "A rotor with this name does not exist, check the rotors folder."
 
-        os.chdir(rotor_path / "elements")
-        shaft_elements = ShaftElement.load()
-        os.chdir(rotor_path / "elements")
-        disk_elements = DiskElement.load()
-        bearing_elements = BearingElement.load()
+        shaft_elements = []
+        disk_elements = []
+        bearing_elements = []
         seal_elements = []
-        point_mass_elements = PointMass.load()
+        point_mass_elements = []
+
+        try:
+            os.chdir(rotor_path / "elements")
+            shaft_elements = ShaftElement.load()
+        except FileNotFoundError:
+            pass
+
+        try:
+            os.chdir(rotor_path / "elements")
+            disk_elements = DiskElement.load()
+        except FileNotFoundError:
+            pass
+
+        try:
+            os.chdir(rotor_path / "elements")
+            bearing_elements = BearingElement.load()
+        except FileNotFoundError:
+            pass
+
+        try:
+            os.chdir(rotor_path / "elements")
+            point_mass_elements = PointMass.load()
+        except FileNotFoundError:
+            pass
 
         os.chdir(rotor_path)
         with open("properties.toml", "r") as f:
