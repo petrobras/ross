@@ -136,8 +136,6 @@ setup(
     # },
     install_requires=REQUIRED,
     extras_require=EXTRAS,
-    setup_requires=["pytest-runner"],
-    tests_requires=["pytest"],
     include_package_data=True,
     license="MIT",
     classifiers=[
