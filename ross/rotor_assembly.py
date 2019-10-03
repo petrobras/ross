@@ -23,7 +23,13 @@ from bokeh.plotting import figure, output_file, show
 from cycler import cycler
 
 import ross
-from ross.bearing_seal_element import BearingElement
+from ross.point_mass import PointMass
+from ross.bearing_seal_element import(
+        BearingElement,
+        SealElement,
+        BallBearingElement,
+        RollerBearingElement,
+)
 from ross.disk_element import DiskElement
 from ross.materials import steel
 from ross.results import (
@@ -203,6 +209,10 @@ class Rotor(object):
             if brg.__class__.__name__ == "SealElement" and brg.tag is None:
                 brg.tag = "Seal " + str(i)
 
+        for i, p_mass in enumerate(point_mass_elements):
+            if p_mass.tag is None:
+                p_mass.tag = "Point Mass " + str(i)
+
         self.shaft_elements = sorted(shaft_elements, key=lambda el: el.n)
         self.bearing_seal_elements = bearing_seal_elements
         self.disk_elements = disk_elements
@@ -296,6 +306,7 @@ class Rotor(object):
         max_location = max(df_shaft.n_r.max(), max_loc_point_mass)
         if df.n_l.max() > max_location:
             raise ValueError("Trying to set disk or bearing outside shaft")
+
         # nodes axial position and diameter
         nodes_pos = list(df_shaft.groupby("n_l")["nodes_pos_l"].max())
         nodes_pos.append(df_shaft["nodes_pos_r"].iloc[-1])
@@ -388,7 +399,7 @@ class Rotor(object):
             mean_od = np.mean(nodes_o_d)
             for t in dfb_z_pos.tag:
                 df.loc[df.tag == t, "y_pos"] = y_pos
-                y_pos += mean_od
+                y_pos += 2 * mean_od
 
         # define position for point mass elements
         dfb = df[df.type == "BearingElement"]
@@ -1547,11 +1558,20 @@ class Rotor(object):
             position = (self.nodes_pos[disk.n], self.nodes_o_d[disk.n] / 2)
             disk.patch(position, ax)
 
-        mean_od = np.mean(self.nodes_o_d) / 2
+        mean_od = np.mean(self.nodes_o_d)
         # plot bearings
         for bearing in self.bearing_seal_elements:
-            position = (self.nodes_pos[bearing.n], self.nodes_o_d[bearing.n] / 2)
+            z_pos = self.df[self.df.tag == bearing.tag]["nodes_pos_l"].values[0]
+            y_pos = self.df[self.df.tag == bearing.tag]["y_pos"].values[0]
+            position = (z_pos, y_pos)
             bearing.patch(position, mean_od, ax)
+
+        # plot point mass
+        for p_mass in self.point_mass_elements:
+            z_pos = self.df[self.df.tag == p_mass.tag]["nodes_pos_l"].values[0]
+            y_pos = self.df[self.df.tag == p_mass.tag]["y_pos"].values[0]
+            position = (z_pos, y_pos)
+            p_mass.patch(position, ax)
 
         return ax
 
@@ -1651,13 +1671,22 @@ class Rotor(object):
 
         bk_ax.add_tools(hover)
 
-        mean_od = np.mean(self.nodes_o_d) / 2
+        mean_od = np.mean(self.nodes_o_d)
         # plot bearings
         for bearing in self.bearing_seal_elements:
             z_pos = self.df[self.df.tag == bearing.tag]["nodes_pos_l"].values[0]
             y_pos = self.df[self.df.tag == bearing.tag]["y_pos"].values[0]
             position = (z_pos, y_pos)
             bearing.bokeh_patch(position, mean_od, bk_ax)
+
+        # plot point mass
+        for p_mass in self.point_mass_elements:
+            z_pos = self.df[self.df.tag == p_mass.tag]["nodes_pos_l"].values[0]
+            y_pos = self.df[self.df.tag == p_mass.tag]["y_pos"].values[0]
+            position = (z_pos, y_pos)
+            hover = p_mass.bokeh_patch(position, bk_ax)
+
+        bk_ax.add_tools(hover)
 
         return bk_ax
 
