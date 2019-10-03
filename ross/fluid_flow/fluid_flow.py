@@ -4,8 +4,9 @@ from ross.fluid_flow.fluid_flow_geometry import calculate_attitude_angle, intern
     external_radius_function, modified_sommerfeld_number, calculate_eccentricity_ratio, calculate_rotor_load
 
 
-class PressureMatrix:
-    r"""This class calculates the pressure matrix of the object with the given parameters.
+class FluidFlow:
+    r"""This class intends to calculate the pressure matrix and the stiffness and damping matrices
+    of a fluid flow with the given parameters.
 
     It is supposed to be an attribute of a bearing element,
     but can work on its on to provide graphics for the user.
@@ -59,7 +60,7 @@ class PressureMatrix:
 
     Returns
     -------
-    An object containing the pressure matrix and its data.
+    An object containing the fluid flow and its data.
 
     Attributes
     ----------
@@ -140,7 +141,7 @@ class PressureMatrix:
     >>> density = 860.
     >>> eccentricity = 0.001
     >>> beta = np.pi
-    >>> my_fluid_flow = flow.PressureMatrix(nz, ntheta, nradius, length,
+    >>> my_fluid_flow = flow.FluidFlow(nz, ntheta, nradius, length,
     ...                                          omega, p_in, p_out, radius_rotor,
     ...                                          radius_stator, viscosity, density,
     ...                                          beta=beta, eccentricity=eccentricity)
@@ -261,7 +262,7 @@ class PressureMatrix:
             Pressure matrix of size (nz x ntheta)
         Examples
         --------
-        >>> my_fluid_flow = pressure_matrix_example()
+        >>> my_fluid_flow = fluid_flow_example()
         >>> my_fluid_flow.calculate_pressure_matrix_analytical() # doctest: +ELLIPSIS
         array([[...
         """
@@ -319,7 +320,7 @@ class PressureMatrix:
         derivatives). It is executed when the class is instantiated.
         Examples
         --------
-        >>> my_fluid_flow = pressure_matrix_example()
+        >>> my_fluid_flow = fluid_flow_example()
         >>> my_fluid_flow.calculate_coefficients()
         >>> my_fluid_flow.c0w # doctest: +ELLIPSIS
         array([[...
@@ -380,7 +381,7 @@ class PressureMatrix:
         """This function assembles the matrix M and the independent vector f.
         Examples
         --------
-        >>> my_fluid_flow = pressure_matrix_example()
+        >>> my_fluid_flow = fluid_flow_example()
         >>> my_fluid_flow.mounting_matrix()
         >>> my_fluid_flow.M # doctest: +ELLIPSIS
         array([[...
@@ -445,7 +446,7 @@ class PressureMatrix:
         """This function resolves the linear system [M]{P}={f}.
         Examples
         --------
-        >>> my_fluid_flow = pressure_matrix_example()
+        >>> my_fluid_flow = fluid_flow_example()
         >>> my_fluid_flow.mounting_matrix()
         >>> my_fluid_flow.resolves_matrix()
         >>> my_fluid_flow.P # doctest: +ELLIPSIS
@@ -461,7 +462,7 @@ class PressureMatrix:
             Pressure matrix of size (nz x ntheta)
         Examples
         --------
-        >>> my_fluid_flow = pressure_matrix_example()
+        >>> my_fluid_flow = fluid_flow_example()
         >>> my_fluid_flow.calculate_pressure_matrix_numerical() # doctest: +ELLIPSIS
         array([[...
         """
@@ -478,8 +479,8 @@ class PressureMatrix:
         return self.p_mat_numerical
 
 
-def pressure_matrix_example():
-    """This function returns an instance of a simple pressure matrix.
+def fluid_flow_example():
+    """This function returns an instance of a simple fluid flow.
     The purpose is to make available a simple model
     so that doctest can be written using it.
 
@@ -488,17 +489,17 @@ def pressure_matrix_example():
 
     Returns
     -------
-    An instance of a pressure matrix object.
+    An instance of a fluid flow object.
 
     Examples
     --------
-    >>> my_fluid_flow = pressure_matrix_example()
+    >>> my_fluid_flow = fluid_flow_example()
     >>> my_fluid_flow.eccentricity
     0.001
     """
-    my_pressure_matrix = PressureMatrix(nz=8, ntheta=64, nradius=11, length=0.01, omega=100. * 2 * np.pi / 60,
-                                        p_in=0., p_out=0., radius_rotor=0.08, radius_stator=0.1,
-                                        viscosity=0.015, density=860., eccentricity=0.001, beta=np.pi)
+    my_pressure_matrix = FluidFlow(nz=8, ntheta=64, nradius=11, length=0.01, omega=100. * 2 * np.pi / 60,
+                                   p_in=0., p_out=0., radius_rotor=0.08, radius_stator=0.1,
+                                   viscosity=0.015, density=860., eccentricity=0.001, beta=np.pi)
     return my_pressure_matrix
 
 

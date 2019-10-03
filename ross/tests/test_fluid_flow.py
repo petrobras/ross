@@ -9,6 +9,7 @@ from ross.fluid_flow.fluid_flow_coefficients import calculate_analytical_damping
     calculate_analytical_stiffness_matrix, calculate_oil_film_force, calculate_stiffness_matrix
 from ross.fluid_flow.fluid_flow_graphics import plot_shape, plot_eccentricity, plot_pressure_theta,\
     plot_pressure_z, matplot_shape, matplot_eccentricity, matplot_pressure_theta, matplot_pressure_z
+import pytest
 
 
 def fluid_flow_short_eccentricity():
@@ -24,9 +25,9 @@ def fluid_flow_short_eccentricity():
     eccentricity = (radius_stator - radius_rotor)*0.2663
     visc = 0.1
     rho = 860.
-    return flow.PressureMatrix(nz, ntheta, nradius, length, omega, p_in,
-                               p_out, radius_rotor, radius_stator,
-                               visc, rho, eccentricity=eccentricity)
+    return flow.FluidFlow(nz, ntheta, nradius, length, omega, p_in,
+                          p_out, radius_rotor, radius_stator,
+                          visc, rho, eccentricity=eccentricity)
 
 
 def fluid_flow_short_load():
@@ -42,9 +43,9 @@ def fluid_flow_short_load():
     load = 525
     visc = 0.1
     rho = 860.
-    return flow.PressureMatrix(nz, ntheta, nradius, length, omega, p_in,
-                               p_out, radius_rotor, radius_stator,
-                               visc, rho, load=load)
+    return flow.FluidFlow(nz, ntheta, nradius, length, omega, p_in,
+                          p_out, radius_rotor, radius_stator,
+                          visc, rho, load=load)
 
 
 def test_sommerfeld_number():
@@ -114,9 +115,9 @@ def fluid_flow_short_numerical():
     rho = 860.
     beta = np.pi
     eccentricity = 0.001
-    return flow.PressureMatrix(nz, ntheta, nradius, length,
-                               omega, p_in, p_out, radius_rotor,
-                               radius_stator, visc, rho, beta=beta, eccentricity=eccentricity)
+    return flow.FluidFlow(nz, ntheta, nradius, length,
+                          omega, p_in, p_out, radius_rotor,
+                          radius_stator, visc, rho, beta=beta, eccentricity=eccentricity)
 
 
 def fluid_flow_long_numerical():
@@ -134,9 +135,9 @@ def fluid_flow_long_numerical():
     rho = 860.
     beta = np.pi
     eccentricity = 0.0001
-    return flow.PressureMatrix(nz, ntheta, nradius, length,
-                               omega, p_in, p_out, radius_rotor,
-                               radius_stator, visc, rho, beta=beta, eccentricity=eccentricity)
+    return flow.FluidFlow(nz, ntheta, nradius, length,
+                          omega, p_in, p_out, radius_rotor,
+                          radius_stator, visc, rho, beta=beta, eccentricity=eccentricity)
 
 
 def test_numerical_abs_error():
@@ -208,9 +209,12 @@ def test_matplotlib_plots():
     assert isinstance(matplot_shape(bearing), ax_type)
 
 
+# @pytest.mark.skip(reason="no way of currently testing this")
 def test_numerical_stiffness_matrix_short():
     bearing = fluid_flow_short_eccentricity()
     bearing.calculate_pressure_matrix_numerical()
     stiffness_matrix_numerical = calculate_stiffness_matrix(bearing)
-    stiffness_matrix_analytical = calculate_analytical_stiffness_matrix(bearing)
+    stiffness_matrix_analytical = calculate_analytical_stiffness_matrix(bearing.load,
+                                                                        bearing.eccentricity_ratio,
+                                                                        bearing.radial_clearance)
     assert_allclose(stiffness_matrix_numerical, stiffness_matrix_analytical)

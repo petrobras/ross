@@ -14,8 +14,8 @@ def calculate_attitude_angle(eccentricity_ratio):
         Attitude angle
     Examples
     --------
-    >>> from ross.fluid_flow.fluid_flow import pressure_matrix_example
-    >>> my_fluid_flow = pressure_matrix_example()
+    >>> from ross.fluid_flow.fluid_flow import fluid_flow_example
+    >>> my_fluid_flow = fluid_flow_example()
     >>> calculate_attitude_angle(my_fluid_flow.eccentricity_ratio) # doctest: +ELLIPSIS
     1.5...
     """
@@ -47,8 +47,8 @@ def internal_radius_function(gama, beta, radius_rotor, eccentricity):
         The position y of the returned internal radius.
     Examples
     --------
-    >>> from ross.fluid_flow.fluid_flow import pressure_matrix_example
-    >>> my_fluid_flow = pressure_matrix_example()
+    >>> from ross.fluid_flow.fluid_flow import fluid_flow_example
+    >>> my_fluid_flow = fluid_flow_example()
     >>> beta = my_fluid_flow.beta
     >>> radius_rotor = my_fluid_flow.radius_rotor
     >>> eccentricity = my_fluid_flow.eccentricity
@@ -86,8 +86,8 @@ def external_radius_function(gama, radius_stator):
         The position y of the returned external radius.
     Examples
     --------
-    >>> from ross.fluid_flow.fluid_flow import pressure_matrix_example
-    >>> my_fluid_flow = pressure_matrix_example()
+    >>> from ross.fluid_flow.fluid_flow import fluid_flow_example
+    >>> my_fluid_flow = fluid_flow_example()
     >>> radius_stator = my_fluid_flow.radius_stator
     >>> radius_external, xre, yre = external_radius_function(0, radius_stator)
     >>> radius_external
@@ -123,8 +123,8 @@ def modified_sommerfeld_number(radius_stator, omega, viscosity, length, load, ra
         The modified sommerfeld number.
     Examples
     --------
-    >>> from ross.fluid_flow.fluid_flow import pressure_matrix_example
-    >>> my_fluid_flow = pressure_matrix_example()
+    >>> from ross.fluid_flow.fluid_flow import fluid_flow_example
+    >>> my_fluid_flow = fluid_flow_example()
     >>> radius_stator = my_fluid_flow.radius_stator
     >>> omega = my_fluid_flow.omega
     >>> viscosity = my_fluid_flow.viscosity
@@ -156,8 +156,8 @@ def sommerfeld_number(modified_s, radius_stator, length):
         The sommerfeld number.
     Examples
     --------
-    >>> from ross.fluid_flow.fluid_flow import pressure_matrix_example
-    >>> my_fluid_flow = pressure_matrix_example()
+    >>> from ross.fluid_flow.fluid_flow import fluid_flow_example
+    >>> my_fluid_flow = fluid_flow_example()
     >>> radius_stator = my_fluid_flow.radius_stator
     >>> omega = my_fluid_flow.omega
     >>> viscosity = my_fluid_flow.viscosity
@@ -227,8 +227,8 @@ def calculate_rotor_load(radius_stator, omega, viscosity, length, radial_clearan
         Load applied to the rotor.
     Examples
     --------
-    >>> from ross.fluid_flow.fluid_flow import pressure_matrix_example
-    >>> my_fluid_flow = pressure_matrix_example()
+    >>> from ross.fluid_flow.fluid_flow import fluid_flow_example
+    >>> my_fluid_flow = fluid_flow_example()
     >>> radius_stator = my_fluid_flow.radius_stator
     >>> omega = my_fluid_flow.omega
     >>> viscosity = my_fluid_flow.viscosity
