@@ -23,7 +23,7 @@ def calculate_attitude_angle(eccentricity_ratio):
                      (4 * eccentricity_ratio))
 
 
-def internal_radius_function(gama, beta, radius_rotor, eccentricity):
+def internal_radius_function(gama, attitude_angle, radius_rotor, eccentricity):
     """This function calculates the x and y of the internal radius of the rotor,
     as well as its distance from the origin, given the distance in the theta-axis,
     the attitude angle, the radius of the rotor and the eccentricity.
@@ -31,7 +31,7 @@ def internal_radius_function(gama, beta, radius_rotor, eccentricity):
     ----------
     gama: float
         Gama is the distance in the theta-axis. It should range from 0 to 2*np.pi.
-    beta: float
+    attitude_angle: float
         Attitude angle. Angle between the origin and the eccentricity (rad).
     radius_rotor: float
         The radius of the journal.
@@ -49,17 +49,17 @@ def internal_radius_function(gama, beta, radius_rotor, eccentricity):
     --------
     >>> from ross.fluid_flow.fluid_flow import fluid_flow_example
     >>> my_fluid_flow = fluid_flow_example()
-    >>> beta = my_fluid_flow.beta
+    >>> attitude_angle = my_fluid_flow.attitude_angle
     >>> radius_rotor = my_fluid_flow.radius_rotor
     >>> eccentricity = my_fluid_flow.eccentricity
-    >>> radius_internal, xri, yri = internal_radius_function(0, beta, radius_rotor, eccentricity)
+    >>> radius_internal, xri, yri = internal_radius_function(0, attitude_angle, radius_rotor, eccentricity)
     >>> radius_internal
     0.079
     """
-    if (np.pi - beta) < gama < (2 * np.pi - beta):
-        alpha = np.absolute(2 * np.pi - gama - beta)
+    if (np.pi / 2 + attitude_angle) < gama < (3 * np.pi / 2 + attitude_angle):
+        alpha = np.absolute(3 * np.pi / 2 - gama + attitude_angle)
     else:
-        alpha = beta + gama
+        alpha = gama + np.pi / 2 - attitude_angle
     radius_internal = np.sqrt(radius_rotor ** 2 - (eccentricity * np.sin(alpha)) ** 2) + eccentricity * np.cos(alpha)
     xri = radius_internal * np.cos(gama)
     yri = radius_internal * np.sin(gama)

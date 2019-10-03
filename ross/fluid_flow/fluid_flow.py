@@ -47,8 +47,8 @@ class FluidFlow:
     eccentricity: float, optional
         Eccentricity (m) is the euclidean distance between rotor and stator centers.
         The center of the stator is in position (0,0).
-    beta: float, optional
-        Attitude angle. Angle between the origin and the eccentricity (rad).
+    attitude_angle: float, optional
+        Attitude angle. Angle between the load line and the eccentricity (rad).
 
     Fluid characteristics
     ^^^^^^^^^^^^^^^^^^^^^
@@ -140,11 +140,11 @@ class FluidFlow:
     >>> viscosity = 0.015
     >>> density = 860.
     >>> eccentricity = 0.001
-    >>> beta = np.pi
+    >>> attitude_angle = np.pi
     >>> my_fluid_flow = flow.FluidFlow(nz, ntheta, nradius, length,
     ...                                          omega, p_in, p_out, radius_rotor,
     ...                                          radius_stator, viscosity, density,
-    ...                                          beta=beta, eccentricity=eccentricity)
+    ...                                          attitude_angle=attitude_angle, eccentricity=eccentricity)
     >>> my_fluid_flow.calculate_pressure_matrix_analytical() # doctest: +ELLIPSIS
     array([[-0.00000...
     >>> my_fluid_flow.calculate_pressure_matrix_numerical() # doctest: +ELLIPSIS
@@ -169,7 +169,7 @@ class FluidFlow:
             radius_stator,
             viscosity,
             density,
-            beta=None,
+            attitude_angle=None,
             eccentricity=None,
             load=None,
     ):
@@ -216,12 +216,12 @@ class FluidFlow:
         if self.load is None:
             self.load = calculate_rotor_load(self.radius_stator, self.omega, self.viscosity,
                                              self.length, self.radial_clearance, self.eccentricity_ratio)
-        if beta is None:
-            self.beta = calculate_attitude_angle(self.eccentricity_ratio)
+        if attitude_angle is None:
+            self.attitude_angle = calculate_attitude_angle(self.eccentricity_ratio)
         else:
-            self.beta = beta
-        self.xi = self.eccentricity * np.cos(2 * np.pi - self.beta)
-        self.yi = self.eccentricity * np.sin(2 * np.pi - self.beta)
+            self.attitude_angle = attitude_angle
+        self.xi = self.eccentricity * np.cos(2 * np.pi - self.attitude_angle)
+        self.yi = self.eccentricity * np.sin(2 * np.pi - self.attitude_angle)
         self.re = np.zeros([self.nz, self.ntheta])
         self.ri = np.zeros([self.nz, self.ntheta])
         self.z_list = np.zeros(self.nz)
@@ -331,11 +331,11 @@ class FluidFlow:
             eccentricity_error = False
             for j in range(0, self.ntheta):
                 # fmt: off
-                self.gama[i][j] = j * self.dtheta + (np.pi - self.beta)
+                self.gama[i][j] = j * self.dtheta + np.pi / 2 + self.attitude_angle
                 [radius_external, self.xre[i][j], self.yre[i][j]] = \
                     external_radius_function(self.gama[i][j], self.radius_stator)
                 [radius_internal, self.xri[i][j], self.yri[i][j]] = \
-                    internal_radius_function(self.gama[i][j], self.beta, self.radius_rotor,
+                    internal_radius_function(self.gama[i][j], self.attitude_angle, self.radius_rotor,
                                              self.eccentricity)
                 self.re[i][j] = radius_external
                 self.ri[i][j] = radius_internal
@@ -499,7 +499,7 @@ def fluid_flow_example():
     """
     my_pressure_matrix = FluidFlow(nz=8, ntheta=64, nradius=11, length=0.01, omega=100. * 2 * np.pi / 60,
                                    p_in=0., p_out=0., radius_rotor=0.08, radius_stator=0.1,
-                                   viscosity=0.015, density=860., eccentricity=0.001, beta=np.pi)
+                                   viscosity=0.015, density=860., eccentricity=0.001, attitude_angle=np.pi)
     return my_pressure_matrix
 
 

@@ -183,13 +183,13 @@ def calculate_stiffness_matrix(fluid_flow_object, oil_film_force=None):
     temp = fluid_flow_object.eccentricity
     e = fluid_flow_object.eccentricity
     delta_x = fluid_flow_object.difference_between_radius / 100
-    eccentricity_x = e ** 2 + delta_x ** 2 - 2 * e * delta_x * np.cos(np.pi - fluid_flow_object.beta)
+    eccentricity_x = e ** 2 + delta_x ** 2 - 2 * e * delta_x * np.cos(np.pi - fluid_flow_object.attitude_angle)
     fluid_flow_object.eccentricity = eccentricity_x
     fluid_flow_object.calculate_coefficients()
     fluid_flow_object.calculate_pressure_matrix_numerical()
     [radial_force_x, tangential_force_x] = calculate_oil_film_force(fluid_flow_object, force_type='numerical')
     delta_y = fluid_flow_object.difference_between_radius / 100
-    eccentricity_y = e ** 2 + delta_y ** 2 - 2 * e * delta_y * np.cos(np.pi / 2 - fluid_flow_object.beta)
+    eccentricity_y = e ** 2 + delta_y ** 2 - 2 * e * delta_y * np.cos(np.pi / 2 - fluid_flow_object.attitude_angle)
     fluid_flow_object.eccentricity = eccentricity_y
     fluid_flow_object.calculate_coefficients()
     fluid_flow_object.calculate_pressure_matrix_numerical()
