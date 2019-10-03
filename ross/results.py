@@ -223,6 +223,7 @@ class CampbellResults:
         )
         camp.xaxis.axis_label_text_font_size = "14pt"
         camp.yaxis.axis_label_text_font_size = "14pt"
+        hover = False
 
         color_mapper = linear_cmap(
             field_name="color",
@@ -325,7 +326,8 @@ class CampbellResults:
             title_text_align="center",
             major_label_text_align="left",
         )
-        camp.add_tools(hover)
+        if hover:
+            camp.add_tools(hover)
         camp.legend.background_fill_alpha = 0.1
         camp.legend.click_policy = "mute"
         camp.legend.location = "top_left"
