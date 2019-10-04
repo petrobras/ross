@@ -1316,14 +1316,6 @@ class StaticResults:
         list of nodes positions
     Vx_axis : array
         X axis for displaying shearing force
-    force_data : dict
-        A dictionary containing the information about:
-        Static displacement vector,
-        Shearing force vector,
-        Bending moment vector,
-        Shaft total weight,
-        Disks forces,
-        Bearings reaction forces
 
     Returns
     -------
@@ -1331,7 +1323,6 @@ class StaticResults:
         Bokeh figure with Static Analysis plots depending on which method
         is called.
     """
-
     def __init__(
         self,
         disp_y,
@@ -1343,7 +1334,6 @@ class StaticResults:
         nodes,
         nodes_pos,
         Vx_axis,
-        force_data,
     ):
 
         self.disp_y = disp_y
@@ -1355,7 +1345,6 @@ class StaticResults:
         self.nodes = nodes
         self.nodes_pos = nodes_pos
         self.Vx_axis = Vx_axis
-        self.force_data = force_data
 
     def plot_deformation(self):
         """Plot the shaft static deformation.
