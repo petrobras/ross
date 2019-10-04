@@ -2331,28 +2331,38 @@ class Rotor(object):
         shutil.rmtree(Path(os.path.dirname(ross.__file__)) / "rotors" / rotor_name)
 
     def run_static(self):
-        """
+        """Rotor static analysis.
         Static analysis calculates free-body diagram, deformed shaft, shearing
         force diagram and bending moment diagram.
 
         Parameters
         ----------
 
+        Attributes
+        ----------
+        shaft_weight: float
+            Shaft total weight
+        disk_weigth_force: list
+            Weight forces of each disk
+        bearing_reaction_force: list
+            The static reaction forces on each bearing
+        disp_y: array
+            The shaft static displacement vector,
+        Vx: array
+            Shearing force vector
+        Bm: array
+            Bending moment vector
+
         Returns
         -------
-        A dictionary containing the information about:
-            Static displacement vector,
-            Shearing force vector,
-            Bending moment vector,
-            Shaft total weight,
-            Disks forces,
-            Bearings reaction forces
+        results: object
+            An instance of StaticResult class, which is used to create plots.
 
         Example
         -------
         >>> rotor = rotor_example()
         >>> static = rotor.run_static()
-        >>> static.force_data['Bearings Reaction Forces']
+        >>> rotor.bearing_reaction_forces
         [432.4, 432.4]
         """
         if len(self.df_bearings) == 0:
@@ -2472,14 +2482,9 @@ class Rotor(object):
 
             sh_weight = np.around(sum(self.df_shaft["m"].values) * 9.8065, decimals=1)
 
-            force_data = {
-                "Static displacement vector": disp_y,
-                "Shearing force vector": Vx,
-                "Bending moment vector": Bm,
-                "Shaft Total Weight": sh_weight,
-                "Disks Forces": DskForceToReturn,
-                "Bearings Reaction Forces": BrgForceToReturn,
-            }
+            self.shaft_weight = sh_weight
+            self.disk_forces = DskForceToReturn
+            self.bearing_reaction_forces = BrgForceToReturn
 
             results = StaticResults(
                 self.disp_y,
@@ -2491,7 +2496,6 @@ class Rotor(object):
                 self.nodes,
                 self.nodes_pos,
                 Vx_axis,
-                force_data,
             )
 
         return results
