@@ -209,7 +209,7 @@ class CampbellResults:
         log_dec_map = log_dec.flatten()
 
         m_coolwarm_rgb = (255 * cm.coolwarm(range(256))).astype('int')
-        coolwarm_palette = [RGB(*tuple(rgb)).to_hex() for rgb in m_coolwarm_rgb]
+        coolwarm_palette = [RGB(*tuple(rgb)).to_hex() for rgb in m_coolwarm_rgb][::-1]
 
         default_values = dict(
             vmin=min(log_dec_map),
