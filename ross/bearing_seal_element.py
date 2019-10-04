@@ -11,10 +11,17 @@ from collections import namedtuple
 from ross.utils import read_table_file
 from ross.element import Element
 from ross.fluid_flow import fluid_flow as flow
-from ross.fluid_flow.fluid_flow_coefficients import calculate_analytical_stiffness_matrix,\
-    calculate_analytical_damping_matrix
+from ross.fluid_flow.fluid_flow_coefficients import (
+    calculate_analytical_stiffness_matrix,
+    calculate_analytical_damping_matrix,
+)
 
-__all__ = ["BearingElement", "SealElement", "BallBearingElement", "RollerBearingElement"]
+__all__ = [
+    "BearingElement",
+    "SealElement",
+    "BallBearingElement",
+    "RollerBearingElement",
+]
 bokeh_colors = bp.RdGy[11]
 
 
@@ -42,7 +49,10 @@ class _Coefficient:
                 try:
                     if len(self.w) in (2, 3):
                         self.interpolated = interpolate.interp1d(
-                            self.w, self.coefficient, kind=len(self.w) - 1
+                            self.w,
+                            self.coefficient,
+                            kind=len(self.w) - 1,
+                            fill_value="extrapolate",
                         )
                 except:
                     raise ValueError(
@@ -614,12 +624,7 @@ class BearingElement(Element):
 
         # plot damper - top
         z_damper3 = [z_damper2[0], z_damper2[2], zs1, zs1]
-        yl_damper3 = [
-            ys0 + 4 * step,
-            ys0 + 4 * step,
-            ys0 + 4 * step,
-            ypos + 1.5 * mean,
-        ]
+        yl_damper3 = [ys0 + 4 * step, ys0 + 4 * step, ys0 + 4 * step, ypos + 1.5 * mean]
         yu_damper3 = [-y for y in yl_damper3]
 
         ax.add_line(mlines.Line2D(z_damper3, yl_damper3, **kwargs))
@@ -720,12 +725,7 @@ class BearingElement(Element):
 
         # plot damper - top
         z_damper3 = [z_damper2[0], z_damper2[2], zs1, zs1]
-        yl_damper3 = [
-            ys0 + 4 * step,
-            ys0 + 4 * step,
-            ys0 + 4 * step,
-            ypos + 1.5 * mean,
-        ]
+        yl_damper3 = [ys0 + 4 * step, ys0 + 4 * step, ys0 + 4 * step, ypos + 1.5 * mean]
         yu_damper3 = [-y for y in yl_damper3]
 
         bk_ax.line(x=z_damper3, y=yl_damper3, **kwargs)
@@ -910,10 +910,15 @@ class BearingElement(Element):
             eccentricity=eccentricity,
             load=load,
         )
-        c = calculate_analytical_damping_matrix(fluid_flow.load, fluid_flow.eccentricity_ratio,
-                                                fluid_flow.radial_clearance, fluid_flow.omega)
-        k = calculate_analytical_stiffness_matrix(fluid_flow.load, fluid_flow.eccentricity_ratio,
-                                                  fluid_flow.radial_clearance)
+        c = calculate_analytical_damping_matrix(
+            fluid_flow.load,
+            fluid_flow.eccentricity_ratio,
+            fluid_flow.radial_clearance,
+            fluid_flow.omega,
+        )
+        k = calculate_analytical_stiffness_matrix(
+            fluid_flow.load, fluid_flow.eccentricity_ratio, fluid_flow.radial_clearance
+        )
         return cls(
             n,
             kxx=k[0],
@@ -1139,22 +1144,16 @@ class BallBearingElement(BearingElement):
     array([[4.64168838e+07, 0.00000000e+00],
            [0.00000000e+00, 1.00906269e+08]])
     """
-    def __init__(
-        self,
-        n,
-        n_balls,
-        d_balls,
-        fs,
-        alpha,
-        cxx=None,
-        cyy=None,
-        tag=None,
-    ):
+
+    def __init__(self, n, n_balls, d_balls, fs, alpha, cxx=None, cyy=None, tag=None):
 
         Kb = 13.0e6
         kyy = (
-            Kb * n_balls ** (2./3) * d_balls ** (1./3) *
-            fs ** (1./3) * (np.cos(alpha)) ** (5./3)
+            Kb
+            * n_balls ** (2.0 / 3)
+            * d_balls ** (1.0 / 3)
+            * fs ** (1.0 / 3)
+            * (np.cos(alpha)) ** (5.0 / 3)
         )
 
         nb = [8, 12, 16]
@@ -1283,12 +1282,7 @@ class BallBearingElement(BearingElement):
 
         # plot damper - top
         z_damper3 = [z_damper2[0], z_damper2[2], zs1, zs1]
-        yl_damper3 = [
-            ys0 + 4 * step,
-            ys0 + 4 * step,
-            ys0 + 4 * step,
-            ypos + 1.5 * mean,
-        ]
+        yl_damper3 = [ys0 + 4 * step, ys0 + 4 * step, ys0 + 4 * step, ypos + 1.5 * mean]
         yu_damper3 = [-y for y in yl_damper3]
 
         ax.add_line(mlines.Line2D(z_damper3, yl_damper3, **kwargs))
@@ -1389,12 +1383,7 @@ class BallBearingElement(BearingElement):
 
         # plot damper - top
         z_damper3 = [z_damper2[0], z_damper2[2], zs1, zs1]
-        yl_damper3 = [
-            ys0 + 4 * step,
-            ys0 + 4 * step,
-            ys0 + 4 * step,
-            ypos + 1.5 * mean,
-        ]
+        yl_damper3 = [ys0 + 4 * step, ys0 + 4 * step, ys0 + 4 * step, ypos + 1.5 * mean]
         yu_damper3 = [-y for y in yl_damper3]
 
         bk_ax.line(x=z_damper3, y=yl_damper3, **kwargs)
@@ -1443,22 +1432,18 @@ class RollerBearingElement(BearingElement):
     array([[2.72821927e+08, 0.00000000e+00],
            [0.00000000e+00, 5.56779444e+08]])
     """
+
     def __init__(
-        self,
-        n,
-        n_rollers,
-        l_rollers,
-        fs,
-        alpha,
-        cxx=None,
-        cyy=None,
-        tag=None,
+        self, n, n_rollers, l_rollers, fs, alpha, cxx=None, cyy=None, tag=None
     ):
 
         Kb = 1.0e9
         kyy = (
-            Kb * n_rollers ** 0.9 * l_rollers ** 0.8 *
-            fs ** 0.1 * (np.cos(alpha)) ** 1.9
+            Kb
+            * n_rollers ** 0.9
+            * l_rollers ** 0.8
+            * fs ** 0.1
+            * (np.cos(alpha)) ** 1.9
         )
 
         nr = [8, 12, 16]
@@ -1587,12 +1572,7 @@ class RollerBearingElement(BearingElement):
 
         # plot damper - top
         z_damper3 = [z_damper2[0], z_damper2[2], zs1, zs1]
-        yl_damper3 = [
-            ys0 + 4 * step,
-            ys0 + 4 * step,
-            ys0 + 4 * step,
-            ypos + 1.5 * mean,
-        ]
+        yl_damper3 = [ys0 + 4 * step, ys0 + 4 * step, ys0 + 4 * step, ypos + 1.5 * mean]
         yu_damper3 = [-y for y in yl_damper3]
 
         ax.add_line(mlines.Line2D(z_damper3, yl_damper3, **kwargs))
@@ -1693,12 +1673,7 @@ class RollerBearingElement(BearingElement):
 
         # plot damper - top
         z_damper3 = [z_damper2[0], z_damper2[2], zs1, zs1]
-        yl_damper3 = [
-            ys0 + 4 * step,
-            ys0 + 4 * step,
-            ys0 + 4 * step,
-            ypos + 1.5 * mean,
-        ]
+        yl_damper3 = [ys0 + 4 * step, ys0 + 4 * step, ys0 + 4 * step, ypos + 1.5 * mean]
         yu_damper3 = [-y for y in yl_damper3]
 
         bk_ax.line(x=z_damper3, y=yl_damper3, **kwargs)
