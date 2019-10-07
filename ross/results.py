@@ -15,6 +15,17 @@ from bokeh.models import ColumnDataSource, ColorBar, Arrow, NormalHead, Label, H
 bokeh_colors = bp.RdGy[11]
 
 
+class ModalResults:
+    def __init__(self, evalues, evectors, wn, wd, damping_ratio, log_dec, lti):
+        self.evalues = evalues
+        self.evectors = evectors
+        self.wn = wn
+        self.wd = wd
+        self.damping_ratio = damping_ratio
+        self.log_dec = log_dec
+        self.lti = lti
+
+
 class CampbellResults:
     """Class used to store results and provide plots for Campbell Diagram.
 
@@ -156,8 +167,8 @@ class CampbellResults:
             )
             labels = [forward_label, backward_label, mixed_label, crit_marker]
 
-            prop_cycle = plt.rcParams['axes.prop_cycle']
-            colors = prop_cycle.by_key()['color']
+            prop_cycle = plt.rcParams["axes.prop_cycle"]
+            colors = prop_cycle.by_key()["color"]
             for j, harm in enumerate(harmonics):
                 harmonic = ax.plot(
                     speed_range[:, 0],
@@ -170,9 +181,7 @@ class CampbellResults:
                 )
                 labels.append(harmonic[0])
 
-            legend = plt.legend(
-                handles=labels, loc=2, framealpha=0.1
-            )
+            legend = plt.legend(handles=labels, loc=2, framealpha=0.1)
             ax.add_artist(legend)
 
             ax.set_xlabel("Rotor speed ($rad/s$)")
@@ -208,14 +217,11 @@ class CampbellResults:
 
         log_dec_map = log_dec.flatten()
 
-        m_coolwarm_rgb = (255 * cm.coolwarm(range(256))).astype('int')
+        m_coolwarm_rgb = (255 * cm.coolwarm(range(256))).astype("int")
         coolwarm_palette = [RGB(*tuple(rgb)).to_hex() for rgb in m_coolwarm_rgb][::-1]
 
         default_values = dict(
-            vmin=min(log_dec_map),
-            vmax=max(log_dec_map),
-            s=30,
-            alpha=1.0,
+            vmin=min(log_dec_map), vmax=max(log_dec_map), s=30, alpha=1.0
         )
 
         for k, v in default_values.items():
@@ -1345,17 +1351,9 @@ class StaticResults:
         Bokeh figure with Static Analysis plots depending on which method
         is called.
     """
+
     def __init__(
-        self,
-        disp_y,
-        Vx,
-        Bm,
-        df_shaft,
-        df_disks,
-        df_bearings,
-        nodes,
-        nodes_pos,
-        Vx_axis,
+        self, disp_y, Vx, Bm, df_shaft, df_disks, df_bearings, nodes, nodes_pos, Vx_axis
     ):
 
         self.disp_y = disp_y

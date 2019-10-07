@@ -37,8 +37,9 @@ def rotor_example1(w=0, n_el=48):
 
 
 def test_example1_w_equals_0rpm():
-    ROT = rotor_example1(0, 6)
-    assert ROT.wn == pytest.approx(
+    rotor = rotor_example1(0, 6)
+    modal = rotor.run_modal(0)
+    assert modal.wn == pytest.approx(
         np.array([86.66, 86.66, 274.31, 274.31, 716.78, 716.78]), 1e-3
     )
 

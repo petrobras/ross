@@ -24,15 +24,16 @@ from cycler import cycler
 
 import ross
 from ross.point_mass import PointMass
-from ross.bearing_seal_element import(
-        BearingElement,
-        SealElement,
-        BallBearingElement,
-        RollerBearingElement,
+from ross.bearing_seal_element import (
+    BearingElement,
+    SealElement,
+    BallBearingElement,
+    RollerBearingElement,
 )
 from ross.disk_element import DiskElement
 from ross.materials import steel
 from ross.results import (
+    ModalResults,
     CampbellResults,
     FrequencyResponseResults,
     ForcedResponseResults,
@@ -412,8 +413,6 @@ class Rotor(object):
 
         self.df = df
 
-        self.run_modal()
-
     def __eq__(self, other):
         """
         Equality method for comparasions
@@ -433,7 +432,7 @@ class Rotor(object):
         else:
             return False
 
-    def run_modal(self):
+    def run_modal(self, speed):
         """
         Method to calculate eigenvalues and eigvectors for a given rotor system
         This method is automatically called when a rotor is instantiated.
@@ -462,19 +461,21 @@ class Rotor(object):
         >>> rotor.wd[:2]
         array([91.79655318, 96.28899977])
         """
-        self.evalues, self.evectors = self._eigen(self.w)
-        wn_len = len(self.evalues) // 2
-        self.wn = (np.absolute(self.evalues))[:wn_len]
-        self.wd = (np.imag(self.evalues))[:wn_len]
-        self.damping_ratio = (-np.real(self.evalues) / np.absolute(self.evalues))[
-            :wn_len
-        ]
+        evalues, evectors = self._eigen(speed)
+        wn_len = len(evalues) // 2
+        wn = (np.absolute(evalues))[:wn_len]
+        wd = (np.imag(evalues))[:wn_len]
+        damping_ratio = (-np.real(evalues) / np.absolute(evalues))[:wn_len]
         with warnings.catch_warnings():
             warnings.simplefilter("ignore")
-            self.log_dec = (
-                2 * np.pi * self.damping_ratio / np.sqrt(1 - self.damping_ratio ** 2)
-            )
-        self.lti = self._lti()
+            log_dec = 2 * np.pi * damping_ratio / np.sqrt(1 - damping_ratio ** 2)
+        lti = self._lti()
+
+        modal_results = ModalResults(
+            evalues, evectors, wn, wd, damping_ratio, log_dec, lti
+        )
+
+        return modal_results
 
     def convergence(self, n_eigval=0, err_max=1e-02):
         """
