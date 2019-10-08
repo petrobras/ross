@@ -1,15 +1,14 @@
-import pickle
 import numpy as np
 from scipy import interpolate
-from scipy.signal import argrelextrema
 import matplotlib as mpl
 import matplotlib.pyplot as plt
+from matplotlib import cm
+from bokeh.colors import RGB
 import bokeh.palettes as bp
 from mpl_toolkits.mplot3d import Axes3D
-from bokeh.layouts import gridplot, widgetbox
+from bokeh.layouts import gridplot
 from bokeh.plotting import figure
 from bokeh.transform import linear_cmap
-from bokeh.models.widgets import DataTable, TableColumn, NumberFormatter
 from bokeh.models import ColumnDataSource, ColorBar, Arrow, NormalHead, Label, HoverTool
 
 # set bokeh palette of colors
@@ -88,7 +87,7 @@ class CampbellResults:
             self.speed_range[:, np.newaxis], num_frequencies, axis=1
         )
 
-        default_values = dict(cmap="RdBu", vmin=0.1, vmax=2.0, s=30, alpha=0.5)
+        default_values = dict(cmap="RdBu", vmin=0.1, vmax=2.0, s=30, alpha=1.0)
         for k, v in default_values.items():
             kwargs.setdefault(k, v)
 
@@ -101,17 +100,19 @@ class CampbellResults:
                 log_dec_i = log_dec[:, i]
                 speed_range_i = speed_range[:, i]
 
-                for harm in harmonics:
-                    ax.plot(
-                        speed_range[:, 0],
-                        harm * speed_range[:, 0],
-                        color="k",
-                        linewidth=1.5,
-                        linestyle="-.",
-                        alpha=0.75,
-                        label="Rotor speed",
+                whirl_mask = whirl_i == whirl_dir
+                if whirl_mask.shape[0] == 0:
+                    continue
+                else:
+                    im = ax.scatter(
+                        speed_range_i[whirl_mask],
+                        w_i[whirl_mask],
+                        c=log_dec_i[whirl_mask],
+                        marker=mark,
+                        **kwargs,
                     )
 
+                for harm in harmonics:
                     idx = np.argwhere(
                         np.diff(np.sign(w_i - harm * speed_range_i))
                     ).flatten()
@@ -136,18 +137,6 @@ class CampbellResults:
 
                         ax.scatter(xnew[idx], ynew[idx], marker="X", s=30, c="g")
 
-                whirl_mask = whirl_i == whirl_dir
-                if whirl_mask.shape[0] == 0:
-                    continue
-                else:
-                    im = ax.scatter(
-                        speed_range_i[whirl_mask],
-                        w_i[whirl_mask],
-                        c=log_dec_i[whirl_mask],
-                        marker=mark,
-                        **kwargs,
-                    )
-
         if len(fig.axes) == 1:
             cbar = fig.colorbar(im)
             cbar.ax.set_ylabel("log dec")
@@ -162,11 +151,28 @@ class CampbellResults:
             mixed_label = mpl.lines.Line2D(
                 [], [], marker="o", lw=0, color="tab:blue", alpha=0.3, label="Mixed"
             )
+            crit_marker = mpl.lines.Line2D(
+                [], [], marker="X", lw=0, color="g", alpha=0.3, label="Crit. Speed"
+            )
+            labels = [forward_label, backward_label, mixed_label, crit_marker]
+
+            prop_cycle = plt.rcParams['axes.prop_cycle']
+            colors = prop_cycle.by_key()['color']
+            for j, harm in enumerate(harmonics):
+                harmonic = ax.plot(
+                    speed_range[:, 0],
+                    harm * speed_range[:, 0],
+                    color=colors[j],
+                    linewidth=1.5,
+                    linestyle="-.",
+                    alpha=0.75,
+                    label=str(harm) + "x speed",
+                )
+                labels.append(harmonic[0])
 
             legend = plt.legend(
-                handles=[forward_label, backward_label, mixed_label], loc=2
+                handles=labels, loc=2, framealpha=0.1
             )
-
             ax.add_artist(legend)
 
             ax.set_xlabel("Rotor speed ($rad/s$)")
@@ -202,8 +208,10 @@ class CampbellResults:
 
         log_dec_map = log_dec.flatten()
 
+        m_coolwarm_rgb = (255 * cm.coolwarm(range(256))).astype('int')
+        coolwarm_palette = [RGB(*tuple(rgb)).to_hex() for rgb in m_coolwarm_rgb][::-1]
+
         default_values = dict(
-            cmap="viridis",
             vmin=min(log_dec_map),
             vmax=max(log_dec_map),
             s=30,
@@ -223,10 +231,11 @@ class CampbellResults:
         )
         camp.xaxis.axis_label_text_font_size = "14pt"
         camp.yaxis.axis_label_text_font_size = "14pt"
+        hover = False
 
         color_mapper = linear_cmap(
             field_name="color",
-            palette=bp.viridis(256),
+            palette=coolwarm_palette,
             low=min(log_dec_map),
             high=max(log_dec_map),
         )
@@ -242,18 +251,6 @@ class CampbellResults:
                 speed_range_i = speed_range[:, i]
 
                 for harm in harmonics:
-                    camp.line(
-                        x=speed_range[:, 0],
-                        y=harm * speed_range[:, 0],
-                        line_width=3,
-                        color=bokeh_colors[0],
-                        line_dash="dotdash",
-                        line_alpha=0.75,
-                        legend="Rotor speed",
-                        muted_color=bokeh_colors[0],
-                        muted_alpha=0.2,
-                    )
-
                     idx = np.argwhere(
                         np.diff(np.sign(w_i - harm * speed_range_i))
                     ).flatten()
@@ -277,12 +274,16 @@ class CampbellResults:
                         ).flatten()
 
                         source = ColumnDataSource(dict(xnew=xnew[idx], ynew=ynew[idx]))
-                        camp.square(
-                            "xnew",
-                            "ynew",
+                        camp.asterisk(
+                            x="xnew",
+                            y="ynew",
                             source=source,
-                            size=10,
+                            size=14,
+                            fill_alpha=1.0,
                             color=bokeh_colors[9],
+                            muted_color=bokeh_colors[9],
+                            muted_alpha=0.2,
+                            legend="Crit. Speed",
                             name="critspeed",
                         )
                         hover = HoverTool(names=["critspeed"])
@@ -316,6 +317,25 @@ class CampbellResults:
                         legend=legend,
                     )
 
+        harm_color = bp.Category20[20]
+        for j, harm in enumerate(harmonics):
+            camp.line(
+                x=speed_range[:, 0],
+                y=harm * speed_range[:, 0],
+                line_width=3,
+                color=harm_color[j],
+                line_dash="dotdash",
+                line_alpha=1.0,
+                legend=str(harm) + "x speed",
+                muted_color=harm_color[j],
+                muted_alpha=0.2,
+            )
+
+        # turn legend glyphs black
+        camp.scatter(0, 0, color="black", size=0, marker="^", legend="Foward")
+        camp.scatter(0, 0, color="black", size=0, marker="o", legend="Mixed")
+        camp.scatter(0, 0, color="black", size=0, marker="v", legend="Backward")
+
         color_bar = ColorBar(
             color_mapper=color_mapper["transform"],
             width=8,
@@ -325,10 +345,12 @@ class CampbellResults:
             title_text_align="center",
             major_label_text_align="left",
         )
-        camp.add_tools(hover)
+        if hover:
+            camp.add_tools(hover)
         camp.legend.background_fill_alpha = 0.1
         camp.legend.click_policy = "mute"
         camp.legend.location = "top_left"
+        camp.legend.label_text_font_size = "8pt"
         camp.add_layout(color_bar, "right")
 
         return camp
@@ -1316,14 +1338,6 @@ class StaticResults:
         list of nodes positions
     Vx_axis : array
         X axis for displaying shearing force
-    force_data : dict
-        A dictionary containing the information about:
-        Static displacement vector,
-        Shearing force vector,
-        Bending moment vector,
-        Shaft total weight,
-        Disks forces,
-        Bearings reaction forces
 
     Returns
     -------
@@ -1331,7 +1345,6 @@ class StaticResults:
         Bokeh figure with Static Analysis plots depending on which method
         is called.
     """
-
     def __init__(
         self,
         disp_y,
@@ -1343,7 +1356,6 @@ class StaticResults:
         nodes,
         nodes_pos,
         Vx_axis,
-        force_data,
     ):
 
         self.disp_y = disp_y
@@ -1355,7 +1367,6 @@ class StaticResults:
         self.nodes = nodes
         self.nodes_pos = nodes_pos
         self.Vx_axis = Vx_axis
-        self.force_data = force_data
 
     def plot_deformation(self):
         """Plot the shaft static deformation.

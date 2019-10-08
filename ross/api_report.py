@@ -99,8 +99,7 @@ class Report:
         return cls(rotor, minspeed, maxspeed, speed_units="rpm")
 
     def static_forces(self):
-        """
-        Method to calculate the bearing reaction forces.
+        """Method to calculate the bearing reaction forces.
 
         Returns
         -------
@@ -118,7 +117,8 @@ class Report:
         array([44.09320349, 44.09320349])
         """
         # get reaction forces on bearings
-        Fb = self.rotor.run_static().force_data['Bearings Reaction Forces']
+        self.rotor.run_static()
+        Fb = self.rotor.bearing_reaction_forces
         Fb = np.array(Fb) / 9.8065
 
         return Fb
