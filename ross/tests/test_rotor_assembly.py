@@ -501,15 +501,15 @@ def test_kappa_rotor3(rotor3):
 
 
 def test_kappa_mode_rotor3(rotor3):
-    rotor3.w = 2000
+    modal3_2000 = rotor3.run_modal(2000)
     assert_allclose(
-        rotor3.kappa_mode(0),
+        modal3_2000.kappa_mode(0),
         [-0.614884, -0.696056, -0.723983, -0.729245, -0.708471, -0.656976, -0.513044],
         rtol=1e-3,
     )
 
     assert_allclose(
-        rotor3.kappa_mode(1),
+        modal3_2000.kappa_mode(1),
         [0.845687, 0.759788, 0.734308, 0.737393, 0.778295, 0.860137, 0.948157],
         rtol=1e-3,
     )
@@ -635,7 +635,7 @@ def test_freq_response(rotor4):
 
 
 def test_freq_response_w_force(rotor4):
-    rotor4.run_modal()
+    # modal4 = rotor4.run_modal(0)
     F0 = np.array(
         [
             [0.0 + 0.0j, 0.0 + 0.0j, 0.0 + 0.0j, 0.0 + 0.0j],

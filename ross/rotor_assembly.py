@@ -954,7 +954,7 @@ class Rotor(object):
 
         return sys
 
-    def transfer_matrix(self, frequency=None, speed=None, modes=None):
+    def transfer_matrix(self, speed=None, frequency=None, modes=None):
         """
         Calculates the fer matrix for the frequency response function (FRF)
 
@@ -979,14 +979,15 @@ class Rotor(object):
         >>> speed = 100.0
         >>> H = rotor.transfer_matrix(speed=speed)
         """
-        B = self.lti.B
-        C = self.lti.C
-        D = self.lti.D
+        modal = self.run_modal(speed=speed)
+        B = modal.lti.B
+        C = modal.lti.C
+        D = modal.lti.D
 
         # calculate eigenvalues and eigenvectors using la.eig to get
         # left and right eigenvectors.
 
-        evals, psi, = la.eig(self.A(frequency, speed))
+        evals, psi, = la.eig(self.A(speed, frequency))
 
         psi_inv = la.inv(psi)
 
@@ -1042,9 +1043,7 @@ class Rotor(object):
         if speed_range is None:
             speed_range = np.linspace(0, max(self.evalues.imag) * 1.5, 1000)
 
-        freq_resp = np.empty(
-            (self.lti.inputs, self.lti.outputs, len(speed_range)), dtype=np.complex
-        )
+        freq_resp = np.empty((self.ndof, self.ndof, len(speed_range)), dtype=np.complex)
 
         for i, speed in enumerate(speed_range):
             H = self.transfer_matrix(speed=speed, modes=modes)
@@ -1571,27 +1570,25 @@ class Rotor(object):
         >>> camp.plot() # doctest: +ELLIPSIS
         Figure...
         """
-        rotor_current_speed = self.w
-
         # store in results [speeds(x axis), frequencies[0] or logdec[1] or
         # whirl[2](y axis), 3]
         results = np.zeros([len(speed_range), frequencies, 5])
 
         for i, w in enumerate(speed_range):
-            self.w = w
+            modal = self.run_modal(speed=w)
 
             if frequency_type == "wd":
-                results[i, :, 0] = self.wd[:frequencies]
-                results[i, :, 1] = self.log_dec[:frequencies]
-                results[i, :, 2] = self.whirl_values()[:frequencies]
+                results[i, :, 0] = modal.wd[:frequencies]
+                results[i, :, 1] = modal.log_dec[:frequencies]
+                results[i, :, 2] = modal.whirl_values()[:frequencies]
             else:
-                idx = self.wn.argsort()
-                results[i, :, 0] = self.wn[idx][:frequencies]
-                results[i, :, 1] = self.log_dec[idx][:frequencies]
-                results[i, :, 2] = self.whirl_values()[idx][:frequencies]
+                idx = modal.wn.argsort()
+                results[i, :, 0] = modal.wn[idx][:frequencies]
+                results[i, :, 1] = modal.log_dec[idx][:frequencies]
+                results[i, :, 2] = modal.whirl_values()[idx][:frequencies]
 
             results[i, :, 3] = w
-            results[i, :, 4] = self.wn[:frequencies]
+            results[i, :, 4] = modal.wn[:frequencies]
 
         results = CampbellResults(
             speed_range=speed_range,
@@ -1599,8 +1596,6 @@ class Rotor(object):
             log_dec=results[..., 1],
             whirl_values=results[..., 2],
         )
-
-        self.w = rotor_current_speed
 
         return results
 

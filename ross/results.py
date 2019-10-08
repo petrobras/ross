@@ -308,7 +308,7 @@ class ModalResults:
             of kappa_mode.
         """
         # whirl direction/values are methods because they are expensive.
-        whirl_w = [whirl(self.kappa_mode(wd)) for wd in range(len(self.wd))]
+        whirl_w = [self.whirl(self.kappa_mode(wd)) for wd in range(len(self.wd))]
 
         return np.array(whirl_w)
 
@@ -325,7 +325,7 @@ class ModalResults:
             0.5 - if the whirl is Mixed
             1.0 - if the whirl is Backward
         """
-        return whirl_to_cmap(self.whirl_direction())
+        return self.whirl_to_cmap(self.whirl_direction())
 
 
 class CampbellResults:
