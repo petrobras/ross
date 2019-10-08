@@ -17,7 +17,7 @@ bokeh_colors = bp.RdGy[11]
 
 
 class ModalResults:
-    def __init__(self, evalues, evectors, wn, wd, damping_ratio, log_dec, lti):
+    def __init__(self, evalues, evectors, wn, wd, damping_ratio, log_dec, lti, nodes):
         self.evalues = evalues
         self.evectors = evectors
         self.wn = wn
@@ -25,6 +25,7 @@ class ModalResults:
         self.damping_ratio = damping_ratio
         self.log_dec = log_dec
         self.lti = lti
+        self.nodes = nodes
 
     @staticmethod
     def whirl(kappa_mode):

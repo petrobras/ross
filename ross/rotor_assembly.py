@@ -471,7 +471,7 @@ class Rotor(object):
             log_dec = 2 * np.pi * damping_ratio / np.sqrt(1 - damping_ratio ** 2)
         lti = self._lti()
         modal_results = ModalResults(
-            evalues, evectors, wn, wd, damping_ratio, log_dec, lti
+            evalues, evectors, wn, wd, damping_ratio, log_dec, lti, self.nodes
         )
 
         return modal_results
