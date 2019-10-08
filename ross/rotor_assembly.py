@@ -84,8 +84,6 @@ class Rotor(object):
         List with the bearing elements
     point_mass_elements: list
         List with the point mass elements
-    w : float, optional
-        Rotor speed. Defaults to 0.
     sparse : bool, optional
         If sparse, eigenvalues will be calculated with arpack.
         Default is True.
@@ -142,7 +140,6 @@ class Rotor(object):
         disk_elements=None,
         bearing_seal_elements=None,
         point_mass_elements=None,
-        w=0,
         sparse=True,
         n_eigen=12,
         min_w=None,
@@ -151,14 +148,12 @@ class Rotor(object):
     ):
 
         self.parameters = {
-            "w": w,
             "sparse": True,
             "n_eigen": n_eigen,
             "min_w": min_w,
             "max_w": max_w,
             "rated_w": rated_w,
         }
-        self._w = w
 
         ####################################################
         # Config attributes
@@ -472,7 +467,7 @@ class Rotor(object):
         with warnings.catch_warnings():
             warnings.simplefilter("ignore")
             log_dec = 2 * np.pi * damping_ratio / np.sqrt(1 - damping_ratio ** 2)
-        lti = self._lti()
+        lti = self._lti(speed)
         modal_results = ModalResults(
             speed,
             evalues,
@@ -585,9 +580,7 @@ class Rotor(object):
                 aux_Brg_SealEl.n = nel_r * Brg_SealEl.n
                 brgs_elem.append(aux_Brg_SealEl)
 
-            aux_rotor = Rotor(
-                shaft_elem, disk_elem, brgs_elem, w=self.w, n_eigen=self.n_eigen
-            )
+            aux_rotor = Rotor(shaft_elem, disk_elem, brgs_elem, n_eigen=self.n_eigen)
             aux_modal = aux_rotor.run_modal(speed=0)
 
             eigv_arr = np.append(eigv_arr, aux_modal.wn[n_eigval])
@@ -605,39 +598,6 @@ class Rotor(object):
         results = ConvergenceResults(el_num[1:], eigv_arr[1:], error_arr[1:])
 
         return results
-
-    @property
-    def w(self):
-        """
-        Set rotor speed as property
-
-        Parameters
-        ----------
-
-        Returns
-        -------
-        w : float
-            Rotor speed
-        """
-        return self._w
-
-    @w.setter
-    def w(self, value):
-        """
-        Method to set a new value for rotor speed. Automatically re-run
-        run_modal()
-
-        Parameters
-        ----------
-        value : float
-            rotor speed
-
-        Returns
-        -------
-
-        """
-        self._w = value
-        self.run_modal()
 
     def M(self):
         r"""Mass matrix for an instance of a rotor.
@@ -663,13 +623,13 @@ class Rotor(object):
 
         return M0
 
-    def K(self, frequency=None):
+    def K(self, frequency):
         """Stiffness matrix for an instance of a rotor.
 
         Parameters
         ----------
         frequency : float, optional
-            Excitation frequency. Default is rotor speed.
+            Excitation frequency.
 
         Returns
         -------
@@ -678,15 +638,12 @@ class Rotor(object):
         Examples
         --------
         >>> rotor = rotor_example()
-        >>> np.round(rotor.K()[:4, :4]/1e6)
+        >>> np.round(rotor.K(0)[:4, :4]/1e6)
         array([[47.,  0.,  0.,  6.],
                [ 0., 46., -6.,  0.],
                [ 0., -6.,  1.,  0.],
                [ 6.,  0.,  0.,  1.]])
         """
-        if frequency is None:
-            frequency = self.w
-
         K0 = np.zeros((self.ndof, self.ndof))
 
         for elm in self.elements:
@@ -698,13 +655,13 @@ class Rotor(object):
 
         return K0
 
-    def C(self, frequency=None):
+    def C(self, frequency):
         """Damping matrix for an instance of a rotor.
 
         Parameters
         ----------
-        frequency : float, optional
-            Excitation frequency. Default is rotor speed.
+        frequency : float
+            Excitation frequency.
 
         Returns
         -------
@@ -713,15 +670,12 @@ class Rotor(object):
         Examples
         --------
         >>> rotor = rotor_example()
-        >>> rotor.C()[:4, :4]
+        >>> rotor.C(0)[:4, :4]
         array([[0., 0., 0., 0.],
                [0., 0., 0., 0.],
                [0., 0., 0., 0.],
                [0., 0., 0., 0.]])
         """
-        if frequency is None:
-            frequency = self.w
-
         C0 = np.zeros((self.ndof, self.ndof))
 
         for elm in self.elements:
@@ -758,11 +712,14 @@ class Rotor(object):
 
         return G0
 
-    def A(self, speed=None, frequency=None):
+    def A(self, speed=0, frequency=None):
         """State space matrix for an instance of a rotor.
 
         Parameters
         ----------
+        speed: float, optional
+            Rotor speed.
+            Default is 0.
         frequency : float, optional
             Excitation frequency. Default is rotor speed.
 
@@ -782,9 +739,7 @@ class Rotor(object):
                [-10719.,     -0.]])
         """
         if frequency is None:
-            frequency = self.w
-        if speed is None:
-            speed = self.w
+            frequency = speed
 
         Z = np.zeros((self.ndof, self.ndof))
         I = np.eye(self.ndof)
@@ -836,7 +791,7 @@ class Rotor(object):
 
         return idx
 
-    def _eigen(self, speed=None, frequency=None, sorted_=True, A=None):
+    def _eigen(self, speed, frequency=None, sorted_=True, A=None):
         r"""This method will return the eigenvalues and eigenvectors of the
         state space matrix A, sorted by the index method which considers
         the imaginary part (wd) of the eigenvalues for sorting.
@@ -870,8 +825,6 @@ class Rotor(object):
         >>> evalues[0].imag # doctest: +ELLIPSIS
         91.796...
         """
-        if speed is None:
-            speed = self.w
         if A is None:
             A = self.A(speed=speed, frequency=frequency)
 
@@ -903,7 +856,7 @@ class Rotor(object):
     def orbit(self):
         pass
 
-    def _lti(self):
+    def _lti(self, speed, frequency=None):
         """Continuous-time linear time invariant system.
 
         This method is used to create a Continuous-time linear
@@ -913,6 +866,11 @@ class Rotor(object):
 
         Parameters
         ----------
+        speed: float
+            Rotor speed.
+        frequency: float, optional
+            Excitation frequency.
+            Default is rotor speed.
 
         Returns
         -------
@@ -922,17 +880,19 @@ class Rotor(object):
         Example
         -------
         >>> rotor = rotor_example()
-        >>> A = rotor._lti().A
-        >>> B = rotor._lti().B
-        >>> C = rotor._lti().C
-        >>> D = rotor._lti().D
+        >>> A = rotor._lti(speed=0).A
+        >>> B = rotor._lti(speed=0).B
+        >>> C = rotor._lti(speed=0).C
+        >>> D = rotor._lti(speed=0).D
         """
         Z = np.zeros((self.ndof, self.ndof))
         I = np.eye(self.ndof)
 
         # x' = Ax + Bu
         B2 = I
-        A = self.A()
+        if frequency is None:
+            frequency = speed
+        A = self.A(speed=speed, frequency=frequency)
         # fmt: off
         B = np.vstack([Z,
                        la.solve(self.M(), B2)])
@@ -945,7 +905,7 @@ class Rotor(object):
         Ca = Z
 
         # fmt: off
-        C = np.hstack((Cd - Ca @ la.solve(self.M(), self.K()), Cv - Ca @ la.solve(self.M(), self.C())))
+        C = np.hstack((Cd - Ca @ la.solve(self.M(), self.K(frequency)), Cv - Ca @ la.solve(self.M(), self.C(frequency))))
         # fmt: on
         D = Ca @ la.solve(self.M(), B2)
 
@@ -1826,10 +1786,9 @@ class Rotor(object):
             cross_coupling = BearingElement(n=n, kxx=0, cxx=0, kxy=Q, kyx=-Q)
             bearings.append(cross_coupling)
 
-            rotor = self.__class__(
-                self.shaft_elements, self.disk_elements, bearings, w=speed
-            )
+            rotor = self.__class__(self.shaft_elements, self.disk_elements, bearings)
 
+            modal = rotor.run_modal(speed=speed)
             non_backward = modal.whirl_direction() != "Backward"
             log_dec[i] = modal.log_dec[non_backward][0]
 
@@ -1899,22 +1858,31 @@ class Rotor(object):
 
         return results
 
-    def save_mat(self, file_name):
+    def save_mat(self, file_name, speed, frequency=None):
         """Save matrices and rotor model to a .mat file.
 
         Parameters
         ----------
         file_name : str
 
+        speed: float
+            Rotor speed.
+        frequency: float, optional
+            Excitation frequency.
+            Default is rotor speed.
+
         Examples
         --------
         >>> rotor = rotor_example()
-        >>> rotor.save_mat('new_matrices.mat')
+        >>> rotor.save_mat('new_matrices.mat', speed=0)
         """
+        if frequency is None:
+            frequency = speed
+
         dic = {
             "M": self.M(),
-            "K": self.K(),
-            "C": self.C(),
+            "K": self.K(frequency),
+            "C": self.C(frequency),
             "G": self.G(),
             "nodes": self.nodes_pos,
         }
@@ -2361,7 +2329,6 @@ class Rotor(object):
             shaft_elements,
             disk_elements,
             bearing_seal_elements,
-            w=w,
             sparse=sparse,
             n_eigen=n_eigen,
             min_w=min_w,

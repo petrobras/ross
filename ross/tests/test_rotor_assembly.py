@@ -545,8 +545,8 @@ def rotor4():
 
 
 def test_evals_rotor3_rotor4(rotor3, rotor4):
-    rotor3_evals, rotor3_evects = rotor3._eigen()
-    rotor4_evals, rotor4_evects = rotor4._eigen()
+    rotor3_evals, rotor3_evects = rotor3._eigen(speed=0)
+    rotor4_evals, rotor4_evects = rotor4._eigen(speed=0)
 
     assert_allclose(rotor3_evals, rotor4_evals, rtol=1e-3)
 
