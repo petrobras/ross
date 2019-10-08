@@ -3,6 +3,7 @@ from scipy import interpolate
 import matplotlib as mpl
 import matplotlib.pyplot as plt
 from matplotlib import cm
+import scipy.linalg as la
 from bokeh.colors import RGB
 import bokeh.palettes as bp
 from mpl_toolkits.mplot3d import Axes3D
@@ -24,6 +25,306 @@ class ModalResults:
         self.damping_ratio = damping_ratio
         self.log_dec = log_dec
         self.lti = lti
+
+    @staticmethod
+    def whirl(kappa_mode):
+        """Evaluates the whirl of a mode
+
+       Parameters
+       ----------
+       kappa_mode: list
+           A list with the value of kappa for each node related
+           to the mode/natural frequency of interest.
+
+       Returns
+       -------
+       A string indicating the direction of precession related to the kappa_mode
+
+       Example
+       -------
+       >>> kappa_mode = [-5.06e-13, -3.09e-13, -2.91e-13, 0.011, -4.03e-13, -2.72e-13, -2.72e-13]
+       >>> whirl(kappa_mode)
+       'Forward'
+       """
+        if all(kappa >= -1e-3 for kappa in kappa_mode):
+            whirldir = "Forward"
+        elif all(kappa <= 1e-3 for kappa in kappa_mode):
+            whirldir = "Backward"
+        else:
+            whirldir = "Mixed"
+        return whirldir
+
+    @staticmethod
+    @np.vectorize
+    def whirl_to_cmap(whirl):
+        """Maps the whirl to a value
+
+        Parameters
+        ----------
+        whirl: string
+            A string indicating the whirl direction related to the kappa_mode
+
+        Returns
+        -------
+        An array with reference index for the whirl direction
+
+        Example
+        -------
+        >>> whirl = 'Backward'
+        >>> whirl_to_cmap(whirl)
+        array(1.)
+        """
+        if whirl == "Forward":
+            return 0.0
+        elif whirl == "Backward":
+            return 1.0
+        elif whirl == "Mixed":
+            return 0.5
+
+    def H_kappa(self, node, w, return_T=False):
+        r"""Calculates the H matrix for a given node and natural frequency.
+
+        The matrix H contains information about the whirl direction,
+        the orbit minor and major axis and the orbit inclination.
+        The matrix is calculated by :math:`H = T.T^T` where the
+        matrix T is constructed using the eigenvector corresponding
+        to the natural frequency of interest:
+
+        .. math::
+           :nowrap:
+
+           \begin{eqnarray}
+              \begin{bmatrix}
+              u(t)\\
+              v(t)
+              \end{bmatrix}
+              = \mathfrak{R}\Bigg(
+              \begin{bmatrix}
+              r_u e^{j\eta_u}\\
+              r_v e^{j\eta_v}
+              \end{bmatrix}\Bigg)
+              e^{j\omega_i t}
+              =
+              \begin{bmatrix}
+              r_u cos(\eta_u + \omega_i t)\\
+              r_v cos(\eta_v + \omega_i t)
+              \end{bmatrix}
+              = {\bf T}
+              \begin{bmatrix}
+              cos(\omega_i t)\\
+              sin(\omega_i t)
+              \end{bmatrix}
+           \end{eqnarray}
+
+        Where :math:`r_u e^{j\eta_u}` e :math:`r_v e^{j\eta_v}` are the
+        elements of the *i*\th eigenvector, corresponding to the node and
+        natural frequency of interest (mode).
+
+        .. math::
+
+            {\bf T} =
+            \begin{bmatrix}
+            r_u cos(\eta_u) & -r_u sin(\eta_u)\\
+            r_u cos(\eta_u) & -r_v sin(\eta_v)
+            \end{bmatrix}
+
+        Parameters
+        ----------
+        node: int
+            Node for which the matrix H will be calculated.
+        w: int
+            Index corresponding to the natural frequency
+            of interest.
+        return_T: bool, optional
+            If True, returns the H matrix and a dictionary with the
+            values for :math:`r_u, r_v, \eta_u, \eta_v`.
+
+            Default is false.
+
+        Returns
+        -------
+        H: array
+            Matrix H.
+        Tdic: dict
+            Dictionary with values for :math:`r_u, r_v, \eta_u, \eta_v`.
+
+            It will be returned only if return_T is True.
+
+        Examples
+        --------
+        >>> rotor = rotor_example()
+        >>> # H matrix for the 0th node
+        >>> h_kappa = rotor.H_kappa(0, 0)
+        """
+        # get vector of interest based on freqs
+        vector = self.evectors[4 * node : 4 * node + 2, w]
+        # get translation sdofs for specified node for each mode
+        u = vector[0]
+        v = vector[1]
+        ru = np.absolute(u)
+        rv = np.absolute(v)
+
+        nu = np.angle(u)
+        nv = np.angle(v)
+        # fmt: off
+        T = np.array([[ru * np.cos(nu), -ru * np.sin(nu)],
+                      [rv * np.cos(nv), -rv * np.sin(nv)]])
+        # fmt: on
+        H = T @ T.T
+
+        if return_T:
+            Tdic = {"ru": ru, "rv": rv, "nu": nu, "nv": nv}
+            return H, Tdic
+
+        return H
+
+    def kappa(self, node, w, wd=True):
+        r"""Calculates kappa for a given node and natural frequency.
+
+        w is the the index of the natural frequency of interest.
+        The function calculates the orbit parameter :math:`\kappa`:
+
+        .. math::
+
+            \kappa = \pm \sqrt{\lambda_2 / \lambda_1}
+
+        Where :math:`\sqrt{\lambda_1}` is the length of the semiminor axes
+        and :math:`\sqrt{\lambda_2}` is the length of the semimajor axes.
+
+        If :math:`\kappa = \pm 1`, the orbit is circular.
+
+        If :math:`\kappa` is positive we have a forward rotating orbit
+        and if it is negative we have a backward rotating orbit.
+
+        Parameters
+        ----------
+        node: int
+            Node for which kappa will be calculated.
+        w: int
+            Index corresponding to the natural frequency
+            of interest.
+        wd: bool
+            If True, damping natural frequencies are used.
+
+            Default is true.
+
+        Returns
+        -------
+        kappa: dict
+            A dictionary with values for the natural frequency,
+            major axis, minor axis and kappa.
+
+        Examples
+        --------
+        >>> rotor = rotor_example()
+        >>> # kappa for each node of the first natural frequency
+        >>> # Major axes for node 0 and natural frequency (mode) 0.
+        >>> rotor.kappa(0, 0)['Major axes'] # doctest: +ELLIPSIS
+        0.00141...
+        >>> # kappa for node 2 and natural frequency (mode) 3.
+        >>> kappa = rotor.kappa(2, 3)['kappa'].round(2) # doctest: +ELLIPSIS
+        """
+        if wd:
+            nat_freq = self.wd[w]
+        else:
+            nat_freq = self.wn[w]
+
+        H, Tvals = self.H_kappa(node, w, return_T=True)
+        nu = Tvals["nu"]
+        nv = Tvals["nv"]
+
+        lam = la.eig(H)[0]
+
+        # lam is the eigenvalue -> sqrt(lam) is the minor/major axis.
+        # kappa encodes the relation between the axis and the precession.
+        minor = np.sqrt(lam.min())
+        major = np.sqrt(lam.max())
+        kappa = minor / major
+        diff = nv - nu
+
+        # we need to evaluate if 0 < nv - nu < pi.
+        if diff < -np.pi:
+            diff += 2 * np.pi
+        elif diff > np.pi:
+            diff -= 2 * np.pi
+
+        # if nv = nu or nv = nu + pi then the response is a straight line.
+        if diff == 0 or diff == np.pi:
+            kappa = 0
+
+        # if 0 < nv - nu < pi, then a backward rotating mode exists.
+        elif 0 < diff < np.pi:
+            kappa *= -1
+
+        k = {
+            "Frequency": nat_freq,
+            "Minor axes": np.real(minor),
+            "Major axes": np.real(major),
+            "kappa": np.real(kappa),
+        }
+
+        return k
+
+    def kappa_mode(self, w):
+        r"""This function evaluates kappa given the index of
+        the natural frequency of interest.
+        Values of kappa are evaluated for each node of the
+        corresponding frequency mode.
+
+        Parameters
+        ----------
+        w: int
+            Index corresponding to the natural frequency
+            of interest.
+
+        Returns
+        -------
+        kappa_mode: list
+            A list with the value of kappa for each node related
+            to the mode/natural frequency of interest.
+
+        Examples
+        --------
+        >>> rotor = rotor_example()
+        >>> # kappa for each node of the first natural frequency
+        >>> rotor.kappa_mode(0) # doctest: +ELLIPSIS
+        [...]
+        """
+        kappa_mode = [self.kappa(node, w)["kappa"] for node in self.nodes]
+        return kappa_mode
+
+    def whirl_direction(self):
+        """Get the whirl direction for each frequency.
+
+        Parameters
+        ----------
+
+        Returns
+        -------
+        whirl_w : array
+            An array of strings indicating the direction of precession related
+            to the kappa_mode. Backward, Mixed or Forward depending on values
+            of kappa_mode.
+        """
+        # whirl direction/values are methods because they are expensive.
+        whirl_w = [whirl(self.kappa_mode(wd)) for wd in range(len(self.wd))]
+
+        return np.array(whirl_w)
+
+    def whirl_values(self):
+        """Get the whirl value (0., 0.5, or 1.) for each frequency.
+
+        Parameters
+        ----------
+
+        Returns
+        -------
+        whirl_to_cmap
+            0.0 - if the whirl is Forward
+            0.5 - if the whirl is Mixed
+            1.0 - if the whirl is Backward
+        """
+        return whirl_to_cmap(self.whirl_direction())
 
 
 class CampbellResults:

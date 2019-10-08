@@ -244,12 +244,12 @@ def test_evals_sorted_rotor2(rotor2):
             -4.838034e-14 - 34.822138j,
         ]
     )
-    rotor2.run_modal()
-    rotor2_evals, rotor2_evects = rotor2._eigen()
+    modal2_0 = rotor2.run_modal(speed=0)
+    rotor2_evals, rotor2_evects = rotor2._eigen(speed=0)
     assert_allclose(rotor2_evals, evals_sorted, rtol=1e-3)
-    assert_allclose(rotor2.evalues, evals_sorted, rtol=1e-3)
-    rotor2.w = 10000
-    assert_allclose(rotor2.evalues, evals_sorted_w_10000, rtol=1e-1)
+    assert_allclose(modal2_0.evalues, evals_sorted, rtol=1e-3)
+    modal2_10000 = rotor2.run_modal(speed=10000)
+    assert_allclose(modal2_10000.evalues, evals_sorted_w_10000, rtol=1e-1)
 
 
 @pytest.fixture
@@ -321,7 +321,6 @@ def test_rotor_attributes(rotor1, rotor3, rotor3_odd):
 
 
 def test_evects_sorted_rotor3(rotor3):
-    rotor3.run_modal()
     # fmt: off
     evects_sorted = np.array([[ -4.056e-16 +8.044e-15j,   6.705e-19 -1.153e-03j,  -2.140e-15 +2.486e-14j,  -7.017e-17 +8.665e-04j],
                               [ -4.507e-17 -1.454e-03j,   5.888e-16 -1.658e-14j,  -1.698e-16 +9.784e-04j,   6.498e-16 +6.575e-14j],
@@ -380,9 +379,10 @@ def test_evects_sorted_rotor3(rotor3):
                               [  3.836e-01 +1.840e-16j,   4.735e-12 +1.445e-13j,  -1.583e-01 +9.794e-15j,  -1.572e-11 +1.066e-13j],
                               [  3.037e-12 +1.550e-13j,  -4.020e-01 +1.116e-15j,  -1.300e-11 +2.719e-13j,   1.086e-01 -6.340e-15j]])
     # fmt: on
-    rotor3_evals, rotor3_evects = rotor3._eigen()
+    modal3 = rotor3.run_modal(speed=0)
+    rotor3_evals, rotor3_evects = rotor3._eigen(speed=0)
     mac1 = MAC_modes(evects_sorted, rotor3_evects[:, :4], plot=False)
-    mac2 = MAC_modes(evects_sorted, rotor3.evectors[:, :4], plot=False)
+    mac2 = MAC_modes(evects_sorted, modal3.evectors[:, :4], plot=False)
     assert_allclose(mac1.diagonal(), np.ones_like(mac1.diagonal()))
     assert_allclose(mac2.diagonal(), np.ones_like(mac1.diagonal()))
 
@@ -460,31 +460,44 @@ def test_evects_not_sorted_rotor3(rotor3):
 
 
 def test_kappa_rotor3(rotor3):
-    rotor3.run_modal()
-    assert_allclose(rotor3.kappa(0, 0)["Frequency"], 82.653037, rtol=1e-3)
-    assert_allclose(rotor3.kappa(0, 0)["Major axes"], 0.001454062985920231, rtol=1e-3)
+    # TODO: Move this to test_results.py
+    modal3_0 = rotor3.run_modal(speed=0)
+    assert_allclose(modal3_0.kappa(0, 0)["Frequency"], 82.653037, rtol=1e-3)
+    assert_allclose(modal3_0.kappa(0, 0)["Major axes"], 0.001454062985920231, rtol=1e-3)
     assert_allclose(
-        rotor3.kappa(0, 0)["Minor axes"], 2.0579515874459978e-11, rtol=1e-3, atol=1e-6
+        modal3_0.kappa(0, 0)["Minor axes"], 2.0579515874459978e-11, rtol=1e-3, atol=1e-6
     )
     assert_allclose(
-        rotor3.kappa(0, 0)["kappa"], -1.415311171090584e-08, rtol=1e-3, atol=1e-6
+        modal3_0.kappa(0, 0)["kappa"], -1.415311171090584e-08, rtol=1e-3, atol=1e-6
     )
 
-    rotor3.w = 2000
-    assert_allclose(rotor3.kappa(0, 0)["Frequency"], 77.37957042, rtol=1e-3)
-    assert_allclose(rotor3.kappa(0, 0)["Major axes"], 0.0011885396330204021, rtol=1e-3)
-    assert_allclose(rotor3.kappa(0, 0)["Minor axes"], 0.0007308144427338161, rtol=1e-3)
-    assert_allclose(rotor3.kappa(0, 0)["kappa"], -0.6148843693807821, rtol=1e-3)
+    modal3_2000 = rotor3.run_modal(speed=2000)
+    assert_allclose(modal3_2000.kappa(0, 0)["Frequency"], 77.37957042, rtol=1e-3)
+    assert_allclose(
+        modal3_2000.kappa(0, 0)["Major axes"], 0.0011885396330204021, rtol=1e-3
+    )
+    assert_allclose(
+        modal3_2000.kappa(0, 0)["Minor axes"], 0.0007308144427338161, rtol=1e-3
+    )
+    assert_allclose(modal3_2000.kappa(0, 0)["kappa"], -0.6148843693807821, rtol=1e-3)
 
-    assert_allclose(rotor3.kappa(0, 1)["Frequency"], 88.98733511566752, rtol=1e-3)
-    assert_allclose(rotor3.kappa(0, 1)["Major axes"], 0.0009947502339267566, rtol=1e-3)
-    assert_allclose(rotor3.kappa(0, 1)["Minor axes"], 0.0008412470069506472, rtol=1e-3)
-    assert_allclose(rotor3.kappa(0, 1)["kappa"], 0.8456866641084784, rtol=1e-3)
+    assert_allclose(modal3_2000.kappa(0, 1)["Frequency"], 88.98733511566752, rtol=1e-3)
+    assert_allclose(
+        modal3_2000.kappa(0, 1)["Major axes"], 0.0009947502339267566, rtol=1e-3
+    )
+    assert_allclose(
+        modal3_2000.kappa(0, 1)["Minor axes"], 0.0008412470069506472, rtol=1e-3
+    )
+    assert_allclose(modal3_2000.kappa(0, 1)["kappa"], 0.8456866641084784, rtol=1e-3)
 
-    assert_allclose(rotor3.kappa(1, 1)["Frequency"], 88.98733511566752, rtol=1e-3)
-    assert_allclose(rotor3.kappa(1, 1)["Major axes"], 0.0018877975750108973, rtol=1e-3)
-    assert_allclose(rotor3.kappa(1, 1)["Minor axes"], 0.0014343257484060105, rtol=1e-3)
-    assert_allclose(rotor3.kappa(1, 1)["kappa"], 0.7597878964314968, rtol=1e-3)
+    assert_allclose(modal3_2000.kappa(1, 1)["Frequency"], 88.98733511566752, rtol=1e-3)
+    assert_allclose(
+        modal3_2000.kappa(1, 1)["Major axes"], 0.0018877975750108973, rtol=1e-3
+    )
+    assert_allclose(
+        modal3_2000.kappa(1, 1)["Minor axes"], 0.0014343257484060105, rtol=1e-3
+    )
+    assert_allclose(modal3_2000.kappa(1, 1)["kappa"], 0.7597878964314968, rtol=1e-3)
 
 
 def test_kappa_mode_rotor3(rotor3):
