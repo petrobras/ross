@@ -113,11 +113,11 @@ def fluid_flow_short_numerical():
     radius_stator = 0.1
     visc = 0.015
     rho = 860.
-    beta = np.pi
+    attitude_angle = np.pi
     eccentricity = 0.001
     return flow.FluidFlow(nz, ntheta, nradius, length,
                           omega, p_in, p_out, radius_rotor,
-                          radius_stator, visc, rho, beta=beta, eccentricity=eccentricity)
+                          radius_stator, visc, rho, attitude_angle=attitude_angle, eccentricity=eccentricity)
 
 
 def fluid_flow_long_numerical():
@@ -133,11 +133,11 @@ def fluid_flow_long_numerical():
     length = 8 * radius_stator
     visc = 0.015
     rho = 860.
-    beta = np.pi
+    attitude_angle = np.pi
     eccentricity = 0.0001
     return flow.FluidFlow(nz, ntheta, nradius, length,
                           omega, p_in, p_out, radius_rotor,
-                          radius_stator, visc, rho, beta=beta, eccentricity=eccentricity)
+                          radius_stator, visc, rho, attitude_angle=attitude_angle, eccentricity=eccentricity)
 
 
 def test_numerical_abs_error():
@@ -209,7 +209,7 @@ def test_matplotlib_plots():
     assert isinstance(matplot_shape(bearing), ax_type)
 
 
-# @pytest.mark.skip(reason="no way of currently testing this")
+@pytest.mark.skip(reason="no way of currently testing this")
 def test_numerical_stiffness_matrix_short():
     bearing = fluid_flow_short_eccentricity()
     bearing.calculate_pressure_matrix_numerical()
