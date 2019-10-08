@@ -707,9 +707,10 @@ def test_freq_response_w_force(rotor4):
 
 def test_mesh_convergence(rotor3):
     rotor3.convergence(n_eigval=0, err_max=1e-08)
+    modal3 = rotor3.run_modal(speed=0)
 
     assert_allclose(len(rotor3.shaft_elements), 96, atol=0)
-    assert_allclose(rotor3.wn[0], 82.653037335, atol=1e-02)
+    assert_allclose(modal3.wn[0], 82.653037335, atol=1e-02)
     assert_allclose(rotor3.shaft_elements[0].L, 0.015625, atol=1e-06)
     assert_allclose(rotor3.disk_elements[0].n, 32, atol=0)
     assert_allclose(rotor3.disk_elements[1].n, 64, atol=0)

@@ -522,7 +522,8 @@ class Rotor(object):
         eigv_arr = np.array([])
         error_arr = np.array([0])
 
-        eigv_arr = np.append(eigv_arr, self.wn[n_eigval])
+        modal = self.run_modal(speed=0)
+        eigv_arr = np.append(eigv_arr, modal.wn[n_eigval])
 
         # this value is up to start the loop while
         error = 1
@@ -573,8 +574,9 @@ class Rotor(object):
             aux_rotor = Rotor(
                 shaft_elem, disk_elem, brgs_elem, w=self.w, n_eigen=self.n_eigen
             )
+            aux_modal = aux_rotor.run_modal(speed=0)
 
-            eigv_arr = np.append(eigv_arr, aux_rotor.wn[n_eigval])
+            eigv_arr = np.append(eigv_arr, aux_modal.wn[n_eigval])
             el_num = np.append(el_num, len(shaft_elem))
 
             error = min(eigv_arr[-1], eigv_arr[-2]) / max(eigv_arr[-1], eigv_arr[-2])
