@@ -131,8 +131,8 @@ class Rotor(object):
     >>> bearing0 = rs.BearingElement(0, kxx=stf, cxx=0)
     >>> bearing1 = rs.BearingElement(2, kxx=stf, cxx=0)
     >>> rotor = rs.Rotor(shaft_elm, [disk0], [bearing0, bearing1])
-    >>> rotor.run_modal()
-    >>> rotor.wd[0] # doctest: +ELLIPSIS
+    >>> modal = rotor.run_modal(speed=0)
+    >>> modal.wd[0] # doctest: +ELLIPSIS
     215.3707...
     """
 
@@ -456,10 +456,13 @@ class Rotor(object):
         Example
         -------
         >>> rotor = rotor_example()
-        >>> rotor.wn[:2]
+        >>> modal = rotor.run_modal(speed=0)
+        >>> modal.wn[:2]
         array([91.79655318, 96.28899977])
-        >>> rotor.wd[:2]
+        >>> modal.wd[:2]
         array([91.79655318, 96.28899977])
+        >>> modal.plot_mode(0) # doctest: +ELLIPSIS
+        (<Figure ...
         """
         evalues, evectors = self._eigen(speed)
         wn_len = len(evalues) // 2
@@ -471,7 +474,18 @@ class Rotor(object):
             log_dec = 2 * np.pi * damping_ratio / np.sqrt(1 - damping_ratio ** 2)
         lti = self._lti()
         modal_results = ModalResults(
-            evalues, evectors, wn, wd, damping_ratio, log_dec, lti, self.nodes
+            speed,
+            evalues,
+            evectors,
+            wn,
+            wd,
+            damping_ratio,
+            log_dec,
+            lti,
+            self.ndof,
+            self.nodes,
+            self.nodes_pos,
+            self.shaft_elements_length,
         )
 
         return modal_results
@@ -604,13 +618,6 @@ class Rotor(object):
         -------
         w : float
             Rotor speed
-
-        Example
-        -------
-        >>> rotor = rotor_example()
-        >>> rotor.w = 1000.0
-        >>> rotor.w
-        1000.0
         """
         return self._w
 
@@ -628,16 +635,6 @@ class Rotor(object):
         Returns
         -------
 
-        Example
-        -------
-        >>> rotor = rotor_example()
-        >>> rotor.w
-        0
-        >>> rotor.wn[0]
-        91.7965531755082
-        >>> rotor.w = 1000.0
-        >>> rotor.wn[0]
-        90.93010826954236
         """
         self._w = value
         self.run_modal()
@@ -1213,7 +1210,7 @@ class Rotor(object):
 
         return forced_response
 
-    def time_response(self, F, t, ic=None):
+    def time_response(self, speed, F, t, ic=None):
         """Time response for a rotor.
 
         This method returns the time response for a rotor
@@ -1240,13 +1237,15 @@ class Rotor(object):
         Examples
         --------
         >>> rotor = rotor_example()
-        >>> size = rotor.lti.B.shape[1]
+        >>> speed = 0
+        >>> size = 28
         >>> t = np.linspace(0, 5, size)
-        >>> F = np.ones((size, size))
-        >>> rotor.time_response(F, t) # doctest: +ELLIPSIS
+        >>> F = np.ones((size, rotor.ndof))
+        >>> rotor.time_response(speed, F, t) # doctest: +ELLIPSIS
         (array([0.        , 0.18518519, 0.37037037, ...
         """
-        return signal.lsim(self.lti, F, t, X0=ic)
+        modal = self.run_modal(speed=speed)
+        return signal.lsim(modal.lti, F, t, X0=ic)
 
     def _plot_rotor_matplotlib(self, nodes=1, check_sld=False, ax=None):
         """Plots a rotor object.
@@ -1601,49 +1600,6 @@ class Rotor(object):
 
         return results
 
-    def run_mode_shapes(self):
-        """Evaluates the mode shapes for the rotor.
-
-        This analysis presents the vibration mode for each critical speed.
-
-        Parameters
-        ----------
-
-        Returns
-        -------
-        mode_shapes
-            An array with the modes, number of dof, nodes list, nodes position,
-            lenght of shaft elements, the rotor speed, damped natural frequency,
-            logarithmic decrement and the kappa modes
-
-        Example
-        -------
-        >>> rotor = rotor_example()
-        >>> rotor.run_mode_shapes() # doctest: +ELLIPSIS
-        <ross.results.ModeShapeResults ...
-        """
-        kappa_modes = []
-        for mode in range(len(self.wn)):
-            kappa_color = []
-            kappa_mode = self.kappa_mode(mode)
-            for kappa in kappa_mode:
-                kappa_color.append("tab:blue" if kappa > 0 else "tab:red")
-            kappa_modes.append(kappa_color)
-
-        mode_shapes = ModeShapeResults(
-            modes=self.evectors[: self.ndof],
-            ndof=self.ndof,
-            nodes=self.nodes,
-            nodes_pos=self.nodes_pos,
-            shaft_elements_length=self.shaft_elements_length,
-            w=self.w,
-            wd=self.wd,
-            log_dec=self.log_dec,
-            kappa_modes=kappa_modes,
-        )
-
-        return mode_shapes
-
     def plot_ucs(self, stiffness_range=None, num=20, ax=None, output_html=False):
         """Plot undamped critical speed map.
 
@@ -1723,7 +1679,8 @@ class Rotor(object):
             rotor = self.__class__(
                 self.shaft_elements, self.disk_elements, bearings, n_eigen=16
             )
-            rotor_wn[:, i] = rotor.wn[:8:2]
+            modal = rotor.run_modal(speed=0)
+            rotor_wn[:, i] = modal.wn[:8:2]
 
         ax.set_prop_cycle(cycler("color", seaborn_colors))
         ax.loglog(stiffness_log, rotor_wn.T)
@@ -1796,7 +1753,6 @@ class Rotor(object):
                 line_width=3,
                 line_color=bokeh_colors[-j + 1],
             )
-        show(bk_ax)
 
         return ax
 
@@ -1863,6 +1819,7 @@ class Rotor(object):
 
         # set rotor speed to mcs
         speed = self.rated_w
+        modal = self.run_modal(speed=speed)
 
         for i, Q in enumerate(stiffness):
             bearings = [copy(b) for b in self.bearing_seal_elements]
@@ -1873,8 +1830,8 @@ class Rotor(object):
                 self.shaft_elements, self.disk_elements, bearings, w=speed
             )
 
-            non_backward = rotor.whirl_direction() != "Backward"
-            log_dec[i] = rotor.log_dec[non_backward][0]
+            non_backward = modal.whirl_direction() != "Backward"
+            log_dec[i] = modal.log_dec[non_backward][0]
 
         ax.plot(stiffness, log_dec, "--", **kwargs)
         ax.set_xlabel("Applied Cross Coupled Stiffness, Q (N/m)")
@@ -1899,11 +1856,9 @@ class Rotor(object):
         # bokeh plot - plot shaft centerline
         bk_ax.line(stiffness, log_dec, line_width=3, line_color=bokeh_colors[0])
 
-        show(bk_ax)
-
         return ax, bk_ax
 
-    def run_time_response(self, F, t, dof):
+    def run_time_response(self, speed, F, t, dof):
         """Calculates the time response.
 
         This function will take a rotor object and plot its time response
@@ -1929,15 +1884,16 @@ class Rotor(object):
         Examples
         --------
         >>> rotor = rotor_example()
-        >>> size = rotor.lti.B.shape[1]
+        >>> speed = 0
+        >>> size = 28
         >>> t = np.linspace(0, 5, size)
-        >>> F = np.ones((size, size))
+        >>> F = np.ones((size, rotor.ndof))
         >>> dof = 13
-        >>> response = rotor.run_time_response(F, t, dof) # doctest: +ELLIPSIS
-        >>> response.yout[:, dof]
+        >>> response = rotor.run_time_response(speed, F, t, dof)
+        >>> response.yout[:, dof] # doctest: +ELLIPSIS
         array([ 0.00000000e+00,  1.06327334e-05,  1.54684988e-05, ...
         """
-        t_, yout, xout = self.time_response(F, t)
+        t_, yout, xout = self.time_response(speed, F, t)
 
         results = TimeResponseResults(t, yout, xout, dof)
 
@@ -2327,8 +2283,8 @@ class Rotor(object):
         ...             brg_seal_data=[BearingElement(n=0, kxx=1e6, cxx=0, kyy=1e6, cyy=0, kxy=0, cxy=0, kyx=0, cyx=0),
         ...                            BearingElement(n=3, kxx=1e6, cxx=0, kyy=1e6, cyy=0, kxy=0, cxy=0, kyx=0, cyx=0)],
         ...             w=0, nel_r=1)
-        >>> rotor.run_modal()
-        >>> rotor.wn.round(4)
+        >>> modal = rotor.run_modal(speed=0)
+        >>> modal.wn.round(4)
         array([ 85.7634,  85.7634, 271.9326, 271.9326, 718.58  , 718.58  ])
         """
 
@@ -2430,7 +2386,8 @@ def rotor_example():
     Examples
     --------
     >>> rotor = rotor_example()
-    >>> np.round(rotor.wd[:4])
+    >>> modal = rotor.run_modal(speed=0)
+    >>> np.round(modal.wd[:4])
     array([ 92.,  96., 275., 297.])
     """
     #  Rotor without damping with 6 shaft elements 2 disks and 2 bearings

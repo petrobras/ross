@@ -17,7 +17,22 @@ bokeh_colors = bp.RdGy[11]
 
 
 class ModalResults:
-    def __init__(self, evalues, evectors, wn, wd, damping_ratio, log_dec, lti, nodes):
+    def __init__(
+        self,
+        speed,
+        evalues,
+        evectors,
+        wn,
+        wd,
+        damping_ratio,
+        log_dec,
+        lti,
+        ndof,
+        nodes,
+        nodes_pos,
+        shaft_elements_length,
+    ):
+        self.speed = speed
         self.evalues = evalues
         self.evectors = evectors
         self.wn = wn
@@ -25,7 +40,19 @@ class ModalResults:
         self.damping_ratio = damping_ratio
         self.log_dec = log_dec
         self.lti = lti
+        self.ndof = ndof
         self.nodes = nodes
+        self.nodes_pos = nodes_pos
+        self.shaft_elements_length = shaft_elements_length
+        self.modes = self.evectors[: self.ndof]
+        kappa_modes = []
+        for mode in range(len(self.wn)):
+            kappa_color = []
+            kappa_mode = self.kappa_mode(mode)
+            for kappa in kappa_mode:
+                kappa_color.append("tab:blue" if kappa > 0 else "tab:red")
+            kappa_modes.append(kappa_color)
+        self.kappa_modes = kappa_modes
 
     @staticmethod
     def whirl(kappa_mode):
@@ -303,6 +330,172 @@ class ModalResults:
             1.0 - if the whirl is Backward
         """
         return self.whirl_to_cmap(self.whirl_direction())
+
+    def calc_mode_shape(self, mode=None, evec=None):
+        """
+        Method that calculate the arrays describing the mode shapes.
+
+        Parameters
+        ----------
+        mode : int
+            The n'th vibration mode
+            Default is None
+        evec : array
+            Array containing the system eigenvectors
+
+        Returns
+        -------
+        xn : array
+            absolut nodal displacement - X direction
+        yn : array
+            absolut nodal displacement - Y direction
+        zn : array
+            absolut nodal displacement - Z direction
+        x_circles : array
+            orbit description - X direction
+        y_circles : array
+            orbit description - Y direction
+        z_circles_pos : array
+            axial location of each orbit
+        nn : int
+            number of points to plot lines
+        """
+        evec0 = self.modes[:, mode]
+        nodes = self.nodes
+        nodes_pos = self.nodes_pos
+        shaft_elements_length = self.shaft_elements_length
+
+        modex = evec0[0::4]
+        modey = evec0[1::4]
+
+        xmax, ixmax = max(abs(modex)), np.argmax(abs(modex))
+        ymax, iymax = max(abs(modey)), np.argmax(abs(modey))
+
+        if ymax > 0.4 * xmax:
+            evec0 /= modey[iymax]
+        else:
+            evec0 /= modex[ixmax]
+
+        modex = evec0[0::4]
+        modey = evec0[1::4]
+
+        num_points = 201
+        c = np.linspace(0, 2 * np.pi, num_points)
+        circle = np.exp(1j * c)
+
+        x_circles = np.zeros((num_points, len(nodes)))
+        y_circles = np.zeros((num_points, len(nodes)))
+        z_circles_pos = np.zeros((num_points, len(nodes)))
+
+        for node in nodes:
+            x = modex[node] * circle
+            x_circles[:, node] = np.real(x)
+            y = modey[node] * circle
+            y_circles[:, node] = np.real(y)
+            z_circles_pos[:, node] = nodes_pos[node]
+
+        # plot lines
+        nn = 21
+        zeta = np.linspace(0, 1, nn)
+        onn = np.ones_like(zeta)
+
+        zeta = zeta.reshape(nn, 1)
+        onn = onn.reshape(nn, 1)
+
+        xn = np.zeros(nn * (len(nodes) - 1))
+        yn = np.zeros(nn * (len(nodes) - 1))
+        zn = np.zeros(nn * (len(nodes) - 1))
+
+        N1 = onn - 3 * zeta ** 2 + 2 * zeta ** 3
+        N2 = zeta - 2 * zeta ** 2 + zeta ** 3
+        N3 = 3 * zeta ** 2 - 2 * zeta ** 3
+        N4 = -zeta ** 2 + zeta ** 3
+
+        for Le, n in zip(shaft_elements_length, nodes):
+            node_pos = nodes_pos[n]
+            Nx = np.hstack((N1, Le * N2, N3, Le * N4))
+            Ny = np.hstack((N1, -Le * N2, N3, -Le * N4))
+
+            xx = [4 * n, 4 * n + 3, 4 * n + 4, 4 * n + 7]
+            yy = [4 * n + 1, 4 * n + 2, 4 * n + 5, 4 * n + 6]
+
+            pos0 = nn * n
+            pos1 = nn * (n + 1)
+
+            xn[pos0:pos1] = Nx @ evec0[xx].real
+            yn[pos0:pos1] = Ny @ evec0[yy].real
+            zn[pos0:pos1] = (node_pos * onn + Le * zeta).reshape(nn)
+
+        return xn, yn, zn, x_circles, y_circles, z_circles_pos, nn
+
+    def plot_mode(self, mode=None, evec=None, fig=None, ax=None):
+        """
+        Method that plots the mode shapes.
+
+        Parameters
+        ----------
+        mode : int
+            The n'th vibration mode
+            Default is None
+        evec : array
+            Array containing the system eigenvectors
+        fig : matplotlib figure
+            The figure object with the plot.
+        ax : matplotlib axes
+            The axes object with the plot.
+
+        Returns
+        -------
+        fig : matplotlib figure
+            Returns the figure object with the plot.
+        ax : matplotlib axes
+            Returns the axes object with the plot.
+        """
+        if ax is None:
+            fig = plt.figure()
+            ax = fig.gca(projection="3d")
+
+        nodes = self.nodes
+        kappa_mode = self.kappa_modes[mode]
+        xn, yn, zn, xc, yc, zc_pos, nn = self.calc_mode_shape(mode=mode, evec=evec)
+
+        for node in nodes:
+            ax.plot(
+                xc[10:, node],
+                yc[10:, node],
+                zc_pos[10:, node],
+                color=kappa_mode[node],
+                linewidth=0.5,
+                zdir="x",
+            )
+            ax.scatter(
+                xc[10, node],
+                yc[10, node],
+                zc_pos[10, node],
+                s=5,
+                color=kappa_mode[node],
+                zdir="x",
+            )
+
+        ax.plot(xn, yn, zn, "k--", zdir="x")
+
+        # plot center line
+        zn_cl0 = -(zn[-1] * 0.1)
+        zn_cl1 = zn[-1] * 1.1
+        zn_cl = np.linspace(zn_cl0, zn_cl1, 30)
+        ax.plot(zn_cl * 0, zn_cl * 0, zn_cl, "k-.", linewidth=0.8, zdir="x")
+
+        ax.set_zlim(-2, 2)
+        ax.set_ylim(-2, 2)
+        ax.set_xlim(zn_cl0 - 0.1, zn_cl1 + 0.1)
+
+        ax.set_title(
+            f"$speed$ = {self.speed:.1f} rad/s\n$"
+            f"\omega_d$ = {self.wd[mode]:.1f} rad/s\n"
+            f"$log dec$ = {self.log_dec[mode]:.1f}"
+        )
+
+        return fig, ax
 
 
 class CampbellResults:
@@ -1429,172 +1622,6 @@ class ModeShapeResults:
         self.wd = wd
         self.log_dec = log_dec
         self.kappa_modes = kappa_modes
-
-    def calc_mode_shape(self, mode=None, evec=None):
-        """
-        Method that calculate the arrays describing the mode shapes.
-
-        Parameters
-        ----------
-        mode : int
-            The n'th vibration mode
-            Default is None
-        evec : array
-            Array containing the system eigenvectors
-
-        Returns
-        -------
-        xn : array
-            absolut nodal displacement - X direction
-        yn : array
-            absolut nodal displacement - Y direction
-        zn : array
-            absolut nodal displacement - Z direction
-        x_circles : array
-            orbit description - X direction
-        y_circles : array
-            orbit description - Y direction
-        z_circles_pos : array
-            axial location of each orbit
-        nn : int
-            number of points to plot lines
-        """
-        evec0 = self.modes[:, mode]
-        nodes = self.nodes
-        nodes_pos = self.nodes_pos
-        shaft_elements_length = self.shaft_elements_length
-
-        modex = evec0[0::4]
-        modey = evec0[1::4]
-
-        xmax, ixmax = max(abs(modex)), np.argmax(abs(modex))
-        ymax, iymax = max(abs(modey)), np.argmax(abs(modey))
-
-        if ymax > 0.4 * xmax:
-            evec0 /= modey[iymax]
-        else:
-            evec0 /= modex[ixmax]
-
-        modex = evec0[0::4]
-        modey = evec0[1::4]
-
-        num_points = 201
-        c = np.linspace(0, 2 * np.pi, num_points)
-        circle = np.exp(1j * c)
-
-        x_circles = np.zeros((num_points, len(nodes)))
-        y_circles = np.zeros((num_points, len(nodes)))
-        z_circles_pos = np.zeros((num_points, len(nodes)))
-
-        for node in nodes:
-            x = modex[node] * circle
-            x_circles[:, node] = np.real(x)
-            y = modey[node] * circle
-            y_circles[:, node] = np.real(y)
-            z_circles_pos[:, node] = nodes_pos[node]
-
-        # plot lines
-        nn = 21
-        zeta = np.linspace(0, 1, nn)
-        onn = np.ones_like(zeta)
-
-        zeta = zeta.reshape(nn, 1)
-        onn = onn.reshape(nn, 1)
-
-        xn = np.zeros(nn * (len(nodes) - 1))
-        yn = np.zeros(nn * (len(nodes) - 1))
-        zn = np.zeros(nn * (len(nodes) - 1))
-
-        N1 = onn - 3 * zeta ** 2 + 2 * zeta ** 3
-        N2 = zeta - 2 * zeta ** 2 + zeta ** 3
-        N3 = 3 * zeta ** 2 - 2 * zeta ** 3
-        N4 = -zeta ** 2 + zeta ** 3
-
-        for Le, n in zip(shaft_elements_length, nodes):
-            node_pos = nodes_pos[n]
-            Nx = np.hstack((N1, Le * N2, N3, Le * N4))
-            Ny = np.hstack((N1, -Le * N2, N3, -Le * N4))
-
-            xx = [4 * n, 4 * n + 3, 4 * n + 4, 4 * n + 7]
-            yy = [4 * n + 1, 4 * n + 2, 4 * n + 5, 4 * n + 6]
-
-            pos0 = nn * n
-            pos1 = nn * (n + 1)
-
-            xn[pos0:pos1] = Nx @ evec0[xx].real
-            yn[pos0:pos1] = Ny @ evec0[yy].real
-            zn[pos0:pos1] = (node_pos * onn + Le * zeta).reshape(nn)
-
-        return xn, yn, zn, x_circles, y_circles, z_circles_pos, nn
-
-    def plot(self, mode=None, evec=None, fig=None, ax=None):
-        """
-        Method that plots the mode shapes.
-
-        Parameters
-        ----------
-        mode : int
-            The n'th vibration mode
-            Default is None
-        evec : array
-            Array containing the system eigenvectors
-        fig : matplotlib figure
-            The figure object with the plot.
-        ax : matplotlib axes
-            The axes object with the plot.
-
-        Returns
-        -------
-        fig : matplotlib figure
-            Returns the figure object with the plot.
-        ax : matplotlib axes
-            Returns the axes object with the plot.
-        """
-        if ax is None:
-            fig = plt.figure()
-            ax = fig.gca(projection="3d")
-
-        nodes = self.nodes
-        kappa_mode = self.kappa_modes[mode]
-        xn, yn, zn, xc, yc, zc_pos, nn = self.calc_mode_shape(mode=mode, evec=evec)
-
-        for node in nodes:
-            ax.plot(
-                xc[10:, node],
-                yc[10:, node],
-                zc_pos[10:, node],
-                color=kappa_mode[node],
-                linewidth=0.5,
-                zdir="x",
-            )
-            ax.scatter(
-                xc[10, node],
-                yc[10, node],
-                zc_pos[10, node],
-                s=5,
-                color=kappa_mode[node],
-                zdir="x",
-            )
-
-        ax.plot(xn, yn, zn, "k--", zdir="x")
-
-        # plot center line
-        zn_cl0 = -(zn[-1] * 0.1)
-        zn_cl1 = zn[-1] * 1.1
-        zn_cl = np.linspace(zn_cl0, zn_cl1, 30)
-        ax.plot(zn_cl * 0, zn_cl * 0, zn_cl, "k-.", linewidth=0.8, zdir="x")
-
-        ax.set_zlim(-2, 2)
-        ax.set_ylim(-2, 2)
-        ax.set_xlim(zn_cl0 - 0.1, zn_cl1 + 0.1)
-
-        ax.set_title(
-            f"$speed$ = {self.w:.1f} rad/s\n$"
-            f"\omega_d$ = {self.wd[mode]:.1f} rad/s\n"
-            f"$log dec$ = {self.log_dec[mode]:.1f}"
-        )
-
-        return fig, ax
 
 
 class StaticResults:
