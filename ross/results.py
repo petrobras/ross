@@ -44,7 +44,7 @@ class ModalResults:
        Example
        -------
        >>> kappa_mode = [-5.06e-13, -3.09e-13, -2.91e-13, 0.011, -4.03e-13, -2.72e-13, -2.72e-13]
-       >>> whirl(kappa_mode)
+       >>> ModalResults.whirl(kappa_mode)
        'Forward'
        """
         if all(kappa >= -1e-3 for kappa in kappa_mode):
@@ -150,12 +150,6 @@ class ModalResults:
             Dictionary with values for :math:`r_u, r_v, \eta_u, \eta_v`.
 
             It will be returned only if return_T is True.
-
-        Examples
-        --------
-        >>> rotor = rotor_example()
-        >>> # H matrix for the 0th node
-        >>> h_kappa = rotor.H_kappa(0, 0)
         """
         # get vector of interest based on freqs
         vector = self.evectors[4 * node : 4 * node + 2, w]
@@ -214,16 +208,6 @@ class ModalResults:
         kappa: dict
             A dictionary with values for the natural frequency,
             major axis, minor axis and kappa.
-
-        Examples
-        --------
-        >>> rotor = rotor_example()
-        >>> # kappa for each node of the first natural frequency
-        >>> # Major axes for node 0 and natural frequency (mode) 0.
-        >>> rotor.kappa(0, 0)['Major axes'] # doctest: +ELLIPSIS
-        0.00141...
-        >>> # kappa for node 2 and natural frequency (mode) 3.
-        >>> kappa = rotor.kappa(2, 3)['kappa'].round(2) # doctest: +ELLIPSIS
         """
         if wd:
             nat_freq = self.wd[w]
@@ -283,13 +267,6 @@ class ModalResults:
         kappa_mode: list
             A list with the value of kappa for each node related
             to the mode/natural frequency of interest.
-
-        Examples
-        --------
-        >>> rotor = rotor_example()
-        >>> # kappa for each node of the first natural frequency
-        >>> rotor.kappa_mode(0) # doctest: +ELLIPSIS
-        [...]
         """
         kappa_mode = [self.kappa(node, w)["kappa"] for node in self.nodes]
         return kappa_mode
