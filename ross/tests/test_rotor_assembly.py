@@ -1031,10 +1031,10 @@ def rotor7():
 def test_whirl_values(rotor7):
     speed_range = np.linspace(50, 500, 10)
     for speed in speed_range:
-        rotor7.w = speed
-        assert_allclose(rotor7.whirl_values(), [1.0, 0.0, 1.0, 0.0, 1.0, 0.0], atol=0)
+        modal7 = rotor7.run_modal(speed)
+        assert_allclose(modal7.whirl_values(), [1.0, 0.0, 1.0, 0.0, 1.0, 0.0], atol=0)
         assert_equal(
-            rotor7.whirl_direction(),
+            modal7.whirl_direction(),
             np.array(
                 ["Backward", "Forward", "Backward", "Forward", "Backward", "Forward"],
                 dtype="<U8",
@@ -1043,9 +1043,9 @@ def test_whirl_values(rotor7):
 
 
 def test_kappa_mode(rotor7):
-    rotor7.w = 100.0
+    modal7 = rotor7.run_modal(100.0)
     assert_allclose(
-        rotor7.kappa_mode(0),
+        modal7.kappa_mode(0),
         [
             -0.999999999989335,
             -0.9999999999893868,
@@ -1058,7 +1058,7 @@ def test_kappa_mode(rotor7):
         rtol=1e-7,
     )
     assert_allclose(
-        rotor7.kappa_mode(1),
+        modal7.kappa_mode(1),
         [
             0.9999999999926857,
             0.9999999999925702,
@@ -1071,7 +1071,7 @@ def test_kappa_mode(rotor7):
         rtol=1e-7,
     )
     assert_allclose(
-        rotor7.kappa_mode(2),
+        modal7.kappa_mode(2),
         [
             -0.9999999999586078,
             -0.9999999999590045,
@@ -1084,9 +1084,9 @@ def test_kappa_mode(rotor7):
         rtol=1e-7,
     )
 
-    rotor7.w = 250.0
+    modal7 = rotor7.run_modal(speed=250.0)
     assert_allclose(
-        rotor7.kappa_mode(0),
+        modal7.kappa_mode(0),
         [
             -0.9999999999996795,
             -0.9999999999997023,
@@ -1099,7 +1099,7 @@ def test_kappa_mode(rotor7):
         rtol=1e-7,
     )
     assert_allclose(
-        rotor7.kappa_mode(1),
+        modal7.kappa_mode(1),
         [
             0.9999999999992075,
             0.999999999999222,
@@ -1112,7 +1112,7 @@ def test_kappa_mode(rotor7):
         rtol=1e-7,
     )
     assert_allclose(
-        rotor7.kappa_mode(2),
+        modal7.kappa_mode(2),
         [
             -0.9999999999955613,
             -0.999999999995006,
@@ -1125,9 +1125,9 @@ def test_kappa_mode(rotor7):
         rtol=1e-7,
     )
 
-    rotor7.w = 500.0
+    modal7 = rotor7.run_modal(500.0)
     assert_allclose(
-        rotor7.kappa_mode(0),
+        modal7.kappa_mode(0),
         [
             -0.9999999999986061,
             -0.999999999998796,
@@ -1140,7 +1140,7 @@ def test_kappa_mode(rotor7):
         rtol=1e-7,
     )
     assert_allclose(
-        rotor7.kappa_mode(1),
+        modal7.kappa_mode(1),
         [
             0.9999999999995656,
             0.9999999999993939,
@@ -1153,7 +1153,7 @@ def test_kappa_mode(rotor7):
         rtol=1e-7,
     )
     assert_allclose(
-        rotor7.kappa_mode(2),
+        modal7.kappa_mode(2),
         [
             -0.999999999997584,
             -0.9999999999976369,
@@ -1168,29 +1168,29 @@ def test_kappa_mode(rotor7):
 
 
 def test_kappa_axes_values(rotor7):
-    rotor7.w = 50
-    assert_allclose(rotor7.kappa(3, 0)["Minor axes"], 0.0024460977827471028, atol=1e-6)
-    assert_allclose(rotor7.kappa(3, 1)["Minor axes"], 0.0024415401094917922, atol=1e-6)
-    assert_allclose(rotor7.kappa(3, 2)["Minor axes"], 7.753006465896838e-05, atol=1e-8)
-    assert_allclose(rotor7.kappa(3, 0)["Major axes"], 0.0024460977827550083, atol=1e-6)
-    assert_allclose(rotor7.kappa(3, 1)["Major axes"], 0.0024415401094980776, atol=1e-6)
-    assert_allclose(rotor7.kappa(3, 2)["Major axes"], 7.753006466024783e-05, atol=1e-8)
+    modal7 = rotor7.run_modal(50)
+    assert_allclose(modal7.kappa(3, 0)["Minor axes"], 0.0024460977827471028, atol=1e-6)
+    assert_allclose(modal7.kappa(3, 1)["Minor axes"], 0.0024415401094917922, atol=1e-6)
+    assert_allclose(modal7.kappa(3, 2)["Minor axes"], 7.753006465896838e-05, atol=1e-8)
+    assert_allclose(modal7.kappa(3, 0)["Major axes"], 0.0024460977827550083, atol=1e-6)
+    assert_allclose(modal7.kappa(3, 1)["Major axes"], 0.0024415401094980776, atol=1e-6)
+    assert_allclose(modal7.kappa(3, 2)["Major axes"], 7.753006466024783e-05, atol=1e-8)
 
-    rotor7.w = 200
-    assert_allclose(rotor7.kappa(3, 0)["Minor axes"], 0.002453197790184042, atol=1e-6)
-    assert_allclose(rotor7.kappa(3, 1)["Minor axes"], 0.0024349531472631354, atol=1e-6)
-    assert_allclose(rotor7.kappa(3, 2)["Minor axes"], 8.081580235887124e-05, atol=1e-8)
-    assert_allclose(rotor7.kappa(3, 0)["Major axes"], 0.002453197790191339, atol=1e-6)
-    assert_allclose(rotor7.kappa(3, 1)["Major axes"], 0.0024349531472711047, atol=1e-6)
-    assert_allclose(rotor7.kappa(3, 2)["Major axes"], 8.081580235956821e-05, atol=1e-8)
+    modal7 = rotor7.run_modal(200)
+    assert_allclose(modal7.kappa(3, 0)["Minor axes"], 0.002453197790184042, atol=1e-6)
+    assert_allclose(modal7.kappa(3, 1)["Minor axes"], 0.0024349531472631354, atol=1e-6)
+    assert_allclose(modal7.kappa(3, 2)["Minor axes"], 8.081580235887124e-05, atol=1e-8)
+    assert_allclose(modal7.kappa(3, 0)["Major axes"], 0.002453197790191339, atol=1e-6)
+    assert_allclose(modal7.kappa(3, 1)["Major axes"], 0.0024349531472711047, atol=1e-6)
+    assert_allclose(modal7.kappa(3, 2)["Major axes"], 8.081580235956821e-05, atol=1e-8)
 
-    rotor7.w = 400
-    assert_allclose(rotor7.kappa(3, 0)["Minor axes"], 0.002463187671800876, atol=1e-6)
-    assert_allclose(rotor7.kappa(3, 1)["Minor axes"], 0.0024266089747119572, atol=1e-6)
-    assert_allclose(rotor7.kappa(3, 2)["Minor axes"], 8.480305842194371e-05, atol=1e-8)
-    assert_allclose(rotor7.kappa(3, 0)["Major axes"], 0.002463187671801488, atol=1e-6)
-    assert_allclose(rotor7.kappa(3, 1)["Major axes"], 0.0024266089747121845, atol=1e-6)
-    assert_allclose(rotor7.kappa(3, 2)["Major axes"], 8.480305842205874e-05, atol=1e-8)
+    modal7 = rotor7.run_modal(400)
+    assert_allclose(modal7.kappa(3, 0)["Minor axes"], 0.002463187671800876, atol=1e-6)
+    assert_allclose(modal7.kappa(3, 1)["Minor axes"], 0.0024266089747119572, atol=1e-6)
+    assert_allclose(modal7.kappa(3, 2)["Minor axes"], 8.480305842194371e-05, atol=1e-8)
+    assert_allclose(modal7.kappa(3, 0)["Major axes"], 0.002463187671801488, atol=1e-6)
+    assert_allclose(modal7.kappa(3, 1)["Major axes"], 0.0024266089747121845, atol=1e-6)
+    assert_allclose(modal7.kappa(3, 2)["Major axes"], 8.480305842205874e-05, atol=1e-8)
 
 
 @pytest.mark.skip(reason="Fails for very small values")
@@ -1271,10 +1271,11 @@ def test_rotor_link():
     rotor = Rotor(
         shaft_elem, [disk0, disk1], [bearing0, support, bearing1], [point_mass]
     )
-    rotor.w = 1000 / 9.5492965964254
+
+    modal = rotor.run_modal(1000 / 9.5492965964254)
 
     wn_expected = np.array(
         [82.43809938, 87.5639844, 239.36021417, 261.15187937, 646.59858922, 688.428424]
     )
 
-    assert_allclose(rotor.wn, wn_expected)
+    assert_allclose(modal.wn, wn_expected)
