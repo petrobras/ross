@@ -47,6 +47,8 @@ def test_example1_w_equals_0rpm():
 def test_example1_w_equals_4000rpm():
     rotor = rotor_example1(6)
     modal = rotor.run_modal(4000 * np.pi / 30)
+    print(modal.wn)
+    print(modal.wd)
     assert modal.wn == pytest.approx(
         np.array([85.39, 87.80, 251.78, 294.71, 600.18, 827.08]), 1e-3
     )

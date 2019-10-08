@@ -470,7 +470,6 @@ class Rotor(object):
             warnings.simplefilter("ignore")
             log_dec = 2 * np.pi * damping_ratio / np.sqrt(1 - damping_ratio ** 2)
         lti = self._lti()
-
         modal_results = ModalResults(
             evalues, evectors, wn, wd, damping_ratio, log_dec, lti
         )
@@ -760,7 +759,7 @@ class Rotor(object):
 
         return G0
 
-    def A(self, frequency=None, speed=None):
+    def A(self, speed=None, frequency=None):
         """State space matrix for an instance of a rotor.
 
         Parameters
@@ -838,7 +837,7 @@ class Rotor(object):
 
         return idx
 
-    def _eigen(self, w=None, sorted_=True, A=None):
+    def _eigen(self, speed=None, frequency=None, sorted_=True, A=None):
         r"""This method will return the eigenvalues and eigenvectors of the
         state space matrix A, sorted by the index method which considers
         the imaginary part (wd) of the eigenvalues for sorting.
@@ -846,8 +845,17 @@ class Rotor(object):
 
         Parameters
         ----------
-        w: float
+        speed: float
             Rotor speed.
+        frequency: float
+            Excitation frequency.
+        sorted_: bool, optional
+            Sort considering the imaginary part (wd)
+            Default is True
+        A: np.array, optional
+            Matrix for which eig will be calculated.
+            Defaul is the rotor A matrix.
+
 
         Returns
         -------
@@ -863,10 +871,10 @@ class Rotor(object):
         >>> evalues[0].imag # doctest: +ELLIPSIS
         91.796...
         """
-        if w is None:
-            w = self.w
+        if speed is None:
+            speed = self.w
         if A is None:
-            A = self.A(w)
+            A = self.A(speed=speed, frequency=frequency)
 
         if self.sparse is True:
             try:
