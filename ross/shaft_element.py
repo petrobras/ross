@@ -2,15 +2,14 @@ import os
 from pathlib import Path
 
 import bokeh.palettes as bp
-from bokeh.models import HoverTool, ColumnDataSource
 import matplotlib.patches as mpatches
 import numpy as np
 import toml
+from bokeh.models import ColumnDataSource, HoverTool
 
 import ross
 from ross.element import Element
-from ross.materials import Material
-from ross.materials import steel
+from ross.materials import Material, steel
 from ross.utils import read_table_file
 
 __all__ = ["ShaftElement", "ShaftTaperedElement"]

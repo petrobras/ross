@@ -1,7 +1,13 @@
 import sys
 import numpy as np
-from ross.fluid_flow.fluid_flow_geometry import calculate_attitude_angle, internal_radius_function,\
-    external_radius_function, modified_sommerfeld_number, calculate_eccentricity_ratio, calculate_rotor_load
+from ross.fluid_flow.fluid_flow_geometry import (
+    calculate_attitude_angle,
+    internal_radius_function,
+    external_radius_function,
+    modified_sommerfeld_number,
+    calculate_eccentricity_ratio,
+    calculate_rotor_load,
+)
 
 
 class PressureMatrix:
@@ -152,25 +158,25 @@ class PressureMatrix:
     >>> # show(my_fluid_flow.plot_eccentricity())
     >>> # show(my_fluid_flow.plot_pressure_theta(z=int(nz/2)))
     >>> matplot_pressure_theta(my_fluid_flow, z=int(nz/2)) # doctest: +ELLIPSIS
-    <matplotlib.axes._subplots.AxesSubplot object at...
+    <matplotlib.axes._subplots...
     """
 
     def __init__(
-            self,
-            nz,
-            ntheta,
-            nradius,
-            length,
-            omega,
-            p_in,
-            p_out,
-            radius_rotor,
-            radius_stator,
-            viscosity,
-            density,
-            beta=None,
-            eccentricity=None,
-            load=None,
+        self,
+        nz,
+        ntheta,
+        nradius,
+        length,
+        omega,
+        p_in,
+        p_out,
+        radius_rotor,
+        radius_stator,
+        viscosity,
+        density,
+        beta=None,
+        eccentricity=None,
+        load=None,
     ):
         if load is None and eccentricity is None:
             sys.exit("Either load or eccentricity must be given.")
@@ -206,15 +212,27 @@ class PressureMatrix:
         self.load = load
         if self.eccentricity is None:
             modified_s = modified_sommerfeld_number(
-                       self.radius_stator, self.omega, self.viscosity, self.length,
-                       self.load, self.radial_clearance)
+                self.radius_stator,
+                self.omega,
+                self.viscosity,
+                self.length,
+                self.load,
+                self.radial_clearance,
+            )
             self.eccentricity = (
-                    calculate_eccentricity_ratio(modified_s) * self.difference_between_radius
+                calculate_eccentricity_ratio(modified_s)
+                * self.difference_between_radius
             )
         self.eccentricity_ratio = self.eccentricity / self.difference_between_radius
         if self.load is None:
-            self.load = calculate_rotor_load(self.radius_stator, self.omega, self.viscosity,
-                                             self.length, self.radial_clearance, self.eccentricity_ratio)
+            self.load = calculate_rotor_load(
+                self.radius_stator,
+                self.omega,
+                self.viscosity,
+                self.length,
+                self.radial_clearance,
+                self.eccentricity_ratio,
+            )
         if beta is None:
             self.beta = calculate_attitude_angle(self.eccentricity_ratio)
         else:
@@ -265,7 +283,7 @@ class PressureMatrix:
         >>> my_fluid_flow.calculate_pressure_matrix_analytical() # doctest: +ELLIPSIS
         array([[...
         """
-        if self.bearing_type == "short_bearing" or force_type == 'short':
+        if self.bearing_type == "short_bearing" or force_type == "short":
             if method == 0:
                 for i in range(0, self.nz):
                     for j in range(0, self.ntheta):
@@ -292,24 +310,41 @@ class PressureMatrix:
                         # fmt: on
                         if self.p_mat_analytical[i][j] < 0:
                             self.p_mat_analytical[i][j] = 0
-        elif self.bearing_type == "long_bearing" or force_type == 'long':
+        elif self.bearing_type == "long_bearing" or force_type == "long":
             if method == 0:
                 for i in range(0, self.nz):
                     for j in range(0, self.ntheta):
-                        self.p_mat_analytical[i][j] = (6 * self.viscosity * self.omega *
-                                                       (self.ri[i][j] / self.difference_between_radius) ** 2 *
-                                                       self.eccentricity_ratio * np.sin(self.gama[i][j]) *
-                                                       (2 + self.eccentricity_ratio * np.cos(self.gama[i][j]))) / (
-                                                              (2 + self.eccentricity_ratio ** 2) *
-                                                              (1 + self.eccentricity_ratio * np.cos(
-                                                                  self.gama[i][j])) ** 2) + \
-                                                      self.p_in
+                        self.p_mat_analytical[i][j] = (
+                            (
+                                6
+                                * self.viscosity
+                                * self.omega
+                                * (self.ri[i][j] / self.difference_between_radius) ** 2
+                                * self.eccentricity_ratio
+                                * np.sin(self.gama[i][j])
+                                * (
+                                    2
+                                    + self.eccentricity_ratio * np.cos(self.gama[i][j])
+                                )
+                            )
+                            / (
+                                (2 + self.eccentricity_ratio ** 2)
+                                * (
+                                    1
+                                    + self.eccentricity_ratio * np.cos(self.gama[i][j])
+                                )
+                                ** 2
+                            )
+                            + self.p_in
+                        )
                         if self.p_mat_analytical[i][j] < 0:
                             self.p_mat_analytical[i][j] = 0
         elif self.bearing_type == "medium_size":
-            raise ValueError("The pressure matrix for a bearing that is neither short or long can only be calculated "
-                             "numerically. Try calling calculate_pressure_matrix_numerical or setting force_type "
-                             "to either 'short' or 'long' in calculate_pressure_matrix_analytical.")
+            raise ValueError(
+                "The pressure matrix for a bearing that is neither short or long can only be calculated "
+                "numerically. Try calling calculate_pressure_matrix_numerical or setting force_type "
+                "to either 'short' or 'long' in calculate_pressure_matrix_analytical."
+            )
         self.analytical_pressure_matrix_available = True
         return self.p_mat_analytical
 
@@ -367,7 +402,7 @@ class PressureMatrix:
                 # fmt: on
                 if not eccentricity_error:
                     if abs(self.xri[i][j]) > abs(self.xre[i][j]) or abs(
-                            self.yri[i][j]
+                        self.yri[i][j]
                     ) > abs(self.yre[i][j]):
                         eccentricity_error = True
             if eccentricity_error:
@@ -496,12 +531,19 @@ def pressure_matrix_example():
     >>> my_fluid_flow.eccentricity
     0.001
     """
-    my_pressure_matrix = PressureMatrix(nz=8, ntheta=64, nradius=11, length=0.01, omega=100. * 2 * np.pi / 60,
-                                        p_in=0., p_out=0., radius_rotor=0.08, radius_stator=0.1,
-                                        viscosity=0.015, density=860., eccentricity=0.001, beta=np.pi)
+    my_pressure_matrix = PressureMatrix(
+        nz=8,
+        ntheta=64,
+        nradius=11,
+        length=0.01,
+        omega=100.0 * 2 * np.pi / 60,
+        p_in=0.0,
+        p_out=0.0,
+        radius_rotor=0.08,
+        radius_stator=0.1,
+        viscosity=0.015,
+        density=860.0,
+        eccentricity=0.001,
+        beta=np.pi,
+    )
     return my_pressure_matrix
-
-
-
-
-

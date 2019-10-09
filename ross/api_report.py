@@ -6,25 +6,14 @@ import ross as rs
 
 import bokeh.palettes as bp
 from bokeh.plotting import figure
-from bokeh.models import (
-        ColumnDataSource,
-        HoverTool,
-        Span,
-        Label,
-)
+from bokeh.models import ColumnDataSource, HoverTool, Span, Label
 
 # set bokeh palette of colors
 bokeh_colors = bp.RdGy[11]
 
 
 class Report:
-    def __init__(
-            self,
-            rotor,
-            minspeed,
-            maxspeed,
-            speed_units="rpm",
-    ):
+    def __init__(self, rotor, minspeed, maxspeed, speed_units="rpm"):
         """Report according to standard analysis.
 
         - Perform Stability_level1 analysis
@@ -63,7 +52,7 @@ class Report:
 
         self.maxspeed = maxspeed
         self.minspeed = minspeed
-                
+
     @classmethod
     def from_saved_rotors(cls, path, minspeed, maxspeed, speed_units="rpm"):
         """
@@ -162,17 +151,13 @@ class Report:
         # get disk masses
         W3 = 0
         for disk in self.rotor.disk_elements:
-            if disk.n > self.rotor.df_bearings['n'].iloc[-1]:
+            if disk.n > self.rotor.df_bearings["n"].iloc[-1]:
                 W3 += disk.m
                 U = [6350 * W3 / N]
 
         return U
 
-    def unbalance_response(
-            self,
-            clearances,
-            mode,
-    ):
+    def unbalance_response(self, clearances, mode):
         """Evaluates the unbalance response for the rotor.
 
         This analysis takes the critical speeds of interest, calculates the
@@ -240,9 +225,7 @@ class Report:
             peak_n = 0.707 * peak
             peak_aux = np.linspace(peak_n, peak_n, len(freq_range))
 
-            idx = np.argwhere(
-                np.diff(np.sign(peak_aux - magnitude))
-            ).flatten()
+            idx = np.argwhere(np.diff(np.sign(peak_aux - magnitude))).flatten()
             idx = np.sort(np.append(idx, idx_max[i]))
 
             # if speed range is not long enough to catch the magnitudes
@@ -253,15 +236,10 @@ class Report:
                 ]
                 idx = idx[idx_aux]
             except IndexError:
-                idx = [
-                    list(idx).index(idx_max[i]) - 1,
-                    len(freq_range) - 1
-                ]
+                idx = [list(idx).index(idx_max[i]) - 1, len(freq_range) - 1]
 
             # Amplification Factor (AF) - API684 - SP6.8.2.1
-            AF = wn[i] / (
-                freq_range[idx[1]] - freq_range[idx[0]]
-            )
+            AF = wn[i] / (freq_range[idx[1]] - freq_range[idx[0]])
 
             # Separation Margin (SM) - API684 - SP6.8.2.10
             if AF > 2.5 and wn[i] < minspeed:
@@ -380,7 +358,7 @@ class Report:
         )
         mag_plot.add_layout(
             Label(
-                x=(minspeed+maxspeed)/2,
+                x=(minspeed + maxspeed) / 2,
                 y=A1,
                 angle=0,
                 text="Av1",
@@ -427,7 +405,9 @@ class Report:
         """
         nodes_pos = self.rotor.nodes_pos
 
-        xn, yn, zn, xc, yc, zc_pos, nn = self.rotor.run_mode_shapes().calc_mode_shape(mode=mode)
+        # TODO: Add mcs speed to evaluate mode shapes
+        modal = self.rotor.run_modal(speed=0)
+        xn, yn, zn, xc, yc, zc_pos, nn = modal.calc_mode_shape(mode=mode)
 
         # reduce 3D view to 2D view
         vn = np.zeros(len(zn))
@@ -438,7 +418,7 @@ class Report:
         # remove repetitive values from zn and vn
         idx_remove = []
         for i in range(1, len(zn)):
-            if zn[i] == zn[i-1]:
+            if zn[i] == zn[i - 1]:
                 idx_remove.append(i)
         zn = np.delete(zn, idx_remove)
         vn = np.delete(vn, idx_remove)
@@ -499,17 +479,17 @@ class Report:
             y=np.zeros(len(nodes_pos)),
             line_dash="dotdash",
             line_width=4.0,
-            line_color='black'
+            line_color="black",
         )
         plot.circle(
-            x=nodes_pos[self.rotor.df_bearings['n'].tolist()],
+            x=nodes_pos[self.rotor.df_bearings["n"].tolist()],
             y=np.zeros(len(self.rotor.df_bearings)),
             size=12,
-            fill_color='black'
+            fill_color="black",
         )
         plot.add_layout(
             Label(
-                x=np.mean(nodes_pos[self.rotor.df_bearings['n'].tolist()]),
+                x=np.mean(nodes_pos[self.rotor.df_bearings["n"].tolist()]),
                 y=0,
                 angle=0,
                 text="Bearing Span",
@@ -520,13 +500,13 @@ class Report:
                 y_offset=20,
             )
         )
-        for node in nodes_pos[self.rotor.df_bearings['n'].tolist()]:
+        for node in nodes_pos[self.rotor.df_bearings["n"].tolist()]:
             plot.add_layout(
                 Span(
                     location=node,
-                    dimension='height',
-                    line_color='green',
-                    line_dash='dashed',
+                    dimension="height",
+                    line_color="green",
+                    line_dash="dashed",
                     line_width=3,
                 )
             )
