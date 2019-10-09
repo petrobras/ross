@@ -1570,60 +1570,6 @@ class ForcedResponseResults:
             raise ValueError(f"{plot_type} is not a valid plot type.")
 
 
-class ModeShapeResults:
-    """Evaluates the mode shapes for the rotor.
-
-    This analysis presents the vibration mode for each critical speed.
-
-    Parameters
-    ----------
-    modes : array
-        Array of eigenvectors
-    ndof : int
-        Number of degrees of freedom of the system
-    nodes : list
-        list of node numbers
-    nodes_pos : list
-        list of nodes positions
-    elements_length : list
-        list with length of each shaft element
-    w : float, list
-        rotor speed
-    wd : list
-        list with damped natural frequency
-    log_dec : list
-        list with logarithmic decrements
-    kappa_modes : list
-        list with values of kappa
-
-    Returns
-    -------
-    A graphic object
-    """
-
-    def __init__(
-        self,
-        modes,
-        ndof,
-        nodes,
-        nodes_pos,
-        shaft_elements_length,
-        w,
-        wd,
-        log_dec,
-        kappa_modes,
-    ):
-        self.modes = modes
-        self.ndof = ndof
-        self.nodes = nodes
-        self.nodes_pos = nodes_pos
-        self.shaft_elements_length = shaft_elements_length
-        self.w = w
-        self.wd = wd
-        self.log_dec = log_dec
-        self.kappa_modes = kappa_modes
-
-
 class StaticResults:
     """Class used to store results and provide plots for Static Analysis.
 
