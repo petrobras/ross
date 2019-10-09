@@ -44,7 +44,7 @@ REQUIRED = [
     "scipy",
     "matplotlib",
     "toml",
-    "pandas",
+    "pandas>=0.23",
     "bokeh",
     "coverage",
     "xlrd",
