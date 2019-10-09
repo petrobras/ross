@@ -220,8 +220,8 @@ class FluidFlow:
             self.attitude_angle = calculate_attitude_angle(self.eccentricity_ratio)
         else:
             self.attitude_angle = attitude_angle
-        self.xi = self.eccentricity * np.cos(2 * np.pi - self.attitude_angle)
-        self.yi = self.eccentricity * np.sin(2 * np.pi - self.attitude_angle)
+        self.xi = self.eccentricity * np.cos(-np.pi/2 + self.attitude_angle)
+        self.yi = self.eccentricity * np.sin(-np.pi/2 + self.attitude_angle)
         self.re = np.zeros([self.nz, self.ntheta])
         self.ri = np.zeros([self.nz, self.ntheta])
         self.z_list = np.zeros(self.nz)
