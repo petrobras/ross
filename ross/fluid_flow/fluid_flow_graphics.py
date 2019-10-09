@@ -207,9 +207,11 @@ def matplot_eccentricity(pressure_matrix_object, z=0, ax=None):
         Returns the axes object with the plot.
     Examples
     --------
+    >>> import matplotlib.pyplot as plt
     >>> from ross.fluid_flow.fluid_flow import pressure_matrix_example
     >>> my_fluid_flow = pressure_matrix_example()
-    >>> ax = matplot_eccentricity(my_fluid_flow, z=int(my_fluid_flow.nz/2))
+    >>> fig, ax = plt.subplots()
+    >>> ax = matplot_eccentricity(my_fluid_flow, z=int(my_fluid_flow.nz/2), ax=ax)
     >>> # to show the plots you can use:
     >>> # plt.show()
     """
