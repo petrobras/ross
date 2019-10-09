@@ -170,8 +170,9 @@ def test_long_bearing():
 def test_oil_film_force_short():
     bearing = fluid_flow_short_numerical()
     bearing.calculate_pressure_matrix_numerical()
-    n, t = calculate_oil_film_force(bearing)
-    n_numerical, t_numerical = calculate_oil_film_force(bearing, force_type='numerical')
+    n, t, force_x, force_y = calculate_oil_film_force(bearing)
+    n_numerical, t_numerical, force_x_numerical, force_y_numerical = \
+        calculate_oil_film_force(bearing, force_type='numerical')
     error_n = (n - n_numerical) / n_numerical
     error_t = (t - t_numerical) / t_numerical
     assert_allclose(error_n, 0, atol=0.009)
@@ -181,8 +182,9 @@ def test_oil_film_force_short():
 def test_oil_film_force_long():
     bearing = fluid_flow_long_numerical()
     bearing.calculate_pressure_matrix_numerical()
-    n, t = calculate_oil_film_force(bearing)
-    n_numerical, t_numerical = calculate_oil_film_force(bearing, force_type='numerical')
+    n, t, force_x, force_y = calculate_oil_film_force(bearing)
+    n_numerical, t_numerical, force_x_numerical, force_y_numerical = \
+        calculate_oil_film_force(bearing, force_type='numerical')
     error_n = (n - n_numerical) / n_numerical
     error_t = (t - t_numerical) / t_numerical
     assert_allclose(error_n, 0, atol=0.2)
