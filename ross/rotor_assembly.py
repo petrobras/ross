@@ -38,6 +38,7 @@ from ross.results import (
     ForcedResponseResults,
     ModeShapeResults,
     StaticResults,
+    SummaryResults,
     ConvergenceResults,
     TimeResponseResults,
 )
@@ -239,6 +240,8 @@ class Rotor(object):
             "L",
             "node_pos",
             "node_pos_r",
+            "beam_cg",
+            "axial_cg_pos",
             "y_pos",
             "i_d",
             "o_d",
@@ -271,10 +274,13 @@ class Rotor(object):
 
         nodes_pos_l = np.zeros(len(df_shaft.n_l))
         nodes_pos_r = np.zeros(len(df_shaft.n_l))
+        axial_cg_pos = np.zeros(len(df_shaft.n_l))
 
-        for i in range(len(df_shaft)):
+        for i, sh in enumerate(self.shaft_elements):
             if i == 0:
                 nodes_pos_r[i] = nodes_pos_r[i] + df_shaft.loc[i, "L"]
+                axial_cg_pos[i] = sh.beam_cg + nodes_pos_l[i]
+                sh.axial_cg_pos = axial_cg_pos[i]
                 continue
             if df_shaft.loc[i, "n_l"] == df_shaft.loc[i - 1, "n_l"]:
                 nodes_pos_l[i] = nodes_pos_l[i - 1]
@@ -282,9 +288,12 @@ class Rotor(object):
             else:
                 nodes_pos_l[i] = nodes_pos_r[i - 1]
                 nodes_pos_r[i] = nodes_pos_l[i] + df_shaft.loc[i, "L"]
+            axial_cg_pos[i] = sh.beam_cg + nodes_pos_l[i]
+            sh.axial_cg_pos = axial_cg_pos[i]
 
         df_shaft["nodes_pos_l"] = nodes_pos_l
         df_shaft["nodes_pos_r"] = nodes_pos_r
+        df_shaft["axial_cg_pos"] = axial_cg_pos
 
         df = pd.concat(
             [df_shaft, df_disks, df_bearings, df_point_mass, df_seals], sort=True
@@ -2498,6 +2507,30 @@ class Rotor(object):
                 Vx_axis,
             )
 
+        return results
+
+    def summary(self):
+        """Rotor summary.
+
+        This creates a summary of the main parameters and attributes from the
+        rotor model. The data is presented in a table format.
+
+        Parameters
+        ----------
+
+        Returns
+        -------
+        results : class instance
+            An instance of SumarryResults class to build the summary table
+
+        Examples
+        --------
+        >>> rotor = rotor_example()
+        >>> table = rotor.summary().plot()
+        >>> # to display the plot use the command:
+        >>> # show(table)
+        """
+        results = SummaryResults(self.df_shaft)
         return results
 
     @classmethod

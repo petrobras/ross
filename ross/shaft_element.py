@@ -148,6 +148,10 @@ class ShaftElement(Element):
         self.Ie = np.pi * (o_d ** 4 - i_d ** 4) / 64
         phi = 0
 
+        # Geometric center
+        self.beam_cg = L / 2
+        self.axial_cg_pos = None
+
         # Slenderness ratio of beam elements (G*A*L^2) / (E*I)
         sld = (self.material.G_s * self.A * self.L ** 2) / (self.material.E * self.Ie)
         self.slenderness_ratio = sld
@@ -1018,6 +1022,19 @@ class ShaftTaperedElement(Element):
         self.Ie_l = Ie_l
 
         phi = 0
+
+        # geometric center
+        c1 = (
+            roj ** 2
+            + 2 * roj * rok
+            + 3 * rok ** 2
+            - rij ** 2
+            - 2 * rij * rik
+            - 3 * rik ** 2
+        )
+        c2 = (roj ** 2 + roj * rok + rok ** 2) - (rij ** 2 + rij * rik + rik ** 2)
+        self.beam_cg = L * c1 / (4 * c2)
+        self.axial_cg_pos = None
 
         # Slenderness ratio of beam elements (G*A*L^2) / (E*I)
         sld = (self.material.G_s * self.A * self.L ** 2) / (self.material.E * Ie)

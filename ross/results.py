@@ -6,10 +6,11 @@ from matplotlib import cm
 from bokeh.colors import RGB
 import bokeh.palettes as bp
 from mpl_toolkits.mplot3d import Axes3D
-from bokeh.layouts import gridplot
+from bokeh.layouts import gridplot, widgetbox
 from bokeh.plotting import figure
 from bokeh.transform import linear_cmap
 from bokeh.models import ColumnDataSource, ColorBar, Arrow, NormalHead, Label, HoverTool
+from bokeh.models.widgets import DataTable, NumberFormatter, TableColumn
 
 # set bokeh palette of colors
 bokeh_colors = bp.RdGy[11]
@@ -1710,6 +1711,98 @@ class StaticResults:
         )
 
         return fig
+
+
+class SummaryResults:
+    """Class used to store results and provide plots rotor summary.
+
+    This class aims to present a summary of the main parameters and attributes
+    from a rotor model. The data is presented in a table format.
+
+    Parameters
+    ----------
+    df_shaft : dataframe
+        shaft dataframe
+
+    Returns
+    -------
+    table : bokeh WidgetBox
+        Bokeh WidgetBox with the summary table plot
+    """
+    def __init__(self, df_shaft):
+        self.df_shaft = df_shaft
+
+    def plot(self):
+        """Plot the summary table.
+
+        This method plots:
+            Table with summary of rotor parameters and attributes
+
+        Parameters
+        ----------
+
+        Returns
+        -------
+        table : bokeh WidgetBox
+            Bokeh WidgetBox with the summary table plot
+        """
+        materials = [mat.name for mat in self.df_shaft["material"]]
+
+        data = dict(
+            tags=self.df_shaft["tag"],
+            lft_stn=self.df_shaft["n_l"],
+            rgt_stn=self.df_shaft["n_r"],
+            elem_no=self.df_shaft["_n"],
+            beam_left_loc=self.df_shaft["nodes_pos_l"],
+            elem_len=self.df_shaft["L"],
+            beam_cg=self.df_shaft["beam_cg"],
+            axial_cg_pos=self.df_shaft["axial_cg_pos"],
+            beam_right_loc=self.df_shaft["nodes_pos_r"],
+            material=materials,
+            mass=self.df_shaft["m"],
+            inertia=self.df_shaft["Ie"],
+        )
+        source = ColumnDataSource(data)
+
+        titles = [
+            "Element Tag",
+            "Left Station",
+            "Right Station",
+            "Element Number",
+            "Elem. Left Location (m)",
+            "Elem. Lenght (m)",
+            "Element CG (m)",
+            "Axial CG Location (m)",
+            "Elem. Right Location (m)",
+            "Material",
+            "Elem. Mass (kg)",
+            "Inertia (m4)",
+        ]
+
+        formatters = [
+            None,
+            None,
+            None,
+            None,
+            NumberFormatter(format="0.000"),
+            NumberFormatter(format="0.000"),
+            NumberFormatter(format="0.000"),
+            NumberFormatter(format="0.000"),
+            NumberFormatter(format="0.000"),
+            None,
+            NumberFormatter(format="0.000"),
+            None,
+        ]
+
+        columns = [
+            TableColumn(field=str(field), title=title, formatter=form)
+            for field, title, form in zip(data.keys(), titles, formatters)
+        ]
+
+        data_table = DataTable(source=source, columns=columns, width=1600)
+        table = widgetbox(data_table)
+
+        return table
 
 
 class ConvergenceResults:
