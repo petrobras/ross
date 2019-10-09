@@ -6,7 +6,7 @@ from matplotlib import cm
 from bokeh.colors import RGB
 import bokeh.palettes as bp
 from mpl_toolkits.mplot3d import Axes3D
-from bokeh.layouts import gridplot
+from bokeh.layouts import gridplot, widgetbox
 from bokeh.plotting import figure
 from bokeh.transform import linear_cmap
 from bokeh.models import ColumnDataSource, ColorBar, Arrow, NormalHead, Label, HoverTool
