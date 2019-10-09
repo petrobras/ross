@@ -3,8 +3,8 @@ import shutil
 import warnings
 from collections import Iterable
 from copy import copy, deepcopy
-from pathlib import Path
 from itertools import cycle
+from pathlib import Path
 
 import bokeh.palettes as bp
 import matplotlib as mpl
@@ -16,30 +16,22 @@ import scipy.linalg as la
 import scipy.signal as signal
 import scipy.sparse.linalg as las
 import toml
-from bokeh.layouts import gridplot
-from bokeh.models import ColumnDataSource, Arrow, NormalHead, Label
+from bokeh.models import ColumnDataSource
 from bokeh.models.glyphs import Text
-from bokeh.plotting import figure, output_file, show
+from bokeh.plotting import figure, output_file
 from cycler import cycler
 
 import ross
-from ross.point_mass import PointMass
-from ross.bearing_seal_element import (
-    BearingElement,
-    SealElement,
-    BallBearingElement,
-    RollerBearingElement,
-)
+from ross.bearing_seal_element import BearingElement
 from ross.disk_element import DiskElement
 from ross.materials import steel
 from ross.results import (
-    ModalResults,
     CampbellResults,
-    FrequencyResponseResults,
-    ForcedResponseResults,
-    ModeShapeResults,
-    StaticResults,
     ConvergenceResults,
+    ForcedResponseResults,
+    FrequencyResponseResults,
+    ModalResults,
+    StaticResults,
     TimeResponseResults,
 )
 from ross.shaft_element import ShaftElement, ShaftTaperedElement

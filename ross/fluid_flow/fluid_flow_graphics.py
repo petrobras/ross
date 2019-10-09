@@ -1,6 +1,6 @@
 import matplotlib.pyplot as plt
-from bokeh.plotting import figure
 import numpy as np
+from bokeh.plotting import figure
 
 
 def plot_eccentricity(pressure_matrix_object, z=0):
@@ -24,13 +24,19 @@ def plot_eccentricity(pressure_matrix_object, z=0):
     >>> # show(fig)
     """
     p = figure(
-        title="Cut in plane Z=" + str(z),
-        x_axis_label="X axis",
-        y_axis_label="Y axis",
+        title="Cut in plane Z=" + str(z), x_axis_label="X axis", y_axis_label="Y axis"
     )
     for j in range(0, pressure_matrix_object.ntheta):
-        p.circle(pressure_matrix_object.xre[z][j], pressure_matrix_object.yre[z][j], color="red")
-        p.circle(pressure_matrix_object.xri[z][j], pressure_matrix_object.yri[z][j], color="blue")
+        p.circle(
+            pressure_matrix_object.xre[z][j],
+            pressure_matrix_object.yre[z][j],
+            color="red",
+        )
+        p.circle(
+            pressure_matrix_object.xri[z][j],
+            pressure_matrix_object.yri[z][j],
+            color="blue",
+        )
         p.circle(0, 0, color="blue")
         p.circle(pressure_matrix_object.xi, pressure_matrix_object.yi, color="red")
     p.circle(0, 0, color="black")
@@ -61,8 +67,8 @@ def plot_pressure_z(pressure_matrix_object, theta=0):
     >>> # show(fig)
     """
     if (
-            not pressure_matrix_object.numerical_pressure_matrix_available
-            and not pressure_matrix_object.analytical_pressure_matrix_available
+        not pressure_matrix_object.numerical_pressure_matrix_available
+        and not pressure_matrix_object.analytical_pressure_matrix_available
     ):
         raise ValueError(
             "Must calculate the pressure matrix. "
@@ -74,14 +80,25 @@ def plot_pressure_z(pressure_matrix_object, theta=0):
         y_n.append(pressure_matrix_object.p_mat_numerical[i][theta])
         y_a.append(pressure_matrix_object.p_mat_analytical[i][theta])
     p = figure(
-        title="Pressure along the Z direction (direction of flow); Theta="
-              + str(theta),
+        title="Pressure along the Z direction (direction of flow); Theta=" + str(theta),
         x_axis_label="Points along Z",
     )
     if pressure_matrix_object.numerical_pressure_matrix_available:
-        p.line(pressure_matrix_object.z_list, y_n, legend="Numerical pressure", color="blue", line_width=2)
+        p.line(
+            pressure_matrix_object.z_list,
+            y_n,
+            legend="Numerical pressure",
+            color="blue",
+            line_width=2,
+        )
     if pressure_matrix_object.analytical_pressure_matrix_available:
-        p.line(pressure_matrix_object.z_list, y_a, legend="Analytical pressure", color="red", line_width=2)
+        p.line(
+            pressure_matrix_object.z_list,
+            y_a,
+            legend="Analytical pressure",
+            color="red",
+            line_width=2,
+        )
     return p
 
 
@@ -143,8 +160,8 @@ def plot_pressure_theta(pressure_matrix_object, z=0):
     >>> # show(fig)
     """
     if (
-            not pressure_matrix_object.numerical_pressure_matrix_available
-            and not pressure_matrix_object.analytical_pressure_matrix_available
+        not pressure_matrix_object.numerical_pressure_matrix_available
+        and not pressure_matrix_object.analytical_pressure_matrix_available
     ):
         raise ValueError(
             "Must calculate the pressure matrix. "
@@ -199,8 +216,12 @@ def matplot_eccentricity(pressure_matrix_object, z=0, ax=None):
     if ax is None:
         ax = plt.gca()
     for j in range(0, pressure_matrix_object.ntheta):
-        ax.plot(pressure_matrix_object.xre[z][j], pressure_matrix_object.yre[z][j], "r.")
-        ax.plot(pressure_matrix_object.xri[z][j], pressure_matrix_object.yri[z][j], "b.")
+        ax.plot(
+            pressure_matrix_object.xre[z][j], pressure_matrix_object.yre[z][j], "r."
+        )
+        ax.plot(
+            pressure_matrix_object.xri[z][j], pressure_matrix_object.yri[z][j], "b."
+        )
         ax.plot(0, 0, "r*")
         ax.plot(pressure_matrix_object.xi, pressure_matrix_object.yi, "b*")
     ax.set_title("Cut in plane Z=" + str(z))
@@ -236,8 +257,8 @@ def matplot_pressure_z(pressure_matrix_object, theta=0, ax=None):
     >>> # plt.show()
     """
     if (
-            not pressure_matrix_object.numerical_pressure_matrix_available
-            and not pressure_matrix_object.analytical_pressure_matrix_available
+        not pressure_matrix_object.numerical_pressure_matrix_available
+        and not pressure_matrix_object.analytical_pressure_matrix_available
     ):
         raise ValueError(
             "Must calculate the pressure matrix. "
@@ -298,7 +319,9 @@ def matplot_shape(pressure_matrix_object, theta=0, ax=None):
     return ax
 
 
-def matplot_pressure_theta_cylindrical(pressure_matrix_object, z=0, from_numerical=True, ax=None):
+def matplot_pressure_theta_cylindrical(
+    pressure_matrix_object, z=0, from_numerical=True, ax=None
+):
     """This function assembles cylindrical pressure graphic in the theta direction for a given z,
     using matplotlib.
     Parameters
@@ -328,8 +351,8 @@ def matplot_pressure_theta_cylindrical(pressure_matrix_object, z=0, from_numeric
     >>> # plt.show()
     """
     if (
-            not pressure_matrix_object.numerical_pressure_matrix_available
-            and not pressure_matrix_object.analytical_pressure_matrix_available
+        not pressure_matrix_object.numerical_pressure_matrix_available
+        and not pressure_matrix_object.analytical_pressure_matrix_available
     ):
         raise ValueError(
             "Must calculate the pressure matrix. "
@@ -350,9 +373,14 @@ def matplot_pressure_theta_cylindrical(pressure_matrix_object, z=0, from_numeric
     r = np.arange(
         0,
         pressure_matrix_object.radius_stator + 0.0001,
-        (pressure_matrix_object.radius_stator - pressure_matrix_object.radius_rotor) / pressure_matrix_object.nradius,
+        (pressure_matrix_object.radius_stator - pressure_matrix_object.radius_rotor)
+        / pressure_matrix_object.nradius,
     )
-    theta = np.arange(-np.pi * 0.25, 1.75 * np.pi + pressure_matrix_object.dtheta / 2, pressure_matrix_object.dtheta)
+    theta = np.arange(
+        -np.pi * 0.25,
+        1.75 * np.pi + pressure_matrix_object.dtheta / 2,
+        pressure_matrix_object.dtheta,
+    )
 
     pressure_along_theta = np.zeros(pressure_matrix_object.ntheta)
     for i in range(0, pressure_matrix_object.ntheta):
@@ -366,7 +394,8 @@ def matplot_pressure_theta_cylindrical(pressure_matrix_object, z=0, from_numeric
     pressure_list = np.zeros((theta.size, r.size))
     for i in range(0, theta.size):
         inner_radius = np.sqrt(
-            pressure_matrix_object.xri[z][i] * pressure_matrix_object.xri[z][i] + pressure_matrix_object.yri[z][i] * pressure_matrix_object.yri[z][i]
+            pressure_matrix_object.xri[z][i] * pressure_matrix_object.xri[z][i]
+            + pressure_matrix_object.yri[z][i] * pressure_matrix_object.yri[z][i]
         )
         inner_radius_list[i] = inner_radius
         for j in range(0, r.size):
@@ -404,8 +433,8 @@ def matplot_pressure_theta(pressure_matrix_object, z=0, ax=None):
     >>> # plt.show()
     """
     if (
-            not pressure_matrix_object.numerical_pressure_matrix_available
-            and not pressure_matrix_object.analytical_pressure_matrix_available
+        not pressure_matrix_object.numerical_pressure_matrix_available
+        and not pressure_matrix_object.analytical_pressure_matrix_available
     ):
         raise ValueError(
             "Must calculate the pressure matrix. "
@@ -418,7 +447,7 @@ def matplot_pressure_theta(pressure_matrix_object, z=0, ax=None):
             pressure_matrix_object.gama[z],
             pressure_matrix_object.p_mat_numerical[z],
             "b",
-            label="Numerical pressure"
+            label="Numerical pressure",
         )
     if pressure_matrix_object.analytical_pressure_matrix_available:
         ax.plot(
@@ -431,5 +460,3 @@ def matplot_pressure_theta(pressure_matrix_object, z=0, ax=None):
     ax.set_xlabel("Points along Theta")
     ax.set_ylabel("Pressure")
     return ax
-
-

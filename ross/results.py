@@ -1,16 +1,15 @@
-import numpy as np
-from scipy import interpolate
+import bokeh.palettes as bp
 import matplotlib as mpl
 import matplotlib.pyplot as plt
-from matplotlib import cm
+import numpy as np
 import scipy.linalg as la
 from bokeh.colors import RGB
-import bokeh.palettes as bp
-from mpl_toolkits.mplot3d import Axes3D
 from bokeh.layouts import gridplot
+from bokeh.models import Arrow, ColorBar, ColumnDataSource, HoverTool, Label, NormalHead
 from bokeh.plotting import figure
 from bokeh.transform import linear_cmap
-from bokeh.models import ColumnDataSource, ColorBar, Arrow, NormalHead, Label, HoverTool
+from matplotlib import cm
+from scipy import interpolate
 
 # set bokeh palette of colors
 bokeh_colors = bp.RdGy[11]
@@ -451,7 +450,10 @@ class ModalResults:
         ax : matplotlib axes
             Returns the axes object with the plot.
         """
+
         if ax is None:
+            from mpl_toolkits.mplot3d import Axes3D
+
             fig = plt.figure()
             ax = fig.gca(projection="3d")
 
