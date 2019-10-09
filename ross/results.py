@@ -10,6 +10,7 @@ from bokeh.layouts import gridplot
 from bokeh.plotting import figure
 from bokeh.transform import linear_cmap
 from bokeh.models import ColumnDataSource, ColorBar, Arrow, NormalHead, Label, HoverTool
+from bokeh.models.widgets import DataTable, NumberFormatter, TableColumn
 
 # set bokeh palette of colors
 bokeh_colors = bp.RdGy[11]
