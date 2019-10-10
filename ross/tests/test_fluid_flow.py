@@ -172,10 +172,8 @@ def test_oil_film_force_short():
     bearing.calculate_pressure_matrix_numerical()
     n, t = calculate_oil_film_force(bearing)
     n_numerical, t_numerical = calculate_oil_film_force(bearing, force_type='numerical')
-    error_n = (n - n_numerical) / n_numerical
-    error_t = (t - t_numerical) / t_numerical
-    assert_allclose(error_n, 0, atol=0.009)
-    assert_allclose(error_t, 0, atol=0.7)
+    assert_allclose(n, n_numerical, rtol=0.08)
+    assert_allclose(t, t_numerical, rtol=0.7)
 
 
 def test_oil_film_force_long():
@@ -183,10 +181,8 @@ def test_oil_film_force_long():
     bearing.calculate_pressure_matrix_numerical()
     n, t = calculate_oil_film_force(bearing)
     n_numerical, t_numerical = calculate_oil_film_force(bearing, force_type='numerical')
-    error_n = (n - n_numerical) / n_numerical
-    error_t = (t - t_numerical) / t_numerical
-    assert_allclose(error_n, 0, atol=0.2)
-    assert_allclose(error_t, 0, atol=0.4)
+    assert_allclose(n, n_numerical, rtol=0.2)
+    assert_allclose(t, t_numerical, rtol=0.4)
 
 
 def test_bokeh_plots():
@@ -209,7 +205,7 @@ def test_matplotlib_plots():
     assert isinstance(matplot_shape(bearing), ax_type)
 
 
-@pytest.mark.skip(reason="no way of currently testing this")
+@pytest.mark.skip(reason="Not yet ready to test")
 def test_numerical_stiffness_matrix_short():
     bearing = fluid_flow_short_eccentricity()
     bearing.calculate_pressure_matrix_numerical()
