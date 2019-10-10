@@ -113,8 +113,8 @@ class FluidFlow:
     bearing_type: str
         type of structure. 'short_bearing': short; 'long_bearing': long;
         'medium_size': in between short and long.
-        if length/radius_stator <= 1/4 it is short.
-        if length/radius_stator > 8 it is long.
+        if length/diameter <= 1/4 it is short.
+        if length/diameter > 8 it is long.
     radial_clearance: float
         Difference between both stator and rotor radius, regardless of eccentricity.
     analytical_pressure_matrix_available: bool
@@ -196,9 +196,9 @@ class FluidFlow:
         self.radial_clearance = self.radius_stator - self.radius_rotor
         self.difference_between_radius = radius_stator - radius_rotor
         self.bearing_type = ""
-        if self.length / self.radius_stator <= 1 / 4:
+        if self.length / 2 * self.radius_stator <= 1 / 4:
             self.bearing_type = "short_bearing"
-        elif self.length / self.radius_stator >= 8:
+        elif self.length / 2 * self.radius_stator >= 8:
             self.bearing_type = "long_bearing"
         else:
             self.bearing_type = "medium_size"
@@ -220,8 +220,8 @@ class FluidFlow:
             self.attitude_angle = calculate_attitude_angle(self.eccentricity_ratio)
         else:
             self.attitude_angle = attitude_angle
-        self.xi = self.eccentricity * np.cos(-np.pi/2 + self.attitude_angle)
-        self.yi = self.eccentricity * np.sin(-np.pi/2 + self.attitude_angle)
+        self.xi = self.eccentricity * np.cos(3 * np.pi / 2 + self.attitude_angle)
+        self.yi = self.eccentricity * np.sin(3 * np.pi / 2 + self.attitude_angle)
         self.re = np.zeros([self.nz, self.ntheta])
         self.ri = np.zeros([self.nz, self.ntheta])
         self.z_list = np.zeros(self.nz)
