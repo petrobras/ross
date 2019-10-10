@@ -1360,15 +1360,15 @@ class ForcedResponseResults:
             y_axis_label = "Amplitude (m)"
         elif units == "mic-pk-pk":
             mag = 2 * mag * 1e6
-            y_axis_label = "Amplitude $(\mu pk-pk)$"
+            y_axis_label = "Amplitude (μ pk-pk)"
 
         # bokeh plot - create a new plot
         mag_plot = figure(
             tools="pan, box_zoom, wheel_zoom, reset, save",
-            width=900,
-            height=400,
+            width=600,
+            height=240,
             title="Forced Response - Magnitude",
-            x_axis_label="Frequency",
+            x_axis_label="Frequency (rad/s)",
             x_range=[0, max(frequency_range)],
             y_axis_label=y_axis_label,
         )
@@ -1449,9 +1449,9 @@ class ForcedResponseResults:
 
         phase_plot = figure(
             tools="pan, box_zoom, wheel_zoom, reset, save",
-            width=900,
-            height=400,
-            title="Forced Response - Magnitude",
+            width=600,
+            height=240,
+            title="Forced Response - Phase",
             x_axis_label="Frequency",
             x_range=[0, max(frequency_range)],
             y_axis_label="Phase",

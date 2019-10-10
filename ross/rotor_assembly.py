@@ -1036,7 +1036,7 @@ class Rotor(object):
         """Unbalanced response for a mdof system.
 
         This method returns the unbalanced response for a mdof system
-        given magnitide and phase of the unbalance, the node where it's
+        given magnitude and phase of the unbalance, the node where it's
         applied and a frequency range.
 
         Parameters
