@@ -1,5 +1,6 @@
 import numpy as np
 from scipy import integrate
+from math import isnan
 
 
 def calculate_analytical_stiffness_matrix(load, eccentricity_ratio, radial_clearance):
@@ -145,10 +146,20 @@ def calculate_oil_film_force(fluid_flow_object, force_type=None):
         b = np.zeros([fluid_flow_object.nz, fluid_flow_object.ntheta])
         g1 = np.zeros(fluid_flow_object.nz)
         g2 = np.zeros(fluid_flow_object.nz)
+        base_vector = np.array([fluid_flow_object.xre[0][0] - fluid_flow_object.xi,
+                                fluid_flow_object.yre[0][0] - fluid_flow_object.yi])
         for i in range(fluid_flow_object.nz):
-            for j in range(fluid_flow_object.ntheta):
-                a[i][j] = p_mat[i][j] * np.cos(j*fluid_flow_object.dtheta)
-                b[i][j] = p_mat[i][j] * np.sin(j*fluid_flow_object.dtheta)
+            for j in range(int(fluid_flow_object.ntheta/2)):
+                vector_from_rotor = np.array([fluid_flow_object.xre[i][j] - fluid_flow_object.xi,
+                                              fluid_flow_object.yre[i][j] - fluid_flow_object.yi])
+                angle_between_vectors = np.arccos(np.dot(base_vector, vector_from_rotor) /
+                                                  (np.linalg.norm(base_vector) * np.linalg.norm(vector_from_rotor)))
+                if isnan(angle_between_vectors):
+                    angle_between_vectors = 0
+                if angle_between_vectors != 0 and j*fluid_flow_object.dtheta > np.pi:
+                    angle_between_vectors += np.pi
+                a[i][j] = p_mat[i][j] * np.cos(angle_between_vectors)
+                b[i][j] = p_mat[i][j] * np.sin(angle_between_vectors)
 
         for i in range(fluid_flow_object.nz):
             g1[i] = integrate.simps(a[i][:], fluid_flow_object.gama[0])
@@ -162,7 +173,7 @@ def calculate_oil_film_force(fluid_flow_object, force_type=None):
     return radial_force, tangential_force
 
 
-def calculate_stiffness_matrix(fluid_flow_object, oil_film_force=None):
+def calculate_stiffness_matrix(fluid_flow_object, oil_film_force='numerical'):
     """This function calculates the bearing stiffness matrix numerically.
     Parameters
     ----------
@@ -179,7 +190,7 @@ def calculate_stiffness_matrix(fluid_flow_object, oil_film_force=None):
     >>> my_fluid_flow = fluid_flow_example()
     >>> calculate_stiffness_matrix(my_fluid_flow)
     """
-    [radial_force, tangential_force] = calculate_oil_film_force(fluid_flow_object, force_type='numerical')
+    [radial_force, tangential_force] = calculate_oil_film_force(fluid_flow_object, force_type=oil_film_force)
     temp = fluid_flow_object.eccentricity
     temp_angle = fluid_flow_object.attitude_angle
     e = fluid_flow_object.eccentricity
@@ -192,7 +203,7 @@ def calculate_stiffness_matrix(fluid_flow_object, oil_film_force=None):
     fluid_flow_object.attitude_angle = beta + beta_x
     fluid_flow_object.calculate_coefficients()
     fluid_flow_object.calculate_pressure_matrix_numerical()
-    [radial_force_x, tangential_force_x] = calculate_oil_film_force(fluid_flow_object, force_type='numerical')
+    [radial_force_x, tangential_force_x] = calculate_oil_film_force(fluid_flow_object, force_type=oil_film_force)
     delta_y = fluid_flow_object.difference_between_radius / 100
     eccentricity_y = (e ** 2 + delta_y ** 2 - 2 * e * delta_y * np.cos(fluid_flow_object.attitude_angle))**(1/2)
     beta_y = np.arccos((e ** 2 + eccentricity_y ** 2 - delta_y ** 2) / 2 * e * eccentricity_y)
@@ -200,7 +211,7 @@ def calculate_stiffness_matrix(fluid_flow_object, oil_film_force=None):
     fluid_flow_object.attitude_angle = beta + beta_y
     fluid_flow_object.calculate_coefficients()
     fluid_flow_object.calculate_pressure_matrix_numerical()
-    [radial_force_y, tangential_force_y] = calculate_oil_film_force(fluid_flow_object, force_type='numerical')
+    [radial_force_y, tangential_force_y] = calculate_oil_film_force(fluid_flow_object, force_type=oil_film_force)
     k_xx = (radial_force_x - radial_force) / delta_x
     k_yx = (tangential_force_x - tangential_force) / delta_x
     k_xy = (radial_force_y - radial_force) / delta_y
