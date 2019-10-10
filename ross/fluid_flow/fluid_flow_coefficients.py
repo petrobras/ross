@@ -174,10 +174,10 @@ def calculate_oil_film_force(fluid_flow_object, force_type=None):
 
         radial_force = - fluid_flow_object.radius_rotor * integral1
         tangential_force = fluid_flow_object.radius_rotor * integral2
-    force_x = - radial_force * np.cos(np.pi / 2 - fluid_flow_object.attitude_angle) \
-              + tangential_force * np.sin(np.pi / 2 - fluid_flow_object.attitude_angle)
-    force_y = - radial_force * np.sin(np.pi / 2 - fluid_flow_object.attitude_angle) \
-              - tangential_force * np.cos(np.pi / 2 - fluid_flow_object.attitude_angle)
+    force_x = - radial_force * np.sin(fluid_flow_object.attitude_angle) \
+        + tangential_force * np.cos(fluid_flow_object.attitude_angle)
+    force_y = radial_force * np.cos(fluid_flow_object.attitude_angle) \
+        + tangential_force * np.sin(fluid_flow_object.attitude_angle)
     return radial_force, tangential_force, force_x, force_y
 
 
