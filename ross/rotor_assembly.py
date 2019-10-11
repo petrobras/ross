@@ -83,6 +83,8 @@ class Rotor(object):
     n_eigen : int, optional
         Number of eigenvalues calculated by arpack.
         Default is 12.
+    tag : str
+        A tag for the rotor
 
     Returns
     -------
@@ -138,6 +140,7 @@ class Rotor(object):
         min_w=None,
         max_w=None,
         rated_w=None,
+        tag=None,
     ):
 
         self.parameters = {
@@ -147,6 +150,8 @@ class Rotor(object):
             "max_w": max_w,
             "rated_w": rated_w,
         }
+        if tag is None:
+            self.tag = "Rotor 0"
 
         ####################################################
         # Config attributes
@@ -327,6 +332,15 @@ class Rotor(object):
         self.m_disks = np.sum([disk.m for disk in self.disk_elements])
         self.m_shaft = np.sum([sh_el.m for sh_el in self.shaft_elements])
         self.m = self.m_disks + self.m_shaft
+
+        # rotor center of mass and total inertia
+        CG_sh = np.sum([(sh.m * sh.axial_cg_pos) / self.m for sh in self.shaft_elements])
+        CG_dsk = np.sum([disk.m * nodes_pos[disk.n] / self.m for disk in self.disk_elements])
+        self.CG = CG_sh + CG_dsk
+
+        Ip_sh = np.sum([sh.Im for sh in self.shaft_elements])
+        Ip_dsk = np.sum([disk.Ip for disk in self.disk_elements])
+        self.Ip = Ip_sh + Ip_dsk
 
         # values for evalues and evectors will be calculated by self.run_modal
         self.evalues = None
@@ -2207,7 +2221,7 @@ class Rotor(object):
         >>> # to display the plot use the command:
         >>> # show(table)
         """
-        results = SummaryResults(self.df_shaft)
+        results = SummaryResults(self.df_shaft, self.df_disks, self.CG, self.Ip, self.tag)
         return results
 
     @classmethod
