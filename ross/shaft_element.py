@@ -151,6 +151,9 @@ class ShaftElement(Element):
         self.beam_cg = L / 2
         self.axial_cg_pos = None
 
+        # Moment of inertia
+        self.Im = 0.125 * self.m * (o_d ** 2 + i_d ** 2)
+
         # Slenderness ratio of beam elements (G*A*L^2) / (E*I)
         sld = (self.material.G_s * self.A * self.L ** 2) / (self.material.E * self.Ie)
         self.slenderness_ratio = sld
@@ -1038,6 +1041,15 @@ class ShaftTaperedElement(Element):
         # Slenderness ratio of beam elements (G*A*L^2) / (E*I)
         sld = (self.material.G_s * self.A * self.L ** 2) / (self.material.E * Ie)
         self.slenderness_ratio = sld
+
+        # Moment of inertia
+        # fmt: off
+        self.Im = (
+            (np.pi * L * (self.m / self.volume) / 10) *
+            ((roj ** 4 + roj ** 3 * rok + roj ** 2 * rok ** 2 + roj * rok ** 3 + rok ** 4) -
+             (rij ** 4 + rij ** 3 * rik + rij ** 2 * rik ** 2 + rij * rik ** 3 + rik ** 4))
+        )
+        # fmt: on
 
         # picking a method to calculate the shear coefficient
         # List of avaible methods:
