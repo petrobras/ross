@@ -1,4 +1,6 @@
 import numpy as np
+from copy import copy
+from scipy.interpolate import interp1d
 from scipy.signal import argrelextrema
 
 from ross.rotor_assembly import Rotor, rotor_example
@@ -7,14 +9,25 @@ import ross as rs
 
 import bokeh.palettes as bp
 from bokeh.plotting import figure
-from bokeh.models import ColumnDataSource, HoverTool, Span, Label
+from bokeh.layouts import gridplot
+from bokeh.models import(
+        ColumnDataSource, HoverTool, Span, Label, LinearAxis, Range1d, DataRange1d
+)
 
 # set bokeh palette of colors
 bokeh_colors = bp.RdGy[11]
 
 
 class Report:
-    def __init__(self, rotor, minspeed, maxspeed, machine_type="compressor", speed_units="rpm"):
+    def __init__(
+            self,
+            rotor,
+            minspeed,
+            maxspeed,
+            machine_type="compressor",
+            speed_units="rpm",
+            tag="Rotor"
+    ):
         """Report according to standard analysis.
 
         - Perform Stability_level1 analysis
@@ -36,17 +49,24 @@ class Report:
         speed_units: str
             String defining the unit for rotor speed.
             Default is "rpm".
+        tag: str
+            String to name the rotor model
+            Default is "Rotor"
 
         Attributes
         ----------
         rotor_type: str
             Defines if the rotor is between bearings or overhung
+        disk_nodes: list
+            List of disk between bearings or overhung (depending on the
+            rotor type)
 
-        Return
-        ------
-
-        Example
+        Returns
         -------
+        A Report object
+
+        Examples
+        --------
         >>> rotor = rotor_example()
         >>> report = Report(rotor=rotor,
         ...                 minspeed=400,
@@ -114,6 +134,7 @@ class Report:
         if machine_type not in machine_options:
             machine_type = "compressor"
         self.machine_type = machine_type
+        self.tag = tag
 
     @classmethod
     def from_saved_rotors(cls, path, minspeed, maxspeed, speed_units="rpm"):
@@ -317,7 +338,6 @@ class Report:
 
         # returns de nodes where forces will be applied
         node_min, node_max = self.mode_shape(mode)
-
         nodes = [int(node) for sub_nodes in [node_min, node_max] for node in sub_nodes]
 
         force = self.unbalance_forces(mode)
@@ -654,7 +674,9 @@ class Report:
 
         return node_min, node_max
 
-    def stability_level_1(self):
+    def stability_level_1(
+        self, D, H, HP, N, RHOd, RHOs, steps=21, unit="m"
+    ):
         """Stability analysis level 1.
 
         This analysis consider a anticipated cross coupling QA based on
@@ -666,10 +688,201 @@ class Report:
 
         Parameters
         ----------
-        (Check what we need to calculate the applied cross coupling and list
-         them as parameters)
+        D : list
+            Impeller diameter, m (in.),
+            Blade pitch diameter, m (in.),
+        H : list
+            Minimum diffuser width per impeller, m (in.),
+            Effective blade height, m (in.),
+        HP : list
+            Rated power per stage/impeller, W (HP),
+        N : float
+            Operating speed, rpm,
+        RHOd : float
+            Discharge gas density per impeller, kg/m3 (lbm/in.3),
+        RHOs : float
+            Suction gas density per impeller, kg/m3 (lbm/in.3).
+        steps : int
+            Number of steps in the cross coupled stiffness range.
+            Default is 21.
+        unit : str
+            Adopted unit system.
+            Default is "m"
+
+        Return
+        ------
+
+        Example
+        -------
+
         """
-        pass
+        if unit == "m":
+            C = 9.55
+        elif unit == "in":
+            C = 63.0
+        else:
+            raise TypeError("choose between meters (m) or inches (in)")
+
+        if len(D) != len(H):
+            raise Exception("length of D must be the same of H")
+
+        # Qa - Anticipated cross-coupling - API 684 - SP6.8.5.6
+        if self.machine_type == "compressor":
+            Bc = 3.0
+            Dc, Hc = D, H
+            Qa = 0.0
+            Qa_list = []
+            for i in range(len(self.rotor.disk_elements)):
+                qi = (HP[i] * Bc * C * RHOd) / (Dc[i] * Hc[i] * N * RHOs)
+                Qa_list.append(qi)
+                Qa += qi
+
+        # Qa - Anticipated cross-coupling - API 684 - SP6.8.5.6
+        if self.machine_type == "turbine" or self.machine_type == "axial_flow":
+            Bt = 1.5
+            Dt, Ht = D, H
+            Qa = 0.0
+            Qa_list = []
+            for i in range(len(self.rotor.disk_elements)):
+                qi = (HP[i] * Bt * C) / (Dt[i] * Ht[i] * N)
+                Qa_list.append(qi)
+                Qa += qi
+
+        cross_coupled_stiff = np.linspace(0, 10 * Qa, steps)
+
+        log_dec = np.zeros(len(cross_coupled_stiff))
+
+        for i, Q in enumerate(cross_coupled_stiff):
+            bearings = [copy(b) for b in self.rotor.bearing_seal_elements]
+
+            if self.rotor_type == "between_bearings":
+                # cross-coupling introduced at the rotor mid-span
+                n = np.round(np.mean(self.rotor.nodes))
+                cross_coupling = BearingElement(n=int(n), kxx=0, cxx=0, kxy=Q, kyx=-Q)
+                bearings.append(cross_coupling)
+
+            else:
+                # cross-coupling introduced at overhung disks
+                for n in self.disk_nodes:
+                    cross_coupling = BearingElement(n=int(n), kxx=0, cxx=0, kxy=Q, kyx=-Q)
+                    bearings.append(cross_coupling)
+
+            aux_rotor = Rotor(
+                self.rotor.shaft_elements,
+                self.rotor.disk_elements,
+                bearings,
+                self.rotor.rated_w,
+            )
+            non_backward = aux_rotor.whirl_direction() != "Backward"
+            log_dec[i] = aux_rotor.log_dec[non_backward][0]
+
+        g = interp1d(cross_coupled_stiff, log_dec, fill_value="extrapolate", kind="quadratic")
+        stiff = cross_coupled_stiff[-1] * (1 + 1 / (len(cross_coupled_stiff)))
+
+        while g(stiff) > 0:
+            log_dec = np.append(log_dec, g(stiff))
+            cross_coupled_stiff = np.append(cross_coupled_stiff, stiff)
+            stiff += cross_coupled_stiff[-1] / (len(cross_coupled_stiff))
+        Q0 = cross_coupled_stiff[-1]
+
+        # CSR - Critical Speed Ratio
+        CSR = self.maxspeed / self.rotor.wn[0]
+
+        # RHO_mean - Average gas density
+        RHO_mean = (RHOd + RHOs) / 2
+        RHO = np.linspace(0, RHO_mean * 5, 201)
+        Qc = np.piecewise(
+                RHO,
+                [RHO <= 16.53, RHO > 16.53, RHO == 60, RHO > 60],
+                [2.5, lambda RHO: (-0.0115 * RHO + 2.69), 2.0, 0.0],
+        )
+
+        # Plot area
+        fig1 = figure(
+            tools="pan, box_zoom, wheel_zoom, reset, save",
+            title="Applied Cross-Coupled Stiffness vs. Log Decrement - (API 684 - SP 6.8.5.10)",
+            x_axis_label="Applied Cross-Coupled Stiffness, Q (N/m)",
+            y_axis_label="Log Dec",
+            x_range=(0, max(cross_coupled_stiff)),
+            y_range=DataRange1d(start=0),
+        )
+        fig1.title.text_font_size = "11pt"
+        fig1.xaxis.axis_label_text_font_size = "11pt"
+        fig1.yaxis.axis_label_text_font_size = "11pt"
+
+        fig1.line(cross_coupled_stiff, log_dec, line_width=3, line_color=bokeh_colors[0])
+        fig1.add_layout(
+            Span(
+                location=Qa,
+                dimension="height",
+                line_color="black",
+                line_dash="dashed",
+                line_width=3,
+            )
+        )
+
+        if unit == "m":
+            f = 0.062428
+            x_label1 = "kg/m³"
+            x_label2 = "lb/ft³"
+        if unit == "in":
+            f = 16.0185
+            x_label1 = "lb/ft³"
+            x_label2 = "kg/m³"
+
+        fig2 = figure(
+            tools="pan, box_zoom, wheel_zoom, reset, save",
+            title="CSR vs. Mean Gas Density - (API 684 - SP 6.8.5.10)",
+            x_axis_label=x_label1,
+            y_axis_label="MCSR",
+            y_range=DataRange1d(start=0),
+            x_range=DataRange1d(start=0)
+        )
+        fig2.title.text_font_size = "11pt"
+        fig2.xaxis.axis_label_text_font_size = "11pt"
+        fig2.yaxis.axis_label_text_font_size = "11pt"
+        fig2.extra_x_ranges = {"x_range2": Range1d(f*min(RHO), f*max(RHO))}
+
+        fig2.add_layout(
+            LinearAxis(
+                    x_range_name="x_range2",
+                    axis_label=x_label2,
+                    axis_label_text_font_size="11pt"
+            ),
+            place="below"
+        )
+        fig2.add_layout(
+            Label(
+                x=RHO_mean,
+                y=CSR,
+                text=self.tag,
+                text_font_style="bold",
+                text_font_size="12pt",
+                text_baseline="middle",
+                text_align="left",
+                x_offset=10,
+            )
+        )
+
+        for txt, x, y in zip(["Region A", "Region B"], [30, 60], [1.20, 2.75]):
+            fig2.add_layout(
+                Label(
+                    x=x,
+                    y=y,
+                    text=txt,
+                    text_font_style="bold",
+                    text_font_size="12pt",
+                    text_baseline="middle",
+                    text_align="center",
+                )
+            )
+
+        fig2.line(x=RHO, y=Qc, line_width=3, line_color=bokeh_colors[0])
+        fig2.circle(x=RHO_mean, y=CSR, size=8, color=bokeh_colors[0])
+
+        plot = gridplot([[fig1, fig2]])
+        
+        return plot
 
     def stability_level_2(self):
         """Stability analysis level 2.
