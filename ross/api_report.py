@@ -2,6 +2,7 @@ import numpy as np
 from scipy.signal import argrelextrema
 
 from ross.rotor_assembly import Rotor, rotor_example
+from ross.bearing_seal_element import BearingElement
 import ross as rs
 
 import bokeh.palettes as bp
@@ -32,6 +33,11 @@ class Report:
             String defining the unit for rotor speed.
             Default is "rpm".
 
+        Attributes
+        ----------
+        rotor_type : str
+            Defines if the rotor is between bearings or overhung
+
         Return
         ------
 
@@ -49,6 +55,32 @@ class Report:
         if speed_units == "rpm":
             minspeed = minspeed * np.pi / 30
             maxspeed = maxspeed * np.pi / 30
+
+        # check if rotor is between bearings, single or double overhung
+        # fmt: off
+        if(
+            all(i > min(rotor.df_bearings["n"]) for i in rotor.df_disks["n"]) and
+            all(i < max(rotor.df_bearings["n"]) for i in rotor.df_disks["n"])
+        ):
+            rotor_type = "between_bearings"
+        elif(
+            any(i < min(rotor.df_bearings["n"]) for i in rotor.df_disks["n"]) and
+            all(i < max(rotor.df_bearings["n"]) for i in rotor.df_disks["n"])
+        ):
+            rotor_type = "left_overhung"
+        elif(
+            all(i > min(rotor.df_bearings["n"]) for i in rotor.df_disks["n"]) and
+            any(i > max(rotor.df_bearings["n"]) for i in rotor.df_disks["n"])
+        ):
+            rotor_type = "right_overhung"
+        elif(
+            any(i < min(rotor.df_bearings["n"]) for i in rotor.df_disks["n"]) and
+            any(i > max(rotor.df_bearings["n"]) for i in rotor.df_disks["n"])
+        ):
+            rotor_type = "double_overhung"
+        # fmt: on
+
+        self.rotor_type = rotor_type
 
         self.maxspeed = maxspeed
         self.minspeed = minspeed
