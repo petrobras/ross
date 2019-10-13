@@ -14,7 +14,7 @@ bokeh_colors = bp.RdGy[11]
 
 
 class Report:
-    def __init__(self, rotor, minspeed, maxspeed, speed_units="rpm"):
+    def __init__(self, rotor, minspeed, maxspeed, machine_type="compressor", speed_units="rpm"):
         """Report according to standard analysis.
 
         - Perform Stability_level1 analysis
@@ -23,19 +23,23 @@ class Report:
 
         Parameters
         ----------
-        rotor : object
+        rotor: object
             A rotor built from rotor_assembly.
-        maxspeed : float
+        maxspeed: float
             Maximum operation speed.
-        minspeed : float
+        minspeed: float
             Minimum operation speed.
-        speed_units : str
+        machine_type: str
+            Machine type analyzed. Options: compressor, turbine or axial_flow.
+            If other option is given, it will be treated as a compressor
+            Default is compressor
+        speed_units: str
             String defining the unit for rotor speed.
             Default is "rpm".
 
         Attributes
         ----------
-        rotor_type : str
+        rotor_type: str
             Defines if the rotor is between bearings or overhung
 
         Return
@@ -48,6 +52,8 @@ class Report:
         ...                 minspeed=400,
         ...                 maxspeed=1000,
         ...                 speed_units="rad/s")
+        >>> report.rotor_type
+        "between_bearings"
         """
         self.rotor = rotor
         self.speed_units = speed_units
@@ -56,6 +62,9 @@ class Report:
             minspeed = minspeed * np.pi / 30
             maxspeed = maxspeed * np.pi / 30
 
+        self.maxspeed = maxspeed
+        self.minspeed = minspeed
+
         # check if rotor is between bearings, single or double overhung
         # fmt: off
         if(
@@ -63,27 +72,48 @@ class Report:
             all(i < max(rotor.df_bearings["n"]) for i in rotor.df_disks["n"])
         ):
             rotor_type = "between_bearings"
+            disk_nodes = [
+                i for i in rotor.df_disks["n"] if(
+                        i > min(rotor.df_bearings["n"]) and
+                        i < max(rotor.df_bearings["n"])
+                )
+            ]
         elif(
             any(i < min(rotor.df_bearings["n"]) for i in rotor.df_disks["n"]) and
             all(i < max(rotor.df_bearings["n"]) for i in rotor.df_disks["n"])
         ):
-            rotor_type = "left_overhung"
+            rotor_type = "single_overhung_l"
+            disk_nodes = [
+                i for i in rotor.df_disks["n"] if i < min(rotor.df_bearings["n"])
+            ]
         elif(
             all(i > min(rotor.df_bearings["n"]) for i in rotor.df_disks["n"]) and
             any(i > max(rotor.df_bearings["n"]) for i in rotor.df_disks["n"])
         ):
-            rotor_type = "right_overhung"
+            rotor_type = "single_overhung_r"
+            disk_nodes = [
+                i for i in rotor.df_disks["n"] if i > max(rotor.df_bearings["n"])
+            ]
         elif(
             any(i < min(rotor.df_bearings["n"]) for i in rotor.df_disks["n"]) and
             any(i > max(rotor.df_bearings["n"]) for i in rotor.df_disks["n"])
         ):
             rotor_type = "double_overhung"
+            disk_nodes = [
+                i for i in rotor.df_disks["n"] if(
+                        i < min(rotor.df_bearings["n"]) or
+                        i > max(rotor.df_bearings["n"])
+                )
+            ]
         # fmt: on
 
         self.rotor_type = rotor_type
+        self.disk_nodes = disk_nodes
 
-        self.maxspeed = maxspeed
-        self.minspeed = minspeed
+        machine_options = ["compressor", "turbine", "axial_flow"]
+        if machine_type not in machine_options:
+            machine_type = "compressor"
+        self.machine_type = machine_type
 
     @classmethod
     def from_saved_rotors(cls, path, minspeed, maxspeed, speed_units="rpm"):
@@ -120,9 +150,6 @@ class Report:
 
     def static_forces(self):
         """Method to calculate the bearing reaction forces.
-
-        Parameters
-        ----------
 
         Returns
         -------
