@@ -87,8 +87,7 @@ class Report:
 
     @classmethod
     def from_saved_rotors(cls, path, minspeed, maxspeed, speed_units="rpm"):
-        """
-        Instantiate a rotor from a previously saved rotor model
+        """Instantiate a rotor from a previously saved rotor model
 
         Parameters
         ----------
@@ -122,6 +121,9 @@ class Report:
     def static_forces(self):
         """Method to calculate the bearing reaction forces.
 
+        Parameters
+        ----------
+
         Returns
         -------
         Fb : list
@@ -145,8 +147,19 @@ class Report:
         return Fb
 
     def unbalance_forces(self, mode):
-        """
-        Method to calculate the unbalance forces.
+        """Method to calculate the unbalance forces.
+        The unbalance forces are calculated base on the rotor type:
+            between_bearings :
+                The unbalance forces derives from the reaction bearing forces.
+            single_overung_l :
+                The unbalance forces derives from the disk's masses on the
+                shaft left end.
+            single_overung_r :
+                The unbalance forces derives from the disk's masses on the
+                shaft right end.
+            double_overung :
+                The unbalance forces derives from the disk's masses on the
+                shaft left and right ends.
 
         Parameters
         ----------
@@ -166,28 +179,76 @@ class Report:
         ...                 maxspeed=1000,
         ...                 speed_units="rad/s")
         >>> report.unbalance_forces(mode=0)
-        [234.5654171598467]
+        [58.641354289961676]
         """
-
         N = 60 * self.maxspeed / (2 * np.pi)
 
         # get reaction forces on bearings
-        Fb = self.static_forces()
+        if self.rotor_type == "between_bearings":
+            Fb = self.static_forces()
+            if mode == 0 or mode == 1:
+                U_force = [max(6350 * np.sum(Fb) / N, 254e-6 * np.sum(Fb))]
 
-        if mode == 0 or mode == 1:
-            U = [4 * max(6350 * np.sum(Fb) / N, 250e-3 * np.sum(Fb))]
-
-        if mode == 2 or mode == 3:
-            U = 4 * max(6350 * Fb / N, 250e-3 * Fb)
+            if mode == 2 or mode == 3:
+                U_force = [max(6350 * f / N, 254e-6 * f) for f in Fb]
 
         # get disk masses
-        W3 = 0
-        for disk in self.rotor.disk_elements:
-            if disk.n > self.rotor.df_bearings["n"].iloc[-1]:
-                W3 += disk.m
-                U = [6350 * W3 / N]
+        elif self.rotor_type == "single_overhung_l":
+            Wd = [
+                disk.m
+                for disk in self.rotor.disk_elements
+                if disk.n < min(self.rotor.df_bearings["n"])
+            ]
+            Ws = [
+                sh.m
+                for sh in self.rotor.shaft_elements
+                if sh.n_l < min(self.rotor.df_bearings["n"])
+            ]
+            W3 = np.sum(Wd + Ws)
 
-        return U
+            U_force = [6350 * W3 / N]
+
+        elif self.rotor_type == "single_overhung_r":
+            Wd = [
+                disk.m
+                for disk in self.rotor.disk_elements
+                if disk.n > max(self.rotor.df_bearings["n"])
+            ]
+            Ws = [
+                sh.m
+                for sh in self.rotor.shaft_elements
+                if sh.n_r > max(self.rotor.df_bearings["n"])
+            ]
+            W3 = np.sum(Wd + Ws)
+
+            U_force = [6350 * W3 / N]
+
+        elif self.rotor_type == "double_overhung":
+            Wd_l = [
+                disk.m
+                for disk in self.rotor.disk_elements
+                if disk.n < min(self.rotor.df_bearings["n"])
+            ]
+            Ws_l = [
+                sh.m
+                for sh in self.rotor.shaft_elements
+                if sh.n_l < min(self.rotor.df_bearings["n"])
+            ]
+            Wd_r = [
+                disk.m
+                for disk in self.rotor.disk_elements
+                if disk.n > max(self.rotor.df_bearings["n"])
+            ]
+            Ws_r = [
+                sh.m
+                for sh in self.rotor.shaft_elements
+                if sh.n_r > max(self.rotor.df_bearings["n"])
+            ]
+            W3 = np.array([np.sum(Wd_l + Ws_l), np.sum(Wd_r + Ws_r)])
+
+            U_force = 6350 * W3 / N
+
+        return U_force
 
     def unbalance_response(self, clearances, mode):
         """Evaluates the unbalance response for the rotor.
