@@ -73,7 +73,7 @@ class Report:
         ...                 maxspeed=1000,
         ...                 speed_units="rad/s")
         >>> report.rotor_type
-        "between_bearings"
+        'between_bearings'
         """
         self.rotor = rotor
         self.speed_units = speed_units
