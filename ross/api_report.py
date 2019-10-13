@@ -624,13 +624,14 @@ class Report:
         plot.title.text_font_size = "14pt"
 
         nodes_pos = np.array(nodes_pos)
+        rpm_speed = (30 / np.pi) * modal.wn[mode]
 
         plot.line(
             x=zn,
             y=vn,
             line_width=4,
             line_color="red",
-            legend="Mode = %s, Speed = %.1f RPM" % (mode+1, 9.55*self.rotor.wn[mode]),
+            legend="Mode = %s, Speed = %.1f RPM" % (mode, rpm_speed),
         )
         plot.line(
             x=nodes_pos,
@@ -786,7 +787,7 @@ class Report:
         Q0 = cross_coupled_stiff[-1]
 
         # CSR - Critical Speed Ratio
-        CSR = self.maxspeed / self.rotor.wn[0]
+        CSR = self.maxspeed / self.rotor.run_modal(speed=self.maxspeed).wn[0]
 
         # RHO_mean - Average gas density
         RHO_mean = (RHOd + RHOs) / 2
