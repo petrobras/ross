@@ -310,10 +310,6 @@ class Report:
         idx_max = argrelextrema(magnitude, np.greater)[0].tolist()
         wn = freq_range[idx_max]
 
-        AF_table = []
-        SM_table = []
-        SM_ref_table = []
-
         for i, peak in enumerate(magnitude[idx_max]):
             peak_n = 0.707 * peak
             peak_aux = np.linspace(peak_n, peak_n, len(freq_range))
@@ -497,6 +493,8 @@ class Report:
         ([], array([3.]))
         """
         nodes_pos = self.rotor.nodes_pos
+        df_bearings = self.rotor.df_bearings
+        df_disks = self.rotor.df_disks
 
         # TODO: Add mcs speed to evaluate mode shapes
         modal = self.rotor.run_modal(speed=0)
@@ -516,57 +514,77 @@ class Report:
         zn = np.delete(zn, idx_remove)
         vn = np.delete(vn, idx_remove)
 
-        aux_idx_max = argrelextrema(vn, np.greater)[0].tolist()
-        aux_idx_min = argrelextrema(vn, np.less)[0].tolist()
-
         node_min = []
         node_max = []
 
-        # verification of rigid modes
-        if len(aux_idx_max) == 0 and len(aux_idx_min) == 0:
-            idx_max = np.argmax(vn)
-            idx_min = np.argmin(vn)
+        if self.rotor_type == "between_bearings":
 
-            # corrects the index by the removed points
-            for i in idx_remove:
-                if idx_min > i:
-                    idx_min += 1
-                if idx_max > i:
-                    idx_max += 1
-            node_max = np.round(np.array(idx_max) / nn)
-            node_min = np.round(np.array(idx_min) / nn)
+            aux_idx_max = argrelextrema(vn, np.greater)[0].tolist()
+            aux_idx_min = argrelextrema(vn, np.less)[0].tolist()
 
-        if len(aux_idx_min) != 0:
-            idx_min = np.where(vn == min(vn[aux_idx_min]))[0].tolist()
+            # verification of rigid modes
+            if len(aux_idx_max) == 0 and len(aux_idx_min) == 0:
+                idx_max = np.argmax(vn)
+                idx_min = np.argmin(vn)
 
-            # corrects the index by the removed points
-            for i in idx_remove:
-                if idx_min[0] > i:
-                    idx_min[0] += 1
-            node_min = np.round(np.array(idx_min) / nn)
+                # corrects the index by the removed points
+                for i in idx_remove:
+                    if idx_min > i:
+                        idx_min += 1
+                    if idx_max > i:
+                        idx_max += 1
+                node_max = np.round(np.array([idx_max]) / nn)
+                node_min = np.round(np.array([idx_min]) / nn)
 
-        if len(aux_idx_max) != 0:
-            idx_max = np.where(vn == max(vn[aux_idx_max]))[0].tolist()
+            if len(aux_idx_min) != 0:
+                idx_min = np.where(vn == min(vn[aux_idx_min]))[0].tolist()
 
-            # corrects the index by the removed points
-            for i in idx_remove:
-                if idx_max[0] > i:
-                    idx_max[0] += 1
-            node_max = np.round(np.array(idx_max) / nn)
+                # corrects the index by the removed points
+                for i in idx_remove:
+                    if idx_min[0] > i:
+                        idx_min[0] += 1
+                node_min = np.round(np.array(idx_min) / nn)
 
-        TOOLS = "pan,wheel_zoom,box_zoom,reset,save,box_select"
+            if len(aux_idx_max) != 0:
+                idx_max = np.where(vn == max(vn[aux_idx_max]))[0].tolist()
+
+                # corrects the index by the removed points
+                for i in idx_remove:
+                    if idx_max[0] > i:
+                        idx_max[0] += 1
+                node_max = np.round(np.array(idx_max) / nn)
+
+        elif self.rotor_type == "double_overhung":
+            node_max = [max(df_disks['n'])]
+            node_min = [min(df_disks['n'])]
+
+        elif self.rotor_type == "single_overhung_l":
+            node_min = [min(df_disks['n'])]
+
+        elif self.rotor_type == "single_overhung_r":
+            node_max = [max(df_disks['n'])]
+
         plot = figure(
-            tools=TOOLS,
+            tools="pan,wheel_zoom,box_zoom,reset,save,box_select",
             width=1400,
             height=700,
-            title="Static Analysis",
-            x_axis_label="shaft lenght",
-            y_axis_label="lateral displacement",
+            title="Undamped Mode Shape",
+            x_axis_label="Rotor lenght",
+            y_axis_label="Non dimensional rotor deformation",
         )
+        plot.xaxis.axis_label_text_font_size = "12pt"
+        plot.yaxis.axis_label_text_font_size = "12pt"
+        plot.title.text_font_size = "14pt"
 
         nodes_pos = np.array(nodes_pos)
 
-        plot.line(zn, vn, line_width=4, line_color="red")
+        plot.line(
+            x=zn,
+            y=vn,
+            line_width=4,
+            line_color="red",
+            legend="Mode = %s, Speed = %.1f RPM" % (mode+1, 9.55*self.rotor.wn[mode]),
+        )
         plot.line(
             x=nodes_pos,
             y=np.zeros(len(nodes_pos)),
@@ -575,17 +593,20 @@ class Report:
             line_color="black",
         )
         plot.circle(
-            x=nodes_pos[self.rotor.df_bearings["n"].tolist()],
-            y=np.zeros(len(self.rotor.df_bearings)),
+            x=nodes_pos[df_bearings["n"]],
+            y=np.zeros(len(df_bearings)),
             size=12,
             fill_color="black",
         )
+
+        pos0 = nodes_pos[min(df_bearings["n"])]
+        pos1 = nodes_pos[max(df_bearings["n"])]
         plot.add_layout(
             Label(
-                x=np.mean(nodes_pos[self.rotor.df_bearings["n"].tolist()]),
+                x=np.mean(nodes_pos[df_bearings["n"]]),
                 y=0,
                 angle=0,
-                text="Bearing Span",
+                text="Bearing Span = %.2f" % (pos1 - pos0),
                 text_font_style="bold",
                 text_font_size="12pt",
                 text_baseline="top",
@@ -593,7 +614,7 @@ class Report:
                 y_offset=20,
             )
         )
-        for node in nodes_pos[self.rotor.df_bearings["n"].tolist()]:
+        for node in nodes_pos[df_bearings["n"]]:
             plot.add_layout(
                 Span(
                     location=node,
