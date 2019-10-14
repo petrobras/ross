@@ -984,7 +984,7 @@ class FrequencyResponseResults:
         # bokeh plot - create a new plot
         mag_plot = figure(
             tools="pan, box_zoom, wheel_zoom, reset, save",
-            width=600,
+            width=640,
             height=240,
             title="Frequency Response - Magnitude",
             x_axis_label="Frequency",
@@ -1071,7 +1071,7 @@ class FrequencyResponseResults:
         # bokeh plot - create a new plot
         phase_plot = figure(
             tools="pan, box_zoom, wheel_zoom, reset, save",
-            width=600,
+            width=640,
             height=240,
             title="Frequency Response - Phase",
             x_axis_label="Frequency",
@@ -1365,7 +1365,7 @@ class ForcedResponseResults:
         # bokeh plot - create a new plot
         mag_plot = figure(
             tools="pan, box_zoom, wheel_zoom, reset, save",
-            width=600,
+            width=640,
             height=240,
             title="Forced Response - Magnitude",
             x_axis_label="Frequency (rad/s)",
@@ -1989,6 +1989,7 @@ class SummaryResults:
     table : bokeh WidgetBox
         Bokeh WidgetBox with the summary table plot
     """
+
     def __init__(self, df_shaft, df_disks, CG, Ip, tag):
         self.df_shaft = df_shaft
         self.df_disks = df_disks
@@ -2066,21 +2067,21 @@ class SummaryResults:
         ]
 
         rotor_titles = [
-                "Tag",
-                "First Station",
-                "Last Station",
-                "Starting Pos. (m)",
-                "Total Lenght (m)",
-                "C.G. Locantion (m)",
-                "Total Ip about C.L. (kg.m2)",
+            "Tag",
+            "First Station",
+            "Last Station",
+            "Starting Pos. (m)",
+            "Total Lenght (m)",
+            "C.G. Locantion (m)",
+            "Total Ip about C.L. (kg.m2)",
         ]
 
         disk_titles = [
-                "Tag",
-                "Disk Station",
-                "C.G. Locantion (m)",
-                "Disk Mass (m)",
-                "Total Ip about C.L. (kg.m2)",
+            "Tag",
+            "Disk Station",
+            "C.G. Locantion (m)",
+            "Disk Mass (m)",
+            "Total Ip about C.L. (kg.m2)",
         ]
 
         shaft_formatters = [
@@ -2118,22 +2119,34 @@ class SummaryResults:
 
         shaft_columns = [
             TableColumn(field=str(field), title=title, formatter=form)
-            for field, title, form in zip(shaft_data.keys(), shaft_titles, shaft_formatters)
+            for field, title, form in zip(
+                shaft_data.keys(), shaft_titles, shaft_formatters
+            )
         ]
 
         rotor_columns = [
             TableColumn(field=str(field), title=title, formatter=form)
-            for field, title, form in zip(rotor_data.keys(), rotor_titles, rotor_formatters)
+            for field, title, form in zip(
+                rotor_data.keys(), rotor_titles, rotor_formatters
+            )
         ]
 
         disk_columns = [
             TableColumn(field=str(field), title=title, formatter=form)
-            for field, title, form in zip(disk_data.keys(), disk_titles, disk_formatters)
+            for field, title, form in zip(
+                disk_data.keys(), disk_titles, disk_formatters
+            )
         ]
 
-        shaft_data_table = DataTable(source=shaft_source, columns=shaft_columns, width=1600)
-        rotor_data_table = DataTable(source=rotor_source, columns=rotor_columns, width=1600)
-        disk_data_table = DataTable(source=disk_source, columns=disk_columns, width=1600)        
+        shaft_data_table = DataTable(
+            source=shaft_source, columns=shaft_columns, width=1600
+        )
+        rotor_data_table = DataTable(
+            source=rotor_source, columns=rotor_columns, width=1600
+        )
+        disk_data_table = DataTable(
+            source=disk_source, columns=disk_columns, width=1600
+        )
 
         rotor_table = widgetbox(rotor_data_table)
         tab1 = Panel(child=rotor_table, title="Rotor Summary")
