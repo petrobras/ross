@@ -19,8 +19,10 @@ def calculate_attitude_angle(eccentricity_ratio):
     >>> calculate_attitude_angle(my_fluid_flow.eccentricity_ratio) # doctest: +ELLIPSIS
     1.5...
     """
-    return np.arctan(np.pi * (1 - eccentricity_ratio ** 2) /
-                     (4 * eccentricity_ratio))
+    return np.arctan(
+                    (np.pi * (1 - eccentricity_ratio ** 2)**(1/2)) /
+                    (4 * eccentricity_ratio)
+                     )
 
 
 def internal_radius_function(gama, attitude_angle, radius_rotor, eccentricity):
