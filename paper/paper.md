@@ -31,7 +31,7 @@ bibliography: paper.bib
 # Summary
 
 There are several critical rotating equipment purchased by the industry that are
-crucial in the oil exploration stages, such as compressors, pumps and turbines.
+crucial, such as compressors, pumps and turbines.
 Computational mechanical models aim to simulate the behavior of such mechanical
 systems, and to support decision making. To this purpose, we present Ross, an open source
 library written in Python for rotordynamic analysis.
