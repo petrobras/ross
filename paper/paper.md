@@ -4,6 +4,7 @@ title: 'ROSS - Rotordynamic Open Source Software'
 tags:
   - rotordynamic
   - numerical calculus
+  - Python
 authors:
  - name: Raphael Timbó
    affiliation: 1
@@ -38,6 +39,7 @@ library written in Python for rotordynamic analysis.
 
 Ross allows instantiating shafts, disks, and bearing, and join them in order
 to instantiate rotors. It is possible to plot its geometry, run simulations, and
-obtain results in the form of graphics, by performing Static analysis, Campbell Diagram, Frequency response, Forced response, and Mode Shapes.
+obtain results in the form of graphics, by performing Static analysis, Campbell Diagram,
+Frequency response, Forced response, and Mode Shapes.
 
 # References
