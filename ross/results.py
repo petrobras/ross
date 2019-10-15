@@ -1449,7 +1449,7 @@ class ForcedResponseResults:
 
         phase_plot = figure(
             tools="pan, box_zoom, wheel_zoom, reset, save",
-            width=600,
+            width=640,
             height=240,
             title="Forced Response - Phase",
             x_axis_label="Frequency",
