@@ -324,13 +324,22 @@ class ShaftElement(Element):
         )
         list_of_shafts = []
         if sheet_type == "Model":
+            new_materials = {}
+            for i in range(0, len(parameters["matno"])):
+                new_material = Material(
+                    name="shaft_mat_" + str(parameters["matno"][i]),
+                    rho=parameters["rhoa"][i],
+                    E=parameters["ea"][i],
+                    G_s=parameters["ga"][i],
+                )
+                new_materials["shaft_mat_" + str(parameters["matno"][i])] = new_material
             for i in range(0, len(parameters["L"])):
                 list_of_shafts.append(
                     cls(
                         L=parameters["L"][i],
                         i_d=parameters["i_d"][i],
                         o_d=parameters["o_d"][i],
-                        material=parameters[parameters["material"][i]],
+                        material=new_materials[parameters["material"][i]],
                         n=parameters["n"][i],
                         axial_force=parameters["axial_force"][i],
                         torque=parameters["torque"][i],
