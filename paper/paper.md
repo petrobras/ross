@@ -5,19 +5,19 @@ tags:
   - rotordynamic
   - numerical calculus
 authors:
- - name: Raphael Timbo
+ - name: Raphael Timbó
    affiliation: 1
- - name: Thiago Ritto
-   affiliation: 2
- - name: Juliana Vianna
+ - name: Rodrigo Martins
    affiliation: 2
  - name: Júlia Araújo
    affiliation: 2
- - name: Rodrigo Martins
+ - name: Gabriel Bachman
    affiliation: 2
  - name: Flavio Rangel
    affiliation: 2
- - name: Gabriel Bachman
+ - name: Juliana Vianna
+   affiliation: 2
+ - name: Thiago Ritto
    affiliation: 2
 affiliations:
  - name: Petrobras - Petróleo Brasileiro S.A.
