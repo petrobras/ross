@@ -7,18 +7,25 @@ tags:
   - Python
 authors:
  - name: Raphael Timbó
+   orcid: 0000-0000-0000-0000
    affiliation: 1
  - name: Rodrigo Martins
+   orcid: 0000-0000-0000-0000
    affiliation: 2
  - name: Júlia Araújo
+   orcid: 0000-0000-0000-0000
    affiliation: 2
  - name: Gabriel Bachman
+   orcid: 0000-0000-0000-0000
    affiliation: 2
  - name: Flavio Rangel
+   orcid: 0000-0002-4852-8141
    affiliation: 2
  - name: Juliana Vianna
+   orcid: 0000-0000-0000-0000
    affiliation: 2
  - name: Thiago Ritto
+   orcid: 0000-0000-0000-0000
    affiliation: 2
 affiliations:
  - name: Petrobras - Petróleo Brasileiro S.A.
