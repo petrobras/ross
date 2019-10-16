@@ -19,7 +19,7 @@ def calculate_attitude_angle(eccentricity_ratio):
     >>> calculate_attitude_angle(my_fluid_flow.eccentricity_ratio) # doctest: +ELLIPSIS
     1.5...
     """
-    return np.arctan(np.pi * (1 - eccentricity_ratio ** 2) /
+    return np.arctan(np.pi * np.sqrt(1 - eccentricity_ratio ** 2) /
                      (4 * eccentricity_ratio))
 
 
