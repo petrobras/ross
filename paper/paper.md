@@ -7,10 +7,10 @@ tags:
   - Python
 authors:
  - name: Raphael Timbó
-   orcid: 0000-0000-0000-0000
+   orcid: 0000-0001-7689-5486
    affiliation: 1
  - name: Rodrigo Martins
-   orcid: 0000-0000-0000-0000
+   orcid: 0000-0002-9996-6600
    affiliation: 2
  - name: Júlia Araújo
    orcid: 0000-0000-0000-0000
