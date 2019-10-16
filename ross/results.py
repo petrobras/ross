@@ -987,7 +987,7 @@ class FrequencyResponseResults:
             width=640,
             height=240,
             title="Frequency Response - Magnitude",
-            x_axis_label="Frequency",
+            x_axis_label="Frequency (rad/s)",
             y_axis_label=y_axis_label,
         )
         mag_plot.xaxis.axis_label_text_font_size = "14pt"
@@ -1074,7 +1074,7 @@ class FrequencyResponseResults:
             width=640,
             height=240,
             title="Frequency Response - Phase",
-            x_axis_label="Frequency",
+            x_axis_label="Frequency (rad/s)",
             y_axis_label="Phase",
         )
         phase_plot.xaxis.axis_label_text_font_size = "14pt"
@@ -1452,7 +1452,7 @@ class ForcedResponseResults:
             width=640,
             height=240,
             title="Forced Response - Phase",
-            x_axis_label="Frequency",
+            x_axis_label="Frequency (rad/s)",
             x_range=[0, max(frequency_range)],
             y_axis_label="Phase",
         )
