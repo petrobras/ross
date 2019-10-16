@@ -196,9 +196,9 @@ class FluidFlow:
         self.radial_clearance = self.radius_stator - self.radius_rotor
         self.difference_between_radius = radius_stator - radius_rotor
         self.bearing_type = ""
-        if self.length / 2 * self.radius_stator <= 1 / 4:
+        if self.length / (2 * self.radius_stator) <= 1 / 4:
             self.bearing_type = "short_bearing"
-        elif self.length / 2 * self.radius_stator >= 8:
+        elif self.length / (2 * self.radius_stator) >= 8:
             self.bearing_type = "long_bearing"
         else:
             self.bearing_type = "medium_size"
