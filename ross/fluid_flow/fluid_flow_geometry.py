@@ -55,8 +55,8 @@ def internal_radius_function(gama, attitude_angle, radius_rotor, eccentricity):
     >>> radius_rotor = my_fluid_flow.radius_rotor
     >>> eccentricity = my_fluid_flow.eccentricity
     >>> radius_internal, xri, yri = internal_radius_function(0, attitude_angle, radius_rotor, eccentricity)
-    >>> radius_internal
-    0.079
+    >>> radius_internal # doctest: +ELLIPSIS
+    0.079...
     """
     if (np.pi / 2 + attitude_angle) < gama < (3 * np.pi / 2 + attitude_angle):
         alpha = np.absolute(3 * np.pi / 2 - gama + attitude_angle)
