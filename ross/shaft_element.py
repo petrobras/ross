@@ -2,15 +2,14 @@ import os
 from pathlib import Path
 
 import bokeh.palettes as bp
-from bokeh.models import HoverTool, ColumnDataSource
 import matplotlib.patches as mpatches
 import numpy as np
 import toml
+from bokeh.models import ColumnDataSource, HoverTool
 
 import ross
 from ross.element import Element
-from ross.materials import Material
-from ross.materials import steel
+from ross.materials import Material, steel
 from ross.utils import read_table_file
 
 __all__ = ["ShaftElement", "ShaftTaperedElement"]
@@ -147,6 +146,13 @@ class ShaftElement(Element):
         #  the neutral plane Ie = pi*r**2/4
         self.Ie = np.pi * (o_d ** 4 - i_d ** 4) / 64
         phi = 0
+
+        # Geometric center
+        self.beam_cg = L / 2
+        self.axial_cg_pos = None
+
+        # Moment of inertia
+        self.Im = 0.125 * self.m * (o_d ** 2 + i_d ** 2)
 
         # Slenderness ratio of beam elements (G*A*L^2) / (E*I)
         sld = (self.material.G_s * self.A * self.L ** 2) / (self.material.E * self.Ie)
@@ -318,13 +324,22 @@ class ShaftElement(Element):
         )
         list_of_shafts = []
         if sheet_type == "Model":
+            new_materials = {}
+            for i in range(0, len(parameters["matno"])):
+                new_material = Material(
+                    name="shaft_mat_" + str(parameters["matno"][i]),
+                    rho=parameters["rhoa"][i],
+                    E=parameters["ea"][i],
+                    G_s=parameters["ga"][i],
+                )
+                new_materials["shaft_mat_" + str(parameters["matno"][i])] = new_material
             for i in range(0, len(parameters["L"])):
                 list_of_shafts.append(
                     cls(
                         L=parameters["L"][i],
                         i_d=parameters["i_d"][i],
                         o_d=parameters["o_d"][i],
-                        material=parameters[parameters["material"][i]],
+                        material=new_materials[parameters["material"][i]],
                         n=parameters["n"][i],
                         axial_force=parameters["axial_force"][i],
                         torque=parameters["torque"][i],
@@ -1019,9 +1034,31 @@ class ShaftTaperedElement(Element):
 
         phi = 0
 
+        # geometric center
+        c1 = (
+            roj ** 2
+            + 2 * roj * rok
+            + 3 * rok ** 2
+            - rij ** 2
+            - 2 * rij * rik
+            - 3 * rik ** 2
+        )
+        c2 = (roj ** 2 + roj * rok + rok ** 2) - (rij ** 2 + rij * rik + rik ** 2)
+        self.beam_cg = L * c1 / (4 * c2)
+        self.axial_cg_pos = None
+
         # Slenderness ratio of beam elements (G*A*L^2) / (E*I)
         sld = (self.material.G_s * self.A * self.L ** 2) / (self.material.E * Ie)
         self.slenderness_ratio = sld
+
+        # Moment of inertia
+        # fmt: off
+        self.Im = (
+            (np.pi * L * (self.m / self.volume) / 10) *
+            ((roj ** 4 + roj ** 3 * rok + roj ** 2 * rok ** 2 + roj * rok ** 3 + rok ** 4) -
+             (rij ** 4 + rij ** 3 * rik + rij ** 2 * rik ** 2 + rij * rik ** 3 + rik ** 4))
+        )
+        # fmt: on
 
         # picking a method to calculate the shear coefficient
         # List of avaible methods:

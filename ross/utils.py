@@ -4,8 +4,6 @@ from bokeh.models import LogColorMapper
 from bokeh.palettes import Viridis256
 from bokeh.plotting import figure
 
-from ross.materials import Material
-
 
 class DataNotFoundError(Exception):
     """
@@ -175,14 +173,10 @@ def read_table_file(file, element, sheet_name=0, n=0, sheet_type="Model"):
                 material_rho[i] = material_rho[i] * 27679.904
                 material_e[i] = material_e[i] * 6894.757
                 material_g_s[i] = material_g_s[i] * 6894.757
-        for i in range(0, len(material_name)):
-            new_material = Material(
-                name="shaft_mat_" + str(material_name[i]),
-                rho=material_rho[i],
-                E=material_e[i],
-                G_s=material_g_s[i],
-            )
-            new_materials["shaft_mat_" + str(material_name[i])] = new_material
+        new_materials["matno"] = material_name
+        new_materials["rhoa"] = material_rho
+        new_materials["ea"] = material_e
+        new_materials["ga"] = material_g_s
 
     df = pd.read_excel(file, header=header_index, sheet_name=sheet_name)
     df.columns = df.columns.str.lower()
