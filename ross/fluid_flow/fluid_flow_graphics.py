@@ -198,11 +198,19 @@ def matplot_eccentricity(fluid_flow_object, z=0, ax=None):
     """
     if ax is None:
         ax = plt.gca()
+    x_r = []
+    x_b = []
+    y_r = []
+    y_b = []
     for j in range(0, fluid_flow_object.ntheta):
-        ax.plot(fluid_flow_object.xre[z][j], fluid_flow_object.yre[z][j], "r.")
-        ax.plot(fluid_flow_object.xri[z][j], fluid_flow_object.yri[z][j], "b.")
-        ax.plot(0, 0, "r*")
-        ax.plot(fluid_flow_object.xi, fluid_flow_object.yi, "b*")
+        x_r.append(fluid_flow_object.xre[z][j])
+        y_r.append(fluid_flow_object.yre[z][j])
+        x_b.append(fluid_flow_object.xri[z][j])
+        y_b.append(fluid_flow_object.yri[z][j])
+    ax.plot(x_r, y_r, "r.")
+    ax.plot(x_b, y_b, "b.")
+    ax.plot(0, 0, "r*")
+    ax.plot(fluid_flow_object.xi, fluid_flow_object.yi, "b*")
     ax.set_title("Cut in plane Z=" + str(z))
     ax.set_xlabel("X axis")
     ax.set_ylabel("Y axis")
