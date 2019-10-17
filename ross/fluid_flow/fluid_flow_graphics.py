@@ -209,8 +209,11 @@ def matplot_eccentricity(fluid_flow_object, z=0, ax=None):
         y_b.append(fluid_flow_object.yri[z][j])
     ax.plot(x_r, y_r, "r.")
     ax.plot(x_b, y_b, "b.")
-    ax.plot(0, 0, "r*")
-    ax.plot(fluid_flow_object.xi, fluid_flow_object.yi, "b*")
+    try:
+        ax.plot(0, 0, "r*")
+        ax.plot(fluid_flow_object.xi, fluid_flow_object.yi, "b*")
+    except TypeError:
+        pass
     ax.set_title("Cut in plane Z=" + str(z))
     ax.set_xlabel("X axis")
     ax.set_ylabel("Y axis")
