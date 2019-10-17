@@ -112,7 +112,7 @@ def fluid_flow_short_numerical():
     radius_stator = 0.1
     visc = 0.015
     rho = 860.
-    attitude_angle = np.pi
+    attitude_angle = None
     eccentricity = 0.001
     return flow.FluidFlow(nz, ntheta, nradius, length,
                           omega, p_in, p_out, radius_rotor,
@@ -132,11 +132,10 @@ def fluid_flow_long_numerical():
     length = 8 * 2 * radius_stator
     visc = 0.015
     rho = 860.
-    attitude_angle = np.pi
     eccentricity = 0.0001
     return flow.FluidFlow(nz, ntheta, nradius, length,
                           omega, p_in, p_out, radius_rotor,
-                          radius_stator, visc, rho, attitude_angle=attitude_angle, eccentricity=eccentricity)
+                          radius_stator, visc, rho, eccentricity=eccentricity)
 
 
 def test_numerical_abs_error():
@@ -163,7 +162,7 @@ def test_long_bearing():
     bearing.calculate_pressure_matrix_numerical()
     error = (max(bearing.p_mat_analytical[int(bearing.nz / 2)]) -
              max(bearing.p_mat_numerical[int(bearing.nz / 2)])) / max(bearing.p_mat_numerical[int(bearing.nz / 2)])
-    assert math.isclose(error, 0, abs_tol=0.006)
+    assert math.isclose(error, 0, abs_tol=0.007)
 
 
 def test_oil_film_force_short():
@@ -174,6 +173,8 @@ def test_oil_film_force_short():
         calculate_oil_film_force(bearing, force_type='numerical')
     assert_allclose(n, n_numerical, rtol=0.08)
     assert_allclose(t, t_numerical, rtol=0.7)
+    assert_allclose(force_x_numerical, 0, atol=1e-06)
+    assert_allclose(force_y_numerical, bearing.load, atol=1e-05)
 
 
 def test_oil_film_force_long():
