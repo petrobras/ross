@@ -153,7 +153,7 @@ class FluidFlow:
     >>> # show(my_fluid_flow.plot_eccentricity())
     >>> # show(my_fluid_flow.plot_pressure_theta(z=int(nz/2)))
     >>> matplot_pressure_theta(my_fluid_flow, z=int(nz/2)) # doctest: +ELLIPSIS
-    <matplotlib.axes._subplots.AxesSubplot object at...
+    <matplotlib.axes...
     """
 
     def __init__(
