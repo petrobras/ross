@@ -129,7 +129,7 @@ def fluid_flow_long_numerical():
     radius_rotor = 1
     h = 0.000194564
     radius_stator = radius_rotor + h
-    length = 8 * radius_stator
+    length = 8 * 2 * radius_stator
     visc = 0.015
     rho = 860.
     attitude_angle = np.pi
@@ -163,7 +163,7 @@ def test_long_bearing():
     bearing.calculate_pressure_matrix_numerical()
     error = (max(bearing.p_mat_analytical[int(bearing.nz / 2)]) -
              max(bearing.p_mat_numerical[int(bearing.nz / 2)])) / max(bearing.p_mat_numerical[int(bearing.nz / 2)])
-    assert math.isclose(error, 0, abs_tol=0.02)
+    assert math.isclose(error, 0, abs_tol=0.006)
 
 
 def test_oil_film_force_short():
