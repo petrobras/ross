@@ -406,7 +406,15 @@ class Rotor(object):
         for z_pos in z_positions:
             dfb_z_pos = dfb[dfb.nodes_pos_l == z_pos]
             dfb_z_pos = dfb_z_pos.sort_values(by="n_l")
-            y_pos = nodes_o_d[int(dfb_z_pos.iloc[0]["n_l"])] / 2
+            if z_pos == df_shaft["nodes_pos_l"].iloc[0]:
+                y_pos = df_shaft["o_d_l"].iloc[0] / 2
+            elif z_pos == df_shaft["nodes_pos_r"].iloc[-1]:
+                y_pos = df_shaft["o_d_r"].iloc[-1] / 2
+            else:
+                y_pos = max(
+                        df_shaft["o_d_l"].loc[int(dfb_z_pos.iloc[0]["n_l"])],
+                        df_shaft["o_d_r"].loc[int(dfb_z_pos.iloc[0]["n_l"]) - 1]
+                ) / 2
             mean_od = np.mean(nodes_o_d)
             for t in dfb_z_pos.tag:
                 df.loc[df.tag == t, "y_pos"] = y_pos
