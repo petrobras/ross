@@ -169,7 +169,7 @@ class Element(ABC):
         Id          0.178089
         Ip          0.329564
         tag             None
-        color        #bc625b
+        color        #b2182b
         type     DiskElement
         dtype: object
         """
