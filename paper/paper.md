@@ -22,7 +22,7 @@ authors:
    orcid: 0000-0002-4852-8141
    affiliation: 2
  - name: Juliana Vianna
-   orcid: 0000-0000-0000-0000
+   orcid: 0000-0002-6198-7932
    affiliation: 2
  - name: Thiago Ritto
    orcid: 0000-0000-0000-0000
