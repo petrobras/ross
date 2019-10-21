@@ -903,7 +903,7 @@ class BearingElement(Element):
         BearingElement(n=0,
          kxx=[...
         """
-        fluid_flow = flow.PressureMatrix(
+        fluid_flow = flow.FluidFlow(
             nz,
             ntheta,
             nradius,

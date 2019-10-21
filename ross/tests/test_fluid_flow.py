@@ -24,9 +24,9 @@ def fluid_flow_short_eccentricity():
     eccentricity = (radius_stator - radius_rotor)*0.2663
     visc = 0.1
     rho = 860.
-    return flow.PressureMatrix(nz, ntheta, nradius, length, omega, p_in,
-                               p_out, radius_rotor, radius_stator,
-                               visc, rho, eccentricity=eccentricity)
+    return flow.FluidFlow(nz, ntheta, nradius, length, omega, p_in,
+                          p_out, radius_rotor, radius_stator,
+                          visc, rho, eccentricity=eccentricity)
 
 
 def fluid_flow_short_load():
@@ -42,9 +42,9 @@ def fluid_flow_short_load():
     load = 525
     visc = 0.1
     rho = 860.
-    return flow.PressureMatrix(nz, ntheta, nradius, length, omega, p_in,
-                               p_out, radius_rotor, radius_stator,
-                               visc, rho, load=load)
+    return flow.FluidFlow(nz, ntheta, nradius, length, omega, p_in,
+                          p_out, radius_rotor, radius_stator,
+                          visc, rho, load=load)
 
 
 def test_sommerfeld_number():
@@ -112,11 +112,11 @@ def fluid_flow_short_numerical():
     radius_stator = 0.1
     visc = 0.015
     rho = 860.
-    beta = np.pi
+    attitude_angle = None
     eccentricity = 0.001
-    return flow.PressureMatrix(nz, ntheta, nradius, length,
-                               omega, p_in, p_out, radius_rotor,
-                               radius_stator, visc, rho, beta=beta, eccentricity=eccentricity)
+    return flow.FluidFlow(nz, ntheta, nradius, length,
+                          omega, p_in, p_out, radius_rotor,
+                          radius_stator, visc, rho, attitude_angle=attitude_angle, eccentricity=eccentricity)
 
 
 def fluid_flow_long_numerical():
@@ -129,14 +129,13 @@ def fluid_flow_long_numerical():
     radius_rotor = 1
     h = 0.000194564
     radius_stator = radius_rotor + h
-    length = 8 * radius_stator
+    length = 8 * 2 * radius_stator
     visc = 0.015
     rho = 860.
-    beta = np.pi
     eccentricity = 0.0001
-    return flow.PressureMatrix(nz, ntheta, nradius, length,
-                               omega, p_in, p_out, radius_rotor,
-                               radius_stator, visc, rho, beta=beta, eccentricity=eccentricity)
+    return flow.FluidFlow(nz, ntheta, nradius, length,
+                          omega, p_in, p_out, radius_rotor,
+                          radius_stator, visc, rho, eccentricity=eccentricity)
 
 
 def test_numerical_abs_error():
@@ -163,29 +162,29 @@ def test_long_bearing():
     bearing.calculate_pressure_matrix_numerical()
     error = (max(bearing.p_mat_analytical[int(bearing.nz / 2)]) -
              max(bearing.p_mat_numerical[int(bearing.nz / 2)])) / max(bearing.p_mat_numerical[int(bearing.nz / 2)])
-    assert math.isclose(error, 0, abs_tol=0.02)
+    assert math.isclose(error, 0, abs_tol=0.007)
 
 
 def test_oil_film_force_short():
     bearing = fluid_flow_short_numerical()
     bearing.calculate_pressure_matrix_numerical()
-    n, t = calculate_oil_film_force(bearing)
-    n_numerical, t_numerical = calculate_oil_film_force(bearing, force_type='numerical')
-    error_n = (n - n_numerical) / n_numerical
-    error_t = (t - t_numerical) / t_numerical
-    assert_allclose(error_n, 0, atol=0.009)
-    assert_allclose(error_t, 0, atol=0.7)
+    n, t, force_x, force_y = calculate_oil_film_force(bearing)
+    n_numerical, t_numerical, force_x_numerical, force_y_numerical = \
+        calculate_oil_film_force(bearing, force_type='numerical')
+    assert_allclose(n, n_numerical, rtol=0.08)
+    assert_allclose(t, t_numerical, rtol=0.7)
+    assert_allclose(force_x_numerical, 0, atol=1e-06)
+    assert_allclose(force_y_numerical, bearing.load, atol=1e-05)
 
 
 def test_oil_film_force_long():
     bearing = fluid_flow_long_numerical()
     bearing.calculate_pressure_matrix_numerical()
-    n, t = calculate_oil_film_force(bearing)
-    n_numerical, t_numerical = calculate_oil_film_force(bearing, force_type='numerical')
-    error_n = (n - n_numerical) / n_numerical
-    error_t = (t - t_numerical) / t_numerical
-    assert_allclose(error_n, 0, atol=0.2)
-    assert_allclose(error_t, 0, atol=0.4)
+    n, t, force_x, force_y = calculate_oil_film_force(bearing)
+    n_numerical, t_numerical, force_x_numerical, force_y_numerical = \
+        calculate_oil_film_force(bearing, force_type='numerical')
+    assert_allclose(n, n_numerical, rtol=0.2)
+    assert_allclose(t, t_numerical, rtol=0.4)
 
 
 def test_bokeh_plots():
@@ -206,3 +205,4 @@ def test_matplotlib_plots():
     assert isinstance(matplot_pressure_theta(bearing), ax_type)
     assert isinstance(matplot_pressure_z(bearing), ax_type)
     assert isinstance(matplot_shape(bearing), ax_type)
+
