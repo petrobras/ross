@@ -12,8 +12,8 @@ authors:
  - name: Rodrigo Martins
    orcid: 0000-0002-9996-6600
    affiliation: 2
- - name: Júlia Araújo
-   orcid: 0000-0000-0000-0000
+ - name: Júlia Mota
+   orcid: 0000-0002-9547-9629
    affiliation: 2
  - name: Gabriel Bachman
    orcid: 0000-0000-0000-0000
@@ -25,7 +25,7 @@ authors:
    orcid: 0000-0002-6198-7932
    affiliation: 2
  - name: Thiago Ritto
-   orcid: 0000-0000-0000-0000
+   orcid: 0000-0003-0649-6919
    affiliation: 2
 affiliations:
  - name: Petrobras - Petróleo Brasileiro S.A.
