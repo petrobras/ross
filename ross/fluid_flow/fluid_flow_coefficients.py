@@ -180,6 +180,7 @@ def calculate_oil_film_force(fluid_flow_object, force_type=None):
         + tangential_force * np.sin(fluid_flow_object.attitude_angle)
     return radial_force, tangential_force, force_x, force_y
 
+
 def calculate_stiffness_matrix(fluid_flow_object, oil_film_force='numerical'):
     """This function calculates the bearing stiffness matrix numerically.
     Parameters
