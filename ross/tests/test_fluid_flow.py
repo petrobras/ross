@@ -20,7 +20,7 @@ def fluid_flow_short_eccentricity():
     p_out = 0.
     radius_rotor = 0.1999996
     radius_stator = 0.1999996 + 0.000194564
-    length = 1 / (10) * (2 * radius_stator)
+    length = (1 / 10) * (2 * radius_stator)
     eccentricity = 0.0001
     visc = 0.015
     rho = 860.
@@ -29,7 +29,7 @@ def fluid_flow_short_eccentricity():
                           visc, rho, eccentricity=eccentricity)
 
 
-def fluid_flow_short_load():
+def fluid_flow_short_friswell(set_load=True):
     nz = 30
     ntheta = 20
     nradius = 11
@@ -42,9 +42,15 @@ def fluid_flow_short_load():
     load = 525
     visc = 0.1
     rho = 860.
-    return flow.FluidFlow(nz, ntheta, nradius, length, omega, p_in,
-                          p_out, radius_rotor, radius_stator,
-                          visc, rho, load=load)
+    eccentricity = (radius_stator - radius_rotor)*0.2663
+    if set_load:
+        return flow.FluidFlow(nz, ntheta, nradius, length, omega, p_in,
+                              p_out, radius_rotor, radius_stator,
+                              visc, rho, load=load)
+    else:
+        return flow.FluidFlow(nz, ntheta, nradius, length, omega, p_in,
+                              p_out, radius_rotor, radius_stator,
+                              visc, rho, eccentricity=eccentricity)
 
 
 def test_sommerfeld_number():
@@ -53,7 +59,7 @@ def test_sommerfeld_number():
     expected results for the sommerfeld number and eccentricity ratio.
     Taken from example 5.5.1, page 181 (Dynamics of rotating machine, FRISSWELL)
     """
-    bearing = fluid_flow_short_load()
+    bearing = fluid_flow_short_friswell()
     assert math.isclose(bearing.eccentricity_ratio, 0.2663, rel_tol=0.001)
 
 
@@ -63,7 +69,7 @@ def test_get_rotor_load():
     expected results for the load over the rotor, given the eccentricity ratio.
     Taken from example 5.5.1, page 181 (Dynamics of rotating machine, FRISSWELL)
     """
-    bearing = fluid_flow_short_eccentricity()
+    bearing = fluid_flow_short_friswell(set_load=False)
     assert math.isclose(bearing.load, 525, rel_tol=0.1)
 
 
@@ -73,7 +79,7 @@ def test_stiffness_matrix():
     expected results for the stiffness matrix, given the eccentricity ratio.
     Taken from example 5.5.1, page 181 (Dynamics of rotating machine, FRISSWELL)
     """
-    bearing = fluid_flow_short_eccentricity()
+    bearing = fluid_flow_short_friswell()
     kxx, kxy, kyx, kyy = calculate_analytical_stiffness_matrix(bearing.load,
                                                                bearing.eccentricity_ratio,
                                                                bearing.radial_clearance)
@@ -95,10 +101,10 @@ def test_stiffness_matrix_numerical():
     k_xx, k_xy, k_yx, k_yy = calculate_analytical_stiffness_matrix(bearing.load,
                                                                    bearing.eccentricity_ratio,
                                                                    bearing.radial_clearance)
-    assert math.isclose(kxx, k_xx, rel_tol=0.03)
-    assert math.isclose(kxy, k_xy, rel_tol=0.006)
-    assert math.isclose(kyx, k_yx, rel_tol=0.02)
-    assert math.isclose(kyy, k_yy, rel_tol=0.04)
+    assert_allclose(kxx, k_xx, rtol=0.03)
+    assert_allclose(kxy, k_xy, rtol=0.006)
+    assert_allclose(kyx, k_yx, rtol=0.02)
+    assert_allclose(kyy, k_yy, rtol=0.04)
 
 
 def test_damping_matrix():
@@ -107,7 +113,7 @@ def test_damping_matrix():
     expected results for the damping matrix, given the eccentricity ratio.
     Taken from example 5.5.1, page 181 (Dynamics of rotating machine, FRISSWELL)
     """
-    bearing = fluid_flow_short_load()
+    bearing = fluid_flow_short_friswell()
     cxx, cxy, cyx, cyy = calculate_analytical_damping_matrix(bearing.load,
                                                              bearing.eccentricity_ratio,
                                                              bearing.radial_clearance,
