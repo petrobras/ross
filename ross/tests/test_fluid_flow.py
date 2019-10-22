@@ -83,6 +83,24 @@ def test_stiffness_matrix():
     assert math.isclose(kyy/10**6, 8.815, rel_tol=0.01)
 
 
+def test_stiffness_matrix_numerical():
+    """
+    This function instantiate a bearing using the fluid flow class and test if it matches the
+    expected results for the stiffness matrix based on Friswell's book formulas, given the
+    eccentricity ratio.
+    Taken from chapter 5, page 179 (Dynamics of rotating machine, FRISSWELL)
+    """
+    bearing = fluid_flow_short_eccentricity()
+    kxx, kxy, kyx, kyy = calculate_stiffness_matrix(bearing)
+    k_xx, k_xy, k_yx, k_yy = calculate_analytical_stiffness_matrix(bearing.load,
+                                                                   bearing.eccentricity_ratio,
+                                                                   bearing.radial_clearance)
+    assert math.isclose(kxx, k_xx, rel_tol=0.03)
+    assert math.isclose(kxy, k_xy, rel_tol=0.006)
+    assert math.isclose(kyx, k_yx, rel_tol=0.02)
+    assert math.isclose(kyy, k_yy, rel_tol=0.04)
+
+
 def test_damping_matrix():
     """
     This function instantiate a bearing using the fluid flow class and test if it matches the
