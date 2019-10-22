@@ -6,23 +6,23 @@ from bokeh.plotting import figure
 import matplotlib.pyplot as plt
 from numpy.testing import assert_allclose
 from ross.fluid_flow.fluid_flow_coefficients import calculate_analytical_damping_matrix,\
-    calculate_analytical_stiffness_matrix, calculate_oil_film_force
+    calculate_analytical_stiffness_matrix, calculate_oil_film_force, calculate_stiffness_matrix
 from ross.fluid_flow.fluid_flow_graphics import plot_shape, plot_eccentricity, plot_pressure_theta,\
     plot_pressure_z, matplot_shape, matplot_eccentricity, matplot_pressure_theta, matplot_pressure_z
 
 
 def fluid_flow_short_eccentricity():
-    nz = 30
-    ntheta = 20
+    nz = 16
+    ntheta = 528
     nradius = 11
-    length = 0.03
-    omega = 157.1
+    omega = 100.*2*np.pi/60
     p_in = 0.
     p_out = 0.
-    radius_rotor = 0.0499
-    radius_stator = 0.05
-    eccentricity = (radius_stator - radius_rotor)*0.2663
-    visc = 0.1
+    radius_rotor = 0.1999996
+    radius_stator = 0.1999996 + 0.000194564
+    length = 1 / (10) * (2 * radius_stator)
+    eccentricity = 0.0001
+    visc = 0.015
     rho = 860.
     return flow.FluidFlow(nz, ntheta, nradius, length, omega, p_in,
                           p_out, radius_rotor, radius_stator,
