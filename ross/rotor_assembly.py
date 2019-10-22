@@ -407,18 +407,22 @@ class Rotor(object):
             dfb_z_pos = dfb[dfb.nodes_pos_l == z_pos]
             dfb_z_pos = dfb_z_pos.sort_values(by="n_l")
             if z_pos == df_shaft["nodes_pos_l"].iloc[0]:
-                y_pos = df_shaft["o_d_l"].iloc[0] / 2
-            elif z_pos == df_shaft["nodes_pos_r"].iloc[-1]:
-                y_pos = df_shaft["o_d_r"].iloc[-1] / 2
-            else:
                 y_pos = max(
-                        df_shaft["o_d_l"].loc[int(dfb_z_pos.iloc[0]["n_l"])],
-                        df_shaft["o_d_r"].loc[int(dfb_z_pos.iloc[0]["n_l"]) - 1]
+                    df_shaft["o_d_l"][df_shaft.n_l == int(dfb_z_pos.iloc[0]["n_l"])].values
                 ) / 2
+            elif z_pos == df_shaft["nodes_pos_r"].iloc[-1]:
+                y_pos = max(
+                    df_shaft["o_d_r"][df_shaft.n_r == int(dfb_z_pos.iloc[0]["n_r"])].values
+                ) / 2
+            else:
+                y_pos = max([
+                    max(df_shaft["o_d_l"][df_shaft._n == int(dfb_z_pos.iloc[0]["n_l"])].values),
+                    max(df_shaft["o_d_r"][df_shaft._n == int(dfb_z_pos.iloc[0]["n_l"]) - 1].values)
+                ]) / 2
             mean_od = np.mean(nodes_o_d)
             for t in dfb_z_pos.tag:
                 df.loc[df.tag == t, "y_pos"] = y_pos
-                y_pos += 2 * mean_od
+                y_pos += 2 * mean_od * df["scale_factor"][df.tag == t].values[0]
 
         # define position for point mass elements
         dfb = df[df.type == "BearingElement"]
