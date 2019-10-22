@@ -188,6 +188,7 @@ def calculate_stiffness_matrix(fluid_flow_object, oil_film_force='numerical'):
     fluid_flow_object: A FluidFlow object.
     oil_film_force: str
         If set, calculates the oil film force analytically considering the chosen type: 'short' or 'long'.
+        If set to 'numerical', calculates the oil film force numerically.
     Returns
     -------
     list of floats
@@ -196,7 +197,8 @@ def calculate_stiffness_matrix(fluid_flow_object, oil_film_force='numerical'):
     --------
     >>> from ross.fluid_flow.fluid_flow import fluid_flow_example
     >>> my_fluid_flow = fluid_flow_example()
-    >>> calculate_stiffness_matrix(my_fluid_flow)
+    >>> calculate_stiffness_matrix(my_fluid_flow)  # doctest: +ELLIPSIS
+    [0.003...
     """
     [radial_force, tangential_force, force_x, force_y] = \
         calculate_oil_film_force(fluid_flow_object, force_type=oil_film_force)
