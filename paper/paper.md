@@ -16,7 +16,7 @@ authors:
    orcid: 0000-0002-9547-9629
    affiliation: 2
  - name: Gabriel Bachman
-   orcid: 0000-0000-0000-0000
+   orcid: 0000-0003-4401-8408
    affiliation: 2
  - name: Flavio Rangel
    orcid: 0000-0002-4852-8141
