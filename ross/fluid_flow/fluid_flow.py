@@ -519,7 +519,7 @@ def fluid_flow_example2():
     --------
     >>> my_fluid_flow = fluid_flow_example2()
     >>> my_fluid_flow.load
-    0.001
+    42.89
     """
     omega = 100. * 2 * np.pi / 60
     radius_rotor = 0.1999996
