@@ -201,9 +201,10 @@ def find_equilibrium_position(fluid_flow_object, print_along=True, relative_tole
         Eccentricity of the equilibrium position.
     Examples
     --------
-    >>> from ross.fluid_flow.fluid_flow import fluid_flow_example
-    >>> my_fluid_flow = fluid_flow_example()
-    >>> find_equilibrium_position(my_fluid_flow) # doctest: +ELLIPSIS
+    >>> from ross.fluid_flow.fluid_flow import fluid_flow_example2
+    >>> my_fluid_flow = fluid_flow_example2()
+    >>> find_equilibrium_position(my_fluid_flow, print_along=False) # doctest: +ELLIPSIS
+    0.00010000...
     """
     fluid_flow_object.calculate_pressure_matrix_numerical()
     load = calculate_rotor_load(fluid_flow_object.radius_stator, fluid_flow_object.omega,
