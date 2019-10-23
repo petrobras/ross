@@ -503,6 +503,35 @@ def fluid_flow_example():
     return my_pressure_matrix
 
 
+def fluid_flow_example2():
+    """This function returns a different instance of a simple fluid flow.
+    The purpose is to make available a simple model
+    so that doctest can be written using it.
+
+    Parameters
+    ----------
+
+    Returns
+    -------
+    An instance of a fluid flow object.
+
+    Examples
+    --------
+    >>> my_fluid_flow = fluid_flow_example2()
+    >>> my_fluid_flow.load
+    0.001
+    """
+    omega = 100. * 2 * np.pi / 60
+    radius_rotor = 0.1999996
+    radius_stator = 0.1999996 + 0.000194564
+    length = (1 / 10) * (2 * radius_stator)
+    viscosity = 0.015
+    density = 860
+    load = 42.89
+    my_pressure_matrix = FluidFlow(nz=8, ntheta=132, nradius=11, length=length, omega=omega,
+                                   p_in=0., p_out=0., radius_rotor=radius_rotor, radius_stator=radius_stator,
+                                   viscosity=viscosity, density=density, load=load)
+    return my_pressure_matrix
 
 
 
