@@ -195,7 +195,7 @@ class Element(ABC):
         >>> from ross.bearing_seal_element import bearing_example
         >>> from ross.bearing_seal_element import BearingElement
         >>> bearing = bearing_example()
-        >>> bearing.save('BearingElement.toml')
+        >>> bearing.save()
         >>> BearingElement.load_data('BearingElement.toml') # doctest: +ELLIPSIS
         {'BearingElement': {'0': {'n': 0, 'kxx': [1000000.0, 1000000.0,...
         """
