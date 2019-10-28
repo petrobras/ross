@@ -30,7 +30,7 @@ class Element(ABC):
         >>> # Example using DiskElement
         >>> from ross.disk_element import disk_example
         >>> disk = disk_example()
-        >>> disk.save('DiskElement.toml')
+        >>> disk.save()
         """
         pass
 
@@ -50,8 +50,8 @@ class Element(ABC):
         >>> from ross.bearing_seal_element import bearing_example
         >>> from ross.bearing_seal_element import BearingElement
         >>> bearing1 = bearing_example()
-        >>> bearing1.save('BearingElement.toml')
-        >>> list_of_bearings = BearingElement.load('BearingElement.toml')
+        >>> bearing1.save()
+        >>> list_of_bearings = BearingElement.load()
         >>> bearing1 == list_of_bearings[0]
         True
         """
@@ -228,7 +228,7 @@ class Element(ABC):
         >>> from ross.bearing_seal_element import bearing_example
         >>> from ross.bearing_seal_element import BearingElement
         >>> bearing = bearing_example()
-        >>> bearing.save('BearingElement.toml')
+        >>> bearing.save()
         >>> data = BearingElement.load_data('BearingElement.toml')
         >>> BearingElement.dump_data(data, 'bearing_data.toml')
         """

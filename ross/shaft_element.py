@@ -230,7 +230,7 @@ class ShaftElement(Element):
     def __hash__(self):
         return hash(self.tag)
 
-    def save(self, file_name):
+    def save(self, file_name=Path(os.getcwd())):
         """Save shaft elements to toml file.
 
         Parameters
@@ -246,7 +246,7 @@ class ShaftElement(Element):
         >>> shaft1 = ShaftElement(
         ...     le, i_d, o_d, steel, rotary_inertia=True, shear_effects=True
         ... )
-        >>> shaft1.save('ShaftElement.toml')
+        >>> shaft1.save()
         """
         data = self.load_data(Path(file_name)/'ShaftElement.toml')
         data["ShaftElement"][str(self.n)] = {
@@ -281,8 +281,8 @@ class ShaftElement(Element):
         >>> shaft1 = ShaftElement(
         ...     le, i_d, o_d, steel, rotary_inertia=True, shear_effects=True
         ... )
-        >>> shaft1.save('ShaftElement.toml')
-        >>> shaft2 = ShaftElement.load("ShaftElement.toml")
+        >>> shaft1.save()
+        >>> shaft2 = ShaftElement.load()
         >>> shaft2
         [ShaftElement(L=0.25, i_d=0.0, o_d=0.05, material='Steel', n=None)]
         """
@@ -1131,7 +1131,7 @@ class ShaftTaperedElement(Element):
     def __hash__(self):
         return hash(self.tag)
 
-    def save(self, file_name):
+    def save(self, file_name=Path(os.getcwd())):
         """Save shaft elements to toml file.
 
         Parameters
@@ -1145,24 +1145,28 @@ class ShaftTaperedElement(Element):
         ...        L=0.25, i_d_l=0, i_d_r=0, o_d_l=0.05, o_d_r=0.08,
         ...        material=steel, rotary_inertia=True, shear_effects=True
         ... )
-        >>> shaft1.save('ShaftTaperedElement.toml')
+        >>> shaft1.save()
         """
-        data = self.load_data(file_name)
-        data["ShaftTaperedElement"][str(self.n)] = {
-            "L": self.L,
-            "i_d_l": self.i_d_l,
-            "i_d_r": self.i_d_r,
-            "o_d_l": self.o_d_l,
-            "o_d_r": self.o_d_r,
-            "material": self.material.name,
-            "n": self.n,
-            "axial_force": self.axial_force,
-            "torque": self.torque,
-            "shear_effects": self.shear_effects,
-            "rotary_inertia": self.rotary_inertia,
-            "gyroscopic": self.gyroscopic,
-            "shear_method_calc": self.shear_method_calc,
-        }
+        data = self.load_data(Path(file_name)/"ShaftElement.toml")
+        try:
+            data["ShaftTaperedElement"][str(self.n)] = {
+                 "L": self.L,
+                 "i_d_l": self.i_d_l,
+                 "i_d_r": self.i_d_r,
+                 "o_d_l": self.o_d_l,
+                 "o_d_r": self.o_d_r,
+                 "material": self.material.name,
+                 "n": self.n,
+                 "axial_force": self.axial_force,
+                 "torque": self.torque,
+                 "shear_effects": self.shear_effects,
+                 "rotary_inertia": self.rotary_inertia,
+                 "gyroscopic": self.gyroscopic,
+                 "shear_method_calc": self.shear_method_calc,
+             }
+        except KeyError:
+            data["ShaftTaperedElement"] = {}
+            self.save(file_name)
         self.dump_data(data, file_name)
 
     @staticmethod
@@ -1180,8 +1184,8 @@ class ShaftTaperedElement(Element):
         ...        L=0.25, i_d_l=0, i_d_r=0, o_d_l=0.05, o_d_r=0.08,
         ...        material=steel, rotary_inertia=True, shear_effects=True
         ... )
-        >>> shaft1.save('ShaftTaperedElement.toml')
-        >>> shaft2 = ShaftTaperedElement.load("ShaftTaperedElement.toml")
+        >>> shaft1.save()
+        >>> shaft2 = ShaftTaperedElement.load()
         >>> shaft2 # doctest: +ELLIPSIS
         [ShaftTaperedElement(L=0.25, i_d_l=0.0...
         """
