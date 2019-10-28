@@ -349,14 +349,14 @@ class BearingElement(Element):
         Examples
         --------
         >>> bearing1 = bearing_example()
-        >>> bearing1.save('BearingElement.toml')
-        >>> list_of_bearings = BearingElement.load('BearingElement.toml')
+        >>> bearing1.save()
+        >>> list_of_bearings = BearingElement.load()
         >>> bearing1 == list_of_bearings[0]
         True
         """
         bearing_elements = []
         bearing_elements_dict = BearingElement.load_data(
-            file_name="BearingElement.toml"
+            file_name=''
         )
         for element in bearing_elements_dict["BearingElement"]:
             bearing = BearingElement(**bearing_elements_dict["BearingElement"][element])
