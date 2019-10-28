@@ -156,6 +156,7 @@ class Material:
         os.chdir(run_path)
 
     def save_material(self):
+        """Saves the material in the available_materials list."""
         run_path = os.getcwd()
         ross_path = os.path.dirname(rs.__file__)
         os.chdir(ross_path)
