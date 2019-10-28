@@ -3,6 +3,7 @@ from bokeh.models import ColumnDataSource, HoverTool
 import matplotlib.patches as mpatches
 import numpy as np
 import toml
+import os
 from ross.utils import read_table_file
 from pathlib import Path
 from ross.element import Element
@@ -110,7 +111,7 @@ class DiskElement(Element):
     def __hash__(self):
         return hash(self.tag)
 
-    def save(self, file_name):
+    def save(self, file_name=Path(os.getcwd())):
         """Saves a disk element in a toml format. It works as an auxiliary function of
         the save function in the Rotor class.
         Parameters
