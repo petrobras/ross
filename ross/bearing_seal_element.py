@@ -147,6 +147,9 @@ class BearingElement(Element):
         Node to which the bearing will connect. If None the bearing is
         connected to ground.
         Default is None.
+    scale_factor: float, optional
+        The scale factor is used to scale the bearing drawing.
+        Default is 1.
     Examples
     --------
     >>> # A bearing element located in the first rotor node, with these
@@ -180,6 +183,7 @@ class BearingElement(Element):
         tag=None,
         n_link=None,
         color=None,
+        scale_factor=1,
     ):
 
         args = ["kxx", "kyy", "kxy", "kyx", "cxx", "cyy", "cxy", "cyx"]
@@ -227,6 +231,7 @@ class BearingElement(Element):
         self.w = np.array(w, dtype=np.float64)
         self.tag = tag
         self.color = "#355d7a"
+        self.scale_factor = scale_factor
 
     def __repr__(self):
         """This function returns a string representation of a bearing element.
@@ -553,6 +558,7 @@ class BearingElement(Element):
             kwargs.setdefault(k, v)
 
         # geometric factors
+        mean = self.scale_factor * mean
         zpos, ypos = position
         coils = 6  # number of points to generate spring
         n = 5  # number of ground lines
@@ -654,6 +660,7 @@ class BearingElement(Element):
             kwargs.setdefault(k, v)
 
         # geometric factors
+        mean = self.scale_factor * mean
         zpos, ypos = position
         coils = 6  # number of points to generate spring
         n = 5  # number of ground lines
@@ -751,7 +758,7 @@ class BearingElement(Element):
         Examples
         --------
         >>> import os
-        >>> file_path = os.path.dirname(os.path.realpath(__file__)) + '/tests/data/bearing_seal.xls'
+        >>> file_path = os.path.dirname(os.path.realpath(__file__)) + '/tests/data/bearing_seal_si.xls'
         >>> BearingElement.table_to_toml(0, file_path) # doctest: +ELLIPSIS
         {'n': 0, 'kxx': [...
         """
@@ -771,7 +778,7 @@ class BearingElement(Element):
         return data
 
     @classmethod
-    def from_table(cls, n, file, sheet_name=0):
+    def from_table(cls, n, file, sheet_name=0, **kwargs):
         """Instantiate a bearing using inputs from an Excel table.
         A header with the names of the columns is required. These names should match the names expected by the routine
         (usually the names of the parameters, but also similar ones). The program will read every row bellow the header
@@ -791,7 +798,7 @@ class BearingElement(Element):
         Examples
         --------
         >>> import os
-        >>> file_path = os.path.dirname(os.path.realpath(__file__)) + '/tests/data/bearing_seal.xls'
+        >>> file_path = os.path.dirname(os.path.realpath(__file__)) + '/tests/data/bearing_seal_si.xls'
         >>> BearingElement.from_table(0, file_path) # doctest: +ELLIPSIS
         BearingElement(n=0,
          kxx=[...
@@ -808,6 +815,7 @@ class BearingElement(Element):
             cxy=parameters["cxy"],
             cyx=parameters["cyx"],
             w=parameters["w"],
+            **kwargs,
         )
 
     @classmethod
@@ -898,7 +906,7 @@ class BearingElement(Element):
         BearingElement(n=0,
          kxx=[...
         """
-        fluid_flow = flow.PressureMatrix(
+        fluid_flow = flow.FluidFlow(
             nz,
             ntheta,
             nradius,
@@ -1601,6 +1609,7 @@ class RollerBearingElement(BearingElement):
         for k, v in default_values.items():
             kwargs.setdefault(k, v)
 
+        mean = self.scale_factor
         # geometric factors
         zpos, ypos = position
         coils = 6  # number of points to generate spring

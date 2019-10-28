@@ -6,7 +6,7 @@ import scipy.linalg as la
 from bokeh.colors import RGB
 from bokeh.layouts import gridplot, widgetbox
 from bokeh.models import Arrow, ColorBar, ColumnDataSource, HoverTool, Label, NormalHead
-from bokeh.models.widgets import DataTable, NumberFormatter, TableColumn
+from bokeh.models.widgets import DataTable, NumberFormatter, TableColumn, Panel, Tabs
 from bokeh.plotting import figure
 from bokeh.transform import linear_cmap
 from matplotlib import cm
@@ -984,10 +984,10 @@ class FrequencyResponseResults:
         # bokeh plot - create a new plot
         mag_plot = figure(
             tools="pan, box_zoom, wheel_zoom, reset, save",
-            width=600,
+            width=640,
             height=240,
             title="Frequency Response - Magnitude",
-            x_axis_label="Frequency",
+            x_axis_label="Frequency (rad/s)",
             y_axis_label=y_axis_label,
         )
         mag_plot.xaxis.axis_label_text_font_size = "14pt"
@@ -1071,10 +1071,10 @@ class FrequencyResponseResults:
         # bokeh plot - create a new plot
         phase_plot = figure(
             tools="pan, box_zoom, wheel_zoom, reset, save",
-            width=600,
+            width=640,
             height=240,
             title="Frequency Response - Phase",
-            x_axis_label="Frequency",
+            x_axis_label="Frequency (rad/s)",
             y_axis_label="Phase",
         )
         phase_plot.xaxis.axis_label_text_font_size = "14pt"
@@ -1360,15 +1360,15 @@ class ForcedResponseResults:
             y_axis_label = "Amplitude (m)"
         elif units == "mic-pk-pk":
             mag = 2 * mag * 1e6
-            y_axis_label = "Amplitude $(\mu pk-pk)$"
+            y_axis_label = "Amplitude (μ pk-pk)"
 
         # bokeh plot - create a new plot
         mag_plot = figure(
             tools="pan, box_zoom, wheel_zoom, reset, save",
-            width=900,
-            height=400,
+            width=640,
+            height=240,
             title="Forced Response - Magnitude",
-            x_axis_label="Frequency",
+            x_axis_label="Frequency (rad/s)",
             x_range=[0, max(frequency_range)],
             y_axis_label=y_axis_label,
         )
@@ -1449,10 +1449,10 @@ class ForcedResponseResults:
 
         phase_plot = figure(
             tools="pan, box_zoom, wheel_zoom, reset, save",
-            width=900,
-            height=400,
-            title="Forced Response - Magnitude",
-            x_axis_label="Frequency",
+            width=640,
+            height=240,
+            title="Forced Response - Phase",
+            x_axis_label="Frequency (rad/s)",
             x_range=[0, max(frequency_range)],
             y_axis_label="Phase",
         )
@@ -1973,8 +1973,16 @@ class SummaryResults:
 
     Parameters
     ----------
-    df_shaft : dataframe
+    df_shaft: dataframe
         shaft dataframe
+    df_disks: dataframe
+        disks dataframe
+    CG: float
+        rotor center of gravity
+    Ip: float
+        rotor total moment of inertia around the center line
+    tag: str
+        rotor's tag
 
     Returns
     -------
@@ -1982,8 +1990,12 @@ class SummaryResults:
         Bokeh WidgetBox with the summary table plot
     """
 
-    def __init__(self, df_shaft):
+    def __init__(self, df_shaft, df_disks, CG, Ip, tag):
         self.df_shaft = df_shaft
+        self.df_disks = df_disks
+        self.CG = CG
+        self.Ip = Ip
+        self.tag = tag
 
     def plot(self):
         """Plot the summary table.
@@ -1996,12 +2008,12 @@ class SummaryResults:
 
         Returns
         -------
-        table : bokeh WidgetBox
+        tabs : bokeh WidgetBox
             Bokeh WidgetBox with the summary table plot
         """
         materials = [mat.name for mat in self.df_shaft["material"]]
 
-        data = dict(
+        shaft_data = dict(
             tags=self.df_shaft["tag"],
             lft_stn=self.df_shaft["n_l"],
             rgt_stn=self.df_shaft["n_r"],
@@ -2015,9 +2027,31 @@ class SummaryResults:
             mass=self.df_shaft["m"],
             inertia=self.df_shaft["Ie"],
         )
-        source = ColumnDataSource(data)
 
-        titles = [
+        rotor_data = dict(
+            tag=[self.tag],
+            starting_node=[self.df_shaft["n_l"].iloc[0]],
+            ending_node=[self.df_shaft["n_r"].iloc[-1]],
+            starting_point=[self.df_shaft["nodes_pos_r"].iloc[0]],
+            total_lenght=[self.df_shaft["nodes_pos_r"].iloc[-1]],
+            CG=[self.CG],
+            Ip=[self.Ip],
+            total_mass=[np.sum(self.df_shaft["m"])],
+        )
+
+        disk_data = dict(
+            tags=self.df_disks["tag"],
+            disk_node=self.df_disks["n"],
+            disk_pos=self.df_shaft["nodes_pos_l"].iloc[self.df_disks["n"]],
+            disk_mass=self.df_disks["m"],
+            disk_Ip=self.df_disks["Ip"],
+        )
+
+        shaft_source = ColumnDataSource(shaft_data)
+        rotor_source = ColumnDataSource(rotor_data)
+        disk_source = ColumnDataSource(disk_data)
+
+        shaft_titles = [
             "Element Tag",
             "Left Station",
             "Right Station",
@@ -2032,7 +2066,25 @@ class SummaryResults:
             "Inertia (m4)",
         ]
 
-        formatters = [
+        rotor_titles = [
+            "Tag",
+            "First Station",
+            "Last Station",
+            "Starting Pos. (m)",
+            "Total Lenght (m)",
+            "C.G. Locantion (m)",
+            "Total Ip about C.L. (kg.m2)",
+        ]
+
+        disk_titles = [
+            "Tag",
+            "Disk Station",
+            "C.G. Locantion (m)",
+            "Disk Mass (m)",
+            "Total Ip about C.L. (kg.m2)",
+        ]
+
+        shaft_formatters = [
             None,
             None,
             None,
@@ -2047,15 +2099,67 @@ class SummaryResults:
             None,
         ]
 
-        columns = [
+        rotor_formatters = [
+            None,
+            None,
+            None,
+            NumberFormatter(format="0.000"),
+            NumberFormatter(format="0.000"),
+            NumberFormatter(format="0.000"),
+            NumberFormatter(format="0.000"),
+        ]
+
+        disk_formatters = [
+            None,
+            None,
+            NumberFormatter(format="0.000"),
+            NumberFormatter(format="0.000"),
+            NumberFormatter(format="0.000"),
+        ]
+
+        shaft_columns = [
             TableColumn(field=str(field), title=title, formatter=form)
-            for field, title, form in zip(data.keys(), titles, formatters)
+            for field, title, form in zip(
+                shaft_data.keys(), shaft_titles, shaft_formatters
+            )
         ]
 
-        data_table = DataTable(source=source, columns=columns, width=1600)
-        table = widgetbox(data_table)
+        rotor_columns = [
+            TableColumn(field=str(field), title=title, formatter=form)
+            for field, title, form in zip(
+                rotor_data.keys(), rotor_titles, rotor_formatters
+            )
+        ]
 
-        return table
+        disk_columns = [
+            TableColumn(field=str(field), title=title, formatter=form)
+            for field, title, form in zip(
+                disk_data.keys(), disk_titles, disk_formatters
+            )
+        ]
+
+        shaft_data_table = DataTable(
+            source=shaft_source, columns=shaft_columns, width=1600
+        )
+        rotor_data_table = DataTable(
+            source=rotor_source, columns=rotor_columns, width=1600
+        )
+        disk_data_table = DataTable(
+            source=disk_source, columns=disk_columns, width=1600
+        )
+
+        rotor_table = widgetbox(rotor_data_table)
+        tab1 = Panel(child=rotor_table, title="Rotor Summary")
+
+        shaft_table = widgetbox(shaft_data_table)
+        tab2 = Panel(child=shaft_table, title="Shaft Summary")
+
+        disk_table = widgetbox(disk_data_table)
+        tab3 = Panel(child=disk_table, title="Disk Summary")
+
+        tabs = Tabs(tabs=[tab1, tab2, tab3])
+
+        return tabs
 
 
 class ConvergenceResults:

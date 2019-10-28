@@ -88,6 +88,8 @@ class Rotor(object):
     n_eigen : int, optional
         Number of eigenvalues calculated by arpack.
         Default is 12.
+    tag : str
+        A tag for the rotor
 
     Returns
     -------
@@ -144,6 +146,7 @@ class Rotor(object):
         min_w=None,
         max_w=None,
         rated_w=None,
+        tag=None,
     ):
 
         self.parameters = {
@@ -153,6 +156,8 @@ class Rotor(object):
             "max_w": max_w,
             "rated_w": rated_w,
         }
+        if tag is None:
+            self.tag = "Rotor 0"
 
         ####################################################
         # Config attributes
@@ -334,6 +339,15 @@ class Rotor(object):
         self.m_shaft = np.sum([sh_el.m for sh_el in self.shaft_elements])
         self.m = self.m_disks + self.m_shaft
 
+        # rotor center of mass and total inertia
+        CG_sh = np.sum([(sh.m * sh.axial_cg_pos) / self.m for sh in self.shaft_elements])
+        CG_dsk = np.sum([disk.m * nodes_pos[disk.n] / self.m for disk in self.disk_elements])
+        self.CG = CG_sh + CG_dsk
+
+        Ip_sh = np.sum([sh.Im for sh in self.shaft_elements])
+        Ip_dsk = np.sum([disk.Ip for disk in self.disk_elements])
+        self.Ip = Ip_sh + Ip_dsk
+
         # values for evalues and evectors will be calculated by self.run_modal
         self.evalues = None
         self.evectors = None
@@ -398,7 +412,15 @@ class Rotor(object):
         for z_pos in z_positions:
             dfb_z_pos = dfb[dfb.nodes_pos_l == z_pos]
             dfb_z_pos = dfb_z_pos.sort_values(by="n_l")
-            y_pos = nodes_o_d[int(dfb_z_pos.iloc[0]["n_l"])] / 2
+            if z_pos == df_shaft["nodes_pos_l"].iloc[0]:
+                y_pos = df_shaft["o_d_l"].iloc[0] / 2
+            elif z_pos == df_shaft["nodes_pos_r"].iloc[-1]:
+                y_pos = df_shaft["o_d_r"].iloc[-1] / 2
+            else:
+                y_pos = max(
+                        df_shaft["o_d_l"].loc[int(dfb_z_pos.iloc[0]["n_l"])],
+                        df_shaft["o_d_r"].loc[int(dfb_z_pos.iloc[0]["n_l"]) - 1]
+                ) / 2
             mean_od = np.mean(nodes_o_d)
             for t in dfb_z_pos.tag:
                 df.loc[df.tag == t, "y_pos"] = y_pos
@@ -1028,7 +1050,7 @@ class Rotor(object):
         """Unbalanced response for a mdof system.
 
         This method returns the unbalanced response for a mdof system
-        given magnitide and phase of the unbalance, the node where it's
+        given magnitude and phase of the unbalance, the node where it's
         applied and a frequency range.
 
         Parameters
@@ -2208,7 +2230,7 @@ class Rotor(object):
         >>> # to display the plot use the command:
         >>> # show(table)
         """
-        results = SummaryResults(self.df_shaft)
+        results = SummaryResults(self.df_shaft, self.df_disks, self.CG, self.Ip, self.tag)
         return results
 
     @classmethod

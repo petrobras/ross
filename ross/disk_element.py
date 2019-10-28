@@ -47,7 +47,7 @@ class DiskElement(Element):
         self.Id = Id
         self.Ip = Ip
         self.tag = tag
-        self.color = "#bc625b"
+        self.color = bokeh_colors[9]
 
     def __eq__(self, other):
         """This function allows disk elements to be compared.
@@ -383,7 +383,7 @@ class DiskElement(Element):
             source=source,
             alpha=1,
             line_width=2,
-            color=bokeh_colors[9],
+            color=self.color,
             legend="Disk",
             name="ub_disk",
         )
@@ -393,7 +393,7 @@ class DiskElement(Element):
             source=source,
             alpha=1,
             line_width=2,
-            color=bokeh_colors[9],
+            color=self.color,
             name="ub_disk",
         )
         bk_ax.circle(
@@ -402,7 +402,7 @@ class DiskElement(Element):
             radius="radius",
             source=source_c,
             fill_alpha=1,
-            color=bokeh_colors[9],
+            color=self.color,
             name="uc_disk",
         )
         bk_ax.circle(
@@ -411,7 +411,7 @@ class DiskElement(Element):
             radius="radius",
             source=source_c,
             fill_alpha=1,
-            color=bokeh_colors[9],
+            color=self.color,
             name="lc_disk",
         )
 
@@ -501,7 +501,7 @@ class DiskElement(Element):
         >>> file_path = os.path.dirname(os.path.realpath(__file__)) + '/tests/data/shaft_si.xls'
         >>> list_of_disks = DiskElement.from_table(file_path, sheet_name="More")
         >>> list_of_disks[0]
-        DiskElement(Id=0.0, Ip=0.0, m=15.12, color='#bc625b', n=4, tag=None)
+        DiskElement(Id=0.0, Ip=0.0, m=15.12, color='#b2182b', n=4, tag=None)
         """
         parameters = read_table_file(file, "disk", sheet_name=sheet_name)
         list_of_disks = []
@@ -535,6 +535,5 @@ def disk_example():
     >>> disk.Ip
     0.32956362
     """
-    disk = DiskElement(0, 32.58972765, 0.17808928, 0.32956362)
+    disk = DiskElement(0, 32.589_727_65, 0.178_089_28, 0.329_563_62)
     return disk
-
