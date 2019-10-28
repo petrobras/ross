@@ -98,6 +98,7 @@ def test_stiffness_matrix_numerical():
     Taken from chapter 5, page 179 (Dynamics of rotating machine, FRISSWELL)
     """
     bearing = fluid_flow_short_eccentricity()
+    bearing.calculate_pressure_matrix_numerical()
     kxx, kxy, kyx, kyy = calculate_stiffness_matrix(bearing)
     k_xx, k_xy, k_yx, k_yy = calculate_analytical_stiffness_matrix(bearing.load,
                                                                    bearing.eccentricity_ratio,
