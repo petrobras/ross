@@ -6,6 +6,7 @@ import matplotlib.pyplot as plt
 import matplotlib.lines as mlines
 import numpy as np
 import scipy.interpolate as interpolate
+import os
 
 from pathlib import Path
 from collections import namedtuple
@@ -295,7 +296,7 @@ class BearingElement(Element):
     def __hash__(self):
         return hash(self.tag)
 
-    def save(self, file_name):
+    def save(self, file_name=Path(os.getcwd())):
         """Saves a bearing element in a toml format. It works as an auxiliary function of
         the save function in the Rotor class.
         Parameters
