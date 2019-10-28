@@ -5,9 +5,9 @@ from numpy.testing import assert_allclose
 import math
 
 from ross.bearing_seal_element import (
-        BearingElement,
-        BallBearingElement,
-        RollerBearingElement
+    BearingElement,
+    BallBearingElement,
+    RollerBearingElement,
 )
 
 
@@ -200,13 +200,25 @@ def test_equality(bearing0, bearing1, bearing_constant):
     assert not bearing0 == 1
 
 
+@pytest.mark.skip("Waiting for implementation of units conversion for bearings.")
 def test_from_table():
     bearing_file = (
-        os.path.dirname(os.path.realpath(__file__)) + "/data/bearing_seal.xls"
+        os.path.dirname(os.path.realpath(__file__)) + "/data/bearing_seal_si.xls"
+    )
+
+    bearing = BearingElement.from_table(0, bearing_file)
+    assert bearing.n == 0
+    assert_allclose(bearing.w[2], 523.5987755985)
+    assert_allclose(bearing.kxx.coefficient[2], 53565700)
+
+    # bearing with us units
+    bearing_file = (
+        os.path.dirname(os.path.realpath(__file__)) + "/data/bearing_seal_us.xls"
     )
     bearing = BearingElement.from_table(0, bearing_file)
     assert bearing.n == 0
-    assert math.isclose(bearing.w[2], 523.6, abs_tol=0.1)
+    assert_allclose(bearing.w[2], 523.5987755985)
+    assert_allclose(bearing.kxx.coefficient[2], 53565700)
 
 
 def test_bearing_link_global_index():
@@ -242,19 +254,12 @@ def test_ball_bearing_element():
     alpha = np.pi / 6
     tag = "ballbearing"
     ballbearing = BallBearingElement(
-            n=n,
-            n_balls=n_balls,
-            d_balls=d_balls,
-            fs=fs,
-            alpha=alpha,
-            tag=tag
+        n=n, n_balls=n_balls, d_balls=d_balls, fs=fs, alpha=alpha, tag=tag
     )
 
     M = np.zeros((2, 2))
-    K = np.array([[4.64168838e+07, 0.00000000e+00],
-                  [0.00000000e+00, 1.00906269e+08]])
-    C = np.array([[ 580.2110481 ,    0.        ],
-                  [   0.        , 1261.32836543]])
+    K = np.array([[4.64168838e07, 0.00000000e00], [0.00000000e00, 1.00906269e08]])
+    C = np.array([[580.2110481, 0.0], [0.0, 1261.32836543]])
     G = np.zeros((2, 2))
 
     assert_allclose(ballbearing.M(), M)
@@ -271,19 +276,12 @@ def test_roller_bearing_element():
     alpha = np.pi / 6
     tag = "rollerbearing"
     rollerbearing = RollerBearingElement(
-            n=n,
-            n_rollers=n_rollers,
-            l_rollers=l_rollers,
-            fs=fs,
-            alpha=alpha,
-            tag=tag
+        n=n, n_rollers=n_rollers, l_rollers=l_rollers, fs=fs, alpha=alpha, tag=tag
     )
 
     M = np.zeros((2, 2))
-    K = np.array([[2.72821927e+08, 0.00000000e+00],
-                  [0.00000000e+00, 5.56779444e+08]])
-    C = np.array([[3410.27409251,    0.        ],
-                  [   0.        , 6959.74304593]])
+    K = np.array([[2.72821927e08, 0.00000000e00], [0.00000000e00, 5.56779444e08]])
+    C = np.array([[3410.27409251, 0.0], [0.0, 6959.74304593]])
     G = np.zeros((2, 2))
 
     assert_allclose(rollerbearing.M(), M)
