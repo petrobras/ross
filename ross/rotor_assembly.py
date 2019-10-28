@@ -184,7 +184,7 @@ class Rotor(object):
             if sh.n is None:
                 sh.n = i
             if sh.tag is None:
-                sh.tag = sh.__class__.__name__ + " " + str(i) + f" i_d={sh.i_d}"
+                sh.tag = sh.__class__.__name__ + " " + str(i)
 
         if disk_elements is None:
             disk_elements = []
@@ -2229,7 +2229,18 @@ class Rotor(object):
         >>> # to display the plot use the command:
         >>> # show(table)
         """
-        results = SummaryResults(self.df_shaft, self.df_disks, self.CG, self.Ip, self.tag)
+        self.run_static()
+        forces = self.bearing_reaction_forces
+        results = SummaryResults(
+                self.df_shaft,
+                self.df_disks,
+                self.df_bearings,
+                self.nodes_pos,
+                forces,
+                self.CG,
+                self.Ip,
+                self.tag
+        )
         return results
 
     @classmethod
