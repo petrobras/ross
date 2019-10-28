@@ -316,7 +316,7 @@ class BearingElement(Element):
         Examples
         --------
         >>> bearing = bearing_example()
-        >>> bearing.save('BearingElement.toml')
+        >>> bearing.save()
         """
         data = self.load_data(Path(file_name)/'BearingElement.toml')
         if type(self.w) == np.ndarray:
@@ -362,7 +362,7 @@ class BearingElement(Element):
         """
         bearing_elements = []
         bearing_elements_dict = BearingElement.load_data(
-            file_name=''
+            file_name="BearingElement.toml"
         )
         for element in bearing_elements_dict["BearingElement"]:
             bearing = BearingElement(**bearing_elements_dict["BearingElement"][element])
