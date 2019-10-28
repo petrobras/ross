@@ -13,13 +13,14 @@ __all__ = ["Material", "steel"]
 
 
 class Material:
-    """Material.
+    """Material used on shaft and disks.
 
     Class used to create a material and define its properties.
-    Density and at least 2 arguments from E, G_s and Poisson
-    should be provided.
+    Density and at least 2 arguments from E, G_s and Poisson should be
+    provided.
 
-    Run Material.available_materials() for materials already provided.
+    You can run rs.Material.available_materials() to get a list of materials
+    already provided.
 
     Parameters
     ----------
