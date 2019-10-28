@@ -4,7 +4,7 @@ import matplotlib.patches as mpatches
 import numpy as np
 import toml
 from ross.utils import read_table_file
-
+from pathlib import Path
 from ross.element import Element
 
 __all__ = ["DiskElement"]
@@ -38,7 +38,7 @@ class DiskElement(Element):
      0.32956362
      """
 
-    def __init__(self, n, m, Id, Ip, tag=None):
+    def __init__(self, n, m, Id, Ip, tag=None, color=None):
         self.n = int(n)
         self.n_l = n
         self.n_r = n
@@ -127,7 +127,7 @@ class DiskElement(Element):
         >>> disk = disk_example()
         >>> disk.save('DiskElement.toml')
         """
-        data = self.load_data(file_name)
+        data = self.load_data(Path(file_name)/'DiskElement.toml')
         data["DiskElement"][str(self.n)] = {
             "n": self.n,
             "m": self.m,
@@ -135,7 +135,7 @@ class DiskElement(Element):
             "Ip": self.Ip,
             "tag": self.tag,
         }
-        self.dump_data(data, file_name)
+        self.dump_data(data, Path(file_name)/'DiskElement.toml')
 
     @staticmethod
     def load(file_name="DiskElement"):

@@ -20,7 +20,7 @@ from bokeh.models import ColumnDataSource
 from bokeh.models.glyphs import Text
 from bokeh.plotting import figure, output_file
 from cycler import cycler
-
+import re
 import ross
 from ross.bearing_seal_element import BearingElement
 from ross.disk_element import DiskElement
@@ -61,6 +61,11 @@ _orig_rc_params = mpl.rcParams.copy()
 seaborn_colors = ["#4c72b0", "#55a868", "#c44e52", "#8172b2", "#ccb974", "#64b5cd"]
 
 
+def convert(name):
+    s1 = re.sub('(.)([A-Z][a-z]+)', r'\1_\2', name)
+    return re.sub('([a-z0-9])([A-Z])', r'\1_\2', s1).lower()
+
+
 class Rotor(object):
     r"""A rotor object.
 
@@ -73,7 +78,7 @@ class Rotor(object):
         List with the shaft elements
     disk_elements : list
         List with the disk elements
-    bearing_seal_elements : list
+    bearing_elements : list
         List with the bearing elements
     point_mass_elements: list
         List with the point mass elements
@@ -131,7 +136,8 @@ class Rotor(object):
         self,
         shaft_elements,
         disk_elements=None,
-        bearing_seal_elements=None,
+        bearing_elements=None,
+        seal_elements=None,
         point_mass_elements=None,
         sparse=True,
         n_eigen=12,
@@ -183,8 +189,8 @@ class Rotor(object):
 
         if disk_elements is None:
             disk_elements = []
-        if bearing_seal_elements is None:
-            bearing_seal_elements = []
+        if bearing_elements is None:
+            bearing_elements = []
         if point_mass_elements is None:
             point_mass_elements = []
 
@@ -192,7 +198,7 @@ class Rotor(object):
             if disk.tag is None:
                 disk.tag = "Disk " + str(i)
 
-        for i, brg in enumerate(bearing_seal_elements):
+        for i, brg in enumerate(bearing_elements):
             if brg.__class__.__name__ == "BearingElement" and brg.tag is None:
                 brg.tag = "Bearing " + str(i)
             if brg.__class__.__name__ == "SealElement" and brg.tag is None:
@@ -203,7 +209,7 @@ class Rotor(object):
                 p_mass.tag = "Point Mass " + str(i)
 
         self.shaft_elements = sorted(shaft_elements, key=lambda el: el.n)
-        self.bearing_seal_elements = bearing_seal_elements
+        self.bearing_elements = bearing_elements
         self.disk_elements = disk_elements
         self.point_mass_elements = point_mass_elements
         self.elements = [
@@ -212,7 +218,7 @@ class Rotor(object):
                 [
                     self.shaft_elements,
                     self.disk_elements,
-                    self.bearing_seal_elements,
+                    self.bearing_elements,
                     self.point_mass_elements,
                 ]
             )
@@ -247,14 +253,14 @@ class Rotor(object):
         df_bearings = pd.DataFrame(
             [
                 el.summary()
-                for el in self.bearing_seal_elements
+                for el in self.bearing_elements
                 if (el.__class__.__name__ == "BearingElement")
             ]
         )
         df_seals = pd.DataFrame(
             [
                 el.summary()
-                for el in self.bearing_seal_elements
+                for el in self.bearing_elements
                 if (el.__class__.__name__ == "SealElement")
             ]
         )
@@ -361,11 +367,11 @@ class Rotor(object):
         # check if there are bearings without location
         bearings_no_zloc = {
             b
-            for b in bearing_seal_elements
+            for b in bearing_elements
             if pd.isna(df.loc[df.tag == b.tag, "nodes_pos_l"]).all()
         }
         # cycle while there are bearings without a z location
-        for b in cycle(bearing_seal_elements):
+        for b in cycle(bearing_elements):
             if bearings_no_zloc:
                 if b in bearings_no_zloc:
                     # first check if b.n is on list, if not, check for n_link
@@ -576,7 +582,7 @@ class Rotor(object):
                 aux_DiskEl.n = nel_r * DiskEl.n
                 disk_elem.append(aux_DiskEl)
 
-            for Brg_SealEl in self.bearing_seal_elements:
+            for Brg_SealEl in self.bearing_elements:
                 aux_Brg_SealEl = deepcopy(Brg_SealEl)
                 aux_Brg_SealEl.n = nel_r * Brg_SealEl.n
                 brgs_elem.append(aux_Brg_SealEl)
@@ -1285,7 +1291,7 @@ class Rotor(object):
 
         mean_od = np.mean(self.nodes_o_d)
         # plot bearings
-        for bearing in self.bearing_seal_elements:
+        for bearing in self.bearing_elements:
             z_pos = self.df[self.df.tag == bearing.tag]["nodes_pos_l"].values[0]
             y_pos = self.df[self.df.tag == bearing.tag]["y_pos"].values[0]
             position = (z_pos, y_pos)
@@ -1398,7 +1404,7 @@ class Rotor(object):
 
         mean_od = np.mean(self.nodes_o_d)
         # plot bearings
-        for bearing in self.bearing_seal_elements:
+        for bearing in self.bearing_elements:
             z_pos = self.df[self.df.tag == bearing.tag]["nodes_pos_l"].values[0]
             y_pos = self.df[self.df.tag == bearing.tag]["y_pos"].values[0]
             position = (z_pos, y_pos)
@@ -1620,7 +1626,7 @@ class Rotor(object):
 
         if stiffness_range is None:
             if self.rated_w is not None:
-                bearing = self.bearing_seal_elements[0]
+                bearing = self.bearing_elements[0]
                 k = bearing.kxx.interpolated(self.rated_w)
                 k = int(np.log10(k))
                 stiffness_range = (k - 3, k + 3)
@@ -1631,7 +1637,7 @@ class Rotor(object):
         rotor_wn = np.zeros((4, len(stiffness_log)))
 
         bearings_elements = []  # exclude the seals
-        for bearing in self.bearing_seal_elements:
+        for bearing in self.bearing_elements:
             if type(bearing) == BearingElement:
                 bearings_elements.append(bearing)
 
@@ -1783,7 +1789,7 @@ class Rotor(object):
         modal = self.run_modal(speed=speed)
 
         for i, Q in enumerate(stiffness):
-            bearings = [copy(b) for b in self.bearing_seal_elements]
+            bearings = [copy(b) for b in self.bearing_elements]
             cross_coupling = BearingElement(n=n, kxx=0, cxx=0, kxy=Q, kyx=-Q)
             bearings.append(cross_coupling)
 
@@ -1917,24 +1923,19 @@ class Rotor(object):
             else:
                 return "The rotor was not saved."
 
-        os.chdir(path_rotors)
-        current = Path(".")
+        os.mkdir(path_rotors/file_name)
+        rotor_folder = path_rotors/file_name
 
-        os.mkdir(file_name)
-        os.chdir(current / file_name)
-
-        with open("properties.toml", "w") as f:
+        with open(rotor_folder/"properties.toml", "w") as f:
             toml.dump({"parameters": self.parameters}, f)
-        os.mkdir("results")
-        os.mkdir("elements")
-        current = Path(".")
 
-        os.chdir(current / "elements")
+        os.mkdir(rotor_folder/"results")
+        os.mkdir(rotor_folder/"elements")
+
+        elements_folder = rotor_folder/'elements'
 
         for element in self.elements:
-            element.save(type(element).__name__ + ".toml")
-
-        os.chdir(main_path)
+            element.save(elements_folder)
 
     @staticmethod
     def load(file_name):
@@ -1957,31 +1958,31 @@ class Rotor(object):
         True
         >>> Rotor.remove('new_rotor1')
         """
+
         main_path = os.path.dirname(ross.__file__)
         rotor_path = Path(main_path) / "rotors" / file_name
-        try:
-            os.chdir(rotor_path / "elements")
-        except FileNotFoundError:
-            return "A rotor with this name does not exist, check the rotors folder."
 
-        os.chdir(rotor_path / "elements")
-        shaft_elements = ShaftElement.load()
-        os.chdir(rotor_path / "elements")
-        disk_elements = DiskElement.load()
-        bearing_elements = BearingElement.load()
-        seal_elements = []
+        if os.path.isdir(rotor_path / "elements"):
+            elements_path = rotor_path / "elements"
+        else:
+            raise FileNotFoundError("A rotor with this name does not exist, check the rotors folder.")
 
-        os.chdir(rotor_path)
-        with open("properties.toml", "r") as f:
+        with open(rotor_path/"properties.toml", "r") as f:
             parameters = toml.load(f)["parameters"]
 
-        os.chdir(main_path)
-        return Rotor(
-            shaft_elements=shaft_elements,
-            bearing_seal_elements=bearing_elements + seal_elements,
-            disk_elements=disk_elements,
-            **parameters,
-        )
+        global_elements = {}
+        for el in os.listdir(elements_path):
+            elements = []
+            if '.toml' in el:
+                with open(Path(elements_path)/el, 'r') as f:
+                    el_dict = toml.load(f)
+                    element_class = list(el_dict.keys())[0]
+                    for el_number in el_dict[element_class]:
+                        element = (element_class + f'(**{el_dict[element_class][el_number]})')
+                        elements.append(eval(element))
+            global_elements[convert(element_class+'s')] = elements
+
+        return Rotor(**global_elements, **parameters)
 
     @staticmethod
     def available_rotors():
@@ -2304,7 +2305,7 @@ class Rotor(object):
             regions = []
             shaft_elements = []
             disk_elements = []
-            bearing_seal_elements = []
+            bearing_elements = []
             # nel_r = initial number of elements per regions
 
             # loop through rotor regions
@@ -2338,22 +2339,22 @@ class Rotor(object):
             for Brg_SealEl in brg_seal_data:
                 aux_Brg_SealEl = deepcopy(Brg_SealEl)
                 aux_Brg_SealEl.n = nel_r * Brg_SealEl.n
-                bearing_seal_elements.append(aux_Brg_SealEl)
+                bearing_elements.append(aux_Brg_SealEl)
 
             regions.append(disk_elements)
-            regions.append(bearing_seal_elements)
+            regions.append(bearing_elements)
 
             return regions
 
         regions = rotor_regions(nel_r)
         shaft_elements = regions[0]
         disk_elements = regions[1]
-        bearing_seal_elements = regions[2]
+        bearing_elements = regions[2]
 
         return cls(
             shaft_elements,
             disk_elements,
-            bearing_seal_elements,
+            bearing_elements,
             sparse=sparse,
             n_eigen=n_eigen,
             min_w=min_w,

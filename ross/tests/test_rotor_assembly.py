@@ -93,7 +93,7 @@ def test_raise_if_element_outside_shaft():
     assert "Trying to set disk or bearing outside shaft" == str(excinfo.value)
 
     with pytest.raises(ValueError) as excinfo:
-        Rotor(shaft_elm, bearing_seal_elements=bearings)
+        Rotor(shaft_elm, bearing_elements=bearings)
     assert "Trying to set disk or bearing outside shaft" == str(excinfo.value)
 
 
@@ -714,8 +714,8 @@ def test_mesh_convergence(rotor3):
     assert_allclose(rotor3.shaft_elements[0].L, 0.015625, atol=1e-06)
     assert_allclose(rotor3.disk_elements[0].n, 32, atol=0)
     assert_allclose(rotor3.disk_elements[1].n, 64, atol=0)
-    assert_allclose(rotor3.bearing_seal_elements[0].n, 0, atol=0)
-    assert_allclose(rotor3.bearing_seal_elements[1].n, 96, atol=0)
+    assert_allclose(rotor3.bearing_elements[0].n, 0, atol=0)
+    assert_allclose(rotor3.bearing_elements[1].n, 96, atol=0)
     assert rotor3.error_arr[-1] <= 1e-08 * 100
 
 
@@ -973,8 +973,8 @@ def test_from_section():
     assert_allclose(rotor1.shaft_elements[16].L, 0.125, atol=0)
     assert_allclose(rotor1.disk_elements[0].n, 8, atol=0)
     assert_allclose(rotor1.disk_elements[1].n, 12, atol=0)
-    assert_allclose(rotor1.bearing_seal_elements[0].n, 0, atol=0)
-    assert_allclose(rotor1.bearing_seal_elements[1].n, 20, atol=0)
+    assert_allclose(rotor1.bearing_elements[0].n, 0, atol=0)
+    assert_allclose(rotor1.bearing_elements[1].n, 20, atol=0)
 
     with pytest.raises(ValueError) as excinfo:
         Rotor.from_section(

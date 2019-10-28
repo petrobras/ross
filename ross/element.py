@@ -203,10 +203,10 @@ class Element(ABC):
             with open(file_name, "r") as f:
                 data = toml.load(f)
                 if data == {"": {}}:
-                    data = {file_name[:-5]: {}}
+                    data = {str(file_name.name)[:-5]: {}}
 
         except FileNotFoundError:
-            data = {file_name[:-5]: {}}
+            data = {str(file_name.name)[:-5]: {}}
             Element.dump_data(data, file_name)
         return data
 

@@ -245,7 +245,7 @@ class ShaftElement(Element):
         ... )
         >>> shaft1.save('ShaftElement.toml')
         """
-        data = self.load_data(file_name)
+        data = self.load_data(Path(file_name)/'ShaftElement.toml')
         data["ShaftElement"][str(self.n)] = {
             "L": self.L,
             "i_d": self.i_d,
@@ -259,7 +259,7 @@ class ShaftElement(Element):
             "gyroscopic": self.gyroscopic,
             "shear_method_calc": self.shear_method_calc,
         }
-        self.dump_data(data, file_name)
+        self.dump_data(data, Path(file_name)/'ShaftElement.toml')
 
     @staticmethod
     def load(file_name="ShaftElement"):
