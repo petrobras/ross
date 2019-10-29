@@ -203,7 +203,7 @@ class ModalResults:
     def kappa(self, node, w, wd=True):
         r"""Calculates kappa for a given node and natural frequency.
 
-        w is the the index of the natural frequency of interest.
+        frequency is the the index of the natural frequency of interest.
         The function calculates the orbit parameter :math:`\kappa`:
 
         .. math::
@@ -1996,7 +1996,9 @@ class SummaryResults:
         Bokeh WidgetBox with the summary table plot
     """
 
-    def __init__(self, df_shaft, df_disks, df_bearings, nodes_pos, brg_forces, CG, Ip, tag):
+    def __init__(
+        self, df_shaft, df_disks, df_bearings, nodes_pos, brg_forces, CG, Ip, tag
+    ):
         self.df_shaft = df_shaft
         self.df_disks = df_disks
         self.df_bearings = df_bearings
@@ -2060,7 +2062,7 @@ class SummaryResults:
             tags=self.df_bearings["tag"],
             brg_node=self.df_bearings["n"],
             brg_pos=self.nodes_pos[self.df_bearings["n"]],
-            brg_force=self.brg_forces
+            brg_force=self.brg_forces,
         )
 
         shaft_source = ColumnDataSource(shaft_data)

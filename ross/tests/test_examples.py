@@ -13,7 +13,7 @@ def rotor_example1(n_el=48):
 
     P.S.:Isotropic bearings.
 
-    :param w: speed of rotation.
+    :param frequency: speed of rotation.
     :param n_el: number of shaft elements.
     :return: Rotor object.
     """

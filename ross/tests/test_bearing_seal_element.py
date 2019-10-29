@@ -27,7 +27,12 @@ def bearing0():
     )
     wb = np.array([314.2, 418.9, 523.6, 628.3, 733.0, 837.8, 942.5, 1047.2, 1151.9])
     bearing0 = BearingElement(
-        4, kxx=Kxx_bearing, kyy=Kyy_bearing, cxx=Cxx_bearing, cyy=Cyy_bearing, w=wb
+        4,
+        kxx=Kxx_bearing,
+        kyy=Kyy_bearing,
+        cxx=Cxx_bearing,
+        cyy=Cyy_bearing,
+        frequency=wb,
     )
     return bearing0
 
@@ -77,7 +82,12 @@ def bearing1():
     )
     wb = [314.2, 418.9, 523.6, 628.3, 733.0, 837.8, 942.5, 1047.2, 1151.9]
     bearing1 = BearingElement(
-        4, kxx=Kxx_bearing, kyy=Kyy_bearing, cxx=Cxx_bearing, cyy=Cyy_bearing, w=wb
+        4,
+        kxx=Kxx_bearing,
+        kyy=Kyy_bearing,
+        cxx=Cxx_bearing,
+        cyy=Cyy_bearing,
+        frequency=wb,
     )
     return bearing1
 
@@ -129,24 +139,27 @@ def test_bearing_error_speed_not_given():
     cx = 1e8 * speed
     with pytest.raises(Exception) as excinfo:
         BearingElement(-1, kxx=kx, cxx=cx)
-    assert "Arguments (coefficients and w)" " must have the same dimension" in str(
-        excinfo.value
+    assert (
+        "Arguments (coefficients and frequency)"
+        " must have the same dimension" in str(excinfo.value)
     )
 
 
 def test_bearing_error2():
     with pytest.raises(ValueError) as excinfo:
         BearingElement(
-            4, kxx=[7e8, 8e8, 9e8], cxx=[0, 0, 0, 0], w=[10, 100, 1000, 10000]
+            4, kxx=[7e8, 8e8, 9e8], cxx=[0, 0, 0, 0], frequency=[10, 100, 1000, 10000]
         )
-    assert "Arguments (coefficients and w) " "must have the same dimension" in str(
-        excinfo.value
+    assert (
+        "Arguments (coefficients and frequency) "
+        "must have the same dimension" in str(excinfo.value)
     )
 
     with pytest.raises(ValueError) as excinfo:
         BearingElement(4, kxx=[6e8, 7e8, 8e8, 9e8], cxx=[0, 0, 0, 0, 0])
-    assert "Arguments (coefficients and w) " "must have the same dimension" in str(
-        excinfo.value
+    assert (
+        "Arguments (coefficients and frequency) "
+        "must have the same dimension" in str(excinfo.value)
     )
 
 
@@ -172,7 +185,7 @@ def test_bearing_len_2():
         cyy=[3.13, 10.81],
         cxy=[0.276, 0.69],
         cyx=[-0.276, -0.69],
-        w=[115.19, 345.575],
+        frequency=[115.19, 345.575],
     )
     assert_allclose(bearing.kxx.interpolated(115.19), 481, rtol=1e5)
 
@@ -188,7 +201,7 @@ def test_bearing_len_3():
         cyy=[3.13, 10.81, 22.99],
         cxy=[0.276, 0.69, 1.19],
         cyx=[-0.276, -0.69, -1.19],
-        w=[115.19, 345.575, 691.15],
+        frequency=[115.19, 345.575, 691.15],
     )
     assert_allclose(bearing.kxx.interpolated(115.19), 481, rtol=1e5)
 
