@@ -23,9 +23,13 @@ class ShaftElement(Element):
     account shear, rotary inertia an gyroscopic effects.
     The matrices will be defined considering the following local
     coordinate vector:
-    .. math:: [x_0, y_0, \alpha_0, \beta_0, x_1, y_1, \alpha_1, \beta_1]^T
-    Where :math:`\alpha_0` and :math:`\alpha_1` are the bending on the yz plane and
-    :math:`\beta_0` and :math:`\beta_1` are the bending on the xz plane.
+
+    .. math::
+
+        [x_0, y_0, \alpha_0, \beta_0, x_1, y_1, \alpha_1, \beta_1]^T
+    Where :math:`\alpha_0` and :math:`\alpha_1` are the bending on the yz plane
+    and :math:`\beta_0` and :math:`\beta_1` are the bending on the xz plane.
+
     Parameters
     ----------
     L : float
@@ -57,8 +61,10 @@ class ShaftElement(Element):
     shear_method_calc : string, optional
         Determines which shear calculation method the user will adopt
         Default is 'cowper'
+
     Returns
     -------
+
     Attributes
     ----------
     Poisson : float
@@ -67,14 +73,17 @@ class ShaftElement(Element):
         Element section area.
     Ie : float
         Ie is the second moment of area of the cross section about
-        the neutral plane Ie = pi*r**2/4
+        the neutral plane :math:`Ie = \pi r^2/4`
     phi : float
-        Constant that is used according to [1]_ to consider rotary
-        inertia and shear effects. If these are not considered phi=0.
+        Constant that is used according to :cite:`friswell2010dynamics` to
+        consider rotary inertia and shear effects. If these are not considered
+        :math:`\phi=0`.
+
     References
     ----------
-    .. [1] 'Dynamics of Rotating Machinery' by MI Friswell, JET Penny, SD Garvey
-       & AW Lees, published by Cambridge University Press, 2010 pp. 158-166.
+
+    .. bibliography:: ../../../docs/refs.bib
+
     Examples
     --------
     >>> from ross.materials import steel
@@ -298,9 +307,12 @@ class ShaftElement(Element):
     @classmethod
     def from_table(cls, file, sheet_type="Simple", sheet_name=0):
         """Instantiate one or more shafts using inputs from an Excel table.
-        A header with the names of the columns is required. These names should match the names expected by the routine
-        (usually the names of the parameters, but also similar ones). The program will read every row bellow the header
-        until they end or it reaches a NaN.
+
+        A header with the names of the columns is required. These names should
+        match the names expected by the routine (usually the names of the
+        parameters, but also similar ones). The program will read every row
+        bellow the header until they end or it reaches a NaN.
+
         Parameters
         ----------
         file: str
@@ -314,9 +326,10 @@ class ShaftElement(Element):
         sheet_name: int or str, optional
             Position of the sheet in the file (starting from 0) or its name. If none is passed, it is
             assumed to be the first sheet in the file.
+
         Returns
         -------
-        shaft : list
+        shaft: list
             A list of shaft objects.
         """
         parameters = read_table_file(
@@ -468,9 +481,12 @@ class ShaftElement(Element):
 
     def M(self):
         r"""Mass matrix for an instance of a shaft element.
+
         Returns
         -------
-        Mass matrix for the shaft element.
+        M: np.ndarray
+            Mass matrix for the shaft element.
+
         Examples
         --------
         >>> Timoshenko_Element = ShaftElement(0.25, 0, 0.05, steel,
@@ -525,9 +541,12 @@ class ShaftElement(Element):
 
     def K(self):
         r"""Stiffness matrix for an instance of a shaft element.
+
         Returns
         -------
-        Stiffness matrix for the shaft element.
+        K: np.ndarray
+            Stiffness matrix for the shaft element.
+
         Examples
         --------
         >>> from ross.materials import steel
@@ -559,15 +578,25 @@ class ShaftElement(Element):
         return K
 
     def C(self):
-        """Stiffness matrix for an instance of a shaft element.
+        """Damping matrix for an instance of a shaft element.
 
         Returns
         -------
-        C : np.array
+        C: np.ndarray
            Damping matrix for the shaft element.
 
         Examples
         --------
+        >>> from ross.materials import steel
+        >>> # Timoshenko is the default shaft element
+        >>> Timoshenko_Element = ShaftElement(0.25, 0, 0.05, steel)
+        >>> # Currently internal damping for the shaft elements is not
+        >>> # considered, so the matrix has only zeros.
+        >>> Timoshenko_Element.C()[:4, :4]
+        array([[0., 0., 0., 0.],
+               [0., 0., 0., 0.],
+               [0., 0., 0., 0.],
+               [0., 0., 0., 0.]])
         """
         C = np.zeros((8, 8))
 
@@ -575,9 +604,12 @@ class ShaftElement(Element):
 
     def G(self):
         """Gyroscopic matrix for an instance of a shaft element.
+
         Returns
         -------
-        Gyroscopic matrix for the shaft element.
+        G: np.ndarray
+            Gyroscopic matrix for the shaft element.
+
         Examples
         --------
         >>> from ross.materials import steel
@@ -615,7 +647,9 @@ class ShaftElement(Element):
 
     def patch(self, position, check_sld, ax):
         """Shaft element patch.
+
         Patch that will be used to draw the shaft element.
+
         Parameters
         ----------
         position : float
@@ -624,8 +658,10 @@ class ShaftElement(Element):
             If True, HoverTool displays only the slenderness ratio
         ax : matplotlib axes, optional
             Axes in which the plot will be drawn.
+
         Returns
         -------
+
         """
         position_u = [position, self.i_d / 2]  # upper
         position_l = [position, -self.o_d / 2]  # lower
@@ -668,7 +704,9 @@ class ShaftElement(Element):
 
     def bokeh_patch(self, position, check_sld, bk_ax):
         """Shaft element patch.
+
         Patch that will be used to draw the shaft element.
+
         Parameters
         ----------
         position : float
@@ -677,9 +715,10 @@ class ShaftElement(Element):
             If True, HoverTool displays only the slenderness ratio
         bk_ax : bokeh plotting axes, optional
             Axes in which the plot will be drawn.
+
         Returns
         -------
-        hover : Bokeh HoverTool
+        hover: Bokeh HoverTool
             Bokeh HoverTool axes
         """
         if check_sld is True and self.slenderness_ratio < 1.6:
@@ -784,8 +823,10 @@ class ShaftElement(Element):
         gyroscopic=True,
     ):
         """Shaft section constructor.
-        This method will create a shaft section with length 'L'
-        divided into 'ne' elements.
+
+        This method will create a shaft section with length 'L' divided into
+        'ne' elements.
+
         Parameters
         ----------
         i_d : float
@@ -816,10 +857,12 @@ class ShaftElement(Element):
         gyroscopic : bool
             Determine if gyroscopic effects are taken into account.
             Default is False.
+
         Returns
         -------
         elements: list
             List with the 'ne' shaft elements.
+
         Examples
         --------
         >>> # shaft material
