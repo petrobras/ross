@@ -457,12 +457,12 @@ class BearingElement(Element):
 
         return M
 
-    def K(self, w):
+    def K(self, frequency):
         """Returns the stiffness matrix for a given speed.
 
         Parameters
         ----------
-        w: float
+        frequency: float
             The speeds (rad/s) to consider.
 
         Returns
@@ -476,10 +476,10 @@ class BearingElement(Element):
         array([[1000000.,       0.],
                [      0.,  800000.]])
         """
-        kxx = self.kxx.interpolated(w)
-        kyy = self.kyy.interpolated(w)
-        kxy = self.kxy.interpolated(w)
-        kyx = self.kyx.interpolated(w)
+        kxx = self.kxx.interpolated(frequency)
+        kyy = self.kyy.interpolated(frequency)
+        kxy = self.kxy.interpolated(frequency)
+        kyx = self.kyx.interpolated(frequency)
 
         K = np.array([[kxx, kxy], [kyx, kyy]])
 
@@ -491,12 +491,12 @@ class BearingElement(Element):
 
         return K
 
-    def C(self, w):
+    def C(self, frequency):
         """Returns the damping matrix for a given speed.
 
         Parameters
         ----------
-        w: float
+        frequency: float
             The speeds (rad/s) to consider.
 
         Returns
@@ -510,10 +510,10 @@ class BearingElement(Element):
         array([[200.,   0.],
                [  0., 150.]])
         """
-        cxx = self.cxx.interpolated(w)
-        cyy = self.cyy.interpolated(w)
-        cxy = self.cxy.interpolated(w)
-        cyx = self.cyx.interpolated(w)
+        cxx = self.cxx.interpolated(frequency)
+        cyy = self.cyy.interpolated(frequency)
+        cxy = self.cxy.interpolated(frequency)
+        cyx = self.cyx.interpolated(frequency)
 
         C = np.array([[cxx, cxy], [cyx, cyy]])
 
