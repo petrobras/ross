@@ -334,8 +334,12 @@ class Rotor(object):
         self.m = self.m_disks + self.m_shaft
 
         # rotor center of mass and total inertia
-        CG_sh = np.sum([(sh.m * sh.axial_cg_pos) / self.m for sh in self.shaft_elements])
-        CG_dsk = np.sum([disk.m * nodes_pos[disk.n] / self.m for disk in self.disk_elements])
+        CG_sh = np.sum(
+            [(sh.m * sh.axial_cg_pos) / self.m for sh in self.shaft_elements]
+        )
+        CG_dsk = np.sum(
+            [disk.m * nodes_pos[disk.n] / self.m for disk in self.disk_elements]
+        )
         self.CG = CG_sh + CG_dsk
 
         Ip_sh = np.sum([sh.Im for sh in self.shaft_elements])
@@ -407,18 +411,41 @@ class Rotor(object):
             dfb_z_pos = dfb[dfb.nodes_pos_l == z_pos]
             dfb_z_pos = dfb_z_pos.sort_values(by="n_l")
             if z_pos == df_shaft["nodes_pos_l"].iloc[0]:
-                y_pos = max(
-                    df_shaft["o_d_l"][df_shaft.n_l == int(dfb_z_pos.iloc[0]["n_l"])].values
-                ) / 2
+                y_pos = (
+                    max(
+                        df_shaft["o_d_l"][
+                            df_shaft.n_l == int(dfb_z_pos.iloc[0]["n_l"])
+                        ].values
+                    )
+                    / 2
+                )
             elif z_pos == df_shaft["nodes_pos_r"].iloc[-1]:
-                y_pos = max(
-                    df_shaft["o_d_r"][df_shaft.n_r == int(dfb_z_pos.iloc[0]["n_r"])].values
-                ) / 2
+                y_pos = (
+                    max(
+                        df_shaft["o_d_r"][
+                            df_shaft.n_r == int(dfb_z_pos.iloc[0]["n_r"])
+                        ].values
+                    )
+                    / 2
+                )
             else:
-                y_pos = max([
-                    max(df_shaft["o_d_l"][df_shaft._n == int(dfb_z_pos.iloc[0]["n_l"])].values),
-                    max(df_shaft["o_d_r"][df_shaft._n == int(dfb_z_pos.iloc[0]["n_l"]) - 1].values)
-                ]) / 2
+                y_pos = (
+                    max(
+                        [
+                            max(
+                                df_shaft["o_d_l"][
+                                    df_shaft._n == int(dfb_z_pos.iloc[0]["n_l"])
+                                ].values
+                            ),
+                            max(
+                                df_shaft["o_d_r"][
+                                    df_shaft._n == int(dfb_z_pos.iloc[0]["n_l"]) - 1
+                                ].values
+                            ),
+                        ]
+                    )
+                    / 2
+                )
             mean_od = np.mean(nodes_o_d)
             for t in dfb_z_pos.tag:
                 df.loc[df.tag == t, "y_pos"] = y_pos
@@ -949,7 +976,7 @@ class Rotor(object):
         frequency : float, optional
             Excitation frequency. Default is rotor speed.
         speed : float, optional
-            Rotating speed. Default is rotor speed (w).
+            Rotating speed. Default is rotor speed (frequency).
         modes : list, optional
             List with modes used to calculate the matrix.
             (all modes will be used if a list is not given).
@@ -1635,8 +1662,8 @@ class Rotor(object):
         ... )
         >>> stfx = [1e6, 2e7, 3e8]
         >>> stfy = [0.8e6, 1.6e7, 2.4e8]
-        >>> bearing0 = BearingElement(0, kxx=stfx, kyy=stfy, cxx=0, w=[0,1000, 2000])
-        >>> bearing1 = BearingElement(6, kxx=stfx, kyy=stfy, cxx=0, w=[0,1000, 2000])
+        >>> bearing0 = BearingElement(0, kxx=stfx, kyy=stfy, cxx=0, frequency=[0,1000, 2000])
+        >>> bearing1 = BearingElement(6, kxx=stfx, kyy=stfy, cxx=0, frequency=[0,1000, 2000])
         >>> rotor = Rotor(shaft_elem, [disk0, disk1], [bearing0, bearing1])
         >>> rotor.plot_ucs() # doctest: +ELLIPSIS
         <matplotlib.axes._subplots.AxesSubplot ...
@@ -1677,8 +1704,8 @@ class Rotor(object):
         bearing0 = bearings_elements[0]
 
         ax.plot(
-            bearing0.kxx.interpolated(bearing0.w),
-            bearing0.w,
+            bearing0.kxx.interpolated(bearing0.frequency),
+            bearing0.frequency,
             marker="o",
             color="k",
             alpha=0.25,
@@ -1687,8 +1714,8 @@ class Rotor(object):
             label="kxx",
         )
         ax.plot(
-            bearing0.kyy.interpolated(bearing0.w),
-            bearing0.w,
+            bearing0.kyy.interpolated(bearing0.frequency),
+            bearing0.frequency,
             marker="s",
             color="k",
             alpha=0.25,
@@ -1718,16 +1745,16 @@ class Rotor(object):
 
         # bokeh plot - plot shaft centerline
         bk_ax.circle(
-            bearing0.kxx.interpolated(bearing0.w),
-            bearing0.w,
+            bearing0.kxx.interpolated(bearing0.frequency),
+            bearing0.frequency,
             size=5,
             fill_alpha=0.5,
             fill_color=bokeh_colors[0],
             legend="Kxx",
         )
         bk_ax.square(
-            bearing0.kyy.interpolated(bearing0.w),
-            bearing0.w,
+            bearing0.kyy.interpolated(bearing0.frequency),
+            bearing0.frequency,
             size=5,
             fill_alpha=0.5,
             fill_color=bokeh_colors[0],
@@ -2236,14 +2263,14 @@ class Rotor(object):
         self.run_static()
         forces = self.bearing_reaction_forces
         results = SummaryResults(
-                self.df_shaft,
-                self.df_disks,
-                self.df_bearings,
-                self.nodes_pos,
-                forces,
-                self.CG,
-                self.Ip,
-                self.tag
+            self.df_shaft,
+            self.df_disks,
+            self.df_bearings,
+            self.nodes_pos,
+            forces,
+            self.CG,
+            self.Ip,
+            self.tag,
         )
         return results
 
@@ -2259,7 +2286,7 @@ class Rotor(object):
         min_w=None,
         max_w=None,
         n_eigen=12,
-        w=0,
+        frequency=0,
         nel_r=1,
     ):
 
@@ -2312,7 +2339,7 @@ class Rotor(object):
         ...                        DiskElement.from_geometry(n=2, material=steel, width=0.07, i_d=0, o_d=0.35)],
         ...             brg_seal_data=[BearingElement(n=0, kxx=1e6, cxx=0, kyy=1e6, cyy=0, kxy=0, cxy=0, kyx=0, cyx=0),
         ...                            BearingElement(n=3, kxx=1e6, cxx=0, kyy=1e6, cyy=0, kxy=0, cxy=0, kyx=0, cyx=0)],
-        ...             w=0, nel_r=1)
+        ...             frequency=0, nel_r=1)
         >>> modal = rotor.run_modal(speed=0)
         >>> modal.wn.round(4)
         array([ 85.7634,  85.7634, 271.9326, 271.9326, 718.58  , 718.58  ])
