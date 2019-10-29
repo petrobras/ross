@@ -56,6 +56,7 @@ extensions = [
     "sphinx.ext.coverage",
     "numpydoc",
     "sphinx_copybutton",
+    "sphinxcontrib.bibtex",
 ]
 
 # Generate the API documentation when building

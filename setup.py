@@ -61,6 +61,7 @@ EXTRAS = {
         "sphinx_bootstrap_theme",
         "nbsphinx",
         "numpydoc",
+        "sphinxcontrib-bibtex",
     ]
 }
 
