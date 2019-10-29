@@ -458,16 +458,17 @@ class BearingElement(Element):
         return M
 
     def K(self, frequency):
-        """Returns the stiffness matrix for a given speed.
+        """Returns the stiffness matrix for a given excitation frequency.
 
         Parameters
         ----------
         frequency: float
-            The speeds (rad/s) to consider.
+            The excitation frequency (rad/s).
 
         Returns
         -------
-        A 2x2 matrix of floats containing the kxx, kxy, kyx, and kyy values.
+        K: np.ndarray
+            A 2x2 matrix of floats containing the kxx, kxy, kyx, and kyy values.
 
         Examples
         --------
@@ -492,16 +493,17 @@ class BearingElement(Element):
         return K
 
     def C(self, frequency):
-        """Returns the damping matrix for a given speed.
+        """Returns the damping matrix for a given excitation frequency.
 
         Parameters
         ----------
         frequency: float
-            The speeds (rad/s) to consider.
+            The excitation frequency (rad/s).
 
         Returns
         -------
-        A 2x2 matrix of floats containing the cxx, cxy, cyx, and cyy values.
+        C: np.ndarray
+            A 2x2 matrix of floats containing the cxx, cxy, cyx, and cyy values.
 
         Examples
         --------
@@ -526,13 +528,12 @@ class BearingElement(Element):
         return C
 
     def G(self):
-        """Returns the giroscopic matrix.
-        Parameters
-        ----------
+        """Gyroscopic matrix.
 
         Returns
         -------
-        A matrix of floats.
+        G: np.ndarray
+            A 2x2 matrix of floats.
 
         Examples
         --------
