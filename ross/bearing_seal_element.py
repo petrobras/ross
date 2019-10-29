@@ -349,6 +349,7 @@ class BearingElement(Element):
     @staticmethod
     def load(file_name="BearingElement"):
         """Loads a list of bearing elements saved in a toml format.
+
         Parameters
         ----------
         file_name: string
@@ -428,7 +429,7 @@ class BearingElement(Element):
 
         Returns
         -------
-        M: np.ndarry
+        M: np.ndarray
             Mass matrix.
 
         Examples
@@ -737,18 +738,23 @@ class BearingElement(Element):
 
     @classmethod
     def table_to_toml(cls, n, file):
-        """Convert a table with parameters of a bearing element to a dictionary ready to save
+        """Convert bearing parameters to toml.
+
+        Convert a table with parameters of a bearing element to a dictionary ready to save
         to a toml file that can be later loaded by ross.
+
         Parameters
         ----------
         n : int
             The node in which the bearing will be located in the rotor.
         file: str
             Path to the file containing the bearing parameters.
+
         Returns
         -------
-        dict
+        data: dict
             A dict that is ready to save to toml and readable by ross.
+
         Examples
         --------
         >>> import os
@@ -774,9 +780,11 @@ class BearingElement(Element):
     @classmethod
     def from_table(cls, n, file, sheet_name=0, **kwargs):
         """Instantiate a bearing using inputs from an Excel table.
+
         A header with the names of the columns is required. These names should match the names expected by the routine
         (usually the names of the parameters, but also similar ones). The program will read every row bellow the header
         until they end or it reaches a NaN.
+
         Parameters
         ----------
         n : int
@@ -786,9 +794,12 @@ class BearingElement(Element):
         sheet_name: int or str, optional
             Position of the sheet in the file (starting from 0) or its name. If none is passed, it is
             assumed to be the first sheet in the file.
+
         Returns
         -------
-        A bearing object.
+        bearing: rs.BearingElement
+            A bearing object.
+
         Examples
         --------
         >>> import os
@@ -831,10 +842,12 @@ class BearingElement(Element):
         load=None,
     ):
         """Instantiate a bearing using inputs from its fluid flow.
+
         Parameters
         ----------
         n : int
             The node in which the bearing will be located in the rotor.
+
         Grid related
         ^^^^^^^^^^^^
         Describes the discretization of the problem
@@ -877,9 +890,12 @@ class BearingElement(Element):
             Viscosity (Pa.s).
         rho: float
             Fluid density(Kg/m^3).
+
         Returns
         -------
-        A bearing object.
+        bearing: rs.BearingElement
+            A bearing object.
+
         Examples
         --------
         >>> nz = 30
@@ -940,12 +956,14 @@ class BearingElement(Element):
 
 class SealElement(BearingElement):
     """A seal element.
+
     This class will create a seal element.
     Parameters can be a constant value or speed dependent.
     For speed dependent parameters, each argument should be passed
     as an array and the correspondent speed values should also be
     passed as an array.
     Values for each parameter will be interpolated for the speed.
+
     Parameters
     ----------
     n: int
@@ -979,6 +997,7 @@ class SealElement(BearingElement):
     tag : str, optional
         A tag to name the element
         Default is None
+
     Examples
     --------
     >>> # A seal element located in the first rotor node, with these
