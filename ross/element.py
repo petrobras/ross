@@ -149,6 +149,7 @@ class Element(ABC):
         """A summary for the element.
 
         A pandas series with the element properties as variables.
+
         Parameters
         ----------
 
