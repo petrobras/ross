@@ -408,20 +408,6 @@ class BearingElement(Element):
         return bearing_elements
 
     def dof_mapping(self):
-        """Returns a dictionary with a mapping between degree of freedom and its index.
-        Parameters
-        ----------
-
-        Returns
-        -------
-        A dictionary containing the degrees of freedom and their indexes.
-
-        Examples
-        --------
-        >>> bearing = bearing_example()
-        >>> bearing.dof_mapping()
-        {'x_0': 0, 'y_0': 1}
-        """
         return dict(x_0=0, y_0=1)
 
     def dof_global_index(self):
@@ -438,13 +424,12 @@ class BearingElement(Element):
         return global_index
 
     def M(self):
-        """Returns the mass matrix.
-        Parameters
-        ----------
+        """Mass matrix.
 
         Returns
         -------
-        A matrix of floats.
+        M: np.ndarry
+            Mass matrix.
 
         Examples
         --------
