@@ -241,13 +241,15 @@ class Element(ABC):
 
     @abstractmethod
     def dof_mapping(self):
-        """Should return a dictionary with a mapping between degree of freedom
+        """Degrees of freedom mapping.
+
+        Should return a dictionary with a mapping between degree of freedom
         and its index.
 
         Returns
         -------
         dof_mapping: dict
-            A dictionary of degrees of freedom.
+            A dictionary containing the degrees of freedom and their indexes.
 
         Examples
         --------
