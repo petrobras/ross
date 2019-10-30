@@ -674,10 +674,7 @@ class Report:
             )
 
         return node_min, node_max
-
-    def stability_level_1(
-        self, D, H, HP, N, RHOd, RHOs, steps=21, unit="m"
-    ):
+    def stability_level_1(self, D, H, HP, oper_speed, RHOd, RHOs, unit="m"):
         """Stability analysis level 1.
 
         This analysis consider a anticipated cross coupling QA based on
@@ -689,34 +686,49 @@ class Report:
 
         Parameters
         ----------
-        D : list
+        D: list
             Impeller diameter, m (in.),
             Blade pitch diameter, m (in.),
-        H : list
+        H: list
             Minimum diffuser width per impeller, m (in.),
             Effective blade height, m (in.),
-        HP : list
+        HP: list
             Rated power per stage/impeller, W (HP),
-        N : float
+        oper_speed: float
             Operating speed, rpm,
         RHOd : float
             Discharge gas density per impeller, kg/m3 (lbm/in.3),
-        RHOs : float
+        RHOs: float
             Suction gas density per impeller, kg/m3 (lbm/in.3).
-        steps : int
-            Number of steps in the cross coupled stiffness range.
-            Default is 21.
-        unit : str
+        unit: str
             Adopted unit system.
             Default is "m"
 
         Return
         ------
+        plot: bokeh.gridplot
+            Applied Cross-Coupled Stiffness vs. Log Decrement plot;
+            CSR vs. Mean Gas Density plot.
+        condition: str
+            not required: Stability Level 1 satisfies the analysis;
+            required: Stability Level 2 is required.
 
         Example
         -------
-
+        >>> rotor = rotor_example()
+        >>> report = Report(rotor=rotor,
+        ...                 minspeed=400,
+        ...                 maxspeed=1000,
+        ...                 speed_units="rad/s")
+        report.stability_level_1(D=[0.35, 0.35],
+        ...                      H=[0.08, 0.08],
+        ...                      HP=[10000, 10000],
+        ...                      RHOd=30.45,
+        ...                      RHOs=30.67,
+        ...                      oper_speed=1000.0) # doctest: +ELLIPSIS
+        (Figure...
         """
+        steps = 101
         if unit == "m":
             C = 9.55
         elif unit == "in":
@@ -727,34 +739,47 @@ class Report:
         if len(D) != len(H):
             raise Exception("length of D must be the same of H")
 
-        # Qa - Anticipated cross-coupling - API 684 - SP6.8.5.6
+        # Qa - Anticipated cross-coupling for compressors - API 684 - SP6.8.5.6
         if self.machine_type == "compressor":
             Bc = 3.0
             Dc, Hc = D, H
             Qa = 0.0
             Qa_list = []
             for i in range(len(self.rotor.disk_elements)):
-                qi = (HP[i] * Bc * C * RHOd) / (Dc[i] * Hc[i] * N * RHOs)
+                qi = (HP[i] * Bc * C * RHOd) / (Dc[i] * Hc[i] * oper_speed * RHOs)
                 Qa_list.append(qi)
                 Qa += qi
 
-        # Qa - Anticipated cross-coupling - API 684 - SP6.8.5.6
+        # Qa - Anticipated cross-coupling for turbines - API 684 - SP6.8.5.6
         if self.machine_type == "turbine" or self.machine_type == "axial_flow":
             Bt = 1.5
             Dt, Ht = D, H
             Qa = 0.0
             Qa_list = []
             for i in range(len(self.rotor.disk_elements)):
-                qi = (HP[i] * Bt * C) / (Dt[i] * Ht[i] * N)
+                qi = (HP[i] * Bt * C) / (Dt[i] * Ht[i] * oper_speed)
                 Qa_list.append(qi)
                 Qa += qi
 
         cross_coupled_stiff = np.linspace(0, 10 * Qa, steps)
-
         log_dec = np.zeros(len(cross_coupled_stiff))
 
+        # remove disks and seals from the rotor model
+        bearing_list = [
+            copy(b)
+            for b in self.rotor.bearing_seal_elements
+            if b.__class__.__name__ != "SealElement"
+        ]
+
+        level1_rotor = Rotor(
+            shaft_elements=self.rotor.shaft_elements,
+            disk_elements=[],
+            bearing_seal_elements=bearing_list,
+            rated_w=self.rotor.rated_w,
+        )
+
         for i, Q in enumerate(cross_coupled_stiff):
-            bearings = [copy(b) for b in self.rotor.bearing_seal_elements]
+            bearings = [copy(b) for b in level1_rotor.bearing_seal_elements]
 
             if self.rotor_type == "between_bearings":
                 # cross-coupling introduced at the rotor mid-span
@@ -765,19 +790,24 @@ class Report:
             else:
                 # cross-coupling introduced at overhung disks
                 for n in self.disk_nodes:
-                    cross_coupling = BearingElement(n=int(n), kxx=0, cxx=0, kxy=Q, kyx=-Q)
+                    cross_coupling = BearingElement(
+                        n=int(n), kxx=0, cxx=0, kxy=Q, kyx=-Q
+                    )
                     bearings.append(cross_coupling)
 
             aux_rotor = Rotor(
-                self.rotor.shaft_elements,
-                self.rotor.disk_elements,
-                bearings,
-                self.rotor.rated_w,
+                shaft_elements=self.rotor.shaft_elements,
+                disk_elements=[],
+                bearing_seal_elements=bearings,
+                rated_w=self.rotor.rated_w,
             )
-            non_backward = aux_rotor.whirl_direction() != "Backward"
-            log_dec[i] = aux_rotor.log_dec[non_backward][0]
+            modal = aux_rotor.run_modal(speed=oper_speed)
+            non_backward = modal.whirl_direction() != "Backward"
+            log_dec[i] = modal.log_dec[non_backward][0]
 
-        g = interp1d(cross_coupled_stiff, log_dec, fill_value="extrapolate", kind="quadratic")
+        g = interp1d(
+            cross_coupled_stiff, log_dec, fill_value="extrapolate", kind="linear"
+        )
         stiff = cross_coupled_stiff[-1] * (1 + 1 / (len(cross_coupled_stiff)))
 
         while g(stiff) > 0:
@@ -786,22 +816,27 @@ class Report:
             stiff += cross_coupled_stiff[-1] / (len(cross_coupled_stiff))
         Q0 = cross_coupled_stiff[-1]
 
+        # Find value for log_dec corresponding to Qa
+        log_dec_a = log_dec[np.where(cross_coupled_stiff == Qa)][0]
+
         # CSR - Critical Speed Ratio
         CSR = self.maxspeed / self.rotor.run_modal(speed=self.maxspeed).wn[0]
 
         # RHO_mean - Average gas density
         RHO_mean = (RHOd + RHOs) / 2
-        RHO = np.linspace(0, RHO_mean * 5, 201)
+        RHO = np.linspace(0, RHO_mean * 5, 501)
         Qc = np.piecewise(
-                RHO,
-                [RHO <= 16.53, RHO > 16.53, RHO == 60, RHO > 60],
-                [2.5, lambda RHO: (-0.0115 * RHO + 2.69), 2.0, 0.0],
+            RHO,
+            [RHO <= 16.53, RHO > 16.53, RHO == 60, RHO > 60],
+            [2.5, lambda RHO: (-0.0115 * RHO + 2.69), 2.0, 0.0],
         )
 
         # Plot area
         fig1 = figure(
             tools="pan, box_zoom, wheel_zoom, reset, save",
             title="Applied Cross-Coupled Stiffness vs. Log Decrement - (API 684 - SP 6.8.5.10)",
+            width=640,
+            height=480,
             x_axis_label="Applied Cross-Coupled Stiffness, Q (N/m)",
             y_axis_label="Log Dec",
             x_range=(0, max(cross_coupled_stiff)),
@@ -811,7 +846,9 @@ class Report:
         fig1.xaxis.axis_label_text_font_size = "11pt"
         fig1.yaxis.axis_label_text_font_size = "11pt"
 
-        fig1.line(cross_coupled_stiff, log_dec, line_width=3, line_color=bokeh_colors[0])
+        fig1.line(
+            cross_coupled_stiff, log_dec, line_width=3, line_color=bokeh_colors[0]
+        )
         fig1.add_layout(
             Span(
                 location=Qa,
@@ -834,23 +871,25 @@ class Report:
         fig2 = figure(
             tools="pan, box_zoom, wheel_zoom, reset, save",
             title="CSR vs. Mean Gas Density - (API 684 - SP 6.8.5.10)",
+            width=640,
+            height=480,
             x_axis_label=x_label1,
             y_axis_label="MCSR",
             y_range=DataRange1d(start=0),
-            x_range=DataRange1d(start=0)
+            x_range=DataRange1d(start=0),
         )
         fig2.title.text_font_size = "11pt"
         fig2.xaxis.axis_label_text_font_size = "11pt"
         fig2.yaxis.axis_label_text_font_size = "11pt"
-        fig2.extra_x_ranges = {"x_range2": Range1d(f*min(RHO), f*max(RHO))}
+        fig2.extra_x_ranges = {"x_range2": Range1d(f * min(RHO), f * max(RHO))}
 
         fig2.add_layout(
             LinearAxis(
-                    x_range_name="x_range2",
-                    axis_label=x_label2,
-                    axis_label_text_font_size="11pt"
+                x_range_name="x_range2",
+                axis_label=x_label2,
+                axis_label_text_font_size="11pt",
             ),
-            place="below"
+            place="below",
         )
         fig2.add_layout(
             Label(
@@ -881,9 +920,31 @@ class Report:
         fig2.line(x=RHO, y=Qc, line_width=3, line_color=bokeh_colors[0])
         fig2.circle(x=RHO_mean, y=CSR, size=8, color=bokeh_colors[0])
 
-        plot = gridplot([[fig1, fig2]])
-        
-        return plot
+        # Level 1 screening criteria
+        idx = min(range(len(RHO)), key=lambda i: abs(RHO[i] - RHO_mean))
+
+        # TODO: add condition as attribute
+        if self.machine_type == "compressor":
+            if Q0 / Qa < 2.0:
+                condition = "required"
+
+            if log_dec_a < 0.1:
+                condition = "required"
+
+            if 2.0 < Q0 / Qa < 10.0 and CSR > Qc[idx]:
+                condition = "required"
+
+            else:
+                condition = "not required"
+
+        if self.machine_type == "turbine" or self.machine_type == "axial flow":
+            if log_dec_a < 0.1:
+                condition = "required"
+
+            else:
+                condition = "not required"
+
+        return fig1, fig2, condition
 
     def stability_level_2(self):
         """Stability analysis level 2.
