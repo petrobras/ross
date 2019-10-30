@@ -56,7 +56,8 @@ class _Coefficient:
                         )
                 except:
                     raise ValueError(
-                        "Arguments (coefficients and w)" " must have the same dimension"
+                        "Arguments (coefficients and frequency)"
+                        " must have the same dimension"
                     )
         else:
             self.interpolated = lambda x: np.array(self.coefficient[0])
@@ -104,12 +105,14 @@ class _Damping_Coefficient(_Coefficient):
 
 class BearingElement(Element):
     """A bearing element.
+
     This class will create a bearing element.
     Parameters can be a constant value or speed dependent.
     For speed dependent parameters, each argument should be passed
     as an array and the correspondent speed values should also be
     passed as an array.
     Values for each parameter will be interpolated for the speed.
+
     Parameters
     ----------
     n: int
@@ -136,8 +139,8 @@ class BearingElement(Element):
     cyx: float, array, optional
         Cross coupled damping in the y direction.
         (defaults to 0)
-    w: array, optional
-        Array with the speeds (rad/s).
+    frequency: array, optional
+        Array with the frequencies (rad/s).
     tag: str, optional
         A tag to name the element
         Default is None.
@@ -148,6 +151,7 @@ class BearingElement(Element):
     scale_factor: float, optional
         The scale factor is used to scale the bearing drawing.
         Default is 1.
+
     Examples
     --------
     >>> # A bearing element located in the first rotor node, with these
@@ -158,11 +162,11 @@ class BearingElement(Element):
     >>> kyy = 0.8e6
     >>> cxx = 2e2
     >>> cyy = 1.5e2
-    >>> w = np.linspace(0, 200, 11)
-    >>> bearing0 = rs.BearingElement(n=0, kxx=kxx, kyy=kyy, cxx=cxx, cyy=cyy, w=w)
-    >>> bearing0.K(w) # doctest: +ELLIPSIS
+    >>> frequency = np.linspace(0, 200, 11)
+    >>> bearing0 = rs.BearingElement(n=0, kxx=kxx, kyy=kyy, cxx=cxx, cyy=cyy, frequency=frequency)
+    >>> bearing0.K(frequency) # doctest: +ELLIPSIS
     array([[[1000000., 1000000., ...
-    >>> bearing0.C(w) # doctest: +ELLIPSIS
+    >>> bearing0.C(frequency) # doctest: +ELLIPSIS
     array([[[200., 200., ...
     """
 
@@ -177,7 +181,7 @@ class BearingElement(Element):
         cyy=None,
         cxy=0,
         cyx=0,
-        w=None,
+        frequency=None,
         tag=None,
         n_link=None,
         scale_factor=1,
@@ -197,24 +201,28 @@ class BearingElement(Element):
         for arg in args:
             if arg[0] == "k":
                 coefficients[arg] = _Stiffness_Coefficient(
-                    coefficient=args_dict[arg], w=args_dict["w"]
+                    coefficient=args_dict[arg], w=args_dict["frequency"]
                 )
             else:
-                coefficients[arg] = _Damping_Coefficient(args_dict[arg], args_dict["w"])
+                coefficients[arg] = _Damping_Coefficient(
+                    args_dict[arg], args_dict["frequency"]
+                )
 
         coefficients_len = [len(v.coefficient) for v in coefficients.values()]
 
-        if w is not None and type(w) != float:
-            coefficients_len.append(len(args_dict["w"]))
+        if frequency is not None and type(frequency) != float:
+            coefficients_len.append(len(args_dict["frequency"]))
             if len(set(coefficients_len)) > 1:
                 raise ValueError(
-                    "Arguments (coefficients and w)" " must have the same dimension"
+                    "Arguments (coefficients and frequency)"
+                    " must have the same dimension"
                 )
         else:
             for c in coefficients_len:
                 if c != 1:
                     raise ValueError(
-                        "Arguments (coefficients and w)" " must have the same dimension"
+                        "Arguments (coefficients and frequency)"
+                        " must have the same dimension"
                     )
 
         for k, v in coefficients.items():
@@ -225,7 +233,7 @@ class BearingElement(Element):
         self.n_l = n
         self.n_r = n
 
-        self.w = np.array(w, dtype=np.float64)
+        self.frequency = np.array(frequency, dtype=np.float64)
         self.tag = tag
         self.color = "#355d7a"
         self.scale_factor = scale_factor
@@ -252,7 +260,7 @@ class BearingElement(Element):
             f" kyx={self.kyx}, kyy={self.kyy},\n"
             f" cxx={self.cxx}, cxy={self.cxy},\n"
             f" cyx={self.cyx}, cyy={self.cyy},\n"
-            f" w={self.w}, tag={self.tag!r})"
+            f" frequency={self.frequency}, tag={self.tag!r})"
         )
 
     def __eq__(self, other):
@@ -282,7 +290,7 @@ class BearingElement(Element):
             "cyy",
             "cxy",
             "cyx",
-            "w",
+            "frequency",
             "n",
         ]
         if isinstance(other, self.__class__):
@@ -299,8 +307,9 @@ class BearingElement(Element):
         return hash(self.tag)
 
     def save(self, file_name):
-        """Saves a bearing element in a toml format. It works as an auxiliary function of
-        the save function in the Rotor class.
+        """Saves a bearing element in a toml format. It works as an auxiliary
+        function of the save function in the Rotor class.
+
         Parameters
         ----------
         file_name: string
@@ -316,12 +325,12 @@ class BearingElement(Element):
         >>> bearing.save('BearingElement.toml')
         """
         data = self.load_data(file_name)
-        if type(self.w) == np.ndarray:
+        if type(self.frequency) == np.ndarray:
             try:
-                self.w[0]
-                w = list(self.w)
+                self.frequency[0]
+                frequency = list(self.frequency)
             except IndexError:
-                w = None
+                frequency = None
         data["BearingElement"][str(self.n)] = {
             "n": self.n,
             "kxx": self.kxx.coefficient,
@@ -332,7 +341,7 @@ class BearingElement(Element):
             "cyy": self.cyy.coefficient,
             "cxy": self.cxy.coefficient,
             "cyx": self.cyx.coefficient,
-            "w": w,
+            "frequency": frequency,
             "tag": self.tag,
         }
         self.dump_data(data, file_name)
@@ -340,6 +349,7 @@ class BearingElement(Element):
     @staticmethod
     def load(file_name="BearingElement"):
         """Loads a list of bearing elements saved in a toml format.
+
         Parameters
         ----------
         file_name: string
@@ -399,20 +409,6 @@ class BearingElement(Element):
         return bearing_elements
 
     def dof_mapping(self):
-        """Returns a dictionary with a mapping between degree of freedom and its index.
-        Parameters
-        ----------
-
-        Returns
-        -------
-        A dictionary containing the degrees of freedom and their indexes.
-
-        Examples
-        --------
-        >>> bearing = bearing_example()
-        >>> bearing.dof_mapping()
-        {'x_0': 0, 'y_0': 1}
-        """
         return dict(x_0=0, y_0=1)
 
     def dof_global_index(self):
@@ -429,13 +425,12 @@ class BearingElement(Element):
         return global_index
 
     def M(self):
-        """Returns the mass matrix.
-        Parameters
-        ----------
+        """Mass matrix.
 
         Returns
         -------
-        A matrix of floats.
+        M: np.ndarray
+            Mass matrix.
 
         Examples
         --------
@@ -448,16 +443,18 @@ class BearingElement(Element):
 
         return M
 
-    def K(self, w):
-        """Returns the stiffness matrix for a given speed.
+    def K(self, frequency):
+        """Returns the stiffness matrix for a given excitation frequency.
+
         Parameters
         ----------
-        w: float
-            The speeds (rad/s) to consider.
+        frequency: float
+            The excitation frequency (rad/s).
 
         Returns
         -------
-        A 2x2 matrix of floats containing the kxx, kxy, kyx, and kyy values.
+        K: np.ndarray
+            A 2x2 matrix of floats containing the kxx, kxy, kyx, and kyy values.
 
         Examples
         --------
@@ -466,10 +463,10 @@ class BearingElement(Element):
         array([[1000000.,       0.],
                [      0.,  800000.]])
         """
-        kxx = self.kxx.interpolated(w)
-        kyy = self.kyy.interpolated(w)
-        kxy = self.kxy.interpolated(w)
-        kyx = self.kyx.interpolated(w)
+        kxx = self.kxx.interpolated(frequency)
+        kyy = self.kyy.interpolated(frequency)
+        kxy = self.kxy.interpolated(frequency)
+        kyx = self.kyx.interpolated(frequency)
 
         K = np.array([[kxx, kxy], [kyx, kyy]])
 
@@ -481,16 +478,18 @@ class BearingElement(Element):
 
         return K
 
-    def C(self, w):
-        """Returns the damping matrix for a given speed.
+    def C(self, frequency):
+        """Returns the damping matrix for a given excitation frequency.
+
         Parameters
         ----------
-        w: float
-            The speeds (rad/s) to consider.
+        frequency: float
+            The excitation frequency (rad/s).
 
         Returns
         -------
-        A 2x2 matrix of floats containing the cxx, cxy, cyx, and cyy values.
+        C: np.ndarray
+            A 2x2 matrix of floats containing the cxx, cxy, cyx, and cyy values.
 
         Examples
         --------
@@ -499,10 +498,10 @@ class BearingElement(Element):
         array([[200.,   0.],
                [  0., 150.]])
         """
-        cxx = self.cxx.interpolated(w)
-        cyy = self.cyy.interpolated(w)
-        cxy = self.cxy.interpolated(w)
-        cyx = self.cyx.interpolated(w)
+        cxx = self.cxx.interpolated(frequency)
+        cyy = self.cyy.interpolated(frequency)
+        cxy = self.cxy.interpolated(frequency)
+        cyx = self.cyx.interpolated(frequency)
 
         C = np.array([[cxx, cxy], [cyx, cyy]])
 
@@ -515,13 +514,12 @@ class BearingElement(Element):
         return C
 
     def G(self):
-        """Returns the giroscopic matrix.
-        Parameters
-        ----------
+        """Gyroscopic matrix.
 
         Returns
         -------
-        A matrix of floats.
+        G: np.ndarray
+            A 2x2 matrix of floats.
 
         Examples
         --------
@@ -740,22 +738,27 @@ class BearingElement(Element):
 
     @classmethod
     def table_to_toml(cls, n, file):
-        """Convert a table with parameters of a bearing element to a dictionary ready to save
+        """Convert bearing parameters to toml.
+
+        Convert a table with parameters of a bearing element to a dictionary ready to save
         to a toml file that can be later loaded by ross.
+
         Parameters
         ----------
         n : int
             The node in which the bearing will be located in the rotor.
         file: str
             Path to the file containing the bearing parameters.
+
         Returns
         -------
-        dict
+        data: dict
             A dict that is ready to save to toml and readable by ross.
+
         Examples
         --------
         >>> import os
-        >>> file_path = os.path.dirname(os.path.realpath(__file__)) + '/tests/data/bearing_seal.xls'
+        >>> file_path = os.path.dirname(os.path.realpath(__file__)) + '/tests/data/bearing_seal_si.xls'
         >>> BearingElement.table_to_toml(0, file_path) # doctest: +ELLIPSIS
         {'n': 0, 'kxx': [...
         """
@@ -770,16 +773,18 @@ class BearingElement(Element):
             "cyy": b_elem.cyy.coefficient,
             "cxy": b_elem.cxy.coefficient,
             "cyx": b_elem.cyx.coefficient,
-            "w": b_elem.w,
+            "frequency": b_elem.frequency,
         }
         return data
 
     @classmethod
     def from_table(cls, n, file, sheet_name=0, **kwargs):
         """Instantiate a bearing using inputs from an Excel table.
+
         A header with the names of the columns is required. These names should match the names expected by the routine
         (usually the names of the parameters, but also similar ones). The program will read every row bellow the header
         until they end or it reaches a NaN.
+
         Parameters
         ----------
         n : int
@@ -789,13 +794,16 @@ class BearingElement(Element):
         sheet_name: int or str, optional
             Position of the sheet in the file (starting from 0) or its name. If none is passed, it is
             assumed to be the first sheet in the file.
+
         Returns
         -------
-        A bearing object.
+        bearing: rs.BearingElement
+            A bearing object.
+
         Examples
         --------
         >>> import os
-        >>> file_path = os.path.dirname(os.path.realpath(__file__)) + '/tests/data/bearing_seal.xls'
+        >>> file_path = os.path.dirname(os.path.realpath(__file__)) + '/tests/data/bearing_seal_si.xls'
         >>> BearingElement.from_table(0, file_path) # doctest: +ELLIPSIS
         BearingElement(n=0,
          kxx=[...
@@ -811,7 +819,7 @@ class BearingElement(Element):
             cyy=parameters["cyy"],
             cxy=parameters["cxy"],
             cyx=parameters["cyx"],
-            w=parameters["w"],
+            frequency=parameters["frequency"],
             **kwargs,
         )
 
@@ -834,10 +842,12 @@ class BearingElement(Element):
         load=None,
     ):
         """Instantiate a bearing using inputs from its fluid flow.
+
         Parameters
         ----------
         n : int
             The node in which the bearing will be located in the rotor.
+
         Grid related
         ^^^^^^^^^^^^
         Describes the discretization of the problem
@@ -880,9 +890,12 @@ class BearingElement(Element):
             Viscosity (Pa.s).
         rho: float
             Fluid density(Kg/m^3).
+
         Returns
         -------
-        A bearing object.
+        bearing: rs.BearingElement
+            A bearing object.
+
         Examples
         --------
         >>> nz = 30
@@ -903,7 +916,7 @@ class BearingElement(Element):
         BearingElement(n=0,
          kxx=[...
         """
-        fluid_flow = flow.PressureMatrix(
+        fluid_flow = flow.FluidFlow(
             nz,
             ntheta,
             nradius,
@@ -937,18 +950,20 @@ class BearingElement(Element):
             cyy=c[3],
             cxy=c[1],
             cyx=c[2],
-            w=fluid_flow.omega,
+            frequency=fluid_flow.omega,
         )
 
 
 class SealElement(BearingElement):
     """A seal element.
+
     This class will create a seal element.
     Parameters can be a constant value or speed dependent.
     For speed dependent parameters, each argument should be passed
     as an array and the correspondent speed values should also be
     passed as an array.
     Values for each parameter will be interpolated for the speed.
+
     Parameters
     ----------
     n: int
@@ -975,13 +990,14 @@ class SealElement(BearingElement):
     cyx: float, array, optional
         Cross coupled damping in the y direction.
         (defaults to 0)
-    w: array, optional
+    frequency: array, optional
         Array with the speeds (rad/s).
     seal_leakage: float, optional
         Amount of leakage
     tag : str, optional
         A tag to name the element
         Default is None
+
     Examples
     --------
     >>> # A seal element located in the first rotor node, with these
@@ -992,11 +1008,11 @@ class SealElement(BearingElement):
     >>> kyy = 0.8e6
     >>> cxx = 2e2
     >>> cyy = 1.5e2
-    >>> w = np.linspace(0, 200, 11)
-    >>> seal = rs.SealElement(n=0, kxx=kxx, kyy=kyy, cxx=cxx, cyy=cyy, w=w)
-    >>> seal.K(w) # doctest: +ELLIPSIS
+    >>> frequency = np.linspace(0, 200, 11)
+    >>> seal = rs.SealElement(n=0, kxx=kxx, kyy=kyy, cxx=cxx, cyy=cyy, frequency=frequency)
+    >>> seal.K(frequency) # doctest: +ELLIPSIS
     array([[[1000000., 1000000., ...
-    >>> seal.C(w) # doctest: +ELLIPSIS
+    >>> seal.C(frequency) # doctest: +ELLIPSIS
     array([[[200., 200., ...
     """
 
@@ -1011,13 +1027,13 @@ class SealElement(BearingElement):
         cyy=None,
         cxy=0,
         cyx=0,
-        w=None,
+        frequency=None,
         seal_leakage=None,
         tag=None,
     ):
         super().__init__(
             n=n,
-            w=w,
+            frequency=frequency,
             kxx=kxx,
             kxy=kxy,
             kyx=kyx,
@@ -1181,7 +1197,7 @@ class BallBearingElement(BearingElement):
 
         super().__init__(
             n=n,
-            w=None,
+            frequency=None,
             kxx=kxx,
             kxy=0.0,
             kyx=0.0,
@@ -1471,7 +1487,7 @@ class RollerBearingElement(BearingElement):
 
         super().__init__(
             n=n,
-            w=None,
+            frequency=None,
             kxx=kxx,
             kxy=0.0,
             kyx=0.0,
@@ -1704,7 +1720,7 @@ def bearing_example():
     Examples
     --------
     >>> bearing = bearing_example()
-    >>> bearing.w[0]
+    >>> bearing.frequency[0]
     0.0
     """
     kxx = 1e6
@@ -1712,7 +1728,7 @@ def bearing_example():
     cxx = 2e2
     cyy = 1.5e2
     w = np.linspace(0, 200, 11)
-    bearing = BearingElement(n=0, kxx=kxx, kyy=kyy, cxx=cxx, cyy=cyy, w=w)
+    bearing = BearingElement(n=0, kxx=kxx, kyy=kyy, cxx=cxx, cyy=cyy, frequency=w)
     return bearing
 
 
@@ -1731,7 +1747,7 @@ def seal_example():
     Examples
     --------
     >>> seal = bearing_example()
-    >>> seal.w[0]
+    >>> seal.frequency[0]
     0.0
     """
     kxx = 1e6
@@ -1739,5 +1755,5 @@ def seal_example():
     cxx = 2e2
     cyy = 1.5e2
     w = np.linspace(0, 200, 11)
-    seal = SealElement(n=0, kxx=kxx, kyy=kyy, cxx=cxx, cyy=cyy, w=w)
+    seal = SealElement(n=0, kxx=kxx, kyy=kyy, cxx=cxx, cyy=cyy, frequency=w)
     return seal

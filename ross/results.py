@@ -203,7 +203,7 @@ class ModalResults:
     def kappa(self, node, w, wd=True):
         r"""Calculates kappa for a given node and natural frequency.
 
-        w is the the index of the natural frequency of interest.
+        frequency is the the index of the natural frequency of interest.
         The function calculates the orbit parameter :math:`\kappa`:
 
         .. math::
@@ -987,7 +987,7 @@ class FrequencyResponseResults:
             width=640,
             height=240,
             title="Frequency Response - Magnitude",
-            x_axis_label="Frequency",
+            x_axis_label="Frequency (rad/s)",
             y_axis_label=y_axis_label,
         )
         mag_plot.xaxis.axis_label_text_font_size = "14pt"
@@ -1074,7 +1074,7 @@ class FrequencyResponseResults:
             width=640,
             height=240,
             title="Frequency Response - Phase",
-            x_axis_label="Frequency",
+            x_axis_label="Frequency (rad/s)",
             y_axis_label="Phase",
         )
         phase_plot.xaxis.axis_label_text_font_size = "14pt"
@@ -1452,7 +1452,7 @@ class ForcedResponseResults:
             width=640,
             height=240,
             title="Forced Response - Phase",
-            x_axis_label="Frequency",
+            x_axis_label="Frequency (rad/s)",
             x_range=[0, max(frequency_range)],
             y_axis_label="Phase",
         )
@@ -1977,6 +1977,12 @@ class SummaryResults:
         shaft dataframe
     df_disks: dataframe
         disks dataframe
+    df_bearings: dataframe
+        bearings dataframe
+    brg_forces: list
+        list of reaction forces on bearings
+    nodes_pos:  list
+        list of nodes axial position
     CG: float
         rotor center of gravity
     Ip: float
@@ -1990,9 +1996,14 @@ class SummaryResults:
         Bokeh WidgetBox with the summary table plot
     """
 
-    def __init__(self, df_shaft, df_disks, CG, Ip, tag):
+    def __init__(
+        self, df_shaft, df_disks, df_bearings, nodes_pos, brg_forces, CG, Ip, tag
+    ):
         self.df_shaft = df_shaft
         self.df_disks = df_disks
+        self.df_bearings = df_bearings
+        self.brg_forces = brg_forces
+        self.nodes_pos = np.array(nodes_pos)
         self.CG = CG
         self.Ip = Ip
         self.tag = tag
@@ -2025,7 +2036,7 @@ class SummaryResults:
             beam_right_loc=self.df_shaft["nodes_pos_r"],
             material=materials,
             mass=self.df_shaft["m"],
-            inertia=self.df_shaft["Ie"],
+            inertia=self.df_shaft["Im"],
         )
 
         rotor_data = dict(
@@ -2042,14 +2053,22 @@ class SummaryResults:
         disk_data = dict(
             tags=self.df_disks["tag"],
             disk_node=self.df_disks["n"],
-            disk_pos=self.df_shaft["nodes_pos_l"].iloc[self.df_disks["n"]],
+            disk_pos=self.nodes_pos[self.df_bearings["n"]],
             disk_mass=self.df_disks["m"],
             disk_Ip=self.df_disks["Ip"],
+        )
+
+        bearing_data = dict(
+            tags=self.df_bearings["tag"],
+            brg_node=self.df_bearings["n"],
+            brg_pos=self.nodes_pos[self.df_bearings["n"]],
+            brg_force=self.brg_forces,
         )
 
         shaft_source = ColumnDataSource(shaft_data)
         rotor_source = ColumnDataSource(rotor_data)
         disk_source = ColumnDataSource(disk_data)
+        bearing_source = ColumnDataSource(bearing_data)
 
         shaft_titles = [
             "Element Tag",
@@ -2063,7 +2082,7 @@ class SummaryResults:
             "Elem. Right Location (m)",
             "Material",
             "Elem. Mass (kg)",
-            "Inertia (m4)",
+            "Inertia (kg.m²)",
         ]
 
         rotor_titles = [
@@ -2073,7 +2092,7 @@ class SummaryResults:
             "Starting Pos. (m)",
             "Total Lenght (m)",
             "C.G. Locantion (m)",
-            "Total Ip about C.L. (kg.m2)",
+            "Total Ip about C.L. (kg.m²)",
         ]
 
         disk_titles = [
@@ -2081,7 +2100,14 @@ class SummaryResults:
             "Disk Station",
             "C.G. Locantion (m)",
             "Disk Mass (m)",
-            "Total Ip about C.L. (kg.m2)",
+            "Total Ip about C.L. (kg.m²)",
+        ]
+
+        bearing_titles = [
+            "Tag",
+            "Bearing Station",
+            "Bearing Locantion (m)",
+            "Static Reaction Force (N)",
         ]
 
         shaft_formatters = [
@@ -2096,7 +2122,7 @@ class SummaryResults:
             NumberFormatter(format="0.000"),
             None,
             NumberFormatter(format="0.000"),
-            None,
+            NumberFormatter(format="0.0000000"),
         ]
 
         rotor_formatters = [
@@ -2113,6 +2139,13 @@ class SummaryResults:
             None,
             None,
             NumberFormatter(format="0.000"),
+            NumberFormatter(format="0.000"),
+            NumberFormatter(format="0.000"),
+        ]
+
+        bearing_formatters = [
+            None,
+            None,
             NumberFormatter(format="0.000"),
             NumberFormatter(format="0.000"),
         ]
@@ -2138,6 +2171,13 @@ class SummaryResults:
             )
         ]
 
+        bearing_columns = [
+            TableColumn(field=str(field), title=title, formatter=form)
+            for field, title, form in zip(
+                bearing_data.keys(), bearing_titles, bearing_formatters
+            )
+        ]
+
         shaft_data_table = DataTable(
             source=shaft_source, columns=shaft_columns, width=1600
         )
@@ -2146,6 +2186,9 @@ class SummaryResults:
         )
         disk_data_table = DataTable(
             source=disk_source, columns=disk_columns, width=1600
+        )
+        bearing_data_table = DataTable(
+            source=bearing_source, columns=bearing_columns, width=1600
         )
 
         rotor_table = widgetbox(rotor_data_table)
@@ -2157,7 +2200,10 @@ class SummaryResults:
         disk_table = widgetbox(disk_data_table)
         tab3 = Panel(child=disk_table, title="Disk Summary")
 
-        tabs = Tabs(tabs=[tab1, tab2, tab3])
+        bearing_table = widgetbox(bearing_data_table)
+        tab4 = Panel(child=bearing_table, title="Bearing Summary")
+
+        tabs = Tabs(tabs=[tab1, tab2, tab3, tab4])
 
         return tabs
 

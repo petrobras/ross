@@ -18,3 +18,7 @@ pre {
     border: 1px solid #cccccc
 }
 
+dt:target, span.highlighted {
+    background-color: #f5f5f5
+}
+
