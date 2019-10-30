@@ -253,8 +253,7 @@ def calculate_stiffness_matrix(fluid_flow_object, oil_film_force='numerical'):
     return [k_xx, k_xy, k_yx, k_yy]
 
 
-def find_equilibrium_position(fluid_flow_object, print_along=True, relative_tolerance=1e-07,
-                              numerical_fit=False):
+def find_equilibrium_position(fluid_flow_object, print_along=True, relative_tolerance=1e-07):
     """This function returns an eccentricity value with calculated forces matching the load applied,
     meaning an equilibrium position of the rotor.
     Parameters
@@ -263,7 +262,6 @@ def find_equilibrium_position(fluid_flow_object, print_along=True, relative_tole
     print_along: bool, optional
         If True, prints the iteration process.
     relative_tolerance: float, optional
-    numerical_fit: bool, optional
         If True, it makes sure the result matches numerically, changing attributes of the
         FluidFlow object.
     Returns
