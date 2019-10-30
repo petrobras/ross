@@ -17,13 +17,13 @@ authors:
    affiliation: 3
  - name: Gabriel Bachman
    orcid: 0000-0003-4401-8408
-   affiliation: 2
+   affiliation: 4
  - name: Flavio Rangel
    orcid: 0000-0002-4852-8141
-   affiliation: 4
+   affiliation: 5
  - name: Juliana Vianna
    orcid: 0000-0002-6198-7932
-   affiliation: 4
+   affiliation: 5
  - name: Thiago Ritto
    orcid: 0000-0003-0649-6919
    affiliation: 2
@@ -34,8 +34,10 @@ affiliations:
    index: 2
  - name: Universidade Federal do Rio de Janeiro, Graduate Program in Informatics, Rio de Janeiro, Brazil
    index: 3
- - name: Universidade Federal do Rio de Janeiro, Department of Computer Science, Rio de Janeiro, Brazil
+ - name: Universidade Federal do Rio de Janeiro, Department of Electrical Engineering, Rio de Janeiro, Brazil
    index: 4
+ - name: Universidade Federal do Rio de Janeiro, Department of Computer Science, Rio de Janeiro, Brazil
+   index: 5
 date: 10 October 2019
 bibliography: paper.bib
 ---
