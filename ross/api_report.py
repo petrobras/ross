@@ -674,6 +674,7 @@ class Report:
             )
 
         return node_min, node_max
+
     def stability_level_1(self, D, H, HP, oper_speed, RHOd, RHOs, unit="m"):
         """Stability analysis level 1.
 
@@ -739,30 +740,32 @@ class Report:
         if len(D) != len(H):
             raise Exception("length of D must be the same of H")
 
+        Qa = 0.0
+        Qa_list = np.zeros(len(self.disk_nodes) + 1)
         # Qa - Anticipated cross-coupling for compressors - API 684 - SP6.8.5.6
         if self.machine_type == "compressor":
             Bc = 3.0
             Dc, Hc = D, H
-            Qa = 0.0
-            Qa_list = []
-            for i in range(len(self.rotor.disk_elements)):
-                qi = (HP[i] * Bc * C * RHOd) / (Dc[i] * Hc[i] * oper_speed * RHOs)
-                Qa_list.append(qi)
-                Qa += qi
+            for i, disk in enumerate(self.rotor.disk_elements):
+                if disk.n in self.disk_nodes:
+                    qi = (HP[i] * Bc * C * RHOd) / (Dc[i] * Hc[i] * oper_speed * RHOs)
+                    Qa_list[i] = qi
+                    Qa += qi
+            Qa_list[-1] = Qa
 
         # Qa - Anticipated cross-coupling for turbines - API 684 - SP6.8.5.6
         if self.machine_type == "turbine" or self.machine_type == "axial_flow":
             Bt = 1.5
             Dt, Ht = D, H
-            Qa = 0.0
-            Qa_list = []
-            for i in range(len(self.rotor.disk_elements)):
-                qi = (HP[i] * Bt * C) / (Dt[i] * Ht[i] * oper_speed)
-                Qa_list.append(qi)
-                Qa += qi
+            for i, disk in enumerate(self.rotor.disk_elements):
+                if disk.n in self.disk_nodes:
+                    qi = (HP[i] * Bt * C) / (Dt[i] * Ht[i] * oper_speed)
+                    Qa_list[i] = qi
+                    Qa += qi
+            Qa_list[-1] = Qa
 
-        cross_coupled_stiff = np.linspace(0, 10 * Qa, steps)
-        log_dec = np.zeros(len(cross_coupled_stiff))
+        cross_coupled_array = np.linspace(0, 10 * Qa_list, steps)
+        log_dec = np.zeros(len(cross_coupled_array))
 
         # remove disks and seals from the rotor model
         bearing_list = [
@@ -778,10 +781,10 @@ class Report:
             rated_w=self.rotor.rated_w,
         )
 
-        for i, Q in enumerate(cross_coupled_stiff):
+        for i, Q in enumerate(cross_coupled_array[:, -1]):
             bearings = [copy(b) for b in level1_rotor.bearing_seal_elements]
-
             if self.rotor_type == "between_bearings":
+
                 # cross-coupling introduced at the rotor mid-span
                 n = np.round(np.mean(self.rotor.nodes))
                 cross_coupling = BearingElement(n=int(n), kxx=0, cxx=0, kxy=Q, kyx=-Q)
@@ -805,19 +808,24 @@ class Report:
             non_backward = modal.whirl_direction() != "Backward"
             log_dec[i] = modal.log_dec[non_backward][0]
 
-        g = interp1d(
-            cross_coupled_stiff, log_dec, fill_value="extrapolate", kind="linear"
-        )
-        stiff = cross_coupled_stiff[-1] * (1 + 1 / (len(cross_coupled_stiff)))
+        cross_coupled_Qa = cross_coupled_array[:, -1]
+        if cross_coupled_Qa[-1] >= 0:
+            g = interp1d(
+                cross_coupled_Qa, log_dec, fill_value="extrapolate", kind="linear"
+            )
+            stiff = cross_coupled_Qa[-1] * (1 + 1 / (len(cross_coupled_Qa)))
+            while g(stiff) > 0:
+                log_dec = np.append(log_dec, g(stiff))
+                cross_coupled_Qa = np.append(cross_coupled_Qa, stiff)
+                stiff += cross_coupled_Qa[-1] / (len(cross_coupled_Qa))
+            Q0 = cross_coupled_Qa[-1]
 
-        while g(stiff) > 0:
-            log_dec = np.append(log_dec, g(stiff))
-            cross_coupled_stiff = np.append(cross_coupled_stiff, stiff)
-            stiff += cross_coupled_stiff[-1] / (len(cross_coupled_stiff))
-        Q0 = cross_coupled_stiff[-1]
+        else:
+            idx = min(range(len(log_dec)), key=lambda i: abs(log_dec[i]))
+            Q0 = cross_coupled_Qa[idx]
 
         # Find value for log_dec corresponding to Qa
-        log_dec_a = log_dec[np.where(cross_coupled_stiff == Qa)][0]
+        log_dec_a = log_dec[np.where(cross_coupled_Qa == Qa)][0]
 
         # CSR - Critical Speed Ratio
         CSR = self.maxspeed / self.rotor.run_modal(speed=self.maxspeed).wn[0]
@@ -839,7 +847,7 @@ class Report:
             height=480,
             x_axis_label="Applied Cross-Coupled Stiffness, Q (N/m)",
             y_axis_label="Log Dec",
-            x_range=(0, max(cross_coupled_stiff)),
+            x_range=(0, max(cross_coupled_Qa)),
             y_range=DataRange1d(start=0),
         )
         fig1.title.text_font_size = "11pt"
@@ -847,15 +855,19 @@ class Report:
         fig1.yaxis.axis_label_text_font_size = "11pt"
 
         fig1.line(
-            cross_coupled_stiff, log_dec, line_width=3, line_color=bokeh_colors[0]
+            cross_coupled_Qa, log_dec, line_width=3, line_color=bokeh_colors[0]
         )
+        fig1.circle(Qa, log_dec_a, size=8, fill_color=bokeh_colors[0])
         fig1.add_layout(
-            Span(
-                location=Qa,
-                dimension="height",
-                line_color="black",
-                line_dash="dashed",
-                line_width=3,
+            Label(
+                x=Qa,
+                y=log_dec_a,
+                text="Qa",
+                text_font_style="bold",
+                text_font_size="12pt",
+                text_baseline="middle",
+                text_align="left",
+                y_offset=10
             )
         )
 
