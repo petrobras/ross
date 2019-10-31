@@ -988,3 +988,17 @@ class Report:
         (Check what we need to calculate the applied cross coupling and list
         them as parameters)
         """
+        pass
+
+    def summary(self):
+        """Report summary
+
+        This method will create tables to be presented in the report
+
+        Parameters
+        ----------
+
+        Returns
+        -------
+        """
+        pass
