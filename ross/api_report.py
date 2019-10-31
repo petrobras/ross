@@ -20,13 +20,13 @@ bokeh_colors = bp.RdGy[11]
 
 class Report:
     def __init__(
-            self,
-            rotor,
-            minspeed,
-            maxspeed,
-            machine_type="compressor",
-            speed_units="rpm",
-            tag="Rotor"
+        self,
+        rotor,
+        minspeed,
+        maxspeed,
+        machine_type="compressor",
+        speed_units="rpm",
+        tag=None,
     ):
         """Report according to standard analysis.
 
@@ -51,7 +51,7 @@ class Report:
             Default is "rpm".
         tag: str
             String to name the rotor model
-            Default is "Rotor"
+            Default is the Rotor.tag attribute
 
         Attributes
         ----------
@@ -134,7 +134,11 @@ class Report:
         if machine_type not in machine_options:
             machine_type = "compressor"
         self.machine_type = machine_type
-        self.tag = tag
+
+        if tag is None:
+            self.tag = rotor.tag
+        else:
+            self.tag = tag
 
     @classmethod
     def from_saved_rotors(cls, path, minspeed, maxspeed, speed_units="rpm"):
