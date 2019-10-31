@@ -778,42 +778,50 @@ class Report:
             if b.__class__.__name__ != "SealElement"
         ]
 
-        level1_rotor = Rotor(
-            shaft_elements=self.rotor.shaft_elements,
-            disk_elements=[],
-            bearing_seal_elements=bearing_list,
-            rated_w=self.rotor.rated_w,
-        )
-
-        for i, Q in enumerate(cross_coupled_array[:, -1]):
-            bearings = [copy(b) for b in level1_rotor.bearing_seal_elements]
-            if self.rotor_type == "between_bearings":
+        # Applying cross-coupling on rotor mid-span
+        if self.rotor_type == "between_bearings":
+            for i, Q in enumerate(cross_coupled_array[:, -1]):
+                bearings = [copy(b) for b in bearing_list]
 
                 # cross-coupling introduced at the rotor mid-span
                 n = np.round(np.mean(self.rotor.nodes))
                 cross_coupling = BearingElement(n=int(n), kxx=0, cxx=0, kxy=Q, kyx=-Q)
                 bearings.append(cross_coupling)
 
-            else:
+                aux_rotor = Rotor(
+                    shaft_elements=self.rotor.shaft_elements,
+                    disk_elements=[],
+                    bearing_seal_elements=bearings,
+                    rated_w=self.rotor.rated_w,
+                )
+                modal = aux_rotor.run_modal(speed=oper_speed)
+                non_backward = modal.whirl_direction() != "Backward"
+                log_dec[i] = modal.log_dec[non_backward][0]
+
+        # Applying cross-coupling for each disk
+        else:
+            for i, Q in enumerate(cross_coupled_array[:, :-1]):
+                bearings = [copy(b) for b in bearing_list] 
                 # cross-coupling introduced at overhung disks
-                for n in self.disk_nodes:
+                for n, q in zip(self.disk_nodes, Q):
                     cross_coupling = BearingElement(
-                        n=int(n), kxx=0, cxx=0, kxy=Q, kyx=-Q
+                        n=n, kxx=0, cxx=0, kxy=q, kyx=-q
                     )
                     bearings.append(cross_coupling)
 
-            aux_rotor = Rotor(
-                shaft_elements=self.rotor.shaft_elements,
-                disk_elements=[],
-                bearing_seal_elements=bearings,
-                rated_w=self.rotor.rated_w,
-            )
-            modal = aux_rotor.run_modal(speed=oper_speed)
-            non_backward = modal.whirl_direction() != "Backward"
-            log_dec[i] = modal.log_dec[non_backward][0]
+                aux_rotor = Rotor(
+                    shaft_elements=self.rotor.shaft_elements,
+                    disk_elements=[],
+                    bearing_seal_elements=bearings,
+                    rated_w=self.rotor.rated_w,
+                )
+                modal = aux_rotor.run_modal(speed=oper_speed)
+                non_backward = modal.whirl_direction() != "Backward"
+                log_dec[i] = modal.log_dec[non_backward][0]
 
+        # verifies if log dec is greater than zero to begin extrapolation
         cross_coupled_Qa = cross_coupled_array[:, -1]
-        if cross_coupled_Qa[-1] >= 0:
+        if log_dec[-1] >= 0:
             g = interp1d(
                 cross_coupled_Qa, log_dec, fill_value="extrapolate", kind="linear"
             )
@@ -837,13 +845,15 @@ class Report:
         # RHO_mean - Average gas density
         RHO_mean = (RHOd + RHOs) / 2
         RHO = np.linspace(0, RHO_mean * 5, 501)
-        Qc = np.piecewise(
+
+        # CSR_boundary - function to define the CSR boundaries
+        CSR_boundary = np.piecewise(
             RHO,
             [RHO <= 16.53, RHO > 16.53, RHO == 60, RHO > 60],
             [2.5, lambda RHO: (-0.0115 * RHO + 2.69), 2.0, 0.0],
         )
 
-        # Plot area
+        # Plotting area
         fig1 = figure(
             tools="pan, box_zoom, wheel_zoom, reset, save",
             title="Applied Cross-Coupled Stiffness vs. Log Decrement - (API 684 - SP 6.8.5.10)",
@@ -926,6 +936,7 @@ class Report:
                     x=x,
                     y=y,
                     text=txt,
+                    text_alpha=0.4,
                     text_font_style="bold",
                     text_font_size="12pt",
                     text_baseline="middle",
@@ -933,7 +944,7 @@ class Report:
                 )
             )
 
-        fig2.line(x=RHO, y=Qc, line_width=3, line_color=bokeh_colors[0])
+        fig2.line(x=RHO, y=CSR_boundary, line_width=3, line_color=bokeh_colors[0])
         fig2.circle(x=RHO_mean, y=CSR, size=8, color=bokeh_colors[0])
 
         # Level 1 screening criteria
@@ -947,7 +958,7 @@ class Report:
             if log_dec_a < 0.1:
                 condition = "required"
 
-            if 2.0 < Q0 / Qa < 10.0 and CSR > Qc[idx]:
+            if 2.0 < Q0 / Qa < 10.0 and CSR > CSR_boundary[idx]:
                 condition = "required"
 
             else:
