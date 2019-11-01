@@ -747,7 +747,7 @@ class Report:
         ...                          RHO_ratio=[1.11, 1.14],
         ...                          RHOd=30.45,
         ...                          RHOs=37.65,
-        ...                          oper_speed=1000.0) # doctest: +ELLIPSIS
+        ...                          oper_speed=1000.0)
         >>> report.Qa
         23022.32142857143
         """
@@ -787,7 +787,8 @@ class Report:
             Qa_list[-1] = Qa
 
         # Defining cross-coupling range to 10*Qa - API 684 - SP6.8.5.8
-        cross_coupled_array = np.linspace(0, 10 * Qa_list, steps)
+        zeros = np.zeros(len(Qa_list))
+        cross_coupled_array = np.linspace(zeros, 10 * Qa_list, steps)
         log_dec = np.zeros(len(cross_coupled_array))
 
         # remove disks and seals from the rotor model
