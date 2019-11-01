@@ -9,9 +9,12 @@ import ross as rs
 
 import bokeh.palettes as bp
 from bokeh.plotting import figure
-from bokeh.layouts import gridplot
-from bokeh.models import(
-        ColumnDataSource, HoverTool, Span, Label, LinearAxis, Range1d, DataRange1d
+from bokeh.layouts import gridplot, widgetbox
+from bokeh.models.widgets import (
+    DataTable, NumberFormatter, TableColumn, Panel, Tabs
+)
+from bokeh.models import (
+    ColumnDataSource, HoverTool, Span, Label, LinearAxis, Range1d, DataRange1d,
 )
 
 # set bokeh palette of colors
@@ -139,6 +142,16 @@ class Report:
             self.tag = rotor.tag
         else:
             self.tag = tag
+
+        # list of attributes
+        self.Q0 = None
+        self.Qa = None
+        self.log_dec_a = None
+        self.CSR = None
+        self.Qratio = None
+        self.crit_speed = None
+        self.MCS = None
+        self.RHO_gas = None
 
     @classmethod
     def from_saved_rotors(cls, path, minspeed, maxspeed, speed_units="rpm"):
@@ -678,8 +691,7 @@ class Report:
             )
 
         return node_min, node_max
-
-    def stability_level_1(self, D, H, HP, oper_speed, RHOd, RHOs, unit="m"):
+    def stability_level_1(self, D, H, HP, oper_speed, RHO_ratio, RHOs, RHOd, unit="m"):
         """Stability analysis level 1.
 
         This analysis consider a anticipated cross coupling QA based on
@@ -701,10 +713,14 @@ class Report:
             Rated power per stage/impeller, W (HP),
         oper_speed: float
             Operating speed, rpm,
-        RHOd : float
-            Discharge gas density per impeller, kg/m3 (lbm/in.3),
+        RHO_ratio: list
+            Density ratio between the discharge gas density and the suction
+            gas density per impeller (RHO_discharge / RHO_suction),
+            kg/m3 (lbm/in.3),
         RHOs: float
-            Suction gas density per impeller, kg/m3 (lbm/in.3).
+            Suction gas density in the first stage, kg/m3 (lbm/in.3).
+        RHOd: float
+            Discharge gas density in the last stage, kg/m3 (lbm/in.3),
         unit: str
             Adopted unit system.
             Default is "m"
@@ -725,13 +741,15 @@ class Report:
         ...                 minspeed=400,
         ...                 maxspeed=1000,
         ...                 speed_units="rad/s")
-        report.stability_level_1(D=[0.35, 0.35],
-        ...                      H=[0.08, 0.08],
-        ...                      HP=[10000, 10000],
-        ...                      RHOd=30.45,
-        ...                      RHOs=30.67,
-        ...                      oper_speed=1000.0) # doctest: +ELLIPSIS
-        (Figure...
+        >>> stability = report.stability_level_1(D=[0.35, 0.35],
+        ...                          H=[0.08, 0.08],
+        ...                          HP=[10000, 10000],
+        ...                          RHO_ratio=[1.11, 1.14],
+        ...                          RHOd=30.45,
+        ...                          RHOs=37.65,
+        ...                          oper_speed=1000.0) # doctest: +ELLIPSIS
+        >>> report.Qa
+        23022.32142857143
         """
         steps = 101
         if unit == "m":
@@ -752,7 +770,7 @@ class Report:
             Dc, Hc = D, H
             for i, disk in enumerate(self.rotor.disk_elements):
                 if disk.n in self.disk_nodes:
-                    qi = (HP[i] * Bc * C * RHOd) / (Dc[i] * Hc[i] * oper_speed * RHOs)
+                    qi = HP[i] * Bc * C * RHO_ratio[i] / (Dc[i] * Hc[i] * oper_speed)
                     Qa_list[i] = qi
                     Qa += qi
             Qa_list[-1] = Qa
@@ -768,6 +786,7 @@ class Report:
                     Qa += qi
             Qa_list[-1] = Qa
 
+        # Defining cross-coupling range to 10*Qa - API 684 - SP6.8.5.8
         cross_coupled_array = np.linspace(0, 10 * Qa_list, steps)
         log_dec = np.zeros(len(cross_coupled_array))
 
@@ -798,7 +817,7 @@ class Report:
                 non_backward = modal.whirl_direction() != "Backward"
                 log_dec[i] = modal.log_dec[non_backward][0]
 
-        # Applying cross-coupling for each disk
+        # Applying cross-coupling for each disk - API 684 - SP6.8.5.9
         else:
             for i, Q in enumerate(cross_coupled_array[:, :-1]):
                 bearings = [copy(b) for b in bearing_list] 
@@ -840,7 +859,8 @@ class Report:
         log_dec_a = log_dec[np.where(cross_coupled_Qa == Qa)][0]
 
         # CSR - Critical Speed Ratio
-        CSR = self.maxspeed / self.rotor.run_modal(speed=self.maxspeed).wn[0]
+        crit_speed = self.rotor.run_modal(speed=self.maxspeed).wn[0]
+        CSR = self.maxspeed / crit_speed
 
         # RHO_mean - Average gas density
         RHO_mean = (RHOd + RHOs) / 2
@@ -947,7 +967,7 @@ class Report:
         fig2.line(x=RHO, y=CSR_boundary, line_width=3, line_color=bokeh_colors[0])
         fig2.circle(x=RHO_mean, y=CSR, size=8, color=bokeh_colors[0])
 
-        # Level 1 screening criteria
+        # Level 1 screening criteria - API 684 - SP6.8.5.10
         idx = min(range(len(RHO)), key=lambda i: abs(RHO[i] - RHO_mean))
 
         # TODO: add condition as attribute
@@ -970,6 +990,16 @@ class Report:
 
             else:
                 condition = "not required"
+
+        # updating attributes
+        self.Q0 = Q0
+        self.Qa = Qa
+        self.log_dec_a = log_dec_a
+        self.CSR = CSR
+        self.Qratio = Q0 / Qa
+        self.crit_speed = crit_speed
+        self.MCS = self.maxspeed
+        self.RHO_gas = RHO_mean
 
         return fig1, fig2, condition
 
@@ -1000,5 +1030,62 @@ class Report:
 
         Returns
         -------
+        tabs : bokeh WidgetBox
+            Bokeh WidgetBox with the summary table plot
         """
-        pass
+        machine_data = dict(
+            tags=[self.tag],
+            machine_type=[self.machine_type],
+            Q0=[self.Q0],
+            Qa=[self.Qa],
+            log_dec_a=[self.log_dec_a],
+            Qratio=[self.Qratio],
+            crti_speed=[self.crit_speed],
+            MCS=[self.MCS],
+            CSR=[self.CSR],
+            RHO_gas=[self.RHO_gas],
+        )
+        machine_source = ColumnDataSource(machine_data)
+
+        machine_titles = [
+            "Rotor Tag",
+            "Machine Type",
+            "$Q_0$ (N/m)",
+            "$Q_A$ (N/m)",
+            "",
+            "$Q_0 / Q_A$",
+            "1st Critical Spped (RPM)",
+            "MCS",
+            "CSR",
+            "Gas Density (kg/m³)",
+        ]
+
+        machine_formatters = [
+            None,
+            None,
+            NumberFormatter(format="0.000"),
+            NumberFormatter(format="0.000"),
+            NumberFormatter(format="0.000"),
+            NumberFormatter(format="0.000"),
+            NumberFormatter(format="0.000"),
+            NumberFormatter(format="0.000"),
+            NumberFormatter(format="0.000"),
+            NumberFormatter(format="0.000"),
+        ]
+
+        machine_columns = [
+            TableColumn(field=str(field), title=title, formatter=form)
+            for field, title, form in zip(
+                machine_data.keys(), machine_titles, machine_formatters
+            )
+        ]
+
+        machine_data_table = DataTable(
+            source=machine_source, columns=machine_columns, width=1600
+        )
+        rotor_table = widgetbox(machine_data_table)
+        tab1 = Panel(child=rotor_table, title="Stability Level 1")
+
+        tabs = Tabs(tabs=[tab1])
+
+        return tabs
