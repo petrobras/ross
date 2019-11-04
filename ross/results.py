@@ -1,70 +1,504 @@
-import pickle
-import numpy as np
-from scipy import interpolate
-from scipy.signal import argrelextrema
+import bokeh.palettes as bp
 import matplotlib as mpl
 import matplotlib.pyplot as plt
-import bokeh.palettes as bp
-from mpl_toolkits.mplot3d import Axes3D
+import numpy as np
+import scipy.linalg as la
+from bokeh.colors import RGB
 from bokeh.layouts import gridplot, widgetbox
+from bokeh.models import Arrow, ColorBar, ColumnDataSource, HoverTool, Label, NormalHead
+from bokeh.models.widgets import DataTable, NumberFormatter, TableColumn, Panel, Tabs
 from bokeh.plotting import figure
 from bokeh.transform import linear_cmap
-from bokeh.models.widgets import DataTable, TableColumn, NumberFormatter
-from bokeh.models import ColumnDataSource, ColorBar, Arrow, NormalHead, Label, HoverTool
+from matplotlib import cm
+from scipy import interpolate
 
 # set bokeh palette of colors
 bokeh_colors = bp.RdGy[11]
 
 
-class Results(np.ndarray):
-    """Class used to store results and provide plots.
-    This class subclasses np.ndarray to provide additional info and a plot
-    method to the calculated results from Rotor.
-    Metadata about the results should be stored on info as a dictionary to be
-    used on plot configurations and so on.
-    Additional attributes can be passed as a dictionary in new_attributes kwarg.
-    """
+class ModalResults:
+    def __init__(
+        self,
+        speed,
+        evalues,
+        evectors,
+        wn,
+        wd,
+        damping_ratio,
+        log_dec,
+        lti,
+        ndof,
+        nodes,
+        nodes_pos,
+        shaft_elements_length,
+    ):
+        self.speed = speed
+        self.evalues = evalues
+        self.evectors = evectors
+        self.wn = wn
+        self.wd = wd
+        self.damping_ratio = damping_ratio
+        self.log_dec = log_dec
+        self.lti = lti
+        self.ndof = ndof
+        self.nodes = nodes
+        self.nodes_pos = nodes_pos
+        self.shaft_elements_length = shaft_elements_length
+        self.modes = self.evectors[: self.ndof]
+        kappa_modes = []
+        for mode in range(len(self.wn)):
+            kappa_color = []
+            kappa_mode = self.kappa_mode(mode)
+            for kappa in kappa_mode:
+                kappa_color.append("tab:blue" if kappa > 0 else "tab:red")
+            kappa_modes.append(kappa_color)
+        self.kappa_modes = kappa_modes
 
-    def __new__(cls, input_array, new_attributes=None):
-        obj = np.asarray(input_array).view(cls)
+    @staticmethod
+    def whirl(kappa_mode):
+        """Evaluates the whirl of a mode
 
-        for k, v in new_attributes.items():
-            setattr(obj, k, v)
+       Parameters
+       ----------
+       kappa_mode: list
+           A list with the value of kappa for each node related
+           to the mode/natural frequency of interest.
 
-        # save new attributes names to create them on array finalize
-        obj._new_attributes = new_attributes
+       Returns
+       -------
+       A string indicating the direction of precession related to the kappa_mode
 
-        return obj
+       Example
+       -------
+       >>> kappa_mode = [-5.06e-13, -3.09e-13, -2.91e-13, 0.011, -4.03e-13, -2.72e-13, -2.72e-13]
+       >>> ModalResults.whirl(kappa_mode)
+       'Forward'
+       """
+        if all(kappa >= -1e-3 for kappa in kappa_mode):
+            whirldir = "Forward"
+        elif all(kappa <= 1e-3 for kappa in kappa_mode):
+            whirldir = "Backward"
+        else:
+            whirldir = "Mixed"
+        return whirldir
 
-    def __array_finalize__(self, obj):
-        if obj is None:
-            return
+    @staticmethod
+    @np.vectorize
+    def whirl_to_cmap(whirl):
+        """Maps the whirl to a value
 
-        try:
-            for k, v in obj._new_attributes.items():
-                setattr(self, k, getattr(obj, k, v))
-        except AttributeError:
-            return
+        Parameters
+        ----------
+        whirl: string
+            A string indicating the whirl direction related to the kappa_mode
 
-    def __reduce__(self):
+        Returns
+        -------
+        An array with reference index for the whirl direction
 
-        pickled_state = super().__reduce__()
-        new_state = pickled_state[2] + (self._new_attributes,)
+        Example
+        -------
+        >>> whirl = 'Backward'
+        >>> whirl_to_cmap(whirl)
+        array(1.)
+        """
+        if whirl == "Forward":
+            return 0.0
+        elif whirl == "Backward":
+            return 1.0
+        elif whirl == "Mixed":
+            return 0.5
 
-        return pickled_state[0], pickled_state[1], new_state
+    def H_kappa(self, node, w, return_T=False):
+        r"""Calculates the H matrix for a given node and natural frequency.
 
-    def __setstate__(self, state):
-        self._new_attributes = state[-1]
-        for k, v in self._new_attributes.items():
-            setattr(self, k, v)
-        super().__setstate__(state[0:-1])
+        The matrix H contains information about the whirl direction,
+        the orbit minor and major axis and the orbit inclination.
+        The matrix is calculated by :math:`H = T.T^T` where the
+        matrix T is constructed using the eigenvector corresponding
+        to the natural frequency of interest:
 
-    def save(self, file):
-        with open(file, mode="wb") as f:
-            pickle.dump(self, f)
+        .. math::
+           :nowrap:
 
-    def plot(self, *args, **kwargs):
-        raise NotImplementedError
+           \begin{eqnarray}
+              \begin{bmatrix}
+              u(t)\\
+              v(t)
+              \end{bmatrix}
+              = \mathfrak{R}\Bigg(
+              \begin{bmatrix}
+              r_u e^{j\eta_u}\\
+              r_v e^{j\eta_v}
+              \end{bmatrix}\Bigg)
+              e^{j\omega_i t}
+              =
+              \begin{bmatrix}
+              r_u cos(\eta_u + \omega_i t)\\
+              r_v cos(\eta_v + \omega_i t)
+              \end{bmatrix}
+              = {\bf T}
+              \begin{bmatrix}
+              cos(\omega_i t)\\
+              sin(\omega_i t)
+              \end{bmatrix}
+           \end{eqnarray}
+
+        Where :math:`r_u e^{j\eta_u}` e :math:`r_v e^{j\eta_v}` are the
+        elements of the *i*\th eigenvector, corresponding to the node and
+        natural frequency of interest (mode).
+
+        .. math::
+
+            {\bf T} =
+            \begin{bmatrix}
+            r_u cos(\eta_u) & -r_u sin(\eta_u)\\
+            r_u cos(\eta_u) & -r_v sin(\eta_v)
+            \end{bmatrix}
+
+        Parameters
+        ----------
+        node: int
+            Node for which the matrix H will be calculated.
+        w: int
+            Index corresponding to the natural frequency
+            of interest.
+        return_T: bool, optional
+            If True, returns the H matrix and a dictionary with the
+            values for :math:`r_u, r_v, \eta_u, \eta_v`.
+
+            Default is false.
+
+        Returns
+        -------
+        H: array
+            Matrix H.
+        Tdic: dict
+            Dictionary with values for :math:`r_u, r_v, \eta_u, \eta_v`.
+
+            It will be returned only if return_T is True.
+        """
+        # get vector of interest based on freqs
+        vector = self.evectors[4 * node : 4 * node + 2, w]
+        # get translation sdofs for specified node for each mode
+        u = vector[0]
+        v = vector[1]
+        ru = np.absolute(u)
+        rv = np.absolute(v)
+
+        nu = np.angle(u)
+        nv = np.angle(v)
+        # fmt: off
+        T = np.array([[ru * np.cos(nu), -ru * np.sin(nu)],
+                      [rv * np.cos(nv), -rv * np.sin(nv)]])
+        # fmt: on
+        H = T @ T.T
+
+        if return_T:
+            Tdic = {"ru": ru, "rv": rv, "nu": nu, "nv": nv}
+            return H, Tdic
+
+        return H
+
+    def kappa(self, node, w, wd=True):
+        r"""Calculates kappa for a given node and natural frequency.
+
+        frequency is the the index of the natural frequency of interest.
+        The function calculates the orbit parameter :math:`\kappa`:
+
+        .. math::
+
+            \kappa = \pm \sqrt{\lambda_2 / \lambda_1}
+
+        Where :math:`\sqrt{\lambda_1}` is the length of the semiminor axes
+        and :math:`\sqrt{\lambda_2}` is the length of the semimajor axes.
+
+        If :math:`\kappa = \pm 1`, the orbit is circular.
+
+        If :math:`\kappa` is positive we have a forward rotating orbit
+        and if it is negative we have a backward rotating orbit.
+
+        Parameters
+        ----------
+        node: int
+            Node for which kappa will be calculated.
+        w: int
+            Index corresponding to the natural frequency
+            of interest.
+        wd: bool
+            If True, damping natural frequencies are used.
+
+            Default is true.
+
+        Returns
+        -------
+        kappa: dict
+            A dictionary with values for the natural frequency,
+            major axis, minor axis and kappa.
+        """
+        if wd:
+            nat_freq = self.wd[w]
+        else:
+            nat_freq = self.wn[w]
+
+        H, Tvals = self.H_kappa(node, w, return_T=True)
+        nu = Tvals["nu"]
+        nv = Tvals["nv"]
+
+        lam = la.eig(H)[0]
+
+        # lam is the eigenvalue -> sqrt(lam) is the minor/major axis.
+        # kappa encodes the relation between the axis and the precession.
+        minor = np.sqrt(lam.min())
+        major = np.sqrt(lam.max())
+        kappa = minor / major
+        diff = nv - nu
+
+        # we need to evaluate if 0 < nv - nu < pi.
+        if diff < -np.pi:
+            diff += 2 * np.pi
+        elif diff > np.pi:
+            diff -= 2 * np.pi
+
+        # if nv = nu or nv = nu + pi then the response is a straight line.
+        if diff == 0 or diff == np.pi:
+            kappa = 0
+
+        # if 0 < nv - nu < pi, then a backward rotating mode exists.
+        elif 0 < diff < np.pi:
+            kappa *= -1
+
+        k = {
+            "Frequency": nat_freq,
+            "Minor axes": np.real(minor),
+            "Major axes": np.real(major),
+            "kappa": np.real(kappa),
+        }
+
+        return k
+
+    def kappa_mode(self, w):
+        r"""This function evaluates kappa given the index of
+        the natural frequency of interest.
+        Values of kappa are evaluated for each node of the
+        corresponding frequency mode.
+
+        Parameters
+        ----------
+        w: int
+            Index corresponding to the natural frequency
+            of interest.
+
+        Returns
+        -------
+        kappa_mode: list
+            A list with the value of kappa for each node related
+            to the mode/natural frequency of interest.
+        """
+        kappa_mode = [self.kappa(node, w)["kappa"] for node in self.nodes]
+        return kappa_mode
+
+    def whirl_direction(self):
+        """Get the whirl direction for each frequency.
+
+        Parameters
+        ----------
+
+        Returns
+        -------
+        whirl_w : array
+            An array of strings indicating the direction of precession related
+            to the kappa_mode. Backward, Mixed or Forward depending on values
+            of kappa_mode.
+        """
+        # whirl direction/values are methods because they are expensive.
+        whirl_w = [self.whirl(self.kappa_mode(wd)) for wd in range(len(self.wd))]
+
+        return np.array(whirl_w)
+
+    def whirl_values(self):
+        """Get the whirl value (0., 0.5, or 1.) for each frequency.
+
+        Parameters
+        ----------
+
+        Returns
+        -------
+        whirl_to_cmap
+            0.0 - if the whirl is Forward
+            0.5 - if the whirl is Mixed
+            1.0 - if the whirl is Backward
+        """
+        return self.whirl_to_cmap(self.whirl_direction())
+
+    def calc_mode_shape(self, mode=None, evec=None):
+        """
+        Method that calculate the arrays describing the mode shapes.
+
+        Parameters
+        ----------
+        mode : int
+            The n'th vibration mode
+            Default is None
+        evec : array
+            Array containing the system eigenvectors
+
+        Returns
+        -------
+        xn : array
+            absolut nodal displacement - X direction
+        yn : array
+            absolut nodal displacement - Y direction
+        zn : array
+            absolut nodal displacement - Z direction
+        x_circles : array
+            orbit description - X direction
+        y_circles : array
+            orbit description - Y direction
+        z_circles_pos : array
+            axial location of each orbit
+        nn : int
+            number of points to plot lines
+        """
+        evec0 = self.modes[:, mode]
+        nodes = self.nodes
+        nodes_pos = self.nodes_pos
+        shaft_elements_length = self.shaft_elements_length
+
+        modex = evec0[0::4]
+        modey = evec0[1::4]
+
+        xmax, ixmax = max(abs(modex)), np.argmax(abs(modex))
+        ymax, iymax = max(abs(modey)), np.argmax(abs(modey))
+
+        if ymax > 0.4 * xmax:
+            evec0 /= modey[iymax]
+        else:
+            evec0 /= modex[ixmax]
+
+        modex = evec0[0::4]
+        modey = evec0[1::4]
+
+        num_points = 201
+        c = np.linspace(0, 2 * np.pi, num_points)
+        circle = np.exp(1j * c)
+
+        x_circles = np.zeros((num_points, len(nodes)))
+        y_circles = np.zeros((num_points, len(nodes)))
+        z_circles_pos = np.zeros((num_points, len(nodes)))
+
+        for node in nodes:
+            x = modex[node] * circle
+            x_circles[:, node] = np.real(x)
+            y = modey[node] * circle
+            y_circles[:, node] = np.real(y)
+            z_circles_pos[:, node] = nodes_pos[node]
+
+        # plot lines
+        nn = 21
+        zeta = np.linspace(0, 1, nn)
+        onn = np.ones_like(zeta)
+
+        zeta = zeta.reshape(nn, 1)
+        onn = onn.reshape(nn, 1)
+
+        xn = np.zeros(nn * (len(nodes) - 1))
+        yn = np.zeros(nn * (len(nodes) - 1))
+        zn = np.zeros(nn * (len(nodes) - 1))
+
+        N1 = onn - 3 * zeta ** 2 + 2 * zeta ** 3
+        N2 = zeta - 2 * zeta ** 2 + zeta ** 3
+        N3 = 3 * zeta ** 2 - 2 * zeta ** 3
+        N4 = -zeta ** 2 + zeta ** 3
+
+        for Le, n in zip(shaft_elements_length, nodes):
+            node_pos = nodes_pos[n]
+            Nx = np.hstack((N1, Le * N2, N3, Le * N4))
+            Ny = np.hstack((N1, -Le * N2, N3, -Le * N4))
+
+            xx = [4 * n, 4 * n + 3, 4 * n + 4, 4 * n + 7]
+            yy = [4 * n + 1, 4 * n + 2, 4 * n + 5, 4 * n + 6]
+
+            pos0 = nn * n
+            pos1 = nn * (n + 1)
+
+            xn[pos0:pos1] = Nx @ evec0[xx].real
+            yn[pos0:pos1] = Ny @ evec0[yy].real
+            zn[pos0:pos1] = (node_pos * onn + Le * zeta).reshape(nn)
+
+        return xn, yn, zn, x_circles, y_circles, z_circles_pos, nn
+
+    def plot_mode(self, mode=None, evec=None, fig=None, ax=None):
+        """
+        Method that plots the mode shapes.
+
+        Parameters
+        ----------
+        mode : int
+            The n'th vibration mode
+            Default is None
+        evec : array
+            Array containing the system eigenvectors
+        fig : matplotlib figure
+            The figure object with the plot.
+        ax : matplotlib axes
+            The axes object with the plot.
+
+        Returns
+        -------
+        fig : matplotlib figure
+            Returns the figure object with the plot.
+        ax : matplotlib axes
+            Returns the axes object with the plot.
+        """
+
+        if ax is None:
+            from mpl_toolkits.mplot3d import Axes3D
+
+            fig = plt.figure()
+            ax = fig.gca(projection="3d")
+
+        nodes = self.nodes
+        kappa_mode = self.kappa_modes[mode]
+        xn, yn, zn, xc, yc, zc_pos, nn = self.calc_mode_shape(mode=mode, evec=evec)
+
+        for node in nodes:
+            ax.plot(
+                xc[10:, node],
+                yc[10:, node],
+                zc_pos[10:, node],
+                color=kappa_mode[node],
+                linewidth=0.5,
+                zdir="x",
+            )
+            ax.scatter(
+                xc[10, node],
+                yc[10, node],
+                zc_pos[10, node],
+                s=5,
+                color=kappa_mode[node],
+                zdir="x",
+            )
+
+        ax.plot(xn, yn, zn, "k--", zdir="x")
+
+        # plot center line
+        zn_cl0 = -(zn[-1] * 0.1)
+        zn_cl1 = zn[-1] * 1.1
+        zn_cl = np.linspace(zn_cl0, zn_cl1, 30)
+        ax.plot(zn_cl * 0, zn_cl * 0, zn_cl, "k-.", linewidth=0.8, zdir="x")
+
+        ax.set_zlim(-2, 2)
+        ax.set_ylim(-2, 2)
+        ax.set_xlim(zn_cl0 - 0.1, zn_cl1 + 0.1)
+
+        ax.set_title(
+            f"$speed$ = {self.speed:.1f} rad/s\n$"
+            f"\omega_d$ = {self.wd[mode]:.1f} rad/s\n"
+            f"$log dec$ = {self.log_dec[mode]:.1f}"
+        )
+
+        return fig, ax
 
 
 class CampbellResults:
@@ -139,7 +573,7 @@ class CampbellResults:
             self.speed_range[:, np.newaxis], num_frequencies, axis=1
         )
 
-        default_values = dict(cmap="RdBu", vmin=0.1, vmax=2.0, s=30, alpha=0.5)
+        default_values = dict(cmap="RdBu", vmin=0.1, vmax=2.0, s=30, alpha=1.0)
         for k, v in default_values.items():
             kwargs.setdefault(k, v)
 
@@ -152,17 +586,19 @@ class CampbellResults:
                 log_dec_i = log_dec[:, i]
                 speed_range_i = speed_range[:, i]
 
-                for harm in harmonics:
-                    ax.plot(
-                        speed_range[:, 0],
-                        harm * speed_range[:, 0],
-                        color="k",
-                        linewidth=1.5,
-                        linestyle="-.",
-                        alpha=0.75,
-                        label="Rotor speed",
+                whirl_mask = whirl_i == whirl_dir
+                if whirl_mask.shape[0] == 0:
+                    continue
+                else:
+                    im = ax.scatter(
+                        speed_range_i[whirl_mask],
+                        w_i[whirl_mask],
+                        c=log_dec_i[whirl_mask],
+                        marker=mark,
+                        **kwargs,
                     )
 
+                for harm in harmonics:
                     idx = np.argwhere(
                         np.diff(np.sign(w_i - harm * speed_range_i))
                     ).flatten()
@@ -187,18 +623,6 @@ class CampbellResults:
 
                         ax.scatter(xnew[idx], ynew[idx], marker="X", s=30, c="g")
 
-                whirl_mask = whirl_i == whirl_dir
-                if whirl_mask.shape[0] == 0:
-                    continue
-                else:
-                    im = ax.scatter(
-                        speed_range_i[whirl_mask],
-                        w_i[whirl_mask],
-                        c=log_dec_i[whirl_mask],
-                        marker=mark,
-                        **kwargs,
-                    )
-
         if len(fig.axes) == 1:
             cbar = fig.colorbar(im)
             cbar.ax.set_ylabel("log dec")
@@ -213,11 +637,26 @@ class CampbellResults:
             mixed_label = mpl.lines.Line2D(
                 [], [], marker="o", lw=0, color="tab:blue", alpha=0.3, label="Mixed"
             )
-
-            legend = plt.legend(
-                handles=[forward_label, backward_label, mixed_label], loc=2
+            crit_marker = mpl.lines.Line2D(
+                [], [], marker="X", lw=0, color="g", alpha=0.3, label="Crit. Speed"
             )
+            labels = [forward_label, backward_label, mixed_label, crit_marker]
 
+            prop_cycle = plt.rcParams["axes.prop_cycle"]
+            colors = prop_cycle.by_key()["color"]
+            for j, harm in enumerate(harmonics):
+                harmonic = ax.plot(
+                    speed_range[:, 0],
+                    harm * speed_range[:, 0],
+                    color=colors[j],
+                    linewidth=1.5,
+                    linestyle="-.",
+                    alpha=0.75,
+                    label=str(harm) + "x speed",
+                )
+                labels.append(harmonic[0])
+
+            legend = plt.legend(handles=labels, loc=2, framealpha=0.1)
             ax.add_artist(legend)
 
             ax.set_xlabel("Rotor speed ($rad/s$)")
@@ -253,12 +692,11 @@ class CampbellResults:
 
         log_dec_map = log_dec.flatten()
 
+        m_coolwarm_rgb = (255 * cm.coolwarm(range(256))).astype("int")
+        coolwarm_palette = [RGB(*tuple(rgb)).to_hex() for rgb in m_coolwarm_rgb][::-1]
+
         default_values = dict(
-            cmap="viridis",
-            vmin=min(log_dec_map),
-            vmax=max(log_dec_map),
-            s=30,
-            alpha=1.0,
+            vmin=min(log_dec_map), vmax=max(log_dec_map), s=30, alpha=1.0
         )
 
         for k, v in default_values.items():
@@ -274,10 +712,11 @@ class CampbellResults:
         )
         camp.xaxis.axis_label_text_font_size = "14pt"
         camp.yaxis.axis_label_text_font_size = "14pt"
+        hover = False
 
         color_mapper = linear_cmap(
             field_name="color",
-            palette=bp.viridis(256),
+            palette=coolwarm_palette,
             low=min(log_dec_map),
             high=max(log_dec_map),
         )
@@ -293,18 +732,6 @@ class CampbellResults:
                 speed_range_i = speed_range[:, i]
 
                 for harm in harmonics:
-                    camp.line(
-                        x=speed_range[:, 0],
-                        y=harm * speed_range[:, 0],
-                        line_width=3,
-                        color=bokeh_colors[0],
-                        line_dash="dotdash",
-                        line_alpha=0.75,
-                        legend="Rotor speed",
-                        muted_color=bokeh_colors[0],
-                        muted_alpha=0.2,
-                    )
-
                     idx = np.argwhere(
                         np.diff(np.sign(w_i - harm * speed_range_i))
                     ).flatten()
@@ -328,12 +755,16 @@ class CampbellResults:
                         ).flatten()
 
                         source = ColumnDataSource(dict(xnew=xnew[idx], ynew=ynew[idx]))
-                        camp.square(
-                            "xnew",
-                            "ynew",
+                        camp.asterisk(
+                            x="xnew",
+                            y="ynew",
                             source=source,
-                            size=10,
+                            size=14,
+                            fill_alpha=1.0,
                             color=bokeh_colors[9],
+                            muted_color=bokeh_colors[9],
+                            muted_alpha=0.2,
+                            legend="Crit. Speed",
                             name="critspeed",
                         )
                         hover = HoverTool(names=["critspeed"])
@@ -367,6 +798,25 @@ class CampbellResults:
                         legend=legend,
                     )
 
+        harm_color = bp.Category20[20]
+        for j, harm in enumerate(harmonics):
+            camp.line(
+                x=speed_range[:, 0],
+                y=harm * speed_range[:, 0],
+                line_width=3,
+                color=harm_color[j],
+                line_dash="dotdash",
+                line_alpha=1.0,
+                legend=str(harm) + "x speed",
+                muted_color=harm_color[j],
+                muted_alpha=0.2,
+            )
+
+        # turn legend glyphs black
+        camp.scatter(0, 0, color="black", size=0, marker="^", legend="Foward")
+        camp.scatter(0, 0, color="black", size=0, marker="o", legend="Mixed")
+        camp.scatter(0, 0, color="black", size=0, marker="v", legend="Backward")
+
         color_bar = ColorBar(
             color_mapper=color_mapper["transform"],
             width=8,
@@ -376,10 +826,12 @@ class CampbellResults:
             title_text_align="center",
             major_label_text_align="left",
         )
-        camp.add_tools(hover)
+        if hover:
+            camp.add_tools(hover)
         camp.legend.background_fill_alpha = 0.1
         camp.legend.click_policy = "mute"
         camp.legend.location = "top_left"
+        camp.legend.label_text_font_size = "8pt"
         camp.add_layout(color_bar, "right")
 
         return camp
@@ -532,10 +984,10 @@ class FrequencyResponseResults:
         # bokeh plot - create a new plot
         mag_plot = figure(
             tools="pan, box_zoom, wheel_zoom, reset, save",
-            width=600,
+            width=640,
             height=240,
             title="Frequency Response - Magnitude",
-            x_axis_label="Frequency",
+            x_axis_label="Frequency (rad/s)",
             y_axis_label=y_axis_label,
         )
         mag_plot.xaxis.axis_label_text_font_size = "14pt"
@@ -619,10 +1071,10 @@ class FrequencyResponseResults:
         # bokeh plot - create a new plot
         phase_plot = figure(
             tools="pan, box_zoom, wheel_zoom, reset, save",
-            width=600,
+            width=640,
             height=240,
             title="Frequency Response - Phase",
-            x_axis_label="Frequency",
+            x_axis_label="Frequency (rad/s)",
             y_axis_label="Phase",
         )
         phase_plot.xaxis.axis_label_text_font_size = "14pt"
@@ -908,15 +1360,15 @@ class ForcedResponseResults:
             y_axis_label = "Amplitude (m)"
         elif units == "mic-pk-pk":
             mag = 2 * mag * 1e6
-            y_axis_label = "Amplitude $(\mu pk-pk)$"
+            y_axis_label = "Amplitude (μ pk-pk)"
 
         # bokeh plot - create a new plot
         mag_plot = figure(
             tools="pan, box_zoom, wheel_zoom, reset, save",
-            width=900,
-            height=400,
+            width=640,
+            height=240,
             title="Forced Response - Magnitude",
-            x_axis_label="Frequency",
+            x_axis_label="Frequency (rad/s)",
             x_range=[0, max(frequency_range)],
             y_axis_label=y_axis_label,
         )
@@ -997,10 +1449,10 @@ class ForcedResponseResults:
 
         phase_plot = figure(
             tools="pan, box_zoom, wheel_zoom, reset, save",
-            width=900,
-            height=400,
-            title="Forced Response - Magnitude",
-            x_axis_label="Frequency",
+            width=640,
+            height=240,
+            title="Forced Response - Phase",
+            x_axis_label="Frequency (rad/s)",
             x_range=[0, max(frequency_range)],
             y_axis_label="Phase",
         )
@@ -1121,226 +1573,6 @@ class ForcedResponseResults:
             raise ValueError(f"{plot_type} is not a valid plot type.")
 
 
-class ModeShapeResults:
-    """Evaluates the mode shapes for the rotor.
-
-    This analysis presents the vibration mode for each critical speed.
-
-    Parameters
-    ----------
-    modes : array
-        Array of eigenvectors
-    ndof : int
-        Number of degrees of freedom of the system
-    nodes : list
-        list of node numbers
-    nodes_pos : list
-        list of nodes positions
-    elements_length : list
-        list with length of each shaft element
-    w : float, list
-        rotor speed
-    wd : list
-        list with damped natural frequency
-    log_dec : list
-        list with logarithmic decrements
-    kappa_modes : list
-        list with values of kappa
-
-    Returns
-    -------
-    A graphic object
-    """
-
-    def __init__(
-        self,
-        modes,
-        ndof,
-        nodes,
-        nodes_pos,
-        shaft_elements_length,
-        w,
-        wd,
-        log_dec,
-        kappa_modes,
-    ):
-        self.modes = modes
-        self.ndof = ndof
-        self.nodes = nodes
-        self.nodes_pos = nodes_pos
-        self.shaft_elements_length = shaft_elements_length
-        self.w = w
-        self.wd = wd
-        self.log_dec = log_dec
-        self.kappa_modes = kappa_modes
-
-    def calc_mode_shape(self, mode=None, evec=None):
-        """
-        Method that calculate the arrays describing the mode shapes.
-
-        Parameters
-        ----------
-        mode : int
-            The n'th vibration mode
-            Default is None
-        evec : array
-            Array containing the system eigenvectors
-
-        Returns
-        -------
-        xn : array
-            absolut nodal displacement - X direction
-        yn : array
-            absolut nodal displacement - Y direction
-        zn : array
-            absolut nodal displacement - Z direction
-        x_circles : array
-            orbit description - X direction
-        y_circles : array
-            orbit description - Y direction
-        z_circles_pos : array
-            axial location of each orbit
-        nn : int
-            number of points to plot lines
-        """
-        evec0 = self.modes[:, mode]
-        nodes = self.nodes
-        nodes_pos = self.nodes_pos
-        shaft_elements_length = self.shaft_elements_length
-
-        modex = evec0[0::4]
-        modey = evec0[1::4]
-
-        xmax, ixmax = max(abs(modex)), np.argmax(abs(modex))
-        ymax, iymax = max(abs(modey)), np.argmax(abs(modey))
-
-        if ymax > 0.4 * xmax:
-            evec0 /= modey[iymax]
-        else:
-            evec0 /= modex[ixmax]
-
-        modex = evec0[0::4]
-        modey = evec0[1::4]
-
-        num_points = 201
-        c = np.linspace(0, 2 * np.pi, num_points)
-        circle = np.exp(1j * c)
-
-        x_circles = np.zeros((num_points, len(nodes)))
-        y_circles = np.zeros((num_points, len(nodes)))
-        z_circles_pos = np.zeros((num_points, len(nodes)))
-
-        for node in nodes:
-            x = modex[node] * circle
-            x_circles[:, node] = np.real(x)
-            y = modey[node] * circle
-            y_circles[:, node] = np.real(y)
-            z_circles_pos[:, node] = nodes_pos[node]
-
-        # plot lines
-        nn = 21
-        zeta = np.linspace(0, 1, nn)
-        onn = np.ones_like(zeta)
-
-        zeta = zeta.reshape(nn, 1)
-        onn = onn.reshape(nn, 1)
-
-        xn = np.zeros(nn * (len(nodes) - 1))
-        yn = np.zeros(nn * (len(nodes) - 1))
-        zn = np.zeros(nn * (len(nodes) - 1))
-
-        N1 = onn - 3 * zeta ** 2 + 2 * zeta ** 3
-        N2 = zeta - 2 * zeta ** 2 + zeta ** 3
-        N3 = 3 * zeta ** 2 - 2 * zeta ** 3
-        N4 = -zeta ** 2 + zeta ** 3
-
-        for Le, n in zip(shaft_elements_length, nodes):
-            node_pos = nodes_pos[n]
-            Nx = np.hstack((N1, Le * N2, N3, Le * N4))
-            Ny = np.hstack((N1, -Le * N2, N3, -Le * N4))
-
-            xx = [4 * n, 4 * n + 3, 4 * n + 4, 4 * n + 7]
-            yy = [4 * n + 1, 4 * n + 2, 4 * n + 5, 4 * n + 6]
-
-            pos0 = nn * n
-            pos1 = nn * (n + 1)
-
-            xn[pos0:pos1] = Nx @ evec0[xx].real
-            yn[pos0:pos1] = Ny @ evec0[yy].real
-            zn[pos0:pos1] = (node_pos * onn + Le * zeta).reshape(nn)
-
-        return xn, yn, zn, x_circles, y_circles, z_circles_pos, nn
-
-    def plot(self, mode=None, evec=None, fig=None, ax=None):
-        """
-        Method that plots the mode shapes.
-
-        Parameters
-        ----------
-        mode : int
-            The n'th vibration mode
-            Default is None
-        evec : array
-            Array containing the system eigenvectors
-        fig : matplotlib figure
-            The figure object with the plot.
-        ax : matplotlib axes
-            The axes object with the plot.
-
-        Returns
-        -------
-        fig : matplotlib figure
-            Returns the figure object with the plot.
-        ax : matplotlib axes
-            Returns the axes object with the plot.
-        """
-        if ax is None:
-            fig = plt.figure()
-            ax = fig.gca(projection="3d")
-
-        nodes = self.nodes
-        kappa_mode = self.kappa_modes[mode]
-        xn, yn, zn, xc, yc, zc_pos, nn = self.calc_mode_shape(mode=mode, evec=evec)
-
-        for node in nodes:
-            ax.plot(
-                xc[10:, node],
-                yc[10:, node],
-                zc_pos[10:, node],
-                color=kappa_mode[node],
-                linewidth=0.5,
-                zdir="x",
-            )
-            ax.scatter(
-                xc[10, node],
-                yc[10, node],
-                zc_pos[10, node],
-                s=5,
-                color=kappa_mode[node],
-                zdir="x",
-            )
-
-        ax.plot(xn, yn, zn, "k--", zdir="x")
-
-        # plot center line
-        zn_cl0 = -(zn[-1] * 0.1)
-        zn_cl1 = zn[-1] * 1.1
-        zn_cl = np.linspace(zn_cl0, zn_cl1, 30)
-        ax.plot(zn_cl * 0, zn_cl * 0, zn_cl, "k-.", linewidth=0.8, zdir="x")
-
-        ax.set_zlim(-2, 2)
-        ax.set_ylim(-2, 2)
-        ax.set_xlim(zn_cl0 - 0.1, zn_cl1 + 0.1)
-
-        ax.set_title(
-            f"$speed$ = {self.w:.1f} rad/s\n$"
-            f"\omega_d$ = {self.wd[mode]:.1f} rad/s\n"
-            f"$log dec$ = {self.log_dec[mode]:.1f}"
-        )
-
-        return fig, ax
-
-
 class StaticResults:
     """Class used to store results and provide plots for Static Analysis.
 
@@ -1367,14 +1599,6 @@ class StaticResults:
         list of nodes positions
     Vx_axis : array
         X axis for displaying shearing force
-    force_data : dict
-        A dictionary containing the information about:
-        Static displacement vector,
-        Shearing force vector,
-        Bending moment vector,
-        Shaft total weight,
-        Disks forces,
-        Bearings reaction forces
 
     Returns
     -------
@@ -1382,18 +1606,9 @@ class StaticResults:
         Bokeh figure with Static Analysis plots depending on which method
         is called.
     """
+
     def __init__(
-        self,
-        disp_y,
-        Vx,
-        Bm,
-        df_shaft,
-        df_disks,
-        df_bearings,
-        nodes,
-        nodes_pos,
-        Vx_axis,
-        force_data,
+        self, disp_y, Vx, Bm, df_shaft, df_disks, df_bearings, nodes, nodes_pos, Vx_axis
     ):
 
         self.disp_y = disp_y
@@ -1405,7 +1620,6 @@ class StaticResults:
         self.nodes = nodes
         self.nodes_pos = nodes_pos
         self.Vx_axis = Vx_axis
-        self.force_data = force_data
 
     def plot_deformation(self):
         """Plot the shaft static deformation.
@@ -1422,9 +1636,7 @@ class StaticResults:
             Bokeh figure with static deformation plot
         """
         source = ColumnDataSource(
-            data=dict(
-                x=self.nodes_pos, y0=self.disp_y, y1=[0] * len(self.nodes_pos)
-            )
+            data=dict(x=self.nodes_pos, y0=self.disp_y, y1=[0] * len(self.nodes_pos))
         )
 
         TOOLTIPS = [
@@ -1751,6 +1963,249 @@ class StaticResults:
         )
 
         return fig
+
+
+class SummaryResults:
+    """Class used to store results and provide plots rotor summary.
+
+    This class aims to present a summary of the main parameters and attributes
+    from a rotor model. The data is presented in a table format.
+
+    Parameters
+    ----------
+    df_shaft: dataframe
+        shaft dataframe
+    df_disks: dataframe
+        disks dataframe
+    df_bearings: dataframe
+        bearings dataframe
+    brg_forces: list
+        list of reaction forces on bearings
+    nodes_pos:  list
+        list of nodes axial position
+    CG: float
+        rotor center of gravity
+    Ip: float
+        rotor total moment of inertia around the center line
+    tag: str
+        rotor's tag
+
+    Returns
+    -------
+    table : bokeh WidgetBox
+        Bokeh WidgetBox with the summary table plot
+    """
+
+    def __init__(
+        self, df_shaft, df_disks, df_bearings, nodes_pos, brg_forces, CG, Ip, tag
+    ):
+        self.df_shaft = df_shaft
+        self.df_disks = df_disks
+        self.df_bearings = df_bearings
+        self.brg_forces = brg_forces
+        self.nodes_pos = np.array(nodes_pos)
+        self.CG = CG
+        self.Ip = Ip
+        self.tag = tag
+
+    def plot(self):
+        """Plot the summary table.
+
+        This method plots:
+            Table with summary of rotor parameters and attributes
+
+        Parameters
+        ----------
+
+        Returns
+        -------
+        tabs : bokeh WidgetBox
+            Bokeh WidgetBox with the summary table plot
+        """
+        materials = [mat.name for mat in self.df_shaft["material"]]
+
+        shaft_data = dict(
+            tags=self.df_shaft["tag"],
+            lft_stn=self.df_shaft["n_l"],
+            rgt_stn=self.df_shaft["n_r"],
+            elem_no=self.df_shaft["_n"],
+            beam_left_loc=self.df_shaft["nodes_pos_l"],
+            elem_len=self.df_shaft["L"],
+            beam_cg=self.df_shaft["beam_cg"],
+            axial_cg_pos=self.df_shaft["axial_cg_pos"],
+            beam_right_loc=self.df_shaft["nodes_pos_r"],
+            material=materials,
+            mass=self.df_shaft["m"],
+            inertia=self.df_shaft["Im"],
+        )
+
+        rotor_data = dict(
+            tag=[self.tag],
+            starting_node=[self.df_shaft["n_l"].iloc[0]],
+            ending_node=[self.df_shaft["n_r"].iloc[-1]],
+            starting_point=[self.df_shaft["nodes_pos_r"].iloc[0]],
+            total_lenght=[self.df_shaft["nodes_pos_r"].iloc[-1]],
+            CG=[self.CG],
+            Ip=[self.Ip],
+            total_mass=[np.sum(self.df_shaft["m"])],
+        )
+
+        disk_data = dict(
+            tags=self.df_disks["tag"],
+            disk_node=self.df_disks["n"],
+            disk_pos=self.nodes_pos[self.df_bearings["n"]],
+            disk_mass=self.df_disks["m"],
+            disk_Ip=self.df_disks["Ip"],
+        )
+
+        bearing_data = dict(
+            tags=self.df_bearings["tag"],
+            brg_node=self.df_bearings["n"],
+            brg_pos=self.nodes_pos[self.df_bearings["n"]],
+            brg_force=self.brg_forces,
+        )
+
+        shaft_source = ColumnDataSource(shaft_data)
+        rotor_source = ColumnDataSource(rotor_data)
+        disk_source = ColumnDataSource(disk_data)
+        bearing_source = ColumnDataSource(bearing_data)
+
+        shaft_titles = [
+            "Element Tag",
+            "Left Station",
+            "Right Station",
+            "Element Number",
+            "Elem. Left Location (m)",
+            "Elem. Lenght (m)",
+            "Element CG (m)",
+            "Axial CG Location (m)",
+            "Elem. Right Location (m)",
+            "Material",
+            "Elem. Mass (kg)",
+            "Inertia (kg.m²)",
+        ]
+
+        rotor_titles = [
+            "Tag",
+            "First Station",
+            "Last Station",
+            "Starting Pos. (m)",
+            "Total Lenght (m)",
+            "C.G. Locantion (m)",
+            "Total Ip about C.L. (kg.m²)",
+        ]
+
+        disk_titles = [
+            "Tag",
+            "Disk Station",
+            "C.G. Locantion (m)",
+            "Disk Mass (m)",
+            "Total Ip about C.L. (kg.m²)",
+        ]
+
+        bearing_titles = [
+            "Tag",
+            "Bearing Station",
+            "Bearing Locantion (m)",
+            "Static Reaction Force (N)",
+        ]
+
+        shaft_formatters = [
+            None,
+            None,
+            None,
+            None,
+            NumberFormatter(format="0.000"),
+            NumberFormatter(format="0.000"),
+            NumberFormatter(format="0.000"),
+            NumberFormatter(format="0.000"),
+            NumberFormatter(format="0.000"),
+            None,
+            NumberFormatter(format="0.000"),
+            NumberFormatter(format="0.0000000"),
+        ]
+
+        rotor_formatters = [
+            None,
+            None,
+            None,
+            NumberFormatter(format="0.000"),
+            NumberFormatter(format="0.000"),
+            NumberFormatter(format="0.000"),
+            NumberFormatter(format="0.000"),
+        ]
+
+        disk_formatters = [
+            None,
+            None,
+            NumberFormatter(format="0.000"),
+            NumberFormatter(format="0.000"),
+            NumberFormatter(format="0.000"),
+        ]
+
+        bearing_formatters = [
+            None,
+            None,
+            NumberFormatter(format="0.000"),
+            NumberFormatter(format="0.000"),
+        ]
+
+        shaft_columns = [
+            TableColumn(field=str(field), title=title, formatter=form)
+            for field, title, form in zip(
+                shaft_data.keys(), shaft_titles, shaft_formatters
+            )
+        ]
+
+        rotor_columns = [
+            TableColumn(field=str(field), title=title, formatter=form)
+            for field, title, form in zip(
+                rotor_data.keys(), rotor_titles, rotor_formatters
+            )
+        ]
+
+        disk_columns = [
+            TableColumn(field=str(field), title=title, formatter=form)
+            for field, title, form in zip(
+                disk_data.keys(), disk_titles, disk_formatters
+            )
+        ]
+
+        bearing_columns = [
+            TableColumn(field=str(field), title=title, formatter=form)
+            for field, title, form in zip(
+                bearing_data.keys(), bearing_titles, bearing_formatters
+            )
+        ]
+
+        shaft_data_table = DataTable(
+            source=shaft_source, columns=shaft_columns, width=1600
+        )
+        rotor_data_table = DataTable(
+            source=rotor_source, columns=rotor_columns, width=1600
+        )
+        disk_data_table = DataTable(
+            source=disk_source, columns=disk_columns, width=1600
+        )
+        bearing_data_table = DataTable(
+            source=bearing_source, columns=bearing_columns, width=1600
+        )
+
+        rotor_table = widgetbox(rotor_data_table)
+        tab1 = Panel(child=rotor_table, title="Rotor Summary")
+
+        shaft_table = widgetbox(shaft_data_table)
+        tab2 = Panel(child=shaft_table, title="Shaft Summary")
+
+        disk_table = widgetbox(disk_data_table)
+        tab3 = Panel(child=disk_table, title="Disk Summary")
+
+        bearing_table = widgetbox(bearing_data_table)
+        tab4 = Panel(child=bearing_table, title="Bearing Summary")
+
+        tabs = Tabs(tabs=[tab1, tab2, tab3, tab4])
+
+        return tabs
 
 
 class ConvergenceResults:

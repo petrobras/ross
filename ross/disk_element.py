@@ -13,7 +13,9 @@ bokeh_colors = bp.RdGy[11]
 
 class DiskElement(Element):
     """A disk element.
+
      This class will create a disk element from input data of inertia and mass.
+
      Parameters
      ----------
      n: int
@@ -27,15 +29,12 @@ class DiskElement(Element):
      tag : str, optional
          A tag to name the element
          Default is None
-     References
-     ----------
-     .. [1] 'Dynamics of Rotating Machinery' by MI Friswell, JET Penny, SD Garvey
-        & AW Lees, published by Cambridge University Press, 2010 pp. 156-157.
+
      Examples
      --------
-     >>> disk = DiskElement(0, 32.58972765, 0.17808928, 0.32956362)
+     >>> disk = DiskElement(n=0, m=32, Id=0.2, Ip=0.3)
      >>> disk.Ip
-     0.32956362
+     0.3
      """
 
     def __init__(self, n, m, Id, Ip, tag=None):
@@ -47,7 +46,7 @@ class DiskElement(Element):
         self.Id = Id
         self.Ip = Ip
         self.tag = tag
-        self.color = "#bc625b"
+        self.color = bokeh_colors[9]
 
     def __eq__(self, other):
         """This function allows disk elements to be compared.
@@ -111,8 +110,11 @@ class DiskElement(Element):
         return hash(self.tag)
 
     def save(self, file_name):
-        """Saves a disk element in a toml format. It works as an auxiliary function of
-        the save function in the Rotor class.
+        """Saves a disk element in a toml format.
+
+        It works as an auxiliary function of the save function in the Rotor
+        class.
+
         Parameters
         ----------
         file_name: string
@@ -140,14 +142,16 @@ class DiskElement(Element):
     @staticmethod
     def load(file_name="DiskElement"):
         """Loads a list of disk elements saved in a toml format.
+
         Parameters
         ----------
-        file_name: string
+        file_name: str
             The name of the file of the disk element to be loaded.
 
         Returns
         -------
-        A list of disk elements.
+        disk_elements: list
+            A list of disk elements.
 
         Examples
         --------
@@ -167,13 +171,15 @@ class DiskElement(Element):
         return disk_elements
 
     def dof_mapping(self):
-        """Returns a dictionary with a mapping between degree of freedom and its index.
-        Parameters
-        ----------
+        """Degrees of freedom mapping.
+
+        Returns a dictionary with a mapping between degree of freedom and its
+        index.
 
         Returns
         -------
-        A dictionary containing the degrees of freedom and their indexes.
+        dof_mapping: dict
+            A dictionary containing the degrees of freedom and their indexes.
 
         Examples
         --------
@@ -184,15 +190,15 @@ class DiskElement(Element):
         return dict(x_0=0, y_0=1, alpha_0=2, beta_0=3)
 
     def M(self):
-        """
+        """Mass matrix.
+
         This method will return the mass matrix for an instance of a disk
         element.
-        Parameters
-        ----------
 
         Returns
         -------
         Mass matrix for the disk element.
+
         Examples
         --------
         >>> disk = DiskElement(0, 32.58972765, 0.17808928, 0.32956362)
@@ -213,13 +219,15 @@ class DiskElement(Element):
         return M
 
     def K(self):
-        """Returns the stiffness matrix.
-        Parameters
-        ----------
+        """Stiffness matrix.
+
+        This method will return the stiffness matrix for an instance of a disk
+        element.
 
         Returns
         -------
-        A matrix of floats containing the values of the stiffness matrix.
+        K: np.ndarray
+            A matrix of floats containing the values of the stiffness matrix.
 
         Examples
         --------
@@ -236,12 +244,11 @@ class DiskElement(Element):
 
     def C(self):
         """Returns the damping matrix.
-        Parameters
-        ----------
 
         Returns
         -------
-        A matrix of floats containing the values of the damping matrix.
+        C: np.ndarray
+            A matrix of floats containing the values of the damping matrix.
 
         Examples
         --------
@@ -257,15 +264,16 @@ class DiskElement(Element):
         return C
 
     def G(self):
-        """
+        """Gyroscopic matrix.
+
         This method will return the gyroscopic matrix for an instance of a disk
         element.
-        Parameters
-        ----------
 
         Returns
         -------
-        Gyroscopic matrix for the disk element.
+        G: np.ndarray
+            Gyroscopic matrix for the disk element.
+
         Examples
         --------
         >>> disk = DiskElement(0, 32.58972765, 0.17808928, 0.32956362)
@@ -287,17 +295,18 @@ class DiskElement(Element):
 
     def patch(self, position, ax):
         """Disk element patch.
+
         Patch that will be used to draw the disk element.
+
         Parameters
         ----------
         ax : matplotlib axes, optional
             Axes in which the plot will be drawn.
         position : float
             Position in which the patch will be drawn.
+
         Returns
         -------
-        ax : matplotlib axes
-            Returns the axes object with the plot.
         """
         zpos, ypos = position
         step = ypos / 5
@@ -383,7 +392,7 @@ class DiskElement(Element):
             source=source,
             alpha=1,
             line_width=2,
-            color=bokeh_colors[9],
+            color=self.color,
             legend="Disk",
             name="ub_disk",
         )
@@ -393,7 +402,7 @@ class DiskElement(Element):
             source=source,
             alpha=1,
             line_width=2,
-            color=bokeh_colors[9],
+            color=self.color,
             name="ub_disk",
         )
         bk_ax.circle(
@@ -402,7 +411,7 @@ class DiskElement(Element):
             radius="radius",
             source=source_c,
             fill_alpha=1,
-            color=bokeh_colors[9],
+            color=self.color,
             name="uc_disk",
         )
         bk_ax.circle(
@@ -411,7 +420,7 @@ class DiskElement(Element):
             radius="radius",
             source=source_c,
             fill_alpha=1,
-            color=bokeh_colors[9],
+            color=self.color,
             name="lc_disk",
         )
 
@@ -430,12 +439,14 @@ class DiskElement(Element):
     @classmethod
     def from_geometry(cls, n, material, width, i_d, o_d, tag=None):
         """A disk element.
-        This class will create a disk element from input data of geometry.
+
+        This class method will create a disk element from geometry data.
+
         Parameters
         ----------
         n: int
             Node in which the disk will be inserted.
-        material : lavirot.Material
+        material: ross.Material
              Shaft material.
         width: float
             The disk width.
@@ -443,6 +454,7 @@ class DiskElement(Element):
             Inner diameter.
         o_d: float
             Outer diameter.
+
         Attributes
         ----------
         m : float
@@ -454,10 +466,7 @@ class DiskElement(Element):
         tag : str, optional
             A tag to name the element
             Default is None
-        References
-        ----------
-        .. [1] 'Dynamics of Rotating Machinery' by MI Friswell, JET Penny, SD Garvey
-           & AW Lees, published by Cambridge University Press, 2010 pp. 156-157.
+
         Examples
         --------
         >>> from ross.materials import steel
@@ -481,27 +490,31 @@ class DiskElement(Element):
     @classmethod
     def from_table(cls, file, sheet_name=0):
         """Instantiate one or more disks using inputs from an Excel table.
-        A header with the names of the columns is required. These names should match the names expected by the routine
-        (usually the names of the parameters, but also similar ones). The program will read every row bellow the header
-        until they end or it reaches a NaN.
+
+        A header with the names of the columns is required. These names should
+        match the names expected by the routine (usually the names of the
+        parameters, but also similar ones). The program will read every row
+        bellow the header until they end or it reaches a NaN.
+
         Parameters
         ----------
         file: str
             Path to the file containing the disk parameters.
         sheet_name: int or str, optional
-            Position of the sheet in the file (starting from 0) or its name. If none is passed, it is
-            assumed to be the first sheet in the file.
+            Position of the sheet in the file (starting from 0) or its name.
+            If none is passed, it is assumed to be the first sheet in the file.
         Returns
         -------
         disk : list
             A list of disk objects.
+
         Examples
         --------
         >>> import os
         >>> file_path = os.path.dirname(os.path.realpath(__file__)) + '/tests/data/shaft_si.xls'
         >>> list_of_disks = DiskElement.from_table(file_path, sheet_name="More")
         >>> list_of_disks[0]
-        DiskElement(Id=0.0, Ip=0.0, m=15.12, color='#bc625b', n=4, tag=None)
+        DiskElement(Id=0.0, Ip=0.0, m=15.12, color='#b2182b', n=4, tag=None)
         """
         parameters = read_table_file(file, "disk", sheet_name=sheet_name)
         list_of_disks = []
@@ -535,6 +548,5 @@ def disk_example():
     >>> disk.Ip
     0.32956362
     """
-    disk = DiskElement(0, 32.58972765, 0.17808928, 0.32956362)
+    disk = DiskElement(0, 32.589_727_65, 0.178_089_28, 0.329_563_62)
     return disk
-

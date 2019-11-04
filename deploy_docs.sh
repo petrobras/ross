@@ -40,7 +40,7 @@ make html BUILDDIR=$HOME/ross-website
 
 cd $HOME/ross-website/html
 git config user.name "Travis CI"
-git config user.email "raphaelts@gmail.com"
+git config user.email "raphaeltimbo@gmail.com"
 
 # If there are no changes (e.g. this is a README update) then just bail.
 echo "Checking diff"

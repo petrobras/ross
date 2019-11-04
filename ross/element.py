@@ -149,6 +149,7 @@ class Element(ABC):
         """A summary for the element.
 
         A pandas series with the element properties as variables.
+
         Parameters
         ----------
 
@@ -169,7 +170,7 @@ class Element(ABC):
         Id          0.178089
         Ip          0.329564
         tag             None
-        color        #bc625b
+        color        #b2182b
         type     DiskElement
         dtype: object
         """
@@ -180,6 +181,7 @@ class Element(ABC):
     @staticmethod
     def load_data(file_name):
         """Loads elements data saved in a toml format.
+
         Parameters
         ----------
         file_name: string
@@ -187,8 +189,9 @@ class Element(ABC):
 
         Returns
         -------
-        dict
+        data: dict
             The element parameters presented as a dictionary.
+
         Examples
         --------
         >>> # Example using BearingElement
@@ -213,12 +216,14 @@ class Element(ABC):
     @staticmethod
     def dump_data(data, file_name):
         """Dumps element data in a toml file.
+
         Parameters
         ----------
         data: dict
             The data that should be dumped.
         file_name: string
             The name of the file the data will be dumped in.
+
         Returns
         -------
 
@@ -237,14 +242,15 @@ class Element(ABC):
 
     @abstractmethod
     def dof_mapping(self):
-        """Should return a dictionary with a mapping between degree of freedom
+        """Degrees of freedom mapping.
+
+        Should return a dictionary with a mapping between degree of freedom
         and its index.
-        Parameters
-        ----------
 
         Returns
         -------
-        A dictionary of degrees of freedom.
+        dof_mapping: dict
+            A dictionary containing the degrees of freedom and their indexes.
 
         Examples
         --------
@@ -258,12 +264,11 @@ class Element(ABC):
 
     def dof_local_index(self):
         """Get the local index for a element specific degree of freedom.
-        Parameters
-        ----------
 
         Returns
         -------
-        A named tuple containing the local index.
+        local_index: namedtupple
+            A named tuple containing the local index.
 
         Examples
         --------
@@ -281,12 +286,11 @@ class Element(ABC):
 
     def dof_global_index(self):
         """Get the global index for a element specific degree of freedom.
-        Parameters
-        ----------
 
         Returns
         -------
-        A named tuple containing the global index.
+        global_index: namedtupple
+            A named tuple containing the global index.
 
         Examples
         --------
