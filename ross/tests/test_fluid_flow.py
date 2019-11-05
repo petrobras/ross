@@ -236,6 +236,6 @@ def test_matplotlib_plots():
 def test_find_equilibrium_position():
     bearing = fluid_flow_short_friswell()
     eccentricity = find_equilibrium_position(bearing, print_along=False, tolerance=0.1)
-    assert_allclose(eccentricity, (bearing.radius_stator - bearing.radius_rotor)*0.2663, rtol=0.03)
+    assert_allclose(eccentricity, (bearing.radius_stator - bearing.radius_rotor)*0.2663, rtol=0.05)
 
 
