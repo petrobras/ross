@@ -691,6 +691,7 @@ class Report:
             )
 
         return node_min, node_max
+
     def stability_level_1(self, D, H, HP, oper_speed, RHO_ratio, RHOs, RHOd, unit="m"):
         """Stability analysis level 1.
 
@@ -727,8 +728,9 @@ class Report:
 
         Return
         ------
-        plot: bokeh.gridplot
+        fig1: bokeh.figure
             Applied Cross-Coupled Stiffness vs. Log Decrement plot;
+        fig2: bokeh.figure
             CSR vs. Mean Gas Density plot.
         condition: str
             not required: Stability Level 1 satisfies the analysis;
@@ -751,7 +753,7 @@ class Report:
         >>> report.Qa
         23022.32142857143
         """
-        steps = 101
+        steps = 11
         if unit == "m":
             C = 9.55
         elif unit == "in":
@@ -763,7 +765,7 @@ class Report:
             raise Exception("length of D must be the same of H")
 
         Qa = 0.0
-        Qa_list = np.zeros(len(self.disk_nodes) + 1)
+        cross_coupled_array = np.array([])
         # Qa - Anticipated cross-coupling for compressors - API 684 - SP6.8.5.6
         if self.machine_type == "compressor":
             Bc = 3.0
@@ -771,9 +773,9 @@ class Report:
             for i, disk in enumerate(self.rotor.disk_elements):
                 if disk.n in self.disk_nodes:
                     qi = HP[i] * Bc * C * RHO_ratio[i] / (Dc[i] * Hc[i] * oper_speed)
-                    Qa_list[i] = qi
+                    Qi = np.linspace(0, 10 * qi, steps)
+                    cross_coupled_array = np.append(cross_coupled_array, Qi)
                     Qa += qi
-            Qa_list[-1] = Qa
 
         # Qa - Anticipated cross-coupling for turbines - API 684 - SP6.8.5.6
         if self.machine_type == "turbine" or self.machine_type == "axial_flow":
@@ -782,13 +784,17 @@ class Report:
             for i, disk in enumerate(self.rotor.disk_elements):
                 if disk.n in self.disk_nodes:
                     qi = (HP[i] * Bt * C) / (Dt[i] * Ht[i] * oper_speed)
-                    Qa_list[i] = qi
+                    Qi = np.linspace(0, 10 * qi, steps)
+                    cross_coupled_array = np.append(cross_coupled_array, Qi)
                     Qa += qi
-            Qa_list[-1] = Qa
 
         # Defining cross-coupling range to 10*Qa - API 684 - SP6.8.5.8
-        zeros = np.zeros(len(Qa_list))
-        cross_coupled_array = np.linspace(zeros, 10 * Qa_list, steps)
+        Qi = np.linspace(0, 10 * Qa, steps)
+        cross_coupled_array = np.append(cross_coupled_array, Qi)
+        cross_coupled_array = cross_coupled_array.reshape(
+                [len(self.disk_nodes) + 1, steps]
+        ).T
+
         log_dec = np.zeros(len(cross_coupled_array))
 
         # remove disks and seals from the rotor model
@@ -821,7 +827,7 @@ class Report:
         # Applying cross-coupling for each disk - API 684 - SP6.8.5.9
         else:
             for i, Q in enumerate(cross_coupled_array[:, :-1]):
-                bearings = [copy(b) for b in bearing_list] 
+                bearings = [copy(b) for b in bearing_list]
                 # cross-coupling introduced at overhung disks
                 for n, q in zip(self.disk_nodes, Q):
                     cross_coupling = BearingElement(
