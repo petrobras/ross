@@ -152,6 +152,7 @@ class Report:
         self.crit_speed = None
         self.MCS = None
         self.RHO_gas = None
+        self.condition = None
 
     @classmethod
     def from_saved_rotors(cls, path, minspeed, maxspeed, speed_units="rpm"):
@@ -977,7 +978,6 @@ class Report:
         # Level 1 screening criteria - API 684 - SP6.8.5.10
         idx = min(range(len(RHO)), key=lambda i: abs(RHO[i] - RHO_mean))
 
-        # TODO: add condition as attribute
         if self.machine_type == "compressor":
             if Q0 / Qa < 2.0:
                 condition = "required"
@@ -1007,6 +1007,7 @@ class Report:
         self.crit_speed = crit_speed
         self.MCS = self.maxspeed
         self.RHO_gas = RHO_mean
+        self.condition = condition
 
         return fig1, fig2, condition
 
