@@ -278,7 +278,8 @@ def find_equilibrium_position(fluid_flow_object, print_along=True, tolerance=1e-
     """
     r_force, t_force, force_x, force_y = calculate_oil_film_force(fluid_flow_object, force_type='numerical')
     increment = increment_factor * fluid_flow_object.eccentricity
-    error = abs(force_y - fluid_flow_object.load)
+    resultant_force = np.sqrt(r_force**2 + t_force**2)
+    error = abs(resultant_force - fluid_flow_object.load)
     k = 0
     while error > tolerance:
         k += 1
@@ -289,15 +290,16 @@ def find_equilibrium_position(fluid_flow_object, print_along=True, tolerance=1e-
         fluid_flow_object.calculate_coefficients()
         fluid_flow_object.calculate_pressure_matrix_numerical()
         r_force, t_force, new_force_x, new_force_y = calculate_oil_film_force(fluid_flow_object, force_type='numerical')
-        new_error = abs(new_force_y - fluid_flow_object.load)
-        if (new_force_y - fluid_flow_object.load) * (force_y - fluid_flow_object.load) < 0 or new_error > error:
+        new_resultant_force = np.sqrt(r_force ** 2 + t_force ** 2)
+        new_error = abs(new_resultant_force - fluid_flow_object.load)
+        if (new_resultant_force - fluid_flow_object.load) * (resultant_force - fluid_flow_object.load) < 0:
             increment = -increment/10
-        force_y = new_force_y
+        resultant_force = new_resultant_force
         error = new_error
         if print_along:
             print("Iteration " + str(k))
             print("Eccentricity: " + str(fluid_flow_object.eccentricity))
-            print("Force y minus load: " + str(force_y - fluid_flow_object.load))
+            print("Resultant force minus load: " + str(resultant_force - fluid_flow_object.load))
     return fluid_flow_object.eccentricity
 
 
