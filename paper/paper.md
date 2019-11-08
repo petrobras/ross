@@ -15,13 +15,13 @@ authors:
  - name: Júlia Mota
    orcid: 0000-0002-9547-9629
    affiliation: 3
- - name: Gabriel Bachman
+ - name: Gabriel Bachmann
    orcid: 0000-0003-4401-8408
    affiliation: 4
  - name: Flavio Rangel
    orcid: 0000-0002-4852-8141
    affiliation: 5
- - name: Juliana Vianna
+ - name: Juliana Valério
    orcid: 0000-0002-6198-7932
    affiliation: 5
  - name: Thiago Ritto
