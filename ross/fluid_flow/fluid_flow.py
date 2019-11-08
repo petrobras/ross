@@ -519,19 +519,23 @@ def fluid_flow_example2():
     --------
     >>> my_fluid_flow = fluid_flow_example2()
     >>> my_fluid_flow.load
-    42.89
+    525
     """
-    omega = 100. * 2 * np.pi / 60
-    radius_rotor = 0.1999996
-    radius_stator = 0.1999996 + 0.000194564
-    length = (1 / 10) * (2 * radius_stator)
-    viscosity = 0.015
-    density = 860
-    load = 42.89
-    my_pressure_matrix = FluidFlow(nz=8, ntheta=132, nradius=11, length=length, omega=omega,
-                                   p_in=0., p_out=0., radius_rotor=radius_rotor, radius_stator=radius_stator,
-                                   viscosity=viscosity, density=density, load=load)
-    return my_pressure_matrix
+    nz = 30
+    ntheta = 20
+    nradius = 11
+    length = 0.03
+    omega = 157.1
+    p_in = 0.
+    p_out = 0.
+    radius_rotor = 0.0499
+    radius_stator = 0.05
+    load = 525
+    visc = 0.1
+    rho = 860.
+    return FluidFlow(nz, ntheta, nradius, length, omega, p_in,
+                     p_out, radius_rotor, radius_stator,
+                     visc, rho, load=load)
 
 
 
