@@ -234,7 +234,7 @@ def test_matplotlib_plots():
     assert isinstance(matplot_shape(bearing), ax_type)
 
 
-@pytest.mark.skip("Waiting for implementation of units conversion for bearings.")
+@pytest.mark.skip("Check PR error.")
 def test_find_equilibrium_position():
     bearing = fluid_flow_short_friswell()
     eccentricity = find_equilibrium_position(bearing, print_along=False, tolerance=0.1)
