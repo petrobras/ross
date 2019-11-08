@@ -273,8 +273,7 @@ def find_equilibrium_position(fluid_flow_object, print_along=True, tolerance=1e-
     --------
     >>> from ross.fluid_flow.fluid_flow import fluid_flow_example2
     >>> my_fluid_flow = fluid_flow_example2()
-    >>> find_equilibrium_position(my_fluid_flow, print_along=False) # doctest: +ELLIPSIS
-    0.00010000...
+    >>> eccentricity = find_equilibrium_position(my_fluid_flow, print_along=False, tolerance=0.1)
     """
     r_force, t_force, force_x, force_y = calculate_oil_film_force(fluid_flow_object, force_type='numerical')
     increment = increment_factor * fluid_flow_object.eccentricity
