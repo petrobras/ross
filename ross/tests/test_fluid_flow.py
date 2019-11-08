@@ -1,6 +1,5 @@
 import math
 import numpy as np
-import pytest
 
 from ross.fluid_flow import fluid_flow as flow
 from bokeh.plotting import figure
@@ -234,7 +233,6 @@ def test_matplotlib_plots():
     assert isinstance(matplot_shape(bearing), ax_type)
 
 
-@pytest.mark.skip("Check PR error.")
 def test_find_equilibrium_position():
     bearing = fluid_flow_short_friswell()
     eccentricity = find_equilibrium_position(bearing, print_along=False, tolerance=0.1)
