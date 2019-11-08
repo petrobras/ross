@@ -117,7 +117,7 @@ def read_table_file(file, element, sheet_name=0, n=0, sheet_type="Model"):
                     if row[i].lower() == header_key_word:
                         header_index = index
                         header_found = True
-                if "inches" in row[i].lower() or "lbm" in row[i].lower():
+                if "inches" in row[i].lower() or "lbm" in row[i].lower() or 'lb' in row[i].lower():
                     convert_to_metric = True
                 if "rpm" in row[i].lower():
                     convert_to_rad_per_sec = True
