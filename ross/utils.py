@@ -241,10 +241,6 @@ def read_table_file(file, element, sheet_name=0, n=0, sheet_type="Model"):
                 else:
                     continue
     if element == "shaft":
-        new_n = parameters["n"]
-        for i in range(0, df.shape[0]):
-            new_n[i] -= 1
-        parameters["n"] = new_n
         if sheet_type == "Model":
             new_material = parameters["material"]
             for i in range(0, df.shape[0]):
