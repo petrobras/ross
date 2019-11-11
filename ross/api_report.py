@@ -1,4 +1,5 @@
 import numpy as np
+import pandas as pd
 from copy import copy
 from scipy.interpolate import interp1d
 from scipy.signal import argrelextrema
@@ -1023,10 +1024,117 @@ class Report:
 
         Parameters
         ----------
-        (Check what we need to calculate the applied cross coupling and list
-        them as parameters)
+
+        Returns
+        -------
+        df_logdec: pandas dataframe
+            A dataframe relating the logarithmic decrement for each
+            case analyzed
+
+        Example
+        -------
+        >>> rotor = rotor_example()
+        >>> report = Report(rotor=rotor,
+        ...                 minspeed=400,
+        ...                 maxspeed=1000,
+        ...                 speed_units="rad/s")
+        >>> dataframe = report.stability_level_2()
         """
-        pass
+        # Build a list of seals
+        seal_list = [
+            copy(seal)
+            for seal in self.rotor.bearing_seal_elements
+            if seal.__class__.__name__ == "SealElement"
+        ]
+        bearing_list = [
+            copy(b)
+            for b in self.rotor.bearing_seal_elements
+            if b.__class__.__name__ != "SealElement"
+        ]
+
+        log_dec_seal = []
+        log_dec_disk = []
+        log_dec_full = []
+
+        # Evaluate log dec for each component - Disks
+        for disk in self.rotor.disk_elements:
+            aux_rotor = Rotor(
+                shaft_elements=self.rotor.shaft_elements,
+                disk_elements=[disk],
+                bearing_seal_elements=bearing_list,
+                rated_w=self.maxspeed,
+            )
+            modal = aux_rotor.run_modal(speed=self.maxspeed)
+            non_backward = modal.whirl_direction() != "Backward"
+            log_dec_disk.append(modal.log_dec[non_backward][0])
+
+        # Evaluate log dec for group bearings + disks
+        disk_tags = [disk.tag for disk in self.rotor.disk_elements]
+        all_disks_tag = " + ".join(disk_tags)
+        disk_tags.append(all_disks_tag)
+
+        aux_rotor = Rotor(
+            shaft_elements=self.rotor.shaft_elements,
+            disk_elements=self.rotor.disk_elements,
+            bearing_seal_elements=bearing_list,
+            rated_w=self.maxspeed,
+        )
+        modal = aux_rotor.run_modal(speed=self.maxspeed)
+        non_backward = modal.whirl_direction() != "Backward"
+        log_dec_disk.append(modal.log_dec[non_backward][0])
+
+        # Evaluate log dec for each component - Seals
+        for seal in seal_list:
+            bearings_seal = deepcopy(bearing_list)
+            bearings_seal.append(seal)
+
+            aux_rotor = Rotor(
+                shaft_elements=self.rotor.shaft_elements,
+                disk_elements=[],
+                bearing_seal_elements=bearings_seal,
+                rated_w=self.rotor.rated_w,
+            )
+            modal = aux_rotor.run_modal(speed=self.maxspeed)
+            non_backward = modal.whirl_direction() != "Backward"
+            log_dec_seal.append(modal.log_dec[non_backward][0])
+
+        # Evaluate log dec for group bearings + seals
+        seal_tags = [seal.tag for seal in seal_list]
+        all_seals_tag = " + ".join(seal_tags)
+        seal_tags.append(all_seals_tag)
+
+        aux_rotor = Rotor(
+            shaft_elements=self.rotor.shaft_elements,
+            disk_elements=[],
+            bearing_seal_elements=self.rotor.bearing_seal_elements,
+            rated_w=self.maxspeed,
+        )
+        modal = aux_rotor.run_modal(speed=self.maxspeed)
+        non_backward = modal.whirl_direction() != "Backward"
+        log_dec_seal.append(modal.log_dec[non_backward][0])
+
+        # Evaluate log dec for all components
+        modal = self.rotor.run_modal(speed=self.maxspeed)
+        non_backward = modal.whirl_direction() != "Backward"
+        log_dec_full.append(modal.log_dec[non_backward][0])
+        rotor_tags = [self.tag]
+
+        data_disk = {"tags": disk_tags, "log_dec": log_dec_disk}
+        data_seal = {"tags": seal_tags, "log_dec": log_dec_seal}
+        data_rotor = {"tags": rotor_tags, "log_dec":  log_dec_full}
+
+        df_logdec_disk = pd.DataFrame(data_disk)
+        df_logdec_seal = pd.DataFrame(data_seal)
+        df_logdec_full = pd.DataFrame(data_rotor)
+        df_logdec = pd.concat([df_logdec_disk, df_logdec_seal, df_logdec_full])
+        df_logdec = df_logdec.reset_index(drop=True)
+
+        self.df_logdec_disk = df_logdec_disk
+        self.df_logdec_seal = df_logdec_seal
+        self.df_logdec_full = df_logdec_full
+        self.df_logdec = df_logdec
+
+        return df_logdec
 
     def summary(self):
         """Report summary
