@@ -840,7 +840,7 @@ class CampbellResults:
         camp.legend.click_policy = "mute"
         camp.legend.location = "top_left"
         camp.legend.label_text_font_size = "16pt"
-        camp.add_layout(color_bar, "right"))
+        camp.add_layout(color_bar, "right")
 
         return camp
 
