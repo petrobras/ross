@@ -1069,9 +1069,9 @@ class Report:
             log_dec_disk.append(modal.log_dec[non_backward][0])
 
         # Evaluate log dec for group bearings + disks
-        disk_tags = [disk.tag for disk in self.rotor.disk_elements]
-        all_disks_tag = " + ".join(disk_tags)
-        disk_tags.append(all_disks_tag)
+        disk_tags = ["Shaft + Bearings + " + disk.tag for disk in self.rotor.disk_elements]
+        all_disks_tag = " + ".join([disk.tag for disk in self.rotor.disk_elements])
+        disk_tags.append("Shaft + Bearings + " + all_disks_tag)
 
         aux_rotor = Rotor(
             shaft_elements=self.rotor.shaft_elements,
@@ -1099,9 +1099,9 @@ class Report:
             log_dec_seal.append(modal.log_dec[non_backward][0])
 
         # Evaluate log dec for group bearings + seals
-        seal_tags = [seal.tag for seal in seal_list]
-        all_seals_tag = " + ".join(seal_tags)
-        seal_tags.append(all_seals_tag)
+        seal_tags = ["Shaft + Bearings + " + seal.tag for seal in seal_list]
+        all_seals_tag = " + ".join([seal.tag for seal in seal_list])
+        seal_tags.append("Shaft + Bearings + " + all_seals_tag)
 
         aux_rotor = Rotor(
             shaft_elements=self.rotor.shaft_elements,
@@ -1148,8 +1148,26 @@ class Report:
         -------
         tabs : bokeh WidgetBox
             Bokeh WidgetBox with the summary table plot
+
+        Example
+        -------
+        >>> rotor = rotor_example()
+        >>> report = Report(rotor=rotor,
+        ...                 minspeed=400,
+        ...                 maxspeed=1000,
+        ...                 speed_units="rad/s")
+        >>> stability1 = report.stability_level_1(D=[0.35, 0.35],
+        ...                          H=[0.08, 0.08],
+        ...                          HP=[10000, 10000],
+        ...                          RHO_ratio=[1.11, 1.14],
+        ...                          RHOd=30.45,
+        ...                          RHOs=37.65,
+        ...                          oper_speed=1000.0)
+        >>> stability2 = report.stability_level_2()
+        >>> report.summary() # doctest: +ELLIPSIS
+        Tabs...
         """
-        machine_data = dict(
+        stab_lvl1_data = dict(
             tags=[self.tag],
             machine_type=[self.machine_type],
             Q0=[self.Q0],
@@ -1161,22 +1179,32 @@ class Report:
             CSR=[self.CSR],
             RHO_gas=[self.RHO_gas],
         )
-        machine_source = ColumnDataSource(machine_data)
+        stab_lvl2_data = dict(
+            tags=self.df_logdec['tags'],
+            logdec=self.df_logdec['log_dec'],
+        )
 
-        machine_titles = [
+        stab_lvl1_source = ColumnDataSource(stab_lvl1_data)
+        stab_lvl2_source = ColumnDataSource(stab_lvl2_data)
+
+        stab_lvl1_titles = [
             "Rotor Tag",
             "Machine Type",
             "$Q_0$ (N/m)",
             "$Q_A$ (N/m)",
-            "",
+            "log dec (δ)",
             "$Q_0 / Q_A$",
             "1st Critical Spped (RPM)",
             "MCS",
             "CSR",
             "Gas Density (kg/m³)",
         ]
+        stab_lvl2_titles = [
+            "Components",
+            "Log. Dec.",
+        ]
 
-        machine_formatters = [
+        stab_lvl1_formatters = [
             None,
             None,
             NumberFormatter(format="0.000"),
@@ -1188,20 +1216,36 @@ class Report:
             NumberFormatter(format="0.000"),
             NumberFormatter(format="0.000"),
         ]
+        stab_lvl2_formatters = [
+            None,
+            NumberFormatter(format="0.0000"),
+        ]
 
-        machine_columns = [
+        stab_lvl1_columns = [
             TableColumn(field=str(field), title=title, formatter=form)
             for field, title, form in zip(
-                machine_data.keys(), machine_titles, machine_formatters
+                stab_lvl1_data.keys(), stab_lvl1_titles, stab_lvl1_formatters
+            )
+        ]
+        stab_lvl2_columns = [
+            TableColumn(field=str(field), title=title, formatter=form)
+            for field, title, form in zip(
+                stab_lvl2_data.keys(), stab_lvl2_titles, stab_lvl2_formatters
             )
         ]
 
-        machine_data_table = DataTable(
-            source=machine_source, columns=machine_columns, width=1600
+        stab_lvl1_table = DataTable(
+            source=stab_lvl1_source, columns=stab_lvl1_columns, width=1600
         )
-        rotor_table = widgetbox(machine_data_table)
-        tab1 = Panel(child=rotor_table, title="Stability Level 1")
+        stab_lvl2_table = DataTable(
+            source=stab_lvl2_source, columns=stab_lvl2_columns, width=1600
+        )
 
-        tabs = Tabs(tabs=[tab1])
+        table1 = widgetbox(stab_lvl1_table)
+        tab1 = Panel(child=table1, title="Stability Level 1")
+        table2 = widgetbox(stab_lvl2_table)
+        tab2 = Panel(child=table2, title="Stability Level 2")
+
+        tabs = Tabs(tabs=[tab1, tab2])
 
         return tabs
