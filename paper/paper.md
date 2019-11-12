@@ -58,7 +58,7 @@ Frequency response, Forced response, and Mode Shapes.
 As an example, Figure 1 shows a centrifugal compressor modeled with ROSS. The shaft elements are in gray, 
 the disks are in blue and the bearings are displayed as springs and dampers.
 
-![Centrifugal Compressor modeled with ROSS.](rotor_plot.png)
+<img src="rotor_plot.png" alt="Centrifugal Compressor modeled with ROSS." width="400"/>
 
 In this case we used Timoshenko beam theory to model the shaft elements as described by [@friswell2010dynamics].
 
