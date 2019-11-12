@@ -524,9 +524,8 @@ class Report:
                 y_offset=20,
             )
         )
-        mag_plot.width = 1280
-        mag_plot.height = 720
-        mag_plot.title.text_font_size = "14pt"
+        mag_plot.width = 640
+        mag_plot.height = 480
 
         return mag_plot
 
@@ -562,8 +561,7 @@ class Report:
         df_bearings = self.rotor.df_bearings
         df_disks = self.rotor.df_disks
 
-        # TODO: Add mcs speed to evaluate mode shapes
-        modal = self.rotor.run_modal(speed=0)
+        modal = self.rotor.run_modal(speed=self.maxspeed)
         xn, yn, zn, xc, yc, zc_pos, nn = modal.calc_mode_shape(mode=mode)
 
         # reduce 3D view to 2D view
@@ -638,9 +636,10 @@ class Report:
             x_axis_label="Rotor lenght",
             y_axis_label="Non dimensional rotor deformation",
         )
-        plot.xaxis.axis_label_text_font_size = "12pt"
-        plot.yaxis.axis_label_text_font_size = "12pt"
         plot.title.text_font_size = "14pt"
+        plot.xaxis.axis_label_text_font_size = "20pt"
+        plot.yaxis.axis_label_text_font_size = "20pt"
+        plot.axis.major_label_text_font_size = "16pt"
 
         nodes_pos = np.array(nodes_pos)
         rpm_speed = (30 / np.pi) * modal.wn[mode]
@@ -728,15 +727,18 @@ class Report:
             Adopted unit system.
             Default is "m"
 
+        Attributes
+        ----------
+        condition: str
+            not required: Stability Level 1 satisfies the analysis;
+            required: Stability Level 2 is required.
+
         Return
         ------
         fig1: bokeh.figure
             Applied Cross-Coupled Stiffness vs. Log Decrement plot;
         fig2: bokeh.figure
             CSR vs. Mean Gas Density plot.
-        condition: str
-            not required: Stability Level 1 satisfies the analysis;
-            required: Stability Level 2 is required.
 
         Example
         -------
@@ -893,9 +895,10 @@ class Report:
             x_range=(0, max(cross_coupled_Qa)),
             y_range=DataRange1d(start=0),
         )
-        fig1.title.text_font_size = "11pt"
-        fig1.xaxis.axis_label_text_font_size = "11pt"
-        fig1.yaxis.axis_label_text_font_size = "11pt"
+        fig1.title.text_font_size = "14pt"
+        fig1.xaxis.axis_label_text_font_size = "20pt"
+        fig1.yaxis.axis_label_text_font_size = "20pt"
+        fig1.axis.major_label_text_font_size = "16pt"
 
         fig1.line(
             cross_coupled_Qa, log_dec, line_width=3, line_color=bokeh_colors[0]
@@ -933,9 +936,10 @@ class Report:
             y_range=DataRange1d(start=0),
             x_range=DataRange1d(start=0),
         )
-        fig2.title.text_font_size = "11pt"
-        fig2.xaxis.axis_label_text_font_size = "11pt"
-        fig2.yaxis.axis_label_text_font_size = "11pt"
+        fig2.title.text_font_size = "14pt"
+        fig2.xaxis.axis_label_text_font_size = "20pt"
+        fig2.yaxis.axis_label_text_font_size = "20pt"
+        fig2.axis.major_label_text_font_size = "16pt"
         fig2.extra_x_ranges = {"x_range2": Range1d(f * min(RHO), f * max(RHO))}
 
         fig2.add_layout(
@@ -1010,7 +1014,7 @@ class Report:
         self.RHO_gas = RHO_mean
         self.condition = condition
 
-        return fig1, fig2, condition
+        return fig1, fig2
 
     def stability_level_2(self):
         """Stability analysis level 2.
@@ -1199,10 +1203,7 @@ class Report:
             "CSR",
             "Gas Density (kg/m³)",
         ]
-        stab_lvl2_titles = [
-            "Components",
-            "Log. Dec.",
-        ]
+        stab_lvl2_titles = ["Components", "Log. Dec."]
 
         stab_lvl1_formatters = [
             None,
@@ -1216,10 +1217,7 @@ class Report:
             NumberFormatter(format="0.000"),
             NumberFormatter(format="0.000"),
         ]
-        stab_lvl2_formatters = [
-            None,
-            NumberFormatter(format="0.0000"),
-        ]
+        stab_lvl2_formatters = [None, NumberFormatter(format="0.0000")]
 
         stab_lvl1_columns = [
             TableColumn(field=str(field), title=title, formatter=form)
