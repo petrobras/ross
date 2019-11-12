@@ -493,8 +493,8 @@ class ModalResults:
         ax.set_xlim(zn_cl0 - 0.1, zn_cl1 + 0.1)
 
         ax.set_title(
-            f"$speed$ = {self.speed:.1f} rad/s\n$"
-            f"\omega_n$ = {self.wn[mode]:.1f} rad/s\n"
+            f"$mode$ {mode + 1} - $speed$ = {self.speed:.1f} rad/s\n"
+            f"$\omega_n$ = {self.wn[mode]:.1f} rad/s\n"
             f"$log dec$ = {self.log_dec[mode]:.1f}\n"
             f"$whirl\_direction$ = {self.whirl_direction()[mode]}",
             fontsize=18,
