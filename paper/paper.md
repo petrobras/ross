@@ -51,19 +51,34 @@ systems, and to support decision making. To this purpose, we present ROSS, an op
 library written in Python for rotordynamic analysis.
 
 ROSS allows modeling finite elements for components such as shafts, disks, and bearings, 
-and join them in order to construct rotors. It is possible to plot the rotor geometry, 
+and join them in order to construct rotors. For shaft elements we can use Timoshenko beam 
+theory as described by [@friswell2010dynamics], in this case shear and rotary inertia effects 
+are considered. Disks are assumed to be rigid and we ignore the strain energy for their model.
+For the bearings a linear load-deflection relationship is assumed.
+
+After defining the elements and assembling the system, it is possible to plot the rotor geometry, 
 run simulations, and obtain results in the form of graphics, by performing Static analysis, Campbell Diagram,
 Frequency response, Forced response, and Mode Shapes.
+
+The package has been built using main Python packages such as numpy ([@walt2011numpy]), scipy ([@jones2014scipy]) 
+and bokeh ([@bokeh2019]).
+
+In addition to the [documentation](https://ross-rotordynamics.github.io/ross-website/), a set of Jupyter Notebooks 
+is available for the tutorial and some examples. These notebooks can also be accessed through a 
+[binder server](https://mybinder.org/v2/gh/ross-rotordynamics/ross/master).
 
 As an example, Figure 1 shows a centrifugal compressor modeled with ROSS. The shaft elements are in gray, 
 the disks are in blue and the bearings are displayed as springs and dampers.
 
 ![Centrifugal Compressor modeled with ROSS.](rotor_plot.png)
 
-In this case we used Timoshenko beam theory to model the shaft elements as described by [@friswell2010dynamics].
 
 Figure 2 shows the Campbell Diagram generated for this compressor.
 
 ![Campbell Diagram for the Centrifugal Compressor.](campbell.png)
+
+# Acknowledgements
+We acknowledge that ROSS development is supported by Petrobras, Universidade Federal do Rio de Janeiro (UFRJ) and 
+Agência Nacional de Petróleo, Gás Natural e Biocombustíveis (ANP).
 
 # References
