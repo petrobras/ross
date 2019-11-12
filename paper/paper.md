@@ -60,20 +60,24 @@ After defining the elements and assembling the system, it is possible to plot th
 run simulations, and obtain results in the form of graphics, by performing Static analysis, Campbell Diagram,
 Frequency response, Forced response, and Mode Shapes.
 
-The package has been built using main Python packages such as numpy ([@walt2011numpy]), scipy ([@jones2014scipy]) 
-and bokeh ([@bokeh2019]).
+The package has been built using main Python packages such as numpy [@walt2011numpy], scipy [@jones2014scipy] 
+and bokeh [@bokeh2019].
 
 In addition to the [documentation](https://ross-rotordynamics.github.io/ross-website/), a set of Jupyter Notebooks 
 is available for the tutorial and some examples. These notebooks can also be accessed through a 
 [binder server](https://mybinder.org/v2/gh/ross-rotordynamics/ross/master).
 
-As an example, Figure 1 shows a centrifugal compressor modeled with ROSS. The shaft elements are in gray, 
-the disks are in blue and the bearings are displayed as springs and dampers.
+As an example, Figure 1 shows a centrifugal compressor modeled with ROSS. 
 
 ![Centrifugal Compressor modeled with ROSS.](rotor_plot.png)
 
+The shaft elements are in gray, 
+the disks are in blue and the bearings are displayed as springs and dampers. This plot is generated with bokeh, 
+and the hover tool can be used to get additional information on each element.
 
-Figure 2 shows the Campbell Diagram generated for this compressor.
+One of the analyses that can be carried ou is the modal analysis. If the modal analysis is carried out for a range 
+of different rotor speed we can assemble the Campbel Diagram. Figure 2 shows the Campbell Diagram generated 
+for this compressor.
 
 ![Campbell Diagram for the Centrifugal Compressor.](campbell.png)
 
