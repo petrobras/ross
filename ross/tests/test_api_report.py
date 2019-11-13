@@ -242,7 +242,6 @@ def test_stability_level1(report0, report1, report2):
 def test_stability_level2(report0, report1, report2):
     df0 = report0.stability_level_2()
     df1 = report1.stability_level_2()
-    df2 = report2.stability_level_2()
 
     assert_allclose(
         df0["log_dec"].tolist(),
@@ -265,15 +264,3 @@ def test_stability_level2(report0, report1, report2):
         ],
         atol=1e-6,
     )
-    assert_allclose(
-        df2["log_dec"].tolist(),
-        [
-            0.18583253961189522,
-            0.1234528382387709,
-            0.13263883296849005,
-            0.6795260384463433,
-            0.13263883219846548,
-        ],
-        atol=1e-6,
-    )
-
