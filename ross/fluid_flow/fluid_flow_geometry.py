@@ -273,12 +273,11 @@ def move_rotor_center(fluid_flow_object, dx, dy):
         The step on y axis.
     Returns
     -------
-    A FluidFlow object with modified attributes.
-    Examples
+    None
     --------
     >>> from ross.fluid_flow.fluid_flow import fluid_flow_example2
     >>> my_fluid_flow = fluid_flow_example2()
-    >>> my_fluid_flow = move_rotor_center(my_fluid_flow, 0, 0)
+    >>> move_rotor_center(my_fluid_flow, 0, 0)
     >>> my_fluid_flow.eccentricity # doctest: +ELLIPSIS
     2.6627...
     """
@@ -287,7 +286,6 @@ def move_rotor_center(fluid_flow_object, dx, dy):
     fluid_flow_object.eccentricity = np.sqrt(fluid_flow_object.xi**2 + fluid_flow_object.yi**2)
     fluid_flow_object.eccentricity_ratio = fluid_flow_object.eccentricity / fluid_flow_object.difference_between_radius
     fluid_flow_object.attitude_angle = np.arccos(abs(fluid_flow_object.yi/fluid_flow_object.eccentricity))
-    return fluid_flow_object
 
 
 
