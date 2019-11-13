@@ -236,7 +236,7 @@ def test_stability_level1(report0, report1, report2):
     assert_allclose(report2.crit_speed, 38.263712414670984, atol=1e-4)
     assert_allclose(report2.MCS, 1000.0736613927509, atol=1e-4)
     assert_allclose(report2.RHO_gas, 34.05, atol=1e-4)
-    assert report2.condition == 'required"
+    assert report2.condition == 'required'
 
 
 def test_stability_level2(report0, report1, report2):
