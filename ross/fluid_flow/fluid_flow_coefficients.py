@@ -1,7 +1,8 @@
 import numpy as np
 from scipy import integrate
 from math import isnan
-from ross.fluid_flow.fluid_flow_geometry import calculate_attitude_angle
+from ross.fluid_flow.fluid_flow_geometry import calculate_attitude_angle, move_rotor_center
+from copy import deepcopy
 
 
 def calculate_analytical_stiffness_matrix(load, eccentricity_ratio, radial_clearance):
@@ -203,53 +204,27 @@ def calculate_stiffness_matrix(fluid_flow_object, oil_film_force='numerical'):
     """
     [radial_force, tangential_force, force_x, force_y] = \
         calculate_oil_film_force(fluid_flow_object, force_type=oil_film_force)
-    temp = fluid_flow_object.eccentricity
-    temp_angle = fluid_flow_object.attitude_angle
-    e = fluid_flow_object.eccentricity
-    beta = fluid_flow_object.attitude_angle
+    delta = fluid_flow_object.difference_between_radius / 100
 
-    delta_x = fluid_flow_object.difference_between_radius / 100
-    eccentricity_x = (
-                             e ** 2 + delta_x ** 2 - 2 * e * delta_x
-                             * np.cos(np.pi / 2 + fluid_flow_object.attitude_angle)
-                     )**(1/2)
-    beta_x = np.arccos((e**2 + eccentricity_x**2 - delta_x**2)
-                              / (2 * e * eccentricity_x))
-    fluid_flow_object.eccentricity = eccentricity_x
-    fluid_flow_object.attitude_angle = beta + beta_x
-    fluid_flow_object.calculate_coefficients()
-    fluid_flow_object.calculate_pressure_matrix_numerical()
+    fluid_flow_x = deepcopy(fluid_flow_object)
+    move_rotor_center(fluid_flow_x, delta, 0)
+    fluid_flow_x.calculate_coefficients()
+    fluid_flow_x.calculate_pressure_matrix_numerical()
     [radial_force_x, tangential_force_x, force_x_x, force_y_x] = \
-        calculate_oil_film_force(fluid_flow_object, force_type=oil_film_force)
+        calculate_oil_film_force(fluid_flow_x, force_type=oil_film_force)
 
-    fluid_flow_object.eccentricity = temp
-    fluid_flow_object.attitude_angle = temp_angle
-    e = fluid_flow_object.eccentricity
-    beta = fluid_flow_object.attitude_angle
-
-    delta_y = fluid_flow_object.difference_between_radius / 100
-    eccentricity_y = (
-                             e ** 2 + delta_y ** 2 - 2 * e * delta_y
-                             * np.cos(fluid_flow_object.attitude_angle)
-                     )**(1/2)
-    beta_y = np.arccos((e ** 2 + eccentricity_y ** 2 - delta_y ** 2)
-                       / (2 * e * eccentricity_y))
-    fluid_flow_object.eccentricity = eccentricity_y
-    fluid_flow_object.attitude_angle = beta + beta_y
-    fluid_flow_object.calculate_coefficients()
-    fluid_flow_object.calculate_pressure_matrix_numerical()
+    fluid_flow_y = deepcopy(fluid_flow_object)
+    move_rotor_center(fluid_flow_y, 0, delta)
+    fluid_flow_y.calculate_coefficients()
+    fluid_flow_y.calculate_pressure_matrix_numerical()
     [radial_force_y, tangential_force_y, force_x_y, force_y_y] = \
-        calculate_oil_film_force(fluid_flow_object, force_type=oil_film_force)
+        calculate_oil_film_force(fluid_flow_y, force_type=oil_film_force)
 
-    k_xx = (force_x - force_x_x) / delta_x
-    k_yx = (force_y - force_y_x) / delta_x
-    k_xy = (force_x - force_x_y) / delta_y
-    k_yy = (force_y - force_y_y) / delta_y
+    k_xx = (force_x - force_x_x) / delta
+    k_yx = (force_y - force_y_x) / delta
+    k_xy = (force_x - force_x_y) / delta
+    k_yy = (force_y - force_y_y) / delta
 
-    fluid_flow_object.eccentricity = temp
-    fluid_flow_object.attitude_angle = temp_angle
-    fluid_flow_object.calculate_coefficients()
-    fluid_flow_object.calculate_pressure_matrix_numerical()
     return [k_xx, k_xy, k_yx, k_yy]
 
 
