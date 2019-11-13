@@ -61,6 +61,7 @@ run simulations, and obtain results in the form of graphics, by performing Stati
 Frequency response, Forced response, and Mode Shapes.
 
 The general form of the equation for the system, after matrix assembly is
+
 $$\begin{equation}\label{eq:general-form}
     \mathbf{M \ddot{q}}
     + \mathbf{C(\Omega) \dot{q}}
@@ -68,6 +69,7 @@ $$\begin{equation}\label{eq:general-form}
     + \mathbf{K(\Omega) {q}}
     = \mathbf{f}\,,
 \end{equation}$$
+
 where $\textbf{q}$ represents the displacements and rotations at the
 nodes, $\mathbf{M}$, $\mathbf{K}$, $\mathbf{C}$ and $\mathbf{G}$ are the mass, stiffness, damping and gyroscopic 
 matrices, $\Omega$ is the rotor whirl speed and $\mathbf{f}$ is the generalized force vector.
