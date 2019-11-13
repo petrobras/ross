@@ -723,8 +723,8 @@ class Report:
             Suction gas density in the first stage, kg/m3 (lbm/in.3).
         RHOd: float
             Discharge gas density in the last stage, kg/m3 (lbm/in.3),
-        unit: str
-            Adopted unit system.
+        unit: str, optional
+            Adopted unit system. Options are "m" (meter) and "in" (inch)
             Default is "m"
 
         Attributes
@@ -824,7 +824,7 @@ class Report:
                     bearing_seal_elements=bearings,
                     rated_w=self.rotor.rated_w,
                 )
-                modal = aux_rotor.run_modal(speed=oper_speed)
+                modal = aux_rotor.run_modal(speed=oper_speed * np.pi / 30)
                 non_backward = modal.whirl_direction() != "Backward"
                 log_dec[i] = modal.log_dec[non_backward][0]
 
@@ -845,7 +845,7 @@ class Report:
                     bearing_seal_elements=bearings,
                     rated_w=self.rotor.rated_w,
                 )
-                modal = aux_rotor.run_modal(speed=oper_speed)
+                modal = aux_rotor.run_modal(speed=oper_speed * np.pi / 30)
                 non_backward = modal.whirl_direction() != "Backward"
                 log_dec[i] = modal.log_dec[non_backward][0]
 
