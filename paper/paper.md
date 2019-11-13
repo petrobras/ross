@@ -60,6 +60,17 @@ After defining the elements and assembling the system, it is possible to plot th
 run simulations, and obtain results in the form of graphics, by performing Static analysis, Campbell Diagram,
 Frequency response, Forced response, and Mode Shapes.
 
+The general form of the equation for the system, after matrix assembly is
+$$\begin{equation}\label{eq:general-form}
+    \mathbf{M \ddot{q}}
+    + \mathbf{C(\Omega) \dot{q}}
+    + \omega \mathbf{G \dot{q}}
+    + \mathbf{K(\Omega) {q}}
+    = \mathbf{f}\,,
+\end{equation}$$
+where $\textbf{q}$ represents the displacements and rotations at the
+nodes, $\mathbf{M}$, $\mathbf{K}$, $\mathbf{C}$ and $\mathbf{G}$ are the mass, stiffness, damping and gyroscopic 
+matrices, $\Omega$ is the rotor whirl speed and $\mathbf{f}$ is the generalized force vector.
 The package has been built using main Python packages such as numpy [@walt2011numpy], scipy [@jones2014scipy] 
 and bokeh [@bokeh2019].
 
