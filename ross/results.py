@@ -493,10 +493,14 @@ class ModalResults:
         ax.set_xlim(zn_cl0 - 0.1, zn_cl1 + 0.1)
 
         ax.set_title(
-            f"$speed$ = {self.speed:.1f} rad/s\n$"
-            f"\omega_d$ = {self.wd[mode]:.1f} rad/s\n"
-            f"$log dec$ = {self.log_dec[mode]:.1f}"
+            f"$mode$ {mode + 1} - $speed$ = {self.speed:.1f} rad/s\n"
+            f"$\omega_n$ = {self.wn[mode]:.1f} rad/s\n"
+            f"$log dec$ = {self.log_dec[mode]:.1f}\n"
+            f"$whirl\_direction$ = {self.whirl_direction()[mode]}",
+            fontsize=18,
         )
+        ax.tick_params(axis='both', which='major', labelsize=18)
+        ax.tick_params(axis='both', which='minor', labelsize=18)
 
         return fig, ax
 
@@ -710,8 +714,10 @@ class CampbellResults:
             x_axis_label="Rotor speed (rad/s)",
             y_axis_label="Damped natural frequencies (rad/s)",
         )
-        camp.xaxis.axis_label_text_font_size = "14pt"
-        camp.yaxis.axis_label_text_font_size = "14pt"
+        camp.xaxis.axis_label_text_font_size = "20pt"
+        camp.yaxis.axis_label_text_font_size = "20pt"
+        camp.axis.major_label_text_font_size = "16pt"
+        camp.title.text_font_size = "14pt"
         hover = False
 
         color_mapper = linear_cmap(
@@ -823,15 +829,17 @@ class CampbellResults:
             location=(0, 0),
             title="log dec",
             title_text_font_style="bold italic",
+            title_text_font_size="16pt",
             title_text_align="center",
             major_label_text_align="left",
+            major_label_text_font_size="16pt",
         )
         if hover:
             camp.add_tools(hover)
         camp.legend.background_fill_alpha = 0.1
         camp.legend.click_policy = "mute"
         camp.legend.location = "top_left"
-        camp.legend.label_text_font_size = "8pt"
+        camp.legend.label_text_font_size = "16pt"
         camp.add_layout(color_bar, "right")
 
         return camp
@@ -990,8 +998,10 @@ class FrequencyResponseResults:
             x_axis_label="Frequency (rad/s)",
             y_axis_label=y_axis_label,
         )
-        mag_plot.xaxis.axis_label_text_font_size = "14pt"
-        mag_plot.yaxis.axis_label_text_font_size = "14pt"
+        mag_plot.xaxis.axis_label_text_font_size = "20pt"
+        mag_plot.yaxis.axis_label_text_font_size = "20pt"
+        mag_plot.axis.major_label_text_font_size = "16pt"
+        mag_plot.title.text_font_size = "14pt"
 
         source = ColumnDataSource(dict(x=frequency_range, y=mag[inp, out, :]))
         mag_plot.line(
@@ -1077,8 +1087,10 @@ class FrequencyResponseResults:
             x_axis_label="Frequency (rad/s)",
             y_axis_label="Phase",
         )
-        phase_plot.xaxis.axis_label_text_font_size = "14pt"
-        phase_plot.yaxis.axis_label_text_font_size = "14pt"
+        phase_plot.xaxis.axis_label_text_font_size = "20pt"
+        phase_plot.yaxis.axis_label_text_font_size = "20pt"
+        phase_plot.axis.major_label_text_font_size = "16pt"
+        phase_plot.title.text_font_size = "14pt"
 
         source = ColumnDataSource(dict(x=frequency_range, y=phase[inp, out, :]))
         phase_plot.line(
@@ -1372,8 +1384,10 @@ class ForcedResponseResults:
             x_range=[0, max(frequency_range)],
             y_axis_label=y_axis_label,
         )
-        mag_plot.xaxis.axis_label_text_font_size = "14pt"
-        mag_plot.yaxis.axis_label_text_font_size = "14pt"
+        mag_plot.xaxis.axis_label_text_font_size = "20pt"
+        mag_plot.yaxis.axis_label_text_font_size = "20pt"
+        mag_plot.axis.major_label_text_font_size = "16pt"
+        mag_plot.title.text_font_size = "14pt"
 
         source = ColumnDataSource(dict(x=frequency_range, y=mag[dof]))
         mag_plot.line(
@@ -1465,8 +1479,10 @@ class ForcedResponseResults:
             line_alpha=1.0,
             line_width=3,
         )
-        phase_plot.xaxis.axis_label_text_font_size = "14pt"
-        phase_plot.yaxis.axis_label_text_font_size = "14pt"
+        phase_plot.xaxis.axis_label_text_font_size = "20pt"
+        phase_plot.yaxis.axis_label_text_font_size = "20pt"
+        phase_plot.axis.major_label_text_font_size = "16pt"
+        phase_plot.title.text_font_size = "14pt"
 
         return phase_plot
 
@@ -1655,8 +1671,9 @@ class StaticResults:
             x_axis_label="Shaft lenght",
             y_axis_label="Lateral displacement",
         )
-        fig.xaxis.axis_label_text_font_size = "14pt"
-        fig.yaxis.axis_label_text_font_size = "14pt"
+        fig.xaxis.axis_label_text_font_size = "20pt"
+        fig.yaxis.axis_label_text_font_size = "20pt"
+        fig.axis.major_label_text_font_size = "16pt"
         fig.title.text_font_size = "14pt"
 
         interpolated = interpolate.interp1d(
@@ -1741,7 +1758,8 @@ class StaticResults:
             y_range=[-3 * y_start, 3 * y_start],
         )
         fig.yaxis.visible = False
-        fig.xaxis.axis_label_text_font_size = "14pt"
+        fig.xaxis.axis_label_text_font_size = "20pt"
+        fig.axis.major_label_text_font_size = "16pt"
         fig.title.text_font_size = "14pt"
 
         fig.line("x", "y1", source=source, line_width=5, line_color=bokeh_colors[0])
@@ -1884,8 +1902,9 @@ class StaticResults:
             y_axis_label="Force",
             x_range=[-0.1 * shaft_end, 1.1 * shaft_end],
         )
-        fig.xaxis.axis_label_text_font_size = "14pt"
-        fig.yaxis.axis_label_text_font_size = "14pt"
+        fig.xaxis.axis_label_text_font_size = "20pt"
+        fig.yaxis.axis_label_text_font_size = "20pt"
+        fig.axis.major_label_text_font_size = "16pt"
         fig.title.text_font_size = "14pt"
 
         fig.line("x", "y", source=source_SF, line_width=4, line_color=bokeh_colors[0])
@@ -1929,8 +1948,9 @@ class StaticResults:
             y_axis_label="Bending Moment",
             x_range=[-0.1 * shaft_end, 1.1 * shaft_end],
         )
-        fig.xaxis.axis_label_text_font_size = "14pt"
-        fig.yaxis.axis_label_text_font_size = "14pt"
+        fig.xaxis.axis_label_text_font_size = "20pt"
+        fig.yaxis.axis_label_text_font_size = "20pt"
+        fig.axis.major_label_text_font_size = "16pt"
         fig.title.text_font_size = "14pt"
 
         i = 0
@@ -2266,8 +2286,10 @@ class ConvergenceResults:
             x_axis_label="Numer of Elements",
             y_axis_label="Frequency (rad/s)",
         )
-        freq_arr.xaxis.axis_label_text_font_size = "14pt"
-        freq_arr.yaxis.axis_label_text_font_size = "14pt"
+        freq_arr.xaxis.axis_label_text_font_size = "20pt"
+        freq_arr.yaxis.axis_label_text_font_size = "20pt"
+        freq_arr.axis.major_label_text_font_size = "16pt"
+        freq_arr.title.text_font_size = "14pt"
 
         freq_arr.line("x0", "y0", source=source, line_width=3, line_color="crimson")
         freq_arr.circle("x0", "y0", source=source, size=8, fill_color="crimson")
@@ -2282,8 +2304,10 @@ class ConvergenceResults:
             x_axis_label="Number of Elements",
             y_axis_label="Relative Error (%)",
         )
-        rel_error.xaxis.axis_label_text_font_size = "14pt"
-        rel_error.yaxis.axis_label_text_font_size = "14pt"
+        rel_error.xaxis.axis_label_text_font_size = "20pt"
+        rel_error.yaxis.axis_label_text_font_size = "20pt"
+        rel_error.axis.major_label_text_font_size = "16pt"
+        rel_error.title.text_font_size = "14pt"
 
         rel_error.line(
             "x0", "y1", source=source, line_width=3, line_color="darkslategray"
@@ -2409,10 +2433,11 @@ class TimeResponseResults:
             x_axis_label="Time (s)",
             y_axis_label="Amplitude (%s)" % amp,
         )
-        bk_ax.xaxis.axis_label_text_font_size = "14pt"
-        bk_ax.yaxis.axis_label_text_font_size = "14pt"
+        bk_ax.xaxis.axis_label_text_font_size = "20pt"
+        bk_ax.yaxis.axis_label_text_font_size = "20pt"
+        bk_ax.axis.major_label_text_font_size = "16pt"
+        bk_ax.title.text_font_size = "14pt"
 
-        # bokeh plot - plot shaft centerline
         bk_ax.line(
             self.t, self.yout[:, self.dof], line_width=3, line_color=bokeh_colors[0]
         )

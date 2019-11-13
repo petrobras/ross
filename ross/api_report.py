@@ -524,9 +524,8 @@ class Report:
                 y_offset=20,
             )
         )
-        mag_plot.width = 1280
-        mag_plot.height = 720
-        mag_plot.title.text_font_size = "14pt"
+        mag_plot.width = 640
+        mag_plot.height = 480
 
         return mag_plot
 
@@ -562,8 +561,7 @@ class Report:
         df_bearings = self.rotor.df_bearings
         df_disks = self.rotor.df_disks
 
-        # TODO: Add mcs speed to evaluate mode shapes
-        modal = self.rotor.run_modal(speed=0)
+        modal = self.rotor.run_modal(speed=self.maxspeed)
         xn, yn, zn, xc, yc, zc_pos, nn = modal.calc_mode_shape(mode=mode)
 
         # reduce 3D view to 2D view
@@ -638,9 +636,10 @@ class Report:
             x_axis_label="Rotor lenght",
             y_axis_label="Non dimensional rotor deformation",
         )
-        plot.xaxis.axis_label_text_font_size = "12pt"
-        plot.yaxis.axis_label_text_font_size = "12pt"
         plot.title.text_font_size = "14pt"
+        plot.xaxis.axis_label_text_font_size = "20pt"
+        plot.yaxis.axis_label_text_font_size = "20pt"
+        plot.axis.major_label_text_font_size = "16pt"
 
         nodes_pos = np.array(nodes_pos)
         rpm_speed = (30 / np.pi) * modal.wn[mode]
@@ -724,9 +723,15 @@ class Report:
             Suction gas density in the first stage, kg/m3 (lbm/in.3).
         RHOd: float
             Discharge gas density in the last stage, kg/m3 (lbm/in.3),
-        unit: str
-            Adopted unit system.
+        unit: str, optional
+            Adopted unit system. Options are "m" (meter) and "in" (inch)
             Default is "m"
+
+        Attributes
+        ----------
+        condition: str
+            not required: Stability Level 1 satisfies the analysis;
+            required: Stability Level 2 is required.
 
         Return
         ------
@@ -734,9 +739,6 @@ class Report:
             Applied Cross-Coupled Stiffness vs. Log Decrement plot;
         fig2: bokeh.figure
             CSR vs. Mean Gas Density plot.
-        condition: str
-            not required: Stability Level 1 satisfies the analysis;
-            required: Stability Level 2 is required.
 
         Example
         -------
@@ -822,7 +824,7 @@ class Report:
                     bearing_seal_elements=bearings,
                     rated_w=self.rotor.rated_w,
                 )
-                modal = aux_rotor.run_modal(speed=oper_speed)
+                modal = aux_rotor.run_modal(speed=oper_speed * np.pi / 30)
                 non_backward = modal.whirl_direction() != "Backward"
                 log_dec[i] = modal.log_dec[non_backward][0]
 
@@ -843,7 +845,7 @@ class Report:
                     bearing_seal_elements=bearings,
                     rated_w=self.rotor.rated_w,
                 )
-                modal = aux_rotor.run_modal(speed=oper_speed)
+                modal = aux_rotor.run_modal(speed=oper_speed * np.pi / 30)
                 non_backward = modal.whirl_direction() != "Backward"
                 log_dec[i] = modal.log_dec[non_backward][0]
 
@@ -893,9 +895,10 @@ class Report:
             x_range=(0, max(cross_coupled_Qa)),
             y_range=DataRange1d(start=0),
         )
-        fig1.title.text_font_size = "11pt"
-        fig1.xaxis.axis_label_text_font_size = "11pt"
-        fig1.yaxis.axis_label_text_font_size = "11pt"
+        fig1.title.text_font_size = "14pt"
+        fig1.xaxis.axis_label_text_font_size = "20pt"
+        fig1.yaxis.axis_label_text_font_size = "20pt"
+        fig1.axis.major_label_text_font_size = "16pt"
 
         fig1.line(
             cross_coupled_Qa, log_dec, line_width=3, line_color=bokeh_colors[0]
@@ -933,9 +936,10 @@ class Report:
             y_range=DataRange1d(start=0),
             x_range=DataRange1d(start=0),
         )
-        fig2.title.text_font_size = "11pt"
-        fig2.xaxis.axis_label_text_font_size = "11pt"
-        fig2.yaxis.axis_label_text_font_size = "11pt"
+        fig2.title.text_font_size = "14pt"
+        fig2.xaxis.axis_label_text_font_size = "20pt"
+        fig2.yaxis.axis_label_text_font_size = "20pt"
+        fig2.axis.major_label_text_font_size = "16pt"
         fig2.extra_x_ranges = {"x_range2": Range1d(f * min(RHO), f * max(RHO))}
 
         fig2.add_layout(
@@ -1010,7 +1014,7 @@ class Report:
         self.RHO_gas = RHO_mean
         self.condition = condition
 
-        return fig1, fig2, condition
+        return fig1, fig2
 
     def stability_level_2(self):
         """Stability analysis level 2.
@@ -1069,9 +1073,9 @@ class Report:
             log_dec_disk.append(modal.log_dec[non_backward][0])
 
         # Evaluate log dec for group bearings + disks
-        disk_tags = [disk.tag for disk in self.rotor.disk_elements]
-        all_disks_tag = " + ".join(disk_tags)
-        disk_tags.append(all_disks_tag)
+        disk_tags = ["Shaft + Bearings + " + disk.tag for disk in self.rotor.disk_elements]
+        all_disks_tag = " + ".join([disk.tag for disk in self.rotor.disk_elements])
+        disk_tags.append("Shaft + Bearings + " + all_disks_tag)
 
         aux_rotor = Rotor(
             shaft_elements=self.rotor.shaft_elements,
@@ -1099,9 +1103,9 @@ class Report:
             log_dec_seal.append(modal.log_dec[non_backward][0])
 
         # Evaluate log dec for group bearings + seals
-        seal_tags = [seal.tag for seal in seal_list]
-        all_seals_tag = " + ".join(seal_tags)
-        seal_tags.append(all_seals_tag)
+        seal_tags = ["Shaft + Bearings + " + seal.tag for seal in seal_list]
+        all_seals_tag = " + ".join([seal.tag for seal in seal_list])
+        seal_tags.append("Shaft + Bearings + " + all_seals_tag)
 
         aux_rotor = Rotor(
             shaft_elements=self.rotor.shaft_elements,
@@ -1148,8 +1152,26 @@ class Report:
         -------
         tabs : bokeh WidgetBox
             Bokeh WidgetBox with the summary table plot
+
+        Example
+        -------
+        >>> rotor = rotor_example()
+        >>> report = Report(rotor=rotor,
+        ...                 minspeed=400,
+        ...                 maxspeed=1000,
+        ...                 speed_units="rad/s")
+        >>> stability1 = report.stability_level_1(D=[0.35, 0.35],
+        ...                          H=[0.08, 0.08],
+        ...                          HP=[10000, 10000],
+        ...                          RHO_ratio=[1.11, 1.14],
+        ...                          RHOd=30.45,
+        ...                          RHOs=37.65,
+        ...                          oper_speed=1000.0)
+        >>> stability2 = report.stability_level_2()
+        >>> report.summary() # doctest: +ELLIPSIS
+        Tabs...
         """
-        machine_data = dict(
+        stab_lvl1_data = dict(
             tags=[self.tag],
             machine_type=[self.machine_type],
             Q0=[self.Q0],
@@ -1161,22 +1183,29 @@ class Report:
             CSR=[self.CSR],
             RHO_gas=[self.RHO_gas],
         )
-        machine_source = ColumnDataSource(machine_data)
+        stab_lvl2_data = dict(
+            tags=self.df_logdec['tags'],
+            logdec=self.df_logdec['log_dec'],
+        )
 
-        machine_titles = [
+        stab_lvl1_source = ColumnDataSource(stab_lvl1_data)
+        stab_lvl2_source = ColumnDataSource(stab_lvl2_data)
+
+        stab_lvl1_titles = [
             "Rotor Tag",
             "Machine Type",
             "$Q_0$ (N/m)",
             "$Q_A$ (N/m)",
-            "",
+            "log dec (δ)",
             "$Q_0 / Q_A$",
             "1st Critical Spped (RPM)",
             "MCS",
             "CSR",
             "Gas Density (kg/m³)",
         ]
+        stab_lvl2_titles = ["Components", "Log. Dec."]
 
-        machine_formatters = [
+        stab_lvl1_formatters = [
             None,
             None,
             NumberFormatter(format="0.000"),
@@ -1188,20 +1217,33 @@ class Report:
             NumberFormatter(format="0.000"),
             NumberFormatter(format="0.000"),
         ]
+        stab_lvl2_formatters = [None, NumberFormatter(format="0.0000")]
 
-        machine_columns = [
+        stab_lvl1_columns = [
             TableColumn(field=str(field), title=title, formatter=form)
             for field, title, form in zip(
-                machine_data.keys(), machine_titles, machine_formatters
+                stab_lvl1_data.keys(), stab_lvl1_titles, stab_lvl1_formatters
+            )
+        ]
+        stab_lvl2_columns = [
+            TableColumn(field=str(field), title=title, formatter=form)
+            for field, title, form in zip(
+                stab_lvl2_data.keys(), stab_lvl2_titles, stab_lvl2_formatters
             )
         ]
 
-        machine_data_table = DataTable(
-            source=machine_source, columns=machine_columns, width=1600
+        stab_lvl1_table = DataTable(
+            source=stab_lvl1_source, columns=stab_lvl1_columns, width=1600
         )
-        rotor_table = widgetbox(machine_data_table)
-        tab1 = Panel(child=rotor_table, title="Stability Level 1")
+        stab_lvl2_table = DataTable(
+            source=stab_lvl2_source, columns=stab_lvl2_columns, width=1600
+        )
 
-        tabs = Tabs(tabs=[tab1])
+        table1 = widgetbox(stab_lvl1_table)
+        tab1 = Panel(child=table1, title="Stability Level 1")
+        table2 = widgetbox(stab_lvl2_table)
+        tab2 = Panel(child=table2, title="Stability Level 2")
+
+        tabs = Tabs(tabs=[tab1, tab2])
 
         return tabs
