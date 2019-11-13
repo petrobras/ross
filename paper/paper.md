@@ -51,9 +51,9 @@ systems, and to support decision making. To this purpose, we present ROSS, an op
 library written in Python for rotordynamic analysis.
 
 ROSS allows modeling finite elements for components such as shafts, disks, and bearings, 
-and join them in order to construct rotors. For shaft elements we can use Timoshenko beam 
+and join them to construct rotors. For shaft elements we can use Timoshenko beam 
 theory as described by [@friswell2010dynamics], in this case shear and rotary inertia effects 
-are considered. Disks are assumed to be rigid and we ignore the strain energy for their model.
+are considered. We assume disks to be rigid and we ignore the strain energy for their model.
 For the bearings a linear load-deflection relationship is assumed.
 
 After defining the elements and assembling the system, it is possible to plot the rotor geometry, 
@@ -63,34 +63,31 @@ Frequency response, Forced response, and Mode Shapes.
 The general form of the equation for the system, after matrix assembly is
 
 \begin{equation}\label{eq:general-form}
-    \mathbf{M \ddot{q}}
-    + \mathbf{C(\Omega) \dot{q}}
-    + \omega \mathbf{G \dot{q}}
-    + \mathbf{K(\Omega) {q}}
-    = \mathbf{f}\,,
+   \mathbf{M \ddot{q}}
+  + \mathbf{C(\Omega) \dot{q}}
+ + \omega \mathbf{G \dot{q}}
+  + \mathbf{K(\Omega) {q}}
+  = \mathbf{f}\,,
 \end{equation}
 
 where $\textbf{q}$ represents the displacements and rotations at the
 nodes, $\mathbf{M}$, $\mathbf{K}$, $\mathbf{C}$ and $\mathbf{G}$ are the mass, stiffness, damping and gyroscopic matrices, $\Omega$ is the rotor whirl speed and $\mathbf{f}$ is the generalized force vector.
 
-The package has been built using main Python packages such as numpy [@walt2011numpy], scipy [@jones2014scipy] 
+We have built the package using main Python packages such as numpy [@walt2011numpy], scipy [@jones2014scipy] 
 and bokeh [@bokeh2019].
 
-In addition to the [documentation](https://ross-rotordynamics.github.io/ross-website/), a set of Jupyter Notebooks 
-is available for the tutorial and some examples. These notebooks can also be accessed through a 
-[binder server](https://mybinder.org/v2/gh/ross-rotordynamics/ross/master).
+Besides the [documentation](https://ross-rotordynamics.github.io/ross-website/), a set of Jupyter Notebooks 
+is available for the tutorial and some examples. Users can also access these notebooks through a [binder server](https://mybinder.org/v2/gh/ross-rotordynamics/ross/master).
 
 As an example, Figure 1 shows a centrifugal compressor modeled with ROSS. 
 
 ![Centrifugal Compressor modeled with ROSS.](rotor_plot.png)
 
 The shaft elements are in gray, 
-the disks are in blue and the bearings are displayed as springs and dampers. This plot is generated with bokeh, 
-and the hover tool can be used to get additional information on each element.
+the disks are in blue and the bearings are displayed as springs and dampers. This plot is generated with bokeh, 
+and we can use the hover tool to get additional information on each element.
 
-One of the analyses that can be carried ou is the modal analysis. If the modal analysis is carried out for a range 
-of different rotor speed we can assemble the Campbel Diagram. Figure 2 shows the Campbell Diagram generated 
-for this compressor.
+One analysis that can be carried out is the modal analysis. If we do the modal analysis for a range of different rotor speed we can assemble the Campbel Diagram. Figure 2 shows the Campbell Diagram generated for this compressor.
 
 ![Campbell Diagram for the Centrifugal Compressor.](campbell.png)
 
