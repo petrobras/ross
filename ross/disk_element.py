@@ -514,7 +514,7 @@ class DiskElement(Element):
         >>> file_path = os.path.dirname(os.path.realpath(__file__)) + '/tests/data/shaft_si.xls'
         >>> list_of_disks = DiskElement.from_table(file_path, sheet_name="More")
         >>> list_of_disks[0]
-        DiskElement(Id=0.0, Ip=0.0, m=15.12, color='#b2182b', n=4, tag=None)
+        DiskElement(Id=0.0, Ip=0.0, m=15.12, color='#b2182b', n=3, tag=None)
         """
         parameters = read_table_file(file, "disk", sheet_name=sheet_name)
         list_of_disks = []

@@ -117,7 +117,11 @@ def read_table_file(file, element, sheet_name=0, n=0, sheet_type="Model"):
                     if row[i].lower() == header_key_word:
                         header_index = index
                         header_found = True
-                if "inches" in row[i].lower() or "lbm" in row[i].lower() or 'lb' in row[i].lower():
+                if (
+                    "inches" in row[i].lower()
+                    or "lbm" in row[i].lower()
+                    or "lb" in row[i].lower()
+                ):
                     convert_to_metric = True
                 if "rpm" in row[i].lower():
                     convert_to_rad_per_sec = True
@@ -246,6 +250,14 @@ def read_table_file(file, element, sheet_name=0, n=0, sheet_type="Model"):
             for i in range(0, df.shape[0]):
                 new_material[i] = "shaft_mat_" + str(int(new_material[i]))
             parameters["material"] = new_material
+
+    # change xltrc index to python index (0 based)
+    if element in ("shaft", "disk"):
+        new_n = parameters["n"]
+        for i in range(0, df.shape[0]):
+            new_n[i] -= 1
+        parameters["n"] = new_n
+
     if convert_to_metric:
         for i in range(0, df.shape[0]):
             if element == "bearing":

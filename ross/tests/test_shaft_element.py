@@ -141,7 +141,7 @@ def test_from_table():
             shaft_file, sheet_type="Model", sheet_name="Model"
         )
         el0 = shaft[0]
-        assert el0.n == 1
+        assert el0.n == 0
         assert_allclose(el0.i_d, 0.1409954)
         assert_allclose(el0.o_d, 0.151003)
 
@@ -151,8 +151,8 @@ def test_from_table():
         assert_allclose(mat0.G_s, 82737087518.02, rtol=2e-06)
 
         # test if node is the same for elements in different layers
-        assert shaft[8].n == 9
-        assert shaft[9].n == 9
+        assert shaft[8].n == 8
+        assert shaft[9].n == 8
         assert_allclose(shaft[8].material.E, 206842718795.05, rtol=3e-06)
         assert_allclose(shaft[9].material.E, 6894.75, atol=0.008)
 
