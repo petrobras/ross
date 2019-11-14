@@ -538,4 +538,38 @@ def fluid_flow_example2():
                      visc, rho, load=load)
 
 
+def fluid_flow_example3():
+    """This function returns another different instance of a fluid flow.
+    The purpose is to make available a more complex model
+    so that doctest can be written using it.
+
+    Parameters
+    ----------
+
+    Returns
+    -------
+    An instance of a fluid flow object.
+
+    Examples
+    --------
+    >>> my_fluid_flow = fluid_flow_example3()
+    >>> my_fluid_flow.eccentricity
+    0.0001
+    """
+    nz = 16
+    ntheta = 528
+    nradius = 11
+    omega = 100.*2*np.pi/60
+    p_in = 0.
+    p_out = 0.
+    radius_rotor = 0.1999996
+    radius_stator = 0.1999996 + 0.000194564
+    length = (1 / 10) * (2 * radius_stator)
+    eccentricity = 0.0001
+    visc = 0.015
+    rho = 860.
+    return FluidFlow(nz, ntheta, nradius, length, omega, p_in,
+                     p_out, radius_rotor, radius_stator,
+                     visc, rho, eccentricity=eccentricity)
+
 
