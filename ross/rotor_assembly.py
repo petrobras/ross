@@ -34,6 +34,7 @@ from ross.results import (
     StaticResults,
     SummaryResults,
     TimeResponseResults,
+    OrbitResponseResults
 )
 from ross.shaft_element import ShaftElement, ShaftTaperedElement
 
@@ -906,9 +907,6 @@ class Rotor(object):
         idx = self._index(evalues)
 
         return evalues[idx], evectors[:, idx]
-
-    def orbit(self):
-        pass
 
     def _lti(self, speed, frequency=None):
         """Continuous-time linear time invariant system.
@@ -1909,6 +1907,51 @@ class Rotor(object):
         t_, yout, xout = self.time_response(speed, F, t)
 
         results = TimeResponseResults(t, yout, xout, dof)
+
+        return results
+
+    def run_orbit_response(self, speed, F, t, node):
+        """Calculates the orbit for a given node.
+
+        This function will take a rotor object and plot the orbit for a single
+        node.
+
+        Parameters
+        ----------
+        speed: float
+            Rotor speed
+        F: array
+            Force array (needs to have the same number of rows as time array).
+            Each column corresponds to a dof and each row to a time.
+        t: array
+            Time array.
+        node : int
+            Node to be observed.
+
+        Returns
+        -------
+        results : array
+            Array containing the time array, the system response, and the
+            time evolution of the state vector.
+            It will be returned if plot=False.
+
+        Examples
+        --------
+        >>> rotor = rotor_example()
+        >>> speed = 500.0
+        >>> size = 1000
+        >>> node = 3
+        >>> t = np.linspace(0, 10, size)
+        >>> F = np.zeros((size, rotor.ndof))
+        >>> F[:, 4 * node] = 10 * np.cos(2 * t)
+        >>> F[:, 4 * node + 1] = 10 * np.sin(2 * t)
+        >>> response = rotor.run_orbit_response(speed, F, t, node)
+        >>> response.yout[:, 4 * node] # doctest: +ELLIPSIS
+        array([ 0.00000000e+00,  6.94968863e-06,  2.13014440e-05, ...
+        """
+        t_, yout, xout = self.time_response(speed, F, t)
+
+        results = OrbitResponseResults(t, yout, xout, node)
 
         return results
 
