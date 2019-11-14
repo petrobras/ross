@@ -12,26 +12,32 @@ authors:
  - name: Rodrigo Martins
    orcid: 0000-0002-9996-6600
    affiliation: 2
- - name: Júlia Araújo
-   orcid: 0000-0000-0000-0000
-   affiliation: 2
- - name: Gabriel Bachman
-   orcid: 0000-0000-0000-0000
-   affiliation: 2
+ - name: Júlia Mota
+   orcid: 0000-0002-9547-9629
+   affiliation: 3
+ - name: Gabriel Bachmann
+   orcid: 0000-0003-4401-8408
+   affiliation: 4
  - name: Flavio Rangel
    orcid: 0000-0002-4852-8141
-   affiliation: 2
- - name: Juliana Vianna
-   orcid: 0000-0000-0000-0000
-   affiliation: 2
+   affiliation: 5
+ - name: Juliana Valério
+   orcid: 0000-0002-6198-7932
+   affiliation: 5
  - name: Thiago Ritto
-   orcid: 0000-0000-0000-0000
+   orcid: 0000-0003-0649-6919
    affiliation: 2
 affiliations:
  - name: Petrobras - Petróleo Brasileiro S.A.
    index: 1
- - name: Universidade Federal do Rio de Janeiro
+ - name: Universidade Federal do Rio de Janeiro, Department of Mechanical Engineering, Rio de Janeiro, Brazil
    index: 2
+ - name: Universidade Federal do Rio de Janeiro, Graduate Program in Informatics, Rio de Janeiro, Brazil
+   index: 3
+ - name: Universidade Federal do Rio de Janeiro, Department of Electrical Engineering, Rio de Janeiro, Brazil
+   index: 4
+ - name: Universidade Federal do Rio de Janeiro, Department of Computer Science, Rio de Janeiro, Brazil
+   index: 5
 date: 10 October 2019
 bibliography: paper.bib
 ---

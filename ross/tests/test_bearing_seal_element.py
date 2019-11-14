@@ -213,7 +213,6 @@ def test_equality(bearing0, bearing1, bearing_constant):
     assert not bearing0 == 1
 
 
-@pytest.mark.skip("Waiting for implementation of units conversion for bearings.")
 def test_from_table():
     bearing_file = (
         os.path.dirname(os.path.realpath(__file__)) + "/data/bearing_seal_si.xls"
@@ -221,7 +220,7 @@ def test_from_table():
 
     bearing = BearingElement.from_table(0, bearing_file)
     assert bearing.n == 0
-    assert_allclose(bearing.w[2], 523.5987755985)
+    assert_allclose(bearing.frequency[2], 523.5987755985)
     assert_allclose(bearing.kxx.coefficient[2], 53565700)
 
     # bearing with us units
@@ -230,7 +229,7 @@ def test_from_table():
     )
     bearing = BearingElement.from_table(0, bearing_file)
     assert bearing.n == 0
-    assert_allclose(bearing.w[2], 523.5987755985)
+    assert_allclose(bearing.frequency[2], 523.5987755985)
     assert_allclose(bearing.kxx.coefficient[2], 53565700)
 
 
