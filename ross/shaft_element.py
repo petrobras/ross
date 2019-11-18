@@ -773,7 +773,7 @@ class ShaftElement(Element):
             line_width=1,
             fill_alpha=0.5,
             fill_color=bk_color,
-            legend=legend,
+            legend_label=legend,
             name="u_shaft",
         )
         bk_ax.quad(
@@ -1826,7 +1826,7 @@ class ShaftTaperedElement(Element):
             line_width=1,
             fill_alpha=0.5,
             fill_color=bk_color,
-            legend=legend,
+            legend_label=legend,
             name="u_shaft",
         )
         bk_ax.patches(
@@ -1837,7 +1837,7 @@ class ShaftTaperedElement(Element):
             line_width=1,
             fill_alpha=0.5,
             fill_color=bk_color,
-            legend=legend,
+            legend_label=legend,
             name="l_shaft",
         )
 
