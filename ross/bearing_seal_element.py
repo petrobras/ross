@@ -681,8 +681,8 @@ class BearingElement(Element):
             ypos + 1.5 * mean,
         ]
         yu_top = [-y for y in yl_top]
-        bk_ax.line(x=x_top, y=yl_top, legend="Bearing", **kwargs)
-        bk_ax.line(x=x_top, y=yu_top, legend="Bearing", **kwargs)
+        bk_ax.line(x=x_top, y=yl_top, legend_label="Bearing", **kwargs)
+        bk_ax.line(x=x_top, y=yu_top, legend_label="Bearing", **kwargs)
 
         # plot ground
         if self.n_link is None:
@@ -1111,7 +1111,7 @@ class SealElement(BearingElement):
             line_width=1,
             fill_alpha=0.8,
             fill_color=bokeh_colors[6],
-            legend="Seal",
+            legend_label="Seal",
         )
         # bokeh plot - lower seal visual representation
         bk_ax.quad(
@@ -1358,8 +1358,8 @@ class BallBearingElement(BearingElement):
             ypos + 1.5 * mean,
         ]
         yu_top = [-y for y in yl_top]
-        bk_ax.line(x=x_top, y=yl_top, legend="Bearing", **kwargs)
-        bk_ax.line(x=x_top, y=yu_top, legend="Bearing", **kwargs)
+        bk_ax.line(x=x_top, y=yl_top, legend_label="Bearing", **kwargs)
+        bk_ax.line(x=x_top, y=yu_top, legend_label="Bearing", **kwargs)
 
         # plot ground
         if self.n_link is None:
@@ -1649,8 +1649,8 @@ class RollerBearingElement(BearingElement):
             ypos + 1.5 * mean,
         ]
         yu_top = [-y for y in yl_top]
-        bk_ax.line(x=x_top, y=yl_top, legend="Bearing", **kwargs)
-        bk_ax.line(x=x_top, y=yu_top, legend="Bearing", **kwargs)
+        bk_ax.line(x=x_top, y=yl_top, legend_label="Bearing", **kwargs)
+        bk_ax.line(x=x_top, y=yu_top, legend_label="Bearing", **kwargs)
 
         # plot ground
         if self.n_link is None:
