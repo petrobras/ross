@@ -65,9 +65,9 @@ The general form of the equation for the system, after matrix assembly is
 
 \begin{equation}\label{eq:general-form}
    \mathbf{M \ddot{q}}(t)
-  + \mathbf{C(\Omega) \dot{q}}(t)
-  + \omega \mathbf{G \dot{q}}(t)
-  + \mathbf{K(\Omega) {q}}(t)
+  + \mathbf{C}(\Omega) \mathbf{\dot{q}}(t)
+  + \omega \mathbf{G} \mathbf{\dot{q}}(t)
+  + \mathbf{K}(\Omega) \mathbf{{q}}(t)
   = \mathbf{f}(t)\,,
 \end{equation}
 
@@ -96,7 +96,8 @@ compressor; the natural frequencies and the log dec vary with the machine rotati
 ![Campbell Diagram for the Centrifugal Compressor.](campbell.png)
 
 The Campbell Diagram is one of the results that can be obtained from the model, other types of analysis can be found 
-on the [documentation](https://ross-rotordynamics.github.io/ross-website/).
+on the [documentation](https://ross-rotordynamics.github.io/ross-website/). The software is extensible and new elements 
+or new types of analysis can be easily included.
 
 # Acknowledgements
 We acknowledge that ROSS development is supported by Petrobras, Universidade Federal do Rio de Janeiro (UFRJ) and 
