@@ -2480,36 +2480,39 @@ class OrbitResponseResults:
     Analysis.
 
     This class takes the results from orbit response analysis and creates a
-    plot given a force and a time.
+    plot (2D or 3D) given a force array and a time array.
 
     Parameters
     ----------
-    t : array
+    t: array
         Time values for the output.
-    yout : array
+    yout: array
         System response.
-    xout : array
+    xout: array
         Time evolution of the state vector.
-    node : int
-        Rotor node
+    nodes_list: array
+        list with nodes from a rotor model
+    nodes_pos: array
+        Rotor nodes axial positions
 
     Returns
     -------
     ax : matplotlib.axes
-        Matplotlib axes with time response plot.
-        if plot_type == "matplotlib"
+        Matplotlib axes with orbit response plot.
+        if plot_type == "3d"
     bk_ax : bokeh axes
-        Bokeh axes with time response plot
-        if plot_type == "bokeh"
+        Bokeh axes with orbit response plot
+        if plot_type == "2d"
     """
 
-    def __init__(self, t, yout, xout, node):
+    def __init__(self, t, yout, xout, nodes_list, nodes_pos):
         self.t = t
         self.yout = yout
         self.xout = xout
-        self.node = node
+        self.nodes_pos = nodes_pos
+        self.nodes_list = nodes_list
 
-    def _plot_matplotlib(self, ax=None):
+    def _plot3d(self, fig=None, ax=None):
         """Plot orbit response.
 
         This function will take a rotor object and plot its orbit response
@@ -2517,8 +2520,11 @@ class OrbitResponseResults:
 
         Parameters
         ----------
+        fig : matplotlib figure
+            The figure object with the plot.
+            if None, creates a new one
         ax : matplotlib.axes
-            Matplotlib axes where time response will be plotted.
+            Matplotlib axes where orbit response will be plotted.
             if None, creates a new one
 
         Returns
@@ -2527,17 +2533,34 @@ class OrbitResponseResults:
             Matplotlib axes with orbit response plot.
         """
         if ax is None:
-            ax = plt.gca()
+            from mpl_toolkits.mplot3d import Axes3D
+            fig = plt.figure()
+            ax = fig.gca(projection="3d")
 
-        ax.plot(self.yout[:, 4 * self.node], self.yout[:, 4 * self.node + 1])
+        for n in self.nodes_list:
+            z_pos = np.ones(self.yout.shape[0]) * self.nodes_pos[n]
+            ax.plot(
+                    self.yout[200:, 4 * n],
+                    self.yout[200:, 4 * n + 1],
+                    z_pos[200:],
+                    zdir="x",
+                    color="k"
+            )
 
-        ax.set_xlabel("Amplitude - direction x (m)")
-        ax.set_ylabel("Amplitude - direction y (m)")
-        ax.set_title("Orbit for node %s" % (self.node))
+        # plot center line
+        line = np.zeros(len(self.nodes_pos))
+        ax.plot(line, line, self.nodes_pos, "k-.", linewidth=1.5, zdir="x")
+
+        ax.set_xlabel("Rotor length (m)", labelpad=20, fontsize=18)
+        ax.set_ylabel("Amplitude - X direction (m)", labelpad=20, fontsize=18)
+        ax.set_zlabel("Amplitude - Y direction (m)", labelpad=20, fontsize=18)
+        ax.set_title("Rotor Orbits", fontsize=18)
+        ax.tick_params(axis='both', which='major', labelsize=18)
+        ax.tick_params(axis='both', which='minor', labelsize=18)
 
         return ax
 
-    def _plot_bokeh(self):
+    def _plot2d(self, node):
         """Plot orbit response.
 
         This function will take a rotor object and plot its orbit response
@@ -2545,6 +2568,8 @@ class OrbitResponseResults:
 
         Parameters
         ----------
+        node: int, optional
+            Selected node to plot orbit.
 
         Returns
         -------
@@ -2557,24 +2582,24 @@ class OrbitResponseResults:
             tools="pan, box_zoom, wheel_zoom, reset, save",
             width=640,
             height=480,
-            title="Response for node %s" % (self.node),
-            x_axis_label="Amplitude - direction x (m)",
-            y_axis_label="Amplitude - direction y (m)"
+            title="Response for node %s" % (node),
+            x_axis_label="Amplitude - X direction (m)",
+            y_axis_label="Amplitude - Y direction (m)"
         )
         bk_ax.xaxis.axis_label_text_font_size = "20pt"
         bk_ax.yaxis.axis_label_text_font_size = "20pt"
         bk_ax.title.text_font_size = "14pt"
 
         bk_ax.line(
-            self.yout[:, 4 * self.node],
-            self.yout[:, 4 * self.node + 1],
+            self.yout[:, 4 * node],
+            self.yout[:, 4 * node + 1],
             line_width=3,
             line_color=bokeh_colors[0],
         )
 
         return bk_ax
 
-    def plot(self, plot_type="bokeh", **kwargs):
+    def plot(self, plot_type="3d", node=None, **kwargs):
         """Plot orbit response.
 
         This function will take a rotor object and plot its orbit response
@@ -2582,8 +2607,14 @@ class OrbitResponseResults:
         Parameters
         ----------
         plot_type: str
-            Matplotlib or bokeh.
-            The default is bokeh
+            3d or 2d.
+            Choose between plotting orbit for all nodes (3d plot) and
+            plotting orbit for a single node (2d plot).
+            Default is 3d.
+        node: int, optional
+            Selected node to plot orbit.
+            Fill this attribute only when selection plot_type = "2d".
+            Detault is None
         kwargs : optional
             Additional key word arguments can be passed to change
             the plot (e.g. linestyle='--')
@@ -2592,14 +2623,18 @@ class OrbitResponseResults:
         -------
         ax : matplotlib.axes
             Matplotlib axes with time response plot.
-            if plot_type == "matplotlib"
+            if plot_type == "3d"
         bk_ax : bokeh axes
             Bokeh axes with time response plot
-            if plot_type == "bokeh"
+            if plot_type == "2d"
         """
-        if plot_type == "matplotlib":
-            return self._plot_matplotlib(**kwargs)
-        elif plot_type == "bokeh":
-            return self._plot_bokeh(**kwargs)
+        if plot_type == "3d":
+            return self._plot3d(**kwargs)
+        elif plot_type == "2d":
+            if node is None:
+                raise Exception("Select a node to plot orbit when plotting 2D")
+            elif node not in self.nodes_list:
+                raise Exception("Select a valid node to plot 2D orbit")
+            return self._plot2d(node=node, **kwargs)
         else:
             raise ValueError(f"{plot_type} is not a valid plot type.")
