@@ -393,7 +393,7 @@ class DiskElement(Element):
             alpha=1,
             line_width=2,
             color=self.color,
-            legend="Disk",
+            legend_label="Disk",
             name="ub_disk",
         )
         bk_ax.patches(
