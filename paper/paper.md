@@ -47,7 +47,7 @@ bibliography: paper.bib
 There are several critical rotating equipment crucial to the industry, such as compressors, 
 pumps and turbines.
 Computational mechanical models aim to simulate the behavior of such mechanical
-systems [@friswell2010dynamics], [@vance2010machinery], [childs1993turbomachinery], [ishida2012linear] and
+systems [@friswell2010dynamics], [@vance2010machinery], [@childs1993turbomachinery], [@ishida2012linear] and
 [@gasch2005berlin]. These models are used to support research and decision making. To this purpose, we present ROSS, 
 an open source library written in Python for rotordynamic analysis.
 
@@ -95,8 +95,8 @@ compressor; the natural frequencies and the log dec vary with the machine rotati
 
 ![Campbell Diagram for the Centrifugal Compressor.](campbell.png)
 
-The Campbell Diagram is only one of the analysis that are available, other types of analysis can be found on the 
-[documentation](https://ross-rotordynamics.github.io/ross-website/)
+The Campbell Diagram is one of the analysis that are available, other types of analysis can be found on the 
+[documentation](https://ross-rotordynamics.github.io/ross-website/).
 
 # Acknowledgements
 We acknowledge that ROSS development is supported by Petrobras, Universidade Federal do Rio de Janeiro (UFRJ) and 
