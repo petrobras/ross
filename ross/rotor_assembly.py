@@ -1750,7 +1750,7 @@ class Rotor(object):
             size=5,
             fill_alpha=0.5,
             fill_color=bokeh_colors[0],
-            legend="Kxx",
+            legend_label="Kxx",
         )
         bk_ax.square(
             bearing0.kyy.interpolated(bearing0.frequency),
@@ -1758,7 +1758,7 @@ class Rotor(object):
             size=5,
             fill_alpha=0.5,
             fill_color=bokeh_colors[0],
-            legend="Kyy",
+            legend_label="Kyy",
         )
         for j in range(rotor_wn.T.shape[1]):
             bk_ax.line(
