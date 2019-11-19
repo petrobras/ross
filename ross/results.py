@@ -770,7 +770,7 @@ class CampbellResults:
                             color=bokeh_colors[9],
                             muted_color=bokeh_colors[9],
                             muted_alpha=0.2,
-                            legend="Crit. Speed",
+                            legend_label="Crit. Speed",
                             name="critspeed",
                         )
                         hover = HoverTool(names=["critspeed"])
@@ -801,7 +801,7 @@ class CampbellResults:
                         muted_color=color_mapper,
                         muted_alpha=0.2,
                         source=source,
-                        legend=legend,
+                        legend_label=legend,
                     )
 
         harm_color = bp.Category20[20]
@@ -813,15 +813,15 @@ class CampbellResults:
                 color=harm_color[j],
                 line_dash="dotdash",
                 line_alpha=1.0,
-                legend=str(harm) + "x speed",
+                legend_label=str(harm) + "x speed",
                 muted_color=harm_color[j],
                 muted_alpha=0.2,
             )
 
         # turn legend glyphs black
-        camp.scatter(0, 0, color="black", size=0, marker="^", legend="Foward")
-        camp.scatter(0, 0, color="black", size=0, marker="o", legend="Mixed")
-        camp.scatter(0, 0, color="black", size=0, marker="v", legend="Backward")
+        camp.scatter(0, 0, color="black", size=0, marker="^", legend_label="Foward")
+        camp.scatter(0, 0, color="black", size=0, marker="o", legend_label="Mixed")
+        camp.scatter(0, 0, color="black", size=0, marker="v", legend_label="Backward")
 
         color_bar = ColorBar(
             color_mapper=color_mapper["transform"],
