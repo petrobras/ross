@@ -2473,3 +2473,133 @@ class TimeResponseResults:
             return self._plot_bokeh(**kwargs)
         else:
             raise ValueError(f"{plot_type} is not a valid plot type.")
+
+
+class OrbitResponseResults:
+    """Class used to store results and provide plots for Orbit Response
+    Analysis.
+
+    This class takes the results from orbit response analysis and creates a
+    plot given a force and a time.
+
+    Parameters
+    ----------
+    t : array
+        Time values for the output.
+    yout : array
+        System response.
+    xout : array
+        Time evolution of the state vector.
+    node : int
+        Rotor node
+
+    Returns
+    -------
+    ax : matplotlib.axes
+        Matplotlib axes with time response plot.
+        if plot_type == "matplotlib"
+    bk_ax : bokeh axes
+        Bokeh axes with time response plot
+        if plot_type == "bokeh"
+    """
+
+    def __init__(self, t, yout, xout, node):
+        self.t = t
+        self.yout = yout
+        self.xout = xout
+        self.node = node
+
+    def _plot_matplotlib(self, ax=None):
+        """Plot orbit response.
+
+        This function will take a rotor object and plot its orbit response
+        using Matplotlib
+
+        Parameters
+        ----------
+        ax : matplotlib.axes
+            Matplotlib axes where time response will be plotted.
+            if None, creates a new one
+
+        Returns
+        -------
+        ax : matplotlib.axes
+            Matplotlib axes with orbit response plot.
+        """
+        if ax is None:
+            ax = plt.gca()
+
+        ax.plot(self.yout[:, 4 * self.node], self.yout[:, 4 * self.node + 1])
+
+        ax.set_xlabel("Amplitude - direction x (m)")
+        ax.set_ylabel("Amplitude - direction y (m)")
+        ax.set_title("Orbit for node %s" % (self.node))
+
+        return ax
+
+    def _plot_bokeh(self):
+        """Plot orbit response.
+
+        This function will take a rotor object and plot its orbit response
+        using Bokeh
+
+        Parameters
+        ----------
+
+        Returns
+        -------
+        bk_ax : bokeh axes
+            Bokeh axes with orbit response plot
+            if plot_type == "bokeh"
+        """
+        # bokeh plot - create a new plot
+        bk_ax = figure(
+            tools="pan, box_zoom, wheel_zoom, reset, save",
+            width=640,
+            height=480,
+            title="Response for node %s" % (self.node),
+            x_axis_label="Amplitude - direction x (m)",
+            y_axis_label="Amplitude - direction y (m)"
+        )
+        bk_ax.xaxis.axis_label_text_font_size = "20pt"
+        bk_ax.yaxis.axis_label_text_font_size = "20pt"
+        bk_ax.title.text_font_size = "14pt"
+
+        bk_ax.line(
+            self.yout[:, 4 * self.node],
+            self.yout[:, 4 * self.node + 1],
+            line_width=3,
+            line_color=bokeh_colors[0],
+        )
+
+        return bk_ax
+
+    def plot(self, plot_type="bokeh", **kwargs):
+        """Plot orbit response.
+
+        This function will take a rotor object and plot its orbit response
+
+        Parameters
+        ----------
+        plot_type: str
+            Matplotlib or bokeh.
+            The default is bokeh
+        kwargs : optional
+            Additional key word arguments can be passed to change
+            the plot (e.g. linestyle='--')
+
+        Returns
+        -------
+        ax : matplotlib.axes
+            Matplotlib axes with time response plot.
+            if plot_type == "matplotlib"
+        bk_ax : bokeh axes
+            Bokeh axes with time response plot
+            if plot_type == "bokeh"
+        """
+        if plot_type == "matplotlib":
+            return self._plot_matplotlib(**kwargs)
+        elif plot_type == "bokeh":
+            return self._plot_bokeh(**kwargs)
+        else:
+            raise ValueError(f"{plot_type} is not a valid plot type.")
