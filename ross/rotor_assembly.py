@@ -1910,11 +1910,11 @@ class Rotor(object):
 
         return results
 
-    def run_orbit_response(self, speed, F, t, node):
+    def run_orbit_response(self, speed, F, t):
         """Calculates the orbit for a given node.
 
         This function will take a rotor object and plot the orbit for a single
-        node.
+        (2D graph) or all nodes (3D graph).
 
         Parameters
         ----------
@@ -1925,8 +1925,6 @@ class Rotor(object):
             Each column corresponds to a dof and each row to a time.
         t: array
             Time array.
-        node : int
-            Node to be observed.
 
         Returns
         -------
@@ -1945,13 +1943,13 @@ class Rotor(object):
         >>> F = np.zeros((size, rotor.ndof))
         >>> F[:, 4 * node] = 10 * np.cos(2 * t)
         >>> F[:, 4 * node + 1] = 10 * np.sin(2 * t)
-        >>> response = rotor.run_orbit_response(speed, F, t, node)
+        >>> response = rotor.run_orbit_response(speed, F, t)
         >>> response.yout[:, 4 * node] # doctest: +ELLIPSIS
         array([ 0.00000000e+00,  6.94968863e-06,  2.13014440e-05, ...
         """
         t_, yout, xout = self.time_response(speed, F, t)
 
-        results = OrbitResponseResults(t, yout, xout, node)
+        results = OrbitResponseResults(t, yout, xout, self.nodes, self.nodes_pos)
 
         return results
 
