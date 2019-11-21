@@ -81,7 +81,7 @@ and Bokeh [@bokeh2019].
 Besides the [documentation](https://ross-rotordynamics.github.io/ross-website/), a set of Jupyter Notebooks 
 is available for the tutorial and some examples. Users can also access these notebooks through a [binder server](https://mybinder.org/v2/gh/ross-rotordynamics/ross/master).
 
-As an example, Figure 1 shows a centrifugal compressor modeled with `ROSS`. 
+As an example, Figure 1 shows a centrifugal compressor modeled with ROSS. 
 
 ![Centrifugal Compressor modeled with ROSS.](rotor_plot.png)
 
