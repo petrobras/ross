@@ -217,6 +217,7 @@ def calculate_stiffness_matrix(fluid_flow_object, oil_film_force='numerical'):
     fluid_flow_object.calculate_pressure_matrix_numerical()
     [radial_force_y, tangential_force_y, force_x_y, force_y_y] = \
         calculate_oil_film_force(fluid_flow_object, force_type=oil_film_force)
+    move_rotor_center(fluid_flow_object, 0, -delta)
 
     k_xx = (force_x - force_x_x) / delta
     k_yx = (force_y - force_y_x) / delta
