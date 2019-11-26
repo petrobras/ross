@@ -24,8 +24,8 @@ sys.path.append(os.path.abspath("../../ross"))
 # -- Project information -----------------------------------------------------
 
 project = "ross"
-copyright = "2019, Team Ross"
-author = "Team Ross"
+copyright = "2019, Team ROSS"
+author = "Team ROSS"
 
 import ross
 
@@ -121,7 +121,7 @@ colors = {
 # theme further.
 html_theme_options = {
     # Navigation bar title. (Default: ``project`` value)
-    "navbar_title": "ross",
+    "navbar_title": "ROSS",
     # Tab name for entire site. (Default: "Site")
     "navbar_site_name": "Site",
     # A list of tuples containing pages or urls to link to.
