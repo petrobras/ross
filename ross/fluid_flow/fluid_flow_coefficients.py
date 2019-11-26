@@ -251,7 +251,7 @@ def find_equilibrium_position(fluid_flow_object, print_along=True, tolerance=1e-
         each step of the iteration.
     Returns
     -------
-    A FluidFlow object
+    None, or
     Matrix of floats
         A matrix [4, n], being n the number of iterations. In each line, it contains the x and y of the rotor
         center, followed by the error in force x and force y.
@@ -259,9 +259,9 @@ def find_equilibrium_position(fluid_flow_object, print_along=True, tolerance=1e-
     --------
     >>> from ross.fluid_flow.fluid_flow import fluid_flow_example2
     >>> my_fluid_flow = fluid_flow_example2()
-    >>> my_fluid_flow = find_equilibrium_position(my_fluid_flow, print_along=False,
-    ...                                           tolerance=0.1, increment_factor=0.01,
-    ...                                           max_iterations=5, increment_reduction_limit=1e-03)
+    >>> find_equilibrium_position(my_fluid_flow, print_along=False,
+    ...                           tolerance=0.1, increment_factor=0.01,
+    ...                           max_iterations=5, increment_reduction_limit=1e-03)
     """
     fluid_flow_object.calculate_coefficients()
     fluid_flow_object.calculate_pressure_matrix_numerical()
@@ -383,9 +383,9 @@ def find_equilibrium_position(fluid_flow_object, print_along=True, tolerance=1e-
     if print_along:
         print(map_vector)
     if return_iteration_map:
-        return fluid_flow_object, map_vector
-    else:
-        return fluid_flow_object
+        return map_vector
+
+
 
 
 
