@@ -2,7 +2,6 @@ import numpy as np
 from scipy import integrate
 from math import isnan
 from ross.fluid_flow.fluid_flow_geometry import move_rotor_center
-from copy import copy
 
 
 def calculate_analytical_stiffness_matrix(load, eccentricity_ratio, radial_clearance):
@@ -206,19 +205,18 @@ def calculate_stiffness_matrix(fluid_flow_object, oil_film_force='numerical'):
         calculate_oil_film_force(fluid_flow_object, force_type=oil_film_force)
     delta = fluid_flow_object.difference_between_radius / 100
 
-    fluid_flow_x = copy(fluid_flow_object)
-    move_rotor_center(fluid_flow_x, delta, 0)
-    fluid_flow_x.calculate_coefficients()
-    fluid_flow_x.calculate_pressure_matrix_numerical()
+    move_rotor_center(fluid_flow_object, delta, 0)
+    fluid_flow_object.calculate_coefficients()
+    fluid_flow_object.calculate_pressure_matrix_numerical()
     [radial_force_x, tangential_force_x, force_x_x, force_y_x] = \
-        calculate_oil_film_force(fluid_flow_x, force_type=oil_film_force)
+        calculate_oil_film_force(fluid_flow_object, force_type=oil_film_force)
 
-    fluid_flow_y = copy(fluid_flow_object)
-    move_rotor_center(fluid_flow_y, 0, delta)
-    fluid_flow_y.calculate_coefficients()
-    fluid_flow_y.calculate_pressure_matrix_numerical()
+    move_rotor_center(fluid_flow_object, -delta, 0)
+    move_rotor_center(fluid_flow_object, 0, delta)
+    fluid_flow_object.calculate_coefficients()
+    fluid_flow_object.calculate_pressure_matrix_numerical()
     [radial_force_y, tangential_force_y, force_x_y, force_y_y] = \
-        calculate_oil_film_force(fluid_flow_y, force_type=oil_film_force)
+        calculate_oil_film_force(fluid_flow_object, force_type=oil_film_force)
 
     k_xx = (force_x - force_x_x) / delta
     k_yx = (force_y - force_y_x) / delta
@@ -259,8 +257,8 @@ def find_equilibrium_position(fluid_flow_object, print_along=True, tolerance=1e-
         center, followed by the error in force x and force y.
     Examples
     --------
-    >>> from ross.fluid_flow.fluid_flow import fluid_flow_example3
-    >>> my_fluid_flow = fluid_flow_example3()
+    >>> from ross.fluid_flow.fluid_flow import fluid_flow_example2
+    >>> my_fluid_flow = fluid_flow_example2()
     >>> my_fluid_flow = find_equilibrium_position(my_fluid_flow, print_along=False,
     ...                                           tolerance=0.1, increment_factor=0.01,
     ...                                           max_iterations=5, increment_reduction_limit=1e-03)
@@ -287,13 +285,13 @@ def find_equilibrium_position(fluid_flow_object, print_along=True, tolerance=1e-
             print("\nIteration " + str(k) + "\n")
         while error_x > tolerance:
             iter_x += 1
-            fluid_flow_object_x = copy(fluid_flow_object)
-            move_rotor_center(fluid_flow_object_x, increment_x, 0)
-            fluid_flow_object_x.calculate_coefficients()
-            fluid_flow_object_x.calculate_pressure_matrix_numerical()
-            new_r_force, new_t_force, new_force_x, new_force_y = calculate_oil_film_force(fluid_flow_object_x,
+            move_rotor_center(fluid_flow_object, increment_x, 0)
+            fluid_flow_object.calculate_coefficients()
+            fluid_flow_object.calculate_pressure_matrix_numerical()
+            new_r_force, new_t_force, new_force_x, new_force_y = calculate_oil_film_force(fluid_flow_object,
                                                                                           force_type='numerical')
             new_error_x = abs(new_force_x)
+            move_rotor_center(fluid_flow_object, -increment_x, 0)
             if print_along:
                 print("Iteration in x axis " + str(iter_x))
                 print("Force x: " + str(new_force_x))
@@ -320,7 +318,7 @@ def find_equilibrium_position(fluid_flow_object, print_along=True, tolerance=1e-
                     infinite_loop_x_check = True
             else:
                 infinite_loop_x_check = False
-                fluid_flow_object = copy(fluid_flow_object_x)
+                move_rotor_center(fluid_flow_object, increment_x, 0)
                 error_x = new_error_x
                 force_x = new_force_x
                 force_y = new_force_y
@@ -329,13 +327,13 @@ def find_equilibrium_position(fluid_flow_object, print_along=True, tolerance=1e-
 
         while error_y > tolerance:
             iter_y += 1
-            fluid_flow_object_y = copy(fluid_flow_object)
-            move_rotor_center(fluid_flow_object_y, 0, increment_y)
-            fluid_flow_object_y.calculate_coefficients()
-            fluid_flow_object_y.calculate_pressure_matrix_numerical()
-            new_r_force, new_t_force, new_force_x, new_force_y = calculate_oil_film_force(fluid_flow_object_y,
+            move_rotor_center(fluid_flow_object, 0, increment_y)
+            fluid_flow_object.calculate_coefficients()
+            fluid_flow_object.calculate_pressure_matrix_numerical()
+            new_r_force, new_t_force, new_force_x, new_force_y = calculate_oil_film_force(fluid_flow_object,
                                                                                           force_type='numerical')
             new_error_y = abs(new_force_y - fluid_flow_object.load)
+            move_rotor_center(fluid_flow_object, 0, -increment_y)
             if print_along:
                 print("Iteration in y axis " + str(iter_y))
                 print("Force y: " + str(new_force_y))
@@ -364,7 +362,7 @@ def find_equilibrium_position(fluid_flow_object, print_along=True, tolerance=1e-
                     infinite_loop_y_check = True
             else:
                 infinite_loop_y_check = False
-                fluid_flow_object = copy(fluid_flow_object_y)
+                move_rotor_center(fluid_flow_object, 0, increment_y)
                 error_y = new_error_y
                 force_y = new_force_y
                 force_x = new_force_x
