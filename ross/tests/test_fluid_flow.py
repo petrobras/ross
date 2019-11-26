@@ -6,6 +6,7 @@ from ross.fluid_flow import fluid_flow as flow
 from bokeh.plotting import figure
 import matplotlib.pyplot as plt
 from numpy.testing import assert_allclose
+from ross.fluid_flow.fluid_flow_geometry import move_rotor_center
 from ross.fluid_flow.fluid_flow_coefficients import (
     calculate_analytical_damping_matrix,
     calculate_analytical_stiffness_matrix,
@@ -319,3 +320,21 @@ def test_find_equilibrium_position():
     bearing = fluid_flow_short_friswell()
     bearing = find_equilibrium_position(bearing, print_along=False, tolerance=0.1, increment_factor=1e-02)
     assert_allclose(bearing.eccentricity, (bearing.radius_stator - bearing.radius_rotor)*0.2663, atol=0.001)
+
+
+def test_move_rotor_center():
+    bearing = fluid_flow_short_friswell()
+    eccentricity = bearing.eccentricity
+    attitude_angle = bearing.attitude_angle
+    move_rotor_center(bearing, 0.001, 0)
+    move_rotor_center(bearing, -0.001, 0)
+    assert_allclose(bearing.eccentricity, eccentricity)
+    assert_allclose(bearing.attitude_angle, attitude_angle)
+    move_rotor_center(bearing, 0, 0.001)
+    move_rotor_center(bearing, 0, -0.001)
+    assert_allclose(bearing.eccentricity, eccentricity)
+    assert_allclose(bearing.attitude_angle, attitude_angle)
+    move_rotor_center(bearing, 0, 0.001)
+    assert bearing.eccentricity != eccentricity
+    assert bearing.attitude_angle != attitude_angle
+
