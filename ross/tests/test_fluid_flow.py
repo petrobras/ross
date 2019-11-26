@@ -3,7 +3,6 @@ import math
 import numpy as np
 
 from ross.fluid_flow import fluid_flow as flow
-from ross.fluid_flow.fluid_flow import fluid_flow_example3
 from bokeh.plotting import figure
 import matplotlib.pyplot as plt
 from numpy.testing import assert_allclose
