@@ -318,8 +318,8 @@ def test_matplotlib_plots():
 
 def test_find_equilibrium_position():
     bearing = flow.fluid_flow_example2()
-    bearing = find_equilibrium_position(bearing, print_along=False, tolerance=0.1, increment_factor=0.01,
-                                        max_iterations=5, increment_reduction_limit=1e-03)
+    find_equilibrium_position(bearing, print_along=False, tolerance=0.1, increment_factor=0.01,
+                              max_iterations=5, increment_reduction_limit=1e-03)
     assert_allclose(bearing.eccentricity, (bearing.radius_stator - bearing.radius_rotor)*0.2663, atol=0.001)
 
 
