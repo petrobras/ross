@@ -521,8 +521,8 @@ def fluid_flow_example2():
     >>> my_fluid_flow.load
     525
     """
-    nz = 30
-    ntheta = 20
+    nz = 8
+    ntheta = 64
     nradius = 11
     length = 0.03
     omega = 157.1
@@ -536,6 +536,9 @@ def fluid_flow_example2():
     return FluidFlow(nz, ntheta, nradius, length, omega, p_in,
                      p_out, radius_rotor, radius_stator,
                      visc, rho, load=load)
+
+
+
 
 
 

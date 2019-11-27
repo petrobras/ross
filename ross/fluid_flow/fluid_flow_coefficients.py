@@ -1,7 +1,7 @@
 import numpy as np
 from scipy import integrate
 from math import isnan
-from ross.fluid_flow.fluid_flow_geometry import calculate_attitude_angle
+from ross.fluid_flow.fluid_flow_geometry import move_rotor_center
 
 
 def calculate_analytical_stiffness_matrix(load, eccentricity_ratio, radial_clearance):
@@ -199,64 +199,41 @@ def calculate_stiffness_matrix(fluid_flow_object, oil_film_force='numerical'):
     >>> from ross.fluid_flow.fluid_flow import fluid_flow_example
     >>> my_fluid_flow = fluid_flow_example()
     >>> calculate_stiffness_matrix(my_fluid_flow)  # doctest: +ELLIPSIS
-    [0.003...
+    [-0.003...
     """
     [radial_force, tangential_force, force_x, force_y] = \
         calculate_oil_film_force(fluid_flow_object, force_type=oil_film_force)
-    temp = fluid_flow_object.eccentricity
-    temp_angle = fluid_flow_object.attitude_angle
-    e = fluid_flow_object.eccentricity
-    beta = fluid_flow_object.attitude_angle
+    delta = fluid_flow_object.difference_between_radius / 100
 
-    delta_x = fluid_flow_object.difference_between_radius / 100
-    eccentricity_x = (
-                             e ** 2 + delta_x ** 2 - 2 * e * delta_x
-                             * np.cos(np.pi / 2 + fluid_flow_object.attitude_angle)
-                     )**(1/2)
-    beta_x = np.arccos((e**2 + eccentricity_x**2 - delta_x**2)
-                              / (2 * e * eccentricity_x))
-    fluid_flow_object.eccentricity = eccentricity_x
-    fluid_flow_object.attitude_angle = beta + beta_x
+    move_rotor_center(fluid_flow_object, delta, 0)
     fluid_flow_object.calculate_coefficients()
     fluid_flow_object.calculate_pressure_matrix_numerical()
     [radial_force_x, tangential_force_x, force_x_x, force_y_x] = \
         calculate_oil_film_force(fluid_flow_object, force_type=oil_film_force)
 
-    fluid_flow_object.eccentricity = temp
-    fluid_flow_object.attitude_angle = temp_angle
-    e = fluid_flow_object.eccentricity
-    beta = fluid_flow_object.attitude_angle
-
-    delta_y = fluid_flow_object.difference_between_radius / 100
-    eccentricity_y = (
-                             e ** 2 + delta_y ** 2 - 2 * e * delta_y
-                             * np.cos(fluid_flow_object.attitude_angle)
-                     )**(1/2)
-    beta_y = np.arccos((e ** 2 + eccentricity_y ** 2 - delta_y ** 2)
-                       / (2 * e * eccentricity_y))
-    fluid_flow_object.eccentricity = eccentricity_y
-    fluid_flow_object.attitude_angle = beta + beta_y
+    move_rotor_center(fluid_flow_object, -delta, 0)
+    move_rotor_center(fluid_flow_object, 0, delta)
     fluid_flow_object.calculate_coefficients()
     fluid_flow_object.calculate_pressure_matrix_numerical()
     [radial_force_y, tangential_force_y, force_x_y, force_y_y] = \
         calculate_oil_film_force(fluid_flow_object, force_type=oil_film_force)
+    move_rotor_center(fluid_flow_object, 0, -delta)
 
-    k_xx = (force_x - force_x_x) / delta_x
-    k_yx = (force_y - force_y_x) / delta_x
-    k_xy = (force_x - force_x_y) / delta_y
-    k_yy = (force_y - force_y_y) / delta_y
+    k_xx = (force_x - force_x_x) / delta
+    k_yx = (force_y - force_y_x) / delta
+    k_xy = (force_x - force_x_y) / delta
+    k_yy = (force_y - force_y_y) / delta
 
-    fluid_flow_object.eccentricity = temp
-    fluid_flow_object.attitude_angle = temp_angle
-    fluid_flow_object.calculate_coefficients()
-    fluid_flow_object.calculate_pressure_matrix_numerical()
     return [k_xx, k_xy, k_yx, k_yy]
 
 
 def find_equilibrium_position(fluid_flow_object, print_along=True, tolerance=1e-05,
-                              increment_factor=1e-03):
+                              increment_factor=1e-03, max_iterations=10, increment_reduction_limit=1e-04,
+                              return_iteration_map=False):
     """This function returns an eccentricity value with calculated forces matching the load applied,
     meaning an equilibrium position of the rotor.
+    It first moves the rotor center on x-axis, aiming for the minimum error in the force on x (zero), then
+    moves on y-axis, aiming for the minimum error in the force on y (meaning load minus force on y equals zero).
     Parameters
     ----------
     fluid_flow_object: A FluidFlow object.
@@ -265,41 +242,151 @@ def find_equilibrium_position(fluid_flow_object, print_along=True, tolerance=1e-
     tolerance: float, optional
     increment_factor: float, optional
         This number will multiply the first eccentricity found to reach an increment number.
+    max_iterations: int, optional
+    increment_reduction_limit: float, optional
+        The error should always be approximating zero. If it passes zeros (for instance, from a positive error
+        to a negative one), the iteration goes back one step and the increment is reduced. This reduction must
+        have a limit to avoid long iterations.
+    return_iteration_map: bool, optional
+        If True, along with the eccentricity found, the function will return a map of position and errors in
+        each step of the iteration.
     Returns
     -------
-    float
-        Eccentricity of the equilibrium position.
+    None, or
+    Matrix of floats
+        A matrix [4, n], being n the number of iterations. In each line, it contains the x and y of the rotor
+        center, followed by the error in force x and force y.
     Examples
     --------
     >>> from ross.fluid_flow.fluid_flow import fluid_flow_example2
     >>> my_fluid_flow = fluid_flow_example2()
-    >>> eccentricity = find_equilibrium_position(my_fluid_flow, print_along=False, tolerance=0.1)
+    >>> find_equilibrium_position(my_fluid_flow, print_along=False,
+    ...                           tolerance=0.1, increment_factor=0.01,
+    ...                           max_iterations=5, increment_reduction_limit=1e-03)
     """
+    fluid_flow_object.calculate_coefficients()
+    fluid_flow_object.calculate_pressure_matrix_numerical()
     r_force, t_force, force_x, force_y = calculate_oil_film_force(fluid_flow_object, force_type='numerical')
     increment = increment_factor * fluid_flow_object.eccentricity
-    resultant_force = np.sqrt(r_force**2 + t_force**2)
-    error = abs(resultant_force - fluid_flow_object.load)
-    k = 0
-    while error > tolerance:
-        k += 1
-        fluid_flow_object.eccentricity = fluid_flow_object.eccentricity + increment
-        fluid_flow_object.eccentricity_ratio = fluid_flow_object.eccentricity / \
-            fluid_flow_object.difference_between_radius
-        fluid_flow_object.attitude_angle = calculate_attitude_angle(fluid_flow_object.eccentricity_ratio)
-        fluid_flow_object.calculate_coefficients()
-        fluid_flow_object.calculate_pressure_matrix_numerical()
-        r_force, t_force, new_force_x, new_force_y = calculate_oil_film_force(fluid_flow_object, force_type='numerical')
-        new_resultant_force = np.sqrt(r_force ** 2 + t_force ** 2)
-        new_error = abs(new_resultant_force - fluid_flow_object.load)
-        if (new_resultant_force - fluid_flow_object.load) * (resultant_force - fluid_flow_object.load) < 0:
-            increment = -increment/10
-        resultant_force = new_resultant_force
-        error = new_error
+    error_x = abs(force_x)
+    error_y = abs(force_y - fluid_flow_object.load)
+    error = max(error_x, error_y)
+    k = 1
+    map_vector = []
+    while error > tolerance and k <= max_iterations:
+        increment_x = increment
+        increment_y = increment
+        iter_x = 0
+        iter_y = 0
+        previous_x = fluid_flow_object.xi
+        previous_y = fluid_flow_object.yi
+        infinite_loop_x_check = False
+        infinite_loop_y_check = False
+        if print_along:
+            print("\nIteration " + str(k) + "\n")
+        while error_x > tolerance:
+            iter_x += 1
+            move_rotor_center(fluid_flow_object, increment_x, 0)
+            fluid_flow_object.calculate_coefficients()
+            fluid_flow_object.calculate_pressure_matrix_numerical()
+            new_r_force, new_t_force, new_force_x, new_force_y = calculate_oil_film_force(fluid_flow_object,
+                                                                                          force_type='numerical')
+            new_error_x = abs(new_force_x)
+            move_rotor_center(fluid_flow_object, -increment_x, 0)
+            if print_along:
+                print("Iteration in x axis " + str(iter_x))
+                print("Force x: " + str(new_force_x))
+                print("Previous force x: " + str(force_x))
+                print("Increment x: ", str(increment_x))
+                print("Error x: " + str(new_error_x))
+                print("Previous error x: " + str(error_x) + "\n")
+            if new_force_x * force_x < 0:
+                infinite_loop_x_check = False
+                increment_x = increment_x/10
+                if print_along:
+                    print("Went beyond error 0. Reducing increment. \n")
+                if abs(increment_x) < abs(increment * increment_reduction_limit):
+                    if print_along:
+                        print("Increment too low. Breaking x iteration. \n")
+                    break
+            elif new_error_x > error_x:
+                if print_along:
+                    print("Error increased. Changing sign of increment. \n")
+                increment_x = -increment_x
+                if infinite_loop_x_check:
+                    break
+                else:
+                    infinite_loop_x_check = True
+            else:
+                infinite_loop_x_check = False
+                move_rotor_center(fluid_flow_object, increment_x, 0)
+                error_x = new_error_x
+                force_x = new_force_x
+                force_y = new_force_y
+                error_y = abs(new_force_y - fluid_flow_object.load)
+                error = max(error_x, error_y)
+
+        while error_y > tolerance:
+            iter_y += 1
+            move_rotor_center(fluid_flow_object, 0, increment_y)
+            fluid_flow_object.calculate_coefficients()
+            fluid_flow_object.calculate_pressure_matrix_numerical()
+            new_r_force, new_t_force, new_force_x, new_force_y = calculate_oil_film_force(fluid_flow_object,
+                                                                                          force_type='numerical')
+            new_error_y = abs(new_force_y - fluid_flow_object.load)
+            move_rotor_center(fluid_flow_object, 0, -increment_y)
+            if print_along:
+                print("Iteration in y axis " + str(iter_y))
+                print("Force y: " + str(new_force_y))
+                print("Previous force y: " + str(force_y))
+                print("Increment y: ", str(increment_y))
+                print("Force y minus load: " + str(new_force_y - fluid_flow_object.load))
+                print("Previous force y minus load: " + str(force_y - fluid_flow_object.load))
+                print("Error y: " + str(new_error_y))
+                print("Previous error y: " + str(error_y) + "\n")
+            if (new_force_y - fluid_flow_object.load) * (force_y - fluid_flow_object.load) < 0:
+                infinite_loop_y_check = False
+                increment_y = increment_y / 10
+                if print_along:
+                    print("Went beyond error 0. Reducing increment. \n")
+                if abs(increment_y) < abs(increment * increment_reduction_limit):
+                    if print_along:
+                        print("Increment too low. Breaking y iteration. \n")
+                    break
+            elif new_error_y > error_y:
+                if print_along:
+                    print("Error increased. Changing sign of increment. \n")
+                increment_y = -increment_y
+                if infinite_loop_y_check:
+                    break
+                else:
+                    infinite_loop_y_check = True
+            else:
+                infinite_loop_y_check = False
+                move_rotor_center(fluid_flow_object, 0, increment_y)
+                error_y = new_error_y
+                force_y = new_force_y
+                force_x = new_force_x
+                error_x = abs(new_force_x)
+                error = max(error_x, error_y)
         if print_along:
             print("Iteration " + str(k))
-            print("Eccentricity: " + str(fluid_flow_object.eccentricity))
-            print("Resultant force minus load: " + str(resultant_force - fluid_flow_object.load))
-    return fluid_flow_object.eccentricity
+            print("Error x: " + str(error_x))
+            print("Error y: " + str(error_y))
+            print("Current x, y: (" + str(fluid_flow_object.xi) + ", " + str(fluid_flow_object.yi) + ")")
+        k += 1
+        map_vector.append([fluid_flow_object.xi, fluid_flow_object.yi, error_x, error_y])
+        if previous_x == fluid_flow_object.xi and previous_y == fluid_flow_object.yi:
+            if print_along:
+                print("Rotor center did not move during iteration. Breaking.")
+            break
+
+    if print_along:
+        print(map_vector)
+    if return_iteration_map:
+        return map_vector
+
+
 
 
 

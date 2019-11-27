@@ -259,3 +259,35 @@ def calculate_rotor_load(radius_stator, omega, viscosity, length, radial_clearan
            ) * (np.sqrt((16 / (np.pi ** 2) - 1) * eccentricity_ratio ** 2 + 1))
 
 
+def move_rotor_center(fluid_flow_object, dx, dy):
+    """For a given step on x or y axis,
+    moves the rotor center and calculates new eccentricity, attitude angle,
+    and rotor center.
+
+    Parameters
+    ----------
+    fluid_flow_object: A FluidFlow object.
+    dx: float
+        The step on x axis.
+    dy: float
+        The step on y axis.
+    Returns
+    -------
+    None
+    --------
+    >>> from ross.fluid_flow.fluid_flow import fluid_flow_example2
+    >>> my_fluid_flow = fluid_flow_example2()
+    >>> move_rotor_center(my_fluid_flow, 0, 0)
+    >>> my_fluid_flow.eccentricity # doctest: +ELLIPSIS
+    2.6627...
+    """
+    fluid_flow_object.xi = fluid_flow_object.xi + dx
+    fluid_flow_object.yi = fluid_flow_object.yi + dy
+    fluid_flow_object.eccentricity = np.sqrt(fluid_flow_object.xi**2 + fluid_flow_object.yi**2)
+    fluid_flow_object.eccentricity_ratio = fluid_flow_object.eccentricity / fluid_flow_object.difference_between_radius
+    fluid_flow_object.attitude_angle = np.arccos(abs(fluid_flow_object.yi/fluid_flow_object.eccentricity))
+
+
+
+
+
