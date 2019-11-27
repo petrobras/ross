@@ -1,5 +1,6 @@
 import numpy as np
 import pandas as pd
+import toml
 from copy import copy
 from scipy.interpolate import interp1d
 from scipy.signal import argrelextrema
@@ -422,7 +423,7 @@ class Report:
                     line_width=0.8,
                     fill_alpha=0.2,
                     fill_color=bokeh_colors[8],
-                    legend="Separation Margin",
+                    legend_label="Separation Margin",
                     name="SM2",
                 )
                 hover = HoverTool(names=["SM2"])
@@ -457,7 +458,7 @@ class Report:
                     line_width=0.8,
                     fill_alpha=0.2,
                     fill_color=bokeh_colors[8],
-                    legend="Separation Margin",
+                    legend_label="Separation Margin",
                     name="SM2",
                 )
                 hover = HoverTool(names=["SM2"])
@@ -491,7 +492,7 @@ class Report:
             line_width=0.8,
             fill_alpha=0.2,
             fill_color="green",
-            legend="Operation Speed Range",
+            legend_label="Operation Speed Range",
         )
 
         source = ColumnDataSource(dict(x=freq_range, y=mag[dof]))
@@ -509,7 +510,7 @@ class Report:
             line_dash="dotdash",
             line_width=2.0,
             line_color=bokeh_colors[1],
-            legend="Av1 - Mechanical test vibration limit",
+            legend_label="Av1 - Mechanical test vibration limit",
         )
         mag_plot.add_layout(
             Label(
@@ -649,7 +650,7 @@ class Report:
             y=vn,
             line_width=4,
             line_color="red",
-            legend="Mode = %s, Speed = %.1f RPM" % (mode, rpm_speed),
+            legend_label="Mode = %s, Speed = %.1f RPM" % (mode, rpm_speed),
         )
         plot.line(
             x=nodes_pos,

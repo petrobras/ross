@@ -79,9 +79,9 @@ def plot_pressure_z(fluid_flow_object, theta=0):
         x_axis_label="Points along Z",
     )
     if fluid_flow_object.numerical_pressure_matrix_available:
-        p.line(fluid_flow_object.z_list, y_n, legend="Numerical pressure", color="blue", line_width=2)
+        p.line(fluid_flow_object.z_list, y_n, legend_label="Numerical pressure", color="blue", line_width=2)
     if fluid_flow_object.analytical_pressure_matrix_available:
-        p.line(fluid_flow_object.z_list, y_a, legend="Analytical pressure", color="red", line_width=2)
+        p.line(fluid_flow_object.z_list, y_a, legend_label="Analytical pressure", color="red", line_width=2)
     return p
 
 
@@ -159,7 +159,7 @@ def plot_pressure_theta(fluid_flow_object, z=0):
         p.line(
             fluid_flow_object.gama[z],
             fluid_flow_object.p_mat_numerical[z],
-            legend="Numerical pressure",
+            legend_label="Numerical pressure",
             line_width=2,
             color="blue",
         )
@@ -167,7 +167,7 @@ def plot_pressure_theta(fluid_flow_object, z=0):
         p.line(
             fluid_flow_object.gama[z],
             fluid_flow_object.p_mat_analytical[z],
-            legend="Analytical pressure",
+            legend_label="Analytical pressure",
             line_width=2,
             color="red",
         )

@@ -113,3 +113,6 @@ notebooks/
 # docs #
 /docs/examples/*_files
 /docs/generated/
+/paper/whedon/
+/paper/paper.pdf
+/paper/Makefile
