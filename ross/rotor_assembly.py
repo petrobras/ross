@@ -1052,7 +1052,8 @@ class Rotor(object):
         array([[[1.00000000e-06, 1.00261725e-06, 1.01076952e-06, ...
         """
         if speed_range is None:
-            speed_range = np.linspace(0, max(self.evalues.imag) * 1.5, 1000)
+            modal = self.run_modal(0)
+            speed_range = np.linspace(0, max(modal.evalues.imag) * 1.5, 1000)
 
         freq_resp = np.empty((self.ndof, self.ndof, len(speed_range)), dtype=np.complex)
 
