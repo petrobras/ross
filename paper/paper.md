@@ -51,7 +51,7 @@ systems [@friswell2010dynamics; @vance2010machinery; @childs1993turbomachinery; 
 These models are used to support research and decision making. To this purpose, we present ROSS, 
 an open source library written in Python for rotordynamic analysis.
 
-ROSS allows the construction of rotor models, and their numerical simulation. Shaft elements, as a default, are 
+ROSS allows the construction of rotor models and their numerical simulation. Shaft elements, as a default, are 
 modeled with the Timoshenko beam theory, which considers shear and rotary inertia effects, and discretized by means of 
 the Finite Element Method [@friswell2010dynamics]. Disks are assumed to be rigid bodies, thus their strain energy is not taken 
 into account. And bearings/seals are included as linear stiffness/damping coefficients.
