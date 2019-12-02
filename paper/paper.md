@@ -3,7 +3,7 @@ title: 'ROSS - Rotordynamic Open Source Software'
 
 tags:
   - rotordynamic
-  - numerical calculus
+  - dynamics 
   - Python
 authors:
  - name: Raphael Timbó
@@ -24,7 +24,7 @@ authors:
  - name: Juliana Valério
    orcid: 0000-0002-6198-7932
    affiliation: 5
- - name: Thiago Ritto
+ - name: Thiago G Ritto
    orcid: 0000-0003-0649-6919
    affiliation: 2
 affiliations:
@@ -47,9 +47,14 @@ bibliography: paper.bib
 There are several critical rotating equipment crucial to the industry, such as compressors, 
 pumps and turbines.
 Computational mechanical models aim to simulate the behavior of such mechanical
-systems [@friswell2010dynamics], [@vance2010machinery], [@childs1993turbomachinery], [@ishida2012linear] and
-[@gasch2005berlin]. These models are used to support research and decision making. To this purpose, we present ROSS, 
+systems [@friswell2010dynamics; @vance2010machinery; @childs1993turbomachinery; @ishida2012linear; @gasch2006rotordynamik]. 
+These models are used to support research and decision making. To this purpose, we present ROSS, 
 an open source library written in Python for rotordynamic analysis.
+
+ROSS allows the construction of rotor models, and their numerical simulation. Shaft elements, as a default, are 
+modeled with the Timoshenko beam theory, which considers shear and rotary inertia effects, and discretized by means of 
+the Finite Element Method [@friswell2010dynamics]. Disks are assumed to be rigid bodies, thus their strain energy is not taken 
+into account. And bearings/seals are included as linear stiffness/damping coefficients.
 
 Concerning rotordynamics softares, there are some comercial finite element softwares that have a rotordynamic 
 module [@comsol] 1,2, some softwares based on a comercial platform (Matlab) 3,4, and others that are independent 5,6. 
@@ -81,7 +86,7 @@ $\mathbf{M}$, $\mathbf{K}$, $\mathbf{C}$ and $\mathbf{G}$ are the mass, stiffnes
 matrices, $\Omega$ is the excitation frequency, $\omega$ is the rotor whirl speed and $\mathbf{f}$ is the generalized 
 force vector.
 
-We have built the package using main Python packages such as NumPy [@walt2011numpy], SciPy [@jones2014scipy] 
+We have built the package using main Python packages such as NumPy [@van2011numpy], SciPy [@jones2001scipy] 
 and Bokeh [@bokeh2019].
 
 Besides the [documentation](https://ross-rotordynamics.github.io/ross-website/), a set of Jupyter Notebooks 
