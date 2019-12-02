@@ -57,7 +57,8 @@ the Finite Element Method [@friswell2010dynamics]. Disks are assumed to be rigid
 into account. And bearings/seals are included as linear stiffness/damping coefficients.
 
 Concerning rotordynamics softares, there are some comercial finite element softwares that have a rotordynamic 
-module [@comsol] 1,2, some softwares based on a comercial platform (Matlab) 3,4, and others that are independent 5,6. 
+module [@comsol; @ansys], some softwares based on a comercial platform (Matlab) [@madyn; @dynamicsrotating], and others 
+that are independent [@rotorinsa; @trcsoftware]. 
 To use these softwares one needs to buy licenses, and they are not intended to be developed in a collaborative public 
 manner.
 
@@ -90,7 +91,7 @@ We have built the package using main Python packages such as NumPy [@van2011nump
 and Bokeh [@bokeh2019].
 
 Besides the [documentation](https://ross-rotordynamics.github.io/ross-website/), a set of Jupyter Notebooks 
-is available for the tutorial and some examples. Users can also access these notebooks through a [binder server](https://mybinder.org/v2/gh/ross-rotordynamics/ross/master).
+is available for the tutorial and some examples. Users can also access these notebooks through a [Binder server](https://mybinder.org/v2/gh/ross-rotordynamics/ross/master).
 
 As an example, Figure 1 shows a centrifugal compressor modeled with ROSS. 
 
