@@ -51,22 +51,16 @@ systems [@friswell2010dynamics; @vance2010machinery; @childs1993turbomachinery; 
 These models are used to support research and decision making. To this purpose, we present ROSS, 
 an open source library written in Python for rotordynamic analysis.
 
-ROSS allows the construction of rotor models and their numerical simulation. Shaft elements, as a default, are 
-modeled with the Timoshenko beam theory, which considers shear and rotary inertia effects, and discretized by means of 
-the Finite Element Method [@friswell2010dynamics]. Disks are assumed to be rigid bodies, thus their strain energy is not taken 
-into account. And bearings/seals are included as linear stiffness/damping coefficients.
-
-Concerning rotordynamics softares, there are some comercial finite element softwares that have a rotordynamic 
-module [@comsol; @ansys], some softwares based on a comercial platform (Matlab) [@madyn; @dynamicsrotating], and others 
+Concerning rotordynamics softwares, there are some commercial finite element softwares that have a rotordynamic 
+module [@comsol; @ansys], some softwares based on a commercial platform (Matlab) [@madyn; @dynamicsrotating], and others 
 that are independent [@rotorinsa; @trcsoftware]. 
 To use these softwares one needs to buy licenses, and they are not intended to be developed in a collaborative public 
 manner.
 
-ROSS allows the construction of rotor models, and their numerical simulation. 
-Shaft elements, as a default, are modeled with the Timoshenko beam theory, which considers shear and rotary inertia 
-effects, and discretized by means of the Finite Element Method (Friswell, 2010). Disks are assumed to be rigid bodies, 
-thus their strain energy is not taken into account. And bearings/seals are included as linear stiffness/damping 
-coefficients.
+ROSS allows the construction of rotor models and their numerical simulation. Shaft elements, as a default, are 
+modeled with the Timoshenko beam theory, which considers shear and rotary inertia effects, and discretized by means of 
+the Finite Element Method [@friswell2010dynamics]. Disks are assumed to be rigid bodies, thus their strain energy is not taken 
+into account. And bearings/seals are included as linear stiffness/damping coefficients.
 
 After defining the element matrices and assembling the global matrices of the system, ROSS draws the rotor geometry, 
 runs simulations, and obtains results in the form of graphics. It performs several analyses, such as static analysis, 
@@ -98,7 +92,7 @@ As an example, Figure 1 shows a centrifugal compressor modeled with ROSS.
 ![Centrifugal Compressor modeled with ROSS.](rotor_plot.png)
 
 The shaft elements are in gray, 
-the disks are in blue and the bearings are displayed as springs and dampers. This plot is generated with Bokeh, 
+the impellers represented as disks are in blue and the bearings are displayed as springs and dampers. This plot is generated with Bokeh, 
 and we can use the hover tool to get additional information on each element.
 
 One analysis that can be carried out is the modal analysis. Figure 2 shows the Campbell Diagram generated for this 
