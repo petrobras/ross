@@ -92,7 +92,7 @@ As an example, Figure 1 shows a centrifugal compressor modeled with ROSS.
 ![Centrifugal Compressor modeled with ROSS.](rotor_plot.png)
 
 The shaft elements are in gray, 
-the disks are in blue and the bearings are displayed as springs and dampers. This plot is generated with Bokeh, 
+the impellers represented as disks are in blue and the bearings are displayed as springs and dampers. This plot is generated with Bokeh, 
 and we can use the hover tool to get additional information on each element.
 
 One analysis that can be carried out is the modal analysis. Figure 2 shows the Campbell Diagram generated for this 
