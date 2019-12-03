@@ -56,8 +56,8 @@ modeled with the Timoshenko beam theory, which considers shear and rotary inerti
 the Finite Element Method [@friswell2010dynamics]. Disks are assumed to be rigid bodies, thus their strain energy is not taken 
 into account. And bearings/seals are included as linear stiffness/damping coefficients.
 
-Concerning rotordynamics softares, there are some comercial finite element softwares that have a rotordynamic 
-module [@comsol; @ansys], some softwares based on a comercial platform (Matlab) [@madyn; @dynamicsrotating], and others 
+Concerning rotordynamics softwares, there are some commercial finite element softwares that have a rotordynamic 
+module [@comsol; @ansys], some softwares based on a commercial platform (Matlab) [@madyn; @dynamicsrotating], and others 
 that are independent [@rotorinsa; @trcsoftware]. 
 To use these softwares one needs to buy licenses, and they are not intended to be developed in a collaborative public 
 manner.
