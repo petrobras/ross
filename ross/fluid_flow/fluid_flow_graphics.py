@@ -1,6 +1,8 @@
 import matplotlib.pyplot as plt
 from bokeh.plotting import figure
 import numpy as np
+from matplotlib import cm
+from mpl_toolkits.mplot3d import axes3d
 
 
 def plot_eccentricity(fluid_flow_object, z=0):
@@ -441,4 +443,55 @@ def matplot_pressure_theta(fluid_flow_object, z=0, ax=None):
     ax.set_ylabel("Pressure")
     return ax
 
+def matplot_pressure_surface(fluid_flow_object, ax=None):
+    """This function assembles pressure surface graphic in the bearing, using matplotlib.
+    Parameters
+    ----------
+    fluid_flow_object: a FluidFlow object
+    ax : matplotlib axes, optional
+        Axes in which the plot will be drawn.
+    Returns
+    -------
+    ax : matplotlib axes
+        Returns the axes object with the plot.
+    Examples
+    --------
+    >>> from ross.fluid_flow.fluid_flow import fluid_flow_example
+    >>> my_fluid_flow = fluid_flow_example()
+    >>> my_fluid_flow.calculate_pressure_matrix_numerical()
+    >>> ax = matplot_pressure_surface(my_fluid_flow)
+    >>> # to show the plots you can use:
+    >>> # plt.show()
+    """
+    if (
+            not fluid_flow_object.numerical_pressure_matrix_available
+            and not fluid_flow_object.analytical_pressure_matrix_available
+    ):
+        raise ValueError(
+            "Must calculate the pressure matrix. "
+            "Try calling calculate_pressure_matrix_numerical() or calculate_pressure_matrix_analytical() first."
+        )
+    if ax is None:
+        fig = plt.figure()
+        ax = fig.gca(projection='3d')
+    if fluid_flow_object.numerical_pressure_matrix_available:
+        z, theta = np.meshgrid(fluid_flow_object.z_list, fluid_flow_object.gama[0])
+        ax.plot_surface(
+            z, theta, fluid_flow_object.p_mat_numerical.T, cmap=cm.coolwarm, linewidth=0,
+            label="Numerical pressure"
+        )
+    if fluid_flow_object.analytical_pressure_matrix_available:
+        z, theta = np.meshgrid(fluid_flow_object.z_list, fluid_flow_object.gama[0])
+        ax.plot_surface(
+            z, theta, fluid_flow_object.p_mat_analytical.T, cmap=cm.coolwarm, linewidth=0,
+            label="Analytical pressure"
+        )
+    ax.set_title('Bearing Pressure Field', fontsize=18)
+    ax.set_xlabel('Bearing Length', fontsize=14, linespacing=50)
+    ax.set_ylabel('Angular position', fontsize=14, linespacing=50)
+    ax.set_zlabel('Pressure', fontsize=14, linespacing=50)
+    ax.dist = 10
+    ax.tick_params(axis='both', which='major', labelsize=12)
+    ax.tick_params(axis='both', which='minor', labelsize=12)
+    return ax
 
