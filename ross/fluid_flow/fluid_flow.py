@@ -58,6 +58,12 @@ class FluidFlow:
     density: float
         Fluid density(Kg/m^3).
 
+    Commands
+    ^^^^^^^^
+    Commands that can be passed as arguments.
+    immediately_calculate_pressure_matrix_numerically: bool, optional
+        If set True, calculates the pressure matrix numerically immediately.
+
     Returns
     -------
     An object containing the fluid flow and its data.
@@ -142,9 +148,10 @@ class FluidFlow:
     >>> eccentricity = 0.001
     >>> attitude_angle = np.pi
     >>> my_fluid_flow = flow.FluidFlow(nz, ntheta, nradius, length,
-    ...                                          omega, p_in, p_out, radius_rotor,
-    ...                                          radius_stator, viscosity, density,
-    ...                                          attitude_angle=attitude_angle, eccentricity=eccentricity)
+    ...                                omega, p_in, p_out, radius_rotor,
+    ...                                radius_stator, viscosity, density,
+    ...                                attitude_angle=attitude_angle, eccentricity=eccentricity
+    ...                                immediately_calculate_pressure_matrix_numerically=False)
     >>> my_fluid_flow.calculate_pressure_matrix_analytical() # doctest: +ELLIPSIS
     array([[-0.00000...
     >>> my_fluid_flow.calculate_pressure_matrix_numerical() # doctest: +ELLIPSIS
@@ -172,6 +179,7 @@ class FluidFlow:
             attitude_angle=None,
             eccentricity=None,
             load=None,
+            immediately_calculate_pressure_matrix_numerically=True
     ):
         if load is None and eccentricity is None:
             sys.exit("Either load or eccentricity must be given.")
@@ -241,6 +249,9 @@ class FluidFlow:
         self.calculate_coefficients()
         self.analytical_pressure_matrix_available = False
         self.numerical_pressure_matrix_available = False
+        self.calculate_pressure_matrix_numerical()
+        if immediately_calculate_pressure_matrix_numerically:
+            self.calculate_pressure_matrix_numerical()
 
     def calculate_pressure_matrix_analytical(self, method=0, force_type=None):
         """This function calculates the pressure matrix analytically.
