@@ -510,7 +510,8 @@ def fluid_flow_example():
     """
     my_pressure_matrix = FluidFlow(nz=8, ntheta=64, nradius=11, length=0.01, omega=100. * 2 * np.pi / 60,
                                    p_in=0., p_out=0., radius_rotor=0.08, radius_stator=0.1,
-                                   viscosity=0.015, density=860., eccentricity=0.001, attitude_angle=np.pi)
+                                   viscosity=0.015, density=860., eccentricity=0.001, attitude_angle=np.pi,
+                                   immediately_calculate_pressure_matrix_numerically=False)
     return my_pressure_matrix
 
 
@@ -546,7 +547,7 @@ def fluid_flow_example2():
     rho = 860.
     return FluidFlow(nz, ntheta, nradius, length, omega, p_in,
                      p_out, radius_rotor, radius_stator,
-                     visc, rho, load=load)
+                     visc, rho, load=load, immediately_calculate_pressure_matrix_numerically=False)
 
 
 
