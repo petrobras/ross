@@ -150,7 +150,7 @@ class FluidFlow:
     >>> my_fluid_flow = flow.FluidFlow(nz, ntheta, nradius, length,
     ...                                omega, p_in, p_out, radius_rotor,
     ...                                radius_stator, viscosity, density,
-    ...                                attitude_angle=attitude_angle, eccentricity=eccentricity
+    ...                                attitude_angle=attitude_angle, eccentricity=eccentricity,
     ...                                immediately_calculate_pressure_matrix_numerically=False)
     >>> my_fluid_flow.calculate_pressure_matrix_analytical() # doctest: +ELLIPSIS
     array([[-0.00000...
