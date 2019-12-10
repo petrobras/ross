@@ -443,6 +443,7 @@ def matplot_pressure_theta(fluid_flow_object, z=0, ax=None):
     ax.set_ylabel("Pressure")
     return ax
 
+
 def matplot_pressure_surface(fluid_flow_object, ax=None):
     """This function assembles pressure surface graphic in the bearing, using matplotlib.
     Parameters
@@ -458,7 +459,8 @@ def matplot_pressure_surface(fluid_flow_object, ax=None):
     --------
     >>> from ross.fluid_flow.fluid_flow import fluid_flow_example
     >>> my_fluid_flow = fluid_flow_example()
-    >>> my_fluid_flow.calculate_pressure_matrix_numerical()
+    >>> my_fluid_flow.calculate_pressure_matrix_numerical() # doctest: +ELLIPSIS
+    array([[...
     >>> ax = matplot_pressure_surface(my_fluid_flow)
     >>> # to show the plots you can use:
     >>> # plt.show()
