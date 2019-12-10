@@ -58,8 +58,8 @@ class FluidFlow:
     density: float
         Fluid density(Kg/m^3).
 
-    Commands
-    ^^^^^^^^
+    User commands
+    ^^^^^^^^^^^^^
     Commands that can be passed as arguments.
     immediately_calculate_pressure_matrix_numerically: bool, optional
         If set True, calculates the pressure matrix numerically immediately.
