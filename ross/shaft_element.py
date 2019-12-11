@@ -470,44 +470,60 @@ class ShaftElement(Element):
                [ 0.        , -0.04931719,  0.00231392,  0.        ],
                [ 0.04931719,  0.        ,  0.        ,  0.00231392]])
         """
-        phi = self.phi
+        
+        # temporary material and geometrical constants
         L = self.L
+        tempG = self.material.E / (2 * (1 + self.n))
+        tempS = np.pi * ((self.o_d / 2) ** 2 - (self.i_d / 2) ** 2)
+        tempI = np.pi / 4 * ((self.o_d / 2) ** 4 - (self.i_d / 2) ** 4)
+        tempJ = np.pi / 2 * ((self.o_d / 2) ** 4 - (self.i_d / 2) ** 4)
+        tempMM = (self.i_d / 2) / (self.o_d / 2)
 
-        m01 = 312 + 588 * phi + 280 * phi ** 2
-        m02 = (44 + 77 * phi + 35 * phi ** 2) * L
-        m03 = 108 + 252 * phi + 140 * phi ** 2
-        m04 = -(26 + 63 * phi + 35 * phi ** 2) * L
-        m05 = (8 + 14 * phi + 7 * phi ** 2) * L ** 2
-        m06 = -(6 + 14 * phi + 7 * phi ** 2) * L ** 2
+        # temporary variables dependent on kappa
+        tempA = (
+            12
+            * self.material.E
+            * tempI
+            / (self.material.G_s * self.kappa * tempS * L ** 2)
+        )
+
+        # element level matrix declaration
+
+        aux1 = self.material.rho * tempS * L / 420
+        aux2 = self.material.rho * tempJ * L / 6
         # fmt: off
-        M = np.array([[m01,    0,    0,  m02,  m03,    0,    0,  m04],
-                      [  0,  m01, -m02,    0,    0,  m03, -m04,    0],
-                      [  0, -m02,  m05,    0,    0,  m04,  m06,    0],
-                      [m02,    0,    0,  m05, -m04,    0,    0,  m06],
-                      [m03,    0,    0, -m04,  m01,    0,    0, -m02],
-                      [  0,  m03,  m04,    0,    0,  m01,  m02,    0],
-                      [  0, -m04,  m06,    0,    0,  m02,  m05,    0],
-                      [m04,    0,    0,  m06, -m02,    0,    0,  m05]])
-        # fmt: on
-        M = self.material.rho * self.A * self.L * M / (840 * (1 + phi) ** 2)
+        M=aux1*np.array([
+            [156        ,0           ,0           ,0           ,0           ,-22*L       ,54          ,0           ,0           ,0           ,0           ,13*L  ]   
+            [0          ,140         ,0           ,0           ,0           ,0           ,0           ,70          ,0           ,0           ,0           ,0     ]    
+            [0          ,0           ,156         ,22*L        ,0           ,0           ,0           ,0           ,54          ,-13*L       ,0           ,0     ]    
+            [0          ,0           ,22*L        ,4*L^2       ,0           ,0           ,0           ,0           ,13*L        ,-3*L^2      ,0           ,0     ]     
+            [0          ,0           ,0           ,0           ,2*aux2/aux1 ,0           ,0           ,0           ,0           ,0           ,aux2/aux1   ,0     ]    
+            [-22*L      ,0           ,0           ,0           ,0           ,4*L^2       ,-13*L       ,0           ,0           ,0           ,0           ,-3*L^2]    
+            [54         ,0           ,0           ,0           ,0           ,-13*L       ,156         ,0           ,0           ,0           ,0           ,22*L  ]      
+            [0          ,70          ,0           ,0           ,0           ,0           ,0           ,140         ,0           ,0           ,0           ,0     ]      
+            [0          ,0           ,54          ,13*L        ,0           ,0           ,0           ,0           ,156         ,-22*L       ,0           ,0     ]     
+            [0          ,0           ,-13*L       ,-3*L^2      ,0           ,0           ,0           ,0           ,-22*L       ,4*L^2       ,0           ,0     ] 
+            [0          ,0           ,0           ,0           ,aux2/aux1   ,0           ,0           ,0           ,0           ,0           ,2*aux2/aux1 ,0     ]
+            [13*L       ,0           ,0           ,0           ,0           ,-3*L^2      ,22*L        ,0           ,0           ,0           ,0           ,4*L^2 ]
+        ])
 
-        if self.rotary_inertia:
-            ms1 = 36
-            ms2 = (3 - 15 * phi) * L
-            ms3 = (4 + 5 * phi + 10 * phi ** 2) * L ** 2
-            ms4 = (-1 - 5 * phi + 5 * phi ** 2) * L ** 2
-            # fmt: off
-            Ms = np.array([[ ms1,    0,    0,  ms2, -ms1,    0,    0,  ms2],
-                           [   0,  ms1, -ms2,    0,    0, -ms1, -ms2,    0],
-                           [   0, -ms2,  ms3,    0,    0,  ms2,  ms4,    0],
-                           [ ms2,    0,    0,  ms3, -ms2,    0,    0,  ms4],
-                           [-ms1,    0,    0, -ms2,  ms1,    0,    0, -ms2],
-                           [   0, -ms1,  ms2,    0,    0,  ms1,  ms2,    0],
-                           [   0, -ms2,  ms4,    0,    0,  ms2,  ms3,    0],
-                           [ ms2,    0,    0,  ms4, -ms2,    0,    0,  ms3]])
-            # fmt: on
-            Ms = self.material.rho * self.Ie * Ms / (30 * L * (1 + phi) ** 2)
-            M = M + Ms
+        Ms=self.material.rho*tempI/(30*L)*np.array([
+            [36         ,0           ,0           ,0           ,0           ,-3*L        ,-36         ,0           ,0           ,0           ,0           ,-3*L ]    
+            [0          ,0           ,0           ,0           ,0           ,0           ,0           ,0           ,0           ,0           ,0           ,0    ]     
+            [0          ,0           ,36          ,3*L         ,0           ,0           ,0           ,0           ,-36         ,3*L         ,0           ,0    ]    
+            [0          ,0           ,3*L         ,4*L^2       ,0           ,0           ,0           ,0           ,-3*L        ,-L^2        ,0           ,0    ]      
+            [0          ,0           ,0           ,0           ,0           ,0           ,0           ,0           ,0           ,0           ,0           ,0    ]      
+            [-3*L       ,0           ,0           ,0           ,0           ,4*L^2       ,3*L         ,0           ,0           ,0           ,0           ,-L^2 ]     
+            [-36        ,0           ,0           ,0           ,0           ,3*L         ,36          ,0           ,0           ,0           ,0           ,3*L  ]   
+            [0          ,0           ,0           ,0           ,0           ,0           ,0           ,0           ,0           ,0           ,0           ,0    ] 
+            [0          ,0           ,-36         ,-3*L        ,0           ,0           ,0           ,0           ,36          ,-3*L        ,0           ,0    ]     
+            [0          ,0           ,3*L         ,-L^2        ,0           ,0           ,0           ,0           ,-3*L        ,4*L^2       ,0           ,0    ]       
+            [0          ,0           ,0           ,0           ,0           ,0           ,0           ,0           ,0           ,0           ,0           ,0    ]     
+            [-3*L       ,0           ,0           ,0           ,0           ,-L^2        ,3*L         ,0           ,0           ,0           ,0           ,4*L^2]
+        ])
+        # fmt: on
+        
+        M = M + Ms
 
         return M
 
