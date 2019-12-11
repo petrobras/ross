@@ -1,3 +1,11 @@
+# Virtualenv                            #
+#########################################
+venv/
+env/
+.venv/
+.env/
+
+
 # Editor temporary/working/backup files #
 #########################################
 .#*
