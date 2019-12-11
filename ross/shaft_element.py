@@ -113,7 +113,6 @@ class ShaftElement(Element):
         shear_effects=True,
         rotary_inertia=True,
         gyroscopic=True,
-        shear_method_calc="cowper",
         tag=None,
     ):
 
@@ -134,7 +133,6 @@ class ShaftElement(Element):
         if n is not None:
             self.n_r = n + 1
 
-        self.shear_method_calc = shear_method_calc
         self.tag = tag
 
         self.L = float(L)
@@ -148,59 +146,26 @@ class ShaftElement(Element):
         self.o_d_r = float(o_d)
         self.color = self.material.color
 
-        self.A = np.pi * (o_d ** 2 - i_d ** 2) / 4
-        self.volume = self.A * self.L
-        self.m = self.material.rho * self.volume
-        #  Ie is the second moment of area of the cross section about
-        #  the neutral plane Ie = pi*r**2/4
-        self.Ie = np.pi * (o_d ** 4 - i_d ** 4) / 64
-        phi = 0
+        # Timoshenko kappa factor determination, based on the diameters relation
+        if self.__is_circular():
+            kappa = (6 * (1 + self.material.Poisson) ** 2) / (
+                7 + 12 * self.material.Poisson + 4 * self.material.Poisson ** 2
+            )
+        elif self.__is_thickwall():
+            a = self.i_d
+            b = self.o_d
+            v = self.material.Poisson
+            kappa = (6(*a ** 2 + b ** 2) ** 2 * (1 + v) ** 2) / (
+                7 * a ** 4
+                + 34 * a ** 2 * b ** 2
+                + 7 * b ** 4
+                + v(12 * a ** 4 + 48 * a ** 2 * b ** 2 + 12 * b ** 4)
+                + v ** 2 * (4 * a ** 4 + 16 * a ** 2 * b ** 2 + 4 * b ** 4)
+            )
+        else:
+            kappa = (1 + self.material.Poisson) / (2 + self.material.Poisson)
 
-        # Geometric center
-        self.beam_cg = L / 2
-        self.axial_cg_pos = None
-
-        # Moment of inertia
-        self.Im = 0.125 * self.m * (o_d ** 2 + i_d ** 2)
-
-        # Slenderness ratio of beam elements (G*A*L^2) / (E*I)
-        sld = (self.material.G_s * self.A * self.L ** 2) / (self.material.E * self.Ie)
-        self.slenderness_ratio = sld
-
-        # picking a method to calculate the shear coefficient
-        # List of avaible methods:
-        # hutchinson - kappa as per Hutchinson (2001)
-        # cowper - kappa as per Cowper (1996)
-        if shear_effects:
-            r = i_d / o_d
-            r2 = r * r
-            r12 = (1 + r2) ** 2
-            if shear_method_calc == "hutchinson":
-                # Shear coefficient (phi)
-                # kappa as per Hutchinson (2001)
-                # fmt: off
-                kappa = 6*r12*((1+self.material.Poisson)/
-                        ((r12*(7 + 12*self.material.Poisson + 4*self.material.Poisson**2) +
-                        4*r2*(5 + 6*self.material.Poisson + 2*self.material.Poisson**2))))
-                # fmt: on
-            elif shear_method_calc == "cowper":
-                # kappa as per Cowper (1996)
-                # fmt: off
-                kappa = 6 * r12 * (
-                    (1 + self.material.Poisson)
-                    / (r12 * (7 + 6 * self.material.Poisson) + r2 * (20 + 12 * self.material.Poisson))
-                )
-                # fmt: on
-            else:
-                raise Warning(
-                    "This method of calculating shear coefficients is not implemented. See guide for futher informations."
-                )
-
-            # fmt: off
-            phi = 12 * self.material.E * self.Ie / (self.material.G_s * kappa * self.A * L ** 2)
-            # fmt: on
-
-        self.phi = phi
+        self.kappa = kappa
 
     def __eq__(self, other):
         """
@@ -238,6 +203,13 @@ class ShaftElement(Element):
 
     def __hash__(self):
         return hash(self.tag)
+
+    def __is_circular(self):
+        return self.shear_effects and self.i_d == 0
+
+    def __is_thickwall(self):
+        p = (self.o_d - self.i_d) / self.o_d
+        return self.shear_effects and p >= 0.2
 
     def save(self, file_name):
         """Save shaft elements to toml file.
