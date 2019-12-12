@@ -351,7 +351,7 @@ class FluidFlow:
                 self.re[i][j] = radius_external
                 self.ri[i][j] = radius_internal
 
-                w = self.omega * self.ri[i][j]
+                w = self.omega * self.radius_rotor
 
                 k = (self.re[i][j] ** 2 * (np.log(self.re[i][j]) - 1 / 2) - self.ri[i][j] ** 2 *
                      (np.log(self.ri[i][j]) - 1 / 2)) / (self.ri[i][j] ** 2 - self.re[i][j] ** 2)
