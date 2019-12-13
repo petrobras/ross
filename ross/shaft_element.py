@@ -12,8 +12,7 @@ from ross.element import Element
 from ross.materials import Material, steel
 from ross.utils import read_table_file
 
-__all__ = ["ShaftElement", "ShaftTaperedElement"]
-
+__all__ = ["ShaftElement"]
 bokeh_colors = bp.RdGy[11]
 
 
@@ -34,881 +33,16 @@ class ShaftElement(Element):
     ----------
     L : float
         Element length.
-    i_d : float
-        Inner diameter of the element.
-    o_d : float
-        Outer diameter of the element.
-    material : ross.material
-        Shaft material.
-    n : int, optional
-        Element number (coincident with it's first node).
-        If not given, it will be set when the rotor is assembled
-        according to the element's position in the list supplied to
-        the rotor constructor.
-    axial_force : float, optional
-        Axial force.
-    torque : float, optional
-        Torque.
-    shear_effects : bool, optional
-        Determine if shear effects are taken into account.
-        Default is True.
-    rotary_inertia : bool, optional
-        Determine if rotary_inertia effects are taken into account.
-        Default is True.
-    gyroscopic : bool, optional
-        Determine if gyroscopic effects are taken into account.
-        Default is True.
-    shear_method_calc : string, optional
-        Determines which shear calculation method the user will adopt
-        Default is 'cowper'
-
-    Returns
-    -------
-
-    Attributes
-    ----------
-    Poisson : float
-        Poisson coefficient for the element.
-    A : float
-        Element section area.
-    Ie : float
-        Ie is the second moment of area of the cross section about
-        the neutral plane :math:`Ie = \pi r^2/4`
-    phi : float
-        Constant that is used according to :cite:`friswell2010dynamics` to
-        consider rotary inertia and shear effects. If these are not considered
-        :math:`\phi=0`.
-
-    References
-    ----------
-
-    .. bibliography:: ../../../docs/refs.bib
-
-    Examples
-    --------
-    >>> from ross.materials import steel
-    >>> le = 0.25
-    >>> i_d = 0
-    >>> o_d = 0.05
-    >>> Euler_Bernoulli_Element = ShaftElement(le, i_d, o_d, steel,
-    ...                                        shear_effects=False, rotary_inertia=False)
-    >>> Euler_Bernoulli_Element.phi
-    0
-    >>> Timoshenko_Element = ShaftElement(le, i_d, o_d, steel,
-    ...                                   rotary_inertia=True,
-    ...                                   shear_effects=True)
-    >>> Timoshenko_Element.phi
-    0.08795566502463055
-    """
-
-    def __init__(
-        self,
-        L,
-        i_d,
-        o_d,
-        material,
-        n=None,
-        axial_force=0,
-        torque=0,
-        shear_effects=True,
-        rotary_inertia=True,
-        gyroscopic=True,
-        shear_method_calc="cowper",
-        tag=None,
-    ):
-
-        if type(material) is str:
-            os.chdir(Path(os.path.dirname(ross.__file__)))
-            self.material = Material.use_material(material)
-        else:
-            self.material = material
-
-        self.shear_effects = shear_effects
-        self.rotary_inertia = rotary_inertia
-        self.gyroscopic = gyroscopic
-        self.axial_force = axial_force
-        self.torque = torque
-        self._n = n
-        self.n_l = n
-        self.n_r = None
-        if n is not None:
-            self.n_r = n + 1
-
-        self.shear_method_calc = shear_method_calc
-        self.tag = tag
-
-        self.L = float(L)
-
-        # diameters
-        self.i_d = float(i_d)
-        self.o_d = float(o_d)
-        self.i_d_l = float(i_d)
-        self.o_d_l = float(o_d)
-        self.i_d_r = float(i_d)
-        self.o_d_r = float(o_d)
-        self.color = self.material.color
-
-        self.A = np.pi * (o_d ** 2 - i_d ** 2) / 4
-        self.volume = self.A * self.L
-        self.m = self.material.rho * self.volume
-        #  Ie is the second moment of area of the cross section about
-        #  the neutral plane Ie = pi*r**2/4
-        self.Ie = np.pi * (o_d ** 4 - i_d ** 4) / 64
-        phi = 0
-
-        # Geometric center
-        self.beam_cg = L / 2
-        self.axial_cg_pos = None
-
-        # Moment of inertia
-        self.Im = 0.125 * self.m * (o_d ** 2 + i_d ** 2)
-
-        # Slenderness ratio of beam elements (G*A*L^2) / (E*I)
-        sld = (self.material.G_s * self.A * self.L ** 2) / (self.material.E * self.Ie)
-        self.slenderness_ratio = sld
-
-        # picking a method to calculate the shear coefficient
-        # List of avaible methods:
-        # hutchinson - kappa as per Hutchinson (2001)
-        # cowper - kappa as per Cowper (1996)
-        if shear_effects:
-            r = i_d / o_d
-            r2 = r * r
-            r12 = (1 + r2) ** 2
-            if shear_method_calc == "hutchinson":
-                # Shear coefficient (phi)
-                # kappa as per Hutchinson (2001)
-                # fmt: off
-                kappa = 6*r12*((1+self.material.Poisson)/
-                        ((r12*(7 + 12*self.material.Poisson + 4*self.material.Poisson**2) +
-                        4*r2*(5 + 6*self.material.Poisson + 2*self.material.Poisson**2))))
-                # fmt: on
-            elif shear_method_calc == "cowper":
-                # kappa as per Cowper (1996)
-                # fmt: off
-                kappa = 6 * r12 * (
-                    (1 + self.material.Poisson)
-                    / (r12 * (7 + 6 * self.material.Poisson) + r2 * (20 + 12 * self.material.Poisson))
-                )
-                # fmt: on
-            else:
-                raise Warning(
-                    "This method of calculating shear coefficients is not implemented. See guide for futher informations."
-                )
-
-            # fmt: off
-            phi = 12 * self.material.E * self.Ie / (self.material.G_s * kappa * self.A * L ** 2)
-            # fmt: on
-
-        self.phi = phi
-
-    def __eq__(self, other):
-        """
-        Equality method for comparasions
-
-        Parameters
-        ----------
-        other : obj
-            parameter for comparasion
-
-        Returns
-        -------
-        True if other is equal to the reference parameter.
-        False if not.
-
-        Example
-        -------
-        >>> from ross.materials import steel
-        >>> le = 0.25
-        >>> i_d = 0
-        >>> o_d = 0.05
-        >>> shaft1 = ShaftElement(
-        ...        le, i_d, o_d, steel, rotary_inertia=True, shear_effects=True
-        ... )
-        >>> shaft2 = ShaftElement(
-        ...        le, i_d, o_d, steel, rotary_inertia=True, shear_effects=True
-        ... )
-        >>> shaft1 == shaft2
-        True
-        """
-        if self.__dict__ == other.__dict__:
-            return True
-        else:
-            return False
-
-    def __hash__(self):
-        return hash(self.tag)
-
-    def save(self, file_name):
-        """Save shaft elements to toml file.
-
-        Parameters
-        ----------
-        file_name : str
-
-        Examples
-        --------
-        >>> from ross.materials import steel
-        >>> le = 0.25
-        >>> i_d = 0
-        >>> o_d = 0.05
-        >>> shaft1 = ShaftElement(
-        ...     le, i_d, o_d, steel, rotary_inertia=True, shear_effects=True
-        ... )
-        >>> shaft1.save('ShaftElement.toml')
-        """
-        data = self.load_data(file_name)
-        data["ShaftElement"][str(self.n)] = {
-            "L": self.L,
-            "i_d": self.i_d,
-            "o_d": self.o_d,
-            "material": self.material.name,
-            "n": self.n,
-            "axial_force": self.axial_force,
-            "torque": self.torque,
-            "shear_effects": self.shear_effects,
-            "rotary_inertia": self.rotary_inertia,
-            "gyroscopic": self.gyroscopic,
-            "shear_method_calc": self.shear_method_calc,
-        }
-        self.dump_data(data, file_name)
-
-    @staticmethod
-    def load(file_name="ShaftElement"):
-        """Load previously saved shaft elements from toml file.
-
-        Parameters
-        ----------
-        file_name : str, optional
-
-        Examples
-        --------
-        >>> from ross.materials import steel
-        >>> le = 0.25
-        >>> i_d = 0
-        >>> o_d = 0.05
-        >>> shaft1 = ShaftElement(
-        ...     le, i_d, o_d, steel, rotary_inertia=True, shear_effects=True
-        ... )
-        >>> shaft1.save('ShaftElement.toml')
-        >>> shaft2 = ShaftElement.load("ShaftElement.toml")
-        >>> shaft2
-        [ShaftElement(L=0.25, i_d=0.0, o_d=0.05, material='Steel', n=None)]
-        """
-        shaft_elements = []
-        with open("ShaftElement.toml", "r") as f:
-            shaft_elements_dict = toml.load(f)
-            for element in shaft_elements_dict["ShaftElement"]:
-                shaft_elements.append(
-                    ShaftElement(**shaft_elements_dict["ShaftElement"][element])
-                )
-        return shaft_elements
-
-    @classmethod
-    def from_table(cls, file, sheet_type="Simple", sheet_name=0):
-        """Instantiate one or more shafts using inputs from an Excel table.
-
-        A header with the names of the columns is required. These names should
-        match the names expected by the routine (usually the names of the
-        parameters, but also similar ones). The program will read every row
-        bellow the header until they end or it reaches a NaN.
-
-        Parameters
-        ----------
-        file: str
-            Path to the file containing the shaft parameters.
-        sheet_type: str, optional
-            Describes the kind of sheet the function should expect:
-                Simple: The input table should specify only the number of the materials to be used.
-                They must be saved prior to calling the method.
-                Model: The materials parameters must be passed along with the shaft parameters. Each
-                material must have an id number and each shaft must reference one of the materials ids.
-        sheet_name: int or str, optional
-            Position of the sheet in the file (starting from 0) or its name. If none is passed, it is
-            assumed to be the first sheet in the file.
-
-        Returns
-        -------
-        shaft: list
-            A list of shaft objects.
-        """
-        parameters = read_table_file(
-            file, "shaft", sheet_name=sheet_name, sheet_type=sheet_type
-        )
-        list_of_shafts = []
-        if sheet_type == "Model":
-            new_materials = {}
-            for i in range(0, len(parameters["matno"])):
-                new_material = Material(
-                    name="shaft_mat_" + str(parameters["matno"][i]),
-                    rho=parameters["rhoa"][i],
-                    E=parameters["ea"][i],
-                    G_s=parameters["ga"][i],
-                )
-                new_materials["shaft_mat_" + str(parameters["matno"][i])] = new_material
-            for i in range(0, len(parameters["L"])):
-                list_of_shafts.append(
-                    cls(
-                        L=parameters["L"][i],
-                        i_d=parameters["i_d"][i],
-                        o_d=parameters["o_d"][i],
-                        material=new_materials[parameters["material"][i]],
-                        n=parameters["n"][i],
-                        axial_force=parameters["axial_force"][i],
-                        torque=parameters["torque"][i],
-                        shear_effects=parameters["shear_effects"][i],
-                        rotary_inertia=parameters["rotary_inertia"][i],
-                        gyroscopic=parameters["gyroscopic"][i],
-                        shear_method_calc=parameters["shear_method_calc"][i],
-                    )
-                )
-        elif sheet_type == "Simple":
-            for i in range(0, len(parameters["L"])):
-                list_of_shafts.append(
-                    cls(
-                        L=parameters["L"][i],
-                        i_d=parameters["i_d"][i],
-                        o_d=parameters["o_d"][i],
-                        material=parameters["material"][i],
-                        n=parameters["n"][i],
-                        axial_force=parameters["axial_force"][i],
-                        torque=parameters["torque"][i],
-                        shear_effects=parameters["shear_effects"][i],
-                        rotary_inertia=parameters["rotary_inertia"][i],
-                        gyroscopic=parameters["gyroscopic"][i],
-                        shear_method_calc=parameters["shear_method_calc"][i],
-                    )
-                )
-        return list_of_shafts
-
-    @property
-    def n(self):
-        """
-        Set the element number as property
-
-        Parameters
-        ----------
-        Returns
-        -------
-        n : int
-            Element number
-        """
-        return self._n
-
-    @n.setter
-    def n(self, value):
-        """
-        Method to set a new value for the element number.
-
-        Parameters
-        ----------
-        value : int
-            element number
-
-        Returns
-        -------
-        Examples
-        --------
-        >>> from ross.materials import steel
-        >>> shaft1 = ShaftElement(L=0.25, i_d=0, o_d=0.05, material=steel,
-        ...                       rotary_inertia=True, shear_effects=True)
-        >>> shaft1.n = 0
-        >>> shaft1
-        ShaftElement(L=0.25, i_d=0.0, o_d=0.05, material='Steel', n=0)
-        """
-        self._n = value
-        self.n_l = value
-        if value is not None:
-            self.n_r = value + 1
-
-    def dof_mapping(self):
-        """
-        Method to map the element's degrees of freedom
-
-        Parameters
-        ----------
-        Returns
-        -------
-        The numbering of degrees of freedom of each element node.
-        """
-        return dict(
-            x_0=0, y_0=1, alpha_0=2, beta_0=3, x_1=4, y_1=5, alpha_1=6, beta_1=7
-        )
-
-    def __repr__(self):
-        """This function returns a string representation of a shaft element.
-
-        Parameters
-        ----------
-        Returns
-        -------
-        A string representation of a shaft object.
-
-        Examples
-        --------
-        >>> from ross.materials import steel
-        >>> shaft1 = ShaftElement(L=0.25, i_d=0, o_d=0.05, material=steel,
-        ...                       rotary_inertia=True, shear_effects=True)
-        >>> shaft1
-        ShaftElement(L=0.25, i_d=0.0, o_d=0.05, material='Steel', n=None)
-        """
-        return (
-            f"{self.__class__.__name__}"
-            f"(L={self.L:{0}.{5}}, i_d={self.i_d:{0}.{5}}, "
-            f"o_d={self.o_d:{0}.{5}}, material={self.material.name!r}, "
-            f"n={self.n})"
-        )
-
-    def __str__(self):
-        """
-        Method to convert object into string
-        
-        Parameters
-        ----------
-        Returns
-        -------
-        The object's parameters translated to strings
-        """
-        return (
-            f"\nElem. N:    {self.n}"
-            f"\nLenght:     {self.L:{10}.{5}}"
-            f"\nInt. Diam.: {self.i_d:{10}.{5}}"
-            f"\nOut. Diam.: {self.o_d:{10}.{5}}"
-            f'\n{35*"-"}'
-            f"\n{self.material}"
-            f"\n"
-        )
-
-    def M(self):
-        r"""Mass matrix for an instance of a shaft element.
-
-        Returns
-        -------
-        M: np.ndarray
-            Mass matrix for the shaft element.
-
-        Examples
-        --------
-        >>> Timoshenko_Element = ShaftElement(0.25, 0, 0.05, steel,
-        ...                                  rotary_inertia=True,
-        ...                                  shear_effects=True)
-        >>> Timoshenko_Element.M()[:4, :4]
-        array([[ 1.42050794,  0.        ,  0.        ,  0.04931719],
-               [ 0.        ,  1.42050794, -0.04931719,  0.        ],
-               [ 0.        , -0.04931719,  0.00231392,  0.        ],
-               [ 0.04931719,  0.        ,  0.        ,  0.00231392]])
-        """
-        phi = self.phi
-        L = self.L
-
-        m01 = 312 + 588 * phi + 280 * phi ** 2
-        m02 = (44 + 77 * phi + 35 * phi ** 2) * L
-        m03 = 108 + 252 * phi + 140 * phi ** 2
-        m04 = -(26 + 63 * phi + 35 * phi ** 2) * L
-        m05 = (8 + 14 * phi + 7 * phi ** 2) * L ** 2
-        m06 = -(6 + 14 * phi + 7 * phi ** 2) * L ** 2
-        # fmt: off
-        M = np.array([[m01,    0,    0,  m02,  m03,    0,    0,  m04],
-                      [  0,  m01, -m02,    0,    0,  m03, -m04,    0],
-                      [  0, -m02,  m05,    0,    0,  m04,  m06,    0],
-                      [m02,    0,    0,  m05, -m04,    0,    0,  m06],
-                      [m03,    0,    0, -m04,  m01,    0,    0, -m02],
-                      [  0,  m03,  m04,    0,    0,  m01,  m02,    0],
-                      [  0, -m04,  m06,    0,    0,  m02,  m05,    0],
-                      [m04,    0,    0,  m06, -m02,    0,    0,  m05]])
-        # fmt: on
-        M = self.material.rho * self.A * self.L * M / (840 * (1 + phi) ** 2)
-
-        if self.rotary_inertia:
-            ms1 = 36
-            ms2 = (3 - 15 * phi) * L
-            ms3 = (4 + 5 * phi + 10 * phi ** 2) * L ** 2
-            ms4 = (-1 - 5 * phi + 5 * phi ** 2) * L ** 2
-            # fmt: off
-            Ms = np.array([[ ms1,    0,    0,  ms2, -ms1,    0,    0,  ms2],
-                           [   0,  ms1, -ms2,    0,    0, -ms1, -ms2,    0],
-                           [   0, -ms2,  ms3,    0,    0,  ms2,  ms4,    0],
-                           [ ms2,    0,    0,  ms3, -ms2,    0,    0,  ms4],
-                           [-ms1,    0,    0, -ms2,  ms1,    0,    0, -ms2],
-                           [   0, -ms1,  ms2,    0,    0,  ms1,  ms2,    0],
-                           [   0, -ms2,  ms4,    0,    0,  ms2,  ms3,    0],
-                           [ ms2,    0,    0,  ms4, -ms2,    0,    0,  ms3]])
-            # fmt: on
-            Ms = self.material.rho * self.Ie * Ms / (30 * L * (1 + phi) ** 2)
-            M = M + Ms
-
-        return M
-
-    def K(self):
-        r"""Stiffness matrix for an instance of a shaft element.
-
-        Returns
-        -------
-        K: np.ndarray
-            Stiffness matrix for the shaft element.
-
-        Examples
-        --------
-        >>> from ross.materials import steel
-        >>> Timoshenko_Element = ShaftElement(0.25, 0, 0.05, steel,
-        ...                                  rotary_inertia=True,
-        ...                                  shear_effects=True)
-        >>> Timoshenko_Element.K()[:4, :4]/1e6
-        array([[45.69644273,  0.        ,  0.        ,  5.71205534],
-               [ 0.        , 45.69644273, -5.71205534,  0.        ],
-               [ 0.        , -5.71205534,  0.97294287,  0.        ],
-               [ 5.71205534,  0.        ,  0.        ,  0.97294287]])
-        """
-        phi = self.phi
-        L = self.L
-        # fmt: off
-        K = np.array([
-            [12,     0,            0,          6*L,  -12,     0,            0,          6*L],
-            [0,     12,         -6*L,            0,    0,   -12,         -6*L,            0],
-            [0,   -6*L, (4+phi)*L**2,            0,    0,   6*L, (2-phi)*L**2,            0],
-            [6*L,    0,            0, (4+phi)*L**2, -6*L,     0,            0, (2-phi)*L**2],
-            [-12,    0,            0,         -6*L,   12,     0,            0,         -6*L],
-            [0,    -12,          6*L,            0,    0,    12,          6*L,            0],
-            [0,   -6*L, (2-phi)*L**2,            0,    0,   6*L, (4+phi)*L**2,            0],
-            [6*L,    0,            0, (2-phi)*L**2, -6*L,     0,            0, (4+phi)*L**2]
-        ])
-        # fmt: on
-        K = self.material.E * self.Ie * K / ((1 + phi) * L ** 3)
-
-        return K
-
-    def C(self):
-        """Damping matrix for an instance of a shaft element.
-
-        Returns
-        -------
-        C: np.ndarray
-           Damping matrix for the shaft element.
-
-        Examples
-        --------
-        >>> from ross.materials import steel
-        >>> # Timoshenko is the default shaft element
-        >>> Timoshenko_Element = ShaftElement(0.25, 0, 0.05, steel)
-        >>> # Currently internal damping for the shaft elements is not
-        >>> # considered, so the matrix has only zeros.
-        >>> Timoshenko_Element.C()[:4, :4]
-        array([[0., 0., 0., 0.],
-               [0., 0., 0., 0.],
-               [0., 0., 0., 0.],
-               [0., 0., 0., 0.]])
-        """
-        C = np.zeros((8, 8))
-
-        return C
-
-    def G(self):
-        """Gyroscopic matrix for an instance of a shaft element.
-
-        Returns
-        -------
-        G: np.ndarray
-            Gyroscopic matrix for the shaft element.
-
-        Examples
-        --------
-        >>> from ross.materials import steel
-        >>> # Timoshenko is the default shaft element
-        >>> Timoshenko_Element = ShaftElement(0.25, 0, 0.05, steel)
-        >>> Timoshenko_Element.G()[:4, :4]
-        array([[-0.        ,  0.01943344, -0.00022681, -0.        ],
-               [-0.01943344, -0.        , -0.        , -0.00022681],
-               [ 0.00022681, -0.        , -0.        ,  0.0001524 ],
-               [-0.        ,  0.00022681, -0.0001524 , -0.        ]])
-        """
-        phi = self.phi
-        L = self.L
-
-        G = np.zeros((8, 8))
-
-        if self.gyroscopic:
-            g1 = 36
-            g2 = (3 - 15 * phi) * L
-            g3 = (4 + 5 * phi + 10 * phi ** 2) * L ** 2
-            g4 = (-1 - 5 * phi + 5 * phi ** 2) * L ** 2
-            # fmt: off
-            G = np.array([[  0, -g1,  g2,   0,   0,  g1,  g2,   0],
-                          [ g1,   0,   0,  g2, -g1,   0,   0,  g2],
-                          [-g2,   0,   0, -g3,  g2,   0,   0, -g4],
-                          [  0, -g2,  g3,   0,   0,  g2,  g4,   0],
-                          [  0,  g1, -g2,   0,   0, -g1, -g2,   0],
-                          [-g1,   0,   0, -g2,  g1,   0,   0, -g2],
-                          [-g2,   0,   0, -g4,  g2,   0,   0, -g3],
-                          [  0, -g2,  g4,   0,   0,  g2,  g3,   0]])
-            # fmt: on
-            G = -self.material.rho * self.Ie * G / (15 * L * (1 + phi) ** 2)
-
-        return G
-
-    def patch(self, position, check_sld, ax):
-        """Shaft element patch.
-
-        Patch that will be used to draw the shaft element.
-
-        Parameters
-        ----------
-        position : float
-            Position in which the patch will be drawn.
-        check_sld : bool
-            If True, HoverTool displays only the slenderness ratio
-        ax : matplotlib axes, optional
-            Axes in which the plot will be drawn.
-
-        Returns
-        -------
-
-        """
-        position_u = [position, self.i_d / 2]  # upper
-        position_l = [position, -self.o_d / 2]  # lower
-        width = self.L
-        height = self.o_d / 2 - self.i_d / 2
-        if check_sld is True and self.slenderness_ratio < 1.6:
-            mpl_color = "yellow"
-            legend = "Shaft - Slenderness Ratio < 1.6"
-        else:
-            mpl_color = self.color
-            legend = "Shaft"
-
-        #  matplotlib - plot the upper half of the shaft
-        ax.add_patch(
-            mpatches.Rectangle(
-                position_u,
-                width,
-                height,
-                linestyle="--",
-                linewidth=0.5,
-                ec="k",
-                fc=mpl_color,
-                alpha=0.8,
-                label=legend,
-            )
-        )
-        #  matplotlib - plot the lower half of the shaft
-        ax.add_patch(
-            mpatches.Rectangle(
-                position_l,
-                width,
-                height,
-                linestyle="--",
-                linewidth=0.5,
-                ec="k",
-                fc=mpl_color,
-                alpha=0.8,
-            )
-        )
-
-    def bokeh_patch(self, position, check_sld, bk_ax):
-        """Shaft element patch.
-
-        Patch that will be used to draw the shaft element.
-
-        Parameters
-        ----------
-        position : float
-            Position in which the patch will be drawn.
-        check_sld : bool
-            If True, HoverTool displays only the slenderness ratio
-        bk_ax : bokeh plotting axes, optional
-            Axes in which the plot will be drawn.
-
-        Returns
-        -------
-        hover: Bokeh HoverTool
-            Bokeh HoverTool axes
-        """
-        if check_sld is True and self.slenderness_ratio < 1.6:
-            bk_color = "yellow"
-            legend = "Shaft - Slenderness Ratio < 1.6"
-        else:
-            bk_color = self.material.color
-            legend = "Shaft"
-
-        source_u = ColumnDataSource(
-            dict(
-                top=[self.o_d / 2],
-                bottom=[self.i_d / 2],
-                left=[position],
-                right=[position + self.L],
-                sld=[self.slenderness_ratio],
-                elnum=[self.n],
-                out_d_l=[self.o_d_l],
-                out_d_r=[self.o_d_r],
-                in_d_l=[self.i_d_l],
-                in_d_r=[self.i_d_r],
-                length=[self.L],
-                mat=[self.material.name],
-            )
-        )
-
-        source_l = ColumnDataSource(
-            dict(
-                top=[-self.o_d / 2],
-                bottom=[-self.i_d / 2],
-                left=[position],
-                right=[position + self.L],
-                sld=[self.slenderness_ratio],
-                elnum=[self.n],
-                out_d_l=[self.o_d_l],
-                out_d_r=[self.o_d_r],
-                in_d_l=[self.i_d_l],
-                in_d_r=[self.i_d_r],
-                length=[self.L],
-                mat=[self.material.name],
-            )
-        )
-
-        # bokeh plot - plot the shaft
-        bk_ax.quad(
-            top="top",
-            bottom="bottom",
-            left="left",
-            right="right",
-            source=source_u,
-            line_color=bokeh_colors[0],
-            line_width=1,
-            fill_alpha=0.5,
-            fill_color=bk_color,
-            legend_label=legend,
-            name="u_shaft",
-        )
-        bk_ax.quad(
-            top="top",
-            bottom="bottom",
-            left="left",
-            right="right",
-            source=source_l,
-            line_color=bokeh_colors[0],
-            line_width=1,
-            fill_alpha=0.5,
-            fill_color=bk_color,
-            name="l_shaft",
-        )
-        hover = HoverTool(names=["u_shaft", "l_shaft"])
-
-        if check_sld:
-            hover.tooltips = [
-                ("Element Number :", "@elnum"),
-                ("Slenderness Ratio :", "@sld"),
-            ]
-        else:
-            hover.tooltips = [
-                ("Element Number :", "@elnum"),
-                ("Left Outer Diameter :", "@out_d_l"),
-                ("Left Inner Diameter :", "@in_d_l"),
-                ("Right Outer Diameter :", "@out_d_r"),
-                ("Right Inner Diameter :", "@in_d_r"),
-                ("Element Length :", "@length"),
-                ("Material :", "@mat"),
-            ]
-        hover.mode = "mouse"
-
-        return hover
-
-    @classmethod
-    def section(
-        cls,
-        L,
-        ne,
-        si_d,
-        so_d,
-        material,
-        n=None,
-        shear_effects=True,
-        rotary_inertia=True,
-        gyroscopic=True,
-    ):
-        """Shaft section constructor.
-
-        This method will create a shaft section with length 'L' divided into
-        'ne' elements.
-
-        Parameters
-        ----------
-        i_d : float
-            Inner diameter of the section.
-        o_d : float
-            Outer diameter of the section.
-        E : float
-            Young's modulus.
-        G_s : float
-            Shear modulus.
-        material : ross.material
-            Shaft material.
-        n : int, optional
-            Element number (coincident with it's first node).
-            If not given, it will be set when the rotor is assembled
-            according to the element's position in the list supplied to
-            the rotor constructor.
-        axial_force : float
-            Axial force.
-        torque : float
-            Torque.
-        shear_effects : bool
-            Determine if shear effects are taken into account.
-            Default is False.
-        rotary_inertia : bool
-            Determine if rotary_inertia effects are taken into account.
-            Default is False.
-        gyroscopic : bool
-            Determine if gyroscopic effects are taken into account.
-            Default is False.
-
-        Returns
-        -------
-        elements: list
-            List with the 'ne' shaft elements.
-
-        Examples
-        --------
-        >>> # shaft material
-        >>> from ross.materials import steel
-        >>> # shaft inner and outer diameters
-        >>> si_d = 0
-        >>> so_d = 0.01585
-        >>> sec = ShaftElement.section(247.65e-3, 4, 0, 15.8e-3, steel)
-        >>> len(sec)
-        4
-        >>> sec[0].i_d
-        0.0
-        """
-
-        le = L / ne
-
-        elements = [
-            cls(le, si_d, so_d, material, n, shear_effects, rotary_inertia, gyroscopic)
-            for _ in range(ne)
-        ]
-
-        return elements
-
-
-class ShaftTaperedElement(Element):
-    r"""A shaft tapered element.
-    This class will create a shaft element that may take into
-    account shear, rotary inertia and gyroscopic effects.
-    The matrices will be defined considering the following local
-    coordinate vector:
-    .. math:: [x_0, y_0, \alpha_0, \beta_0, x_1, y_1, \alpha_1, \beta_1]^T
-    Where :math:`\alpha_0` and :math:`\alpha_1` are the bending on the yz plane
-    and :math:`\beta_0` and :math:`\beta_1` are the bending on the xz plane.
-
-    Parameters
-    ----------
-    L : float
-        Element length.
-    i_d_l : float
-        Inner diameter of the element at the left position.
-    i_d_r : float
-        Inner diameter of the element at the right position.
-    o_d_l : float
+    idl : float
+        Inner diameter of the element at the left position..
+    odl : float
         Outer diameter of the element at the left position.
-    o_d_r : float
+    idr : float, optional
+        Inner diameter of the element at the right position
+        Default is equal to idl value (cylindrical element)
+    odr : float, optional
         Outer diameter of the element at the right position.
+        Default is equal to odl value (cylindrical element)
     material : ross.material
         Shaft material.
     n : int, optional
@@ -932,6 +66,9 @@ class ShaftTaperedElement(Element):
     shear_method_calc : string, optional
         Determines which shear calculation method the user will adopt
         Default is 'cowper'
+    tag : str, optional
+        Element tag.
+        Default is None.
 
     Returns
     -------
@@ -942,43 +79,57 @@ class ShaftTaperedElement(Element):
     Poisson : float
         Poisson coefficient for the element.
     A : float
-        Element mid-section area.
+        Element section area at half length.
+    A_l : float
+        Element section area at left end.
+    A_r : float
+        Element section area at right end.
+    beam_cg : float
+        Element center of gravity local position.
+    axial_cg_pos : float
+        Element center of gravity global position.
+        This should be used only after the rotor is built.
+        Default is None.
     Ie : float
-        Ie is the second moment of area of the mid cross section about
-        the neutral plane Ie = pi*r**2/4
+        Ie is the second moment of area of the cross section about
+        the neutral plane.
     phi : float
-        Constant that is used according to [1] to consider rotary
-        inertia and shear effects. If these are not considered phi=0.
+        Constant that is used according to :cite:`friswell2010dynamics` to
+        consider rotary inertia and shear effects. If these are not considered
+        :math:`\phi=0`.
+    kappa : float
+        Shear coefficient for the element.
+
     References
     ----------
-    .. [1] 'Dynamics of Rotating Machinery' by MI Friswell, JET Penny, SD Garvey
-       & AW Lees, published by Cambridge University Press, 2010 pp. 158-166.
+
+    .. bibliography:: ../../../docs/refs.bib
+
     Examples
     --------
     >>> from ross.materials import steel
-    >>> Euler_Bernoulli_Element = ShaftTaperedElement(
-    ...                         material=steel, L=0.5, i_d_l=0.05, o_d_l=0.1,
-    ...                         i_d_r=0.05, o_d_r=0.15,
+    >>> Euler_Bernoulli_Element = Shaftlement(
+    ...                         material=steel, L=0.5, idl=0.05, odl=0.1,
+    ...                         idr=0.05, odr=0.15,
     ...                         rotary_inertia=False,
     ...                         shear_effects=False)
     >>> Euler_Bernoulli_Element.phi
     0
-    >>> Timoshenko_Element = ShaftTaperedElement(
-    ...                         material=steel, L=0.5, i_d_l=0.05, o_d_l=0.1,
+    >>> Timoshenko_Element = Shaftlement(
+    ...                         material=steel, L=0.5, idl=0.05, odl=0.1,
     ...                         rotary_inertia=True,
     ...                         shear_effects=True)
     >>> Timoshenko_Element.phi
     0.1571268472906404
     """
-
     def __init__(
         self,
-        material,
         L,
-        i_d_l,
-        o_d_l,
-        i_d_r=None,
-        o_d_r=None,
+        idl,
+        odl,
+        idr=None,
+        odr=None,
+        material=None,
         n=None,
         axial_force=0,
         torque=0,
@@ -989,10 +140,13 @@ class ShaftTaperedElement(Element):
         tag=None,
     ):
 
-        if i_d_r is None:
-            i_d_r = i_d_l
-        if o_d_r is None:
-            o_d_r = o_d_l
+        if idr is None:
+            idr = idl
+        if odr is None:
+            odr = odl
+
+        if material is None:
+            raise AttributeError("Material is not defined.")
 
         if type(material) is str:
             os.chdir(Path(os.path.dirname(ross.__file__)))
@@ -1012,36 +166,37 @@ class ShaftTaperedElement(Element):
             self.n_r = n + 1
 
         self.tag = tag
-
         self.shear_method_calc = shear_method_calc
 
         self.L = float(L)
-
-        self.o_d = (float(o_d_l) + float(o_d_r)) / 2
-        self.i_d = (float(i_d_l) + float(i_d_r)) / 2
-        self.i_d_l = float(i_d_l)
-        self.o_d_l = float(o_d_l)
-        self.i_d_r = float(i_d_r)
-        self.o_d_r = float(o_d_r)
+        self.o_d = (float(odl) + float(odr)) / 2
+        self.i_d = (float(idl) + float(idr)) / 2
+        self.idl = float(idl)
+        self.odl = float(odl)
+        self.idr = float(idr)
+        self.odr = float(odr)
         self.color = self.material.color
 
         # A_l = cross section area from the left side of the element
-        A_l = np.pi * (o_d_l ** 2 - i_d_l ** 2) / 4
+        # A_r = cross section area from the right side of the element
+        A_l = np.pi * (odl ** 2 - idl ** 2) / 4
+        A_r = np.pi * (odr ** 2 - idr ** 2) / 4
         self.A_l = A_l
+        self.A_r = A_r
 
         # Second moment of area of the cross section from the left side
         # of the element
-        Ie_l = np.pi * (o_d_l ** 4 - i_d_l ** 4) / 64
+        Ie_l = np.pi * (odl ** 4 - idl ** 4) / 64
 
-        outer = self.o_d_l ** 2 + self.o_d_l * self.o_d_r + self.o_d_r ** 2
-        inner = self.i_d_l ** 2 + self.i_d_l * self.i_d_r + self.i_d_r ** 2
+        outer = self.odl ** 2 + self.odl * self.odr + self.odr ** 2
+        inner = self.idl ** 2 + self.idl * self.idr + self.idr ** 2
         self.volume = np.pi * (self.L / 12) * (outer - inner)
         self.m = self.material.rho * self.volume
 
-        roj = o_d_l / 2
-        rij = i_d_l / 2
-        rok = o_d_r / 2
-        rik = i_d_r / 2
+        roj = odl / 2
+        rij = idl / 2
+        rok = odr / 2
+        rik = idr / 2
 
         # geometrical coefficients
         delta_ro = rok - roj
@@ -1108,7 +263,7 @@ class ShaftTaperedElement(Element):
         # hutchinson - kappa as per Hutchinson (2001)
         # cowper - kappa as per Cowper (1996)
         if shear_effects:
-            r = ((i_d_l + i_d_r) / 2) / ((o_d_l + o_d_r) / 2)
+            r = ((idl + idr) / 2) / ((odl + odr) / 2)
             r2 = r * r
             r12 = (1 + r2) ** 2
             if shear_method_calc == "hutchinson":
@@ -1136,6 +291,7 @@ class ShaftTaperedElement(Element):
             phi = 12 * self.material.E * self.Ie / (self.material.G_s * kappa * self.A * L ** 2)
             # fmt: on
             self.kappa = kappa
+
         self.phi = phi
 
     def __eq__(self, other):
@@ -1155,12 +311,12 @@ class ShaftTaperedElement(Element):
         Example
         -------
         >>> from ross.materials import steel
-        >>> shaft1 = ShaftTaperedElement(
-        ...        L=0.25, i_d_l=0, i_d_r=0, o_d_l=0.05, o_d_r=0.08,
+        >>> shaft1 = ShaftElement(
+        ...        L=0.25, idl=0, idr=0, odl=0.05, odr=0.08,
         ...        material=steel, rotary_inertia=True, shear_effects=True
         ... )
-        >>> shaft2 = ShaftTaperedElement(
-        ...        L=0.25, i_d_l=0, i_d_r=0, o_d_l=0.05, o_d_r=0.08,
+        >>> shaft2 = ShaftElement(
+        ...        L=0.25, idl=0, idr=0, odl=0.05, odr=0.08,
         ...        material=steel, rotary_inertia=True, shear_effects=True
         ... )
         >>> shaft1 == shaft2
@@ -1184,19 +340,19 @@ class ShaftTaperedElement(Element):
         Examples
         --------
         >>> from ross.materials import steel
-        >>> shaft1 = ShaftTaperedElement(
-        ...        L=0.25, i_d_l=0, i_d_r=0, o_d_l=0.05, o_d_r=0.08,
+        >>> shaft1 = ShaftElement(
+        ...        L=0.25, idl=0, idr=0, odl=0.05, odr=0.08,
         ...        material=steel, rotary_inertia=True, shear_effects=True
         ... )
-        >>> shaft1.save('ShaftTaperedElement.toml')
+        >>> shaft1.save('ShaftElement.toml')
         """
         data = self.load_data(file_name)
         data["ShaftTaperedElement"][str(self.n)] = {
             "L": self.L,
-            "i_d_l": self.i_d_l,
-            "i_d_r": self.i_d_r,
-            "o_d_l": self.o_d_l,
-            "o_d_r": self.o_d_r,
+            "idl": self.idl,
+            "odl": self.odl,
+            "idr": self.idr,
+            "odr": self.odr,
             "material": self.material.name,
             "n": self.n,
             "axial_force": self.axial_force,
@@ -1209,7 +365,7 @@ class ShaftTaperedElement(Element):
         self.dump_data(data, file_name)
 
     @staticmethod
-    def load(file_name="ShaftTaperedElement"):
+    def load(file_name="ShaftElement"):
         """Load previously saved shaft elements from toml file.
 
         Parameters
@@ -1219,25 +375,106 @@ class ShaftTaperedElement(Element):
         Examples
         --------
         >>> from ross.materials import steel
-        >>> shaft1 = ShaftTaperedElement(
-        ...        L=0.25, i_d_l=0, i_d_r=0, o_d_l=0.05, o_d_r=0.08,
+        >>> shaft1 = ShaftElement(
+        ...        L=0.25, idl=0, idr=0, odl=0.05, odr=0.08,
         ...        material=steel, rotary_inertia=True, shear_effects=True
         ... )
-        >>> shaft1.save('ShaftTaperedElement.toml')
-        >>> shaft2 = ShaftTaperedElement.load("ShaftTaperedElement.toml")
+        >>> shaft1.save('ShaftElement.toml')
+        >>> shaft2 = ShaftElement.load("ShaftElement.toml")
         >>> shaft2 # doctest: +ELLIPSIS
-        [ShaftTaperedElement(L=0.25, i_d_l=0.0...
+        [ShaftElement(L=0.25, idl=0.0...
         """
         shaft_elements = []
-        with open("ShaftTaperedElement.toml", "r") as f:
+        with open("ShaftElement.toml", "r") as f:
             shaft_elements_dict = toml.load(f)
-            for element in shaft_elements_dict["ShaftTaperedElement"]:
+            for element in shaft_elements_dict["ShaftElement"]:
                 shaft_elements.append(
                     ShaftTaperedElement(
-                        **shaft_elements_dict["ShaftTaperedElement"][element]
+                        **shaft_elements_dict["ShaftElement"][element]
                     )
                 )
         return shaft_elements
+
+    @classmethod
+    def from_table(cls, file, sheet_type="Simple", sheet_name=0):
+        """Instantiate one or more shafts using inputs from an Excel table.
+
+        A header with the names of the columns is required. These names should
+        match the names expected by the routine (usually the names of the
+        parameters, but also similar ones). The program will read every row
+        bellow the header until they end or it reaches a NaN.
+
+        Parameters
+        ----------
+        file: str
+            Path to the file containing the shaft parameters.
+        sheet_type: str, optional
+            Describes the kind of sheet the function should expect:
+                Simple: The input table should specify only the number of the materials to be used.
+                They must be saved prior to calling the method.
+                Model: The materials parameters must be passed along with the shaft parameters. Each
+                material must have an id number and each shaft must reference one of the materials ids.
+        sheet_name: int or str, optional
+            Position of the sheet in the file (starting from 0) or its name. If none is passed, it is
+            assumed to be the first sheet in the file.
+
+        Returns
+        -------
+        shaft: list
+            A list of shaft objects.
+        """
+        parameters = read_table_file(
+            file, "shaft", sheet_name=sheet_name, sheet_type=sheet_type
+        )
+        list_of_shafts = []
+        if sheet_type == "Model":
+            new_materials = {}
+            for i in range(0, len(parameters["matno"])):
+                new_material = Material(
+                    name="shaft_mat_" + str(parameters["matno"][i]),
+                    rho=parameters["rhoa"][i],
+                    E=parameters["ea"][i],
+                    G_s=parameters["ga"][i],
+                )
+                new_materials["shaft_mat_" + str(parameters["matno"][i])] = new_material
+            for i in range(0, len(parameters["L"])):
+                list_of_shafts.append(
+                    cls(
+                        L=parameters["L"][i],
+                        idl=parameters["idl"][i],
+                        odl=parameters["odl"][i],
+                        idr=parameters["idr"][i],
+                        odr=parameters["odr"][i],
+                        material=new_materials[parameters["material"][i]],
+                        n=parameters["n"][i],
+                        axial_force=parameters["axial_force"][i],
+                        torque=parameters["torque"][i],
+                        shear_effects=parameters["shear_effects"][i],
+                        rotary_inertia=parameters["rotary_inertia"][i],
+                        gyroscopic=parameters["gyroscopic"][i],
+                        shear_method_calc=parameters["shear_method_calc"][i],
+                    )
+                )
+        elif sheet_type == "Simple":
+            for i in range(0, len(parameters["L"])):
+                list_of_shafts.append(
+                    cls(
+                        L=parameters["L"][i],
+                        idl=parameters["idl"][i],
+                        odl=parameters["odl"][i],
+                        idr=parameters["idr"][i],
+                        odr=parameters["odr"][i],
+                        material=parameters["material"][i],
+                        n=parameters["n"][i],
+                        axial_force=parameters["axial_force"][i],
+                        torque=parameters["torque"][i],
+                        shear_effects=parameters["shear_effects"][i],
+                        rotary_inertia=parameters["rotary_inertia"][i],
+                        gyroscopic=parameters["gyroscopic"][i],
+                        shear_method_calc=parameters["shear_method_calc"][i],
+                    )
+                )
+        return list_of_shafts
 
     @property
     def n(self):
@@ -1268,13 +505,13 @@ class ShaftTaperedElement(Element):
         Example
         -------
         >>> from ross.materials import steel
-        >>> shaft1 = ShaftTaperedElement(
-        ...        L=0.25, i_d_l=0, i_d_r=0, o_d_l=0.05, o_d_r=0.08,
+        >>> shaft1 = ShaftElement(
+        ...        L=0.25, idl=0, idr=0, odl=0.05, odr=0.08,
         ...        material=steel, rotary_inertia=True, shear_effects=True
         ... )
         >>> shaft1.n = 0
         >>> shaft1 # doctest: +ELLIPSIS
-        ShaftTaperedElement(L=0.25, i_d_l=0.0...
+        ShaftElement(L=0.25, idl=0.0...
         """
         self._n = value
         self.n_l = value
@@ -1307,18 +544,18 @@ class ShaftTaperedElement(Element):
         Examples
         --------
         >>> from ross.materials import steel
-        >>> shaft1 = ShaftTaperedElement(
-        ...        L=0.25, i_d_l=0, i_d_r=0, o_d_l=0.05, o_d_r=0.08,
+        >>> shaft1 = ShaftElement(
+        ...        L=0.25, idl=0, idr=0, odl=0.05, odr=0.08,
         ...        material=steel, rotary_inertia=True, shear_effects=True
         ... )
         >>> shaft1 # doctest: +ELLIPSIS
-        ShaftTaperedElement(L=0.25, i_d_l=0.0...
+        ShaftElement(L=0.25, idl=0.0...
         """
         return (
             f"{self.__class__.__name__}"
-            f"(L={self.L:{0}.{5}}, i_d_l={self.i_d_l:{0}.{5}}, "
-            f"i_d_r={self.i_d_r:{0}.{5}}, o_d_l={self.o_d_l:{0}.{5}},  "
-            f"o_d_r={self.o_d_r:{0}.{5}}, material={self.material.name!r}, "
+            f"(L={self.L:{0}.{5}}, idl={self.idl:{0}.{5}}, "
+            f"idr={self.idr:{0}.{5}}, odl={self.odl:{0}.{5}},  "
+            f"odr={self.odr:{0}.{5}}, material={self.material.name!r}, "
             f"n={self.n})"
         )
 
@@ -1335,10 +572,10 @@ class ShaftTaperedElement(Element):
         return (
             f"\nElem. N:    {self.n}"
             f"\nLenght:     {self.L:{10}.{5}}"
-            f"\nLeft Int. Diam.: {self.i_d_l:{10}.{5}}"
-            f"\nLeft Out. Diam.: {self.o_d_l:{10}.{5}}"
-            f"\nRight Int. Diam.: {self.i_d_r:{10}.{5}}"
-            f"\nRight Out. Diam.: {self.o_d_r:{10}.{5}}"
+            f"\nLeft Int. Diam.: {self.idl:{10}.{5}}"
+            f"\nLeft Out. Diam.: {self.odl:{10}.{5}}"
+            f"\nRight Int. Diam.: {self.idr:{10}.{5}}"
+            f"\nRight Out. Diam.: {self.odr:{10}.{5}}"
             f'\n{35*"-"}'
             f"\n{self.material}"
             f"\n"
@@ -1353,9 +590,9 @@ class ShaftTaperedElement(Element):
 
         Examples
         --------
-        >>> Timoshenko_Element = ShaftTaperedElement(
-        ...                         L=0.5, i_d_l=0.05, i_d_r=0.05, o_d_l=0.1,
-        ...                         o_d_r=0.15, material=steel,
+        >>> Timoshenko_Element = ShaftElement(
+        ...                         L=0.5, idl=0.05, idr=0.05, odl=0.1,
+        ...                         odr=0.15, material=steel,
         ...                         rotary_inertia=True,
         ...                         shear_effects=True)
         >>> Timoshenko_Element.M()[:4, :4]
@@ -1505,9 +742,9 @@ class ShaftTaperedElement(Element):
         Examples
         --------
         >>> from ross.materials import steel
-        >>> Timoshenko_Element = ShaftTaperedElement(
-        ...                         L=0.5, i_d_l=0.05, i_d_r=0.05, o_d_l=0.1,
-        ...                         o_d_r=0.15, material=steel,
+        >>> Timoshenko_Element = ShaftElement(
+        ...                         L=0.5, idl=0.05, idr=0.05, odl=0.1,
+        ...                         odr=0.15, material=steel,
         ...                         rotary_inertia=True,
         ...                         shear_effects=True)
         >>> Timoshenko_Element.K()[:4, :4]/1e6
@@ -1607,9 +844,9 @@ class ShaftTaperedElement(Element):
         Examples
         --------
         >>> from ross.materials import steel
-        >>> Timoshenko_Element = ShaftTaperedElement(
-        ...                         L=0.5, i_d_l=0.05, i_d_r=0.05, o_d_l=0.1,
-        ...                         o_d_r=0.15, material=steel,
+        >>> Timoshenko_Element = ShaftElement(
+        ...                         L=0.5, idl=0.05, idr=0.05, odl=0.1,
+        ...                         odr=0.15, material=steel,
         ...                         rotary_inertia=True,
         ...                         shear_effects=True)
         >>> Timoshenko_Element.C()[:4, :4]
@@ -1633,9 +870,9 @@ class ShaftTaperedElement(Element):
         --------
         >>> from ross.materials import steel
         >>> # Timoshenko is the default shaft element
-        >>> Timoshenko_Element = ShaftTaperedElement(
-        ...                         L=0.5, i_d_l=0.05, i_d_r=0.05, o_d_l=0.1,
-        ...                         o_d_r=0.15, material=steel,
+        >>> Timoshenko_Element = ShaftElement(
+        ...                         L=0.5, idl=0.05, idr=0.05, odl=0.1,
+        ...                         odr=0.15, material=steel,
         ...                         rotary_inertia=True,
         ...                         shear_effects=True)
         >>> Timoshenko_Element.G()[:4, :4]
@@ -1733,18 +970,18 @@ class ShaftTaperedElement(Element):
             legend = "Shaft"
 
         shaft_points_u = [
-            [position, self.i_d_l / 2],
-            [position, self.o_d_l / 2],
-            [position + self.L, self.o_d_r / 2],
-            [position + self.L, self.i_d_r / 2],
-            [position, self.i_d_l / 2],
+            [position, self.idl / 2],
+            [position, self.odl / 2],
+            [position + self.L, self.odr / 2],
+            [position + self.L, self.idr / 2],
+            [position, self.idl / 2],
         ]
         shaft_points_l = [
-            [position, -self.i_d_l / 2],
-            [position, -self.o_d_l / 2],
-            [position + self.L, -self.o_d_r / 2],
-            [position + self.L, -self.i_d_r / 2],
-            [position, -self.i_d_l / 2],
+            [position, -self.idl / 2],
+            [position, -self.odl / 2],
+            [position + self.L, -self.odr / 2],
+            [position + self.L, -self.idr / 2],
+            [position, -self.idl / 2],
         ]
 
         # matplotlib - plot the upper half of the shaft
@@ -1797,9 +1034,9 @@ class ShaftTaperedElement(Element):
 
         # bokeh plot - plot the shaft
         z_upper = [position, position, position + self.L, position + self.L]
-        y_upper = [self.i_d_l / 2, self.o_d_l / 2, self.o_d_r / 2, self.i_d_r / 2]
+        y_upper = [self.idl / 2, self.odl / 2, self.odr / 2, self.idr / 2]
         z_lower = [position, position, position + self.L, position + self.L]
-        y_lower = [-self.i_d_l / 2, -self.o_d_l / 2, -self.o_d_r / 2, -self.i_d_r / 2]
+        y_lower = [-self.idl / 2, -self.odl / 2, -self.odr / 2, -self.idr / 2]
 
         source = ColumnDataSource(
             dict(
@@ -1809,10 +1046,10 @@ class ShaftTaperedElement(Element):
                 y_u=[y_upper],
                 sld=[self.slenderness_ratio],
                 elnum=[self.n],
-                out_d_l=[self.o_d_l],
-                out_d_r=[self.o_d_r],
-                in_d_l=[self.i_d_l],
-                in_d_r=[self.i_d_r],
+                out_d_l=[self.odl],
+                out_d_r=[self.odr],
+                in_d_l=[self.idl],
+                in_d_r=[self.idr],
                 length=[self.L],
                 mat=[self.material.name],
             )
@@ -1860,3 +1097,98 @@ class ShaftTaperedElement(Element):
         hover.mode = "mouse"
 
         return hover
+
+    @classmethod
+    def section(
+        cls,
+        L,
+        ne,
+        s_idl,
+        s_odl,
+        s_idr=None,
+        s_odr=None,
+        material=None,
+        n=None,
+        shear_effects=True,
+        rotary_inertia=True,
+        gyroscopic=True,
+    ):
+        """Shaft section constructor.
+
+        This method will create a shaft section with length 'L' divided into
+        'ne' elements.
+
+        Parameters
+        ----------
+        i_d : float
+            Inner diameter of the section.
+        o_d : float
+            Outer diameter of the section.
+        E : float
+            Young's modulus.
+        G_s : float
+            Shear modulus.
+        material : ross.material
+            Shaft material.
+        n : int, optional
+            Element number (coincident with it's first node).
+            If not given, it will be set when the rotor is assembled
+            according to the element's position in the list supplied to
+            the rotor constructor.
+        axial_force : float
+            Axial force.
+        torque : float
+            Torque.
+        shear_effects : bool
+            Determine if shear effects are taken into account.
+            Default is False.
+        rotary_inertia : bool
+            Determine if rotary_inertia effects are taken into account.
+            Default is False.
+        gyroscopic : bool
+            Determine if gyroscopic effects are taken into account.
+            Default is False.
+
+        Returns
+        -------
+        elements: list
+            List with the 'ne' shaft elements.
+
+        Examples
+        --------
+        >>> # shaft material
+        >>> from ross.materials import steel
+        >>> # shaft inner and outer diameters
+        >>> s_idl = 0
+        >>> s_odl = 0.01585
+        >>> sec = ShaftElement.section(247.65e-3, 4, 0, 15.8e-3, material=steel)
+        >>> len(sec)
+        4
+        >>> sec[0].i_d
+        0.0
+        """
+        if s_idr is None:
+            s_idr = s_idl
+        if s_odr is None:
+            s_odr = s_odl
+
+        le = L / ne
+
+        elements = [
+            cls(
+                    le,
+                    (s_idr - s_idl) * i * le / L + s_idl,
+                    (s_odr - s_odl) * i * le / L + s_odl,
+                    (s_idr - s_idl) * (i + 1) * le / L + s_idl,
+                    (s_odr - s_odl) * (i + 1) * le / L + s_odl,
+                    material,
+                    n,
+                    shear_effects,
+                    rotary_inertia,
+                    gyroscopic
+            )
+            for i in range(ne)
+        ]
+
+        return elements
+
