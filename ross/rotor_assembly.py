@@ -36,7 +36,7 @@ from ross.results import (
     TimeResponseResults,
     OrbitResponseResults
 )
-from ross.shaft_element import ShaftElement, ShaftTaperedElement
+from ross.shaft_element import ShaftElement
 
 __all__ = ["Rotor", "rotor_example"]
 
