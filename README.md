@@ -7,7 +7,7 @@
 </a>
 [![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/ambv/black)
 
-Ross is a library written in Python for rotordynamic analysis.
+ROSS is a library written in Python for rotordynamic analysis.
 
 You can try it out now by running the tutorial on [binder](https://mybinder.org/v2/gh/ross-rotordynamics/ross/master).
 After binder starts, navigate to the ross/docs/examples directory and open the tutorial notebook.

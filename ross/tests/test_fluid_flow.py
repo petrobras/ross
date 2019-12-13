@@ -53,6 +53,7 @@ def fluid_flow_short_eccentricity():
         visc,
         rho,
         eccentricity=eccentricity,
+        immediately_calculate_pressure_matrix_numerically=False
     )
 
 
@@ -84,6 +85,7 @@ def fluid_flow_short_friswell(set_load=True):
             visc,
             rho,
             load=load,
+            immediately_calculate_pressure_matrix_numerically=False
         )
     else:
         return flow.FluidFlow(
@@ -99,6 +101,7 @@ def fluid_flow_short_friswell(set_load=True):
             visc,
             rho,
             eccentricity=eccentricity,
+            immediately_calculate_pressure_matrix_numerically=False
         )
 
 
@@ -204,6 +207,7 @@ def fluid_flow_short_numerical():
         rho,
         attitude_angle=attitude_angle,
         eccentricity=eccentricity,
+        immediately_calculate_pressure_matrix_numerically=False
     )
 
 
@@ -234,6 +238,7 @@ def fluid_flow_long_numerical():
         visc,
         rho,
         eccentricity=eccentricity,
+        immediately_calculate_pressure_matrix_numerically=False
     )
 
 
