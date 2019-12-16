@@ -961,7 +961,6 @@ def test_from_section():
         i_ds_data=i_ds_data,
         disk_data=disk_data,
         brg_seal_data=brg_seal_data,
-        frequency=0,
         nel_r=4,
     )
 
@@ -983,7 +982,6 @@ def test_from_section():
             i_ds_data=i_ds_data,
             disk_data=disk_data,
             brg_seal_data=brg_seal_data,
-            frequency=0,
             nel_r=4,
         )
     assert "The matrices lenght do not match." == str(excinfo.value)
@@ -995,7 +993,6 @@ def test_from_section():
             i_ds_data=i_ds_data,
             disk_data=disk_data,
             brg_seal_data=brg_seal_data,
-            frequency=0,
             nel_r=4,
         )
     assert "The matrices lenght do not match." == str(excinfo.value)
