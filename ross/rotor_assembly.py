@@ -2333,7 +2333,6 @@ class Rotor(object):
         n_eigen=12,
         nel_r=1,
     ):
-
         """This class is an alternative to build rotors from separated
         sections. Each section has the same number (n) of shaft elements.
 
@@ -2383,12 +2382,11 @@ class Rotor(object):
         ...                        DiskElement.from_geometry(n=2, material=steel, width=0.07, i_d=0, o_d=0.35)],
         ...             brg_seal_data=[BearingElement(n=0, kxx=1e6, cxx=0, kyy=1e6, cyy=0, kxy=0, cxy=0, kyx=0, cyx=0),
         ...                            BearingElement(n=3, kxx=1e6, cxx=0, kyy=1e6, cyy=0, kxy=0, cxy=0, kyx=0, cyx=0)],
-        ...             frequency=0, nel_r=1)
+        ...             nel_r=1)
         >>> modal = rotor.run_modal(speed=0)
         >>> modal.wn.round(4)
         array([ 85.7634,  85.7634, 271.9326, 271.9326, 718.58  , 718.58  ])
         """
-
         if len(leng_data) != len(o_ds_data) or len(leng_data) != len(i_ds_data):
             raise ValueError("The matrices lenght do not match.")
 
