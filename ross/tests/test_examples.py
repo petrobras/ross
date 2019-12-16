@@ -21,7 +21,7 @@ def rotor_example1(n_el=48):
     shaft_elm = []
     for i in range(n_el):
         shaft_elm.append(
-            rs.ShaftElement(L=1.5 / n_el, material=steel, n=i, i_d=0, o_d=0.05)
+            rs.ShaftElement(L=1.5 / n_el, material=steel, n=i, idl=0, odl=0.05)
         )
     disk0 = rs.DiskElement.from_geometry(
         n=(n_el / 1.5) * 0.5, material=steel, width=0.07, i_d=0.05, o_d=0.28
@@ -68,7 +68,7 @@ def rotor_example2(n_el=48):
     shaft_elm = []
     for i in range(n_el):
         shaft_elm.append(
-            rs.ShaftElement(L=1.5 / n_el, material=steel, n=i, i_d=0, o_d=0.05)
+            rs.ShaftElement(L=1.5 / n_el, material=steel, n=i, idl=0, odl=0.05)
         )
     return rs.Rotor(
         shaft_elm,
@@ -115,7 +115,7 @@ def rotor_example3(n_el=48):
     shaft_elm = []
     for i in range(n_el):
         shaft_elm.append(
-            rs.ShaftElement(L=1.5 / n_el, material=steel, n=i, i_d=0, o_d=0.05)
+            rs.ShaftElement(L=1.5 / n_el, material=steel, n=i, idl=0, odl=0.05)
         )
     disk0 = rs.DiskElement.from_geometry(
         n=(n_el / 3), material=steel, width=0.07, i_d=0.05, o_d=0.28
@@ -160,7 +160,7 @@ def rotor_example4(n_el=48):
     shaft_elm = []
     for i in range(n_el):
         shaft_elm.append(
-            rs.ShaftElement(L=1.5 / n_el, material=steel, n=i, i_d=0, o_d=0.05)
+            rs.ShaftElement(L=1.5 / n_el, material=steel, n=i, idl=0, odl=0.05)
         )
     disk0 = rs.DiskElement.from_geometry(
         n=(n_el / 1.5) * 0.5, material=steel, width=0.07, i_d=0.05, o_d=0.28
@@ -216,7 +216,7 @@ def rotor_example5(n_el=48):
     shaft_elm = []
     for i in range(n_el):
         shaft_elm.append(
-            rs.ShaftElement(L=1.5 / n_el, material=steel, n=i, i_d=0, o_d=0.05)
+            rs.ShaftElement(L=1.5 / n_el, material=steel, n=i, idl=0, odl=0.05)
         )
     disk0 = rs.DiskElement.from_geometry(
         n=(n_el / 3), material=steel, width=0.07, i_d=0.05, o_d=0.28
@@ -255,7 +255,7 @@ def rotor_example6(n_el=48):
     shaft_elm = []
     for i in range(n_el):
         shaft_elm.append(
-            rs.ShaftElement(L=1.5 / n_el, material=steel, n=i, i_d=0, o_d=0.05)
+            rs.ShaftElement(L=1.5 / n_el, material=steel, n=i, idl=0, odl=0.05)
         )
     disk0 = rs.DiskElement.from_geometry(
         n=(n_el / 1.5) * 0.5, material=steel, width=0.07, i_d=0.05, o_d=0.28

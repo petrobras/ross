@@ -23,10 +23,10 @@ def rotor1():
     o_d_ = 0.05
 
     tim0 = ShaftElement(
-        le_, i_d_, o_d_, steel, shear_effects=True, rotary_inertia=True, gyroscopic=True
+        le_, i_d_, o_d_, material=steel, shear_effects=True, rotary_inertia=True, gyroscopic=True
     )
     tim1 = ShaftElement(
-        le_, i_d_, o_d_, steel, shear_effects=True, rotary_inertia=True, gyroscopic=True
+        le_, i_d_, o_d_, material=steel, shear_effects=True, rotary_inertia=True, gyroscopic=True
     )
 
     shaft_elm = [tim0, tim1]
@@ -75,10 +75,10 @@ def test_raise_if_element_outside_shaft():
     o_d_ = 0.05
 
     tim0 = ShaftElement(
-        le_, i_d_, o_d_, steel, shear_effects=True, rotary_inertia=True, gyroscopic=True
+        le_, i_d_, o_d_, material=steel, shear_effects=True, rotary_inertia=True, gyroscopic=True
     )
     tim1 = ShaftElement(
-        le_, i_d_, o_d_, steel, shear_effects=True, rotary_inertia=True, gyroscopic=True
+        le_, i_d_, o_d_, material=steel, shear_effects=True, rotary_inertia=True, gyroscopic=True
     )
 
     shaft_elm = [tim0, tim1]
@@ -105,10 +105,10 @@ def rotor2():
     o_d_ = 0.05
 
     tim0 = ShaftElement(
-        le_, i_d_, o_d_, steel, shear_effects=True, rotary_inertia=True, gyroscopic=True
+        le_, i_d_, o_d_, material=steel, shear_effects=True, rotary_inertia=True, gyroscopic=True
     )
     tim1 = ShaftElement(
-        le_, i_d_, o_d_, steel, shear_effects=True, rotary_inertia=True, gyroscopic=True
+        le_, i_d_, o_d_, material=steel, shear_effects=True, rotary_inertia=True, gyroscopic=True
     )
 
     shaft_elm = [tim0, tim1]
@@ -262,7 +262,7 @@ def rotor3():
 
     shaft_elem = [
         ShaftElement(
-            l, i_d, o_d, steel, shear_effects=True, rotary_inertia=True, gyroscopic=True
+            l, i_d, o_d, material=steel, shear_effects=True, rotary_inertia=True, gyroscopic=True
         )
         for l in L
     ]
@@ -289,7 +289,7 @@ def rotor3_odd():
 
     shaft_elem = [
         ShaftElement(
-            l, i_d, o_d, steel, shear_effects=True, rotary_inertia=True, gyroscopic=True
+            l, i_d, o_d, material=steel, shear_effects=True, rotary_inertia=True, gyroscopic=True
         )
         for l in L
     ]
@@ -528,8 +528,8 @@ def rotor4():
     n1 = len(L) // 2
     L0 = sum(L[:n0])
     L1 = sum(L[n1:])
-    sec0 = ShaftElement.section(L0, n0, i_d, o_d, steel)
-    sec1 = ShaftElement.section(L1, n1, i_d, o_d, steel)
+    sec0 = ShaftElement.section(L0, n0, i_d, o_d, material=steel)
+    sec1 = ShaftElement.section(L1, n1, i_d, o_d, material=steel)
 
     shaft_elem = [sec0, sec1]
 
@@ -771,7 +771,7 @@ def rotor5():
 
     shaft_elem = [
         ShaftElement(
-            l, i_d, o_d, steel, shear_effects=True, rotary_inertia=True, gyroscopic=True
+            l, i_d, o_d, material=steel, shear_effects=True, rotary_inertia=True, gyroscopic=True
         )
         for l in L
     ]
@@ -860,7 +860,7 @@ def rotor6():
 
     shaft_elem = [
         ShaftElement(
-            l, i_d, o_d, steel, shear_effects=True, rotary_inertia=True, gyroscopic=True
+            l, i_d, o_d, material=steel, shear_effects=True, rotary_inertia=True, gyroscopic=True
         )
         for l in L
     ]
@@ -961,7 +961,6 @@ def test_from_section():
         i_ds_data=i_ds_data,
         disk_data=disk_data,
         brg_seal_data=brg_seal_data,
-        frequency=0,
         nel_r=4,
     )
 
@@ -983,7 +982,6 @@ def test_from_section():
             i_ds_data=i_ds_data,
             disk_data=disk_data,
             brg_seal_data=brg_seal_data,
-            frequency=0,
             nel_r=4,
         )
     assert "The matrices lenght do not match." == str(excinfo.value)
@@ -995,7 +993,6 @@ def test_from_section():
             i_ds_data=i_ds_data,
             disk_data=disk_data,
             brg_seal_data=brg_seal_data,
-            frequency=0,
             nel_r=4,
         )
     assert "The matrices lenght do not match." == str(excinfo.value)
@@ -1012,7 +1009,7 @@ def rotor7():
 
     shaft_elem = [
         ShaftElement(
-            l, i_d, o_d, steel, shear_effects=True, rotary_inertia=True, gyroscopic=True
+            l, i_d, o_d, material=steel, shear_effects=True, rotary_inertia=True, gyroscopic=True
         )
         for l in L
     ]
@@ -1248,7 +1245,7 @@ def test_rotor_link():
 
     shaft_elem = [
         ShaftElement(
-            l, i_d, o_d, steel, shear_effects=True, rotary_inertia=True, gyroscopic=True
+            l, i_d, o_d, material=steel, shear_effects=True, rotary_inertia=True, gyroscopic=True
         )
         for l in L
     ]

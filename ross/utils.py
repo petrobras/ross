@@ -71,8 +71,10 @@ def read_table_file(file, element, sheet_name=0, n=0, sheet_type="Model"):
         else:
             header_key_word = "material"
         parameter_columns["L"] = ["length"]
-        parameter_columns["i_d"] = ["i_d", "id", "id_left"]
-        parameter_columns["o_d"] = ["o_d", "od", "od_left"]
+        parameter_columns["idl"] = ["i_d_l", "idl", "id_left"]
+        parameter_columns["odl"] = ["o_d_l", "odl", "od_left"]
+        parameter_columns["idr"] = ["i_d_r", "idr", "id_right"]
+        parameter_columns["odr"] = ["o_d_r", "odr", "od_right"]
         parameter_columns["material"] = ["material", "matnum"]
         optional_parameter_columns["n"] = ["n", "elemnum"]
         optional_parameter_columns["axial_force"] = [
@@ -271,8 +273,10 @@ def read_table_file(file, element, sheet_name=0, n=0, sheet_type="Model"):
                 parameters["cyx"][i] = parameters["cyx"][i] * 175.126_836_986_4
             if element == "shaft":
                 parameters["L"][i] = parameters["L"][i] * 0.0254
-                parameters["i_d"][i] = parameters["i_d"][i] * 0.0254
-                parameters["o_d"][i] = parameters["o_d"][i] * 0.0254
+                parameters["idl"][i] = parameters["idl"][i] * 0.0254
+                parameters["odl"][i] = parameters["odl"][i] * 0.0254
+                parameters["idr"][i] = parameters["idr"][i] * 0.0254
+                parameters["odr"][i] = parameters["odr"][i] * 0.0254
                 parameters["axial_force"][i] = (
                     parameters["axial_force"][i] * 4.448_221_615_255
                 )
