@@ -1005,7 +1005,7 @@ def test_from_section():
         )
     assert "The lists size do not match (leng_data, odr_data and idr_data)." == str(excinfo.value)
 
-    with pytest.raises(ValueError) as excinfo:
+    with pytest.raises(AttributeError) as excinfo:
         Rotor.from_section(
             leng_data=leng_data,
             idl_data=idl_data,
