@@ -994,7 +994,7 @@ def test_from_section():
 
     with pytest.raises(ValueError) as excinfo:
         Rotor.from_section(
-            leng_data=leng_data_error,
+            leng_data=leng_data,
             idl_data=idl_data,
             odl_data=odl_data,
             odr_data=odr_data_error,
