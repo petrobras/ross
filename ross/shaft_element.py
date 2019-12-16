@@ -108,14 +108,14 @@ class ShaftElement(Element):
     Examples
     --------
     >>> from ross.materials import steel
-    >>> Euler_Bernoulli_Element = Shaftlement(
+    >>> Euler_Bernoulli_Element = ShaftElement(
     ...                         material=steel, L=0.5, idl=0.05, odl=0.1,
     ...                         idr=0.05, odr=0.15,
     ...                         rotary_inertia=False,
     ...                         shear_effects=False)
     >>> Euler_Bernoulli_Element.phi
     0
-    >>> Timoshenko_Element = Shaftlement(
+    >>> Timoshenko_Element = ShaftElement(
     ...                         material=steel, L=0.5, idl=0.05, odl=0.1,
     ...                         rotary_inertia=True,
     ...                         shear_effects=True)
