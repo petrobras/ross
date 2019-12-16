@@ -208,11 +208,11 @@ def test_tapered_index(tap_tim):
 def test_parameters_tap_tim(tap_tim):
     assert tap_tim.L == 0.4
     assert tap_tim.i_d == 0.0
-    assert tap_tim.i_d_l == 0.0
-    assert tap_tim.i_d_r == 0.0
+    assert tap_tim.idl == 0.0
+    assert tap_tim.idr == 0.0
     assert tap_tim.o_d == 0.175
-    assert tap_tim.o_d_l == 0.25
-    assert tap_tim.o_d_r == 0.1
+    assert tap_tim.odl == 0.25
+    assert tap_tim.odr == 0.1
     assert tap_tim.material.E == 211e9
     assert tap_tim.material.G_s == 81.2e9
     assert tap_tim.material.rho == 7810
