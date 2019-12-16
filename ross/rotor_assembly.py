@@ -2443,13 +2443,17 @@ class Rotor(object):
                 for i, leng in enumerate(leng_data):
                     le = leng / nel_r
                     for j in range(nel_r):
+                        idl = (idr_data[i] - idl_data[i]) * j * le / leng + idl_data[i]
+                        odl = (odr_data[i] - odl_data[i]) * j * le / leng + odl_data[i]
+                        idr = (idr_data[i] - idl_data[i]) * (j + 1) * le / leng + idl_data[i]
+                        odr = (odr_data[i] - odl_data[i]) * (j + 1) * le / leng + odl_data[i]
                         shaft_elements.append(
                             ShaftElement(
-                                L=le,
-                                idl=idl_data[i],
-                                odl=odl_data[i],
-                                idr=idr_data[i],
-                                odr=odr_data[i],
+                                le,
+                                idl,
+                                odl,
+                                idr,
+                                odr,
                                 material=material_data[i],
                                 shear_effects=True,
                                 rotary_inertia=True,
@@ -2460,13 +2464,17 @@ class Rotor(object):
                 for i, leng in enumerate(leng_data):
                     le = leng / nel_r
                     for j in range(nel_r):
+                        idl = (idr_data[i] - idl_data[i]) * j * le / leng + idl_data[i]
+                        odl = (odr_data[i] - odl_data[i]) * j * le / leng + odl_data[i]
+                        idr = (idr_data[i] - idl_data[i]) * (j + 1) * le / leng + idl_data[i]
+                        odr = (odr_data[i] - odl_data[i]) * (j + 1) * le / leng + odl_data[i]
                         shaft_elements.append(
                             ShaftElement(
-                                L=le,
-                                idl=idl_data[i],
-                                odl=odl_data[i],
-                                idr=idr_data[i],
-                                odr=odr_data[i],
+                                le,
+                                idl,
+                                odl,
+                                idr,
+                                odr,
                                 material=material_data,
                                 shear_effects=True,
                                 rotary_inertia=True,
