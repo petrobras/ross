@@ -942,10 +942,14 @@ def test_from_section():
     #  Rotor built from classmethod from_section
     #  2 disks and 2 bearings
     leng_data = [0.5, 1.0, 2.0, 1.0, 0.5]
-    leng_data2 = [0.5, 1.0, 2.0, 1.0]
-    o_ds_data = [0.1, 0.2, 0.3, 0.2, 0.1]
-    o_ds_data2 = [0.1, 0.2, 0.3, 0.2]
-    i_ds_data = [0, 0, 0, 0, 0]
+    leng_data_error = [0.5, 1.0, 2.0, 1.0]
+
+    odl_data = [0.1, 0.2, 0.3, 0.2, 0.1]
+    odr_data_error = [0.1, 0.2, 0.3, 0.2]
+
+    idl_data = [0, 0, 0, 0, 0]
+    material = steel
+    material_error = [steel, steel]
     disk_data = [
         DiskElement.from_geometry(n=2, material=steel, width=0.07, i_d=0.05, o_d=0.28),
         DiskElement.from_geometry(n=3, material=steel, width=0.07, i_d=0.05, o_d=0.35),
@@ -957,8 +961,9 @@ def test_from_section():
 
     rotor1 = Rotor.from_section(
         leng_data=leng_data,
-        o_ds_data=o_ds_data,
-        i_ds_data=i_ds_data,
+        idl_data=idl_data,
+        odl_data=odl_data,
+        material_data=material,
         disk_data=disk_data,
         brg_seal_data=brg_seal_data,
         nel_r=4,
@@ -977,25 +982,52 @@ def test_from_section():
 
     with pytest.raises(ValueError) as excinfo:
         Rotor.from_section(
-            leng_data=leng_data2,
-            o_ds_data=o_ds_data,
-            i_ds_data=i_ds_data,
+            leng_data=leng_data_error,
+            idl_data=idl_data,
+            odl_data=odl_data,
+            material_data=material,
             disk_data=disk_data,
             brg_seal_data=brg_seal_data,
             nel_r=4,
         )
-    assert "The matrices lenght do not match." == str(excinfo.value)
+    assert "The lists size do not match (leng_data, odl_data and idl_data)." == str(excinfo.value)
+
+    with pytest.raises(ValueError) as excinfo:
+        Rotor.from_section(
+            leng_data=leng_data_error,
+            idl_data=idl_data,
+            odl_data=odl_data,
+            odr_data=odr_data_error,
+            material_data=material,
+            disk_data=disk_data,
+            brg_seal_data=brg_seal_data,
+            nel_r=4,
+        )
+    assert "The lists size do not match (leng_data, odr_data and idr_data)." == str(excinfo.value)
 
     with pytest.raises(ValueError) as excinfo:
         Rotor.from_section(
             leng_data=leng_data,
-            o_ds_data=o_ds_data2,
-            i_ds_data=i_ds_data,
+            idl_data=idl_data,
+            odl_data=odl_data,
+            material_data=None,
             disk_data=disk_data,
             brg_seal_data=brg_seal_data,
             nel_r=4,
         )
-    assert "The matrices lenght do not match." == str(excinfo.value)
+    assert "Please define a material or a list of materials" == str(excinfo.value)
+
+    with pytest.raises(ValueError) as excinfo:
+        Rotor.from_section(
+            leng_data=leng_data,
+            idl_data=idl_data,
+            odl_data=odl_data,
+            material_data=material_error,
+            disk_data=disk_data,
+            brg_seal_data=brg_seal_data,
+            nel_r=4,
+        )
+    assert "material_data size does not match size of other lists" == str(excinfo.value)
 
 
 @pytest.fixture
