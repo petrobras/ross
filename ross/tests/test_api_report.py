@@ -20,7 +20,7 @@ def report0():
 
     shaft_elem = [
         ShaftElement(
-            l, i_d, o_d, steel, shear_effects=True, rotary_inertia=True, gyroscopic=True
+            l, i_d, o_d, material=steel, shear_effects=True, rotary_inertia=True, gyroscopic=True
         )
         for l in L
     ]
@@ -57,7 +57,7 @@ def report1():
 
     shaft_elem = [
         ShaftElement(
-            l, i_d, o_d, steel, shear_effects=True, rotary_inertia=True, gyroscopic=True
+            l, i_d, o_d, material=steel, shear_effects=True, rotary_inertia=True, gyroscopic=True
         )
         for l in L
     ]
@@ -91,7 +91,7 @@ def report2():
 
     shaft_elem = [
         ShaftElement(
-            l, i_d, o_d, steel, shear_effects=True, rotary_inertia=True, gyroscopic=True
+            l, i_d, o_d, material=steel, shear_effects=True, rotary_inertia=True, gyroscopic=True
         )
         for l in L
     ]
