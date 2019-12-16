@@ -1017,7 +1017,7 @@ def test_from_section():
         )
     assert "Please define a material or a list of materials" == str(excinfo.value)
 
-    with pytest.raises(ValueError) as excinfo:
+    with pytest.raises(IndexError) as excinfo:
         Rotor.from_section(
             leng_data=leng_data,
             idl_data=idl_data,
