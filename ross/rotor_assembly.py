@@ -2322,8 +2322,11 @@ class Rotor(object):
     def from_section(
         cls,
         leng_data,
-        o_ds_data,
-        i_ds_data,
+        idl_data,
+        odl_data,
+        idr_data=None,
+        odr_data=None,
+        material_data=None,
         disk_data=None,
         brg_seal_data=None,
         sparse=True,
@@ -2332,6 +2335,7 @@ class Rotor(object):
         rated_w=None,
         n_eigen=12,
         nel_r=1,
+        tag=None,
     ):
         """This class is an alternative to build rotors from separated
         sections. Each section has the same number (n) of shaft elements.
@@ -2340,10 +2344,19 @@ class Rotor(object):
         ----------
         leng_data : list
             List with the lengths of rotor regions.
-        o_d_data : list
-            List with the outer diameters of rotor regions.
-        i_d_data : list
-            List with the inner diameters of rotor regions.
+        idl_data : list
+            List with the inner diameters of rotor regions (Left Station).
+        odl_data : list
+            List with the outer diameters of rotor regions (Left Station).
+        idr_data : list, optional
+            List with the inner diameters of rotor regions (Right Station).
+            Default is equal to idl_data (cylindrical element).
+        odr_data : list, optional
+            List with the outer diameters of rotor regions (Right Station).
+            Default is equal to odl_data (cylindrical element).
+        material_data : ross.material or list of ross.material
+            Defines a single material for all sections or each section can be
+            defined by a material individually.
         disk_data : dict, optional
             Dict holding disks datas.
             Example : disk_data=DiskElement.from_geometry(n=2,
@@ -2359,14 +2372,14 @@ class Rotor(object):
                                                    kyy=1e6, cyy=0, kxy=0,
                                                    cxy=0, kyx=0, cyx=0)
             ***See 'bearing_seal_element.py' docstring for more information***
-        w : float, optional
-            Rotor speed.
         nel_r : int, optional
             Number or elements per shaft region.
             Default is 1.
         n_eigen : int, optional
             Number of eigenvalues calculated by arpack.
             Default is 12.
+        tag : str
+            A tag for the rotor
 
         Returns
         -------
@@ -2374,10 +2387,11 @@ class Rotor(object):
 
         Example
         -------
-
+        >>> from ross.materials import steel
         >>> rotor = Rotor.from_section(leng_data=[0.5,0.5,0.5],
-        ...             o_ds_data=[0.05,0.05,0.05],
-        ...             i_ds_data=[0,0,0],
+        ...             odl_data=[0.05,0.05,0.05],
+        ...             idl_data=[0,0,0],
+        ...             material_data=steel,
         ...             disk_data=[DiskElement.from_geometry(n=1, material=steel, width=0.07, i_d=0, o_d=0.28),
         ...                        DiskElement.from_geometry(n=2, material=steel, width=0.07, i_d=0, o_d=0.35)],
         ...             brg_seal_data=[BearingElement(n=0, kxx=1e6, cxx=0, kyy=1e6, cyy=0, kxy=0, cxy=0, kyx=0, cyx=0),
@@ -2387,8 +2401,20 @@ class Rotor(object):
         >>> modal.wn.round(4)
         array([ 85.7634,  85.7634, 271.9326, 271.9326, 718.58  , 718.58  ])
         """
-        if len(leng_data) != len(o_ds_data) or len(leng_data) != len(i_ds_data):
-            raise ValueError("The matrices lenght do not match.")
+
+        if len(leng_data) != len(odl_data) or len(leng_data) != len(idl_data):
+            raise ValueError("The lists size do not match (leng_data, odl_data and idl_data).")
+
+        if material_data is None:
+            raise AttributeError("Please define a material or a list of materials")
+
+        if idr_data is None:
+            idr_data = idl_data
+        if odr_data is None:
+            odr_data = odl_data
+        else:
+            if len(leng_data) != len(odr_data) or len(leng_data) != len(idr_data):
+                raise ValueError("The lists size do not match (leng_data, odr_data and idr_data).")
 
         def rotor_regions(nel_r):
             """
@@ -2403,36 +2429,50 @@ class Rotor(object):
             -------
             regions : list
                 List with elements
-
-            Example
-            -------
             """
             regions = []
             shaft_elements = []
             disk_elements = []
             bearing_seal_elements = []
-            # nel_r = initial number of elements per regions
 
-            # loop through rotor regions
-            for i, leng in enumerate(leng_data):
+            try:
+                if len(leng_data) != len(material_data):
+                    raise IndexError("material_data size does not match size of other lists")
 
-                le = leng / nel_r
-                o_ds = o_ds_data[i]
-                i_ds = i_ds_data[i]
-
-                # loop to generate n elements per region
-                for j in range(nel_r):
-                    shaft_elements.append(
-                        ShaftElement(
-                            le,
-                            i_ds,
-                            o_ds,
-                            material=steel,
-                            shear_effects=True,
-                            rotary_inertia=True,
-                            gyroscopic=True,
+                # loop through rotor regions
+                for i, leng in enumerate(leng_data):
+                    le = leng / nel_r
+                    for j in range(nel_r):
+                        shaft_elements.append(
+                            ShaftElement(
+                                L=le,
+                                idl=idl_data[i],
+                                odl=odl_data[i],
+                                idr=idr_data[i],
+                                odr=odr_data[i],
+                                material=material_data[i],
+                                shear_effects=True,
+                                rotary_inertia=True,
+                                gyroscopic=True,
+                            )
                         )
-                    )
+            except TypeError:
+                for i, leng in enumerate(leng_data):
+                    le = leng / nel_r
+                    for j in range(nel_r):
+                        shaft_elements.append(
+                            ShaftElement(
+                                L=le,
+                                idl=idl_data[i],
+                                odl=odl_data[i],
+                                idr=idr_data[i],
+                                odr=odr_data[i],
+                                material=material_data,
+                                shear_effects=True,
+                                rotary_inertia=True,
+                                gyroscopic=True,
+                            )
+                        )
 
             regions.extend([shaft_elements])
 
@@ -2465,8 +2505,8 @@ class Rotor(object):
             min_w=min_w,
             max_w=max_w,
             rated_w=rated_w,
+            tag=tag
         )
-
 
 
 def rotor_example():
