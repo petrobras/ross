@@ -21,13 +21,13 @@ def rotor_example1(n_el=48):
     shaft_elm = []
     for i in range(n_el):
         shaft_elm.append(
-            rs.ShaftElement(L=1.5 / n_el, material=steel, n=i, i_d=0, o_d=0.05)
+            rs.ShaftElement(L=1.5 / n_el, material=steel, n=i, idl=0, odl=0.05)
         )
     disk0 = rs.DiskElement.from_geometry(
-        n=(n_el / 1.5) * 0.5, material=steel, width=0.07, i_d=0.05, o_d=0.28
+        n=(n_el / 1.5) * 0.5, material=steel, width=0.07, idl=0.05, odl=0.28
     )
     disk1 = rs.DiskElement.from_geometry(
-        n=(n_el / 1.5), material=steel, width=0.07, i_d=0.05, o_d=0.35
+        n=(n_el / 1.5), material=steel, width=0.07, idl=0.05, odl=0.35
     )
 
     bearing0 = rs.BearingElement(n=0, kxx=1e6, kyy=1e6, cxx=0, cyy=0)
@@ -68,13 +68,13 @@ def rotor_example2(n_el=48):
     shaft_elm = []
     for i in range(n_el):
         shaft_elm.append(
-            rs.ShaftElement(L=1.5 / n_el, material=steel, n=i, i_d=0, o_d=0.05)
+            rs.ShaftElement(L=1.5 / n_el, material=steel, n=i, idl=0, odl=0.05)
         )
     return rs.Rotor(
         shaft_elm,
         [
             rs.DiskElement.from_geometry(
-                n=n_el, material=steel, width=0.07, i_d=0.05, o_d=0.35
+                n=n_el, material=steel, width=0.07, idl=0.05, odl=0.35
             )
         ],
         [
@@ -115,13 +115,13 @@ def rotor_example3(n_el=48):
     shaft_elm = []
     for i in range(n_el):
         shaft_elm.append(
-            rs.ShaftElement(L=1.5 / n_el, material=steel, n=i, i_d=0, o_d=0.05)
+            rs.ShaftElement(L=1.5 / n_el, material=steel, n=i, idl=0, odl=0.05)
         )
     disk0 = rs.DiskElement.from_geometry(
-        n=(n_el / 3), material=steel, width=0.07, i_d=0.05, o_d=0.28
+        n=(n_el / 3), material=steel, width=0.07, idl=0.05, odl=0.28
     )
     disk1 = rs.DiskElement.from_geometry(
-        n=(n_el / 1.5), material=steel, width=0.07, i_d=0.05, o_d=0.35
+        n=(n_el / 1.5), material=steel, width=0.07, idl=0.05, odl=0.35
     )
 
     bearing0 = rs.BearingElement(n=0, kxx=1e6, kyy=8e5, cxx=0, cyy=0)
@@ -160,13 +160,13 @@ def rotor_example4(n_el=48):
     shaft_elm = []
     for i in range(n_el):
         shaft_elm.append(
-            rs.ShaftElement(L=1.5 / n_el, material=steel, n=i, i_d=0, o_d=0.05)
+            rs.ShaftElement(L=1.5 / n_el, material=steel, n=i, idl=0, odl=0.05)
         )
     disk0 = rs.DiskElement.from_geometry(
-        n=(n_el / 1.5) * 0.5, material=steel, width=0.07, i_d=0.05, o_d=0.28
+        n=(n_el / 1.5) * 0.5, material=steel, width=0.07, idl=0.05, odl=0.28
     )
     disk1 = rs.DiskElement.from_geometry(
-        n=(n_el / 1.5), material=steel, width=0.07, i_d=0.05, o_d=0.35
+        n=(n_el / 1.5), material=steel, width=0.07, idl=0.05, odl=0.35
     )
 
     bearing0 = rs.BearingElement(n=0, kxx=1e6, kyy=1e6, cxx=3e3, cyy=3e3)
@@ -216,13 +216,13 @@ def rotor_example5(n_el=48):
     shaft_elm = []
     for i in range(n_el):
         shaft_elm.append(
-            rs.ShaftElement(L=1.5 / n_el, material=steel, n=i, i_d=0, o_d=0.05)
+            rs.ShaftElement(L=1.5 / n_el, material=steel, n=i, idl=0, odl=0.05)
         )
     disk0 = rs.DiskElement.from_geometry(
-        n=(n_el / 3), material=steel, width=0.07, i_d=0.05, o_d=0.28
+        n=(n_el / 3), material=steel, width=0.07, idl=0.05, odl=0.28
     )
     disk1 = rs.DiskElement.from_geometry(
-        n=(n_el / 1.5), material=steel, width=0.07, i_d=0.05, o_d=0.35
+        n=(n_el / 1.5), material=steel, width=0.07, idl=0.05, odl=0.35
     )
 
     bearing0 = rs.BearingElement(n=0, kxx=1e6, kyy=2e5, cxx=0, cyy=0)
@@ -255,13 +255,13 @@ def rotor_example6(n_el=48):
     shaft_elm = []
     for i in range(n_el):
         shaft_elm.append(
-            rs.ShaftElement(L=1.5 / n_el, material=steel, n=i, i_d=0, o_d=0.05)
+            rs.ShaftElement(L=1.5 / n_el, material=steel, n=i, idl=0, odl=0.05)
         )
     disk0 = rs.DiskElement.from_geometry(
-        n=(n_el / 1.5) * 0.5, material=steel, width=0.07, i_d=0.05, o_d=0.28
+        n=(n_el / 1.5) * 0.5, material=steel, width=0.07, idl=0.05, odl=0.28
     )
     disk1 = rs.DiskElement.from_geometry(
-        n=(n_el / 1.5), material=steel, width=0.07, i_d=0.05, o_d=0.35
+        n=(n_el / 1.5), material=steel, width=0.07, idl=0.05, odl=0.35
     )
 
     bearing0 = rs.BearingElement(n=0, kxx=1e6, kyy=1e6, cxx=0, kxy=5e5, cyy=0)

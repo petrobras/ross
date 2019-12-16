@@ -347,7 +347,7 @@ class ShaftElement(Element):
         >>> shaft1.save('ShaftElement.toml')
         """
         data = self.load_data(file_name)
-        data["ShaftTaperedElement"][str(self.n)] = {
+        data["ShaftElement"][str(self.n)] = {
             "L": self.L,
             "idl": self.idl,
             "odl": self.odl,
@@ -389,7 +389,7 @@ class ShaftElement(Element):
             shaft_elements_dict = toml.load(f)
             for element in shaft_elements_dict["ShaftElement"]:
                 shaft_elements.append(
-                    ShaftTaperedElement(
+                    ShaftElement(
                         **shaft_elements_dict["ShaftElement"][element]
                     )
                 )
@@ -582,11 +582,11 @@ class ShaftElement(Element):
         )
 
     def M(self):
-        r"""Mass matrix for an instance of a shaft tapered element.
+        r"""Mass matrix for an instance of a shaft element.
 
         Returns
         -------
-        Mass matrix for the shaft tapered element.
+        Mass matrix for the shaft element.
 
         Examples
         --------
@@ -733,11 +733,11 @@ class ShaftElement(Element):
         return M
 
     def K(self):
-        r"""Stiffness matrix for an instance of a shaft tapered element.
+        r"""Stiffness matrix for an instance of a shaft element.
 
         Returns
         -------
-        Stiffness matrix for the shaft tapered element.
+        Stiffness matrix for the shaft element.
 
         Examples
         --------
@@ -834,12 +834,12 @@ class ShaftElement(Element):
         return K
 
     def C(self):
-        """Stiffness matrix for an instance of a shaft tapered element.
+        """Stiffness matrix for an instance of a shaft element.
 
         Returns
         -------
         C : np.array
-           Damping matrix for the shaft tapered element.
+           Damping matrix for the shaft element.
 
         Examples
         --------
@@ -860,11 +860,11 @@ class ShaftElement(Element):
         return C
 
     def G(self):
-        """Gyroscopic matrix for an instance of a shaft tapred element.
+        """Gyroscopic matrix for an instance of a shaft element.
 
         Returns
         -------
-        Gyroscopic matrix for the shaft tapered element.
+        Gyroscopic matrix for the shaft element.
  
         Examples
         --------

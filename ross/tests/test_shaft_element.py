@@ -37,10 +37,10 @@ def test_index(eb):
 def test_parameters_eb(eb):
     assert eb.phi == 0
     assert eb.L == 0.25
-    assert eb.i_d_l == 0
-    assert eb.o_d_l == 0.05
-    assert eb.i_d_r == 0
-    assert eb.o_d_r == 0.05
+    assert eb.idl == 0
+    assert eb.odl == 0.05
+    assert eb.idr == 0
+    assert eb.odr == 0.05
     assert eb.material.E == 211e9
     assert eb.material.G_s == 81.2e9
     assert eb.material.rho == 7810
@@ -174,12 +174,12 @@ def tap_tim():
     o_d_r = 0.10
 
     return ShaftElement(
-        steel,
         L,
         i_d_l,
         o_d_l,
         i_d_r,
         o_d_r,
+        steel,
         shear_effects=True,
         rotary_inertia=True,
         n=3,
@@ -277,7 +277,7 @@ def tap2():
     o_d_r = 0.25
 
     return ShaftElement(
-        steel, L, i_d_l, o_d_l, i_d_r, o_d_r, shear_effects=True, rotary_inertia=True
+        L, i_d_l, o_d_l, i_d_r, o_d_r, steel, shear_effects=True, rotary_inertia=True
     )
 
 
