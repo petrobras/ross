@@ -2487,11 +2487,15 @@ class Rotor(object):
             for DiskEl in disk_data:
                 aux_DiskEl = deepcopy(DiskEl)
                 aux_DiskEl.n = nel_r * DiskEl.n
+                aux_DiskEl.n_l = nel_r * DiskEl.n_l
+                aux_DiskEl.n_r = nel_r * DiskEl.n_r
                 disk_elements.append(aux_DiskEl)
 
             for Brg_SealEl in brg_seal_data:
                 aux_Brg_SealEl = deepcopy(Brg_SealEl)
                 aux_Brg_SealEl.n = nel_r * Brg_SealEl.n
+                aux_Brg_SealEl.n_l = nel_r * Brg_SealEl.n_l
+                aux_Brg_SealEl.n_r = nel_r * Brg_SealEl.n_r
                 bearing_seal_elements.append(aux_Brg_SealEl)
 
             regions.append(disk_elements)
