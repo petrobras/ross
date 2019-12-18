@@ -58,6 +58,7 @@ class PointMass(Element):
         self.mx = mx
         self.my = my
         self.tag = tag
+        self.dof_global_index = None
 
     def __hash__(self):
         return hash(self.tag)
