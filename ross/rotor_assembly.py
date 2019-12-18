@@ -2208,7 +2208,7 @@ class Rotor(object):
 
             for elm in aux_rotor.elements:
                 if elm.__class__.__name__ != "SealElement":
-                    dofs = elm.dof_global_index()
+                    dofs = elm.dof_global_index
                     n0 = dofs[0]
                     n1 = dofs[-1] + 1  # +1 to include this dof in the slice
                     try:
