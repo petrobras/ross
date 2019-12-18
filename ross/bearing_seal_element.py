@@ -237,6 +237,7 @@ class BearingElement(Element):
         self.tag = tag
         self.color = "#355d7a"
         self.scale_factor = scale_factor
+        self.dof_global_index = None
 
     def __repr__(self):
         """This function returns a string representation of a bearing element.
@@ -260,7 +261,7 @@ class BearingElement(Element):
             f" kyx={self.kyx}, kyy={self.kyy},\n"
             f" cxx={self.cxx}, cxy={self.cxy},\n"
             f" cyx={self.cyx}, cyy={self.cyy},\n"
-            f" frequency={self.frequency}, tag={self.tag!r})"
+            f" frequency={self.frequency}, tag={self.tag!r}, n_link={self.n_link})"
         )
 
     def __eq__(self, other):
