@@ -163,15 +163,16 @@ class Element(ABC):
         >>> from ross.disk_element import disk_example
         >>> disk = disk_example()
         >>> disk.summary()
-        n                  0
-        n_l                0
-        n_r                0
-        m            32.5897
-        Id          0.178089
-        Ip          0.329564
-        tag             None
-        color        #b2182b
-        type     DiskElement
+        n                             0
+        n_l                           0
+        n_r                           0
+        m                       32.5897
+        Id                     0.178089
+        Ip                     0.329564
+        tag                        None
+        color                   #b2182b
+        dof_global_index           None
+        type                DiskElement
         dtype: object
         """
         attributes = self.__dict__
