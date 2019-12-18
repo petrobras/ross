@@ -283,33 +283,3 @@ class Element(ABC):
         local_index = dof_tuple(**dof_mapping)
 
         return local_index
-
-    def dof_global_index(self):
-        """Get the global index for a element specific degree of freedom.
-
-        Returns
-        -------
-        global_index: namedtupple
-            A named tuple containing the global index.
-
-        Examples
-        --------
-        >>> # Example using BearingElement
-        >>> from ross.bearing_seal_element import bearing_example
-        >>> bearing = bearing_example()
-        >>> bearing.dof_global_index()
-        GlobalIndex(x_0=0, y_0=1)
-        """
-        dof_mapping = self.dof_mapping()
-        global_dof_mapping = {}
-        for k, v in dof_mapping.items():
-            dof_letter, dof_number = k.split("_")
-            global_dof_mapping[dof_letter + "_" + str(int(dof_number) + self.n)] = v
-        dof_tuple = namedtuple("GlobalIndex", global_dof_mapping)
-
-        for k, v in global_dof_mapping.items():
-            global_dof_mapping[k] = 4 * self.n + v
-
-        global_index = dof_tuple(**global_dof_mapping)
-
-        return global_index
