@@ -39,12 +39,12 @@ class PointMass(Element):
     --------
     >>> p0 = PointMass(n=0, m=2)
     >>> p0.M()
-    array([[2, 0],
-           [0, 2]])
+    array([[2., 0.],
+           [0., 2.]])
     >>> p1 = PointMass(n=0, mx=2, my=3)
     >>> p1.M()
-    array([[2, 0],
-           [0, 3]])
+    array([[2., 0.],
+           [0., 3.]])
     """
 
     def __init__(self, n=None, m=None, mx=None, my=None, tag=None):
@@ -52,11 +52,11 @@ class PointMass(Element):
         self.m = m
 
         if mx is None and my is None:
-            mx = m
-            my = m
+            mx = float(m)
+            my = float(m)
 
-        self.mx = mx
-        self.my = my
+        self.mx = float(mx)
+        self.my = float(my)
         self.tag = tag
         self.dof_global_index = None
 
