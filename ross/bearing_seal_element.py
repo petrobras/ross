@@ -806,7 +806,7 @@ class BearingElement(Element):
         >>> import os
         >>> file_path = os.path.dirname(os.path.realpath(__file__)) + '/tests/data/bearing_seal_si.xls'
         >>> BearingElement.from_table(0, file_path) # doctest: +ELLIPSIS
-        BearingElement(n=0,
+        BearingElement(n=0, n_link=None,
          kxx=[...
         """
         parameters = read_table_file(file, "bearing", sheet_name, n)
@@ -914,7 +914,7 @@ class BearingElement(Element):
         >>> BearingElement.from_fluid_flow(0, nz, ntheta, nradius, length, omega, p_in,
         ...                                p_out, radius_rotor, radius_stator,
         ...                                visc, rho, eccentricity=eccentricity) # doctest: +ELLIPSIS
-        BearingElement(n=0,
+        BearingElement(n=0, n_link=None,
          kxx=[...
         """
         fluid_flow = flow.FluidFlow(
