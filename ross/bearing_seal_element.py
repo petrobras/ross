@@ -251,17 +251,17 @@ class BearingElement(Element):
         --------
         >>> bearing = bearing_example()
         >>> bearing # doctest: +ELLIPSIS
-        BearingElement(n=0,
+        BearingElement(n=0, n_link=None,
          kxx=[...
         """
         return (
             f"{self.__class__.__name__}"
-            f"(n={self.n},\n"
+            f"(n={self.n}, n_link={self.n_link},\n"
             f" kxx={self.kxx}, kxy={self.kxy},\n"
             f" kyx={self.kyx}, kyy={self.kyy},\n"
             f" cxx={self.cxx}, cxy={self.cxy},\n"
             f" cyx={self.cyx}, cyy={self.cyy},\n"
-            f" frequency={self.frequency}, tag={self.tag!r}, n_link={self.n_link})"
+            f" frequency={self.frequency}, tag={self.tag!r})"
         )
 
     def __eq__(self, other):
