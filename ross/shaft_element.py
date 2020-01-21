@@ -671,29 +671,48 @@ class ShaftElement(Element):
                [ 0.00022681, -0.        , -0.        ,  0.0001524 ],
                [-0.        ,  0.00022681, -0.0001524 , -0.        ]])
         """
-        phi = self.phi
+        
+        # temporary material and geometrical constants
         L = self.L
+        tempG = self.material.E / (2 * (1 + self.n))
+        tempS = np.pi * ((self.o_d / 2) ** 2 - (self.i_d / 2) ** 2)
+        tempI = np.pi / 4 * ((self.o_d / 2) ** 4 - (self.i_d / 2) ** 4)
+        tempJ = np.pi / 2 * ((self.o_d / 2) ** 4 - (self.i_d / 2) ** 4)
+        tempMM = (self.i_d / 2) / (self.o_d / 2)
 
-        G = np.zeros((8, 8))
+        # temporary variables dependent on kappa
+        tempA = (
+            12
+            * self.material.E
+            * tempI
+            / (self.material.G_s * self.kappa * tempS * L ** 2)
+        )
 
-        if self.gyroscopic:
-            g1 = 36
-            g2 = (3 - 15 * phi) * L
-            g3 = (4 + 5 * phi + 10 * phi ** 2) * L ** 2
-            g4 = (-1 - 5 * phi + 5 * phi ** 2) * L ** 2
-            # fmt: off
-            G = np.array([[  0, -g1,  g2,   0,   0,  g1,  g2,   0],
-                          [ g1,   0,   0,  g2, -g1,   0,   0,  g2],
-                          [-g2,   0,   0, -g3,  g2,   0,   0, -g4],
-                          [  0, -g2,  g3,   0,   0,  g2,  g4,   0],
-                          [  0,  g1, -g2,   0,   0, -g1, -g2,   0],
-                          [-g1,   0,   0, -g2,  g1,   0,   0, -g2],
-                          [-g2,   0,   0, -g4,  g2,   0,   0, -g3],
-                          [  0, -g2,  g4,   0,   0,  g2,  g3,   0]])
-            # fmt: on
-            G = -self.material.rho * self.Ie * G / (15 * L * (1 + phi) ** 2)
+        # element level matrix declaration
+
+        aux1 = self.material.rho * tempS * L / 420
+        aux2 = self.material.rho * tempJ * L / 6
+
+        gcor = (6/5)/(L^2*(1+tempA)^2)
+        hcor = -(1/10-1/2*tempA)/(L*((1+tempA)^2))
+        icor = (2/15+1/6*tempA+1/3*tempA^2)/((1+tempA)^2)
+        jcor = -(1/30+1/6*tempA-1/6*tempA^2)/((1+tempA)^2)
+
+        G = 2*self.material.rho*L*tempI*np.array([0     ,0 ,-gcor ,-hcor ,0 ,0     ,0     ,0 ,gcor  ,-hcor ,0 ,0     ]
+            [gcor  ,0 ,0     ,0     ,0 ,-hcor ,-gcor ,0 ,0     ,0     ,0 ,-hcor ]
+            [hcor  ,0 ,0     ,0     ,0 ,-icor ,-hcor ,0 ,0     ,0     ,0 ,-jcor ]
+            [0     ,0 ,0     ,0     ,0 ,0     ,0     ,0 ,0     ,0     ,0 ,0     ]
+            [0     ,0 ,hcor  ,icor  ,0 ,0     ,0     ,0 ,-hcor ,jcor  ,0 ,0     ]
+            [0     ,0 ,-gcor ,-hcor ,0 ,0     ,0     ,0 ,-gcor ,hcor  ,0 ,0     ]
+            [0     ,0 ,0     ,0     ,0 ,0     ,0     ,0 ,0     ,0     ,0 ,0     ]
+            [gcor  ,0 ,0     ,0     ,0 ,-hcor ,gcor  ,0 ,0     ,0     ,0 ,hcor  ]
+            [-hcor ,0 ,0     ,0     ,0 ,jcor  ,-hcor ,0 ,0     ,0     ,0 ,-icor ]
+            [0     ,0 ,0     ,0     ,0 ,0     ,0     ,0 ,0     ,0     ,0 ,0     ]
+            [0     ,0 ,0     ,0     ,0 ,0     ,0     ,0 ,0     ,0     ,0 ,0     ]
+            [0     ,0 ,-hcor ,-jcor ,0 ,0     ,0     ,0 ,-hcor ,icor  ,0 ,0     ])
 
         return G
+
 
     def patch(self, position, check_sld, ax):
         """Shaft element patch.
