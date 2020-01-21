@@ -36,7 +36,7 @@ from ross.results import (
     TimeResponseResults,
     OrbitResponseResults
 )
-from ross.shaft_element import ShaftElement, ShaftTaperedElement
+from ross.shaft_element import ShaftElement
 
 __all__ = ["Rotor", "rotor_example"]
 
@@ -111,11 +111,13 @@ class Rotor(object):
     >>> le = 0.25
     >>> i_d = 0
     >>> o_d = 0.05
-    >>> tim0 = rs.ShaftElement(le, i_d, o_d, steel,
+    >>> tim0 = rs.ShaftElement(le, i_d, o_d,
+    ...                        material=steel,
     ...                        shear_effects=True,
     ...                        rotary_inertia=True,
     ...                        gyroscopic=True)
-    >>> tim1 = rs.ShaftElement(le, i_d, o_d, steel,
+    >>> tim1 = rs.ShaftElement(le, i_d, o_d,
+    ...                        material=steel,
     ...                        shear_effects=True,
     ...                        rotary_inertia=True,
     ...                        gyroscopic=True)
@@ -239,8 +241,8 @@ class Rotor(object):
             "y_pos",
             "i_d",
             "o_d",
-            "i_d_r",
-            "o_d_r",
+            "idr",
+            "odr",
             "material",
             "rho",
             "volume",
@@ -414,7 +416,7 @@ class Rotor(object):
             if z_pos == df_shaft["nodes_pos_l"].iloc[0]:
                 y_pos = (
                     max(
-                        df_shaft["o_d_l"][
+                        df_shaft["odl"][
                             df_shaft.n_l == int(dfb_z_pos.iloc[0]["n_l"])
                         ].values
                     )
@@ -423,7 +425,7 @@ class Rotor(object):
             elif z_pos == df_shaft["nodes_pos_r"].iloc[-1]:
                 y_pos = (
                     max(
-                        df_shaft["o_d_r"][
+                        df_shaft["odr"][
                             df_shaft.n_r == int(dfb_z_pos.iloc[0]["n_r"])
                         ].values
                     )
@@ -434,12 +436,12 @@ class Rotor(object):
                     max(
                         [
                             max(
-                                df_shaft["o_d_l"][
+                                df_shaft["odl"][
                                     df_shaft._n == int(dfb_z_pos.iloc[0]["n_l"])
                                 ].values
                             ),
                             max(
-                                df_shaft["o_d_r"][
+                                df_shaft["odr"][
                                     df_shaft._n == int(dfb_z_pos.iloc[0]["n_l"]) - 1
                                 ].values
                             ),
@@ -569,7 +571,7 @@ class Rotor(object):
         >>> n = 6
         >>> L = [0.25 for _ in range(n)]
         ...
-        >>> shaft_elem = [rs.ShaftElement(l, i_d, o_d, steel,
+        >>> shaft_elem = [rs.ShaftElement(l, i_d, o_d, material=steel,
         ... shear_effects=True, rotary_inertia=True, gyroscopic=True) for l in L]
         >>> disk0 = DiskElement.from_geometry(2, steel, 0.07, 0.05, 0.28)
         >>> disk1 = DiskElement.from_geometry(4, steel, 0.07, 0.05, 0.35)
@@ -590,7 +592,7 @@ class Rotor(object):
         eigv_arr = np.append(eigv_arr, modal.wn[n_eigval])
 
         # this value is up to start the loop while
-        error = 1
+        error = 1.0e10
         nel_r = 2
 
         while error > err_max:
@@ -600,25 +602,25 @@ class Rotor(object):
 
             for shaft in self.shaft_elements:
                 le = shaft.L / nel_r
-                odl = shaft.o_d_l
-                odr = shaft.o_d_r
-                idl = shaft.i_d_l
-                idr = shaft.i_d_r
+                odl = shaft.odl
+                odr = shaft.odr
+                idl = shaft.idl
+                idr = shaft.idr
 
                 # loop to double the number of element
                 for j in range(nel_r):
-                    o_d_r = ((nel_r - j - 1) * odl + (j + 1) * odr) / nel_r
-                    i_d_r = ((nel_r - j - 1) * idl + (j + 1) * idr) / nel_r
-                    o_d_l = ((nel_r - j) * odl + j * odr) / nel_r
-                    i_d_l = ((nel_r - j) * idl + j * idr) / nel_r
+                    odr = ((nel_r - j - 1) * odl + (j + 1) * odr) / nel_r
+                    idr = ((nel_r - j - 1) * idl + (j + 1) * idr) / nel_r
+                    odl = ((nel_r - j) * odl + j * odr) / nel_r
+                    idl = ((nel_r - j) * idl + j * idr) / nel_r
                     shaft_elem.append(
-                        ShaftTaperedElement(
-                            material=shaft.material,
+                        ShaftElement(
                             L=le,
-                            i_d_l=i_d_l,
-                            o_d_l=o_d_l,
-                            i_d_r=i_d_r,
-                            o_d_r=o_d_r,
+                            idl=idl,
+                            odl=odl,
+                            idr=idr,
+                            odr=odr,
+                            material=shaft.material,
                             shear_effects=shaft.shear_effects,
                             rotary_inertia=shaft.rotary_inertia,
                             gyroscopic=shaft.gyroscopic,
@@ -1297,7 +1299,7 @@ class Rotor(object):
         try:
             max_diameter = max([disk.o_d for disk in self.disk_elements])
         except (ValueError, AttributeError):
-            max_diameter = max([shaft.o_d_l for shaft in self.shaft_elements])
+            max_diameter = max([shaft.odl for shaft in self.shaft_elements])
 
         ax.set_ylim(-1.2 * max_diameter, 1.2 * max_diameter)
         ax.axis("equal")
@@ -1648,7 +1650,7 @@ class Rotor(object):
         >>> L = [0.25 for _ in range(n)]
         >>> shaft_elem = [
         ...     ShaftElement(
-        ...         l, i_d, o_d, steel, shear_effects=True,
+        ...         l, i_d, o_d, material=steel, shear_effects=True,
         ...         rotary_inertia=True, gyroscopic=True
         ...     )
         ...     for l in L
@@ -1804,7 +1806,7 @@ class Rotor(object):
         >>> L = [0.25 for _ in range(n)]
         >>> shaft_elem = [
         ...     ShaftElement(
-        ...         l, i_d, o_d, steel, shear_effects=True,
+        ...         l, i_d, o_d, material=steel, shear_effects=True,
         ...         rotary_inertia=True, gyroscopic=True
         ...     )
         ...     for l in L
@@ -2320,18 +2322,21 @@ class Rotor(object):
     def from_section(
         cls,
         leng_data,
-        o_ds_data,
-        i_ds_data,
+        idl_data,
+        odl_data,
+        idr_data=None,
+        odr_data=None,
+        material_data=None,
         disk_data=None,
         brg_seal_data=None,
         sparse=True,
         min_w=None,
         max_w=None,
+        rated_w=None,
         n_eigen=12,
-        frequency=0,
         nel_r=1,
+        tag=None,
     ):
-
         """This class is an alternative to build rotors from separated
         sections. Each section has the same number (n) of shaft elements.
 
@@ -2339,10 +2344,19 @@ class Rotor(object):
         ----------
         leng_data : list
             List with the lengths of rotor regions.
-        o_d_data : list
-            List with the outer diameters of rotor regions.
-        i_d_data : list
-            List with the inner diameters of rotor regions.
+        idl_data : list
+            List with the inner diameters of rotor regions (Left Station).
+        odl_data : list
+            List with the outer diameters of rotor regions (Left Station).
+        idr_data : list, optional
+            List with the inner diameters of rotor regions (Right Station).
+            Default is equal to idl_data (cylindrical element).
+        odr_data : list, optional
+            List with the outer diameters of rotor regions (Right Station).
+            Default is equal to odl_data (cylindrical element).
+        material_data : ross.material or list of ross.material
+            Defines a single material for all sections or each section can be
+            defined by a material individually.
         disk_data : dict, optional
             Dict holding disks datas.
             Example : disk_data=DiskElement.from_geometry(n=2,
@@ -2358,14 +2372,14 @@ class Rotor(object):
                                                    kyy=1e6, cyy=0, kxy=0,
                                                    cxy=0, kyx=0, cyx=0)
             ***See 'bearing_seal_element.py' docstring for more information***
-        w : float, optional
-            Rotor speed.
         nel_r : int, optional
             Number or elements per shaft region.
-            Default is 1
+            Default is 1.
         n_eigen : int, optional
             Number of eigenvalues calculated by arpack.
             Default is 12.
+        tag : str
+            A tag for the rotor
 
         Returns
         -------
@@ -2373,22 +2387,34 @@ class Rotor(object):
 
         Example
         -------
-
+        >>> from ross.materials import steel
         >>> rotor = Rotor.from_section(leng_data=[0.5,0.5,0.5],
-        ...             o_ds_data=[0.05,0.05,0.05],
-        ...             i_ds_data=[0,0,0],
+        ...             odl_data=[0.05,0.05,0.05],
+        ...             idl_data=[0,0,0],
+        ...             material_data=steel,
         ...             disk_data=[DiskElement.from_geometry(n=1, material=steel, width=0.07, i_d=0, o_d=0.28),
         ...                        DiskElement.from_geometry(n=2, material=steel, width=0.07, i_d=0, o_d=0.35)],
         ...             brg_seal_data=[BearingElement(n=0, kxx=1e6, cxx=0, kyy=1e6, cyy=0, kxy=0, cxy=0, kyx=0, cyx=0),
         ...                            BearingElement(n=3, kxx=1e6, cxx=0, kyy=1e6, cyy=0, kxy=0, cxy=0, kyx=0, cyx=0)],
-        ...             frequency=0, nel_r=1)
+        ...             nel_r=1)
         >>> modal = rotor.run_modal(speed=0)
         >>> modal.wn.round(4)
         array([ 85.7634,  85.7634, 271.9326, 271.9326, 718.58  , 718.58  ])
         """
 
-        if len(leng_data) != len(o_ds_data) or len(leng_data) != len(i_ds_data):
-            raise ValueError("The matrices lenght do not match.")
+        if len(leng_data) != len(odl_data) or len(leng_data) != len(idl_data):
+            raise ValueError("The lists size do not match (leng_data, odl_data and idl_data).")
+
+        if material_data is None:
+            raise AttributeError("Please define a material or a list of materials")
+
+        if idr_data is None:
+            idr_data = idl_data
+        if odr_data is None:
+            odr_data = odl_data
+        else:
+            if len(leng_data) != len(odr_data) or len(leng_data) != len(idr_data):
+                raise ValueError("The lists size do not match (leng_data, odr_data and idr_data).")
 
         def rotor_regions(nel_r):
             """
@@ -2403,47 +2429,73 @@ class Rotor(object):
             -------
             regions : list
                 List with elements
-
-            Example
-            -------
             """
             regions = []
             shaft_elements = []
             disk_elements = []
             bearing_seal_elements = []
-            # nel_r = initial number of elements per regions
 
-            # loop through rotor regions
-            for i, leng in enumerate(leng_data):
+            try:
+                if len(leng_data) != len(material_data):
+                    raise IndexError("material_data size does not match size of other lists")
 
-                le = leng / nel_r
-                o_ds = o_ds_data[i]
-                i_ds = i_ds_data[i]
-
-                # loop to generate n elements per region
-                for j in range(nel_r):
-                    shaft_elements.append(
-                        ShaftElement(
-                            le,
-                            i_ds,
-                            o_ds,
-                            material=steel,
-                            shear_effects=True,
-                            rotary_inertia=True,
-                            gyroscopic=True,
+                # loop through rotor regions
+                for i, leng in enumerate(leng_data):
+                    le = leng / nel_r
+                    for j in range(nel_r):
+                        idl = (idr_data[i] - idl_data[i]) * j * le / leng + idl_data[i]
+                        odl = (odr_data[i] - odl_data[i]) * j * le / leng + odl_data[i]
+                        idr = (idr_data[i] - idl_data[i]) * (j + 1) * le / leng + idl_data[i]
+                        odr = (odr_data[i] - odl_data[i]) * (j + 1) * le / leng + odl_data[i]
+                        shaft_elements.append(
+                            ShaftElement(
+                                le,
+                                idl,
+                                odl,
+                                idr,
+                                odr,
+                                material=material_data[i],
+                                shear_effects=True,
+                                rotary_inertia=True,
+                                gyroscopic=True,
+                            )
                         )
-                    )
+            except TypeError:
+                for i, leng in enumerate(leng_data):
+                    le = leng / nel_r
+                    for j in range(nel_r):
+                        idl = (idr_data[i] - idl_data[i]) * j * le / leng + idl_data[i]
+                        odl = (odr_data[i] - odl_data[i]) * j * le / leng + odl_data[i]
+                        idr = (idr_data[i] - idl_data[i]) * (j + 1) * le / leng + idl_data[i]
+                        odr = (odr_data[i] - odl_data[i]) * (j + 1) * le / leng + odl_data[i]
+                        shaft_elements.append(
+                            ShaftElement(
+                                le,
+                                idl,
+                                odl,
+                                idr,
+                                odr,
+                                material=material_data,
+                                shear_effects=True,
+                                rotary_inertia=True,
+                                gyroscopic=True,
+                            )
+                        )
 
             regions.extend([shaft_elements])
 
             for DiskEl in disk_data:
                 aux_DiskEl = deepcopy(DiskEl)
                 aux_DiskEl.n = nel_r * DiskEl.n
+                aux_DiskEl.n_l = nel_r * DiskEl.n_l
+                aux_DiskEl.n_r = nel_r * DiskEl.n_r
                 disk_elements.append(aux_DiskEl)
 
             for Brg_SealEl in brg_seal_data:
                 aux_Brg_SealEl = deepcopy(Brg_SealEl)
                 aux_Brg_SealEl.n = nel_r * Brg_SealEl.n
+                aux_Brg_SealEl.n_l = nel_r * Brg_SealEl.n_l
+                aux_Brg_SealEl.n_r = nel_r * Brg_SealEl.n_r
                 bearing_seal_elements.append(aux_Brg_SealEl)
 
             regions.append(disk_elements)
@@ -2464,7 +2516,8 @@ class Rotor(object):
             n_eigen=n_eigen,
             min_w=min_w,
             max_w=max_w,
-            rated_w=None,
+            rated_w=rated_w,
+            tag=tag
         )
 
 
@@ -2496,7 +2549,7 @@ def rotor_example():
 
     shaft_elem = [
         ShaftElement(
-            l, i_d, o_d, steel, shear_effects=True, rotary_inertia=True, gyroscopic=True
+            l, i_d, o_d, material=steel, shear_effects=True, rotary_inertia=True, gyroscopic=True
         )
         for l in L
     ]

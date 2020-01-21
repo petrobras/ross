@@ -310,11 +310,11 @@ class FluidFlow:
                     for j in range(0, self.ntheta):
                         self.p_mat_analytical[i][j] = (6 * self.viscosity * self.omega *
                                                        (self.ri[i][j] / self.difference_between_radius) ** 2 *
-                                                       self.eccentricity_ratio * np.sin(self.gama[i][j]) *
-                                                       (2 + self.eccentricity_ratio * np.cos(self.gama[i][j]))) / (
+                                                       self.eccentricity_ratio * np.sin(self.dtheta*j) *
+                                                       (2 + self.eccentricity_ratio * np.cos(self.dtheta*j))) / (
                                                               (2 + self.eccentricity_ratio ** 2) *
                                                               (1 + self.eccentricity_ratio * np.cos(
-                                                                  self.gama[i][j])) ** 2) + \
+                                                                  self.dtheta*j)) ** 2) + \
                                                       self.p_in
                         if self.p_mat_analytical[i][j] < 0:
                             self.p_mat_analytical[i][j] = 0
@@ -351,7 +351,7 @@ class FluidFlow:
                 self.re[i][j] = radius_external
                 self.ri[i][j] = radius_internal
 
-                w = self.omega * self.ri[i][j]
+                w = self.omega * self.radius_rotor
 
                 k = (self.re[i][j] ** 2 * (np.log(self.re[i][j]) - 1 / 2) - self.ri[i][j] ** 2 *
                      (np.log(self.ri[i][j]) - 1 / 2)) / (self.ri[i][j] ** 2 - self.re[i][j] ** 2)
