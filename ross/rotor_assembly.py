@@ -368,8 +368,8 @@ class Rotor(object):
         )
 
         # global indexes for dofs
+        n_last = self.shaft_elements[-1].n
         for elm in self.elements:
-            n_last = self.shaft_elements[-1].n
             dof_mapping = elm.dof_mapping()
             global_dof_mapping = {}
             for k, v in dof_mapping.items():
@@ -386,13 +386,7 @@ class Rotor(object):
 
             elm.dof_global_index = dof_tuple(**global_dof_mapping)
 
-            bearing_class_list = [
-                    "BearingElement",
-                    "SealElement",
-                    "BallBearingElement",
-                    "RollerBearingElement",
-            ]
-            if elm.__class__.__name__ in bearing_class_list:
+            if isinstance(elm, BearingElement):
                 if elm.n_link is not None:
                     dof_global_index = elm.dof_global_index._asdict()
                     if elm.n_link <= n_last + 1:
