@@ -17,10 +17,6 @@ def test_index(disk):
     assert disk.dof_local_index().y_0 == 1
     assert disk.dof_local_index().alpha_0 == 2
     assert disk.dof_local_index().beta_0 == 3
-    assert disk.dof_global_index().x_0 == 0
-    assert disk.dof_global_index().y_0 == 1
-    assert disk.dof_global_index().alpha_0 == 2
-    assert disk.dof_global_index().beta_0 == 3
 
 
 def test_mass_matrix_disk(disk):

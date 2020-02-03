@@ -10,7 +10,7 @@ from ross.materials import steel
 from ross.rotor_assembly import *
 from ross.rotor_assembly import MAC_modes
 from ross.shaft_element import *
-from ross.point_mass import PointMass
+from ross.point_mass import *
 
 test_dir = os.path.dirname(__file__)
 
@@ -1269,7 +1269,7 @@ def test_save_load():
     assert a == b
 
 
-def test_rotor_link():
+def test_global_index():
     i_d = 0
     o_d = 0.05
     n = 6
@@ -1292,19 +1292,53 @@ def test_rotor_link():
     stfx = 1e6
     stfy = 0.8e6
     bearing0 = BearingElement(0, n_link=7, kxx=stfx, kyy=stfy, cxx=0)
-    support = BearingElement(7, kxx=stfx, kyy=stfy, cxx=0)
-    bearing1 = BearingElement(6, kxx=stfx, kyy=stfy, cxx=0)
+    support0 = BearingElement(7, kxx=stfx, kyy=stfy, cxx=0, tag="Support0")
+    bearing1 = BearingElement(6, n_link=8, kxx=stfx, kyy=stfy, cxx=0)
+    support1 = BearingElement(8, kxx=stfx, kyy=stfy, cxx=0, tag="Support1")
 
-    point_mass = PointMass(7, m=1.0)
+    point_mass0 = PointMass(7, m=1.0)
+    point_mass1 = PointMass(8, m=1.0)
 
     rotor = Rotor(
-        shaft_elem, [disk0, disk1], [bearing0, support, bearing1], [point_mass]
+            shaft_elem,
+            [disk0, disk1],
+            [bearing0, bearing1, support0, support1],
+            [point_mass0, point_mass1]
     )
 
-    modal = rotor.run_modal(1000 / 9.5492965964254)
+    shaft = rotor.shaft_elements
+    disks = rotor.disk_elements
+    bearings = rotor.bearing_seal_elements
+    pointmass = rotor.point_mass_elements
 
-    wn_expected = np.array(
-        [82.43809938, 87.5639844, 239.36021417, 261.15187937, 646.59858922, 688.428424]
-    )
+    assert shaft[0].dof_global_index.x_0 == 0
+    assert shaft[0].dof_global_index.y_0 == 1
+    assert shaft[0].dof_global_index.alpha_0 == 2
+    assert shaft[0].dof_global_index.beta_0 == 3
+    assert shaft[0].dof_global_index.x_1 == 4
+    assert shaft[0].dof_global_index.y_1 == 5
+    assert shaft[0].dof_global_index.alpha_1 == 6
+    assert shaft[0].dof_global_index.beta_1 == 7
 
-    assert_allclose(modal.wn, wn_expected)
+    assert disks[0].dof_global_index.x_2 == 8
+    assert disks[0].dof_global_index.y_2 == 9
+    assert disks[0].dof_global_index.alpha_2 == 10
+    assert disks[0].dof_global_index.beta_2 == 11
+
+    assert bearings[0].dof_global_index.x_0 == 0
+    assert bearings[0].dof_global_index.y_0 == 1
+    assert bearings[0].dof_global_index.x_7 == 28
+    assert bearings[0].dof_global_index.y_7 == 29
+    assert bearings[1].dof_global_index.x_6 == 24
+    assert bearings[1].dof_global_index.y_6 == 25
+    assert bearings[1].dof_global_index.x_8 == 30
+    assert bearings[1].dof_global_index.y_8 == 31
+    assert bearings[2].dof_global_index.x_7 == 28
+    assert bearings[2].dof_global_index.y_7 == 29
+    assert bearings[3].dof_global_index.x_8 == 30
+    assert bearings[3].dof_global_index.y_8 == 31
+
+    assert pointmass[0].dof_global_index.x_7 == 28
+    assert pointmass[0].dof_global_index.y_7 == 29
+    assert pointmass[1].dof_global_index.x_8 == 30
+    assert pointmass[1].dof_global_index.y_8 == 31

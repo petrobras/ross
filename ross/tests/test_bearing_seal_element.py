@@ -97,9 +97,6 @@ def test_index(bearing1):
     assert bearing1.dof_local_index().x_0 == 0
     assert bearing1.dof_local_index()[1] == 1
     assert bearing1.dof_local_index().y_0 == 1
-    assert bearing1.dof_global_index().x_4 == 16
-    assert bearing1.dof_global_index().y_4 == 17
-    assert bearing1.dof_global_index()[-1] == 17
 
 
 def test_bearing1_interpol_kxx(bearing1):
@@ -231,16 +228,6 @@ def test_from_table():
     assert bearing.n == 0
     assert_allclose(bearing.frequency[2], 523.5987755985)
     assert_allclose(bearing.kxx.coefficient[2], 53565700)
-
-
-def test_bearing_link_global_index():
-    b0 = BearingElement(n=0, n_link=3, kxx=1, cxx=1)
-    idx = b0.dof_global_index()
-    assert idx.x_0 == 0
-    assert idx.y_0 == 1
-    print(idx)
-    assert idx.x_3 == 12
-    assert idx.y_3 == 13
 
 
 def test_bearing_link_matrices():
