@@ -28,10 +28,6 @@ def test_index(eb):
     assert eb.dof_local_index().y_0 == 1
     assert eb.dof_local_index().alpha_0 == 2
     assert eb.dof_local_index().beta_0 == 3
-    assert eb.dof_global_index().x_3 == 12
-    assert eb.dof_global_index().y_3 == 13
-    assert eb.dof_global_index().alpha_3 == 14
-    assert eb.dof_global_index().beta_3 == 15
 
 
 def test_parameters_eb(eb):
@@ -195,14 +191,6 @@ def test_tapered_index(tap_tim):
     assert tap_tim.dof_local_index().y_1 == 5
     assert tap_tim.dof_local_index().alpha_1 == 6
     assert tap_tim.dof_local_index().beta_1 == 7
-    assert tap_tim.dof_global_index().x_3 == 12
-    assert tap_tim.dof_global_index().y_3 == 13
-    assert tap_tim.dof_global_index().alpha_3 == 14
-    assert tap_tim.dof_global_index().beta_3 == 15
-    assert tap_tim.dof_global_index().x_4 == 16
-    assert tap_tim.dof_global_index().y_4 == 17
-    assert tap_tim.dof_global_index().alpha_4 == 18
-    assert tap_tim.dof_global_index().beta_4 == 19
 
 
 def test_parameters_tap_tim(tap_tim):

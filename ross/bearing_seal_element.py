@@ -237,6 +237,7 @@ class BearingElement(Element):
         self.tag = tag
         self.color = "#355d7a"
         self.scale_factor = scale_factor
+        self.dof_global_index = None
 
     def __repr__(self):
         """This function returns a string representation of a bearing element.
@@ -250,12 +251,12 @@ class BearingElement(Element):
         --------
         >>> bearing = bearing_example()
         >>> bearing # doctest: +ELLIPSIS
-        BearingElement(n=0,
+        BearingElement(n=0, n_link=None,
          kxx=[...
         """
         return (
             f"{self.__class__.__name__}"
-            f"(n={self.n},\n"
+            f"(n={self.n}, n_link={self.n_link},\n"
             f" kxx={self.kxx}, kxy={self.kxy},\n"
             f" kyx={self.kyx}, kyy={self.kyy},\n"
             f" cxx={self.cxx}, cxy={self.cxy},\n"
@@ -805,7 +806,7 @@ class BearingElement(Element):
         >>> import os
         >>> file_path = os.path.dirname(os.path.realpath(__file__)) + '/tests/data/bearing_seal_si.xls'
         >>> BearingElement.from_table(0, file_path) # doctest: +ELLIPSIS
-        BearingElement(n=0,
+        BearingElement(n=0, n_link=None,
          kxx=[...
         """
         parameters = read_table_file(file, "bearing", sheet_name, n)
@@ -913,7 +914,7 @@ class BearingElement(Element):
         >>> BearingElement.from_fluid_flow(0, nz, ntheta, nradius, length, omega, p_in,
         ...                                p_out, radius_rotor, radius_stator,
         ...                                visc, rho, eccentricity=eccentricity) # doctest: +ELLIPSIS
-        BearingElement(n=0,
+        BearingElement(n=0, n_link=None,
          kxx=[...
         """
         fluid_flow = flow.FluidFlow(

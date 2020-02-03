@@ -293,6 +293,7 @@ class ShaftElement(Element):
             self.kappa = kappa
 
         self.phi = phi
+        self.dof_global_index = None
 
     def __eq__(self, other):
         """
