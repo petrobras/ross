@@ -30,7 +30,7 @@ class Element(ABC):
         >>> # Example using DiskElement
         >>> from ross.disk_element import disk_example
         >>> disk = disk_example()
-        >>> disk.save('DiskElement.toml')
+        >>> disk.save()
         """
         pass
 
@@ -50,8 +50,8 @@ class Element(ABC):
         >>> from ross.bearing_seal_element import bearing_example
         >>> from ross.bearing_seal_element import BearingElement
         >>> bearing1 = bearing_example()
-        >>> bearing1.save('BearingElement.toml')
-        >>> list_of_bearings = BearingElement.load('BearingElement.toml')
+        >>> bearing1.save()
+        >>> list_of_bearings = BearingElement.load()
         >>> bearing1 == list_of_bearings[0]
         True
         """
@@ -198,7 +198,7 @@ class Element(ABC):
         >>> from ross.bearing_seal_element import bearing_example
         >>> from ross.bearing_seal_element import BearingElement
         >>> bearing = bearing_example()
-        >>> bearing.save('BearingElement.toml')
+        >>> bearing.save()
         >>> BearingElement.load_data('BearingElement.toml') # doctest: +ELLIPSIS
         {'BearingElement': {'0': {'n': 0, 'kxx': [1000000.0, 1000000.0,...
         """
@@ -206,10 +206,10 @@ class Element(ABC):
             with open(file_name, "r") as f:
                 data = toml.load(f)
                 if data == {"": {}}:
-                    data = {file_name[:-5]: {}}
+                    data = {str(file_name.name)[:-5]: {}}
 
         except FileNotFoundError:
-            data = {file_name[:-5]: {}}
+            data = {str(file_name.name)[:-5]: {}}
             Element.dump_data(data, file_name)
         return data
 
@@ -233,9 +233,9 @@ class Element(ABC):
         >>> from ross.bearing_seal_element import bearing_example
         >>> from ross.bearing_seal_element import BearingElement
         >>> bearing = bearing_example()
-        >>> bearing.save('BearingElement.toml')
+        >>> bearing.save()
         >>> data = BearingElement.load_data('BearingElement.toml')
-        >>> BearingElement.dump_data(data, 'bearing_data.toml')
+        >>> BearingElement.dump_data(data, 'BearingElement.toml') # doctest: +ELLIPSIS
         """
         with open(file_name, "w") as f:
             toml.dump(data, f)
