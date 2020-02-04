@@ -133,7 +133,7 @@ class DiskElement(Element):
         >>> disk = disk_example()
         >>> disk.save()
         """
-        data = self.load_data(Path(file_name)/'DiskElement.toml')
+        data = self.get_data(Path(file_name)/'DiskElement.toml')
         data["DiskElement"][str(self.n)] = {
             "n": self.n,
             "m": self.m,

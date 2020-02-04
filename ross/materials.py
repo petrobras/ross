@@ -107,7 +107,7 @@ class Material:
             toml.dump(data, f)
 
     @staticmethod
-    def load_data():
+    def get_data():
         try:
             with open(Path(os.path.dirname(rs.__file__))/"available_materials.toml", "r") as f:
                 data = toml.load(f)
@@ -118,7 +118,7 @@ class Material:
 
     @staticmethod
     def use_material(name):
-        data = Material.load_data()
+        data = Material.get_data()
         try:
             material = data["Materials"][name]
             return Material(**material)
@@ -127,7 +127,7 @@ class Material:
 
     @staticmethod
     def remove_material(name):
-        data = Material.load_data()
+        data = Material.get_data()
         try:
             del data["Materials"][name]
         except KeyError:
@@ -137,14 +137,14 @@ class Material:
     @staticmethod
     def available_materials():
         try:
-            data = Material.load_data()
+            data = Material.get_data()
             return list(data["Materials"].keys())
         except FileNotFoundError:
             return "There is no saved materials."
 
     def save_material(self):
         """Saves the material in the available_materials list."""
-        data = Material.load_data()
+        data = Material.get_data()
         data["Materials"][self.name] = self.__dict__
         Material.dump_data(data)
 

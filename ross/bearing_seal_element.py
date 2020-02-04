@@ -327,7 +327,7 @@ class BearingElement(Element):
         >>> bearing = bearing_example()
         >>> bearing.save()
         """
-        data = self.load_data(Path(file_name)/'BearingElement.toml')
+        data = self.get_data(Path(file_name)/'BearingElement.toml')
 
         if type(self.frequency) == np.ndarray:
             try:
@@ -373,7 +373,7 @@ class BearingElement(Element):
         True
         """
         bearing_elements = []
-        bearing_elements_dict = BearingElement.load_data(
+        bearing_elements_dict = BearingElement.get_data(
             file_name=Path(file_name)/"BearingElement.toml"
         )
         for element in bearing_elements_dict["BearingElement"]:

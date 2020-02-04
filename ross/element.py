@@ -179,7 +179,7 @@ class Element(ABC):
         return pd.Series(attributes)
 
     @staticmethod
-    def load_data(file_name):
+    def get_data(file_name):
         """Loads elements data saved in a toml format.
 
         Parameters
@@ -199,7 +199,7 @@ class Element(ABC):
         >>> from ross.bearing_seal_element import BearingElement
         >>> bearing = bearing_example()
         >>> bearing.save()
-        >>> BearingElement.load_data('BearingElement.toml') # doctest: +ELLIPSIS
+        >>> BearingElement.get_data('BearingElement.toml') # doctest: +ELLIPSIS
         {'BearingElement': {'0': {'n': 0, 'kxx': [1000000.0, 1000000.0,...
         """
         try:
@@ -234,7 +234,7 @@ class Element(ABC):
         >>> from ross.bearing_seal_element import BearingElement
         >>> bearing = bearing_example()
         >>> bearing.save()
-        >>> data = BearingElement.load_data('BearingElement.toml')
+        >>> data = BearingElement.get_data('BearingElement.toml')
         >>> BearingElement.dump_data(data, 'BearingElement.toml') # doctest: +ELLIPSIS
         """
         with open(file_name, "w") as f:

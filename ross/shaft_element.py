@@ -345,7 +345,7 @@ class ShaftElement(Element):
         ... )
         >>> shaft1.save()
         """
-        data = self.load_data(Path(file_name)/'ShaftElement.toml')
+        data = self.get_data(Path(file_name)/'ShaftElement.toml')
         data["ShaftElement"][str(self.n)] = {
             "L": self.L,
             "idl": self.idl,
