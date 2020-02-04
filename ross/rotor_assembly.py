@@ -2072,7 +2072,7 @@ class Rotor(object):
         Example
         -------
         >>> rotor1 = rotor_example()
-        >>> rotor1.save(Path('.')/'new_rotor1')
+        >>> rotor1.save(Path('.'),'new_rotor1')
         >>> rotor2 = Rotor.load(Path('.')/'new_rotor1')
         >>> rotor1 == rotor2
         True

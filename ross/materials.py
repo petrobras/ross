@@ -87,7 +87,7 @@ class Material:
         Examples
         ----------
         >>> import ross as rs
-        >>> steel = rs.steel
+        >>> steel = rs.Material.use_material('Steel')
         >>> AISI4140 = rs.Material.use_material('AISI4140')
         >>> steel == AISI4140
         False
@@ -111,14 +111,14 @@ class Material:
         Returns
         ----------
 
-        string : Representation of the given Material.
+        string : Representation of the given rs.Material.
 
         Examples
         ----------
         >>> import ross as rs
-        >>> steel = rs.steel
+        >>> steel = rs.Material.use_material('Steel')
         >>> steel # doctest: +ELLIPSIS
-        Material(name="Steel", rho=7.810e+03, G_s=8.120e+10, E=2.110e+11, Poisson=2.993e-01, color='#525252')
+        Material(name="Steel", rho=7.81000e+03, G_s=8.12000e+10, E=2.11000e+11, Poisson=2.99261e-01, color='#525252')
         """
         selfE = "{:.5e}".format(self.E)
         selfPoisson = "{:.5e}".format(self.Poisson)
@@ -148,7 +148,7 @@ class Material:
         Examples
         ----------
         >>> import ross as rs
-        >>> print(rs.steel)
+        >>> print(rs.Material.use_material('Steel'))
         Steel
         -----------------------------------
         Density         (N/m**3): 7810.0
@@ -200,7 +200,7 @@ class Material:
                 data = toml.load(f)
         except FileNotFoundError:
             data = {"Materials": {}}
-            Material.dump_data(data)
+            rs.Material.dump_data(data)
         return data
 
     @staticmethod
@@ -223,10 +223,10 @@ class Material:
         >>> import ross as rs
         >>> AISI4140 = rs.Material.use_material('AISI4140')
         >>> AISI4140
-        Material(name="AISI4140", rho=7.850e+03, G_s=8.000e+10, E=2.032e+11, Poisson=2.700e-01, color='#525252')
+        Material(name="AISI4140", rho=7.85000e+03, G_s=8.00000e+10, E=2.03200e+11, Poisson=2.70000e-01, color='#525252')
         """
 
-        data = Material.get_data()
+        data = rs.Material.get_data()
         try:
             material = data["Materials"][name]
             return Material(**material)
@@ -235,7 +235,7 @@ class Material:
 
     @staticmethod
     def remove_material(name):
-        """Function used to delete a saved material.
+        """Function used to delete a saved rs.Material.
 
         Parameters
         ----------
@@ -249,18 +249,18 @@ class Material:
         Examples
         ----------
         >>> import ross as rs
-        >>> steel = rs.steel
+        >>> steel = rs.Material.use_material('Steel')
         >>> steel.name = 'test_material'
         >>> steel.save_material()
         >>> steel.remove_material('test_material')
         """
 
-        data = Material.get_data()
+        data = rs.Material.get_data()
         try:
             del data["Materials"][name]
         except KeyError:
             return "There isn't a saved material with this name."
-        Material.dump_data(data)
+        rs.Material.dump_data(data)
 
     @staticmethod
     def available_materials():
@@ -278,25 +278,25 @@ class Material:
         Examples
         ----------
         >>> import ross as rs
-        >>> steel = rs.steel
+        >>> steel = rs.Material.use_material('Steel')
         >>> steel.name = 'test_material'
         >>> steel.save_material()
         >>> steel.remove_material('test_material')
         """
 
         try:
-            data = Material.get_data()
+            data = rs.Material.get_data()
             return list(data["Materials"].keys())
         except FileNotFoundError:
             return "There is no saved materials."
 
     def save_material(self):
-        """Function used to delete a saved material.
+        """Function used to delete a saved rs.Material.
 
         Parameters
         ----------
 
-        self : Material.
+        self : rs.Material.
 
         Returns
         ----------
@@ -304,14 +304,14 @@ class Material:
         Examples
         ----------
         >>> import ross as rs
-        >>> steel = rs.steel
+        >>> steel = rs.Material.use_material('Steel')
         >>> steel.name = 'test_material'
         >>> steel.save_material()
         >>> steel.remove_material('test_material')
         """
-        data = Material.get_data()
+        data = rs.Material.get_data()
         data["Materials"][self.name] = self.__dict__
-        Material.dump_data(data)
+        rs.Material.dump_data(data)
 
 
 steel = Material(name="Steel", rho=7810, E=211e9, G_s=81.2e9)
