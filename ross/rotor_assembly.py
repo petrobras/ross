@@ -2055,7 +2055,7 @@ class Rotor(object):
         if os.path.isdir(rotor_path / "elements"):
             elements_path = rotor_path / "elements"
         else:
-            raise FileNotFoundError("A rotor with this name does not exist, check the rotors folder.")
+            raise FileNotFoundError("Path not found.")
 
         with open(rotor_path/"properties.toml", "r") as f:
             parameters = toml.load(f)["parameters"]
@@ -2087,7 +2087,7 @@ class Rotor(object):
         return [x for x in os.listdir(Path(os.path.dirname(ross.__file__)) / "rotors")]
 
     @staticmethod
-    def remove(rotor_name):
+    def remove(file_name):
         """
         Remove a previously saved rotor in rotors folder.
 
@@ -2105,7 +2105,11 @@ class Rotor(object):
         >>> sorted(Rotor.available_rotors())
         [...]
         """
-        shutil.rmtree(Path(os.path.dirname(ross.__file__)) / "rotors" / rotor_name)
+        try:
+            Rotor.load(file_name)
+            shutil.rmtree(Path(file_name))
+        except:
+            return 'This is not a valid rotor.'
 
     def run_static(self):
         """Rotor static analysis.
