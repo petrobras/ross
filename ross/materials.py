@@ -144,14 +144,9 @@ class Material:
 
     def save_material(self):
         """Saves the material in the available_materials list."""
-        run_path = os.getcwd()
-        ross_path = os.path.dirname(rs.__file__)
-        os.chdir(ross_path)
-
         data = Material.load_data()
         data["Materials"][self.name] = self.__dict__
         Material.dump_data(data)
-        os.chdir(run_path)
 
 
 steel = Material(name="Steel", rho=7810, E=211e9, G_s=81.2e9)
