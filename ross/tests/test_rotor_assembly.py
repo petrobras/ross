@@ -1308,7 +1308,7 @@ def test_global_index():
 
     shaft = rotor.shaft_elements
     disks = rotor.disk_elements
-    bearings = rotor.bearing_seal_elements
+    bearings = rotor.bearing_elements
     pointmass = rotor.point_mass_elements
 
     assert shaft[0].dof_global_index.x_0 == 0
