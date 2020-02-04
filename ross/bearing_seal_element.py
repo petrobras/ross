@@ -367,8 +367,8 @@ class BearingElement(Element):
         Examples
         --------
         >>> bearing1 = bearing_example()
-        >>> bearing1.save()
-        >>> list_of_bearings = BearingElement.load()
+        >>> bearing1.save(os.getcwd())
+        >>> list_of_bearings = BearingElement.load(os.getcwd())
         >>> bearing1 == list_of_bearings[0]
         True
         """
