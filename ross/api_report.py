@@ -1,10 +1,10 @@
 import numpy as np
 import pandas as pd
-import toml
+import os
 from copy import copy
 from scipy.interpolate import interp1d
 from scipy.signal import argrelextrema
-
+from pathlib import Path
 from ross.rotor_assembly import Rotor, rotor_example
 from ross.bearing_seal_element import BearingElement
 import ross as rs
@@ -180,11 +180,12 @@ class Report:
         Examples
         --------
         >>> rotor = rotor_example()
-        >>> rotor.save('rotor_example')
+        >>> rotor.save(rotor_name='rotor_example',file_path=Path('.'))
+        >>> rotor_path = Path('.') / 'rotor_example'
         >>> report = Report.from_saved_rotors(
-        ...     path='rotor_example', minspeed=400, maxspeed=1000, speed_units="rad/s"
+        ...     path=rotor_path, minspeed=400, maxspeed=1000, speed_units="rad/s"
         ... )
-        >>> Rotor.remove('rotor_example')
+        >>> Rotor.remove(rotor_path)
         """
         rotor = rs.Rotor.load(path)
         return cls(rotor, minspeed, maxspeed, speed_units="rpm")

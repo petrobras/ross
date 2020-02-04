@@ -1988,7 +1988,7 @@ class Rotor(object):
 
         sio.savemat("%s/%s.mat" % (os.getcwd(), file_path), dic)
 
-    def save(self, file_path):
+    def save(self, rotor_name='rotor', file_path=Path('.')):
         """Save rotor to toml file.
 
         Parameters
@@ -2001,22 +2001,20 @@ class Rotor(object):
         >>> rotor.save('new_rotor')
         >>> Rotor.remove('new_rotor')
         """
-        main_path = os.path.dirname(ross.__file__)
-        path = Path(main_path)
-        path_rotors = path / "rotors"
+        path_rotor = Path(file_path)
 
-        if os.path.isdir(path_rotors / file_path):
+        if os.path.isdir(path_rotor / rotor_name):
             if int(
                 input(
                     "There is a rotor with this file_path, do you want to overwrite it? (1 for yes and 0 for no)"
                 )
             ):
-                shutil.rmtree(path_rotors / file_path)
+                shutil.rmtree(path_rotor / rotor_name)
             else:
                 return "The rotor was not saved."
 
-        os.mkdir(path_rotors/file_path)
-        rotor_folder = path_rotors/file_path
+        os.mkdir(path_rotor/rotor_name)
+        rotor_folder = path_rotor/rotor_name
         os.mkdir(rotor_folder / "results")
         os.mkdir(rotor_folder / "elements")
 
@@ -2043,19 +2041,18 @@ class Rotor(object):
         Example
         -------
         >>> rotor1 = rotor_example()
-        >>> rotor1.save('new_rotor1')
-        >>> rotor2 = Rotor.load('new_rotor1')
+        >>> rotor1.save(Path('.')/'new_rotor1')
+        >>> rotor2 = Rotor.load(Path('.')/'new_rotor1')
         >>> rotor1 == rotor2
         True
         >>> Rotor.remove('new_rotor1')
         """
-        main_path = os.path.dirname(ross.__file__)
-        rotor_path = Path(main_path) / "rotors" / file_path
+        rotor_path = Path(file_path)
 
         if os.path.isdir(rotor_path / "elements"):
             elements_path = rotor_path / "elements"
         else:
-            raise FileNotFoundError("Path not found.")
+            raise FileNotFoundError("Elements folder not found.")
 
         with open(rotor_path/"properties.toml", "r") as f:
             parameters = toml.load(f)["parameters"]
@@ -2087,11 +2084,7 @@ class Rotor(object):
         -------
         >>> rotor = rotor_example()
         >>> rotor.save('new_rotor2')
-        >>> sorted(Rotor.available_rotors())
-        [...]
         >>> Rotor.remove('new_rotor2')
-        >>> sorted(Rotor.available_rotors())
-        [...]
         """
         try:
             Rotor.load(file_path)
