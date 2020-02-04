@@ -2075,18 +2075,6 @@ class Rotor(object):
         return Rotor(**global_elements, **parameters)
 
     @staticmethod
-    def available_rotors():
-        """
-        Displays previously saved rotors
-
-        Example
-        -------
-        >>> sorted(Rotor.available_rotors())
-        [...]
-        """
-        return [x for x in os.listdir(Path(os.path.dirname(ross.__file__)) / "rotors")]
-
-    @staticmethod
     def remove(file_name):
         """
         Remove a previously saved rotor in rotors folder.
