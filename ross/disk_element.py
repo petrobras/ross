@@ -51,6 +51,8 @@ class DiskElement(Element):
         self.Ip = Ip
         self.tag = tag
         self.color = color
+        self.dof_global_index = None
+
 
     def __eq__(self, other):
         """This function allows disk elements to be compared.

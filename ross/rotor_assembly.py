@@ -1,7 +1,7 @@
 import os
 import shutil
 import warnings
-from collections import Iterable
+from collections import Iterable, namedtuple
 from copy import copy, deepcopy
 from itertools import cycle
 from pathlib import Path
@@ -237,13 +237,15 @@ class Rotor(object):
             "L",
             "node_pos",
             "node_pos_r",
+            "idl",
+            "odl",
+            "idr",
+            "odr",
+            "i_d",
+            "o_d",
             "beam_cg",
             "axial_cg_pos",
             "y_pos",
-            "i_d",
-            "o_d",
-            "idr",
-            "odr",
             "material",
             "rho",
             "volume",
@@ -365,6 +367,35 @@ class Rotor(object):
             + 8
             + 2 * len([el for el in point_mass_elements])
         )
+
+        # global indexes for dofs
+        n_last = self.shaft_elements[-1].n
+        for elm in self.elements:
+            dof_mapping = elm.dof_mapping()
+            global_dof_mapping = {}
+            for k, v in dof_mapping.items():
+                dof_letter, dof_number = k.split("_")
+                global_dof_mapping[dof_letter + "_" + str(int(dof_number) + elm.n)] = v
+            dof_tuple = namedtuple("GlobalIndex", global_dof_mapping)
+
+            if elm.n <= n_last + 1:
+                for k, v in global_dof_mapping.items():
+                    global_dof_mapping[k] = 4 * elm.n + v
+            else:
+                for k, v in global_dof_mapping.items():
+                    global_dof_mapping[k] = 2 * n_last + 2 * elm.n + 4 + v                
+
+            if hasattr(elm, "n_link") and elm.n_link is not None:
+                if elm.n_link <= n_last + 1:                
+                    global_dof_mapping[f"x_{elm.n_link}"] = 4 * elm.n_link
+                    global_dof_mapping[f"y_{elm.n_link}"] = 4 * elm.n_link + 1
+                else:
+                    global_dof_mapping[f"x_{elm.n_link}"] = 2 * n_last + 2 * elm.n_link + 4
+                    global_dof_mapping[f"y_{elm.n_link}"] = 2 * n_last + 2 * elm.n_link + 5
+
+            dof_tuple = namedtuple("GlobalIndex", global_dof_mapping)
+            elm.dof_global_index = dof_tuple(**global_dof_mapping)
+            df.at[df.loc[df.tag == elm.tag].index[0], "dof_global_index"] = elm.dof_global_index
 
         #  values for static analysis will be calculated by def static
         self.Vx = None
@@ -676,7 +707,7 @@ class Rotor(object):
         M0 = np.zeros((self.ndof, self.ndof))
 
         for elm in self.elements:
-            dofs = elm.dof_global_index()
+            dofs = elm.dof_global_index
             M0[np.ix_(dofs, dofs)] += elm.M()
 
         return M0
@@ -705,7 +736,7 @@ class Rotor(object):
         K0 = np.zeros((self.ndof, self.ndof))
 
         for elm in self.elements:
-            dofs = elm.dof_global_index()
+            dofs = elm.dof_global_index
             try:
                 K0[np.ix_(dofs, dofs)] += elm.K(frequency)
             except TypeError:
@@ -737,7 +768,7 @@ class Rotor(object):
         C0 = np.zeros((self.ndof, self.ndof))
 
         for elm in self.elements:
-            dofs = elm.dof_global_index()
+            dofs = elm.dof_global_index
 
             try:
                 C0[np.ix_(dofs, dofs)] += elm.C(frequency)
@@ -765,7 +796,7 @@ class Rotor(object):
         G0 = np.zeros((self.ndof, self.ndof))
 
         for elm in self.elements:
-            dofs = elm.dof_global_index()
+            dofs = elm.dof_global_index
             G0[np.ix_(dofs, dofs)] += elm.G()
 
         return G0
@@ -2147,7 +2178,7 @@ class Rotor(object):
 
             for elm in aux_rotor.elements:
                 if elm.__class__.__name__ != "SealElement":
-                    dofs = elm.dof_global_index()
+                    dofs = elm.dof_global_index
                     n0 = dofs[0]
                     n1 = dofs[-1] + 1  # +1 to include this dof in the slice
                     try:
