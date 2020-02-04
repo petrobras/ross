@@ -1957,12 +1957,12 @@ class Rotor(object):
 
         return results
 
-    def save_mat(self, file_name, speed, frequency=None):
+    def save_mat(self, file_path, speed, frequency=None):
         """Save matrices and rotor model to a .mat file.
 
         Parameters
         ----------
-        file_name : str
+        file_path : str
 
         speed: float
             Rotor speed.
@@ -1986,14 +1986,14 @@ class Rotor(object):
             "nodes": self.nodes_pos,
         }
 
-        sio.savemat("%s/%s.mat" % (os.getcwd(), file_name), dic)
+        sio.savemat("%s/%s.mat" % (os.getcwd(), file_path), dic)
 
-    def save(self, file_name):
+    def save(self, file_path):
         """Save rotor to toml file.
 
         Parameters
         ----------
-        file_name : str
+        file_path : str
 
         Examples
         --------
@@ -2005,18 +2005,18 @@ class Rotor(object):
         path = Path(main_path)
         path_rotors = path / "rotors"
 
-        if os.path.isdir(path_rotors / file_name):
+        if os.path.isdir(path_rotors / file_path):
             if int(
                 input(
-                    "There is a rotor with this file_name, do you want to overwrite it? (1 for yes and 0 for no)"
+                    "There is a rotor with this file_path, do you want to overwrite it? (1 for yes and 0 for no)"
                 )
             ):
-                shutil.rmtree(path_rotors / file_name)
+                shutil.rmtree(path_rotors / file_path)
             else:
                 return "The rotor was not saved."
 
-        os.mkdir(path_rotors/file_name)
-        rotor_folder = path_rotors/file_name
+        os.mkdir(path_rotors/file_path)
+        rotor_folder = path_rotors/file_path
         os.mkdir(rotor_folder / "results")
         os.mkdir(rotor_folder / "elements")
 
@@ -2029,12 +2029,12 @@ class Rotor(object):
             element.save(elements_folder)
 
     @staticmethod
-    def load(file_name):
+    def load(file_path):
         """Load rotor from toml file.
 
         Parameters
         ----------
-        file_name : str
+        file_path : str
 
         Returns
         -------
@@ -2050,7 +2050,7 @@ class Rotor(object):
         >>> Rotor.remove('new_rotor1')
         """
         main_path = os.path.dirname(ross.__file__)
-        rotor_path = Path(main_path) / "rotors" / file_name
+        rotor_path = Path(main_path) / "rotors" / file_path
 
         if os.path.isdir(rotor_path / "elements"):
             elements_path = rotor_path / "elements"
@@ -2075,13 +2075,13 @@ class Rotor(object):
         return Rotor(**global_elements, **parameters)
 
     @staticmethod
-    def remove(file_name):
+    def remove(file_path):
         """
         Remove a previously saved rotor in rotors folder.
 
         Parameters
         ----------
-        file_name : str
+        file_path : str
 
         Example
         -------
@@ -2094,8 +2094,8 @@ class Rotor(object):
         [...]
         """
         try:
-            Rotor.load(file_name)
-            shutil.rmtree(Path(file_name))
+            Rotor.load(file_path)
+            shutil.rmtree(Path(file_path))
         except:
             return 'This is not a valid rotor.'
 
