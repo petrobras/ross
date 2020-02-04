@@ -378,8 +378,8 @@ class ShaftElement(Element):
         ...        L=0.25, idl=0, idr=0, odl=0.05, odr=0.08,
         ...        material=steel, rotary_inertia=True, shear_effects=True
         ... )
-        >>> shaft1.save()
-        >>> shaft2 = ShaftElement.load()
+        >>> shaft1.save(os.getcwd())
+        >>> shaft2 = ShaftElement.load(os.getcwd())
         >>> shaft2 # doctest: +ELLIPSIS
         [ShaftElement(L=0.25, idl=0.0...
         """
