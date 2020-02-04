@@ -160,8 +160,8 @@ class DiskElement(Element):
         Examples
         --------
         >>> disk1 = disk_example()
-        >>> disk1.save()
-        >>> list_of_disks = DiskElement.load()
+        >>> disk1.save(os.getcwd())
+        >>> list_of_disks = DiskElement.load(os.getcwd())
         >>> disk1 == list_of_disks[0]
         True
         """
