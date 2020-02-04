@@ -72,7 +72,7 @@ class Material:
     def __eq__(self, other):
         """Material is considered equal if properties are equal."""
         self_list = [v for v in self.__dict__.values() if isinstance(v, (float, int))]
-        other_list = [v for v in self.__dict__.values() if isinstance(v, (float, int))]
+        other_list = [v for v in other.__dict__.values() if isinstance(v, (float, int))]
 
         if np.allclose(self_list, other_list):
             return True
@@ -80,10 +80,10 @@ class Material:
             return False
 
     def __repr__(self):
-        selfE = "{:.3e}".format(self.E)
-        selfPoisson = "{:.3e}".format(self.Poisson)
-        selfrho = "{:.3e}".format(self.rho)
-        selfGs = "{:.3e}".format(self.G_s)
+        selfE = "{:.5e}".format(self.E)
+        selfPoisson = "{:.5e}".format(self.Poisson)
+        selfrho = "{:.5e}".format(self.rho)
+        selfGs = "{:.5e}".format(self.G_s)
 
         return (
             f"Material"
