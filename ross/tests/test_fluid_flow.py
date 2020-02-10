@@ -8,7 +8,7 @@ import matplotlib.pyplot as plt
 from numpy.testing import assert_allclose
 from ross.fluid_flow.fluid_flow_geometry import move_rotor_center
 from ross.fluid_flow.fluid_flow_coefficients import (
-    calculate_analytical_damping_matrix,
+    calculate_damping_matrix,
     calculate_oil_film_force,
     calculate_stiffness_matrix,
     find_equilibrium_position,
@@ -166,11 +166,8 @@ def test_damping_matrix():
     Taken from example 5.5.1, page 181 (Dynamics of rotating machine, FRISSWELL)
     """
     bearing = fluid_flow_short_friswell()
-    cxx, cxy, cyx, cyy = calculate_analytical_damping_matrix(
-        bearing.load,
-        bearing.eccentricity_ratio,
-        bearing.radial_clearance,
-        bearing.omega,
+    cxx, cxy, cyx, cyy = calculate_damping_matrix(
+        bearing, force_type='short'
     )
     assert math.isclose(cxx / 10 ** 3, 232.9, rel_tol=0.01)
     assert math.isclose(cxy / 10 ** 3, -81.92, rel_tol=0.01)
