@@ -1,53 +1,8 @@
 import numpy as np
+import warnings
 from scipy import integrate
 from math import isnan
 from ross.fluid_flow.fluid_flow_geometry import move_rotor_center
-
-
-def calculate_analytical_damping_matrix(load, eccentricity_ratio, radial_clearance, omega):
-    """Returns the damping matrix calculated analytically.
-    Suitable only for short bearings.
-    Parameters
-    -------
-    load: float
-        Load applied to the rotor (N).
-    eccentricity_ratio: float
-        The ratio between the journal displacement, called just eccentricity, and
-        the radial clearance.
-    radial_clearance: float
-        Difference between both stator and rotor radius, regardless of eccentricity.
-    omega: float
-        Rotation of the rotor (rad/s).
-    Returns
-    -------
-    list of floats
-        A list of length four including damping floats in this order: cxx, cxy, cyx, cyy
-    Examples
-    --------
-    >>> from ross.fluid_flow.fluid_flow import fluid_flow_example
-    >>> my_fluid_flow = fluid_flow_example()
-    >>> load = my_fluid_flow.load
-    >>> eccentricity_ratio = my_fluid_flow.eccentricity_ratio
-    >>> radial_clearance = my_fluid_flow.radial_clearance
-    >>> omega = my_fluid_flow.omega
-    >>> calculate_analytical_damping_matrix(load, eccentricity_ratio,
-    ...                                       radial_clearance, omega) # doctest: +ELLIPSIS
-    [...
-    """
-    # fmt: off
-    h0 = 1.0 / (((np.pi ** 2) * (1 - eccentricity_ratio ** 2) + 16 * eccentricity_ratio ** 2) ** 1.5)
-    a = load / (radial_clearance * omega)
-    cxx = (a * h0 * 2 * np.pi * np.sqrt(1 - eccentricity_ratio ** 2) *
-           ((np.pi ** 2) * (
-                   1 + 2 * eccentricity_ratio ** 2) - 16 * eccentricity_ratio ** 2) / eccentricity_ratio)
-    cxy = (-a * h0 * 8 * (
-            (np.pi ** 2) * (1 + 2 * eccentricity_ratio ** 2) - 16 * eccentricity_ratio ** 2))
-    cyx = cxy
-    cyy = (a * h0 * (2 * np.pi * (
-            (np.pi ** 2) * (1 - eccentricity_ratio ** 2) ** 2 + 48 * eccentricity_ratio ** 2)) /
-           (eccentricity_ratio * np.sqrt(1 - eccentricity_ratio ** 2)))
-    # fmt: on
-    return [cxx, cxy, cyx, cyy]
 
 
 def calculate_oil_film_force(fluid_flow_object, force_type=None):
@@ -204,6 +159,49 @@ def calculate_stiffness_matrix(fluid_flow_object, force_type=None, oil_film_forc
         kyy = (force_y - force_y_y) / delta
 
     return [kxx, kxy, kyx, kyy]
+
+
+def calculate_damping_matrix(fluid_flow_object, force_type=None):
+    """Returns the damping matrix calculated analytically.
+    Suitable only for short bearings.
+    Parameters
+    -------
+    force_type: str
+        If set, calculates the stiffness matrix analytically considering the chosen type: 'short'.
+        If set to 'numerical', calculates the stiffness matrix numerically.
+    Returns
+    -------
+    list of floats
+        A list of length four including damping floats in this order: cxx, cxy, cyx, cyy
+    Examples
+    --------
+    >>> from ross.fluid_flow.fluid_flow import fluid_flow_example
+    >>> my_fluid_flow = fluid_flow_example()
+    >>> calculate_damping_matrix(my_fluid_flow) # doctest: +ELLIPSIS
+    [...
+    """
+    # fmt: off
+    if force_type != 'numerical' and (force_type == 'short' or fluid_flow_object.bearing_type == 'short_bearing'):
+        h0 = 1.0 / (((np.pi ** 2) * (1 - fluid_flow_object.eccentricity_ratio ** 2)
+                     + 16 * fluid_flow_object.eccentricity_ratio ** 2) ** 1.5)
+        a = fluid_flow_object.load / (fluid_flow_object.radial_clearance * fluid_flow_object.omega)
+        cxx = (a * h0 * 2 * np.pi * np.sqrt(1 - fluid_flow_object.eccentricity_ratio ** 2) *
+               ((np.pi ** 2) * (1 + 2 * fluid_flow_object.eccentricity_ratio ** 2)
+                - 16 * fluid_flow_object.eccentricity_ratio ** 2) / fluid_flow_object.eccentricity_ratio)
+        cxy = (-a * h0 * 8 * ((np.pi ** 2) * (1 + 2 * fluid_flow_object.eccentricity_ratio ** 2)
+                              - 16 * fluid_flow_object.eccentricity_ratio ** 2))
+        cyx = cxy
+        cyy = (a * h0 * (2 * np.pi * (
+                (np.pi ** 2) * (1 - fluid_flow_object.eccentricity_ratio ** 2) ** 2
+                + 48 * fluid_flow_object.eccentricity_ratio ** 2)) /
+               (fluid_flow_object.eccentricity_ratio * np.sqrt(1 - fluid_flow_object.eccentricity_ratio ** 2)))
+    else:
+        cxx, cxy, cyx, cyy = warnings.warn(
+            "Function calculate_damping_matrix cannot yet be calculated numerically. "
+            "The force_type should be  'short' or 'short_bearing"
+        )
+    # fmt: on
+    return [cxx, cxy, cyx, cyy]
 
 
 def find_equilibrium_position(fluid_flow_object, print_along=True, tolerance=1e-05,

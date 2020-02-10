@@ -13,7 +13,7 @@ from ross.element import Element
 from ross.fluid_flow import fluid_flow as flow
 from ross.fluid_flow.fluid_flow_coefficients import (
     calculate_stiffness_matrix,
-    calculate_analytical_damping_matrix,
+    calculate_damping_matrix,
 )
 
 __all__ = [
@@ -932,11 +932,8 @@ class BearingElement(Element):
             eccentricity=eccentricity,
             load=load,
         )
-        c = calculate_analytical_damping_matrix(
-            fluid_flow.load,
-            fluid_flow.eccentricity_ratio,
-            fluid_flow.radial_clearance,
-            fluid_flow.omega,
+        c = calculate_damping_matrix(
+            fluid_flow, force_type='short'
         )
         k = calculate_stiffness_matrix(
             fluid_flow, force_type='short'
