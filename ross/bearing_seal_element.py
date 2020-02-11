@@ -326,7 +326,7 @@ class BearingElement(Element):
         Examples
         --------
         >>> bearing = bearing_example()
-        >>> bearing.save()
+        >>> bearing.save(Path(os.getcwd()))
         """
         data = self.get_data(Path(file_name)/'BearingElement.toml')
 
