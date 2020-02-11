@@ -9,6 +9,7 @@ from ross.rotor_assembly import Rotor, rotor_example
 from ross.bearing_seal_element import BearingElement
 import ross as rs
 
+from copy import deepcopy
 import bokeh.palettes as bp
 from bokeh.plotting import figure
 from bokeh.layouts import gridplot, widgetbox
