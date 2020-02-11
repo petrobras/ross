@@ -310,7 +310,7 @@ class BearingElement(Element):
     def __hash__(self):
         return hash(self.tag)
 
-    def save(self, file_name=Path(os.getcwd())):
+    def save(self, file_name):
         """Saves a bearing element in a toml format. It works as an auxiliary
         function of the save function in the Rotor class.
 
