@@ -11,6 +11,7 @@ import ross
 from ross.element import Element
 from ross.materials import Material, steel
 from ross.utils import read_table_file
+from ross.units import check_units
 
 __all__ = ["ShaftElement"]
 bokeh_colors = bp.RdGy[11]
@@ -31,16 +32,16 @@ class ShaftElement(Element):
 
     Parameters
     ----------
-    L : float
+    L : float, pint.Quantity
         Element length.
-    idl : float
+    idl : float, pint.Quantity
         Inner diameter of the element at the left position..
-    odl : float
+    odl : float, pint.Quantity
         Outer diameter of the element at the left position.
-    idr : float, optional
+    idr : float, pint.Quantity, optional
         Inner diameter of the element at the right position
         Default is equal to idl value (cylindrical element)
-    odr : float, optional
+    odr : float, pint.Quantity, optional
         Outer diameter of the element at the right position.
         Default is equal to odl value (cylindrical element)
     material : ross.material
@@ -122,6 +123,7 @@ class ShaftElement(Element):
     >>> Timoshenko_Element.phi
     0.1571268472906404
     """
+    @check_units
     def __init__(
         self,
         L,
@@ -139,6 +141,14 @@ class ShaftElement(Element):
         shear_method_calc="cowper",
         tag=None,
     ):
+
+        # After changing units to defined unit (see units.py), we go back to using only the magnitude
+        # This could be modified later if we apply pint to all arguments and have consistency throughout the package
+        L = L.m
+        idl = idl.m
+        odl = odl.m
+        idr = idr.m
+        odr = odr.m
 
         if idr is None:
             idr = idl
