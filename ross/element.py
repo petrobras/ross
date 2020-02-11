@@ -50,7 +50,7 @@ class Element(ABC):
         >>> from ross.bearing_seal_element import bearing_example
         >>> from ross.bearing_seal_element import BearingElement
         >>> bearing1 = bearing_example()
-        >>> bearing1.save()
+        >>> bearing1.save(Path('.'))
         >>> list_of_bearings = BearingElement.load()
         >>> bearing1 == list_of_bearings[0]
         True
