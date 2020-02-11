@@ -99,7 +99,7 @@ def calculate_stiffness_matrix(fluid_flow_object, force_type=None, oil_film_forc
     ----------
     fluid_flow_object: A FluidFlow object.
     oil_film_force: str
-        If set, calculates the oil film force analytically analytically considering the chosen type: 'short'.
+        If set, calculates the oil film force analytically considering the chosen type: 'short' or 'long'.
         If set to 'numerical', calculates the oil film force numerically.
     force_type: str
         If set, calculates the stiffness matrix analytically considering the chosen type: 'short'.
@@ -166,6 +166,7 @@ def calculate_damping_matrix(fluid_flow_object, force_type=None):
     Suitable only for short bearings.
     Parameters
     -------
+    fluid_flow_object: A FluidFlow object.
     force_type: str
         If set, calculates the stiffness matrix analytically considering the chosen type: 'short'.
         If set to 'numerical', calculates the stiffness matrix numerically.
