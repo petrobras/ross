@@ -1048,14 +1048,15 @@ class Report:
         """
         # Build a list of seals
         seal_list = [
-            copy(seal)
-            for seal in self.rotor.bearing_elements
-            if seal.__class__.__name__ == "SealElement"
+            copy(b)
+            for b in self.rotor.bearing_elements
+            if not isinstance(b, SealElement)
         ]
+        
         bearing_list = [
             copy(b)
             for b in self.rotor.bearing_elements
-            if b.__class__.__name__ != "SealElement"
+            if not isinstance(b, SealElement)
         ]
 
         log_dec_seal = []
