@@ -807,8 +807,8 @@ class Report:
         bearing_list = [
             copy(b)
             for b in self.rotor.bearing_elements
-            if b.__class__.__name__ != "SealElement"
-        ]
+            if not isinstance(b, SealElement)
+            ]
 
         # Applying cross-coupling on rotor mid-span
         if self.rotor_type == "between_bearings":
