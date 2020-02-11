@@ -1050,13 +1050,13 @@ class Report:
         seal_list = [
             copy(b)
             for b in self.rotor.bearing_elements
-            if not isinstance(b, SealElement)
+            if not isinstance(b, rs.SealElement)
         ]
         
         bearing_list = [
             copy(b)
             for b in self.rotor.bearing_elements
-            if not isinstance(b, SealElement)
+            if not isinstance(b, rs.SealElement)
         ]
 
         log_dec_seal = []
