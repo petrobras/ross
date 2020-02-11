@@ -1,6 +1,6 @@
 from abc import ABC, abstractmethod
 from collections import namedtuple
-
+from pathlib import Path
 import pandas as pd
 import toml
 
@@ -199,7 +199,7 @@ class Element(ABC):
         >>> from ross.bearing_seal_element import bearing_example
         >>> from ross.bearing_seal_element import BearingElement
         >>> bearing = bearing_example()
-        >>> bearing.save()
+        >>> bearing.save(Path('.'))
         >>> BearingElement.get_data('BearingElement.toml') # doctest: +ELLIPSIS
         {'BearingElement': {'0': {'n': 0, 'kxx': [1000000.0, 1000000.0,...
         """
@@ -234,7 +234,7 @@ class Element(ABC):
         >>> from ross.bearing_seal_element import bearing_example
         >>> from ross.bearing_seal_element import BearingElement
         >>> bearing = bearing_example()
-        >>> bearing.save()
+        >>> bearing.save(Path('.'))
         >>> data = BearingElement.get_data('BearingElement.toml')
         >>> BearingElement.dump_data(data, 'BearingElement.toml') # doctest: +ELLIPSIS
         """
