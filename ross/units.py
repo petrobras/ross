@@ -16,12 +16,14 @@ __all__ = ["Q_", "check_units"]
 units = {
     "E": "N/m**2",
     "G_s": "N/m**2",
-    "rho": "N/m**3",
+    "rho": "kg/m**3",
     "L": "meter",
     "idl": "meter",
     "idr": "meter",
     "odl": "meter",
     "odr": "meter",
+    "speed": "radian/second",
+    "frequency": "radian/second",
 }
 
 
