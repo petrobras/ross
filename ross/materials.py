@@ -31,7 +31,7 @@ class Material:
     G_s : float
         Shear modulus (N/m**2).
     rho : float
-        Density (N/m**3).
+        Density (kg/m**3).
     color : str
         Can be used on plots.
 
