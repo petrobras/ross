@@ -123,6 +123,7 @@ class ShaftElement(Element):
     >>> Timoshenko_Element.phi
     0.1571268472906404
     """
+
     @check_units
     def __init__(
         self,
@@ -142,6 +143,11 @@ class ShaftElement(Element):
         tag=None,
     ):
 
+        if idr is None:
+            idr = idl
+        if odr is None:
+            odr = odl
+
         # After changing units to defined unit (see units.py), we go back to using only the magnitude
         # This could be modified later if we apply pint to all arguments and have consistency throughout the package
         L = L.m
@@ -149,11 +155,6 @@ class ShaftElement(Element):
         odl = odl.m
         idr = idr.m
         odr = odr.m
-
-        if idr is None:
-            idr = idl
-        if odr is None:
-            odr = odl
 
         if material is None:
             raise AttributeError("Material is not defined.")
@@ -400,9 +401,7 @@ class ShaftElement(Element):
             shaft_elements_dict = toml.load(f)
             for element in shaft_elements_dict["ShaftElement"]:
                 shaft_elements.append(
-                    ShaftElement(
-                        **shaft_elements_dict["ShaftElement"][element]
-                    )
+                    ShaftElement(**shaft_elements_dict["ShaftElement"][element])
                 )
         return shaft_elements
 
@@ -1187,19 +1186,18 @@ class ShaftElement(Element):
 
         elements = [
             cls(
-                    le,
-                    (s_idr - s_idl) * i * le / L + s_idl,
-                    (s_odr - s_odl) * i * le / L + s_odl,
-                    (s_idr - s_idl) * (i + 1) * le / L + s_idl,
-                    (s_odr - s_odl) * (i + 1) * le / L + s_odl,
-                    material,
-                    n,
-                    shear_effects,
-                    rotary_inertia,
-                    gyroscopic
+                le,
+                (s_idr - s_idl) * i * le / L + s_idl,
+                (s_odr - s_odl) * i * le / L + s_odl,
+                (s_idr - s_idl) * (i + 1) * le / L + s_idl,
+                (s_odr - s_odl) * (i + 1) * le / L + s_odl,
+                material,
+                n,
+                shear_effects,
+                rotary_inertia,
+                gyroscopic,
             )
             for i in range(ne)
         ]
 
         return elements
-
