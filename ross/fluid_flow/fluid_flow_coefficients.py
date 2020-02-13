@@ -113,7 +113,7 @@ def calculate_stiffness_matrix(fluid_flow_object, force_type=None, oil_film_forc
     >>> from ross.fluid_flow.fluid_flow import fluid_flow_example
     >>> my_fluid_flow = fluid_flow_example()
     >>> calculate_stiffness_matrix(my_fluid_flow)  # doctest: +ELLIPSIS
-    [-0.0...
+    [417...
     """
     if force_type != 'numerical' and (force_type == 'short' or fluid_flow_object.bearing_type == 'short_bearing'):
         h0 = 1.0 / (((np.pi ** 2) * (1 - fluid_flow_object.eccentricity_ratio ** 2)
