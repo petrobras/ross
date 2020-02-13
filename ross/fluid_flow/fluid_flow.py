@@ -508,9 +508,9 @@ def fluid_flow_example():
     >>> my_fluid_flow.eccentricity
     0.001
     """
-    my_pressure_matrix = FluidFlow(nz=8, ntheta=64, nradius=11, length=0.01, omega=100. * 2 * np.pi / 60,
-                                   p_in=0., p_out=0., radius_rotor=0.08, radius_stator=0.1,
-                                   viscosity=0.015, density=860., eccentricity=0.001, attitude_angle=np.pi,
+    my_pressure_matrix = FluidFlow(nz=16, ntheta=132, nradius=11, length=0.04, omega=100. * 2 * np.pi / 60,
+                                   p_in=0., p_out=0., radius_rotor=0.2, radius_stator=0.2002,
+                                   viscosity=0.015, density=860., eccentricity=0.0001, attitude_angle=np.pi/4,
                                    immediately_calculate_pressure_matrix_numerically=False)
     return my_pressure_matrix
 
