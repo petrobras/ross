@@ -17,7 +17,7 @@ def calculate_attitude_angle(eccentricity_ratio):
     >>> from ross.fluid_flow.fluid_flow import fluid_flow_example
     >>> my_fluid_flow = fluid_flow_example()
     >>> calculate_attitude_angle(my_fluid_flow.eccentricity_ratio) # doctest: +ELLIPSIS
-    1.5...
+    0.93...
     """
     return np.arctan(
                     (np.pi * (1 - eccentricity_ratio ** 2)**(1/2)) /
@@ -56,7 +56,7 @@ def internal_radius_function(gama, attitude_angle, radius_rotor, eccentricity):
     >>> eccentricity = my_fluid_flow.eccentricity
     >>> radius_internal, xri, yri = internal_radius_function(0, attitude_angle, radius_rotor, eccentricity)
     >>> radius_internal # doctest: +ELLIPSIS
-    0.079...
+    0.2...
     """
     if (np.pi / 2 + attitude_angle) < gama < (3 * np.pi / 2 + attitude_angle):
         alpha = np.absolute(3 * np.pi / 2 - gama + attitude_angle)
@@ -93,7 +93,7 @@ def external_radius_function(gama, radius_stator):
     >>> radius_stator = my_fluid_flow.radius_stator
     >>> radius_external, xre, yre = external_radius_function(0, radius_stator)
     >>> radius_external
-    0.1
+    0.2002
     """
     radius_external = radius_stator
     xre = radius_external * np.cos(gama)
@@ -135,7 +135,7 @@ def modified_sommerfeld_number(radius_stator, omega, viscosity, length, load, ra
     >>> radial_clearance = my_fluid_flow.radial_clearance
     >>> modified_sommerfeld_number(radius_stator, omega, viscosity,
     ...                            length, load, radial_clearance) # doctest: +ELLIPSIS
-    6.32...
+    0.33...
     """
     return (
                    radius_stator * 2 * omega * viscosity * (length ** 3)
@@ -169,7 +169,7 @@ def sommerfeld_number(modified_s, radius_stator, length):
     >>> modified_s = modified_sommerfeld_number(radius_stator, omega, viscosity,
     ...                            length, load, radial_clearance) # doctest: +ELLIPSIS
     >>> sommerfeld_number(modified_s, radius_stator, length) # doctest: +ELLIPSIS
-    805...
+    10.62...
     """
     return (modified_s / np.pi) * (radius_stator * 2 / length) ** 2
 
@@ -239,7 +239,7 @@ def calculate_rotor_load(radius_stator, omega, viscosity, length, radial_clearan
     >>> eccentricity_ratio = my_fluid_flow.eccentricity_ratio
     >>> calculate_rotor_load(radius_stator, omega, viscosity,
     ...                      length, radial_clearance, eccentricity_ratio) # doctest: +ELLIPSIS
-    1.5...
+    37.75...
     """
     return (
                    (
