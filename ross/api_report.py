@@ -1,6 +1,6 @@
 import numpy as np
 import pandas as pd
-import os
+
 from copy import copy
 from scipy.interpolate import interp1d
 from scipy.signal import argrelextrema
@@ -1051,7 +1051,7 @@ class Report:
         seal_list = [
             copy(b)
             for b in self.rotor.bearing_elements
-            if not isinstance(b, rs.SealElement)
+            if isinstance(b, rs.SealElement)
         ]
         
         bearing_list = [
