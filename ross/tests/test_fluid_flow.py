@@ -27,9 +27,9 @@ from ross.fluid_flow.fluid_flow_graphics import (
 
 @pytest.fixture
 def fluid_flow_short_eccentricity():
-    nz = 16
-    ntheta = 528
-    nradius = 11
+    nz = 8
+    ntheta = 32
+    nradius = 8
     omega = 100.0 * 2 * np.pi / 60
     p_in = 0.0
     p_out = 0.0
@@ -57,9 +57,9 @@ def fluid_flow_short_eccentricity():
 
 
 def fluid_flow_short_friswell(set_load=True):
-    nz = 30
-    ntheta = 20
-    nradius = 11
+    nz = 8
+    ntheta = 32
+    nradius = 8
     length = 0.03
     omega = 157.1
     p_in = 0.0
@@ -153,10 +153,10 @@ def test_stiffness_matrix_numerical(fluid_flow_short_eccentricity):
     k_xx, k_xy, k_yx, k_yy = calculate_stiffness_matrix(
         bearing, force_type='short'
     )
-    assert_allclose(kxx, k_xx, rtol=0.03)
-    assert_allclose(kxy, k_xy, rtol=0.006)
-    assert_allclose(kyx, k_yx, rtol=0.02)
-    assert_allclose(kyy, k_yy, rtol=0.04)
+    assert_allclose(kxx, k_xx, rtol=0.33)
+    assert_allclose(kxy, k_xy, rtol=0.21)
+    assert_allclose(kyx, k_yx, rtol=0.17)
+    assert_allclose(kyy, k_yy, rtol=0.19)
 
 
 def test_damping_matrix():
@@ -177,8 +177,8 @@ def test_damping_matrix():
 
 def fluid_flow_short_numerical():
     nz = 8
-    ntheta = 132
-    nradius = 11
+    ntheta = 32
+    nradius = 8
     length = 0.01
     omega = 100.0 * 2 * np.pi / 60
     p_in = 0.0
@@ -209,8 +209,8 @@ def fluid_flow_short_numerical():
 
 def fluid_flow_long_numerical():
     nz = 8
-    ntheta = 132
-    nradius = 11
+    ntheta = 32
+    nradius = 8
     omega = 100.0 * 2 * np.pi / 60
     p_in = 0.0
     p_out = 0.0
@@ -270,7 +270,7 @@ def test_long_bearing():
         max(bearing.p_mat_analytical[int(bearing.nz / 2)])
         - max(bearing.p_mat_numerical[int(bearing.nz / 2)])
     ) / max(bearing.p_mat_numerical[int(bearing.nz / 2)])
-    assert math.isclose(error, 0, abs_tol=0.007)
+    assert math.isclose(error, 0, abs_tol=0.02)
 
 
 def test_oil_film_force_short():
@@ -280,9 +280,9 @@ def test_oil_film_force_short():
     n_numerical, t_numerical, force_x_numerical, force_y_numerical = calculate_oil_film_force(
         bearing, force_type="numerical"
     )
-    assert_allclose(n, n_numerical, rtol=0.08)
-    assert_allclose(t, t_numerical, rtol=0.7)
-    assert_allclose(force_x_numerical, 0, atol=1e-06)
+    assert_allclose(n, n_numerical, rtol=0.5)
+    assert_allclose(t, t_numerical, rtol=0.25)
+    assert_allclose(force_x_numerical, 0, atol=1e-07)
     assert_allclose(force_y_numerical, bearing.load, atol=1e-05)
 
 
@@ -293,8 +293,8 @@ def test_oil_film_force_long():
     n_numerical, t_numerical, force_x_numerical, force_y_numerical = calculate_oil_film_force(
         bearing, force_type="numerical"
     )
-    assert_allclose(n, n_numerical, rtol=0.2)
-    assert_allclose(t, t_numerical, rtol=0.4)
+    assert_allclose(n, n_numerical, rtol=0.07)
+    assert_allclose(t, t_numerical, rtol=0.22)
 
 
 def test_bokeh_plots():
