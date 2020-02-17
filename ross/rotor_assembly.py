@@ -212,7 +212,7 @@ class Rotor(object):
                 p_mass.tag = "Point Mass " + str(i)
 
         self.shaft_elements = sorted(shaft_elements, key=lambda el: el.n)
-        self.bearing_elements = bearing_elements
+        self.bearing_elements = sorted(bearing_elements, key=lambda el: el.n)
         self.disk_elements = disk_elements
         self.point_mass_elements = point_mass_elements
         self.elements = [
@@ -418,7 +418,8 @@ class Rotor(object):
             if pd.isna(df.loc[df.tag == b.tag, "nodes_pos_l"]).all()
         }
         # cycle while there are bearings without a z location
-        for b in cycle(bearing_elements):
+
+        for b in cycle(self.bearing_elements):
             if bearings_no_zloc:
                 if b in bearings_no_zloc:
                     # first check if b.n is on list, if not, check for n_link
