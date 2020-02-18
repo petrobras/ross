@@ -294,3 +294,86 @@ def test_match_gyroscopic_matrix(tap2, tim2):
     G_tap = tap2.G()
     G_tim = tim2.G()
     assert_almost_equal(G_tap, G_tim, decimal=5)
+
+
+
+
+
+
+
+
+
+
+@pytest.fixture
+def s6_eb():
+    #  Euler-Bernoulli element
+    pass
+
+def s6_test_index(eb):
+    pass
+
+def s6_test_parameters_eb(eb):
+    pass
+
+def s6_test_mass_matrix_eb(eb):
+    pass
+
+def s6_test_stiffness_matrix_eb(eb):
+    pass
+
+@pytest.fixture
+def s6_tim():
+    pass
+
+def s6_test_parameters_tim(tim):
+    pass
+
+def s6_test_mass_matrix_tim(tim):
+    pass
+
+def s6_test_stiffness_matrix_tim(tim):
+    pass
+
+def s6_test_gyroscopic_matrix_tim(tim):
+    pass
+
+def s6_test_from_table():
+    pass
+
+# Shaft Tapered Element tests
+@pytest.fixture
+def s6_tap_tim():
+    pass
+
+def s6_test_tapered_index(tap_tim):
+    pass
+
+def s6_test_parameters_tap_tim(tap_tim):
+    pass
+
+def s6_test_mass_matrix_tap_tim(tap_tim):
+    pass
+
+def s6_test_stiffness_matrix_tap_tim(tap_tim):
+    pass
+
+def s6_test_gyroscopic_matrix_tap_tim(tap_tim):
+    pass
+
+@pytest.fixture
+def s6_tap2():
+    pass
+
+@pytest.fixture
+def s6_tim2():
+    pass
+
+def s6_test_match_mass_matrix(tap2, tim2):
+    pass
+
+def s6_test_match_stiffness_matrix(tap2, tim2):
+    pass
+
+def s6_test_match_gyroscopic_matrix(tap2, tim2):
+    pass
+
