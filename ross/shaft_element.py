@@ -1208,19 +1208,18 @@ class ShaftElement(Element):
 
 class ShaftElement6DoF(Element):
 
-
-    
-    r"""A shaft element.
-    This class will create a shaft element that may take into
-    account shear, rotary inertia an gyroscopic effects.
+    r"""A shaft element.   
+    This class will create a shaft element that takes into
+    account shear stress, rotary inertia an gyroscopic effects.
     The matrices will be defined considering the following local
     coordinate vector:
 
     .. math::
 
-        [x_0, y_0, \alpha_0, \beta_0, x_1, y_1, \alpha_1, \beta_1]^T
-    Where :math:`\alpha_0` and :math:`\alpha_1` are the bending on the yz plane
-    and :math:`\beta_0` and :math:`\beta_1` are the bending on the xz plane.
+        [u_1, v_1, w_1, \theta_1, \psi_1, \phi_1, u_2, v_2, w_2, \theta_2, \psi_2, \phi_2]^T
+    Where :math:`\theta_1` and :math:`\theta_2` are the bending on the yz plane,
+    :math:`\psi_1` and :math:`\psi_2` are the bending on the xz plane, and
+    :math:`\phi_1` and :math:`\phi_2` are the torsion around the z direction
 
     Parameters
     ----------
@@ -1265,7 +1264,7 @@ class ShaftElement6DoF(Element):
 
     Returns
     -------
-    A shaft element
+    A 6 degrees of freedom shaft element
 
     Attributes
     ----------
@@ -1292,6 +1291,10 @@ class ShaftElement6DoF(Element):
         :math:`\phi=0`.
     kappa : float
         Shear coefficient for the element.
+    alpha : float
+        Proportional damping coefficient, associated to the element Mass matrix
+    beta : float
+        Proportional damping coefficient, associated to the element Stiffness matrix
 
     References
     ----------
@@ -1301,19 +1304,14 @@ class ShaftElement6DoF(Element):
     Examples
     --------
     >>> from ross.materials import steel
-    >>> Euler_Bernoulli_Element = ShaftElement(
+    >>> Euler_Bernoulli_Element = ShaftElement6DoF(
     ...                         material=steel, L=0.5, idl=0.05, odl=0.1,
     ...                         idr=0.05, odr=0.15,
+    ...                         alpha=0.01, beta=100,
     ...                         rotary_inertia=False,
     ...                         shear_effects=False)
     >>> Euler_Bernoulli_Element.phi
     0
-    >>> Timoshenko_Element = ShaftElement(
-    ...                         material=steel, L=0.5, idl=0.05, odl=0.1,
-    ...                         rotary_inertia=True,
-    ...                         shear_effects=True)
-    >>> Timoshenko_Element.phi
-    0.1571268472906404
     """
 
     @check_units
