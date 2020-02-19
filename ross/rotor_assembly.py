@@ -544,7 +544,7 @@ class Rotor(object):
         array([91.79655318, 96.28899977])
         >>> modal.wd[:2]
         array([91.79655318, 96.28899977])
-        >>> modal.plot_mode(0) # doctest: +ELLIPSIS
+        >>> modal.plot_mode3D(0) # doctest: +ELLIPSIS
         (<Figure ...
         """
         evalues, evectors = self._eigen(speed)
