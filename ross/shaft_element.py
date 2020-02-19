@@ -1226,45 +1226,44 @@ class ShaftElement6DoF(Element):
     L : float, pint.Quantity
         Element length.
     idl : float, pint.Quantity
-        Inner diameter of the element at the left position..
+        Inner diameter of the element at the left node.
     odl : float, pint.Quantity
-        Outer diameter of the element at the left position.
+        Outer diameter of the element at the left node.
     idr : float, pint.Quantity, optional
-        Inner diameter of the element at the right position
-        Default is equal to idl value (cylindrical element)
+        Inner diameter of the element at the right node;
+        Default is equal to idl value for cylindrical element.
     odr : float, pint.Quantity, optional
-        Outer diameter of the element at the right position.
-        Default is equal to odl value (cylindrical element)
+        Outer diameter of the element at the right node;
+        Default is equal to odl value for cylindrical element.
     material : ross.material
         Shaft material.
     n : int, optional
-        Element number (coincident with it's first node).
+        Element number, coincident with it's first node.
         If not given, it will be set when the rotor is assembled
         according to the element's position in the list supplied to
         the rotor constructor.
     axial_force : float, optional
-        Axial force.
+        Axial force;
+        Default is zero.
     torque : float, optional
-        Torque.
+        Torque moment;
+        Default is zero.
     shear_effects : bool, optional
-        Determine if shear effects are taken into account.
+        Determine if shear effects are taken into account;
         Default is True.
     rotary_inertia : bool, optional
-        Determine if rotary_inertia effects are taken into account.
+        Determine if rotary_inertia effects are taken into account;
         Default is True.
     gyroscopic : bool, optional
-        Determine if gyroscopic effects are taken into account.
+        Determine if gyroscopic effects are taken into account;
         Default is True.
-    shear_method_calc : string, optional
-        Determines which shear calculation method the user will adopt
-        Default is 'cowper'
     tag : str, optional
-        Element tag.
+        Element tag;
         Default is None.
 
     Returns
     -------
-    A 6 degrees of freedom shaft element
+    A 6 degrees of freedom shaft element, with available gyroscopic, shear and rotary inertia effects.
 
     Attributes
     ----------
@@ -1290,7 +1289,7 @@ class ShaftElement6DoF(Element):
         consider rotary inertia and shear effects. If these are not considered
         :math:`\phi=0`.
     kappa : float
-        Shear coefficient for the element.
+        Shear coefficient for the element, determined from :cite:`Hutchingson2001` formulation.
     alpha : float
         Proportional damping coefficient, associated to the element Mass matrix
     beta : float
@@ -1298,7 +1297,6 @@ class ShaftElement6DoF(Element):
 
     References
     ----------
-
     .. bibliography:: ../../../docs/refs.bib
 
     Examples
@@ -1315,13 +1313,92 @@ class ShaftElement6DoF(Element):
     """
 
     @check_units
-    def __init__(self):
-        pass
+    def __init__(
+        self,
+        L,
+        idl,
+        odl,
+        idr,
+        odr,
+        material=None,
+        n=None,
+        axial_force=0,
+        torque=0,
+        shear_effects=True,
+        rotary_inertia=True,
+        gyroscopic=True,
+        shear_method_calc="cowper",
+        tag=None,
+    ):
+
+        if idr is None:
+            idr = idl
+        if odr is None:
+            odr = odl
+
+        # Changing units to only their magnitude
+        L = L.m
+        idl = idl.m
+        odl = odl.m
+        idr = idr.m
+        odr = odr.m
+
+        if material is None:
+            raise AttributeError("Material is not defined.")
+
+        if type(material) is str:
+            os.chdir(Path(os.path.dirname(ross.__file__)))
+            self.material = Material.use_material(material)
+        else:
+            self.material = material
+
+        self.shear_effects = shear_effects
+        self.rotary_inertia = rotary_inertia
+        self.gyroscopic = gyroscopic
+        self.axial_force = axial_force
+        self.torque = torque
+        self._n = n
+        self.n_l = n
+        self.n_r = None
+        if n is not None:
+            self.n_r = n + 1
+
+        self.tag = tag
+        self.shear_method_calc = shear_method_calc
+
+        self.L = float(L)
+        self.o_d = (float(odl) + float(odr)) / 2
+        self.i_d = (float(idl) + float(idr)) / 2
+        self.idl = float(idl)
+        self.odl = float(odl)
+        self.idr = float(idr)
+        self.odr = float(odr)
+        self.color = self.material.color
+
+        # A_l = cross section area from the left side of the element
+        # A_r = cross section area from the right side of the element
+        A_l = np.pi * (odl ** 2 - idl ** 2) / 4
+        A_r = np.pi * (odr ** 2 - idr ** 2) / 4
+        self.A_l = A_l
+        self.A_r = A_r
+
+        # Second moment of area of the cross section from the left side
+        # of the element
+        Ie_l = np.pi * (odl ** 4 - idl ** 4) / 64
+
+        outer = self.odl ** 2 + self.odl * self.odr + self.odr ** 2
+        inner = self.idl ** 2 + self.idl * self.idr + self.idr ** 2
+        self.volume = np.pi * (self.L / 12) * (outer - inner)
+        self.m = self.material.rho * self.volume
+
 
     def __eq__(self, other):
         pass
 
     def __hash__(self):
+
+        np.random
+
         pass
 
     def save(self, file_name):
