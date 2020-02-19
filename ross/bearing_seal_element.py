@@ -6,7 +6,9 @@ import matplotlib.pyplot as plt
 import matplotlib.lines as mlines
 import numpy as np
 import scipy.interpolate as interpolate
+import os
 
+from pathlib import Path
 from collections import namedtuple
 from ross.utils import read_table_file
 from ross.element import Element
@@ -185,6 +187,7 @@ class BearingElement(Element):
         tag=None,
         n_link=None,
         scale_factor=1,
+        color="#355d7a"
     ):
 
         args = ["kxx", "kyy", "kxy", "kyx", "cxx", "cyy", "cxy", "cyx"]
@@ -235,7 +238,7 @@ class BearingElement(Element):
 
         self.frequency = np.array(frequency, dtype=np.float64)
         self.tag = tag
-        self.color = "#355d7a"
+        self.color = color
         self.scale_factor = scale_factor
         self.dof_global_index = None
 
@@ -323,15 +326,17 @@ class BearingElement(Element):
         Examples
         --------
         >>> bearing = bearing_example()
-        >>> bearing.save('BearingElement.toml')
+        >>> bearing.save(Path(os.getcwd()))
         """
-        data = self.load_data(file_name)
+        data = self.get_data(Path(file_name)/'BearingElement.toml')
+
         if type(self.frequency) == np.ndarray:
             try:
                 self.frequency[0]
                 frequency = list(self.frequency)
             except IndexError:
                 frequency = None
+
         data["BearingElement"][str(self.n)] = {
             "n": self.n,
             "kxx": self.kxx.coefficient,
@@ -345,10 +350,10 @@ class BearingElement(Element):
             "frequency": frequency,
             "tag": self.tag,
         }
-        self.dump_data(data, file_name)
+        self.dump_data(data, Path(file_name)/'BearingElement.toml')
 
     @staticmethod
-    def load(file_name="BearingElement"):
+    def load(file_name=""):
         """Loads a list of bearing elements saved in a toml format.
 
         Parameters
@@ -363,14 +368,14 @@ class BearingElement(Element):
         Examples
         --------
         >>> bearing1 = bearing_example()
-        >>> bearing1.save('BearingElement.toml')
-        >>> list_of_bearings = BearingElement.load('BearingElement.toml')
+        >>> bearing1.save(os.getcwd())
+        >>> list_of_bearings = BearingElement.load(os.getcwd())
         >>> bearing1 == list_of_bearings[0]
         True
         """
         bearing_elements = []
-        bearing_elements_dict = BearingElement.load_data(
-            file_name="BearingElement.toml"
+        bearing_elements_dict = BearingElement.get_data(
+            file_name=Path(file_name)/"BearingElement.toml"
         )
         for element in bearing_elements_dict["BearingElement"]:
             bearing = BearingElement(**bearing_elements_dict["BearingElement"][element])

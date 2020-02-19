@@ -3,6 +3,8 @@
 This module defines the Material class and defines
 some of the most common materials used in rotors.
 """
+from pathlib import Path
+
 import os
 import numpy as np
 import toml
@@ -36,7 +38,7 @@ class Material:
         Can be used on plots.
 
     Examples
-    --------
+    ------------
     >>> AISI4140 = Material(name='AISI4140', rho=7850, E=203.2e9, G_s=80e9)
     >>> Steel = Material(name="Steel", rho=7810, E=211e9, G_s=81.2e9)
     >>> AISI4140.Poisson
@@ -70,7 +72,7 @@ class Material:
     def __eq__(self, other):
         """Material is considered equal if properties are equal."""
         self_list = [v for v in self.__dict__.values() if isinstance(v, (float, int))]
-        other_list = [v for v in self.__dict__.values() if isinstance(v, (float, int))]
+        other_list = [v for v in other.__dict__.values() if isinstance(v, (float, int))]
 
         if np.allclose(self_list, other_list):
             return True
@@ -78,10 +80,10 @@ class Material:
             return False
 
     def __repr__(self):
-        selfE = "{:.3e}".format(self.E)
-        selfPoisson = "{:.3e}".format(self.Poisson)
-        selfrho = "{:.3e}".format(self.rho)
-        selfGs = "{:.3e}".format(self.G_s)
+        selfE = "{:.5e}".format(self.E)
+        selfPoisson = "{:.5e}".format(self.Poisson)
+        selfrho = "{:.5e}".format(self.rho)
+        selfGs = "{:.5e}".format(self.G_s)
 
         return (
             f"Material"
@@ -101,13 +103,13 @@ class Material:
 
     @staticmethod
     def dump_data(data):
-        with open("available_materials.toml", "w") as f:
+        with open(Path(os.path.dirname(rs.__file__))/"available_materials.toml", "w") as f:
             toml.dump(data, f)
 
     @staticmethod
-    def load_data():
+    def get_data():
         try:
-            with open("available_materials.toml", "r") as f:
+            with open(Path(os.path.dirname(rs.__file__))/"available_materials.toml", "r") as f:
                 data = toml.load(f)
         except FileNotFoundError:
             data = {"Materials": {}}
@@ -116,55 +118,35 @@ class Material:
 
     @staticmethod
     def use_material(name):
-        run_path = os.getcwd()
-        ross_path = os.path.dirname(rs.__file__)
-        os.chdir(ross_path)
-
-        data = Material.load_data()
+        data = Material.get_data()
         try:
             material = data["Materials"][name]
             return Material(**material)
         except KeyError:
             raise KeyError("There isn't a instanced material with this name.")
-        os.chdir(run_path)
 
     @staticmethod
     def remove_material(name):
-        run_path = os.getcwd()
-        ross_path = os.path.dirname(rs.__file__)
-        os.chdir(ross_path)
-
-        data = Material.load_data()
+        data = Material.get_data()
         try:
             del data["Materials"][name]
         except KeyError:
             return "There isn't a saved material with this name."
         Material.dump_data(data)
-        os.chdir(run_path)
 
     @staticmethod
     def available_materials():
-        run_path = os.getcwd()
-        ross_path = os.path.dirname(rs.__file__)
-        os.chdir(ross_path)
-
         try:
-            data = Material.load_data()
+            data = Material.get_data()
             return list(data["Materials"].keys())
         except FileNotFoundError:
             return "There is no saved materials."
-        os.chdir(run_path)
 
     def save_material(self):
         """Saves the material in the available_materials list."""
-        run_path = os.getcwd()
-        ross_path = os.path.dirname(rs.__file__)
-        os.chdir(ross_path)
-
-        data = Material.load_data()
+        data = Material.get_data()
         data["Materials"][self.name] = self.__dict__
         Material.dump_data(data)
-        os.chdir(run_path)
 
 
 steel = Material(name="Steel", rho=7810, E=211e9, G_s=81.2e9)

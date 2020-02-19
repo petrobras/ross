@@ -1,14 +1,15 @@
 import numpy as np
 import pandas as pd
-import toml
+
 from copy import copy
 from scipy.interpolate import interp1d
 from scipy.signal import argrelextrema
-
+from pathlib import Path
 from ross.rotor_assembly import Rotor, rotor_example
 from ross.bearing_seal_element import BearingElement
 import ross as rs
 
+from copy import deepcopy
 import bokeh.palettes as bp
 from bokeh.plotting import figure
 from bokeh.layouts import gridplot, widgetbox
@@ -180,11 +181,12 @@ class Report:
         Examples
         --------
         >>> rotor = rotor_example()
-        >>> rotor.save('rotor_example')
+        >>> rotor.save(rotor_name='rotor_example',file_path=Path('.'))
+        >>> rotor_path = Path('.') / 'rotor_example'
         >>> report = Report.from_saved_rotors(
-        ...     path='rotor_example', minspeed=400, maxspeed=1000, speed_units="rad/s"
+        ...     path=rotor_path, minspeed=400, maxspeed=1000, speed_units="rad/s"
         ... )
-        >>> Rotor.remove('rotor_example')
+        >>> Rotor.remove(rotor_path)
         """
         rotor = rs.Rotor.load(path)
         return cls(rotor, minspeed, maxspeed, speed_units="rpm")
@@ -805,9 +807,9 @@ class Report:
         # remove disks and seals from the rotor model
         bearing_list = [
             copy(b)
-            for b in self.rotor.bearing_seal_elements
-            if b.__class__.__name__ != "SealElement"
-        ]
+            for b in self.rotor.bearing_elements
+            if not isinstance(b, rs.SealElement)
+            ]
 
         # Applying cross-coupling on rotor mid-span
         if self.rotor_type == "between_bearings":
@@ -822,7 +824,7 @@ class Report:
                 aux_rotor = Rotor(
                     shaft_elements=self.rotor.shaft_elements,
                     disk_elements=[],
-                    bearing_seal_elements=bearings,
+                    bearing_elements=bearings,
                     rated_w=self.rotor.rated_w,
                 )
                 modal = aux_rotor.run_modal(speed=oper_speed * np.pi / 30)
@@ -843,7 +845,7 @@ class Report:
                 aux_rotor = Rotor(
                     shaft_elements=self.rotor.shaft_elements,
                     disk_elements=[],
-                    bearing_seal_elements=bearings,
+                    bearing_elements=bearings,
                     rated_w=self.rotor.rated_w,
                 )
                 modal = aux_rotor.run_modal(speed=oper_speed * np.pi / 30)
@@ -1047,14 +1049,15 @@ class Report:
         """
         # Build a list of seals
         seal_list = [
-            copy(seal)
-            for seal in self.rotor.bearing_seal_elements
-            if seal.__class__.__name__ == "SealElement"
+            copy(b)
+            for b in self.rotor.bearing_elements
+            if isinstance(b, rs.SealElement)
         ]
+        
         bearing_list = [
             copy(b)
-            for b in self.rotor.bearing_seal_elements
-            if b.__class__.__name__ != "SealElement"
+            for b in self.rotor.bearing_elements
+            if not isinstance(b, rs.SealElement)
         ]
 
         log_dec_seal = []
@@ -1066,7 +1069,7 @@ class Report:
             aux_rotor = Rotor(
                 shaft_elements=self.rotor.shaft_elements,
                 disk_elements=[disk],
-                bearing_seal_elements=bearing_list,
+                bearing_elements=bearing_list,
                 rated_w=self.maxspeed,
             )
             modal = aux_rotor.run_modal(speed=self.maxspeed)
@@ -1081,7 +1084,7 @@ class Report:
         aux_rotor = Rotor(
             shaft_elements=self.rotor.shaft_elements,
             disk_elements=self.rotor.disk_elements,
-            bearing_seal_elements=bearing_list,
+            bearing_elements=bearing_list,
             rated_w=self.maxspeed,
         )
         modal = aux_rotor.run_modal(speed=self.maxspeed)
@@ -1096,7 +1099,7 @@ class Report:
             aux_rotor = Rotor(
                 shaft_elements=self.rotor.shaft_elements,
                 disk_elements=[],
-                bearing_seal_elements=bearings_seal,
+                bearing_elements=bearings_seal,
                 rated_w=self.rotor.rated_w,
             )
             modal = aux_rotor.run_modal(speed=self.maxspeed)
@@ -1111,7 +1114,7 @@ class Report:
         aux_rotor = Rotor(
             shaft_elements=self.rotor.shaft_elements,
             disk_elements=[],
-            bearing_seal_elements=self.rotor.bearing_seal_elements,
+            bearing_elements=self.rotor.bearing_elements,
             rated_w=self.maxspeed,
         )
         modal = aux_rotor.run_modal(speed=self.maxspeed)
