@@ -1208,18 +1208,23 @@ class ShaftElement(Element):
 
 class ShaftElement6DoF(Element):
 
-    r"""A shaft element.   
+    r"""A 6 Degrees of Freedom shaft element.
+    =========================================
     This class will create a shaft element that takes into
-    account shear stress, rotary inertia an gyroscopic effects.
+    account shear stress, rotary inertia and gyroscopic effects.
     The matrices will be defined considering the following local
     coordinate vector:
 
-    .. math::
+    :math:`[u_0, v_0, w_0, \theta_0, \psi_0, \phi_0, u_0, v_0, w_0, \theta_0, \psi_0, \phi_0]^T`
+    
+    Being the following their ordering for an element:
 
-        [u_1, v_1, w_1, \theta_1, \psi_1, \phi_1, u_2, v_2, w_2, \theta_2, \psi_2, \phi_2]^T
-    Where :math:`\theta_1` and :math:`\theta_2` are the bending on the yz plane,
-    :math:`\psi_1` and :math:`\psi_2` are the bending on the xz plane, and
-    :math:`\phi_1` and :math:`\phi_2` are the torsion around the z direction
+        :math:`x_0,u_0`  - horizontal translation; 
+        :math:`y_0,v_0`  - vertical translation; 
+        :math:`z_0,w_0`  - axial translation;
+        :math:`\theta_0` - rotation around horizontal, bending on the yz plane;
+        :math:`\psi_0`   - rotation around vertical, bending on the xz plane;
+        :math:`\phi_0`   - torsion around axial, z direction.
 
     Parameters
     ----------
@@ -1651,10 +1656,37 @@ class ShaftElement6DoF(Element):
         self.n_l = value
         if value is not None:
             self.n_r = value + 1
-            
+
 
     def dof_mapping(self):
-        pass    
+        """
+        Method to map the element's 12 degrees of freedom
+
+        Parameters
+        ----------
+        Returns
+        -------
+        The numbering of the degrees of freedom for each element node. 
+        
+        Being the following their ordering for an element:
+
+        x_0,u_0 - horizontal translation, 
+        y_0,v_0 - vertical translation, 
+        z_0,w_0 - axial translation, 
+        theta_0 - rotation around horizontal, 
+        psi_0   - rotation around vertical, 
+        phi_0   - torsion around axial
+        x_1,u_1 - horizontal translation, 
+        y_1,v_1 - vertical translation, 
+        z_1,w_1 - axial translation, 
+        theta_1 - rotation around horizontal, 
+        psi_1   - rotation around vertical, 
+        phi_1   - torsion around axial
+        """
+        return dict(
+            u_0=0, v_0=1, w_0=2, theta_0=3, psi_0=4, phi_0=5, u_1=6, v_1=7, w_1=8, theta_1=9, psi_1=10, phi_1=11
+        )
+
 
     def __repr__(self):
         pass
