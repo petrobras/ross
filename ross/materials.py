@@ -265,6 +265,8 @@ class Material:
         except KeyError:
             return "There isn't a saved material with this name."
 
+        Material.dump_data(data)
+
     @staticmethod
     def available_materials():
         """Function used to get a list of all saved material's names.
