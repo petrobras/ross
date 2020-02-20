@@ -10,7 +10,7 @@ from ross.materials import steel
 from ross.rotor_assembly import *
 from ross.rotor_assembly import MAC_modes
 from ross.shaft_element import *
-from ross.point_mass import PointMass
+from ross.point_mass import *
 
 test_dir = os.path.dirname(__file__)
 
@@ -23,10 +23,10 @@ def rotor1():
     o_d_ = 0.05
 
     tim0 = ShaftElement(
-        le_, i_d_, o_d_, steel, shear_effects=True, rotary_inertia=True, gyroscopic=True
+        le_, i_d_, o_d_, material=steel, shear_effects=True, rotary_inertia=True, gyroscopic=True
     )
     tim1 = ShaftElement(
-        le_, i_d_, o_d_, steel, shear_effects=True, rotary_inertia=True, gyroscopic=True
+        le_, i_d_, o_d_, material=steel, shear_effects=True, rotary_inertia=True, gyroscopic=True
     )
 
     shaft_elm = [tim0, tim1]
@@ -75,10 +75,10 @@ def test_raise_if_element_outside_shaft():
     o_d_ = 0.05
 
     tim0 = ShaftElement(
-        le_, i_d_, o_d_, steel, shear_effects=True, rotary_inertia=True, gyroscopic=True
+        le_, i_d_, o_d_, material=steel, shear_effects=True, rotary_inertia=True, gyroscopic=True
     )
     tim1 = ShaftElement(
-        le_, i_d_, o_d_, steel, shear_effects=True, rotary_inertia=True, gyroscopic=True
+        le_, i_d_, o_d_, material=steel, shear_effects=True, rotary_inertia=True, gyroscopic=True
     )
 
     shaft_elm = [tim0, tim1]
@@ -93,7 +93,7 @@ def test_raise_if_element_outside_shaft():
     assert "Trying to set disk or bearing outside shaft" == str(excinfo.value)
 
     with pytest.raises(ValueError) as excinfo:
-        Rotor(shaft_elm, bearing_seal_elements=bearings)
+        Rotor(shaft_elm, bearing_elements=bearings)
     assert "Trying to set disk or bearing outside shaft" == str(excinfo.value)
 
 
@@ -105,10 +105,10 @@ def rotor2():
     o_d_ = 0.05
 
     tim0 = ShaftElement(
-        le_, i_d_, o_d_, steel, shear_effects=True, rotary_inertia=True, gyroscopic=True
+        le_, i_d_, o_d_, material=steel, shear_effects=True, rotary_inertia=True, gyroscopic=True
     )
     tim1 = ShaftElement(
-        le_, i_d_, o_d_, steel, shear_effects=True, rotary_inertia=True, gyroscopic=True
+        le_, i_d_, o_d_, material=steel, shear_effects=True, rotary_inertia=True, gyroscopic=True
     )
 
     shaft_elm = [tim0, tim1]
@@ -244,12 +244,12 @@ def test_evals_sorted_rotor2(rotor2):
             -4.838034e-14 - 34.822138j,
         ]
     )
-    rotor2.run_modal()
-    rotor2_evals, rotor2_evects = rotor2._eigen()
+    modal2_0 = rotor2.run_modal(speed=0)
+    rotor2_evals, rotor2_evects = rotor2._eigen(speed=0)
     assert_allclose(rotor2_evals, evals_sorted, rtol=1e-3)
-    assert_allclose(rotor2.evalues, evals_sorted, rtol=1e-3)
-    rotor2.w = 10000
-    assert_allclose(rotor2.evalues, evals_sorted_w_10000, rtol=1e-1)
+    assert_allclose(modal2_0.evalues, evals_sorted, rtol=1e-3)
+    modal2_10000 = rotor2.run_modal(speed=10000)
+    assert_allclose(modal2_10000.evalues, evals_sorted_w_10000, rtol=1e-1)
 
 
 @pytest.fixture
@@ -262,7 +262,7 @@ def rotor3():
 
     shaft_elem = [
         ShaftElement(
-            l, i_d, o_d, steel, shear_effects=True, rotary_inertia=True, gyroscopic=True
+            l, i_d, o_d, material=steel, shear_effects=True, rotary_inertia=True, gyroscopic=True
         )
         for l in L
     ]
@@ -289,7 +289,7 @@ def rotor3_odd():
 
     shaft_elem = [
         ShaftElement(
-            l, i_d, o_d, steel, shear_effects=True, rotary_inertia=True, gyroscopic=True
+            l, i_d, o_d, material=steel, shear_effects=True, rotary_inertia=True, gyroscopic=True
         )
         for l in L
     ]
@@ -321,7 +321,6 @@ def test_rotor_attributes(rotor1, rotor3, rotor3_odd):
 
 
 def test_evects_sorted_rotor3(rotor3):
-    rotor3.run_modal()
     # fmt: off
     evects_sorted = np.array([[ -4.056e-16 +8.044e-15j,   6.705e-19 -1.153e-03j,  -2.140e-15 +2.486e-14j,  -7.017e-17 +8.665e-04j],
                               [ -4.507e-17 -1.454e-03j,   5.888e-16 -1.658e-14j,  -1.698e-16 +9.784e-04j,   6.498e-16 +6.575e-14j],
@@ -380,9 +379,10 @@ def test_evects_sorted_rotor3(rotor3):
                               [  3.836e-01 +1.840e-16j,   4.735e-12 +1.445e-13j,  -1.583e-01 +9.794e-15j,  -1.572e-11 +1.066e-13j],
                               [  3.037e-12 +1.550e-13j,  -4.020e-01 +1.116e-15j,  -1.300e-11 +2.719e-13j,   1.086e-01 -6.340e-15j]])
     # fmt: on
-    rotor3_evals, rotor3_evects = rotor3._eigen()
+    modal3 = rotor3.run_modal(speed=0)
+    rotor3_evals, rotor3_evects = rotor3._eigen(speed=0)
     mac1 = MAC_modes(evects_sorted, rotor3_evects[:, :4], plot=False)
-    mac2 = MAC_modes(evects_sorted, rotor3.evectors[:, :4], plot=False)
+    mac2 = MAC_modes(evects_sorted, modal3.evectors[:, :4], plot=False)
     assert_allclose(mac1.diagonal(), np.ones_like(mac1.diagonal()))
     assert_allclose(mac2.diagonal(), np.ones_like(mac1.diagonal()))
 
@@ -460,43 +460,56 @@ def test_evects_not_sorted_rotor3(rotor3):
 
 
 def test_kappa_rotor3(rotor3):
-    rotor3.run_modal()
-    assert_allclose(rotor3.kappa(0, 0)["Frequency"], 82.653037, rtol=1e-3)
-    assert_allclose(rotor3.kappa(0, 0)["Major axes"], 0.001454062985920231, rtol=1e-3)
+    # TODO: Move this to test_results.py
+    modal3_0 = rotor3.run_modal(speed=0)
+    assert_allclose(modal3_0.kappa(0, 0)["Frequency"], 82.653037, rtol=1e-3)
+    assert_allclose(modal3_0.kappa(0, 0)["Major axes"], 0.001454062985920231, rtol=1e-3)
     assert_allclose(
-        rotor3.kappa(0, 0)["Minor axes"], 2.0579515874459978e-11, rtol=1e-3, atol=1e-6
+        modal3_0.kappa(0, 0)["Minor axes"], 2.0579515874459978e-11, rtol=1e-3, atol=1e-6
     )
     assert_allclose(
-        rotor3.kappa(0, 0)["kappa"], -1.415311171090584e-08, rtol=1e-3, atol=1e-6
+        modal3_0.kappa(0, 0)["kappa"], -1.415311171090584e-08, rtol=1e-3, atol=1e-6
     )
 
-    rotor3.w = 2000
-    assert_allclose(rotor3.kappa(0, 0)["Frequency"], 77.37957042, rtol=1e-3)
-    assert_allclose(rotor3.kappa(0, 0)["Major axes"], 0.0011885396330204021, rtol=1e-3)
-    assert_allclose(rotor3.kappa(0, 0)["Minor axes"], 0.0007308144427338161, rtol=1e-3)
-    assert_allclose(rotor3.kappa(0, 0)["kappa"], -0.6148843693807821, rtol=1e-3)
+    modal3_2000 = rotor3.run_modal(speed=2000)
+    assert_allclose(modal3_2000.kappa(0, 0)["Frequency"], 77.37957042, rtol=1e-3)
+    assert_allclose(
+        modal3_2000.kappa(0, 0)["Major axes"], 0.0011885396330204021, rtol=1e-3
+    )
+    assert_allclose(
+        modal3_2000.kappa(0, 0)["Minor axes"], 0.0007308144427338161, rtol=1e-3
+    )
+    assert_allclose(modal3_2000.kappa(0, 0)["kappa"], -0.6148843693807821, rtol=1e-3)
 
-    assert_allclose(rotor3.kappa(0, 1)["Frequency"], 88.98733511566752, rtol=1e-3)
-    assert_allclose(rotor3.kappa(0, 1)["Major axes"], 0.0009947502339267566, rtol=1e-3)
-    assert_allclose(rotor3.kappa(0, 1)["Minor axes"], 0.0008412470069506472, rtol=1e-3)
-    assert_allclose(rotor3.kappa(0, 1)["kappa"], 0.8456866641084784, rtol=1e-3)
+    assert_allclose(modal3_2000.kappa(0, 1)["Frequency"], 88.98733511566752, rtol=1e-3)
+    assert_allclose(
+        modal3_2000.kappa(0, 1)["Major axes"], 0.0009947502339267566, rtol=1e-3
+    )
+    assert_allclose(
+        modal3_2000.kappa(0, 1)["Minor axes"], 0.0008412470069506472, rtol=1e-3
+    )
+    assert_allclose(modal3_2000.kappa(0, 1)["kappa"], 0.8456866641084784, rtol=1e-3)
 
-    assert_allclose(rotor3.kappa(1, 1)["Frequency"], 88.98733511566752, rtol=1e-3)
-    assert_allclose(rotor3.kappa(1, 1)["Major axes"], 0.0018877975750108973, rtol=1e-3)
-    assert_allclose(rotor3.kappa(1, 1)["Minor axes"], 0.0014343257484060105, rtol=1e-3)
-    assert_allclose(rotor3.kappa(1, 1)["kappa"], 0.7597878964314968, rtol=1e-3)
+    assert_allclose(modal3_2000.kappa(1, 1)["Frequency"], 88.98733511566752, rtol=1e-3)
+    assert_allclose(
+        modal3_2000.kappa(1, 1)["Major axes"], 0.0018877975750108973, rtol=1e-3
+    )
+    assert_allclose(
+        modal3_2000.kappa(1, 1)["Minor axes"], 0.0014343257484060105, rtol=1e-3
+    )
+    assert_allclose(modal3_2000.kappa(1, 1)["kappa"], 0.7597878964314968, rtol=1e-3)
 
 
 def test_kappa_mode_rotor3(rotor3):
-    rotor3.w = 2000
+    modal3_2000 = rotor3.run_modal(2000)
     assert_allclose(
-        rotor3.kappa_mode(0),
+        modal3_2000.kappa_mode(0),
         [-0.614884, -0.696056, -0.723983, -0.729245, -0.708471, -0.656976, -0.513044],
         rtol=1e-3,
     )
 
     assert_allclose(
-        rotor3.kappa_mode(1),
+        modal3_2000.kappa_mode(1),
         [0.845687, 0.759788, 0.734308, 0.737393, 0.778295, 0.860137, 0.948157],
         rtol=1e-3,
     )
@@ -515,8 +528,8 @@ def rotor4():
     n1 = len(L) // 2
     L0 = sum(L[:n0])
     L1 = sum(L[n1:])
-    sec0 = ShaftElement.section(L0, n0, i_d, o_d, steel)
-    sec1 = ShaftElement.section(L1, n1, i_d, o_d, steel)
+    sec0 = ShaftElement.section(L0, n0, i_d, o_d, material=steel)
+    sec1 = ShaftElement.section(L1, n1, i_d, o_d, material=steel)
 
     shaft_elem = [sec0, sec1]
 
@@ -532,8 +545,8 @@ def rotor4():
 
 
 def test_evals_rotor3_rotor4(rotor3, rotor4):
-    rotor3_evals, rotor3_evects = rotor3._eigen()
-    rotor4_evals, rotor4_evects = rotor4._eigen()
+    rotor3_evals, rotor3_evects = rotor3._eigen(speed=0)
+    rotor4_evals, rotor4_evects = rotor4._eigen(speed=0)
 
     assert_allclose(rotor3_evals, rotor4_evals, rtol=1e-3)
 
@@ -622,7 +635,7 @@ def test_freq_response(rotor4):
 
 
 def test_freq_response_w_force(rotor4):
-    rotor4.run_modal()
+    # modal4 = rotor4.run_modal(0)
     F0 = np.array(
         [
             [0.0 + 0.0j, 0.0 + 0.0j, 0.0 + 0.0j, 0.0 + 0.0j],
@@ -694,14 +707,15 @@ def test_freq_response_w_force(rotor4):
 
 def test_mesh_convergence(rotor3):
     rotor3.convergence(n_eigval=0, err_max=1e-08)
+    modal3 = rotor3.run_modal(speed=0)
 
     assert_allclose(len(rotor3.shaft_elements), 96, atol=0)
-    assert_allclose(rotor3.wn[0], 82.653037335, atol=1e-02)
+    assert_allclose(modal3.wn[0], 82.653037335, atol=1e-02)
     assert_allclose(rotor3.shaft_elements[0].L, 0.015625, atol=1e-06)
     assert_allclose(rotor3.disk_elements[0].n, 32, atol=0)
     assert_allclose(rotor3.disk_elements[1].n, 64, atol=0)
-    assert_allclose(rotor3.bearing_seal_elements[0].n, 0, atol=0)
-    assert_allclose(rotor3.bearing_seal_elements[1].n, 96, atol=0)
+    assert_allclose(rotor3.bearing_elements[0].n, 0, atol=0)
+    assert_allclose(rotor3.bearing_elements[1].n, 96, atol=0)
     assert rotor3.error_arr[-1] <= 1e-08 * 100
 
 
@@ -757,7 +771,7 @@ def rotor5():
 
     shaft_elem = [
         ShaftElement(
-            l, i_d, o_d, steel, shear_effects=True, rotary_inertia=True, gyroscopic=True
+            l, i_d, o_d, material=steel, shear_effects=True, rotary_inertia=True, gyroscopic=True
         )
         for l in L
     ]
@@ -846,7 +860,7 @@ def rotor6():
 
     shaft_elem = [
         ShaftElement(
-            l, i_d, o_d, steel, shear_effects=True, rotary_inertia=True, gyroscopic=True
+            l, i_d, o_d, material=steel, shear_effects=True, rotary_inertia=True, gyroscopic=True
         )
         for l in L
     ]
@@ -928,10 +942,14 @@ def test_from_section():
     #  Rotor built from classmethod from_section
     #  2 disks and 2 bearings
     leng_data = [0.5, 1.0, 2.0, 1.0, 0.5]
-    leng_data2 = [0.5, 1.0, 2.0, 1.0]
-    o_ds_data = [0.1, 0.2, 0.3, 0.2, 0.1]
-    o_ds_data2 = [0.1, 0.2, 0.3, 0.2]
-    i_ds_data = [0, 0, 0, 0, 0]
+    leng_data_error = [0.5, 1.0, 2.0, 1.0]
+
+    odl_data = [0.1, 0.2, 0.3, 0.2, 0.1]
+    odr_data_error = [0.1, 0.2, 0.3, 0.2]
+
+    idl_data = [0, 0, 0, 0, 0]
+    material = steel
+    material_error = [steel, steel]
     disk_data = [
         DiskElement.from_geometry(n=2, material=steel, width=0.07, i_d=0.05, o_d=0.28),
         DiskElement.from_geometry(n=3, material=steel, width=0.07, i_d=0.05, o_d=0.35),
@@ -943,11 +961,11 @@ def test_from_section():
 
     rotor1 = Rotor.from_section(
         leng_data=leng_data,
-        o_ds_data=o_ds_data,
-        i_ds_data=i_ds_data,
+        idl_data=idl_data,
+        odl_data=odl_data,
+        material_data=material,
         disk_data=disk_data,
         brg_seal_data=brg_seal_data,
-        w=0,
         nel_r=4,
     )
 
@@ -959,32 +977,57 @@ def test_from_section():
     assert_allclose(rotor1.shaft_elements[16].L, 0.125, atol=0)
     assert_allclose(rotor1.disk_elements[0].n, 8, atol=0)
     assert_allclose(rotor1.disk_elements[1].n, 12, atol=0)
-    assert_allclose(rotor1.bearing_seal_elements[0].n, 0, atol=0)
-    assert_allclose(rotor1.bearing_seal_elements[1].n, 20, atol=0)
+    assert_allclose(rotor1.bearing_elements[0].n, 0, atol=0)
+    assert_allclose(rotor1.bearing_elements[1].n, 20, atol=0)
 
     with pytest.raises(ValueError) as excinfo:
         Rotor.from_section(
-            leng_data=leng_data2,
-            o_ds_data=o_ds_data,
-            i_ds_data=i_ds_data,
+            leng_data=leng_data_error,
+            idl_data=idl_data,
+            odl_data=odl_data,
+            material_data=material,
             disk_data=disk_data,
             brg_seal_data=brg_seal_data,
-            w=0,
             nel_r=4,
         )
-    assert "The matrices lenght do not match." == str(excinfo.value)
+    assert "The lists size do not match (leng_data, odl_data and idl_data)." == str(excinfo.value)
 
     with pytest.raises(ValueError) as excinfo:
         Rotor.from_section(
             leng_data=leng_data,
-            o_ds_data=o_ds_data2,
-            i_ds_data=i_ds_data,
+            idl_data=idl_data,
+            odl_data=odl_data,
+            odr_data=odr_data_error,
+            material_data=material,
             disk_data=disk_data,
             brg_seal_data=brg_seal_data,
-            w=0,
             nel_r=4,
         )
-    assert "The matrices lenght do not match." == str(excinfo.value)
+    assert "The lists size do not match (leng_data, odr_data and idr_data)." == str(excinfo.value)
+
+    with pytest.raises(AttributeError) as excinfo:
+        Rotor.from_section(
+            leng_data=leng_data,
+            idl_data=idl_data,
+            odl_data=odl_data,
+            material_data=None,
+            disk_data=disk_data,
+            brg_seal_data=brg_seal_data,
+            nel_r=4,
+        )
+    assert "Please define a material or a list of materials" == str(excinfo.value)
+
+    with pytest.raises(IndexError) as excinfo:
+        Rotor.from_section(
+            leng_data=leng_data,
+            idl_data=idl_data,
+            odl_data=odl_data,
+            material_data=material_error,
+            disk_data=disk_data,
+            brg_seal_data=brg_seal_data,
+            nel_r=4,
+        )
+    assert "material_data size does not match size of other lists" == str(excinfo.value)
 
 
 @pytest.fixture
@@ -998,7 +1041,7 @@ def rotor7():
 
     shaft_elem = [
         ShaftElement(
-            l, i_d, o_d, steel, shear_effects=True, rotary_inertia=True, gyroscopic=True
+            l, i_d, o_d, material=steel, shear_effects=True, rotary_inertia=True, gyroscopic=True
         )
         for l in L
     ]
@@ -1017,10 +1060,10 @@ def rotor7():
 def test_whirl_values(rotor7):
     speed_range = np.linspace(50, 500, 10)
     for speed in speed_range:
-        rotor7.w = speed
-        assert_allclose(rotor7.whirl_values(), [1.0, 0.0, 1.0, 0.0, 1.0, 0.0], atol=0)
+        modal7 = rotor7.run_modal(speed)
+        assert_allclose(modal7.whirl_values(), [1.0, 0.0, 1.0, 0.0, 1.0, 0.0], atol=0)
         assert_equal(
-            rotor7.whirl_direction(),
+            modal7.whirl_direction(),
             np.array(
                 ["Backward", "Forward", "Backward", "Forward", "Backward", "Forward"],
                 dtype="<U8",
@@ -1029,9 +1072,9 @@ def test_whirl_values(rotor7):
 
 
 def test_kappa_mode(rotor7):
-    rotor7.w = 100.0
+    modal7 = rotor7.run_modal(100.0)
     assert_allclose(
-        rotor7.kappa_mode(0),
+        modal7.kappa_mode(0),
         [
             -0.999999999989335,
             -0.9999999999893868,
@@ -1044,7 +1087,7 @@ def test_kappa_mode(rotor7):
         rtol=1e-7,
     )
     assert_allclose(
-        rotor7.kappa_mode(1),
+        modal7.kappa_mode(1),
         [
             0.9999999999926857,
             0.9999999999925702,
@@ -1057,7 +1100,7 @@ def test_kappa_mode(rotor7):
         rtol=1e-7,
     )
     assert_allclose(
-        rotor7.kappa_mode(2),
+        modal7.kappa_mode(2),
         [
             -0.9999999999586078,
             -0.9999999999590045,
@@ -1070,9 +1113,9 @@ def test_kappa_mode(rotor7):
         rtol=1e-7,
     )
 
-    rotor7.w = 250.0
+    modal7 = rotor7.run_modal(speed=250.0)
     assert_allclose(
-        rotor7.kappa_mode(0),
+        modal7.kappa_mode(0),
         [
             -0.9999999999996795,
             -0.9999999999997023,
@@ -1085,7 +1128,7 @@ def test_kappa_mode(rotor7):
         rtol=1e-7,
     )
     assert_allclose(
-        rotor7.kappa_mode(1),
+        modal7.kappa_mode(1),
         [
             0.9999999999992075,
             0.999999999999222,
@@ -1098,7 +1141,7 @@ def test_kappa_mode(rotor7):
         rtol=1e-7,
     )
     assert_allclose(
-        rotor7.kappa_mode(2),
+        modal7.kappa_mode(2),
         [
             -0.9999999999955613,
             -0.999999999995006,
@@ -1111,9 +1154,9 @@ def test_kappa_mode(rotor7):
         rtol=1e-7,
     )
 
-    rotor7.w = 500.0
+    modal7 = rotor7.run_modal(500.0)
     assert_allclose(
-        rotor7.kappa_mode(0),
+        modal7.kappa_mode(0),
         [
             -0.9999999999986061,
             -0.999999999998796,
@@ -1126,7 +1169,7 @@ def test_kappa_mode(rotor7):
         rtol=1e-7,
     )
     assert_allclose(
-        rotor7.kappa_mode(1),
+        modal7.kappa_mode(1),
         [
             0.9999999999995656,
             0.9999999999993939,
@@ -1139,7 +1182,7 @@ def test_kappa_mode(rotor7):
         rtol=1e-7,
     )
     assert_allclose(
-        rotor7.kappa_mode(2),
+        modal7.kappa_mode(2),
         [
             -0.999999999997584,
             -0.9999999999976369,
@@ -1154,29 +1197,29 @@ def test_kappa_mode(rotor7):
 
 
 def test_kappa_axes_values(rotor7):
-    rotor7.w = 50
-    assert_allclose(rotor7.kappa(3, 0)["Minor axes"], 0.0024460977827471028, atol=1e-6)
-    assert_allclose(rotor7.kappa(3, 1)["Minor axes"], 0.0024415401094917922, atol=1e-6)
-    assert_allclose(rotor7.kappa(3, 2)["Minor axes"], 7.753006465896838e-05, atol=1e-8)
-    assert_allclose(rotor7.kappa(3, 0)["Major axes"], 0.0024460977827550083, atol=1e-6)
-    assert_allclose(rotor7.kappa(3, 1)["Major axes"], 0.0024415401094980776, atol=1e-6)
-    assert_allclose(rotor7.kappa(3, 2)["Major axes"], 7.753006466024783e-05, atol=1e-8)
+    modal7 = rotor7.run_modal(50)
+    assert_allclose(modal7.kappa(3, 0)["Minor axes"], 0.0024460977827471028, atol=1e-6)
+    assert_allclose(modal7.kappa(3, 1)["Minor axes"], 0.0024415401094917922, atol=1e-6)
+    assert_allclose(modal7.kappa(3, 2)["Minor axes"], 7.753006465896838e-05, atol=1e-8)
+    assert_allclose(modal7.kappa(3, 0)["Major axes"], 0.0024460977827550083, atol=1e-6)
+    assert_allclose(modal7.kappa(3, 1)["Major axes"], 0.0024415401094980776, atol=1e-6)
+    assert_allclose(modal7.kappa(3, 2)["Major axes"], 7.753006466024783e-05, atol=1e-8)
 
-    rotor7.w = 200
-    assert_allclose(rotor7.kappa(3, 0)["Minor axes"], 0.002453197790184042, atol=1e-6)
-    assert_allclose(rotor7.kappa(3, 1)["Minor axes"], 0.0024349531472631354, atol=1e-6)
-    assert_allclose(rotor7.kappa(3, 2)["Minor axes"], 8.081580235887124e-05, atol=1e-8)
-    assert_allclose(rotor7.kappa(3, 0)["Major axes"], 0.002453197790191339, atol=1e-6)
-    assert_allclose(rotor7.kappa(3, 1)["Major axes"], 0.0024349531472711047, atol=1e-6)
-    assert_allclose(rotor7.kappa(3, 2)["Major axes"], 8.081580235956821e-05, atol=1e-8)
+    modal7 = rotor7.run_modal(200)
+    assert_allclose(modal7.kappa(3, 0)["Minor axes"], 0.002453197790184042, atol=1e-6)
+    assert_allclose(modal7.kappa(3, 1)["Minor axes"], 0.0024349531472631354, atol=1e-6)
+    assert_allclose(modal7.kappa(3, 2)["Minor axes"], 8.081580235887124e-05, atol=1e-8)
+    assert_allclose(modal7.kappa(3, 0)["Major axes"], 0.002453197790191339, atol=1e-6)
+    assert_allclose(modal7.kappa(3, 1)["Major axes"], 0.0024349531472711047, atol=1e-6)
+    assert_allclose(modal7.kappa(3, 2)["Major axes"], 8.081580235956821e-05, atol=1e-8)
 
-    rotor7.w = 400
-    assert_allclose(rotor7.kappa(3, 0)["Minor axes"], 0.002463187671800876, atol=1e-6)
-    assert_allclose(rotor7.kappa(3, 1)["Minor axes"], 0.0024266089747119572, atol=1e-6)
-    assert_allclose(rotor7.kappa(3, 2)["Minor axes"], 8.480305842194371e-05, atol=1e-8)
-    assert_allclose(rotor7.kappa(3, 0)["Major axes"], 0.002463187671801488, atol=1e-6)
-    assert_allclose(rotor7.kappa(3, 1)["Major axes"], 0.0024266089747121845, atol=1e-6)
-    assert_allclose(rotor7.kappa(3, 2)["Major axes"], 8.480305842205874e-05, atol=1e-8)
+    modal7 = rotor7.run_modal(400)
+    assert_allclose(modal7.kappa(3, 0)["Minor axes"], 0.002463187671800876, atol=1e-6)
+    assert_allclose(modal7.kappa(3, 1)["Minor axes"], 0.0024266089747119572, atol=1e-6)
+    assert_allclose(modal7.kappa(3, 2)["Minor axes"], 8.480305842194371e-05, atol=1e-8)
+    assert_allclose(modal7.kappa(3, 0)["Major axes"], 0.002463187671801488, atol=1e-6)
+    assert_allclose(modal7.kappa(3, 1)["Major axes"], 0.0024266089747121845, atol=1e-6)
+    assert_allclose(modal7.kappa(3, 2)["Major axes"], 8.480305842205874e-05, atol=1e-8)
 
 
 @pytest.mark.skip(reason="Fails for very small values")
@@ -1226,7 +1269,7 @@ def test_save_load():
     assert a == b
 
 
-def test_rotor_link():
+def test_global_index():
     i_d = 0
     o_d = 0.05
     n = 6
@@ -1234,7 +1277,7 @@ def test_rotor_link():
 
     shaft_elem = [
         ShaftElement(
-            l, i_d, o_d, steel, shear_effects=True, rotary_inertia=True, gyroscopic=True
+            l, i_d, o_d, material=steel, shear_effects=True, rotary_inertia=True, gyroscopic=True
         )
         for l in L
     ]
@@ -1249,18 +1292,53 @@ def test_rotor_link():
     stfx = 1e6
     stfy = 0.8e6
     bearing0 = BearingElement(0, n_link=7, kxx=stfx, kyy=stfy, cxx=0)
-    support = BearingElement(7, kxx=stfx, kyy=stfy, cxx=0)
-    bearing1 = BearingElement(6, kxx=stfx, kyy=stfy, cxx=0)
+    support0 = BearingElement(7, kxx=stfx, kyy=stfy, cxx=0, tag="Support0")
+    bearing1 = BearingElement(6, n_link=8, kxx=stfx, kyy=stfy, cxx=0)
+    support1 = BearingElement(8, kxx=stfx, kyy=stfy, cxx=0, tag="Support1")
 
-    point_mass = PointMass(7, m=1.0)
+    point_mass0 = PointMass(7, m=1.0)
+    point_mass1 = PointMass(8, m=1.0)
 
     rotor = Rotor(
-        shaft_elem, [disk0, disk1], [bearing0, support, bearing1], [point_mass]
-    )
-    rotor.w = 1000 / 9.5492965964254
-
-    wn_expected = np.array(
-        [82.43809938, 87.5639844, 239.36021417, 261.15187937, 646.59858922, 688.428424]
+            shaft_elem,
+            [disk0, disk1],
+            [bearing0, bearing1, support0, support1],
+            [point_mass0, point_mass1]
     )
 
-    assert_allclose(rotor.wn, wn_expected)
+    shaft = rotor.shaft_elements
+    disks = rotor.disk_elements
+    bearings = rotor.bearing_elements
+    pointmass = rotor.point_mass_elements
+
+    assert shaft[0].dof_global_index.x_0 == 0
+    assert shaft[0].dof_global_index.y_0 == 1
+    assert shaft[0].dof_global_index.alpha_0 == 2
+    assert shaft[0].dof_global_index.beta_0 == 3
+    assert shaft[0].dof_global_index.x_1 == 4
+    assert shaft[0].dof_global_index.y_1 == 5
+    assert shaft[0].dof_global_index.alpha_1 == 6
+    assert shaft[0].dof_global_index.beta_1 == 7
+
+    assert disks[0].dof_global_index.x_2 == 8
+    assert disks[0].dof_global_index.y_2 == 9
+    assert disks[0].dof_global_index.alpha_2 == 10
+    assert disks[0].dof_global_index.beta_2 == 11
+
+    assert bearings[0].dof_global_index.x_0 == 0
+    assert bearings[0].dof_global_index.y_0 == 1
+    assert bearings[0].dof_global_index.x_7 == 28
+    assert bearings[0].dof_global_index.y_7 == 29
+    assert bearings[1].dof_global_index.x_6 == 24
+    assert bearings[1].dof_global_index.y_6 == 25
+    assert bearings[1].dof_global_index.x_8 == 30
+    assert bearings[1].dof_global_index.y_8 == 31
+    assert bearings[2].dof_global_index.x_7 == 28
+    assert bearings[2].dof_global_index.y_7 == 29
+    assert bearings[3].dof_global_index.x_8 == 30
+    assert bearings[3].dof_global_index.y_8 == 31
+
+    assert pointmass[0].dof_global_index.x_7 == 28
+    assert pointmass[0].dof_global_index.y_7 == 29
+    assert pointmass[1].dof_global_index.x_8 == 30
+    assert pointmass[1].dof_global_index.y_8 == 31

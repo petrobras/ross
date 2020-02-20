@@ -1,0 +1,2 @@
+RPM = rpm * 1
+hour = 60 * minute = h = hr

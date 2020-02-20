@@ -5,7 +5,7 @@ import pytest
 from numpy.testing import assert_almost_equal, assert_allclose
 
 from ross.materials import steel
-from ross.shaft_element import ShaftElement, ShaftTaperedElement
+from ross.shaft_element import ShaftElement
 
 test_dir = os.path.dirname(__file__)
 
@@ -14,10 +14,12 @@ test_dir = os.path.dirname(__file__)
 def eb():
     #  Euler-Bernoulli element
     le_ = 0.25
-    i_d_ = 0
-    o_d_ = 0.05
+    i_d_l = 0
+    o_d_l = 0.05
+    i_d_r = 0
+    o_d_r = 0.05
     return ShaftElement(
-        le_, i_d_, o_d_, steel, shear_effects=False, rotary_inertia=False, n=3
+        le_, i_d_l, o_d_l, i_d_r, o_d_r, steel, shear_effects=False, rotary_inertia=False, n=3
     )
 
 
@@ -26,17 +28,15 @@ def test_index(eb):
     assert eb.dof_local_index().y_0 == 1
     assert eb.dof_local_index().alpha_0 == 2
     assert eb.dof_local_index().beta_0 == 3
-    assert eb.dof_global_index().x_3 == 12
-    assert eb.dof_global_index().y_3 == 13
-    assert eb.dof_global_index().alpha_3 == 14
-    assert eb.dof_global_index().beta_3 == 15
 
 
 def test_parameters_eb(eb):
     assert eb.phi == 0
     assert eb.L == 0.25
-    assert eb.i_d == 0
-    assert eb.o_d == 0.05
+    assert eb.idl == 0
+    assert eb.odl == 0.05
+    assert eb.idr == 0
+    assert eb.odr == 0.05
     assert eb.material.E == 211e9
     assert eb.material.G_s == 81.2e9
     assert eb.material.rho == 7810
@@ -78,9 +78,11 @@ def tim():
     #  Timoshenko element
     z_ = 0
     le_ = 0.25
-    i_d_ = 0
-    o_d_ = 0.05
-    return ShaftElement(le_, i_d_, o_d_, steel, rotary_inertia=True, shear_effects=True)
+    i_d_l = 0
+    o_d_l = 0.05
+    i_d_r = 0
+    o_d_r = 0.05
+    return ShaftElement(le_, i_d_l, o_d_l, i_d_r, o_d_r, steel, rotary_inertia=True, shear_effects=True)
 
 
 def test_parameters_tim(tim):
@@ -167,13 +169,13 @@ def tap_tim():
     o_d_l = 0.25
     o_d_r = 0.10
 
-    return ShaftTaperedElement(
-        steel,
+    return ShaftElement(
         L,
         i_d_l,
         o_d_l,
         i_d_r,
         o_d_r,
+        steel,
         shear_effects=True,
         rotary_inertia=True,
         n=3,
@@ -189,25 +191,16 @@ def test_tapered_index(tap_tim):
     assert tap_tim.dof_local_index().y_1 == 5
     assert tap_tim.dof_local_index().alpha_1 == 6
     assert tap_tim.dof_local_index().beta_1 == 7
-    print(tap_tim.dof_global_index())
-    assert tap_tim.dof_global_index().x_3 == 12
-    assert tap_tim.dof_global_index().y_3 == 13
-    assert tap_tim.dof_global_index().alpha_3 == 14
-    assert tap_tim.dof_global_index().beta_3 == 15
-    assert tap_tim.dof_global_index().x_4 == 16
-    assert tap_tim.dof_global_index().y_4 == 17
-    assert tap_tim.dof_global_index().alpha_4 == 18
-    assert tap_tim.dof_global_index().beta_4 == 19
 
 
 def test_parameters_tap_tim(tap_tim):
     assert tap_tim.L == 0.4
     assert tap_tim.i_d == 0.0
-    assert tap_tim.i_d_l == 0.0
-    assert tap_tim.i_d_r == 0.0
+    assert tap_tim.idl == 0.0
+    assert tap_tim.idr == 0.0
     assert tap_tim.o_d == 0.175
-    assert tap_tim.o_d_l == 0.25
-    assert tap_tim.o_d_r == 0.1
+    assert tap_tim.odl == 0.25
+    assert tap_tim.odr == 0.1
     assert tap_tim.material.E == 211e9
     assert tap_tim.material.G_s == 81.2e9
     assert tap_tim.material.rho == 7810
@@ -271,8 +264,8 @@ def tap2():
     o_d_l = 0.25
     o_d_r = 0.25
 
-    return ShaftTaperedElement(
-        steel, L, i_d_l, o_d_l, i_d_r, o_d_r, shear_effects=True, rotary_inertia=True
+    return ShaftElement(
+        L, i_d_l, o_d_l, i_d_r, o_d_r, steel, shear_effects=True, rotary_inertia=True
     )
 
 
@@ -282,7 +275,7 @@ def tim2():
     le_ = 0.4
     i_d_ = 0
     o_d_ = 0.25
-    return ShaftElement(le_, i_d_, o_d_, steel, rotary_inertia=True, shear_effects=True)
+    return ShaftElement(le_, i_d_, o_d_, material=steel, rotary_inertia=True, shear_effects=True)
 
 
 def test_match_mass_matrix(tap2, tim2):

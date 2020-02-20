@@ -5,7 +5,13 @@ This module defines the PointMass class which will be used to link elements.
 import numpy as np
 from ross.element import Element
 
+import toml
+import bokeh.palettes as bp
+from bokeh.models import ColumnDataSource, HoverTool
+import matplotlib.patches as mpatches
+
 __all__ = ["PointMass"]
+bokeh_colors = bp.RdGy[11]
 
 
 class PointMass(Element):
@@ -33,12 +39,12 @@ class PointMass(Element):
     --------
     >>> p0 = PointMass(n=0, m=2)
     >>> p0.M()
-    array([[2, 0],
-           [0, 2]])
+    array([[2., 0.],
+           [0., 2.]])
     >>> p1 = PointMass(n=0, mx=2, my=3)
     >>> p1.M()
-    array([[2, 0],
-           [0, 3]])
+    array([[2., 0.],
+           [0., 3.]])
     """
 
     def __init__(self, n=None, m=None, mx=None, my=None, tag=None):
@@ -46,12 +52,13 @@ class PointMass(Element):
         self.m = m
 
         if mx is None and my is None:
-            mx = m
-            my = m
+            mx = float(m)
+            my = float(m)
 
-        self.mx = mx
-        self.my = my
+        self.mx = float(mx)
+        self.my = float(my)
         self.tag = tag
+        self.dof_global_index = None
 
     def __hash__(self):
         return hash(self.tag)
@@ -185,7 +192,7 @@ class PointMass(Element):
             line_color=bokeh_colors[0],
             fill_alpha=1.0,
             fill_color=bokeh_colors[7],
-            legend="Point Mass",
+            legend_label="Point Mass",
         )
 
         for k, v in default_values.items():

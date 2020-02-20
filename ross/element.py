@@ -1,6 +1,6 @@
 from abc import ABC, abstractmethod
 from collections import namedtuple
-
+from pathlib import Path
 import pandas as pd
 import toml
 
@@ -30,7 +30,7 @@ class Element(ABC):
         >>> # Example using DiskElement
         >>> from ross.disk_element import disk_example
         >>> disk = disk_example()
-        >>> disk.save('DiskElement.toml')
+        >>> disk.save()
         """
         pass
 
@@ -50,8 +50,8 @@ class Element(ABC):
         >>> from ross.bearing_seal_element import bearing_example
         >>> from ross.bearing_seal_element import BearingElement
         >>> bearing1 = bearing_example()
-        >>> bearing1.save('BearingElement.toml')
-        >>> list_of_bearings = BearingElement.load('BearingElement.toml')
+        >>> bearing1.save(Path('.'))
+        >>> list_of_bearings = BearingElement.load()
         >>> bearing1 == list_of_bearings[0]
         True
         """
@@ -149,6 +149,7 @@ class Element(ABC):
         """A summary for the element.
 
         A pandas series with the element properties as variables.
+
         Parameters
         ----------
 
@@ -162,15 +163,16 @@ class Element(ABC):
         >>> from ross.disk_element import disk_example
         >>> disk = disk_example()
         >>> disk.summary()
-        n                  0
-        n_l                0
-        n_r                0
-        m            32.5897
-        Id          0.178089
-        Ip          0.329564
-        tag             None
-        color        #bc625b
-        type     DiskElement
+        n                             0
+        n_l                           0
+        n_r                           0
+        m                       32.5897
+        Id                     0.178089
+        Ip                     0.329564
+        tag                        None
+        color                   #b2182b
+        dof_global_index           None
+        type                DiskElement
         dtype: object
         """
         attributes = self.__dict__
@@ -178,8 +180,9 @@ class Element(ABC):
         return pd.Series(attributes)
 
     @staticmethod
-    def load_data(file_name):
+    def get_data(file_name):
         """Loads elements data saved in a toml format.
+
         Parameters
         ----------
         file_name: string
@@ -187,38 +190,41 @@ class Element(ABC):
 
         Returns
         -------
-        dict
+        data: dict
             The element parameters presented as a dictionary.
+
         Examples
         --------
         >>> # Example using BearingElement
         >>> from ross.bearing_seal_element import bearing_example
         >>> from ross.bearing_seal_element import BearingElement
         >>> bearing = bearing_example()
-        >>> bearing.save('BearingElement.toml')
-        >>> BearingElement.load_data('BearingElement.toml') # doctest: +ELLIPSIS
+        >>> bearing.save(Path('.'))
+        >>> BearingElement.get_data('BearingElement.toml') # doctest: +ELLIPSIS
         {'BearingElement': {'0': {'n': 0, 'kxx': [1000000.0, 1000000.0,...
         """
         try:
             with open(file_name, "r") as f:
                 data = toml.load(f)
                 if data == {"": {}}:
-                    data = {file_name[:-5]: {}}
+                    data = {str(file_name.name)[:-5]: {}}
 
         except FileNotFoundError:
-            data = {file_name[:-5]: {}}
+            data = {str(file_name.name)[:-5]: {}}
             Element.dump_data(data, file_name)
         return data
 
     @staticmethod
     def dump_data(data, file_name):
         """Dumps element data in a toml file.
+
         Parameters
         ----------
         data: dict
             The data that should be dumped.
         file_name: string
             The name of the file the data will be dumped in.
+
         Returns
         -------
 
@@ -228,23 +234,24 @@ class Element(ABC):
         >>> from ross.bearing_seal_element import bearing_example
         >>> from ross.bearing_seal_element import BearingElement
         >>> bearing = bearing_example()
-        >>> bearing.save('BearingElement.toml')
-        >>> data = BearingElement.load_data('BearingElement.toml')
-        >>> BearingElement.dump_data(data, 'bearing_data.toml')
+        >>> bearing.save(Path('.'))
+        >>> data = BearingElement.get_data('BearingElement.toml')
+        >>> BearingElement.dump_data(data, 'BearingElement.toml') # doctest: +ELLIPSIS
         """
         with open(file_name, "w") as f:
             toml.dump(data, f)
 
     @abstractmethod
     def dof_mapping(self):
-        """Should return a dictionary with a mapping between degree of freedom
+        """Degrees of freedom mapping.
+
+        Should return a dictionary with a mapping between degree of freedom
         and its index.
-        Parameters
-        ----------
 
         Returns
         -------
-        A dictionary of degrees of freedom.
+        dof_mapping: dict
+            A dictionary containing the degrees of freedom and their indexes.
 
         Examples
         --------
@@ -258,12 +265,11 @@ class Element(ABC):
 
     def dof_local_index(self):
         """Get the local index for a element specific degree of freedom.
-        Parameters
-        ----------
 
         Returns
         -------
-        A named tuple containing the local index.
+        local_index: namedtupple
+            A named tuple containing the local index.
 
         Examples
         --------
@@ -278,34 +284,3 @@ class Element(ABC):
         local_index = dof_tuple(**dof_mapping)
 
         return local_index
-
-    def dof_global_index(self):
-        """Get the global index for a element specific degree of freedom.
-        Parameters
-        ----------
-
-        Returns
-        -------
-        A named tuple containing the global index.
-
-        Examples
-        --------
-        >>> # Example using BearingElement
-        >>> from ross.bearing_seal_element import bearing_example
-        >>> bearing = bearing_example()
-        >>> bearing.dof_global_index()
-        GlobalIndex(x_0=0, y_0=1)
-        """
-        dof_mapping = self.dof_mapping()
-        global_dof_mapping = {}
-        for k, v in dof_mapping.items():
-            dof_letter, dof_number = k.split("_")
-            global_dof_mapping[dof_letter + "_" + str(int(dof_number) + self.n)] = v
-        dof_tuple = namedtuple("GlobalIndex", global_dof_mapping)
-
-        for k, v in global_dof_mapping.items():
-            global_dof_mapping[k] = 4 * self.n + v
-
-        global_index = dof_tuple(**global_dof_mapping)
-
-        return global_index

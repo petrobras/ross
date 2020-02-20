@@ -1,5 +1,5 @@
 # Rotordynamic Open Source Software (ROSS)
-[![Binder](https://mybinder.org/badge_logo.svg)](https://mybinder.org/v2/gh/ross-rotordynamics/ross/master)
+[![Binder](https://mybinder.org/badge_logo.svg)](https://mybinder.org/v2/gh/ross-rotordynamics/ross/master?filepath=%2Fdocs%2Fexamples)
 [![Build Status](https://travis-ci.com/ross-rotordynamics/ross.svg?branch=master)](https://travis-ci.com/ross-rotordynamics/ross)
 [![Build status](https://ci.appveyor.com/api/projects/status/tvsj4jh7bowvn0ht/branch/master?svg=true)](https://ci.appveyor.com/project/raphaeltimbo/ross/branch/master)
 <a href="https://codecov.io/gh/ross-rotordynamics/ross">
@@ -7,7 +7,7 @@
 </a>
 [![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/ambv/black)
 
-Ross is a library written in Python for rotordynamic analysis.
+ROSS is a library written in Python for rotordynamic analysis.
 
 You can try it out now by running the tutorial on [binder](https://mybinder.org/v2/gh/ross-rotordynamics/ross/master).
 After binder starts, navigate to the ross/docs/examples directory and open the tutorial notebook.
