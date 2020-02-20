@@ -1613,11 +1613,45 @@ class ShaftElement6DoF(Element):
 
     @property
     def n(self):
-        pass
+        """
+        Set the element number as property
+
+        Parameters
+        ----------
+        Returns
+        -------
+        n : int
+            Element number
+        """
+        return self._n
+
 
     @n.setter
     def n(self, value):
-        pass
+        """
+        Method to set a new value for the element number.
+
+        Parameters
+        ----------
+        value : int
+            element number
+
+        Returns
+        -------
+        Examples
+        --------
+        >>> from ross.materials import steel
+        >>> shaft1 = ShaftElement(L=0.25, i_d=0, o_d=0.05, material=steel,
+        ...                       rotary_inertia=True, shear_effects=True)
+        >>> shaft1.n = 0
+        >>> shaft1
+        ShaftElement(L=0.25, i_d=0.0, o_d=0.05, material='Steel', n=0)
+        """
+        self._n = value
+        self.n_l = value
+        if value is not None:
+            self.n_r = value + 1
+            
 
     def dof_mapping(self):
         pass    
