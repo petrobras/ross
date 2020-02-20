@@ -1,6 +1,6 @@
 import numpy as np
 import pandas as pd
-import os
+
 from copy import copy
 from scipy.interpolate import interp1d
 from scipy.signal import argrelextrema
@@ -9,6 +9,7 @@ from ross.rotor_assembly import Rotor, rotor_example
 from ross.bearing_seal_element import BearingElement
 import ross as rs
 
+from copy import deepcopy
 import bokeh.palettes as bp
 from bokeh.plotting import figure
 from bokeh.layouts import gridplot, widgetbox
@@ -807,8 +808,9 @@ class Report:
         bearing_list = [
             copy(b)
             for b in self.rotor.bearing_elements
-            if b.__class__.__name__ != "SealElement"
-        ]
+
+            if not isinstance(b, rs.SealElement)
+            ]
 
         # Applying cross-coupling on rotor mid-span
         if self.rotor_type == "between_bearings":
@@ -1048,14 +1050,15 @@ class Report:
         """
         # Build a list of seals
         seal_list = [
-            copy(seal)
-            for seal in self.rotor.bearing_elements
-            if seal.__class__.__name__ == "SealElement"
+            copy(b)
+            for b in self.rotor.bearing_elements
+            if isinstance(b, rs.SealElement)
         ]
+        
         bearing_list = [
             copy(b)
             for b in self.rotor.bearing_elements
-            if b.__class__.__name__ != "SealElement"
+            if not isinstance(b, rs.SealElement)
         ]
 
         log_dec_seal = []

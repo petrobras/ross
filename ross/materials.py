@@ -167,6 +167,7 @@ class Material:
 
     @staticmethod
     def dump_data(data):
+
         """Auxiliary function to save the materials properties in the save method.
 
         Parameters
@@ -183,6 +184,7 @@ class Material:
 
     @staticmethod
     def get_data():
+
         """Auxiliary function to load all saved materials properties in the use_material method.
 
         Parameters
@@ -205,6 +207,7 @@ class Material:
 
     @staticmethod
     def use_material(name):
+
         """Function to load the materials properties and instantiate a Material Object.
 
         Parameters
@@ -225,8 +228,8 @@ class Material:
         >>> AISI4140
         Material(name="AISI4140", rho=7.85000e+03, G_s=8.00000e+10, E=2.03200e+11, Poisson=2.70000e-01, color='#525252')
         """
+        data = Material.get_data()
 
-        data = rs.Material.get_data()
         try:
             material = data["Materials"][name]
             return Material(**material)
@@ -235,6 +238,7 @@ class Material:
 
     @staticmethod
     def remove_material(name):
+
         """Function used to delete a saved rs.Material.
 
         Parameters
@@ -254,13 +258,12 @@ class Material:
         >>> steel.save_material()
         >>> steel.remove_material('test_material')
         """
-
-        data = rs.Material.get_data()
+        data = Material.get_data()
+        
         try:
             del data["Materials"][name]
         except KeyError:
             return "There isn't a saved material with this name."
-        rs.Material.dump_data(data)
 
     @staticmethod
     def available_materials():
@@ -285,11 +288,11 @@ class Material:
         """
 
         try:
-            data = rs.Material.get_data()
+            data = Material.get_data()
             return list(data["Materials"].keys())
         except FileNotFoundError:
             return "There is no saved materials."
-
+          
     def save_material(self):
         """Function used to delete a saved rs.Material.
 
@@ -309,9 +312,10 @@ class Material:
         >>> steel.save_material()
         >>> steel.remove_material('test_material')
         """
-        data = rs.Material.get_data()
+        """Saves the material in the available_materials list."""
+        data = Material.get_data()
         data["Materials"][self.name] = self.__dict__
-        rs.Material.dump_data(data)
+        Material.dump_data(data)
 
 
 steel = Material(name="Steel", rho=7810, E=211e9, G_s=81.2e9)

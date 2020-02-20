@@ -428,9 +428,9 @@ class ModalResults:
 
         return xn, yn, zn, x_circles, y_circles, z_circles_pos, nn
 
-    def plot_mode(self, mode=None, evec=None, fig=None, ax=None):
+    def plot_mode3D(self, mode=None, evec=None, fig=None, ax=None):
         """
-        Method that plots the mode shapes.
+        Method that plots (3D view) the mode shapes.
 
         Parameters
         ----------
@@ -501,6 +501,79 @@ class ModalResults:
         )
         ax.tick_params(axis='both', which='major', labelsize=18)
         ax.tick_params(axis='both', which='minor', labelsize=18)
+
+        return fig, ax
+
+    def plot_mode2D(self, mode=None, evec=None, fig=None, ax=None):
+        """
+        Method that plots (2D view) the mode shapes.
+
+        Parameters
+        ----------
+        mode : int
+            The n'th vibration mode
+            Default is None
+        evec : array
+            Array containing the system eigenvectors
+        fig : matplotlib figure
+            The figure object with the plot.
+        ax : matplotlib axes
+            The axes object with the plot.
+
+        Returns
+        -------
+        fig : matplotlib figure
+            Returns the figure object with the plot.
+        ax : matplotlib axes
+            Returns the axes object with the plot.
+        """
+        xn, yn, zn, xc, yc, zc_pos, nn = self.calc_mode_shape(mode=mode)
+        nodes_pos = self.nodes_pos
+
+        vn = np.zeros(len(zn))
+        for i in range(len(zn)):
+            theta = np.arctan(xn[i] / yn[i])
+            vn[i] = xn[i] * np.sin(theta) + yn[i] * np.cos(theta)
+
+        # remove repetitive values from zn and vn
+        idx_remove = []
+        for i in range(1, len(zn)):
+            if zn[i] == zn[i - 1]:
+                idx_remove.append(i)
+        zn = np.delete(zn, idx_remove)
+        vn = np.delete(vn, idx_remove)
+
+        if fig is None and ax is None:
+            fig, ax = plt.subplots()
+
+        colors = dict(Backward="firebrick", Mixed="black", Forward="royalblue")
+        whirl_dir = colors[self.whirl_direction()[mode]]
+
+        ax.plot(zn, vn, c=whirl_dir)
+        label = (
+            f"Mode {mode + 1} | {self.whirl_direction()[mode]} | "
+            f"wn = {self.wn[mode]:.1f} rad/s | "
+            f"log dec = {self.log_dec[mode]:.1f}"
+         )
+
+        mode_shape = mpl.lines.Line2D([], [], lw=0, label=label)
+
+        # plot center line
+        zn_cl0 = -(zn[-1] * 0.1)
+        zn_cl1 = zn[-1] * 1.1
+        ax.plot(nodes_pos, np.zeros(len(nodes_pos)), "k-.", linewidth=0.8)
+
+        ax.set_ylim(-1.3, 1.3)
+        ax.set_xlim(zn_cl0, zn_cl1)
+
+        ax.set_title("Mode Shape", fontsize=14)
+        ax.tick_params(axis='both', which='major', labelsize=14)
+        ax.tick_params(axis='both', which='minor', labelsize=14)
+
+        legend = plt.legend(handles=[mode_shape], loc=0, framealpha=0.1)
+        ax.add_artist(legend)
+        ax.set_xlabel("Rotor length")
+        ax.set_ylabel("Non dimentional rotor deformation")
 
         return fig, ax
 
