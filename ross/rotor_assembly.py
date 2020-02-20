@@ -2636,7 +2636,7 @@ class CoAxialRotor(Rotor):
     ...                                      width=0.07,
     ...                                      i_d=0.20,
     ...                                      o_d=0.48)
-    >>> disk2 = rs.DiskElement.from_geometry(n=15,
+    >>> disk3 = rs.DiskElement.from_geometry(n=15,
     ...                                      material=steel,
     ...                                      width=0.07,
     ...                                      i_d=0.20,
