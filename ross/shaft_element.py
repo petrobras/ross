@@ -1716,6 +1716,7 @@ class ShaftElement6DoF(Element):
             f"n={self.n})"
         )
 
+
     def __str__(self):
         """
         Method to convert object into string
@@ -1740,23 +1741,178 @@ class ShaftElement6DoF(Element):
             f"\n"
         )
 
+
     def M(self):
         pass
+
 
     def K(self):
         pass
 
+
     def C(self):
         pass
+
 
     def G(self):
         pass
 
+
     def patch(self, position, check_sld, ax):
-        pass
+        """Shaft element patch.
+        Patch that will be used to draw the shaft element.
+        Parameters
+        ----------
+        position : float
+            Position in which the patch will be drawn.
+        check_sld : bool
+            If True, color the elements in yellow if slenderness ratio < 1.6
+        ax : matplotlib axes, optional
+            Axes in which the plot will be drawn.
+        Returns
+        -------
+        """
+        if check_sld is True and self.slenderness_ratio < 1.6:
+            mpl_color = "yellow"
+            legend = "Shaft - Slenderness Ratio < 1.6"
+        else:
+            mpl_color = self.color
+            legend = "Shaft"
+
+        shaft_points_u = [
+            [position, self.idl / 2],
+            [position, self.odl / 2],
+            [position + self.L, self.odr / 2],
+            [position + self.L, self.idr / 2],
+            [position, self.idl / 2],
+        ]
+        shaft_points_l = [
+            [position, -self.idl / 2],
+            [position, -self.odl / 2],
+            [position + self.L, -self.odr / 2],
+            [position + self.L, -self.idr / 2],
+            [position, -self.idl / 2],
+        ]
+
+        # matplotlib - plot the upper half of the shaft
+        ax.add_patch(
+            mpatches.Polygon(
+                shaft_points_u,
+                facecolor=mpl_color,
+                linestyle="--",
+                linewidth=0.5,
+                ec="k",
+                alpha=0.8,
+                label=legend,
+            )
+        )
+        # matplotlib - plot the lower half of the shaft
+        ax.add_patch(
+            mpatches.Polygon(
+                shaft_points_l,
+                facecolor=mpl_color,
+                linestyle="--",
+                linewidth=0.5,
+                ec="k",
+                alpha=0.8,
+            )
+        )
+
 
     def bokeh_patch(self, position, check_sld, bk_ax):
-        pass
+        """Shaft element patch.
+        Patch that will be used to draw the shaft element.
+        Parameters
+        ----------
+        position : float
+            Position in which the patch will be drawn.
+        check_sld : bool
+            If True, HoverTool displays only the slenderness ratio and color
+            the elements in yellow if slenderness ratio < 1.6
+        bk_ax : bokeh plotting axes, optional
+            Axes in which the plot will be drawn.
+        Returns
+        -------
+        hover : Bokeh HoverTool
+            Bokeh HoverTool axes
+        """
+        if check_sld is True and self.slenderness_ratio < 1.6:
+            bk_color = "yellow"
+            legend = "Shaft - Slenderness Ratio < 1.6"
+        else:
+            bk_color = self.material.color
+            legend = "Shaft"
+
+        # bokeh plot - plot the shaft
+        z_upper = [position, position, position + self.L, position + self.L]
+        y_upper = [self.idl / 2, self.odl / 2, self.odr / 2, self.idr / 2]
+        z_lower = [position, position, position + self.L, position + self.L]
+        y_lower = [-self.idl / 2, -self.odl / 2, -self.odr / 2, -self.idr / 2]
+
+        source = ColumnDataSource(
+            dict(
+                z_l=[z_lower],
+                y_l=[y_lower],
+                z_u=[z_upper],
+                y_u=[y_upper],
+                sld=[self.slenderness_ratio],
+                elnum=[self.n],
+                out_d_l=[self.odl],
+                out_d_r=[self.odr],
+                in_d_l=[self.idl],
+                in_d_r=[self.idr],
+                alpha_factor=[self.alpha],
+                beta_factor=[self.beta],
+                length=[self.L],
+                mat=[self.material.name],
+            )
+        )
+
+        bk_ax.patches(
+            xs="z_u",
+            ys="y_u",
+            source=source,
+            line_color=bokeh_colors[0],
+            line_width=1,
+            fill_alpha=0.5,
+            fill_color=bk_color,
+            legend_label=legend,
+            name="u_shaft",
+        )
+        bk_ax.patches(
+            xs="z_l",
+            ys="y_l",
+            source=source,
+            line_color=bokeh_colors[0],
+            line_width=1,
+            fill_alpha=0.5,
+            fill_color=bk_color,
+            legend_label=legend,
+            name="l_shaft",
+        )
+
+        hover = HoverTool(names=["l_shaft", "u_shaft"])
+        if check_sld:
+            hover.tooltips = [
+                ("Element Number :", "@elnum"),
+                ("Slenderness Ratio :", "@sld"),
+            ]
+        else:
+            hover.tooltips = [
+                ("Element Number :", "@elnum"),
+                ("Left Outer Diameter :", "@out_d_l"),
+                ("Left Inner Diameter :", "@in_d_l"),
+                ("Right Outer Diameter :", "@out_d_r"),
+                ("Right Inner Diameter :", "@in_d_r"),
+                ("Alpha Damp. Factor :", "@alpha_factor"),
+                ("Beta Damp. Factor :", "@beta_factor"),
+                ("Element Length :", "@length"),
+                ("Material :", "@mat"),
+            ]
+        hover.mode = "mouse"
+
+        return hover
+
 
     @classmethod
     def section(
@@ -1767,10 +1923,95 @@ class ShaftElement6DoF(Element):
         s_odl,
         s_idr=None,
         s_odr=None,
+        alpha=0,
+        beta=0,
         material=None,
         n=None,
         shear_effects=True,
         rotary_inertia=True,
         gyroscopic=True,
     ):
-       pass
+        """Shaft section constructor.
+
+        This method will create a shaft section with length 'L' divided into
+        'ne' elements.
+
+        Parameters
+        ----------
+        i_d : float
+            Inner diameter of the section.
+        o_d : float
+            Outer diameter of the section.
+        E : float
+            Young's modulus.
+        G_s : float
+            Shear modulus.
+        alpha : float
+            Proportional damping coefficient, associated to the element Mass matrix
+        beta : float
+            Proportional damping coefficient, associated to the element Stiffness matrix
+        material : ross.material
+            Shaft material.
+        n : int, optional
+            Element number (coincident with it's first node).
+            If not given, it will be set when the rotor is assembled
+            according to the element's position in the list supplied to
+            the rotor constructor.
+        axial_force : float
+            Axial force.
+        torque : float
+            Torque.
+        shear_effects : bool
+            Determine if shear effects are taken into account.
+            Default is False.
+        rotary_inertia : bool
+            Determine if rotary_inertia effects are taken into account.
+            Default is False.
+        gyroscopic : bool
+            Determine if gyroscopic effects are taken into account.
+            Default is False.
+
+        Returns
+        -------
+        elements: list
+            List with the 'ne' shaft elements.
+
+        Examples
+        --------
+        >>> # shaft material
+        >>> from ross.materials import steel
+        >>> # shaft inner and outer diameters
+        >>> s_idl = 0
+        >>> s_odl = 0.01585
+        >>> sec = ShaftElement.section(247.65e-3, 4, 0, 15.8e-3, material=steel)
+        >>> len(sec)
+        4
+        >>> sec[0].i_d
+        0.0
+        """
+        if s_idr is None:
+            s_idr = s_idl
+        if s_odr is None:
+            s_odr = s_odl
+
+        le = L / ne
+
+        elements = [
+            cls(
+                le,
+                (s_idr - s_idl) * i * le / L + s_idl,
+                (s_odr - s_odl) * i * le / L + s_odl,
+                (s_idr - s_idl) * (i + 1) * le / L + s_idl,
+                (s_odr - s_odl) * (i + 1) * le / L + s_odl,
+                alpha,
+                beta,
+                material,
+                n,
+                shear_effects,
+                rotary_inertia,
+                gyroscopic,
+            )
+            for i in range(ne)
+        ]
+
+        return elements
