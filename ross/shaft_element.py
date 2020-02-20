@@ -1375,30 +1375,58 @@ class ShaftElement6DoF(Element):
         self.odr = float(odr)
         self.color = self.material.color
 
-        # A_l = cross section area from the left side of the element
-        # A_r = cross section area from the right side of the element
-        A_l = np.pi * (odl ** 2 - idl ** 2) / 4
-        A_r = np.pi * (odr ** 2 - idr ** 2) / 4
-        self.A_l = A_l
-        self.A_r = A_r
+       # # A_l = cross section area from the left side of the element
+       # # A_r = cross section area from the right side of the element
+       # A_l = np.pi * (odl ** 2 - idl ** 2) / 4
+       # A_r = np.pi * (odr ** 2 - idr ** 2) / 4
+       # self.A_l = A_l
+       # self.A_r = A_r
 
-        # Second moment of area of the cross section from the left side
-        # of the element
-        Ie_l = np.pi * (odl ** 4 - idl ** 4) / 64
+       # # Second moment of area of the cross section from the left side
+       # # of the element
+       # Ie_l = np.pi * (odl ** 4 - idl ** 4) / 64
 
-        outer = self.odl ** 2 + self.odl * self.odr + self.odr ** 2
-        inner = self.idl ** 2 + self.idl * self.idr + self.idr ** 2
-        self.volume = np.pi * (self.L / 12) * (outer - inner)
-        self.m = self.material.rho * self.volume
+       # outer = self.odl ** 2 + self.odl * self.odr + self.odr ** 2
+       # inner = self.idl ** 2 + self.idl * self.idr + self.idr ** 2
+       # self.volume = np.pi * (self.L / 12) * (outer - inner)
+       # self.m = self.material.rho * self.volume
+
+        # Timoshenko kappa factor determination, based on the diameters relation
+        if self.__is_circular():
+            kappa = (6 * (1 + self.material.Poisson) ** 2) / (
+                7 + 12 * self.material.Poisson + 4 * self.material.Poisson ** 2
+            )
+        elif self.__is_thickwall():
+            a = self.i_d
+            b = self.o_d
+            v = self.material.Poisson
+            kappa = (6(*a ** 2 + b ** 2) ** 2 * (1 + v) ** 2) / (
+                7 * a ** 4
+                + 34 * a ** 2 * b ** 2
+                + 7 * b ** 4
+                + v(12 * a ** 4 + 48 * a ** 2 * b ** 2 + 12 * b ** 4)
+                + v ** 2 * (4 * a ** 4 + 16 * a ** 2 * b ** 2 + 4 * b ** 4)
+            )
+        else:
+            kappa = (1 + self.material.Poisson) / (2 + self.material.Poisson)
+
+        self.kappa = kappa
+
+
+    def __is_circular(self):
+        return self.shear_effects and self.i_d == 0
+
+
+    def __is_thickwall(self):
+        p = (self.o_d - self.i_d) / self.o_d
+        return self.shear_effects and p >= 0.2
+
 
 
     def __eq__(self, other):
         pass
 
     def __hash__(self):
-
-        np.random
-
         pass
 
     def save(self, file_name):
