@@ -3,9 +3,23 @@ import pandas as pd
 from bokeh.models import LogColorMapper
 from bokeh.palettes import Viridis256
 from bokeh.plotting import figure
+import itertools
+from collections import Iterable
 
 from ross.materials import Material
 
+def stochastic_ross(f,*args):
+    f_list = []   
+    mix = []
+    for arg in args:
+        if isinstance(arg,Iterable):
+            mix.append(list(arg))
+        else:
+            mix.append([arg])
+    new_args = list(itertools.product(*mix))
+    for arg in new_args:
+        f_list.append(f(*arg))
+    return f_list
 
 class DataNotFoundError(Exception):
     """
