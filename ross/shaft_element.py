@@ -1327,7 +1327,8 @@ class ShaftElement6DoF(Element):
         shear_effects=True,
         rotary_inertia=True,
         gyroscopic=True,
-        shear_method_calc="cowper",
+        alpha=0,
+        beta=0,
         tag=None,
     ):
 
@@ -1374,6 +1375,9 @@ class ShaftElement6DoF(Element):
         self.idr = float(idr)
         self.odr = float(odr)
         self.color = self.material.color
+
+        self.alpha = float(alpha)
+        self.beta = float(beta)
 
        # # A_l = cross section area from the left side of the element
        # # A_r = cross section area from the right side of the element
@@ -1422,15 +1426,79 @@ class ShaftElement6DoF(Element):
         return self.shear_effects and p >= 0.2
 
 
-
     def __eq__(self, other):
-        pass
+        """
+        Equality method for comparasions
+
+        Parameters
+        ----------
+        other : obj
+            parameter for comparasion
+
+        Returns
+        -------
+        True if other is equal to the reference parameter.
+        False if not.
+
+        Example
+        -------
+        >>> from ross.materials import steel
+        >>> le = 0.25
+        >>> i_d = 0
+        >>> o_d = 0.05
+        >>> shaft1 = ShaftElement(
+        ...        le, i_d, o_d, steel, rotary_inertia=True, shear_effects=True
+        ... )
+        >>> shaft2 = ShaftElement(
+        ...        le, i_d, o_d, steel, rotary_inertia=True, shear_effects=True
+        ... )
+        >>> shaft1 == shaft2
+        True
+        """
+        if self.__dict__ == other.__dict__:
+            return True
+        else:
+            return False
 
     def __hash__(self):
-        pass
+        return hash(self.tag)
 
     def save(self, file_name):
-        pass
+        """Save shaft elements to toml file.
+
+        Parameters
+        ----------
+        file_name : str
+
+        Examples
+        --------
+        >>> from ross.materials import steel
+        >>> le = 0.25
+        >>> i_d = 0
+        >>> o_d = 0.05
+        >>> shaft1 = ShaftElement(
+        ...     le, i_d, o_d, steel, rotary_inertia=True, shear_effects=True
+        ... )
+        >>> shaft1.save('ShaftElement.toml')
+        """
+        data = self.load_data(file_name)
+        data["ShaftElement"][str(self.n)] = {
+            "L": self.L,
+            "i_d": self.i_d,
+            "o_d": self.o_d,
+            "alpha": self.alpha,
+            "beta": self.beta,
+            "material": self.material.name,
+            "n": self.n,
+            "axial_force": self.axial_force,
+            "torque": self.torque,
+            "shear_effects": self.shear_effects,
+            "rotary_inertia": self.rotary_inertia,
+            "gyroscopic": self.gyroscopic,
+            "shear_method_calc": self.shear_method_calc,
+        }
+        self.dump_data(data, file_name)
+        
 
     @staticmethod
     def load(file_name="ShaftElement"):
