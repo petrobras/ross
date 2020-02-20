@@ -808,6 +808,7 @@ class Report:
         bearing_list = [
             copy(b)
             for b in self.rotor.bearing_elements
+
             if not isinstance(b, rs.SealElement)
             ]
 
