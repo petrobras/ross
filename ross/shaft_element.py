@@ -1495,18 +1495,121 @@ class ShaftElement6DoF(Element):
             "shear_effects": self.shear_effects,
             "rotary_inertia": self.rotary_inertia,
             "gyroscopic": self.gyroscopic,
-            "shear_method_calc": self.shear_method_calc,
         }
         self.dump_data(data, file_name)
         
 
     @staticmethod
     def load(file_name="ShaftElement"):
-        pass
+        """Load previously saved shaft elements from toml file.
+
+        Parameters
+        ----------
+        file_name : str, optional
+
+        Examples
+        --------
+        >>> from ross.materials import steel
+        >>> le = 0.25
+        >>> i_d = 0
+        >>> o_d = 0.05
+        >>> shaft1 = ShaftElement(
+        ...     le, i_d, o_d, steel, rotary_inertia=True, shear_effects=True
+        ... )
+        >>> shaft1.save('ShaftElement.toml')
+        >>> shaft2 = ShaftElement.load("ShaftElement.toml")
+        >>> shaft2
+        [ShaftElement(L=0.25, i_d=0.0, o_d=0.05, material='Steel', n=None)]
+        """
+        shaft_elements = []
+        with open("ShaftElement.toml", "r") as f:
+            shaft_elements_dict = toml.load(f)
+            for element in shaft_elements_dict["ShaftElement"]:
+                shaft_elements.append(
+                    ShaftElement(**shaft_elements_dict["ShaftElement"][element])
+                )
+        return shaft_elements
+
 
     @classmethod
     def from_table(cls, file, sheet_type="Simple", sheet_name=0):
-        pass
+        """Instantiate one or more shafts using inputs from an Excel table.
+
+        A header with the names of the columns is required. These names should
+        match the names expected by the routine (usually the names of the
+        parameters, but also similar ones). The program will read every row
+        bellow the header until they end or it reaches a NaN.
+
+        Parameters
+        ----------
+        file: str
+            Path to the file containing the shaft parameters.
+        sheet_type: str, optional
+            Describes the kind of sheet the function should expect:
+                Simple: The input table should specify only the number of the materials to be used.
+                They must be saved prior to calling the method.
+                Model: The materials parameters must be passed along with the shaft parameters. Each
+                material must have an id number and each shaft must reference one of the materials ids.
+        sheet_name: int or str, optional
+            Position of the sheet in the file (starting from 0) or its name. If none is passed, it is
+            assumed to be the first sheet in the file.
+
+        Returns
+        -------
+        shaft: list
+            A list of shaft objects.
+        """
+        parameters = read_table_file(
+            file, "shaft", sheet_name=sheet_name, sheet_type=sheet_type
+        )
+        list_of_shafts = []
+        if sheet_type == "Model":
+            new_materials = {}
+            for i in range(0, len(parameters["matno"])):
+                new_material = Material(
+                    name="shaft_mat_" + str(parameters["matno"][i]),
+                    rho=parameters["rhoa"][i],
+                    E=parameters["ea"][i],
+                    G_s=parameters["ga"][i],
+                )
+                new_materials["shaft_mat_" + str(parameters["matno"][i])] = new_material
+            for i in range(0, len(parameters["L"])):
+                list_of_shafts.append(
+                    cls(
+                        L=parameters["L"][i],
+                        i_d=parameters["i_d"][i],
+                        o_d=parameters["o_d"][i],
+                        alpha=parameters["alpha"][i],
+                        beta=parameters["beta"][i],
+                        material=new_materials[parameters["material"][i]],
+                        n=parameters["n"][i],
+                        axial_force=parameters["axial_force"][i],
+                        torque=parameters["torque"][i],
+                        shear_effects=parameters["shear_effects"][i],
+                        rotary_inertia=parameters["rotary_inertia"][i],
+                        gyroscopic=parameters["gyroscopic"][i],
+                    )
+                )
+        elif sheet_type == "Simple":
+            for i in range(0, len(parameters["L"])):
+                list_of_shafts.append(
+                    cls(
+                        L=parameters["L"][i],
+                        i_d=parameters["i_d"][i],
+                        o_d=parameters["o_d"][i],
+                        alpha=parameters["alpha"][i],
+                        beta=parameters["beta"][i],
+                        material=parameters["material"][i],
+                        n=parameters["n"][i],
+                        axial_force=parameters["axial_force"][i],
+                        torque=parameters["torque"][i],
+                        shear_effects=parameters["shear_effects"][i],
+                        rotary_inertia=parameters["rotary_inertia"][i],
+                        gyroscopic=parameters["gyroscopic"][i],
+                    )
+                )
+        return list_of_shafts
+
 
     @property
     def n(self):
