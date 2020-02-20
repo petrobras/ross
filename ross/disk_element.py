@@ -314,20 +314,20 @@ class DiskElement(Element):
         Returns
         -------
         """
-        zpos, ypos = position
-        step = ypos / 5
+        zpos, ypos, step = position
+        radius = step / 6
 
         #  matplotlib node (x pos), outer diam. (y pos)
         disk_points_u = [
             [zpos, ypos],  # upper
-            [zpos + step, ypos * 4],
-            [zpos - step, ypos * 4],
+            [zpos + step / 6, ypos + 2 * step],
+            [zpos - step / 6, ypos + 2 * step],
             [zpos, ypos],
         ]
         disk_points_l = [
             [zpos, -ypos],  # lower
-            [zpos + step, -ypos * 4],
-            [zpos - step, -ypos * 4],
+            [zpos + step / 6, -ypos - 2 * step],
+            [zpos - step / 6, -ypos - 2 * step],
             [zpos, -ypos],
         ]
 
@@ -335,10 +335,10 @@ class DiskElement(Element):
         ax.add_patch(mpatches.Polygon(disk_points_l, facecolor=self.color))
 
         ax.add_patch(
-            mpatches.Circle(xy=(zpos, ypos * 4), radius=step, color=self.color)
+            mpatches.Circle(xy=(zpos, ypos + 2 * step), radius=radius, color=self.color)
         )
         ax.add_patch(
-            mpatches.Circle(xy=(zpos, -ypos * 4), radius=step, color=self.color)
+            mpatches.Circle(xy=(zpos, -ypos - 2 * step), radius=radius, color=self.color)
         )
 
     def bokeh_patch(self, position, bk_ax):
@@ -355,15 +355,14 @@ class DiskElement(Element):
         bk_ax : bokeh plotting axes
             Returns the axes object with the plot.
         """
-        zpos, ypos = position
-        step = ypos / 5
+        zpos, ypos, step = position
 
         # bokeh plot - coordinates to plot disks elements
-        z_upper = [zpos, zpos + step, zpos - step]
-        y_upper = [ypos, ypos * 4, ypos * 4]
+        z_upper = [zpos, zpos + step / 6, zpos - step / 6]
+        y_upper = [ypos, ypos + 2 * step, ypos + 2 * step]
 
-        z_lower = [zpos, zpos + step, zpos - step]
-        y_lower = [-ypos, -ypos * 4, -ypos * 4]
+        z_lower = [zpos, zpos + step / 6, zpos - step / 6]
+        y_lower = [-ypos, -ypos - 2 * step, -ypos - 2 * step]
 
         source = ColumnDataSource(
             dict(
@@ -383,7 +382,7 @@ class DiskElement(Element):
                 z_circle=[z_upper[0]],
                 yu_circle=[y_upper[1]],
                 yl_circle=[-y_upper[1]],
-                radius=[step],
+                radius=[step / 6],
                 elnum=[self.n],
                 IP=[self.Ip],
                 ID=[self.Id],
