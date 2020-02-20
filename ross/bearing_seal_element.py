@@ -538,16 +538,14 @@ class BearingElement(Element):
 
         return G
 
-    def patch(self, position, mean, ax, **kwargs):
+    def patch(self, position, ax, **kwargs):
         """Bearing element patch.
         Patch that will be used to draw the bearing element.
 
         Parameters
         ----------
         position : tuple
-            Position (z, y) in which the patch will be drawn.
-        mean : float
-            Mean value of shaft element outer diameters
+            Position (z, y_low, y_upp) in which the patch will be drawn.
         ax : matplotlib axes, optional
             Axes in which the plot will be drawn.
 
@@ -559,15 +557,17 @@ class BearingElement(Element):
             kwargs.setdefault(k, v)
 
         # geometric factors
-        mean = self.scale_factor * mean
-        zpos, ypos = position
+        zpos, ypos, ypos_s = position
+
+        icon_h = ypos_s - ypos  # bearing icon height
+        icon_w = icon_h / 2.0  # bearing icon width
         coils = 6  # number of points to generate spring
         n = 5  # number of ground lines
-        step = mean / (coils + 1)  # spring step
+        step = icon_w / (coils + 1)  # spring step
 
-        zs0 = zpos - (mean / 2.0)
-        zs1 = zpos + (mean / 2.0)
-        ys0 = ypos + 0.5 * mean
+        zs0 = zpos - (icon_w / 2.0)
+        zs1 = zpos + (icon_w / 2.0)
+        ys0 = ypos + 0.25 * icon_h
 
         # plot bottom base
         x_bot = [zpos, zpos, zs0, zs1]
@@ -579,10 +579,10 @@ class BearingElement(Element):
         # plot top base
         x_top = [zpos, zpos, zs0, zs1]
         yl_top = [
-            ypos + 2 * mean,
-            ypos + 1.5 * mean,
-            ypos + 1.5 * mean,
-            ypos + 1.5 * mean,
+            ypos + icon_h,
+            ypos + 0.75 * icon_h,
+            ypos + 0.75 * icon_h,
+            ypos + 0.75 * icon_h,
         ]
         yu_top = [-y for y in yl_top]
         ax.add_line(mlines.Line2D(x_top, yl_top, **kwargs))
@@ -606,7 +606,7 @@ class BearingElement(Element):
 
         # plot spring
         z_spring = np.array([zs0, zs0, zs0, zs0])
-        yl_spring = np.array([ys0, ys0 + step, ys0 + mean - step, ys0 + mean])
+        yl_spring = np.array([ys0, ys0 + step, ys0 + icon_w - step, ys0 + icon_w])
 
         for i in range(coils):
             z_spring = np.insert(z_spring, i + 2, zs0 - (-1) ** i * step)
@@ -634,22 +634,20 @@ class BearingElement(Element):
 
         # plot damper - top
         z_damper3 = [z_damper2[0], z_damper2[2], zs1, zs1]
-        yl_damper3 = [ys0 + 4 * step, ys0 + 4 * step, ys0 + 4 * step, ypos + 1.5 * mean]
+        yl_damper3 = [ys0 + 4 * step, ys0 + 4 * step, ys0 + 4 * step, ypos + 1.5 * icon_w]
         yu_damper3 = [-y for y in yl_damper3]
 
         ax.add_line(mlines.Line2D(z_damper3, yl_damper3, **kwargs))
         ax.add_line(mlines.Line2D(z_damper3, yu_damper3, **kwargs))
 
-    def bokeh_patch(self, position, mean, bk_ax, **kwargs):
+    def bokeh_patch(self, position, bk_ax, **kwargs):
         """Bearing element patch.
         Patch that will be used to draw the bearing element.
 
         Parameters
         ----------
         position : tuple
-            Position (z, y) in which the patch will be drawn.
-        mean : float
-            Mean value of shaft element outer diameters
+            Position (z, y_low, y_upp) in which the patch will be drawn.
         bk_ax : bokeh plotting axes, optional
             Axes in which the plot will be drawn.
 
@@ -661,15 +659,17 @@ class BearingElement(Element):
             kwargs.setdefault(k, v)
 
         # geometric factors
-        mean = self.scale_factor * mean
-        zpos, ypos = position
+        zpos, ypos, ypos_s = position
+
+        icon_h = ypos_s - ypos  # bearing icon height
+        icon_w = icon_h / 2.0  # bearing icon width
         coils = 6  # number of points to generate spring
         n = 5  # number of ground lines
-        step = mean / (coils + 1)  # spring step
+        step = icon_w / (coils + 1)  # spring step
 
-        zs0 = zpos - (mean / 2.0)
-        zs1 = zpos + (mean / 2.0)
-        ys0 = ypos + 0.5 * mean
+        zs0 = zpos - (icon_w / 2.0)
+        zs1 = zpos + (icon_w / 2.0)
+        ys0 = ypos + 0.25 * icon_h
 
         # plot bottom base
         x_bot = [zpos, zpos, zs0, zs1]
@@ -681,10 +681,10 @@ class BearingElement(Element):
         # plot top base
         x_top = [zpos, zpos, zs0, zs1]
         yl_top = [
-            ypos + 2 * mean,
-            ypos + 1.5 * mean,
-            ypos + 1.5 * mean,
-            ypos + 1.5 * mean,
+            ypos + icon_h,
+            ypos + 0.75 * icon_h,
+            ypos + 0.75 * icon_h,
+            ypos + 0.75 * icon_h,
         ]
         yu_top = [-y for y in yl_top]
         bk_ax.line(x=x_top, y=yl_top, legend_label="Bearing", **kwargs)
@@ -708,7 +708,7 @@ class BearingElement(Element):
 
         # plot spring
         z_spring = np.array([zs0, zs0, zs0, zs0])
-        yl_spring = np.array([ys0, ys0 + step, ys0 + mean - step, ys0 + mean])
+        yl_spring = np.array([ys0, ys0 + step, ys0 + icon_w - step, ys0 + icon_w])
 
         for i in range(coils):
             z_spring = np.insert(z_spring, i + 2, zs0 - (-1) ** i * step)
@@ -736,7 +736,7 @@ class BearingElement(Element):
 
         # plot damper - top
         z_damper3 = [z_damper2[0], z_damper2[2], zs1, zs1]
-        yl_damper3 = [ys0 + 4 * step, ys0 + 4 * step, ys0 + 4 * step, ypos + 1.5 * mean]
+        yl_damper3 = [ys0 + 4 * step, ys0 + 4 * step, ys0 + 4 * step, ypos + 1.5 * icon_w]
         yu_damper3 = [-y for y in yl_damper3]
 
         bk_ax.line(x=z_damper3, y=yl_damper3, **kwargs)
@@ -1051,83 +1051,6 @@ class SealElement(BearingElement):
         self.seal_leakage = seal_leakage
         self.color = "#77ACA2"
 
-    def patch(self, position, length, ax):
-        """Seal element patch.
-        Patch that will be used to draw the seal element.
-        Parameters
-        ----------
-        ax : matplotlib axes, optional
-            Axes in which the plot will be drawn.
-        position : tuple
-            Position in which the patch will be drawn.
-        Returns
-        -------
-        ax : matplotlib axes
-            Returns the axes object with the plot.
-        """
-        zpos, ypos = position
-        step = ypos / 3
-
-        #  node (x pos), outer diam. (y pos)
-        bearing_points_u = [
-            [zpos - step, 1.1 * ypos],  # upper
-            [zpos - step, 1.1 * ypos + 2 * step],
-            [zpos + step, 1.1 * ypos + 2 * step],
-            [zpos + step, 1.1 * ypos],
-            [zpos - step, 1.1 * ypos],
-        ]
-        bearing_points_l = [
-            [zpos - step, -1.1 * ypos],  # upper
-            [zpos - step, -1.1 * ypos - 2 * step],
-            [zpos + step, -1.1 * ypos - 2 * step],
-            [zpos + step, -1.1 * ypos],
-            [zpos - step, -1.1 * ypos],
-        ]
-
-        ax.add_patch(mpatches.Polygon(bearing_points_u, color=self.color, picker=True))
-        ax.add_patch(mpatches.Polygon(bearing_points_l, color=self.color, picker=True))
-
-    def bokeh_patch(self, position, length, bk_ax):
-        """Seal element patch.
-        Patch that will be used to draw the seal element.
-        Parameters
-        ----------
-        bk_ax : bokeh plotting axes, optional
-            Axes in which the plot will be drawn.
-        position : tuple
-            Position in which the patch will be drawn.
-        Returns
-        -------
-        bk_ax : bokeh plotting axes
-            Returns the axes object with the plot.
-        """
-        zpos, ypos = position
-        step = ypos / 3
-
-        # bokeh plot - upper seal visual representation
-        bk_ax.quad(
-            top=1.1 * ypos + 2 * step,
-            bottom=1.1 * ypos,
-            left=zpos - step,
-            right=zpos + step,
-            line_color=bokeh_colors[6],
-            line_width=1,
-            fill_alpha=0.8,
-            fill_color=bokeh_colors[6],
-            legend_label="Seal",
-        )
-        # bokeh plot - lower seal visual representation
-        bk_ax.quad(
-            top=-1.1 * ypos,
-            bottom=-1.1 * ypos - 2 * step,
-            left=zpos - step,
-            right=zpos + step,
-            line_color=bokeh_colors[6],
-            line_width=1,
-            fill_alpha=0.8,
-            fill_color=bokeh_colors[6],
-        )
-
 
 class BallBearingElement(BearingElement):
     """A bearing element for ball bearings.
@@ -1213,208 +1136,6 @@ class BallBearingElement(BearingElement):
         )
 
         self.color = "#77ACA2"
-
-    def patch(self, position, mean, ax, **kwargs):
-        """Bearing element patch.
-        Patch that will be used to draw the bearing element.
-
-        Parameters
-        ----------
-        position : tuple
-            Position (z, y) in which the patch will be drawn.
-        mean : float
-            Mean value of shaft element outer diameters
-        ax : matplotlib axes, optional
-            Axes in which the plot will be drawn.
-
-        Returns
-        -------
-        """
-        default_values = dict(lw=1.0, alpha=1.0, c="k")
-        for k, v in default_values.items():
-            kwargs.setdefault(k, v)
-
-        # geometric factors
-        zpos, ypos = position
-        coils = 6  # number of points to generate spring
-        n = 5  # number of ground lines
-        step = mean / (coils + 1)  # spring step
-
-        zs0 = zpos - (mean / 2.0)
-        zs1 = zpos + (mean / 2.0)
-        ys0 = ypos + 0.5 * mean
-
-        # plot bottom base
-        x_bot = [zpos, zpos, zs0, zs1]
-        yl_bot = [ypos, ys0, ys0, ys0]
-        yu_bot = [-y for y in yl_bot]
-        ax.add_line(mlines.Line2D(x_bot, yl_bot, **kwargs))
-        ax.add_line(mlines.Line2D(x_bot, yu_bot, **kwargs))
-
-        # plot top base
-        x_top = [zpos, zpos, zs0, zs1]
-        yl_top = [
-            ypos + 2 * mean,
-            ypos + 1.5 * mean,
-            ypos + 1.5 * mean,
-            ypos + 1.5 * mean,
-        ]
-        yu_top = [-y for y in yl_top]
-        ax.add_line(mlines.Line2D(x_top, yl_top, **kwargs))
-        ax.add_line(mlines.Line2D(x_top, yu_top, **kwargs))
-
-        # plot ground
-        if self.n_link is None:
-            zl_g = [zs0 - step, zs1 + step]
-            yl_g = [yl_top[0], yl_top[0]]
-            yu_g = [-y for y in yl_g]
-            ax.add_line(mlines.Line2D(zl_g, yl_g, **kwargs))
-            ax.add_line(mlines.Line2D(zl_g, yu_g, **kwargs))
-
-            step2 = (zl_g[1] - zl_g[0]) / n
-            for i in range(n + 1):
-                zl_g2 = [(zs0 - step) + step2 * (i), (zs0 - step) + step2 * (i + 1)]
-                yl_g2 = [yl_g[0], 1.1 * yl_g[0]]
-                yu_g2 = [-y for y in yl_g2]
-                ax.add_line(mlines.Line2D(zl_g2, yl_g2, **kwargs))
-                ax.add_line(mlines.Line2D(zl_g2, yu_g2, **kwargs))
-
-        # plot spring
-        z_spring = np.array([zs0, zs0, zs0, zs0])
-        yl_spring = np.array([ys0, ys0 + step, ys0 + mean - step, ys0 + mean])
-
-        for i in range(coils):
-            z_spring = np.insert(z_spring, i + 2, zs0 - (-1) ** i * step)
-            yl_spring = np.insert(yl_spring, i + 2, ys0 + (i + 1) * step)
-        yu_spring = [-y for y in yl_spring]
-
-        ax.add_line(mlines.Line2D(z_spring, yl_spring, **kwargs))
-        ax.add_line(mlines.Line2D(z_spring, yu_spring, **kwargs))
-
-        # plot damper - base
-        z_damper1 = [zs1, zs1]
-        yl_damper1 = [ys0, ys0 + 2 * step]
-        yu_damper1 = [-y for y in yl_damper1]
-
-        ax.add_line(mlines.Line2D(z_damper1, yl_damper1, **kwargs))
-        ax.add_line(mlines.Line2D(z_damper1, yu_damper1, **kwargs))
-
-        # plot damper - center
-        z_damper2 = [zs1 - 2 * step, zs1 - 2 * step, zs1 + 2 * step, zs1 + 2 * step]
-        yl_damper2 = [ys0 + 5 * step, ys0 + 2 * step, ys0 + 2 * step, ys0 + 5 * step]
-        yu_damper2 = [-y for y in yl_damper2]
-
-        ax.add_line(mlines.Line2D(z_damper2, yl_damper2, **kwargs))
-        ax.add_line(mlines.Line2D(z_damper2, yu_damper2, **kwargs))
-
-        # plot damper - top
-        z_damper3 = [z_damper2[0], z_damper2[2], zs1, zs1]
-        yl_damper3 = [ys0 + 4 * step, ys0 + 4 * step, ys0 + 4 * step, ypos + 1.5 * mean]
-        yu_damper3 = [-y for y in yl_damper3]
-
-        ax.add_line(mlines.Line2D(z_damper3, yl_damper3, **kwargs))
-        ax.add_line(mlines.Line2D(z_damper3, yu_damper3, **kwargs))
-
-    def bokeh_patch(self, position, mean, bk_ax, **kwargs):
-        """Bearing element patch.
-        Patch that will be used to draw the bearing element.
-
-        Parameters
-        ----------
-        position : tuple
-            Position (z, y) in which the patch will be drawn.
-        mean : float
-            Mean value of shaft element outer diameters
-        bk_ax : bokeh plotting axes, optional
-            Axes in which the plot will be drawn.
-
-        Returns
-        -------
-        """
-        default_values = dict(line_width=3, line_alpha=1, color=bokeh_colors[1])
-        for k, v in default_values.items():
-            kwargs.setdefault(k, v)
-
-        # geometric factors
-        zpos, ypos = position
-        coils = 6  # number of points to generate spring
-        n = 5  # number of ground lines
-        step = mean / (coils + 1)  # spring step
-
-        zs0 = zpos - (mean / 2.0)
-        zs1 = zpos + (mean / 2.0)
-        ys0 = ypos + 0.5 * mean
-
-        # plot bottom base
-        x_bot = [zpos, zpos, zs0, zs1]
-        yl_bot = [ypos, ys0, ys0, ys0]
-        yu_bot = [-y for y in yl_bot]
-        bk_ax.line(x=x_bot, y=yl_bot, **kwargs)
-        bk_ax.line(x=x_bot, y=yu_bot, **kwargs)
-
-        # plot top base
-        x_top = [zpos, zpos, zs0, zs1]
-        yl_top = [
-            ypos + 2 * mean,
-            ypos + 1.5 * mean,
-            ypos + 1.5 * mean,
-            ypos + 1.5 * mean,
-        ]
-        yu_top = [-y for y in yl_top]
-        bk_ax.line(x=x_top, y=yl_top, legend_label="Bearing", **kwargs)
-        bk_ax.line(x=x_top, y=yu_top, legend_label="Bearing", **kwargs)
-
-        # plot ground
-        if self.n_link is None:
-            zl_g = [zs0 - step, zs1 + step]
-            yl_g = [yl_top[0], yl_top[0]]
-            yu_g = [-y for y in yl_g]
-            bk_ax.line(x=zl_g, y=yl_g, **kwargs)
-            bk_ax.line(x=zl_g, y=yu_g, **kwargs)
-
-            step2 = (zl_g[1] - zl_g[0]) / n
-            for i in range(n + 1):
-                zl_g2 = [(zs0 - step) + step2 * (i), (zs0 - step) + step2 * (i + 1)]
-                yl_g2 = [yl_g[0], 1.1 * yl_g[0]]
-                yu_g2 = [-y for y in yl_g2]
-                bk_ax.line(x=zl_g2, y=yl_g2, **kwargs)
-                bk_ax.line(x=zl_g2, y=yu_g2, **kwargs)
-
-        # plot spring
-        z_spring = np.array([zs0, zs0, zs0, zs0])
-        yl_spring = np.array([ys0, ys0 + step, ys0 + mean - step, ys0 + mean])
-
-        for i in range(coils):
-            z_spring = np.insert(z_spring, i + 2, zs0 - (-1) ** i * step)
-            yl_spring = np.insert(yl_spring, i + 2, ys0 + (i + 1) * step)
-        yu_spring = [-y for y in yl_spring]
-
-        bk_ax.line(x=z_spring, y=yl_spring, **kwargs)
-        bk_ax.line(x=z_spring, y=yu_spring, **kwargs)
-
-        # plot damper - base
-        z_damper1 = [zs1, zs1]
-        yl_damper1 = [ys0, ys0 + 2 * step]
-        yu_damper1 = [-y for y in yl_damper1]
-
-        bk_ax.line(x=z_damper1, y=yl_damper1, **kwargs)
-        bk_ax.line(x=z_damper1, y=yu_damper1, **kwargs)
-
-        # plot damper - center
-        z_damper2 = [zs1 - 2 * step, zs1 - 2 * step, zs1 + 2 * step, zs1 + 2 * step]
-        yl_damper2 = [ys0 + 5 * step, ys0 + 2 * step, ys0 + 2 * step, ys0 + 5 * step]
-        yu_damper2 = [-y for y in yl_damper2]
-
-        bk_ax.line(x=z_damper2, y=yl_damper2, **kwargs)
-        bk_ax.line(x=z_damper2, y=yu_damper2, **kwargs)
-
-        # plot damper - top
-        z_damper3 = [z_damper2[0], z_damper2[2], zs1, zs1]
-        yl_damper3 = [ys0 + 4 * step, ys0 + 4 * step, ys0 + 4 * step, ypos + 1.5 * mean]
-        yu_damper3 = [-y for y in yl_damper3]
-
-        bk_ax.line(x=z_damper3, y=yl_damper3, **kwargs)
-        bk_ax.line(x=z_damper3, y=yu_damper3, **kwargs)
 
 
 class RollerBearingElement(BearingElement):
@@ -1503,209 +1224,6 @@ class RollerBearingElement(BearingElement):
         )
 
         self.color = "#77ACA2"
-
-    def patch(self, position, mean, ax, **kwargs):
-        """Bearing element patch.
-        Patch that will be used to draw the bearing element.
-
-        Parameters
-        ----------
-        position : tuple
-            Position (z, y) in which the patch will be drawn.
-        mean : float
-            Mean value of shaft element outer diameters
-        ax : matplotlib axes, optional
-            Axes in which the plot will be drawn.
-
-        Returns
-        -------
-        """
-        default_values = dict(lw=1.0, alpha=1.0, c="k")
-        for k, v in default_values.items():
-            kwargs.setdefault(k, v)
-
-        # geometric factors
-        zpos, ypos = position
-        coils = 6  # number of points to generate spring
-        n = 5  # number of ground lines
-        step = mean / (coils + 1)  # spring step
-
-        zs0 = zpos - (mean / 2.0)
-        zs1 = zpos + (mean / 2.0)
-        ys0 = ypos + 0.5 * mean
-
-        # plot bottom base
-        x_bot = [zpos, zpos, zs0, zs1]
-        yl_bot = [ypos, ys0, ys0, ys0]
-        yu_bot = [-y for y in yl_bot]
-        ax.add_line(mlines.Line2D(x_bot, yl_bot, **kwargs))
-        ax.add_line(mlines.Line2D(x_bot, yu_bot, **kwargs))
-
-        # plot top base
-        x_top = [zpos, zpos, zs0, zs1]
-        yl_top = [
-            ypos + 2 * mean,
-            ypos + 1.5 * mean,
-            ypos + 1.5 * mean,
-            ypos + 1.5 * mean,
-        ]
-        yu_top = [-y for y in yl_top]
-        ax.add_line(mlines.Line2D(x_top, yl_top, **kwargs))
-        ax.add_line(mlines.Line2D(x_top, yu_top, **kwargs))
-
-        # plot ground
-        if self.n_link is None:
-            zl_g = [zs0 - step, zs1 + step]
-            yl_g = [yl_top[0], yl_top[0]]
-            yu_g = [-y for y in yl_g]
-            ax.add_line(mlines.Line2D(zl_g, yl_g, **kwargs))
-            ax.add_line(mlines.Line2D(zl_g, yu_g, **kwargs))
-
-            step2 = (zl_g[1] - zl_g[0]) / n
-            for i in range(n + 1):
-                zl_g2 = [(zs0 - step) + step2 * (i), (zs0 - step) + step2 * (i + 1)]
-                yl_g2 = [yl_g[0], 1.1 * yl_g[0]]
-                yu_g2 = [-y for y in yl_g2]
-                ax.add_line(mlines.Line2D(zl_g2, yl_g2, **kwargs))
-                ax.add_line(mlines.Line2D(zl_g2, yu_g2, **kwargs))
-
-        # plot spring
-        z_spring = np.array([zs0, zs0, zs0, zs0])
-        yl_spring = np.array([ys0, ys0 + step, ys0 + mean - step, ys0 + mean])
-
-        for i in range(coils):
-            z_spring = np.insert(z_spring, i + 2, zs0 - (-1) ** i * step)
-            yl_spring = np.insert(yl_spring, i + 2, ys0 + (i + 1) * step)
-        yu_spring = [-y for y in yl_spring]
-
-        ax.add_line(mlines.Line2D(z_spring, yl_spring, **kwargs))
-        ax.add_line(mlines.Line2D(z_spring, yu_spring, **kwargs))
-
-        # plot damper - base
-        z_damper1 = [zs1, zs1]
-        yl_damper1 = [ys0, ys0 + 2 * step]
-        yu_damper1 = [-y for y in yl_damper1]
-
-        ax.add_line(mlines.Line2D(z_damper1, yl_damper1, **kwargs))
-        ax.add_line(mlines.Line2D(z_damper1, yu_damper1, **kwargs))
-
-        # plot damper - center
-        z_damper2 = [zs1 - 2 * step, zs1 - 2 * step, zs1 + 2 * step, zs1 + 2 * step]
-        yl_damper2 = [ys0 + 5 * step, ys0 + 2 * step, ys0 + 2 * step, ys0 + 5 * step]
-        yu_damper2 = [-y for y in yl_damper2]
-
-        ax.add_line(mlines.Line2D(z_damper2, yl_damper2, **kwargs))
-        ax.add_line(mlines.Line2D(z_damper2, yu_damper2, **kwargs))
-
-        # plot damper - top
-        z_damper3 = [z_damper2[0], z_damper2[2], zs1, zs1]
-        yl_damper3 = [ys0 + 4 * step, ys0 + 4 * step, ys0 + 4 * step, ypos + 1.5 * mean]
-        yu_damper3 = [-y for y in yl_damper3]
-
-        ax.add_line(mlines.Line2D(z_damper3, yl_damper3, **kwargs))
-        ax.add_line(mlines.Line2D(z_damper3, yu_damper3, **kwargs))
-
-    def bokeh_patch(self, position, mean, bk_ax, **kwargs):
-        """Bearing element patch.
-        Patch that will be used to draw the bearing element.
-
-        Parameters
-        ----------
-        position : tuple
-            Position (z, y) in which the patch will be drawn.
-        mean : float
-            Mean value of shaft element outer diameters
-        bk_ax : bokeh plotting axes, optional
-            Axes in which the plot will be drawn.
-
-        Returns
-        -------
-        """
-        default_values = dict(line_width=3, line_alpha=1, color=bokeh_colors[1])
-        for k, v in default_values.items():
-            kwargs.setdefault(k, v)
-
-        mean = self.scale_factor
-        # geometric factors
-        zpos, ypos = position
-        coils = 6  # number of points to generate spring
-        n = 5  # number of ground lines
-        step = mean / (coils + 1)  # spring step
-
-        zs0 = zpos - (mean / 2.0)
-        zs1 = zpos + (mean / 2.0)
-        ys0 = ypos + 0.5 * mean
-
-        # plot bottom base
-        x_bot = [zpos, zpos, zs0, zs1]
-        yl_bot = [ypos, ys0, ys0, ys0]
-        yu_bot = [-y for y in yl_bot]
-        bk_ax.line(x=x_bot, y=yl_bot, **kwargs)
-        bk_ax.line(x=x_bot, y=yu_bot, **kwargs)
-
-        # plot top base
-        x_top = [zpos, zpos, zs0, zs1]
-        yl_top = [
-            ypos + 2 * mean,
-            ypos + 1.5 * mean,
-            ypos + 1.5 * mean,
-            ypos + 1.5 * mean,
-        ]
-        yu_top = [-y for y in yl_top]
-        bk_ax.line(x=x_top, y=yl_top, legend_label="Bearing", **kwargs)
-        bk_ax.line(x=x_top, y=yu_top, legend_label="Bearing", **kwargs)
-
-        # plot ground
-        if self.n_link is None:
-            zl_g = [zs0 - step, zs1 + step]
-            yl_g = [yl_top[0], yl_top[0]]
-            yu_g = [-y for y in yl_g]
-            bk_ax.line(x=zl_g, y=yl_g, **kwargs)
-            bk_ax.line(x=zl_g, y=yu_g, **kwargs)
-
-            step2 = (zl_g[1] - zl_g[0]) / n
-            for i in range(n + 1):
-                zl_g2 = [(zs0 - step) + step2 * (i), (zs0 - step) + step2 * (i + 1)]
-                yl_g2 = [yl_g[0], 1.1 * yl_g[0]]
-                yu_g2 = [-y for y in yl_g2]
-                bk_ax.line(x=zl_g2, y=yl_g2, **kwargs)
-                bk_ax.line(x=zl_g2, y=yu_g2, **kwargs)
-
-        # plot spring
-        z_spring = np.array([zs0, zs0, zs0, zs0])
-        yl_spring = np.array([ys0, ys0 + step, ys0 + mean - step, ys0 + mean])
-
-        for i in range(coils):
-            z_spring = np.insert(z_spring, i + 2, zs0 - (-1) ** i * step)
-            yl_spring = np.insert(yl_spring, i + 2, ys0 + (i + 1) * step)
-        yu_spring = [-y for y in yl_spring]
-
-        bk_ax.line(x=z_spring, y=yl_spring, **kwargs)
-        bk_ax.line(x=z_spring, y=yu_spring, **kwargs)
-
-        # plot damper - base
-        z_damper1 = [zs1, zs1]
-        yl_damper1 = [ys0, ys0 + 2 * step]
-        yu_damper1 = [-y for y in yl_damper1]
-
-        bk_ax.line(x=z_damper1, y=yl_damper1, **kwargs)
-        bk_ax.line(x=z_damper1, y=yu_damper1, **kwargs)
-
-        # plot damper - center
-        z_damper2 = [zs1 - 2 * step, zs1 - 2 * step, zs1 + 2 * step, zs1 + 2 * step]
-        yl_damper2 = [ys0 + 5 * step, ys0 + 2 * step, ys0 + 2 * step, ys0 + 5 * step]
-        yu_damper2 = [-y for y in yl_damper2]
-
-        bk_ax.line(x=z_damper2, y=yl_damper2, **kwargs)
-        bk_ax.line(x=z_damper2, y=yu_damper2, **kwargs)
-
-        # plot damper - top
-        z_damper3 = [z_damper2[0], z_damper2[2], zs1, zs1]
-        yl_damper3 = [ys0 + 4 * step, ys0 + 4 * step, ys0 + 4 * step, ypos + 1.5 * mean]
-        yu_damper3 = [-y for y in yl_damper3]
-
-        bk_ax.line(x=z_damper3, y=yl_damper3, **kwargs)
-        bk_ax.line(x=z_damper3, y=yu_damper3, **kwargs)
 
 
 def bearing_example():
