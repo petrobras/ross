@@ -1215,12 +1215,12 @@ class ShaftElement6DoF(Element):
     The matrices will be defined considering the following local
     coordinate vector:
 
-    :math:`[u_0, v_0, w_0, \theta_0, \psi_0, \phi_0, u_0, v_0, w_0, \theta_0, \psi_0, \phi_0]^T`
+    :math:`[u_0, v_0, w_0, \theta_0, \psi_0, \phi_0, u_1, v_1, w_1, \theta_1, \psi_1, \phi_1]^T`
     
     Being the following their ordering for an element:
 
-        :math:`x_0,u_0`  - horizontal translation; 
-        :math:`y_0,v_0`  - vertical translation; 
+        :math:`x_0,u_0`  - horizontal translation;
+        :math:`y_0,v_0`  - vertical translation;
         :math:`z_0,w_0`  - axial translation;
         :math:`\theta_0` - rotation around horizontal, bending on the yz plane;
         :math:`\psi_0`   - rotation around vertical, bending on the xz plane;
@@ -1689,10 +1689,56 @@ class ShaftElement6DoF(Element):
 
 
     def __repr__(self):
-        pass
+        """This function returns a string representation of a 6 DoF shaft element.
+
+        Parameters
+        ----------
+        Returns
+        -------
+        A string representation of a 6 DoF shaft object.
+
+        Examples
+        --------
+        >>> from ross.materials import steel
+        >>> shaft1 = ShaftElement(
+        ...        L=0.25, idl=0, idr=0, odl=0.05, odr=0.08,
+        ...        material=steel, rotary_inertia=True, shear_effects=True
+        ... )
+        >>> shaft1 # doctest: +ELLIPSIS
+        ShaftElement(L=0.25, idl=0.0...
+        """
+        return (
+            f"{self.__class__.__name__}"
+            f"(L={self.L:{0}.{5}}, idl={self.idl:{0}.{5}}, "
+            f"idr={self.idr:{0}.{5}}, odl={self.odl:{0}.{5}},  "
+            f"odr={self.odr:{0}.{5}}, material={self.material.name!r}, "
+            f"alpha={self.alpha:{0}.{5}}, beta={self.beta:{0}.{5}},  "
+            f"n={self.n})"
+        )
 
     def __str__(self):
-        pass
+        """
+        Method to convert object into string
+        
+        Parameters
+        ----------
+        Returns
+        -------
+        The object's parameters translated to strings
+        """
+        return (
+            f"\nElem. N:    {self.n}"
+            f"\nLenght:     {self.L:{10}.{5}}"
+            f"\nLeft Int. Diam.: {self.idl:{10}.{5}}"
+            f"\nLeft Out. Diam.: {self.odl:{10}.{5}}"
+            f"\nRight Int. Diam.: {self.idr:{10}.{5}}"
+            f"\nRight Out. Diam.: {self.odr:{10}.{5}}"
+            f"\nAlpha damp. factor: {self.alpha:{10}.{5}}"
+            f"\nBeta damp. factor: {self.beta:{10}.{5}}"
+            f'\n{35*"-"}'
+            f"\n{self.material}"
+            f"\n"
+        )
 
     def M(self):
         pass
