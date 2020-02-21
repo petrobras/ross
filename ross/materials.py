@@ -111,13 +111,14 @@ class Material:
 
     @staticmethod
     def dump_data(data):
-        with open("available_materials.toml", "w") as f:
+        with open(AVAILABLE_MATERIALS_PATH, "w") as f:
             toml.dump(data, f)
 
     @staticmethod
     def load_data():
+        """Loads materials from data file."""
         try:
-            with open("available_materials.toml", "r") as f:
+            with open(AVAILABLE_MATERIALS_PATH, "r") as f:
                 data = toml.load(f)
         except FileNotFoundError:
             data = {"Materials": {}}
@@ -126,37 +127,25 @@ class Material:
 
     @staticmethod
     def use_material(name):
-        run_path = os.getcwd()
-        ross_path = os.path.dirname(rs.__file__)
-        os.chdir(ross_path)
-
+        """Use material that is available in the data file."""
         data = Material.load_data()
         try:
             material = data["Materials"][name]
             return Material(**material)
         except KeyError:
             raise KeyError("There isn't a instanced material with this name.")
-        os.chdir(run_path)
 
     @staticmethod
     def remove_material(name):
-        run_path = os.getcwd()
-        ross_path = os.path.dirname(rs.__file__)
-        os.chdir(ross_path)
-
         data = Material.load_data()
         try:
             del data["Materials"][name]
         except KeyError:
             return "There isn't a saved material with this name."
         Material.dump_data(data)
-        os.chdir(run_path)
 
     @staticmethod
     def available_materials():
-        run_path = os.getcwd()
-        ross_path = os.path.dirname(rs.__file__)
-        os.chdir(ross_path)
 
         try:
             data = Material.load_data()
@@ -167,14 +156,9 @@ class Material:
 
     def save_material(self):
         """Saves the material in the available_materials list."""
-        run_path = os.getcwd()
-        ross_path = os.path.dirname(rs.__file__)
-        os.chdir(ross_path)
-
         data = Material.load_data()
         data["Materials"][self.name] = self.__dict__
         Material.dump_data(data)
-        os.chdir(run_path)
 
 
 steel = Material(name="Steel", rho=7810, E=211e9, G_s=81.2e9)
