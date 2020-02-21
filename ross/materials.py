@@ -79,9 +79,30 @@ class Material:
             self.Poisson = (self.E / (2 * self.G_s)) - 1
 
     def __eq__(self, other):
-        """Material is considered equal if properties are equal."""
+        """Function used to compare two Materials.
+        Parameters
+        ----------
+
+        self : Material
+
+        other: Material
+
+        Returns
+        ----------
+
+        bool
+            True if all the Materials properties are equivalent.
+
+        Examples
+        ----------
+        >>> import ross as rs
+        >>> steel = rs.Material.use_material('Steel')
+        >>> AISI4140 = rs.Material.use_material('AISI4140')
+        >>> steel == AISI4140
+        False
+        """
         self_list = [v for v in self.__dict__.values() if isinstance(v, (float, int))]
-        other_list = [v for v in self.__dict__.values() if isinstance(v, (float, int))]
+        other_list = [v for v in other.__dict__.values() if isinstance(v, (float, int))]
 
         if np.allclose(self_list, other_list):
             return True
@@ -92,6 +113,29 @@ class Material:
         selfE = "{:.3e}".format(self.E)
         selfrho = "{:.3e}".format(self.rho)
         selfGs = "{:.3e}".format(self.G_s)
+        """Function used to give a representation of a Material element, when called.
+
+        Parameters
+        ----------
+
+        self : Material
+
+        Returns
+        ----------
+
+        string : Representation of the given rs.Material.
+
+        Examples
+        ----------
+        >>> import ross as rs
+        >>> steel = rs.Material.use_material('Steel')
+        >>> steel # doctest: +ELLIPSIS
+        Material(name="Steel", rho=7.81000e+03, G_s=8.12000e+10, E=2.11000e+11, Poisson=2.99261e-01, color='#525252')
+        """
+        selfE = "{:.5e}".format(self.E)
+        selfPoisson = "{:.5e}".format(self.Poisson)
+        selfrho = "{:.5e}".format(self.rho)
+        selfGs = "{:.5e}".format(self.G_s)
 
         return (
             f"Material"
@@ -100,6 +144,30 @@ class Material:
         )
 
     def __str__(self):
+        """Function used to set what is shown when a Material is printed.
+
+        Parameters
+        ----------
+
+        self : Material
+
+        Returns
+        ----------
+
+        str
+            Containing all the Materials properties organized in a table.
+
+        Examples
+        ----------
+        >>> import ross as rs
+        >>> print(rs.Material.use_material('Steel'))
+        Steel
+        -----------------------------------
+        Density         (N/m**3): 7810.0
+        Young`s modulus (N/m**2): 2.11e+11
+        Shear modulus   (N/m**2): 8.12e+10
+        Poisson coefficient     : 0.29926108
+        """
         return (
             f"{self.name}"
             f'\n{35*"-"}'
@@ -111,12 +179,35 @@ class Material:
 
     @staticmethod
     def dump_data(data):
+        """Auxiliary function to save the materials properties in the save method.
+
+        Parameters
+        ----------
+
+        data : dict
+            Dictionary containing all data needed to instantiate the Object.
+
+        Returns
+        ----------
+        """
         with open(AVAILABLE_MATERIALS_PATH, "w") as f:
             toml.dump(data, f)
 
     @staticmethod
-    def load_data():
-        """Loads materials from data file."""
+    def get_data():
+
+        """Auxiliary function to load all saved materials properties in the use_material method.
+
+        Parameters
+        ----------
+
+        Returns
+        ----------
+
+        data : dict
+            Containing all data needed to instantiate a Material Object.
+
+        """
         try:
             with open(AVAILABLE_MATERIALS_PATH, "r") as f:
                 data = toml.load(f)
@@ -140,6 +231,28 @@ class Material:
     @staticmethod
     def remove_material(name):
         data = Material.load_data()
+
+        """Function used to delete a saved rs.Material.
+
+        Parameters
+        ----------
+
+        name : string
+            Name of Material Object to be deleted.
+
+        Returns
+        ----------
+
+        Examples
+        ----------
+        >>> import ross as rs
+        >>> steel = rs.Material.use_material('Steel')
+        >>> steel.name = 'test_material'
+        >>> steel.save_material()
+        >>> steel.remove_material('test_material')
+        """
+        data = Material.get_data()
+
         try:
             del data["Materials"][name]
         except KeyError:
@@ -148,19 +261,42 @@ class Material:
 
     @staticmethod
     def available_materials():
+        """Function used to get a list of all saved material's names.
+
+        Parameters
+        ----------
+
+        Returns
+        ----------
+
+        list
+            A list containing all saved material's names.
+
+        Examples
+        ----------
+        >>> import ross as rs
+        >>> steel = rs.Material.use_material('Steel')
+        >>> steel.name = 'test_material'
+        >>> steel.save_material()
+        >>> steel.remove_material('test_material')
+        """
 
         try:
-            data = Material.load_data()
+            data = Material.get_data()
             return list(data["Materials"].keys())
         except FileNotFoundError:
             return "There is no saved materials."
-        os.chdir(run_path)
 
     def save_material(self):
         """Saves the material in the available_materials list."""
+        run_path = os.getcwd()
+        ross_path = os.path.dirname(rs.__file__)
+        os.chdir(ross_path)
+
         data = Material.load_data()
         data["Materials"][self.name] = self.__dict__
         Material.dump_data(data)
+        os.chdir(run_path)
 
 
 steel = Material(name="Steel", rho=7810, E=211e9, G_s=81.2e9)

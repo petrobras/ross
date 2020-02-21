@@ -1,5 +1,6 @@
 import numpy as np
 import pandas as pd
+import re
 from bokeh.models import LogColorMapper
 from bokeh.palettes import Viridis256
 from bokeh.plotting import figure
@@ -412,3 +413,26 @@ def visualize_matrix(rotor, matrix=None, frequency=None):
     )
 
     return fig
+
+
+def convert(name):
+    """Converts a CamelCase str to a underscore_case str
+
+    Parameters
+    ----------
+    file: str
+        Path to the file containing the shaft parameters.
+
+    Returns
+    -------
+    underscore_case string
+
+    Examples
+    --------
+    >>> convert('CamelCase')
+    'camel_case'
+    """
+
+    s1 = re.sub('(.)([A-Z][a-z]+)', r'\1_\2', name)
+    return re.sub('([a-z0-9])([A-Z])', r'\1_\2', s1).lower()
+

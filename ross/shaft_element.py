@@ -11,6 +11,7 @@ import ross
 from ross.element import Element
 from ross.materials import Material, steel
 from ross.utils import read_table_file
+from ross.units import check_units
 
 __all__ = ["ShaftElement"]
 bokeh_colors = bp.RdGy[11]
@@ -31,16 +32,16 @@ class ShaftElement(Element):
 
     Parameters
     ----------
-    L : float
+    L : float, pint.Quantity
         Element length.
-    idl : float
+    idl : float, pint.Quantity
         Inner diameter of the element at the left position..
-    odl : float
+    odl : float, pint.Quantity
         Outer diameter of the element at the left position.
-    idr : float, optional
+    idr : float, pint.Quantity, optional
         Inner diameter of the element at the right position
         Default is equal to idl value (cylindrical element)
-    odr : float, optional
+    odr : float, pint.Quantity, optional
         Outer diameter of the element at the right position.
         Default is equal to odl value (cylindrical element)
     material : ross.material
@@ -122,6 +123,8 @@ class ShaftElement(Element):
     >>> Timoshenko_Element.phi
     0.1571268472906404
     """
+
+    @check_units
     def __init__(
         self,
         L,
@@ -145,11 +148,18 @@ class ShaftElement(Element):
         if odr is None:
             odr = odl
 
+        # After changing units to defined unit (see units.py), we go back to using only the magnitude
+        # This could be modified later if we apply pint to all arguments and have consistency throughout the package
+        L = L.m
+        idl = idl.m
+        odl = odl.m
+        idr = idr.m
+        odr = odr.m
+
         if material is None:
             raise AttributeError("Material is not defined.")
 
         if type(material) is str:
-            os.chdir(Path(os.path.dirname(ross.__file__)))
             self.material = Material.use_material(material)
         else:
             self.material = material
@@ -331,7 +341,7 @@ class ShaftElement(Element):
     def __hash__(self):
         return hash(self.tag)
 
-    def save(self, file_name):
+    def save(self, file_name=Path(os.getcwd())):
         """Save shaft elements to toml file.
 
         Parameters
@@ -345,9 +355,9 @@ class ShaftElement(Element):
         ...        L=0.25, idl=0, idr=0, odl=0.05, odr=0.08,
         ...        material=steel, rotary_inertia=True, shear_effects=True
         ... )
-        >>> shaft1.save('ShaftElement.toml')
+        >>> shaft1.save()
         """
-        data = self.load_data(file_name)
+        data = self.get_data(Path(file_name)/'ShaftElement.toml')
         data["ShaftElement"][str(self.n)] = {
             "L": self.L,
             "idl": self.idl,
@@ -363,7 +373,7 @@ class ShaftElement(Element):
             "gyroscopic": self.gyroscopic,
             "shear_method_calc": self.shear_method_calc,
         }
-        self.dump_data(data, file_name)
+        self.dump_data(data, Path(file_name)/'ShaftElement.toml')
 
     @staticmethod
     def load(file_name="ShaftElement"):
@@ -380,8 +390,8 @@ class ShaftElement(Element):
         ...        L=0.25, idl=0, idr=0, odl=0.05, odr=0.08,
         ...        material=steel, rotary_inertia=True, shear_effects=True
         ... )
-        >>> shaft1.save('ShaftElement.toml')
-        >>> shaft2 = ShaftElement.load("ShaftElement.toml")
+        >>> shaft1.save(os.getcwd())
+        >>> shaft2 = ShaftElement.load(os.getcwd())
         >>> shaft2 # doctest: +ELLIPSIS
         [ShaftElement(L=0.25, idl=0.0...
         """
@@ -390,9 +400,7 @@ class ShaftElement(Element):
             shaft_elements_dict = toml.load(f)
             for element in shaft_elements_dict["ShaftElement"]:
                 shaft_elements.append(
-                    ShaftElement(
-                        **shaft_elements_dict["ShaftElement"][element]
-                    )
+                    ShaftElement(**shaft_elements_dict["ShaftElement"][element])
                 )
         return shaft_elements
 
@@ -1177,19 +1185,18 @@ class ShaftElement(Element):
 
         elements = [
             cls(
-                    le,
-                    (s_idr - s_idl) * i * le / L + s_idl,
-                    (s_odr - s_odl) * i * le / L + s_odl,
-                    (s_idr - s_idl) * (i + 1) * le / L + s_idl,
-                    (s_odr - s_odl) * (i + 1) * le / L + s_odl,
-                    material,
-                    n,
-                    shear_effects,
-                    rotary_inertia,
-                    gyroscopic
+                le,
+                (s_idr - s_idl) * i * le / L + s_idl,
+                (s_odr - s_odl) * i * le / L + s_odl,
+                (s_idr - s_idl) * (i + 1) * le / L + s_idl,
+                (s_odr - s_odl) * (i + 1) * le / L + s_odl,
+                material,
+                n,
+                shear_effects,
+                rotary_inertia,
+                gyroscopic,
             )
             for i in range(ne)
         ]
 
         return elements
-
