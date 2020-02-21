@@ -6,10 +6,13 @@ some of the most common materials used in rotors.
 import os
 import numpy as np
 import toml
+from pathlib import Path
 
-import ross as rs
 
 __all__ = ["Material", "steel"]
+
+ROSS_PATH = Path(__file__).parent
+AVAILABLE_MATERIALS_PATH = ROSS_PATH / "available_materials.toml"
 
 
 class Material:
