@@ -29,12 +29,13 @@ class Material:
     ----------
     name : str
         Material name.
+    rho : float
+        Density (N/m**3).
     E : float
         Young's modulus (N/m**2).
     G_s : float
         Shear modulus (N/m**2).
-    rho : float
-        Density (N/m**3).
+    Poisson
     color : str
         Can be used on plots.
 
@@ -89,14 +90,13 @@ class Material:
 
     def __repr__(self):
         selfE = "{:.3e}".format(self.E)
-        selfPoisson = "{:.3e}".format(self.Poisson)
         selfrho = "{:.3e}".format(self.rho)
         selfGs = "{:.3e}".format(self.G_s)
 
         return (
             f"Material"
             f'(name="{self.name}", rho={selfrho}, G_s={selfGs}, '
-            f"E={selfE}, Poisson={selfPoisson}, color={self.color!r})"
+            f"E={selfE}, color={self.color!r})"
         )
 
     def __str__(self):
@@ -130,6 +130,8 @@ class Material:
         """Use material that is available in the data file."""
         data = Material.load_data()
         try:
+            # Remove Poisson from dict and create material from E and G_s
+            data["Materials"][name].pop("Poisson")
             material = data["Materials"][name]
             return Material(**material)
         except KeyError:
