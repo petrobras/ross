@@ -62,7 +62,10 @@ def test_error_rho():
 def test_error_E_G_s_Poisson():
     with pytest.raises(ValueError) as ex:
         Material(name="test", rho=785, E=203.2e9)
-    assert "At least 2 arguments from E" in str(ex.value)
+    assert "Exactly 2 arguments from E" in str(ex.value)
+    with pytest.raises(ValueError) as ex:
+        Material(name="test", rho=785, E=203.2e9, G_s=80e9, Poisson=0.27)
+    assert "Exactly 2 arguments from E" in str(ex.value)
 
 
 # Serialization tests.
