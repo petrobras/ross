@@ -62,7 +62,7 @@ class Material:
                 given_args.append(arg)
         if len(given_args) != 2:
             raise ValueError(
-                "At least 2 arguments from E, G_s" "and Poisson should be provided "
+                "Exactly 2 arguments from E, G_s and Poisson should be provided"
             )
         self.name = name
         self.rho = rho
