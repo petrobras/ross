@@ -1743,7 +1743,52 @@ class ShaftElement6DoF(Element):
 
 
     def M(self):
-        pass
+        r"""Mass matrix for an instance of a 6 DoF shaft element.
+
+        Returns
+        -------
+        M: np.ndarray
+            Mass matrix for the 6 DoF shaft element.
+
+        Examples
+        --------
+        >>> Timoshenko_Element = ShaftElement(0.25, 0, 0.05, steel,
+        ...                                  rotary_inertia=True,
+        ...                                  shear_effects=True)
+        >>> Timoshenko_Element.M()[:4, :4]
+        array(12x12)
+        """
+        
+        # temporary material and geometrical constants
+        L = self.L
+        tempG = self.material.E / (2 * (1 + self.n))
+        tempS = np.pi * ((((self.odl + self.odr)/2) / 2) ** 2 - (((self.idl + self.idr)/2) / 2) ** 2)
+        tempI = np.pi / 4 * ((((self.odl + self.odr)/2) / 2) ** 4 - ((self.idl + self.idr)/2) ** 4)
+        tempJ = np.pi / 2 * ((((self.odl + self.odr)/2) / 2) ** 4 - ((self.idl + self.idr)/2) ** 4)
+        tempMM = (((self.idl + self.idr)/2) / 2) / ((self.odl + self.odr)/2)
+
+        # temporary variables dependent on kappa
+        tempA = (
+            12
+            * self.material.E
+            * tempI
+            / (self.material.G_s * self.kappa * tempS * L ** 2)
+        )
+
+        # element level matrix declaration
+
+        aux1 = self.material.rho * tempS * L / 420
+        aux2 = self.material.rho * tempJ * L / 6
+        # fmt: off
+        M=aux1*np.zeros(12,12)
+
+        Ms=self.material.rho*tempI/(30*L)*np.zeros(12,12)
+        # fmt: on
+        
+        M = M + Ms
+
+        return M
+
 
 
     def K(self):
