@@ -6,6 +6,7 @@ some of the most common materials used in rotors.
 import numpy as np
 import toml
 from pathlib import Path
+from .units import check_units
 
 
 __all__ = ["Material", "steel"]
@@ -28,29 +29,29 @@ class Material:
     ----------
     name : str
         Material name.
-    rho : float
+    rho : float, pint.Quantity
         Density (N/m**3).
-    E : float
+    E : float, pint.Quantity
         Young's modulus (N/m**2).
-    G_s : float
+    G_s : float,
         Shear modulus (N/m**2).
-    Poisson
+    Poisson : float
+        Poisson ratio (dimensionless).
     color : str
         Can be used on plots.
 
     Examples
     --------
-    >>> AISI4140 = Material(name='AISI4140', rho=7850, E=203.2e9, G_s=80e9)
+    >>> AISI4140 = Material(name="AISI4140", rho=7850, E=203.2e9, G_s=80e9)
     >>> Steel = Material(name="Steel", rho=7810, E=211e9, G_s=81.2e9)
     >>> AISI4140.Poisson
     0.27
-
     """
 
+    @check_units
     def __init__(
         self, name, rho, E=None, G_s=None, Poisson=None, color="#525252", **kwargs
     ):
-
         self.name = str(name)
         if " " in name:
             raise ValueError("Spaces are not allowed in Material name")
@@ -126,7 +127,7 @@ class Material:
         >>> import ross as rs
         >>> steel = rs.Material.use_material('Steel')
         >>> steel # doctest: +ELLIPSIS
-        Material(name="Steel", rho=7.81000e+03, G_s=8.12000e+10, E=2.11000e+11, Poisson=2.99261e-01, color='#525252')
+        Material(name="Steel", rho=7.81000e+03, G_s=8.12000e+10, E=2.11000e+11, color='#525252')
         """
         selfE = "{:.5e}".format(self.E)
         selfrho = "{:.5e}".format(self.rho)
