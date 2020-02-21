@@ -851,6 +851,95 @@ def test_static_analysis_rotor5(rotor5):
 
 @pytest.fixture
 def rotor6():
+    #  Overhung rotor without damping with 10 shaft elements
+    #  2 disks and 2 bearings
+    i_d = 0
+    o_d = 0.05
+    n = 10
+    L = [0.25 for _ in range(n)]
+
+    shaft_elem = [
+        ShaftElement(
+            l, i_d, o_d, material=steel, shear_effects=True, rotary_inertia=True, gyroscopic=True
+        )
+        for l in L
+    ]
+
+    disk0 = DiskElement.from_geometry(5, steel, 0.07, 0.05, 0.28)
+    disk1 = DiskElement.from_geometry(10, steel, 0.07, 0.05, 0.35)
+
+    stfx = 1e6
+    stfy = 1e6
+    bearing0 = BearingElement(2, kxx=stfx, kyy=stfy, cxx=0)
+    bearing1 = BearingElement(8, kxx=stfx, kyy=stfy, cxx=0)
+
+    return Rotor(shaft_elem, [disk0, disk1], [bearing0, bearing1])
+
+
+def test_static_analysis_rotor6(rotor6):
+    rotor6.run_static()
+
+    assert_almost_equal(
+        rotor6.disp_y,
+        (
+            [
+                -1.03951876e-04,
+                -4.93624668e-05,
+                -1.79345202e-12,
+                3.74213098e-05,
+                7.66066703e-05,
+                1.29084322e-04,
+                1.85016673e-04,
+                1.72933811e-04,
+                -1.02148266e-11,
+                -3.96409257e-04,
+                -9.20006704e-04,
+            ]
+        ),
+        decimal=6,
+    )
+    assert_almost_equal(
+        rotor6.Vx,
+        [
+            0,
+            37.5954,
+            75.1908,
+            -104.1543,
+            -66.5589,
+            -28.9635,
+            8.6319,
+            328.2230,
+            365.8184,
+            403.4139,
+            441.0093,
+            -580.4733,
+            -542.8778,
+            -505.2824,
+            0,
+        ],
+        decimal=3,
+    )
+    assert_almost_equal(
+        rotor6.Bm,
+        [
+            0,
+            4.6994,
+            18.7977,
+            -2.5414,
+            -14.4817,
+            -17.0232,
+            69.7319,
+            165.8860,
+            271.4389,
+            131.0200,
+            0,
+        ],
+        decimal=3,
+    )
+
+
+@pytest.fixture
+def coaxrotor():
     #  Co-axial rotor system with 2 shafts, 4 disks and
     #  4 bearings (3 to ground and 1 to body) 
     i_d = 0
@@ -894,29 +983,31 @@ def rotor6():
     return CoAxialRotor(shaft, disks, bearings)
 
 
-def test_coaxial_rotor_assembly(rotor6):
-    assert list(rotor6.df["shaft_number"]) == [
+def test_coaxial_rotor_assembly(coaxrotor):
+    # fmt: off
+    assert list(coaxrotor.df["shaft_number"]) == [
         0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
         1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0
     ]
-    assert rotor6.nodes_pos == [
+    assert coaxrotor.nodes_pos == [
         0.0, 0.25, 0.5, 0.75, 1.0, 1.25, 1.5, 1.75, 2.0, 2.25, 2.5,
         0.5, 0.75, 1.0, 1.25, 1.5, 1.75, 2.0
     ]
-    assert list(rotor6.df_shaft["nodes_pos_l"]) == [
+    assert list(coaxrotor.df_shaft["nodes_pos_l"]) == [
         0.0, 0.25, 0.5, 0.75, 1.0, 1.25, 1.5, 1.75, 2.0, 2.25,
         0.5, 0.75, 1.0, 1.25, 1.5, 1.75
     ]
-    assert list(rotor6.df_shaft["nodes_pos_r"]) == [
+    assert list(coaxrotor.df_shaft["nodes_pos_r"]) == [
         0.25, 0.5, 0.75, 1.0, 1.25, 1.5, 1.75, 2.0, 2.25, 2.5,
         0.75, 1.0, 1.25, 1.5, 1.75, 2.0
     ]
-    assert list(rotor6.df["y_pos"].dropna()) == [
+    assert list(coaxrotor.df["y_pos"].dropna()) == [
         0.025, 0.05, 0.025, 0.05, 0.025, 0.15, 0.3, 0.3
     ]
-    assert list(np.round(rotor6.df["y_pos_sup"].dropna(), 3)) == [
+    assert list(np.round(coaxrotor.df["y_pos_sup"].dropna(), 3)) == [
         0.319, 0.125, 0.319, 0.444
     ]
+    # fmt: on
 
 
 def test_from_section():
