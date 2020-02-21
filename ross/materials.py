@@ -3,7 +3,6 @@
 This module defines the Material class and defines
 some of the most common materials used in rotors.
 """
-import os
 import numpy as np
 import toml
 from pathlib import Path
@@ -88,13 +87,13 @@ class Material:
         other: Material
 
         Returns
-        ----------
+        -------
 
         bool
             True if all the Materials properties are equivalent.
 
         Examples
-        ----------
+        --------
         >>> import ross as rs
         >>> steel = rs.Material.use_material('Steel')
         >>> AISI4140 = rs.Material.use_material('AISI4140')
@@ -110,9 +109,6 @@ class Material:
             return False
 
     def __repr__(self):
-        selfE = "{:.3e}".format(self.E)
-        selfrho = "{:.3e}".format(self.rho)
-        selfGs = "{:.3e}".format(self.G_s)
         """Function used to give a representation of a Material element, when called.
 
         Parameters
@@ -121,19 +117,18 @@ class Material:
         self : Material
 
         Returns
-        ----------
+        -------
 
         string : Representation of the given rs.Material.
 
         Examples
-        ----------
+        --------
         >>> import ross as rs
         >>> steel = rs.Material.use_material('Steel')
         >>> steel # doctest: +ELLIPSIS
         Material(name="Steel", rho=7.81000e+03, G_s=8.12000e+10, E=2.11000e+11, Poisson=2.99261e-01, color='#525252')
         """
         selfE = "{:.5e}".format(self.E)
-        selfPoisson = "{:.5e}".format(self.Poisson)
         selfrho = "{:.5e}".format(self.rho)
         selfGs = "{:.5e}".format(self.G_s)
 
@@ -152,13 +147,13 @@ class Material:
         self : Material
 
         Returns
-        ----------
+        -------
 
         str
             Containing all the Materials properties organized in a table.
 
         Examples
-        ----------
+        --------
         >>> import ross as rs
         >>> print(rs.Material.use_material('Steel'))
         Steel
@@ -188,7 +183,7 @@ class Material:
             Dictionary containing all data needed to instantiate the Object.
 
         Returns
-        ----------
+        -------
         """
         with open(AVAILABLE_MATERIALS_PATH, "w") as f:
             toml.dump(data, f)
@@ -202,7 +197,7 @@ class Material:
         ----------
 
         Returns
-        ----------
+        -------
 
         data : dict
             Containing all data needed to instantiate a Material Object.
@@ -219,7 +214,7 @@ class Material:
     @staticmethod
     def use_material(name):
         """Use material that is available in the data file."""
-        data = Material.load_data()
+        data = Material.get_data()
         try:
             # Remove Poisson from dict and create material from E and G_s
             data["Materials"][name].pop("Poisson")
@@ -230,8 +225,6 @@ class Material:
 
     @staticmethod
     def remove_material(name):
-        data = Material.load_data()
-
         """Function used to delete a saved rs.Material.
 
         Parameters
@@ -241,10 +234,10 @@ class Material:
             Name of Material Object to be deleted.
 
         Returns
-        ----------
+        -------
 
         Examples
-        ----------
+        --------
         >>> import ross as rs
         >>> steel = rs.Material.use_material('Steel')
         >>> steel.name = 'test_material'
@@ -267,13 +260,12 @@ class Material:
         ----------
 
         Returns
-        ----------
-
-        list
+        -------
+        available_materials : list
             A list containing all saved material's names.
 
         Examples
-        ----------
+        --------
         >>> import ross as rs
         >>> steel = rs.Material.use_material('Steel')
         >>> steel.name = 'test_material'
@@ -289,14 +281,9 @@ class Material:
 
     def save_material(self):
         """Saves the material in the available_materials list."""
-        run_path = os.getcwd()
-        ross_path = os.path.dirname(rs.__file__)
-        os.chdir(ross_path)
-
-        data = Material.load_data()
+        data = Material.get_data()
         data["Materials"][self.name] = self.__dict__
         Material.dump_data(data)
-        os.chdir(run_path)
 
 
 steel = Material(name="Steel", rho=7810, E=211e9, G_s=81.2e9)
