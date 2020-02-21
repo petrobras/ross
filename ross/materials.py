@@ -47,21 +47,28 @@ class Material:
 
     """
 
-    def __init__(self, name, rho, **kwargs):
+    def __init__(
+        self, name, rho, E=None, G_s=None, Poisson=None, color="#525252", **kwargs
+    ):
 
-        assert name is not None, "Name not provided"
-        assert type(name) is str, "Name must be a string"
-        assert " " not in name, "Spaces are not allowed in Material name"
-        assert (
-            sum([1 if i in ["E", "G_s", "Poisson"] else 0 for i in kwargs]) > 1
-        ), "At least 2 arguments from E, G_s and Poisson should be provided"
+        self.name = str(name)
+        if " " in name:
+            raise ValueError("Spaces are not allowed in Material name")
 
+        given_args = []
+        for arg in ["E", "G_s", "Poisson"]:
+            if locals()[arg] is not None:
+                given_args.append(arg)
+        if len(given_args) != 2:
+            raise ValueError(
+                "At least 2 arguments from E, G_s" "and Poisson should be provided "
+            )
         self.name = name
         self.rho = rho
-        self.E = kwargs.get("E", None)
-        self.Poisson = kwargs.get("Poisson", None)
-        self.G_s = kwargs.get("G_s", None)
-        self.color = kwargs.get("color", "#525252")
+        self.E = E
+        self.G_s = G_s
+        self.Poisson = Poisson
+        self.color = color
 
         if self.E is None:
             self.E = self.G_s * (2 * (1 + self.Poisson))
