@@ -2467,7 +2467,7 @@ class Rotor(object):
         >>> # show(table)
         """
         self.run_static()
-        forces = self.bearing_reaction_forces
+        forces = self.bearing_forces_tag
         results = SummaryResults(
             self.df_shaft,
             self.df_disks,
