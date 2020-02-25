@@ -2208,7 +2208,7 @@ class SummaryResults:
             tags=self.df_bearings["tag"],
             brg_node=self.df_bearings["n"],
             brg_pos=self.nodes_pos[self.df_bearings["n"]],
-            brg_force=self.brg_forces,
+            brg_force=self.brg_forces.values(),
         )
 
         shaft_source = ColumnDataSource(shaft_data)
