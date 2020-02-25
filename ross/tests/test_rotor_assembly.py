@@ -938,6 +938,78 @@ def test_static_analysis_rotor6(rotor6):
     )
 
 
+@pytest.fixture
+def coaxrotor():
+    #  Co-axial rotor system with 2 shafts, 4 disks and
+    #  4 bearings (3 to ground and 1 to body) 
+    i_d = 0
+    o_d = 0.05
+    n = 10
+    L = [0.25 for _ in range(n)]
+
+    axial_shaft = [ShaftElement(l, i_d, o_d, material=steel) for l in L]
+
+    i_d = 0.25
+    o_d = 0.30
+    n = 6
+    L = [0.25 for _ in range(n)]
+
+    coaxial_shaft = [ShaftElement(l, i_d, o_d, material=steel) for l in L]
+
+    disk0 = DiskElement.from_geometry(
+        n=1, material=steel, width=0.07, i_d=0.05, o_d=0.28
+    )
+    disk1 = DiskElement.from_geometry(
+        n=9, material=steel, width=0.07, i_d=0.05, o_d=0.28
+    )
+    disk2 = DiskElement.from_geometry(
+        n=13, material=steel, width=0.07, i_d=0.20, o_d=0.48
+    )
+    disk3 = DiskElement.from_geometry(
+        n=15, material=steel, width=0.07, i_d=0.20, o_d=0.48
+    )
+
+    shaft = [axial_shaft, coaxial_shaft]
+    disks = [disk0, disk1, disk2, disk3]
+
+    stfx = 1e6
+    stfy = 1e6
+    bearing0 = BearingElement(0, kxx=stfx, kyy=stfy, cxx=0)
+    bearing1 = BearingElement(10, kxx=stfx, kyy=stfy, cxx=0)
+    bearing2 = BearingElement(11, kxx=stfx, kyy=stfy, cxx=0)
+    bearing3 = BearingElement(8, n_link=17, kxx=stfx, kyy=stfy, cxx=0)
+    bearings = [bearing0, bearing1, bearing2, bearing3]
+
+    return CoAxialRotor(shaft, disks, bearings)
+
+
+def test_coaxial_rotor_assembly(coaxrotor):
+    # fmt: off
+    assert list(coaxrotor.df["shaft_number"]) == [
+        0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+        1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0
+    ]
+    assert coaxrotor.nodes_pos == [
+        0.0, 0.25, 0.5, 0.75, 1.0, 1.25, 1.5, 1.75, 2.0, 2.25, 2.5,
+        0.5, 0.75, 1.0, 1.25, 1.5, 1.75, 2.0
+    ]
+    assert list(coaxrotor.df_shaft["nodes_pos_l"]) == [
+        0.0, 0.25, 0.5, 0.75, 1.0, 1.25, 1.5, 1.75, 2.0, 2.25,
+        0.5, 0.75, 1.0, 1.25, 1.5, 1.75
+    ]
+    assert list(coaxrotor.df_shaft["nodes_pos_r"]) == [
+        0.25, 0.5, 0.75, 1.0, 1.25, 1.5, 1.75, 2.0, 2.25, 2.5,
+        0.75, 1.0, 1.25, 1.5, 1.75, 2.0
+    ]
+    assert list(coaxrotor.df["y_pos"].dropna()) == [
+        0.025, 0.05, 0.025, 0.05, 0.025, 0.15, 0.3, 0.3
+    ]
+    assert list(np.round(coaxrotor.df["y_pos_sup"].dropna(), 3)) == [
+        0.319, 0.125, 0.319, 0.444
+    ]
+    # fmt: on
+
+
 def test_from_section():
     #  Rotor built from classmethod from_section
     #  2 disks and 2 bearings
