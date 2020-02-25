@@ -2365,8 +2365,8 @@ class Rotor(object):
                     aux_Vx_axis.insert(i, aux_Vx_axis[i])
 
             aux_Vx = [x * -1 for x in aux_Vx]
-            Vx.append(aux_Vx)
-            Vx_axis.append(aux_Vx_axis)
+            Vx.append(np.array(aux_Vx))
+            Vx_axis.append(np.array(aux_Vx_axis))
 
             # Bending Moment vector
             aux_Mx = []
@@ -2390,7 +2390,7 @@ class Rotor(object):
                 aux_Bm = np.append(aux_Bm, aux_Bm[i] + aux_Mx[i])
             Bm.append(aux_Bm)
 
-        self.Vx = np.array(Vx)
+        self.Vx = Vx
         self.Bm = Bm
         self.disp_y = displacement
 
