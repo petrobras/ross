@@ -2172,6 +2172,7 @@ class SummaryResults:
 
         shaft_data = dict(
             tags=self.df_shaft["tag"],
+            sh_number=self.df_shaft["shaft_number"],
             lft_stn=self.df_shaft["n_l"],
             rgt_stn=self.df_shaft["n_r"],
             elem_no=self.df_shaft["_n"],
@@ -2198,6 +2199,7 @@ class SummaryResults:
 
         disk_data = dict(
             tags=self.df_disks["tag"],
+            sh_number=self.df_disks["shaft_number"],
             disk_node=self.df_disks["n"],
             disk_pos=self.nodes_pos[self.df_bearings["n"]],
             disk_mass=self.df_disks["m"],
@@ -2206,9 +2208,10 @@ class SummaryResults:
 
         bearing_data = dict(
             tags=self.df_bearings["tag"],
+            sh_number=self.df_bearings["shaft_number"],
             brg_node=self.df_bearings["n"],
             brg_pos=self.nodes_pos[self.df_bearings["n"]],
-            brg_force=self.brg_forces.values(),
+            brg_force=list(self.brg_forces.values()),
         )
 
         shaft_source = ColumnDataSource(shaft_data)
@@ -2218,42 +2221,45 @@ class SummaryResults:
 
         shaft_titles = [
             "Element Tag",
+            "Shaft Number",
             "Left Station",
             "Right Station",
             "Element Number",
-            "Elem. Left Location (m)",
-            "Elem. Lenght (m)",
-            "Element CG (m)",
-            "Axial CG Location (m)",
-            "Elem. Right Location (m)",
+            "Elem. Left Location",
+            "Elem. Lenght",
+            "Element CG",
+            "Axial CG Location",
+            "Elem. Right Location",
             "Material",
-            "Elem. Mass (kg)",
-            "Inertia (kg.m²)",
+            "Elem. Mass",
+            "Inertia",
         ]
 
         rotor_titles = [
             "Tag",
             "First Station",
             "Last Station",
-            "Starting Pos. (m)",
-            "Total Lenght (m)",
-            "C.G. Locantion (m)",
-            "Total Ip about C.L. (kg.m²)",
+            "Starting Pos.",
+            "Total Lenght",
+            "C.G. Locantion",
+            "Total Ip about C.L.",
         ]
 
         disk_titles = [
             "Tag",
+            "Shaft Number",
             "Disk Station",
-            "C.G. Locantion (m)",
-            "Disk Mass (m)",
-            "Total Ip about C.L. (kg.m²)",
+            "C.G. Locantion",
+            "Disk Mass",
+            "Total Ip about C.L.",
         ]
 
         bearing_titles = [
             "Tag",
+            "Shaft Number",
             "Bearing Station",
-            "Bearing Locantion (m)",
-            "Static Reaction Force (N)",
+            "Bearing Locantion",
+            "Static Reaction Force",
         ]
 
         shaft_formatters = [
