@@ -148,14 +148,6 @@ class ShaftElement(Element):
         if odr is None:
             odr = odl
 
-        # After changing units to defined unit (see units.py), we go back to using only the magnitude
-        # This could be modified later if we apply pint to all arguments and have consistency throughout the package
-        L = L.m
-        idl = idl.m
-        odl = odl.m
-        idr = idr.m
-        odr = odr.m
-
         if material is None:
             raise AttributeError("Material is not defined.")
 
@@ -357,7 +349,7 @@ class ShaftElement(Element):
         ... )
         >>> shaft1.save()
         """
-        data = self.get_data(Path(file_name)/'ShaftElement.toml')
+        data = self.get_data(Path(file_name) / "ShaftElement.toml")
         data["ShaftElement"][str(self.n)] = {
             "L": self.L,
             "idl": self.idl,
@@ -373,7 +365,7 @@ class ShaftElement(Element):
             "gyroscopic": self.gyroscopic,
             "shear_method_calc": self.shear_method_calc,
         }
-        self.dump_data(data, Path(file_name)/'ShaftElement.toml')
+        self.dump_data(data, Path(file_name) / "ShaftElement.toml")
 
     @staticmethod
     def load(file_name="ShaftElement"):
