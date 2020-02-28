@@ -1755,7 +1755,7 @@ class ShaftElement6DoF(Element):
         >>> Timoshenko_Element = ShaftElement(0.25, 0, 0.05, steel,
         ...                                  rotary_inertia=True,
         ...                                  shear_effects=True)
-        >>> Timoshenko_Element.M()[:4, :4]
+        >>> Timoshenko_Element.M()[:12, :12]
         array(12x12)
         """
         
@@ -1784,7 +1784,7 @@ class ShaftElement6DoF(Element):
 
         Ms=self.material.rho*tempI/(30*L)*np.zeros(12,12)
         # fmt: on
-        
+
         M = M + Ms
 
         return M
@@ -1792,7 +1792,56 @@ class ShaftElement6DoF(Element):
 
 
     def K(self):
-        pass
+        r"""Stiffness matrix for an instance of a 6 DoF shaft element.
+
+        Returns
+        -------
+        K: np.ndarray
+            Stiffness matrix for the 6 DoF shaft element.
+
+        Examples
+        --------
+        >>> Timoshenko_Element = ShaftElement(0.25, 0, 0.05, steel,
+        ...                                  rotary_inertia=True,
+        ...                                  shear_effects=True)
+        >>> Timoshenko_Element.K()[:12, :12]
+        array(12x12)
+        """
+        
+        # temporary material and geometrical constants
+        L = self.L
+        tempG = self.material.E / (2 * (1 + self.n))
+        tempS = np.pi * ((((self.odl + self.odr)/2) / 2) ** 2 - (((self.idl + self.idr)/2) / 2) ** 2)
+        tempI = np.pi / 4 * ((((self.odl + self.odr)/2) / 2) ** 4 - (((self.idl + self.idr)/2) / 2) ** 4)
+        tempJ = np.pi / 2 * ((((self.odl + self.odr)/2) / 2) ** 4 - (((self.idl + self.idr)/2) / 2) ** 4)
+        tempMM = (((self.idl + self.idr)/2) / 2) / (((self.odl + self.odr)/2) / 2)
+
+        # temporary variables dependent on kappa
+        tempA = (
+            12
+            * self.material.E
+            * tempI
+            / (self.material.G_s * self.kappa * tempS * L ** 2)
+        )
+
+        # element level matrix declaration
+
+        aux1 = self.material.E * tempI / ((1 + tempA) * L**3)
+        aux2 = self.material.G * tempJ / L
+        aux3 = self.material.E * tempS / L
+
+        KcEst = aux1*np.zeros(12,12)
+    
+        Kstart = self.material.rho*tempI/(15*L)*np.zeros(12,12)
+    
+        Kf = 1/(30*L)*np.zeros(12,12)
+
+        Kt = -np.zeros(12,12)
+        
+        K = KcEst + Kstart + Kf + Kt
+
+        return K
+
 
 
     def C(self):
