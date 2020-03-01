@@ -48,6 +48,9 @@ REQUIRED = [
     "bokeh",
     "coverage",
     "xlrd",
+    "jinja2",
+    'weasyprint',
+    "selenium",
 ]
 
 # What packages are optional?

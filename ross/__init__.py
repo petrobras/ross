@@ -7,3 +7,4 @@ from .rotor_assembly import *
 from .shaft_element import *
 from .utils import visualize_matrix
 from .point_mass import *
+from .api_report import *

@@ -1,10 +1,15 @@
+import weasyprint
+import bokeh
+import os
 import numpy as np
 import pandas as pd
 import toml
 from copy import copy
+from pathlib import Path
 from scipy.interpolate import interp1d
 from scipy.signal import argrelextrema
-
+from jinja2 import Environment, FileSystemLoader
+from pathlib import Path
 from ross.rotor_assembly import Rotor, rotor_example
 from ross.bearing_seal_element import BearingElement
 import ross as rs
@@ -188,6 +193,60 @@ class Report:
         """
         rotor = rs.Rotor.load(path)
         return cls(rotor, minspeed, maxspeed, speed_units="rpm")
+
+    def generate_pdf(self, output_path, output_filename=None):
+        """Method to generate a report file in PDF format into a selected path.
+
+        Parameters
+        ----------
+
+        output_path: str or pathlib.Path
+            Path where the report should be generated.
+
+        output_filename: str
+            Name of
+
+        Returns
+        ----------
+        Saves a PDF File on output_path.
+
+        Example
+        -------
+        """
+        try:
+            output_dir = Path(output_path)
+            if not output_dir.is_dir():
+                raise Warning("This path do not exist")
+
+        except TypeError:
+            return "output_path should be a valid path"
+
+        if output_filename is None:
+            output_filename = self.rotor.tag + '.pdf'
+
+        rotor = self.rotor
+
+        template = "report.html"
+        root = Path(os.path.dirname(rs.__file__))/"API_Report"
+
+        env = Environment(loader=FileSystemLoader(str(root/"templates")))
+        template = env.get_template(template)
+        css = root/"static"/"css"
+
+        bokeh_fig = rotor.plot_rotor()
+        bokeh_fig.plot_width = 500
+        bokeh_fig.plot_height = 400
+        bokeh_fig.output_backend = 'svg'
+        bokeh.io.export_svgs(bokeh_fig, filename=Path(root/"assets") / 'plot_rotor.svg')
+
+        template_vars = {"ASSETS_DIR": root/"assets", 'ROTOR_NAME': rotor.tag}
+
+        # Used to render variables in template and generate PDF.
+        rendered_string = template.render(template_vars)
+        html = weasyprint.HTML(string=rendered_string)
+        report = os.path.join(output_dir, output_filename)
+        html.write_pdf(report, stylesheets=[str(css/"report.css")])
+        print(f'ross generated in {output_dir}')
 
     def static_forces(self):
         """Method to calculate the bearing reaction forces.
