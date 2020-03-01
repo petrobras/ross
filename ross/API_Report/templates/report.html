@@ -3,22 +3,22 @@
   <head>
     <meta charset="utf-8">
     <link href="report.css" rel="stylesheet">
-    <title>API 684 Report</title>
-    <meta name="description" content="Report example">
+    <title>ROSS-Rotordynamics Report</title>
+    <meta name="description" content="Report">
   </head>
 
   <body>
     <article id="cover">
       <h1>ROTORDYNAMIC REPORT </h1>
-      <p1><br />{{ROTOR_NAME}}<br /> </p1>
+      <p1><br />{{machine_type}}<br /> {{tag}}</p1>
       <address>
         Ross Team
-        Federal University of Rio de Janeiro
+        Universidade Federal do Rio de Janeiro
         Rio de Janeiro
       </address>
       <address>
-        email
-        number
+
+
         https://ross-rotordynamics.github.io/ross-website/
       </address>
     </article>
@@ -27,25 +27,22 @@
       <h2>Table of contents</h2>
 
       <h3>Introduction</h3>
-  
+        <ul>
+        <li><a href="#introduction-title"></a></li>
+      </ul>
       <h3>Critical Speeds Analysis</h3>
       <ul>
-        <li><a href="#introduction-title"></a></li>
-        <li><a href="#introduction-title"></a></li>
+        <li><a href="#Critical Speed Analysis"></a></li>
+        <li><a href="#Damped unbalance response analysis"></a></li>
       </ul>
       
       <h3>Stability Analysis</h3>
       <ul>
-        <li><a href="#introduction-title"></a></li>
-        <li><a href="#introduction-title"></a></li>
+        <li><a href="#Level 1 Stability screening diagrams"></a></li>
+        <li><a href="#Level 2 Stability analysis"></a></li>
       </ul>
     
       <h3>References</h3>
-      <ul>
-        <li><a href="#introduction-title"></a></li>
-        <li><a href="#introduction-title"></a></li>
-      </ul>
-
 
     </article>
 
@@ -54,15 +51,55 @@
 
       <section>
         <p>
-          This report summarizes the results of a rotordynamic analysis for {{ROTOR_NAME}} {{ROTOR_ID}}.
+          This report summarizes the results of a rotordynamic analysis for {{machine_type}} {{tag}}.
         </p>
         <p>
-          A representation of the analyzed rotor is anexed bellow.
-        <img src="{{assets}}/plot.svg" alt="" />
+          A representation of the analyzed rotor can be seen below.
+
+          <img src="file://{{assets_dir}}/plot_rotor.svg" alt="" />
+
+
         </p>
       </section>
     </article>
-    
+
+    <article id="Undamped critical speed map">
+      <h2 id="Critical Speed Analysis">Undamped critical speed map</h2>
+      <section>
+
+      </section>
+    </article>
+
+    <article id="Damped unbalance response analysis">
+      <h2 id="Damped unbalance response analysis">Damped unbalance response analysis</h2>
+      <section>
+
+      </section>
+    </article>
+
+    <article id="Stability analysis level 1">
+      <h2 id="Level 1 Stability screening diagrams">Level 1 Stability screening diagrams</h2>
+      <section>
+
+      </section>
+        <address2>
+
+        </address2>
+    </article>
+
+  <article id="Level 2 Stability analysis">
+      <h2 id="Level 2 Stability analysis">Level 2 Stability analysis</h2>
+      <section>
+
+      </section>
+    </article>
+
+<article id="References">
+      <h2 id="References">References</h2>
+      <section>
+
+      </section>
+    </article>
 
     
     

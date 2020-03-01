@@ -83,6 +83,7 @@ $primary: #646464
   @top-left
     content: none
 
+
   @top-center
     content: none
 
@@ -98,7 +99,7 @@ html
   body
 
     h1
-      color: $primary
+      color: #5b5b5b
       font-size: 25pt
       margin:  5cm 2cm 0 5cm
       page: no-chapter
@@ -145,6 +146,16 @@ html
           &:first-of-type
             padding-left: 3cm
 
+        address2
+          background: $primary
+          flex: 1 50%
+          margin: 0 -2cm
+          padding: 1cm 0
+          white-space: pre-wrap
+
+          &:first-of-type
+            padding-left: 3cm
+
       &#contents
         break-before: right
         break-after: left
@@ -172,20 +183,21 @@ html
           padding-left: 0
 
           li
-            border-top: .25pt solid #c1c1c1
+            border-bottom: .25pt solid #c1c1c1
             margin: .25cm 0
-            padding-top: .25cm
+            padding-bottom: .25cm
 
             &::before
               color: $primary
-              content: '• '
-              font-size: 40pt
-              line-height: 16pt
-              vertical-align: bottom
+              content: '•'
+              font-size: 16pt
+              line-height: 15pt
+              vertical-align: top
 
             a
               color: inherit
-              text-decoration: inherit
+              text-decoration: none
+              margin-left: 2pt
 
               &::before
                 content: target-text(attr(href))
@@ -206,4 +218,15 @@ html
               font-weight: 700
 
       
-      
+html:after
+
+  content: "©This report is automatically generated with ross rotordynamics."
+  font-size: 100%
+  color: $primary
+  position: fixed
+  margin-top: 940px
+  margin-left: 136px
+  font-family: Source Sans Pro
+  font-weight: bold
+  font-style: italic
+

@@ -74,7 +74,7 @@ html {
   font-weight: 300;
   line-height: 1.5; }
   html body h1 {
-    color: #646464;
+    color: #5b5b5b;
     font-size: 25pt;
     margin: 5cm 2cm 0 5cm;
     page: no-chapter;
@@ -111,6 +111,14 @@ html {
       white-space: pre-wrap; }
       html body article#cover address:first-of-type {
         padding-left: 3cm; }
+    html body article#cover address2 {
+      background: #646464;
+      flex: 1 50%;
+      margin: 0 -2cm;
+      padding: 1cm 0;
+      white-space: pre-wrap; }
+      html body article#cover address2:first-of-type {
+        padding-left: 3cm; }
   html body article#contents {
     break-before: right;
     break-after: left;
@@ -133,18 +141,19 @@ html {
       list-style: none;
       padding-left: 0; }
       html body article#contents ul li {
-        border-top: 0.25pt solid #c1c1c1;
+        border-bottom: 0.25pt solid #c1c1c1;
         margin: 0.25cm 0;
-        padding-top: 0.25cm; }
+        padding-bottom: 0.25cm; }
         html body article#contents ul li::before {
           color: #646464;
-          content: "• ";
-          font-size: 40pt;
-          line-height: 16pt;
-          vertical-align: bottom; }
+          content: "•";
+          font-size: 16pt;
+          line-height: 15pt;
+          vertical-align: top; }
         html body article#contents ul li a {
           color: inherit;
-          text-decoration: inherit; }
+          text-decoration: none;
+          margin-left: 2pt; }
           html body article#contents ul li a::before {
             content: target-text(attr(href)); }
           html body article#contents ul li a::after {
@@ -157,5 +166,16 @@ html {
       text-align: justify; }
       html body article#columns section p:first-of-type {
         font-weight: 700; }
+
+html:after {
+  content: "©This report is automatically generated with ross rotordynamics.";
+  font-size: 100%;
+  color: #646464;
+  position: fixed;
+  margin-top: 940px;
+  margin-left: 136px;
+  font-family: Source Sans Pro;
+  font-weight: bold;
+  font-style: italic; }
 
 /*# sourceMappingURL=report.css.map */
