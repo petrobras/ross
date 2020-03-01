@@ -49,7 +49,7 @@ REQUIRED = [
     "coverage",
     "xlrd",
     "jinja2",
-    'weasyprint',
+    "weasyprint",
     "selenium",
 ]
 
