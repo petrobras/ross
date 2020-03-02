@@ -1342,12 +1342,12 @@ class ShaftElement6DoF(Element):
         if odr is None:
             odr = odl
 
-        # Changing units to only their magnitude
-        L = L.m
-        idl = idl.m
-        odl = odl.m
-        idr = idr.m
-        odr = odr.m
+        ## Changing units to only their magnitude
+        #L = L.m
+        #idl = idl.m
+        #odl = odl.m
+        #idr = idr.m
+        #odr = odr.m
 
         if material is None:
             raise AttributeError("Material is not defined.")
