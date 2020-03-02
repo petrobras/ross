@@ -1844,7 +1844,25 @@ class ShaftElement6DoF(Element):
 
 
     def C(self):
-        pass
+        r"""Proportional damping matrix for an instance of a 6 DoF shaft element.
+
+        Returns
+        -------
+        C: np.ndarray
+            Proportional damping matrix for the 6 DoF shaft element.
+
+        Examples
+        --------
+        >>> Timoshenko_Element = ShaftElement(0.25, 0, 0.05, steel,
+        ...                                  rotary_inertia=True,
+        ...                                  shear_effects=True)
+        >>> Timoshenko_Element.C()[:12, :12]
+        array(12x12)
+        """
+
+        C = self.alpha * M + self.beta * K
+
+        return C
 
 
     def G(self):
