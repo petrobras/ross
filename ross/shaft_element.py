@@ -1866,7 +1866,50 @@ class ShaftElement6DoF(Element):
 
 
     def G(self):
-        pass
+        r"""Gyroscopic matrix for an instance of a 6 DoFs shaft element.
+
+        Returns
+        -------
+        G: np.ndarray
+            Gyroscopic matrix for the 6 DoF shaft element.
+
+        Examples
+        --------
+        >>> Timoshenko_Element = ShaftElement(0.25, 0, 0.05, steel,
+        ...                                  rotary_inertia=True,
+        ...                                  shear_effects=True)
+        >>> Timoshenko_Element.G()[:12, :12]
+        array(12x12)
+        """
+        
+        # temporary material and geometrical constants, determined as mean values 
+        # from the left and right radii of the taperad shaft
+        L = self.L
+        tempG = self.material.E / (2 * (1 + self.n))
+        tempS = np.pi * ( (self.odr/2)**2 - (self.odl/2)**2 - (self.idr/2)**2 + (self.idl/2)**2 )
+        tempI = np.pi / 4 * ( (self.odr/2)**4 - (self.odl/2)**4 - (self.idr/2)**4 + (self.idl/2)**4 )
+        tempJ = np.pi / 2 * ( (self.odr/2)**4 - (self.odl/2)**4 - (self.idr/2)**4 + (self.idl/2)**4 )
+
+        # temporary variables dependent on kappa
+        tempA = (
+            12
+            * self.material.E
+            * tempI
+            / (self.material.G_s * self.kappa * tempS * L ** 2)
+        )
+
+        # element level matrix declaration
+        aux1 = self.material.rho * tempS * L / 420
+        aux2 = self.material.rho * tempJ * L / 6
+
+        gcor = (6/5)/(L^2*(1+tempA)^2)
+        hcor = -(1/10-1/2*tempA)/(L*((1+tempA)^2))
+        icor = (2/15+1/6*tempA+1/3*tempA^2)/((1+tempA)^2)
+        jcor = -(1/30+1/6*tempA-1/6*tempA^2)/((1+tempA)^2)
+
+        G = 2*self.material.rho*L*tempI*np.zeros(12,12)
+
+        return G
 
 
     def patch(self, position, check_sld, ax):
