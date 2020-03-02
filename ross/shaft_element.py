@@ -1762,10 +1762,9 @@ class ShaftElement6DoF(Element):
         # temporary material and geometrical constants
         L = self.L
         tempG = self.material.E / (2 * (1 + self.n))
-        tempS = np.pi * ((((self.odl + self.odr)/2) / 2) ** 2 - (((self.idl + self.idr)/2) / 2) ** 2)
-        tempI = np.pi / 4 * ((((self.odl + self.odr)/2) / 2) ** 4 - ((self.idl + self.idr)/2) ** 4)
-        tempJ = np.pi / 2 * ((((self.odl + self.odr)/2) / 2) ** 4 - ((self.idl + self.idr)/2) ** 4)
-        tempMM = (((self.idl + self.idr)/2) / 2) / ((self.odl + self.odr)/2)
+        tempS = np.pi * ( (self.odr/2)**2 - (self.odl/2)**2 - (self.idr/2)**2 + (self.idl/2)**2 )
+        tempI = np.pi / 4 * ( (self.odr/2)**4 - (self.odl/2)**4 - (self.idr/2)**4 + (self.idl/2)**4 )
+        tempJ = np.pi / 2 * ( (self.odr/2)**4 - (self.odl/2)**4 - (self.idr/2)**4 + (self.idl/2)**4 )
 
         # temporary variables dependent on kappa
         tempA = (
@@ -1808,13 +1807,13 @@ class ShaftElement6DoF(Element):
         array(12x12)
         """
         
-        # temporary material and geometrical constants
+        # temporary material and geometrical constants, determined as mean values 
+        # from the left and right radii of the taperad shaft
         L = self.L
         tempG = self.material.E / (2 * (1 + self.n))
-        tempS = np.pi * ((((self.odl + self.odr)/2) / 2) ** 2 - (((self.idl + self.idr)/2) / 2) ** 2)
-        tempI = np.pi / 4 * ((((self.odl + self.odr)/2) / 2) ** 4 - (((self.idl + self.idr)/2) / 2) ** 4)
-        tempJ = np.pi / 2 * ((((self.odl + self.odr)/2) / 2) ** 4 - (((self.idl + self.idr)/2) / 2) ** 4)
-        tempMM = (((self.idl + self.idr)/2) / 2) / (((self.odl + self.odr)/2) / 2)
+        tempS = np.pi * ( (self.odr/2)**2 - (self.odl/2)**2 - (self.idr/2)**2 + (self.idl/2)**2 )
+        tempI = np.pi / 4 * ( (self.odr/2)**4 - (self.odl/2)**4 - (self.idr/2)**4 + (self.idl/2)**4 )
+        tempJ = np.pi / 2 * ( (self.odr/2)**4 - (self.odl/2)**4 - (self.idr/2)**4 + (self.idl/2)**4 )
 
         # temporary variables dependent on kappa
         tempA = (
