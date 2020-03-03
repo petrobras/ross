@@ -1758,9 +1758,9 @@ class ShaftElement6DoF(Element):
         # temporary material and geometrical constants
         L = self.L
         tempG = self.material.E / (2 * (1 + self.n))
-        tempS = np.pi * ( (self.odr/2)**2 - (self.odl/2)**2 - (self.idr/2)**2 + (self.idl/2)**2 )
-        tempI = np.pi / 4 * ( (self.odr/2)**4 - (self.odl/2)**4 - (self.idr/2)**4 + (self.idl/2)**4 )
-        tempJ = np.pi / 2 * ( (self.odr/2)**4 - (self.odl/2)**4 - (self.idr/2)**4 + (self.idl/2)**4 )
+        tempS  = np.pi * ( ((self.odr/2)**2 + (self.odl/2)**2)/2 - ((self.idr/2)**2 + (self.idl/2)**2)/2 )
+        tempI  = np.pi / 4 * ( ((self.odr/2)**4 + (self.odl/2)**4)/2 - ((self.idr/2)**4 + (self.idl/2)**4)/2 )
+        tempJ  = np.pi / 2 * ( ((self.odr/2)**4 + (self.odl/2)**4)/2 - ((self.idr/2)**4 + (self.idl/2)**4)/2 )
 
         # temporary variables dependent on kappa
         tempA = (
@@ -1873,9 +1873,9 @@ class ShaftElement6DoF(Element):
         # from the left and right radii of the taperad shaft
         L = self.L
         tempG = self.material.E / (2 * (1 + self.n))
-        tempS = np.pi * ( (self.odr/2)**2 - (self.odl/2)**2 - (self.idr/2)**2 + (self.idl/2)**2 )
-        tempI = np.pi / 4 * ( (self.odr/2)**4 - (self.odl/2)**4 - (self.idr/2)**4 + (self.idl/2)**4 )
-        tempJ = np.pi / 2 * ( (self.odr/2)**4 - (self.odl/2)**4 - (self.idr/2)**4 + (self.idl/2)**4 )
+        tempS  = np.pi * ( ((self.odr/2)**2 + (self.odl/2)**2)/2 - ((self.idr/2)**2 + (self.idl/2)**2)/2 )
+        tempI  = np.pi / 4 * ( ((self.odr/2)**4 + (self.odl/2)**4)/2 - ((self.idr/2)**4 + (self.idl/2)**4)/2 )
+        tempJ  = np.pi / 2 * ( ((self.odr/2)**4 + (self.odl/2)**4)/2 - ((self.idr/2)**4 + (self.idl/2)**4)/2 )
 
         # temporary variables
         A = (
@@ -1978,7 +1978,7 @@ class ShaftElement6DoF(Element):
         # temporary material and geometrical constants, determined as mean values 
         # from the left and right radii of the taperad shaft
         L = self.L
-        tempI = np.pi / 4 * ( (self.odr/2)**4 - (self.odl/2)**4 - (self.idr/2)**4 + (self.idl/2)**4 )
+        tempI  = np.pi / 4 * ( ((self.odr/2)**4 + (self.odl/2)**4)/2 - ((self.idr/2)**4 + (self.idl/2)**4)/2 )
         
         # fmt: off
         # dynamic stiffening matrix
@@ -2048,7 +2048,7 @@ class ShaftElement6DoF(Element):
             # temporary material and geometrical constants, determined as mean values 
             # from the left and right radii of the tapered shaft
             L = self.L
-            tempI = np.pi / 4 * ( (self.odr/2)**4 - (self.odl/2)**4 - (self.idr/2)**4 + (self.idl/2)**4 )
+            tempI  = np.pi / 4 * ( ((self.odr/2)**4 + (self.odl/2)**4)/2 - ((self.idr/2)**4 + (self.idl/2)**4)/2 )
 
             G = (self.material.rho * tempI / (15 * L)) * np.array[
                 [   0, -36, 0,  -3*L,      0, 0,    0,   36, 0,  -3*L,      0, 0]
