@@ -1590,8 +1590,6 @@ class ShaftElement6DoF(Element):
                         n=parameters["n"][i],
                         axial_force=parameters["axial_force"][i],
                         torque=parameters["torque"][i],
-                        shear_effects=parameters["shear_effects"][i],
-                        rotary_inertia=parameters["rotary_inertia"][i],
                         gyroscopic=parameters["gyroscopic"][i],
                     )
                 )
@@ -1608,8 +1606,6 @@ class ShaftElement6DoF(Element):
                         n=parameters["n"][i],
                         axial_force=parameters["axial_force"][i],
                         torque=parameters["torque"][i],
-                        shear_effects=parameters["shear_effects"][i],
-                        rotary_inertia=parameters["rotary_inertia"][i],
                         gyroscopic=parameters["gyroscopic"][i],
                     )
                 )
@@ -1869,13 +1865,9 @@ class ShaftElement6DoF(Element):
         array(12x12)
         """
         
-        # Axial force applied to the element. 
-        # Units in Newtons, value defaulted to zero.
-        Fa = 0
-
-        # Torque force applied to the element. 
-        # Units in Newtons/m, value defaulted to zero.
-        T = 0
+        # Axial force and torque applied to the element. 
+        Fa = self.axial_force
+        T = self.torque
 
         # temporary material and geometrical constants, determined as mean values 
         # from the left and right radii of the taperad shaft
@@ -2052,25 +2044,26 @@ class ShaftElement6DoF(Element):
         array(12x12)
         """
         
-        # temporary material and geometrical constants, determined as mean values 
-        # from the left and right radii of the tapered shaft
-        L = self.L
-        tempI = np.pi / 4 * ( (self.odr/2)**4 - (self.odl/2)**4 - (self.idr/2)**4 + (self.idl/2)**4 )
+        if self.gyroscopic:
+            # temporary material and geometrical constants, determined as mean values 
+            # from the left and right radii of the tapered shaft
+            L = self.L
+            tempI = np.pi / 4 * ( (self.odr/2)**4 - (self.odl/2)**4 - (self.idr/2)**4 + (self.idl/2)**4 )
 
-        G = (self.material.rho * tempI / (15 * L)) * np.array[
-            [   0, -36, 0,  -3*L,      0, 0,    0,   36, 0,  -3*L,      0, 0]
-            [  36,   0, 0,     0,   -3*L, 0,  -36,    0, 0,     0,   -3*L, 0]
-            [   0,   0, 0,     0,      0, 0,    0,    0, 0,     0,      0, 0]
-            [ 3*L,   0, 0,     0, -4*L^2, 0, -3*L,    0, 0,     0,    L^2, 0]
-            [   0, 3*L, 0, 4*L^2,      0, 0,    0, -3*L, 0,  -L^2,      0, 0]
-            [   0,   0, 0,     0,      0, 0,    0,    0, 0,     0,      0, 0]
-            [   0,  36, 0,   3*L,      0, 0,    0,  -36, 0,   3*L,      0, 0]
-            [ -36,   0, 0,     0,    3*L, 0,   36,    0, 0,     0,    3*L, 0]
-            [   0,   0, 0,     0,      0, 0,    0,    0, 0,     0,      0, 0]
-            [ 3*L,   0, 0,     0,    L^2, 0, -3*L,    0, 0,     0, -4*L^2, 0]
-            [   0, 3*L, 0,  -L^2,      0, 0,    0, -3*L, 0, 4*L^2,      0, 0]
-            [   0,   0, 0,     0,      0, 0,    0,    0, 0,     0,      0, 0]
-        ]
+            G = (self.material.rho * tempI / (15 * L)) * np.array[
+                [   0, -36, 0,  -3*L,      0, 0,    0,   36, 0,  -3*L,      0, 0]
+                [  36,   0, 0,     0,   -3*L, 0,  -36,    0, 0,     0,   -3*L, 0]
+                [   0,   0, 0,     0,      0, 0,    0,    0, 0,     0,      0, 0]
+                [ 3*L,   0, 0,     0, -4*L^2, 0, -3*L,    0, 0,     0,    L^2, 0]
+                [   0, 3*L, 0, 4*L^2,      0, 0,    0, -3*L, 0,  -L^2,      0, 0]
+                [   0,   0, 0,     0,      0, 0,    0,    0, 0,     0,      0, 0]
+                [   0,  36, 0,   3*L,      0, 0,    0,  -36, 0,   3*L,      0, 0]
+                [ -36,   0, 0,     0,    3*L, 0,   36,    0, 0,     0,    3*L, 0]
+                [   0,   0, 0,     0,      0, 0,    0,    0, 0,     0,      0, 0]
+                [ 3*L,   0, 0,     0,    L^2, 0, -3*L,    0, 0,     0, -4*L^2, 0]
+                [   0, 3*L, 0,  -L^2,      0, 0,    0, -3*L, 0, 4*L^2,      0, 0]
+                [   0,   0, 0,     0,      0, 0,    0,    0, 0,     0,      0, 0]
+            ]
 
         return G
 
@@ -2244,8 +2237,6 @@ class ShaftElement6DoF(Element):
         beta=0,
         material=None,
         n=None,
-        shear_effects=True,
-        rotary_inertia=True,
         gyroscopic=True,
     ):
         """Shaft section constructor.
@@ -2255,10 +2246,14 @@ class ShaftElement6DoF(Element):
 
         Parameters
         ----------
-        i_d : float
-            Inner diameter of the section.
-        o_d : float
-            Outer diameter of the section.
+        odl : float, pint.Quantity
+            Outer diameter of the element at the left node.
+        idr : float, pint.Quantity, optional
+            Inner diameter of the element at the right node;
+            Default is equal to idl value for cylindrical element.
+        odr : float, pint.Quantity, optional
+            Outer diameter of the element at the right node;
+            Default is equal to odl value for cylindrical element.
         E : float
             Young's modulus.
         G_s : float
@@ -2278,12 +2273,6 @@ class ShaftElement6DoF(Element):
             Axial force.
         torque : float
             Torque.
-        shear_effects : bool
-            Determine if shear effects are taken into account.
-            Default is False.
-        rotary_inertia : bool
-            Determine if rotary_inertia effects are taken into account.
-            Default is False.
         gyroscopic : bool
             Determine if gyroscopic effects are taken into account.
             Default is False.
@@ -2324,8 +2313,6 @@ class ShaftElement6DoF(Element):
                 beta,
                 material,
                 n,
-                shear_effects,
-                rotary_inertia,
                 gyroscopic,
             )
             for i in range(ne)
