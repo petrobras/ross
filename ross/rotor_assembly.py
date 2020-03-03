@@ -2178,141 +2178,270 @@ class Rotor(object):
         -------
         >>> rotor = rotor_example()
         >>> static = rotor.run_static()
-        >>> rotor.bearing_reaction_forces
-        [432.4, 432.4]
+        >>> rotor.bearing_forces_nodal
+        {'node_0': 432.4, 'node_6': 432.4}
+        >>> rotor.bearing_forces_tag
+        {'Bearing 0': 432.4, 'Bearing 1': 432.4}
         """
-        if len(self.df_bearings) == 0:
+        if not len(self.df_bearings):
             raise ValueError("Rotor has no bearings")
 
+        aux_brg = []
+        for elm in self.bearing_elements:
+            if elm.n not in self.nodes:
+                pass
+            elif elm.n_link in self.nodes:
+                aux_brg.append(
+                    BearingElement(n=elm.n, n_link=elm.n_link, kxx=1e14, cxx=0)
+                )
+            else:
+                aux_brg.append(BearingElement(n=elm.n, kxx=1e14, cxx=0))
+
+        if isinstance(self, CoAxialRotor):
+            aux_rotor = CoAxialRotor(self.shafts, self.disk_elements, aux_brg)
         else:
-            # gravity aceleration vector
-            grav = np.zeros((len(self.M()), 1))
-
-            # place gravity effect on shaft and disks nodes
-            for node_y in range(int(len(self.M()) / 4)):
-                grav[4 * node_y + 1] = -9.8065
-
-            aux_brg = []
-            for n in self.df_bearings["n"]:
-                aux_brg.append(BearingElement(n=n, kxx=1e14, cxx=0))
-
             aux_rotor = Rotor(self.shaft_elements, self.disk_elements, aux_brg)
-            aux_K = np.zeros((aux_rotor.ndof, aux_rotor.ndof))
+        aux_K = aux_rotor.K(0)
+        aux_M = aux_rotor.M()
 
-            for elm in aux_rotor.elements:
-                if elm.__class__.__name__ != "SealElement":
-                    dofs = elm.dof_global_index
-                    n0 = dofs[0]
-                    n1 = dofs[-1] + 1  # +1 to include this dof in the slice
-                    try:
-                        aux_K[n0:n1, n0:n1] += elm.K(0)
-                    except TypeError:
-                        aux_K[n0:n1, n0:n1] += elm.K()
+        for elm in aux_rotor.bearing_elements:
+            if isinstance(elm, SealElement):
+                dofs = elm.dof_global_index
+                try:
+                    aux_K[np.ix_(dofs, dofs)] -= elm.K(0)
+                except TypeError:
+                    aux_K[np.ix_(dofs, dofs)] -= elm.K()
 
-            # calculates x, for [K]*(x) = [M]*(g)
-            disp = (la.solve(aux_K, self.M() @ grav)).flatten()
+        df_num = aux_rotor.df["shaft_number"].values
+        sh_num = [int(item) for item, count in Counter(df_num).items() if count > 1]
 
-            # calculates displacement values in gravity's direction
-            # dof = degree of freedom
-            disp_y = np.array([])
-            for node_dof in range(int(len(disp) / 4)):
-                disp_y = np.append(disp_y, disp[4 * node_dof + 1])
-            self.disp_y = disp_y
+        # gravity aceleration vector
+        g = 9.8065
+        grav = np.zeros(len(aux_K))
 
-            # Shearing Force
-            BrgForce = [0] * len(self.nodes_pos)
-            DskForce = [0] * len(self.nodes_pos)
-            SchForce = [0] * len(self.nodes_pos)
+        # place gravity effect on shaft and disks nodes
+        for node_y in range(int(len(aux_K) / 4)):
+            grav[4 * node_y + 1] = -g
 
-            # Bearing Forces
-            BrgForceToReturn = []
-            for i, node in enumerate(self.df_bearings["n"]):
-                BrgForce[node] = (
-                    -disp_y[node] * aux_rotor.df_bearings.loc[i, "kyy"].coefficient[0]
+        # calculates x, for [K]*(x) = [M]*(g)
+        disp = (la.solve(aux_K, aux_M @ grav)).flatten()
+
+        # calculates displacement values in gravity's direction
+        # dof = degree of freedom
+        disp_y = np.array([])
+        for node_dof in range(int(len(disp) / 4)):
+            disp_y = np.append(disp_y, disp[4 * node_dof + 1])
+
+        # Shearing Force
+        BRG = [0] * len(self.nodes_pos)
+        DSK = [0] * len(self.nodes_pos)
+        SCH = [0] * len(self.nodes_pos)
+        BrgForce_nodal = {"node_" + str(i): 0 for i in self.nodes}
+        DskForce_nodal = {"node_" + str(i): 0 for i in self.nodes}
+        BrgForce_tag = {"node_" + str(i): 0 for i in self.nodes}
+        DskForce_tag = {"node_" + str(i): 0 for i in self.nodes}
+
+        # Bearing Forces
+        for i, node in enumerate(aux_rotor.df_bearings["n"]):
+            if not pd.isna(aux_rotor.df_bearings.loc[i, "n_link"]):
+                BRG[node] = (
+                    BRG[node]
+                    + disp_y[node]
+                    * self.df_bearings.loc[
+                        self.df_bearings.tag == aux_rotor.df_bearings.tag, "kyy"
+                    ][0].coefficient[0]
                 )
-                BrgForceToReturn.append(
-                    np.around(
-                        -disp_y[node]
-                        * aux_rotor.df_bearings.loc[i, "kyy"].coefficient[0],
-                        decimals=1,
-                    )
+                BrgForce_nodal["node_" + str(node)] = np.around(
+                    BrgForce_nodal["node_" + str(node)]
+                    + disp_y[node]
+                    * self.df_bearings.loc[
+                        self.df_bearings.tag == aux_rotor.df_bearings.tag, "kyy"
+                    ][0].coefficient[0],
+                    decimals=1,
                 )
+                BrgForce_tag[aux_rotor.df_bearings.loc[i, "tag"]] = BrgForce_nodal[
+                    "node_" + str(node)
+                ]
 
-            # Disk Forces
-            DskForceToReturn = []
-            if len(self.df_disks) != 0:
-                for i, node in enumerate(self.df_disks["n"]):
-                    DskForce[node] = self.df_disks.loc[i, "m"] * -9.8065
-                    DskForceToReturn.append(
-                        np.around(self.df_disks.loc[i, "m"] * -9.8065, decimals=1)
-                    )
+                node = int(aux_rotor.df_bearings.loc[i, "n_link"])
+                BRG[node] = (
+                    BRG[node]
+                    - disp_y[node]
+                    * self.df_bearings.loc[self.df_bearings.n_link == node, "kyy"]
+                    .values[0]
+                    .coefficient[0]
+                )
+                BrgForce_nodal["node_" + str(node)] = np.around(
+                    BrgForce_nodal["node_" + str(node)]
+                    - disp_y[node]
+                    * self.df_bearings.loc[self.df_bearings.n_link == node, "kyy"]
+                    .values[0]
+                    .coefficient[0],
+                    decimals=1,
+                )
+                BrgForce_tag[aux_rotor.df_bearings.loc[i, "tag"]] = BrgForce_nodal[
+                    "node_" + str(node)
+                ]
 
-            # Shaft Weight Forces
-            for i, node in enumerate(self.df_shaft["_n"]):
-                SchForce[node + 1] = self.df_shaft.loc[i, "m"] * -9.8065
+            else:
+                BRG[node] = (
+                    BRG[node]
+                    - disp_y[node] * aux_rotor.df_bearings.loc[i, "kyy"].coefficient[0]
+                )
+                BrgForce_nodal["node_" + str(node)] = np.around(
+                    BrgForce_nodal["node_" + str(node)]
+                    - disp_y[node] * aux_rotor.df_bearings.loc[i, "kyy"].coefficient[0],
+                    decimals=1,
+                )
+                BrgForce_tag[aux_rotor.df_bearings.loc[i, "tag"]] = BrgForce_nodal[
+                    "node_" + str(node)
+                ]
 
+        # counting nodes with more than 1 bearing attached to
+        node_b = list(aux_rotor.df_bearings["n"])
+        node_b.extend(list(aux_rotor.df_bearings["n_link"]))
+        count = len(node_b) - len(Counter(node_b))
+
+        # Disk Forces
+        if len(self.df_disks):
+            for i, node in enumerate(self.df_disks["n"]):
+                DSK[node] = self.df_disks.loc[i, "m"] * -g
+                DskForce_nodal["node_" + str(node)] = np.around(
+                    self.df_disks.loc[i, "m"] * -g, decimals=1
+                )
+                DskForce_tag[aux_rotor.df_disks.loc[i, "tag"]] = DskForce_nodal[
+                    "node_" + str(node)
+                ]
+
+        # Shaft Weight Forces
+        for i, node in enumerate(self.df_shaft["_n"]):
+            SCH[node + 1] = self.df_shaft.loc[i, "m"] * -g
+
+        # Organizing data for each shaft
+        BrgForce = []
+        DskForce = []
+        SchForce = []
+        nodes = []
+        nodes_pos = []
+        displacement = []
+        dsk = []
+        brg = []
+        for i in sh_num:
+            n_min = min(
+                aux_rotor.df_shaft.loc[aux_rotor.df_shaft.shaft_number == i, "n_l"]
+            )
+            n_max = max(
+                aux_rotor.df_shaft.loc[(aux_rotor.df_shaft.shaft_number == i), "n_r"]
+            )
+            BrgForce.append(BRG[n_min : n_max + 1])
+            DskForce.append(DSK[n_min : n_max + 1])
+            SchForce.append(SCH[n_min : n_max + 1])
+            nodes_pos.append(self.nodes_pos[n_min : n_max + 1])
+            displacement.append(disp_y[n_min : n_max + 1])
+            nodes.append(list(range(n_min, n_max + 1)))
+
+            # get bearings and disks for each shaft
+            dsk.append(
+                aux_rotor.df_disks.loc[
+                    aux_rotor.df_disks.shaft_number == i, "tag"
+                ].values
+            )
+            brg.append(
+                aux_rotor.df_bearings.loc[
+                    (aux_rotor.df_bearings.shaft_number == i)
+                    | (
+                        aux_rotor.df_bearings.n_link.isin(list(range(n_min, n_max + 1)))
+                    ),
+                    "tag",
+                ].values
+            )
+
+        Mx = []
+        Vx = []
+        Bm = []
+        Vx_axis = []
+        for j in sh_num:
             # Shearing Force vector
-            Vx = [0] * (len(self.nodes_pos))
-            Vx_axis = []
-            for i in range(int(len(self.nodes))):
-                Vx_axis.append(self.nodes_pos[i])
-                Vx[i] = Vx[i - 1] + BrgForce[i] + DskForce[i] + SchForce[i]
+            aux_Vx = [0] * (len(nodes_pos[j]))
+            aux_Vx_axis = [0] * (len(nodes_pos[j]))
 
-            for i in range(len(Vx) + len(self.df_disks) + len(self.df_bearings)):
-                if DskForce[i] != 0:
-                    Vx.insert(i, Vx[i - 1] + SchForce[i])
-                    DskForce.insert(i + 1, 0)
-                    SchForce.insert(i + 1, 0)
-                    BrgForce.insert(i + 1, 0)
-                    Vx_axis.insert(i, Vx_axis[i])
+            for i in range(int(len(nodes_pos[j]))):
+                aux_Vx_axis[i] = nodes_pos[j][i]
+                aux_Vx[i] = (
+                    aux_Vx[i - 1] + BrgForce[j][i] + DskForce[j][i] + SchForce[j][i]
+                )
 
-                if BrgForce[i] != 0:
-                    Vx.insert(i, Vx[i - 1] + SchForce[i])
-                    BrgForce.insert(i + 1, 0)
-                    DskForce.insert(i + 1, 0)
-                    SchForce.insert(i + 1, 0)
-                    Vx_axis.insert(i, Vx_axis[i])
-            self.Vx = [x * -1 for x in Vx]
-            Vx = np.array(self.Vx)
+            for i in range(len(aux_Vx_axis) + len(dsk[j]) + len(brg[j]) - count):
+                if DskForce[j][i] != 0:
+                    aux_Vx.insert(i, aux_Vx[i - 1] + SchForce[j][i])
+                    DskForce[j].insert(i + 1, 0)
+                    SchForce[j].insert(i + 1, 0)
+                    BrgForce[j].insert(i + 1, 0)
+                    aux_Vx_axis.insert(i, aux_Vx_axis[i])
+
+                if BrgForce[j][i] != 0:
+                    aux_Vx.insert(i, aux_Vx[i - 1] + SchForce[j][i])
+                    BrgForce[j].insert(i + 1, 0)
+                    DskForce[j].insert(i + 1, 0)
+                    SchForce[j].insert(i + 1, 0)
+                    aux_Vx_axis.insert(i, aux_Vx_axis[i])
+
+            aux_Vx = [x * -1 for x in aux_Vx]
+            Vx.append(np.array(aux_Vx))
+            Vx_axis.append(np.array(aux_Vx_axis))
 
             # Bending Moment vector
-            Mx = []
-            for i in range(len(Vx) - 1):
-                if Vx_axis[i] == Vx_axis[i + 1]:
+            aux_Mx = []
+            for i in range(len(aux_Vx) - 1):
+                if aux_Vx_axis[i] == aux_Vx_axis[i + 1]:
                     pass
                 else:
-                    Mx.append(
+                    aux_Mx.append(
                         (
-                            (Vx_axis[i + 1] * Vx[i + 1])
-                            + (Vx_axis[i + 1] * Vx[i])
-                            - (Vx_axis[i] * Vx[i + 1])
-                            - (Vx_axis[i] * Vx[i])
+                            (aux_Vx_axis[i + 1] * aux_Vx[i + 1])
+                            + (aux_Vx_axis[i + 1] * aux_Vx[i])
+                            - (aux_Vx_axis[i] * aux_Vx[i + 1])
+                            - (aux_Vx_axis[i] * aux_Vx[i])
                         )
                         / 2
                     )
+            Mx.append(aux_Mx)
 
-            Bm = np.zeros(1)
-            for i in range(len(Mx)):
-                Bm = np.append(Bm, Bm[i] + Mx[i])
-            self.Bm = Bm
+            aux_Bm = np.zeros(1)
+            for i in range(len(Mx[j])):
+                aux_Bm = np.append(aux_Bm, aux_Bm[i] + aux_Mx[i])
+            Bm.append(aux_Bm)
 
-            sh_weight = np.around(sum(self.df_shaft["m"].values) * 9.8065, decimals=1)
+        self.Vx = Vx
+        self.Bm = Bm
+        self.disp_y = displacement
 
-            self.shaft_weight = sh_weight
-            self.disk_forces = DskForceToReturn
-            self.bearing_reaction_forces = BrgForceToReturn
+        self.w_shaft = [
+            sum(self.df_shaft.loc[self.df_shaft.shaft_number == i, "m"]) * g
+            for i in sh_num
+        ]
 
-            results = StaticResults(
-                self.disp_y,
-                self.Vx,
-                self.Bm,
-                self.df_shaft,
-                self.df_disks,
-                aux_rotor.df_bearings,
-                self.nodes,
-                self.nodes_pos,
-                Vx_axis,
-            )
+        DskForce_nodal = {k: v for k, v in DskForce_nodal.items() if v != 0}
+        BrgForce_nodal = {k: v for k, v in BrgForce_nodal.items() if v != 0}
+        BrgForce_tag = {k: v for k, v in BrgForce_tag.items() if v != 0}
+        DskForce_tag = {k: v for k, v in DskForce_tag.items() if v != 0}
+
+        self.disk_forces_nodal = DskForce_nodal
+        self.bearing_forces_nodal = BrgForce_nodal
+        self.bearing_forces_tag = BrgForce_tag
+        self.disk_forces_tag = DskForce_tag
+
+        results = StaticResults(
+            self.disp_y,
+            self.Vx,
+            self.Bm,
+            self.w_shaft,
+            self.disk_forces_nodal,
+            self.bearing_forces_nodal,
+            nodes,
+            nodes_pos,
+            Vx_axis,
+        )
 
         return results
 
@@ -2338,7 +2467,7 @@ class Rotor(object):
         >>> # show(table)
         """
         self.run_static()
-        forces = self.bearing_reaction_forces
+        forces = self.bearing_forces_tag
         results = SummaryResults(
             self.df_shaft,
             self.df_disks,
