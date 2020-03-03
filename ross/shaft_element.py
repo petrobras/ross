@@ -2027,7 +2027,7 @@ class ShaftElement6DoF(Element):
         """
 
         # Proportinal damping matrix
-        C = self.alpha * M + self.beta * K
+        C = self.alpha * self.M + self.beta * self.K
 
         return C
 
