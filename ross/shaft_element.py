@@ -13,7 +13,7 @@ from ross.materials import Material, steel
 from ross.utils import read_table_file
 from ross.units import check_units
 
-__all__ = ["ShaftElement","ShaftElement6DoF"]
+__all__ = ["ShaftElement", "ShaftElement6DoF"]
 bokeh_colors = bp.RdGy[11]
 
 
@@ -1203,9 +1203,6 @@ class ShaftElement(Element):
         return elements
 
 
-
-
-
 class ShaftElement6DoF(Element):
 
     r"""A 6 Degrees of Freedom shaft element.
@@ -1343,11 +1340,11 @@ class ShaftElement6DoF(Element):
             odr = odl
 
         ## Changing units to only their magnitude
-        #L = L.m
-        #idl = idl.m
-        #odl = odl.m
-        #idr = idr.m
-        #odr = odr.m
+        # L = L.m
+        # idl = idl.m
+        # odl = odl.m
+        # idr = idr.m
+        # odr = odr.m
 
         if material is None:
             raise AttributeError("Material is not defined.")
@@ -1384,21 +1381,21 @@ class ShaftElement6DoF(Element):
         self.alpha = float(alpha)
         self.beta = float(beta)
 
-       # # A_l = cross section area from the left side of the element
-       # # A_r = cross section area from the right side of the element
-       # A_l = np.pi * (odl ** 2 - idl ** 2) / 4
-       # A_r = np.pi * (odr ** 2 - idr ** 2) / 4
-       # self.A_l = A_l
-       # self.A_r = A_r
+        # # A_l = cross section area from the left side of the element
+        # # A_r = cross section area from the right side of the element
+        # A_l = np.pi * (odl ** 2 - idl ** 2) / 4
+        # A_r = np.pi * (odr ** 2 - idr ** 2) / 4
+        # self.A_l = A_l
+        # self.A_r = A_r
 
-       # # Second moment of area of the cross section from the left side
-       # # of the element
-       # Ie_l = np.pi * (odl ** 4 - idl ** 4) / 64
+        # # Second moment of area of the cross section from the left side
+        # # of the element
+        # Ie_l = np.pi * (odl ** 4 - idl ** 4) / 64
 
-       # outer = self.odl ** 2 + self.odl * self.odr + self.odr ** 2
-       # inner = self.idl ** 2 + self.idl * self.idr + self.idr ** 2
-       # self.volume = np.pi * (self.L / 12) * (outer - inner)
-       # self.m = self.material.rho * self.volume
+        # outer = self.odl ** 2 + self.odl * self.odr + self.odr ** 2
+        # inner = self.idl ** 2 + self.idl * self.idr + self.idr ** 2
+        # self.volume = np.pi * (self.L / 12) * (outer - inner)
+        # self.m = self.material.rho * self.volume
 
         # Timoshenko kappa factor determination, based on the diameters relation
         if self.__is_circular():
@@ -1421,15 +1418,12 @@ class ShaftElement6DoF(Element):
 
         self.kappa = kappa
 
-
     def __is_circular(self):
         return self.shear_effects and self.i_d == 0
-
 
     def __is_thickwall(self):
         p = (self.o_d - self.i_d) / self.o_d
         return self.shear_effects and p >= 0.2
-
 
     def __eq__(self, other):
         """
@@ -1502,7 +1496,6 @@ class ShaftElement6DoF(Element):
             "gyroscopic": self.gyroscopic,
         }
         self.dump_data(data, file_name)
-        
 
     @staticmethod
     def load(file_name="ShaftElement"):
@@ -1534,7 +1527,6 @@ class ShaftElement6DoF(Element):
                     ShaftElement(**shaft_elements_dict["ShaftElement"][element])
                 )
         return shaft_elements
-
 
     @classmethod
     def from_table(cls, file, sheet_type="Simple", sheet_name=0):
@@ -1611,7 +1603,6 @@ class ShaftElement6DoF(Element):
                 )
         return list_of_shafts
 
-
     @property
     def n(self):
         """
@@ -1625,7 +1616,6 @@ class ShaftElement6DoF(Element):
             Element number
         """
         return self._n
-
 
     @n.setter
     def n(self, value):
@@ -1653,7 +1643,6 @@ class ShaftElement6DoF(Element):
         if value is not None:
             self.n_r = value + 1
 
-
     def dof_mapping(self):
         """
         Method to map the element's 12 degrees of freedom
@@ -1680,9 +1669,19 @@ class ShaftElement6DoF(Element):
         phi_1   - torsion around axial
         """
         return dict(
-            u_0=0, v_0=1, w_0=2, theta_0=3, psi_0=4, phi_0=5, u_1=6, v_1=7, w_1=8, theta_1=9, psi_1=10, phi_1=11
+            u_0=0,
+            v_0=1,
+            w_0=2,
+            theta_0=3,
+            psi_0=4,
+            phi_0=5,
+            u_1=6,
+            v_1=7,
+            w_1=8,
+            theta_1=9,
+            psi_1=10,
+            phi_1=11,
         )
-
 
     def __repr__(self):
         """This function returns a string representation of a 6 DoF shaft element.
@@ -1712,7 +1711,6 @@ class ShaftElement6DoF(Element):
             f"n={self.n})"
         )
 
-
     def __str__(self):
         """
         Method to convert object into string
@@ -1737,7 +1735,6 @@ class ShaftElement6DoF(Element):
             f"\n"
         )
 
-
     def M(self):
         r"""Mass matrix for an instance of a 6 DoF shaft element.
 
@@ -1754,13 +1751,30 @@ class ShaftElement6DoF(Element):
         >>> Timoshenko_Element.M()[:12, :12]
         array(12x12)
         """
-        
+
         # temporary material and geometrical constants
         L = self.L
         tempG = self.material.E / (2 * (1 + self.n))
-        tempS  = np.pi * ( ((self.odr/2)**2 + (self.odl/2)**2)/2 - ((self.idr/2)**2 + (self.idl/2)**2)/2 )
-        tempI  = np.pi / 4 * ( ((self.odr/2)**4 + (self.odl/2)**4)/2 - ((self.idr/2)**4 + (self.idl/2)**4)/2 )
-        tempJ  = np.pi / 2 * ( ((self.odr/2)**4 + (self.odl/2)**4)/2 - ((self.idr/2)**4 + (self.idl/2)**4)/2 )
+        tempS = np.pi * (
+            ((self.odr / 2) ** 2 + (self.odl / 2) ** 2) / 2
+            - ((self.idr / 2) ** 2 + (self.idl / 2) ** 2) / 2
+        )
+        tempI = (
+            np.pi
+            / 4
+            * (
+                ((self.odr / 2) ** 4 + (self.odl / 2) ** 4) / 2
+                - ((self.idr / 2) ** 4 + (self.idl / 2) ** 4) / 2
+            )
+        )
+        tempJ = (
+            np.pi
+            / 2
+            * (
+                ((self.odr / 2) ** 4 + (self.odl / 2) ** 4) / 2
+                - ((self.idr / 2) ** 4 + (self.idl / 2) ** 4) / 2
+            )
+        )
 
         # temporary variables dependent on kappa
         tempA = (
@@ -1846,8 +1860,6 @@ class ShaftElement6DoF(Element):
 
         return M
 
-
-
     def K(self):
         r"""Stiffness matrix for an instance of a 6 DoF shaft element.
 
@@ -1864,18 +1876,35 @@ class ShaftElement6DoF(Element):
         >>> Timoshenko_Element.K()[:12, :12]
         array(12x12)
         """
-        
-        # Axial force and torque applied to the element. 
+
+        # Axial force and torque applied to the element.
         Fa = self.axial_force
         T = self.torque
 
-        # temporary material and geometrical constants, determined as mean values 
+        # temporary material and geometrical constants, determined as mean values
         # from the left and right radii of the taperad shaft
         L = self.L
         tempG = self.material.E / (2 * (1 + self.n))
-        tempS  = np.pi * ( ((self.odr/2)**2 + (self.odl/2)**2)/2 - ((self.idr/2)**2 + (self.idl/2)**2)/2 )
-        tempI  = np.pi / 4 * ( ((self.odr/2)**4 + (self.odl/2)**4)/2 - ((self.idr/2)**4 + (self.idl/2)**4)/2 )
-        tempJ  = np.pi / 2 * ( ((self.odr/2)**4 + (self.odl/2)**4)/2 - ((self.idr/2)**4 + (self.idl/2)**4)/2 )
+        tempS = np.pi * (
+            ((self.odr / 2) ** 2 + (self.odl / 2) ** 2) / 2
+            - ((self.idr / 2) ** 2 + (self.idl / 2) ** 2) / 2
+        )
+        tempI = (
+            np.pi
+            / 4
+            * (
+                ((self.odr / 2) ** 4 + (self.odl / 2) ** 4) / 2
+                - ((self.idr / 2) ** 4 + (self.idl / 2) ** 4) / 2
+            )
+        )
+        tempJ = (
+            np.pi
+            / 2
+            * (
+                ((self.odr / 2) ** 4 + (self.odl / 2) ** 4) / 2
+                - ((self.idr / 2) ** 4 + (self.idl / 2) ** 4) / 2
+            )
+        )
 
         # temporary variables
         A = (
@@ -1886,7 +1915,7 @@ class ShaftElement6DoF(Element):
         )
 
         # auxiliary variables
-        a1 = self.material.E * tempI / ((1 + A) * L^3)
+        a1 = self.material.E * tempI / ((1 + A) * L ^ 3)
         a2 = tempG * tempJ / L
         a3 = self.material.E * tempS / L
 
@@ -1939,7 +1968,7 @@ class ShaftElement6DoF(Element):
             [    0,  1/L, 0,  1/2,    0, 0,    0, -1/L, 0,  1/2,    0, 0]
             [    0,    0, 0,    0,    0, 0,    0,    0, 0,    0,    0, 0]
         ]
-        
+
         # fmt: on
         # Dynamic stiffness matrix is added independently in "def Kst"
         # Kst = self.material.rho*tempI/(15*L)*np.array(12,12)
@@ -1947,8 +1976,6 @@ class ShaftElement6DoF(Element):
         K = Kc_plus + Kf + Kt
 
         return K
-
-
 
     def Kst(self):
         r"""Dynamic stiffness matrix for an instance of a 6 DoF shaft element.
@@ -1974,12 +2001,19 @@ class ShaftElement6DoF(Element):
         >>> Timoshenko_Element.Kst()[:12, :12]
         array(12x12)
         """
-        
-        # temporary material and geometrical constants, determined as mean values 
+
+        # temporary material and geometrical constants, determined as mean values
         # from the left and right radii of the taperad shaft
         L = self.L
-        tempI  = np.pi / 4 * ( ((self.odr/2)**4 + (self.odl/2)**4)/2 - ((self.idr/2)**4 + (self.idl/2)**4)/2 )
-        
+        tempI = (
+            np.pi
+            / 4
+            * (
+                ((self.odr / 2) ** 4 + (self.odl / 2) ** 4) / 2
+                - ((self.idr / 2) ** 4 + (self.idl / 2) ** 4) / 2
+            )
+        )
+
         # fmt: off
         # dynamic stiffening matrix
         Kst = self.material.rho * tempI / (15 * L) * np.array[
@@ -1999,7 +2033,6 @@ class ShaftElement6DoF(Element):
         # fmt: on
 
         return Kst
-
 
     def C(self):
         r"""Proportional damping matrix for an instance of a 6 DoF shaft element.
@@ -2023,7 +2056,6 @@ class ShaftElement6DoF(Element):
 
         return C
 
-
     def G(self):
         r"""Gyroscopic matrix for an instance of a 6 DoFs shaft element.
 
@@ -2043,13 +2075,22 @@ class ShaftElement6DoF(Element):
         >>> Timoshenko_Element.G()[:12, :12]
         array(12x12)
         """
-        
+
         if self.gyroscopic:
-            # temporary material and geometrical constants, determined as mean values 
+            # temporary material and geometrical constants, determined as mean values
             # from the left and right radii of the tapered shaft
             L = self.L
-            tempI  = np.pi / 4 * ( ((self.odr/2)**4 + (self.odl/2)**4)/2 - ((self.idr/2)**4 + (self.idl/2)**4)/2 )
+            tempI = (
+                np.pi
+                / 4
+                * (
+                    ((self.odr / 2) ** 4 + (self.odl / 2) ** 4) / 2
+                    - ((self.idr / 2) ** 4 + (self.idl / 2) ** 4) / 2
+                )
+            )
 
+            # fmt: off
+            # Gyroscopic effect matrix
             G = (self.material.rho * tempI / (15 * L)) * np.array[
                 [   0, -36, 0,  -3*L,      0, 0,    0,   36, 0,  -3*L,      0, 0]
                 [  36,   0, 0,     0,   -3*L, 0,  -36,    0, 0,     0,   -3*L, 0]
@@ -2064,9 +2105,9 @@ class ShaftElement6DoF(Element):
                 [   0, 3*L, 0,  -L^2,      0, 0,    0, -3*L, 0, 4*L^2,      0, 0]
                 [   0,   0, 0,     0,      0, 0,    0,    0, 0,     0,      0, 0]
             ]
+            # fmt: on
 
         return G
-
 
     def patch(self, position, check_sld, ax):
         """Shaft element patch.
@@ -2127,7 +2168,6 @@ class ShaftElement6DoF(Element):
                 alpha=0.8,
             )
         )
-
 
     def bokeh_patch(self, position, check_sld, bk_ax):
         """Shaft element patch.
@@ -2222,7 +2262,6 @@ class ShaftElement6DoF(Element):
         hover.mode = "mouse"
 
         return hover
-
 
     @classmethod
     def section(
