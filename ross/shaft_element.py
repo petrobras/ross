@@ -1858,7 +1858,7 @@ class ShaftElement6DoF(Element):
         Returns
         -------
         K: np.ndarray
-            Stiffness matrix for the 6 DoF shaft element.
+            Omega independent stiffness matrix for the 6 DoF shaft element.
 
         Examples
         --------
@@ -1869,6 +1869,14 @@ class ShaftElement6DoF(Element):
         array(12x12)
         """
         
+        # Axial force applied to the element. 
+        # Units in Newtons, value defaulted to zero.
+        Fa = 0
+
+        # Torque force applied to the element. 
+        # Units in Newtons/m, value defaulted to zero.
+        T = 0
+
         # temporary material and geometrical constants, determined as mean values 
         # from the left and right radii of the taperad shaft
         L = self.L
@@ -1877,32 +1885,128 @@ class ShaftElement6DoF(Element):
         tempI = np.pi / 4 * ( (self.odr/2)**4 - (self.odl/2)**4 - (self.idr/2)**4 + (self.idl/2)**4 )
         tempJ = np.pi / 2 * ( (self.odr/2)**4 - (self.odl/2)**4 - (self.idr/2)**4 + (self.idl/2)**4 )
 
-        # temporary variables dependent on kappa
-        tempA = (
+        # temporary variables
+        A = (
             12
             * self.material.E
             * tempI
             / (self.material.G_s * self.kappa * tempS * L ** 2)
         )
 
-        # element level matrix declaration
+        # auxiliary variables
+        a1 = self.material.E * tempI / ((1 + A) * L^3)
+        a2 = tempG * tempJ / L
+        a3 = self.material.E * tempS / L
 
-        aux1 = self.material.E * tempI / ((1 + tempA) * L**3)
-        aux2 = self.material.G * tempJ / L
-        aux3 = self.material.E * tempS / L
+        # fmt: off
+        # pure stiffness matrix [Kc], added to the axial loads stiffness matrix [Ka],
+        # torsional stiffnesses matrix [Kr] and Tinoshenko shear compensation [Ks].
+        Kc_plus = a1 * np.array[
+            [   12,   0,      0,            0,         -6*L,      0, -12,    0,      0,            0,         -6*L,      0]
+            [    0,  12,      0,          6*L,            0,      0,   0,  -12,      0,          6*L,            0,      0]
+            [    0,   0,  a3/a1,            0,            0,      0,   0,    0, -a3/a1,            0,            0,      0]
+            [    0, 6*L,      0,  L^2*(A + 4),            0,      0,   0, -6*L,      0, -L^2*(A - 2),            0,      0]
+            [ -6*L,   0,      0,            0,  L^2*(A + 4),      0, 6*L,    0,      0,            0, -L^2*(A - 2),      0]
+            [    0,   0,      0,            0,            0,  a2/a1,   0,    0,      0,            0,            0, -a2/a1]
+            [  -12,   0,      0,            0,          6*L,      0,  12,    0,      0,            0,          6*L,      0]
+            [    0, -12,      0,         -6*L,            0,      0,   0,   12,      0,         -6*L,            0,      0]
+            [    0,   0, -a3/a1,            0,            0,      0,   0,    0,  a3/a1,            0,            0,      0]
+            [    0, 6*L,      0, -L^2*(A - 2),            0,      0,   0, -6*L,      0,  L^2*(A + 4),            0,      0]
+            [ -6*L,   0,      0,            0, -L^2*(A - 2),      0, 6*L,    0,      0,            0,  L^2*(A + 4),      0]
+            [    0,   0,      0,            0,            0, -a2/a1,   0,    0,      0,            0,            0,  a2/a1]
+        ]
 
-        KcEst = aux1*np.zeros(12,12)
-    
-        Kstart = self.material.rho*tempI/(15*L)*np.zeros(12,12)
-    
-        Kf = 1/(30*L)*np.zeros(12,12)
+        # stiffness matrix due to axial loading influence
+        Kf = Fa / (30 * L) * np.array[
+            [   36,   0, 0,     0,  -3*L, 0, -36,    0, 0,     0,  -3*L, 0]
+            [    0,  36, 0,   3*L,     0, 0,   0,  -36, 0,   3*L,     0, 0]
+            [    0,   0, 0,     0,     0, 0,   0,    0, 0,     0,     0, 0]
+            [    0, 3*L, 0, 4*L^2,     0, 0,   0, -3*L, 0,  -L^2,     0, 0]
+            [ -3*L,   0, 0,     0, 4*L^2, 0, 3*L,    0, 0,     0,  -L^2, 0]
+            [    0,   0, 0,     0,     0, 0,   0,    0, 0,     0,     0, 0]
+            [  -36,   0, 0,     0,   3*L, 0,  36,    0, 0,     0,   3*L, 0]
+            [    0, -36, 0,  -3*L,     0, 0,   0,   36, 0,  -3*L,     0, 0]
+            [    0,   0, 0,     0,     0, 0,   0,    0, 0,     0,     0, 0]
+            [    0, 3*L, 0,  -L^2,     0, 0,   0, -3*L, 0, 4*L^2,     0, 0]
+            [ -3*L,   0, 0,     0,  -L^2, 0, 3*L,    0, 0,     0, 4*L^2, 0]
+            [    0,   0, 0,     0,     0, 0,   0,    0, 0,     0,     0, 0]
+        ]
 
-        Kt = -np.zeros(12,12)
+        # stiffness matrix due to torque loading influence
+        Kt = -T * np.array[
+            [    0,    0, 0, -1/L,    0, 0,    0,    0, 0,  1/L,    0, 0]
+            [    0,    0, 0,    0, -1/L, 0,    0,    0, 0,    0,  1/L, 0]
+            [    0,    0, 0,    0,    0, 0,    0,    0, 0,    0,    0, 0]
+            [ -1/L,    0, 0,    0,  1/2, 0,  1/L,    0, 0,    0,  1/2, 0]
+            [    0, -1/L, 0, -1/2,    0, 0,    0,  1/L, 0, -1/2,    0, 0]
+            [    0,    0, 0,    0,    0, 0,    0,    0, 0,    0,    0, 0]
+            [    0,    0, 0,  1/L,    0, 0,    0,    0, 0, -1/L,    0, 0]
+            [    0,    0, 0,    0,  1/L, 0,    0,    0, 0,    0, -1/L, 0]
+            [    0,    0, 0,    0,    0, 0,    0,    0, 0,    0,    0, 0]
+            [  1/L,    0, 0,    0, -1/2, 0, -1/L,    0, 0,    0, -1/2, 0]
+            [    0,  1/L, 0,  1/2,    0, 0,    0, -1/L, 0,  1/2,    0, 0]
+            [    0,    0, 0,    0,    0, 0,    0,    0, 0,    0,    0, 0]
+        ]
         
-        K = KcEst + Kstart + Kf + Kt
+        # fmt: on
+        # Dynamic stiffness matrix is added independently in "def Kst"
+        # Kst = self.material.rho*tempI/(15*L)*np.array(12,12)
+
+        K = Kc_plus + Kf + Kt
 
         return K
 
+
+
+    def Kst(self):
+        r"""Dynamic stiffness matrix for an instance of a 6 DoF shaft element.
+
+        Returns
+        -------
+        Kst: np.ndarray
+            Dynamic stiffness matrix for the 6 DoF shaft element. This is
+            directly dependent on the rotation speed Omega. It needs to be
+            multiplied by the adequate Omega value when used in time depen-
+            dent analyses. The matrix multiplier term is: 
+            
+            [(Iz*Omega*rho)/(15*L)] * [Kst]
+
+            and here the Omega value has been suppressed and must be added
+            in the adequate analyses.
+
+        Examples
+        --------
+        >>> Timoshenko_Element = ShaftElement(0.25, 0, 0.05, steel,
+        ...                                  rotary_inertia=True,
+        ...                                  shear_effects=True)
+        >>> Timoshenko_Element.Kst()[:12, :12]
+        array(12x12)
+        """
+        
+        # temporary material and geometrical constants, determined as mean values 
+        # from the left and right radii of the taperad shaft
+        L = self.L
+        tempI = np.pi / 4 * ( (self.odr/2)**4 - (self.odl/2)**4 - (self.idr/2)**4 + (self.idl/2)**4 )
+        
+        # fmt: off
+        # dynamic stiffening matrix
+        Kst = self.material.rho * tempI / (15 * L) * np.array[
+            [ 0, -36, 0,  -3*L, 0, 0, 0,   36, 0,  -3*L, 0, 0]
+            [ 0,   0, 0,     0, 0, 0, 0,    0, 0,     0, 0, 0]
+            [ 0,   0, 0,     0, 0, 0, 0,    0, 0,     0, 0, 0]
+            [ 0,   0, 0,     0, 0, 0, 0,    0, 0,     0, 0, 0]
+            [ 0, 3*L, 0, 4*L^2, 0, 0, 0, -3*L, 0,  -L^2, 0, 0]
+            [ 0,   0, 0,     0, 0, 0, 0,    0, 0,     0, 0, 0]
+            [ 0,  36, 0,   3*L, 0, 0, 0,  -36, 0,   3*L, 0, 0]
+            [ 0,   0, 0,     0, 0, 0, 0,    0, 0,     0, 0, 0]
+            [ 0,   0, 0,     0, 0, 0, 0,    0, 0,     0, 0, 0]
+            [ 0,   0, 0,     0, 0, 0, 0,    0, 0,     0, 0, 0]
+            [ 0, 3*L, 0,  -L^2, 0, 0, 0, -3*L, 0, 4*L^2, 0, 0]
+            [ 0,   0, 0,     0, 0, 0, 0,    0, 0,     0, 0, 0]
+        ]
+        # fmt: on
+
+        return Kst
 
 
     def C(self):
@@ -1922,6 +2026,7 @@ class ShaftElement6DoF(Element):
         array(12x12)
         """
 
+        # Proportinal damping matrix
         C = self.alpha * M + self.beta * K
 
         return C
