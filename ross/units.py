@@ -45,14 +45,11 @@ def check_units(func):
 
     If we call the function with the argument as a float:
     >>> foo(L=0.5)
-    0.5 meter
-
-    the L argument will be available inside the function as a pint.Quantity object
-    (with the magnitude and units attributes).
+    0.5
 
     If we call the function with a pint.Quantity object the value is automatically converted to the default:
     >>> foo(L=Q_(0.5, 'inches'))
-    0.0127 meter
+    0.0127
     """
 
     @wraps(func)
@@ -62,10 +59,13 @@ def check_units(func):
 
         for arg_name, arg_value in zip(args_names, args):
             if arg_name in units:
+                # For now, we only return the magnitude for the converted Quantity
+                # If pint is fully adopted by ross in the future, and we have all Quantities
+                # using it, we could remove this, which would allows us to use pint in its full capability
                 try:
-                    base_unit_args.append(arg_value.to(units[arg_name]))
+                    base_unit_args.append(arg_value.to(units[arg_name]).m)
                 except AttributeError:
-                    base_unit_args.append(Q_(arg_value, units[arg_name]))
+                    base_unit_args.append(Q_(arg_value, units[arg_name]).m)
             else:
                 base_unit_args.append(arg_value)
 
@@ -73,9 +73,9 @@ def check_units(func):
         for k, v in kwargs.items():
             if k in units and v is not None:
                 try:
-                    base_unit_kwargs[k] = v.to(units[k])
+                    base_unit_kwargs[k] = v.to(units[k]).m
                 except AttributeError:
-                    base_unit_kwargs[k] = Q_(v, units[k])
+                    base_unit_kwargs[k] = Q_(v, units[k]).m
             else:
                 base_unit_kwargs[k] = v
 

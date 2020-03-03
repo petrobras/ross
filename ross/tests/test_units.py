@@ -26,6 +26,94 @@ def test_units(auxiliary_function):
 
     E, G_s, rho, L, idl, idr, odl, odr, speed, frequency = results
 
+    assert E == 1
+    assert G_s == 1
+    assert rho == 1
+    assert L == 1
+    assert idl == 1
+    assert idr == 1
+    assert odl == 1
+    assert odr == 1
+    assert speed == 1
+    assert frequency == 1
+
+
+def test_unit_Q_(auxiliary_function):
+    results = auxiliary_function(
+        E=Q_(1, "N/m**2"),
+        G_s=Q_(1, "N/m**2"),
+        rho=Q_(1, "kg/m**3"),
+        L=Q_(1, "meter"),
+        idl=Q_(1, "meter"),
+        idr=Q_(1, "meter"),
+        odl=Q_(1, "meter"),
+        odr=Q_(1, "meter"),
+        speed=Q_(1, "radian/second"),
+        frequency=Q_(1, "radian/second"),
+    )
+
+    # check if all available units are tested
+    assert len(results) == len(units)
+
+    E, G_s, rho, L, idl, idr, odl, odr, speed, frequency = results
+
+    assert E == 1
+    assert G_s == 1
+    assert rho == 1
+    assert L == 1
+    assert idl == 1
+    assert idr == 1
+    assert odl == 1
+    assert odr == 1
+    assert speed == 1
+    assert frequency == 1
+
+
+def test_unit_Q_conversion(auxiliary_function):
+    results = auxiliary_function(
+        E=Q_(1, "lbf/in**2"),
+        G_s=Q_(1, "lbf/in**2"),
+        rho=Q_(1, "lb/foot**3"),
+        L=Q_(1, "inches"),
+        idl=Q_(1, "inches"),
+        idr=Q_(1, "inches"),
+        odl=Q_(1, "inches"),
+        odr=Q_(1, "inches"),
+        speed=Q_(1, "RPM"),
+        frequency=Q_(1, "RPM"),
+    )
+
+    # check if all available units are tested
+    assert len(results) == len(units)
+
+    E, G_s, rho, L, idl, idr, odl, odr, speed, frequency = results
+
+    assert E == 6894.7572931683635
+    assert G_s == 6894.7572931683635
+    assert_allclose(rho, 16.01846337396014)
+    assert L == 0.0254
+    assert idl == 0.0254
+    assert idr == 0.0254
+    assert odl == 0.0254
+    assert odr == 0.0254
+    assert speed == 0.10471975511965977
+    assert frequency == 0.10471975511965977
+
+
+# NOTE ABOUT TESTS BELOW
+# For now, we only return the magnitude for the converted Quantity
+# If pint is fully adopted by ross in the future, and we have all Quantities
+# using it, we could remove this, which would allows us to use pint in its full capability
+@pytest.mark.skip("Skip since we are not fully using pint")
+def test_units_pint(auxiliary_function):
+    results = auxiliary_function(
+        E=1, G_s=1, rho=1, L=1, idl=1, idr=1, odl=1, odr=1, speed=1, frequency=1
+    )
+    # check if all available units are tested
+    assert len(results) == len(units)
+
+    E, G_s, rho, L, idl, idr, odl, odr, speed, frequency = results
+
     assert E.magnitude == 1
     assert E.units == "newton/meter**2"
 
@@ -57,7 +145,8 @@ def test_units(auxiliary_function):
     assert frequency.units == "radian/second"
 
 
-def test_unit_Q_(auxiliary_function):
+@pytest.mark.skip("Skip since we are not fully using pint")
+def test_unit_Q__pint(auxiliary_function):
     results = auxiliary_function(
         E=Q_(1, "N/m**2"),
         G_s=Q_(1, "N/m**2"),
@@ -107,7 +196,8 @@ def test_unit_Q_(auxiliary_function):
     assert frequency.units == "radian/second"
 
 
-def test_unit_Q_conversion(auxiliary_function):
+@pytest.mark.skip("Skip since we are not fully using pint")
+def test_unit_Q_conversion_pint(auxiliary_function):
     results = auxiliary_function(
         E=Q_(1, "lbf/in**2"),
         G_s=Q_(1, "lbf/in**2"),

@@ -211,7 +211,7 @@ class Report:
         """
         # get reaction forces on bearings
         self.rotor.run_static()
-        Fb = self.rotor.bearing_reaction_forces
+        Fb = list(self.rotor.bearing_forces_nodal.values())
         Fb = np.array(Fb) / 9.8065
 
         return Fb
