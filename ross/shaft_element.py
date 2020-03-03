@@ -2038,7 +2038,10 @@ class ShaftElement6DoF(Element):
         Returns
         -------
         G: np.ndarray
-            Gyroscopic matrix for the 6 DoF shaft element.
+            Gyroscopic matrix for the 6 DoF shaft element. Similar to the Kst
+            stiffness matrix, this Gyro matrix is also multiplied by the value
+            of the rotating speed Omega. It is omitted from this and must be 
+            added in the respective analyses.
 
         Examples
         --------
@@ -2050,31 +2053,24 @@ class ShaftElement6DoF(Element):
         """
         
         # temporary material and geometrical constants, determined as mean values 
-        # from the left and right radii of the taperad shaft
+        # from the left and right radii of the tapered shaft
         L = self.L
-        tempG = self.material.E / (2 * (1 + self.n))
-        tempS = np.pi * ( (self.odr/2)**2 - (self.odl/2)**2 - (self.idr/2)**2 + (self.idl/2)**2 )
         tempI = np.pi / 4 * ( (self.odr/2)**4 - (self.odl/2)**4 - (self.idr/2)**4 + (self.idl/2)**4 )
-        tempJ = np.pi / 2 * ( (self.odr/2)**4 - (self.odl/2)**4 - (self.idr/2)**4 + (self.idl/2)**4 )
 
-        # temporary variables dependent on kappa
-        tempA = (
-            12
-            * self.material.E
-            * tempI
-            / (self.material.G_s * self.kappa * tempS * L ** 2)
-        )
-
-        # element level matrix declaration
-        aux1 = self.material.rho * tempS * L / 420
-        aux2 = self.material.rho * tempJ * L / 6
-
-        gcor = (6/5)/(L^2*(1+tempA)^2)
-        hcor = -(1/10-1/2*tempA)/(L*((1+tempA)^2))
-        icor = (2/15+1/6*tempA+1/3*tempA^2)/((1+tempA)^2)
-        jcor = -(1/30+1/6*tempA-1/6*tempA^2)/((1+tempA)^2)
-
-        G = 2*self.material.rho*L*tempI*np.zeros(12,12)
+        G = (self.material.rho * tempI / (15 * L)) * np.array[
+            [   0, -36, 0,  -3*L,      0, 0,    0,   36, 0,  -3*L,      0, 0]
+            [  36,   0, 0,     0,   -3*L, 0,  -36,    0, 0,     0,   -3*L, 0]
+            [   0,   0, 0,     0,      0, 0,    0,    0, 0,     0,      0, 0]
+            [ 3*L,   0, 0,     0, -4*L^2, 0, -3*L,    0, 0,     0,    L^2, 0]
+            [   0, 3*L, 0, 4*L^2,      0, 0,    0, -3*L, 0,  -L^2,      0, 0]
+            [   0,   0, 0,     0,      0, 0,    0,    0, 0,     0,      0, 0]
+            [   0,  36, 0,   3*L,      0, 0,    0,  -36, 0,   3*L,      0, 0]
+            [ -36,   0, 0,     0,    3*L, 0,   36,    0, 0,     0,    3*L, 0]
+            [   0,   0, 0,     0,      0, 0,    0,    0, 0,     0,      0, 0]
+            [ 3*L,   0, 0,     0,    L^2, 0, -3*L,    0, 0,     0, -4*L^2, 0]
+            [   0, 3*L, 0,  -L^2,      0, 0,    0, -3*L, 0, 4*L^2,      0, 0]
+            [   0,   0, 0,     0,      0, 0,    0,    0, 0,     0,      0, 0]
+        ]
 
         return G
 
