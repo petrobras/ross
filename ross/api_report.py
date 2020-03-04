@@ -13,11 +13,15 @@ from copy import deepcopy
 import bokeh.palettes as bp
 from bokeh.plotting import figure
 from bokeh.layouts import gridplot, widgetbox
-from bokeh.models.widgets import (
-    DataTable, NumberFormatter, TableColumn, Panel, Tabs
-)
+from bokeh.models.widgets import DataTable, NumberFormatter, TableColumn, Panel, Tabs
 from bokeh.models import (
-    ColumnDataSource, HoverTool, Span, Label, LinearAxis, Range1d, DataRange1d,
+    ColumnDataSource,
+    HoverTool,
+    Span,
+    Label,
+    LinearAxis,
+    Range1d,
+    DataRange1d,
 )
 
 # set bokeh palette of colors
@@ -197,15 +201,15 @@ class Report:
 
     @classmethod
     def from_saved_rotors(
-            cls,
-            path,
-            speed_range,
-            tripspeed,
-            bearing_stiffness_range=None,
-            bearing_clearance_lists=None,
-            machine_type="compressor",
-            speed_units="rpm",
-            tag=None,
+        cls,
+        path,
+        speed_range,
+        tripspeed,
+        bearing_stiffness_range=None,
+        bearing_clearance_lists=None,
+        machine_type="compressor",
+        speed_units="rpm",
+        tag=None,
     ):
         """Instantiate a rotor from a previously saved rotor model
 
@@ -244,7 +248,7 @@ class Report:
             bearing_clearance_lists,
             machine_type,
             speed_units,
-            tag
+            tag,
         )
 
     def rotor_instance(self, rotor, bearing_list):
@@ -275,7 +279,7 @@ class Report:
         >>> report = report_example(rotor)
         >>> aux_rotor = report.rotor_instance(rotor, bearings)
         """
-        
+
         sh_elm = rotor.shaft_elements
         dk_elm = rotor.disk_elements
         pm_elm = rotor.point_mass_elements
@@ -286,10 +290,20 @@ class Report:
         rated_w = rotor.rated_w
         tag = rotor.tag
 
-        aux_rotor = Rotor(sh_elm, dk_elm, bearing_list, pm_elm, sparse, n_eigen, min_w, max_w, rated_w, tag)
+        aux_rotor = Rotor(
+            sh_elm,
+            dk_elm,
+            bearing_list,
+            pm_elm,
+            sparse,
+            n_eigen,
+            min_w,
+            max_w,
+            rated_w,
+            tag,
+        )
 
         return aux_rotor
-
 
     def run(self, D, H, HP, oper_speed, RHO_ratio, RHOs, RHOd, unit="m"):
         """Run API report.
@@ -399,7 +413,16 @@ class Report:
         self.rotor = rotor0
         print(rotor0.bearing_elements)
 
-        return fig_ucs, fig_mode_shape, fig_unbalance, df_unbalance, fig_a_lvl1, fig_b_lvl1, df_lvl2, summaries
+        return (
+            fig_ucs,
+            fig_mode_shape,
+            fig_unbalance,
+            df_unbalance,
+            fig_a_lvl1,
+            fig_b_lvl1,
+            df_lvl2,
+            summaries,
+        )
 
     def plot_ucs(self, stiffness_range=None, num=20):
         """Plot undamped critical speed map.
@@ -448,7 +471,10 @@ class Report:
         for i, k in enumerate(stiffness_log):
             bearings = [BearingElement(b.n, kxx=k, cxx=0) for b in bearings_elements]
             rotor = self.rotor.__class__(
-                self.rotor.shaft_elements, self.rotor.disk_elements, bearings, n_eigen=16
+                self.rotor.shaft_elements,
+                self.rotor.disk_elements,
+                bearings,
+                n_eigen=16,
             )
             modal = rotor.run_modal(speed=0)
             rotor_wn[:, i] = modal.wn[:8:2]
@@ -496,36 +522,36 @@ class Report:
             )
 
         fig.line(
-                stiffness_log,
-                [self.maxspeed] * num,
-                line_dash="dotdash",
-                line_width=3,
-                line_color=bokeh_colors[-1],
-                legend_label="MCS Speed",
+            stiffness_log,
+            [self.maxspeed] * num,
+            line_dash="dotdash",
+            line_width=3,
+            line_color=bokeh_colors[-1],
+            legend_label="MCS Speed",
         )
         fig.line(
-                stiffness_log,
-                [self.minspeed] * num,
-                line_dash="dotdash",
-                line_width=3,
-                line_color=bokeh_colors[-2],
-                legend_label="MOS Speed",
+            stiffness_log,
+            [self.minspeed] * num,
+            line_dash="dotdash",
+            line_width=3,
+            line_color=bokeh_colors[-2],
+            legend_label="MOS Speed",
         )
         fig.line(
-                stiffness_log,
-                [self.tripspeed] * num,
-                line_dash="dotdash",
-                line_width=3,
-                line_color=bokeh_colors[-3],
-                legend_label="Trip Speed",
+            stiffness_log,
+            [self.tripspeed] * num,
+            line_dash="dotdash",
+            line_width=3,
+            line_color=bokeh_colors[-3],
+            legend_label="Trip Speed",
         )
         fig.line(
-                stiffness_log,
-                [1.25 * self.tripspeed] * num,
-                line_dash="dotdash",
-                line_width=3,
-                line_color=bokeh_colors[-4],
-                legend_label="125% Trip Speed",
+            stiffness_log,
+            [1.25 * self.tripspeed] * num,
+            line_dash="dotdash",
+            line_width=3,
+            line_color=bokeh_colors[-4],
+            legend_label="125% Trip Speed",
         )
         fig.legend.background_fill_alpha = 0.1
         fig.legend.location = "bottom_right"
@@ -986,14 +1012,14 @@ class Report:
                 node_max = np.round(np.array(idx_max) / nn)
 
         elif self.rotor_type == "double_overhung":
-            node_max = [max(df_disks['n'])]
-            node_min = [min(df_disks['n'])]
+            node_max = [max(df_disks["n"])]
+            node_min = [min(df_disks["n"])]
 
         elif self.rotor_type == "single_overhung_l":
-            node_min = [min(df_disks['n'])]
+            node_min = [min(df_disks["n"])]
 
         elif self.rotor_type == "single_overhung_r":
-            node_max = [max(df_disks['n'])]
+            node_max = [max(df_disks["n"])]
 
         plot = figure(
             tools="pan,wheel_zoom,box_zoom,reset,save,box_select",
@@ -1165,7 +1191,7 @@ class Report:
         Qi = np.linspace(0, 10 * Qa, steps)
         cross_coupled_array = np.append(cross_coupled_array, Qi)
         cross_coupled_array = cross_coupled_array.reshape(
-                [len(self.disk_nodes) + 1, steps]
+            [len(self.disk_nodes) + 1, steps]
         ).T
 
         log_dec = np.zeros(len(cross_coupled_array))
@@ -1175,7 +1201,7 @@ class Report:
             copy(b)
             for b in self.rotor.bearing_elements
             if not isinstance(b, rs.SealElement)
-            ]
+        ]
 
         # Applying cross-coupling on rotor mid-span
         if self.rotor_type == "between_bearings":
@@ -1203,9 +1229,7 @@ class Report:
                 bearings = [copy(b) for b in bearing_list]
                 # cross-coupling introduced at overhung disks
                 for n, q in zip(self.disk_nodes, Q):
-                    cross_coupling = BearingElement(
-                        n=n, kxx=0, cxx=0, kxy=q, kyx=-q
-                    )
+                    cross_coupling = BearingElement(n=n, kxx=0, cxx=0, kxy=q, kyx=-q)
                     bearings.append(cross_coupling)
 
                 aux_rotor = Rotor(
@@ -1269,9 +1293,7 @@ class Report:
         fig1.yaxis.axis_label_text_font_size = "14pt"
         fig1.axis.major_label_text_font_size = "14pt"
 
-        fig1.line(
-            cross_coupled_Qa, log_dec, line_width=3, line_color=bokeh_colors[0]
-        )
+        fig1.line(cross_coupled_Qa, log_dec, line_width=3, line_color=bokeh_colors[0])
         fig1.circle(Qa, log_dec_a, size=8, fill_color=bokeh_colors[0])
         fig1.add_layout(
             Label(
@@ -1282,7 +1304,7 @@ class Report:
                 text_font_size="12pt",
                 text_baseline="middle",
                 text_align="left",
-                y_offset=10
+                y_offset=10,
             )
         )
 
@@ -1445,7 +1467,9 @@ class Report:
                 log_dec_disk.append(modal.log_dec[non_backward][0])
 
             # Evaluate log dec for group bearings + disks
-            disk_tags = ["Shaft + Bearings + " + disk.tag for disk in self.rotor.disk_elements]
+            disk_tags = [
+                "Shaft + Bearings + " + disk.tag for disk in self.rotor.disk_elements
+            ]
             all_disks_tag = " + ".join([disk.tag for disk in self.rotor.disk_elements])
             disk_tags.append("Shaft + Bearings + " + all_disks_tag)
 
@@ -1501,7 +1525,7 @@ class Report:
         log_dec_full.append(modal.log_dec[non_backward][0])
         rotor_tags = [self.tag]
 
-        data_rotor = {"tags": rotor_tags, "log_dec":  log_dec_full}
+        data_rotor = {"tags": rotor_tags, "log_dec": log_dec_full}
 
         df_logdec_disk = pd.DataFrame(data_disk)
         df_logdec_seal = pd.DataFrame(data_seal)
@@ -1561,8 +1585,7 @@ class Report:
             RHO_gas=[self.RHO_gas],
         )
         stab_lvl2_data = dict(
-            tags=self.df_logdec['tags'],
-            logdec=self.df_logdec['log_dec'],
+            tags=self.df_logdec["tags"], logdec=self.df_logdec["log_dec"]
         )
 
         stab_lvl1_source = ColumnDataSource(stab_lvl1_data)
@@ -1650,5 +1673,5 @@ def report_example(rotor):
         tripspeed=1200,
         bearing_stiffness_range=(5, 8),
         bearing_clearance_lists=bearings,
-        speed_units="rad/s"
+        speed_units="rad/s",
     )
