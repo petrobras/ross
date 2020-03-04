@@ -1650,8 +1650,23 @@ def report_example():
 
     Examples
     --------
+    """This function returns an instance of a simple report from a rotor 
+    example. The purpose of this is to make available a simple model
+    so that doctest can be written using this.
+
+    Parameters
+    ----------
+
+    Returns
+    -------
+    An instance of a report object.
+
+    Examples
+    --------
     >>> report = report_example()
-    array([ 92.,  96., 275., 297.])
+    >>> report.rotor_type
+    'between_bearings'
+    """
     """
     i_d = 0
     o_d = 0.05
