@@ -1650,23 +1650,9 @@ def report_example():
 
     Examples
     --------
-    """This function returns an instance of a simple report from a rotor 
-    example. The purpose of this is to make available a simple model
-    so that doctest can be written using this.
-
-    Parameters
-    ----------
-
-    Returns
-    -------
-    An instance of a report object.
-
-    Examples
-    --------
     >>> report = report_example()
     >>> report.rotor_type
     'between_bearings'
-    """
     """
     i_d = 0
     o_d = 0.05
@@ -1699,7 +1685,7 @@ def report_example():
     bearing0 = rs.BearingElement(0, kxx=stfx, kyy=stfy, cxx=2e3, frequency=freq)
     bearing1 = rs.BearingElement(6, kxx=stfx, kyy=stfy, cxx=2e3, frequency=freq)
 
-    rotor = rs.Rotor(shaft_elem, [disk0, disk1], [bearing0, bearing1])
+    rotor = Rotor(shaft_elem, [disk0, disk1], [bearing0, bearing1])
 
     # coefficients for minimum clearance
     stfx = [0.7e7, 0.8e7, 0.9e7, 1.0e7]
