@@ -6,6 +6,7 @@ from numpy.testing import assert_almost_equal, assert_allclose
 
 from ross.materials import steel
 from ross.shaft_element import ShaftElement
+from ross.shaft_element import ShaftElement6DoF
 
 test_dir = os.path.dirname(__file__)
 
@@ -19,7 +20,15 @@ def eb():
     i_d_r = 0
     o_d_r = 0.05
     return ShaftElement(
-        le_, i_d_l, o_d_l, i_d_r, o_d_r, steel, shear_effects=False, rotary_inertia=False, n=3
+        le_,
+        i_d_l,
+        o_d_l,
+        i_d_r,
+        o_d_r,
+        steel,
+        shear_effects=False,
+        rotary_inertia=False,
+        n=3,
     )
 
 
@@ -82,7 +91,9 @@ def tim():
     o_d_l = 0.05
     i_d_r = 0
     o_d_r = 0.05
-    return ShaftElement(le_, i_d_l, o_d_l, i_d_r, o_d_r, steel, rotary_inertia=True, shear_effects=True)
+    return ShaftElement(
+        le_, i_d_l, o_d_l, i_d_r, o_d_r, steel, rotary_inertia=True, shear_effects=True
+    )
 
 
 def test_parameters_tim(tim):
@@ -275,7 +286,9 @@ def tim2():
     le_ = 0.4
     i_d_ = 0
     o_d_ = 0.25
-    return ShaftElement(le_, i_d_, o_d_, material=steel, rotary_inertia=True, shear_effects=True)
+    return ShaftElement(
+        le_, i_d_, o_d_, material=steel, rotary_inertia=True, shear_effects=True
+    )
 
 
 def test_match_mass_matrix(tap2, tim2):
@@ -296,84 +309,68 @@ def test_match_gyroscopic_matrix(tap2, tim2):
     assert_almost_equal(G_tap, G_tim, decimal=5)
 
 
-
-
-
-
-
-
-
-
 @pytest.fixture
 def s6_eb():
+
     #  Euler-Bernoulli element
+    L = 0.1
+    odr = 25.4 * 3 / 4
+    odl = 25.4 * 3 / 4
+    idr = 25.4 * 1 / 2
+    idl = 25.4 * 1 / 2
+    axial_force = 1
+    torque = 1
+    alpha = 2.7
+    beta = 4.8 * 10 ** (-6)
+
+    return ShaftElement6DoF(
+        L,
+        idl,
+        odl,
+        idr,
+        odr,
+        steel,
+        axial_force,
+        torque,
+        # shear_effects=True,
+        # rotary_inertia=True,
+        # gyroscopic=True,
+        alpha,
+        beta,
+    )
+
+
+def s6_test_index(eb6):
     pass
 
-def s6_test_index(eb):
+
+def s6_test_parameters_eb(eb6):
+    assert eb6.phi == 0
+    assert eb6.L == 0.1
+    assert eb6.idl == 25.4 * 1 / 2
+    assert eb6.odl == 25.4 * 3 / 4
+    assert eb6.idr == 25.4 * 1 / 2
+    assert eb6.odr == 25.4 * 3 / 4
+    assert eb6.material.E == 211e9
+    assert eb6.material.G_s == 81.2e9
+    assert eb6.material.rho == 7810
+    assert_almost_equal(eb6.material.Poisson, 0.29926108)
+    assert_almost_equal(eb6.A, 0.00196349)
+    assert_almost_equal(eb6.Ie * 1e7, 3.06796157)
+
+
+def s6_test_M_matrix(eb6):
     pass
 
-def s6_test_parameters_eb(eb):
+
+def s6_test_G_matrix(eb6):
     pass
 
-def s6_test_mass_matrix_eb(eb):
+
+def s6_test_K_matrix(eb6):
     pass
 
-def s6_test_stiffness_matrix_eb(eb):
-    pass
 
-@pytest.fixture
-def s6_tim():
-    pass
-
-def s6_test_parameters_tim(tim):
-    pass
-
-def s6_test_mass_matrix_tim(tim):
-    pass
-
-def s6_test_stiffness_matrix_tim(tim):
-    pass
-
-def s6_test_gyroscopic_matrix_tim(tim):
-    pass
-
-def s6_test_from_table():
-    pass
-
-# Shaft Tapered Element tests
-@pytest.fixture
-def s6_tap_tim():
-    pass
-
-def s6_test_tapered_index(tap_tim):
-    pass
-
-def s6_test_parameters_tap_tim(tap_tim):
-    pass
-
-def s6_test_mass_matrix_tap_tim(tap_tim):
-    pass
-
-def s6_test_stiffness_matrix_tap_tim(tap_tim):
-    pass
-
-def s6_test_gyroscopic_matrix_tap_tim(tap_tim):
-    pass
-
-@pytest.fixture
-def s6_tap2():
-    pass
-
-@pytest.fixture
-def s6_tim2():
-    pass
-
-def s6_test_match_mass_matrix(tap2, tim2):
-    pass
-
-def s6_test_match_stiffness_matrix(tap2, tim2):
-    pass
-
-def s6_test_match_gyroscopic_matrix(tap2, tim2):
+def s6_test_Kst_matrix(eb6):
     pass
 
