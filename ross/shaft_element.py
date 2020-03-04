@@ -1271,25 +1271,6 @@ class ShaftElement6DoF(Element):
     ----------
     Poisson : float
         Poisson coefficient for the element.
-    A : float
-        Element section area at half length.
-    A_l : float
-        Element section area at left end.
-    A_r : float
-        Element section area at right end.
-    beam_cg : float
-        Element center of gravity local position.
-    axial_cg_pos : float
-        Element center of gravity global position.
-        This should be used only after the rotor is built.
-        Default is None.
-    Ie : float
-        Ie is the second moment of area of the cross section about
-        the neutral plane.
-    phi : float
-        Constant that is used according to :cite:`friswell2010dynamics` to
-        consider rotary inertia and shear effects. If these are not considered
-        :math:`\phi=0`.
     kappa : float
         Shear coefficient for the element, determined from :cite:`Hutchingson2001` formulation.
     alpha : float
@@ -1511,20 +1492,19 @@ class ShaftElement6DoF(Element):
         >>> le = 0.25
         >>> i_d = 0
         >>> o_d = 0.05
-        >>> shaft1 = ShaftElement(
-        ...     le, i_d, o_d, steel, rotary_inertia=True, shear_effects=True
-        ... )
-        >>> shaft1.save('ShaftElement.toml')
-        >>> shaft2 = ShaftElement.load("ShaftElement.toml")
+        >>> shaft1 = ShaftElement6DoF(
+        ...     le, i_d, o_d, steel )
+        >>> shaft1.save('ShaftElement6DoF.toml')
+        >>> shaft2 = ShaftElement6DoF.load("ShaftElement6DoF.toml")
         >>> shaft2
-        [ShaftElement(L=0.25, i_d=0.0, o_d=0.05, material='Steel', n=None)]
+        [ShaftElement6DoF(L=0.25, i_d=0.0, o_d=0.05, material='Steel', n=None)]
         """
         shaft_elements = []
-        with open("ShaftElement.toml", "r") as f:
+        with open("ShaftElement6DoF.toml", "r") as f:
             shaft_elements_dict = toml.load(f)
-            for element in shaft_elements_dict["ShaftElement"]:
+            for element in shaft_elements_dict["ShaftElement6DoF"]:
                 shaft_elements.append(
-                    ShaftElement(**shaft_elements_dict["ShaftElement"][element])
+                    ShaftElement6DoF(**shaft_elements_dict["ShaftElement6DoF"][element])
                 )
         return shaft_elements
 
