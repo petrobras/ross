@@ -32,11 +32,10 @@ def report0():
         n=35, material=steel, width=0.07, i_d=0.05, o_d=0.35
     )
 
-    stfx = [0.4e7, 0.5e7, 0.6e7, 0.7e7]
-    stfy = [0.8e7, 0.9e7, 1.0e7, 1.1e7]
-    freq = [400, 800, 1200, 1600]
-    bearing0 = BearingElement(0, kxx=stfx, kyy=stfy, cxx=2e3, frequency=freq)
-    bearing1 = BearingElement(50, kxx=stfx, kyy=stfy, cxx=2e3, frequency=freq)
+    stfx = 1e6
+    stfy = 0.8e6
+    bearing0 = BearingElement(0, kxx=stfx, kyy=stfy, cxx=1000)
+    bearing1 = BearingElement(50, kxx=stfx, kyy=stfy, cxx=1000)
 
     rotor = Rotor(shaft_elem, [disk0, disk1], [bearing0, bearing1])
 
@@ -94,11 +93,10 @@ def report1():
         n=0, material=steel, width=0.07, i_d=0.05, o_d=0.28
     )
 
-    stfx = [0.4e7, 0.5e7, 0.6e7, 0.7e7]
-    stfy = [0.8e7, 0.9e7, 1.0e7, 1.1e7]
-    freq = [400, 800, 1200, 1600]
-    bearing0 = BearingElement(15, kxx=stfx, kyy=stfy, cxx=2e3, frequency=freq)
-    bearing1 = BearingElement(50, kxx=stfx, kyy=stfy, cxx=2e3, frequency=freq)
+    stfx = 1e6
+    stfy = 0.8e6
+    bearing0 = BearingElement(15, kxx=stfx, kyy=stfy, cxx=1000)
+    bearing1 = BearingElement(50, kxx=stfx, kyy=stfy, cxx=1000)
 
     rotor = Rotor(shaft_elem, [disk0], [bearing0, bearing1])
 
@@ -159,11 +157,10 @@ def report2():
         n=50, material=steel, width=0.07, i_d=0.05, o_d=0.35
     )
 
-    stfx = [0.4e7, 0.5e7, 0.6e7, 0.7e7]
-    stfy = [0.8e7, 0.9e7, 1.0e7, 1.1e7]
-    freq = [400, 800, 1200, 1600]
-    bearing0 = BearingElement(15, kxx=stfx, kyy=stfy, cxx=2e3, frequency=freq)
-    bearing1 = BearingElement(35, kxx=stfx, kyy=stfy, cxx=2e3, frequency=freq)
+    stfx = 1e6
+    stfy = 0.8e6
+    bearing0 = BearingElement(15, kxx=stfx, kyy=stfy, cxx=1000)
+    bearing1 = BearingElement(35, kxx=stfx, kyy=stfy, cxx=1000)
 
     rotor = Rotor(shaft_elem, [disk0, disk1], [bearing0, bearing1])
 
@@ -256,23 +253,33 @@ def test_unbalance_forces(report0, report1, report2):
 
 
 def test_report_mode_shape(report0, report1, report2):
-    n1, n2 = report0.mode_shape(mode=0)
+    _ = report0.mode_shape(mode=0)
+    n1 = report0.node_min
+    n2 = report0.node_max
     nodes = [int(node) for sub_nodes in [n1, n2] for node in sub_nodes]
     assert nodes == [26]
 
-    n1, n2 = report1.mode_shape(mode=0)
+    _ = report1.mode_shape(mode=0)
+    n1 = report1.node_min
+    n2 = report1.node_max
     nodes = [int(node) for sub_nodes in [n1, n2] for node in sub_nodes]
     assert nodes == [0]
 
-    n1, n2 = report1.mode_shape(mode=3)
+    _ = report1.mode_shape(mode=3)
+    n1 = report1.node_min
+    n2 = report1.node_max
     nodes = [int(node) for sub_nodes in [n1, n2] for node in sub_nodes]
     assert nodes == [0]
 
-    n1, n2 = report2.mode_shape(mode=0)
+    _ = report2.mode_shape(mode=0)
+    n1 = report2.node_min
+    n2 = report2.node_max
     nodes = [int(node) for sub_nodes in [n1, n2] for node in sub_nodes]
     assert nodes == [0, 50]
 
-    n1, n2 = report2.mode_shape(mode=3)
+    _ = report2.mode_shape(mode=3)
+    n1 = report2.node_min
+    n2 = report2.node_max
     nodes = [int(node) for sub_nodes in [n1, n2] for node in sub_nodes]
     assert nodes == [0, 50]
 
@@ -286,7 +293,7 @@ def test_stability_level1(report0, report1, report2):
     RHOs = 37.65
     oper_speed = 1000.0
 
-    report0.stability_level_1(D, H, HP, oper_speed, RHO_ratio, RHOs, RHOd)
+    _ = report0.stability_level_1(D, H, HP, oper_speed, RHO_ratio, RHOs, RHOd)
 
     assert_allclose(report0.Q0, 81599.87755102041, atol=1e-4)
     assert_allclose(report0.Qa, 20399.969387755104, atol=1e-4)
@@ -298,7 +305,7 @@ def test_stability_level1(report0, report1, report2):
     assert_allclose(report0.RHO_gas, 34.05, atol=1e-4)
     assert report0.condition == 'required'
 
-    report1.stability_level_1(D, H, HP, oper_speed, RHO_ratio, RHOs, RHOd)
+    _ = report1.stability_level_1(D, H, HP, oper_speed, RHO_ratio, RHOs, RHOd)
 
     assert_allclose(report1.Q0, 79730.98330241187, atol=1e-4)
     assert_allclose(report1.Qa, 4385.204081632653, atol=1e-4)
@@ -310,7 +317,7 @@ def test_stability_level1(report0, report1, report2):
     assert_allclose(report1.RHO_gas, 34.05, atol=1e-4)
     assert report1.condition == 'not required'
 
-    report2.stability_level_1(D, H, HP, oper_speed, RHO_ratio, RHOs, RHOd)
+    _ = report2.stability_level_1(D, H, HP, oper_speed, RHO_ratio, RHOs, RHOd)
 
     assert_allclose(report2.Q0, 61199.90816326531, atol=1e-4)
     assert_allclose(report2.Qa, 20399.969387755104, atol=1e-4)
@@ -333,7 +340,6 @@ def test_stability_level2(report0, report1, report2):
             0.17669652215696618,
             0.15801304519741688,
             0.14761936907792816,
-            0.3153250139555406,
             0.1476193691000094,
         ],
         atol=1e-6,
@@ -343,8 +349,6 @@ def test_stability_level2(report0, report1, report2):
         [
             0.14898201611278591,
             0.14898201641839076,
-            0.8368485552898145,
-            0.14898201644744202,
         ],
         atol=1e-6,
     )
