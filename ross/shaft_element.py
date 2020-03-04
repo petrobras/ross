@@ -1864,7 +1864,6 @@ class ShaftElement6DoF(Element):
         # temporary material and geometrical constants, determined as mean values
         # from the left and right radii of the taperad shaft
         L = self.L
-        tempG = self.material.E / (2 * (1 + self.n))
         tempS = np.pi * (
             ((self.odr / 2) ** 2 + (self.odl / 2) ** 2) / 2
             - ((self.idr / 2) ** 2 + (self.idl / 2) ** 2) / 2
@@ -1896,7 +1895,7 @@ class ShaftElement6DoF(Element):
 
         # auxiliary variables
         a1 = self.material.E * tempI / ((1 + A) * L ^ 3)
-        a2 = tempG * tempJ / L
+        a2 = self.material.G_s * tempJ / L
         a3 = self.material.E * tempS / L
 
         # fmt: off
