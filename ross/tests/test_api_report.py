@@ -32,19 +32,47 @@ def report0():
         n=35, material=steel, width=0.07, i_d=0.05, o_d=0.35
     )
 
-    stfx = 1e6
-    stfy = 0.8e6
-    bearing0 = BearingElement(0, kxx=stfx, kyy=stfy, cxx=1000)
-    bearing1 = BearingElement(50, kxx=stfx, kyy=stfy, cxx=1000)
+    stfx = [0.4e7, 0.5e7, 0.6e7, 0.7e7]
+    stfy = [0.8e7, 0.9e7, 1.0e7, 1.1e7]
+    freq = [400, 800, 1200, 1600]
+    bearing0 = BearingElement(0, kxx=stfx, kyy=stfy, cxx=2e3, frequency=freq)
+    bearing1 = BearingElement(50, kxx=stfx, kyy=stfy, cxx=2e3, frequency=freq)
 
     rotor = Rotor(shaft_elem, [disk0, disk1], [bearing0, bearing1])
 
-    minspeed = 400.0
-    maxspeed = 1000.0
+    # coefficients for minimum clearance
+    stfx = [0.7e7, 0.8e7, 0.9e7, 1.0e7]
+    dampx = [2.0e3, 1.9e3, 1.8e3, 1.7e3]
+    freq = [400, 800, 1200, 1600]
+    bearing0 = BearingElement(0, kxx=stfx, cxx=dampx, frequency=freq)
+    bearing1 = BearingElement(6, kxx=stfx, cxx=dampx, frequency=freq)
+    min_clearance_brg = [bearing0, bearing1]
+
+    # coefficients for maximum clearance
+    stfx = [0.4e7, 0.5e7, 0.6e7, 0.7e7]
+    dampx = [2.8e3, 2.7e3, 2.6e3, 2.5e3]
+    freq = [400, 800, 1200, 1600]
+    bearing0 = BearingElement(0, kxx=stfx, cxx=dampx, frequency=freq)
+    bearing1 = BearingElement(6, kxx=stfx, cxx=dampx, frequency=freq)
+    max_clearance_brg = [bearing0, bearing1]
+
+    bearing_clearance_lists = [min_clearance_brg, max_clearance_brg]
+    bearing_stiffness_range = (5, 8)
+
+    speed_range = (400, 1000)
+    tripspeed = 1200
     machine_type = "compressor"
     units = "rad/s"
 
-    return Report(rotor, minspeed, maxspeed, machine_type, units)
+    return Report(
+        rotor,
+        speed_range,
+        tripspeed,
+        bearing_stiffness_range,
+        bearing_clearance_lists,
+        machine_type,
+        units,
+    )
 
 
 @pytest.fixture
@@ -66,19 +94,47 @@ def report1():
         n=0, material=steel, width=0.07, i_d=0.05, o_d=0.28
     )
 
-    stfx = 1e6
-    stfy = 0.8e6
-    bearing0 = BearingElement(15, kxx=stfx, kyy=stfy, cxx=1000)
-    bearing1 = BearingElement(50, kxx=stfx, kyy=stfy, cxx=1000)
+    stfx = [0.4e7, 0.5e7, 0.6e7, 0.7e7]
+    stfy = [0.8e7, 0.9e7, 1.0e7, 1.1e7]
+    freq = [400, 800, 1200, 1600]
+    bearing0 = BearingElement(15, kxx=stfx, kyy=stfy, cxx=2e3, frequency=freq)
+    bearing1 = BearingElement(50, kxx=stfx, kyy=stfy, cxx=2e3, frequency=freq)
 
     rotor = Rotor(shaft_elem, [disk0], [bearing0, bearing1])
 
-    minspeed = 400.0
-    maxspeed = 1000.0
+    # coefficients for minimum clearance
+    stfx = [0.7e7, 0.8e7, 0.9e7, 1.0e7]
+    dampx = [2.0e3, 1.9e3, 1.8e3, 1.7e3]
+    freq = [400, 800, 1200, 1600]
+    bearing0 = BearingElement(0, kxx=stfx, cxx=dampx, frequency=freq)
+    bearing1 = BearingElement(6, kxx=stfx, cxx=dampx, frequency=freq)
+    min_clearance_brg = [bearing0, bearing1]
+
+    # coefficients for maximum clearance
+    stfx = [0.4e7, 0.5e7, 0.6e7, 0.7e7]
+    dampx = [2.8e3, 2.7e3, 2.6e3, 2.5e3]
+    freq = [400, 800, 1200, 1600]
+    bearing0 = BearingElement(0, kxx=stfx, cxx=dampx, frequency=freq)
+    bearing1 = BearingElement(6, kxx=stfx, cxx=dampx, frequency=freq)
+    max_clearance_brg = [bearing0, bearing1]
+
+    bearing_clearance_lists = [min_clearance_brg, max_clearance_brg]
+    bearing_stiffness_range = (5, 8)
+
+    speed_range = (400, 1000)
+    tripspeed = 1200
     machine_type = "turbine"
     units = "rad/s"
 
-    return Report(rotor, minspeed, maxspeed, machine_type, units)
+    return Report(
+        rotor,
+        speed_range,
+        tripspeed,
+        bearing_stiffness_range,
+        bearing_clearance_lists,
+        machine_type,
+        units,
+    )
 
 
 @pytest.fixture
@@ -103,19 +159,47 @@ def report2():
         n=50, material=steel, width=0.07, i_d=0.05, o_d=0.35
     )
 
-    stfx = 1e6
-    stfy = 0.8e6
-    bearing0 = BearingElement(15, kxx=stfx, kyy=stfy, cxx=1000)
-    bearing1 = BearingElement(35, kxx=stfx, kyy=stfy, cxx=1000)
+    stfx = [0.4e7, 0.5e7, 0.6e7, 0.7e7]
+    stfy = [0.8e7, 0.9e7, 1.0e7, 1.1e7]
+    freq = [400, 800, 1200, 1600]
+    bearing0 = BearingElement(15, kxx=stfx, kyy=stfy, cxx=2e3, frequency=freq)
+    bearing1 = BearingElement(35, kxx=stfx, kyy=stfy, cxx=2e3, frequency=freq)
 
     rotor = Rotor(shaft_elem, [disk0, disk1], [bearing0, bearing1])
 
-    minspeed = 3820.0
-    maxspeed = 9550.0
+    # coefficients for minimum clearance
+    stfx = [0.7e7, 0.8e7, 0.9e7, 1.0e7]
+    dampx = [2.0e3, 1.9e3, 1.8e3, 1.7e3]
+    freq = [400, 800, 1200, 1600]
+    bearing0 = BearingElement(0, kxx=stfx, cxx=dampx, frequency=freq)
+    bearing1 = BearingElement(6, kxx=stfx, cxx=dampx, frequency=freq)
+    min_clearance_brg = [bearing0, bearing1]
+
+    # coefficients for maximum clearance
+    stfx = [0.4e7, 0.5e7, 0.6e7, 0.7e7]
+    dampx = [2.8e3, 2.7e3, 2.6e3, 2.5e3]
+    freq = [400, 800, 1200, 1600]
+    bearing0 = BearingElement(0, kxx=stfx, cxx=dampx, frequency=freq)
+    bearing1 = BearingElement(6, kxx=stfx, cxx=dampx, frequency=freq)
+    max_clearance_brg = [bearing0, bearing1]
+
+    bearing_clearance_lists = [min_clearance_brg, max_clearance_brg]
+    bearing_stiffness_range = (5, 8)
+
+    speed_range = (3820.0, 9550.0)
+    tripspeed = 12000.0
     machine_type = "pump"
     units = "rpm"
 
-    return Report(rotor, minspeed, maxspeed, machine_type, units)
+    return Report(
+        rotor,
+        speed_range,
+        tripspeed,
+        bearing_stiffness_range,
+        bearing_clearance_lists,
+        machine_type,
+        units,
+    )
 
 
 def test_initial_attributes(report0, report1, report2):
