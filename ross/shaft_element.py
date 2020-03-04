@@ -1384,8 +1384,8 @@ class ShaftElement6DoF(Element):
                 7 + 12 * self.material.Poisson + 4 * self.material.Poisson ** 2
             )
         elif self.__is_thickwall():
-            a = self.i_d
-            b = self.o_d
+            a = (self.idl + self.idr) / 2
+            b = (self.odl + self.odr) / 2
             v = self.material.Poisson
             kappa = (6(*a ** 2 + b ** 2) ** 2 * (1 + v) ** 2) / (
                 7 * a ** 4
@@ -1400,11 +1400,13 @@ class ShaftElement6DoF(Element):
         self.kappa = kappa
 
     def __is_circular(self):
-        return self.shear_effects and self.i_d == 0
+        return self.idl == 0 and self.idr == 0
 
     def __is_thickwall(self):
-        p = (self.o_d - self.i_d) / self.o_d
-        return self.shear_effects and p >= 0.2
+        p = (((self.odl + self.odr) / 2) - ((self.idl + self.idr) / 2)) / (
+            (self.odl + self.odr) / 2
+        )
+        return p >= 0.2
 
     def __eq__(self, other):
         """
@@ -1754,14 +1756,6 @@ class ShaftElement6DoF(Element):
                 ((self.odr / 2) ** 4 + (self.odl / 2) ** 4) / 2
                 - ((self.idr / 2) ** 4 + (self.idl / 2) ** 4) / 2
             )
-        )
-
-        # temporary variables dependent on kappa
-        tempA = (
-            12
-            * self.material.E
-            * tempI
-            / (self.material.G_s * self.kappa * tempS * L ** 2)
         )
 
         # element level matrix declaration
