@@ -377,7 +377,6 @@ class Report:
         summaries = []
 
         rotor0 = self.rotor
-        print(rotor0.bearing_elements)
 
         for bearings in self.bearing_clearance_lists:
             self.rotor = self.rotor_instance(rotor0, bearings)
@@ -393,11 +392,9 @@ class Report:
                 fig, _dict = self.unbalance_response(mode)
                 fig_unbalance.append(fig)
                 df = pd.DataFrame(_dict).astype(object)
-                # print(df)
                 df_unbalance.append(df)
 
             # stability level 1 figures
-            print(D, H, HP, oper_speed, RHO_ratio, RHOs, RHOd)
             figs = self.stability_level_1(D, H, HP, oper_speed, RHO_ratio, RHOs, RHOd)
             fig_a_lvl1.append(figs[0])
             fig_b_lvl1.append(figs[1])
@@ -411,7 +408,6 @@ class Report:
         df_unbalance = pd.concat(df_unbalance)
 
         self.rotor = rotor0
-        print(rotor0.bearing_elements)
 
         return (
             fig_ucs,
@@ -944,7 +940,7 @@ class Report:
         -------
         >>> rotor = rotor_example()
         >>> report = report_example(rotor)
-        >>> report.mode_shape(mode=0)
+        >>> fig = report.mode_shape(mode=0)
         >>> report.node_min
         array([], dtype=float64)
         >>> report.node_max
@@ -1160,8 +1156,6 @@ class Report:
 
         if len(D) != len(H):
             raise Exception("length of D must be the same of H")
-
-        print(D, H, HP, oper_speed, RHO_ratio, RHOs, RHOd)
 
         Qa = 0.0
         cross_coupled_array = np.array([])
@@ -1463,7 +1457,6 @@ class Report:
                 )
                 modal = aux_rotor.run_modal(speed=self.maxspeed)
                 non_backward = modal.whirl_direction() != "Backward"
-                print(non_backward)
                 log_dec_disk.append(modal.log_dec[non_backward][0])
 
             # Evaluate log dec for group bearings + disks
@@ -1556,11 +1549,7 @@ class Report:
         Example
         -------
         >>> rotor = rotor_example()
-        >>> report = Report(rotor=rotor,
-        ...                 minspeed=400,
-        ...                 maxspeed=1000,
-        ...                 tripspeed=1200,
-        ...                 speed_units="rad/s")
+        >>> report = report_example(rotor)
         >>> stability1 = report.stability_level_1(D=[0.35, 0.35],
         ...                          H=[0.08, 0.08],
         ...                          HP=[10000, 10000],
