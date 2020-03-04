@@ -7,7 +7,7 @@ from scipy.signal import argrelextrema
 from pathlib import Path
 from ross.rotor_assembly import Rotor, rotor_example
 from ross.bearing_seal_element import BearingElement, SealElement
-from materials import steel
+from ross.materials import steel
 
 import ross as rs
 
