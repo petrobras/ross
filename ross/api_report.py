@@ -6,7 +6,9 @@ from scipy.interpolate import interp1d
 from scipy.signal import argrelextrema
 from pathlib import Path
 from ross.rotor_assembly import Rotor, rotor_example
-from ross.bearing_seal_element import BearingElement
+from ross.bearing_seal_element import BearingElement, SealElement
+from materials import steel
+
 import ross as rs
 
 from copy import deepcopy
@@ -120,13 +122,14 @@ class Report:
         self.speed_range = speed_range
 
         if speed_units == "rpm":
-            minspeed = speed_range[0] * np.pi / 30
-            maxspeed = speed_range[1] * np.pi / 30
-            tripspeed = tripspeed * np.pi / 30
+            self.minspeed = speed_range[0] * np.pi / 30
+            self.maxspeed = speed_range[1] * np.pi / 30
+            self.tripspeed = tripspeed * np.pi / 30
+        if speed_units == "rad/s":
+            self.minspeed = speed_range[0]
+            self.maxspeed = speed_range[1]
+            self.tripspeed = tripspeed
 
-        self.minspeed = speed_range[0]
-        self.maxspeed = speed_range[1]
-        self.tripspeed = tripspeed
         self.bearing_stiffness_range = bearing_stiffness_range
         self.bearing_clearance_lists = bearing_clearance_lists
 
@@ -276,7 +279,7 @@ class Report:
         >>> bearing1 = BearingElement(6, kxx=stfx, cxx=dampx, frequency=freq)
         >>> bearings = [bearing0, bearing1]
         >>> rotor = rotor_example()
-        >>> report = report_example(rotor)
+        >>> report = report_example()
         >>> aux_rotor = report.rotor_instance(rotor, bearings)
         """
 
@@ -356,8 +359,7 @@ class Report:
 
         Example
         -------
-        >>> rotor = rotor_example()
-        >>> report = report_example(rotor)
+        >>> report = report_example()
         >>> D = [0.35, 0.35]
         >>> H = [0.08, 0.08]
         >>> HP = [10000, 10000]
@@ -365,8 +367,8 @@ class Report:
         >>> RHOd = 30.45
         >>> RHOs = 37.65
         >>> oper_speed = 1000.0
-        >>> report.run(D, H, HP, oper_speed, RHO_ratio, RHOs, RHOd) # doctest: +ELLIPSIS
-        ([Figure...
+        >>> # to run the API report analysis, use:
+        >>> # report.run(D, H, HP, oper_speed, RHO_ratio, RHOs, RHOd)
         """
         fig_ucs = []
         fig_mode_shape = []
@@ -442,8 +444,7 @@ class Report:
 
         Example
         -------
-        >>> rotor = rotor_example()
-        >>> report = report_example(rotor)
+        >>> report = report_example()
         >>> report.plot_ucs(stiffness_range=(5, 8)) # doctest: +ELLIPSIS
         Figure...
         """
@@ -461,7 +462,7 @@ class Report:
 
         bearings_elements = []  # exclude the seals
         for bearing in self.rotor.bearing_elements:
-            if type(bearing) == BearingElement:
+            if not isinstance(bearing, SealElement):
                 bearings_elements.append(bearing)
 
         for i, k in enumerate(stiffness_log):
@@ -564,8 +565,7 @@ class Report:
 
         Example
         -------
-        >>> rotor = rotor_example()
-        >>> report = report_example(rotor)
+        >>> report = report_example()
         >>> report.static_forces()
         array([44.09320349, 44.09320349])
         """
@@ -603,8 +603,7 @@ class Report:
 
         Example
         -------
-        >>> rotor = rotor_example()
-        >>> report = report_example(rotor)
+        >>> report = report_example()
         >>> report.unbalance_forces(mode=0)
         [58.641354289961676]
         """
@@ -708,8 +707,7 @@ class Report:
 
         Example
         -------
-        >>> rotor = rotor_example()
-        >>> report = report_example(rotor)
+        >>> report = report_example()
         >>> report.unbalance_response(mode=0) # doctest: +ELLIPSIS
         (Column...
         """
@@ -938,8 +936,7 @@ class Report:
 
         Example
         -------
-        >>> rotor = rotor_example()
-        >>> report = report_example(rotor)
+        >>> report = report_example()
         >>> fig = report.mode_shape(mode=0)
         >>> report.node_min
         array([], dtype=float64)
@@ -1134,8 +1131,7 @@ class Report:
 
         Example
         -------
-        >>> rotor = rotor_example()
-        >>> report = report_example(rotor)
+        >>> report = report_example()
         >>> stability = report.stability_level_1(D=[0.35, 0.35],
         ...                          H=[0.08, 0.08],
         ...                          HP=[10000, 10000],
@@ -1422,8 +1418,7 @@ class Report:
 
         Example
         -------
-        >>> rotor = rotor_example()
-        >>> report = report_example(rotor)
+        >>> report = report_example()
         >>> dataframe = report.stability_level_2()
         """
         # Build a list of seals
@@ -1463,19 +1458,21 @@ class Report:
             disk_tags = [
                 "Shaft + Bearings + " + disk.tag for disk in self.rotor.disk_elements
             ]
-            all_disks_tag = " + ".join([disk.tag for disk in self.rotor.disk_elements])
-            disk_tags.append("Shaft + Bearings + " + all_disks_tag)
 
             # Evaluate log dec for group bearings + all disks
-            aux_rotor = Rotor(
-                shaft_elements=self.rotor.shaft_elements,
-                disk_elements=self.rotor.disk_elements,
-                bearing_elements=bearing_list,
-                rated_w=self.maxspeed,
-            )
-            modal = aux_rotor.run_modal(speed=self.maxspeed)
-            non_backward = modal.whirl_direction() != "Backward"
-            log_dec_disk.append(modal.log_dec[non_backward][0])
+            if len(self.rotor.disk_elements) > 1:
+                all_disks_tag = " + ".join([disk.tag for disk in self.rotor.disk_elements])
+                disk_tags.append("Shaft + Bearings + " + all_disks_tag)
+                
+                aux_rotor = Rotor(
+                    shaft_elements=self.rotor.shaft_elements,
+                    disk_elements=self.rotor.disk_elements,
+                    bearing_elements=bearing_list,
+                    rated_w=self.maxspeed,
+                )
+                modal = aux_rotor.run_modal(speed=self.maxspeed)
+                non_backward = modal.whirl_direction() != "Backward"
+                log_dec_disk.append(modal.log_dec[non_backward][0])
 
             data_disk = {"tags": disk_tags, "log_dec": log_dec_disk}
 
@@ -1495,20 +1492,22 @@ class Report:
                 non_backward = modal.whirl_direction() != "Backward"
                 log_dec_seal.append(modal.log_dec[non_backward][0])
 
-            # Evaluate log dec for group bearings + seals
             seal_tags = ["Shaft + Bearings + " + seal.tag for seal in seal_list]
-            all_seals_tag = " + ".join([seal.tag for seal in seal_list])
-            seal_tags.append("Shaft + Bearings + " + all_seals_tag)
 
-            aux_rotor = Rotor(
-                shaft_elements=self.rotor.shaft_elements,
-                disk_elements=[],
-                bearing_elements=self.rotor.bearing_elements,
-                rated_w=self.maxspeed,
-            )
-            modal = aux_rotor.run_modal(speed=self.maxspeed)
-            non_backward = modal.whirl_direction() != "Backward"
-            log_dec_seal.append(modal.log_dec[non_backward][0])
+            if len(seal_list) > 1:
+                # Evaluate log dec for group bearings + seals
+                all_seals_tag = " + ".join([seal.tag for seal in seal_list])
+                seal_tags.append("Shaft + Bearings + " + all_seals_tag)
+    
+                aux_rotor = Rotor(
+                    shaft_elements=self.rotor.shaft_elements,
+                    disk_elements=[],
+                    bearing_elements=self.rotor.bearing_elements,
+                    rated_w=self.maxspeed,
+                )
+                modal = aux_rotor.run_modal(speed=self.maxspeed)
+                non_backward = modal.whirl_direction() != "Backward"
+                log_dec_seal.append(modal.log_dec[non_backward][0])
 
             data_seal = {"tags": seal_tags, "log_dec": log_dec_seal}
 
@@ -1548,8 +1547,7 @@ class Report:
 
         Example
         -------
-        >>> rotor = rotor_example()
-        >>> report = report_example(rotor)
+        >>> report = report_example()
         >>> stability1 = report.stability_level_1(D=[0.35, 0.35],
         ...                          H=[0.08, 0.08],
         ...                          HP=[10000, 10000],
@@ -1638,21 +1636,70 @@ class Report:
         return tabs
 
 
-def report_example(rotor):
+def report_example():
+    """This function returns an instance of a simple report from a rotor 
+    example. The purpose of this is to make available a simple model
+    so that doctest can be written using this.
+
+    Parameters
+    ----------
+
+    Returns
+    -------
+    An instance of a report object.
+
+    Examples
+    --------
+    >>> report = report_example()
+    array([ 92.,  96., 275., 297.])
+    """
+    i_d = 0
+    o_d = 0.05
+    n = 6
+    L = [0.25 for _ in range(n)]
+
+    shaft_elem = [
+        rs.ShaftElement(
+            l,
+            i_d,
+            o_d,
+            material=steel,
+            shear_effects=True,
+            rotary_inertia=True,
+            gyroscopic=True,
+        )
+        for l in L
+    ]
+
+    disk0 = rs.DiskElement.from_geometry(
+        n=2, material=steel, width=0.07, i_d=0.05, o_d=0.28
+    )
+    disk1 = rs.DiskElement.from_geometry(
+        n=4, material=steel, width=0.07, i_d=0.05, o_d=0.28
+    )
+
+    stfx = [0.4e7, 0.5e7, 0.6e7, 0.7e7]
+    stfy = [0.8e7, 0.9e7, 1.0e7, 1.1e7]
+    freq = [400, 800, 1200, 1600]
+    bearing0 = rs.BearingElement(0, kxx=stfx, kyy=stfy, cxx=2e3, frequency=freq)
+    bearing1 = rs.BearingElement(6, kxx=stfx, kyy=stfy, cxx=2e3, frequency=freq)
+
+    rotor = rs.Rotor(shaft_elem, [disk0, disk1], [bearing0, bearing1])
+
     # coefficients for minimum clearance
     stfx = [0.7e7, 0.8e7, 0.9e7, 1.0e7]
     dampx = [2.0e3, 1.9e3, 1.8e3, 1.7e3]
     freq = [400, 800, 1200, 1600]
-    bearing0 = BearingElement(0, kxx=stfx, cxx=dampx, frequency=freq)
-    bearing1 = BearingElement(6, kxx=stfx, cxx=dampx, frequency=freq)
+    bearing0 = rs.BearingElement(0, kxx=stfx, cxx=dampx, frequency=freq)
+    bearing1 = rs.BearingElement(6, kxx=stfx, cxx=dampx, frequency=freq)
     min_clearance_brg = [bearing0, bearing1]
 
     # coefficients for maximum clearance
     stfx = [0.4e7, 0.5e7, 0.6e7, 0.7e7]
     dampx = [2.8e3, 2.7e3, 2.6e3, 2.5e3]
     freq = [400, 800, 1200, 1600]
-    bearing0 = BearingElement(0, kxx=stfx, cxx=dampx, frequency=freq)
-    bearing1 = BearingElement(6, kxx=stfx, cxx=dampx, frequency=freq)
+    bearing0 = rs.BearingElement(0, kxx=stfx, cxx=dampx, frequency=freq)
+    bearing1 = rs.BearingElement(6, kxx=stfx, cxx=dampx, frequency=freq)
     max_clearance_brg = [bearing0, bearing1]
 
     bearings = [min_clearance_brg, max_clearance_brg]
