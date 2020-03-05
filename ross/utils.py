@@ -4,8 +4,8 @@ import re
 from bokeh.models import LogColorMapper
 from bokeh.palettes import Viridis256
 from bokeh.plotting import figure
-import itertools
-from collections import Iterable
+
+from itertools import product
 
 
 def random_var(f, is_random, *args):
