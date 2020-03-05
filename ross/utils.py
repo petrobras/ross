@@ -32,6 +32,8 @@ def random_var(f, is_random, *args):
 
     Example
     -------
+    >>> from ross.shaft_element import ShaftElement
+    >>> from ross.materials import steel
     >>> class_attr = dict(L=[0.9, 1.1],
     ...                   idl=0,
     ...                   odl=[0.9, 1.1],
