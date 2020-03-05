@@ -30,7 +30,7 @@ author = "Team ROSS"
 import ross
 
 # The short X.Y version
-version = ross.__version__
+version = ross.__version__[:3]
 # The full version, including alpha/beta/rc tags
 release = ross.__version__
 
