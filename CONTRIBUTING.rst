@@ -34,8 +34,17 @@ Documentation
 -------------
 We use `sphinx <http://www.sphinx-doc.org/en/master/>`_ to generate the project's documentation. We keep the source
 files at ~/ross/docs, and we keep the html files used to build the website in a
-`separate repository <https://github.com/ross-rotordynamics/ross-website>`_. If you want to modify the documentation,
-modify the source files and them do the following to modify the website:
+`separate repository <https://github.com/ross-rotordynamics/ross-website>`_.
+The website tracks the documentation for the released version with the following procedure:
+
+ 1. Travis runs the deploy_docs.sh file ('after_success' phase);
+ 2. The deploy_docs script checks if the branch being updated has the same name as the current released ROSS' version (ross.__version__);
+ 3. If 2 is True, the script will build the docs for that branch and push to the ross-website repo.
+
+So, if you want to modify the documentation website, modify the source files and then make a pull request
+to branch named as the current released version.
+
+If you want to test the documentation locally:
 
 - Clone the ross-website to ``~/ross-website/html``::
 
@@ -45,7 +54,12 @@ modify the source files and them do the following to modify the website:
 
     $ make html BUILDDIR=~/ross-website
 
-After that you can push the updated html files to the ross-website repository.
+- Go to the builddir and run a html server::
+
+    $ cd ~/ross-website/html
+    $ python -m http.server
+
+After that you can access your local server (http://0.0.0.0:8000/) and see the generated docs.
 
 Integrated development environment: PyCharm
 -------------------------------------------

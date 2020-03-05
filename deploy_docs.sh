@@ -1,11 +1,14 @@
 #!/bin/bash
 # Deploy docs to github using Travis CI - based on this gist https://gist.github.com/domenic/ec8b0fc8ab45f39403dd
 
-echo "Building and deploying ross-website"
+# Get ROSS version
+ROSS_VERSION=$(python -c "import ross; print(ross.__version__[:3])")
+
+echo "Building and deploying ross-website version $ROSS_VERSION"
 set -e # Exit with nonzero exit code if anything fails
 
-if [ "$TRAVIS_PULL_REQUEST" != "false" -o "$TRAVIS_BRANCH" != "master" ]; then
-    echo "Skipping deploy. This is done only on master build."
+if [ "$TRAVIS_PULL_REQUEST" != "false" -o "$TRAVIS_BRANCH" != "$ROSS_VERSION" ]; then
+    echo "Skipping documentation deployment. This is done only on current released version."
     exit 0
 fi
 
@@ -35,6 +38,7 @@ cd $HOME/ross-website/html
 find -maxdepth 1 ! -name .git ! -name .gitignore ! -name . | xargs rm -rf
 
 cd $HOME/build/ross-rotordynamics/ross/docs
+git checkout $ROSS_VERSION
 echo "Building html files"
 make html BUILDDIR=$HOME/ross-website
 
