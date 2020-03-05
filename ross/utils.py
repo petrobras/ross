@@ -42,11 +42,8 @@ def random_var(f, is_random, *args):
     ...                   material=steel)
     >>> var = ["L", "odl"]
     >>> random_obj = random_var(ShaftElement, var, class_attr)
-    >>> random_obj
-    [ShaftElement(L=0.9, idl=0.0, idr=0.0, odl=0.9,  odr=1.0, material='Steel', n=None),
-     ShaftElement(L=0.9, idl=0.0, idr=0.0, odl=1.1,  odr=1.0, material='Steel', n=None),
-     ShaftElement(L=1.1, idl=0.0, idr=0.0, odl=0.9,  odr=1.0, material='Steel', n=None),
-     ShaftElement(L=1.1, idl=0.0, idr=0.0, odl=1.1,  odr=1.0, material='Steel', n=None)]
+    >>> random_obj # doctest: +ELLIPSIS
+    [ShaftElement(...
     """
     f_list = []
     mix_objects = []
