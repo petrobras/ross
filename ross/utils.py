@@ -7,17 +7,53 @@ from bokeh.plotting import figure
 import itertools
 from collections import Iterable
 
-from ross.materials import Material
 
-def stochastic_ross(f,*args):
-    f_list = []   
-    mix = []
-    for arg in args:
-        if isinstance(arg,Iterable):
-            mix.append(list(arg))
+def random_var(f, is_random, *args):
+    """Generates a list of objects as random attributes.
+
+    This function creates a list of objects with random values for selected
+    attributes of a given class or method.
+
+    Parameters
+    ----------
+    f : callable
+        A class or method to create a object with random variables
+    is_random : list
+        List of the object attributes to become stochastic
+    *args : dict
+        Dictionary instanciating the method or class (f).
+        The attributes that are supposed to be stochastic should be
+        set as lists of random variables.
+
+    Returns
+    -------
+    f_list : list
+        List of random objects.
+
+    Example
+    -------
+    >>> class_attr = dict(L=[0.9, 1.1],
+    ...                   idl=0,
+    ...                   odl=[0.9, 1.1],
+    ...                   idr=0,
+    ...                   odr=1,
+    ...                   material=steel)
+    >>> var = ["L", "odl"]
+    >>> random_obj = random_var(ShaftElement, var, class_attr)
+    >>> random_obj
+    [ShaftElement(L=0.9, idl=0.0, idr=0.0, odl=0.9,  odr=1.0, material='Steel', n=None),
+     ShaftElement(L=0.9, idl=0.0, idr=0.0, odl=1.1,  odr=1.0, material='Steel', n=None),
+     ShaftElement(L=1.1, idl=0.0, idr=0.0, odl=0.9,  odr=1.0, material='Steel', n=None),
+     ShaftElement(L=1.1, idl=0.0, idr=0.0, odl=1.1,  odr=1.0, material='Steel', n=None)]
+    """
+    f_list = []
+    mix_objects = []
+    for key, value in args[0].items():
+        if key in is_random:
+            mix_objects.append(list(value))
         else:
-            mix.append([arg])
-    new_args = list(itertools.product(*mix))
+            mix_objects.append([value])
+    new_args = list(product(*list(mix_objects)))
     for arg in new_args:
         f_list.append(f(*arg))
     return f_list
