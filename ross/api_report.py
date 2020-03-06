@@ -253,18 +253,22 @@ class Report:
         )
 
         # Setting variables to jinja2 template
+
         template_vars = {
             "assets_dir": str(root / "assets"),
             "machine_type": self.machine_type,
             "tag": rotor.tag,
         }
 
+        # In future implementations template_vars will be outputted from a run_report()'ish method.
+
         # Used to render variables in template and generate PDF.
         rendered_string = template.render(template_vars)
         html = weasyprint.HTML(string=rendered_string)
         report = os.path.join(output_dir, output_filename)
         html.write_pdf(report, stylesheets=[str(css / "report.css")])
-        print(f"ross generated in {output_dir}")
+        print(f"Report of {self.machine_type + ' '  + rotor.tag} exported in {output_dir}")
+        return html
 
     def static_forces(self):
         """Method to calculate the bearing reaction forces.
