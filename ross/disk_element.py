@@ -553,6 +553,12 @@ def disk_example():
     return disk
 
 
+# fmt:off
+
+
+# fmt:on
+
+
 class DiskElement6DoF(Element):
     """A disk element for 6 DoFs.
 
@@ -579,6 +585,18 @@ class DiskElement6DoF(Element):
      0.3
      """
 
+    def __init__(self, n, m, Id, Ip, tag=None):
+        self.n = int(n)
+        self.n_l = n
+        self.n_r = n
+
+        self.m = m
+        self.Id = Id
+        self.Ip = Ip
+        self.tag = tag
+        self.color = bokeh_colors[9]
+        self.dof_global_index = None
+
     def __eq__(self, other):
         """This function allows disk elements to be compared.
         Parameters
@@ -597,6 +615,24 @@ class DiskElement6DoF(Element):
         >>> disk1 == disk2
         True
         """
+        false_number = 0
+        for i in self.__dict__:
+            try:
+                if np.allclose(self.__dict__[i], other.__dict__[i]):
+                    pass
+                else:
+                    false_number += 1
+
+            except TypeError:
+                if self.__dict__[i] == other.__dict__[i]:
+                    pass
+                else:
+                    false_number += 1
+
+        if false_number == 0:
+            return True
+        else:
+            return False
 
     def __repr__(self):
         """This function returns a string representation of a disk element.
@@ -612,6 +648,12 @@ class DiskElement6DoF(Element):
         >>> disk # doctest: +ELLIPSIS
         DiskElement(Id=0.17809, Ip=0.32956...
         """
+        return (
+            f"{self.__class__.__name__}"
+            f"(Id={self.Id:{0}.{5}}, Ip={self.Ip:{0}.{5}}, "
+            f"m={self.m:{0}.{5}}, color={self.color!r}, "
+            f"n={self.n}, tag={self.tag!r})"
+        )
 
     def __hash__(self):
         return hash(self.tag)
@@ -636,6 +678,15 @@ class DiskElement6DoF(Element):
         >>> disk = disk_example()
         >>> disk.save('DiskElement6DoF.toml')
         """
+        data = self.load_data(file_name)
+        data["DiskElement6DoF"][str(self.n)] = {
+            "n": self.n,
+            "m": self.m,
+            "Id": self.Id,
+            "Ip": self.Ip,
+            "tag": self.tag,
+        }
+        self.dump_data(data, file_name)
 
     @staticmethod
     def load(file_name="DiskElement6DoF"):
@@ -659,6 +710,14 @@ class DiskElement6DoF(Element):
         >>> disk1 == list_of_disks[0]
         True
         """
+        disk_elements = []
+        with open("DiskElemeDiskElement6DoFnt.toml", "r") as f:
+            disk_elements_dict = toml.load(f)
+            for element in disk_elements_dict["DiskElement6DoF"]:
+                disk_elements.append(
+                    DiskElement6DoF(**disk_elements_dict["DiskElement6DoF"][element])
+                )
+        return disk_elements
 
     def dof_mapping(self):
         """6DoFs degrees of freedom mapping.
