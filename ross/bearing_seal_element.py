@@ -1,3 +1,4 @@
+# fmt: off
 import os
 import warnings
 from collections import namedtuple
@@ -21,6 +22,7 @@ __all__ = [
     "BallBearingElement",
     "RollerBearingElement",
 ]
+# fmt: on
 bokeh_colors = bp.RdGy[11]
 
 

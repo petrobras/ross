@@ -1,3 +1,5 @@
+# fmt: off
+
 import sys
 
 import numpy as np
@@ -8,6 +10,8 @@ from ross.fluid_flow.fluid_flow_geometry import (calculate_attitude_angle,
                                                  external_radius_function,
                                                  internal_radius_function,
                                                  modified_sommerfeld_number)
+
+# fmt: on
 
 
 class FluidFlow:

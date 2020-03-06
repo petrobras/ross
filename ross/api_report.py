@@ -1,3 +1,4 @@
+# fmt: off
 from copy import copy, deepcopy
 from pathlib import Path
 
@@ -16,6 +17,8 @@ from scipy.signal import argrelextrema
 import ross as rs
 from ross.bearing_seal_element import BearingElement
 from ross.rotor_assembly import Rotor, rotor_example
+
+# fmt: on
 
 # set bokeh palette of colors
 bokeh_colors = bp.RdGy[11]

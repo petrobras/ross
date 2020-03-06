@@ -1,3 +1,4 @@
+# fmt: off
 import math
 
 import matplotlib.pyplot as plt
@@ -18,6 +19,8 @@ from ross.fluid_flow.fluid_flow_graphics import (matplot_eccentricity,
                                                  plot_eccentricity,
                                                  plot_pressure_theta,
                                                  plot_pressure_z, plot_shape)
+
+# fmt: on
 
 
 @pytest.fixture

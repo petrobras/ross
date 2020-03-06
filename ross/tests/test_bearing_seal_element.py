@@ -1,3 +1,4 @@
+# fmt: off
 import os
 
 import numpy as np
@@ -6,6 +7,8 @@ from numpy.testing import assert_allclose
 
 from ross.bearing_seal_element import (BallBearingElement, BearingElement,
                                        RollerBearingElement)
+
+# fmt: on
 
 
 @pytest.fixture

@@ -1,3 +1,4 @@
+# fmt: off
 import os
 import shutil
 import warnings
@@ -30,6 +31,8 @@ from ross.results import (CampbellResults, ConvergenceResults,
                           SummaryResults, TimeResponseResults)
 from ross.shaft_element import ShaftElement
 from ross.utils import convert
+
+# fmt: on
 
 __all__ = ["Rotor", "CoAxialRotor", "rotor_example", "coaxrotor_example"]
 

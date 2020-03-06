@@ -1,3 +1,4 @@
+# fmt: off
 import bokeh.palettes as bp
 import matplotlib as mpl
 import matplotlib.pyplot as plt
@@ -13,6 +14,8 @@ from bokeh.plotting import figure
 from bokeh.transform import linear_cmap
 from matplotlib import cm
 from scipy import interpolate
+
+# fmt: on
 
 # set bokeh palette of colors
 bokeh_colors = bp.RdGy[11]
