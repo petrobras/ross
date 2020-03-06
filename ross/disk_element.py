@@ -873,6 +873,32 @@ class DiskElement6DoF(Element):
         Returns
         -------
         """
+        zpos, ypos = position
+        step = ypos / 5
+
+        #  matplotlib node (x pos), outer diam. (y pos)
+        disk_points_u = [
+            [zpos, ypos],  # upper
+            [zpos + step, ypos * 4],
+            [zpos - step, ypos * 4],
+            [zpos, ypos],
+        ]
+        disk_points_l = [
+            [zpos, -ypos],  # lower
+            [zpos + step, -ypos * 4],
+            [zpos - step, -ypos * 4],
+            [zpos, -ypos],
+        ]
+
+        ax.add_patch(mpatches.Polygon(disk_points_u, facecolor=self.color))
+        ax.add_patch(mpatches.Polygon(disk_points_l, facecolor=self.color))
+
+        ax.add_patch(
+            mpatches.Circle(xy=(zpos, ypos * 4), radius=step, color=self.color)
+        )
+        ax.add_patch(
+            mpatches.Circle(xy=(zpos, -ypos * 4), radius=step, color=self.color)
+        )
 
     def bokeh_patch(self, position, bk_ax):
         """Disk element patch.
@@ -888,6 +914,92 @@ class DiskElement6DoF(Element):
         bk_ax : bokeh plotting axes
             Returns the axes object with the plot.
         """
+        zpos, ypos = position
+        step = ypos / 5
+
+        # bokeh plot - coordinates to plot disks elements
+        z_upper = [zpos, zpos + step, zpos - step]
+        y_upper = [ypos, ypos * 4, ypos * 4]
+
+        z_lower = [zpos, zpos + step, zpos - step]
+        y_lower = [-ypos, -ypos * 4, -ypos * 4]
+
+        source = ColumnDataSource(
+            dict(
+                z_l=[z_lower],
+                y_l=[y_lower],
+                z_u=[z_upper],
+                y_u=[y_upper],
+                elnum=[self.n],
+                IP=[self.Ip],
+                ID=[self.Id],
+                mass=[self.m],
+                tag=[self.tag],
+            )
+        )
+        source_c = ColumnDataSource(
+            dict(
+                z_circle=[z_upper[0]],
+                yu_circle=[y_upper[1]],
+                yl_circle=[-y_upper[1]],
+                radius=[step],
+                elnum=[self.n],
+                IP=[self.Ip],
+                ID=[self.Id],
+                mass=[self.m],
+                tag=[self.tag],
+            )
+        )
+
+        bk_ax.patches(
+            xs="z_u",
+            ys="y_u",
+            source=source,
+            alpha=1,
+            line_width=2,
+            color=self.color,
+            legend_label="Disk",
+            name="ub_disk",
+        )
+        bk_ax.patches(
+            xs="z_l",
+            ys="y_l",
+            source=source,
+            alpha=1,
+            line_width=2,
+            color=self.color,
+            name="ub_disk",
+        )
+        bk_ax.circle(
+            x="z_circle",
+            y="yu_circle",
+            radius="radius",
+            source=source_c,
+            fill_alpha=1,
+            color=self.color,
+            name="uc_disk",
+        )
+        bk_ax.circle(
+            x="z_circle",
+            y="yl_circle",
+            radius="radius",
+            source=source_c,
+            fill_alpha=1,
+            color=self.color,
+            name="lc_disk",
+        )
+
+        hover = HoverTool(names=["uc_disk", "lc_disk", "ub_disk", "lb_disk"])
+        hover.tooltips = [
+            ("Disk Node :", "@elnum"),
+            ("Polar Moment of Inertia :", "@IP"),
+            ("Diametral Moment of Inertia :", "@ID"),
+            ("Disk mass :", "@mass"),
+            ("Tag :", "@tag"),
+        ]
+        hover.mode = "mouse"
+
+        return hover
 
     @classmethod
     def from_geometry(cls, n, material, width, i_d, o_d, tag=None):
@@ -927,6 +1039,18 @@ class DiskElement6DoF(Element):
         >>> disk.Ip
         0.32956362089137037
         """
+        m = 0.25 * material.rho * np.pi * width * (o_d ** 2 - i_d ** 2)
+        # fmt: off
+        Id = (
+            0.015625 * material.rho * np.pi * width * (o_d ** 4 - i_d ** 4)
+            + m * (width ** 2) / 12
+        )
+        # fmt: on
+        Ip = 0.03125 * material.rho * np.pi * width * (o_d ** 4 - i_d ** 4)
+
+        tag = tag
+
+        return cls(n, m, Id, Ip, tag)
 
     @classmethod
     def from_table(cls, file, sheet_name=0):
@@ -957,6 +1081,18 @@ class DiskElement6DoF(Element):
         >>> list_of_disks[0]
         DiskElement(Id=0.0, Ip=0.0, m=15.12, color='#b2182b', n=3, tag=None)
         """
+        parameters = read_table_file(file, "disk", sheet_name=sheet_name)
+        list_of_disks = []
+        for i in range(0, len(parameters["n"])):
+            list_of_disks.append(
+                cls(
+                    n=parameters["n"][i],
+                    m=parameters["m"][i],
+                    Id=float(parameters["Id"][i]),
+                    Ip=float(parameters["Ip"][i]),
+                )
+            )
+        return list_of_disks
 
 
 def disk_example():
@@ -977,4 +1113,6 @@ def disk_example():
     >>> disk.Ip
     0.32956362
     """
+    disk = DiskElement(0, 32.589_727_65, 0.178_089_28, 0.329_563_62)
+    return disk
 
