@@ -2,15 +2,15 @@ import os
 
 import numpy as np
 import pytest
-from numpy.testing import assert_almost_equal, assert_allclose, assert_equal
+from numpy.testing import assert_allclose, assert_almost_equal, assert_equal
 
 from ross.bearing_seal_element import *
 from ross.disk_element import *
 from ross.materials import steel
+from ross.point_mass import *
 from ross.rotor_assembly import *
 from ross.rotor_assembly import MAC_modes
 from ross.shaft_element import *
-from ross.point_mass import *
 
 test_dir = os.path.dirname(__file__)
 

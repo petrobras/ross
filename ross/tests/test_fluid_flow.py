@@ -1,28 +1,23 @@
-import pytest
 import math
+
+import matplotlib.pyplot as plt
 import numpy as np
+import pytest
+from bokeh.plotting import figure
+from numpy.testing import assert_allclose
 
 from ross.fluid_flow import fluid_flow as flow
-from bokeh.plotting import figure
-import matplotlib.pyplot as plt
-from numpy.testing import assert_allclose
-from ross.fluid_flow.fluid_flow_geometry import move_rotor_center
 from ross.fluid_flow.fluid_flow_coefficients import (
-    calculate_damping_matrix,
-    calculate_oil_film_force,
-    calculate_stiffness_matrix,
-    find_equilibrium_position,
-)
-from ross.fluid_flow.fluid_flow_graphics import (
-    plot_shape,
-    plot_eccentricity,
-    plot_pressure_theta,
-    plot_pressure_z,
-    matplot_shape,
-    matplot_eccentricity,
-    matplot_pressure_theta,
-    matplot_pressure_z,
-)
+    calculate_damping_matrix, calculate_oil_film_force,
+    calculate_stiffness_matrix, find_equilibrium_position)
+from ross.fluid_flow.fluid_flow_geometry import move_rotor_center
+from ross.fluid_flow.fluid_flow_graphics import (matplot_eccentricity,
+                                                 matplot_pressure_theta,
+                                                 matplot_pressure_z,
+                                                 matplot_shape,
+                                                 plot_eccentricity,
+                                                 plot_pressure_theta,
+                                                 plot_pressure_z, plot_shape)
 
 
 @pytest.fixture

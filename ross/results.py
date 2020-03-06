@@ -5,8 +5,10 @@ import numpy as np
 import scipy.linalg as la
 from bokeh.colors import RGB
 from bokeh.layouts import gridplot, widgetbox
-from bokeh.models import Arrow, ColorBar, ColumnDataSource, HoverTool, Label, NormalHead
-from bokeh.models.widgets import DataTable, NumberFormatter, TableColumn, Panel, Tabs
+from bokeh.models import (Arrow, ColorBar, ColumnDataSource, HoverTool, Label,
+                          NormalHead)
+from bokeh.models.widgets import (DataTable, NumberFormatter, Panel,
+                                  TableColumn, Tabs)
 from bokeh.plotting import figure
 from bokeh.transform import linear_cmap
 from matplotlib import cm

@@ -3,11 +3,12 @@
 This module defines the Material class and defines
 some of the most common materials used in rotors.
 """
+from pathlib import Path
+
 import numpy as np
 import toml
-from pathlib import Path
-from .units import check_units
 
+from .units import check_units
 
 __all__ = ["Material", "steel"]
 

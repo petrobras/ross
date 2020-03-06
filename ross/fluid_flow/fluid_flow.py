@@ -1,13 +1,13 @@
 import sys
+
 import numpy as np
-from ross.fluid_flow.fluid_flow_geometry import (
-    calculate_attitude_angle,
-    internal_radius_function,
-    external_radius_function,
-    modified_sommerfeld_number,
-    calculate_eccentricity_ratio,
-    calculate_rotor_load,
-)
+
+from ross.fluid_flow.fluid_flow_geometry import (calculate_attitude_angle,
+                                                 calculate_eccentricity_ratio,
+                                                 calculate_rotor_load,
+                                                 external_radius_function,
+                                                 internal_radius_function,
+                                                 modified_sommerfeld_number)
 
 
 class FluidFlow:

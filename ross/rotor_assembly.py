@@ -1,9 +1,9 @@
 import os
 import shutil
 import warnings
-from collections import Iterable, namedtuple, Counter
+from collections import Counter, Iterable, namedtuple
 from copy import copy, deepcopy
-from itertools import cycle, chain
+from itertools import chain, cycle
 from pathlib import Path
 
 import bokeh.palettes as bp
@@ -20,24 +20,17 @@ from bokeh.models import ColumnDataSource
 from bokeh.models.glyphs import Text
 from bokeh.plotting import figure, output_file, show
 from cycler import cycler
-from ross.utils import convert
 
 import ross
 from ross.bearing_seal_element import BearingElement, SealElement
 from ross.disk_element import DiskElement
 from ross.materials import steel
-from ross.results import (
-    CampbellResults,
-    ConvergenceResults,
-    ForcedResponseResults,
-    FrequencyResponseResults,
-    ModalResults,
-    StaticResults,
-    SummaryResults,
-    TimeResponseResults,
-    OrbitResponseResults,
-)
+from ross.results import (CampbellResults, ConvergenceResults,
+                          ForcedResponseResults, FrequencyResponseResults,
+                          ModalResults, OrbitResponseResults, StaticResults,
+                          SummaryResults, TimeResponseResults)
 from ross.shaft_element import ShaftElement
+from ross.utils import convert
 
 __all__ = ["Rotor", "CoAxialRotor", "rotor_example", "coaxrotor_example"]
 

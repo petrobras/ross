@@ -1,13 +1,14 @@
+import os
+from pathlib import Path
+
 import bokeh.palettes as bp
 import matplotlib.patches as mpatches
 import numpy as np
 import toml
-import os
-
-from pathlib import Path
 from bokeh.models import ColumnDataSource, HoverTool
-from ross.utils import read_table_file
+
 from ross.element import Element
+from ross.utils import read_table_file
 
 __all__ = ["DiskElement"]
 bokeh_colors = bp.RdGy[11]

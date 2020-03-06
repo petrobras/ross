@@ -1,22 +1,20 @@
+import os
 import warnings
+from collections import namedtuple
+from pathlib import Path
 
 import bokeh.palettes as bp
+import matplotlib.lines as mlines
 import matplotlib.patches as mpatches
 import matplotlib.pyplot as plt
-import matplotlib.lines as mlines
 import numpy as np
 import scipy.interpolate as interpolate
-import os
 
-from pathlib import Path
-from collections import namedtuple
-from ross.utils import read_table_file
 from ross.element import Element
 from ross.fluid_flow import fluid_flow as flow
 from ross.fluid_flow.fluid_flow_coefficients import (
-    calculate_stiffness_matrix,
-    calculate_damping_matrix,
-)
+    calculate_damping_matrix, calculate_stiffness_matrix)
+from ross.utils import read_table_file
 
 __all__ = [
     "BearingElement",
