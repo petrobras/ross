@@ -7,7 +7,7 @@ from ross.utils import read_table_file
 
 from ross.element import Element
 
-__all__ = ["DiskElement"]
+__all__ = ["DiskElement", "DiskElement6DoF"]
 bokeh_colors = bp.RdGy[11]
 
 
@@ -551,3 +551,325 @@ def disk_example():
     """
     disk = DiskElement(0, 32.589_727_65, 0.178_089_28, 0.329_563_62)
     return disk
+
+
+class DiskElement6DoF(Element):
+    """A disk element for 6 DoFs.
+
+     This class will create a disk element with 6 DoF from input data of inertia and mass.
+
+     Parameters
+     ----------
+     n: int
+         Node in which the disk will be inserted.
+     m : float
+         Mass of the disk element.
+     Id : float
+         Diametral moment of inertia.
+     Ip : float
+         Polar moment of inertia
+     tag : str, optional
+         A tag to name the element
+         Default is None
+
+     Examples
+     --------
+     >>> disk = DiskElement(n=0, m=32, Id=0.2, Ip=0.3)
+     >>> disk.Ip
+     0.3
+     """
+
+    def __eq__(self, other):
+        """This function allows disk elements to be compared.
+        Parameters
+        ----------
+        other: object
+            The second object to be compared with.
+
+        Returns
+        -------
+        bool
+            True if the comparison is true; False otherwise.
+        Examples
+        --------
+        >>> disk1 = disk_example()
+        >>> disk2 = disk_example()
+        >>> disk1 == disk2
+        True
+        """
+
+    def __repr__(self):
+        """This function returns a string representation of a disk element.
+        Parameters
+        ----------
+
+        Returns
+        -------
+        A string representation of a disk object.
+        Examples
+        --------
+        >>> disk = disk_example()
+        >>> disk # doctest: +ELLIPSIS
+        DiskElement(Id=0.17809, Ip=0.32956...
+        """
+
+    def __hash__(self):
+        return hash(self.tag)
+
+    def save(self, file_name):
+        """Saves a disk element in a toml format.
+
+        It works as an auxiliary function of the save function in the Rotor
+        class.
+
+        Parameters
+        ----------
+        file_name: string
+            The name of the file the disk element will be saved in.
+
+        Returns
+        -------
+        None
+
+        Examples
+        --------
+        >>> disk = disk_example()
+        >>> disk.save('DiskElement6DoF.toml')
+        """
+
+    @staticmethod
+    def load(file_name="DiskElement6DoF"):
+        """Loads a list of 6DoFs disk elements saved in a toml format.
+
+        Parameters
+        ----------
+        file_name: str
+            The name of the file of the disk element to be loaded.
+
+        Returns
+        -------
+        disk_elements: list
+            A list of disk elements.
+
+        Examples
+        --------
+        >>> disk1 = disk_example()
+        >>> disk1.save('DiskElement6DoF.toml')
+        >>> list_of_disks = DiskElement6DoF.load('DiskElement6DoF.toml')
+        >>> disk1 == list_of_disks[0]
+        True
+        """
+
+    def dof_mapping(self):
+        """6DoFs degrees of freedom mapping.
+
+        Returns a dictionary with a mapping between degree of freedom and its
+        index.
+
+        Returns
+        -------
+        dof_mapping: dict
+            A dictionary containing the degrees of freedom and their indexes.
+
+        Examples
+        --------
+        The numbering of the degrees of freedom for each node. 
+        
+        Being the following their ordering for a node:
+
+        x_0,u_0 - horizontal translation, 
+        y_0,v_0 - vertical translation, 
+        z_0,w_0 - axial translation, 
+        theta_0 - rotation around horizontal, 
+        psi_0   - rotation around vertical, 
+        phi_0   - torsion around axial,
+        """
+
+    def M(self):
+        """6DoFs mass matrix.
+
+        This method will return the mass matrix for an instance of a disk
+        element with 6DoFs.
+
+        Returns
+        -------
+        Mass matrix for the 6DoFs disk element.
+
+        Examples
+        --------
+        >>> disk = DiskElement(0, 32.58972765, 0.17808928, 0.32956362)
+        >>> disk.M()
+        array(6,6)
+        """
+
+    def K(self):
+        """6DoFs stiffness matrix.
+
+        This method will return the stiffness matrix for an instance of a disk
+        element with 6DoFs.
+
+        Returns
+        -------
+        K: np.ndarray
+            A matrix of floats containing the values of the stiffness matrix.
+
+        Examples
+        --------
+        >>> disk = disk_example()
+        >>> disk.K()
+        array(6,6)
+        """
+
+    def C(self):
+        """6DoFs damping matrix.
+
+        Returns
+        -------
+        C: np.ndarray
+            A matrix of floats containing the values of the damping matrix.
+
+        Examples
+        --------
+        >>> disk = disk_example()
+        >>> disk.C()
+        array(6,6)
+        """
+
+    def G(self):
+        """6DoFs gyroscopic matrix.
+
+        This method will return the gyroscopic matrix for an instance of a disk
+        element.
+
+        Returns
+        -------
+        G: np.ndarray
+            Gyroscopic matrix for the disk element.
+
+        Examples
+        --------
+        >>> disk = DiskElement(0, 32.58972765, 0.17808928, 0.32956362)
+        >>> disk.G()
+        array(6,6)
+        """
+
+    def patch(self, position, ax):
+        """Disk element patch.
+
+        Patch that will be used to draw the disk element.
+
+        Parameters
+        ----------
+        ax : matplotlib axes, optional
+            Axes in which the plot will be drawn.
+        position : float
+            Position in which the patch will be drawn.
+
+        Returns
+        -------
+        """
+
+    def bokeh_patch(self, position, bk_ax):
+        """Disk element patch.
+        Patch that will be used to draw the disk element.
+        Parameters
+        ----------
+        bk_ax : bokeh plotting axes, optional
+            Axes in which the plot will be drawn.
+        position : float
+            Position in which the patch will be drawn.
+        Returns
+        -------
+        bk_ax : bokeh plotting axes
+            Returns the axes object with the plot.
+        """
+
+    @classmethod
+    def from_geometry(cls, n, material, width, i_d, o_d, tag=None):
+        """A 6DoFs disk element.
+
+        This class method will create a disk element from geometry data.
+
+        Parameters
+        ----------
+        n: int
+            Node in which the disk will be inserted.
+        material: ross.Material
+             Shaft material.
+        width: float
+            The disk width.
+        i_d: float
+            Inner diameter.
+        o_d: float
+            Outer diameter.
+
+        Attributes
+        ----------
+        m : float
+            Mass of the disk element.
+        Id : float
+            Diametral moment of inertia.
+        Ip : float
+            Polar moment of inertia
+        tag : str, optional
+            A tag to name the element
+            Default is None
+
+        Examples
+        --------
+        >>> from ross.materials import steel
+        >>> disk = DiskElement.from_geometry(0, steel, 0.07, 0.05, 0.28)
+        >>> disk.Ip
+        0.32956362089137037
+        """
+
+    @classmethod
+    def from_table(cls, file, sheet_name=0):
+        """Instantiate one or more disks using inputs from an Excel table.
+
+        A header with the names of the columns is required. These names should
+        match the names expected by the routine (usually the names of the
+        parameters, but also similar ones). The program will read every row
+        bellow the header until they end or it reaches a NaN.
+
+        Parameters
+        ----------
+        file: str
+            Path to the file containing the disk parameters.
+        sheet_name: int or str, optional
+            Position of the sheet in the file (starting from 0) or its name.
+            If none is passed, it is assumed to be the first sheet in the file.
+        Returns
+        -------
+        disk : list
+            A list of disk objects.
+
+        Examples
+        --------
+        >>> import os
+        >>> file_path = os.path.dirname(os.path.realpath(__file__)) + '/tests/data/shaft_si.xls'
+        >>> list_of_disks = DiskElement.from_table(file_path, sheet_name="More")
+        >>> list_of_disks[0]
+        DiskElement(Id=0.0, Ip=0.0, m=15.12, color='#b2182b', n=3, tag=None)
+        """
+
+
+def disk_example():
+    """This function returns an instance of a simple disk.
+    The purpose is to make available a simple 6DoFs model
+    so that doctest can be written using it.
+
+    Parameters
+    ----------
+
+    Returns
+    -------
+    An instance of a disk object.
+
+    Examples
+    --------
+    >>> disk = disk_example()
+    >>> disk.Ip
+    0.32956362
+    """
+
