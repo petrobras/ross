@@ -743,6 +743,7 @@ class DiskElement6DoF(Element):
         psi_0   - rotation around vertical, 
         phi_0   - torsion around axial,
         """
+        return dict(u_0=0, v_0=1, w_0=2, theta_0=3, psi_0=4, phi_0=5,)
 
     def M(self):
         """6DoFs mass matrix.
@@ -760,6 +761,19 @@ class DiskElement6DoF(Element):
         >>> disk.M()
         array(6,6)
         """
+        m = self.m
+        Id = self.Id
+        Ip = self.Ip
+        # fmt: off
+        M = np.array([
+            [  m,  0,  0,  0,  0,  0],
+            [  0,  m,  0,  0,  0,  0],
+            [  0,  0,  m,  0,  0,  0],
+            [  0,  0,  0, Id,  0,  0],
+            [  0,  0,  0,  0, Id,  0],
+            [  0,  0,  0,  0,  0, Ip]])
+        # fmt: on
+        return M
 
     def K(self):
         """6DoFs stiffness matrix.
@@ -778,6 +792,17 @@ class DiskElement6DoF(Element):
         >>> disk.K()
         array(6,6)
         """
+        Ip = self.Ip
+        # fmt: off
+        K = np.array([
+            [ 0, 0, 0,  0, 0, 0],
+            [ 0, 0, 0,  0, 0, 0],
+            [ 0, 0, 0,  0, 0, 0],
+            [ 0, 0, 0,  0, 0, 0],
+            [ 0, 0, 0,  0, 0, 0],
+            [ 0, 0, 0, Ip, 0, 0]])
+        # fmt: on
+        return K
 
     def C(self):
         """6DoFs damping matrix.
@@ -793,6 +818,16 @@ class DiskElement6DoF(Element):
         >>> disk.C()
         array(6,6)
         """
+        # fmt: off
+        C = np.array([
+            [ 0, 0, 0, 0, 0, 0],
+            [ 0, 0, 0, 0, 0, 0],
+            [ 0, 0, 0, 0, 0, 0],
+            [ 0, 0, 0, 0, 0, 0],
+            [ 0, 0, 0, 0, 0, 0],
+            [ 0, 0, 0, 0, 0, 0]])
+        # fmt: on
+        return C
 
     def G(self):
         """6DoFs gyroscopic matrix.
@@ -811,6 +846,17 @@ class DiskElement6DoF(Element):
         >>> disk.G()
         array(6,6)
         """
+        Ip = self.Ip
+        # fmt: off
+        K = np.array([
+            [ 0, 0, 0,  0,   0, 0],
+            [ 0, 0, 0,  0,   0, 0],
+            [ 0, 0, 0,  0,   0, 0],
+            [ 0, 0, 0,  0, -Ip, 0],
+            [ 0, 0, 0, Ip,   0, 0],
+            [ 0, 0, 0,  0,   0, 0]])
+        # fmt: on
+        return K
 
     def patch(self, position, ax):
         """Disk element patch.
