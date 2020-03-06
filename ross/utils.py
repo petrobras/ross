@@ -4,7 +4,6 @@ import re
 from bokeh.models import LogColorMapper
 from bokeh.palettes import Viridis256
 from bokeh.plotting import figure
-
 from itertools import product
 
 
