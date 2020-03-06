@@ -1,14 +1,14 @@
+# fmt: off
+import os
+
 import numpy as np
 import pytest
-import os
 from numpy.testing import assert_allclose
-import math
 
-from ross.bearing_seal_element import (
-    BearingElement,
-    BallBearingElement,
-    RollerBearingElement,
-)
+from ross.bearing_seal_element import (BallBearingElement, BearingElement,
+                                       RollerBearingElement)
+
+# fmt: on
 
 
 @pytest.fixture

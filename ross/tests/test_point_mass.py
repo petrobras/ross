@@ -1,6 +1,7 @@
 import numpy as np
-from ross.point_mass import PointMass
 from numpy.testing import assert_allclose
+
+from ross.point_mass import PointMass
 
 
 def test_point_mass():

@@ -2,9 +2,10 @@
 This module deals with units conversion in the ROSS library. 
 """
 import inspect
-from pint import UnitRegistry
 from functools import wraps
 from pathlib import Path
+
+from pint import UnitRegistry
 
 new_units_path = Path(__file__).parent / "new_units.txt"
 ureg = UnitRegistry()

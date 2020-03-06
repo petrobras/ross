@@ -1,3 +1,4 @@
+# fmt: off
 import bokeh.palettes as bp
 import matplotlib as mpl
 import matplotlib.pyplot as plt
@@ -5,12 +6,16 @@ import numpy as np
 import scipy.linalg as la
 from bokeh.colors import RGB
 from bokeh.layouts import gridplot, widgetbox
-from bokeh.models import Arrow, ColorBar, ColumnDataSource, HoverTool, Label, NormalHead
-from bokeh.models.widgets import DataTable, NumberFormatter, TableColumn, Panel, Tabs
+from bokeh.models import (Arrow, ColorBar, ColumnDataSource, HoverTool, Label,
+                          NormalHead)
+from bokeh.models.widgets import (DataTable, NumberFormatter, Panel,
+                                  TableColumn, Tabs)
 from bokeh.plotting import figure
 from bokeh.transform import linear_cmap
 from matplotlib import cm
 from scipy import interpolate
+
+# fmt: on
 
 # set bokeh palette of colors
 bokeh_colors = bp.RdGy[11]
@@ -453,8 +458,6 @@ class ModalResults:
         """
 
         if ax is None:
-            from mpl_toolkits.mplot3d import Axes3D
-
             fig = plt.figure()
             ax = fig.gca(projection="3d")
 
@@ -2669,8 +2672,6 @@ class OrbitResponseResults:
             Matplotlib axes with orbit response plot.
         """
         if ax is None:
-            from mpl_toolkits.mplot3d import Axes3D
-
             fig = plt.figure()
             ax = fig.gca(projection="3d")
 

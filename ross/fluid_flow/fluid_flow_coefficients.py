@@ -1,7 +1,9 @@
-import numpy as np
 import warnings
-from scipy import integrate
 from math import isnan
+
+import numpy as np
+from scipy import integrate
+
 from ross.fluid_flow.fluid_flow_geometry import move_rotor_center
 
 
