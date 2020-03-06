@@ -409,7 +409,7 @@ class ModalResults:
         N1 = onn - 3 * zeta ** 2 + 2 * zeta ** 3
         N2 = zeta - 2 * zeta ** 2 + zeta ** 3
         N3 = 3 * zeta ** 2 - 2 * zeta ** 3
-        N4 = -zeta ** 2 + zeta ** 3
+        N4 = -(zeta ** 2) + zeta ** 3
 
         for Le, n in zip(shaft_elements_length, nodes):
             node_pos = nodes_pos[n]
@@ -499,8 +499,8 @@ class ModalResults:
             f"$whirl\_direction$ = {self.whirl_direction()[mode]}",
             fontsize=18,
         )
-        ax.tick_params(axis='both', which='major', labelsize=18)
-        ax.tick_params(axis='both', which='minor', labelsize=18)
+        ax.tick_params(axis="both", which="major", labelsize=18)
+        ax.tick_params(axis="both", which="minor", labelsize=18)
 
         return fig, ax
 
@@ -554,7 +554,7 @@ class ModalResults:
             f"Mode {mode + 1} | {self.whirl_direction()[mode]} | "
             f"wn = {self.wn[mode]:.1f} rad/s | "
             f"log dec = {self.log_dec[mode]:.1f}"
-         )
+        )
 
         mode_shape = mpl.lines.Line2D([], [], lw=0, label=label)
 
@@ -567,8 +567,8 @@ class ModalResults:
         ax.set_xlim(zn_cl0, zn_cl1)
 
         ax.set_title("Mode Shape", fontsize=14)
-        ax.tick_params(axis='both', which='major', labelsize=14)
-        ax.tick_params(axis='both', which='minor', labelsize=14)
+        ax.tick_params(axis="both", which="major", labelsize=14)
+        ax.tick_params(axis="both", which="minor", labelsize=14)
 
         legend = plt.legend(handles=[mode_shape], loc=0, framealpha=0.1)
         ax.add_artist(legend)
@@ -1697,7 +1697,16 @@ class StaticResults:
     """
 
     def __init__(
-        self, disp_y, Vx, Bm, w_shaft, disk_forces, bearing_forces, nodes, nodes_pos, Vx_axis
+        self,
+        disp_y,
+        Vx,
+        Bm,
+        w_shaft,
+        disk_forces,
+        bearing_forces,
+        nodes,
+        nodes_pos,
+        Vx_axis,
     ):
 
         self.disp_y = disp_y
@@ -1740,11 +1749,9 @@ class StaticResults:
 
         count = 0
         for disp_y, Vx, Bm, nodes, nodes_pos, Vx_axis in zip(
-                self.disp_y, self.Vx, self.Bm, self.nodes, self.nodes_pos, self.Vx_axis
+            self.disp_y, self.Vx, self.Bm, self.nodes, self.nodes_pos, self.Vx_axis
         ):
-            source = ColumnDataSource(
-                data=dict(x=nodes_pos, y=disp_y)
-            )
+            source = ColumnDataSource(data=dict(x=nodes_pos, y=disp_y))
 
             interpolated = interpolate.interp1d(
                 source.data["x"], source.data["y"], kind="cubic"
@@ -1824,10 +1831,7 @@ class StaticResults:
             fig.title.text_font_size = "14pt"
 
             fig.line(
-                nodes_pos,
-                np.zeros(len(nodes_pos)),
-                line_width=5,
-                color=bokeh_colors[0]
+                nodes_pos, np.zeros(len(nodes_pos)), line_width=5, color=bokeh_colors[0]
             )
 
             # fig - plot arrows indicating shaft weight distribution
@@ -1878,7 +1882,7 @@ class StaticResults:
                 node = int(node)
                 if node in nodes:
                     text = str(v)
-                    var = 1 if v < 0 else - 1
+                    var = 1 if v < 0 else -1
                     fig.add_layout(
                         Arrow(
                             end=NormalHead(
@@ -1919,7 +1923,7 @@ class StaticResults:
                             end=NormalHead(
                                 fill_color=bokeh_colors[9],
                                 fill_alpha=1.0,
-                                    size=14,
+                                size=14,
                                 line_width=2,
                                 line_color=bokeh_colors[0],
                             ),
@@ -2666,17 +2670,18 @@ class OrbitResponseResults:
         """
         if ax is None:
             from mpl_toolkits.mplot3d import Axes3D
+
             fig = plt.figure()
             ax = fig.gca(projection="3d")
 
         for n in self.nodes_list:
             z_pos = np.ones(self.yout.shape[0]) * self.nodes_pos[n]
             ax.plot(
-                    self.yout[200:, 4 * n],
-                    self.yout[200:, 4 * n + 1],
-                    z_pos[200:],
-                    zdir="x",
-                    color="k"
+                self.yout[200:, 4 * n],
+                self.yout[200:, 4 * n + 1],
+                z_pos[200:],
+                zdir="x",
+                color="k",
             )
 
         # plot center line
@@ -2687,8 +2692,8 @@ class OrbitResponseResults:
         ax.set_ylabel("Amplitude - X direction (m)", labelpad=20, fontsize=18)
         ax.set_zlabel("Amplitude - Y direction (m)", labelpad=20, fontsize=18)
         ax.set_title("Rotor Orbits", fontsize=18)
-        ax.tick_params(axis='both', which='major', labelsize=18)
-        ax.tick_params(axis='both', which='minor', labelsize=18)
+        ax.tick_params(axis="both", which="major", labelsize=18)
+        ax.tick_params(axis="both", which="minor", labelsize=18)
 
         return ax
 
@@ -2716,7 +2721,7 @@ class OrbitResponseResults:
             height=480,
             title="Response for node %s" % (node),
             x_axis_label="Amplitude - X direction (m)",
-            y_axis_label="Amplitude - Y direction (m)"
+            y_axis_label="Amplitude - Y direction (m)",
         )
         bk_ax.xaxis.axis_label_text_font_size = "20pt"
         bk_ax.yaxis.axis_label_text_font_size = "20pt"

@@ -2638,8 +2638,12 @@ class Rotor(object):
                     for j in range(nel_r):
                         idl = (idr_data[i] - idl_data[i]) * j * le / leng + idl_data[i]
                         odl = (odr_data[i] - odl_data[i]) * j * le / leng + odl_data[i]
-                        idr = (idr_data[i] - idl_data[i]) * (j + 1) * le / leng + idl_data[i]
-                        odr = (odr_data[i] - odl_data[i]) * (j + 1) * le / leng + odl_data[i]
+                        idr = (idr_data[i] - idl_data[i]) * (
+                            j + 1
+                        ) * le / leng + idl_data[i]
+                        odr = (odr_data[i] - odl_data[i]) * (
+                            j + 1
+                        ) * le / leng + odl_data[i]
                         shaft_elements.append(
                             ShaftElement(
                                 le,
