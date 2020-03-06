@@ -160,12 +160,8 @@ class PointMass(Element):
             kwargs.setdefault(k, v)
 
         # matplotlib plot - coordinates to plot point mass elements
-        ax.add_patch(
-            mpatches.Circle(xy=(zpos, ypos), radius=radius, **kwargs)
-        )
-        ax.add_patch(
-            mpatches.Circle(xy=(zpos, -ypos), radius=radius, **kwargs)
-        )
+        ax.add_patch(mpatches.Circle(xy=(zpos, ypos), radius=radius, **kwargs))
+        ax.add_patch(mpatches.Circle(xy=(zpos, -ypos), radius=radius, **kwargs))
 
     def bokeh_patch(self, position, bk_ax, **kwargs):
         """Point mass element patch.
@@ -219,20 +215,10 @@ class PointMass(Element):
         )
 
         bk_ax.circle(
-            x="z_l",
-            y="y_l",
-            radius=radius,
-            source=source,
-            name="pmass_l",
-            **kwargs,
+            x="z_l", y="y_l", radius=radius, source=source, name="pmass_l", **kwargs,
         )
         bk_ax.circle(
-            x="z_u",
-            y="y_u",
-            radius=radius,
-            source=source,
-            name="pmass_u",
-            **kwargs,
+            x="z_u", y="y_u", radius=radius, source=source, name="pmass_u", **kwargs,
         )
 
         hover = HoverTool(names=["pmass_l", "pmass_u"])

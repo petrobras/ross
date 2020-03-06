@@ -13,11 +13,15 @@ from copy import deepcopy
 import bokeh.palettes as bp
 from bokeh.plotting import figure
 from bokeh.layouts import gridplot, widgetbox
-from bokeh.models.widgets import (
-    DataTable, NumberFormatter, TableColumn, Panel, Tabs
-)
+from bokeh.models.widgets import DataTable, NumberFormatter, TableColumn, Panel, Tabs
 from bokeh.models import (
-    ColumnDataSource, HoverTool, Span, Label, LinearAxis, Range1d, DataRange1d,
+    ColumnDataSource,
+    HoverTool,
+    Span,
+    Label,
+    LinearAxis,
+    Range1d,
+    DataRange1d,
 )
 
 # set bokeh palette of colors
@@ -622,14 +626,14 @@ class Report:
                 node_max = np.round(np.array(idx_max) / nn)
 
         elif self.rotor_type == "double_overhung":
-            node_max = [max(df_disks['n'])]
-            node_min = [min(df_disks['n'])]
+            node_max = [max(df_disks["n"])]
+            node_min = [min(df_disks["n"])]
 
         elif self.rotor_type == "single_overhung_l":
-            node_min = [min(df_disks['n'])]
+            node_min = [min(df_disks["n"])]
 
         elif self.rotor_type == "single_overhung_r":
-            node_max = [max(df_disks['n'])]
+            node_max = [max(df_disks["n"])]
 
         plot = figure(
             tools="pan,wheel_zoom,box_zoom,reset,save,box_select",
@@ -799,7 +803,7 @@ class Report:
         Qi = np.linspace(0, 10 * Qa, steps)
         cross_coupled_array = np.append(cross_coupled_array, Qi)
         cross_coupled_array = cross_coupled_array.reshape(
-                [len(self.disk_nodes) + 1, steps]
+            [len(self.disk_nodes) + 1, steps]
         ).T
 
         log_dec = np.zeros(len(cross_coupled_array))
@@ -808,9 +812,8 @@ class Report:
         bearing_list = [
             copy(b)
             for b in self.rotor.bearing_elements
-
             if not isinstance(b, rs.SealElement)
-            ]
+        ]
 
         # Applying cross-coupling on rotor mid-span
         if self.rotor_type == "between_bearings":
@@ -838,9 +841,7 @@ class Report:
                 bearings = [copy(b) for b in bearing_list]
                 # cross-coupling introduced at overhung disks
                 for n, q in zip(self.disk_nodes, Q):
-                    cross_coupling = BearingElement(
-                        n=n, kxx=0, cxx=0, kxy=q, kyx=-q
-                    )
+                    cross_coupling = BearingElement(n=n, kxx=0, cxx=0, kxy=q, kyx=-q)
                     bearings.append(cross_coupling)
 
                 aux_rotor = Rotor(
@@ -904,9 +905,7 @@ class Report:
         fig1.yaxis.axis_label_text_font_size = "20pt"
         fig1.axis.major_label_text_font_size = "16pt"
 
-        fig1.line(
-            cross_coupled_Qa, log_dec, line_width=3, line_color=bokeh_colors[0]
-        )
+        fig1.line(cross_coupled_Qa, log_dec, line_width=3, line_color=bokeh_colors[0])
         fig1.circle(Qa, log_dec_a, size=8, fill_color=bokeh_colors[0])
         fig1.add_layout(
             Label(
@@ -917,7 +916,7 @@ class Report:
                 text_font_size="12pt",
                 text_baseline="middle",
                 text_align="left",
-                y_offset=10
+                y_offset=10,
             )
         )
 
@@ -1054,7 +1053,7 @@ class Report:
             for b in self.rotor.bearing_elements
             if isinstance(b, rs.SealElement)
         ]
-        
+
         bearing_list = [
             copy(b)
             for b in self.rotor.bearing_elements
@@ -1078,7 +1077,9 @@ class Report:
             log_dec_disk.append(modal.log_dec[non_backward][0])
 
         # Evaluate log dec for group bearings + disks
-        disk_tags = ["Shaft + Bearings + " + disk.tag for disk in self.rotor.disk_elements]
+        disk_tags = [
+            "Shaft + Bearings + " + disk.tag for disk in self.rotor.disk_elements
+        ]
         all_disks_tag = " + ".join([disk.tag for disk in self.rotor.disk_elements])
         disk_tags.append("Shaft + Bearings + " + all_disks_tag)
 
@@ -1130,7 +1131,7 @@ class Report:
 
         data_disk = {"tags": disk_tags, "log_dec": log_dec_disk}
         data_seal = {"tags": seal_tags, "log_dec": log_dec_seal}
-        data_rotor = {"tags": rotor_tags, "log_dec":  log_dec_full}
+        data_rotor = {"tags": rotor_tags, "log_dec": log_dec_full}
 
         df_logdec_disk = pd.DataFrame(data_disk)
         df_logdec_seal = pd.DataFrame(data_seal)
@@ -1189,8 +1190,7 @@ class Report:
             RHO_gas=[self.RHO_gas],
         )
         stab_lvl2_data = dict(
-            tags=self.df_logdec['tags'],
-            logdec=self.df_logdec['log_dec'],
+            tags=self.df_logdec["tags"], logdec=self.df_logdec["log_dec"],
         )
 
         stab_lvl1_source = ColumnDataSource(stab_lvl1_data)
