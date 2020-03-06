@@ -18,10 +18,9 @@ import scipy.sparse.linalg as las
 import toml
 from bokeh.models import ColumnDataSource
 from bokeh.models.glyphs import Text
-from bokeh.plotting import figure, output_file, show
+from bokeh.plotting import figure, output_file
 from cycler import cycler
 
-import ross
 from ross.bearing_seal_element import BearingElement, SealElement
 from ross.disk_element import DiskElement
 from ross.materials import steel

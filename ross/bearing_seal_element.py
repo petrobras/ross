@@ -5,7 +5,6 @@ from pathlib import Path
 
 import bokeh.palettes as bp
 import matplotlib.lines as mlines
-import matplotlib.patches as mpatches
 import matplotlib.pyplot as plt
 import numpy as np
 import scipy.interpolate as interpolate

@@ -7,7 +7,6 @@ import numpy as np
 import toml
 from bokeh.models import ColumnDataSource, HoverTool
 
-import ross
 from ross.element import Element
 from ross.materials import Material, steel
 from ross.units import check_units

@@ -5,7 +5,6 @@ This module defines the PointMass class which will be used to link elements.
 import bokeh.palettes as bp
 import matplotlib.patches as mpatches
 import numpy as np
-import toml
 from bokeh.models import ColumnDataSource, HoverTool
 
 from ross.element import Element

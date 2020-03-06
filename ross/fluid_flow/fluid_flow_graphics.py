@@ -2,7 +2,6 @@ import matplotlib.pyplot as plt
 import numpy as np
 from bokeh.plotting import figure
 from matplotlib import cm
-from mpl_toolkits.mplot3d import axes3d
 
 
 def plot_eccentricity(fluid_flow_object, z=0):

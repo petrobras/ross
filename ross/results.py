@@ -455,8 +455,6 @@ class ModalResults:
         """
 
         if ax is None:
-            from mpl_toolkits.mplot3d import Axes3D
-
             fig = plt.figure()
             ax = fig.gca(projection="3d")
 
@@ -2671,8 +2669,6 @@ class OrbitResponseResults:
             Matplotlib axes with orbit response plot.
         """
         if ax is None:
-            from mpl_toolkits.mplot3d import Axes3D
-
             fig = plt.figure()
             ax = fig.gca(projection="3d")
 
