@@ -1514,9 +1514,6 @@ class Report:
         log_dec_full.append(modal.log_dec[non_backward][0])
         rotor_tags = [self.tag]
 
-        data_disk = {"tags": disk_tags, "log_dec": log_dec_disk}
-        data_seal = {"tags": seal_tags, "log_dec": log_dec_seal}
-
         data_rotor = {"tags": rotor_tags, "log_dec": log_dec_full}
 
         df_logdec_disk = pd.DataFrame(data_disk)
