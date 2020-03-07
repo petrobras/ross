@@ -6,7 +6,7 @@ repos:
       language_version: python3.7
 
 -   repo: https://github.com/pre-commit/mirrors-isort
-    rev: 4.3.21-2
+    rev: ''
     hooks:
       - id: isort
       
