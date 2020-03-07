@@ -14,10 +14,10 @@ from bokeh.plotting import figure
 from scipy.interpolate import interp1d
 from scipy.signal import argrelextrema
 
-from pathlib import Path
-from ross.rotor_assembly import Rotor, rotor_example
 from ross.bearing_seal_element import BearingElement, SealElement
 from ross.materials import steel
+from ross.rotor_assembly import Rotor, rotor_example
+
 # fmt: on
 
 # set bokeh palette of colors
@@ -1448,7 +1448,6 @@ class Report:
                 non_backward = modal.whirl_direction() != "Backward"
                 log_dec_disk.append(modal.log_dec[non_backward][0])
 
-
             # Evaluate log dec for group bearings + disks
             disk_tags = [
                 "Shaft + Bearings + " + disk.tag for disk in self.rotor.disk_elements
@@ -1456,9 +1455,11 @@ class Report:
 
             # Evaluate log dec for group bearings + all disks
             if len(self.rotor.disk_elements) > 1:
-                all_disks_tag = " + ".join([disk.tag for disk in self.rotor.disk_elements])
+                all_disks_tag = " + ".join(
+                    [disk.tag for disk in self.rotor.disk_elements]
+                )
                 disk_tags.append("Shaft + Bearings + " + all_disks_tag)
-                
+
                 aux_rotor = Rotor(
                     shaft_elements=self.rotor.shaft_elements,
                     disk_elements=self.rotor.disk_elements,
@@ -1493,7 +1494,7 @@ class Report:
                 # Evaluate log dec for group bearings + seals
                 all_seals_tag = " + ".join([seal.tag for seal in seal_list])
                 seal_tags.append("Shaft + Bearings + " + all_seals_tag)
-    
+
                 aux_rotor = Rotor(
                     shaft_elements=self.rotor.shaft_elements,
                     disk_elements=[],
@@ -1511,7 +1512,6 @@ class Report:
         non_backward = modal.whirl_direction() != "Backward"
         log_dec_full.append(modal.log_dec[non_backward][0])
         rotor_tags = [self.tag]
-
 
         data_disk = {"tags": disk_tags, "log_dec": log_dec_disk}
         data_seal = {"tags": seal_tags, "log_dec": log_dec_seal}

@@ -363,10 +363,5 @@ def test_stability_level2(report0, report1, report2):
         atol=1e-6,
     )
     assert_allclose(
-        df1["log_dec"].tolist(),
-        [
-            0.14898201611278591,
-            0.14898201641839076,
-        ],
-        atol=1e-6,
+        df1["log_dec"].tolist(), [0.14898201611278591, 0.14898201641839076,], atol=1e-6,
     )
