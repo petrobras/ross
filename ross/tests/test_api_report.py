@@ -45,12 +45,39 @@ def report0():
 
     rotor = Rotor(shaft_elem, [disk0, disk1], [bearing0, bearing1])
 
-    minspeed = 400.0
-    maxspeed = 1000.0
+    # coefficients for minimum clearance
+    stfx = [0.7e7, 0.8e7, 0.9e7, 1.0e7]
+    dampx = [2.0e3, 1.9e3, 1.8e3, 1.7e3]
+    freq = [400, 800, 1200, 1600]
+    bearing0 = BearingElement(0, kxx=stfx, cxx=dampx, frequency=freq)
+    bearing1 = BearingElement(6, kxx=stfx, cxx=dampx, frequency=freq)
+    min_clearance_brg = [bearing0, bearing1]
+
+    # coefficients for maximum clearance
+    stfx = [0.4e7, 0.5e7, 0.6e7, 0.7e7]
+    dampx = [2.8e3, 2.7e3, 2.6e3, 2.5e3]
+    freq = [400, 800, 1200, 1600]
+    bearing0 = BearingElement(0, kxx=stfx, cxx=dampx, frequency=freq)
+    bearing1 = BearingElement(6, kxx=stfx, cxx=dampx, frequency=freq)
+    max_clearance_brg = [bearing0, bearing1]
+
+    bearing_clearance_lists = [min_clearance_brg, max_clearance_brg]
+    bearing_stiffness_range = (5, 8)
+
+    speed_range = (400, 1000)
+    tripspeed = 1200
     machine_type = "compressor"
     units = "rad/s"
 
-    return Report(rotor, minspeed, maxspeed, machine_type, units)
+    return Report(
+        rotor,
+        speed_range,
+        tripspeed,
+        bearing_stiffness_range,
+        bearing_clearance_lists,
+        machine_type,
+        units,
+    )
 
 
 @pytest.fixture
@@ -85,12 +112,39 @@ def report1():
 
     rotor = Rotor(shaft_elem, [disk0], [bearing0, bearing1])
 
-    minspeed = 400.0
-    maxspeed = 1000.0
+    # coefficients for minimum clearance
+    stfx = [0.7e7, 0.8e7, 0.9e7, 1.0e7]
+    dampx = [2.0e3, 1.9e3, 1.8e3, 1.7e3]
+    freq = [400, 800, 1200, 1600]
+    bearing0 = BearingElement(0, kxx=stfx, cxx=dampx, frequency=freq)
+    bearing1 = BearingElement(6, kxx=stfx, cxx=dampx, frequency=freq)
+    min_clearance_brg = [bearing0, bearing1]
+
+    # coefficients for maximum clearance
+    stfx = [0.4e7, 0.5e7, 0.6e7, 0.7e7]
+    dampx = [2.8e3, 2.7e3, 2.6e3, 2.5e3]
+    freq = [400, 800, 1200, 1600]
+    bearing0 = BearingElement(0, kxx=stfx, cxx=dampx, frequency=freq)
+    bearing1 = BearingElement(6, kxx=stfx, cxx=dampx, frequency=freq)
+    max_clearance_brg = [bearing0, bearing1]
+
+    bearing_clearance_lists = [min_clearance_brg, max_clearance_brg]
+    bearing_stiffness_range = (5, 8)
+
+    speed_range = (400, 1000)
+    tripspeed = 1200
     machine_type = "turbine"
     units = "rad/s"
 
-    return Report(rotor, minspeed, maxspeed, machine_type, units)
+    return Report(
+        rotor,
+        speed_range,
+        tripspeed,
+        bearing_stiffness_range,
+        bearing_clearance_lists,
+        machine_type,
+        units,
+    )
 
 
 @pytest.fixture
@@ -128,12 +182,39 @@ def report2():
 
     rotor = Rotor(shaft_elem, [disk0, disk1], [bearing0, bearing1])
 
-    minspeed = 3820.0
-    maxspeed = 9550.0
+    # coefficients for minimum clearance
+    stfx = [0.7e7, 0.8e7, 0.9e7, 1.0e7]
+    dampx = [2.0e3, 1.9e3, 1.8e3, 1.7e3]
+    freq = [400, 800, 1200, 1600]
+    bearing0 = BearingElement(0, kxx=stfx, cxx=dampx, frequency=freq)
+    bearing1 = BearingElement(6, kxx=stfx, cxx=dampx, frequency=freq)
+    min_clearance_brg = [bearing0, bearing1]
+
+    # coefficients for maximum clearance
+    stfx = [0.4e7, 0.5e7, 0.6e7, 0.7e7]
+    dampx = [2.8e3, 2.7e3, 2.6e3, 2.5e3]
+    freq = [400, 800, 1200, 1600]
+    bearing0 = BearingElement(0, kxx=stfx, cxx=dampx, frequency=freq)
+    bearing1 = BearingElement(6, kxx=stfx, cxx=dampx, frequency=freq)
+    max_clearance_brg = [bearing0, bearing1]
+
+    bearing_clearance_lists = [min_clearance_brg, max_clearance_brg]
+    bearing_stiffness_range = (5, 8)
+
+    speed_range = (3820.0, 9550.0)
+    tripspeed = 12000.0
     machine_type = "pump"
     units = "rpm"
 
-    return Report(rotor, minspeed, maxspeed, machine_type, units)
+    return Report(
+        rotor,
+        speed_range,
+        tripspeed,
+        bearing_stiffness_range,
+        bearing_clearance_lists,
+        machine_type,
+        units,
+    )
 
 
 def test_initial_attributes(report0, report1, report2):
@@ -190,23 +271,33 @@ def test_unbalance_forces(report0, report1, report2):
 
 
 def test_report_mode_shape(report0, report1, report2):
-    n1, n2 = report0.mode_shape(mode=0)
+    _ = report0.mode_shape(mode=0)
+    n1 = report0.node_min
+    n2 = report0.node_max
     nodes = [int(node) for sub_nodes in [n1, n2] for node in sub_nodes]
     assert nodes == [26]
 
-    n1, n2 = report1.mode_shape(mode=0)
+    _ = report1.mode_shape(mode=0)
+    n1 = report1.node_min
+    n2 = report1.node_max
     nodes = [int(node) for sub_nodes in [n1, n2] for node in sub_nodes]
     assert nodes == [0]
 
-    n1, n2 = report1.mode_shape(mode=3)
+    _ = report1.mode_shape(mode=3)
+    n1 = report1.node_min
+    n2 = report1.node_max
     nodes = [int(node) for sub_nodes in [n1, n2] for node in sub_nodes]
     assert nodes == [0]
 
-    n1, n2 = report2.mode_shape(mode=0)
+    _ = report2.mode_shape(mode=0)
+    n1 = report2.node_min
+    n2 = report2.node_max
     nodes = [int(node) for sub_nodes in [n1, n2] for node in sub_nodes]
     assert nodes == [0, 50]
 
-    n1, n2 = report2.mode_shape(mode=3)
+    _ = report2.mode_shape(mode=3)
+    n1 = report2.node_min
+    n2 = report2.node_max
     nodes = [int(node) for sub_nodes in [n1, n2] for node in sub_nodes]
     assert nodes == [0, 50]
 
@@ -220,7 +311,7 @@ def test_stability_level1(report0, report1, report2):
     RHOs = 37.65
     oper_speed = 1000.0
 
-    report0.stability_level_1(D, H, HP, oper_speed, RHO_ratio, RHOs, RHOd)
+    _ = report0.stability_level_1(D, H, HP, oper_speed, RHO_ratio, RHOs, RHOd)
 
     assert_allclose(report0.Q0, 81599.87755102041, atol=1e-4)
     assert_allclose(report0.Qa, 20399.969387755104, atol=1e-4)
@@ -232,7 +323,7 @@ def test_stability_level1(report0, report1, report2):
     assert_allclose(report0.RHO_gas, 34.05, atol=1e-4)
     assert report0.condition == "required"
 
-    report1.stability_level_1(D, H, HP, oper_speed, RHO_ratio, RHOs, RHOd)
+    _ = report1.stability_level_1(D, H, HP, oper_speed, RHO_ratio, RHOs, RHOd)
 
     assert_allclose(report1.Q0, 79730.98330241187, atol=1e-4)
     assert_allclose(report1.Qa, 4385.204081632653, atol=1e-4)
@@ -244,7 +335,7 @@ def test_stability_level1(report0, report1, report2):
     assert_allclose(report1.RHO_gas, 34.05, atol=1e-4)
     assert report1.condition == "not required"
 
-    report2.stability_level_1(D, H, HP, oper_speed, RHO_ratio, RHOs, RHOd)
+    _ = report2.stability_level_1(D, H, HP, oper_speed, RHO_ratio, RHOs, RHOd)
 
     assert_allclose(report2.Q0, 61199.90816326531, atol=1e-4)
     assert_allclose(report2.Qa, 20399.969387755104, atol=1e-4)
@@ -267,7 +358,6 @@ def test_stability_level2(report0, report1, report2):
             0.17669652215696618,
             0.15801304519741688,
             0.14761936907792816,
-            0.3153250139555406,
             0.1476193691000094,
         ],
         atol=1e-6,
@@ -277,8 +367,6 @@ def test_stability_level2(report0, report1, report2):
         [
             0.14898201611278591,
             0.14898201641839076,
-            0.8368485552898145,
-            0.14898201644744202,
         ],
         atol=1e-6,
     )
