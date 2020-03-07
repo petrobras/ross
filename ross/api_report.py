@@ -14,6 +14,7 @@ from bokeh.plotting import figure
 from scipy.interpolate import interp1d
 from scipy.signal import argrelextrema
 
+import ross as rs
 from ross.bearing_seal_element import BearingElement, SealElement
 from ross.materials import steel
 from ross.rotor_assembly import Rotor, rotor_example
