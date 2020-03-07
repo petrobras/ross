@@ -13,6 +13,7 @@ from bokeh.models.widgets import (DataTable, NumberFormatter, Panel,
 from bokeh.plotting import figure
 from bokeh.transform import linear_cmap
 from matplotlib import cm
+from mpl_toolkits.mplot3d import Axes3D
 from scipy import interpolate
 
 # fmt: on
