@@ -46,7 +46,6 @@ REQUIRED = [
     "toml",
     "pandas>=0.23",
     "bokeh",
-    "coverage",
     "xlrd",
     "pint",
 ]
