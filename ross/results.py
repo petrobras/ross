@@ -428,9 +428,9 @@ class ModalResults:
 
         return xn, yn, zn, x_circles, y_circles, z_circles_pos, nn
 
-    def plot_mode(self, mode=None, evec=None, fig=None, ax=None):
+    def plot_mode3D(self, mode=None, evec=None, fig=None, ax=None):
         """
-        Method that plots the mode shapes.
+        Method that plots (3D view) the mode shapes.
 
         Parameters
         ----------
@@ -501,6 +501,79 @@ class ModalResults:
         )
         ax.tick_params(axis='both', which='major', labelsize=18)
         ax.tick_params(axis='both', which='minor', labelsize=18)
+
+        return fig, ax
+
+    def plot_mode2D(self, mode=None, evec=None, fig=None, ax=None):
+        """
+        Method that plots (2D view) the mode shapes.
+
+        Parameters
+        ----------
+        mode : int
+            The n'th vibration mode
+            Default is None
+        evec : array
+            Array containing the system eigenvectors
+        fig : matplotlib figure
+            The figure object with the plot.
+        ax : matplotlib axes
+            The axes object with the plot.
+
+        Returns
+        -------
+        fig : matplotlib figure
+            Returns the figure object with the plot.
+        ax : matplotlib axes
+            Returns the axes object with the plot.
+        """
+        xn, yn, zn, xc, yc, zc_pos, nn = self.calc_mode_shape(mode=mode)
+        nodes_pos = self.nodes_pos
+
+        vn = np.zeros(len(zn))
+        for i in range(len(zn)):
+            theta = np.arctan(xn[i] / yn[i])
+            vn[i] = xn[i] * np.sin(theta) + yn[i] * np.cos(theta)
+
+        # remove repetitive values from zn and vn
+        idx_remove = []
+        for i in range(1, len(zn)):
+            if zn[i] == zn[i - 1]:
+                idx_remove.append(i)
+        zn = np.delete(zn, idx_remove)
+        vn = np.delete(vn, idx_remove)
+
+        if fig is None and ax is None:
+            fig, ax = plt.subplots()
+
+        colors = dict(Backward="firebrick", Mixed="black", Forward="royalblue")
+        whirl_dir = colors[self.whirl_direction()[mode]]
+
+        ax.plot(zn, vn, c=whirl_dir)
+        label = (
+            f"Mode {mode + 1} | {self.whirl_direction()[mode]} | "
+            f"wn = {self.wn[mode]:.1f} rad/s | "
+            f"log dec = {self.log_dec[mode]:.1f}"
+         )
+
+        mode_shape = mpl.lines.Line2D([], [], lw=0, label=label)
+
+        # plot center line
+        zn_cl0 = -(zn[-1] * 0.1)
+        zn_cl1 = zn[-1] * 1.1
+        ax.plot(nodes_pos, np.zeros(len(nodes_pos)), "k-.", linewidth=0.8)
+
+        ax.set_ylim(-1.3, 1.3)
+        ax.set_xlim(zn_cl0, zn_cl1)
+
+        ax.set_title("Mode Shape", fontsize=14)
+        ax.tick_params(axis='both', which='major', labelsize=14)
+        ax.tick_params(axis='both', which='minor', labelsize=14)
+
+        legend = plt.legend(handles=[mode_shape], loc=0, framealpha=0.1)
+        ax.add_artist(legend)
+        ax.set_xlabel("Rotor length")
+        ax.set_ylabel("Non dimentional rotor deformation")
 
         return fig, ax
 
@@ -1624,15 +1697,15 @@ class StaticResults:
     """
 
     def __init__(
-        self, disp_y, Vx, Bm, df_shaft, df_disks, df_bearings, nodes, nodes_pos, Vx_axis
+        self, disp_y, Vx, Bm, w_shaft, disk_forces, bearing_forces, nodes, nodes_pos, Vx_axis
     ):
 
         self.disp_y = disp_y
         self.Vx = Vx
         self.Bm = Bm
-        self.df_shaft = df_shaft
-        self.df_disks = df_disks
-        self.df_bearings = df_bearings
+        self.w_shaft = w_shaft
+        self.disk_forces = disk_forces
+        self.bearing_forces = bearing_forces
         self.nodes = nodes
         self.nodes_pos = nodes_pos
         self.Vx_axis = Vx_axis
@@ -1651,76 +1724,70 @@ class StaticResults:
         fig : bokeh figure
             Bokeh figure with static deformation plot
         """
-        source = ColumnDataSource(
-            data=dict(x=self.nodes_pos, y0=self.disp_y, y1=[0] * len(self.nodes_pos))
-        )
-
-        TOOLTIPS = [
-            ("Shaft lenght:", "@x"),
-            ("Underformed:", "@y1"),
-            ("Displacement:", "@y0"),
-        ]
-
         # create displacement plot
         fig = figure(
-            tools="pan, wheel_zoom, box_zoom, reset, save, box_select, hover",
-            tooltips=TOOLTIPS,
+            tools="pan, wheel_zoom, box_zoom, reset, save, box_select",
             width=640,
             height=480,
-            title="Static Analysis",
+            title="Deformation",
             x_axis_label="Shaft lenght",
             y_axis_label="Lateral displacement",
         )
-        fig.xaxis.axis_label_text_font_size = "20pt"
-        fig.yaxis.axis_label_text_font_size = "20pt"
+        fig.xaxis.axis_label_text_font_size = "16pt"
+        fig.yaxis.axis_label_text_font_size = "16pt"
         fig.axis.major_label_text_font_size = "16pt"
         fig.title.text_font_size = "14pt"
 
-        interpolated = interpolate.interp1d(
-            source.data["x"], source.data["y0"], kind="cubic"
-        )
-        xnew = np.linspace(
-            source.data["x"][0],
-            source.data["x"][-1],
-            num=len(self.nodes_pos) * 20,
-            endpoint=True,
-        )
+        count = 0
+        for disp_y, Vx, Bm, nodes, nodes_pos, Vx_axis in zip(
+                self.disp_y, self.Vx, self.Bm, self.nodes, self.nodes_pos, self.Vx_axis
+        ):
+            source = ColumnDataSource(
+                data=dict(x=nodes_pos, y=disp_y)
+            )
 
-        ynew = interpolated(xnew)
-        auxsource = ColumnDataSource(data=dict(x=xnew, y0=ynew, y1=[0] * len(xnew)))
+            interpolated = interpolate.interp1d(
+                source.data["x"], source.data["y"], kind="cubic"
+            )
+            xnew = np.linspace(
+                source.data["x"][0],
+                source.data["x"][-1],
+                num=len(nodes_pos) * 20,
+                endpoint=True,
+            )
 
-        fig.line(
-            "x",
-            "y0",
-            source=auxsource,
-            legend="Deformed shaft",
-            line_width=3,
-            line_color=bokeh_colors[9],
-        )
-        fig.circle(
-            "x",
-            "y0",
-            source=source,
-            legend="Deformed shaft",
-            size=8,
-            fill_color=bokeh_colors[9],
-        )
-        fig.line(
-            "x",
-            "y1",
-            source=source,
-            legend="underformed shaft",
-            line_width=3,
-            line_color=bokeh_colors[0],
-        )
-        fig.circle(
-            "x",
-            "y1",
-            source=source,
-            legend="underformed shaft",
-            size=8,
-            fill_color=bokeh_colors[0],
-        )
+            ynew = interpolated(xnew)
+            auxsource = ColumnDataSource(data=dict(x=xnew, y=ynew))
+
+            fig.line(
+                "x",
+                "y",
+                source=auxsource,
+                legend_label="Deformed - shaft " + str(count),
+                line_width=3,
+                line_color=bokeh_colors[9 - count],
+                muted_alpha=0.1,
+                name="def_l",
+            )
+            fig.circle(
+                "x",
+                "y",
+                source=source,
+                legend_label="Deformed - shaft " + str(count),
+                size=8,
+                fill_color=bokeh_colors[9 - count],
+                muted_alpha=0.1,
+                name="def_c",
+            )
+            hover = HoverTool(names=["def_l", "def_c"])
+            hover.tooltips = [
+                ("Shaft lenght:", "@x"),
+                ("Displacement:", "@y"),
+            ]
+            count += 1
+        fig.add_tools(hover)
+        fig.legend.background_fill_alpha = 0.1
+        fig.legend.click_policy = "mute"
 
         return fig
 
@@ -1738,142 +1805,148 @@ class StaticResults:
         fig : bokeh figure
             Bokeh figure with the free-body diagram plot
         """
-        source = ColumnDataSource(
-            data=dict(
-                x=self.nodes_pos, y0=self.disp_y * 1000, y1=[0] * len(self.nodes_pos)
-            )
-        )
-
+        figures = []
+        j = 0
         y_start = 5.0
-        sh_weight = sum(self.df_shaft["m"].values) * 9.8065
+        for nodes_pos, nodes in zip(self.nodes_pos, self.nodes):
+            fig = figure(
+                tools="pan, wheel_zoom, box_zoom, reset, save, box_select",
+                width=640,
+                height=480,
+                title="Free-Body Diagram - Shaft " + str(j),
+                x_axis_label="Shaft lenght",
+                x_range=[-0.1 * nodes_pos[-1], 1.1 * nodes_pos[-1]],
+                y_range=[-3 * y_start, 3 * y_start],
+            )
+            fig.yaxis.visible = False
+            fig.xaxis.axis_label_text_font_size = "16pt"
+            fig.axis.major_label_text_font_size = "16pt"
+            fig.title.text_font_size = "14pt"
 
-        shaft_end = self.nodes_pos[-1]
-        fig = figure(
-            tools="pan, wheel_zoom, box_zoom, reset, save, box_select, hover",
-            width=640,
-            height=480,
-            title="Free-Body Diagram",
-            x_axis_label="shaft lenght",
-            x_range=[-0.1 * shaft_end, 1.1 * shaft_end],
-            y_range=[-3 * y_start, 3 * y_start],
-        )
-        fig.yaxis.visible = False
-        fig.xaxis.axis_label_text_font_size = "20pt"
-        fig.axis.major_label_text_font_size = "16pt"
-        fig.title.text_font_size = "14pt"
-
-        fig.line("x", "y1", source=source, line_width=5, line_color=bokeh_colors[0])
-
-        # fig - plot arrows indicating shaft weight distribution
-        text = str("%.1f" % sh_weight)
-        fig.line(
-            x=self.nodes_pos,
-            y=[y_start] * len(self.nodes_pos),
-            line_width=2,
-            line_color=bokeh_colors[0],
-        )
-
-        ini = self.nodes_pos[0]
-        fin = self.nodes_pos[-1]
-        arrows_list = np.arange(ini, 1.01 * fin, fin / 5.0)
-        for node in arrows_list:
-            fig.add_layout(
-                Arrow(
-                    end=NormalHead(
-                        fill_color=bokeh_colors[2],
-                        fill_alpha=1.0,
-                        size=16,
-                        line_width=2,
-                        line_color=bokeh_colors[0],
-                    ),
-                    x_start=node,
-                    y_start=y_start,
-                    x_end=node,
-                    y_end=0,
-                )
+            fig.line(
+                nodes_pos,
+                np.zeros(len(nodes_pos)),
+                line_width=5,
+                color=bokeh_colors[0]
             )
 
-        fig.add_layout(
-            Label(
-                x=self.nodes_pos[0],
-                y=y_start,
-                text="W = " + text + "N",
-                text_font_style="bold",
-                text_font_size="10pt",
-                text_baseline="top",
-                text_align="left",
-                y_offset=20,
-            )
-        )
-
-        # fig - calculate the reaction force of bearings and plot arrows
-        for i, node in enumerate(self.df_bearings["n"]):
-            Fb = -self.disp_y[node] * self.df_bearings.loc[i, "kyy"].coefficient[0]
-            text = str("%.1f" % Fb)
-            fig.add_layout(
-                Arrow(
-                    end=NormalHead(
-                        fill_color=bokeh_colors[6],
-                        fill_alpha=1.0,
-                        size=16,
-                        line_width=2,
-                        line_color=bokeh_colors[0],
-                    ),
-                    x_start=self.nodes_pos[node],
-                    y_start=-2 * y_start,
-                    x_end=self.nodes_pos[node],
-                    y_end=0,
-                )
-            )
-            fig.add_layout(
-                Label(
-                    x=self.nodes_pos[node],
-                    y=-2 * y_start,
-                    angle=np.pi / 2,
-                    text="Fb = " + text + "N",
-                    text_font_style="bold",
-                    text_font_size="10pt",
-                    text_baseline="top",
-                    text_align="center",
-                    x_offset=2,
-                )
+            # fig - plot arrows indicating shaft weight distribution
+            text = str("%.1f" % self.w_shaft[j])
+            fig.line(
+                x=nodes_pos,
+                y=[y_start] * len(nodes_pos),
+                line_width=2,
+                line_color=bokeh_colors[0],
             )
 
-        # fig - plot arrows indicating disk weight
-        if len(self.df_disks) != 0:
-            for i, node in enumerate(self.df_disks["n"]):
-                Fd = self.df_disks.loc[i, "m"] * 9.8065
-                text = str("%.1f" % Fd)
+            ini = nodes_pos[0]
+            fin = nodes_pos[-1]
+            arrows_list = np.arange(ini, 1.01 * fin, (fin - ini) / 5.0)
+            for node in arrows_list:
                 fig.add_layout(
                     Arrow(
                         end=NormalHead(
-                            fill_color=bokeh_colors[9],
+                            fill_color=bokeh_colors[2],
                             fill_alpha=1.0,
-                            size=16,
+                            size=14,
                             line_width=2,
                             line_color=bokeh_colors[0],
                         ),
-                        x_start=self.nodes_pos[node],
-                        y_start=2 * y_start,
-                        x_end=self.nodes_pos[node],
+                        x_start=node,
+                        y_start=y_start,
+                        x_end=node,
                         y_end=0,
                     )
                 )
-                fig.add_layout(
-                    Label(
-                        x=self.nodes_pos[node],
-                        y=2 * y_start,
-                        angle=np.pi / 2,
-                        text="Fd = " + text + "N",
-                        text_font_style="bold",
-                        text_font_size="10pt",
-                        text_baseline="top",
-                        text_align="center",
-                        x_offset=2,
-                    )
-                )
 
-        return fig
+            fig.add_layout(
+                Label(
+                    x=nodes_pos[0],
+                    y=y_start,
+                    text="Weight = " + text + "N",
+                    text_font_style="bold",
+                    text_font_size="10pt",
+                    text_baseline="top",
+                    text_align="left",
+                    y_offset=20,
+                )
+            )
+
+            # fig - calculate the reaction force of bearings and plot arrows
+            for k, v in self.bearing_forces.items():
+                _, node = k.split("_")
+                node = int(node)
+                if node in nodes:
+                    text = str(v)
+                    var = 1 if v < 0 else - 1
+                    fig.add_layout(
+                        Arrow(
+                            end=NormalHead(
+                                fill_color=bokeh_colors[6],
+                                fill_alpha=1.0,
+                                size=14,
+                                line_width=2,
+                                line_color=bokeh_colors[0],
+                            ),
+                            x_start=nodes_pos[nodes.index(node)],
+                            y_start=var * 2 * y_start,
+                            x_end=nodes_pos[nodes.index(node)],
+                            y_end=0,
+                        )
+                    )
+                    fig.add_layout(
+                        Label(
+                            x=nodes_pos[nodes.index(node)],
+                            y=var * 2 * y_start,
+                            angle=np.pi / 2,
+                            text="Fb = " + text + "N",
+                            text_font_style="bold",
+                            text_font_size="10pt",
+                            text_baseline="top",
+                            text_align="center",
+                            x_offset=2,
+                        )
+                    )
+
+            # fig - plot arrows indicating disk weight
+            for k, v in self.disk_forces.items():
+                _, node = k.split("_")
+                node = int(node)
+                if node in nodes:
+                    text = str(v)
+                    fig.add_layout(
+                        Arrow(
+                            end=NormalHead(
+                                fill_color=bokeh_colors[9],
+                                fill_alpha=1.0,
+                                    size=14,
+                                line_width=2,
+                                line_color=bokeh_colors[0],
+                            ),
+                            x_start=nodes_pos[nodes.index(node)],
+                            y_start=2 * y_start,
+                            x_end=nodes_pos[nodes.index(node)],
+                            y_end=0,
+                        )
+                    )
+                    fig.add_layout(
+                        Label(
+                            x=nodes_pos[nodes.index(node)],
+                            y=2 * y_start,
+                            angle=np.pi / 2,
+                            text="Fd = " + text + "N",
+                            text_font_style="bold",
+                            text_font_size="10pt",
+                            text_baseline="top",
+                            text_align="center",
+                            x_offset=2,
+                        )
+                    )
+            figures.append(fig)
+            j += 1
+        grid_plots = gridplot([figures])
+
+        return grid_plots
 
     def plot_shearing_force(self):
         """Plot the rotor shearing force diagram.
@@ -1889,12 +1962,9 @@ class StaticResults:
         fig : bokeh figure
             Bokeh figure with the shearing force diagram plot
         """
-        shaft_end = self.nodes_pos[-1]
-        source_SF = ColumnDataSource(data=dict(x=self.Vx_axis, y=self.Vx))
-        TOOLTIPS_SF = [("Shearing Force:", "@y")]
+        shaft_end = max([sublist[-1] for sublist in self.nodes_pos])
         fig = figure(
-            tools="pan, wheel_zoom, box_zoom, reset, save, box_select, hover",
-            tooltips=TOOLTIPS_SF,
+            tools="pan, wheel_zoom, box_zoom, reset, save, box_select",
             width=640,
             height=480,
             title="Shearing Force Diagram",
@@ -1902,13 +1972,10 @@ class StaticResults:
             y_axis_label="Force",
             x_range=[-0.1 * shaft_end, 1.1 * shaft_end],
         )
-        fig.xaxis.axis_label_text_font_size = "20pt"
-        fig.yaxis.axis_label_text_font_size = "20pt"
+        fig.xaxis.axis_label_text_font_size = "16pt"
+        fig.yaxis.axis_label_text_font_size = "16pt"
         fig.axis.major_label_text_font_size = "16pt"
         fig.title.text_font_size = "14pt"
-
-        fig.line("x", "y", source=source_SF, line_width=4, line_color=bokeh_colors[0])
-        fig.circle("x", "y", source=source_SF, size=8, fill_color=bokeh_colors[0])
 
         # fig - plot centerline
         fig.line(
@@ -1918,6 +1985,39 @@ class StaticResults:
             line_dash="dotdash",
             line_color=bokeh_colors[0],
         )
+
+        j = 0
+        for Vx, Vx_axis in zip(self.Vx, self.Vx_axis):
+            source_SF = ColumnDataSource(data=dict(x=Vx_axis, y=Vx))
+
+            fig.line(
+                "x",
+                "y",
+                source=source_SF,
+                line_width=4,
+                line_color=bokeh_colors[9 - j],
+                line_alpha=1.0,
+                muted_alpha=0.1,
+                legend_label="Shaft " + str(j),
+                name="line",
+            )
+            fig.circle(
+                "x",
+                "y",
+                source=source_SF,
+                size=8,
+                fill_color=bokeh_colors[9 - j],
+                fill_alpha=1.0,
+                muted_alpha=0.1,
+                legend_label="Shaft " + str(j),
+                name="circle",
+            )
+            hover = HoverTool(names=["line", "circle"])
+            hover.tooltips = [("Shear Force:", "@y")]
+            j += 1
+        fig.add_tools(hover)
+        fig.legend.background_fill_alpha = 0.1
+        fig.legend.click_policy = "mute"
 
         return fig
 
@@ -1935,12 +2035,9 @@ class StaticResults:
         fig : bokeh figure
             Bokeh figure with the bending moment diagram plot
         """
-        shaft_end = self.nodes_pos[-1]
-        source_BM = ColumnDataSource(data=dict(x=self.nodes_pos, y=self.Bm))
-        TOOLTIPS_BM = [("Bending Moment:", "@y")]
+        shaft_end = max([sublist[-1] for sublist in self.nodes_pos])
         fig = figure(
-            tools="pan, wheel_zoom, box_zoom, reset, save, box_select, hover",
-            tooltips=TOOLTIPS_BM,
+            tools="pan, wheel_zoom, box_zoom, reset, save, box_select",
             width=640,
             height=480,
             title="Bending Moment Diagram",
@@ -1953,26 +2050,6 @@ class StaticResults:
         fig.axis.major_label_text_font_size = "16pt"
         fig.title.text_font_size = "14pt"
 
-        i = 0
-        while True:
-            if i + 3 > len(self.nodes):
-                break
-
-            interpolated_BM = interpolate.interp1d(
-                self.nodes_pos[i : i + 3], self.Bm[i : i + 3], kind="quadratic"
-            )
-            xnew_BM = np.linspace(
-                self.nodes_pos[i], self.nodes_pos[i + 2], num=42, endpoint=True
-            )
-
-            ynew_BM = interpolated_BM(xnew_BM)
-            auxsource_BM = ColumnDataSource(data=dict(x=xnew_BM, y=ynew_BM))
-            fig.line(
-                "x", "y", source=auxsource_BM, line_width=4, line_color=bokeh_colors[0]
-            )
-            i += 2
-        fig.circle("x", "y", source=source_BM, size=8, fill_color=bokeh_colors[0])
-
         # fig - plot centerline
         fig.line(
             [-0.1 * shaft_end, 1.1 * shaft_end],
@@ -1981,6 +2058,55 @@ class StaticResults:
             line_dash="dotdash",
             line_color=bokeh_colors[0],
         )
+
+        j = 0
+        for Bm, nodes_pos, nodes in zip(self.Bm, self.nodes_pos, self.nodes):
+            source_BM = ColumnDataSource(data=dict(x=nodes_pos, y=Bm))
+            i = 0
+            while True:
+                if i + 3 > len(nodes):
+                    break
+
+                interpolated_BM = interpolate.interp1d(
+                    nodes_pos[i : i + 3], Bm[i : i + 3], kind="quadratic"
+                )
+                xnew_BM = np.linspace(
+                    nodes_pos[i], nodes_pos[i + 2], num=42, endpoint=True
+                )
+
+                ynew_BM = interpolated_BM(xnew_BM)
+                auxsource_BM = ColumnDataSource(data=dict(x=xnew_BM, y=ynew_BM))
+                fig.line(
+                    "x",
+                    "y",
+                    source=auxsource_BM,
+                    line_width=4,
+                    line_color=bokeh_colors[9 - j],
+                    line_alpha=1.0,
+                    muted_alpha=0.1,
+                    legend_label="Shaft " + str(j),
+                    name="line",
+                )
+                i += 2
+
+            fig.circle(
+                "x",
+                "y",
+                source=source_BM,
+                size=8,
+                fill_color=bokeh_colors[9 - j],
+                fill_alpha=1.0,
+                muted_alpha=0.1,
+                legend_label="Shaft " + str(j),
+                name="circle",
+            )
+            hover = HoverTool(names=["line", "circle"])
+            hover.tooltips = [("Beinding Moment:", "@y")]
+            j += 1
+
+        fig.add_tools(hover)
+        fig.legend.background_fill_alpha = 0.1
+        fig.legend.click_policy = "mute"
 
         return fig
 
@@ -2046,6 +2172,7 @@ class SummaryResults:
 
         shaft_data = dict(
             tags=self.df_shaft["tag"],
+            sh_number=self.df_shaft["shaft_number"],
             lft_stn=self.df_shaft["n_l"],
             rgt_stn=self.df_shaft["n_r"],
             elem_no=self.df_shaft["_n"],
@@ -2072,6 +2199,7 @@ class SummaryResults:
 
         disk_data = dict(
             tags=self.df_disks["tag"],
+            sh_number=self.df_disks["shaft_number"],
             disk_node=self.df_disks["n"],
             disk_pos=self.nodes_pos[self.df_bearings["n"]],
             disk_mass=self.df_disks["m"],
@@ -2080,9 +2208,10 @@ class SummaryResults:
 
         bearing_data = dict(
             tags=self.df_bearings["tag"],
+            sh_number=self.df_bearings["shaft_number"],
             brg_node=self.df_bearings["n"],
             brg_pos=self.nodes_pos[self.df_bearings["n"]],
-            brg_force=self.brg_forces,
+            brg_force=list(self.brg_forces.values()),
         )
 
         shaft_source = ColumnDataSource(shaft_data)
@@ -2092,42 +2221,45 @@ class SummaryResults:
 
         shaft_titles = [
             "Element Tag",
+            "Shaft Number",
             "Left Station",
             "Right Station",
             "Element Number",
-            "Elem. Left Location (m)",
-            "Elem. Lenght (m)",
-            "Element CG (m)",
-            "Axial CG Location (m)",
-            "Elem. Right Location (m)",
+            "Elem. Left Location",
+            "Elem. Lenght",
+            "Element CG",
+            "Axial CG Location",
+            "Elem. Right Location",
             "Material",
-            "Elem. Mass (kg)",
-            "Inertia (kg.m²)",
+            "Elem. Mass",
+            "Inertia",
         ]
 
         rotor_titles = [
             "Tag",
             "First Station",
             "Last Station",
-            "Starting Pos. (m)",
-            "Total Lenght (m)",
-            "C.G. Locantion (m)",
-            "Total Ip about C.L. (kg.m²)",
+            "Starting Pos.",
+            "Total Lenght",
+            "C.G. Locantion",
+            "Total Ip about C.L.",
         ]
 
         disk_titles = [
             "Tag",
+            "Shaft Number",
             "Disk Station",
-            "C.G. Locantion (m)",
-            "Disk Mass (m)",
-            "Total Ip about C.L. (kg.m²)",
+            "C.G. Locantion",
+            "Disk Mass",
+            "Total Ip about C.L.",
         ]
 
         bearing_titles = [
             "Tag",
+            "Shaft Number",
             "Bearing Station",
-            "Bearing Locantion (m)",
-            "Static Reaction Force (N)",
+            "Bearing Locantion",
+            "Static Reaction Force",
         ]
 
         shaft_formatters = [

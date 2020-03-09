@@ -93,7 +93,7 @@ def test_raise_if_element_outside_shaft():
     assert "Trying to set disk or bearing outside shaft" == str(excinfo.value)
 
     with pytest.raises(ValueError) as excinfo:
-        Rotor(shaft_elm, bearing_seal_elements=bearings)
+        Rotor(shaft_elm, bearing_elements=bearings)
     assert "Trying to set disk or bearing outside shaft" == str(excinfo.value)
 
 
@@ -714,8 +714,8 @@ def test_mesh_convergence(rotor3):
     assert_allclose(rotor3.shaft_elements[0].L, 0.015625, atol=1e-06)
     assert_allclose(rotor3.disk_elements[0].n, 32, atol=0)
     assert_allclose(rotor3.disk_elements[1].n, 64, atol=0)
-    assert_allclose(rotor3.bearing_seal_elements[0].n, 0, atol=0)
-    assert_allclose(rotor3.bearing_seal_elements[1].n, 96, atol=0)
+    assert_allclose(rotor3.bearing_elements[0].n, 0, atol=0)
+    assert_allclose(rotor3.bearing_elements[1].n, 96, atol=0)
     assert rotor3.error_arr[-1] <= 1e-08 * 100
 
 
@@ -723,8 +723,8 @@ def test_static_analysis_rotor3(rotor3):
     rotor3.run_static()
 
     assert_almost_equal(
-        rotor3.disp_y,
-        (
+        rotor3.disp_y[0],
+        np.array(
             [
                 -4.94274533e-12,
                 -4.51249085e-04,
@@ -738,25 +738,29 @@ def test_static_analysis_rotor3(rotor3):
         decimal=6,
     )
     assert_almost_equal(
-        rotor3.Vx,
-        [
-            0,
-            -494.2745,
-            -456.6791,
-            -419.0836,
-            -99.4925,
-            -61.8971,
-            -24.3016,
-            480.9807,
-            518.5762,
-            556.1716,
-            0,
-        ],
+        rotor3.Vx[0],
+        np.array(
+            [
+                0,
+                -494.2745,
+                -456.6791,
+                -419.0836,
+                -99.4925,
+                -61.8971,
+                -24.3016,
+                480.9807,
+                518.5762,
+                556.1716,
+                0,
+            ]
+        ),
         decimal=3,
     )
     assert_almost_equal(
-        rotor3.Bm,
-        [0, -118.8692, -228.3395, -248.5132, -259.2881, -134.3434, 0],
+        rotor3.Bm[0],
+        np.array(
+            [0, -118.8692, -228.3395, -248.5132, -259.2881, -134.3434, 0],
+        ),
         decimal=3,
     )
 
@@ -791,8 +795,8 @@ def test_static_analysis_rotor5(rotor5):
     rotor5.run_static()
 
     assert_almost_equal(
-        rotor5.disp_y,
-        (
+        rotor5.disp_y[0],
+        np.array(
             [
                 8.12651626e-04,
                 4.08939282e-04,
@@ -810,41 +814,45 @@ def test_static_analysis_rotor5(rotor5):
         decimal=6,
     )
     assert_almost_equal(
-        rotor5.Vx,
-        [
-            0,
-            37.5954,
-            75.1908,
-            -494.2745,
-            -456.6791,
-            -419.08368,
-            -99.4925,
-            -61.8971,
-            -24.3016,
-            480.9807,
-            518.5762,
-            556.1716,
-            -75.1908,
-            -37.5954,
-            0,
-        ],
+        rotor5.Vx[0],
+        np.array(
+            [
+                0,
+                37.5954,
+                75.1908,
+                -494.2745,
+                -456.6791,
+                -419.08368,
+                -99.4925,
+                -61.8971,
+                -24.3016,
+                480.9807,
+                518.5762,
+                556.1716,
+                -75.1908,
+                -37.5954,
+                0,
+            ]
+        ),
         decimal=3,
     )
     assert_almost_equal(
-        rotor5.Bm,
-        [
-            0,
-            4.6994,
-            18.7977,
-            -100.0714,
-            -209.5418,
-            -229.7155,
-            -240.4903,
-            -115.5457,
-            18.7977,
-            4.6994,
-            0,
-        ],
+        rotor5.Bm[0],
+        np.array(
+            [
+                0,
+                4.6994,
+                18.7977,
+                -100.0714,
+                -209.5418,
+                -229.7155,
+                -240.4903,
+                -115.5457,
+                18.7977,
+                4.6994,
+                0,
+            ]
+        ),
         decimal=3,
     )
 
@@ -880,8 +888,8 @@ def test_static_analysis_rotor6(rotor6):
     rotor6.run_static()
 
     assert_almost_equal(
-        rotor6.disp_y,
-        (
+        rotor6.disp_y[0],
+        np.array(
             [
                 -1.03951876e-04,
                 -4.93624668e-05,
@@ -893,49 +901,125 @@ def test_static_analysis_rotor6(rotor6):
                 1.72933811e-04,
                 -1.02148266e-11,
                 -3.96409257e-04,
-                -9.20006704e-04,
+                -9.20006704e-04
             ]
         ),
         decimal=6,
     )
     assert_almost_equal(
-        rotor6.Vx,
-        [
-            0,
-            37.5954,
-            75.1908,
-            -104.1543,
-            -66.5589,
-            -28.9635,
-            8.6319,
-            328.2230,
-            365.8184,
-            403.4139,
-            441.0093,
-            -580.4733,
-            -542.8778,
-            -505.2824,
-            0,
-        ],
+        rotor6.Vx[0],
+        np.array(
+            [
+                0,
+                37.5954,
+                75.1908,
+                -104.1543,
+                -66.5589,
+                -28.9635,
+                8.6319,
+                328.2230,
+                365.8184,
+                403.4139,
+                441.0093,
+                -580.4733,
+                -542.8778,
+                -505.2824,
+                0,
+            ]
+        ),
         decimal=3,
     )
     assert_almost_equal(
-        rotor6.Bm,
-        [
-            0,
-            4.6994,
-            18.7977,
-            -2.5414,
-            -14.4817,
-            -17.0232,
-            69.7319,
-            165.8860,
-            271.4389,
-            131.0200,
-            0,
-        ],
+        rotor6.Bm[0],
+        np.array(
+            [
+                0,
+                4.6994,
+                18.7977,
+                -2.5414,
+                -14.4817,
+                -17.0232,
+                69.7319,
+                165.8860,
+                271.4389,
+                131.0200,
+                0,
+            ]
+        ),
         decimal=3,
     )
+
+
+@pytest.fixture
+def coaxrotor():
+    #  Co-axial rotor system with 2 shafts, 4 disks and
+    #  4 bearings (3 to ground and 1 to body) 
+    i_d = 0
+    o_d = 0.05
+    n = 10
+    L = [0.25 for _ in range(n)]
+
+    axial_shaft = [ShaftElement(l, i_d, o_d, material=steel) for l in L]
+
+    i_d = 0.25
+    o_d = 0.30
+    n = 6
+    L = [0.25 for _ in range(n)]
+
+    coaxial_shaft = [ShaftElement(l, i_d, o_d, material=steel) for l in L]
+
+    disk0 = DiskElement.from_geometry(
+        n=1, material=steel, width=0.07, i_d=0.05, o_d=0.28
+    )
+    disk1 = DiskElement.from_geometry(
+        n=9, material=steel, width=0.07, i_d=0.05, o_d=0.28
+    )
+    disk2 = DiskElement.from_geometry(
+        n=13, material=steel, width=0.07, i_d=0.20, o_d=0.48
+    )
+    disk3 = DiskElement.from_geometry(
+        n=15, material=steel, width=0.07, i_d=0.20, o_d=0.48
+    )
+
+    shaft = [axial_shaft, coaxial_shaft]
+    disks = [disk0, disk1, disk2, disk3]
+
+    stfx = 1e6
+    stfy = 1e6
+    bearing0 = BearingElement(0, kxx=stfx, kyy=stfy, cxx=0)
+    bearing1 = BearingElement(10, kxx=stfx, kyy=stfy, cxx=0)
+    bearing2 = BearingElement(11, kxx=stfx, kyy=stfy, cxx=0)
+    bearing3 = BearingElement(8, n_link=17, kxx=stfx, kyy=stfy, cxx=0)
+    bearings = [bearing0, bearing1, bearing2, bearing3]
+
+    return CoAxialRotor(shaft, disks, bearings)
+
+
+def test_coaxial_rotor_assembly(coaxrotor):
+    # fmt: off
+    assert list(coaxrotor.df["shaft_number"]) == [
+        0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0,
+        1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0, 1.0
+    ]
+    assert coaxrotor.nodes_pos == [
+        0.0, 0.25, 0.5, 0.75, 1.0, 1.25, 1.5, 1.75, 2.0, 2.25, 2.5,
+        0.5, 0.75, 1.0, 1.25, 1.5, 1.75, 2.0
+    ]
+    assert list(coaxrotor.df_shaft["nodes_pos_l"]) == [
+        0.0, 0.25, 0.5, 0.75, 1.0, 1.25, 1.5, 1.75, 2.0, 2.25,
+        0.5, 0.75, 1.0, 1.25, 1.5, 1.75
+    ]
+    assert list(coaxrotor.df_shaft["nodes_pos_r"]) == [
+        0.25, 0.5, 0.75, 1.0, 1.25, 1.5, 1.75, 2.0, 2.25, 2.5,
+        0.75, 1.0, 1.25, 1.5, 1.75, 2.0
+    ]
+    assert list(coaxrotor.df["y_pos"].dropna()) == [
+        0.025, 0.05, 0.025, 0.05, 0.025, 0.15, 0.3, 0.3
+    ]
+    assert list(np.round(coaxrotor.df["y_pos_sup"].dropna(), 3)) == [
+        0.319, 0.125, 0.319, 0.444
+    ]
+    # fmt: on
 
 
 def test_from_section():
@@ -977,8 +1061,8 @@ def test_from_section():
     assert_allclose(rotor1.shaft_elements[16].L, 0.125, atol=0)
     assert_allclose(rotor1.disk_elements[0].n, 8, atol=0)
     assert_allclose(rotor1.disk_elements[1].n, 12, atol=0)
-    assert_allclose(rotor1.bearing_seal_elements[0].n, 0, atol=0)
-    assert_allclose(rotor1.bearing_seal_elements[1].n, 20, atol=0)
+    assert_allclose(rotor1.bearing_elements[0].n, 0, atol=0)
+    assert_allclose(rotor1.bearing_elements[1].n, 20, atol=0)
 
     with pytest.raises(ValueError) as excinfo:
         Rotor.from_section(
@@ -1308,7 +1392,7 @@ def test_global_index():
 
     shaft = rotor.shaft_elements
     disks = rotor.disk_elements
-    bearings = rotor.bearing_seal_elements
+    bearings = rotor.bearing_elements
     pointmass = rotor.point_mass_elements
 
     assert shaft[0].dof_global_index.x_0 == 0

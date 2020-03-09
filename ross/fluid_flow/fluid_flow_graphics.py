@@ -26,9 +26,7 @@ def plot_eccentricity(fluid_flow_object, z=0):
     >>> # show(fig)
     """
     p = figure(
-        title="Cut in plane Z=" + str(z),
-        x_axis_label="X axis",
-        y_axis_label="Y axis",
+        title="Cut in plane Z=" + str(z), x_axis_label="X axis", y_axis_label="Y axis",
     )
     for j in range(0, fluid_flow_object.ntheta):
         p.circle(fluid_flow_object.xre[z][j], fluid_flow_object.yre[z][j], color="red")
@@ -63,8 +61,8 @@ def plot_pressure_z(fluid_flow_object, theta=0):
     >>> # show(fig)
     """
     if (
-            not fluid_flow_object.numerical_pressure_matrix_available
-            and not fluid_flow_object.analytical_pressure_matrix_available
+        not fluid_flow_object.numerical_pressure_matrix_available
+        and not fluid_flow_object.analytical_pressure_matrix_available
     ):
         raise ValueError(
             "Must calculate the pressure matrix. "
@@ -76,14 +74,25 @@ def plot_pressure_z(fluid_flow_object, theta=0):
         y_n.append(fluid_flow_object.p_mat_numerical[i][theta])
         y_a.append(fluid_flow_object.p_mat_analytical[i][theta])
     p = figure(
-        title="Pressure along the Z direction (direction of flow); Theta="
-              + str(theta),
+        title="Pressure along the Z direction (direction of flow); Theta=" + str(theta),
         x_axis_label="Points along Z",
     )
     if fluid_flow_object.numerical_pressure_matrix_available:
-        p.line(fluid_flow_object.z_list, y_n, legend="Numerical pressure", color="blue", line_width=2)
+        p.line(
+            fluid_flow_object.z_list,
+            y_n,
+            legend="Numerical pressure",
+            color="blue",
+            line_width=2,
+        )
     if fluid_flow_object.analytical_pressure_matrix_available:
-        p.line(fluid_flow_object.z_list, y_a, legend="Analytical pressure", color="red", line_width=2)
+        p.line(
+            fluid_flow_object.z_list,
+            y_a,
+            legend="Analytical pressure",
+            color="red",
+            line_width=2,
+        )
     return p
 
 
@@ -145,8 +154,8 @@ def plot_pressure_theta(fluid_flow_object, z=0):
     >>> # show(fig)
     """
     if (
-            not fluid_flow_object.numerical_pressure_matrix_available
-            and not fluid_flow_object.analytical_pressure_matrix_available
+        not fluid_flow_object.numerical_pressure_matrix_available
+        and not fluid_flow_object.analytical_pressure_matrix_available
     ):
         raise ValueError(
             "Must calculate the pressure matrix. "
@@ -217,7 +226,7 @@ def matplot_eccentricity(fluid_flow_object, z=0, ax=None):
     ax.set_title("Cut in plane Z=" + str(z))
     ax.set_xlabel("X axis")
     ax.set_ylabel("Y axis")
-    plt.axis("equal")
+    ax.axis("equal")
     return ax
 
 
@@ -247,8 +256,8 @@ def matplot_pressure_z(fluid_flow_object, theta=0, ax=None):
     >>> # plt.show()
     """
     if (
-            not fluid_flow_object.numerical_pressure_matrix_available
-            and not fluid_flow_object.analytical_pressure_matrix_available
+        not fluid_flow_object.numerical_pressure_matrix_available
+        and not fluid_flow_object.analytical_pressure_matrix_available
     ):
         raise ValueError(
             "Must calculate the pressure matrix. "
@@ -309,7 +318,9 @@ def matplot_shape(fluid_flow_object, theta=0, ax=None):
     return ax
 
 
-def matplot_pressure_theta_cylindrical(fluid_flow_object, z=0, from_numerical=True, ax=None):
+def matplot_pressure_theta_cylindrical(
+    fluid_flow_object, z=0, from_numerical=True, ax=None
+):
     """This function assembles cylindrical pressure graphic in the theta direction for a given z,
     using matplotlib.
     Parameters
@@ -339,8 +350,8 @@ def matplot_pressure_theta_cylindrical(fluid_flow_object, z=0, from_numerical=Tr
     >>> # plt.show()
     """
     if (
-            not fluid_flow_object.numerical_pressure_matrix_available
-            and not fluid_flow_object.analytical_pressure_matrix_available
+        not fluid_flow_object.numerical_pressure_matrix_available
+        and not fluid_flow_object.analytical_pressure_matrix_available
     ):
         raise ValueError(
             "Must calculate the pressure matrix. "
@@ -361,9 +372,14 @@ def matplot_pressure_theta_cylindrical(fluid_flow_object, z=0, from_numerical=Tr
     r = np.arange(
         0,
         fluid_flow_object.radius_stator + 0.0001,
-        (fluid_flow_object.radius_stator - fluid_flow_object.radius_rotor) / fluid_flow_object.nradius,
+        (fluid_flow_object.radius_stator - fluid_flow_object.radius_rotor)
+        / fluid_flow_object.nradius,
     )
-    theta = np.arange(-np.pi * 0.25, 1.75 * np.pi + fluid_flow_object.dtheta / 2, fluid_flow_object.dtheta)
+    theta = np.arange(
+        -np.pi * 0.25,
+        1.75 * np.pi + fluid_flow_object.dtheta / 2,
+        fluid_flow_object.dtheta,
+    )
 
     pressure_along_theta = np.zeros(fluid_flow_object.ntheta)
     for i in range(0, fluid_flow_object.ntheta):
@@ -377,7 +393,8 @@ def matplot_pressure_theta_cylindrical(fluid_flow_object, z=0, from_numerical=Tr
     pressure_list = np.zeros((theta.size, r.size))
     for i in range(0, theta.size):
         inner_radius = np.sqrt(
-            fluid_flow_object.xri[z][i] * fluid_flow_object.xri[z][i] + fluid_flow_object.yri[z][i] * fluid_flow_object.yri[z][i]
+            fluid_flow_object.xri[z][i] * fluid_flow_object.xri[z][i]
+            + fluid_flow_object.yri[z][i] * fluid_flow_object.yri[z][i]
         )
         inner_radius_list[i] = inner_radius
         for j in range(0, r.size):
@@ -415,8 +432,8 @@ def matplot_pressure_theta(fluid_flow_object, z=0, ax=None):
     >>> # plt.show()
     """
     if (
-            not fluid_flow_object.numerical_pressure_matrix_available
-            and not fluid_flow_object.analytical_pressure_matrix_available
+        not fluid_flow_object.numerical_pressure_matrix_available
+        and not fluid_flow_object.analytical_pressure_matrix_available
     ):
         raise ValueError(
             "Must calculate the pressure matrix. "
@@ -429,7 +446,7 @@ def matplot_pressure_theta(fluid_flow_object, z=0, ax=None):
             fluid_flow_object.gama[z],
             fluid_flow_object.p_mat_numerical[z],
             "b",
-            label="Numerical pressure"
+            label="Numerical pressure",
         )
     if fluid_flow_object.analytical_pressure_matrix_available:
         ax.plot(
@@ -466,8 +483,8 @@ def matplot_pressure_surface(fluid_flow_object, ax=None):
     >>> # plt.show()
     """
     if (
-            not fluid_flow_object.numerical_pressure_matrix_available
-            and not fluid_flow_object.analytical_pressure_matrix_available
+        not fluid_flow_object.numerical_pressure_matrix_available
+        and not fluid_flow_object.analytical_pressure_matrix_available
     ):
         raise ValueError(
             "Must calculate the pressure matrix. "
@@ -475,25 +492,32 @@ def matplot_pressure_surface(fluid_flow_object, ax=None):
         )
     if ax is None:
         fig = plt.figure()
-        ax = fig.gca(projection='3d')
+        ax = fig.gca(projection="3d")
     if fluid_flow_object.numerical_pressure_matrix_available:
         z, theta = np.meshgrid(fluid_flow_object.z_list, fluid_flow_object.gama[0])
         ax.plot_surface(
-            z, theta, fluid_flow_object.p_mat_numerical.T, cmap=cm.coolwarm, linewidth=0,
-            label="Numerical pressure"
+            z,
+            theta,
+            fluid_flow_object.p_mat_numerical.T,
+            cmap=cm.coolwarm,
+            linewidth=0,
+            label="Numerical pressure",
         )
     if fluid_flow_object.analytical_pressure_matrix_available:
         z, theta = np.meshgrid(fluid_flow_object.z_list, fluid_flow_object.gama[0])
         ax.plot_surface(
-            z, theta, fluid_flow_object.p_mat_analytical.T, cmap=cm.coolwarm, linewidth=0,
-            label="Analytical pressure"
+            z,
+            theta,
+            fluid_flow_object.p_mat_analytical.T,
+            cmap=cm.coolwarm,
+            linewidth=0,
+            label="Analytical pressure",
         )
-    ax.set_title('Bearing Pressure Field', fontsize=18)
-    ax.set_xlabel('Bearing Length', fontsize=14, linespacing=50)
-    ax.set_ylabel('Angular position', fontsize=14, linespacing=50)
-    ax.set_zlabel('Pressure', fontsize=14, linespacing=50)
+    ax.set_title("Bearing Pressure Field", fontsize=18)
+    ax.set_xlabel("Bearing Length", fontsize=14, linespacing=50)
+    ax.set_ylabel("Angular position", fontsize=14, linespacing=50)
+    ax.set_zlabel("Pressure", fontsize=14, linespacing=50)
     ax.dist = 10
-    ax.tick_params(axis='both', which='major', labelsize=12)
-    ax.tick_params(axis='both', which='minor', labelsize=12)
+    ax.tick_params(axis="both", which="major", labelsize=12)
+    ax.tick_params(axis="both", which="minor", labelsize=12)
     return ax
-

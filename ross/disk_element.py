@@ -1,10 +1,12 @@
 import bokeh.palettes as bp
-from bokeh.models import ColumnDataSource, HoverTool
 import matplotlib.patches as mpatches
 import numpy as np
 import toml
-from ross.utils import read_table_file
+import os
 
+from pathlib import Path
+from bokeh.models import ColumnDataSource, HoverTool
+from ross.utils import read_table_file
 from ross.element import Element
 
 __all__ = ["DiskElement", "DiskElement6DoF"]
@@ -29,7 +31,9 @@ class DiskElement(Element):
      tag : str, optional
          A tag to name the element
          Default is None
-
+     color : str, optional
+         A color to be used when the element is represented.
+         Default is '#b2182b' (Cardinal).
      Examples
      --------
      >>> disk = DiskElement(n=0, m=32, Id=0.2, Ip=0.3)
@@ -37,7 +41,7 @@ class DiskElement(Element):
      0.3
      """
 
-    def __init__(self, n, m, Id, Ip, tag=None):
+    def __init__(self, n, m, Id, Ip, tag=None, color=bokeh_colors[9]):
         self.n = int(n)
         self.n_l = n
         self.n_r = n
@@ -46,8 +50,9 @@ class DiskElement(Element):
         self.Id = Id
         self.Ip = Ip
         self.tag = tag
-        self.color = bokeh_colors[9]
+        self.color = color
         self.dof_global_index = None
+
 
     def __eq__(self, other):
         """This function allows disk elements to be compared.
@@ -110,7 +115,7 @@ class DiskElement(Element):
     def __hash__(self):
         return hash(self.tag)
 
-    def save(self, file_name):
+    def save(self, file_name=os.getcwd()):
         """Saves a disk element in a toml format.
 
         It works as an auxiliary function of the save function in the Rotor
@@ -128,9 +133,9 @@ class DiskElement(Element):
         Examples
         --------
         >>> disk = disk_example()
-        >>> disk.save('DiskElement.toml')
+        >>> disk.save()
         """
-        data = self.load_data(file_name)
+        data = self.get_data(Path(file_name)/'DiskElement.toml')
         data["DiskElement"][str(self.n)] = {
             "n": self.n,
             "m": self.m,
@@ -138,10 +143,10 @@ class DiskElement(Element):
             "Ip": self.Ip,
             "tag": self.tag,
         }
-        self.dump_data(data, file_name)
+        self.dump_data(data, Path(file_name)/'DiskElement.toml')
 
     @staticmethod
-    def load(file_name="DiskElement"):
+    def load(file_name=os.getcwd()):
         """Loads a list of disk elements saved in a toml format.
 
         Parameters
@@ -157,8 +162,8 @@ class DiskElement(Element):
         Examples
         --------
         >>> disk1 = disk_example()
-        >>> disk1.save('DiskElement.toml')
-        >>> list_of_disks = DiskElement.load('DiskElement.toml')
+        >>> disk1.save(os.getcwd())
+        >>> list_of_disks = DiskElement.load(os.getcwd())
         >>> disk1 == list_of_disks[0]
         True
         """
@@ -309,20 +314,20 @@ class DiskElement(Element):
         Returns
         -------
         """
-        zpos, ypos = position
-        step = ypos / 5
+        zpos, ypos, step = position
+        radius = step / 6
 
         #  matplotlib node (x pos), outer diam. (y pos)
         disk_points_u = [
             [zpos, ypos],  # upper
-            [zpos + step, ypos * 4],
-            [zpos - step, ypos * 4],
+            [zpos + step / 6, ypos + 2 * step],
+            [zpos - step / 6, ypos + 2 * step],
             [zpos, ypos],
         ]
         disk_points_l = [
             [zpos, -ypos],  # lower
-            [zpos + step, -ypos * 4],
-            [zpos - step, -ypos * 4],
+            [zpos + step / 6, -ypos - 2 * step],
+            [zpos - step / 6, -ypos - 2 * step],
             [zpos, -ypos],
         ]
 
@@ -330,10 +335,10 @@ class DiskElement(Element):
         ax.add_patch(mpatches.Polygon(disk_points_l, facecolor=self.color))
 
         ax.add_patch(
-            mpatches.Circle(xy=(zpos, ypos * 4), radius=step, color=self.color)
+            mpatches.Circle(xy=(zpos, ypos + 2 * step), radius=radius, color=self.color)
         )
         ax.add_patch(
-            mpatches.Circle(xy=(zpos, -ypos * 4), radius=step, color=self.color)
+            mpatches.Circle(xy=(zpos, -ypos - 2 * step), radius=radius, color=self.color)
         )
 
     def bokeh_patch(self, position, bk_ax):
@@ -350,15 +355,14 @@ class DiskElement(Element):
         bk_ax : bokeh plotting axes
             Returns the axes object with the plot.
         """
-        zpos, ypos = position
-        step = ypos / 5
+        zpos, ypos, step = position
 
         # bokeh plot - coordinates to plot disks elements
-        z_upper = [zpos, zpos + step, zpos - step]
-        y_upper = [ypos, ypos * 4, ypos * 4]
+        z_upper = [zpos, zpos + step / 6, zpos - step / 6]
+        y_upper = [ypos, ypos + 2 * step, ypos + 2 * step]
 
-        z_lower = [zpos, zpos + step, zpos - step]
-        y_lower = [-ypos, -ypos * 4, -ypos * 4]
+        z_lower = [zpos, zpos + step / 6, zpos - step / 6]
+        y_lower = [-ypos, -ypos - 2 * step, -ypos - 2 * step]
 
         source = ColumnDataSource(
             dict(
@@ -378,7 +382,7 @@ class DiskElement(Element):
                 z_circle=[z_upper[0]],
                 yu_circle=[y_upper[1]],
                 yl_circle=[-y_upper[1]],
-                radius=[step],
+                radius=[step / 6],
                 elnum=[self.n],
                 IP=[self.Ip],
                 ID=[self.Id],
