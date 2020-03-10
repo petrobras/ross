@@ -62,6 +62,8 @@ EXTRAS = {
         "nbsphinx",
         "numpydoc",
         "sphinxcontrib-bibtex",
+        "black",
+        "isort",
     ]
 }
 

@@ -1,22 +1,20 @@
+# fmt: off
+import os
 import warnings
+from collections import namedtuple
+from pathlib import Path
 
 import bokeh.palettes as bp
-import matplotlib.patches as mpatches
-import matplotlib.pyplot as plt
 import matplotlib.lines as mlines
+import matplotlib.pyplot as plt
 import numpy as np
 import scipy.interpolate as interpolate
-import os
 
-from pathlib import Path
-from collections import namedtuple
-from ross.utils import read_table_file
 from ross.element import Element
 from ross.fluid_flow import fluid_flow as flow
 from ross.fluid_flow.fluid_flow_coefficients import (
-    calculate_stiffness_matrix,
-    calculate_damping_matrix,
-)
+    calculate_damping_matrix, calculate_stiffness_matrix)
+from ross.utils import read_table_file
 
 __all__ = [
     "BearingElement",
@@ -24,6 +22,7 @@ __all__ = [
     "BallBearingElement",
     "RollerBearingElement",
 ]
+# fmt: on
 bokeh_colors = bp.RdGy[11]
 
 
@@ -187,7 +186,7 @@ class BearingElement(Element):
         tag=None,
         n_link=None,
         scale_factor=1,
-        color="#355d7a"
+        color="#355d7a",
     ):
 
         args = ["kxx", "kyy", "kxy", "kyx", "cxx", "cyy", "cxy", "cyx"]
@@ -328,7 +327,7 @@ class BearingElement(Element):
         >>> bearing = bearing_example()
         >>> bearing.save(Path(os.getcwd()))
         """
-        data = self.get_data(Path(file_name)/'BearingElement.toml')
+        data = self.get_data(Path(file_name) / "BearingElement.toml")
 
         if type(self.frequency) == np.ndarray:
             try:
@@ -350,7 +349,7 @@ class BearingElement(Element):
             "frequency": frequency,
             "tag": self.tag,
         }
-        self.dump_data(data, Path(file_name)/'BearingElement.toml')
+        self.dump_data(data, Path(file_name) / "BearingElement.toml")
 
     @staticmethod
     def load(file_name=""):
@@ -375,7 +374,7 @@ class BearingElement(Element):
         """
         bearing_elements = []
         bearing_elements_dict = BearingElement.get_data(
-            file_name=Path(file_name)/"BearingElement.toml"
+            file_name=Path(file_name) / "BearingElement.toml"
         )
         for element in bearing_elements_dict["BearingElement"]:
             bearing = BearingElement(**bearing_elements_dict["BearingElement"][element])
@@ -634,7 +633,12 @@ class BearingElement(Element):
 
         # plot damper - top
         z_damper3 = [z_damper2[0], z_damper2[2], zs1, zs1]
-        yl_damper3 = [ys0 + 4 * step, ys0 + 4 * step, ys0 + 4 * step, ypos + 1.5 * icon_w]
+        yl_damper3 = [
+            ys0 + 4 * step,
+            ys0 + 4 * step,
+            ys0 + 4 * step,
+            ypos + 1.5 * icon_w,
+        ]
         yu_damper3 = [-y for y in yl_damper3]
 
         ax.add_line(mlines.Line2D(z_damper3, yl_damper3, **kwargs))
@@ -736,7 +740,12 @@ class BearingElement(Element):
 
         # plot damper - top
         z_damper3 = [z_damper2[0], z_damper2[2], zs1, zs1]
-        yl_damper3 = [ys0 + 4 * step, ys0 + 4 * step, ys0 + 4 * step, ypos + 1.5 * icon_w]
+        yl_damper3 = [
+            ys0 + 4 * step,
+            ys0 + 4 * step,
+            ys0 + 4 * step,
+            ypos + 1.5 * icon_w,
+        ]
         yu_damper3 = [-y for y in yl_damper3]
 
         bk_ax.line(x=z_damper3, y=yl_damper3, **kwargs)
@@ -937,12 +946,8 @@ class BearingElement(Element):
             eccentricity=eccentricity,
             load=load,
         )
-        c = calculate_damping_matrix(
-            fluid_flow, force_type='short'
-        )
-        k = calculate_stiffness_matrix(
-            fluid_flow, force_type='short'
-        )
+        c = calculate_damping_matrix(fluid_flow, force_type="short")
+        k = calculate_stiffness_matrix(fluid_flow, force_type="short")
         return cls(
             n,
             kxx=k[0],

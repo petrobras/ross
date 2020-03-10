@@ -2,7 +2,7 @@ import os
 
 import numpy as np
 import pytest
-from numpy.testing import assert_almost_equal, assert_allclose
+from numpy.testing import assert_allclose, assert_almost_equal
 
 from ross.materials import steel
 from ross.shaft_element import ShaftElement
@@ -19,7 +19,15 @@ def eb():
     i_d_r = 0
     o_d_r = 0.05
     return ShaftElement(
-        le_, i_d_l, o_d_l, i_d_r, o_d_r, steel, shear_effects=False, rotary_inertia=False, n=3
+        le_,
+        i_d_l,
+        o_d_l,
+        i_d_r,
+        o_d_r,
+        steel,
+        shear_effects=False,
+        rotary_inertia=False,
+        n=3,
     )
 
 
@@ -82,7 +90,9 @@ def tim():
     o_d_l = 0.05
     i_d_r = 0
     o_d_r = 0.05
-    return ShaftElement(le_, i_d_l, o_d_l, i_d_r, o_d_r, steel, rotary_inertia=True, shear_effects=True)
+    return ShaftElement(
+        le_, i_d_l, o_d_l, i_d_r, o_d_r, steel, rotary_inertia=True, shear_effects=True
+    )
 
 
 def test_parameters_tim(tim):
@@ -275,7 +285,9 @@ def tim2():
     le_ = 0.4
     i_d_ = 0
     o_d_ = 0.25
-    return ShaftElement(le_, i_d_, o_d_, material=steel, rotary_inertia=True, shear_effects=True)
+    return ShaftElement(
+        le_, i_d_, o_d_, material=steel, rotary_inertia=True, shear_effects=True
+    )
 
 
 def test_match_mass_matrix(tap2, tim2):

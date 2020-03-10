@@ -2,13 +2,12 @@
 
 This module defines the PointMass class which will be used to link elements.
 """
-import numpy as np
-from ross.element import Element
-
-import toml
 import bokeh.palettes as bp
-from bokeh.models import ColumnDataSource, HoverTool
 import matplotlib.patches as mpatches
+import numpy as np
+from bokeh.models import ColumnDataSource, HoverTool
+
+from ross.element import Element
 
 __all__ = ["PointMass"]
 bokeh_colors = bp.RdGy[11]
@@ -160,12 +159,8 @@ class PointMass(Element):
             kwargs.setdefault(k, v)
 
         # matplotlib plot - coordinates to plot point mass elements
-        ax.add_patch(
-            mpatches.Circle(xy=(zpos, ypos), radius=radius, **kwargs)
-        )
-        ax.add_patch(
-            mpatches.Circle(xy=(zpos, -ypos), radius=radius, **kwargs)
-        )
+        ax.add_patch(mpatches.Circle(xy=(zpos, ypos), radius=radius, **kwargs))
+        ax.add_patch(mpatches.Circle(xy=(zpos, -ypos), radius=radius, **kwargs))
 
     def bokeh_patch(self, position, bk_ax, **kwargs):
         """Point mass element patch.
@@ -219,20 +214,10 @@ class PointMass(Element):
         )
 
         bk_ax.circle(
-            x="z_l",
-            y="y_l",
-            radius=radius,
-            source=source,
-            name="pmass_l",
-            **kwargs,
+            x="z_l", y="y_l", radius=radius, source=source, name="pmass_l", **kwargs,
         )
         bk_ax.circle(
-            x="z_u",
-            y="y_u",
-            radius=radius,
-            source=source,
-            name="pmass_u",
-            **kwargs,
+            x="z_u", y="y_u", radius=radius, source=source, name="pmass_u", **kwargs,
         )
 
         hover = HoverTool(names=["pmass_l", "pmass_u"])

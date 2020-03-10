@@ -1,6 +1,7 @@
 from abc import ABC, abstractmethod
 from collections import namedtuple
 from pathlib import Path
+
 import pandas as pd
 import toml
 

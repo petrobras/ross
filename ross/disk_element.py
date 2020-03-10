@@ -1,13 +1,14 @@
+import os
+from pathlib import Path
+
 import bokeh.palettes as bp
 import matplotlib.patches as mpatches
 import numpy as np
 import toml
-import os
-
-from pathlib import Path
 from bokeh.models import ColumnDataSource, HoverTool
-from ross.utils import read_table_file
+
 from ross.element import Element
+from ross.utils import read_table_file
 
 __all__ = ["DiskElement"]
 bokeh_colors = bp.RdGy[11]
@@ -52,7 +53,6 @@ class DiskElement(Element):
         self.tag = tag
         self.color = color
         self.dof_global_index = None
-
 
     def __eq__(self, other):
         """This function allows disk elements to be compared.
@@ -135,7 +135,7 @@ class DiskElement(Element):
         >>> disk = disk_example()
         >>> disk.save()
         """
-        data = self.get_data(Path(file_name)/'DiskElement.toml')
+        data = self.get_data(Path(file_name) / "DiskElement.toml")
         data["DiskElement"][str(self.n)] = {
             "n": self.n,
             "m": self.m,
@@ -143,7 +143,7 @@ class DiskElement(Element):
             "Ip": self.Ip,
             "tag": self.tag,
         }
-        self.dump_data(data, Path(file_name)/'DiskElement.toml')
+        self.dump_data(data, Path(file_name) / "DiskElement.toml")
 
     @staticmethod
     def load(file_name=os.getcwd()):
@@ -338,7 +338,9 @@ class DiskElement(Element):
             mpatches.Circle(xy=(zpos, ypos + 2 * step), radius=radius, color=self.color)
         )
         ax.add_patch(
-            mpatches.Circle(xy=(zpos, -ypos - 2 * step), radius=radius, color=self.color)
+            mpatches.Circle(
+                xy=(zpos, -ypos - 2 * step), radius=radius, color=self.color
+            )
         )
 
     def bokeh_patch(self, position, bk_ax):

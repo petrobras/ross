@@ -1,30 +1,25 @@
+# fmt: off
+from copy import copy, deepcopy
+from pathlib import Path
+
+import bokeh.palettes as bp
 import numpy as np
 import pandas as pd
-
-from copy import copy
+from bokeh.layouts import gridplot, widgetbox
+from bokeh.models import (ColumnDataSource, DataRange1d, HoverTool, Label,
+                          LinearAxis, Range1d, Span)
+from bokeh.models.widgets import (DataTable, NumberFormatter, Panel,
+                                  TableColumn, Tabs)
+from bokeh.plotting import figure
 from scipy.interpolate import interp1d
 from scipy.signal import argrelextrema
-from pathlib import Path
-from ross.rotor_assembly import Rotor, rotor_example
-from ross.bearing_seal_element import BearingElement, SealElement
-from ross.materials import steel
 
 import ross as rs
+from ross.bearing_seal_element import BearingElement, SealElement
+from ross.materials import steel
+from ross.rotor_assembly import Rotor, rotor_example
 
-from copy import deepcopy
-import bokeh.palettes as bp
-from bokeh.plotting import figure
-from bokeh.layouts import gridplot, widgetbox
-from bokeh.models.widgets import DataTable, NumberFormatter, TableColumn, Panel, Tabs
-from bokeh.models import (
-    ColumnDataSource,
-    HoverTool,
-    Span,
-    Label,
-    LinearAxis,
-    Range1d,
-    DataRange1d,
-)
+# fmt: on
 
 # set bokeh palette of colors
 bokeh_colors = bp.RdGy[11]
@@ -1461,9 +1456,11 @@ class Report:
 
             # Evaluate log dec for group bearings + all disks
             if len(self.rotor.disk_elements) > 1:
-                all_disks_tag = " + ".join([disk.tag for disk in self.rotor.disk_elements])
+                all_disks_tag = " + ".join(
+                    [disk.tag for disk in self.rotor.disk_elements]
+                )
                 disk_tags.append("Shaft + Bearings + " + all_disks_tag)
-                
+
                 aux_rotor = Rotor(
                     shaft_elements=self.rotor.shaft_elements,
                     disk_elements=self.rotor.disk_elements,
@@ -1498,7 +1495,7 @@ class Report:
                 # Evaluate log dec for group bearings + seals
                 all_seals_tag = " + ".join([seal.tag for seal in seal_list])
                 seal_tags.append("Shaft + Bearings + " + all_seals_tag)
-    
+
                 aux_rotor = Rotor(
                     shaft_elements=self.rotor.shaft_elements,
                     disk_elements=[],
@@ -1572,7 +1569,7 @@ class Report:
             RHO_gas=[self.RHO_gas],
         )
         stab_lvl2_data = dict(
-            tags=self.df_logdec["tags"], logdec=self.df_logdec["log_dec"]
+            tags=self.df_logdec["tags"], logdec=self.df_logdec["log_dec"],
         )
 
         stab_lvl1_source = ColumnDataSource(stab_lvl1_data)

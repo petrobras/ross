@@ -1,6 +1,7 @@
 import numpy as np
-from ross.point_mass import PointMass
 from numpy.testing import assert_allclose
+
+from ross.point_mass import PointMass
 
 
 def test_point_mass():
@@ -11,7 +12,7 @@ def test_point_mass():
 
     p = PointMass(n=0, m=10.0, tag="pointmass")
 
-    assert p.tag == 'pointmass'
+    assert p.tag == "pointmass"
     assert_allclose(m0, p.M())
     assert_allclose(np.zeros((2, 2)), p.K())
     assert_allclose(np.zeros((2, 2)), p.C())
