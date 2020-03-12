@@ -3,29 +3,26 @@ import bokeh
 import os
 import numpy as np
 import pandas as pd
-import toml
+
 from copy import copy
-from pathlib import Path
+
+from jinja2 import Environment, FileSystemLoader
 from scipy.interpolate import interp1d
 from scipy.signal import argrelextrema
-from jinja2 import Environment, FileSystemLoader
 from pathlib import Path
 from ross.rotor_assembly import Rotor, rotor_example
 from ross.bearing_seal_element import BearingElement
 import ross as rs
 
+from copy import deepcopy
 import bokeh.palettes as bp
 from bokeh.plotting import figure
 from bokeh.layouts import gridplot, widgetbox
-from bokeh.models.widgets import DataTable, NumberFormatter, TableColumn, Panel, Tabs
+from bokeh.models.widgets import (
+    DataTable, NumberFormatter, TableColumn, Panel, Tabs
+)
 from bokeh.models import (
-    ColumnDataSource,
-    HoverTool,
-    Span,
-    Label,
-    LinearAxis,
-    Range1d,
-    DataRange1d,
+    ColumnDataSource, HoverTool, Span, Label, LinearAxis, Range1d, DataRange1d,
 )
 
 # set bokeh palette of colors
@@ -267,7 +264,9 @@ class Report:
         html = weasyprint.HTML(string=rendered_string)
         report = os.path.join(output_dir, output_filename)
         html.write_pdf(report, stylesheets=[str(css / "report.css")])
-        print(f"Report of {self.machine_type + ' '  + rotor.tag} exported in {output_dir}")
+        print(
+            f"Report of {self.machine_type + ' '  + rotor.tag} exported in {output_dir}"
+        )
         return html
 
     def static_forces(self):
@@ -439,7 +438,11 @@ class Report:
 
         # returns de nodes where forces will be applied
         node_min, node_max = self.mode_shape(mode)
-        nodes = [int(node) for sub_nodes in [node_min, node_max] for node in sub_nodes]
+        nodes = [
+            int(node)
+            for sub_nodes in [node_min, node_max]
+            for node in sub_nodes
+        ]
 
         force = self.unbalance_forces(mode)
 
@@ -447,7 +450,9 @@ class Report:
         for node in nodes:
             phase.append(np.pi)
 
-        response = self.rotor.unbalance_response(nodes, force, phase, freq_range)
+        response = self.rotor.unbalance_response(
+            nodes, force, phase, freq_range
+        )
         mag = response.magnitude
 
         for node in nodes:
@@ -775,7 +780,9 @@ class Report:
 
         return node_min, node_max
 
-    def stability_level_1(self, D, H, HP, oper_speed, RHO_ratio, RHOs, RHOd, unit="m"):
+    def stability_level_1(
+        self, D, H, HP, oper_speed, RHO_ratio, RHOs, RHOd, unit="m"
+    ):
         """Stability analysis level 1.
 
         This analysis consider a anticipated cross coupling QA based on
@@ -858,7 +865,13 @@ class Report:
             Dc, Hc = D, H
             for i, disk in enumerate(self.rotor.disk_elements):
                 if disk.n in self.disk_nodes:
-                    qi = HP[i] * Bc * C * RHO_ratio[i] / (Dc[i] * Hc[i] * oper_speed)
+                    qi = (
+                        HP[i]
+                        * Bc
+                        * C
+                        * RHO_ratio[i]
+                        / (Dc[i] * Hc[i] * oper_speed)
+                    )
                     Qi = np.linspace(0, 10 * qi, steps)
                     cross_coupled_array = np.append(cross_coupled_array, Qi)
                     Qa += qi
@@ -897,7 +910,9 @@ class Report:
 
                 # cross-coupling introduced at the rotor mid-span
                 n = np.round(np.mean(self.rotor.nodes))
-                cross_coupling = BearingElement(n=int(n), kxx=0, cxx=0, kxy=Q, kyx=-Q)
+                cross_coupling = BearingElement(
+                    n=int(n), kxx=0, cxx=0, kxy=Q, kyx=-Q
+                )
                 bearings.append(cross_coupling)
 
                 aux_rotor = Rotor(
@@ -916,7 +931,9 @@ class Report:
                 bearings = [copy(b) for b in bearing_list]
                 # cross-coupling introduced at overhung disks
                 for n, q in zip(self.disk_nodes, Q):
-                    cross_coupling = BearingElement(n=n, kxx=0, cxx=0, kxy=q, kyx=-q)
+                    cross_coupling = BearingElement(
+                        n=n, kxx=0, cxx=0, kxy=q, kyx=-q
+                    )
                     bearings.append(cross_coupling)
 
                 aux_rotor = Rotor(
@@ -933,7 +950,10 @@ class Report:
         cross_coupled_Qa = cross_coupled_array[:, -1]
         if log_dec[-1] >= 0:
             g = interp1d(
-                cross_coupled_Qa, log_dec, fill_value="extrapolate", kind="linear"
+                cross_coupled_Qa,
+                log_dec,
+                fill_value="extrapolate",
+                kind="linear",
             )
             stiff = cross_coupled_Qa[-1] * (1 + 1 / (len(cross_coupled_Qa)))
             while g(stiff) > 0:
@@ -980,7 +1000,9 @@ class Report:
         fig1.yaxis.axis_label_text_font_size = "20pt"
         fig1.axis.major_label_text_font_size = "16pt"
 
-        fig1.line(cross_coupled_Qa, log_dec, line_width=3, line_color=bokeh_colors[0])
+        fig1.line(
+            cross_coupled_Qa, log_dec, line_width=3, line_color=bokeh_colors[0]
+        )
         fig1.circle(Qa, log_dec_a, size=8, fill_color=bokeh_colors[0])
         fig1.add_layout(
             Label(
@@ -1055,7 +1077,9 @@ class Report:
                 )
             )
 
-        fig2.line(x=RHO, y=CSR_boundary, line_width=3, line_color=bokeh_colors[0])
+        fig2.line(
+            x=RHO, y=CSR_boundary, line_width=3, line_color=bokeh_colors[0]
+        )
         fig2.circle(x=RHO_mean, y=CSR, size=8, color=bokeh_colors[0])
 
         # Level 1 screening criteria - API 684 - SP6.8.5.10
@@ -1152,9 +1176,12 @@ class Report:
 
         # Evaluate log dec for group bearings + disks
         disk_tags = [
-            "Shaft + Bearings + " + disk.tag for disk in self.rotor.disk_elements
+            "Shaft + Bearings + " + disk.tag
+            for disk in self.rotor.disk_elements
         ]
-        all_disks_tag = " + ".join([disk.tag for disk in self.rotor.disk_elements])
+        all_disks_tag = " + ".join(
+            [disk.tag for disk in self.rotor.disk_elements]
+        )
         disk_tags.append("Shaft + Bearings + " + all_disks_tag)
 
         aux_rotor = Rotor(
