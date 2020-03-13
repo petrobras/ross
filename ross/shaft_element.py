@@ -26,7 +26,7 @@ class ShaftElement(Element):
 
     .. math::
 
-        [x_0, y_0, \alpha_0, \beta_0, x_1, y_1, \alpha_1, \beta_1]^T
+        [x_0, y_0, \alpha_0, \beta_0, x_1, y_1, \alpha_1, \beta_1]**T
     Where :math:`\alpha_0` and :math:`\alpha_1` are the bending on the yz plane
     and :math:`\beta_0` and :math:`\beta_1` are the bending on the xz plane.
 
@@ -247,7 +247,7 @@ class ShaftElement(Element):
         self.beam_cg = L * c1 / (4 * c2)
         self.axial_cg_pos = None
 
-        # Slenderness ratio of beam elements (G*A*L^2) / (E*I)
+        # Slenderness ratio of beam elements (G*A*L**2) / (E*I)
         sld = (self.material.G_s * self.A * self.L ** 2) / (self.material.E * Ie)
         self.slenderness_ratio = sld
 
@@ -1203,7 +1203,7 @@ class ShaftElement6DoF(Element):
     The matrices will be defined considering the following local
     coordinate vector:
 
-    :math:`[u_0, v_0, w_0, \theta_0, \psi_0, \phi_0, u_1, v_1, w_1, \theta_1, \psi_1, \phi_1]^T`
+    :math:`[u_0, v_0, w_0, \theta_0, \psi_0, \phi_0, u_1, v_1, w_1, \theta_1, \psi_1, \phi_1]**T`
     
     Being the following their ordering for an element:
 
@@ -1756,39 +1756,39 @@ class ShaftElement6DoF(Element):
         # fmt: off
 
         # Standard mass matrix
-        M = aux1 * np.array[
+        M = aux1 * np.array([
             [   156,     0, 0,      0,  -22*L, 0,    54,     0, 0,      0,   13*L, 0]
             [     0,   156, 0,   22*L,      0, 0,     0,    54, 0,  -13*L,      0, 0]
             [     0,     0, 0,      0,      0, 0,     0,     0, 0,      0,      0, 0]
-            [     0,  22*L, 0,  4*L^2,      0, 0,     0,  13*L, 0, -3*L^2,      0, 0]
-            [ -22*L,     0, 0,      0,  4*L^2, 0, -13*L,     0, 0,      0, -3*L^2, 0]
+            [     0,  22*L, 0,  4*L**2,      0, 0,     0,  13*L, 0, -3*L**2,      0, 0]
+            [ -22*L,     0, 0,      0,  4*L**2, 0, -13*L,     0, 0,      0, -3*L**2, 0]
             [     0,     0, 0,      0,      0, 0,     0,     0, 0,      0,      0, 0]
             [    54,     0, 0,      0,  -13*L, 0,   156,     0, 0,      0,   22*L, 0]
             [     0,    54, 0,   13*L,      0, 0,     0,   156, 0,  -22*L,      0, 0]
             [     0,     0, 0,      0,      0, 0,     0,     0, 0,      0,      0, 0]
-            [     0, -13*L, 0, -3*L^2,      0, 0,     0, -22*L, 0,  4*L^2,      0, 0]
-            [  13*L,     0, 0,      0, -3*L^2, 0,  22*L,     0, 0,      0,  4*L^2, 0]
+            [     0, -13*L, 0, -3*L**2,      0, 0,     0, -22*L, 0,  4*L**2,      0, 0]
+            [  13*L,     0, 0,      0, -3*L**2, 0,  22*L,     0, 0,      0,  4*L**2, 0]
             [     0,     0, 0,      0,      0, 0,     0,     0, 0,      0,      0, 0]
-        ]
+        ])
 
         # Secondary inertias mass matrix
-        Ms = self.material.rho * tempI / (30 * L) * np.array[
+        Ms = self.material.rho * tempI / (30 * L) * np.array([
             [   36,   0, 0,     0,  -3*L, 0, -36,    0, 0,     0,  -3*L, 0]
             [    0,  36, 0,   3*L,     0, 0,   0,  -36, 0,   3*L,     0, 0]
             [    0,   0, 0,     0,     0, 0,   0,    0, 0,     0,     0, 0]
-            [    0, 3*L, 0, 4*L^2,     0, 0,   0, -3*L, 0,  -L^2,     0, 0]
-            [ -3*L,   0, 0,     0, 4*L^2, 0, 3*L,    0, 0,     0,  -L^2, 0]
+            [    0, 3*L, 0, 4*L**2,     0, 0,   0, -3*L, 0,  -L**2,     0, 0]
+            [ -3*L,   0, 0,     0, 4*L**2, 0, 3*L,    0, 0,     0,  -L**2, 0]
             [    0,   0, 0,     0,     0, 0,   0,    0, 0,     0,     0, 0]
             [  -36,   0, 0,     0,   3*L, 0,  36,    0, 0,     0,   3*L, 0]
             [    0, -36, 0,  -3*L,     0, 0,   0,   36, 0,  -3*L,     0, 0]
             [    0,   0, 0,     0,     0, 0,   0,    0, 0,     0,     0, 0]
-            [    0, 3*L, 0,  -L^2,     0, 0,   0, -3*L, 0, 4*L^2,     0, 0]
-            [ -3*L,   0, 0,     0,  -L^2, 0, 3*L,    0, 0,     0, 4*L^2, 0]
+            [    0, 3*L, 0,  -L**2,     0, 0,   0, -3*L, 0, 4*L**2,     0, 0]
+            [ -3*L,   0, 0,     0,  -L**2, 0, 3*L,    0, 0,     0, 4*L**2, 0]
             [    0,   0, 0,     0,     0, 0,   0,    0, 0,     0,     0, 0]
-        ]
+        ])
 
         # Axial terms inertia matrix
-        Ma = self.material.rho * tempS * L / 6 * np.array[
+        Ma = self.material.rho * tempS * L / 6 * np.array([
             [ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
             [ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
             [ 0, 0, 2, 0, 0, 0, 0, 0, 1, 0, 0, 0]
@@ -1801,10 +1801,10 @@ class ShaftElement6DoF(Element):
             [ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
             [ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
             [ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
-        ]
+        ])
 
         # Torsional terms inertias matrix
-        Mr = self.material.rho * tempI * L / 6 * np.array[
+        Mr = self.material.rho * tempI * L / 6 * np.array([
             [ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
             [ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
             [ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
@@ -1817,7 +1817,7 @@ class ShaftElement6DoF(Element):
             [ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
             [ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
             [ 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 2]
-        ]
+        ])
 
         # fmt: on
 
@@ -1879,46 +1879,46 @@ class ShaftElement6DoF(Element):
         )
 
         # auxiliary variables
-        a1 = self.material.E * tempI / ((1 + A) * L ^ 3)
+        a1 = self.material.E * tempI / ((1 + A) * L ** 3)
         a2 = self.material.G_s * tempJ / L
         a3 = self.material.E * tempS / L
 
         # fmt: off
         # pure stiffness matrix [Kc], added to the axial loads stiffness matrix [Ka],
         # torsional stiffnesses matrix [Kr] and Tinoshenko shear compensation [Ks].
-        Kc_plus = a1 * np.array[
+        Kc_plus = a1 * np.array([
             [   12,   0,      0,            0,         -6*L,      0, -12,    0,      0,            0,         -6*L,      0]
             [    0,  12,      0,          6*L,            0,      0,   0,  -12,      0,          6*L,            0,      0]
             [    0,   0,  a3/a1,            0,            0,      0,   0,    0, -a3/a1,            0,            0,      0]
-            [    0, 6*L,      0,  L^2*(A + 4),            0,      0,   0, -6*L,      0, -L^2*(A - 2),            0,      0]
-            [ -6*L,   0,      0,            0,  L^2*(A + 4),      0, 6*L,    0,      0,            0, -L^2*(A - 2),      0]
+            [    0, 6*L,      0,  L**2*(A + 4),            0,      0,   0, -6*L,      0, -L**2*(A - 2),            0,      0]
+            [ -6*L,   0,      0,            0,  L**2*(A + 4),      0, 6*L,    0,      0,            0, -L**2*(A - 2),      0]
             [    0,   0,      0,            0,            0,  a2/a1,   0,    0,      0,            0,            0, -a2/a1]
             [  -12,   0,      0,            0,          6*L,      0,  12,    0,      0,            0,          6*L,      0]
             [    0, -12,      0,         -6*L,            0,      0,   0,   12,      0,         -6*L,            0,      0]
             [    0,   0, -a3/a1,            0,            0,      0,   0,    0,  a3/a1,            0,            0,      0]
-            [    0, 6*L,      0, -L^2*(A - 2),            0,      0,   0, -6*L,      0,  L^2*(A + 4),            0,      0]
-            [ -6*L,   0,      0,            0, -L^2*(A - 2),      0, 6*L,    0,      0,            0,  L^2*(A + 4),      0]
+            [    0, 6*L,      0, -L**2*(A - 2),            0,      0,   0, -6*L,      0,  L**2*(A + 4),            0,      0]
+            [ -6*L,   0,      0,            0, -L**2*(A - 2),      0, 6*L,    0,      0,            0,  L**2*(A + 4),      0]
             [    0,   0,      0,            0,            0, -a2/a1,   0,    0,      0,            0,            0,  a2/a1]
-        ]
+        ])
 
         # stiffness matrix due to axial loading influence
-        Kf = Fa / (30 * L) * np.array[
+        Kf = Fa / (30 * L) * np.array([
             [   36,   0, 0,     0,  -3*L, 0, -36,    0, 0,     0,  -3*L, 0]
             [    0,  36, 0,   3*L,     0, 0,   0,  -36, 0,   3*L,     0, 0]
             [    0,   0, 0,     0,     0, 0,   0,    0, 0,     0,     0, 0]
-            [    0, 3*L, 0, 4*L^2,     0, 0,   0, -3*L, 0,  -L^2,     0, 0]
-            [ -3*L,   0, 0,     0, 4*L^2, 0, 3*L,    0, 0,     0,  -L^2, 0]
+            [    0, 3*L, 0, 4*L**2,     0, 0,   0, -3*L, 0,  -L**2,     0, 0]
+            [ -3*L,   0, 0,     0, 4*L**2, 0, 3*L,    0, 0,     0,  -L**2, 0]
             [    0,   0, 0,     0,     0, 0,   0,    0, 0,     0,     0, 0]
             [  -36,   0, 0,     0,   3*L, 0,  36,    0, 0,     0,   3*L, 0]
             [    0, -36, 0,  -3*L,     0, 0,   0,   36, 0,  -3*L,     0, 0]
             [    0,   0, 0,     0,     0, 0,   0,    0, 0,     0,     0, 0]
-            [    0, 3*L, 0,  -L^2,     0, 0,   0, -3*L, 0, 4*L^2,     0, 0]
-            [ -3*L,   0, 0,     0,  -L^2, 0, 3*L,    0, 0,     0, 4*L^2, 0]
+            [    0, 3*L, 0,  -L**2,     0, 0,   0, -3*L, 0, 4*L**2,     0, 0]
+            [ -3*L,   0, 0,     0,  -L**2, 0, 3*L,    0, 0,     0, 4*L**2, 0]
             [    0,   0, 0,     0,     0, 0,   0,    0, 0,     0,     0, 0]
-        ]
+        ])
 
         # stiffness matrix due to torque loading influence
-        Kt = -T * np.array[
+        Kt = -T * np.array([
             [    0,    0, 0, -1/L,    0, 0,    0,    0, 0,  1/L,    0, 0]
             [    0,    0, 0,    0, -1/L, 0,    0,    0, 0,    0,  1/L, 0]
             [    0,    0, 0,    0,    0, 0,    0,    0, 0,    0,    0, 0]
@@ -1931,7 +1931,7 @@ class ShaftElement6DoF(Element):
             [  1/L,    0, 0,    0, -1/2, 0, -1/L,    0, 0,    0, -1/2, 0]
             [    0,  1/L, 0,  1/2,    0, 0,    0, -1/L, 0,  1/2,    0, 0]
             [    0,    0, 0,    0,    0, 0,    0,    0, 0,    0,    0, 0]
-        ]
+        ])
 
         # fmt: on
         # Dynamic stiffness matrix is added independently in "def Kst"
@@ -1980,20 +1980,20 @@ class ShaftElement6DoF(Element):
 
         # fmt: off
         # dynamic stiffening matrix
-        Kst = self.material.rho * tempI / (15 * L) * np.array[
+        Kst = self.material.rho * tempI / (15 * L) * np.array([
             [ 0, -36, 0,  -3*L, 0, 0, 0,   36, 0,  -3*L, 0, 0]
             [ 0,   0, 0,     0, 0, 0, 0,    0, 0,     0, 0, 0]
             [ 0,   0, 0,     0, 0, 0, 0,    0, 0,     0, 0, 0]
             [ 0,   0, 0,     0, 0, 0, 0,    0, 0,     0, 0, 0]
-            [ 0, 3*L, 0, 4*L^2, 0, 0, 0, -3*L, 0,  -L^2, 0, 0]
+            [ 0, 3*L, 0, 4*L**2, 0, 0, 0, -3*L, 0,  -L**2, 0, 0]
             [ 0,   0, 0,     0, 0, 0, 0,    0, 0,     0, 0, 0]
             [ 0,  36, 0,   3*L, 0, 0, 0,  -36, 0,   3*L, 0, 0]
             [ 0,   0, 0,     0, 0, 0, 0,    0, 0,     0, 0, 0]
             [ 0,   0, 0,     0, 0, 0, 0,    0, 0,     0, 0, 0]
             [ 0,   0, 0,     0, 0, 0, 0,    0, 0,     0, 0, 0]
-            [ 0, 3*L, 0,  -L^2, 0, 0, 0, -3*L, 0, 4*L^2, 0, 0]
+            [ 0, 3*L, 0,  -L**2, 0, 0, 0, -3*L, 0, 4*L**2, 0, 0]
             [ 0,   0, 0,     0, 0, 0, 0,    0, 0,     0, 0, 0]
-        ]
+        ])
         # fmt: on
 
         return Kst
@@ -2055,20 +2055,20 @@ class ShaftElement6DoF(Element):
 
             # fmt: off
             # Gyroscopic effect matrix
-            G = (self.material.rho * tempI / (15 * L)) * np.array[
+            G = (self.material.rho * tempI / (15 * L)) * np.array([
                 [   0, -36, 0,  -3*L,      0, 0,    0,   36, 0,  -3*L,      0, 0]
                 [  36,   0, 0,     0,   -3*L, 0,  -36,    0, 0,     0,   -3*L, 0]
                 [   0,   0, 0,     0,      0, 0,    0,    0, 0,     0,      0, 0]
-                [ 3*L,   0, 0,     0, -4*L^2, 0, -3*L,    0, 0,     0,    L^2, 0]
-                [   0, 3*L, 0, 4*L^2,      0, 0,    0, -3*L, 0,  -L^2,      0, 0]
+                [ 3*L,   0, 0,     0, -4*L**2, 0, -3*L,    0, 0,     0,    L**2, 0]
+                [   0, 3*L, 0, 4*L**2,      0, 0,    0, -3*L, 0,  -L**2,      0, 0]
                 [   0,   0, 0,     0,      0, 0,    0,    0, 0,     0,      0, 0]
                 [   0,  36, 0,   3*L,      0, 0,    0,  -36, 0,   3*L,      0, 0]
                 [ -36,   0, 0,     0,    3*L, 0,   36,    0, 0,     0,    3*L, 0]
                 [   0,   0, 0,     0,      0, 0,    0,    0, 0,     0,      0, 0]
-                [ 3*L,   0, 0,     0,    L^2, 0, -3*L,    0, 0,     0, -4*L^2, 0]
-                [   0, 3*L, 0,  -L^2,      0, 0,    0, -3*L, 0, 4*L^2,      0, 0]
+                [ 3*L,   0, 0,     0,    L**2, 0, -3*L,    0, 0,     0, -4*L**2, 0]
+                [   0, 3*L, 0,  -L**2,      0, 0,    0, -3*L, 0, 4*L**2,      0, 0]
                 [   0,   0, 0,     0,      0, 0,    0,    0, 0,     0,      0, 0]
-            ]
+            ])
             # fmt: on
 
         return G
