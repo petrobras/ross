@@ -57,46 +57,24 @@ class ST_Rotor(object):
         tag=None,
     ):
 
-        it = iter(
-            [elm for elm in shaft_elements if isinstance(elm, ST_ShaftElement)]
-        )
+        it = iter([elm for elm in shaft_elements if isinstance(elm, ST_ShaftElement)])
         the_len = len(next(it))
         if not all(len(l) == the_len for l in it):
-            raise ValueError(
-                "not all random shaft elements lists have same length."
-            )
+            raise ValueError("not all random shaft elements lists have same length.")
+
+        it = iter([elm for elm in disk_elements if isinstance(elm, ST_DiskElement)])
+        the_len = len(next(it))
+        if not all(len(l) == the_len for l in it):
+            raise ValueError("not all random disk elements lists have same length.")
 
         it = iter(
-            [elm for elm in disk_elements if isinstance(elm, ST_DiskElement)]
+            [elm for elm in bearing_elements if isinstance(elm, ST_BearingElement)]
         )
         the_len = len(next(it))
         if not all(len(l) == the_len for l in it):
-            raise ValueError(
-                "not all random disk elements lists have same length."
-            )
+            raise ValueError("not all random bearing elements lists have same length.")
 
-        it = iter(
-            [
-                elm
-                for elm in bearing_elements
-                if isinstance(elm, ST_BearingElement)
-            ]
-        )
+        it = iter([elm for elm in point_mass_elements if isinstance(elm, ST_PointMass)])
         the_len = len(next(it))
         if not all(len(l) == the_len for l in it):
-            raise ValueError(
-                "not all random bearing elements lists have same length."
-            )
-
-        it = iter(
-            [
-                elm
-                for elm in point_mass_elements
-                if isinstance(elm, ST_PointMass)
-            ]
-        )
-        the_len = len(next(it))
-        if not all(len(l) == the_len for l in it):
-            raise ValueError(
-                "not all random point mass lists have same length."
-            )
+            raise ValueError("not all random point mass lists have same length.")
