@@ -9,6 +9,7 @@ from ross.stochastic.st_results import (ST_CampbellResults,
                                         ST_FrequencyResponseResults,
                                         ST_TimeResponseResults)
 from ross.stochastic.st_shaft_element import ST_ShaftElement
+
 # fmt: on
 
 __all__ = ["ST_Rotor"]
