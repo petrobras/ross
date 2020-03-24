@@ -1,4 +1,6 @@
 # fmt: off
+from collections import Iterable
+
 import numpy as np
 
 from ross.rotor_assembly import Rotor
@@ -6,6 +8,7 @@ from ross.stochastic.st_bearing_seal_element import ST_BearingElement
 from ross.stochastic.st_disk_element import ST_DiskElement
 from ross.stochastic.st_point_mass import ST_PointMass
 from ross.stochastic.st_results import (ST_CampbellResults,
+                                        ST_ForcedResponseResults,
                                         ST_FrequencyResponseResults,
                                         ST_TimeResponseResults)
 from ross.stochastic.st_shaft_element import ST_ShaftElement
@@ -180,19 +183,20 @@ class ST_Rotor(object):
         )
 
         # Assembling random rotors
-        rotor_list = self.random_var(is_random, attribute_dict)
+        rotor_list = self.use_random_var(Rotor, is_random, attribute_dict)
         self.rotor_list = rotor_list
 
-    def random_var(self, is_random, *args):
-        """Generate a list of objects as random attributes.
+    def _random_var(self, is_random, *args):
+        """Generate a list of random parameters.
 
-        This function creates a list of objects with random values for selected
-        attributes from Rotor class.
+        This function creates a list of parameters with random values given
+        its own distribution.
 
         Parameters
         ----------
         is_random : list
             List of the object attributes to become stochastic.
+            Default is None
         *args : dict
             Dictionary instanciating the ShaftElement class.
             The attributes that are supposed to be stochastic should be
@@ -201,7 +205,7 @@ class ST_Rotor(object):
         Returns
         -------
         f_list : list
-            List of random objects.
+            List of random parameters.
 
         Example
         -------
@@ -229,7 +233,38 @@ class ST_Rotor(object):
                         arg.append(value)
                 new_args.append(arg)
 
-        f_list = [Rotor(*arg) for arg in new_args]
+        return new_args
+
+    def use_random_var(self, f, is_random, *args):
+        """Generate a list of random objects from random attributes.
+
+        This function creates a list of objects with random values for selected
+        attributes from a given class or method.
+
+        Parameters
+        ----------
+        f : callable
+            Function to be instantiated randomly with its respective *args.
+            Default is instantiating the ST_Rotor class
+        is_random : list
+            List of the object attributes to become stochastic.
+            Default is None
+        *args : dict
+            Dictionary instanciating the ShaftElement class.
+            The attributes that are supposed to be stochastic should be
+            set as lists of random variables.
+
+        Returns
+        -------
+        f_list : list
+            List of random objects.
+
+        Example
+        -------
+        """
+        args_dict = args[0]
+        new_args = self._random_var(is_random, args_dict)
+        f_list = [f(*arg) for arg in new_args]
 
         return f_list
 
@@ -441,18 +476,102 @@ class ST_Rotor(object):
         rotor_list, given magnitide and phase of the unbalance, the node where
         it's applied and a frequency range.
 
+        Magnitude and phase parameters can be passed as randoms.
+
         Parameters
         ----------
         node : list, int
             Node where the unbalance is applied.
         magnitude : list, float
-            Unbalance magnitude
+            Unbalance magnitude.
+            If node is int, input a list to make make it random.
+            If node is list, input a list of lists to make it random.
         phase : list, float
-            Unbalance phase
+            Unbalance phase.
+            If node is int, input a list to make make it random.
+            If node is list, input a list of lists to make it random.
         frequency_range : list, float
-            Array with the desired range of frequencies
+            Array with the desired range of frequencies.
+
+        Returns
+        -------
+        results.force_resp : array
+            Array with the force response for each node for each frequency
+        results.speed_range : array
+            Array with the frequencies.
+        results.magnitude : array
+            Magnitude of the frequency response for node for each frequency.
+        results.phase : array
+            Phase of the frequency response for node for each frequencye.
+
+        Example
+        -------
+        >>> import ross.stochastic as srs
+        >>> rotors = srs.st_rotor_example()
+
+        # Running Frequency Response and saving the results
+
+        >>> freq_range = np.linspace(0, 500, 31)
+        >>> n = 3
+        >>> m = np.random.uniform(0.001, 0.002, 10)
+        >>> p = 0.0
+        >>> dof = 13
+        >>> results = rotors.run_unbalance_response(n, m, p, freq_range)
+
+        # Plotting Frequency Response with bokeh
+
+        >>> results.plot(dof, conf_interval=[90]) # doctest: +ELLIPSIS
+        Column...
         """
-        pass
+        RV_size = len(self.rotor_list)
+        freq_size = len(frequency_range)
+        ndof = self.rotor_list[0].ndof
+        args_dict = dict(
+            node=node, magnitude=magnitude, phase=phase, frequency_range=frequency_range
+        )
+
+        forced_resp = np.zeros((RV_size, freq_size, ndof), dtype=np.complex)
+        mag_resp = np.zeros((RV_size, freq_size, ndof))
+        phs_resp = np.zeros((RV_size, freq_size, ndof))
+        is_random = []
+
+        if (isinstance(node, int) and isinstance(magnitude, Iterable)) or (
+            isinstance(node, Iterable) and isinstance(magnitude[0], Iterable)
+        ):
+            is_random.append("magnitude")
+
+        if (isinstance(node, int) and isinstance(phase, Iterable)) or (
+            isinstance(node, Iterable) and isinstance(phase[0], Iterable)
+        ):
+            is_random.append("phase")
+
+        # Monte Carlo - results storage
+        if len(is_random):
+            i = 0
+            unbalance_args = self._random_var(is_random, args_dict)
+            for rotor, args in zip(self.rotor_list, unbalance_args):
+                results = rotor.unbalance_response(*args)
+                forced_resp[i] = results.forced_resp.T
+                mag_resp[i] = results.magnitude.T
+                phs_resp[i] = results.phase.T
+                i += 1
+        else:
+            for i, rotor in enumerate(self.rotor_list):
+                results = rotor.unbalance_response(
+                    node, magnitude, phase, frequency_range
+                )
+                forced_resp[i] = results.forced_resp.T
+                mag_resp[i] = results.magnitude.T
+                phs_resp[i] = results.phase.T
+
+        results = ST_ForcedResponseResults(
+            forced_resp=forced_resp,
+            frequency_range=frequency_range,
+            magnitude=mag_resp,
+            phase=phs_resp,
+        )
+
+        return results
 
 
 def st_rotor_example():
