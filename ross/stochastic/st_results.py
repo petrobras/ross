@@ -9,7 +9,7 @@ colors2 = bp.Category20c[20]
 
 
 class ST_CampbellResults:
-    """Class used to store stochastic results and provide plots for Campbell Diagram.
+    """Store stochastic results and provide plots for Campbell Diagram.
 
     It's possible to visualize multiples harmonics in a single plot to check
     other speeds which also excite a specific natural frequency.
@@ -262,7 +262,7 @@ class ST_CampbellResults:
 
 
 class ST_FrequencyResponseResults:
-    """Class used to store stochastic results and provide plots for Frequency Response.
+    """Store stochastic results and provide plots for Frequency Response.
 
     Parameters
     ----------
@@ -520,7 +520,7 @@ class ST_FrequencyResponseResults:
 
 
 class ST_TimeResponseResults:
-    """Class used to store stochastic results and provide plots for Time Response.
+    """Store stochastic results and provide plots for Time Response.
 
     Parameters
     ----------
@@ -645,3 +645,267 @@ class ST_TimeResponseResults:
         fig.legend.label_text_font_size = "10pt"
 
         return fig
+
+
+class ST_ForcedResponseResults:
+    """Store stochastic results and provide plots for Forced Response.
+
+    Parameters
+    ----------
+    force_resp : array
+        Array with the force response for each node for each frequency
+    frequency_range : array
+        Array with the frequencies
+    magnitude : array
+        Magnitude of the frequency response for node for each frequency
+    phase : array
+        Phase of the frequency response for node for each frequency
+
+    Returns
+    -------
+    fig : bokeh figure
+        Returns the bokeh axes object with the plot
+    """
+
+    def __init__(self, forced_resp, magnitude, phase, frequency_range):
+        self.forced_resp = forced_resp
+        self.magnitude = magnitude
+        self.phase = phase
+        self.frequency_range = frequency_range
+
+    def plot_magnitude(
+        self, dof, percentile=[], conf_interval=[], units="mic-pk-pk", **kwargs
+    ):
+        """Plot frequency response.
+
+        This method plots the unbalance response magnitude given an  Bokeh.
+
+        Parameters
+        ----------
+        dof : int
+            Degree of freedom to observe the response.
+        percentile : list, optional
+            Sequence of percentiles to compute, which must be between
+            0 and 100 inclusive.
+        conf_interval : list, optional
+            Sequence of confidence intervals to compute, which must be between
+            0% and 100% inclusive.
+        units : str, optional
+            Unit system
+            Default is "mic-pk-pk".
+        kwargs : optional
+            Additional key word arguments can be passed to change
+            the plot (e.g. linestyle='--').
+
+        Returns
+        -------
+        fig : bokeh figure
+            Bokeh plot axes with magnitude plot.
+        """
+        if units == "m":
+            y_axis_label = "Amplitude (m)"
+        elif units == "mic-pk-pk":
+            y_axis_label = "Amplitude (μ pk-pk)"
+        else:
+            y_axis_label = "Amplitude (dB)"
+
+        fig = figure(
+            tools="pan, box_zoom, wheel_zoom, reset, save",
+            width=640,
+            height=480,
+            title="Unbalance Response - Magnitude",
+            x_axis_label="Frequency",
+            y_axis_label=y_axis_label,
+        )
+        fig.xaxis.axis_label_text_font_size = "14pt"
+        fig.yaxis.axis_label_text_font_size = "14pt"
+        fig.axis.major_label_text_font_size = "14pt"
+        fig.title.text_font_size = "14pt"
+
+        if len(percentile):
+            for i, p in enumerate(percentile):
+                mag_percentile = np.percentile(self.magnitude[..., dof], p, axis=0)
+                fig.line(
+                    x=self.frequency_range,
+                    y=mag_percentile,
+                    line_color=colors1[i],
+                    line_alpha=1.0,
+                    line_width=3,
+                    muted_color=colors1[i],
+                    muted_alpha=0.1,
+                    legend_label="percentile: " + str(p) + "%",
+                )
+
+        if len(conf_interval):
+            for i, p in enumerate(conf_interval):
+                mag_conf1 = np.percentile(self.magnitude[..., dof], 50 + p / 2, axis=0)
+                mag_conf2 = np.percentile(self.magnitude[..., dof], 50 - p / 2, axis=0)
+                fig.line(
+                    x=self.frequency_range,
+                    y=mag_conf1,
+                    line_color=colors1[i],
+                    line_alpha=1.0,
+                    line_width=3,
+                    muted_color=colors1[i],
+                    muted_alpha=0.1,
+                    legend_label="confidence interval: " + str(p) + "%",
+                )
+                fig.line(
+                    x=self.frequency_range,
+                    y=mag_conf2,
+                    line_color=colors1[i],
+                    line_alpha=1.0,
+                    line_width=3,
+                    muted_color=colors1[i],
+                    muted_alpha=0.1,
+                    legend_label="confidence interval: " + str(p) + "%",
+                )
+
+        mag_mean = np.mean(self.magnitude[..., dof], axis=0)
+
+        fig.line(
+            x=self.frequency_range,
+            y=mag_mean,
+            line_color="black",
+            line_alpha=1.0,
+            line_width=3,
+            muted_color="black",
+            muted_alpha=0.1,
+            legend_label="Mean",
+        )
+        fig.legend.background_fill_alpha = 0.1
+        fig.legend.click_policy = "mute"
+        fig.legend.label_text_font_size = "10pt"
+
+        return fig
+
+    def plot_phase(self, dof, percentile=[], conf_interval=[], **kwargs):
+        """Plot frequency response.
+
+        This method plots the phase response given an output and an input
+        using bokeh.
+
+        Parameters
+        ----------
+        dof : int
+            Degree of freedom to observe the response.
+        percentile : list, optional
+            Sequence of percentiles to compute, which must be between
+            0 and 100 inclusive.
+        conf_interval : list, optional
+            Sequence of confidence intervals to compute, which must be between
+            0 and 100 inclusive.
+        kwargs : optional
+            Additional key word arguments can be passed to change
+            the plot (e.g. linestyle='--').
+
+        Returns
+        -------
+        fig : bokeh figure
+            Bokeh plot axes with phase plot.
+        """
+        fig = figure(
+            tools="pan, box_zoom, wheel_zoom, reset, save",
+            width=640,
+            height=480,
+            title="Unbalance Response - Phase",
+            x_axis_label="Frequency",
+            y_axis_label="Phase angle",
+        )
+        fig.xaxis.axis_label_text_font_size = "14pt"
+        fig.yaxis.axis_label_text_font_size = "14pt"
+        fig.axis.major_label_text_font_size = "14pt"
+        fig.title.text_font_size = "14pt"
+
+        if len(percentile):
+            for i, p in enumerate(percentile):
+                phs_percentile = np.percentile(self.phase[..., dof], p, axis=0)
+                fig.line(
+                    x=self.frequency_range,
+                    y=phs_percentile,
+                    line_color=colors1[i],
+                    line_alpha=1.0,
+                    line_width=3,
+                    muted_color=colors1[i],
+                    muted_alpha=0.1,
+                    legend_label="percentile: " + str(p) + "%",
+                )
+
+        for i, p in enumerate(conf_interval):
+            phs_conf1 = np.percentile(self.phase[..., dof], 50 + p / 2, axis=0)
+            phs_conf2 = np.percentile(self.phase[..., dof], 50 - p / 2, axis=0)
+            fig.line(
+                x=self.frequency_range,
+                y=phs_conf1,
+                line_color=colors1[i],
+                line_alpha=1.0,
+                line_width=3,
+                muted_color=colors1[i],
+                muted_alpha=0.1,
+                legend_label="confidence interval: " + str(p) + "%",
+            )
+            fig.line(
+                x=self.frequency_range,
+                y=phs_conf2,
+                line_color=colors1[i],
+                line_alpha=1.0,
+                line_width=3,
+                legend_label="confidence interval: " + str(p) + "%",
+            )
+
+        phs_mean = np.mean(self.phase[..., dof], axis=0)
+
+        fig.line(
+            x=self.frequency_range,
+            y=phs_mean,
+            line_color="black",
+            line_alpha=1.0,
+            line_width=3,
+            muted_color="black",
+            muted_alpha=0.1,
+            legend_label="Mean",
+        )
+        fig.legend.background_fill_alpha = 0.1
+        fig.legend.click_policy = "mute"
+        fig.legend.label_text_font_size = "10pt"
+
+        return fig
+
+    def plot(
+        self, dof, percentile=[], conf_interval=[], units="mic-pk-pk", *args, **kwargs
+    ):
+        """Plot frequency response.
+
+        This method plots the frequency and phase response given an output
+        and an input.
+
+        Parameters
+        ----------
+        dof : int
+            Degree of freedom to observe the response.
+        percentile : list, optional
+            Sequence of percentiles to compute, which must be
+            between 0 and 100 inclusive.
+        conf_interval : list, optional
+            Sequence of confidence intervals to compute, which must be
+            between 0 and 100 inclusive.
+        units : str, optional
+            Unit system
+            Default is "mic-pk-pk"
+        args : optional
+            Additional plot axes
+        kwargs : optional
+            Additional key word arguments can be passed to change
+            the plot (e.g. line_color="blue").
+
+        Returns
+        -------
+        grid_plots : bokeh column
+            Bokeh column with amplitude and phase plot
+        """
+        fig0 = self.plot_magnitude(dof, percentile, conf_interval, units, **kwargs)
+        fig1 = self.plot_phase(dof, percentile, conf_interval, **kwargs)
+
+        grid_plots = gridplot([[fig0], [fig1]])
+
+        return grid_plots
