@@ -12,7 +12,7 @@ from ross.stochastic.st_shaft_element import ST_ShaftElement
 
 # fmt: on
 
-__all__ = ["ST_Rotor"]
+__all__ = ["ST_Rotor", "st_rotor_example"]
 
 
 class ST_Rotor(object):
@@ -115,7 +115,7 @@ class ST_Rotor(object):
                 [elm for elm in shaft_elements if isinstance(elm, ST_ShaftElement)]
             )
             the_len = len(next(it).elements)
-            if not all(len(l) == the_len for l in it):
+            if not all(len(l.elements) == the_len for l in it):
                 raise ValueError(
                     "not all random shaft elements lists have same length."
                 )
@@ -125,7 +125,7 @@ class ST_Rotor(object):
 
             it = iter([elm for elm in disk_elements if isinstance(elm, ST_DiskElement)])
             the_len = len(next(it).elements)
-            if not all(len(l) == the_len for l in it):
+            if not all(len(l.elements) == the_len for l in it):
                 raise ValueError("not all random disk elements lists have same length.")
 
         if any(isinstance(elm, ST_BearingElement) for elm in bearing_elements):
@@ -135,7 +135,7 @@ class ST_Rotor(object):
                 [elm for elm in bearing_elements if isinstance(elm, ST_BearingElement)]
             )
             the_len = len(next(it).elements)
-            if not all(len(l) == the_len for l in it):
+            if not all(len(l.elements) == the_len for l in it):
                 raise ValueError(
                     "not all random bearing elements lists have same length."
                 )
@@ -147,7 +147,7 @@ class ST_Rotor(object):
                 [elm for elm in point_mass_elements if isinstance(elm, ST_PointMass)]
             )
             the_len = len(next(it).elements)
-            if not all(len(l) == the_len for l in it):
+            if not all(len(l.elements) == the_len for l in it):
                 raise ValueError("not all random point mass lists have same length.")
 
         for i, elm in enumerate(shaft_elements):
@@ -261,6 +261,18 @@ class ST_Rotor(object):
 
         Example
         -------
+        >>> import ross.stochastic as srs
+        >>> rotors = srs.st_rotor_example()
+
+        # Running Campbell Diagram and saving the results
+
+        >>> speed_range = np.linspace(0, 500, 31)
+        >>> results = rotors.run_campbell(speed_range)
+
+        # Plotting Campbell Diagram with bokeh
+
+        >>> results.plot(conf_interval=[90]) # doctest: +ELLIPSIS
+        Column...
         """
         CAMP_size = len(speed_range)
         RV_size = len(self.rotor_list)
@@ -306,6 +318,20 @@ class ST_Rotor(object):
 
         Example
         -------
+        >>> import ross.stochastic as srs
+        >>> rotors = srs.st_rotor_example()
+
+        # Running Frequency Response and saving the results
+
+        >>> speed_range = np.linspace(0, 500, 31)
+        >>> inp = 9
+        >>> out = 9
+        >>> results = rotors.run_freq_response(speed_range, inp, out)
+
+        # Plotting Frequency Response with bokeh
+
+        >>> results.plot(conf_interval=[90]) # doctest: +ELLIPSIS
+        Column...
         """
         FRF_size = len(speed_range)
         RV_size = len(self.rotor_list)
@@ -327,6 +353,7 @@ class ST_Rotor(object):
 
         This function will take a rotor object and plot its time response
         given a force and a time.
+        The force parameter can be passed as random.
 
         Parameters
         ----------
@@ -336,7 +363,8 @@ class ST_Rotor(object):
             Force array (needs to have the same number of rows as time array).
             Each column corresponds to a dof and each row to a time step.
             Inputing a 3-dimensional array, the method considers the force as
-            a random variable.
+            a random variable. The 3rd dimension must have the same size than
+            ST_Rotor.rotor_list
         time_range : 1-dimensional array
             Time array.
         dof : int
@@ -355,6 +383,27 @@ class ST_Rotor(object):
 
         Example
         -------
+        >>> import ross.stochastic as srs
+        >>> rotors = srs.st_rotor_example()
+
+        # Running Time Response and saving the results
+
+        >>> size = 1000
+        >>> ndof = rotors.rotor_list[0].ndof
+        >>> node = 3 # node where the force is applied
+
+        >>> dof = 9
+        >>> speed = 250.0
+        >>> t = np.linspace(0, 10, size)
+        >>> F = np.zeros((size, ndof))
+        >>> F[:, 4 * node] = 10 * np.cos(2 * t)
+        >>> F[:, 4 * node + 1] = 10 * np.sin(2 * t)
+        >>> results = rotors.run_time_response(speed, F, t, dof)
+
+        # Plotting Time Response with bokeh
+
+        >>> results.plot(conf_interval=[90]) # doctest: +ELLIPSIS
+        Figure...
         """
         t_size = len(time_range)
         RV_size = len(self.rotor_list)
@@ -385,7 +434,7 @@ class ST_Rotor(object):
 
         return results
 
-    def st_run_unbalance_response(self, node, magnitude, phase, frequency_range):
+    def run_unbalance_response(self, node, magnitude, phase, frequency_range):
         """Stochastic unbalance response for multiples rotor systems.
 
         This method returns the unbalanced response for every rotor system in
@@ -402,13 +451,50 @@ class ST_Rotor(object):
             Unbalance phase
         frequency_range : list, float
             Array with the desired range of frequencies
-
-        Returns
-        -------
-        force_response : array
-            Array with the force response for each node for each frequency
-
-        Example
-        -------
         """
         pass
+
+
+def st_rotor_example():
+    """This function returns an instance of random rotors.
+
+    The purpose of this is to make available a simple model
+    so that doctest can be written using this.
+
+    Parameters
+    ----------
+
+    Returns
+    -------
+    An instance of random rotors.
+
+    Examples
+    --------
+    >>> rotors = st_rotor_example()
+    >>> len(rotors.rotor_list)
+    10
+    """
+    import ross as rs
+    from ross.materials import steel
+
+    i_d = 0
+    o_d = 0.05
+    n = 6
+    L = [0.25 for _ in range(n)]
+
+    shaft_elem = [rs.ShaftElement(l, i_d, o_d, material=steel) for l in L]
+
+    disk0 = rs.DiskElement.from_geometry(
+        n=2, material=steel, width=0.07, i_d=0.05, o_d=0.28
+    )
+    disk1 = rs.DiskElement.from_geometry(
+        n=4, material=steel, width=0.07, i_d=0.05, o_d=0.28
+    )
+
+    s = 10
+    kxx = np.random.uniform(1e6, 2e6, s)
+    cxx = np.random.uniform(1e3, 2e3, s)
+    bearing0 = ST_BearingElement(n=0, kxx=kxx, cxx=cxx, is_random=["kxx", "cxx"])
+    bearing1 = ST_BearingElement(n=6, kxx=kxx, cxx=cxx, is_random=["kxx", "cxx"])
+
+    return ST_Rotor(shaft_elem, [disk0, disk1], [bearing0, bearing1])
