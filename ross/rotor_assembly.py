@@ -2,7 +2,8 @@
 import os
 import shutil
 import warnings
-from collections import Counter, Iterable, namedtuple
+from collections import Counter, namedtuple
+from collections.abc import Iterable
 from copy import copy, deepcopy
 from itertools import chain, cycle
 from pathlib import Path
