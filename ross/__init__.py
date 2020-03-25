@@ -1,4 +1,4 @@
-__version__ = "0.3.0"
+__version__ = "0.3.1"
 
 from .bearing_seal_element import *
 from .disk_element import *

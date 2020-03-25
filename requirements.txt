@@ -1,0 +1,8 @@
+numpy
+scipy
+matplotlib
+toml
+pandas>=0.23
+bokeh
+xlrd
+pint

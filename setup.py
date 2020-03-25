@@ -7,7 +7,7 @@ import re
 import sys
 from shutil import rmtree
 
-from setuptools import find_packages, setup, Command
+from setuptools import Command, find_packages, setup
 
 
 def read(path, encoding="utf-8"):
@@ -39,16 +39,8 @@ REQUIRES_PYTHON = ">=3.6.0"
 VERSION = version("ross/__init__.py")
 
 # What packages are required for this module to be executed?
-REQUIRED = [
-    "numpy",
-    "scipy",
-    "matplotlib",
-    "toml",
-    "pandas>=0.23",
-    "bokeh",
-    "xlrd",
-    "pint",
-]
+with open("requirements.txt") as f:
+    REQUIRED = f.read().splitlines()
 
 # What packages are optional?
 EXTRAS = {
