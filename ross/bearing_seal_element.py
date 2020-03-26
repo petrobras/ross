@@ -23,6 +23,7 @@ __all__ = [
     "SealElement",
     "BallBearingElement",
     "RollerBearingElement",
+    "BearingElement6DoF",
 ]
 bokeh_colors = bp.RdGy[11]
 
@@ -1284,26 +1285,89 @@ class BearingElement6DoF(BearingElement):
            [0.000, 0.000, 0.000, 0.000, 0.000, 0.000]]])
     """
 
-    def __init__(
-        self, n, kxx, kxy=none, kyx=none, kyy, kzz, cxx, cxy=none, cyx=none, cyy, czz, tag=None
+    def __init__(self,
+        n,
+        kxx,
+        kyy,
+        cxx,
+        cyy,
+        kxy=0.0,
+        kyx=0.0,
+        kzz=0.0,
+        cxy=0.0,
+        cyx=0.0,
+        czz=0.0,
     ):
-
         super().__init__(
-            n=n,
-            kxx=kxx,
-            kxy=0.0,
-            kyx=0.0,
-            kyy=kyy,
-            kzz=kzz,
-            cxx=cxx,
-            cxy=0.0,
-            cyx=0.0,
-            cyy=cyy,
-            czz=czz,
-            tag=tag,
+        n=n,
+        kxx=kxx,
+        cxx=cxx,
+        kyy=kyy,
+        kxy=kxy,
+        kyx=kyx,
+        cyy=cyy,
+        cxy=cxy,
+        cyx=cyx,
         )
 
-        self.color = "#77ACA2"
+        self.kzz = kzz
+        self.czz = czz
+
+    def __repr__(self):
+        return (
+            f"{self.__class__.__name__}"
+            f"(n={self.n}, n_link={self.n_link},\n"
+            f" kxx={self.kxx}, kxy={self.kxy},\n"
+            f" kyx={self.kyx}, kyy={self.kyy},\n"
+            f" kzz={self.kzz}, cxx={self.cxx},\n"
+            f" cxy={self.cxy}, cyx={self.cyx},\n"
+            f" cyy={self.cyy}, czz={self.czz},\n"
+            f" frequency={self.frequency}, tag={self.tag!r})"
+        )
+
+
+    def __eq__(self, other):
+        """This function allows bearing elements to be compared.
+        Parameters
+        ----------
+        other: object
+            The second object to be compared with.
+
+        Returns
+        -------
+        bool
+            True if the comparison is true; False otherwise.
+        Examples
+        --------
+        >>> bearing1 = bearing_example()
+        >>> bearing2 = bearing_example()
+        >>> bearing1 == bearing2
+        True
+        """
+        compared_attributes = [
+            "kxx",
+            "kyy",
+            "kxy",
+            "kyx",
+            "cxx",
+            "cyy",
+            "cxy",
+            "cyx",
+            "kzz",
+            "czz",
+            "frequency",
+            "n",
+        ]
+        if isinstance(other, self.__class__):
+            return all(
+                (
+                    np.array(getattr(self, attr)).all()
+                    == np.array(getattr(other, attr)).all()
+                    for attr in compared_attributes
+                )
+            )
+        return False
+
 
     def patch(self, position, mean, ax, **kwargs):
         """Bearing element patch.

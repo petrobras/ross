@@ -1194,7 +1194,7 @@ class ShaftElement(Element):
         return elements
 
 
-class ShaftElement6DoF(Element):
+class ShaftElement6DoF(ShaftElement):
 
     r"""A 6 Degrees of Freedom shaft element.
     =========================================
@@ -1285,7 +1285,7 @@ class ShaftElement6DoF(Element):
     >>> Euler_Bernoulli_Element.phi
     0
     """
-
+    
     @check_units
     def __init__(
         self,
@@ -1305,24 +1305,17 @@ class ShaftElement6DoF(Element):
         beta=0,
         tag=None,
     ):
-
+    
         if idr is None:
             idr = idl
         if odr is None:
             odr = odl
 
-        ## Changing units to only their magnitude
-        # L = L.m
-        # idl = idl.m
-        # odl = odl.m
-        # idr = idr.m
-        # odr = odr.m
-
         if material is None:
             raise AttributeError("Material is not defined.")
 
         if type(material) is str:
-            os.chdir(Path(os.path.dirname(ross.__file__)))
+            #os.chdir(Path(os.path.dirname(ross.__file__)))
             self.material = Material.use_material(material)
         else:
             self.material = material
@@ -1339,7 +1332,6 @@ class ShaftElement6DoF(Element):
             self.n_r = n + 1
 
         self.tag = tag
-        self.shear_method_calc = shear_method_calc
 
         self.L = float(L)
         self.o_d = (float(odl) + float(odr)) / 2
@@ -1399,44 +1391,7 @@ class ShaftElement6DoF(Element):
         )
         return p >= 0.2
 
-    def __eq__(self, other):
-        """
-        Equality method for comparasions
-
-        Parameters
-        ----------
-        other : obj
-            parameter for comparasion
-
-        Returns
-        -------
-        True if other is equal to the reference parameter.
-        False if not.
-
-        Example
-        -------
-        >>> from ross.materials import steel
-        >>> le = 0.25
-        >>> i_d = 0
-        >>> o_d = 0.05
-        >>> shaft1 = ShaftElement(
-        ...        le, i_d, o_d, steel, rotary_inertia=True, shear_effects=True
-        ... )
-        >>> shaft2 = ShaftElement(
-        ...        le, i_d, o_d, steel, rotary_inertia=True, shear_effects=True
-        ... )
-        >>> shaft1 == shaft2
-        True
-        """
-        if self.__dict__ == other.__dict__:
-            return True
-        else:
-            return False
-
-    def __hash__(self):
-        return hash(self.tag)
-
-    def save(self, file_name):
+    def save(self, file_name=Path(os.getcwd())):
         """Save shaft elements to toml file.
 
         Parameters
@@ -1452,13 +1407,16 @@ class ShaftElement6DoF(Element):
         >>> shaft1 = ShaftElement(
         ...     le, i_d, o_d, steel, rotary_inertia=True, shear_effects=True
         ... )
-        >>> shaft1.save('ShaftElement.toml')
+        >>> shaft1.save()
         """
-        data = self.load_data(file_name)
-        data["ShaftElement"][str(self.n)] = {
+        
+        data = self.get_data(Path(file_name) / "ShaftElement6DoF.toml")
+        data["ShaftElement6DoF"][str(self.n)] = {
             "L": self.L,
-            "i_d": self.i_d,
-            "o_d": self.o_d,
+            "idl": self.idl,
+            "odl": self.odl,
+            "idr": self.idr,
+            "odr": self.odr,
             "alpha": self.alpha,
             "beta": self.beta,
             "material": self.material.name,
@@ -1469,10 +1427,10 @@ class ShaftElement6DoF(Element):
             "rotary_inertia": self.rotary_inertia,
             "gyroscopic": self.gyroscopic,
         }
-        self.dump_data(data, file_name)
+        self.dump_data(data, Path(file_name) / "ShaftElement6DoF.toml")
 
     @staticmethod
-    def load(file_name="ShaftElement"):
+    def load(file_name="ShaftElement6DoF"):
         """Load previously saved shaft elements from toml file.
 
         Parameters
@@ -1575,46 +1533,6 @@ class ShaftElement6DoF(Element):
                     )
                 )
         return list_of_shafts
-
-    @property
-    def n(self):
-        """
-        Set the element number as property
-
-        Parameters
-        ----------
-        Returns
-        -------
-        n : int
-            Element number
-        """
-        return self._n
-
-    @n.setter
-    def n(self, value):
-        """
-        Method to set a new value for the element number.
-
-        Parameters
-        ----------
-        value : int
-            element number
-
-        Returns
-        -------
-        Examples
-        --------
-        >>> from ross.materials import steel
-        >>> shaft1 = ShaftElement(L=0.25, i_d=0, o_d=0.05, material=steel,
-        ...                       rotary_inertia=True, shear_effects=True)
-        >>> shaft1.n = 0
-        >>> shaft1
-        ShaftElement(L=0.25, i_d=0.0, o_d=0.05, material='Steel', n=0)
-        """
-        self._n = value
-        self.n_l = value
-        if value is not None:
-            self.n_r = value + 1
 
     def dof_mapping(self):
         """
@@ -2072,66 +1990,6 @@ class ShaftElement6DoF(Element):
             # fmt: on
 
         return G
-
-    def patch(self, position, check_sld, ax):
-        """Shaft element patch.
-        Patch that will be used to draw the shaft element.
-        Parameters
-        ----------
-        position : float
-            Position in which the patch will be drawn.
-        check_sld : bool
-            If True, color the elements in yellow if slenderness ratio < 1.6
-        ax : matplotlib axes, optional
-            Axes in which the plot will be drawn.
-        Returns
-        -------
-        """
-        if check_sld is True and self.slenderness_ratio < 1.6:
-            mpl_color = "yellow"
-            legend = "Shaft - Slenderness Ratio < 1.6"
-        else:
-            mpl_color = self.color
-            legend = "Shaft"
-
-        shaft_points_u = [
-            [position, self.idl / 2],
-            [position, self.odl / 2],
-            [position + self.L, self.odr / 2],
-            [position + self.L, self.idr / 2],
-            [position, self.idl / 2],
-        ]
-        shaft_points_l = [
-            [position, -self.idl / 2],
-            [position, -self.odl / 2],
-            [position + self.L, -self.odr / 2],
-            [position + self.L, -self.idr / 2],
-            [position, -self.idl / 2],
-        ]
-
-        # matplotlib - plot the upper half of the shaft
-        ax.add_patch(
-            mpatches.Polygon(
-                shaft_points_u,
-                facecolor=mpl_color,
-                linestyle="--",
-                linewidth=0.5,
-                ec="k",
-                alpha=0.8,
-                label=legend,
-            )
-        )
-        # matplotlib - plot the lower half of the shaft
-        ax.add_patch(
-            mpatches.Polygon(
-                shaft_points_l,
-                facecolor=mpl_color,
-                linestyle="--",
-                linewidth=0.5,
-                ec="k",
-                alpha=0.8,
-            )
-        )
 
     def bokeh_patch(self, position, check_sld, bk_ax):
         """Shaft element patch.
