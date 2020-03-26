@@ -419,7 +419,7 @@ class BearingElement(Element):
         return dict(x_0=0, y_0=1)
 
     def dof_global_index(self):
-        """Get the global index for a element specific degree of freedom."""
+        """Get the global index for an element specific degree of freedom."""
         global_index = super().dof_global_index()
 
         if self.n_link is not None:
@@ -1297,6 +1297,11 @@ class BearingElement6DoF(BearingElement):
         cxy=0.0,
         cyx=0.0,
         czz=0.0,
+        frequency=None,
+        tag=None,
+        n_link=None,
+        scale_factor=1,
+        color="#355d7a"
     ):
         super().__init__(
         n=n,
@@ -1308,12 +1313,60 @@ class BearingElement6DoF(BearingElement):
         cyy=cyy,
         cxy=cxy,
         cyx=cyx,
+        frequency=frequency,
+        tag=tag,
+        n_link=n_link,
+        scale_factor=scale_factor,
+        color=color
         )
 
-        self.kzz = kzz
-        self.czz = czz
+        new_args = ["kzz", "czz"]
+
+        args_dict = locals()
+        coefficients = {}
+
+        if kzz is None:
+            args_dict["kzz"] = kxx * 0.6 # NSK manufacturer sugestion for deep groove ball bearings
+        if czz is None:
+            args_dict["czz"] = cxx
+
+        for arg in new_args:
+            if arg[0] == "k":
+                coefficients[arg] = _Stiffness_Coefficient(
+                    coefficient=args_dict[arg], w=None
+                )
+            else:
+                coefficients[arg] = _Damping_Coefficient(
+                    args_dict[arg], None
+                )
+
+        coefficients_len = [len(v.coefficient) for v in coefficients.values()]
+
+        for c in coefficients_len:
+            if c != 1:
+                raise ValueError(
+                    "Arguments (coefficients and frequency)"
+                    " must have the same dimension"
+                )
+
+        for k, v in coefficients.items():
+            setattr(self, k, v)
 
     def __repr__(self):
+        """This function returns a string representation of a bearing element.
+        Parameters
+        ----------
+
+        Returns
+        -------
+        A string representation of a bearing object.
+        Examples
+        --------
+        >>> bearing = bearing_example()
+        >>> bearing # doctest: +ELLIPSIS
+        BearingElement(n=0, n_link=None,
+         kxx=[...
+        """
         return (
             f"{self.__class__.__name__}"
             f"(n={self.n}, n_link={self.n_link},\n"
@@ -1367,6 +1420,146 @@ class BearingElement6DoF(BearingElement):
                 )
             )
         return False
+
+    def save(self, file_name=Path(os.getcwd())):
+        """Saves a bearing element in a toml format. It works as an auxiliary
+        function of the save function in the Rotor class.
+
+        Parameters
+        ----------
+        file_name: string
+            The name of the file the bearing element will be saved in.
+
+        Returns
+        -------
+        None
+
+        Examples
+        --------
+        >>> bearing = bearing_example()
+        >>> bearing.save(Path(os.getcwd()))
+        """
+        data = self.get_data(Path(file_name)/'BearingElement6DoF.toml')
+
+        if type(self.frequency) == np.ndarray:
+            try:
+                self.frequency[0]
+                frequency = list(self.frequency)
+            except IndexError:
+                frequency = None
+
+        data["BearingElement6DoF"][str(self.n)] = {
+            "n": self.n,
+            "kxx": self.kxx.coefficient,
+            "cxx": self.cxx.coefficient,
+            "kyy": self.kyy.coefficient,
+            "kxy": self.kxy.coefficient,
+            "kyx": self.kyx.coefficient,
+            "kzz": self.kzz.coefficient,
+            "cyy": self.cyy.coefficient,
+            "cxy": self.cxy.coefficient,
+            "cyx": self.cyx.coefficient,
+            "czz": self.czz.coefficient,
+            "frequency": frequency,
+            "tag": self.tag,
+        }
+        self.dump_data(data, Path(file_name)/'BearingElement6DoF.toml')
+
+    @staticmethod
+    def load(file_name=""):
+        """Loads a list of bearing elements saved in a toml format.
+
+        Parameters
+        ----------
+        file_name: string
+            The name of the file of the bearing element to be loaded.
+
+        Returns
+        -------
+        A list of bearing elements.
+
+        Examples
+        --------
+        >>> bearing1 = bearing_example()
+        >>> import os
+        >>> bearing1.save(os.getcwd())
+        >>> list_of_bearings = rs.BearingElement6DoF.load(os.getcwd())
+        >>> bearing1 == list_of_bearings[0]
+        True
+        """
+        bearing_elements = []
+        bearing_elements_dict = BearingElement.get_data(
+            file_name=Path(file_name)/"BearingElement6DoF.toml"
+        )
+        for element in bearing_elements_dict["BearingElement6DoF"]:
+            bearing = BearingElement6DoF(**bearing_elements_dict["BearingElement6DoF"][element])
+            data = bearing_elements_dict["BearingElement6DoF"]
+            bearing.kxx.coefficient = data[element][
+                "kxx"
+            ]
+
+            bearing.kxy.coefficient = data[element][
+                "kxy"
+            ]
+
+            bearing.kyx.coefficient = data[element][
+                "kyx"
+            ]
+
+            bearing.kyy.coefficient = data[element][
+                "kyy"
+            ]
+
+            bearing.kzz.coefficient = data[element][
+                "kzz"
+            ]
+
+            bearing.cxx.coefficient = data[element][
+                "cxx"
+            ]
+
+            bearing.cxy.coefficient = data[element][
+                "cxy"
+            ]
+
+            bearing.cyx.coefficient = data[element][
+                "cyx"
+            ]
+
+            bearing.cyy.coefficient = data[element][
+                "cyy"
+            ]
+
+            bearing.czz.coefficient = data[element][
+                "czz"
+            ]
+
+            bearing_elements.append(bearing)
+        return bearing_elements
+
+
+
+
+
+    def dof_mapping(self):
+        return dict(x_0=0, y_0=1, z_0=2)
+
+    def dof_global_index(self):
+        """Get the global index for an element specific degree of freedom for the 6DoF element."""
+        global_index = super().dof_global_index()
+
+        if self.n_link is not None:
+            global_index = global_index._asdict()
+            global_index[f"x_{self.n_link}"] = 6 * self.n_link
+            global_index[f"y_{self.n_link}"] = 6 * self.n_link + 1
+            global_index[f"z_{self.n_link}"] = 6 * self.n_link + 2
+            dof_tuple = namedtuple("GlobalIndex", global_index)
+            global_index = dof_tuple(**global_index)
+
+        return global_index
+
+
+
 
 
     def patch(self, position, mean, ax, **kwargs):
@@ -1625,3 +1818,33 @@ def seal_example():
     w = np.linspace(0, 200, 11)
     seal = SealElement(n=0, kxx=kxx, kyy=kyy, cxx=cxx, cyy=cyy, frequency=w)
     return seal
+
+def bearing_6dof_example():
+    """This function returns an instance of a simple bearing.
+    The purpose is to make available a simple model
+    so that doctest can be written using it.
+
+    Parameters
+    ----------
+
+    Returns
+    -------
+    An instance of a bearing object.
+
+    Examples
+    --------
+    >>> bearing = bearing_example()
+    >>> bearing.frequency[0]
+    0.0
+    """
+    kxx = 1e6
+    kyy = 0.8e6
+    kzz = 1e5
+    cxx = 2e2
+    cyy = 1.5e2
+    czz = 0.5e2
+    bearing = BearingElement6DoF(n=0, kxx=kxx, kyy=kyy, cxx=cxx, cyy=cyy, kzz=kzz, czz=czz)
+    return bearing
+
+if __name__ == "__main__":
+    b = bearing_example()
