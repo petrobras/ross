@@ -1558,9 +1558,65 @@ class BearingElement6DoF(BearingElement):
 
         return global_index
 
+    def K(self, frequency):
+        """Returns the stiffness matrix for a given excitation frequency.
 
+        Returns
+        -------
+        K: np.ndarray
+            A 3x3 matrix of floats containing the kxx, kxy, kyx, kyy and kzz values.
 
+        Examples
+        --------
+        >>> bearing = bearing_example()
+        >>> bearing.K(0)
+        array([[1000000.       0.       0.],
+               [      0.  800000.       0.],
+               [      0.       0.  100000.]])
+        """
+        kxx = self.kxx.interpolated(frequency)
+        kyy = self.kyy.interpolated(frequency)
+        kxy = self.kxy.interpolated(frequency)
+        kyx = self.kyx.interpolated(frequency)
+        kzz = self.kzz.interpolated(frequency)
 
+        K = np.array([
+            [ kxx, kxy,   0],
+            [ kyx, kyy,   0],
+            [   0,   0, kzz]
+        ])
+        
+        return K
+
+    def C(self, frequency):
+        """Returns the damping matrix for a given excitation frequency.
+
+        Returns
+        -------
+        C: np.ndarray
+            A 3x3 matrix of floats containing the cxx, cxy, cyx, cyy, and czz values.
+
+        Examples
+        --------
+        >>> bearing = bearing_example()
+        >>> bearing.C(0)
+        array([[200.   0.   0.],
+               [  0. 150.   0.],
+               [  0.   0.  50.]])
+        """
+        cxx = self.cxx.interpolated(frequency)
+        cyy = self.cyy.interpolated(frequency)
+        cxy = self.cxy.interpolated(frequency)
+        cyx = self.cyx.interpolated(frequency)
+        czz = self.czz.interpolated(frequency)
+
+        C = np.array([
+            [ cxx, cxy,   0],
+            [ cyx, cyy,   0],
+            [   0,   0, czz]
+        ])
+
+        return C
 
     def patch(self, position, mean, ax, **kwargs):
         """Bearing element patch.
@@ -1843,7 +1899,8 @@ def bearing_6dof_example():
     cxx = 2e2
     cyy = 1.5e2
     czz = 0.5e2
-    bearing = BearingElement6DoF(n=0, kxx=kxx, kyy=kyy, cxx=cxx, cyy=cyy, kzz=kzz, czz=czz)
+    w = np.linspace(0, 200, 11)
+    bearing = BearingElement6DoF(n=0, kxx=kxx, kyy=kyy, cxx=cxx, cyy=cyy, kzz=kzz, czz=czz, frequency=w)
     return bearing
 
 if __name__ == "__main__":
