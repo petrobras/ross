@@ -46,6 +46,8 @@ to branch named as the current released version.
 
 If you want to test the documentation locally:
 
+- Install `pandoc <https://pandoc.org/installing.html>`_, which is needed to convert the notebook files;
+
 - Clone the ross-website to ``~/ross-website/html``::
 
     $ git clone https://github.com/ross-rotordynamics/ross-website ~/ross-website/html
