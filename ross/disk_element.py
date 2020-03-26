@@ -557,12 +557,6 @@ def disk_example():
     return disk
 
 
-# fmt:off
-
-
-# fmt:on
-
-
 class DiskElement6DoF(Element):
     """A disk element for 6 DoFs.
 
