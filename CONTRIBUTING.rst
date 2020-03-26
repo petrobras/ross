@@ -37,9 +37,9 @@ files at ~/ross/docs, and we keep the html files used to build the website in a
 `separate repository <https://github.com/ross-rotordynamics/ross-website>`_.
 The website tracks the documentation for the released version with the following procedure:
 
- 1. Travis runs the deploy_docs.sh file ('after_success' phase);
- 2. The deploy_docs script checks if the branch being updated has the same name as the current released ROSS' version (ross.__version__);
- 3. If 2 is True, the script will build the docs for that branch and push to the ross-website repo.
+#. Travis runs the deploy_docs.sh file ('after_success' phase);
+#. The deploy_docs script checks if the branch being updated has the same name as the current released ROSS' version (ross.__version__);
+#. If 2 is True, the script will build the docs for that branch and push to the ross-website repo.
 
 So, if you want to modify the documentation website, modify the source files and then make a pull request
 to branch named as the current released version.
