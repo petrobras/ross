@@ -19,17 +19,6 @@ To format our code we use `Black <https://black.readthedocs.io/en/stable/>`_, wh
 code formatter"*. You can configure your development environment to use Black before a commit. More information on how
 to set this is given at `Black's documentation <https://black.readthedocs.io/en/stable/editor_integration.html>`_.
 
-Tests
------
-We use pytest to test the code. Unit tests are placed in the `~/ross/ross/tests` folder. We also test our docstrings to
-assure that the examples are working.
-If you want to run all the tests you can do it with (from the `~/ross/ross` folder)::
-
-   $ pytest
-
-Code is only merged to master if tests pass. This is checked by services such as Travis CI and Appveyor, so make sure
-tests are passing before pushing your code to github.
-
 Documentation
 -------------
 We use `sphinx <http://www.sphinx-doc.org/en/master/>`_ to generate the project's documentation. We keep the source
@@ -123,14 +112,38 @@ It should look like this:
 
 The part :code:`fetch = +refs/pull/*/head:refs/remotes/upstream/pr/*` will make pull requests available.
 
-Step 3: Make a new feature branch
+Step 3: Set up development environment
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+To set up a development environment you can `create a conda environment <https://docs.conda.io/projects/conda/en/latest/user-guide/tasks/manage-environments.html>`_
+or a virtualenv::
+
+    python3 -m venv env
+    . env/bin/activate
+    # or "env\Scripts\activate" on Windows
+
+and then install ROSS in editable mode with development dependencies::
+
+    pip install -e ".[dev]"
+
+Step 4: Make a new feature branch
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 ::
 
     git fetch upstream
     git checkout -b my-new-feature upstream/master
 
-Step 4: Push changes to your git repository
+Step 4: Testing the code
+^^^^^^^^^^^^^^^^^^^^^^^^
+We use pytest to test the code. Unit tests are placed in the `~/ross/ross/tests` folder. We also test our docstrings to
+assure that the examples are working.
+If you want to run all the tests you can do it with (from the `~/ross/ross` folder)::
+
+   pytest
+
+Code is only merged to master if tests pass. This is checked by services such as Travis CI and Appveyor, so make sure
+tests are passing before pushing your code to github.
+
+Step 5: Push changes to your git repository
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 After a complete working set of related changes are made:
 
