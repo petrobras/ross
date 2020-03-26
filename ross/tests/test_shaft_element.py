@@ -328,11 +328,11 @@ def s6_eb():
     )
 
 
-def s6_test_index(eb6):
+def test_s6_index(eb6):
     pass
 
 
-def s6_test_parameters_eb(eb6):
+def test_s6_parameters_eb(eb6):
     assert eb6.L == 0.1
     assert eb6.idl == 25.4 * 1 / 2
     assert eb6.odl == 25.4 * 3 / 4
@@ -346,7 +346,7 @@ def s6_test_parameters_eb(eb6):
     assert_almost_equal(eb6.a3, 3.3253e014)
 
 
-def s6_test_M_matrix(eb6):
+def test_s6_M_matrix(eb6):
     # fmt: off
     M_mat_6DoF = np.array(
         [[  4.8624e+08,            0,            0,            0,  -4.0523e+06,            0,  -4.8618e+08,            0,            0,            0,  -4.0512e+06,            0],
@@ -365,7 +365,7 @@ def s6_test_M_matrix(eb6):
     assert_allclose(eb.M(), M_mat_6DoF, rtol=1e-3)
 
 
-def s6_test_G_matrix(eb6):
+def test_s6_G_matrix(eb6):
     # fmt: off
     G_mat_6DoF = np.array(
         [[           0,  -9.7239e+10,            0,  -8.1032e+08,            0,            0,            0,   9.7239e+10,            0,  -8.1032e+08,            0,            0],
@@ -384,7 +384,7 @@ def s6_test_G_matrix(eb6):
     assert_allclose(eb.G(), G_mat_6DoF, rtol=1e-3)
 
 
-def s6_test_K_matrix(eb6):
+def test_s6_K_matrix(eb6):
     # fmt: off
     K_mat_6DoF = np.array(
         [[ 7.7093e+13,            0,            0,  -1.0000e+01,  -3.8547e+12,            0,  -7.7093e+13,            0,            0,   1.0000e+01,  -3.8547e+12,            0],
@@ -404,7 +404,7 @@ def s6_test_K_matrix(eb6):
     assert_allclose(eb.K(), K_mat_6DoF, rtol=1e-3)
 
 
-def s6_test_Kst_matrix(eb6):
+def test_s6_Kst_matrix(eb6):
     # fmt: off
     Kst_mat_6DoF = np.array(
         [[          0,  -9.7239e+10,            0,  -8.1032e+08,            0,            0,            0,   9.7239e+10,            0,  -8.1032e+08,            0,            0],

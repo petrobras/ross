@@ -1229,6 +1229,10 @@ class ShaftElement6DoF(ShaftElement):
         Default is equal to odl value for cylindrical element.
     material : ross.material
         Shaft material.
+    alpha : float, optional
+        Proportional damping coefficient, associated to the element Mass matrix
+    beta : float, optional
+        Proportional damping coefficient, associated to the element Stiffness matrix
     n : int, optional
         Element number, coincident with it's first node.
         If not given, it will be set when the rotor is assembled
@@ -1263,10 +1267,6 @@ class ShaftElement6DoF(ShaftElement):
         Poisson coefficient for the element.
     kappa : float
         Shear coefficient for the element, determined from :cite:`Hutchingson2001` formulation.
-    alpha : float
-        Proportional damping coefficient, associated to the element Mass matrix
-    beta : float
-        Proportional damping coefficient, associated to the element Stiffness matrix
 
     References
     ----------
@@ -1275,6 +1275,7 @@ class ShaftElement6DoF(ShaftElement):
     Examples
     --------
     >>> from ross.materials import steel
+    >>> eixo1 = rs.shaft_element.ShaftElement6DoF(L=0.5, idl=0.0, odl=0.01, idr=0.0, odr=0.01, material=steel, n=0, axial_force=10, torque=30)
     >>> Euler_Bernoulli_Element = ShaftElement6DoF(
     ...                         material=steel, L=0.5, idl=0.05, odl=0.1,
     ...                         idr=0.05, odr=0.15,
@@ -1932,8 +1933,8 @@ class ShaftElement6DoF(ShaftElement):
         array(12x12)
         """
 
-        # Proportinal damping matrix
-        C = self.alpha * self.M + self.beta * self.K
+        # proportional damping matrix
+        C = self.alpha * self.M() + self.beta * self.K()
 
         return C
 
