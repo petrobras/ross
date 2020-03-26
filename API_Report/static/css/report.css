@@ -1,0 +1,246 @@
+@charset "UTF-8";
+@font-face {
+  font-family: Source Sans Pro;
+  font-weight: 400;
+  src: url(SourceSansPro-Regular.otf);
+}
+
+@font-face {
+  font-family: Source Sans Pro;
+  font-style: italic;
+  font-weight: 400;
+  src: url(SourceSansPro-Italic.otf);
+}
+
+@font-face {
+  font-family: Source Sans Pro;
+  font-weight: 300;
+  src: url(SourceSansPro-Light.otf);
+}
+
+@font-face {
+  font-family: Source Sans Pro;
+  font-style: italic;
+  font-weight: 300;
+  src: url(SourceSansPro-LightItalic.otf);
+}
+
+@font-face {
+  font-family: Source Sans Pro;
+  font-weight: bold;
+  src: url(SourceSansPro-Bold.otf);
+}
+
+@page {
+  @top-left {
+    background: #646464;
+    content: counter(page);
+    height: 1cm;
+    text-align: center;
+    width: 1cm;
+  }
+  @top-center {
+    background: #646464;
+    content: '';
+    display: block;
+    height: .05cm;
+    opacity: .5;
+    width: 100%;
+  }
+  @top-right {
+    content: string(heading);
+    font-size: 9pt;
+    height: 1cm;
+    vertical-align: middle;
+    width: 100%;
+  }
+}
+
+@page :blank {
+  @top-left {
+    background: none;
+    content: '';
+  }
+  @top-center {
+    content: none;
+  }
+  @top-right {
+    content: none;
+  }
+}
+
+@page no-chapter {
+  @top-left {
+    background: none;
+    content: none;
+  }
+  @top-center {
+    content: none;
+  }
+  @top-right {
+    content: none;
+  }
+}
+
+@page :first {
+  margin: 0;
+}
+
+@page chapter {
+  background: #646464;
+  margin: 0;
+  @top-left {
+    content: none;
+  }
+  @top-center {
+    content: none;
+  }
+  @top-right {
+    content: none;
+  }
+}
+
+html {
+  font-family: Source Sans Pro;
+  font-size: 11pt;
+  font-weight: 300;
+  line-height: 1.5;
+}
+
+html body h1 {
+  color: #646464;
+  font-size: 25pt;
+  margin: 5cm 2cm 0 5cm;
+  page: no-chapter;
+  width: 100%;
+}
+
+html body p1 {
+  color: #646464;
+  font-size: 15pt;
+  margin: 2cm 2cm 0 2cm;
+  page: no-chapter;
+  width: 100%;
+  text-align: center;
+}
+
+html body h2, html body h3, html body h4 {
+  color: black;
+  font-weight: 400;
+}
+
+html body h2 {
+  -webkit-column-break-before: always;
+          break-before: always;
+  font-size: 20pt;
+  string-set: heading content();
+}
+
+html body h3 {
+  font-weight: 300;
+  font-size: 15pt;
+}
+
+html body h4 {
+  font-size: 13pt;
+}
+
+html body article#cover {
+  -ms-flex-line-pack: justify;
+      align-content: space-between;
+  display: -webkit-box;
+  display: -ms-flexbox;
+  display: flex;
+  -ms-flex-wrap: wrap;
+      flex-wrap: wrap;
+  height: 297mm;
+}
+
+html body article#cover address {
+  background: #646464;
+  -webkit-box-flex: 1;
+      -ms-flex: 1 50%;
+          flex: 1 50%;
+  margin: 0 -2cm;
+  padding: 1cm 0;
+  white-space: pre-wrap;
+}
+
+html body article#cover address:first-of-type {
+  padding-left: 3cm;
+}
+
+html body article#contents {
+  -webkit-column-break-before: right;
+          break-before: right;
+  -webkit-column-break-after: left;
+          break-after: left;
+  page: no-chapter;
+}
+
+html body article#contents h2 {
+  font-size: 20pt;
+  font-weight: 400;
+  margin-bottom: 3cm;
+}
+
+html body article#contents h3 {
+  font-weight: 500;
+  margin: 3em 0 1em;
+}
+
+html body article#contents h3::before {
+  background: #646464;
+  content: '';
+  display: block;
+  height: .08cm;
+  margin-bottom: .25cm;
+  width: 2cm;
+}
+
+html body article#contents ul {
+  list-style: none;
+  padding-left: 0;
+}
+
+html body article#contents ul li {
+  border-top: .25pt solid #c1c1c1;
+  margin: .25cm 0;
+  padding-top: .25cm;
+}
+
+html body article#contents ul li::before {
+  color: #646464;
+  content: '• ';
+  font-size: 40pt;
+  line-height: 16pt;
+  vertical-align: bottom;
+}
+
+html body article#contents ul li a {
+  color: inherit;
+  text-decoration: inherit;
+}
+
+html body article#contents ul li a::before {
+  content: target-text(attr(href));
+}
+
+html body article#contents ul li a::after {
+  color: #646464;
+  content: target-counter(attr(href), page);
+  float: right;
+}
+
+html body article#columns section {
+  padding-top: 1cm;
+}
+
+html body article#columns section p {
+  text-align: justify;
+}
+
+html body article#columns section p:first-of-type {
+  font-weight: 700;
+}
+/*# sourceMappingURL=report.css.map */

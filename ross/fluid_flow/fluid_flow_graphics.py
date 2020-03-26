@@ -1,6 +1,6 @@
 import matplotlib.pyplot as plt
-from bokeh.plotting import figure
 import numpy as np
+from bokeh.plotting import figure
 from matplotlib import cm
 from mpl_toolkits.mplot3d import axes3d
 

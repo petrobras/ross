@@ -9,6 +9,9 @@ before_install:
 - sudo apt-get install pandoc
 install:
 - pip install -e .[dev]
+before_script:
+- black --check ross
+- isort --recursive ross --check-only
 script:
 - pytest ross --cov=ross
 after_success:

@@ -1,6 +1,6 @@
 import numpy as np
 import pytest
-from numpy.testing import assert_almost_equal, assert_allclose
+from numpy.testing import assert_allclose
 
 from ross.api_report import Report
 from ross.bearing_seal_element import BearingElement
@@ -20,7 +20,13 @@ def report0():
 
     shaft_elem = [
         ShaftElement(
-            l, i_d, o_d, material=steel, shear_effects=True, rotary_inertia=True, gyroscopic=True
+            l,
+            i_d,
+            o_d,
+            material=steel,
+            shear_effects=True,
+            rotary_inertia=True,
+            gyroscopic=True,
         )
         for l in L
     ]
@@ -84,7 +90,13 @@ def report1():
 
     shaft_elem = [
         ShaftElement(
-            l, i_d, o_d, material=steel, shear_effects=True, rotary_inertia=True, gyroscopic=True
+            l,
+            i_d,
+            o_d,
+            material=steel,
+            shear_effects=True,
+            rotary_inertia=True,
+            gyroscopic=True,
         )
         for l in L
     ]
@@ -145,7 +157,13 @@ def report2():
 
     shaft_elem = [
         ShaftElement(
-            l, i_d, o_d, material=steel, shear_effects=True, rotary_inertia=True, gyroscopic=True
+            l,
+            i_d,
+            o_d,
+            material=steel,
+            shear_effects=True,
+            rotary_inertia=True,
+            gyroscopic=True,
         )
         for l in L
     ]
@@ -200,22 +218,22 @@ def report2():
 
 
 def test_initial_attributes(report0, report1, report2):
-    assert report0.rotor_type == 'between_bearings'
+    assert report0.rotor_type == "between_bearings"
     assert report0.disk_nodes == [15, 35]
-    assert report0.machine_type == 'compressor'
-    assert report0.tag == 'Rotor 0'
+    assert report0.machine_type == "compressor"
+    assert report0.tag == "Rotor 0"
     assert_allclose(report0.maxspeed, 1000.0, atol=1e-2)
     assert_allclose(report0.minspeed, 400.0, atol=1e-2)
-    assert report1.rotor_type == 'single_overhung_l'
+    assert report1.rotor_type == "single_overhung_l"
     assert report1.disk_nodes == [0]
-    assert report1.machine_type == 'turbine'
-    assert report1.tag == 'Rotor 0'
+    assert report1.machine_type == "turbine"
+    assert report1.tag == "Rotor 0"
     assert_allclose(report1.maxspeed, 1000.0, atol=1e-2)
     assert_allclose(report1.minspeed, 400.0, atol=1e-2)
-    assert report2.rotor_type == 'double_overhung'
+    assert report2.rotor_type == "double_overhung"
     assert report2.disk_nodes == [0, 50]
-    assert report2.machine_type == 'compressor'
-    assert report2.tag == 'Rotor 0'
+    assert report2.machine_type == "compressor"
+    assert report2.tag == "Rotor 0"
     assert_allclose(report2.maxspeed, 1000.0736613927509, atol=1e-8)
     assert_allclose(report2.minspeed, 400.0294645571003, atol=1e-8)
 
@@ -303,7 +321,7 @@ def test_stability_level1(report0, report1, report2):
     assert_allclose(report0.crit_speed, 82.66646997074625, atol=1e-4)
     assert_allclose(report0.MCS, 1000.0, atol=1e-4)
     assert_allclose(report0.RHO_gas, 34.05, atol=1e-4)
-    assert report0.condition == 'required'
+    assert report0.condition == "required"
 
     _ = report1.stability_level_1(D, H, HP, oper_speed, RHO_ratio, RHOs, RHOd)
 
@@ -315,7 +333,7 @@ def test_stability_level1(report0, report1, report2):
     assert_allclose(report1.crit_speed, 71.20494590334201, atol=1e-4)
     assert_allclose(report1.MCS, 1000.0, atol=1e-4)
     assert_allclose(report1.RHO_gas, 34.05, atol=1e-4)
-    assert report1.condition == 'not required'
+    assert report1.condition == "not required"
 
     _ = report2.stability_level_1(D, H, HP, oper_speed, RHO_ratio, RHOs, RHOd)
 
@@ -327,7 +345,7 @@ def test_stability_level1(report0, report1, report2):
     assert_allclose(report2.crit_speed, 38.263712414670984, atol=1e-4)
     assert_allclose(report2.MCS, 1000.0736613927509, atol=1e-4)
     assert_allclose(report2.RHO_gas, 34.05, atol=1e-4)
-    assert report2.condition == 'required'
+    assert report2.condition == "required"
 
 
 def test_stability_level2(report0, report1, report2):
@@ -345,10 +363,5 @@ def test_stability_level2(report0, report1, report2):
         atol=1e-6,
     )
     assert_allclose(
-        df1["log_dec"].tolist(),
-        [
-            0.14898201611278591,
-            0.14898201641839076,
-        ],
-        atol=1e-6,
+        df1["log_dec"].tolist(), [0.14898201611278591, 0.14898201641839076,], atol=1e-6,
     )

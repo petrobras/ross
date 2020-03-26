@@ -2,7 +2,7 @@ import os
 
 import numpy as np
 import pytest
-from numpy.testing import assert_almost_equal, assert_allclose
+from numpy.testing import assert_allclose, assert_almost_equal
 
 from ross.materials import steel
 from ross.shaft_element import ShaftElement
