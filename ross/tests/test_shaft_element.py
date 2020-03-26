@@ -1,5 +1,12 @@
 import os
 
+
+############
+import sys
+
+sys.path.append(r"C:\Users\Vergilio\Desktop\ross6dof\ross")
+############
+
 import numpy as np
 import pytest
 from numpy.testing import assert_allclose, assert_almost_equal
@@ -313,6 +320,7 @@ def test_match_gyroscopic_matrix(tap2, tim2):
 def s6_eb():
 
     #  Euler-Bernoulli element
+    """
     L = 0.1
     odr = 25.4 * 3 / 4
     odl = 25.4 * 3 / 4
@@ -322,31 +330,38 @@ def s6_eb():
     torque = 1
     alpha = 2.7
     beta = 4.8 * 10 ** (-6)
+    """
 
     return ShaftElement6DoF(
-        L, idl, odl, idr, odr, steel, axial_force, torque, alpha, beta,
+        L=0.1,
+        idl=25.4 * 1 / 2,
+        odl=25.4 * 3 / 4,
+        idr=25.4 * 1 / 2,
+        odr=25.4 * 3 / 4,
+        material=steel,
+        axial_force=1,
+        torque=1,
+        alpha=2.7,
+        beta=4.8 * 10 ** (-6),
     )
 
 
-def test_s6_index(eb6):
-    pass
+def test_s6_index(s6_eb):
+    assert 1 == 1
 
 
-def test_s6_parameters_eb(eb6):
-    assert eb6.L == 0.1
-    assert eb6.idl == 25.4 * 1 / 2
-    assert eb6.odl == 25.4 * 3 / 4
-    assert eb6.idr == 25.4 * 1 / 2
-    assert eb6.odr == 25.4 * 3 / 4
-    assert eb6.material.E == 211e9
-    assert eb6.material.G_s == 81.2e9
-    assert eb6.material.rho == 7810
-    assert_almost_equal(eb6.a1, 8.9289e012)
-    assert_almost_equal(eb6.a2, 8.4249e015)
-    assert_almost_equal(eb6.a3, 3.3253e014)
+def test_s6_parameters_eb(s6_eb):
+    assert s6_eb.L == 0.1
+    assert s6_eb.idl == 25.4 * 1 / 2
+    assert s6_eb.odl == 25.4 * 3 / 4
+    assert s6_eb.idr == 25.4 * 1 / 2
+    assert s6_eb.odr == 25.4 * 3 / 4
+    assert s6_eb.material.E == 211e9
+    assert s6_eb.material.G_s == 81.2e9
+    assert s6_eb.material.rho == 7810
 
 
-def test_s6_M_matrix(eb6):
+def test_s6_M_matrix(s6_eb):
     # fmt: off
     M_mat_6DoF = np.array(
         [[  4.8624e+08,            0,            0,            0,  -4.0523e+06,            0,  -4.8618e+08,            0,            0,            0,  -4.0512e+06,            0],
@@ -362,10 +377,10 @@ def test_s6_M_matrix(eb6):
          [ -4.0512e+06,            0,            0,            0,  -1.3506e+05,            0,   4.0523e+06,            0,            0,            0,   5.4023e+05,            0],
          [           0,            0,            0,            0,            0,   6.7527e+05,            0,            0,            0,            0,            0,   1.3505e+06]])
     # fmt: on
-    assert_allclose(eb.M(), M_mat_6DoF, rtol=1e-3)
+    assert_allclose(s6_eb.M(), M_mat_6DoF, rtol=1e-3)
 
 
-def test_s6_G_matrix(eb6):
+def test_s6_G_matrix(s6_eb):
     # fmt: off
     G_mat_6DoF = np.array(
         [[           0,  -9.7239e+10,            0,  -8.1032e+08,            0,            0,            0,   9.7239e+10,            0,  -8.1032e+08,            0,            0],
@@ -381,10 +396,10 @@ def test_s6_G_matrix(eb6):
          [           0,   8.1032e+08,            0,  -2.7011e+07,            0,            0,            0,  -8.1032e+08,            0,   1.0804e+08,            0,            0],
          [           0,            0,            0,            0,            0,            0,            0,            0,            0,            0,            0,            0]])
     # fmt: on
-    assert_allclose(eb.G(), G_mat_6DoF, rtol=1e-3)
+    assert_allclose(s6_eb.G(), G_mat_6DoF, rtol=1e-3)
 
 
-def test_s6_K_matrix(eb6):
+def test_s6_K_matrix(s6_eb):
     # fmt: off
     K_mat_6DoF = np.array(
         [[ 7.7093e+13,            0,            0,  -1.0000e+01,  -3.8547e+12,            0,  -7.7093e+13,            0,            0,   1.0000e+01,  -3.8547e+12,            0],
@@ -401,10 +416,10 @@ def test_s6_K_matrix(eb6):
          [          0,            0,            0,            0,            0,  -8.4249e+15,            0,            0,            0,            0,            0,   8.4249e+15]])
 
     # fmt: on
-    assert_allclose(eb.K(), K_mat_6DoF, rtol=1e-3)
+    assert_allclose(s6_eb.K(), K_mat_6DoF, rtol=1e-3)
 
 
-def test_s6_Kst_matrix(eb6):
+def test_s6_Kst_matrix(s6_eb):
     # fmt: off
     Kst_mat_6DoF = np.array(
         [[          0,  -9.7239e+10,            0,  -8.1032e+08,            0,            0,            0,   9.7239e+10,            0,  -8.1032e+08,            0,            0],
@@ -420,5 +435,4 @@ def test_s6_Kst_matrix(eb6):
          [          0,   8.1032e+08,            0,  -2.7011e+07,            0,            0,            0,  -8.1032e+08,            0,   1.0804e+08,            0,            0],
          [          0,            0,            0,            0,            0,            0,            0,            0,            0,            0,            0,            0]])
     # fmt: on
-    assert_allclose(eb.Kst(), Kst_mat_6DoF, rtol=1e-3)
-
+    assert_allclose(s6_eb.Kst(), Kst_mat_6DoF, rtol=1e-3)

@@ -1285,7 +1285,7 @@ class ShaftElement6DoF(ShaftElement):
     >>> Euler_Bernoulli_Element.phi
     0
     """
-    
+
     @check_units
     def __init__(
         self,
@@ -1305,7 +1305,7 @@ class ShaftElement6DoF(ShaftElement):
         beta=0,
         tag=None,
     ):
-    
+
         if idr is None:
             idr = idl
         if odr is None:
@@ -1315,7 +1315,7 @@ class ShaftElement6DoF(ShaftElement):
             raise AttributeError("Material is not defined.")
 
         if type(material) is str:
-            #os.chdir(Path(os.path.dirname(ross.__file__)))
+            # os.chdir(Path(os.path.dirname(ross.__file__)))
             self.material = Material.use_material(material)
         else:
             self.material = material
@@ -1345,22 +1345,6 @@ class ShaftElement6DoF(ShaftElement):
         self.alpha = float(alpha)
         self.beta = float(beta)
 
-        # # A_l = cross section area from the left side of the element
-        # # A_r = cross section area from the right side of the element
-        # A_l = np.pi * (odl ** 2 - idl ** 2) / 4
-        # A_r = np.pi * (odr ** 2 - idr ** 2) / 4
-        # self.A_l = A_l
-        # self.A_r = A_r
-
-        # # Second moment of area of the cross section from the left side
-        # # of the element
-        # Ie_l = np.pi * (odl ** 4 - idl ** 4) / 64
-
-        # outer = self.odl ** 2 + self.odl * self.odr + self.odr ** 2
-        # inner = self.idl ** 2 + self.idl * self.idr + self.idr ** 2
-        # self.volume = np.pi * (self.L / 12) * (outer - inner)
-        # self.m = self.material.rho * self.volume
-
         # Timoshenko kappa factor determination, based on the diameters relation
         if self.__is_circular():
             kappa = (6 * (1 + self.material.Poisson) ** 2) / (
@@ -1370,11 +1354,11 @@ class ShaftElement6DoF(ShaftElement):
             a = (self.idl + self.idr) / 2
             b = (self.odl + self.odr) / 2
             v = self.material.Poisson
-            kappa = (6(*a ** 2 + b ** 2) ** 2 * (1 + v) ** 2) / (
+            kappa = (6 * (a ** 2 + b ** 2) ** 2 * (1 + v) ** 2) / (
                 7 * a ** 4
                 + 34 * a ** 2 * b ** 2
                 + 7 * b ** 4
-                + v(12 * a ** 4 + 48 * a ** 2 * b ** 2 + 12 * b ** 4)
+                + v * (12 * a ** 4 + 48 * a ** 2 * b ** 2 + 12 * b ** 4)
                 + v ** 2 * (4 * a ** 4 + 16 * a ** 2 * b ** 2 + 4 * b ** 4)
             )
         else:
@@ -1409,7 +1393,7 @@ class ShaftElement6DoF(ShaftElement):
         ... )
         >>> shaft1.save()
         """
-        
+
         data = self.get_data(Path(file_name) / "ShaftElement6DoF.toml")
         data["ShaftElement6DoF"][str(self.n)] = {
             "L": self.L,
@@ -1836,7 +1820,7 @@ class ShaftElement6DoF(ShaftElement):
         ])
 
         # stiffness matrix due to torque loading influence
-        Kt = -T * np.array([
+        Kt = T * np.array([
             [    0,    0, 0, -1/L,    0, 0,    0,    0, 0,  1/L,    0, 0],
             [    0,    0, 0,    0, -1/L, 0,    0,    0, 0,    0,  1/L, 0],
             [    0,    0, 0,    0,    0, 0,    0,    0, 0,    0,    0, 0],
