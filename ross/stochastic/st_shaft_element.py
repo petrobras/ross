@@ -69,7 +69,7 @@ class ST_ShaftElement:
     ...                            material=steel,
     ...                            is_random=["odl"],
     ...                            )
-    >>> len(elms.elements)
+    >>> len(list(elms.__iter__()))
     5
     """
 
@@ -114,11 +114,17 @@ class ST_ShaftElement:
             shear_method_calc=shear_method_calc,
             tag=None,
         )
-
-        elements = self.random_var(is_random, attribute_dict)
-
+        self.is_random = is_random
         self.attribute_dict = attribute_dict
-        self.elements = elements
+
+    def __iter__(self):
+        """Return an iterator for the container.
+
+        Returns
+        -------
+        An iterator over random shaft elements.
+        """
+        return iter(self.random_var(self.is_random, self.attribute_dict))
 
     def random_var(self, is_random, *args):
         """Generate a list of objects as random attributes.
@@ -137,8 +143,8 @@ class ST_ShaftElement:
 
         Returns
         -------
-        f_list : list
-            List of random objects.
+        f_list : generator
+            Generator of random objects.
 
         Example
         -------
@@ -153,6 +159,6 @@ class ST_ShaftElement:
                 else:
                     arg.append(value)
             new_args.append(arg)
-        f_list = [ShaftElement(*arg) for arg in new_args]
+        f_list = (ShaftElement(*arg) for arg in new_args)
 
         return f_list

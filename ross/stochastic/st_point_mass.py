@@ -1,10 +1,8 @@
-import numpy as np
-
 from ross.point_mass import PointMass
 
 
 class ST_PointMass:
-    """Random point mass element
+    """Random point mass element.
 
     Creates an object containing a list with random instances of PointMass.
 
@@ -43,7 +41,7 @@ class ST_PointMass:
     ...                         my=np.random.uniform(2.0, 2.5, 5),
     ...                         is_random=["mx", "my"],
     ...                         )
-    >>> len(elms.elements)
+    >>> len(list(elms.__iter__()))
     5
     """
 
@@ -51,10 +49,18 @@ class ST_PointMass:
         self, n, m=None, mx=None, my=None, tag=None, is_random=None,
     ):
         attribute_dict = dict(n=n, m=m, mx=mx, my=my, tag=tag,)
-        elements = self.random_var(is_random, attribute_dict)
 
+        self.is_random = is_random
         self.attribute_dict = attribute_dict
-        self.elements = elements
+
+    def __iter__(self):
+        """Return an iterator for the container.
+
+        Returns
+        -------
+        An iterator over random point mass elements.
+        """
+        return iter(self.random_var(self.is_random, self.attribute_dict))
 
     def random_var(self, is_random, *args):
         """Generates a list of objects as random attributes.
@@ -73,11 +79,8 @@ class ST_PointMass:
 
         Returns
         -------
-        f_list : list
-            List of random objects.
-
-        Example
-        -------
+        f_list : generator
+            Generator of random objects.
         """
         args_dict = args[0]
         new_args = []
@@ -89,6 +92,6 @@ class ST_PointMass:
                 else:
                     arg.append(value)
             new_args.append(arg)
-        f_list = [PointMass(*arg) for arg in new_args]
+        f_list = (PointMass(*arg) for arg in new_args)
 
         return f_list

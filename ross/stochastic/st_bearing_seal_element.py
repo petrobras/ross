@@ -76,7 +76,7 @@ class ST_BearingElement:
     ...                              cxx=cxx,
     ...                              is_random = ["kxx", "cxx"],
     ...                              )
-    >>> len(elms.elements)
+    >>> len(list(elms.__iter__()))
     10
 
     # Uncertanties on bearing coefficients varying with frequency
@@ -93,7 +93,7 @@ class ST_BearingElement:
     ...                              frequency=frequency,
     ...                              is_random = ["kxx", "cxx"],
     ...                              )
-    >>> len(elms.elements)
+    >>> len(list(elms.__iter__()))
     5
     """
 
@@ -142,11 +142,17 @@ class ST_BearingElement:
             n_link=n_link,
             scale_factor=scale_factor,
         )
-
-        elements = self.random_var(is_random, attribute_dict)
-
+        self.is_random = is_random
         self.attribute_dict = attribute_dict
-        self.elements = elements
+
+    def __iter__(self):
+        """Return an iterator for the container.
+
+        Returns
+        -------
+        An iterator over random bearing elements.
+        """
+        return iter(self.random_var(self.is_random, self.attribute_dict))
 
     def random_var(self, is_random, *args):
         """Generate a list of objects as random attributes.
@@ -165,11 +171,8 @@ class ST_BearingElement:
 
         Returns
         -------
-        f_list : list
-            List of random objects.
-
-        Example
-        -------
+        f_list : generator
+            Generator of random objects.
         """
         args_dict = args[0]
         new_args = []
@@ -194,6 +197,6 @@ class ST_BearingElement:
                         arg.append(value)
                 new_args.append(arg)
 
-        f_list = [BearingElement(*arg) for arg in new_args]
+        f_list = (BearingElement(*arg) for arg in new_args)
 
         return f_list
