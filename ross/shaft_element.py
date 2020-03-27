@@ -1629,7 +1629,7 @@ class ShaftElement6DoF(ShaftElement):
 
         # temporary material and geometrical constants
         L = self.L
-        tempG = self.material.E / (2 * (1 + self.n))
+        tempG = self.material.E / (2 * (1 + self.material.Poisson))
         tempS = np.pi * (
             ((self.odr / 2) ** 2 + (self.odl / 2) ** 2) / 2
             - ((self.idr / 2) ** 2 + (self.idl / 2) ** 2) / 2
