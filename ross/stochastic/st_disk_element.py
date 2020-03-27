@@ -52,7 +52,7 @@ class ST_DiskElement:
     ...                           Ip=np.random.uniform(0.15, 0.25, 5),
     ...                           is_random=["Id", "Ip"],
     ...                           )
-    >>> len(elms.elements)
+    >>> len(list(elms.__iter__()))
     5
     """
 
@@ -60,10 +60,18 @@ class ST_DiskElement:
         self, n, m, Id, Ip, tag=None, color=bokeh_colors[9], is_random=None,
     ):
         attribute_dict = dict(n=n, m=m, Id=Id, Ip=Ip, tag=tag, color=color)
-        elements = self.random_var(is_random, attribute_dict)
 
+        self.is_random = is_random
         self.attribute_dict = attribute_dict
-        self.elements = elements
+
+    def __iter__(self):
+        """Return an iterator for the container.
+
+        Returns
+        -------
+        An iterator over random disk elements.
+        """
+        return iter(self.random_var(self.is_random, self.attribute_dict))
 
     def random_var(self, is_random, *args):
         """Generate a list of objects as random attributes.
@@ -82,11 +90,8 @@ class ST_DiskElement:
 
         Returns
         -------
-        f_list : list
-            List of random objects.
-
-        Example
-        -------
+        f_list : generator
+            Generator of random objects.
         """
         args_dict = args[0]
         new_args = []
@@ -98,7 +103,7 @@ class ST_DiskElement:
                 else:
                     arg.append(value)
             new_args.append(arg)
-        f_list = [DiskElement(*arg) for arg in new_args]
+        f_list = (DiskElement(*arg) for arg in new_args)
 
         return f_list
 
