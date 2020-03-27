@@ -436,7 +436,7 @@ class ST_Rotor(object):
         # Running Time Response and saving the results
 
         >>> size = 1000
-        >>> ndof = rotors.rotor_list[0].ndof
+        >>> ndof = rotors.ndof
         >>> node = 3 # node where the force is applied
 
         >>> dof = 9
