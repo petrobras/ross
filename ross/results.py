@@ -5,7 +5,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import scipy.linalg as la
 from bokeh.colors import RGB
-from bokeh.layouts import gridplot, widgetbox
+from bokeh.layouts import Column, gridplot
 from bokeh.models import (Arrow, ColorBar, ColumnDataSource, HoverTool, Label,
                           NormalHead)
 from bokeh.models.widgets import (DataTable, NumberFormatter, Panel,
@@ -23,6 +23,40 @@ bokeh_colors = bp.RdGy[11]
 
 
 class ModalResults:
+    """Class used to store results and provide plots for Modal Analysis.
+
+    Two options for plottting are available: plot_mode3D (mode shape 3D view)
+    and plot_mode2D (mode shape 2D view). The user chooses between them using 
+    the respective methods.
+
+    Parameters
+    ----------
+    speed : float
+        Rotor speed.
+    evalues : array
+        Eigenvalues array.
+    evectors : array
+        Eigenvectors array.
+    wn : array
+        Undamped natural frequencies array.
+    wd : array
+        Damped natural frequencies array.
+    log_dec : array
+        Logarithmic decrement for each .
+    damping_ratio : array
+        Damping ratio for each mode.
+    lti : StateSpaceContinuous
+        Space State Continuos with A, B, C and D matrices.
+    ndof : int
+        Number of degrees of freedom.
+    nodes : list
+        List of nodes number.
+    nodes_pos : list
+        List of nodes positions.
+    shaft_elements_length : list
+        List with Rotor shaft elements lengths.
+    """
+
     def __init__(
         self,
         speed,
@@ -62,24 +96,26 @@ class ModalResults:
 
     @staticmethod
     def whirl(kappa_mode):
-        """Evaluates the whirl of a mode
+        """Evaluate the whirl of a mode.
 
-       Parameters
-       ----------
-       kappa_mode: list
-           A list with the value of kappa for each node related
-           to the mode/natural frequency of interest.
+        Parameters
+        ----------
+        kappa_mode : list
+            A list with the value of kappa for each node related
+            to the mode/natural frequency of interest.
 
-       Returns
-       -------
-       A string indicating the direction of precession related to the kappa_mode
+        Returns
+        -------
+        whirldir : str
+            A string indicating the direction of precession related to the
+            kappa_mode.
 
-       Example
-       -------
-       >>> kappa_mode = [-5.06e-13, -3.09e-13, -2.91e-13, 0.011, -4.03e-13, -2.72e-13, -2.72e-13]
-       >>> ModalResults.whirl(kappa_mode)
-       'Forward'
-       """
+        Example
+        -------
+        >>> kappa_mode = [-5.06e-13, -3.09e-13, -2.91e-13, 0.011, -4.03e-13, -2.72e-13, -2.72e-13]
+        >>> ModalResults.whirl(kappa_mode)
+        'Forward'
+        """
         if all(kappa >= -1e-3 for kappa in kappa_mode):
             whirldir = "Forward"
         elif all(kappa <= 1e-3 for kappa in kappa_mode):
@@ -91,7 +127,7 @@ class ModalResults:
     @staticmethod
     @np.vectorize
     def whirl_to_cmap(whirl):
-        """Maps the whirl to a value
+        """Map the whirl to a value.
 
         Parameters
         ----------
@@ -116,7 +152,7 @@ class ModalResults:
             return 0.5
 
     def H_kappa(self, node, w, return_T=False):
-        r"""Calculates the H matrix for a given node and natural frequency.
+        r"""Calculate the H matrix for a given node and natural frequency.
 
         The matrix H contains information about the whirl direction,
         the orbit minor and major axis and the orbit inclination.
@@ -207,7 +243,7 @@ class ModalResults:
         return H
 
     def kappa(self, node, w, wd=True):
-        r"""Calculates kappa for a given node and natural frequency.
+        r"""Calculate kappa for a given node and natural frequency.
 
         frequency is the the index of the natural frequency of interest.
         The function calculates the orbit parameter :math:`\kappa`:
@@ -284,8 +320,10 @@ class ModalResults:
         return k
 
     def kappa_mode(self, w):
-        r"""This function evaluates kappa given the index of
-        the natural frequency of interest.
+        r"""Evaluate kappa values.
+
+        This function evaluates kappa given the index of the natural frequency
+        of interest.
         Values of kappa are evaluated for each node of the
         corresponding frequency mode.
 
@@ -305,10 +343,7 @@ class ModalResults:
         return kappa_mode
 
     def whirl_direction(self):
-        """Get the whirl direction for each frequency.
-
-        Parameters
-        ----------
+        r"""Get the whirl direction for each frequency.
 
         Returns
         -------
@@ -323,10 +358,7 @@ class ModalResults:
         return np.array(whirl_w)
 
     def whirl_values(self):
-        """Get the whirl value (0., 0.5, or 1.) for each frequency.
-
-        Parameters
-        ----------
+        r"""Get the whirl value (0., 0.5, or 1.) for each frequency.
 
         Returns
         -------
@@ -338,8 +370,7 @@ class ModalResults:
         return self.whirl_to_cmap(self.whirl_direction())
 
     def calc_mode_shape(self, mode=None, evec=None):
-        """
-        Method that calculate the arrays describing the mode shapes.
+        r"""Calculate the arrays describing the mode shapes.
 
         Parameters
         ----------
@@ -435,8 +466,7 @@ class ModalResults:
         return xn, yn, zn, x_circles, y_circles, z_circles_pos, nn
 
     def plot_mode3D(self, mode=None, evec=None, fig=None, ax=None):
-        """
-        Method that plots (3D view) the mode shapes.
+        """Plot (3D view) the mode shapes.
 
         Parameters
         ----------
@@ -457,8 +487,9 @@ class ModalResults:
         ax : matplotlib axes
             Returns the axes object with the plot.
         """
-
         if ax is None:
+            from mpl_toolkits.mplot3d import Axes3D
+
             fig = plt.figure()
             ax = fig.gca(projection="3d")
 
@@ -498,9 +529,9 @@ class ModalResults:
 
         ax.set_title(
             f"$mode$ {mode + 1} - $speed$ = {self.speed:.1f} rad/s\n"
-            f"$\omega_n$ = {self.wn[mode]:.1f} rad/s\n"
-            f"$log dec$ = {self.log_dec[mode]:.1f}\n"
-            f"$whirl\_direction$ = {self.whirl_direction()[mode]}",
+            f"$ω_n$ = {self.wn[mode]:.1f} rad/s\n"
+            f"log_dec = {self.log_dec[mode]:.1f}\n"
+            f"whirl_direction = {self.whirl_direction()[mode]}",
             fontsize=18,
         )
         ax.tick_params(axis="both", which="major", labelsize=18)
@@ -509,8 +540,7 @@ class ModalResults:
         return fig, ax
 
     def plot_mode2D(self, mode=None, evec=None, fig=None, ax=None):
-        """
-        Method that plots (2D view) the mode shapes.
+        """Plot (2D view) the mode shapes.
 
         Parameters
         ----------
@@ -618,8 +648,7 @@ class CampbellResults:
         self.whirl_values = whirl_values
 
     def _plot_matplotlib(self, harmonics=[1], fig=None, ax=None, **kwargs):
-        """
-        Method to create Campbell Diagram figure using Matplotlib library.
+        """Create Campbell Diagram figure using Matplotlib library.
 
         Parameters
         ----------
@@ -746,8 +775,7 @@ class CampbellResults:
         return fig, ax
 
     def _plot_bokeh(self, harmonics=[1], **kwargs):
-        """
-        Method to create Campbell Diagram figure using Bokeh library.
+        """Create Campbell Diagram figure using Bokeh library.
 
         Parameters
         ----------
@@ -922,7 +950,11 @@ class CampbellResults:
         return camp
 
     def plot(self, *args, plot_type="bokeh", **kwargs):
-        """Plot campbell results.
+        """Plot Campbell Diagram.
+
+        There are two options for plotting type:
+            - "bokeh"
+            - "matplotlib"
 
         Parameters
         ----------
@@ -990,7 +1022,8 @@ class FrequencyResponseResults:
         self.phase = phase
 
     def plot_magnitude_matplotlib(self, inp, out, ax=None, units="mic-pk-pk", **kwargs):
-        """Plot frequency response.
+        """Plot frequency response (magnitude) using matplotlib.
+
         This method plots the frequency response magnitude given an output and
         an input using Matplotlib.
 
@@ -1027,14 +1060,15 @@ class FrequencyResponseResults:
         ax.yaxis.set_major_locator(mpl.ticker.MaxNLocator(prune="lower"))
         ax.yaxis.set_major_locator(mpl.ticker.MaxNLocator(prune="upper"))
 
-        ax.set_ylabel("Mag H$(j\omega)$")
+        ax.set_ylabel("Mag H$(jω)$")
         ax.set_xlabel("Frequency (rad/s)")
         ax.ticklabel_format(style="sci", axis="y", scilimits=(0, 0))
 
         return ax
 
     def plot_magnitude_bokeh(self, inp, out, units="mic-pk-pk", **kwargs):
-        """Plot frequency response.
+        """Plot frequency response (magnitude) using bokeh.
+
         This method plots the frequency response magnitude given an output and
         an input using Bokeh.
 
@@ -1062,7 +1096,7 @@ class FrequencyResponseResults:
         if units == "m":
             y_axis_label = "Amplitude (m)"
         elif units == "mic-pk-pk":
-            y_axis_label = "Amplitude ($\mu$ pk-pk)"
+            y_axis_label = "Amplitude (μ pk-pk)"
         else:
             y_axis_label = "Amplitude (dB)"
 
@@ -1093,7 +1127,8 @@ class FrequencyResponseResults:
         return mag_plot
 
     def plot_phase_matplotlib(self, inp, out, ax=None, **kwargs):
-        """Plot frequency response.
+        """Plot phase response (phase) using matplotlib.
+
         This method plots the frequency response phase given an output and
         an input using Matplotlib.
 
@@ -1133,7 +1168,8 @@ class FrequencyResponseResults:
         return ax
 
     def plot_phase_bokeh(self, inp, out, **kwargs):
-        """Plot frequency response.
+        """Plot frequency response (phase) using bokeh..
+
         This method plots the frequency response phase given an output and
         an input using bokeh.
 
@@ -1183,8 +1219,9 @@ class FrequencyResponseResults:
 
     def _plot_matplotlib(self, inp, out, ax0=None, ax1=None, **kwargs):
         """Plot frequency response.
-        This method plots the frequency response given
-        an output and an input using Matplotib.
+
+        This method plots the frequency response given an output and an input
+        using Matplotib.
 
         Parameters
         ----------
@@ -1222,8 +1259,9 @@ class FrequencyResponseResults:
 
     def _plot_bokeh(self, inp, out, ax0=None, ax1=None, **kwargs):
         """Plot frequency response.
-        This method plots the frequency response given
-        an output and an input using Bokeh.
+
+        This method plots the frequency response given an output and an input
+        using Bokeh.
 
         Parameters
         ----------
@@ -1258,8 +1296,11 @@ class FrequencyResponseResults:
 
     def plot(self, inp, out, *args, plot_type="bokeh", **kwargs):
         """Plot frequency response.
-        This method plots the frequency response given
-        an output and an input.
+
+        This method plots the frequency response given an output and an input.
+        There are two options for plotting type:
+            - "bokeh"
+            - "matplotlib"
 
         Parameters
         ----------
@@ -1297,8 +1338,8 @@ class FrequencyResponseResults:
 
     def plot_freq_response_grid(self, outs, inps, ax=None, **kwargs):
         """Plot frequency response.
-        This method plots the frequency response given
-        an output and an input.
+
+        This method plots the frequency response given an output and an input.
 
         Parameters
         ----------
@@ -1338,8 +1379,7 @@ class FrequencyResponseResults:
 
 
 class ForcedResponseResults:
-    """Class used to store results and provide plots for Unbalance and Forced
-    Response analysis.
+    """Store results and provide plots for Unbalance and Forced Response analysis.
 
     Two options for plooting are available: Matplotlib and Bokeh. The user
     chooses between them using the attribute plot_type. The default is bokeh
@@ -1375,9 +1415,7 @@ class ForcedResponseResults:
         self.phase = phase
 
     def plot_magnitude_matplotlib(self, dof, ax=None, units="m", **kwargs):
-        """Plot frequency response.
-        This method plots the frequency response magnitude given an output and
-        an input using Matplotlib.
+        """Plot forced response (magnitude) using matplotlib.
 
         Parameters
         ----------
@@ -1408,7 +1446,7 @@ class ForcedResponseResults:
             ax.set_ylabel("Amplitude $(m)$")
         elif units == "mic-pk-pk":
             mag = 2 * mag * 1e6
-            ax.set_ylabel("Amplitude $(\mu pk-pk)$")
+            ax.set_ylabel("Amplitude (μ pk-pk)")
 
         ax.plot(frequency_range, mag[dof], **kwargs)
 
@@ -1422,9 +1460,7 @@ class ForcedResponseResults:
         return ax
 
     def plot_magnitude_bokeh(self, dof, units="m", **kwargs):
-        """Plot frequency response.
-        This method plots the frequency response magnitude given an output and
-        an input using Bokeh.
+        """Plot forced response (magnitude) using bokeh.
 
         Parameters
         ----------
@@ -1479,9 +1515,7 @@ class ForcedResponseResults:
         return mag_plot
 
     def plot_phase_matplotlib(self, dof, ax=None, **kwargs):
-        """Plot frequency response.
-        This method plots the frequency response phase given an output and
-        an input using Matplotlib.
+        """Plot forced response (phase) using matplotlib.
 
         Parameters
         ----------
@@ -1518,9 +1552,7 @@ class ForcedResponseResults:
         return ax
 
     def plot_phase_bokeh(self, dof, **kwargs):
-        """Plot frequency response.
-        This method plots the frequency response phase given an output and
-        an input using Bokeh.
+        """Plot forced response (phase) using bokeh.
 
         Parameters
         ----------
@@ -1564,9 +1596,10 @@ class ForcedResponseResults:
         return phase_plot
 
     def _plot_matplotlib(self, dof, ax0=None, ax1=None, **kwargs):
-        """Plot frequency response.
-        This method plots the frequency response magnitude and phase given
-        an output and an input using Matplotlib.
+        """Plot forced response using matplotlib.
+
+        This method plots the forced response magnitude and phase using
+        Matplotlib.
 
         Parameters
         ----------
@@ -1577,7 +1610,7 @@ class ForcedResponseResults:
             If None creates a new.
         ax1 : matplotlib.axes, optional
             Matplotlib axes where the phase will be plotted.
-            If None creates a new.            
+            If None creates a new.
         kwargs : optional
             Additional key word arguments can be passed to change
             the plot (e.g. linestyle='--')
@@ -1604,9 +1637,10 @@ class ForcedResponseResults:
         return ax0, ax1
 
     def _plot_bokeh(self, dof, **kwargs):
-        """Plot frequency response.
-        This method plots the frequency response magnitude and phase given
-        an output and an input using Bokeh.
+        """Plot forced response using bokeh.
+
+        This method plots the forced response magnitude and phase using
+        bokeh.
 
         Parameters
         ----------
@@ -1632,8 +1666,12 @@ class ForcedResponseResults:
         return grid_plots
 
     def plot(self, dof, plot_type="bokeh", **kwargs):
-        """Plot frequency response.
-        This method plots the frequency response given an output and an input.
+        """Plot forced response.
+
+        This method plots the forced response magnitude and phase.
+        There are two options for plotting type:
+            - "bokeh"
+            - "matplotlib"
 
         Parameters
         ----------
@@ -1729,9 +1767,6 @@ class StaticResults:
         This method plots:
             deformed shaft
 
-        Parameters
-        ----------
-
         Returns
         -------
         fig : bokeh figure
@@ -1807,9 +1842,6 @@ class StaticResults:
 
         This method plots:
             free-body diagram.
-
-        Parameters
-        ----------
 
         Returns
         -------
@@ -1962,9 +1994,6 @@ class StaticResults:
         This method plots:
             shearing force diagram.
 
-        Parameters
-        ----------
-
         Returns
         -------
         fig : bokeh figure
@@ -2034,9 +2063,6 @@ class StaticResults:
 
         This method plots:
             bending moment diagram.
-
-        Parameters
-        ----------
 
         Returns
         -------
@@ -2146,8 +2172,8 @@ class SummaryResults:
 
     Returns
     -------
-    table : bokeh WidgetBox
-        Bokeh WidgetBox with the summary table plot
+    table : bokeh Column
+        Bokeh Column with the summary table plot
     """
 
     def __init__(
@@ -2168,13 +2194,10 @@ class SummaryResults:
         This method plots:
             Table with summary of rotor parameters and attributes
 
-        Parameters
-        ----------
-
         Returns
         -------
-        tabs : bokeh WidgetBox
-            Bokeh WidgetBox with the summary table plot
+        tabs : bokeh Column
+            Bokeh Column with the summary table plot
         """
         materials = [mat.name for mat in self.df_shaft["material"]]
 
@@ -2351,16 +2374,16 @@ class SummaryResults:
             source=bearing_source, columns=bearing_columns, width=1600
         )
 
-        rotor_table = widgetbox(rotor_data_table)
+        rotor_table = Column(rotor_data_table)
         tab1 = Panel(child=rotor_table, title="Rotor Summary")
 
-        shaft_table = widgetbox(shaft_data_table)
+        shaft_table = Column(shaft_data_table)
         tab2 = Panel(child=shaft_table, title="Shaft Summary")
 
-        disk_table = widgetbox(disk_data_table)
+        disk_table = Column(disk_data_table)
         tab3 = Panel(child=disk_table, title="Disk Summary")
 
-        bearing_table = widgetbox(bearing_data_table)
+        bearing_table = Column(bearing_data_table)
         tab4 = Panel(child=bearing_table, title="Bearing Summary")
 
         tabs = Tabs(tabs=[tab1, tab2, tab3, tab4])
@@ -2396,12 +2419,11 @@ class ConvergenceResults:
         self.error_arr = error_arr
 
     def plot(self):
-        """This method plots:
+        """Plot convergence results.
+
+        This method plots:
             Natural Frequency vs Number of Elements
             Relative Error vs Number of Elements
-
-        Parameters
-        ----------
 
         Returns
         -------
@@ -2461,8 +2483,7 @@ class ConvergenceResults:
 
 
 class TimeResponseResults:
-    """Class used to store results and provide plots for Time Response
-    Analysis.
+    """Class used to store results and provide plots for Time Response Analysis.
 
     This class takes the results from time response analysis and creates a
     plot given a force and a time.
@@ -2495,7 +2516,7 @@ class TimeResponseResults:
         self.dof = dof
 
     def _plot_matplotlib(self, ax=None):
-        """Plot time response.
+        """Plot time response using matplotlib.
 
         This function will take a rotor object and plot its time response
         using Matplotlib
@@ -2536,13 +2557,10 @@ class TimeResponseResults:
         )
 
     def _plot_bokeh(self):
-        """Plot time response.
+        """Plot time response using bokeh.
 
         This function will take a rotor object and plot its time response
         using Bokeh
-
-        Parameters
-        ----------
 
         Returns
         -------
@@ -2587,7 +2605,10 @@ class TimeResponseResults:
     def plot(self, plot_type="bokeh", **kwargs):
         """Plot time response.
 
-        This function will take a rotor object and plot its time response
+        This function will take a rotor object and plot its time response.
+        There are two options for plotting type:
+            -"bokeh"
+            -"matplotlib"
 
         Parameters
         ----------
@@ -2616,8 +2637,7 @@ class TimeResponseResults:
 
 
 class OrbitResponseResults:
-    """Class used to store results and provide plots for Orbit Response
-    Analysis.
+    """Class used to store results and provide plots for Orbit Response Analysis.
 
     This class takes the results from orbit response analysis and creates a
     plot (2D or 3D) given a force array and a time array.
@@ -2653,10 +2673,10 @@ class OrbitResponseResults:
         self.nodes_list = nodes_list
 
     def _plot3d(self, fig=None, ax=None):
-        """Plot orbit response.
+        """Plot orbit response (3D).
 
         This function will take a rotor object and plot its orbit response
-        using Matplotlib
+        using Matplotlib.
 
         Parameters
         ----------
@@ -2673,6 +2693,8 @@ class OrbitResponseResults:
             Matplotlib axes with orbit response plot.
         """
         if ax is None:
+            from mpl_toolkits.mplot3d import Axes3D
+
             fig = plt.figure()
             ax = fig.gca(projection="3d")
 
@@ -2700,7 +2722,7 @@ class OrbitResponseResults:
         return ax
 
     def _plot2d(self, node):
-        """Plot orbit response.
+        """Plot orbit response (2D).
 
         This function will take a rotor object and plot its orbit response
         using Bokeh
@@ -2741,7 +2763,10 @@ class OrbitResponseResults:
     def plot(self, plot_type="3d", node=None, **kwargs):
         """Plot orbit response.
 
-        This function will take a rotor object and plot its orbit response
+        This function will take a rotor object and plot its orbit response.
+        There are two options for plotting type:
+            - 2d: choose a node and a bokeh plot is created.
+            - 3d: a matplotlib displays orbits for all the rotor nodes.
 
         Parameters
         ----------
