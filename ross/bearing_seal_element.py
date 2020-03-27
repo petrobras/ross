@@ -1231,7 +1231,7 @@ class RollerBearingElement(BearingElement):
 
         self.color = "#77ACA2"
 
-        
+
 class BearingElement6DoF(BearingElement):
     """A generalistic 6 DoF bearing element. This class will create a bearing 
     element based on the user supplied stiffness and damping coefficients. These
@@ -1282,15 +1282,13 @@ class BearingElement6DoF(BearingElement):
     >>> bearing = BearingElement6DoF(n=n, kxx=kxx, kxy=kxy, kyx=kyx, kyy=kyy, 
     ...                              cxx=cxx, cxy=cxy, cyx=cyx, cyy=cyy, tag=tag)
     >>> bearing.K(0)
-    array([[1.0e7, 0.000, 0.000, 0.000, 0.000, 0.000],
-           [0.000, 1.5e7, 0.000, 0.000, 0.000, 0.000],
-           [0.000, 0.000, 5.0e5, 0.000, 0.000, 0.000],
-           [0.000, 0.000, 0.000, 0.000, 0.000, 0.000],
-           [0.000, 0.000, 0.000, 0.000, 0.000, 0.000],
-           [0.000, 0.000, 0.000, 0.000, 0.000, 0.000]]])
+    array([[1.0e7, 0.000, 0.000],
+           [0.000, 1.5e7, 0.000],
+           [0.000, 0.000, 5.0e5]])
     """
 
-    def __init__(self,
+    def __init__(
+        self,
         n,
         kxx,
         kyy,
@@ -1302,27 +1300,25 @@ class BearingElement6DoF(BearingElement):
         cxy=0.0,
         cyx=0.0,
         czz=0.0,
-        frequency=None,
         tag=None,
-        n_link=None,
         scale_factor=1,
-        color="#355d7a"
+        color="#355d7a",
     ):
         super().__init__(
-        n=n,
-        kxx=kxx,
-        cxx=cxx,
-        kyy=kyy,
-        kxy=kxy,
-        kyx=kyx,
-        cyy=cyy,
-        cxy=cxy,
-        cyx=cyx,
-        frequency=frequency,
-        tag=tag,
-        n_link=n_link,
-        scale_factor=scale_factor,
-        color=color
+            n=n,
+            kxx=kxx,
+            cxx=cxx,
+            kyy=kyy,
+            kxy=kxy,
+            kyx=kyx,
+            cyy=cyy,
+            cxy=cxy,
+            cyx=cyx,
+            frequency=None,
+            tag=tag,
+            n_link=None,
+            scale_factor=scale_factor,
+            color=color,
         )
 
         new_args = ["kzz", "czz"]
@@ -1331,7 +1327,9 @@ class BearingElement6DoF(BearingElement):
         coefficients = {}
 
         if kzz is None:
-            args_dict["kzz"] = kxx * 0.6 # NSK manufacturer sugestion for deep groove ball bearings
+            args_dict["kzz"] = (
+                kxx * 0.6
+            )  # NSK manufacturer sugestion for deep groove ball bearings
         if czz is None:
             args_dict["czz"] = cxx
 
@@ -1341,9 +1339,7 @@ class BearingElement6DoF(BearingElement):
                     coefficient=args_dict[arg], w=None
                 )
             else:
-                coefficients[arg] = _Damping_Coefficient(
-                    args_dict[arg], None
-                )
+                coefficients[arg] = _Damping_Coefficient(args_dict[arg], None)
 
         coefficients_len = [len(v.coefficient) for v in coefficients.values()]
 
@@ -1382,7 +1378,6 @@ class BearingElement6DoF(BearingElement):
             f" cyy={self.cyy}, czz={self.czz},\n"
             f" frequency={self.frequency}, tag={self.tag!r})"
         )
-
 
     def __eq__(self, other):
         """This function allows bearing elements to be compared.
@@ -1444,7 +1439,7 @@ class BearingElement6DoF(BearingElement):
         >>> bearing = bearing_example()
         >>> bearing.save(Path(os.getcwd()))
         """
-        data = self.get_data(Path(file_name)/'BearingElement6DoF.toml')
+        data = self.get_data(Path(file_name) / "BearingElement6DoF.toml")
 
         if type(self.frequency) == np.ndarray:
             try:
@@ -1468,7 +1463,7 @@ class BearingElement6DoF(BearingElement):
             "frequency": frequency,
             "tag": self.tag,
         }
-        self.dump_data(data, Path(file_name)/'BearingElement6DoF.toml')
+        self.dump_data(data, Path(file_name) / "BearingElement6DoF.toml")
 
     @staticmethod
     def load(file_name=""):
@@ -1494,57 +1489,35 @@ class BearingElement6DoF(BearingElement):
         """
         bearing_elements = []
         bearing_elements_dict = BearingElement.get_data(
-            file_name=Path(file_name)/"BearingElement6DoF.toml"
+            file_name=Path(file_name) / "BearingElement6DoF.toml"
         )
         for element in bearing_elements_dict["BearingElement6DoF"]:
-            bearing = BearingElement6DoF(**bearing_elements_dict["BearingElement6DoF"][element])
+            bearing = BearingElement6DoF(
+                **bearing_elements_dict["BearingElement6DoF"][element]
+            )
             data = bearing_elements_dict["BearingElement6DoF"]
-            bearing.kxx.coefficient = data[element][
-                "kxx"
-            ]
+            bearing.kxx.coefficient = data[element]["kxx"]
 
-            bearing.kxy.coefficient = data[element][
-                "kxy"
-            ]
+            bearing.kxy.coefficient = data[element]["kxy"]
 
-            bearing.kyx.coefficient = data[element][
-                "kyx"
-            ]
+            bearing.kyx.coefficient = data[element]["kyx"]
 
-            bearing.kyy.coefficient = data[element][
-                "kyy"
-            ]
+            bearing.kyy.coefficient = data[element]["kyy"]
 
-            bearing.kzz.coefficient = data[element][
-                "kzz"
-            ]
+            bearing.kzz.coefficient = data[element]["kzz"]
 
-            bearing.cxx.coefficient = data[element][
-                "cxx"
-            ]
+            bearing.cxx.coefficient = data[element]["cxx"]
 
-            bearing.cxy.coefficient = data[element][
-                "cxy"
-            ]
+            bearing.cxy.coefficient = data[element]["cxy"]
 
-            bearing.cyx.coefficient = data[element][
-                "cyx"
-            ]
+            bearing.cyx.coefficient = data[element]["cyx"]
 
-            bearing.cyy.coefficient = data[element][
-                "cyy"
-            ]
+            bearing.cyy.coefficient = data[element]["cyy"]
 
-            bearing.czz.coefficient = data[element][
-                "czz"
-            ]
+            bearing.czz.coefficient = data[element]["czz"]
 
             bearing_elements.append(bearing)
         return bearing_elements
-
-
-
-
 
     def dof_mapping(self):
         return dict(x_0=0, y_0=1, z_0=2)
@@ -1585,12 +1558,8 @@ class BearingElement6DoF(BearingElement):
         kyx = self.kyx.interpolated(frequency)
         kzz = self.kzz.interpolated(frequency)
 
-        K = np.array([
-            [ kxx, kxy,   0],
-            [ kyx, kyy,   0],
-            [   0,   0, kzz]
-        ])
-        
+        K = np.array([[kxx, kxy, 0], [kyx, kyy, 0], [0, 0, kzz]])
+
         return K
 
     def C(self, frequency):
@@ -1615,218 +1584,11 @@ class BearingElement6DoF(BearingElement):
         cyx = self.cyx.interpolated(frequency)
         czz = self.czz.interpolated(frequency)
 
-        C = np.array([
-            [ cxx, cxy,   0],
-            [ cyx, cyy,   0],
-            [   0,   0, czz]
-        ])
+        C = np.array([[cxx, cxy, 0], [cyx, cyy, 0], [0, 0, czz]])
 
         return C
 
-    def patch(self, position, mean, ax, **kwargs):
-        """Bearing element patch.
-        Patch that will be used to draw the bearing element.
 
-        Parameters
-        ----------
-        position : tuple
-            Position (z, y) in which the patch will be drawn.
-        mean : float
-            Mean value of shaft element outer diameters
-        ax : matplotlib axes, optional
-            Axes in which the plot will be drawn.
-
-        Returns
-        -------
-        """
-        default_values = dict(lw=1.0, alpha=1.0, c="k")
-        for k, v in default_values.items():
-            kwargs.setdefault(k, v)
-
-        # geometric factors
-        zpos, ypos = position
-        coils = 6  # number of points to generate spring
-        n = 5  # number of ground lines
-        step = mean / (coils + 1)  # spring step
-
-        zs0 = zpos - (mean / 2.0)
-        zs1 = zpos + (mean / 2.0)
-        ys0 = ypos + 0.5 * mean
-
-        # plot bottom base
-        x_bot = [zpos, zpos, zs0, zs1]
-        yl_bot = [ypos, ys0, ys0, ys0]
-        yu_bot = [-y for y in yl_bot]
-        ax.add_line(mlines.Line2D(x_bot, yl_bot, **kwargs))
-        ax.add_line(mlines.Line2D(x_bot, yu_bot, **kwargs))
-
-        # plot top base
-        x_top = [zpos, zpos, zs0, zs1]
-        yl_top = [
-            ypos + 2 * mean,
-            ypos + 1.5 * mean,
-            ypos + 1.5 * mean,
-            ypos + 1.5 * mean,
-        ]
-        yu_top = [-y for y in yl_top]
-        ax.add_line(mlines.Line2D(x_top, yl_top, **kwargs))
-        ax.add_line(mlines.Line2D(x_top, yu_top, **kwargs))
-
-        # plot ground
-        if self.n_link is None:
-            zl_g = [zs0 - step, zs1 + step]
-            yl_g = [yl_top[0], yl_top[0]]
-            yu_g = [-y for y in yl_g]
-            ax.add_line(mlines.Line2D(zl_g, yl_g, **kwargs))
-            ax.add_line(mlines.Line2D(zl_g, yu_g, **kwargs))
-
-            step2 = (zl_g[1] - zl_g[0]) / n
-            for i in range(n + 1):
-                zl_g2 = [(zs0 - step) + step2 * (i), (zs0 - step) + step2 * (i + 1)]
-                yl_g2 = [yl_g[0], 1.1 * yl_g[0]]
-                yu_g2 = [-y for y in yl_g2]
-                ax.add_line(mlines.Line2D(zl_g2, yl_g2, **kwargs))
-                ax.add_line(mlines.Line2D(zl_g2, yu_g2, **kwargs))
-
-        # plot spring
-        z_spring = np.array([zs0, zs0, zs0, zs0])
-        yl_spring = np.array([ys0, ys0 + step, ys0 + mean - step, ys0 + mean])
-
-        for i in range(coils):
-            z_spring = np.insert(z_spring, i + 2, zs0 - (-1) ** i * step)
-            yl_spring = np.insert(yl_spring, i + 2, ys0 + (i + 1) * step)
-        yu_spring = [-y for y in yl_spring]
-
-        ax.add_line(mlines.Line2D(z_spring, yl_spring, **kwargs))
-        ax.add_line(mlines.Line2D(z_spring, yu_spring, **kwargs))
-
-        # plot damper - base
-        z_damper1 = [zs1, zs1]
-        yl_damper1 = [ys0, ys0 + 2 * step]
-        yu_damper1 = [-y for y in yl_damper1]
-
-        ax.add_line(mlines.Line2D(z_damper1, yl_damper1, **kwargs))
-        ax.add_line(mlines.Line2D(z_damper1, yu_damper1, **kwargs))
-
-        # plot damper - center
-        z_damper2 = [zs1 - 2 * step, zs1 - 2 * step, zs1 + 2 * step, zs1 + 2 * step]
-        yl_damper2 = [ys0 + 5 * step, ys0 + 2 * step, ys0 + 2 * step, ys0 + 5 * step]
-        yu_damper2 = [-y for y in yl_damper2]
-
-        ax.add_line(mlines.Line2D(z_damper2, yl_damper2, **kwargs))
-        ax.add_line(mlines.Line2D(z_damper2, yu_damper2, **kwargs))
-
-        # plot damper - top
-        z_damper3 = [z_damper2[0], z_damper2[2], zs1, zs1]
-        yl_damper3 = [ys0 + 4 * step, ys0 + 4 * step, ys0 + 4 * step, ypos + 1.5 * mean]
-        yu_damper3 = [-y for y in yl_damper3]
-
-        ax.add_line(mlines.Line2D(z_damper3, yl_damper3, **kwargs))
-        ax.add_line(mlines.Line2D(z_damper3, yu_damper3, **kwargs))
-
-    def bokeh_patch(self, position, mean, bk_ax, **kwargs):
-        """Bearing element patch.
-        Patch that will be used to draw the bearing element.
-
-        Parameters
-        ----------
-        position : tuple
-            Position (z, y) in which the patch will be drawn.
-        mean : float
-            Mean value of shaft element outer diameters
-        bk_ax : bokeh plotting axes, optional
-            Axes in which the plot will be drawn.
-
-        Returns
-        -------
-        """
-        default_values = dict(line_width=3, line_alpha=1, color=bokeh_colors[1])
-        for k, v in default_values.items():
-            kwargs.setdefault(k, v)
-
-        mean = self.scale_factor
-        # geometric factors
-        zpos, ypos = position
-        coils = 6  # number of points to generate spring
-        n = 5  # number of ground lines
-        step = mean / (coils + 1)  # spring step
-
-        zs0 = zpos - (mean / 2.0)
-        zs1 = zpos + (mean / 2.0)
-        ys0 = ypos + 0.5 * mean
-
-        # plot bottom base
-        x_bot = [zpos, zpos, zs0, zs1]
-        yl_bot = [ypos, ys0, ys0, ys0]
-        yu_bot = [-y for y in yl_bot]
-        bk_ax.line(x=x_bot, y=yl_bot, **kwargs)
-        bk_ax.line(x=x_bot, y=yu_bot, **kwargs)
-
-        # plot top base
-        x_top = [zpos, zpos, zs0, zs1]
-        yl_top = [
-            ypos + 2 * mean,
-            ypos + 1.5 * mean,
-            ypos + 1.5 * mean,
-            ypos + 1.5 * mean,
-        ]
-        yu_top = [-y for y in yl_top]
-        bk_ax.line(x=x_top, y=yl_top, legend_label="Bearing", **kwargs)
-        bk_ax.line(x=x_top, y=yu_top, legend_label="Bearing", **kwargs)
-
-        # plot ground
-        if self.n_link is None:
-            zl_g = [zs0 - step, zs1 + step]
-            yl_g = [yl_top[0], yl_top[0]]
-            yu_g = [-y for y in yl_g]
-            bk_ax.line(x=zl_g, y=yl_g, **kwargs)
-            bk_ax.line(x=zl_g, y=yu_g, **kwargs)
-
-            step2 = (zl_g[1] - zl_g[0]) / n
-            for i in range(n + 1):
-                zl_g2 = [(zs0 - step) + step2 * (i), (zs0 - step) + step2 * (i + 1)]
-                yl_g2 = [yl_g[0], 1.1 * yl_g[0]]
-                yu_g2 = [-y for y in yl_g2]
-                bk_ax.line(x=zl_g2, y=yl_g2, **kwargs)
-                bk_ax.line(x=zl_g2, y=yu_g2, **kwargs)
-
-        # plot spring
-        z_spring = np.array([zs0, zs0, zs0, zs0])
-        yl_spring = np.array([ys0, ys0 + step, ys0 + mean - step, ys0 + mean])
-
-        for i in range(coils):
-            z_spring = np.insert(z_spring, i + 2, zs0 - (-1) ** i * step)
-            yl_spring = np.insert(yl_spring, i + 2, ys0 + (i + 1) * step)
-        yu_spring = [-y for y in yl_spring]
-
-        bk_ax.line(x=z_spring, y=yl_spring, **kwargs)
-        bk_ax.line(x=z_spring, y=yu_spring, **kwargs)
-
-        # plot damper - base
-        z_damper1 = [zs1, zs1]
-        yl_damper1 = [ys0, ys0 + 2 * step]
-        yu_damper1 = [-y for y in yl_damper1]
-
-        bk_ax.line(x=z_damper1, y=yl_damper1, **kwargs)
-        bk_ax.line(x=z_damper1, y=yu_damper1, **kwargs)
-
-        # plot damper - center
-        z_damper2 = [zs1 - 2 * step, zs1 - 2 * step, zs1 + 2 * step, zs1 + 2 * step]
-        yl_damper2 = [ys0 + 5 * step, ys0 + 2 * step, ys0 + 2 * step, ys0 + 5 * step]
-        yu_damper2 = [-y for y in yl_damper2]
-
-        bk_ax.line(x=z_damper2, y=yl_damper2, **kwargs)
-        bk_ax.line(x=z_damper2, y=yu_damper2, **kwargs)
-
-        # plot damper - top
-        z_damper3 = [z_damper2[0], z_damper2[2], zs1, zs1]
-        yl_damper3 = [ys0 + 4 * step, ys0 + 4 * step, ys0 + 4 * step, ypos + 1.5 * mean]
-        yu_damper3 = [-y for y in yl_damper3]
-
-        bk_ax.line(x=z_damper3, y=yl_damper3, **kwargs)
-        bk_ax.line(x=z_damper3, y=yu_damper3, **kwargs)
-
-        
 def bearing_example():
     """This function returns an instance of a simple bearing.
     The purpose is to make available a simple model
@@ -1880,6 +1642,7 @@ def seal_example():
     seal = SealElement(n=0, kxx=kxx, kyy=kyy, cxx=cxx, cyy=cyy, frequency=w)
     return seal
 
+
 def bearing_6dof_example():
     """This function returns an instance of a simple bearing.
     The purpose is to make available a simple model
@@ -1904,9 +1667,7 @@ def bearing_6dof_example():
     cxx = 2e2
     cyy = 1.5e2
     czz = 0.5e2
-    w = np.linspace(0, 200, 11)
-    bearing = BearingElement6DoF(n=0, kxx=kxx, kyy=kyy, cxx=cxx, cyy=cyy, kzz=kzz, czz=czz, frequency=w)
+    bearing = BearingElement6DoF(
+        n=0, kxx=kxx, kyy=kyy, cxx=cxx, cyy=cyy, kzz=kzz, czz=czz
+    )
     return bearing
-
-if __name__ == "__main__":
-    b = bearing_example()

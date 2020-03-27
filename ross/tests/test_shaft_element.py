@@ -339,10 +339,6 @@ def s6_eb():
     )
 
 
-def test_s6_index(s6_eb):
-    assert 1 == 1
-
-
 def test_s6_parameters_eb(s6_eb):
     assert s6_eb.L == 0.1
     assert s6_eb.idl == 25.4 * 1 / 2
