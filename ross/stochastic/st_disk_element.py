@@ -154,7 +154,7 @@ class ST_DiskElement:
         ...                                         o_d=o_d,
         ...                                         is_random=["i_d", "o_d"],
         ...                                         )
-        >>> len(elms.elements)
+        >>> len(list(elms.__iter__()))
         5
         """
         attribute_dict = dict(
