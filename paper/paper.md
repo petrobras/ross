@@ -44,11 +44,11 @@ bibliography: paper.bib
 
 # Summary
 
-There are several critical rotating equipment crucial to the industry, such as compressors, 
+There are several critical rotating equipment crucial to the industry, such as compressors,
 pumps and turbines.
 Computational mechanical models aim to simulate the behavior of such mechanical
-systems [@friswell2010dynamics; @vance2010machinery; @childs1993turbomachinery; @ishida2012linear; @gasch2006rotordynamik]. 
-These models are used to support research and decision making. To this purpose, we present ROSS, 
+systems [@childs1993turbomachinery; @gasch2006rotordynamik; @friswell2010dynamics; @vance2010machinery; @ishida2012linear].
+These models are used to support research and decision making. To this purpose, we present ROSS,
 an open source library written in Python for rotordynamic analysis.
 
 Concerning rotordynamics softwares, there are some commercial finite element softwares that have a rotordynamic 
