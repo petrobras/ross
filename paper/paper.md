@@ -58,11 +58,13 @@ To use these softwares one needs to buy licenses, and they are not intended to b
 manner.
 
 ROSS allows the construction of rotor models and their numerical simulation. Shaft elements, as a default, are
-modeled with the Timoshenko beam theory [@Hutchinson2001], which considers shear and rotary inertia effects, and discretized by means of the Finite Element Method [@friswell2010dynamics]. Disks are assumed to be rigid bodies, thus their strain energy is not taken into account. And bearings/seals are included as linear stiffness/damping coefficients.
+modeled with the Timoshenko beam theory [@Hutchinson2001], which considers shear and rotary inertia effects, and
+discretized by means of the Finite Element Method [@friswell2010dynamics]. Disks are assumed to be rigid bodies,
+thus their strain energy is not taken into account. And bearings/seals are included as linear stiffness/damping coefficients.
 
-After defining the element matrices and assembling the global matrices of the system, ROSS draws the rotor geometry, 
-runs simulations, and obtains results in the form of graphics. It performs several analyses, such as static analysis, 
-Campbell Diagram, mode shapes, frequency response, and time response.
+After defining the element matrices and assembling the global matrices of the system, ROSS draws the rotor geometry,
+runs simulations, and obtains results in the form of graphics. It performs several analyses, such as static analysis,
+Campbell Diagram [@Ritto2011], mode shapes, frequency response, and time response.
 
 The general form of the equation for the system, after matrix assembly is
 
