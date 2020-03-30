@@ -4,7 +4,7 @@ from copy import copy, deepcopy
 import bokeh.palettes as bp
 import numpy as np
 import pandas as pd
-from bokeh.layouts import gridplot, Column
+from bokeh.layouts import Column, gridplot
 from bokeh.models import (ColumnDataSource, DataRange1d, HoverTool, Label,
                           LinearAxis, Range1d, Span)
 from bokeh.models.widgets import (DataTable, NumberFormatter, Panel,
