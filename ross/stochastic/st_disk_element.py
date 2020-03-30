@@ -2,6 +2,7 @@ import bokeh.palettes as bp
 import numpy as np
 
 from ross.disk_element import DiskElement
+from ross.stochastic.st_materials import ST_Material
 
 bokeh_colors = bp.RdGy[11]
 
@@ -157,6 +158,9 @@ class ST_DiskElement:
         >>> len(list(elms.__iter__()))
         5
         """
+        if isinstance(material, ST_Material):
+            material = list(material.__iter__())
+
         attribute_dict = dict(
             n=n, material=material, width=width, i_d=i_d, o_d=o_d, tag=tag,
         )
