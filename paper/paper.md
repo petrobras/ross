@@ -52,8 +52,8 @@ These models are used to support research and decision making. To this purpose, 
 an open source library written in Python for rotordynamic analysis.
 
 Concerning rotordynamics softwares, there are some commercial finite element softwares that have a rotordynamic
-module [@comsol; @ansys], some softwares based on a commercial third platform (MATLAB) [@madyn; @dynamicsrotating], and others
-that have their own platform [@rotorinsa; @trcsoftware].
+module [@comsol; @ansys], some softwares based on a proprietary commercial software (MATLAB) [@madyn; @dynamicsrotating],
+and others developed as standalone softwares [@rotorinsa; @trcsoftware].
 To use these softwares one needs to buy licenses, and they are not intended to be developed in a collaborative public
 manner.
 
