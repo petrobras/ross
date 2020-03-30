@@ -1,6 +1,7 @@
 import numpy as np
 
 from ross.shaft_element import ShaftElement
+from ross.stochastic.st_materials import ST_Material
 
 __all__ = ["ST_ShaftElement"]
 
@@ -62,12 +63,14 @@ class ST_ShaftElement:
     -------
     >>> import numpy as np
     >>> import ross.stochastic as srs
-    >>> from ross.materials import steel
+    >>> size = 5
+    >>> E = np.random.uniform(208e9, 211e9, size)
+    >>> st_steel = srs.ST_Material(name="Steel", rho=7810, E=E, G_s=81.2e9)
     >>> elms = srs.ST_ShaftElement(L=1,
     ...                            idl=0,
-    ...                            odl=np.random.uniform(0.1, 0.2, 5),
-    ...                            material=steel,
-    ...                            is_random=["odl"],
+    ...                            odl=np.random.uniform(0.1, 0.2, size),
+    ...                            material=st_steel,
+    ...                            is_random=["odl", "material"],
     ...                            )
     >>> len(list(elms.__iter__()))
     5
@@ -97,6 +100,8 @@ class ST_ShaftElement:
             odr = odl
             if "odl" in is_random and "odr" not in is_random:
                 is_random.append("odr")
+        if isinstance(material, ST_Material):
+            material = list(material.__iter__())
 
         attribute_dict = dict(
             L=L,
