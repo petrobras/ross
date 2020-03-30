@@ -1322,7 +1322,7 @@ class MagneticBearingElement(BearingElement):
 
     @classmethod
     def param_to_coef(
-            cls, n, g0, i0, ag, nw, alpha, kp_pid, kd_pid, k_amp, k_sense, tag=None
+        cls, n, g0, i0, ag, nw, alpha, kp_pid, kd_pid, k_amp, k_sense, tag=None
     ):
         """
         Convert electromagnetic parameters and PID gains to stiffness and damping coefficients.
@@ -1383,7 +1383,9 @@ class MagneticBearingElement(BearingElement):
             else:
                 if type(pL[i]) == list:
                     if len(pL[i]) > 2:
-                        raise ValueError("Parameters must be scalar or a list with 2 items")
+                        raise ValueError(
+                            "Parameters must be scalar or a list with 2 items"
+                        )
                     else:
                         pA[i] = np.array(pL[i])
                 else:
@@ -1392,8 +1394,28 @@ class MagneticBearingElement(BearingElement):
         # From: "Magnetic Bearings. Theory, Design, and Application to Rotating Machinery"
         # Authors: Gerhard Schweitzer and Eric H. Maslen
         # Page: 354
-        ks = -4.0 * pA[1] ** 2.0 * np.cos(pA[4]) * 4.0 * np.pi * 1e-7 * pA[3] ** 2.0 * pA[2] / (4.0 * pA[0] ** 3)
-        ki = 4.0 * pA[1] * np.cos(pA[4]) * 4.0 * np.pi * 1e-7 * pA[3] ** 2.0 * pA[2] / (4.0 * pA[0] ** 2)
+        ks = (
+            -4.0
+            * pA[1] ** 2.0
+            * np.cos(pA[4])
+            * 4.0
+            * np.pi
+            * 1e-7
+            * pA[3] ** 2.0
+            * pA[2]
+            / (4.0 * pA[0] ** 3)
+        )
+        ki = (
+            4.0
+            * pA[1]
+            * np.cos(pA[4])
+            * 4.0
+            * np.pi
+            * 1e-7
+            * pA[3] ** 2.0
+            * pA[2]
+            / (4.0 * pA[0] ** 2)
+        )
         k = ki * pA[7] * pA[8] * (pA[5] + np.divide(ks, ki * pA[7] * pA[8]))
         c = ki * pA[7] * pA[5] * pA[8]
         # k = ki * k_amp*k_sense*(kp_pid+ np.divide(ks, ki*k_amp*k_sense))
