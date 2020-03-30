@@ -112,8 +112,12 @@ compressor; the natural frequencies and the log dec vary with the machine rotati
 ![Campbell Diagram for the Centrifugal Compressor.](campbell.png)
 
 The Campbell Diagram is one of the results that can be obtained from the model, other types of analysis can be found
-in the [documentation](https://ross-rotordynamics.github.io/ross-website/). The software is extensible and new elements
-or new types of analysis can be easily included.
+in the [documentation](https://ross-rotordynamics.github.io/ross-website/).
+
+Developing the software using python and its scientific ecosystem enables the user to also make use this ecosystem,
+making it easier to run rotordynamics analysis. It is also easier to integrate the code into other programs, since we
+only use open source packages and do not depend on proprietary commercial platforms. Therefore, ROSS is extensible to new
+elements (e.g. beam, disk or bearing elements with 6 degrees of freedom) and types of analysis (e.g. torsional analysis).
 
 # Acknowledgements
 We acknowledge that ROSS development is supported by Petrobras, Universidade Federal do Rio de Janeiro (UFRJ) and 
