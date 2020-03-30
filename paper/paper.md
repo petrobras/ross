@@ -64,7 +64,7 @@ thus their strain energy is not taken into account. And bearings/seals are inclu
 
 After defining the element matrices and assembling the global matrices of the system, ROSS draws the rotor geometry,
 runs simulations, and obtains results in the form of graphics. It performs several analyses, such as static analysis,
-Campbell Diagram [@Ritto2011], mode shapes, frequency response, and time response.
+whirl speed map, mode shapes, frequency response, and time response.
 
 The general form of the equation for the system, after matrix assembly is
 
