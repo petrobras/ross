@@ -106,10 +106,10 @@ The shaft elements are in gray,
 the impellers represented as disks are in blue and the bearings are displayed as springs and dampers. This plot is generated with Bokeh,
 and we can use the hover tool to get additional information on each element.
 
-One analysis that can be carried out is the modal analysis. Figure 2 shows the whirl speed map generated for this
-compressor; the natural frequencies and the log dec vary with the machine rotation speed.
+One analysis that can be carried out is the modal analysis. Figure 2 shows the whirl speed map (Campbell Diagram) 
+generated for this compressor; the natural frequencies and the log dec vary with the machine rotation speed.
 
-![Campbell Diagram for the Centrifugal Compressor.](campbell.png)
+![Whirl speed map (Campbell Diagram) for the Centrifugal Compressor.](campbell.png)
 
 The whirl speed map is one of the results that can be obtained from the model, other types of analysis can be found
 in the [documentation](https://ross-rotordynamics.github.io/ross-website/).
