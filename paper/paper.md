@@ -63,7 +63,7 @@ ROSS allows the construction of rotor models and their numerical simulation. Sha
 modeled with the Timoshenko beam theory [@Hutchinson2001], which considers shear and rotary inertia effects, and discretized by means of
 the Finite Element Method [@friswell2010dynamics]. Disks are assumed to be rigid bodies, thus their strain energy is not taken
 into account. And bearings/seals are included as linear stiffness/damping coefficients. ROSS is extensible and new
-elements can be added to the code.
+elements, such as different types of bearings or seals, can be added to the code.
 
 After defining the element matrices and assembling the global matrices of the system, ROSS draws the rotor geometry,
 runs simulations, and obtains results in the form of graphics. It performs several analyses, such as static analysis,
@@ -90,7 +90,8 @@ where:
 - $\mathbf{f}$ is the generalized force vector.
 
 We have built the package using main Python packages such as NumPy [@van2011numpy] and SciPy [@jones2001scipy],
-for their mathematical, engineering and array building tools; and Bokeh [@bokeh2019] for creating interactive plots. Developing the software using Python and its scientific ecosystem enables the user to also make use of this ecosystem,
+for their mathematical, engineering and array building tools; and Bokeh [@bokeh2019] for creating interactive plots. 
+Developing the software using Python and its scientific ecosystem enables the user to also make use of this ecosystem,
 making it easier to run rotordynamics analysis. It is also easier to integrate the code into other programs, since we
 only use open source packages and do not depend on proprietary commercial platforms.
 
@@ -116,7 +117,7 @@ in the [documentation](https://ross-rotordynamics.github.io/ross-website/).
 ROSS has been used to evaluate the impact of damper seal coefficients uncertainties in a compressor rotordynamics [@timbo2019]. 
 Other projects are also using ROSS to test machine learning algorithms that can diagnose machine failure. Here we can create
 a model with some problem such as unbalance or misalignment and then use the output data from this model to test the learning
-algorithm and see how good it is in diagnosing the problem.
+algorithm and check the accuracy of this algorithm in diagnosing the problem.
 
 # Acknowledgements
 We acknowledge that ROSS development is supported by Petrobras, Universidade Federal do Rio de Janeiro (UFRJ) and 
