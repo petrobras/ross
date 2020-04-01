@@ -1,5 +1,5 @@
 # fmt: off
-from collections import Iterable
+from collections.abc import Iterable
 
 import numpy as np
 
@@ -203,6 +203,44 @@ class ST_Rotor(object):
         """
         return iter(self.use_random_var(Rotor, self.is_random, self.attribute_dict))
 
+    def get_args(self, idx, *args):
+        """Build new list of arguments from a random list of arguments.
+
+        This funtion takes a list with random values or with lists of random
+        values and a build an organized list to instantiate functions
+        correctly.
+
+        Parameters
+        ----------
+        idx : int
+            iterator index.
+        *args : list
+            list of mixed arguments.
+
+        Returns
+        -------
+        new_args : list
+            list of arranged arguments.
+
+        Example
+        -------
+        >>> import ross.stochastic as srs
+        >>> rotors = srs.st_rotor_example()
+        >>> old_list = [1, 2, [3, 4], 5]
+        >>> index = [0, 1]
+        >>> new_list = [rotors.get_args(idx, old_list) for idx in index]
+        >>> new_list
+        [[1, 2, 3, 5], [1, 2, 4, 5]]
+        """
+        new_args = []
+        for arg in list(args[0]):
+            if isinstance(arg, Iterable):
+                new_args.append(arg[idx])
+            else:
+                new_args.append(arg)
+
+        return new_args
+
     def _random_var(self, is_random, *args):
         """Generate a list of random parameters.
 
@@ -223,30 +261,27 @@ class ST_Rotor(object):
         -------
         new_args : generator
             Generator of random parameters.
-
         """
         args_dict = args[0]
         new_args = []
 
-        try:
-            for i in range(len(args_dict[is_random[0]][0])):
-                arg = []
-                for key, value in args_dict.items():
-                    if key in is_random:
-                        arg.append([value[j][i] for j in range(len(value))])
-                    else:
-                        arg.append(value)
-                new_args.append(arg)
-
-        except TypeError:
-            for i in range(len(args_dict[is_random[0]])):
-                arg = []
-                for key, value in args_dict.items():
-                    if key in is_random:
-                        arg.append(value[i])
-                    else:
-                        arg.append(value)
-                new_args.append(arg)
+        for v in list(map(args_dict.get, is_random))[0]:
+            if isinstance(v, Iterable):
+                var_size = len(v)
+                break
+            else:
+                var_size = len(list(map(args_dict.get, is_random))[0])
+                break
+        for i in range(var_size):
+            arg = []
+            for key, value in args_dict.items():
+                if key in is_random and key in self.is_random:
+                    arg.append(self.get_args(i, value))
+                elif key in is_random and key not in self.is_random:
+                    arg.append(value[i])
+                else:
+                    arg.append(value)
+            new_args.append(arg)
 
         return iter(new_args)
 
@@ -601,7 +636,8 @@ def st_rotor_example():
 
     Examples
     --------
-    >>> rotors = st_rotor_example()
+    >>> import ross.stochastic as srs
+    >>> rotors = srs.st_rotor_example()
     >>> len(list(rotors.__iter__()))
     10
     """
