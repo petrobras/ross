@@ -80,14 +80,16 @@ The general form of the equation for the system, after matrix assembly is
 \end{equation}
 
 where:
-- $\textbf{q}$ is the generalized coordinates of the system (displacements and rotations);
-- $\mathbf{M}$ is the mass matrix;
-- $\mathbf{K}$ is the stiffness matrix;
-- $\mathbf{C}$ is the damping matrix;
-- $\mathbf{G}$ is the gyroscopic matrix;
-- $\Omega$ is the excitation frequency;
-- $\omega$ is the rotor whirl speed;
-- $\mathbf{f}$ is the generalized force vector.
+\begin{itemize}
+  \item $\textbf{q}$ is the generalized coordinates of the system (displacements and rotations);
+  \item $\mathbf{M}$ is the mass matrix;
+  \item $\mathbf{K}$ is the stiffness matrix;
+  \item $\mathbf{C}$ is the damping matrix;
+  \item $\mathbf{G}$ is the gyroscopic matrix;
+  \item $\Omega$ is the excitation frequency;
+  \item $\omega$ is the rotor whirl speed;
+  \item $\mathbf{f}$ is the generalized force vector.
+\end{itemize}
 
 We have built the package using main Python packages such as NumPy [@van2011numpy] and SciPy [@jones2001scipy],
 for their mathematical, engineering and array building tools; and Bokeh [@bokeh2019] for creating interactive plots. 
