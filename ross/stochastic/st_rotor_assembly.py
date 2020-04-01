@@ -1,3 +1,7 @@
+"""STOCHASTIC ROSS Module.
+
+This module creates random rotor instances and run stochastic analysis.
+"""
 # fmt: off
 from collections.abc import Iterable
 
@@ -47,8 +51,10 @@ class ST_Rotor(object):
 
     Attributes
     ----------
-    rotor_list : list, array
-        List with random rotor objects
+    RV_size : int
+        Number of random rotor instances.
+    ndof : int
+        Number of degrees of freedom for random rotor instances.
 
     Returns
     -------
@@ -319,7 +325,7 @@ class ST_Rotor(object):
         """Stochastic Campbell diagram for multiples rotor systems.
 
         This function will calculate the damped or undamped natural frequencies
-        for a speed range for every rotor in rotor_list.
+        for a speed range for every rotor instance.
 
         Parameters
         ----------
@@ -338,7 +344,7 @@ class ST_Rotor(object):
         results
             Array with the damped or undamped natural frequencies and log dec
             corresponding to each speed of the speed_range array for each rotor
-            in rotor_list.
+            instance.
             It will be returned if plot=False.
 
         Example
@@ -375,8 +381,8 @@ class ST_Rotor(object):
     def run_freq_response(self, speed_range, inp, out, modes=None):
         """Stochastic frequency response for multiples rotor systems.
 
-        This method returns the frequency response for every rotor system in
-        rotor_list given a range of frequencies, the degrees of freedom to be
+        This method returns the frequency response for every rotor instance,
+        given a range of frequencies, the degrees of freedom to be
         excited and observed and the modes that will be used.
 
         Parameters
@@ -395,7 +401,7 @@ class ST_Rotor(object):
         -------
         results : array
             Array with the frequencies, magnitude and phase of the frequency
-            response for the given pair input/output for each rotor in rotor_list.
+            response for the given pair input/output for each rotor instance.
             It will be returned if plot=False.
 
         Example
@@ -435,7 +441,7 @@ class ST_Rotor(object):
 
         This function will take a rotor object and plot its time response
         given a force and a time.
-        The force parameter can be passed as random.
+        The force and ic parameters can be passed as random variables.
 
         Parameters
         ----------
@@ -446,15 +452,15 @@ class ST_Rotor(object):
             Each column corresponds to a dof and each row to a time step.
             Inputing a 3-dimensional array, the method considers the force as
             a random variable. The 3rd dimension must have the same size than
-            ST_Rotor.rotor_list
+            ST_Rotor.RV_size
         time_range : 1-dimensional array
             Time array.
         dof : int
             Degree of freedom that will be observed.
         ic : 1-dimensional array, 2-dimensional array, optional
             The initial conditions on the state vector (zero by default).
-            Inputing a 2-dimensional array, the method considers the force as
-            a random variable.
+            Inputing a 2-dimensional array, the method considers the
+            initial condition as a random variable.
 
         Returns
         -------
@@ -519,11 +525,11 @@ class ST_Rotor(object):
     def run_unbalance_response(self, node, magnitude, phase, frequency_range):
         """Stochastic unbalance response for multiples rotor systems.
 
-        This method returns the unbalanced response for every rotor system in
-        rotor_list, given magnitide and phase of the unbalance, the node where
+        This method returns the unbalanced response for every rotor instance,
+        given magnitide and phase of the unbalance, the node where
         it's applied and a frequency range.
 
-        Magnitude and phase parameters can be passed as randoms.
+        Magnitude and phase parameters can be passed as random variables.
 
         Parameters
         ----------
@@ -622,13 +628,10 @@ class ST_Rotor(object):
 
 
 def st_rotor_example():
-    """This function returns an instance of random rotors.
+    """Return an instance of random rotors.
 
     The purpose of this is to make available a simple model
     so that doctest can be written using this.
-
-    Parameters
-    ----------
 
     Returns
     -------
