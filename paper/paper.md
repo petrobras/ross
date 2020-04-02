@@ -125,11 +125,8 @@ displacements of the shaft may be approximated by:
 where $f_x$ and $f_y$ are the dynamic forces in the $x$ and $y$ directions, and $u$ and $v$ are the dynamic displacements 
 of the shaft journal relative to the bearing housing in the $x$ and $y$ directions. 
 
-After defining the element matrices and assembling the global matrices of the system, ROSS draws the rotor geometry,
-runs simulations, and obtains results in the form of graphics. It performs several analyses, such as static analysis,
-whirl speed map, mode shapes, frequency response, and time response.
-
-The general form of the equation for the system, after matrix assembly is
+After defining the element matrices ROSS performs the assembling of the global matrices and the genera for of the 
+equation of the system is
 
 \begin{equation}\label{eq:general-form}
    \mathbf{M \ddot{q}}(t)
@@ -150,6 +147,10 @@ where:
   \item $\omega$ is the rotor whirl speed;
   \item $\mathbf{f}$ is the generalized force vector.
 \end{itemize}
+
+After building a model with ROSS, the user can plot the rotor geometry,
+runs simulations, and obtains results in the form of graphics. It performs several analyses, such as static analysis,
+whirl speed map, mode shapes, frequency response, and time response.
 
 We have built the package using main Python packages such as NumPy [@van2011numpy] and SciPy [@jones2001scipy],
 for their mathematical, engineering and array building tools; and Bokeh [@bokeh2019] for creating interactive plots. 
