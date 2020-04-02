@@ -125,7 +125,7 @@ displacements of the shaft may be approximated by:
 where $f_x$ and $f_y$ are the dynamic forces in the $x$ and $y$ directions, and $u$ and $v$ are the dynamic displacements 
 of the shaft journal relative to the bearing housing in the $x$ and $y$ directions. 
 
-After defining the element matrices ROSS performs the assembling of the global matrices and the genera for of the 
+After defining the element matrices ROSS performs the assembling of the global matrices and the general form of the 
 equation of the system is
 
 \begin{equation}\label{eq:general-form}
@@ -149,11 +149,11 @@ where:
 \end{itemize}
 
 After building a model with ROSS, the user can plot the rotor geometry,
-runs simulations, and obtains results in the form of graphics. It performs several analyses, such as static analysis,
+run simulations, and obtain results in the form of graphics. ROSS can perform several analyses, such as static analysis,
 whirl speed map, mode shapes, frequency response, and time response.
 
-We have built the package using main Python packages such as NumPy [@van2011numpy] and SciPy [@jones2001scipy],
-for their mathematical, engineering and array building tools; and Bokeh [@bokeh2019] for creating interactive plots. 
+We have built the package using main Python packages such as NumPy [@van2011numpy] for multi-dimensional arrays, 
+SciPy [@jones2001scipy] for linear algebra, optimization, interpolation and other tasks and Bokeh [@bokeh2019] for creating interactive plots. 
 Developing the software using Python and its scientific ecosystem enables the user to also make use of this ecosystem,
 making it easier to run rotordynamics analysis. It is also easier to integrate the code into other programs, since we
 only use open source packages and do not depend on proprietary commercial platforms.
