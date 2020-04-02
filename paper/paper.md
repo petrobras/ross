@@ -47,27 +47,86 @@ bibliography: paper.bib
 There are several critical rotating equipment crucial to the industry, such as compressors,
 pumps and turbines.
 Computational mechanical models aim to simulate the behavior of such mechanical
-systems [@childs1993turbomachinery; @gasch2006rotordynamik; @friswell2010dynamics; @vance2010machinery; @ishida2012linear].
-These models are used to support research and decision making. To this purpose, we present ROSS,
+systems. These models are used to support research and decision making. To this purpose, we present ROSS,
 an open source library written in Python for rotordynamic analysis.
 
 Concerning rotordynamics softwares, there are some commercial finite element softwares that have a rotordynamic
 module [@comsol; @ansys], some softwares based on a proprietary commercial software (MATLAB) [@madyn; @dynamicsrotating],
 and others developed as standalone softwares [@rotorinsa; @trcsoftware].
 To use these softwares one needs to buy licenses, and they are not intended to be developed in a collaborative public
-manner. Currently, there are no softwares being developed using the open source concept, with the code being fully
-available on code hosting platforms, issues tracked online, clear license, possibility of direct contribution, etc.
+manner. To our knowledge, in the rotordynamic field, ROSS is the first software being developed using the open source 
+concept, with the code being fully available on code hosting platforms, issues tracked online, clear license and 
+possibility of direct contribution.
 
 ROSS allows the construction of rotor models and their numerical simulation. Shaft elements, as a default, are
 modeled with the Timoshenko beam theory [@Hutchinson2001], which considers shear and rotary inertia effects, and discretized by means of
-the Finite Element Method [@friswell2010dynamics]. Disks are assumed to be rigid bodies, thus their strain energy is not taken
-into account. And bearings/seals are included as linear stiffness/damping coefficients.
+the Finite Element Method [@friswell2010dynamics]. Disks (impellers, blades, or other equipment attached to the rotor) 
+are assumed to be rigid bodies, thus their strain energy is not taken into account and only the kinetic energy due 
+translation and rotation is calculated. We can obtain the mass and gyroscopic matrices by applying Lagrange’s equations 
+to the total kinetic energy. 
 
-After defining the element matrices and assembling the global matrices of the system, ROSS draws the rotor geometry,
-runs simulations, and obtains results in the form of graphics. It performs several analyses, such as static analysis,
-whirl speed map, mode shapes, frequency response, and time response.
+The mass matrix is given by: 
 
-The general form of the equation for the system, after matrix assembly is
+\begin{equation} 
+\mathbf{M_e} =  
+  \begin{bmatrix} 
+    m_d & 0 & 0 & 0 \\ 
+    0 & m_d & 0 & 0 \\ 
+    0 & 0 & I_d & 0 \\ 
+    0 & 0 & 0 & I_p  
+  \end{bmatrix} 
+\end{equation} 
+
+The gyroscopic matrix is given by: 
+
+\begin{equation} 
+  \mathbf{G_e} =  
+  \begin{bmatrix} 
+    0 & 0 & 0 & 0 \\ 
+    0 & 0 & 0 & 0 \\ 
+    0 & 0 & 0 & I_p \\ 
+    0 & 0 & -I_p & 0 
+  \end{bmatrix} 
+\end{equation} 
+
+Where: 
+
+\begin{itemize} 
+  \item $m_d$ is the disk mass;
+  \item $I_d$ is the diametral moment of inertia;
+  \item $I_p$ is the polar moment of inertia.
+\end{itemize} 
+
+For most types of bearing, the load-deflection relationship is nonlinear. Furthermore, load-deflection relationships are 
+often a function of shaft speed (i.e $\mathbf{K_e} = \mathbf{K_e(\omega)}$ and $\mathbf{C_e} = \mathbf{C_e(\omega)}$). 
+To simplify dynamic analysis, one widely used approach is to assume that the bearing has a linear load-deflection relationship. 
+This assumption is reasonably valid provided that the dynamic displacements are small [@friswell2010dynamics]. 
+Thus, the relationship between the forces acting on the shaft due to the bearing and the resultant velocities and 
+displacements of the shaft may be approximated by: 
+
+\begin{equation} 
+    \begin{Bmatrix} 
+    f_x \\ f_y 
+    \end{Bmatrix} = - 
+    \begin{bmatrix} 
+    k_{xx} & k_{xy} \\ k_{yx} & k_{yy} 
+    \end{bmatrix} 
+    \begin{Bmatrix} 
+    u \\ v 
+    \end{Bmatrix} -  
+    \begin{bmatrix} 
+    c_{xx} & c_{xy} \\ c_{yx} & c_{yy} 
+    \end{bmatrix} 
+    \begin{Bmatrix} 
+    \dot{u} \\ \dot{v} 
+    \end{Bmatrix} 
+\end{equation} 
+
+where $f_x$ and $f_y$ are the dynamic forces in the $x$ and $y$ directions, and $u$ and $v$ are the dynamic displacements 
+of the shaft journal relative to the bearing housing in the $x$ and $y$ directions. 
+
+After defining the element matrices ROSS performs the assembling of the global matrices and the general form of the 
+equation of the system is
 
 \begin{equation}\label{eq:general-form}
    \mathbf{M \ddot{q}}(t)
@@ -78,22 +137,26 @@ The general form of the equation for the system, after matrix assembly is
 \end{equation}
 
 where:
-- $\textbf{q}$ is the generalized coordinates of the system (displacements and rotations);
-- $\mathbf{M}$ is the mass matrix;
-- $\mathbf{K}$ is the stiffness matrix;
-- $\mathbf{C}$ is the damping matrix;
-- $\mathbf{G}$ is the gyroscopic matrix;
-- $\Omega$ is the excitation frequency;
-- $\omega$ is the rotor whirl speed;
-- $\mathbf{f}$ is the generalized force vector.
+\begin{itemize}
+  \item $\textbf{q}$ is the generalized coordinates of the system (displacements and rotations);
+  \item $\mathbf{M}$ is the mass matrix;
+  \item $\mathbf{K}$ is the stiffness matrix;
+  \item $\mathbf{C}$ is the damping matrix;
+  \item $\mathbf{G}$ is the gyroscopic matrix;
+  \item $\Omega$ is the excitation frequency;
+  \item $\omega$ is the rotor whirl speed;
+  \item $\mathbf{f}$ is the generalized force vector.
+\end{itemize}
 
-ROSS has been used to evaluate the impact of damper seal coefficients uncertainties in a compressor rotordynamics [@timbo2019]. 
-Other projects are also using ROSS to test machine learning algorithms that can diagnose machine failure. Here we can create
-a model with some problem such as unbalance or misalignment and then use the output data from this model to test the learning
-algorithm and see how good it is in diagnosing the problem.
+After building a model with ROSS, the user can plot the rotor geometry,
+run simulations, and obtain results in the form of graphics. ROSS can perform several analyses, such as static analysis,
+whirl speed map, mode shapes, frequency response, and time response.
 
-We have built the package using main Python packages such as NumPy [@van2011numpy] and SciPy [@jones2001scipy],
-for their mathematical, engineering and array building tools; and Bokeh [@bokeh2019] for creating interactive plots.
+We have built the package using main Python packages such as NumPy [@van2011numpy] for multi-dimensional arrays, 
+SciPy [@jones2001scipy] for linear algebra, optimization, interpolation and other tasks and Bokeh [@bokeh2019] for creating interactive plots. 
+Developing the software using Python and its scientific ecosystem enables the user to also make use of this ecosystem,
+making it easier to run rotordynamics analysis. It is also easier to integrate the code into other programs, since we
+only use open source packages and do not depend on proprietary commercial platforms.
 
 Besides the [documentation](https://ross-rotordynamics.github.io/ross-website/), a set of Jupyter Notebooks
 is available for the tutorial and some examples. Users can also access these notebooks through a [Binder server](https://mybinder.org/v2/gh/ross-rotordynamics/ross/master).
@@ -106,18 +169,18 @@ The shaft elements are in gray,
 the impellers represented as disks are in blue and the bearings are displayed as springs and dampers. This plot is generated with Bokeh,
 and we can use the hover tool to get additional information on each element.
 
-One analysis that can be carried out is the modal analysis. Figure 2 shows the whirl speed map generated for this
-compressor; the natural frequencies and the log dec vary with the machine rotation speed.
+One analysis that can be carried out is the modal analysis. Figure 2 shows the whirl speed map (Campbell Diagram) 
+generated for this compressor; the natural frequencies and the log dec vary with the machine rotation speed.
 
-![Campbell Diagram for the Centrifugal Compressor.](campbell.png)
+![Whirl speed map (Campbell Diagram) for the Centrifugal Compressor.](campbell.png)
 
 The whirl speed map is one of the results that can be obtained from the model, other types of analysis can be found
 in the [documentation](https://ross-rotordynamics.github.io/ross-website/).
 
-Developing the software using python and its scientific ecosystem enables the user to also make use this ecosystem,
-making it easier to run rotordynamics analysis. It is also easier to integrate the code into other programs, since we
-only use open source packages and do not depend on proprietary commercial platforms. Therefore, ROSS is extensible to new
-elements (e.g. beam, disk or bearing elements with 6 degrees of freedom) and types of analysis (e.g. torsional analysis).
+ROSS has been used to evaluate the impact of damper seal coefficients uncertainties in a compressor rotordynamics [@timbo2019]. 
+Other projects are also using ROSS to test machine learning algorithms that can diagnose machine failure. Here we can create
+a model with some problem such as unbalance or misalignment and then use the output data from this model to test the learning
+algorithm and check the accuracy of this algorithm in diagnosing the problem.
 
 # Acknowledgements
 We acknowledge that ROSS development is supported by Petrobras, Universidade Federal do Rio de Janeiro (UFRJ) and 
