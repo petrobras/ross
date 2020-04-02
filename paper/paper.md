@@ -47,8 +47,7 @@ bibliography: paper.bib
 There are several critical rotating equipment crucial to the industry, such as compressors,
 pumps and turbines.
 Computational mechanical models aim to simulate the behavior of such mechanical
-systems [@childs1993turbomachinery; @gasch2006rotordynamik; @friswell2010dynamics; @vance2010machinery; @ishida2012linear].
-These models are used to support research and decision making. To this purpose, we present ROSS,
+systems. These models are used to support research and decision making. To this purpose, we present ROSS,
 an open source library written in Python for rotordynamic analysis.
 
 Concerning rotordynamics softwares, there are some commercial finite element softwares that have a rotordynamic
@@ -61,9 +60,70 @@ possibility of direct contribution.
 
 ROSS allows the construction of rotor models and their numerical simulation. Shaft elements, as a default, are
 modeled with the Timoshenko beam theory [@Hutchinson2001], which considers shear and rotary inertia effects, and discretized by means of
-the Finite Element Method [@friswell2010dynamics]. Disks are assumed to be rigid bodies, thus their strain energy is not taken
-into account. And bearings/seals are included as linear stiffness/damping coefficients. ROSS is extensible and new
-elements, such as different types of bearings or seals, can be added to the code.
+the Finite Element Method [@friswell2010dynamics]. Disks (impellers, blades, or other equipment attached to the rotor) 
+are assumed to be rigid bodies, thus their strain energy is not taken into account and only the kinetic energy due 
+translation and rotation is calculated. We can obtain the mass and gyroscopic matrices by applying Lagrange’s equations 
+to the total kinetic energy. 
+
+The mass matrix is given by: 
+
+\begin{equation} 
+\mathbf{M_e} =  
+\begin{bmatrix} 
+m_d & 0 & 0 & 0 \\ 
+0 & m_d & 0 & 0 \\ 
+0 & 0 & I_d & 0 \\ 
+0 & 0 & 0 & I_p  
+\end{bmatrix} 
+\end{equation} 
+
+The gyroscopic matrix is given by: 
+
+\begin{equation} 
+\mathbf{G_e} =  
+\begin{bmatrix} 
+0 & 0 & 0 & 0 \\ 
+0 & 0 & 0 & 0 \\ 
+0 & 0 & 0 & I_p \\ 
+0 & 0 & -I_p & 0 
+\end{bmatrix} 
+\end{equation} 
+
+Where: 
+
+\begin{itemize} 
+\item m_d is the disk mass 
+\item I_d is the diametral moment of inertia 
+\item I_p is the polar moment of inertia 
+\end{itemize} 
+
+For most types of bearing, the load-deflection relationship is nonlinear. Furthermore, load-deflection relationships are 
+often a function of shaft speed (i.e $\mathbf{K_e} = \mathbf{K_e(\omega)}$ and $\mathbf{C_e} = \mathbf{C_e(\omega)}$). 
+To simplify dynamic analysis, one widely used approach is to assume that the bearing has a linear load-deflection relationship. 
+This assumption is reasonably valid provided that the dynamic displacements are small [@friswell2010dynamics]. 
+Thus, the relationship between the forces acting on the shaft due to the bearing and the resultant velocities and 
+displacements of the shaft may be approximated by: 
+
+\begin{equation} 
+    \begin{Bmatrix} 
+    f_x \\ f_y 
+    \end{Bmatrix} = - 
+    \begin{bmatrix} 
+    k_{xx} & k_{xy} \\ k_{yx} & k_{yy} 
+    \end{bmatrix} 
+    \begin{Bmatrix} 
+    u \\ v 
+    \end{Bmatrix} -  
+    \begin{bmatrix} 
+    c_{xx} & c_{xy} \\ c_{yx} & c_{yy} 
+    \end{bmatrix} 
+    \begin{Bmatrix} 
+    \dot{u} \\ \dot{v} 
+    \end{Bmatrix} 
+\end{equation} 
+
+where $f_x$ and $f_y$ are the dynamic forces in the $x$ and $y$ directions, and $u$ and $v$ are the dynamic displacements 
+of the shaft journal relative to the bearing housing in the $x$ and $y$ directions. 
 
 After defining the element matrices and assembling the global matrices of the system, ROSS draws the rotor geometry,
 runs simulations, and obtains results in the form of graphics. It performs several analyses, such as static analysis,
