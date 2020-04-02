@@ -69,32 +69,32 @@ The mass matrix is given by:
 
 \begin{equation} 
 \mathbf{M_e} =  
-\begin{bmatrix} 
-m_d & 0 & 0 & 0 \\ 
-0 & m_d & 0 & 0 \\ 
-0 & 0 & I_d & 0 \\ 
-0 & 0 & 0 & I_p  
-\end{bmatrix} 
+  \begin{bmatrix} 
+    m_d & 0 & 0 & 0 \\ 
+    0 & m_d & 0 & 0 \\ 
+    0 & 0 & I_d & 0 \\ 
+    0 & 0 & 0 & I_p  
+  \end{bmatrix} 
 \end{equation} 
 
 The gyroscopic matrix is given by: 
 
 \begin{equation} 
-\mathbf{G_e} =  
-\begin{bmatrix} 
-0 & 0 & 0 & 0 \\ 
-0 & 0 & 0 & 0 \\ 
-0 & 0 & 0 & I_p \\ 
-0 & 0 & -I_p & 0 
-\end{bmatrix} 
+  \mathbf{G_e} =  
+  \begin{bmatrix} 
+    0 & 0 & 0 & 0 \\ 
+    0 & 0 & 0 & 0 \\ 
+    0 & 0 & 0 & I_p \\ 
+    0 & 0 & -I_p & 0 
+  \end{bmatrix} 
 \end{equation} 
 
 Where: 
 
 \begin{itemize} 
-\item m_d is the disk mass 
-\item I_d is the diametral moment of inertia 
-\item I_p is the polar moment of inertia 
+  \item $m_d$ is the disk mass;
+  \item $I_d$ is the diametral moment of inertia;
+  \item $I_p$ is the polar moment of inertia.
 \end{itemize} 
 
 For most types of bearing, the load-deflection relationship is nonlinear. Furthermore, load-deflection relationships are 
