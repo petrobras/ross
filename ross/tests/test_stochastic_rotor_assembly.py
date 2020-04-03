@@ -1,7 +1,5 @@
 """Tests file.
-
-Tests for:
-    st_rotor_assembly.py
+Tests for st_rotor_assembly.py
 """
 import pytest
 from ross.bearing_seal_element import BearingElement
