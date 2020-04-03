@@ -7,7 +7,7 @@ import re
 import sys
 from shutil import rmtree
 
-from setuptools import find_packages, setup, Command
+from setuptools import Command, find_packages, setup
 
 
 def read(path, encoding="utf-8"):
