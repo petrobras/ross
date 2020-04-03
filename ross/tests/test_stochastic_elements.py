@@ -6,7 +6,6 @@ Tests for:
     st_bearing_seal_element.py
     st_point_mass.py
 """
-
 import numpy as np
 import pytest
 from ross.stochastic.st_bearing_seal_element import ST_BearingElement
@@ -127,51 +126,39 @@ def test_st_disk_element_from_geometry(rand_disk_from_geometry):
 def test_st_bearing_element_constant_coef(rand_bearing_constant_coefs):
     elm = list(rand_bearing_constant_coefs.__iter__())
     assert [brg.n for brg in elm] == [1, 1]
-    assert [brg.kxx for brg in elm] == [["1.00e+06"], ["2.00e+06"]]
-    assert [brg.kyy for brg in elm] == [["1.00e+06"], ["2.00e+06"]]
-    assert [brg.kxy for brg in elm] == [["0.00e+00"], ["0.00e+00"]]
-    assert [brg.kyx for brg in elm] == [["0.00e+00"], ["0.00e+00"]]
-    assert [brg.cxx for brg in elm] == [["1.00e+03"], ["2.00e+03"]]
-    assert [brg.cyy for brg in elm] == [["1.00e+03"], ["2.00e+03"]]
-    assert [brg.cxy for brg in elm] == [["0.00e+00"], ["0.00e+00"]]
-    assert [brg.cyx for brg in elm] == [["0.00e+00"], ["0.00e+00"]]
+    assert [brg.kxx.coefficient for brg in elm] == [[1000000.0], [2000000.0]]
+    assert [brg.kyy.coefficient for brg in elm] == [[1000000.0], [2000000.0]]
+    assert [brg.kxy.coefficient for brg in elm] == [[0], [0]]
+    assert [brg.kyx.coefficient for brg in elm] == [[0], [0]]
+    assert [brg.cxx.coefficient for brg in elm] == [[1000.0], [2000.0]]
+    assert [brg.cyy.coefficient for brg in elm] == [[1000.0], [2000.0]]
+    assert [brg.cxy.coefficient for brg in elm] == [[0], [0]]
+    assert [brg.cyx.coefficient for brg in elm] == [[0], [0]]
 
 
-def test_st_bearing_element_varying_coef(rand_bearing_constant_coefs):
-    elm = list(rand_bearing_constant_coefs.__iter__())
+def test_st_bearing_element_varying_coef(rand_bearing_varying_coefs):
+    elm = list(rand_bearing_varying_coefs.__iter__())
     assert [brg.n for brg in elm] == [1, 1]
-    assert [brg.kxx for brg in elm] == [
-        ["1.00e+06", "2.00e+06"],
-        ["1.10e+06", "2.10e+06"],
+    assert [brg.kxx.coefficient for brg in elm] == [
+        [1000000.0, 2000000.0],
+        [1100000.0, 2100000.0],
     ]
-    assert [brg.kyy for brg in elm] == [
-        ["3.00e+06", "4.00e+06"],
-        ["3.10e+06", "4.10e+06"],
+    assert [brg.kyy.coefficient for brg in elm] == [
+        [3000000.0, 4000000.0],
+        [3100000.0, 4100000.0],
     ]
-    assert [brg.kxy for brg in elm] == [
-        ["1.50e+06", "2.50e+06"],
-        ["1.60e+06", "2.60e+06"],
+    assert [brg.kxy.coefficient for brg in elm] == [
+        [1500000.0, 2500000.0],
+        [1600000.0, 2600000.0],
     ]
-    assert [brg.kyx for brg in elm] == [
-        ["1.50e+06", "2.50e+06"],
-        ["1.60e+06", "2.60e+06"],
+    assert [brg.kyx.coefficient for brg in elm] == [
+        [1500000.0, 2500000.0],
+        [1600000.0, 2600000.0],
     ]
-    assert [brg.cxx for brg in elm] == [
-        ["1.00e+03", "2.00e+03"],
-        ["1.10e+03", "2.10e+03"],
-    ]
-    assert [brg.cyy for brg in elm] == [
-        ["3.00e+03", "4.00e+03"],
-        ["3.10e+03", "4.10e+03"],
-    ]
-    assert [brg.cxy for brg in elm] == [
-        ["1.50e+03", "2.50e+03"],
-        ["1.60e+03", "2.60e+03"],
-    ]
-    assert [brg.cyx for brg in elm] == [
-        ["1.50e+03", "2.50e+03"],
-        ["1.60e+03", "2.60e+03"],
-    ]
+    assert [brg.cxx.coefficient for brg in elm] == [[1000.0, 2000.0], [1100.0, 2100.0]]
+    assert [brg.cyy.coefficient for brg in elm] == [[3000.0, 4000.0], [3100.0, 4100.0]]
+    assert [brg.cxy.coefficient for brg in elm] == [[1500.0, 2500.0], [1600.0, 2600.0]]
+    assert [brg.cyx.coefficient for brg in elm] == [[1500.0, 2500.0], [1600.0, 2600.0]]
 
 
 def test_st_point_mass(rand_point_mass):
