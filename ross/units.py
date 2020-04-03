@@ -63,10 +63,13 @@ def check_units(func):
                 # For now, we only return the magnitude for the converted Quantity
                 # If pint is fully adopted by ross in the future, and we have all Quantities
                 # using it, we could remove this, which would allows us to use pint in its full capability
-                try:
-                    base_unit_args.append(arg_value.to(units[arg_name]).m)
-                except AttributeError:
-                    base_unit_args.append(Q_(arg_value, units[arg_name]).m)
+                if arg_value is None:
+                    pass
+                else:
+                    try:
+                        base_unit_args.append(arg_value.to(units[arg_name]).m)
+                    except AttributeError:
+                        base_unit_args.append(Q_(arg_value, units[arg_name]).m)
             else:
                 base_unit_args.append(arg_value)
 
