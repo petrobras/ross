@@ -1,10 +1,6 @@
 """Tests file.
-
-Tests for:
-    st_shaft_element.py
-    st_disk_element.py
-    st_bearing_seal_element.py
-    st_point_mass.py
+Tests for st_shaft_element.py, st_disk_element.py, st_bearing_seal_element.py
+and st_point_mass.py
 """
 import numpy as np
 import pytest
