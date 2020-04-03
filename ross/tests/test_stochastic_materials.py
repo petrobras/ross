@@ -1,9 +1,12 @@
 """Tests file.
 Tests for st_materials.py
 """
+# fmt: off
 import pytest
 from numpy.testing import assert_allclose
 from ross.stochastic.st_materials import ST_Material
+
+# fmt: on
 
 
 ###############################################################################
