@@ -38,11 +38,6 @@ class ST_DiskElement:
         Possibilities:
             ["m", "Id", "Ip"]
 
-    Attributes
-    ----------
-    elements : list
-        display the list with random disk elements.
-
     Example
     -------
     >>> import numpy as np
@@ -160,6 +155,16 @@ class ST_DiskElement:
         """
         if isinstance(material, ST_Material):
             material = list(material.__iter__())
+            rho = np.array([m.rho for m in material])
+        else:
+            rho = material.rho
+
+        if type(width) == list:
+            width = np.array(width)
+        if type(i_d) == list:
+            i_d = np.array(i_d)
+        if type(o_d) == list:
+            o_d = np.array(o_d)
 
         attribute_dict = dict(
             n=n, material=material, width=width, i_d=i_d, o_d=o_d, tag=tag,
@@ -172,14 +177,14 @@ class ST_DiskElement:
             else:
                 v = np.array(v)
 
-        m = 0.25 * material.rho * np.pi * width * (o_d ** 2 - i_d ** 2)
+        m = 0.25 * rho * np.pi * width * (o_d ** 2 - i_d ** 2)
         # fmt: off
         Id = (
-            0.015625 * material.rho * np.pi * width * (o_d ** 4 - i_d ** 4)
+            0.015625 * rho * np.pi * width * (o_d ** 4 - i_d ** 4)
             + m * (width ** 2) / 12
         )
         # fmt: on
-        Ip = 0.03125 * material.rho * np.pi * width * (o_d ** 4 - i_d ** 4)
+        Ip = 0.03125 * rho * np.pi * width * (o_d ** 4 - i_d ** 4)
 
         is_random = ["m", "Id", "Ip"]
 

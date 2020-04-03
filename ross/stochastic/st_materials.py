@@ -78,8 +78,16 @@ class ST_Material:
         is_random = []
         for par, _name in zip([rho, E, G_s, Poisson], ["rho", "E", "G_s", "Poisson"]):
             if isinstance(par, Iterable):
-                par = np.array(par)
                 is_random.append(_name)
+
+        if type(rho) == list:
+            rho = np.array(rho)
+        if type(E) == list:
+            E = np.array(E)
+        if type(G_s) == list:
+            G_s = np.array(G_s)
+        if type(Poisson) == list:
+            Poisson = np.array(Poisson)
 
         self.name = name
         self.rho = rho
