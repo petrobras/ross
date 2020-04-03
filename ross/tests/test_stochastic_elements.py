@@ -2,6 +2,7 @@
 Tests for st_shaft_element.py, st_disk_element.py, st_bearing_seal_element.py
 and st_point_mass.py
 """
+# fmt: off
 import numpy as np
 import pytest
 from ross.stochastic.st_bearing_seal_element import ST_BearingElement
@@ -9,6 +10,8 @@ from ross.stochastic.st_disk_element import ST_DiskElement
 from ross.stochastic.st_materials import ST_Material
 from ross.stochastic.st_point_mass import ST_PointMass
 from ross.stochastic.st_shaft_element import ST_ShaftElement
+
+# fmt: on
 
 
 @pytest.fixture
