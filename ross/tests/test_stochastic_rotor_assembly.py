@@ -1,6 +1,7 @@
 """Tests file.
 Tests for st_rotor_assembly.py
 """
+# fmt: off
 import pytest
 from ross.bearing_seal_element import BearingElement
 from ross.disk_element import DiskElement
@@ -11,6 +12,8 @@ from ross.stochastic.st_disk_element import ST_DiskElement
 from ross.stochastic.st_point_mass import ST_PointMass
 from ross.stochastic.st_rotor_assembly import ST_Rotor
 from ross.stochastic.st_shaft_element import ST_ShaftElement
+
+# fmt: on
 
 
 ###############################################################################
