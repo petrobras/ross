@@ -59,19 +59,17 @@ def check_units(func):
         args_names = inspect.getfullargspec(func)[0]
 
         for arg_name, arg_value in zip(args_names, args):
-            if arg_name in units:
+            if arg_name in units and arg_value is not None:
                 # For now, we only return the magnitude for the converted Quantity
                 # If pint is fully adopted by ross in the future, and we have all Quantities
                 # using it, we could remove this, which would allows us to use pint in its full capability
-                if arg_value is None:
-                    pass
-                else:
-                    try:
-                        base_unit_args.append(arg_value.to(units[arg_name]).m)
-                    except AttributeError:
-                        base_unit_args.append(Q_(arg_value, units[arg_name]).m)
+                try:
+                    base_unit_args.append(arg_value.to(units[arg_name]).m)
+                except AttributeError:
+                    base_unit_args.append(Q_(arg_value, units[arg_name]).m)
             else:
                 base_unit_args.append(arg_value)
+
 
         base_unit_kwargs = {}
         for k, v in kwargs.items():
