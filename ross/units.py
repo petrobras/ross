@@ -70,7 +70,6 @@ def check_units(func):
             else:
                 base_unit_args.append(arg_value)
 
-
         base_unit_kwargs = {}
         for k, v in kwargs.items():
             if k in units and v is not None:
