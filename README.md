@@ -16,7 +16,6 @@ After defining the elements for the model, you can plot the rotor geometry and r
 Campbell Diagram, mode shapes, frequency response, and time response.
 
 You can try it out now by running the tutorial on [binder](https://mybinder.org/v2/gh/ross-rotordynamics/ross/0.3?filepath=%2Fdocs%2Fexamples).
-After binder starts, navigate to the ross/docs/examples directory and open the tutorial notebook.
 
 # Documentation 
 Access the documentation [here](https://ross-rotordynamics.github.io/ross-website/).

@@ -4,11 +4,11 @@ Examples
 .. toctree::
    :maxdepth: 1
 
-   examples/example_05_08_01
-   examples/example_05_08_02
-   examples/example_05_09_01 
-   examples/example_05_09_02 
-   examples/example_05_09_04
-   examples/example_05_09_05 
-   examples/example_05_09_06
-   examples/example_05_09_09
+   examples/example_1
+   examples/example_2
+   examples/example_3
+   examples/example_4
+   examples/example_5
+   examples/example_6
+   examples/example_7
+   examples/example_8
