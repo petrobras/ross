@@ -157,7 +157,8 @@ example, one can add a class for a tapered roller bearing by inheriting from `Be
 
 ```python
 class TaperedRollerBearing(BearingElement):
-    # implement init with required arguments such as bearing geometry, material etc.
+    # implement init with required arguments such as bearing geometry, 
+    # material etc.
     def __init__(self, *args, **kwargs):
         #
         # code to calculate stiffness and damping coefficients
@@ -184,7 +185,7 @@ matrices:
 
 ```python
 class NewElement(Element):
-    # implement init with required arguments such as bearing geometry, material etc.
+    # implement init with required arguments 
     def __init__(self, *args, **kwargs):
         ...
     # implement required methods for element 
