@@ -152,6 +152,52 @@ After building a model with ROSS, the user can plot the rotor geometry,
 run simulations, and obtain results in the form of graphics. ROSS can perform several analyses, such as static analysis,
 whirl speed map, mode shapes, frequency response, and time response.
 
+ROSS is extensible and new elements, such as different types of bearings or seals, can be added to the code. As an 
+example, one can add a class for a tapered roller bearing by inheriting from `BearingElement`:
+
+```python
+class TaperedRollerBearing(BearingElement):
+    # implement init with required arguments such as bearing geometry, material etc.
+    def __init__(self, *args, **kwargs):
+        #
+        # code to calculate stiffness and damping coefficients
+        #
+
+        super().__init__(
+            n=n,
+            frequency=None,
+            kxx=kxx,
+            kxy=kxy,
+            kyx=kyx,
+            kyy=kyy,
+            cxx=cxx,
+            cxy=cxx,
+            cyx=cyx,
+            cyy=cyy,
+            tag=tag,
+        )
+```
+
+Other elements that require more customization can be added by inheriting directly from `Element`, in this case it is 
+necessary to implement the required methods that should return the element's mass, stiffness, damping, and gyroscopic 
+matrices:
+
+```python
+class NewElement(Element):
+    # implement init with required arguments such as bearing geometry, material etc.
+    def __init__(self, *args, **kwargs):
+        ...
+    # implement required methods for element 
+    def M(self):
+        ...
+    def K(self):
+        ...
+    def C(self):
+        ...
+    def G(self):
+        ...
+```
+
 We have built the package using main Python packages such as NumPy [@van2011numpy] for multi-dimensional arrays, 
 SciPy [@jones2001scipy] for linear algebra, optimization, interpolation and other tasks and Bokeh [@bokeh2019] for creating interactive plots. 
 Developing the software using Python and its scientific ecosystem enables the user to also make use of this ecosystem,
