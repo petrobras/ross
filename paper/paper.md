@@ -153,51 +153,12 @@ run simulations, and obtain results in the form of graphics. ROSS can perform se
 whirl speed map, mode shapes, frequency response, and time response.
 
 ROSS is extensible and new elements, such as different types of bearings or seals, can be added to the code. As an 
-example, one can add a class for a tapered roller bearing by inheriting from `BearingElement`:
-
-```python
-class TaperedRollerBearing(BearingElement):
-    # implement init with required arguments such as bearing geometry, 
-    # material etc.
-    def __init__(self, *args, **kwargs):
-        #
-        # code to calculate stiffness and damping coefficients
-        #
-
-        super().__init__(
-            n=n,
-            frequency=None,
-            kxx=kxx,
-            kxy=kxy,
-            kyx=kyx,
-            kyy=kyy,
-            cxx=cxx,
-            cxy=cxx,
-            cyx=cyx,
-            cyy=cyy,
-            tag=tag,
-        )
-```
+example, one can add a class for a tapered roller bearing by inheriting from `BearingElement`. As an example we have 
+the implementation of the `BallBearingElement` in the code.
 
 Other elements that require more customization can be added by inheriting directly from `Element`, in this case it is 
 necessary to implement the required methods that should return the element's mass, stiffness, damping, and gyroscopic 
-matrices:
-
-```python
-class NewElement(Element):
-    # implement init with required arguments 
-    def __init__(self, *args, **kwargs):
-        ...
-    # implement required methods for element 
-    def M(self):
-        ...
-    def K(self):
-        ...
-    def C(self):
-        ...
-    def G(self):
-        ...
-```
+matrices.
 
 We have built the package using main Python packages such as NumPy [@van2011numpy] for multi-dimensional arrays, 
 SciPy [@2020SciPy-NMeth] for linear algebra, optimization, interpolation and other tasks and Bokeh [@bokeh2019] for creating interactive plots. 
