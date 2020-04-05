@@ -54,9 +54,10 @@ Concerning rotordynamics softwares, there are some commercial finite element sof
 module [@comsol; @ansys], some softwares based on a proprietary commercial software (MATLAB) [@madyn; @dynamicsrotating],
 and others developed as standalone softwares [@rotorinsa; @trcsoftware].
 To use these softwares one needs to buy licenses, and they are not intended to be developed in a collaborative public
-manner. To our knowledge, in the rotordynamic field, ROSS is the first software being developed using the open source 
-concept, with the code being fully available on code hosting platforms, issues tracked online, clear license and 
-possibility of direct contribution.
+manner. Also, for some of these commercial softwares, the user is 'locked' on their environment, interacting with the 
+software only through a GUI, which makes it harder (impossible sometimes) to automate analysis, To our knowledge, in 
+the rotordynamic field, ROSS is the first software being developed using the open source concept, with the code being 
+fully available on code hosting platforms, issues tracked online, clear license and possibility of direct contribution.
 
 ROSS allows the construction of rotor models and their numerical simulation. Shaft elements, as a default, are
 modeled with the Timoshenko beam theory [@Hutchinson2001], which considers shear and rotary inertia effects, and discretized by means of
