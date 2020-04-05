@@ -200,7 +200,7 @@ class NewElement(Element):
 ```
 
 We have built the package using main Python packages such as NumPy [@van2011numpy] for multi-dimensional arrays, 
-SciPy [@jones2001scipy] for linear algebra, optimization, interpolation and other tasks and Bokeh [@bokeh2019] for creating interactive plots. 
+SciPy [@2020SciPy-NMeth] for linear algebra, optimization, interpolation and other tasks and Bokeh [@bokeh2019] for creating interactive plots. 
 Developing the software using Python and its scientific ecosystem enables the user to also make use of this ecosystem,
 making it easier to run rotordynamics analysis. It is also easier to integrate the code into other programs, since we
 only use open source packages and do not depend on proprietary commercial platforms.
