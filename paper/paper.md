@@ -53,10 +53,11 @@ an open source library written in Python for rotordynamic analysis.
 Concerning rotordynamics softwares, there are some commercial finite element softwares that have a rotordynamic
 module [@comsol; @ansys], some softwares based on a proprietary commercial software (MATLAB) [@madyn; @dynamicsrotating],
 and others developed as standalone softwares [@rotorinsa; @trcsoftware].
-To use these softwares one needs to buy licenses, and they are not intended to be developed in a collaborative public
-manner. To our knowledge, in the rotordynamic field, ROSS is the first software being developed using the open source 
-concept, with the code being fully available on code hosting platforms, issues tracked online, clear license and 
-possibility of direct contribution.
+To use these softwares, one needs to buy licenses, and they are not intended to be developed in a collaborative public
+manner. Also, for some of these commercial softwares, the user is 'locked' on their environment, interacting with the 
+software only through a GUI, which makes it harder (impossible sometimes) to automate analysis. To our knowledge, in 
+the rotordynamic field, ROSS is the first software being developed using the open source concept, with the code being 
+fully available on code hosting platforms, issues tracked online, clear license and possibility of direct contribution.
 
 ROSS allows the construction of rotor models and their numerical simulation. Shaft elements, as a default, are
 modeled with the Timoshenko beam theory [@Hutchinson2001], which considers shear and rotary inertia effects, and discretized by means of
@@ -100,7 +101,7 @@ Where:
 For most types of bearing, the load-deflection relationship is nonlinear. Furthermore, load-deflection relationships are 
 often a function of shaft speed (i.e $\mathbf{K_e} = \mathbf{K_e(\omega)}$ and $\mathbf{C_e} = \mathbf{C_e(\omega)}$). 
 To simplify dynamic analysis, one widely used approach is to assume that the bearing has a linear load-deflection relationship. 
-This assumption is reasonably valid provided that the dynamic displacements are small [@friswell2010dynamics]. 
+This assumption is reasonably valid, provided that the dynamic displacements are small [@friswell2010dynamics]. 
 Thus, the relationship between the forces acting on the shaft due to the bearing and the resultant velocities and 
 displacements of the shaft may be approximated by: 
 
@@ -125,7 +126,7 @@ displacements of the shaft may be approximated by:
 where $f_x$ and $f_y$ are the dynamic forces in the $x$ and $y$ directions, and $u$ and $v$ are the dynamic displacements 
 of the shaft journal relative to the bearing housing in the $x$ and $y$ directions. 
 
-After defining the element matrices ROSS performs the assembling of the global matrices and the general form of the 
+After defining the element matrices, ROSS performs the assembling of the global matrices and the general form of the 
 equation of the system is
 
 \begin{equation}\label{eq:general-form}
@@ -153,54 +154,15 @@ run simulations, and obtain results in the form of graphics. ROSS can perform se
 whirl speed map, mode shapes, frequency response, and time response.
 
 ROSS is extensible and new elements, such as different types of bearings or seals, can be added to the code. As an 
-example, one can add a class for a tapered roller bearing by inheriting from `BearingElement`:
-
-```python
-class TaperedRollerBearing(BearingElement):
-    # implement init with required arguments such as bearing geometry, 
-    # material etc.
-    def __init__(self, *args, **kwargs):
-        #
-        # code to calculate stiffness and damping coefficients
-        #
-
-        super().__init__(
-            n=n,
-            frequency=None,
-            kxx=kxx,
-            kxy=kxy,
-            kyx=kyx,
-            kyy=kyy,
-            cxx=cxx,
-            cxy=cxx,
-            cyx=cyx,
-            cyy=cyy,
-            tag=tag,
-        )
-```
+example, one can add a class for a tapered roller bearing by inheriting from `BearingElement`. The implementation of 
+the `BallBearingElement` in our code uses this strategy.
 
 Other elements that require more customization can be added by inheriting directly from `Element`, in this case it is 
 necessary to implement the required methods that should return the element's mass, stiffness, damping, and gyroscopic 
-matrices:
-
-```python
-class NewElement(Element):
-    # implement init with required arguments 
-    def __init__(self, *args, **kwargs):
-        ...
-    # implement required methods for element 
-    def M(self):
-        ...
-    def K(self):
-        ...
-    def C(self):
-        ...
-    def G(self):
-        ...
-```
+matrices.
 
 We have built the package using main Python packages such as NumPy [@van2011numpy] for multi-dimensional arrays, 
-SciPy [@jones2001scipy] for linear algebra, optimization, interpolation and other tasks and Bokeh [@bokeh2019] for creating interactive plots. 
+SciPy [@2020SciPy-NMeth] for linear algebra, optimization, interpolation and other tasks and Bokeh [@bokeh2019] for creating interactive plots. 
 Developing the software using Python and its scientific ecosystem enables the user to also make use of this ecosystem,
 making it easier to run rotordynamics analysis. It is also easier to integrate the code into other programs, since we
 only use open source packages and do not depend on proprietary commercial platforms.
