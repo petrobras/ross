@@ -53,7 +53,7 @@ an open source library written in Python for rotordynamic analysis.
 Concerning rotordynamics softwares, there are some commercial finite element softwares that have a rotordynamic
 module [@comsol; @ansys], some softwares based on a proprietary commercial software (MATLAB) [@madyn; @dynamicsrotating],
 and others developed as standalone softwares [@rotorinsa; @trcsoftware].
-To use these softwares one needs to buy licenses, and they are not intended to be developed in a collaborative public
+To use these softwares, one needs to buy licenses, and they are not intended to be developed in a collaborative public
 manner. Also, for some of these commercial softwares, the user is 'locked' on their environment, interacting with the 
 software only through a GUI, which makes it harder (impossible sometimes) to automate analysis, To our knowledge, in 
 the rotordynamic field, ROSS is the first software being developed using the open source concept, with the code being 
@@ -101,7 +101,7 @@ Where:
 For most types of bearing, the load-deflection relationship is nonlinear. Furthermore, load-deflection relationships are 
 often a function of shaft speed (i.e $\mathbf{K_e} = \mathbf{K_e(\omega)}$ and $\mathbf{C_e} = \mathbf{C_e(\omega)}$). 
 To simplify dynamic analysis, one widely used approach is to assume that the bearing has a linear load-deflection relationship. 
-This assumption is reasonably valid provided that the dynamic displacements are small [@friswell2010dynamics]. 
+This assumption is reasonably valid, provided that the dynamic displacements are small [@friswell2010dynamics]. 
 Thus, the relationship between the forces acting on the shaft due to the bearing and the resultant velocities and 
 displacements of the shaft may be approximated by: 
 
@@ -126,7 +126,7 @@ displacements of the shaft may be approximated by:
 where $f_x$ and $f_y$ are the dynamic forces in the $x$ and $y$ directions, and $u$ and $v$ are the dynamic displacements 
 of the shaft journal relative to the bearing housing in the $x$ and $y$ directions. 
 
-After defining the element matrices ROSS performs the assembling of the global matrices and the general form of the 
+After defining the element matrices, ROSS performs the assembling of the global matrices and the general form of the 
 equation of the system is
 
 \begin{equation}\label{eq:general-form}
@@ -154,8 +154,8 @@ run simulations, and obtain results in the form of graphics. ROSS can perform se
 whirl speed map, mode shapes, frequency response, and time response.
 
 ROSS is extensible and new elements, such as different types of bearings or seals, can be added to the code. As an 
-example, one can add a class for a tapered roller bearing by inheriting from `BearingElement`. As an example we have 
-the implementation of the `BallBearingElement` in the code.
+example, one can add a class for a tapered roller bearing by inheriting from `BearingElement`. The implementation of 
+the `BallBearingElement` in our code uses this strategy.
 
 Other elements that require more customization can be added by inheriting directly from `Element`, in this case it is 
 necessary to implement the required methods that should return the element's mass, stiffness, damping, and gyroscopic 
