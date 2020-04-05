@@ -55,7 +55,7 @@ module [@comsol; @ansys], some softwares based on a proprietary commercial softw
 and others developed as standalone softwares [@rotorinsa; @trcsoftware].
 To use these softwares, one needs to buy licenses, and they are not intended to be developed in a collaborative public
 manner. Also, for some of these commercial softwares, the user is 'locked' on their environment, interacting with the 
-software only through a GUI, which makes it harder (impossible sometimes) to automate analysis, To our knowledge, in 
+software only through a GUI, which makes it harder (impossible sometimes) to automate analysis. To our knowledge, in 
 the rotordynamic field, ROSS is the first software being developed using the open source concept, with the code being 
 fully available on code hosting platforms, issues tracked online, clear license and possibility of direct contribution.
 
