@@ -31,10 +31,10 @@ def version(path):
 
 # Package meta-data.
 NAME = "ross-rotordynamics"
-DESCRIPTION = "ross: rotordynamic open-source software"
+DESCRIPTION = "ROSS: Rotordynamic Open Source Software"
 URL = "https://github.com/ross-rotordynamics/ross"
 EMAIL = "raphaelts@gmail.com"
-AUTHOR = "ross developers"
+AUTHOR = "ROSS developers"
 REQUIRES_PYTHON = ">=3.6.0"
 VERSION = version("ross/__init__.py")
 

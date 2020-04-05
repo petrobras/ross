@@ -82,7 +82,7 @@ Convergence.prof`.
 Those changes are some import optimization and turning static() method
 into run_static() method.
 
-Added user guide on how to use ross
+Added user guide on how to use ROSS
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 A tutorial has been added to the documentation. This is available as a
 jupyter notebook and is also rendered in the :ref:`tutorial`
@@ -162,4 +162,3 @@ calculates the ratio using some global distance measures, rather than
 basing it upon individual element dimensions. The user is returned an
 warning message if it's lower than a certain value, which could affect
 the convergence analysis.
-
