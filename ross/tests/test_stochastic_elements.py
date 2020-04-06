@@ -1,17 +1,18 @@
 """Tests file.
-Tests for st_shaft_element.py, st_disk_element.py, st_bearing_seal_element.py
-and st_point_mass.py
+Tests for:
+    st_shaft_element.py
+    st_disk_element.py
+    st_bearing_seal_element.py
+    st_point_mass.py
 """
-# fmt: off
 import numpy as np
 import pytest
+
 from ross.stochastic.st_bearing_seal_element import ST_BearingElement
 from ross.stochastic.st_disk_element import ST_DiskElement
 from ross.stochastic.st_materials import ST_Material
 from ross.stochastic.st_point_mass import ST_PointMass
 from ross.stochastic.st_shaft_element import ST_ShaftElement
-
-# fmt: on
 
 
 @pytest.fixture
@@ -55,7 +56,7 @@ def rand_disk_from_geometry():
 def rand_bearing_constant_coefs():
     kxx = [1e6, 2e6]
     cxx = [1e3, 2e3]
-    elm = ST_BearingElement(n=1, kxx=kxx, cxx=cxx, is_random=["kxx", "cxx"],)
+    elm = ST_BearingElement(n=1, kxx=kxx, cxx=cxx, is_random=["kxx", "cxx"])
 
     return elm
 
@@ -92,7 +93,7 @@ def rand_bearing_varying_coefs():
 def rand_point_mass():
     mx = [2.0, 2.5]
     my = [3.0, 3.5]
-    elm = ST_PointMass(n=1, mx=mx, my=my, is_random=["mx", "my"],)
+    elm = ST_PointMass(n=1, mx=mx, my=my, is_random=["mx", "my"])
     return elm
 
 
