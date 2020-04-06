@@ -85,3 +85,9 @@ def test_error_E_G_s_Poisson():
     assert "Exactly 2 arguments from E, G_s and Poisson should be provided" in str(
         ex.value
     )
+
+
+def test_error_material_name_with_space():
+    with pytest.raises(ValueError) as ex:
+        ST_Material(name="with space", rho=1.0, E=[10.0, 20.0], G_s=[1.0, 2.0])
+    assert "Spaces are not allowed in Material name" in str(ex.value)
