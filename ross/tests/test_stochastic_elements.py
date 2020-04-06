@@ -166,3 +166,19 @@ def test_st_point_mass(rand_point_mass):
     assert [pm.n for pm in elm] == [1, 1]
     assert [pm.mx for pm in elm] == [2.0, 2.5]
     assert [pm.my for pm in elm] == [3.0, 3.5]
+
+
+###############################################################################
+# testing error messages
+###############################################################################
+
+
+def test_st_bearing_error_messages():
+    kxx = [1e6, 2e6]
+    cxx = [1e3, 2e3]
+    freq = [500, 1000]
+    with pytest.raises(ValueError) as ex:
+        ST_BearingElement(
+            n=1, kxx=kxx, cxx=cxx, frequency=freq, is_random=["kxx", "cxx", "frequency"]
+        )
+    assert "frequency can not be a random variable" in str(ex.value)
