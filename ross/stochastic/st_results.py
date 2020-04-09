@@ -1,3 +1,7 @@
+"""STOCHASTIC ROSS plotting module.
+
+This module returns graphs for each type of analyses in st_rotor_assembly.py.
+"""
 import bokeh.palettes as bp
 import numpy as np
 from bokeh.layouts import gridplot
@@ -90,7 +94,7 @@ class ST_CampbellResults:
                 line_width=3.0,
                 muted_color=colors1[j],
                 muted_alpha=0.1,
-                legend_label="Mean - Mode %s" % (j + 1),
+                legend_label="Mean - Mode {}".format(j + 1),
             )
             if len(percentile):
                 for i, p in enumerate(percentile):
@@ -102,7 +106,7 @@ class ST_CampbellResults:
                         line_width=2.5,
                         muted_color=colors2[i],
                         muted_alpha=0.1,
-                        legend_label="percentile %s" % (p),
+                        legend_label="percentile: {}%".format(p),
                     )
             if len(conf_interval):
                 for i, p in enumerate(conf_interval):
@@ -114,7 +118,9 @@ class ST_CampbellResults:
                         line_width=2.5,
                         muted_color=colors1[j],
                         muted_alpha=0.1,
-                        legend_label="Interval %s - Mode %s" % (p, j + 1),
+                        legend_label="confidence interval: {}% - Mode {}".format(
+                            p, j + 1
+                        ),
                     )
                     fig.line(
                         x=self.speed_range,
@@ -124,7 +130,9 @@ class ST_CampbellResults:
                         line_width=2.5,
                         muted_color=colors1[j],
                         muted_alpha=0.1,
-                        legend_label="Interval %s - Mode %s" % (p, j + 1),
+                        legend_label="confidence interval: {}% - Mode {}".format(
+                            p, j + 1
+                        ),
                     )
 
         fig.legend.background_fill_alpha = 0.1
@@ -185,7 +193,7 @@ class ST_CampbellResults:
                 line_width=3.0,
                 muted_color=colors1[j],
                 muted_alpha=0.1,
-                legend_label="Mean - Mode %s" % (j + 1),
+                legend_label="Mean - Mode {}".format(j + 1),
             )
             if len(percentile):
                 for i, p in enumerate(percentile):
@@ -197,7 +205,7 @@ class ST_CampbellResults:
                         line_width=2.5,
                         muted_color=colors2[i],
                         muted_alpha=0.1,
-                        legend_label="percentile %s" % (p),
+                        legend_label="percentile {}".format(p),
                     )
             if len(conf_interval):
                 for i, p in enumerate(conf_interval):
@@ -209,7 +217,9 @@ class ST_CampbellResults:
                         line_width=2.5,
                         muted_color=colors1[j],
                         muted_alpha=0.1,
-                        legend_label="Interval %s - Mode %s" % (p, j + 1),
+                        legend_label="confidence interval: {}% - Mode {}".format(
+                            p, j + 1
+                        ),
                     )
                     fig.line(
                         x=self.speed_range,
@@ -219,7 +229,9 @@ class ST_CampbellResults:
                         line_width=2.5,
                         muted_color=colors1[j],
                         muted_alpha=0.1,
-                        legend_label="Interval %s - Mode %s" % (p, j + 1),
+                        legend_label="confidence interval: {}% - Mode {}".format(
+                            p, j + 1
+                        ),
                     )
 
         fig.legend.background_fill_alpha = 0.01
@@ -248,11 +260,12 @@ class ST_CampbellResults:
         kwargs : optional
             Additional key word arguments can be passed to change
             the plot (e.g. linestyle='--').
+
         Returns
         -------
         grid_plots : bokeh column
             Bokeh column with diagrams for frequency and log dec.
-         """
+        """
         fig0 = self.plot_nat_freq(percentile, conf_interval, **kwargs)
         fig1 = self.plot_log_dec(percentile, conf_interval, **kwargs)
 
@@ -347,7 +360,7 @@ class ST_FrequencyResponseResults:
                     line_width=3,
                     muted_color=colors1[i],
                     muted_alpha=0.1,
-                    legend_label="percentile: " + str(p) + "%",
+                    legend_label="percentile: {}%".format(p),
                 )
 
         if len(conf_interval):
@@ -362,7 +375,7 @@ class ST_FrequencyResponseResults:
                     line_width=3,
                     muted_color=colors1[i],
                     muted_alpha=0.1,
-                    legend_label="confidence interval: " + str(p) + "%",
+                    legend_label="confidence interval: {}%".format(p),
                 )
                 fig.line(
                     x=self.speed_range,
@@ -372,7 +385,7 @@ class ST_FrequencyResponseResults:
                     line_width=3,
                     muted_color=colors1[i],
                     muted_alpha=0.1,
-                    legend_label="confidence interval: " + str(p) + "%",
+                    legend_label="confidence interval: {}%".format(p),
                 )
 
         mag_mean = np.mean(self.magnitude, axis=1)
@@ -440,7 +453,7 @@ class ST_FrequencyResponseResults:
                     line_width=3,
                     muted_color=colors1[i],
                     muted_alpha=0.1,
-                    legend_label="percentile: " + str(p) + "%",
+                    legend_label="percentile: {}%".format(p),
                 )
 
         for i, p in enumerate(conf_interval):
@@ -454,7 +467,7 @@ class ST_FrequencyResponseResults:
                 line_width=3,
                 muted_color=colors1[i],
                 muted_alpha=0.1,
-                legend_label="confidence interval: " + str(p) + "%",
+                legend_label="confidence interval: {}%".format(p),
             )
             fig.line(
                 x=self.speed_range,
@@ -462,7 +475,7 @@ class ST_FrequencyResponseResults:
                 line_color=colors1[i],
                 line_alpha=1.0,
                 line_width=3,
-                legend_label="confidence interval: " + str(p) + "%",
+                legend_label="confidence interval: {}%".format(p),
             )
 
         phs_mean = np.mean(self.phase, axis=1)
@@ -582,8 +595,9 @@ class ST_TimeResponseResults:
             tools="pan, box_zoom, wheel_zoom, reset, save",
             width=900,
             height=900,
-            title="Response for node %s and degree of freedom %s"
-            % (self.dof // 4, obs_dof),
+            title="Response for node {} and degree of freedom {}".format(
+                self.dof // 4, obs_dof
+            ),
             x_axis_label="Time (s)",
             y_axis_label="Amplitude",
         )
@@ -603,7 +617,7 @@ class ST_TimeResponseResults:
                     line_width=3,
                     muted_color=colors1[i],
                     muted_alpha=0.1,
-                    legend_label="percentile: " + str(p) + "%",
+                    legend_label="percentile: {}%".format(p),
                 )
 
         for i, p in enumerate(conf_interval):
@@ -617,7 +631,7 @@ class ST_TimeResponseResults:
                 line_width=3,
                 muted_color=colors1[i],
                 muted_alpha=0.1,
-                legend_label="confidence interval: " + str(p) + "%",
+                legend_label="confidence interval: {}%".format(p),
             )
             fig.line(
                 x=self.time_range,
@@ -625,7 +639,7 @@ class ST_TimeResponseResults:
                 line_color=colors1[i],
                 line_alpha=1.0,
                 line_width=3,
-                legend_label="confidence interval: " + str(p) + "%",
+                legend_label="confidence interval: {}%".format(p),
             )
 
         t_mean = np.mean(self.yout[..., self.dof], axis=0)
@@ -733,7 +747,7 @@ class ST_ForcedResponseResults:
                     line_width=3,
                     muted_color=colors1[i],
                     muted_alpha=0.1,
-                    legend_label="percentile: " + str(p) + "%",
+                    legend_label="percentile: {}%".format(p),
                 )
 
         if len(conf_interval):
@@ -748,7 +762,7 @@ class ST_ForcedResponseResults:
                     line_width=3,
                     muted_color=colors1[i],
                     muted_alpha=0.1,
-                    legend_label="confidence interval: " + str(p) + "%",
+                    legend_label="confidence interval: {}%".format(p),
                 )
                 fig.line(
                     x=self.frequency_range,
@@ -758,7 +772,7 @@ class ST_ForcedResponseResults:
                     line_width=3,
                     muted_color=colors1[i],
                     muted_alpha=0.1,
-                    legend_label="confidence interval: " + str(p) + "%",
+                    legend_label="confidence interval: {}%".format(p),
                 )
 
         mag_mean = np.mean(self.magnitude[..., dof], axis=0)
@@ -828,7 +842,7 @@ class ST_ForcedResponseResults:
                     line_width=3,
                     muted_color=colors1[i],
                     muted_alpha=0.1,
-                    legend_label="percentile: " + str(p) + "%",
+                    legend_label="percentile: {}%".format(p),
                 )
 
         for i, p in enumerate(conf_interval):
@@ -842,7 +856,7 @@ class ST_ForcedResponseResults:
                 line_width=3,
                 muted_color=colors1[i],
                 muted_alpha=0.1,
-                legend_label="confidence interval: " + str(p) + "%",
+                legend_label="confidence interval: {}%".format(p),
             )
             fig.line(
                 x=self.frequency_range,
@@ -850,7 +864,7 @@ class ST_ForcedResponseResults:
                 line_color=colors1[i],
                 line_alpha=1.0,
                 line_width=3,
-                legend_label="confidence interval: " + str(p) + "%",
+                legend_label="confidence interval: {}%".format(p),
             )
 
         phs_mean = np.mean(self.phase[..., dof], axis=0)
