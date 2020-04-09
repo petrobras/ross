@@ -1,5 +1,8 @@
-import numpy as np
+"""Shaft element module for STOCHASTIC ROSS.
 
+This module creates an instance of random shaft element for stochastic
+analysis.
+"""
 from ross.shaft_element import ShaftElement
 from ross.stochastic.st_materials import ST_Material
 
@@ -9,7 +12,8 @@ __all__ = ["ST_ShaftElement"]
 class ST_ShaftElement:
     """Random shaft element.
 
-    Creates an object containing a list with random instances of ShaftElement.
+    Creates an object containing a generator with random instances of
+    ShaftElement.
 
     Parameters
     ----------
@@ -53,11 +57,6 @@ class ST_ShaftElement:
         List of the object attributes to become random.
         Possibilities:
             ["L", "idl", "odl", "idr", "odr", "material"]
-
-    Attributes
-    ----------
-    elements : list
-        display the list with random shaft elements.
 
     Example
     -------
@@ -150,9 +149,6 @@ class ST_ShaftElement:
         -------
         f_list : generator
             Generator of random objects.
-
-        Example
-        -------
         """
         args_dict = args[0]
         new_args = []
