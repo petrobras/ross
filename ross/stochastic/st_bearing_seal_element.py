@@ -82,7 +82,7 @@ class ST_BearingElement:
 
     >>> s = 10
     >>> kxx = np.random.uniform(1e6, 2e6, s)
-    >>> cxx = np.random.uniform(1e6, 2e6, s)
+    >>> cxx = np.random.uniform(1e3, 2e3, s)
     >>> elms = srs.ST_BearingElement(n=1,
     ...                              kxx=kxx,
     ...                              cxx=cxx,
@@ -165,6 +165,82 @@ class ST_BearingElement:
         An iterator over random bearing elements.
         """
         return iter(self.random_var(self.is_random, self.attribute_dict))
+
+    def __getitem__(self, key):
+        """Return the value for a given key from attribute_dict.
+
+        Parameters
+        ----------
+        key : str
+            A class parameter as string.
+
+        Raises
+        ------
+        KeyError
+            Raises an error if the parameter doesn't belong to the class.
+
+        Returns
+        -------
+        Return the value for the given key.
+
+        Example
+        -------
+        >>> import numpy as np
+        >>> import ross.stochastic as srs
+        >>> s = 5
+        >>> kxx = np.random.uniform(1e6, 2e6, s)
+        >>> cxx = np.random.uniform(1e3, 2e3, s)
+        >>> elms = srs.ST_BearingElement(n=1,
+        ...                              kxx=kxx,
+        ...                              cxx=cxx,
+        ...                              is_random = ["kxx", "cxx"],
+        ...                              )
+        >>> elms["n"]
+        1
+        """
+        if key not in self.attribute_dict.keys():
+            raise KeyError("Object does not have parameter: {}.".format(key))
+
+        return self.attribute_dict[key]
+
+    def __setitem__(self, key, value):
+        """Set new parameter values for the object.
+
+        Function to change a parameter value.
+        It's not allowed to add new parameters to the object.
+
+        Parameters
+        ----------
+        key : str
+            A class parameter as string.
+        value : The corresponding value for the attrbiute_dict's key.
+            ***check the correct type for each key in ST_ShaftElement
+            docstring.
+
+        Raises
+        ------
+        KeyError
+            Raises an error if the parameter doesn't belong to the class.
+
+        Example
+        -------
+        >>> import numpy as np
+        >>> import ross.stochastic as srs
+        >>> s = 5
+        >>> kxx = np.random.uniform(1e6, 2e6, s)
+        >>> cxx = np.random.uniform(1e3, 2e3, s)
+        >>> elms = srs.ST_BearingElement(n=1,
+        ...                              kxx=kxx,
+        ...                              cxx=cxx,
+        ...                              is_random = ["kxx", "cxx"],
+        ...                              )
+        >>> elms["kxx"] = np.linspace(3e6, 5e6, 5)
+        >>> elms["kxx"]
+        array([3000000., 3500000., 4000000., 4500000., 5000000.])
+        """
+        if key not in self.attribute_dict.keys():
+            raise KeyError("Object does not have parameter: {}.".format(key))
+        self.attribute_dict[key] = value
 
     def random_var(self, is_random, *args):
         """Generate a list of objects as random attributes.
@@ -296,7 +372,8 @@ class ST_BearingElement:
             Stator Radius (m).
             Input a list to make it random.
         eccentricity: float, list
-            Eccentricity (m) is the euclidean distance between rotor and stator centers.
+            Eccentricity (m) is the euclidean distance between rotor and stator
+            centers.
             The center of the stator is in position (0,0).
             Input a list to make it random.
 
