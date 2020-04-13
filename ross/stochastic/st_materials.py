@@ -81,13 +81,13 @@ class ST_Material:
                 is_random.append(_name)
 
         if type(rho) == list:
-            rho = np.array(rho)
+            rho = np.asarray(rho)
         if type(E) == list:
-            E = np.array(E)
+            E = np.asarray(E)
         if type(G_s) == list:
-            G_s = np.array(G_s)
+            G_s = np.asarray(G_s)
         if type(Poisson) == list:
-            Poisson = np.array(Poisson)
+            Poisson = np.asarray(Poisson)
 
         self.name = name
         self.rho = rho
@@ -101,6 +101,68 @@ class ST_Material:
         )
         self.is_random = is_random
         self.attribute_dict = attribute_dict
+
+    def __getitem__(self, key):
+        """Return the value for a given key from attribute_dict.
+
+        Parameters
+        ----------
+        key : str
+            A class parameter as string.
+
+        Raises
+        ------
+        KeyError
+            Raises an error if the parameter doesn't belong to the class.
+
+        Returns
+        -------
+        Return the value for the given key.
+
+        Example
+        -------
+        >>> import ross.stochastic as srs
+        >>> E = np.random.uniform(208e9, 211e9, 5)
+        >>> st_steel = srs.ST_Material(name="Steel", rho=7810, E=E, G_s=81.2e9)
+        >>> st_steel["rho"]
+        7810
+        """
+        if key not in self.attribute_dict.keys():
+            raise KeyError("Object does not have parameter: {}.".format(key))
+
+        return self.attribute_dict[key]
+
+    def __setitem__(self, key, value):
+        """Set new parameter values for the object.
+
+        Function to change a parameter value.
+        It's not allowed to add new parameters to the object.
+
+        Parameters
+        ----------
+        key : str
+            A class parameter as string.
+        value : The corresponding value for the attrbiute_dict's key.
+            ***check the correct type for each key in ST_ShaftElement
+            docstring.
+
+        Raises
+        ------
+        KeyError
+            Raises an error if the parameter doesn't belong to the class.
+
+        Example
+        -------
+        >>> import ross.stochastic as srs
+        >>> E = np.random.uniform(208e9, 211e9, 5)
+        >>> st_steel = srs.ST_Material(name="Steel", rho=7810, E=E, G_s=81.2e9)
+        >>> st_steel["E"] = np.linspace(200e9, 205e9, 5)
+        >>> st_steel["E"]
+        array([2.0000e+11, 2.0125e+11, 2.0250e+11, 2.0375e+11, 2.0500e+11])
+        """
+        if key not in self.attribute_dict.keys():
+            raise KeyError("Object does not have parameter: {}.".format(key))
+        self.attribute_dict[key] = value
 
     def random_var(self, is_random, *args):
         """Generate a list of objects as random attributes.
