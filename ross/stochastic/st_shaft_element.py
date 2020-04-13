@@ -130,6 +130,84 @@ class ST_ShaftElement:
         """
         return iter(self.random_var(self.is_random, self.attribute_dict))
 
+    def __getitem__(self, key):
+        """Return the value for a given key from attribute_dict.
+
+        Parameters
+        ----------
+        key : str
+            A class parameter as string.
+
+        Raises
+        ------
+        KeyError
+            Raises an error if the parameter doesn't belong to the class.
+
+        Returns
+        -------
+        Return the value for the given key.
+
+        Example
+        -------
+        >>> import numpy as np
+        >>> import ross.stochastic as srs
+        >>> size = 5
+        >>> E = np.random.uniform(208e9, 211e9, size)
+        >>> st_steel = srs.ST_Material(name="Steel", rho=7810, E=E, G_s=81.2e9)
+        >>> elms = srs.ST_ShaftElement(L=1,
+        ...                            idl=0,
+        ...                            odl=np.random.uniform(0.1, 0.2, size),
+        ...                            material=st_steel,
+        ...                            is_random=["odl", "material"],
+        ...                            )
+        >>> elms["L"]
+        1
+        """
+        if key not in self.attribute_dict.keys():
+            raise KeyError("Object does not have parameter: {}.".format(key))
+
+        return self.attribute_dict[key]
+
+    def __setitem__(self, key, value):
+        """Set new parameter values for the object.
+
+        Function to change a parameter value.
+        It's not allowed to add new parameters to the object.
+
+        Parameters
+        ----------
+        key : str
+            A class parameter as string.
+        value : The corresponding value for the attrbiute_dict's key.
+            ***check the correct type for each key in ST_ShaftElement
+            docstring.
+
+        Raises
+        ------
+        KeyError
+            Raises an error if the parameter doesn't belong to the class.
+
+        Example
+        -------
+        >>> import numpy as np
+        >>> import ross.stochastic as srs
+        >>> size = 5
+        >>> E = np.random.uniform(208e9, 211e9, size)
+        >>> st_steel = srs.ST_Material(name="Steel", rho=7810, E=E, G_s=81.2e9)
+        >>> elms = srs.ST_ShaftElement(L=1,
+        ...                            idl=0,
+        ...                            odl=np.random.uniform(0.1, 0.2, size),
+        ...                            material=st_steel,
+        ...                            is_random=["odl", "material"],
+        ...                            )
+        >>> elms["odl"] = np.linspace(0.1, 0.2, 5)
+        >>> elms["odl"]
+        array([0.1  , 0.125, 0.15 , 0.175, 0.2  ])
+        """
+        if key not in self.attribute_dict.keys():
+            raise KeyError("Object does not have parameter: {}.".format(key))
+        self.attribute_dict[key] = value
+
     def random_var(self, is_random, *args):
         """Generate a list of objects as random attributes.
 

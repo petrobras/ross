@@ -69,6 +69,78 @@ class ST_DiskElement:
         """
         return iter(self.random_var(self.is_random, self.attribute_dict))
 
+    def __getitem__(self, key):
+        """Return the value for a given key from attribute_dict.
+
+        Parameters
+        ----------
+        key : str
+            A class parameter as string.
+
+        Raises
+        ------
+        KeyError
+            Raises an error if the parameter doesn't belong to the class.
+
+        Returns
+        -------
+        Return the value for the given key.
+
+        Example
+        -------
+        >>> import numpy as np
+        >>> import ross.stochastic as srs
+        >>> elms = srs.ST_DiskElement(n=1,
+        ...                           m=30.0,
+        ...                           Id=np.random.uniform(0.20, 0.40, 5),
+        ...                           Ip=np.random.uniform(0.15, 0.25, 5),
+        ...                           is_random=["Id", "Ip"],
+        ...                           )
+        >>> elms["m"]
+        30.0
+        """
+        if key not in self.attribute_dict.keys():
+            raise KeyError("Object does not have parameter: {}.".format(key))
+
+        return self.attribute_dict[key]
+
+    def __setitem__(self, key, value):
+        """Set new parameter values for the object.
+
+        Function to change a parameter value.
+        It's not allowed to add new parameters to the object.
+
+        Parameters
+        ----------
+        key : str
+            A class parameter as string.
+        value : The corresponding value for the attrbiute_dict's key.
+            ***check the correct type for each key in ST_ShaftElement
+            docstring.
+
+        Raises
+        ------
+        KeyError
+            Raises an error if the parameter doesn't belong to the class.
+
+        Example
+        -------
+        >>> import numpy as np
+        >>> import ross.stochastic as srs
+        >>> elms = srs.ST_DiskElement(n=1,
+        ...                           m=30.0,
+        ...                           Id=np.random.uniform(0.20, 0.40, 5),
+        ...                           Ip=np.random.uniform(0.15, 0.25, 5),
+        ...                           is_random=["Id", "Ip"],
+        ...                           )
+        >>> elms["Id"] = np.linspace(0.1, 0.3, 5)
+        >>> elms["Id"]
+        array([0.1 , 0.15, 0.2 , 0.25, 0.3 ])
+        """
+        if key not in self.attribute_dict.keys():
+            raise KeyError("Object does not have parameter: {}.".format(key))
+        self.attribute_dict[key] = value
+
     def random_var(self, is_random, *args):
         """Generate a list of objects as random attributes.
 

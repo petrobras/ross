@@ -62,8 +62,78 @@ class ST_PointMass:
         """
         return iter(self.random_var(self.is_random, self.attribute_dict))
 
+    def __getitem__(self, key):
+        """Return the value for a given key from attribute_dict.
+
+        Parameters
+        ----------
+        key : str
+            A class parameter as string.
+
+        Raises
+        ------
+        KeyError
+            Raises an error if the parameter doesn't belong to the class.
+
+        Returns
+        -------
+        Return the value for the given key.
+
+        Example
+        -------
+        >>> import numpy as np
+        >>> import ross.stochastic as srs
+        >>> elms = srs.ST_PointMass(n=1,
+        ...                         mx=np.random.uniform(2.0, 2.5, 5),
+        ...                         my=np.random.uniform(2.0, 2.5, 5),
+        ...                         is_random=["mx", "my"],
+        ...                         )
+        >>> elms["n"]
+        1
+        """
+        if key not in self.attribute_dict.keys():
+            raise KeyError("Object does not have parameter: {}.".format(key))
+
+        return self.attribute_dict[key]
+
+    def __setitem__(self, key, value):
+        """Set new parameter values for the object.
+
+        Function to change a parameter value.
+        It's not allowed to add new parameters to the object.
+
+        Parameters
+        ----------
+        key : str
+            A class parameter as string.
+        value : The corresponding value for the attrbiute_dict's key.
+            ***check the correct type for each key in ST_ShaftElement
+            docstring.
+
+        Raises
+        ------
+        KeyError
+            Raises an error if the parameter doesn't belong to the class.
+
+        Example
+        -------
+        >>> import numpy as np
+        >>> import ross.stochastic as srs
+        >>> elms = srs.ST_PointMass(n=1,
+        ...                         mx=np.random.uniform(2.0, 2.5, 5),
+        ...                         my=np.random.uniform(2.0, 2.5, 5),
+        ...                         is_random=["mx", "my"],
+        ...                         )
+        >>> elms["mx"] = np.linspace(1.0, 2.0, 5)
+        >>> elms["mx"]
+        array([1.  , 1.25, 1.5 , 1.75, 2.  ])
+        """
+        if key not in self.attribute_dict.keys():
+            raise KeyError("Object does not have parameter: {}.".format(key))
+        self.attribute_dict[key] = value
+
     def random_var(self, is_random, *args):
-        """Generates a list of objects as random attributes.
+        """Generate a list of objects as random attributes.
 
         This function creates a list of objects with random values for selected
         attributes from PointMass.
