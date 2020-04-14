@@ -12,3 +12,4 @@ Here you can download the tutorial and examples notebooks.
 | :download:`Example 6 </examples/example_6.ipynb>`
 | :download:`Example 7 </examples/example_7.ipynb>`
 | :download:`Example 8 </examples/example_8.ipynb>`
+| :download:`Stochastic ROSS - Tutorial </examples/example_stochastic_ross.ipynb>`
