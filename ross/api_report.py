@@ -1,95 +1,136 @@
+# fmt: off
+from copy import copy, deepcopy
+
+import bokeh.palettes as bp
 import numpy as np
 import pandas as pd
-
-from copy import copy
+from bokeh.layouts import Column, gridplot
+from bokeh.models import (ColumnDataSource, DataRange1d, HoverTool, Label,
+                          LinearAxis, Range1d, Span)
+from bokeh.models.widgets import (DataTable, NumberFormatter, Panel,
+                                  TableColumn, Tabs)
+from bokeh.plotting import figure
 from scipy.interpolate import interp1d
 from scipy.signal import argrelextrema
-from pathlib import Path
-from ross.rotor_assembly import Rotor, rotor_example
-from ross.bearing_seal_element import BearingElement
-import ross as rs
 
-from copy import deepcopy
-import bokeh.palettes as bp
-from bokeh.plotting import figure
-from bokeh.layouts import gridplot, widgetbox
-from bokeh.models.widgets import (
-    DataTable, NumberFormatter, TableColumn, Panel, Tabs
-)
-from bokeh.models import (
-    ColumnDataSource, HoverTool, Span, Label, LinearAxis, Range1d, DataRange1d,
-)
+from ross.bearing_seal_element import BearingElement, SealElement
+from ross.disk_element import DiskElement
+from ross.materials import steel
+from ross.rotor_assembly import Rotor
+from ross.shaft_element import ShaftElement
+
+# fmt: on
 
 # set bokeh palette of colors
 bokeh_colors = bp.RdGy[11]
 
+__all__ = ["Report", "report_example"]
+
 
 class Report:
+    """Report according to standard analysis.
+
+    - Perform unbalance response
+    - Perform Stability_level1 analysis
+    - Apply Level 1 Screening Criteria
+    - Perform Stability_level2 analysis
+
+    Parameters
+    ----------
+    rotor : object
+        A rotor built from rotor_assembly.
+    speed_range : tuple
+        Tuple with (min, max) for speed range.
+    tripspeed : float
+        Machine trip speed.
+    bearing_stiffness_range : tuple, optional
+        Tuple with (start, end) bearing stiffness range.
+        Argument to calculate the Undamped Critical Speed Map.
+    bearing_clearance_lists : list of lists, optional
+        List with two bearing elements lists:
+            The first bearing list is set for minimum clearance.
+            The second bearing list it set for maximum clearance.
+    machine_type : str
+        Machine type analyzed. Options: compressor, turbine or axial_flow.
+        If other option is given, it will be treated as a compressor
+        Default is compressor
+    speed_units : str
+        String defining the unit for rotor speed.
+        Default is "rpm".
+    tag : str
+        String to name the rotor model
+        Default is the Rotor.tag attribute
+
+    Attributes
+    ----------
+    rotor_type: str
+        Defines if the rotor is between bearings or overhung
+    disk_nodes: list
+        List of disk between bearings or overhung (depending on the
+        rotor type)
+
+    Returns
+    -------
+    A Report object
+
+    Examples
+    --------
+    >>> import ross as rs
+    >>> rotor = rs.rotor_example()
+    >>>
+    >>> # coefficients for minimum clearance
+    >>> stfx = [0.7e7, 0.8e7, 0.9e7, 1.0e7]
+    >>> damp = [2.0e3, 1.9e3, 1.8e3, 1.7e3]
+    >>> freq = [400, 800, 1200, 1600]
+    >>> bearing0 = rs.BearingElement(0, kxx=stfx, cxx=damp, frequency=freq)
+    >>> bearing1 = rs.BearingElement(6, kxx=stfx, cxx=damp, frequency=freq)
+    >>> min_clearance_brg = [bearing0, bearing1]
+    >>>
+    >>> # coefficients for maximum clearance
+    >>> stfx = [0.4e7, 0.5e7, 0.6e7, 0.7e7]
+    >>> damp = [2.8e3, 2.7e3, 2.6e3, 2.5e3]
+    >>> freq = [400, 800, 1200, 1600]
+    >>> bearing0 = rs.BearingElement(0, kxx=stfx, cxx=damp, frequency=freq)
+    >>> bearing1 = rs.BearingElement(6, kxx=stfx, cxx=damp, frequency=freq)
+    >>> max_clearance_brg = [bearing0, bearing1]
+    >>>
+    >>> bearings = [min_clearance_brg, max_clearance_brg]
+    >>> report = rs.Report(rotor=rotor,
+    ...                 speed_range=(400, 1000),
+    ...                 tripspeed=1200,
+    ...                 bearing_stiffness_range=(5,8),
+    ...                 bearing_clearance_lists=bearings,
+    ...                 speed_units="rad/s")
+    >>> report.rotor_type
+    'between_bearings'
+    """
+
     def __init__(
         self,
         rotor,
-        minspeed,
-        maxspeed,
+        speed_range,
+        tripspeed,
+        bearing_stiffness_range=None,
+        bearing_clearance_lists=None,
         machine_type="compressor",
         speed_units="rpm",
         tag=None,
     ):
-        """Report according to standard analysis.
-
-        - Perform Stability_level1 analysis
-        - Apply Level 1 Screening Criteria
-        - Perform Stability_level2 analysis
-
-        Parameters
-        ----------
-        rotor: object
-            A rotor built from rotor_assembly.
-        maxspeed: float
-            Maximum operation speed.
-        minspeed: float
-            Minimum operation speed.
-        machine_type: str
-            Machine type analyzed. Options: compressor, turbine or axial_flow.
-            If other option is given, it will be treated as a compressor
-            Default is compressor
-        speed_units: str
-            String defining the unit for rotor speed.
-            Default is "rpm".
-        tag: str
-            String to name the rotor model
-            Default is the Rotor.tag attribute
-
-        Attributes
-        ----------
-        rotor_type: str
-            Defines if the rotor is between bearings or overhung
-        disk_nodes: list
-            List of disk between bearings or overhung (depending on the
-            rotor type)
-
-        Returns
-        -------
-        A Report object
-
-        Examples
-        --------
-        >>> rotor = rotor_example()
-        >>> report = Report(rotor=rotor,
-        ...                 minspeed=400,
-        ...                 maxspeed=1000,
-        ...                 speed_units="rad/s")
-        >>> report.rotor_type
-        'between_bearings'
-        """
         self.rotor = rotor
         self.speed_units = speed_units
+        self.speed_range = speed_range
 
         if speed_units == "rpm":
-            minspeed = minspeed * np.pi / 30
-            maxspeed = maxspeed * np.pi / 30
+            self.minspeed = speed_range[0] * np.pi / 30
+            self.maxspeed = speed_range[1] * np.pi / 30
+            self.tripspeed = tripspeed * np.pi / 30
+        if speed_units == "rad/s":
+            self.minspeed = speed_range[0]
+            self.maxspeed = speed_range[1]
+            self.tripspeed = tripspeed
 
-        self.maxspeed = maxspeed
-        self.minspeed = minspeed
+        self.bearing_stiffness_range = bearing_stiffness_range
+        self.bearing_clearance_lists = bearing_clearance_lists
 
         # check if rotor is between bearings, single or double overhung
         # fmt: off
@@ -100,8 +141,8 @@ class Report:
             rotor_type = "between_bearings"
             disk_nodes = [
                 i for i in rotor.df_disks["n"] if(
-                        i > min(rotor.df_bearings["n"]) and
-                        i < max(rotor.df_bearings["n"])
+                    i > min(rotor.df_bearings["n"]) and
+                    i < max(rotor.df_bearings["n"])
                 )
             ]
         elif(
@@ -156,10 +197,23 @@ class Report:
         self.MCS = None
         self.RHO_gas = None
         self.condition = None
+        self.node_min = None
+        self.node_max = None
+        self.U_force = None
 
     @classmethod
-    def from_saved_rotors(cls, path, minspeed, maxspeed, speed_units="rpm"):
-        """Instantiate a rotor from a previously saved rotor model
+    def from_saved_rotors(
+        cls,
+        path,
+        speed_range,
+        tripspeed,
+        bearing_stiffness_range=None,
+        bearing_clearance_lists=None,
+        machine_type="compressor",
+        speed_units="rpm",
+        tag=None,
+    ):
+        """Instantiate a rotor from a previously saved rotor model.
 
         Parameters
         ----------
@@ -169,30 +223,339 @@ class Report:
             Maximum operation speed.
         minspeed : float
             Minimum operation speed.
+        tripspeed : float
+            Machine trip speed.
+        stiffness_range : tuple, optional
+            Tuple with (start, end) for stiffness range. Argument to calculate
+            the Undamped Critical Speed Map
+        machine_type : str
+            Machine type analyzed. Options: compressor, turbine or axial_flow.
+            If other option is given, it will be treated as a compressor
+            Default is compressor
         speed_units : str
             String defining the unit for rotor speed.
             Default is "rpm".
 
         Returns
         -------
-        Report : obj
-            A report object based on the rotor loaded
-
-        Examples
-        --------
-        >>> rotor = rotor_example()
-        >>> rotor.save(rotor_name='rotor_example',file_path=Path('.'))
-        >>> rotor_path = Path('.') / 'rotor_example'
-        >>> report = Report.from_saved_rotors(
-        ...     path=rotor_path, minspeed=400, maxspeed=1000, speed_units="rad/s"
-        ... )
-        >>> Rotor.remove(rotor_path)
+        A Report object
         """
-        rotor = rs.Rotor.load(path)
-        return cls(rotor, minspeed, maxspeed, speed_units="rpm")
+        rotor = Rotor.load(path)
+        return cls(
+            rotor,
+            speed_range,
+            tripspeed,
+            bearing_stiffness_range,
+            bearing_clearance_lists,
+            machine_type,
+            speed_units,
+            tag,
+        )
+
+    def rotor_instance(self, rotor, bearing_list):
+        """Build an instance of an auxiliary rotor with different bearing clearances.
+
+        Parameters
+        ----------
+        rotor : object
+            A rotor built from rotor_assembly.
+        bearing_list : list
+            List with the bearing elements.
+
+        Returns
+        -------
+        aux_rotor : Rotor.object
+            Returns a rotor object copy with different bearing clearance.
+
+        Example
+        -------
+        >>> import ross as rs
+        >>> stfx = [0.4e7, 0.5e7, 0.6e7, 0.7e7]
+        >>> damp = [2.8e3, 2.7e3, 2.6e3, 2.5e3]
+        >>> freq = [400, 800, 1200, 1600]
+        >>> bearing0 = rs.BearingElement(0, kxx=stfx, cxx=damp, frequency=freq)
+        >>> bearing1 = rs.BearingElement(6, kxx=stfx, cxx=damp, frequency=freq)
+        >>> bearings = [bearing0, bearing1]
+        >>> rotor = rs.rotor_example()
+        >>> report = rs.report_example()
+        >>> aux_rotor = report.rotor_instance(rotor, bearings)
+        """
+        sh_elm = rotor.shaft_elements
+        dk_elm = rotor.disk_elements
+        pm_elm = rotor.point_mass_elements
+        sparse = rotor.sparse
+        n_eigen = rotor.n_eigen
+        min_w = rotor.min_w
+        max_w = rotor.max_w
+        rated_w = rotor.rated_w
+        tag = rotor.tag
+
+        aux_rotor = Rotor(
+            sh_elm,
+            dk_elm,
+            bearing_list,
+            pm_elm,
+            sparse,
+            n_eigen,
+            min_w,
+            max_w,
+            rated_w,
+            tag,
+        )
+
+        return aux_rotor
+
+    def run(self, D, H, HP, oper_speed, RHO_ratio, RHOs, RHOd, unit="m"):
+        """Run API report.
+
+        This method runs the API analysis and prepare the results to
+        generate the PDF report.
+
+        Parameters
+        ----------
+        D: list
+            Impeller diameter, m (in.),
+            Blade pitch diameter, m (in.),
+        H: list
+            Minimum diffuser width per impeller, m (in.),
+            Effective blade height, m (in.),
+        HP: list
+            Rated power per stage/impeller, W (HP),
+        oper_speed: float
+            Operating speed, rpm,
+        RHO_ratio: list
+            Density ratio between the discharge gas density and the suction
+            gas density per impeller (RHO_discharge / RHO_suction),
+            kg/m3 (lbm/in.3),
+        RHOs: float
+            Suction gas density in the first stage, kg/m3 (lbm/in.3).
+        RHOd: float
+            Discharge gas density in the last stage, kg/m3 (lbm/in.3),
+        unit: str, optional
+            Adopted unit system. Options are "m" (meter) and "in" (inch)
+            Default is "m"
+
+        Returns
+        -------
+        fig_ucs : list
+            List with undamped critical speed map figures.
+        fig_mode_shape : list
+            List with mode shape figures.
+        fig_unbalance : list
+            List with unbalance response figures.
+        df_unbalance : dataframe
+            Dataframe for the unbalance response informations.
+        fig_a_lvl1 : list
+            List with "Applied Cross-Coupled Stiffness" (stability level 1) figures.
+        fig_b_lvl1 : list
+            List with "CSR vs. Mean Gas Density" (stability level 1) figures.
+        df_lvl2 : dataframe
+            Dataframe for the stability level 2 informations.
+        summaries : bokeh Column
+            Bokeh Column with the summary table plot.
+
+        Example
+        -------
+        >>> import ross as rs
+        >>> report = rs.report_example()
+        >>> D = [0.35, 0.35]
+        >>> H = [0.08, 0.08]
+        >>> HP = [10000, 10000]
+        >>> RHO_ratio = [1.11, 1.14]
+        >>> RHOd = 30.45
+        >>> RHOs = 37.65
+        >>> oper_speed = 1000.0
+        >>> # to run the API report analysis, use:
+        >>> # report.run(D, H, HP, oper_speed, RHO_ratio, RHOs, RHOd)
+        """
+        fig_ucs = []
+        fig_mode_shape = []
+        fig_unbalance = []
+        fig_a_lvl1 = []
+        fig_b_lvl1 = []
+        df_unbalance = []
+        summaries = []
+
+        rotor0 = self.rotor
+
+        for bearings in self.bearing_clearance_lists:
+            self.rotor = self.rotor_instance(rotor0, bearings)
+
+            # undamped critical speed map
+            fig_ucs.append(self.plot_ucs(stiffness_range=self.bearing_stiffness_range))
+
+            for i, mode in enumerate([0, 2]):
+                # mode shape figures
+                fig_mode_shape.append(self.mode_shape(mode))
+
+                # unbalance response figures and dataframe
+                fig, _dict = self.unbalance_response(mode)
+                fig_unbalance.append(fig)
+                df = pd.DataFrame(_dict).astype(object)
+                df_unbalance.append(df)
+
+            # stability level 1 figures
+            figs = self.stability_level_1(D, H, HP, oper_speed, RHO_ratio, RHOs, RHOd)
+            fig_a_lvl1.append(figs[0])
+            fig_b_lvl1.append(figs[1])
+
+            # stability level 2 dataframe
+            df_lvl2 = self.stability_level_2()
+
+            # API summary tables
+            summaries.append(self.summary())
+
+        df_unbalance = pd.concat(df_unbalance)
+
+        self.rotor = rotor0
+
+        return (
+            fig_ucs,
+            fig_mode_shape,
+            fig_unbalance,
+            df_unbalance,
+            fig_a_lvl1,
+            fig_b_lvl1,
+            df_lvl2,
+            summaries,
+        )
+
+    def plot_ucs(self, stiffness_range=None, num=20):
+        """Plot undamped critical speed map.
+
+        This method will plot the undamped critical speed map for a given range
+        of stiffness values. If the range is not provided, the bearing
+        stiffness at rated speed will be used to create a range.
+
+        Parameters
+        ----------
+        stiffness_range : tuple, optional
+            Tuple with (start, end) for stiffness range.
+        num : int
+            Number of steps in the range.
+            Default is 20.
+
+        Returns
+        -------
+        fig : bokeh figure
+            Returns the axes object with the plot.
+
+        Example
+        -------
+        >>> import ross as rs
+        >>> report = rs.report_example()
+        >>> report.plot_ucs(stiffness_range=(5, 8)) # doctest: +ELLIPSIS
+        Figure...
+        """
+        if stiffness_range is None:
+            if self.rotor.rated_w is not None:
+                bearing = self.rotor.bearing_elements[0]
+                k = bearing.kxx.interpolated(self.rotor.rated_w)
+                k = int(np.log10(k))
+                stiffness_range = (k - 3, k + 3)
+            else:
+                stiffness_range = (6, 11)
+
+        stiffness_log = np.logspace(*stiffness_range, num=num)
+        rotor_wn = np.zeros((4, len(stiffness_log)))
+
+        bearings_elements = []  # exclude the seals
+        for bearing in self.rotor.bearing_elements:
+            if not isinstance(bearing, SealElement):
+                bearings_elements.append(bearing)
+
+        for i, k in enumerate(stiffness_log):
+            bearings = [BearingElement(b.n, kxx=k, cxx=0) for b in bearings_elements]
+            rotor = self.rotor.__class__(
+                self.rotor.shaft_elements,
+                self.rotor.disk_elements,
+                bearings,
+                n_eigen=16,
+            )
+            modal = rotor.run_modal(speed=0)
+            rotor_wn[:, i] = modal.wn[:8:2]
+
+        bearing0 = bearings_elements[0]
+
+        fig = figure(
+            tools="pan, box_zoom, wheel_zoom, reset, save",
+            width=640,
+            height=480,
+            title="Undamped Critical Speed Map",
+            x_axis_label="Bearing Stiffness",
+            y_axis_label="Critical Speed",
+            x_axis_type="log",
+            y_axis_type="log",
+        )
+        fig.title.text_font_size = "14pt"
+        fig.xaxis.axis_label_text_font_size = "14pt"
+        fig.yaxis.axis_label_text_font_size = "14pt"
+        fig.axis.major_label_text_font_size = "14pt"
+
+        fig.circle(
+            bearing0.kxx.interpolated(bearing0.frequency),
+            bearing0.frequency,
+            size=5,
+            fill_alpha=0.5,
+            fill_color=bokeh_colors[0],
+            legend_label="Kxx",
+        )
+        fig.square(
+            bearing0.kyy.interpolated(bearing0.frequency),
+            bearing0.frequency,
+            size=5,
+            fill_alpha=0.5,
+            fill_color=bokeh_colors[0],
+            legend_label="Kyy",
+        )
+
+        for j in range(rotor_wn.T.shape[1]):
+            fig.line(
+                stiffness_log,
+                np.transpose(rotor_wn.T)[j],
+                line_width=3,
+                line_color="red",
+            )
+
+        fig.line(
+            stiffness_log,
+            [self.maxspeed] * num,
+            line_dash="dotdash",
+            line_width=3,
+            line_color=bokeh_colors[-1],
+            legend_label="MCS Speed",
+        )
+        fig.line(
+            stiffness_log,
+            [self.minspeed] * num,
+            line_dash="dotdash",
+            line_width=3,
+            line_color=bokeh_colors[-2],
+            legend_label="MOS Speed",
+        )
+        fig.line(
+            stiffness_log,
+            [self.tripspeed] * num,
+            line_dash="dotdash",
+            line_width=3,
+            line_color=bokeh_colors[-3],
+            legend_label="Trip Speed",
+        )
+        fig.line(
+            stiffness_log,
+            [1.25 * self.tripspeed] * num,
+            line_dash="dotdash",
+            line_width=3,
+            line_color=bokeh_colors[-4],
+            legend_label="125% Trip Speed",
+        )
+        fig.legend.background_fill_alpha = 0.1
+        fig.legend.location = "bottom_right"
+
+        return fig
 
     def static_forces(self):
-        """Method to calculate the bearing reaction forces.
+        """Calculate the bearing reaction forces.
 
         Returns
         -------
@@ -201,11 +564,8 @@ class Report:
 
         Example
         -------
-        >>> rotor = rotor_example()
-        >>> report = Report(rotor=rotor,
-        ...                 minspeed=400,
-        ...                 maxspeed=1000,
-        ...                 speed_units="rad/s")
+        >>> import ross as rs
+        >>> report = rs.report_example()
         >>> report.static_forces()
         array([44.09320349, 44.09320349])
         """
@@ -217,7 +577,8 @@ class Report:
         return Fb
 
     def unbalance_forces(self, mode):
-        """Method to calculate the unbalance forces.
+        """Calculate the unbalance forces.
+
         The unbalance forces are calculated base on the rotor type:
             between_bearings :
                 The unbalance forces derives from the reaction bearing forces.
@@ -243,14 +604,17 @@ class Report:
 
         Example
         -------
-        >>> rotor = rotor_example()
-        >>> report = Report(rotor=rotor,
-        ...                 minspeed=400,
-        ...                 maxspeed=1000,
-        ...                 speed_units="rad/s")
+        >>> import ross as rs
+        >>> report = rs.report_example()
         >>> report.unbalance_forces(mode=0)
         [58.641354289961676]
         """
+        if mode > 3:
+            raise ValueError(
+                "This module calculates only the response for the first "
+                "two backward and forward modes. "
+            )
+
         N = 60 * self.maxspeed / (2 * np.pi)
 
         # get reaction forces on bearings
@@ -318,10 +682,12 @@ class Report:
 
             U_force = 6350 * W3 / N
 
+        self.U_force = U_force
+
         return U_force
 
-    def unbalance_response(self, clearances, mode):
-        """Evaluates the unbalance response for the rotor.
+    def unbalance_response(self, mode):
+        """Evaluate the unbalance response for the rotor.
 
         This analysis takes the critical speeds of interest, calculates the
         position and weight of the required unbalance and performs the analysis
@@ -332,48 +698,69 @@ class Report:
 
         Parameters
         ----------
-        clearances : dict
-            Dict mapping between node and its clearance in meters.
-            (e.g. clearances = dict(3=0.001, 5=0.002...)
         mode : int
             n'th mode shape.
 
         Returns
         -------
-        mag_plot : bokeh axes
-            Bokeh axes with unbalance response plot.
+        grid_plots : bokeh.gridplot
+            Bokeh axes with unbalance response plot for magnitude and
+            phase angle.
+        unbalance_dict : dict
+            A dictionary with information about simulation parameters to be
+            displayed in the report. The dictionary contains:
+                - Mode number;
+                - Critical frequencies;
+                - Amplification factors;
+                - Separation margins (actual and required);
+                - Unbalance stations;
+                - Unbalance weights;
+                - Unbalance phases;
 
         Example
         -------
-        >>> rotor = rotor_example()
-        >>> report = Report(rotor=rotor,
-        ...                 minspeed=400,
-        ...                 maxspeed=1000,
-        ...                 speed_units="rad/s")
-        >>> clearances = {3:0.001, 5:0.002}
-        >>> report.unbalance_response(clearances=clearances, mode=0) # doctest: +ELLIPSIS
-        Figure...
+        >>> import ross as rs
+        >>> report = rs.report_example()
+        >>> report.unbalance_response(mode=0) # doctest: +ELLIPSIS
+        (Column...
         """
         maxspeed = self.maxspeed
         minspeed = self.minspeed
         freq_range = np.linspace(0, 1.25 * maxspeed, 201)
 
         # returns de nodes where forces will be applied
-        node_min, node_max = self.mode_shape(mode)
+        self.mode_shape(mode)
+        node_min = self.node_min
+        node_max = self.node_max
         nodes = [int(node) for sub_nodes in [node_min, node_max] for node in sub_nodes]
 
         force = self.unbalance_forces(mode)
 
         phase = []
+        phase_angle = 0
         for node in nodes:
-            phase.append(np.pi)
+            phase.append(phase_angle)
+            phase_angle += np.pi
+
+        unbalance_dict = {
+            "Mode": mode + 1,
+            "Frequency": [],
+            "Amplification factor": [],
+            "Separation margin - ACTUAL": [],
+            "Separation margin - REQUIRED": [],
+            "Unbalance station(s)": [nodes],
+            "Unbalance weight(s)": [force],
+            "Unbalance phase(s)": [phase],
+        }
 
         response = self.rotor.unbalance_response(nodes, force, phase, freq_range)
         mag = response.magnitude
+        phs = response.phase
 
         for node in nodes:
             dof = 4 * node + 1
             mag_plot = response.plot_magnitude_bokeh(dof)
+            phs_plot = response.plot_phase_bokeh(dof)
 
         magnitude = mag[dof]
         idx_max = argrelextrema(magnitude, np.greater)[0].tolist()
@@ -475,10 +862,14 @@ class Report:
                 SM_ref = None
                 SMspeed = None
 
-        # amplitude limit in micrometers (A1) - API684 - SP6.8.2.11
-        A1 = 25.4 * np.sqrt(12000 / (30 * maxspeed / np.pi))
+            unbalance_dict["Amplification factor"].append(AF)
+            unbalance_dict["Separation margin - ACTUAL"].append(SM)
+            unbalance_dict["Separation margin - REQUIRED"].append(SM_ref)
+            unbalance_dict["Frequency"].append(wn[i])
 
-        # amplitude from mode shape analysis
+        # amplitude limit in micrometers (A1) - API684 - SP6.8.2.11
+        A1 = 25.4 * np.sqrt(12000 / (30 * maxspeed / np.pi)) * 1.0e-6
+
         Amax = max(mag[dof])
 
         # Scale Factor (Scc) - API684 - SP6.8.2.11 / API617 - 4.8.2.11
@@ -529,11 +920,17 @@ class Report:
         )
         mag_plot.width = 640
         mag_plot.height = 480
+        mag_plot.legend.background_fill_alpha = 0.1
 
-        return mag_plot
+        phs_plot.width = 640
+        phs_plot.height = 480
+
+        grid_plots = gridplot([mag_plot, phs_plot], ncols=1)
+
+        return grid_plots, unbalance_dict
 
     def mode_shape(self, mode):
-        """Evaluates the mode shapes for the rotor.
+        """Evaluate the mode shapes for the rotor.
 
         This analysis presents the vibration mode for each critical speed.
         The importance is to locate the critical node, where the displacement
@@ -552,13 +949,13 @@ class Report:
 
         Example
         -------
-        >>> rotor = rotor_example()
-        >>> report = Report(rotor=rotor,
-        ...                 minspeed=400,
-        ...                 maxspeed=1000,
-        ...                 speed_units="rad/s")
-        >>> report.mode_shape(mode=0)
-        ([], array([3.]))
+        >>> import ross as rs
+        >>> report = rs.report_example()
+        >>> fig = report.mode_shape(mode=0)
+        >>> report.node_min
+        array([], dtype=float64)
+        >>> report.node_max
+        array([3.])
         """
         nodes_pos = self.rotor.nodes_pos
         df_bearings = self.rotor.df_bearings
@@ -581,8 +978,8 @@ class Report:
         zn = np.delete(zn, idx_remove)
         vn = np.delete(vn, idx_remove)
 
-        node_min = []
-        node_max = []
+        node_min = np.array([])
+        node_max = np.array([])
 
         if self.rotor_type == "between_bearings":
 
@@ -622,14 +1019,14 @@ class Report:
                 node_max = np.round(np.array(idx_max) / nn)
 
         elif self.rotor_type == "double_overhung":
-            node_max = [max(df_disks['n'])]
-            node_min = [min(df_disks['n'])]
+            node_max = [max(df_disks["n"])]
+            node_min = [min(df_disks["n"])]
 
         elif self.rotor_type == "single_overhung_l":
-            node_min = [min(df_disks['n'])]
+            node_min = [min(df_disks["n"])]
 
         elif self.rotor_type == "single_overhung_r":
-            node_max = [max(df_disks['n'])]
+            node_max = [max(df_disks["n"])]
 
         plot = figure(
             tools="pan,wheel_zoom,box_zoom,reset,save,box_select",
@@ -640,9 +1037,9 @@ class Report:
             y_axis_label="Non dimensional rotor deformation",
         )
         plot.title.text_font_size = "14pt"
-        plot.xaxis.axis_label_text_font_size = "20pt"
-        plot.yaxis.axis_label_text_font_size = "20pt"
-        plot.axis.major_label_text_font_size = "16pt"
+        plot.xaxis.axis_label_text_font_size = "14pt"
+        plot.yaxis.axis_label_text_font_size = "14pt"
+        plot.axis.major_label_text_font_size = "14pt"
 
         nodes_pos = np.array(nodes_pos)
         rpm_speed = (30 / np.pi) * modal.wn[mode]
@@ -694,7 +1091,10 @@ class Report:
                 )
             )
 
-        return node_min, node_max
+        self.node_min = node_min
+        self.node_max = node_max
+
+        return plot
 
     def stability_level_1(self, D, H, HP, oper_speed, RHO_ratio, RHOs, RHOd, unit="m"):
         """Stability analysis level 1.
@@ -745,18 +1145,15 @@ class Report:
 
         Example
         -------
-        >>> rotor = rotor_example()
-        >>> report = Report(rotor=rotor,
-        ...                 minspeed=400,
-        ...                 maxspeed=1000,
-        ...                 speed_units="rad/s")
-        >>> stability = report.stability_level_1(D=[0.35, 0.35],
-        ...                          H=[0.08, 0.08],
-        ...                          HP=[10000, 10000],
-        ...                          RHO_ratio=[1.11, 1.14],
-        ...                          RHOd=30.45,
-        ...                          RHOs=37.65,
-        ...                          oper_speed=1000.0)
+        >>> import ross as rs
+        >>> report = rs.report_example()
+        >>> fig1, fig2 = report.stability_level_1(D=[0.35, 0.35],
+        ...                                       H=[0.08, 0.08],
+        ...                                       HP=[10000, 10000],
+        ...                                       RHO_ratio=[1.11, 1.14],
+        ...                                       RHOd=30.45,
+        ...                                       RHOs=37.65,
+        ...                                       oper_speed=1000.0)
         >>> report.Qa
         23022.32142857143
         """
@@ -799,7 +1196,7 @@ class Report:
         Qi = np.linspace(0, 10 * Qa, steps)
         cross_coupled_array = np.append(cross_coupled_array, Qi)
         cross_coupled_array = cross_coupled_array.reshape(
-                [len(self.disk_nodes) + 1, steps]
+            [len(self.disk_nodes) + 1, steps]
         ).T
 
         log_dec = np.zeros(len(cross_coupled_array))
@@ -808,9 +1205,8 @@ class Report:
         bearing_list = [
             copy(b)
             for b in self.rotor.bearing_elements
-
-            if not isinstance(b, rs.SealElement)
-            ]
+            if not isinstance(b, SealElement)
+        ]
 
         # Applying cross-coupling on rotor mid-span
         if self.rotor_type == "between_bearings":
@@ -838,9 +1234,7 @@ class Report:
                 bearings = [copy(b) for b in bearing_list]
                 # cross-coupling introduced at overhung disks
                 for n, q in zip(self.disk_nodes, Q):
-                    cross_coupling = BearingElement(
-                        n=n, kxx=0, cxx=0, kxy=q, kyx=-q
-                    )
+                    cross_coupling = BearingElement(n=n, kxx=0, cxx=0, kxy=q, kyx=-q)
                     bearings.append(cross_coupling)
 
                 aux_rotor = Rotor(
@@ -900,13 +1294,11 @@ class Report:
             y_range=DataRange1d(start=0),
         )
         fig1.title.text_font_size = "14pt"
-        fig1.xaxis.axis_label_text_font_size = "20pt"
-        fig1.yaxis.axis_label_text_font_size = "20pt"
-        fig1.axis.major_label_text_font_size = "16pt"
+        fig1.xaxis.axis_label_text_font_size = "14pt"
+        fig1.yaxis.axis_label_text_font_size = "14pt"
+        fig1.axis.major_label_text_font_size = "14pt"
 
-        fig1.line(
-            cross_coupled_Qa, log_dec, line_width=3, line_color=bokeh_colors[0]
-        )
+        fig1.line(cross_coupled_Qa, log_dec, line_width=3, line_color=bokeh_colors[0])
         fig1.circle(Qa, log_dec_a, size=8, fill_color=bokeh_colors[0])
         fig1.add_layout(
             Label(
@@ -917,7 +1309,7 @@ class Report:
                 text_font_size="12pt",
                 text_baseline="middle",
                 text_align="left",
-                y_offset=10
+                y_offset=10,
             )
         )
 
@@ -941,9 +1333,9 @@ class Report:
             x_range=DataRange1d(start=0),
         )
         fig2.title.text_font_size = "14pt"
-        fig2.xaxis.axis_label_text_font_size = "20pt"
-        fig2.yaxis.axis_label_text_font_size = "20pt"
-        fig2.axis.major_label_text_font_size = "16pt"
+        fig2.xaxis.axis_label_text_font_size = "14pt"
+        fig2.yaxis.axis_label_text_font_size = "14pt"
+        fig2.axis.major_label_text_font_size = "14pt"
         fig2.extra_x_ranges = {"x_range2": Range1d(f * min(RHO), f * max(RHO))}
 
         fig2.add_layout(
@@ -1030,9 +1422,6 @@ class Report:
         c)  impeller/blade flow aerodynamic effects;
         d)  internal friction.
 
-        Parameters
-        ----------
-
         Returns
         -------
         df_logdec: pandas dataframe
@@ -1041,86 +1430,99 @@ class Report:
 
         Example
         -------
-        >>> rotor = rotor_example()
-        >>> report = Report(rotor=rotor,
-        ...                 minspeed=400,
-        ...                 maxspeed=1000,
-        ...                 speed_units="rad/s")
+        >>> import ross as rs
+        >>> report = rs.report_example()
         >>> dataframe = report.stability_level_2()
         """
         # Build a list of seals
         seal_list = [
-            copy(b)
-            for b in self.rotor.bearing_elements
-            if isinstance(b, rs.SealElement)
+            copy(b) for b in self.rotor.bearing_elements if isinstance(b, SealElement)
         ]
-        
+
         bearing_list = [
             copy(b)
             for b in self.rotor.bearing_elements
-            if not isinstance(b, rs.SealElement)
+            if not isinstance(b, SealElement)
         ]
 
         log_dec_seal = []
         log_dec_disk = []
         log_dec_full = []
+        data_seal = {}
+        data_disk = {}
+        data_rotor = {}
 
         # Evaluate log dec for each component - Disks
-        for disk in self.rotor.disk_elements:
-            aux_rotor = Rotor(
-                shaft_elements=self.rotor.shaft_elements,
-                disk_elements=[disk],
-                bearing_elements=bearing_list,
-                rated_w=self.maxspeed,
-            )
-            modal = aux_rotor.run_modal(speed=self.maxspeed)
-            non_backward = modal.whirl_direction() != "Backward"
-            log_dec_disk.append(modal.log_dec[non_backward][0])
+        if len(self.rotor.disk_elements):
+            for disk in self.rotor.disk_elements:
+                aux_rotor = Rotor(
+                    shaft_elements=self.rotor.shaft_elements,
+                    disk_elements=[disk],
+                    bearing_elements=bearing_list,
+                    rated_w=self.maxspeed,
+                )
+                modal = aux_rotor.run_modal(speed=self.maxspeed)
+                non_backward = modal.whirl_direction() != "Backward"
+                log_dec_disk.append(modal.log_dec[non_backward][0])
 
-        # Evaluate log dec for group bearings + disks
-        disk_tags = ["Shaft + Bearings + " + disk.tag for disk in self.rotor.disk_elements]
-        all_disks_tag = " + ".join([disk.tag for disk in self.rotor.disk_elements])
-        disk_tags.append("Shaft + Bearings + " + all_disks_tag)
+            # Evaluate log dec for group bearings + disks
+            disk_tags = [
+                "Shaft + Bearings + " + disk.tag for disk in self.rotor.disk_elements
+            ]
 
-        aux_rotor = Rotor(
-            shaft_elements=self.rotor.shaft_elements,
-            disk_elements=self.rotor.disk_elements,
-            bearing_elements=bearing_list,
-            rated_w=self.maxspeed,
-        )
-        modal = aux_rotor.run_modal(speed=self.maxspeed)
-        non_backward = modal.whirl_direction() != "Backward"
-        log_dec_disk.append(modal.log_dec[non_backward][0])
+            # Evaluate log dec for group bearings + all disks
+            if len(self.rotor.disk_elements) > 1:
+                all_disks_tag = " + ".join(
+                    [disk.tag for disk in self.rotor.disk_elements]
+                )
+                disk_tags.append("Shaft + Bearings + " + all_disks_tag)
+
+                aux_rotor = Rotor(
+                    shaft_elements=self.rotor.shaft_elements,
+                    disk_elements=self.rotor.disk_elements,
+                    bearing_elements=bearing_list,
+                    rated_w=self.maxspeed,
+                )
+                modal = aux_rotor.run_modal(speed=self.maxspeed)
+                non_backward = modal.whirl_direction() != "Backward"
+                log_dec_disk.append(modal.log_dec[non_backward][0])
+
+            data_disk = {"tags": disk_tags, "log_dec": log_dec_disk}
 
         # Evaluate log dec for each component - Seals
-        for seal in seal_list:
-            bearings_seal = deepcopy(bearing_list)
-            bearings_seal.append(seal)
+        if len(seal_list):
+            for seal in seal_list:
+                bearings_seal = deepcopy(bearing_list)
+                bearings_seal.append(seal)
 
-            aux_rotor = Rotor(
-                shaft_elements=self.rotor.shaft_elements,
-                disk_elements=[],
-                bearing_elements=bearings_seal,
-                rated_w=self.rotor.rated_w,
-            )
-            modal = aux_rotor.run_modal(speed=self.maxspeed)
-            non_backward = modal.whirl_direction() != "Backward"
-            log_dec_seal.append(modal.log_dec[non_backward][0])
+                aux_rotor = Rotor(
+                    shaft_elements=self.rotor.shaft_elements,
+                    disk_elements=[],
+                    bearing_elements=bearings_seal,
+                    rated_w=self.maxspeed,
+                )
+                modal = aux_rotor.run_modal(speed=self.maxspeed)
+                non_backward = modal.whirl_direction() != "Backward"
+                log_dec_seal.append(modal.log_dec[non_backward][0])
 
-        # Evaluate log dec for group bearings + seals
-        seal_tags = ["Shaft + Bearings + " + seal.tag for seal in seal_list]
-        all_seals_tag = " + ".join([seal.tag for seal in seal_list])
-        seal_tags.append("Shaft + Bearings + " + all_seals_tag)
+            seal_tags = ["Shaft + Bearings + " + seal.tag for seal in seal_list]
 
-        aux_rotor = Rotor(
-            shaft_elements=self.rotor.shaft_elements,
-            disk_elements=[],
-            bearing_elements=self.rotor.bearing_elements,
-            rated_w=self.maxspeed,
-        )
-        modal = aux_rotor.run_modal(speed=self.maxspeed)
-        non_backward = modal.whirl_direction() != "Backward"
-        log_dec_seal.append(modal.log_dec[non_backward][0])
+            if len(seal_list) > 1:
+                # Evaluate log dec for group bearings + seals
+                all_seals_tag = " + ".join([seal.tag for seal in seal_list])
+                seal_tags.append("Shaft + Bearings + " + all_seals_tag)
+
+                aux_rotor = Rotor(
+                    shaft_elements=self.rotor.shaft_elements,
+                    disk_elements=[],
+                    bearing_elements=self.rotor.bearing_elements,
+                    rated_w=self.maxspeed,
+                )
+                modal = aux_rotor.run_modal(speed=self.maxspeed)
+                non_backward = modal.whirl_direction() != "Backward"
+                log_dec_seal.append(modal.log_dec[non_backward][0])
+
+            data_seal = {"tags": seal_tags, "log_dec": log_dec_seal}
 
         # Evaluate log dec for all components
         modal = self.rotor.run_modal(speed=self.maxspeed)
@@ -1128,9 +1530,7 @@ class Report:
         log_dec_full.append(modal.log_dec[non_backward][0])
         rotor_tags = [self.tag]
 
-        data_disk = {"tags": disk_tags, "log_dec": log_dec_disk}
-        data_seal = {"tags": seal_tags, "log_dec": log_dec_seal}
-        data_rotor = {"tags": rotor_tags, "log_dec":  log_dec_full}
+        data_rotor = {"tags": rotor_tags, "log_dec": log_dec_full}
 
         df_logdec_disk = pd.DataFrame(data_disk)
         df_logdec_seal = pd.DataFrame(data_seal)
@@ -1146,25 +1546,19 @@ class Report:
         return df_logdec
 
     def summary(self):
-        """Report summary
+        """Return datarfreames for Report summary.
 
-        This method will create tables to be presented in the report
-
-        Parameters
-        ----------
+        This method will create dataframes with relevant info about the report.
 
         Returns
         -------
-        tabs : bokeh WidgetBox
-            Bokeh WidgetBox with the summary table plot
+        tabs : bokeh Column
+            Bokeh Column with the summary table plot
 
         Example
         -------
-        >>> rotor = rotor_example()
-        >>> report = Report(rotor=rotor,
-        ...                 minspeed=400,
-        ...                 maxspeed=1000,
-        ...                 speed_units="rad/s")
+        >>> import ross as rs
+        >>> report = rs.report_example()
         >>> stability1 = report.stability_level_1(D=[0.35, 0.35],
         ...                          H=[0.08, 0.08],
         ...                          HP=[10000, 10000],
@@ -1173,8 +1567,7 @@ class Report:
         ...                          RHOs=37.65,
         ...                          oper_speed=1000.0)
         >>> stability2 = report.stability_level_2()
-        >>> report.summary() # doctest: +ELLIPSIS
-        Tabs...
+        >>> df_lvl1, df_lvl2 = report.summary()
         """
         stab_lvl1_data = dict(
             tags=[self.tag],
@@ -1189,9 +1582,40 @@ class Report:
             RHO_gas=[self.RHO_gas],
         )
         stab_lvl2_data = dict(
-            tags=self.df_logdec['tags'],
-            logdec=self.df_logdec['log_dec'],
+            tags=self.df_logdec["tags"], logdec=self.df_logdec["log_dec"]
         )
+
+        df_stab_lvl1 = pd.DataFrame(stab_lvl1_data)
+        df_stab_lvl2 = pd.DataFrame(stab_lvl2_data)
+
+        return df_stab_lvl1, df_stab_lvl2
+
+    def plot_summary(self):
+        """Plot the report .
+
+        This method will create tables to be presented in the report.
+
+        Returns
+        -------
+        tabs : bokeh Column
+            Bokeh Column with the summary table plot
+
+        Example
+        -------
+        >>> import ross as rs
+        >>> report = rs.report_example()
+        >>> stability1 = report.stability_level_1(D=[0.35, 0.35],
+        ...                          H=[0.08, 0.08],
+        ...                          HP=[10000, 10000],
+        ...                          RHO_ratio=[1.11, 1.14],
+        ...                          RHOd=30.45,
+        ...                          RHOs=37.65,
+        ...                          oper_speed=1000.0)
+        >>> stability2 = report.stability_level_2()
+        >>> report.plot_summary() # doctest: +ELLIPSIS
+        Tabs...
+        """
+        stab_lvl1_data, stab_lvl2_data = self.summary()
 
         stab_lvl1_source = ColumnDataSource(stab_lvl1_data)
         stab_lvl2_source = ColumnDataSource(stab_lvl2_data)
@@ -1199,14 +1623,14 @@ class Report:
         stab_lvl1_titles = [
             "Rotor Tag",
             "Machine Type",
-            "$Q_0$ (N/m)",
-            "$Q_A$ (N/m)",
+            "Q_0",
+            "Q_A",
             "log dec (δ)",
-            "$Q_0 / Q_A$",
-            "1st Critical Spped (RPM)",
+            "Q_0 / Q_A",
+            "1st Critical Spped",
             "MCS",
             "CSR",
-            "Gas Density (kg/m³)",
+            "Gas Density",
         ]
         stab_lvl2_titles = ["Components", "Log. Dec."]
 
@@ -1244,11 +1668,89 @@ class Report:
             source=stab_lvl2_source, columns=stab_lvl2_columns, width=1600
         )
 
-        table1 = widgetbox(stab_lvl1_table)
+        table1 = Column(stab_lvl1_table)
         tab1 = Panel(child=table1, title="Stability Level 1")
-        table2 = widgetbox(stab_lvl2_table)
+        table2 = Column(stab_lvl2_table)
         tab2 = Panel(child=table2, title="Stability Level 2")
 
         tabs = Tabs(tabs=[tab1, tab2])
 
         return tabs
+
+
+def report_example():
+    """Build a report example.
+
+    This function returns an instance of a simple report from a rotor
+    example. The purpose of this is to make available a simple model
+    so that doctest can be written using this.
+
+    Returns
+    -------
+    An instance of a report object.
+
+    Examples
+    --------
+    >>> import ross as rs
+    >>> report = rs.report_example()
+    >>> report.rotor_type
+    'between_bearings'
+    """
+    i_d = 0
+    o_d = 0.05
+    n = 6
+    L = [0.25 for _ in range(n)]
+
+    shaft_elem = [
+        ShaftElement(
+            l,
+            i_d,
+            o_d,
+            material=steel,
+            shear_effects=True,
+            rotary_inertia=True,
+            gyroscopic=True,
+        )
+        for l in L
+    ]
+
+    disk0 = DiskElement.from_geometry(
+        n=2, material=steel, width=0.07, i_d=0.05, o_d=0.28
+    )
+    disk1 = DiskElement.from_geometry(
+        n=4, material=steel, width=0.07, i_d=0.05, o_d=0.28
+    )
+
+    stfx = [0.4e7, 0.5e7, 0.6e7, 0.7e7]
+    stfy = [0.8e7, 0.9e7, 1.0e7, 1.1e7]
+    freq = [400, 800, 1200, 1600]
+    bearing0 = BearingElement(0, kxx=stfx, kyy=stfy, cxx=2e3, frequency=freq)
+    bearing1 = BearingElement(6, kxx=stfx, kyy=stfy, cxx=2e3, frequency=freq)
+
+    rotor = Rotor(shaft_elem, [disk0, disk1], [bearing0, bearing1])
+
+    # coefficients for minimum clearance
+    stfx = [0.7e7, 0.8e7, 0.9e7, 1.0e7]
+    dampx = [2.0e3, 1.9e3, 1.8e3, 1.7e3]
+    freq = [400, 800, 1200, 1600]
+    bearing0 = BearingElement(0, kxx=stfx, cxx=dampx, frequency=freq)
+    bearing1 = BearingElement(6, kxx=stfx, cxx=dampx, frequency=freq)
+    min_clearance_brg = [bearing0, bearing1]
+
+    # coefficients for maximum clearance
+    stfx = [0.4e7, 0.5e7, 0.6e7, 0.7e7]
+    dampx = [2.8e3, 2.7e3, 2.6e3, 2.5e3]
+    freq = [400, 800, 1200, 1600]
+    bearing0 = BearingElement(0, kxx=stfx, cxx=dampx, frequency=freq)
+    bearing1 = BearingElement(6, kxx=stfx, cxx=dampx, frequency=freq)
+    max_clearance_brg = [bearing0, bearing1]
+
+    bearings = [min_clearance_brg, max_clearance_brg]
+    return Report(
+        rotor=rotor,
+        speed_range=(400, 1000),
+        tripspeed=1200,
+        bearing_stiffness_range=(5, 8),
+        bearing_clearance_lists=bearings,
+        speed_units="rad/s",
+    )

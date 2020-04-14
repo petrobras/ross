@@ -1,6 +1,7 @@
 import pytest
 from numpy.testing import assert_allclose
-from ross.units import check_units, Q_, units
+
+from ross.units import Q_, check_units, units
 
 
 def test_new_units_loaded():

@@ -1,29 +1,29 @@
+# fmt: off
+import os
 import warnings
+from collections import namedtuple
+from pathlib import Path
 
 import bokeh.palettes as bp
-import matplotlib.patches as mpatches
-import matplotlib.pyplot as plt
 import matplotlib.lines as mlines
+import matplotlib.pyplot as plt
 import numpy as np
 import scipy.interpolate as interpolate
-import os
 
-from pathlib import Path
-from collections import namedtuple
-from ross.utils import read_table_file
 from ross.element import Element
 from ross.fluid_flow import fluid_flow as flow
 from ross.fluid_flow.fluid_flow_coefficients import (
-    calculate_stiffness_matrix,
-    calculate_damping_matrix,
-)
+    calculate_damping_matrix, calculate_stiffness_matrix)
+from ross.utils import read_table_file
 
 __all__ = [
     "BearingElement",
     "SealElement",
     "BallBearingElement",
     "RollerBearingElement",
+    "MagneticBearingElement",
 ]
+# fmt: on
 bokeh_colors = bp.RdGy[11]
 
 
@@ -187,7 +187,7 @@ class BearingElement(Element):
         tag=None,
         n_link=None,
         scale_factor=1,
-        color="#355d7a"
+        color="#355d7a",
     ):
 
         args = ["kxx", "kyy", "kxy", "kyx", "cxx", "cyy", "cxy", "cyx"]
@@ -328,7 +328,7 @@ class BearingElement(Element):
         >>> bearing = bearing_example()
         >>> bearing.save(Path(os.getcwd()))
         """
-        data = self.get_data(Path(file_name)/'BearingElement.toml')
+        data = self.get_data(Path(file_name) / "BearingElement.toml")
 
         if type(self.frequency) == np.ndarray:
             try:
@@ -350,7 +350,7 @@ class BearingElement(Element):
             "frequency": frequency,
             "tag": self.tag,
         }
-        self.dump_data(data, Path(file_name)/'BearingElement.toml')
+        self.dump_data(data, Path(file_name) / "BearingElement.toml")
 
     @staticmethod
     def load(file_name=""):
@@ -375,7 +375,7 @@ class BearingElement(Element):
         """
         bearing_elements = []
         bearing_elements_dict = BearingElement.get_data(
-            file_name=Path(file_name)/"BearingElement.toml"
+            file_name=Path(file_name) / "BearingElement.toml"
         )
         for element in bearing_elements_dict["BearingElement"]:
             bearing = BearingElement(**bearing_elements_dict["BearingElement"][element])
@@ -634,7 +634,12 @@ class BearingElement(Element):
 
         # plot damper - top
         z_damper3 = [z_damper2[0], z_damper2[2], zs1, zs1]
-        yl_damper3 = [ys0 + 4 * step, ys0 + 4 * step, ys0 + 4 * step, ypos + 1.5 * icon_w]
+        yl_damper3 = [
+            ys0 + 4 * step,
+            ys0 + 4 * step,
+            ys0 + 4 * step,
+            ypos + 1.5 * icon_w,
+        ]
         yu_damper3 = [-y for y in yl_damper3]
 
         ax.add_line(mlines.Line2D(z_damper3, yl_damper3, **kwargs))
@@ -736,7 +741,12 @@ class BearingElement(Element):
 
         # plot damper - top
         z_damper3 = [z_damper2[0], z_damper2[2], zs1, zs1]
-        yl_damper3 = [ys0 + 4 * step, ys0 + 4 * step, ys0 + 4 * step, ypos + 1.5 * icon_w]
+        yl_damper3 = [
+            ys0 + 4 * step,
+            ys0 + 4 * step,
+            ys0 + 4 * step,
+            ypos + 1.5 * icon_w,
+        ]
         yu_damper3 = [-y for y in yl_damper3]
 
         bk_ax.line(x=z_damper3, y=yl_damper3, **kwargs)
@@ -937,12 +947,8 @@ class BearingElement(Element):
             eccentricity=eccentricity,
             load=load,
         )
-        c = calculate_damping_matrix(
-            fluid_flow, force_type='short'
-        )
-        k = calculate_stiffness_matrix(
-            fluid_flow, force_type='short'
-        )
+        c = calculate_damping_matrix(fluid_flow, force_type="short")
+        k = calculate_stiffness_matrix(fluid_flow, force_type="short")
         return cls(
             n,
             kxx=k[0],
@@ -1056,7 +1062,7 @@ class BallBearingElement(BearingElement):
     """A bearing element for ball bearings.
     This class will create a bearing element based on some geometric and
     constructive parameters of ball bearings. The main difference is that
-    cross-coupling stiffness and damping are not modeled in this case.    
+    cross-coupling stiffness and damping are not modeled in this case.
 
     Parameters
     ----------
@@ -1142,7 +1148,7 @@ class RollerBearingElement(BearingElement):
     """A bearing element for roller bearings.
     This class will create a bearing element based on some geometric and
     constructive parameters of roller bearings. The main difference is that
-    cross-coupling stiffness and damping are not modeled in this case.    
+    cross-coupling stiffness and damping are not modeled in this case.
 
     Parameters
     ----------
@@ -1224,6 +1230,227 @@ class RollerBearingElement(BearingElement):
         )
 
         self.color = "#77ACA2"
+
+
+class MagneticBearingElement(BearingElement):
+    """Magnetic bearing.
+
+    This class creates a magnetic bearing element.
+    Parameters can be a constant value or speed dependent.
+    For speed dependent parameters, each argument should be passed
+    as an array and the correspondent speed values should also be
+    passed as an array.
+
+     Parameters
+     ----------
+    n: int
+        Node which the bearing will be located in
+    kxx: float, array
+        Direct stiffness in the x direction.
+    cxx: float, array
+        Direct damping in the x direction.
+    kyy: float, array, optional
+        Direct stiffness in the y direction.
+        (defaults to kxx)
+    cyy: float, array, optional
+        Direct damping in the y direction.
+        (defaults to cxx)
+    kxy: float, array, optional
+        Cross coupled stiffness in the x direction.
+        (defaults to 0)
+    cxy: float, array, optional
+        Cross coupled damping in the x direction.
+        (defaults to 0)
+    kyx: float, array, optional
+        Cross coupled stiffness in the y direction.
+        (defaults to 0)
+    cyx: float, array, optional
+        Cross coupled damping in the y direction.
+        (defaults to 0)
+    frequency: array, optional
+        Array with the speeds (rad/s).
+    tag : str, optional
+        A tag to name the element
+        Default is None
+
+    Examples
+    --------
+    >>> # A seal element located in the first rotor node, with these
+    >>> # following stiffness and damping coefficients and speed range from
+    >>> # 0 to 200 rad/s
+    >>> kxx = 1e3
+    >>> kyy = 1e3
+    >>> kxy = 1e1
+    >>> kyx = 1e1
+    >>> cxx = 1e3
+    >>> cyy = 1e3
+    >>> cxy = 1e1
+    >>> cyx = 1e3
+    >>> frequency = np.linspace(0, 100, 4)
+    >>> mb = MagneticBearingElement(n=0,kxx=kxx,kyy=kyy,kxy=kxy,kyx=kyx,cxx=cxx,cyy=cyy,cxy=cxy,cyx=cyx,frequency=frequency)
+    >>> mb.kxx
+    ['1.00e+03', '1.00e+03', '1.00e+03', '1.00e+03']
+    """
+
+    def __init__(
+        self,
+        n,
+        kxx,
+        cxx,
+        kyy=None,
+        kxy=0,
+        kyx=0,
+        cyy=None,
+        cxy=0,
+        cyx=0,
+        frequency=None,
+        tag=None,
+    ):
+        super().__init__(
+            n=n,
+            frequency=frequency,
+            kxx=kxx,
+            kxy=kxy,
+            kyx=kyx,
+            kyy=kyy,
+            cxx=cxx,
+            cxy=cxy,
+            cyx=cyx,
+            cyy=cyy,
+            tag=tag,
+        )
+
+    @classmethod
+    def param_to_coef(
+        cls, n, g0, i0, ag, nw, alpha, kp_pid, kd_pid, k_amp, k_sense, tag=None
+    ):
+        """
+        Convert electromagnetic parameters and PID gains to stiffness and damping coefficients.
+
+        Parameters
+        ----------
+        n : int
+            The node in which the magnetic bearing will be located in the rotor.
+        g0: float
+            Air gap in m^2.
+        i0: float
+            Bias current in Ampere
+        ag: float
+            Pole area in m^2.
+        nw: float or int
+            Number of windings
+        alpha: float or int
+            Pole angle in radians.
+        kp_pid: float or int
+            Proportional gain of the PID controller.
+        kd_pid: float or int
+            Derivative gain of the PID controller.
+        k_amp: float or int
+            Gain of the amplifier model.
+        k_sense: float or int
+            Gain of the sensor model.
+        ----------
+        See the following reference for the electromagnetic parameters g0, i0, ag, nw, alpha:
+        Book: Magnetic Bearings. Theory, Design, and Application to Rotating Machinery
+        Authors: Gerhard Schweitzer and Eric H. Maslen
+        Page: 84-95
+
+        Examples
+        --------
+        >>> n = 0
+        >>> g0 = 1e-3
+        >>> i0 = 1.0
+        >>> ag = 1e-4
+        >>> nw = 200
+        >>> alpha = 0.392
+        >>> kp_pid = 1.0
+        >>> kd_pid = 1.0
+        >>> k_amp = 1.0
+        >>> k_sense = 1.0
+        >>> tag = "magneticbearing"
+        >>> mbearing = MagneticBearingElement.param_to_coef(n=n,g0=g0,i0=i0,ag=ag,nw=nw,alpha=alpha, kp_pid=kp_pid,kd_pid=kd_pid, k_amp=k_amp, k_sense=k_sense)
+        >>> mbearing.kxx
+        ['-4.64e+03']
+        """
+
+        pL = [g0, i0, ag, nw, alpha, kp_pid, kd_pid, k_amp, k_sense]
+        pA = [0, 0, 0, 0, 0, 0, 0, 0, 0]
+
+        # Check if it is a number or a list with 2 items
+        for i in range(9):
+            if type(pL[i]) == float or int:
+                pA[i] = np.array(pL[i])
+            else:
+                if type(pL[i]) == list:
+                    if len(pL[i]) > 2:
+                        raise ValueError(
+                            "Parameters must be scalar or a list with 2 items"
+                        )
+                    else:
+                        pA[i] = np.array(pL[i])
+                else:
+                    raise ValueError("Parameters must be scalar or a list with 2 items")
+
+        # From: "Magnetic Bearings. Theory, Design, and Application to Rotating Machinery"
+        # Authors: Gerhard Schweitzer and Eric H. Maslen
+        # Page: 354
+        ks = (
+            -4.0
+            * pA[1] ** 2.0
+            * np.cos(pA[4])
+            * 4.0
+            * np.pi
+            * 1e-7
+            * pA[3] ** 2.0
+            * pA[2]
+            / (4.0 * pA[0] ** 3)
+        )
+        ki = (
+            4.0
+            * pA[1]
+            * np.cos(pA[4])
+            * 4.0
+            * np.pi
+            * 1e-7
+            * pA[3] ** 2.0
+            * pA[2]
+            / (4.0 * pA[0] ** 2)
+        )
+        k = ki * pA[7] * pA[8] * (pA[5] + np.divide(ks, ki * pA[7] * pA[8]))
+        c = ki * pA[7] * pA[5] * pA[8]
+        # k = ki * k_amp*k_sense*(kp_pid+ np.divide(ks, ki*k_amp*k_sense))
+        # c = ki*k_amp*kd_pid*k_sense
+
+        # Get the parameters from k and c
+        if np.isscalar(k):
+            # If k is scalar, symmetry is assumed
+            kxx = k
+            kyy = k
+        else:
+            kxx = k[0]
+            kyy = k[1]
+
+        if np.isscalar(c):
+            # If c is scalar, symmetry is assumed
+            cxx = c
+            cyy = c
+        else:
+            cxx = c[0]
+            cyy = c[1]
+
+        return cls(
+            n=n,
+            frequency=None,
+            kxx=kxx,
+            kxy=0.0,
+            kyx=0.0,
+            kyy=kyy,
+            cxx=cxx,
+            cxy=0.0,
+            cyx=0.0,
+            cyy=cyy,
+            tag=tag,
+        )
 
 
 def bearing_example():

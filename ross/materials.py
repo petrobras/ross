@@ -3,11 +3,12 @@
 This module defines the Material class and defines
 some of the most common materials used in rotors.
 """
+from pathlib import Path
+
 import numpy as np
 import toml
-from pathlib import Path
-from .units import check_units
 
+from .units import check_units
 
 __all__ = ["Material", "steel"]
 
@@ -64,19 +65,18 @@ class Material:
             raise ValueError(
                 "Exactly 2 arguments from E, G_s and Poisson should be provided"
             )
-        self.name = name
-        self.rho = rho
-        self.E = E
-        self.G_s = G_s
-        self.Poisson = Poisson
-        self.color = color
+        if E is None:
+            E = G_s * (2 * (1 + Poisson))
+        elif G_s is None:
+            G_s = E / (2 * (1 + Poisson))
+        elif Poisson is None:
+            Poisson = (E / (2 * G_s)) - 1
 
-        if self.E is None:
-            self.E = self.G_s * (2 * (1 + self.Poisson))
-        elif self.G_s is None:
-            self.G_s = self.E / (2 * (1 + self.Poisson))
-        elif self.Poisson is None:
-            self.Poisson = (self.E / (2 * self.G_s)) - 1
+        self.rho = float(rho)
+        self.E = float(E)
+        self.G_s = float(G_s)
+        self.Poisson = float(Poisson)
+        self.color = color
 
     def __eq__(self, other):
         """Function used to compare two Materials.
@@ -167,10 +167,10 @@ class Material:
         return (
             f"{self.name}"
             f'\n{35*"-"}'
-            f"\nDensity         (N/m**3): {float(self.rho):{2}.{8}}"
-            f"\nYoung`s modulus (N/m**2): {float(self.E):{2}.{8}}"
-            f"\nShear modulus   (N/m**2): {float(self.G_s):{2}.{8}}"
-            f"\nPoisson coefficient     : {float(self.Poisson):{2}.{8}}"
+            f"\nDensity         (N/m**3): {self.rho:{2}.{8}}"
+            f"\nYoung`s modulus (N/m**2): {self.E:{2}.{8}}"
+            f"\nShear modulus   (N/m**2): {self.G_s:{2}.{8}}"
+            f"\nPoisson coefficient     : {self.Poisson:{2}.{8}}"
         )
 
     @staticmethod

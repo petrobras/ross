@@ -7,7 +7,7 @@ import re
 import sys
 from shutil import rmtree
 
-from setuptools import find_packages, setup, Command
+from setuptools import Command, find_packages, setup
 
 
 def read(path, encoding="utf-8"):
@@ -31,25 +31,16 @@ def version(path):
 
 # Package meta-data.
 NAME = "ross-rotordynamics"
-DESCRIPTION = "ross: rotordynamic open-source software"
+DESCRIPTION = "ROSS: Rotordynamic Open Source Software"
 URL = "https://github.com/ross-rotordynamics/ross"
 EMAIL = "raphaelts@gmail.com"
-AUTHOR = "ross developers"
+AUTHOR = "ROSS developers"
 REQUIRES_PYTHON = ">=3.6.0"
 VERSION = version("ross/__init__.py")
 
 # What packages are required for this module to be executed?
-REQUIRED = [
-    "numpy",
-    "scipy",
-    "matplotlib",
-    "toml",
-    "pandas>=0.23",
-    "bokeh",
-    "coverage",
-    "xlrd",
-    "pint",
-]
+with open("requirements.txt") as f:
+    REQUIRED = f.read().splitlines()
 
 # What packages are optional?
 EXTRAS = {
@@ -63,6 +54,8 @@ EXTRAS = {
         "nbsphinx",
         "numpydoc",
         "sphinxcontrib-bibtex",
+        "black",
+        "isort",
     ]
 }
 

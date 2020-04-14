@@ -2,9 +2,10 @@
 This module deals with units conversion in the ROSS library. 
 """
 import inspect
-from pint import UnitRegistry
 from functools import wraps
 from pathlib import Path
+
+from pint import UnitRegistry
 
 new_units_path = Path(__file__).parent / "new_units.txt"
 ureg = UnitRegistry()
@@ -58,7 +59,7 @@ def check_units(func):
         args_names = inspect.getfullargspec(func)[0]
 
         for arg_name, arg_value in zip(args_names, args):
-            if arg_name in units:
+            if arg_name in units and arg_value is not None:
                 # For now, we only return the magnitude for the converted Quantity
                 # If pint is fully adopted by ross in the future, and we have all Quantities
                 # using it, we could remove this, which would allows us to use pint in its full capability

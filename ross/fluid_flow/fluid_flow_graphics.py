@@ -1,6 +1,6 @@
 import matplotlib.pyplot as plt
-from bokeh.plotting import figure
 import numpy as np
+from bokeh.plotting import figure
 from matplotlib import cm
 from mpl_toolkits.mplot3d import axes3d
 
@@ -81,7 +81,7 @@ def plot_pressure_z(fluid_flow_object, theta=0):
         p.line(
             fluid_flow_object.z_list,
             y_n,
-            legend="Numerical pressure",
+            legend_label="Numerical pressure",
             color="blue",
             line_width=2,
         )
@@ -89,7 +89,7 @@ def plot_pressure_z(fluid_flow_object, theta=0):
         p.line(
             fluid_flow_object.z_list,
             y_a,
-            legend="Analytical pressure",
+            legend_label="Analytical pressure",
             color="red",
             line_width=2,
         )
@@ -170,7 +170,7 @@ def plot_pressure_theta(fluid_flow_object, z=0):
         p.line(
             fluid_flow_object.gama[z],
             fluid_flow_object.p_mat_numerical[z],
-            legend="Numerical pressure",
+            legend_label="Numerical pressure",
             line_width=2,
             color="blue",
         )
@@ -178,7 +178,7 @@ def plot_pressure_theta(fluid_flow_object, z=0):
         p.line(
             fluid_flow_object.gama[z],
             fluid_flow_object.p_mat_analytical[z],
-            legend="Analytical pressure",
+            legend_label="Analytical pressure",
             line_width=2,
             color="red",
         )

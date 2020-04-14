@@ -15,6 +15,7 @@
 import os
 import sys
 
+import ross
 import sphinx_bootstrap_theme
 
 # sys.path.insert(0, os.path.abspath('.'))
@@ -27,7 +28,6 @@ project = "ross"
 copyright = "2019, Team ROSS"
 author = "Team ROSS"
 
-import ross
 
 # The short X.Y version
 version = ross.__version__[:3]
