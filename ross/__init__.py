@@ -1,4 +1,4 @@
-__version__ = "0.3.2"
+__version__ = "0.3.3"
 
 from .api_report import *
 from .bearing_seal_element import *
