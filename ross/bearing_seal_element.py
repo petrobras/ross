@@ -1701,12 +1701,7 @@ class BearingElement6DoF(BearingElement):
 
         Examples
         --------
-        >>> bearing1 = bearing_example()
-        >>> import os
-        >>> bearing1.save(os.getcwd())
-        >>> list_of_bearings = rs.BearingElement6DoF.load(os.getcwd())
-        >>> bearing1 == list_of_bearings[0]
-        True
+
         """
         bearing_elements = []
         bearing_elements_dict = BearingElement.get_data(
