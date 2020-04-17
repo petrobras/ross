@@ -1275,15 +1275,15 @@ class ShaftElement6DoF(ShaftElement):
     Examples
     --------
     >>> from ross.materials import steel
-    >>> eixo1 = rs.shaft_element.ShaftElement6DoF(L=0.5, idl=0.0, odl=0.01, idr=0.0, odr=0.01, material=steel, n=0, axial_force=10, torque=30)
+    >>> eixo1 = ShaftElement6DoF(L=0.5, idl=0.0, odl=0.01, idr=0.0, odr=0.01, material=steel, n=0, axial_force=10, torque=30)
     >>> Euler_Bernoulli_Element = ShaftElement6DoF(
     ...                         material=steel, L=0.5, idl=0.05, odl=0.1,
     ...                         idr=0.05, odr=0.15,
     ...                         alpha=0.01, beta=100,
     ...                         rotary_inertia=False,
     ...                         shear_effects=False)
-    >>> Euler_Bernoulli_Element.phi
-    0
+    >>> Euler_Bernoulli_Element.kappa
+    0.7099387976608923
     """
 
     @check_units
@@ -1423,16 +1423,7 @@ class ShaftElement6DoF(ShaftElement):
 
         Examples
         --------
-        >>> from ross.materials import steel
-        >>> le = 0.25
-        >>> i_d = 0
-        >>> o_d = 0.05
-        >>> shaft1 = ShaftElement6DoF(
-        ...     le, i_d, o_d, steel )
-        >>> shaft1.save('ShaftElement6DoF.toml')
-        >>> shaft2 = ShaftElement6DoF.load("ShaftElement6DoF.toml")
-        >>> shaft2
-        [ShaftElement6DoF(L=0.25, i_d=0.0, o_d=0.05, material='Steel', n=None)]
+
         """
         shaft_elements = []
         with open("ShaftElement6DoF.toml", "r") as f:
@@ -1620,11 +1611,9 @@ class ShaftElement6DoF(ShaftElement):
 
         Examples
         --------
-        >>> Timoshenko_Element = ShaftElement(0.25, 0, 0.05, steel,
-        ...                                  rotary_inertia=True,
-        ...                                  shear_effects=True)
-        >>> Timoshenko_Element.M()[:12, :12]
-        array(12x12)
+        >>> Timoshenko_Element = ShaftElement6DoF(0.25, 0, 0.05, material=steel)
+        >>> Timoshenko_Element.M().shape
+        (12, 12)
         """
 
         # temporary material and geometrical constants
@@ -1737,11 +1726,10 @@ class ShaftElement6DoF(ShaftElement):
 
         Examples
         --------
-        >>> Timoshenko_Element = ShaftElement(0.25, 0, 0.05, steel,
-        ...                                  rotary_inertia=True,
-        ...                                  shear_effects=True)
-        >>> Timoshenko_Element.K()[:12, :12]
-        array(12x12)
+        >>> from ross.materials import steel
+        >>> Timoshenko_Element = ShaftElement6DoF(0.25, 0, 0.05, material=steel)
+        >>> Timoshenko_Element.K().shape
+        (12, 12)
         """
 
         # Axial force and torque applied to the element.
@@ -1861,13 +1849,11 @@ class ShaftElement6DoF(ShaftElement):
 
         Examples
         --------
-        >>> Timoshenko_Element = ShaftElement(0.25, 0, 0.05, steel,
-        ...                                  rotary_inertia=True,
-        ...                                  shear_effects=True)
-        >>> Timoshenko_Element.Kst()[:12, :12]
-        array(12x12)
+        >>> from ross.materials import steel
+        >>> Timoshenko_Element = ShaftElement6DoF(0.25, 0, 0.05, material=steel)
+        >>> Timoshenko_Element.Kst().shape
+        (12, 12)
         """
-
         # temporary material and geometrical constants, determined as mean values
         # from the left and right radii of the taperad shaft
         L = self.L
@@ -1910,11 +1896,10 @@ class ShaftElement6DoF(ShaftElement):
 
         Examples
         --------
-        >>> Timoshenko_Element = ShaftElement(0.25, 0, 0.05, steel,
-        ...                                  rotary_inertia=True,
-        ...                                  shear_effects=True)
-        >>> Timoshenko_Element.C()[:12, :12]
-        array(12x12)
+        >>> from ross.materials import steel
+        >>> Timoshenko_Element = ShaftElement6DoF(L=0.25, idl=0, odl=0.05, material=steel)
+        >>> Timoshenko_Element.C().shape
+        (12, 12)
         """
 
         # proportional damping matrix
@@ -1935,11 +1920,10 @@ class ShaftElement6DoF(ShaftElement):
 
         Examples
         --------
-        >>> Timoshenko_Element = ShaftElement(0.25, 0, 0.05, steel,
-        ...                                  rotary_inertia=True,
-        ...                                  shear_effects=True)
-        >>> Timoshenko_Element.G()[:12, :12]
-        array(12x12)
+        >>> from ross.materials import steel
+        >>> Timoshenko_Element = ShaftElement6DoF(0.25, 0, 0.05, material=steel)
+        >>> Timoshenko_Element.G().shape
+        (12, 12)
         """
 
         if self.gyroscopic:
