@@ -1500,13 +1500,12 @@ class BearingElement6DoF(BearingElement):
     >>> kxx = 1.0e7
     >>> kyy = 1.5e7
     >>> kzz = 5.0e5
-    >>> tag = "rollerbearing"
-    >>> bearing = BearingElement6DoF(n=n, kxx=kxx, kxy=kxy, kyx=kyx, kyy=kyy,
-    ...                              cxx=cxx, cxy=cxy, cyx=cyx, cyy=cyy, tag=tag)
+    >>> bearing = BearingElement6DoF(n=n, kxx=kxx, kyy=kyy, kzz=kzz,
+    ...                              cxx=0, cyy=0)
     >>> bearing.K(0)
-    array([[1.0e7, 0.000, 0.000],
-           [0.000, 1.5e7, 0.000],
-           [0.000, 0.000, 5.0e5]])
+    array([[10000000.,        0.,        0.],
+           [       0., 15000000.,        0.],
+           [       0.,        0.,   500000.]])
     """
 
     def __init__(
@@ -1768,11 +1767,11 @@ class BearingElement6DoF(BearingElement):
 
         Examples
         --------
-        >>> bearing = bearing_example()
+        >>> bearing = bearing_6dof_example()
         >>> bearing.K(0)
-        array([[1000000.       0.       0.],
-               [      0.  800000.       0.],
-               [      0.       0.  100000.]])
+        array([[1000000.,       0.,       0.],
+               [      0.,  800000.,       0.],
+               [      0.,       0.,  100000.]])
         """
         kxx = self.kxx.interpolated(frequency)
         kyy = self.kyy.interpolated(frequency)
@@ -1794,11 +1793,11 @@ class BearingElement6DoF(BearingElement):
 
         Examples
         --------
-        >>> bearing = bearing_example()
+        >>> bearing = bearing_6dof_example()
         >>> bearing.C(0)
-        array([[200.   0.   0.],
-               [  0. 150.   0.],
-               [  0.   0.  50.]])
+        array([[200.,   0.,   0.],
+               [  0., 150.,   0.],
+               [  0.,   0.,  50.]])
         """
         cxx = self.cxx.interpolated(frequency)
         cyy = self.cyy.interpolated(frequency)
