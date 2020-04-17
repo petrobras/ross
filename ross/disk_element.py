@@ -623,9 +623,14 @@ class DiskElement6DoF(DiskElement):
 
         Examples
         --------
-        >>> disk = DiskElement(0, 32.58972765, 0.17808928, 0.32956362)
-        >>> disk.M()
-        array(6,6)
+        >>> disk = DiskElement6DoF(0, 32.58972765, 0.17808928, 0.32956362)
+        >>> disk.M().round(2)
+        array([[32.59,  0.  ,  0.  ,  0.  ,  0.  ,  0.  ],
+               [ 0.  , 32.59,  0.  ,  0.  ,  0.  ,  0.  ],
+               [ 0.  ,  0.  , 32.59,  0.  ,  0.  ,  0.  ],
+               [ 0.  ,  0.  ,  0.  ,  0.18,  0.  ,  0.  ],
+               [ 0.  ,  0.  ,  0.  ,  0.  ,  0.18,  0.  ],
+               [ 0.  ,  0.  ,  0.  ,  0.  ,  0.  ,  0.33]])
         """
         m = self.m
         Id = self.Id
@@ -654,9 +659,14 @@ class DiskElement6DoF(DiskElement):
 
         Examples
         --------
-        >>> disk = disk_example()
-        >>> disk.K()
-        array(6,6)
+        >>> disk = disk_example_6dof()
+        >>> disk.K().round(2)
+        array([[0.  , 0.  , 0.  , 0.  , 0.  , 0.  ],
+               [0.  , 0.  , 0.  , 0.  , 0.  , 0.  ],
+               [0.  , 0.  , 0.  , 0.  , 0.  , 0.  ],
+               [0.  , 0.  , 0.  , 0.  , 0.  , 0.  ],
+               [0.  , 0.  , 0.  , 0.  , 0.  , 0.  ],
+               [0.  , 0.  , 0.  , 0.33, 0.  , 0.  ]])
         """
         Ip = self.Ip
         # fmt: off
@@ -680,9 +690,14 @@ class DiskElement6DoF(DiskElement):
 
         Examples
         --------
-        >>> disk = disk_example()
+        >>> disk = disk_example_6dof()
         >>> disk.C()
-        array(6,6)
+        array([[0., 0., 0., 0., 0., 0.],
+               [0., 0., 0., 0., 0., 0.],
+               [0., 0., 0., 0., 0., 0.],
+               [0., 0., 0., 0., 0., 0.],
+               [0., 0., 0., 0., 0., 0.],
+               [0., 0., 0., 0., 0., 0.]])
         """
         # fmt: off
         C = np.zeros((6, 6))
@@ -702,9 +717,14 @@ class DiskElement6DoF(DiskElement):
 
         Examples
         --------
-        >>> disk = DiskElement(0, 32.58972765, 0.17808928, 0.32956362)
-        >>> disk.G()
-        array(6,6)
+        >>> disk = DiskElement6DoF(0, 32.58972765, 0.17808928, 0.32956362)
+        >>> disk.G().round(2)
+        array([[ 0.  ,  0.  ,  0.  ,  0.  ,  0.  ,  0.  ],
+               [ 0.  ,  0.  ,  0.  ,  0.  ,  0.  ,  0.  ],
+               [ 0.  ,  0.  ,  0.  ,  0.  ,  0.  ,  0.  ],
+               [ 0.  ,  0.  ,  0.  ,  0.  ,  0.33,  0.  ],
+               [ 0.  ,  0.  ,  0.  , -0.33,  0.  ,  0.  ],
+               [ 0.  ,  0.  ,  0.  ,  0.  ,  0.  ,  0.  ]])
         """
         Ip = self.Ip
         # fmt: off
