@@ -1384,14 +1384,7 @@ class ShaftElement6DoF(ShaftElement):
 
         Examples
         --------
-        >>> from ross.materials import steel
-        >>> le = 0.25
-        >>> i_d = 0
-        >>> o_d = 0.05
-        >>> shaft1 = ShaftElement(
-        ...     le, i_d, o_d, steel, rotary_inertia=True, shear_effects=True
-        ... )
-        >>> shaft1.save()
+
         """
 
         data = self.get_data(Path(file_name) / "ShaftElement6DoF.toml")
