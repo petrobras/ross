@@ -42,6 +42,14 @@ class ST_ShaftElement:
         Element number (coincident with it's first node).
         If not given, it will be set when the rotor is assembled
         according to the element's position in the list supplied to
+    axial_force : float, list, optional
+        Axial force.
+        Input a list to make it random.
+        Default is 0.
+    torque : float, list, optional
+        Torque
+        Input a list to make it random.
+        Default is 0.
     shear_effects : bool, optional
         Determine if shear effects are taken into account.
         Default is True.
@@ -57,7 +65,7 @@ class ST_ShaftElement:
     is_random : list
         List of the object attributes to become random.
         Possibilities:
-            ["L", "idl", "odl", "idr", "odr", "material"]
+            ["L", "idl", "odl", "idr", "odr", "material", "axial_force", "torque"]
 
     Example
     -------
@@ -85,6 +93,8 @@ class ST_ShaftElement:
         odr=None,
         material=None,
         n=None,
+        axial_force=0,
+        torque=0,
         shear_effects=True,
         rotary_inertia=True,
         gyroscopic=True,
@@ -101,7 +111,7 @@ class ST_ShaftElement:
             if "odl" in is_random and "odr" not in is_random:
                 is_random.append("odr")
         if isinstance(material, ST_Material):
-            material = list(material.__iter__())
+            material = list(iter(material))
 
         attribute_dict = dict(
             L=L,
@@ -111,8 +121,8 @@ class ST_ShaftElement:
             odr=odr,
             material=material,
             n=n,
-            axial_force=0,
-            torque=0,
+            axial_force=axial_force,
+            torque=torque,
             shear_effects=shear_effects,
             rotary_inertia=rotary_inertia,
             gyroscopic=gyroscopic,
