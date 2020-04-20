@@ -9,10 +9,11 @@ from ross.bearing_seal_element import BearingElement
 from ross.fluid_flow import fluid_flow as flow
 from ross.fluid_flow.fluid_flow_coefficients import (
     calculate_damping_matrix, calculate_stiffness_matrix)
+from ross.stochastic.st_results_elements import plot_histogram
 
 # fmt: on
 
-__all__ = ["ST_BearingElement"]
+__all__ = ["ST_BearingElement", "st_bearing_example"]
 
 
 class ST_BearingElement:
@@ -88,7 +89,7 @@ class ST_BearingElement:
     ...                              cxx=cxx,
     ...                              is_random = ["kxx", "cxx"],
     ...                              )
-    >>> len(list(elms.__iter__()))
+    >>> len(list(iter(elms)))
     10
 
     # Uncertanties on bearing coefficients varying with frequency
@@ -105,7 +106,7 @@ class ST_BearingElement:
     ...                              frequency=frequency,
     ...                              is_random = ["kxx", "cxx"],
     ...                              )
-    >>> len(list(elms.__iter__()))
+    >>> len(list(iter(elms)))
     5
     """
 
@@ -163,6 +164,13 @@ class ST_BearingElement:
         Returns
         -------
         An iterator over random bearing elements.
+
+        Examples
+        --------
+        >>> import ross.stochastic as srs
+        >>> bearing = srs.st_bearing_example()
+        >>> len(list(iter(bearing)))
+        2
         """
         return iter(self.random_var(self.is_random, self.attribute_dict))
 
@@ -214,7 +222,7 @@ class ST_BearingElement:
         key : str
             A class parameter as string.
         value : The corresponding value for the attrbiute_dict's key.
-            ***check the correct type for each key in ST_ShaftElement
+            ***check the correct type for each key in ST_BearingElement
             docstring.
 
         Raises
@@ -246,14 +254,14 @@ class ST_BearingElement:
         """Generate a list of objects as random attributes.
 
         This function creates a list of objects with random values for selected
-        attributes from BearingElement.
+        attributes from ross.BearingElement.
 
         Parameters
         ----------
         is_random : list
             List of the object attributes to become stochastic.
         *args : dict
-            Dictionary instanciating the ShaftElement class.
+            Dictionary instanciating the ross.BearingElement class.
             The attributes that are supposed to be stochastic should be
             set as lists of random variables.
 
@@ -288,6 +296,51 @@ class ST_BearingElement:
         f_list = (BearingElement(*arg) for arg in new_args)
 
         return f_list
+
+    def plot_random_var(self, var_list=[], **kwargs):
+        """Plot histogram and the PDF.
+
+        This function creates a histogram to display the random variable
+        distribution.
+
+        Parameters
+        ----------
+        var_list : list, optional
+            List of random variables, in string format, to plot.
+        **kwargs : optional
+            Additional key word arguments can be passed to change
+            the numpy.histogram (e.g. density=True, bins=11, ...)
+
+        Returns
+        -------
+        grid_plot : bokeh row
+            A row with the histogram plots.
+
+        Examples
+        --------
+        >>> import ross.stochastic as srs
+        >>> elm = srs.st_bearing_example()
+        >>> elm.plot_random_var(["kxx"]) # doctest: +ELLIPSIS
+        Row...
+        """
+        label = dict(
+            kxx="Direct stiffness in the X direction",
+            kxy="Cross coupled stiffness in the X direction",
+            kyx="Cross coupled stiffness in the Y direction",
+            kyy="Direct stiffness in the Y direction",
+            cxx="Direct damping in the X direction",
+            cxy="Cross coupled damping in the X direction",
+            cyx="Cross coupled damping in the Y direction",
+            cyy="Direct damping in the y direction",
+        )
+        if not all(var in self.is_random for var in var_list):
+            raise ValueError(
+                "Not random variable in var_list. Select variables from {}".format(
+                    self.is_random
+                )
+            )
+
+        return plot_histogram(self.attribute_dict, label, var_list, **kwargs)
 
     @classmethod
     def from_fluid_flow(
@@ -414,7 +467,7 @@ class ST_BearingElement:
         ...     radius_stator, visc, rho,
         ...     eccentricity=eccentricity, is_random=["visc"]
         ... )
-        >>> len(list(elms.__iter__()))
+        >>> len(list(iter(elms)))
         5
         """
         attribute_dict = locals()
@@ -479,3 +532,28 @@ class ST_BearingElement:
             scale_factor=scale_factor,
             is_random=list(args_dict.keys()),
         )
+
+
+def st_bearing_example():
+    """Return an instance of a simple random bearing.
+
+    The purpose is to make available a simple model so that doctest can be
+    written using it.
+
+    Returns
+    -------
+    elm : ross.stochastic.ST_BearingElement
+        An instance of a random bearing element object.
+
+    Examples
+    --------
+    >>> import ross.stochastic as srs
+    >>> elm = srs.st_bearing_example()
+    >>> len(list(iter(elm)))
+    2
+    """
+    kxx = [1e6, 2e6]
+    cxx = [1e3, 2e3]
+    elm = ST_BearingElement(n=1, kxx=kxx, cxx=cxx, is_random=["kxx", "cxx"])
+
+    return elm
