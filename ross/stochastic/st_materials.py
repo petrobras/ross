@@ -8,6 +8,7 @@ from collections.abc import Iterable
 import numpy as np
 
 from ross.materials import Material
+from ross.stochastic.st_results_elements import plot_histogram
 
 __all__ = ["ST_Material"]
 
@@ -55,7 +56,7 @@ class ST_Material:
     >>> import ross.stochastic as srs
     >>> E = np.random.uniform(208e9, 211e9, 5)
     >>> st_steel = srs.ST_Material(name="Steel", rho=7810, E=E, G_s=81.2e9)
-    >>> len(list(st_steel.__iter__()))
+    >>> len(list(iter(st_steel)))
     5
     """
 
@@ -89,18 +90,28 @@ class ST_Material:
         if type(Poisson) == list:
             Poisson = np.asarray(Poisson)
 
-        self.name = name
-        self.rho = rho
-        self.E = E
-        self.G_s = G_s
-        self.Poisson = Poisson
-        self.color = color
-
         attribute_dict = dict(
             name=name, rho=rho, E=E, G_s=G_s, Poisson=Poisson, color=color,
         )
         self.is_random = is_random
         self.attribute_dict = attribute_dict
+
+    def __iter__(self):
+        """Return an iterator for the container.
+
+        Returns
+        -------
+        An iterator over random material properties.
+
+        Examples
+        --------
+        >>> import ross.stochastic as srs
+        >>> E = np.random.uniform(208e9, 211e9, 5)
+        >>> st_steel = srs.ST_Material(name="Steel", rho=7810, E=E, G_s=81.2e9)
+        >>> len(list(iter(st_steel)))
+        5
+        """
+        return iter(self.random_var(self.is_random, self.attribute_dict))
 
     def __getitem__(self, key):
         """Return the value for a given key from attribute_dict.
@@ -143,7 +154,7 @@ class ST_Material:
         key : str
             A class parameter as string.
         value : The corresponding value for the attrbiute_dict's key.
-            ***check the correct type for each key in ST_ShaftElement
+            ***check the correct type for each key in ST_Material
             docstring.
 
         Raises
@@ -168,14 +179,14 @@ class ST_Material:
         """Generate a list of objects as random attributes.
 
         This function creates a list of objects with random values for selected
-        attributes from ShaftElement.
+        attributes from ross.Material.
 
         Parameters
         ----------
         is_random : list
             List of the object attributes to become stochastic.
         *args : dict
-            Dictionary instanciating the ShaftElement class.
+            Dictionary instanciating the ross.Material class.
             The attributes that are supposed to be stochastic should be
             set as lists of random variables.
 
@@ -198,11 +209,46 @@ class ST_Material:
 
         return f_list
 
-    def __iter__(self):
-        """Return an iterator for the container.
+    def plot_random_var(self, var_list=[], **kwargs):
+        """Plot histogram and the PDF.
+
+        This function creates a histogram to display the random variable
+        distribution.
+
+        Parameters
+        ----------
+        var_list : list, optional
+            List of random variables, in string format, to plot.
+        **kwargs : optional
+            Additional key word arguments can be passed to change
+            the numpy.histogram (e.g. density=True, bins=11, ...)
 
         Returns
         -------
-        An iterator over random material properties.
+        grid_plot : bokeh row
+            A row with the histogram plots.
+
+        Examples
+        --------
+        >>> import ross.stochastic as srs
+        >>> E = np.random.uniform(208e9, 211e9, 5)
+        >>> st_steel = ST_Material(name="Steel", rho=7810, E=E, G_s=81.2e9)
+        >>> st_steel.plot_random_var(["E"]) # doctest: +ELLIPSIS
+        Row...
         """
-        return iter(self.random_var(self.is_random, self.attribute_dict))
+        label = dict(
+            E="Young's Modulus",
+            G_s="Shear Modulus",
+            Poisson="Poisson coefficient",
+            rho="density",
+        )
+        is_random = self.is_random
+
+        if not all(var in self.is_random for var in var_list):
+            raise ValueError(
+                "Not random variable in var_list. Select variables from {}".format(
+                    is_random
+                )
+            )
+
+        return plot_histogram(self.attribute_dict, label, var_list, **kwargs)

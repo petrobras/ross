@@ -5,8 +5,9 @@ analysis.
 """
 from ross.shaft_element import ShaftElement
 from ross.stochastic.st_materials import ST_Material
+from ross.stochastic.st_results_elements import plot_histogram
 
-__all__ = ["ST_ShaftElement"]
+__all__ = ["ST_ShaftElement", "st_shaft_example"]
 
 
 class ST_ShaftElement:
@@ -71,7 +72,7 @@ class ST_ShaftElement:
     ...                            material=st_steel,
     ...                            is_random=["odl", "material"],
     ...                            )
-    >>> len(list(elms.__iter__()))
+    >>> len(list(iter(elms)))
     5
     """
 
@@ -127,6 +128,13 @@ class ST_ShaftElement:
         Returns
         -------
         An iterator over random shaft elements.
+
+        Examples
+        --------
+        >>> import ross.stochastic as srs
+        >>> elm = srs.st_shaft_example()
+        >>> len(list(iter(elm)))
+        2
         """
         return iter(self.random_var(self.is_random, self.attribute_dict))
 
@@ -212,14 +220,14 @@ class ST_ShaftElement:
         """Generate a list of objects as random attributes.
 
         This function creates a list of objects with random values for selected
-        attributes from ShaftElement.
+        attributes from ross.ShaftElement.
 
         Parameters
         ----------
         is_random : list
             List of the object attributes to become stochastic.
         *args : dict
-            Dictionary instanciating the ShaftElement class.
+            Dictionary instanciating the ross.ShaftElement class.
             The attributes that are supposed to be stochastic should be
             set as lists of random variables.
 
@@ -241,3 +249,75 @@ class ST_ShaftElement:
         f_list = (ShaftElement(*arg) for arg in new_args)
 
         return f_list
+
+    def plot_random_var(self, var_list=[], **kwargs):
+        """Plot histogram and the PDF.
+
+        This function creates a histogram to display the random variable
+        distribution.
+
+        Parameters
+        ----------
+        var_list : list, optional
+            List of random variables, in string format, to plot.
+        **kwargs : optional
+            Additional key word arguments can be passed to change
+            the numpy.histogram (e.g. density=True, bins=11, ...)
+
+        Returns
+        -------
+        grid_plot : bokeh row
+            A row with the histogram plots.
+
+        Examples
+        --------
+        >>> import ross.stochastic as srs
+        >>> elm = srs.st_shaft_example()
+        >>> elm.plot_random_var(["odl"]) # doctest: +ELLIPSIS
+        Row...
+        """
+        label = dict(
+            L="Length",
+            idl="Left inner diameter",
+            odl="Left outer diameter",
+            idr="Right inner diameter",
+            odr="Right outer diameter",
+        )
+        is_random = self.is_random
+        if "material" in is_random:
+            is_random.remove("material")
+
+        if not all(var in self.is_random for var in var_list):
+            raise ValueError(
+                "Not random variable in var_list. Select variables from {}".format(
+                    is_random
+                )
+            )
+
+        return plot_histogram(self.attribute_dict, label, var_list, **kwargs)
+
+
+def st_shaft_example():
+    """Return an instance of a simple random shaft element.
+
+    The purpose is to make available a simple model so that doctest can be
+    written using it.
+
+    Returns
+    -------
+    elm : ross.stochastic.ST_ShaftElement
+        An instance of a random shaft element object.
+
+    Examples
+    --------
+    >>> import ross.stochastic as srs
+    >>> elm = srs.st_shaft_example()
+    >>> len(list(iter(elm)))
+    2
+    """
+    from ross.materials import steel
+
+    elm = ST_ShaftElement(
+        L=[1.0, 1.1], idl=0.0, odl=[0.1, 0.2], material=steel, is_random=["L", "odl"],
+    )
+    return elm
