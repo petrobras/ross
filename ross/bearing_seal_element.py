@@ -1574,6 +1574,9 @@ class BearingElement6DoF(BearingElement):
         for k, v in coefficients.items():
             setattr(self, k, v)
 
+    def __hash__(self):
+        return hash(self.tag)
+
     def __repr__(self):
         """This function returns a string representation of a bearing element.
         Parameters
@@ -1736,7 +1739,7 @@ class BearingElement6DoF(BearingElement):
         return bearing_elements
 
     def dof_mapping(self):
-        return dict(x_0=0, y_0=1, z_0=2)
+        return dict(u_0=0, v_0=1, w_0=2)
 
     def dof_global_index(self):
         """Get the global index for an element specific degree of freedom for the 6DoF element."""
@@ -1744,9 +1747,9 @@ class BearingElement6DoF(BearingElement):
 
         if self.n_link is not None:
             global_index = global_index._asdict()
-            global_index[f"x_{self.n_link}"] = 6 * self.n_link
-            global_index[f"y_{self.n_link}"] = 6 * self.n_link + 1
-            global_index[f"z_{self.n_link}"] = 6 * self.n_link + 2
+            global_index[f"u_{self.n_link}"] = 6 * self.n_link
+            global_index[f"v_{self.n_link}"] = 6 * self.n_link + 1
+            global_index[f"w_{self.n_link}"] = 6 * self.n_link + 2
             dof_tuple = namedtuple("GlobalIndex", global_index)
             global_index = dof_tuple(**global_index)
 

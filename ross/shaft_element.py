@@ -66,7 +66,8 @@ class ShaftElement(Element):
     shear_method_calc : string, optional
         Determines which shear calculation method the user will adopt
         Default is 'cowper'
-    tag : str, optional
+    
+     : str, optional
         Element tag.
         Default is None.
 
@@ -1342,6 +1343,87 @@ class ShaftElement6DoF(ShaftElement):
         self.odr = float(odr)
         self.color = self.material.color
 
+        # A_l = cross section area from the left side of the element
+        # A_r = cross section area from the right side of the element
+        A_l = np.pi * (odl ** 2 - idl ** 2) / 4
+        A_r = np.pi * (odr ** 2 - idr ** 2) / 4
+        self.A_l = A_l
+        self.A_r = A_r
+
+        # Second moment of area of the cross section from the left side
+        # of the element
+        Ie_l = np.pi * (odl ** 4 - idl ** 4) / 64
+
+        outer = self.odl ** 2 + self.odl * self.odr + self.odr ** 2
+        inner = self.idl ** 2 + self.idl * self.idr + self.idr ** 2
+        self.volume = np.pi * (self.L / 12) * (outer - inner)
+        self.m = self.material.rho * self.volume
+
+        roj = odl / 2
+        rij = idl / 2
+        rok = odr / 2
+        rik = idr / 2
+
+        # geometrical coefficients
+        delta_ro = rok - roj
+        delta_ri = rik - rij
+        a1 = 2 * np.pi * (roj * delta_ro - rij * delta_ri) / A_l
+        a2 = np.pi * (roj ** 3 * delta_ro - rij ** 3 * delta_ri) / Ie_l
+        b1 = np.pi * (delta_ro ** 2 - delta_ri ** 2) / A_l
+        b2 = (
+            3
+            * np.pi
+            * (roj ** 2 * delta_ro ** 2 - rij ** 2 * delta_ri ** 2)
+            / (2 * Ie_l)
+        )
+        gama = np.pi * (roj * delta_ro ** 3 - rij * delta_ri ** 3) / Ie_l
+        delta = np.pi * (delta_ro ** 4 - delta_ri ** 4) / (4 * Ie_l)
+
+        self.a1 = a1
+        self.a2 = a2
+        self.b1 = b1
+        self.b2 = b2
+        self.gama = gama
+        self.delta = delta
+
+        # the area is calculated from the cross section located in the middle
+        # of the element
+        self.A = A_l * (1 + a1 * 0.5 + b1 * 0.5 ** 2)
+
+        # Ie is the second moment of area of the cross section - located in
+        # the middle of the element - about the neutral plane
+        Ie = Ie_l * (1 + a2 * 0.5 + b2 * 0.5 ** 2 + gama * 0.5 ** 3 + delta * 0.5 ** 4)
+        self.Ie = Ie
+        self.Ie_l = Ie_l
+
+        phi = 0
+
+        # geometric center
+        c1 = (
+            roj ** 2
+            + 2 * roj * rok
+            + 3 * rok ** 2
+            - rij ** 2
+            - 2 * rij * rik
+            - 3 * rik ** 2
+        )
+        c2 = (roj ** 2 + roj * rok + rok ** 2) - (rij ** 2 + rij * rik + rik ** 2)
+        self.beam_cg = L * c1 / (4 * c2)
+        self.axial_cg_pos = None
+
+        # Slenderness ratio of beam elements (G*A*L**2) / (E*I)
+        sld = (self.material.G_s * self.A * self.L ** 2) / (self.material.E * Ie)
+        self.slenderness_ratio = sld
+
+        # Moment of inertia
+        # fmt: off
+        self.Im = (
+            (np.pi * L * (self.m / self.volume) / 10) *
+            ((roj ** 4 + roj ** 3 * rok + roj ** 2 * rok ** 2 + roj * rok ** 3 + rok ** 4) -
+             (rij ** 4 + rij ** 3 * rik + rij ** 2 * rik ** 2 + rij * rik ** 3 + rik ** 4))
+        )
+        # fmt: on
+
         self.alpha = float(alpha)
         self.beta = float(beta)
 
@@ -1365,6 +1447,8 @@ class ShaftElement6DoF(ShaftElement):
             kappa = (1 + self.material.Poisson) / (2 + self.material.Poisson)
 
         self.kappa = kappa
+
+        self.dof_global_index = None
 
     def __is_circular(self):
         return self.idl == 0 and self.idr == 0
