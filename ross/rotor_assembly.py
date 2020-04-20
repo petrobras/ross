@@ -23,14 +23,14 @@ from bokeh.models.glyphs import Text
 from bokeh.plotting import figure, output_file
 from cycler import cycler
 
-from ross.bearing_seal_element import BearingElement, SealElement
-from ross.disk_element import DiskElement
+from ross.bearing_seal_element import BearingElement, SealElement, BallBearingElement, RollerBearingElement, MagneticBearingElement, BearingElement6DoF
+from ross.disk_element import DiskElement, DiskElement6DoF
 from ross.materials import steel
 from ross.results import (CampbellResults, ConvergenceResults,
                           ForcedResponseResults, FrequencyResponseResults,
                           ModalResults, OrbitResponseResults, StaticResults,
                           SummaryResults, TimeResponseResults)
-from ross.shaft_element import ShaftElement
+from ross.shaft_element import ShaftElement, ShaftElement6DoF
 from ross.utils import convert
 
 # fmt: on
@@ -222,6 +222,8 @@ class Rotor(object):
                 ]
             )
         ]
+
+        number_dof = self._check_number_dof()
 
         ####################################################
         # Rotor summary
@@ -511,6 +513,43 @@ class Rotor(object):
             df.loc[df.tag == p.tag, "y_pos"] = y_pos
 
         self.df = df
+
+    def _check_number_dof(self):
+        if isinstance(self.shaft_elements[0], ShaftElement):
+            number_dof = 4
+        elif isinstance(self.shaft_elements[0], ShaftElement6DoF):
+            number_dof = 6
+
+        for el in self.shaft_elements:
+            if (isinstance(el, ShaftElement) and number_dof == 6) or (
+                isinstance(el, ShaftElement6DoF) and number_dof == 4
+            ):
+                raise Exception(
+                    "The number of degrees o freedom of all elements must be the same! There are SHAFT elements with discrepant DoFs."
+                )
+
+        for el in self.disk_elements:
+            if (isinstance(el, DiskElement) and number_dof == 6) or (
+                isinstance(el, DiskElement6DoF) and number_dof == 4
+            ):
+                raise Exception(
+                    "The number of degrees o freedom of all elements must be the same! There are DISK elements with discrepant DoFs."
+                )
+
+        for el in self.bearing_elements:
+            if (
+                (isinstance(el, BearingElement) and number_dof == 6)
+                or (isinstance(el, SealElement) and number_dof == 6)
+                or (isinstance(el, BallBearingElement) and number_dof == 6)
+                or (isinstance(el, RollerBearingElement) and number_dof == 6)
+                or (isinstance(el, MagneticBearingElement) and number_dof == 6)
+                or (isinstance(el, BearingElement6DoF) and number_dof == 4)
+            ):
+                raise Exception(
+                    "The number of degrees o freedom of all elements must be the same! There are BEARING elements with discrepant DoFs."
+                )
+
+        return number_dof
 
     def __eq__(self, other):
         """
