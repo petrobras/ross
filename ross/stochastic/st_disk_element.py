@@ -1,12 +1,17 @@
+"""Disk element module for STOCHASTIC ROSS.
+
+This module creates an instance of random disk element for stochastic
+analysis.
+"""
 import bokeh.palettes as bp
 import numpy as np
-
 from ross.disk_element import DiskElement
 from ross.stochastic.st_materials import ST_Material
+from ross.stochastic.st_results_elements import plot_histogram
 
 bokeh_colors = bp.RdGy[11]
 
-__all__ = ["ST_DiskElement"]
+__all__ = ["ST_DiskElement", "st_disk_example"]
 
 
 class ST_DiskElement:
@@ -48,7 +53,7 @@ class ST_DiskElement:
     ...                           Ip=np.random.uniform(0.15, 0.25, 5),
     ...                           is_random=["Id", "Ip"],
     ...                           )
-    >>> len(list(elms.__iter__()))
+    >>> len(list(iter(elms)))
     5
     """
 
@@ -66,6 +71,13 @@ class ST_DiskElement:
         Returns
         -------
         An iterator over random disk elements.
+
+        Examples
+        --------
+        >>> import ross.stochastic as srs
+        >>> elm = srs.st_disk_example()
+        >>> len(list(iter(elm)))
+        2
         """
         return iter(self.random_var(self.is_random, self.attribute_dict))
 
@@ -115,7 +127,7 @@ class ST_DiskElement:
         key : str
             A class parameter as string.
         value : The corresponding value for the attrbiute_dict's key.
-            ***check the correct type for each key in ST_ShaftElement
+            ***check the correct type for each key in ST_DiskElement
             docstring.
 
         Raises
@@ -145,14 +157,14 @@ class ST_DiskElement:
         """Generate a list of objects as random attributes.
 
         This function creates a list of objects with random values for selected
-        attributes from DiskElement.
+        attributes from ross.DiskElement.
 
         Parameters
         ----------
         is_random : list
             List of the object attributes to become stochastic.
         *args : dict
-            Dictionary instanciating the ShaftElement class.
+            Dictionary instanciating the ross.DiskElement class.
             The attributes that are supposed to be stochastic should be
             set as lists of random variables.
 
@@ -174,6 +186,44 @@ class ST_DiskElement:
         f_list = (DiskElement(*arg) for arg in new_args)
 
         return f_list
+
+    def plot_random_var(self, var_list=[], **kwargs):
+        """Plot histogram and the PDF.
+
+        This function creates a histogram to display the random variable
+        distribution.
+
+        Parameters
+        ----------
+        var_list : list, optional
+            List of random variables, in string format, to plot.
+        **kwargs : optional
+            Additional key word arguments can be passed to change
+            the numpy.histogram (e.g. density=True, bins=11, ...)
+
+        Returns
+        -------
+        grid_plot : bokeh row
+            A row with the histogram plots.
+
+        Examples
+        --------
+        >>> import ross.stochastic as srs
+        >>> elm = srs.st_disk_example()
+        >>> elm.plot_random_var(["Id"]) # doctest: +ELLIPSIS
+        Row...
+        """
+        label = dict(
+            m="Mass", Id="Diametral moment of inertia", Ip="Polar moment of inertia",
+        )
+        if not all(var in self.is_random for var in var_list):
+            raise ValueError(
+                "Not random variable in var_list. Select variables from {}".format(
+                    self.is_random
+                )
+            )
+
+        return plot_histogram(self.attribute_dict, label, var_list, **kwargs)
 
     @classmethod
     def from_geometry(
@@ -222,7 +272,7 @@ class ST_DiskElement:
         ...                                         o_d=o_d,
         ...                                         is_random=["i_d", "o_d"],
         ...                                         )
-        >>> len(list(elms.__iter__()))
+        >>> len(list(iter(elms)))
         5
         """
         if isinstance(material, ST_Material):
@@ -261,3 +311,27 @@ class ST_DiskElement:
         is_random = ["m", "Id", "Ip"]
 
         return cls(n, m, Id, Ip, tag, is_random=is_random)
+
+
+def st_disk_example():
+    """Return an instance of a simple random disk.
+
+    The purpose is to make available a simple model so that doctest can be
+    written using it.
+
+    Returns
+    -------
+    elm : ross.stochastic.ST_DiskElement
+        An instance of a random disk element object.
+
+    Examples
+    --------
+    >>> import ross.stochastic as srs
+    >>> elm = srs.st_disk_example()
+    >>> len(list(iter(elm)))
+    2
+    """
+    elm = ST_DiskElement(
+        n=1, m=[30, 40], Id=[0.2, 0.3], Ip=[0.5, 0.7], is_random=["m", "Id", "Ip"],
+    )
+    return elm
