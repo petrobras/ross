@@ -6,6 +6,7 @@ some of the most common materials used in rotors.
 from collections.abc import Iterable
 
 import numpy as np
+
 from ross.materials import Material
 from ross.stochastic.st_results_elements import plot_histogram
 
