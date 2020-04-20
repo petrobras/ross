@@ -198,7 +198,7 @@ class Rotor(object):
                 disk.tag = "Disk " + str(i)
 
         for i, brg in enumerate(bearing_elements):
-            if brg.__class__.__name__ == "BearingElement" and brg.tag is None:
+            if isinstance(brg, BearingElement) and brg.tag is None:
                 brg.tag = "Bearing " + str(i)
             if brg.__class__.__name__ == "SealElement" and brg.tag is None:
                 brg.tag = "Seal " + str(i)
@@ -223,7 +223,7 @@ class Rotor(object):
             )
         ]
 
-        number_dof = self._check_number_dof()
+        self.number_dof = self._check_number_dof()
 
         ####################################################
         # Rotor summary
@@ -257,7 +257,7 @@ class Rotor(object):
             [
                 el.summary()
                 for el in self.bearing_elements
-                if (el.__class__.__name__ == "BearingElement")
+                if (isinstance(el, BearingElement))
             ]
         )
         df_seals = pd.DataFrame(
@@ -368,8 +368,8 @@ class Rotor(object):
 
         # number of dofs
         self.ndof = (
-            4 * max([el.n for el in shaft_elements])
-            + 8
+            self.number_dof * max([el.n for el in shaft_elements])
+            + self.number_dof * 2
             + 2 * len([el for el in point_mass_elements])
         )
 
@@ -385,21 +385,25 @@ class Rotor(object):
 
             if elm.n <= n_last + 1:
                 for k, v in global_dof_mapping.items():
-                    global_dof_mapping[k] = 4 * elm.n + v
+                    global_dof_mapping[k] = self.number_dof * elm.n + v
             else:
                 for k, v in global_dof_mapping.items():
-                    global_dof_mapping[k] = 2 * n_last + 2 * elm.n + 4 + v
+                    global_dof_mapping[k] = (
+                        2 * n_last + self.number_dof / 2 * elm.n + self.number_dof + v
+                    )
 
             if hasattr(elm, "n_link") and elm.n_link is not None:
                 if elm.n_link <= n_last + 1:
-                    global_dof_mapping[f"x_{elm.n_link}"] = 4 * elm.n_link
-                    global_dof_mapping[f"y_{elm.n_link}"] = 4 * elm.n_link + 1
+                    global_dof_mapping[f"x_{elm.n_link}"] = self.number_dof * elm.n_link
+                    global_dof_mapping[f"y_{elm.n_link}"] = (
+                        self.number_dof * elm.n_link + 1
+                    )
                 else:
                     global_dof_mapping[f"x_{elm.n_link}"] = (
-                        2 * n_last + 2 * elm.n_link + 4
+                        2 * n_last + 2 * elm.n_link + self.number_dof
                     )
                     global_dof_mapping[f"y_{elm.n_link}"] = (
-                        2 * n_last + 2 * elm.n_link + 5
+                        2 * n_last + 2 * elm.n_link + self.number_dof + 1
                     )
 
             dof_tuple = namedtuple("GlobalIndex", global_dof_mapping)
@@ -515,35 +519,27 @@ class Rotor(object):
         self.df = df
 
     def _check_number_dof(self):
-        if isinstance(self.shaft_elements[0], ShaftElement):
-            number_dof = 4
-        elif isinstance(self.shaft_elements[0], ShaftElement6DoF):
-            number_dof = 6
+        number_dof = len(self.shaft_elements[0].dof_mapping()) / 2
 
         for el in self.shaft_elements:
-            if (isinstance(el, ShaftElement) and number_dof == 6) or (
-                isinstance(el, ShaftElement6DoF) and number_dof == 4
+            if (len(el.dof_mapping()) == 8 and number_dof == 6) or (
+                len(el.dof_mapping()) == 12 and number_dof == 4
             ):
                 raise Exception(
                     "The number of degrees o freedom of all elements must be the same! There are SHAFT elements with discrepant DoFs."
                 )
 
         for el in self.disk_elements:
-            if (isinstance(el, DiskElement) and number_dof == 6) or (
-                isinstance(el, DiskElement6DoF) and number_dof == 4
+            if (len(el.dof_mapping()) == 4 and number_dof == 6) or (
+                len(el.dof_mapping()) == 6 and number_dof == 4
             ):
                 raise Exception(
                     "The number of degrees o freedom of all elements must be the same! There are DISK elements with discrepant DoFs."
                 )
 
         for el in self.bearing_elements:
-            if (
-                (isinstance(el, BearingElement) and number_dof == 6)
-                or (isinstance(el, SealElement) and number_dof == 6)
-                or (isinstance(el, BallBearingElement) and number_dof == 6)
-                or (isinstance(el, RollerBearingElement) and number_dof == 6)
-                or (isinstance(el, MagneticBearingElement) and number_dof == 6)
-                or (isinstance(el, BearingElement6DoF) and number_dof == 4)
+            if (len(el.dof_mapping()) == 2 and number_dof == 6) or (
+                len(el.dof_mapping()) == 3 and number_dof == 4
             ):
                 raise Exception(
                     "The number of degrees o freedom of all elements must be the same! There are BEARING elements with discrepant DoFs."
@@ -1253,8 +1249,8 @@ class Rotor(object):
             ]
         )  # (Id - Ip)*beta*np.exp(1j*gamma)])
 
-        n0 = 4 * node
-        n1 = n0 + 4
+        n0 = self.number_dof * node
+        n1 = n0 + self.number_dof
         for i, w in enumerate(omega):
             F0[n0:n1, i] += w ** 2 * b0
 
@@ -1770,7 +1766,7 @@ class Rotor(object):
                 stiffness_range = (6, 11)
 
         stiffness_log = np.logspace(*stiffness_range, num=num)
-        rotor_wn = np.zeros((4, len(stiffness_log)))
+        rotor_wn = np.zeros((self.number_dof, len(stiffness_log)))
 
         bearings_elements = []  # exclude the seals
         for bearing in self.bearing_elements:
@@ -1783,7 +1779,7 @@ class Rotor(object):
                 self.shaft_elements, self.disk_elements, bearings, n_eigen=16
             )
             modal = rotor.run_modal(speed=0)
-            rotor_wn[:, i] = modal.wn[:8:2]
+            rotor_wn[:, i] = modal.wn[: self.number_dof * 2 : self.number_dof / 2]
 
         ax.set_prop_cycle(cycler("color", seaborn_colors))
         ax.loglog(stiffness_log, rotor_wn.T)
@@ -2255,8 +2251,8 @@ class Rotor(object):
         grav = np.zeros(len(aux_K))
 
         # place gravity effect on shaft and disks nodes
-        for node_y in range(int(len(aux_K) / 4)):
-            grav[4 * node_y + 1] = -g
+        for node_y in range(int(len(aux_K) / self.number_dof)):
+            grav[self.number_dof * node_y + 1] = -g
 
         # calculates x, for [K]*(x) = [M]*(g)
         disp = (la.solve(aux_K, aux_M @ grav)).flatten()
@@ -2264,8 +2260,8 @@ class Rotor(object):
         # calculates displacement values in gravity's direction
         # dof = degree of freedom
         disp_y = np.array([])
-        for node_dof in range(int(len(disp) / 4)):
-            disp_y = np.append(disp_y, disp[4 * node_dof + 1])
+        for node_dof in range(int(len(disp) / self.number_dof)):
+            disp_y = np.append(disp_y, disp[self.number_dof * node_dof + 1])
 
         # Shearing Force
         BRG = [0] * len(self.nodes_pos)
@@ -3491,3 +3487,63 @@ def MAC_modes(U, V, n=None, plot=True):
     cbar.set_label("MAC")
 
     return macs
+
+
+def rotor_example_6dof():
+    """This function returns an instance of a simple rotor with
+    two shaft elements, one disk and two simple bearings.
+    The purpose of this is to make available a simple model
+    so that doctest can be written using this.
+
+    Parameters
+    ----------
+
+    Returns
+    -------
+    An instance of a 6DoFs rotor object.
+
+    Examples
+    --------
+    >>> rotor = rs.rotor_assembly.rotor_example_6dof()
+    >>> modal = rotor.run_modal(speed=0)
+    >>> np.round(modal.wd[:4])
+    array([ X  X  X  X ])
+    """
+    #  Rotor with 6 DoFs, with internal damping, with 10 shaft elements, 2 disks and 2 bearings.
+    i_d = 0
+    o_d = 0.05
+    n = 10
+    L = [0.25 for _ in range(n)]
+
+    shaft_elem = [
+        ShaftElement6DoF(
+            material=steel,
+            L=0.5,
+            idl=0.05,
+            odl=0.1,
+            idr=0.05,
+            odr=0.15,
+            alpha=0.01,
+            beta=100,
+            rotary_inertia=False,
+            shear_effects=False,
+        )
+        for l in L
+    ]
+
+    disk0 = DiskElement6DoF(0, 32.589_727_65, 0.178_089_28, 0.329_563_62)
+
+    kxx = 1e6
+    kyy = 0.8e6
+    kzz = 1e5
+    cxx = 2e2
+    cyy = 1.5e2
+    czz = 0.5e2
+    bearing0 = BearingElement6DoF(
+        n=0, kxx=kxx, kyy=kyy, cxx=cxx, cyy=cyy, kzz=kzz, czz=czz
+    )
+    bearing1 = BearingElement6DoF(
+        n=9, kxx=kxx, kyy=kyy, cxx=cxx, cyy=cyy, kzz=kzz, czz=czz
+    )
+
+    return Rotor(shaft_elem, [disk0], [bearing0, bearing1])
