@@ -367,7 +367,7 @@ class Rotor(object):
         self._v0 = None  # used to call eigs
 
         # number of dofs
-        self.ndof = (
+        self.ndof = int(
             self.number_dof * max([el.n for el in shaft_elements])
             + self.number_dof * 2
             + 2 * len([el for el in point_mass_elements])
@@ -545,7 +545,7 @@ class Rotor(object):
                     "The number of degrees o freedom of all elements must be the same! There are BEARING elements with discrepant DoFs."
                 )
 
-        return number_dof
+        return int(number_dof)
 
     def __eq__(self, other):
         """
@@ -3066,7 +3066,7 @@ class CoAxialRotor(Rotor):
         self._v0 = None  # used to call eigs
 
         # number of dofs
-        self.ndof = (
+        self.ndof = int(
             4 * max([el.n for el in shaft_elements])
             + 8
             + 2 * len([el for el in point_mass_elements])
@@ -3150,7 +3150,7 @@ class CoAxialRotor(Rotor):
             dof_tuple = namedtuple("GlobalIndex", global_dof_mapping)
             elm.dof_global_index = dof_tuple(**global_dof_mapping)
             df.at[
-                df.loc[df.tag == elm.tag].index[0], "dof_global_index"
+                df.loc[df.tag == elm.tag].index[0], "dof_globaxl_index"
             ] = elm.dof_global_index
 
         #  values for static analysis will be calculated by def static
@@ -3512,33 +3512,35 @@ def rotor_example_6dof():
     #  Rotor with 6 DoFs, with internal damping, with 10 shaft elements, 2 disks and 2 bearings.
     i_d = 0
     o_d = 0.05
-    n = 10
+    n = 6
     L = [0.25 for _ in range(n)]
 
     shaft_elem = [
         ShaftElement6DoF(
             material=steel,
-            L=0.5,
-            idl=0.05,
-            odl=0.1,
-            idr=0.05,
-            odr=0.15,
-            alpha=0.01,
-            beta=100,
+            L=0.25,
+            idl=0,
+            odl=0.05,
+            idr=0,
+            odr=0.05,
+            alpha=0,
+            beta=0,
             rotary_inertia=False,
             shear_effects=False,
         )
         for l in L
     ]
-
-    disk0 = DiskElement6DoF(0, 32.589_727_65, 0.178_089_28, 0.329_563_62)
+    disk0 = DiskElement6DoF.from_geometry(
+        n=2, material=steel, width=0.07, i_d=0.05, o_d=0.28
+    )
+    # disk0 = DiskElement6DoF(5, 32.589_727_65, 0.178_089_28, 0.329_563_62)
 
     kxx = 1e6
     kyy = 0.8e6
-    kzz = 1e5
-    cxx = 2e2
-    cyy = 1.5e2
-    czz = 0.5e2
+    kzz = 1e15
+    cxx = 0
+    cyy = 0
+    czz = 0
     bearing0 = BearingElement6DoF(
         n=0, kxx=kxx, kyy=kyy, cxx=cxx, cyy=cyy, kzz=kzz, czz=czz
     )
