@@ -198,9 +198,9 @@ class Rotor(object):
                 disk.tag = "Disk " + str(i)
 
         for i, brg in enumerate(bearing_elements):
-            if isinstance(brg, BearingElement) and brg.tag is None:
+            if not isinstance(brg, SealElement) and brg.tag is None:
                 brg.tag = "Bearing " + str(i)
-            if brg.__class__.__name__ == "SealElement" and brg.tag is None:
+            elif isinstance(brg, SealElement) and brg.tag is None:
                 brg.tag = "Seal " + str(i)
 
         for i, p_mass in enumerate(point_mass_elements):
@@ -3150,7 +3150,7 @@ class CoAxialRotor(Rotor):
             dof_tuple = namedtuple("GlobalIndex", global_dof_mapping)
             elm.dof_global_index = dof_tuple(**global_dof_mapping)
             df.at[
-                df.loc[df.tag == elm.tag].index[0], "dof_globaxl_index"
+                df.loc[df.tag == elm.tag].index[0], "dof_global_index"
             ] = elm.dof_global_index
 
         #  values for static analysis will be calculated by def static
