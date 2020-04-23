@@ -3549,7 +3549,7 @@ def rotor_example_6dof():
         for l in L
     ]
 
-    disk0 = DiskElement.from_geometry(
+    disk0 = DiskElement6DoF.from_geometry(
         n=2, material=steel, width=0.07, i_d=0.05, o_d=0.28
     )
     disk1 = DiskElement6DoF.from_geometry(
