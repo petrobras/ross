@@ -538,7 +538,7 @@ class Rotor(object):
             Number of degrees of freedom from the adopted shaft element.
         """
 
-        number_dof = len(self.shaft_elements[0].dof_mapping())
+        number_dof = len(self.shaft_elements[0].dof_mapping()) / 2
 
         if any(len(sh.dof_mapping()) != number_dof * 2 for sh in self.shaft_elements):
             raise Exception(
@@ -3524,8 +3524,8 @@ def rotor_example_6dof():
     >>> camp6.plot(plot_type="matplotlib")
     >>> plt.show()
     >>> modal6 = rotor6.run_modal(speed=0)
-    >>> np.round(modal6.wd[:6])
-    array([  0.,   0.,  48.,  92.,  96., 275.])
+    >>> modal6.wd[:6]
+    array([  0.        ,  47.62157215,  91.79835717,  96.29386819,  274.51274397, 296.49903736])
     """
     #  Rotor with 6 DoFs, with internal damping, with 10 shaft elements, 2 disks and 2 bearings.
     i_d = 0
