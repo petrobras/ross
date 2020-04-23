@@ -198,9 +198,9 @@ class Rotor(object):
                 disk.tag = "Disk " + str(i)
 
         for i, brg in enumerate(bearing_elements):
-            if isinstance(brg, BearingElement) and brg.tag is None:
+            if not isinstance(brg, SealElement) and brg.tag is None:
                 brg.tag = "Bearing " + str(i)
-            if brg.__class__.__name__ == "SealElement" and brg.tag is None:
+            elif isinstance(brg, SealElement) and brg.tag is None:
                 brg.tag = "Seal " + str(i)
 
         for i, p_mass in enumerate(point_mass_elements):
@@ -519,31 +519,43 @@ class Rotor(object):
         self.df = df
 
     def _check_number_dof(self):
-        number_dof = len(self.shaft_elements[0].dof_mapping()) / 2
+        """Verify the consistency of degrees of freedom.
 
-        for el in self.shaft_elements:
-            if (len(el.dof_mapping()) == 8 and number_dof == 6) or (
-                len(el.dof_mapping()) == 12 and number_dof == 4
-            ):
-                raise Exception(
-                    "The number of degrees o freedom of all elements must be the same! There are SHAFT elements with discrepant DoFs."
-                )
+        This method loops for all the elements, checking if the number of degrees of
+        freedom is consistent.
+        E.g.: inputting 2 shaft elements, one with 4 dof and one with 6, will raise
+        an error.
 
-        for el in self.disk_elements:
-            if (len(el.dof_mapping()) == 4 and number_dof == 6) or (
-                len(el.dof_mapping()) == 6 and number_dof == 4
-            ):
-                raise Exception(
-                    "The number of degrees o freedom of all elements must be the same! There are DISK elements with discrepant DoFs."
-                )
+        Raises
+        ------
+        Exception
+            Error pointing out difference between the number of DoF's from each element
+            type.
 
-        for el in self.bearing_elements:
-            if (len(el.dof_mapping()) == 2 and number_dof == 6) or (
-                len(el.dof_mapping()) == 3 and number_dof == 4
-            ):
-                raise Exception(
-                    "The number of degrees o freedom of all elements must be the same! There are BEARING elements with discrepant DoFs."
-                )
+        Returns
+        -------
+        number_dof : int
+            Number of degrees of freedom from the adopted shaft element.
+        """
+
+        number_dof = len(self.shaft_elements[0].dof_mapping())
+
+        if any(len(sh.dof_mapping()) != number_dof * 2 for sh in self.shaft_elements):
+            raise Exception(
+                "The number of degrees o freedom of all elements must be the same! There are SHAFT elements with discrepant DoFs."
+            )
+
+        if any(len(disk.dof_mapping()) != number_dof for disk in self.disk_elements):
+            raise Exception(
+                "The number of degrees o freedom of all elements must be the same! There are DISK elements with discrepant DoFs."
+            )
+
+        if any(
+            len(brg.dof_mapping()) != number_dof / 2 for brg in self.bearing_elements
+        ):
+            raise Exception(
+                "The number of degrees o freedom of all elements must be the same! There are BEARING elements with discrepant DoFs."
+            )
 
         return int(number_dof)
 
@@ -3150,7 +3162,7 @@ class CoAxialRotor(Rotor):
             dof_tuple = namedtuple("GlobalIndex", global_dof_mapping)
             elm.dof_global_index = dof_tuple(**global_dof_mapping)
             df.at[
-                df.loc[df.tag == elm.tag].index[0], "dof_globaxl_index"
+                df.loc[df.tag == elm.tag].index[0], "dof_global_index"
             ] = elm.dof_global_index
 
         #  values for static analysis will be calculated by def static
@@ -3504,10 +3516,16 @@ def rotor_example_6dof():
 
     Examples
     --------
-    >>> rotor = rs.rotor_assembly.rotor_example_6dof()
-    >>> modal = rotor.run_modal(speed=0)
-    >>> np.round(modal.wd[:4])
-    array([ X  X  X  X ])
+    >>> import ross as rs
+    >>> import numpy as np
+    >>> import matplotlib.pyplot as plt
+    >>> rotor6 = rs.rotor_assembly.rotor_example_6dof()
+    >>> camp6 = rotor6.run_campbell(np.linspace(0,400,101),frequencies=18)
+    >>> camp6.plot(plot_type="matplotlib")
+    >>> plt.show()
+    >>> modal6 = rotor6.run_modal(speed=0)
+    >>> np.round(modal6.wd[:6])
+    array([  0.,   0.,  48.,  92.,  96., 275.])
     """
     #  Rotor with 6 DoFs, with internal damping, with 10 shaft elements, 2 disks and 2 bearings.
     i_d = 0
@@ -3530,14 +3548,17 @@ def rotor_example_6dof():
         )
         for l in L
     ]
-    disk0 = DiskElement6DoF.from_geometry(
+
+    disk0 = DiskElement.from_geometry(
         n=2, material=steel, width=0.07, i_d=0.05, o_d=0.28
     )
-    # disk0 = DiskElement6DoF(5, 32.589_727_65, 0.178_089_28, 0.329_563_62)
+    disk1 = DiskElement6DoF.from_geometry(
+        n=4, material=steel, width=0.07, i_d=0.05, o_d=0.28
+    )
 
     kxx = 1e6
     kyy = 0.8e6
-    kzz = 1e15
+    kzz = 1e5
     cxx = 0
     cyy = 0
     czz = 0
@@ -3545,7 +3566,7 @@ def rotor_example_6dof():
         n=0, kxx=kxx, kyy=kyy, cxx=cxx, cyy=cyy, kzz=kzz, czz=czz
     )
     bearing1 = BearingElement6DoF(
-        n=9, kxx=kxx, kyy=kyy, cxx=cxx, cyy=cyy, kzz=kzz, czz=czz
+        n=6, kxx=kxx, kyy=kyy, cxx=cxx, cyy=cyy, kzz=kzz, czz=czz
     )
 
-    return Rotor(shaft_elem, [disk0], [bearing0, bearing1])
+    return Rotor(shaft_elem, [disk0, disk1], [bearing0, bearing1], n_eigen=36)
