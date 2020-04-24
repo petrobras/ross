@@ -201,13 +201,11 @@ class ST_Rotor(object):
         self.is_random = is_random
         self.attribute_dict = attribute_dict
 
-        # iter_break allows the iteration to stop at once to collect ndof
-        self.iter_break = True
-        ndof = list(iter(self))[0].ndof
-
         # common parameters
         self.RV_size = RV_size
-        self.ndof = ndof
+
+        # collect a series of attributes from a rotor instance
+        self._get_rotor_args()
 
     def __iter__(self):
         """Return an iterator for the container.
@@ -284,6 +282,35 @@ class ST_Rotor(object):
         if key not in self.attribute_dict.keys():
             raise KeyError("Object does not have parameter: {}.".format(key))
         self.attribute_dict[key] = value
+
+    def _get_rotor_args(self):
+        """Get relevant attributes from a rotor system.
+
+        This auxiliary funtion get some relevant attributes from a rotor system, such as
+        the nodes numbers, nodes positions and number of degrees of freedom, and add it
+        to the stochastic rotor as attribute. If an attribute is somehow afected by a
+        random variable, the function returns its mean.
+        """
+        self.iter_break = True
+        aux_rotor = list(iter(self))[0]
+
+        self.ndof = aux_rotor.ndof
+        self.nodes = aux_rotor.nodes
+
+        if "shaft_elements" in self.is_random:
+            if any(
+                "L" in sh.is_random
+                for sh in self.attribute_dict["shaft_elements"]
+                if isinstance(sh, ST_ShaftElement)
+            ):
+                nodes_pos_matrix = np.zeros(len(self.nodes), self.RV_size)
+                for i, rotor in enumerate(iter(self)):
+                    nodes_pos_matrix[:, i] = rotor.nodes_pos
+                self.nodes_pos = np.mean(nodes_pos_matrix, axis=1)
+            else:
+                self.nodes_pos = aux_rotor.nodes_pos
+        else:
+            self.nodes_pos = aux_rotor.nodes_pos
 
     @staticmethod
     def get_args(idx, *args):
