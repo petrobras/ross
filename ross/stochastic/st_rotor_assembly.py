@@ -313,7 +313,7 @@ class ST_Rotor(object):
             self.nodes_pos = aux_rotor.nodes_pos
 
     @staticmethod
-    def get_args(idx, *args):
+    def _get_args(idx, *args):
         """Build new list of arguments from a random list of arguments.
 
         This funtion takes a list with random values or with lists of random
@@ -338,7 +338,7 @@ class ST_Rotor(object):
         >>> rotors = srs.st_rotor_example()
         >>> old_list = [1, 2, [3, 4], 5]
         >>> index = [0, 1]
-        >>> new_list = [rotors.get_args(idx, old_list) for idx in index]
+        >>> new_list = [rotors._get_args(idx, old_list) for idx in index]
         >>> new_list
         [[1, 2, 3, 5], [1, 2, 4, 5]]
         """
@@ -391,7 +391,7 @@ class ST_Rotor(object):
             arg = []
             for key, value in args_dict.items():
                 if key in is_random and key in self.is_random:
-                    arg.append(self.get_args(i, value))
+                    arg.append(self._get_args(i, value))
                 elif key in is_random and key not in self.is_random:
                     arg.append(value[i])
                 else:
@@ -541,15 +541,16 @@ class ST_Rotor(object):
             magnitude[:, i] = results.magnitude[inp, out, :]
             phase[:, i] = results.phase[inp, out, :]
 
-        results = ST_FrequencyResponseResults(speed_range, magnitude, phase,)
+        results = ST_FrequencyResponseResults(speed_range, magnitude, phase)
 
         return results
 
-    def run_time_response(self, speed, force, time_range, dof, ic=None):
+    def run_time_response(self, speed, force, time_range, ic=None):
         """Stochastic time response for multiples rotor systems.
 
         This function will take a rotor object and plot its time response
-        given a force and a time.
+        given a force and a time. This method displays the amplitude vs time or the
+        rotor orbits.
         The force and ic parameters can be passed as random variables.
 
         Parameters
@@ -564,8 +565,6 @@ class ST_Rotor(object):
             ST_Rotor.RV_size
         time_range : 1-dimensional array
             Time array.
-        dof : int
-            Degree of freedom that will be observed.
         ic : 1-dimensional array, 2-dimensional array, optional
             The initial conditions on the state vector (zero by default).
             Inputing a 2-dimensional array, the method considers the
@@ -595,12 +594,16 @@ class ST_Rotor(object):
         >>> F = np.zeros((size, ndof))
         >>> F[:, 4 * node] = 10 * np.cos(2 * t)
         >>> F[:, 4 * node + 1] = 10 * np.sin(2 * t)
-        >>> results = rotors.run_time_response(speed, F, t, dof)
+        >>> results = rotors.run_time_response(speed, F, t)
 
-        # Plotting Time Response with bokeh
+        # Plotting Time Response 1D, 2D and 3D
 
-        >>> results.plot(conf_interval=[90]) # doctest: +ELLIPSIS
+        >>> results.plot(plot_type="1d", dof=dof, conf_interval=[90]) # doctest: +ELLIPSIS
         Figure...
+        >>> results.plot(plot_type="2d", node=node, conf_interval=[90]) # doctest: +ELLIPSIS
+        Figure...
+        >>> results.plot(plot_type="3d", conf_interval=[90]) # doctest: +ELLIPSIS
+        <matplotlib...
         """
         t_size = len(time_range)
         RV_size = self.RV_size
@@ -627,7 +630,9 @@ class ST_Rotor(object):
                 yout[i] = y
                 i += 1
 
-        results = ST_TimeResponseResults(time_range, yout, xout, dof)
+        results = ST_TimeResponseResults(
+            time_range, yout, xout, self.nodes, self.nodes_pos
+        )
 
         return results
 
