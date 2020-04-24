@@ -3521,8 +3521,8 @@ def rotor_example_6dof():
     >>> import matplotlib.pyplot as plt
     >>> rotor6 = rs.rotor_assembly.rotor_example_6dof()
     >>> camp6 = rotor6.run_campbell(np.linspace(0,400,101),frequencies=18)
-    >>> camp6.plot(plot_type="matplotlib")
-    >>> plt.show()
+    >>> camp6.plot(plot_type="matplotlib") # doctest: +ELLIPSIS
+    (<Figure...
     >>> modal6 = rotor6.run_modal(speed=0)
     >>> modal6.wd[:6]
     array([  0.        ,  47.62157215,  91.79835717,  96.29386819,  274.51274397, 296.49903736])
