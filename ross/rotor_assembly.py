@@ -1791,7 +1791,9 @@ class Rotor(object):
                 self.shaft_elements, self.disk_elements, bearings, n_eigen=16
             )
             modal = rotor.run_modal(speed=0)
-            rotor_wn[:, i] = modal.wn[: self.number_dof * 2 : self.number_dof / 2]
+            rotor_wn[:, i] = modal.wn[
+                : int(self.number_dof * 2) : int(self.number_dof / 2)
+            ]
 
         ax.set_prop_cycle(cycler("color", seaborn_colors))
         ax.loglog(stiffness_log, rotor_wn.T)
