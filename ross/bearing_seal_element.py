@@ -1739,7 +1739,7 @@ class BearingElement6DoF(BearingElement):
         return bearing_elements
 
     def dof_mapping(self):
-        return dict(u_0=0, v_0=1, w_0=2)
+        return dict(x_0=0, y_0=1, z_0=2)
 
     def dof_global_index(self):
         """Get the global index for an element specific degree of freedom for the 6DoF element."""
