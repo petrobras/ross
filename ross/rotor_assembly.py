@@ -23,7 +23,10 @@ from bokeh.models.glyphs import Text
 from bokeh.plotting import figure, output_file
 from cycler import cycler
 
-from ross.bearing_seal_element import BearingElement, SealElement, BallBearingElement, RollerBearingElement, MagneticBearingElement, BearingElement6DoF
+from ross.bearing_seal_element import (BallBearingElement, BearingElement,
+                                       BearingElement6DoF,
+                                       MagneticBearingElement,
+                                       RollerBearingElement, SealElement)
 from ross.disk_element import DiskElement, DiskElement6DoF
 from ross.materials import steel
 from ross.results import (CampbellResults, ConvergenceResults,
