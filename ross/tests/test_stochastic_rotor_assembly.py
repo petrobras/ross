@@ -420,7 +420,6 @@ def test_time_response(rotor1):
     ndof = rotor1.ndof
     RV_size = rotor1.RV_size
     node = 3
-    dof = 9
     speed = 250.0
     t = np.linspace(0, 10, size)
     F = np.zeros((RV_size, size, ndof))
@@ -429,7 +428,7 @@ def test_time_response(rotor1):
     for i, f in enumerate(force):
         F[i, :, 4 * node] = f * np.cos(2 * t)
         F[i, :, 4 * node + 1] = f * np.sin(2 * t)
-    results = rotor1.run_time_response(speed, F, t, dof)
+    results = rotor1.run_time_response(speed, F, t)
 
     # fmt: off
     yout = np.array([
