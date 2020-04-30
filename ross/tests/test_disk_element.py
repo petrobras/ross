@@ -83,12 +83,12 @@ def disk_6dof():
 
 
 def test_index_6dof(disk_6dof):
-    assert disk_6dof.dof_local_index().u_0 == 0
-    assert disk_6dof.dof_local_index().v_0 == 1
-    assert disk_6dof.dof_local_index().w_0 == 2
-    assert disk_6dof.dof_local_index().theta_0 == 3
-    assert disk_6dof.dof_local_index().psi_0 == 4
-    assert disk_6dof.dof_local_index().phi_0 == 5
+    assert disk_6dof.dof_local_index().x_0 == 0
+    assert disk_6dof.dof_local_index().y_0 == 1
+    assert disk_6dof.dof_local_index().z_0 == 2
+    assert disk_6dof.dof_local_index().alpha_0 == 3
+    assert disk_6dof.dof_local_index().beta_0 == 4
+    assert disk_6dof.dof_local_index().theta_0 == 5
 
 
 def test_mass_matrix_disk_6dof(disk_6dof):
