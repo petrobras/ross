@@ -1,7 +1,12 @@
+"""Bearing Element module.
+
+This module defines the BearingElement classes which will be used to represent the rotor
+bearings and seals. There're 6 different classes to represent bearings options,
+and 2 element options with 8 or 12 degrees of freedom.
+"""
 # fmt: off
 import os
 import warnings
-from collections import namedtuple
 from pathlib import Path
 
 import bokeh.palettes as bp
@@ -16,6 +21,8 @@ from ross.fluid_flow.fluid_flow_coefficients import (
     calculate_damping_matrix, calculate_stiffness_matrix)
 from ross.utils import read_table_file
 
+# fmt: on
+
 __all__ = [
     "BearingElement",
     "SealElement",
@@ -24,7 +31,7 @@ __all__ = [
     "BearingElement6DoF",
     "MagneticBearingElement",
 ]
-# fmt: on
+
 bokeh_colors = bp.RdGy[11]
 
 
@@ -244,13 +251,12 @@ class BearingElement(Element):
         self.dof_global_index = None
 
     def __repr__(self):
-        """This function returns a string representation of a bearing element.
-        Parameters
-        ----------
+        """Return a string representation of a bearing element.
 
         Returns
         -------
-        A string representation of a bearing object.
+        A string representation of a bearing element object.
+
         Examples
         --------
         >>> bearing = bearing_example()
@@ -269,7 +275,8 @@ class BearingElement(Element):
         )
 
     def __eq__(self, other):
-        """This function allows bearing elements to be compared.
+        """Equality method for comparasions.
+
         Parameters
         ----------
         other: object
@@ -279,6 +286,7 @@ class BearingElement(Element):
         -------
         bool
             True if the comparison is true; False otherwise.
+
         Examples
         --------
         >>> bearing1 = bearing_example()
@@ -297,6 +305,7 @@ class BearingElement(Element):
             "cyx",
             "frequency",
             "n",
+            "n_link",
         ]
         if isinstance(other, self.__class__):
             return all(
@@ -312,8 +321,9 @@ class BearingElement(Element):
         return hash(self.tag)
 
     def save(self, file_name=Path(os.getcwd())):
-        """Saves a bearing element in a toml format. It works as an auxiliary
-        function of the save function in the Rotor class.
+        """Save a bearing element in a toml format.
+
+        It works as an auxiliary function of the save function in the Rotor class.
 
         Parameters
         ----------
@@ -350,12 +360,16 @@ class BearingElement(Element):
             "cyx": self.cyx.coefficient,
             "frequency": frequency,
             "tag": self.tag,
+            "n_link": self.n_link,
+            "scale_factor": self.scale_factor,
         }
         self.dump_data(data, Path(file_name) / "BearingElement.toml")
 
     @staticmethod
     def load(file_name=""):
-        """Loads a list of bearing elements saved in a toml format.
+        """Load a list of bearing elements saved in a toml format.
+
+        It works as an auxiliary function of the load function in the Rotor class.
 
         Parameters
         ----------
@@ -416,27 +430,40 @@ class BearingElement(Element):
         return bearing_elements
 
     def dof_mapping(self):
-        return dict(x_0=0, y_0=1)
+        """Degrees of freedom mapping.
 
-    def dof_global_index(self):
-        """Get the global index for an element specific degree of freedom."""
-        global_index = super().dof_global_index()
-
-        if self.n_link is not None:
-            global_index = global_index._asdict()
-            global_index[f"x_{self.n_link}"] = 4 * self.n_link
-            global_index[f"y_{self.n_link}"] = 4 * self.n_link + 1
-            dof_tuple = namedtuple("GlobalIndex", global_index)
-            global_index = dof_tuple(**global_index)
-
-        return global_index
-
-    def M(self):
-        """Mass matrix.
+        Returns a dictionary with a mapping between degree of freedom and its
+        index.
 
         Returns
         -------
-        M: np.ndarray
+        dof_mapping : dict
+            A dictionary containing the degrees of freedom and their indexes.
+
+        Examples
+        --------
+        The numbering of the degrees of freedom for each node.
+
+        Being the following their ordering for a node:
+
+        x_0 - horizontal translation
+        y_0 - vertical translation
+
+        >>> bearing = bearing_example()
+        >>> bearing.dof_mapping()
+        {'x_0': 0, 'y_0': 1}
+        """
+        return dict(x_0=0, y_0=1)
+
+    def M(self):
+        """Mass matrix for an instance of a bearing element.
+
+        This method returns the mass matrix for an instance of a bearing
+        element.
+
+        Returns
+        -------
+        M : np.ndarray
             Mass matrix.
 
         Examples
@@ -451,16 +478,19 @@ class BearingElement(Element):
         return M
 
     def K(self, frequency):
-        """Returns the stiffness matrix for a given excitation frequency.
+        """Stiffness matrix for an instance of a bearing element.
+
+        This method returns the stiffness matrix for an instance of a bearing
+        element.
 
         Parameters
         ----------
-        frequency: float
-            The excitation frequency (rad/s).
+        frequency : float
+            The excitation frequency.
 
         Returns
         -------
-        K: np.ndarray
+        K : np.ndarray
             A 2x2 matrix of floats containing the kxx, kxy, kyx, and kyy values.
 
         Examples
@@ -486,16 +516,19 @@ class BearingElement(Element):
         return K
 
     def C(self, frequency):
-        """Returns the damping matrix for a given excitation frequency.
+        """Damping matrix for an instance of a bearing element.
+
+        This method returns the damping matrix for an instance of a bearing
+        element.
 
         Parameters
         ----------
-        frequency: float
-            The excitation frequency (rad/s).
+        frequency : float
+            The excitation frequency.
 
         Returns
         -------
-        C: np.ndarray
+        C : np.ndarray
             A 2x2 matrix of floats containing the cxx, cxy, cyx, and cyy values.
 
         Examples
@@ -521,11 +554,14 @@ class BearingElement(Element):
         return C
 
     def G(self):
-        """Gyroscopic matrix.
+        """Gyroscopic matrix for an instance of a bearing element.
+
+        This method returns the mass matrix for an instance of a bearing
+        element.
 
         Returns
         -------
-        G: np.ndarray
+        G : np.ndarray
             A 2x2 matrix of floats.
 
         Examples
@@ -541,7 +577,8 @@ class BearingElement(Element):
 
     def patch(self, position, ax, **kwargs):
         """Bearing element patch.
-        Patch that will be used to draw the bearing element.
+
+        Patch that will be used to draw the bearing element using Matplotlib library.
 
         Parameters
         ----------
@@ -549,9 +586,6 @@ class BearingElement(Element):
             Position (z, y_low, y_upp) in which the patch will be drawn.
         ax : matplotlib axes, optional
             Axes in which the plot will be drawn.
-
-        Returns
-        -------
         """
         default_values = dict(lw=1.0, alpha=1.0, c="k")
         for k, v in default_values.items():
@@ -648,7 +682,8 @@ class BearingElement(Element):
 
     def bokeh_patch(self, position, bk_ax, **kwargs):
         """Bearing element patch.
-        Patch that will be used to draw the bearing element.
+
+        Patch that will be used to draw the bearing element using Bokeh library.
 
         Parameters
         ----------
@@ -656,9 +691,6 @@ class BearingElement(Element):
             Position (z, y_low, y_upp) in which the patch will be drawn.
         bk_ax : bokeh plotting axes, optional
             Axes in which the plot will be drawn.
-
-        Returns
-        -------
         """
         default_values = dict(line_width=3, line_alpha=1, color=bokeh_colors[1])
         for k, v in default_values.items():
@@ -1061,6 +1093,7 @@ class SealElement(BearingElement):
 
 class BallBearingElement(BearingElement):
     """A bearing element for ball bearings.
+
     This class will create a bearing element based on some geometric and
     constructive parameters of ball bearings. The main difference is that
     cross-coupling stiffness and damping are not modeled in this case.
@@ -1084,9 +1117,17 @@ class BallBearingElement(BearingElement):
     cyy: float, optional
         Direct damping in the y direction.
         Defaults is None
-    tag : str, optional
+    tag: str, optional
         A tag to name the element
-        Default is None
+        Default is None.
+    n_link: int, optional
+        Node to which the bearing will connect. If None the bearing is
+        connected to ground.
+        Default is None.
+    scale_factor: float, optional
+        The scale factor is used to scale the bearing drawing.
+        Default is 1.
+
     Examples
     --------
     >>> n = 0
@@ -1102,7 +1143,7 @@ class BallBearingElement(BearingElement):
            [0.00000000e+00, 1.00906269e+08]])
     """
 
-    def __init__(self, n, n_balls, d_balls, fs, alpha, cxx=None, cyy=None, tag=None):
+    def __init__(self, n, n_balls, d_balls, fs, alpha, cxx=None, cyy=None, tag=None, n_link=None, scale_factor=1):
 
         Kb = 13.0e6
         kyy = (
@@ -1140,6 +1181,8 @@ class BallBearingElement(BearingElement):
             cyx=0.0,
             cyy=cyy,
             tag=tag,
+            n_link=n_link,
+            scale_factor=scale_factor,
         )
 
         self.color = "#77ACA2"
@@ -1147,6 +1190,7 @@ class BallBearingElement(BearingElement):
 
 class RollerBearingElement(BearingElement):
     """A bearing element for roller bearings.
+
     This class will create a bearing element based on some geometric and
     constructive parameters of roller bearings. The main difference is that
     cross-coupling stiffness and damping are not modeled in this case.
@@ -1170,9 +1214,17 @@ class RollerBearingElement(BearingElement):
     cyy: float, optional
         Direct damping in the y direction.
         Defaults is None
-    tag : str, optional
+    tag: str, optional
         A tag to name the element
-        Default is None
+        Default is None.
+    n_link: int, optional
+        Node to which the bearing will connect. If None the bearing is
+        connected to ground.
+        Default is None.
+    scale_factor: float, optional
+        The scale factor is used to scale the bearing drawing.
+        Default is 1.
+
     Examples
     --------
     >>> n = 0
@@ -1189,7 +1241,7 @@ class RollerBearingElement(BearingElement):
     """
 
     def __init__(
-        self, n, n_rollers, l_rollers, fs, alpha, cxx=None, cyy=None, tag=None
+        self, n, n_rollers, l_rollers, fs, alpha, cxx=None, cyy=None, tag=None, n_link=None, scale_factor=1,
     ):
 
         Kb = 1.0e9
@@ -1228,6 +1280,8 @@ class RollerBearingElement(BearingElement):
             cyx=0.0,
             cyy=cyy,
             tag=tag,
+            n_link=n_link,
+            scale_factor=scale_factor,
         )
 
         self.color = "#77ACA2"
@@ -1242,8 +1296,8 @@ class MagneticBearingElement(BearingElement):
     as an array and the correspondent speed values should also be
     passed as an array.
 
-     Parameters
-     ----------
+    Parameters
+    ----------
     n: int
         Node which the bearing will be located in
     kxx: float, array
@@ -1270,9 +1324,16 @@ class MagneticBearingElement(BearingElement):
         (defaults to 0)
     frequency: array, optional
         Array with the speeds (rad/s).
-    tag : str, optional
+    tag: str, optional
         A tag to name the element
-        Default is None
+        Default is None.
+    n_link: int, optional
+        Node to which the bearing will connect. If None the bearing is
+        connected to ground.
+        Default is None.
+    scale_factor: float, optional
+        The scale factor is used to scale the bearing drawing.
+        Default is 1.
 
     Examples
     --------
@@ -1306,6 +1367,8 @@ class MagneticBearingElement(BearingElement):
         cyx=0,
         frequency=None,
         tag=None,
+        n_link=None,
+        scale_factor=1,
     ):
         super().__init__(
             n=n,
@@ -1319,11 +1382,13 @@ class MagneticBearingElement(BearingElement):
             cyx=cyx,
             cyy=cyy,
             tag=tag,
+            n_link=n_link,
+            scale_factor=scale_factor,
         )
 
     @classmethod
     def param_to_coef(
-        cls, n, g0, i0, ag, nw, alpha, kp_pid, kd_pid, k_amp, k_sense, tag=None
+        cls, n, g0, i0, ag, nw, alpha, kp_pid, kd_pid, k_amp, k_sense, tag=None, n_link=None, scale_factor=1,
     ):
         """
         Convert electromagnetic parameters and PID gains to stiffness and damping coefficients.
@@ -1350,6 +1415,17 @@ class MagneticBearingElement(BearingElement):
             Gain of the amplifier model.
         k_sense: float or int
             Gain of the sensor model.
+        tag: str, optional
+            A tag to name the element
+            Default is None.
+        n_link: int, optional
+            Node to which the bearing will connect. If None the bearing is
+            connected to ground.
+            Default is None.
+        scale_factor: float, optional
+            The scale factor is used to scale the bearing drawing.
+            Default is 1.
+
         ----------
         See the following reference for the electromagnetic parameters g0, i0, ag, nw, alpha:
         Book: Magnetic Bearings. Theory, Design, and Application to Rotating Machinery
@@ -1369,7 +1445,12 @@ class MagneticBearingElement(BearingElement):
         >>> k_amp = 1.0
         >>> k_sense = 1.0
         >>> tag = "magneticbearing"
-        >>> mbearing = MagneticBearingElement.param_to_coef(n=n,g0=g0,i0=i0,ag=ag,nw=nw,alpha=alpha, kp_pid=kp_pid,kd_pid=kd_pid, k_amp=k_amp, k_sense=k_sense)
+        >>> mbearing = MagneticBearingElement.param_to_coef(n=n, g0=g0, i0=i0, ag=ag,
+        ...                                                 nw=nw,alpha=alpha,
+        ...                                                 kp_pid=kp_pid,
+        ...                                                 kd_pid=kd_pid,
+        ...                                                 k_amp=k_amp,
+        ...                                                 k_sense=k_sense)
         >>> mbearing.kxx
         ['-4.64e+03']
         """
@@ -1451,11 +1532,15 @@ class MagneticBearingElement(BearingElement):
             cyx=0.0,
             cyy=cyy,
             tag=tag,
+            n_link=n_link,
+            scale_factor=scale_factor,
         )
 
 
 class BearingElement6DoF(BearingElement):
-    """A generalistic 6 DoF bearing element. This class will create a bearing
+    """A generalistic 6 DoF bearing element.
+
+    This class will create a bearing
     element based on the user supplied stiffness and damping coefficients. These
     are determined alternatively, via purposefully built codes.
 
@@ -1494,6 +1579,14 @@ class BearingElement6DoF(BearingElement):
     tag : str, optional
         A tag to name the element
         Default is None
+    n_link: int, optional
+        Node to which the bearing will connect. If None the bearing is
+        connected to ground.
+        Default is None.
+    scale_factor: float, optional
+        The scale factor is used to scale the bearing drawing.
+        Default is 1.
+
     Examples
     --------
     >>> n = 0
@@ -1522,6 +1615,7 @@ class BearingElement6DoF(BearingElement):
         cyx=0.0,
         czz=0.0,
         tag=None,
+        n_link=None,
         scale_factor=1,
         color="#355d7a",
     ):
@@ -1537,7 +1631,7 @@ class BearingElement6DoF(BearingElement):
             cyx=cyx,
             frequency=None,
             tag=tag,
-            n_link=None,
+            n_link=n_link,
             scale_factor=scale_factor,
             color=color,
         )
@@ -1578,13 +1672,12 @@ class BearingElement6DoF(BearingElement):
         return hash(self.tag)
 
     def __repr__(self):
-        """This function returns a string representation of a bearing element.
-        Parameters
-        ----------
+        """Return a string representation of a bearing element.
 
         Returns
         -------
-        A string representation of a bearing object.
+        A string representation of a bearing element object.
+
         Examples
         --------
         >>> bearing = bearing_example()
@@ -1604,16 +1697,18 @@ class BearingElement6DoF(BearingElement):
         )
 
     def __eq__(self, other):
-        """This function allows bearing elements to be compared.
+        """Equality method for comparasions.
+
         Parameters
         ----------
-        other: object
+        other : object
             The second object to be compared with.
 
         Returns
         -------
         bool
             True if the comparison is true; False otherwise.
+
         Examples
         --------
         >>> bearing1 = bearing_example()
@@ -1634,6 +1729,7 @@ class BearingElement6DoF(BearingElement):
             "czz",
             "frequency",
             "n",
+            "n_link",
         ]
         if isinstance(other, self.__class__):
             return all(
@@ -1646,21 +1742,18 @@ class BearingElement6DoF(BearingElement):
         return False
 
     def save(self, file_name=Path(os.getcwd())):
-        """Saves a bearing element in a toml format. It works as an auxiliary
-        function of the save function in the Rotor class.
+        """Save a bearing element in a toml format.
+
+        It works as an auxiliary function of the save function in the Rotor class.
 
         Parameters
         ----------
-        file_name: string
+        file_name : string
             The name of the file the bearing element will be saved in.
-
-        Returns
-        -------
-        None
 
         Examples
         --------
-        >>> bearing = bearing_example()
+        >>> bearing = bearing_6dof_example()
         >>> bearing.save(Path(os.getcwd()))
         """
         data = self.get_data(Path(file_name) / "BearingElement6DoF.toml")
@@ -1686,16 +1779,18 @@ class BearingElement6DoF(BearingElement):
             "czz": self.czz.coefficient,
             "frequency": frequency,
             "tag": self.tag,
+            "n_link": self.n_link,
+            "scale_factor": self.scale_factor,
         }
         self.dump_data(data, Path(file_name) / "BearingElement6DoF.toml")
 
     @staticmethod
     def load(file_name=""):
-        """Loads a list of bearing elements saved in a toml format.
+        """Load a list of bearing elements saved in a toml format.
 
         Parameters
         ----------
-        file_name: string
+        file_name : string
             The name of the file of the bearing element to be loaded.
 
         Returns
@@ -1704,7 +1799,11 @@ class BearingElement6DoF(BearingElement):
 
         Examples
         --------
-
+        >>> bearing1 = bearing_6dof_example()
+        >>> bearing1.save(os.getcwd())
+        >>> list_of_bearings = BearingElement.load(os.getcwd())
+        >>> bearing1 == list_of_bearings[0]
+        True
         """
         bearing_elements = []
         bearing_elements_dict = BearingElement.get_data(
@@ -1739,28 +1838,44 @@ class BearingElement6DoF(BearingElement):
         return bearing_elements
 
     def dof_mapping(self):
-        return dict(x_0=0, y_0=1, z_0=2)
+        """Degrees of freedom mapping.
 
-    def dof_global_index(self):
-        """Get the global index for an element specific degree of freedom for the 6DoF element."""
-        global_index = super().dof_global_index()
-
-        if self.n_link is not None:
-            global_index = global_index._asdict()
-            global_index[f"u_{self.n_link}"] = 6 * self.n_link
-            global_index[f"v_{self.n_link}"] = 6 * self.n_link + 1
-            global_index[f"w_{self.n_link}"] = 6 * self.n_link + 2
-            dof_tuple = namedtuple("GlobalIndex", global_index)
-            global_index = dof_tuple(**global_index)
-
-        return global_index
-
-    def K(self, frequency):
-        """Returns the stiffness matrix for a given excitation frequency.
+        Returns a dictionary with a mapping between degree of freedom and its index.
 
         Returns
         -------
-        K: np.ndarray
+        dof_mapping : dict
+            A dictionary containing the degrees of freedom and their indexes.
+
+        Examples
+        --------
+        The numbering of the degrees of freedom for each node.
+
+        Being the following their ordering for a node:
+
+        x_0 - horizontal translation
+        y_0 - vertical translation
+        z_0 - axial translation
+
+        >>> bearing = bearing_6dof_example()
+        >>> bearing.dof_mapping()
+        {'x_0': 0, 'y_0': 1, 'z_0': 2}
+        """
+        return dict(x_0=0, y_0=1, z_0=2)
+
+    def K(self, frequency):
+        """Stiffness matrix for an instance of a bearing element.
+
+        This method returns the stiffness matrix for an instance of a bearing element.
+
+        Parameters
+        ----------
+        frequency : float
+            The excitation frequency.
+
+        Returns
+        -------
+        K : np.ndarray
             A 3x3 matrix of floats containing the kxx, kxy, kyx, kyy and kzz values.
 
         Examples
@@ -1782,7 +1897,14 @@ class BearingElement6DoF(BearingElement):
         return K
 
     def C(self, frequency):
-        """Returns the damping matrix for a given excitation frequency.
+        """Damping matrix for an instance of a bearing element.
+
+        This method returns the damping matrix for an instance of a bearing element.
+
+        Parameters
+        ----------
+        frequency : float
+            The excitation frequency.
 
         Returns
         -------
@@ -1809,12 +1931,10 @@ class BearingElement6DoF(BearingElement):
 
 
 def bearing_example():
-    """This function returns an instance of a simple bearing.
-    The purpose is to make available a simple model
-    so that doctest can be written using it.
+    """Create an example of bearing element.
 
-    Parameters
-    ----------
+    This function returns an instance of a simple seal. The purpose is to make
+    available a simple model so that doctest can be written using it.
 
     Returns
     -------
@@ -1826,26 +1946,21 @@ def bearing_example():
     >>> bearing.frequency[0]
     0.0
     """
-    kxx = 1e6
-    kyy = 0.8e6
-    cxx = 2e2
-    cyy = 1.5e2
     w = np.linspace(0, 200, 11)
-    bearing = BearingElement(n=0, kxx=kxx, kyy=kyy, cxx=cxx, cyy=cyy, frequency=w)
+    bearing = BearingElement(n=0, kxx=1e6, kyy=0.8e6, cxx=1e5, cyy=2e2, frequency=w)
     return bearing
 
 
 def seal_example():
-    """This function returns an instance of a simple seal.
-    The purpose is to make available a simple model
-    so that doctest can be written using it.
+    """Create an example of seal element.
 
-    Parameters
-    ----------
+    This function returns an instance of a simple seal. The purpose is to make
+    available a simple model so that doctest can be written using it.
 
     Returns
     -------
-    An instance of a seal object.
+    seal : ross.SealElement
+        An instance of a bearing object.
 
     Examples
     --------
@@ -1853,26 +1968,21 @@ def seal_example():
     >>> seal.frequency[0]
     0.0
     """
-    kxx = 1e6
-    kyy = 0.8e6
-    cxx = 2e2
-    cyy = 1.5e2
     w = np.linspace(0, 200, 11)
-    seal = SealElement(n=0, kxx=kxx, kyy=kyy, cxx=cxx, cyy=cyy, frequency=w)
+    seal = SealElement(n=0, kxx=1e6, kyy=0.8e6, cxx=1e5, cyy=2e2, frequency=w)
     return seal
 
 
 def bearing_6dof_example():
-    """This function returns an instance of a simple bearing.
-    The purpose is to make available a simple model
-    so that doctest can be written using it.
+    """Create an example of bearing element.
 
-    Parameters
-    ----------
+    This function returns an instance of a simple bearing. The purpose is to make
+    available a simple model so that doctest can be written using it.
 
     Returns
     -------
-    An instance of a bearing object.
+    bearing : ross.BearingElement6DoF
+        An instance of a bearing object.
 
     Examples
     --------
@@ -1880,13 +1990,7 @@ def bearing_6dof_example():
     >>> bearing.frequency[0]
     0.0
     """
-    kxx = 1e6
-    kyy = 0.8e6
-    kzz = 1e5
-    cxx = 2e2
-    cyy = 1.5e2
-    czz = 0.5e2
     bearing = BearingElement6DoF(
-        n=0, kxx=kxx, kyy=kyy, cxx=cxx, cyy=cyy, kzz=kzz, czz=czz
+        n=0, kxx=1e6, kyy=0.8e6, cxx=1e5, cyy=2e2, kzz=1.5e2, czz=0.5e2
     )
     return bearing
