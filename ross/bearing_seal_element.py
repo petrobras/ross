@@ -21,6 +21,7 @@ __all__ = [
     "SealElement",
     "BallBearingElement",
     "RollerBearingElement",
+    "BearingElement6DoF",
     "MagneticBearingElement",
 ]
 # fmt: on
@@ -418,7 +419,7 @@ class BearingElement(Element):
         return dict(x_0=0, y_0=1)
 
     def dof_global_index(self):
-        """Get the global index for a element specific degree of freedom."""
+        """Get the global index for an element specific degree of freedom."""
         global_index = super().dof_global_index()
 
         if self.n_link is not None:
@@ -1453,6 +1454,360 @@ class MagneticBearingElement(BearingElement):
         )
 
 
+class BearingElement6DoF(BearingElement):
+    """A generalistic 6 DoF bearing element. This class will create a bearing
+    element based on the user supplied stiffness and damping coefficients. These
+    are determined alternatively, via purposefully built codes.
+
+    Parameters
+    ----------
+    kxx: float, optional
+        Direct stiffness in the x direction.
+        Default is None
+    kxy: float, optional
+        Cross stiffness between xy directions.
+        Default is None
+    kyx: float, optional
+        Cross stiffness between yx directions.
+        Default is None
+    kyy: float, optional
+        Direct stiffness in the y direction.
+        Default is None
+    kzz: float, optional
+        Direct stiffness in the z direction.
+        Default is None
+    cxx: float, optional
+        Direct damping in the x direction.
+        Default is None
+    cxy: float, optional
+        Cross damping between xy directions.
+        Default is None
+    cyx: float, optional
+        Cross damping between yx directions.
+        Default is None
+    cyy: float, optional
+        Direct damping in the y direction.
+        Default is None
+    czz: float, optional
+        Direct damping in the z direction.
+        Default is None
+    tag : str, optional
+        A tag to name the element
+        Default is None
+    Examples
+    --------
+    >>> n = 0
+    >>> kxx = 1.0e7
+    >>> kyy = 1.5e7
+    >>> kzz = 5.0e5
+    >>> bearing = BearingElement6DoF(n=n, kxx=kxx, kyy=kyy, kzz=kzz,
+    ...                              cxx=0, cyy=0)
+    >>> bearing.K(0)
+    array([[10000000.,        0.,        0.],
+           [       0., 15000000.,        0.],
+           [       0.,        0.,   500000.]])
+    """
+
+    def __init__(
+        self,
+        n,
+        kxx,
+        kyy,
+        cxx,
+        cyy,
+        kxy=0.0,
+        kyx=0.0,
+        kzz=0.0,
+        cxy=0.0,
+        cyx=0.0,
+        czz=0.0,
+        tag=None,
+        scale_factor=1,
+        color="#355d7a",
+    ):
+        super().__init__(
+            n=n,
+            kxx=kxx,
+            cxx=cxx,
+            kyy=kyy,
+            kxy=kxy,
+            kyx=kyx,
+            cyy=cyy,
+            cxy=cxy,
+            cyx=cyx,
+            frequency=None,
+            tag=tag,
+            n_link=None,
+            scale_factor=scale_factor,
+            color=color,
+        )
+
+        new_args = ["kzz", "czz"]
+
+        args_dict = locals()
+        coefficients = {}
+
+        if kzz is None:
+            args_dict["kzz"] = (
+                kxx * 0.6
+            )  # NSK manufacturer sugestion for deep groove ball bearings
+        if czz is None:
+            args_dict["czz"] = cxx
+
+        for arg in new_args:
+            if arg[0] == "k":
+                coefficients[arg] = _Stiffness_Coefficient(
+                    coefficient=args_dict[arg], w=None
+                )
+            else:
+                coefficients[arg] = _Damping_Coefficient(args_dict[arg], None)
+
+        coefficients_len = [len(v.coefficient) for v in coefficients.values()]
+
+        for c in coefficients_len:
+            if c != 1:
+                raise ValueError(
+                    "Arguments (coefficients and frequency)"
+                    " must have the same dimension"
+                )
+
+        for k, v in coefficients.items():
+            setattr(self, k, v)
+
+    def __hash__(self):
+        return hash(self.tag)
+
+    def __repr__(self):
+        """This function returns a string representation of a bearing element.
+        Parameters
+        ----------
+
+        Returns
+        -------
+        A string representation of a bearing object.
+        Examples
+        --------
+        >>> bearing = bearing_example()
+        >>> bearing # doctest: +ELLIPSIS
+        BearingElement(n=0, n_link=None,
+         kxx=[...
+        """
+        return (
+            f"{self.__class__.__name__}"
+            f"(n={self.n}, n_link={self.n_link},\n"
+            f" kxx={self.kxx}, kxy={self.kxy},\n"
+            f" kyx={self.kyx}, kyy={self.kyy},\n"
+            f" kzz={self.kzz}, cxx={self.cxx},\n"
+            f" cxy={self.cxy}, cyx={self.cyx},\n"
+            f" cyy={self.cyy}, czz={self.czz},\n"
+            f" frequency={self.frequency}, tag={self.tag!r})"
+        )
+
+    def __eq__(self, other):
+        """This function allows bearing elements to be compared.
+        Parameters
+        ----------
+        other: object
+            The second object to be compared with.
+
+        Returns
+        -------
+        bool
+            True if the comparison is true; False otherwise.
+        Examples
+        --------
+        >>> bearing1 = bearing_example()
+        >>> bearing2 = bearing_example()
+        >>> bearing1 == bearing2
+        True
+        """
+        compared_attributes = [
+            "kxx",
+            "kyy",
+            "kxy",
+            "kyx",
+            "cxx",
+            "cyy",
+            "cxy",
+            "cyx",
+            "kzz",
+            "czz",
+            "frequency",
+            "n",
+        ]
+        if isinstance(other, self.__class__):
+            return all(
+                (
+                    np.array(getattr(self, attr)).all()
+                    == np.array(getattr(other, attr)).all()
+                    for attr in compared_attributes
+                )
+            )
+        return False
+
+    def save(self, file_name=Path(os.getcwd())):
+        """Saves a bearing element in a toml format. It works as an auxiliary
+        function of the save function in the Rotor class.
+
+        Parameters
+        ----------
+        file_name: string
+            The name of the file the bearing element will be saved in.
+
+        Returns
+        -------
+        None
+
+        Examples
+        --------
+        >>> bearing = bearing_example()
+        >>> bearing.save(Path(os.getcwd()))
+        """
+        data = self.get_data(Path(file_name) / "BearingElement6DoF.toml")
+
+        if type(self.frequency) == np.ndarray:
+            try:
+                self.frequency[0]
+                frequency = list(self.frequency)
+            except IndexError:
+                frequency = None
+
+        data["BearingElement6DoF"][str(self.n)] = {
+            "n": self.n,
+            "kxx": self.kxx.coefficient,
+            "cxx": self.cxx.coefficient,
+            "kyy": self.kyy.coefficient,
+            "kxy": self.kxy.coefficient,
+            "kyx": self.kyx.coefficient,
+            "kzz": self.kzz.coefficient,
+            "cyy": self.cyy.coefficient,
+            "cxy": self.cxy.coefficient,
+            "cyx": self.cyx.coefficient,
+            "czz": self.czz.coefficient,
+            "frequency": frequency,
+            "tag": self.tag,
+        }
+        self.dump_data(data, Path(file_name) / "BearingElement6DoF.toml")
+
+    @staticmethod
+    def load(file_name=""):
+        """Loads a list of bearing elements saved in a toml format.
+
+        Parameters
+        ----------
+        file_name: string
+            The name of the file of the bearing element to be loaded.
+
+        Returns
+        -------
+        A list of bearing elements.
+
+        Examples
+        --------
+
+        """
+        bearing_elements = []
+        bearing_elements_dict = BearingElement.get_data(
+            file_name=Path(file_name) / "BearingElement6DoF.toml"
+        )
+        for element in bearing_elements_dict["BearingElement6DoF"]:
+            bearing = BearingElement6DoF(
+                **bearing_elements_dict["BearingElement6DoF"][element]
+            )
+            data = bearing_elements_dict["BearingElement6DoF"]
+            bearing.kxx.coefficient = data[element]["kxx"]
+
+            bearing.kxy.coefficient = data[element]["kxy"]
+
+            bearing.kyx.coefficient = data[element]["kyx"]
+
+            bearing.kyy.coefficient = data[element]["kyy"]
+
+            bearing.kzz.coefficient = data[element]["kzz"]
+
+            bearing.cxx.coefficient = data[element]["cxx"]
+
+            bearing.cxy.coefficient = data[element]["cxy"]
+
+            bearing.cyx.coefficient = data[element]["cyx"]
+
+            bearing.cyy.coefficient = data[element]["cyy"]
+
+            bearing.czz.coefficient = data[element]["czz"]
+
+            bearing_elements.append(bearing)
+        return bearing_elements
+
+    def dof_mapping(self):
+        return dict(x_0=0, y_0=1, z_0=2)
+
+    def dof_global_index(self):
+        """Get the global index for an element specific degree of freedom for the 6DoF element."""
+        global_index = super().dof_global_index()
+
+        if self.n_link is not None:
+            global_index = global_index._asdict()
+            global_index[f"u_{self.n_link}"] = 6 * self.n_link
+            global_index[f"v_{self.n_link}"] = 6 * self.n_link + 1
+            global_index[f"w_{self.n_link}"] = 6 * self.n_link + 2
+            dof_tuple = namedtuple("GlobalIndex", global_index)
+            global_index = dof_tuple(**global_index)
+
+        return global_index
+
+    def K(self, frequency):
+        """Returns the stiffness matrix for a given excitation frequency.
+
+        Returns
+        -------
+        K: np.ndarray
+            A 3x3 matrix of floats containing the kxx, kxy, kyx, kyy and kzz values.
+
+        Examples
+        --------
+        >>> bearing = bearing_6dof_example()
+        >>> bearing.K(0)
+        array([[1000000.,       0.,       0.],
+               [      0.,  800000.,       0.],
+               [      0.,       0.,  100000.]])
+        """
+        kxx = self.kxx.interpolated(frequency)
+        kyy = self.kyy.interpolated(frequency)
+        kxy = self.kxy.interpolated(frequency)
+        kyx = self.kyx.interpolated(frequency)
+        kzz = self.kzz.interpolated(frequency)
+
+        K = np.array([[kxx, kxy, 0], [kyx, kyy, 0], [0, 0, kzz]])
+
+        return K
+
+    def C(self, frequency):
+        """Returns the damping matrix for a given excitation frequency.
+
+        Returns
+        -------
+        C: np.ndarray
+            A 3x3 matrix of floats containing the cxx, cxy, cyx, cyy, and czz values.
+
+        Examples
+        --------
+        >>> bearing = bearing_6dof_example()
+        >>> bearing.C(0)
+        array([[200.,   0.,   0.],
+               [  0., 150.,   0.],
+               [  0.,   0.,  50.]])
+        """
+        cxx = self.cxx.interpolated(frequency)
+        cyy = self.cyy.interpolated(frequency)
+        cxy = self.cxy.interpolated(frequency)
+        cyx = self.cyx.interpolated(frequency)
+        czz = self.czz.interpolated(frequency)
+
+        C = np.array([[cxx, cxy, 0], [cyx, cyy, 0], [0, 0, czz]])
+
+        return C
+
+
 def bearing_example():
     """This function returns an instance of a simple bearing.
     The purpose is to make available a simple model
@@ -1505,3 +1860,33 @@ def seal_example():
     w = np.linspace(0, 200, 11)
     seal = SealElement(n=0, kxx=kxx, kyy=kyy, cxx=cxx, cyy=cyy, frequency=w)
     return seal
+
+
+def bearing_6dof_example():
+    """This function returns an instance of a simple bearing.
+    The purpose is to make available a simple model
+    so that doctest can be written using it.
+
+    Parameters
+    ----------
+
+    Returns
+    -------
+    An instance of a bearing object.
+
+    Examples
+    --------
+    >>> bearing = bearing_example()
+    >>> bearing.frequency[0]
+    0.0
+    """
+    kxx = 1e6
+    kyy = 0.8e6
+    kzz = 1e5
+    cxx = 2e2
+    cyy = 1.5e2
+    czz = 0.5e2
+    bearing = BearingElement6DoF(
+        n=0, kxx=kxx, kyy=kyy, cxx=cxx, cyy=cyy, kzz=kzz, czz=czz
+    )
+    return bearing

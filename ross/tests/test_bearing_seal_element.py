@@ -6,6 +6,7 @@ import pytest
 from numpy.testing import assert_allclose
 
 from ross.bearing_seal_element import (BallBearingElement, BearingElement,
+                                       BearingElement6DoF,
                                        RollerBearingElement)
 
 # fmt: on
@@ -287,3 +288,42 @@ def test_roller_bearing_element():
     assert_allclose(rollerbearing.K(0), K)
     assert_allclose(rollerbearing.C(0), C)
     assert_allclose(rollerbearing.G(), G)
+
+
+def test_bearing_6dof():
+    bearing_6dof = BearingElement6DoF(
+        n=0, kxx=1e6, kyy=0.8e6, kzz=1e5, cxx=2e2, cyy=1.5e2, czz=0.5e2
+    )
+    # fmt: off
+    K = np.array(
+        [[1000000.,       0.,       0.],
+         [      0.,  800000.,       0.],
+         [      0.,       0.,  100000.]])
+    C = np.array(
+        [[200.,   0.,   0.],
+         [  0., 150.,   0.],
+         [  0.,   0.,  50.]])
+    M = np.zeros((3, 3))
+    G = np.zeros((3, 3))
+    # fmt: on
+
+    assert_allclose(bearing_6dof.K(0), K, rtol=1e-3)
+    assert_allclose(bearing_6dof.C(0), C, rtol=1e-3)
+    assert_allclose(bearing_6dof.M(), M, rtol=1e-3)
+    assert_allclose(bearing_6dof.G(), G, rtol=1e-3)
+
+
+def test_bearing_6dof_equality():
+    bearing_6dof_0 = BearingElement6DoF(
+        n=0, kxx=1e6, kyy=0.8e6, kzz=1e5, cxx=2e2, cyy=1.5e2, czz=0.5e2
+    )
+    bearing_6dof_1 = BearingElement6DoF(
+        n=0, kxx=1e6, kyy=0.8e6, kzz=1e5, cxx=2e2, cyy=1.5e2, czz=0.5e2
+    )
+    bearing_6dof_2 = BearingElement6DoF(
+        n=0, kxx=2e6, kyy=0.8e6, kzz=1e5, cxx=2e2, cyy=1.5e2, czz=0.5e2
+    )
+
+    assert bearing_6dof_0 == bearing_6dof_1
+    assert not bearing_6dof_1 == bearing_6dof_2
+    assert not bearing_6dof_0 == bearing_6dof_2

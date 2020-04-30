@@ -76,8 +76,8 @@ class ST_Rotor(object):
 
     # Building random disk element
     >>> size = 5
-    >>> i_d=np.random.uniform(0.05, 0.06, size)
-    >>> o_d=np.random.uniform(0.35, 0.39, size)
+    >>> i_d = np.random.uniform(0.05, 0.06, size)
+    >>> o_d = np.random.uniform(0.35, 0.39, size)
     >>> disk0 = srs.ST_DiskElement.from_geometry(n=1,
     ...                                          material=steel,
     ...                                          width=0.07,
@@ -89,7 +89,7 @@ class ST_Rotor(object):
     >>> bearing0 = rs.BearingElement(0, kxx=stf, cxx=0)
     >>> bearing1 = rs.BearingElement(2, kxx=stf, cxx=0)
     >>> rand_rotor = srs.ST_Rotor(shaft_elm, [disk0], [bearing0, bearing1])
-    >>> len(list(rand_rotor.__iter__()))
+    >>> len(list(iter(rand_rotor)))
     5
     """
 
@@ -106,7 +106,6 @@ class ST_Rotor(object):
         rated_w=None,
         tag=None,
     ):
-
         if disk_elements is None:
             disk_elements = []
         if bearing_elements is None:
@@ -116,6 +115,7 @@ class ST_Rotor(object):
 
         # checking for random elements and matching sizes
         is_random = []
+        len_list = []
 
         if any(isinstance(elm, ST_ShaftElement) for elm in shaft_elements):
             is_random.append("shaft_elements")
@@ -123,19 +123,21 @@ class ST_Rotor(object):
             it = iter(
                 [elm for elm in shaft_elements if isinstance(elm, ST_ShaftElement)]
             )
-            the_len = len(list(next(it).__iter__()))
-            if not all(len(list(l)) == the_len for l in it):
+            len_sh = len(list(next(iter(it))))
+            if not all(len(list(l)) == len_sh for l in it):
                 raise ValueError(
                     "not all random shaft elements lists have same length."
                 )
+            len_list.append(len_sh)
 
         if any(isinstance(elm, ST_DiskElement) for elm in disk_elements):
             is_random.append("disk_elements")
 
             it = iter([elm for elm in disk_elements if isinstance(elm, ST_DiskElement)])
-            the_len = len(list(next(it).__iter__()))
-            if not all(len(list(l)) == the_len for l in it):
+            len_dk = len(list(next(iter(it))))
+            if not all(len(list(l)) == len_dk for l in it):
                 raise ValueError("not all random disk elements lists have same length.")
+            len_list.append(len_dk)
 
         if any(isinstance(elm, ST_BearingElement) for elm in bearing_elements):
             is_random.append("bearing_elements")
@@ -143,11 +145,12 @@ class ST_Rotor(object):
             it = iter(
                 [elm for elm in bearing_elements if isinstance(elm, ST_BearingElement)]
             )
-            the_len = len(list(next(it).__iter__()))
-            if not all(len(list(l)) == the_len for l in it):
+            len_brg = len(list(next(iter(it))))
+            if not all(len(list(l)) == len_brg for l in it):
                 raise ValueError(
                     "not all random bearing elements lists have same length."
                 )
+            len_list.append(len_brg)
 
         if any(isinstance(elm, ST_PointMass) for elm in point_mass_elements):
             is_random.append("point_mass_elements")
@@ -155,25 +158,31 @@ class ST_Rotor(object):
             it = iter(
                 [elm for elm in point_mass_elements if isinstance(elm, ST_PointMass)]
             )
-            the_len = len(list(next(it).__iter__()))
-            if not all(len(list(l)) == the_len for l in it):
+            len_pm = len(list(next(iter(it))))
+            if not all(len(list(l)) == len_pm for l in it):
                 raise ValueError("not all random point mass lists have same length.")
+            len_list.append(len_pm)
+
+        if len_list.count(len_list[0]) == len(len_list):
+            RV_size = len_list[0]
+        else:
+            raise ValueError("not all the random elements lists have the same length.")
 
         for i, elm in enumerate(shaft_elements):
             if isinstance(elm, ST_ShaftElement):
-                shaft_elements[i] = list(elm.__iter__())
+                shaft_elements[i] = list(iter(elm))
 
         for i, elm in enumerate(disk_elements):
             if isinstance(elm, ST_DiskElement):
-                disk_elements[i] = list(elm.__iter__())
+                disk_elements[i] = list(iter(elm))
 
         for i, elm in enumerate(bearing_elements):
             if isinstance(elm, ST_BearingElement):
-                bearing_elements[i] = list(elm.__iter__())
+                bearing_elements[i] = list(iter(elm))
 
         for i, elm in enumerate(point_mass_elements):
             if isinstance(elm, ST_PointMass):
-                point_mass_elements[i] = list(elm.__iter__())
+                point_mass_elements[i] = list(iter(elm))
 
         attribute_dict = dict(
             shaft_elements=shaft_elements,
@@ -191,14 +200,12 @@ class ST_Rotor(object):
         # Assembling random rotors
         self.is_random = is_random
         self.attribute_dict = attribute_dict
-        self.shaft_elements = shaft_elements
-        self.disk_elements = disk_elements
-        self.bearing_elements = bearing_elements
-        self.point_mass_elements = point_mass_elements
 
         # common parameters
-        self.RV_size = sum(1 for _ in self.__iter__())
-        self.ndof = list(self.__iter__())[0].ndof
+        self.RV_size = RV_size
+
+        # collect a series of attributes from a rotor instance
+        self._get_rotor_args()
 
     def __iter__(self):
         """Return an iterator for the container.
@@ -206,10 +213,107 @@ class ST_Rotor(object):
         Returns
         -------
         An iterator over random rotors.
+
+        Examples
+        --------
+        >>> import ross.stochastic as srs
+        >>> rotors = srs.st_rotor_example()
+        >>> len(list(iter(rotors)))
+        10
         """
         return iter(self.use_random_var(Rotor, self.is_random, self.attribute_dict))
 
-    def get_args(self, idx, *args):
+    def __getitem__(self, key):
+        """Return the value for a given key from attribute_dict.
+
+        Parameters
+        ----------
+        key : str
+            A class parameter as string.
+
+        Raises
+        ------
+        KeyError
+            Raises an error if the parameter doesn't belong to the class.
+
+        Returns
+        -------
+        Return the value for the given key.
+
+        Example
+        -------
+        >>> import ross.stochastic as srs
+        >>> rotors = srs.st_rotor_example()
+        >>> rotors["shaft_elements"] # doctest: +ELLIPSIS
+        [ShaftElement...
+        """
+        if key not in self.attribute_dict.keys():
+            raise KeyError("Object does not have parameter: {}.".format(key))
+
+        return self.attribute_dict[key]
+
+    def __setitem__(self, key, value):
+        """Set new parameter values for the object.
+
+        Function to change a parameter value.
+        It's not allowed to add new parameters to the object.
+
+        Parameters
+        ----------
+        key : str
+            A class parameter as string.
+        value : The corresponding value for the attrbiute_dict's key.
+            ***check the correct type for each key in ST_Rotor
+            docstring.
+
+        Raises
+        ------
+        KeyError
+            Raises an error if the parameter doesn't belong to the class.
+
+        Example
+        -------
+        >>> import ross.stochastic as srs
+        >>> rotors = srs.st_rotor_example()
+        >>> rotors["n_eigen"] = 18
+        >>> rotors["n_eigen"]
+        18
+        """
+        if key not in self.attribute_dict.keys():
+            raise KeyError("Object does not have parameter: {}.".format(key))
+        self.attribute_dict[key] = value
+
+    def _get_rotor_args(self):
+        """Get relevant attributes from a rotor system.
+
+        This auxiliary funtion get some relevant attributes from a rotor system, such as
+        the nodes numbers, nodes positions and number of degrees of freedom, and add it
+        to the stochastic rotor as attribute. If an attribute is somehow afected by a
+        random variable, the function returns its mean.
+        """
+        self.iter_break = True
+        aux_rotor = list(iter(self))[0]
+
+        self.ndof = aux_rotor.ndof
+        self.nodes = aux_rotor.nodes
+
+        if "shaft_elements" in self.is_random:
+            if any(
+                "L" in sh.is_random
+                for sh in self.attribute_dict["shaft_elements"]
+                if isinstance(sh, ST_ShaftElement)
+            ):
+                nodes_pos_matrix = np.zeros(len(self.nodes), self.RV_size)
+                for i, rotor in enumerate(iter(self)):
+                    nodes_pos_matrix[:, i] = rotor.nodes_pos
+                self.nodes_pos = np.mean(nodes_pos_matrix, axis=1)
+            else:
+                self.nodes_pos = aux_rotor.nodes_pos
+        else:
+            self.nodes_pos = aux_rotor.nodes_pos
+
+    @staticmethod
+    def _get_args(idx, *args):
         """Build new list of arguments from a random list of arguments.
 
         This funtion takes a list with random values or with lists of random
@@ -234,7 +338,7 @@ class ST_Rotor(object):
         >>> rotors = srs.st_rotor_example()
         >>> old_list = [1, 2, [3, 4], 5]
         >>> index = [0, 1]
-        >>> new_list = [rotors.get_args(idx, old_list) for idx in index]
+        >>> new_list = [rotors._get_args(idx, old_list) for idx in index]
         >>> new_list
         [[1, 2, 3, 5], [1, 2, 4, 5]]
         """
@@ -259,7 +363,7 @@ class ST_Rotor(object):
             List of the object attributes to become stochastic.
             Default is None
         *args : dict
-            Dictionary instanciating the ShaftElement class.
+            Dictionary instanciating the ross.Rotor class.
             The attributes that are supposed to be stochastic should be
             set as lists of random variables.
 
@@ -271,18 +375,23 @@ class ST_Rotor(object):
         args_dict = args[0]
         new_args = []
 
-        for v in list(map(args_dict.get, is_random))[0]:
-            if isinstance(v, Iterable):
-                var_size = len(v)
-                break
-            else:
-                var_size = len(list(map(args_dict.get, is_random))[0])
-                break
+        if self.iter_break is True:
+            var_size = 1
+            self.iter_break = False
+        else:
+            for v in list(map(args_dict.get, is_random))[0]:
+                if isinstance(v, Iterable):
+                    var_size = len(v)
+                    break
+                else:
+                    var_size = len(list(map(args_dict.get, is_random))[0])
+                    break
+
         for i in range(var_size):
             arg = []
             for key, value in args_dict.items():
                 if key in is_random and key in self.is_random:
-                    arg.append(self.get_args(i, value))
+                    arg.append(self._get_args(i, value))
                 elif key in is_random and key not in self.is_random:
                     arg.append(value[i])
                 else:
@@ -295,18 +404,18 @@ class ST_Rotor(object):
         """Generate a list of random objects from random attributes.
 
         This function creates a list of objects with random values for selected
-        attributes from a given class or method.
+        attributes from ross.Rotor class or its methods.
 
         Parameters
         ----------
         f : callable
             Function to be instantiated randomly with its respective *args.
-            Default is instantiating the ST_Rotor class
+            Default is instantiating the ross.Rotor class
         is_random : list
             List of the object attributes to become stochastic.
             Default is None
         *args : dict
-            Dictionary instanciating the ShaftElement class.
+            Dictionary instanciating the ross.Rotor class.
             The attributes that are supposed to be stochastic should be
             set as lists of random variables.
 
@@ -368,7 +477,7 @@ class ST_Rotor(object):
         log_dec = np.zeros((frequencies, CAMP_size, RV_size))
 
         # Monte Carlo - results storage
-        for i, rotor in enumerate(self.__iter__()):
+        for i, rotor in enumerate(iter(self)):
             results = rotor.run_campbell(speed_range, frequencies, frequency_type)
             for j in range(frequencies):
                 wd[j, :, i] = results.wd[:, j]
@@ -427,20 +536,21 @@ class ST_Rotor(object):
         phase = np.zeros(((FRF_size, RV_size)))
 
         # Monte Carlo - results storage
-        for i, rotor in enumerate(self.__iter__()):
+        for i, rotor in enumerate(iter(self)):
             results = rotor.run_freq_response(speed_range, modes)
             magnitude[:, i] = results.magnitude[inp, out, :]
             phase[:, i] = results.phase[inp, out, :]
 
-        results = ST_FrequencyResponseResults(speed_range, magnitude, phase,)
+        results = ST_FrequencyResponseResults(speed_range, magnitude, phase)
 
         return results
 
-    def run_time_response(self, speed, force, time_range, dof, ic=None):
+    def run_time_response(self, speed, force, time_range, ic=None):
         """Stochastic time response for multiples rotor systems.
 
         This function will take a rotor object and plot its time response
-        given a force and a time.
+        given a force and a time. This method displays the amplitude vs time or the
+        rotor orbits.
         The force and ic parameters can be passed as random variables.
 
         Parameters
@@ -455,8 +565,6 @@ class ST_Rotor(object):
             ST_Rotor.RV_size
         time_range : 1-dimensional array
             Time array.
-        dof : int
-            Degree of freedom that will be observed.
         ic : 1-dimensional array, 2-dimensional array, optional
             The initial conditions on the state vector (zero by default).
             Inputing a 2-dimensional array, the method considers the
@@ -486,12 +594,16 @@ class ST_Rotor(object):
         >>> F = np.zeros((size, ndof))
         >>> F[:, 4 * node] = 10 * np.cos(2 * t)
         >>> F[:, 4 * node + 1] = 10 * np.sin(2 * t)
-        >>> results = rotors.run_time_response(speed, F, t, dof)
+        >>> results = rotors.run_time_response(speed, F, t)
 
-        # Plotting Time Response with bokeh
+        # Plotting Time Response 1D, 2D and 3D
 
-        >>> results.plot(conf_interval=[90]) # doctest: +ELLIPSIS
+        >>> results.plot(plot_type="1d", dof=dof, conf_interval=[90]) # doctest: +ELLIPSIS
         Figure...
+        >>> results.plot(plot_type="2d", node=node, conf_interval=[90]) # doctest: +ELLIPSIS
+        Figure...
+        >>> results.plot(plot_type="3d", conf_interval=[90]) # doctest: +ELLIPSIS
+        <matplotlib...
         """
         t_size = len(time_range)
         RV_size = self.RV_size
@@ -503,7 +615,7 @@ class ST_Rotor(object):
         # force is not a random variable
         if len(force.shape) == 2:
             # Monte Carlo - results storage
-            for i, rotor in enumerate(self.__iter__()):
+            for i, rotor in enumerate(iter(self)):
                 t_, y, x = rotor.time_response(speed, force, time_range, ic)
                 xout[i] = x
                 yout[i] = y
@@ -512,13 +624,15 @@ class ST_Rotor(object):
         if len(force.shape) == 3:
             # Monte Carlo - results storage
             i = 0
-            for rotor, F in zip(self.__iter__(), force):
+            for rotor, F in zip(iter(self), force):
                 t_, y, x = rotor.time_response(speed, F, time_range, ic)
                 xout[i] = x
                 yout[i] = y
                 i += 1
 
-        results = ST_TimeResponseResults(time_range, yout, xout, dof)
+        results = ST_TimeResponseResults(
+            time_range, yout, xout, self.nodes, self.nodes_pos
+        )
 
         return results
 
@@ -602,14 +716,14 @@ class ST_Rotor(object):
         if len(is_random):
             i = 0
             unbalance_args = self._random_var(is_random, args_dict)
-            for rotor, args in zip(self.__iter__(), unbalance_args):
+            for rotor, args in zip(iter(self), unbalance_args):
                 results = rotor.unbalance_response(*args)
                 forced_resp[i] = results.forced_resp.T
                 mag_resp[i] = results.magnitude.T
                 phs_resp[i] = results.phase.T
                 i += 1
         else:
-            for i, rotor in enumerate(self.__iter__()):
+            for i, rotor in enumerate(iter(self)):
                 results = rotor.unbalance_response(
                     node, magnitude, phase, frequency_range
                 )
@@ -641,7 +755,7 @@ def st_rotor_example():
     --------
     >>> import ross.stochastic as srs
     >>> rotors = srs.st_rotor_example()
-    >>> len(list(rotors.__iter__()))
+    >>> len(list(iter(rotors)))
     10
     """
     import ross as rs

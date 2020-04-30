@@ -1,4 +1,12 @@
+"""Point mass element module for STOCHASTIC ROSS.
+
+This module creates an instance of random point mass for stochastic
+analysis.
+"""
 from ross.point_mass import PointMass
+from ross.stochastic.st_results_elements import plot_histogram
+
+__all__ = ["ST_PointMass", "st_pointmass_example"]
 
 
 class ST_PointMass:
@@ -41,7 +49,7 @@ class ST_PointMass:
     ...                         my=np.random.uniform(2.0, 2.5, 5),
     ...                         is_random=["mx", "my"],
     ...                         )
-    >>> len(list(elms.__iter__()))
+    >>> len(list(iter(elms)))
     5
     """
 
@@ -59,6 +67,13 @@ class ST_PointMass:
         Returns
         -------
         An iterator over random point mass elements.
+
+        Examples
+        --------
+        >>> import ross.stochastic as srs
+        >>> elm = srs.st_pointmass_example()
+        >>> len(list(iter(elm)))
+        2
         """
         return iter(self.random_var(self.is_random, self.attribute_dict))
 
@@ -107,7 +122,7 @@ class ST_PointMass:
         key : str
             A class parameter as string.
         value : The corresponding value for the attrbiute_dict's key.
-            ***check the correct type for each key in ST_ShaftElement
+            ***check the correct type for each key in ST_PointMass
             docstring.
 
         Raises
@@ -136,14 +151,14 @@ class ST_PointMass:
         """Generate a list of objects as random attributes.
 
         This function creates a list of objects with random values for selected
-        attributes from PointMass.
+        attributes from ross.PointMass.
 
         Parameters
         ----------
         is_random : list
             List of the object attributes to become stochastic.
         *args : dict
-            Dictionary instanciating the PointMass class.
+            Dictionary instanciating the ross.PointMass class.
             The attributes that are supposed to be stochastic should be
             set as lists of random variables.
 
@@ -165,3 +180,65 @@ class ST_PointMass:
         f_list = (PointMass(*arg) for arg in new_args)
 
         return f_list
+
+    def plot_random_var(self, var_list=[], **kwargs):
+        """Plot histogram and the PDF.
+
+        This function creates a histogram to display the random variable
+        distribution.
+
+        Parameters
+        ----------
+        var_list : list, optional
+            List of random variables, in string format, to plot.
+        **kwargs : optional
+            Additional key word arguments can be passed to change
+            the numpy.histogram (e.g. density=True, bins=11, ...)
+
+        Returns
+        -------
+        grid_plot : bokeh row
+            A row with the histogram plots.
+
+        Examples
+        --------
+        >>> import ross.stochastic as srs
+        >>> elm = srs.st_pointmass_example()
+        >>> elm.plot_random_var(["mx"]) # doctest: +ELLIPSIS
+        Row...
+        """
+        label = dict(
+            mx="Mass on the X direction", my="Mass on the Y direction", m="Mass",
+        )
+        if not all(var in self.is_random for var in var_list):
+            raise ValueError(
+                "Not random variable in var_list. Select variables from {}".format(
+                    self.is_random
+                )
+            )
+
+        return plot_histogram(self.attribute_dict, label, var_list, **kwargs)
+
+
+def st_pointmass_example():
+    """Return an instance of a simple random point mass.
+
+    The purpose is to make available a simple model so that doctest can be
+    written using it.
+
+    Returns
+    -------
+    elm : ross.stochastic.ST_PointMass
+        An instance of a random point mass element object.
+
+    Examples
+    --------
+    >>> import ross.stochastic as srs
+    >>> elm = srs.st_pointmass_example()
+    >>> len(list(iter(elm)))
+    2
+    """
+    mx = [2.0, 2.5]
+    my = [3.0, 3.5]
+    elm = ST_PointMass(n=1, mx=mx, my=my, is_random=["mx", "my"])
+    return elm

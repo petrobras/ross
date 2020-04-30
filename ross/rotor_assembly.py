@@ -23,14 +23,17 @@ from bokeh.models.glyphs import Text
 from bokeh.plotting import figure, output_file
 from cycler import cycler
 
-from ross.bearing_seal_element import BearingElement, SealElement
-from ross.disk_element import DiskElement
+from ross.bearing_seal_element import (BallBearingElement, BearingElement,
+                                       BearingElement6DoF,
+                                       MagneticBearingElement,
+                                       RollerBearingElement, SealElement)
+from ross.disk_element import DiskElement, DiskElement6DoF
 from ross.materials import steel
 from ross.results import (CampbellResults, ConvergenceResults,
                           ForcedResponseResults, FrequencyResponseResults,
                           ModalResults, OrbitResponseResults, StaticResults,
                           SummaryResults, TimeResponseResults)
-from ross.shaft_element import ShaftElement
+from ross.shaft_element import ShaftElement, ShaftElement6DoF
 from ross.utils import convert
 
 # fmt: on
@@ -198,9 +201,9 @@ class Rotor(object):
                 disk.tag = "Disk " + str(i)
 
         for i, brg in enumerate(bearing_elements):
-            if brg.__class__.__name__ == "BearingElement" and brg.tag is None:
+            if not isinstance(brg, SealElement) and brg.tag is None:
                 brg.tag = "Bearing " + str(i)
-            if brg.__class__.__name__ == "SealElement" and brg.tag is None:
+            elif isinstance(brg, SealElement) and brg.tag is None:
                 brg.tag = "Seal " + str(i)
 
         for i, p_mass in enumerate(point_mass_elements):
@@ -222,6 +225,8 @@ class Rotor(object):
                 ]
             )
         ]
+
+        self.number_dof = self._check_number_dof()
 
         ####################################################
         # Rotor summary
@@ -255,7 +260,7 @@ class Rotor(object):
             [
                 el.summary()
                 for el in self.bearing_elements
-                if (el.__class__.__name__ == "BearingElement")
+                if (isinstance(el, BearingElement))
             ]
         )
         df_seals = pd.DataFrame(
@@ -365,9 +370,9 @@ class Rotor(object):
         self._v0 = None  # used to call eigs
 
         # number of dofs
-        self.ndof = (
-            4 * max([el.n for el in shaft_elements])
-            + 8
+        self.ndof = int(
+            self.number_dof * max([el.n for el in shaft_elements])
+            + self.number_dof * 2
             + 2 * len([el for el in point_mass_elements])
         )
 
@@ -383,21 +388,25 @@ class Rotor(object):
 
             if elm.n <= n_last + 1:
                 for k, v in global_dof_mapping.items():
-                    global_dof_mapping[k] = 4 * elm.n + v
+                    global_dof_mapping[k] = self.number_dof * elm.n + v
             else:
                 for k, v in global_dof_mapping.items():
-                    global_dof_mapping[k] = 2 * n_last + 2 * elm.n + 4 + v
+                    global_dof_mapping[k] = (
+                        2 * n_last + self.number_dof / 2 * elm.n + self.number_dof + v
+                    )
 
             if hasattr(elm, "n_link") and elm.n_link is not None:
                 if elm.n_link <= n_last + 1:
-                    global_dof_mapping[f"x_{elm.n_link}"] = 4 * elm.n_link
-                    global_dof_mapping[f"y_{elm.n_link}"] = 4 * elm.n_link + 1
+                    global_dof_mapping[f"x_{elm.n_link}"] = self.number_dof * elm.n_link
+                    global_dof_mapping[f"y_{elm.n_link}"] = (
+                        self.number_dof * elm.n_link + 1
+                    )
                 else:
                     global_dof_mapping[f"x_{elm.n_link}"] = (
-                        2 * n_last + 2 * elm.n_link + 4
+                        2 * n_last + 2 * elm.n_link + self.number_dof
                     )
                     global_dof_mapping[f"y_{elm.n_link}"] = (
-                        2 * n_last + 2 * elm.n_link + 5
+                        2 * n_last + 2 * elm.n_link + self.number_dof + 1
                     )
 
             dof_tuple = namedtuple("GlobalIndex", global_dof_mapping)
@@ -511,6 +520,47 @@ class Rotor(object):
             df.loc[df.tag == p.tag, "y_pos"] = y_pos
 
         self.df = df
+
+    def _check_number_dof(self):
+        """Verify the consistency of degrees of freedom.
+
+        This method loops for all the elements, checking if the number of degrees of
+        freedom is consistent.
+        E.g.: inputting 2 shaft elements, one with 4 dof and one with 6, will raise
+        an error.
+
+        Raises
+        ------
+        Exception
+            Error pointing out difference between the number of DoF's from each element
+            type.
+
+        Returns
+        -------
+        number_dof : int
+            Number of degrees of freedom from the adopted shaft element.
+        """
+
+        number_dof = len(self.shaft_elements[0].dof_mapping()) / 2
+
+        if any(len(sh.dof_mapping()) != number_dof * 2 for sh in self.shaft_elements):
+            raise Exception(
+                "The number of degrees o freedom of all elements must be the same! There are SHAFT elements with discrepant DoFs."
+            )
+
+        if any(len(disk.dof_mapping()) != number_dof for disk in self.disk_elements):
+            raise Exception(
+                "The number of degrees o freedom of all elements must be the same! There are DISK elements with discrepant DoFs."
+            )
+
+        if any(
+            len(brg.dof_mapping()) != number_dof / 2 for brg in self.bearing_elements
+        ):
+            raise Exception(
+                "The number of degrees o freedom of all elements must be the same! There are BEARING elements with discrepant DoFs."
+            )
+
+        return int(number_dof)
 
     def __eq__(self, other):
         """
@@ -1214,8 +1264,8 @@ class Rotor(object):
             ]
         )  # (Id - Ip)*beta*np.exp(1j*gamma)])
 
-        n0 = 4 * node
-        n1 = n0 + 4
+        n0 = self.number_dof * node
+        n1 = n0 + self.number_dof
         for i, w in enumerate(omega):
             F0[n0:n1, i] += w ** 2 * b0
 
@@ -1731,7 +1781,7 @@ class Rotor(object):
                 stiffness_range = (6, 11)
 
         stiffness_log = np.logspace(*stiffness_range, num=num)
-        rotor_wn = np.zeros((4, len(stiffness_log)))
+        rotor_wn = np.zeros((self.number_dof, len(stiffness_log)))
 
         bearings_elements = []  # exclude the seals
         for bearing in self.bearing_elements:
@@ -1744,7 +1794,9 @@ class Rotor(object):
                 self.shaft_elements, self.disk_elements, bearings, n_eigen=16
             )
             modal = rotor.run_modal(speed=0)
-            rotor_wn[:, i] = modal.wn[:8:2]
+            rotor_wn[:, i] = modal.wn[
+                : int(self.number_dof * 2) : int(self.number_dof / 2)
+            ]
 
         ax.set_prop_cycle(cycler("color", seaborn_colors))
         ax.loglog(stiffness_log, rotor_wn.T)
@@ -2216,8 +2268,8 @@ class Rotor(object):
         grav = np.zeros(len(aux_K))
 
         # place gravity effect on shaft and disks nodes
-        for node_y in range(int(len(aux_K) / 4)):
-            grav[4 * node_y + 1] = -g
+        for node_y in range(int(len(aux_K) / self.number_dof)):
+            grav[self.number_dof * node_y + 1] = -g
 
         # calculates x, for [K]*(x) = [M]*(g)
         disp = (la.solve(aux_K, aux_M @ grav)).flatten()
@@ -2225,8 +2277,8 @@ class Rotor(object):
         # calculates displacement values in gravity's direction
         # dof = degree of freedom
         disp_y = np.array([])
-        for node_dof in range(int(len(disp) / 4)):
-            disp_y = np.append(disp_y, disp[4 * node_dof + 1])
+        for node_dof in range(int(len(disp) / self.number_dof)):
+            disp_y = np.append(disp_y, disp[self.number_dof * node_dof + 1])
 
         # Shearing Force
         BRG = [0] * len(self.nodes_pos)
@@ -3031,7 +3083,7 @@ class CoAxialRotor(Rotor):
         self._v0 = None  # used to call eigs
 
         # number of dofs
-        self.ndof = (
+        self.ndof = int(
             4 * max([el.n for el in shaft_elements])
             + 8
             + 2 * len([el for el in point_mass_elements])
@@ -3452,3 +3504,71 @@ def MAC_modes(U, V, n=None, plot=True):
     cbar.set_label("MAC")
 
     return macs
+
+
+def rotor_example_6dof():
+    """This function returns an instance of a simple rotor with
+    two shaft elements, one disk and two simple bearings.
+    The purpose of this is to make available a simple model
+    so that doctest can be written using this.
+
+    Parameters
+    ----------
+
+    Returns
+    -------
+    An instance of a 6DoFs rotor object.
+
+    Examples
+    --------
+    >>> import ross as rs
+    >>> import numpy as np
+    >>> import matplotlib.pyplot as plt
+    >>> rotor6 = rs.rotor_assembly.rotor_example_6dof()
+    >>> camp6 = rotor6.run_campbell(np.linspace(0,400,101),frequencies=18)
+    >>> camp6.plot(plot_type="matplotlib") # doctest: +ELLIPSIS
+    (<Figure...
+    """
+    #  Rotor with 6 DoFs, with internal damping, with 10 shaft elements, 2 disks and 2 bearings.
+    i_d = 0
+    o_d = 0.05
+    n = 6
+    L = [0.25 for _ in range(n)]
+
+    shaft_elem = [
+        ShaftElement6DoF(
+            material=steel,
+            L=0.25,
+            idl=0,
+            odl=0.05,
+            idr=0,
+            odr=0.05,
+            alpha=0,
+            beta=0,
+            rotary_inertia=False,
+            shear_effects=False,
+        )
+        for l in L
+    ]
+
+    disk0 = DiskElement6DoF.from_geometry(
+        n=2, material=steel, width=0.07, i_d=0.05, o_d=0.28
+    )
+    disk1 = DiskElement6DoF.from_geometry(
+        n=4, material=steel, width=0.07, i_d=0.05, o_d=0.28
+    )
+
+    kxx = 1e6
+    kyy = 0.8e6
+    kzz = 1e5
+    cxx = 0
+    cyy = 0
+    czz = 0
+    bearing0 = BearingElement6DoF(
+        n=0, kxx=kxx, kyy=kyy, cxx=cxx, cyy=cyy, kzz=kzz, czz=czz
+    )
+    bearing1 = BearingElement6DoF(
+        n=6, kxx=kxx, kyy=kyy, cxx=cxx, cyy=cyy, kzz=kzz, czz=czz
+    )
+
+    return Rotor(shaft_elem, [disk0, disk1], [bearing0, bearing1], n_eigen=36)

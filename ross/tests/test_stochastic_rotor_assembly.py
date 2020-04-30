@@ -10,13 +10,37 @@ from numpy.testing import assert_allclose
 from ross.bearing_seal_element import BearingElement
 from ross.disk_element import DiskElement
 from ross.materials import steel
-from ross.rotor_assembly import rotor_example
 from ross.shaft_element import ShaftElement
 from ross.stochastic.st_bearing_seal_element import ST_BearingElement
 from ross.stochastic.st_disk_element import ST_DiskElement
 from ross.stochastic.st_point_mass import ST_PointMass
-from ross.stochastic.st_rotor_assembly import ST_Rotor
+from ross.stochastic.st_rotor_assembly import ST_Rotor, st_rotor_example
 from ross.stochastic.st_shaft_element import ST_ShaftElement
+
+
+@pytest.fixture
+def rotor1():
+    # rotor with 6 shaft elements, 2 disks and 2 random bearings
+    i_d = 0
+    o_d = 0.05
+    n = 6
+    L = [0.25 for _ in range(n)]
+
+    shaft_elem = [ShaftElement(l, i_d, o_d, material=steel) for l in L]
+
+    disk0 = DiskElement.from_geometry(
+        n=2, material=steel, width=0.07, i_d=0.05, o_d=0.28
+    )
+    disk1 = DiskElement.from_geometry(
+        n=4, material=steel, width=0.07, i_d=0.05, o_d=0.28
+    )
+
+    kxx = [1e6, 2e6]
+    cxx = [1e3, 2e3]
+    bearing0 = ST_BearingElement(n=0, kxx=kxx, cxx=cxx, is_random=["kxx", "cxx"])
+    bearing1 = ST_BearingElement(n=6, kxx=kxx, cxx=cxx, is_random=["kxx", "cxx"])
+
+    return ST_Rotor(shaft_elem, [disk0, disk1], [bearing0, bearing1])
 
 
 ###############################################################################
@@ -92,36 +116,43 @@ def test_st_point_mass_elements_odd_length():
     assert "not all random point mass lists have same length." in str(ex.value)
 
 
+def test_elements_odd_length():
+    tim0 = ST_ShaftElement(
+        L=[1, 1.1], idl=0, odl=[0.1, 0.2], material=steel, is_random=["L", "odl"],
+    )
+    shaft_elm = [tim0, tim0]
+
+    disk0 = ST_DiskElement(n=0, m=[20, 30, 40], Id=1, Ip=1, is_random=["m"])
+    disk1 = ST_DiskElement(n=2, m=[20, 30, 40], Id=1, Ip=1, is_random=["m"])
+    disks = [disk0, disk1]
+
+    brg0 = ST_BearingElement(
+        n=0, kxx=[1e6, 2e6], cxx=[1e3, 2e3], is_random=["kxx", "cxx"],
+    )
+    brg1 = ST_BearingElement(
+        n=2, kxx=[1e6, 2e6], cxx=[1e3, 2e3], is_random=["kxx", "cxx"],
+    )
+    bearings = [brg0, brg1]
+
+    with pytest.raises(ValueError) as ex:
+        ST_Rotor(shaft_elm, disks, bearings)
+    assert "not all the random elements lists have the same length." in str(ex.value)
+
+
+def test_getter_and_setter_error_messages():
+    rotor = st_rotor_example()
+    with pytest.raises(KeyError) as ex:
+        rotor["odd"]
+    assert "Object does not have parameter: odd." in str(ex.value)
+
+    with pytest.raises(KeyError) as ex:
+        rotor["odd"] = 0
+    assert "Object does not have parameter: odd." in str(ex.value)
+
+
 ###############################################################################
 # testing methods
 ###############################################################################
-
-
-@pytest.fixture
-def rotor1():
-    # rotor with 6 shaft elements, 2 disks and 2 random bearings
-    i_d = 0
-    o_d = 0.05
-    n = 6
-    L = [0.25 for _ in range(n)]
-
-    shaft_elem = [ShaftElement(l, i_d, o_d, material=steel) for l in L]
-
-    disk0 = DiskElement.from_geometry(
-        n=2, material=steel, width=0.07, i_d=0.05, o_d=0.28
-    )
-    disk1 = DiskElement.from_geometry(
-        n=4, material=steel, width=0.07, i_d=0.05, o_d=0.28
-    )
-
-    kxx = [1e6, 2e6]
-    cxx = [1e3, 2e3]
-    bearing0 = ST_BearingElement(n=0, kxx=kxx, cxx=cxx, is_random=["kxx", "cxx"])
-    bearing1 = ST_BearingElement(n=6, kxx=kxx, cxx=cxx, is_random=["kxx", "cxx"])
-
-    return ST_Rotor(shaft_elem, [disk0, disk1], [bearing0, bearing1])
-
-
 def test_run_campbell(rotor1):
     speed_range = np.linspace(0, 300, 11)
     results = rotor1.run_campbell(speed_range)
@@ -292,44 +323,44 @@ def test_run_unbalance_response(rotor1):
     freq_range = np.linspace(0, 500, 21)
     n = 3
     m = [0.001, 0.002]
-    p = 0.0
+    p = [0.0, np.pi]
     results = rotor1.run_unbalance_response(n, m, p, freq_range)
 
     # fmt: off
     forced_resp = np.array(
         [
-           [ 0.00000000e+00+0.00000000e+00j,  0.00000000e+00+0.00000000e+00j,
-             0.00000000e+00+0.00000000e+00j,  0.00000000e+00+0.00000000e+00j,
-             0.00000000e+00+0.00000000e+00j,  0.00000000e+00+0.00000000e+00j,
-             0.00000000e+00+0.00000000e+00j,  0.00000000e+00+0.00000000e+00j],
-           [ 3.37435976e-07-8.68482070e-09j, -8.68482070e-09-3.37435976e-07j,
-             9.00209719e-10+1.45114527e-06j,  1.45114527e-06-9.00209715e-10j,
-             6.87245293e-07-8.90049158e-09j, -8.90049158e-09-6.87245293e-07j,
-             7.83414977e-10+1.28831088e-06j,  1.28831088e-06-7.83414974e-10j],
-           [ 1.75768084e-06-1.01068880e-07j, -1.01068880e-07-1.75768084e-06j,
-             4.79346233e-08+7.33456232e-06j,  7.33456232e-06-4.79346233e-08j,
-             3.52371378e-06-1.12554546e-07j, -1.12554546e-07-3.52371378e-06j,
-             4.17303088e-08+6.48704574e-06j,  6.48704574e-06-4.17303088e-08j],
-           [ 7.50676607e-06-9.12209199e-07j, -9.12209199e-07-7.50676607e-06j,
-             1.28086454e-06+2.98912386e-05j,  2.98912386e-05-1.28086454e-06j,
-             1.46900142e-05-1.21918813e-06j, -1.21918813e-06-1.46900142e-05j,
-             1.11573867e-06+2.62670396e-05j,  2.62670396e-05-1.11573867e-06j],
-           [-6.18015733e-05-3.00382924e-05j, -3.00382924e-05+6.18015733e-05j,
-             1.34528953e-04-2.14597175e-04j, -2.14597175e-04-1.34528953e-04j,
-            -1.13214987e-04-6.22904820e-05j, -6.22904820e-05+1.13214987e-04j,
-             1.17283028e-04-1.86678717e-04j, -1.86678717e-04-1.17283028e-04j],
-           [-1.38700091e-05+2.08259695e-08j,  2.08259695e-08+1.38700091e-05j,
-             6.46783937e-06-4.63275792e-05j, -4.63275792e-05-6.46783937e-06j,
-            -2.49272456e-05-1.53041944e-06j, -1.53041944e-06+2.49272456e-05j,
-             5.64471769e-06-3.97928561e-05j, -3.97928561e-05-5.64471769e-06j],
-           [-1.02696016e-05+5.04852144e-07j,  5.04852144e-07+1.02696016e-05j,
-             3.99127894e-06-3.09402605e-05j, -3.09402605e-05-3.99127894e-06j,
-            -1.76161220e-05-4.52895726e-07j, -4.52895726e-07+1.76161220e-05j,
-             3.48788819e-06-2.61160471e-05j, -2.61160471e-05-3.48788819e-06j],
-           [-9.35892715e-06+7.25075254e-07j,  7.25075254e-07+9.35892715e-06j,
-             3.60633532e-06-2.49610892e-05j, -2.49610892e-05-3.60633532e-06j,
-            -1.52457821e-05-1.40815948e-07j, -1.40815948e-07+1.52457821e-05j,
-             3.15637404e-06-2.05887194e-05j, -2.05887194e-05-3.15637404e-06j],
+            [ 0.00000000e+00+0.00000000e+00j,  0.00000000e+00+0.00000000e+00j,
+              0.00000000e+00+0.00000000e+00j,  0.00000000e+00+0.00000000e+00j,
+              0.00000000e+00+0.00000000e+00j,  0.00000000e+00+0.00000000e+00j,
+              0.00000000e+00+0.00000000e+00j,  0.00000000e+00+0.00000000e+00j],
+            [ 3.37435976e-07-8.68482070e-09j, -8.68482070e-09-3.37435976e-07j,
+              9.00209719e-10+1.45114527e-06j,  1.45114527e-06-9.00209715e-10j,
+              6.87245293e-07-8.90049158e-09j, -8.90049158e-09-6.87245293e-07j,
+              7.83414977e-10+1.28831088e-06j,  1.28831088e-06-7.83414974e-10j],
+            [ 1.75768084e-06-1.01068880e-07j, -1.01068880e-07-1.75768084e-06j,
+              4.79346233e-08+7.33456232e-06j,  7.33456232e-06-4.79346233e-08j,
+              3.52371378e-06-1.12554546e-07j, -1.12554546e-07-3.52371378e-06j,
+              4.17303088e-08+6.48704574e-06j,  6.48704574e-06-4.17303088e-08j],
+            [ 7.50676607e-06-9.12209199e-07j, -9.12209199e-07-7.50676607e-06j,
+              1.28086454e-06+2.98912386e-05j,  2.98912386e-05-1.28086454e-06j,
+              1.46900142e-05-1.21918813e-06j, -1.21918813e-06-1.46900142e-05j,
+              1.11573867e-06+2.62670396e-05j,  2.62670396e-05-1.11573867e-06j],
+            [-6.18015733e-05-3.00382924e-05j, -3.00382924e-05+6.18015733e-05j,
+              1.34528953e-04-2.14597175e-04j, -2.14597175e-04-1.34528953e-04j,
+             -1.13214987e-04-6.22904820e-05j, -6.22904820e-05+1.13214987e-04j,
+              1.17283028e-04-1.86678717e-04j, -1.86678717e-04-1.17283028e-04j],
+            [-1.38700091e-05+2.08259695e-08j,  2.08259695e-08+1.38700091e-05j,
+              6.46783937e-06-4.63275792e-05j, -4.63275792e-05-6.46783937e-06j,
+             -2.49272456e-05-1.53041944e-06j, -1.53041944e-06+2.49272456e-05j,
+              5.64471769e-06-3.97928561e-05j, -3.97928561e-05-5.64471769e-06j],
+            [-1.02696016e-05+5.04852144e-07j,  5.04852144e-07+1.02696016e-05j,
+              3.99127894e-06-3.09402605e-05j, -3.09402605e-05-3.99127894e-06j,
+             -1.76161220e-05-4.52895726e-07j, -4.52895726e-07+1.76161220e-05j,
+              3.48788819e-06-2.61160471e-05j, -2.61160471e-05-3.48788819e-06j],
+            [-9.35892715e-06+7.25075254e-07j,  7.25075254e-07+9.35892715e-06j,
+              3.60633532e-06-2.49610892e-05j, -2.49610892e-05-3.60633532e-06j,
+             -1.52457821e-05-1.40815948e-07j, -1.40815948e-07+1.52457821e-05j,
+              3.15637404e-06-2.05887194e-05j, -2.05887194e-05-3.15637404e-06j]
         ]
     )
 
@@ -350,7 +381,7 @@ def test_run_unbalance_response(rotor1):
             [1.02820033e-05, 1.02820033e-05, 3.11966349e-05, 3.11966349e-05,
              1.76219428e-05, 1.76219428e-05, 2.63479275e-05, 2.63479275e-05],
             [9.38697244e-06, 9.38697244e-06, 2.52202623e-05, 2.52202623e-05,
-             1.52464324e-05, 1.52464324e-05, 2.08292598e-05, 2.08292598e-05],
+             1.52464324e-05, 1.52464324e-05, 2.08292598e-05, 2.08292598e-05]
         ]
     )
 
@@ -371,7 +402,7 @@ def test_run_unbalance_response(rotor1):
             [ 3.09247234e+00,  1.52167601e+00, -1.44250530e+00, -3.01330162e+00,
              -3.11588915e+00,  1.59649983e+00, -1.43802853e+00, -3.00882486e+00],
             [ 3.06427292e+00,  1.49347659e+00, -1.42731092e+00, -2.99810724e+00,
-             -3.13235653e+00,  1.58003245e+00, -1.41867471e+00, -2.98947104e+00],
+             -3.13235653e+00,  1.58003245e+00, -1.41867471e+00, -2.98947104e+00]
         ]
     )
     # fmt: on
@@ -379,9 +410,9 @@ def test_run_unbalance_response(rotor1):
     assert results.forced_resp.shape == (2, 21, 28)
     assert results.magnitude.shape == (2, 21, 28)
     assert results.phase.shape == (2, 21, 28)
-    assert_allclose(results.forced_resp[0, :8, :8], forced_resp, atol=1e-6)
-    assert_allclose(results.magnitude[0, :8, :8], magnitude, atol=1e-6)
-    assert_allclose(results.phase[0, :8, :8], phase, atol=1e-6)
+    assert_allclose(results.forced_resp[0, :8, :8], forced_resp, atol=1e-8)
+    assert_allclose(results.magnitude[0, :8, :8], magnitude, atol=1e-8)
+    assert_allclose(results.phase[0, :8, :8], phase, atol=1e-8)
 
 
 def test_time_response(rotor1):
@@ -389,7 +420,6 @@ def test_time_response(rotor1):
     ndof = rotor1.ndof
     RV_size = rotor1.RV_size
     node = 3
-    dof = 9
     speed = 250.0
     t = np.linspace(0, 10, size)
     F = np.zeros((RV_size, size, ndof))
@@ -398,43 +428,37 @@ def test_time_response(rotor1):
     for i, f in enumerate(force):
         F[i, :, 4 * node] = f * np.cos(2 * t)
         F[i, :, 4 * node + 1] = f * np.sin(2 * t)
-    results = rotor1.run_time_response(speed, F, t, dof)
+    results = rotor1.run_time_response(speed, F, t)
 
     # fmt: off
     yout = np.array([
-       [[ 0.00000000e+00,  0.00000000e+00,  0.00000000e+00,
-          0.00000000e+00,  0.00000000e+00,  0.00000000e+00,
-          0.00000000e+00,  0.00000000e+00],
-        [ 1.41926788e-06, -4.76460045e-06,  2.07102404e-05,
-          6.16414329e-06,  2.90572612e-06, -9.75899792e-06,
-          1.84111116e-05,  5.47908613e-06],
-        [-4.19299249e-06, -2.72072007e-06,  1.18190692e-05,
-         -1.82276630e-05, -8.58856216e-06, -5.57088030e-06,
-          1.05060401e-05, -1.62024453e-05],
-        [-3.79851214e-06,  3.24877791e-06, -1.41256904e-05,
-         -1.65046953e-05, -7.77860208e-06,  6.65516143e-06,
-         -1.25561980e-05, -1.46710490e-05],
-        [ 2.03783269e-06,  4.56404302e-06, -1.98336856e-05,
-          8.86369112e-06,  4.17529112e-06,  9.34691210e-06,
-         -1.76301510e-05,  7.87880520e-06]],
+        [
+            [ 0.00000000e+00,  0.00000000e+00,  0.00000000e+00,  0.00000000e+00,
+              0.00000000e+00,  0.00000000e+00,  0.00000000e+00,  0.00000000e+00],
+            [ 1.41926788e-06, -4.76460045e-06,  2.07102404e-05,  6.16414329e-06,
+              2.90572612e-06, -9.75899792e-06,  1.84111116e-05,  5.47908613e-06],
+            [-4.19299249e-06, -2.72072007e-06,  1.18190692e-05, -1.82276630e-05,
+             -8.58856216e-06, -5.57088030e-06,  1.05060401e-05, -1.62024453e-05],
+            [-3.79851214e-06,  3.24877791e-06, -1.41256904e-05, -1.65046953e-05,
+             -7.77860208e-06,  6.65516143e-06, -1.25561980e-05, -1.46710490e-05],
+            [ 2.03783269e-06,  4.56404302e-06, -1.98336856e-05,  8.86369112e-06,
+              4.17529112e-06,  9.34691210e-06, -1.76301510e-05,  7.87880520e-06]
+        ],
 
-       [[ 0.00000000e+00,  0.00000000e+00,  0.00000000e+00,
-          0.00000000e+00,  0.00000000e+00,  0.00000000e+00,
-          0.00000000e+00,  0.00000000e+00],
-        [ 1.48084281e-06, -4.85047585e-06,  4.21928512e-05,
-          1.28581579e-05,  4.58105873e-06, -1.50244567e-05,
-          3.74957287e-05,  1.14234040e-05],
-        [-4.19558895e-06, -2.72284012e-06,  2.36499572e-05,
-         -3.64745372e-05, -1.29913427e-05, -8.42599304e-06,
-          2.10223709e-05, -3.24217457e-05],
-        [-3.79910377e-06,  3.24942961e-06, -2.82561248e-05,
-         -3.30133748e-05, -1.17602388e-05,  1.00633351e-05,
-         -2.51165462e-05, -2.93455705e-05],
-        [ 2.03823954e-06,  4.56492726e-06, -3.96735422e-05,
-          1.77304732e-05,  6.31389854e-06,  1.41321453e-05,
-         -3.52656873e-05,  1.57603189e-05]],
+        [
+            [ 0.00000000e+00,  0.00000000e+00,  0.00000000e+00,  0.00000000e+00,
+              0.00000000e+00,  0.00000000e+00,  0.00000000e+00,  0.00000000e+00],
+            [ 1.48084281e-06, -4.85047585e-06,  4.21928512e-05,  1.28581579e-05,
+              4.58105873e-06, -1.50244567e-05,  3.74957287e-05,  1.14234040e-05],
+            [-4.19558895e-06, -2.72284012e-06,  2.36499572e-05, -3.64745372e-05,
+             -1.29913427e-05, -8.42599304e-06,  2.10223709e-05, -3.24217457e-05],
+            [-3.79910377e-06,  3.24942961e-06, -2.82561248e-05, -3.30133748e-05,
+             -1.17602388e-05,  1.00633351e-05, -2.51165462e-05, -2.93455705e-05],
+            [ 2.03823954e-06,  4.56492726e-06, -3.96735422e-05,  1.77304732e-05,
+              6.31389854e-06,  1.41321453e-05, -3.52656873e-05,  1.57603189e-05]
+        ],
     ])
     # fmt: on
 
     assert results.yout.shape == (2, 5, 28)
-    assert_allclose(results.yout[:, :, :8], yout, atol=1e-6)
+    assert_allclose(results.yout[:, :, :8], yout, atol=1e-8)

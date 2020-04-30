@@ -7,6 +7,7 @@ Tests for:
 """
 import numpy as np
 import pytest
+from bokeh.layouts import row
 
 from ross.stochastic.st_bearing_seal_element import ST_BearingElement
 from ross.stochastic.st_disk_element import ST_DiskElement
@@ -97,8 +98,11 @@ def rand_point_mass():
     return elm
 
 
+###############################################################################
+# testing attributes and parameters
+###############################################################################
 def test_st_shaft_element(rand_shaft):
-    elm = list(rand_shaft.__iter__())
+    elm = list(iter(rand_shaft))
     assert [sh.L for sh in elm] == [1.0, 1.1]
     assert [sh.idl for sh in elm] == [0.01, 0.02]
     assert [sh.odl for sh in elm] == [0.1, 0.2]
@@ -108,7 +112,7 @@ def test_st_shaft_element(rand_shaft):
 
 
 def test_st_disk_element_from_inertia(rand_disk_from_inertia):
-    elm = list(rand_disk_from_inertia.__iter__())
+    elm = list(iter(rand_disk_from_inertia))
     assert [dk.n for dk in elm] == [1, 1]
     assert [dk.m for dk in elm] == [30, 40]
     assert [dk.Id for dk in elm] == [0.2, 0.3]
@@ -116,7 +120,7 @@ def test_st_disk_element_from_inertia(rand_disk_from_inertia):
 
 
 def test_st_disk_element_from_geometry(rand_disk_from_geometry):
-    elm = list(rand_disk_from_geometry.__iter__())
+    elm = list(iter(rand_disk_from_geometry))
     assert [dk.n for dk in elm] == [1, 1]
     assert [dk.m for dk in elm] == [37.570502893821185, 76.74810321754951]
     assert [dk.Id for dk in elm] == [0.2325457585365474, 0.8256816771154702]
@@ -124,7 +128,7 @@ def test_st_disk_element_from_geometry(rand_disk_from_geometry):
 
 
 def test_st_bearing_element_constant_coef(rand_bearing_constant_coefs):
-    elm = list(rand_bearing_constant_coefs.__iter__())
+    elm = list(iter(rand_bearing_constant_coefs))
     assert [brg.n for brg in elm] == [1, 1]
     assert [brg.kxx.coefficient for brg in elm] == [[1000000.0], [2000000.0]]
     assert [brg.kyy.coefficient for brg in elm] == [[1000000.0], [2000000.0]]
@@ -137,7 +141,7 @@ def test_st_bearing_element_constant_coef(rand_bearing_constant_coefs):
 
 
 def test_st_bearing_element_varying_coef(rand_bearing_varying_coefs):
-    elm = list(rand_bearing_varying_coefs.__iter__())
+    elm = list(iter(rand_bearing_varying_coefs))
     assert [brg.n for brg in elm] == [1, 1]
     assert [brg.kxx.coefficient for brg in elm] == [
         [1000000.0, 2000000.0],
@@ -162,7 +166,7 @@ def test_st_bearing_element_varying_coef(rand_bearing_varying_coefs):
 
 
 def test_st_point_mass(rand_point_mass):
-    elm = list(rand_point_mass.__iter__())
+    elm = list(iter(rand_point_mass))
     assert [pm.n for pm in elm] == [1, 1]
     assert [pm.mx for pm in elm] == [2.0, 2.5]
     assert [pm.my for pm in elm] == [3.0, 3.5]
@@ -171,9 +175,7 @@ def test_st_point_mass(rand_point_mass):
 ###############################################################################
 # testing error messages
 ###############################################################################
-
-
-def test_st_bearing_error_messages():
+def test_st_bearing_error_messages(rand_bearing_constant_coefs):
     kxx = [1e6, 2e6]
     cxx = [1e3, 2e3]
     freq = [500, 1000]
@@ -182,3 +184,88 @@ def test_st_bearing_error_messages():
             n=1, kxx=kxx, cxx=cxx, frequency=freq, is_random=["kxx", "cxx", "frequency"]
         )
     assert "frequency can not be a random variable" in str(ex.value)
+
+    with pytest.raises(ValueError) as ex:
+        rand_bearing_constant_coefs.plot_random_var(["kxy"])
+    assert (
+        "Not random variable in var_list. Select variables from ['kxx', 'cxx', 'kyy', 'cyy']"
+        in str(ex.value)
+    )
+
+    with pytest.raises(KeyError) as ex:
+        rand_bearing_constant_coefs["odd"] = [1, 2]
+    assert "Object does not have parameter: odd." in str(ex.value)
+
+    with pytest.raises(KeyError) as ex:
+        rand_bearing_constant_coefs["odd"]
+    assert "Object does not have parameter: odd." in str(ex.value)
+
+
+def test_st_disk_error_messages(rand_disk_from_inertia):
+    with pytest.raises(ValueError) as ex:
+        rand_disk_from_inertia.plot_random_var(["n"])
+    assert (
+        "Not random variable in var_list. Select variables from ['m', 'Id', 'Ip']"
+        in str(ex.value)
+    )
+
+    with pytest.raises(KeyError) as ex:
+        rand_disk_from_inertia["odd"] = [1, 2]
+    assert "Object does not have parameter: odd." in str(ex.value)
+
+    with pytest.raises(KeyError) as ex:
+        rand_disk_from_inertia["odd"]
+    assert "Object does not have parameter: odd." in str(ex.value)
+
+
+def test_st_shaft_error_messages(rand_shaft):
+    with pytest.raises(ValueError) as ex:
+        rand_shaft.plot_random_var(["n"])
+    assert (
+        "Not random variable in var_list. Select variables from ['L', 'idl', 'odl', 'idr', 'odr']"
+        in str(ex.value)
+    )
+
+    with pytest.raises(KeyError) as ex:
+        rand_shaft["odd"] = [1, 2]
+    assert "Object does not have parameter: odd." in str(ex.value)
+
+    with pytest.raises(KeyError) as ex:
+        rand_shaft["odd"]
+    assert "Object does not have parameter: odd." in str(ex.value)
+
+
+def test_st_point_mass_error_messages(rand_point_mass):
+    with pytest.raises(ValueError) as ex:
+        rand_point_mass.plot_random_var(["n"])
+    assert "Not random variable in var_list. Select variables from ['mx', 'my']" in str(
+        ex.value
+    )
+
+    with pytest.raises(KeyError) as ex:
+        rand_point_mass["odd"] = [1, 2]
+    assert "Object does not have parameter: odd." in str(ex.value)
+
+    with pytest.raises(KeyError) as ex:
+        rand_point_mass["odd"]
+    assert "Object does not have parameter: odd." in str(ex.value)
+
+
+###############################################################################
+# testing elements plot type
+###############################################################################
+def test_element_stats_plot(
+    rand_shaft, rand_disk_from_inertia, rand_bearing_constant_coefs, rand_point_mass
+):
+    figure_type = type(row())
+    fig = rand_shaft.plot_random_var(["L"])
+    assert type(fig) == figure_type
+
+    fig = rand_disk_from_inertia.plot_random_var(["Id"])
+    assert type(fig) == figure_type
+
+    fig = rand_bearing_constant_coefs.plot_random_var(["kxx"])
+    assert type(fig) == figure_type
+
+    fig = rand_point_mass.plot_random_var(["mx"])
+    assert type(fig) == figure_type
