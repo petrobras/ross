@@ -1508,7 +1508,7 @@ class ShaftElement6DoF(ShaftElement):
         ...        material=steel, rotary_inertia=True, shear_effects=True
         ... )
         >>> shaft1 # doctest: +ELLIPSIS
-        ShaftElement(L=0.25, idl=0.0...
+        ShaftElement6DoF(L=0.25, idl=0.0...
         """
         return (
             f"{self.__class__.__name__}"
