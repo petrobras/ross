@@ -1143,7 +1143,19 @@ class BallBearingElement(BearingElement):
            [0.00000000e+00, 1.00906269e+08]])
     """
 
-    def __init__(self, n, n_balls, d_balls, fs, alpha, cxx=None, cyy=None, tag=None, n_link=None, scale_factor=1):
+    def __init__(
+        self,
+        n,
+        n_balls,
+        d_balls,
+        fs,
+        alpha,
+        cxx=None,
+        cyy=None,
+        tag=None,
+        n_link=None,
+        scale_factor=1,
+    ):
 
         Kb = 13.0e6
         kyy = (
@@ -1241,7 +1253,17 @@ class RollerBearingElement(BearingElement):
     """
 
     def __init__(
-        self, n, n_rollers, l_rollers, fs, alpha, cxx=None, cyy=None, tag=None, n_link=None, scale_factor=1,
+        self,
+        n,
+        n_rollers,
+        l_rollers,
+        fs,
+        alpha,
+        cxx=None,
+        cyy=None,
+        tag=None,
+        n_link=None,
+        scale_factor=1,
     ):
 
         Kb = 1.0e9
@@ -1388,7 +1410,20 @@ class MagneticBearingElement(BearingElement):
 
     @classmethod
     def param_to_coef(
-        cls, n, g0, i0, ag, nw, alpha, kp_pid, kd_pid, k_amp, k_sense, tag=None, n_link=None, scale_factor=1,
+        cls,
+        n,
+        g0,
+        i0,
+        ag,
+        nw,
+        alpha,
+        kp_pid,
+        kd_pid,
+        k_amp,
+        k_sense,
+        tag=None,
+        n_link=None,
+        scale_factor=1,
     ):
         """
         Convert electromagnetic parameters and PID gains to stiffness and damping coefficients.
