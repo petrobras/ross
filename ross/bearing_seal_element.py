@@ -1836,7 +1836,7 @@ class BearingElement6DoF(BearingElement):
         --------
         >>> bearing1 = bearing_6dof_example()
         >>> bearing1.save(os.getcwd())
-        >>> list_of_bearings = BearingElement.load(os.getcwd())
+        >>> list_of_bearings = BearingElement6DoF.load(os.getcwd())
         >>> bearing1 == list_of_bearings[0]
         True
         """
@@ -1982,7 +1982,7 @@ def bearing_example():
     0.0
     """
     w = np.linspace(0, 200, 11)
-    bearing = BearingElement(n=0, kxx=1e6, kyy=0.8e6, cxx=1e5, cyy=2e2, frequency=w)
+    bearing = BearingElement(n=0, kxx=1e6, kyy=0.8e6, cxx=2e2, cyy=1.5e2, frequency=w)
     return bearing
 
 
@@ -2004,7 +2004,7 @@ def seal_example():
     0.0
     """
     w = np.linspace(0, 200, 11)
-    seal = SealElement(n=0, kxx=1e6, kyy=0.8e6, cxx=1e5, cyy=2e2, frequency=w)
+    seal = SealElement(n=0, kxx=1e6, kyy=0.8e6, cxx=2e2, cyy=1.5e2, frequency=w)
     return seal
 
 
@@ -2026,6 +2026,6 @@ def bearing_6dof_example():
     0.0
     """
     bearing = BearingElement6DoF(
-        n=0, kxx=1e6, kyy=0.8e6, cxx=1e5, cyy=2e2, kzz=1.5e2, czz=0.5e2
+        n=0, kxx=1e6, kyy=0.8e6, cxx=2e2, cyy=1.5e2, kzz=1e5, czz=0.5e2
     )
     return bearing
