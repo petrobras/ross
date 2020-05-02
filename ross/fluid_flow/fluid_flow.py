@@ -495,7 +495,7 @@ class FluidFlow:
         # fmt: on
 
     def resolves_matrix(self):
-        """This function resolves the linear system [M]{P} = {f} more efficiently.
+        """This function resolves the linear system [M]{P} = {f}.
         Examples
         --------
         >>> my_fluid_flow = fluid_flow_example()
