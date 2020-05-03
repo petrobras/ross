@@ -1,9 +1,7 @@
 # fmt: off
-
 import sys
 
 import numpy as np
-
 import scipy as sp
 
 from ross.fluid_flow.fluid_flow_geometry import (calculate_attitude_angle,
@@ -17,7 +15,9 @@ from ross.fluid_flow.fluid_flow_geometry import (calculate_attitude_angle,
 
 
 class FluidFlow:
-    r"""This class intends to calculate the pressure matrix and the stiffness and damping matrices
+    r"""Generate dynamic coefficients for bearings and seals.
+
+    This class calculate the pressure matrix and the stiffness and damping matrices
     of a fluid flow with the given parameters.
 
     It is supposed to be an attribute of a bearing element,
