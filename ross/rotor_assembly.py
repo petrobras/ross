@@ -540,7 +540,6 @@ class Rotor(object):
         number_dof : int
             Number of degrees of freedom from the adopted shaft element.
         """
-
         number_dof = len(self.shaft_elements[0].dof_mapping()) / 2
 
         if any(len(sh.dof_mapping()) != number_dof * 2 for sh in self.shaft_elements):
@@ -563,8 +562,7 @@ class Rotor(object):
         return int(number_dof)
 
     def __eq__(self, other):
-        """
-        Equality method for comparasions
+        """Equality method for comparasions.
 
         Parameters
         ----------
@@ -582,12 +580,15 @@ class Rotor(object):
             return False
 
     def run_modal(self, speed):
-        """
+        """Run modal analysis.
+
         Method to calculate eigenvalues and eigvectors for a given rotor system
         This method is automatically called when a rotor is instantiated.
 
         Parameters
         ----------
+        speed : float
+            Speed at which the eigenvalues and eigenvectors will be calculated.
 
         Returns
         -------
@@ -640,7 +641,8 @@ class Rotor(object):
         return modal_results
 
     def convergence(self, n_eigval=0, err_max=1e-02):
-        """
+        """Run convergence analysis.
+
         Function to analyze the eigenvalues convergence through the number of
         shaft elements. Every new run doubles the number os shaft elements.
 
@@ -754,11 +756,12 @@ class Rotor(object):
         return results
 
     def M(self):
-        r"""Mass matrix for an instance of a rotor.
+        """Mass matrix for an instance of a rotor.
 
         Returns
         -------
-        Mass matrix for the rotor.
+        M0 : np.ndarray
+            Mass matrix for the rotor.
 
         Examples
         --------
@@ -787,7 +790,8 @@ class Rotor(object):
 
         Returns
         -------
-        Stiffness matrix for the rotor.
+        K0 : np.ndarray
+            Stiffness matrix for the rotor.
 
         Examples
         --------
@@ -819,7 +823,8 @@ class Rotor(object):
 
         Returns
         -------
-        Damping matrix for the rotor.
+        C0 : np.ndarray
+            Damping matrix for the rotor.
 
         Examples
         --------
@@ -847,7 +852,8 @@ class Rotor(object):
 
         Returns
         -------
-        Gyroscopic matrix for the rotor.
+        G0 : np.ndarray
+            Gyroscopic matrix for the rotor.
 
         Examples
         --------
@@ -879,7 +885,8 @@ class Rotor(object):
 
         Returns
         -------
-        State space matrix for the rotor.
+        A : np.ndarray
+            State space matrix for the rotor.
 
         Examples
         --------
@@ -908,7 +915,9 @@ class Rotor(object):
 
     @staticmethod
     def _index(eigenvalues):
-        r"""Function used to generate an index that will sort
+        """Generate indexes to sort eigenvalues and eigenvectors.
+
+        Function used to generate an index that will sort
         eigenvalues and eigenvectors based on the imaginary (wd)
         part of the eigenvalues. Positive eigenvalues will be
         positioned at the first half of the array.
@@ -946,7 +955,9 @@ class Rotor(object):
         return idx
 
     def _eigen(self, speed, frequency=None, sorted_=True, A=None):
-        r"""This method will return the eigenvalues and eigenvectors of the
+        """Calculate eigenvalues and eigenvectors.
+
+        This method will return the eigenvalues and eigenvectors of the
         state space matrix A, sorted by the index method which considers
         the imaginary part (wd) of the eigenvalues for sorting.
         To avoid sorting use sorted_=False
@@ -1065,8 +1076,7 @@ class Rotor(object):
         return sys
 
     def transfer_matrix(self, speed=None, frequency=None, modes=None):
-        """
-        Calculates the fer matrix for the frequency response function (FRF)
+        """Calculate the fer matrix for the frequency response function (FRF).
 
         Paramenters
         -----------
@@ -1225,8 +1235,11 @@ class Rotor(object):
         return forced_resp
 
     def _unbalance_force(self, node, magnitude, phase, omega):
-        """
-        Function to calculate unbalance force
+        """Calculate unbalance forces.
+
+        This is an auxiliary function the calculate unbalance forces. It takes the
+        force magnitude and phase and generate an array with complex values of forces
+        on each degree degree of freedom of the given node.
 
         Parameters
         ----------
@@ -1251,14 +1264,11 @@ class Rotor(object):
         >>> rotor._unbalance_force(3, 10.0, 0.0, speed)[12] # doctest: +ELLIPSIS
         array([0.000e+00+0.j, 1.000e+03+0.j, 4.000e+03+0.j, ...
         """
-
         F0 = np.zeros((self.ndof, len(omega)), dtype=np.complex128)
-        me = magnitude
-        delta = phase
         b0 = np.array(
             [
-                me * np.exp(1j * delta),
-                -1j * me * np.exp(1j * delta),
+                magnitude * np.exp(1j * phase),
+                -1j * magnitude * np.exp(1j * phase),
                 0,  # 1j*(Id - Ip)*beta*np.exp(1j*gamma),
                 0,
             ]
@@ -1360,10 +1370,10 @@ class Rotor(object):
         return signal.lsim(modal.lti, F, t, X0=ic)
 
     def _plot_rotor_matplotlib(self, nodes=1, check_sld=False, ax=None):
-        """Plots a rotor object.
+        """Plot a rotor object.
 
-        This function will take a rotor object and plot its shaft,
-        disks and bearing elements
+        This function will take a rotor object and plot its elements representation
+        using Matplotlib.
 
         Parameters
         ----------
@@ -1453,10 +1463,10 @@ class Rotor(object):
         return ax
 
     def _plot_rotor_bokeh(self, nodes=1, check_sld=False, bk_ax=None):
-        """Plots a rotor object.
+        """Plot a rotor object.
 
-        This function will take a rotor object and plot its shaft,
-        disks and bearing elements
+        This function will take a rotor object and plot its elements representation
+        using Bokeh.
 
         Parameters
         ----------
@@ -1569,10 +1579,12 @@ class Rotor(object):
         return bk_ax
 
     def plot_rotor(self, nodes=1, *args, plot_type="bokeh", **kwargs):
-        """Plots a rotor object.
+        """Plot a rotor object.
 
-        This function will take a rotor object and plot its shaft,
-        disks and bearing elements
+        This function will take a rotor object and plot its elements representation.
+        It offers to options for return the figure:
+            - plot_type="bokeh" (Default)
+            - plot_type="matplotlib"
 
         Parameters
         ----------
@@ -1593,7 +1605,8 @@ class Rotor(object):
         bk_ax : bokeh plotting axes
             Returns the axes object with the plot.
 
-        Examples:
+        Examples
+        --------
         >>> import ross as rs
         >>> rotor = rs.rotor_example()
         >>> rotor.plot_rotor() # doctest: +ELLIPSIS
@@ -1609,7 +1622,14 @@ class Rotor(object):
             raise ValueError(f"{plot_type} is not a valid plot type.")
 
     def check_slenderness_ratio(self, nodes=1, *args, plot_type="matplotlib", **kwargs):
-        """Plots a rotor object and check the slenderness ratio
+        """Plot a rotor object and check the slenderness ratio.
+
+        This function will take a rotor object and plot its elements representation.
+        The shaft elements which has a slenderness ratio < 1.6 will be displayed in
+        yellow color
+        It offers to options for return the figure:
+            - plot_type="bokeh" (Default)
+            - plot_type="matplotlib"
 
         Parameters
         ----------
@@ -1633,7 +1653,6 @@ class Rotor(object):
         >>> rotor.check_slenderness_ratio() # doctest: +ELLIPSIS
         <matplotlib.axes...
         """
-
         # check slenderness ratio of beam elements
         SR = np.array([])
         for shaft in self.shaft_elements:
@@ -1657,7 +1676,7 @@ class Rotor(object):
             raise ValueError(f"{plot_type} is not a valid plot type.")
 
     def run_campbell(self, speed_range, frequencies=6, frequency_type="wd"):
-        """Calculates the Campbell diagram.
+        """Calculate the Campbell diagram.
 
         This function will calculate the damped natural frequencies
         for a speed range.
@@ -1899,6 +1918,7 @@ class Rotor(object):
             Returns the axes object with the plot.
         bk_ax : bokeh plot axes
             Returns the axes object with the plot.
+
         Example
         -------
         >>> i_d = 0
@@ -1974,7 +1994,7 @@ class Rotor(object):
         return ax, bk_ax
 
     def run_time_response(self, speed, F, t, dof):
-        """Calculates the time response.
+        """Calculate the time response.
 
         This function will take a rotor object and plot its time response
         given a force and a time.
@@ -2015,7 +2035,7 @@ class Rotor(object):
         return results
 
     def run_orbit_response(self, speed, F, t):
-        """Calculates the orbit for a given node.
+        """Calculate the orbit for a given node.
 
         This function will take a rotor object and plot the orbit for a single
         (2D graph) or all nodes (3D graph).
@@ -2195,12 +2215,10 @@ class Rotor(object):
             return "This is not a valid rotor."
 
     def run_static(self):
-        """Rotor static analysis.
+        """Run static analysis.
+
         Static analysis calculates free-body diagram, deformed shaft, shearing
         force diagram and bending moment diagram.
-
-        Parameters
-        ----------
 
         Attributes
         ----------
@@ -2221,6 +2239,11 @@ class Rotor(object):
         -------
         results: object
             An instance of StaticResult class, which is used to create plots.
+
+        Raises
+        ------
+        ValueError
+            Error raised if the rotor has no bearing elements.
 
         Example
         -------
@@ -2494,17 +2517,14 @@ class Rotor(object):
         return results
 
     def summary(self):
-        """Rotor summary.
+        """Plot the rotor summary.
 
-        This creates a summary of the main parameters and attributes from the
+        This functioncreates a summary of the main parameters and attributes of the
         rotor model. The data is presented in a table format.
-
-        Parameters
-        ----------
 
         Returns
         -------
-        results : class instance
+        results : ross.SummaryResults class
             An instance of SumarryResults class to build the summary table
 
         Examples
@@ -2547,7 +2567,9 @@ class Rotor(object):
         nel_r=1,
         tag=None,
     ):
-        """This class is an alternative to build rotors from separated
+        """Build rotor from sections.
+
+        This class is an alternative to build rotors from separated
         sections. Each section has the same number (n) of shaft elements.
 
         Parameters
@@ -2591,6 +2613,13 @@ class Rotor(object):
         tag : str
             A tag for the rotor
 
+        Raises
+        ------
+        ValueError
+            Error raised if lists size do not match.
+        AttributeError
+            Error raised if the shaft material is not defined.
+
         Returns
         -------
         A rotor object
@@ -2611,7 +2640,6 @@ class Rotor(object):
         >>> modal.wn.round(4)
         array([ 85.7634,  85.7634, 271.9326, 271.9326, 718.58  , 718.58  ])
         """
-
         if len(leng_data) != len(odl_data) or len(leng_data) != len(idl_data):
             raise ValueError(
                 "The lists size do not match (leng_data, odl_data and idl_data)."
@@ -2631,8 +2659,7 @@ class Rotor(object):
                 )
 
         def rotor_regions(nel_r):
-            """
-            A subroutine to discretize each rotor region into n elements
+            """Subroutine to discretize each rotor region into n elements.
 
             Parameters
             ----------
@@ -3308,13 +3335,12 @@ class CoAxialRotor(Rotor):
 
 
 def rotor_example():
-    """This function returns an instance of a simple rotor with
+    """Create a rotor as example.
+
+    This function returns an instance of a simple rotor with
     two shaft elements, one disk and two simple bearings.
     The purpose of this is to make available a simple model
     so that doctest can be written using this.
-
-    Parameters
-    ----------
 
     Returns
     -------
@@ -3362,13 +3388,12 @@ def rotor_example():
 
 
 def coaxrotor_example():
-    """This function returns an instance of a simple rotor with
+    """Create a rotor as example.
+
+    This function returns an instance of a simple rotor with
     two shafts, four disk and four bearings.
     The purpose of this is to make available a simple model for co-axial rotors
     so that doctest can be written using this.
-
-    Parameters
-    ----------
 
     Returns
     -------
@@ -3423,7 +3448,7 @@ def coaxrotor_example():
 
 
 def MAC(u, v):
-    """MAC - Modal Assurance Criterion
+    """MAC - Modal Assurance Criterion.
 
     MAC for a single pair of vectors.
     The Modal Assurance Criterion (MAC) analysis is used to determine
@@ -3445,7 +3470,7 @@ def MAC(u, v):
 
 
 def MAC_modes(U, V, n=None, plot=True):
-    """MAC - Modal Assurance Criterion
+    """MAC - Modal Assurance Criterion.
 
     MAC for multiple vectors
     The Modal Assurance Criterion (MAC) analysis is used to determine
