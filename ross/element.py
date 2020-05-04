@@ -8,6 +8,7 @@ import toml
 
 class Element(ABC):
     """Element class.
+
     This class is a general abstract class to be implemented in other files, in order to
     create specific elements for the user.
     """
@@ -18,14 +19,13 @@ class Element(ABC):
         pass
 
     def save(self, file_name):
-        """Saves the element in a file.
+        """Save the element in a file.
+
         Parameters
         ----------
         file_name: string
             The name of the file the element will be saved in.
-        Returns
-        -------
-        None
+
         Examples
         --------
         >>> # Example using DiskElement
@@ -37,14 +37,17 @@ class Element(ABC):
 
     @staticmethod
     def load(file_name):
-        """Loads elements saved in a file.
+        """Load elements saved in a file.
+
         Parameters
         ----------
         file_name: string
             The name of the file to be loaded.
+
         Returns
         -------
         The element object.
+
         Examples
         --------
         >>> # Example using BearingElement
@@ -61,8 +64,6 @@ class Element(ABC):
     @abstractmethod
     def M(self):
         """Mass matrix.
-        Parameters
-        ----------
 
         Returns
         -------
@@ -82,6 +83,7 @@ class Element(ABC):
     @abstractmethod
     def C(self, frequency):
         """Frequency dependent damping coefficients matrix.
+
         Parameters
         ----------
         frequency: float
@@ -105,6 +107,7 @@ class Element(ABC):
     @abstractmethod
     def K(self, frequency):
         """Frequency dependent stiffness coefficients matrix.
+
         Parameters
         ----------
         frequency: float
@@ -128,8 +131,6 @@ class Element(ABC):
     @abstractmethod
     def G(self):
         """Gyroscopic matrix.
-        Parameters
-        ----------
 
         Returns
         -------
@@ -147,12 +148,9 @@ class Element(ABC):
         pass
 
     def summary(self):
-        """A summary for the element.
+        """Present a summary for the element.
 
         A pandas series with the element properties as variables.
-
-        Parameters
-        ----------
 
         Returns
         -------
@@ -182,7 +180,7 @@ class Element(ABC):
 
     @staticmethod
     def get_data(file_name):
-        """Loads elements data saved in a toml format.
+        """Load elements data saved in a toml format.
 
         Parameters
         ----------
@@ -217,7 +215,7 @@ class Element(ABC):
 
     @staticmethod
     def dump_data(data, file_name):
-        """Dumps element data in a toml file.
+        """Dump element data in a toml file.
 
         Parameters
         ----------
@@ -225,9 +223,6 @@ class Element(ABC):
             The data that should be dumped.
         file_name: string
             The name of the file the data will be dumped in.
-
-        Returns
-        -------
 
         Examples
         --------
