@@ -1,8 +1,8 @@
 # fmt: off
-
 import sys
 
 import numpy as np
+import scipy as sp
 
 from ross.fluid_flow.fluid_flow_geometry import (calculate_attitude_angle,
                                                  calculate_eccentricity_ratio,
@@ -15,7 +15,9 @@ from ross.fluid_flow.fluid_flow_geometry import (calculate_attitude_angle,
 
 
 class FluidFlow:
-    r"""This class intends to calculate the pressure matrix and the stiffness and damping matrices
+    r"""Generate dynamic coefficients for bearings and seals.
+
+    This class calculate the pressure matrix and the stiffness and damping matrices
     of a fluid flow with the given parameters.
 
     It is supposed to be an attribute of a bearing element,
@@ -493,7 +495,7 @@ class FluidFlow:
         # fmt: on
 
     def resolves_matrix(self):
-        """This function resolves the linear system [M]{P}={f}.
+        """This function resolves the linear system [M]{P} = {f}.
         Examples
         --------
         >>> my_fluid_flow = fluid_flow_example()
@@ -502,7 +504,9 @@ class FluidFlow:
         >>> my_fluid_flow.P # doctest: +ELLIPSIS
         array([[...
         """
-        self.P = np.linalg.solve(self.M, self.f)
+        sparse_matrix = sp.sparse.csc_matrix(self.M)
+        self.P = sp.sparse.linalg.spsolve(sparse_matrix, self.f)
+        self.P.shape = (self.P.size, 1)
 
     def calculate_pressure_matrix_numerical(self):
         """This function calculates the pressure matrix numerically.
