@@ -21,10 +21,7 @@ __all__ = [
     "SealElement",
     "BallBearingElement",
     "RollerBearingElement",
-<<<<<<< HEAD
-=======
     "BearingElement6DoF",
->>>>>>> f0ea869e916b84e4802124313705473c9391595e
     "MagneticBearingElement",
 ]
 # fmt: on
@@ -1457,8 +1454,6 @@ class MagneticBearingElement(BearingElement):
         )
 
 
-<<<<<<< HEAD
-=======
 class BearingElement6DoF(BearingElement):
     """A generalistic 6 DoF bearing element. This class will create a bearing
     element based on the user supplied stiffness and damping coefficients. These
@@ -1813,7 +1808,6 @@ class BearingElement6DoF(BearingElement):
         return C
 
 
->>>>>>> f0ea869e916b84e4802124313705473c9391595e
 def bearing_example():
     """This function returns an instance of a simple bearing.
     The purpose is to make available a simple model
