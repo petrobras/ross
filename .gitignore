@@ -111,8 +111,23 @@ Thumbs.db
 notebooks/
 
 # docs #
+########
 /docs/examples/*_files
 /docs/generated/
 /paper/whedon/
 /paper/paper.pdf
 /paper/Makefile
+
+### VirtualEnv ###
+##################
+.Python
+pyvenv.cfg
+.env
+.venv
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+pip-selfcheck.json
+

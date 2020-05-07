@@ -1500,3 +1500,118 @@ def test_global_index():
     assert pointmass[0].dof_global_index.y_7 == 29
     assert pointmass[1].dof_global_index.x_8 == 30
     assert pointmass[1].dof_global_index.y_8 == 31
+
+
+def test_distincts_dof_elements_error():
+    with pytest.raises(Exception):
+        i_d = 0
+        o_d = 0.05
+        n = 6
+        L = [0.25 for _ in range(n)]
+
+        shaft_elem = [
+            ShaftElement6DoF(
+                material=steel,
+                L=0.25,
+                idl=0,
+                odl=0.05,
+                idr=0,
+                odr=0.05,
+                alpha=0,
+                beta=0,
+                rotary_inertia=False,
+                shear_effects=False,
+            )
+            for l in L
+        ]
+
+        # purposeful error here!
+        disk0 = DiskElement.from_geometry(
+            n=2, material=steel, width=0.07, i_d=0.05, o_d=0.28
+        )
+        disk1 = DiskElement6DoF.from_geometry(
+            n=4, material=steel, width=0.07, i_d=0.05, o_d=0.28
+        )
+
+        kxx = 1e6
+        kyy = 0.8e6
+        kzz = 1e5
+        cxx = 0
+        cyy = 0
+        czz = 0
+        bearing0 = BearingElement6DoF(
+            n=0, kxx=kxx, kyy=kyy, cxx=cxx, cyy=cyy, kzz=kzz, czz=czz
+        )
+        bearing1 = BearingElement6DoF(
+            n=6, kxx=kxx, kyy=kyy, cxx=cxx, cyy=cyy, kzz=kzz, czz=czz
+        )
+        Rotor(shaft_elem, [disk0, disk1], [bearing0, bearing1], n_eigen=36)
+
+
+@pytest.fixture
+def rotor_6dof():
+    i_d = 0
+    o_d = 0.05
+    n = 6
+    L = [0.25 for _ in range(n)]
+
+    shaft_elem = [
+        ShaftElement6DoF(
+            material=steel,
+            L=0.25,
+            idl=0,
+            odl=0.05,
+            idr=0,
+            odr=0.05,
+            alpha=0,
+            beta=0,
+            rotary_inertia=False,
+            shear_effects=False,
+        )
+        for l in L
+    ]
+
+    disk0 = DiskElement6DoF.from_geometry(
+        n=2, material=steel, width=0.07, i_d=0.05, o_d=0.28
+    )
+    disk1 = DiskElement6DoF.from_geometry(
+        n=4, material=steel, width=0.07, i_d=0.05, o_d=0.28
+    )
+
+    kxx = 1e6
+    kyy = 0.8e6
+    kzz = 1e5
+    cxx = 0
+    cyy = 0
+    czz = 0
+    bearing0 = BearingElement6DoF(
+        n=0, kxx=kxx, kyy=kyy, cxx=cxx, cyy=cyy, kzz=kzz, czz=czz
+    )
+    bearing1 = BearingElement6DoF(
+        n=6, kxx=kxx, kyy=kyy, cxx=cxx, cyy=cyy, kzz=kzz, czz=czz
+    )
+
+    return Rotor(shaft_elem, [disk0, disk1], [bearing0, bearing1])
+
+
+@pytest.mark.skip(
+    reason="Needs investigation. It fails depending on system. Most likely due to eig solution precision"
+)
+def test_modal_6dof(rotor_6dof):
+    modal = rotor_6dof.run_modal(speed=0)
+    wn = np.array(
+        [
+            1.52311799e-05,
+            4.76215722e01,
+            9.17983572e01,
+            9.62938682e01,
+            2.74512744e02,
+            2.96499037e02,
+        ]
+    )
+    wd = np.array(
+        [0.0, 47.62157215, 91.79835717, 96.29386819, 274.51274397, 296.49903736]
+    )
+
+    assert_almost_equal(modal.wn[:6], wn, decimal=3)
+    assert_almost_equal(modal.wd[:6], wd, decimal=3)

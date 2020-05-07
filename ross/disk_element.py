@@ -10,7 +10,7 @@ from bokeh.models import ColumnDataSource, HoverTool
 from ross.element import Element
 from ross.utils import read_table_file
 
-__all__ = ["DiskElement"]
+__all__ = ["DiskElement", "DiskElement6DoF"]
 bokeh_colors = bp.RdGy[11]
 
 
@@ -556,4 +556,228 @@ def disk_example():
     0.32956362
     """
     disk = DiskElement(0, 32.589_727_65, 0.178_089_28, 0.329_563_62)
+    return disk
+
+
+class DiskElement6DoF(DiskElement):
+    """A disk element for 6 DoFs.
+
+     This class will create a disk element with 6 DoF from input data of inertia and mass.
+
+     Parameters
+     ----------
+     n: int
+         Node in which the disk will be inserted.
+     m : float
+         Mass of the disk element.
+     Id : float
+         Diametral moment of inertia.
+     Ip : float
+         Polar moment of inertia
+     tag : str, optional
+         A tag to name the element
+         Default is None
+
+     Examples
+     --------
+     >>> disk = DiskElement6DoF(n=0, m=32, Id=0.2, Ip=0.3)
+     >>> disk.Ip
+     0.3
+     """
+
+    def dof_mapping(self):
+        """6DoFs degrees of freedom mapping.
+
+        Returns a dictionary with a mapping between degree of freedom and its
+        index.
+
+        Returns
+        -------
+        dof_mapping: dict
+            A dictionary containing the degrees of freedom and their indexes.
+
+        Examples
+        --------
+        The numbering of the degrees of freedom for each node. 
+        
+        Being the following their ordering for a node:
+
+        x_0,u_0 - horizontal translation, 
+        y_0,v_0 - vertical translation, 
+        z_0,w_0 - axial translation, 
+        theta_0 - rotation around horizontal, 
+        psi_0   - rotation around vertical, 
+        phi_0   - torsion around axial,
+        """
+        return dict(u_0=0, v_0=1, w_0=2, theta_0=3, psi_0=4, phi_0=5,)
+
+    def M(self):
+        """6DoFs mass matrix.
+
+        This method will return the mass matrix for an instance of a disk
+        element with 6DoFs.
+
+        Returns
+        -------
+        Mass matrix for the 6DoFs disk element.
+
+        Examples
+        --------
+        >>> disk = DiskElement6DoF(0, 32.58972765, 0.17808928, 0.32956362)
+        >>> disk.M().round(2)
+        array([[32.59,  0.  ,  0.  ,  0.  ,  0.  ,  0.  ],
+               [ 0.  , 32.59,  0.  ,  0.  ,  0.  ,  0.  ],
+               [ 0.  ,  0.  , 32.59,  0.  ,  0.  ,  0.  ],
+               [ 0.  ,  0.  ,  0.  ,  0.18,  0.  ,  0.  ],
+               [ 0.  ,  0.  ,  0.  ,  0.  ,  0.18,  0.  ],
+               [ 0.  ,  0.  ,  0.  ,  0.  ,  0.  ,  0.33]])
+        """
+        m = self.m
+        Id = self.Id
+        Ip = self.Ip
+        # fmt: off
+        M = np.array([
+            [  m,  0,  0,  0,  0,  0],
+            [  0,  m,  0,  0,  0,  0],
+            [  0,  0,  m,  0,  0,  0],
+            [  0,  0,  0, Id,  0,  0],
+            [  0,  0,  0,  0, Id,  0],
+            [  0,  0,  0,  0,  0, Ip]])
+        # fmt: on
+        return M
+
+    def K(self):
+        """6DoFs stiffness matrix.
+
+        This method will return the stiffness matrix for an instance of a disk
+        element with 6DoFs.
+
+        Returns
+        -------
+        K: np.ndarray
+            A matrix of floats containing the values of the stiffness matrix.
+
+        Examples
+        --------
+        >>> disk = disk_example_6dof()
+        >>> disk.K().round(2)
+        array([[0.  , 0.  , 0.  , 0.  , 0.  , 0.  ],
+               [0.  , 0.  , 0.  , 0.  , 0.  , 0.  ],
+               [0.  , 0.  , 0.  , 0.  , 0.  , 0.  ],
+               [0.  , 0.  , 0.  , 0.  , 0.  , 0.  ],
+               [0.  , 0.  , 0.  , 0.  , 0.  , 0.  ],
+               [0.  , 0.  , 0.  , 0.33, 0.  , 0.  ]])
+        """
+        Ip = self.Ip
+        # fmt: off
+        K = np.array([
+            [ 0, 0, 0,  0, 0, 0],
+            [ 0, 0, 0,  0, 0, 0],
+            [ 0, 0, 0,  0, 0, 0],
+            [ 0, 0, 0,  0, 0, 0],
+            [ 0, 0, 0,  0, 0, 0],
+            [ 0, 0, 0, Ip, 0, 0]])
+        # fmt: on
+        return K
+
+    def C(self):
+        """6DoFs damping matrix.
+
+        Returns
+        -------
+        C: np.ndarray
+            A matrix of floats containing the values of the damping matrix.
+
+        Examples
+        --------
+        >>> disk = disk_example_6dof()
+        >>> disk.C()
+        array([[0., 0., 0., 0., 0., 0.],
+               [0., 0., 0., 0., 0., 0.],
+               [0., 0., 0., 0., 0., 0.],
+               [0., 0., 0., 0., 0., 0.],
+               [0., 0., 0., 0., 0., 0.],
+               [0., 0., 0., 0., 0., 0.]])
+        """
+        # fmt: off
+        C = np.zeros((6, 6))
+        # fmt: on
+        return C
+
+    def G(self):
+        """6DoFs gyroscopic matrix.
+
+        This method will return the gyroscopic matrix for an instance of a disk
+        element.
+
+        Returns
+        -------
+        G: np.ndarray
+            Gyroscopic matrix for the disk element.
+
+        Examples
+        --------
+        >>> disk = DiskElement6DoF(0, 32.58972765, 0.17808928, 0.32956362)
+        >>> disk.G().round(2)
+        array([[ 0.  ,  0.  ,  0.  ,  0.  ,  0.  ,  0.  ],
+               [ 0.  ,  0.  ,  0.  ,  0.  ,  0.  ,  0.  ],
+               [ 0.  ,  0.  ,  0.  ,  0.  ,  0.  ,  0.  ],
+               [ 0.  ,  0.  ,  0.  ,  0.  ,  0.33,  0.  ],
+               [ 0.  ,  0.  ,  0.  , -0.33,  0.  ,  0.  ],
+               [ 0.  ,  0.  ,  0.  ,  0.  ,  0.  ,  0.  ]])
+        """
+        Ip = self.Ip
+        # fmt: off
+        G = np.array([
+            [ 0, 0, 0,   0,  0, 0],
+            [ 0, 0, 0,   0,  0, 0],
+            [ 0, 0, 0,   0,  0, 0],
+            [ 0, 0, 0,   0, Ip, 0],
+            [ 0, 0, 0, -Ip,  0, 0],
+            [ 0, 0, 0,   0,  0, 0]])
+        # fmt: on
+        return G
+
+
+def disk_example():
+    """This function returns an instance of a simple disk.
+    The purpose is to make available a simple model
+    so that doctest can be written using it.
+
+    Parameters
+    ----------
+
+    Returns
+    -------
+    An instance of a disk object.
+
+    Examples
+    --------
+    >>> disk = disk_example()
+    >>> disk.Ip
+    0.32956362
+    """
+    disk = DiskElement(0, 32.589_727_65, 0.178_089_28, 0.329_563_62)
+    return disk
+
+
+def disk_example_6dof():
+    """This function returns an instance of a simple disk.
+    The purpose is to make available a simple 6DoFs model
+    so that doctest can be written using it.
+
+    Parameters
+    ----------
+
+    Returns
+    -------
+    An instance of a disk object.
+
+    Examples
+    --------
+    >>> disk = disk_example()
+    >>> disk.Ip
+    0.32956362
+    """
+    disk = DiskElement6DoF(0, 32.589_727_65, 0.178_089_28, 0.329_563_62)
     return disk
