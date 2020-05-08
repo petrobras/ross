@@ -79,19 +79,17 @@ class Material:
         self.color = color
 
     def __eq__(self, other):
-        """Function used to compare two Materials.
+        """Equality method for comparasions.
+
         Parameters
         ----------
-
-        self : Material
-
-        other: Material
+        other: object
+            The second object to be compared with.
 
         Returns
         -------
-
         bool
-            True if all the Materials properties are equivalent.
+            True if the comparison is true; False otherwise.
 
         Examples
         --------
@@ -110,17 +108,11 @@ class Material:
             return False
 
     def __repr__(self):
-        """Function used to give a representation of a Material element, when called.
-
-        Parameters
-        ----------
-
-        self : Material
+        """Return a string representation of a material.
 
         Returns
         -------
-
-        string : Representation of the given rs.Material.
+        A string representation of a material object.
 
         Examples
         --------
@@ -140,18 +132,11 @@ class Material:
         )
 
     def __str__(self):
-        """Function used to set what is shown when a Material is printed.
-
-        Parameters
-        ----------
-
-        self : Material
+        """Convert object into string.
 
         Returns
         -------
-
-        str
-            Containing all the Materials properties organized in a table.
+        The object's parameters translated to strings
 
         Examples
         --------
@@ -175,34 +160,30 @@ class Material:
 
     @staticmethod
     def dump_data(data):
-        """Auxiliary function to save the materials properties in the save method.
+        """Save material properties.
+
+        This is an auxiliary function to save the materials properties in the save
+        method.
 
         Parameters
         ----------
-
         data : dict
             Dictionary containing all data needed to instantiate the Object.
-
-        Returns
-        -------
         """
         with open(AVAILABLE_MATERIALS_PATH, "w") as f:
             toml.dump(data, f)
 
     @staticmethod
     def get_data():
+        """Load material properties.
 
-        """Auxiliary function to load all saved materials properties in the use_material method.
-
-        Parameters
-        ----------
+        This is an auxiliary function to load all saved materials properties in the
+        use_material method.
 
         Returns
         -------
-
         data : dict
             Containing all data needed to instantiate a Material Object.
-
         """
         try:
             with open(AVAILABLE_MATERIALS_PATH, "r") as f:
@@ -214,7 +195,24 @@ class Material:
 
     @staticmethod
     def use_material(name):
-        """Use material that is available in the data file."""
+        """Load a material that is available in the data file.
+
+        Returns
+        -------
+        ross.Material
+            An object with the material properties.
+
+        Raises
+        ------
+        KeyError
+            Error raised if argument name does not match any material name in the file.
+
+        Examples
+        --------
+        >>> import ross as rs
+        >>> rs.steel.save_material()
+        >>> steel = rs.Material.use_material('Steel')
+        """
         data = Material.get_data()
         try:
             # Remove Poisson from dict and create material from E and G_s
@@ -226,16 +224,12 @@ class Material:
 
     @staticmethod
     def remove_material(name):
-        """Function used to delete a saved rs.Material.
+        """Delete a saved ross.Material.
 
         Parameters
         ----------
-
         name : string
             Name of Material Object to be deleted.
-
-        Returns
-        -------
 
         Examples
         --------
@@ -255,10 +249,7 @@ class Material:
 
     @staticmethod
     def available_materials():
-        """Function used to get a list of all saved material's names.
-
-        Parameters
-        ----------
+        """Return a list of all saved material's name.
 
         Returns
         -------
@@ -273,7 +264,6 @@ class Material:
         >>> steel.save_material()
         >>> steel.remove_material('test_material')
         """
-
         try:
             data = Material.get_data()
             return list(data["Materials"].keys())
@@ -281,7 +271,7 @@ class Material:
             return "There is no saved materials."
 
     def save_material(self):
-        """Saves the material in the available_materials list."""
+        """Save the material in the available_materials list."""
         data = Material.get_data()
         data["Materials"][self.name] = self.__dict__
         Material.dump_data(data)

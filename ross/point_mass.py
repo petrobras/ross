@@ -2,9 +2,13 @@
 
 This module defines the PointMass class which will be used to link elements.
 """
+import os
+from pathlib import Path
+
 import bokeh.palettes as bp
 import matplotlib.patches as mpatches
 import numpy as np
+import toml
 from bokeh.models import ColumnDataSource, HoverTool
 
 from ross.element import Element
@@ -63,7 +67,8 @@ class PointMass(Element):
         return hash(self.tag)
 
     def __eq__(self, other):
-        """This function allows point mass elements to be compared.
+        """Equality method for comparasions.
+
         Parameters
         ----------
         other : obj
@@ -87,14 +92,12 @@ class PointMass(Element):
             return False
 
     def __repr__(self):
-        """This function returns a string representation of a point mass
-        element.
-        Parameters
-        ----------
+        """Return a string representation of a point mass element.
 
         Returns
         -------
-        A string representation of a bearing object.
+        A string representation of a point mass element object.
+
         Examples
         --------
         >>> point_mass = point_mass_example()
@@ -107,8 +110,81 @@ class PointMass(Element):
             f" my={self.my:{0}.{5}}, tag={self.tag!r})"
         )
 
+    def save(self, file_name=os.getcwd()):
+        """Save a point mass element in a toml format.
+
+        It works as an auxiliary function of the save function in the Rotor class.
+
+        Parameters
+        ----------
+        file_name: string
+            The name of the file the point mass element will be saved in.
+
+        Examples
+        --------
+        >>> point_mass = point_mass_example()
+        >>> point_mass.save()
+        """
+        data = self.get_data(Path(file_name) / "PointMass.toml")
+        data["PointMass"][str(self.n)] = {
+            "n": self.n,
+            "m": self.m,
+            "mx": self.mx,
+            "my": self.my,
+            "tag": self.tag,
+        }
+        self.dump_data(data, Path(file_name) / "PointMass.toml")
+
+    @staticmethod
+    def load(file_name=os.getcwd()):
+        """Load a list of point mass elements saved in a toml format.
+
+        It works as an auxiliary function of the load function in the Rotor class.
+
+        Parameters
+        ----------
+        file_name: str
+            The name of the file of the point mass element to be loaded.
+
+        Returns
+        -------
+        point_mass_elements: list
+            A list of point mass elements.
+
+        Examples
+        --------
+        >>> point_mass1 = point_mass_example()
+        >>> point_mass1.save(os.getcwd())
+        >>> list_of_pointmass = PointMass.load(os.getcwd())
+        >>> point_mass1 == list_of_pointmass[0]
+        True
+        """
+        point_mass_elements = []
+        with open("PointMass.toml", "r") as f:
+            point_mass_dict = toml.load(f)
+            for element in point_mass_dict["PointMass"]:
+                point_mass_elements.append(
+                    PointMass(**point_mass_dict["PointMass"][element])
+                )
+        return point_mass_elements
+
     def M(self):
-        """Mass matrix."""
+        """Mass matrix for an instance of a point mass element.
+
+        This method will return the mass matrix for an instance of a point mass element.
+
+        Returns
+        -------
+        M : np.ndarray
+            A matrix of floats containing the values of the mass matrix.
+
+        Examples
+        --------
+        >>> p1 = PointMass(n=0, mx=2, my=3)
+        >>> p1.M()
+        array([[2., 0.],
+               [0., 3.]])
+        """
         mx = self.mx
         my = self.my
         # fmt: off
@@ -119,36 +195,107 @@ class PointMass(Element):
         return M
 
     def C(self):
-        """Damping coefficients matrix."""
-        return np.zeros((2, 2))
+        """Damping matrix for an instance of a point mass element.
+
+        This method will return the damping matrix for an instance of a point mass
+        element.
+
+        Returns
+        -------
+        C : np.ndarray
+            A matrix of floats containing the values of the damping matrix.
+
+        Examples
+        --------
+        >>> p1 = PointMass(n=0, mx=2, my=3)
+        >>> p1.C()
+        array([[0., 0.],
+               [0., 0.]])
+        """
+        C = np.zeros((2, 2))
+        return C
 
     def K(self):
-        """Stiffness coefficients matrix."""
-        return np.zeros((2, 2))
+        """Stiffness matrix for an instance of a point mass element.
+
+        This method will return the stiffness matrix for an instance of a point mass
+        element.
+
+        Returns
+        -------
+        K : np.ndarray
+            A matrix of floats containing the values of the stiffness matrix.
+
+        Examples
+        --------
+        >>> p1 = PointMass(n=0, mx=2, my=3)
+        >>> p1.K()
+        array([[0., 0.],
+               [0., 0.]])
+        """
+        K = np.zeros((2, 2))
+        return K
 
     def G(self):
-        """Gyroscopic matrix."""
-        return np.zeros((2, 2))
+        """Gyroscopic matrix for an instance of a point mass element.
+
+        This method will return the gyroscopic matrix for an instance of a point mass
+        element.
+
+        Returns
+        -------
+        G : np.ndarray
+            A matrix of floats containing the values of the gyroscopic matrix.
+
+        Examples
+        --------
+        >>> p1 = PointMass(n=0, mx=2, my=3)
+        >>> p1.G()
+        array([[0., 0.],
+               [0., 0.]])
+        """
+        G = np.zeros((2, 2))
+        return G
 
     def dof_mapping(self):
+        """Degrees of freedom mapping.
+
+        Returns a dictionary with a mapping between degree of freedom and its index.
+
+        Returns
+        -------
+        dof_mapping : dict
+            A dictionary containing the degrees of freedom and their indexes.
+
+        Examples
+        --------
+        The numbering of the degrees of freedom for each node.
+
+        Being the following their ordering for a node:
+
+        x_0 - horizontal translation
+        y_0 - vertical translation
+
+        >>> p1 = PointMass(n=0, mx=2, my=3)
+        >>> p1.dof_mapping()
+        {'x_0': 0, 'y_0': 1}
+        """
         return dict(x_0=0, y_0=1)
 
     def patch(self, position, ax, **kwargs):
         """Point mass element patch.
-        Patch that will be used to draw the point mass element.
+
+        Patch that will be used to draw the point mass element using Matplotlib library.
+
         Parameters
         ----------
-        ax : matplotlib axes, optional
-            Axes in which the plot will be drawn.
         position : float
             Position in which the patch will be drawn.
+        ax : matplotlib axes, optional
+            Axes in which the plot will be drawn.
         kwargs : optional
             Additional key word arguments can be passed to change
             the plot (e.g. linestyle='--')
-        Returns
-        -------
-        ax : matplotlib axes
-            Returns the axes object with the plot.
         """
         zpos, ypos = position
         radius = ypos / 8
@@ -164,20 +311,23 @@ class PointMass(Element):
 
     def bokeh_patch(self, position, bk_ax, **kwargs):
         """Point mass element patch.
-        Patch that will be used to draw the point mass element.
+
+        Patch that will be used to draw the point mass element using Bokeh library.
+
         Parameters
         ----------
-        bk_ax : bokeh plotting axes, optional
-            Axes in which the plot will be drawn.
         position : float
             Position in which the patch will be drawn.
+        bk_ax : bokeh plotting axes, optional
+            Axes in which the plot will be drawn.
         kwargs : optional
             Additional key word arguments can be passed to change
             the plot (e.g. linestyle='--')
+
         Returns
         -------
-        bk_ax : bokeh plotting axes
-            Returns the axes object with the plot.
+        hover : Bokeh HoverTool
+            Bokeh HoverTool axes
         """
         zpos, ypos = position
         radius = ypos / 8
@@ -233,16 +383,15 @@ class PointMass(Element):
 
 
 def point_mass_example():
-    """This function returns an instance of a simple point mass.
-    The purpose is to make available a simple model
-    so that doctest can be written using it.
+    """Create an example of point mass element.
 
-    Parameters
-    ----------
+    This function returns an instance of a simple point mass. The purpose is to make
+    available a simple model so that doctest can be written using it.
 
     Returns
     -------
-    An instance of a point mass object.
+    point_mass : ross.PointMass
+        An instance of a point mass object.
 
     Examples
     --------
