@@ -583,7 +583,6 @@ class Rotor(object):
         """Run modal analysis.
 
         Method to calculate eigenvalues and eigvectors for a given rotor system
-        This method is automatically called when a rotor is instantiated.
 
         Parameters
         ----------
@@ -1442,7 +1441,8 @@ class Rotor(object):
         mean_od = np.mean(self.nodes_o_d)
         # plot disk elements
         for disk in self.disk_elements:
-            position = (self.nodes_pos[disk.n], self.nodes_o_d[disk.n] / 2, mean_od)
+            step = disk.scale_factor * mean_od
+            position = (self.nodes_pos[disk.n], self.nodes_o_d[disk.n] / 2, step)
             disk.patch(position, ax)
 
         # plot bearings
@@ -1554,7 +1554,8 @@ class Rotor(object):
         mean_od = np.mean(self.nodes_o_d)
         # plot disk elements
         for disk in self.disk_elements:
-            position = (self.nodes_pos[disk.n], self.nodes_o_d[disk.n] / 2, mean_od)
+            step = disk.scale_factor * mean_od
+            position = (self.nodes_pos[disk.n], self.nodes_o_d[disk.n] / 2, step)
             hover = disk.bokeh_patch(position, bk_ax)
 
         bk_ax.add_tools(hover)
@@ -2001,6 +2002,8 @@ class Rotor(object):
 
         Parameters
         ----------
+        speed : float
+            Rotor speed.
         F : array
             Force array (needs to have the same number of rows as time array).
             Each column corresponds to a dof and each row to a time.
@@ -2224,10 +2227,14 @@ class Rotor(object):
         ----------
         shaft_weight: float
             Shaft total weight
-        disk_weigth_force: list
-            Weight forces of each disk
-        bearing_reaction_force: list
-            The static reaction forces on each bearing
+        disk_forces_nodal : dict
+            Relates the static force at each node due to the weight of disks
+        bearing_forces_nodal : dict
+            Relates the static force at each node due to the bearing reaction forces.
+        bearing_forces_tag : dict
+            Indicates the reaction force exerted by each bearing.
+        disk_forces_tag : dict
+            Indicates the force exerted by each disk.
         disp_y: array
             The shaft static displacement vector,
         Vx: array
@@ -3373,10 +3380,10 @@ def rotor_example():
     ]
 
     disk0 = DiskElement.from_geometry(
-        n=2, material=steel, width=0.07, i_d=0.05, o_d=0.28
+        n=2, material=steel, width=0.07, i_d=0.05, o_d=0.28,
     )
     disk1 = DiskElement.from_geometry(
-        n=4, material=steel, width=0.07, i_d=0.05, o_d=0.28
+        n=4, material=steel, width=0.07, i_d=0.05, o_d=0.28,
     )
 
     stfx = 1e6
