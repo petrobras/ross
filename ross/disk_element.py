@@ -38,6 +38,9 @@ class DiskElement(Element):
     tag : str, optional
         A tag to name the element
         Default is None
+    scale_factor: float, optional
+        The scale factor is used to scale the disk drawing.
+        Default is 1.
     color : str, optional
         A color to be used when the element is represented.
         Default is '#b2182b' (Cardinal).
@@ -49,7 +52,7 @@ class DiskElement(Element):
     0.3
     """
 
-    def __init__(self, n, m, Id, Ip, tag=None, color=bokeh_colors[9]):
+    def __init__(self, n, m, Id, Ip, tag=None, scale_factor=1.0, color=bokeh_colors[9]):
         self.n = int(n)
         self.n_l = n
         self.n_r = n
@@ -59,6 +62,7 @@ class DiskElement(Element):
         self.Ip = Ip
         self.tag = tag
         self.color = color
+        self.scale_factor = scale_factor
         self.dof_global_index = None
 
     def __eq__(self, other):
@@ -459,7 +463,17 @@ class DiskElement(Element):
         return hover
 
     @classmethod
-    def from_geometry(cls, n, material, width, i_d, o_d, tag=None):
+    def from_geometry(
+        cls,
+        n,
+        material,
+        width,
+        i_d,
+        o_d,
+        tag=None,
+        scale_factor=1.0,
+        color=bokeh_colors[9],
+    ):
         """Create a disk element from geometry properties.
 
         This class method will create a disk element from geometry data.
@@ -479,6 +493,12 @@ class DiskElement(Element):
         tag : str, optional
             A tag to name the element
             Default is None
+        scale_factor: float, optional
+            The scale factor is used to scale the disk drawing.
+            Default is 1.
+        color : str, optional
+            A color to be used when the element is represented.
+            Default is '#b2182b' (Cardinal).
 
         Attributes
         ----------
@@ -507,10 +527,12 @@ class DiskElement(Element):
 
         tag = tag
 
-        return cls(n, m, Id, Ip, tag)
+        return cls(n, m, Id, Ip, tag, scale_factor, color)
 
     @classmethod
-    def from_table(cls, file, sheet_name=0):
+    def from_table(
+        cls, file, sheet_name=0, tag=None, scale_factor=1, color=bokeh_colors[9]
+    ):
         """Instantiate one or more disks using inputs from an Excel table.
 
         A header with the names of the columns is required. These names should
@@ -548,6 +570,9 @@ class DiskElement(Element):
                     m=parameters["m"][i],
                     Id=float(parameters["Id"][i]),
                     Ip=float(parameters["Ip"][i]),
+                    tag=tag,
+                    scale_factor=scale_factor,
+                    color=color,
                 )
             )
         return list_of_disks
@@ -572,6 +597,12 @@ class DiskElement6DoF(DiskElement):
     tag : str, optional
         A tag to name the element
         Default is None
+    scale_factor: float, optional
+        The scale factor is used to scale the disk drawing.
+        Default is 1.
+    color : str, optional
+        A color to be used when the element is represented.
+        Default is '#b2182b' (Cardinal).
 
     Examples
     --------
