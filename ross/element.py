@@ -170,6 +170,7 @@ class Element(ABC):
         Ip                     0.329564
         tag                        None
         color                   #b2182b
+        scale_factor                  1
         dof_global_index           None
         type                DiskElement
         dtype: object
