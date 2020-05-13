@@ -452,11 +452,11 @@ class DiskElement(Element):
 
         hover = HoverTool(names=["uc_disk", "lc_disk", "ub_disk", "lb_disk"])
         hover.tooltips = [
-            ("Disk Node :", "@elnum"),
-            ("Polar Moment of Inertia :", "@IP"),
-            ("Diametral Moment of Inertia :", "@ID"),
-            ("Disk mass :", "@mass"),
-            ("Tag :", "@tag"),
+            ("Disk Node", "@elnum"),
+            ("Polar Moment of Inertia", "@IP"),
+            ("Diametral Moment of Inertia", "@ID"),
+            ("Disk mass", "@mass"),
+            ("Tag", "@tag"),
         ]
         hover.mode = "mouse"
 
