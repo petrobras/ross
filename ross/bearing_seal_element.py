@@ -79,13 +79,10 @@ class _Coefficient:
             return False
 
     def __repr__(self):
-        coef = []
-        for i in self.coefficient:
-            coef.append("{:.2e}".format(i))
-        return f"{coef}"
+        return repr(self.coefficient)
 
-    # def __getitem__(self, item):
-    #     pass
+    def __getitem__(self, item):
+        return self.coefficient[item]
 
     def plot(self, ax=None, **kwargs):
         if ax is None:
