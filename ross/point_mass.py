@@ -372,10 +372,10 @@ class PointMass(Element):
 
         hover = HoverTool(names=["pmass_l", "pmass_u"])
         hover.tooltips = [
-            ("Point Mass Node :", "@elnum"),
-            ("Mass (x) :", "@mx"),
-            ("Mass (y) :", "@my"),
-            ("Tag :", "@tag"),
+            ("Point Mass Node", "@elnum"),
+            ("Mass (x)", "@mx"),
+            ("Mass (y)", "@my"),
+            ("Tag", "@tag"),
         ]
         hover.mode = "mouse"
 

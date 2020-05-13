@@ -1023,31 +1023,31 @@ class ShaftElement(Element):
         hover = HoverTool(names=["l_shaft", "u_shaft"])
         if check_sld:
             hover.tooltips = [
-                ("Element Number :", "@elnum"),
-                ("Slenderness Ratio :", "@sld"),
+                ("Element Number", "@elnum"),
+                ("Slenderness Ratio", "@sld"),
             ]
         else:
             if isinstance(self, ShaftElement6DoF):
                 hover.tooltips = [
-                    ("Element Number :", "@elnum"),
-                    ("Left Outer Diameter :", "@out_d_l"),
-                    ("Left Inner Diameter :", "@in_d_l"),
-                    ("Right Outer Diameter :", "@out_d_r"),
-                    ("Right Inner Diameter :", "@in_d_r"),
-                    ("Alpha Damp. Factor :", "@alpha_factor"),
-                    ("Beta Damp. Factor :", "@beta_factor"),
-                    ("Element Length :", "@length"),
-                    ("Material :", "@mat"),
+                    ("Element Number", "@elnum"),
+                    ("Left Outer Diameter", "@out_d_l"),
+                    ("Left Inner Diameter", "@in_d_l"),
+                    ("Right Outer Diameter", "@out_d_r"),
+                    ("Right Inner Diameter", "@in_d_r"),
+                    ("Alpha Damp. Factor", "@alpha_factor"),
+                    ("Beta Damp. Factor", "@beta_factor"),
+                    ("Element Length", "@length"),
+                    ("Material", "@mat"),
                 ]
             else:
                 hover.tooltips = [
-                    ("Element Number :", "@elnum"),
-                    ("Left Outer Diameter :", "@out_d_l"),
-                    ("Left Inner Diameter :", "@in_d_l"),
-                    ("Right Outer Diameter :", "@out_d_r"),
-                    ("Right Inner Diameter :", "@in_d_r"),
-                    ("Element Length :", "@length"),
-                    ("Material :", "@mat"),
+                    ("Element Number", "@elnum"),
+                    ("Left Outer Diameter", "@out_d_l"),
+                    ("Left Inner Diameter", "@in_d_l"),
+                    ("Right Outer Diameter", "@out_d_r"),
+                    ("Right Inner Diameter", "@in_d_r"),
+                    ("Element Length", "@length"),
+                    ("Material", "@mat"),
                 ]
         hover.mode = "mouse"
 
