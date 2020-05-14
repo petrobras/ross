@@ -19,6 +19,7 @@ from ross.element import Element
 from ross.fluid_flow import fluid_flow as flow
 from ross.fluid_flow.fluid_flow_coefficients import (
     calculate_damping_matrix, calculate_stiffness_matrix)
+from ross.units import check_units
 from ross.utils import read_table_file
 
 # fmt: on
@@ -127,29 +128,29 @@ class BearingElement(Element):
     ----------
     n: int
         Node which the bearing will be located in
-    kxx: float, array
+    kxx: float, array, pint.Quantity
         Direct stiffness in the x direction.
-    cxx: float, array
+    cxx: float, array, pint.Quantity
         Direct damping in the x direction.
-    kyy: float, array, optional
+    kyy: float, array, pint.Quantity, optional
         Direct stiffness in the y direction.
         (defaults to kxx)
-    cyy: float, array, optional
+    cyy: float, array, pint.Quantity, optional
         Direct damping in the y direction.
         (defaults to cxx)
-    kxy: float, array, optional
+    kxy: float, array, pint.Quantity ,optional
         Cross coupled stiffness in the x direction.
         (defaults to 0)
-    cxy: float, array, optional
+    cxy: float, array, pint.Quantity, optional
         Cross coupled damping in the x direction.
         (defaults to 0)
-    kyx: float, array, optional
+    kyx: float, array, pint.Quantity, optional
         Cross coupled stiffness in the y direction.
         (defaults to 0)
-    cyx: float, array, optional
+    cyx: float, array, pint.Quantity, optional
         Cross coupled damping in the y direction.
         (defaults to 0)
-    frequency: array, optional
+    frequency: array, pint.Quantity, optional
         Array with the frequencies (rad/s).
     tag: str, optional
         A tag to name the element
@@ -180,6 +181,7 @@ class BearingElement(Element):
     array([[[200., 200., ...
     """
 
+    @check_units
     def __init__(
         self,
         n,
@@ -1024,35 +1026,38 @@ class SealElement(BearingElement):
     ----------
     n: int
         Node which the bearing will be located in
-    kxx: float, array
+    kxx: float, array, pint.Quantity
         Direct stiffness in the x direction.
-    cxx: float, array
+    cxx: float, array, pint.Quantity
         Direct damping in the x direction.
-    kyy: float, array, optional
+    kyy: float, array, pint.Quantity, optional
         Direct stiffness in the y direction.
         (defaults to kxx)
-    cyy: float, array, optional
+    cyy: float, array, pint.Quantity, optional
         Direct damping in the y direction.
         (defaults to cxx)
-    kxy: float, array, optional
+    kxy: float, array, pint.Quantity, optional
         Cross coupled stiffness in the x direction.
         (defaults to 0)
-    cxy: float, array, optional
+    cxy: float, array, pint.Quantity, optional
         Cross coupled damping in the x direction.
         (defaults to 0)
-    kyx: float, array, optional
+    kyx: float, array, pint.Quantity, optional
         Cross coupled stiffness in the y direction.
         (defaults to 0)
-    cyx: float, array, optional
+    cyx: float, array, pint.Quantity, optional
         Cross coupled damping in the y direction.
         (defaults to 0)
-    frequency: array, optional
+    frequency: array, pint.Quantity, optional
         Array with the speeds (rad/s).
     seal_leakage: float, optional
-        Amount of leakage
+        Amount of leakage.
     tag : str, optional
         A tag to name the element
-        Default is None
+        Default is None.
+    scale_factor: float, optional
+        The scale factor is used to scale the seal drawing.
+        Default is 1
 
     Examples
     --------
@@ -1072,6 +1077,7 @@ class SealElement(BearingElement):
     array([[[200., 200., ...
     """
 
+    @check_units
     def __init__(
         self,
         n,
@@ -1086,6 +1092,7 @@ class SealElement(BearingElement):
         frequency=None,
         seal_leakage=None,
         tag=None,
+        scale_factor=1.0,
     ):
         super().__init__(
             n=n,
@@ -1099,6 +1106,7 @@ class SealElement(BearingElement):
             cyx=cyx,
             cyy=cyy,
             tag=tag,
+            scale_factor=scale_factor,
         )
 
         self.seal_leakage = seal_leakage
@@ -1595,36 +1603,36 @@ class BearingElement6DoF(BearingElement):
 
     Parameters
     ----------
-    kxx: float, optional
+    kxx: float, array, pint.Quantity
         Direct stiffness in the x direction.
-        Default is None
-    kxy: float, optional
-        Cross stiffness between xy directions.
-        Default is None
-    kyx: float, optional
-        Cross stiffness between yx directions.
-        Default is None
-    kyy: float, optional
-        Direct stiffness in the y direction.
-        Default is None
-    kzz: float, optional
-        Direct stiffness in the z direction.
-        Default is None
-    cxx: float, optional
+    cxx: float, array, pint.Quantity
         Direct damping in the x direction.
-        Default is None
-    cxy: float, optional
-        Cross damping between xy directions.
-        Default is None
-    cyx: float, optional
-        Cross damping between yx directions.
-        Default is None
-    cyy: float, optional
+    kyy: float, array, pint.Quantity, optional
+        Direct stiffness in the y direction.
+        Defaults to kxx
+    cyy: float, array, pint.Quantity, optional
         Direct damping in the y direction.
-        Default is None
-    czz: float, optional
+        Default is to cxx
+    kxy: float, array, pint.Quantity, optional
+        Cross stiffness between xy directions.
+        Default is 0
+    kyx: float, array, pint.Quantity, optional
+        Cross stiffness between yx directions.
+        Default is 0
+    kzz: float, array, pint.Quantity, optional
+        Direct stiffness in the z direction.
+        Default is 0
+    cxy: float, array, pint.Quantity, optional
+        Cross damping between xy directions.
+        Default is 0
+    cyx: float, array, pint.Quantity, optional
+        Cross damping between yx directions.
+        Default is 0
+    czz: float, array, pint.Quantity, optional
         Direct damping in the z direction.
-        Default is None
+        Default is 0
+    frequency: array, pint.Quantity, optional
+        Array with the frequencies (rad/s).
     tag : str, optional
         A tag to name the element
         Default is None
@@ -1650,19 +1658,21 @@ class BearingElement6DoF(BearingElement):
            [       0.,        0.,   500000.]])
     """
 
+    @check_units
     def __init__(
         self,
         n,
         kxx,
-        kyy,
         cxx,
-        cyy,
+        kyy=None,
+        cyy=None,
         kxy=0.0,
         kyx=0.0,
         kzz=0.0,
         cxy=0.0,
         cyx=0.0,
         czz=0.0,
+        frequency=None,
         tag=None,
         n_link=None,
         scale_factor=1,
@@ -1678,7 +1688,7 @@ class BearingElement6DoF(BearingElement):
             cyy=cyy,
             cxy=cxy,
             cyx=cyx,
-            frequency=None,
+            frequency=frequency,
             tag=tag,
             n_link=n_link,
             scale_factor=scale_factor,
