@@ -12,6 +12,7 @@ import toml
 from bokeh.models import ColumnDataSource, HoverTool
 
 from ross.element import Element
+from ross.units import check_units
 
 __all__ = ["PointMass"]
 bokeh_colors = bp.RdGy[11]
@@ -29,11 +30,11 @@ class PointMass(Element):
     ----------
     n: int
         Node which the bearing will be located in.
-    m: float, optional
+    m: float, pint.Quantity, optional
         Mass for the element.
-    mx: float, optional
+    mx: float, pint.Quantity, optional
         Mass for the element on the x direction.
-    my: float, optional
+    my: float, pint.Quantity, optional
         Mass for the element on the y direction.
     tag: str
         A tag to name the element
@@ -50,6 +51,7 @@ class PointMass(Element):
            [0., 3.]])
     """
 
+    @check_units
     def __init__(self, n=None, m=None, mx=None, my=None, tag=None):
         self.n = n
         self.m = m
