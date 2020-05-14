@@ -11,21 +11,35 @@ def test_new_units_loaded():
 
 @pytest.fixture
 def auxiliary_function():
+    # fmt: off
     @check_units
-    def func(E, G_s, rho, L, idl, idr, odl, odr, speed, frequency):
-        return E, G_s, rho, L, idl, idr, odl, odr, speed, frequency
-
+    def func(E, G_s, rho, L, idl, idr, odl, odr, speed, frequency, m, mx, my, Ip, Id,
+             width, i_d, o_d, kxx, kxy, kxz, kyx, kyy, kyz, kzx, kzy, kzz, cxx, cxy,
+             cxz, cyx, cyy, cyz, czx, czy, czz):
+        return (
+            E, G_s, rho, L, idl, idr, odl, odr, speed, frequency, m, mx, my, Ip, Id,
+            width, i_d, o_d, kxx, kxy, kxz, kyx, kyy, kyz, kzx, kzy, kzz, cxx, cxy,
+            cxz, cyx, cyy, cyz, czx, czy, czz
+        )
+    # fmt: on
     return func
 
 
 def test_units(auxiliary_function):
+    # fmt: off
     results = auxiliary_function(
-        E=1, G_s=1, rho=1, L=1, idl=1, idr=1, odl=1, odr=1, speed=1, frequency=1
+        E=1, G_s=1, rho=1, L=1, idl=1, idr=1, odl=1, odr=1, speed=1, frequency=1,
+        m=1, mx=1, my=1, Ip=1, Id=1, width=1, i_d=1, o_d=1, kxx=1, kxy=1, kxz=1, kyx=1,
+        kyy=1, kyz=1, kzx=1, kzy=1, kzz=1, cxx=1, cxy=1, cxz=1, cyx=1, cyy=1, cyz=1,
+        czx=1, czy=1, czz=1,
     )
     # check if all available units are tested
     assert len(results) == len(units)
 
-    E, G_s, rho, L, idl, idr, odl, odr, speed, frequency = results
+    (E, G_s, rho, L, idl, idr, odl, odr, speed, frequency, m, mx, my, Ip, Id,
+     width, i_d, o_d, kxx, kxy, kxz, kyx, kyy, kyz, kzx, kzy, kzz, cxx, cxy,
+     cxz, cyx, cyy, cyz, czx, czy, czz) = results
+    # fmt: on
 
     assert E == 1
     assert G_s == 1
@@ -37,6 +51,32 @@ def test_units(auxiliary_function):
     assert odr == 1
     assert speed == 1
     assert frequency == 1
+    assert m == 1
+    assert mx == 1
+    assert my == 1
+    assert Ip == 1
+    assert Id == 1
+    assert width == 1
+    assert i_d == 1
+    assert o_d == 1
+    assert kxx == 1
+    assert kxy == 1
+    assert kxz == 1
+    assert kyx == 1
+    assert kyy == 1
+    assert kyz == 1
+    assert kzx == 1
+    assert kzy == 1
+    assert kzz == 1
+    assert cxx == 1
+    assert cxy == 1
+    assert cxz == 1
+    assert cyx == 1
+    assert cyy == 1
+    assert cyz == 1
+    assert czx == 1
+    assert czy == 1
+    assert czz == 1
 
 
 def test_unit_Q_(auxiliary_function):
@@ -51,12 +91,41 @@ def test_unit_Q_(auxiliary_function):
         odr=Q_(1, "meter"),
         speed=Q_(1, "radian/second"),
         frequency=Q_(1, "radian/second"),
+        m=Q_(1, "kg"),
+        mx=Q_(1, "kg"),
+        my=Q_(1, "kg"),
+        Ip=Q_(1, "kg*m**2"),
+        Id=Q_(1, "kg*m**2"),
+        width=Q_(1, "meter"),
+        i_d=Q_(1, "meter"),
+        o_d=Q_(1, "meter"),
+        kxx=Q_(1, "N/m"),
+        kxy=Q_(1, "N/m"),
+        kxz=Q_(1, "N/m"),
+        kyx=Q_(1, "N/m"),
+        kyy=Q_(1, "N/m"),
+        kyz=Q_(1, "N/m"),
+        kzx=Q_(1, "N/m"),
+        kzy=Q_(1, "N/m"),
+        kzz=Q_(1, "N/m"),
+        cxx=Q_(1, "N*s/m"),
+        cxy=Q_(1, "N*s/m"),
+        cxz=Q_(1, "N*s/m"),
+        cyx=Q_(1, "N*s/m"),
+        cyy=Q_(1, "N*s/m"),
+        cyz=Q_(1, "N*s/m"),
+        czx=Q_(1, "N*s/m"),
+        czy=Q_(1, "N*s/m"),
+        czz=Q_(1, "N*s/m"),
     )
 
     # check if all available units are tested
     assert len(results) == len(units)
-
-    E, G_s, rho, L, idl, idr, odl, odr, speed, frequency = results
+    # fmt: off
+    (E, G_s, rho, L, idl, idr, odl, odr, speed, frequency, m, mx, my, Ip, Id,
+     width, i_d, o_d, kxx, kxy, kxz, kyx, kyy, kyz, kzx, kzy, kzz, cxx, cxy,
+     cxz, cyx, cyy, cyz, czx, czy, czz) = results
+    # fmt: on
 
     assert E == 1
     assert G_s == 1
@@ -68,6 +137,32 @@ def test_unit_Q_(auxiliary_function):
     assert odr == 1
     assert speed == 1
     assert frequency == 1
+    assert m == 1
+    assert mx == 1
+    assert my == 1
+    assert Ip == 1
+    assert Id == 1
+    assert width == 1
+    assert i_d == 1
+    assert o_d == 1
+    assert kxx == 1
+    assert kxy == 1
+    assert kxz == 1
+    assert kyx == 1
+    assert kyy == 1
+    assert kyz == 1
+    assert kzx == 1
+    assert kzy == 1
+    assert kzz == 1
+    assert cxx == 1
+    assert cxy == 1
+    assert cxz == 1
+    assert cyx == 1
+    assert cyy == 1
+    assert cyz == 1
+    assert czx == 1
+    assert czy == 1
+    assert czz == 1
 
 
 def test_unit_Q_conversion(auxiliary_function):
@@ -82,12 +177,42 @@ def test_unit_Q_conversion(auxiliary_function):
         odr=Q_(1, "inches"),
         speed=Q_(1, "RPM"),
         frequency=Q_(1, "RPM"),
+        m=Q_(1, "lb"),
+        mx=Q_(1, "lb"),
+        my=Q_(1, "lb"),
+        Ip=Q_(1, "lb*in**2"),
+        Id=Q_(1, "lb*in**2"),
+        width=Q_(1, "inches"),
+        i_d=Q_(1, "inches"),
+        o_d=Q_(1, "inches"),
+        kxx=Q_(1, "lbf/in"),
+        kxy=Q_(1, "lbf/in"),
+        kxz=Q_(1, "lbf/in"),
+        kyx=Q_(1, "lbf/in"),
+        kyy=Q_(1, "lbf/in"),
+        kyz=Q_(1, "lbf/in"),
+        kzx=Q_(1, "lbf/in"),
+        kzy=Q_(1, "lbf/in"),
+        kzz=Q_(1, "lbf/in"),
+        cxx=Q_(1, "lbf*s/in"),
+        cxy=Q_(1, "lbf*s/in"),
+        cxz=Q_(1, "lbf*s/in"),
+        cyx=Q_(1, "lbf*s/in"),
+        cyy=Q_(1, "lbf*s/in"),
+        cyz=Q_(1, "lbf*s/in"),
+        czx=Q_(1, "lbf*s/in"),
+        czy=Q_(1, "lbf*s/in"),
+        czz=Q_(1, "lbf*s/in"),
     )
 
     # check if all available units are tested
     assert len(results) == len(units)
 
-    E, G_s, rho, L, idl, idr, odl, odr, speed, frequency = results
+    # fmt: off
+    (E, G_s, rho, L, idl, idr, odl, odr, speed, frequency, m, mx, my, Ip, Id,
+     width, i_d, o_d, kxx, kxy, kxz, kyx, kyy, kyz, kzx, kzy, kzz, cxx, cxy,
+     cxz, cyx, cyy, cyz, czx, czy, czz) = results
+    # fmt: on
 
     assert E == 6894.7572931683635
     assert G_s == 6894.7572931683635
@@ -99,6 +224,32 @@ def test_unit_Q_conversion(auxiliary_function):
     assert odr == 0.0254
     assert speed == 0.10471975511965977
     assert frequency == 0.10471975511965977
+    assert m == 0.4535923700000001
+    assert mx == 0.4535923700000001
+    assert my == 0.4535923700000001
+    assert Ip == 0.0002926396534292
+    assert Id == 0.0002926396534292
+    assert width == 0.0254
+    assert i_d == 0.0254
+    assert o_d == 0.0254
+    assert kxx == 175.12683524647645
+    assert kxy == 175.12683524647645
+    assert kxz == 175.12683524647645
+    assert kyx == 175.12683524647645
+    assert kyy == 175.12683524647645
+    assert kyz == 175.12683524647645
+    assert kzx == 175.12683524647645
+    assert kzy == 175.12683524647645
+    assert kzz == 175.12683524647645
+    assert cxx == 175.12683524647645
+    assert cxy == 175.12683524647645
+    assert cxz == 175.12683524647645
+    assert cyx == 175.12683524647645
+    assert cyy == 175.12683524647645
+    assert cyz == 175.12683524647645
+    assert czx == 175.12683524647645
+    assert czy == 175.12683524647645
+    assert czz == 175.12683524647645
 
 
 # NOTE ABOUT TESTS BELOW
