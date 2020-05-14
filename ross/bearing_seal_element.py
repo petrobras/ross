@@ -36,32 +36,32 @@ bokeh_colors = bp.RdGy[11]
 
 
 class _Coefficient:
-    def __init__(self, coefficient, w=None, interpolated=None):
+    def __init__(self, coefficient, frequency=None, interpolated=None):
         if isinstance(coefficient, (int, float)):
-            if w is not None and type(w) != float:
-                coefficient = [coefficient for _ in range(len(w))]
+            if frequency is not None and type(frequency) != float:
+                coefficient = [coefficient for _ in range(len(frequency))]
             else:
                 coefficient = [coefficient]
 
         self.coefficient = coefficient
-        self.w = w
+        self.frequency = frequency
 
         if len(self.coefficient) > 1:
             try:
                 with warnings.catch_warnings():
                     warnings.simplefilter("ignore")
                     self.interpolated = interpolate.UnivariateSpline(
-                        self.w, self.coefficient
+                        self.frequency, self.coefficient
                     )
             #  dfitpack.error is not exposed by scipy
             #  so a bare except is used
             except:
                 try:
-                    if len(self.w) in (2, 3):
+                    if len(self.frequency) in (2, 3):
                         self.interpolated = interpolate.interp1d(
-                            self.w,
+                            self.frequency,
                             self.coefficient,
-                            kind=len(self.w) - 1,
+                            kind=len(self.frequency) - 1,
                             fill_value="extrapolate",
                         )
                 except:
@@ -79,16 +79,16 @@ class _Coefficient:
             return False
 
     def __repr__(self):
-        coef = []
-        for i in self.coefficient:
-            coef.append("{:.2e}".format(i))
-        return f"{coef}"
+        return repr(self.coefficient)
+
+    def __getitem__(self, item):
+        return self.coefficient[item]
 
     def plot(self, ax=None, **kwargs):
         if ax is None:
             ax = plt.gca()
 
-        w_range = np.linspace(min(self.w), max(self.w), 30)
+        w_range = np.linspace(min(self.frequency), max(self.frequency), 30)
 
         ax.plot(w_range, self.interpolated(w_range), **kwargs)
         ax.set_xlabel("Speed (rad/s)")
@@ -212,7 +212,7 @@ class BearingElement(Element):
         for arg in args:
             if arg[0] == "k":
                 coefficients[arg] = _Stiffness_Coefficient(
-                    coefficient=args_dict[arg], w=args_dict["frequency"]
+                    coefficient=args_dict[arg], frequency=args_dict["frequency"]
                 )
             else:
                 coefficients[arg] = _Damping_Coefficient(
@@ -1387,7 +1387,7 @@ class MagneticBearingElement(BearingElement):
     >>> frequency = np.linspace(0, 100, 4)
     >>> mb = MagneticBearingElement(n=0,kxx=kxx,kyy=kyy,kxy=kxy,kyx=kyx,cxx=cxx,cyy=cyy,cxy=cxy,cyx=cyx,frequency=frequency)
     >>> mb.kxx
-    ['1.00e+03', '1.00e+03', '1.00e+03', '1.00e+03']
+    [1000.0, 1000.0, 1000.0, 1000.0]
     """
 
     def __init__(
@@ -1501,7 +1501,7 @@ class MagneticBearingElement(BearingElement):
         ...                                                 k_amp=k_amp,
         ...                                                 k_sense=k_sense)
         >>> mbearing.kxx
-        ['-4.64e+03']
+        [-4640.623377181318]
         """
 
         pL = [g0, i0, ag, nw, alpha, kp_pid, kd_pid, k_amp, k_sense]
@@ -1700,7 +1700,7 @@ class BearingElement6DoF(BearingElement):
         for arg in new_args:
             if arg[0] == "k":
                 coefficients[arg] = _Stiffness_Coefficient(
-                    coefficient=args_dict[arg], w=None
+                    coefficient=args_dict[arg], frequency=None
                 )
             else:
                 coefficients[arg] = _Damping_Coefficient(args_dict[arg], None)
