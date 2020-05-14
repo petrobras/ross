@@ -1006,6 +1006,20 @@ class SealElement(BearingElement):
     passed as an array.
     Values for each parameter will be interpolated for the speed.
 
+    SealElement objects are handled differently in the Rotor class, even though it
+    inherits from BearingElement class. Seal elements are not considered in static
+    analysis, i.e., it does not add reaction forces (only bearings support the rotor).
+    In stability level 1 analysis, seal elements are removed temporarily from the model,
+    so that the cross coupled coefficients are calculated and replace the seals from
+    the rotor model.
+    SealElement data is stored in an individual data frame, separate from other
+    bearing elements.
+
+    Notes
+    -----
+    SealElement class is strongly recommended to represent seals.
+    Avoid using BearingElement class for this purpose.
+
     Parameters
     ----------
     n: int
