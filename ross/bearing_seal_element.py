@@ -811,7 +811,7 @@ class BearingElement(Element):
         >>> import os
         >>> file_path = os.path.dirname(os.path.realpath(__file__)) + '/tests/data/bearing_seal_si.xls'
         >>> BearingElement.table_to_toml(0, file_path) # doctest: +ELLIPSIS
-        {'n': 0, 'kxx': [...
+        {'n': 0, 'kxx': array([
         """
         b_elem = cls.from_table(n, file)
         data = {
@@ -857,7 +857,7 @@ class BearingElement(Element):
         >>> file_path = os.path.dirname(os.path.realpath(__file__)) + '/tests/data/bearing_seal_si.xls'
         >>> BearingElement.from_table(0, file_path) # doctest: +ELLIPSIS
         BearingElement(n=0, n_link=None,
-         kxx=[...
+         kxx=array([...
         """
         parameters = read_table_file(file, "bearing", sheet_name, n)
         return cls(
