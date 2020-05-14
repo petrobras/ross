@@ -1387,7 +1387,7 @@ class MagneticBearingElement(BearingElement):
     >>> frequency = np.linspace(0, 100, 4)
     >>> mb = MagneticBearingElement(n=0,kxx=kxx,kyy=kyy,kxy=kxy,kyx=kyx,cxx=cxx,cyy=cyy,cxy=cxy,cyx=cyx,frequency=frequency)
     >>> mb.kxx
-    ['1.00e+03', '1.00e+03', '1.00e+03', '1.00e+03']
+    [1000.0, 1000.0, 1000.0, 1000.0]
     """
 
     def __init__(
@@ -1501,7 +1501,7 @@ class MagneticBearingElement(BearingElement):
         ...                                                 k_amp=k_amp,
         ...                                                 k_sense=k_sense)
         >>> mbearing.kxx
-        ['-4.64e+03']
+        [-4640.623377181318]
         """
 
         pL = [g0, i0, ag, nw, alpha, kp_pid, kd_pid, k_amp, k_sense]
