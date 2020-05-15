@@ -1,5 +1,5 @@
 """
-This module deals with units conversion in the ROSS library. 
+This module deals with units conversion in the ROSS library.
 """
 import inspect
 from functools import wraps
@@ -25,14 +25,27 @@ units = {
     "odr": "meter",
     "speed": "radian/second",
     "frequency": "radian/second",
+    "m": "kg",
+    "mx": "kg",
+    "my": "kg",
+    "Ip": "kg*m**2",
+    "Id": "kg*m**2",
+    "width": "meter",
+    "i_d": "meter",
+    "o_d": "meter",
 }
+for i, unit in zip(["k", "c"], ["N/m", "N*s/m"]):
+    for j in ["x", "y", "z"]:
+        for k in ["x", "y", "z"]:
+            units["".join([i, j, k])] = unit
 
 
 def check_units(func):
     """Wrapper to check and convert units to base_units.
 
-    If we use the check_units decorator in a function the arguments are checked, and if they are in the units
-    dictionary, they are converted to the 'default' unit given in the dictionary.
+    If we use the check_units decorator in a function the arguments are checked,
+    and if they are in the dictionary, they are converted to the 'default' unit given
+    in the dictionary.
 
     For example:
     >>> units = {
@@ -48,7 +61,8 @@ def check_units(func):
     >>> foo(L=0.5)
     0.5
 
-    If we call the function with a pint.Quantity object the value is automatically converted to the default:
+    If we call the function with a pint.Quantity object the value is automatically
+    converted to the default:
     >>> foo(L=Q_(0.5, 'inches'))
     0.0127
     """

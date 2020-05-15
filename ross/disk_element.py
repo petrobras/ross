@@ -14,6 +14,7 @@ import toml
 from bokeh.models import ColumnDataSource, HoverTool
 
 from ross.element import Element
+from ross.units import check_units
 from ross.utils import read_table_file
 
 __all__ = ["DiskElement", "DiskElement6DoF"]
@@ -29,11 +30,11 @@ class DiskElement(Element):
     ----------
     n: int
         Node in which the disk will be inserted.
-    m : float
+    m : float, pint.Quantity
         Mass of the disk element.
-    Id : float
+    Id : float, pint.Quantity
         Diametral moment of inertia.
-    Ip : float
+    Ip : float, pint.Quantity
         Polar moment of inertia
     tag : str, optional
         A tag to name the element
@@ -52,6 +53,7 @@ class DiskElement(Element):
     0.3
     """
 
+    @check_units
     def __init__(self, n, m, Id, Ip, tag=None, scale_factor=1.0, color=bokeh_colors[9]):
         self.n = int(n)
         self.n_l = n
@@ -463,6 +465,7 @@ class DiskElement(Element):
         return hover
 
     @classmethod
+    @check_units
     def from_geometry(
         cls,
         n,
@@ -483,12 +486,12 @@ class DiskElement(Element):
         n : int
             Node in which the disk will be inserted.
         material: ross.Material
-             Shaft material.
-        width : float
+             Disk material.
+        width : float, pint.Quantity
             The disk width.
-        i_d : float
+        i_d : float, pint.Quantity
             Inner diameter.
-        o_d : float
+        o_d : float, pint.Quantity
             Outer diameter.
         tag : str, optional
             A tag to name the element
@@ -588,11 +591,11 @@ class DiskElement6DoF(DiskElement):
     ----------
     n: int
         Node in which the disk will be inserted.
-    m : float
+    m : float, pint.Quantity
         Mass of the disk element.
-    Id : float
+    Id : float, pint.Quantity
         Diametral moment of inertia.
-    Ip : float
+    Ip : float, pint.Quantity
         Polar moment of inertia
     tag : str, optional
         A tag to name the element
