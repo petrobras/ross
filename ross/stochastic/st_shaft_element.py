@@ -260,7 +260,7 @@ class ST_ShaftElement:
 
         return f_list
 
-    def plot_random_var(self, var_list=[], **kwargs):
+    def plot_random_var(self, var_list=[], histogram_kwargs={}, plot_kwargs={}):
         """Plot histogram and the PDF.
 
         This function creates a histogram to display the random variable
@@ -270,21 +270,26 @@ class ST_ShaftElement:
         ----------
         var_list : list, optional
             List of random variables, in string format, to plot.
-        **kwargs : optional
+        histogram_kwargs : dict, optional
             Additional key word arguments can be passed to change
-            the numpy.histogram (e.g. density=True, bins=11, ...)
+            the plotly.go.histogram (e.g. histnorm="probability density", nbinsx=20...).
+            *See Plotly API to more information.
+        plot_kwargs : dict, optional
+            Additional key word arguments can be passed to change the plotly go.figure
+            (e.g. line=dict(width=4.0, color="royalblue"), opacity=1.0, ...).
+            *See Plotly API to more information.
 
         Returns
         -------
-        grid_plot : bokeh row
-            A row with the histogram plots.
+        fig : Plotly graph_objects.Figure()
+            A figure with the histogram plots.
 
         Examples
         --------
         >>> import ross.stochastic as srs
         >>> elm = srs.st_shaft_example()
-        >>> elm.plot_random_var(["odl"]) # doctest: +ELLIPSIS
-        Row...
+        >>> fig = elm.plot_random_var(["odl"])
+        >>> # fig.show()
         """
         label = dict(
             L="Length",
@@ -304,7 +309,9 @@ class ST_ShaftElement:
                 )
             )
 
-        return plot_histogram(self.attribute_dict, label, var_list, **kwargs)
+        return plot_histogram(
+            self.attribute_dict, label, var_list, histogram_kwargs={}, plot_kwargs={}
+        )
 
 
 def st_shaft_example():
