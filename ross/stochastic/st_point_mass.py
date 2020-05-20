@@ -30,6 +30,9 @@ class ST_PointMass:
     tag : str, optional
         A tag to name the element
         Default is None
+    color : str, optional
+        A color to be used when the element is represented.
+        Default is "DarkSalmon".
     is_random : list
         List of the object attributes to become random.
         Possibilities:
@@ -54,9 +57,9 @@ class ST_PointMass:
     """
 
     def __init__(
-        self, n, m=None, mx=None, my=None, tag=None, is_random=None,
+        self, n, m=None, mx=None, my=None, tag=None, color="DarkSalmon", is_random=None,
     ):
-        attribute_dict = dict(n=n, m=m, mx=mx, my=my, tag=tag,)
+        attribute_dict = dict(n=n, m=m, mx=mx, my=my, tag=tag, color=color,)
 
         self.is_random = is_random
         self.attribute_dict = attribute_dict
@@ -181,7 +184,7 @@ class ST_PointMass:
 
         return f_list
 
-    def plot_random_var(self, var_list=[], **kwargs):
+    def plot_random_var(self, var_list=[], histogram_kwargs={}, plot_kwargs={}):
         """Plot histogram and the PDF.
 
         This function creates a histogram to display the random variable
@@ -191,21 +194,26 @@ class ST_PointMass:
         ----------
         var_list : list, optional
             List of random variables, in string format, to plot.
-        **kwargs : optional
+        histogram_kwargs : dict, optional
             Additional key word arguments can be passed to change
-            the numpy.histogram (e.g. density=True, bins=11, ...)
+            the plotly.go.histogram (e.g. histnorm="probability density", nbinsx=20...).
+            *See Plotly API to more information.
+        plot_kwargs : dict, optional
+            Additional key word arguments can be passed to change the plotly go.figure
+            (e.g. line=dict(width=4.0, color="royalblue"), opacity=1.0, ...).
+            *See Plotly API to more information.
 
         Returns
         -------
-        grid_plot : bokeh row
-            A row with the histogram plots.
+        fig : Plotly graph_objects.Figure()
+            A figure with the histogram plots.
 
         Examples
         --------
         >>> import ross.stochastic as srs
         >>> elm = srs.st_pointmass_example()
-        >>> elm.plot_random_var(["mx"]) # doctest: +ELLIPSIS
-        Row...
+        >>> fig = elm.plot_random_var(["mx"])
+        >>> # fig.show()
         """
         label = dict(
             mx="Mass on the X direction", my="Mass on the Y direction", m="Mass",
@@ -217,7 +225,9 @@ class ST_PointMass:
                 )
             )
 
-        return plot_histogram(self.attribute_dict, label, var_list, **kwargs)
+        return plot_histogram(
+            self.attribute_dict, label, var_list, histogram_kwargs={}, plot_kwargs={}
+        )
 
 
 def st_pointmass_example():
