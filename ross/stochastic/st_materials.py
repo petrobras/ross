@@ -209,7 +209,7 @@ class ST_Material:
 
         return f_list
 
-    def plot_random_var(self, var_list=[], **kwargs):
+    def plot_random_var(self, var_list=[], histogram_kwargs={}, plot_kwargs={}):
         """Plot histogram and the PDF.
 
         This function creates a histogram to display the random variable
@@ -219,22 +219,27 @@ class ST_Material:
         ----------
         var_list : list, optional
             List of random variables, in string format, to plot.
-        **kwargs : optional
+        histogram_kwargs : dict, optional
             Additional key word arguments can be passed to change
-            the numpy.histogram (e.g. density=True, bins=11, ...)
+            the plotly.go.histogram (e.g. histnorm="probability density", nbinsx=20...).
+            *See Plotly API to more information.
+        plot_kwargs : dict, optional
+            Additional key word arguments can be passed to change the plotly go.figure
+            (e.g. line=dict(width=4.0, color="royalblue"), opacity=1.0, ...).
+            *See Plotly API to more information.
 
         Returns
         -------
-        grid_plot : bokeh row
-            A row with the histogram plots.
+        fig : Plotly graph_objects.Figure()
+            A figure with the histogram plots.
 
         Examples
         --------
         >>> import ross.stochastic as srs
         >>> E = np.random.uniform(208e9, 211e9, 5)
-        >>> st_steel = ST_Material(name="Steel", rho=7810, E=E, G_s=81.2e9)
-        >>> st_steel.plot_random_var(["E"]) # doctest: +ELLIPSIS
-        Row...
+        >>> st_steel = srs.ST_Material(name="Steel", rho=7810, E=E, G_s=81.2e9)
+        >>> fig = st_steel.plot_random_var(["E"])
+        >>> # fig.show()
         """
         label = dict(
             E="Young's Modulus",
@@ -251,4 +256,6 @@ class ST_Material:
                 )
             )
 
-        return plot_histogram(self.attribute_dict, label, var_list, **kwargs)
+        return plot_histogram(
+            self.attribute_dict, label, var_list, histogram_kwargs={}, plot_kwargs={}
+        )
