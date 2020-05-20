@@ -324,9 +324,9 @@ class ST_CampbellResults:
 
         subplots = make_subplots(rows=1, cols=2)
         for data in fig0["data"]:
-            subplots.append_trace(data, 1, 1)
+            subplots.add_trace(data, 1, 1)
         for data in fig1["data"]:
-            subplots.append_trace(data, 1, 2)
+            subplots.add_trace(data, 1, 2)
 
         subplots.update_xaxes(fig0.layout.xaxis, row=1, col=1)
         subplots.update_yaxes(fig1.layout.yaxis, row=1, col=1)
@@ -651,9 +651,9 @@ class ST_FrequencyResponseResults:
 
         subplots = make_subplots(rows=1, cols=2)
         for data in fig0["data"]:
-            subplots.append_trace(data, 1, 1)
+            subplots.add_trace(data, 1, 1)
         for data in fig1["data"]:
-            subplots.append_trace(data, 1, 2)
+            subplots.add_trace(data, 1, 2)
 
         subplots.update_xaxes(fig0.layout.xaxis, row=1, col=1)
         subplots.update_yaxes(fig0.layout.yaxis, row=1, col=1)
@@ -1497,9 +1497,9 @@ class ST_ForcedResponseResults:
 
         subplots = make_subplots(rows=1, cols=2)
         for data in fig0["data"]:
-            subplots.append_trace(data, 1, 1)
+            subplots.add_trace(data, 1, 1)
         for data in fig1["data"]:
-            subplots.append_trace(data, 1, 2)
+            subplots.add_trace(data, 1, 2)
 
         subplots.update_xaxes(fig0.layout.xaxis, row=1, col=1)
         subplots.update_yaxes(fig0.layout.yaxis, row=1, col=1)
