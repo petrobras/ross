@@ -7,18 +7,15 @@ There're 2 options, an element with 4 or 6 degrees of freedom.
 import os
 from pathlib import Path
 
-import bokeh.palettes as bp
-import matplotlib.patches as mpatches
 import numpy as np
+import plotly.graph_objects as go
 import toml
-from bokeh.models import ColumnDataSource, HoverTool
 
 from ross.element import Element
 from ross.units import check_units
 from ross.utils import read_table_file
 
 __all__ = ["DiskElement", "DiskElement6DoF"]
-bokeh_colors = bp.RdGy[11]
 
 
 class DiskElement(Element):
@@ -54,7 +51,7 @@ class DiskElement(Element):
     """
 
     @check_units
-    def __init__(self, n, m, Id, Ip, tag=None, scale_factor=1.0, color=bokeh_colors[9]):
+    def __init__(self, n, m, Id, Ip, tag=None, scale_factor=1.0, color="Firebrick"):
         self.n = int(n)
         self.n_l = n
         self.n_r = n
@@ -320,48 +317,7 @@ class DiskElement(Element):
         # fmt: on
         return G
 
-    def patch(self, position, ax):
-        """Disk element patch.
-
-        Patch that will be used to draw the disk element using Matplotlib library.
-
-        Parameters
-        ----------
-        position : float
-            Position in which the patch will be drawn.
-        ax : matplotlib axes, optional
-            Axes in which the plot will be drawn.
-        """
-        zpos, ypos, step = position
-        radius = step / 6
-
-        #  matplotlib node (x pos), outer diam. (y pos)
-        disk_points_u = [
-            [zpos, ypos],  # upper
-            [zpos + step / 6, ypos + 2 * step],
-            [zpos - step / 6, ypos + 2 * step],
-            [zpos, ypos],
-        ]
-        disk_points_l = [
-            [zpos, -ypos],  # lower
-            [zpos + step / 6, -ypos - 2 * step],
-            [zpos - step / 6, -ypos - 2 * step],
-            [zpos, -ypos],
-        ]
-
-        ax.add_patch(mpatches.Polygon(disk_points_u, facecolor=self.color))
-        ax.add_patch(mpatches.Polygon(disk_points_l, facecolor=self.color))
-
-        ax.add_patch(
-            mpatches.Circle(xy=(zpos, ypos + 2 * step), radius=radius, color=self.color)
-        )
-        ax.add_patch(
-            mpatches.Circle(
-                xy=(zpos, -ypos - 2 * step), radius=radius, color=self.color
-            )
-        )
-
-    def bokeh_patch(self, position, bk_ax):
+    def _patch(self, position, fig):
         """Disk element patch.
 
         Patch that will be used to draw the shaft element using Bokeh library.
@@ -370,99 +326,93 @@ class DiskElement(Element):
         ----------
         position : float
             Position in which the patch will be drawn.
-        bk_ax : bokeh plotting axes, optional
-            Axes in which the plot will be drawn.
+        fig : plotly.graph_objects.Figure
+            The figure object which traces are added on.
 
         Returns
         -------
-        hover : Bokeh HoverTool
-            Bokeh HoverTool axes
+        fig : plotly.graph_objects.Figure
+            The figure object which traces are added on.
         """
         zpos, ypos, step = position
+        radius = step / 6
 
         # bokeh plot - coordinates to plot disks elements
-        z_upper = [zpos, zpos + step / 6, zpos - step / 6]
-        y_upper = [ypos, ypos + 2 * step, ypos + 2 * step]
+        z_upper = [zpos, zpos + step / 6, zpos - step / 6, zpos]
+        y_upper = [ypos, ypos + 2 * step, ypos + 2 * step, ypos]
 
-        z_lower = [zpos, zpos + step / 6, zpos - step / 6]
-        y_lower = [-ypos, -ypos - 2 * step, -ypos - 2 * step]
+        z_lower = [zpos, zpos + step / 6, zpos - step / 6, zpos]
+        y_lower = [-ypos, -ypos - 2 * step, -ypos - 2 * step, -ypos]
 
-        source = ColumnDataSource(
-            dict(
-                z_l=[z_lower],
-                y_l=[y_lower],
-                z_u=[z_upper],
-                y_u=[y_upper],
-                elnum=[self.n],
-                IP=[self.Ip],
-                ID=[self.Id],
-                mass=[self.m],
-                tag=[self.tag],
-            )
-        )
-        source_c = ColumnDataSource(
-            dict(
-                z_circle=[z_upper[0]],
-                yu_circle=[y_upper[1]],
-                yl_circle=[-y_upper[1]],
-                radius=[step / 6],
-                elnum=[self.n],
-                IP=[self.Ip],
-                ID=[self.Id],
-                mass=[self.m],
-                tag=[self.tag],
-            )
-        )
+        z_pos = z_upper
+        z_pos.append(None)
+        z_pos.extend(z_lower)
 
-        bk_ax.patches(
-            xs="z_u",
-            ys="y_u",
-            source=source,
-            alpha=1,
-            line_width=2,
-            color=self.color,
-            legend_label="Disk",
-            name="ub_disk",
-        )
-        bk_ax.patches(
-            xs="z_l",
-            ys="y_l",
-            source=source,
-            alpha=1,
-            line_width=2,
-            color=self.color,
-            name="ub_disk",
-        )
-        bk_ax.circle(
-            x="z_circle",
-            y="yu_circle",
-            radius="radius",
-            source=source_c,
-            fill_alpha=1,
-            color=self.color,
-            name="uc_disk",
-        )
-        bk_ax.circle(
-            x="z_circle",
-            y="yl_circle",
-            radius="radius",
-            source=source_c,
-            fill_alpha=1,
-            color=self.color,
-            name="lc_disk",
-        )
+        y_pos = y_upper
+        y_upper.append(None)
+        y_pos.extend(y_lower)
 
-        hover = HoverTool(names=["uc_disk", "lc_disk", "ub_disk", "lb_disk"])
-        hover.tooltips = [
-            ("Disk Node", "@elnum"),
-            ("Polar Moment of Inertia", "@IP"),
-            ("Diametral Moment of Inertia", "@ID"),
-            ("Disk mass", "@mass"),
-            ("Tag", "@tag"),
+        customdata = [
+            self.n,
+            self.Ip,
+            self.Id,
+            self.m,
         ]
-        hover.mode = "mouse"
+        hovertemplate = (
+            f"<b>Disk Node: {customdata[0]}<b><br>"
+            + f"<b>Polar Inertia: {customdata[1]:.3e}<b><br>"
+            + f"<b>Diametral Inertia: {customdata[2]:.3e}<b><br>"
+            + f"<b>Disk mass: {customdata[3]:.3f}<b><br>"
+        )
 
-        return hover
+        fig.add_trace(
+            go.Scatter(
+                x=z_pos,
+                y=y_pos,
+                customdata=[customdata] * len(z_pos),
+                text=hovertemplate,
+                mode="lines",
+                fill="toself",
+                fillcolor=self.color,
+                line=dict(width=2.0, color=self.color),
+                showlegend=False,
+                name=self.tag,
+                legendgroup="disks",
+                hoveron="points+fills",
+                hoverinfo="text",
+                hovertemplate=hovertemplate,
+                hoverlabel=dict(bgcolor=self.color),
+            )
+        )
+
+        fig.add_shape(
+            dict(
+                type="circle",
+                xref="x",
+                yref="y",
+                x0=z_upper[1],
+                y0=y_upper[1] - radius,
+                x1=z_upper[2],
+                y1=y_upper[1] + radius,
+                fillcolor=self.color,
+                line_color=self.color,
+            )
+        )
+        fig.add_shape(
+            dict(
+                type="circle",
+                xref="x",
+                yref="y",
+                x0=z_lower[1],
+                y0=y_lower[1] + radius,
+                x1=z_lower[2],
+                y1=y_lower[1] - radius,
+                fillcolor=self.color,
+                line_color=self.color,
+            )
+        )
+
+        return fig
 
     @classmethod
     @check_units
@@ -475,7 +425,7 @@ class DiskElement(Element):
         o_d,
         tag=None,
         scale_factor=1.0,
-        color=bokeh_colors[9],
+        color="FireBrick",
     ):
         """Create a disk element from geometry properties.
 
@@ -534,7 +484,7 @@ class DiskElement(Element):
 
     @classmethod
     def from_table(
-        cls, file, sheet_name=0, tag=None, scale_factor=1, color=bokeh_colors[9]
+        cls, file, sheet_name=0, tag=None, scale_factor=1, color="FireBrick"
     ):
         """Instantiate one or more disks using inputs from an Excel table.
 
