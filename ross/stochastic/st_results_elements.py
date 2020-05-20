@@ -3,16 +3,20 @@
 This modules provides functions to plot the elements statistic data.
 """
 import numpy as np
-from bokeh.layouts import gridplot
-from bokeh.plotting import figure
+import plotly.graph_objects as go
+import plotly.io as pio
+from plotly.subplots import make_subplots
 from scipy.stats import gaussian_kde
 
+pio.renderers.default = "browser"
 
-def plot_histogram(attribute_dict, label={}, var_list=[], **kwargs):
+
+def plot_histogram(
+    attribute_dict, label={}, var_list=[], histogram_kwargs={}, plot_kwargs={}
+):
     """Plot histogram and the PDF.
 
-    This function creates a histogram to display the random variable
-    distribution.
+    This function creates a histogram to display the random variable distribution.
 
     Parameters
     ----------
@@ -20,51 +24,60 @@ def plot_histogram(attribute_dict, label={}, var_list=[], **kwargs):
         Dictionary with element parameters.
     label : dict
         Dictionary with labels for each element parameter. Labels are displayed
-        on bokeh figure.
+        on plotly figure.
     var_list : list, optional
         List of random variables, in string format, to plot.
-    **kwargs : optional
+    histogram_kwargs : dict, optional
         Additional key word arguments can be passed to change
-        the numpy.histogram (e.g. density=True, bins=11, ...)
+        the plotly.go.histogram (e.g. histnorm="probability density", nbinsx=20...).
+        *See Plotly API to more information.
+    plot_kwargs : dict, optional
+        Additional key word arguments can be passed to change the plotly go.figure
+        (e.g. line=dict(width=4.0, color="royalblue"), opacity=1.0...).
+        *See Plotly API to more information.
 
     Returns
     -------
-    grid_plot : bokeh row
-        A row with the histogram plots.
+    subplots : Plotly graph_objects.make_subplots()
+        A figure with the histogram plots.
     """
-    default_values = dict(density=True, bins=21)
-    for k, v in default_values.items():
-        kwargs.setdefault(k, v)
+    hist_default_values = dict(
+        histnorm="probability density",
+        cumulative_enabled=False,
+        nbinsx=20,
+        marker_color="red",
+        opacity=1.0,
+    )
+    for k, v in hist_default_values.items():
+        histogram_kwargs.setdefault(k, v)
 
-    figures = []
+    plot_default_values = dict(line=dict(width=4.0, color="royalblue"), opacity=1.0)
+    for k, v in plot_default_values.items():
+        plot_kwargs.setdefault(k, v)
 
-    for var in var_list:
-        hist, edges = np.histogram(attribute_dict[var], **kwargs)
-        if kwargs["density"] is True:
-            y_label = "PDF"
+    rows = 1 if len(var_list) < 2 else 2
+    cols = len(var_list) // 2 + len(var_list) % 2
+    fig = make_subplots(
+        rows=rows,
+        cols=cols,
+        subplot_titles=["<b>Histogram - {}<b>".format(var) for var in var_list],
+    )
+
+    for i, var in enumerate(var_list):
+        row = i % 2 + 1
+        col = i // 2 + 1
+        if histogram_kwargs["histnorm"] == "probability density":
+            if histogram_kwargs["cumulative_enabled"] is True:
+                y_label = "CDF"
+            else:
+                y_label = "PDF"
         else:
             y_label = "Frequency"
 
-        fig = figure(
-            width=640,
-            height=480,
-            title="Histogram - {}".format(var),
-            x_axis_label="{}".format(label[var]),
-            y_axis_label="{}".format(y_label),
-        )
-        fig.xaxis.axis_label_text_font_size = "14pt"
-        fig.yaxis.axis_label_text_font_size = "14pt"
-        fig.axis.major_label_text_font_size = "14pt"
-        fig.title.text_font_size = "14pt"
-
-        fig.quad(
-            top=hist,
-            bottom=0,
-            left=edges[:-1],
-            right=edges[1:],
-            fill_color="red",
-            line_color="white",
-            alpha=1.0,
+        fig.add_trace(
+            go.Histogram(x=attribute_dict[var], name="Histogram", **histogram_kwargs),
+            row=row,
+            col=col,
         )
         if y_label == "PDF":
             x = np.linspace(
@@ -73,17 +86,39 @@ def plot_histogram(attribute_dict, label={}, var_list=[], **kwargs):
                 len(attribute_dict[var]),
             )
             kernel = gaussian_kde(attribute_dict[var])
-            fig.line(
-                x,
-                kernel(x),
-                line_alpha=1.0,
-                line_width=3.0,
-                line_color="royalblue",
-                legend_label="pdf estimation",
+            fig.add_trace(
+                go.Scatter(
+                    x=x,
+                    y=kernel(x),
+                    mode="lines",
+                    name="PDF Estimation",
+                    **plot_kwargs,
+                ),
+                row=row,
+                col=col,
             )
+        fig.update_xaxes(
+            title_text="{}".format(label[var]),
+            title_font=dict(family="Arial", size=20),
+            gridcolor="lightgray",
+            showline=True,
+            linewidth=2.5,
+            linecolor="black",
+            mirror=True,
+            row=row,
+            col=col,
+        )
+        fig.update_yaxes(
+            title_text="{}".format(y_label),
+            title_font=dict(family="Arial", size=20),
+            gridcolor="lightgray",
+            showline=True,
+            linewidth=2.5,
+            linecolor="black",
+            mirror=True,
+            row=row,
+            col=col,
+        )
+    fig.update_layout(bargroupgap=0.1, plot_bgcolor="white")
 
-        figures.append(fig)
-
-    grid_plot = gridplot([figures], toolbar_location="right")
-
-    return grid_plot
+    return fig
