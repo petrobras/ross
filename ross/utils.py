@@ -3,9 +3,6 @@ import re
 import numpy as np
 import pandas as pd
 import plotly.graph_objects as go
-from bokeh.models import LogColorMapper
-from bokeh.palettes import Viridis256
-from bokeh.plotting import figure
 
 
 class DataNotFoundError(Exception):
