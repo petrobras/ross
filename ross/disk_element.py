@@ -41,7 +41,7 @@ class DiskElement(Element):
         Default is 1.
     color : str, optional
         A color to be used when the element is represented.
-        Default is '#b2182b' (Cardinal).
+        Default is 'FireBrick' (Cardinal).
 
     Examples
     --------
@@ -148,6 +148,8 @@ class DiskElement(Element):
             "Id": self.Id,
             "Ip": self.Ip,
             "tag": self.tag,
+            "scale_factor": self.scale_factor,
+            "color": self.color,
         }
         self.dump_data(data, Path(file_name) / "DiskElement.toml")
 
@@ -451,7 +453,7 @@ class DiskElement(Element):
             Default is 1.
         color : str, optional
             A color to be used when the element is represented.
-            Default is '#b2182b' (Cardinal).
+            Default is 'FireBrick' (Cardinal).
 
         Attributes
         ----------
@@ -555,7 +557,7 @@ class DiskElement6DoF(DiskElement):
         Default is 1.
     color : str, optional
         A color to be used when the element is represented.
-        Default is '#b2182b' (Cardinal).
+        Default is 'FireBrick' (Cardinal).
 
     Examples
     --------
