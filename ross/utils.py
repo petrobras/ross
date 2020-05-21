@@ -2,6 +2,7 @@ import re
 
 import numpy as np
 import pandas as pd
+import plotly.graph_objects as go
 from bokeh.models import LogColorMapper
 from bokeh.palettes import Viridis256
 from bokeh.plotting import figure
@@ -17,6 +18,7 @@ class DataNotFoundError(Exception):
 
 def read_table_file(file, element, sheet_name=0, n=0, sheet_type="Model"):
     """Instantiate one or more element objects using inputs from an Excel table.
+
     Parameters
     ----------
     file: str
@@ -24,16 +26,19 @@ def read_table_file(file, element, sheet_name=0, n=0, sheet_type="Model"):
     element: str
         Specify the type of element to be instantiated: bearing, shaft or disk.
     sheet_name: int or str, optional
-        Position of the sheet in the file (starting from 0) or its name. If none is passed, it is
-        assumed to be the first sheet in the file.
+        Position of the sheet in the file (starting from 0) or its name. If none is
+        passed, it is assumed to be the first sheet in the file.
     n: int
-        Exclusive for bearing elements, since this parameter is given outside the table file.
+        Exclusive for bearing elements, since this parameter is given outside the table
+        file.
     sheet_type: str
-        Exclusive for shaft elements, as they have a Model table in which more information can be passed,
-        such as the material parameters.
+        Exclusive for shaft elements, as they have a Model table in which more
+        information can be passed, such as the material parameters.
+
     Returns
     -------
     A dictionary of parameters.
+
     Examples
     --------
     >>> import os
@@ -296,7 +301,7 @@ def read_table_file(file, element, sheet_name=0, n=0, sheet_type="Model"):
     return parameters
 
 
-def visualize_matrix(rotor, matrix=None, frequency=None):
+def visualize_matrix(rotor, matrix, frequency=None, **kwargs):
     """Visualize global matrix.
 
     This function gives some visualization of a given matrix, displaying
@@ -305,19 +310,21 @@ def visualize_matrix(rotor, matrix=None, frequency=None):
     Parameters
     ----------
     rotor: rs.Rotor
-    
+        The rotor object.
     matrix: str
         String for the desired matrix.
     frequency: float, optional
         Excitation frequency. Defaults to rotor speed.
-    
+    kwargs : optional
+        Additional key word arguments can be passed to change the plot layout only
+        (e.g. coloraixs=dict(colorscale="Rainbow"), width=1000, height=800, ...).
+        *See Plotly Python Figure Reference for more information.
+
     Returns
     -------
-    fig: bokeh.figure
+    fig : Plotly graph_objects.Figure()
+        The figure object with the plot.
     """
-    if frequency is None:
-        frequency = rotor.w
-
     A = np.zeros((rotor.ndof, rotor.ndof))
     # E will store element's names and contributions to the global matrix
     E = np.zeros((rotor.ndof, rotor.ndof), dtype=np.object)
@@ -328,7 +335,7 @@ def visualize_matrix(rotor, matrix=None, frequency=None):
             E[i, j] = []
 
     for elm in rotor.elements:
-        g_dofs = elm.dof_global_index()
+        g_dofs = elm.dof_global_index
         l_dofs = elm.dof_local_index()
         try:
             elm_matrix = getattr(elm, matrix)(frequency)
@@ -341,7 +348,7 @@ def visualize_matrix(rotor, matrix=None, frequency=None):
             for l1, g1 in zip(l_dofs, g_dofs):
                 if elm_matrix[l0, l1] != 0:
                     E[g0, g1].append(
-                        "\n"
+                        "<br>"
                         + elm.__class__.__name__
                         + f"(n={elm.n})"
                         + f": {elm_matrix[l0, l1]:.2E}"
@@ -351,7 +358,7 @@ def visualize_matrix(rotor, matrix=None, frequency=None):
     dof_list = [0 for i in range(rotor.ndof)]
 
     for elm in rotor.elements:
-        for k, v in elm.dof_global_index()._asdict().items():
+        for k, v in elm.dof_global_index._asdict().items():
             dof_list[v] = k
 
     data = {"row": [], "col": [], "value": [], "pos_value": [], "elements": []}
@@ -363,32 +370,6 @@ def visualize_matrix(rotor, matrix=None, frequency=None):
             data["pos_value"].append(abs(A[i, j]))
             data["elements"].append(E[i, j])
 
-    TOOLTIPS = """
-        <div style="width:150px;">
-            <span style="font-size: 10px;">Value: @value</span>
-            <br>
-            <span style="font-size: 10px;">Elements: </span>
-            <br>
-            <span style="font-size: 10px;">@elements</span>
-        </div>
-    """
-    fig = figure(
-        tools="hover",
-        tooltips=TOOLTIPS,
-        x_range=(-0.5, len(A) - 0.5),
-        y_range=(len(A) - 0.5, -0.5),
-        x_axis_location="above",
-    )
-    fig.plot_width = 500
-    fig.plot_height = 500
-    fig.grid.grid_line_color = None
-    fig.axis.axis_line_color = None
-    fig.axis.major_tick_line_color = None
-    fig.axis.major_label_text_font_size = "7pt"
-    fig.axis.major_label_standoff = 0
-    fig.xaxis.ticker = [i for i in range(len(dof_list))]
-    fig.yaxis.ticker = [i for i in range(len(dof_list))]
-
     dof_string_list = []
     sub = str.maketrans("0123456789", "₀₁₂₃₄₅₆₇₈₉")
     for d in dof_list:
@@ -398,19 +379,52 @@ def visualize_matrix(rotor, matrix=None, frequency=None):
         d = d.translate(sub)
         dof_string_list.append(d)
 
-    fig.xaxis.major_label_overrides = {k: v for k, v in enumerate(dof_string_list)}
-    fig.yaxis.major_label_overrides = {k: v for k, v in enumerate(dof_string_list)}
+    x_axis = dof_string_list
+    y_axis = dof_string_list[::-1]
+    fig = go.Figure()
+    fig.add_trace(
+        go.Heatmap(
+            x=x_axis,
+            y=y_axis,
+            z=A[::-1],
+            customdata=np.array(data["elements"]).reshape(A.shape)[::-1],
+            coloraxis="coloraxis",
+            hovertemplate=(
+                "<b>Value: %{z:.3e}<b><br>" + "<b>Elements:<b><br> %{customdata}"
+            ),
+            name="<b>Matrix {}</b>".format(matrix),
+        )
+    )
 
-    mapper = LogColorMapper(palette=Viridis256, low=0, high=A.max())
-
-    fig.rect(
-        "row",
-        "col",
-        0.95,
-        0.95,
-        source=data,
-        fill_color={"field": "pos_value", "transform": mapper},
-        line_color=None,
+    fig.update_xaxes(
+        tickfont=dict(size=16),
+        showline=True,
+        linewidth=2.5,
+        linecolor="black",
+        mirror=True,
+    )
+    fig.update_yaxes(
+        tickfont=dict(size=16),
+        showline=True,
+        linewidth=2.5,
+        linecolor="black",
+        mirror=True,
+    )
+    fig.update_layout(
+        width=1200,
+        height=900,
+        hoverlabel_align="left",
+        coloraxis=dict(
+            cmin=np.amin(A),
+            cmax=np.amax(A),
+            colorscale="Rainbow",
+            colorbar=dict(
+                title=dict(text="<b>Value</b>", side="top", font=dict(size=20)),
+                tickfont=dict(size=16),
+                exponentformat="power",
+            ),
+        ),
+        **kwargs,
     )
 
     return fig
