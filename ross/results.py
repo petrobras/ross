@@ -1200,10 +1200,10 @@ class ForcedResponseResults:
         mag = self.magnitude
 
         if units == "m":
-            y_axis_label = "Amplitude (m)"
+            y_axis_label = "<b>Amplitude (m)</b>"
         elif units == "mic-pk-pk":
             mag = 2 * mag * 1e6
-            y_axis_label = "Amplitude (μ pk-pk)"
+            y_axis_label = "<b>Amplitude (μ pk-pk)</b>"
 
         kwargs_default_values = dict(
             width=1200, height=900, plot_bgcolor="white", hoverlabel_align="right",
@@ -2377,7 +2377,7 @@ class TimeResponseResults:
         )
         fig.update_layout(
             title=dict(
-                text="Response for node {} - DoF {}".format(dof // 4, obs_dof),
+                text="<b>Response for node {} - DoF {}</b>".format(dof // 4, obs_dof),
                 font=dict(size=20),
             ),
             **kwargs,
@@ -2448,7 +2448,9 @@ class TimeResponseResults:
             mirror=True,
         )
         fig.update_layout(
-            title=dict(text="Response for node {}".format(node), font=dict(size=20)),
+            title=dict(
+                text="<b>Response for node {}</b>".format(node), font=dict(size=20)
+            ),
             **kwargs,
         )
 

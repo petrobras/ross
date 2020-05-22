@@ -41,7 +41,7 @@ class DiskElement(Element):
         Default is 1.
     color : str, optional
         A color to be used when the element is represented.
-        Default is 'FireBrick' (Cardinal).
+        Default is 'Firebrick'.
 
     Examples
     --------
@@ -427,7 +427,7 @@ class DiskElement(Element):
         o_d,
         tag=None,
         scale_factor=1.0,
-        color="FireBrick",
+        color="Firebrick",
     ):
         """Create a disk element from geometry properties.
 
@@ -453,7 +453,7 @@ class DiskElement(Element):
             Default is 1.
         color : str, optional
             A color to be used when the element is represented.
-            Default is 'FireBrick' (Cardinal).
+            Default is 'Firebrick' (Cardinal).
 
         Attributes
         ----------
@@ -486,7 +486,7 @@ class DiskElement(Element):
 
     @classmethod
     def from_table(
-        cls, file, sheet_name=0, tag=None, scale_factor=1, color="FireBrick"
+        cls, file, sheet_name=0, tag=None, scale_factor=None, color=None,
     ):
         """Instantiate one or more disks using inputs from an Excel table.
 
@@ -502,6 +502,16 @@ class DiskElement(Element):
         sheet_name : int or str, optional
             Position of the sheet in the file (starting from 0) or its name.
             If none is passed, it is assumed to be the first sheet in the file.
+        tag_list : list, optional
+            list of tags for the disk elements.
+            Default is None
+        scale_factor: list, optional
+            List of scale factors for the disk elements patches.
+            The scale factor is used to scale the disk drawing.
+            Default is 1.
+        color : list, optional
+            A color to be used when the element is represented.
+            Default is 'Firebrick'.
 
         Returns
         -------
@@ -517,6 +527,13 @@ class DiskElement(Element):
         DiskElement(Id=0.0, Ip=0.0, m=15.12, color='Firebrick', n=3, tag=None)
         """
         parameters = read_table_file(file, "disk", sheet_name=sheet_name)
+        if tag is None:
+            tag = [None] * len(parameters["n"])
+        if scale_factor is None:
+            scale_factor = [1] * len(parameters["n"])
+        if color is None:
+            color = ["Firebrick"] * len(parameters["n"])
+
         list_of_disks = []
         for i in range(0, len(parameters["n"])):
             list_of_disks.append(
@@ -525,9 +542,9 @@ class DiskElement(Element):
                     m=parameters["m"][i],
                     Id=float(parameters["Id"][i]),
                     Ip=float(parameters["Ip"][i]),
-                    tag=tag,
-                    scale_factor=scale_factor,
-                    color=color,
+                    tag=tag[i],
+                    scale_factor=scale_factor[i],
+                    color=color[i],
                 )
             )
         return list_of_disks
@@ -557,7 +574,7 @@ class DiskElement6DoF(DiskElement):
         Default is 1.
     color : str, optional
         A color to be used when the element is represented.
-        Default is 'FireBrick' (Cardinal).
+        Default is 'Firebrick'.
 
     Examples
     --------
