@@ -11,12 +11,9 @@ from ross.fluid_flow.fluid_flow_coefficients import (
     calculate_damping_matrix, calculate_oil_film_force,
     calculate_stiffness_matrix, find_equilibrium_position)
 from ross.fluid_flow.fluid_flow_geometry import move_rotor_center
-from ross.fluid_flow.fluid_flow_graphics import (plot_eccentricity,
-                                                 plot_pressure_theta,
-                                                 plot_pressure_theta_cylindrical,
-                                                 plot_pressure_surface,
-                                                 plot_pressure_z,
-                                                 plot_shape)
+from ross.fluid_flow.fluid_flow_graphics import (
+    plot_eccentricity, plot_pressure_surface, plot_pressure_theta,
+    plot_pressure_theta_cylindrical, plot_pressure_z, plot_shape)
 
 # fmt: on
 
