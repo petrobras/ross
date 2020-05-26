@@ -1,11 +1,14 @@
-"""
-This module deals with units conversion in the ROSS library.
-"""
+"""This module deals with units conversion in the ROSS library."""
 import inspect
+import warnings
 from functools import wraps
 from pathlib import Path
 
-from pint import UnitRegistry
+from pint import Quantity, UnitRegistry
+
+with warnings.catch_warnings():
+    warnings.simplefilter("ignore")
+    Quantity([])
 
 new_units_path = Path(__file__).parent / "new_units.txt"
 ureg = UnitRegistry()
