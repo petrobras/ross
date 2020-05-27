@@ -1087,11 +1087,11 @@ class FrequencyResponseResults:
 
         return fig
 
-    def plot(self, inp, out, mag_kwargs={}, phase_kwargs={}, **subplot_kwargs):
-        """Plot frequency response.
+    def plot_polar_bode(self, inp, out, units="mic-pk-pk", **polar_kwargs):
+        """Plot frequency response (polar) using Plotly.
 
-        This method plots the frequency response given an output and an input
-        using Plotly.
+        This method plots the frequency response (polar graph) given an output and
+        an input using Plotly.
 
         Parameters
         ----------
@@ -1099,6 +1099,111 @@ class FrequencyResponseResults:
             Input.
         out : int
             Output.
+        units : str
+            Magnitude unit system.
+            Default is "mic-pk-pk"
+        polar_kwargs : optional
+            Additional key word arguments can be passed to change the plot layout only
+            (e.g. width=1000, height=800, ...).
+            *See Plotly Python Figure Reference for more information.
+
+        Returns
+        -------
+        fig : Plotly graph_objects.Figure()
+            The figure object with the plot.
+        """
+        frequency_range = self.speed_range
+        mag = self.magnitude
+        phase = self.phase
+
+        if units == "m":
+            r_axis_label = "<b>Amplitude (m)</b>"
+        elif units == "mic-pk-pk":
+            r_axis_label = "<b>Amplitude (μ pk-pk)</b>"
+        else:
+            r_axis_label = "<b>Amplitude (dB)</b>"
+
+        kwargs_default_values = dict(
+            width=1200, height=900, polar_bgcolor="white", hoverlabel_align="right",
+        )
+        for k, v in kwargs_default_values.items():
+            polar_kwargs.setdefault(k, v)
+
+        fig = go.Figure()
+
+        fig.add_trace(
+            go.Scatterpolar(
+                r=mag[inp, out, :],
+                theta=phase[inp, out, :],
+                customdata=frequency_range,
+                thetaunit="radians",
+                mode="lines+markers",
+                marker=dict(size=8, color="royalblue"),
+                line=dict(width=3.0, color="royalblue"),
+                name="Polar_plot",
+                legendgroup="Polar",
+                showlegend=False,
+                hovertemplate=(
+                    "<b>Amplitude: %{r:.2e}</b><br>"
+                    + "<b>Phase: %{theta:.2f}</b><br>"
+                    + "<b>Frequency: %{customdata:.2f}</b>"
+                ),
+            )
+        )
+
+        fig.update_layout(
+            polar=dict(
+                radialaxis=dict(
+                    title=dict(text=r_axis_label, font=dict(size=14)),
+                    tickfont=dict(size=14),
+                    gridcolor="lightgray",
+                    exponentformat="power",
+                ),
+                angularaxis=dict(
+                    tickfont=dict(size=14),
+                    gridcolor="lightgray",
+                    linecolor="black",
+                    linewidth=2.5,
+                ),
+            ),
+            **polar_kwargs,
+        )
+
+        return fig
+
+    def plot(
+        self,
+        inp,
+        out,
+        units="mic-pk-pk",
+        mag_kwargs={},
+        phase_kwargs={},
+        polar_kwargs={},
+        subplot_kwargs={},
+    ):
+        """Plot frequency response.
+
+        This method plots the frequency response given an output and an input
+        using Plotly.
+
+        This method returns a subplot with:
+            - Frequency vs Amplitude;
+            - Frequency vs Phase Angle;
+            - Polar plot Amplitude vs Phase Angle;
+
+        Parameters
+        ----------
+        inp : int
+            Input.
+        out : int
+            Output.
+        units : str, optional
+            Magnitude unit system.
+            Options:
+                - "m" : meters
+                - "mic-pk-pk" : microns peak to peak
+                - "db" : decibels
+            Default is "mic-pk-pk".
         mag_kwargs : optional
             Additional key word arguments can be passed to change the magnitude plot
             layout only (e.g. width=1000, height=800, ...).
@@ -1107,42 +1212,54 @@ class FrequencyResponseResults:
             Additional key word arguments can be passed to change the phase plot
             layout only (e.g. width=1000, height=800, ...).
             *See Plotly Python Figure Reference for more information.
+        polar_kwargs : optional
+            Additional key word arguments can be passed to change the polar plot
+            layout only (e.g. width=1000, height=800, ...).
+            *See Plotly Python Figure Reference for more information.
         subplot_kwargs : optional
             Additional key word arguments can be passed to change the plot layout only
-            (e.g. width=1000, height=800, ...). This kwargs override "mag_kwargs" and
-            "phase_kwargs" dictionaries.
+            (e.g. width=1000, height=800, ...). This kwargs override "mag_kwargs",
+            "phase_kwargs" and "polar_kwargs" dictionaries.
             *See Plotly Python make_subplots Reference for more information.
 
         Returns
         -------
         subplots : Plotly graph_objects.make_subplots()
-            Plotly figure with Amplitude vs Frequency and Phase vs Frequency plots.
+            Plotly figure with Amplitude vs Frequency and Phase vs Frequency and
+            polar Amplitude vs Phase plots.
         """
         kwargs_default_values = dict(
-            width=1800, height=900, plot_bgcolor="white", hoverlabel_align="right",
+            width=1800,
+            height=900,
+            polar_bgcolor="white",
+            plot_bgcolor="white",
+            hoverlabel_align="right",
         )
         for k, v in kwargs_default_values.items():
             subplot_kwargs.setdefault(k, v)
 
-        fig0 = self.plot_magnitude(inp, out, **mag_kwargs)
+        fig0 = self.plot_magnitude(inp, out, units, **mag_kwargs)
         fig1 = self.plot_phase(inp, out, **phase_kwargs)
+        fig2 = self.plot_polar_bode(inp, out, units, **polar_kwargs)
 
-        subplots = make_subplots(rows=2, cols=1)
+        subplots = make_subplots(
+            rows=2, cols=2, specs=[[{}, {"type": "polar", "rowspan": 2}], [{}, None]]
+        )
         for data in fig0["data"]:
             subplots.add_trace(data, row=1, col=1)
         for data in fig1["data"]:
             subplots.add_trace(data, row=2, col=1)
+        for data in fig2["data"]:
+            subplots.add_trace(data, row=1, col=2)
 
         subplots.update_xaxes(fig0.layout.xaxis, row=1, col=1)
         subplots.update_yaxes(fig0.layout.yaxis, row=1, col=1)
         subplots.update_xaxes(fig1.layout.xaxis, row=2, col=1)
         subplots.update_yaxes(fig1.layout.yaxis, row=2, col=1)
         subplots.update_layout(
-            legend=dict(
-                font=dict(family="sans-serif", size=14),
-                bgcolor="white",
-                bordercolor="black",
-                borderwidth=2,
+            polar=dict(
+                radialaxis=fig2.layout.polar.radialaxis,
+                angularaxis=fig2.layout.polar.angularaxis,
             ),
             **subplot_kwargs,
         )
@@ -1245,6 +1362,7 @@ class ForcedResponseResults:
             showline=True,
             linewidth=2.5,
             linecolor="black",
+            exponentformat="power",
             mirror=True,
         )
         fig.update_layout(
@@ -1312,7 +1430,7 @@ class ForcedResponseResults:
             mirror=True,
         )
         fig.update_yaxes(
-            title_text="<b>Phase</b>",
+            title_text="<b>Phase Angle</b>",
             title_font=dict(family="Arial", size=20),
             tickfont=dict(size=16),
             gridcolor="lightgray",
@@ -1333,19 +1451,122 @@ class ForcedResponseResults:
 
         return fig
 
-    def plot(self, dof, mag_kwargs={}, phase_kwargs={}, **subplot_kwargs):
-        """Plot forced response.
+    def plot_polar_bode(self, dof, units="mic-pk-pk", **polar_kwargs):
+        """Plot polar forced response using Plotly.
 
         Parameters
         ----------
         dof : int
             Degree of freedom.
+        units : str
+            Magnitude unit system.
+            Default is "mic-pk-pk"
+        polar_kwargs : optional
+            Additional key word arguments can be passed to change the plot layout only
+            (e.g. width=1000, height=800, ...).
+            *See Plotly Python Figure Reference for more information.
+
+        Returns
+        -------
+        fig : Plotly graph_objects.Figure()
+            The figure object with the plot.
+        """
+        frequency_range = self.speed_range
+        mag = self.magnitude
+        phase = self.phase
+
+        if units == "m":
+            r_axis_label = "<b>Amplitude (m)</b>"
+        elif units == "mic-pk-pk":
+            r_axis_label = "<b>Amplitude (μ pk-pk)</b>"
+        else:
+            r_axis_label = "<b>Amplitude (dB)</b>"
+
+        kwargs_default_values = dict(
+            width=1200, height=900, polar_bgcolor="white", hoverlabel_align="right",
+        )
+        for k, v in kwargs_default_values.items():
+            polar_kwargs.setdefault(k, v)
+
+        fig = go.Figure()
+
+        fig.add_trace(
+            go.Scatterpolar(
+                r=mag[dof],
+                theta=phase[dof],
+                customdata=frequency_range,
+                thetaunit="radians",
+                mode="lines+markers",
+                marker=dict(size=8, color="royalblue"),
+                line=dict(width=3.0, color="royalblue"),
+                name="Polar_plot",
+                legendgroup="Polar",
+                showlegend=False,
+                hovertemplate=(
+                    "<b>Amplitude: %{r:.2e}</b><br>"
+                    + "<b>Phase: %{theta:.2f}</b><br>"
+                    + "<b>Frequency: %{customdata:.2f}</b>"
+                ),
+            )
+        )
+
+        fig.update_layout(
+            polar=dict(
+                radialaxis=dict(
+                    title_text=r_axis_label,
+                    title_font=dict(family="Arial", size=14),
+                    gridcolor="lightgray",
+                    exponentformat="power",
+                ),
+                angularaxis=dict(
+                    tickfont=dict(size=14),
+                    gridcolor="lightgray",
+                    linecolor="black",
+                    linewidth=2.5,
+                ),
+            ),
+            **polar_kwargs,
+        )
+
+        return fig
+
+    def plot(
+        self,
+        dof,
+        units="mic-pk-pk",
+        mag_kwargs={},
+        phase_kwargs={},
+        polar_kwargs={},
+        subplot_kwargs={},
+    ):
+        """Plot forced response.
+
+        This method returns a subplot with:
+            - Frequency vs Amplitude;
+            - Frequency vs Phase Angle;
+            - Polar plot Amplitude vs Phase Angle;
+
+        Parameters
+        ----------
+        dof : int
+            Degree of freedom.
+        units : str, optional
+            Magnitude unit system.
+            Options:
+                - "m" : meters
+                - "mic-pk-pk" : microns peak to peak
+                - "db" : decibels
+            Default is "mic-pk-pk".
         mag_kwargs : optional
             Additional key word arguments can be passed to change the magnitude plot
             layout only (e.g. width=1000, height=800, ...).
             *See Plotly Python Figure Reference for more information.
         phase_kwargs : optional
             Additional key word arguments can be passed to change the phase plot
+            layout only (e.g. width=1000, height=800, ...).
+            *See Plotly Python Figure Reference for more information.
+        polar_kwargs : optional
+            Additional key word arguments can be passed to change the polar plot
             layout only (e.g. width=1000, height=800, ...).
             *See Plotly Python Figure Reference for more information.
         subplot_kwargs : optional
@@ -1357,33 +1578,41 @@ class ForcedResponseResults:
         Returns
         -------
         subplots : Plotly graph_objects.make_subplots()
-            Plotly figure with Amplitude vs Frequency and Phase vs Frequency plots.
+            Plotly figure with Amplitude vs Frequency and Phase vs Frequency and
+            polar Amplitude vs Phase plots.
         """
         kwargs_default_values = dict(
-            width=1800, height=900, plot_bgcolor="white", hoverlabel_align="right",
+            width=1800,
+            height=900,
+            polar_bgcolor="white",
+            plot_bgcolor="white",
+            hoverlabel_align="right",
         )
         for k, v in kwargs_default_values.items():
             subplot_kwargs.setdefault(k, v)
 
         fig0 = self.plot_magnitude(dof, **mag_kwargs)
         fig1 = self.plot_phase(dof, **phase_kwargs)
+        fig2 = self.plot_polar_bode(dof, **polar_kwargs)
 
-        subplots = make_subplots(rows=2, cols=1)
+        subplots = make_subplots(
+            rows=2, cols=2, specs=[[{}, {"type": "polar", "rowspan": 2}], [{}, None]]
+        )
         for data in fig0["data"]:
             subplots.add_trace(data, row=1, col=1)
         for data in fig1["data"]:
             subplots.add_trace(data, row=2, col=1)
+        for data in fig2["data"]:
+            subplots.add_trace(data, row=1, col=2)
 
         subplots.update_xaxes(fig0.layout.xaxis, row=1, col=1)
         subplots.update_yaxes(fig0.layout.yaxis, row=1, col=1)
         subplots.update_xaxes(fig1.layout.xaxis, row=2, col=1)
         subplots.update_yaxes(fig1.layout.yaxis, row=2, col=1)
         subplots.update_layout(
-            legend=dict(
-                font=dict(family="sans-serif", size=14),
-                bgcolor="white",
-                bordercolor="black",
-                borderwidth=2,
+            polar=dict(
+                radialaxis=fig2.layout.polar.radialaxis,
+                angularaxis=fig2.layout.polar.angularaxis,
             ),
             **subplot_kwargs,
         )
