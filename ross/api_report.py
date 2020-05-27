@@ -792,7 +792,7 @@ class Report:
             "Unbalance phase(s)": [phase],
         }
 
-        response = self.rotor.unbalance_response(nodes, force, phase, freq_range)
+        response = self.rotor.run_unbalance_response(nodes, force, phase, freq_range)
         mag = response.magnitude
 
         for node in nodes:
