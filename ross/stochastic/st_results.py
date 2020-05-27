@@ -373,7 +373,7 @@ class ST_FrequencyResponseResults:
         self.phase = phase
 
     def plot_magnitude(
-        self, percentile=[], conf_interval=[], units="mic-pk-pk", *args, **kwargs
+        self, percentile=[], conf_interval=[], units="mic-pk-pk", **kwargs,
     ):
         """Plot amplitude vs frequency.
 
@@ -391,8 +391,6 @@ class ST_FrequencyResponseResults:
         units : str, optional
             Unit system
             Default is "mic-pk-pk".
-        args : optional
-            Additional plot axes
         kwargs : optional
             Additional key word arguments can be passed to change the plot
             (e.g. line=dict(width=4.0, color="royalblue"), opacity=1.0, ...)
@@ -498,7 +496,7 @@ class ST_FrequencyResponseResults:
 
         return fig
 
-    def plot_phase(self, percentile=[], conf_interval=[], *args, **kwargs):
+    def plot_phase(self, percentile=[], conf_interval=[], **kwargs):
         """Plot phase angle response.
 
         This method plots the phase response given an output and an input
@@ -512,8 +510,6 @@ class ST_FrequencyResponseResults:
         conf_interval : list, optional
             Sequence of confidence intervals to compute, which must be between
             0 and 100 inclusive.
-        args : optional
-            Additional plot axes
         kwargs : optional
             Additional key word arguments can be passed to change the plot
             (e.g. line=dict(width=4.0, color="royalblue"), opacity=1.0, ...)
@@ -612,7 +608,120 @@ class ST_FrequencyResponseResults:
 
         return fig
 
-    def plot(self, percentile=[], conf_interval=[], units="mic-pk-pk", *args, **kwargs):
+    def plot_polar_bode(
+        self, percentile=[], conf_interval=[], units="mic-pk-pk", **kwargs,
+    ):
+        """Plot polar forced response using Plotly.
+
+        Parameters
+        ----------
+        dof : int
+            Degree of freedom.
+        units : str
+            Magnitude unit system.
+            Default is "mic-pk-pk"
+        polar_kwargs : optional
+            Additional key word arguments can be passed to change the plot layout only
+            (e.g. width=1000, height=800, ...).
+            *See Plotly Python Figure Reference for more information.
+
+        Returns
+        -------
+        fig : Plotly graph_objects.Figure()
+            The figure object with the plot.
+        """
+        default_values = dict(mode="lines")
+        conf_interval = np.sort(conf_interval)
+        percentile = np.sort(percentile)
+
+        if units == "m":
+            r_axis_label = "<b>Amplitude (m)</b>"
+        elif units == "mic-pk-pk":
+            r_axis_label = "<b>Amplitude (μ pk-pk)</b>"
+        else:
+            r_axis_label = "<b>Amplitude (dB)</b>"
+
+        for k, v in default_values.items():
+            kwargs.setdefault(k, v)
+
+        fig = go.Figure()
+
+        fig.add_trace(
+            go.Scatterpolar(
+                r=np.mean(self.magnitude, axis=1),
+                theta=np.mean(self.phase, axis=1),
+                customdata=self.speed_range,
+                thetaunit="radians",
+                line=dict(width=3.0, color="black"),
+                name="Mean",
+                legendgroup="mean",
+                hovertemplate=(
+                    "<b>Amplitude: %{r:.2e}</b><br>"
+                    + "<b>Phase: %{theta:.2f}</b><br>"
+                    + "<b>Frequency: %{customdata:.2f}</b>"
+                ),
+                **kwargs,
+            )
+        )
+        for i, p in enumerate(percentile):
+            fig.add_trace(
+                go.Scatterpolar(
+                    r=np.percentile(self.magnitude, p, axis=1),
+                    theta=np.percentile(self.phase, p, axis=1),
+                    customdata=self.speed_range,
+                    thetaunit="radians",
+                    opacity=0.6,
+                    line=dict(width=2.5, color=colors2[i]),
+                    name="percentile: {}%".format(p),
+                    legendgroup="percentile{}".format(i),
+                    hovertemplate=(
+                        "<b>Amplitude: %{r:.2e}</b><br>"
+                        + "<b>Phase: %{theta:.2f}</b><br>"
+                        + "<b>Frequency: %{customdata:.2f}</b>"
+                    ),
+                    **kwargs,
+                )
+            )
+        for i, p in enumerate(conf_interval):
+            p1 = np.percentile(self.magnitude, 50 + p / 2, axis=1)
+            p2 = np.percentile(self.magnitude, 50 - p / 2, axis=1)
+            p3 = np.percentile(self.phase, 50 + p / 2, axis=1)
+            p4 = np.percentile(self.phase, 50 - p / 2, axis=1)
+            fig.add_trace(
+                go.Scatterpolar(
+                    r=np.concatenate((p1, p2[::-1])),
+                    theta=np.concatenate((p3, p4[::-1])),
+                    thetaunit="radians",
+                    line=dict(width=1, color=colors1[i]),
+                    fill="toself",
+                    fillcolor=colors1[i],
+                    opacity=0.5,
+                    name="confidence interval: {}%".format(p),
+                    legendgroup="conf{}".format(i),
+                    **kwargs,
+                )
+            )
+
+        fig.update_layout(
+            polar=dict(
+                radialaxis=dict(
+                    title_text=r_axis_label,
+                    title_font=dict(family="Arial", size=14),
+                    gridcolor="lightgray",
+                    exponentformat="power",
+                ),
+                angularaxis=dict(
+                    tickfont=dict(size=14),
+                    gridcolor="lightgray",
+                    linecolor="black",
+                    linewidth=2.5,
+                ),
+            ),
+        )
+
+        return fig
+
+    def plot(self, percentile=[], conf_interval=[], units="mic-pk-pk", **kwargs):
         """Plot frequency response.
 
         This method plots the frequency and phase response given an output
@@ -629,8 +738,6 @@ class ST_FrequencyResponseResults:
         units : str, optional
             Unit system
             Default is "mic-pk-pk"
-        args : optional
-            Additional plot axes
         kwargs : optional
             Additional key word arguments can be passed to change the plot
             (e.g. line=dict(width=4.0, color="royalblue"), opacity=1.0, ...)
@@ -641,28 +748,38 @@ class ST_FrequencyResponseResults:
         subplots : Plotly graph_objects.make_subplots()
             Plotly figure with amplitude vs frequency phase angle vs frequency.
         """
-        fig0 = self.plot_magnitude(percentile, conf_interval, units, *args, **kwargs)
+        fig0 = self.plot_magnitude(percentile, conf_interval, units, **kwargs)
 
         default_values = dict(showlegend=False)
         for k, v in default_values.items():
             kwargs.setdefault(k, v)
 
-        fig1 = self.plot_phase(percentile, conf_interval, *args, **kwargs)
+        fig1 = self.plot_phase(percentile, conf_interval, **kwargs)
+        fig2 = self.plot_polar_bode(percentile, conf_interval, units, **kwargs)
 
-        subplots = make_subplots(rows=1, cols=2)
+        subplots = make_subplots(
+            rows=2, cols=2, specs=[[{}, {"type": "polar", "rowspan": 2}], [{}, None]]
+        )
         for data in fig0["data"]:
-            subplots.add_trace(data, 1, 1)
+            subplots.add_trace(data, row=1, col=1)
         for data in fig1["data"]:
-            subplots.add_trace(data, 1, 2)
+            subplots.add_trace(data, row=2, col=1)
+        for data in fig2["data"]:
+            subplots.add_trace(data, row=1, col=2)
 
         subplots.update_xaxes(fig0.layout.xaxis, row=1, col=1)
         subplots.update_yaxes(fig0.layout.yaxis, row=1, col=1)
-        subplots.update_xaxes(fig1.layout.xaxis, row=1, col=2)
-        subplots.update_yaxes(fig1.layout.yaxis, row=1, col=2)
+        subplots.update_xaxes(fig1.layout.xaxis, row=2, col=1)
+        subplots.update_yaxes(fig1.layout.yaxis, row=2, col=1)
         subplots.update_layout(
             plot_bgcolor="white",
+            polar_bgcolor="white",
             width=1800,
             height=900,
+            polar=dict(
+                radialaxis=fig2.layout.polar.radialaxis,
+                angularaxis=fig2.layout.polar.angularaxis,
+            ),
             legend=dict(
                 font=dict(family="sans-serif", size=14),
                 bgcolor="white",
@@ -1452,6 +1569,119 @@ class ST_ForcedResponseResults:
 
         return fig
 
+    def plot_polar_bode(
+        self, dof, percentile=[], conf_interval=[], units="mic-pk-pk", **kwargs,
+    ):
+        """Plot polar forced response using Plotly.
+
+        Parameters
+        ----------
+        dof : int
+            Degree of freedom.
+        units : str
+            Magnitude unit system.
+            Default is "mic-pk-pk"
+        polar_kwargs : optional
+            Additional key word arguments can be passed to change the plot layout only
+            (e.g. width=1000, height=800, ...).
+            *See Plotly Python Figure Reference for more information.
+
+        Returns
+        -------
+        fig : Plotly graph_objects.Figure()
+            The figure object with the plot.
+        """
+        default_values = dict(mode="lines")
+        conf_interval = np.sort(conf_interval)
+        percentile = np.sort(percentile)
+
+        if units == "m":
+            r_axis_label = "<b>Amplitude (m)</b>"
+        elif units == "mic-pk-pk":
+            r_axis_label = "<b>Amplitude (μ pk-pk)</b>"
+        else:
+            r_axis_label = "<b>Amplitude (dB)</b>"
+
+        for k, v in default_values.items():
+            kwargs.setdefault(k, v)
+
+        fig = go.Figure()
+
+        fig.add_trace(
+            go.Scatterpolar(
+                r=np.mean(self.magnitude[..., dof], axis=1),
+                theta=np.mean(self.phase[..., dof], axis=1),
+                customdata=self.frequency_range,
+                thetaunit="radians",
+                line=dict(width=3.0, color="black"),
+                name="Mean",
+                legendgroup="mean",
+                hovertemplate=(
+                    "<b>Amplitude: %{r:.2e}</b><br>"
+                    + "<b>Phase: %{theta:.2f}</b><br>"
+                    + "<b>Frequency: %{customdata:.2f}</b>"
+                ),
+                **kwargs,
+            )
+        )
+        for i, p in enumerate(percentile):
+            fig.add_trace(
+                go.Scatterpolar(
+                    r=np.percentile(self.magnitude[..., dof], p, axis=1),
+                    theta=np.percentile(self.phase[..., dof], p, axis=1),
+                    customdata=self.frequency_range,
+                    thetaunit="radians",
+                    opacity=0.6,
+                    line=dict(width=2.5, color=colors2[i]),
+                    name="percentile: {}%".format(p),
+                    legendgroup="percentile{}".format(i),
+                    hovertemplate=(
+                        "<b>Amplitude: %{r:.2e}</b><br>"
+                        + "<b>Phase: %{theta:.2f}</b><br>"
+                        + "<b>Frequency: %{customdata:.2f}</b>"
+                    ),
+                    **kwargs,
+                )
+            )
+        for i, p in enumerate(conf_interval):
+            p1 = np.percentile(self.magnitude[..., dof], 50 + p / 2, axis=1)
+            p2 = np.percentile(self.magnitude[..., dof], 50 - p / 2, axis=1)
+            p3 = np.percentile(self.phase[..., dof], 50 + p / 2, axis=1)
+            p4 = np.percentile(self.phase[..., dof], 50 - p / 2, axis=1)
+            fig.add_trace(
+                go.Scatterpolar(
+                    r=np.concatenate((p1, p2[::-1])),
+                    theta=np.concatenate((p3, p4[::-1])),
+                    thetaunit="radians",
+                    line=dict(width=1, color=colors1[i]),
+                    fill="toself",
+                    fillcolor=colors1[i],
+                    opacity=0.5,
+                    name="confidence interval: {}%".format(p),
+                    legendgroup="conf{}".format(i),
+                    **kwargs,
+                )
+            )
+
+        fig.update_layout(
+            polar=dict(
+                radialaxis=dict(
+                    title_text=r_axis_label,
+                    title_font=dict(family="Arial", size=14),
+                    gridcolor="lightgray",
+                    exponentformat="power",
+                ),
+                angularaxis=dict(
+                    tickfont=dict(size=14),
+                    gridcolor="lightgray",
+                    linecolor="black",
+                    linewidth=2.5,
+                ),
+            ),
+        )
+
+        return fig
+
     def plot(
         self, dof, percentile=[], conf_interval=[], units="mic-pk-pk", *args, **kwargs,
     ):
@@ -1485,30 +1715,38 @@ class ST_ForcedResponseResults:
         subplots : Plotly graph_objects.make_subplots()
             Plotly figure with amplitude vs frequency phase angle vs frequency.
         """
-        fig0 = self.plot_magnitude(
-            dof, percentile, conf_interval, units, *args, **kwargs
-        )
+        fig0 = self.plot_magnitude(dof, percentile, conf_interval, units, **kwargs)
 
         default_values = dict(showlegend=False)
         for k, v in default_values.items():
             kwargs.setdefault(k, v)
 
-        fig1 = self.plot_phase(dof, percentile, conf_interval, *args, **kwargs)
+        fig1 = self.plot_phase(dof, percentile, conf_interval, **kwargs)
+        fig2 = self.plot_polar_bode(dof, percentile, conf_interval, units, **kwargs)
 
-        subplots = make_subplots(rows=1, cols=2)
+        subplots = make_subplots(
+            rows=2, cols=2, specs=[[{}, {"type": "polar", "rowspan": 2}], [{}, None]]
+        )
         for data in fig0["data"]:
-            subplots.add_trace(data, 1, 1)
+            subplots.add_trace(data, row=1, col=1)
         for data in fig1["data"]:
-            subplots.add_trace(data, 1, 2)
+            subplots.add_trace(data, row=2, col=1)
+        for data in fig2["data"]:
+            subplots.add_trace(data, row=1, col=2)
 
         subplots.update_xaxes(fig0.layout.xaxis, row=1, col=1)
         subplots.update_yaxes(fig0.layout.yaxis, row=1, col=1)
-        subplots.update_xaxes(fig1.layout.xaxis, row=1, col=2)
-        subplots.update_yaxes(fig1.layout.yaxis, row=1, col=2)
+        subplots.update_xaxes(fig1.layout.xaxis, row=2, col=1)
+        subplots.update_yaxes(fig1.layout.yaxis, row=2, col=1)
         subplots.update_layout(
             plot_bgcolor="white",
+            polar_bgcolor="white",
             width=1800,
             height=900,
+            polar=dict(
+                radialaxis=fig2.layout.polar.radialaxis,
+                angularaxis=fig2.layout.polar.angularaxis,
+            ),
             legend=dict(
                 font=dict(family="sans-serif", size=14),
                 bgcolor="white",
