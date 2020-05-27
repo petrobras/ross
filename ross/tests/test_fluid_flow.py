@@ -1,10 +1,9 @@
 # fmt: off
 import math
 
-import matplotlib.pyplot as plt
 import numpy as np
+import plotly.graph_objects as go
 import pytest
-from bokeh.plotting import figure
 from numpy.testing import assert_allclose
 
 from ross.fluid_flow import fluid_flow as flow
@@ -12,13 +11,9 @@ from ross.fluid_flow.fluid_flow_coefficients import (
     calculate_damping_matrix, calculate_oil_film_force,
     calculate_stiffness_matrix, find_equilibrium_position)
 from ross.fluid_flow.fluid_flow_geometry import move_rotor_center
-from ross.fluid_flow.fluid_flow_graphics import (matplot_eccentricity,
-                                                 matplot_pressure_theta,
-                                                 matplot_pressure_z,
-                                                 matplot_shape,
-                                                 plot_eccentricity,
-                                                 plot_pressure_theta,
-                                                 plot_pressure_z, plot_shape)
+from ross.fluid_flow.fluid_flow_graphics import (
+    plot_eccentricity, plot_pressure_surface, plot_pressure_theta,
+    plot_pressure_theta_cylindrical, plot_pressure_z, plot_shape)
 
 # fmt: on
 
@@ -295,28 +290,16 @@ def test_oil_film_force_long():
     assert_allclose(t, t_numerical, rtol=0.22)
 
 
-def test_bokeh_plots():
+def test_plots():
     bearing = fluid_flow_short_numerical()
     bearing.calculate_pressure_matrix_numerical()
-    figure_type = type(figure())
+    figure_type = type(go.Figure())
     assert isinstance(plot_shape(bearing), figure_type)
     assert isinstance(plot_eccentricity(bearing), figure_type)
     assert isinstance(plot_pressure_theta(bearing), figure_type)
     assert isinstance(plot_pressure_z(bearing), figure_type)
-
-
-def test_matplotlib_plots():
-    bearing = fluid_flow_short_numerical()
-    bearing.calculate_pressure_matrix_analytical()
-    ax_type = type(plt.gca())
-    assert isinstance(matplot_pressure_theta(bearing), ax_type)
-    assert isinstance(matplot_pressure_z(bearing), ax_type)
-    assert isinstance(matplot_shape(bearing), ax_type)
-
-    # Create new axes to avoid using gca(), which can get a axes with polar projection
-    fig, ax = plt.subplots()
-    ax_type = type(ax)
-    assert isinstance(matplot_eccentricity(bearing, ax=ax), ax_type)
+    assert isinstance(plot_pressure_theta_cylindrical(bearing), figure_type)
+    assert isinstance(plot_pressure_surface(bearing), figure_type)
 
 
 def test_find_equilibrium_position():

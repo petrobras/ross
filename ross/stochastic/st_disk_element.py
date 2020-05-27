@@ -3,14 +3,11 @@
 This module creates an instance of random disk element for stochastic
 analysis.
 """
-import bokeh.palettes as bp
 import numpy as np
 
 from ross.disk_element import DiskElement
 from ross.stochastic.st_materials import ST_Material
 from ross.stochastic.st_results_elements import plot_histogram
-
-bokeh_colors = bp.RdGy[11]
 
 __all__ = ["ST_DiskElement", "st_disk_example"]
 
@@ -38,7 +35,7 @@ class ST_DiskElement:
         Default is None
     color : str, optional
         A color to be used when the element is represented.
-        Default is '#b2182b' (Cardinal).
+        Default is "Firebrick".
     is_random : list
         List of the object attributes to become random.
         Possibilities:
@@ -59,7 +56,7 @@ class ST_DiskElement:
     """
 
     def __init__(
-        self, n, m, Id, Ip, tag=None, color=bokeh_colors[9], is_random=None,
+        self, n, m, Id, Ip, tag=None, color="Firebrick", is_random=None,
     ):
         attribute_dict = dict(n=n, m=m, Id=Id, Ip=Ip, tag=tag, color=color)
 
@@ -188,7 +185,7 @@ class ST_DiskElement:
 
         return f_list
 
-    def plot_random_var(self, var_list=[], **kwargs):
+    def plot_random_var(self, var_list=[], histogram_kwargs={}, plot_kwargs={}):
         """Plot histogram and the PDF.
 
         This function creates a histogram to display the random variable
@@ -198,21 +195,26 @@ class ST_DiskElement:
         ----------
         var_list : list, optional
             List of random variables, in string format, to plot.
-        **kwargs : optional
+        histogram_kwargs : dict, optional
             Additional key word arguments can be passed to change
-            the numpy.histogram (e.g. density=True, bins=11, ...)
+            the plotly.go.histogram (e.g. histnorm="probability density", nbinsx=20...).
+            *See Plotly API to more information.
+        plot_kwargs : dict, optional
+            Additional key word arguments can be passed to change the plotly go.figure
+            (e.g. line=dict(width=4.0, color="royalblue"), opacity=1.0, ...).
+            *See Plotly API to more information.
 
         Returns
         -------
-        grid_plot : bokeh row
-            A row with the histogram plots.
+        fig : Plotly graph_objects.Figure()
+            A figure with the histogram plots.
 
         Examples
         --------
         >>> import ross.stochastic as srs
         >>> elm = srs.st_disk_example()
-        >>> elm.plot_random_var(["Id"]) # doctest: +ELLIPSIS
-        Row...
+        >>> fig = elm.plot_random_var(["m"])
+        >>> # fig.show()
         """
         label = dict(
             m="Mass", Id="Diametral moment of inertia", Ip="Polar moment of inertia",
@@ -224,7 +226,9 @@ class ST_DiskElement:
                 )
             )
 
-        return plot_histogram(self.attribute_dict, label, var_list, **kwargs)
+        return plot_histogram(
+            self.attribute_dict, label, var_list, histogram_kwargs={}, plot_kwargs={}
+        )
 
     @classmethod
     def from_geometry(

@@ -4,6 +4,7 @@ scipy
 matplotlib
 toml
 pandas>=0.23
+plotly>=4.7.0
 bokeh>=1.4.0
 xlrd
 pint

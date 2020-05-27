@@ -2,16 +2,17 @@
 
 This module returns graphs for each type of analyses in st_rotor_assembly.py.
 """
-import bokeh.palettes as bp
-import matplotlib.pyplot as plt
 import numpy as np
-from bokeh.layouts import gridplot
-from bokeh.plotting import figure
-from matplotlib import cm
+import plotly.express as px
+import plotly.graph_objects as go
+import plotly.io as pio
+from plotly.subplots import make_subplots
 
-# set bokeh palette of colors
-colors1 = bp.Category10[10]
-colors2 = bp.Category20c[20]
+pio.renderers.default = "browser"
+
+# set Plotly palette of colors
+colors1 = px.colors.qualitative.Dark24
+colors2 = px.colors.qualitative.Light24
 
 
 class ST_CampbellResults:
@@ -33,12 +34,8 @@ class ST_CampbellResults:
 
     Returns
     -------
-    ax : matplotlib axes
-        Returns the matplotlib axes object with the plot
-        if plot_type == "matplotlib"
-    bk_ax : bokeh axes
-        Returns the bokeh axes object with the plot
-        if plot_type == "bokeh"
+    subplots : Plotly graph_objects.make_subplots()
+        Plotly figure with diagrams for frequency and log dec.
     """
 
     def __init__(self, speed_range, wd, log_dec):
@@ -61,85 +58,118 @@ class ST_CampbellResults:
             List withe the harmonics to be plotted.
             The default is to plot 1x.
         kwargs : optional
-            Additional key word arguments can be passed to change
-            the plot (e.g. linestyle='--').
+            Additional key word arguments can be passed to change the plot
+            (e.g. line=dict(width=4.0, color="royalblue"), opacity=1.0, ...)
+            *See Plotly Python Figure Reference for more information.
 
         Returns
         -------
-        fig : Bokeh figure
-            The bokeh axes object with the plot.
+        fig : Plotly graph_objects.Figure()
+            The figure object with the plot.
         """
-        default_values = dict(line_width=3.0, line_alpha=1.0)
+        default_values = dict(mode="lines")
+        conf_interval = np.sort(conf_interval)
+        percentile = np.sort(percentile)
 
         for k, v in default_values.items():
             kwargs.setdefault(k, v)
 
-        fig = figure(
-            width=640,
-            height=480,
-            tools="pan, box_zoom, wheel_zoom, reset, save",
-            title="Campbell Diagram",
-            y_axis_label="Damped Natural Frequencies",
-            x_axis_label="Rotor Speed",
-        )
-        fig.xaxis.axis_label_text_font_size = "14pt"
-        fig.yaxis.axis_label_text_font_size = "14pt"
-        fig.axis.major_label_text_font_size = "14pt"
-        fig.title.text_font_size = "14pt"
+        fig = go.Figure()
+        x = np.concatenate((self.speed_range, self.speed_range[::-1]))
+
+        for j, h in enumerate(harmonics):
+            fig.add_trace(
+                go.Scatter(
+                    x=self.speed_range,
+                    y=self.speed_range * h,
+                    opacity=1.0,
+                    name="{}x speed".format(h),
+                    line=dict(width=3, color=colors1[j], dash="dashdot"),
+                    legendgroup="speed{}".format(j),
+                    hovertemplate=("Frequency: %{x:.3f}<br>" + "Frequency: %{y:.3f}"),
+                    **kwargs,
+                )
+            )
 
         for j in range(self.wd.shape[0]):
-            fig.line(
-                x=self.speed_range,
-                y=np.mean(self.wd[j], axis=1),
-                line_color=colors1[j],
-                line_alpha=1.0,
-                line_width=3.0,
-                muted_color=colors1[j],
-                muted_alpha=0.1,
-                legend_label="Mean - Mode {}".format(j + 1),
+            fig.add_trace(
+                go.Scatter(
+                    x=self.speed_range,
+                    y=np.mean(self.wd[j], axis=1),
+                    opacity=1.0,
+                    name="Mean - Mode {}".format(j + 1),
+                    line=dict(width=3, color=colors1[j]),
+                    legendgroup="mean{}".format(j),
+                    hovertemplate=("Frequency: %{x:.3f}<br>" + "Frequency: %{y:.3f}"),
+                    **kwargs,
+                )
             )
-            if len(percentile):
-                for i, p in enumerate(percentile):
-                    fig.line(
+            for i, p in enumerate(percentile):
+                fig.add_trace(
+                    go.Scatter(
                         x=self.speed_range,
                         y=np.percentile(self.wd[j], p, axis=1),
-                        line_color=colors2[i],
-                        line_alpha=0.6,
-                        line_width=2.5,
-                        muted_color=colors2[i],
-                        muted_alpha=0.1,
-                        legend_label="percentile: {}%".format(p),
-                    )
-            if len(conf_interval):
-                for i, p in enumerate(conf_interval):
-                    fig.line(
-                        x=self.speed_range,
-                        y=np.percentile(self.wd[j], 50 + p / 2, axis=1),
-                        line_color=colors1[j],
-                        line_alpha=0.6,
-                        line_width=2.5,
-                        muted_color=colors1[j],
-                        muted_alpha=0.1,
-                        legend_label="confidence interval: {}% - Mode {}".format(
-                            p, j + 1
+                        opacity=0.6,
+                        line=dict(width=2.5, color=colors2[j]),
+                        name="percentile: {}%".format(p),
+                        legendgroup="percentile{}{}".format(j, i),
+                        hovertemplate=(
+                            "Frequency: %{x:.3f}<br>" + "Frequency: %{y:.3f}"
                         ),
+                        **kwargs,
                     )
-                    fig.line(
-                        x=self.speed_range,
-                        y=np.percentile(self.wd[j], 50 - p / 2, axis=1),
-                        line_color=colors1[j],
-                        line_alpha=0.6,
-                        line_width=2.5,
-                        muted_color=colors1[j],
-                        muted_alpha=0.1,
-                        legend_label="confidence interval: {}% - Mode {}".format(
-                            p, j + 1
+                )
+            for i, p in enumerate(conf_interval):
+                p1 = np.percentile(self.wd[j], 50 + p / 2, axis=1)
+                p2 = np.percentile(self.wd[j], 50 - p / 2, axis=1)
+                fig.add_trace(
+                    go.Scatter(
+                        x=x,
+                        y=np.concatenate((p1, p2[::-1])),
+                        line=dict(width=1, color=colors1[j]),
+                        fill="toself",
+                        fillcolor=colors1[j],
+                        opacity=0.3,
+                        name="confidence interval: {}% - Mode {}".format(p, j + 1),
+                        legendgroup="conf{}{}".format(j, i),
+                        hovertemplate=(
+                            "Frequency: %{x:.3f}<br>" + "Frequency: %{y:.3f}"
                         ),
+                        **kwargs,
                     )
+                )
 
-        fig.legend.background_fill_alpha = 0.1
-        fig.legend.click_policy = "mute"
-        fig.legend.label_text_font_size = "10pt"
+        fig.update_xaxes(
+            title_text="<b>Rotor speed</b>",
+            title_font=dict(family="Arial", size=20),
+            tickfont=dict(size=16),
+            gridcolor="lightgray",
+            showline=True,
+            linewidth=2.5,
+            linecolor="black",
+            mirror=True,
+        )
+        fig.update_yaxes(
+            title_text="<b>Damped Natural Frequencies</b>",
+            title_font=dict(family="Arial", size=20),
+            tickfont=dict(size=16),
+            gridcolor="lightgray",
+            showline=True,
+            linewidth=2.5,
+            linecolor="black",
+            mirror=True,
+        )
+        fig.update_layout(
+            width=1200,
+            height=900,
+            plot_bgcolor="white",
+            legend=dict(
+                font=dict(family="sans-serif", size=14),
+                bgcolor="white",
+                bordercolor="black",
+                borderwidth=2,
+            ),
+        )
 
         return fig
 
@@ -149,8 +179,8 @@ class ST_CampbellResults:
         Parameters
         ----------
         percentile : list, optional
-            Sequence of percentiles to compute, which must be
-            between 0 and 100 inclusive.
+            Sequence of percentiles to compute, which must be between
+            0 and 100 inclusive.
         conf_interval : list, optional
             Sequence of confidence intervals to compute, which must be
             between 0 and 100 inclusive.
@@ -158,87 +188,102 @@ class ST_CampbellResults:
             List withe the harmonics to be plotted.
             The default is to plot 1x.
         kwargs : optional
-            Additional key word arguments can be passed to change
-            the plot (e.g. linestyle='--').
+            Additional key word arguments can be passed to change the plot
+            (e.g. line=dict(width=4.0, color="royalblue"), opacity=1.0, ...)
+            *See Plotly Python Figure Reference for more information.
 
         Returns
         -------
-        fig : Bokeh figure
-            The bokeh axes object with the plot
+        fig : Plotly graph_objects.Figure()
+            The figure object with the plot.
         """
-        default_values = dict(line_width=3.0, line_alpha=1.0)
-        percentile = np.sort(percentile)
+        default_values = dict(mode="lines")
         conf_interval = np.sort(conf_interval)
+        percentile = np.sort(percentile)
 
         for k, v in default_values.items():
             kwargs.setdefault(k, v)
 
-        fig = figure(
-            width=640,
-            height=480,
-            tools="pan, box_zoom, wheel_zoom, reset, save",
-            title="Campbell Diagram",
-            y_axis_label="Log Dec",
-            x_axis_label="Rotor speed",
-        )
-        fig.xaxis.axis_label_text_font_size = "14pt"
-        fig.yaxis.axis_label_text_font_size = "14pt"
-        fig.axis.major_label_text_font_size = "14pt"
-        fig.title.text_font_size = "14pt"
+        fig = go.Figure()
+        x = np.concatenate((self.speed_range, self.speed_range[::-1]))
 
         for j in range(self.log_dec.shape[0]):
-            fig.line(
-                x=self.speed_range,
-                y=np.mean(self.log_dec[j], axis=1),
-                line_color=colors1[j],
-                line_alpha=1.0,
-                line_width=3.0,
-                muted_color=colors1[j],
-                muted_alpha=0.1,
-                legend_label="Mean - Mode {}".format(j + 1),
+            fig.add_trace(
+                go.Scatter(
+                    x=self.speed_range,
+                    y=np.mean(self.log_dec[j], axis=1),
+                    opacity=1.0,
+                    name="Mean - Mode {}".format(j + 1),
+                    line=dict(width=3, color=colors1[j]),
+                    legendgroup="mean{}".format(j),
+                    hovertemplate=("Frequency: %{x:.3f}<br>" + "Log Dec: %{y:.3f}"),
+                    **kwargs,
+                )
             )
-            if len(percentile):
-                for i, p in enumerate(percentile):
-                    fig.line(
+
+            for i, p in enumerate(percentile):
+                fig.add_trace(
+                    go.Scatter(
                         x=self.speed_range,
                         y=np.percentile(self.log_dec[j], p, axis=1),
-                        line_color=colors2[i],
-                        line_alpha=0.6,
-                        line_width=2.5,
-                        muted_color=colors2[i],
-                        muted_alpha=0.1,
-                        legend_label="percentile {}".format(p),
+                        opacity=0.6,
+                        line=dict(width=2.5, color=colors2[j]),
+                        name="percentile: {}%".format(p),
+                        legendgroup="percentile{}{}".format(j, i),
+                        hoverinfo="none",
+                        **kwargs,
                     )
-            if len(conf_interval):
-                for i, p in enumerate(conf_interval):
-                    fig.line(
-                        x=self.speed_range,
-                        y=np.percentile(self.log_dec[j], 50 + p / 2, axis=1),
-                        line_color=colors1[j],
-                        line_alpha=0.6,
-                        line_width=2.5,
-                        muted_color=colors1[j],
-                        muted_alpha=0.1,
-                        legend_label="confidence interval: {}% - Mode {}".format(
-                            p, j + 1
-                        ),
-                    )
-                    fig.line(
-                        x=self.speed_range,
-                        y=np.percentile(self.log_dec[j], 50 - p / 2, axis=1),
-                        line_color=colors1[j],
-                        line_alpha=0.6,
-                        line_width=2.5,
-                        muted_color=colors1[j],
-                        muted_alpha=0.1,
-                        legend_label="confidence interval: {}% - Mode {}".format(
-                            p, j + 1
-                        ),
-                    )
+                )
 
-        fig.legend.background_fill_alpha = 0.01
-        fig.legend.click_policy = "mute"
-        fig.legend.label_text_font_size = "10pt"
+            for i, p in enumerate(conf_interval):
+                p1 = np.percentile(self.log_dec[j], 50 + p / 2, axis=1)
+                p2 = np.percentile(self.log_dec[j], 50 - p / 2, axis=1)
+                fig.add_trace(
+                    go.Scatter(
+                        x=x,
+                        y=np.concatenate((p1, p2[::-1])),
+                        line=dict(width=1, color=colors1[j]),
+                        fill="toself",
+                        fillcolor=colors1[j],
+                        opacity=0.3,
+                        name="confidence interval: {}% - Mode {}".format(p, j + 1),
+                        legendgroup="conf{}{}".format(j, i),
+                        hoverinfo="none",
+                        **kwargs,
+                    )
+                )
+
+        fig.update_xaxes(
+            title_text="<b>Rotor speed</b>",
+            title_font=dict(family="Arial", size=20),
+            tickfont=dict(size=16),
+            gridcolor="lightgray",
+            showline=True,
+            linewidth=2.5,
+            linecolor="black",
+            mirror=True,
+        )
+        fig.update_yaxes(
+            title_text="<b>Logarithmic decrement</b>",
+            title_font=dict(family="Arial", size=20),
+            tickfont=dict(size=16),
+            gridcolor="lightgray",
+            showline=True,
+            linewidth=2.5,
+            linecolor="black",
+            mirror=True,
+        )
+        fig.update_layout(
+            plot_bgcolor="white",
+            width=1200,
+            height=900,
+            legend=dict(
+                font=dict(family="sans-serif", size=14),
+                bgcolor="white",
+                bordercolor="black",
+                borderwidth=2,
+            ),
+        )
 
         return fig
 
@@ -260,20 +305,46 @@ class ST_CampbellResults:
                 List with the harmonics to be plotted.
                 The default is to plot 1x.
         kwargs : optional
-            Additional key word arguments can be passed to change
-            the plot (e.g. linestyle='--').
+            Additional key word arguments can be passed to change the plot
+            (e.g. line=dict(width=4.0, color="royalblue"), opacity=1.0, ...)
+            *See Plotly Python Figure Reference for more information.
 
         Returns
         -------
-        grid_plots : bokeh column
-            Bokeh column with diagrams for frequency and log dec.
+        subplots : Plotly graph_objects.make_subplots()
+            Plotly figure with diagrams for frequency and log dec.
         """
-        fig0 = self.plot_nat_freq(percentile, conf_interval, **kwargs)
-        fig1 = self.plot_log_dec(percentile, conf_interval, **kwargs)
+        fig0 = self.plot_nat_freq(percentile, conf_interval, *args, **kwargs)
 
-        grid_plots = gridplot([[fig0, fig1]])
+        default_values = dict(showlegend=False)
+        for k, v in default_values.items():
+            kwargs.setdefault(k, v)
 
-        return grid_plots
+        fig1 = self.plot_log_dec(percentile, conf_interval, *args, **kwargs)
+
+        subplots = make_subplots(rows=1, cols=2)
+        for data in fig0["data"]:
+            subplots.add_trace(data, 1, 1)
+        for data in fig1["data"]:
+            subplots.add_trace(data, 1, 2)
+
+        subplots.update_xaxes(fig0.layout.xaxis, row=1, col=1)
+        subplots.update_yaxes(fig1.layout.yaxis, row=1, col=1)
+        subplots.update_xaxes(fig0.layout.xaxis, row=1, col=2)
+        subplots.update_yaxes(fig1.layout.yaxis, row=1, col=2)
+        subplots.update_layout(
+            plot_bgcolor="white",
+            width=1800,
+            height=900,
+            legend=dict(
+                font=dict(family="sans-serif", size=14),
+                bgcolor="white",
+                bordercolor="black",
+                borderwidth=2,
+            ),
+        )
+
+        return subplots
 
 
 class ST_FrequencyResponseResults:
@@ -281,8 +352,6 @@ class ST_FrequencyResponseResults:
 
     Parameters
     ----------
-    freq_resp : array
-        Array with the transfer matrix.
     speed_range : array
         Array with the speed range in rad/s.
     magnitude : array
@@ -294,8 +363,8 @@ class ST_FrequencyResponseResults:
 
     Returns
     -------
-    grid_plots : bokeh column
-        Bokeh column with amplitude and phase plot.
+    subplots : Plotly graph_objects.make_subplots()
+        Plotly figure with amplitude vs frequency phase angle vs frequency.
     """
 
     def __init__(self, speed_range, magnitude, phase):
@@ -304,12 +373,12 @@ class ST_FrequencyResponseResults:
         self.phase = phase
 
     def plot_magnitude(
-        self, percentile=[], conf_interval=[], units="mic-pk-pk", **kwargs
+        self, percentile=[], conf_interval=[], units="mic-pk-pk", *args, **kwargs
     ):
-        """Plot frequency response.
+        """Plot amplitude vs frequency.
 
         This method plots the frequency response magnitude given an output and
-        an input using Bokeh.
+        an input using Plotly.
 
         Parameters
         ----------
@@ -322,94 +391,115 @@ class ST_FrequencyResponseResults:
         units : str, optional
             Unit system
             Default is "mic-pk-pk".
+        args : optional
+            Additional plot axes
         kwargs : optional
-            Additional key word arguments can be passed to change
-            the plot (e.g. linestyle='--').
+            Additional key word arguments can be passed to change the plot
+            (e.g. line=dict(width=4.0, color="royalblue"), opacity=1.0, ...)
+            *See Plotly Python Figure Reference for more information.
 
         Returns
         -------
-        fig : bokeh figure
-            Bokeh plot axes with magnitude plot.
+        fig : Plotly graph_objects.Figure()
+            The figure object with the plot.
         """
         if units == "m":
-            y_axis_label = "Amplitude (m)"
+            y_axis_label = "<b>Amplitude (m)</b>"
         elif units == "mic-pk-pk":
-            y_axis_label = "Amplitude (μ pk-pk)"
+            y_axis_label = "<b>Amplitude (μ pk-pk)</b>"
         else:
-            y_axis_label = "Amplitude (dB)"
+            y_axis_label = "<b>Amplitude (dB)</b>"
 
-        fig = figure(
-            tools="pan, box_zoom, wheel_zoom, reset, save",
-            width=640,
-            height=480,
-            title="Frequency Response - Magnitude",
-            x_axis_label="Frequency",
-            y_axis_label=y_axis_label,
+        default_values = dict(mode="lines")
+        conf_interval = np.sort(conf_interval)
+        percentile = np.sort(percentile)
+
+        for k, v in default_values.items():
+            kwargs.setdefault(k, v)
+
+        fig = go.Figure()
+
+        fig.add_trace(
+            go.Scatter(
+                x=self.speed_range,
+                y=np.mean(self.magnitude, axis=1),
+                opacity=1.0,
+                name="Mean",
+                line=dict(width=3, color="black"),
+                legendgroup="mean",
+                hovertemplate=("Frequency: %{x:.2f}<br>" + "Amplitude: %{y:.2e}"),
+                **kwargs,
+            )
         )
-        fig.xaxis.axis_label_text_font_size = "14pt"
-        fig.yaxis.axis_label_text_font_size = "14pt"
-        fig.axis.major_label_text_font_size = "14pt"
-        fig.title.text_font_size = "14pt"
-
-        if len(percentile):
-            for i, p in enumerate(percentile):
-                mag_percentile = np.percentile(self.magnitude, p, axis=1)
-                fig.line(
+        for i, p in enumerate(percentile):
+            fig.add_trace(
+                go.Scatter(
                     x=self.speed_range,
-                    y=mag_percentile,
-                    line_color=colors1[i],
-                    line_alpha=0.6,
-                    line_width=2.5,
-                    muted_color=colors1[i],
-                    muted_alpha=0.1,
-                    legend_label="percentile: {}%".format(p),
+                    y=np.percentile(self.magnitude, p, axis=1),
+                    opacity=0.6,
+                    line=dict(width=2.5, color=colors2[i]),
+                    name="percentile: {}%".format(p),
+                    legendgroup="percentile{}".format(i),
+                    hovertemplate=("Frequency: %{x:.2f}<br>" + "Amplitude: %{y:.2e}"),
+                    **kwargs,
                 )
+            )
 
-        if len(conf_interval):
-            for i, p in enumerate(conf_interval):
-                mag_conf1 = np.percentile(self.magnitude, 50 + p / 2, axis=1)
-                mag_conf2 = np.percentile(self.magnitude, 50 - p / 2, axis=1)
-                fig.line(
-                    x=self.speed_range,
-                    y=mag_conf1,
-                    line_color=colors1[i],
-                    line_alpha=0.6,
-                    line_width=2.5,
-                    muted_color=colors1[i],
-                    muted_alpha=0.1,
-                    legend_label="confidence interval: {}%".format(p),
+        x = np.concatenate((self.speed_range, self.speed_range[::-1]))
+        for i, p in enumerate(conf_interval):
+            p1 = np.percentile(self.magnitude, 50 + p / 2, axis=1)
+            p2 = np.percentile(self.magnitude, 50 - p / 2, axis=1)
+            fig.add_trace(
+                go.Scatter(
+                    x=x,
+                    y=np.concatenate((p1, p2[::-1])),
+                    line=dict(width=1, color=colors1[i]),
+                    fill="toself",
+                    fillcolor=colors1[i],
+                    opacity=0.5,
+                    name="confidence interval: {}%".format(p),
+                    legendgroup="conf{}".format(i),
+                    hovertemplate=("Frequency: %{x:.2f}<br>" + "Amplitude: %{y:.2e}"),
+                    **kwargs,
                 )
-                fig.line(
-                    x=self.speed_range,
-                    y=mag_conf2,
-                    line_color=colors1[i],
-                    line_alpha=0.6,
-                    line_width=2.5,
-                    muted_color=colors1[i],
-                    muted_alpha=0.1,
-                    legend_label="confidence interval: {}%".format(p),
-                )
+            )
 
-        mag_mean = np.mean(self.magnitude, axis=1)
-
-        fig.line(
-            x=self.speed_range,
-            y=mag_mean,
-            line_color="black",
-            line_alpha=1.0,
-            line_width=3,
-            muted_color="black",
-            muted_alpha=0.1,
-            legend_label="Mean",
+        fig.update_xaxes(
+            title_text="<b>Frequency</b>",
+            title_font=dict(family="Arial", size=20),
+            tickfont=dict(size=16),
+            gridcolor="lightgray",
+            showline=True,
+            linewidth=2.5,
+            linecolor="black",
+            mirror=True,
         )
-        fig.legend.background_fill_alpha = 0.1
-        fig.legend.click_policy = "mute"
-        fig.legend.label_text_font_size = "10pt"
+        fig.update_yaxes(
+            title_text=y_axis_label,
+            title_font=dict(family="Arial", size=20),
+            tickfont=dict(size=16),
+            gridcolor="lightgray",
+            showline=True,
+            linewidth=2.5,
+            linecolor="black",
+            mirror=True,
+        )
+        fig.update_layout(
+            plot_bgcolor="white",
+            width=1200,
+            height=900,
+            legend=dict(
+                font=dict(family="sans-serif", size=14),
+                bgcolor="white",
+                bordercolor="black",
+                borderwidth=2,
+            ),
+        )
 
         return fig
 
-    def plot_phase(self, percentile=[], conf_interval=[], **kwargs):
-        """Plot frequency response.
+    def plot_phase(self, percentile=[], conf_interval=[], *args, **kwargs):
+        """Plot phase angle response.
 
         This method plots the phase response given an output and an input
         using bokeh.
@@ -422,79 +512,103 @@ class ST_FrequencyResponseResults:
         conf_interval : list, optional
             Sequence of confidence intervals to compute, which must be between
             0 and 100 inclusive.
+        args : optional
+            Additional plot axes
         kwargs : optional
-            Additional key word arguments can be passed to change
-            the plot (e.g. linestyle='--').
+            Additional key word arguments can be passed to change the plot
+            (e.g. line=dict(width=4.0, color="royalblue"), opacity=1.0, ...)
+            *See Plotly Python Figure Reference for more information.
 
         Returns
         -------
-        fig : bokeh figure
-            Bokeh plot axes with phase plot.
+        fig : Plotly graph_objects.Figure()
+            The figure object with the plot.
         """
-        fig = figure(
-            tools="pan, box_zoom, wheel_zoom, reset, save",
-            width=640,
-            height=480,
-            title="Frequency Response - Phase",
-            x_axis_label="Frequency",
-            y_axis_label="Phase angle",
-        )
-        fig.xaxis.axis_label_text_font_size = "14pt"
-        fig.yaxis.axis_label_text_font_size = "14pt"
-        fig.axis.major_label_text_font_size = "14pt"
-        fig.title.text_font_size = "14pt"
+        default_values = dict(mode="lines")
+        conf_interval = np.sort(conf_interval)
+        percentile = np.sort(percentile)
 
-        if len(percentile):
-            for i, p in enumerate(percentile):
-                phs_percentile = np.percentile(self.phase, p, axis=1)
-                fig.line(
+        for k, v in default_values.items():
+            kwargs.setdefault(k, v)
+
+        fig = go.Figure()
+
+        fig.add_trace(
+            go.Scatter(
+                x=self.speed_range,
+                y=np.mean(self.phase, axis=1),
+                opacity=1.0,
+                name="Mean",
+                line=dict(width=3, color="black"),
+                legendgroup="mean",
+                hovertemplate=("Frequency: %{x:.2f}<br>" + "Phase: %{y:.2f}"),
+                **kwargs,
+            )
+        )
+        for i, p in enumerate(percentile):
+            fig.add_trace(
+                go.Scatter(
                     x=self.speed_range,
-                    y=phs_percentile,
-                    line_color=colors1[i],
-                    line_alpha=0.6,
-                    line_width=2.5,
-                    muted_color=colors1[i],
-                    muted_alpha=0.1,
-                    legend_label="percentile: {}%".format(p),
+                    y=np.percentile(self.phase, p, axis=1),
+                    opacity=0.6,
+                    line=dict(width=2.5, color=colors2[i]),
+                    name="percentile: {}%".format(p),
+                    legendgroup="percentile{}".format(i),
+                    hovertemplate=("Frequency: %{x:.2f}<br>" + "Phase: %{y:.2f}"),
+                    **kwargs,
                 )
+            )
 
+        x = np.concatenate((self.speed_range, self.speed_range[::-1]))
         for i, p in enumerate(conf_interval):
-            phs_conf1 = np.percentile(self.phase, 50 + p / 2, axis=1)
-            phs_conf2 = np.percentile(self.phase, 50 - p / 2, axis=1)
-            fig.line(
-                x=self.speed_range,
-                y=phs_conf1,
-                line_color=colors1[i],
-                line_alpha=0.6,
-                line_width=2.5,
-                muted_color=colors1[i],
-                muted_alpha=0.1,
-                legend_label="confidence interval: {}%".format(p),
-            )
-            fig.line(
-                x=self.speed_range,
-                y=phs_conf2,
-                line_color=colors1[i],
-                line_alpha=0.6,
-                line_width=2.5,
-                legend_label="confidence interval: {}%".format(p),
+            p1 = np.percentile(self.phase, 50 + p / 2, axis=1)
+            p2 = np.percentile(self.phase, 50 - p / 2, axis=1)
+            fig.add_trace(
+                go.Scatter(
+                    x=x,
+                    y=np.concatenate((p1, p2[::-1])),
+                    line=dict(width=1, color=colors1[i]),
+                    fill="toself",
+                    fillcolor=colors1[i],
+                    opacity=0.5,
+                    name="confidence interval: {}%".format(p),
+                    legendgroup="conf{}".format(i),
+                    hovertemplate=("Frequency: %{x:.2f}<br>" + "Phase: %{y:.2f}"),
+                    **kwargs,
+                )
             )
 
-        phs_mean = np.mean(self.phase, axis=1)
-
-        fig.line(
-            x=self.speed_range,
-            y=phs_mean,
-            line_color="black",
-            line_alpha=1.0,
-            line_width=3,
-            muted_color="black",
-            muted_alpha=0.1,
-            legend_label="Mean",
+        fig.update_xaxes(
+            title_text="<b>Frequency</b>",
+            title_font=dict(family="Arial", size=20),
+            tickfont=dict(size=16),
+            gridcolor="lightgray",
+            showline=True,
+            linewidth=2.5,
+            linecolor="black",
+            mirror=True,
         )
-        fig.legend.background_fill_alpha = 0.1
-        fig.legend.click_policy = "mute"
-        fig.legend.label_text_font_size = "10pt"
+        fig.update_yaxes(
+            title_text="<b>Phase Angle</b>",
+            title_font=dict(family="Arial", size=20),
+            tickfont=dict(size=16),
+            gridcolor="lightgray",
+            showline=True,
+            linewidth=2.5,
+            linecolor="black",
+            mirror=True,
+        )
+        fig.update_layout(
+            plot_bgcolor="white",
+            width=1200,
+            height=900,
+            legend=dict(
+                font=dict(family="sans-serif", size=14),
+                bgcolor="white",
+                bordercolor="black",
+                borderwidth=2,
+            ),
+        )
 
         return fig
 
@@ -518,20 +632,46 @@ class ST_FrequencyResponseResults:
         args : optional
             Additional plot axes
         kwargs : optional
-            Additional key word arguments can be passed to change
-            the plot (e.g. line_color="blue").
+            Additional key word arguments can be passed to change the plot
+            (e.g. line=dict(width=4.0, color="royalblue"), opacity=1.0, ...)
+            *See Plotly Python Figure Reference for more information.
 
         Returns
         -------
-        grid_plots : bokeh column
-            Bokeh column with amplitude and phase plot
+        subplots : Plotly graph_objects.make_subplots()
+            Plotly figure with amplitude vs frequency phase angle vs frequency.
         """
-        fig0 = self.plot_magnitude(percentile, conf_interval, units, **kwargs)
-        fig1 = self.plot_phase(percentile, conf_interval, **kwargs)
+        fig0 = self.plot_magnitude(percentile, conf_interval, units, *args, **kwargs)
 
-        grid_plots = gridplot([[fig0], [fig1]])
+        default_values = dict(showlegend=False)
+        for k, v in default_values.items():
+            kwargs.setdefault(k, v)
 
-        return grid_plots
+        fig1 = self.plot_phase(percentile, conf_interval, *args, **kwargs)
+
+        subplots = make_subplots(rows=1, cols=2)
+        for data in fig0["data"]:
+            subplots.add_trace(data, 1, 1)
+        for data in fig1["data"]:
+            subplots.add_trace(data, 1, 2)
+
+        subplots.update_xaxes(fig0.layout.xaxis, row=1, col=1)
+        subplots.update_yaxes(fig0.layout.yaxis, row=1, col=1)
+        subplots.update_xaxes(fig1.layout.xaxis, row=1, col=2)
+        subplots.update_yaxes(fig1.layout.yaxis, row=1, col=2)
+        subplots.update_layout(
+            plot_bgcolor="white",
+            width=1800,
+            height=900,
+            legend=dict(
+                font=dict(family="sans-serif", size=14),
+                bgcolor="white",
+                bordercolor="black",
+                borderwidth=2,
+            ),
+        )
+
+        return subplots
 
 
 class ST_TimeResponseResults:
@@ -549,21 +689,22 @@ class ST_TimeResponseResults:
         list with nodes from a rotor model.
     nodes_pos: array
         Rotor nodes axial positions.
+    number_dof : int
+        Number of degrees of freedom per shaft element's node
 
     Returns
     -------
-    fig : bokeh figure
-        Returns the bokeh axes object with the plot
-    ax : matplotlib.axes
-        Matplotlib axes with orbit response plot.
+    fig : Plotly graph_objects.Figure()
+        The figure object with the plot.
     """
 
-    def __init__(self, time_range, yout, xout, nodes_list=[], nodes_pos=[]):
+    def __init__(self, time_range, yout, xout, number_dof, nodes_list, nodes_pos):
         self.time_range = time_range
         self.yout = yout
         self.xout = xout
         self.nodes_list = nodes_list
         self.nodes_pos = nodes_pos
+        self.number_dof = number_dof
 
     def _plot_time_response(
         self, dof, percentile=[], conf_interval=[], *args, **kwargs
@@ -585,88 +726,109 @@ class ST_TimeResponseResults:
         args : optional
             Additional plot axes
         kwargs : optional
-            Additional key word arguments can be passed to change
-            the plot (e.g. line_color="blue").
+            Additional key word arguments can be passed to change the plot
+            (e.g. line=dict(width=4.0, color="royalblue"), opacity=1.0, ...)
+            *See Plotly Python Figure Reference for more information.
 
         Returns
         -------
-        grid_plots : bokeh figure
-            Bokeh figure with time response plot.
+        fig : Plotly graph_objects.Figure()
+            The figure object with the plot.
         """
-        if dof % 4 == 0:
-            obs_dof = "x"
-        elif dof % 4 == 1:
-            obs_dof = "y"
-        elif dof % 4 == 2:
-            obs_dof = "α"
-        elif dof % 4 == 3:
-            obs_dof = "β"
+        if self.number_dof == 4:
+            dof_dict = {"0": "x", "1": "y", "2": "α", "3": "β"}
 
-        fig = figure(
-            tools="pan, box_zoom, wheel_zoom, reset, save",
-            width=640,
-            height=480,
-            title="Response for node {} and degree of freedom {}".format(
+        if self.number_dof == 6:
+            dof_dict = {"0": "x", "1": "y", "2": "z", "4": "α", "5": "β", "6": "θ"}
+
+        obs_dof = dof % self.number_dof
+        obs_dof = dof_dict[str(obs_dof)]
+
+        default_values = dict(mode="lines")
+        conf_interval = np.sort(conf_interval)
+        percentile = np.sort(percentile)
+
+        for k, v in default_values.items():
+            kwargs.setdefault(k, v)
+
+        fig = go.Figure()
+
+        fig.add_trace(
+            go.Scatter(
+                x=self.time_range,
+                y=np.mean(self.yout[..., dof], axis=0),
+                opacity=1.0,
+                name="Mean",
+                line=dict(width=3.0, color="black"),
+                hovertemplate=("Time: %{x:.3f}<br>" + "Amplitude: %{y:.2e}"),
+                **kwargs,
+            )
+        )
+        for i, p in enumerate(percentile):
+            fig.add_trace(
+                go.Scatter(
+                    x=self.time_range,
+                    y=np.percentile(self.yout[..., dof], p, axis=0),
+                    opacity=0.6,
+                    line=dict(width=2.5, color=colors2[i]),
+                    name="percentile: {}%".format(p),
+                    hovertemplate=("Time: %{x:.3f}<br>" + "Amplitude: %{y:.2e}"),
+                    **kwargs,
+                )
+            )
+
+        x = np.concatenate((self.time_range, self.time_range[::-1]))
+        for i, p in enumerate(conf_interval):
+            p1 = np.percentile(self.yout[..., dof], 50 + p / 2, axis=0)
+            p2 = np.percentile(self.yout[..., dof], 50 - p / 2, axis=0)
+            fig.add_trace(
+                go.Scatter(
+                    x=x,
+                    y=np.concatenate((p1, p2[::-1])),
+                    line=dict(width=1, color=colors1[i]),
+                    fill="toself",
+                    fillcolor=colors1[i],
+                    opacity=0.5,
+                    name="confidence interval: {}%".format(p),
+                    hovertemplate=("Time: %{x:.3f}<br>" + "Amplitude: %{y:.2e}"),
+                    **kwargs,
+                )
+            )
+
+        fig.update_xaxes(
+            title_text="<b>Time</b>",
+            title_font=dict(family="Arial", size=20),
+            tickfont=dict(size=16),
+            gridcolor="lightgray",
+            showline=True,
+            linewidth=2.5,
+            linecolor="black",
+            mirror=True,
+        )
+        fig.update_yaxes(
+            title_text="<b>Amplitude</b>",
+            title_font=dict(family="Arial", size=20),
+            tickfont=dict(size=16),
+            gridcolor="lightgray",
+            showline=True,
+            linewidth=2.5,
+            linecolor="black",
+            mirror=True,
+        )
+        fig.update_layout(
+            title="<b>Response for node {} and degree of freedom {}</b>".format(
                 dof // 4, obs_dof
             ),
-            x_axis_label="Time (s)",
-            y_axis_label="Amplitude",
+            plot_bgcolor="white",
+            width=1200,
+            height=900,
+            legend=dict(
+                font=dict(family="sans-serif", size=14),
+                bgcolor="white",
+                bordercolor="black",
+                borderwidth=2,
+            ),
         )
-        fig.xaxis.axis_label_text_font_size = "14pt"
-        fig.yaxis.axis_label_text_font_size = "14pt"
-        fig.axis.major_label_text_font_size = "14pt"
-        fig.title.text_font_size = "14pt"
-
-        for i, p in enumerate(percentile):
-            tr_percentile = np.percentile(self.yout[..., dof], p, axis=0)
-            fig.line(
-                x=self.time_range,
-                y=tr_percentile,
-                line_color=colors1[i],
-                line_alpha=0.6,
-                line_width=2.5,
-                muted_color=colors1[i],
-                muted_alpha=0.1,
-                legend_label="percentile: {}%".format(p),
-            )
-
-        for i, p in enumerate(conf_interval):
-            conf1 = np.percentile(self.yout[..., dof], 50 + p / 2, axis=0)
-            conf2 = np.percentile(self.yout[..., dof], 50 - p / 2, axis=0)
-            fig.line(
-                x=self.time_range,
-                y=conf1,
-                line_color=colors1[i],
-                line_alpha=0.6,
-                line_width=2.5,
-                muted_color=colors1[i],
-                muted_alpha=0.1,
-                legend_label="confidence interval: {}%".format(p),
-            )
-            fig.line(
-                x=self.time_range,
-                y=conf2,
-                line_color=colors1[i],
-                line_alpha=0.6,
-                line_width=2.5,
-                legend_label="confidence interval: {}%".format(p),
-            )
-
-        t_mean = np.mean(self.yout[..., dof], axis=0)
-
-        fig.line(
-            x=self.time_range,
-            y=t_mean,
-            line_color="black",
-            line_alpha=1.0,
-            line_width=3,
-            muted_color="black",
-            muted_alpha=0.1,
-            legend_label="Mean",
-        )
-        fig.legend.background_fill_alpha = 0.1
-        fig.legend.click_policy = "mute"
-        fig.legend.label_text_font_size = "10pt"
 
         return fig
 
@@ -688,74 +850,104 @@ class ST_TimeResponseResults:
         args : optional
             Additional plot axes
         kwargs : optional
-            Additional key word arguments can be passed to change
-            the plot (e.g. color="blue").
+            Additional key word arguments can be passed to change the plot
+            (e.g. line=dict(width=4.0, color="royalblue"), opacity=1.0, ...)
+            *See Plotly Python Figure Reference for more information.
 
         Returns
         -------
-        ax : matplotlib.axes
-            Matplotlib axes with orbit response plot.
+        fig : Plotly graph_objects.Figure()
+            The figure object with the plot.
         """
-        fig = figure(
-            tools="pan, box_zoom, wheel_zoom, reset, save",
-            width=640,
-            height=480,
-            title="Rotor Orbit: node {}".format(node),
-            x_axis_label="Amplitude",
-            y_axis_label="Amplitude",
-        )
-        fig.xaxis.axis_label_text_font_size = "14pt"
-        fig.yaxis.axis_label_text_font_size = "14pt"
-        fig.axis.major_label_text_font_size = "14pt"
-        fig.title.text_font_size = "14pt"
+        ndof = self.number_dof
+        default_values = dict(mode="lines")
+        conf_interval = np.sort(conf_interval)
+        percentile = np.sort(percentile)
 
+        for k, v in default_values.items():
+            kwargs.setdefault(k, v)
+
+        fig = go.Figure()
+
+        fig.add_trace(
+            go.Scatter(
+                x=np.mean(self.yout[..., ndof * node], axis=0),
+                y=np.mean(self.yout[..., ndof * node + 1], axis=0),
+                opacity=1.0,
+                name="Mean",
+                line=dict(width=3, color="black"),
+                hovertemplate=(
+                    "X - Amplitude: %{x:.2e}<br>" + "Y - Amplitude: %{y:.2e}"
+                ),
+                **kwargs,
+            )
+        )
         for i, p in enumerate(percentile):
-            fig.line(
-                np.percentile(self.yout[..., 4 * node], 50 + p / 2, axis=0),
-                np.percentile(self.yout[..., 4 * node + 1], 50 + p / 2, axis=0),
-                line_color=colors2[i],
-                line_alpha=0.6,
-                line_width=2.5,
-                muted_color=colors2[i],
-                muted_alpha=0.1,
-                legend_label="percentile: {}%".format(p),
+            fig.add_trace(
+                go.Scatter(
+                    x=np.percentile(self.yout[..., ndof * node], p, axis=0),
+                    y=np.percentile(self.yout[..., ndof * node + 1], p, axis=0),
+                    opacity=0.6,
+                    line=dict(width=2.5, color=colors2[i]),
+                    name="percentile: {}%".format(p),
+                    hovertemplate=(
+                        "X - Amplitude: %{x:.2e}<br>" + "Y - Amplitude: %{y:.2e}"
+                    ),
+                    **kwargs,
+                )
             )
 
         for i, p in enumerate(conf_interval):
-            fig.line(
-                np.percentile(self.yout[..., 4 * node], 50 + p / 2, axis=0),
-                np.percentile(self.yout[..., 4 * node + 1], 50 + p / 2, axis=0),
-                line_color=colors1[i],
-                line_alpha=0.6,
-                line_width=2.5,
-                muted_color=colors1[i],
-                muted_alpha=0.1,
-                legend_label="confidence interval: {}%".format(p),
-            )
-            fig.line(
-                np.percentile(self.yout[..., 4 * node], 50 - p / 2, axis=0),
-                np.percentile(self.yout[..., 4 * node + 1], 50 - p / 2, axis=0),
-                line_color=colors1[i],
-                line_alpha=0.6,
-                line_width=2.5,
-                muted_color=colors1[i],
-                muted_alpha=0.1,
-                legend_label="confidence interval: {}%".format(p),
+            p1 = np.percentile(self.yout[..., ndof * node], 50 + p / 2, axis=0)
+            p2 = np.percentile(self.yout[..., ndof * node], 50 - p / 2, axis=0)
+            p3 = np.percentile(self.yout[..., ndof * node + 1], 50 + p / 2, axis=0)
+            p4 = np.percentile(self.yout[..., ndof * node + 1], 50 - p / 2, axis=0)
+            fig.add_trace(
+                go.Scatter(
+                    x=np.concatenate((p1, p2[::-1])),
+                    y=np.concatenate((p3, p4[::-1])),
+                    line=dict(width=1, color=colors1[i]),
+                    fill="toself",
+                    fillcolor=colors1[i],
+                    opacity=0.5,
+                    name="confidence interval: {}%".format(p),
+                    hovertemplate=(
+                        "X - Amplitude: %{x:.2e}<br>" + "Y - Amplitude: %{y:.2e}"
+                    ),
+                    **kwargs,
+                )
             )
 
-        fig.line(
-            np.mean(self.yout[..., 4 * node], axis=0),
-            np.mean(self.yout[..., 4 * node + 1], axis=0),
-            line_color="black",
-            line_alpha=1.0,
-            line_width=3,
-            muted_color="black",
-            muted_alpha=0.1,
-            legend_label="Mean",
+        fig.update_xaxes(
+            title_text="<b>Amplitude</b>",
+            title_font=dict(family="Arial", size=20),
+            tickfont=dict(size=16),
+            gridcolor="lightgray",
+            showline=True,
+            linewidth=2.5,
+            linecolor="black",
+            mirror=True,
         )
-        fig.legend.background_fill_alpha = 0.1
-        fig.legend.click_policy = "mute"
-        fig.legend.label_text_font_size = "10pt"
+        fig.update_yaxes(
+            title_text="<b>Amplitude</b>",
+            title_font=dict(family="Arial", size=20),
+            tickfont=dict(size=16),
+            gridcolor="lightgray",
+            showline=True,
+            linewidth=2.5,
+            linecolor="black",
+            mirror=True,
+        )
+        fig.update_layout(
+            title="<b>Rotor Orbit: node {}</b>".format(node),
+            plot_bgcolor="white",
+            legend=dict(
+                font=dict(family="sans-serif", size=14),
+                bgcolor="white",
+                bordercolor="black",
+                borderwidth=2,
+            ),
+        )
 
         return fig
 
@@ -775,81 +967,158 @@ class ST_TimeResponseResults:
         args : optional
             Additional plot axes
         kwargs : optional
-            Additional key word arguments can be passed to change
-            the plot (e.g. color="blue").
+            Additional key word arguments can be passed to change the plot
+            (e.g. line=dict(width=4.0, color="royalblue"), opacity=1.0, ...)
+            *See Plotly Python Figure Reference for more information.
 
         Returns
         -------
-        ax : matplotlib.axes
-            Matplotlib axes with orbit response plot.
+        fig : Plotly graph_objects.Figure()
+            The figure object with the plot.
         """
-        from mpl_toolkits.mplot3d import Axes3D
+        ndof = self.number_dof
+        default_values = dict(mode="lines")
+        conf_interval = np.sort(conf_interval)
+        percentile = np.sort(percentile)
 
-        fig = plt.figure()
-        ax = fig.gca(projection="3d")
+        for k, v in default_values.items():
+            kwargs.setdefault(k, v)
 
-        # plot center line
+        fig = go.Figure()
+
         line = np.zeros(len(self.nodes_pos))
-        ax.plot(line, line, self.nodes_pos, "k-.", linewidth=1.5, zdir="x")
-
-        for i, p in enumerate(percentile):
-            for n in self.nodes_list:
-                ax.plot(
-                    np.percentile(self.yout[..., 4 * n], p, axis=0),
-                    np.percentile(self.yout[..., 4 * n + 1], p, axis=0),
-                    self.nodes_pos[n],
-                    color=cm.get_cmap("tab20c")(i),
-                    zdir="x",
-                    label="percentile: {}%".format(p),
-                )
-
-        for i, p in enumerate(conf_interval):
-            for n in self.nodes_list:
-                ax.plot(
-                    np.percentile(self.yout[..., 4 * n], 50 + p / 2, axis=0),
-                    np.percentile(self.yout[..., 4 * n + 1], 50 + p / 2, axis=0),
-                    self.nodes_pos[n],
-                    color=cm.get_cmap("tab10")(i),
-                    zdir="x",
-                    label="confidence interval: {}%".format(p),
-                )
-                ax.plot(
-                    np.percentile(self.yout[..., 4 * n], 50 - p / 2, axis=0),
-                    np.percentile(self.yout[..., 4 * n + 1], 50 - p / 2, axis=0),
-                    self.nodes_pos[n],
-                    color=cm.get_cmap("tab10")(i),
-                    zdir="x",
-                    label="confidence interval: {}%".format(p),
-                )
-
-        for n in self.nodes_list:
-            ax.plot(
-                np.mean(self.yout[..., 4 * n], axis=0),
-                np.mean(self.yout[..., 4 * n + 1], axis=0),
-                self.nodes_pos[n],
-                color="k",
-                zdir="x",
-                label="Mean".format(p),
+        fig.add_trace(
+            go.Scatter3d(
+                x=self.nodes_pos,
+                y=line,
+                z=line,
+                line=dict(width=2.0, color="black", dash="dashdot"),
+                showlegend=False,
+                mode="lines",
             )
+        )
+        for j, n in enumerate(self.nodes_list):
+            x = np.ones(self.yout.shape[1]) * self.nodes_pos[n]
+            fig.add_trace(
+                go.Scatter3d(
+                    x=x,
+                    y=np.mean(self.yout[..., ndof * n], axis=0),
+                    z=np.mean(self.yout[..., ndof * n + 1], axis=0),
+                    line=dict(width=5, color="black"),
+                    name="Mean",
+                    legendgroup="mean",
+                    showlegend=True if j == 0 else False,
+                    hovertemplate=(
+                        "Nodal Position: %{x:.2f}<br>"
+                        + "X - Amplitude: %{y:.2e}<br>"
+                        + "Y - Amplitude: %{z:.2e}"
+                    ),
+                    **kwargs,
+                )
+            )
+            for i, p in enumerate(percentile):
+                fig.add_trace(
+                    go.Scatter3d(
+                        x=x,
+                        y=np.percentile(self.yout[..., ndof * n], p, axis=0),
+                        z=np.percentile(self.yout[..., ndof * n + 1], p, axis=0),
+                        opacity=1.0,
+                        name="percentile: {}%".format(p),
+                        line=dict(width=3, color=colors1[i]),
+                        legendgroup="perc{}".format(p),
+                        showlegend=True if j == 0 else False,
+                        hovertemplate=(
+                            "Nodal Position: %{x:.2f}<br>"
+                            + "X - Amplitude: %{y:.2e}<br>"
+                            + "Y - Amplitude: %{z:.2e}"
+                        ),
+                        **kwargs,
+                    )
+                )
+            for i, p in enumerate(conf_interval):
+                fig.add_trace(
+                    go.Scatter3d(
+                        x=x,
+                        y=np.percentile(self.yout[..., ndof * n], 50 + p / 2, axis=0),
+                        z=np.percentile(
+                            self.yout[..., ndof * n + 1], 50 + p / 2, axis=0
+                        ),
+                        line=dict(width=3.5, color=colors1[i]),
+                        opacity=0.6,
+                        name="confidence interval: {}%".format(p),
+                        legendgroup="conf_interval{}".format(p),
+                        showlegend=True if j == 0 else False,
+                        hovertemplate=(
+                            "Nodal Position: %{x:.2f}<br>"
+                            + "X - Amplitude: %{y:.2e}<br>"
+                            + "Y - Amplitude: %{z:.2e}"
+                        ),
+                        **kwargs,
+                    )
+                )
+                fig.add_trace(
+                    go.Scatter3d(
+                        x=x,
+                        y=np.percentile(self.yout[..., ndof * n], 50 - p / 2, axis=0),
+                        z=np.percentile(
+                            self.yout[..., ndof * n + 1], 50 - p / 2, axis=0
+                        ),
+                        line=dict(width=3.5, color=colors1[i]),
+                        opacity=0.6,
+                        name="confidence interval: {}%".format(p),
+                        legendgroup="conf_interval{}".format(p),
+                        showlegend=False,
+                        hovertemplate=(
+                            "Nodal Position: %{x:.2f}<br>"
+                            + "X - Amplitude: %{y:.2e}<br>"
+                            + "Y - Amplitude: %{z:.2e}"
+                        ),
+                        **kwargs,
+                    )
+                )
 
-        ax.set_xlabel("Rotor length (m)", labelpad=16, fontsize=14)
-        ax.set_ylabel("Amplitude - X direction (m)", labelpad=16, fontsize=14)
-        ax.set_zlabel("Amplitude - Y direction (m)", labelpad=16, fontsize=14)
-        ax.set_title("Rotor Orbits", fontsize=16)
-        ax.tick_params(axis="both", which="major", labelsize=14)
-        ax.tick_params(axis="both", which="minor", labelsize=14)
-
-        return ax
+        fig.update_layout(
+            width=1200,
+            height=900,
+            scene=dict(
+                bgcolor="white",
+                xaxis=dict(
+                    title=dict(text="<b>Rotor Length</b>", font=dict(size=14)),
+                    tickfont=dict(size=12),
+                    nticks=5,
+                    backgroundcolor="lightgray",
+                    gridcolor="white",
+                    showspikes=False,
+                ),
+                yaxis=dict(
+                    title=dict(text="<b>Amplitude - X</b>", font=dict(size=14)),
+                    tickfont=dict(size=12),
+                    nticks=5,
+                    backgroundcolor="lightgray",
+                    gridcolor="white",
+                    showspikes=False,
+                ),
+                zaxis=dict(
+                    title=dict(text="<b>Amplitude - Y</b>", font=dict(size=14)),
+                    tickfont=dict(size=12),
+                    nticks=5,
+                    backgroundcolor="lightgray",
+                    gridcolor="white",
+                    showspikes=False,
+                ),
+            ),
+        )
+        return fig
 
     def plot(
         self,
-        plot_type="1d",
+        plot_type="3d",
         node=None,
         dof=None,
         percentile=[],
         conf_interval=[],
         *args,
-        **kwargs
+        **kwargs,
     ):
         """Plot stochastic time or orbit response.
 
@@ -867,7 +1136,7 @@ class ST_TimeResponseResults:
         ----------
         plot_type : str, optional
             Defines with type of plot to display.
-            Options are: "2d" or "3d"
+            Options are: "1d","2d" or "3d"
             Default is "3d".
         node : int, optional
             Select the node to display the respective orbit response.
@@ -883,8 +1152,9 @@ class ST_TimeResponseResults:
         args : optional
             Additional plot axes
         kwargs : optional
-            Additional key word arguments can be passed to change
-            the plot (e.g. color="blue").
+            Additional key word arguments can be passed to change the plot
+            (e.g. line=dict(width=4.0, color="royalblue"), opacity=1.0, ...)
+            *See Plotly Python Figure Reference for more information.
 
         Raise
         -----
@@ -895,8 +1165,8 @@ class ST_TimeResponseResults:
 
         Returns
         -------
-        ax : matplotlib.axes
-            Matplotlib axes with orbit response plot.
+        fig : Plotly graph_objects.Figure()
+            The figure object with the plot.
         """
         if plot_type == "1d":
             return self._plot_time_response(
@@ -912,7 +1182,9 @@ class ST_TimeResponseResults:
         elif plot_type == "3d":
             return self._plot_orbit_3d(percentile, conf_interval, *args, **kwargs)
         else:
-            raise ValueError("Plot type not supported. Choose between '2d' or '3d'.")
+            raise ValueError(
+                "plot_type not supported. Choose between '1d', '2d' or '3d'."
+            )
 
 
 class ST_ForcedResponseResults:
@@ -931,8 +1203,8 @@ class ST_ForcedResponseResults:
 
     Returns
     -------
-    fig : bokeh figure
-        Returns the bokeh axes object with the plot
+    subplots : Plotly graph_objects.make_subplots()
+        Plotly figure with amplitude vs frequency phase angle vs frequency.
     """
 
     def __init__(self, forced_resp, magnitude, phase, frequency_range):
@@ -942,7 +1214,7 @@ class ST_ForcedResponseResults:
         self.frequency_range = frequency_range
 
     def plot_magnitude(
-        self, dof, percentile=[], conf_interval=[], units="mic-pk-pk", **kwargs
+        self, dof, percentile=[], conf_interval=[], units="mic-pk-pk", **kwargs,
     ):
         """Plot frequency response.
 
@@ -962,88 +1234,107 @@ class ST_ForcedResponseResults:
             Unit system
             Default is "mic-pk-pk".
         kwargs : optional
-            Additional key word arguments can be passed to change
-            the plot (e.g. linestyle='--').
+            Additional key word arguments can be passed to change the plot
+            (e.g. line=dict(width=4.0, color="royalblue"), opacity=1.0, ...)
+            *See Plotly Python Figure Reference for more information.
 
         Returns
         -------
-        fig : bokeh figure
+        fig : Plotly graph_objects.Figure()
             Bokeh plot axes with magnitude plot.
         """
         if units == "m":
-            y_axis_label = "Amplitude (m)"
+            y_axis_label = "<b>Amplitude (m)</b>"
         elif units == "mic-pk-pk":
-            y_axis_label = "Amplitude (μ pk-pk)"
+            y_axis_label = "<b>Amplitude (μ pk-pk)</b>"
         else:
-            y_axis_label = "Amplitude (dB)"
+            y_axis_label = "<b>Amplitude (dB)</b>"
 
-        fig = figure(
-            tools="pan, box_zoom, wheel_zoom, reset, save",
-            width=640,
-            height=480,
-            title="Unbalance Response - Magnitude",
-            x_axis_label="Frequency",
-            y_axis_label=y_axis_label,
+        default_values = dict(mode="lines")
+        conf_interval = np.sort(conf_interval)
+        percentile = np.sort(percentile)
+
+        for k, v in default_values.items():
+            kwargs.setdefault(k, v)
+
+        fig = go.Figure()
+
+        fig.add_trace(
+            go.Scatter(
+                x=self.frequency_range,
+                y=np.mean(self.magnitude[..., dof], axis=0),
+                opacity=1.0,
+                name="Mean",
+                line=dict(width=3, color="black"),
+                legendgroup="mean",
+                hovertemplate=("Frequency: %{x:.2f}<br>" + "Amplitude: %{y:.2e}"),
+                **kwargs,
+            )
         )
-        fig.xaxis.axis_label_text_font_size = "14pt"
-        fig.yaxis.axis_label_text_font_size = "14pt"
-        fig.axis.major_label_text_font_size = "14pt"
-        fig.title.text_font_size = "14pt"
-
-        if len(percentile):
-            for i, p in enumerate(percentile):
-                mag_percentile = np.percentile(self.magnitude[..., dof], p, axis=0)
-                fig.line(
+        for i, p in enumerate(percentile):
+            fig.add_trace(
+                go.Scatter(
                     x=self.frequency_range,
-                    y=mag_percentile,
-                    line_color=colors1[i],
-                    line_alpha=0.6,
-                    line_width=2.5,
-                    muted_color=colors1[i],
-                    muted_alpha=0.1,
-                    legend_label="percentile: {}%".format(p),
+                    y=np.percentile(self.magnitude[..., dof], p, axis=0),
+                    opacity=0.6,
+                    line=dict(width=2.5, color=colors2[i]),
+                    name="percentile: {}%".format(p),
+                    legendgroup="percentile{}".format(i),
+                    hovertemplate=("Frequency: %{x:.2f}<br>" + "Amplitude: %{y:.2e}"),
+                    **kwargs,
                 )
+            )
 
-        if len(conf_interval):
-            for i, p in enumerate(conf_interval):
-                mag_conf1 = np.percentile(self.magnitude[..., dof], 50 + p / 2, axis=0)
-                mag_conf2 = np.percentile(self.magnitude[..., dof], 50 - p / 2, axis=0)
-                fig.line(
-                    x=self.frequency_range,
-                    y=mag_conf1,
-                    line_color=colors1[i],
-                    line_alpha=0.6,
-                    line_width=2.5,
-                    muted_color=colors1[i],
-                    muted_alpha=0.1,
-                    legend_label="confidence interval: {}%".format(p),
+        x = np.concatenate((self.frequency_range, self.frequency_range[::-1]))
+        for i, p in enumerate(conf_interval):
+            p1 = np.percentile(self.magnitude[..., dof], 50 + p / 2, axis=0)
+            p2 = np.percentile(self.magnitude[..., dof], 50 - p / 2, axis=0)
+            fig.add_trace(
+                go.Scatter(
+                    x=x,
+                    y=np.concatenate((p1, p2[::-1])),
+                    line=dict(width=1, color=colors1[i]),
+                    fill="toself",
+                    fillcolor=colors1[i],
+                    opacity=0.5,
+                    name="confidence interval: {}%".format(p),
+                    legendgroup="conf{}".format(i),
+                    hovertemplate=("Frequency: %{x:.2f}<br>" + "Amplitude: %{y:.2e}"),
+                    **kwargs,
                 )
-                fig.line(
-                    x=self.frequency_range,
-                    y=mag_conf2,
-                    line_color=colors1[i],
-                    line_alpha=0.6,
-                    line_width=2.5,
-                    muted_color=colors1[i],
-                    muted_alpha=0.1,
-                    legend_label="confidence interval: {}%".format(p),
-                )
+            )
 
-        mag_mean = np.mean(self.magnitude[..., dof], axis=0)
-
-        fig.line(
-            x=self.frequency_range,
-            y=mag_mean,
-            line_color="black",
-            line_alpha=1.0,
-            line_width=3,
-            muted_color="black",
-            muted_alpha=0.1,
-            legend_label="Mean",
+        fig.update_xaxes(
+            title_text="<b>Frequency</b>",
+            title_font=dict(family="Arial", size=20),
+            tickfont=dict(size=16),
+            gridcolor="lightgray",
+            showline=True,
+            linewidth=2.5,
+            linecolor="black",
+            mirror=True,
         )
-        fig.legend.background_fill_alpha = 0.1
-        fig.legend.click_policy = "mute"
-        fig.legend.label_text_font_size = "10pt"
+        fig.update_yaxes(
+            title_text=y_axis_label,
+            title_font=dict(family="Arial", size=20),
+            tickfont=dict(size=16),
+            gridcolor="lightgray",
+            showline=True,
+            linewidth=2.5,
+            linecolor="black",
+            mirror=True,
+        )
+        fig.update_layout(
+            width=1200,
+            height=900,
+            plot_bgcolor="white",
+            legend=dict(
+                font=dict(family="sans-serif", size=14),
+                bgcolor="white",
+                bordercolor="black",
+                borderwidth=2,
+            ),
+        )
 
         return fig
 
@@ -1064,85 +1355,105 @@ class ST_ForcedResponseResults:
             Sequence of confidence intervals to compute, which must be between
             0 and 100 inclusive.
         kwargs : optional
-            Additional key word arguments can be passed to change
-            the plot (e.g. linestyle='--').
+            Additional key word arguments can be passed to change the plot
+            (e.g. line=dict(width=4.0, color="royalblue"), opacity=1.0, ...)
+            *See Plotly Python Figure Reference for more information.
 
         Returns
         -------
-        fig : bokeh figure
-            Bokeh plot axes with phase plot.
+        fig : Plotly graph_objects.Figure()
+            The figure object with the plot.
         """
-        fig = figure(
-            tools="pan, box_zoom, wheel_zoom, reset, save",
-            width=640,
-            height=480,
-            title="Unbalance Response - Phase",
-            x_axis_label="Frequency",
-            y_axis_label="Phase angle",
-        )
-        fig.xaxis.axis_label_text_font_size = "14pt"
-        fig.yaxis.axis_label_text_font_size = "14pt"
-        fig.axis.major_label_text_font_size = "14pt"
-        fig.title.text_font_size = "14pt"
+        default_values = dict(mode="lines")
+        conf_interval = np.sort(conf_interval)
+        percentile = np.sort(percentile)
 
-        if len(percentile):
-            for i, p in enumerate(percentile):
-                phs_percentile = np.percentile(self.phase[..., dof], p, axis=0)
-                fig.line(
+        for k, v in default_values.items():
+            kwargs.setdefault(k, v)
+
+        fig = go.Figure()
+
+        fig.add_trace(
+            go.Scatter(
+                x=self.frequency_range,
+                y=np.mean(self.phase[..., dof], axis=0),
+                opacity=1.0,
+                name="Mean",
+                line=dict(width=3, color="black"),
+                legendgroup="mean",
+                hovertemplate=("Frequency: %{x:.2f}<br>" + "Phase: %{y:.2f}"),
+                **kwargs,
+            )
+        )
+        for i, p in enumerate(percentile):
+            fig.add_trace(
+                go.Scatter(
                     x=self.frequency_range,
-                    y=phs_percentile,
-                    line_color=colors1[i],
-                    line_alpha=0.6,
-                    line_width=2.5,
-                    muted_color=colors1[i],
-                    muted_alpha=0.1,
-                    legend_label="percentile: {}%".format(p),
+                    y=np.percentile(self.phase[..., dof], p, axis=0),
+                    opacity=0.6,
+                    line=dict(width=2.5, color=colors2[i]),
+                    name="percentile: {}%".format(p),
+                    legendgroup="percentile{}".format(i),
+                    hovertemplate=("Frequency: %{x:.2f}<br>" + "Phase: %{y:.2f}"),
+                    **kwargs,
                 )
+            )
 
+        x = np.concatenate((self.frequency_range, self.frequency_range[::-1]))
         for i, p in enumerate(conf_interval):
-            phs_conf1 = np.percentile(self.phase[..., dof], 50 + p / 2, axis=0)
-            phs_conf2 = np.percentile(self.phase[..., dof], 50 - p / 2, axis=0)
-            fig.line(
-                x=self.frequency_range,
-                y=phs_conf1,
-                line_color=colors1[i],
-                line_alpha=0.6,
-                line_width=2.5,
-                muted_color=colors1[i],
-                muted_alpha=0.1,
-                legend_label="confidence interval: {}%".format(p),
-            )
-            fig.line(
-                x=self.frequency_range,
-                y=phs_conf2,
-                line_color=colors1[i],
-                line_alpha=0.6,
-                line_width=2.5,
-                muted_color=colors1[i],
-                muted_alpha=0.1,
-                legend_label="confidence interval: {}%".format(p),
+            p1 = np.percentile(self.phase[..., dof], 50 + p / 2, axis=0)
+            p2 = np.percentile(self.phase[..., dof], 50 - p / 2, axis=0)
+            fig.add_trace(
+                go.Scatter(
+                    x=x,
+                    y=np.concatenate((p1, p2[::-1])),
+                    line=dict(width=1, color=colors1[i]),
+                    fill="toself",
+                    fillcolor=colors1[i],
+                    opacity=0.5,
+                    name="confidence interval: {}%".format(p),
+                    legendgroup="conf{}".format(i),
+                    hovertemplate=("Frequency: %{x:.2f}<br>" + "Phase: %{y:.2f}"),
+                    **kwargs,
+                )
             )
 
-        phs_mean = np.mean(self.phase[..., dof], axis=0)
-
-        fig.line(
-            x=self.frequency_range,
-            y=phs_mean,
-            line_color="black",
-            line_alpha=1.0,
-            line_width=3,
-            muted_color="black",
-            muted_alpha=0.1,
-            legend_label="Mean",
+        fig.update_xaxes(
+            title_text="<b>Frequency</b>",
+            title_font=dict(family="Arial", size=20),
+            tickfont=dict(size=16),
+            gridcolor="lightgray",
+            showline=True,
+            linewidth=2.5,
+            linecolor="black",
+            mirror=True,
         )
-        fig.legend.background_fill_alpha = 0.1
-        fig.legend.click_policy = "mute"
-        fig.legend.label_text_font_size = "10pt"
+        fig.update_yaxes(
+            title_text="<b>Phase Angle</b>",
+            title_font=dict(family="Arial", size=20),
+            tickfont=dict(size=16),
+            gridcolor="lightgray",
+            showline=True,
+            linewidth=2.5,
+            linecolor="black",
+            mirror=True,
+        )
+        fig.update_layout(
+            width=1200,
+            height=900,
+            plot_bgcolor="white",
+            legend=dict(
+                font=dict(family="sans-serif", size=14),
+                bgcolor="white",
+                bordercolor="black",
+                borderwidth=2,
+            ),
+        )
 
         return fig
 
     def plot(
-        self, dof, percentile=[], conf_interval=[], units="mic-pk-pk", *args, **kwargs
+        self, dof, percentile=[], conf_interval=[], units="mic-pk-pk", *args, **kwargs,
     ):
         """Plot frequency response.
 
@@ -1165,17 +1476,45 @@ class ST_ForcedResponseResults:
         args : optional
             Additional plot axes
         kwargs : optional
-            Additional key word arguments can be passed to change
-            the plot (e.g. line_color="blue").
+            Additional key word arguments can be passed to change the plot
+            (e.g. line=dict(width=4.0, color="royalblue"), opacity=1.0, ...)
+            *See Plotly Python Figure Reference for more information.
 
         Returns
         -------
-        grid_plots : bokeh column
-            Bokeh column with amplitude and phase plot
+        subplots : Plotly graph_objects.make_subplots()
+            Plotly figure with amplitude vs frequency phase angle vs frequency.
         """
-        fig0 = self.plot_magnitude(dof, percentile, conf_interval, units, **kwargs)
-        fig1 = self.plot_phase(dof, percentile, conf_interval, **kwargs)
+        fig0 = self.plot_magnitude(
+            dof, percentile, conf_interval, units, *args, **kwargs
+        )
 
-        grid_plots = gridplot([[fig0], [fig1]])
+        default_values = dict(showlegend=False)
+        for k, v in default_values.items():
+            kwargs.setdefault(k, v)
 
-        return grid_plots
+        fig1 = self.plot_phase(dof, percentile, conf_interval, *args, **kwargs)
+
+        subplots = make_subplots(rows=1, cols=2)
+        for data in fig0["data"]:
+            subplots.add_trace(data, 1, 1)
+        for data in fig1["data"]:
+            subplots.add_trace(data, 1, 2)
+
+        subplots.update_xaxes(fig0.layout.xaxis, row=1, col=1)
+        subplots.update_yaxes(fig0.layout.yaxis, row=1, col=1)
+        subplots.update_xaxes(fig1.layout.xaxis, row=1, col=2)
+        subplots.update_yaxes(fig1.layout.yaxis, row=1, col=2)
+        subplots.update_layout(
+            plot_bgcolor="white",
+            width=1800,
+            height=900,
+            legend=dict(
+                font=dict(family="sans-serif", size=14),
+                bgcolor="white",
+                bordercolor="black",
+                borderwidth=2,
+            ),
+        )
+
+        return subplots

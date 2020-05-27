@@ -143,9 +143,8 @@ class FluidFlow:
     Examples
     --------
     >>> from ross.fluid_flow import fluid_flow as flow
-    >>> from ross.fluid_flow.fluid_flow_graphics import matplot_pressure_theta
+    >>> from ross.fluid_flow.fluid_flow_graphics import plot_pressure_theta
     >>> import numpy as np
-    >>> from bokeh.plotting import show
     >>> nz = 8
     >>> ntheta = 64
     >>> nradius = 8
@@ -169,10 +168,10 @@ class FluidFlow:
     >>> my_fluid_flow.calculate_pressure_matrix_numerical() # doctest: +ELLIPSIS
     array([[...
     >>> # to show the plots you can use:
-    >>> # show(my_fluid_flow.plot_eccentricity())
-    >>> # show(my_fluid_flow.plot_pressure_theta(z=int(nz/2)))
-    >>> matplot_pressure_theta(my_fluid_flow, z=int(nz/2)) # doctest: +ELLIPSIS
-    <matplotlib.axes...
+    >>> # my_fluid_flow.plot_eccentricity().show()
+    >>> # my_fluid_flow.plot_pressure_theta(z=int(nz/2)).show()
+    >>> fig = plot_pressure_theta(my_fluid_flow, z=int(nz/2)) # doctest: +ELLIPSIS
+    >>> # fig.show() to display the figure.
     """
 
     def __init__(
