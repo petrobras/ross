@@ -658,10 +658,16 @@ class ST_Rotor(object):
             Unbalance magnitude.
             If node is int, input a list to make make it random.
             If node is list, input a list of lists to make it random.
+            If there're multiple unbalances and not all of the magnitudes are supposed
+            to be stochastic, input a list with repeated values to the unbalance
+            magnitude considered deterministic.
         phase : list, float
             Unbalance phase.
             If node is int, input a list to make make it random.
             If node is list, input a list of lists to make it random.
+            If there're multiple unbalances and not all of the phases are supposed
+            to be stochastic, input a list with repeated values to the unbalance phase
+            considered deterministic.
         frequency_range : list, float
             Array with the desired range of frequencies.
 
@@ -722,14 +728,14 @@ class ST_Rotor(object):
             i = 0
             unbalance_args = self._random_var(is_random, args_dict)
             for rotor, args in zip(iter(self), unbalance_args):
-                results = rotor.unbalance_response(*args)
+                results = rotor.run_unbalance_response(*args)
                 forced_resp[i] = results.forced_resp.T
                 mag_resp[i] = results.magnitude.T
                 phs_resp[i] = results.phase.T
                 i += 1
         else:
             for i, rotor in enumerate(iter(self)):
-                results = rotor.unbalance_response(
+                results = rotor.run_unbalance_response(
                     node, magnitude, phase, frequency_range
                 )
                 forced_resp[i] = results.forced_resp.T
