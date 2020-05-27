@@ -6,8 +6,8 @@ Tests for:
     st_point_mass.py
 """
 import numpy as np
+import plotly.graph_objects as go
 import pytest
-from bokeh.layouts import row
 
 from ross.stochastic.st_bearing_seal_element import ST_BearingElement
 from ross.stochastic.st_disk_element import ST_DiskElement
@@ -257,7 +257,7 @@ def test_st_point_mass_error_messages(rand_point_mass):
 def test_element_stats_plot(
     rand_shaft, rand_disk_from_inertia, rand_bearing_constant_coefs, rand_point_mass
 ):
-    figure_type = type(row())
+    figure_type = type(go.Figure())
     fig = rand_shaft.plot_random_var(["L"])
     assert type(fig) == figure_type
 

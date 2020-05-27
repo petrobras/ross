@@ -9,10 +9,8 @@ import os
 import warnings
 from pathlib import Path
 
-import bokeh.palettes as bp
-import matplotlib.lines as mlines
-import matplotlib.pyplot as plt
 import numpy as np
+import plotly.graph_objects as go
 import scipy.interpolate as interpolate
 
 from ross.element import Element
@@ -32,8 +30,6 @@ __all__ = [
     "BearingElement6DoF",
     "MagneticBearingElement",
 ]
-
-bokeh_colors = bp.RdGy[11]
 
 
 class _Coefficient:
@@ -85,33 +81,67 @@ class _Coefficient:
     def __getitem__(self, item):
         return self.coefficient[item]
 
-    def plot(self, ax=None, **kwargs):
-        if ax is None:
-            ax = plt.gca()
-
+    def plot(self, **kwargs):
         w_range = np.linspace(min(self.frequency), max(self.frequency), 30)
 
-        ax.plot(w_range, self.interpolated(w_range), **kwargs)
-        ax.set_xlabel("Speed (rad/s)")
-        ax.ticklabel_format(style="sci", scilimits=(0, 0), axis="y")
+        fig = go.Figure()
 
-        return ax
+        fig.add_trace(
+            go.Scatter(
+                x=w_range,
+                y=self.interpolated(w_range),
+                mode="lines",
+                line=dict(width=3.0, color="royalblue"),
+                showlegend=False,
+                hovertemplate=("Frequency: %{x:.2f}<br>" + "Coefficient: %{y:.3e}"),
+            )
+        )
+
+        fig.update_xaxes(
+            title_text="<b>Frequency</b>",
+            title_font=dict(family="Arial", size=20),
+            tickfont=dict(size=16),
+            gridcolor="lightgray",
+            showline=True,
+            linewidth=2.5,
+            linecolor="black",
+            mirror=True,
+        )
+        fig.update_yaxes(
+            title_font=dict(family="Arial", size=20),
+            tickfont=dict(size=16),
+            gridcolor="lightgray",
+            showline=True,
+            linewidth=2.5,
+            linecolor="black",
+            mirror=True,
+            exponentformat="power",
+        )
+        fig.update_layout(
+            width=800,
+            height=600,
+            plot_bgcolor="white",
+            hoverlabel_align="right",
+            **kwargs,
+        )
+
+        return fig
 
 
 class _Stiffness_Coefficient(_Coefficient):
     def plot(self, **kwargs):
-        ax = super().plot(**kwargs)
-        ax.set_ylabel("Stiffness ($N/m$)")
+        fig = super().plot(**kwargs)
+        fig.update_yaxes(title_text="<b>Stiffness (N/m)</b>")
 
-        return ax
+        return fig
 
 
 class _Damping_Coefficient(_Coefficient):
     def plot(self, **kwargs):
-        ax = super().plot(**kwargs)
-        ax.set_ylabel("Damping ($Ns/m$)")
+        fig = super().plot(**kwargs)
+        fig.update_yaxes(title_text="<b>Damping (Ns/m)</b>")
 
-        return ax
+        return fig
 
 
 class BearingElement(Element):
@@ -162,6 +192,9 @@ class BearingElement(Element):
     scale_factor: float, optional
         The scale factor is used to scale the bearing drawing.
         Default is 1.
+    color : str, optional
+        A color to be used when the element is represented.
+        Default is '#355d7a' (Cardinal).
 
     Examples
     --------
@@ -577,21 +610,31 @@ class BearingElement(Element):
 
         return G
 
-    def patch(self, position, ax, **kwargs):
+    def _patch(self, position, fig):
         """Bearing element patch.
 
-        Patch that will be used to draw the bearing element using Matplotlib library.
+        Patch that will be used to draw the bearing element using Plotly library.
 
         Parameters
         ----------
         position : tuple
             Position (z, y_low, y_upp) in which the patch will be drawn.
-        ax : matplotlib axes, optional
-            Axes in which the plot will be drawn.
+        fig : plotly.graph_objects.Figure
+            The figure object which traces are added on.
+
+        Returns
+        -------
+        fig : plotly.graph_objects.Figure
+            The figure object which traces are added on.
         """
-        default_values = dict(lw=1.0, alpha=1.0, c="k")
-        for k, v in default_values.items():
-            kwargs.setdefault(k, v)
+        default_values = dict(
+            mode="lines",
+            line=dict(width=3.5, color=self.color),
+            name=self.tag,
+            legendgroup="bearings",
+            showlegend=False,
+            hoverinfo="none",
+        )
 
         # geometric factors
         zpos, ypos, ypos_s = position
@@ -610,8 +653,9 @@ class BearingElement(Element):
         x_bot = [zpos, zpos, zs0, zs1]
         yl_bot = [ypos, ys0, ys0, ys0]
         yu_bot = [-y for y in yl_bot]
-        ax.add_line(mlines.Line2D(x_bot, yl_bot, **kwargs))
-        ax.add_line(mlines.Line2D(x_bot, yu_bot, **kwargs))
+
+        fig.add_trace(go.Scatter(x=x_bot, y=yl_bot, **default_values))
+        fig.add_trace(go.Scatter(x=x_bot, y=yu_bot, **default_values))
 
         # plot top base
         x_top = [zpos, zpos, zs0, zs1]
@@ -622,24 +666,24 @@ class BearingElement(Element):
             ypos + 0.75 * icon_h,
         ]
         yu_top = [-y for y in yl_top]
-        ax.add_line(mlines.Line2D(x_top, yl_top, **kwargs))
-        ax.add_line(mlines.Line2D(x_top, yu_top, **kwargs))
+        fig.add_trace(go.Scatter(x=x_top, y=yl_top, **default_values))
+        fig.add_trace(go.Scatter(x=x_top, y=yu_top, **default_values))
 
         # plot ground
         if self.n_link is None:
             zl_g = [zs0 - step, zs1 + step]
             yl_g = [yl_top[0], yl_top[0]]
             yu_g = [-y for y in yl_g]
-            ax.add_line(mlines.Line2D(zl_g, yl_g, **kwargs))
-            ax.add_line(mlines.Line2D(zl_g, yu_g, **kwargs))
+            fig.add_trace(go.Scatter(x=zl_g, y=yl_g, **default_values))
+            fig.add_trace(go.Scatter(x=zl_g, y=yu_g, **default_values))
 
             step2 = (zl_g[1] - zl_g[0]) / n
             for i in range(n + 1):
                 zl_g2 = [(zs0 - step) + step2 * (i), (zs0 - step) + step2 * (i + 1)]
                 yl_g2 = [yl_g[0], 1.1 * yl_g[0]]
                 yu_g2 = [-y for y in yl_g2]
-                ax.add_line(mlines.Line2D(zl_g2, yl_g2, **kwargs))
-                ax.add_line(mlines.Line2D(zl_g2, yu_g2, **kwargs))
+                fig.add_trace(go.Scatter(x=zl_g2, y=yl_g2, **default_values))
+                fig.add_trace(go.Scatter(x=zl_g2, y=yu_g2, **default_values))
 
         # plot spring
         z_spring = np.array([zs0, zs0, zs0, zs0])
@@ -650,24 +694,22 @@ class BearingElement(Element):
             yl_spring = np.insert(yl_spring, i + 2, ys0 + (i + 1) * step)
         yu_spring = [-y for y in yl_spring]
 
-        ax.add_line(mlines.Line2D(z_spring, yl_spring, **kwargs))
-        ax.add_line(mlines.Line2D(z_spring, yu_spring, **kwargs))
+        fig.add_trace(go.Scatter(x=z_spring, y=yl_spring, **default_values))
+        fig.add_trace(go.Scatter(x=z_spring, y=yu_spring, **default_values))
 
         # plot damper - base
         z_damper1 = [zs1, zs1]
         yl_damper1 = [ys0, ys0 + 2 * step]
         yu_damper1 = [-y for y in yl_damper1]
-
-        ax.add_line(mlines.Line2D(z_damper1, yl_damper1, **kwargs))
-        ax.add_line(mlines.Line2D(z_damper1, yu_damper1, **kwargs))
+        fig.add_trace(go.Scatter(x=z_damper1, y=yl_damper1, **default_values))
+        fig.add_trace(go.Scatter(x=z_damper1, y=yu_damper1, **default_values))
 
         # plot damper - center
         z_damper2 = [zs1 - 2 * step, zs1 - 2 * step, zs1 + 2 * step, zs1 + 2 * step]
         yl_damper2 = [ys0 + 5 * step, ys0 + 2 * step, ys0 + 2 * step, ys0 + 5 * step]
         yu_damper2 = [-y for y in yl_damper2]
-
-        ax.add_line(mlines.Line2D(z_damper2, yl_damper2, **kwargs))
-        ax.add_line(mlines.Line2D(z_damper2, yu_damper2, **kwargs))
+        fig.add_trace(go.Scatter(x=z_damper2, y=yl_damper2, **default_values))
+        fig.add_trace(go.Scatter(x=z_damper2, y=yu_damper2, **default_values))
 
         # plot damper - top
         z_damper3 = [z_damper2[0], z_damper2[2], zs1, zs1]
@@ -679,113 +721,10 @@ class BearingElement(Element):
         ]
         yu_damper3 = [-y for y in yl_damper3]
 
-        ax.add_line(mlines.Line2D(z_damper3, yl_damper3, **kwargs))
-        ax.add_line(mlines.Line2D(z_damper3, yu_damper3, **kwargs))
+        fig.add_trace(go.Scatter(x=z_damper3, y=yl_damper3, **default_values))
+        fig.add_trace(go.Scatter(x=z_damper3, y=yu_damper3, **default_values))
 
-    def bokeh_patch(self, position, bk_ax, **kwargs):
-        """Bearing element patch.
-
-        Patch that will be used to draw the bearing element using Bokeh library.
-
-        Parameters
-        ----------
-        position : tuple
-            Position (z, y_low, y_upp) in which the patch will be drawn.
-        bk_ax : bokeh plotting axes, optional
-            Axes in which the plot will be drawn.
-        """
-        default_values = dict(line_width=3, line_alpha=1, color=bokeh_colors[1])
-        for k, v in default_values.items():
-            kwargs.setdefault(k, v)
-
-        # geometric factors
-        zpos, ypos, ypos_s = position
-
-        icon_h = ypos_s - ypos  # bearing icon height
-        icon_w = icon_h / 2.0  # bearing icon width
-        coils = 6  # number of points to generate spring
-        n = 5  # number of ground lines
-        step = icon_w / (coils + 1)  # spring step
-
-        zs0 = zpos - (icon_w / 2.0)
-        zs1 = zpos + (icon_w / 2.0)
-        ys0 = ypos + 0.25 * icon_h
-
-        # plot bottom base
-        x_bot = [zpos, zpos, zs0, zs1]
-        yl_bot = [ypos, ys0, ys0, ys0]
-        yu_bot = [-y for y in yl_bot]
-        bk_ax.line(x=x_bot, y=yl_bot, **kwargs)
-        bk_ax.line(x=x_bot, y=yu_bot, **kwargs)
-
-        # plot top base
-        x_top = [zpos, zpos, zs0, zs1]
-        yl_top = [
-            ypos + icon_h,
-            ypos + 0.75 * icon_h,
-            ypos + 0.75 * icon_h,
-            ypos + 0.75 * icon_h,
-        ]
-        yu_top = [-y for y in yl_top]
-        bk_ax.line(x=x_top, y=yl_top, legend_label="Bearing", **kwargs)
-        bk_ax.line(x=x_top, y=yu_top, legend_label="Bearing", **kwargs)
-
-        # plot ground
-        if self.n_link is None:
-            zl_g = [zs0 - step, zs1 + step]
-            yl_g = [yl_top[0], yl_top[0]]
-            yu_g = [-y for y in yl_g]
-            bk_ax.line(x=zl_g, y=yl_g, **kwargs)
-            bk_ax.line(x=zl_g, y=yu_g, **kwargs)
-
-            step2 = (zl_g[1] - zl_g[0]) / n
-            for i in range(n + 1):
-                zl_g2 = [(zs0 - step) + step2 * (i), (zs0 - step) + step2 * (i + 1)]
-                yl_g2 = [yl_g[0], 1.1 * yl_g[0]]
-                yu_g2 = [-y for y in yl_g2]
-                bk_ax.line(x=zl_g2, y=yl_g2, **kwargs)
-                bk_ax.line(x=zl_g2, y=yu_g2, **kwargs)
-
-        # plot spring
-        z_spring = np.array([zs0, zs0, zs0, zs0])
-        yl_spring = np.array([ys0, ys0 + step, ys0 + icon_w - step, ys0 + icon_w])
-
-        for i in range(coils):
-            z_spring = np.insert(z_spring, i + 2, zs0 - (-1) ** i * step)
-            yl_spring = np.insert(yl_spring, i + 2, ys0 + (i + 1) * step)
-        yu_spring = [-y for y in yl_spring]
-
-        bk_ax.line(x=z_spring, y=yl_spring, **kwargs)
-        bk_ax.line(x=z_spring, y=yu_spring, **kwargs)
-
-        # plot damper - base
-        z_damper1 = [zs1, zs1]
-        yl_damper1 = [ys0, ys0 + 2 * step]
-        yu_damper1 = [-y for y in yl_damper1]
-
-        bk_ax.line(x=z_damper1, y=yl_damper1, **kwargs)
-        bk_ax.line(x=z_damper1, y=yu_damper1, **kwargs)
-
-        # plot damper - center
-        z_damper2 = [zs1 - 2 * step, zs1 - 2 * step, zs1 + 2 * step, zs1 + 2 * step]
-        yl_damper2 = [ys0 + 5 * step, ys0 + 2 * step, ys0 + 2 * step, ys0 + 5 * step]
-        yu_damper2 = [-y for y in yl_damper2]
-
-        bk_ax.line(x=z_damper2, y=yl_damper2, **kwargs)
-        bk_ax.line(x=z_damper2, y=yu_damper2, **kwargs)
-
-        # plot damper - top
-        z_damper3 = [z_damper2[0], z_damper2[2], zs1, zs1]
-        yl_damper3 = [
-            ys0 + 4 * step,
-            ys0 + 4 * step,
-            ys0 + 4 * step,
-            ypos + 1.5 * icon_w,
-        ]
-        yu_damper3 = [-y for y in yl_damper3]
-
-        bk_ax.line(x=z_damper3, y=yl_damper3, **kwargs)
-        bk_ax.line(x=z_damper3, y=yu_damper3, **kwargs)
+        return fig
 
     @classmethod
     def table_to_toml(cls, n, file):
@@ -832,8 +771,9 @@ class BearingElement(Element):
     def from_table(cls, n, file, sheet_name=0, **kwargs):
         """Instantiate a bearing using inputs from an Excel table.
 
-        A header with the names of the columns is required. These names should match the names expected by the routine
-        (usually the names of the parameters, but also similar ones). The program will read every row bellow the header
+        A header with the names of the columns is required. These names should match the
+        names expected by the routine (usually the names of the parameters, but also
+        similar ones). The program will read every row bellow the header
         until they end or it reaches a NaN.
 
         Parameters
@@ -843,8 +783,23 @@ class BearingElement(Element):
         file: str
             Path to the file containing the bearing parameters.
         sheet_name: int or str, optional
-            Position of the sheet in the file (starting from 0) or its name. If none is passed, it is
-            assumed to be the first sheet in the file.
+            Position of the sheet in the file (starting from 0) or its name. If none is
+            passed, it is assumed to be the first sheet in the file.
+        kwargs : optional
+            Key arguments to fill the BearingElement class. The options are:
+                tag : str, optional
+                    A tag to name the element
+                    Default is None.
+                n_link : int, optional
+                    Node to which the bearing will connect. If None the bearing is
+                    connected to ground.
+                    Default is None.
+                scale_factor : float, optional
+                    The scale factor is used to scale the bearing drawing.
+                    Default is 1.
+                color : str, optional
+                    A color to be used when the element is represented.
+                    Default is '#355d7a' (Cardinal).
 
         Returns
         -------
@@ -1123,22 +1078,21 @@ class BallBearingElement(BearingElement):
     Parameters
     ----------
     n: int
-        Node which the bearing will be located in
+        Node which the bearing will be located in.
     n_balls: float
-        Number of steel spheres in the bearing
+        Number of steel spheres in the bearing.
     d_balls: float
-        Diameter of the steel sphere
+        Diameter of the steel sphere.
     fs: float,optional
-        Static bearing loading force
+        Static bearing loading force.
     alpha: float, optional
-        Contact angle between the steel sphere and the inner / outer raceway
-        (defaults to cxx)
+        Contact angle between the steel sphere and the inner / outer raceway.
     cxx: float, optional
         Direct stiffness in the x direction.
-        Default is None)
+        Default is None.
     cyy: float, optional
         Direct damping in the y direction.
-        Defaults is None
+        Defaults is None.
     tag: str, optional
         A tag to name the element
         Default is None.
@@ -1232,22 +1186,21 @@ class RollerBearingElement(BearingElement):
     Parameters
     ----------
     n: int
-        Node which the bearing will be located in
+        Node which the bearing will be located in.
     n_rollers: float
-        Number of steel spheres in the bearing
+        Number of steel spheres in the bearing.
     l_rollers: float
-        Diameter of the steel sphere
+        Length of the steel rollers.
     fs: float,optional
-        Static bearing loading force
+        Static bearing loading force.
     alpha: float, optional
-        Contact angle between the steel sphere and the inner / outer raceway
-        (defaults to cxx)
+        Contact angle between the steel sphere and the inner / outer raceway.
     cxx: float, optional
         Direct stiffness in the x direction.
-        Default is None)
+        Default is None.
     cyy: float, optional
         Direct damping in the y direction.
-        Defaults is None
+        Defaults is None.
     tag: str, optional
         A tag to name the element
         Default is None.

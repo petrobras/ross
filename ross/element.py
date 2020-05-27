@@ -169,7 +169,7 @@ class Element(ABC):
         Id                     0.178089
         Ip                     0.329564
         tag                        None
-        color                   #b2182b
+        color                 Firebrick
         scale_factor                  1
         dof_global_index           None
         type                DiskElement

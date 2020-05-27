@@ -6,11 +6,9 @@ shaft. There're 2 options, an element with 8 or 12 degrees of freedom.
 import os
 from pathlib import Path
 
-import bokeh.palettes as bp
-import matplotlib.patches as mpatches
 import numpy as np
+import plotly.graph_objects as go
 import toml
-from bokeh.models import ColumnDataSource, HoverTool
 
 from ross.element import Element
 from ross.materials import Material, steel
@@ -18,7 +16,6 @@ from ross.units import check_units
 from ross.utils import read_table_file
 
 __all__ = ["ShaftElement", "ShaftElement6DoF"]
-bokeh_colors = bp.RdGy[11]
 
 
 class ShaftElement(Element):
@@ -885,70 +882,10 @@ class ShaftElement(Element):
 
         return G
 
-    def patch(self, position, check_sld, ax):
+    def _patch(self, position, check_sld, fig):
         """Shaft element patch.
 
-        Patch that will be used to draw the shaft element using Matplotlib library.
-
-        Parameters
-        ----------
-        position : float
-            Position in which the patch will be drawn.
-        check_sld : bool
-            If True, color the elements in yellow if slenderness ratio < 1.6
-        ax : matplotlib axes, optional
-            Axes in which the plot will be drawn.
-        """
-        if check_sld is True and self.slenderness_ratio < 1.6:
-            mpl_color = "yellow"
-            legend = "Shaft - Slenderness Ratio < 1.6"
-        else:
-            mpl_color = self.color
-            legend = "Shaft"
-
-        shaft_points_u = [
-            [position, self.idl / 2],
-            [position, self.odl / 2],
-            [position + self.L, self.odr / 2],
-            [position + self.L, self.idr / 2],
-            [position, self.idl / 2],
-        ]
-        shaft_points_l = [
-            [position, -self.idl / 2],
-            [position, -self.odl / 2],
-            [position + self.L, -self.odr / 2],
-            [position + self.L, -self.idr / 2],
-            [position, -self.idl / 2],
-        ]
-
-        # matplotlib - plot the upper half of the shaft
-        ax.add_patch(
-            mpatches.Polygon(
-                shaft_points_u,
-                facecolor=mpl_color,
-                linestyle="--",
-                linewidth=0.5,
-                ec="k",
-                alpha=0.8,
-                label=legend,
-            )
-        )
-        # matplotlib - plot the lower half of the shaft
-        ax.add_patch(
-            mpatches.Polygon(
-                shaft_points_l,
-                facecolor=mpl_color,
-                linestyle="--",
-                linewidth=0.5,
-                ec="k",
-                alpha=0.8,
-            )
-        )
-
-    def bokeh_patch(self, position, check_sld, bk_ax):
-        """Shaft element patch.
-
-        Patch that will be used to draw the shaft element using Bokeh library.
+        Patch that will be used to draw the shaft element using Plotly library.
 
         Parameters
         ----------
@@ -957,101 +894,112 @@ class ShaftElement(Element):
         check_sld : bool
             If True, HoverTool displays only the slenderness ratio and color
             the elements in yellow if slenderness ratio < 1.6
-        bk_ax : bokeh plotting axes, optional
-            Axes in which the plot will be drawn.
+        fig : plotly.graph_objects.Figure
+            The figure object which traces are added on.
 
         Returns
         -------
-        hover : Bokeh HoverTool
-            Bokeh HoverTool axes
+        fig : plotly.graph_objects.Figure
+            The figure object which traces are added on.
         """
         if check_sld is True and self.slenderness_ratio < 1.6:
-            bk_color = "yellow"
+            color = "yellow"
             legend = "Shaft - Slenderness Ratio < 1.6"
         else:
-            bk_color = self.material.color
+            color = self.material.color
             legend = "Shaft"
 
         # bokeh plot - plot the shaft
-        z_upper = [position, position, position + self.L, position + self.L]
-        y_upper = [self.idl / 2, self.odl / 2, self.odr / 2, self.idr / 2]
-        z_lower = [position, position, position + self.L, position + self.L]
-        y_lower = [-self.idl / 2, -self.odl / 2, -self.odr / 2, -self.idr / 2]
+        z_upper = [position, position, position + self.L, position + self.L, position]
+        y_upper = [self.idl / 2, self.odl / 2, self.odr / 2, self.idr / 2, self.idl / 2]
+        z_lower = [position, position, position + self.L, position + self.L, position]
+        y_lower = [
+            -self.idl / 2,
+            -self.odl / 2,
+            -self.odr / 2,
+            -self.idr / 2,
+            -self.idl / 2,
+        ]
 
-        source = ColumnDataSource(
-            dict(
-                z_l=[z_lower],
-                y_l=[y_lower],
-                z_u=[z_upper],
-                y_u=[y_upper],
-                sld=[self.slenderness_ratio],
-                elnum=[self.n],
-                out_d_l=[self.odl],
-                out_d_r=[self.odr],
-                in_d_l=[self.idl],
-                in_d_r=[self.idr],
-                alpha_factor=[self.alpha],
-                beta_factor=[self.beta],
-                length=[self.L],
-                mat=[self.material.name],
+        z_pos = z_upper
+        z_pos.append(None)
+        z_pos.extend(z_lower)
+
+        y_pos = y_upper
+        y_upper.append(None)
+        y_pos.extend(y_lower)
+
+        if check_sld:
+            customdata = [self.n, self.slenderness_ratio]
+            hovertemplate = (
+                f"<b>Element Number: {customdata[0]}<b><br>"
+                + f"<b>Slenderness Ratio: {customdata[1]:.3f}<b>"
+            )
+        else:
+            if isinstance(self, ShaftElement6DoF):
+                customdata = [
+                    self.n,
+                    self.odl,
+                    self.idl,
+                    self.odr,
+                    self.idr,
+                    self.alpha,
+                    self.beta,
+                    self.L,
+                    self.material.name,
+                ]
+                hovertemplate = (
+                    f"<b>Element Number: {customdata[0]}<b><br>"
+                    + f"<b>Left Outer Diameter: {customdata[1]}<b><br>"
+                    + f"<b>Left Inner Diameter: {customdata[2]}<b><br>"
+                    + f"<b>Right Outer Diameter: {customdata[3]}<b><br>"
+                    + f"<b>Right Inner Diameter: {customdata[4]}<b><br>"
+                    + f"<b>Alpha Damp. Factor: {customdata[5]}<b><br>"
+                    + f"<b>Beta Damp. Factor: {customdata[6]}<b><br>"
+                    + f"<b>Element Length: {customdata[7]}<b><br>"
+                    + f"<b>Material: {customdata[8]}<b><br>"
+                )
+            else:
+                customdata = [
+                    self.n,
+                    self.odl,
+                    self.idl,
+                    self.odr,
+                    self.idr,
+                    self.L,
+                    self.material.name,
+                ]
+                hovertemplate = (
+                    f"<b>Element Number: {customdata[0]}<b><br>"
+                    + f"<b>Left Outer Diameter: {customdata[1]}<b><br>"
+                    + f"<b>Left Inner Diameter: {customdata[2]}<b><br>"
+                    + f"<b>Right Outer Diameter: {customdata[3]}<b><br>"
+                    + f"<b>Right Inner Diameter: {customdata[4]}<b><br>"
+                    + f"<b>Element Length: {customdata[5]}<b><br>"
+                    + f"<b>Material: {customdata[6]}<b><br>"
+                )
+        fig.add_trace(
+            go.Scatter(
+                x=z_pos,
+                y=y_pos,
+                customdata=[customdata] * len(z_pos),
+                text=hovertemplate,
+                mode="lines",
+                opacity=0.5,
+                fill="toself",
+                fillcolor=color,
+                line=dict(width=1.5, color="black"),
+                showlegend=False,
+                name=self.tag,
+                legendgroup=legend,
+                hoveron="points+fills",
+                hoverinfo="text",
+                hovertemplate=hovertemplate,
+                hoverlabel=dict(bgcolor=color),
             )
         )
 
-        bk_ax.patches(
-            xs="z_u",
-            ys="y_u",
-            source=source,
-            line_color=bokeh_colors[0],
-            line_width=1,
-            fill_alpha=0.5,
-            fill_color=bk_color,
-            legend_label=legend,
-            name="u_shaft",
-        )
-        bk_ax.patches(
-            xs="z_l",
-            ys="y_l",
-            source=source,
-            line_color=bokeh_colors[0],
-            line_width=1,
-            fill_alpha=0.5,
-            fill_color=bk_color,
-            legend_label=legend,
-            name="l_shaft",
-        )
-
-        hover = HoverTool(names=["l_shaft", "u_shaft"])
-        if check_sld:
-            hover.tooltips = [
-                ("Element Number", "@elnum"),
-                ("Slenderness Ratio", "@sld"),
-            ]
-        else:
-            if isinstance(self, ShaftElement6DoF):
-                hover.tooltips = [
-                    ("Element Number", "@elnum"),
-                    ("Left Outer Diameter", "@out_d_l"),
-                    ("Left Inner Diameter", "@in_d_l"),
-                    ("Right Outer Diameter", "@out_d_r"),
-                    ("Right Inner Diameter", "@in_d_r"),
-                    ("Alpha Damp. Factor", "@alpha_factor"),
-                    ("Beta Damp. Factor", "@beta_factor"),
-                    ("Element Length", "@length"),
-                    ("Material", "@mat"),
-                ]
-            else:
-                hover.tooltips = [
-                    ("Element Number", "@elnum"),
-                    ("Left Outer Diameter", "@out_d_l"),
-                    ("Left Inner Diameter", "@in_d_l"),
-                    ("Right Outer Diameter", "@out_d_r"),
-                    ("Right Inner Diameter", "@in_d_r"),
-                    ("Element Length", "@length"),
-                    ("Material", "@mat"),
-                ]
-        hover.mode = "mouse"
-
-        return hover
+        return fig
 
     @classmethod
     def from_table(cls, file, sheet_type="Simple", sheet_name=0):

@@ -321,7 +321,7 @@ def test_stability_level1(report0, report1, report2):
     assert_allclose(report0.crit_speed, 82.66646997074625, atol=1e-4)
     assert_allclose(report0.MCS, 1000.0, atol=1e-4)
     assert_allclose(report0.RHO_gas, 34.05, atol=1e-4)
-    assert report0.condition == "required"
+    assert report0.condition == True
 
     _ = report1.stability_level_1(D, H, HP, oper_speed, RHO_ratio, RHOs, RHOd)
 
@@ -333,7 +333,7 @@ def test_stability_level1(report0, report1, report2):
     assert_allclose(report1.crit_speed, 71.20494590334201, atol=1e-4)
     assert_allclose(report1.MCS, 1000.0, atol=1e-4)
     assert_allclose(report1.RHO_gas, 34.05, atol=1e-4)
-    assert report1.condition == "not required"
+    assert report1.condition == False
 
     _ = report2.stability_level_1(D, H, HP, oper_speed, RHO_ratio, RHOs, RHOd)
 
@@ -345,7 +345,7 @@ def test_stability_level1(report0, report1, report2):
     assert_allclose(report2.crit_speed, 38.263712414670984, atol=1e-4)
     assert_allclose(report2.MCS, 1000.0736613927509, atol=1e-4)
     assert_allclose(report2.RHO_gas, 34.05, atol=1e-4)
-    assert report2.condition == "required"
+    assert report2.condition == True
 
 
 def test_stability_level2(report0, report1, report2):

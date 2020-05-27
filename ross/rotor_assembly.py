@@ -8,20 +8,17 @@ from copy import copy, deepcopy
 from itertools import chain, cycle
 from pathlib import Path
 
-import bokeh.palettes as bp
-import matplotlib as mpl
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
+import plotly.express as px
+import plotly.graph_objects as go
+import plotly.io as pio
 import scipy.io as sio
 import scipy.linalg as la
 import scipy.signal as signal
 import scipy.sparse.linalg as las
 import toml
-from bokeh.models import ColumnDataSource
-from bokeh.models.glyphs import Text
-from bokeh.plotting import figure, output_file
-from cycler import cycler
 
 from ross.bearing_seal_element import (BallBearingElement, BearingElement,
                                        BearingElement6DoF,
@@ -31,8 +28,8 @@ from ross.disk_element import DiskElement, DiskElement6DoF
 from ross.materials import steel
 from ross.results import (CampbellResults, ConvergenceResults,
                           ForcedResponseResults, FrequencyResponseResults,
-                          ModalResults, OrbitResponseResults, StaticResults,
-                          SummaryResults, TimeResponseResults)
+                          ModalResults, StaticResults, SummaryResults,
+                          TimeResponseResults)
 from ross.shaft_element import ShaftElement, ShaftElement6DoF
 from ross.utils import convert
 
@@ -40,26 +37,10 @@ from ross.utils import convert
 
 __all__ = ["Rotor", "CoAxialRotor", "rotor_example", "coaxrotor_example"]
 
-# set style and colors
-plt.style.use("seaborn-white")
-plt.style.use(
-    {
-        "lines.linewidth": 2.5,
-        "axes.grid": True,
-        "axes.linewidth": 0.1,
-        "grid.color": ".9",
-        "grid.linestyle": "--",
-        "legend.frameon": True,
-        "legend.framealpha": 0.2,
-    }
-)
+pio.renderers.default = "browser"
 
-# set bokeh palette of colors
-bokeh_colors = bp.RdGy[11]
-
-_orig_rc_params = mpl.rcParams.copy()
-
-seaborn_colors = ["#4c72b0", "#55a868", "#c44e52", "#8172b2", "#ccb974", "#64b5cd"]
+# set Plotly palette of colors
+colors = px.colors.qualitative.Dark24
 
 
 class Rotor(object):
@@ -610,8 +591,7 @@ class Rotor(object):
         array([91.79655318, 96.28899977])
         >>> modal.wd[:2]
         array([91.79655318, 96.28899977])
-        >>> modal.plot_mode3D(0) # doctest: +ELLIPSIS
-        (<Figure ...
+        >>> fig = modal.plot_mode3D(0)
         """
         evalues, evectors = self._eigen(speed)
         wn_len = len(evalues) // 2
@@ -741,8 +721,7 @@ class Rotor(object):
             eigv_arr = np.append(eigv_arr, aux_modal.wn[n_eigval])
             el_num = np.append(el_num, len(shaft_elem))
 
-            error = min(eigv_arr[-1], eigv_arr[-2]) / max(eigv_arr[-1], eigv_arr[-2])
-            error = 1 - error
+            error = abs(1 - eigv_arr[-1] / eigv_arr[-2])
 
             error_arr = np.append(error_arr, 100 * error)
             nel_r *= 2
@@ -1158,6 +1137,9 @@ class Rotor(object):
         >>> response = rotor.run_freq_response(speed_range=speed)
         >>> response.magnitude # doctest: +ELLIPSIS
         array([[[1.00000000e-06, 1.00261725e-06, 1.01076952e-06, ...
+
+        # plot frequency response function:
+        >>> fig = response.plot(inp=13, out=13)
         """
         if speed_range is None:
             modal = self.run_modal(0)
@@ -1315,9 +1297,15 @@ class Rotor(object):
         --------
         >>> rotor = rotor_example()
         >>> speed = np.linspace(0, 1000, 101)
-        >>> response = rotor.unbalance_response(node=3, magnitude=10.0, phase=0.0, frequency_range=speed)
+        >>> response = rotor.unbalance_response(node=3,
+        ...                                     magnitude=10.0,
+        ...                                     phase=0.0,
+        ...                                     frequency_range=speed)
         >>> response.magnitude # doctest: +ELLIPSIS
         array([[0.00000000e+00, 5.06073311e-04, 2.10044826e-03, ...
+
+        # plot unbalance response:
+        >>> fig = response.plot(dof=13)
         """
         force = np.zeros((self.ndof, len(frequency_range)), dtype=np.complex)
 
@@ -1368,298 +1356,42 @@ class Rotor(object):
         modal = self.run_modal(speed=speed)
         return signal.lsim(modal.lti, F, t, X0=ic)
 
-    def _plot_rotor_matplotlib(self, nodes=1, check_sld=False, ax=None):
+    def plot_rotor(self, nodes=1, check_sld=False, **kwargs):
         """Plot a rotor object.
 
         This function will take a rotor object and plot its elements representation
-        using Matplotlib.
+        using Plotly.
 
         Parameters
         ----------
         nodes : int, optional
             Increment that will be used to plot nodes label.
         check_sld : bool
-            If True, checks the slenderness ratio for each element
-        ax : matplotlib plotting axes, optional
-            Axes in which the plot will be drawn.
+            If True, checks the slenderness ratio for each element.
+            The shaft elements which has a slenderness ratio < 1.6 will be displayed in
+            yellow color.
+        kwargs : optional
+            Additional key word arguments can be passed to change the plot layout only
+            (e.g. width=1000, height=800, ...).
+            *See Plotly Python Figure Reference for more information.
 
         Returns
         -------
-        ax : matplotlib axes
-            Returns the axes object with the plot.
+        fig : plotly.graph_objects.Figure
+            The figure object with the rotor representation.
 
         Example
         -------
         >>> import ross as rs
         >>> rotor = rs.rotor_example()
-        >>> rotor._plot_rotor_matplotlib() # doctest: +ELLIPSIS
-        <matplotlib.axes...
+        >>> figure = rotor.plot_rotor()
         """
-        if ax is None:
-            ax = plt.gca()
-
-        #  plot shaft centerline
-        shaft_end = max(self.nodes_pos)
-        ax.plot([-0.2 * shaft_end, 1.2 * shaft_end], [0, 0], "k-.")
-
-        try:
-            max_diameter = max([disk.o_d for disk in self.disk_elements])
-        except (ValueError, AttributeError):
-            max_diameter = max([shaft.odl for shaft in self.shaft_elements])
-
-        ax.set_ylim(-1.2 * max_diameter, 1.2 * max_diameter)
-        ax.axis("equal")
-        ax.set_xlabel("Axial location (m)")
-        ax.set_ylabel("Shaft radius (m)")
-
-        # plot nodes
-        for node, position in enumerate(self.nodes_pos[::nodes]):
-            ax.plot(
-                position,
-                0,
-                zorder=2,
-                ls="",
-                marker="D",
-                color="#6caed6",
-                markersize=10,
-                alpha=0.6,
-            )
-            ax.text(
-                position,
-                0,
-                f"{node*nodes}",
-                size="smaller",
-                horizontalalignment="center",
-                verticalalignment="center",
-            )
-
-        # plot shaft elements
-        for sh_elm in self.shaft_elements:
-            position = self.nodes_pos[sh_elm.n]
-            sh_elm.patch(position, check_sld, ax)
-
-        mean_od = np.mean(self.nodes_o_d)
-        # plot disk elements
-        for disk in self.disk_elements:
-            step = disk.scale_factor * mean_od
-            position = (self.nodes_pos[disk.n], self.nodes_o_d[disk.n] / 2, step)
-            disk.patch(position, ax)
-
-        # plot bearings
-        for bearing in self.bearing_elements:
-            z_pos = self.df[self.df.tag == bearing.tag]["nodes_pos_l"].values[0]
-            y_pos = self.df[self.df.tag == bearing.tag]["y_pos"].values[0]
-            y_pos_sup = self.df[self.df.tag == bearing.tag]["y_pos_sup"].values[0]
-            position = (z_pos, y_pos, y_pos_sup)
-            bearing.patch(position, ax)
-
-        # plot point mass
-        for p_mass in self.point_mass_elements:
-            z_pos = self.df[self.df.tag == p_mass.tag]["nodes_pos_l"].values[0]
-            y_pos = self.df[self.df.tag == p_mass.tag]["y_pos"].values[0]
-            position = (z_pos, y_pos)
-            p_mass.patch(position, ax)
-
-        return ax
-
-    def _plot_rotor_bokeh(self, nodes=1, check_sld=False, bk_ax=None):
-        """Plot a rotor object.
-
-        This function will take a rotor object and plot its elements representation
-        using Bokeh.
-
-        Parameters
-        ----------
-        nodes : int, optional
-            Increment that will be used to plot nodes label.
-        check_sld : bool
-            If True, checks the slenderness ratio for each element
-        bk_ax : bokeh plotting axes, optional
-            Axes in which the plot will be drawn.
-
-        Returns
-        -------
-        bk_ax : bokeh plotting axes
-            Returns the axes object with the plot.
-
-        Example
-        -------
-        >>> import ross as rs
-        >>> rotor = rs.rotor_example()
-        >>> figure = rotor._plot_rotor_bokeh()
-        """
-        #  plot shaft centerline
-        shaft_end = max(self.nodes_pos)
-
-        # bokeh plot - create a new plot
-        bk_ax = figure(
-            tools="pan, wheel_zoom, reset, save",
-            width=800,
-            height=600,
-            x_range=[-0.1 * shaft_end, 1.1 * shaft_end],
-            y_range=[-0.3 * shaft_end, 0.3 * shaft_end],
-            title="Rotor model",
-            x_axis_label="Axial location (m)",
-            y_axis_label="Shaft radius (m)",
-            match_aspect=True,
-        )
-        bk_ax.xaxis.axis_label_text_font_size = "14pt"
-        bk_ax.yaxis.axis_label_text_font_size = "14pt"
-
-        # bokeh plot - plot shaft centerline
-        bk_ax.line(
-            [-0.2 * shaft_end, 1.2 * shaft_end],
-            [0, 0],
-            line_width=3,
-            line_dash="dotdash",
-            line_color=bokeh_colors[0],
-        )
-
-        # plot nodes
-        text = []
-        x_pos = []
-        for node, position in enumerate(self.nodes_pos[::nodes]):
-            # bokeh plot
-            text.append(str(node * nodes))
-            x_pos.append(position)
-
-        # bokeh plot - plot nodes
-        y_pos = np.linspace(0, 0, len(self.nodes_pos[::nodes]))
-
-        source = ColumnDataSource(dict(x=x_pos, y=y_pos, text=text))
-
-        bk_ax.circle(
-            x=x_pos, y=y_pos, size=30, fill_alpha=0.8, fill_color=bokeh_colors[6]
-        )
-
-        glyph = Text(
-            x="x",
-            y="y",
-            text="text",
-            text_font_style="bold",
-            text_baseline="middle",
-            text_align="center",
-            text_alpha=1.0,
-            text_color=bokeh_colors[0],
-        )
-        bk_ax.add_glyph(source, glyph)
-
-        # plot shaft elements
-        for sh_elm in self.shaft_elements:
-            position = self.nodes_pos[sh_elm.n]
-            hover = sh_elm.bokeh_patch(position, check_sld, bk_ax)
-
-        bk_ax.add_tools(hover)
-
-        mean_od = np.mean(self.nodes_o_d)
-        # plot disk elements
-        for disk in self.disk_elements:
-            step = disk.scale_factor * mean_od
-            position = (self.nodes_pos[disk.n], self.nodes_o_d[disk.n] / 2, step)
-            hover = disk.bokeh_patch(position, bk_ax)
-
-        bk_ax.add_tools(hover)
-
-        # plot bearings
-        for bearing in self.bearing_elements:
-            z_pos = self.df[self.df.tag == bearing.tag]["nodes_pos_l"].values[0]
-            y_pos = self.df[self.df.tag == bearing.tag]["y_pos"].values[0]
-            y_pos_sup = self.df[self.df.tag == bearing.tag]["y_pos_sup"].values[0]
-            position = (z_pos, y_pos, y_pos_sup)
-            bearing.bokeh_patch(position, bk_ax)
-
-        # plot point mass
-        for p_mass in self.point_mass_elements:
-            z_pos = self.df[self.df.tag == p_mass.tag]["nodes_pos_l"].values[0]
-            y_pos = self.df[self.df.tag == p_mass.tag]["y_pos"].values[0]
-            position = (z_pos, y_pos)
-            hover = p_mass.bokeh_patch(position, bk_ax)
-
-        bk_ax.add_tools(hover)
-
-        return bk_ax
-
-    def plot_rotor(self, nodes=1, *args, plot_type="bokeh", **kwargs):
-        """Plot a rotor object.
-
-        This function will take a rotor object and plot its elements representation.
-        It offers to options for return the figure:
-            - plot_type="bokeh" (Default)
-            - plot_type="matplotlib"
-
-        Parameters
-        ----------
-        nodes : int, optional
-            Increment that will be used to plot nodes label.
-        plot_type : str
-            Matplotlib or bokeh.
-            Default is matplotlib.
-        ax : matplotlib axes, optional
-            Axes in which the plot will be drawn.
-        bk_ax : bokeh plotting axes, optional
-            Axes in which the plot will be drawn.
-
-        Returns
-        -------
-        ax : matplotlib axes
-            Returns the axes object with the plot.
-        bk_ax : bokeh plotting axes
-            Returns the axes object with the plot.
-
-        Examples
-        --------
-        >>> import ross as rs
-        >>> rotor = rs.rotor_example()
-        >>> rotor.plot_rotor() # doctest: +ELLIPSIS
-        Figure...
-        """
-        if plot_type == "matplotlib":
-            return self._plot_rotor_matplotlib(
-                nodes=nodes, check_sld=False, *args, **kwargs
-            )
-        elif plot_type == "bokeh":
-            return self._plot_rotor_bokeh(nodes=nodes, check_sld=False, *args, **kwargs)
-        else:
-            raise ValueError(f"{plot_type} is not a valid plot type.")
-
-    def check_slenderness_ratio(self, nodes=1, *args, plot_type="matplotlib", **kwargs):
-        """Plot a rotor object and check the slenderness ratio.
-
-        This function will take a rotor object and plot its elements representation.
-        The shaft elements which has a slenderness ratio < 1.6 will be displayed in
-        yellow color
-        It offers to options for return the figure:
-            - plot_type="bokeh" (Default)
-            - plot_type="matplotlib"
-
-        Parameters
-        ----------
-        nodes : int, optional
-            Increment that will be used to plot nodes label.
-        plot_type : str
-            Matplotlib or bokeh.
-            Default is matplotlib.
-
-        Returns
-        -------
-        ax : matplotlib axes
-            Returns the axes object with the plot.
-        bk_ax : bokeh plotting axes
-            Returns the axes object with the plot.
-
-        Example
-        -------
-        >>> import ross as rs
-        >>> rotor = rs.rotor_example()
-        >>> rotor.check_slenderness_ratio() # doctest: +ELLIPSIS
-        <matplotlib.axes...
-        """
-        # check slenderness ratio of beam elements
-        SR = np.array([])
-        for shaft in self.shaft_elements:
-            if shaft.slenderness_ratio < 1.6:
-                SR = np.append(SR, shaft.n)
-        if len(SR) != 0:
+        SR = [
+            shaft.slenderness_ratio
+            for shaft in self.shaft_elements
+            if shaft.slenderness_ratio < 1.6
+        ]
+        if len(SR):
             warnings.warn(
                 "The beam elements "
                 + str(SR)
@@ -1667,14 +1399,106 @@ class Rotor(object):
                 + " Results may not converge correctly"
             )
 
-        if plot_type == "matplotlib":
-            return self._plot_rotor_matplotlib(
-                nodes=nodes, check_sld=True, *args, **kwargs
+        fig = go.Figure()
+
+        # plot shaft centerline
+        shaft_end = max(self.nodes_pos)
+        fig.add_trace(
+            go.Scatter(
+                x=[-0.2 * shaft_end, 1.2 * shaft_end],
+                y=[0, 0],
+                mode="lines",
+                opacity=0.7,
+                line=dict(width=3.0, color="black", dash="dashdot"),
+                showlegend=False,
+                hoverinfo="none",
             )
-        elif plot_type == "bokeh":
-            return self._plot_rotor_bokeh(nodes=nodes, check_sld=True, *args, **kwargs)
-        else:
-            raise ValueError(f"{plot_type} is not a valid plot type.")
+        )
+
+        # plot nodes icons
+        text = []
+        x_pos = []
+        y_pos = np.linspace(0, 0, len(self.nodes_pos[::nodes]))
+        for node, position in enumerate(self.nodes_pos[::nodes]):
+            text.append("<b>{}</b>".format(node * nodes))
+            x_pos.append(position)
+
+        fig.add_trace(
+            go.Scatter(
+                x=x_pos,
+                y=y_pos,
+                text=text,
+                textfont=dict(family="Verdana", size=20, color="black"),
+                mode="markers+text",
+                marker=dict(
+                    opacity=0.7,
+                    size=30,
+                    color="#ffcc99",
+                    line=dict(width=1.0, color="black"),
+                ),
+                showlegend=False,
+                hoverinfo="none",
+            ),
+        )
+
+        # plot shaft elements
+        for sh_elm in self.shaft_elements:
+            position = self.nodes_pos[sh_elm.n]
+            fig = sh_elm._patch(position, check_sld, fig)
+
+        mean_od = np.mean(self.nodes_o_d)
+        # plot disk elements
+        for disk in self.disk_elements:
+            step = disk.scale_factor * mean_od
+            position = (self.nodes_pos[disk.n], self.nodes_o_d[disk.n] / 2, step)
+            fig = disk._patch(position, fig)
+
+        # plot bearings
+        for bearing in self.bearing_elements:
+            z_pos = self.df[self.df.tag == bearing.tag]["nodes_pos_l"].values[0]
+            y_pos = self.df[self.df.tag == bearing.tag]["y_pos"].values[0]
+            y_pos_sup = self.df[self.df.tag == bearing.tag]["y_pos_sup"].values[0]
+            position = (z_pos, y_pos, y_pos_sup)
+            bearing._patch(position, fig)
+
+        # plot point mass
+        for p_mass in self.point_mass_elements:
+            z_pos = self.df[self.df.tag == p_mass.tag]["nodes_pos_l"].values[0]
+            y_pos = self.df[self.df.tag == p_mass.tag]["y_pos"].values[0]
+            position = (z_pos, y_pos)
+            fig = p_mass._patch(position, fig)
+
+        fig.update_xaxes(
+            title_text="<b>Axial location</b>",
+            title_font=dict(family="Verdana", size=20),
+            tickfont=dict(size=16),
+            range=[-0.1 * shaft_end, 1.1 * shaft_end],
+            showgrid=False,
+            showline=True,
+            linewidth=2.5,
+            linecolor="black",
+            mirror=True,
+        )
+        fig.update_yaxes(
+            title_text="<b>Shaft radius</b>",
+            title_font=dict(family="Verdana", size=20),
+            tickfont=dict(size=16),
+            range=[-0.3 * shaft_end, 0.3 * shaft_end],
+            showgrid=False,
+            showline=True,
+            linewidth=2.5,
+            linecolor="black",
+            mirror=True,
+        )
+        fig.update_layout(
+            width=1200,
+            height=900,
+            plot_bgcolor="white",
+            title=dict(text="<b>Rotor Model</b>", font=dict(size=18)),
+            **kwargs,
+        )
+
+        return fig
 
     def run_campbell(self, speed_range, frequencies=6, frequency_type="wd"):
         """Calculate the Campbell diagram.
@@ -1702,8 +1526,10 @@ class Rotor(object):
         >>> rotor1 = rotor_example()
         >>> speed = np.linspace(0, 400, 101)
         >>> camp = rotor1.run_campbell(speed)
-        >>> camp.plot() # doctest: +ELLIPSIS
-        Figure...
+
+        # plot Campbell Diagram
+
+        >>> fig = camp.plot()
         """
         # store in results [speeds(x axis), frequencies[0] or logdec[1] or
         # whirl[2](y axis), 3]
@@ -1734,7 +1560,7 @@ class Rotor(object):
 
         return results
 
-    def plot_ucs(self, stiffness_range=None, num=20, ax=None, output_html=False):
+    def plot_ucs(self, stiffness_range=None, num=20, **kwargs):
         """Plot undamped critical speed map.
 
         This method will plot the undamped critical speed map for a given range
@@ -1748,18 +1574,15 @@ class Rotor(object):
         num : int
             Number of steps in the range.
             Default is 20.
-        ax : matplotlib axes, optional
-            Axes in which the plot will be drawn.
-        output_html : Boolean, optional
-            outputs a html file.
-            Default is False
+        kwargs : optional
+            Additional key word arguments can be passed to change the plot layout only
+            (e.g. width=1000, height=800, ...).
+            *See Plotly Python Figure Reference for more information.
 
         Returns
         -------
-        ax : matplotlib axes
-            Returns the axes object with the plot.
-        bk_ax : bokeh plot axes
-            Returns the axes object with the plot.
+        fig : Plotly graph_objects.Figure()
+            The figure object with the plot.
 
         Example
         -------
@@ -1785,11 +1608,9 @@ class Rotor(object):
         >>> bearing0 = BearingElement(0, kxx=stfx, kyy=stfy, cxx=0, frequency=[0,1000, 2000])
         >>> bearing1 = BearingElement(6, kxx=stfx, kyy=stfy, cxx=0, frequency=[0,1000, 2000])
         >>> rotor = Rotor(shaft_elem, [disk0, disk1], [bearing0, bearing1])
-        >>> rotor.plot_ucs() # doctest: +ELLIPSIS
-        <matplotlib.axes._subplots.AxesSubplot ...
+        >>> fig = rotor.plot_ucs()
         """
-        if ax is None:
-            ax = plt.gca()
+        fig = go.Figure()
 
         if stiffness_range is None:
             if self.rated_w is not None:
@@ -1818,83 +1639,81 @@ class Rotor(object):
                 : int(self.number_dof * 2) : int(self.number_dof / 2)
             ]
 
-        ax.set_prop_cycle(cycler("color", seaborn_colors))
-        ax.loglog(stiffness_log, rotor_wn.T)
-        ax.set_xlabel("Bearing Stiffness (N/m)")
-        ax.set_ylabel("Critical Speed (rad/s)")
-
         bearing0 = bearings_elements[0]
 
-        ax.plot(
-            bearing0.kxx.interpolated(bearing0.frequency),
-            bearing0.frequency,
-            marker="o",
-            color="k",
-            alpha=0.25,
-            markersize=5,
-            lw=0,
-            label="kxx",
-        )
-        ax.plot(
-            bearing0.kyy.interpolated(bearing0.frequency),
-            bearing0.frequency,
-            marker="s",
-            color="k",
-            alpha=0.25,
-            markersize=5,
-            lw=0,
-            label="kyy",
-        )
-        ax.legend()
+        fig = go.Figure()
 
-        # bokeh plot - output to static HTML file
-        if output_html:
-            output_file("Plot_UCS.html")
+        fig.add_trace(
+            go.Scatter(
+                x=bearing0.kxx.interpolated(bearing0.frequency),
+                y=bearing0.frequency,
+                mode="markers",
+                marker=dict(size=10, symbol="circle", color="#888844"),
+                name="Kxx",
+            )
+        )
+        fig.add_trace(
+            go.Scatter(
+                x=bearing0.kyy.interpolated(bearing0.frequency),
+                y=bearing0.frequency,
+                mode="markers",
+                marker=dict(size=10, symbol="square", color="#888844"),
+                name="Kyy",
+            )
+        )
 
-        # bokeh plot - create a new plot
-        bk_ax = figure(
-            tools="pan, box_zoom, wheel_zoom, reset, save",
+        for j in range(rotor_wn.T.shape[1]):
+            fig.add_trace(
+                go.Scatter(
+                    x=stiffness_log,
+                    y=np.transpose(rotor_wn.T)[j],
+                    mode="lines",
+                    line=dict(width=3, color=colors[j]),
+                    hoverinfo="none",
+                    showlegend=False,
+                )
+            )
+        fig.update_xaxes(
+            title_text="<b>Bearing Stiffness</b>",
+            title_font=dict(size=16),
+            tickfont=dict(size=14),
+            gridcolor="lightgray",
+            showline=True,
+            linewidth=2.5,
+            linecolor="black",
+            mirror=True,
+            type="log",
+            exponentformat="power",
+        )
+        fig.update_yaxes(
+            title_text="<b>Critical Speed</b>",
+            title_font=dict(size=16),
+            tickfont=dict(size=14),
+            gridcolor="lightgray",
+            showline=True,
+            linewidth=2.5,
+            linecolor="black",
+            mirror=True,
+            type="log",
+            exponentformat="power",
+        )
+        fig.update_layout(
             width=1200,
             height=900,
-            title="Undamped critical speed map",
-            x_axis_label="Bearing Stiffness (N/m)",
-            y_axis_label="Critical Speed (rad/s)",
-            x_axis_type="log",
-            y_axis_type="log",
+            plot_bgcolor="white",
+            legend=dict(
+                font=dict(family="sans-serif", size=14),
+                bgcolor="white",
+                bordercolor="black",
+                borderwidth=2,
+            ),
+            title=dict(text="<b>Undamped Critical Speed Map</b>", font=dict(size=16)),
+            **kwargs,
         )
-        bk_ax.xaxis.axis_label_text_font_size = "14pt"
-        bk_ax.yaxis.axis_label_text_font_size = "14pt"
 
-        # bokeh plot - plot shaft centerline
-        bk_ax.circle(
-            bearing0.kxx.interpolated(bearing0.frequency),
-            bearing0.frequency,
-            size=5,
-            fill_alpha=0.5,
-            fill_color=bokeh_colors[0],
-            legend_label="Kxx",
-        )
-        bk_ax.square(
-            bearing0.kyy.interpolated(bearing0.frequency),
-            bearing0.frequency,
-            size=5,
-            fill_alpha=0.5,
-            fill_color=bokeh_colors[0],
-            legend_label="Kyy",
-        )
-        for j in range(rotor_wn.T.shape[1]):
-            bk_ax.line(
-                stiffness_log,
-                np.transpose(rotor_wn.T)[j],
-                line_width=3,
-                line_color=bokeh_colors[-j + 1],
-            )
+        return fig
 
-        return ax
-
-    def plot_level1(
-        self, n=None, stiffness_range=None, num=5, ax=None, output_html=False, **kwargs
-    ):
+    def plot_level1(self, n=5, stiffness_range=None, num=5, **kwargs):
         """Plot level 1 stability analysis.
 
         This method will plot the stability 1 analysis for a
@@ -1902,23 +1721,20 @@ class Rotor(object):
 
         Parameters
         ----------
-        stiffness_range : tuple, optional
-            Tuple with (start, end) for stiffness range.
-        num : int
+        n : int
             Number of steps in the range.
             Default is 5.
-        ax : matplotlib axes, optional
-            Axes in which the plot will be drawn.
-        output_html : Boolean, optional
-            outputs a html file.
-            Default is False
+        stiffness_range : tuple, optional
+            Tuple with (start, end) for stiffness range.
+        kwargs : optional
+            Additional key word arguments can be passed to change the plot layout only
+            (e.g. width=1000, height=800, ...).
+            *See Plotly Python Figure Reference for more information.
 
         Returns
         -------
-        ax : matplotlib axes
-            Returns the axes object with the plot.
-        bk_ax : bokeh plot axes
-            Returns the axes object with the plot.
+        fig : Plotly graph_objects.Figure()
+            The figure object with the plot.
 
         Example
         -------
@@ -1944,14 +1760,18 @@ class Rotor(object):
         >>> bearing0 = BearingElement(0, kxx=stfx, kyy=stfy, cxx=0)
         >>> bearing1 = BearingElement(6, kxx=stfx, kyy=stfy, cxx=0)
         >>> rotor = Rotor(shaft_elem, [disk0, disk1], [bearing0, bearing1], rated_w=0)
-        >>> rotor.plot_level1(n=0, stiffness_range=(1e6, 1e11)) # doctest: +ELLIPSIS
-        (<matplotlib.axes._subplots.AxesSubplot ...
+        >>> fig = rotor.plot_level1(n=0, stiffness_range=(1e6, 1e11))
         """
-        if ax is None:
-            ax = plt.gca()
+        if stiffness_range is None:
+            if self.rated_w is not None:
+                bearing = self.bearing_elements[0]
+                k = bearing.kxx.interpolated(self.rated_w)
+                k = int(np.log10(k))
+                stiffness_range = (k - 3, k + 3)
+            else:
+                stiffness_range = (6, 11)
 
         stiffness = np.linspace(*stiffness_range, num)
-
         log_dec = np.zeros(len(stiffness))
 
         # set rotor speed to mcs
@@ -1969,35 +1789,60 @@ class Rotor(object):
             non_backward = modal.whirl_direction() != "Backward"
             log_dec[i] = modal.log_dec[non_backward][0]
 
-        ax.plot(stiffness, log_dec, "--", **kwargs)
-        ax.set_xlabel("Applied Cross Coupled Stiffness, Q (N/m)")
-        ax.set_ylabel("Log Dec")
+        fig = go.Figure()
+        fig.add_trace(
+            go.Scatter(
+                x=stiffness,
+                y=log_dec,
+                mode="lines",
+                line=dict(width=3, color=colors[0]),
+                showlegend=False,
+                hovertemplate=("Stiffness: %{x:.2e}<br>" + "Log Dec: %{y:.2f}"),
+            )
+        )
 
-        # bokeh plot - output to static HTML file
-        if output_html:
-            output_file("Plot_level1.html")
-
-        # bokeh plot - create a new plot
-        bk_ax = figure(
-            tools="pan, box_zoom, wheel_zoom, reset, save",
+        fig.update_xaxes(
+            title_text="<b>Applied Cross Coupled Stiffness</b>",
+            title_font=dict(size=16),
+            tickfont=dict(size=14),
+            gridcolor="lightgray",
+            showline=True,
+            linewidth=2.5,
+            linecolor="black",
+            mirror=True,
+            exponentformat="power",
+        )
+        fig.update_yaxes(
+            title_text="<b>Log Dec</b>",
+            title_font=dict(size=16),
+            tickfont=dict(size=14),
+            gridcolor="lightgray",
+            showline=True,
+            linewidth=2.5,
+            linecolor="black",
+            mirror=True,
+            exponentformat="power",
+        )
+        fig.update_layout(
             width=1200,
             height=900,
-            title="Level 1 stability analysis",
-            x_axis_label="Applied Cross Coupled Stiffness, Q (N/m)",
-            y_axis_label="Log Dec",
+            plot_bgcolor="white",
+            legend=dict(
+                font=dict(family="sans-serif", size=14),
+                bgcolor="white",
+                bordercolor="black",
+                borderwidth=2,
+            ),
+            title=dict(text="<b>Level 1 stability analysis</b>", font=dict(size=16)),
+            **kwargs,
         )
-        bk_ax.xaxis.axis_label_text_font_size = "14pt"
-        bk_ax.yaxis.axis_label_text_font_size = "14pt"
 
-        # bokeh plot - plot shaft centerline
-        bk_ax.line(stiffness, log_dec, line_width=3, line_color=bokeh_colors[0])
+        return fig
 
-        return ax, bk_ax
-
-    def run_time_response(self, speed, F, t, dof):
+    def run_time_response(self, speed, F, t):
         """Calculate the time response.
 
-        This function will take a rotor object and plot its time response
+        This function will take a rotor object and calculate its time response
         given a force and a time.
 
         Parameters
@@ -2008,49 +1853,6 @@ class Rotor(object):
             Force array (needs to have the same number of rows as time array).
             Each column corresponds to a dof and each row to a time.
         t : array
-            Time array.
-        dof : int
-            Degree of freedom that will be observed.
-
-        Returns
-        -------
-        results : array
-            Array containing the time array, the system response, and the
-            time evolution of the state vector.
-            It will be returned if plot=False.
-
-        Examples
-        --------
-        >>> rotor = rotor_example()
-        >>> speed = 0
-        >>> size = 28
-        >>> t = np.linspace(0, 5, size)
-        >>> F = np.ones((size, rotor.ndof))
-        >>> dof = 13
-        >>> response = rotor.run_time_response(speed, F, t, dof)
-        >>> response.yout[:, dof] # doctest: +ELLIPSIS
-        array([ 0.00000000e+00,  1.06327334e-05,  1.54684988e-05, ...
-        """
-        t_, yout, xout = self.time_response(speed, F, t)
-
-        results = TimeResponseResults(t, yout, xout, dof)
-
-        return results
-
-    def run_orbit_response(self, speed, F, t):
-        """Calculate the orbit for a given node.
-
-        This function will take a rotor object and plot the orbit for a single
-        (2D graph) or all nodes (3D graph).
-
-        Parameters
-        ----------
-        speed: float
-            Rotor speed
-        F: array
-            Force array (needs to have the same number of rows as time array).
-            Each column corresponds to a dof and each row to a time.
-        t: array
             Time array.
 
         Returns
@@ -2066,17 +1868,29 @@ class Rotor(object):
         >>> speed = 500.0
         >>> size = 1000
         >>> node = 3
+        >>> dof = 13
         >>> t = np.linspace(0, 10, size)
         >>> F = np.zeros((size, rotor.ndof))
         >>> F[:, 4 * node] = 10 * np.cos(2 * t)
         >>> F[:, 4 * node + 1] = 10 * np.sin(2 * t)
-        >>> response = rotor.run_orbit_response(speed, F, t)
-        >>> response.yout[:, 4 * node] # doctest: +ELLIPSIS
-        array([ 0.00000000e+00,  6.94968863e-06,  2.13014440e-05, ...
+        >>> response = rotor.run_time_response(speed, F, t)
+        >>> response.yout[:, dof]
+        array([ 0.00000000e+00,  1.86686693e-07,  8.39130663e-07, ...
+
+        # plot time response for a single DoF:
+        >>> fig1 = response.plot(plot_type="1d", dof=dof)
+
+        # plot orbit response - plotting 2D nodal orbit:
+        >>> fig2 = response.plot(plot_type="2d", node=node)
+
+        # plot orbit response - plotting 3D orbits - full rotor model:
+        >>> fig3 = response.plot(plot_type="3d")
         """
         t_, yout, xout = self.time_response(speed, F, t)
 
-        results = OrbitResponseResults(t, yout, xout, self.nodes, self.nodes_pos)
+        results = TimeResponseResults(
+            t, yout, xout, self.nodes, self.nodes_pos, self.number_dof,
+        )
 
         return results
 
@@ -2260,6 +2074,9 @@ class Rotor(object):
         {'node_0': 432.4, 'node_6': 432.4}
         >>> rotor.bearing_forces_tag
         {'Bearing 0': 432.4, 'Bearing 1': 432.4}
+
+        # plotting static deformation
+        >>> fig = static.plot_deformation()
         """
         if not len(self.df_bearings):
             raise ValueError("Rotor has no bearings")
@@ -2376,8 +2193,7 @@ class Rotor(object):
                 ]
 
         # counting nodes with more than 1 bearing attached to
-        node_b = list(aux_rotor.df_bearings["n"])
-        node_b.extend(list(aux_rotor.df_bearings["n_link"]))
+        node_b = [n for n in aux_rotor.df_bearings["n"] if n is not None]
         count = len(node_b) - len(Counter(node_b))
 
         # Disk Forces
@@ -2419,11 +2235,12 @@ class Rotor(object):
             nodes.append(list(range(n_min, n_max + 1)))
 
             # get bearings and disks for each shaft
-            dsk.append(
-                aux_rotor.df_disks.loc[
-                    aux_rotor.df_disks.shaft_number == i, "tag"
-                ].values
-            )
+            if any(v != 0 for v in DskForce[i]):
+                dsk.append(
+                    aux_rotor.df_disks.loc[
+                        aux_rotor.df_disks.shaft_number == i, "tag"
+                    ].values
+                )
             brg.append(
                 aux_rotor.df_bearings.loc[
                     (aux_rotor.df_bearings.shaft_number == i)
@@ -2449,7 +2266,8 @@ class Rotor(object):
                     aux_Vx[i - 1] + BrgForce[j][i] + DskForce[j][i] + SchForce[j][i]
                 )
 
-            for i in range(len(aux_Vx_axis) + len(dsk[j]) + len(brg[j]) - count):
+            len_dsk = len(dsk[j]) if len(dsk) else 0
+            for i in range(len(aux_Vx_axis) + len_dsk + len(brg[j]) - count):
                 if DskForce[j][i] != 0:
                     aux_Vx.insert(i, aux_Vx[i - 1] + SchForce[j][i])
                     DskForce[j].insert(i + 1, 0)
@@ -2958,6 +2776,7 @@ class CoAxialRotor(Rotor):
                 ]
             )
         )
+        self.number_dof = self._check_number_dof()
 
         ####################################################
         # Rotor summary
@@ -3558,8 +3377,9 @@ def rotor_example_6dof():
     >>> import matplotlib.pyplot as plt
     >>> rotor6 = rs.rotor_assembly.rotor_example_6dof()
     >>> camp6 = rotor6.run_campbell(np.linspace(0,400,101),frequencies=18)
-    >>> camp6.plot(plot_type="matplotlib") # doctest: +ELLIPSIS
-    (<Figure...
+
+    # plotting Campbell Diagram
+    >>> fig = camp6.plot()
     """
     #  Rotor with 6 DoFs, with internal damping, with 10 shaft elements, 2 disks and 2 bearings.
     i_d = 0

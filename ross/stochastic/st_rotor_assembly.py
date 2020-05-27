@@ -296,6 +296,7 @@ class ST_Rotor(object):
 
         self.ndof = aux_rotor.ndof
         self.nodes = aux_rotor.nodes
+        self.number_dof = aux_rotor.number_dof
 
         if "shaft_elements" in self.is_random:
             if any(
@@ -361,8 +362,7 @@ class ST_Rotor(object):
         ----------
         is_random : list
             List of the object attributes to become stochastic.
-            Default is None
-        *args : dict
+         *args : dict
             Dictionary instanciating the ross.Rotor class.
             The attributes that are supposed to be stochastic should be
             set as lists of random variables.
@@ -410,10 +410,8 @@ class ST_Rotor(object):
         ----------
         f : callable
             Function to be instantiated randomly with its respective *args.
-            Default is instantiating the ross.Rotor class
         is_random : list
             List of the object attributes to become stochastic.
-            Default is None
         *args : dict
             Dictionary instanciating the ross.Rotor class.
             The attributes that are supposed to be stochastic should be
@@ -450,11 +448,14 @@ class ST_Rotor(object):
 
         Returns
         -------
-        results
-            Array with the damped or undamped natural frequencies and log dec
-            corresponding to each speed of the speed_range array for each rotor
-            instance.
-            It will be returned if plot=False.
+        results.speed_range : array
+            Array with the frequency range
+        results.wd : array
+            Array with the damped or undamped natural frequencies corresponding to
+            each speed of the speed_range array for each rotor instance.
+        results.log_dec : array
+            Array with the log dec corresponding to each speed of the speed_range
+            array for each rotor instance.
 
         Example
         -------
@@ -466,10 +467,10 @@ class ST_Rotor(object):
         >>> speed_range = np.linspace(0, 500, 31)
         >>> results = rotors.run_campbell(speed_range)
 
-        # Plotting Campbell Diagram with bokeh
+        # Plotting Campbell Diagram with Plotly
 
-        >>> results.plot(conf_interval=[90]) # doctest: +ELLIPSIS
-        Column...
+        >>> fig = results.plot(conf_interval=[90])
+        >>> # fig.show()
         """
         CAMP_size = len(speed_range)
         RV_size = self.RV_size
@@ -508,10 +509,12 @@ class ST_Rotor(object):
 
         Returns
         -------
-        results : array
-            Array with the frequencies, magnitude and phase of the frequency
-            response for the given pair input/output for each rotor instance.
-            It will be returned if plot=False.
+        results.speed_range : array
+            Array with the frequencies.
+        results.magnitude : array
+            Amplitude response for each rotor system.
+        results.phase : array
+            Phase response for each rotor system.
 
         Example
         -------
@@ -525,10 +528,10 @@ class ST_Rotor(object):
         >>> out = 9
         >>> results = rotors.run_freq_response(speed_range, inp, out)
 
-        # Plotting Frequency Response with bokeh
+        # Plotting Frequency Response with Plotly
 
-        >>> results.plot(conf_interval=[90]) # doctest: +ELLIPSIS
-        Column...
+        >>> fig = results.plot(conf_interval=[90])
+        >>> # fig.show()
         """
         FRF_size = len(speed_range)
         RV_size = self.RV_size
@@ -572,10 +575,12 @@ class ST_Rotor(object):
 
         Returns
         -------
-        results : array
-            Array containing the time array, the system response, and the
-            time evolution of the state vector for each rotor system.
-            It will be returned if plot=False.
+        results.time_range : array
+            Array containing the time array.
+        results.yout : array
+            System response.
+        results.xout
+            Time evolution of the state vector for each rotor system.
 
         Example
         -------
@@ -598,12 +603,12 @@ class ST_Rotor(object):
 
         # Plotting Time Response 1D, 2D and 3D
 
-        >>> results.plot(plot_type="1d", dof=dof, conf_interval=[90]) # doctest: +ELLIPSIS
-        Figure...
-        >>> results.plot(plot_type="2d", node=node, conf_interval=[90]) # doctest: +ELLIPSIS
-        Figure...
-        >>> results.plot(plot_type="3d", conf_interval=[90]) # doctest: +ELLIPSIS
-        <matplotlib...
+        >>> fig = results.plot(plot_type="1d", dof=dof, conf_interval=[90])
+        >>> # fig.show()
+        >>> fig = results.plot(plot_type="2d", node=node, conf_interval=[90])
+        >>> # fig.show()
+        >>> fig = results.plot(plot_type="3d", conf_interval=[90])
+        >>> # fig.show()
         """
         t_size = len(time_range)
         RV_size = self.RV_size
@@ -631,7 +636,7 @@ class ST_Rotor(object):
                 i += 1
 
         results = ST_TimeResponseResults(
-            time_range, yout, xout, self.nodes, self.nodes_pos
+            time_range, yout, xout, self.number_dof, self.nodes, self.nodes_pos
         )
 
         return results
@@ -685,10 +690,10 @@ class ST_Rotor(object):
         >>> dof = 13
         >>> results = rotors.run_unbalance_response(n, m, p, freq_range)
 
-        # Plotting Frequency Response with bokeh
+        # Plotting Frequency Response with Plotly
 
-        >>> results.plot(dof, conf_interval=[90]) # doctest: +ELLIPSIS
-        Column...
+        >>> fig = results.plot(dof, conf_interval=[90])
+        >>> # fig.show()
         """
         RV_size = self.RV_size
         freq_size = len(frequency_range)
