@@ -1160,7 +1160,7 @@ class Rotor(object):
 
         return results
 
-    def run_forced_response(self, force=None, speed_range=None, modes=None):
+    def forced_response(self, force=None, speed_range=None, modes=None):
         """Unbalanced response for a mdof system.
 
         This method returns the unbalanced response for a mdof system
@@ -1193,7 +1193,7 @@ class Rotor(object):
         >>> rotor = rotor_example()
         >>> speed = np.linspace(0, 1000, 101)
         >>> force = rotor._unbalance_force(3, 10.0, 0.0, speed)
-        >>> resp = rotor.run_forced_response(force=force, speed_range=speed)
+        >>> resp = rotor.forced_response(force=force, speed_range=speed)
         >>> resp.magnitude # doctest: +ELLIPSIS
         array([[0.00000000e+00, 5.06073311e-04, 2.10044826e-03, ...
         """
@@ -1262,7 +1262,7 @@ class Rotor(object):
 
         return F0
 
-    def unbalance_response(self, node, magnitude, phase, frequency_range=None):
+    def run_unbalance_response(self, node, magnitude, phase, frequency_range=None):
         """Unbalanced response for a mdof system.
 
         This method returns the unbalanced response for a mdof system
@@ -1297,10 +1297,10 @@ class Rotor(object):
         --------
         >>> rotor = rotor_example()
         >>> speed = np.linspace(0, 1000, 101)
-        >>> response = rotor.unbalance_response(node=3,
-        ...                                     magnitude=10.0,
-        ...                                     phase=0.0,
-        ...                                     frequency_range=speed)
+        >>> response = rotor.run_unbalance_response(node=3,
+        ...                                         magnitude=10.0,
+        ...                                         phase=0.0,
+        ...                                         frequency_range=speed)
         >>> response.magnitude # doctest: +ELLIPSIS
         array([[0.00000000e+00, 5.06073311e-04, 2.10044826e-03, ...
 
@@ -1315,7 +1315,7 @@ class Rotor(object):
         except TypeError:
             force = self._unbalance_force(node, magnitude, phase, frequency_range)
 
-        forced_response = self.run_forced_response(force, frequency_range)
+        forced_response = self.forced_response(force, frequency_range)
 
         return forced_response
 
@@ -3374,7 +3374,6 @@ def rotor_example_6dof():
     --------
     >>> import ross as rs
     >>> import numpy as np
-    >>> import matplotlib.pyplot as plt
     >>> rotor6 = rs.rotor_assembly.rotor_example_6dof()
     >>> camp6 = rotor6.run_campbell(np.linspace(0,400,101),frequencies=18)
 
