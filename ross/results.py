@@ -1287,13 +1287,25 @@ class ForcedResponseResults:
         Plotly figure with Amplitude vs Frequency and Phase vs Frequency plots.
     """
 
-    def __init__(self, forced_resp, speed_range, magnitude, phase):
+    def __init__(
+            self,
+            forced_resp,
+            speed_range,
+            magnitude,
+            phase,
+            nodes_list,
+            nodes_pos,
+            number_dof,
+    ):
         self.forced_resp = forced_resp
         self.speed_range = speed_range
         self.magnitude = magnitude
         self.phase = phase
+        self.nodes_list = nodes_list
+        self.nodes_pos = nodes_pos
+        self.number_dof = number_dof
 
-    def plot_magnitude(self, dof, units="m", **mag_kwargs):
+    def plot_magnitude(self, dof, units="m", **kwargs):
         """Plot forced response (magnitude) using Plotly.
 
         Parameters
@@ -1303,7 +1315,7 @@ class ForcedResponseResults:
         units : str
             Units to plot the magnitude ('m' or 'mic-pk-pk')
             Default is 'm'
-        mag_kwargs : optional
+        kwargs : optional
             Additional key word arguments can be passed to change the plot layout only
             (e.g. width=1000, height=800, ...).
             *See Plotly Python Figure Reference for more information.
@@ -1326,7 +1338,7 @@ class ForcedResponseResults:
             width=1200, height=900, plot_bgcolor="white", hoverlabel_align="right",
         )
         for k, v in kwargs_default_values.items():
-            mag_kwargs.setdefault(k, v)
+            kwargs.setdefault(k, v)
 
         fig = go.Figure()
 
@@ -1372,19 +1384,19 @@ class ForcedResponseResults:
                 bordercolor="black",
                 borderwidth=2,
             ),
-            **mag_kwargs,
+            **kwargs,
         )
 
         return fig
 
-    def plot_phase(self, dof, **phase_kwargs):
+    def plot_phase(self, dof, **kwargs):
         """Plot forced response (phase) using Plotly.
 
         Parameters
         ----------
         dof : int
             Degree of freedom.
-        phase_kwargs : optional
+        kwargs : optional
             Additional key word arguments can be passed to change the plot layout only
             (e.g. width=1000, height=800, ...).
             *See Plotly Python Figure Reference for more information.
@@ -1401,7 +1413,7 @@ class ForcedResponseResults:
             width=1200, height=900, plot_bgcolor="white", hoverlabel_align="right",
         )
         for k, v in kwargs_default_values.items():
-            phase_kwargs.setdefault(k, v)
+            kwargs.setdefault(k, v)
 
         fig = go.Figure()
 
@@ -1446,12 +1458,12 @@ class ForcedResponseResults:
                 bordercolor="black",
                 borderwidth=2,
             ),
-            **phase_kwargs,
+            **kwargs,
         )
 
         return fig
 
-    def plot_polar_bode(self, dof, units="mic-pk-pk", **polar_kwargs):
+    def plot_polar_bode(self, dof, units="mic-pk-pk", **kwargs):
         """Plot polar forced response using Plotly.
 
         Parameters
@@ -1461,7 +1473,7 @@ class ForcedResponseResults:
         units : str
             Magnitude unit system.
             Default is "mic-pk-pk"
-        polar_kwargs : optional
+        kwargs : optional
             Additional key word arguments can be passed to change the plot layout only
             (e.g. width=1000, height=800, ...).
             *See Plotly Python Figure Reference for more information.
@@ -1486,7 +1498,7 @@ class ForcedResponseResults:
             width=1200, height=900, polar_bgcolor="white", hoverlabel_align="right",
         )
         for k, v in kwargs_default_values.items():
-            polar_kwargs.setdefault(k, v)
+            kwargs.setdefault(k, v)
 
         fig = go.Figure()
 
@@ -1525,7 +1537,7 @@ class ForcedResponseResults:
                     linewidth=2.5,
                 ),
             ),
-            **polar_kwargs,
+            **kwargs,
         )
 
         return fig
@@ -1618,6 +1630,158 @@ class ForcedResponseResults:
         )
 
         return subplots
+
+    def plot_deflected_shape(self, speed, units="mic-pk-pk", **kwargs):
+        """Plot the 3D deflected shape diagram.
+
+        Parameters
+        ----------
+        speed : optional, float
+            The rotor rotation speed.
+            Default is the first critical speed.
+        units : str, optional
+            Magnitude unit system.
+            Options:
+                - "m" : meters
+                - "mic-pk-pk" : microns peak to peak
+                - "db" : decibels
+            Default is "mic-pk-pk".
+        kwargs : optional
+            Additional key word arguments can be passed to change the deflected shape
+            plot layout only (e.g. width=1000, height=800, ...).
+            *See Plotly Python Figure Reference for more information.
+
+        Returns
+        -------
+        fig : Plotly graph_objects.Figure()
+            The figure object with the plot.
+        """
+        if speed not in self.speed_range:
+            raise ValueError("No data available for this speed value.")
+
+        kwargs_default_values = dict(hoverlabel_align="right")
+        for k, v in kwargs_default_values.items():
+            kwargs.setdefault(k, v)
+
+        mag = self.magnitude
+        phase = self.phase
+        forced_resp = self.forced_resp
+        idx = np.where(self.speed_range == speed)[0][0]
+
+        # orbit of a single revolution
+        t = np.linspace(0, 2 * np.pi / speed, 30)
+
+        x_pos = np.repeat(self.nodes_pos, t.size).reshape(len(self.nodes_pos), t.size)
+
+        fig = go.Figure()
+        for i, n in enumerate(self.nodes_list):
+            dofx = self.number_dof * n
+            dofy = self.number_dof * n + 1
+
+            y = mag[dofx, idx] * np.cos(speed * t - phase[dofx, idx])
+            z = mag[dofy, idx] * np.cos(speed * t - phase[dofy, idx])
+
+            xr, xi = forced_resp[dofx, idx].real, forced_resp[dofx, idx].imag
+            yr, yi = forced_resp[dofy, idx].real, forced_resp[dofy, idx].imag
+
+            major = np.sqrt(
+                (xr ** 2 + xi ** 2 + yr ** 2 + yi ** 2) / 2
+                + np.sqrt(
+                    (xr ** 2 - xi ** 2 + yr ** 2 - yi ** 2) ** 2 / 4
+                    + (xr * xi + yr * yi) ** 2
+                )
+            )
+
+            alpha = 0.5 * np.arctan(
+                2 * (xr * yr + xi * yi) / (xr ** 2 + xi ** 2 - yr ** 2 - yi ** 2)
+            )
+
+            fig.add_trace(
+                go.Scatter3d(
+                    x=x_pos[n],
+                    y=y,
+                    z=z,
+                    mode="lines",
+                    line=dict(width=6.0, color="royalblue"),
+                    name="Orbit",
+                    legendgroup="Orbit",
+                    showlegend=False,
+                    hovertemplate=(
+                        "Nodal Position: %{x:.2f}<br>"
+                        + "X - Amplitude: %{y:.2e}<br>"
+                        + "Y - Amplitude: %{z:.2e}"
+                    ),
+                    **kwargs,
+                )
+            )
+            fig.add_trace(
+                go.Scatter3d(
+                    x=[x_pos[n][0]],
+                    y=[major * np.cos(alpha)],
+                    z=[major * np.sin(alpha)],
+                    mode="markers",
+                    marker=dict(symbol="circle", size=6.0, color="black"),
+                    name="Major Axis",
+                    legendgroup="Major",
+                    showlegend=False,
+                    hovertemplate=(
+                        "Nodal Position: %{x:.2f}<br>"
+                        + "X - Amplitude: %{y:.2e}<br>"
+                        + "Y - Amplitude: %{z:.2e}"
+                    ),
+                    **kwargs,
+                )
+            )
+
+        # plot center line
+        line = np.zeros(len(self.nodes_pos))
+
+        fig.add_trace(
+            go.Scatter3d(
+                x=self.nodes_pos,
+                y=line,
+                z=line,
+                mode="lines",
+                line=dict(width=2.0, color="black", dash="dashdot"),
+                showlegend=False,
+                hoverinfo="none",
+            )
+        )
+
+        fig.update_layout(
+            width=1200,
+            height=900,
+            scene=dict(
+                bgcolor="white",
+                xaxis=dict(
+                    title=dict(text="<b>Rotor Length</b>", font=dict(size=14)),
+                    tickfont=dict(size=12),
+                    nticks=5,
+                    backgroundcolor="lightgray",
+                    gridcolor="white",
+                    showspikes=False,
+                ),
+                yaxis=dict(
+                    title=dict(text="<b>Amplitude - X</b>", font=dict(size=14)),
+                    tickfont=dict(size=12),
+                    nticks=5,
+                    backgroundcolor="lightgray",
+                    gridcolor="white",
+                    showspikes=False,
+                ),
+                zaxis=dict(
+                    title=dict(text="<b>Amplitude - Y</b>", font=dict(size=14)),
+                    tickfont=dict(size=12),
+                    nticks=5,
+                    backgroundcolor="lightgray",
+                    gridcolor="white",
+                    showspikes=False,
+                ),
+            ),
+            **kwargs,
+        )
+
+        return fig
 
 
 class StaticResults:
