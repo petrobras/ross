@@ -1211,6 +1211,9 @@ class Rotor(object):
             speed_range=speed_range,
             magnitude=abs(forced_resp),
             phase=np.angle(forced_resp),
+            nodes_list=self.nodes,
+            nodes_pos=self.nodes_pos,
+            number_dof=self.number_dof,
         )
 
         return forced_resp
@@ -3207,8 +3210,8 @@ def rotor_example():
 
     stfx = 1e6
     stfy = 0.8e6
-    bearing0 = BearingElement(0, kxx=stfx, kyy=stfy, cxx=0)
-    bearing1 = BearingElement(6, kxx=stfx, kyy=stfy, cxx=0)
+    bearing0 = BearingElement(0, kxx=stfx, kyy=stfy, cxx=1e3)
+    bearing1 = BearingElement(6, kxx=stfx, kyy=stfy, cxx=1e3)
 
     return Rotor(shaft_elem, [disk0, disk1], [bearing0, bearing1])
 
