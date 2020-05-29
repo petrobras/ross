@@ -1631,6 +1631,43 @@ class ForcedResponseResults:
 
         return subplots
 
+    @staticmethod
+    def _calculate_major_axis(x_comp, y_comp):
+
+        # Relative angle between probes (90°)
+        Rel_ang = np.exp(1j * np.pi / 2)
+
+        # Foward and Backward vectors
+        fow = x_comp / 2 + Rel_ang * y_comp / 2
+        back = np.conj(x_comp) / 2 + Rel_ang * np.conj(y_comp) / 2
+
+        ang_fow = np.angle(fow)
+        if ang_fow < 0:
+            ang_fow += 2 * np.pi
+
+        ang_back = np.angle(back)
+        if ang_back < 0:
+            ang_back += 2 * np.pi
+
+        # Major axis angles
+        ang_maj_ax = (ang_back + ang_fow) / 2
+
+        # Adjusting points to the same quadrant
+        if ang_maj_ax > np.pi:
+            ang_maj_ax -= np.pi
+        if ang_maj_ax > np.pi / 2:
+            ang_maj_ax -= np.pi / 2
+
+        # major axis vector
+        print("ang_maj_ax = ", ang_maj_ax)
+        maj_ax_vect = fow * np.exp(1j * ang_maj_ax) + back * np.exp(-1j * ang_maj_ax)
+
+        # Coordenadas X e Y do major axis
+        x_maj_ax = np.real(maj_ax_vect)
+        y_maj_ax = np.imag(maj_ax_vect)
+
+        return x_maj_ax, y_maj_ax
+
     def plot_deflected_shape(self, speed, units="mic-pk-pk", **kwargs):
         """Plot the 3D deflected shape diagram.
 
@@ -1695,7 +1732,13 @@ class ForcedResponseResults:
             alpha = 0.5 * np.arctan(
                 2 * (xr * yr + xi * yi) / (xr ** 2 + xi ** 2 - yr ** 2 - yi ** 2)
             )
+            print("node = ", n)
+            print("alpha = ", alpha)
 
+            x_major_axis, y_major_axis = self._calculate_major_axis(
+                forced_resp[dofx, idx], forced_resp[dofy, idx]
+            )
+            print("="*80)
             fig.add_trace(
                 go.Scatter3d(
                     x=x_pos[n],
@@ -1716,14 +1759,32 @@ class ForcedResponseResults:
             )
             fig.add_trace(
                 go.Scatter3d(
-                    x=[x_pos[n][0]],
-                    y=[major * np.cos(alpha)],
-                    z=[major * np.sin(alpha)],
+                    x=[x_pos[n, 0]],
+                    y=[x_major_axis],
+                    z=[y_major_axis],
                     mode="markers",
                     marker=dict(symbol="circle", size=6.0, color="black"),
-                    name="Major Axis",
-                    legendgroup="Major",
-                    showlegend=False,
+                    name="Major Axis - ang_maj_ax method",
+                    legendgroup="ang_maj_ax",
+                    showlegend=True if i == 0 else False,
+                    hovertemplate=(
+                        "Nodal Position: %{x:.2f}<br>"
+                        + "X - Amplitude: %{y:.2e}<br>"
+                        + "Y - Amplitude: %{z:.2e}"
+                    ),
+                    **kwargs,
+                )
+            )
+            fig.add_trace(
+                go.Scatter3d(
+                    x=[x_pos[n, 0]],
+                    y=[major*np.cos(alpha)],
+                    z=[major*np.sin(alpha)],
+                    mode="markers",
+                    marker=dict(symbol="circle", size=6.0, color="red"),
+                    name="Major Axis - alpha method",
+                    legendgroup="alpha",
+                    showlegend=True if i == 0 else False,
                     hovertemplate=(
                         "Nodal Position: %{x:.2f}<br>"
                         + "X - Amplitude: %{y:.2e}<br>"
@@ -1777,6 +1838,13 @@ class ForcedResponseResults:
                     gridcolor="white",
                     showspikes=False,
                 ),
+            ),
+            title=dict(
+                text=(
+                    f"<b>Deflected Shape</b><br>"
+                    f"<b>Speed = {speed}</b>"
+                ),
+                font=dict(size=18),
             ),
             **kwargs,
         )
