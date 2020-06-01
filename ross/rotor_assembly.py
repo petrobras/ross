@@ -1211,6 +1211,9 @@ class Rotor(object):
             speed_range=speed_range,
             magnitude=abs(forced_resp),
             phase=np.angle(forced_resp),
+            nodes_list=self.nodes,
+            nodes_pos=self.nodes_pos,
+            number_dof=self.number_dof,
         )
 
         return forced_resp
