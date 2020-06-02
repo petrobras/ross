@@ -1391,13 +1391,15 @@ class Rotor(object):
             for shaft in self.shaft_elements
             if shaft.slenderness_ratio < 1.6
         ]
-        if len(SR):
-            warnings.warn(
-                "The beam elements "
-                + str(SR)
-                + " have slenderness ratio (G*A*L^2 / EI) of less than 1.6."
-                + " Results may not converge correctly"
-            )
+
+        if check_sld:
+            if len(SR):
+                warnings.warn(
+                    "The beam elements "
+                    + str(SR)
+                    + " have slenderness ratio (G*A*L^2 / EI) of less than 1.6."
+                    + " Results may not converge correctly"
+                )
 
         fig = go.Figure()
 
@@ -1438,7 +1440,7 @@ class Rotor(object):
                 ),
                 showlegend=False,
                 hoverinfo="none",
-            ),
+            )
         )
 
         # plot shaft elements
@@ -1889,7 +1891,7 @@ class Rotor(object):
         t_, yout, xout = self.time_response(speed, F, t)
 
         results = TimeResponseResults(
-            t, yout, xout, self.nodes, self.nodes_pos, self.number_dof,
+            t, yout, xout, self.nodes, self.nodes_pos, self.number_dof
         )
 
         return results
@@ -3199,10 +3201,10 @@ def rotor_example():
     ]
 
     disk0 = DiskElement.from_geometry(
-        n=2, material=steel, width=0.07, i_d=0.05, o_d=0.28,
+        n=2, material=steel, width=0.07, i_d=0.05, o_d=0.28
     )
     disk1 = DiskElement.from_geometry(
-        n=4, material=steel, width=0.07, i_d=0.05, o_d=0.28,
+        n=4, material=steel, width=0.07, i_d=0.05, o_d=0.28
     )
 
     stfx = 1e6
