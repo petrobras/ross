@@ -13,10 +13,9 @@ class Element(ABC):
     create specific elements for the user.
     """
 
-    def __init__(self, n):
+    def __init__(self, n, tag=None):
         self.n = n
-        self.dof_mapping = None
-        pass
+        self.tag = tag
 
     def save(self, file_name):
         """Save the element in a file.
