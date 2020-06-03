@@ -103,6 +103,40 @@ def external_radius_function(gama, radius_stator):
     return radius_external, xre, yre
 
 
+def reynolds_number(
+        density, characteristic_speed, radial_clearance, viscosity
+):
+    """Returns the reynolds number based on the characteristic speed.
+    This number denotes the ratio between fluid inertia (advection) forces and
+    viscous-shear forces.
+        Parameters
+        ----------
+        density: float
+            Fluid density(Kg/m^3).
+        characteristic_speed: float
+            Characteristic fluid speeds.
+        radial_clearance: float
+            Difference between both stator and rotor radius, regardless of eccentricity.
+        viscosity: float
+            Viscosity (Pa.s).
+        Returns
+        -------
+        float
+            The reynolds number.
+        Examples
+        --------
+        >>> from ross.fluid_flow.fluid_flow import fluid_flow_example
+        >>> my_fluid_flow = fluid_flow_example()
+        >>> density = my_fluid_flow.density
+        >>> characteristic_speed = my_fluid_flow.characteristic_speed
+        >>> radial_clearance = my_fluid_flow.radial_clearance
+        >>> viscosity = my_fluid_flow.viscosity
+        >>> reynolds_number(density, characteristic_speed, radial_clearance, viscosity) # doctest: +ELLIPSIS
+        24.01...
+        """
+    return (density * characteristic_speed * radial_clearance) / viscosity
+
+
 def modified_sommerfeld_number(
     radius_stator, omega, viscosity, length, load, radial_clearance
 ):
@@ -288,7 +322,7 @@ def move_rotor_center(fluid_flow_object, dx, dy):
         fluid_flow_object.xi ** 2 + fluid_flow_object.yi ** 2
     )
     fluid_flow_object.eccentricity_ratio = (
-        fluid_flow_object.eccentricity / fluid_flow_object.difference_between_radius
+        fluid_flow_object.eccentricity / fluid_flow_object.radial_clearance
     )
     fluid_flow_object.attitude_angle = np.arccos(
         abs(fluid_flow_object.yi / fluid_flow_object.eccentricity)
