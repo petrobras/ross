@@ -5,7 +5,6 @@ import numpy as np
 import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
-import plotly.io as pio
 from plotly.subplots import make_subplots
 from scipy.interpolate import interp1d
 from scipy.signal import argrelextrema
@@ -17,8 +16,6 @@ from ross.rotor_assembly import Rotor
 from ross.shaft_element import ShaftElement
 
 # fmt: on
-
-pio.renderers.default = "browser"
 
 # set Plotly palette of colors
 colors1 = px.colors.qualitative.Dark24
@@ -1365,7 +1362,7 @@ class Report:
 
         # Plotting area
         default_layout = dict(
-            width=1200, height=900, plot_bgcolor="white", hoverlabel_align="right",
+            width=1200, height=900, plot_bgcolor="white", hoverlabel_align="right"
         )
         fig1 = go.Figure()
 
@@ -1500,7 +1497,7 @@ class Report:
             )
         )
 
-        fig2.update_xaxes(mirror=True,)
+        fig2.update_xaxes(mirror=True)
         fig2.update_yaxes(
             title_text="<b>Maximum Critical Speed Ratio</b>",
             title_font=dict(family="Arial", size=20),

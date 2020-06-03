@@ -5,12 +5,9 @@ This module returns graphs for each type of analyses in rotor_assembly.py.
 import numpy as np
 import plotly.express as px
 import plotly.graph_objects as go
-import plotly.io as pio
 import scipy.linalg as la
 from plotly.subplots import make_subplots
 from scipy import interpolate
-
-pio.renderers.default = "browser"
 
 # set Plotly palette of colors
 colors1 = px.colors.qualitative.Dark24
@@ -543,7 +540,7 @@ class ModalResults:
                 ),
                 yaxis=dict(
                     title=dict(
-                        text="<b>Dimensionless deformation</b>", font=dict(size=14),
+                        text="<b>Dimensionless deformation</b>", font=dict(size=14)
                     ),
                     tickfont=dict(size=16),
                     range=[-2, 2],
@@ -554,7 +551,7 @@ class ModalResults:
                 ),
                 zaxis=dict(
                     title=dict(
-                        text="<b>Dimensionless deformation</b>", font=dict(size=14),
+                        text="<b>Dimensionless deformation</b>", font=dict(size=14)
                     ),
                     tickfont=dict(size=16),
                     range=[-2, 2],
@@ -955,7 +952,7 @@ class FrequencyResponseResults:
             y_axis_label = "<b>Amplitude (dB)</b>"
 
         kwargs_default_values = dict(
-            width=1200, height=900, plot_bgcolor="white", hoverlabel_align="right",
+            width=1200, height=900, plot_bgcolor="white", hoverlabel_align="right"
         )
         for k, v in kwargs_default_values.items():
             mag_kwargs.setdefault(k, v)
@@ -1034,7 +1031,7 @@ class FrequencyResponseResults:
         phase = self.phase
 
         kwargs_default_values = dict(
-            width=1200, height=900, plot_bgcolor="white", hoverlabel_align="right",
+            width=1200, height=900, plot_bgcolor="white", hoverlabel_align="right"
         )
         for k, v in kwargs_default_values.items():
             phase_kwargs.setdefault(k, v)
@@ -1124,7 +1121,7 @@ class FrequencyResponseResults:
             r_axis_label = "<b>Amplitude (dB)</b>"
 
         kwargs_default_values = dict(
-            width=1200, height=900, polar_bgcolor="white", hoverlabel_align="right",
+            width=1200, height=900, polar_bgcolor="white", hoverlabel_align="right"
         )
         for k, v in kwargs_default_values.items():
             polar_kwargs.setdefault(k, v)
@@ -1323,7 +1320,7 @@ class ForcedResponseResults:
             y_axis_label = "<b>Amplitude (μ pk-pk)</b>"
 
         kwargs_default_values = dict(
-            width=1200, height=900, plot_bgcolor="white", hoverlabel_align="right",
+            width=1200, height=900, plot_bgcolor="white", hoverlabel_align="right"
         )
         for k, v in kwargs_default_values.items():
             mag_kwargs.setdefault(k, v)
@@ -1398,7 +1395,7 @@ class ForcedResponseResults:
         phase = self.phase
 
         kwargs_default_values = dict(
-            width=1200, height=900, plot_bgcolor="white", hoverlabel_align="right",
+            width=1200, height=900, plot_bgcolor="white", hoverlabel_align="right"
         )
         for k, v in kwargs_default_values.items():
             phase_kwargs.setdefault(k, v)
@@ -1483,7 +1480,7 @@ class ForcedResponseResults:
             r_axis_label = "<b>Amplitude (dB)</b>"
 
         kwargs_default_values = dict(
-            width=1200, height=900, polar_bgcolor="white", hoverlabel_align="right",
+            width=1200, height=900, polar_bgcolor="white", hoverlabel_align="right"
         )
         for k, v in kwargs_default_values.items():
             polar_kwargs.setdefault(k, v)
@@ -1696,7 +1693,7 @@ class StaticResults:
             The figure object with the plot.
         """
         kwargs_default_values = dict(
-            width=1200, height=900, plot_bgcolor="white", hoverlabel_align="right",
+            width=1200, height=900, plot_bgcolor="white", hoverlabel_align="right"
         )
         for k, v in kwargs_default_values.items():
             kwargs.setdefault(k, v)
@@ -1723,7 +1720,7 @@ class StaticResults:
         ):
             interpolated = interpolate.interp1d(nodes_pos, disp_y, kind="cubic")
             xnew = np.linspace(
-                nodes_pos[0], nodes_pos[-1], num=len(nodes_pos) * 20, endpoint=True,
+                nodes_pos[0], nodes_pos[-1], num=len(nodes_pos) * 20, endpoint=True
             )
 
             ynew = interpolated(xnew)
@@ -1933,7 +1930,7 @@ class StaticResults:
                 col=col,
             )
             fig.update_yaxes(
-                visible=False, gridcolor="lightgray", showline=False, row=row, col=col,
+                visible=False, gridcolor="lightgray", showline=False, row=row, col=col
             )
             j += 1
 
@@ -1960,7 +1957,7 @@ class StaticResults:
             The figure object with the plot.
         """
         kwargs_default_values = dict(
-            width=1200, height=900, plot_bgcolor="white", hoverlabel_align="right",
+            width=1200, height=900, plot_bgcolor="white", hoverlabel_align="right"
         )
         for k, v in kwargs_default_values.items():
             kwargs.setdefault(k, v)
@@ -2044,7 +2041,7 @@ class StaticResults:
             Plotly figure with the bending moment diagram plot
         """
         kwargs_default_values = dict(
-            width=1200, height=900, plot_bgcolor="white", hoverlabel_align="right",
+            width=1200, height=900, plot_bgcolor="white", hoverlabel_align="right"
         )
         for k, v in kwargs_default_values.items():
             kwargs.setdefault(k, v)
@@ -2563,7 +2560,7 @@ class TimeResponseResults:
         obs_dof = dof_dict[str(obs_dof)]
 
         kwargs_default_values = dict(
-            width=1200, height=900, plot_bgcolor="white", hoverlabel_align="right",
+            width=1200, height=900, plot_bgcolor="white", hoverlabel_align="right"
         )
         for k, v in kwargs_default_values.items():
             kwargs.setdefault(k, v)
@@ -2634,7 +2631,7 @@ class TimeResponseResults:
             The figure object with the plot.
         """
         kwargs_default_values = dict(
-            width=1200, height=900, plot_bgcolor="white", hoverlabel_align="right",
+            width=1200, height=900, plot_bgcolor="white", hoverlabel_align="right"
         )
         for k, v in kwargs_default_values.items():
             kwargs.setdefault(k, v)
