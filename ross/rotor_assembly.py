@@ -13,7 +13,6 @@ import numpy as np
 import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
-import plotly.io as pio
 import scipy.io as sio
 import scipy.linalg as la
 import scipy.signal as signal
@@ -36,8 +35,6 @@ from ross.utils import convert
 # fmt: on
 
 __all__ = ["Rotor", "CoAxialRotor", "rotor_example", "coaxrotor_example"]
-
-pio.renderers.default = "browser"
 
 # set Plotly palette of colors
 colors = px.colors.qualitative.Dark24
@@ -1472,12 +1469,12 @@ class Rotor(object):
 
         fig.update_xaxes(
             title_text="<b>Axial location</b>",
-            title_font=dict(family="Verdana", size=20),
-            tickfont=dict(size=16),
+            # title_font=dict(family="Verdana", size=20),
+            # tickfont=dict(size=16),
             range=[-0.1 * shaft_end, 1.1 * shaft_end],
             showgrid=False,
             showline=True,
-            linewidth=2.5,
+            # linewidth=2.5,
             linecolor="black",
             mirror=True,
         )
@@ -1493,8 +1490,8 @@ class Rotor(object):
             mirror=True,
         )
         fig.update_layout(
-            width=1200,
-            height=900,
+            # width=1200,
+            # height=900,
             plot_bgcolor="white",
             title=dict(text="<b>Rotor Model</b>", font=dict(size=18)),
             **kwargs,
