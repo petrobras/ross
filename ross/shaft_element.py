@@ -950,13 +950,13 @@ class ShaftElement(Element):
                 ]
                 hovertemplate = (
                     f"<b>Element Number: {customdata[0]}<b><br>"
-                    + f"<b>Left Outer Diameter: {customdata[1]}<b><br>"
-                    + f"<b>Left Inner Diameter: {customdata[2]}<b><br>"
-                    + f"<b>Right Outer Diameter: {customdata[3]}<b><br>"
-                    + f"<b>Right Inner Diameter: {customdata[4]}<b><br>"
-                    + f"<b>Alpha Damp. Factor: {customdata[5]}<b><br>"
-                    + f"<b>Beta Damp. Factor: {customdata[6]}<b><br>"
-                    + f"<b>Element Length: {customdata[7]}<b><br>"
+                    + f"<b>Left Outer Diameter: {round(customdata[1], 6)}<b><br>"
+                    + f"<b>Left Inner Diameter: {round(customdata[2], 6)}<b><br>"
+                    + f"<b>Right Outer Diameter: {round(customdata[3], 6)}<b><br>"
+                    + f"<b>Right Inner Diameter: {round(customdata[4], 6)}<b><br>"
+                    + f"<b>Alpha Damp. Factor: {round(customdata[5], 6)}<b><br>"
+                    + f"<b>Beta Damp. Factor: {round(customdata[6], 6)}<b><br>"
+                    + f"<b>Element Length: {round(customdata[7], 6)}<b><br>"
                     + f"<b>Material: {customdata[8]}<b><br>"
                 )
             else:
@@ -971,11 +971,11 @@ class ShaftElement(Element):
                 ]
                 hovertemplate = (
                     f"<b>Element Number: {customdata[0]}<b><br>"
-                    + f"<b>Left Outer Diameter: {customdata[1]}<b><br>"
-                    + f"<b>Left Inner Diameter: {customdata[2]}<b><br>"
-                    + f"<b>Right Outer Diameter: {customdata[3]}<b><br>"
-                    + f"<b>Right Inner Diameter: {customdata[4]}<b><br>"
-                    + f"<b>Element Length: {customdata[5]}<b><br>"
+                    + f"<b>Left Outer Diameter: {round(customdata[1], 6)}<b><br>"
+                    + f"<b>Left Inner Diameter: {round(customdata[2], 6)}<b><br>"
+                    + f"<b>Right Outer Diameter: {round(customdata[3], 6)}<b><br>"
+                    + f"<b>Right Inner Diameter: {round(customdata[4], 6)}<b><br>"
+                    + f"<b>Element Length: {round(customdata[5], 6)}<b><br>"
                     + f"<b>Material: {customdata[6]}<b><br>"
                 )
         fig.add_trace(
