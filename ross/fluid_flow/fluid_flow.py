@@ -235,8 +235,7 @@ class FluidFlow:
                 self.radial_clearance,
             )
             self.eccentricity = (
-                calculate_eccentricity_ratio(modified_s)
-                * self.radial_clearance
+                calculate_eccentricity_ratio(modified_s) * self.radial_clearance
             )
         self.eccentricity_ratio = self.eccentricity / self.radial_clearance
         if self.load is None:
