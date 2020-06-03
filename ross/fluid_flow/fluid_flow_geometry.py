@@ -103,12 +103,9 @@ def external_radius_function(gama, radius_stator):
     return radius_external, xre, yre
 
 
-def reynolds_number(
-        density, characteristic_speed, radial_clearance, viscosity
-):
+def reynolds_number(density, characteristic_speed, radial_clearance, viscosity):
     """Returns the reynolds number based on the characteristic speed.
-    This number denotes the ratio between fluid inertia (advection) forces and
-    viscous-shear forces.
+    This number denotes the ratio between fluid inertia (advection) forces and viscous-shear forces.
         Parameters
         ----------
         density: float
