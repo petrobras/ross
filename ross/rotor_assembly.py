@@ -1469,12 +1469,12 @@ class Rotor(object):
 
         fig.update_xaxes(
             title_text="<b>Axial location</b>",
-            # title_font=dict(family="Verdana", size=20),
-            # tickfont=dict(size=16),
+            title_font=dict(family="Verdana", size=20),
+            tickfont=dict(size=16),
             range=[-0.1 * shaft_end, 1.1 * shaft_end],
             showgrid=False,
             showline=True,
-            # linewidth=2.5,
+            linewidth=2.5,
             linecolor="black",
             mirror=True,
         )
@@ -1490,8 +1490,6 @@ class Rotor(object):
             mirror=True,
         )
         fig.update_layout(
-            # width=1200,
-            # height=900,
             plot_bgcolor="white",
             title=dict(text="<b>Rotor Model</b>", font=dict(size=18)),
             **kwargs,
