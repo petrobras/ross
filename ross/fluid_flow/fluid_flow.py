@@ -124,17 +124,18 @@ class FluidFlow:
         y value of the internal radius.
     eccentricity : float
         distance between the center of the rotor and the stator.
-    difference_between_radius: float
-        distance between the radius of the stator and the radius of the rotor.
+    radial_clearance: float
+        Difference between both stator and rotor radius, regardless of eccentricity.
     eccentricity_ratio: float
-        eccentricity/difference_between_radius
+        eccentricity/radial_clearance
+    characteristic_speed: float
+        Characteristic fluid speeds.
+        In journal bearings, characteristic_speed = omega * radius_rotor
     bearing_type: str
         type of structure. 'short_bearing': short; 'long_bearing': long;
         'medium_size': in between short and long.
         if length/diameter <= 1/4 it is short.
         if length/diameter > 8 it is long.
-    radial_clearance: float
-        Difference between both stator and rotor radius, regardless of eccentricity.
     analytical_pressure_matrix_available: bool
         True if analytically calculated pressure matrix is available.
     numerical_pressure_matrix_available: bool
@@ -212,12 +213,12 @@ class FluidFlow:
         self.radius_stator = radius_stator
         self.viscosity = viscosity
         self.density = density
+        self.characteristic_speed = self.omega * self.radius_rotor
         self.radial_clearance = self.radius_stator - self.radius_rotor
-        self.difference_between_radius = radius_stator - radius_rotor
         self.bearing_type = ""
         if self.length / (2 * self.radius_stator) <= 1 / 4:
             self.bearing_type = "short_bearing"
-        elif self.length / (2 * self.radius_stator) >= 8:
+        elif self.length / (2 * self.radius_stator) > 4:
             self.bearing_type = "long_bearing"
         else:
             self.bearing_type = "medium_size"
@@ -235,9 +236,9 @@ class FluidFlow:
             )
             self.eccentricity = (
                 calculate_eccentricity_ratio(modified_s)
-                * self.difference_between_radius
+                * self.radial_clearance
             )
-        self.eccentricity_ratio = self.eccentricity / self.difference_between_radius
+        self.eccentricity_ratio = self.eccentricity / self.radial_clearance
         if self.load is None:
             self.load = calculate_rotor_load(
                 self.radius_stator,
@@ -306,7 +307,7 @@ class FluidFlow:
                     for j in range(0, self.ntheta):
                         # fmt: off
                         self.p_mat_analytical[i][j] = (
-                                ((-3 * self.viscosity * self.omega) / self.difference_between_radius ** 2) *
+                                ((-3 * self.viscosity * self.omega) / self.radial_clearance ** 2) *
                                 ((i * self.dz - (self.length / 2)) ** 2 - (self.length ** 2) / 4) *
                                 (self.eccentricity_ratio * np.sin(j * self.dtheta)) /
                                 (1 + self.eccentricity_ratio * np.cos(j * self.dtheta)) ** 3)
@@ -317,7 +318,7 @@ class FluidFlow:
                 for i in range(0, self.nz):
                     for j in range(0, self.ntheta):
                         # fmt: off
-                        self.p_mat_analytical[i][j] = (3 * self.viscosity / ((self.difference_between_radius ** 2) *
+                        self.p_mat_analytical[i][j] = (3 * self.viscosity / ((self.radial_clearance ** 2) *
                                                                              (1. + self.eccentricity_ratio * np.cos(
                                                                                  j * self.dtheta)) ** 3)) * \
                                                       (-self.eccentricity_ratio * self.omega * np.sin(
@@ -336,7 +337,7 @@ class FluidFlow:
                                 6
                                 * self.viscosity
                                 * self.omega
-                                * (self.ri[i][j] / self.difference_between_radius) ** 2
+                                * (self.ri[i][j] / self.radial_clearance) ** 2
                                 * self.eccentricity_ratio
                                 * np.sin(self.dtheta * j)
                                 * (
