@@ -1557,7 +1557,7 @@ class Rotor(object):
 
         return results
 
-    def plot_ucs(self, stiffness_range=None, num=20, **kwargs):
+    def plot_ucs(self, stiffness_range=None, num=20, fig=None, **kwargs):
         """Plot undamped critical speed map.
 
         This method will plot the undamped critical speed map for a given range
@@ -1571,6 +1571,8 @@ class Rotor(object):
         num : int
             Number of steps in the range.
             Default is 20.
+        fig : Plotly graph_objects.Figure()
+            The figure object with the plot.
         kwargs : optional
             Additional key word arguments can be passed to change the plot layout only
             (e.g. width=1000, height=800, ...).
@@ -1607,8 +1609,6 @@ class Rotor(object):
         >>> rotor = Rotor(shaft_elem, [disk0, disk1], [bearing0, bearing1])
         >>> fig = rotor.plot_ucs()
         """
-        fig = go.Figure()
-
         if stiffness_range is None:
             if self.rated_w is not None:
                 bearing = self.bearing_elements[0]
@@ -1638,7 +1638,8 @@ class Rotor(object):
 
         bearing0 = bearings_elements[0]
 
-        fig = go.Figure()
+        if fig is None:
+            fig = go.Figure()
 
         fig.add_trace(
             go.Scatter(
