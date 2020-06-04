@@ -284,23 +284,13 @@ class Report:
         dk_elm = rotor.disk_elements
         pm_elm = rotor.point_mass_elements
         sparse = rotor.sparse
-        n_eigen = rotor.n_eigen
         min_w = rotor.min_w
         max_w = rotor.max_w
         rated_w = rotor.rated_w
         tag = rotor.tag
 
         aux_rotor = Rotor(
-            sh_elm,
-            dk_elm,
-            bearing_list,
-            pm_elm,
-            sparse,
-            n_eigen,
-            min_w,
-            max_w,
-            rated_w,
-            tag,
+            sh_elm, dk_elm, bearing_list, pm_elm, sparse, min_w, max_w, rated_w, tag
         )
 
         return aux_rotor
@@ -466,12 +456,9 @@ class Report:
         for i, k in enumerate(stiffness_log):
             bearings = [BearingElement(b.n, kxx=k, cxx=0) for b in bearings_elements]
             rotor = self.rotor.__class__(
-                self.rotor.shaft_elements,
-                self.rotor.disk_elements,
-                bearings,
-                n_eigen=16,
+                self.rotor.shaft_elements, self.rotor.disk_elements, bearings
             )
-            modal = rotor.run_modal(speed=0)
+            modal = rotor.run_modal(speed=0, num_modes=16)
             rotor_wn[:, i] = modal.wn[:8:2]
 
         bearing0 = bearings_elements[0]
