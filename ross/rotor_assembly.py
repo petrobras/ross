@@ -117,7 +117,6 @@ class Rotor(object):
         bearing_elements=None,
         point_mass_elements=None,
         sparse=True,
-        n_eigen=12,
         min_w=None,
         max_w=None,
         rated_w=None,
@@ -126,7 +125,6 @@ class Rotor(object):
 
         self.parameters = {
             "sparse": True,
-            "n_eigen": n_eigen,
             "min_w": min_w,
             "max_w": max_w,
             "rated_w": rated_w,
@@ -139,7 +137,6 @@ class Rotor(object):
         ####################################################
 
         self.sparse = sparse
-        self.n_eigen = n_eigen
         # operational speeds
         self.min_w = min_w
         self.max_w = max_w
@@ -557,7 +554,7 @@ class Rotor(object):
         else:
             return False
 
-    def run_modal(self, speed):
+    def run_modal(self, speed, num_modes=12):
         """Run modal analysis.
 
         Method to calculate eigenvalues and eigvectors for a given rotor system
@@ -566,6 +563,9 @@ class Rotor(object):
         ----------
         speed : float
             Speed at which the eigenvalues and eigenvectors will be calculated.
+        num_modes : int
+            Number of modes to be calculated. This uses scipy.sparse.eigs method.
+            Default is 12.
 
         Returns
         -------
@@ -590,7 +590,7 @@ class Rotor(object):
         array([91.79655318, 96.28899977])
         >>> fig = modal.plot_mode3D(0)
         """
-        evalues, evectors = self._eigen(speed)
+        evalues, evectors = self._eigen(speed, num_modes=num_modes)
         wn_len = len(evalues) // 2
         wn = (np.absolute(evalues))[:wn_len]
         wd = (np.imag(evalues))[:wn_len]
@@ -712,7 +712,7 @@ class Rotor(object):
                 aux_Brg_SealEl.n = nel_r * Brg_SealEl.n
                 brgs_elem.append(aux_Brg_SealEl)
 
-            aux_rotor = Rotor(shaft_elem, disk_elem, brgs_elem, n_eigen=self.n_eigen)
+            aux_rotor = Rotor(shaft_elem, disk_elem, brgs_elem)
             aux_modal = aux_rotor.run_modal(speed=0)
 
             eigv_arr = np.append(eigv_arr, aux_modal.wn[n_eigval])
@@ -929,7 +929,7 @@ class Rotor(object):
 
         return idx
 
-    def _eigen(self, speed, frequency=None, sorted_=True, A=None):
+    def _eigen(self, speed, num_modes=12, frequency=None, sorted_=True, A=None):
         """Calculate eigenvalues and eigenvectors.
 
         This method will return the eigenvalues and eigenvectors of the
@@ -971,12 +971,7 @@ class Rotor(object):
         if self.sparse is True:
             try:
                 evalues, evectors = las.eigs(
-                    A,
-                    k=self.n_eigen,
-                    sigma=0,
-                    ncv=2 * self.n_eigen,
-                    which="LM",
-                    v0=self._v0,
+                    A, k=num_modes, sigma=0, ncv=2 * num_modes, which="LM", v0=self._v0
                 )
                 # store v0 as a linear combination of the previously
                 # calculated eigenvectors to use in the next call to eigs
@@ -1533,7 +1528,7 @@ class Rotor(object):
         results = np.zeros([len(speed_range), frequencies, 5])
 
         for i, w in enumerate(speed_range):
-            modal = self.run_modal(speed=w)
+            modal = self.run_modal(speed=w, num_modes=36)
 
             if frequency_type == "wd":
                 results[i, :, 0] = modal.wd[:frequencies]
@@ -1557,7 +1552,7 @@ class Rotor(object):
 
         return results
 
-    def plot_ucs(self, stiffness_range=None, num=20, fig=None, **kwargs):
+    def plot_ucs(self, stiffness_range=None, num_modes=16, num=20, fig=None, **kwargs):
         """Plot undamped critical speed map.
 
         This method will plot the undamped critical speed map for a given range
@@ -1571,6 +1566,9 @@ class Rotor(object):
         num : int
             Number of steps in the range.
             Default is 20.
+        num_modes : int, optional
+            Number of modes to be calculated. This uses scipy.sparse.eigs method.
+            Default is 16.
         fig : Plotly graph_objects.Figure()
             The figure object with the plot.
         kwargs : optional
@@ -1628,10 +1626,8 @@ class Rotor(object):
 
         for i, k in enumerate(stiffness_log):
             bearings = [BearingElement(b.n, kxx=k, cxx=0) for b in bearings_elements]
-            rotor = self.__class__(
-                self.shaft_elements, self.disk_elements, bearings, n_eigen=16
-            )
-            modal = rotor.run_modal(speed=0)
+            rotor = self.__class__(self.shaft_elements, self.disk_elements, bearings)
+            modal = rotor.run_modal(speed=0, num_modes=num_modes)
             rotor_wn[:, i] = modal.wn[
                 : int(self.number_dof * 2) : int(self.number_dof / 2)
             ]
@@ -2587,7 +2583,6 @@ class Rotor(object):
             disk_elements,
             bearing_elements,
             sparse=sparse,
-            n_eigen=n_eigen,
             min_w=min_w,
             max_w=max_w,
             rated_w=rated_w,
@@ -3420,4 +3415,4 @@ def rotor_example_6dof():
         n=6, kxx=kxx, kyy=kyy, cxx=cxx, cyy=cyy, kzz=kzz, czz=czz
     )
 
-    return Rotor(shaft_elem, [disk0, disk1], [bearing0, bearing1], n_eigen=36)
+    return Rotor(shaft_elem, [disk0, disk1], [bearing0, bearing1])

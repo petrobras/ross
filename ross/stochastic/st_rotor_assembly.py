@@ -100,7 +100,6 @@ class ST_Rotor(object):
         bearing_elements=None,
         point_mass_elements=None,
         sparse=True,
-        n_eigen=12,
         min_w=None,
         max_w=None,
         rated_w=None,
@@ -190,7 +189,6 @@ class ST_Rotor(object):
             bearing_elements=bearing_elements,
             point_mass_elements=point_mass_elements,
             sparse=sparse,
-            n_eigen=n_eigen,
             min_w=min_w,
             max_w=max_w,
             rated_w=rated_w,
@@ -275,9 +273,9 @@ class ST_Rotor(object):
         -------
         >>> import ross.stochastic as srs
         >>> rotors = srs.st_rotor_example()
-        >>> rotors["n_eigen"] = 18
-        >>> rotors["n_eigen"]
-        18
+        >>> rotors["sparse"] = True
+        >>> rotors["sparse"]
+        True
         """
         if key not in self.attribute_dict.keys():
             raise KeyError("Object does not have parameter: {}.".format(key))
