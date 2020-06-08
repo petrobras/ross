@@ -1634,7 +1634,7 @@ class Rotor(object):
 
         bearings_elements = []  # exclude the seals
         for bearing in self.bearing_elements:
-            if not isinstance(SealElement):
+            if not isinstance(bearing, SealElement):
                 bearings_elements.append(bearing)
 
         for i, k in enumerate(stiffness_log):
