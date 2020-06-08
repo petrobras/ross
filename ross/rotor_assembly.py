@@ -1729,8 +1729,6 @@ class Rotor(object):
             exponentformat="power",
         )
         fig.update_layout(
-            width=1200,
-            height=900,
             plot_bgcolor="white",
             legend=dict(
                 font=dict(family="sans-serif", size=14),
