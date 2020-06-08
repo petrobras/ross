@@ -18,6 +18,7 @@ import scipy.linalg as la
 import scipy.signal as signal
 import scipy.sparse.linalg as las
 import toml
+from scipy.optimize import newton
 
 from ross.bearing_seal_element import (BallBearingElement, BearingElement,
                                        BearingElement6DoF,
@@ -1552,7 +1553,15 @@ class Rotor(object):
 
         return results
 
-    def plot_ucs(self, stiffness_range=None, num_modes=16, num=20, fig=None, **kwargs):
+    def plot_ucs(
+        self,
+        stiffness_range=None,
+        num_modes=16,
+        num=20,
+        fig=None,
+        synchronous=False,
+        **kwargs,
+    ):
         """Plot undamped critical speed map.
 
         This method will plot the undamped critical speed map for a given range
@@ -1571,6 +1580,10 @@ class Rotor(object):
             Default is 16.
         fig : Plotly graph_objects.Figure()
             The figure object with the plot.
+        synchronous : bool
+            If True a synchronous analysis is carried out and the frequency of
+            the first forward model will be equal to the speed.
+            Default is False.
         kwargs : optional
             Additional key word arguments can be passed to change the plot layout only
             (e.g. width=1000, height=800, ...).
@@ -1621,16 +1634,40 @@ class Rotor(object):
 
         bearings_elements = []  # exclude the seals
         for bearing in self.bearing_elements:
-            if type(bearing) == BearingElement:
+            if not isinstance(SealElement):
                 bearings_elements.append(bearing)
 
         for i, k in enumerate(stiffness_log):
             bearings = [BearingElement(b.n, kxx=k, cxx=0) for b in bearings_elements]
             rotor = self.__class__(self.shaft_elements, self.disk_elements, bearings)
-            modal = rotor.run_modal(speed=0, num_modes=num_modes)
-            rotor_wn[:, i] = modal.wn[
-                : int(self.number_dof * 2) : int(self.number_dof / 2)
-            ]
+            speed = 0
+            if synchronous:
+
+                def wn_diff(x):
+                    """Function to evaluate difference between speed and
+                    natural frequency for the first mode."""
+                    modal = rotor.run_modal(speed=x, num_modes=num_modes)
+                    # get first forward mode
+                    if modal.whirl_direction()[0] == "Forward":
+                        wn0 = modal.wn[0]
+                    else:
+                        wn0 = modal.wn[1]
+
+                    return wn0 - x
+
+                speed = newton(wn_diff, 0)
+            modal = rotor.run_modal(speed=speed, num_modes=num_modes)
+
+            # if sync, select only forward modes
+            if synchronous:
+                rotor_wn[:, i] = modal.wn[modal.whirl_direction() == "Forward"]
+            # if not sync, with speed=0 whirl direction can be confusing, with
+            # two close modes being forward or backward, so we select on mode in
+            # each 2 modes.
+            else:
+                rotor_wn[:, i] = modal.wn[
+                    : int(self.number_dof * 2) : int(self.number_dof / 2)
+                ]
 
         bearing0 = bearings_elements[0]
 
