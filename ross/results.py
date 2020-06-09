@@ -1625,24 +1625,24 @@ class StaticResults:
 
     Parameters
     ----------
-    disp_y : array
-        shaft displacement in y direction
+    deformation : array
+        shaft displacement in y direction.
     Vx : array
-        shearing force array
+        shearing force array.
     Bm : array
-        bending moment array
-    df_shaft : dataframe
+        bending moment array.
+    w_shaft : dataframe
         shaft dataframe
-    df_disks : dataframe
-        disks dataframe
-    df_bearings : dataframe
-        bearing dataframe
+    disk_forces : dict
+        Indicates the force exerted by each disk.
+    bearing_forces : dict
+        Relates the static force at each node due to the bearing reaction forces.
     nodes : list
-        list of nodes numbers
+        list of nodes numbers.
     nodes_pos : list
-        list of nodes positions
+        list of nodes positions.
     Vx_axis : array
-        X axis for displaying shearing force
+        X axis for displaying shearing force and bending moment.
 
     Returns
     -------
@@ -1653,7 +1653,7 @@ class StaticResults:
 
     def __init__(
         self,
-        disp_y,
+        deformation,
         Vx,
         Bm,
         w_shaft,
@@ -1664,7 +1664,7 @@ class StaticResults:
         Vx_axis,
     ):
 
-        self.disp_y = disp_y
+        self.deformation = deformation
         self.Vx = Vx
         self.Bm = Bm
         self.w_shaft = w_shaft
@@ -1715,10 +1715,10 @@ class StaticResults:
         )
 
         count = 0
-        for disp_y, Vx, Bm, nodes, nodes_pos, Vx_axis in zip(
-            self.disp_y, self.Vx, self.Bm, self.nodes, self.nodes_pos, self.Vx_axis
+        for deformation, Vx, Bm, nodes, nodes_pos, Vx_axis in zip(
+            self.deformation, self.Vx, self.Bm, self.nodes, self.nodes_pos, self.Vx_axis
         ):
-            interpolated = interpolate.interp1d(nodes_pos, disp_y, kind="cubic")
+            interpolated = interpolate.interp1d(nodes_pos, deformation, kind="cubic")
             xnew = np.linspace(
                 nodes_pos[0], nodes_pos[-1], num=len(nodes_pos) * 20, endpoint=True
             )
@@ -1987,6 +1987,7 @@ class StaticResults:
                     mode="lines",
                     line=dict(width=5.0, color=colors1[j]),
                     name="Shaft {}".format(j),
+                    legendgroup="Shaft {}".format(j),
                     showlegend=True,
                     hovertemplate=(
                         "Shaft lengh: %{x:.2f}<br>" + "Shearing Force: %{y:.2f}"
@@ -2063,34 +2064,21 @@ class StaticResults:
         )
 
         j = 0
-        for Bm, nodes_pos, nodes in zip(self.Bm, self.nodes_pos, self.nodes):
-            i = 0
-            while True:
-                if i + 3 > len(nodes):
-                    break
-
-                interpolated_BM = interpolate.interp1d(
-                    nodes_pos[i : i + 3], Bm[i : i + 3], kind="quadratic"
+        for Bm, nodes_pos in zip(self.Bm, self.Vx_axis):
+            fig.add_trace(
+                go.Scatter(
+                    x=nodes_pos,
+                    y=Bm,
+                    mode="lines",
+                    line=dict(width=5.0, color=colors1[j]),
+                    name="Shaft {}".format(j),
+                    legendgroup="Shaft {}".format(j),
+                    showlegend=True,
+                    hovertemplate=(
+                        "Shaft lengh: %{x:.2f}<br>" + "Bending Moment: %{y:.2f}"
+                    ),
                 )
-                xnew_BM = np.linspace(
-                    nodes_pos[i], nodes_pos[i + 2], num=42, endpoint=True
-                )
-
-                ynew_BM = interpolated_BM(xnew_BM)
-                fig.add_trace(
-                    go.Scatter(
-                        x=xnew_BM,
-                        y=ynew_BM,
-                        mode="lines",
-                        line=dict(width=5.0, color=colors1[j]),
-                        name="Shaft {}".format(j),
-                        showlegend=True if i == 0 else False,
-                        hovertemplate=(
-                            "Shaft lengh: %{x:.2f}<br>" + "Bending Moment: %{y:.2f}"
-                        ),
-                    )
-                )
-                i += 2
+            )
             j += 1
 
         fig.update_xaxes(
