@@ -180,14 +180,14 @@ class _Coefficient:
         >>> fig = bearing.kxx.plot()
         >>> # fig.show()
         """
-        w_range = np.linspace(min(self.frequency), max(self.frequency), 30)
+        frequency_range = np.linspace(min(self.frequency), max(self.frequency), 30)
 
         fig = go.Figure()
 
         fig.add_trace(
             go.Scatter(
-                x=w_range,
-                y=self.interpolated(w_range),
+                x=frequency_range,
+                y=self.interpolated(frequency_range),
                 mode="lines",
                 line=dict(width=3.0, color="royalblue"),
                 showlegend=False,
@@ -196,7 +196,7 @@ class _Coefficient:
         )
 
         fig.update_xaxes(
-            title_text="<b>Frequency</b>",
+            title_text="<b>Frequency (rad/s)</b>",
             title_font=dict(family="Arial", size=20),
             tickfont=dict(size=16),
             gridcolor="lightgray",

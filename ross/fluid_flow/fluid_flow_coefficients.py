@@ -39,11 +39,7 @@ def calculate_oil_film_force(fluid_flow_object, force_type=None):
         radial_force = (
             0.5
             * fluid_flow_object.viscosity
-            * (
-                fluid_flow_object.radius_rotor
-                / fluid_flow_object.difference_between_radius
-            )
-            ** 2
+            * (fluid_flow_object.radius_rotor / fluid_flow_object.radial_clearance) ** 2
             * (fluid_flow_object.length ** 3 / fluid_flow_object.radius_rotor)
             * (
                 (
@@ -58,11 +54,7 @@ def calculate_oil_film_force(fluid_flow_object, force_type=None):
         tangential_force = (
             0.5
             * fluid_flow_object.viscosity
-            * (
-                fluid_flow_object.radius_rotor
-                / fluid_flow_object.difference_between_radius
-            )
-            ** 2
+            * (fluid_flow_object.radius_rotor / fluid_flow_object.radial_clearance) ** 2
             * (fluid_flow_object.length ** 3 / fluid_flow_object.radius_rotor)
             * (
                 (np.pi * fluid_flow_object.eccentricity_ratio * fluid_flow_object.omega)
@@ -75,11 +67,7 @@ def calculate_oil_film_force(fluid_flow_object, force_type=None):
         radial_force = (
             6
             * fluid_flow_object.viscosity
-            * (
-                fluid_flow_object.radius_rotor
-                / fluid_flow_object.difference_between_radius
-            )
-            ** 2
+            * (fluid_flow_object.radius_rotor / fluid_flow_object.radial_clearance) ** 2
             * fluid_flow_object.radius_rotor
             * fluid_flow_object.length
             * (
@@ -97,11 +85,7 @@ def calculate_oil_film_force(fluid_flow_object, force_type=None):
         tangential_force = (
             6
             * fluid_flow_object.viscosity
-            * (
-                fluid_flow_object.radius_rotor
-                / fluid_flow_object.difference_between_radius
-            )
-            ** 2
+            * (fluid_flow_object.radius_rotor / fluid_flow_object.radial_clearance) ** 2
             * fluid_flow_object.radius_rotor
             * fluid_flow_object.length
             * (
@@ -252,7 +236,7 @@ def calculate_stiffness_matrix(
         [radial_force, tangential_force, force_x, force_y] = calculate_oil_film_force(
             fluid_flow_object, force_type=oil_film_force
         )
-        delta = fluid_flow_object.difference_between_radius / 100
+        delta = fluid_flow_object.radial_clearance / 100
 
         move_rotor_center(fluid_flow_object, delta, 0)
         fluid_flow_object.calculate_coefficients()

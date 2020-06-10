@@ -5,12 +5,9 @@ This module returns graphs for each type of analyses in rotor_assembly.py.
 import numpy as np
 import plotly.express as px
 import plotly.graph_objects as go
-import plotly.io as pio
 import scipy.linalg as la
 from plotly.subplots import make_subplots
 from scipy import interpolate
-
-pio.renderers.default = "browser"
 
 # set Plotly palette of colors
 colors1 = px.colors.qualitative.Dark24
@@ -543,7 +540,7 @@ class ModalResults:
                 ),
                 yaxis=dict(
                     title=dict(
-                        text="<b>Dimensionless deformation</b>", font=dict(size=14),
+                        text="<b>Dimensionless deformation</b>", font=dict(size=14)
                     ),
                     tickfont=dict(size=16),
                     range=[-2, 2],
@@ -554,7 +551,7 @@ class ModalResults:
                 ),
                 zaxis=dict(
                     title=dict(
-                        text="<b>Dimensionless deformation</b>", font=dict(size=14),
+                        text="<b>Dimensionless deformation</b>", font=dict(size=14)
                     ),
                     tickfont=dict(size=16),
                     range=[-2, 2],
@@ -955,7 +952,7 @@ class FrequencyResponseResults:
             y_axis_label = "<b>Amplitude (dB)</b>"
 
         kwargs_default_values = dict(
-            width=1200, height=900, plot_bgcolor="white", hoverlabel_align="right",
+            width=1200, height=900, plot_bgcolor="white", hoverlabel_align="right"
         )
         for k, v in kwargs_default_values.items():
             mag_kwargs.setdefault(k, v)
@@ -1034,7 +1031,7 @@ class FrequencyResponseResults:
         phase = self.phase
 
         kwargs_default_values = dict(
-            width=1200, height=900, plot_bgcolor="white", hoverlabel_align="right",
+            width=1200, height=900, plot_bgcolor="white", hoverlabel_align="right"
         )
         for k, v in kwargs_default_values.items():
             phase_kwargs.setdefault(k, v)
@@ -1124,7 +1121,7 @@ class FrequencyResponseResults:
             r_axis_label = "<b>Amplitude (dB)</b>"
 
         kwargs_default_values = dict(
-            width=1200, height=900, polar_bgcolor="white", hoverlabel_align="right",
+            width=1200, height=900, polar_bgcolor="white", hoverlabel_align="right"
         )
         for k, v in kwargs_default_values.items():
             polar_kwargs.setdefault(k, v)
@@ -1341,7 +1338,7 @@ class ForcedResponseResults:
             y_axis_label = "<b>Amplitude (μ pk-pk)</b>"
 
         kwargs_default_values = dict(
-            width=1200, height=900, plot_bgcolor="white", hoverlabel_align="right",
+            width=1200, height=900, plot_bgcolor="white", hoverlabel_align="right"
         )
         for k, v in kwargs_default_values.items():
             kwargs.setdefault(k, v)
@@ -1416,7 +1413,7 @@ class ForcedResponseResults:
         phase = self.phase
 
         kwargs_default_values = dict(
-            width=1200, height=900, plot_bgcolor="white", hoverlabel_align="right",
+            width=1200, height=900, plot_bgcolor="white", hoverlabel_align="right"
         )
         for k, v in kwargs_default_values.items():
             kwargs.setdefault(k, v)
@@ -1501,7 +1498,7 @@ class ForcedResponseResults:
             r_axis_label = "<b>Amplitude (dB)</b>"
 
         kwargs_default_values = dict(
-            width=1200, height=900, polar_bgcolor="white", hoverlabel_align="right",
+            width=1200, height=900, polar_bgcolor="white", hoverlabel_align="right"
         )
         for k, v in kwargs_default_values.items():
             kwargs.setdefault(k, v)
@@ -2052,24 +2049,24 @@ class StaticResults:
 
     Parameters
     ----------
-    disp_y : array
-        shaft displacement in y direction
+    deformation : array
+        shaft displacement in y direction.
     Vx : array
-        shearing force array
+        shearing force array.
     Bm : array
-        bending moment array
-    df_shaft : dataframe
+        bending moment array.
+    w_shaft : dataframe
         shaft dataframe
-    df_disks : dataframe
-        disks dataframe
-    df_bearings : dataframe
-        bearing dataframe
+    disk_forces : dict
+        Indicates the force exerted by each disk.
+    bearing_forces : dict
+        Relates the static force at each node due to the bearing reaction forces.
     nodes : list
-        list of nodes numbers
+        list of nodes numbers.
     nodes_pos : list
-        list of nodes positions
+        list of nodes positions.
     Vx_axis : array
-        X axis for displaying shearing force
+        X axis for displaying shearing force and bending moment.
 
     Returns
     -------
@@ -2080,7 +2077,7 @@ class StaticResults:
 
     def __init__(
         self,
-        disp_y,
+        deformation,
         Vx,
         Bm,
         w_shaft,
@@ -2091,7 +2088,7 @@ class StaticResults:
         Vx_axis,
     ):
 
-        self.disp_y = disp_y
+        self.deformation = deformation
         self.Vx = Vx
         self.Bm = Bm
         self.w_shaft = w_shaft
@@ -2120,7 +2117,7 @@ class StaticResults:
             The figure object with the plot.
         """
         kwargs_default_values = dict(
-            width=1200, height=900, plot_bgcolor="white", hoverlabel_align="right",
+            width=1200, height=900, plot_bgcolor="white", hoverlabel_align="right"
         )
         for k, v in kwargs_default_values.items():
             kwargs.setdefault(k, v)
@@ -2142,12 +2139,12 @@ class StaticResults:
         )
 
         count = 0
-        for disp_y, Vx, Bm, nodes, nodes_pos, Vx_axis in zip(
-            self.disp_y, self.Vx, self.Bm, self.nodes, self.nodes_pos, self.Vx_axis
+        for deformation, Vx, Bm, nodes, nodes_pos, Vx_axis in zip(
+            self.deformation, self.Vx, self.Bm, self.nodes, self.nodes_pos, self.Vx_axis
         ):
-            interpolated = interpolate.interp1d(nodes_pos, disp_y, kind="cubic")
+            interpolated = interpolate.interp1d(nodes_pos, deformation, kind="cubic")
             xnew = np.linspace(
-                nodes_pos[0], nodes_pos[-1], num=len(nodes_pos) * 20, endpoint=True,
+                nodes_pos[0], nodes_pos[-1], num=len(nodes_pos) * 20, endpoint=True
             )
 
             ynew = interpolated(xnew)
@@ -2357,7 +2354,7 @@ class StaticResults:
                 col=col,
             )
             fig.update_yaxes(
-                visible=False, gridcolor="lightgray", showline=False, row=row, col=col,
+                visible=False, gridcolor="lightgray", showline=False, row=row, col=col
             )
             j += 1
 
@@ -2384,7 +2381,7 @@ class StaticResults:
             The figure object with the plot.
         """
         kwargs_default_values = dict(
-            width=1200, height=900, plot_bgcolor="white", hoverlabel_align="right",
+            width=1200, height=900, plot_bgcolor="white", hoverlabel_align="right"
         )
         for k, v in kwargs_default_values.items():
             kwargs.setdefault(k, v)
@@ -2491,35 +2488,21 @@ class StaticResults:
         )
 
         j = 0
-        for Bm, nodes_pos, nodes in zip(self.Bm, self.nodes_pos, self.nodes):
-            i = 0
-            while True:
-                if i + 3 > len(nodes):
-                    break
-
-                interpolated_BM = interpolate.interp1d(
-                    nodes_pos[i : i + 3], Bm[i : i + 3], kind="quadratic"
+        for Bm, nodes_pos in zip(self.Bm, self.Vx_axis):
+            fig.add_trace(
+                go.Scatter(
+                    x=nodes_pos,
+                    y=Bm,
+                    mode="lines",
+                    line=dict(width=5.0, color=colors1[j]),
+                    name="Shaft {}".format(j),
+                    legendgroup="Shaft {}".format(j),
+                    showlegend=True,
+                    hovertemplate=(
+                        "Shaft lengh: %{x:.2f}<br>" + "Bending Moment: %{y:.2f}"
+                    ),
                 )
-                xnew_BM = np.linspace(
-                    nodes_pos[i], nodes_pos[i + 2], num=42, endpoint=True
-                )
-
-                ynew_BM = interpolated_BM(xnew_BM)
-                fig.add_trace(
-                    go.Scatter(
-                        x=xnew_BM,
-                        y=ynew_BM,
-                        mode="lines",
-                        line=dict(width=5.0, color=colors1[j]),
-                        name="Shaft {}".format(j),
-                        legendgroup="Shaft {}".format(j),
-                        showlegend=True if i == 0 else False,
-                        hovertemplate=(
-                            "Shaft lengh: %{x:.2f}<br>" + "Bending Moment: %{y:.2f}"
-                        ),
-                    )
-                )
-                i += 2
+            )
             j += 1
 
         fig.update_xaxes(
@@ -2989,7 +2972,7 @@ class TimeResponseResults:
         obs_dof = dof_dict[str(obs_dof)]
 
         kwargs_default_values = dict(
-            width=1200, height=900, plot_bgcolor="white", hoverlabel_align="right",
+            width=1200, height=900, plot_bgcolor="white", hoverlabel_align="right"
         )
         for k, v in kwargs_default_values.items():
             kwargs.setdefault(k, v)
@@ -3060,7 +3043,7 @@ class TimeResponseResults:
             The figure object with the plot.
         """
         kwargs_default_values = dict(
-            width=1200, height=900, plot_bgcolor="white", hoverlabel_align="right",
+            width=1200, height=900, plot_bgcolor="white", hoverlabel_align="right"
         )
         for k, v in kwargs_default_values.items():
             kwargs.setdefault(k, v)
