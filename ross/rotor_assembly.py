@@ -1659,11 +1659,11 @@ class Rotor(object):
         if fig is None:
             fig = go.Figure()
 
-        for j in range(rotor_wn.T.shape[1]):
+        for j in range(rotor_wn.shape[0]):
             fig.add_trace(
                 go.Scatter(
                     x=stiffness_log,
-                    y=np.transpose(rotor_wn.T)[j],
+                    y=rotor_wn[j],
                     mode="lines",
                     hoverinfo="none",
                     showlegend=False,
