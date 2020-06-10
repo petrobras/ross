@@ -1423,11 +1423,10 @@ class Rotor(object):
                 x=x_pos,
                 y=y_pos,
                 text=text,
-                textfont=dict(family="Verdana", size=20, color="black"),
                 mode="markers+text",
                 marker=dict(
                     opacity=0.7,
-                    size=30,
+                    size=20,
                     color="#ffcc99",
                     line=dict(width=1.0, color="black"),
                 ),
@@ -1465,31 +1464,17 @@ class Rotor(object):
 
         fig.update_xaxes(
             title_text="<b>Axial location</b>",
-            title_font=dict(family="Verdana", size=20),
-            tickfont=dict(size=16),
             range=[-0.1 * shaft_end, 1.1 * shaft_end],
             showgrid=False,
-            showline=True,
-            linewidth=2.5,
-            linecolor="black",
             mirror=True,
         )
         fig.update_yaxes(
             title_text="<b>Shaft radius</b>",
-            title_font=dict(family="Verdana", size=20),
-            tickfont=dict(size=16),
             range=[-0.3 * shaft_end, 0.3 * shaft_end],
             showgrid=False,
-            showline=True,
-            linewidth=2.5,
-            linecolor="black",
             mirror=True,
         )
-        fig.update_layout(
-            plot_bgcolor="white",
-            title=dict(text="<b>Rotor Model</b>", font=dict(size=18)),
-            **kwargs,
-        )
+        fig.update_layout(title=dict(text="<b>Rotor Model</b>"), **kwargs)
 
         return fig
 
