@@ -1272,6 +1272,8 @@ class ForcedResponseResults:
 
     Parameters
     ----------
+    rotor : ross.Rotor object
+        The Rotor object
     force_resp : array
         Array with the force response for each node for each frequency.
     speed_range : array
@@ -1280,12 +1282,11 @@ class ForcedResponseResults:
         Magnitude (dB) of the frequency response for node for each frequency.
     phase : array
         Phase of the frequency response for node for each frequency.
-    nodes_list : list
-        list of nodes numbers.
-    nodes_pos : list
-        list of nodes positions.
-    number_dof : int
-        number of degrees of freedom per shaft element node.
+    unbalance : array, optional
+        Array with the unbalance data (node, magnitude and phase) to be plotted
+        with deflected shape. This argument is set only if running an unbalance
+        response analysis.
+        Default is None.
 
     Returns
     -------
@@ -1294,22 +1295,14 @@ class ForcedResponseResults:
     """
 
     def __init__(
-        self,
-        forced_resp,
-        speed_range,
-        magnitude,
-        phase,
-        nodes_list,
-        nodes_pos,
-        number_dof,
+        self, rotor, forced_resp, speed_range, magnitude, phase, unbalance=None,
     ):
+        self.rotor = rotor
         self.forced_resp = forced_resp
         self.speed_range = speed_range
         self.magnitude = magnitude
         self.phase = phase
-        self.nodes_list = nodes_list
-        self.nodes_pos = nodes_pos
-        self.number_dof = number_dof
+        self.unbalance = unbalance
 
     def plot_magnitude(self, dof, units="m", **kwargs):
         """Plot forced response (magnitude) using Plotly.
@@ -1652,14 +1645,18 @@ class ForcedResponseResults:
             major_axis_vector[1, :] = backward vector
             major_axis_vector[2, :] = major axis angle
             major_axis_vector[3, :] = major axis vector for the maximum major axis angle
+            major_axis_vector[4, :] = absolute values for major axes vectors
         """
         forced_resp = self.forced_resp
-        major_axis_vector = np.zeros((5, len(self.nodes_list)), dtype=complex)
+        nodes = self.rotor.nodes
+        number_dof = self.rotor.number_dof
+
+        major_axis_vector = np.zeros((5, len(nodes)), dtype=complex)
         idx = np.where(np.isclose(self.speed_range, speed, atol=1e-6))[0][0]
 
-        for i, n in enumerate(self.nodes_list):
-            dofx = self.number_dof * n
-            dofy = self.number_dof * n + 1
+        for i, n in enumerate(nodes):
+            dofx = number_dof * n
+            dofy = number_dof * n + 1
 
             # Relative angle between probes (90°)
             Rel_ang = np.exp(1j * np.pi / 2)
@@ -1707,6 +1704,41 @@ class ForcedResponseResults:
 
         return major_axis_vector
 
+    def _calculate_bending_moment(self, speed):
+        """Calculate the bending moment in X and Y directions.
+
+        This method calculate forces and moments on nodal positions for a deflected
+        shape configuration.
+
+        Parameters
+        ----------
+        speed : float
+            The rotor rotation speed.
+
+        Returns
+        -------
+        Mx : array
+            Bending Moment on X directon.
+        My : array
+            Bending Moment on Y directon.
+        """
+        idx = np.where(np.isclose(self.speed_range, speed, atol=1e-6))[0][0]
+        mag = self.magnitude[:, idx]
+        phase = self.phase[:, idx]
+        number_dof = self.rotor.number_dof
+        ndof = self.rotor.ndof
+
+        disp = np.zeros(ndof)
+        for i in range(number_dof):
+            disp[i::number_dof] = mag[i::number_dof] * np.cos(-phase[i::number_dof])
+
+        nodal_forces = self.rotor.K(speed) @ disp
+
+        Mx = np.cumsum(nodal_forces[2::number_dof])
+        My = np.cumsum(nodal_forces[3::number_dof])
+
+        return Mx, My
+
     def plot_deflected_shape_2d(self, speed, units="mic-pk-pk", **kwargs):
         """Plot the 2D deflected shape diagram.
 
@@ -1741,12 +1773,13 @@ class ForcedResponseResults:
         for k, v in kwargs_default_values.items():
             kwargs.setdefault(k, v)
 
+        nodes_pos = self.rotor.nodes_pos
         maj_vect = self._calculate_major_axis(speed=speed)
 
         fig = go.Figure()
         fig.add_trace(
             go.Scatter(
-                x=self.nodes_pos,
+                x=nodes_pos,
                 y=maj_vect[4].real,
                 mode="lines",
                 line=dict(width=6.0, color="royalblue"),
@@ -1761,8 +1794,8 @@ class ForcedResponseResults:
         # plot center line
         fig.add_trace(
             go.Scatter(
-                x=self.nodes_pos,
-                y=np.zeros(len(self.nodes_pos)),
+                x=nodes_pos,
+                y=np.zeros(len(nodes_pos)),
                 mode="lines",
                 line=dict(width=2.0, color="black", dash="dashdot"),
                 showlegend=False,
@@ -1839,17 +1872,21 @@ class ForcedResponseResults:
 
         mag = self.magnitude
         phase = self.phase
+        ub = self.unbalance
+        nodes = self.rotor.nodes
+        nodes_pos = self.rotor.nodes_pos
+        number_dof = self.rotor.number_dof
         idx = np.where(np.isclose(self.speed_range, speed, atol=1e-6))[0][0]
 
         # orbit of a single revolution
         t = np.linspace(0, 2 * np.pi / speed, samples)
 
-        x_pos = np.repeat(self.nodes_pos, t.size).reshape(len(self.nodes_pos), t.size)
+        x_pos = np.repeat(nodes_pos, t.size).reshape(len(nodes_pos), t.size)
 
         fig = go.Figure()
-        for i, n in enumerate(self.nodes_list):
-            dofx = self.number_dof * n
-            dofy = self.number_dof * n + 1
+        for i, n in enumerate(nodes):
+            dofx = number_dof * n
+            dofy = number_dof * n + 1
 
             y = mag[dofx, idx] * np.cos(speed * t - phase[dofx, idx])
             z = mag[dofy, idx] * np.cos(speed * t - phase[dofy, idx])
@@ -1892,15 +1929,14 @@ class ForcedResponseResults:
                     + "X - Amplitude: %{y:.2e}<br>"
                     + "Y - Amplitude: %{z:.2e}"
                 ),
-                **kwargs,
             )
         )
 
         # plot center line
-        line = np.zeros(len(self.nodes_pos))
+        line = np.zeros(len(nodes_pos))
         fig.add_trace(
             go.Scatter3d(
-                x=self.nodes_pos,
+                x=nodes_pos,
                 y=line,
                 z=line,
                 mode="lines",
@@ -1909,6 +1945,38 @@ class ForcedResponseResults:
                 hoverinfo="none",
             )
         )
+
+        # plot unbalance markers
+        i = 0
+        for n, m, p in zip(ub[0], ub[1], ub[2]):
+            fig.add_trace(
+                go.Scatter3d(
+                    x=[x_pos[int(n), 0], x_pos[int(n), 0]],
+                    y=[0, np.amax(np.real(maj_vect[4])) / 2 * np.cos(p)],
+                    z=[0, np.amax(np.real(maj_vect[4])) / 2 * np.sin(p)],
+                    mode="lines",
+                    line=dict(width=6.0, color="firebrick"),
+                    legendgroup="Unbalance",
+                    hoverinfo="none",
+                    showlegend=False,
+                )
+            )
+            fig.add_trace(
+                go.Scatter3d(
+                    x=[x_pos[int(n), 0]],
+                    y=[np.amax(np.real(maj_vect[4])) / 2 * np.cos(p)],
+                    z=[np.amax(np.real(maj_vect[4])) / 2 * np.sin(p)],
+                    mode="markers",
+                    marker=dict(symbol="diamond", size=5.0, color="firebrick"),
+                    name="Unbalance",
+                    legendgroup="Unbalance",
+                    showlegend=True if i == 0 else False,
+                    hovertemplate=(
+                        "Node: {}<br>" + "Magnitude: {:.2e}<br>" + "Phase: {:.2f}"
+                    ).format(int(n), m, p),
+                )
+            )
+            i += 1
 
         fig.update_layout(
             width=1200,
@@ -1944,6 +2012,133 @@ class ForcedResponseResults:
                 text=(f"<b>Deflected Shape</b><br>" f"<b>Speed = {speed}</b>"),
                 font=dict(size=18),
             ),
+            legend=dict(
+                font=dict(family="sans-serif", size=14),
+                bgcolor="white",
+                bordercolor="black",
+                borderwidth=2,
+            ),
+            **kwargs,
+        )
+
+        return fig
+
+    def plot_bending_moment(self, speed, units="mic-pk-pk", **kwargs):
+        """Plot the bending moment diagram.
+
+        Parameters
+        ----------
+        speed : float
+            The rotor rotation speed. Must be an element from the speed_range argument
+            passed to the class.
+        units : str, optional
+            Magnitude unit system.
+            Options:
+                - "m" : meters
+                - "mic-pk-pk" : microns peak to peak
+                - "db" : decibels
+            Default is "mic-pk-pk".
+        kwargs : optional
+            Additional key word arguments can be passed to change the deflected shape
+            plot layout only (e.g. width=1000, height=800, ...).
+            *See Plotly Python Figure Reference for more information.
+
+        Returns
+        -------
+        fig : Plotly graph_objects.Figure()
+            The figure object with the plot.
+        """
+        if not any(np.isclose(self.speed_range, speed, atol=1e-6)):
+            raise ValueError("No data available for this speed value.")
+
+        kwargs_default_values = dict(
+            width=1200, height=900, plot_bgcolor="white", hoverlabel_align="right",
+        )
+        for k, v in kwargs_default_values.items():
+            kwargs.setdefault(k, v)
+
+        Mx, My = self._calculate_bending_moment(speed=speed)
+        Mr = np.sqrt(Mx ** 2 + My ** 2)
+
+        nodes_pos = self.rotor.nodes_pos
+
+        fig = go.Figure()
+        fig.add_trace(
+            go.Scatter(
+                x=nodes_pos,
+                y=Mx,
+                mode="lines",
+                line=dict(width=6.0, color=colors1[2]),
+                name="Bending Moment (X dir.)",
+                legendgroup="Mx",
+                showlegend=True,
+                hovertemplate=(
+                    "<b>Nodal Position: %{x:.2f}</b><br>" + "<b>Mx: %{y:.2e}</b>"
+                ),
+            ),
+        )
+        fig.add_trace(
+            go.Scatter(
+                x=nodes_pos,
+                y=My,
+                mode="lines",
+                line=dict(width=6.0, color=colors1[6]),
+                name="Bending Moment (Y dir.)",
+                legendgroup="My",
+                showlegend=True,
+                hovertemplate=(
+                    "<b>Nodal Position: %{x:.2f}</b><br>" + "<b>My: %{y:.2e}</b>"
+                ),
+            ),
+        )
+        fig.add_trace(
+            go.Scatter(
+                x=nodes_pos,
+                y=Mr,
+                mode="lines",
+                line=dict(width=6.0, color=colors1[7]),
+                name="Bending Moment (abs)",
+                legendgroup="Mr",
+                showlegend=True,
+                hovertemplate=(
+                    "<b>Nodal Position: %{x:.2f}</b><br>" + "<b>Mr: %{y:.2e}</b>"
+                ),
+            ),
+        )
+
+        # plot center line
+        fig.add_trace(
+            go.Scatter(
+                x=nodes_pos,
+                y=np.zeros_like(nodes_pos),
+                mode="lines",
+                line=dict(width=3.0, color="black", dash="dashdot"),
+                showlegend=False,
+                hoverinfo="none",
+            )
+        )
+
+        fig.update_xaxes(
+            title_text="<b>Rotor Length</b>",
+            title_font=dict(family="Arial", size=20),
+            tickfont=dict(size=16),
+            gridcolor="lightgray",
+            showline=True,
+            linewidth=2.5,
+            linecolor="black",
+            mirror=True,
+        )
+        fig.update_yaxes(
+            title_text="<b>Bending Moment</b>",
+            title_font=dict(family="Arial", size=20),
+            tickfont=dict(size=16),
+            gridcolor="lightgray",
+            showline=True,
+            linewidth=2.5,
+            linecolor="black",
+            mirror=True,
+        )
+        fig.update_layout(
             legend=dict(
                 font=dict(family="sans-serif", size=14),
                 bgcolor="white",
@@ -2019,6 +2214,7 @@ class ForcedResponseResults:
 
         fig0 = self.plot_deflected_shape_2d(speed, units, **shape2d_kwargs)
         fig1 = self.plot_deflected_shape_3d(speed, samples, units, **shape3d_kwargs)
+        fig2 = self.plot_bending_moment(speed, units, **bm_kwargs)
 
         subplots = make_subplots(
             rows=2, cols=2, specs=[[{}, {"type": "scene", "rowspan": 2}], [{}, None]]
@@ -2027,16 +2223,19 @@ class ForcedResponseResults:
             subplots.add_trace(data, row=1, col=1)
         for data in fig1["data"]:
             subplots.add_trace(data, row=1, col=2)
+        for data in fig2["data"]:
+            subplots.add_trace(data, row=2, col=1)
 
         subplots.update_xaxes(fig0.layout.xaxis, row=1, col=1)
         subplots.update_yaxes(fig0.layout.yaxis, row=1, col=1)
+        subplots.update_xaxes(fig2.layout.xaxis, row=2, col=1)
+        subplots.update_yaxes(fig2.layout.yaxis, row=2, col=1)
         subplots.update_layout(
             scene=dict(
                 bgcolor=fig1.layout.scene.bgcolor,
                 xaxis=fig1.layout.scene.xaxis,
                 yaxis=fig1.layout.scene.yaxis,
                 zaxis=fig1.layout.scene.zaxis,
-                annotations=fig1.layout.scene.annotations,
             ),
             **subplot_kwargs,
         )
