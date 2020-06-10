@@ -18,6 +18,7 @@ import scipy.linalg as la
 import scipy.signal as signal
 import scipy.sparse.linalg as las
 import toml
+from scipy.interpolate import UnivariateSpline
 from scipy.optimize import newton
 
 from ross.bearing_seal_element import (BallBearingElement, BearingElement,
@@ -1538,11 +1539,97 @@ class Rotor(object):
 
         return results
 
-    def plot_ucs(
+    def _calc_ucs(
         self,
         stiffness_range=None,
         num_modes=16,
         num=20,
+        fig=None,
+        synchronous=False,
+        **kwargs,
+    ):
+
+        if stiffness_range is None:
+            if self.rated_w is not None:
+                bearing = self.bearing_elements[0]
+                k = bearing.kxx.interpolated(self.rated_w)
+                k = int(np.log10(k))
+                stiffness_range = (k - 3, k + 3)
+            else:
+                stiffness_range = (6, 11)
+
+        stiffness_log = np.logspace(*stiffness_range, num=num)
+        rotor_wn = np.zeros((self.number_dof, len(stiffness_log)))
+
+        bearings_elements = []  # exclude the seals
+        for bearing in self.bearing_elements:
+            if not isinstance(bearing, SealElement):
+                bearings_elements.append(bearing)
+
+        for i, k in enumerate(stiffness_log):
+            bearings = [BearingElement(b.n, kxx=k, cxx=0) for b in bearings_elements]
+            rotor = self.__class__(self.shaft_elements, self.disk_elements, bearings)
+            speed = 0
+            if synchronous:
+
+                def wn_diff(x):
+                    """Function to evaluate difference between speed and
+                    natural frequency for the first mode."""
+                    modal = rotor.run_modal(speed=x, num_modes=num_modes)
+                    # get first forward mode
+                    if modal.whirl_direction()[0] == "Forward":
+                        wn0 = modal.wn[0]
+                    else:
+                        wn0 = modal.wn[1]
+
+                    return wn0 - x
+
+                speed = newton(wn_diff, 0)
+            modal = rotor.run_modal(speed=speed, num_modes=num_modes)
+
+            # if sync, select only forward modes
+            if synchronous:
+                rotor_wn[:, i] = modal.wn[modal.whirl_direction() == "Forward"]
+            # if not sync, with speed=0 whirl direction can be confusing, with
+            # two close modes being forward or backward, so we select on mode in
+            # each 2 modes.
+            else:
+                rotor_wn[:, i] = modal.wn[
+                    : int(self.number_dof * 2) : int(self.number_dof / 2)
+                ]
+
+        bearing0 = bearings_elements[0]
+
+        # calculate interception points
+        intersection_points = {"x": [], "y": []}
+
+        # if bearing does not have constant coefficient, check intersection points
+        if not np.isnan(bearing0.frequency).all():
+            for j in range(rotor_wn.shape[0]):
+                for coeff in ["kxx", "kyy"]:
+                    with warnings.catch_warnings():
+                        warnings.simplefilter("ignore")
+                        frequency_curve = UnivariateSpline(rotor_wn[j], stiffness_log)
+                    coeff_curve = getattr(bearing0, coeff).interpolated
+                    # search diff in several points to have a good precision
+                    search_range = np.linspace(
+                        bearing0.frequency[0], bearing0.frequency[-1], 10000
+                    )
+                    intersection_idx = np.argmin(
+                        abs(frequency_curve(search_range) - coeff_curve(search_range))
+                    )
+                    intersection_points["y"].append(search_range[intersection_idx])
+                    intersection_points["x"].append(
+                        frequency_curve(search_range[intersection_idx])
+                    )
+
+        return stiffness_log, rotor_wn, bearing0, intersection_points
+
+    def plot_ucs(
+        self,
+        stiffness_range=None,
+        num_modes=16,
+        num=30,
         fig=None,
         synchronous=False,
         **kwargs,
@@ -1605,56 +1692,15 @@ class Rotor(object):
         >>> rotor = Rotor(shaft_elem, [disk0, disk1], [bearing0, bearing1])
         >>> fig = rotor.plot_ucs()
         """
-        if stiffness_range is None:
-            if self.rated_w is not None:
-                bearing = self.bearing_elements[0]
-                k = bearing.kxx.interpolated(self.rated_w)
-                k = int(np.log10(k))
-                stiffness_range = (k - 3, k + 3)
-            else:
-                stiffness_range = (6, 11)
 
-        stiffness_log = np.logspace(*stiffness_range, num=num)
-        rotor_wn = np.zeros((self.number_dof, len(stiffness_log)))
-
-        bearings_elements = []  # exclude the seals
-        for bearing in self.bearing_elements:
-            if not isinstance(bearing, SealElement):
-                bearings_elements.append(bearing)
-
-        for i, k in enumerate(stiffness_log):
-            bearings = [BearingElement(b.n, kxx=k, cxx=0) for b in bearings_elements]
-            rotor = self.__class__(self.shaft_elements, self.disk_elements, bearings)
-            speed = 0
-            if synchronous:
-
-                def wn_diff(x):
-                    """Function to evaluate difference between speed and
-                    natural frequency for the first mode."""
-                    modal = rotor.run_modal(speed=x, num_modes=num_modes)
-                    # get first forward mode
-                    if modal.whirl_direction()[0] == "Forward":
-                        wn0 = modal.wn[0]
-                    else:
-                        wn0 = modal.wn[1]
-
-                    return wn0 - x
-
-                speed = newton(wn_diff, 0)
-            modal = rotor.run_modal(speed=speed, num_modes=num_modes)
-
-            # if sync, select only forward modes
-            if synchronous:
-                rotor_wn[:, i] = modal.wn[modal.whirl_direction() == "Forward"]
-            # if not sync, with speed=0 whirl direction can be confusing, with
-            # two close modes being forward or backward, so we select on mode in
-            # each 2 modes.
-            else:
-                rotor_wn[:, i] = modal.wn[
-                    : int(self.number_dof * 2) : int(self.number_dof / 2)
-                ]
-
-        bearing0 = bearings_elements[0]
+        stiffness_log, rotor_wn, bearing0, intersection_points = self._calc_ucs(
+            stiffness_range=stiffness_range,
+            num_modes=num_modes,
+            num=num,
+            fig=fig,
+            synchronous=synchronous,
+            **kwargs,
+        )
 
         if fig is None:
             fig = go.Figure()
@@ -1672,10 +1718,23 @@ class Rotor(object):
 
         fig.add_trace(
             go.Scatter(
+                x=intersection_points["x"],
+                y=intersection_points["y"],
+                mode="markers",
+                marker=dict(symbol="circle-open-dot", color="red", size=8),
+                hovertemplate="Stiffness (N/m): %{x:.2e}<br>Frequency (rad/s): %{y:.2f}",
+                showlegend=False,
+                name="",
+            )
+        )
+
+        fig.add_trace(
+            go.Scatter(
                 x=bearing0.kxx.interpolated(bearing0.frequency),
                 y=bearing0.frequency,
                 mode="lines",
                 line=dict(dash="dashdot"),
+                hoverinfo="none",
                 name="Kxx",
             )
         )
@@ -1685,6 +1744,7 @@ class Rotor(object):
                 y=bearing0.frequency,
                 mode="lines",
                 line=dict(dash="dashdot"),
+                hoverinfo="none",
                 name="Kyy",
             )
         )
@@ -1718,6 +1778,8 @@ class Rotor(object):
             Default is 5.
         stiffness_range : tuple, optional
             Tuple with (start, end) for stiffness range.
+            This will be used to create an evenly numbers spaced evenly on a log scale
+            to create a better visualization (see np.logspace).
         kwargs : optional
             Additional key word arguments can be passed to change the plot layout only
             (e.g. width=1000, height=800, ...).
