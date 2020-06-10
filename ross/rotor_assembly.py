@@ -1659,12 +1659,23 @@ class Rotor(object):
         if fig is None:
             fig = go.Figure()
 
+        for j in range(rotor_wn.T.shape[1]):
+            fig.add_trace(
+                go.Scatter(
+                    x=stiffness_log,
+                    y=np.transpose(rotor_wn.T)[j],
+                    mode="lines",
+                    hoverinfo="none",
+                    showlegend=False,
+                )
+            )
+
         fig.add_trace(
             go.Scatter(
                 x=bearing0.kxx.interpolated(bearing0.frequency),
                 y=bearing0.frequency,
-                mode="markers",
-                marker=dict(size=10, symbol="circle", color="#888844"),
+                mode="lines",
+                line=dict(dash="dashdot"),
                 name="Kxx",
             )
         )
@@ -1672,57 +1683,24 @@ class Rotor(object):
             go.Scatter(
                 x=bearing0.kyy.interpolated(bearing0.frequency),
                 y=bearing0.frequency,
-                mode="markers",
-                marker=dict(size=10, symbol="square", color="#888844"),
+                mode="lines",
+                line=dict(dash="dashdot"),
                 name="Kyy",
             )
         )
 
-        for j in range(rotor_wn.T.shape[1]):
-            fig.add_trace(
-                go.Scatter(
-                    x=stiffness_log,
-                    y=np.transpose(rotor_wn.T)[j],
-                    mode="lines",
-                    line=dict(width=3, color=colors[j]),
-                    hoverinfo="none",
-                    showlegend=False,
-                )
-            )
         fig.update_xaxes(
-            title_text="<b>Bearing Stiffness</b>",
-            title_font=dict(size=16),
-            tickfont=dict(size=14),
-            gridcolor="lightgray",
-            showline=True,
-            linewidth=2.5,
-            linecolor="black",
-            mirror=True,
+            title_text="<b>Bearing Stiffness (N/m)</b>",
             type="log",
             exponentformat="power",
         )
         fig.update_yaxes(
-            title_text="<b>Critical Speed</b>",
-            title_font=dict(size=16),
-            tickfont=dict(size=14),
-            gridcolor="lightgray",
-            showline=True,
-            linewidth=2.5,
-            linecolor="black",
-            mirror=True,
+            title_text="<b>Critical Speed (rad/s)</b>",
             type="log",
             exponentformat="power",
         )
         fig.update_layout(
-            plot_bgcolor="white",
-            legend=dict(
-                font=dict(family="sans-serif", size=14),
-                bgcolor="white",
-                bordercolor="black",
-                borderwidth=2,
-            ),
-            title=dict(text="<b>Undamped Critical Speed Map</b>", font=dict(size=16)),
-            **kwargs,
+            title=dict(text="<b>Undamped Critical Speed Map</b>"), **kwargs
         )
 
         return fig
