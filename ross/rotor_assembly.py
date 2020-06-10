@@ -1308,8 +1308,8 @@ class Rotor(object):
         >>> fig = response.plot(dof=13)
         
         # plot deflected shape configuration
-        >>> speed = 600
-        >>> fig = response.response.plot_deflected_shape(speed=speed)
+        >>> value = 600
+        >>> fig = response.plot_deflected_shape(speed=value)
         """
         force = np.zeros((self.ndof, len(frequency_range)), dtype=np.complex)
 
