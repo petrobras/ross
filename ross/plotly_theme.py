@@ -3,16 +3,16 @@ import plotly.io as pio
 
 # tableau colors
 colors_dict = {
-    "#1f77b4": "blue",
-    "#ff7f0e": "orange",
-    "#2ca02c": "green",
-    "#d62728": "red",
-    "#9467bd": "purple",
-    "#8c564b": "brown",
-    "#e377c2": "pink",
-    "#7f7f7f": "gray",
-    "#bcbd22": "olive",
-    "#17becf": "cyan",
+    "blue": "#1f77b4",
+    "orange": "#ff7f0e",
+    "green": "#2ca02c",
+    "red": "#d62728",
+    "purple": "#9467bd",
+    "brown": "#8c564b",
+    "pink": "#e377c2",
+    "gray": "#7f7f7f",
+    "olive": "#bcbd22",
+    "cyan": "#17becf",
 }
 pio.templates["ross"] = go.layout.Template(
     layout={
@@ -61,7 +61,7 @@ pio.templates["ross"] = go.layout.Template(
                 [1.0, "#f0f921"],
             ],
         },
-        "colorway": list(colors_dict.keys()),
+        "colorway": list(colors_dict.values()),
         "font": {"color": "#2a3f5f"},
         "geo": {
             "bgcolor": "white",
