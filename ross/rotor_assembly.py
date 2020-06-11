@@ -1148,7 +1148,7 @@ class Rotor(object):
 
         return results
 
-    def forced_response(self, force=None, speed_range=None, modes=None):
+    def forced_response(self, force=None, speed_range=None, modes=None, unbalance=None):
         """Unbalanced response for a mdof system.
 
         This method returns the unbalanced response for a mdof system
@@ -1164,6 +1164,11 @@ class Rotor(object):
         modes : list, optional
             Modes that will be used to calculate the frequency response
             (all modes will be used if a list is not given).
+        unbalance : array, optional
+            Array with the unbalance data (node, magnitude and phase) to be plotted
+            with deflected shape. This argument is set only if running an unbalance
+            response analysis.
+            Default is None.
 
         Returns
         -------
@@ -1195,10 +1200,12 @@ class Rotor(object):
             forced_resp[:, i] = freq_resp.freq_resp[..., i] @ force[..., i]
 
         forced_resp = ForcedResponseResults(
+            rotor=self,
             forced_resp=forced_resp,
             speed_range=speed_range,
             magnitude=abs(forced_resp),
             phase=np.angle(forced_resp),
+            unbalance=unbalance,
         )
 
         return forced_resp
@@ -1250,7 +1257,9 @@ class Rotor(object):
 
         return F0
 
-    def run_unbalance_response(self, node, magnitude, phase, frequency_range=None):
+    def run_unbalance_response(
+        self, node, magnitude, phase, frequency_range=None, modes=None
+    ):
         """Unbalanced response for a mdof system.
 
         This method returns the unbalanced response for a mdof system
@@ -1267,6 +1276,9 @@ class Rotor(object):
             Unbalance phase (rad)
         frequency_range : list, float
             Array with the desired range of frequencies
+        modes : list, optional
+            Modes that will be used to calculate the frequency response
+            (all modes will be used if a list is not given).
 
         Returns
         -------
@@ -1294,6 +1306,10 @@ class Rotor(object):
 
         # plot unbalance response:
         >>> fig = response.plot(dof=13)
+        
+        # plot deflected shape configuration
+        >>> value = 600
+        >>> fig = response.plot_deflected_shape(speed=value)
         """
         force = np.zeros((self.ndof, len(frequency_range)), dtype=np.complex)
 
@@ -1303,7 +1319,8 @@ class Rotor(object):
         except TypeError:
             force = self._unbalance_force(node, magnitude, phase, frequency_range)
 
-        forced_response = self.forced_response(force, frequency_range)
+        ub = np.vstack((node, magnitude, phase))
+        forced_response = self.forced_response(force, frequency_range, modes, ub)
 
         return forced_response
 
