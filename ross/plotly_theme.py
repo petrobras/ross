@@ -94,6 +94,7 @@ pio.templates["ross"] = go.layout.Template(
                 "showbackground": True,
                 "ticks": "",
                 "zerolinecolor": "#EBF0F8",
+                "showspikes": False,
             },
             "yaxis": {
                 "backgroundcolor": "white",
@@ -103,6 +104,7 @@ pio.templates["ross"] = go.layout.Template(
                 "showbackground": True,
                 "ticks": "",
                 "zerolinecolor": "#EBF0F8",
+                "showspikes": False,
             },
             "zaxis": {
                 "backgroundcolor": "white",
@@ -112,6 +114,7 @@ pio.templates["ross"] = go.layout.Template(
                 "showbackground": True,
                 "ticks": "",
                 "zerolinecolor": "#EBF0F8",
+                "showspikes": False,
             },
         },
         "shapedefaults": {"line": {"color": "#2a3f5f"}},
