@@ -768,10 +768,10 @@ def test_mesh_convergence(rotor3):
 
 
 def test_static_analysis_rotor3(rotor3):
-    rotor3.run_static()
+    static = rotor3.run_static()
 
     assert_almost_equal(
-        rotor3.disp_y[0],
+        static.deformation[0],
         np.array(
             [
                 -4.94274533e-12,
@@ -786,27 +786,43 @@ def test_static_analysis_rotor3(rotor3):
         decimal=6,
     )
     assert_almost_equal(
-        rotor3.Vx[0],
+        static.Vx[0],
         np.array(
             [
-                0,
                 -494.2745,
                 -456.6791,
-                -419.0836,
+                -456.6791,
+                -419.0837,
                 -99.4925,
                 -61.8971,
-                -24.3016,
-                480.9807,
+                -61.8971,
+                -24.3017,
+                480.9808,
+                518.5762,
                 518.5762,
                 556.1716,
-                0,
             ]
         ),
         decimal=3,
     )
     assert_almost_equal(
-        rotor3.Bm[0],
-        np.array([0, -118.8692, -228.3395, -248.5132, -259.2881, -134.3434, 0]),
+        static.Bm[0],
+        np.array(
+            [
+                0.0,
+                -118.8692,
+                -118.8692,
+                -228.3396,
+                -228.3396,
+                -248.5133,
+                -248.5133,
+                -259.2881,
+                -259.2881,
+                -134.3435,
+                -134.3435,
+                0.0,
+            ]
+        ),
         decimal=3,
     )
 
@@ -844,10 +860,10 @@ def rotor5():
 
 
 def test_static_analysis_rotor5(rotor5):
-    rotor5.run_static()
+    static = rotor5.run_static()
 
     assert_almost_equal(
-        rotor5.disp_y[0],
+        static.deformation[0],
         np.array(
             [
                 8.12651626e-04,
@@ -866,43 +882,57 @@ def test_static_analysis_rotor5(rotor5):
         decimal=6,
     )
     assert_almost_equal(
-        rotor5.Vx[0],
+        static.Vx[0],
         np.array(
             [
-                0,
+                0.0,
+                37.5954,
                 37.5954,
                 75.1908,
                 -494.2745,
                 -456.6791,
-                -419.08368,
+                -456.6791,
+                -419.0837,
                 -99.4925,
                 -61.8971,
-                -24.3016,
-                480.9807,
+                -61.8971,
+                -24.3017,
+                480.9808,
+                518.5762,
                 518.5762,
                 556.1716,
                 -75.1908,
                 -37.5954,
-                0,
+                -37.5954,
+                -0.0,
             ]
         ),
         decimal=3,
     )
     assert_almost_equal(
-        rotor5.Bm[0],
+        static.Bm[0],
         np.array(
             [
-                0,
+                0.0,
+                4.6994,
                 4.6994,
                 18.7977,
-                -100.0714,
+                18.7977,
+                -100.0715,
+                -100.0715,
+                -209.5418,
                 -209.5418,
                 -229.7155,
-                -240.4903,
-                -115.5457,
+                -229.7155,
+                -240.4904,
+                -240.4904,
+                -115.5458,
+                -115.5458,
+                18.7977,
                 18.7977,
                 4.6994,
-                0,
+                4.6994,
+                0.0,
             ]
         ),
         decimal=3,
@@ -943,10 +973,10 @@ def rotor6():
 
 
 def test_static_analysis_rotor6(rotor6):
-    rotor6.run_static()
+    static = rotor6.run_static()
 
     assert_almost_equal(
-        rotor6.disp_y[0],
+        static.deformation[0],
         np.array(
             [
                 -1.03951876e-04,
@@ -965,43 +995,57 @@ def test_static_analysis_rotor6(rotor6):
         decimal=6,
     )
     assert_almost_equal(
-        rotor6.Vx[0],
+        static.Vx[0],
         np.array(
             [
-                0,
+                -0.0,
+                37.5954,
                 37.5954,
                 75.1908,
-                -104.1543,
+                -104.1544,
+                -66.5589,
                 -66.5589,
                 -28.9635,
+                -28.9635,
                 8.6319,
-                328.2230,
-                365.8184,
+                328.2231,
+                365.8185,
+                365.8185,
+                403.4139,
                 403.4139,
                 441.0093,
                 -580.4733,
-                -542.8778,
-                -505.2824,
-                0,
+                -542.8779,
+                -542.8779,
+                -505.2825,
             ]
         ),
         decimal=3,
     )
     assert_almost_equal(
-        rotor6.Bm[0],
+        static.Bm[0],
         np.array(
             [
-                0,
+                0.0,
+                4.6994,
                 4.6994,
                 18.7977,
-                -2.5414,
-                -14.4817,
+                18.7977,
+                -2.5415,
+                -2.5415,
+                -14.4818,
+                -14.4818,
                 -17.0232,
-                69.7319,
-                165.8860,
-                271.4389,
-                131.0200,
-                0,
+                -17.0232,
+                69.732,
+                69.732,
+                165.886,
+                165.886,
+                271.439,
+                271.439,
+                131.0201,
+                131.02,
+                0.0,
             ]
         ),
         decimal=3,
