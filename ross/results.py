@@ -489,9 +489,8 @@ class ModalResults:
                     x=zc_pos[10:, node],
                     y=xc[10:, node],
                     z=yc[10:, node],
-                    mode="markers+lines",
-                    line=dict(width=4.0, color=kappa_mode[node]),
-                    marker=dict(size=5, color=kappa_mode[node]),
+                    mode="lines",
+                    line=dict(color=kappa_mode[node]),
                     name="node {}".format(node),
                     showlegend=False,
                 )
@@ -525,50 +524,30 @@ class ModalResults:
             )
         )
         fig.update_layout(
-            width=1200,
-            height=900,
             scene=dict(
-                bgcolor="white",
                 xaxis=dict(
-                    title=dict(text="<b>Rotor Length</b>", font=dict(size=14)),
-                    tickfont=dict(size=16),
+                    title=dict(text="<b>Rotor Length</b>"),
                     range=[zn_cl0 - 0.1, zn_cl1 + 0.1],
                     nticks=5,
-                    backgroundcolor="lightgray",
-                    gridcolor="white",
-                    showspikes=False,
                 ),
                 yaxis=dict(
-                    title=dict(
-                        text="<b>Dimensionless deformation</b>", font=dict(size=14)
-                    ),
-                    tickfont=dict(size=16),
+                    title=dict(text="<b>Relative Displacement</b>"),
                     range=[-2, 2],
                     nticks=5,
-                    backgroundcolor="lightgray",
-                    gridcolor="white",
-                    showspikes=False,
                 ),
                 zaxis=dict(
-                    title=dict(
-                        text="<b>Dimensionless deformation</b>", font=dict(size=14)
-                    ),
-                    tickfont=dict(size=16),
+                    title=dict(text="<b>Relative Displacement</b>"),
                     range=[-2, 2],
                     nticks=5,
-                    backgroundcolor="lightgray",
-                    gridcolor="white",
-                    showspikes=False,
                 ),
             ),
             title=dict(
                 text=(
-                    f"<b>Mode</b> {mode + 1}<br>"
-                    f"<b>whirl</b>: {self.whirl_direction()[mode]}<br>"
-                    f"<b>ωn</b> = {self.wn[mode]:.1f} rad/s<br>"
+                    f"<b>Mode</b> {mode + 1} | "
+                    f"<b>whirl</b>: {self.whirl_direction()[mode]} | "
+                    f"<b>ω<sub>n</sub></b> = {self.wn[mode]:.1f} rad/s | "
                     f"<b>log dec</b> = {self.log_dec[mode]:.1f}"
-                ),
-                font=dict(size=14),
+                )
             ),
             **kwargs,
         )
