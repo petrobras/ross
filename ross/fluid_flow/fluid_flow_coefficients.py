@@ -145,6 +145,116 @@ def calculate_oil_film_force(fluid_flow_object, force_type=None):
     return radial_force, tangential_force, force_x, force_y
 
 
+def calculate_stiffness_and_damping_coefficients(fluid_flow_object):
+    """This function calculates the bearing stiffness and damping matrices numerically.
+        Parameters
+        ----------
+        fluid_flow_object: A FluidFlow object.
+        Returns
+        -------
+        Two lists of floats
+            A list of length four including stiffness floats in this order: kxx, kxy, kyx, kyy.
+            And another list of length four including damping floats in this order: cxx, cxy, cyx, cyy.
+            And
+        Examples
+        --------
+        >>> from ross.fluid_flow.fluid_flow import fluid_flow_example
+        >>> my_fluid_flow = fluid_flow_example()
+        >>> calculate_stiffness_and_damping_coefficients(my_fluid_flow)  # doctest: +ELLIPSIS
+        ([428...
+        """
+    N = 6
+    t = np.linspace(0, 2 * np.pi / fluid_flow_object.omegap, N)
+    fluid_flow_object.xp = fluid_flow_object.radial_clearance * 0.0001
+    fluid_flow_object.yp = fluid_flow_object.radial_clearance * 0.0001
+    dx = np.zeros(N)
+    dy = np.zeros(N)
+    xdot = np.zeros(N)
+    ydot = np.zeros(N)
+    radial_force = np.zeros(N)
+    tangential_force = np.zeros(N)
+    force_xx = np.zeros(N)
+    force_yx = np.zeros(N)
+    force_xy = np.zeros(N)
+    force_yy = np.zeros(N)
+    X1 = np.zeros([N, 3])
+    X2 = np.zeros([N, 3])
+    F1 = np.zeros(N)
+    F2 = np.zeros(N)
+    F3 = np.zeros(N)
+    F4 = np.zeros(N)
+
+    for i in range(N):
+        fluid_flow_object.t = t[i]
+
+        delta_x = fluid_flow_object.xp * np.sin(
+            fluid_flow_object.omegap * fluid_flow_object.t
+        )
+        move_rotor_center(fluid_flow_object, delta_x, 0)
+        dx[i] = delta_x
+        xdot[i] = (
+            fluid_flow_object.omegap
+            * fluid_flow_object.xp
+            * np.cos(fluid_flow_object.omegap * fluid_flow_object.t)
+        )
+        fluid_flow_object.calculate_coefficients(direction="x")
+        fluid_flow_object.calculate_pressure_matrix_numerical()
+        [
+            radial_force[i],
+            tangential_force[i],
+            force_xx[i],
+            force_yx[i],
+        ] = calculate_oil_film_force(fluid_flow_object, force_type="numerical")
+
+        delta_y = fluid_flow_object.yp * np.sin(
+            fluid_flow_object.omegap * fluid_flow_object.t
+        )
+        move_rotor_center(fluid_flow_object, -delta_x, 0)
+        move_rotor_center(fluid_flow_object, 0, delta_y)
+        dy[i] = delta_y
+        ydot[i] = (
+            fluid_flow_object.omegap
+            * fluid_flow_object.yp
+            * np.cos(fluid_flow_object.omegap * fluid_flow_object.t)
+        )
+        fluid_flow_object.calculate_coefficients(direction="y")
+        fluid_flow_object.calculate_pressure_matrix_numerical()
+        [
+            radial_force[i],
+            tangential_force[i],
+            force_xy[i],
+            force_yy[i],
+        ] = calculate_oil_film_force(fluid_flow_object, force_type="numerical")
+        move_rotor_center(fluid_flow_object, 0, -delta_y)
+        fluid_flow_object.calculate_coefficients()
+        fluid_flow_object.calculate_pressure_matrix_numerical()
+
+        X1[i] = [1, dx[i], xdot[i]]
+        X2[i] = [1, dy[i], ydot[i]]
+        F1[i] = -force_xx[i]
+        F2[i] = -force_xy[i]
+        F3[i] = -force_yx[i]
+        F4[i] = -force_yy[i]
+
+    P1 = np.dot(
+        np.dot(np.linalg.inv(np.dot(np.transpose(X1), X1)), np.transpose(X1)), F1
+    )
+    P2 = np.dot(
+        np.dot(np.linalg.inv(np.dot(np.transpose(X2), X2)), np.transpose(X2)), F2
+    )
+    P3 = np.dot(
+        np.dot(np.linalg.inv(np.dot(np.transpose(X1), X1)), np.transpose(X1)), F3
+    )
+    P4 = np.dot(
+        np.dot(np.linalg.inv(np.dot(np.transpose(X2), X2)), np.transpose(X2)), F4
+    )
+
+    K = [P1[1], P2[1], P3[1], P4[1]]
+    C = [P1[2], P2[2], P3[2], P4[2]]
+
+    return K, C
+
+
 def calculate_stiffness_matrix(
     fluid_flow_object, force_type=None, oil_film_force="numerical"
 ):
