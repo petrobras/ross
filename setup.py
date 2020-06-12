@@ -45,7 +45,7 @@ with open("requirements.txt") as f:
 # What packages are optional?
 EXTRAS = {
     "dev": [
-        "pytest",
+        "pytest>=4.6",
         "pytest-cov",
         "coverage",
         "codecov",
