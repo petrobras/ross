@@ -8,9 +8,9 @@ from numpy.testing import assert_allclose
 
 from ross.fluid_flow import fluid_flow as flow
 from ross.fluid_flow.fluid_flow_coefficients import (
-    calculate_short_damping_matrix, calculate_oil_film_force,
-    calculate_short_stiffness_matrix, find_equilibrium_position,
-    calculate_stiffness_and_damping_coefficients)
+    calculate_oil_film_force, calculate_short_damping_matrix,
+    calculate_short_stiffness_matrix,
+    calculate_stiffness_and_damping_coefficients, find_equilibrium_position)
 from ross.fluid_flow.fluid_flow_geometry import move_rotor_center
 from ross.fluid_flow.fluid_flow_graphics import (
     plot_eccentricity, plot_pressure_surface, plot_pressure_theta,
