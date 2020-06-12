@@ -16,7 +16,7 @@ import scipy.interpolate as interpolate
 from ross.element import Element
 from ross.fluid_flow import fluid_flow as flow
 from ross.fluid_flow.fluid_flow_coefficients import (
-    calculate_damping_matrix, calculate_stiffness_matrix)
+    calculate_short_damping_matrix, calculate_short_stiffness_matrix)
 from ross.units import check_units
 from ross.utils import read_table_file
 
@@ -1097,8 +1097,8 @@ class BearingElement(Element):
             eccentricity=eccentricity,
             load=load,
         )
-        c = calculate_damping_matrix(fluid_flow, force_type="short")
-        k = calculate_stiffness_matrix(fluid_flow, force_type="short")
+        c = calculate_short_damping_matrix(fluid_flow, force_type="short")
+        k = calculate_short_stiffness_matrix(fluid_flow, force_type="short")
         return cls(
             n,
             kxx=k[0],

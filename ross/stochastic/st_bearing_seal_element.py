@@ -8,7 +8,7 @@ import numpy as np
 from ross.bearing_seal_element import BearingElement
 from ross.fluid_flow import fluid_flow as flow
 from ross.fluid_flow.fluid_flow_coefficients import (
-    calculate_damping_matrix, calculate_stiffness_matrix)
+    calculate_short_damping_matrix, calculate_short_stiffness_matrix)
 from ross.stochastic.st_results_elements import plot_histogram
 
 # fmt: on
@@ -512,8 +512,8 @@ class ST_BearingElement:
                 eccentricity=attribute_dict["eccentricity"][i],
                 load=attribute_dict["load"][i],
             )
-            c = calculate_damping_matrix(fluid_flow, force_type="short")
-            k = calculate_stiffness_matrix(fluid_flow, force_type="short")
+            c = calculate_short_damping_matrix(fluid_flow)
+            k = calculate_short_stiffness_matrix(fluid_flow)
             args_dict["kxx"].append(k[0])
             args_dict["kxy"].append(k[1])
             args_dict["kyx"].append(k[2])
