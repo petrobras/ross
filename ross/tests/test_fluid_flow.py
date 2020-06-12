@@ -8,8 +8,9 @@ from numpy.testing import assert_allclose
 
 from ross.fluid_flow import fluid_flow as flow
 from ross.fluid_flow.fluid_flow_coefficients import (
-    calculate_damping_matrix, calculate_oil_film_force,
-    calculate_stiffness_matrix, find_equilibrium_position)
+    calculate_short_damping_matrix, calculate_oil_film_force,
+    calculate_short_stiffness_matrix, find_equilibrium_position,
+    calculate_stiffness_and_damping_coefficients)
 from ross.fluid_flow.fluid_flow_geometry import move_rotor_center
 from ross.fluid_flow.fluid_flow_graphics import (
     plot_eccentricity, plot_pressure_surface, plot_pressure_theta,
@@ -124,7 +125,7 @@ def test_stiffness_matrix():
     Taken from example 5.5.1, page 181 (Dynamics of rotating machine, FRISSWELL)
     """
     bearing = fluid_flow_short_friswell()
-    kxx, kxy, kyx, kyy = calculate_stiffness_matrix(bearing, force_type="short")
+    kxx, kxy, kyx, kyy = calculate_short_stiffness_matrix(bearing)
     assert math.isclose(kxx / 10 ** 6, 12.81, rel_tol=0.01)
     assert math.isclose(kxy / 10 ** 6, 16.39, rel_tol=0.01)
     assert math.isclose(kyx / 10 ** 6, -25.06, rel_tol=0.01)
@@ -140,12 +141,31 @@ def test_stiffness_matrix_numerical(fluid_flow_short_eccentricity):
     """
     bearing = fluid_flow_short_eccentricity
     bearing.calculate_pressure_matrix_numerical()
-    kxx, kxy, kyx, kyy = calculate_stiffness_matrix(bearing, force_type="numerical")
-    k_xx, k_xy, k_yx, k_yy = calculate_stiffness_matrix(bearing, force_type="short")
-    assert_allclose(kxx, k_xx, rtol=0.33)
-    assert_allclose(kxy, k_xy, rtol=0.21)
-    assert_allclose(kyx, k_yx, rtol=0.17)
-    assert_allclose(kyy, k_yy, rtol=0.19)
+    K, C = calculate_stiffness_and_damping_coefficients(bearing)
+    kxx, kxy, kyx, kyy = K[0], K[1], K[2], K[3]
+    k_xx, k_xy, k_yx, k_yy = calculate_short_stiffness_matrix(bearing)
+    assert_allclose(kxx, k_xx, rtol=0.29)
+    assert_allclose(kxy, k_xy, rtol=0.22)
+    assert_allclose(kyx, k_yx, rtol=0.15)
+    assert_allclose(kyy, k_yy, rtol=0.22)
+
+
+def test_damping_matrix_numerical(fluid_flow_short_eccentricity):
+    """
+    This function instantiate a bearing using the fluid flow class and test if it matches the
+    expected results for the damping matrix based on Friswell's book formulas, given the
+    eccentricity ratio.
+    Taken from chapter 5, page 179 (Dynamics of rotating machine, FRISSWELL)
+    """
+    bearing = fluid_flow_short_eccentricity
+    bearing.calculate_pressure_matrix_numerical()
+    K, C = calculate_stiffness_and_damping_coefficients(bearing)
+    cxx, cxy, cyx, cyy = C[0], C[1], C[2], C[3]
+    c_xx, c_xy, c_yx, c_yy = calculate_short_damping_matrix(bearing)
+    assert_allclose(cxx, c_xx, rtol=0.12)
+    assert_allclose(cxy, c_xy, rtol=0.10)
+    assert_allclose(cyx, c_yx, rtol=0.32)
+    assert_allclose(cyy, c_yy, rtol=0.02)
 
 
 def test_damping_matrix():
@@ -155,7 +175,7 @@ def test_damping_matrix():
     Taken from example 5.5.1, page 181 (Dynamics of rotating machine, FRISSWELL)
     """
     bearing = fluid_flow_short_friswell()
-    cxx, cxy, cyx, cyy = calculate_damping_matrix(bearing, force_type="short")
+    cxx, cxy, cyx, cyy = calculate_short_damping_matrix(bearing)
     assert math.isclose(cxx / 10 ** 3, 232.9, rel_tol=0.01)
     assert math.isclose(cxy / 10 ** 3, -81.92, rel_tol=0.01)
     assert math.isclose(cyx / 10 ** 3, -81.92, rel_tol=0.01)
