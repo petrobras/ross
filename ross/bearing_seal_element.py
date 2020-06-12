@@ -56,8 +56,8 @@ class _Coefficient:
     Examples
     --------
     >>> bearing = bearing_example()
-    >>> bearing.kxx
-    [1000000.0, 1000000.0...
+    >>> bearing.kxx # doctest: +ELLIPSIS
+    [1000000.0...
     """
 
     def __init__(self, coefficient, frequency=None):
@@ -1097,8 +1097,8 @@ class BearingElement(Element):
             eccentricity=eccentricity,
             load=load,
         )
-        c = calculate_short_damping_matrix(fluid_flow, force_type="short")
-        k = calculate_short_stiffness_matrix(fluid_flow, force_type="short")
+        c = calculate_short_damping_matrix(fluid_flow)
+        k = calculate_short_stiffness_matrix(fluid_flow)
         return cls(
             n,
             kxx=k[0],

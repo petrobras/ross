@@ -330,11 +330,6 @@ def calculate_short_stiffness_matrix(fluid_flow_object):
             / (1 - fluid_flow_object.eccentricity_ratio ** 2)
         )
     )
-    if fluid_flow_object.bearing_type != "short_bearing":
-        kxx, kxy, kyx, kyy = warnings.warn(
-            "Stiffness coefficients cannot be calculated analytically. "
-            "The bearing must be short."
-        )
     return [kxx, kxy, kyx, kyy]
 
 
@@ -369,11 +364,6 @@ def calculate_short_damping_matrix(fluid_flow_object):
             + 48 * fluid_flow_object.eccentricity_ratio ** 2)) /
            (fluid_flow_object.eccentricity_ratio * np.sqrt(1 - fluid_flow_object.eccentricity_ratio ** 2)))
     # fmt: on
-    if fluid_flow_object.bearing_type != "short_bearing":
-        cxx, cxy, cyx, cyy = warnings.warn(
-            "Damping coefficients cannot be calculated analytically. "
-            "The bearing must be short."
-        )
     return [cxx, cxy, cyx, cyy]
 
 
