@@ -1706,5 +1706,5 @@ def test_ucs_calc(rotor8):
     stiffness_range, rotor_wn, bearing, intersection_points = rotor8._calc_ucs()
     assert_allclose(stiffness_range[:3], exp_stiffness_range)
     assert_allclose(rotor_wn[0, :3], exp_rotor_wn)
-    assert_allclose(intersection_points["x"][:3], exp_intersection_points_x)
-    assert_allclose(intersection_points["y"][:3], exp_intersection_points_y)
+    assert_allclose(intersection_points["x"][:3], exp_intersection_points_x, rtol=1e-3)
+    assert_allclose(intersection_points["y"][:3], exp_intersection_points_y, rtol=1e-3)
