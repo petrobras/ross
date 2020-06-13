@@ -60,9 +60,6 @@ class Rotor(object):
     sparse : bool, optional
         If sparse, eigenvalues will be calculated with arpack.
         Default is True.
-    n_eigen : int, optional
-        Number of eigenvalues calculated by arpack.
-        Default is 12.
     tag : str
         A tag for the rotor
 
@@ -884,6 +881,39 @@ class Rotor(object):
 
         return A
 
+    def _check_frequency_array(self, frequency_range):
+        """Verify if bearing elements coefficients are extrapolated.
+
+        This method takes the frequency / speed range array applied to a particular
+        method (run_campbell, run_freq_response) and checks if it's extrapolating the
+        bearing rotordynamics coefficients.
+
+        If any value of frequency_range argument is out of any bearing frequency
+        parameter, the warning is raised.
+        If none of the bearings has a frequency argument assinged, no warning will be
+        raised.
+
+        Parameters
+        ----------
+        frequency_range : array
+            The array of frequencies or speeds used in particular method.
+
+        Warnings
+        --------
+            It warns the user if the frequency_range causes the bearing coefficients
+            to be extrapolated.
+        """
+        # fmt: off
+        for bearing in self.bearing_elements:
+            if bearing.kxx.frequency is not None:
+                if (np.max(frequency_range) > max(bearing.frequency) or
+                    np.min(frequency_range) < min(bearing.frequency)):
+                    warnings.warn(
+                        "Extrapolating bearing coefficients. Be careful when post-processing the results."
+                    )
+                    break
+        # fmt: on
+
     @staticmethod
     def _index(eigenvalues):
         """Generate indexes to sort eigenvalues and eigenvectors.
@@ -1133,6 +1163,8 @@ class Rotor(object):
             modal = self.run_modal(0)
             speed_range = np.linspace(0, max(modal.evalues.imag) * 1.5, 1000)
 
+        self._check_frequency_array(speed_range)
+
         freq_resp = np.empty((self.ndof, self.ndof, len(speed_range)), dtype=np.complex)
 
         for i, speed in enumerate(speed_range):
@@ -1306,7 +1338,7 @@ class Rotor(object):
 
         # plot unbalance response:
         >>> fig = response.plot(dof=13)
-        
+
         # plot deflected shape configuration
         >>> value = 600
         >>> fig = response.plot_deflected_shape(speed=value)
@@ -1538,6 +1570,8 @@ class Rotor(object):
         """
         # store in results [speeds(x axis), frequencies[0] or logdec[1] or
         # whirl[2](y axis), 3]
+        self._check_frequency_array(speed_range)
+
         results = np.zeros([len(speed_range), frequencies, 5])
 
         for i, w in enumerate(speed_range):
