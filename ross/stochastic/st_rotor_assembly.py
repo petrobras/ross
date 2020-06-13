@@ -40,12 +40,6 @@ class ST_Rotor(object):
         List with the bearing elements
     point_mass_elements: list
         List with the point mass elements
-    sparse : bool, optional
-        If sparse, eigenvalues will be calculated with arpack.
-        Default is True.
-    n_eigen : int, optional
-        Number of eigenvalues calculated by arpack.
-        Default is 12.
     tag : str
         A tag for the rotor
 
@@ -99,7 +93,6 @@ class ST_Rotor(object):
         disk_elements=None,
         bearing_elements=None,
         point_mass_elements=None,
-        sparse=True,
         min_w=None,
         max_w=None,
         rated_w=None,
@@ -188,7 +181,6 @@ class ST_Rotor(object):
             disk_elements=disk_elements,
             bearing_elements=bearing_elements,
             point_mass_elements=point_mass_elements,
-            sparse=sparse,
             min_w=min_w,
             max_w=max_w,
             rated_w=rated_w,
@@ -273,9 +265,9 @@ class ST_Rotor(object):
         -------
         >>> import ross.stochastic as srs
         >>> rotors = srs.st_rotor_example()
-        >>> rotors["sparse"] = True
-        >>> rotors["sparse"]
-        True
+        >>> rotors["tag"] = "rotor"
+        >>> rotors["tag"]
+        'rotor'
         """
         if key not in self.attribute_dict.keys():
             raise KeyError("Object does not have parameter: {}.".format(key))
@@ -372,6 +364,7 @@ class ST_Rotor(object):
         """
         args_dict = args[0]
         new_args = []
+        var_size = None
 
         if self.iter_break is True:
             var_size = 1
@@ -381,9 +374,8 @@ class ST_Rotor(object):
                 if isinstance(v, Iterable):
                     var_size = len(v)
                     break
-                else:
-                    var_size = len(list(map(args_dict.get, is_random))[0])
-                    break
+            if var_size is None:
+                var_size = len(list(map(args_dict.get, is_random))[0])
 
         for i in range(var_size):
             arg = []

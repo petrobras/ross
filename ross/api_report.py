@@ -283,14 +283,13 @@ class Report:
         sh_elm = rotor.shaft_elements
         dk_elm = rotor.disk_elements
         pm_elm = rotor.point_mass_elements
-        sparse = rotor.sparse
         min_w = rotor.min_w
         max_w = rotor.max_w
         rated_w = rotor.rated_w
         tag = rotor.tag
 
         aux_rotor = Rotor(
-            sh_elm, dk_elm, bearing_list, pm_elm, sparse, min_w, max_w, rated_w, tag
+            sh_elm, dk_elm, bearing_list, pm_elm, min_w, max_w, rated_w, tag
         )
 
         return aux_rotor
