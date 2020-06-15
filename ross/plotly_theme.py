@@ -2,7 +2,7 @@ import plotly.graph_objects as go
 import plotly.io as pio
 
 # tableau colors
-colors_dict = {
+tableau_colors = {
     "blue": "#1f77b4",
     "orange": "#ff7f0e",
     "green": "#2ca02c",
@@ -61,7 +61,7 @@ pio.templates["ross"] = go.layout.Template(
                 [1.0, "#f0f921"],
             ],
         },
-        "colorway": list(colors_dict.values()),
+        "colorway": list(tableau_colors.values()),
         "font": {"color": "#2a3f5f"},
         "geo": {
             "bgcolor": "white",
