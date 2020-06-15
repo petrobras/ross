@@ -637,7 +637,7 @@ class ModalResults:
         )
 
         fig.update_xaxes(title_text="<b>Rotor Length</b>")
-        fig.update_yaxes(title_text="<b>Non dimensional deformation</b>")
+        fig.update_yaxes(title_text="<b>Relative Displacement</b>")
         fig.update_layout(
             title=dict(
                 text=(
