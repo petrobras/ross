@@ -618,7 +618,7 @@ class ModalResults:
                 x=zn,
                 y=vn,
                 mode="lines",
-                line=dict(width=2.5, color=whirl_dir),
+                line=dict(color=whirl_dir),
                 name="mode shape",
                 showlegend=False,
             )
@@ -629,51 +629,23 @@ class ModalResults:
                 x=nodes_pos,
                 y=np.zeros(len(nodes_pos)),
                 mode="lines",
-                line=dict(width=1.0, color="black", dash="dashdot"),
+                line=dict(color="black", dash="dashdot"),
                 name="centerline",
                 hoverinfo="none",
                 showlegend=False,
             )
         )
 
-        fig.update_xaxes(
-            title_text="<b>Rotor Length</b>",
-            title_font=dict(size=16),
-            tickfont=dict(size=14),
-            gridcolor="lightgray",
-            showline=True,
-            linewidth=2.5,
-            linecolor="black",
-            mirror=True,
-        )
-        fig.update_yaxes(
-            title_text="<b>Non dimensional deformation</b>",
-            title_font=dict(size=16),
-            tickfont=dict(size=14),
-            gridcolor="lightgray",
-            showline=True,
-            linewidth=2.5,
-            linecolor="black",
-            mirror=True,
-        )
+        fig.update_xaxes(title_text="<b>Rotor Length</b>")
+        fig.update_yaxes(title_text="<b>Non dimensional deformation</b>")
         fig.update_layout(
-            width=1200,
-            height=900,
-            plot_bgcolor="white",
-            legend=dict(
-                font=dict(family="sans-serif", size=14),
-                bgcolor="white",
-                bordercolor="black",
-                borderwidth=2,
-            ),
             title=dict(
                 text=(
                     f"<b>Mode</b> {mode + 1} | "
                     f"<b>whirl</b>: {self.whirl_direction()[mode]} | "
                     f"<b>ωn</b> = {self.wn[mode]:.1f} rad/s | "
                     f"<b>log dec</b> = {self.log_dec[mode]:.1f}"
-                ),
-                font=dict(size=16),
+                )
             ),
             **kwargs,
         )
