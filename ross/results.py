@@ -538,7 +538,7 @@ class ModalResults:
             scene=dict(
                 xaxis=dict(
                     title=dict(text="<b>Rotor Length</b>"),
-                    range=[zn_cl0 - 0.1, zn_cl1 + 0.1],
+                    autorange="reversed",
                     nticks=5,
                 ),
                 yaxis=dict(
