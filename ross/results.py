@@ -713,7 +713,6 @@ class CampbellResults:
         for mark, whirl_dir, legend in zip(
             scatter_marker, [0.0, 0.5, 1.0], ["Foward", "Mixed", "Backward"]
         ):
-            num_frequencies = wd.shape[1]
             for i in range(num_frequencies):
                 w_i = wd[:, i]
                 whirl_i = whirl[:, i]
