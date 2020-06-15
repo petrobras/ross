@@ -745,7 +745,7 @@ class CampbellResults:
                                 x=xnew[idx],
                                 y=ynew[idx],
                                 mode="markers",
-                                marker=dict(symbol="x", size=10, color="black"),
+                                marker=dict(symbol="x", color="black"),
                                 name="Crit. Speed",
                                 legendgroup="Crit. Speed",
                                 showlegend=False,
@@ -766,7 +766,6 @@ class CampbellResults:
                             y=w_i[whirl_mask],
                             marker=dict(
                                 symbol=mark,
-                                size=16,
                                 cmax=max(log_dec_map),
                                 cmin=min(log_dec_map),
                                 color=log_dec_i[whirl_mask],
@@ -787,7 +786,7 @@ class CampbellResults:
                     x=speed_range,
                     y=h * speed_range,
                     mode="lines",
-                    line=dict(width=2.5, color=colors1[j], dash="dashdot"),
+                    line=dict(color=colors1[j], dash="dashdot"),
                     name="{}x speed".format(h),
                     hoverinfo="none",
                 )
@@ -798,12 +797,12 @@ class CampbellResults:
         for mark, legend in zip(scatter_marker, legends):
             fig.add_trace(
                 go.Scatter(
-                    x=[-1000],
-                    y=[-1000],
+                    x=[0],
+                    y=[0],
                     mode="markers",
                     name=legend,
                     legendgroup=legend,
-                    marker=dict(symbol=mark, size=16, color="black"),
+                    marker=dict(symbol=mark, color="black"),
                 )
             )
 
@@ -818,7 +817,14 @@ class CampbellResults:
                 colorscale="rdbu",
                 colorbar=dict(title=dict(text="<b>Log Dec</b>", side="right")),
             ),
-            legend=dict(itemsizing="constant", orientation="h"),
+            legend=dict(
+                itemsizing="constant",
+                orientation="h",
+                xanchor="center",
+                x=0.5,
+                yanchor="bottom",
+                y=-0.3,
+            ),
             **kwargs,
         )
 
