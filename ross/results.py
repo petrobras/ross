@@ -493,6 +493,11 @@ class ModalResults:
                     line=dict(color=kappa_mode[node]),
                     name="node {}".format(node),
                     showlegend=False,
+                    hovertemplate=(
+                        "Nodal Position: %{x:.2f}<br>"
+                        + "X - Relative Displacement: %{y:.2f}<br>"
+                        + "Y - Relative Displacement: %{z:.2f}"
+                    ),
                 )
             )
             fig.add_trace(
