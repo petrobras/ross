@@ -610,7 +610,7 @@ class ModalResults:
 
         fig = go.Figure()
 
-        colors = dict(Backward="firebrick", Mixed="black", Forward="royalblue")
+        colors = dict(Backward="red", Mixed="black", Forward="blue")
         whirl_dir = colors[self.whirl_direction()[mode]]
 
         fig.add_trace(
