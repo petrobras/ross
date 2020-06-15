@@ -9,6 +9,8 @@ import scipy.linalg as la
 from plotly.subplots import make_subplots
 from scipy import interpolate
 
+from ross.plotly_theme import tableau_colors
+
 # set Plotly palette of colors
 colors1 = px.colors.qualitative.Dark24
 
@@ -1325,12 +1327,6 @@ class ForcedResponseResults:
             mag = 2 * mag * 1e6
             y_axis_label = "<b>Amplitude (μ pk-pk)</b>"
 
-        kwargs_default_values = dict(
-            width=1200, height=900, plot_bgcolor="white", hoverlabel_align="right"
-        )
-        for k, v in kwargs_default_values.items():
-            kwargs.setdefault(k, v)
-
         fig = go.Figure()
 
         fig.add_trace(
@@ -1338,7 +1334,7 @@ class ForcedResponseResults:
                 x=frequency_range,
                 y=mag[dof],
                 mode="lines",
-                line=dict(width=3.0, color="royalblue"),
+                line=dict(color=tableau_colors["blue"]),
                 name="Amplitude",
                 legendgroup="Amplitude",
                 showlegend=False,
@@ -1347,36 +1343,10 @@ class ForcedResponseResults:
         )
 
         fig.update_xaxes(
-            title_text="<b>Frequency</b>",
-            title_font=dict(family="Arial", size=20),
-            tickfont=dict(size=16),
-            range=[0, np.max(frequency_range)],
-            gridcolor="lightgray",
-            showline=True,
-            linewidth=2.5,
-            linecolor="black",
-            mirror=True,
+            title_text="<b>Frequency</b>", range=[0, np.max(frequency_range)]
         )
-        fig.update_yaxes(
-            title_text=y_axis_label,
-            title_font=dict(family="Arial", size=20),
-            tickfont=dict(size=16),
-            gridcolor="lightgray",
-            showline=True,
-            linewidth=2.5,
-            linecolor="black",
-            exponentformat="power",
-            mirror=True,
-        )
-        fig.update_layout(
-            legend=dict(
-                font=dict(family="sans-serif", size=14),
-                bgcolor="white",
-                bordercolor="black",
-                borderwidth=2,
-            ),
-            **kwargs,
-        )
+        fig.update_yaxes(title_text=y_axis_label, exponentformat="power")
+        fig.update_layout(**kwargs)
 
         return fig
 
@@ -1400,12 +1370,6 @@ class ForcedResponseResults:
         frequency_range = self.speed_range
         phase = self.phase
 
-        kwargs_default_values = dict(
-            width=1200, height=900, plot_bgcolor="white", hoverlabel_align="right"
-        )
-        for k, v in kwargs_default_values.items():
-            kwargs.setdefault(k, v)
-
         fig = go.Figure()
 
         fig.add_trace(
@@ -1413,7 +1377,7 @@ class ForcedResponseResults:
                 x=frequency_range,
                 y=phase[dof],
                 mode="lines",
-                line=dict(width=3.0, color="royalblue"),
+                line=dict(color=tableau_colors["blue"]),
                 name="Phase",
                 legendgroup="Phase",
                 showlegend=False,
@@ -1422,35 +1386,10 @@ class ForcedResponseResults:
         )
 
         fig.update_xaxes(
-            title_text="<b>Frequency</b>",
-            title_font=dict(family="Arial", size=20),
-            tickfont=dict(size=16),
-            range=[0, np.max(frequency_range)],
-            gridcolor="lightgray",
-            showline=True,
-            linewidth=2.5,
-            linecolor="black",
-            mirror=True,
+            title_text="<b>Frequency</b>", range=[0, np.max(frequency_range)]
         )
-        fig.update_yaxes(
-            title_text="<b>Phase Angle</b>",
-            title_font=dict(family="Arial", size=20),
-            tickfont=dict(size=16),
-            gridcolor="lightgray",
-            showline=True,
-            linewidth=2.5,
-            linecolor="black",
-            mirror=True,
-        )
-        fig.update_layout(
-            legend=dict(
-                font=dict(family="sans-serif", size=14),
-                bgcolor="white",
-                bordercolor="black",
-                borderwidth=2,
-            ),
-            **kwargs,
-        )
+        fig.update_yaxes(title_text="<b>Phase Angle</b>")
+        fig.update_layout(**kwargs)
 
         return fig
 
@@ -1485,12 +1424,6 @@ class ForcedResponseResults:
         else:
             r_axis_label = "<b>Amplitude (dB)</b>"
 
-        kwargs_default_values = dict(
-            width=1200, height=900, polar_bgcolor="white", hoverlabel_align="right"
-        )
-        for k, v in kwargs_default_values.items():
-            kwargs.setdefault(k, v)
-
         fig = go.Figure()
 
         fig.add_trace(
@@ -1500,8 +1433,8 @@ class ForcedResponseResults:
                 customdata=frequency_range,
                 thetaunit="radians",
                 mode="lines+markers",
-                marker=dict(size=8, color="royalblue"),
-                line=dict(width=3.0, color="royalblue"),
+                marker=dict(color=tableau_colors["blue"]),
+                line=dict(color=tableau_colors["blue"]),
                 name="Polar_plot",
                 legendgroup="Polar",
                 showlegend=False,
@@ -1515,18 +1448,7 @@ class ForcedResponseResults:
 
         fig.update_layout(
             polar=dict(
-                radialaxis=dict(
-                    title_text=r_axis_label,
-                    title_font=dict(family="Arial", size=14),
-                    gridcolor="lightgray",
-                    exponentformat="power",
-                ),
-                angularaxis=dict(
-                    tickfont=dict(size=14),
-                    gridcolor="lightgray",
-                    linecolor="black",
-                    linewidth=2.5,
-                ),
+                radialaxis=dict(title_text=r_axis_label, exponentformat="power")
             ),
             **kwargs,
         )
@@ -1584,16 +1506,6 @@ class ForcedResponseResults:
             Plotly figure with Amplitude vs Frequency and Phase vs Frequency and
             polar Amplitude vs Phase plots.
         """
-        kwargs_default_values = dict(
-            width=1800,
-            height=900,
-            polar_bgcolor="white",
-            plot_bgcolor="white",
-            hoverlabel_align="right",
-        )
-        for k, v in kwargs_default_values.items():
-            subplot_kwargs.setdefault(k, v)
-
         fig0 = self.plot_magnitude(dof, **mag_kwargs)
         fig1 = self.plot_phase(dof, **phase_kwargs)
         fig2 = self.plot_polar_bode(dof, **polar_kwargs)
