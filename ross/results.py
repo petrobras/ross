@@ -808,49 +808,18 @@ class CampbellResults:
                 )
             )
 
-        fig.update_xaxes(
-            title_text="<b>Frequency</b>",
-            title_font=dict(family="Arial", size=20),
-            tickfont=dict(size=16),
-            range=[0, np.max(speed_range)],
-            gridcolor="lightgray",
-            showline=True,
-            linewidth=2.5,
-            linecolor="black",
-            mirror=True,
-        )
+        fig.update_xaxes(title_text="<b>Frequency</b>", range=[0, np.max(speed_range)])
         fig.update_yaxes(
-            title_text="<b>Damped Natural Frequencies</b>",
-            title_font=dict(family="Arial", size=20),
-            tickfont=dict(size=16),
-            range=[0, 1.1 * np.max(wd)],
-            gridcolor="lightgray",
-            showline=True,
-            linewidth=2.5,
-            linecolor="black",
-            mirror=True,
+            title_text="<b>Damped Natural Frequencies</b>", range=[0, 1.1 * np.max(wd)]
         )
         fig.update_layout(
-            width=1200,
-            height=900,
-            plot_bgcolor="white",
-            hoverlabel_align="right",
             coloraxis=dict(
                 cmin=min(log_dec_map),
                 cmax=max(log_dec_map),
                 colorscale="rdbu",
-                colorbar=dict(
-                    title=dict(text="<b>Log Dec</b>", side="right", font=dict(size=20)),
-                    tickfont=dict(size=16),
-                ),
+                colorbar=dict(title=dict(text="<b>Log Dec</b>", side="right")),
             ),
-            legend=dict(
-                itemsizing="constant",
-                bgcolor="white",
-                borderwidth=2,
-                font=dict(size=14),
-                orientation="h",
-            ),
+            legend=dict(itemsizing="constant", orientation="h"),
             **kwargs,
         )
 
