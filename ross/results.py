@@ -495,6 +495,17 @@ class ModalResults:
                     showlegend=False,
                 )
             )
+            fig.add_trace(
+                go.Scatter3d(
+                    x=[zc_pos[10, node]],
+                    y=[xc[10, node]],
+                    z=[yc[10, node]],
+                    mode="markers",
+                    marker=dict(color=kappa_mode[node]),
+                    name="node {}".format(node),
+                    showlegend=False,
+                )
+            )
 
         fig.add_trace(
             go.Scatter3d(
@@ -502,7 +513,7 @@ class ModalResults:
                 y=xn,
                 z=yn,
                 mode="lines",
-                line=dict(width=3.0, color="black", dash="dash"),
+                line=dict(color="black", dash="dash"),
                 name="mode shape",
                 showlegend=False,
             )
@@ -518,7 +529,7 @@ class ModalResults:
                 y=zn_cl * 0,
                 z=zn_cl * 0,
                 mode="lines",
-                line=dict(width=2.0, color="black", dash="dashdot"),
+                line=dict(color="black", dash="dashdot"),
                 hoverinfo="none",
                 showlegend=False,
             )
@@ -1271,7 +1282,7 @@ class ForcedResponseResults:
     """
 
     def __init__(
-        self, rotor, forced_resp, speed_range, magnitude, phase, unbalance=None,
+        self, rotor, forced_resp, speed_range, magnitude, phase, unbalance=None
     ):
         self.rotor = rotor
         self.forced_resp = forced_resp
@@ -1744,7 +1755,7 @@ class ForcedResponseResults:
             raise ValueError("No data available for this speed value.")
 
         kwargs_default_values = dict(
-            width=1200, height=900, plot_bgcolor="white", hoverlabel_align="right",
+            width=1200, height=900, plot_bgcolor="white", hoverlabel_align="right"
         )
         for k, v in kwargs_default_values.items():
             kwargs.setdefault(k, v)
@@ -2028,7 +2039,7 @@ class ForcedResponseResults:
             raise ValueError("No data available for this speed value.")
 
         kwargs_default_values = dict(
-            width=1200, height=900, plot_bgcolor="white", hoverlabel_align="right",
+            width=1200, height=900, plot_bgcolor="white", hoverlabel_align="right"
         )
         for k, v in kwargs_default_values.items():
             kwargs.setdefault(k, v)
@@ -2051,7 +2062,7 @@ class ForcedResponseResults:
                 hovertemplate=(
                     "<b>Nodal Position: %{x:.2f}</b><br>" + "<b>Mx: %{y:.2e}</b>"
                 ),
-            ),
+            )
         )
         fig.add_trace(
             go.Scatter(
@@ -2065,7 +2076,7 @@ class ForcedResponseResults:
                 hovertemplate=(
                     "<b>Nodal Position: %{x:.2f}</b><br>" + "<b>My: %{y:.2e}</b>"
                 ),
-            ),
+            )
         )
         fig.add_trace(
             go.Scatter(
@@ -2079,7 +2090,7 @@ class ForcedResponseResults:
                 hovertemplate=(
                     "<b>Nodal Position: %{x:.2f}</b><br>" + "<b>Mr: %{y:.2e}</b>"
                 ),
-            ),
+            )
         )
 
         # plot center line
@@ -2183,7 +2194,7 @@ class ForcedResponseResults:
             polar Amplitude vs Phase plots.
         """
         kwargs_default_values = dict(
-            width=1800, height=900, plot_bgcolor="white", hoverlabel_align="right",
+            width=1800, height=900, plot_bgcolor="white", hoverlabel_align="right"
         )
         for k, v in kwargs_default_values.items():
             subplot_kwargs.setdefault(k, v)
@@ -2644,7 +2655,7 @@ class StaticResults:
             Plotly figure with the bending moment diagram plot
         """
         kwargs_default_values = dict(
-            width=1200, height=900, plot_bgcolor="white", hoverlabel_align="right",
+            width=1200, height=900, plot_bgcolor="white", hoverlabel_align="right"
         )
         for k, v in kwargs_default_values.items():
             kwargs.setdefault(k, v)
