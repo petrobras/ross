@@ -56,9 +56,9 @@ class DiskElement(Element):
         self.n_l = n
         self.n_r = n
 
-        self.m = m
-        self.Id = Id
-        self.Ip = Ip
+        self.m = float(m)
+        self.Id = float(Id)
+        self.Ip = float(Ip)
         self.tag = tag
         self.color = color
         self.scale_factor = scale_factor
