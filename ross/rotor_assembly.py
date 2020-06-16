@@ -57,9 +57,6 @@ class Rotor(object):
         List with the bearing elements
     point_mass_elements: list
         List with the point mass elements
-    sparse : bool, optional
-        If sparse, eigenvalues will be calculated with arpack.
-        Default is True.
     tag : str
         A tag for the rotor
 
@@ -114,7 +111,6 @@ class Rotor(object):
         disk_elements=None,
         bearing_elements=None,
         point_mass_elements=None,
-        sparse=True,
         min_w=None,
         max_w=None,
         rated_w=None,
@@ -122,7 +118,6 @@ class Rotor(object):
     ):
 
         self.parameters = {
-            "sparse": True,
             "min_w": min_w,
             "max_w": max_w,
             "rated_w": rated_w,
@@ -134,7 +129,6 @@ class Rotor(object):
         # Config attributes
         ####################################################
 
-        self.sparse = sparse
         # operational speeds
         self.min_w = min_w
         self.max_w = max_w
@@ -547,7 +541,7 @@ class Rotor(object):
         else:
             return False
 
-    def run_modal(self, speed, num_modes=12):
+    def run_modal(self, speed, num_modes=12, sparse=True):
         """Run modal analysis.
 
         Method to calculate eigenvalues and eigvectors for a given rotor system
@@ -559,6 +553,9 @@ class Rotor(object):
         num_modes : int
             Number of modes to be calculated. This uses scipy.sparse.eigs method.
             Default is 12.
+        sparse : bool, optional
+            If sparse, eigenvalues will be calculated with arpack.
+            Default is True.
 
         Returns
         -------
@@ -955,7 +952,9 @@ class Rotor(object):
 
         return idx
 
-    def _eigen(self, speed, num_modes=12, frequency=None, sorted_=True, A=None):
+    def _eigen(
+        self, speed, num_modes=12, frequency=None, sorted_=True, A=None, sparse=True
+    ):
         """Calculate eigenvalues and eigenvectors.
 
         This method will return the eigenvalues and eigenvectors of the
@@ -975,7 +974,9 @@ class Rotor(object):
         A: np.array, optional
             Matrix for which eig will be calculated.
             Defaul is the rotor A matrix.
-
+        sparse : bool, optional
+            If sparse, eigenvalues will be calculated with arpack.
+            Default is True.
 
         Returns
         -------
@@ -994,7 +995,7 @@ class Rotor(object):
         if A is None:
             A = self.A(speed=speed, frequency=frequency)
 
-        if self.sparse is True:
+        if sparse is True:
             try:
                 evalues, evectors = las.eigs(
                     A, k=num_modes, sigma=0, ncv=2 * num_modes, which="LM", v0=self._v0
@@ -2368,11 +2369,9 @@ class Rotor(object):
         material_data=None,
         disk_data=None,
         brg_seal_data=None,
-        sparse=True,
         min_w=None,
         max_w=None,
         rated_w=None,
-        n_eigen=12,
         nel_r=1,
         tag=None,
     ):
@@ -2416,9 +2415,6 @@ class Rotor(object):
         nel_r : int, optional
             Number or elements per shaft region.
             Default is 1.
-        n_eigen : int, optional
-            Number of eigenvalues calculated by arpack.
-            Default is 12.
         tag : str
             A tag for the rotor
 
@@ -2572,7 +2568,6 @@ class Rotor(object):
             shaft_elements,
             disk_elements,
             bearing_elements,
-            sparse=sparse,
             min_w=min_w,
             max_w=max_w,
             rated_w=rated_w,
@@ -2600,12 +2595,6 @@ class CoAxialRotor(Rotor):
     shaft_start_pos : list
         List indicating the initial node position for each shaft.
         Default is zero for each shaft created.
-    sparse : bool, optional
-        If sparse, eigenvalues will be calculated with arpack.
-        Default is True.
-    n_eigen : int, optional
-        Number of eigenvalues calculated by arpack.
-        Default is 12.
     tag : str
         A tag for the rotor
 
@@ -2674,8 +2663,6 @@ class CoAxialRotor(Rotor):
         disk_elements=None,
         bearing_elements=None,
         point_mass_elements=None,
-        sparse=True,
-        n_eigen=12,
         min_w=None,
         max_w=None,
         rated_w=None,
@@ -2683,8 +2670,6 @@ class CoAxialRotor(Rotor):
     ):
 
         self.parameters = {
-            "sparse": True,
-            "n_eigen": n_eigen,
             "min_w": min_w,
             "max_w": max_w,
             "rated_w": rated_w,
@@ -2696,8 +2681,6 @@ class CoAxialRotor(Rotor):
         # Config attributes
         ####################################################
 
-        self.sparse = sparse
-        self.n_eigen = n_eigen
         # operational speeds
         self.min_w = min_w
         self.max_w = max_w
