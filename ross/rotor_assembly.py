@@ -580,8 +580,8 @@ class Rotor(object):
         array([91.79655318, 96.28899977])
         >>> fig = modal.plot_mode3D(0)
         """
-        evalues, evectors = self._eigen(speed, num_modes=num_modes, sparse=sparse)
-        wn_len = len(evalues) // 2
+        evalues, evectors = self._eigen(speed, num_modes=num_modes)
+        wn_len = num_modes // 2
         wn = (np.absolute(evalues))[:wn_len]
         wd = (np.imag(evalues))[:wn_len]
         damping_ratio = (-np.real(evalues) / np.absolute(evalues))[:wn_len]
