@@ -1743,12 +1743,6 @@ class ForcedResponseResults:
         if not any(np.isclose(self.speed_range, speed, atol=1e-6)):
             raise ValueError("No data available for this speed value.")
 
-        kwargs_default_values = dict(
-            width=1200, height=900, plot_bgcolor="white", hoverlabel_align="right"
-        )
-        for k, v in kwargs_default_values.items():
-            kwargs.setdefault(k, v)
-
         Mx, My = self._calculate_bending_moment(speed=speed)
         Mr = np.sqrt(Mx ** 2 + My ** 2)
 
@@ -1760,7 +1754,6 @@ class ForcedResponseResults:
                 x=nodes_pos,
                 y=Mx,
                 mode="lines",
-                line=dict(width=6.0, color=colors1[2]),
                 name="Bending Moment (X dir.)",
                 legendgroup="Mx",
                 showlegend=True,
@@ -1774,7 +1767,6 @@ class ForcedResponseResults:
                 x=nodes_pos,
                 y=My,
                 mode="lines",
-                line=dict(width=6.0, color=colors1[6]),
                 name="Bending Moment (Y dir.)",
                 legendgroup="My",
                 showlegend=True,
@@ -1788,7 +1780,6 @@ class ForcedResponseResults:
                 x=nodes_pos,
                 y=Mr,
                 mode="lines",
-                line=dict(width=6.0, color=colors1[7]),
                 name="Bending Moment (abs)",
                 legendgroup="Mr",
                 showlegend=True,
@@ -1804,41 +1795,15 @@ class ForcedResponseResults:
                 x=nodes_pos,
                 y=np.zeros_like(nodes_pos),
                 mode="lines",
-                line=dict(width=3.0, color="black", dash="dashdot"),
+                line=dict(color="black", dash="dashdot"),
                 showlegend=False,
                 hoverinfo="none",
             )
         )
 
-        fig.update_xaxes(
-            title_text="<b>Rotor Length</b>",
-            title_font=dict(family="Arial", size=20),
-            tickfont=dict(size=16),
-            gridcolor="lightgray",
-            showline=True,
-            linewidth=2.5,
-            linecolor="black",
-            mirror=True,
-        )
-        fig.update_yaxes(
-            title_text="<b>Bending Moment</b>",
-            title_font=dict(family="Arial", size=20),
-            tickfont=dict(size=16),
-            gridcolor="lightgray",
-            showline=True,
-            linewidth=2.5,
-            linecolor="black",
-            mirror=True,
-        )
-        fig.update_layout(
-            legend=dict(
-                font=dict(family="sans-serif", size=14),
-                bgcolor="white",
-                bordercolor="black",
-                borderwidth=2,
-            ),
-            **kwargs,
-        )
+        fig.update_xaxes(title_text="<b>Rotor Length</b>")
+        fig.update_yaxes(title_text="<b>Bending Moment</b>")
+        fig.update_layout(**kwargs)
 
         return fig
 
@@ -1898,12 +1863,6 @@ class ForcedResponseResults:
             Plotly figure with Amplitude vs Frequency and Phase vs Frequency and
             polar Amplitude vs Phase plots.
         """
-        kwargs_default_values = dict(
-            width=1800, height=900, plot_bgcolor="white", hoverlabel_align="right"
-        )
-        for k, v in kwargs_default_values.items():
-            subplot_kwargs.setdefault(k, v)
-
         fig0 = self.plot_deflected_shape_2d(speed, units, **shape2d_kwargs)
         fig1 = self.plot_deflected_shape_3d(speed, samples, units, **shape3d_kwargs)
         fig2 = self.plot_bending_moment(speed, units, **bm_kwargs)
