@@ -1537,7 +1537,6 @@ class ForcedResponseResults:
                 x=nodes_pos,
                 y=maj_vect[4].real,
                 mode="lines",
-                # line=dict(width=6.0, color="royalblue"),
                 name="Major Axis",
                 legendgroup="Major_Axis_2d",
                 showlegend=False,
@@ -1552,7 +1551,7 @@ class ForcedResponseResults:
                 x=nodes_pos,
                 y=np.zeros(len(nodes_pos)),
                 mode="lines",
-                line=dict(width=2.0, color="black", dash="dashdot"),
+                line=dict(color="black", dash="dashdot"),
                 showlegend=False,
                 hoverinfo="none",
             )
@@ -1595,10 +1594,6 @@ class ForcedResponseResults:
         if not any(np.isclose(self.speed_range, speed, atol=1e-6)):
             raise ValueError("No data available for this speed value.")
 
-        kwargs_default_values = dict(hoverlabel_align="right")
-        for k, v in kwargs_default_values.items():
-            kwargs.setdefault(k, v)
-
         mag = self.magnitude
         phase = self.phase
         ub = self.unbalance
@@ -1627,7 +1622,7 @@ class ForcedResponseResults:
                     y=y,
                     z=z,
                     mode="lines",
-                    line=dict(width=6.0, color="royalblue"),
+                    line=dict(color="royalblue"),
                     name="Orbit",
                     legendgroup="Orbit",
                     showlegend=False,
@@ -1648,8 +1643,8 @@ class ForcedResponseResults:
                 y=np.real(maj_vect[3]),
                 z=np.imag(maj_vect[3]),
                 mode="lines+markers",
-                marker=dict(size=4.0, color="black"),
-                line=dict(width=6.0, color="black", dash="dashdot"),
+                marker=dict(color="black"),
+                line=dict(color="black", dash="dashdot"),
                 name="Major Axis",
                 legendgroup="Major_Axis",
                 showlegend=True,
@@ -1669,7 +1664,7 @@ class ForcedResponseResults:
                 y=line,
                 z=line,
                 mode="lines",
-                line=dict(width=2.0, color="black", dash="dashdot"),
+                line=dict(color="black", dash="dashdot"),
                 showlegend=False,
                 hoverinfo="none",
             )
@@ -1684,7 +1679,7 @@ class ForcedResponseResults:
                     y=[0, np.amax(np.real(maj_vect[4])) / 2 * np.cos(p)],
                     z=[0, np.amax(np.real(maj_vect[4])) / 2 * np.sin(p)],
                     mode="lines",
-                    line=dict(width=6.0, color="firebrick"),
+                    line=dict(color="firebrick"),
                     legendgroup="Unbalance",
                     hoverinfo="none",
                     showlegend=False,
@@ -1696,7 +1691,7 @@ class ForcedResponseResults:
                     y=[np.amax(np.real(maj_vect[4])) / 2 * np.cos(p)],
                     z=[np.amax(np.real(maj_vect[4])) / 2 * np.sin(p)],
                     mode="markers",
-                    marker=dict(symbol="diamond", size=5.0, color="firebrick"),
+                    marker=dict(symbol="diamond", color="firebrick"),
                     name="Unbalance",
                     legendgroup="Unbalance",
                     showlegend=True if i == 0 else False,
@@ -1708,45 +1703,13 @@ class ForcedResponseResults:
             i += 1
 
         fig.update_layout(
-            width=1200,
-            height=900,
             scene=dict(
                 bgcolor="white",
-                xaxis=dict(
-                    title=dict(text="<b>Rotor Length</b>", font=dict(size=14)),
-                    tickfont=dict(size=12),
-                    nticks=5,
-                    backgroundcolor="lightgray",
-                    gridcolor="white",
-                    showspikes=False,
-                ),
-                yaxis=dict(
-                    title=dict(text="<b>Amplitude - X</b>", font=dict(size=14)),
-                    tickfont=dict(size=12),
-                    nticks=5,
-                    backgroundcolor="lightgray",
-                    gridcolor="white",
-                    showspikes=False,
-                ),
-                zaxis=dict(
-                    title=dict(text="<b>Amplitude - Y</b>", font=dict(size=14)),
-                    tickfont=dict(size=12),
-                    nticks=5,
-                    backgroundcolor="lightgray",
-                    gridcolor="white",
-                    showspikes=False,
-                ),
+                xaxis=dict(title=dict(text="<b>Rotor Length</b>")),
+                yaxis=dict(title=dict(text="<b>Amplitude - X</b>")),
+                zaxis=dict(title=dict(text="<b>Amplitude - Y</b>")),
             ),
-            title=dict(
-                text=(f"<b>Deflected Shape</b><br>" f"<b>Speed = {speed}</b>"),
-                font=dict(size=18),
-            ),
-            legend=dict(
-                font=dict(family="sans-serif", size=14),
-                bgcolor="white",
-                bordercolor="black",
-                borderwidth=2,
-            ),
+            title=dict(text=(f"<b>Deflected Shape</b><br>" f"<b>Speed = {speed}</b>")),
             **kwargs,
         )
 
