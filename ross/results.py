@@ -13,6 +13,28 @@ from scipy import interpolate
 colors1 = px.colors.qualitative.Dark24
 
 
+class CriticalSpeedResults:
+    """Class used to store results from run_critical_speed() method.
+
+    Parameters
+    ----------
+    wn : array
+        Undamped critical speeds array.
+    wd : array
+        Undamped critical speeds array.
+    log_dec : array
+        Logarithmic decrement for each critical speed.
+    damping_ratio : array
+        Damping ratio for each critical speed.
+    """
+
+    def __init__(self, wn, wd, log_dec, damping_ratio):
+        self.wn = wn
+        self.wd = wd
+        self.log_dec = log_dec
+        self.damping_ratio = damping_ratio
+
+
 class ModalResults:
     """Class used to store results and provide plots for Modal Analysis.
 
@@ -33,7 +55,7 @@ class ModalResults:
     wd : array
         Damped natural frequencies array.
     log_dec : array
-        Logarithmic decrement for each .
+        Logarithmic decrement for each mode.
     damping_ratio : array
         Damping ratio for each mode.
     lti : StateSpaceContinuous
@@ -843,7 +865,7 @@ class CampbellResults:
             title_text="<b>Frequency</b>",
             title_font=dict(family="Arial", size=20),
             tickfont=dict(size=16),
-            range=[0, np.max(speed_range)],
+            range=[np.min(speed_range), np.max(speed_range)],
             gridcolor="lightgray",
             showline=True,
             linewidth=2.5,
@@ -862,8 +884,6 @@ class CampbellResults:
             mirror=True,
         )
         fig.update_layout(
-            width=1200,
-            height=900,
             plot_bgcolor="white",
             hoverlabel_align="right",
             coloraxis=dict(
@@ -1459,7 +1479,7 @@ class ForcedResponseResults:
 
         return fig
 
-    def plot_polar_bode(self, dof, units="mic-pk-pk", **kwargs):
+    def plot_polar_bode(self, dof, units="m", **kwargs):
         """Plot polar forced response using Plotly.
 
         Parameters
@@ -1541,7 +1561,7 @@ class ForcedResponseResults:
     def plot(
         self,
         dof,
-        units="mic-pk-pk",
+        units="m",
         mag_kwargs={},
         phase_kwargs={},
         polar_kwargs={},
@@ -1599,9 +1619,9 @@ class ForcedResponseResults:
         for k, v in kwargs_default_values.items():
             subplot_kwargs.setdefault(k, v)
 
-        fig0 = self.plot_magnitude(dof, **mag_kwargs)
+        fig0 = self.plot_magnitude(dof, units, **mag_kwargs)
         fig1 = self.plot_phase(dof, **phase_kwargs)
-        fig2 = self.plot_polar_bode(dof, **polar_kwargs)
+        fig2 = self.plot_polar_bode(dof, units, **polar_kwargs)
 
         subplots = make_subplots(
             rows=2, cols=2, specs=[[{}, {"type": "polar", "rowspan": 2}], [{}, None]]
