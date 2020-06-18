@@ -1052,6 +1052,67 @@ def test_static_analysis_rotor6(rotor6):
     )
 
 
+def test_run_critical_speed(rotor5, rotor6):
+    results5 = rotor5.run_critical_speed(num_modes=12, rtol=0.005)
+    results6 = rotor6.run_critical_speed(num_modes=12, rtol=0.005)
+
+    wn5 = np.array(
+        [
+            86.10505193,
+            86.60492546,
+            198.93259257,
+            207.97165539,
+            244.95609413,
+            250.53522782,
+        ]
+    )
+    wd5 = np.array(
+        [
+            86.1050519,
+            86.60492544,
+            198.93259256,
+            207.97165539,
+            244.95609413,
+            250.53522782,
+        ]
+    )
+    log_dec5 = np.zeros_like(wd5)
+    damping_ratio5 = np.zeros_like(wd5)
+
+    wd6 = np.array(
+        [
+            61.52110644,
+            63.72862198,
+            117.49491374,
+            118.55829416,
+            233.83724523,
+            236.40346235,
+        ]
+    )
+    wn6 = np.array(
+        [
+            61.52110644,
+            63.72862198,
+            117.49491375,
+            118.55829421,
+            233.83724523,
+            236.40346458,
+        ]
+    )
+    log_dec6 = np.zeros_like(wd6)
+    damping_ratio6 = np.zeros_like(wd6)
+
+    assert_almost_equal(results5.wd, wd5, decimal=4)
+    assert_almost_equal(results5.wn, wn5, decimal=4)
+    assert_almost_equal(results5.log_dec, log_dec5, decimal=4)
+    assert_almost_equal(results5.damping_ratio, damping_ratio5, decimal=4)
+
+    assert_almost_equal(results6.wd, wd6, decimal=4)
+    assert_almost_equal(results6.wn, wn6, decimal=4)
+    assert_almost_equal(results6.log_dec, log_dec6, decimal=4)
+    assert_almost_equal(results6.damping_ratio, damping_ratio6, decimal=4)
+
+
 @pytest.fixture
 def coaxrotor():
     #  Co-axial rotor system with 2 shafts, 4 disks and
