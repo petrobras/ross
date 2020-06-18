@@ -1382,15 +1382,15 @@ class Rotor(object):
         return results
 
     def forced_response(
-            self,
-            force=None,
-            speed_range=None,
-            modes=None,
-            cluster_points=False,
-            num_modes=12,
-            num_points=10,
-            rtol=0.005,
-            unbalance=None
+        self,
+        force=None,
+        speed_range=None,
+        modes=None,
+        cluster_points=False,
+        num_modes=12,
+        num_points=10,
+        rtol=0.005,
+        unbalance=None,
     ):
         """Forced response for a mdof system.
 
