@@ -1528,12 +1528,6 @@ class ForcedResponseResults:
         if not any(np.isclose(self.speed_range, speed, atol=1e-6)):
             raise ValueError("No data available for this speed value.")
 
-        kwargs_default_values = dict(
-            width=1200, height=900, plot_bgcolor="white", hoverlabel_align="right"
-        )
-        for k, v in kwargs_default_values.items():
-            kwargs.setdefault(k, v)
-
         nodes_pos = self.rotor.nodes_pos
         maj_vect = self._calculate_major_axis(speed=speed)
 
@@ -1543,7 +1537,7 @@ class ForcedResponseResults:
                 x=nodes_pos,
                 y=maj_vect[4].real,
                 mode="lines",
-                line=dict(width=6.0, color="royalblue"),
+                # line=dict(width=6.0, color="royalblue"),
                 name="Major Axis",
                 legendgroup="Major_Axis_2d",
                 showlegend=False,
@@ -1564,35 +1558,9 @@ class ForcedResponseResults:
             )
         )
 
-        fig.update_xaxes(
-            title_text="<b>Rotor Length</b>",
-            title_font=dict(family="Arial", size=20),
-            tickfont=dict(size=16),
-            gridcolor="lightgray",
-            showline=True,
-            linewidth=2.5,
-            linecolor="black",
-            mirror=True,
-        )
-        fig.update_yaxes(
-            title_text="<b>Major Axis Absolute Amplitude</b>",
-            title_font=dict(family="Arial", size=20),
-            tickfont=dict(size=16),
-            gridcolor="lightgray",
-            showline=True,
-            linewidth=2.5,
-            linecolor="black",
-            mirror=True,
-        )
-        fig.update_layout(
-            legend=dict(
-                font=dict(family="sans-serif", size=14),
-                bgcolor="white",
-                bordercolor="black",
-                borderwidth=2,
-            ),
-            **kwargs,
-        )
+        fig.update_xaxes(title_text="<b>Rotor Length</b>")
+        fig.update_yaxes(title_text="<b>Major Axis Absolute Amplitude</b>")
+        fig.update_layout(**kwargs)
 
         return fig
 
