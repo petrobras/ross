@@ -1,8 +1,5 @@
 import numpy as np
 import plotly.graph_objects as go
-import plotly.io as pio
-
-pio.renderers.default = "browser"
 
 
 def plot_eccentricity(fluid_flow_object, z=0, **kwargs):
@@ -34,29 +31,14 @@ def plot_eccentricity(fluid_flow_object, z=0, **kwargs):
     >>> # to show the plots you can use:
     >>> # show(fig)
     """
-    kwargs_default_values = dict(
-        width=600,
-        height=600,
-        plot_bgcolor="white",
-        hoverlabel_align="right",
-        legend=dict(
-            font=dict(family="sans-serif", size=14),
-            bgcolor="white",
-            bordercolor="black",
-            borderwidth=2,
-        ),
-    )
-    for k, v in kwargs_default_values.items():
-        kwargs.setdefault(k, v)
-
     fig = go.Figure()
     fig.add_trace(
         go.Scatter(
             x=fluid_flow_object.xre[z],
             y=fluid_flow_object.yre[z],
             mode="markers+lines",
-            marker=dict(size=10, color="firebrick"),
-            line=dict(width=2.0, color="firebrick"),
+            # marker=dict(size=10, color="firebrick"),
+            # line=dict(width=2.0, color="firebrick"),
             name="Stator",
             legendgroup="Stator",
             hovertemplate=("<b>X: %{x:.3e}</b><br>" + "<b>Y: %{y:.3e}</b>"),
@@ -690,7 +672,7 @@ def plot_pressure_surface(fluid_flow_object, **kwargs):
                 showspikes=False,
             ),
             yaxis=dict(
-                title=dict(text="<b>Angular Position</b>", font=dict(size=14),),
+                title=dict(text="<b>Angular Position</b>", font=dict(size=14)),
                 tickfont=dict(size=16),
                 nticks=5,
                 backgroundcolor="lightgray",
@@ -698,7 +680,7 @@ def plot_pressure_surface(fluid_flow_object, **kwargs):
                 showspikes=False,
             ),
             zaxis=dict(
-                title=dict(text="<b>Pressure</b>", font=dict(size=14),),
+                title=dict(text="<b>Pressure</b>", font=dict(size=14)),
                 tickfont=dict(size=16),
                 nticks=5,
                 backgroundcolor="lightgray",
@@ -706,7 +688,7 @@ def plot_pressure_surface(fluid_flow_object, **kwargs):
                 showspikes=False,
             ),
         ),
-        title=dict(text=("<b>Bearing Pressure Field</b>"), font=dict(size=20),),
+        title=dict(text=("<b>Bearing Pressure Field</b>"), font=dict(size=20)),
         **kwargs,
     )
 
