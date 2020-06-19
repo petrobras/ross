@@ -5,16 +5,12 @@ This module returns graphs for each type of analyses in rotor_assembly.py.
 import copy
 
 import numpy as np
-import plotly.express as px
 import plotly.graph_objects as go
 import scipy.linalg as la
 from plotly.subplots import make_subplots
 from scipy import interpolate
 
 from ross.plotly_theme import tableau_colors
-
-# set Plotly palette of colors
-colors1 = px.colors.qualitative.Dark24
 
 
 class CriticalSpeedResults:
