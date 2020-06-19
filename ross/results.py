@@ -2234,12 +2234,6 @@ class StaticResults:
         fig : Plotly graph_objects.Figure()
             Plotly figure with the bending moment diagram plot
         """
-        kwargs_default_values = dict(
-            width=1200, height=900, plot_bgcolor="white", hoverlabel_align="right"
-        )
-        for k, v in kwargs_default_values.items():
-            kwargs.setdefault(k, v)
-
         fig = go.Figure()
 
         shaft_end = max([sublist[-1] for sublist in self.nodes_pos])
@@ -2250,7 +2244,7 @@ class StaticResults:
                 x=[-0.1 * shaft_end, 1.1 * shaft_end],
                 y=[0, 0],
                 mode="lines",
-                line=dict(width=3.0, color="black", dash="dashdot"),
+                line=dict(color="black", dash="dashdot"),
                 showlegend=False,
                 hoverinfo="none",
             )
@@ -2263,9 +2257,8 @@ class StaticResults:
                     x=nodes_pos,
                     y=Bm,
                     mode="lines",
-                    line=dict(width=5.0, color=colors1[j]),
-                    name="Shaft {}".format(j),
-                    legendgroup="Shaft {}".format(j),
+                    name=f"Shaft {j}",
+                    legendgroup=f"Shaft {j}",
                     showlegend=True,
                     hovertemplate=(
                         "Shaft lengh: %{x:.2f}<br>" + "Bending Moment: %{y:.2f}"
@@ -2274,37 +2267,9 @@ class StaticResults:
             )
             j += 1
 
-        fig.update_xaxes(
-            title_text="<b>Shaft Length</b>",
-            title_font=dict(family="Arial", size=20),
-            range=[-0.1 * shaft_end, 1.1 * shaft_end],
-            tickfont=dict(size=16),
-            gridcolor="lightgray",
-            showline=True,
-            linewidth=2.5,
-            linecolor="black",
-            mirror=True,
-        )
-        fig.update_yaxes(
-            title_text="<b>Bending Moment</b>",
-            title_font=dict(family="Arial", size=20),
-            tickfont=dict(size=16),
-            gridcolor="lightgray",
-            showline=True,
-            linewidth=2.5,
-            linecolor="black",
-            mirror=True,
-        )
-        fig.update_layout(
-            title=dict(text="<b>Bending Moment Diagram</b>", font=dict(size=16)),
-            legend=dict(
-                font=dict(family="sans-serif", size=14),
-                bgcolor="white",
-                bordercolor="black",
-                borderwidth=2,
-            ),
-            **kwargs,
-        )
+        fig.update_xaxes(title_text="<b>Shaft Length</b>")
+        fig.update_yaxes(title_text="<b>Bending Moment</b>")
+        fig.update_layout(title=dict(text="<b>Bending Moment Diagram</b>"), **kwargs)
 
         return fig
 
@@ -2564,11 +2529,6 @@ class ConvergenceResults:
         fig : Plotly graph_objects.make_subplots()
             The figure object with the plot.
         """
-        kwargs_default_values = dict(plot_bgcolor="white", hoverlabel_align="right")
-
-        for k, v in kwargs_default_values.items():
-            kwargs.setdefault(k, v)
-
         fig = make_subplots(
             rows=1,
             cols=2,
