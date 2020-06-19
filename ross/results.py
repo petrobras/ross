@@ -2544,8 +2544,6 @@ class ConvergenceResults:
                 x=self.el_num,
                 y=self.eigv_arr,
                 mode="lines+markers",
-                line=dict(width=3.0, color="FireBrick"),
-                marker=dict(size=10, color="FireBrick"),
                 hovertemplate=(
                     "Number of Elements: %{x:.2f}<br>" + "Frequency: %{y:.0f}"
                 ),
@@ -2554,30 +2552,8 @@ class ConvergenceResults:
             row=1,
             col=1,
         )
-        fig.update_xaxes(
-            title_text="<b>Number of Elements</b>",
-            title_font=dict(family="Arial", size=20),
-            tickfont=dict(size=16),
-            gridcolor="lightgray",
-            showline=True,
-            linewidth=2.5,
-            linecolor="black",
-            mirror=True,
-            row=1,
-            col=1,
-        )
-        fig.update_yaxes(
-            title_text="<b>Frequency</b>",
-            title_font=dict(family="Arial", size=20),
-            tickfont=dict(size=16),
-            gridcolor="lightgray",
-            showline=True,
-            linewidth=2.5,
-            linecolor="black",
-            mirror=True,
-            row=1,
-            col=1,
-        )
+        fig.update_xaxes(title_text="<b>Number of Elements</b>", row=1, col=1)
+        fig.update_yaxes(title_text="<b>Frequency</b>", row=1, col=1)
 
         # plot Error vs number of elements
         fig.add_trace(
@@ -2585,8 +2561,6 @@ class ConvergenceResults:
                 x=self.el_num,
                 y=self.error_arr,
                 mode="lines+markers",
-                line=dict(width=3.0, color="FireBrick"),
-                marker=dict(size=10, color="FireBrick"),
                 hovertemplate=(
                     "Number of Elements: %{x:.2f}<br>" + "Relative Error: %{y:.0f}"
                 ),
@@ -2596,31 +2570,8 @@ class ConvergenceResults:
             col=2,
         )
 
-        fig.update_xaxes(
-            title_text="<b>Number of Elements</b>",
-            title_font=dict(family="Arial", size=20),
-            tickfont=dict(size=16),
-            gridcolor="lightgray",
-            showline=True,
-            linewidth=2.5,
-            linecolor="black",
-            mirror=True,
-            row=1,
-            col=2,
-        )
-        fig.update_yaxes(
-            title_text="<b>Relative Error (%)</b>",
-            title_font=dict(family="Arial", size=20),
-            tickfont=dict(size=16),
-            exponentformat="power",
-            gridcolor="lightgray",
-            showline=True,
-            linewidth=2.5,
-            linecolor="black",
-            mirror=True,
-            row=1,
-            col=2,
-        )
+        fig.update_xaxes(title_text="<b>Number of Elements</b>", row=1, col=2)
+        fig.update_yaxes(title_text="<b>Relative Error (%)</b>", row=1, col=2)
 
         fig.update_layout(**kwargs)
 
@@ -2700,12 +2651,6 @@ class TimeResponseResults:
         obs_dof = dof % self.number_dof
         obs_dof = dof_dict[str(obs_dof)]
 
-        kwargs_default_values = dict(
-            width=1200, height=900, plot_bgcolor="white", hoverlabel_align="right"
-        )
-        for k, v in kwargs_default_values.items():
-            kwargs.setdefault(k, v)
-
         fig = go.Figure()
 
         fig.add_trace(
@@ -2713,7 +2658,6 @@ class TimeResponseResults:
                 x=self.t,
                 y=self.yout[:, dof],
                 mode="lines",
-                line=dict(width=3.0, color="royalblue"),
                 name="Phase",
                 legendgroup="Phase",
                 showlegend=False,
@@ -2721,31 +2665,11 @@ class TimeResponseResults:
             )
         )
 
-        fig.update_xaxes(
-            title_text="<b>Time</b>",
-            title_font=dict(family="Arial", size=20),
-            tickfont=dict(size=16),
-            range=[0, self.t[-1]],
-            gridcolor="lightgray",
-            showline=True,
-            linewidth=2.5,
-            linecolor="black",
-            mirror=True,
-        )
-        fig.update_yaxes(
-            title_text="<b>Amplitude</b>",
-            title_font=dict(family="Arial", size=20),
-            tickfont=dict(size=16),
-            gridcolor="lightgray",
-            showline=True,
-            linewidth=2.5,
-            linecolor="black",
-            mirror=True,
-        )
+        fig.update_xaxes(title_text="<b>Time</b>")
+        fig.update_yaxes(title_text="<b>Amplitude</b>")
         fig.update_layout(
             title=dict(
-                text="<b>Response for node {} - DoF {}</b>".format(dof // 4, obs_dof),
-                font=dict(size=20),
+                text="<b>Response for node {} - DoF {}</b>".format(dof // 4, obs_dof)
             ),
             **kwargs,
         )
@@ -2771,12 +2695,6 @@ class TimeResponseResults:
         fig : Plotly graph_objects.Figure()
             The figure object with the plot.
         """
-        kwargs_default_values = dict(
-            width=1200, height=900, plot_bgcolor="white", hoverlabel_align="right"
-        )
-        for k, v in kwargs_default_values.items():
-            kwargs.setdefault(k, v)
-
         fig = go.Figure()
 
         fig.add_trace(
@@ -2784,7 +2702,6 @@ class TimeResponseResults:
                 x=self.yout[:, self.number_dof * node],
                 y=self.yout[:, self.number_dof * node + 1],
                 mode="lines",
-                line=dict(width=3.0, color="royalblue"),
                 name="Phase",
                 legendgroup="Phase",
                 showlegend=False,
@@ -2794,31 +2711,10 @@ class TimeResponseResults:
             )
         )
 
-        fig.update_xaxes(
-            title_text="<b>Amplitude - X direction</b>",
-            title_font=dict(family="Arial", size=20),
-            tickfont=dict(size=16),
-            gridcolor="lightgray",
-            showline=True,
-            linewidth=2.5,
-            linecolor="black",
-            mirror=True,
-        )
-        fig.update_yaxes(
-            title_text="<b>Amplitude - Y direction</b>",
-            title_font=dict(family="Arial", size=20),
-            tickfont=dict(size=16),
-            gridcolor="lightgray",
-            showline=True,
-            linewidth=2.5,
-            linecolor="black",
-            mirror=True,
-        )
+        fig.update_xaxes(title_text="<b>Amplitude - X direction</b>")
+        fig.update_yaxes(title_text="<b>Amplitude - Y direction</b>")
         fig.update_layout(
-            title=dict(
-                text="<b>Response for node {}</b>".format(node), font=dict(size=20)
-            ),
-            **kwargs,
+            title=dict(text="<b>Response for node {}</b>".format(node)), **kwargs
         )
 
         return fig
@@ -2840,10 +2736,6 @@ class TimeResponseResults:
         fig : Plotly graph_objects.Figure()
             The figure object with the plot.
         """
-        kwargs_default_values = dict(hoverlabel_align="right")
-        for k, v in kwargs_default_values.items():
-            kwargs.setdefault(k, v)
-
         fig = go.Figure()
 
         for n in self.nodes_list:
@@ -2854,7 +2746,7 @@ class TimeResponseResults:
                     y=self.yout[:, self.number_dof * n],
                     z=self.yout[:, self.number_dof * n + 1],
                     mode="lines",
-                    line=dict(width=3.0, color="royalblue"),
+                    line=dict(color=tableau_colors["blue"]),
                     name="Mean",
                     legendgroup="mean",
                     showlegend=False,
@@ -2876,40 +2768,16 @@ class TimeResponseResults:
                 y=line,
                 z=line,
                 mode="lines",
-                line=dict(width=2.0, color="black", dash="dashdot"),
+                line=dict(color="black", dash="dashdot"),
                 showlegend=False,
             )
         )
 
         fig.update_layout(
-            width=1200,
-            height=900,
             scene=dict(
-                bgcolor="white",
-                xaxis=dict(
-                    title=dict(text="<b>Rotor Length</b>", font=dict(size=14)),
-                    tickfont=dict(size=12),
-                    nticks=5,
-                    backgroundcolor="lightgray",
-                    gridcolor="white",
-                    showspikes=False,
-                ),
-                yaxis=dict(
-                    title=dict(text="<b>Amplitude - X</b>", font=dict(size=14)),
-                    tickfont=dict(size=12),
-                    nticks=5,
-                    backgroundcolor="lightgray",
-                    gridcolor="white",
-                    showspikes=False,
-                ),
-                zaxis=dict(
-                    title=dict(text="<b>Amplitude - Y</b>", font=dict(size=14)),
-                    tickfont=dict(size=12),
-                    nticks=5,
-                    backgroundcolor="lightgray",
-                    gridcolor="white",
-                    showspikes=False,
-                ),
+                xaxis=dict(title=dict(text="<b>Rotor Length</b>")),
+                yaxis=dict(title=dict(text="<b>Amplitude - X</b>")),
+                zaxis=dict(title=dict(text="<b>Amplitude - Y</b>")),
             ),
             **kwargs,
         )
