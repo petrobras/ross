@@ -819,7 +819,7 @@ class CampbellResults:
                     x=speed_range,
                     y=h * speed_range,
                     mode="lines",
-                    line=dict(color=tableau_colors[j], dash="dashdot"),
+                    line=dict(dash="dashdot"),
                     name="{}x speed".format(h),
                     hoverinfo="none",
                 )
