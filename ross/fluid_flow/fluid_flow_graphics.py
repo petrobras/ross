@@ -1,6 +1,8 @@
 import numpy as np
 import plotly.graph_objects as go
 
+from ross.plotly_theme import tableau_colors
+
 
 def plot_eccentricity(fluid_flow_object, z=0, **kwargs):
     """Plot the rotor eccentricity.
@@ -37,8 +39,8 @@ def plot_eccentricity(fluid_flow_object, z=0, **kwargs):
             x=fluid_flow_object.xre[z],
             y=fluid_flow_object.yre[z],
             mode="markers+lines",
-            # marker=dict(size=10, color="firebrick"),
-            # line=dict(width=2.0, color="firebrick"),
+            marker=dict(color=tableau_colors["red"]),
+            line=dict(color=tableau_colors["red"]),
             name="Stator",
             legendgroup="Stator",
             hovertemplate=("<b>X: %{x:.3e}</b><br>" + "<b>Y: %{y:.3e}</b>"),
@@ -49,8 +51,8 @@ def plot_eccentricity(fluid_flow_object, z=0, **kwargs):
             x=fluid_flow_object.xri[z],
             y=fluid_flow_object.yri[z],
             mode="markers+lines",
-            marker=dict(size=10, color="royalblue"),
-            line=dict(width=2.0, color="royalblue"),
+            marker=dict(color=tableau_colors["blue"]),
+            line=dict(color=tableau_colors["blue"]),
             name="Rotor",
             legendgroup="Rotor",
             hovertemplate=("<b>X: %{x:.3e}</b><br>" + "<b>Y: %{y:.3e}</b>"),
@@ -60,7 +62,7 @@ def plot_eccentricity(fluid_flow_object, z=0, **kwargs):
         go.Scatter(
             x=[fluid_flow_object.xi],
             y=[fluid_flow_object.yi],
-            marker=dict(size=10, color="firebrick"),
+            marker=dict(color=tableau_colors["red"]),
             name="Stator",
             legendgroup="Stator",
             showlegend=False,
@@ -71,36 +73,18 @@ def plot_eccentricity(fluid_flow_object, z=0, **kwargs):
         go.Scatter(
             x=[0],
             y=[0],
-            marker=dict(size=10, color="royalblue"),
+            marker=dict(color=tableau_colors["blue"]),
             name="Rotor",
             legendgroup="Rotor",
             showlegend=False,
             hovertemplate=("<b>X: %{x:.3e}</b><br>" + "<b>Y: %{y:.3e}</b>"),
         )
     )
-    fig.update_xaxes(
-        title_text="<b>X axis</b>",
-        title_font=dict(size=16),
-        tickfont=dict(size=14),
-        gridcolor="lightgray",
-        showline=True,
-        linewidth=2.5,
-        linecolor="black",
-        mirror=True,
-    )
-    fig.update_yaxes(
-        title_text="<b>Y axis</b>",
-        title_font=dict(size=16),
-        tickfont=dict(size=14),
-        gridcolor="lightgray",
-        showline=True,
-        linewidth=2.5,
-        linecolor="black",
-        mirror=True,
-    )
+    fig.update_xaxes(title_text="<b>X axis</b>")
+    fig.update_yaxes(title_text="<b>Y axis</b>")
     fig.update_layout(
-        title=dict(text="<b>Cut in plane Z={}</b>".format(z), font=dict(size=16)),
-        **kwargs,
+        title=dict(text="<b>Cut in plane Z={}</b>".format(z)),
+        yaxis=dict(scaleanchor="x", scaleratio=1, **kwargs),
     )
 
     return fig
@@ -146,20 +130,6 @@ def plot_pressure_z(fluid_flow_object, theta=0, **kwargs):
             "Must calculate the pressure matrix. "
             "Try calling calculate_pressure_matrix_numerical() or calculate_pressure_matrix_analytical() first."
         )
-    kwargs_default_values = dict(
-        width=800,
-        height=600,
-        plot_bgcolor="white",
-        hoverlabel_align="right",
-        legend=dict(
-            font=dict(family="sans-serif", size=14),
-            bgcolor="white",
-            bordercolor="black",
-            borderwidth=2,
-        ),
-    )
-    for k, v in kwargs_default_values.items():
-        kwargs.setdefault(k, v)
 
     fig = go.Figure()
     if fluid_flow_object.numerical_pressure_matrix_available:
@@ -168,7 +138,7 @@ def plot_pressure_z(fluid_flow_object, theta=0, **kwargs):
                 x=fluid_flow_object.z_list,
                 y=fluid_flow_object.p_mat_numerical[:, theta],
                 mode="lines",
-                line=dict(width=3.0, color="royalblue"),
+                line=dict(color=tableau_colors["blue"]),
                 showlegend=True,
                 name="<b>Numerical pressure</b>",
                 hovertemplate=(
@@ -183,7 +153,7 @@ def plot_pressure_z(fluid_flow_object, theta=0, **kwargs):
                 x=fluid_flow_object.z_list,
                 y=fluid_flow_object.p_mat_analytical[:, theta],
                 mode="lines",
-                line=dict(width=3.0, color="firebrick"),
+                line=dict(color=tableau_colors["red"]),
                 showlegend=True,
                 name="<b>Analytical pressure</b>",
                 hovertemplate=(
@@ -192,33 +162,14 @@ def plot_pressure_z(fluid_flow_object, theta=0, **kwargs):
                 ),
             )
         )
-    fig.update_xaxes(
-        title_text="<b>Axial Length</b>",
-        title_font=dict(size=16),
-        tickfont=dict(size=14),
-        gridcolor="lightgray",
-        showline=True,
-        linewidth=2.5,
-        linecolor="black",
-        mirror=True,
-    )
-    fig.update_yaxes(
-        title_text="<b>Pressure</b>",
-        title_font=dict(size=16),
-        tickfont=dict(size=14),
-        gridcolor="lightgray",
-        showline=True,
-        linewidth=2.5,
-        linecolor="black",
-        mirror=True,
-    )
+    fig.update_xaxes(title_text="<b>Axial Length</b>")
+    fig.update_yaxes(title_text="<b>Pressure</b>")
     fig.update_layout(
         title=dict(
             text=(
                 "<b>Pressure along the flow (axial direction)<b><br>"
                 + "<b>Theta={}</b>".format(theta)
-            ),
-            font=dict(size=16),
+            )
         ),
         **kwargs,
     )
@@ -254,28 +205,13 @@ def plot_shape(fluid_flow_object, theta=0, **kwargs):
     >>> # to show the plots you can use:
     >>> # fig.show()
     """
-    kwargs_default_values = dict(
-        width=800,
-        height=600,
-        plot_bgcolor="white",
-        hoverlabel_align="right",
-        legend=dict(
-            font=dict(family="sans-serif", size=14),
-            bgcolor="white",
-            bordercolor="black",
-            borderwidth=2,
-        ),
-    )
-    for k, v in kwargs_default_values.items():
-        kwargs.setdefault(k, v)
-
     fig = go.Figure()
     fig.add_trace(
         go.Scatter(
             x=fluid_flow_object.z_list,
             y=fluid_flow_object.re[:, theta],
             mode="lines",
-            line=dict(width=3.0, color="firebrick"),
+            line=dict(color=tableau_colors["red"]),
             showlegend=True,
             hoverinfo="none",
             name="<b>Stator</b>",
@@ -286,39 +222,20 @@ def plot_shape(fluid_flow_object, theta=0, **kwargs):
             x=fluid_flow_object.z_list,
             y=fluid_flow_object.ri[:, theta],
             mode="lines",
-            line=dict(width=3.0, color="royalblue"),
+            line=dict(color=tableau_colors["blue"]),
             showlegend=True,
             hoverinfo="none",
             name="<b>Rotor</b>",
         )
     )
-    fig.update_xaxes(
-        title_text="<b>Axial Length</b>",
-        title_font=dict(size=16),
-        tickfont=dict(size=14),
-        gridcolor="lightgray",
-        showline=True,
-        linewidth=2.5,
-        linecolor="black",
-        mirror=True,
-    )
-    fig.update_yaxes(
-        title_text="<b>Radial direction</b>",
-        title_font=dict(size=16),
-        tickfont=dict(size=14),
-        gridcolor="lightgray",
-        showline=True,
-        linewidth=2.5,
-        linecolor="black",
-        mirror=True,
-    )
+    fig.update_xaxes(title_text="<b>Axial Length</b>")
+    fig.update_yaxes(title_text="<b>Radial direction</b>")
     fig.update_layout(
         title=dict(
             text=(
                 "<b>Shapes of stator and rotor - Axial direction<b><br>"
                 + "<b>Theta={}</b>".format(theta)
-            ),
-            font=dict(size=16),
+            )
         ),
         **kwargs,
     )
@@ -366,21 +283,6 @@ def plot_pressure_theta(fluid_flow_object, z=0, **kwargs):
             "Must calculate the pressure matrix. "
             "Try calling calculate_pressure_matrix_numerical() or calculate_pressure_matrix_analytical() first."
         )
-    kwargs_default_values = dict(
-        width=800,
-        height=600,
-        plot_bgcolor="white",
-        hoverlabel_align="right",
-        legend=dict(
-            font=dict(family="sans-serif", size=14),
-            bgcolor="white",
-            bordercolor="black",
-            borderwidth=2,
-        ),
-    )
-    for k, v in kwargs_default_values.items():
-        kwargs.setdefault(k, v)
-
     fig = go.Figure()
     if fluid_flow_object.numerical_pressure_matrix_available:
         fig.add_trace(
@@ -388,7 +290,7 @@ def plot_pressure_theta(fluid_flow_object, z=0, **kwargs):
                 x=fluid_flow_object.gama[z],
                 y=fluid_flow_object.p_mat_numerical[z],
                 mode="lines",
-                line=dict(width=3.0, color="royalblue"),
+                line=dict(color=tableau_colors["blue"]),
                 showlegend=True,
                 name="<b>Numerical pressure</b>",
                 hovertemplate=(
@@ -402,7 +304,7 @@ def plot_pressure_theta(fluid_flow_object, z=0, **kwargs):
                 x=fluid_flow_object.gama[z],
                 y=fluid_flow_object.p_mat_analytical[z],
                 mode="lines",
-                line=dict(width=3.0, color="firebrick"),
+                line=dict(color=tableau_colors["red"]),
                 showlegend=True,
                 name="<b>Analytical pressure</b>",
                 hovertemplate=(
@@ -412,31 +314,10 @@ def plot_pressure_theta(fluid_flow_object, z=0, **kwargs):
             )
         )
 
-    fig.update_xaxes(
-        title_text="<b>Theta value</b>",
-        title_font=dict(size=16),
-        tickfont=dict(size=14),
-        gridcolor="lightgray",
-        showline=True,
-        linewidth=2.5,
-        linecolor="black",
-        mirror=True,
-    )
-    fig.update_yaxes(
-        title_text="<b>Pressure</b>",
-        title_font=dict(size=16),
-        tickfont=dict(size=14),
-        gridcolor="lightgray",
-        showline=True,
-        linewidth=2.5,
-        linecolor="black",
-        mirror=True,
-    )
+    fig.update_xaxes(title_text="<b>Theta value</b>")
+    fig.update_yaxes(title_text="<b>Pressure</b>")
     fig.update_layout(
-        title=dict(
-            text=("<b>Pressure along Theta | Z={}<b>".format(z)), font=dict(size=16)
-        ),
-        **kwargs,
+        title=dict(text=("<b>Pressure along Theta | Z={}<b>".format(z))), **kwargs
     )
 
     return fig
@@ -526,10 +407,6 @@ def plot_pressure_theta_cylindrical(
                 continue
             z_matrix[i][j] = pressure_along_theta[i] - min_pressure + 0.01
 
-    kwargs_default_values = dict(width=1200, height=900)
-    for k, v in kwargs_default_values.items():
-        kwargs.setdefault(k, v)
-
     fig = go.Figure(
         go.Barpolar(
             r=r_matrix.ravel(),
@@ -540,10 +417,7 @@ def plot_pressure_theta_cylindrical(
                 colorscale="Viridis",
                 cmin=np.amin(z_matrix),
                 cmax=np.amax(z_matrix),
-                colorbar=dict(
-                    title=dict(text="<b>Pressure</b>", side="top", font=dict(size=16)),
-                    tickfont=dict(size=16),
-                ),
+                colorbar=dict(title=dict(text="<b>Pressure</b>", side="top")),
             ),
             thetaunit="degrees",
             name="Pressure",
@@ -558,14 +432,9 @@ def plot_pressure_theta_cylindrical(
     fig.update_layout(
         polar=dict(
             hole=0.5,
-            bgcolor="white",
             bargap=0.0,
-            radialaxis=dict(gridcolor="lightgray", nticks=5),
             angularaxis=dict(
-                rotation=-90 - fluid_flow_object.attitude_angle * 180 / np.pi,
-                gridcolor="lightgray",
-                linecolor="black",
-                linewidth=2.5,
+                rotation=-90 - fluid_flow_object.attitude_angle * 180 / np.pi
             ),
         ),
         **kwargs,
@@ -607,11 +476,6 @@ def plot_pressure_surface(fluid_flow_object, **kwargs):
             "Must calculate the pressure matrix. "
             "Try calling calculate_pressure_matrix_numerical() or calculate_pressure_matrix_analytical() first."
         )
-
-    kwargs_default_values = dict(width=1200, height=900)
-    for k, v in kwargs_default_values.items():
-        kwargs.setdefault(k, v)
-
     fig = go.Figure()
     if fluid_flow_object.numerical_pressure_matrix_available:
         z, theta = np.meshgrid(fluid_flow_object.z_list, fluid_flow_object.gama[0])
@@ -623,33 +487,7 @@ def plot_pressure_surface(fluid_flow_object, **kwargs):
                 colorscale="Viridis",
                 cmin=np.amin(fluid_flow_object.p_mat_numerical.T),
                 cmax=np.amax(fluid_flow_object.p_mat_numerical.T),
-                colorbar=dict(
-                    title=dict(text="<b>Pressure</b>", side="top", font=dict(size=16)),
-                    tickfont=dict(size=16),
-                ),
-                name="Pressure",
-                showlegend=False,
-                hovertemplate=(
-                    "<b>Length: %{x:.2e}</b><br>"
-                    + "<b>Angular Position: %{y:.2f}</b><br>"
-                    + "<b>Pressure: %{z:.2f}</b>"
-                ),
-            )
-        )
-    if fluid_flow_object.analytical_pressure_matrix_available:
-        z, theta = np.meshgrid(fluid_flow_object.z_list, fluid_flow_object.gama[0])
-        fig.add_trace(
-            go.Surface(
-                x=z,
-                y=theta,
-                z=fluid_flow_object.p_mat_analytical.T,
-                colorscale="Viridis",
-                cmin=np.amin(fluid_flow_object.p_mat_analytical.T),
-                cmax=np.amax(fluid_flow_object.p_mat_analytical.T),
-                colorbar=dict(
-                    title=dict(text="<b>Pressure</b>", side="top", font=dict(size=16)),
-                    tickfont=dict(size=16),
-                ),
+                colorbar=dict(title=dict(text="<b>Pressure</b>", side="top")),
                 name="Pressure",
                 showlegend=False,
                 hovertemplate=(
@@ -663,32 +501,11 @@ def plot_pressure_surface(fluid_flow_object, **kwargs):
     fig.update_layout(
         scene=dict(
             bgcolor="white",
-            xaxis=dict(
-                title=dict(text="<b>Rotor Length</b>", font=dict(size=14)),
-                tickfont=dict(size=16),
-                nticks=5,
-                backgroundcolor="lightgray",
-                gridcolor="white",
-                showspikes=False,
-            ),
-            yaxis=dict(
-                title=dict(text="<b>Angular Position</b>", font=dict(size=14)),
-                tickfont=dict(size=16),
-                nticks=5,
-                backgroundcolor="lightgray",
-                gridcolor="white",
-                showspikes=False,
-            ),
-            zaxis=dict(
-                title=dict(text="<b>Pressure</b>", font=dict(size=14)),
-                tickfont=dict(size=16),
-                nticks=5,
-                backgroundcolor="lightgray",
-                gridcolor="white",
-                showspikes=False,
-            ),
+            xaxis=dict(title=dict(text="<b>Rotor Length</b>")),
+            yaxis=dict(title=dict(text="<b>Angular Position</b>")),
+            zaxis=dict(title=dict(text="<b>Pressure</b>")),
         ),
-        title=dict(text=("<b>Bearing Pressure Field</b>"), font=dict(size=20)),
+        title=dict(text="<b>Bearing Pressure Field</b>"),
         **kwargs,
     )
 
