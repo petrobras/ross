@@ -1720,3 +1720,52 @@ def test_modal_6dof(rotor_6dof):
 
     assert_almost_equal(modal.wn[:6], wn, decimal=3)
     assert_almost_equal(modal.wd[:6], wd, decimal=3)
+
+
+@pytest.fixture
+def rotor8():
+    #  Rotor with damping
+    #  Rotor with 6 shaft elements, 2 disks and 2 bearings with frequency dependent coefficients
+    i_d = 0
+    o_d = 0.05
+    n = 6
+    L = [0.25 for _ in range(n)]
+
+    shaft_elem = [
+        ShaftElement(
+            l,
+            i_d,
+            o_d,
+            material=steel,
+            shear_effects=True,
+            rotary_inertia=True,
+            gyroscopic=True,
+        )
+        for l in L
+    ]
+
+    disk0 = DiskElement.from_geometry(2, steel, 0.07, 0.05, 0.28)
+    disk1 = DiskElement.from_geometry(4, steel, 0.07, 0.05, 0.35)
+
+    stfx = [1e7, 1.5e7]
+    stfy = [1e7, 1.5e7]
+    c = [1e3, 1.5e3]
+    frequency = [50, 5000]
+    bearing0 = BearingElement(0, kxx=stfx, kyy=stfy, cxx=c, cyy=c, frequency=frequency)
+    bearing1 = BearingElement(6, kxx=stfx, kyy=stfy, cxx=c, cyy=c, frequency=frequency)
+
+    return Rotor(shaft_elem, [disk0, disk1], [bearing0, bearing1])
+
+
+def test_ucs_calc(rotor8):
+    exp_stiffness_range = np.array([1000000.0, 1832980.710832, 3359818.286284])
+    exp_rotor_wn = np.array([86.658114, 95.660573, 101.868254])
+    exp_intersection_points_x = np.array(
+        [9632232.337582, 9632232.337582, 10333174.417919]
+    )
+    exp_intersection_points_y = np.array([107.920792, 107.920792, 411.881188])
+    stiffness_range, rotor_wn, bearing, intersection_points = rotor8._calc_ucs()
+    assert_allclose(stiffness_range[:3], exp_stiffness_range)
+    assert_allclose(rotor_wn[0, :3], exp_rotor_wn)
+    assert_allclose(intersection_points["x"][:3], exp_intersection_points_x, rtol=1e-3)
+    assert_allclose(intersection_points["y"][:3], exp_intersection_points_y, rtol=1e-3)
