@@ -1350,10 +1350,10 @@ class ForcedResponseResults:
         self,
         dof,
         units="mic-pk-pk",
-        mag_kwargs={},
-        phase_kwargs={},
-        polar_kwargs={},
-        subplot_kwargs={},
+        mag_kwargs=None,
+        phase_kwargs=None,
+        polar_kwargs=None,
+        subplot_kwargs=None,
     ):
         """Plot forced response.
 
@@ -1397,6 +1397,11 @@ class ForcedResponseResults:
             Plotly figure with Amplitude vs Frequency and Phase vs Frequency and
             polar Amplitude vs Phase plots.
         """
+        mag_kwargs = {} if mag_kwargs is None else copy.copy(mag_kwargs)
+        phase_kwargs = {} if phase_kwargs is None else copy.copy(phase_kwargs)
+        polar_kwargs = {} if polar_kwargs is None else copy.copy(polar_kwargs)
+        subplot_kwargs = {} if subplot_kwargs is None else copy.copy(subplot_kwargs)
+
         fig0 = self.plot_magnitude(dof, **mag_kwargs)
         fig1 = self.plot_phase(dof, **phase_kwargs)
         fig2 = self.plot_polar_bode(dof, **polar_kwargs)
@@ -1855,10 +1860,10 @@ class ForcedResponseResults:
         speed,
         samples=101,
         units="mic-pk-pk",
-        shape2d_kwargs={},
-        shape3d_kwargs={},
-        bm_kwargs={},
-        subplot_kwargs={},
+        shape2d_kwargs=None,
+        shape3d_kwargs=None,
+        bm_kwargs=None,
+        subplot_kwargs=None,
     ):
         """Plot deflected shape diagrams.
 
@@ -1906,6 +1911,11 @@ class ForcedResponseResults:
             Plotly figure with Amplitude vs Frequency and Phase vs Frequency and
             polar Amplitude vs Phase plots.
         """
+        shape2d_kwargs = {} if shape2d_kwargs is None else copy.copy(shape2d_kwargs)
+        shape3d_kwargs = {} if shape3d_kwargs is None else copy.copy(shape3d_kwargs)
+        bm_kwargs = {} if bm_kwargs is None else copy.copy(bm_kwargs)
+        subplot_kwargs = {} if subplot_kwargs is None else copy.copy(subplot_kwargs)
+
         fig0 = self.plot_deflected_shape_2d(speed, units, **shape2d_kwargs)
         fig1 = self.plot_deflected_shape_3d(speed, samples, units, **shape3d_kwargs)
         fig2 = self.plot_bending_moment(speed, units, **bm_kwargs)
