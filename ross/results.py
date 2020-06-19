@@ -2031,10 +2031,6 @@ class StaticResults:
         subplots : Plotly graph_objects.make_subplots()
             The figure object with the plot.
         """
-        kwargs_default_values = dict(width=1200, height=900, plot_bgcolor="white")
-        for k, v in kwargs_default_values.items():
-            kwargs.setdefault(k, v)
-
         cols = 1 if len(self.nodes_pos) < 2 else 2
         rows = len(self.nodes_pos) // 2 + len(self.nodes_pos) % 2
         fig = make_subplots(
@@ -2056,7 +2052,7 @@ class StaticResults:
                     x=nodes_pos,
                     y=np.zeros(len(nodes_pos)),
                     mode="lines",
-                    line=dict(width=10.0, color="black"),
+                    line=dict(color="black"),
                     hoverinfo="none",
                     showlegend=False,
                 ),
@@ -2068,7 +2064,7 @@ class StaticResults:
                     x=nodes_pos,
                     y=[y_start] * len(nodes_pos),
                     mode="lines",
-                    line=dict(width=3.0, color="black"),
+                    line=dict(color="black"),
                     hoverinfo="none",
                     showlegend=False,
                 ),
@@ -2105,7 +2101,6 @@ class StaticResults:
                 xshift=125,
                 yshift=20,
                 text="<b>Shaft weight = {}N</b>".format(text),
-                font=dict(size=20),
                 align="right",
                 showarrow=False,
             )
@@ -2124,7 +2119,6 @@ class StaticResults:
                         ayref="y{}".format(j + 1),
                         text="<b>Fb = {}N</b>".format(text),
                         textangle=90,
-                        font=dict(size=20),
                         showarrow=True,
                         arrowhead=2,
                         arrowsize=1,
@@ -2149,7 +2143,6 @@ class StaticResults:
                         ayref="y{}".format(j + 1),
                         text="<b>Fd = {}N</b>".format(text),
                         textangle=270,
-                        font=dict(size=20),
                         showarrow=True,
                         arrowhead=2,
                         arrowsize=1,
@@ -2161,17 +2154,7 @@ class StaticResults:
                         col=col,
                     )
 
-            fig.update_xaxes(
-                title_text="<b>Shaft Length</b>",
-                title_font=dict(family="Arial", size=20),
-                tickfont=dict(size=16),
-                showgrid=False,
-                showline=True,
-                linewidth=2.5,
-                linecolor="black",
-                row=row,
-                col=col,
-            )
+            fig.update_xaxes(title_text="<b>Shaft Length</b>", row=row, col=col)
             fig.update_yaxes(
                 visible=False, gridcolor="lightgray", showline=False, row=row, col=col
             )
