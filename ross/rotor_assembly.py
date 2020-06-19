@@ -585,7 +585,7 @@ class Rotor(object):
         array([91.79655318, 96.28899977])
         >>> modal.wd[:2]
         array([91.79655318, 96.28899977])
-        >>> fig = modal.plot_mode3D(0)
+        >>> fig = modal.plot_mode_3d(0)
         """
         evalues, evectors = self._eigen(speed, num_modes=num_modes)
         wn_len = len(evalues) // 2

@@ -459,7 +459,7 @@ class ModalResults:
 
         return xn, yn, zn, x_circles, y_circles, z_circles_pos, nn
 
-    def plot_mode3D(self, mode=None, evec=None, **kwargs):
+    def plot_mode_3d(self, mode=None, evec=None, **kwargs):
         """Plot (3D view) the mode shapes.
 
         Parameters
@@ -572,7 +572,7 @@ class ModalResults:
 
         return fig
 
-    def plot_mode2D(self, mode=None, evec=None, **kwargs):
+    def plot_mode_2d(self, mode=None, evec=None, **kwargs):
         """Plot (2D view) the mode shapes.
 
         Parameters
