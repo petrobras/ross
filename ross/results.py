@@ -1969,12 +1969,6 @@ class StaticResults:
         fig : Plotly graph_objects.Figure()
             The figure object with the plot.
         """
-        kwargs_default_values = dict(
-            width=1200, height=900, plot_bgcolor="white", hoverlabel_align="right"
-        )
-        for k, v in kwargs_default_values.items():
-            kwargs.setdefault(k, v)
-
         fig = go.Figure()
 
         shaft_end = max([sublist[-1] for sublist in self.nodes_pos])
@@ -1985,7 +1979,7 @@ class StaticResults:
                 x=[-0.01 * shaft_end, 1.01 * shaft_end],
                 y=[0, 0],
                 mode="lines",
-                line=dict(width=3.0, color="black", dash="dashdot"),
+                line=dict(color="black", dash="dashdot"),
                 showlegend=False,
                 hoverinfo="none",
             )
@@ -2007,8 +2001,7 @@ class StaticResults:
                     x=xnew,
                     y=ynew,
                     mode="lines",
-                    line=dict(width=5.0, color=colors1[count]),
-                    name="Shaft {}".format(count),
+                    name=f"Shaft {count}",
                     showlegend=True,
                     hovertemplate=(
                         "Shaft lengh: %{x:.2f}<br>" + "Displacement: %{y:.2e}"
@@ -2017,36 +2010,9 @@ class StaticResults:
             )
             count += 1
 
-        fig.update_xaxes(
-            title_text="<b>Shaft Length</b>",
-            title_font=dict(family="Arial", size=20),
-            tickfont=dict(size=16),
-            gridcolor="lightgray",
-            showline=True,
-            linewidth=2.5,
-            linecolor="black",
-            mirror=True,
-        )
-        fig.update_yaxes(
-            title_text="<b>Deformation</b>",
-            title_font=dict(family="Arial", size=20),
-            tickfont=dict(size=16),
-            gridcolor="lightgray",
-            showline=True,
-            linewidth=2.5,
-            linecolor="black",
-            mirror=True,
-        )
-        fig.update_layout(
-            title=dict(text="<b>Static Deformation</b>", font=dict(size=16)),
-            legend=dict(
-                font=dict(family="sans-serif", size=14),
-                bgcolor="white",
-                bordercolor="black",
-                borderwidth=2,
-            ),
-            **kwargs,
-        )
+        fig.update_xaxes(title_text="<b>Shaft Length</b>")
+        fig.update_yaxes(title_text="<b>Deformation</b>")
+        fig.update_layout(title=dict(text="<b>Static Deformation</b>"), **kwargs)
 
         return fig
 
