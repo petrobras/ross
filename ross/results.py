@@ -17,6 +17,28 @@ from ross.plotly_theme import tableau_colors
 colors1 = px.colors.qualitative.Dark24
 
 
+class CriticalSpeedResults:
+    """Class used to store results from run_critical_speed() method.
+
+    Parameters
+    ----------
+    wn : array
+        Undamped critical speeds array.
+    wd : array
+        Undamped critical speeds array.
+    log_dec : array
+        Logarithmic decrement for each critical speed.
+    damping_ratio : array
+        Damping ratio for each critical speed.
+    """
+
+    def __init__(self, wn, wd, log_dec, damping_ratio):
+        self.wn = wn
+        self.wd = wd
+        self.log_dec = log_dec
+        self.damping_ratio = damping_ratio
+
+
 class ModalResults:
     """Class used to store results and provide plots for Modal Analysis.
 
@@ -37,7 +59,7 @@ class ModalResults:
     wd : array
         Damped natural frequencies array.
     log_dec : array
-        Logarithmic decrement for each .
+        Logarithmic decrement for each mode.
     damping_ratio : array
         Damping ratio for each mode.
     lti : StateSpaceContinuous
@@ -817,7 +839,10 @@ class CampbellResults:
                 )
             )
 
-        fig.update_xaxes(title_text="<b>Frequency</b>", range=[0, np.max(speed_range)])
+        fig.update_xaxes(
+            title_text="<b>Frequency</b>",
+            range=[np.min(speed_range), np.max(speed_range)],
+        )
         fig.update_yaxes(
             title_text="<b>Damped Natural Frequencies</b>", range=[0, 1.1 * np.max(wd)]
         )
@@ -1281,7 +1306,7 @@ class ForcedResponseResults:
 
         return fig
 
-    def plot_polar_bode(self, dof, units="mic-pk-pk", fig=None, **kwargs):
+    def plot_polar_bode(self, dof, units="m", fig=None, **kwargs):
         """Plot polar forced response using Plotly.
 
         Parameters
@@ -1349,7 +1374,7 @@ class ForcedResponseResults:
     def plot(
         self,
         dof,
-        units="mic-pk-pk",
+        units="m",
         mag_kwargs=None,
         phase_kwargs=None,
         polar_kwargs=None,
@@ -1402,9 +1427,9 @@ class ForcedResponseResults:
         polar_kwargs = {} if polar_kwargs is None else copy.copy(polar_kwargs)
         subplot_kwargs = {} if subplot_kwargs is None else copy.copy(subplot_kwargs)
 
-        fig0 = self.plot_magnitude(dof, **mag_kwargs)
+        fig0 = self.plot_magnitude(dof, units, **mag_kwargs)
         fig1 = self.plot_phase(dof, **phase_kwargs)
-        fig2 = self.plot_polar_bode(dof, **polar_kwargs)
+        fig2 = self.plot_polar_bode(dof, units, **polar_kwargs)
 
         subplots = make_subplots(
             rows=2, cols=2, specs=[[{}, {"type": "polar", "rowspan": 2}], [{}, None]]
