@@ -945,7 +945,8 @@ class FrequencyResponseResults:
         )
 
         fig.update_xaxes(
-            title_text="<b>Frequency</b>", range=[0, np.max(frequency_range)]
+            title_text="<b>Frequency</b>",
+            range=[np.min(frequency_range), np.max(frequency_range)],
         )
         fig.update_yaxes(title_text=y_axis_label)
         fig.update_layout(**mag_kwargs)
@@ -996,7 +997,8 @@ class FrequencyResponseResults:
         )
 
         fig.update_xaxes(
-            title_text="<b>Frequency</b>", range=[0, np.max(frequency_range)]
+            title_text="<b>Frequency</b>",
+            range=[np.min(frequency_range), np.max(frequency_range)],
         )
         fig.update_yaxes(title_text="<b>Phase</b>")
         fig.update_layout(**phase_kwargs)
@@ -1249,7 +1251,8 @@ class ForcedResponseResults:
         )
 
         fig.update_xaxes(
-            title_text="<b>Frequency</b>", range=[0, np.max(frequency_range)]
+            title_text="<b>Frequency</b>",
+            range=[np.min(frequency_range), np.max(frequency_range)],
         )
         fig.update_yaxes(title_text=y_axis_label, exponentformat="power")
         fig.update_layout(**kwargs)
@@ -1295,7 +1298,8 @@ class ForcedResponseResults:
         )
 
         fig.update_xaxes(
-            title_text="<b>Frequency</b>", range=[0, np.max(frequency_range)]
+            title_text="<b>Frequency</b>",
+            range=[np.min(frequency_range), np.max(frequency_range)],
         )
         fig.update_yaxes(title_text="<b>Phase Angle</b>")
         fig.update_layout(**kwargs)
