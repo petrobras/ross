@@ -2,6 +2,8 @@
 
 This module returns graphs for each type of analyses in rotor_assembly.py.
 """
+import copy
+
 import numpy as np
 import plotly.express as px
 import plotly.graph_objects as go
@@ -459,7 +461,7 @@ class ModalResults:
 
         return xn, yn, zn, x_circles, y_circles, z_circles_pos, nn
 
-    def plot_mode_3d(self, mode=None, evec=None, **kwargs):
+    def plot_mode_3d(self, mode=None, evec=None, fig=None, **kwargs):
         """Plot (3D view) the mode shapes.
 
         Parameters
@@ -469,6 +471,8 @@ class ModalResults:
             Default is None
         evec : array
             Array containing the system eigenvectors
+        fig : Plotly graph_objects.Figure()
+            The figure object with the plot.
         kwargs : optional
             Additional key word arguments can be passed to change the plot layout only
             (e.g. width=1000, height=800, ...).
@@ -479,7 +483,8 @@ class ModalResults:
         fig : Plotly graph_objects.Figure()
             The figure object with the plot.
         """
-        fig = go.Figure()
+        if fig is None:
+            fig = go.Figure()
 
         nodes = self.nodes
         kappa_mode = self.kappa_modes[mode]
@@ -572,7 +577,7 @@ class ModalResults:
 
         return fig
 
-    def plot_mode_2d(self, mode=None, evec=None, **kwargs):
+    def plot_mode_2d(self, mode=None, evec=None, fig=None, **kwargs):
         """Plot (2D view) the mode shapes.
 
         Parameters
@@ -582,6 +587,8 @@ class ModalResults:
             Default is None
         evec : array
             Array containing the system eigenvectors
+        fig : Plotly graph_objects.Figure()
+            The figure object with the plot.
         kwargs : optional
             Additional key word arguments can be passed to change the plot layout only
             (e.g. width=1000, height=800, ...).
@@ -608,7 +615,8 @@ class ModalResults:
         zn = np.delete(zn, idx_remove)
         vn = np.delete(vn, idx_remove)
 
-        fig = go.Figure()
+        if fig is None:
+            fig = go.Figure()
 
         colors = dict(Backward="red", Mixed="black", Forward="blue")
         whirl_dir = colors[self.whirl_direction()[mode]]
@@ -682,7 +690,7 @@ class CampbellResults:
         self.log_dec = log_dec
         self.whirl_values = whirl_values
 
-    def plot(self, harmonics=[1], **kwargs):
+    def plot(self, harmonics=[1], fig=None, **kwargs):
         """Create Campbell Diagram figure using Plotly.
 
         Parameters
@@ -690,6 +698,8 @@ class CampbellResults:
         harmonics: list, optional
             List withe the harmonics to be plotted.
             The default is to plot 1x.
+        fig : Plotly graph_objects.Figure()
+            The figure object with the plot.
         kwargs : optional
             Additional key word arguments can be passed to change the plot layout only
             (e.g. width=1000, height=800, ...).
@@ -707,7 +717,8 @@ class CampbellResults:
         speed_range = self.speed_range
         log_dec_map = log_dec.flatten()
 
-        fig = go.Figure()
+        if fig is None:
+            fig = go.Figure()
 
         scatter_marker = ["triangle-up", "circle", "triangle-down"]
         for mark, whirl_dir, legend in zip(
@@ -786,7 +797,7 @@ class CampbellResults:
                     x=speed_range,
                     y=h * speed_range,
                     mode="lines",
-                    line=dict(color=colors1[j], dash="dashdot"),
+                    line=dict(color=tableau_colors[j], dash="dashdot"),
                     name="{}x speed".format(h),
                     hoverinfo="none",
                 )
@@ -859,7 +870,7 @@ class FrequencyResponseResults:
         self.magnitude = magnitude
         self.phase = phase
 
-    def plot_magnitude(self, inp, out, units="mic-pk-pk", **mag_kwargs):
+    def plot_magnitude(self, inp, out, units="mic-pk-pk", fig=None, **mag_kwargs):
         """Plot frequency response (magnitude) using Plotly.
 
         This method plots the frequency response magnitude given an output and
@@ -874,6 +885,8 @@ class FrequencyResponseResults:
         units : str
             Unit system
             Default is "mic-pk-pk"
+        fig : Plotly graph_objects.Figure()
+            The figure object with the plot.
         mag_kwargs : optional
             Additional key word arguments can be passed to change the plot layout only
             (e.g. width=1000, height=800, ...).
@@ -894,7 +907,8 @@ class FrequencyResponseResults:
         else:
             y_axis_label = "<b>Amplitude (dB)</b>"
 
-        fig = go.Figure()
+        if fig is None:
+            fig = go.Figure()
 
         fig.add_trace(
             go.Scatter(
@@ -917,7 +931,7 @@ class FrequencyResponseResults:
 
         return fig
 
-    def plot_phase(self, inp, out, **phase_kwargs):
+    def plot_phase(self, inp, out, fig=None, **phase_kwargs):
         """Plot frequency response (phase) using Plotly.
 
         This method plots the frequency response phase given an output and
@@ -929,6 +943,8 @@ class FrequencyResponseResults:
             Input.
         out : int
             Output.
+        fig : Plotly graph_objects.Figure()
+            The figure object with the plot.
         phase_kwargs : optional
             Additional key word arguments can be passed to change the plot layout only
             (e.g. width=1000, height=800, ...).
@@ -942,7 +958,8 @@ class FrequencyResponseResults:
         frequency_range = self.speed_range
         phase = self.phase
 
-        fig = go.Figure()
+        if fig is None:
+            fig = go.Figure()
 
         fig.add_trace(
             go.Scatter(
@@ -965,7 +982,7 @@ class FrequencyResponseResults:
 
         return fig
 
-    def plot_polar_bode(self, inp, out, units="mic-pk-pk", **polar_kwargs):
+    def plot_polar_bode(self, inp, out, units="mic-pk-pk", fig=None, **polar_kwargs):
         """Plot frequency response (polar) using Plotly.
 
         This method plots the frequency response (polar graph) given an output and
@@ -980,6 +997,8 @@ class FrequencyResponseResults:
         units : str
             Magnitude unit system.
             Default is "mic-pk-pk"
+        fig : Plotly graph_objects.Figure()
+            The figure object with the plot.
         polar_kwargs : optional
             Additional key word arguments can be passed to change the plot layout only
             (e.g. width=1000, height=800, ...).
@@ -1001,7 +1020,8 @@ class FrequencyResponseResults:
         else:
             r_axis_label = "<b>Amplitude (dB)</b>"
 
-        fig = go.Figure()
+        if fig is None:
+            fig = go.Figure()
 
         fig.add_trace(
             go.Scatterpolar(
@@ -1037,10 +1057,10 @@ class FrequencyResponseResults:
         inp,
         out,
         units="mic-pk-pk",
-        mag_kwargs={},
-        phase_kwargs={},
-        polar_kwargs={},
-        subplot_kwargs={},
+        mag_kwargs=None,
+        phase_kwargs=None,
+        polar_kwargs=None,
+        subplot_kwargs=None,
     ):
         """Plot frequency response.
 
@@ -1089,6 +1109,11 @@ class FrequencyResponseResults:
             Plotly figure with Amplitude vs Frequency and Phase vs Frequency and
             polar Amplitude vs Phase plots.
         """
+        mag_kwargs = {} if mag_kwargs is None else copy.copy(mag_kwargs)
+        phase_kwargs = {} if phase_kwargs is None else copy.copy(phase_kwargs)
+        polar_kwargs = {} if polar_kwargs is None else copy.copy(polar_kwargs)
+        subplot_kwargs = {} if subplot_kwargs is None else copy.copy(subplot_kwargs)
+
         fig0 = self.plot_magnitude(inp, out, units, **mag_kwargs)
         fig1 = self.plot_phase(inp, out, **phase_kwargs)
         fig2 = self.plot_polar_bode(inp, out, units, **polar_kwargs)
@@ -1155,7 +1180,7 @@ class ForcedResponseResults:
         self.phase = phase
         self.unbalance = unbalance
 
-    def plot_magnitude(self, dof, units="m", **kwargs):
+    def plot_magnitude(self, dof, units="m", fig=None, **kwargs):
         """Plot forced response (magnitude) using Plotly.
 
         Parameters
@@ -1165,6 +1190,8 @@ class ForcedResponseResults:
         units : str
             Units to plot the magnitude ('m' or 'mic-pk-pk')
             Default is 'm'
+        fig : Plotly graph_objects.Figure()
+            The figure object with the plot.
         kwargs : optional
             Additional key word arguments can be passed to change the plot layout only
             (e.g. width=1000, height=800, ...).
@@ -1184,7 +1211,8 @@ class ForcedResponseResults:
             mag = 2 * mag * 1e6
             y_axis_label = "<b>Amplitude (μ pk-pk)</b>"
 
-        fig = go.Figure()
+        if fig is None:
+            fig = go.Figure()
 
         fig.add_trace(
             go.Scatter(
@@ -1207,13 +1235,15 @@ class ForcedResponseResults:
 
         return fig
 
-    def plot_phase(self, dof, **kwargs):
+    def plot_phase(self, dof, fig=None, **kwargs):
         """Plot forced response (phase) using Plotly.
 
         Parameters
         ----------
         dof : int
             Degree of freedom.
+        fig : Plotly graph_objects.Figure()
+            The figure object with the plot.
         kwargs : optional
             Additional key word arguments can be passed to change the plot layout only
             (e.g. width=1000, height=800, ...).
@@ -1227,7 +1257,8 @@ class ForcedResponseResults:
         frequency_range = self.speed_range
         phase = self.phase
 
-        fig = go.Figure()
+        if fig is None:
+            fig = go.Figure()
 
         fig.add_trace(
             go.Scatter(
@@ -1250,7 +1281,7 @@ class ForcedResponseResults:
 
         return fig
 
-    def plot_polar_bode(self, dof, units="mic-pk-pk", **kwargs):
+    def plot_polar_bode(self, dof, units="mic-pk-pk", fig=None, **kwargs):
         """Plot polar forced response using Plotly.
 
         Parameters
@@ -1260,6 +1291,8 @@ class ForcedResponseResults:
         units : str
             Magnitude unit system.
             Default is "mic-pk-pk"
+        fig : Plotly graph_objects.Figure()
+            The figure object with the plot.
         kwargs : optional
             Additional key word arguments can be passed to change the plot layout only
             (e.g. width=1000, height=800, ...).
@@ -1281,7 +1314,8 @@ class ForcedResponseResults:
         else:
             r_axis_label = "<b>Amplitude (dB)</b>"
 
-        fig = go.Figure()
+        if fig is None:
+            fig = go.Figure()
 
         fig.add_trace(
             go.Scatterpolar(
@@ -1500,7 +1534,7 @@ class ForcedResponseResults:
 
         return Mx, My
 
-    def plot_deflected_shape_2d(self, speed, units="mic-pk-pk", **kwargs):
+    def plot_deflected_shape_2d(self, speed, units="mic-pk-pk", fig=None, **kwargs):
         """Plot the 2D deflected shape diagram.
 
         Parameters
@@ -1515,6 +1549,8 @@ class ForcedResponseResults:
                 - "mic-pk-pk" : microns peak to peak
                 - "db" : decibels
             Default is "mic-pk-pk".
+        fig : Plotly graph_objects.Figure()
+            The figure object with the plot.
         kwargs : optional
             Additional key word arguments can be passed to change the deflected shape
             plot layout only (e.g. width=1000, height=800, ...).
@@ -1531,7 +1567,8 @@ class ForcedResponseResults:
         nodes_pos = self.rotor.nodes_pos
         maj_vect = self._calculate_major_axis(speed=speed)
 
-        fig = go.Figure()
+        if fig is None:
+            fig = go.Figure()
         fig.add_trace(
             go.Scatter(
                 x=nodes_pos,
@@ -1563,7 +1600,9 @@ class ForcedResponseResults:
 
         return fig
 
-    def plot_deflected_shape_3d(self, speed, samples=101, units="mic-pk-pk", **kwargs):
+    def plot_deflected_shape_3d(
+        self, speed, samples=101, units="mic-pk-pk", fig=None, **kwargs
+    ):
         """Plot the 3D deflected shape diagram.
 
         Parameters
@@ -1581,6 +1620,8 @@ class ForcedResponseResults:
                 - "mic-pk-pk" : microns peak to peak
                 - "db" : decibels
             Default is "mic-pk-pk".
+        fig : Plotly graph_objects.Figure()
+            The figure object with the plot.
         kwargs : optional
             Additional key word arguments can be passed to change the deflected shape
             plot layout only (e.g. width=1000, height=800, ...).
@@ -1607,7 +1648,8 @@ class ForcedResponseResults:
 
         x_pos = np.repeat(nodes_pos, t.size).reshape(len(nodes_pos), t.size)
 
-        fig = go.Figure()
+        if fig is None:
+            fig = go.Figure()
         for i, n in enumerate(nodes):
             dofx = number_dof * n
             dofy = number_dof * n + 1
@@ -1715,7 +1757,7 @@ class ForcedResponseResults:
 
         return fig
 
-    def plot_bending_moment(self, speed, units="mic-pk-pk", **kwargs):
+    def plot_bending_moment(self, speed, units="mic-pk-pk", fig=None, **kwargs):
         """Plot the bending moment diagram.
 
         Parameters
@@ -1748,7 +1790,8 @@ class ForcedResponseResults:
 
         nodes_pos = self.rotor.nodes_pos
 
-        fig = go.Figure()
+        if fig is None:
+            fig = go.Figure()
         fig.add_trace(
             go.Scatter(
                 x=nodes_pos,
@@ -1951,7 +1994,7 @@ class StaticResults:
         self.nodes_pos = nodes_pos
         self.Vx_axis = Vx_axis
 
-    def plot_deformation(self, **kwargs):
+    def plot_deformation(self, fig=None, **kwargs):
         """Plot the shaft static deformation.
 
         This method plots:
@@ -1959,6 +2002,8 @@ class StaticResults:
 
         Parameters
         ----------
+        fig : Plotly graph_objects.Figure()
+            The figure object with the plot.
         kwargs : optional
             Additional key word arguments can be passed to change the plot layout only
             (e.g. width=1000, height=800, ...).
@@ -1969,7 +2014,8 @@ class StaticResults:
         fig : Plotly graph_objects.Figure()
             The figure object with the plot.
         """
-        fig = go.Figure()
+        if fig is None:
+            fig = go.Figure()
 
         shaft_end = max([sublist[-1] for sublist in self.nodes_pos])
 
@@ -2016,11 +2062,13 @@ class StaticResults:
 
         return fig
 
-    def plot_free_body_diagram(self, **kwargs):
+    def plot_free_body_diagram(self, fig=None, **kwargs):
         """Plot the rotor free-body diagram.
 
         Parameters
         ----------
+        subplots : Plotly graph_objects.make_subplots()
+            The figure object with the plot.
         kwargs : optional
             Additional key word arguments can be passed to change the plot layout only
             (e.g. plot_bgcolor="white", ...).
@@ -2033,14 +2081,15 @@ class StaticResults:
         """
         cols = 1 if len(self.nodes_pos) < 2 else 2
         rows = len(self.nodes_pos) // 2 + len(self.nodes_pos) % 2
-        fig = make_subplots(
-            rows=rows,
-            cols=cols,
-            subplot_titles=[
-                "<b>Free-Body Diagram - Shaft {}</b>".format(j)
-                for j in range(len(self.nodes_pos))
-            ],
-        )
+        if fig is None:
+            fig = make_subplots(
+                rows=rows,
+                cols=cols,
+                subplot_titles=[
+                    "<b>Free-Body Diagram - Shaft {}</b>".format(j)
+                    for j in range(len(self.nodes_pos))
+                ],
+            )
         j = 0
         y_start = 5.0
         for nodes_pos, nodes in zip(self.nodes_pos, self.nodes):
@@ -2164,7 +2213,7 @@ class StaticResults:
 
         return fig
 
-    def plot_shearing_force(self, **kwargs):
+    def plot_shearing_force(self, fig=None, **kwargs):
         """Plot the rotor shearing force diagram.
 
         This method plots:
@@ -2172,6 +2221,8 @@ class StaticResults:
 
         Parameters
         ----------
+        fig : Plotly graph_objects.Figure()
+            The figure object with the plot.
         kwargs : optional
             Additional key word arguments can be passed to change the plot layout only
             (e.g. width=1000, height=800, ...).
@@ -2182,7 +2233,8 @@ class StaticResults:
         fig : Plotly graph_objects.Figure()
             The figure object with the plot.
         """
-        fig = go.Figure()
+        if fig is None:
+            fig = go.Figure()
 
         shaft_end = max([sublist[-1] for sublist in self.nodes_pos])
 
@@ -2223,18 +2275,24 @@ class StaticResults:
 
         return fig
 
-    def plot_bending_moment(self, **kwargs):
+    def plot_bending_moment(self, fig=None, **kwargs):
         """Plot the rotor bending moment diagram.
 
         This method plots:
             bending moment diagram.
+
+        Parameters
+        ----------
+        fig : Plotly graph_objects.Figure()
+            Plotly figure with the bending moment diagram plot
 
         Returns
         -------
         fig : Plotly graph_objects.Figure()
             Plotly figure with the bending moment diagram plot
         """
-        fig = go.Figure()
+        if fig is None:
+            fig = go.Figure()
 
         shaft_end = max([sublist[-1] for sublist in self.nodes_pos])
 
@@ -2510,7 +2568,7 @@ class ConvergenceResults:
         self.eigv_arr = eigv_arr
         self.error_arr = error_arr
 
-    def plot(self, **kwargs):
+    def plot(self, fig=None, **kwargs):
         """Plot convergence results.
 
         This method plots:
@@ -2519,6 +2577,8 @@ class ConvergenceResults:
 
         Parameters
         ----------
+        fig : Plotly graph_objects.make_subplots()
+            The figure object with the plot.
         kwargs : optional
             Additional key word arguments can be passed to change the plot layout only
             (e.g. width=1000, height=800, ...).
@@ -2529,14 +2589,15 @@ class ConvergenceResults:
         fig : Plotly graph_objects.make_subplots()
             The figure object with the plot.
         """
-        fig = make_subplots(
-            rows=1,
-            cols=2,
-            subplot_titles=[
-                "<b>Frequency Evaluation</b>",
-                "<b>Relative Error Evaluation</b>",
-            ],
-        )
+        if fig is None:
+            fig = make_subplots(
+                rows=1,
+                cols=2,
+                subplot_titles=[
+                    "<b>Frequency Evaluation</b>",
+                    "<b>Relative Error Evaluation</b>",
+                ],
+            )
 
         # plot Frequency vs number of elements
         fig.add_trace(
@@ -2623,7 +2684,7 @@ class TimeResponseResults:
         self.nodes_pos = nodes_pos
         self.number_dof = number_dof
 
-    def _plot1d(self, dof, **kwargs):
+    def _plot1d(self, dof, fig=None, **kwargs):
         """Plot time response for a single DoF using Plotly.
 
         This function will take a rotor object and plot its time response using Plotly.
@@ -2632,6 +2693,8 @@ class TimeResponseResults:
         ----------
         dof : int
             Degree of freedom that will be observed.
+        fig : Plotly graph_objects.Figure()
+            The figure object with the plot.
         kwargs : optional
             Additional key word arguments can be passed to change the plot layout only
             (e.g. width=1000, height=800, ...).
@@ -2651,7 +2714,8 @@ class TimeResponseResults:
         obs_dof = dof % self.number_dof
         obs_dof = dof_dict[str(obs_dof)]
 
-        fig = go.Figure()
+        if fig is None:
+            fig = go.Figure()
 
         fig.add_trace(
             go.Scatter(
@@ -2676,7 +2740,7 @@ class TimeResponseResults:
 
         return fig
 
-    def _plot2d(self, node, **kwargs):
+    def _plot2d(self, node, fig=None, **kwargs):
         """Plot orbit response (2D).
 
         This function will take a rotor object and plot its orbit response using Plotly.
@@ -2685,6 +2749,8 @@ class TimeResponseResults:
         ----------
         node: int, optional
             Selected node to plot orbit.
+        fig : Plotly graph_objects.Figure()
+            The figure object with the plot.
         kwargs : optional
             Additional key word arguments can be passed to change the plot layout only
             (e.g. width=1000, height=800, ...).
@@ -2695,7 +2761,8 @@ class TimeResponseResults:
         fig : Plotly graph_objects.Figure()
             The figure object with the plot.
         """
-        fig = go.Figure()
+        if fig is None:
+            fig = go.Figure()
 
         fig.add_trace(
             go.Scatter(
@@ -2719,13 +2786,15 @@ class TimeResponseResults:
 
         return fig
 
-    def _plot3d(self, **kwargs):
+    def _plot3d(self, fig=None, **kwargs):
         """Plot orbit response (3D).
 
         This function will take a rotor object and plot its orbit response using Plotly.
 
         Parameters
         ----------
+        fig : Plotly graph_objects.Figure()
+            The figure object with the plot.
         kwargs : optional
             Additional key word arguments can be passed to change the plot layout only
             (e.g. hoverlabel_align="center", ...).
@@ -2736,7 +2805,8 @@ class TimeResponseResults:
         fig : Plotly graph_objects.Figure()
             The figure object with the plot.
         """
-        fig = go.Figure()
+        if fig is None:
+            fig = go.Figure()
 
         for n in self.nodes_list:
             x_pos = np.ones(self.yout.shape[0]) * self.nodes_pos[n]
@@ -2784,7 +2854,7 @@ class TimeResponseResults:
 
         return fig
 
-    def plot(self, plot_type="3d", dof=None, node=None, **kwargs):
+    def plot(self, plot_type="3d", dof=None, node=None, fig=None, **kwargs):
         """Plot time response.
 
         The plot type options are:
@@ -2808,6 +2878,8 @@ class TimeResponseResults:
             Selected node to plot orbit.
             Fill this attribute only when selection plot_type = "2d".
             Default is None
+        fig : Plotly graph_objects.Figure()
+            The figure object with the plot.
         kwargs : optional
             Additional key word arguments can be passed to change the plot layout only
             (e.g. width=1000, height=800, ...).

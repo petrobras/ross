@@ -4,7 +4,7 @@ import plotly.graph_objects as go
 from ross.plotly_theme import tableau_colors
 
 
-def plot_eccentricity(fluid_flow_object, z=0, **kwargs):
+def plot_eccentricity(fluid_flow_object, z=0, fig=None, **kwargs):
     """Plot the rotor eccentricity.
 
     This function assembles pressure graphic along the z-axis.
@@ -15,6 +15,8 @@ def plot_eccentricity(fluid_flow_object, z=0, **kwargs):
     fluid_flow_object: a FluidFlow object
     z: int, optional
         The distance in z where to cut and plot.
+    fig : Plotly graph_objects.Figure()
+        The figure object with the plot.
     kwargs : optional
         Additional key word arguments can be passed to change the plot layout only
         (e.g. width=1000, height=800, ...).
@@ -33,7 +35,8 @@ def plot_eccentricity(fluid_flow_object, z=0, **kwargs):
     >>> # to show the plots you can use:
     >>> # show(fig)
     """
-    fig = go.Figure()
+    if fig is None:
+        fig = go.Figure()
     fig.add_trace(
         go.Scatter(
             x=fluid_flow_object.xre[z],
@@ -90,7 +93,7 @@ def plot_eccentricity(fluid_flow_object, z=0, **kwargs):
     return fig
 
 
-def plot_pressure_z(fluid_flow_object, theta=0, **kwargs):
+def plot_pressure_z(fluid_flow_object, theta=0, fig=None, **kwargs):
     """Plot the pressure distribution along the z-axis.
 
     This function assembles pressure graphic along the z-axis for one or both the
@@ -102,6 +105,8 @@ def plot_pressure_z(fluid_flow_object, theta=0, **kwargs):
     fluid_flow_object: a FluidFlow object
     theta: int, optional
         The theta to be considered.
+    fig : Plotly graph_objects.Figure()
+        The figure object with the plot.
     kwargs : optional
         Additional key word arguments can be passed to change the plot layout only
         (e.g. width=1000, height=800, ...).
@@ -131,7 +136,8 @@ def plot_pressure_z(fluid_flow_object, theta=0, **kwargs):
             "Try calling calculate_pressure_matrix_numerical() or calculate_pressure_matrix_analytical() first."
         )
 
-    fig = go.Figure()
+    if fig is None:
+        fig = go.Figure()
     if fluid_flow_object.numerical_pressure_matrix_available:
         fig.add_trace(
             go.Scatter(
@@ -177,7 +183,7 @@ def plot_pressure_z(fluid_flow_object, theta=0, **kwargs):
     return fig
 
 
-def plot_shape(fluid_flow_object, theta=0, **kwargs):
+def plot_shape(fluid_flow_object, theta=0, fig=None, **kwargs):
     """Plot the surface geometry of the rotor.
 
     This function assembles a graphic representing the geometry of the rotor.
@@ -187,6 +193,8 @@ def plot_shape(fluid_flow_object, theta=0, **kwargs):
     fluid_flow_object: a FluidFlow object
     theta: int, optional
         The theta to be considered.
+    fig : Plotly graph_objects.Figure()
+        The figure object with the plot.
 
     Returns
     -------
@@ -205,7 +213,8 @@ def plot_shape(fluid_flow_object, theta=0, **kwargs):
     >>> # to show the plots you can use:
     >>> # fig.show()
     """
-    fig = go.Figure()
+    if fig is None:
+        fig = go.Figure()
     fig.add_trace(
         go.Scatter(
             x=fluid_flow_object.z_list,
@@ -243,7 +252,7 @@ def plot_shape(fluid_flow_object, theta=0, **kwargs):
     return fig
 
 
-def plot_pressure_theta(fluid_flow_object, z=0, **kwargs):
+def plot_pressure_theta(fluid_flow_object, z=0, fig=None, **kwargs):
     """Plot the pressure distribution along theta.
 
     This function assembles pressure graphic in the theta direction for a given z
@@ -255,6 +264,8 @@ def plot_pressure_theta(fluid_flow_object, z=0, **kwargs):
     fluid_flow_object: a FluidFlow object
     z: int, optional
         The distance along z-axis to be considered.
+    fig : Plotly graph_objects.Figure()
+        The figure object with the plot.
     kwargs : optional
         Additional key word arguments can be passed to change the plot layout only
         (e.g. width=1000, height=800, ...).
@@ -283,7 +294,8 @@ def plot_pressure_theta(fluid_flow_object, z=0, **kwargs):
             "Must calculate the pressure matrix. "
             "Try calling calculate_pressure_matrix_numerical() or calculate_pressure_matrix_analytical() first."
         )
-    fig = go.Figure()
+    if fig is None:
+        fig = go.Figure()
     if fluid_flow_object.numerical_pressure_matrix_available:
         fig.add_trace(
             go.Scatter(
@@ -324,7 +336,7 @@ def plot_pressure_theta(fluid_flow_object, z=0, **kwargs):
 
 
 def plot_pressure_theta_cylindrical(
-    fluid_flow_object, z=0, from_numerical=True, **kwargs
+    fluid_flow_object, z=0, from_numerical=True, fig=None, **kwargs
 ):
     """Plot cylindrical pressure graphic in the theta direction.
 
@@ -341,6 +353,8 @@ def plot_pressure_theta_cylindrical(
         If False, takes the analytically calculated one instead.
         If condition cannot be satisfied (matrix not calculated), it will take the one
         that is available and raise a warning.
+    fig : Plotly graph_objects.Figure()
+        The figure object with the plot.
     kwargs : optional
         Additional key word arguments can be passed to change the plot layout only
         (e.g. width=1000, height=800, ...).
@@ -407,7 +421,9 @@ def plot_pressure_theta_cylindrical(
                 continue
             z_matrix[i][j] = pressure_along_theta[i] - min_pressure + 0.01
 
-    fig = go.Figure(
+    if fig is None:
+        fig = go.Figure()
+    fig.add_trace(
         go.Barpolar(
             r=r_matrix.ravel(),
             theta=theta_matrix.ravel(),
@@ -442,12 +458,15 @@ def plot_pressure_theta_cylindrical(
     return fig
 
 
-def plot_pressure_surface(fluid_flow_object, **kwargs):
+def plot_pressure_surface(fluid_flow_object, fig=None, **kwargs):
     """Assembles pressure surface graphic in the bearing, using Plotly.
 
     Parameters
     ----------
     fluid_flow_object: a FluidFlow object
+    fig : Plotly graph_objects.Figure()
+        The figure object with the plot.
+
     kwargs : optional
         Additional key word arguments can be passed to change the plot layout only
         (e.g. width=1000, height=800, ...).
@@ -476,7 +495,8 @@ def plot_pressure_surface(fluid_flow_object, **kwargs):
             "Must calculate the pressure matrix. "
             "Try calling calculate_pressure_matrix_numerical() or calculate_pressure_matrix_analytical() first."
         )
-    fig = go.Figure()
+    if fig is None:
+        fig = go.Figure()
     if fluid_flow_object.numerical_pressure_matrix_available:
         z, theta = np.meshgrid(fluid_flow_object.z_list, fluid_flow_object.gama[0])
         fig.add_trace(
