@@ -1348,7 +1348,7 @@ class Rotor(object):
         Set `cluster_points=True` and choose how many modes the method must search and
         how many points to add just before and after each critical speed.
 
-        >>> response = rotor.run_freq_response(cluster_points=True, num_modes=12, num_points=5)
+        >>> response = rotor.run_freq_response(cluster_points=True, num_points=5)
         >>> response.speed_range.shape
         (60,)
 
@@ -1381,8 +1381,18 @@ class Rotor(object):
 
         return results
 
-    def forced_response(self, force=None, speed_range=None, modes=None, unbalance=None):
-        """Unbalanced response for a mdof system.
+    def forced_response(
+        self,
+        force=None,
+        speed_range=None,
+        modes=None,
+        cluster_points=False,
+        num_modes=12,
+        num_points=10,
+        rtol=0.005,
+        unbalance=None,
+    ):
+        """Forced response for a mdof system.
 
         This method returns the unbalanced response for a mdof system
         given magnitude and phase of the unbalance, the node where it's
@@ -1390,9 +1400,9 @@ class Rotor(object):
 
         Parameters
         ----------
-        force : list
+        force : list, array
             Unbalance force in each degree of freedom for each value in omega
-        speed_range : list, float
+        speed_range : list, array
             Array with the desired range of frequencies
         modes : list, optional
             Modes that will be used to calculate the frequency response
@@ -1402,6 +1412,30 @@ class Rotor(object):
             with deflected shape. This argument is set only if running an unbalance
             response analysis.
             Default is None.
+
+        Frequency spacing parameters
+        ----------------------------
+        cluster_points : bool, optional
+            boolean to activate the automatic frequency spacing method. If True, the
+            method uses _clustering_points() to create an speed_range.
+            Default is False
+        num_points : int, optional
+            The number of points generated per critical speed.
+            The method set the same number of points for slightly less and slightly
+            higher than the natural circular frequency. It means there'll be num_points
+            greater and num_points smaller than a given critical speed.
+            num_points may be between 2 and 12. Anything above this range defaults
+            to 10 and anything below this range defaults to 4.
+            The default is 10.
+        num_modes
+            The number of eigenvalues and eigenvectors to be calculated using ARPACK.
+            It also defines the range for the output array, since the method generates
+            points only for the critical speed calculated by run_critical_speed().
+            Default is 12.
+        rtol : float, optional
+            Tolerance (relative) for termination. Applied to scipy.optimize.newton to
+            calculate the approximated critical speeds.
+            Default is 0.005 (0.5%).
 
         Returns
         -------
@@ -1422,8 +1456,26 @@ class Rotor(object):
         >>> resp = rotor.forced_response(force=force, speed_range=speed)
         >>> resp.magnitude # doctest: +ELLIPSIS
         array([[0.00000000e+00, 5.06073311e-04, 2.10044826e-03, ...
+
+        Using clustered points option.
+        Set `cluster_points=True` and choose how many modes the method must search and
+        how many points to add just before and after each critical speed.
+
+        >>> response = rotor.forced_response(
+        ...     force=force, cluster_points=True, num_modes=12, num_points=5
+        ... )
+        >>> response.speed_range.shape
+        (60,)
         """
-        freq_resp = self.run_freq_response(speed_range=speed_range, modes=modes)
+        if speed_range is None:
+            if cluster_points:
+                speed_range = self._clustering_points(
+                    num_modes, num_points, modes, rtol
+                )
+
+        freq_resp = self.run_freq_response(
+            speed_range, modes, cluster_points, num_modes, num_points, rtol
+        )
 
         forced_resp = np.zeros(
             (self.ndof, len(freq_resp.speed_range)), dtype=np.complex
@@ -1491,7 +1543,16 @@ class Rotor(object):
         return F0
 
     def run_unbalance_response(
-        self, node, magnitude, phase, frequency_range=None, modes=None
+        self,
+        node,
+        magnitude,
+        phase,
+        frequency_range=None,
+        modes=None,
+        cluster_points=False,
+        num_modes=12,
+        num_points=10,
+        rtol=0.005,
     ):
         """Unbalanced response for a mdof system.
 
@@ -1512,6 +1573,30 @@ class Rotor(object):
         modes : list, optional
             Modes that will be used to calculate the frequency response
             (all modes will be used if a list is not given).
+
+        Frequency spacing parameters
+        ----------------------------
+        cluster_points : bool, optional
+            boolean to activate the automatic frequency spacing method. If True, the
+            method uses _clustering_points() to create an speed_range.
+            Default is False
+        num_points : int, optional
+            The number of points generated per critical speed.
+            The method set the same number of points for slightly less and slightly
+            higher than the natural circular frequency. It means there'll be num_points
+            greater and num_points smaller than a given critical speed.
+            num_points may be between 2 and 12. Anything above this range defaults
+            to 10 and anything below this range defaults to 4.
+            The default is 10.
+        num_modes
+            The number of eigenvalues and eigenvectors to be calculated using ARPACK.
+            It also defines the range for the output array, since the method generates
+            points only for the critical speed calculated by run_critical_speed().
+            Default is 12.
+        rtol : float, optional
+            Tolerance (relative) for termination. Applied to scipy.optimize.newton to
+            calculate the approximated critical speeds.
+            Default is 0.005 (0.5%).
 
         Returns
         -------
@@ -1537,13 +1622,29 @@ class Rotor(object):
         >>> response.magnitude # doctest: +ELLIPSIS
         array([[0.00000000e+00, 5.06073311e-04, 2.10044826e-03, ...
 
-        # plot unbalance response:
+        Using clustered points option.
+        Set `cluster_points=True` and choose how many modes the method must search and
+        how many points to add just before and after each critical speed.
+
+        >>> response2 = rotor.run_unbalance_response(
+        ...     node=3, magnitude=0.01, phase=0.0, cluster_points=True, num_points=5
+        ... )
+        >>> response2.speed_range.shape
+        (60,)
+
+        plot unbalance response:
         >>> fig = response.plot(dof=13)
 
-        # plot deflected shape configuration
+        plot deflected shape configuration
         >>> value = 600
         >>> fig = response.plot_deflected_shape(speed=value)
         """
+        if frequency_range is None:
+            if cluster_points:
+                frequency_range = self._clustering_points(
+                    num_modes, num_points, modes, rtol
+                )
+
         force = np.zeros((self.ndof, len(frequency_range)), dtype=np.complex)
 
         try:
@@ -1552,8 +1653,12 @@ class Rotor(object):
         except TypeError:
             force = self._unbalance_force(node, magnitude, phase, frequency_range)
 
+        # fmt: off
         ub = np.vstack((node, magnitude, phase))
-        forced_response = self.forced_response(force, frequency_range, modes, ub)
+        forced_response = self.forced_response(
+            force, frequency_range, modes, cluster_points, num_modes, num_points, rtol, ub
+        )
+        # fmt: on
 
         return forced_response
 
