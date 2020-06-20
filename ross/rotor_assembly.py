@@ -2327,35 +2327,26 @@ class Rotor(object):
 
         sio.savemat("%s/%s.mat" % (os.getcwd(), file_path), dic)
 
-    def save(self, rotor_name="rotor", file_path=Path(".")):
-        """Save rotor to toml file.
+    def save(self, file):
+        """Save the rotor to a ROSS model file (.rsm).
 
         Parameters
         ----------
-        file_path : str
+        file : str or pathlib.Path
 
         Examples
         --------
         >>> rotor = rotor_example()
-        >>> rotor.save('new_rotor')
-        >>> Rotor.remove('new_rotor')
+        >>> rotor.save('/tmp/new_rotor')
         """
-        path_rotor = Path(file_path)
+        if isinstance(file, Path):
+            rotor_folder = file
+        else:
+            rotor_folder = Path.cwd() / file
 
-        if os.path.isdir(path_rotor / rotor_name):
-            if int(
-                input(
-                    "There is a rotor with this file_path, do you want to overwrite it? (1 for yes and 0 for no)"
-                )
-            ):
-                shutil.rmtree(path_rotor / rotor_name)
-            else:
-                return "The rotor was not saved."
-
-        os.mkdir(path_rotor / rotor_name)
-        rotor_folder = path_rotor / rotor_name
-        os.mkdir(rotor_folder / "results")
-        os.mkdir(rotor_folder / "elements")
+        Path.mkdir(rotor_folder, parents=True)
+        Path.mkdir(rotor_folder / "results")
+        Path.mkdir(rotor_folder / "elements")
 
         with open(rotor_folder / "properties.toml", "w") as f:
             toml.dump({"parameters": self.parameters}, f)
@@ -2365,13 +2356,19 @@ class Rotor(object):
         for element in self.elements:
             element.save(elements_folder)
 
+        shutil.make_archive(rotor_folder, "zip", rotor_folder)
+        rsm_file = rotor_folder.parent / f"{rotor_folder}.zip"
+        rsm_file.rename(f"{rotor_folder}.rsm")
+        shutil.rmtree(rotor_folder)
+
     @staticmethod
-    def load(file_path):
+    def load(file):
         """Load rotor from toml file.
 
         Parameters
         ----------
-        file_path : str
+        file : str or pathlib.Path
+            String or Path for a ROSS model file (.rsm).
 
         Returns
         -------
@@ -2380,20 +2377,23 @@ class Rotor(object):
         Example
         -------
         >>> rotor1 = rotor_example()
-        >>> rotor1.save(Path('.')/'new_rotor1')
-        >>> rotor2 = Rotor.load(Path('.')/'new_rotor1')
+        >>> rotor1.save('/tmp/new_rotor1')
+        >>> rotor2 = Rotor.load('/tmp/new_rotor1.rsm')
         >>> rotor1 == rotor2
         True
-        >>> Rotor.remove('new_rotor1')
         """
-        rotor_path = Path(file_path)
+        if not isinstance(file, Path):
+            file = Path.cwd() / file
 
-        if os.path.isdir(rotor_path / "elements"):
-            elements_path = rotor_path / "elements"
+        rotor_folder = file.parent / file.name.replace(".rsm", "")
+        shutil.unpack_archive(file, rotor_folder, format="zip")
+
+        if (rotor_folder / "elements").is_dir():
+            elements_path = rotor_folder / "elements"
         else:
             raise FileNotFoundError("Elements folder not found.")
 
-        with open(rotor_path / "properties.toml", "r") as f:
+        with open(rotor_folder / "properties.toml", "r") as f:
             parameters = toml.load(f)["parameters"]
 
         global_elements = {}
@@ -2410,28 +2410,9 @@ class Rotor(object):
                         elements.append(eval(element))
             global_elements[convert(element_class + "s")] = elements
 
+        shutil.rmtree(rotor_folder)
+
         return Rotor(**global_elements, **parameters)
-
-    @staticmethod
-    def remove(file_path):
-        """
-        Remove a previously saved rotor in rotors folder.
-
-        Parameters
-        ----------
-        file_path : str
-
-        Example
-        -------
-        >>> rotor = rotor_example()
-        >>> rotor.save('new_rotor2')
-        >>> Rotor.remove('new_rotor2')
-        """
-        try:
-            Rotor.load(file_path)
-            shutil.rmtree(Path(file_path))
-        except:
-            return "This is not a valid rotor."
 
     def run_static(self):
         """Run static analysis.
