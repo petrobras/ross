@@ -1,5 +1,7 @@
 # fmt: off
 from copy import copy, deepcopy
+import os
+from pathlib import Path
 
 import numpy as np
 import pandas as pd
@@ -8,6 +10,12 @@ import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 from scipy.interpolate import interp1d
 from scipy.signal import argrelextrema
+
+import dash
+import dash_core_components as dcc
+import dash_html_components as html
+import dash_bootstrap_components as dbc
+from dash.dependencies import Input, Output, State
 
 from ross.bearing_seal_element import BearingElement, SealElement
 from ross.disk_element import DiskElement
@@ -398,16 +406,65 @@ class Report:
 
         self.rotor = rotor0
 
-        return (
-            fig_ucs,
-            fig_mode_shape,
-            fig_unbalance,
-            df_unbalance,
-            fig_a_lvl1,
-            fig_b_lvl1,
-            df_lvl2,
-            summaries,
+        return {
+            "fig_ucs": fig_ucs,
+            "fig_mode_shape": fig_mode_shape,
+            "fig_unbalance": fig_unbalance,
+            "df_unbalance": df_unbalance,
+            "fig_a_lvl1": fig_a_lvl1,
+            "fig_b_lvl1": fig_b_lvl1,
+            "df_lvl2": df_lvl2,
+            "summaries": summaries,
+        }
+
+    def generate_report(self, D, H, HP, oper_speed, RHO_ratio, RHOs, RHOd, unit="m"):
+
+        #dashboard_data = self.run(D, H, HP, oper_speed, RHO_ratio, RHOs, RHOd, unit="m")
+
+        #####################################################
+        ##APENAS PARA NAO RODAR ANALISES DESNECESSARIAMENTE##
+        import pickle as p
+
+        with open("data.pickle", "rb") as f:
+            dashboard_data = p.load(f)
+        #####################################################
+
+        external_stylesheets = [dbc.themes.LUMEN]
+        rotor = self.rotor
+
+        # dropdown menu
+        dropdown = dbc.DropdownMenu(
+            label="Menu",
+            children=[
+                dbc.DropdownMenuItem("Item 1"),
+                dbc.DropdownMenuItem("Item 2"),
+                dbc.DropdownMenuItem("Item 3"),
+            ],
         )
+        #
+
+        app = dash.Dash(__name__, external_stylesheets=external_stylesheets)
+
+        app.layout = html.Div(children=[
+
+            dbc.Row([dbc.Col(html.H1(children='ROSS Report'), width={"size":9, "offset": 1}),
+                     dbc.Col(html.Img(src=app.get_asset_url('ross-logo.svg')),)]),
+
+            dbc.Col(html.Div(children=dcc.Markdown(
+                '''This report is automatically generated using [ROSS](https://github.com/ross-rotordynamics/ross).
+                '''
+                )
+            ),
+                    width={"size": 12, "offset": 1}),
+
+            dbc.Col(dropdown, width={"size": 11, "offset": 10}),
+            dcc.Graph(
+                id='example-graph',
+                figure=rotor.plot_rotor()
+            )
+        ])
+
+        return app
 
     def plot_ucs(self, stiffness_range=None, num=20):
         """Plot undamped critical speed map.
