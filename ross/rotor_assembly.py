@@ -190,6 +190,11 @@ class Rotor(object):
             )
         ]
 
+        # check if tags are unique
+        tags_list = [el.tag for el in self.elements]
+        if len(tags_list) != len(set(tags_list)):
+            raise ValueError("Tags should be unique.")
+
         self.number_dof = self._check_number_dof()
 
         ####################################################
