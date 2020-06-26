@@ -126,66 +126,6 @@ class DiskElement(Element):
     def __hash__(self):
         return hash(self.tag)
 
-    def save(self, file_name=os.getcwd()):
-        """Save a disk element in a toml format.
-
-        It works as an auxiliary function of the save function in the Rotor class.
-
-        Parameters
-        ----------
-        file_name : string
-            The name of the file the disk element will be saved in.
-
-        Examples
-        --------
-        >>> disk = disk_example()
-        >>> disk.save()
-        """
-        data = self.get_data(Path(file_name) / "DiskElement.toml")
-        data["DiskElement"][str(self.n)] = {
-            "n": self.n,
-            "m": self.m,
-            "Id": self.Id,
-            "Ip": self.Ip,
-            "tag": self.tag,
-            "scale_factor": self.scale_factor,
-            "color": self.color,
-        }
-        self.dump_data(data, Path(file_name) / "DiskElement.toml")
-
-    @staticmethod
-    def load(file_name=os.getcwd()):
-        """Load a list of disk elements saved in a toml format.
-
-        It works as an auxiliary function of the load function in the Rotor class.
-
-        Parameters
-        ----------
-        file_name: str
-            The name of the file of the disk element to be loaded.
-
-        Returns
-        -------
-        disk_elements: list
-            A list of disk elements.
-
-        Examples
-        --------
-        >>> disk1 = disk_example()
-        >>> disk1.save(os.getcwd())
-        >>> list_of_disks = DiskElement.load(os.getcwd())
-        >>> disk1 == list_of_disks[0]
-        True
-        """
-        disk_elements = []
-        with open("DiskElement.toml", "r") as f:
-            disk_elements_dict = toml.load(f)
-            for element in disk_elements_dict["DiskElement"]:
-                disk_elements.append(
-                    DiskElement(**disk_elements_dict["DiskElement"][element])
-                )
-        return disk_elements
-
     def dof_mapping(self):
         """Degrees of freedom mapping.
 
@@ -354,12 +294,7 @@ class DiskElement(Element):
         y_upper.append(None)
         y_pos.extend(y_lower)
 
-        customdata = [
-            self.n,
-            self.Ip,
-            self.Id,
-            self.m,
-        ]
+        customdata = [self.n, self.Ip, self.Id, self.m]
         hovertemplate = (
             f"<b>Disk Node: {customdata[0]}<b><br>"
             + f"<b>Polar Inertia: {customdata[1]:.3e}<b><br>"
@@ -419,15 +354,7 @@ class DiskElement(Element):
     @classmethod
     @check_units
     def from_geometry(
-        cls,
-        n,
-        material,
-        width,
-        i_d,
-        o_d,
-        tag=None,
-        scale_factor=1.0,
-        color="Firebrick",
+        cls, n, material, width, i_d, o_d, tag=None, scale_factor=1.0, color="Firebrick"
     ):
         """Create a disk element from geometry properties.
 
@@ -485,9 +412,7 @@ class DiskElement(Element):
         return cls(n, m, Id, Ip, tag, scale_factor, color)
 
     @classmethod
-    def from_table(
-        cls, file, sheet_name=0, tag=None, scale_factor=None, color=None,
-    ):
+    def from_table(cls, file, sheet_name=0, tag=None, scale_factor=None, color=None):
         """Instantiate one or more disks using inputs from an Excel table.
 
         A header with the names of the columns is required. These names should
