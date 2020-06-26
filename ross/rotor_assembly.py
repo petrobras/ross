@@ -27,6 +27,7 @@ from ross.bearing_seal_element import (BallBearingElement, BearingElement,
                                        RollerBearingElement, SealElement)
 from ross.disk_element import DiskElement, DiskElement6DoF
 from ross.materials import steel
+from ross.point_mass import PointMass
 from ross.results import (CampbellResults, ConvergenceResults,
                           CriticalSpeedResults, ForcedResponseResults,
                           FrequencyResponseResults, ModalResults,
@@ -2333,7 +2334,7 @@ class Rotor(object):
         sio.savemat("%s/%s.mat" % (os.getcwd(), file_path), dic)
 
     def save(self, file):
-        """Save the rotor to a ROSS model file (.rsm).
+        """Save the rotor to a .toml file.
 
         Parameters
         ----------
@@ -2342,32 +2343,15 @@ class Rotor(object):
         Examples
         --------
         >>> rotor = rotor_example()
-        >>> rotor.save('/tmp/new_rotor')
+        >>> rotor.save('/tmp/rotor.toml')
         """
-        if isinstance(file, Path):
-            rotor_folder = file
-        else:
-            rotor_folder = Path.cwd() / file
-
-        Path.mkdir(rotor_folder, parents=True)
-        Path.mkdir(rotor_folder / "results")
-        Path.mkdir(rotor_folder / "elements")
-
-        with open(rotor_folder / "properties.toml", "w") as f:
+        with open(file, "w") as f:
             toml.dump({"parameters": self.parameters}, f)
+        for el in self.elements:
+            el.save(file)
 
-        elements_folder = rotor_folder / "elements"
-
-        for element in self.elements:
-            element.save(elements_folder)
-
-        shutil.make_archive(rotor_folder, "zip", rotor_folder)
-        rsm_file = rotor_folder.parent / f"{rotor_folder}.zip"
-        rsm_file.rename(f"{rotor_folder}.rsm")
-        shutil.rmtree(rotor_folder)
-
-    @staticmethod
-    def load(file):
+    @classmethod
+    def load(cls, file):
         """Load rotor from toml file.
 
         Parameters
@@ -2382,42 +2366,42 @@ class Rotor(object):
         Example
         -------
         >>> rotor1 = rotor_example()
-        >>> rotor1.save('/tmp/new_rotor1')
-        >>> rotor2 = Rotor.load('/tmp/new_rotor1.rsm')
+        >>> rotor1.save('/tmp/new_rotor1.toml')
+        >>> rotor2 = Rotor.load('/tmp/new_rotor1.toml')
         >>> rotor1 == rotor2
         True
         """
-        if not isinstance(file, Path):
-            file = Path.cwd() / file
+        data = toml.load(file)
+        parameters = data["parameters"]
 
-        rotor_folder = file.parent / file.name.replace(".rsm", "")
-        shutil.unpack_archive(file, rotor_folder, format="zip")
+        elements = []
+        for el_name, el_data in data.items():
+            if el_name == "parameters":
+                continue
+            class_name = el_name.split("_")[0]
+            elements.append(globals()[class_name].read_toml_data(el_data))
 
-        if (rotor_folder / "elements").is_dir():
-            elements_path = rotor_folder / "elements"
-        else:
-            raise FileNotFoundError("Elements folder not found.")
+        shaft_elements = []
+        disk_elements = []
+        bearing_elements = []
+        point_mass_elements = []
+        for el in elements:
+            if isinstance(el, ShaftElement):
+                shaft_elements.append(el)
+            elif isinstance(el, DiskElement):
+                disk_elements.append(el)
+            elif isinstance(el, BearingElement):
+                bearing_elements.append(el)
+            elif isinstance(el, PointMass):
+                point_mass_elements.append(el)
 
-        with open(rotor_folder / "properties.toml", "r") as f:
-            parameters = toml.load(f)["parameters"]
-
-        global_elements = {}
-        for el in os.listdir(elements_path):
-            elements = []
-            if ".toml" in el:
-                with open(Path(elements_path) / el, "r") as f:
-                    el_dict = toml.load(f)
-                    element_class = list(el_dict.keys())[0]
-                    for el_number in el_dict[element_class]:
-                        element = (
-                            element_class + f"(**{el_dict[element_class][el_number]})"
-                        )
-                        elements.append(eval(element))
-            global_elements[convert(element_class + "s")] = elements
-
-        shutil.rmtree(rotor_folder)
-
-        return Rotor(**global_elements, **parameters)
+        return cls(
+            shaft_elements=shaft_elements,
+            disk_elements=disk_elements,
+            bearing_elements=bearing_elements,
+            point_mass_elements=point_mass_elements,
+            **parameters,
+        )
 
     def run_static(self):
         """Run static analysis.
