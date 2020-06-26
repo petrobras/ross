@@ -210,7 +210,6 @@ class Material:
         Examples
         --------
         >>> import ross as rs
-        >>> rs.steel.save_material()
         >>> steel = rs.Material.use_material('Steel')
         """
         data = Material.get_data()

@@ -2302,12 +2302,12 @@ class Rotor(object):
 
         return results
 
-    def save_mat(self, file_path, speed, frequency=None):
+    def save_mat(self, file, speed, frequency=None):
         """Save matrices and rotor model to a .mat file.
 
         Parameters
         ----------
-        file_path : str
+        file : str, pathlib.Path
 
         speed: float
             Rotor speed.
@@ -2318,7 +2318,7 @@ class Rotor(object):
         Examples
         --------
         >>> rotor = rotor_example()
-        >>> rotor.save_mat('new_matrices.mat', speed=0)
+        >>> rotor.save_mat('/tmp/new_matrices', speed=0)
         """
         if frequency is None:
             frequency = speed
@@ -2331,7 +2331,7 @@ class Rotor(object):
             "nodes": self.nodes_pos,
         }
 
-        sio.savemat("%s/%s.mat" % (os.getcwd(), file_path), dic)
+        sio.savemat(file, dic)
 
     def save(self, file):
         """Save the rotor to a .toml file.
@@ -2357,7 +2357,7 @@ class Rotor(object):
         Parameters
         ----------
         file : str or pathlib.Path
-            String or Path for a ROSS model file (.rsm).
+            String or Path for a .toml file.
 
         Returns
         -------
