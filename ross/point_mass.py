@@ -113,64 +113,6 @@ class PointMass(Element):
             f" my={self.my:{0}.{5}}, tag={self.tag!r})"
         )
 
-    def save(self, file_name=os.getcwd()):
-        """Save a point mass element in a toml format.
-
-        It works as an auxiliary function of the save function in the Rotor class.
-
-        Parameters
-        ----------
-        file_name: string
-            The name of the file the point mass element will be saved in.
-
-        Examples
-        --------
-        >>> point_mass = point_mass_example()
-        >>> point_mass.save()
-        """
-        data = self.get_data(Path(file_name) / "PointMass.toml")
-        data["PointMass"][str(self.n)] = {
-            "n": self.n,
-            "m": self.m,
-            "mx": self.mx,
-            "my": self.my,
-            "tag": self.tag,
-        }
-        self.dump_data(data, Path(file_name) / "PointMass.toml")
-
-    @staticmethod
-    def load(file_name=os.getcwd()):
-        """Load a list of point mass elements saved in a toml format.
-
-        It works as an auxiliary function of the load function in the Rotor class.
-
-        Parameters
-        ----------
-        file_name: str
-            The name of the file of the point mass element to be loaded.
-
-        Returns
-        -------
-        point_mass_elements: list
-            A list of point mass elements.
-
-        Examples
-        --------
-        >>> point_mass1 = point_mass_example()
-        >>> point_mass1.save(os.getcwd())
-        >>> list_of_pointmass = PointMass.load(os.getcwd())
-        >>> point_mass1 == list_of_pointmass[0]
-        True
-        """
-        point_mass_elements = []
-        with open("PointMass.toml", "r") as f:
-            point_mass_dict = toml.load(f)
-            for element in point_mass_dict["PointMass"]:
-                point_mass_elements.append(
-                    PointMass(**point_mass_dict["PointMass"][element])
-                )
-        return point_mass_elements
-
     def M(self):
         """Mass matrix for an instance of a point mass element.
 
@@ -305,11 +247,7 @@ class PointMass(Element):
         zpos, ypos = position
         radius = ypos / 8
 
-        customdata = [
-            self.n,
-            self.mx,
-            self.my,
-        ]
+        customdata = [self.n, self.mx, self.my]
         hovertemplate = (
             f"<b>PointMass Node: {customdata[0]}<b><br>"
             + f"<b>Mass (X): {customdata[1]:.3f}<b><br>"
