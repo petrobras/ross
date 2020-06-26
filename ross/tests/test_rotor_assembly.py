@@ -1766,3 +1766,10 @@ def test_ucs_calc(rotor8):
     assert_allclose(rotor_wn[0, :3], exp_rotor_wn)
     assert_allclose(intersection_points["x"][:3], exp_intersection_points_x, rtol=1e-3)
     assert_allclose(intersection_points["y"][:3], exp_intersection_points_y, rtol=1e-3)
+
+
+def test_save_load(rotor8):
+    rotor8.save("/tmp/rotor8.toml")
+    rotor8_loaded = Rotor.load("/tmp/rotor8.toml")
+
+    rotor8 == rotor8_loaded
