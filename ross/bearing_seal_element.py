@@ -507,6 +507,29 @@ class BearingElement(Element):
         return hash(self.tag)
 
     def save(self, file):
+        """Save the element in a .toml file.
+
+        This function will save the element to a .toml file.
+        The file will have all the argument's names and values that are needed to
+        reinstantiate the element.
+
+        Parameters
+        ----------
+        file : str, pathlib.Path
+            The name of the file the element will be saved in.
+
+        Examples
+        --------
+        >>> # Example using DiskElement
+        >>> import ross as rs
+        >>> kxx = 1e6
+        >>> kyy = 0.8e6
+        >>> cxx = 2e2
+        >>> cyy = 1.5e2
+        >>> frequency = np.linspace(0, 200, 11)
+        >>> bearing0 = rs.BearingElement(n=0, kxx=kxx, kyy=kyy, cxx=cxx, cyy=cyy, frequency=frequency)
+        >>> bearing0.save('/tmp/bearing0.toml')
+        """
         try:
             data = toml.load(file)
         except FileNotFoundError:
