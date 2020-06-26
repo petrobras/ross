@@ -204,65 +204,6 @@ class Element(ABC):
         attributes["type"] = self.__class__.__name__
         return pd.Series(attributes)
 
-    @staticmethod
-    def get_data(file_name):
-        """Load elements data saved in a toml format.
-
-        Parameters
-        ----------
-        file_name: string
-            The name of the file to be loaded.
-
-        Returns
-        -------
-        data: dict
-            The element parameters presented as a dictionary.
-
-        Examples
-        --------
-        >>> # Example using BearingElement
-        >>> from ross.bearing_seal_element import bearing_example
-        >>> from ross.bearing_seal_element import BearingElement
-        >>> bearing = bearing_example()
-        >>> bearing.save(Path('.'))
-        >>> BearingElement.get_data('BearingElement.toml') # doctest: +ELLIPSIS
-        {'BearingElement': {'0': {'n': 0, 'kxx': [1000000.0, 1000000.0,...
-        """
-        try:
-            with open(file_name, "r") as f:
-                data = toml.load(f)
-                if data == {"": {}}:
-                    data = {str(file_name.name)[:-5]: {}}
-
-        except FileNotFoundError:
-            data = {str(file_name.name)[:-5]: {}}
-            Element.dump_data(data, file_name)
-        return data
-
-    @staticmethod
-    def dump_data(data, file_name):
-        """Dump element data in a toml file.
-
-        Parameters
-        ----------
-        data: dict
-            The data that should be dumped.
-        file_name: string
-            The name of the file the data will be dumped in.
-
-        Examples
-        --------
-        >>> # Example using BearingElement
-        >>> from ross.bearing_seal_element import bearing_example
-        >>> from ross.bearing_seal_element import BearingElement
-        >>> bearing = bearing_example()
-        >>> bearing.save(Path('.'))
-        >>> data = BearingElement.get_data('BearingElement.toml')
-        >>> BearingElement.dump_data(data, 'BearingElement.toml') # doctest: +ELLIPSIS
-        """
-        with open(file_name, "w") as f:
-            toml.dump(data, f)
-
     @abstractmethod
     def dof_mapping(self):
         """Degrees of freedom mapping.
