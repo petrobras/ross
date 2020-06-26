@@ -47,6 +47,12 @@ def disk_from_geometry():
     return DiskElement.from_geometry(0, steel, 0.07, 0.05, 0.28)
 
 
+def test_save_load(disk, disk_from_geometry):
+    disk.save("/tmp/disk.toml")
+    disk_loaded = DiskElement.load("/tmp/disk.toml")
+    assert disk == disk_loaded
+
+
 def test_mass_matrix_disk1(disk_from_geometry):
     # fmt: off
     Md1 = np.array([[ 32.58973,   0.     ,   0.     ,   0.     ],
