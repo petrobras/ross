@@ -231,6 +231,12 @@ def test_from_table():
     assert_allclose(bearing.kxx.coefficient[2], 53565700)
 
 
+def test_save_load(bearing0):
+    bearing0.save("/tmp/bearing0.toml")
+    bearing0_loaded = BearingElement.load("/tmp/bearing0.toml")
+    assert bearing0 == bearing0_loaded
+
+
 def test_bearing_link_matrices():
     b0 = BearingElement(n=0, n_link=3, kxx=1, cxx=1)
     # fmt: off
