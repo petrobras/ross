@@ -27,3 +27,11 @@ def test_local_index():
 
     assert p.dof_local_index().x_0 == 0
     assert p.dof_local_index().y_0 == 1
+
+
+def test_save_load():
+    p = PointMass(n=0, m=10.0, tag="pointmass")
+    p.save("/tmp/point_mass.toml")
+    p_loaded = p.load("/tmp/point_mass.toml")
+
+    assert p == p_loaded
