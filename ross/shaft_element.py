@@ -382,21 +382,6 @@ class ShaftElement(Element):
         return hash(self.tag)
 
     def save(self, file):
-        """Save shaft elements to toml file.
-
-        Parameters
-        ----------
-        file : str
-
-        Examples
-        --------
-        >>> from ross.materials import steel
-        >>> shaft1 = ShaftElement(
-        ...        L=0.25, idl=0, idr=0, odl=0.05, odr=0.08,
-        ...        material=steel, rotary_inertia=True, shear_effects=True,
-        ... )
-        >>> shaft1.save()
-        """
         signature = inspect.signature(self.__init__)
         args_list = list(signature.parameters)
         args = {arg: getattr(self, arg) for arg in args_list}
