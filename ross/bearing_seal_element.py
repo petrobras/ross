@@ -12,6 +12,7 @@ from pathlib import Path
 import numpy as np
 import plotly.graph_objects as go
 import scipy.interpolate as interpolate
+import toml
 
 from ross.element import Element
 from ross.fluid_flow import fluid_flow as flow
@@ -505,114 +506,30 @@ class BearingElement(Element):
     def __hash__(self):
         return hash(self.tag)
 
-    def save(self, file_name=Path(os.getcwd())):
-        """Save a bearing element in a toml format.
+    def save(self, file):
+        try:
+            data = toml.load(file)
+        except FileNotFoundError:
+            data = {}
 
-        It works as an auxiliary function of the save function in the Rotor class.
-
-        Parameters
-        ----------
-        file_name: string
-            The name of the file the bearing element will be saved in.
-
-        Returns
-        -------
-        None
-
-        Examples
-        --------
-        >>> bearing = bearing_example()
-        >>> bearing.save(Path(os.getcwd()))
-        """
-        data = self.get_data(Path(file_name) / "BearingElement.toml")
-
-        if type(self.frequency) == np.ndarray:
-            try:
-                self.frequency[0]
-                frequency = list(self.frequency)
-            except IndexError:
-                frequency = None
-
-        data["BearingElement"][str(self.n)] = {
+        args = {
             "n": self.n,
-            "kxx": self.kxx.coefficient,
-            "cxx": self.cxx.coefficient,
-            "kyy": self.kyy.coefficient,
-            "kxy": self.kxy.coefficient,
-            "kyx": self.kyx.coefficient,
-            "cyy": self.cyy.coefficient,
-            "cxy": self.cxy.coefficient,
-            "cyx": self.cyx.coefficient,
-            "frequency": frequency,
+            "kxx": [float(i) for i in self.kxx.coefficient],
+            "cxx": [float(i) for i in self.cxx.coefficient],
+            "kyy": [float(i) for i in self.kyy.coefficient],
+            "kxy": [float(i) for i in self.kxy.coefficient],
+            "kyx": [float(i) for i in self.kyx.coefficient],
+            "cyy": [float(i) for i in self.cyy.coefficient],
+            "cxy": [float(i) for i in self.cxy.coefficient],
+            "cyx": [float(i) for i in self.cyx.coefficient],
+            "frequency": [float(i) for i in self.frequency],
             "tag": self.tag,
             "n_link": self.n_link,
             "scale_factor": self.scale_factor,
         }
-        self.dump_data(data, Path(file_name) / "BearingElement.toml")
-
-    @staticmethod
-    def load(file_name=""):
-        """Load a list of bearing elements saved in a toml format.
-
-        It works as an auxiliary function of the load function in the Rotor class.
-
-        Parameters
-        ----------
-        file_name: string
-            The name of the file of the bearing element to be loaded.
-
-        Returns
-        -------
-        A list of bearing elements.
-
-        Examples
-        --------
-        >>> bearing1 = bearing_example()
-        >>> bearing1.save(os.getcwd())
-        >>> list_of_bearings = BearingElement.load(os.getcwd())
-        >>> bearing1 == list_of_bearings[0]
-        True
-        """
-        bearing_elements = []
-        bearing_elements_dict = BearingElement.get_data(
-            file_name=Path(file_name) / "BearingElement.toml"
-        )
-        for element in bearing_elements_dict["BearingElement"]:
-            bearing = BearingElement(**bearing_elements_dict["BearingElement"][element])
-            bearing.kxx.coefficient = bearing_elements_dict["BearingElement"][element][
-                "kxx"
-            ]
-
-            bearing.kxy.coefficient = bearing_elements_dict["BearingElement"][element][
-                "kxy"
-            ]
-
-            bearing.kyx.coefficient = bearing_elements_dict["BearingElement"][element][
-                "kyx"
-            ]
-
-            bearing.kyy.coefficient = bearing_elements_dict["BearingElement"][element][
-                "kyy"
-            ]
-
-            bearing.cxx.coefficient = bearing_elements_dict["BearingElement"][element][
-                "cxx"
-            ]
-
-            bearing.cxy.coefficient = bearing_elements_dict["BearingElement"][element][
-                "cxy"
-            ]
-
-            bearing.cyx.coefficient = bearing_elements_dict["BearingElement"][element][
-                "cyx"
-            ]
-
-            bearing.cyy.coefficient = bearing_elements_dict["BearingElement"][element][
-                "cyy"
-            ]
-
-            bearing_elements.append(bearing)
-        return bearing_elements
+        data[f"{self.__class__.__name__}_{self.tag}"] = args
+        with open(file, "w") as f:
+            toml.dump(data, f)
 
     def dof_mapping(self):
         """Degrees of freedom mapping.
