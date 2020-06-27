@@ -419,6 +419,10 @@ class Report:
 
     def generate_report(self, D, H, HP, oper_speed, RHO_ratio, RHOs, RHOd, unit="m"):
 
+        external_stylesheets = [dbc.themes.LUMEN]
+
+        app = dash.Dash(__name__, external_stylesheets=external_stylesheets)
+
         #dashboard_data = self.run(D, H, HP, oper_speed, RHO_ratio, RHOs, RHOd, unit="m")
 
         #####################################################
@@ -429,26 +433,87 @@ class Report:
             dashboard_data = p.load(f)
         #####################################################
 
-        external_stylesheets = [dbc.themes.LUMEN]
-        rotor = self.rotor
+        plot_rotor = self.rotor.plot_rotor()
+        plot_rotor.layout["height"] = 100
+        plot_rotor.layout["width"] = 100
 
-        # dropdown menu
-        dropdown = dbc.DropdownMenu(
-            label="Menu",
+        plot_rotor.layout["xaxis"]["autorange"] = True
+        plot_rotor.layout["yaxis"]["autorange"] = True
+        plot_rotor.update_layout()
+
+        critical_dropdown = dbc.DropdownMenu(
             children=[
-                dbc.DropdownMenuItem("Item 1"),
-                dbc.DropdownMenuItem("Item 2"),
-                dbc.DropdownMenuItem("Item 3"),
+                dbc.DropdownMenuItem("Undamped Critical Speeds Map", href='undamped'),
+                dbc.DropdownMenuItem("Damped Unbalance Response Analysis", href='https://dash.plot.ly/'),
             ],
+            nav=True,
+            in_navbar=True,
+            label="Critical Speeds Analysis",
         )
-        #
+        stability_dropdown = dbc.DropdownMenu(
+            children=[
+                dbc.DropdownMenuItem("Level 1 Screening Diagrams", href='https://dash.plot.ly/'),
+                dbc.DropdownMenuItem("Level 2 Stability Analysis", href='https://dash.plot.ly/'),
+            ],
+            nav=True,
+            in_navbar=True,
+            label="Stability Analysis",
+        )
+        navbar = dbc.Navbar(
+            dbc.Container(
+                [
+                    html.A(
+                        # Use row and col to control vertical alignment of logo / brand
+                        dbc.Row(
+                            [
+                                dbc.Col([
+                                    html.Img(
+                                        src=app.get_asset_url('ross-logo.svg'),
+                                        height="20px",
+                                        style={"margin-left": "auto", "margin-right": "auto"}
+                                    ),
+                                    dbc.NavbarBrand("ROSS")
+                                ]),
 
-        app = dash.Dash(__name__, external_stylesheets=external_stylesheets)
+                            ],
+                            align="start",
+                            no_gutters=True,
+
+                        ),
+                        href="/",
+                    ),
+                    dbc.NavbarToggler(id="navbar-toggler2"),
+                    dbc.Collapse(
+                        dbc.Nav(
+                            [
+                             critical_dropdown,
+                             stability_dropdown,
+                             ], className="ml-auto", navbar=True
+                        ),
+                        id="navbar-collapse2",
+                        navbar=True,
+                    ),
+                ],
+                className="ml-auto"
+            ),
+            color="light",
+            light=True,
+        )
 
         app.layout = html.Div(children=[
 
-            dbc.Row([dbc.Col(html.H1(children='ROSS Report'), width={"size":9, "offset": 1}),
-                     dbc.Col(html.Img(src=app.get_asset_url('ross-logo.svg')),)]),
+            dcc.Location(id='url', refresh=False),
+
+            navbar,
+
+            html.Div(id="page-content")
+        ])
+
+        initial_page = html.Div(children=[
+
+            dbc.Row([dbc.Col(html.H1(children='ROSS Report'), width={"size": 9, "offset": 1}),
+                     dbc.Col(html.Img(src=app.get_asset_url('ross-logo.svg')))],
+                    className="mt-3"),
 
             dbc.Col(html.Div(children=dcc.Markdown(
                 '''This report is automatically generated using [ROSS](https://github.com/ross-rotordynamics/ross).
@@ -456,13 +521,37 @@ class Report:
                 )
             ),
                     width={"size": 12, "offset": 1}),
-
-            dbc.Col(dropdown, width={"size": 11, "offset": 10}),
+            dbc.Row(dbc.Col(
             dcc.Graph(
-                id='example-graph',
-                figure=rotor.plot_rotor()
-            )
+                id='rotor-graph',
+                figure=self.rotor.plot_rotor(),
+                className="ml-auto",
+                responsive=True,
+
+            )), className="ml-auto")])
+
+        undamped_layout = html.Div([
+            html.H1('Page 1'),
+            dcc.Dropdown(
+                id='page-1-dropdown',
+                options=[{'label': i, 'value': i} for i in ['BEARING', 'SEAL', 'SHAFT']],
+                value='BEARING'
+            ),
+            html.Div(id='page-1-content'),
+            html.Br(),
+            dcc.Link('Go to Page 2', href='/page-2'),
+            html.Br(),
+            dcc.Link('Go back to home', href='/'),
+
         ])
+
+        @app.callback(dash.dependencies.Output('page-content', 'children'),
+                      [dash.dependencies.Input('url', 'pathname')])
+        def display_page(pathname):
+            if pathname == '/undamped':
+                return undamped_layout
+            else:
+                return initial_page
 
         return app
 
