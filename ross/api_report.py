@@ -419,9 +419,8 @@ class Report:
 
     def generate_report(self, D, H, HP, oper_speed, RHO_ratio, RHOs, RHOd, unit="m"):
 
-        external_stylesheets = [dbc.themes.LUMEN]
 
-        app = dash.Dash(__name__, external_stylesheets=external_stylesheets)
+        app = dash.Dash(__name__)#, external_stylesheets=external_stylesheets)
 
         #dashboard_data = self.run(D, H, HP, oper_speed, RHO_ratio, RHOs, RHOd, unit="m")
 
@@ -434,8 +433,8 @@ class Report:
         #####################################################
 
         plot_rotor = self.rotor.plot_rotor()
-        plot_rotor.layout["height"] = 100
-        plot_rotor.layout["width"] = 100
+        plot_rotor.layout["height"] = 50
+        plot_rotor.layout["width"] = 50
 
         plot_rotor.layout["xaxis"]["autorange"] = True
         plot_rotor.layout["yaxis"]["autorange"] = True
@@ -516,15 +515,25 @@ class Report:
                     className="mt-3"),
 
             dbc.Col(html.Div(children=dcc.Markdown(
-                '''This report is automatically generated using [ROSS](https://github.com/ross-rotordynamics/ross).
+                '''This is a report automatically generated using 
+                   [ROSS](https://github.com/ross-rotordynamics/ross), a python package for rotordynamics analysis.
+                
+                
                 '''
                 )
             ),
                     width={"size": 12, "offset": 1}),
+
+            dbc.Col(html.Div(children=dcc.Markdown(
+                '''The main characteristics of this machine are resumed below.
+                '''
+            )
+            ),
+                width={"size": 12, "offset": 1}),
             dbc.Row(dbc.Col(
             dcc.Graph(
                 id='rotor-graph',
-                figure=self.rotor.plot_rotor(),
+                figure=plot_rotor,
                 className="ml-auto",
                 responsive=True,
 
