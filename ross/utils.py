@@ -393,32 +393,13 @@ def visualize_matrix(rotor, matrix, frequency=None, **kwargs):
         )
     )
 
-    fig.update_xaxes(
-        tickfont=dict(size=16),
-        showline=True,
-        linewidth=2.5,
-        linecolor="black",
-        mirror=True,
-    )
-    fig.update_yaxes(
-        tickfont=dict(size=16),
-        showline=True,
-        linewidth=2.5,
-        linecolor="black",
-        mirror=True,
-    )
     fig.update_layout(
-        width=1200,
-        height=900,
-        hoverlabel_align="left",
         coloraxis=dict(
             cmin=np.amin(A),
             cmax=np.amax(A),
             colorscale="Rainbow",
             colorbar=dict(
-                title=dict(text="<b>Value</b>", side="top", font=dict(size=20)),
-                tickfont=dict(size=16),
-                exponentformat="power",
+                title=dict(text="<b>Value</b>", side="top"), exponentformat="power"
             ),
         ),
         **kwargs,
