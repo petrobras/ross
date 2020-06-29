@@ -1347,9 +1347,7 @@ class Report:
         )
 
         # Plotting area
-        default_layout = dict(
-            width=1200, height=900, plot_bgcolor="white", hoverlabel_align="right"
-        )
+
         fig1 = go.Figure()
 
         fig1.add_trace(
@@ -1357,7 +1355,6 @@ class Report:
                 x=cross_coupled_Qa,
                 y=log_dec,
                 mode="lines",
-                line=dict(width=3, color=colors1[5]),
                 showlegend=False,
                 hoverinfo="none",
             )
@@ -1367,7 +1364,6 @@ class Report:
                 x=[Qa],
                 y=[log_dec_a],
                 mode="markers",
-                marker=dict(size=10, color=colors1[5]),
                 name="<b>Qa: Anticipated cross-coupling</b>",
                 hoverinfo="none",
             )
@@ -1380,46 +1376,20 @@ class Report:
             xshift=15,
             yshift=15,
             text="<b>Qa</b>",
-            font=dict(size=14),
             showarrow=False,
         )
         fig1.update_xaxes(
             title_text="<b>Applied Cross-Coupled Stiffness, Q (N/m)</b>",
-            title_font=dict(family="Arial", size=20),
-            tickfont=dict(size=16),
             rangemode="nonnegative",
-            gridcolor="lightgray",
-            showline=True,
-            linewidth=2.5,
-            linecolor="black",
-            mirror=True,
         )
-        fig1.update_yaxes(
-            title_text="<b>Log Dec</b>",
-            title_font=dict(family="Arial", size=20),
-            tickfont=dict(size=16),
-            rangemode="nonnegative",
-            gridcolor="lightgray",
-            showline=True,
-            linewidth=2.5,
-            linecolor="black",
-            mirror=True,
-        )
+        fig1.update_yaxes(title_text="<b>Log Dec</b>", rangemode="nonnegative")
         fig1.update_layout(
             title=dict(
                 text=(
                     "<b>Applied Cross-Coupled Stiffness vs. Log Decrement</b><br>"
                     + "<b>(API 684 - SP 6.8.5.10)</b>"
-                ),
-                font=dict(size=20),
-            ),
-            legend=dict(
-                font=dict(family="sans-serif", size=14),
-                bgcolor="white",
-                bordercolor="black",
-                borderwidth=2,
-            ),
-            **default_layout,
+                )
+            )
         )
 
         fig2 = go.Figure()
@@ -1431,7 +1401,6 @@ class Report:
             xshift=40,
             yshift=0,
             text="<b>{}</b>".format(self.tag),
-            font=dict(size=14),
             showarrow=False,
         )
 
@@ -1444,7 +1413,6 @@ class Report:
                 xshift=0,
                 yshift=0,
                 text=f"<b>{text}</b>",
-                font=dict(size=14),
                 opacity=0.4,
                 showarrow=False,
             )
@@ -1454,7 +1422,6 @@ class Report:
                 x=RHO,
                 y=CSR_boundary,
                 mode="lines",
-                line=dict(width=5, color=colors1[5]),
                 showlegend=False,
                 hoverinfo="none",
                 xaxis="x",
@@ -1465,7 +1432,6 @@ class Report:
                 x=0.062428 * RHO,
                 y=CSR_boundary,
                 mode="lines",
-                line=dict(width=5, color=colors1[5]),
                 showlegend=False,
                 hoverinfo="none",
                 xaxis="x2",
@@ -1476,7 +1442,6 @@ class Report:
                 x=[RHO_mean],
                 y=[CSR],
                 mode="markers",
-                marker=dict(size=10, color=colors1[5]),
                 name="<b>CSR: Critical Speed Ratio</b>",
                 hoverinfo="none",
                 xaxis="x",
@@ -1486,38 +1451,19 @@ class Report:
         fig2.update_xaxes(mirror=True)
         fig2.update_yaxes(
             title_text="<b>Maximum Critical Speed Ratio</b>",
-            title_font=dict(family="Arial", size=20),
-            tickfont=dict(size=16),
             rangemode="nonnegative",
-            gridcolor="lightgray",
-            showline=True,
-            linewidth=2.5,
-            linecolor="black",
-            mirror=True,
             domain=[0.1, 1],
         )
         fig2.update_layout(
             xaxis=dict(
                 title_text="<b>kg/m³</b>",
-                title_font=dict(family="Arial", size=20),
-                tickfont=dict(size=16),
                 rangemode="nonnegative",
-                gridcolor="lightgray",
-                showline=True,
-                linewidth=2.5,
-                linecolor="black",
                 overlaying="x2",
                 anchor="y",
             ),
             xaxis2=dict(
                 title_text="<b>lb/ft³</b>",
-                title_font=dict(family="Arial", size=20),
-                tickfont=dict(size=16),
                 rangemode="nonnegative",
-                showgrid=False,
-                showline=True,
-                linewidth=2.5,
-                linecolor="black",
                 anchor="free",
                 side="bottom",
                 position=0,
@@ -1526,16 +1472,8 @@ class Report:
                 text=(
                     "<b>CSR vs. Mean Gas Density</b><br>"
                     + "<b>(API 684 - SP 6.8.5.10)</b>"
-                ),
-                font=dict(size=20),
+                )
             ),
-            legend=dict(
-                font=dict(family="sans-serif", size=14),
-                bgcolor="white",
-                bordercolor="black",
-                borderwidth=2,
-            ),
-            **default_layout,
         )
 
         # Level 1 screening criteria - API 684 - SP6.8.5.10

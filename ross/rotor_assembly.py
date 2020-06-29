@@ -2210,39 +2210,11 @@ class Rotor(object):
         )
 
         fig.update_xaxes(
-            title_text="<b>Applied Cross Coupled Stiffness</b>",
-            title_font=dict(size=16),
-            tickfont=dict(size=14),
-            gridcolor="lightgray",
-            showline=True,
-            linewidth=2.5,
-            linecolor="black",
-            mirror=True,
-            exponentformat="power",
+            title_text="<b>Applied Cross Coupled Stiffness</b>", exponentformat="power"
         )
-        fig.update_yaxes(
-            title_text="<b>Log Dec</b>",
-            title_font=dict(size=16),
-            tickfont=dict(size=14),
-            gridcolor="lightgray",
-            showline=True,
-            linewidth=2.5,
-            linecolor="black",
-            mirror=True,
-            exponentformat="power",
-        )
+        fig.update_yaxes(title_text="<b>Log Dec</b>", exponentformat="power")
         fig.update_layout(
-            width=1200,
-            height=900,
-            plot_bgcolor="white",
-            legend=dict(
-                font=dict(family="sans-serif", size=14),
-                bgcolor="white",
-                bordercolor="black",
-                borderwidth=2,
-            ),
-            title=dict(text="<b>Level 1 stability analysis</b>", font=dict(size=16)),
-            **kwargs,
+            title=dict(text="<b>Level 1 stability analysis</b>"), **kwargs
         )
 
         return fig
