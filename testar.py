@@ -1,4 +1,4 @@
-import ross.api_report as api
+import ross.report as api
 import os
 report = api.report_example()
 D = [0.35, 0.35]

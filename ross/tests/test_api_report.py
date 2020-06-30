@@ -2,7 +2,7 @@ import numpy as np
 import pytest
 from numpy.testing import assert_allclose
 
-from ross.api_report import Report
+from ross.report import Report
 from ross.bearing_seal_element import BearingElement
 from ross.disk_element import DiskElement
 from ross.materials import steel

@@ -1,6 +1,5 @@
 # fmt: off
 from copy import copy, deepcopy
-import os
 from pathlib import Path
 
 import numpy as np
@@ -11,12 +10,15 @@ from plotly.subplots import make_subplots
 from scipy.interpolate import interp1d
 from scipy.signal import argrelextrema
 
+import jinja2
+
 import dash
 import dash_core_components as dcc
 import dash_html_components as html
 import dash_bootstrap_components as dbc
 from dash.dependencies import Input, Output, State
 
+import ross
 from ross.bearing_seal_element import BearingElement, SealElement
 from ross.disk_element import DiskElement
 from ross.materials import steel
@@ -423,6 +425,7 @@ class Report:
         app = dash.Dash(__name__)
         prim_color = "#333333"
         sec_color =  "#555555"
+
         #dashboard_data = self.run(D, H, HP, oper_speed, RHO_ratio, RHOs, RHOd, unit="m")
 
         #####################################################
@@ -674,6 +677,193 @@ Therefore, the vibration amplitudes are normalized with respect to the maximum l
             else:
                 return initial_page
 
+        return app
+
+    def export_html(self, D, H, HP, oper_speed, RHO_ratio, RHOs, RHOd, unit="m"):
+
+        ross_path = Path(ross.__file__).parent
+        jinja_env = jinja2.Environment(jinja2.FileSystemLoader(ross_path))
+        template = jinja_env.get_template("template.html")
+
+        # dashboard_data = self.run(D, H, HP, oper_speed, RHO_ratio, RHOs, RHOd, unit="m")
+
+        #####################################################
+        ##APENAS PARA NAO RODAR ANALISES DESNECESSARIAMENTE##
+        import pickle as p
+
+        with open("data.pickle", "rb") as f:
+            dashboard_data = p.load(f)
+        #####################################################
+        bearing_span = sum([i for i in self.rotor.shaft_elements_length[
+                                       self.rotor.bearing_elements[0].n:self.rotor.bearing_elements[1].n + 1]])
+
+        plot_rotor = self.rotor.plot_rotor()
+        plot_rotor.layout["height"] = 500
+        plot_rotor.layout["width"] = 1000
+
+        plot_rotor.layout["xaxis"]["autorange"] = True
+        plot_rotor.layout["yaxis"]["autorange"] = True
+        plot_rotor.update_layout()
+
+        ucs_fig = make_subplots(cols=2, rows=1,
+                                x_title="Bearing Stiffness",
+                                y_title="Critical Speed",
+                                subplot_titles=["Undamped Critical Speed Map", "", "", ""])
+
+        ucs_row = 1
+        ucs_col = 1
+        for fig in dashboard_data["fig_ucs"]:
+            for j in fig.data:
+                ucs_fig.add_trace(j, row=ucs_row, col=ucs_col)
+            if ucs_col == 1:
+                ucs_col = 2
+
+        ucs_fig.layout["height"] = 500
+        ucs_fig.layout["width"] = 1000
+        ucs_fig.update_layout()
+
+        mode_fig = make_subplots(cols=2, rows=2,
+                                 x_title="Rotor length",
+                                 y_title="Non dimensional deformation",
+                                 subplot_titles=["Undamped Mode Shape", "", "", ""])
+        mode_row = 1
+        mode_col = 1
+
+        for fig in dashboard_data["fig_mode_shape"]:
+            for j in fig.data:
+                mode_fig.add_trace(j, row=mode_row, col=mode_col)
+            if mode_col == 1:
+                mode_col = 2
+            else:
+                mode_row = 2
+                mode_col = 1
+        mode_fig.layout["height"] = 1000
+        mode_fig.layout["width"] = 1000
+        mode_fig.update_layout()
+
+        initial_page = html.Div(children=[dbc.Col([
+
+            dbc.Col(html.Div(children=dcc.Markdown(
+                '''This is a report automatically generated using 
+                   [ROSS](https://github.com/ross-rotordynamics/ross), a python package for rotordynamics analysis.  
+                   Below there's a graphical representation of the rotor analyzed.
+
+
+                '''
+                , style={"color": sec_color}), className="ml-3 mt-3 mb-0 pb-0"
+            ),
+                width={"size": 9, "offset": 1}),
+
+            dbc.Row(dcc.Graph(
+                id='plot_rotor',
+                figure=plot_rotor,
+            )
+                ,
+                justify="center"
+            ),
+
+            dbc.Col(html.Div(children=dcc.Markdown(
+                '''The main characteristics of this machine are resumed below.
+                ''', style={"color": sec_color}), className="ml-3"
+            ),
+                width={"size": 12, "offset": 1}
+            ),
+            dbc.Row(dbc.Table([html.Tbody([
+                html.Tr([html.Td("Rotor length", style={"color": sec_color}),
+                         html.Td(f"{self.rotor.L} m", style={"color": sec_color})]),
+                html.Tr([html.Td("Rotor total mass", style={"color": sec_color}),
+                         html.Td(f"{float('%.3f' % (self.rotor.m))} kg", style={"color": sec_color})]),
+                html.Tr([html.Td("Bearing Span", style={"color": sec_color}),
+                         html.Td(f"{bearing_span} m", style={"color": sec_color})]), ])], bordered=True, hover=True
+                , size="sm"), className="w-25 mx-auto", style={"color": sec_color}),
+
+            dbc.Row([dbc.Col(
+                html.H1(children='Critical Speed Analysis', id="critical-speed", style={"color": prim_color}),
+                width={"size": 9, "offset": 1}), ],
+                    className="mt-3 ml-3"),
+            dbc.Col(html.Div(children=dcc.Markdown(
+                '''In this section the calculations carried out to evaluate the critical speed map and the rotor
+response to unbalance are described. The results of each calculation are shown at the end of
+this paragraph.
+                ''', style={"color": sec_color}
+            ), className="ml-3 mt-3 mb-0 pb-0"
+            ),
+                width={"size": 9, "offset": 1}),
+            dbc.Row([dbc.Col(html.H1(children='Undamped Critical Speed Analysis', id="undamped-critical-speed",
+                                     style={"color": prim_color}),
+                             width={"size": 9, "offset": 1}), ],
+                    className="mt-3 ml-3"),
+
+            dbc.Col(html.Div(children=dcc.Markdown(
+                '''The undamped critical speed analysis is carried out according to API 617 7th edition para.
+2.6.2.3. The rotor system as described in Appendix 1 is used.
+The bearings are represented by an equivalent spring constant between rotor and pedestals,
+which may then be considered as elastically mounted. Isotropic, linear bearing
+characteristics are assumed and no damping is considered present in the system.
+The stiffness range selected for the calculation is such to properly describe the behavior of
+the rotor and provide the required information to perform the next analysis steps.
+The actual stiffness range (achievable by adjusting bearing clearance) is much more limited
+and always inside the calculation range.
+The rotordynamic system is solved and the undamped lateral critical speeds are calculated
+as a function of support equivalent stiffness over the user defined stiffness range.
+The results are summarized in the critical speed maps as shown in the following pages.
+Superimposed on the same plot are the horizontal and vertical Bearing Clearance curves (Kxx
+and Kzz ) either for maximum and minimum Bearing Clearance.
+The intersections of the vertical Bearing Clearance and critical speed curves provide the
+undamped critical speed values and give, in a preliminary way, a rough estimation of the
+critical speed and Bearing Clearance range in operation.
+The 1st and 2nd mode shapes for maximum and minimum Bearing Clearance are also
+attached, with the only intent of mode shape identification.
+Therefore, the vibration amplitudes are normalized with respect to the maximum level.
+                ''', style={"color": sec_color}
+            ), className="ml-3 mt-3 mb-0 pb-0 text-justify"
+            ),
+                width={"size": 9, "offset": 1}),
+
+            html.P(style={"page-break-before": "always"}),
+
+            dbc.Row(dcc.Graph(
+                id='fig-ucs-1',
+                figure=ucs_fig,
+            )
+                ,
+                justify="center"
+            ),
+
+            dbc.Row(dcc.Graph(
+                id='fig-ucs-1',
+                figure=mode_fig,
+            )
+                ,
+                justify="center"
+            ),
+
+        ])
+        ]
+        )
+
+        undamped_layout = html.Div([
+            html.H1('Page 1'),
+            dcc.Dropdown(
+                id='page-1-dropdown',
+                options=[{'label': i, 'value': i} for i in ['BEARING', 'SEAL', 'SHAFT']],
+                value='BEARING'
+            ),
+            html.Div(id='page-1-content'),
+            html.Br(),
+            dcc.Link('Go to Page 2', href='/page-2'),
+            html.Br(),
+            dcc.Link('Go back to home', href='/'),
+
+        ])
+
+        @app.callback(dash.dependencies.Output('page-content', 'children'),
+                      [dash.dependencies.Input('url', 'pathname')])
+        def display_page(pathname):
+            if pathname == '/undamped':
+                return undamped_layout
+            else:
+                return initial_page
 
         return app
 
