@@ -45,6 +45,8 @@ with open("requirements.txt") as f:
 # What packages are optional?
 EXTRAS = {
     "dev": [
+        "dash",
+        "dash_bootstrap_components",
         "pytest>=4.6",
         "pytest-cov",
         "coverage",
