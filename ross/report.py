@@ -111,15 +111,15 @@ class Report:
     """
 
     def __init__(
-            self,
-            rotor,
-            speed_range,
-            tripspeed,
-            bearing_stiffness_range=None,
-            bearing_clearance_lists=None,
-            machine_type="compressor",
-            speed_units="rpm",
-            tag=None,
+        self,
+        rotor,
+        speed_range,
+        tripspeed,
+        bearing_stiffness_range=None,
+        bearing_clearance_lists=None,
+        machine_type="compressor",
+        speed_units="rpm",
+        tag=None,
     ):
         self.rotor = rotor
         self.speed_units = speed_units
@@ -211,15 +211,15 @@ class Report:
 
     @classmethod
     def from_saved_rotors(
-            cls,
-            path,
-            speed_range,
-            tripspeed,
-            bearing_stiffness_range=None,
-            bearing_clearance_lists=None,
-            machine_type="compressor",
-            speed_units="rpm",
-            tag=None,
+        cls,
+        path,
+        speed_range,
+        tripspeed,
+        bearing_stiffness_range=None,
+        bearing_clearance_lists=None,
+        machine_type="compressor",
+        speed_units="rpm",
+        tag=None,
     ):
         """Instantiate a rotor from a previously saved rotor model.
 
@@ -438,9 +438,9 @@ class Report:
             [
                 i
                 for i in self.rotor.shaft_elements_length[
-                         self.rotor.bearing_elements[0].n: self.rotor.bearing_elements[1].n
-                                                           + 1
-                         ]
+                    self.rotor.bearing_elements[0].n : self.rotor.bearing_elements[1].n
+                    + 1
+                ]
             ]
         )
 
@@ -503,7 +503,7 @@ class Report:
                     dbc.NavbarToggler(id="navbar-toggler2"),
                     dbc.Collapse(
                         dbc.Nav(
-                            [critical_dropdown, stability_dropdown, ],
+                            [critical_dropdown, stability_dropdown,],
                             className="ml-auto",
                             navbar=True,
                         ),
@@ -563,7 +563,7 @@ class Report:
                             width={"size": 9, "offset": 1},
                         ),
                         dbc.Row(
-                            dcc.Graph(id="plot_rotor", figure=plot_rotor, ),
+                            dcc.Graph(id="plot_rotor", figure=plot_rotor,),
                             justify="center",
                         ),
                         dbc.Col(
@@ -699,10 +699,10 @@ class Report:
                         ),
                         html.P(style={"page-break-before": "always"}),
                         dbc.Row(
-                            dcc.Graph(id="fig-ucs-1", figure=ucs_fig, ), justify="center"
+                            dcc.Graph(id="fig-ucs-1", figure=ucs_fig,), justify="center"
                         ),
                         dbc.Row(
-                            dcc.Graph(id="fig-ucs-1", figure=mode_fig, ),
+                            dcc.Graph(id="fig-ucs-1", figure=mode_fig,),
                             justify="center",
                         ),
                     ]
@@ -741,17 +741,17 @@ class Report:
         return app
 
     def export_html(
-            self,
-            D,
-            H,
-            HP,
-            oper_speed,
-            RHO_ratio,
-            RHOs,
-            RHOd,
-            output_path,
-            report_name="report",
-            unit="m",
+        self,
+        D,
+        H,
+        HP,
+        oper_speed,
+        RHO_ratio,
+        RHOs,
+        RHOd,
+        output_path,
+        report_name="report",
+        unit="m",
     ):
 
         ross_path = Path(ross.__file__).parent
@@ -776,7 +776,7 @@ class Report:
         var_dict = {"plot_rotor": plot_rotor, "ucs_fig": ucs_fig, "mode_fig": mode_fig}
         html_str_list = template.render(var_dict).splitlines()
         html_str_list = (
-                html_str_list[:3] + ["<style>", css_code, "</style>"] + html_str_list[3:]
+            html_str_list[:3] + ["<style>", css_code, "</style>"] + html_str_list[3:]
         )
         html_str = "\n".join(html_str_list)
 
@@ -1251,8 +1251,8 @@ class Report:
                 SM_ref = (minspeed - wn[i]) / wn[i]
 
                 hovertemplate = (
-                        f"<b>Critical Speed: {wn[i]:.2f}<b><br>"
-                        + f"<b>Speed at 0.707 x amplitude peak: {SMspeed:.2f}<b><br>"
+                    f"<b>Critical Speed: {wn[i]:.2f}<b><br>"
+                    + f"<b>Speed at 0.707 x amplitude peak: {SMspeed:.2f}<b><br>"
                 )
                 mag_plot.add_trace(
                     go.Scatter(
@@ -1280,8 +1280,8 @@ class Report:
                 SM_ref = (wn[i] - maxspeed) / maxspeed
 
                 hovertemplate = (
-                        f"<b>Critical Speed: {wn[i]:.2f}<b><br>"
-                        + f"<b>Speed at 0.707 x amplitude peak: {SMspeed:.2f}<b><br>"
+                    f"<b>Critical Speed: {wn[i]:.2f}<b><br>"
+                    + f"<b>Speed at 0.707 x amplitude peak: {SMspeed:.2f}<b><br>"
                 )
                 mag_plot.add_trace(
                     go.Scatter(
@@ -1823,8 +1823,8 @@ class Report:
         fig1.update_layout(
             title=dict(
                 text=(
-                        "<b>Applied Cross-Coupled Stiffness vs. Log Decrement</b><br>"
-                        + "<b>(API 684 - SP 6.8.5.10)</b>"
+                    "<b>Applied Cross-Coupled Stiffness vs. Log Decrement</b><br>"
+                    + "<b>(API 684 - SP 6.8.5.10)</b>"
                 )
             )
         )
@@ -1907,8 +1907,8 @@ class Report:
             ),
             title=dict(
                 text=(
-                        "<b>CSR vs. Mean Gas Density</b><br>"
-                        + "<b>(API 684 - SP 6.8.5.10)</b>"
+                    "<b>CSR vs. Mean Gas Density</b><br>"
+                    + "<b>(API 684 - SP 6.8.5.10)</b>"
                 )
             ),
         )
