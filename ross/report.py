@@ -1,5 +1,4 @@
 # fmt: off
-from base64 import b64encode
 from copy import copy, deepcopy
 from pathlib import Path
 
