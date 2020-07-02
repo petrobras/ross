@@ -2,21 +2,21 @@
 from copy import copy, deepcopy
 from pathlib import Path
 
-import dash
-import dash_bootstrap_components as dbc
-import dash_core_components as dcc
-import dash_html_components as html
 import jinja2
 import numpy as np
 import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
-from dash.dependencies import Input, Output, State
 from plotly.subplots import make_subplots
 from scipy.interpolate import interp1d
 from scipy.signal import argrelextrema
 
+import dash
+import dash_bootstrap_components as dbc
+import dash_core_components as dcc
+import dash_html_components as html
 import ross
+from dash.dependencies import Input, Output, State
 from ross.bearing_seal_element import BearingElement, SealElement
 from ross.disk_element import DiskElement
 from ross.materials import steel
@@ -111,15 +111,15 @@ class Report:
     """
 
     def __init__(
-        self,
-        rotor,
-        speed_range,
-        tripspeed,
-        bearing_stiffness_range=None,
-        bearing_clearance_lists=None,
-        machine_type="compressor",
-        speed_units="rpm",
-        tag=None,
+            self,
+            rotor,
+            speed_range,
+            tripspeed,
+            bearing_stiffness_range=None,
+            bearing_clearance_lists=None,
+            machine_type="compressor",
+            speed_units="rpm",
+            tag=None,
     ):
         self.rotor = rotor
         self.speed_units = speed_units
@@ -139,40 +139,40 @@ class Report:
 
         # check if rotor is between bearings, single or double overhung
         # fmt: off
-        if(
-            all(i > min(rotor.df_bearings["n"]) for i in rotor.df_disks["n"]) and
-            all(i < max(rotor.df_bearings["n"]) for i in rotor.df_disks["n"])
+        if (
+                all(i > min(rotor.df_bearings["n"]) for i in rotor.df_disks["n"]) and
+                all(i < max(rotor.df_bearings["n"]) for i in rotor.df_disks["n"])
         ):
             rotor_type = "between_bearings"
             disk_nodes = [
-                i for i in rotor.df_disks["n"] if(
-                    i > min(rotor.df_bearings["n"]) and
-                    i < max(rotor.df_bearings["n"])
+                i for i in rotor.df_disks["n"] if (
+                        i > min(rotor.df_bearings["n"]) and
+                        i < max(rotor.df_bearings["n"])
                 )
             ]
-        elif(
-            any(i < min(rotor.df_bearings["n"]) for i in rotor.df_disks["n"]) and
-            all(i < max(rotor.df_bearings["n"]) for i in rotor.df_disks["n"])
+        elif (
+                any(i < min(rotor.df_bearings["n"]) for i in rotor.df_disks["n"]) and
+                all(i < max(rotor.df_bearings["n"]) for i in rotor.df_disks["n"])
         ):
             rotor_type = "single_overhung_l"
             disk_nodes = [
                 i for i in rotor.df_disks["n"] if i < min(rotor.df_bearings["n"])
             ]
-        elif(
-            all(i > min(rotor.df_bearings["n"]) for i in rotor.df_disks["n"]) and
-            any(i > max(rotor.df_bearings["n"]) for i in rotor.df_disks["n"])
+        elif (
+                all(i > min(rotor.df_bearings["n"]) for i in rotor.df_disks["n"]) and
+                any(i > max(rotor.df_bearings["n"]) for i in rotor.df_disks["n"])
         ):
             rotor_type = "single_overhung_r"
             disk_nodes = [
                 i for i in rotor.df_disks["n"] if i > max(rotor.df_bearings["n"])
             ]
-        elif(
-            any(i < min(rotor.df_bearings["n"]) for i in rotor.df_disks["n"]) and
-            any(i > max(rotor.df_bearings["n"]) for i in rotor.df_disks["n"])
+        elif (
+                any(i < min(rotor.df_bearings["n"]) for i in rotor.df_disks["n"]) and
+                any(i > max(rotor.df_bearings["n"]) for i in rotor.df_disks["n"])
         ):
             rotor_type = "double_overhung"
             disk_nodes = [
-                i for i in rotor.df_disks["n"] if(
+                i for i in rotor.df_disks["n"] if (
                         i < min(rotor.df_bearings["n"]) or
                         i > max(rotor.df_bearings["n"])
                 )
@@ -211,15 +211,15 @@ class Report:
 
     @classmethod
     def from_saved_rotors(
-        cls,
-        path,
-        speed_range,
-        tripspeed,
-        bearing_stiffness_range=None,
-        bearing_clearance_lists=None,
-        machine_type="compressor",
-        speed_units="rpm",
-        tag=None,
+            cls,
+            path,
+            speed_range,
+            tripspeed,
+            bearing_stiffness_range=None,
+            bearing_clearance_lists=None,
+            machine_type="compressor",
+            speed_units="rpm",
+            tag=None,
     ):
         """Instantiate a rotor from a previously saved rotor model.
 
@@ -438,9 +438,9 @@ class Report:
             [
                 i
                 for i in self.rotor.shaft_elements_length[
-                    self.rotor.bearing_elements[0].n : self.rotor.bearing_elements[1].n
-                    + 1
-                ]
+                         self.rotor.bearing_elements[0].n: self.rotor.bearing_elements[1].n
+                                                           + 1
+                         ]
             ]
         )
 
@@ -503,7 +503,7 @@ class Report:
                     dbc.NavbarToggler(id="navbar-toggler2"),
                     dbc.Collapse(
                         dbc.Nav(
-                            [critical_dropdown, stability_dropdown,],
+                            [critical_dropdown, stability_dropdown, ],
                             className="ml-auto",
                             navbar=True,
                         ),
@@ -553,8 +553,8 @@ class Report:
                                     """This is a report automatically generated using 
                    [ROSS](https://github.com/ross-rotordynamics/ross), a python package for rotordynamics analysis.  
                    Below there's a graphical representation of the rotor analyzed.
-                
-                
+
+
                 """,
                                     style={"color": sec_color},
                                 ),
@@ -563,7 +563,7 @@ class Report:
                             width={"size": 9, "offset": 1},
                         ),
                         dbc.Row(
-                            dcc.Graph(id="plot_rotor", figure=plot_rotor,),
+                            dcc.Graph(id="plot_rotor", figure=plot_rotor, ),
                             justify="center",
                         ),
                         dbc.Col(
@@ -601,7 +601,7 @@ class Report:
                                                         style={"color": sec_color},
                                                     ),
                                                     html.Td(
-                                                        f"{float('%.3f'%(self.rotor.m))} kg",
+                                                        f"{float('%.3f' % (self.rotor.m))} kg",
                                                         style={"color": sec_color},
                                                     ),
                                                 ]
@@ -699,10 +699,10 @@ class Report:
                         ),
                         html.P(style={"page-break-before": "always"}),
                         dbc.Row(
-                            dcc.Graph(id="fig-ucs-1", figure=ucs_fig,), justify="center"
+                            dcc.Graph(id="fig-ucs-1", figure=ucs_fig, ), justify="center"
                         ),
                         dbc.Row(
-                            dcc.Graph(id="fig-ucs-1", figure=mode_fig,),
+                            dcc.Graph(id="fig-ucs-1", figure=mode_fig, ),
                             justify="center",
                         ),
                     ]
@@ -741,17 +741,17 @@ class Report:
         return app
 
     def export_html(
-        self,
-        D,
-        H,
-        HP,
-        oper_speed,
-        RHO_ratio,
-        RHOs,
-        RHOd,
-        output_path,
-        report_name="report",
-        unit="m",
+            self,
+            D,
+            H,
+            HP,
+            oper_speed,
+            RHO_ratio,
+            RHOs,
+            RHOd,
+            output_path,
+            report_name="report",
+            unit="m",
     ):
 
         ross_path = Path(ross.__file__).parent
@@ -776,7 +776,7 @@ class Report:
         var_dict = {"plot_rotor": plot_rotor, "ucs_fig": ucs_fig, "mode_fig": mode_fig}
         html_str_list = template.render(var_dict).splitlines()
         html_str_list = (
-            html_str_list[:3] + ["<style>", css_code, "</style>"] + html_str_list[3:]
+                html_str_list[:3] + ["<style>", css_code, "</style>"] + html_str_list[3:]
         )
         html_str = "\n".join(html_str_list)
 
@@ -1251,8 +1251,8 @@ class Report:
                 SM_ref = (minspeed - wn[i]) / wn[i]
 
                 hovertemplate = (
-                    f"<b>Critical Speed: {wn[i]:.2f}<b><br>"
-                    + f"<b>Speed at 0.707 x amplitude peak: {SMspeed:.2f}<b><br>"
+                        f"<b>Critical Speed: {wn[i]:.2f}<b><br>"
+                        + f"<b>Speed at 0.707 x amplitude peak: {SMspeed:.2f}<b><br>"
                 )
                 mag_plot.add_trace(
                     go.Scatter(
@@ -1280,8 +1280,8 @@ class Report:
                 SM_ref = (wn[i] - maxspeed) / maxspeed
 
                 hovertemplate = (
-                    f"<b>Critical Speed: {wn[i]:.2f}<b><br>"
-                    + f"<b>Speed at 0.707 x amplitude peak: {SMspeed:.2f}<b><br>"
+                        f"<b>Critical Speed: {wn[i]:.2f}<b><br>"
+                        + f"<b>Speed at 0.707 x amplitude peak: {SMspeed:.2f}<b><br>"
                 )
                 mag_plot.add_trace(
                     go.Scatter(
@@ -1823,8 +1823,8 @@ class Report:
         fig1.update_layout(
             title=dict(
                 text=(
-                    "<b>Applied Cross-Coupled Stiffness vs. Log Decrement</b><br>"
-                    + "<b>(API 684 - SP 6.8.5.10)</b>"
+                        "<b>Applied Cross-Coupled Stiffness vs. Log Decrement</b><br>"
+                        + "<b>(API 684 - SP 6.8.5.10)</b>"
                 )
             )
         )
@@ -1907,8 +1907,8 @@ class Report:
             ),
             title=dict(
                 text=(
-                    "<b>CSR vs. Mean Gas Density</b><br>"
-                    + "<b>(API 684 - SP 6.8.5.10)</b>"
+                        "<b>CSR vs. Mean Gas Density</b><br>"
+                        + "<b>(API 684 - SP 6.8.5.10)</b>"
                 )
             ),
         )
