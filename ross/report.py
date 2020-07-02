@@ -427,7 +427,7 @@ class Report:
         prim_color = "#333333"
         sec_color = "#555555"
 
-        #dashboard_data = self.run(D, H, HP, oper_speed, RHO_ratio, RHOs, RHOd, unit="m")
+        # dashboard_data = self.run(D, H, HP, oper_speed, RHO_ratio, RHOs, RHOd, unit="m")
 
         #####################################################
         ##APENAS PARA NAO RODAR ANALISES DESNECESSARIAMENTE##
@@ -437,14 +437,28 @@ class Report:
             dashboard_data = p.load(f)
         #####################################################
 
-        bearing_span = sum([i for i in self.rotor.shaft_elements_length[self.rotor.bearing_elements[0].n:self.rotor.bearing_elements[1].n+1]])
+        bearing_span = sum(
+            [
+                i
+                for i in self.rotor.shaft_elements_length[
+                    self.rotor.bearing_elements[0].n : self.rotor.bearing_elements[1].n
+                    + 1
+                ]
+            ]
+        )
 
         plot_rotor, ucs_fig, mode_fig = self.assets_prep(dashboard_data)["figs"]
 
         critical_dropdown = dbc.DropdownMenu(
             children=[
-                dbc.DropdownMenuItem("Undamped Critical Speeds Map", href='#undamped-critical-speed', external_link=False),
-                dbc.DropdownMenuItem("Damped Unbalance Response Analysis", href='./#ross-report'),
+                dbc.DropdownMenuItem(
+                    "Undamped Critical Speeds Map",
+                    href="#undamped-critical-speed",
+                    external_link=False,
+                ),
+                dbc.DropdownMenuItem(
+                    "Damped Unbalance Response Analysis", href="./#ross-report"
+                ),
             ],
             nav=True,
             in_navbar=True,
@@ -452,8 +466,10 @@ class Report:
         )
         stability_dropdown = dbc.DropdownMenu(
             children=[
-                dbc.DropdownMenuItem("Level 1 Screening Diagrams", href='/undamped'),
-                dbc.DropdownMenuItem("Level 2 Stability Analysis", href='https://dash.plot.ly/'),
+                dbc.DropdownMenuItem("Level 1 Screening Diagrams", href="/undamped"),
+                dbc.DropdownMenuItem(
+                    "Level 2 Stability Analysis", href="https://dash.plot.ly/"
+                ),
             ],
             nav=True,
             in_navbar=True,
@@ -466,107 +482,198 @@ class Report:
                         # Use row and col to control vertical alignment of logo / brand
                         dbc.Row(
                             [
-                                dbc.Col([
-                                    html.Img(
-                                        src=app.get_asset_url('ross-logo.svg'),
-                                        height="20px",
-                                        style={"margin-left": "auto", "margin-right": "auto"}
-                                    ),
-                                    dbc.NavbarBrand("ROSS", style={"color": prim_color})
-                                ]),
-
+                                dbc.Col(
+                                    [
+                                        html.Img(
+                                            src=app.get_asset_url("ross-logo.svg"),
+                                            height="20px",
+                                            style={
+                                                "margin-left": "auto",
+                                                "margin-right": "auto",
+                                            },
+                                        ),
+                                        dbc.NavbarBrand(
+                                            "ROSS", style={"color": prim_color}
+                                        ),
+                                    ]
+                                ),
                             ],
                             align="start",
                             no_gutters=True,
-
                         ),
                         href="/",
                     ),
                     dbc.NavbarToggler(id="navbar-toggler2"),
                     dbc.Collapse(
                         dbc.Nav(
-                            [
-                             critical_dropdown,
-                             stability_dropdown,
-                             ], className="ml-auto", navbar=True
+                            [critical_dropdown, stability_dropdown,],
+                            className="ml-auto",
+                            navbar=True,
                         ),
                         id="navbar-collapse2",
                         navbar=True,
                     ),
                 ],
-                className="ml-auto"
+                className="ml-auto",
             ),
             color="#F8F8F8",
             light=True,
             sticky="top",
-            className="navbar-default"
-
+            className="navbar-default",
         )
 
-        app.layout = html.Div(children=[
+        app.layout = html.Div(
+            children=[
+                dcc.Location(id="url", refresh=False),
+                navbar,
+                html.Div(id="page-content"),
+            ]
+        )
 
-            dcc.Location(id='url', refresh=False),
-
-            navbar,
-
-            html.Div(id="page-content")
-        ])
-
-        initial_page = html.Div(children=[dbc.Col([
-
-            dbc.Row([dbc.Col(html.H1(children='ROSS Report', id="ross-report", style={"color": prim_color}), width={"size": 9, "offset": 1}),
-                     dbc.Col(html.Img(src=app.get_asset_url('ross-logo.svg')))],
-                    className="mt-3 ml-3"),
-
-            dbc.Col(html.Div(children=dcc.Markdown(
-                '''This is a report automatically generated using 
+        initial_page = html.Div(
+            children=[
+                dbc.Col(
+                    [
+                        dbc.Row(
+                            [
+                                dbc.Col(
+                                    html.H1(
+                                        children="ROSS Report",
+                                        id="ross-report",
+                                        style={"color": prim_color},
+                                    ),
+                                    width={"size": 9, "offset": 1},
+                                ),
+                                dbc.Col(
+                                    html.Img(src=app.get_asset_url("ross-logo.svg"))
+                                ),
+                            ],
+                            className="mt-3 ml-3",
+                        ),
+                        dbc.Col(
+                            html.Div(
+                                children=dcc.Markdown(
+                                    """This is a report automatically generated using 
                    [ROSS](https://github.com/ross-rotordynamics/ross), a python package for rotordynamics analysis.  
                    Below there's a graphical representation of the rotor analyzed.
                 
                 
-                '''
-                , style={"color": sec_color}), className="ml-3 mt-3 mb-0 pb-0"
-            ),
-                    width={"size": 9, "offset": 1}),
-
-
-
-            dbc.Row(dcc.Graph(
-                id='plot_rotor',
-                figure=plot_rotor,
-                )
-                ,
-                justify="center"
-            ),
-
-            dbc.Col(html.Div(children=dcc.Markdown(
-                '''The main characteristics of this machine are resumed below.
-                ''', style={"color": sec_color}) ,className="ml-3"
-            ),
-                width={"size": 12, "offset": 1}
-            ),
-            dbc.Row(dbc.Table([html.Tbody([
-                html.Tr([html.Td("Rotor length", style={"color": sec_color}), html.Td(f"{self.rotor.L} m", style={"color": sec_color})]),
-                html.Tr([html.Td("Rotor total mass", style={"color": sec_color}), html.Td(f"{float('%.3f'%(self.rotor.m))} kg", style={"color": sec_color})]),
-                html.Tr([html.Td("Bearing Span", style={"color": sec_color}), html.Td(f"{bearing_span} m", style={"color": sec_color})]),])], bordered=True, hover=True
-                , size="sm"), className="w-25 mx-auto", style={"color": sec_color}),
-
-            dbc.Row([dbc.Col(html.H1(children='Critical Speed Analysis', id="critical-speed", style={"color": prim_color}), width={"size": 9, "offset": 1}),],
-                    className="mt-3 ml-3"),
-            dbc.Col(html.Div(children=dcc.Markdown(
-                '''In this section the calculations carried out to evaluate the critical speed map and the rotor
+                """,
+                                    style={"color": sec_color},
+                                ),
+                                className="ml-3 mt-3 mb-0 pb-0",
+                            ),
+                            width={"size": 9, "offset": 1},
+                        ),
+                        dbc.Row(
+                            dcc.Graph(id="plot_rotor", figure=plot_rotor,),
+                            justify="center",
+                        ),
+                        dbc.Col(
+                            html.Div(
+                                children=dcc.Markdown(
+                                    """The main characteristics of this machine are resumed below.
+                """,
+                                    style={"color": sec_color},
+                                ),
+                                className="ml-3",
+                            ),
+                            width={"size": 12, "offset": 1},
+                        ),
+                        dbc.Row(
+                            dbc.Table(
+                                [
+                                    html.Tbody(
+                                        [
+                                            html.Tr(
+                                                [
+                                                    html.Td(
+                                                        "Rotor length",
+                                                        style={"color": sec_color},
+                                                    ),
+                                                    html.Td(
+                                                        f"{self.rotor.L} m",
+                                                        style={"color": sec_color},
+                                                    ),
+                                                ]
+                                            ),
+                                            html.Tr(
+                                                [
+                                                    html.Td(
+                                                        "Rotor total mass",
+                                                        style={"color": sec_color},
+                                                    ),
+                                                    html.Td(
+                                                        f"{float('%.3f'%(self.rotor.m))} kg",
+                                                        style={"color": sec_color},
+                                                    ),
+                                                ]
+                                            ),
+                                            html.Tr(
+                                                [
+                                                    html.Td(
+                                                        "Bearing Span",
+                                                        style={"color": sec_color},
+                                                    ),
+                                                    html.Td(
+                                                        f"{bearing_span} m",
+                                                        style={"color": sec_color},
+                                                    ),
+                                                ]
+                                            ),
+                                        ]
+                                    )
+                                ],
+                                bordered=True,
+                                hover=True,
+                                size="sm",
+                            ),
+                            className="w-25 mx-auto",
+                            style={"color": sec_color},
+                        ),
+                        dbc.Row(
+                            [
+                                dbc.Col(
+                                    html.H1(
+                                        children="Critical Speed Analysis",
+                                        id="critical-speed",
+                                        style={"color": prim_color},
+                                    ),
+                                    width={"size": 9, "offset": 1},
+                                ),
+                            ],
+                            className="mt-3 ml-3",
+                        ),
+                        dbc.Col(
+                            html.Div(
+                                children=dcc.Markdown(
+                                    """In this section the calculations carried out to evaluate the critical speed map and the rotor
                 response to unbalance are described. The results of each calculation are shown at the end of
                 this paragraph.
-                ''', style={"color": sec_color}
-            ), className="ml-3 mt-3 mb-0 pb-0"
-            ),
-                width={"size": 9, "offset": 1}),
-            dbc.Row([dbc.Col(html.H1(children='Undamped Critical Speed Analysis', id="undamped-critical-speed", style={"color": prim_color}),
-                             width={"size": 9, "offset": 1}), ],
-                    className="mt-3 ml-3"),
-
-            dbc.Col(html.Div(children=dcc.Markdown(
-                '''The undamped critical speed analysis is carried out according to API 617 7th edition para.
+                """,
+                                    style={"color": sec_color},
+                                ),
+                                className="ml-3 mt-3 mb-0 pb-0",
+                            ),
+                            width={"size": 9, "offset": 1},
+                        ),
+                        dbc.Row(
+                            [
+                                dbc.Col(
+                                    html.H1(
+                                        children="Undamped Critical Speed Analysis",
+                                        id="undamped-critical-speed",
+                                        style={"color": prim_color},
+                                    ),
+                                    width={"size": 9, "offset": 1},
+                                ),
+                            ],
+                            className="mt-3 ml-3",
+                        ),
+                        dbc.Col(
+                            html.Div(
+                                children=dcc.Markdown(
+                                    """The undamped critical speed analysis is carried out according to API 617 7th edition para.
                 2.6.2.3. The rotor system as described in Appendix 1 is used.
                 The bearings are represented by an equivalent spring constant between rotor and pedestals,
                 which may then be considered as elastically mounted. Isotropic, linear bearing
@@ -586,62 +693,72 @@ class Report:
                 The 1st and 2nd mode shapes for maximum and minimum Bearing Clearance are also
                 attached, with the only intent of mode shape identification.
                 Therefore, the vibration amplitudes are normalized with respect to the maximum level.
-                ''', style={"color": sec_color}
-            ), className="ml-3 mt-3 mb-0 pb-0 text-justify"
-            ),
-                width={"size": 9, "offset": 1}),
-
-            html.P(style={"page-break-before": "always"}),
-
-            dbc.Row(dcc.Graph(
-                id='fig-ucs-1',
-                figure=ucs_fig,
-            )
-                ,
-                justify="center"
-            ),
-
-            dbc.Row(dcc.Graph(
-                id='fig-ucs-1',
-                figure=mode_fig,
-            )
-                ,
-                justify="center"
-            ),
-
-        ])
-        ]
+                """,
+                                    style={"color": sec_color},
+                                ),
+                                className="ml-3 mt-3 mb-0 pb-0 text-justify",
+                            ),
+                            width={"size": 9, "offset": 1},
+                        ),
+                        html.P(style={"page-break-before": "always"}),
+                        dbc.Row(
+                            dcc.Graph(id="fig-ucs-1", figure=ucs_fig,), justify="center"
+                        ),
+                        dbc.Row(
+                            dcc.Graph(id="fig-ucs-1", figure=mode_fig,),
+                            justify="center",
+                        ),
+                    ]
+                )
+            ]
         )
 
-        undamped_layout = html.Div([
-            html.H1('Page 1'),
-            dcc.Dropdown(
-                id='page-1-dropdown',
-                options=[{'label': i, 'value': i} for i in ['BEARING', 'SEAL', 'SHAFT']],
-                value='BEARING'
-            ),
-            html.Div(id='page-1-content'),
-            html.Br(),
-            dcc.Link('Go to Page 2', href='/page-2'),
-            html.Br(),
-            dcc.Link('Go back to home', href='/'),
+        undamped_layout = html.Div(
+            [
+                html.H1("Page 1"),
+                dcc.Dropdown(
+                    id="page-1-dropdown",
+                    options=[
+                        {"label": i, "value": i} for i in ["BEARING", "SEAL", "SHAFT"]
+                    ],
+                    value="BEARING",
+                ),
+                html.Div(id="page-1-content"),
+                html.Br(),
+                dcc.Link("Go to Page 2", href="/page-2"),
+                html.Br(),
+                dcc.Link("Go back to home", href="/"),
+            ]
+        )
 
-        ])
-
-        @app.callback(dash.dependencies.Output('page-content', 'children'),
-                      [dash.dependencies.Input('url', 'pathname')])
+        @app.callback(
+            dash.dependencies.Output("page-content", "children"),
+            [dash.dependencies.Input("url", "pathname")],
+        )
         def display_page(pathname):
-            if pathname == '/undamped':
+            if pathname == "/undamped":
                 return undamped_layout
             else:
                 return initial_page
 
         return app
 
-    def export_html(self, D, H, HP, oper_speed, RHO_ratio, RHOs, RHOd, output_path, report_name="report", unit="m"):
+    def export_html(
+        self,
+        D,
+        H,
+        HP,
+        oper_speed,
+        RHO_ratio,
+        RHOs,
+        RHOd,
+        output_path,
+        report_name="report",
+        unit="m",
+    ):
 
         ross_path = Path(ross.__file__).parent
-        file_loader = jinja2.FileSystemLoader(ross_path/"report"/"templates")
+        file_loader = jinja2.FileSystemLoader(ross_path / "report" / "templates")
         jinja_env = jinja2.Environment(loader=file_loader)
         template = jinja_env.get_template("template.html")
 
@@ -655,16 +772,18 @@ class Report:
             dashboard_data = p.load(f)
         #####################################################
 
-        with open(ross_path/"report"/"assets"/"style.css") as css_file:
+        with open(ross_path / "report" / "assets" / "style.css") as css_file:
             css_code = css_file.read()
 
         plot_rotor, ucs_fig, mode_fig = self.assets_prep(dashboard_data)["html_figs"]
         var_dict = {"plot_rotor": plot_rotor, "ucs_fig": ucs_fig, "mode_fig": mode_fig}
         html_str_list = template.render(var_dict).splitlines()
-        html_str_list = html_str_list[:3]+["<style>", css_code, "</style>"]+html_str_list[3:]
+        html_str_list = (
+            html_str_list[:3] + ["<style>", css_code, "</style>"] + html_str_list[3:]
+        )
         html_str = "\n".join(html_str_list)
 
-        with open(Path(output_path)/f"{report_name}.html", "w") as file:
+        with open(Path(output_path) / f"{report_name}.html", "w") as file:
             file.write(html_str)
 
     def assets_prep(self, dashboard_data):
@@ -678,12 +797,14 @@ class Report:
         plot_rotor.layout["yaxis"]["autorange"] = True
         plot_rotor.update_layout()
 
-
         # Undamped critical speed figure
-        ucs_fig = make_subplots(cols=2, rows=1,
-                                x_title="Bearing Stiffness",
-                                y_title="Critical Speed",
-                                subplot_titles=["Undamped Critical Speed Map", "", "", ""])
+        ucs_fig = make_subplots(
+            cols=2,
+            rows=1,
+            x_title="Bearing Stiffness",
+            y_title="Critical Speed",
+            subplot_titles=["Undamped Critical Speed Map", "", "", ""],
+        )
 
         ucs_row = 1
         ucs_col = 1
@@ -698,10 +819,13 @@ class Report:
         ucs_fig.update_layout()
 
         # Undamped mode shape
-        mode_fig = make_subplots(cols=2, rows=2,
-                                 x_title="Rotor length",
-                                 y_title="Non dimensional deformation",
-                                 subplot_titles=["Undamped Mode Shape", "", "", ""])
+        mode_fig = make_subplots(
+            cols=2,
+            rows=2,
+            x_title="Rotor length",
+            y_title="Non dimensional deformation",
+            subplot_titles=["Undamped Mode Shape", "", "", ""],
+        )
         mode_row = 1
         mode_col = 1
 
