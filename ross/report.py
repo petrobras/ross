@@ -1,3 +1,4 @@
+# fmt: off
 from copy import copy, deepcopy
 from pathlib import Path
 
@@ -21,6 +22,8 @@ from ross.disk_element import DiskElement
 from ross.materials import steel
 from ross.rotor_assembly import Rotor
 from ross.shaft_element import ShaftElement
+
+# fmt: on
 
 # set Plotly palette of colors
 colors1 = px.colors.qualitative.Dark24
