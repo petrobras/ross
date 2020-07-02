@@ -33,9 +33,13 @@ class Element(ABC):
         Examples
         --------
         >>> # Example using DiskElement
+        >>> from tempfile import tempdir
+        >>> from pathlib import Path
         >>> from ross.disk_element import disk_example
+        >>> # create path for a temporary file 
+        >>> file = Path(tempdir) / 'disk.toml'
         >>> disk = disk_example()
-        >>> disk.save('/tmp/disk.toml')
+        >>> disk.save(file)
         """
         # get __init__ arguments
         signature = inspect.signature(self.__init__)
@@ -69,11 +73,15 @@ class Element(ABC):
         Examples
         --------
         >>> # Example using BearingElement
+        >>> from tempfile import tempdir
+        >>> from pathlib import Path
         >>> from ross.bearing_seal_element import bearing_example
         >>> from ross.bearing_seal_element import BearingElement
+        >>> # create path for a temporary file 
+        >>> file = Path(tempdir) / 'bearing1.toml'
         >>> bearing1 = bearing_example()
-        >>> bearing1.save('/tmp/bearing1.toml')
-        >>> bearing1_loaded = BearingElement.load('/tmp/bearing1.toml')
+        >>> bearing1.save(file)
+        >>> bearing1_loaded = BearingElement.load(file)
         >>> bearing1 == bearing1_loaded
         True
         """
