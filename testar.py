@@ -1,5 +1,7 @@
-import ross.report as api
 import os
+
+import ross.report as api
+
 report = api.report_example()
 D = [0.35, 0.35]
 H = [0.08, 0.08]
