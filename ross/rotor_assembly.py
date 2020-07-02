@@ -27,6 +27,7 @@ from ross.bearing_seal_element import (BallBearingElement, BearingElement,
                                        RollerBearingElement, SealElement)
 from ross.disk_element import DiskElement, DiskElement6DoF
 from ross.materials import steel
+from ross.point_mass import PointMass
 from ross.results import (CampbellResults, ConvergenceResults,
                           CriticalSpeedResults, ForcedResponseResults,
                           FrequencyResponseResults, ModalResults,
@@ -189,6 +190,11 @@ class Rotor(object):
                 ]
             )
         ]
+
+        # check if tags are unique
+        tags_list = [el.tag for el in self.elements]
+        if len(tags_list) != len(set(tags_list)):
+            raise ValueError("Tags should be unique.")
 
         self.number_dof = self._check_number_dof()
 
@@ -2204,39 +2210,11 @@ class Rotor(object):
         )
 
         fig.update_xaxes(
-            title_text="<b>Applied Cross Coupled Stiffness</b>",
-            title_font=dict(size=16),
-            tickfont=dict(size=14),
-            gridcolor="lightgray",
-            showline=True,
-            linewidth=2.5,
-            linecolor="black",
-            mirror=True,
-            exponentformat="power",
+            title_text="<b>Applied Cross Coupled Stiffness</b>", exponentformat="power"
         )
-        fig.update_yaxes(
-            title_text="<b>Log Dec</b>",
-            title_font=dict(size=16),
-            tickfont=dict(size=14),
-            gridcolor="lightgray",
-            showline=True,
-            linewidth=2.5,
-            linecolor="black",
-            mirror=True,
-            exponentformat="power",
-        )
+        fig.update_yaxes(title_text="<b>Log Dec</b>", exponentformat="power")
         fig.update_layout(
-            width=1200,
-            height=900,
-            plot_bgcolor="white",
-            legend=dict(
-                font=dict(family="sans-serif", size=14),
-                bgcolor="white",
-                bordercolor="black",
-                borderwidth=2,
-            ),
-            title=dict(text="<b>Level 1 stability analysis</b>", font=dict(size=16)),
-            **kwargs,
+            title=dict(text="<b>Level 1 stability analysis</b>"), **kwargs
         )
 
         return fig
@@ -2276,7 +2254,7 @@ class Rotor(object):
         >>> F[:, 4 * node] = 10 * np.cos(2 * t)
         >>> F[:, 4 * node + 1] = 10 * np.sin(2 * t)
         >>> response = rotor.run_time_response(speed, F, t)
-        >>> response.yout[:, dof]
+        >>> response.yout[:, dof] # doctest: +ELLIPSIS
         array([ 0.00000000e+00,  1.86686693e-07,  8.39130663e-07, ...
 
         # plot time response for a single DoF:
@@ -2296,12 +2274,12 @@ class Rotor(object):
 
         return results
 
-    def save_mat(self, file_path, speed, frequency=None):
+    def save_mat(self, file, speed, frequency=None):
         """Save matrices and rotor model to a .mat file.
 
         Parameters
         ----------
-        file_path : str
+        file : str, pathlib.Path
 
         speed: float
             Rotor speed.
@@ -2312,7 +2290,7 @@ class Rotor(object):
         Examples
         --------
         >>> rotor = rotor_example()
-        >>> rotor.save_mat('new_matrices.mat', speed=0)
+        >>> rotor.save_mat('/tmp/new_matrices', speed=0)
         """
         if frequency is None:
             frequency = speed
@@ -2325,53 +2303,33 @@ class Rotor(object):
             "nodes": self.nodes_pos,
         }
 
-        sio.savemat("%s/%s.mat" % (os.getcwd(), file_path), dic)
+        sio.savemat(file, dic)
 
-    def save(self, rotor_name="rotor", file_path=Path(".")):
-        """Save rotor to toml file.
+    def save(self, file):
+        """Save the rotor to a .toml file.
 
         Parameters
         ----------
-        file_path : str
+        file : str or pathlib.Path
 
         Examples
         --------
         >>> rotor = rotor_example()
-        >>> rotor.save('new_rotor')
-        >>> Rotor.remove('new_rotor')
+        >>> rotor.save('/tmp/rotor.toml')
         """
-        path_rotor = Path(file_path)
-
-        if os.path.isdir(path_rotor / rotor_name):
-            if int(
-                input(
-                    "There is a rotor with this file_path, do you want to overwrite it? (1 for yes and 0 for no)"
-                )
-            ):
-                shutil.rmtree(path_rotor / rotor_name)
-            else:
-                return "The rotor was not saved."
-
-        os.mkdir(path_rotor / rotor_name)
-        rotor_folder = path_rotor / rotor_name
-        os.mkdir(rotor_folder / "results")
-        os.mkdir(rotor_folder / "elements")
-
-        with open(rotor_folder / "properties.toml", "w") as f:
+        with open(file, "w") as f:
             toml.dump({"parameters": self.parameters}, f)
+        for el in self.elements:
+            el.save(file)
 
-        elements_folder = rotor_folder / "elements"
-
-        for element in self.elements:
-            element.save(elements_folder)
-
-    @staticmethod
-    def load(file_path):
+    @classmethod
+    def load(cls, file):
         """Load rotor from toml file.
 
         Parameters
         ----------
-        file_path : str
+        file : str or pathlib.Path
+            String or Path for a .toml file.
 
         Returns
         -------
@@ -2380,58 +2338,42 @@ class Rotor(object):
         Example
         -------
         >>> rotor1 = rotor_example()
-        >>> rotor1.save(Path('.')/'new_rotor1')
-        >>> rotor2 = Rotor.load(Path('.')/'new_rotor1')
+        >>> rotor1.save('/tmp/new_rotor1.toml')
+        >>> rotor2 = Rotor.load('/tmp/new_rotor1.toml')
         >>> rotor1 == rotor2
         True
-        >>> Rotor.remove('new_rotor1')
         """
-        rotor_path = Path(file_path)
+        data = toml.load(file)
+        parameters = data["parameters"]
 
-        if os.path.isdir(rotor_path / "elements"):
-            elements_path = rotor_path / "elements"
-        else:
-            raise FileNotFoundError("Elements folder not found.")
+        elements = []
+        for el_name, el_data in data.items():
+            if el_name == "parameters":
+                continue
+            class_name = el_name.split("_")[0]
+            elements.append(globals()[class_name].read_toml_data(el_data))
 
-        with open(rotor_path / "properties.toml", "r") as f:
-            parameters = toml.load(f)["parameters"]
+        shaft_elements = []
+        disk_elements = []
+        bearing_elements = []
+        point_mass_elements = []
+        for el in elements:
+            if isinstance(el, ShaftElement):
+                shaft_elements.append(el)
+            elif isinstance(el, DiskElement):
+                disk_elements.append(el)
+            elif isinstance(el, BearingElement):
+                bearing_elements.append(el)
+            elif isinstance(el, PointMass):
+                point_mass_elements.append(el)
 
-        global_elements = {}
-        for el in os.listdir(elements_path):
-            elements = []
-            if ".toml" in el:
-                with open(Path(elements_path) / el, "r") as f:
-                    el_dict = toml.load(f)
-                    element_class = list(el_dict.keys())[0]
-                    for el_number in el_dict[element_class]:
-                        element = (
-                            element_class + f"(**{el_dict[element_class][el_number]})"
-                        )
-                        elements.append(eval(element))
-            global_elements[convert(element_class + "s")] = elements
-
-        return Rotor(**global_elements, **parameters)
-
-    @staticmethod
-    def remove(file_path):
-        """
-        Remove a previously saved rotor in rotors folder.
-
-        Parameters
-        ----------
-        file_path : str
-
-        Example
-        -------
-        >>> rotor = rotor_example()
-        >>> rotor.save('new_rotor2')
-        >>> Rotor.remove('new_rotor2')
-        """
-        try:
-            Rotor.load(file_path)
-            shutil.rmtree(Path(file_path))
-        except:
-            return "This is not a valid rotor."
+        return cls(
+            shaft_elements=shaft_elements,
+            disk_elements=disk_elements,
+            bearing_elements=bearing_elements,
+            point_mass_elements=point_mass_elements,
+            **parameters,
+        )
 
     def run_static(self):
         """Run static analysis.

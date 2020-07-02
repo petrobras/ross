@@ -145,19 +145,121 @@ def calculate_oil_film_force(fluid_flow_object, force_type=None):
     return radial_force, tangential_force, force_x, force_y
 
 
-def calculate_stiffness_matrix(
-    fluid_flow_object, force_type=None, oil_film_force="numerical"
-):
-    """This function calculates the bearing stiffness matrix numerically.
+def calculate_stiffness_and_damping_coefficients(fluid_flow_object):
+    """This function calculates the bearing stiffness and damping matrices numerically.
+        Parameters
+        ----------
+        fluid_flow_object: A FluidFlow object.
+        Returns
+        -------
+        Two lists of floats
+            A list of length four including stiffness floats in this order: kxx, kxy, kyx, kyy.
+            And another list of length four including damping floats in this order: cxx, cxy, cyx, cyy.
+            And
+        Examples
+        --------
+        >>> from ross.fluid_flow.fluid_flow import fluid_flow_example
+        >>> my_fluid_flow = fluid_flow_example()
+        >>> calculate_stiffness_and_damping_coefficients(my_fluid_flow)  # doctest: +ELLIPSIS
+        ([428...
+        """
+    N = 6
+    t = np.linspace(0, 2 * np.pi / fluid_flow_object.omegap, N)
+    fluid_flow_object.xp = fluid_flow_object.radial_clearance * 0.0001
+    fluid_flow_object.yp = fluid_flow_object.radial_clearance * 0.0001
+    dx = np.zeros(N)
+    dy = np.zeros(N)
+    xdot = np.zeros(N)
+    ydot = np.zeros(N)
+    radial_force = np.zeros(N)
+    tangential_force = np.zeros(N)
+    force_xx = np.zeros(N)
+    force_yx = np.zeros(N)
+    force_xy = np.zeros(N)
+    force_yy = np.zeros(N)
+    X1 = np.zeros([N, 3])
+    X2 = np.zeros([N, 3])
+    F1 = np.zeros(N)
+    F2 = np.zeros(N)
+    F3 = np.zeros(N)
+    F4 = np.zeros(N)
+
+    for i in range(N):
+        fluid_flow_object.t = t[i]
+
+        delta_x = fluid_flow_object.xp * np.sin(
+            fluid_flow_object.omegap * fluid_flow_object.t
+        )
+        move_rotor_center(fluid_flow_object, delta_x, 0)
+        dx[i] = delta_x
+        xdot[i] = (
+            fluid_flow_object.omegap
+            * fluid_flow_object.xp
+            * np.cos(fluid_flow_object.omegap * fluid_flow_object.t)
+        )
+        fluid_flow_object.calculate_coefficients(direction="x")
+        fluid_flow_object.calculate_pressure_matrix_numerical()
+        [
+            radial_force[i],
+            tangential_force[i],
+            force_xx[i],
+            force_yx[i],
+        ] = calculate_oil_film_force(fluid_flow_object, force_type="numerical")
+
+        delta_y = fluid_flow_object.yp * np.sin(
+            fluid_flow_object.omegap * fluid_flow_object.t
+        )
+        move_rotor_center(fluid_flow_object, -delta_x, 0)
+        move_rotor_center(fluid_flow_object, 0, delta_y)
+        dy[i] = delta_y
+        ydot[i] = (
+            fluid_flow_object.omegap
+            * fluid_flow_object.yp
+            * np.cos(fluid_flow_object.omegap * fluid_flow_object.t)
+        )
+        fluid_flow_object.calculate_coefficients(direction="y")
+        fluid_flow_object.calculate_pressure_matrix_numerical()
+        [
+            radial_force[i],
+            tangential_force[i],
+            force_xy[i],
+            force_yy[i],
+        ] = calculate_oil_film_force(fluid_flow_object, force_type="numerical")
+        move_rotor_center(fluid_flow_object, 0, -delta_y)
+        fluid_flow_object.calculate_coefficients()
+        fluid_flow_object.calculate_pressure_matrix_numerical()
+
+        X1[i] = [1, dx[i], xdot[i]]
+        X2[i] = [1, dy[i], ydot[i]]
+        F1[i] = -force_xx[i]
+        F2[i] = -force_xy[i]
+        F3[i] = -force_yx[i]
+        F4[i] = -force_yy[i]
+
+    P1 = np.dot(
+        np.dot(np.linalg.inv(np.dot(np.transpose(X1), X1)), np.transpose(X1)), F1
+    )
+    P2 = np.dot(
+        np.dot(np.linalg.inv(np.dot(np.transpose(X2), X2)), np.transpose(X2)), F2
+    )
+    P3 = np.dot(
+        np.dot(np.linalg.inv(np.dot(np.transpose(X1), X1)), np.transpose(X1)), F3
+    )
+    P4 = np.dot(
+        np.dot(np.linalg.inv(np.dot(np.transpose(X2), X2)), np.transpose(X2)), F4
+    )
+
+    K = [P1[1], P2[1], P3[1], P4[1]]
+    C = [P1[2], P2[2], P3[2], P4[2]]
+
+    return K, C
+
+
+def calculate_short_stiffness_matrix(fluid_flow_object):
+    """This function calculates the stiffness matrix for the short bearing.
     Parameters
     ----------
     fluid_flow_object: A FluidFlow object.
-    oil_film_force: str
-        If set, calculates the oil film force analytically considering the chosen type: 'short' or 'long'.
-        If set to 'numerical', calculates the oil film force numerically.
-    force_type: str
-        If set, calculates the stiffness matrix analytically considering the chosen type: 'short'.
-        If set to 'numerical', calculates the stiffness matrix numerically.
     Returns
     -------
     list of floats
@@ -166,117 +268,76 @@ def calculate_stiffness_matrix(
     --------
     >>> from ross.fluid_flow.fluid_flow import fluid_flow_example
     >>> my_fluid_flow = fluid_flow_example()
-    >>> calculate_stiffness_matrix(my_fluid_flow)  # doctest: +ELLIPSIS
+    >>> calculate_short_stiffness_matrix(my_fluid_flow)  # doctest: +ELLIPSIS
     [417...
     """
-    if force_type != "numerical" and (
-        force_type == "short" or fluid_flow_object.bearing_type == "short_bearing"
-    ):
-        h0 = 1.0 / (
-            (
-                (np.pi ** 2) * (1 - fluid_flow_object.eccentricity_ratio ** 2)
-                + 16 * fluid_flow_object.eccentricity_ratio ** 2
-            )
-            ** 1.5
+    h0 = 1.0 / (
+        (
+            (np.pi ** 2) * (1 - fluid_flow_object.eccentricity_ratio ** 2)
+            + 16 * fluid_flow_object.eccentricity_ratio ** 2
         )
-        a = fluid_flow_object.load / fluid_flow_object.radial_clearance
-        kxx = (
-            a
-            * h0
-            * 4
-            * (
-                (np.pi ** 2) * (2 - fluid_flow_object.eccentricity_ratio ** 2)
-                + 16 * fluid_flow_object.eccentricity_ratio ** 2
-            )
+        ** 1.5
+    )
+    a = fluid_flow_object.load / fluid_flow_object.radial_clearance
+    kxx = (
+        a
+        * h0
+        * 4
+        * (
+            (np.pi ** 2) * (2 - fluid_flow_object.eccentricity_ratio ** 2)
+            + 16 * fluid_flow_object.eccentricity_ratio ** 2
         )
-        kxy = (
-            a
-            * h0
-            * np.pi
-            * (
-                (np.pi ** 2) * (1 - fluid_flow_object.eccentricity_ratio ** 2) ** 2
-                - 16 * fluid_flow_object.eccentricity_ratio ** 4
-            )
-            / (
-                fluid_flow_object.eccentricity_ratio
-                * np.sqrt(1 - fluid_flow_object.eccentricity_ratio ** 2)
-            )
+    )
+    kxy = (
+        a
+        * h0
+        * np.pi
+        * (
+            (np.pi ** 2) * (1 - fluid_flow_object.eccentricity_ratio ** 2) ** 2
+            - 16 * fluid_flow_object.eccentricity_ratio ** 4
         )
-        kyx = (
-            -a
-            * h0
-            * np.pi
-            * (
-                (np.pi ** 2)
-                * (1 - fluid_flow_object.eccentricity_ratio ** 2)
-                * (1 + 2 * fluid_flow_object.eccentricity_ratio ** 2)
-                + (32 * fluid_flow_object.eccentricity_ratio ** 2)
+        / (
+            fluid_flow_object.eccentricity_ratio
+            * np.sqrt(1 - fluid_flow_object.eccentricity_ratio ** 2)
+        )
+    )
+    kyx = (
+        -a
+        * h0
+        * np.pi
+        * (
+            (np.pi ** 2)
+            * (1 - fluid_flow_object.eccentricity_ratio ** 2)
+            * (1 + 2 * fluid_flow_object.eccentricity_ratio ** 2)
+            + (32 * fluid_flow_object.eccentricity_ratio ** 2)
+            * (1 + fluid_flow_object.eccentricity_ratio ** 2)
+        )
+        / (
+            fluid_flow_object.eccentricity_ratio
+            * np.sqrt(1 - fluid_flow_object.eccentricity_ratio ** 2)
+        )
+    )
+    kyy = (
+        a
+        * h0
+        * 4
+        * (
+            (np.pi ** 2) * (1 + 2 * fluid_flow_object.eccentricity_ratio ** 2)
+            + (
+                (32 * fluid_flow_object.eccentricity_ratio ** 2)
                 * (1 + fluid_flow_object.eccentricity_ratio ** 2)
             )
-            / (
-                fluid_flow_object.eccentricity_ratio
-                * np.sqrt(1 - fluid_flow_object.eccentricity_ratio ** 2)
-            )
+            / (1 - fluid_flow_object.eccentricity_ratio ** 2)
         )
-        kyy = (
-            a
-            * h0
-            * 4
-            * (
-                (np.pi ** 2) * (1 + 2 * fluid_flow_object.eccentricity_ratio ** 2)
-                + (
-                    (32 * fluid_flow_object.eccentricity_ratio ** 2)
-                    * (1 + fluid_flow_object.eccentricity_ratio ** 2)
-                )
-                / (1 - fluid_flow_object.eccentricity_ratio ** 2)
-            )
-        )
-    else:
-
-        [radial_force, tangential_force, force_x, force_y] = calculate_oil_film_force(
-            fluid_flow_object, force_type=oil_film_force
-        )
-        delta = fluid_flow_object.radial_clearance / 100
-
-        move_rotor_center(fluid_flow_object, delta, 0)
-        fluid_flow_object.calculate_coefficients()
-        fluid_flow_object.calculate_pressure_matrix_numerical()
-        [
-            radial_force_x,
-            tangential_force_x,
-            force_x_x,
-            force_y_x,
-        ] = calculate_oil_film_force(fluid_flow_object, force_type=oil_film_force)
-
-        move_rotor_center(fluid_flow_object, -delta, 0)
-        move_rotor_center(fluid_flow_object, 0, delta)
-        fluid_flow_object.calculate_coefficients()
-        fluid_flow_object.calculate_pressure_matrix_numerical()
-        [
-            radial_force_y,
-            tangential_force_y,
-            force_x_y,
-            force_y_y,
-        ] = calculate_oil_film_force(fluid_flow_object, force_type=oil_film_force)
-        move_rotor_center(fluid_flow_object, 0, -delta)
-
-        kxx = (force_x - force_x_x) / delta
-        kyx = (force_y - force_y_x) / delta
-        kxy = (force_x - force_x_y) / delta
-        kyy = (force_y - force_y_y) / delta
-
+    )
     return [kxx, kxy, kyx, kyy]
 
 
-def calculate_damping_matrix(fluid_flow_object, force_type=None):
-    """Returns the damping matrix calculated analytically.
-    Suitable only for short bearings.
+def calculate_short_damping_matrix(fluid_flow_object):
+    """This function calculates the damping matrix for the short bearing.
     Parameters
     -------
     fluid_flow_object: A FluidFlow object.
-    force_type: str
-        If set, calculates the stiffness matrix analytically considering the chosen type: 'short'.
-        If set to 'numerical', calculates the stiffness matrix numerically.
     Returns
     -------
     list of floats
@@ -285,29 +346,23 @@ def calculate_damping_matrix(fluid_flow_object, force_type=None):
     --------
     >>> from ross.fluid_flow.fluid_flow import fluid_flow_example
     >>> my_fluid_flow = fluid_flow_example()
-    >>> calculate_damping_matrix(my_fluid_flow) # doctest: +ELLIPSIS
+    >>> calculate_short_damping_matrix(my_fluid_flow) # doctest: +ELLIPSIS
     [...
     """
     # fmt: off
-    if force_type != 'numerical' and (force_type == 'short' or fluid_flow_object.bearing_type == 'short_bearing'):
-        h0 = 1.0 / (((np.pi ** 2) * (1 - fluid_flow_object.eccentricity_ratio ** 2)
-                     + 16 * fluid_flow_object.eccentricity_ratio ** 2) ** 1.5)
-        a = fluid_flow_object.load / (fluid_flow_object.radial_clearance * fluid_flow_object.omega)
-        cxx = (a * h0 * 2 * np.pi * np.sqrt(1 - fluid_flow_object.eccentricity_ratio ** 2) *
-               ((np.pi ** 2) * (1 + 2 * fluid_flow_object.eccentricity_ratio ** 2)
-                - 16 * fluid_flow_object.eccentricity_ratio ** 2) / fluid_flow_object.eccentricity_ratio)
-        cxy = (-a * h0 * 8 * ((np.pi ** 2) * (1 + 2 * fluid_flow_object.eccentricity_ratio ** 2)
-                              - 16 * fluid_flow_object.eccentricity_ratio ** 2))
-        cyx = cxy
-        cyy = (a * h0 * (2 * np.pi * (
-                (np.pi ** 2) * (1 - fluid_flow_object.eccentricity_ratio ** 2) ** 2
-                + 48 * fluid_flow_object.eccentricity_ratio ** 2)) /
-               (fluid_flow_object.eccentricity_ratio * np.sqrt(1 - fluid_flow_object.eccentricity_ratio ** 2)))
-    else:
-        cxx, cxy, cyx, cyy = warnings.warn(
-            "Function calculate_damping_matrix cannot yet be calculated numerically. "
-            "The force_type should be  'short' or 'short_bearing"
-        )
+    h0 = 1.0 / (((np.pi ** 2) * (1 - fluid_flow_object.eccentricity_ratio ** 2)
+                 + 16 * fluid_flow_object.eccentricity_ratio ** 2) ** 1.5)
+    a = fluid_flow_object.load / (fluid_flow_object.radial_clearance * fluid_flow_object.omega)
+    cxx = (a * h0 * 2 * np.pi * np.sqrt(1 - fluid_flow_object.eccentricity_ratio ** 2) *
+           ((np.pi ** 2) * (1 + 2 * fluid_flow_object.eccentricity_ratio ** 2)
+            - 16 * fluid_flow_object.eccentricity_ratio ** 2) / fluid_flow_object.eccentricity_ratio)
+    cxy = (-a * h0 * 8 * ((np.pi ** 2) * (1 + 2 * fluid_flow_object.eccentricity_ratio ** 2)
+                          - 16 * fluid_flow_object.eccentricity_ratio ** 2))
+    cyx = cxy
+    cyy = (a * h0 * (2 * np.pi * (
+            (np.pi ** 2) * (1 - fluid_flow_object.eccentricity_ratio ** 2) ** 2
+            + 48 * fluid_flow_object.eccentricity_ratio ** 2)) /
+           (fluid_flow_object.eccentricity_ratio * np.sqrt(1 - fluid_flow_object.eccentricity_ratio ** 2)))
     # fmt: on
     return [cxx, cxy, cyx, cyy]
 

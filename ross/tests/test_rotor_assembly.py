@@ -1,4 +1,4 @@
-import os
+from pathlib import Path
 
 import numpy as np
 import pytest
@@ -11,8 +11,6 @@ from ross.point_mass import *
 from ross.rotor_assembly import *
 from ross.rotor_assembly import MAC_modes
 from ross.shaft_element import *
-
-test_dir = os.path.dirname(__file__)
 
 
 @pytest.fixture
@@ -1517,11 +1515,10 @@ def test_H_kappa(rotor7):
 
 
 def test_save_load():
-
     a = rotor_example()
     a.save("teste00000000000000001")
-    b = Rotor.load("teste00000000000000001")
-    Rotor.remove("teste00000000000000001")
+    b = Rotor.load("teste00000000000000001.rsm")
+    (Path.cwd() / "teste00000000000000001.rsm").unlink()
 
     assert a == b
 
@@ -1769,3 +1766,10 @@ def test_ucs_calc(rotor8):
     assert_allclose(rotor_wn[0, :3], exp_rotor_wn)
     assert_allclose(intersection_points["x"][:3], exp_intersection_points_x, rtol=1e-3)
     assert_allclose(intersection_points["y"][:3], exp_intersection_points_y, rtol=1e-3)
+
+
+def test_save_load(rotor8):
+    rotor8.save("/tmp/rotor8.toml")
+    rotor8_loaded = Rotor.load("/tmp/rotor8.toml")
+
+    rotor8 == rotor8_loaded

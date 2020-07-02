@@ -308,6 +308,15 @@ def test_match_gyroscopic_matrix(tap2, tim2):
     assert_almost_equal(G_tap, G_tim, decimal=5)
 
 
+def test_save_load(tim, tap_tim):
+    tim.save("/tmp/tim.toml")
+    tim_loaded = ShaftElement.load("/tmp/tim.toml")
+    assert tim == tim_loaded
+    tap_tim.save("/tmp/tap_tim.toml")
+    tap_tim_loaded = ShaftElement.load("/tmp/tap_tim.toml")
+    assert tap_tim == tap_tim_loaded
+
+
 @pytest.fixture
 def s6_eb():
 
