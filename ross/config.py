@@ -18,12 +18,15 @@ class _Dict:
 
         return self.__dict__[option]
 
-    def __setitem__(self, **kwargs):
+    def update(self, **kwargs):
         for k, v in kwargs.items():
             if k not in self.__dict__.keys():
                 raise KeyError("Option '{}' not found.".format(k))
 
-            self.__dict__[k] = v
+            if isinstance(v, dict):
+                getattr(self, k).update(**v)
+            else:
+                self.__dict__[k] = v
 
 
 class Config:
@@ -241,5 +244,5 @@ class Config:
         for k, v in kwargs.items():
             if k not in self.__dict__.keys():
                 raise KeyError("Option '{}' not found.".format(k))
-
-            self.__dict__[k] = v
+            else:
+                getattr(self, k).update(**v)
