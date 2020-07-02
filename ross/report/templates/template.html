@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <link rel="stylesheet" type="text/css" href="../assets/style.css">
+    <style>
+        @media print {
+            @page {
+                size: A4; /* DIN A4 standard, Europe */
+                margin: 1cm;
+                }
+            .offset-2{
+                margin-left: 3cm;
+                margin-right: 0;
+                margin-top: .5cm;
+            }
+            .mt-img{
+                margin-top: 5cm;
+            }
+            p{
+                width: 100ch;
+            }
+        }
+    </style>
+    <meta charset="UTF-8">
+    <title>Title</title>
+</head>
+<body>
+
+
+<div class="container-fluid">
+
+    <div class="mt-4 offset-2 row">
+        <div class="col-9">
+            <h1 class="h1">
+                ROSS Report
+            </h1>
+        </div>
+
+        <div class="col-3">
+            <img id="ross-logo" src="data:image/svg+xml;base64,PD94bWwgdmVyc2lvbj0iMS4wIiBlbmNvZGluZz0iVVRGLTgiIHN0YW5kYWxvbmU9Im5vIj8+CjwhLS0gQ3JlYXRlZCB3aXRoIElua3NjYXBlIChodHRwOi8vd3d3Lmlua3NjYXBlLm9yZy8pIC0tPgoKPHN2ZwogICAgICAgIHhtbG5zOm9zYj0iaHR0cDovL3d3dy5vcGVuc3dhdGNoYm9vay5vcmcvdXJpLzIwMDkvb3NiIgogICAgICAgIHhtbG5zOmRjPSJodHRwOi8vcHVybC5vcmcvZGMvZWxlbWVudHMvMS4xLyIKICAgICAgICB4bWxuczpjYz0iaHR0cDovL2NyZWF0aXZlY29tbW9ucy5vcmcvbnMjIgogICAgICAgIHhtbG5zOnJkZj0iaHR0cDovL3d3dy53My5vcmcvMTk5OS8wMi8yMi1yZGYtc3ludGF4LW5zIyIKICAgICAgICB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciCiAgICAgICAgeG1sbnM6c29kaXBvZGk9Imh0dHA6Ly9zb2RpcG9kaS5zb3VyY2Vmb3JnZS5uZXQvRFREL3NvZGlwb2RpLTAuZHRkIgogICAgICAgIHhtbG5zOmlua3NjYXBlPSJodHRwOi8vd3d3Lmlua3NjYXBlLm9yZy9uYW1lc3BhY2VzL2lua3NjYXBlIgogICAgICAgIHdpZHRoPSIxNC4xMTA5OTFtbSIKICAgICAgICBoZWlnaHQ9IjEzLjM5MTAzNW1tIgogICAgICAgIHZpZXdCb3g9IjAgMCA0OS45OTk1NjkgNDcuNDQ4NTQ2IgogICAgICAgIGlkPSJzdmcyIgogICAgICAgIHZlcnNpb249IjEuMSIKICAgICAgICBpbmtzY2FwZTp2ZXJzaW9uPSIwLjkxIHIxMzcyNSIKICAgICAgICBzb2RpcG9kaTpkb2NuYW1lPSJyb3NzLWxvZ28uc3ZnIj4KICA8ZGVmcwogICAgIGlkPSJkZWZzNCI+CiAgICA8bGluZWFyR3JhZGllbnQKICAgICAgIGlkPSJsaW5lYXJHcmFkaWVudDQ0NjEiCiAgICAgICBvc2I6cGFpbnQ9InNvbGlkIj4KICAgICAgPHN0b3AKICAgICAgICAgc3R5bGU9InN0b3AtY29sb3I6I2Y4ZjhmODtzdG9wLW9wYWNpdHk6MTsiCiAgICAgICAgIG9mZnNldD0iMCIKICAgICAgICAgaWQ9InN0b3A0NDYzIiAvPgogICAgPC9saW5lYXJHcmFkaWVudD4KICAgIDxpbmtzY2FwZTpwZXJzcGVjdGl2ZQogICAgICAgc29kaXBvZGk6dHlwZT0iaW5rc2NhcGU6cGVyc3AzZCIKICAgICAgIGlua3NjYXBlOnZwX3g9IjAgOiA1MjYuMTgxMDQgOiAxIgogICAgICAgaW5rc2NhcGU6dnBfeT0iMCA6IDk5OS45OTk4NyA6IDAiCiAgICAgICBpbmtzY2FwZTp2cF96PSI3NDQuMDk0NDQgOiA1MjYuMTgxMDMgOiAxIgogICAgICAgaW5rc2NhcGU6cGVyc3AzZC1vcmlnaW49IjM3Mi4wNDcyIDogMzUwLjc4NzM1IDogMSIKICAgICAgIGlkPSJwZXJzcGVjdGl2ZTQxMzgiIC8+CiAgPC9kZWZzPgogIDxzb2RpcG9kaTpuYW1lZHZpZXcKICAgICBpZD0iYmFzZSIKICAgICBwYWdlY29sb3I9IiNmZmZmZmYiCiAgICAgYm9yZGVyY29sb3I9IiM2NjY2NjYiCiAgICAgYm9yZGVyb3BhY2l0eT0iMS4wIgogICAgIGlua3NjYXBlOnBhZ2VvcGFjaXR5PSIwLjAiCiAgICAgaW5rc2NhcGU6cGFnZXNoYWRvdz0iMiIKICAgICBpbmtzY2FwZTp6b29tPSIyLjgiCiAgICAgaW5rc2NhcGU6Y3g9Ii00Ljc5MDE2ODYiCiAgICAgaW5rc2NhcGU6Y3k9IjI2LjUzNDEyNCIKICAgICBpbmtzY2FwZTpkb2N1bWVudC11bml0cz0icHgiCiAgICAgaW5rc2NhcGU6Y3VycmVudC1sYXllcj0ibGF5ZXIxIgogICAgIHNob3dncmlkPSJ0cnVlIgogICAgIHNob3dib3JkZXI9ImZhbHNlIgogICAgIGZpdC1tYXJnaW4tdG9wPSIwIgogICAgIGZpdC1tYXJnaW4tbGVmdD0iMCIKICAgICBmaXQtbWFyZ2luLXJpZ2h0PSIwIgogICAgIGZpdC1tYXJnaW4tYm90dG9tPSIwIgogICAgIGlua3NjYXBlOndpbmRvdy13aWR0aD0iMTMyOSIKICAgICBpbmtzY2FwZTp3aW5kb3ctaGVpZ2h0PSI3NDQiCiAgICAgaW5rc2NhcGU6d2luZG93LXg9IjM3IgogICAgIGlua3NjYXBlOndpbmRvdy15PSIyNCIKICAgICBpbmtzY2FwZTp3aW5kb3ctbWF4aW1pemVkPSIxIiAvPgogIDxtZXRhZGF0YQogICAgIGlkPSJtZXRhZGF0YTciPgogICAgPHJkZjpSREY+CiAgICAgIDxjYzpXb3JrCiAgICAgICAgIHJkZjphYm91dD0iIj4KICAgICAgICA8ZGM6Zm9ybWF0PmltYWdlL3N2Zyt4bWw8L2RjOmZvcm1hdD4KICAgICAgICA8ZGM6dHlwZQogICAgICAgICAgIHJkZjpyZXNvdXJjZT0iaHR0cDovL3B1cmwub3JnL2RjL2RjbWl0eXBlL1N0aWxsSW1hZ2UiIC8+CiAgICAgICAgPGRjOnRpdGxlPjwvZGM6dGl0bGU+CiAgICAgIDwvY2M6V29yaz4KICAgIDwvcmRmOlJERj4KICA8L21ldGFkYXRhPgogIDxnCiAgICAgaW5rc2NhcGU6Z3JvdXBtb2RlPSJsYXllciIKICAgICBpZD0ibGF5ZXIyIgogICAgIGlua3NjYXBlOmxhYmVsPSJiYWNrZ3JvdW5kIgogICAgIHRyYW5zZm9ybT0idHJhbnNsYXRlKC0zLjU1MzM1MDgsNS44NTY3MDQ1KSIgLz4KICA8ZwogICAgIGlua3NjYXBlOmxhYmVsPSJMYXllciAxIgogICAgIGlua3NjYXBlOmdyb3VwbW9kZT0ibGF5ZXIiCiAgICAgaWQ9ImxheWVyMSIKICAgICB0cmFuc2Zvcm09InRyYW5zbGF0ZSgtMjM5LjY4MDcyLC03MDYuNTA1NDQpIj4KICAgIDxwYXRoCiAgICAgICBzdHlsZT0ib3BhY2l0eToxO2ZpbGw6IzU2NTY1NjtmaWxsLW9wYWNpdHk6MTtzdHJva2U6I2Q2MjcyODtzdHJva2Utd2lkdGg6MS4wMjA4NDQ4MjtzdHJva2UtbWl0ZXJsaW1pdDo0O3N0cm9rZS1kYXNoYXJyYXk6bm9uZTtzdHJva2UtZGFzaG9mZnNldDowO3N0cm9rZS1vcGFjaXR5OjAiCiAgICAgICBkPSJNIDI1IDQuMjM0Mzc1IEEgMTkuNDg5NTgxIDE5LjQ4OTU4MSAwIDAgMCA1LjUwOTc2NTYgMjMuNzI0NjA5IEEgMTkuNDg5NTgxIDE5LjQ4OTU4MSAwIDAgMCAyNSA0My4yMTQ4NDQgQSAxOS40ODk1ODEgMTkuNDg5NTgxIDAgMCAwIDQ0LjQ5MDIzNCAyMy43MjQ2MDkgQSAxOS40ODk1ODEgMTkuNDg5NTgxIDAgMCAwIDI1IDQuMjM0Mzc1IHogTSAyNy43NDAyMzQgMTMuOTEyMTA5IEEgMTMuMDcxNzQ0IDEzLjA3MTc0NCAwIDAgMSA0MC44MTI1IDI2Ljk4NDM3NSBBIDEzLjA3MTc0NCAxMy4wNzE3NDQgMCAwIDEgMjcuNzQwMjM0IDQwLjA1NjY0MSBBIDEzLjA3MTc0NCAxMy4wNzE3NDQgMCAwIDEgMTQuNjY3OTY5IDI2Ljk4NDM3NSBBIDEzLjA3MTc0NCAxMy4wNzE3NDQgMCAwIDEgMjcuNzQwMjM0IDEzLjkxMjEwOSB6ICIKICAgICAgIGlkPSJwYXRoNDEzNiIKICAgICAgIHRyYW5zZm9ybT0idHJhbnNsYXRlKDIzOS42ODA3Miw3MDYuNTA1NDQpIiAvPgogIDwvZz4KPC9zdmc+Cg=="/>
+        </div>
+    </div>
+
+    <div class="row offset-2">
+        <div class="col-9  mt-3 mb-0 pb-0">
+            <p class="text-justify">This is a report automatically generated using
+                   <a href="https://github.com/ross-rotordynamics/ross">ROSS</a>, a python package for rotordynamics analysis.
+                   <br>Below there's a graphical representation of the rotor analyzed.
+            </p>
+        </div>
+    </div>
+
+
+    <div style="width: 750px;height: 350px" class="mx-auto">
+        {{ plot_rotor }}
+    </div>
+
+    <div class="row offset-2">
+        <div class="col-9">
+            <h1 class="h1">
+                Critical Speed Analysis
+            </h1>
+        </div>
+        <div class="col-9  mt-3 mb-0 pb-0">
+            <p class="text-justify"> In this section the calculations carried out to evaluate the critical speed map and the rotor
+               response to unbalance are described. The results of each calculation are shown at the end of
+               this paragraph.
+            </p>
+        </div>
+    </div>
+
+    <div class="row offset-2">
+        <div class="col-9">
+            <h1 class="h1">
+                Undamped Critical Speed Analysis
+            </h1>
+        </div>
+        <div class="col-9  mt-3 mb-0 pb-0">
+            <p class="text-justify"> The undamped critical speed analysis is carried out according to API 617 7th edition para.
+                2.6.2.3. The rotor system as described in Appendix 1 is used.
+                The bearings are represented by an equivalent spring constant between rotor and pedestals,
+                which may then be considered as elastically mounted. Isotropic, linear bearing
+                characteristics are assumed and no damping is considered present in the system.
+                The stiffness range selected for the calculation is such to properly describe the behavior of
+                the rotor and provide the required information to perform the next analysis steps.
+                The actual stiffness range (achievable by adjusting bearing clearance) is much more limited
+                and always inside the calculation range.
+                The rotordynamic system is solved and the undamped lateral critical speeds are calculated
+                as a function of support equivalent stiffness over the user defined stiffness range.
+                The results are summarized in the critical speed maps as shown in the following pages.
+                Superimposed on the same plot are the horizontal and vertical Bearing Clearance curves (Kxx
+                and Kzz ) either for maximum and minimum Bearing Clearance.
+                The intersections of the vertical Bearing Clearance and critical speed curves provide the
+                undamped critical speed values and give, in a preliminary way, a rough estimation of the
+                critical speed and Bearing Clearance range in operation.
+                The 1st and 2nd mode shapes for maximum and minimum Bearing Clearance are also
+                attached, with the only intent of mode shape identification.
+                Therefore, the vibration amplitudes are normalized with respect to the maximum level.
+            </p>
+        </div>
+    </div>
+
+    <p style="page-break-before: always" />
+    <div style="width: 750px;height: 350px" class="mt-img mx-auto">
+        {{ ucs_fig }}
+    </div>
+    <div style="width: 750px;height: 350px" class="mx-auto">
+        {{ mode_fig }}
+    </div>
+    <p style="page-break-before: always"/>
+
+</div>
+
+
+</body>
+</html>
+
+
