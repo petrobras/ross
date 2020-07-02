@@ -2,21 +2,21 @@
 from copy import copy, deepcopy
 from pathlib import Path
 
+import dash
+import dash_bootstrap_components as dbc
+import dash_core_components as dcc
+import dash_html_components as html
 import jinja2
 import numpy as np
 import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
+from dash.dependencies import Input, Output, State
 from plotly.subplots import make_subplots
 from scipy.interpolate import interp1d
 from scipy.signal import argrelextrema
 
-import dash
-import dash_bootstrap_components as dbc
-import dash_core_components as dcc
-import dash_html_components as html
 import ross
-from dash.dependencies import Input, Output, State
 from ross.bearing_seal_element import BearingElement, SealElement
 from ross.disk_element import DiskElement
 from ross.materials import steel
