@@ -2,10 +2,10 @@ import numpy as np
 import pytest
 from numpy.testing import assert_allclose
 
-from ross.report import Report
 from ross.bearing_seal_element import BearingElement
 from ross.disk_element import DiskElement
 from ross.materials import steel
+from ross.report import Report
 from ross.rotor_assembly import Rotor
 from ross.shaft_element import ShaftElement
 
