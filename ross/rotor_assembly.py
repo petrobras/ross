@@ -2289,8 +2289,12 @@ class Rotor(object):
 
         Examples
         --------
+        >>> from tempfile import tempdir
+        >>> from pathlib import Path
+        >>> # create path for temporary file
+        >>> file = Path(tempdir) / 'new_matrices'
         >>> rotor = rotor_example()
-        >>> rotor.save_mat('/tmp/new_matrices', speed=0)
+        >>> rotor.save_mat(file, speed=0)
         """
         if frequency is None:
             frequency = speed
@@ -2314,8 +2318,12 @@ class Rotor(object):
 
         Examples
         --------
+        >>> from tempfile import tempdir
+        >>> from pathlib import Path
+        >>> # create path for temporary file
+        >>> file = Path(tempdir) / 'rotor.toml'
         >>> rotor = rotor_example()
-        >>> rotor.save('/tmp/rotor.toml')
+        >>> rotor.save(file)
         """
         with open(file, "w") as f:
             toml.dump({"parameters": self.parameters}, f)
@@ -2337,9 +2345,13 @@ class Rotor(object):
 
         Example
         -------
+        >>> from tempfile import tempdir
+        >>> from pathlib import Path
+        >>> # create path for temporary file
+        >>> file = Path(tempdir) / 'new_rotor1.toml'
         >>> rotor1 = rotor_example()
-        >>> rotor1.save('/tmp/new_rotor1.toml')
-        >>> rotor2 = Rotor.load('/tmp/new_rotor1.toml')
+        >>> rotor1.save(file)
+        >>> rotor2 = Rotor.load(file)
         >>> rotor1 == rotor2
         True
         """
