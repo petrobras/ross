@@ -1,4 +1,5 @@
 from pathlib import Path
+from tempfile import tempdir
 
 import numpy as np
 import pytest
@@ -1769,7 +1770,8 @@ def test_ucs_calc(rotor8):
 
 
 def test_save_load(rotor8):
-    rotor8.save("/tmp/rotor8.toml")
-    rotor8_loaded = Rotor.load("/tmp/rotor8.toml")
+    file = Path(tempdir) / "rotor8.toml"
+    rotor8.save(file)
+    rotor8_loaded = Rotor.load(file)
 
     rotor8 == rotor8_loaded

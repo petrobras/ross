@@ -1,4 +1,6 @@
 import os
+from pathlib import Path
+from tempfile import tempdir
 
 import numpy as np
 import pytest
@@ -48,8 +50,9 @@ def disk_from_geometry():
 
 
 def test_save_load(disk, disk_from_geometry):
-    disk.save("/tmp/disk.toml")
-    disk_loaded = DiskElement.load("/tmp/disk.toml")
+    file = Path(tempdir) / "disk.toml"
+    disk.save(file)
+    disk_loaded = DiskElement.load(file)
     assert disk == disk_loaded
 
 
