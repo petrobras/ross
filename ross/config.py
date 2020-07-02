@@ -1,4 +1,5 @@
 """Rotordynamic Report Configuration File."""
+import black
 
 
 class _Dict:
@@ -10,7 +11,9 @@ class _Dict:
                 setattr(self, k, v)
 
     def __repr__(self):
-        return repr(self.__dict__)
+        return black.format_file_contents(
+            repr(self.__dict__), fast=True, mode=black.FileMode()
+        )
 
     def __getitem__(self, option):
         if option not in self.__dict__.keys():
@@ -232,7 +235,9 @@ class Config:
         # fmt: on
 
     def __repr__(self):
-        return repr(self.__dict__)
+        return black.format_file_contents(
+            repr(self.__dict__), fast=True, mode=black.FileMode()
+        )
 
     def __getitem__(self, option):
         if option not in self.__dict__.keys():
