@@ -45,6 +45,7 @@ with open("requirements.txt") as f:
 # What packages are optional?
 EXTRAS = {
     "dev": [
+        "jinja2",
         "dash",
         "dash_bootstrap_components",
         "pytest>=4.6",

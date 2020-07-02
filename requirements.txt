@@ -1,5 +1,6 @@
 dash
 dash_bootstrap_components
+jinja2
 numpy
 scipy
 matplotlib
