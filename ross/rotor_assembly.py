@@ -1351,7 +1351,7 @@ class Rotor(object):
 
         >>> response = rotor.run_freq_response(cluster_points=True, num_points=5)
         >>> response.speed_range.shape
-        (60,)
+        (61,)
 
         # plot frequency response function:
         >>> fig = response.plot(inp=13, out=13)
@@ -1466,7 +1466,7 @@ class Rotor(object):
         ...     force=force, cluster_points=True, num_modes=12, num_points=5
         ... )
         >>> response.speed_range.shape
-        (60,)
+        (61,)
         """
         if speed_range is None:
             if cluster_points:
@@ -1631,7 +1631,7 @@ class Rotor(object):
         ...     node=3, magnitude=0.01, phase=0.0, cluster_points=True, num_points=5
         ... )
         >>> response2.speed_range.shape
-        (60,)
+        (61,)
 
         plot unbalance response:
         >>> fig = response.plot(dof=13)
