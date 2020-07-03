@@ -49,8 +49,8 @@ class _Dict:
         ...     "min_clearance": None,
         ...     "max_clearance": None,
         ... })
-        >>> param
-        {"oper_clearance": None, "min_clearance": None, "max_clearance": None}
+        >>> param # doctest: +ELLIPSIS
+        {"oper_clearance": None, "min_clearance": None, "max_clearance": None}...
         """
         return black.format_file_contents(
             repr(self.__dict__), fast=True, mode=black.FileMode()
@@ -117,8 +117,8 @@ class _Dict:
         ...     "synchronous": False,
         ... })
         >>> param._update(num=20, num_modes=10)
-        >>> param
-        {"stiffness_range": None, "num": 20, "num_modes": 10, "synchronous": False}
+        >>> param # doctest: +ELLIPSIS
+        {"stiffness_range": None, "num": 20, "num_modes": 10, "synchronous": False}...
         """
         for k, v in kwargs.items():
             if k not in self.__dict__.keys():
@@ -280,13 +280,13 @@ class Config:
 
     First syntax opion:
     >>> configs = Config()
-    >>> configs.rotor_properties.rotor_id
-    {"type": "compressor", "tag": None}
+    >>> configs.rotor_properties.rotor_id # doctest: +ELLIPSIS
+    {"type": "compressor", "tag": None}...
 
     Second syntax opion:
     >>> configs = Config()
-    >>> configs["rotor_properties"]["rotor_id"]
-    {"type": "compressor", "tag": None}
+    >>> configs["rotor_properties"]["rotor_id"] # doctest: +ELLIPSIS
+    {"type": "compressor", "tag": None}...
     """
 
     def __init__(self):
@@ -394,8 +394,8 @@ class Config:
         Examples
         --------
         >>> configs = Config()
-        >>> configs["bearings"]
-        {"oper_clearance": None, "min_clearance": None, "max_clearance": None}
+        >>> configs["bearings"] # doctest: +ELLIPSIS
+        {"oper_clearance": None, "min_clearance": None, "max_clearance": None}...
         """
         if option not in self.__dict__.keys():
             raise KeyError("Option '{}' not found.".format(option))
@@ -429,7 +429,7 @@ class Config:
         ...         rotor_id=dict(type="turbine", tag="Model"),
         ...     )
         ... )
-        >>> configs.rotor_properties
+        >>> configs.rotor_properties # doctest: +ELLIPSIS
         {
             "rotor_speeds": {
                 "min_speed": 1000.0,
@@ -440,7 +440,7 @@ class Config:
                 "unit": "rpm",
             },
             "rotor_id": {"type": "turbine", "tag": "Model"},
-        }
+        }...
         """
         for k, v in kwargs.items():
             if k not in self.__dict__.keys():
