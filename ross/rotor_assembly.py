@@ -1040,7 +1040,7 @@ class Rotor(object):
         >>> rotor = rotor_example()
         >>> speed_range = rotor._clustering_points(num_modes=12, num_points=5)
         >>> speed_range.shape
-        (60,)
+        (61,)
         """
         critical_speeds = self.run_critical_speed(num_modes=num_modes, rtol=rtol)
         omega = critical_speeds.wd
@@ -1064,6 +1064,7 @@ class Rotor(object):
 
         omega = omega.reshape((len(omega), 1))
         speed_range = np.sort(np.ravel(np.concatenate((omega / a, omega * a))))
+        speed_range = np.insert(speed_range, 0, 0)
 
         return speed_range
 
