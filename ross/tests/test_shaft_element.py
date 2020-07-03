@@ -1,4 +1,6 @@
 import os
+from pathlib import Path
+from tempfile import tempdir
 
 import numpy as np
 import pytest
@@ -6,8 +8,6 @@ from numpy.testing import assert_allclose, assert_almost_equal
 
 from ross.materials import steel
 from ross.shaft_element import ShaftElement, ShaftElement6DoF
-
-test_dir = os.path.dirname(__file__)
 
 
 @pytest.fixture
@@ -306,6 +306,18 @@ def test_match_gyroscopic_matrix(tap2, tim2):
     G_tap = tap2.G()
     G_tim = tim2.G()
     assert_almost_equal(G_tap, G_tim, decimal=5)
+
+
+def test_save_load(tim, tap_tim):
+    file = Path(tempdir) / "tim.toml"
+    tim.save(file)
+    tim_loaded = ShaftElement.load(file)
+    assert tim == tim_loaded
+
+    file = Path(tempdir) / "tap_tim.toml"
+    tap_tim.save(file)
+    tap_tim_loaded = ShaftElement.load(file)
+    assert tap_tim == tap_tim_loaded
 
 
 @pytest.fixture

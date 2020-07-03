@@ -1,4 +1,6 @@
 import os
+from pathlib import Path
+from tempfile import tempdir
 
 import numpy as np
 import pytest
@@ -45,6 +47,13 @@ def test_gyroscopic_matrix_disk(disk):
 @pytest.fixture
 def disk_from_geometry():
     return DiskElement.from_geometry(0, steel, 0.07, 0.05, 0.28)
+
+
+def test_save_load(disk, disk_from_geometry):
+    file = Path(tempdir) / "disk.toml"
+    disk.save(file)
+    disk_loaded = DiskElement.load(file)
+    assert disk == disk_loaded
 
 
 def test_mass_matrix_disk1(disk_from_geometry):

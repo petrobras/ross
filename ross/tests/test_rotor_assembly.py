@@ -1,4 +1,5 @@
-import os
+from pathlib import Path
+from tempfile import tempdir
 
 import numpy as np
 import pytest
@@ -11,8 +12,6 @@ from ross.point_mass import *
 from ross.rotor_assembly import *
 from ross.rotor_assembly import MAC_modes
 from ross.shaft_element import *
-
-test_dir = os.path.dirname(__file__)
 
 
 @pytest.fixture
@@ -1052,6 +1051,67 @@ def test_static_analysis_rotor6(rotor6):
     )
 
 
+def test_run_critical_speed(rotor5, rotor6):
+    results5 = rotor5.run_critical_speed(num_modes=12, rtol=0.005)
+    results6 = rotor6.run_critical_speed(num_modes=12, rtol=0.005)
+
+    wn5 = np.array(
+        [
+            86.10505193,
+            86.60492546,
+            198.93259257,
+            207.97165539,
+            244.95609413,
+            250.53522782,
+        ]
+    )
+    wd5 = np.array(
+        [
+            86.1050519,
+            86.60492544,
+            198.93259256,
+            207.97165539,
+            244.95609413,
+            250.53522782,
+        ]
+    )
+    log_dec5 = np.zeros_like(wd5)
+    damping_ratio5 = np.zeros_like(wd5)
+
+    wd6 = np.array(
+        [
+            61.52110644,
+            63.72862198,
+            117.49491374,
+            118.55829416,
+            233.83724523,
+            236.40346235,
+        ]
+    )
+    wn6 = np.array(
+        [
+            61.52110644,
+            63.72862198,
+            117.49491375,
+            118.55829421,
+            233.83724523,
+            236.40346458,
+        ]
+    )
+    log_dec6 = np.zeros_like(wd6)
+    damping_ratio6 = np.zeros_like(wd6)
+
+    assert_almost_equal(results5.wd, wd5, decimal=4)
+    assert_almost_equal(results5.wn, wn5, decimal=4)
+    assert_almost_equal(results5.log_dec, log_dec5, decimal=4)
+    assert_almost_equal(results5.damping_ratio, damping_ratio5, decimal=4)
+
+    assert_almost_equal(results6.wd, wd6, decimal=4)
+    assert_almost_equal(results6.wn, wn6, decimal=4)
+    assert_almost_equal(results6.log_dec, log_dec6, decimal=4)
+    assert_almost_equal(results6.damping_ratio, damping_ratio6, decimal=4)
+
+
 @pytest.fixture
 def coaxrotor():
     #  Co-axial rotor system with 2 shafts, 4 disks and
@@ -1456,11 +1516,10 @@ def test_H_kappa(rotor7):
 
 
 def test_save_load():
-
     a = rotor_example()
     a.save("teste00000000000000001")
-    b = Rotor.load("teste00000000000000001")
-    Rotor.remove("teste00000000000000001")
+    b = Rotor.load("teste00000000000000001.rsm")
+    (Path.cwd() / "teste00000000000000001.rsm").unlink()
 
     assert a == b
 
@@ -1659,3 +1718,60 @@ def test_modal_6dof(rotor_6dof):
 
     assert_almost_equal(modal.wn[:6], wn, decimal=3)
     assert_almost_equal(modal.wd[:6], wd, decimal=3)
+
+
+@pytest.fixture
+def rotor8():
+    #  Rotor with damping
+    #  Rotor with 6 shaft elements, 2 disks and 2 bearings with frequency dependent coefficients
+    i_d = 0
+    o_d = 0.05
+    n = 6
+    L = [0.25 for _ in range(n)]
+
+    shaft_elem = [
+        ShaftElement(
+            l,
+            i_d,
+            o_d,
+            material=steel,
+            shear_effects=True,
+            rotary_inertia=True,
+            gyroscopic=True,
+        )
+        for l in L
+    ]
+
+    disk0 = DiskElement.from_geometry(2, steel, 0.07, 0.05, 0.28)
+    disk1 = DiskElement.from_geometry(4, steel, 0.07, 0.05, 0.35)
+
+    stfx = [1e7, 1.5e7]
+    stfy = [1e7, 1.5e7]
+    c = [1e3, 1.5e3]
+    frequency = [50, 5000]
+    bearing0 = BearingElement(0, kxx=stfx, kyy=stfy, cxx=c, cyy=c, frequency=frequency)
+    bearing1 = BearingElement(6, kxx=stfx, kyy=stfy, cxx=c, cyy=c, frequency=frequency)
+
+    return Rotor(shaft_elem, [disk0, disk1], [bearing0, bearing1])
+
+
+def test_ucs_calc(rotor8):
+    exp_stiffness_range = np.array([1000000.0, 1832980.710832, 3359818.286284])
+    exp_rotor_wn = np.array([86.658114, 95.660573, 101.868254])
+    exp_intersection_points_x = np.array(
+        [9632232.337582, 9632232.337582, 10333174.417919]
+    )
+    exp_intersection_points_y = np.array([107.920792, 107.920792, 411.881188])
+    stiffness_range, rotor_wn, bearing, intersection_points = rotor8._calc_ucs()
+    assert_allclose(stiffness_range[:3], exp_stiffness_range)
+    assert_allclose(rotor_wn[0, :3], exp_rotor_wn)
+    assert_allclose(intersection_points["x"][:3], exp_intersection_points_x, rtol=1e-3)
+    assert_allclose(intersection_points["y"][:3], exp_intersection_points_y, rtol=1e-3)
+
+
+def test_save_load(rotor8):
+    file = Path(tempdir) / "rotor8.toml"
+    rotor8.save(file)
+    rotor8_loaded = Rotor.load(file)
+
+    rotor8 == rotor8_loaded

@@ -1,3 +1,6 @@
+from pathlib import Path
+from tempfile import tempdir
+
 import numpy as np
 from numpy.testing import assert_allclose
 
@@ -27,3 +30,12 @@ def test_local_index():
 
     assert p.dof_local_index().x_0 == 0
     assert p.dof_local_index().y_0 == 1
+
+
+def test_save_load():
+    p = PointMass(n=0, m=10.0, tag="pointmass")
+    file = Path(tempdir) / "point_mass.toml"
+    p.save(file)
+    p_loaded = p.load(file)
+
+    assert p == p_loaded

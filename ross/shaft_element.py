@@ -3,6 +3,7 @@
 This module defines the ShaftElement classes which will be used to represent the rotor
 shaft. There're 2 options, an element with 8 or 12 degrees of freedom.
 """
+import inspect
 import os
 from pathlib import Path
 
@@ -380,70 +381,34 @@ class ShaftElement(Element):
     def __hash__(self):
         return hash(self.tag)
 
-    def save(self, file_name=Path(os.getcwd())):
-        """Save shaft elements to toml file.
+    def save(self, file):
+        signature = inspect.signature(self.__init__)
+        args_list = list(signature.parameters)
+        args = {arg: getattr(self, arg) for arg in args_list}
 
-        Parameters
-        ----------
-        file_name : str
-
-        Examples
-        --------
-        >>> from ross.materials import steel
-        >>> shaft1 = ShaftElement(
-        ...        L=0.25, idl=0, idr=0, odl=0.05, odr=0.08,
-        ...        material=steel, rotary_inertia=True, shear_effects=True,
-        ... )
-        >>> shaft1.save()
-        """
-        data = self.get_data(Path(file_name) / "ShaftElement.toml")
-        data["ShaftElement"][str(self.n)] = {
-            "L": self.L,
-            "idl": self.idl,
-            "odl": self.odl,
-            "idr": self.idr,
-            "odr": self.odr,
-            "material": self.material.name,
-            "n": self.n,
-            "axial_force": self.axial_force,
-            "torque": self.torque,
-            "shear_effects": self.shear_effects,
-            "rotary_inertia": self.rotary_inertia,
-            "gyroscopic": self.gyroscopic,
-            "shear_method_calc": self.shear_method_calc,
+        # add material characteristics so that the shaft element can be reconstructed
+        # even if the material is not in the available_materials file.
+        args["material"] = {
+            "name": self.material.name,
+            "rho": self.material.rho,
+            "E": self.material.E,
+            "G_s": self.material.G_s,
+            "color": self.material.color,
         }
-        self.dump_data(data, Path(file_name) / "ShaftElement.toml")
 
-    @staticmethod
-    def load(file_name="ShaftElement"):
-        """Load a list of shaft elements saved in a toml format.
+        try:
+            data = toml.load(file)
+        except FileNotFoundError:
+            data = {}
 
-        It works as an auxiliary function of the load function in the Rotor class.
+        data[f"{self.__class__.__name__}_{self.tag}"] = args
+        with open(file, "w") as f:
+            toml.dump(data, f)
 
-        Parameters
-        ----------
-        file_name : str, optional
-
-        Examples
-        --------
-        >>> from ross.materials import steel
-        >>> shaft1 = ShaftElement(
-        ...        L=0.25, idl=0, idr=0, odl=0.05, odr=0.08,
-        ...        material=steel, rotary_inertia=True, shear_effects=True
-        ... )
-        >>> shaft1.save(os.getcwd())
-        >>> shaft2 = ShaftElement.load(os.getcwd())
-        >>> shaft2 # doctest: +ELLIPSIS
-        [ShaftElement(L=0.25, idl=0.0...
-        """
-        shaft_elements = []
-        with open("ShaftElement.toml", "r") as f:
-            shaft_elements_dict = toml.load(f)
-            for element in shaft_elements_dict["ShaftElement"]:
-                shaft_elements.append(
-                    ShaftElement(**shaft_elements_dict["ShaftElement"][element])
-                )
-        return shaft_elements
+    @classmethod
+    def read_toml_data(cls, data):
+        data["material"] = Material(**data["material"])
+        return cls(**data)
 
     @property
     def n(self):
@@ -1488,76 +1453,34 @@ class ShaftElement6DoF(ShaftElement):
             f"\n"
         )
 
-    def save(self, file_name=Path(os.getcwd())):
-        """Save shaft elements to toml file.
+    def save(self, file):
+        signature = inspect.signature(self.__init__)
+        args_list = list(signature.parameters)
+        args = {arg: getattr(self, arg) for arg in args_list}
 
-        Parameters
-        ----------
-        file_name : str
-
-        Examples
-        --------
-        >>> from ross.materials import steel
-        >>> shaft1 = ShaftElement6DoF(
-        ...        L=0.25, idl=0, idr=0, odl=0.05, odr=0.08,
-        ...        material=steel, rotary_inertia=True, shear_effects=True,
-        ... )
-        >>> shaft1.save()
-        """
-        data = self.get_data(Path(file_name) / "ShaftElement6DoF.toml")
-        data["ShaftElement6DoF"][str(self.n)] = {
-            "L": self.L,
-            "idl": self.idl,
-            "odl": self.odl,
-            "idr": self.idr,
-            "odr": self.odr,
-            "alpha": self.alpha,
-            "beta": self.beta,
-            "material": self.material.name,
-            "n": self.n,
-            "axial_force": self.axial_force,
-            "torque": self.torque,
-            "shear_effects": self.shear_effects,
-            "rotary_inertia": self.rotary_inertia,
-            "gyroscopic": self.gyroscopic,
+        # add material characteristics so that the shaft element can be reconstructed
+        # even if the material is not in the available_materials file.
+        args["material"] = {
+            "name": self.material.name,
+            "rho": self.material.rho,
+            "E": self.material.E,
+            "G_s": self.material.G_s,
+            "color": self.material.color,
         }
-        self.dump_data(data, Path(file_name) / "ShaftElement6DoF.toml")
 
-    @staticmethod
-    def load(file_name="ShaftElement6DoF"):
-        """Load a list of shaft elements saved in a toml format.
+        try:
+            data = toml.load(file)
+        except FileNotFoundError:
+            data = {}
 
-        It works as an auxiliary function of the load function in the Rotor class.
+        data[f"{self.__class__.__name__}_{self.tag}"] = args
+        with open(file, "w") as f:
+            toml.dump(data, f)
 
-        Parameters
-        ----------
-        file_name : str, optional
-
-        Returns
-        -------
-        shaft_elements : list
-            A list of shaft elements
-
-        Examples
-        --------
-        >>> from ross.materials import steel
-        >>> shaft1 = ShaftElement6DoF(
-        ...        L=0.25, idl=0, idr=0, odl=0.05, odr=0.08,
-        ...        material=steel, rotary_inertia=True, shear_effects=True
-        ... )
-        >>> shaft1.save(os.getcwd())
-        >>> shaft2 = ShaftElement6DoF.load(os.getcwd())
-        >>> shaft2 # doctest: +ELLIPSIS
-        [ShaftElement6DoF(L=0.25, idl=0.0...
-        """
-        shaft_elements = []
-        with open("ShaftElement6DoF.toml", "r") as f:
-            shaft_elements_dict = toml.load(f)
-            for element in shaft_elements_dict["ShaftElement6DoF"]:
-                shaft_elements.append(
-                    ShaftElement6DoF(**shaft_elements_dict["ShaftElement6DoF"][element])
-                )
-        return shaft_elements
+    @classmethod
+    def read_toml_data(cls, data):
+        data["material"] = Material(**data["material"])
+        return cls(**data)
 
     def dof_mapping(self):
         """Degrees of freedom mapping.

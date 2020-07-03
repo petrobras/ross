@@ -2,15 +2,37 @@
 
 This module returns graphs for each type of analyses in rotor_assembly.py.
 """
+import copy
+
 import numpy as np
-import plotly.express as px
 import plotly.graph_objects as go
 import scipy.linalg as la
 from plotly.subplots import make_subplots
 from scipy import interpolate
 
-# set Plotly palette of colors
-colors1 = px.colors.qualitative.Dark24
+from ross.plotly_theme import tableau_colors
+
+
+class CriticalSpeedResults:
+    """Class used to store results from run_critical_speed() method.
+
+    Parameters
+    ----------
+    wn : array
+        Undamped critical speeds array.
+    wd : array
+        Undamped critical speeds array.
+    log_dec : array
+        Logarithmic decrement for each critical speed.
+    damping_ratio : array
+        Damping ratio for each critical speed.
+    """
+
+    def __init__(self, wn, wd, log_dec, damping_ratio):
+        self.wn = wn
+        self.wd = wd
+        self.log_dec = log_dec
+        self.damping_ratio = damping_ratio
 
 
 class ModalResults:
@@ -33,7 +55,7 @@ class ModalResults:
     wd : array
         Damped natural frequencies array.
     log_dec : array
-        Logarithmic decrement for each .
+        Logarithmic decrement for each mode.
     damping_ratio : array
         Damping ratio for each mode.
     lti : StateSpaceContinuous
@@ -457,7 +479,7 @@ class ModalResults:
 
         return xn, yn, zn, x_circles, y_circles, z_circles_pos, nn
 
-    def plot_mode3D(self, mode=None, evec=None, **kwargs):
+    def plot_mode_3d(self, mode=None, evec=None, fig=None, **kwargs):
         """Plot (3D view) the mode shapes.
 
         Parameters
@@ -467,6 +489,8 @@ class ModalResults:
             Default is None
         evec : array
             Array containing the system eigenvectors
+        fig : Plotly graph_objects.Figure()
+            The figure object with the plot.
         kwargs : optional
             Additional key word arguments can be passed to change the plot layout only
             (e.g. width=1000, height=800, ...).
@@ -477,7 +501,8 @@ class ModalResults:
         fig : Plotly graph_objects.Figure()
             The figure object with the plot.
         """
-        fig = go.Figure()
+        if fig is None:
+            fig = go.Figure()
 
         nodes = self.nodes
         kappa_mode = self.kappa_modes[mode]
@@ -489,9 +514,24 @@ class ModalResults:
                     x=zc_pos[10:, node],
                     y=xc[10:, node],
                     z=yc[10:, node],
-                    mode="markers+lines",
-                    line=dict(width=4.0, color=kappa_mode[node]),
-                    marker=dict(size=5, color=kappa_mode[node]),
+                    mode="lines",
+                    line=dict(color=kappa_mode[node]),
+                    name="node {}".format(node),
+                    showlegend=False,
+                    hovertemplate=(
+                        "Nodal Position: %{x:.2f}<br>"
+                        + "X - Relative Displacement: %{y:.2f}<br>"
+                        + "Y - Relative Displacement: %{z:.2f}"
+                    ),
+                )
+            )
+            fig.add_trace(
+                go.Scatter3d(
+                    x=[zc_pos[10, node]],
+                    y=[xc[10, node]],
+                    z=[yc[10, node]],
+                    mode="markers",
+                    marker=dict(color=kappa_mode[node]),
                     name="node {}".format(node),
                     showlegend=False,
                 )
@@ -503,7 +543,7 @@ class ModalResults:
                 y=xn,
                 z=yn,
                 mode="lines",
-                line=dict(width=3.0, color="black", dash="dash"),
+                line=dict(color="black", dash="dash"),
                 name="mode shape",
                 showlegend=False,
             )
@@ -519,63 +559,43 @@ class ModalResults:
                 y=zn_cl * 0,
                 z=zn_cl * 0,
                 mode="lines",
-                line=dict(width=2.0, color="black", dash="dashdot"),
+                line=dict(color="black", dash="dashdot"),
                 hoverinfo="none",
                 showlegend=False,
             )
         )
         fig.update_layout(
-            width=1200,
-            height=900,
             scene=dict(
-                bgcolor="white",
                 xaxis=dict(
-                    title=dict(text="<b>Rotor Length</b>", font=dict(size=14)),
-                    tickfont=dict(size=16),
-                    range=[zn_cl0 - 0.1, zn_cl1 + 0.1],
+                    title=dict(text="<b>Rotor Length</b>"),
+                    autorange="reversed",
                     nticks=5,
-                    backgroundcolor="lightgray",
-                    gridcolor="white",
-                    showspikes=False,
                 ),
                 yaxis=dict(
-                    title=dict(
-                        text="<b>Dimensionless deformation</b>", font=dict(size=14)
-                    ),
-                    tickfont=dict(size=16),
+                    title=dict(text="<b>Relative Displacement</b>"),
                     range=[-2, 2],
                     nticks=5,
-                    backgroundcolor="lightgray",
-                    gridcolor="white",
-                    showspikes=False,
                 ),
                 zaxis=dict(
-                    title=dict(
-                        text="<b>Dimensionless deformation</b>", font=dict(size=14)
-                    ),
-                    tickfont=dict(size=16),
+                    title=dict(text="<b>Relative Displacement</b>"),
                     range=[-2, 2],
                     nticks=5,
-                    backgroundcolor="lightgray",
-                    gridcolor="white",
-                    showspikes=False,
                 ),
             ),
             title=dict(
                 text=(
-                    f"<b>Mode</b> {mode + 1}<br>"
-                    f"<b>whirl</b>: {self.whirl_direction()[mode]}<br>"
-                    f"<b>ωn</b> = {self.wn[mode]:.1f} rad/s<br>"
+                    f"<b>Mode</b> {mode + 1} | "
+                    f"<b>whirl</b>: {self.whirl_direction()[mode]} | "
+                    f"<b>ω<sub>n</sub></b> = {self.wn[mode]:.1f} rad/s | "
                     f"<b>log dec</b> = {self.log_dec[mode]:.1f}"
-                ),
-                font=dict(size=14),
+                )
             ),
             **kwargs,
         )
 
         return fig
 
-    def plot_mode2D(self, mode=None, evec=None, **kwargs):
+    def plot_mode_2d(self, mode=None, evec=None, fig=None, **kwargs):
         """Plot (2D view) the mode shapes.
 
         Parameters
@@ -585,6 +605,8 @@ class ModalResults:
             Default is None
         evec : array
             Array containing the system eigenvectors
+        fig : Plotly graph_objects.Figure()
+            The figure object with the plot.
         kwargs : optional
             Additional key word arguments can be passed to change the plot layout only
             (e.g. width=1000, height=800, ...).
@@ -611,9 +633,10 @@ class ModalResults:
         zn = np.delete(zn, idx_remove)
         vn = np.delete(vn, idx_remove)
 
-        fig = go.Figure()
+        if fig is None:
+            fig = go.Figure()
 
-        colors = dict(Backward="firebrick", Mixed="black", Forward="royalblue")
+        colors = dict(Backward="red", Mixed="black", Forward="blue")
         whirl_dir = colors[self.whirl_direction()[mode]]
 
         fig.add_trace(
@@ -621,7 +644,7 @@ class ModalResults:
                 x=zn,
                 y=vn,
                 mode="lines",
-                line=dict(width=2.5, color=whirl_dir),
+                line=dict(color=whirl_dir),
                 name="mode shape",
                 showlegend=False,
             )
@@ -632,51 +655,23 @@ class ModalResults:
                 x=nodes_pos,
                 y=np.zeros(len(nodes_pos)),
                 mode="lines",
-                line=dict(width=1.0, color="black", dash="dashdot"),
+                line=dict(color="black", dash="dashdot"),
                 name="centerline",
                 hoverinfo="none",
                 showlegend=False,
             )
         )
 
-        fig.update_xaxes(
-            title_text="<b>Rotor Length</b>",
-            title_font=dict(size=16),
-            tickfont=dict(size=14),
-            gridcolor="lightgray",
-            showline=True,
-            linewidth=2.5,
-            linecolor="black",
-            mirror=True,
-        )
-        fig.update_yaxes(
-            title_text="<b>Non dimensional deformation</b>",
-            title_font=dict(size=16),
-            tickfont=dict(size=14),
-            gridcolor="lightgray",
-            showline=True,
-            linewidth=2.5,
-            linecolor="black",
-            mirror=True,
-        )
+        fig.update_xaxes(title_text="<b>Rotor Length</b>")
+        fig.update_yaxes(title_text="<b>Relative Displacement</b>")
         fig.update_layout(
-            width=1200,
-            height=900,
-            plot_bgcolor="white",
-            legend=dict(
-                font=dict(family="sans-serif", size=14),
-                bgcolor="white",
-                bordercolor="black",
-                borderwidth=2,
-            ),
             title=dict(
                 text=(
                     f"<b>Mode</b> {mode + 1} | "
                     f"<b>whirl</b>: {self.whirl_direction()[mode]} | "
                     f"<b>ωn</b> = {self.wn[mode]:.1f} rad/s | "
                     f"<b>log dec</b> = {self.log_dec[mode]:.1f}"
-                ),
-                font=dict(size=16),
+                )
             ),
             **kwargs,
         )
@@ -713,7 +708,7 @@ class CampbellResults:
         self.log_dec = log_dec
         self.whirl_values = whirl_values
 
-    def plot(self, harmonics=[1], **kwargs):
+    def plot(self, harmonics=[1], fig=None, **kwargs):
         """Create Campbell Diagram figure using Plotly.
 
         Parameters
@@ -721,6 +716,8 @@ class CampbellResults:
         harmonics: list, optional
             List withe the harmonics to be plotted.
             The default is to plot 1x.
+        fig : Plotly graph_objects.Figure()
+            The figure object with the plot.
         kwargs : optional
             Additional key word arguments can be passed to change the plot layout only
             (e.g. width=1000, height=800, ...).
@@ -738,13 +735,13 @@ class CampbellResults:
         speed_range = self.speed_range
         log_dec_map = log_dec.flatten()
 
-        fig = go.Figure()
+        if fig is None:
+            fig = go.Figure()
 
         scatter_marker = ["triangle-up", "circle", "triangle-down"]
         for mark, whirl_dir, legend in zip(
             scatter_marker, [0.0, 0.5, 1.0], ["Foward", "Mixed", "Backward"]
         ):
-            num_frequencies = wd.shape[1]
             for i in range(num_frequencies):
                 w_i = wd[:, i]
                 whirl_i = whirl[:, i]
@@ -777,7 +774,7 @@ class CampbellResults:
                                 x=xnew[idx],
                                 y=ynew[idx],
                                 mode="markers",
-                                marker=dict(symbol="x", size=10, color="black"),
+                                marker=dict(symbol="x", color="black"),
                                 name="Crit. Speed",
                                 legendgroup="Crit. Speed",
                                 showlegend=False,
@@ -798,7 +795,6 @@ class CampbellResults:
                             y=w_i[whirl_mask],
                             marker=dict(
                                 symbol=mark,
-                                size=16,
                                 cmax=max(log_dec_map),
                                 cmin=min(log_dec_map),
                                 color=log_dec_i[whirl_mask],
@@ -819,7 +815,7 @@ class CampbellResults:
                     x=speed_range,
                     y=h * speed_range,
                     mode="lines",
-                    line=dict(width=2.5, color=colors1[j], dash="dashdot"),
+                    line=dict(dash="dashdot"),
                     name="{}x speed".format(h),
                     hoverinfo="none",
                 )
@@ -830,57 +826,36 @@ class CampbellResults:
         for mark, legend in zip(scatter_marker, legends):
             fig.add_trace(
                 go.Scatter(
-                    x=[-1000],
-                    y=[-1000],
+                    x=[0],
+                    y=[0],
                     mode="markers",
                     name=legend,
                     legendgroup=legend,
-                    marker=dict(symbol=mark, size=16, color="black"),
+                    marker=dict(symbol=mark, color="black"),
                 )
             )
 
         fig.update_xaxes(
             title_text="<b>Frequency</b>",
-            title_font=dict(family="Arial", size=20),
-            tickfont=dict(size=16),
-            range=[0, np.max(speed_range)],
-            gridcolor="lightgray",
-            showline=True,
-            linewidth=2.5,
-            linecolor="black",
-            mirror=True,
+            range=[np.min(speed_range), np.max(speed_range)],
         )
         fig.update_yaxes(
-            title_text="<b>Damped Natural Frequencies</b>",
-            title_font=dict(family="Arial", size=20),
-            tickfont=dict(size=16),
-            range=[0, 1.1 * np.max(wd)],
-            gridcolor="lightgray",
-            showline=True,
-            linewidth=2.5,
-            linecolor="black",
-            mirror=True,
+            title_text="<b>Damped Natural Frequencies</b>", range=[0, 1.1 * np.max(wd)]
         )
         fig.update_layout(
-            width=1200,
-            height=900,
-            plot_bgcolor="white",
-            hoverlabel_align="right",
             coloraxis=dict(
                 cmin=min(log_dec_map),
                 cmax=max(log_dec_map),
                 colorscale="rdbu",
-                colorbar=dict(
-                    title=dict(text="<b>Log Dec</b>", side="right", font=dict(size=20)),
-                    tickfont=dict(size=16),
-                ),
+                colorbar=dict(title=dict(text="<b>Log Dec</b>", side="right")),
             ),
             legend=dict(
                 itemsizing="constant",
-                bgcolor="white",
-                borderwidth=2,
-                font=dict(size=14),
                 orientation="h",
+                xanchor="center",
+                x=0.5,
+                yanchor="bottom",
+                y=-0.3,
             ),
             **kwargs,
         )
@@ -916,7 +891,7 @@ class FrequencyResponseResults:
         self.magnitude = magnitude
         self.phase = phase
 
-    def plot_magnitude(self, inp, out, units="mic-pk-pk", **mag_kwargs):
+    def plot_magnitude(self, inp, out, units="mic-pk-pk", fig=None, **mag_kwargs):
         """Plot frequency response (magnitude) using Plotly.
 
         This method plots the frequency response magnitude given an output and
@@ -931,6 +906,8 @@ class FrequencyResponseResults:
         units : str
             Unit system
             Default is "mic-pk-pk"
+        fig : Plotly graph_objects.Figure()
+            The figure object with the plot.
         mag_kwargs : optional
             Additional key word arguments can be passed to change the plot layout only
             (e.g. width=1000, height=800, ...).
@@ -951,20 +928,15 @@ class FrequencyResponseResults:
         else:
             y_axis_label = "<b>Amplitude (dB)</b>"
 
-        kwargs_default_values = dict(
-            width=1200, height=900, plot_bgcolor="white", hoverlabel_align="right"
-        )
-        for k, v in kwargs_default_values.items():
-            mag_kwargs.setdefault(k, v)
-
-        fig = go.Figure()
+        if fig is None:
+            fig = go.Figure()
 
         fig.add_trace(
             go.Scatter(
                 x=frequency_range,
                 y=mag[inp, out, :],
                 mode="lines",
-                line=dict(width=3.0, color="royalblue"),
+                line=dict(color=tableau_colors["blue"]),
                 name="Amplitude",
                 legendgroup="Amplitude",
                 showlegend=False,
@@ -974,38 +946,14 @@ class FrequencyResponseResults:
 
         fig.update_xaxes(
             title_text="<b>Frequency</b>",
-            title_font=dict(family="Arial", size=20),
-            tickfont=dict(size=16),
-            range=[0, np.max(frequency_range)],
-            gridcolor="lightgray",
-            showline=True,
-            linewidth=2.5,
-            linecolor="black",
-            mirror=True,
+            range=[np.min(frequency_range), np.max(frequency_range)],
         )
-        fig.update_yaxes(
-            title_text=y_axis_label,
-            title_font=dict(family="Arial", size=20),
-            tickfont=dict(size=16),
-            gridcolor="lightgray",
-            showline=True,
-            linewidth=2.5,
-            linecolor="black",
-            mirror=True,
-        )
-        fig.update_layout(
-            legend=dict(
-                font=dict(family="sans-serif", size=14),
-                bgcolor="white",
-                bordercolor="black",
-                borderwidth=2,
-            ),
-            **mag_kwargs,
-        )
+        fig.update_yaxes(title_text=y_axis_label)
+        fig.update_layout(**mag_kwargs)
 
         return fig
 
-    def plot_phase(self, inp, out, **phase_kwargs):
+    def plot_phase(self, inp, out, fig=None, **phase_kwargs):
         """Plot frequency response (phase) using Plotly.
 
         This method plots the frequency response phase given an output and
@@ -1017,6 +965,8 @@ class FrequencyResponseResults:
             Input.
         out : int
             Output.
+        fig : Plotly graph_objects.Figure()
+            The figure object with the plot.
         phase_kwargs : optional
             Additional key word arguments can be passed to change the plot layout only
             (e.g. width=1000, height=800, ...).
@@ -1030,20 +980,15 @@ class FrequencyResponseResults:
         frequency_range = self.speed_range
         phase = self.phase
 
-        kwargs_default_values = dict(
-            width=1200, height=900, plot_bgcolor="white", hoverlabel_align="right"
-        )
-        for k, v in kwargs_default_values.items():
-            phase_kwargs.setdefault(k, v)
-
-        fig = go.Figure()
+        if fig is None:
+            fig = go.Figure()
 
         fig.add_trace(
             go.Scatter(
                 x=frequency_range,
                 y=phase[inp, out, :],
                 mode="lines",
-                line=dict(width=3.0, color="royalblue"),
+                line=dict(color=tableau_colors["blue"]),
                 name="Phase",
                 legendgroup="Phase",
                 showlegend=False,
@@ -1053,38 +998,14 @@ class FrequencyResponseResults:
 
         fig.update_xaxes(
             title_text="<b>Frequency</b>",
-            title_font=dict(family="Arial", size=20),
-            tickfont=dict(size=16),
-            range=[0, np.max(frequency_range)],
-            gridcolor="lightgray",
-            showline=True,
-            linewidth=2.5,
-            linecolor="black",
-            mirror=True,
+            range=[np.min(frequency_range), np.max(frequency_range)],
         )
-        fig.update_yaxes(
-            title_text="<b>Phase</b>",
-            title_font=dict(family="Arial", size=20),
-            tickfont=dict(size=16),
-            gridcolor="lightgray",
-            showline=True,
-            linewidth=2.5,
-            linecolor="black",
-            mirror=True,
-        )
-        fig.update_layout(
-            legend=dict(
-                font=dict(family="sans-serif", size=14),
-                bgcolor="white",
-                bordercolor="black",
-                borderwidth=2,
-            ),
-            **phase_kwargs,
-        )
+        fig.update_yaxes(title_text="<b>Phase</b>")
+        fig.update_layout(**phase_kwargs)
 
         return fig
 
-    def plot_polar_bode(self, inp, out, units="mic-pk-pk", **polar_kwargs):
+    def plot_polar_bode(self, inp, out, units="mic-pk-pk", fig=None, **polar_kwargs):
         """Plot frequency response (polar) using Plotly.
 
         This method plots the frequency response (polar graph) given an output and
@@ -1099,6 +1020,8 @@ class FrequencyResponseResults:
         units : str
             Magnitude unit system.
             Default is "mic-pk-pk"
+        fig : Plotly graph_objects.Figure()
+            The figure object with the plot.
         polar_kwargs : optional
             Additional key word arguments can be passed to change the plot layout only
             (e.g. width=1000, height=800, ...).
@@ -1120,13 +1043,8 @@ class FrequencyResponseResults:
         else:
             r_axis_label = "<b>Amplitude (dB)</b>"
 
-        kwargs_default_values = dict(
-            width=1200, height=900, polar_bgcolor="white", hoverlabel_align="right"
-        )
-        for k, v in kwargs_default_values.items():
-            polar_kwargs.setdefault(k, v)
-
-        fig = go.Figure()
+        if fig is None:
+            fig = go.Figure()
 
         fig.add_trace(
             go.Scatterpolar(
@@ -1135,8 +1053,8 @@ class FrequencyResponseResults:
                 customdata=frequency_range,
                 thetaunit="radians",
                 mode="lines+markers",
-                marker=dict(size=8, color="royalblue"),
-                line=dict(width=3.0, color="royalblue"),
+                marker=dict(color=tableau_colors["blue"]),
+                line=dict(color=tableau_colors["blue"]),
                 name="Polar_plot",
                 legendgroup="Polar",
                 showlegend=False,
@@ -1150,18 +1068,7 @@ class FrequencyResponseResults:
 
         fig.update_layout(
             polar=dict(
-                radialaxis=dict(
-                    title=dict(text=r_axis_label, font=dict(size=14)),
-                    tickfont=dict(size=14),
-                    gridcolor="lightgray",
-                    exponentformat="power",
-                ),
-                angularaxis=dict(
-                    tickfont=dict(size=14),
-                    gridcolor="lightgray",
-                    linecolor="black",
-                    linewidth=2.5,
-                ),
+                radialaxis=dict(title=dict(text=r_axis_label), exponentformat="power")
             ),
             **polar_kwargs,
         )
@@ -1173,10 +1080,10 @@ class FrequencyResponseResults:
         inp,
         out,
         units="mic-pk-pk",
-        mag_kwargs={},
-        phase_kwargs={},
-        polar_kwargs={},
-        subplot_kwargs={},
+        mag_kwargs=None,
+        phase_kwargs=None,
+        polar_kwargs=None,
+        subplot_kwargs=None,
     ):
         """Plot frequency response.
 
@@ -1225,15 +1132,10 @@ class FrequencyResponseResults:
             Plotly figure with Amplitude vs Frequency and Phase vs Frequency and
             polar Amplitude vs Phase plots.
         """
-        kwargs_default_values = dict(
-            width=1800,
-            height=900,
-            polar_bgcolor="white",
-            plot_bgcolor="white",
-            hoverlabel_align="right",
-        )
-        for k, v in kwargs_default_values.items():
-            subplot_kwargs.setdefault(k, v)
+        mag_kwargs = {} if mag_kwargs is None else copy.copy(mag_kwargs)
+        phase_kwargs = {} if phase_kwargs is None else copy.copy(phase_kwargs)
+        polar_kwargs = {} if polar_kwargs is None else copy.copy(polar_kwargs)
+        subplot_kwargs = {} if subplot_kwargs is None else copy.copy(subplot_kwargs)
 
         fig0 = self.plot_magnitude(inp, out, units, **mag_kwargs)
         fig1 = self.plot_phase(inp, out, **phase_kwargs)
@@ -1292,7 +1194,7 @@ class ForcedResponseResults:
     """
 
     def __init__(
-        self, rotor, forced_resp, speed_range, magnitude, phase, unbalance=None,
+        self, rotor, forced_resp, speed_range, magnitude, phase, unbalance=None
     ):
         self.rotor = rotor
         self.forced_resp = forced_resp
@@ -1301,7 +1203,7 @@ class ForcedResponseResults:
         self.phase = phase
         self.unbalance = unbalance
 
-    def plot_magnitude(self, dof, units="m", **kwargs):
+    def plot_magnitude(self, dof, units="m", fig=None, **kwargs):
         """Plot forced response (magnitude) using Plotly.
 
         Parameters
@@ -1311,6 +1213,8 @@ class ForcedResponseResults:
         units : str
             Units to plot the magnitude ('m' or 'mic-pk-pk')
             Default is 'm'
+        fig : Plotly graph_objects.Figure()
+            The figure object with the plot.
         kwargs : optional
             Additional key word arguments can be passed to change the plot layout only
             (e.g. width=1000, height=800, ...).
@@ -1330,20 +1234,15 @@ class ForcedResponseResults:
             mag = 2 * mag * 1e6
             y_axis_label = "<b>Amplitude (μ pk-pk)</b>"
 
-        kwargs_default_values = dict(
-            width=1200, height=900, plot_bgcolor="white", hoverlabel_align="right"
-        )
-        for k, v in kwargs_default_values.items():
-            kwargs.setdefault(k, v)
-
-        fig = go.Figure()
+        if fig is None:
+            fig = go.Figure()
 
         fig.add_trace(
             go.Scatter(
                 x=frequency_range,
                 y=mag[dof],
                 mode="lines",
-                line=dict(width=3.0, color="royalblue"),
+                line=dict(color=tableau_colors["blue"]),
                 name="Amplitude",
                 legendgroup="Amplitude",
                 showlegend=False,
@@ -1353,45 +1252,22 @@ class ForcedResponseResults:
 
         fig.update_xaxes(
             title_text="<b>Frequency</b>",
-            title_font=dict(family="Arial", size=20),
-            tickfont=dict(size=16),
-            range=[0, np.max(frequency_range)],
-            gridcolor="lightgray",
-            showline=True,
-            linewidth=2.5,
-            linecolor="black",
-            mirror=True,
+            range=[np.min(frequency_range), np.max(frequency_range)],
         )
-        fig.update_yaxes(
-            title_text=y_axis_label,
-            title_font=dict(family="Arial", size=20),
-            tickfont=dict(size=16),
-            gridcolor="lightgray",
-            showline=True,
-            linewidth=2.5,
-            linecolor="black",
-            exponentformat="power",
-            mirror=True,
-        )
-        fig.update_layout(
-            legend=dict(
-                font=dict(family="sans-serif", size=14),
-                bgcolor="white",
-                bordercolor="black",
-                borderwidth=2,
-            ),
-            **kwargs,
-        )
+        fig.update_yaxes(title_text=y_axis_label, exponentformat="power")
+        fig.update_layout(**kwargs)
 
         return fig
 
-    def plot_phase(self, dof, **kwargs):
+    def plot_phase(self, dof, fig=None, **kwargs):
         """Plot forced response (phase) using Plotly.
 
         Parameters
         ----------
         dof : int
             Degree of freedom.
+        fig : Plotly graph_objects.Figure()
+            The figure object with the plot.
         kwargs : optional
             Additional key word arguments can be passed to change the plot layout only
             (e.g. width=1000, height=800, ...).
@@ -1405,20 +1281,15 @@ class ForcedResponseResults:
         frequency_range = self.speed_range
         phase = self.phase
 
-        kwargs_default_values = dict(
-            width=1200, height=900, plot_bgcolor="white", hoverlabel_align="right"
-        )
-        for k, v in kwargs_default_values.items():
-            kwargs.setdefault(k, v)
-
-        fig = go.Figure()
+        if fig is None:
+            fig = go.Figure()
 
         fig.add_trace(
             go.Scatter(
                 x=frequency_range,
                 y=phase[dof],
                 mode="lines",
-                line=dict(width=3.0, color="royalblue"),
+                line=dict(color=tableau_colors["blue"]),
                 name="Phase",
                 legendgroup="Phase",
                 showlegend=False,
@@ -1428,38 +1299,14 @@ class ForcedResponseResults:
 
         fig.update_xaxes(
             title_text="<b>Frequency</b>",
-            title_font=dict(family="Arial", size=20),
-            tickfont=dict(size=16),
-            range=[0, np.max(frequency_range)],
-            gridcolor="lightgray",
-            showline=True,
-            linewidth=2.5,
-            linecolor="black",
-            mirror=True,
+            range=[np.min(frequency_range), np.max(frequency_range)],
         )
-        fig.update_yaxes(
-            title_text="<b>Phase Angle</b>",
-            title_font=dict(family="Arial", size=20),
-            tickfont=dict(size=16),
-            gridcolor="lightgray",
-            showline=True,
-            linewidth=2.5,
-            linecolor="black",
-            mirror=True,
-        )
-        fig.update_layout(
-            legend=dict(
-                font=dict(family="sans-serif", size=14),
-                bgcolor="white",
-                bordercolor="black",
-                borderwidth=2,
-            ),
-            **kwargs,
-        )
+        fig.update_yaxes(title_text="<b>Phase Angle</b>")
+        fig.update_layout(**kwargs)
 
         return fig
 
-    def plot_polar_bode(self, dof, units="mic-pk-pk", **kwargs):
+    def plot_polar_bode(self, dof, units="m", fig=None, **kwargs):
         """Plot polar forced response using Plotly.
 
         Parameters
@@ -1469,6 +1316,8 @@ class ForcedResponseResults:
         units : str
             Magnitude unit system.
             Default is "mic-pk-pk"
+        fig : Plotly graph_objects.Figure()
+            The figure object with the plot.
         kwargs : optional
             Additional key word arguments can be passed to change the plot layout only
             (e.g. width=1000, height=800, ...).
@@ -1490,13 +1339,8 @@ class ForcedResponseResults:
         else:
             r_axis_label = "<b>Amplitude (dB)</b>"
 
-        kwargs_default_values = dict(
-            width=1200, height=900, polar_bgcolor="white", hoverlabel_align="right"
-        )
-        for k, v in kwargs_default_values.items():
-            kwargs.setdefault(k, v)
-
-        fig = go.Figure()
+        if fig is None:
+            fig = go.Figure()
 
         fig.add_trace(
             go.Scatterpolar(
@@ -1505,8 +1349,8 @@ class ForcedResponseResults:
                 customdata=frequency_range,
                 thetaunit="radians",
                 mode="lines+markers",
-                marker=dict(size=8, color="royalblue"),
-                line=dict(width=3.0, color="royalblue"),
+                marker=dict(color=tableau_colors["blue"]),
+                line=dict(color=tableau_colors["blue"]),
                 name="Polar_plot",
                 legendgroup="Polar",
                 showlegend=False,
@@ -1520,18 +1364,7 @@ class ForcedResponseResults:
 
         fig.update_layout(
             polar=dict(
-                radialaxis=dict(
-                    title_text=r_axis_label,
-                    title_font=dict(family="Arial", size=14),
-                    gridcolor="lightgray",
-                    exponentformat="power",
-                ),
-                angularaxis=dict(
-                    tickfont=dict(size=14),
-                    gridcolor="lightgray",
-                    linecolor="black",
-                    linewidth=2.5,
-                ),
+                radialaxis=dict(title_text=r_axis_label, exponentformat="power")
             ),
             **kwargs,
         )
@@ -1541,11 +1374,11 @@ class ForcedResponseResults:
     def plot(
         self,
         dof,
-        units="mic-pk-pk",
-        mag_kwargs={},
-        phase_kwargs={},
-        polar_kwargs={},
-        subplot_kwargs={},
+        units="m",
+        mag_kwargs=None,
+        phase_kwargs=None,
+        polar_kwargs=None,
+        subplot_kwargs=None,
     ):
         """Plot forced response.
 
@@ -1589,19 +1422,14 @@ class ForcedResponseResults:
             Plotly figure with Amplitude vs Frequency and Phase vs Frequency and
             polar Amplitude vs Phase plots.
         """
-        kwargs_default_values = dict(
-            width=1800,
-            height=900,
-            polar_bgcolor="white",
-            plot_bgcolor="white",
-            hoverlabel_align="right",
-        )
-        for k, v in kwargs_default_values.items():
-            subplot_kwargs.setdefault(k, v)
+        mag_kwargs = {} if mag_kwargs is None else copy.copy(mag_kwargs)
+        phase_kwargs = {} if phase_kwargs is None else copy.copy(phase_kwargs)
+        polar_kwargs = {} if polar_kwargs is None else copy.copy(polar_kwargs)
+        subplot_kwargs = {} if subplot_kwargs is None else copy.copy(subplot_kwargs)
 
-        fig0 = self.plot_magnitude(dof, **mag_kwargs)
+        fig0 = self.plot_magnitude(dof, units, **mag_kwargs)
         fig1 = self.plot_phase(dof, **phase_kwargs)
-        fig2 = self.plot_polar_bode(dof, **polar_kwargs)
+        fig2 = self.plot_polar_bode(dof, units, **polar_kwargs)
 
         subplots = make_subplots(
             rows=2, cols=2, specs=[[{}, {"type": "polar", "rowspan": 2}], [{}, None]]
@@ -1736,7 +1564,7 @@ class ForcedResponseResults:
 
         return Mx, My
 
-    def plot_deflected_shape_2d(self, speed, units="mic-pk-pk", **kwargs):
+    def plot_deflected_shape_2d(self, speed, units="mic-pk-pk", fig=None, **kwargs):
         """Plot the 2D deflected shape diagram.
 
         Parameters
@@ -1751,6 +1579,8 @@ class ForcedResponseResults:
                 - "mic-pk-pk" : microns peak to peak
                 - "db" : decibels
             Default is "mic-pk-pk".
+        fig : Plotly graph_objects.Figure()
+            The figure object with the plot.
         kwargs : optional
             Additional key word arguments can be passed to change the deflected shape
             plot layout only (e.g. width=1000, height=800, ...).
@@ -1764,22 +1594,16 @@ class ForcedResponseResults:
         if not any(np.isclose(self.speed_range, speed, atol=1e-6)):
             raise ValueError("No data available for this speed value.")
 
-        kwargs_default_values = dict(
-            width=1200, height=900, plot_bgcolor="white", hoverlabel_align="right",
-        )
-        for k, v in kwargs_default_values.items():
-            kwargs.setdefault(k, v)
-
         nodes_pos = self.rotor.nodes_pos
         maj_vect = self._calculate_major_axis(speed=speed)
 
-        fig = go.Figure()
+        if fig is None:
+            fig = go.Figure()
         fig.add_trace(
             go.Scatter(
                 x=nodes_pos,
                 y=maj_vect[4].real,
                 mode="lines",
-                line=dict(width=6.0, color="royalblue"),
                 name="Major Axis",
                 legendgroup="Major_Axis_2d",
                 showlegend=False,
@@ -1794,45 +1618,21 @@ class ForcedResponseResults:
                 x=nodes_pos,
                 y=np.zeros(len(nodes_pos)),
                 mode="lines",
-                line=dict(width=2.0, color="black", dash="dashdot"),
+                line=dict(color="black", dash="dashdot"),
                 showlegend=False,
                 hoverinfo="none",
             )
         )
 
-        fig.update_xaxes(
-            title_text="<b>Rotor Length</b>",
-            title_font=dict(family="Arial", size=20),
-            tickfont=dict(size=16),
-            gridcolor="lightgray",
-            showline=True,
-            linewidth=2.5,
-            linecolor="black",
-            mirror=True,
-        )
-        fig.update_yaxes(
-            title_text="<b>Major Axis Absolute Amplitude</b>",
-            title_font=dict(family="Arial", size=20),
-            tickfont=dict(size=16),
-            gridcolor="lightgray",
-            showline=True,
-            linewidth=2.5,
-            linecolor="black",
-            mirror=True,
-        )
-        fig.update_layout(
-            legend=dict(
-                font=dict(family="sans-serif", size=14),
-                bgcolor="white",
-                bordercolor="black",
-                borderwidth=2,
-            ),
-            **kwargs,
-        )
+        fig.update_xaxes(title_text="<b>Rotor Length</b>")
+        fig.update_yaxes(title_text="<b>Major Axis Absolute Amplitude</b>")
+        fig.update_layout(**kwargs)
 
         return fig
 
-    def plot_deflected_shape_3d(self, speed, samples=101, units="mic-pk-pk", **kwargs):
+    def plot_deflected_shape_3d(
+        self, speed, samples=101, units="mic-pk-pk", fig=None, **kwargs
+    ):
         """Plot the 3D deflected shape diagram.
 
         Parameters
@@ -1850,6 +1650,8 @@ class ForcedResponseResults:
                 - "mic-pk-pk" : microns peak to peak
                 - "db" : decibels
             Default is "mic-pk-pk".
+        fig : Plotly graph_objects.Figure()
+            The figure object with the plot.
         kwargs : optional
             Additional key word arguments can be passed to change the deflected shape
             plot layout only (e.g. width=1000, height=800, ...).
@@ -1862,10 +1664,6 @@ class ForcedResponseResults:
         """
         if not any(np.isclose(self.speed_range, speed, atol=1e-6)):
             raise ValueError("No data available for this speed value.")
-
-        kwargs_default_values = dict(hoverlabel_align="right")
-        for k, v in kwargs_default_values.items():
-            kwargs.setdefault(k, v)
 
         mag = self.magnitude
         phase = self.phase
@@ -1880,7 +1678,8 @@ class ForcedResponseResults:
 
         x_pos = np.repeat(nodes_pos, t.size).reshape(len(nodes_pos), t.size)
 
-        fig = go.Figure()
+        if fig is None:
+            fig = go.Figure()
         for i, n in enumerate(nodes):
             dofx = number_dof * n
             dofy = number_dof * n + 1
@@ -1895,7 +1694,7 @@ class ForcedResponseResults:
                     y=y,
                     z=z,
                     mode="lines",
-                    line=dict(width=6.0, color="royalblue"),
+                    line=dict(color="royalblue"),
                     name="Orbit",
                     legendgroup="Orbit",
                     showlegend=False,
@@ -1916,8 +1715,8 @@ class ForcedResponseResults:
                 y=np.real(maj_vect[3]),
                 z=np.imag(maj_vect[3]),
                 mode="lines+markers",
-                marker=dict(size=4.0, color="black"),
-                line=dict(width=6.0, color="black", dash="dashdot"),
+                marker=dict(color="black"),
+                line=dict(color="black", dash="dashdot"),
                 name="Major Axis",
                 legendgroup="Major_Axis",
                 showlegend=True,
@@ -1937,7 +1736,7 @@ class ForcedResponseResults:
                 y=line,
                 z=line,
                 mode="lines",
-                line=dict(width=2.0, color="black", dash="dashdot"),
+                line=dict(color="black", dash="dashdot"),
                 showlegend=False,
                 hoverinfo="none",
             )
@@ -1952,7 +1751,7 @@ class ForcedResponseResults:
                     y=[0, np.amax(np.real(maj_vect[4])) / 2 * np.cos(p)],
                     z=[0, np.amax(np.real(maj_vect[4])) / 2 * np.sin(p)],
                     mode="lines",
-                    line=dict(width=6.0, color="firebrick"),
+                    line=dict(color="firebrick"),
                     legendgroup="Unbalance",
                     hoverinfo="none",
                     showlegend=False,
@@ -1964,7 +1763,7 @@ class ForcedResponseResults:
                     y=[np.amax(np.real(maj_vect[4])) / 2 * np.cos(p)],
                     z=[np.amax(np.real(maj_vect[4])) / 2 * np.sin(p)],
                     mode="markers",
-                    marker=dict(symbol="diamond", size=5.0, color="firebrick"),
+                    marker=dict(symbol="diamond", color="firebrick"),
                     name="Unbalance",
                     legendgroup="Unbalance",
                     showlegend=True if i == 0 else False,
@@ -1976,51 +1775,19 @@ class ForcedResponseResults:
             i += 1
 
         fig.update_layout(
-            width=1200,
-            height=900,
             scene=dict(
                 bgcolor="white",
-                xaxis=dict(
-                    title=dict(text="<b>Rotor Length</b>", font=dict(size=14)),
-                    tickfont=dict(size=12),
-                    nticks=5,
-                    backgroundcolor="lightgray",
-                    gridcolor="white",
-                    showspikes=False,
-                ),
-                yaxis=dict(
-                    title=dict(text="<b>Amplitude - X</b>", font=dict(size=14)),
-                    tickfont=dict(size=12),
-                    nticks=5,
-                    backgroundcolor="lightgray",
-                    gridcolor="white",
-                    showspikes=False,
-                ),
-                zaxis=dict(
-                    title=dict(text="<b>Amplitude - Y</b>", font=dict(size=14)),
-                    tickfont=dict(size=12),
-                    nticks=5,
-                    backgroundcolor="lightgray",
-                    gridcolor="white",
-                    showspikes=False,
-                ),
+                xaxis=dict(title=dict(text="<b>Rotor Length</b>")),
+                yaxis=dict(title=dict(text="<b>Amplitude - X</b>")),
+                zaxis=dict(title=dict(text="<b>Amplitude - Y</b>")),
             ),
-            title=dict(
-                text=(f"<b>Deflected Shape</b><br>" f"<b>Speed = {speed}</b>"),
-                font=dict(size=18),
-            ),
-            legend=dict(
-                font=dict(family="sans-serif", size=14),
-                bgcolor="white",
-                bordercolor="black",
-                borderwidth=2,
-            ),
+            title=dict(text=(f"<b>Deflected Shape</b><br>" f"<b>Speed = {speed}</b>")),
             **kwargs,
         )
 
         return fig
 
-    def plot_bending_moment(self, speed, units="mic-pk-pk", **kwargs):
+    def plot_bending_moment(self, speed, units="mic-pk-pk", fig=None, **kwargs):
         """Plot the bending moment diagram.
 
         Parameters
@@ -2048,59 +1815,51 @@ class ForcedResponseResults:
         if not any(np.isclose(self.speed_range, speed, atol=1e-6)):
             raise ValueError("No data available for this speed value.")
 
-        kwargs_default_values = dict(
-            width=1200, height=900, plot_bgcolor="white", hoverlabel_align="right",
-        )
-        for k, v in kwargs_default_values.items():
-            kwargs.setdefault(k, v)
-
         Mx, My = self._calculate_bending_moment(speed=speed)
         Mr = np.sqrt(Mx ** 2 + My ** 2)
 
         nodes_pos = self.rotor.nodes_pos
 
-        fig = go.Figure()
+        if fig is None:
+            fig = go.Figure()
         fig.add_trace(
             go.Scatter(
                 x=nodes_pos,
                 y=Mx,
                 mode="lines",
-                line=dict(width=6.0, color=colors1[2]),
                 name="Bending Moment (X dir.)",
                 legendgroup="Mx",
                 showlegend=True,
                 hovertemplate=(
                     "<b>Nodal Position: %{x:.2f}</b><br>" + "<b>Mx: %{y:.2e}</b>"
                 ),
-            ),
+            )
         )
         fig.add_trace(
             go.Scatter(
                 x=nodes_pos,
                 y=My,
                 mode="lines",
-                line=dict(width=6.0, color=colors1[6]),
                 name="Bending Moment (Y dir.)",
                 legendgroup="My",
                 showlegend=True,
                 hovertemplate=(
                     "<b>Nodal Position: %{x:.2f}</b><br>" + "<b>My: %{y:.2e}</b>"
                 ),
-            ),
+            )
         )
         fig.add_trace(
             go.Scatter(
                 x=nodes_pos,
                 y=Mr,
                 mode="lines",
-                line=dict(width=6.0, color=colors1[7]),
                 name="Bending Moment (abs)",
                 legendgroup="Mr",
                 showlegend=True,
                 hovertemplate=(
                     "<b>Nodal Position: %{x:.2f}</b><br>" + "<b>Mr: %{y:.2e}</b>"
                 ),
-            ),
+            )
         )
 
         # plot center line
@@ -2109,41 +1868,15 @@ class ForcedResponseResults:
                 x=nodes_pos,
                 y=np.zeros_like(nodes_pos),
                 mode="lines",
-                line=dict(width=3.0, color="black", dash="dashdot"),
+                line=dict(color="black", dash="dashdot"),
                 showlegend=False,
                 hoverinfo="none",
             )
         )
 
-        fig.update_xaxes(
-            title_text="<b>Rotor Length</b>",
-            title_font=dict(family="Arial", size=20),
-            tickfont=dict(size=16),
-            gridcolor="lightgray",
-            showline=True,
-            linewidth=2.5,
-            linecolor="black",
-            mirror=True,
-        )
-        fig.update_yaxes(
-            title_text="<b>Bending Moment</b>",
-            title_font=dict(family="Arial", size=20),
-            tickfont=dict(size=16),
-            gridcolor="lightgray",
-            showline=True,
-            linewidth=2.5,
-            linecolor="black",
-            mirror=True,
-        )
-        fig.update_layout(
-            legend=dict(
-                font=dict(family="sans-serif", size=14),
-                bgcolor="white",
-                bordercolor="black",
-                borderwidth=2,
-            ),
-            **kwargs,
-        )
+        fig.update_xaxes(title_text="<b>Rotor Length</b>")
+        fig.update_yaxes(title_text="<b>Bending Moment</b>")
+        fig.update_layout(**kwargs)
 
         return fig
 
@@ -2152,10 +1885,10 @@ class ForcedResponseResults:
         speed,
         samples=101,
         units="mic-pk-pk",
-        shape2d_kwargs={},
-        shape3d_kwargs={},
-        bm_kwargs={},
-        subplot_kwargs={},
+        shape2d_kwargs=None,
+        shape3d_kwargs=None,
+        bm_kwargs=None,
+        subplot_kwargs=None,
     ):
         """Plot deflected shape diagrams.
 
@@ -2203,11 +1936,10 @@ class ForcedResponseResults:
             Plotly figure with Amplitude vs Frequency and Phase vs Frequency and
             polar Amplitude vs Phase plots.
         """
-        kwargs_default_values = dict(
-            width=1800, height=900, plot_bgcolor="white", hoverlabel_align="right",
-        )
-        for k, v in kwargs_default_values.items():
-            subplot_kwargs.setdefault(k, v)
+        shape2d_kwargs = {} if shape2d_kwargs is None else copy.copy(shape2d_kwargs)
+        shape3d_kwargs = {} if shape3d_kwargs is None else copy.copy(shape3d_kwargs)
+        bm_kwargs = {} if bm_kwargs is None else copy.copy(bm_kwargs)
+        subplot_kwargs = {} if subplot_kwargs is None else copy.copy(subplot_kwargs)
 
         fig0 = self.plot_deflected_shape_2d(speed, units, **shape2d_kwargs)
         fig1 = self.plot_deflected_shape_3d(speed, samples, units, **shape3d_kwargs)
@@ -2297,7 +2029,7 @@ class StaticResults:
         self.nodes_pos = nodes_pos
         self.Vx_axis = Vx_axis
 
-    def plot_deformation(self, **kwargs):
+    def plot_deformation(self, fig=None, **kwargs):
         """Plot the shaft static deformation.
 
         This method plots:
@@ -2305,6 +2037,8 @@ class StaticResults:
 
         Parameters
         ----------
+        fig : Plotly graph_objects.Figure()
+            The figure object with the plot.
         kwargs : optional
             Additional key word arguments can be passed to change the plot layout only
             (e.g. width=1000, height=800, ...).
@@ -2315,13 +2049,8 @@ class StaticResults:
         fig : Plotly graph_objects.Figure()
             The figure object with the plot.
         """
-        kwargs_default_values = dict(
-            width=1200, height=900, plot_bgcolor="white", hoverlabel_align="right"
-        )
-        for k, v in kwargs_default_values.items():
-            kwargs.setdefault(k, v)
-
-        fig = go.Figure()
+        if fig is None:
+            fig = go.Figure()
 
         shaft_end = max([sublist[-1] for sublist in self.nodes_pos])
 
@@ -2331,7 +2060,7 @@ class StaticResults:
                 x=[-0.01 * shaft_end, 1.01 * shaft_end],
                 y=[0, 0],
                 mode="lines",
-                line=dict(width=3.0, color="black", dash="dashdot"),
+                line=dict(color="black", dash="dashdot"),
                 showlegend=False,
                 hoverinfo="none",
             )
@@ -2353,8 +2082,7 @@ class StaticResults:
                     x=xnew,
                     y=ynew,
                     mode="lines",
-                    line=dict(width=5.0, color=colors1[count]),
-                    name="Shaft {}".format(count),
+                    name=f"Shaft {count}",
                     showlegend=True,
                     hovertemplate=(
                         "Shaft lengh: %{x:.2f}<br>" + "Displacement: %{y:.2e}"
@@ -2363,44 +2091,19 @@ class StaticResults:
             )
             count += 1
 
-        fig.update_xaxes(
-            title_text="<b>Shaft Length</b>",
-            title_font=dict(family="Arial", size=20),
-            tickfont=dict(size=16),
-            gridcolor="lightgray",
-            showline=True,
-            linewidth=2.5,
-            linecolor="black",
-            mirror=True,
-        )
-        fig.update_yaxes(
-            title_text="<b>Deformation</b>",
-            title_font=dict(family="Arial", size=20),
-            tickfont=dict(size=16),
-            gridcolor="lightgray",
-            showline=True,
-            linewidth=2.5,
-            linecolor="black",
-            mirror=True,
-        )
-        fig.update_layout(
-            title=dict(text="<b>Static Deformation</b>", font=dict(size=16)),
-            legend=dict(
-                font=dict(family="sans-serif", size=14),
-                bgcolor="white",
-                bordercolor="black",
-                borderwidth=2,
-            ),
-            **kwargs,
-        )
+        fig.update_xaxes(title_text="<b>Shaft Length</b>")
+        fig.update_yaxes(title_text="<b>Deformation</b>")
+        fig.update_layout(title=dict(text="<b>Static Deformation</b>"), **kwargs)
 
         return fig
 
-    def plot_free_body_diagram(self, **kwargs):
+    def plot_free_body_diagram(self, fig=None, **kwargs):
         """Plot the rotor free-body diagram.
 
         Parameters
         ----------
+        subplots : Plotly graph_objects.make_subplots()
+            The figure object with the plot.
         kwargs : optional
             Additional key word arguments can be passed to change the plot layout only
             (e.g. plot_bgcolor="white", ...).
@@ -2411,20 +2114,17 @@ class StaticResults:
         subplots : Plotly graph_objects.make_subplots()
             The figure object with the plot.
         """
-        kwargs_default_values = dict(width=1200, height=900, plot_bgcolor="white")
-        for k, v in kwargs_default_values.items():
-            kwargs.setdefault(k, v)
-
         cols = 1 if len(self.nodes_pos) < 2 else 2
         rows = len(self.nodes_pos) // 2 + len(self.nodes_pos) % 2
-        fig = make_subplots(
-            rows=rows,
-            cols=cols,
-            subplot_titles=[
-                "<b>Free-Body Diagram - Shaft {}</b>".format(j)
-                for j in range(len(self.nodes_pos))
-            ],
-        )
+        if fig is None:
+            fig = make_subplots(
+                rows=rows,
+                cols=cols,
+                subplot_titles=[
+                    "<b>Free-Body Diagram - Shaft {}</b>".format(j)
+                    for j in range(len(self.nodes_pos))
+                ],
+            )
         j = 0
         y_start = 5.0
         for nodes_pos, nodes in zip(self.nodes_pos, self.nodes):
@@ -2436,7 +2136,7 @@ class StaticResults:
                     x=nodes_pos,
                     y=np.zeros(len(nodes_pos)),
                     mode="lines",
-                    line=dict(width=10.0, color="black"),
+                    line=dict(color="black"),
                     hoverinfo="none",
                     showlegend=False,
                 ),
@@ -2448,7 +2148,7 @@ class StaticResults:
                     x=nodes_pos,
                     y=[y_start] * len(nodes_pos),
                     mode="lines",
-                    line=dict(width=3.0, color="black"),
+                    line=dict(color="black"),
                     hoverinfo="none",
                     showlegend=False,
                 ),
@@ -2485,7 +2185,6 @@ class StaticResults:
                 xshift=125,
                 yshift=20,
                 text="<b>Shaft weight = {}N</b>".format(text),
-                font=dict(size=20),
                 align="right",
                 showarrow=False,
             )
@@ -2504,7 +2203,6 @@ class StaticResults:
                         ayref="y{}".format(j + 1),
                         text="<b>Fb = {}N</b>".format(text),
                         textangle=90,
-                        font=dict(size=20),
                         showarrow=True,
                         arrowhead=2,
                         arrowsize=1,
@@ -2529,7 +2227,6 @@ class StaticResults:
                         ayref="y{}".format(j + 1),
                         text="<b>Fd = {}N</b>".format(text),
                         textangle=270,
-                        font=dict(size=20),
                         showarrow=True,
                         arrowhead=2,
                         arrowsize=1,
@@ -2541,17 +2238,7 @@ class StaticResults:
                         col=col,
                     )
 
-            fig.update_xaxes(
-                title_text="<b>Shaft Length</b>",
-                title_font=dict(family="Arial", size=20),
-                tickfont=dict(size=16),
-                showgrid=False,
-                showline=True,
-                linewidth=2.5,
-                linecolor="black",
-                row=row,
-                col=col,
-            )
+            fig.update_xaxes(title_text="<b>Shaft Length</b>", row=row, col=col)
             fig.update_yaxes(
                 visible=False, gridcolor="lightgray", showline=False, row=row, col=col
             )
@@ -2561,7 +2248,7 @@ class StaticResults:
 
         return fig
 
-    def plot_shearing_force(self, **kwargs):
+    def plot_shearing_force(self, fig=None, **kwargs):
         """Plot the rotor shearing force diagram.
 
         This method plots:
@@ -2569,6 +2256,8 @@ class StaticResults:
 
         Parameters
         ----------
+        fig : Plotly graph_objects.Figure()
+            The figure object with the plot.
         kwargs : optional
             Additional key word arguments can be passed to change the plot layout only
             (e.g. width=1000, height=800, ...).
@@ -2579,13 +2268,8 @@ class StaticResults:
         fig : Plotly graph_objects.Figure()
             The figure object with the plot.
         """
-        kwargs_default_values = dict(
-            width=1200, height=900, plot_bgcolor="white", hoverlabel_align="right"
-        )
-        for k, v in kwargs_default_values.items():
-            kwargs.setdefault(k, v)
-
-        fig = go.Figure()
+        if fig is None:
+            fig = go.Figure()
 
         shaft_end = max([sublist[-1] for sublist in self.nodes_pos])
 
@@ -2595,7 +2279,7 @@ class StaticResults:
                 x=[-0.1 * shaft_end, 1.1 * shaft_end],
                 y=[0, 0],
                 mode="lines",
-                line=dict(width=3.0, color="black", dash="dashdot"),
+                line=dict(color="black", dash="dashdot"),
                 showlegend=False,
                 hoverinfo="none",
             )
@@ -2608,9 +2292,8 @@ class StaticResults:
                     x=Vx_axis,
                     y=Vx,
                     mode="lines",
-                    line=dict(width=5.0, color=colors1[j]),
-                    name="Shaft {}".format(j),
-                    legendgroup="Shaft {}".format(j),
+                    name=f"Shaft {j}",
+                    legendgroup=f"Shaft {j}",
                     showlegend=True,
                     hovertemplate=(
                         "Shaft lengh: %{x:.2f}<br>" + "Shearing Force: %{y:.2f}"
@@ -2620,57 +2303,31 @@ class StaticResults:
             j += 1
 
         fig.update_xaxes(
-            title_text="<b>Shaft Length</b>",
-            title_font=dict(family="Arial", size=20),
-            tickfont=dict(size=16),
-            range=[-0.1 * shaft_end, 1.1 * shaft_end],
-            gridcolor="lightgray",
-            showline=True,
-            linewidth=2.5,
-            linecolor="black",
-            mirror=True,
+            title_text="<b>Shaft Length</b>", range=[-0.1 * shaft_end, 1.1 * shaft_end]
         )
-        fig.update_yaxes(
-            title_text="<b>Force</b>",
-            title_font=dict(family="Arial", size=20),
-            tickfont=dict(size=16),
-            gridcolor="lightgray",
-            showline=True,
-            linewidth=2.5,
-            linecolor="black",
-            mirror=True,
-        )
-        fig.update_layout(
-            title=dict(text="<b>Shearing Force Diagram</b>", font=dict(size=16)),
-            legend=dict(
-                font=dict(family="sans-serif", size=14),
-                bgcolor="white",
-                bordercolor="black",
-                borderwidth=2,
-            ),
-            **kwargs,
-        )
+        fig.update_yaxes(title_text="<b>Force</b>")
+        fig.update_layout(title=dict(text="<b>Shearing Force Diagram</b>"), **kwargs)
 
         return fig
 
-    def plot_bending_moment(self, **kwargs):
+    def plot_bending_moment(self, fig=None, **kwargs):
         """Plot the rotor bending moment diagram.
 
         This method plots:
             bending moment diagram.
+
+        Parameters
+        ----------
+        fig : Plotly graph_objects.Figure()
+            Plotly figure with the bending moment diagram plot
 
         Returns
         -------
         fig : Plotly graph_objects.Figure()
             Plotly figure with the bending moment diagram plot
         """
-        kwargs_default_values = dict(
-            width=1200, height=900, plot_bgcolor="white", hoverlabel_align="right",
-        )
-        for k, v in kwargs_default_values.items():
-            kwargs.setdefault(k, v)
-
-        fig = go.Figure()
+        if fig is None:
+            fig = go.Figure()
 
         shaft_end = max([sublist[-1] for sublist in self.nodes_pos])
 
@@ -2680,7 +2337,7 @@ class StaticResults:
                 x=[-0.1 * shaft_end, 1.1 * shaft_end],
                 y=[0, 0],
                 mode="lines",
-                line=dict(width=3.0, color="black", dash="dashdot"),
+                line=dict(color="black", dash="dashdot"),
                 showlegend=False,
                 hoverinfo="none",
             )
@@ -2693,9 +2350,8 @@ class StaticResults:
                     x=nodes_pos,
                     y=Bm,
                     mode="lines",
-                    line=dict(width=5.0, color=colors1[j]),
-                    name="Shaft {}".format(j),
-                    legendgroup="Shaft {}".format(j),
+                    name=f"Shaft {j}",
+                    legendgroup=f"Shaft {j}",
                     showlegend=True,
                     hovertemplate=(
                         "Shaft lengh: %{x:.2f}<br>" + "Bending Moment: %{y:.2f}"
@@ -2704,37 +2360,9 @@ class StaticResults:
             )
             j += 1
 
-        fig.update_xaxes(
-            title_text="<b>Shaft Length</b>",
-            title_font=dict(family="Arial", size=20),
-            range=[-0.1 * shaft_end, 1.1 * shaft_end],
-            tickfont=dict(size=16),
-            gridcolor="lightgray",
-            showline=True,
-            linewidth=2.5,
-            linecolor="black",
-            mirror=True,
-        )
-        fig.update_yaxes(
-            title_text="<b>Bending Moment</b>",
-            title_font=dict(family="Arial", size=20),
-            tickfont=dict(size=16),
-            gridcolor="lightgray",
-            showline=True,
-            linewidth=2.5,
-            linecolor="black",
-            mirror=True,
-        )
-        fig.update_layout(
-            title=dict(text="<b>Bending Moment Diagram</b>", font=dict(size=16)),
-            legend=dict(
-                font=dict(family="sans-serif", size=14),
-                bgcolor="white",
-                bordercolor="black",
-                borderwidth=2,
-            ),
-            **kwargs,
-        )
+        fig.update_xaxes(title_text="<b>Shaft Length</b>")
+        fig.update_yaxes(title_text="<b>Bending Moment</b>")
+        fig.update_layout(title=dict(text="<b>Bending Moment Diagram</b>"), **kwargs)
 
         return fig
 
@@ -2975,7 +2603,7 @@ class ConvergenceResults:
         self.eigv_arr = eigv_arr
         self.error_arr = error_arr
 
-    def plot(self, **kwargs):
+    def plot(self, fig=None, **kwargs):
         """Plot convergence results.
 
         This method plots:
@@ -2984,6 +2612,8 @@ class ConvergenceResults:
 
         Parameters
         ----------
+        fig : Plotly graph_objects.make_subplots()
+            The figure object with the plot.
         kwargs : optional
             Additional key word arguments can be passed to change the plot layout only
             (e.g. width=1000, height=800, ...).
@@ -2994,19 +2624,15 @@ class ConvergenceResults:
         fig : Plotly graph_objects.make_subplots()
             The figure object with the plot.
         """
-        kwargs_default_values = dict(plot_bgcolor="white", hoverlabel_align="right")
-
-        for k, v in kwargs_default_values.items():
-            kwargs.setdefault(k, v)
-
-        fig = make_subplots(
-            rows=1,
-            cols=2,
-            subplot_titles=[
-                "<b>Frequency Evaluation</b>",
-                "<b>Relative Error Evaluation</b>",
-            ],
-        )
+        if fig is None:
+            fig = make_subplots(
+                rows=1,
+                cols=2,
+                subplot_titles=[
+                    "<b>Frequency Evaluation</b>",
+                    "<b>Relative Error Evaluation</b>",
+                ],
+            )
 
         # plot Frequency vs number of elements
         fig.add_trace(
@@ -3014,8 +2640,6 @@ class ConvergenceResults:
                 x=self.el_num,
                 y=self.eigv_arr,
                 mode="lines+markers",
-                line=dict(width=3.0, color="FireBrick"),
-                marker=dict(size=10, color="FireBrick"),
                 hovertemplate=(
                     "Number of Elements: %{x:.2f}<br>" + "Frequency: %{y:.0f}"
                 ),
@@ -3024,30 +2648,8 @@ class ConvergenceResults:
             row=1,
             col=1,
         )
-        fig.update_xaxes(
-            title_text="<b>Number of Elements</b>",
-            title_font=dict(family="Arial", size=20),
-            tickfont=dict(size=16),
-            gridcolor="lightgray",
-            showline=True,
-            linewidth=2.5,
-            linecolor="black",
-            mirror=True,
-            row=1,
-            col=1,
-        )
-        fig.update_yaxes(
-            title_text="<b>Frequency</b>",
-            title_font=dict(family="Arial", size=20),
-            tickfont=dict(size=16),
-            gridcolor="lightgray",
-            showline=True,
-            linewidth=2.5,
-            linecolor="black",
-            mirror=True,
-            row=1,
-            col=1,
-        )
+        fig.update_xaxes(title_text="<b>Number of Elements</b>", row=1, col=1)
+        fig.update_yaxes(title_text="<b>Frequency</b>", row=1, col=1)
 
         # plot Error vs number of elements
         fig.add_trace(
@@ -3055,8 +2657,6 @@ class ConvergenceResults:
                 x=self.el_num,
                 y=self.error_arr,
                 mode="lines+markers",
-                line=dict(width=3.0, color="FireBrick"),
-                marker=dict(size=10, color="FireBrick"),
                 hovertemplate=(
                     "Number of Elements: %{x:.2f}<br>" + "Relative Error: %{y:.0f}"
                 ),
@@ -3066,31 +2666,8 @@ class ConvergenceResults:
             col=2,
         )
 
-        fig.update_xaxes(
-            title_text="<b>Number of Elements</b>",
-            title_font=dict(family="Arial", size=20),
-            tickfont=dict(size=16),
-            gridcolor="lightgray",
-            showline=True,
-            linewidth=2.5,
-            linecolor="black",
-            mirror=True,
-            row=1,
-            col=2,
-        )
-        fig.update_yaxes(
-            title_text="<b>Relative Error (%)</b>",
-            title_font=dict(family="Arial", size=20),
-            tickfont=dict(size=16),
-            exponentformat="power",
-            gridcolor="lightgray",
-            showline=True,
-            linewidth=2.5,
-            linecolor="black",
-            mirror=True,
-            row=1,
-            col=2,
-        )
+        fig.update_xaxes(title_text="<b>Number of Elements</b>", row=1, col=2)
+        fig.update_yaxes(title_text="<b>Relative Error (%)</b>", row=1, col=2)
 
         fig.update_layout(**kwargs)
 
@@ -3142,7 +2719,7 @@ class TimeResponseResults:
         self.nodes_pos = nodes_pos
         self.number_dof = number_dof
 
-    def _plot1d(self, dof, **kwargs):
+    def _plot1d(self, dof, fig=None, **kwargs):
         """Plot time response for a single DoF using Plotly.
 
         This function will take a rotor object and plot its time response using Plotly.
@@ -3151,6 +2728,8 @@ class TimeResponseResults:
         ----------
         dof : int
             Degree of freedom that will be observed.
+        fig : Plotly graph_objects.Figure()
+            The figure object with the plot.
         kwargs : optional
             Additional key word arguments can be passed to change the plot layout only
             (e.g. width=1000, height=800, ...).
@@ -3170,20 +2749,14 @@ class TimeResponseResults:
         obs_dof = dof % self.number_dof
         obs_dof = dof_dict[str(obs_dof)]
 
-        kwargs_default_values = dict(
-            width=1200, height=900, plot_bgcolor="white", hoverlabel_align="right"
-        )
-        for k, v in kwargs_default_values.items():
-            kwargs.setdefault(k, v)
-
-        fig = go.Figure()
+        if fig is None:
+            fig = go.Figure()
 
         fig.add_trace(
             go.Scatter(
                 x=self.t,
                 y=self.yout[:, dof],
                 mode="lines",
-                line=dict(width=3.0, color="royalblue"),
                 name="Phase",
                 legendgroup="Phase",
                 showlegend=False,
@@ -3191,38 +2764,18 @@ class TimeResponseResults:
             )
         )
 
-        fig.update_xaxes(
-            title_text="<b>Time</b>",
-            title_font=dict(family="Arial", size=20),
-            tickfont=dict(size=16),
-            range=[0, self.t[-1]],
-            gridcolor="lightgray",
-            showline=True,
-            linewidth=2.5,
-            linecolor="black",
-            mirror=True,
-        )
-        fig.update_yaxes(
-            title_text="<b>Amplitude</b>",
-            title_font=dict(family="Arial", size=20),
-            tickfont=dict(size=16),
-            gridcolor="lightgray",
-            showline=True,
-            linewidth=2.5,
-            linecolor="black",
-            mirror=True,
-        )
+        fig.update_xaxes(title_text="<b>Time</b>")
+        fig.update_yaxes(title_text="<b>Amplitude</b>")
         fig.update_layout(
             title=dict(
-                text="<b>Response for node {} - DoF {}</b>".format(dof // 4, obs_dof),
-                font=dict(size=20),
+                text="<b>Response for node {} - DoF {}</b>".format(dof // 4, obs_dof)
             ),
             **kwargs,
         )
 
         return fig
 
-    def _plot2d(self, node, **kwargs):
+    def _plot2d(self, node, fig=None, **kwargs):
         """Plot orbit response (2D).
 
         This function will take a rotor object and plot its orbit response using Plotly.
@@ -3231,6 +2784,8 @@ class TimeResponseResults:
         ----------
         node: int, optional
             Selected node to plot orbit.
+        fig : Plotly graph_objects.Figure()
+            The figure object with the plot.
         kwargs : optional
             Additional key word arguments can be passed to change the plot layout only
             (e.g. width=1000, height=800, ...).
@@ -3241,20 +2796,14 @@ class TimeResponseResults:
         fig : Plotly graph_objects.Figure()
             The figure object with the plot.
         """
-        kwargs_default_values = dict(
-            width=1200, height=900, plot_bgcolor="white", hoverlabel_align="right"
-        )
-        for k, v in kwargs_default_values.items():
-            kwargs.setdefault(k, v)
-
-        fig = go.Figure()
+        if fig is None:
+            fig = go.Figure()
 
         fig.add_trace(
             go.Scatter(
                 x=self.yout[:, self.number_dof * node],
                 y=self.yout[:, self.number_dof * node + 1],
                 mode="lines",
-                line=dict(width=3.0, color="royalblue"),
                 name="Phase",
                 legendgroup="Phase",
                 showlegend=False,
@@ -3264,42 +2813,23 @@ class TimeResponseResults:
             )
         )
 
-        fig.update_xaxes(
-            title_text="<b>Amplitude - X direction</b>",
-            title_font=dict(family="Arial", size=20),
-            tickfont=dict(size=16),
-            gridcolor="lightgray",
-            showline=True,
-            linewidth=2.5,
-            linecolor="black",
-            mirror=True,
-        )
-        fig.update_yaxes(
-            title_text="<b>Amplitude - Y direction</b>",
-            title_font=dict(family="Arial", size=20),
-            tickfont=dict(size=16),
-            gridcolor="lightgray",
-            showline=True,
-            linewidth=2.5,
-            linecolor="black",
-            mirror=True,
-        )
+        fig.update_xaxes(title_text="<b>Amplitude - X direction</b>")
+        fig.update_yaxes(title_text="<b>Amplitude - Y direction</b>")
         fig.update_layout(
-            title=dict(
-                text="<b>Response for node {}</b>".format(node), font=dict(size=20)
-            ),
-            **kwargs,
+            title=dict(text="<b>Response for node {}</b>".format(node)), **kwargs
         )
 
         return fig
 
-    def _plot3d(self, **kwargs):
+    def _plot3d(self, fig=None, **kwargs):
         """Plot orbit response (3D).
 
         This function will take a rotor object and plot its orbit response using Plotly.
 
         Parameters
         ----------
+        fig : Plotly graph_objects.Figure()
+            The figure object with the plot.
         kwargs : optional
             Additional key word arguments can be passed to change the plot layout only
             (e.g. hoverlabel_align="center", ...).
@@ -3310,11 +2840,8 @@ class TimeResponseResults:
         fig : Plotly graph_objects.Figure()
             The figure object with the plot.
         """
-        kwargs_default_values = dict(hoverlabel_align="right")
-        for k, v in kwargs_default_values.items():
-            kwargs.setdefault(k, v)
-
-        fig = go.Figure()
+        if fig is None:
+            fig = go.Figure()
 
         for n in self.nodes_list:
             x_pos = np.ones(self.yout.shape[0]) * self.nodes_pos[n]
@@ -3324,7 +2851,7 @@ class TimeResponseResults:
                     y=self.yout[:, self.number_dof * n],
                     z=self.yout[:, self.number_dof * n + 1],
                     mode="lines",
-                    line=dict(width=3.0, color="royalblue"),
+                    line=dict(color=tableau_colors["blue"]),
                     name="Mean",
                     legendgroup="mean",
                     showlegend=False,
@@ -3346,47 +2873,23 @@ class TimeResponseResults:
                 y=line,
                 z=line,
                 mode="lines",
-                line=dict(width=2.0, color="black", dash="dashdot"),
+                line=dict(color="black", dash="dashdot"),
                 showlegend=False,
             )
         )
 
         fig.update_layout(
-            width=1200,
-            height=900,
             scene=dict(
-                bgcolor="white",
-                xaxis=dict(
-                    title=dict(text="<b>Rotor Length</b>", font=dict(size=14)),
-                    tickfont=dict(size=12),
-                    nticks=5,
-                    backgroundcolor="lightgray",
-                    gridcolor="white",
-                    showspikes=False,
-                ),
-                yaxis=dict(
-                    title=dict(text="<b>Amplitude - X</b>", font=dict(size=14)),
-                    tickfont=dict(size=12),
-                    nticks=5,
-                    backgroundcolor="lightgray",
-                    gridcolor="white",
-                    showspikes=False,
-                ),
-                zaxis=dict(
-                    title=dict(text="<b>Amplitude - Y</b>", font=dict(size=14)),
-                    tickfont=dict(size=12),
-                    nticks=5,
-                    backgroundcolor="lightgray",
-                    gridcolor="white",
-                    showspikes=False,
-                ),
+                xaxis=dict(title=dict(text="<b>Rotor Length</b>")),
+                yaxis=dict(title=dict(text="<b>Amplitude - X</b>")),
+                zaxis=dict(title=dict(text="<b>Amplitude - Y</b>")),
             ),
             **kwargs,
         )
 
         return fig
 
-    def plot(self, plot_type="3d", dof=None, node=None, **kwargs):
+    def plot(self, plot_type="3d", dof=None, node=None, fig=None, **kwargs):
         """Plot time response.
 
         The plot type options are:
@@ -3410,6 +2913,8 @@ class TimeResponseResults:
             Selected node to plot orbit.
             Fill this attribute only when selection plot_type = "2d".
             Default is None
+        fig : Plotly graph_objects.Figure()
+            The figure object with the plot.
         kwargs : optional
             Additional key word arguments can be passed to change the plot layout only
             (e.g. width=1000, height=800, ...).
