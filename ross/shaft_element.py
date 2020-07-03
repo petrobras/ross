@@ -1,11 +1,15 @@
+"""Shaft Element module.
+
+This module defines the ShaftElement classes which will be used to represent the rotor
+shaft. There're 2 options, an element with 8 or 12 degrees of freedom.
+"""
+import inspect
 import os
 from pathlib import Path
 
-import bokeh.palettes as bp
-import matplotlib.patches as mpatches
 import numpy as np
+import plotly.graph_objects as go
 import toml
-from bokeh.models import ColumnDataSource, HoverTool
 
 from ross.element import Element
 from ross.materials import Material, steel
@@ -13,11 +17,11 @@ from ross.units import check_units
 from ross.utils import read_table_file
 
 __all__ = ["ShaftElement", "ShaftElement6DoF"]
-bokeh_colors = bp.RdGy[11]
 
 
 class ShaftElement(Element):
     r"""A shaft element.
+
     This class will create a shaft element that may take into
     account shear, rotary inertia an gyroscopic effects.
     The matrices will be defined considering the following local
@@ -66,8 +70,7 @@ class ShaftElement(Element):
     shear_method_calc : string, optional
         Determines which shear calculation method the user will adopt
         Default is 'cowper'
-    
-     : str, optional
+    tag : str, optional
         Element tag.
         Default is None.
 
@@ -103,7 +106,6 @@ class ShaftElement(Element):
 
     References
     ----------
-
     .. bibliography:: ../../../docs/refs.bib
 
     Examples
@@ -178,6 +180,9 @@ class ShaftElement(Element):
         self.idr = float(idr)
         self.odr = float(odr)
         self.color = self.material.color
+
+        self.alpha = 0.0
+        self.beta = 0.0
 
         # A_l = cross section area from the left side of the element
         # A_r = cross section area from the right side of the element
@@ -298,8 +303,7 @@ class ShaftElement(Element):
         self.dof_global_index = None
 
     def __eq__(self, other):
-        """
-        Equality method for comparasions
+        """Equality method for comparasions.
 
         Parameters
         ----------
@@ -308,8 +312,8 @@ class ShaftElement(Element):
 
         Returns
         -------
-        True if other is equal to the reference parameter.
-        False if not.
+        bool
+            True if the comparison is true; False otherwise.
 
         Example
         -------
@@ -330,217 +334,12 @@ class ShaftElement(Element):
         else:
             return False
 
-    def __hash__(self):
-        return hash(self.tag)
-
-    def save(self, file_name=Path(os.getcwd())):
-        """Save shaft elements to toml file.
-
-        Parameters
-        ----------
-        file_name : str
-
-        Examples
-        --------
-        >>> from ross.materials import steel
-        >>> shaft1 = ShaftElement(
-        ...        L=0.25, idl=0, idr=0, odl=0.05, odr=0.08,
-        ...        material=steel, rotary_inertia=True, shear_effects=True
-        ... )
-        >>> shaft1.save()
-        """
-        data = self.get_data(Path(file_name) / "ShaftElement.toml")
-        data["ShaftElement"][str(self.n)] = {
-            "L": self.L,
-            "idl": self.idl,
-            "odl": self.odl,
-            "idr": self.idr,
-            "odr": self.odr,
-            "material": self.material.name,
-            "n": self.n,
-            "axial_force": self.axial_force,
-            "torque": self.torque,
-            "shear_effects": self.shear_effects,
-            "rotary_inertia": self.rotary_inertia,
-            "gyroscopic": self.gyroscopic,
-            "shear_method_calc": self.shear_method_calc,
-        }
-        self.dump_data(data, Path(file_name) / "ShaftElement.toml")
-
-    @staticmethod
-    def load(file_name="ShaftElement"):
-        """Load previously saved shaft elements from toml file.
-
-        Parameters
-        ----------
-        file_name : str, optional
-
-        Examples
-        --------
-        >>> from ross.materials import steel
-        >>> shaft1 = ShaftElement(
-        ...        L=0.25, idl=0, idr=0, odl=0.05, odr=0.08,
-        ...        material=steel, rotary_inertia=True, shear_effects=True
-        ... )
-        >>> shaft1.save(os.getcwd())
-        >>> shaft2 = ShaftElement.load(os.getcwd())
-        >>> shaft2 # doctest: +ELLIPSIS
-        [ShaftElement(L=0.25, idl=0.0...
-        """
-        shaft_elements = []
-        with open("ShaftElement.toml", "r") as f:
-            shaft_elements_dict = toml.load(f)
-            for element in shaft_elements_dict["ShaftElement"]:
-                shaft_elements.append(
-                    ShaftElement(**shaft_elements_dict["ShaftElement"][element])
-                )
-        return shaft_elements
-
-    @classmethod
-    def from_table(cls, file, sheet_type="Simple", sheet_name=0):
-        """Instantiate one or more shafts using inputs from an Excel table.
-
-        A header with the names of the columns is required. These names should
-        match the names expected by the routine (usually the names of the
-        parameters, but also similar ones). The program will read every row
-        bellow the header until they end or it reaches a NaN.
-
-        Parameters
-        ----------
-        file: str
-            Path to the file containing the shaft parameters.
-        sheet_type: str, optional
-            Describes the kind of sheet the function should expect:
-                Simple: The input table should specify only the number of the materials to be used.
-                They must be saved prior to calling the method.
-                Model: The materials parameters must be passed along with the shaft parameters. Each
-                material must have an id number and each shaft must reference one of the materials ids.
-        sheet_name: int or str, optional
-            Position of the sheet in the file (starting from 0) or its name. If none is passed, it is
-            assumed to be the first sheet in the file.
-
-        Returns
-        -------
-        shaft: list
-            A list of shaft objects.
-        """
-        parameters = read_table_file(
-            file, "shaft", sheet_name=sheet_name, sheet_type=sheet_type
-        )
-        list_of_shafts = []
-        if sheet_type == "Model":
-            new_materials = {}
-            for i in range(0, len(parameters["matno"])):
-                new_material = Material(
-                    name="shaft_mat_" + str(parameters["matno"][i]),
-                    rho=parameters["rhoa"][i],
-                    E=parameters["ea"][i],
-                    G_s=parameters["ga"][i],
-                )
-                new_materials["shaft_mat_" + str(parameters["matno"][i])] = new_material
-            for i in range(0, len(parameters["L"])):
-                list_of_shafts.append(
-                    cls(
-                        L=parameters["L"][i],
-                        idl=parameters["idl"][i],
-                        odl=parameters["odl"][i],
-                        idr=parameters["idr"][i],
-                        odr=parameters["odr"][i],
-                        material=new_materials[parameters["material"][i]],
-                        n=parameters["n"][i],
-                        axial_force=parameters["axial_force"][i],
-                        torque=parameters["torque"][i],
-                        shear_effects=parameters["shear_effects"][i],
-                        rotary_inertia=parameters["rotary_inertia"][i],
-                        gyroscopic=parameters["gyroscopic"][i],
-                        shear_method_calc=parameters["shear_method_calc"][i],
-                    )
-                )
-        elif sheet_type == "Simple":
-            for i in range(0, len(parameters["L"])):
-                list_of_shafts.append(
-                    cls(
-                        L=parameters["L"][i],
-                        idl=parameters["idl"][i],
-                        odl=parameters["odl"][i],
-                        idr=parameters["idr"][i],
-                        odr=parameters["odr"][i],
-                        material=parameters["material"][i],
-                        n=parameters["n"][i],
-                        axial_force=parameters["axial_force"][i],
-                        torque=parameters["torque"][i],
-                        shear_effects=parameters["shear_effects"][i],
-                        rotary_inertia=parameters["rotary_inertia"][i],
-                        gyroscopic=parameters["gyroscopic"][i],
-                        shear_method_calc=parameters["shear_method_calc"][i],
-                    )
-                )
-        return list_of_shafts
-
-    @property
-    def n(self):
-        """
-        Set the element number as property
-
-        Parameters
-        ----------
-        Returns
-        -------
-        n : int
-            Element number
-        """
-        return self._n
-
-    @n.setter
-    def n(self, value):
-        """
-        Method to set a new value for the element number.
-
-        Parameters
-        ----------
-        value : int
-            element number
-
-        Returns
-        -------
-        Example
-        -------
-        >>> from ross.materials import steel
-        >>> shaft1 = ShaftElement(
-        ...        L=0.25, idl=0, idr=0, odl=0.05, odr=0.08,
-        ...        material=steel, rotary_inertia=True, shear_effects=True
-        ... )
-        >>> shaft1.n = 0
-        >>> shaft1 # doctest: +ELLIPSIS
-        ShaftElement(L=0.25, idl=0.0...
-        """
-        self._n = value
-        self.n_l = value
-        if value is not None:
-            self.n_r = value + 1
-
-    def dof_mapping(self):
-        """
-        Method to map the element's degrees of freedom
-
-        Parameters
-        ----------
-        Returns
-        -------
-        The numbering of degrees of freedom of each element node.
-        """
-        return dict(
-            x_0=0, y_0=1, alpha_0=2, beta_0=3, x_1=4, y_1=5, alpha_1=6, beta_1=7
-        )
-
     def __repr__(self):
-        """This function returns a string representation of a shaft element.
+        """Return a string representation of a shaft element.
 
-        Parameters
-        ----------
         Returns
         -------
-        A string representation of a shaft object.
+        A string representation of a shaft element object.
 
         Examples
         --------
@@ -561,11 +360,8 @@ class ShaftElement(Element):
         )
 
     def __str__(self):
-        """
-        Method to convert object into string
-        
-        Parameters
-        ----------
+        """Convert object into string.
+
         Returns
         -------
         The object's parameters translated to strings
@@ -582,12 +378,113 @@ class ShaftElement(Element):
             f"\n"
         )
 
-    def M(self):
-        r"""Mass matrix for an instance of a shaft element.
+    def __hash__(self):
+        return hash(self.tag)
+
+    def save(self, file):
+        signature = inspect.signature(self.__init__)
+        args_list = list(signature.parameters)
+        args = {arg: getattr(self, arg) for arg in args_list}
+
+        # add material characteristics so that the shaft element can be reconstructed
+        # even if the material is not in the available_materials file.
+        args["material"] = {
+            "name": self.material.name,
+            "rho": self.material.rho,
+            "E": self.material.E,
+            "G_s": self.material.G_s,
+            "color": self.material.color,
+        }
+
+        try:
+            data = toml.load(file)
+        except FileNotFoundError:
+            data = {}
+
+        data[f"{self.__class__.__name__}_{self.tag}"] = args
+        with open(file, "w") as f:
+            toml.dump(data, f)
+
+    @classmethod
+    def read_toml_data(cls, data):
+        data["material"] = Material(**data["material"])
+        return cls(**data)
+
+    @property
+    def n(self):
+        """Set the element number as property.
 
         Returns
         -------
-        Mass matrix for the shaft element.
+        n : int
+            Element number
+        """
+        return self._n
+
+    @n.setter
+    def n(self, value):
+        """Set a new value for the element number.
+
+        Parameters
+        ----------
+        value : int
+            element number
+
+        Example
+        -------
+        >>> from ross.materials import steel
+        >>> shaft1 = ShaftElement(
+        ...        L=0.25, idl=0, idr=0, odl=0.05, odr=0.08,
+        ...        material=steel, rotary_inertia=True, shear_effects=True
+        ... )
+        >>> shaft1.n = 0
+        >>> shaft1 # doctest: +ELLIPSIS
+        ShaftElement(L=0.25, idl=0.0...
+        """
+        self._n = value
+        self.n_l = value
+        if value is not None:
+            self.n_r = value + 1
+
+    def dof_mapping(self):
+        """Degrees of freedom mapping.
+
+        Returns a dictionary with a mapping between degree of freedom and its index.
+
+        Returns
+        -------
+        dof_mapping : dict
+            A dictionary containing the degrees of freedom and their indexes.
+
+        Examples
+        --------
+        The numbering of the degrees of freedom for each node.
+
+        Being the following their ordering for a node:
+
+        x_0 - horizontal translation
+        y_0 - vertical translation
+        z_0 - axial translation
+        alpha_0 - rotation around horizontal
+        beta_0  - rotation around vertical
+        theta_0 - torsion around axial
+
+        >>> sh = ShaftElement(L=0.5, idl=0.05, odl=0.1, material=steel,
+        ...                   rotary_inertia=True, shear_effects=True)
+        >>> sh.dof_mapping()["x_0"]
+        0
+        """
+        return dict(
+            x_0=0, y_0=1, alpha_0=2, beta_0=3, x_1=4, y_1=5, alpha_1=6, beta_1=7
+        )
+
+    def M(self):
+        """Mass matrix for an instance of a shaft element.
+
+        Returns
+        -------
+        M : np.ndarray
+            Mass matrix for the shaft element.
 
         Examples
         --------
@@ -734,11 +631,13 @@ class ShaftElement(Element):
         return M
 
     def K(self):
-        r"""Stiffness matrix for an instance of a shaft element.
+        """Stiffness matrix for an instance of a shaft element.
 
         Returns
         -------
-        Stiffness matrix for the shaft element.
+        K : np.ndarray
+
+            Stiffness matrix for the shaft element.
 
         Examples
         --------
@@ -865,8 +764,9 @@ class ShaftElement(Element):
 
         Returns
         -------
-        Gyroscopic matrix for the shaft element.
- 
+        G : np.ndarray
+            Gyroscopic matrix for the shaft element.
+
         Examples
         --------
         >>> from ross.materials import steel
@@ -882,15 +782,10 @@ class ShaftElement(Element):
                [ 0.01085902,  0.        ,  0.        ,  0.0067206 ],
                [ 0.        ,  0.01085902, -0.0067206 ,  0.        ]])
         """
-
-        G = np.zeros((8, 8))
-
         if self.gyroscopic:
             phi = self.phi
             L = self.L
-            a1 = self.a1
             a2 = self.a2
-            b1 = self.b1
             b2 = self.b2
             delta = self.delta
             gama = self.gama
@@ -935,83 +830,28 @@ class ShaftElement(Element):
             )
 
             G = np.array([
-                    [    0,    g1,    -L*g2,        0,     0,   -g1,    -L*g3,        0],
-                    [  -g1,     0,        0,    -L*g2,    g1,     0,        0,    -L*g3],
-                    [ L*g2,     0,        0,  L**2*g4, -L*g2,     0,        0, -L**2*g5],
-                    [    0,  L*g2, -L**2*g4,        0,     0, -L*g2,  L**2*g5,        0],
-                    [    0,   -g1,     L*g2,        0,     0,    g1,     L*g3,        0],
-                    [   g1,     0,        0,     L*g2,   -g1,     0,        0,     L*g3],
-                    [ L*g3,     0,        0, -L**2*g5, -L*g3,     0,        0,  L**2*g6],
-                    [    0,  L*g3,  L**2*g5,        0,     0, -L*g3, -L**2*g6,        0],
+                    [   0,    g1,    -L*g2,        0,     0,   -g1,    -L*g3,        0],
+                    [ -g1,     0,        0,    -L*g2,    g1,     0,        0,    -L*g3],
+                    [L*g2,     0,        0,  L**2*g4, -L*g2,     0,        0, -L**2*g5],
+                    [   0,  L*g2, -L**2*g4,        0,     0, -L*g2,  L**2*g5,        0],
+                    [   0,   -g1,     L*g2,        0,     0,    g1,     L*g3,        0],
+                    [  g1,     0,        0,     L*g2,   -g1,     0,        0,     L*g3],
+                    [L*g3,     0,        0, -L**2*g5, -L*g3,     0,        0,  L**2*g6],
+                    [   0,  L*g3,  L**2*g5,        0,     0, -L*g3, -L**2*g6,        0],
             ])
             # fmt: on
             G = self.material.rho * Ie_l * 2 * G / (210 * L * (1 + phi) ** 2)
 
+        else:
+            G = np.zeros((8, 8))
+
         return G
 
-    def patch(self, position, check_sld, ax):
+    def _patch(self, position, check_sld, fig):
         """Shaft element patch.
-        Patch that will be used to draw the shaft element.
-        Parameters
-        ----------
-        position : float
-            Position in which the patch will be drawn.
-        check_sld : bool
-            If True, color the elements in yellow if slenderness ratio < 1.6
-        ax : matplotlib axes, optional
-            Axes in which the plot will be drawn.
-        Returns
-        -------
-        """
-        if check_sld is True and self.slenderness_ratio < 1.6:
-            mpl_color = "yellow"
-            legend = "Shaft - Slenderness Ratio < 1.6"
-        else:
-            mpl_color = self.color
-            legend = "Shaft"
 
-        shaft_points_u = [
-            [position, self.idl / 2],
-            [position, self.odl / 2],
-            [position + self.L, self.odr / 2],
-            [position + self.L, self.idr / 2],
-            [position, self.idl / 2],
-        ]
-        shaft_points_l = [
-            [position, -self.idl / 2],
-            [position, -self.odl / 2],
-            [position + self.L, -self.odr / 2],
-            [position + self.L, -self.idr / 2],
-            [position, -self.idl / 2],
-        ]
+        Patch that will be used to draw the shaft element using Plotly library.
 
-        # matplotlib - plot the upper half of the shaft
-        ax.add_patch(
-            mpatches.Polygon(
-                shaft_points_u,
-                facecolor=mpl_color,
-                linestyle="--",
-                linewidth=0.5,
-                ec="k",
-                alpha=0.8,
-                label=legend,
-            )
-        )
-        # matplotlib - plot the lower half of the shaft
-        ax.add_patch(
-            mpatches.Polygon(
-                shaft_points_l,
-                facecolor=mpl_color,
-                linestyle="--",
-                linewidth=0.5,
-                ec="k",
-                alpha=0.8,
-            )
-        )
-
-    def bokeh_patch(self, position, check_sld, bk_ax):
-        """Shaft element patch.
-        Patch that will be used to draw the shaft element.
         Parameters
         ----------
         position : float
@@ -1019,85 +859,195 @@ class ShaftElement(Element):
         check_sld : bool
             If True, HoverTool displays only the slenderness ratio and color
             the elements in yellow if slenderness ratio < 1.6
-        bk_ax : bokeh plotting axes, optional
-            Axes in which the plot will be drawn.
+        fig : plotly.graph_objects.Figure
+            The figure object which traces are added on.
+
         Returns
         -------
-        hover : Bokeh HoverTool
-            Bokeh HoverTool axes
+        fig : plotly.graph_objects.Figure
+            The figure object which traces are added on.
         """
         if check_sld is True and self.slenderness_ratio < 1.6:
-            bk_color = "yellow"
+            color = "yellow"
             legend = "Shaft - Slenderness Ratio < 1.6"
         else:
-            bk_color = self.material.color
+            color = self.material.color
             legend = "Shaft"
 
         # bokeh plot - plot the shaft
-        z_upper = [position, position, position + self.L, position + self.L]
-        y_upper = [self.idl / 2, self.odl / 2, self.odr / 2, self.idr / 2]
-        z_lower = [position, position, position + self.L, position + self.L]
-        y_lower = [-self.idl / 2, -self.odl / 2, -self.odr / 2, -self.idr / 2]
+        z_upper = [position, position, position + self.L, position + self.L, position]
+        y_upper = [self.idl / 2, self.odl / 2, self.odr / 2, self.idr / 2, self.idl / 2]
+        z_lower = [position, position, position + self.L, position + self.L, position]
+        y_lower = [
+            -self.idl / 2,
+            -self.odl / 2,
+            -self.odr / 2,
+            -self.idr / 2,
+            -self.idl / 2,
+        ]
 
-        source = ColumnDataSource(
-            dict(
-                z_l=[z_lower],
-                y_l=[y_lower],
-                z_u=[z_upper],
-                y_u=[y_upper],
-                sld=[self.slenderness_ratio],
-                elnum=[self.n],
-                out_d_l=[self.odl],
-                out_d_r=[self.odr],
-                in_d_l=[self.idl],
-                in_d_r=[self.idr],
-                length=[self.L],
-                mat=[self.material.name],
+        z_pos = z_upper
+        z_pos.append(None)
+        z_pos.extend(z_lower)
+
+        y_pos = y_upper
+        y_upper.append(None)
+        y_pos.extend(y_lower)
+
+        if check_sld:
+            customdata = [self.n, self.slenderness_ratio]
+            hovertemplate = (
+                f"<b>Element Number: {customdata[0]}<b><br>"
+                + f"<b>Slenderness Ratio: {customdata[1]:.3f}<b>"
+            )
+        else:
+            if isinstance(self, ShaftElement6DoF):
+                customdata = [
+                    self.n,
+                    self.odl,
+                    self.idl,
+                    self.odr,
+                    self.idr,
+                    self.alpha,
+                    self.beta,
+                    self.L,
+                    self.material.name,
+                ]
+                hovertemplate = (
+                    f"<b>Element Number: {customdata[0]}<b><br>"
+                    + f"<b>Left Outer Diameter: {round(customdata[1], 6)}<b><br>"
+                    + f"<b>Left Inner Diameter: {round(customdata[2], 6)}<b><br>"
+                    + f"<b>Right Outer Diameter: {round(customdata[3], 6)}<b><br>"
+                    + f"<b>Right Inner Diameter: {round(customdata[4], 6)}<b><br>"
+                    + f"<b>Alpha Damp. Factor: {round(customdata[5], 6)}<b><br>"
+                    + f"<b>Beta Damp. Factor: {round(customdata[6], 6)}<b><br>"
+                    + f"<b>Element Length: {round(customdata[7], 6)}<b><br>"
+                    + f"<b>Material: {customdata[8]}<b><br>"
+                )
+            else:
+                customdata = [
+                    self.n,
+                    self.odl,
+                    self.idl,
+                    self.odr,
+                    self.idr,
+                    self.L,
+                    self.material.name,
+                ]
+                hovertemplate = (
+                    f"<b>Element Number: {customdata[0]}<b><br>"
+                    + f"<b>Left Outer Diameter: {round(customdata[1], 6)}<b><br>"
+                    + f"<b>Left Inner Diameter: {round(customdata[2], 6)}<b><br>"
+                    + f"<b>Right Outer Diameter: {round(customdata[3], 6)}<b><br>"
+                    + f"<b>Right Inner Diameter: {round(customdata[4], 6)}<b><br>"
+                    + f"<b>Element Length: {round(customdata[5], 6)}<b><br>"
+                    + f"<b>Material: {customdata[6]}<b><br>"
+                )
+        fig.add_trace(
+            go.Scatter(
+                x=z_pos,
+                y=y_pos,
+                customdata=[customdata] * len(z_pos),
+                text=hovertemplate,
+                mode="lines",
+                opacity=0.5,
+                fill="toself",
+                fillcolor=color,
+                line=dict(width=1.5, color="black"),
+                showlegend=False,
+                name=self.tag,
+                legendgroup=legend,
+                hoveron="points+fills",
+                hoverinfo="text",
+                hovertemplate=hovertemplate,
+                hoverlabel=dict(bgcolor=color),
             )
         )
 
-        bk_ax.patches(
-            xs="z_u",
-            ys="y_u",
-            source=source,
-            line_color=bokeh_colors[0],
-            line_width=1,
-            fill_alpha=0.5,
-            fill_color=bk_color,
-            legend_label=legend,
-            name="u_shaft",
-        )
-        bk_ax.patches(
-            xs="z_l",
-            ys="y_l",
-            source=source,
-            line_color=bokeh_colors[0],
-            line_width=1,
-            fill_alpha=0.5,
-            fill_color=bk_color,
-            legend_label=legend,
-            name="l_shaft",
-        )
+        return fig
 
-        hover = HoverTool(names=["l_shaft", "u_shaft"])
-        if check_sld:
-            hover.tooltips = [
-                ("Element Number :", "@elnum"),
-                ("Slenderness Ratio :", "@sld"),
-            ]
-        else:
-            hover.tooltips = [
-                ("Element Number :", "@elnum"),
-                ("Left Outer Diameter :", "@out_d_l"),
-                ("Left Inner Diameter :", "@in_d_l"),
-                ("Right Outer Diameter :", "@out_d_r"),
-                ("Right Inner Diameter :", "@in_d_r"),
-                ("Element Length :", "@length"),
-                ("Material :", "@mat"),
-            ]
-        hover.mode = "mouse"
+    @classmethod
+    def from_table(cls, file, sheet_type="Simple", sheet_name=0):
+        """Instantiate one or more shafts using inputs from an Excel table.
 
-        return hover
+        A header with the names of the columns is required. These names should
+        match the names expected by the routine (usually the names of the
+        parameters, but also similar ones). The program will read every row
+        bellow the header until they end or it reaches a NaN.
+
+        Parameters
+        ----------
+        file : str
+            Path to the file containing the shaft parameters.
+        sheet_type : str, optional
+            Describes the kind of sheet the function should expect:
+                Simple: The input table should specify only the number of the materials
+                to be used.
+                They must be saved prior to calling the method.
+                Model: The materials parameters must be passed along with the shaft
+                parameters. Each material must have an id number and each shaft must
+                reference one of the materials ids.
+        sheet_name : int or str, optional
+            Position of the sheet in the file (starting from 0) or its name. If none is
+            passed, it is assumed to be the first sheet in the file.
+
+        Returns
+        -------
+        shaft : list
+            A list of shaft objects.
+        """
+        parameters = read_table_file(
+            file, "shaft", sheet_name=sheet_name, sheet_type=sheet_type
+        )
+        list_of_shafts = []
+        if sheet_type == "Model":
+            new_materials = {}
+            for i in range(0, len(parameters["matno"])):
+                new_material = Material(
+                    name="shaft_mat_" + str(parameters["matno"][i]),
+                    rho=parameters["rhoa"][i],
+                    E=parameters["ea"][i],
+                    G_s=parameters["ga"][i],
+                )
+                new_materials["shaft_mat_" + str(parameters["matno"][i])] = new_material
+            for i in range(0, len(parameters["L"])):
+                list_of_shafts.append(
+                    cls(
+                        L=parameters["L"][i],
+                        idl=parameters["idl"][i],
+                        odl=parameters["odl"][i],
+                        idr=parameters["idr"][i],
+                        odr=parameters["odr"][i],
+                        material=new_materials[parameters["material"][i]],
+                        n=parameters["n"][i],
+                        axial_force=parameters["axial_force"][i],
+                        torque=parameters["torque"][i],
+                        shear_effects=parameters["shear_effects"][i],
+                        rotary_inertia=parameters["rotary_inertia"][i],
+                        gyroscopic=parameters["gyroscopic"][i],
+                        shear_method_calc=parameters["shear_method_calc"][i],
+                    )
+                )
+        elif sheet_type == "Simple":
+            for i in range(0, len(parameters["L"])):
+                list_of_shafts.append(
+                    cls(
+                        L=parameters["L"][i],
+                        idl=parameters["idl"][i],
+                        odl=parameters["odl"][i],
+                        idr=parameters["idr"][i],
+                        odr=parameters["odr"][i],
+                        material=parameters["material"][i],
+                        n=parameters["n"][i],
+                        axial_force=parameters["axial_force"][i],
+                        torque=parameters["torque"][i],
+                        shear_effects=parameters["shear_effects"][i],
+                        rotary_inertia=parameters["rotary_inertia"][i],
+                        gyroscopic=parameters["gyroscopic"][i],
+                        shear_method_calc=parameters["shear_method_calc"][i],
+                    )
+                )
+        return list_of_shafts
 
     @classmethod
     def section(
@@ -1152,7 +1102,7 @@ class ShaftElement(Element):
 
         Returns
         -------
-        elements: list
+        elements : list
             List with the 'ne' shaft elements.
 
         Examples
@@ -1195,16 +1145,15 @@ class ShaftElement(Element):
 
 
 class ShaftElement6DoF(ShaftElement):
-
     r"""A 6 Degrees of Freedom shaft element.
-    =========================================
+
     This class will create a shaft element that takes into
     account shear stress, rotary inertia and gyroscopic effects.
     The matrices will be defined considering the following local
     coordinate vector:
 
     :math:`[u_0, v_0, w_0, \theta_0, \psi_0, \phi_0, u_1, v_1, w_1, \theta_1, \psi_1, \phi_1]**T`
-    
+
     Being the following their ordering for an element:
 
         :math:`x_0,u_0`  - horizontal translation;
@@ -1260,14 +1209,16 @@ class ShaftElement6DoF(ShaftElement):
 
     Returns
     -------
-    A 6 degrees of freedom shaft element, with available gyroscopic, shear and rotary inertia effects.
+    A 6 degrees of freedom shaft element, with available gyroscopic, shear and rotary
+    inertia effects.
 
     Attributes
     ----------
     Poisson : float
         Poisson coefficient for the element.
     kappa : float
-        Shear coefficient for the element, determined from :cite:`Hutchingson2001` formulation.
+        Shear coefficient for the element, determined from :cite:`Hutchingson2001`
+        formulation.
 
     References
     ----------
@@ -1276,14 +1227,12 @@ class ShaftElement6DoF(ShaftElement):
     Examples
     --------
     >>> from ross.materials import steel
-    >>> eixo1 = ShaftElement6DoF(L=0.5, idl=0.0, odl=0.01, idr=0.0, odr=0.01, material=steel, n=0, axial_force=10, torque=30)
-    >>> Euler_Bernoulli_Element = ShaftElement6DoF(
-    ...                         material=steel, L=0.5, idl=0.05, odl=0.1,
-    ...                         idr=0.05, odr=0.15,
-    ...                         alpha=0.01, beta=100,
-    ...                         rotary_inertia=False,
-    ...                         shear_effects=False)
-    >>> Euler_Bernoulli_Element.kappa
+    >>> shaft1 = ShaftElement6DoF(L=0.5, idl=0.0, odl=0.01, idr=0.0, odr=0.01,
+    ...                           material=steel, n=0, axial_force=10, torque=30)
+    >>> shaft2 = ShaftElement6DoF(L=0.5, idl=0.05, odl=0.1, idr=0.05, odr=0.15,
+    ...                           alpha=0.01, beta=100, material=steel,
+    ...                           rotary_inertia=False, shear_effects=False)
+    >>> shaft2.kappa
     0.7099387976608923
     """
 
@@ -1396,8 +1345,6 @@ class ShaftElement6DoF(ShaftElement):
         self.Ie = Ie
         self.Ie_l = Ie_l
 
-        phi = 0
-
         # geometric center
         c1 = (
             roj ** 2
@@ -1459,57 +1406,468 @@ class ShaftElement6DoF(ShaftElement):
         )
         return p >= 0.2
 
-    def save(self, file_name=Path(os.getcwd())):
-        """Save shaft elements to toml file.
+    def __repr__(self):
+        """Return a string representation of a shaft element.
 
-        Parameters
-        ----------
-        file_name : str
+        Returns
+        -------
+        A string representation of a 6 DoF shaft object.
 
         Examples
         --------
-
+        >>> from ross.materials import steel
+        >>> shaft1 = ShaftElement6DoF(
+        ...        L=0.25, idl=0, idr=0, odl=0.05, odr=0.08,
+        ...        material=steel, rotary_inertia=True, shear_effects=True
+        ... )
+        >>> shaft1 # doctest: +ELLIPSIS
+        ShaftElement6DoF(L=0.25, idl=0.0...
         """
+        return (
+            f"{self.__class__.__name__}"
+            f"(L={self.L:{0}.{5}}, idl={self.idl:{0}.{5}}, "
+            f"idr={self.idr:{0}.{5}}, odl={self.odl:{0}.{5}},  "
+            f"odr={self.odr:{0}.{5}}, material={self.material.name!r}, "
+            f"alpha={self.alpha:{0}.{5}}, beta={self.beta:{0}.{5}},  "
+            f"n={self.n})"
+        )
 
-        data = self.get_data(Path(file_name) / "ShaftElement6DoF.toml")
-        data["ShaftElement6DoF"][str(self.n)] = {
-            "L": self.L,
-            "idl": self.idl,
-            "odl": self.odl,
-            "idr": self.idr,
-            "odr": self.odr,
-            "alpha": self.alpha,
-            "beta": self.beta,
-            "material": self.material.name,
-            "n": self.n,
-            "axial_force": self.axial_force,
-            "torque": self.torque,
-            "shear_effects": self.shear_effects,
-            "rotary_inertia": self.rotary_inertia,
-            "gyroscopic": self.gyroscopic,
+    def __str__(self):
+        """Convert object into string.
+
+        Returns
+        -------
+        The object's parameters translated to strings
+        """
+        return (
+            f"\nElem. N:    {self.n}"
+            f"\nLenght:     {self.L:{10}.{5}}"
+            f"\nLeft Int. Diam.: {self.idl:{10}.{5}}"
+            f"\nLeft Out. Diam.: {self.odl:{10}.{5}}"
+            f"\nRight Int. Diam.: {self.idr:{10}.{5}}"
+            f"\nRight Out. Diam.: {self.odr:{10}.{5}}"
+            f"\nAlpha damp. factor: {self.alpha:{10}.{5}}"
+            f"\nBeta damp. factor: {self.beta:{10}.{5}}"
+            f'\n{35*"-"}'
+            f"\n{self.material}"
+            f"\n"
+        )
+
+    def save(self, file):
+        signature = inspect.signature(self.__init__)
+        args_list = list(signature.parameters)
+        args = {arg: getattr(self, arg) for arg in args_list}
+
+        # add material characteristics so that the shaft element can be reconstructed
+        # even if the material is not in the available_materials file.
+        args["material"] = {
+            "name": self.material.name,
+            "rho": self.material.rho,
+            "E": self.material.E,
+            "G_s": self.material.G_s,
+            "color": self.material.color,
         }
-        self.dump_data(data, Path(file_name) / "ShaftElement6DoF.toml")
 
-    @staticmethod
-    def load(file_name="ShaftElement6DoF"):
-        """Load previously saved shaft elements from toml file.
+        try:
+            data = toml.load(file)
+        except FileNotFoundError:
+            data = {}
 
-        Parameters
-        ----------
-        file_name : str, optional
+        data[f"{self.__class__.__name__}_{self.tag}"] = args
+        with open(file, "w") as f:
+            toml.dump(data, f)
+
+    @classmethod
+    def read_toml_data(cls, data):
+        data["material"] = Material(**data["material"])
+        return cls(**data)
+
+    def dof_mapping(self):
+        """Degrees of freedom mapping.
+
+        Returns a dictionary with a mapping between degree of freedom and its index.
+
+        Returns
+        -------
+        dof_mapping : dict
+            A dictionary containing the degrees of freedom and their indexes.
 
         Examples
         --------
+        The numbering of the degrees of freedom for each node.
 
+        Being the following their ordering for a node:
+
+        x_0 - horizontal translation
+        y_0 - vertical translation
+        z_0 - axial translation
+        alpha_0 - rotation around horizontal
+        beta_0  - rotation around vertical
+        theta_0 - torsion around axial
+
+        >>> sh = ShaftElement6DoF(L=0.5, idl=0.05, odl=0.1, material=steel,
+        ...                       rotary_inertia=True, shear_effects=True)
+        >>> sh.dof_mapping()["x_0"]
+        0
         """
-        shaft_elements = []
-        with open("ShaftElement6DoF.toml", "r") as f:
-            shaft_elements_dict = toml.load(f)
-            for element in shaft_elements_dict["ShaftElement6DoF"]:
-                shaft_elements.append(
-                    ShaftElement6DoF(**shaft_elements_dict["ShaftElement6DoF"][element])
+        return dict(
+            x_0=0,
+            y_0=1,
+            z_0=2,
+            alpha_0=3,
+            beta_0=4,
+            theta_0=5,
+            x_1=6,
+            y_1=7,
+            z_1=8,
+            alpha_1=9,
+            beta_1=10,
+            theta_1=11,
+        )
+
+    def M(self):
+        """Mass matrix for an instance of a 6 DoF shaft element.
+
+        Returns
+        -------
+        M : np.ndarray
+            Mass matrix for the 6 DoF shaft element.
+
+        Examples
+        --------
+        >>> Timoshenko_Element = ShaftElement6DoF(0.25, 0, 0.05, material=steel)
+        >>> Timoshenko_Element.M().shape
+        (12, 12)
+        """
+        # temporary material and geometrical constants
+        L = self.L
+        tempS = np.pi * (
+            ((self.odr / 2) ** 2 + (self.odl / 2) ** 2) / 2
+            - ((self.idr / 2) ** 2 + (self.idl / 2) ** 2) / 2
+        )
+        tempI = (
+            np.pi
+            / 4
+            * (
+                ((self.odr / 2) ** 4 + (self.odl / 2) ** 4) / 2
+                - ((self.idr / 2) ** 4 + (self.idl / 2) ** 4) / 2
+            )
+        )
+
+        # element level matrix declaration
+        aux1 = self.material.rho * tempS * L / 420
+        # fmt: off
+
+        # Standard mass matrix
+        M = aux1 * np.array([
+            [  156,     0, 0,      0,  -22*L, 0,    54,     0, 0,      0,   13*L, 0],
+            [    0,   156, 0,   22*L,      0, 0,     0,    54, 0,  -13*L,      0, 0],
+            [    0,     0, 0,      0,      0, 0,     0,     0, 0,      0,      0, 0],
+            [    0,  22*L, 0, 4*L**2,      0, 0,     0,  13*L, 0,-3*L**2,      0, 0],
+            [-22*L,     0, 0,      0, 4*L**2, 0, -13*L,     0, 0,      0,-3*L**2, 0],
+            [    0,     0, 0,      0,      0, 0,     0,     0, 0,      0,      0, 0],
+            [   54,     0, 0,      0,  -13*L, 0,   156,     0, 0,      0,   22*L, 0],
+            [    0,    54, 0,   13*L,      0, 0,     0,   156, 0,  -22*L,      0, 0],
+            [    0,     0, 0,      0,      0, 0,     0,     0, 0,      0,      0, 0],
+            [    0, -13*L, 0,-3*L**2,      0, 0,     0, -22*L, 0, 4*L**2,      0, 0],
+            [ 13*L,     0, 0,      0,-3*L**2, 0,  22*L,     0, 0,      0, 4*L**2, 0],
+            [    0,     0, 0,      0,      0, 0,     0,     0, 0,      0,      0, 0],
+        ])
+
+        # Secondary inertias mass matrix
+        Ms = self.material.rho * tempI / (30 * L) * np.array([
+            [  36,   0, 0,     0,  -3*L, 0, -36,    0, 0,     0,  -3*L, 0],
+            [   0,  36, 0,   3*L,     0, 0,   0,  -36, 0,   3*L,     0, 0],
+            [   0,   0, 0,     0,     0, 0,   0,    0, 0,     0,     0, 0],
+            [   0, 3*L, 0,4*L**2,     0, 0,   0, -3*L, 0, -L**2,     0, 0],
+            [-3*L,   0, 0,     0,4*L**2, 0, 3*L,    0, 0,     0, -L**2, 0],
+            [   0,   0, 0,     0,     0, 0,   0,    0, 0,     0,     0, 0],
+            [ -36,   0, 0,     0,   3*L, 0,  36,    0, 0,     0,   3*L, 0],
+            [   0, -36, 0,  -3*L,     0, 0,   0,   36, 0,  -3*L,     0, 0],
+            [   0,   0, 0,     0,     0, 0,   0,    0, 0,     0,     0, 0],
+            [   0, 3*L, 0, -L**2,     0, 0,   0, -3*L, 0,4*L**2,     0, 0],
+            [-3*L,   0, 0,     0, -L**2, 0, 3*L,    0, 0,     0,4*L**2, 0],
+            [   0,   0, 0,     0,     0, 0,   0,    0, 0,     0,     0, 0],
+        ])
+
+        # Axial terms inertia matrix
+        Ma = self.material.rho * tempS * L / 6 * np.array([
+            [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+            [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+            [0, 0, 2, 0, 0, 0, 0, 0, 1, 0, 0, 0],
+            [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+            [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+            [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+            [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+            [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+            [0, 0, 1, 0, 0, 0, 0, 0, 2, 0, 0, 0],
+            [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+            [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+            [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+        ])
+
+        # Torsional terms inertias matrix
+        Mr = self.material.rho * tempI * L / 6 * np.array([
+            [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+            [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+            [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+            [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+            [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+            [0, 0, 0, 0, 0, 2, 0, 0, 0, 0, 0, 1],
+            [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+            [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+            [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+            [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+            [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+            [0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 2],
+        ])
+
+        # fmt: on
+
+        M = M + Ms + Ma + Mr
+
+        return M
+
+    def K(self):
+        """Stiffness matrix for an instance of a 6 DoF shaft element.
+
+        Returns
+        -------
+        K : np.ndarray
+            Omega independent stiffness matrix for the 6 DoF shaft element.
+
+        Examples
+        --------
+        >>> from ross.materials import steel
+        >>> Timoshenko_Element = ShaftElement6DoF(0.25, 0, 0.05, material=steel)
+        >>> Timoshenko_Element.K().shape
+        (12, 12)
+        """
+        # Axial force and torque applied to the element.
+        Fa = self.axial_force
+        T = self.torque
+
+        # temporary material and geometrical constants, determined as mean values
+        # from the left and right radii of the taperad shaft
+        L = self.L
+        tempS = np.pi * (
+            ((self.odr / 2) ** 2 + (self.odl / 2) ** 2) / 2
+            - ((self.idr / 2) ** 2 + (self.idl / 2) ** 2) / 2
+        )
+        tempI = (
+            np.pi
+            / 4
+            * (
+                ((self.odr / 2) ** 4 + (self.odl / 2) ** 4) / 2
+                - ((self.idr / 2) ** 4 + (self.idl / 2) ** 4) / 2
+            )
+        )
+        tempJ = (
+            np.pi
+            / 2
+            * (
+                ((self.odr / 2) ** 4 + (self.odl / 2) ** 4) / 2
+                - ((self.idr / 2) ** 4 + (self.idl / 2) ** 4) / 2
+            )
+        )
+
+        # temporary variables
+        A = (
+            12
+            * self.material.E
+            * tempI
+            / (self.material.G_s * self.kappa * tempS * L ** 2)
+        )
+
+        # auxiliary variables
+        a1 = self.material.E * tempI / ((1 + A) * L ** 3)
+        a2 = self.material.G_s * tempJ / L
+        a3 = self.material.E * tempS / L
+
+        # fmt: off
+        # pure stiffness matrix [Kc], added to the axial loads stiffness matrix [Ka],
+        # torsional stiffnesses matrix [Kr] and Tinoshenko shear compensation [Ks].
+        Kc_plus = a1 * np.array([
+            [  12,   0,      0,            0,         -6*L,      0, -12,    0,      0,            0,         -6*L,      0],
+            [   0,  12,      0,          6*L,            0,      0,   0,  -12,      0,          6*L,            0,      0],
+            [   0,   0,  a3/a1,            0,            0,      0,   0,    0, -a3/a1,            0,            0,      0],
+            [   0, 6*L,      0, L**2*(A + 4),            0,      0,   0, -6*L,      0,-L**2*(A - 2),            0,      0],
+            [-6*L,   0,      0,            0, L**2*(A + 4),      0, 6*L,    0,      0,            0,-L**2*(A - 2),      0],
+            [   0,   0,      0,            0,            0,  a2/a1,   0,    0,      0,            0,            0, -a2/a1],
+            [ -12,   0,      0,            0,          6*L,      0,  12,    0,      0,            0,          6*L,      0],
+            [   0, -12,      0,         -6*L,            0,      0,   0,   12,      0,         -6*L,            0,      0],
+            [   0,   0, -a3/a1,            0,            0,      0,   0,    0,  a3/a1,            0,            0,      0],
+            [   0, 6*L,      0,-L**2*(A - 2),            0,      0,   0, -6*L,      0, L**2*(A + 4),            0,      0],
+            [-6*L,   0,      0,            0,-L**2*(A - 2),      0, 6*L,    0,      0,            0, L**2*(A + 4),      0],
+            [   0,   0,      0,            0,            0, -a2/a1,   0,    0,      0,            0,            0,  a2/a1],
+        ])
+
+        # stiffness matrix due to axial loading influence
+        Kf = Fa / (30 * L) * np.array([
+            [  36,   0, 0,     0,  -3*L, 0, -36,    0, 0,     0,  -3*L, 0],
+            [   0,  36, 0,   3*L,     0, 0,   0,  -36, 0,   3*L,     0, 0],
+            [   0,   0, 0,     0,     0, 0,   0,    0, 0,     0,     0, 0],
+            [   0, 3*L, 0,4*L**2,     0, 0,   0, -3*L, 0, -L**2,     0, 0],
+            [-3*L,   0, 0,     0,4*L**2, 0, 3*L,    0, 0,     0, -L**2, 0],
+            [   0,   0, 0,     0,     0, 0,   0,    0, 0,     0,     0, 0],
+            [ -36,   0, 0,     0,   3*L, 0,  36,    0, 0,     0,   3*L, 0],
+            [   0, -36, 0,  -3*L,     0, 0,   0,   36, 0,  -3*L,     0, 0],
+            [   0,   0, 0,     0,     0, 0,   0,    0, 0,     0,     0, 0],
+            [   0, 3*L, 0, -L**2,     0, 0,   0, -3*L, 0,4*L**2,     0, 0],
+            [-3*L,   0, 0,     0, -L**2, 0, 3*L,    0, 0,     0,4*L**2, 0],
+            [   0,   0, 0,     0,     0, 0,   0,    0, 0,     0,     0, 0],
+        ])
+
+        # stiffness matrix due to torque loading influence
+        Kt = T * np.array([
+            [   0,    0, 0, -1/L,    0, 0,    0,    0, 0,  1/L,    0, 0],
+            [   0,    0, 0,    0, -1/L, 0,    0,    0, 0,    0,  1/L, 0],
+            [   0,    0, 0,    0,    0, 0,    0,    0, 0,    0,    0, 0],
+            [-1/L,    0, 0,    0,  1/2, 0,  1/L,    0, 0,    0,  1/2, 0],
+            [   0, -1/L, 0, -1/2,    0, 0,    0,  1/L, 0, -1/2,    0, 0],
+            [   0,    0, 0,    0,    0, 0,    0,    0, 0,    0,    0, 0],
+            [   0,    0, 0,  1/L,    0, 0,    0,    0, 0, -1/L,    0, 0],
+            [   0,    0, 0,    0,  1/L, 0,    0,    0, 0,    0, -1/L, 0],
+            [   0,    0, 0,    0,    0, 0,    0,    0, 0,    0,    0, 0],
+            [ 1/L,    0, 0,    0, -1/2, 0, -1/L,    0, 0,    0, -1/2, 0],
+            [   0,  1/L, 0,  1/2,    0, 0,    0, -1/L, 0,  1/2,    0, 0],
+            [   0,    0, 0,    0,    0, 0,    0,    0, 0,    0,    0, 0],
+        ])
+        # fmt: on
+        # Dynamic stiffness matrix is added independently in "def Kst"
+        # Kst = self.material.rho*tempI/(15*L)*np.array(12,12)
+
+        K = Kc_plus + Kf + Kt
+
+        return K
+
+    def Kst(self):
+        """Dynamic stiffness matrix for an instance of a 6 DoF shaft element.
+
+        Returns
+        -------
+        Kst : np.ndarray
+            Dynamic stiffness matrix for the 6 DoF shaft element. This is
+            directly dependent on the rotation speed Omega. It needs to be
+            multiplied by the adequate Omega value when used in time depen-
+            dent analyses. The matrix multiplier term is:
+
+            [(Iz*Omega*rho)/(15*L)] * [Kst]
+
+            and here the Omega value has been suppressed and must be added
+            in the adequate analyses.
+
+        Examples
+        --------
+        >>> from ross.materials import steel
+        >>> Timoshenko_Element = ShaftElement6DoF(0.25, 0, 0.05, material=steel)
+        >>> Timoshenko_Element.Kst().shape
+        (12, 12)
+        """
+        # temporary material and geometrical constants, determined as mean values
+        # from the left and right radii of the taperad shaft
+        L = self.L
+        tempI = (
+            np.pi
+            / 4
+            * (
+                ((self.odr / 2) ** 4 + (self.odl / 2) ** 4) / 2
+                - ((self.idr / 2) ** 4 + (self.idl / 2) ** 4) / 2
+            )
+        )
+
+        # fmt: off
+        # dynamic stiffening matrix
+        Kst = self.material.rho * tempI / (15 * L) * np.array([
+            [0, -36, 0,   -3*L, 0, 0, 0,   36, 0,   -3*L, 0, 0],
+            [0,   0, 0,      0, 0, 0, 0,    0, 0,      0, 0, 0],
+            [0,   0, 0,      0, 0, 0, 0,    0, 0,      0, 0, 0],
+            [0,   0, 0,      0, 0, 0, 0,    0, 0,      0, 0, 0],
+            [0, 3*L, 0, 4*L**2, 0, 0, 0, -3*L, 0,  -L**2, 0, 0],
+            [0,   0, 0,      0, 0, 0, 0,    0, 0,      0, 0, 0],
+            [0,  36, 0,    3*L, 0, 0, 0,  -36, 0,    3*L, 0, 0],
+            [0,   0, 0,      0, 0, 0, 0,    0, 0,      0, 0, 0],
+            [0,   0, 0,      0, 0, 0, 0,    0, 0,      0, 0, 0],
+            [0,   0, 0,      0, 0, 0, 0,    0, 0,      0, 0, 0],
+            [0, 3*L, 0,  -L**2, 0, 0, 0, -3*L, 0, 4*L**2, 0, 0],
+            [0,   0, 0,      0, 0, 0, 0,    0, 0,      0, 0, 0],
+        ])
+        # fmt: on
+
+        return Kst
+
+    def C(self):
+        """Proportional damping matrix for an instance of a 6 DoF shaft element.
+
+        Returns
+        -------
+        C : np.ndarray
+            Proportional damping matrix for the 6 DoF shaft element.
+
+        Examples
+        --------
+        >>> from ross.materials import steel
+        >>> shaft = ShaftElement6DoF(L=0.25, idl=0, odl=0.05, material=steel)
+        >>> shaft.C().shape
+        (12, 12)
+        """
+        # proportional damping matrix
+        C = self.alpha * self.M() + self.beta * self.K()
+
+        return C
+
+    def G(self):
+        """Gyroscopic matrix for an instance of a 6 DoFs shaft element.
+
+        Returns
+        -------
+        G : np.ndarray
+            Gyroscopic matrix for the 6 DoF shaft element. Similar to the Kst
+            stiffness matrix, this Gyro matrix is also multiplied by the value
+            of the rotating speed Omega. It is omitted from this and must be
+            added in the respective analyses.
+
+        Examples
+        --------
+        >>> from ross.materials import steel
+        >>> shaft = ShaftElement6DoF(0.25, 0, 0.05, material=steel)
+        >>> shaft.G().shape
+        (12, 12)
+        """
+        if self.gyroscopic:
+            # temporary material and geometrical constants, determined as mean values
+            # from the left and right radii of the tapered shaft
+            L = self.L
+            tempI = (
+                np.pi
+                / 4
+                * (
+                    ((self.odr / 2) ** 4 + (self.odl / 2) ** 4) / 2
+                    - ((self.idr / 2) ** 4 + (self.idl / 2) ** 4) / 2
                 )
-        return shaft_elements
+            )
+
+            # fmt: off
+            # Gyroscopic effect matrix
+            G = (self.material.rho * tempI / (15 * L)) * np.array([
+                [  0, -36, 0,  -3*L,      0, 0,    0,   36, 0,  -3*L,      0, 0],
+                [ 36,   0, 0,     0,   -3*L, 0,  -36,    0, 0,     0,   -3*L, 0],
+                [  0,   0, 0,     0,      0, 0,    0,    0, 0,     0,      0, 0],
+                [3*L,   0, 0,     0,-4*L**2, 0, -3*L,    0, 0,     0,   L**2, 0],
+                [  0, 3*L, 0,4*L**2,      0, 0,    0, -3*L, 0, -L**2,      0, 0],
+                [  0,   0, 0,     0,      0, 0,    0,    0, 0,     0,      0, 0],
+                [  0,  36, 0,   3*L,      0, 0,    0,  -36, 0,   3*L,      0, 0],
+                [-36,   0, 0,     0,    3*L, 0,   36,    0, 0,     0,    3*L, 0],
+                [  0,   0, 0,     0,      0, 0,    0,    0, 0,     0,      0, 0],
+                [3*L,   0, 0,     0,   L**2, 0, -3*L,    0, 0,     0,-4*L**2, 0],
+                [  0, 3*L, 0, -L**2,      0, 0,    0, -3*L, 0,4*L**2,      0, 0],
+                [  0,   0, 0,     0,      0, 0,    0,    0, 0,     0,      0, 0],
+            ])
+            # fmt: on
+        else:
+            G = np.zeros((12, 12))
+
+        return G
 
     @classmethod
     def from_table(cls, file, sheet_type="Simple", sheet_name=0):
@@ -1522,17 +1880,19 @@ class ShaftElement6DoF(ShaftElement):
 
         Parameters
         ----------
-        file: str
+        file : str
             Path to the file containing the shaft parameters.
-        sheet_type: str, optional
+        sheet_type : str, optional
             Describes the kind of sheet the function should expect:
-                Simple: The input table should specify only the number of the materials to be used.
+                Simple: The input table should specify only the number of the materials
+                to be used.
                 They must be saved prior to calling the method.
-                Model: The materials parameters must be passed along with the shaft parameters. Each
-                material must have an id number and each shaft must reference one of the materials ids.
-        sheet_name: int or str, optional
-            Position of the sheet in the file (starting from 0) or its name. If none is passed, it is
-            assumed to be the first sheet in the file.
+                Model: The materials parameters must be passed along with the shaft
+                parameters. Each material must have an id number and each shaft must
+                reference one of the materials ids.
+        sheet_name : int or str, optional
+            Position of the sheet in the file (starting from 0) or its name. If none is
+            passed, it is assumed to be the first sheet in the file.
 
         Returns
         -------
@@ -1585,550 +1945,6 @@ class ShaftElement6DoF(ShaftElement):
                     )
                 )
         return list_of_shafts
-
-    def dof_mapping(self):
-        """
-        Method to map the element's 12 degrees of freedom
-
-        Parameters
-        ----------
-        Returns
-        -------
-        The numbering of the degrees of freedom for each element node. 
-        
-        Being the following their ordering for an element:
-
-        x_0,u_0 - horizontal translation, 
-        y_0,v_0 - vertical translation, 
-        z_0,w_0 - axial translation, 
-        theta_0 - rotation around horizontal, 
-        psi_0   - rotation around vertical, 
-        phi_0   - torsion around axial
-        x_1,u_1 - horizontal translation, 
-        y_1,v_1 - vertical translation, 
-        z_1,w_1 - axial translation, 
-        theta_1 - rotation around horizontal, 
-        psi_1   - rotation around vertical, 
-        phi_1   - torsion around axial
-        """
-        return dict(
-            u_0=0,
-            v_0=1,
-            w_0=2,
-            theta_0=3,
-            psi_0=4,
-            phi_0=5,
-            u_1=6,
-            v_1=7,
-            w_1=8,
-            theta_1=9,
-            psi_1=10,
-            phi_1=11,
-        )
-
-    def __repr__(self):
-        """This function returns a string representation of a 6 DoF shaft element.
-
-        Parameters
-        ----------
-        Returns
-        -------
-        A string representation of a 6 DoF shaft object.
-
-        Examples
-        --------
-        >>> from ross.materials import steel
-        >>> shaft1 = ShaftElement(
-        ...        L=0.25, idl=0, idr=0, odl=0.05, odr=0.08,
-        ...        material=steel, rotary_inertia=True, shear_effects=True
-        ... )
-        >>> shaft1 # doctest: +ELLIPSIS
-        ShaftElement(L=0.25, idl=0.0...
-        """
-        return (
-            f"{self.__class__.__name__}"
-            f"(L={self.L:{0}.{5}}, idl={self.idl:{0}.{5}}, "
-            f"idr={self.idr:{0}.{5}}, odl={self.odl:{0}.{5}},  "
-            f"odr={self.odr:{0}.{5}}, material={self.material.name!r}, "
-            f"alpha={self.alpha:{0}.{5}}, beta={self.beta:{0}.{5}},  "
-            f"n={self.n})"
-        )
-
-    def __str__(self):
-        """
-        Method to convert object into string
-        
-        Parameters
-        ----------
-        Returns
-        -------
-        The object's parameters translated to strings
-        """
-        return (
-            f"\nElem. N:    {self.n}"
-            f"\nLenght:     {self.L:{10}.{5}}"
-            f"\nLeft Int. Diam.: {self.idl:{10}.{5}}"
-            f"\nLeft Out. Diam.: {self.odl:{10}.{5}}"
-            f"\nRight Int. Diam.: {self.idr:{10}.{5}}"
-            f"\nRight Out. Diam.: {self.odr:{10}.{5}}"
-            f"\nAlpha damp. factor: {self.alpha:{10}.{5}}"
-            f"\nBeta damp. factor: {self.beta:{10}.{5}}"
-            f'\n{35*"-"}'
-            f"\n{self.material}"
-            f"\n"
-        )
-
-    def M(self):
-        r"""Mass matrix for an instance of a 6 DoF shaft element.
-
-        Returns
-        -------
-        M: np.ndarray
-            Mass matrix for the 6 DoF shaft element.
-
-        Examples
-        --------
-        >>> Timoshenko_Element = ShaftElement6DoF(0.25, 0, 0.05, material=steel)
-        >>> Timoshenko_Element.M().shape
-        (12, 12)
-        """
-
-        # temporary material and geometrical constants
-        L = self.L
-        tempG = self.material.E / (2 * (1 + self.material.Poisson))
-        tempS = np.pi * (
-            ((self.odr / 2) ** 2 + (self.odl / 2) ** 2) / 2
-            - ((self.idr / 2) ** 2 + (self.idl / 2) ** 2) / 2
-        )
-        tempI = (
-            np.pi
-            / 4
-            * (
-                ((self.odr / 2) ** 4 + (self.odl / 2) ** 4) / 2
-                - ((self.idr / 2) ** 4 + (self.idl / 2) ** 4) / 2
-            )
-        )
-        tempJ = (
-            np.pi
-            / 2
-            * (
-                ((self.odr / 2) ** 4 + (self.odl / 2) ** 4) / 2
-                - ((self.idr / 2) ** 4 + (self.idl / 2) ** 4) / 2
-            )
-        )
-
-        # element level matrix declaration
-
-        aux1 = self.material.rho * tempS * L / 420
-        aux2 = self.material.rho * tempJ * L / 6
-        # fmt: off
-
-        # Standard mass matrix
-        M = aux1 * np.array([
-            [   156,     0, 0,      0,  -22*L, 0,    54,     0, 0,      0,   13*L, 0],
-            [     0,   156, 0,   22*L,      0, 0,     0,    54, 0,  -13*L,      0, 0],
-            [     0,     0, 0,      0,      0, 0,     0,     0, 0,      0,      0, 0],
-            [     0,  22*L, 0, 4*L**2,      0, 0,     0,  13*L, 0,-3*L**2,      0, 0],
-            [ -22*L,     0, 0,      0, 4*L**2, 0, -13*L,     0, 0,      0,-3*L**2, 0],
-            [     0,     0, 0,      0,      0, 0,     0,     0, 0,      0,      0, 0],
-            [    54,     0, 0,      0,  -13*L, 0,   156,     0, 0,      0,   22*L, 0],
-            [     0,    54, 0,   13*L,      0, 0,     0,   156, 0,  -22*L,      0, 0],
-            [     0,     0, 0,      0,      0, 0,     0,     0, 0,      0,      0, 0],
-            [     0, -13*L, 0,-3*L**2,      0, 0,     0, -22*L, 0, 4*L**2,      0, 0],
-            [  13*L,     0, 0,      0,-3*L**2, 0,  22*L,     0, 0,      0, 4*L**2, 0],
-            [     0,     0, 0,      0,      0, 0,     0,     0, 0,      0,      0, 0],
-        ])
-
-        # Secondary inertias mass matrix
-        Ms = self.material.rho * tempI / (30 * L) * np.array([
-            [   36,   0, 0,     0,  -3*L, 0, -36,    0, 0,     0,  -3*L, 0],
-            [    0,  36, 0,   3*L,     0, 0,   0,  -36, 0,   3*L,     0, 0],
-            [    0,   0, 0,     0,     0, 0,   0,    0, 0,     0,     0, 0],
-            [    0, 3*L, 0,4*L**2,     0, 0,   0, -3*L, 0, -L**2,     0, 0],
-            [ -3*L,   0, 0,     0,4*L**2, 0, 3*L,    0, 0,     0, -L**2, 0],
-            [    0,   0, 0,     0,     0, 0,   0,    0, 0,     0,     0, 0],
-            [  -36,   0, 0,     0,   3*L, 0,  36,    0, 0,     0,   3*L, 0],
-            [    0, -36, 0,  -3*L,     0, 0,   0,   36, 0,  -3*L,     0, 0],
-            [    0,   0, 0,     0,     0, 0,   0,    0, 0,     0,     0, 0],
-            [    0, 3*L, 0, -L**2,     0, 0,   0, -3*L, 0,4*L**2,     0, 0],
-            [ -3*L,   0, 0,     0, -L**2, 0, 3*L,    0, 0,     0,4*L**2, 0],
-            [    0,   0, 0,     0,     0, 0,   0,    0, 0,     0,     0, 0],
-        ])
-
-        # Axial terms inertia matrix
-        Ma = self.material.rho * tempS * L / 6 * np.array([
-            [ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-            [ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-            [ 0, 0, 2, 0, 0, 0, 0, 0, 1, 0, 0, 0],
-            [ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-            [ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-            [ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-            [ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-            [ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-            [ 0, 0, 1, 0, 0, 0, 0, 0, 2, 0, 0, 0],
-            [ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-            [ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-            [ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-        ])
-
-        # Torsional terms inertias matrix
-        Mr = self.material.rho * tempI * L / 6 * np.array([
-            [ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-            [ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-            [ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-            [ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-            [ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-            [ 0, 0, 0, 0, 0, 2, 0, 0, 0, 0, 0, 1],
-            [ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-            [ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-            [ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-            [ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-            [ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-            [ 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 2],
-        ])
-
-        # fmt: on
-
-        M = M + Ms + Ma + Mr
-
-        return M
-
-    def K(self):
-        r"""Stiffness matrix for an instance of a 6 DoF shaft element.
-
-        Returns
-        -------
-        K: np.ndarray
-            Omega independent stiffness matrix for the 6 DoF shaft element.
-
-        Examples
-        --------
-        >>> from ross.materials import steel
-        >>> Timoshenko_Element = ShaftElement6DoF(0.25, 0, 0.05, material=steel)
-        >>> Timoshenko_Element.K().shape
-        (12, 12)
-        """
-
-        # Axial force and torque applied to the element.
-        Fa = self.axial_force
-        T = self.torque
-
-        # temporary material and geometrical constants, determined as mean values
-        # from the left and right radii of the taperad shaft
-        L = self.L
-        tempS = np.pi * (
-            ((self.odr / 2) ** 2 + (self.odl / 2) ** 2) / 2
-            - ((self.idr / 2) ** 2 + (self.idl / 2) ** 2) / 2
-        )
-        tempI = (
-            np.pi
-            / 4
-            * (
-                ((self.odr / 2) ** 4 + (self.odl / 2) ** 4) / 2
-                - ((self.idr / 2) ** 4 + (self.idl / 2) ** 4) / 2
-            )
-        )
-        tempJ = (
-            np.pi
-            / 2
-            * (
-                ((self.odr / 2) ** 4 + (self.odl / 2) ** 4) / 2
-                - ((self.idr / 2) ** 4 + (self.idl / 2) ** 4) / 2
-            )
-        )
-
-        # temporary variables
-        A = (
-            12
-            * self.material.E
-            * tempI
-            / (self.material.G_s * self.kappa * tempS * L ** 2)
-        )
-
-        # auxiliary variables
-        a1 = self.material.E * tempI / ((1 + A) * L ** 3)
-        a2 = self.material.G_s * tempJ / L
-        a3 = self.material.E * tempS / L
-
-        # fmt: off
-        # pure stiffness matrix [Kc], added to the axial loads stiffness matrix [Ka],
-        # torsional stiffnesses matrix [Kr] and Tinoshenko shear compensation [Ks].
-        Kc_plus = a1 * np.array([
-            [   12,   0,      0,            0,         -6*L,      0, -12,    0,      0,            0,         -6*L,      0],
-            [    0,  12,      0,          6*L,            0,      0,   0,  -12,      0,          6*L,            0,      0],
-            [    0,   0,  a3/a1,            0,            0,      0,   0,    0, -a3/a1,            0,            0,      0],
-            [    0, 6*L,      0, L**2*(A + 4),            0,      0,   0, -6*L,      0,-L**2*(A - 2),            0,      0],
-            [ -6*L,   0,      0,            0, L**2*(A + 4),      0, 6*L,    0,      0,            0,-L**2*(A - 2),      0],
-            [    0,   0,      0,            0,            0,  a2/a1,   0,    0,      0,            0,            0, -a2/a1],
-            [  -12,   0,      0,            0,          6*L,      0,  12,    0,      0,            0,          6*L,      0],
-            [    0, -12,      0,         -6*L,            0,      0,   0,   12,      0,         -6*L,            0,      0],
-            [    0,   0, -a3/a1,            0,            0,      0,   0,    0,  a3/a1,            0,            0,      0],
-            [    0, 6*L,      0,-L**2*(A - 2),            0,      0,   0, -6*L,      0, L**2*(A + 4),            0,      0],
-            [ -6*L,   0,      0,            0,-L**2*(A - 2),      0, 6*L,    0,      0,            0, L**2*(A + 4),      0],
-            [    0,   0,      0,            0,            0, -a2/a1,   0,    0,      0,            0,            0,  a2/a1],
-        ])
-
-        # stiffness matrix due to axial loading influence
-        Kf = Fa / (30 * L) * np.array([
-            [   36,   0, 0,     0,  -3*L, 0, -36,    0, 0,     0,  -3*L, 0],
-            [    0,  36, 0,   3*L,     0, 0,   0,  -36, 0,   3*L,     0, 0],
-            [    0,   0, 0,     0,     0, 0,   0,    0, 0,     0,     0, 0],
-            [    0, 3*L, 0,4*L**2,     0, 0,   0, -3*L, 0, -L**2,     0, 0],
-            [ -3*L,   0, 0,     0,4*L**2, 0, 3*L,    0, 0,     0, -L**2, 0],
-            [    0,   0, 0,     0,     0, 0,   0,    0, 0,     0,     0, 0],
-            [  -36,   0, 0,     0,   3*L, 0,  36,    0, 0,     0,   3*L, 0],
-            [    0, -36, 0,  -3*L,     0, 0,   0,   36, 0,  -3*L,     0, 0],
-            [    0,   0, 0,     0,     0, 0,   0,    0, 0,     0,     0, 0],
-            [    0, 3*L, 0, -L**2,     0, 0,   0, -3*L, 0,4*L**2,     0, 0],
-            [ -3*L,   0, 0,     0, -L**2, 0, 3*L,    0, 0,     0,4*L**2, 0],
-            [    0,   0, 0,     0,     0, 0,   0,    0, 0,     0,     0, 0],
-        ])
-
-        # stiffness matrix due to torque loading influence
-        Kt = T * np.array([
-            [    0,    0, 0, -1/L,    0, 0,    0,    0, 0,  1/L,    0, 0],
-            [    0,    0, 0,    0, -1/L, 0,    0,    0, 0,    0,  1/L, 0],
-            [    0,    0, 0,    0,    0, 0,    0,    0, 0,    0,    0, 0],
-            [ -1/L,    0, 0,    0,  1/2, 0,  1/L,    0, 0,    0,  1/2, 0],
-            [    0, -1/L, 0, -1/2,    0, 0,    0,  1/L, 0, -1/2,    0, 0],
-            [    0,    0, 0,    0,    0, 0,    0,    0, 0,    0,    0, 0],
-            [    0,    0, 0,  1/L,    0, 0,    0,    0, 0, -1/L,    0, 0],
-            [    0,    0, 0,    0,  1/L, 0,    0,    0, 0,    0, -1/L, 0],
-            [    0,    0, 0,    0,    0, 0,    0,    0, 0,    0,    0, 0],
-            [  1/L,    0, 0,    0, -1/2, 0, -1/L,    0, 0,    0, -1/2, 0],
-            [    0,  1/L, 0,  1/2,    0, 0,    0, -1/L, 0,  1/2,    0, 0],
-            [    0,    0, 0,    0,    0, 0,    0,    0, 0,    0,    0, 0],
-        ])
-
-        # fmt: on
-        # Dynamic stiffness matrix is added independently in "def Kst"
-        # Kst = self.material.rho*tempI/(15*L)*np.array(12,12)
-
-        K = Kc_plus + Kf + Kt
-
-        return K
-
-    def Kst(self):
-        r"""Dynamic stiffness matrix for an instance of a 6 DoF shaft element.
-
-        Returns
-        -------
-        Kst: np.ndarray
-            Dynamic stiffness matrix for the 6 DoF shaft element. This is
-            directly dependent on the rotation speed Omega. It needs to be
-            multiplied by the adequate Omega value when used in time depen-
-            dent analyses. The matrix multiplier term is: 
-            
-            [(Iz*Omega*rho)/(15*L)] * [Kst]
-
-            and here the Omega value has been suppressed and must be added
-            in the adequate analyses.
-
-        Examples
-        --------
-        >>> from ross.materials import steel
-        >>> Timoshenko_Element = ShaftElement6DoF(0.25, 0, 0.05, material=steel)
-        >>> Timoshenko_Element.Kst().shape
-        (12, 12)
-        """
-        # temporary material and geometrical constants, determined as mean values
-        # from the left and right radii of the taperad shaft
-        L = self.L
-        tempI = (
-            np.pi
-            / 4
-            * (
-                ((self.odr / 2) ** 4 + (self.odl / 2) ** 4) / 2
-                - ((self.idr / 2) ** 4 + (self.idl / 2) ** 4) / 2
-            )
-        )
-
-        # fmt: off
-        # dynamic stiffening matrix
-        Kst = self.material.rho * tempI / (15 * L) * np.array([
-            [ 0, -36, 0,  -3*L, 0, 0, 0,   36, 0,  -3*L, 0, 0],
-            [ 0,   0, 0,     0, 0, 0, 0,    0, 0,     0, 0, 0],
-            [ 0,   0, 0,     0, 0, 0, 0,    0, 0,     0, 0, 0],
-            [ 0,   0, 0,     0, 0, 0, 0,    0, 0,     0, 0, 0],
-            [ 0, 3*L, 0,4*L**2, 0, 0, 0, -3*L, 0, -L**2, 0, 0],
-            [ 0,   0, 0,     0, 0, 0, 0,    0, 0,     0, 0, 0],
-            [ 0,  36, 0,   3*L, 0, 0, 0,  -36, 0,   3*L, 0, 0],
-            [ 0,   0, 0,     0, 0, 0, 0,    0, 0,     0, 0, 0],
-            [ 0,   0, 0,     0, 0, 0, 0,    0, 0,     0, 0, 0],
-            [ 0,   0, 0,     0, 0, 0, 0,    0, 0,     0, 0, 0],
-            [ 0, 3*L, 0, -L**2, 0, 0, 0, -3*L, 0,4*L**2, 0, 0],
-            [ 0,   0, 0,     0, 0, 0, 0,    0, 0,     0, 0, 0],
-        ])
-        # fmt: on
-
-        return Kst
-
-    def C(self):
-        r"""Proportional damping matrix for an instance of a 6 DoF shaft element.
-
-        Returns
-        -------
-        C: np.ndarray
-            Proportional damping matrix for the 6 DoF shaft element.
-
-        Examples
-        --------
-        >>> from ross.materials import steel
-        >>> Timoshenko_Element = ShaftElement6DoF(L=0.25, idl=0, odl=0.05, material=steel)
-        >>> Timoshenko_Element.C().shape
-        (12, 12)
-        """
-
-        # proportional damping matrix
-        C = self.alpha * self.M() + self.beta * self.K()
-
-        return C
-
-    def G(self):
-        r"""Gyroscopic matrix for an instance of a 6 DoFs shaft element.
-
-        Returns
-        -------
-        G: np.ndarray
-            Gyroscopic matrix for the 6 DoF shaft element. Similar to the Kst
-            stiffness matrix, this Gyro matrix is also multiplied by the value
-            of the rotating speed Omega. It is omitted from this and must be 
-            added in the respective analyses.
-
-        Examples
-        --------
-        >>> from ross.materials import steel
-        >>> Timoshenko_Element = ShaftElement6DoF(0.25, 0, 0.05, material=steel)
-        >>> Timoshenko_Element.G().shape
-        (12, 12)
-        """
-
-        if self.gyroscopic:
-            # temporary material and geometrical constants, determined as mean values
-            # from the left and right radii of the tapered shaft
-            L = self.L
-            tempI = (
-                np.pi
-                / 4
-                * (
-                    ((self.odr / 2) ** 4 + (self.odl / 2) ** 4) / 2
-                    - ((self.idr / 2) ** 4 + (self.idl / 2) ** 4) / 2
-                )
-            )
-
-            # fmt: off
-            # Gyroscopic effect matrix
-            G = (self.material.rho * tempI / (15 * L)) * np.array([
-                [   0, -36, 0,  -3*L,      0, 0,    0,   36, 0,  -3*L,      0, 0],
-                [  36,   0, 0,     0,   -3*L, 0,  -36,    0, 0,     0,   -3*L, 0],
-                [   0,   0, 0,     0,      0, 0,    0,    0, 0,     0,      0, 0],
-                [ 3*L,   0, 0,     0,-4*L**2, 0, -3*L,    0, 0,     0,   L**2, 0],
-                [   0, 3*L, 0,4*L**2,      0, 0,    0, -3*L, 0, -L**2,      0, 0],
-                [   0,   0, 0,     0,      0, 0,    0,    0, 0,     0,      0, 0],
-                [   0,  36, 0,   3*L,      0, 0,    0,  -36, 0,   3*L,      0, 0],
-                [ -36,   0, 0,     0,    3*L, 0,   36,    0, 0,     0,    3*L, 0],
-                [   0,   0, 0,     0,      0, 0,    0,    0, 0,     0,      0, 0],
-                [ 3*L,   0, 0,     0,   L**2, 0, -3*L,    0, 0,     0,-4*L**2, 0],
-                [   0, 3*L, 0, -L**2,      0, 0,    0, -3*L, 0,4*L**2,      0, 0],
-                [   0,   0, 0,     0,      0, 0,    0,    0, 0,     0,      0, 0],
-            ])
-            # fmt: on
-
-        return G
-
-    def bokeh_patch(self, position, check_sld, bk_ax):
-        """Shaft element patch.
-        Patch that will be used to draw the shaft element.
-        Parameters
-        ----------
-        position : float
-            Position in which the patch will be drawn.
-        check_sld : bool
-            If True, HoverTool displays only the slenderness ratio and color
-            the elements in yellow if slenderness ratio < 1.6
-        bk_ax : bokeh plotting axes, optional
-            Axes in which the plot will be drawn.
-        Returns
-        -------
-        hover : Bokeh HoverTool
-            Bokeh HoverTool axes
-        """
-        if check_sld is True and self.slenderness_ratio < 1.6:
-            bk_color = "yellow"
-            legend = "Shaft - Slenderness Ratio < 1.6"
-        else:
-            bk_color = self.material.color
-            legend = "Shaft"
-
-        # bokeh plot - plot the shaft
-        z_upper = [position, position, position + self.L, position + self.L]
-        y_upper = [self.idl / 2, self.odl / 2, self.odr / 2, self.idr / 2]
-        z_lower = [position, position, position + self.L, position + self.L]
-        y_lower = [-self.idl / 2, -self.odl / 2, -self.odr / 2, -self.idr / 2]
-
-        source = ColumnDataSource(
-            dict(
-                z_l=[z_lower],
-                y_l=[y_lower],
-                z_u=[z_upper],
-                y_u=[y_upper],
-                sld=[self.slenderness_ratio],
-                elnum=[self.n],
-                out_d_l=[self.odl],
-                out_d_r=[self.odr],
-                in_d_l=[self.idl],
-                in_d_r=[self.idr],
-                alpha_factor=[self.alpha],
-                beta_factor=[self.beta],
-                length=[self.L],
-                mat=[self.material.name],
-            )
-        )
-
-        bk_ax.patches(
-            xs="z_u",
-            ys="y_u",
-            source=source,
-            line_color=bokeh_colors[0],
-            line_width=1,
-            fill_alpha=0.5,
-            fill_color=bk_color,
-            legend_label=legend,
-            name="u_shaft",
-        )
-        bk_ax.patches(
-            xs="z_l",
-            ys="y_l",
-            source=source,
-            line_color=bokeh_colors[0],
-            line_width=1,
-            fill_alpha=0.5,
-            fill_color=bk_color,
-            legend_label=legend,
-            name="l_shaft",
-        )
-
-        hover = HoverTool(names=["l_shaft", "u_shaft"])
-        if check_sld:
-            hover.tooltips = [
-                ("Element Number :", "@elnum"),
-                ("Slenderness Ratio :", "@sld"),
-            ]
-        else:
-            hover.tooltips = [
-                ("Element Number :", "@elnum"),
-                ("Left Outer Diameter :", "@out_d_l"),
-                ("Left Inner Diameter :", "@in_d_l"),
-                ("Right Outer Diameter :", "@out_d_r"),
-                ("Right Inner Diameter :", "@in_d_r"),
-                ("Alpha Damp. Factor :", "@alpha_factor"),
-                ("Beta Damp. Factor :", "@beta_factor"),
-                ("Element Length :", "@length"),
-                ("Material :", "@mat"),
-            ]
-        hover.mode = "mouse"
-
-        return hover
 
     @classmethod
     def section(
@@ -2185,7 +2001,7 @@ class ShaftElement6DoF(ShaftElement):
 
         Returns
         -------
-        elements: list
+        elements : list
             List with the 'ne' shaft elements.
 
         Examples

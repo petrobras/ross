@@ -48,6 +48,8 @@ class FluidFlow:
         Output Pressure (Pa).
     load: float
         Load applied to the rotor (N).
+    omegap: float
+        Frequency of the rotor (rad/s).
 
     Geometric data of the problem
     ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -122,19 +124,26 @@ class FluidFlow:
         y value of the external radius.
     yri : array of shape (nz, ntheta)
         y value of the internal radius.
+    t : float
+        Time.
+    xp : float
+        Perturbation along x.
+    yp : float
+        Perturbation along y.
     eccentricity : float
         distance between the center of the rotor and the stator.
-    difference_between_radius: float
-        distance between the radius of the stator and the radius of the rotor.
+    radial_clearance: float
+        Difference between both stator and rotor radius, regardless of eccentricity.
     eccentricity_ratio: float
-        eccentricity/difference_between_radius
+        eccentricity/radial_clearance
+    characteristic_speed: float
+        Characteristic fluid speeds.
+        In journal bearings, characteristic_speed = omega * radius_rotor
     bearing_type: str
         type of structure. 'short_bearing': short; 'long_bearing': long;
         'medium_size': in between short and long.
         if length/diameter <= 1/4 it is short.
         if length/diameter > 8 it is long.
-    radial_clearance: float
-        Difference between both stator and rotor radius, regardless of eccentricity.
     analytical_pressure_matrix_available: bool
         True if analytically calculated pressure matrix is available.
     numerical_pressure_matrix_available: bool
@@ -143,9 +152,8 @@ class FluidFlow:
     Examples
     --------
     >>> from ross.fluid_flow import fluid_flow as flow
-    >>> from ross.fluid_flow.fluid_flow_graphics import matplot_pressure_theta
+    >>> from ross.fluid_flow.fluid_flow_graphics import plot_pressure_theta
     >>> import numpy as np
-    >>> from bokeh.plotting import show
     >>> nz = 8
     >>> ntheta = 64
     >>> nradius = 8
@@ -169,10 +177,10 @@ class FluidFlow:
     >>> my_fluid_flow.calculate_pressure_matrix_numerical() # doctest: +ELLIPSIS
     array([[...
     >>> # to show the plots you can use:
-    >>> # show(my_fluid_flow.plot_eccentricity())
-    >>> # show(my_fluid_flow.plot_pressure_theta(z=int(nz/2)))
-    >>> matplot_pressure_theta(my_fluid_flow, z=int(nz/2)) # doctest: +ELLIPSIS
-    <matplotlib.axes...
+    >>> # my_fluid_flow.plot_eccentricity().show()
+    >>> # my_fluid_flow.plot_pressure_theta(z=int(nz/2)).show()
+    >>> fig = plot_pressure_theta(my_fluid_flow, z=int(nz/2)) # doctest: +ELLIPSIS
+    >>> # fig.show() to display the figure.
     """
 
     def __init__(
@@ -191,6 +199,7 @@ class FluidFlow:
         attitude_angle=None,
         eccentricity=None,
         load=None,
+        omegap=None,
         immediately_calculate_pressure_matrix_numerically=True,
     ):
         if load is None and eccentricity is None:
@@ -213,12 +222,12 @@ class FluidFlow:
         self.radius_stator = radius_stator
         self.viscosity = viscosity
         self.density = density
+        self.characteristic_speed = self.omega * self.radius_rotor
         self.radial_clearance = self.radius_stator - self.radius_rotor
-        self.difference_between_radius = radius_stator - radius_rotor
         self.bearing_type = ""
         if self.length / (2 * self.radius_stator) <= 1 / 4:
             self.bearing_type = "short_bearing"
-        elif self.length / (2 * self.radius_stator) >= 8:
+        elif self.length / (2 * self.radius_stator) > 4:
             self.bearing_type = "long_bearing"
         else:
             self.bearing_type = "medium_size"
@@ -235,10 +244,14 @@ class FluidFlow:
                 self.radial_clearance,
             )
             self.eccentricity = (
-                calculate_eccentricity_ratio(modified_s)
-                * self.difference_between_radius
+                calculate_eccentricity_ratio(modified_s) * self.radial_clearance
             )
-        self.eccentricity_ratio = self.eccentricity / self.difference_between_radius
+        self.omegap = omegap
+        if self.omegap is None:
+            self.omegap = self.omega
+        else:
+            self.omegap = omegap
+        self.eccentricity_ratio = self.eccentricity / self.radial_clearance
         if self.load is None:
             self.load = calculate_rotor_load(
                 self.radius_stator,
@@ -307,7 +320,7 @@ class FluidFlow:
                     for j in range(0, self.ntheta):
                         # fmt: off
                         self.p_mat_analytical[i][j] = (
-                                ((-3 * self.viscosity * self.omega) / self.difference_between_radius ** 2) *
+                                ((-3 * self.viscosity * self.omega) / self.radial_clearance ** 2) *
                                 ((i * self.dz - (self.length / 2)) ** 2 - (self.length ** 2) / 4) *
                                 (self.eccentricity_ratio * np.sin(j * self.dtheta)) /
                                 (1 + self.eccentricity_ratio * np.cos(j * self.dtheta)) ** 3)
@@ -318,7 +331,7 @@ class FluidFlow:
                 for i in range(0, self.nz):
                     for j in range(0, self.ntheta):
                         # fmt: off
-                        self.p_mat_analytical[i][j] = (3 * self.viscosity / ((self.difference_between_radius ** 2) *
+                        self.p_mat_analytical[i][j] = (3 * self.viscosity / ((self.radial_clearance ** 2) *
                                                                              (1. + self.eccentricity_ratio * np.cos(
                                                                                  j * self.dtheta)) ** 3)) * \
                                                       (-self.eccentricity_ratio * self.omega * np.sin(
@@ -337,7 +350,7 @@ class FluidFlow:
                                 6
                                 * self.viscosity
                                 * self.omega
-                                * (self.ri[i][j] / self.difference_between_radius) ** 2
+                                * (self.ri[i][j] / self.radial_clearance) ** 2
                                 * self.eccentricity_ratio
                                 * np.sin(self.dtheta * j)
                                 * (
@@ -366,7 +379,7 @@ class FluidFlow:
         self.analytical_pressure_matrix_available = True
         return self.p_mat_analytical
 
-    def calculate_coefficients(self):
+    def calculate_coefficients(self, direction=None):
         """This function calculates the constants that form the Poisson equation
         of the discrete pressure (central differences in the second
         derivatives). It is executed when the class is instantiated.
@@ -417,6 +430,14 @@ class FluidFlow:
                 self.c0w[i][j] = (- w * self.ri[i][j] *
                                   (np.log(self.re[i][j] / self.ri[i][j]) *
                                    (1 + (self.ri[i][j] ** 2) / (self.re[i][j] ** 2 - self.ri[i][j] ** 2)) - 1 / 2))
+                if direction == "x":
+                    a = self.omegap * (self.xp) * np.cos(self.omegap * self.t)
+                    self.c0w[i][j] += self.ri[i][j] * a * np.sin(self.gama[i][j])
+                elif direction == "y":
+                    b = self.omegap * (self.yp) * np.cos(self.omegap * self.t)
+                    self.c0w[i][j] -= self.ri[i][j] * b * np.cos(self.gama[i][j])
+                else:
+                    self.c0w[i][j] += 0
                 # fmt: on
                 if not eccentricity_error:
                     if abs(self.xri[i][j]) > abs(self.xre[i][j]) or abs(

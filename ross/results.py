@@ -1,32 +1,45 @@
-# fmt: off
-import bokeh.palettes as bp
-import matplotlib as mpl
-import matplotlib.pyplot as plt
+"""ROSS plotting module.
+
+This module returns graphs for each type of analyses in rotor_assembly.py.
+"""
+import copy
+
 import numpy as np
+import plotly.graph_objects as go
 import scipy.linalg as la
-from bokeh.colors import RGB
-from bokeh.layouts import Column, gridplot
-from bokeh.models import (Arrow, ColorBar, ColumnDataSource, HoverTool, Label,
-                          NormalHead)
-from bokeh.models.widgets import (DataTable, NumberFormatter, Panel,
-                                  TableColumn, Tabs)
-from bokeh.plotting import figure
-from bokeh.transform import linear_cmap
-from matplotlib import cm
-from mpl_toolkits.mplot3d import Axes3D
+from plotly.subplots import make_subplots
 from scipy import interpolate
 
-# fmt: on
+from ross.plotly_theme import tableau_colors
 
-# set bokeh palette of colors
-bokeh_colors = bp.RdGy[11]
+
+class CriticalSpeedResults:
+    """Class used to store results from run_critical_speed() method.
+
+    Parameters
+    ----------
+    wn : array
+        Undamped critical speeds array.
+    wd : array
+        Undamped critical speeds array.
+    log_dec : array
+        Logarithmic decrement for each critical speed.
+    damping_ratio : array
+        Damping ratio for each critical speed.
+    """
+
+    def __init__(self, wn, wd, log_dec, damping_ratio):
+        self.wn = wn
+        self.wd = wd
+        self.log_dec = log_dec
+        self.damping_ratio = damping_ratio
 
 
 class ModalResults:
     """Class used to store results and provide plots for Modal Analysis.
 
     Two options for plottting are available: plot_mode3D (mode shape 3D view)
-    and plot_mode2D (mode shape 2D view). The user chooses between them using 
+    and plot_mode2D (mode shape 2D view). The user chooses between them using
     the respective methods.
 
     Parameters
@@ -42,7 +55,7 @@ class ModalResults:
     wd : array
         Damped natural frequencies array.
     log_dec : array
-        Logarithmic decrement for each .
+        Logarithmic decrement for each mode.
     damping_ratio : array
         Damping ratio for each mode.
     lti : StateSpaceContinuous
@@ -90,7 +103,7 @@ class ModalResults:
             kappa_color = []
             kappa_mode = self.kappa_mode(mode)
             for kappa in kappa_mode:
-                kappa_color.append("tab:blue" if kappa > 0 else "tab:red")
+                kappa_color.append("blue" if kappa > 0 else "red")
             kappa_modes.append(kappa_color)
         self.kappa_modes = kappa_modes
 
@@ -397,24 +410,25 @@ class ModalResults:
         nn : int
             number of points to plot lines
         """
-        evec0 = self.modes[:, mode]
+        if evec is None:
+            evec = self.modes[:, mode]
         nodes = self.nodes
         nodes_pos = self.nodes_pos
         shaft_elements_length = self.shaft_elements_length
 
-        modex = evec0[0::4]
-        modey = evec0[1::4]
+        modex = evec[0::4]
+        modey = evec[1::4]
 
         xmax, ixmax = max(abs(modex)), np.argmax(abs(modex))
         ymax, iymax = max(abs(modey)), np.argmax(abs(modey))
 
         if ymax > 0.4 * xmax:
-            evec0 /= modey[iymax]
+            evec /= modey[iymax]
         else:
-            evec0 /= modex[ixmax]
+            evec /= modex[ixmax]
 
-        modex = evec0[0::4]
-        modey = evec0[1::4]
+        modex = evec[0::4]
+        modey = evec[1::4]
 
         num_points = 201
         c = np.linspace(0, 2 * np.pi, num_points)
@@ -459,13 +473,13 @@ class ModalResults:
             pos0 = nn * n
             pos1 = nn * (n + 1)
 
-            xn[pos0:pos1] = Nx @ evec0[xx].real
-            yn[pos0:pos1] = Ny @ evec0[yy].real
+            xn[pos0:pos1] = Nx @ evec[xx].real
+            yn[pos0:pos1] = Ny @ evec[yy].real
             zn[pos0:pos1] = (node_pos * onn + Le * zeta).reshape(nn)
 
         return xn, yn, zn, x_circles, y_circles, z_circles_pos, nn
 
-    def plot_mode3D(self, mode=None, evec=None, fig=None, ax=None):
+    def plot_mode_3d(self, mode=None, evec=None, fig=None, **kwargs):
         """Plot (3D view) the mode shapes.
 
         Parameters
@@ -475,71 +489,113 @@ class ModalResults:
             Default is None
         evec : array
             Array containing the system eigenvectors
-        fig : matplotlib figure
+        fig : Plotly graph_objects.Figure()
             The figure object with the plot.
-        ax : matplotlib axes
-            The axes object with the plot.
+        kwargs : optional
+            Additional key word arguments can be passed to change the plot layout only
+            (e.g. width=1000, height=800, ...).
+            *See Plotly Python Figure Reference for more information.
 
         Returns
         -------
-        fig : matplotlib figure
-            Returns the figure object with the plot.
-        ax : matplotlib axes
-            Returns the axes object with the plot.
+        fig : Plotly graph_objects.Figure()
+            The figure object with the plot.
         """
-        if ax is None:
-            from mpl_toolkits.mplot3d import Axes3D
-
-            fig = plt.figure()
-            ax = fig.gca(projection="3d")
+        if fig is None:
+            fig = go.Figure()
 
         nodes = self.nodes
         kappa_mode = self.kappa_modes[mode]
         xn, yn, zn, xc, yc, zc_pos, nn = self.calc_mode_shape(mode=mode, evec=evec)
 
         for node in nodes:
-            ax.plot(
-                xc[10:, node],
-                yc[10:, node],
-                zc_pos[10:, node],
-                color=kappa_mode[node],
-                linewidth=0.5,
-                zdir="x",
+            fig.add_trace(
+                go.Scatter3d(
+                    x=zc_pos[10:, node],
+                    y=xc[10:, node],
+                    z=yc[10:, node],
+                    mode="lines",
+                    line=dict(color=kappa_mode[node]),
+                    name="node {}".format(node),
+                    showlegend=False,
+                    hovertemplate=(
+                        "Nodal Position: %{x:.2f}<br>"
+                        + "X - Relative Displacement: %{y:.2f}<br>"
+                        + "Y - Relative Displacement: %{z:.2f}"
+                    ),
+                )
             )
-            ax.scatter(
-                xc[10, node],
-                yc[10, node],
-                zc_pos[10, node],
-                s=5,
-                color=kappa_mode[node],
-                zdir="x",
+            fig.add_trace(
+                go.Scatter3d(
+                    x=[zc_pos[10, node]],
+                    y=[xc[10, node]],
+                    z=[yc[10, node]],
+                    mode="markers",
+                    marker=dict(color=kappa_mode[node]),
+                    name="node {}".format(node),
+                    showlegend=False,
+                )
             )
 
-        ax.plot(xn, yn, zn, "k--", zdir="x")
+        fig.add_trace(
+            go.Scatter3d(
+                x=zn,
+                y=xn,
+                z=yn,
+                mode="lines",
+                line=dict(color="black", dash="dash"),
+                name="mode shape",
+                showlegend=False,
+            )
+        )
 
         # plot center line
         zn_cl0 = -(zn[-1] * 0.1)
         zn_cl1 = zn[-1] * 1.1
         zn_cl = np.linspace(zn_cl0, zn_cl1, 30)
-        ax.plot(zn_cl * 0, zn_cl * 0, zn_cl, "k-.", linewidth=0.8, zdir="x")
-
-        ax.set_zlim(-2, 2)
-        ax.set_ylim(-2, 2)
-        ax.set_xlim(zn_cl0 - 0.1, zn_cl1 + 0.1)
-
-        ax.set_title(
-            f"$mode$ {mode + 1} - $speed$ = {self.speed:.1f} rad/s\n"
-            f"$ω_n$ = {self.wn[mode]:.1f} rad/s\n"
-            f"log_dec = {self.log_dec[mode]:.1f}\n"
-            f"whirl_direction = {self.whirl_direction()[mode]}",
-            fontsize=18,
+        fig.add_trace(
+            go.Scatter3d(
+                x=zn_cl,
+                y=zn_cl * 0,
+                z=zn_cl * 0,
+                mode="lines",
+                line=dict(color="black", dash="dashdot"),
+                hoverinfo="none",
+                showlegend=False,
+            )
         )
-        ax.tick_params(axis="both", which="major", labelsize=18)
-        ax.tick_params(axis="both", which="minor", labelsize=18)
+        fig.update_layout(
+            scene=dict(
+                xaxis=dict(
+                    title=dict(text="<b>Rotor Length</b>"),
+                    autorange="reversed",
+                    nticks=5,
+                ),
+                yaxis=dict(
+                    title=dict(text="<b>Relative Displacement</b>"),
+                    range=[-2, 2],
+                    nticks=5,
+                ),
+                zaxis=dict(
+                    title=dict(text="<b>Relative Displacement</b>"),
+                    range=[-2, 2],
+                    nticks=5,
+                ),
+            ),
+            title=dict(
+                text=(
+                    f"<b>Mode</b> {mode + 1} | "
+                    f"<b>whirl</b>: {self.whirl_direction()[mode]} | "
+                    f"<b>ω<sub>n</sub></b> = {self.wn[mode]:.1f} rad/s | "
+                    f"<b>log dec</b> = {self.log_dec[mode]:.1f}"
+                )
+            ),
+            **kwargs,
+        )
 
-        return fig, ax
+        return fig
 
-    def plot_mode2D(self, mode=None, evec=None, fig=None, ax=None):
+    def plot_mode_2d(self, mode=None, evec=None, fig=None, **kwargs):
         """Plot (2D view) the mode shapes.
 
         Parameters
@@ -549,19 +605,19 @@ class ModalResults:
             Default is None
         evec : array
             Array containing the system eigenvectors
-        fig : matplotlib figure
+        fig : Plotly graph_objects.Figure()
             The figure object with the plot.
-        ax : matplotlib axes
-            The axes object with the plot.
+        kwargs : optional
+            Additional key word arguments can be passed to change the plot layout only
+            (e.g. width=1000, height=800, ...).
+            *See Plotly Python Figure Reference for more information.
 
         Returns
         -------
-        fig : matplotlib figure
-            Returns the figure object with the plot.
-        ax : matplotlib axes
-            Returns the axes object with the plot.
+        fig : Plotly graph_objects.Figure()
+            The figure object with the plot.
         """
-        xn, yn, zn, xc, yc, zc_pos, nn = self.calc_mode_shape(mode=mode)
+        xn, yn, zn, xc, yc, zc_pos, nn = self.calc_mode_shape(mode=mode, evec=evec)
         nodes_pos = self.nodes_pos
 
         vn = np.zeros(len(zn))
@@ -577,39 +633,50 @@ class ModalResults:
         zn = np.delete(zn, idx_remove)
         vn = np.delete(vn, idx_remove)
 
-        if fig is None and ax is None:
-            fig, ax = plt.subplots()
+        if fig is None:
+            fig = go.Figure()
 
-        colors = dict(Backward="firebrick", Mixed="black", Forward="royalblue")
+        colors = dict(Backward="red", Mixed="black", Forward="blue")
         whirl_dir = colors[self.whirl_direction()[mode]]
 
-        ax.plot(zn, vn, c=whirl_dir)
-        label = (
-            f"Mode {mode + 1} | {self.whirl_direction()[mode]} | "
-            f"wn = {self.wn[mode]:.1f} rad/s | "
-            f"log dec = {self.log_dec[mode]:.1f}"
+        fig.add_trace(
+            go.Scatter(
+                x=zn,
+                y=vn,
+                mode="lines",
+                line=dict(color=whirl_dir),
+                name="mode shape",
+                showlegend=False,
+            )
+        )
+        # plot center line
+        fig.add_trace(
+            go.Scatter(
+                x=nodes_pos,
+                y=np.zeros(len(nodes_pos)),
+                mode="lines",
+                line=dict(color="black", dash="dashdot"),
+                name="centerline",
+                hoverinfo="none",
+                showlegend=False,
+            )
         )
 
-        mode_shape = mpl.lines.Line2D([], [], lw=0, label=label)
+        fig.update_xaxes(title_text="<b>Rotor Length</b>")
+        fig.update_yaxes(title_text="<b>Relative Displacement</b>")
+        fig.update_layout(
+            title=dict(
+                text=(
+                    f"<b>Mode</b> {mode + 1} | "
+                    f"<b>whirl</b>: {self.whirl_direction()[mode]} | "
+                    f"<b>ωn</b> = {self.wn[mode]:.1f} rad/s | "
+                    f"<b>log dec</b> = {self.log_dec[mode]:.1f}"
+                )
+            ),
+            **kwargs,
+        )
 
-        # plot center line
-        zn_cl0 = -(zn[-1] * 0.1)
-        zn_cl1 = zn[-1] * 1.1
-        ax.plot(nodes_pos, np.zeros(len(nodes_pos)), "k-.", linewidth=0.8)
-
-        ax.set_ylim(-1.3, 1.3)
-        ax.set_xlim(zn_cl0, zn_cl1)
-
-        ax.set_title("Mode Shape", fontsize=14)
-        ax.tick_params(axis="both", which="major", labelsize=14)
-        ax.tick_params(axis="both", which="minor", labelsize=14)
-
-        legend = plt.legend(handles=[mode_shape], loc=0, framealpha=0.1)
-        ax.add_artist(legend)
-        ax.set_xlabel("Rotor length")
-        ax.set_ylabel("Non dimentional rotor deformation")
-
-        return fig, ax
+        return fig
 
 
 class CampbellResults:
@@ -617,8 +684,6 @@ class CampbellResults:
 
     It's possible to visualize multiples harmonics in a single plot to check
     other speeds which also excite a specific natural frequency.
-    Two options for plooting are available: Matplotlib and Bokeh. The user
-    chooses between them using the attribute plot_type. The default is bokeh
 
     Parameters
     ----------
@@ -633,12 +698,8 @@ class CampbellResults:
 
     Returns
     -------
-    ax : matplotlib axes
-        Returns the matplotlib axes object with the plot
-        if plot_type == "matplotlib"
-    bk_ax : bokeh axes
-        Returns the bokeh axes object with the plot
-        if plot_type == "bokeh"
+    fig : Plotly graph_objects.Figure()
+        The figure object with the plot.
     """
 
     def __init__(self, speed_range, wd, log_dec, whirl_values):
@@ -647,216 +708,59 @@ class CampbellResults:
         self.log_dec = log_dec
         self.whirl_values = whirl_values
 
-    def _plot_matplotlib(self, harmonics=[1], fig=None, ax=None, **kwargs):
-        """Create Campbell Diagram figure using Matplotlib library.
+    def plot(self, harmonics=[1], fig=None, **kwargs):
+        """Create Campbell Diagram figure using Plotly.
 
         Parameters
         ----------
         harmonics: list, optional
             List withe the harmonics to be plotted.
             The default is to plot 1x.
-        fig : matplotlib figure, optional
-            Figure in which the plot will be drawn
-            Default is None
-        ax : matplotlib plotting axes, optional
-            Axes which the plot will take to draw.
-            Default is None
+        fig : Plotly graph_objects.Figure()
+            The figure object with the plot.
         kwargs : optional
-            Additional key word arguments can be passed to change
-            the plot (e.g. linestyle='--')
+            Additional key word arguments can be passed to change the plot layout only
+            (e.g. width=1000, height=800, ...).
+            *See Plotly Python Figure Reference for more information.
 
         Returns
         -------
-        fig : matplotlib figure
-            A figure with the Campbell Diagram plot
-        ax : matplotlib plotting axes
-            The axes from Campbell Diagram plot
-        """
-        if fig is None and ax is None:
-            fig, ax = plt.subplots()
-
-        wd = self.wd
-        num_frequencies = wd.shape[1]
-        log_dec = self.log_dec
-        whirl = self.whirl_values
-        speed_range = np.repeat(
-            self.speed_range[:, np.newaxis], num_frequencies, axis=1
-        )
-
-        default_values = dict(cmap="RdBu", vmin=0.1, vmax=2.0, s=30, alpha=1.0)
-        for k, v in default_values.items():
-            kwargs.setdefault(k, v)
-
-        for mark, whirl_dir, legend in zip(
-            ["^", "o", "v"], [0.0, 0.5, 1.0], ["Foward", "Mixed", "Backward"]
-        ):
-            for i in range(num_frequencies):
-                w_i = wd[:, i]
-                whirl_i = whirl[:, i]
-                log_dec_i = log_dec[:, i]
-                speed_range_i = speed_range[:, i]
-
-                whirl_mask = whirl_i == whirl_dir
-                if whirl_mask.shape[0] == 0:
-                    continue
-                else:
-                    im = ax.scatter(
-                        speed_range_i[whirl_mask],
-                        w_i[whirl_mask],
-                        c=log_dec_i[whirl_mask],
-                        marker=mark,
-                        **kwargs,
-                    )
-
-                for harm in harmonics:
-                    idx = np.argwhere(
-                        np.diff(np.sign(w_i - harm * speed_range_i))
-                    ).flatten()
-                    if len(idx) != 0:
-                        idx = idx[0]
-
-                        interpolated = interpolate.interp1d(
-                            x=[speed_range_i[idx], speed_range_i[idx + 1]],
-                            y=[w_i[idx], w_i[idx + 1]],
-                            kind="linear",
-                        )
-                        xnew = np.linspace(
-                            speed_range_i[idx],
-                            speed_range_i[idx + 1],
-                            num=20,
-                            endpoint=True,
-                        )
-                        ynew = interpolated(xnew)
-                        idx = np.argwhere(
-                            np.diff(np.sign(ynew - harm * xnew))
-                        ).flatten()
-
-                        ax.scatter(xnew[idx], ynew[idx], marker="X", s=30, c="g")
-
-        if len(fig.axes) == 1:
-            cbar = fig.colorbar(im)
-            cbar.ax.set_ylabel("log dec")
-            cbar.solids.set_edgecolor("face")
-
-            forward_label = mpl.lines.Line2D(
-                [], [], marker="^", lw=0, color="tab:blue", alpha=0.3, label="Forward"
-            )
-            backward_label = mpl.lines.Line2D(
-                [], [], marker="v", lw=0, color="tab:blue", alpha=0.3, label="Backward"
-            )
-            mixed_label = mpl.lines.Line2D(
-                [], [], marker="o", lw=0, color="tab:blue", alpha=0.3, label="Mixed"
-            )
-            crit_marker = mpl.lines.Line2D(
-                [], [], marker="X", lw=0, color="g", alpha=0.3, label="Crit. Speed"
-            )
-            labels = [forward_label, backward_label, mixed_label, crit_marker]
-
-            prop_cycle = plt.rcParams["axes.prop_cycle"]
-            colors = prop_cycle.by_key()["color"]
-            for j, harm in enumerate(harmonics):
-                harmonic = ax.plot(
-                    speed_range[:, 0],
-                    harm * speed_range[:, 0],
-                    color=colors[j],
-                    linewidth=1.5,
-                    linestyle="-.",
-                    alpha=0.75,
-                    label=str(harm) + "x speed",
-                )
-                labels.append(harmonic[0])
-
-            legend = plt.legend(handles=labels, loc=2, framealpha=0.1)
-            ax.add_artist(legend)
-
-            ax.set_xlabel("Rotor speed ($rad/s$)")
-            ax.set_ylabel("Damped natural frequencies ($rad/s$)")
-
-        return fig, ax
-
-    def _plot_bokeh(self, harmonics=[1], **kwargs):
-        """Create Campbell Diagram figure using Bokeh library.
-
-        Parameters
-        ----------
-        harmonics: list, optional
-            List withe the harmonics to be plotted.
-            The default is to plot 1x.
-        kwargs : optional
-            Additional key word arguments can be passed to change
-            the plot (e.g. linestyle='--')
-
-        Returns
-        -------
-        camp : Bokeh axes
-            The bokeh axes object with the plot
+        fig : Plotly graph_objects.Figure()
+            The figure object with the plot.
         """
         wd = self.wd
         num_frequencies = wd.shape[1]
         log_dec = self.log_dec
         whirl = self.whirl_values
-        speed_range = np.repeat(
-            self.speed_range[:, np.newaxis], num_frequencies, axis=1
-        )
-
+        speed_range = self.speed_range
         log_dec_map = log_dec.flatten()
 
-        m_coolwarm_rgb = (255 * cm.coolwarm(range(256))).astype("int")
-        coolwarm_palette = [RGB(*tuple(rgb)).to_hex() for rgb in m_coolwarm_rgb][::-1]
+        if fig is None:
+            fig = go.Figure()
 
-        default_values = dict(
-            vmin=min(log_dec_map), vmax=max(log_dec_map), s=30, alpha=1.0
-        )
-
-        for k, v in default_values.items():
-            kwargs.setdefault(k, v)
-
-        camp = figure(
-            tools="pan, box_zoom, wheel_zoom, reset, save",
-            title="Campbell Diagram - Damped Natural Frequency Map",
-            width=640,
-            height=480,
-            x_axis_label="Rotor speed (rad/s)",
-            y_axis_label="Damped natural frequencies (rad/s)",
-        )
-        camp.xaxis.axis_label_text_font_size = "20pt"
-        camp.yaxis.axis_label_text_font_size = "20pt"
-        camp.axis.major_label_text_font_size = "16pt"
-        camp.title.text_font_size = "14pt"
-        hover = False
-
-        color_mapper = linear_cmap(
-            field_name="color",
-            palette=coolwarm_palette,
-            low=min(log_dec_map),
-            high=max(log_dec_map),
-        )
-
+        scatter_marker = ["triangle-up", "circle", "triangle-down"]
         for mark, whirl_dir, legend in zip(
-            ["^", "o", "v"], [0.0, 0.5, 1.0], ["Foward", "Mixed", "Backward"]
+            scatter_marker, [0.0, 0.5, 1.0], ["Foward", "Mixed", "Backward"]
         ):
-            num_frequencies = wd.shape[1]
             for i in range(num_frequencies):
                 w_i = wd[:, i]
                 whirl_i = whirl[:, i]
                 log_dec_i = log_dec[:, i]
-                speed_range_i = speed_range[:, i]
 
                 for harm in harmonics:
-                    idx = np.argwhere(
-                        np.diff(np.sign(w_i - harm * speed_range_i))
-                    ).flatten()
+                    idx = np.argwhere(np.diff(np.sign(w_i - harm * speed_range)))
+                    idx = idx.flatten()
                     if len(idx) != 0:
                         idx = idx[0]
 
                         interpolated = interpolate.interp1d(
-                            x=[speed_range_i[idx], speed_range_i[idx + 1]],
+                            x=[speed_range[idx], speed_range[idx + 1]],
                             y=[w_i[idx], w_i[idx + 1]],
                             kind="linear",
                         )
                         xnew = np.linspace(
-                            speed_range_i[idx],
-                            speed_range_i[idx + 1],
+                            speed_range[idx],
+                            speed_range[idx + 1],
                             num=30,
                             endpoint=True,
                         )
@@ -865,132 +769,102 @@ class CampbellResults:
                             np.diff(np.sign(ynew - harm * xnew))
                         ).flatten()
 
-                        source = ColumnDataSource(dict(xnew=xnew[idx], ynew=ynew[idx]))
-                        camp.asterisk(
-                            x="xnew",
-                            y="ynew",
-                            source=source,
-                            size=14,
-                            fill_alpha=1.0,
-                            color=bokeh_colors[9],
-                            muted_color=bokeh_colors[9],
-                            muted_alpha=0.2,
-                            legend_label="Crit. Speed",
-                            name="critspeed",
+                        fig.add_trace(
+                            go.Scatter(
+                                x=xnew[idx],
+                                y=ynew[idx],
+                                mode="markers",
+                                marker=dict(symbol="x", color="black"),
+                                name="Crit. Speed",
+                                legendgroup="Crit. Speed",
+                                showlegend=False,
+                                hovertemplate=(
+                                    "Frequency: %{x:.2f}<br>"
+                                    + "Critical Speed: %{y:.2f}"
+                                ),
+                            )
                         )
-                        hover = HoverTool(names=["critspeed"])
-                        hover.tooltips = [
-                            ("Frequency :", "@xnew"),
-                            ("Critical Speed :", "@ynew"),
-                        ]
-                        hover.mode = "mouse"
 
                 whirl_mask = whirl_i == whirl_dir
                 if whirl_mask.shape[0] == 0:
                     continue
                 else:
-                    source = ColumnDataSource(
-                        dict(
-                            x=speed_range_i[whirl_mask],
+                    fig.add_trace(
+                        go.Scatter(
+                            x=speed_range[whirl_mask],
                             y=w_i[whirl_mask],
-                            color=log_dec_i[whirl_mask],
+                            marker=dict(
+                                symbol=mark,
+                                cmax=max(log_dec_map),
+                                cmin=min(log_dec_map),
+                                color=log_dec_i[whirl_mask],
+                                coloraxis="coloraxis",
+                                colorscale="rdbu",
+                            ),
+                            mode="markers",
+                            name=legend,
+                            legendgroup=legend,
+                            showlegend=False,
+                            hoverinfo="none",
                         )
                     )
-                    camp.scatter(
-                        x="x",
-                        y="y",
-                        color=color_mapper,
-                        marker=mark,
-                        fill_alpha=1.0,
-                        size=9,
-                        muted_color=color_mapper,
-                        muted_alpha=0.2,
-                        source=source,
-                        legend_label=legend,
-                    )
 
-        harm_color = bp.Category20[20]
-        for j, harm in enumerate(harmonics):
-            camp.line(
-                x=speed_range[:, 0],
-                y=harm * speed_range[:, 0],
-                line_width=3,
-                color=harm_color[j],
-                line_dash="dotdash",
-                line_alpha=1.0,
-                legend_label=str(harm) + "x speed",
-                muted_color=harm_color[j],
-                muted_alpha=0.2,
+        for j, h in enumerate(harmonics):
+            fig.add_trace(
+                go.Scatter(
+                    x=speed_range,
+                    y=h * speed_range,
+                    mode="lines",
+                    line=dict(dash="dashdot"),
+                    name="{}x speed".format(h),
+                    hoverinfo="none",
+                )
+            )
+        # turn legend glyphs black
+        scatter_marker = ["triangle-up", "circle", "triangle-down", "x"]
+        legends = ["Foward", "Mixed", "Backward", "Crit. Speed"]
+        for mark, legend in zip(scatter_marker, legends):
+            fig.add_trace(
+                go.Scatter(
+                    x=[0],
+                    y=[0],
+                    mode="markers",
+                    name=legend,
+                    legendgroup=legend,
+                    marker=dict(symbol=mark, color="black"),
+                )
             )
 
-        # turn legend glyphs black
-        camp.scatter(0, 0, color="black", size=0, marker="^", legend_label="Foward")
-        camp.scatter(0, 0, color="black", size=0, marker="o", legend_label="Mixed")
-        camp.scatter(0, 0, color="black", size=0, marker="v", legend_label="Backward")
-
-        color_bar = ColorBar(
-            color_mapper=color_mapper["transform"],
-            width=8,
-            location=(0, 0),
-            title="log dec",
-            title_text_font_style="bold italic",
-            title_text_font_size="16pt",
-            title_text_align="center",
-            major_label_text_align="left",
-            major_label_text_font_size="16pt",
+        fig.update_xaxes(
+            title_text="<b>Frequency</b>",
+            range=[np.min(speed_range), np.max(speed_range)],
         )
-        if hover:
-            camp.add_tools(hover)
-        camp.legend.background_fill_alpha = 0.1
-        camp.legend.click_policy = "mute"
-        camp.legend.location = "top_left"
-        camp.legend.label_text_font_size = "16pt"
-        camp.add_layout(color_bar, "right")
+        fig.update_yaxes(
+            title_text="<b>Damped Natural Frequencies</b>", range=[0, 1.1 * np.max(wd)]
+        )
+        fig.update_layout(
+            coloraxis=dict(
+                cmin=min(log_dec_map),
+                cmax=max(log_dec_map),
+                colorscale="rdbu",
+                colorbar=dict(title=dict(text="<b>Log Dec</b>", side="right")),
+            ),
+            legend=dict(
+                itemsizing="constant",
+                orientation="h",
+                xanchor="center",
+                x=0.5,
+                yanchor="bottom",
+                y=-0.3,
+            ),
+            **kwargs,
+        )
 
-        return camp
-
-    def plot(self, *args, plot_type="bokeh", **kwargs):
-        """Plot Campbell Diagram.
-
-        There are two options for plotting type:
-            - "bokeh"
-            - "matplotlib"
-
-        Parameters
-        ----------
-        args: optional
-            harmonics : list, optional
-                List with the harmonics to be plotted.
-                The default is to plot 1x.
-        plot_type: str
-            Matplotlib or bokeh.
-            The default is bokeh
-        kwargs : optional
-            Additional key word arguments can be passed to change
-            the plot (e.g. linestyle='--')
-
-        Returns
-        -------
-        ax : matplotlib axes
-            Returns the matplotlib axes object with the plot
-            if plot_type == "matplotlib"
-        bk_ax : bokeh axes
-            Returns the bokeh axes object with the plot
-            if plot_type == "bokeh"
-        """
-        if plot_type == "matplotlib":
-            return self._plot_matplotlib(*args, **kwargs)
-        elif plot_type == "bokeh":
-            return self._plot_bokeh(*args, **kwargs)
-        else:
-            raise ValueError(f"")
+        return fig
 
 
 class FrequencyResponseResults:
     """Class used to store results and provide plots for Frequency Response.
-
-    Two options for plooting are available: Matplotlib and Bokeh. The user
-    chooses between them using the attribute plot_type. The default is bokeh
 
     Parameters
     ----------
@@ -1007,12 +881,8 @@ class FrequencyResponseResults:
 
     Returns
     -------
-    ax : matplotlib axes
-        Returns the matplotlib axes object with the plot
-        if plot_type == "matplotlib"
-    bk_ax : bokeh axes
-        Returns the bokeh axes object with the plot
-        if plot_type == "bokeh"
+    subplots : Plotly graph_objects.make_subplots()
+        Plotly figure with Amplitude vs Frequency and Phase vs Frequency plots.
     """
 
     def __init__(self, freq_resp, speed_range, magnitude, phase):
@@ -1021,56 +891,11 @@ class FrequencyResponseResults:
         self.magnitude = magnitude
         self.phase = phase
 
-    def plot_magnitude_matplotlib(self, inp, out, ax=None, units="mic-pk-pk", **kwargs):
-        """Plot frequency response (magnitude) using matplotlib.
+    def plot_magnitude(self, inp, out, units="mic-pk-pk", fig=None, **mag_kwargs):
+        """Plot frequency response (magnitude) using Plotly.
 
         This method plots the frequency response magnitude given an output and
-        an input using Matplotlib.
-
-        Parameters
-        ----------
-        inp : int
-            Input.
-        out : int
-            Output.
-        ax : matplotlib.axes, optional
-            Matplotlib axes to plot the magnitude.
-            If None creates a new.
-        units : str
-            Unit system
-            Default is "mic-pk-pk"
-        kwargs : optional
-            Additional key word arguments can be passed to change
-            the plot (e.g. linestyle='--')
-
-        Returns
-        -------
-        ax : matplotlib.axes
-            Matplotlib axes with magnitude plot.
-        """
-        if ax is None:
-            ax = plt.gca()
-
-        frequency_range = self.speed_range
-        mag = self.magnitude
-
-        ax.plot(frequency_range, mag[inp, out, :], **kwargs)
-
-        ax.set_xlim(0, max(frequency_range))
-        ax.yaxis.set_major_locator(mpl.ticker.MaxNLocator(prune="lower"))
-        ax.yaxis.set_major_locator(mpl.ticker.MaxNLocator(prune="upper"))
-
-        ax.set_ylabel("Mag H$(jω)$")
-        ax.set_xlabel("Frequency (rad/s)")
-        ax.ticklabel_format(style="sci", axis="y", scilimits=(0, 0))
-
-        return ax
-
-    def plot_magnitude_bokeh(self, inp, out, units="mic-pk-pk", **kwargs):
-        """Plot frequency response (magnitude) using bokeh.
-
-        This method plots the frequency response magnitude given an output and
-        an input using Bokeh.
+        an input using Plotly.
 
         Parameters
         ----------
@@ -1081,386 +906,305 @@ class FrequencyResponseResults:
         units : str
             Unit system
             Default is "mic-pk-pk"
-        kwargs : optional
-            Additional key word arguments can be passed to change
-            the plot (e.g. linestyle='--')
+        fig : Plotly graph_objects.Figure()
+            The figure object with the plot.
+        mag_kwargs : optional
+            Additional key word arguments can be passed to change the plot layout only
+            (e.g. width=1000, height=800, ...).
+            *See Plotly Python Figure Reference for more information.
 
         Returns
         -------
-        mag_plot : bokeh plot axes
-            Bokeh plot axes with magnitude plot.
+        fig : Plotly graph_objects.Figure()
+            The figure object with the plot.
         """
         frequency_range = self.speed_range
         mag = self.magnitude
 
         if units == "m":
-            y_axis_label = "Amplitude (m)"
+            y_axis_label = "<b>Amplitude (m)</b>"
         elif units == "mic-pk-pk":
-            y_axis_label = "Amplitude (μ pk-pk)"
+            y_axis_label = "<b>Amplitude (μ pk-pk)</b>"
         else:
-            y_axis_label = "Amplitude (dB)"
+            y_axis_label = "<b>Amplitude (dB)</b>"
 
-        # bokeh plot - create a new plot
-        mag_plot = figure(
-            tools="pan, box_zoom, wheel_zoom, reset, save",
-            width=640,
-            height=240,
-            title="Frequency Response - Magnitude",
-            x_axis_label="Frequency (rad/s)",
-            y_axis_label=y_axis_label,
-        )
-        mag_plot.xaxis.axis_label_text_font_size = "20pt"
-        mag_plot.yaxis.axis_label_text_font_size = "20pt"
-        mag_plot.axis.major_label_text_font_size = "16pt"
-        mag_plot.title.text_font_size = "14pt"
+        if fig is None:
+            fig = go.Figure()
 
-        source = ColumnDataSource(dict(x=frequency_range, y=mag[inp, out, :]))
-        mag_plot.line(
-            x="x",
-            y="y",
-            source=source,
-            line_color=bokeh_colors[0],
-            line_alpha=1.0,
-            line_width=3,
-        )
-
-        return mag_plot
-
-    def plot_phase_matplotlib(self, inp, out, ax=None, **kwargs):
-        """Plot phase response (phase) using matplotlib.
-
-        This method plots the frequency response phase given an output and
-        an input using Matplotlib.
-
-        Parameters
-        ----------
-        inp : int
-            Input.
-        out : int
-            Output.
-        ax : matplotlib.axes, optional
-            Matplotlib axes where the phase will be plotted.
-            If None creates a new.
-        kwargs : optional
-            Additional key word arguments can be passed to change
-            the plot (e.g. linestyle='--')
-
-        Returns
-        -------
-        ax : matplotlib.axes
-            Matplotlib axes with phase plot.
-        """
-        if ax is None:
-            ax = plt.gca()
-
-        frequency_range = self.speed_range
-        phase = self.phase
-
-        ax.plot(frequency_range, phase[inp, out, :], **kwargs)
-
-        ax.set_xlim(0, max(frequency_range))
-        ax.yaxis.set_major_locator(mpl.ticker.MaxNLocator(prune="lower"))
-        ax.yaxis.set_major_locator(mpl.ticker.MaxNLocator(prune="upper"))
-
-        ax.set_ylabel("Phase")
-        ax.set_xlabel("Frequency (rad/s)")
-
-        return ax
-
-    def plot_phase_bokeh(self, inp, out, **kwargs):
-        """Plot frequency response (phase) using bokeh..
-
-        This method plots the frequency response phase given an output and
-        an input using bokeh.
-
-        Parameters
-        ----------
-        inp : int
-            Input.
-        out : int
-            Output.
-        kwargs : optional
-            Additional key word arguments can be passed to change
-            the plot (e.g. linestyle='--')
-
-        Returns
-        -------
-        phase_plot : bokeh plot axes
-            Bokeh plot axes with phase plot.
-        """
-        frequency_range = self.speed_range
-        phase = self.phase
-
-        # bokeh plot - create a new plot
-        phase_plot = figure(
-            tools="pan, box_zoom, wheel_zoom, reset, save",
-            width=640,
-            height=240,
-            title="Frequency Response - Phase",
-            x_axis_label="Frequency (rad/s)",
-            y_axis_label="Phase",
-        )
-        phase_plot.xaxis.axis_label_text_font_size = "20pt"
-        phase_plot.yaxis.axis_label_text_font_size = "20pt"
-        phase_plot.axis.major_label_text_font_size = "16pt"
-        phase_plot.title.text_font_size = "14pt"
-
-        source = ColumnDataSource(dict(x=frequency_range, y=phase[inp, out, :]))
-        phase_plot.line(
-            x="x",
-            y="y",
-            source=source,
-            line_color=bokeh_colors[0],
-            line_alpha=1.0,
-            line_width=3,
-        )
-
-        return phase_plot
-
-    def _plot_matplotlib(self, inp, out, ax0=None, ax1=None, **kwargs):
-        """Plot frequency response.
-
-        This method plots the frequency response given an output and an input
-        using Matplotib.
-
-        Parameters
-        ----------
-        inp : int
-            Input.
-        out : int
-            Output.
-        ax0 : matplotlib.axes, optional
-            Matplotlib axes where the magnitude will be plotted.
-            If None creates a new.
-        ax1 : matplotlib.axes, optional
-            Matplotlib axes where the phase will be plotted.
-            If None creates a new.
-        kwargs : optional
-            Additional key word arguments can be passed to change
-            the plot (e.g. linestyle='--')
-
-        Returns
-        -------
-        ax0 : matplotlib.axes
-            Matplotlib axes with amplitude plot.
-        ax1 : matplotlib.axes
-            Matplotlib axes with phase plot.
-        """
-        if ax0 is None and ax1 is None:
-            fig, (ax0, ax1) = plt.subplots(2)
-
-        # matplotlib axes
-        ax0 = self.plot_magnitude_matplotlib(inp, out, ax=ax0)
-        ax1 = self.plot_phase_matplotlib(inp, out, ax=ax1)
-
-        ax0.set_xlabel("")
-
-        return ax0, ax1
-
-    def _plot_bokeh(self, inp, out, ax0=None, ax1=None, **kwargs):
-        """Plot frequency response.
-
-        This method plots the frequency response given an output and an input
-        using Bokeh.
-
-        Parameters
-        ----------
-        inp : int
-            Input.
-        out : int
-            Output.
-        ax0 : bokeh axes, optional
-            Bokeh plot axes where the magnitude will be plotted.
-            If None creates a new.
-        ax1 : bokeh axes, optional
-            Bokeh plot axes where the phase will be plotted.
-            If None creates a new.
-        kwargs : optional
-            Additional key word arguments can be passed to change
-            the plot (e.g. linestyle='--')
-
-        Returns
-        -------
-        grid_plots : bokeh column
-            Bokeh column with magnitude and phase plots.
-        """
-        # bokeh plot axes
-        bk_ax0 = self.plot_magnitude_bokeh(inp, out, ax=ax0)
-        bk_ax1 = self.plot_phase_bokeh(inp, out, ax=ax1)
-
-        # show the bokeh plot results
-        grid_plots = gridplot([[bk_ax0], [bk_ax1]])
-        grid_plots
-
-        return grid_plots
-
-    def plot(self, inp, out, *args, plot_type="bokeh", **kwargs):
-        """Plot frequency response.
-
-        This method plots the frequency response given an output and an input.
-        There are two options for plotting type:
-            - "bokeh"
-            - "matplotlib"
-
-        Parameters
-        ----------
-        inp : int
-            Input.
-        out : int
-            Output.
-        args : optional
-            Additional bokeh plot axes or matplolib.axes
-        plot_type: str
-            Matplotlib or bokeh.
-            The default is bokeh
-        kwargs : optional
-            Additional key word arguments can be passed to change
-            the plot (e.g. linestyle='--')
-
-        Returns
-        -------
-        ax0 : matplotlib.axes
-            Matplotlib axes with amplitude plot.
-            if plot_type == "matplotlib"
-        ax1 : matplotlib.axes
-            Matplotlib axes with phase plot.
-            if plot_type == "matplotlib"
-        grid_plots : bokeh column
-            Bokeh column with amplitude and phase plot
-            if plot_type == "bokeh"
-        """
-        if plot_type == "matplotlib":
-            return self._plot_matplotlib(inp, out, *args, **kwargs)
-        elif plot_type == "bokeh":
-            return self._plot_bokeh(inp, out, *args, **kwargs)
-        else:
-            raise ValueError(f"")
-
-    def plot_freq_response_grid(self, outs, inps, ax=None, **kwargs):
-        """Plot frequency response.
-
-        This method plots the frequency response given an output and an input.
-
-        Parameters
-        ----------
-        outs : list
-            List with the desired outputs.
-        inps : list
-            List with the desired outputs.
-        ax : array with matplotlib.axes, optional
-            Matplotlib axes array created with plt.subplots.
-            It needs to have a shape of (2*inputs, outputs).
-
-        Returns
-        -------
-        ax : array with matplotlib.axes, optional
-            Matplotlib axes array created with plt.subplots.
-        """
-        if ax is None:
-            fig, ax = plt.subplots(
-                len(inps) * 2,
-                len(outs),
-                sharex=True,
-                figsize=(4 * len(outs), 3 * len(inps)),
+        fig.add_trace(
+            go.Scatter(
+                x=frequency_range,
+                y=mag[inp, out, :],
+                mode="lines",
+                line=dict(color=tableau_colors["blue"]),
+                name="Amplitude",
+                legendgroup="Amplitude",
+                showlegend=False,
+                hovertemplate=("Frequency: %{x:.2f}<br>" + "Amplitude: %{y:.2e}"),
             )
-            fig.subplots_adjust(hspace=0.001, wspace=0.25)
+        )
 
-        if len(outs) > 1:
-            for i, out in enumerate(outs):
-                for j, inp in enumerate(inps):
-                    self.plot_magnitude(out, inp, ax=ax[2 * i, j], **kwargs)
-                    self.plot_phase(out, inp, ax=ax[2 * i + 1, j], **kwargs)
+        fig.update_xaxes(
+            title_text="<b>Frequency</b>",
+            range=[np.min(frequency_range), np.max(frequency_range)],
+        )
+        fig.update_yaxes(title_text=y_axis_label)
+        fig.update_layout(**mag_kwargs)
+
+        return fig
+
+    def plot_phase(self, inp, out, fig=None, **phase_kwargs):
+        """Plot frequency response (phase) using Plotly.
+
+        This method plots the frequency response phase given an output and
+        an input using Plotly.
+
+        Parameters
+        ----------
+        inp : int
+            Input.
+        out : int
+            Output.
+        fig : Plotly graph_objects.Figure()
+            The figure object with the plot.
+        phase_kwargs : optional
+            Additional key word arguments can be passed to change the plot layout only
+            (e.g. width=1000, height=800, ...).
+            *See Plotly Python Figure Reference for more information.
+
+        Returns
+        -------
+        fig : Plotly graph_objects.Figure()
+            The figure object with the plot.
+        """
+        frequency_range = self.speed_range
+        phase = self.phase
+
+        if fig is None:
+            fig = go.Figure()
+
+        fig.add_trace(
+            go.Scatter(
+                x=frequency_range,
+                y=phase[inp, out, :],
+                mode="lines",
+                line=dict(color=tableau_colors["blue"]),
+                name="Phase",
+                legendgroup="Phase",
+                showlegend=False,
+                hovertemplate=("Frequency: %{x:.2f}<br>" + "Phase: %{y:.2f}"),
+            )
+        )
+
+        fig.update_xaxes(
+            title_text="<b>Frequency</b>",
+            range=[np.min(frequency_range), np.max(frequency_range)],
+        )
+        fig.update_yaxes(title_text="<b>Phase</b>")
+        fig.update_layout(**phase_kwargs)
+
+        return fig
+
+    def plot_polar_bode(self, inp, out, units="mic-pk-pk", fig=None, **polar_kwargs):
+        """Plot frequency response (polar) using Plotly.
+
+        This method plots the frequency response (polar graph) given an output and
+        an input using Plotly.
+
+        Parameters
+        ----------
+        inp : int
+            Input.
+        out : int
+            Output.
+        units : str
+            Magnitude unit system.
+            Default is "mic-pk-pk"
+        fig : Plotly graph_objects.Figure()
+            The figure object with the plot.
+        polar_kwargs : optional
+            Additional key word arguments can be passed to change the plot layout only
+            (e.g. width=1000, height=800, ...).
+            *See Plotly Python Figure Reference for more information.
+
+        Returns
+        -------
+        fig : Plotly graph_objects.Figure()
+            The figure object with the plot.
+        """
+        frequency_range = self.speed_range
+        mag = self.magnitude
+        phase = self.phase
+
+        if units == "m":
+            r_axis_label = "<b>Amplitude (m)</b>"
+        elif units == "mic-pk-pk":
+            r_axis_label = "<b>Amplitude (μ pk-pk)</b>"
         else:
-            for i, inp in enumerate(inps):
-                self.plot_magnitude(outs[0], inp, ax=ax[2 * i], **kwargs)
-                self.plot_phase(outs[0], inp, ax=ax[2 * i + 1], **kwargs)
+            r_axis_label = "<b>Amplitude (dB)</b>"
 
-        return ax
+        if fig is None:
+            fig = go.Figure()
+
+        fig.add_trace(
+            go.Scatterpolar(
+                r=mag[inp, out, :],
+                theta=phase[inp, out, :],
+                customdata=frequency_range,
+                thetaunit="radians",
+                mode="lines+markers",
+                marker=dict(color=tableau_colors["blue"]),
+                line=dict(color=tableau_colors["blue"]),
+                name="Polar_plot",
+                legendgroup="Polar",
+                showlegend=False,
+                hovertemplate=(
+                    "<b>Amplitude: %{r:.2e}</b><br>"
+                    + "<b>Phase: %{theta:.2f}</b><br>"
+                    + "<b>Frequency: %{customdata:.2f}</b>"
+                ),
+            )
+        )
+
+        fig.update_layout(
+            polar=dict(
+                radialaxis=dict(title=dict(text=r_axis_label), exponentformat="power")
+            ),
+            **polar_kwargs,
+        )
+
+        return fig
+
+    def plot(
+        self,
+        inp,
+        out,
+        units="mic-pk-pk",
+        mag_kwargs=None,
+        phase_kwargs=None,
+        polar_kwargs=None,
+        subplot_kwargs=None,
+    ):
+        """Plot frequency response.
+
+        This method plots the frequency response given an output and an input
+        using Plotly.
+
+        This method returns a subplot with:
+            - Frequency vs Amplitude;
+            - Frequency vs Phase Angle;
+            - Polar plot Amplitude vs Phase Angle;
+
+        Parameters
+        ----------
+        inp : int
+            Input.
+        out : int
+            Output.
+        units : str, optional
+            Magnitude unit system.
+            Options:
+                - "m" : meters
+                - "mic-pk-pk" : microns peak to peak
+                - "db" : decibels
+            Default is "mic-pk-pk".
+        mag_kwargs : optional
+            Additional key word arguments can be passed to change the magnitude plot
+            layout only (e.g. width=1000, height=800, ...).
+            *See Plotly Python Figure Reference for more information.
+        phase_kwargs : optional
+            Additional key word arguments can be passed to change the phase plot
+            layout only (e.g. width=1000, height=800, ...).
+            *See Plotly Python Figure Reference for more information.
+        polar_kwargs : optional
+            Additional key word arguments can be passed to change the polar plot
+            layout only (e.g. width=1000, height=800, ...).
+            *See Plotly Python Figure Reference for more information.
+        subplot_kwargs : optional
+            Additional key word arguments can be passed to change the plot layout only
+            (e.g. width=1000, height=800, ...). This kwargs override "mag_kwargs",
+            "phase_kwargs" and "polar_kwargs" dictionaries.
+            *See Plotly Python make_subplots Reference for more information.
+
+        Returns
+        -------
+        subplots : Plotly graph_objects.make_subplots()
+            Plotly figure with Amplitude vs Frequency and Phase vs Frequency and
+            polar Amplitude vs Phase plots.
+        """
+        mag_kwargs = {} if mag_kwargs is None else copy.copy(mag_kwargs)
+        phase_kwargs = {} if phase_kwargs is None else copy.copy(phase_kwargs)
+        polar_kwargs = {} if polar_kwargs is None else copy.copy(polar_kwargs)
+        subplot_kwargs = {} if subplot_kwargs is None else copy.copy(subplot_kwargs)
+
+        fig0 = self.plot_magnitude(inp, out, units, **mag_kwargs)
+        fig1 = self.plot_phase(inp, out, **phase_kwargs)
+        fig2 = self.plot_polar_bode(inp, out, units, **polar_kwargs)
+
+        subplots = make_subplots(
+            rows=2, cols=2, specs=[[{}, {"type": "polar", "rowspan": 2}], [{}, None]]
+        )
+        for data in fig0["data"]:
+            subplots.add_trace(data, row=1, col=1)
+        for data in fig1["data"]:
+            subplots.add_trace(data, row=2, col=1)
+        for data in fig2["data"]:
+            subplots.add_trace(data, row=1, col=2)
+
+        subplots.update_xaxes(fig0.layout.xaxis, row=1, col=1)
+        subplots.update_yaxes(fig0.layout.yaxis, row=1, col=1)
+        subplots.update_xaxes(fig1.layout.xaxis, row=2, col=1)
+        subplots.update_yaxes(fig1.layout.yaxis, row=2, col=1)
+        subplots.update_layout(
+            polar=dict(
+                radialaxis=fig2.layout.polar.radialaxis,
+                angularaxis=fig2.layout.polar.angularaxis,
+            ),
+            **subplot_kwargs,
+        )
+
+        return subplots
 
 
 class ForcedResponseResults:
     """Store results and provide plots for Unbalance and Forced Response analysis.
 
-    Two options for plooting are available: Matplotlib and Bokeh. The user
-    chooses between them using the attribute plot_type. The default is bokeh
-
     Parameters
     ----------
+    rotor : ross.Rotor object
+        The Rotor object
     force_resp : array
-        Array with the force response for each node for each frequency
+        Array with the force response for each node for each frequency.
     speed_range : array
-        Array with the frequencies
+        Array with the frequencies.
     magnitude : array
-        Magnitude (dB) of the frequency response for node for each frequency
+        Magnitude (dB) of the frequency response for node for each frequency.
     phase : array
-        Phase of the frequency response for node for each frequency
+        Phase of the frequency response for node for each frequency.
+    unbalance : array, optional
+        Array with the unbalance data (node, magnitude and phase) to be plotted
+        with deflected shape. This argument is set only if running an unbalance
+        response analysis.
+        Default is None.
 
     Returns
     -------
-    ax0 : matplotlib.axes
-        Matplotlib axes with magnitude plot.
-        if plot_type == "matplotlib"
-    ax1 : matplotlib.axes
-        Matplotlib axes with phase plot.
-        if plot_type == "matplotlib"
-    grid_plots : bokeh column
-        Bokeh colum with magnitude and phase plot
-        if plot_type == "bokeh"
+    subplots : Plotly graph_objects.make_subplots()
+        Plotly figure with Amplitude vs Frequency and Phase vs Frequency plots.
     """
 
-    def __init__(self, forced_resp, speed_range, magnitude, phase):
+    def __init__(
+        self, rotor, forced_resp, speed_range, magnitude, phase, unbalance=None
+    ):
+        self.rotor = rotor
         self.forced_resp = forced_resp
         self.speed_range = speed_range
         self.magnitude = magnitude
         self.phase = phase
+        self.unbalance = unbalance
 
-    def plot_magnitude_matplotlib(self, dof, ax=None, units="m", **kwargs):
-        """Plot forced response (magnitude) using matplotlib.
-
-        Parameters
-        ----------
-        dof : int
-            Degree of freedom.
-        ax : matplotlib.axes, optional
-            Matplotlib axes where the magnitude will be plotted.
-            If None creates a new.
-        units : str
-            Units to plot the magnitude ('m' or 'mic-pk-pk')
-            Default is 'm'
-        kwargs : optional
-            Additional key word arguments can be passed to change
-            the plot (e.g. linestyle='--')
-
-        Returns
-        -------
-        ax : matplotlib.axes
-            Matplotlib axes with magnitude plot.
-        """
-        if ax is None:
-            ax = plt.gca()
-
-        frequency_range = self.speed_range
-        mag = self.magnitude
-
-        if units == "m":
-            ax.set_ylabel("Amplitude $(m)$")
-        elif units == "mic-pk-pk":
-            mag = 2 * mag * 1e6
-            ax.set_ylabel("Amplitude (μ pk-pk)")
-
-        ax.plot(frequency_range, mag[dof], **kwargs)
-
-        ax.set_xlim(0, max(frequency_range))
-        ax.yaxis.set_major_locator(mpl.ticker.MaxNLocator(prune="lower"))
-        ax.yaxis.set_major_locator(mpl.ticker.MaxNLocator(prune="upper"))
-
-        ax.set_xlabel("Frequency (rad/s)")
-        ax.legend()
-
-        return ax
-
-    def plot_magnitude_bokeh(self, dof, units="m", **kwargs):
-        """Plot forced response (magnitude) using bokeh.
+    def plot_magnitude(self, dof, units="m", fig=None, **kwargs):
+        """Plot forced response (magnitude) using Plotly.
 
         Parameters
         ----------
@@ -1469,239 +1213,763 @@ class ForcedResponseResults:
         units : str
             Units to plot the magnitude ('m' or 'mic-pk-pk')
             Default is 'm'
+        fig : Plotly graph_objects.Figure()
+            The figure object with the plot.
         kwargs : optional
-            Additional key word arguments can be passed to change
-            the plot (e.g. linestyle='--')
+            Additional key word arguments can be passed to change the plot layout only
+            (e.g. width=1000, height=800, ...).
+            *See Plotly Python Figure Reference for more information.
 
         Returns
         -------
-        mag_plot : bokeh axes
-            bokeh axes with magnitude plot
+        fig : Plotly graph_objects.Figure()
+            The figure object with the plot.
         """
         frequency_range = self.speed_range
         mag = self.magnitude
 
         if units == "m":
-            y_axis_label = "Amplitude (m)"
+            y_axis_label = "<b>Amplitude (m)</b>"
         elif units == "mic-pk-pk":
             mag = 2 * mag * 1e6
-            y_axis_label = "Amplitude (μ pk-pk)"
+            y_axis_label = "<b>Amplitude (μ pk-pk)</b>"
 
-        # bokeh plot - create a new plot
-        mag_plot = figure(
-            tools="pan, box_zoom, wheel_zoom, reset, save",
-            width=640,
-            height=240,
-            title="Forced Response - Magnitude",
-            x_axis_label="Frequency (rad/s)",
-            x_range=[0, max(frequency_range)],
-            y_axis_label=y_axis_label,
-        )
-        mag_plot.xaxis.axis_label_text_font_size = "20pt"
-        mag_plot.yaxis.axis_label_text_font_size = "20pt"
-        mag_plot.axis.major_label_text_font_size = "16pt"
-        mag_plot.title.text_font_size = "14pt"
+        if fig is None:
+            fig = go.Figure()
 
-        source = ColumnDataSource(dict(x=frequency_range, y=mag[dof]))
-        mag_plot.line(
-            x="x",
-            y="y",
-            source=source,
-            line_color=bokeh_colors[0],
-            line_alpha=1.0,
-            line_width=3,
+        fig.add_trace(
+            go.Scatter(
+                x=frequency_range,
+                y=mag[dof],
+                mode="lines",
+                line=dict(color=tableau_colors["blue"]),
+                name="Amplitude",
+                legendgroup="Amplitude",
+                showlegend=False,
+                hovertemplate=("Frequency: %{x:.2f}<br>" + "Amplitude: %{y:.2e}"),
+            )
         )
 
-        return mag_plot
+        fig.update_xaxes(
+            title_text="<b>Frequency</b>",
+            range=[np.min(frequency_range), np.max(frequency_range)],
+        )
+        fig.update_yaxes(title_text=y_axis_label, exponentformat="power")
+        fig.update_layout(**kwargs)
 
-    def plot_phase_matplotlib(self, dof, ax=None, **kwargs):
-        """Plot forced response (phase) using matplotlib.
+        return fig
+
+    def plot_phase(self, dof, fig=None, **kwargs):
+        """Plot forced response (phase) using Plotly.
 
         Parameters
         ----------
         dof : int
             Degree of freedom.
-        ax : matplotlib.axes, optional
-            Matplotlib axes where the phase will be plotted.
-            If None creates a new.
+        fig : Plotly graph_objects.Figure()
+            The figure object with the plot.
         kwargs : optional
-            Additional key word arguments can be passed to change
-            the plot (e.g. linestyle='--')
+            Additional key word arguments can be passed to change the plot layout only
+            (e.g. width=1000, height=800, ...).
+            *See Plotly Python Figure Reference for more information.
 
         Returns
         -------
-        ax : matplotlib.axes
-            Matplotlib axes with phase plot.
-        """
-        if ax is None:
-            ax = plt.gca()
-
-        frequency_range = self.speed_range
-        phase = self.phase
-
-        ax.plot(frequency_range, phase[dof], **kwargs)
-
-        ax.set_xlim(0, max(frequency_range))
-        ax.yaxis.set_major_locator(mpl.ticker.MaxNLocator(prune="lower"))
-        ax.yaxis.set_major_locator(mpl.ticker.MaxNLocator(prune="upper"))
-
-        ax.set_ylabel("Phase")
-        ax.set_xlabel("Frequency (rad/s)")
-        ax.legend()
-
-        return ax
-
-    def plot_phase_bokeh(self, dof, **kwargs):
-        """Plot forced response (phase) using bokeh.
-
-        Parameters
-        ----------
-        dof : int
-            Degree of freedom.
-        kwargs : optional
-            Additional key word arguments can be passed to change
-            the plot (e.g. linestyle='--')
-
-        Returns
-        -------
-        phase_plot : bokeh axes
-            Bokeh axes with phase plot
+        fig : Plotly graph_objects.Figure()
+            The figure object with the plot.
         """
         frequency_range = self.speed_range
         phase = self.phase
 
-        phase_plot = figure(
-            tools="pan, box_zoom, wheel_zoom, reset, save",
-            width=640,
-            height=240,
-            title="Forced Response - Phase",
-            x_axis_label="Frequency (rad/s)",
-            x_range=[0, max(frequency_range)],
-            y_axis_label="Phase",
+        if fig is None:
+            fig = go.Figure()
+
+        fig.add_trace(
+            go.Scatter(
+                x=frequency_range,
+                y=phase[dof],
+                mode="lines",
+                line=dict(color=tableau_colors["blue"]),
+                name="Phase",
+                legendgroup="Phase",
+                showlegend=False,
+                hovertemplate=("Frequency: %{x:.2f}<br>" + "Phase: %{y:.2f}"),
+            )
         )
-        source = ColumnDataSource(dict(x=frequency_range, y=phase[dof]))
-        phase_plot.line(
-            x="x",
-            y="y",
-            source=source,
-            line_color=bokeh_colors[0],
-            line_alpha=1.0,
-            line_width=3,
+
+        fig.update_xaxes(
+            title_text="<b>Frequency</b>",
+            range=[np.min(frequency_range), np.max(frequency_range)],
         )
-        phase_plot.xaxis.axis_label_text_font_size = "20pt"
-        phase_plot.yaxis.axis_label_text_font_size = "20pt"
-        phase_plot.axis.major_label_text_font_size = "16pt"
-        phase_plot.title.text_font_size = "14pt"
+        fig.update_yaxes(title_text="<b>Phase Angle</b>")
+        fig.update_layout(**kwargs)
 
-        return phase_plot
+        return fig
 
-    def _plot_matplotlib(self, dof, ax0=None, ax1=None, **kwargs):
-        """Plot forced response using matplotlib.
-
-        This method plots the forced response magnitude and phase using
-        Matplotlib.
+    def plot_polar_bode(self, dof, units="m", fig=None, **kwargs):
+        """Plot polar forced response using Plotly.
 
         Parameters
         ----------
         dof : int
             Degree of freedom.
-        ax0 : matplotlib.axes, optional
-            Matplotlib axes where the magnitude will be plotted.
-            If None creates a new.
-        ax1 : matplotlib.axes, optional
-            Matplotlib axes where the phase will be plotted.
-            If None creates a new.
+        units : str
+            Magnitude unit system.
+            Default is "mic-pk-pk"
+        fig : Plotly graph_objects.Figure()
+            The figure object with the plot.
         kwargs : optional
-            Additional key word arguments can be passed to change
-            the plot (e.g. linestyle='--')
+            Additional key word arguments can be passed to change the plot layout only
+            (e.g. width=1000, height=800, ...).
+            *See Plotly Python Figure Reference for more information.
 
         Returns
         -------
-        ax0 : matplotlib.axes
-            Matplotlib axes with magnitude plot.
-        ax1 : matplotlib.axes
-            Matplotlib axes with phase plot.
+        fig : Plotly graph_objects.Figure()
+            The figure object with the plot.
         """
-        if ax0 is None and ax1 is None:
-            fig, (ax0, ax1) = plt.subplots(2)
+        frequency_range = self.speed_range
+        mag = self.magnitude
+        phase = self.phase
 
-        ax0 = self.plot_magnitude_matplotlib(dof, ax=ax0, **kwargs)
-        # remove label from phase plot
-        kwargs.pop("label", None)
-        kwargs.pop("units", None)
-        ax1 = self.plot_phase_matplotlib(dof, ax=ax1, **kwargs)
+        if units == "m":
+            r_axis_label = "<b>Amplitude (m)</b>"
+        elif units == "mic-pk-pk":
+            r_axis_label = "<b>Amplitude (μ pk-pk)</b>"
+        else:
+            r_axis_label = "<b>Amplitude (dB)</b>"
 
-        ax0.set_xlabel("")
-        ax0.legend()
+        if fig is None:
+            fig = go.Figure()
 
-        return ax0, ax1
+        fig.add_trace(
+            go.Scatterpolar(
+                r=mag[dof],
+                theta=phase[dof],
+                customdata=frequency_range,
+                thetaunit="radians",
+                mode="lines+markers",
+                marker=dict(color=tableau_colors["blue"]),
+                line=dict(color=tableau_colors["blue"]),
+                name="Polar_plot",
+                legendgroup="Polar",
+                showlegend=False,
+                hovertemplate=(
+                    "<b>Amplitude: %{r:.2e}</b><br>"
+                    + "<b>Phase: %{theta:.2f}</b><br>"
+                    + "<b>Frequency: %{customdata:.2f}</b>"
+                ),
+            )
+        )
 
-    def _plot_bokeh(self, dof, **kwargs):
-        """Plot forced response using bokeh.
+        fig.update_layout(
+            polar=dict(
+                radialaxis=dict(title_text=r_axis_label, exponentformat="power")
+            ),
+            **kwargs,
+        )
 
-        This method plots the forced response magnitude and phase using
-        bokeh.
+        return fig
 
-        Parameters
-        ----------
-        dof : int
-            Degree of freedom.
-        kwargs : optional
-            Additional key word arguments can be passed to change
-            the plot (e.g. linestyle='--')
-
-        Returns
-        -------
-        grid_plots : bokeh column
-            Bokeh colum with magnitude and phase plot
-        """
-        # bokeh plot axes
-        bk_ax0 = self.plot_magnitude_bokeh(dof, **kwargs)
-        bk_ax1 = self.plot_phase_bokeh(dof, **kwargs)
-
-        # show the bokeh plot results
-        grid_plots = gridplot([[bk_ax0], [bk_ax1]])
-        grid_plots
-
-        return grid_plots
-
-    def plot(self, dof, plot_type="bokeh", **kwargs):
+    def plot(
+        self,
+        dof,
+        units="m",
+        mag_kwargs=None,
+        phase_kwargs=None,
+        polar_kwargs=None,
+        subplot_kwargs=None,
+    ):
         """Plot forced response.
 
-        This method plots the forced response magnitude and phase.
-        There are two options for plotting type:
-            - "bokeh"
-            - "matplotlib"
+        This method returns a subplot with:
+            - Frequency vs Amplitude;
+            - Frequency vs Phase Angle;
+            - Polar plot Amplitude vs Phase Angle;
 
         Parameters
         ----------
         dof : int
             Degree of freedom.
-        plot_type: str
-            Matplotlib or bokeh.
-            The default is bokeh
-        kwargs : optional
-            Additional key word arguments can be passed to change
-            the plot (e.g. linestyle='--')
+        units : str, optional
+            Magnitude unit system.
+            Options:
+                - "m" : meters
+                - "mic-pk-pk" : microns peak to peak
+                - "db" : decibels
+            Default is "mic-pk-pk".
+        mag_kwargs : optional
+            Additional key word arguments can be passed to change the magnitude plot
+            layout only (e.g. width=1000, height=800, ...).
+            *See Plotly Python Figure Reference for more information.
+        phase_kwargs : optional
+            Additional key word arguments can be passed to change the phase plot
+            layout only (e.g. width=1000, height=800, ...).
+            *See Plotly Python Figure Reference for more information.
+        polar_kwargs : optional
+            Additional key word arguments can be passed to change the polar plot
+            layout only (e.g. width=1000, height=800, ...).
+            *See Plotly Python Figure Reference for more information.
+        subplot_kwargs : optional
+            Additional key word arguments can be passed to change the plot layout only
+            (e.g. width=1000, height=800, ...). This kwargs override "mag_kwargs" and
+            "phase_kwargs" dictionaries.
+            *See Plotly Python Figure Reference for more information.
 
         Returns
         -------
-        ax0 : matplotlib.axes
-            Matplotlib axes with magnitude plot.
-            if plot_type == "matplotlib"
-        ax1 : matplotlib.axes
-            Matplotlib axes with phase plot.
-            if plot_type == "matplotlib"
-        grid_plots : bokeh column
-            Bokeh colum with magnitude and phase plot
-            if plot_type == "bokeh"
+        subplots : Plotly graph_objects.make_subplots()
+            Plotly figure with Amplitude vs Frequency and Phase vs Frequency and
+            polar Amplitude vs Phase plots.
         """
-        if plot_type == "matplotlib":
-            return self._plot_matplotlib(dof, **kwargs)
-        elif plot_type == "bokeh":
-            return self._plot_bokeh(dof, **kwargs)
-        else:
-            raise ValueError(f"{plot_type} is not a valid plot type.")
+        mag_kwargs = {} if mag_kwargs is None else copy.copy(mag_kwargs)
+        phase_kwargs = {} if phase_kwargs is None else copy.copy(phase_kwargs)
+        polar_kwargs = {} if polar_kwargs is None else copy.copy(polar_kwargs)
+        subplot_kwargs = {} if subplot_kwargs is None else copy.copy(subplot_kwargs)
+
+        fig0 = self.plot_magnitude(dof, units, **mag_kwargs)
+        fig1 = self.plot_phase(dof, **phase_kwargs)
+        fig2 = self.plot_polar_bode(dof, units, **polar_kwargs)
+
+        subplots = make_subplots(
+            rows=2, cols=2, specs=[[{}, {"type": "polar", "rowspan": 2}], [{}, None]]
+        )
+        for data in fig0["data"]:
+            subplots.add_trace(data, row=1, col=1)
+        for data in fig1["data"]:
+            subplots.add_trace(data, row=2, col=1)
+        for data in fig2["data"]:
+            subplots.add_trace(data, row=1, col=2)
+
+        subplots.update_xaxes(fig0.layout.xaxis, row=1, col=1)
+        subplots.update_yaxes(fig0.layout.yaxis, row=1, col=1)
+        subplots.update_xaxes(fig1.layout.xaxis, row=2, col=1)
+        subplots.update_yaxes(fig1.layout.yaxis, row=2, col=1)
+        subplots.update_layout(
+            polar=dict(
+                radialaxis=fig2.layout.polar.radialaxis,
+                angularaxis=fig2.layout.polar.angularaxis,
+            ),
+            **subplot_kwargs,
+        )
+
+        return subplots
+
+    def _calculate_major_axis(self, speed):
+        """Calculate the major axis for each nodal orbit.
+
+        Parameters
+        ----------
+        speed : optional, float
+            The rotor rotation speed.
+
+        Returns
+        -------
+        major_axis_vector : np.ndarray
+            major_axis_vector[0, :] = foward vector
+            major_axis_vector[1, :] = backward vector
+            major_axis_vector[2, :] = major axis angle
+            major_axis_vector[3, :] = major axis vector for the maximum major axis angle
+            major_axis_vector[4, :] = absolute values for major axes vectors
+        """
+        forced_resp = self.forced_resp
+        nodes = self.rotor.nodes
+        number_dof = self.rotor.number_dof
+
+        major_axis_vector = np.zeros((5, len(nodes)), dtype=complex)
+        idx = np.where(np.isclose(self.speed_range, speed, atol=1e-6))[0][0]
+
+        for i, n in enumerate(nodes):
+            dofx = number_dof * n
+            dofy = number_dof * n + 1
+
+            # Relative angle between probes (90°)
+            Rel_ang = np.exp(1j * np.pi / 2)
+
+            # Foward and Backward vectors
+            fow = forced_resp[dofx, idx] / 2 + Rel_ang * forced_resp[dofy, idx] / 2
+            back = (
+                np.conj(forced_resp[dofx, idx]) / 2
+                + Rel_ang * np.conj(forced_resp[dofy, idx]) / 2
+            )
+
+            ang_fow = np.angle(fow)
+            if ang_fow < 0:
+                ang_fow += 2 * np.pi
+
+            ang_back = np.angle(back)
+            if ang_back < 0:
+                ang_back += 2 * np.pi
+
+            # Major axis angles
+            ang_maj_ax = (ang_back - ang_fow) / 2
+
+            # Adjusting points to the same quadrant
+            if ang_maj_ax > np.pi:
+                ang_maj_ax -= np.pi
+            if ang_maj_ax > np.pi / 2:
+                ang_maj_ax -= np.pi / 2
+
+            major_axis_vector[0, i] = fow
+            major_axis_vector[1, i] = back
+            major_axis_vector[2, i] = ang_maj_ax
+
+        max_major_axis_angle = np.max(major_axis_vector[2])
+
+        # fmt: off
+        major_axis_vector[3] = (
+            major_axis_vector[0] * np.exp(1j * max_major_axis_angle) +
+            major_axis_vector[1] * np.exp(-1j * max_major_axis_angle)
+        )
+        major_axis_vector[4] = (
+            np.real(major_axis_vector[3]) ** 2 +
+            np.imag(major_axis_vector[3]) ** 2
+        ) ** 0.5
+        # fmt: on
+
+        return major_axis_vector
+
+    def _calculate_bending_moment(self, speed):
+        """Calculate the bending moment in X and Y directions.
+
+        This method calculate forces and moments on nodal positions for a deflected
+        shape configuration.
+
+        Parameters
+        ----------
+        speed : float
+            The rotor rotation speed.
+
+        Returns
+        -------
+        Mx : array
+            Bending Moment on X directon.
+        My : array
+            Bending Moment on Y directon.
+        """
+        idx = np.where(np.isclose(self.speed_range, speed, atol=1e-6))[0][0]
+        mag = self.magnitude[:, idx]
+        phase = self.phase[:, idx]
+        number_dof = self.rotor.number_dof
+        ndof = self.rotor.ndof
+
+        disp = np.zeros(ndof)
+        for i in range(number_dof):
+            disp[i::number_dof] = mag[i::number_dof] * np.cos(-phase[i::number_dof])
+
+        nodal_forces = self.rotor.K(speed) @ disp
+
+        Mx = np.cumsum(nodal_forces[2::number_dof])
+        My = np.cumsum(nodal_forces[3::number_dof])
+
+        return Mx, My
+
+    def plot_deflected_shape_2d(self, speed, units="mic-pk-pk", fig=None, **kwargs):
+        """Plot the 2D deflected shape diagram.
+
+        Parameters
+        ----------
+        speed : float
+            The rotor rotation speed. Must be an element from the speed_range argument
+            passed to the class.
+        units : str, optional
+            Magnitude unit system.
+            Options:
+                - "m" : meters
+                - "mic-pk-pk" : microns peak to peak
+                - "db" : decibels
+            Default is "mic-pk-pk".
+        fig : Plotly graph_objects.Figure()
+            The figure object with the plot.
+        kwargs : optional
+            Additional key word arguments can be passed to change the deflected shape
+            plot layout only (e.g. width=1000, height=800, ...).
+            *See Plotly Python Figure Reference for more information.
+
+        Returns
+        -------
+        fig : Plotly graph_objects.Figure()
+            The figure object with the plot.
+        """
+        if not any(np.isclose(self.speed_range, speed, atol=1e-6)):
+            raise ValueError("No data available for this speed value.")
+
+        nodes_pos = self.rotor.nodes_pos
+        maj_vect = self._calculate_major_axis(speed=speed)
+
+        if fig is None:
+            fig = go.Figure()
+        fig.add_trace(
+            go.Scatter(
+                x=nodes_pos,
+                y=maj_vect[4].real,
+                mode="lines",
+                name="Major Axis",
+                legendgroup="Major_Axis_2d",
+                showlegend=False,
+                hovertemplate=(
+                    "<b>Nodal Position: %{x:.2f}</b><br>" + "<b>Amplitude: %{y:.2e}</b>"
+                ),
+            )
+        )
+        # plot center line
+        fig.add_trace(
+            go.Scatter(
+                x=nodes_pos,
+                y=np.zeros(len(nodes_pos)),
+                mode="lines",
+                line=dict(color="black", dash="dashdot"),
+                showlegend=False,
+                hoverinfo="none",
+            )
+        )
+
+        fig.update_xaxes(title_text="<b>Rotor Length</b>")
+        fig.update_yaxes(title_text="<b>Major Axis Absolute Amplitude</b>")
+        fig.update_layout(**kwargs)
+
+        return fig
+
+    def plot_deflected_shape_3d(
+        self, speed, samples=101, units="mic-pk-pk", fig=None, **kwargs
+    ):
+        """Plot the 3D deflected shape diagram.
+
+        Parameters
+        ----------
+        speed : float
+            The rotor rotation speed. Must be an element from the speed_range argument
+            passed to the class.
+        samples : int, optional
+            Number of samples to generate the orbit for each node.
+            Default is 101.
+        units : str, optional
+            Magnitude unit system.
+            Options:
+                - "m" : meters
+                - "mic-pk-pk" : microns peak to peak
+                - "db" : decibels
+            Default is "mic-pk-pk".
+        fig : Plotly graph_objects.Figure()
+            The figure object with the plot.
+        kwargs : optional
+            Additional key word arguments can be passed to change the deflected shape
+            plot layout only (e.g. width=1000, height=800, ...).
+            *See Plotly Python Figure Reference for more information.
+
+        Returns
+        -------
+        fig : Plotly graph_objects.Figure()
+            The figure object with the plot.
+        """
+        if not any(np.isclose(self.speed_range, speed, atol=1e-6)):
+            raise ValueError("No data available for this speed value.")
+
+        mag = self.magnitude
+        phase = self.phase
+        ub = self.unbalance
+        nodes = self.rotor.nodes
+        nodes_pos = self.rotor.nodes_pos
+        number_dof = self.rotor.number_dof
+        idx = np.where(np.isclose(self.speed_range, speed, atol=1e-6))[0][0]
+
+        # orbit of a single revolution
+        t = np.linspace(0, 2 * np.pi / speed, samples)
+
+        x_pos = np.repeat(nodes_pos, t.size).reshape(len(nodes_pos), t.size)
+
+        if fig is None:
+            fig = go.Figure()
+        for i, n in enumerate(nodes):
+            dofx = number_dof * n
+            dofy = number_dof * n + 1
+
+            y = mag[dofx, idx] * np.cos(speed * t - phase[dofx, idx])
+            z = mag[dofy, idx] * np.cos(speed * t - phase[dofy, idx])
+
+            # plot nodal orbit
+            fig.add_trace(
+                go.Scatter3d(
+                    x=x_pos[n],
+                    y=y,
+                    z=z,
+                    mode="lines",
+                    line=dict(color="royalblue"),
+                    name="Orbit",
+                    legendgroup="Orbit",
+                    showlegend=False,
+                    hovertemplate=(
+                        "<b>Nodal Position: %{x:.2f}</b><br>"
+                        + "<b>X - Amplitude: %{y:.2e}</b><br>"
+                        + "<b>Y - Amplitude: %{z:.2e}</b>"
+                    ),
+                )
+            )
+
+        # plot major axis
+        maj_vect = self._calculate_major_axis(speed=speed)
+
+        fig.add_trace(
+            go.Scatter3d(
+                x=x_pos[:, 0],
+                y=np.real(maj_vect[3]),
+                z=np.imag(maj_vect[3]),
+                mode="lines+markers",
+                marker=dict(color="black"),
+                line=dict(color="black", dash="dashdot"),
+                name="Major Axis",
+                legendgroup="Major_Axis",
+                showlegend=True,
+                hovertemplate=(
+                    "Position: %{x:.2f}<br>"
+                    + "X - Amplitude: %{y:.2e}<br>"
+                    + "Y - Amplitude: %{z:.2e}"
+                ),
+            )
+        )
+
+        # plot center line
+        line = np.zeros(len(nodes_pos))
+        fig.add_trace(
+            go.Scatter3d(
+                x=nodes_pos,
+                y=line,
+                z=line,
+                mode="lines",
+                line=dict(color="black", dash="dashdot"),
+                showlegend=False,
+                hoverinfo="none",
+            )
+        )
+
+        # plot unbalance markers
+        i = 0
+        for n, m, p in zip(ub[0], ub[1], ub[2]):
+            fig.add_trace(
+                go.Scatter3d(
+                    x=[x_pos[int(n), 0], x_pos[int(n), 0]],
+                    y=[0, np.amax(np.real(maj_vect[4])) / 2 * np.cos(p)],
+                    z=[0, np.amax(np.real(maj_vect[4])) / 2 * np.sin(p)],
+                    mode="lines",
+                    line=dict(color="firebrick"),
+                    legendgroup="Unbalance",
+                    hoverinfo="none",
+                    showlegend=False,
+                )
+            )
+            fig.add_trace(
+                go.Scatter3d(
+                    x=[x_pos[int(n), 0]],
+                    y=[np.amax(np.real(maj_vect[4])) / 2 * np.cos(p)],
+                    z=[np.amax(np.real(maj_vect[4])) / 2 * np.sin(p)],
+                    mode="markers",
+                    marker=dict(symbol="diamond", color="firebrick"),
+                    name="Unbalance",
+                    legendgroup="Unbalance",
+                    showlegend=True if i == 0 else False,
+                    hovertemplate=(
+                        "Node: {}<br>" + "Magnitude: {:.2e}<br>" + "Phase: {:.2f}"
+                    ).format(int(n), m, p),
+                )
+            )
+            i += 1
+
+        fig.update_layout(
+            scene=dict(
+                bgcolor="white",
+                xaxis=dict(title=dict(text="<b>Rotor Length</b>")),
+                yaxis=dict(title=dict(text="<b>Amplitude - X</b>")),
+                zaxis=dict(title=dict(text="<b>Amplitude - Y</b>")),
+            ),
+            title=dict(text=(f"<b>Deflected Shape</b><br>" f"<b>Speed = {speed}</b>")),
+            **kwargs,
+        )
+
+        return fig
+
+    def plot_bending_moment(self, speed, units="mic-pk-pk", fig=None, **kwargs):
+        """Plot the bending moment diagram.
+
+        Parameters
+        ----------
+        speed : float
+            The rotor rotation speed. Must be an element from the speed_range argument
+            passed to the class.
+        units : str, optional
+            Magnitude unit system.
+            Options:
+                - "m" : meters
+                - "mic-pk-pk" : microns peak to peak
+                - "db" : decibels
+            Default is "mic-pk-pk".
+        kwargs : optional
+            Additional key word arguments can be passed to change the deflected shape
+            plot layout only (e.g. width=1000, height=800, ...).
+            *See Plotly Python Figure Reference for more information.
+
+        Returns
+        -------
+        fig : Plotly graph_objects.Figure()
+            The figure object with the plot.
+        """
+        if not any(np.isclose(self.speed_range, speed, atol=1e-6)):
+            raise ValueError("No data available for this speed value.")
+
+        Mx, My = self._calculate_bending_moment(speed=speed)
+        Mr = np.sqrt(Mx ** 2 + My ** 2)
+
+        nodes_pos = self.rotor.nodes_pos
+
+        if fig is None:
+            fig = go.Figure()
+        fig.add_trace(
+            go.Scatter(
+                x=nodes_pos,
+                y=Mx,
+                mode="lines",
+                name="Bending Moment (X dir.)",
+                legendgroup="Mx",
+                showlegend=True,
+                hovertemplate=(
+                    "<b>Nodal Position: %{x:.2f}</b><br>" + "<b>Mx: %{y:.2e}</b>"
+                ),
+            )
+        )
+        fig.add_trace(
+            go.Scatter(
+                x=nodes_pos,
+                y=My,
+                mode="lines",
+                name="Bending Moment (Y dir.)",
+                legendgroup="My",
+                showlegend=True,
+                hovertemplate=(
+                    "<b>Nodal Position: %{x:.2f}</b><br>" + "<b>My: %{y:.2e}</b>"
+                ),
+            )
+        )
+        fig.add_trace(
+            go.Scatter(
+                x=nodes_pos,
+                y=Mr,
+                mode="lines",
+                name="Bending Moment (abs)",
+                legendgroup="Mr",
+                showlegend=True,
+                hovertemplate=(
+                    "<b>Nodal Position: %{x:.2f}</b><br>" + "<b>Mr: %{y:.2e}</b>"
+                ),
+            )
+        )
+
+        # plot center line
+        fig.add_trace(
+            go.Scatter(
+                x=nodes_pos,
+                y=np.zeros_like(nodes_pos),
+                mode="lines",
+                line=dict(color="black", dash="dashdot"),
+                showlegend=False,
+                hoverinfo="none",
+            )
+        )
+
+        fig.update_xaxes(title_text="<b>Rotor Length</b>")
+        fig.update_yaxes(title_text="<b>Bending Moment</b>")
+        fig.update_layout(**kwargs)
+
+        return fig
+
+    def plot_deflected_shape(
+        self,
+        speed,
+        samples=101,
+        units="mic-pk-pk",
+        shape2d_kwargs=None,
+        shape3d_kwargs=None,
+        bm_kwargs=None,
+        subplot_kwargs=None,
+    ):
+        """Plot deflected shape diagrams.
+
+        This method returns a subplot with:
+            - 3D view deflected shape;
+            - 2D view deflected shape - Major Axis;
+            - Bending Moment Diagram;
+
+        Parameters
+        ----------
+        speed : float
+            The rotor rotation speed. Must be an element from the speed_range argument
+            passed to the class.
+        samples : int, optional
+            Number of samples to generate the orbit for each node.
+            Default is 101.
+        units : str, optional
+            Magnitude unit system.
+            Options:
+                - "m" : meters
+                - "mic-pk-pk" : microns peak to peak
+                - "db" : decibels
+            Default is "mic-pk-pk".
+        shape2d_kwargs : optional
+            Additional key word arguments can be passed to change the 2D deflected shape
+            plot layout only (e.g. width=1000, height=800, ...).
+            *See Plotly Python Figure Reference for more information.
+        shape3d_kwargs : optional
+            Additional key word arguments can be passed to change the 3D deflected shape
+            plot layout only (e.g. width=1000, height=800, ...).
+            *See Plotly Python Figure Reference for more information.
+        bm_kwargs : optional
+            Additional key word arguments can be passed to change the bending moment
+            diagram plot layout only (e.g. width=1000, height=800, ...).
+            *See Plotly Python Figure Reference for more information.
+        subplot_kwargs : optional
+            Additional key word arguments can be passed to change the plot layout only
+            (e.g. width=1000, height=800, ...). This kwargs override "mag_kwargs" and
+            "phase_kwargs" dictionaries.
+            *See Plotly Python Figure Reference for more information.
+
+        Returns
+        -------
+        subplots : Plotly graph_objects.make_subplots()
+            Plotly figure with Amplitude vs Frequency and Phase vs Frequency and
+            polar Amplitude vs Phase plots.
+        """
+        shape2d_kwargs = {} if shape2d_kwargs is None else copy.copy(shape2d_kwargs)
+        shape3d_kwargs = {} if shape3d_kwargs is None else copy.copy(shape3d_kwargs)
+        bm_kwargs = {} if bm_kwargs is None else copy.copy(bm_kwargs)
+        subplot_kwargs = {} if subplot_kwargs is None else copy.copy(subplot_kwargs)
+
+        fig0 = self.plot_deflected_shape_2d(speed, units, **shape2d_kwargs)
+        fig1 = self.plot_deflected_shape_3d(speed, samples, units, **shape3d_kwargs)
+        fig2 = self.plot_bending_moment(speed, units, **bm_kwargs)
+
+        subplots = make_subplots(
+            rows=2, cols=2, specs=[[{}, {"type": "scene", "rowspan": 2}], [{}, None]]
+        )
+        for data in fig0["data"]:
+            subplots.add_trace(data, row=1, col=1)
+        for data in fig1["data"]:
+            subplots.add_trace(data, row=1, col=2)
+        for data in fig2["data"]:
+            subplots.add_trace(data, row=2, col=1)
+
+        subplots.update_xaxes(fig0.layout.xaxis, row=1, col=1)
+        subplots.update_yaxes(fig0.layout.yaxis, row=1, col=1)
+        subplots.update_xaxes(fig2.layout.xaxis, row=2, col=1)
+        subplots.update_yaxes(fig2.layout.yaxis, row=2, col=1)
+        subplots.update_layout(
+            scene=dict(
+                bgcolor=fig1.layout.scene.bgcolor,
+                xaxis=fig1.layout.scene.xaxis,
+                yaxis=fig1.layout.scene.yaxis,
+                zaxis=fig1.layout.scene.zaxis,
+            ),
+            **subplot_kwargs,
+        )
+
+        return subplots
 
 
 class StaticResults:
@@ -1712,35 +1980,35 @@ class StaticResults:
 
     Parameters
     ----------
-    disp_y : array
-        shaft displacement in y direction
+    deformation : array
+        shaft displacement in y direction.
     Vx : array
-        shearing force array
+        shearing force array.
     Bm : array
-        bending moment array
-    df_shaft : dataframe
+        bending moment array.
+    w_shaft : dataframe
         shaft dataframe
-    df_disks : dataframe
-        disks dataframe
-    df_bearings : dataframe
-        bearing dataframe
+    disk_forces : dict
+        Indicates the force exerted by each disk.
+    bearing_forces : dict
+        Relates the static force at each node due to the bearing reaction forces.
     nodes : list
-        list of nodes numbers
+        list of nodes numbers.
     nodes_pos : list
-        list of nodes positions
+        list of nodes positions.
     Vx_axis : array
-        X axis for displaying shearing force
+        X axis for displaying shearing force and bending moment.
 
     Returns
     -------
-    fig : bokeh figures
-        Bokeh figure with Static Analysis plots depending on which method
+    fig : Plotly graph_objects.Figure()
+        Plotly figure with Static Analysis plots depending on which method
         is called.
     """
 
     def __init__(
         self,
-        disp_y,
+        deformation,
         Vx,
         Bm,
         w_shaft,
@@ -1751,7 +2019,7 @@ class StaticResults:
         Vx_axis,
     ):
 
-        self.disp_y = disp_y
+        self.deformation = deformation
         self.Vx = Vx
         self.Bm = Bm
         self.w_shaft = w_shaft
@@ -1761,386 +2029,340 @@ class StaticResults:
         self.nodes_pos = nodes_pos
         self.Vx_axis = Vx_axis
 
-    def plot_deformation(self):
+    def plot_deformation(self, fig=None, **kwargs):
         """Plot the shaft static deformation.
 
         This method plots:
             deformed shaft
 
+        Parameters
+        ----------
+        fig : Plotly graph_objects.Figure()
+            The figure object with the plot.
+        kwargs : optional
+            Additional key word arguments can be passed to change the plot layout only
+            (e.g. width=1000, height=800, ...).
+            *See Plotly Python Figure Reference for more information.
+
         Returns
         -------
-        fig : bokeh figure
-            Bokeh figure with static deformation plot
+        fig : Plotly graph_objects.Figure()
+            The figure object with the plot.
         """
-        # create displacement plot
-        fig = figure(
-            tools="pan, wheel_zoom, box_zoom, reset, save, box_select",
-            width=640,
-            height=480,
-            title="Deformation",
-            x_axis_label="Shaft lenght",
-            y_axis_label="Lateral displacement",
+        if fig is None:
+            fig = go.Figure()
+
+        shaft_end = max([sublist[-1] for sublist in self.nodes_pos])
+
+        # fig - plot centerline
+        fig.add_trace(
+            go.Scatter(
+                x=[-0.01 * shaft_end, 1.01 * shaft_end],
+                y=[0, 0],
+                mode="lines",
+                line=dict(color="black", dash="dashdot"),
+                showlegend=False,
+                hoverinfo="none",
+            )
         )
-        fig.xaxis.axis_label_text_font_size = "16pt"
-        fig.yaxis.axis_label_text_font_size = "16pt"
-        fig.axis.major_label_text_font_size = "16pt"
-        fig.title.text_font_size = "14pt"
 
         count = 0
-        for disp_y, Vx, Bm, nodes, nodes_pos, Vx_axis in zip(
-            self.disp_y, self.Vx, self.Bm, self.nodes, self.nodes_pos, self.Vx_axis
+        for deformation, Vx, Bm, nodes, nodes_pos, Vx_axis in zip(
+            self.deformation, self.Vx, self.Bm, self.nodes, self.nodes_pos, self.Vx_axis
         ):
-            source = ColumnDataSource(data=dict(x=nodes_pos, y=disp_y))
-
-            interpolated = interpolate.interp1d(
-                source.data["x"], source.data["y"], kind="cubic"
-            )
+            interpolated = interpolate.interp1d(nodes_pos, deformation, kind="cubic")
             xnew = np.linspace(
-                source.data["x"][0],
-                source.data["x"][-1],
-                num=len(nodes_pos) * 20,
-                endpoint=True,
+                nodes_pos[0], nodes_pos[-1], num=len(nodes_pos) * 20, endpoint=True
             )
 
             ynew = interpolated(xnew)
-            auxsource = ColumnDataSource(data=dict(x=xnew, y=ynew))
 
-            fig.line(
-                "x",
-                "y",
-                source=auxsource,
-                legend_label="Deformed - shaft " + str(count),
-                line_width=3,
-                line_color=bokeh_colors[9 - count],
-                muted_alpha=0.1,
-                name="def_l",
+            fig.add_trace(
+                go.Scatter(
+                    x=xnew,
+                    y=ynew,
+                    mode="lines",
+                    name=f"Shaft {count}",
+                    showlegend=True,
+                    hovertemplate=(
+                        "Shaft lengh: %{x:.2f}<br>" + "Displacement: %{y:.2e}"
+                    ),
+                )
             )
-            fig.circle(
-                "x",
-                "y",
-                source=source,
-                legend_label="Deformed - shaft " + str(count),
-                size=8,
-                fill_color=bokeh_colors[9 - count],
-                muted_alpha=0.1,
-                name="def_c",
-            )
-            hover = HoverTool(names=["def_l", "def_c"])
-            hover.tooltips = [
-                ("Shaft lenght:", "@x"),
-                ("Displacement:", "@y"),
-            ]
             count += 1
-        fig.add_tools(hover)
-        fig.legend.background_fill_alpha = 0.1
-        fig.legend.click_policy = "mute"
+
+        fig.update_xaxes(title_text="<b>Shaft Length</b>")
+        fig.update_yaxes(title_text="<b>Deformation</b>")
+        fig.update_layout(title=dict(text="<b>Static Deformation</b>"), **kwargs)
 
         return fig
 
-    def plot_free_body_diagram(self):
+    def plot_free_body_diagram(self, fig=None, **kwargs):
         """Plot the rotor free-body diagram.
 
-        This method plots:
-            free-body diagram.
+        Parameters
+        ----------
+        subplots : Plotly graph_objects.make_subplots()
+            The figure object with the plot.
+        kwargs : optional
+            Additional key word arguments can be passed to change the plot layout only
+            (e.g. plot_bgcolor="white", ...).
+            *See Plotly Python make_subplot Reference for more information.
 
         Returns
         -------
-        fig : bokeh figure
-            Bokeh figure with the free-body diagram plot
+        subplots : Plotly graph_objects.make_subplots()
+            The figure object with the plot.
         """
-        figures = []
+        cols = 1 if len(self.nodes_pos) < 2 else 2
+        rows = len(self.nodes_pos) // 2 + len(self.nodes_pos) % 2
+        if fig is None:
+            fig = make_subplots(
+                rows=rows,
+                cols=cols,
+                subplot_titles=[
+                    "<b>Free-Body Diagram - Shaft {}</b>".format(j)
+                    for j in range(len(self.nodes_pos))
+                ],
+            )
         j = 0
         y_start = 5.0
         for nodes_pos, nodes in zip(self.nodes_pos, self.nodes):
-            fig = figure(
-                tools="pan, wheel_zoom, box_zoom, reset, save, box_select",
-                width=640,
-                height=480,
-                title="Free-Body Diagram - Shaft " + str(j),
-                x_axis_label="Shaft lenght",
-                x_range=[-0.1 * nodes_pos[-1], 1.1 * nodes_pos[-1]],
-                y_range=[-3 * y_start, 3 * y_start],
-            )
-            fig.yaxis.visible = False
-            fig.xaxis.axis_label_text_font_size = "16pt"
-            fig.axis.major_label_text_font_size = "16pt"
-            fig.title.text_font_size = "14pt"
+            col = j % 2 + 1
+            row = j // 2 + 1
 
-            fig.line(
-                nodes_pos, np.zeros(len(nodes_pos)), line_width=5, color=bokeh_colors[0]
+            fig.add_trace(
+                go.Scatter(
+                    x=nodes_pos,
+                    y=np.zeros(len(nodes_pos)),
+                    mode="lines",
+                    line=dict(color="black"),
+                    hoverinfo="none",
+                    showlegend=False,
+                ),
+                row=row,
+                col=col,
+            )
+            fig.add_trace(
+                go.Scatter(
+                    x=nodes_pos,
+                    y=[y_start] * len(nodes_pos),
+                    mode="lines",
+                    line=dict(color="black"),
+                    hoverinfo="none",
+                    showlegend=False,
+                ),
+                row=row,
+                col=col,
             )
 
             # fig - plot arrows indicating shaft weight distribution
-            text = str("%.1f" % self.w_shaft[j])
-            fig.line(
-                x=nodes_pos,
-                y=[y_start] * len(nodes_pos),
-                line_width=2,
-                line_color=bokeh_colors[0],
-            )
-
+            text = "{:.1f}".format(self.w_shaft[j])
             ini = nodes_pos[0]
             fin = nodes_pos[-1]
             arrows_list = np.arange(ini, 1.01 * fin, (fin - ini) / 5.0)
             for node in arrows_list:
-                fig.add_layout(
-                    Arrow(
-                        end=NormalHead(
-                            fill_color=bokeh_colors[2],
-                            fill_alpha=1.0,
-                            size=14,
-                            line_width=2,
-                            line_color=bokeh_colors[0],
-                        ),
-                        x_start=node,
-                        y_start=y_start,
-                        x_end=node,
-                        y_end=0,
-                    )
+                fig.add_annotation(
+                    x=node,
+                    y=0,
+                    axref="x{}".format(j + 1),
+                    ayref="y{}".format(j + 1),
+                    showarrow=True,
+                    arrowhead=2,
+                    arrowsize=1,
+                    arrowwidth=5,
+                    arrowcolor="DimGray",
+                    ax=node,
+                    ay=y_start * 1.08,
+                    row=row,
+                    col=col,
                 )
-
-            fig.add_layout(
-                Label(
-                    x=nodes_pos[0],
-                    y=y_start,
-                    text="Weight = " + text + "N",
-                    text_font_style="bold",
-                    text_font_size="10pt",
-                    text_baseline="top",
-                    text_align="left",
-                    y_offset=20,
-                )
+            fig.add_annotation(
+                x=nodes_pos[0],
+                y=y_start,
+                xref="x{}".format(j + 1),
+                yref="y{}".format(j + 1),
+                xshift=125,
+                yshift=20,
+                text="<b>Shaft weight = {}N</b>".format(text),
+                align="right",
+                showarrow=False,
             )
 
-            # fig - calculate the reaction force of bearings and plot arrows
+            # plot bearing reaction forces
             for k, v in self.bearing_forces.items():
                 _, node = k.split("_")
                 node = int(node)
                 if node in nodes:
                     text = str(v)
                     var = 1 if v < 0 else -1
-                    fig.add_layout(
-                        Arrow(
-                            end=NormalHead(
-                                fill_color=bokeh_colors[6],
-                                fill_alpha=1.0,
-                                size=14,
-                                line_width=2,
-                                line_color=bokeh_colors[0],
-                            ),
-                            x_start=nodes_pos[nodes.index(node)],
-                            y_start=var * 2 * y_start,
-                            x_end=nodes_pos[nodes.index(node)],
-                            y_end=0,
-                        )
-                    )
-                    fig.add_layout(
-                        Label(
-                            x=nodes_pos[nodes.index(node)],
-                            y=var * 2 * y_start,
-                            angle=np.pi / 2,
-                            text="Fb = " + text + "N",
-                            text_font_style="bold",
-                            text_font_size="10pt",
-                            text_baseline="top",
-                            text_align="center",
-                            x_offset=2,
-                        )
+                    fig.add_annotation(
+                        x=nodes_pos[nodes.index(node)],
+                        y=0,
+                        axref="x{}".format(j + 1),
+                        ayref="y{}".format(j + 1),
+                        text="<b>Fb = {}N</b>".format(text),
+                        textangle=90,
+                        showarrow=True,
+                        arrowhead=2,
+                        arrowsize=1,
+                        arrowwidth=5,
+                        arrowcolor="DarkSalmon",
+                        ax=nodes_pos[nodes.index(node)],
+                        ay=var * 2.5 * y_start,
+                        row=row,
+                        col=col,
                     )
 
-            # fig - plot arrows indicating disk weight
+            # plot disk forces
             for k, v in self.disk_forces.items():
                 _, node = k.split("_")
                 node = int(node)
                 if node in nodes:
-                    text = str(v)
-                    fig.add_layout(
-                        Arrow(
-                            end=NormalHead(
-                                fill_color=bokeh_colors[9],
-                                fill_alpha=1.0,
-                                size=14,
-                                line_width=2,
-                                line_color=bokeh_colors[0],
-                            ),
-                            x_start=nodes_pos[nodes.index(node)],
-                            y_start=2 * y_start,
-                            x_end=nodes_pos[nodes.index(node)],
-                            y_end=0,
-                        )
+                    text = str(-v)
+                    fig.add_annotation(
+                        x=nodes_pos[nodes.index(node)],
+                        y=0,
+                        axref="x{}".format(j + 1),
+                        ayref="y{}".format(j + 1),
+                        text="<b>Fd = {}N</b>".format(text),
+                        textangle=270,
+                        showarrow=True,
+                        arrowhead=2,
+                        arrowsize=1,
+                        arrowwidth=5,
+                        arrowcolor="FireBrick",
+                        ax=nodes_pos[nodes.index(node)],
+                        ay=2.5 * y_start,
+                        row=row,
+                        col=col,
                     )
-                    fig.add_layout(
-                        Label(
-                            x=nodes_pos[nodes.index(node)],
-                            y=2 * y_start,
-                            angle=np.pi / 2,
-                            text="Fd = " + text + "N",
-                            text_font_style="bold",
-                            text_font_size="10pt",
-                            text_baseline="top",
-                            text_align="center",
-                            x_offset=2,
-                        )
-                    )
-            figures.append(fig)
+
+            fig.update_xaxes(title_text="<b>Shaft Length</b>", row=row, col=col)
+            fig.update_yaxes(
+                visible=False, gridcolor="lightgray", showline=False, row=row, col=col
+            )
             j += 1
-        grid_plots = gridplot([figures])
 
-        return grid_plots
+        fig.update_layout(**kwargs)
 
-    def plot_shearing_force(self):
+        return fig
+
+    def plot_shearing_force(self, fig=None, **kwargs):
         """Plot the rotor shearing force diagram.
 
         This method plots:
             shearing force diagram.
 
+        Parameters
+        ----------
+        fig : Plotly graph_objects.Figure()
+            The figure object with the plot.
+        kwargs : optional
+            Additional key word arguments can be passed to change the plot layout only
+            (e.g. width=1000, height=800, ...).
+            *See Plotly Python Figure Reference for more information.
+
         Returns
         -------
-        fig : bokeh figure
-            Bokeh figure with the shearing force diagram plot
+        fig : Plotly graph_objects.Figure()
+            The figure object with the plot.
         """
+        if fig is None:
+            fig = go.Figure()
+
         shaft_end = max([sublist[-1] for sublist in self.nodes_pos])
-        fig = figure(
-            tools="pan, wheel_zoom, box_zoom, reset, save, box_select",
-            width=640,
-            height=480,
-            title="Shearing Force Diagram",
-            x_axis_label="Shaft lenght",
-            y_axis_label="Force",
-            x_range=[-0.1 * shaft_end, 1.1 * shaft_end],
-        )
-        fig.xaxis.axis_label_text_font_size = "16pt"
-        fig.yaxis.axis_label_text_font_size = "16pt"
-        fig.axis.major_label_text_font_size = "16pt"
-        fig.title.text_font_size = "14pt"
 
         # fig - plot centerline
-        fig.line(
-            [-0.1 * shaft_end, 1.1 * shaft_end],
-            [0, 0],
-            line_width=3,
-            line_dash="dotdash",
-            line_color=bokeh_colors[0],
+        fig.add_trace(
+            go.Scatter(
+                x=[-0.1 * shaft_end, 1.1 * shaft_end],
+                y=[0, 0],
+                mode="lines",
+                line=dict(color="black", dash="dashdot"),
+                showlegend=False,
+                hoverinfo="none",
+            )
         )
 
         j = 0
         for Vx, Vx_axis in zip(self.Vx, self.Vx_axis):
-            source_SF = ColumnDataSource(data=dict(x=Vx_axis, y=Vx))
-
-            fig.line(
-                "x",
-                "y",
-                source=source_SF,
-                line_width=4,
-                line_color=bokeh_colors[9 - j],
-                line_alpha=1.0,
-                muted_alpha=0.1,
-                legend_label="Shaft " + str(j),
-                name="line",
+            fig.add_trace(
+                go.Scatter(
+                    x=Vx_axis,
+                    y=Vx,
+                    mode="lines",
+                    name=f"Shaft {j}",
+                    legendgroup=f"Shaft {j}",
+                    showlegend=True,
+                    hovertemplate=(
+                        "Shaft lengh: %{x:.2f}<br>" + "Shearing Force: %{y:.2f}"
+                    ),
+                )
             )
-            fig.circle(
-                "x",
-                "y",
-                source=source_SF,
-                size=8,
-                fill_color=bokeh_colors[9 - j],
-                fill_alpha=1.0,
-                muted_alpha=0.1,
-                legend_label="Shaft " + str(j),
-                name="circle",
-            )
-            hover = HoverTool(names=["line", "circle"])
-            hover.tooltips = [("Shear Force:", "@y")]
             j += 1
-        fig.add_tools(hover)
-        fig.legend.background_fill_alpha = 0.1
-        fig.legend.click_policy = "mute"
+
+        fig.update_xaxes(
+            title_text="<b>Shaft Length</b>", range=[-0.1 * shaft_end, 1.1 * shaft_end]
+        )
+        fig.update_yaxes(title_text="<b>Force</b>")
+        fig.update_layout(title=dict(text="<b>Shearing Force Diagram</b>"), **kwargs)
 
         return fig
 
-    def plot_bending_moment(self):
+    def plot_bending_moment(self, fig=None, **kwargs):
         """Plot the rotor bending moment diagram.
 
         This method plots:
             bending moment diagram.
 
+        Parameters
+        ----------
+        fig : Plotly graph_objects.Figure()
+            Plotly figure with the bending moment diagram plot
+
         Returns
         -------
-        fig : bokeh figure
-            Bokeh figure with the bending moment diagram plot
+        fig : Plotly graph_objects.Figure()
+            Plotly figure with the bending moment diagram plot
         """
+        if fig is None:
+            fig = go.Figure()
+
         shaft_end = max([sublist[-1] for sublist in self.nodes_pos])
-        fig = figure(
-            tools="pan, wheel_zoom, box_zoom, reset, save, box_select",
-            width=640,
-            height=480,
-            title="Bending Moment Diagram",
-            x_axis_label="Shaft lenght",
-            y_axis_label="Bending Moment",
-            x_range=[-0.1 * shaft_end, 1.1 * shaft_end],
-        )
-        fig.xaxis.axis_label_text_font_size = "20pt"
-        fig.yaxis.axis_label_text_font_size = "20pt"
-        fig.axis.major_label_text_font_size = "16pt"
-        fig.title.text_font_size = "14pt"
 
         # fig - plot centerline
-        fig.line(
-            [-0.1 * shaft_end, 1.1 * shaft_end],
-            [0, 0],
-            line_width=3,
-            line_dash="dotdash",
-            line_color=bokeh_colors[0],
+        fig.add_trace(
+            go.Scatter(
+                x=[-0.1 * shaft_end, 1.1 * shaft_end],
+                y=[0, 0],
+                mode="lines",
+                line=dict(color="black", dash="dashdot"),
+                showlegend=False,
+                hoverinfo="none",
+            )
         )
 
         j = 0
-        for Bm, nodes_pos, nodes in zip(self.Bm, self.nodes_pos, self.nodes):
-            source_BM = ColumnDataSource(data=dict(x=nodes_pos, y=Bm))
-            i = 0
-            while True:
-                if i + 3 > len(nodes):
-                    break
-
-                interpolated_BM = interpolate.interp1d(
-                    nodes_pos[i : i + 3], Bm[i : i + 3], kind="quadratic"
+        for Bm, nodes_pos in zip(self.Bm, self.Vx_axis):
+            fig.add_trace(
+                go.Scatter(
+                    x=nodes_pos,
+                    y=Bm,
+                    mode="lines",
+                    name=f"Shaft {j}",
+                    legendgroup=f"Shaft {j}",
+                    showlegend=True,
+                    hovertemplate=(
+                        "Shaft lengh: %{x:.2f}<br>" + "Bending Moment: %{y:.2f}"
+                    ),
                 )
-                xnew_BM = np.linspace(
-                    nodes_pos[i], nodes_pos[i + 2], num=42, endpoint=True
-                )
-
-                ynew_BM = interpolated_BM(xnew_BM)
-                auxsource_BM = ColumnDataSource(data=dict(x=xnew_BM, y=ynew_BM))
-                fig.line(
-                    "x",
-                    "y",
-                    source=auxsource_BM,
-                    line_width=4,
-                    line_color=bokeh_colors[9 - j],
-                    line_alpha=1.0,
-                    muted_alpha=0.1,
-                    legend_label="Shaft " + str(j),
-                    name="line",
-                )
-                i += 2
-
-            fig.circle(
-                "x",
-                "y",
-                source=source_BM,
-                size=8,
-                fill_color=bokeh_colors[9 - j],
-                fill_alpha=1.0,
-                muted_alpha=0.1,
-                legend_label="Shaft " + str(j),
-                name="circle",
             )
-            hover = HoverTool(names=["line", "circle"])
-            hover.tooltips = [("Beinding Moment:", "@y")]
             j += 1
 
-        fig.add_tools(hover)
-        fig.legend.background_fill_alpha = 0.1
-        fig.legend.click_policy = "mute"
+        fig.update_xaxes(title_text="<b>Shaft Length</b>")
+        fig.update_yaxes(title_text="<b>Bending Moment</b>")
+        fig.update_layout(title=dict(text="<b>Bending Moment Diagram</b>"), **kwargs)
 
         return fig
 
@@ -2172,8 +2394,8 @@ class SummaryResults:
 
     Returns
     -------
-    table : bokeh Column
-        Bokeh Column with the summary table plot
+    fig : Plotly graph_objects.make_subplots()
+        The figure object with the tables plot.
     """
 
     def __init__(
@@ -2196,199 +2418,162 @@ class SummaryResults:
 
         Returns
         -------
-        tabs : bokeh Column
-            Bokeh Column with the summary table plot
+        fig : Plotly graph_objects.make_subplots()
+            The figure object with the tables plot.
         """
         materials = [mat.name for mat in self.df_shaft["material"]]
 
-        shaft_data = dict(
-            tags=self.df_shaft["tag"],
-            sh_number=self.df_shaft["shaft_number"],
-            lft_stn=self.df_shaft["n_l"],
-            rgt_stn=self.df_shaft["n_r"],
-            elem_no=self.df_shaft["_n"],
-            beam_left_loc=self.df_shaft["nodes_pos_l"],
-            elem_len=self.df_shaft["L"],
-            beam_cg=self.df_shaft["beam_cg"],
-            axial_cg_pos=self.df_shaft["axial_cg_pos"],
-            beam_right_loc=self.df_shaft["nodes_pos_r"],
-            material=materials,
-            mass=self.df_shaft["m"],
-            inertia=self.df_shaft["Im"],
+        shaft_data = {
+            "Shaft number": self.df_shaft["shaft_number"],
+            "Left station": self.df_shaft["n_l"],
+            "Right station": self.df_shaft["n_r"],
+            "Elem number": self.df_shaft["_n"],
+            "Beam left loc": self.df_shaft["nodes_pos_l"],
+            "Length": self.df_shaft["L"],
+            "Axial CG Pos": self.df_shaft["axial_cg_pos"],
+            "Beam right loc": self.df_shaft["nodes_pos_r"],
+            "Material": materials,
+            "Mass": self.df_shaft["m"].map("{:.3f}".format),
+            "Inertia": self.df_shaft["Im"].map("{:.2e}".format),
+        }
+
+        rotor_data = {
+            "Tag": [self.tag],
+            "Starting node": [self.df_shaft["n_l"].iloc[0]],
+            "Ending node": [self.df_shaft["n_r"].iloc[-1]],
+            "Starting point": [self.df_shaft["nodes_pos_l"].iloc[0]],
+            "Total lenght": [self.df_shaft["nodes_pos_r"].iloc[-1]],
+            "CG": ["{:.3f}".format(self.CG)],
+            "Ip": ["{:.3e}".format(self.Ip)],
+            "Rotor Mass": [
+                "{:.3f}".format(np.sum(self.df_shaft["m"]) + np.sum(self.df_disks["m"]))
+            ],
+        }
+
+        disk_data = {
+            "Tag": self.df_disks["tag"],
+            "Shaft number": self.df_disks["shaft_number"],
+            "Node": self.df_disks["n"],
+            "Nodal Position": self.nodes_pos[self.df_bearings["n"]],
+            "Mass": self.df_disks["m"].map("{:.3f}".format),
+            "Ip": self.df_disks["Ip"].map("{:.3e}".format),
+        }
+
+        bearing_data = {
+            "Tag": self.df_bearings["tag"],
+            "Shaft number": self.df_bearings["shaft_number"],
+            "Node": self.df_bearings["n"],
+            "N_link": self.df_bearings["n_link"],
+            "Nodal Position": self.nodes_pos[self.df_bearings["n"]],
+            "Bearing force": list(self.brg_forces.values()),
+        }
+
+        fig = make_subplots(
+            rows=2,
+            cols=2,
+            specs=[
+                [{"type": "table"}, {"type": "table"}],
+                [{"type": "table"}, {"type": "table"}],
+            ],
+            subplot_titles=[
+                "<b>Rotor data</b>",
+                "<b>Shaft Element data</b>",
+                "<b>Disk Element data</b>",
+                "<b>Bearing Element data</b>",
+            ],
+        )
+        colors = ["#ffffff", "#c4d9ed"]
+        fig.add_trace(
+            go.Table(
+                header=dict(
+                    values=["<b>{}</b>".format(k) for k in rotor_data.keys()],
+                    font=dict(size=12, color="white"),
+                    line=dict(color="#1f4060", width=1.5),
+                    fill=dict(color="#1f4060"),
+                    align="center",
+                ),
+                cells=dict(
+                    values=list(rotor_data.values()),
+                    font=dict(size=12),
+                    line=dict(color="#1f4060"),
+                    fill=dict(color="white"),
+                    align="center",
+                    height=25,
+                ),
+            ),
+            row=1,
+            col=1,
         )
 
-        rotor_data = dict(
-            tag=[self.tag],
-            starting_node=[self.df_shaft["n_l"].iloc[0]],
-            ending_node=[self.df_shaft["n_r"].iloc[-1]],
-            starting_point=[self.df_shaft["nodes_pos_r"].iloc[0]],
-            total_lenght=[self.df_shaft["nodes_pos_r"].iloc[-1]],
-            CG=[self.CG],
-            Ip=[self.Ip],
-            total_mass=[np.sum(self.df_shaft["m"])],
+        cell_colors = [colors[i % 2] for i in range(len(materials))]
+        fig.add_trace(
+            go.Table(
+                header=dict(
+                    values=["<b>{}</b>".format(k) for k in shaft_data.keys()],
+                    font=dict(family="Verdana", size=12, color="white"),
+                    line=dict(color="#1e4162", width=1.5),
+                    fill=dict(color="#1e4162"),
+                    align="center",
+                ),
+                cells=dict(
+                    values=list(shaft_data.values()),
+                    font=dict(family="Verdana", size=12, color="#12263b"),
+                    line=dict(color="#c4d9ed", width=1.5),
+                    fill=dict(color=[cell_colors * len(shaft_data)]),
+                    align="center",
+                    height=25,
+                ),
+            ),
+            row=1,
+            col=2,
         )
 
-        disk_data = dict(
-            tags=self.df_disks["tag"],
-            sh_number=self.df_disks["shaft_number"],
-            disk_node=self.df_disks["n"],
-            disk_pos=self.nodes_pos[self.df_bearings["n"]],
-            disk_mass=self.df_disks["m"],
-            disk_Ip=self.df_disks["Ip"],
+        cell_colors = [colors[i % 2] for i in range(len(self.df_disks["tag"]))]
+        fig.add_trace(
+            go.Table(
+                header=dict(
+                    values=["<b>{}</b>".format(k) for k in disk_data.keys()],
+                    font=dict(family="Verdana", size=12, color="white"),
+                    line=dict(color="#1e4162", width=1.5),
+                    fill=dict(color="#1e4162"),
+                    align="center",
+                ),
+                cells=dict(
+                    values=list(disk_data.values()),
+                    font=dict(family="Verdana", size=12, color="#12263b"),
+                    line=dict(color="#c4d9ed", width=1.5),
+                    fill=dict(color=[cell_colors * len(shaft_data)]),
+                    align="center",
+                    height=25,
+                ),
+            ),
+            row=2,
+            col=1,
         )
 
-        bearing_data = dict(
-            tags=self.df_bearings["tag"],
-            sh_number=self.df_bearings["shaft_number"],
-            brg_node=self.df_bearings["n"],
-            brg_pos=self.nodes_pos[self.df_bearings["n"]],
-            brg_force=list(self.brg_forces.values()),
+        cell_colors = [colors[i % 2] for i in range(len(self.df_bearings["tag"]))]
+        fig.add_trace(
+            go.Table(
+                header=dict(
+                    values=["<b>{}</b>".format(k) for k in bearing_data.keys()],
+                    font=dict(family="Verdana", size=12, color="white"),
+                    line=dict(color="#1e4162", width=1.5),
+                    fill=dict(color="#1e4162"),
+                    align="center",
+                ),
+                cells=dict(
+                    values=list(bearing_data.values()),
+                    font=dict(family="Verdana", size=12, color="#12263b"),
+                    line=dict(color="#c4d9ed", width=1.5),
+                    fill=dict(color=[cell_colors * len(shaft_data)]),
+                    align="center",
+                    height=25,
+                ),
+            ),
+            row=2,
+            col=2,
         )
-
-        shaft_source = ColumnDataSource(shaft_data)
-        rotor_source = ColumnDataSource(rotor_data)
-        disk_source = ColumnDataSource(disk_data)
-        bearing_source = ColumnDataSource(bearing_data)
-
-        shaft_titles = [
-            "Element Tag",
-            "Shaft Number",
-            "Left Station",
-            "Right Station",
-            "Element Number",
-            "Elem. Left Location",
-            "Elem. Lenght",
-            "Element CG",
-            "Axial CG Location",
-            "Elem. Right Location",
-            "Material",
-            "Elem. Mass",
-            "Inertia",
-        ]
-
-        rotor_titles = [
-            "Tag",
-            "First Station",
-            "Last Station",
-            "Starting Pos.",
-            "Total Lenght",
-            "C.G. Locantion",
-            "Total Ip about C.L.",
-        ]
-
-        disk_titles = [
-            "Tag",
-            "Shaft Number",
-            "Disk Station",
-            "C.G. Locantion",
-            "Disk Mass",
-            "Total Ip about C.L.",
-        ]
-
-        bearing_titles = [
-            "Tag",
-            "Shaft Number",
-            "Bearing Station",
-            "Bearing Locantion",
-            "Static Reaction Force",
-        ]
-
-        shaft_formatters = [
-            None,
-            None,
-            None,
-            None,
-            NumberFormatter(format="0.000"),
-            NumberFormatter(format="0.000"),
-            NumberFormatter(format="0.000"),
-            NumberFormatter(format="0.000"),
-            NumberFormatter(format="0.000"),
-            None,
-            NumberFormatter(format="0.000"),
-            NumberFormatter(format="0.0000000"),
-        ]
-
-        rotor_formatters = [
-            None,
-            None,
-            None,
-            NumberFormatter(format="0.000"),
-            NumberFormatter(format="0.000"),
-            NumberFormatter(format="0.000"),
-            NumberFormatter(format="0.000"),
-        ]
-
-        disk_formatters = [
-            None,
-            None,
-            NumberFormatter(format="0.000"),
-            NumberFormatter(format="0.000"),
-            NumberFormatter(format="0.000"),
-        ]
-
-        bearing_formatters = [
-            None,
-            None,
-            NumberFormatter(format="0.000"),
-            NumberFormatter(format="0.000"),
-        ]
-
-        shaft_columns = [
-            TableColumn(field=str(field), title=title, formatter=form)
-            for field, title, form in zip(
-                shaft_data.keys(), shaft_titles, shaft_formatters
-            )
-        ]
-
-        rotor_columns = [
-            TableColumn(field=str(field), title=title, formatter=form)
-            for field, title, form in zip(
-                rotor_data.keys(), rotor_titles, rotor_formatters
-            )
-        ]
-
-        disk_columns = [
-            TableColumn(field=str(field), title=title, formatter=form)
-            for field, title, form in zip(
-                disk_data.keys(), disk_titles, disk_formatters
-            )
-        ]
-
-        bearing_columns = [
-            TableColumn(field=str(field), title=title, formatter=form)
-            for field, title, form in zip(
-                bearing_data.keys(), bearing_titles, bearing_formatters
-            )
-        ]
-
-        shaft_data_table = DataTable(
-            source=shaft_source, columns=shaft_columns, width=1600
-        )
-        rotor_data_table = DataTable(
-            source=rotor_source, columns=rotor_columns, width=1600
-        )
-        disk_data_table = DataTable(
-            source=disk_source, columns=disk_columns, width=1600
-        )
-        bearing_data_table = DataTable(
-            source=bearing_source, columns=bearing_columns, width=1600
-        )
-
-        rotor_table = Column(rotor_data_table)
-        tab1 = Panel(child=rotor_table, title="Rotor Summary")
-
-        shaft_table = Column(shaft_data_table)
-        tab2 = Panel(child=shaft_table, title="Shaft Summary")
-
-        disk_table = Column(disk_data_table)
-        tab3 = Panel(child=disk_table, title="Disk Summary")
-
-        bearing_table = Column(bearing_data_table)
-        tab4 = Panel(child=bearing_table, title="Bearing Summary")
-
-        tabs = Tabs(tabs=[tab1, tab2, tab3, tab4])
-
-        return tabs
+        return fig
 
 
 class ConvergenceResults:
@@ -2409,8 +2594,8 @@ class ConvergenceResults:
 
     Returns
     -------
-    plot : bokeh.gridplot
-        Bokeh column with Convergence Analysis plots
+    fig : Plotly graph_objects.make_subplots()
+        The figure object with the plot.
     """
 
     def __init__(self, el_num, eigv_arr, error_arr):
@@ -2418,75 +2603,92 @@ class ConvergenceResults:
         self.eigv_arr = eigv_arr
         self.error_arr = error_arr
 
-    def plot(self):
+    def plot(self, fig=None, **kwargs):
         """Plot convergence results.
 
         This method plots:
             Natural Frequency vs Number of Elements
             Relative Error vs Number of Elements
 
+        Parameters
+        ----------
+        fig : Plotly graph_objects.make_subplots()
+            The figure object with the plot.
+        kwargs : optional
+            Additional key word arguments can be passed to change the plot layout only
+            (e.g. width=1000, height=800, ...).
+            *See Plotly Python Figure Reference for more information.
+
         Returns
         -------
-        plot : bokeh.gridplot
-            Bokeh column with Convergence Analysis plots
+        fig : Plotly graph_objects.make_subplots()
+            The figure object with the plot.
         """
-        source = ColumnDataSource(
-            data=dict(x0=self.el_num, y0=self.eigv_arr, y1=self.error_arr)
+        if fig is None:
+            fig = make_subplots(
+                rows=1,
+                cols=2,
+                subplot_titles=[
+                    "<b>Frequency Evaluation</b>",
+                    "<b>Relative Error Evaluation</b>",
+                ],
+            )
+
+        # plot Frequency vs number of elements
+        fig.add_trace(
+            go.Scatter(
+                x=self.el_num,
+                y=self.eigv_arr,
+                mode="lines+markers",
+                hovertemplate=(
+                    "Number of Elements: %{x:.2f}<br>" + "Frequency: %{y:.0f}"
+                ),
+                showlegend=False,
+            ),
+            row=1,
+            col=1,
+        )
+        fig.update_xaxes(title_text="<b>Number of Elements</b>", row=1, col=1)
+        fig.update_yaxes(title_text="<b>Frequency</b>", row=1, col=1)
+
+        # plot Error vs number of elements
+        fig.add_trace(
+            go.Scatter(
+                x=self.el_num,
+                y=self.error_arr,
+                mode="lines+markers",
+                hovertemplate=(
+                    "Number of Elements: %{x:.2f}<br>" + "Relative Error: %{y:.0f}"
+                ),
+                showlegend=False,
+            ),
+            row=1,
+            col=2,
         )
 
-        TOOLS = "pan,wheel_zoom,box_zoom,hover,reset,save,"
-        TOOLTIPS1 = [("Frequency:", "@y0"), ("Number of Elements", "@x0")]
-        TOOLTIPS2 = [("Relative Error:", "@y1"), ("Number of Elements", "@x0")]
+        fig.update_xaxes(title_text="<b>Number of Elements</b>", row=1, col=2)
+        fig.update_yaxes(title_text="<b>Relative Error (%)</b>", row=1, col=2)
 
-        # create a new plot and add a renderer
-        freq_arr = figure(
-            tools=TOOLS,
-            tooltips=TOOLTIPS1,
-            width=640,
-            height=480,
-            title="Frequency Evaluation",
-            x_axis_label="Numer of Elements",
-            y_axis_label="Frequency (rad/s)",
-        )
-        freq_arr.xaxis.axis_label_text_font_size = "20pt"
-        freq_arr.yaxis.axis_label_text_font_size = "20pt"
-        freq_arr.axis.major_label_text_font_size = "16pt"
-        freq_arr.title.text_font_size = "14pt"
+        fig.update_layout(**kwargs)
 
-        freq_arr.line("x0", "y0", source=source, line_width=3, line_color="crimson")
-        freq_arr.circle("x0", "y0", source=source, size=8, fill_color="crimson")
-
-        # create another new plot and add a renderer
-        rel_error = figure(
-            tools=TOOLS,
-            tooltips=TOOLTIPS2,
-            width=640,
-            height=480,
-            title="Relative Error Evaluation",
-            x_axis_label="Number of Elements",
-            y_axis_label="Relative Error (%)",
-        )
-        rel_error.xaxis.axis_label_text_font_size = "20pt"
-        rel_error.yaxis.axis_label_text_font_size = "20pt"
-        rel_error.axis.major_label_text_font_size = "16pt"
-        rel_error.title.text_font_size = "14pt"
-
-        rel_error.line(
-            "x0", "y1", source=source, line_width=3, line_color="darkslategray"
-        )
-        rel_error.circle("x0", "y1", source=source, fill_color="darkslategray", size=8)
-
-        # put the subplots in a gridplot
-        plot = gridplot([[freq_arr, rel_error]])
-
-        return plot
+        return fig
 
 
 class TimeResponseResults:
     """Class used to store results and provide plots for Time Response Analysis.
 
     This class takes the results from time response analysis and creates a
-    plot given a force and a time.
+    plots given a force and a time. It's possible to select through a time response for
+    a single DoF, an orbit response for a single node or display orbit response for all
+    nodes.
+    The plot type options are:
+        - 1d: plot time response for a given degree of freedom of a rotor system.
+        - 2d: plot orbit of a selected node of a rotor system.
+        - 3d: plot orbits for each node on the rotor system in a 3D view.
+
+    If plot_type = "1d": input a dof.
+    If plot_type = "2d": input a node.
+    if plot_type = "3d": no need to input a dof or node.
 
     Parameters
     ----------
@@ -2496,309 +2698,255 @@ class TimeResponseResults:
         System response.
     xout : array
         Time evolution of the state vector.
-    dof : int
-        Degree of freedom
+    nodes_list : array
+        list with nodes from a rotor model.
+    nodes_pos : array
+        Rotor nodes axial positions.
+    number_dof : int
+        Number of degrees of freedom per shaft element's node
 
     Returns
     -------
-    ax : matplotlib.axes
-        Matplotlib axes with time response plot.
-        if plot_type == "matplotlib"
-    bk_ax : bokeh axes
-        Bokeh axes with time response plot
-        if plot_type == "bokeh"
+    fig : Plotly graph_objects.Figure()
+        The figure object with the plot.
     """
 
-    def __init__(self, t, yout, xout, dof):
+    def __init__(self, t, yout, xout, nodes_list, nodes_pos, number_dof):
         self.t = t
         self.yout = yout
         self.xout = xout
-        self.dof = dof
-
-    def _plot_matplotlib(self, ax=None):
-        """Plot time response using matplotlib.
-
-        This function will take a rotor object and plot its time response
-        using Matplotlib
-
-        Parameters
-        ----------
-        ax : matplotlib.axes
-            Matplotlib axes where time response will be plotted.
-            if None, creates a new one
-
-        Returns
-        -------
-        ax : matplotlib.axes
-            Matplotlib axes with time response plot.
-        """
-        if ax is None:
-            ax = plt.gca()
-
-        ax.plot(self.t, self.yout[:, self.dof])
-
-        if self.dof % 4 == 0:
-            obs_dof = "x"
-            amp = "m"
-        elif self.dof % 4 == 1:
-            obs_dof = "y"
-            amp = "m"
-        elif self.dof % 4 == 2:
-            obs_dof = "\u03B1"  # unicode for alpha
-            amp = "rad"
-        elif self.dof % 4 == 3:
-            obs_dof = "\u03B2"  # unicode for beta
-            amp = "rad"
-
-        ax.set_xlabel("Time (s)")
-        ax.set_ylabel("Amplitude (%s)" % amp)
-        ax.set_title(
-            "Response for node %s and degree of freedom %s" % (self.dof // 4, obs_dof)
-        )
-
-    def _plot_bokeh(self):
-        """Plot time response using bokeh.
-
-        This function will take a rotor object and plot its time response
-        using Bokeh
-
-        Returns
-        -------
-        bk_ax : bokeh axes
-            Bokeh axes with time response plot
-            if plot_type == "bokeh"
-        """
-        if self.dof % 4 == 0:
-            obs_dof = "x"
-            amp = "m"
-        elif self.dof % 4 == 1:
-            obs_dof = "y"
-            amp = "m"
-        elif self.dof % 4 == 2:
-            obs_dof = "\u03B1"  # unicode for alpha
-            amp = "rad"
-        elif self.dof % 4 == 3:
-            obs_dof = "\u03B2"  # unicode for beta
-            amp = "rad"
-
-        # bokeh plot - create a new plot
-        bk_ax = figure(
-            tools="pan, box_zoom, wheel_zoom, reset, save",
-            width=640,
-            height=480,
-            title="Response for node %s and degree of freedom %s"
-            % (self.dof // 4, obs_dof),
-            x_axis_label="Time (s)",
-            y_axis_label="Amplitude (%s)" % amp,
-        )
-        bk_ax.xaxis.axis_label_text_font_size = "20pt"
-        bk_ax.yaxis.axis_label_text_font_size = "20pt"
-        bk_ax.axis.major_label_text_font_size = "16pt"
-        bk_ax.title.text_font_size = "14pt"
-
-        bk_ax.line(
-            self.t, self.yout[:, self.dof], line_width=3, line_color=bokeh_colors[0]
-        )
-
-        return bk_ax
-
-    def plot(self, plot_type="bokeh", **kwargs):
-        """Plot time response.
-
-        This function will take a rotor object and plot its time response.
-        There are two options for plotting type:
-            -"bokeh"
-            -"matplotlib"
-
-        Parameters
-        ----------
-        plot_type: str
-            Matplotlib or bokeh.
-            The default is bokeh
-        kwargs : optional
-            Additional key word arguments can be passed to change
-            the plot (e.g. linestyle='--')
-
-        Returns
-        -------
-        ax : matplotlib.axes
-            Matplotlib axes with time response plot.
-            if plot_type == "matplotlib"
-        bk_ax : bokeh axes
-            Bokeh axes with time response plot
-            if plot_type == "bokeh"
-        """
-        if plot_type == "matplotlib":
-            return self._plot_matplotlib(**kwargs)
-        elif plot_type == "bokeh":
-            return self._plot_bokeh(**kwargs)
-        else:
-            raise ValueError(f"{plot_type} is not a valid plot type.")
-
-
-class OrbitResponseResults:
-    """Class used to store results and provide plots for Orbit Response Analysis.
-
-    This class takes the results from orbit response analysis and creates a
-    plot (2D or 3D) given a force array and a time array.
-
-    Parameters
-    ----------
-    t: array
-        Time values for the output.
-    yout: array
-        System response.
-    xout: array
-        Time evolution of the state vector.
-    nodes_list: array
-        list with nodes from a rotor model
-    nodes_pos: array
-        Rotor nodes axial positions
-
-    Returns
-    -------
-    ax : matplotlib.axes
-        Matplotlib axes with orbit response plot.
-        if plot_type == "3d"
-    bk_ax : bokeh axes
-        Bokeh axes with orbit response plot
-        if plot_type == "2d"
-    """
-
-    def __init__(self, t, yout, xout, nodes_list, nodes_pos):
-        self.t = t
-        self.yout = yout
-        self.xout = xout
-        self.nodes_pos = nodes_pos
         self.nodes_list = nodes_list
+        self.nodes_pos = nodes_pos
+        self.number_dof = number_dof
 
-    def _plot3d(self, fig=None, ax=None):
+    def _plot1d(self, dof, fig=None, **kwargs):
+        """Plot time response for a single DoF using Plotly.
+
+        This function will take a rotor object and plot its time response using Plotly.
+
+        Parameters
+        ----------
+        dof : int
+            Degree of freedom that will be observed.
+        fig : Plotly graph_objects.Figure()
+            The figure object with the plot.
+        kwargs : optional
+            Additional key word arguments can be passed to change the plot layout only
+            (e.g. width=1000, height=800, ...).
+            *See Plotly Python Figure Reference for more information.
+
+        Returns
+        -------
+        fig : Plotly graph_objects.Figure()
+            The figure object with the plot.
+        """
+        if self.number_dof == 4:
+            dof_dict = {"0": "x", "1": "y", "2": "α", "3": "β"}
+
+        if self.number_dof == 6:
+            dof_dict = {"0": "x", "1": "y", "2": "z", "4": "α", "5": "β", "6": "θ"}
+
+        obs_dof = dof % self.number_dof
+        obs_dof = dof_dict[str(obs_dof)]
+
+        if fig is None:
+            fig = go.Figure()
+
+        fig.add_trace(
+            go.Scatter(
+                x=self.t,
+                y=self.yout[:, dof],
+                mode="lines",
+                name="Phase",
+                legendgroup="Phase",
+                showlegend=False,
+                hovertemplate=("Time: %{x:.2f}<br>" + "Amplitude: %{y:.2e}"),
+            )
+        )
+
+        fig.update_xaxes(title_text="<b>Time</b>")
+        fig.update_yaxes(title_text="<b>Amplitude</b>")
+        fig.update_layout(
+            title=dict(
+                text="<b>Response for node {} - DoF {}</b>".format(dof // 4, obs_dof)
+            ),
+            **kwargs,
+        )
+
+        return fig
+
+    def _plot2d(self, node, fig=None, **kwargs):
+        """Plot orbit response (2D).
+
+        This function will take a rotor object and plot its orbit response using Plotly.
+
+        Parameters
+        ----------
+        node: int, optional
+            Selected node to plot orbit.
+        fig : Plotly graph_objects.Figure()
+            The figure object with the plot.
+        kwargs : optional
+            Additional key word arguments can be passed to change the plot layout only
+            (e.g. width=1000, height=800, ...).
+            *See Plotly Python Figure Reference for more information.
+
+        Returns
+        -------
+        fig : Plotly graph_objects.Figure()
+            The figure object with the plot.
+        """
+        if fig is None:
+            fig = go.Figure()
+
+        fig.add_trace(
+            go.Scatter(
+                x=self.yout[:, self.number_dof * node],
+                y=self.yout[:, self.number_dof * node + 1],
+                mode="lines",
+                name="Phase",
+                legendgroup="Phase",
+                showlegend=False,
+                hovertemplate=(
+                    "X - Amplitude: %{x:.2e}<br>" + "Y - Amplitude: %{y:.2e}"
+                ),
+            )
+        )
+
+        fig.update_xaxes(title_text="<b>Amplitude - X direction</b>")
+        fig.update_yaxes(title_text="<b>Amplitude - Y direction</b>")
+        fig.update_layout(
+            title=dict(text="<b>Response for node {}</b>".format(node)), **kwargs
+        )
+
+        return fig
+
+    def _plot3d(self, fig=None, **kwargs):
         """Plot orbit response (3D).
 
-        This function will take a rotor object and plot its orbit response
-        using Matplotlib.
+        This function will take a rotor object and plot its orbit response using Plotly.
 
         Parameters
         ----------
-        fig : matplotlib figure
+        fig : Plotly graph_objects.Figure()
             The figure object with the plot.
-            if None, creates a new one
-        ax : matplotlib.axes
-            Matplotlib axes where orbit response will be plotted.
-            if None, creates a new one
+        kwargs : optional
+            Additional key word arguments can be passed to change the plot layout only
+            (e.g. hoverlabel_align="center", ...).
+            *See Plotly Python Figure Reference for more information.
 
         Returns
         -------
-        ax : matplotlib.axes
-            Matplotlib axes with orbit response plot.
+        fig : Plotly graph_objects.Figure()
+            The figure object with the plot.
         """
-        if ax is None:
-            from mpl_toolkits.mplot3d import Axes3D
-
-            fig = plt.figure()
-            ax = fig.gca(projection="3d")
+        if fig is None:
+            fig = go.Figure()
 
         for n in self.nodes_list:
-            z_pos = np.ones(self.yout.shape[0]) * self.nodes_pos[n]
-            ax.plot(
-                self.yout[200:, 4 * n],
-                self.yout[200:, 4 * n + 1],
-                z_pos[200:],
-                zdir="x",
-                color="k",
+            x_pos = np.ones(self.yout.shape[0]) * self.nodes_pos[n]
+            fig.add_trace(
+                go.Scatter3d(
+                    x=x_pos,
+                    y=self.yout[:, self.number_dof * n],
+                    z=self.yout[:, self.number_dof * n + 1],
+                    mode="lines",
+                    line=dict(color=tableau_colors["blue"]),
+                    name="Mean",
+                    legendgroup="mean",
+                    showlegend=False,
+                    hovertemplate=(
+                        "Nodal Position: %{x:.2f}<br>"
+                        + "X - Amplitude: %{y:.2e}<br>"
+                        + "Y - Amplitude: %{z:.2e}"
+                    ),
+                    **kwargs,
+                )
             )
 
         # plot center line
         line = np.zeros(len(self.nodes_pos))
-        ax.plot(line, line, self.nodes_pos, "k-.", linewidth=1.5, zdir="x")
 
-        ax.set_xlabel("Rotor length (m)", labelpad=20, fontsize=18)
-        ax.set_ylabel("Amplitude - X direction (m)", labelpad=20, fontsize=18)
-        ax.set_zlabel("Amplitude - Y direction (m)", labelpad=20, fontsize=18)
-        ax.set_title("Rotor Orbits", fontsize=18)
-        ax.tick_params(axis="both", which="major", labelsize=18)
-        ax.tick_params(axis="both", which="minor", labelsize=18)
-
-        return ax
-
-    def _plot2d(self, node):
-        """Plot orbit response (2D).
-
-        This function will take a rotor object and plot its orbit response
-        using Bokeh
-
-        Parameters
-        ----------
-        node: int, optional
-            Selected node to plot orbit.
-
-        Returns
-        -------
-        bk_ax : bokeh axes
-            Bokeh axes with orbit response plot
-            if plot_type == "bokeh"
-        """
-        # bokeh plot - create a new plot
-        bk_ax = figure(
-            tools="pan, box_zoom, wheel_zoom, reset, save",
-            width=640,
-            height=480,
-            title="Response for node %s" % (node),
-            x_axis_label="Amplitude - X direction (m)",
-            y_axis_label="Amplitude - Y direction (m)",
-        )
-        bk_ax.xaxis.axis_label_text_font_size = "20pt"
-        bk_ax.yaxis.axis_label_text_font_size = "20pt"
-        bk_ax.title.text_font_size = "14pt"
-
-        bk_ax.line(
-            self.yout[:, 4 * node],
-            self.yout[:, 4 * node + 1],
-            line_width=3,
-            line_color=bokeh_colors[0],
+        fig.add_trace(
+            go.Scatter3d(
+                x=self.nodes_pos,
+                y=line,
+                z=line,
+                mode="lines",
+                line=dict(color="black", dash="dashdot"),
+                showlegend=False,
+            )
         )
 
-        return bk_ax
+        fig.update_layout(
+            scene=dict(
+                xaxis=dict(title=dict(text="<b>Rotor Length</b>")),
+                yaxis=dict(title=dict(text="<b>Amplitude - X</b>")),
+                zaxis=dict(title=dict(text="<b>Amplitude - Y</b>")),
+            ),
+            **kwargs,
+        )
 
-    def plot(self, plot_type="3d", node=None, **kwargs):
-        """Plot orbit response.
+        return fig
 
-        This function will take a rotor object and plot its orbit response.
-        There are two options for plotting type:
-            - 2d: choose a node and a bokeh plot is created.
-            - 3d: a matplotlib displays orbits for all the rotor nodes.
+    def plot(self, plot_type="3d", dof=None, node=None, fig=None, **kwargs):
+        """Plot time response.
+
+        The plot type options are:
+            - 1d: plot time response for a given degree of freedom of a rotor system.
+            - 2d: plot orbit of a selected node of a rotor system.
+            - 3d: plot orbits for each node on the rotor system in a 3D view.
 
         Parameters
         ----------
         plot_type: str
-            3d or 2d.
-            Choose between plotting orbit for all nodes (3d plot) and
-            plotting orbit for a single node (2d plot).
+            String to select the plot type.
+            - "1d": plot time response for a given degree of freedom of a rotor system.
+            - "2d": plot orbit of a selected node of a rotor system.
+            - "3d": plot orbits for each node on the rotor system in a 3D view.
             Default is 3d.
+        dof : int
+            Degree of freedom that will be observed.
+            Fill this attribute only when selection plot_type = "1d".
+            Default is None.
         node: int, optional
             Selected node to plot orbit.
             Fill this attribute only when selection plot_type = "2d".
-            Detault is None
+            Default is None
+        fig : Plotly graph_objects.Figure()
+            The figure object with the plot.
         kwargs : optional
-            Additional key word arguments can be passed to change
-            the plot (e.g. linestyle='--')
+            Additional key word arguments can be passed to change the plot layout only
+            (e.g. width=1000, height=800, ...).
+            *See Plotly Python Figure Reference for more information.
+
+        Raises
+        ------
+        ValueError
+            Error raised if a non valid string is passed to plot_type.
+        ValueError
+            Error raised if no node is specified or an odd node is passed
+            when plot_type = "2d".
+        ValueError
+            Error raised if no dof is specified or an odd dof is passed
+            when plot_type = "1d".
 
         Returns
         -------
-        ax : matplotlib.axes
-            Matplotlib axes with time response plot.
-            if plot_type == "3d"
-        bk_ax : bokeh axes
-            Bokeh axes with time response plot
-            if plot_type == "2d"
+        fig : Plotly graph_objects.Figure()
+            The figure object with the plot.
         """
         if plot_type == "3d":
             return self._plot3d(**kwargs)
         elif plot_type == "2d":
             if node is None:
-                raise Exception("Select a node to plot orbit when plotting 2D")
+                raise Exception("Select a node to plot orbit when plot_type '2d'")
             elif node not in self.nodes_list:
                 raise Exception("Select a valid node to plot 2D orbit")
             return self._plot2d(node=node, **kwargs)
+        elif plot_type == "1d":
+            if dof is None:
+                raise Exception("Select a dof to plot orbit when plot_type == '1d'")
+            return self._plot1d(dof=dof, **kwargs)
         else:
             raise ValueError(f"{plot_type} is not a valid plot type.")

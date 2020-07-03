@@ -1,20 +1,27 @@
+"""Bearing Element module.
+
+This module defines the BearingElement classes which will be used to represent the rotor
+bearings and seals. There're 6 different classes to represent bearings options,
+and 2 element options with 8 or 12 degrees of freedom.
+"""
 # fmt: off
 import os
 import warnings
-from collections import namedtuple
 from pathlib import Path
 
-import bokeh.palettes as bp
-import matplotlib.lines as mlines
-import matplotlib.pyplot as plt
 import numpy as np
+import plotly.graph_objects as go
 import scipy.interpolate as interpolate
+import toml
 
 from ross.element import Element
 from ross.fluid_flow import fluid_flow as flow
 from ross.fluid_flow.fluid_flow_coefficients import (
-    calculate_damping_matrix, calculate_stiffness_matrix)
+    calculate_short_damping_matrix, calculate_short_stiffness_matrix)
+from ross.units import check_units
 from ross.utils import read_table_file
+
+# fmt: on
 
 __all__ = [
     "BearingElement",
@@ -24,37 +31,62 @@ __all__ = [
     "BearingElement6DoF",
     "MagneticBearingElement",
 ]
-# fmt: on
-bokeh_colors = bp.RdGy[11]
 
 
 class _Coefficient:
-    def __init__(self, coefficient, w=None, interpolated=None):
+    """Auxiliary bearing coefficient class.
+
+    This class takes bearing elements' coefficients and frequencies values and
+    interpolate the arrays when necessary.
+
+    Parameters
+    ----------
+    coefficient : int, float, array, pint.Quantity
+        Bearing element stiffness or damping coefficient (direct or cross-coupled).
+        If coefficient is int or float, it is considered constant along the frequency
+        array. If coefficient is an array, it's interpolated with the frequency array.
+    frequency: array, pint.Quantity, optional
+        Array with the frequencies (rad/s).
+        Frequency is optional only if coefficient is an int or a float (constant value).
+
+    Returns
+    -------
+    The bearing element dynamic coefficient.
+        Kxx, Kxy, Kyx, Kyy, Cxx, Cxy, Cyx, Cyy.
+
+    Examples
+    --------
+    >>> bearing = bearing_example()
+    >>> bearing.kxx # doctest: +ELLIPSIS
+    [1000000.0...
+    """
+
+    def __init__(self, coefficient, frequency=None):
         if isinstance(coefficient, (int, float)):
-            if w is not None and type(w) != float:
-                coefficient = [coefficient for _ in range(len(w))]
+            if frequency is not None and type(frequency) != float:
+                coefficient = [coefficient for _ in range(len(frequency))]
             else:
                 coefficient = [coefficient]
 
         self.coefficient = coefficient
-        self.w = w
+        self.frequency = frequency
 
         if len(self.coefficient) > 1:
             try:
                 with warnings.catch_warnings():
                     warnings.simplefilter("ignore")
                     self.interpolated = interpolate.UnivariateSpline(
-                        self.w, self.coefficient
+                        self.frequency, self.coefficient
                     )
             #  dfitpack.error is not exposed by scipy
             #  so a bare except is used
             except:
                 try:
-                    if len(self.w) in (2, 3):
+                    if len(self.frequency) in (2, 3):
                         self.interpolated = interpolate.interp1d(
-                            self.w,
+                            self.frequency,
                             self.coefficient,
-                            kind=len(self.w) - 1,
+                            kind=len(self.frequency) - 1,
                             fill_value="extrapolate",
                         )
                 except:
@@ -66,44 +98,201 @@ class _Coefficient:
             self.interpolated = lambda x: np.array(self.coefficient[0])
 
     def __eq__(self, other):
+        """Equality method for comparasions.
+
+        Parameters
+        ----------
+        other: object
+            The second object to be compared with.
+
+        Returns
+        -------
+        bool
+            True if the comparison is true; False otherwise.
+
+        Examples
+        --------
+        >>> bearing1 = bearing_example()
+        >>> bearing2 = bearing_example()
+        >>> bearing1.kxx == bearing2.kxx
+        True
+        """
         if np.allclose(self.__dict__["coefficient"], other.__dict__["coefficient"]):
             return True
         else:
             return False
 
     def __repr__(self):
-        coef = []
-        for i in self.coefficient:
-            coef.append("{:.2e}".format(i))
-        return f"{coef}"
+        """Return a string representation of a bearing element.
 
-    def plot(self, ax=None, **kwargs):
-        if ax is None:
-            ax = plt.gca()
+        Returns
+        -------
+        A string representation of a bearing element object.
 
-        w_range = np.linspace(min(self.w), max(self.w), 30)
+        Examples
+        --------
+        >>> bearing = bearing_example()
+        >>> bearing.cxx # doctest: +ELLIPSIS
+        [200.0, 200.0, 200.0,...
+        """
+        return repr(self.coefficient)
 
-        ax.plot(w_range, self.interpolated(w_range), **kwargs)
-        ax.set_xlabel("Speed (rad/s)")
-        ax.ticklabel_format(style="sci", scilimits=(0, 0), axis="y")
+    def __getitem__(self, item):
+        """Return an element from the coeffcient array.
 
-        return ax
+        This method allows the elements from the coefficient array to be returned as
+        ints or floats, given an index (item).
+
+        Parameters
+        ----------
+        item : int, slices
+            Array index.
+
+        Returns
+        -------
+        An element from the coefficient array.
+
+        Examples
+        --------
+        >>> bearing = bearing_example()
+        >>> bearing.kxx[0]
+        1000000.0
+        """
+        return self.coefficient[item]
+
+    def plot(self, **kwargs):
+        """Plot coefficient vs frequency.
+
+        Parameters
+        ----------
+        **kwargs : optional
+            Additional key word arguments can be passed to change the plot layout only
+            (e.g. width=1000, height=800, ...).
+            *See Plotly Python Figure Reference for more information.
+
+        Returns
+        -------
+        fig : Plotly graph_objects.Figure()
+            The figure object with the plot.
+
+        Example
+        -------
+        >>> bearing = bearing_example()
+        >>> fig = bearing.kxx.plot()
+        >>> # fig.show()
+        """
+        frequency_range = np.linspace(min(self.frequency), max(self.frequency), 30)
+
+        fig = go.Figure()
+
+        fig.add_trace(
+            go.Scatter(
+                x=frequency_range,
+                y=self.interpolated(frequency_range),
+                mode="lines",
+                line=dict(width=3.0, color="royalblue"),
+                showlegend=False,
+                hovertemplate=("Frequency: %{x:.2f}<br>" + "Coefficient: %{y:.3e}"),
+            )
+        )
+
+        fig.update_xaxes(
+            title_text="<b>Frequency (rad/s)</b>",
+            title_font=dict(family="Arial", size=20),
+            tickfont=dict(size=16),
+            gridcolor="lightgray",
+            showline=True,
+            linewidth=2.5,
+            linecolor="black",
+            mirror=True,
+        )
+        fig.update_yaxes(
+            title_font=dict(family="Arial", size=20),
+            tickfont=dict(size=16),
+            gridcolor="lightgray",
+            showline=True,
+            linewidth=2.5,
+            linecolor="black",
+            mirror=True,
+            exponentformat="power",
+        )
+        fig.update_layout(
+            width=800,
+            height=600,
+            plot_bgcolor="white",
+            hoverlabel_align="right",
+            **kwargs,
+        )
+
+        return fig
 
 
 class _Stiffness_Coefficient(_Coefficient):
-    def plot(self, **kwargs):
-        ax = super().plot(**kwargs)
-        ax.set_ylabel("Stiffness ($N/m$)")
+    """Stiffness coefficient auxiliary class.
 
-        return ax
+    Inherits from _Coefficient class. It will adapt the plot layout to stiffness
+    coefficients.
+    """
+
+    def plot(self, **kwargs):
+        """Plot stiffness coefficient vs frequency.
+
+        Parameters
+        ----------
+        **kwargs : optional
+            Additional key word arguments can be passed to change the plot layout only
+            (e.g. width=1000, height=800, ...).
+            *See Plotly Python Figure Reference for more information.
+
+        Returns
+        -------
+        fig : Plotly graph_objects.Figure()
+            The figure object with the plot.
+
+        Example
+        -------
+        >>> bearing = bearing_example()
+        >>> fig = bearing.kxx.plot()
+        >>> # fig.show()
+        """
+        fig = super().plot(**kwargs)
+        fig.update_yaxes(title_text="<b>Stiffness (N/m)</b>")
+
+        return fig
 
 
 class _Damping_Coefficient(_Coefficient):
-    def plot(self, **kwargs):
-        ax = super().plot(**kwargs)
-        ax.set_ylabel("Damping ($Ns/m$)")
+    """Stiffness coefficient auxiliary class.
 
-        return ax
+    Inherits from _Coefficient class. It will adapt the plot layout to damping
+    coefficients.
+    """
+
+    def plot(self, **kwargs):
+        """Plot damping coefficient vs frequency.
+
+        Parameters
+        ----------
+        **kwargs : optional
+            Additional key word arguments can be passed to change the plot layout only
+            (e.g. width=1000, height=800, ...).
+            *See Plotly Python Figure Reference for more information.
+
+        Returns
+        -------
+        fig : Plotly graph_objects.Figure()
+            The figure object with the plot.
+
+        Example
+        -------
+        >>> bearing = bearing_example()
+        >>> fig = bearing.cxx.plot()
+        >>> # fig.show()
+        """
+        fig = super().plot(**kwargs)
+        fig.update_yaxes(title_text="<b>Damping (Ns/m)</b>")
+
+        return fig
 
 
 class BearingElement(Element):
@@ -120,29 +309,29 @@ class BearingElement(Element):
     ----------
     n: int
         Node which the bearing will be located in
-    kxx: float, array
+    kxx: float, array, pint.Quantity
         Direct stiffness in the x direction.
-    cxx: float, array
+    cxx: float, array, pint.Quantity
         Direct damping in the x direction.
-    kyy: float, array, optional
+    kyy: float, array, pint.Quantity, optional
         Direct stiffness in the y direction.
         (defaults to kxx)
-    cyy: float, array, optional
+    cyy: float, array, pint.Quantity, optional
         Direct damping in the y direction.
         (defaults to cxx)
-    kxy: float, array, optional
+    kxy: float, array, pint.Quantity ,optional
         Cross coupled stiffness in the x direction.
         (defaults to 0)
-    cxy: float, array, optional
+    cxy: float, array, pint.Quantity, optional
         Cross coupled damping in the x direction.
         (defaults to 0)
-    kyx: float, array, optional
+    kyx: float, array, pint.Quantity, optional
         Cross coupled stiffness in the y direction.
         (defaults to 0)
-    cyx: float, array, optional
+    cyx: float, array, pint.Quantity, optional
         Cross coupled damping in the y direction.
         (defaults to 0)
-    frequency: array, optional
+    frequency: array, pint.Quantity, optional
         Array with the frequencies (rad/s).
     tag: str, optional
         A tag to name the element
@@ -154,6 +343,9 @@ class BearingElement(Element):
     scale_factor: float, optional
         The scale factor is used to scale the bearing drawing.
         Default is 1.
+    color : str, optional
+        A color to be used when the element is represented.
+        Default is '#355d7a' (Cardinal).
 
     Examples
     --------
@@ -173,6 +365,7 @@ class BearingElement(Element):
     array([[[200., 200., ...
     """
 
+    @check_units
     def __init__(
         self,
         n,
@@ -205,7 +398,7 @@ class BearingElement(Element):
         for arg in args:
             if arg[0] == "k":
                 coefficients[arg] = _Stiffness_Coefficient(
-                    coefficient=args_dict[arg], w=args_dict["frequency"]
+                    coefficient=args_dict[arg], frequency=args_dict["frequency"]
                 )
             else:
                 coefficients[arg] = _Damping_Coefficient(
@@ -236,21 +429,22 @@ class BearingElement(Element):
         self.n_link = n_link
         self.n_l = n
         self.n_r = n
-
-        self.frequency = np.array(frequency, dtype=np.float64)
+        if frequency is not None:
+            self.frequency = np.array(frequency, dtype=np.float64)
+        else:
+            self.frequency = frequency
         self.tag = tag
         self.color = color
         self.scale_factor = scale_factor
         self.dof_global_index = None
 
     def __repr__(self):
-        """This function returns a string representation of a bearing element.
-        Parameters
-        ----------
+        """Return a string representation of a bearing element.
 
         Returns
         -------
-        A string representation of a bearing object.
+        A string representation of a bearing element object.
+
         Examples
         --------
         >>> bearing = bearing_example()
@@ -269,7 +463,8 @@ class BearingElement(Element):
         )
 
     def __eq__(self, other):
-        """This function allows bearing elements to be compared.
+        """Equality method for comparasions.
+
         Parameters
         ----------
         other: object
@@ -279,6 +474,7 @@ class BearingElement(Element):
         -------
         bool
             True if the comparison is true; False otherwise.
+
         Examples
         --------
         >>> bearing1 = bearing_example()
@@ -297,6 +493,7 @@ class BearingElement(Element):
             "cyx",
             "frequency",
             "n",
+            "n_link",
         ]
         if isinstance(other, self.__class__):
             return all(
@@ -311,132 +508,71 @@ class BearingElement(Element):
     def __hash__(self):
         return hash(self.tag)
 
-    def save(self, file_name=Path(os.getcwd())):
-        """Saves a bearing element in a toml format. It works as an auxiliary
-        function of the save function in the Rotor class.
+    def save(self, file):
+        try:
+            data = toml.load(file)
+        except FileNotFoundError:
+            data = {}
 
-        Parameters
-        ----------
-        file_name: string
-            The name of the file the bearing element will be saved in.
-
-        Returns
-        -------
-        None
-
-        Examples
-        --------
-        >>> bearing = bearing_example()
-        >>> bearing.save(Path(os.getcwd()))
-        """
-        data = self.get_data(Path(file_name) / "BearingElement.toml")
-
-        if type(self.frequency) == np.ndarray:
-            try:
-                self.frequency[0]
-                frequency = list(self.frequency)
-            except IndexError:
-                frequency = None
-
-        data["BearingElement"][str(self.n)] = {
+        args = {
             "n": self.n,
-            "kxx": self.kxx.coefficient,
-            "cxx": self.cxx.coefficient,
-            "kyy": self.kyy.coefficient,
-            "kxy": self.kxy.coefficient,
-            "kyx": self.kyx.coefficient,
-            "cyy": self.cyy.coefficient,
-            "cxy": self.cxy.coefficient,
-            "cyx": self.cyx.coefficient,
-            "frequency": frequency,
+            "kxx": [float(i) for i in self.kxx.coefficient],
+            "cxx": [float(i) for i in self.cxx.coefficient],
+            "kyy": [float(i) for i in self.kyy.coefficient],
+            "kxy": [float(i) for i in self.kxy.coefficient],
+            "kyx": [float(i) for i in self.kyx.coefficient],
+            "cyy": [float(i) for i in self.cyy.coefficient],
+            "cxy": [float(i) for i in self.cxy.coefficient],
+            "cyx": [float(i) for i in self.cyx.coefficient],
             "tag": self.tag,
+            "n_link": self.n_link,
+            "scale_factor": self.scale_factor,
         }
-        self.dump_data(data, Path(file_name) / "BearingElement.toml")
+        if self.frequency is not None:
+            args["frequency"] = [float(i) for i in self.frequency]
+        else:
+            args["frequency"] = self.frequency
 
-    @staticmethod
-    def load(file_name=""):
-        """Loads a list of bearing elements saved in a toml format.
+        data[f"{self.__class__.__name__}_{self.tag}"] = args
 
-        Parameters
-        ----------
-        file_name: string
-            The name of the file of the bearing element to be loaded.
-
-        Returns
-        -------
-        A list of bearing elements.
-
-        Examples
-        --------
-        >>> bearing1 = bearing_example()
-        >>> bearing1.save(os.getcwd())
-        >>> list_of_bearings = BearingElement.load(os.getcwd())
-        >>> bearing1 == list_of_bearings[0]
-        True
-        """
-        bearing_elements = []
-        bearing_elements_dict = BearingElement.get_data(
-            file_name=Path(file_name) / "BearingElement.toml"
-        )
-        for element in bearing_elements_dict["BearingElement"]:
-            bearing = BearingElement(**bearing_elements_dict["BearingElement"][element])
-            bearing.kxx.coefficient = bearing_elements_dict["BearingElement"][element][
-                "kxx"
-            ]
-
-            bearing.kxy.coefficient = bearing_elements_dict["BearingElement"][element][
-                "kxy"
-            ]
-
-            bearing.kyx.coefficient = bearing_elements_dict["BearingElement"][element][
-                "kyx"
-            ]
-
-            bearing.kyy.coefficient = bearing_elements_dict["BearingElement"][element][
-                "kyy"
-            ]
-
-            bearing.cxx.coefficient = bearing_elements_dict["BearingElement"][element][
-                "cxx"
-            ]
-
-            bearing.cxy.coefficient = bearing_elements_dict["BearingElement"][element][
-                "cxy"
-            ]
-
-            bearing.cyx.coefficient = bearing_elements_dict["BearingElement"][element][
-                "cyx"
-            ]
-
-            bearing.cyy.coefficient = bearing_elements_dict["BearingElement"][element][
-                "cyy"
-            ]
-
-            bearing_elements.append(bearing)
-        return bearing_elements
+        with open(file, "w") as f:
+            toml.dump(data, f)
 
     def dof_mapping(self):
-        return dict(x_0=0, y_0=1)
+        """Degrees of freedom mapping.
 
-    def dof_global_index(self):
-        """Get the global index for an element specific degree of freedom."""
-        global_index = super().dof_global_index()
-
-        if self.n_link is not None:
-            global_index = global_index._asdict()
-            global_index[f"x_{self.n_link}"] = 4 * self.n_link
-            global_index[f"y_{self.n_link}"] = 4 * self.n_link + 1
-            dof_tuple = namedtuple("GlobalIndex", global_index)
-            global_index = dof_tuple(**global_index)
-
-        return global_index
-
-    def M(self):
-        """Mass matrix.
+        Returns a dictionary with a mapping between degree of freedom and its
+        index.
 
         Returns
         -------
-        M: np.ndarray
+        dof_mapping : dict
+            A dictionary containing the degrees of freedom and their indexes.
+
+        Examples
+        --------
+        The numbering of the degrees of freedom for each node.
+
+        Being the following their ordering for a node:
+
+        x_0 - horizontal translation
+        y_0 - vertical translation
+
+        >>> bearing = bearing_example()
+        >>> bearing.dof_mapping()
+        {'x_0': 0, 'y_0': 1}
+        """
+        return dict(x_0=0, y_0=1)
+
+    def M(self):
+        """Mass matrix for an instance of a bearing element.
+
+        This method returns the mass matrix for an instance of a bearing
+        element.
+
+        Returns
+        -------
+        M : np.ndarray
             Mass matrix.
 
         Examples
@@ -451,16 +587,19 @@ class BearingElement(Element):
         return M
 
     def K(self, frequency):
-        """Returns the stiffness matrix for a given excitation frequency.
+        """Stiffness matrix for an instance of a bearing element.
+
+        This method returns the stiffness matrix for an instance of a bearing
+        element.
 
         Parameters
         ----------
-        frequency: float
-            The excitation frequency (rad/s).
+        frequency : float
+            The excitation frequency.
 
         Returns
         -------
-        K: np.ndarray
+        K : np.ndarray
             A 2x2 matrix of floats containing the kxx, kxy, kyx, and kyy values.
 
         Examples
@@ -486,16 +625,19 @@ class BearingElement(Element):
         return K
 
     def C(self, frequency):
-        """Returns the damping matrix for a given excitation frequency.
+        """Damping matrix for an instance of a bearing element.
+
+        This method returns the damping matrix for an instance of a bearing
+        element.
 
         Parameters
         ----------
-        frequency: float
-            The excitation frequency (rad/s).
+        frequency : float
+            The excitation frequency.
 
         Returns
         -------
-        C: np.ndarray
+        C : np.ndarray
             A 2x2 matrix of floats containing the cxx, cxy, cyx, and cyy values.
 
         Examples
@@ -521,11 +663,14 @@ class BearingElement(Element):
         return C
 
     def G(self):
-        """Gyroscopic matrix.
+        """Gyroscopic matrix for an instance of a bearing element.
+
+        This method returns the mass matrix for an instance of a bearing
+        element.
 
         Returns
         -------
-        G: np.ndarray
+        G : np.ndarray
             A 2x2 matrix of floats.
 
         Examples
@@ -539,23 +684,31 @@ class BearingElement(Element):
 
         return G
 
-    def patch(self, position, ax, **kwargs):
+    def _patch(self, position, fig):
         """Bearing element patch.
-        Patch that will be used to draw the bearing element.
+
+        Patch that will be used to draw the bearing element using Plotly library.
 
         Parameters
         ----------
         position : tuple
             Position (z, y_low, y_upp) in which the patch will be drawn.
-        ax : matplotlib axes, optional
-            Axes in which the plot will be drawn.
+        fig : plotly.graph_objects.Figure
+            The figure object which traces are added on.
 
         Returns
         -------
+        fig : plotly.graph_objects.Figure
+            The figure object which traces are added on.
         """
-        default_values = dict(lw=1.0, alpha=1.0, c="k")
-        for k, v in default_values.items():
-            kwargs.setdefault(k, v)
+        default_values = dict(
+            mode="lines",
+            line=dict(width=3.5, color=self.color),
+            name=self.tag,
+            legendgroup="bearings",
+            showlegend=False,
+            hoverinfo="none",
+        )
 
         # geometric factors
         zpos, ypos, ypos_s = position
@@ -574,8 +727,9 @@ class BearingElement(Element):
         x_bot = [zpos, zpos, zs0, zs1]
         yl_bot = [ypos, ys0, ys0, ys0]
         yu_bot = [-y for y in yl_bot]
-        ax.add_line(mlines.Line2D(x_bot, yl_bot, **kwargs))
-        ax.add_line(mlines.Line2D(x_bot, yu_bot, **kwargs))
+
+        fig.add_trace(go.Scatter(x=x_bot, y=yl_bot, **default_values))
+        fig.add_trace(go.Scatter(x=x_bot, y=yu_bot, **default_values))
 
         # plot top base
         x_top = [zpos, zpos, zs0, zs1]
@@ -586,24 +740,24 @@ class BearingElement(Element):
             ypos + 0.75 * icon_h,
         ]
         yu_top = [-y for y in yl_top]
-        ax.add_line(mlines.Line2D(x_top, yl_top, **kwargs))
-        ax.add_line(mlines.Line2D(x_top, yu_top, **kwargs))
+        fig.add_trace(go.Scatter(x=x_top, y=yl_top, **default_values))
+        fig.add_trace(go.Scatter(x=x_top, y=yu_top, **default_values))
 
         # plot ground
         if self.n_link is None:
             zl_g = [zs0 - step, zs1 + step]
             yl_g = [yl_top[0], yl_top[0]]
             yu_g = [-y for y in yl_g]
-            ax.add_line(mlines.Line2D(zl_g, yl_g, **kwargs))
-            ax.add_line(mlines.Line2D(zl_g, yu_g, **kwargs))
+            fig.add_trace(go.Scatter(x=zl_g, y=yl_g, **default_values))
+            fig.add_trace(go.Scatter(x=zl_g, y=yu_g, **default_values))
 
             step2 = (zl_g[1] - zl_g[0]) / n
             for i in range(n + 1):
                 zl_g2 = [(zs0 - step) + step2 * (i), (zs0 - step) + step2 * (i + 1)]
                 yl_g2 = [yl_g[0], 1.1 * yl_g[0]]
                 yu_g2 = [-y for y in yl_g2]
-                ax.add_line(mlines.Line2D(zl_g2, yl_g2, **kwargs))
-                ax.add_line(mlines.Line2D(zl_g2, yu_g2, **kwargs))
+                fig.add_trace(go.Scatter(x=zl_g2, y=yl_g2, **default_values))
+                fig.add_trace(go.Scatter(x=zl_g2, y=yu_g2, **default_values))
 
         # plot spring
         z_spring = np.array([zs0, zs0, zs0, zs0])
@@ -614,24 +768,22 @@ class BearingElement(Element):
             yl_spring = np.insert(yl_spring, i + 2, ys0 + (i + 1) * step)
         yu_spring = [-y for y in yl_spring]
 
-        ax.add_line(mlines.Line2D(z_spring, yl_spring, **kwargs))
-        ax.add_line(mlines.Line2D(z_spring, yu_spring, **kwargs))
+        fig.add_trace(go.Scatter(x=z_spring, y=yl_spring, **default_values))
+        fig.add_trace(go.Scatter(x=z_spring, y=yu_spring, **default_values))
 
         # plot damper - base
         z_damper1 = [zs1, zs1]
         yl_damper1 = [ys0, ys0 + 2 * step]
         yu_damper1 = [-y for y in yl_damper1]
-
-        ax.add_line(mlines.Line2D(z_damper1, yl_damper1, **kwargs))
-        ax.add_line(mlines.Line2D(z_damper1, yu_damper1, **kwargs))
+        fig.add_trace(go.Scatter(x=z_damper1, y=yl_damper1, **default_values))
+        fig.add_trace(go.Scatter(x=z_damper1, y=yu_damper1, **default_values))
 
         # plot damper - center
         z_damper2 = [zs1 - 2 * step, zs1 - 2 * step, zs1 + 2 * step, zs1 + 2 * step]
         yl_damper2 = [ys0 + 5 * step, ys0 + 2 * step, ys0 + 2 * step, ys0 + 5 * step]
         yu_damper2 = [-y for y in yl_damper2]
-
-        ax.add_line(mlines.Line2D(z_damper2, yl_damper2, **kwargs))
-        ax.add_line(mlines.Line2D(z_damper2, yu_damper2, **kwargs))
+        fig.add_trace(go.Scatter(x=z_damper2, y=yl_damper2, **default_values))
+        fig.add_trace(go.Scatter(x=z_damper2, y=yu_damper2, **default_values))
 
         # plot damper - top
         z_damper3 = [z_damper2[0], z_damper2[2], zs1, zs1]
@@ -643,122 +795,17 @@ class BearingElement(Element):
         ]
         yu_damper3 = [-y for y in yl_damper3]
 
-        ax.add_line(mlines.Line2D(z_damper3, yl_damper3, **kwargs))
-        ax.add_line(mlines.Line2D(z_damper3, yu_damper3, **kwargs))
+        fig.add_trace(go.Scatter(x=z_damper3, y=yl_damper3, **default_values))
+        fig.add_trace(go.Scatter(x=z_damper3, y=yu_damper3, **default_values))
 
-    def bokeh_patch(self, position, bk_ax, **kwargs):
-        """Bearing element patch.
-        Patch that will be used to draw the bearing element.
-
-        Parameters
-        ----------
-        position : tuple
-            Position (z, y_low, y_upp) in which the patch will be drawn.
-        bk_ax : bokeh plotting axes, optional
-            Axes in which the plot will be drawn.
-
-        Returns
-        -------
-        """
-        default_values = dict(line_width=3, line_alpha=1, color=bokeh_colors[1])
-        for k, v in default_values.items():
-            kwargs.setdefault(k, v)
-
-        # geometric factors
-        zpos, ypos, ypos_s = position
-
-        icon_h = ypos_s - ypos  # bearing icon height
-        icon_w = icon_h / 2.0  # bearing icon width
-        coils = 6  # number of points to generate spring
-        n = 5  # number of ground lines
-        step = icon_w / (coils + 1)  # spring step
-
-        zs0 = zpos - (icon_w / 2.0)
-        zs1 = zpos + (icon_w / 2.0)
-        ys0 = ypos + 0.25 * icon_h
-
-        # plot bottom base
-        x_bot = [zpos, zpos, zs0, zs1]
-        yl_bot = [ypos, ys0, ys0, ys0]
-        yu_bot = [-y for y in yl_bot]
-        bk_ax.line(x=x_bot, y=yl_bot, **kwargs)
-        bk_ax.line(x=x_bot, y=yu_bot, **kwargs)
-
-        # plot top base
-        x_top = [zpos, zpos, zs0, zs1]
-        yl_top = [
-            ypos + icon_h,
-            ypos + 0.75 * icon_h,
-            ypos + 0.75 * icon_h,
-            ypos + 0.75 * icon_h,
-        ]
-        yu_top = [-y for y in yl_top]
-        bk_ax.line(x=x_top, y=yl_top, legend_label="Bearing", **kwargs)
-        bk_ax.line(x=x_top, y=yu_top, legend_label="Bearing", **kwargs)
-
-        # plot ground
-        if self.n_link is None:
-            zl_g = [zs0 - step, zs1 + step]
-            yl_g = [yl_top[0], yl_top[0]]
-            yu_g = [-y for y in yl_g]
-            bk_ax.line(x=zl_g, y=yl_g, **kwargs)
-            bk_ax.line(x=zl_g, y=yu_g, **kwargs)
-
-            step2 = (zl_g[1] - zl_g[0]) / n
-            for i in range(n + 1):
-                zl_g2 = [(zs0 - step) + step2 * (i), (zs0 - step) + step2 * (i + 1)]
-                yl_g2 = [yl_g[0], 1.1 * yl_g[0]]
-                yu_g2 = [-y for y in yl_g2]
-                bk_ax.line(x=zl_g2, y=yl_g2, **kwargs)
-                bk_ax.line(x=zl_g2, y=yu_g2, **kwargs)
-
-        # plot spring
-        z_spring = np.array([zs0, zs0, zs0, zs0])
-        yl_spring = np.array([ys0, ys0 + step, ys0 + icon_w - step, ys0 + icon_w])
-
-        for i in range(coils):
-            z_spring = np.insert(z_spring, i + 2, zs0 - (-1) ** i * step)
-            yl_spring = np.insert(yl_spring, i + 2, ys0 + (i + 1) * step)
-        yu_spring = [-y for y in yl_spring]
-
-        bk_ax.line(x=z_spring, y=yl_spring, **kwargs)
-        bk_ax.line(x=z_spring, y=yu_spring, **kwargs)
-
-        # plot damper - base
-        z_damper1 = [zs1, zs1]
-        yl_damper1 = [ys0, ys0 + 2 * step]
-        yu_damper1 = [-y for y in yl_damper1]
-
-        bk_ax.line(x=z_damper1, y=yl_damper1, **kwargs)
-        bk_ax.line(x=z_damper1, y=yu_damper1, **kwargs)
-
-        # plot damper - center
-        z_damper2 = [zs1 - 2 * step, zs1 - 2 * step, zs1 + 2 * step, zs1 + 2 * step]
-        yl_damper2 = [ys0 + 5 * step, ys0 + 2 * step, ys0 + 2 * step, ys0 + 5 * step]
-        yu_damper2 = [-y for y in yl_damper2]
-
-        bk_ax.line(x=z_damper2, y=yl_damper2, **kwargs)
-        bk_ax.line(x=z_damper2, y=yu_damper2, **kwargs)
-
-        # plot damper - top
-        z_damper3 = [z_damper2[0], z_damper2[2], zs1, zs1]
-        yl_damper3 = [
-            ys0 + 4 * step,
-            ys0 + 4 * step,
-            ys0 + 4 * step,
-            ypos + 1.5 * icon_w,
-        ]
-        yu_damper3 = [-y for y in yl_damper3]
-
-        bk_ax.line(x=z_damper3, y=yl_damper3, **kwargs)
-        bk_ax.line(x=z_damper3, y=yu_damper3, **kwargs)
+        return fig
 
     @classmethod
     def table_to_toml(cls, n, file):
         """Convert bearing parameters to toml.
 
-        Convert a table with parameters of a bearing element to a dictionary ready to save
-        to a toml file that can be later loaded by ross.
+        Convert a table with parameters of a bearing element to a dictionary ready to
+        save to a toml file that can be later loaded by ross.
 
         Parameters
         ----------
@@ -777,7 +824,7 @@ class BearingElement(Element):
         >>> import os
         >>> file_path = os.path.dirname(os.path.realpath(__file__)) + '/tests/data/bearing_seal_si.xls'
         >>> BearingElement.table_to_toml(0, file_path) # doctest: +ELLIPSIS
-        {'n': 0, 'kxx': [...
+        {'n': 0, 'kxx': array([...
         """
         b_elem = cls.from_table(n, file)
         data = {
@@ -795,11 +842,21 @@ class BearingElement(Element):
         return data
 
     @classmethod
-    def from_table(cls, n, file, sheet_name=0, **kwargs):
+    def from_table(
+        cls,
+        n,
+        file,
+        sheet_name=0,
+        tag=None,
+        n_link=None,
+        scale_factor=1,
+        color="#355d7a",
+    ):
         """Instantiate a bearing using inputs from an Excel table.
 
-        A header with the names of the columns is required. These names should match the names expected by the routine
-        (usually the names of the parameters, but also similar ones). The program will read every row bellow the header
+        A header with the names of the columns is required. These names should match the
+        names expected by the routine (usually the names of the parameters, but also
+        similar ones). The program will read every row bellow the header
         until they end or it reaches a NaN.
 
         Parameters
@@ -809,8 +866,21 @@ class BearingElement(Element):
         file: str
             Path to the file containing the bearing parameters.
         sheet_name: int or str, optional
-            Position of the sheet in the file (starting from 0) or its name. If none is passed, it is
-            assumed to be the first sheet in the file.
+            Position of the sheet in the file (starting from 0) or its name. If none is
+            passed, it is assumed to be the first sheet in the file.
+        tag : str, optional
+            A tag to name the element.
+            Default is None.
+        n_link : int, optional
+            Node to which the bearing will connect. If None the bearing is connected to
+            ground.
+            Default is None.
+        scale_factor : float, optional
+            The scale factor is used to scale the bearing drawing.
+            Default is 1.
+        color : str, optional
+            A color to be used when the element is represented.
+            Default is '#355d7a' (Cardinal).
 
         Returns
         -------
@@ -821,9 +891,9 @@ class BearingElement(Element):
         --------
         >>> import os
         >>> file_path = os.path.dirname(os.path.realpath(__file__)) + '/tests/data/bearing_seal_si.xls'
-        >>> BearingElement.from_table(0, file_path) # doctest: +ELLIPSIS
-        BearingElement(n=0, n_link=None,
-         kxx=[...
+        >>> BearingElement.from_table(0, file_path, n_link=1) # doctest: +ELLIPSIS
+        BearingElement(n=0, n_link=1,
+         kxx=array([...
         """
         parameters = read_table_file(file, "bearing", sheet_name, n)
         return cls(
@@ -837,7 +907,10 @@ class BearingElement(Element):
             cxy=parameters["cxy"],
             cyx=parameters["cyx"],
             frequency=parameters["frequency"],
-            **kwargs,
+            tag=tag,
+            n_link=n_link,
+            scale_factor=scale_factor,
+            color=color,
         )
 
     @classmethod
@@ -948,8 +1021,8 @@ class BearingElement(Element):
             eccentricity=eccentricity,
             load=load,
         )
-        c = calculate_damping_matrix(fluid_flow, force_type="short")
-        k = calculate_stiffness_matrix(fluid_flow, force_type="short")
+        c = calculate_short_damping_matrix(fluid_flow)
+        k = calculate_short_stiffness_matrix(fluid_flow)
         return cls(
             n,
             kxx=k[0],
@@ -974,39 +1047,56 @@ class SealElement(BearingElement):
     passed as an array.
     Values for each parameter will be interpolated for the speed.
 
+    SealElement objects are handled differently in the Rotor class, even though it
+    inherits from BearingElement class. Seal elements are not considered in static
+    analysis, i.e., it does not add reaction forces (only bearings support the rotor).
+    In stability level 1 analysis, seal elements are removed temporarily from the model,
+    so that the cross coupled coefficients are calculated and replace the seals from
+    the rotor model.
+    SealElement data is stored in an individual data frame, separate from other
+    bearing elements.
+
+    Notes
+    -----
+    SealElement class is strongly recommended to represent seals.
+    Avoid using BearingElement class for this purpose.
+
     Parameters
     ----------
     n: int
         Node which the bearing will be located in
-    kxx: float, array
+    kxx: float, array, pint.Quantity
         Direct stiffness in the x direction.
-    cxx: float, array
+    cxx: float, array, pint.Quantity
         Direct damping in the x direction.
-    kyy: float, array, optional
+    kyy: float, array, pint.Quantity, optional
         Direct stiffness in the y direction.
         (defaults to kxx)
-    cyy: float, array, optional
+    cyy: float, array, pint.Quantity, optional
         Direct damping in the y direction.
         (defaults to cxx)
-    kxy: float, array, optional
+    kxy: float, array, pint.Quantity, optional
         Cross coupled stiffness in the x direction.
         (defaults to 0)
-    cxy: float, array, optional
+    cxy: float, array, pint.Quantity, optional
         Cross coupled damping in the x direction.
         (defaults to 0)
-    kyx: float, array, optional
+    kyx: float, array, pint.Quantity, optional
         Cross coupled stiffness in the y direction.
         (defaults to 0)
-    cyx: float, array, optional
+    cyx: float, array, pint.Quantity, optional
         Cross coupled damping in the y direction.
         (defaults to 0)
-    frequency: array, optional
+    frequency: array, pint.Quantity, optional
         Array with the speeds (rad/s).
     seal_leakage: float, optional
-        Amount of leakage
+        Amount of leakage.
     tag : str, optional
         A tag to name the element
-        Default is None
+        Default is None.
+    scale_factor: float, optional
+        The scale factor is used to scale the seal drawing.
+        Default is 1
 
     Examples
     --------
@@ -1026,6 +1116,7 @@ class SealElement(BearingElement):
     array([[[200., 200., ...
     """
 
+    @check_units
     def __init__(
         self,
         n,
@@ -1040,6 +1131,7 @@ class SealElement(BearingElement):
         frequency=None,
         seal_leakage=None,
         tag=None,
+        scale_factor=1.0,
     ):
         super().__init__(
             n=n,
@@ -1053,6 +1145,7 @@ class SealElement(BearingElement):
             cyx=cyx,
             cyy=cyy,
             tag=tag,
+            scale_factor=scale_factor,
         )
 
         self.seal_leakage = seal_leakage
@@ -1061,6 +1154,7 @@ class SealElement(BearingElement):
 
 class BallBearingElement(BearingElement):
     """A bearing element for ball bearings.
+
     This class will create a bearing element based on some geometric and
     constructive parameters of ball bearings. The main difference is that
     cross-coupling stiffness and damping are not modeled in this case.
@@ -1068,25 +1162,32 @@ class BallBearingElement(BearingElement):
     Parameters
     ----------
     n: int
-        Node which the bearing will be located in
+        Node which the bearing will be located in.
     n_balls: float
-        Number of steel spheres in the bearing
+        Number of steel spheres in the bearing.
     d_balls: float
-        Diameter of the steel sphere
+        Diameter of the steel sphere.
     fs: float,optional
-        Static bearing loading force
+        Static bearing loading force.
     alpha: float, optional
-        Contact angle between the steel sphere and the inner / outer raceway
-        (defaults to cxx)
+        Contact angle between the steel sphere and the inner / outer raceway.
     cxx: float, optional
         Direct stiffness in the x direction.
-        Default is None)
+        Default is None.
     cyy: float, optional
         Direct damping in the y direction.
-        Defaults is None
-    tag : str, optional
+        Defaults is None.
+    tag: str, optional
         A tag to name the element
-        Default is None
+        Default is None.
+    n_link: int, optional
+        Node to which the bearing will connect. If None the bearing is
+        connected to ground.
+        Default is None.
+    scale_factor: float, optional
+        The scale factor is used to scale the bearing drawing.
+        Default is 1.
+
     Examples
     --------
     >>> n = 0
@@ -1102,7 +1203,19 @@ class BallBearingElement(BearingElement):
            [0.00000000e+00, 1.00906269e+08]])
     """
 
-    def __init__(self, n, n_balls, d_balls, fs, alpha, cxx=None, cyy=None, tag=None):
+    def __init__(
+        self,
+        n,
+        n_balls,
+        d_balls,
+        fs,
+        alpha,
+        cxx=None,
+        cyy=None,
+        tag=None,
+        n_link=None,
+        scale_factor=1,
+    ):
 
         Kb = 13.0e6
         kyy = (
@@ -1140,6 +1253,8 @@ class BallBearingElement(BearingElement):
             cyx=0.0,
             cyy=cyy,
             tag=tag,
+            n_link=n_link,
+            scale_factor=scale_factor,
         )
 
         self.color = "#77ACA2"
@@ -1147,6 +1262,7 @@ class BallBearingElement(BearingElement):
 
 class RollerBearingElement(BearingElement):
     """A bearing element for roller bearings.
+
     This class will create a bearing element based on some geometric and
     constructive parameters of roller bearings. The main difference is that
     cross-coupling stiffness and damping are not modeled in this case.
@@ -1154,25 +1270,32 @@ class RollerBearingElement(BearingElement):
     Parameters
     ----------
     n: int
-        Node which the bearing will be located in
+        Node which the bearing will be located in.
     n_rollers: float
-        Number of steel spheres in the bearing
+        Number of steel spheres in the bearing.
     l_rollers: float
-        Diameter of the steel sphere
+        Length of the steel rollers.
     fs: float,optional
-        Static bearing loading force
+        Static bearing loading force.
     alpha: float, optional
-        Contact angle between the steel sphere and the inner / outer raceway
-        (defaults to cxx)
+        Contact angle between the steel sphere and the inner / outer raceway.
     cxx: float, optional
         Direct stiffness in the x direction.
-        Default is None)
+        Default is None.
     cyy: float, optional
         Direct damping in the y direction.
-        Defaults is None
-    tag : str, optional
+        Defaults is None.
+    tag: str, optional
         A tag to name the element
-        Default is None
+        Default is None.
+    n_link: int, optional
+        Node to which the bearing will connect. If None the bearing is
+        connected to ground.
+        Default is None.
+    scale_factor: float, optional
+        The scale factor is used to scale the bearing drawing.
+        Default is 1.
+
     Examples
     --------
     >>> n = 0
@@ -1189,7 +1312,17 @@ class RollerBearingElement(BearingElement):
     """
 
     def __init__(
-        self, n, n_rollers, l_rollers, fs, alpha, cxx=None, cyy=None, tag=None
+        self,
+        n,
+        n_rollers,
+        l_rollers,
+        fs,
+        alpha,
+        cxx=None,
+        cyy=None,
+        tag=None,
+        n_link=None,
+        scale_factor=1,
     ):
 
         Kb = 1.0e9
@@ -1228,6 +1361,8 @@ class RollerBearingElement(BearingElement):
             cyx=0.0,
             cyy=cyy,
             tag=tag,
+            n_link=n_link,
+            scale_factor=scale_factor,
         )
 
         self.color = "#77ACA2"
@@ -1237,143 +1372,84 @@ class MagneticBearingElement(BearingElement):
     """Magnetic bearing.
 
     This class creates a magnetic bearing element.
-    Parameters can be a constant value or speed dependent.
-    For speed dependent parameters, each argument should be passed
-    as an array and the correspondent speed values should also be
-    passed as an array.
+    Converts electromagnetic parameters and PID gains to stiffness and damping
+    coefficients.
 
-     Parameters
-     ----------
-    n: int
-        Node which the bearing will be located in
-    kxx: float, array
-        Direct stiffness in the x direction.
-    cxx: float, array
-        Direct damping in the x direction.
-    kyy: float, array, optional
-        Direct stiffness in the y direction.
-        (defaults to kxx)
-    cyy: float, array, optional
-        Direct damping in the y direction.
-        (defaults to cxx)
-    kxy: float, array, optional
-        Cross coupled stiffness in the x direction.
-        (defaults to 0)
-    cxy: float, array, optional
-        Cross coupled damping in the x direction.
-        (defaults to 0)
-    kyx: float, array, optional
-        Cross coupled stiffness in the y direction.
-        (defaults to 0)
-    cyx: float, array, optional
-        Cross coupled damping in the y direction.
-        (defaults to 0)
-    frequency: array, optional
-        Array with the speeds (rad/s).
-    tag : str, optional
+    Parameters
+    ----------
+    n : int
+        The node in which the magnetic bearing will be located in the rotor.
+    g0: float
+        Air gap in m^2.
+    i0: float
+        Bias current in Ampere
+    ag: float
+        Pole area in m^2.
+    nw: float or int
+        Number of windings
+    alpha: float or int
+        Pole angle in radians.
+    kp_pid: float or int
+        Proportional gain of the PID controller.
+    kd_pid: float or int
+        Derivative gain of the PID controller.
+    k_amp: float or int
+        Gain of the amplifier model.
+    k_sense: float or int
+        Gain of the sensor model.
+    tag: str, optional
         A tag to name the element
-        Default is None
+        Default is None.
+    n_link: int, optional
+        Node to which the bearing will connect. If None the bearing is
+        connected to ground.
+        Default is None.
+    scale_factor: float, optional
+        The scale factor is used to scale the bearing drawing.
+        Default is 1.
+
+    ----------
+    See the following reference for the electromagnetic parameters g0, i0, ag, nw, alpha:
+    Book: Magnetic Bearings. Theory, Design, and Application to Rotating Machinery
+    Authors: Gerhard Schweitzer and Eric H. Maslen
+    Page: 84-95
 
     Examples
     --------
-    >>> # A seal element located in the first rotor node, with these
-    >>> # following stiffness and damping coefficients and speed range from
-    >>> # 0 to 200 rad/s
-    >>> kxx = 1e3
-    >>> kyy = 1e3
-    >>> kxy = 1e1
-    >>> kyx = 1e1
-    >>> cxx = 1e3
-    >>> cyy = 1e3
-    >>> cxy = 1e1
-    >>> cyx = 1e3
-    >>> frequency = np.linspace(0, 100, 4)
-    >>> mb = MagneticBearingElement(n=0,kxx=kxx,kyy=kyy,kxy=kxy,kyx=kyx,cxx=cxx,cyy=cyy,cxy=cxy,cyx=cyx,frequency=frequency)
-    >>> mb.kxx
-    ['1.00e+03', '1.00e+03', '1.00e+03', '1.00e+03']
+    >>> n = 0
+    >>> g0 = 1e-3
+    >>> i0 = 1.0
+    >>> ag = 1e-4
+    >>> nw = 200
+    >>> alpha = 0.392
+    >>> kp_pid = 1.0
+    >>> kd_pid = 1.0
+    >>> k_amp = 1.0
+    >>> k_sense = 1.0
+    >>> tag = "magneticbearing"
+    >>> mbearing = MagneticBearingElement(n=n, g0=g0, i0=i0, ag=ag, nw=nw,alpha=alpha,
+    ...                                   kp_pid=kp_pid, kd_pid=kd_pid, k_amp=k_amp,
+    ...                                   k_sense=k_sense)
+    >>> mbearing.kxx
+    [-4640.623377181318]
     """
 
     def __init__(
         self,
         n,
-        kxx,
-        cxx,
-        kyy=None,
-        kxy=0,
-        kyx=0,
-        cyy=None,
-        cxy=0,
-        cyx=0,
-        frequency=None,
+        g0,
+        i0,
+        ag,
+        nw,
+        alpha,
+        kp_pid,
+        kd_pid,
+        k_amp,
+        k_sense,
         tag=None,
+        n_link=None,
+        scale_factor=1,
     ):
-        super().__init__(
-            n=n,
-            frequency=frequency,
-            kxx=kxx,
-            kxy=kxy,
-            kyx=kyx,
-            kyy=kyy,
-            cxx=cxx,
-            cxy=cxy,
-            cyx=cyx,
-            cyy=cyy,
-            tag=tag,
-        )
-
-    @classmethod
-    def param_to_coef(
-        cls, n, g0, i0, ag, nw, alpha, kp_pid, kd_pid, k_amp, k_sense, tag=None
-    ):
-        """
-        Convert electromagnetic parameters and PID gains to stiffness and damping coefficients.
-
-        Parameters
-        ----------
-        n : int
-            The node in which the magnetic bearing will be located in the rotor.
-        g0: float
-            Air gap in m^2.
-        i0: float
-            Bias current in Ampere
-        ag: float
-            Pole area in m^2.
-        nw: float or int
-            Number of windings
-        alpha: float or int
-            Pole angle in radians.
-        kp_pid: float or int
-            Proportional gain of the PID controller.
-        kd_pid: float or int
-            Derivative gain of the PID controller.
-        k_amp: float or int
-            Gain of the amplifier model.
-        k_sense: float or int
-            Gain of the sensor model.
-        ----------
-        See the following reference for the electromagnetic parameters g0, i0, ag, nw, alpha:
-        Book: Magnetic Bearings. Theory, Design, and Application to Rotating Machinery
-        Authors: Gerhard Schweitzer and Eric H. Maslen
-        Page: 84-95
-
-        Examples
-        --------
-        >>> n = 0
-        >>> g0 = 1e-3
-        >>> i0 = 1.0
-        >>> ag = 1e-4
-        >>> nw = 200
-        >>> alpha = 0.392
-        >>> kp_pid = 1.0
-        >>> kd_pid = 1.0
-        >>> k_amp = 1.0
-        >>> k_sense = 1.0
-        >>> tag = "magneticbearing"
-        >>> mbearing = MagneticBearingElement.param_to_coef(n=n,g0=g0,i0=i0,ag=ag,nw=nw,alpha=alpha, kp_pid=kp_pid,kd_pid=kd_pid, k_amp=k_amp, k_sense=k_sense)
-        >>> mbearing.kxx
-        ['-4.64e+03']
-        """
-
         pL = [g0, i0, ag, nw, alpha, kp_pid, kd_pid, k_amp, k_sense]
         pA = [0, 0, 0, 0, 0, 0, 0, 0, 0]
 
@@ -1439,7 +1515,7 @@ class MagneticBearingElement(BearingElement):
             cxx = c[0]
             cyy = c[1]
 
-        return cls(
+        super().__init__(
             n=n,
             frequency=None,
             kxx=kxx,
@@ -1451,49 +1527,61 @@ class MagneticBearingElement(BearingElement):
             cyx=0.0,
             cyy=cyy,
             tag=tag,
+            n_link=n_link,
+            scale_factor=scale_factor,
         )
 
 
 class BearingElement6DoF(BearingElement):
-    """A generalistic 6 DoF bearing element. This class will create a bearing
+    """A generalistic 6 DoF bearing element.
+
+    This class will create a bearing
     element based on the user supplied stiffness and damping coefficients. These
     are determined alternatively, via purposefully built codes.
 
     Parameters
     ----------
-    kxx: float, optional
+    kxx: float, array, pint.Quantity
         Direct stiffness in the x direction.
-        Default is None
-    kxy: float, optional
-        Cross stiffness between xy directions.
-        Default is None
-    kyx: float, optional
-        Cross stiffness between yx directions.
-        Default is None
-    kyy: float, optional
-        Direct stiffness in the y direction.
-        Default is None
-    kzz: float, optional
-        Direct stiffness in the z direction.
-        Default is None
-    cxx: float, optional
+    cxx: float, array, pint.Quantity
         Direct damping in the x direction.
-        Default is None
-    cxy: float, optional
-        Cross damping between xy directions.
-        Default is None
-    cyx: float, optional
-        Cross damping between yx directions.
-        Default is None
-    cyy: float, optional
+    kyy: float, array, pint.Quantity, optional
+        Direct stiffness in the y direction.
+        Defaults to kxx
+    cyy: float, array, pint.Quantity, optional
         Direct damping in the y direction.
-        Default is None
-    czz: float, optional
+        Default is to cxx
+    kxy: float, array, pint.Quantity, optional
+        Cross stiffness between xy directions.
+        Default is 0
+    kyx: float, array, pint.Quantity, optional
+        Cross stiffness between yx directions.
+        Default is 0
+    kzz: float, array, pint.Quantity, optional
+        Direct stiffness in the z direction.
+        Default is 0
+    cxy: float, array, pint.Quantity, optional
+        Cross damping between xy directions.
+        Default is 0
+    cyx: float, array, pint.Quantity, optional
+        Cross damping between yx directions.
+        Default is 0
+    czz: float, array, pint.Quantity, optional
         Direct damping in the z direction.
-        Default is None
+        Default is 0
+    frequency: array, pint.Quantity, optional
+        Array with the frequencies (rad/s).
     tag : str, optional
         A tag to name the element
         Default is None
+    n_link: int, optional
+        Node to which the bearing will connect. If None the bearing is
+        connected to ground.
+        Default is None.
+    scale_factor: float, optional
+        The scale factor is used to scale the bearing drawing.
+        Default is 1.
+
     Examples
     --------
     >>> n = 0
@@ -1508,20 +1596,23 @@ class BearingElement6DoF(BearingElement):
            [       0.,        0.,   500000.]])
     """
 
+    @check_units
     def __init__(
         self,
         n,
         kxx,
-        kyy,
         cxx,
-        cyy,
+        kyy=None,
+        cyy=None,
         kxy=0.0,
         kyx=0.0,
         kzz=0.0,
         cxy=0.0,
         cyx=0.0,
         czz=0.0,
+        frequency=None,
         tag=None,
+        n_link=None,
         scale_factor=1,
         color="#355d7a",
     ):
@@ -1535,9 +1626,9 @@ class BearingElement6DoF(BearingElement):
             cyy=cyy,
             cxy=cxy,
             cyx=cyx,
-            frequency=None,
+            frequency=frequency,
             tag=tag,
-            n_link=None,
+            n_link=n_link,
             scale_factor=scale_factor,
             color=color,
         )
@@ -1557,7 +1648,7 @@ class BearingElement6DoF(BearingElement):
         for arg in new_args:
             if arg[0] == "k":
                 coefficients[arg] = _Stiffness_Coefficient(
-                    coefficient=args_dict[arg], w=None
+                    coefficient=args_dict[arg], frequency=None
                 )
             else:
                 coefficients[arg] = _Damping_Coefficient(args_dict[arg], None)
@@ -1578,13 +1669,12 @@ class BearingElement6DoF(BearingElement):
         return hash(self.tag)
 
     def __repr__(self):
-        """This function returns a string representation of a bearing element.
-        Parameters
-        ----------
+        """Return a string representation of a bearing element.
 
         Returns
         -------
-        A string representation of a bearing object.
+        A string representation of a bearing element object.
+
         Examples
         --------
         >>> bearing = bearing_example()
@@ -1604,16 +1694,18 @@ class BearingElement6DoF(BearingElement):
         )
 
     def __eq__(self, other):
-        """This function allows bearing elements to be compared.
+        """Equality method for comparasions.
+
         Parameters
         ----------
-        other: object
+        other : object
             The second object to be compared with.
 
         Returns
         -------
         bool
             True if the comparison is true; False otherwise.
+
         Examples
         --------
         >>> bearing1 = bearing_example()
@@ -1634,6 +1726,7 @@ class BearingElement6DoF(BearingElement):
             "czz",
             "frequency",
             "n",
+            "n_link",
         ]
         if isinstance(other, self.__class__):
             return all(
@@ -1645,122 +1738,77 @@ class BearingElement6DoF(BearingElement):
             )
         return False
 
-    def save(self, file_name=Path(os.getcwd())):
-        """Saves a bearing element in a toml format. It works as an auxiliary
-        function of the save function in the Rotor class.
+    def save(self, file):
+        try:
+            data = toml.load(file)
+        except FileNotFoundError:
+            data = {}
 
-        Parameters
-        ----------
-        file_name: string
-            The name of the file the bearing element will be saved in.
-
-        Returns
-        -------
-        None
-
-        Examples
-        --------
-        >>> bearing = bearing_example()
-        >>> bearing.save(Path(os.getcwd()))
-        """
-        data = self.get_data(Path(file_name) / "BearingElement6DoF.toml")
-
-        if type(self.frequency) == np.ndarray:
-            try:
-                self.frequency[0]
-                frequency = list(self.frequency)
-            except IndexError:
-                frequency = None
-
-        data["BearingElement6DoF"][str(self.n)] = {
+        args = {
             "n": self.n,
-            "kxx": self.kxx.coefficient,
-            "cxx": self.cxx.coefficient,
-            "kyy": self.kyy.coefficient,
-            "kxy": self.kxy.coefficient,
-            "kyx": self.kyx.coefficient,
-            "kzz": self.kzz.coefficient,
-            "cyy": self.cyy.coefficient,
-            "cxy": self.cxy.coefficient,
-            "cyx": self.cyx.coefficient,
-            "czz": self.czz.coefficient,
-            "frequency": frequency,
+            "kxx": [float(i) for i in self.kxx.coefficient],
+            "cxx": [float(i) for i in self.cxx.coefficient],
+            "kyy": [float(i) for i in self.kyy.coefficient],
+            "kxy": [float(i) for i in self.kxy.coefficient],
+            "kyx": [float(i) for i in self.kyx.coefficient],
+            "kzz": [float(i) for i in self.kzz.coefficient],
+            "cyy": [float(i) for i in self.cyy.coefficient],
+            "cxy": [float(i) for i in self.cxy.coefficient],
+            "cyx": [float(i) for i in self.cyx.coefficient],
+            "czz": [float(i) for i in self.czz.coefficient],
             "tag": self.tag,
+            "n_link": self.n_link,
+            "scale_factor": self.scale_factor,
         }
-        self.dump_data(data, Path(file_name) / "BearingElement6DoF.toml")
+        if self.frequency is not None:
+            args["frequency"] = [float(i) for i in self.frequency]
+        else:
+            args["frequency"] = self.frequency
 
-    @staticmethod
-    def load(file_name=""):
-        """Loads a list of bearing elements saved in a toml format.
+        data[f"{self.__class__.__name__}_{self.tag}"] = args
 
-        Parameters
-        ----------
-        file_name: string
-            The name of the file of the bearing element to be loaded.
-
-        Returns
-        -------
-        A list of bearing elements.
-
-        Examples
-        --------
-
-        """
-        bearing_elements = []
-        bearing_elements_dict = BearingElement.get_data(
-            file_name=Path(file_name) / "BearingElement6DoF.toml"
-        )
-        for element in bearing_elements_dict["BearingElement6DoF"]:
-            bearing = BearingElement6DoF(
-                **bearing_elements_dict["BearingElement6DoF"][element]
-            )
-            data = bearing_elements_dict["BearingElement6DoF"]
-            bearing.kxx.coefficient = data[element]["kxx"]
-
-            bearing.kxy.coefficient = data[element]["kxy"]
-
-            bearing.kyx.coefficient = data[element]["kyx"]
-
-            bearing.kyy.coefficient = data[element]["kyy"]
-
-            bearing.kzz.coefficient = data[element]["kzz"]
-
-            bearing.cxx.coefficient = data[element]["cxx"]
-
-            bearing.cxy.coefficient = data[element]["cxy"]
-
-            bearing.cyx.coefficient = data[element]["cyx"]
-
-            bearing.cyy.coefficient = data[element]["cyy"]
-
-            bearing.czz.coefficient = data[element]["czz"]
-
-            bearing_elements.append(bearing)
-        return bearing_elements
+        with open(file, "w") as f:
+            toml.dump(data, f)
 
     def dof_mapping(self):
-        return dict(x_0=0, y_0=1, z_0=2)
+        """Degrees of freedom mapping.
 
-    def dof_global_index(self):
-        """Get the global index for an element specific degree of freedom for the 6DoF element."""
-        global_index = super().dof_global_index()
-
-        if self.n_link is not None:
-            global_index = global_index._asdict()
-            global_index[f"u_{self.n_link}"] = 6 * self.n_link
-            global_index[f"v_{self.n_link}"] = 6 * self.n_link + 1
-            global_index[f"w_{self.n_link}"] = 6 * self.n_link + 2
-            dof_tuple = namedtuple("GlobalIndex", global_index)
-            global_index = dof_tuple(**global_index)
-
-        return global_index
-
-    def K(self, frequency):
-        """Returns the stiffness matrix for a given excitation frequency.
+        Returns a dictionary with a mapping between degree of freedom and its index.
 
         Returns
         -------
-        K: np.ndarray
+        dof_mapping : dict
+            A dictionary containing the degrees of freedom and their indexes.
+
+        Examples
+        --------
+        The numbering of the degrees of freedom for each node.
+
+        Being the following their ordering for a node:
+
+        x_0 - horizontal translation
+        y_0 - vertical translation
+        z_0 - axial translation
+
+        >>> bearing = bearing_6dof_example()
+        >>> bearing.dof_mapping()
+        {'x_0': 0, 'y_0': 1, 'z_0': 2}
+        """
+        return dict(x_0=0, y_0=1, z_0=2)
+
+    def K(self, frequency):
+        """Stiffness matrix for an instance of a bearing element.
+
+        This method returns the stiffness matrix for an instance of a bearing element.
+
+        Parameters
+        ----------
+        frequency : float
+            The excitation frequency.
+
+        Returns
+        -------
+        K : np.ndarray
             A 3x3 matrix of floats containing the kxx, kxy, kyx, kyy and kzz values.
 
         Examples
@@ -1782,7 +1830,14 @@ class BearingElement6DoF(BearingElement):
         return K
 
     def C(self, frequency):
-        """Returns the damping matrix for a given excitation frequency.
+        """Damping matrix for an instance of a bearing element.
+
+        This method returns the damping matrix for an instance of a bearing element.
+
+        Parameters
+        ----------
+        frequency : float
+            The excitation frequency.
 
         Returns
         -------
@@ -1809,12 +1864,10 @@ class BearingElement6DoF(BearingElement):
 
 
 def bearing_example():
-    """This function returns an instance of a simple bearing.
-    The purpose is to make available a simple model
-    so that doctest can be written using it.
+    """Create an example of bearing element.
 
-    Parameters
-    ----------
+    This function returns an instance of a simple seal. The purpose is to make
+    available a simple model so that doctest can be written using it.
 
     Returns
     -------
@@ -1826,26 +1879,21 @@ def bearing_example():
     >>> bearing.frequency[0]
     0.0
     """
-    kxx = 1e6
-    kyy = 0.8e6
-    cxx = 2e2
-    cyy = 1.5e2
     w = np.linspace(0, 200, 11)
-    bearing = BearingElement(n=0, kxx=kxx, kyy=kyy, cxx=cxx, cyy=cyy, frequency=w)
+    bearing = BearingElement(n=0, kxx=1e6, kyy=0.8e6, cxx=2e2, cyy=1.5e2, frequency=w)
     return bearing
 
 
 def seal_example():
-    """This function returns an instance of a simple seal.
-    The purpose is to make available a simple model
-    so that doctest can be written using it.
+    """Create an example of seal element.
 
-    Parameters
-    ----------
+    This function returns an instance of a simple seal. The purpose is to make
+    available a simple model so that doctest can be written using it.
 
     Returns
     -------
-    An instance of a seal object.
+    seal : ross.SealElement
+        An instance of a bearing object.
 
     Examples
     --------
@@ -1853,26 +1901,21 @@ def seal_example():
     >>> seal.frequency[0]
     0.0
     """
-    kxx = 1e6
-    kyy = 0.8e6
-    cxx = 2e2
-    cyy = 1.5e2
     w = np.linspace(0, 200, 11)
-    seal = SealElement(n=0, kxx=kxx, kyy=kyy, cxx=cxx, cyy=cyy, frequency=w)
+    seal = SealElement(n=0, kxx=1e6, kyy=0.8e6, cxx=2e2, cyy=1.5e2, frequency=w)
     return seal
 
 
 def bearing_6dof_example():
-    """This function returns an instance of a simple bearing.
-    The purpose is to make available a simple model
-    so that doctest can be written using it.
+    """Create an example of bearing element.
 
-    Parameters
-    ----------
+    This function returns an instance of a simple bearing. The purpose is to make
+    available a simple model so that doctest can be written using it.
 
     Returns
     -------
-    An instance of a bearing object.
+    bearing : ross.BearingElement6DoF
+        An instance of a bearing object.
 
     Examples
     --------
@@ -1880,13 +1923,7 @@ def bearing_6dof_example():
     >>> bearing.frequency[0]
     0.0
     """
-    kxx = 1e6
-    kyy = 0.8e6
-    kzz = 1e5
-    cxx = 2e2
-    cyy = 1.5e2
-    czz = 0.5e2
     bearing = BearingElement6DoF(
-        n=0, kxx=kxx, kyy=kyy, cxx=cxx, cyy=cyy, kzz=kzz, czz=czz
+        n=0, kxx=1e6, kyy=0.8e6, cxx=2e2, cyy=1.5e2, kzz=1e5, czz=0.5e2
     )
     return bearing

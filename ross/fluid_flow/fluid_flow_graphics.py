@@ -1,22 +1,32 @@
-import matplotlib.pyplot as plt
 import numpy as np
-from bokeh.plotting import figure
-from matplotlib import cm
-from mpl_toolkits.mplot3d import axes3d
+import plotly.graph_objects as go
+
+from ross.plotly_theme import tableau_colors
 
 
-def plot_eccentricity(fluid_flow_object, z=0):
-    """This function assembles pressure graphic along the z-axis.
+def plot_eccentricity(fluid_flow_object, z=0, fig=None, **kwargs):
+    """Plot the rotor eccentricity.
+
+    This function assembles pressure graphic along the z-axis.
     The first few plots are of a different color to indicate where theta begins.
+
     Parameters
     ----------
     fluid_flow_object: a FluidFlow object
     z: int, optional
         The distance in z where to cut and plot.
+    fig : Plotly graph_objects.Figure()
+        The figure object with the plot.
+    kwargs : optional
+        Additional key word arguments can be passed to change the plot layout only
+        (e.g. width=1000, height=800, ...).
+        *See Plotly Python Figure Reference for more information.
+
     Returns
     -------
-    Figure
-        An object containing the plot.
+    fig : Plotly graph_objects.Figure()
+        The figure object with the plot.
+
     Examples
     --------
     >>> from ross.fluid_flow.fluid_flow import fluid_flow_example
@@ -25,31 +35,88 @@ def plot_eccentricity(fluid_flow_object, z=0):
     >>> # to show the plots you can use:
     >>> # show(fig)
     """
-    p = figure(
-        title="Cut in plane Z=" + str(z), x_axis_label="X axis", y_axis_label="Y axis",
+    if fig is None:
+        fig = go.Figure()
+    fig.add_trace(
+        go.Scatter(
+            x=fluid_flow_object.xre[z],
+            y=fluid_flow_object.yre[z],
+            mode="markers+lines",
+            marker=dict(color=tableau_colors["red"]),
+            line=dict(color=tableau_colors["red"]),
+            name="Stator",
+            legendgroup="Stator",
+            hovertemplate=("<b>X: %{x:.3e}</b><br>" + "<b>Y: %{y:.3e}</b>"),
+        )
     )
-    for j in range(0, fluid_flow_object.ntheta):
-        p.circle(fluid_flow_object.xre[z][j], fluid_flow_object.yre[z][j], color="red")
-        p.circle(fluid_flow_object.xri[z][j], fluid_flow_object.yri[z][j], color="blue")
-        p.circle(0, 0, color="blue")
-        p.circle(fluid_flow_object.xi, fluid_flow_object.yi, color="red")
-    p.circle(0, 0, color="black")
-    return p
+    fig.add_trace(
+        go.Scatter(
+            x=fluid_flow_object.xri[z],
+            y=fluid_flow_object.yri[z],
+            mode="markers+lines",
+            marker=dict(color=tableau_colors["blue"]),
+            line=dict(color=tableau_colors["blue"]),
+            name="Rotor",
+            legendgroup="Rotor",
+            hovertemplate=("<b>X: %{x:.3e}</b><br>" + "<b>Y: %{y:.3e}</b>"),
+        )
+    )
+    fig.add_trace(
+        go.Scatter(
+            x=[fluid_flow_object.xi],
+            y=[fluid_flow_object.yi],
+            marker=dict(color=tableau_colors["red"]),
+            name="Stator",
+            legendgroup="Stator",
+            showlegend=False,
+            hovertemplate=("<b>X: %{x:.3e}</b><br>" + "<b>Y: %{y:.3e}</b>"),
+        )
+    )
+    fig.add_trace(
+        go.Scatter(
+            x=[0],
+            y=[0],
+            marker=dict(color=tableau_colors["blue"]),
+            name="Rotor",
+            legendgroup="Rotor",
+            showlegend=False,
+            hovertemplate=("<b>X: %{x:.3e}</b><br>" + "<b>Y: %{y:.3e}</b>"),
+        )
+    )
+    fig.update_xaxes(title_text="<b>X axis</b>")
+    fig.update_yaxes(title_text="<b>Y axis</b>")
+    fig.update_layout(
+        title=dict(text="<b>Cut in plane Z={}</b>".format(z)),
+        yaxis=dict(scaleanchor="x", scaleratio=1, **kwargs),
+    )
+
+    return fig
 
 
-def plot_pressure_z(fluid_flow_object, theta=0):
-    """This function assembles pressure graphic along the z-axis for one or both the
-    numerically (blue) and analytically (red) calculated pressure matrices, depending on if
-    one or both were calculated.
+def plot_pressure_z(fluid_flow_object, theta=0, fig=None, **kwargs):
+    """Plot the pressure distribution along the z-axis.
+
+    This function assembles pressure graphic along the z-axis for one or both the
+    numerically (blue) and analytically (red) calculated pressure matrices, depending
+    on if one or both were calculated.
+
     Parameters
     ----------
     fluid_flow_object: a FluidFlow object
     theta: int, optional
         The theta to be considered.
+    fig : Plotly graph_objects.Figure()
+        The figure object with the plot.
+    kwargs : optional
+        Additional key word arguments can be passed to change the plot layout only
+        (e.g. width=1000, height=800, ...).
+        *See Plotly Python Figure Reference for more information.
+
     Returns
     -------
-    Figure
-        An object containing the plot.
+    fig : Plotly graph_objects.Figure()
+        The figure object with the plot.
+
     Examples
     --------
     >>> from ross.fluid_flow.fluid_flow import fluid_flow_example
@@ -58,7 +125,7 @@ def plot_pressure_z(fluid_flow_object, theta=0):
     array([[...
     >>> fig = plot_pressure_z(my_fluid_flow, theta=int(my_fluid_flow.ntheta/2))
     >>> # to show the plots you can use:
-    >>> # show(fig)
+    >>> # fig.show()
     """
     if (
         not fluid_flow_object.numerical_pressure_matrix_available
@@ -68,81 +135,147 @@ def plot_pressure_z(fluid_flow_object, theta=0):
             "Must calculate the pressure matrix. "
             "Try calling calculate_pressure_matrix_numerical() or calculate_pressure_matrix_analytical() first."
         )
-    y_n = []
-    y_a = []
-    for i in range(0, fluid_flow_object.nz):
-        y_n.append(fluid_flow_object.p_mat_numerical[i][theta])
-        y_a.append(fluid_flow_object.p_mat_analytical[i][theta])
-    p = figure(
-        title="Pressure along the Z direction (direction of flow); Theta=" + str(theta),
-        x_axis_label="Points along Z",
-    )
+
+    if fig is None:
+        fig = go.Figure()
     if fluid_flow_object.numerical_pressure_matrix_available:
-        p.line(
-            fluid_flow_object.z_list,
-            y_n,
-            legend_label="Numerical pressure",
-            color="blue",
-            line_width=2,
+        fig.add_trace(
+            go.Scatter(
+                x=fluid_flow_object.z_list,
+                y=fluid_flow_object.p_mat_numerical[:, theta],
+                mode="lines",
+                line=dict(color=tableau_colors["blue"]),
+                showlegend=True,
+                name="<b>Numerical pressure</b>",
+                hovertemplate=(
+                    "<b>Axial Length: %{x:.2f}</b><br>"
+                    + "<b>Numerical pressure: %{y:.2f}</b>"
+                ),
+            )
         )
     if fluid_flow_object.analytical_pressure_matrix_available:
-        p.line(
-            fluid_flow_object.z_list,
-            y_a,
-            legend_label="Analytical pressure",
-            color="red",
-            line_width=2,
+        fig.add_trace(
+            go.Scatter(
+                x=fluid_flow_object.z_list,
+                y=fluid_flow_object.p_mat_analytical[:, theta],
+                mode="lines",
+                line=dict(color=tableau_colors["red"]),
+                showlegend=True,
+                name="<b>Analytical pressure</b>",
+                hovertemplate=(
+                    "<b>Axial Length: %{x:.2f}</b><br>"
+                    + "<b>Analytical pressure: %{y:.2f}</b>"
+                ),
+            )
         )
-    return p
+    fig.update_xaxes(title_text="<b>Axial Length</b>")
+    fig.update_yaxes(title_text="<b>Pressure</b>")
+    fig.update_layout(
+        title=dict(
+            text=(
+                "<b>Pressure along the flow (axial direction)<b><br>"
+                + "<b>Theta={}</b>".format(theta)
+            )
+        ),
+        **kwargs,
+    )
+
+    return fig
 
 
-def plot_shape(fluid_flow_object, theta=0):
-    """This function assembles a graphic representing the geometry of the rotor.
+def plot_shape(fluid_flow_object, theta=0, fig=None, **kwargs):
+    """Plot the surface geometry of the rotor.
+
+    This function assembles a graphic representing the geometry of the rotor.
+
     Parameters
     ----------
     fluid_flow_object: a FluidFlow object
     theta: int, optional
         The theta to be considered.
+    fig : Plotly graph_objects.Figure()
+        The figure object with the plot.
+
     Returns
     -------
-    Figure
-        An object containing the plot.
+    fig : Plotly graph_objects.Figure()
+        The figure object with the plot.
+    kwargs : optional
+        Additional key word arguments can be passed to change the plot layout only
+        (e.g. width=1000, height=800, ...).
+        *See Plotly Python Figure Reference for more information.
+
     Examples
     --------
     >>> from ross.fluid_flow.fluid_flow import fluid_flow_example
     >>> my_fluid_flow = fluid_flow_example()
     >>> fig = plot_shape(my_fluid_flow, theta=int(my_fluid_flow.ntheta/2))
     >>> # to show the plots you can use:
-    >>> # show(fig)
+    >>> # fig.show()
     """
-    y_re = np.zeros(fluid_flow_object.nz)
-    y_ri = np.zeros(fluid_flow_object.nz)
-    for i in range(0, fluid_flow_object.nz):
-        y_re[i] = fluid_flow_object.re[i][theta]
-        y_ri[i] = fluid_flow_object.ri[i][theta]
-    p = figure(
-        title="Shapes of stator and rotor along Z; Theta=" + str(theta),
-        x_axis_label="Points along Z",
-        y_axis_label="Radial direction",
+    if fig is None:
+        fig = go.Figure()
+    fig.add_trace(
+        go.Scatter(
+            x=fluid_flow_object.z_list,
+            y=fluid_flow_object.re[:, theta],
+            mode="lines",
+            line=dict(color=tableau_colors["red"]),
+            showlegend=True,
+            hoverinfo="none",
+            name="<b>Stator</b>",
+        )
     )
-    p.line(fluid_flow_object.z_list, y_re, line_width=2, color="red")
-    p.line(fluid_flow_object.z_list, y_ri, line_width=2, color="blue")
-    return p
+    fig.add_trace(
+        go.Scatter(
+            x=fluid_flow_object.z_list,
+            y=fluid_flow_object.ri[:, theta],
+            mode="lines",
+            line=dict(color=tableau_colors["blue"]),
+            showlegend=True,
+            hoverinfo="none",
+            name="<b>Rotor</b>",
+        )
+    )
+    fig.update_xaxes(title_text="<b>Axial Length</b>")
+    fig.update_yaxes(title_text="<b>Radial direction</b>")
+    fig.update_layout(
+        title=dict(
+            text=(
+                "<b>Shapes of stator and rotor - Axial direction<b><br>"
+                + "<b>Theta={}</b>".format(theta)
+            )
+        ),
+        **kwargs,
+    )
+
+    return fig
 
 
-def plot_pressure_theta(fluid_flow_object, z=0):
-    """This function assembles pressure graphic in the theta direction for a given z
-    for one or both the numerically (blue) and analytically (red) calculated pressure matrices,
-    depending on if one or both were calculated.
+def plot_pressure_theta(fluid_flow_object, z=0, fig=None, **kwargs):
+    """Plot the pressure distribution along theta.
+
+    This function assembles pressure graphic in the theta direction for a given z
+    for one or both the numerically (blue) and analytically (red) calculated pressure
+    matrices, depending on if one or both were calculated.
+
     Parameters
     ----------
     fluid_flow_object: a FluidFlow object
     z: int, optional
         The distance along z-axis to be considered.
+    fig : Plotly graph_objects.Figure()
+        The figure object with the plot.
+    kwargs : optional
+        Additional key word arguments can be passed to change the plot layout only
+        (e.g. width=1000, height=800, ...).
+        *See Plotly Python Figure Reference for more information.
+
     Returns
     -------
-    Figure
-        An object containing the plot.
+    fig : Plotly graph_objects.Figure()
+        The figure object with the plot.
+
     Examples
     --------
     >>> from ross.fluid_flow.fluid_flow import fluid_flow_example
@@ -151,7 +284,7 @@ def plot_pressure_theta(fluid_flow_object, z=0):
     array([[...
     >>> fig = plot_pressure_theta(my_fluid_flow, z=int(my_fluid_flow.nz/2))
     >>> # to show the plots you can use:
-    >>> # show(fig)
+    >>> # fig.show()
     """
     if (
         not fluid_flow_object.numerical_pressure_matrix_available
@@ -161,168 +294,55 @@ def plot_pressure_theta(fluid_flow_object, z=0):
             "Must calculate the pressure matrix. "
             "Try calling calculate_pressure_matrix_numerical() or calculate_pressure_matrix_analytical() first."
         )
-    p = figure(
-        title="Pressure along Theta; Z=" + str(z),
-        x_axis_label="Points along Theta",
-        y_axis_label="Pressure",
-    )
+    if fig is None:
+        fig = go.Figure()
     if fluid_flow_object.numerical_pressure_matrix_available:
-        p.line(
-            fluid_flow_object.gama[z],
-            fluid_flow_object.p_mat_numerical[z],
-            legend_label="Numerical pressure",
-            line_width=2,
-            color="blue",
+        fig.add_trace(
+            go.Scatter(
+                x=fluid_flow_object.gama[z],
+                y=fluid_flow_object.p_mat_numerical[z],
+                mode="lines",
+                line=dict(color=tableau_colors["blue"]),
+                showlegend=True,
+                name="<b>Numerical pressure</b>",
+                hovertemplate=(
+                    "<b>Theta: %{x:.2f}</b><br>" + "<b>Numerical pressure: %{y:.2f}</b>"
+                ),
+            )
         )
     elif fluid_flow_object.analytical_pressure_matrix_available:
-        p.line(
-            fluid_flow_object.gama[z],
-            fluid_flow_object.p_mat_analytical[z],
-            legend_label="Analytical pressure",
-            line_width=2,
-            color="red",
+        fig.add_trace(
+            go.Scatter(
+                x=fluid_flow_object.gama[z],
+                y=fluid_flow_object.p_mat_analytical[z],
+                mode="lines",
+                line=dict(color=tableau_colors["red"]),
+                showlegend=True,
+                name="<b>Analytical pressure</b>",
+                hovertemplate=(
+                    "<b>Theta: %{x:.2f}</b><br>"
+                    + "<b>Analytical pressure: %{y:.2f}</b>"
+                ),
+            )
         )
-    return p
 
-
-def matplot_eccentricity(fluid_flow_object, z=0, ax=None):
-    """This function assembles pressure graphic along the z-axis using matplotlib.
-    The first few plots are of a different color to indicate where theta begins.
-    Parameters
-    ----------
-    fluid_flow_object: a FluidFlow object
-    z: int, optional
-        The distance in z where to cut and plot.
-    ax : matplotlib axes, optional
-        Axes in which the plot will be drawn.
-    Returns
-    -------
-    ax : matplotlib axes
-        Returns the axes object with the plot.
-    Examples
-    --------
-    >>> from ross.fluid_flow.fluid_flow import fluid_flow_example
-    >>> my_fluid_flow = fluid_flow_example()
-    >>> fig, ax = plt.subplots()
-    >>> ax = matplot_eccentricity(my_fluid_flow, z=int(my_fluid_flow.nz/2), ax=ax)
-    >>> # to show the plots you can use:
-    >>> # plt.show()
-    """
-    if ax is None:
-        ax = plt.gca()
-    x_r = []
-    x_b = []
-    y_r = []
-    y_b = []
-    for j in range(0, fluid_flow_object.ntheta):
-        x_r.append(fluid_flow_object.xre[z][j])
-        y_r.append(fluid_flow_object.yre[z][j])
-        x_b.append(fluid_flow_object.xri[z][j])
-        y_b.append(fluid_flow_object.yri[z][j])
-    ax.plot(x_r, y_r, "r.")
-    ax.plot(x_b, y_b, "b.")
-    ax.plot(0, 0, "r*")
-    ax.plot(fluid_flow_object.xi, fluid_flow_object.yi, "b*")
-    ax.set_title("Cut in plane Z=" + str(z))
-    ax.set_xlabel("X axis")
-    ax.set_ylabel("Y axis")
-    ax.axis("equal")
-    return ax
-
-
-def matplot_pressure_z(fluid_flow_object, theta=0, ax=None):
-    """This function assembles pressure graphic along the z-axis using matplotlib
-    for one or both the numerically (blue) and analytically (red) calculated pressure matrices,
-    depending on if one or both were calculated.
-    Parameters
-    ----------
-    fluid_flow_object: a FluidFlow object
-    theta: int, optional
-        The distance in theta where to cut and plot.
-    ax : matplotlib axes, optional
-        Axes in which the plot will be drawn.
-    Returns
-    -------
-    ax : matplotlib axes
-        Returns the axes object with the plot.
-    Examples
-    --------
-    >>> from ross.fluid_flow.fluid_flow import fluid_flow_example
-    >>> my_fluid_flow = fluid_flow_example()
-    >>> my_fluid_flow.calculate_pressure_matrix_numerical() # doctest: +ELLIPSIS
-    array([[...
-    >>> ax = matplot_pressure_z(my_fluid_flow, theta=int(my_fluid_flow.ntheta/2))
-    >>> # to show the plots you can use:
-    >>> # plt.show()
-    """
-    if (
-        not fluid_flow_object.numerical_pressure_matrix_available
-        and not fluid_flow_object.analytical_pressure_matrix_available
-    ):
-        raise ValueError(
-            "Must calculate the pressure matrix. "
-            "Try calling calculate_pressure_matrix_numerical() or calculate_pressure_matrix_analytical() first."
-        )
-    if ax is None:
-        ax = plt.gca()
-    y_n = np.zeros(fluid_flow_object.nz)
-    y_a = np.zeros(fluid_flow_object.nz)
-    for i in range(0, fluid_flow_object.nz):
-        y_n[i] = fluid_flow_object.p_mat_numerical[i][theta]
-        y_a[i] = fluid_flow_object.p_mat_analytical[i][theta]
-    if fluid_flow_object.numerical_pressure_matrix_available:
-        ax.plot(fluid_flow_object.z_list, y_n, "b", label="Numerical pressure")
-    if fluid_flow_object.analytical_pressure_matrix_available:
-        ax.plot(fluid_flow_object.z_list, y_a, "r", label="Analytical pressure")
-    ax.set_title(
-        "Pressure along the Z direction (direction of flow); Theta=" + str(theta)
+    fig.update_xaxes(title_text="<b>Theta value</b>")
+    fig.update_yaxes(title_text="<b>Pressure</b>")
+    fig.update_layout(
+        title=dict(text=("<b>Pressure along Theta | Z={}<b>".format(z))), **kwargs
     )
-    ax.set_xlabel("Points along Z")
-    ax.set_ylabel("Pressure")
-    return ax
+
+    return fig
 
 
-def matplot_shape(fluid_flow_object, theta=0, ax=None):
-    """This function assembles a graphic representing the geometry of the rotor using matplotlib.
-    Parameters
-    ----------
-    fluid_flow_object: a FluidFlow object
-    theta: int, optional
-        The theta to be considered.
-    ax : matplotlib axes, optional
-        Axes in which the plot will be drawn.
-    Returns
-    -------
-    ax : matplotlib axes
-        Returns the axes object with the plot.
-    Examples
-    --------
-    >>> from ross.fluid_flow.fluid_flow import fluid_flow_example
-    >>> my_fluid_flow = fluid_flow_example()
-    >>> ax = matplot_shape(my_fluid_flow, theta=int(my_fluid_flow.ntheta/2))
-    >>> # to show the plots you can use:
-    >>> # plt.show()
-    """
-    if ax is None:
-        ax = plt.gca()
-    y_ext = np.zeros(fluid_flow_object.nz)
-    y_int = np.zeros(fluid_flow_object.nz)
-    for i in range(0, fluid_flow_object.nz):
-        y_ext[i] = fluid_flow_object.re[i][theta]
-        y_int[i] = fluid_flow_object.ri[i][theta]
-    ax.plot(fluid_flow_object.z_list, y_ext, "r")
-    ax.plot(fluid_flow_object.z_list, y_int, "b")
-    ax.set_title("Shapes of stator and rotor along Z; Theta=" + str(theta))
-    ax.set_xlabel("Points along Z")
-    ax.set_ylabel("Radial direction")
-    return ax
-
-
-def matplot_pressure_theta_cylindrical(
-    fluid_flow_object, z=0, from_numerical=True, ax=None
+def plot_pressure_theta_cylindrical(
+    fluid_flow_object, z=0, from_numerical=True, fig=None, **kwargs
 ):
-    """This function assembles cylindrical pressure graphic in the theta direction for a given z,
-    using matplotlib.
+    """Plot cylindrical pressure graphic in the theta direction.
+
+    This function assembles cylindrical graphical visualization of the fluid pressure
+    in the theta direction for a given axial position (z).
+
     Parameters
     ----------
     fluid_flow_object: a FluidFlow object
@@ -331,23 +351,29 @@ def matplot_pressure_theta_cylindrical(
     from_numerical: bool, optional
         If True, takes the numerically calculated pressure matrix as entry.
         If False, takes the analytically calculated one instead.
-        If condition cannot be satisfied (matrix not calculated), it will take the one that is available
-        and raise a warning.
-    ax : matplotlib axes, optional
-        Axes in which the plot will be drawn.
+        If condition cannot be satisfied (matrix not calculated), it will take the one
+        that is available and raise a warning.
+    fig : Plotly graph_objects.Figure()
+        The figure object with the plot.
+    kwargs : optional
+        Additional key word arguments can be passed to change the plot layout only
+        (e.g. width=1000, height=800, ...).
+        *See Plotly Python Figure Reference for more information.
+
     Returns
     -------
-    ax : matplotlib axes
-        Returns the axes object with the plot.
+    fig : Plotly graph_objects.Figure()
+        The figure object with the plot.
+
     Examples
     --------
     >>> from ross.fluid_flow.fluid_flow import fluid_flow_example
     >>> my_fluid_flow = fluid_flow_example()
     >>> my_fluid_flow.calculate_pressure_matrix_numerical() # doctest: +ELLIPSIS
     array([[...
-    >>> ax = matplot_pressure_theta_cylindrical(my_fluid_flow, z=int(my_fluid_flow.nz/2))
+    >>> fig = plot_pressure_theta_cylindrical(my_fluid_flow, z=int(my_fluid_flow.nz/2))
     >>> # to show the plots you can use:
-    >>> # plt.show()
+    >>> # fig.show()
     """
     if (
         not fluid_flow_object.numerical_pressure_matrix_available
@@ -367,69 +393,99 @@ def matplot_pressure_theta_cylindrical(
             p_mat = fluid_flow_object.p_mat_analytical
         else:
             p_mat = fluid_flow_object.p_mat_numerical
-    if ax is None:
-        fig, ax = plt.subplots(subplot_kw=dict(projection="polar"))
-    r = np.arange(
-        0,
-        fluid_flow_object.radius_stator + 0.0001,
-        (fluid_flow_object.radius_stator - fluid_flow_object.radius_rotor)
-        / fluid_flow_object.nradius,
-    )
-    theta = np.arange(
-        -np.pi * 0.25,
-        1.75 * np.pi + fluid_flow_object.dtheta / 2,
-        fluid_flow_object.dtheta,
-    )
 
-    pressure_along_theta = np.zeros(fluid_flow_object.ntheta)
-    for i in range(0, fluid_flow_object.ntheta):
-        pressure_along_theta[i] = p_mat[0][i]
+    r = np.linspace(
+        fluid_flow_object.radius_rotor,
+        fluid_flow_object.radius_stator,
+        fluid_flow_object.nradius,
+    )
+    theta = np.linspace(
+        0.0, 2.0 * np.pi + fluid_flow_object.dtheta / 2, fluid_flow_object.ntheta
+    )
+    theta *= 180 / np.pi
 
+    pressure_along_theta = p_mat[z, :]
     min_pressure = np.amin(pressure_along_theta)
 
     r_matrix, theta_matrix = np.meshgrid(r, theta)
     z_matrix = np.zeros((theta.size, r.size))
-    inner_radius_list = np.zeros(fluid_flow_object.ntheta)
-    pressure_list = np.zeros((theta.size, r.size))
+
     for i in range(0, theta.size):
         inner_radius = np.sqrt(
             fluid_flow_object.xri[z][i] * fluid_flow_object.xri[z][i]
             + fluid_flow_object.yri[z][i] * fluid_flow_object.yri[z][i]
         )
-        inner_radius_list[i] = inner_radius
-        for j in range(0, r.size):
+
+        for j in range(r.size):
             if r_matrix[i][j] < inner_radius:
                 continue
-            pressure_list[i][j] = pressure_along_theta[i]
             z_matrix[i][j] = pressure_along_theta[i] - min_pressure + 0.01
-    ax.contourf(theta_matrix, r_matrix, z_matrix, cmap="coolwarm")
-    ax.set_title("Pressure along Theta; Z=" + str(z))
-    return ax
+
+    if fig is None:
+        fig = go.Figure()
+    fig.add_trace(
+        go.Barpolar(
+            r=r_matrix.ravel(),
+            theta=theta_matrix.ravel(),
+            customdata=z_matrix.ravel(),
+            marker=dict(
+                color=z_matrix.ravel(),
+                colorscale="Viridis",
+                cmin=np.amin(z_matrix),
+                cmax=np.amax(z_matrix),
+                colorbar=dict(title=dict(text="<b>Pressure</b>", side="top")),
+            ),
+            thetaunit="degrees",
+            name="Pressure",
+            showlegend=False,
+            hovertemplate=(
+                "<b>Raddi: %{r:.4e}</b><br>"
+                + "<b>θ: %{theta:.2f}</b><br>"
+                + "<b>Pressure: %{customdata:.4e}</b>"
+            ),
+        )
+    )
+    fig.update_layout(
+        polar=dict(
+            hole=0.5,
+            bargap=0.0,
+            angularaxis=dict(
+                rotation=-90 - fluid_flow_object.attitude_angle * 180 / np.pi
+            ),
+        ),
+        **kwargs,
+    )
+    return fig
 
 
-def matplot_pressure_theta(fluid_flow_object, z=0, ax=None):
-    """This function assembles pressure graphic in the theta direction for a given z,
-    using matplotlib.
+def plot_pressure_surface(fluid_flow_object, fig=None, **kwargs):
+    """Assembles pressure surface graphic in the bearing, using Plotly.
+
     Parameters
     ----------
     fluid_flow_object: a FluidFlow object
-    z: int, optional
-        The distance along z-axis to be considered.
-    ax : matplotlib axes, optional
-        Axes in which the plot will be drawn.
+    fig : Plotly graph_objects.Figure()
+        The figure object with the plot.
+
+    kwargs : optional
+        Additional key word arguments can be passed to change the plot layout only
+        (e.g. width=1000, height=800, ...).
+        *See Plotly Python Figure Reference for more information.
+
     Returns
     -------
-    ax : matplotlib axes
-        Returns the axes object with the plot.
+    fig : Plotly graph_objects.Figure()
+        The figure object with the plot.
+
     Examples
     --------
     >>> from ross.fluid_flow.fluid_flow import fluid_flow_example
     >>> my_fluid_flow = fluid_flow_example()
     >>> my_fluid_flow.calculate_pressure_matrix_numerical() # doctest: +ELLIPSIS
     array([[...
-    >>> ax = matplot_pressure_theta(my_fluid_flow, z=int(my_fluid_flow.nz/2))
+    >>> fig = plot_pressure_surface(my_fluid_flow)
     >>> # to show the plots you can use:
-    >>> # plt.show()
+    >>> # fig.show()
     """
     if (
         not fluid_flow_object.numerical_pressure_matrix_available
@@ -439,85 +495,38 @@ def matplot_pressure_theta(fluid_flow_object, z=0, ax=None):
             "Must calculate the pressure matrix. "
             "Try calling calculate_pressure_matrix_numerical() or calculate_pressure_matrix_analytical() first."
         )
-    if ax is None:
-        ax = plt.gca()
-    if fluid_flow_object.numerical_pressure_matrix_available:
-        ax.plot(
-            fluid_flow_object.gama[z],
-            fluid_flow_object.p_mat_numerical[z],
-            "b",
-            label="Numerical pressure",
-        )
-    if fluid_flow_object.analytical_pressure_matrix_available:
-        ax.plot(
-            fluid_flow_object.gama[z],
-            fluid_flow_object.p_mat_analytical[z],
-            "r",
-            label="Analytical pressure",
-        )
-    ax.set_title("Pressure along Theta; Z=" + str(z))
-    ax.set_xlabel("Points along Theta")
-    ax.set_ylabel("Pressure")
-    return ax
-
-
-def matplot_pressure_surface(fluid_flow_object, ax=None):
-    """This function assembles pressure surface graphic in the bearing, using matplotlib.
-    Parameters
-    ----------
-    fluid_flow_object: a FluidFlow object
-    ax : matplotlib axes, optional
-        Axes in which the plot will be drawn.
-    Returns
-    -------
-    ax : matplotlib axes
-        Returns the axes object with the plot.
-    Examples
-    --------
-    >>> from ross.fluid_flow.fluid_flow import fluid_flow_example
-    >>> my_fluid_flow = fluid_flow_example()
-    >>> my_fluid_flow.calculate_pressure_matrix_numerical() # doctest: +ELLIPSIS
-    array([[...
-    >>> ax = matplot_pressure_surface(my_fluid_flow)
-    >>> # to show the plots you can use:
-    >>> # plt.show()
-    """
-    if (
-        not fluid_flow_object.numerical_pressure_matrix_available
-        and not fluid_flow_object.analytical_pressure_matrix_available
-    ):
-        raise ValueError(
-            "Must calculate the pressure matrix. "
-            "Try calling calculate_pressure_matrix_numerical() or calculate_pressure_matrix_analytical() first."
-        )
-    if ax is None:
-        fig = plt.figure()
-        ax = fig.gca(projection="3d")
+    if fig is None:
+        fig = go.Figure()
     if fluid_flow_object.numerical_pressure_matrix_available:
         z, theta = np.meshgrid(fluid_flow_object.z_list, fluid_flow_object.gama[0])
-        ax.plot_surface(
-            z,
-            theta,
-            fluid_flow_object.p_mat_numerical.T,
-            cmap=cm.coolwarm,
-            linewidth=0,
-            label="Numerical pressure",
+        fig.add_trace(
+            go.Surface(
+                x=z,
+                y=theta,
+                z=fluid_flow_object.p_mat_numerical.T,
+                colorscale="Viridis",
+                cmin=np.amin(fluid_flow_object.p_mat_numerical.T),
+                cmax=np.amax(fluid_flow_object.p_mat_numerical.T),
+                colorbar=dict(title=dict(text="<b>Pressure</b>", side="top")),
+                name="Pressure",
+                showlegend=False,
+                hovertemplate=(
+                    "<b>Length: %{x:.2e}</b><br>"
+                    + "<b>Angular Position: %{y:.2f}</b><br>"
+                    + "<b>Pressure: %{z:.2f}</b>"
+                ),
+            )
         )
-    if fluid_flow_object.analytical_pressure_matrix_available:
-        z, theta = np.meshgrid(fluid_flow_object.z_list, fluid_flow_object.gama[0])
-        ax.plot_surface(
-            z,
-            theta,
-            fluid_flow_object.p_mat_analytical.T,
-            cmap=cm.coolwarm,
-            linewidth=0,
-            label="Analytical pressure",
-        )
-    ax.set_title("Bearing Pressure Field", fontsize=18)
-    ax.set_xlabel("Bearing Length", fontsize=14, linespacing=50)
-    ax.set_ylabel("Angular position", fontsize=14, linespacing=50)
-    ax.set_zlabel("Pressure", fontsize=14, linespacing=50)
-    ax.dist = 10
-    ax.tick_params(axis="both", which="major", labelsize=12)
-    ax.tick_params(axis="both", which="minor", labelsize=12)
-    return ax
+
+    fig.update_layout(
+        scene=dict(
+            bgcolor="white",
+            xaxis=dict(title=dict(text="<b>Rotor Length</b>")),
+            yaxis=dict(title=dict(text="<b>Angular Position</b>")),
+            zaxis=dict(title=dict(text="<b>Pressure</b>")),
+        ),
+        title=dict(text="<b>Bearing Pressure Field</b>"),
+        **kwargs,
+    )
+
+    return fig

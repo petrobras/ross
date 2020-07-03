@@ -1,15 +1,11 @@
 # fmt: off
 from copy import copy, deepcopy
 
-import bokeh.palettes as bp
 import numpy as np
 import pandas as pd
-from bokeh.layouts import Column, gridplot
-from bokeh.models import (ColumnDataSource, DataRange1d, HoverTool, Label,
-                          LinearAxis, Range1d, Span)
-from bokeh.models.widgets import (DataTable, NumberFormatter, Panel,
-                                  TableColumn, Tabs)
-from bokeh.plotting import figure
+import plotly.express as px
+import plotly.graph_objects as go
+from plotly.subplots import make_subplots
 from scipy.interpolate import interp1d
 from scipy.signal import argrelextrema
 
@@ -21,8 +17,9 @@ from ross.shaft_element import ShaftElement
 
 # fmt: on
 
-# set bokeh palette of colors
-bokeh_colors = bp.RdGy[11]
+# set Plotly palette of colors
+colors1 = px.colors.qualitative.Dark24
+colors2 = px.colors.sequential.PuBu
 
 __all__ = ["Report", "report_example"]
 
@@ -187,6 +184,9 @@ class Report:
         else:
             self.tag = tag
 
+        # Multiplicative factor of the speed range - according to API 684
+        self.speed_factor = 1.25
+
         # list of attributes
         self.Q0 = None
         self.Qa = None
@@ -283,24 +283,13 @@ class Report:
         sh_elm = rotor.shaft_elements
         dk_elm = rotor.disk_elements
         pm_elm = rotor.point_mass_elements
-        sparse = rotor.sparse
-        n_eigen = rotor.n_eigen
         min_w = rotor.min_w
         max_w = rotor.max_w
         rated_w = rotor.rated_w
         tag = rotor.tag
 
         aux_rotor = Rotor(
-            sh_elm,
-            dk_elm,
-            bearing_list,
-            pm_elm,
-            sparse,
-            n_eigen,
-            min_w,
-            max_w,
-            rated_w,
-            tag,
+            sh_elm, dk_elm, bearing_list, pm_elm, min_w, max_w, rated_w, tag
         )
 
         return aux_rotor
@@ -351,8 +340,8 @@ class Report:
             List with "CSR vs. Mean Gas Density" (stability level 1) figures.
         df_lvl2 : dataframe
             Dataframe for the stability level 2 informations.
-        summaries : bokeh Column
-            Bokeh Column with the summary table plot.
+        summaries : pd.Dataframe
+            Dataframes with a summary of stability level 1 and 2 analyses.
 
         Example
         -------
@@ -437,15 +426,14 @@ class Report:
 
         Returns
         -------
-        fig : bokeh figure
-            Returns the axes object with the plot.
+        fig : Plotly graph_objects.Figure()
+            The figure object with the plot.
 
         Example
         -------
         >>> import ross as rs
         >>> report = rs.report_example()
-        >>> report.plot_ucs(stiffness_range=(5, 8)) # doctest: +ELLIPSIS
-        Figure...
+        >>> fig = report.plot_ucs(stiffness_range=(5, 8))
         """
         if stiffness_range is None:
             if self.rotor.rated_w is not None:
@@ -467,90 +455,124 @@ class Report:
         for i, k in enumerate(stiffness_log):
             bearings = [BearingElement(b.n, kxx=k, cxx=0) for b in bearings_elements]
             rotor = self.rotor.__class__(
-                self.rotor.shaft_elements,
-                self.rotor.disk_elements,
-                bearings,
-                n_eigen=16,
+                self.rotor.shaft_elements, self.rotor.disk_elements, bearings
             )
-            modal = rotor.run_modal(speed=0)
+            modal = rotor.run_modal(speed=0, num_modes=16)
             rotor_wn[:, i] = modal.wn[:8:2]
 
         bearing0 = bearings_elements[0]
 
-        fig = figure(
-            tools="pan, box_zoom, wheel_zoom, reset, save",
-            width=640,
-            height=480,
-            title="Undamped Critical Speed Map",
-            x_axis_label="Bearing Stiffness",
-            y_axis_label="Critical Speed",
-            x_axis_type="log",
-            y_axis_type="log",
-        )
-        fig.title.text_font_size = "14pt"
-        fig.xaxis.axis_label_text_font_size = "14pt"
-        fig.yaxis.axis_label_text_font_size = "14pt"
-        fig.axis.major_label_text_font_size = "14pt"
+        fig = go.Figure()
 
-        fig.circle(
-            bearing0.kxx.interpolated(bearing0.frequency),
-            bearing0.frequency,
-            size=5,
-            fill_alpha=0.5,
-            fill_color=bokeh_colors[0],
-            legend_label="Kxx",
-        )
-        fig.square(
-            bearing0.kyy.interpolated(bearing0.frequency),
-            bearing0.frequency,
-            size=5,
-            fill_alpha=0.5,
-            fill_color=bokeh_colors[0],
-            legend_label="Kyy",
-        )
-
-        for j in range(rotor_wn.T.shape[1]):
-            fig.line(
-                stiffness_log,
-                np.transpose(rotor_wn.T)[j],
-                line_width=3,
-                line_color="red",
+        fig.add_trace(
+            go.Scatter(
+                x=bearing0.kxx.interpolated(bearing0.frequency),
+                y=bearing0.frequency,
+                mode="markers",
+                marker=dict(size=10, symbol="circle", color="#888844"),
+                name="Kxx",
+                hovertemplate=("Kxx: %{x:.2e}<br>" + "Frequency: %{y:.2f}"),
             )
+        )
+        fig.add_trace(
+            go.Scatter(
+                x=bearing0.kyy.interpolated(bearing0.frequency),
+                y=bearing0.frequency,
+                mode="markers",
+                marker=dict(size=10, symbol="square", color="#888844"),
+                name="Kyy",
+                hovertemplate=("Kyy: %{x:.2e}<br>" + "Frequency: %{y:.2f}"),
+            )
+        )
 
-        fig.line(
-            stiffness_log,
-            [self.maxspeed] * num,
-            line_dash="dotdash",
-            line_width=3,
-            line_color=bokeh_colors[-1],
-            legend_label="MCS Speed",
+        # Speeds References
+        fig.add_trace(
+            go.Scatter(
+                x=stiffness_log,
+                y=[self.maxspeed] * num,
+                mode="lines",
+                line=dict(dash="dot", width=4, color=colors2[8]),
+                name="MCS Speed",
+                hoverinfo="none",
+            )
         )
-        fig.line(
-            stiffness_log,
-            [self.minspeed] * num,
-            line_dash="dotdash",
-            line_width=3,
-            line_color=bokeh_colors[-2],
-            legend_label="MOS Speed",
+        fig.add_trace(
+            go.Scatter(
+                x=stiffness_log,
+                y=[self.minspeed] * num,
+                mode="lines",
+                line=dict(dash="dash", width=4, color=colors2[8]),
+                name="MOS Speed",
+                hoverinfo="none",
+            )
         )
-        fig.line(
-            stiffness_log,
-            [self.tripspeed] * num,
-            line_dash="dotdash",
-            line_width=3,
-            line_color=bokeh_colors[-3],
-            legend_label="Trip Speed",
+        fig.add_trace(
+            go.Scatter(
+                x=stiffness_log,
+                y=[self.tripspeed] * num,
+                mode="lines",
+                line=dict(dash="dashdot", width=4, color=colors2[8]),
+                name="Trip Speed",
+                hoverinfo="none",
+            )
         )
-        fig.line(
-            stiffness_log,
-            [1.25 * self.tripspeed] * num,
-            line_dash="dotdash",
-            line_width=3,
-            line_color=bokeh_colors[-4],
-            legend_label="125% Trip Speed",
+        fig.add_trace(
+            go.Scatter(
+                x=stiffness_log,
+                y=[self.speed_factor * self.tripspeed] * num,
+                mode="lines",
+                line=dict(dash="longdash", width=4, color=colors2[8]),
+                name="{}% Trip Speed".format(100 * self.speed_factor),
+                hoverinfo="none",
+            )
         )
-        fig.legend.background_fill_alpha = 0.1
-        fig.legend.location = "bottom_right"
+        for j in range(rotor_wn.T.shape[1]):
+            fig.add_trace(
+                go.Scatter(
+                    x=stiffness_log,
+                    y=np.transpose(rotor_wn.T)[j],
+                    mode="lines",
+                    line=dict(width=4, color=colors1[j]),
+                    hoverinfo="none",
+                    showlegend=False,
+                )
+            )
+        fig.update_xaxes(
+            title_text="<b>Bearing Stiffness</b>",
+            title_font=dict(size=16),
+            tickfont=dict(size=14),
+            gridcolor="lightgray",
+            showline=True,
+            linewidth=2.5,
+            linecolor="black",
+            mirror=True,
+            type="log",
+            exponentformat="power",
+        )
+        fig.update_yaxes(
+            title_text="<b>Critical Speed</b>",
+            title_font=dict(size=16),
+            tickfont=dict(size=14),
+            gridcolor="lightgray",
+            showline=True,
+            linewidth=2.5,
+            linecolor="black",
+            mirror=True,
+            type="log",
+            exponentformat="power",
+        )
+        fig.update_layout(
+            width=800,
+            height=600,
+            plot_bgcolor="white",
+            legend=dict(
+                font=dict(family="sans-serif", size=14),
+                bgcolor="white",
+                bordercolor="black",
+                borderwidth=2,
+            ),
+            title=dict(text="<b>Undamped Critical Speed Map</b>", font=dict(size=16)),
+        )
 
         return fig
 
@@ -686,7 +708,7 @@ class Report:
 
         return U_force
 
-    def unbalance_response(self, mode):
+    def unbalance_response(self, mode, samples=201):
         """Evaluate the unbalance response for the rotor.
 
         This analysis takes the critical speeds of interest, calculates the
@@ -700,12 +722,13 @@ class Report:
         ----------
         mode : int
             n'th mode shape.
+        samples : int
+            Number of samples to generate de frequency range.
 
         Returns
         -------
-        grid_plots : bokeh.gridplot
-            Bokeh axes with unbalance response plot for magnitude and
-            phase angle.
+        subplots : Plotly graph_objects.make_subplots()
+            Plotly figure with Amplitude vs Frequency and Phase vs Frequency plots.
         unbalance_dict : dict
             A dictionary with information about simulation parameters to be
             displayed in the report. The dictionary contains:
@@ -721,12 +744,11 @@ class Report:
         -------
         >>> import ross as rs
         >>> report = rs.report_example()
-        >>> report.unbalance_response(mode=0) # doctest: +ELLIPSIS
-        (Column...
+        >>> fig, unbalance_dict = report.unbalance_response(mode=0)
         """
         maxspeed = self.maxspeed
         minspeed = self.minspeed
-        freq_range = np.linspace(0, 1.25 * maxspeed, 201)
+        freq_range = np.linspace(0, self.speed_factor * maxspeed, 201)
 
         # returns de nodes where forces will be applied
         self.mode_shape(mode)
@@ -753,14 +775,13 @@ class Report:
             "Unbalance phase(s)": [phase],
         }
 
-        response = self.rotor.unbalance_response(nodes, force, phase, freq_range)
+        response = self.rotor.run_unbalance_response(nodes, force, phase, freq_range)
         mag = response.magnitude
-        phs = response.phase
 
         for node in nodes:
             dof = 4 * node + 1
-            mag_plot = response.plot_magnitude_bokeh(dof)
-            phs_plot = response.plot_phase_bokeh(dof)
+            mag_plot = response.plot_magnitude(dof)
+            phs_plot = response.plot_phase(dof)
 
         magnitude = mag[dof]
         idx_max = argrelextrema(magnitude, np.greater)[0].tolist()
@@ -791,71 +812,59 @@ class Report:
                 SM = min([16, 17 * (1 - 1 / (AF - 1.5))]) / 100
                 SMspeed = wn[i] * (1 + SM)
                 SM_ref = (minspeed - wn[i]) / wn[i]
-                source = ColumnDataSource(
-                    dict(
-                        top=[max(magnitude[idx_max])],
-                        bottom=[0],
-                        left=[wn[i]],
-                        right=[SMspeed],
-                        tag1=[wn[i]],
-                        tag2=[SMspeed],
+
+                hovertemplate = (
+                    f"<b>Critical Speed: {wn[i]:.2f}<b><br>"
+                    + f"<b>Speed at 0.707 x amplitude peak: {SMspeed:.2f}<b><br>"
+                )
+                mag_plot.add_trace(
+                    go.Scatter(
+                        x=[wn[i], SMspeed, SMspeed, wn[i], wn[i]],
+                        y=[0, 0, max(magnitude[idx_max]), max(magnitude[idx_max]), 0],
+                        text=hovertemplate,
+                        mode="lines",
+                        opacity=0.3,
+                        fill="toself",
+                        fillcolor=colors1[3],
+                        line=dict(width=1.5, color=colors1[3]),
+                        showlegend=True if i == 0 else False,
+                        name="Separation Margin",
+                        legendgroup="Separation Margin",
+                        hoveron="points+fills",
+                        hoverinfo="text",
+                        hovertemplate=hovertemplate,
+                        hoverlabel=dict(bgcolor=colors1[3]),
                     )
                 )
-
-                mag_plot.quad(
-                    top="top",
-                    bottom="bottom",
-                    left="left",
-                    right="right",
-                    source=source,
-                    line_color=bokeh_colors[8],
-                    line_width=0.8,
-                    fill_alpha=0.2,
-                    fill_color=bokeh_colors[8],
-                    legend_label="Separation Margin",
-                    name="SM2",
-                )
-                hover = HoverTool(names=["SM2"])
-                hover.tooltips = [
-                    ("Critical Speed :", "@tag1"),
-                    ("Speed at 0.707 x peak amplitude :", "@tag2"),
-                ]
-                mag_plot.add_tools(hover)
 
             elif AF > 2.5 and wn[i] > maxspeed:
                 SM = min([26, 10 + 17 * (1 - 1 / (AF - 1.5))]) / 100
                 SMspeed = wn[i] * (1 - SM)
                 SM_ref = (wn[i] - maxspeed) / maxspeed
-                source = ColumnDataSource(
-                    dict(
-                        top=[max(magnitude[idx_max])],
-                        bottom=[0],
-                        left=[SMspeed],
-                        right=[wn[i]],
-                        tag1=[wn[i]],
-                        tag2=[SMspeed],
+
+                hovertemplate = (
+                    f"<b>Critical Speed: {wn[i]:.2f}<b><br>"
+                    + f"<b>Speed at 0.707 x amplitude peak: {SMspeed:.2f}<b><br>"
+                )
+                mag_plot.add_trace(
+                    go.Scatter(
+                        x=[SMspeed, wn[i], wn[i], SMspeed, SMspeed],
+                        y=[0, 0, max(magnitude[idx_max]), max(magnitude[idx_max]), 0],
+                        text=hovertemplate,
+                        mode="lines",
+                        opacity=0.3,
+                        fill="toself",
+                        fillcolor=colors1[3],
+                        line=dict(width=1.5, color=colors1[3]),
+                        showlegend=True if i == 0 else False,
+                        name="Separation Margin",
+                        legendgroup="Separation Margin",
+                        hoveron="points+fills",
+                        hoverinfo="text",
+                        hovertemplate=hovertemplate,
+                        hoverlabel=dict(bgcolor=colors1[3]),
                     )
                 )
-
-                mag_plot.quad(
-                    top="top",
-                    bottom="bottom",
-                    left="left",
-                    right="right",
-                    source=source,
-                    line_color=bokeh_colors[8],
-                    line_width=0.8,
-                    fill_alpha=0.2,
-                    fill_color=bokeh_colors[8],
-                    legend_label="Separation Margin",
-                    name="SM2",
-                )
-                hover = HoverTool(names=["SM2"])
-                hover.tooltips = [
-                    ("Critical Speed :", "@tag1"),
-                    ("Speed at 0.707 x peak amplitude :", "@tag2"),
-                ]
-                mag_plot.add_tools(hover)
 
             else:
                 SM = None
@@ -868,7 +877,7 @@ class Report:
             unbalance_dict["Frequency"].append(wn[i])
 
         # amplitude limit in micrometers (A1) - API684 - SP6.8.2.11
-        A1 = 25.4 * np.sqrt(12000 / (30 * maxspeed / np.pi)) * 1.0e-6
+        A1 = 25.4 * np.sqrt(12000 / (30 * maxspeed / np.pi))
 
         Amax = max(mag[dof])
 
@@ -876,58 +885,71 @@ class Report:
         Scc = max(A1 / Amax, 0.5)
         Scc = min(Scc, 6.0)
 
-        mag_plot.quad(
-            top=max(mag[dof]),
-            bottom=0,
-            left=minspeed,
-            right=maxspeed,
-            line_color="green",
-            line_width=0.8,
-            fill_alpha=0.2,
-            fill_color="green",
-            legend_label="Operation Speed Range",
-        )
-
-        source = ColumnDataSource(dict(x=freq_range, y=mag[dof]))
-        mag_plot.line(
-            x="x",
-            y="y",
-            source=source,
-            line_color=bokeh_colors[0],
-            line_alpha=1.0,
-            line_width=3,
-        )
-        mag_plot.line(
-            x=[minspeed, maxspeed],
-            y=[A1, A1],
-            line_dash="dotdash",
-            line_width=2.0,
-            line_color=bokeh_colors[1],
-            legend_label="Av1 - Mechanical test vibration limit",
-        )
-        mag_plot.add_layout(
-            Label(
-                x=(minspeed + maxspeed) / 2,
-                y=A1,
-                angle=0,
-                text="Av1",
-                text_font_style="bold",
-                text_font_size="12pt",
-                text_baseline="top",
-                text_align="center",
-                y_offset=20,
+        mag_plot.add_trace(
+            go.Scatter(
+                x=[minspeed, maxspeed, maxspeed, minspeed, minspeed],
+                y=[0, 0, max(mag[dof]), max(mag[dof]), 0],
+                text="Operation Speed Range",
+                mode="lines",
+                opacity=0.3,
+                fill="toself",
+                fillcolor=colors1[2],
+                line=dict(width=1.5, color=colors1[2]),
+                name="Operation Speed Range",
+                legendgroup="Operation Speed Range",
+                hoveron="points+fills",
+                hoverinfo="text",
+                hoverlabel=dict(bgcolor=colors1[2]),
             )
         )
-        mag_plot.width = 640
-        mag_plot.height = 480
-        mag_plot.legend.background_fill_alpha = 0.1
+        mag_plot.add_trace(
+            go.Scatter(
+                x=[minspeed, maxspeed],
+                y=[A1, A1],
+                mode="lines",
+                line=dict(width=2.0, color=colors1[5], dash="dashdot"),
+                name="Av1 - Mechanical test vibration limit",
+                hoverinfo="none",
+            )
+        )
+        mag_plot.add_annotation(
+            x=(minspeed + maxspeed) / 2,
+            y=A1,
+            axref="x",
+            ayref="y",
+            xshift=0,
+            yshift=10,
+            text="<b>Av1</b>",
+            font=dict(size=18),
+            showarrow=False,
+        )
+        mag_plot["data"][0]["line"] = dict(width=4.0, color=colors1[5])
+        phs_plot["data"][0]["line"] = dict(width=4.0, color=colors1[5])
 
-        phs_plot.width = 640
-        phs_plot.height = 480
+        subplots = make_subplots(rows=2, cols=1)
+        for data in mag_plot["data"]:
+            subplots.add_trace(data, row=1, col=1)
+        for data in phs_plot["data"]:
+            subplots.add_trace(data, row=2, col=1)
 
-        grid_plots = gridplot([mag_plot, phs_plot], ncols=1)
+        subplots.update_xaxes(mag_plot.layout.xaxis, row=1, col=1)
+        subplots.update_yaxes(mag_plot.layout.yaxis, row=1, col=1)
+        subplots.update_xaxes(phs_plot.layout.xaxis, row=2, col=1)
+        subplots.update_yaxes(phs_plot.layout.yaxis, row=2, col=1)
+        subplots.update_layout(
+            width=1800,
+            height=900,
+            plot_bgcolor="white",
+            hoverlabel_align="right",
+            legend=dict(
+                itemsizing="constant",
+                bgcolor="white",
+                borderwidth=2,
+                font=dict(size=14),
+            ),
+        )
 
-        return grid_plots, unbalance_dict
+        return subplots, unbalance_dict
 
     def mode_shape(self, mode):
         """Evaluate the mode shapes for the rotor.
@@ -942,10 +964,17 @@ class Report:
         mode : int
             the n'th vibration mode
 
+        Attributes
+        ----------
+        node_min : int
+            Nodes where the maximum displacements occur
+        node_max : int
+            Nodes where the minimum displacements occur
+
         Returns
         -------
-        node_min, node_max : list
-            List with nodes where the largest absolute displacements occur
+        fig : Plotly graph_objects.Figure()
+            The figure object with the plot.
 
         Example
         -------
@@ -1028,73 +1057,108 @@ class Report:
         elif self.rotor_type == "single_overhung_r":
             node_max = [max(df_disks["n"])]
 
-        plot = figure(
-            tools="pan,wheel_zoom,box_zoom,reset,save,box_select",
-            width=1400,
-            height=700,
-            title="Undamped Mode Shape",
-            x_axis_label="Rotor lenght",
-            y_axis_label="Non dimensional rotor deformation",
-        )
-        plot.title.text_font_size = "14pt"
-        plot.xaxis.axis_label_text_font_size = "14pt"
-        plot.yaxis.axis_label_text_font_size = "14pt"
-        plot.axis.major_label_text_font_size = "14pt"
-
         nodes_pos = np.array(nodes_pos)
         rpm_speed = (30 / np.pi) * modal.wn[mode]
-
-        plot.line(
-            x=zn,
-            y=vn,
-            line_width=4,
-            line_color="red",
-            legend_label="Mode = %s, Speed = %.1f RPM" % (mode, rpm_speed),
-        )
-        plot.line(
-            x=nodes_pos,
-            y=np.zeros(len(nodes_pos)),
-            line_dash="dotdash",
-            line_width=4.0,
-            line_color="black",
-        )
-        plot.circle(
-            x=nodes_pos[df_bearings["n"]],
-            y=np.zeros(len(df_bearings)),
-            size=12,
-            fill_color="black",
-        )
-
-        pos0 = nodes_pos[min(df_bearings["n"])]
-        pos1 = nodes_pos[max(df_bearings["n"])]
-        plot.add_layout(
-            Label(
-                x=np.mean(nodes_pos[df_bearings["n"]]),
-                y=0,
-                angle=0,
-                text="Bearing Span = %.2f" % (pos1 - pos0),
-                text_font_style="bold",
-                text_font_size="12pt",
-                text_baseline="top",
-                text_align="center",
-                y_offset=20,
-            )
-        )
-        for node in nodes_pos[df_bearings["n"]]:
-            plot.add_layout(
-                Span(
-                    location=node,
-                    dimension="height",
-                    line_color="green",
-                    line_dash="dashed",
-                    line_width=3,
-                )
-            )
 
         self.node_min = node_min
         self.node_max = node_max
 
-        return plot
+        fig = go.Figure()
+        fig.add_trace(
+            go.Scatter(
+                x=zn,
+                y=vn,
+                mode="lines",
+                line=dict(width=4, color=colors1[3]),
+                name="<b>Mode {}</b><br><b>Speed = {:.1f} RPM</b>".format(
+                    mode, rpm_speed
+                ),
+                hovertemplate="Axial position: %{x:.2f}<br>Deformation: %{y:.2f}",
+            )
+        )
+        fig.add_trace(
+            go.Scatter(
+                x=nodes_pos,
+                y=np.zeros(len(nodes_pos)),
+                mode="lines",
+                line=dict(width=4, color=colors1[5], dash="dashdot"),
+                name="centerline",
+                hoverinfo="none",
+                showlegend=False,
+            )
+        )
+        fig.add_trace(
+            go.Scatter(
+                x=nodes_pos[df_bearings["n"]],
+                y=np.zeros(len(df_bearings)),
+                mode="markers",
+                marker=dict(size=12, color=colors1[5]),
+                name="bearing_node",
+                showlegend=False,
+                hovertemplate="Bearing Position: %{x:.2f}",
+            )
+        )
+
+        pos0 = nodes_pos[min(df_bearings["n"])]
+        pos1 = nodes_pos[max(df_bearings["n"])]
+        fig.add_annotation(
+            x=np.mean(nodes_pos[df_bearings["n"]]),
+            y=0,
+            axref="x",
+            ayref="y",
+            xshift=0,
+            yshift=20,
+            text="<b>Bearing Span = {:.2f}</b>".format(pos1 - pos0),
+            font=dict(size=18),
+            showarrow=False,
+        )
+
+        for node in nodes_pos[df_bearings["n"]]:
+            fig.add_trace(
+                go.Scatter(
+                    x=[node, node],
+                    y=[-2, 2],
+                    mode="lines",
+                    line=dict(width=2.5, color=colors1[5], dash="dash"),
+                    name="Span",
+                    legendgroup="Span",
+                    hoverinfo="none",
+                    showlegend=False,
+                )
+            )
+
+        fig.update_xaxes(
+            title_text="<b>Rotor lenght</b>",
+            title_font=dict(family="Arial", size=20),
+            tickfont=dict(size=16),
+            gridcolor="lightgray",
+            showline=True,
+            linewidth=2.5,
+            linecolor="black",
+            mirror=True,
+        )
+        fig.update_yaxes(
+            title_text="<b>Non dimensional deformation</b>",
+            title_font=dict(family="Arial", size=20),
+            tickfont=dict(size=16),
+            range=[-2, 2],
+            gridcolor="lightgray",
+            showline=True,
+            linewidth=2.5,
+            linecolor="black",
+            mirror=True,
+        )
+        fig.update_layout(
+            width=1200,
+            height=900,
+            plot_bgcolor="white",
+            hoverlabel_align="right",
+            title=dict(
+                text="<b>Undamped Mode Shape</b>".format(node), font=dict(size=20)
+            ),
+        )
+
+        return fig
 
     def stability_level_1(self, D, H, HP, oper_speed, RHO_ratio, RHOs, RHOd, unit="m"):
         """Stability analysis level 1.
@@ -1132,15 +1196,15 @@ class Report:
 
         Attributes
         ----------
-        condition: str
-            not required: Stability Level 1 satisfies the analysis;
-            required: Stability Level 2 is required.
+        condition: bool
+            False: Stability Level 1 satisfies the analysis;
+            True: Stability Level 2 is required.
 
         Return
         ------
-        fig1: bokeh.figure
-            Applied Cross-Coupled Stiffness vs. Log Decrement plot;
-        fig2: bokeh.figure
+        fig1 : Plotly graph_objects.Figure()
+            Applied Cross-Coupled Stiffness vs. Log Decrement plot.
+        fig2 : Plotly graph_objects.Figure()
             CSR vs. Mean Gas Density plot.
 
         Example
@@ -1283,121 +1347,157 @@ class Report:
         )
 
         # Plotting area
-        fig1 = figure(
-            tools="pan, box_zoom, wheel_zoom, reset, save",
-            title="Applied Cross-Coupled Stiffness vs. Log Decrement - (API 684 - SP 6.8.5.10)",
-            width=640,
-            height=480,
-            x_axis_label="Applied Cross-Coupled Stiffness, Q (N/m)",
-            y_axis_label="Log Dec",
-            x_range=(0, max(cross_coupled_Qa)),
-            y_range=DataRange1d(start=0),
-        )
-        fig1.title.text_font_size = "14pt"
-        fig1.xaxis.axis_label_text_font_size = "14pt"
-        fig1.yaxis.axis_label_text_font_size = "14pt"
-        fig1.axis.major_label_text_font_size = "14pt"
 
-        fig1.line(cross_coupled_Qa, log_dec, line_width=3, line_color=bokeh_colors[0])
-        fig1.circle(Qa, log_dec_a, size=8, fill_color=bokeh_colors[0])
-        fig1.add_layout(
-            Label(
-                x=Qa,
-                y=log_dec_a,
-                text="Qa",
-                text_font_style="bold",
-                text_font_size="12pt",
-                text_baseline="middle",
-                text_align="left",
-                y_offset=10,
+        fig1 = go.Figure()
+
+        fig1.add_trace(
+            go.Scatter(
+                x=cross_coupled_Qa,
+                y=log_dec,
+                mode="lines",
+                showlegend=False,
+                hoverinfo="none",
             )
         )
-
-        if unit == "m":
-            f = 0.062428
-            x_label1 = "kg/m³"
-            x_label2 = "lb/ft³"
-        if unit == "in":
-            f = 16.0185
-            x_label1 = "lb/ft³"
-            x_label2 = "kg/m³"
-
-        fig2 = figure(
-            tools="pan, box_zoom, wheel_zoom, reset, save",
-            title="CSR vs. Mean Gas Density - (API 684 - SP 6.8.5.10)",
-            width=640,
-            height=480,
-            x_axis_label=x_label1,
-            y_axis_label="MCSR",
-            y_range=DataRange1d(start=0),
-            x_range=DataRange1d(start=0),
-        )
-        fig2.title.text_font_size = "14pt"
-        fig2.xaxis.axis_label_text_font_size = "14pt"
-        fig2.yaxis.axis_label_text_font_size = "14pt"
-        fig2.axis.major_label_text_font_size = "14pt"
-        fig2.extra_x_ranges = {"x_range2": Range1d(f * min(RHO), f * max(RHO))}
-
-        fig2.add_layout(
-            LinearAxis(
-                x_range_name="x_range2",
-                axis_label=x_label2,
-                axis_label_text_font_size="11pt",
-            ),
-            place="below",
-        )
-        fig2.add_layout(
-            Label(
-                x=RHO_mean,
-                y=CSR,
-                text=self.tag,
-                text_font_style="bold",
-                text_font_size="12pt",
-                text_baseline="middle",
-                text_align="left",
-                x_offset=10,
+        fig1.add_trace(
+            go.Scatter(
+                x=[Qa],
+                y=[log_dec_a],
+                mode="markers",
+                name="<b>Qa: Anticipated cross-coupling</b>",
+                hoverinfo="none",
             )
         )
-
-        for txt, x, y in zip(["Region A", "Region B"], [30, 60], [1.20, 2.75]):
-            fig2.add_layout(
-                Label(
-                    x=x,
-                    y=y,
-                    text=txt,
-                    text_alpha=0.4,
-                    text_font_style="bold",
-                    text_font_size="12pt",
-                    text_baseline="middle",
-                    text_align="center",
+        fig1.add_annotation(
+            x=Qa,
+            y=log_dec_a,
+            axref="x",
+            ayref="y",
+            xshift=15,
+            yshift=15,
+            text="<b>Qa</b>",
+            showarrow=False,
+        )
+        fig1.update_xaxes(
+            title_text="<b>Applied Cross-Coupled Stiffness, Q (N/m)</b>",
+            rangemode="nonnegative",
+        )
+        fig1.update_yaxes(title_text="<b>Log Dec</b>", rangemode="nonnegative")
+        fig1.update_layout(
+            title=dict(
+                text=(
+                    "<b>Applied Cross-Coupled Stiffness vs. Log Decrement</b><br>"
+                    + "<b>(API 684 - SP 6.8.5.10)</b>"
                 )
             )
+        )
 
-        fig2.line(x=RHO, y=CSR_boundary, line_width=3, line_color=bokeh_colors[0])
-        fig2.circle(x=RHO_mean, y=CSR, size=8, color=bokeh_colors[0])
+        fig2 = go.Figure()
+        fig2.add_annotation(
+            x=RHO_mean,
+            y=CSR,
+            axref="x",
+            ayref="y",
+            xshift=40,
+            yshift=0,
+            text="<b>{}</b>".format(self.tag),
+            showarrow=False,
+        )
+
+        for text, x, y in zip(["Region A", "Region B"], [30, 60], [1.20, 2.75]):
+            fig2.add_annotation(
+                x=x,
+                y=y,
+                axref="x",
+                ayref="y",
+                xshift=0,
+                yshift=0,
+                text=f"<b>{text}</b>",
+                opacity=0.4,
+                showarrow=False,
+            )
+
+        fig2.add_trace(
+            go.Scatter(
+                x=RHO,
+                y=CSR_boundary,
+                mode="lines",
+                showlegend=False,
+                hoverinfo="none",
+                xaxis="x",
+            )
+        )
+        fig2.add_trace(
+            go.Scatter(
+                x=0.062428 * RHO,
+                y=CSR_boundary,
+                mode="lines",
+                showlegend=False,
+                hoverinfo="none",
+                xaxis="x2",
+            )
+        )
+        fig2.add_trace(
+            go.Scatter(
+                x=[RHO_mean],
+                y=[CSR],
+                mode="markers",
+                name="<b>CSR: Critical Speed Ratio</b>",
+                hoverinfo="none",
+                xaxis="x",
+            )
+        )
+
+        fig2.update_xaxes(mirror=True)
+        fig2.update_yaxes(
+            title_text="<b>Maximum Critical Speed Ratio</b>",
+            rangemode="nonnegative",
+            domain=[0.1, 1],
+        )
+        fig2.update_layout(
+            xaxis=dict(
+                title_text="<b>kg/m³</b>",
+                rangemode="nonnegative",
+                overlaying="x2",
+                anchor="y",
+            ),
+            xaxis2=dict(
+                title_text="<b>lb/ft³</b>",
+                rangemode="nonnegative",
+                anchor="free",
+                side="bottom",
+                position=0,
+            ),
+            title=dict(
+                text=(
+                    "<b>CSR vs. Mean Gas Density</b><br>"
+                    + "<b>(API 684 - SP 6.8.5.10)</b>"
+                )
+            ),
+        )
 
         # Level 1 screening criteria - API 684 - SP6.8.5.10
         idx = min(range(len(RHO)), key=lambda i: abs(RHO[i] - RHO_mean))
 
         if self.machine_type == "compressor":
             if Q0 / Qa < 2.0:
-                condition = "required"
+                condition = True
 
             if log_dec_a < 0.1:
-                condition = "required"
+                condition = True
 
             if 2.0 < Q0 / Qa < 10.0 and CSR > CSR_boundary[idx]:
-                condition = "required"
+                condition = True
 
             else:
-                condition = "not required"
+                condition = False
 
         if self.machine_type == "turbine" or self.machine_type == "axial flow":
             if log_dec_a < 0.1:
-                condition = "required"
+                condition = True
 
             else:
-                condition = "not required"
+                condition = False
 
         # updating attributes
         self.Q0 = Q0
@@ -1424,9 +1524,8 @@ class Report:
 
         Returns
         -------
-        df_logdec: pandas dataframe
-            A dataframe relating the logarithmic decrement for each
-            case analyzed
+        df_logdec: pd.DataFrame
+            A dataframe relating the logarithmic decrement for each case analyzed.
 
         Example
         -------
@@ -1552,8 +1651,10 @@ class Report:
 
         Returns
         -------
-        tabs : bokeh Column
-            Bokeh Column with the summary table plot
+        df_stab_lvl1 : pd.DataFrame
+            Dataframe with stability level 1 results
+        df_stab_lvl2 : pd.DataFrame
+            Dataframe with stability level 2 results
 
         Example
         -------
@@ -1597,8 +1698,8 @@ class Report:
 
         Returns
         -------
-        tabs : bokeh Column
-            Bokeh Column with the summary table plot
+        fig : Plotly graph_objects.make_subplots()
+            The figure object with the tables.
 
         Example
         -------
@@ -1612,70 +1713,83 @@ class Report:
         ...                          RHOs=37.65,
         ...                          oper_speed=1000.0)
         >>> stability2 = report.stability_level_2()
-        >>> report.plot_summary() # doctest: +ELLIPSIS
-        Tabs...
+        >>> table = report.plot_summary()
         """
         stab_lvl1_data, stab_lvl2_data = self.summary()
+        for var in stab_lvl1_data.columns[2:]:
+            stab_lvl1_data[str(var)] = np.round(stab_lvl1_data[str(var)], 3)
 
-        stab_lvl1_source = ColumnDataSource(stab_lvl1_data)
-        stab_lvl2_source = ColumnDataSource(stab_lvl2_data)
+        stab_lvl2_data["logdec"] = np.round(stab_lvl2_data["logdec"], 4)
 
         stab_lvl1_titles = [
-            "Rotor Tag",
-            "Machine Type",
-            "Q_0",
-            "Q_A",
-            "log dec (δ)",
-            "Q_0 / Q_A",
-            "1st Critical Spped",
-            "MCS",
-            "CSR",
-            "Gas Density",
+            "<b>Rotor Tag</b>",
+            "<b>Machine Type</b>",
+            "<b>Q_0</b>",
+            "<b>Q_A</b>",
+            "<b>log dec (δ)</b>",
+            "<b>Q_0 / Q_A</b>",
+            "<b>1st Critical Spped</b>",
+            "<b>MCS</b>",
+            "<b>CSR</b>",
+            "<b>Gas Density</b>",
         ]
-        stab_lvl2_titles = ["Components", "Log. Dec."]
+        stab_lvl2_titles = ["<b>Components</b>", "<b>Log. Dec.</b>"]
 
-        stab_lvl1_formatters = [
-            None,
-            None,
-            NumberFormatter(format="0.000"),
-            NumberFormatter(format="0.000"),
-            NumberFormatter(format="0.000"),
-            NumberFormatter(format="0.000"),
-            NumberFormatter(format="0.000"),
-            NumberFormatter(format="0.000"),
-            NumberFormatter(format="0.000"),
-            NumberFormatter(format="0.000"),
-        ]
-        stab_lvl2_formatters = [None, NumberFormatter(format="0.0000")]
-
-        stab_lvl1_columns = [
-            TableColumn(field=str(field), title=title, formatter=form)
-            for field, title, form in zip(
-                stab_lvl1_data.keys(), stab_lvl1_titles, stab_lvl1_formatters
-            )
-        ]
-        stab_lvl2_columns = [
-            TableColumn(field=str(field), title=title, formatter=form)
-            for field, title, form in zip(
-                stab_lvl2_data.keys(), stab_lvl2_titles, stab_lvl2_formatters
-            )
-        ]
-
-        stab_lvl1_table = DataTable(
-            source=stab_lvl1_source, columns=stab_lvl1_columns, width=1600
-        )
-        stab_lvl2_table = DataTable(
-            source=stab_lvl2_source, columns=stab_lvl2_columns, width=1600
+        fig = make_subplots(
+            rows=2,
+            cols=1,
+            specs=[[{"type": "table"}], [{"type": "table"}]],
+            subplot_titles=["<b>Stability Level 1</b>", "<b>Stability Level 2</b>"],
         )
 
-        table1 = Column(stab_lvl1_table)
-        tab1 = Panel(child=table1, title="Stability Level 1")
-        table2 = Column(stab_lvl2_table)
-        tab2 = Panel(child=table2, title="Stability Level 2")
+        colors = ["#ffffff", "#c4d9ed"]
+        cell_colors = [colors[i % 2] for i in range(len(stab_lvl1_data["tags"]))]
+        fig.add_trace(
+            go.Table(
+                header=dict(
+                    values=stab_lvl1_titles,
+                    font=dict(family="Verdana", size=14, color="white"),
+                    line=dict(color="#1e4162", width=1.5),
+                    fill=dict(color="#1e4162"),
+                    align="center",
+                ),
+                cells=dict(
+                    values=[stab_lvl1_data[str(var)] for var in stab_lvl1_data.columns],
+                    font=dict(family="Verdana", size=14, color="#12263b"),
+                    line=dict(color="#c4d9ed", width=1.5),
+                    fill=dict(color=[cell_colors * len(stab_lvl1_data["tags"])]),
+                    align="center",
+                    height=25,
+                ),
+            ),
+            row=1,
+            col=1,
+        )
 
-        tabs = Tabs(tabs=[tab1, tab2])
+        cell_colors = [colors[i % 2] for i in range(len(stab_lvl2_data["tags"]))]
+        fig.add_trace(
+            go.Table(
+                header=dict(
+                    values=stab_lvl2_titles,
+                    font=dict(family="Verdana", size=14, color="white"),
+                    line=dict(color="#1e4162", width=1.5),
+                    fill=dict(color="#1e4162"),
+                    align="center",
+                ),
+                cells=dict(
+                    values=[stab_lvl2_data[str(var)] for var in stab_lvl2_data.columns],
+                    font=dict(family="Verdana", size=14, color="#12263b"),
+                    line=dict(color="#c4d9ed", width=1.5),
+                    fill=dict(color=[cell_colors * len(stab_lvl2_data["tags"])]),
+                    align="center",
+                    height=25,
+                ),
+            ),
+            row=2,
+            col=1,
+        )
 
-        return tabs
+        return fig
 
 
 def report_example():

@@ -8,7 +8,7 @@ import numpy as np
 from ross.bearing_seal_element import BearingElement
 from ross.fluid_flow import fluid_flow as flow
 from ross.fluid_flow.fluid_flow_coefficients import (
-    calculate_damping_matrix, calculate_stiffness_matrix)
+    calculate_short_damping_matrix, calculate_short_stiffness_matrix)
 from ross.stochastic.st_results_elements import plot_histogram
 
 # fmt: on
@@ -297,7 +297,7 @@ class ST_BearingElement:
 
         return f_list
 
-    def plot_random_var(self, var_list=[], **kwargs):
+    def plot_random_var(self, var_list=[], histogram_kwargs={}, plot_kwargs={}):
         """Plot histogram and the PDF.
 
         This function creates a histogram to display the random variable
@@ -307,21 +307,26 @@ class ST_BearingElement:
         ----------
         var_list : list, optional
             List of random variables, in string format, to plot.
-        **kwargs : optional
+        histogram_kwargs : dict, optional
             Additional key word arguments can be passed to change
-            the numpy.histogram (e.g. density=True, bins=11, ...)
+            the plotly.go.histogram (e.g. histnorm="probability density", nbinsx=20...).
+            *See Plotly API to more information.
+        plot_kwargs : dict, optional
+            Additional key word arguments can be passed to change the plotly go.figure
+            (e.g. line=dict(width=4.0, color="royalblue"), opacity=1.0, ...).
+            *See Plotly API to more information.
 
         Returns
         -------
-        grid_plot : bokeh row
-            A row with the histogram plots.
+        fig : Plotly graph_objects.Figure()
+            A figure with the histogram plots.
 
         Examples
         --------
         >>> import ross.stochastic as srs
         >>> elm = srs.st_bearing_example()
-        >>> elm.plot_random_var(["kxx"]) # doctest: +ELLIPSIS
-        Row...
+        >>> fig = elm.plot_random_var(["kxx"])
+        >>> # fig.show()
         """
         label = dict(
             kxx="Direct stiffness in the X direction",
@@ -340,7 +345,9 @@ class ST_BearingElement:
                 )
             )
 
-        return plot_histogram(self.attribute_dict, label, var_list, **kwargs)
+        return plot_histogram(
+            self.attribute_dict, label, var_list, histogram_kwargs={}, plot_kwargs={}
+        )
 
     @classmethod
     def from_fluid_flow(
@@ -505,8 +512,8 @@ class ST_BearingElement:
                 eccentricity=attribute_dict["eccentricity"][i],
                 load=attribute_dict["load"][i],
             )
-            c = calculate_damping_matrix(fluid_flow, force_type="short")
-            k = calculate_stiffness_matrix(fluid_flow, force_type="short")
+            c = calculate_short_damping_matrix(fluid_flow)
+            k = calculate_short_stiffness_matrix(fluid_flow)
             args_dict["kxx"].append(k[0])
             args_dict["kxy"].append(k[1])
             args_dict["kyx"].append(k[2])

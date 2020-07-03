@@ -1,3 +1,4 @@
+import inspect
 from abc import ABC, abstractmethod
 from collections import namedtuple
 from pathlib import Path
@@ -8,61 +9,94 @@ import toml
 
 class Element(ABC):
     """Element class.
+
     This class is a general abstract class to be implemented in other files, in order to
     create specific elements for the user.
     """
 
-    def __init__(self, n):
+    def __init__(self, n, tag=None):
         self.n = n
-        self.dof_mapping = None
-        pass
+        self.tag = tag
 
-    def save(self, file_name):
-        """Saves the element in a file.
+    def save(self, file):
+        """Save the element in a .toml file.
+
+        This function will save the element to a .toml file.
+        The file will have all the argument's names and values that are needed to
+        reinstantiate the element.
+
         Parameters
         ----------
-        file_name: string
+        file : str, pathlib.Path
             The name of the file the element will be saved in.
-        Returns
-        -------
-        None
+
         Examples
         --------
         >>> # Example using DiskElement
+        >>> from tempfile import tempdir
+        >>> from pathlib import Path
         >>> from ross.disk_element import disk_example
+        >>> # create path for a temporary file 
+        >>> file = Path(tempdir) / 'disk.toml'
         >>> disk = disk_example()
-        >>> disk.save()
+        >>> disk.save(file)
         """
-        pass
+        # get __init__ arguments
+        signature = inspect.signature(self.__init__)
+        args_list = list(signature.parameters)
+        args = {arg: getattr(self, arg) for arg in args_list}
+        try:
+            data = toml.load(file)
+        except FileNotFoundError:
+            data = {}
 
-    @staticmethod
-    def load(file_name):
-        """Loads elements saved in a file.
+        data[f"{self.__class__.__name__}_{self.tag}"] = args
+        with open(file, "w") as f:
+            toml.dump(data, f)
+
+    @classmethod
+    def read_toml_data(cls, data):
+        """Read and parse data stored in a .toml file.
+
+        The data passed to this method needs to be according to the
+        format saved in the .toml file by the .save() method.
+
         Parameters
         ----------
-        file_name: string
-            The name of the file to be loaded.
+        data : dict
+            Dictionary obtained from toml.load().
+
         Returns
         -------
         The element object.
+
         Examples
         --------
         >>> # Example using BearingElement
+        >>> from tempfile import tempdir
+        >>> from pathlib import Path
         >>> from ross.bearing_seal_element import bearing_example
         >>> from ross.bearing_seal_element import BearingElement
+        >>> # create path for a temporary file 
+        >>> file = Path(tempdir) / 'bearing1.toml'
         >>> bearing1 = bearing_example()
-        >>> bearing1.save(Path('.'))
-        >>> list_of_bearings = BearingElement.load()
-        >>> bearing1 == list_of_bearings[0]
+        >>> bearing1.save(file)
+        >>> bearing1_loaded = BearingElement.load(file)
+        >>> bearing1 == bearing1_loaded
         True
         """
-        pass
+        return cls(**data)
+
+    @classmethod
+    def load(cls, file):
+        data = toml.load(file)
+        # extract single dictionary in the data
+        data = list(data.values())[0]
+        return cls.read_toml_data(data)
 
     @abstractmethod
     def M(self):
         """Mass matrix.
-        Parameters
-        ----------
 
         Returns
         -------
@@ -82,6 +116,7 @@ class Element(ABC):
     @abstractmethod
     def C(self, frequency):
         """Frequency dependent damping coefficients matrix.
+
         Parameters
         ----------
         frequency: float
@@ -105,6 +140,7 @@ class Element(ABC):
     @abstractmethod
     def K(self, frequency):
         """Frequency dependent stiffness coefficients matrix.
+
         Parameters
         ----------
         frequency: float
@@ -128,8 +164,6 @@ class Element(ABC):
     @abstractmethod
     def G(self):
         """Gyroscopic matrix.
-        Parameters
-        ----------
 
         Returns
         -------
@@ -147,12 +181,9 @@ class Element(ABC):
         pass
 
     def summary(self):
-        """A summary for the element.
+        """Present a summary for the element.
 
         A pandas series with the element properties as variables.
-
-        Parameters
-        ----------
 
         Returns
         -------
@@ -171,7 +202,8 @@ class Element(ABC):
         Id                     0.178089
         Ip                     0.329564
         tag                        None
-        color                   #b2182b
+        color                 Firebrick
+        scale_factor                  1
         dof_global_index           None
         type                DiskElement
         dtype: object
@@ -179,68 +211,6 @@ class Element(ABC):
         attributes = self.__dict__
         attributes["type"] = self.__class__.__name__
         return pd.Series(attributes)
-
-    @staticmethod
-    def get_data(file_name):
-        """Loads elements data saved in a toml format.
-
-        Parameters
-        ----------
-        file_name: string
-            The name of the file to be loaded.
-
-        Returns
-        -------
-        data: dict
-            The element parameters presented as a dictionary.
-
-        Examples
-        --------
-        >>> # Example using BearingElement
-        >>> from ross.bearing_seal_element import bearing_example
-        >>> from ross.bearing_seal_element import BearingElement
-        >>> bearing = bearing_example()
-        >>> bearing.save(Path('.'))
-        >>> BearingElement.get_data('BearingElement.toml') # doctest: +ELLIPSIS
-        {'BearingElement': {'0': {'n': 0, 'kxx': [1000000.0, 1000000.0,...
-        """
-        try:
-            with open(file_name, "r") as f:
-                data = toml.load(f)
-                if data == {"": {}}:
-                    data = {str(file_name.name)[:-5]: {}}
-
-        except FileNotFoundError:
-            data = {str(file_name.name)[:-5]: {}}
-            Element.dump_data(data, file_name)
-        return data
-
-    @staticmethod
-    def dump_data(data, file_name):
-        """Dumps element data in a toml file.
-
-        Parameters
-        ----------
-        data: dict
-            The data that should be dumped.
-        file_name: string
-            The name of the file the data will be dumped in.
-
-        Returns
-        -------
-
-        Examples
-        --------
-        >>> # Example using BearingElement
-        >>> from ross.bearing_seal_element import bearing_example
-        >>> from ross.bearing_seal_element import BearingElement
-        >>> bearing = bearing_example()
-        >>> bearing.save(Path('.'))
-        >>> data = BearingElement.get_data('BearingElement.toml')
-        >>> BearingElement.dump_data(data, 'BearingElement.toml') # doctest: +ELLIPSIS
-        """
-        with open(file_name, "w") as f:
-            toml.dump(data, f)
 
     @abstractmethod
     def dof_mapping(self):

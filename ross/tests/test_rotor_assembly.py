@@ -1,4 +1,5 @@
-import os
+from pathlib import Path
+from tempfile import tempdir
 
 import numpy as np
 import pytest
@@ -11,8 +12,6 @@ from ross.point_mass import *
 from ross.rotor_assembly import *
 from ross.rotor_assembly import MAC_modes
 from ross.shaft_element import *
-
-test_dir = os.path.dirname(__file__)
 
 
 @pytest.fixture
@@ -734,19 +733,19 @@ def test_freq_response_w_force(rotor4):
     )
 
     omega = np.linspace(0.0, 450.0, 4)
-    freq_resp = rotor4.run_forced_response(force=F0, speed_range=omega)
+    freq_resp = rotor4.forced_response(force=F0, speed_range=omega)
     mag = freq_resp.magnitude
     assert_allclose(mag[:4, :4], mag_exp)
 
-    freq_resp = rotor4.unbalance_response(2, 0.001, 0, frequency_range=omega)
+    freq_resp = rotor4.run_unbalance_response(2, 0.001, 0, frequency_range=omega)
     mag = freq_resp.magnitude
     assert_allclose(mag[:4, :4], mag_exp)
 
-    freq_resp = rotor4.unbalance_response(2, 0.001, 0, frequency_range=omega)
+    freq_resp = rotor4.run_unbalance_response(2, 0.001, 0, frequency_range=omega)
     mag = freq_resp.magnitude
     assert_allclose(mag[:4, :4], mag_exp)
 
-    freq_resp = rotor4.unbalance_response(
+    freq_resp = rotor4.run_unbalance_response(
         [2, 3], [0.001, 0.001], [0.0, 0], frequency_range=omega
     )
     mag = freq_resp.magnitude
@@ -768,10 +767,10 @@ def test_mesh_convergence(rotor3):
 
 
 def test_static_analysis_rotor3(rotor3):
-    rotor3.run_static()
+    static = rotor3.run_static()
 
     assert_almost_equal(
-        rotor3.disp_y[0],
+        static.deformation[0],
         np.array(
             [
                 -4.94274533e-12,
@@ -786,27 +785,43 @@ def test_static_analysis_rotor3(rotor3):
         decimal=6,
     )
     assert_almost_equal(
-        rotor3.Vx[0],
+        static.Vx[0],
         np.array(
             [
-                0,
                 -494.2745,
                 -456.6791,
-                -419.0836,
+                -456.6791,
+                -419.0837,
                 -99.4925,
                 -61.8971,
-                -24.3016,
-                480.9807,
+                -61.8971,
+                -24.3017,
+                480.9808,
+                518.5762,
                 518.5762,
                 556.1716,
-                0,
             ]
         ),
         decimal=3,
     )
     assert_almost_equal(
-        rotor3.Bm[0],
-        np.array([0, -118.8692, -228.3395, -248.5132, -259.2881, -134.3434, 0],),
+        static.Bm[0],
+        np.array(
+            [
+                0.0,
+                -118.8692,
+                -118.8692,
+                -228.3396,
+                -228.3396,
+                -248.5133,
+                -248.5133,
+                -259.2881,
+                -259.2881,
+                -134.3435,
+                -134.3435,
+                0.0,
+            ]
+        ),
         decimal=3,
     )
 
@@ -844,10 +859,10 @@ def rotor5():
 
 
 def test_static_analysis_rotor5(rotor5):
-    rotor5.run_static()
+    static = rotor5.run_static()
 
     assert_almost_equal(
-        rotor5.disp_y[0],
+        static.deformation[0],
         np.array(
             [
                 8.12651626e-04,
@@ -866,43 +881,57 @@ def test_static_analysis_rotor5(rotor5):
         decimal=6,
     )
     assert_almost_equal(
-        rotor5.Vx[0],
+        static.Vx[0],
         np.array(
             [
-                0,
+                0.0,
+                37.5954,
                 37.5954,
                 75.1908,
                 -494.2745,
                 -456.6791,
-                -419.08368,
+                -456.6791,
+                -419.0837,
                 -99.4925,
                 -61.8971,
-                -24.3016,
-                480.9807,
+                -61.8971,
+                -24.3017,
+                480.9808,
+                518.5762,
                 518.5762,
                 556.1716,
                 -75.1908,
                 -37.5954,
-                0,
+                -37.5954,
+                -0.0,
             ]
         ),
         decimal=3,
     )
     assert_almost_equal(
-        rotor5.Bm[0],
+        static.Bm[0],
         np.array(
             [
-                0,
+                0.0,
+                4.6994,
                 4.6994,
                 18.7977,
-                -100.0714,
+                18.7977,
+                -100.0715,
+                -100.0715,
+                -209.5418,
                 -209.5418,
                 -229.7155,
-                -240.4903,
-                -115.5457,
+                -229.7155,
+                -240.4904,
+                -240.4904,
+                -115.5458,
+                -115.5458,
+                18.7977,
                 18.7977,
                 4.6994,
-                0,
+                4.6994,
+                0.0,
             ]
         ),
         decimal=3,
@@ -943,10 +972,10 @@ def rotor6():
 
 
 def test_static_analysis_rotor6(rotor6):
-    rotor6.run_static()
+    static = rotor6.run_static()
 
     assert_almost_equal(
-        rotor6.disp_y[0],
+        static.deformation[0],
         np.array(
             [
                 -1.03951876e-04,
@@ -965,47 +994,122 @@ def test_static_analysis_rotor6(rotor6):
         decimal=6,
     )
     assert_almost_equal(
-        rotor6.Vx[0],
+        static.Vx[0],
         np.array(
             [
-                0,
+                -0.0,
+                37.5954,
                 37.5954,
                 75.1908,
-                -104.1543,
+                -104.1544,
+                -66.5589,
                 -66.5589,
                 -28.9635,
+                -28.9635,
                 8.6319,
-                328.2230,
-                365.8184,
+                328.2231,
+                365.8185,
+                365.8185,
+                403.4139,
                 403.4139,
                 441.0093,
                 -580.4733,
-                -542.8778,
-                -505.2824,
-                0,
+                -542.8779,
+                -542.8779,
+                -505.2825,
             ]
         ),
         decimal=3,
     )
     assert_almost_equal(
-        rotor6.Bm[0],
+        static.Bm[0],
         np.array(
             [
-                0,
+                0.0,
+                4.6994,
                 4.6994,
                 18.7977,
-                -2.5414,
-                -14.4817,
+                18.7977,
+                -2.5415,
+                -2.5415,
+                -14.4818,
+                -14.4818,
                 -17.0232,
-                69.7319,
-                165.8860,
-                271.4389,
-                131.0200,
-                0,
+                -17.0232,
+                69.732,
+                69.732,
+                165.886,
+                165.886,
+                271.439,
+                271.439,
+                131.0201,
+                131.02,
+                0.0,
             ]
         ),
         decimal=3,
     )
+
+
+def test_run_critical_speed(rotor5, rotor6):
+    results5 = rotor5.run_critical_speed(num_modes=12, rtol=0.005)
+    results6 = rotor6.run_critical_speed(num_modes=12, rtol=0.005)
+
+    wn5 = np.array(
+        [
+            86.10505193,
+            86.60492546,
+            198.93259257,
+            207.97165539,
+            244.95609413,
+            250.53522782,
+        ]
+    )
+    wd5 = np.array(
+        [
+            86.1050519,
+            86.60492544,
+            198.93259256,
+            207.97165539,
+            244.95609413,
+            250.53522782,
+        ]
+    )
+    log_dec5 = np.zeros_like(wd5)
+    damping_ratio5 = np.zeros_like(wd5)
+
+    wd6 = np.array(
+        [
+            61.52110644,
+            63.72862198,
+            117.49491374,
+            118.55829416,
+            233.83724523,
+            236.40346235,
+        ]
+    )
+    wn6 = np.array(
+        [
+            61.52110644,
+            63.72862198,
+            117.49491375,
+            118.55829421,
+            233.83724523,
+            236.40346458,
+        ]
+    )
+    log_dec6 = np.zeros_like(wd6)
+    damping_ratio6 = np.zeros_like(wd6)
+
+    assert_almost_equal(results5.wd, wd5, decimal=4)
+    assert_almost_equal(results5.wn, wn5, decimal=4)
+    assert_almost_equal(results5.log_dec, log_dec5, decimal=4)
+    assert_almost_equal(results5.damping_ratio, damping_ratio5, decimal=4)
+
+    assert_almost_equal(results6.wd, wd6, decimal=4)
+    assert_almost_equal(results6.wn, wn6, decimal=4)
+    assert_almost_equal(results6.log_dec, log_dec6, decimal=4)
+    assert_almost_equal(results6.damping_ratio, damping_ratio6, decimal=4)
 
 
 @pytest.fixture
@@ -1412,11 +1516,10 @@ def test_H_kappa(rotor7):
 
 
 def test_save_load():
-
     a = rotor_example()
     a.save("teste00000000000000001")
-    b = Rotor.load("teste00000000000000001")
-    Rotor.remove("teste00000000000000001")
+    b = Rotor.load("teste00000000000000001.rsm")
+    (Path.cwd() / "teste00000000000000001.rsm").unlink()
 
     assert a == b
 
@@ -1615,3 +1718,60 @@ def test_modal_6dof(rotor_6dof):
 
     assert_almost_equal(modal.wn[:6], wn, decimal=3)
     assert_almost_equal(modal.wd[:6], wd, decimal=3)
+
+
+@pytest.fixture
+def rotor8():
+    #  Rotor with damping
+    #  Rotor with 6 shaft elements, 2 disks and 2 bearings with frequency dependent coefficients
+    i_d = 0
+    o_d = 0.05
+    n = 6
+    L = [0.25 for _ in range(n)]
+
+    shaft_elem = [
+        ShaftElement(
+            l,
+            i_d,
+            o_d,
+            material=steel,
+            shear_effects=True,
+            rotary_inertia=True,
+            gyroscopic=True,
+        )
+        for l in L
+    ]
+
+    disk0 = DiskElement.from_geometry(2, steel, 0.07, 0.05, 0.28)
+    disk1 = DiskElement.from_geometry(4, steel, 0.07, 0.05, 0.35)
+
+    stfx = [1e7, 1.5e7]
+    stfy = [1e7, 1.5e7]
+    c = [1e3, 1.5e3]
+    frequency = [50, 5000]
+    bearing0 = BearingElement(0, kxx=stfx, kyy=stfy, cxx=c, cyy=c, frequency=frequency)
+    bearing1 = BearingElement(6, kxx=stfx, kyy=stfy, cxx=c, cyy=c, frequency=frequency)
+
+    return Rotor(shaft_elem, [disk0, disk1], [bearing0, bearing1])
+
+
+def test_ucs_calc(rotor8):
+    exp_stiffness_range = np.array([1000000.0, 1832980.710832, 3359818.286284])
+    exp_rotor_wn = np.array([86.658114, 95.660573, 101.868254])
+    exp_intersection_points_x = np.array(
+        [9632232.337582, 9632232.337582, 10333174.417919]
+    )
+    exp_intersection_points_y = np.array([107.920792, 107.920792, 411.881188])
+    stiffness_range, rotor_wn, bearing, intersection_points = rotor8._calc_ucs()
+    assert_allclose(stiffness_range[:3], exp_stiffness_range)
+    assert_allclose(rotor_wn[0, :3], exp_rotor_wn)
+    assert_allclose(intersection_points["x"][:3], exp_intersection_points_x, rtol=1e-3)
+    assert_allclose(intersection_points["y"][:3], exp_intersection_points_y, rtol=1e-3)
+
+
+def test_save_load(rotor8):
+    file = Path(tempdir) / "rotor8.toml"
+    rotor8.save(file)
+    rotor8_loaded = Rotor.load(file)
+
+    rotor8 == rotor8_loaded

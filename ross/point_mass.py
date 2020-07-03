@@ -2,15 +2,17 @@
 
 This module defines the PointMass class which will be used to link elements.
 """
-import bokeh.palettes as bp
-import matplotlib.patches as mpatches
+import os
+from pathlib import Path
+
 import numpy as np
-from bokeh.models import ColumnDataSource, HoverTool
+import plotly.graph_objects as go
+import toml
 
 from ross.element import Element
+from ross.units import check_units
 
 __all__ = ["PointMass"]
-bokeh_colors = bp.RdGy[11]
 
 
 class PointMass(Element):
@@ -25,14 +27,17 @@ class PointMass(Element):
     ----------
     n: int
         Node which the bearing will be located in.
-    m: float, optional
+    m: float, pint.Quantity, optional
         Mass for the element.
-    mx: float, optional
+    mx: float, pint.Quantity, optional
         Mass for the element on the x direction.
-    my: float, optional
+    my: float, pint.Quantity, optional
         Mass for the element on the y direction.
     tag: str
         A tag to name the element
+    color : str, optional
+        A color to be used when the element is represented.
+        Default is "DarkSalmon".
 
     Examples
     --------
@@ -46,7 +51,8 @@ class PointMass(Element):
            [0., 3.]])
     """
 
-    def __init__(self, n=None, m=None, mx=None, my=None, tag=None):
+    @check_units
+    def __init__(self, n=None, m=None, mx=None, my=None, tag=None, color="DarkSalmon"):
         self.n = n
         self.m = m
 
@@ -58,12 +64,14 @@ class PointMass(Element):
         self.my = float(my)
         self.tag = tag
         self.dof_global_index = None
+        self.color = color
 
     def __hash__(self):
         return hash(self.tag)
 
     def __eq__(self, other):
-        """This function allows point mass elements to be compared.
+        """Equality method for comparasions.
+
         Parameters
         ----------
         other : obj
@@ -87,14 +95,12 @@ class PointMass(Element):
             return False
 
     def __repr__(self):
-        """This function returns a string representation of a point mass
-        element.
-        Parameters
-        ----------
+        """Return a string representation of a point mass element.
 
         Returns
         -------
-        A string representation of a bearing object.
+        A string representation of a point mass element object.
+
         Examples
         --------
         >>> point_mass = point_mass_example()
@@ -108,7 +114,22 @@ class PointMass(Element):
         )
 
     def M(self):
-        """Mass matrix."""
+        """Mass matrix for an instance of a point mass element.
+
+        This method will return the mass matrix for an instance of a point mass element.
+
+        Returns
+        -------
+        M : np.ndarray
+            A matrix of floats containing the values of the mass matrix.
+
+        Examples
+        --------
+        >>> p1 = PointMass(n=0, mx=2, my=3)
+        >>> p1.M()
+        array([[2., 0.],
+               [0., 3.]])
+        """
         mx = self.mx
         my = self.my
         # fmt: off
@@ -119,130 +140,177 @@ class PointMass(Element):
         return M
 
     def C(self):
-        """Damping coefficients matrix."""
-        return np.zeros((2, 2))
+        """Damping matrix for an instance of a point mass element.
+
+        This method will return the damping matrix for an instance of a point mass
+        element.
+
+        Returns
+        -------
+        C : np.ndarray
+            A matrix of floats containing the values of the damping matrix.
+
+        Examples
+        --------
+        >>> p1 = PointMass(n=0, mx=2, my=3)
+        >>> p1.C()
+        array([[0., 0.],
+               [0., 0.]])
+        """
+        C = np.zeros((2, 2))
+        return C
 
     def K(self):
-        """Stiffness coefficients matrix."""
-        return np.zeros((2, 2))
+        """Stiffness matrix for an instance of a point mass element.
+
+        This method will return the stiffness matrix for an instance of a point mass
+        element.
+
+        Returns
+        -------
+        K : np.ndarray
+            A matrix of floats containing the values of the stiffness matrix.
+
+        Examples
+        --------
+        >>> p1 = PointMass(n=0, mx=2, my=3)
+        >>> p1.K()
+        array([[0., 0.],
+               [0., 0.]])
+        """
+        K = np.zeros((2, 2))
+        return K
 
     def G(self):
-        """Gyroscopic matrix."""
-        return np.zeros((2, 2))
+        """Gyroscopic matrix for an instance of a point mass element.
+
+        This method will return the gyroscopic matrix for an instance of a point mass
+        element.
+
+        Returns
+        -------
+        G : np.ndarray
+            A matrix of floats containing the values of the gyroscopic matrix.
+
+        Examples
+        --------
+        >>> p1 = PointMass(n=0, mx=2, my=3)
+        >>> p1.G()
+        array([[0., 0.],
+               [0., 0.]])
+        """
+        G = np.zeros((2, 2))
+        return G
 
     def dof_mapping(self):
+        """Degrees of freedom mapping.
+
+        Returns a dictionary with a mapping between degree of freedom and its index.
+
+        Returns
+        -------
+        dof_mapping : dict
+            A dictionary containing the degrees of freedom and their indexes.
+
+        Examples
+        --------
+        The numbering of the degrees of freedom for each node.
+
+        Being the following their ordering for a node:
+
+        x_0 - horizontal translation
+        y_0 - vertical translation
+
+        >>> p1 = PointMass(n=0, mx=2, my=3)
+        >>> p1.dof_mapping()
+        {'x_0': 0, 'y_0': 1}
+        """
         return dict(x_0=0, y_0=1)
 
-    def patch(self, position, ax, **kwargs):
+    def _patch(self, position, fig):
         """Point mass element patch.
-        Patch that will be used to draw the point mass element.
+
+        Patch that will be used to draw the point mass element using Plotly library.
+
         Parameters
         ----------
-        ax : matplotlib axes, optional
-            Axes in which the plot will be drawn.
         position : float
             Position in which the patch will be drawn.
-        kwargs : optional
-            Additional key word arguments can be passed to change
-            the plot (e.g. linestyle='--')
+        fig : plotly.graph_objects.Figure
+            The figure object which traces are added on.
+
         Returns
         -------
-        ax : matplotlib axes
-            Returns the axes object with the plot.
+        fig : plotly.graph_objects.Figure
+            The figure object which traces are added on.
         """
         zpos, ypos = position
         radius = ypos / 8
 
-        default_values = dict(alpha=1.0, color=bokeh_colors[7])
-
-        for k, v in default_values.items():
-            kwargs.setdefault(k, v)
-
-        # matplotlib plot - coordinates to plot point mass elements
-        ax.add_patch(mpatches.Circle(xy=(zpos, ypos), radius=radius, **kwargs))
-        ax.add_patch(mpatches.Circle(xy=(zpos, -ypos), radius=radius, **kwargs))
-
-    def bokeh_patch(self, position, bk_ax, **kwargs):
-        """Point mass element patch.
-        Patch that will be used to draw the point mass element.
-        Parameters
-        ----------
-        bk_ax : bokeh plotting axes, optional
-            Axes in which the plot will be drawn.
-        position : float
-            Position in which the patch will be drawn.
-        kwargs : optional
-            Additional key word arguments can be passed to change
-            the plot (e.g. linestyle='--')
-        Returns
-        -------
-        bk_ax : bokeh plotting axes
-            Returns the axes object with the plot.
-        """
-        zpos, ypos = position
-        radius = ypos / 8
-
-        default_values = dict(
-            line_width=2.0,
-            line_color=bokeh_colors[0],
-            fill_alpha=1.0,
-            fill_color=bokeh_colors[7],
-            legend_label="Point Mass",
+        customdata = [self.n, self.mx, self.my]
+        hovertemplate = (
+            f"<b>PointMass Node: {customdata[0]}<b><br>"
+            + f"<b>Mass (X): {customdata[1]:.3f}<b><br>"
+            + f"<b>Mass (Y): {customdata[2]:.3f}<b><br>"
         )
 
-        for k, v in default_values.items():
-            kwargs.setdefault(k, v)
-
-        # bokeh plot - coordinates to plot point mass elements
-        z_upper = [zpos]
-        y_upper = [ypos]
-
-        z_lower = [zpos]
-        y_lower = [-ypos]
-
-        source = ColumnDataSource(
-            dict(
-                z_l=z_lower,
-                y_l=y_lower,
-                z_u=z_upper,
-                y_u=y_upper,
-                elnum=[self.n],
-                mx=[self.mx],
-                my=[self.my],
-                tag=[self.tag],
+        fig.add_trace(
+            go.Scatter(
+                x=[zpos, zpos],
+                y=[ypos, -ypos],
+                customdata=[customdata] * 2,
+                text=hovertemplate,
+                mode="markers",
+                marker=dict(size=5.0, color=self.color),
+                showlegend=False,
+                name=self.tag,
+                legendgroup="pointmass",
+                hoverinfo="text",
+                hovertemplate=hovertemplate,
+                hoverlabel=dict(bgcolor=self.color),
             )
         )
 
-        bk_ax.circle(
-            x="z_l", y="y_l", radius=radius, source=source, name="pmass_l", **kwargs,
+        fig.add_shape(
+            dict(
+                type="circle",
+                xref="x",
+                yref="y",
+                x0=zpos - radius,
+                y0=ypos - radius,
+                x1=zpos + radius,
+                y1=ypos + radius,
+                fillcolor=self.color,
+                line_color="black",
+            )
         )
-        bk_ax.circle(
-            x="z_u", y="y_u", radius=radius, source=source, name="pmass_u", **kwargs,
+        fig.add_shape(
+            dict(
+                type="circle",
+                xref="x",
+                yref="y",
+                x0=zpos - radius,
+                y0=-ypos - radius,
+                x1=zpos + radius,
+                y1=-ypos + radius,
+                fillcolor=self.color,
+                line_color="black",
+            )
         )
 
-        hover = HoverTool(names=["pmass_l", "pmass_u"])
-        hover.tooltips = [
-            ("Point Mass Node :", "@elnum"),
-            ("Mass (x) :", "@mx"),
-            ("Mass (y) :", "@my"),
-            ("Tag :", "@tag"),
-        ]
-        hover.mode = "mouse"
-
-        return hover
+        return fig
 
 
 def point_mass_example():
-    """This function returns an instance of a simple point mass.
-    The purpose is to make available a simple model
-    so that doctest can be written using it.
+    """Create an example of point mass element.
 
-    Parameters
-    ----------
+    This function returns an instance of a simple point mass. The purpose is to make
+    available a simple model so that doctest can be written using it.
 
     Returns
     -------
-    An instance of a point mass object.
+    point_mass : ross.PointMass
+        An instance of a point mass object.
 
     Examples
     --------
