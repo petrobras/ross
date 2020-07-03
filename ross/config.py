@@ -1,8 +1,31 @@
 """Rotordynamic Report Configuration File."""
 import black
 
+__all__ = ["Config"]
+
 
 class _Dict:
+    """Set keys and values as attribute for the Config object.
+
+    Subclass to organize nested dictionaries and set each key / value as attribute for
+    the config object.
+
+    Return
+    ------
+    A dictionary as attribute for the Config() object.
+
+    Examples
+    --------
+    >>> param = _Dict({
+    ...     "stiffness_range": None,
+    ...     "num": 30,
+    ...     "num_modes": 16,
+    ...     "synchronous": False,
+    ... })
+    >>> param.num
+    30
+    """
+
     def __init__(self, dictionary):
         for k, v in dictionary.items():
             if isinstance(v, dict):
@@ -11,23 +34,98 @@ class _Dict:
                 setattr(self, k, v)
 
     def __repr__(self):
+        """Return a string representation for the dict attribute.
+
+        This method uses Black code formatting for better visualization.
+
+        Returns
+        -------
+        A string representation for the dictionary options.
+
+        Examples
+        --------
+        >>> param = _Dict({
+        ...     "oper_clearance": None,
+        ...     "min_clearance": None,
+        ...     "max_clearance": None,
+        ... })
+        >>> param
+        {"oper_clearance": None, "min_clearance": None, "max_clearance": None}
+        """
         return black.format_file_contents(
             repr(self.__dict__), fast=True, mode=black.FileMode()
         )
 
     def __getitem__(self, option):
+        """Return the value for a given option from the dictionary.
+
+        Parameters
+        ----------
+        option : str
+            A dictionary key corresponding to config options as string.
+
+        Raises
+        ------
+        KeyError
+            Raises an error if the parameter doesn't belong to the dictionary.
+
+        Returns
+        -------
+        Return the value for the given key.
+
+        Examples
+        --------
+        >>> param = _Dict({
+        ...     "stiffness_range": None,
+        ...     "num": 30,
+        ...     "num_modes": 16,
+        ...     "synchronous": False,
+        ... })
+        >>> param["num"]
+        30
+        """
         if option not in self.__dict__.keys():
             raise KeyError("Option '{}' not found.".format(option))
 
         return self.__dict__[option]
 
-    def update(self, **kwargs):
+    def _update(self, **kwargs):
+        """Update the dict values.
+
+        This is an axuliar method for Config.update_config() to set new values for the
+        config dictionary according to kwargs input.
+        The kwargs must respect Config attributes. It's only possible to update
+        existing values from Config dictionary.
+        **See Config attributes reference for infos about the dict options.
+
+        Parameters
+        ----------
+        **kwargs : dict
+            Dictionary with new values for corresponding keys.
+
+        Raises
+        ------
+        KeyError
+            Raises an error if the parameter doesn't belong to the dictionary.
+
+        Examples
+        --------
+        >>> param = _Dict({
+        ...     "stiffness_range": None,
+        ...     "num": 30,
+        ...     "num_modes": 16,
+        ...     "synchronous": False,
+        ... })
+        >>> param._update(num=20, num_modes=10)
+        >>> param
+        {"stiffness_range": None, "num": 20, "num_modes": 10, "synchronous": False}
+        """
         for k, v in kwargs.items():
             if k not in self.__dict__.keys():
                 raise KeyError("Option '{}' not found.".format(k))
 
             if isinstance(v, dict):
-                getattr(self, k).update(**v)
+                getattr(self, k)._update(**v)
             else:
                 self.__dict__[k] = v
 
@@ -47,7 +145,7 @@ class Config:
     rotor_properties : dict
         Dictionary of rotor properties.
 
-        rotor_speed : dict
+        rotor_speeds : dict
             Dictionary indicating the operational speeds which will be used in the
             analyses.
 
@@ -61,8 +159,10 @@ class Config:
                 The machine overspeed trip.
             speed_factor : float
                 Multiplicative factor of the speed range - according to API 684.
+                Default is 1.25.
             unit : str
-                Unit system to speed values. Options: "rad/s", "rpm"
+                Unit system to speed values. Options: "rad/s", "rpm".
+                Default is "rpm".
 
         rotor_id : dict
             Dictionary with rotor identifications.
@@ -95,6 +195,7 @@ class Config:
             Array with the speed range.
         num_modes : float
             Number of frequencies that will be calculated.
+            Default is 6.
 
     plot_ucs : dict
         Dictionary configurating plot_ucs parameters.
@@ -165,12 +266,27 @@ class Config:
         rho_discharge : float
             Discharge gas density in the last stage, kg/m3 (lbm/in.3),
         unit: str, optional
-            Unit system. Options are "m" (meter) and "in" (inch)
-            Default is "m"
+            Unit system. Options are "m" (meter) and "in" (inch).
+            Default is "m".
 
     Returns
     -------
     A config object to rotordynamic report.
+
+    Examples
+    --------
+    There are two possible syntax to return the options setup. One is using the
+    object.attribute syntax and the other is the dicionary syntax
+
+    First syntax opion:
+    >>> configs = Config()
+    >>> configs.rotor_properties.rotor_id
+    {"type": "compressor", "tag": None}
+
+    Second syntax opion:
+    >>> configs = Config()
+    >>> configs["rotor_properties"]["rotor_id"]
+    {"type": "compressor", "tag": None}
     """
 
     def __init__(self):
@@ -178,10 +294,10 @@ class Config:
         # Configurating rotor properties
         self.rotor_properties = _Dict({
             "rotor_speeds": {
-                "min_speed": 1000.,
-                "max_speed": 10000.,
-                "oper_speed": 5000.,
-                "trip_speed": 12500.,
+                "min_speed": None,
+                "max_speed": None,
+                "oper_speed": None,
+                "trip_speed": None,
                 "speed_factor ": 1.25,
                 "unit": "rpm",
             },
@@ -205,12 +321,12 @@ class Config:
         })
 
         # Configurating UCS options
-        self.plot_ucs = {
+        self.plot_ucs = _Dict({
             "stiffness_range": None,
             "num": 30,
             "num_modes": 16,
             "synchronous": False,
-        }
+        })
 
         # Configurating unbalance response options
         self.run_unbalance_response = _Dict({
@@ -235,19 +351,99 @@ class Config:
         # fmt: on
 
     def __repr__(self):
+        """Return a string representation for the config options.
+
+        This method uses Black code formatting for better visualization.
+
+        Returns
+        -------
+        A string representation for the config dictionary.
+
+        Examples
+        --------
+        >>> configs = Config()
+        >>> configs # doctest: +ELLIPSIS
+        {
+            "rotor_properties": {
+                "rotor_speeds": {
+                    "min_speed": None,
+                    "max_speed": None,
+                    "oper_speed": None...
+        """
         return black.format_file_contents(
             repr(self.__dict__), fast=True, mode=black.FileMode()
         )
 
     def __getitem__(self, option):
+        """Return the value for a given option from config dictionary.
+
+        Parameters
+        ----------
+        option : str
+            A dictionary key corresponding to config options as string.
+
+        Raises
+        ------
+        KeyError
+            Raises an error if the parameter doesn't belong to the dictionary.
+
+        Returns
+        -------
+        Return the value for the given key.
+
+        Examples
+        --------
+        >>> configs = Config()
+        >>> configs["bearings"]
+        {"oper_clearance": None, "min_clearance": None, "max_clearance": None}
+        """
         if option not in self.__dict__.keys():
             raise KeyError("Option '{}' not found.".format(option))
 
         return self.__dict__[option]
 
     def update_config(self, **kwargs):
+        """Update the config options.
+
+        This method set new values for the config dictionary according to kwargs input.
+        The kwargs must respect Config attributes. It's only possible to update
+        existing values from Config dictionary.
+        **See Config attributes reference for infos about the dict options.
+
+        Parameters
+        ----------
+        **kwargs : dict
+            Dictionary with new values for corresponding keys.
+
+        Raises
+        ------
+        KeyError
+            Raises an error if the parameter doesn't belong to the dictionary.
+
+        Examples
+        --------
+        >>> configs = Config()
+        >>> configs.update_config(
+        ...     rotor_properties=dict(
+        ...         rotor_speeds=dict(min_speed=1000.0, max_speed=10000.0),
+        ...         rotor_id=dict(type="turbine", tag="Model"),
+        ...     )
+        ... )
+        >>> configs.rotor_properties
+        {
+            "rotor_speeds": {
+                "min_speed": 1000.0,
+                "max_speed": 10000.0,
+                "oper_speed": None,
+                "trip_speed": None,
+                "speed_factor ": 1.25,
+                "unit": "rpm",
+            },
+            "rotor_id": {"type": "turbine", "tag": "Model"},
+        }
+        """
         for k, v in kwargs.items():
             if k not in self.__dict__.keys():
                 raise KeyError("Option '{}' not found.".format(k))
             else:
-                getattr(self, k).update(**v)
+                getattr(self, k)._update(**v)
