@@ -23,7 +23,6 @@ from ross.fluid_flow.fluid_flow_graphics import (
 def fluid_flow_short_eccentricity():
     nz = 8
     ntheta = 32
-    nradius = 8
     omega = 100.0 * 2 * np.pi / 60
     p_in = 0.0
     p_out = 0.0
@@ -36,7 +35,6 @@ def fluid_flow_short_eccentricity():
     return flow.FluidFlow(
         nz,
         ntheta,
-        nradius,
         length,
         omega,
         p_in,
@@ -53,7 +51,6 @@ def fluid_flow_short_eccentricity():
 def fluid_flow_short_friswell(set_load=True):
     nz = 8
     ntheta = 32
-    nradius = 8
     length = 0.03
     omega = 157.1
     p_in = 0.0
@@ -68,7 +65,6 @@ def fluid_flow_short_friswell(set_load=True):
         return flow.FluidFlow(
             nz,
             ntheta,
-            nradius,
             length,
             omega,
             p_in,
@@ -84,7 +80,6 @@ def fluid_flow_short_friswell(set_load=True):
         return flow.FluidFlow(
             nz,
             ntheta,
-            nradius,
             length,
             omega,
             p_in,
@@ -185,7 +180,6 @@ def test_damping_matrix():
 def fluid_flow_short_numerical():
     nz = 8
     ntheta = 32
-    nradius = 8
     length = 0.01
     omega = 100.0 * 2 * np.pi / 60
     p_in = 0.0
@@ -199,7 +193,6 @@ def fluid_flow_short_numerical():
     return flow.FluidFlow(
         nz,
         ntheta,
-        nradius,
         length,
         omega,
         p_in,
@@ -217,7 +210,6 @@ def fluid_flow_short_numerical():
 def fluid_flow_long_numerical():
     nz = 8
     ntheta = 32
-    nradius = 8
     omega = 100.0 * 2 * np.pi / 60
     p_in = 0.0
     p_out = 0.0
@@ -231,7 +223,6 @@ def fluid_flow_long_numerical():
     return flow.FluidFlow(
         nz,
         ntheta,
-        nradius,
         length,
         omega,
         p_in,
