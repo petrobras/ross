@@ -33,6 +33,7 @@ from ross.results import (CampbellResults, ConvergenceResults,
                           FrequencyResponseResults, ModalResults,
                           StaticResults, SummaryResults, TimeResponseResults)
 from ross.shaft_element import ShaftElement, ShaftElement6DoF
+from ross.units import Q_
 from ross.utils import convert
 
 # fmt: on
@@ -1986,6 +1987,8 @@ class Rotor(object):
         num=30,
         fig=None,
         synchronous=False,
+        x_units="N/m",
+        y_units="rad/s",
         **kwargs,
     ):
         """Plot undamped critical speed map.
@@ -2010,6 +2013,12 @@ class Rotor(object):
             If True a synchronous analysis is carried out and the frequency of
             the first forward model will be equal to the speed.
             Default is False.
+        x_units : str, optional
+            Units for the x axis.
+            Default is N/m.
+        y_units : str, optional
+            Units for th y axis.
+            Default is rad/s
         kwargs : optional
             Additional key word arguments can be passed to change the plot layout only
             (e.g. width=1000, height=800, ...).
@@ -2059,6 +2068,19 @@ class Rotor(object):
         if fig is None:
             fig = go.Figure()
 
+        # convert to desired units
+        stiffness_log = Q_(stiffness_log, "N/m").to(x_units).m
+        rotor_wn = Q_(rotor_wn, "rad/s").to(y_units).m
+        intersection_points["x"] = Q_(intersection_points["x"], "N/m").to(x_units).m
+        intersection_points["y"] = Q_(intersection_points["y"], "rad/s").to(y_units).m
+        bearing_kxx_stiffness = (
+            Q_(bearing0.kxx.interpolated(bearing0.frequency), "N/m").to(x_units).m
+        )
+        bearing_kyy_stiffness = (
+            Q_(bearing0.kyy.interpolated(bearing0.frequency), "N/m").to(x_units).m
+        )
+        bearing_frequency = Q_(bearing0.frequency, "rad/s").to(y_units).m
+
         for j in range(rotor_wn.shape[0]):
             fig.add_trace(
                 go.Scatter(
@@ -2076,7 +2098,11 @@ class Rotor(object):
                 y=intersection_points["y"],
                 mode="markers",
                 marker=dict(symbol="circle-open-dot", color="red", size=8),
-                hovertemplate="Stiffness (N/m): %{x:.2e}<br>Frequency (rad/s): %{y:.2f}",
+                hovertemplate="Stiffness "
+                + f"({x_units})"
+                + ": %{x:.2e}<br>Frequency "
+                + f"({y_units})"
+                + ": %{y:.2f}",
                 showlegend=False,
                 name="",
             )
@@ -2084,8 +2110,8 @@ class Rotor(object):
 
         fig.add_trace(
             go.Scatter(
-                x=bearing0.kxx.interpolated(bearing0.frequency),
-                y=bearing0.frequency,
+                x=bearing_kxx_stiffness,
+                y=bearing_frequency,
                 mode="lines",
                 line=dict(dash="dashdot"),
                 hoverinfo="none",
@@ -2094,8 +2120,8 @@ class Rotor(object):
         )
         fig.add_trace(
             go.Scatter(
-                x=bearing0.kyy.interpolated(bearing0.frequency),
-                y=bearing0.frequency,
+                x=bearing_kyy_stiffness,
+                y=bearing_frequency,
                 mode="lines",
                 line=dict(dash="dashdot"),
                 hoverinfo="none",
@@ -2104,12 +2130,12 @@ class Rotor(object):
         )
 
         fig.update_xaxes(
-            title_text="<b>Bearing Stiffness (N/m)</b>",
+            title_text=f"<b>Bearing Stiffness ({x_units})</b>",
             type="log",
             exponentformat="power",
         )
         fig.update_yaxes(
-            title_text="<b>Critical Speed (rad/s)</b>",
+            title_text=f"<b>Critical Speed ({y_units})</b>",
             type="log",
             exponentformat="power",
         )
