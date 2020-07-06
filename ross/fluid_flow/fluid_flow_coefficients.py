@@ -197,8 +197,8 @@ def calculate_stiffness_and_damping_coefficients(fluid_flow_object):
             * fluid_flow_object.xp
             * np.cos(fluid_flow_object.omegap * fluid_flow_object.t)
         )
-        fluid_flow_object.calculate_coefficients(direction="x")
-        fluid_flow_object.calculate_pressure_matrix_numerical()
+        fluid_flow_object.geometry_description()
+        fluid_flow_object.calculate_pressure_matrix_numerical(direction="x")
         [
             radial_force[i],
             tangential_force[i],
@@ -217,8 +217,8 @@ def calculate_stiffness_and_damping_coefficients(fluid_flow_object):
             * fluid_flow_object.yp
             * np.cos(fluid_flow_object.omegap * fluid_flow_object.t)
         )
-        fluid_flow_object.calculate_coefficients(direction="y")
-        fluid_flow_object.calculate_pressure_matrix_numerical()
+        fluid_flow_object.geometry_description()
+        fluid_flow_object.calculate_pressure_matrix_numerical(direction="y")
         [
             radial_force[i],
             tangential_force[i],
@@ -226,7 +226,7 @@ def calculate_stiffness_and_damping_coefficients(fluid_flow_object):
             force_yy[i],
         ] = calculate_oil_film_force(fluid_flow_object, force_type="numerical")
         move_rotor_center(fluid_flow_object, 0, -delta_y)
-        fluid_flow_object.calculate_coefficients()
+        fluid_flow_object.geometry_description()
         fluid_flow_object.calculate_pressure_matrix_numerical()
 
         X1[i] = [1, dx[i], xdot[i]]
