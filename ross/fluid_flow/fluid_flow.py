@@ -32,8 +32,6 @@ class FluidFlow:
         Number of points along the Z direction (direction of flow).
     ntheta: int
         Number of points along the direction theta. NOTE: ntheta must be odd.
-    nradius: int
-        Number of points along the direction r.
     length: float
         Length in the Z direction (m).
 
@@ -91,13 +89,11 @@ class FluidFlow:
     dtheta: float
         Range size in the theta direction.
     ntotal: int
-        Number of nodes in the grid., ntheta, nradius, n_interv_z, n_interv_theta,
+        Number of nodes in the grid., ntheta, n_interv_z, n_interv_theta,
     n_interv_z: int
         Number of intervals on Z.
     n_interv_theta: int
       Number of intervals on theta.
-    n_interv_radius: int
-        Number of intervals on r.
     p_mat_analytical : array of shape (nz, ntheta)
         The analytical pressure matrix.
     p_mat_numerical : array of shape (nz, ntheta)
@@ -159,7 +155,6 @@ class FluidFlow:
     >>> import numpy as np
     >>> nz = 8
     >>> ntheta = 64
-    >>> nradius = 8
     >>> length = 0.01
     >>> omega = 100.*2*np.pi/60
     >>> p_in = 0.
@@ -170,7 +165,7 @@ class FluidFlow:
     >>> density = 860.
     >>> eccentricity = 0.001
     >>> attitude_angle = np.pi
-    >>> my_fluid_flow = flow.FluidFlow(nz, ntheta, nradius, length,
+    >>> my_fluid_flow = flow.FluidFlow(nz, ntheta, length,
     ...                                omega, p_in, p_out, radius_rotor,
     ...                                radius_stator, viscosity, density,
     ...                                attitude_angle=attitude_angle, eccentricity=eccentricity,
@@ -190,7 +185,6 @@ class FluidFlow:
         self,
         nz,
         ntheta,
-        nradius,
         length,
         omega,
         p_in,
@@ -209,10 +203,8 @@ class FluidFlow:
             sys.exit("Either load or eccentricity must be given.")
         self.nz = nz
         self.ntheta = ntheta
-        self.nradius = nradius
         self.n_interv_z = nz - 1
         self.n_interv_theta = ntheta - 1
-        self.n_interv_radius = nradius - 1
         self.length = length
         self.ltheta = 2.0 * np.pi
         self.dz = length / self.n_interv_z
@@ -603,7 +595,6 @@ def fluid_flow_example():
     my_pressure_matrix = FluidFlow(
         nz=8,
         ntheta=32,
-        nradius=8,
         length=0.04,
         omega=100.0 * 2 * np.pi / 60,
         p_in=0.0,
@@ -639,7 +630,6 @@ def fluid_flow_example2():
     """
     nz = 8
     ntheta = 16
-    nradius = 8
     length = 0.03
     omega = 157.1
     p_in = 0.0
@@ -652,7 +642,6 @@ def fluid_flow_example2():
     return FluidFlow(
         nz,
         ntheta,
-        nradius,
         length,
         omega,
         p_in,
