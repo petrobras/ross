@@ -551,7 +551,7 @@ class FluidFlow:
         P.shape = (P.size, 1)
         return P
 
-    def calculate_pressure_matrix_numerical(self):
+    def calculate_pressure_matrix_numerical(self, direction=None):
         """This function calculates the pressure matrix numerically.
         Returns
         -------
@@ -563,7 +563,12 @@ class FluidFlow:
         >>> my_fluid_flow.calculate_pressure_matrix_numerical() # doctest: +ELLIPSIS
         array([[...
         """
-        c1, c2, c0w = self.calculate_coefficients()
+        if direction == "x":
+            c1, c2, c0w = self.calculate_coefficients(direction="x")
+        elif direction == "y":
+            c1, c2, c0w = self.calculate_coefficients(direction="y")
+        else:
+            c1, c2, c0w = self.calculate_coefficients()
         M, f = self.mounting_matrix(c1, c2, c0w)
         P = self.resolves_matrix(M, f)
         for i in range(self.nz):
