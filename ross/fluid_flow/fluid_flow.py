@@ -110,20 +110,11 @@ class FluidFlow:
         Eccentricity (m) (distance between rotor and stator centers) on the y-axis.
         It is the position of the center of the rotor.
         The center of the stator is in position (0,0).
-    re : array of shape (nz, ntheta)
-        The external radius in each position of the grid.
-    ri : array of shape (nz, ntheta)
-        The internal radius in each position of the grid.
     z_list : array of shape (1, nz)
         z along the object. It goes from 0 to lb.
-    xre : array of shape (nz, ntheta)
-        x value of the external radius.
-    xri : array of shape (nz, ntheta)
-        x value of the internal radius.
-    yre : array of shape (nz, ntheta)
-        y value of the external radius.
-    yri : array of shape (nz, ntheta)
-        y value of the internal radius.
+    gama : array of shape (nz, ntheta)
+        Points along the object in the tangential direction.
+        It ranges from 0 to 2 pi, starting at the largest spacing between rotor and stator.
     t : float
         Time.
     xp : float
@@ -267,23 +258,13 @@ class FluidFlow:
             self.attitude_angle = attitude_angle
         self.xi = self.eccentricity * np.cos(3 * np.pi / 2 + self.attitude_angle)
         self.yi = self.eccentricity * np.sin(3 * np.pi / 2 + self.attitude_angle)
-        self.re = np.zeros([self.nz, self.ntheta])
-        self.ri = np.zeros([self.nz, self.ntheta])
         self.z_list = np.zeros(self.nz)
-        self.xre = np.zeros([self.nz, self.ntheta])
-        self.xri = np.zeros([self.nz, self.ntheta])
-        self.yre = np.zeros([self.nz, self.ntheta])
-        self.yri = np.zeros([self.nz, self.ntheta])
-        self.p_mat_analytical = np.zeros([self.nz, self.ntheta])
-        self.c1 = np.zeros([self.nz, self.ntheta])
-        self.c2 = np.zeros([self.nz, self.ntheta])
-        self.c0w = np.zeros([self.nz, self.ntheta])
-        self.M = np.zeros([self.ntotal, self.ntotal])
-        self.f = np.zeros([self.ntotal, 1])
-        self.P = np.zeros([self.ntotal, 1])
-        self.p_mat_numerical = np.zeros([self.nz, self.ntheta])
         self.gama = np.zeros([self.nz, self.ntheta])
-        self.calculate_coefficients()
+        self.t = 0
+        self.xp = 0
+        self.yp = 0
+        self.p_mat_analytical = np.zeros([self.nz, self.ntheta])
+        self.p_mat_numerical = np.zeros([self.nz, self.ntheta])
         self.analytical_pressure_matrix_available = False
         self.numerical_pressure_matrix_available = False
         self.calculate_pressure_matrix_numerical()
@@ -350,7 +331,7 @@ class FluidFlow:
                                 6
                                 * self.viscosity
                                 * self.omega
-                                * (self.ri[i][j] / self.radial_clearance) ** 2
+                                * (self.radius_rotor / self.radial_clearance) ** 2
                                 * self.eccentricity_ratio
                                 * np.sin(self.dtheta * j)
                                 * (
@@ -386,10 +367,18 @@ class FluidFlow:
         Examples
         --------
         >>> my_fluid_flow = fluid_flow_example()
-        >>> my_fluid_flow.calculate_coefficients()
-        >>> my_fluid_flow.c0w # doctest: +ELLIPSIS
-        array([[...
+        >>> my_fluid_flow.calculate_coefficients()# doctest: +ELLIPSIS
+        (array([[...
         """
+        re = np.zeros([self.nz, self.ntheta])
+        ri = np.zeros([self.nz, self.ntheta])
+        xre = np.zeros([self.nz, self.ntheta])
+        xri = np.zeros([self.nz, self.ntheta])
+        yre = np.zeros([self.nz, self.ntheta])
+        yri = np.zeros([self.nz, self.ntheta])
+        c1 = np.zeros([self.nz, self.ntheta])
+        c2 = np.zeros([self.nz, self.ntheta])
+        c0w = np.zeros([self.nz, self.ntheta])
         for i in range(0, self.nz):
             zno = i * self.dz
             self.z_list[i] = zno
@@ -397,137 +386,142 @@ class FluidFlow:
             for j in range(0, self.ntheta):
                 # fmt: off
                 self.gama[i][j] = j * self.dtheta + np.pi / 2 + self.attitude_angle
-                [radius_external, self.xre[i][j], self.yre[i][j]] = \
+                [radius_external, xre[i][j], yre[i][j]] = \
                     external_radius_function(self.gama[i][j], self.radius_stator)
-                [radius_internal, self.xri[i][j], self.yri[i][j]] = \
+                [radius_internal, xri[i][j], yri[i][j]] = \
                     internal_radius_function(self.gama[i][j], self.attitude_angle, self.radius_rotor,
                                              self.eccentricity)
-                self.re[i][j] = radius_external
-                self.ri[i][j] = radius_internal
+                re[i][j] = radius_external
+                ri[i][j] = radius_internal
 
                 w = self.omega * self.radius_rotor
 
-                k = (self.re[i][j] ** 2 * (np.log(self.re[i][j]) - 1 / 2) - self.ri[i][j] ** 2 *
-                     (np.log(self.ri[i][j]) - 1 / 2)) / (self.ri[i][j] ** 2 - self.re[i][j] ** 2)
+                k = (re[i][j] ** 2 * (np.log(re[i][j]) - 1 / 2) - ri[i][j] ** 2 *
+                     (np.log(ri[i][j]) - 1 / 2)) / (ri[i][j] ** 2 - re[i][j] ** 2)
 
-                self.c1[i][j] = (1 / (4 * self.viscosity)) * ((self.re[i][j] ** 2 * np.log(self.re[i][j]) -
-                                                               self.ri[i][j] ** 2 * np.log(self.ri[i][j]) +
-                                                               (self.re[i][j] ** 2 - self.ri[i][j] ** 2) *
-                                                               (k - 1)) - 2 * self.re[i][j] ** 2 * (
-                                                                      (np.log(self.re[i][j]) + k - 1 / 2) * np.log(
-                                                                       self.re[i][j] / self.ri[i][j])))
+                c1[i][j] = (1 / (4 * self.viscosity)) * ((re[i][j] ** 2 * np.log(re[i][j]) -
+                                                               ri[i][j] ** 2 * np.log(ri[i][j]) +
+                                                               (re[i][j] ** 2 - ri[i][j] ** 2) *
+                                                               (k - 1)) - 2 * re[i][j] ** 2 * (
+                                                                      (np.log(re[i][j]) + k - 1 / 2) * np.log(
+                                                                       re[i][j] / ri[i][j])))
 
-                self.c2[i][j] = (- self.ri[i][j] ** 2) / (8 * self.viscosity) * \
-                                ((self.re[i][j] ** 2 - self.ri[i][j] ** 2 -
-                                  (self.re[i][j] ** 4 - self.ri[i][j] ** 4) /
-                                  (2 * self.ri[i][j] ** 2)) +
-                                 ((self.re[i][j] ** 2 - self.ri[i][j] ** 2) /
-                                  (self.ri[i][j] ** 2 *
-                                   np.log(self.re[i][j] / self.ri[i][j]))) *
-                                 (self.re[i][j] ** 2 * np.log(self.re[i][j] / self.ri[i][j]) -
-                                  (self.re[i][j] ** 2 - self.ri[i][j] ** 2) / 2))
+                c2[i][j] = (- ri[i][j] ** 2) / (8 * self.viscosity) * \
+                                ((re[i][j] ** 2 - ri[i][j] ** 2 -
+                                  (re[i][j] ** 4 - ri[i][j] ** 4) /
+                                  (2 * ri[i][j] ** 2)) +
+                                 ((re[i][j] ** 2 - ri[i][j] ** 2) /
+                                  (ri[i][j] ** 2 *
+                                   np.log(re[i][j] / ri[i][j]))) *
+                                 (re[i][j] ** 2 * np.log(re[i][j] / ri[i][j]) -
+                                  (re[i][j] ** 2 - ri[i][j] ** 2) / 2))
 
-                self.c0w[i][j] = (- w * self.ri[i][j] *
-                                  (np.log(self.re[i][j] / self.ri[i][j]) *
-                                   (1 + (self.ri[i][j] ** 2) / (self.re[i][j] ** 2 - self.ri[i][j] ** 2)) - 1 / 2))
+                c0w[i][j] = (- w * ri[i][j] *
+                                  (np.log(re[i][j] / ri[i][j]) *
+                                   (1 + (ri[i][j] ** 2) / (re[i][j] ** 2 - ri[i][j] ** 2)) - 1 / 2))
                 if direction == "x":
-                    a = self.omegap * (self.xp) * np.cos(self.omegap * self.t)
-                    self.c0w[i][j] += self.ri[i][j] * a * np.sin(self.gama[i][j])
+                    a = self.omegap * self.xp * np.cos(self.omegap * self.t)
+                    c0w[i][j] += ri[i][j] * a * np.sin(self.gama[i][j])
                 elif direction == "y":
-                    b = self.omegap * (self.yp) * np.cos(self.omegap * self.t)
-                    self.c0w[i][j] -= self.ri[i][j] * b * np.cos(self.gama[i][j])
+                    b = self.omegap * self.yp * np.cos(self.omegap * self.t)
+                    c0w[i][j] -= ri[i][j] * b * np.cos(self.gama[i][j])
                 else:
-                    self.c0w[i][j] += 0
+                    c0w[i][j] += 0
                 # fmt: on
                 if not eccentricity_error:
-                    if abs(self.xri[i][j]) > abs(self.xre[i][j]) or abs(
-                        self.yri[i][j]
-                    ) > abs(self.yre[i][j]):
+                    if abs(xri[i][j]) > abs(xre[i][j]) or abs(
+                        yri[i][j]
+                    ) > abs(yre[i][j]):
                         eccentricity_error = True
             if eccentricity_error:
                 raise ValueError(
                     "Error: The given parameters create a rotor that is not inside the stator. "
                     "Check parameters and fix accordingly."
                 )
+        return c1, c2, c0w
 
-    def mounting_matrix(self):
+    def mounting_matrix(self, c1, c2, c0w):
         """This function assembles the matrix M and the independent vector f.
         Examples
         --------
         >>> my_fluid_flow = fluid_flow_example()
-        >>> my_fluid_flow.mounting_matrix()
-        >>> my_fluid_flow.M # doctest: +ELLIPSIS
-        array([[...
+        >>> c1, c2, c0w = my_fluid_flow.calculate_coefficients()
+        >>> my_fluid_flow.mounting_matrix(c1, c2, c0w)# doctest: +ELLIPSIS
+        (array([[...
         """
         # fmt: off
+        M = np.zeros([self.ntotal, self.ntotal])
+        f = np.zeros([self.ntotal, 1])
         count = 0
         for x in range(self.ntheta):
-            self.M[count][count] = 1
-            self.f[count][0] = self.p_in
+            M[count][count] = 1
+            f[count][0] = self.p_in
             count = count + self.nz - 1
-            self.M[count][count] = 1
-            self.f[count][0] = self.p_out
+            M[count][count] = 1
+            f[count][0] = self.p_out
             count = count + 1
         count = 0
         for x in range(self.nz - 2):
-            self.M[self.ntotal - self.nz + 1 + count][1 + count] = 1
-            self.M[self.ntotal - self.nz + 1 + count][self.ntotal - self.nz + 1 + count] = -1
+            M[self.ntotal - self.nz + 1 + count][1 + count] = 1
+            M[self.ntotal - self.nz + 1 + count][self.ntotal - self.nz + 1 + count] = -1
             count = count + 1
         count = 1
         j = 0
         for i in range(1, self.nz - 1):
-            a = (1 / self.dtheta ** 2) * (self.c1[i][self.ntheta - 1])
-            self.M[count][self.ntotal - 2 * self.nz + count] = a
-            b = (1 / self.dz ** 2) * (self.c2[i - 1, j])
-            self.M[count][count - 1] = b
-            c = -((1 / self.dtheta ** 2) * ((self.c1[i][j]) + self.c1[i][self.ntheta - 1])
-                  + (1 / self.dz ** 2) * (self.c2[i][j] + self.c2[i - 1][j]))
-            self.M[count, count] = c
-            d = (1 / self.dz ** 2) * (self.c2[i][j])
-            self.M[count][count + 1] = d
-            e = (1 / self.dtheta ** 2) * (self.c1[i][j])
-            self.M[count][count + self.nz] = e
+            a = (1 / self.dtheta ** 2) * (c1[i][self.ntheta - 1])
+            M[count][self.ntotal - 2 * self.nz + count] = a
+            b = (1 / self.dz ** 2) * (c2[i - 1, j])
+            M[count][count - 1] = b
+            c = -((1 / self.dtheta ** 2) * ((c1[i][j]) + c1[i][self.ntheta - 1])
+                  + (1 / self.dz ** 2) * (c2[i][j] + c2[i - 1][j]))
+            M[count, count] = c
+            d = (1 / self.dz ** 2) * (c2[i][j])
+            M[count][count + 1] = d
+            e = (1 / self.dtheta ** 2) * (c1[i][j])
+            M[count][count + self.nz] = e
             count = count + 1
         count = self.nz + 1
         for j in range(1, self.ntheta - 1):
             for i in range(1, self.nz - 1):
-                a = (1 / self.dtheta ** 2) * (self.c1[i, j - 1])
-                self.M[count][count - self.nz] = a
-                b = (1 / self.dz ** 2) * (self.c2[i - 1][j])
-                self.M[count][count - 1] = b
-                c = -((1 / self.dtheta ** 2) * ((self.c1[i][j]) + self.c1[i][j - 1])
-                      + (1 / self.dz ** 2) * (self.c2[i][j] + self.c2[i - 1][j]))
-                self.M[count, count] = c
-                d = (1 / self.dz ** 2) * (self.c2[i][j])
-                self.M[count][count + 1] = d
-                e = (1 / self.dtheta ** 2) * (self.c1[i][j])
-                self.M[count][count + self.nz] = e
+                a = (1 / self.dtheta ** 2) * (c1[i, j - 1])
+                M[count][count - self.nz] = a
+                b = (1 / self.dz ** 2) * (c2[i - 1][j])
+                M[count][count - 1] = b
+                c = -((1 / self.dtheta ** 2) * ((c1[i][j]) + c1[i][j - 1])
+                      + (1 / self.dz ** 2) * (c2[i][j] + c2[i - 1][j]))
+                M[count, count] = c
+                d = (1 / self.dz ** 2) * (c2[i][j])
+                M[count][count + 1] = d
+                e = (1 / self.dtheta ** 2) * (c1[i][j])
+                M[count][count + self.nz] = e
                 count = count + 1
             count = count + 2
         count = 1
         for j in range(self.ntheta - 1):
             for i in range(1, self.nz - 1):
                 if j == 0:
-                    self.f[count][0] = (self.c0w[i][j] - self.c0w[i][self.ntheta - 1]) / self.dtheta
+                    f[count][0] = (c0w[i][j] - c0w[i][self.ntheta - 1]) / self.dtheta
                 else:
-                    self.f[count][0] = (self.c0w[i, j] - self.c0w[i, j - 1]) / self.dtheta
+                    f[count][0] = (c0w[i, j] - c0w[i, j - 1]) / self.dtheta
                 count = count + 1
             count = count + 2
         # fmt: on
+        return M, f
 
-    def resolves_matrix(self):
+    def resolves_matrix(self, M, f):
         """This function resolves the linear system [M]{P} = {f}.
         Examples
         --------
         >>> my_fluid_flow = fluid_flow_example()
-        >>> my_fluid_flow.mounting_matrix()
-        >>> my_fluid_flow.resolves_matrix()
-        >>> my_fluid_flow.P # doctest: +ELLIPSIS
+        >>> c1, c2, c0w = my_fluid_flow.calculate_coefficients()
+        >>> M, f = my_fluid_flow.mounting_matrix(c1, c2, c0w)
+        >>> my_fluid_flow.resolves_matrix(M, f)# doctest: +ELLIPSIS
         array([[...
         """
-        sparse_matrix = sp.sparse.csc_matrix(self.M)
-        self.P = sp.sparse.linalg.spsolve(sparse_matrix, self.f)
-        self.P.shape = (self.P.size, 1)
+        sparse_matrix = sp.sparse.csc_matrix(M)
+        P = sp.sparse.linalg.spsolve(sparse_matrix, f)
+        P.shape = (P.size, 1)
+        return P
 
     def calculate_pressure_matrix_numerical(self):
         """This function calculates the pressure matrix numerically.
@@ -541,15 +535,16 @@ class FluidFlow:
         >>> my_fluid_flow.calculate_pressure_matrix_numerical() # doctest: +ELLIPSIS
         array([[...
         """
-        self.mounting_matrix()
-        self.resolves_matrix()
+        c1, c2, c0w = self.calculate_coefficients()
+        M, f = self.mounting_matrix(c1, c2, c0w)
+        P = self.resolves_matrix(M, f)
         for i in range(self.nz):
             for j in range(self.ntheta):
                 k = j * self.nz + i
-                if self.P[k] < 0:
+                if P[k] < 0:
                     self.p_mat_numerical[i][j] = 0
                 else:
-                    self.p_mat_numerical[i][j] = self.P[k]
+                    self.p_mat_numerical[i][j] = P[k]
         self.numerical_pressure_matrix_available = True
         return self.p_mat_numerical
 
