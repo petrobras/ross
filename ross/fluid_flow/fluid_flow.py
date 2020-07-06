@@ -283,6 +283,7 @@ class FluidFlow:
         self.yp = 0
         self.p_mat_analytical = np.zeros([self.nz, self.ntheta])
         self.p_mat_numerical = np.zeros([self.nz, self.ntheta])
+        self.geometry_description()
         self.analytical_pressure_matrix_available = False
         self.numerical_pressure_matrix_available = False
         self.calculate_pressure_matrix_numerical()
@@ -379,23 +380,17 @@ class FluidFlow:
         return self.p_mat_analytical
 
 
-    def calculate_coefficients(self, direction=None):
-        """This function calculates the constants that form the Poisson equation
-        of the discrete pressure (central differences in the second
-        derivatives). It is executed when the class is instantiated.
+    def geometry_description(self):
+        """This function calculates the geometry description.
+        It is executed when the class is instantiated.
         Examples
         --------
         >>> my_fluid_flow = fluid_flow_example()
-        >>> my_fluid_flow.calculate_coefficients()# doctest: +ELLIPSIS
-        (array([[...
+        >>> my_fluid_flow.geometry_description()
         """
-        c1 = np.zeros([self.nz, self.ntheta])
-        c2 = np.zeros([self.nz, self.ntheta])
-        c0w = np.zeros([self.nz, self.ntheta])
         for i in range(0, self.nz):
             zno = i * self.dz
             self.z_list[i] = zno
-            eccentricity_error = False
             for j in range(0, self.ntheta):
                 # fmt: off
                 self.gama[i][j] = j * self.dtheta + np.pi / 2 + self.attitude_angle
@@ -406,6 +401,26 @@ class FluidFlow:
                                              self.eccentricity)
                 self.re[i][j] = radius_external
                 self.ri[i][j] = radius_internal
+
+
+    def calculate_coefficients(self, direction=None):
+        """This function calculates the constants that form the Poisson equation
+        of the discrete pressure (central differences in the second
+        derivatives).
+        Examples
+        --------
+        >>> my_fluid_flow = fluid_flow_example()
+        >>> my_fluid_flow.calculate_coefficients()# doctest: +ELLIPSIS
+        (array([[...
+        """
+        c1 = np.zeros([self.nz, self.ntheta])
+        c2 = np.zeros([self.nz, self.ntheta])
+        c0w = np.zeros([self.nz, self.ntheta])
+
+        for i in range(0, self.nz):
+            eccentricity_error = False
+            for j in range(0, self.ntheta):
+                # fmt: off
 
                 w = self.omega * self.radius_rotor
 
