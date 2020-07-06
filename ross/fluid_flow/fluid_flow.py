@@ -110,6 +110,18 @@ class FluidFlow:
         Eccentricity (m) (distance between rotor and stator centers) on the y-axis.
         It is the position of the center of the rotor.
         The center of the stator is in position (0,0).
+    re : array of shape (nz, ntheta)
+        The external radius in each position of the grid.
+    ri : array of shape (nz, ntheta)
+        The internal radius in each position of the grid.
+    xre : array of shape (nz, ntheta)
+        x value of the external radius.
+    xri : array of shape (nz, ntheta)
+        x value of the internal radius.
+    yre : array of shape (nz, ntheta)
+        y value of the external radius.
+    yri : array of shape (nz, ntheta)
+        y value of the internal radius.
     z_list : array of shape (1, nz)
         z along the object. It goes from 0 to lb.
     gama : array of shape (nz, ntheta)
@@ -258,6 +270,12 @@ class FluidFlow:
             self.attitude_angle = attitude_angle
         self.xi = self.eccentricity * np.cos(3 * np.pi / 2 + self.attitude_angle)
         self.yi = self.eccentricity * np.sin(3 * np.pi / 2 + self.attitude_angle)
+        self.re = np.zeros([self.nz, self.ntheta])
+        self.ri = np.zeros([self.nz, self.ntheta])
+        self.xre = np.zeros([self.nz, self.ntheta])
+        self.xri = np.zeros([self.nz, self.ntheta])
+        self.yre = np.zeros([self.nz, self.ntheta])
+        self.yri = np.zeros([self.nz, self.ntheta])
         self.z_list = np.zeros(self.nz)
         self.gama = np.zeros([self.nz, self.ntheta])
         self.t = 0
@@ -360,6 +378,7 @@ class FluidFlow:
         self.analytical_pressure_matrix_available = True
         return self.p_mat_analytical
 
+
     def calculate_coefficients(self, direction=None):
         """This function calculates the constants that form the Poisson equation
         of the discrete pressure (central differences in the second
@@ -370,12 +389,6 @@ class FluidFlow:
         >>> my_fluid_flow.calculate_coefficients()# doctest: +ELLIPSIS
         (array([[...
         """
-        re = np.zeros([self.nz, self.ntheta])
-        ri = np.zeros([self.nz, self.ntheta])
-        xre = np.zeros([self.nz, self.ntheta])
-        xri = np.zeros([self.nz, self.ntheta])
-        yre = np.zeros([self.nz, self.ntheta])
-        yri = np.zeros([self.nz, self.ntheta])
         c1 = np.zeros([self.nz, self.ntheta])
         c2 = np.zeros([self.nz, self.ntheta])
         c0w = np.zeros([self.nz, self.ntheta])
@@ -386,52 +399,52 @@ class FluidFlow:
             for j in range(0, self.ntheta):
                 # fmt: off
                 self.gama[i][j] = j * self.dtheta + np.pi / 2 + self.attitude_angle
-                [radius_external, xre[i][j], yre[i][j]] = \
+                [radius_external, self.xre[i][j], self.yre[i][j]] = \
                     external_radius_function(self.gama[i][j], self.radius_stator)
-                [radius_internal, xri[i][j], yri[i][j]] = \
+                [radius_internal, self.xri[i][j], self.yri[i][j]] = \
                     internal_radius_function(self.gama[i][j], self.attitude_angle, self.radius_rotor,
                                              self.eccentricity)
-                re[i][j] = radius_external
-                ri[i][j] = radius_internal
+                self.re[i][j] = radius_external
+                self.ri[i][j] = radius_internal
 
                 w = self.omega * self.radius_rotor
 
-                k = (re[i][j] ** 2 * (np.log(re[i][j]) - 1 / 2) - ri[i][j] ** 2 *
-                     (np.log(ri[i][j]) - 1 / 2)) / (ri[i][j] ** 2 - re[i][j] ** 2)
+                k = (self.re[i][j] ** 2 * (np.log(self.re[i][j]) - 1 / 2) - self.ri[i][j] ** 2 *
+                     (np.log(self.ri[i][j]) - 1 / 2)) / (self.ri[i][j] ** 2 - self.re[i][j] ** 2)
 
-                c1[i][j] = (1 / (4 * self.viscosity)) * ((re[i][j] ** 2 * np.log(re[i][j]) -
-                                                               ri[i][j] ** 2 * np.log(ri[i][j]) +
-                                                               (re[i][j] ** 2 - ri[i][j] ** 2) *
-                                                               (k - 1)) - 2 * re[i][j] ** 2 * (
-                                                                      (np.log(re[i][j]) + k - 1 / 2) * np.log(
-                                                                       re[i][j] / ri[i][j])))
+                c1[i][j] = (1 / (4 * self.viscosity)) * ((self.re[i][j] ** 2 * np.log(self.re[i][j]) -
+                                                               self.ri[i][j] ** 2 * np.log(self.ri[i][j]) +
+                                                               (self.re[i][j] ** 2 - self.ri[i][j] ** 2) *
+                                                               (k - 1)) - 2 * self.re[i][j] ** 2 * (
+                                                                      (np.log(self.re[i][j]) + k - 1 / 2) * np.log(
+                                                                       self.re[i][j] / self.ri[i][j])))
 
-                c2[i][j] = (- ri[i][j] ** 2) / (8 * self.viscosity) * \
-                                ((re[i][j] ** 2 - ri[i][j] ** 2 -
-                                  (re[i][j] ** 4 - ri[i][j] ** 4) /
-                                  (2 * ri[i][j] ** 2)) +
-                                 ((re[i][j] ** 2 - ri[i][j] ** 2) /
-                                  (ri[i][j] ** 2 *
-                                   np.log(re[i][j] / ri[i][j]))) *
-                                 (re[i][j] ** 2 * np.log(re[i][j] / ri[i][j]) -
-                                  (re[i][j] ** 2 - ri[i][j] ** 2) / 2))
+                c2[i][j] = (- self.ri[i][j] ** 2) / (8 * self.viscosity) * \
+                                ((self.re[i][j] ** 2 - self.ri[i][j] ** 2 -
+                                  (self.re[i][j] ** 4 - self.ri[i][j] ** 4) /
+                                  (2 * self.ri[i][j] ** 2)) +
+                                 ((self.re[i][j] ** 2 - self.ri[i][j] ** 2) /
+                                  (self.ri[i][j] ** 2 *
+                                   np.log(self.re[i][j] / self.ri[i][j]))) *
+                                 (self.re[i][j] ** 2 * np.log(self.re[i][j] / self.ri[i][j]) -
+                                  (self.re[i][j] ** 2 - self.ri[i][j] ** 2) / 2))
 
-                c0w[i][j] = (- w * ri[i][j] *
-                                  (np.log(re[i][j] / ri[i][j]) *
-                                   (1 + (ri[i][j] ** 2) / (re[i][j] ** 2 - ri[i][j] ** 2)) - 1 / 2))
+                c0w[i][j] = (- w * self.ri[i][j] *
+                                  (np.log(self.re[i][j] / self.ri[i][j]) *
+                                   (1 + (self.ri[i][j] ** 2) / (self.re[i][j] ** 2 - self.ri[i][j] ** 2)) - 1 / 2))
                 if direction == "x":
                     a = self.omegap * self.xp * np.cos(self.omegap * self.t)
-                    c0w[i][j] += ri[i][j] * a * np.sin(self.gama[i][j])
+                    c0w[i][j] += self.ri[i][j] * a * np.sin(self.gama[i][j])
                 elif direction == "y":
                     b = self.omegap * self.yp * np.cos(self.omegap * self.t)
-                    c0w[i][j] -= ri[i][j] * b * np.cos(self.gama[i][j])
+                    c0w[i][j] -= self.ri[i][j] * b * np.cos(self.gama[i][j])
                 else:
                     c0w[i][j] += 0
                 # fmt: on
                 if not eccentricity_error:
-                    if abs(xri[i][j]) > abs(xre[i][j]) or abs(
-                        yri[i][j]
-                    ) > abs(yre[i][j]):
+                    if abs(self.xri[i][j]) > abs(self.xre[i][j]) or abs(
+                        self.yri[i][j]
+                    ) > abs(self.yre[i][j]):
                         eccentricity_error = True
             if eccentricity_error:
                 raise ValueError(
