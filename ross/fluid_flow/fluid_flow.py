@@ -371,7 +371,6 @@ class FluidFlow:
         self.analytical_pressure_matrix_available = True
         return self.p_mat_analytical
 
-
     def geometry_description(self):
         """This function calculates the geometry description.
         It is executed when the class is instantiated.
@@ -393,7 +392,7 @@ class FluidFlow:
                                              self.eccentricity)
                 self.re[i][j] = radius_external
                 self.ri[i][j] = radius_internal
-
+                # fmt: on
 
     def calculate_coefficients(self, direction=None):
         """This function calculates the constants that form the Poisson equation

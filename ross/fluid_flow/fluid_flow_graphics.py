@@ -394,10 +394,7 @@ def plot_pressure_theta_cylindrical(
         else:
             p_mat = fluid_flow_object.p_mat_numerical
 
-    r = np.linspace(
-        fluid_flow_object.radius_rotor,
-        fluid_flow_object.radius_stator
-    )
+    r = np.linspace(fluid_flow_object.radius_rotor, fluid_flow_object.radius_stator)
     theta = np.linspace(
         0.0, 2.0 * np.pi + fluid_flow_object.dtheta / 2, fluid_flow_object.ntheta
     )
