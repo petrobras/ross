@@ -9,6 +9,7 @@ from numpy.testing import assert_allclose
 
 from ross.bearing_seal_element import (BallBearingElement, BearingElement,
                                        BearingElement6DoF,
+                                       MagneticBearingElement,
                                        RollerBearingElement)
 
 # fmt: on
@@ -290,6 +291,41 @@ def test_roller_bearing_element():
     assert_allclose(rollerbearing.K(0), K)
     assert_allclose(rollerbearing.C(0), C)
     assert_allclose(rollerbearing.G(), G)
+
+
+def test_magnetic_bearing_element():
+    n = 0
+    g0 = 1e-3
+    i0 = 1.0
+    ag = 1e-4
+    nw = 200
+    alpha = 0.392
+    kp_pid = 1.0
+    kd_pid = 1.0
+    k_amp = 1.0
+    k_sense = 1.0
+    tag = "magneticbearing"
+    mbearing = MagneticBearingElement(
+        n=n,
+        g0=g0,
+        i0=i0,
+        ag=ag,
+        nw=nw,
+        alpha=alpha,
+        kp_pid=kp_pid,
+        kd_pid=kd_pid,
+        k_amp=k_amp,
+        k_sense=k_sense,
+    )
+    M = np.array([[0.0, 0.0], [0.0, 0.0]])
+    K = np.array([[-4640.62337718, 0.0], [0.0, -4640.62337718]])
+    C = np.array([[4.64526865, 0.0], [0.0, 4.64526865]])
+    G = np.array([[0.0, 0.0], [0.0, 0.0]])
+
+    assert_allclose(mbearing.M(), M)
+    assert_allclose(mbearing.K(0), K)
+    assert_allclose(mbearing.C(0), C)
+    assert_allclose(mbearing.G(), G)
 
 
 @pytest.fixture
