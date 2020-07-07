@@ -1,5 +1,5 @@
 import numpy as np
-import plotly.graph_objects as go
+from plotly import graph_objects as go
 
 from ross.plotly_theme import tableau_colors
 
