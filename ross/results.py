@@ -995,7 +995,7 @@ class FrequencyResponseResults:
         frequency_range = self.speed_range
         phase = self.phase
 
-        frequency_range = Q_(frequency_range, "rad/s").to(x_units)
+        frequency_range = Q_(frequency_range, "rad/s").to(x_units).m
 
         if fig is None:
             fig = go.Figure()
@@ -1058,8 +1058,8 @@ class FrequencyResponseResults:
         mag = self.magnitude
         phase = self.phase
 
-        frequency_range = Q_(frequency_range, "rad/s").to(x_units)
-        mag = Q_(mag, "m/N").to(y_units)
+        frequency_range = Q_(frequency_range, "rad/s").to(x_units).m
+        mag = Q_(mag, "m/N").to(y_units).m
 
         if fig is None:
             fig = go.Figure()
