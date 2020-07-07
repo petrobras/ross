@@ -2099,11 +2099,7 @@ class Rotor(object):
                 y=intersection_points["y"],
                 mode="markers",
                 marker=dict(symbol="circle-open-dot", color="red", size=8),
-                hovertemplate="Stiffness "
-                + f"({x_units})"
-                + ": %{x:.2e}<br>Frequency "
-                + f"({y_units})"
-                + ": %{y:.2f}",
+                hovertemplate=f"Stiffness ({x_units}): %{{x:.2e}}<br>Frequency ({y_units}): %{{y:.2f}}",
                 showlegend=False,
                 name="",
             )
