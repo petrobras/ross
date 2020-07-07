@@ -311,19 +311,19 @@ class FluidFlow:
                 for i in range(0, self.nz):
                     for j in range(0, self.ntheta):
                         # fmt: off
-                        self.p_mat_analytical[i][j] = (
+                        self.p_mat_analytical[i, j] = (
                                 ((-3 * self.viscosity * self.omega) / self.radial_clearance ** 2) *
                                 ((i * self.dz - (self.length / 2)) ** 2 - (self.length ** 2) / 4) *
                                 (self.eccentricity_ratio * np.sin(j * self.dtheta)) /
                                 (1 + self.eccentricity_ratio * np.cos(j * self.dtheta)) ** 3)
                         # fmt: on
-                        if self.p_mat_analytical[i][j] < 0:
-                            self.p_mat_analytical[i][j] = 0
+                        if self.p_mat_analytical[i, j] < 0:
+                            self.p_mat_analytical[i, j] = 0
             elif method == 1:
                 for i in range(0, self.nz):
                     for j in range(0, self.ntheta):
                         # fmt: off
-                        self.p_mat_analytical[i][j] = (3 * self.viscosity / ((self.radial_clearance ** 2) *
+                        self.p_mat_analytical[i, j] = (3 * self.viscosity / ((self.radial_clearance ** 2) *
                                                                              (1. + self.eccentricity_ratio * np.cos(
                                                                                  j * self.dtheta)) ** 3)) * \
                                                       (-self.eccentricity_ratio * self.omega * np.sin(
@@ -331,13 +331,13 @@ class FluidFlow:
                                                       (((i * self.dz - (self.length / 2)) ** 2) - (
                                                               self.length ** 2) / 4)
                         # fmt: on
-                        if self.p_mat_analytical[i][j] < 0:
-                            self.p_mat_analytical[i][j] = 0
+                        if self.p_mat_analytical[i, j] < 0:
+                            self.p_mat_analytical[i, j] = 0
         elif self.bearing_type == "long_bearing" or force_type == "long":
             if method == 0:
                 for i in range(0, self.nz):
                     for j in range(0, self.ntheta):
-                        self.p_mat_analytical[i][j] = (
+                        self.p_mat_analytical[i, j] = (
                             (
                                 6
                                 * self.viscosity
@@ -360,8 +360,8 @@ class FluidFlow:
                             )
                             + self.p_in
                         )
-                        if self.p_mat_analytical[i][j] < 0:
-                            self.p_mat_analytical[i][j] = 0
+                        if self.p_mat_analytical[i, j] < 0:
+                            self.p_mat_analytical[i, j] = 0
         elif self.bearing_type == "medium_size":
             raise ValueError(
                 "The pressure matrix for a bearing that is neither short or long can only be calculated "
@@ -384,14 +384,14 @@ class FluidFlow:
             self.z_list[i] = zno
             for j in range(0, self.ntheta):
                 # fmt: off
-                self.gama[i][j] = j * self.dtheta + np.pi / 2 + self.attitude_angle
-                [radius_external, self.xre[i][j], self.yre[i][j]] = \
-                    external_radius_function(self.gama[i][j], self.radius_stator)
-                [radius_internal, self.xri[i][j], self.yri[i][j]] = \
-                    internal_radius_function(self.gama[i][j], self.attitude_angle, self.radius_rotor,
+                self.gama[i, j] = j * self.dtheta + np.pi / 2 + self.attitude_angle
+                [radius_external, self.xre[i, j], self.yre[i, j]] = \
+                    external_radius_function(self.gama[i, j], self.radius_stator)
+                [radius_internal, self.xri[i, j], self.yri[i, j]] = \
+                    internal_radius_function(self.gama[i, j], self.attitude_angle, self.radius_rotor,
                                              self.eccentricity)
-                self.re[i][j] = radius_external
-                self.ri[i][j] = radius_internal
+                self.re[i, j] = radius_external
+                self.ri[i, j] = radius_internal
                 # fmt: on
 
     def calculate_coefficients(self, direction=None):
@@ -415,42 +415,42 @@ class FluidFlow:
 
                 w = self.omega * self.radius_rotor
 
-                k = (self.re[i][j] ** 2 * (np.log(self.re[i][j]) - 1 / 2) - self.ri[i][j] ** 2 *
-                     (np.log(self.ri[i][j]) - 1 / 2)) / (self.ri[i][j] ** 2 - self.re[i][j] ** 2)
+                k = (self.re[i, j] ** 2 * (np.log(self.re[i, j]) - 1 / 2) - self.ri[i, j] ** 2 *
+                     (np.log(self.ri[i, j]) - 1 / 2)) / (self.ri[i, j] ** 2 - self.re[i, j] ** 2)
 
-                c1[i][j] = (1 / (4 * self.viscosity)) * ((self.re[i][j] ** 2 * np.log(self.re[i][j]) -
-                                                               self.ri[i][j] ** 2 * np.log(self.ri[i][j]) +
-                                                               (self.re[i][j] ** 2 - self.ri[i][j] ** 2) *
-                                                               (k - 1)) - 2 * self.re[i][j] ** 2 * (
-                                                                      (np.log(self.re[i][j]) + k - 1 / 2) * np.log(
-                                                                       self.re[i][j] / self.ri[i][j])))
+                c1[i, j] = (1 / (4 * self.viscosity)) * ((self.re[i, j] ** 2 * np.log(self.re[i, j]) -
+                                                               self.ri[i, j] ** 2 * np.log(self.ri[i, j]) +
+                                                               (self.re[i, j] ** 2 - self.ri[i, j] ** 2) *
+                                                               (k - 1)) - 2 * self.re[i, j] ** 2 * (
+                                                                      (np.log(self.re[i, j]) + k - 1 / 2) * np.log(
+                                                                       self.re[i, j] / self.ri[i, j])))
 
-                c2[i][j] = (- self.ri[i][j] ** 2) / (8 * self.viscosity) * \
-                                ((self.re[i][j] ** 2 - self.ri[i][j] ** 2 -
-                                  (self.re[i][j] ** 4 - self.ri[i][j] ** 4) /
-                                  (2 * self.ri[i][j] ** 2)) +
-                                 ((self.re[i][j] ** 2 - self.ri[i][j] ** 2) /
-                                  (self.ri[i][j] ** 2 *
-                                   np.log(self.re[i][j] / self.ri[i][j]))) *
-                                 (self.re[i][j] ** 2 * np.log(self.re[i][j] / self.ri[i][j]) -
-                                  (self.re[i][j] ** 2 - self.ri[i][j] ** 2) / 2))
+                c2[i, j] = (- self.ri[i, j] ** 2) / (8 * self.viscosity) * \
+                                ((self.re[i, j] ** 2 - self.ri[i, j] ** 2 -
+                                  (self.re[i, j] ** 4 - self.ri[i, j] ** 4) /
+                                  (2 * self.ri[i, j] ** 2)) +
+                                 ((self.re[i, j] ** 2 - self.ri[i, j] ** 2) /
+                                  (self.ri[i, j] ** 2 *
+                                   np.log(self.re[i, j] / self.ri[i, j]))) *
+                                 (self.re[i, j] ** 2 * np.log(self.re[i, j] / self.ri[i, j]) -
+                                  (self.re[i, j] ** 2 - self.ri[i, j] ** 2) / 2))
 
-                c0w[i][j] = (- w * self.ri[i][j] *
-                                  (np.log(self.re[i][j] / self.ri[i][j]) *
-                                   (1 + (self.ri[i][j] ** 2) / (self.re[i][j] ** 2 - self.ri[i][j] ** 2)) - 1 / 2))
+                c0w[i, j] = (- w * self.ri[i, j] *
+                                  (np.log(self.re[i, j] / self.ri[i, j]) *
+                                   (1 + (self.ri[i, j] ** 2) / (self.re[i, j] ** 2 - self.ri[i, j] ** 2)) - 1 / 2))
                 if direction == "x":
                     a = self.omegap * self.xp * np.cos(self.omegap * self.t)
-                    c0w[i][j] += self.ri[i][j] * a * np.sin(self.gama[i][j])
+                    c0w[i, j] += self.ri[i, j] * a * np.sin(self.gama[i, j])
                 elif direction == "y":
                     b = self.omegap * self.yp * np.cos(self.omegap * self.t)
-                    c0w[i][j] -= self.ri[i][j] * b * np.cos(self.gama[i][j])
+                    c0w[i, j] -= self.ri[i, j] * b * np.cos(self.gama[i, j])
                 else:
-                    c0w[i][j] += 0
+                    c0w[i, j] += 0
                 # fmt: on
                 if not eccentricity_error:
-                    if abs(self.xri[i][j]) > abs(self.xre[i][j]) or abs(
-                        self.yri[i][j]
-                    ) > abs(self.yre[i][j]):
+                    if abs(self.xri[i, j]) > abs(self.xre[i, j]) or abs(
+                        self.yri[i, j]
+                    ) > abs(self.yre[i, j]):
                         eccentricity_error = True
             if eccentricity_error:
                 raise ValueError(
@@ -473,55 +473,55 @@ class FluidFlow:
         f = np.zeros([self.ntotal, 1])
         count = 0
         for x in range(self.ntheta):
-            M[count][count] = 1
-            f[count][0] = self.p_in
+            M[count, count] = 1
+            f[count, 0] = self.p_in
             count = count + self.nz - 1
-            M[count][count] = 1
-            f[count][0] = self.p_out
+            M[count, count] = 1
+            f[count, 0] = self.p_out
             count = count + 1
         count = 0
         for x in range(self.nz - 2):
-            M[self.ntotal - self.nz + 1 + count][1 + count] = 1
-            M[self.ntotal - self.nz + 1 + count][self.ntotal - self.nz + 1 + count] = -1
+            M[self.ntotal - self.nz + 1 + count, 1 + count] = 1
+            M[self.ntotal - self.nz + 1 + count, self.ntotal - self.nz + 1 + count] = -1
             count = count + 1
         count = 1
         j = 0
         for i in range(1, self.nz - 1):
-            a = (1 / self.dtheta ** 2) * (c1[i][self.ntheta - 1])
-            M[count][self.ntotal - 2 * self.nz + count] = a
+            a = (1 / self.dtheta ** 2) * (c1[i, self.ntheta - 1])
+            M[count, self.ntotal - 2 * self.nz + count] = a
             b = (1 / self.dz ** 2) * (c2[i - 1, j])
-            M[count][count - 1] = b
-            c = -((1 / self.dtheta ** 2) * ((c1[i][j]) + c1[i][self.ntheta - 1])
-                  + (1 / self.dz ** 2) * (c2[i][j] + c2[i - 1][j]))
+            M[count, count - 1] = b
+            c = -((1 / self.dtheta ** 2) * ((c1[i, j]) + c1[i, self.ntheta - 1])
+                  + (1 / self.dz ** 2) * (c2[i, j] + c2[i - 1, j]))
             M[count, count] = c
-            d = (1 / self.dz ** 2) * (c2[i][j])
-            M[count][count + 1] = d
-            e = (1 / self.dtheta ** 2) * (c1[i][j])
-            M[count][count + self.nz] = e
+            d = (1 / self.dz ** 2) * (c2[i, j])
+            M[count, count + 1] = d
+            e = (1 / self.dtheta ** 2) * (c1[i, j])
+            M[count, count + self.nz] = e
             count = count + 1
         count = self.nz + 1
         for j in range(1, self.ntheta - 1):
             for i in range(1, self.nz - 1):
                 a = (1 / self.dtheta ** 2) * (c1[i, j - 1])
-                M[count][count - self.nz] = a
-                b = (1 / self.dz ** 2) * (c2[i - 1][j])
-                M[count][count - 1] = b
-                c = -((1 / self.dtheta ** 2) * ((c1[i][j]) + c1[i][j - 1])
-                      + (1 / self.dz ** 2) * (c2[i][j] + c2[i - 1][j]))
+                M[count, count - self.nz] = a
+                b = (1 / self.dz ** 2) * (c2[i - 1, j])
+                M[count, count - 1] = b
+                c = -((1 / self.dtheta ** 2) * ((c1[i, j]) + c1[i, j - 1])
+                      + (1 / self.dz ** 2) * (c2[i, j] + c2[i - 1, j]))
                 M[count, count] = c
-                d = (1 / self.dz ** 2) * (c2[i][j])
-                M[count][count + 1] = d
-                e = (1 / self.dtheta ** 2) * (c1[i][j])
-                M[count][count + self.nz] = e
+                d = (1 / self.dz ** 2) * (c2[i, j])
+                M[count, count + 1] = d
+                e = (1 / self.dtheta ** 2) * (c1[i, j])
+                M[count, count + self.nz] = e
                 count = count + 1
             count = count + 2
         count = 1
         for j in range(self.ntheta - 1):
             for i in range(1, self.nz - 1):
                 if j == 0:
-                    f[count][0] = (c0w[i][j] - c0w[i][self.ntheta - 1]) / self.dtheta
+                    f[count, 0] = (c0w[i, j] - c0w[i, self.ntheta - 1]) / self.dtheta
                 else:
-                    f[count][0] = (c0w[i, j] - c0w[i, j - 1]) / self.dtheta
+                    f[count, 0] = (c0w[i, j] - c0w[i, j - 1]) / self.dtheta
                 count = count + 1
             count = count + 2
         # fmt: on
@@ -566,9 +566,9 @@ class FluidFlow:
             for j in range(self.ntheta):
                 k = j * self.nz + i
                 if P[k] < 0:
-                    self.p_mat_numerical[i][j] = 0
+                    self.p_mat_numerical[i, j] = 0
                 else:
-                    self.p_mat_numerical[i][j] = P[k]
+                    self.p_mat_numerical[i, j] = P[k]
         self.numerical_pressure_matrix_available = True
         return self.p_mat_numerical
 
