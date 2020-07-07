@@ -33,7 +33,7 @@ from ross.results import (CampbellResults, ConvergenceResults,
                           FrequencyResponseResults, ModalResults,
                           StaticResults, SummaryResults, TimeResponseResults)
 from ross.shaft_element import ShaftElement, ShaftElement6DoF
-from ross.units import Q_
+from ross.units import Q_, check_units
 from ross.utils import convert
 
 # fmt: on
@@ -1547,12 +1547,13 @@ class Rotor(object):
 
         return F0
 
+    @check_units
     def run_unbalance_response(
         self,
         node,
-        magnitude,
-        phase,
-        frequency_range=None,
+        unbalance_magnitude,
+        unbalance_phase,
+        frequency=None,
         modes=None,
         cluster_points=False,
         num_modes=12,
@@ -1569,12 +1570,12 @@ class Rotor(object):
         ----------
         node : list, int
             Node where the unbalance is applied.
-        magnitude : list, float
-            Unbalance magnitude (kg.m)
-        phase : list, float
-            Unbalance phase (rad)
-        frequency_range : list, float
-            Array with the desired range of frequencies
+        unbalance_magnitude : list, float, pint.Quantity
+            Unbalance magnitude (kg.m).
+        unbalance_phase : list, float, pint.Quantity
+            Unbalance phase (rad).
+        frequency : list, float, pint.Quantity
+            Array with the desired range of frequencies (rad/s).
         modes : list, optional
             Modes that will be used to calculate the frequency response
             (all modes will be used if a list is not given).
@@ -1621,9 +1622,9 @@ class Rotor(object):
         >>> rotor = rotor_example()
         >>> speed = np.linspace(0, 1000, 101)
         >>> response = rotor.run_unbalance_response(node=3,
-        ...                                         magnitude=10.0,
-        ...                                         phase=0.0,
-        ...                                         frequency_range=speed)
+        ...                                         unbalance_magnitude=10.0,
+        ...                                         unbalance_phase=0.0,
+        ...                                         frequency=speed)
         >>> response.magnitude # doctest: +ELLIPSIS
         array([[0.00000000e+00, 5.06073311e-04, 2.10044826e-03, ...
 
@@ -1632,7 +1633,7 @@ class Rotor(object):
         how many points to add just before and after each critical speed.
 
         >>> response2 = rotor.run_unbalance_response(
-        ...     node=3, magnitude=0.01, phase=0.0, cluster_points=True, num_points=5
+        ...     node=3, unbalance_magnitude=0.01, unbalance_phase=0.0, cluster_points=True, num_points=5
         ... )
         >>> response2.speed_range.shape
         (61,)
@@ -1644,24 +1645,24 @@ class Rotor(object):
         >>> value = 600
         >>> fig = response.plot_deflected_shape(speed=value)
         """
-        if frequency_range is None:
+        if frequency is None:
             if cluster_points:
-                frequency_range = self._clustering_points(
-                    num_modes, num_points, modes, rtol
-                )
+                frequency = self._clustering_points(num_modes, num_points, modes, rtol)
 
-        force = np.zeros((self.ndof, len(frequency_range)), dtype=np.complex)
+        force = np.zeros((self.ndof, len(frequency)), dtype=np.complex)
 
         try:
-            for n, m, p in zip(node, magnitude, phase):
-                force += self._unbalance_force(n, m, p, frequency_range)
+            for n, m, p in zip(node, unbalance_magnitude, unbalance_phase):
+                force += self._unbalance_force(n, m, p, frequency)
         except TypeError:
-            force = self._unbalance_force(node, magnitude, phase, frequency_range)
+            force = self._unbalance_force(
+                node, unbalance_magnitude, unbalance_phase, frequency
+            )
 
         # fmt: off
-        ub = np.vstack((node, magnitude, phase))
+        ub = np.vstack((node, unbalance_magnitude, unbalance_phase))
         forced_response = self.forced_response(
-            force, frequency_range, modes, cluster_points, num_modes, num_points, rtol, ub
+            force, frequency, modes, cluster_points, num_modes, num_points, rtol, ub
         )
         # fmt: on
 

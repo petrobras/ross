@@ -737,16 +737,16 @@ def test_freq_response_w_force(rotor4):
     mag = freq_resp.magnitude
     assert_allclose(mag[:4, :4], mag_exp)
 
-    freq_resp = rotor4.run_unbalance_response(2, 0.001, 0, frequency_range=omega)
+    freq_resp = rotor4.run_unbalance_response(2, 0.001, 0, frequency=omega)
     mag = freq_resp.magnitude
     assert_allclose(mag[:4, :4], mag_exp)
 
-    freq_resp = rotor4.run_unbalance_response(2, 0.001, 0, frequency_range=omega)
+    freq_resp = rotor4.run_unbalance_response(2, 0.001, 0, frequency=omega)
     mag = freq_resp.magnitude
     assert_allclose(mag[:4, :4], mag_exp)
 
     freq_resp = rotor4.run_unbalance_response(
-        [2, 3], [0.001, 0.001], [0.0, 0], frequency_range=omega
+        [2, 3], [0.001, 0.001], [0.0, 0], frequency=omega
     )
     mag = freq_resp.magnitude
     assert_allclose(mag[:4, :4], mag_exp_2_unb)
