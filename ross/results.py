@@ -902,7 +902,9 @@ class FrequencyResponseResults:
         self.magnitude = magnitude
         self.phase = phase
 
-    def plot_magnitude(self, inp, out, units="mic-pk-pk", fig=None, **mag_kwargs):
+    def plot_magnitude(
+        self, inp, out, x_units="rad/s", y_units="m/N", fig=None, **mag_kwargs
+    ):
         """Plot frequency response (magnitude) using Plotly.
 
         This method plots the frequency response magnitude given an output and
@@ -914,9 +916,12 @@ class FrequencyResponseResults:
             Input.
         out : int
             Output.
-        units : str
-            Unit system
-            Default is "mic-pk-pk"
+        x_units : str, optional
+            Units for the x axis.
+            Default is "rad/s"
+        y_units : str, optional
+            Units for the y axis.
+            Default is "m/N"
         fig : Plotly graph_objects.Figure()
             The figure object with the plot.
         mag_kwargs : optional
@@ -932,12 +937,8 @@ class FrequencyResponseResults:
         frequency_range = self.speed_range
         mag = self.magnitude
 
-        if units == "m":
-            y_axis_label = "<b>Amplitude (m)</b>"
-        elif units == "mic-pk-pk":
-            y_axis_label = "<b>Amplitude (μ pk-pk)</b>"
-        else:
-            y_axis_label = "<b>Amplitude (dB)</b>"
+        frequency_range = Q_(frequency_range, "rad/s").to(x_units).m
+        mag = Q_(mag, "m/N").to(y_units).m
 
         if fig is None:
             fig = go.Figure()
@@ -951,20 +952,20 @@ class FrequencyResponseResults:
                 name="Amplitude",
                 legendgroup="Amplitude",
                 showlegend=False,
-                hovertemplate=("Frequency: %{x:.2f}<br>" + "Amplitude: %{y:.2e}"),
+                hovertemplate=f"Frequency ({x_units}): %{{x:.2f}}<br>Amplitude ({y_units}): %{{y:.2e}}",
             )
         )
 
         fig.update_xaxes(
-            title_text="<b>Frequency</b>",
+            title_text=f"<b>Frequency ({x_units})</b>",
             range=[np.min(frequency_range), np.max(frequency_range)],
         )
-        fig.update_yaxes(title_text=y_axis_label)
+        fig.update_yaxes(title_text=f"<b>Amplitude ({y_units})</b>")
         fig.update_layout(**mag_kwargs)
 
         return fig
 
-    def plot_phase(self, inp, out, fig=None, **phase_kwargs):
+    def plot_phase(self, inp, out, x_units="rad/s", fig=None, **phase_kwargs):
         """Plot frequency response (phase) using Plotly.
 
         This method plots the frequency response phase given an output and
@@ -976,6 +977,9 @@ class FrequencyResponseResults:
             Input.
         out : int
             Output.
+        x_units : str, optional
+            Units for the x axis.
+            Default is "rad/s"
         fig : Plotly graph_objects.Figure()
             The figure object with the plot.
         phase_kwargs : optional
@@ -991,6 +995,8 @@ class FrequencyResponseResults:
         frequency_range = self.speed_range
         phase = self.phase
 
+        frequency_range = Q_(frequency_range, "rad/s").to(x_units)
+
         if fig is None:
             fig = go.Figure()
 
@@ -1003,12 +1009,12 @@ class FrequencyResponseResults:
                 name="Phase",
                 legendgroup="Phase",
                 showlegend=False,
-                hovertemplate=("Frequency: %{x:.2f}<br>" + "Phase: %{y:.2f}"),
+                hovertemplate=f"Frequency ({x_units}): %{{x:.2f}}<br>Phase: %{{y:.2e}}",
             )
         )
 
         fig.update_xaxes(
-            title_text="<b>Frequency</b>",
+            title_text=f"<b>Frequency ({x_units})</b>",
             range=[np.min(frequency_range), np.max(frequency_range)],
         )
         fig.update_yaxes(title_text="<b>Phase</b>")
@@ -1016,7 +1022,9 @@ class FrequencyResponseResults:
 
         return fig
 
-    def plot_polar_bode(self, inp, out, units="mic-pk-pk", fig=None, **polar_kwargs):
+    def plot_polar_bode(
+        self, inp, out, x_units="rad/s", y_units="m/N", fig=None, **polar_kwargs
+    ):
         """Plot frequency response (polar) using Plotly.
 
         This method plots the frequency response (polar graph) given an output and
@@ -1028,9 +1036,12 @@ class FrequencyResponseResults:
             Input.
         out : int
             Output.
-        units : str
-            Magnitude unit system.
-            Default is "mic-pk-pk"
+        x_units : str, optional
+            Units for the x axis.
+            Default is "rad/s"
+        y_units : str, optional
+            Units for the y axis.
+            Default is "m/N"
         fig : Plotly graph_objects.Figure()
             The figure object with the plot.
         polar_kwargs : optional
@@ -1047,12 +1058,8 @@ class FrequencyResponseResults:
         mag = self.magnitude
         phase = self.phase
 
-        if units == "m":
-            r_axis_label = "<b>Amplitude (m)</b>"
-        elif units == "mic-pk-pk":
-            r_axis_label = "<b>Amplitude (μ pk-pk)</b>"
-        else:
-            r_axis_label = "<b>Amplitude (dB)</b>"
+        frequency_range = Q_(frequency_range, "rad/s").to(x_units)
+        mag = Q_(mag, "m/N").to(y_units)
 
         if fig is None:
             fig = go.Figure()
@@ -1069,17 +1076,15 @@ class FrequencyResponseResults:
                 name="Polar_plot",
                 legendgroup="Polar",
                 showlegend=False,
-                hovertemplate=(
-                    "<b>Amplitude: %{r:.2e}</b><br>"
-                    + "<b>Phase: %{theta:.2f}</b><br>"
-                    + "<b>Frequency: %{customdata:.2f}</b>"
-                ),
+                hovertemplate=f"Amplitude ({y_units}): %{{r:.2e}}<br>Phase: %{{theta:.2f}}<br>Frequency ({x_units}): %{{customdata:.2f}}",
             )
         )
 
         fig.update_layout(
             polar=dict(
-                radialaxis=dict(title=dict(text=r_axis_label), exponentformat="power")
+                radialaxis=dict(
+                    title=dict(text=f"Amplitude ({y_units})"), exponentformat="power"
+                )
             ),
             **polar_kwargs,
         )
@@ -1090,7 +1095,8 @@ class FrequencyResponseResults:
         self,
         inp,
         out,
-        units="mic-pk-pk",
+        x_units="rad/s",
+        y_units="m/N",
         mag_kwargs=None,
         phase_kwargs=None,
         polar_kwargs=None,
@@ -1112,13 +1118,12 @@ class FrequencyResponseResults:
             Input.
         out : int
             Output.
-        units : str, optional
-            Magnitude unit system.
-            Options:
-                - "m" : meters
-                - "mic-pk-pk" : microns peak to peak
-                - "db" : decibels
-            Default is "mic-pk-pk".
+        x_units : str, optional
+            Units for the x axis.
+            Default is "rad/s"
+        y_units : str, optional
+            Units for the y axis.
+            Default is "m/N"
         mag_kwargs : optional
             Additional key word arguments can be passed to change the magnitude plot
             layout only (e.g. width=1000, height=800, ...).
@@ -1148,9 +1153,9 @@ class FrequencyResponseResults:
         polar_kwargs = {} if polar_kwargs is None else copy.copy(polar_kwargs)
         subplot_kwargs = {} if subplot_kwargs is None else copy.copy(subplot_kwargs)
 
-        fig0 = self.plot_magnitude(inp, out, units, **mag_kwargs)
-        fig1 = self.plot_phase(inp, out, **phase_kwargs)
-        fig2 = self.plot_polar_bode(inp, out, units, **polar_kwargs)
+        fig0 = self.plot_magnitude(inp, out, x_units, y_units, **mag_kwargs)
+        fig1 = self.plot_phase(inp, out, x_units, **phase_kwargs)
+        fig2 = self.plot_polar_bode(inp, out, x_units, y_units, **polar_kwargs)
 
         subplots = make_subplots(
             rows=2, cols=2, specs=[[{}, {"type": "polar", "rowspan": 2}], [{}, None]]
