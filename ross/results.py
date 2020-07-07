@@ -5,10 +5,10 @@ This module returns graphs for each type of analyses in rotor_assembly.py.
 import copy
 
 import numpy as np
-import plotly.graph_objects as go
-import scipy.linalg as la
+from plotly import graph_objects as go
 from plotly.subplots import make_subplots
 from scipy import interpolate
+from scipy import linalg as la
 
 from ross.plotly_theme import tableau_colors
 
