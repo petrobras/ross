@@ -8,18 +8,18 @@ from copy import copy, deepcopy
 from itertools import chain, cycle
 from pathlib import Path
 
-import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
-import plotly.express as px
-import plotly.graph_objects as go
-import scipy.io as sio
-import scipy.linalg as la
-import scipy.signal as signal
-import scipy.sparse.linalg as las
 import toml
+from matplotlib import pyplot as plt
+from plotly import express as px
+from plotly import graph_objects as go
+from scipy import io as sio
+from scipy import linalg as la
+from scipy import signal as signal
 from scipy.interpolate import UnivariateSpline
 from scipy.optimize import newton
+from scipy.sparse import linalg as las
 
 from ross.bearing_seal_element import (BallBearingElement, BearingElement,
                                        BearingElement6DoF,
