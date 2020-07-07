@@ -1,5 +1,5 @@
-import plotly.graph_objects as go
-import plotly.io as pio
+from plotly import graph_objects as go
+from plotly import io as pio
 
 # tableau colors
 tableau_colors = {
