@@ -159,7 +159,7 @@ class Config:
                 The machine overspeed trip.
             speed_factor : float
                 Multiplicative factor of the speed range - according to API 684.
-                Default is 1.25.
+                Default is 1.50.
             unit : str
                 Unit system to speed values. Options: "rad/s", "rpm".
                 Default is "rpm".
@@ -216,10 +216,27 @@ class Config:
     run_unbalance_response : dict
         Dictionary configurating run_unbalance_response parameters.
 
-        frequency_range : list, float
+        probes : dict
+            Dictionary with the node where the probe is set and its respective
+            orientation angle.
+
+            node : list
+                List with the nodes where probes are located.
+            orientation : list
+                List with the respective orientation angle for the probes.
+                0 or π (rad) corresponds to the X orientation and
+                π / 2 or 3 * π / 2 (rad) corresponds to the Y orientation.
+            unit : str
+                Unit system for the orientation angle. Can be "rad" or "degree".
+                Default is "rad".
+
+        frequency_range : list, array
             Array with the desired range of frequencies. If None and cluster_points is
-            False, it will create an array from the min_speed to max_speed
-            (rotor_propeties config).
+            False, it creates an array from 0 to the max continuos speed times the 
+            speed_factor.
+            If None and cluster_points is True, it creates and automatic array based on
+            the number of modes selected.
+            Default is None with cluster_points False.
         modes : list, optional
             Modes that will be used to calculate the frequency response
             (all modes will be used if a list is not given).
@@ -298,7 +315,7 @@ class Config:
                 "max_speed": None,
                 "oper_speed": None,
                 "trip_speed": None,
-                "speed_factor ": 1.25,
+                "speed_factor": 1.50,
                 "unit": "rpm",
             },
             "rotor_id": {
@@ -330,6 +347,11 @@ class Config:
 
         # Configurating unbalance response options
         self.run_unbalance_response = _Dict({
+            "probes": {
+                "node": None,
+                "orientation": None,
+                "unit": "rad",
+            },
             "frequency_range": None,
             "modes": None,
             "cluster_points": False,
