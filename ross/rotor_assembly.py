@@ -1044,7 +1044,7 @@ class Rotor(object):
         >>> rotor = rotor_example()
         >>> speed_range = rotor._clustering_points(num_modes=12, num_points=5)
         >>> speed_range.shape
-        (60,)
+        (61,)
         """
         critical_speeds = self.run_critical_speed(num_modes=num_modes, rtol=rtol)
         omega = critical_speeds.wd
@@ -1068,6 +1068,7 @@ class Rotor(object):
 
         omega = omega.reshape((len(omega), 1))
         speed_range = np.sort(np.ravel(np.concatenate((omega / a, omega * a))))
+        speed_range = np.insert(speed_range, 0, 0)
 
         return speed_range
 
@@ -1354,7 +1355,7 @@ class Rotor(object):
 
         >>> response = rotor.run_freq_response(cluster_points=True, num_points=5)
         >>> response.speed_range.shape
-        (60,)
+        (61,)
 
         # plot frequency response function:
         >>> fig = response.plot(inp=13, out=13)
@@ -1469,7 +1470,7 @@ class Rotor(object):
         ...     force=force, cluster_points=True, num_modes=12, num_points=5
         ... )
         >>> response.speed_range.shape
-        (60,)
+        (61,)
         """
         if speed_range is None:
             if cluster_points:
@@ -1634,7 +1635,7 @@ class Rotor(object):
         ...     node=3, magnitude=0.01, phase=0.0, cluster_points=True, num_points=5
         ... )
         >>> response2.speed_range.shape
-        (60,)
+        (61,)
 
         plot unbalance response:
         >>> fig = response.plot(dof=13)
