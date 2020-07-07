@@ -8,8 +8,8 @@ import os
 from pathlib import Path
 
 import numpy as np
-import plotly.graph_objects as go
 import toml
+from plotly import graph_objects as go
 
 from ross.element import Element
 from ross.materials import Material, steel

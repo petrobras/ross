@@ -2,9 +2,9 @@
 import math
 
 import numpy as np
-import plotly.graph_objects as go
 import pytest
 from numpy.testing import assert_allclose
+from plotly import graph_objects as go
 
 from ross.fluid_flow import fluid_flow as flow
 from ross.fluid_flow.fluid_flow_coefficients import (
