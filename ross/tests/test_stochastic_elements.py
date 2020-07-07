@@ -6,8 +6,8 @@ Tests for:
     st_point_mass.py
 """
 import numpy as np
-import plotly.graph_objects as go
 import pytest
+from plotly import graph_objects as go
 
 from ross.stochastic.st_bearing_seal_element import ST_BearingElement
 from ross.stochastic.st_disk_element import ST_DiskElement
