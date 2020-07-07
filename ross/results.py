@@ -11,6 +11,7 @@ from plotly.subplots import make_subplots
 from scipy import interpolate
 
 from ross.plotly_theme import tableau_colors
+from ross.units import Q_
 
 
 class CriticalSpeedResults:
@@ -479,7 +480,9 @@ class ModalResults:
 
         return xn, yn, zn, x_circles, y_circles, z_circles_pos, nn
 
-    def plot_mode_3d(self, mode=None, evec=None, fig=None, **kwargs):
+    def plot_mode_3d(
+        self, mode=None, evec=None, fig=None, frequency_units="rad/s", **kwargs
+    ):
         """Plot (3D view) the mode shapes.
 
         Parameters
@@ -491,6 +494,9 @@ class ModalResults:
             Array containing the system eigenvectors
         fig : Plotly graph_objects.Figure()
             The figure object with the plot.
+        frequency_units : str, optional
+            Frequency units that will be used in the plot title.
+            Default is rad/s.
         kwargs : optional
             Additional key word arguments can be passed to change the plot layout only
             (e.g. width=1000, height=800, ...).
@@ -586,7 +592,7 @@ class ModalResults:
                 text=(
                     f"<b>Mode</b> {mode + 1} | "
                     f"<b>whirl</b>: {self.whirl_direction()[mode]} | "
-                    f"<b>ω<sub>n</sub></b> = {self.wn[mode]:.1f} rad/s | "
+                    f"<b>ω<sub>n</sub></b> = {Q_(self.wn[mode], 'rad/s').to(frequency_units).m:.1f} {frequency_units} | "
                     f"<b>log dec</b> = {self.log_dec[mode]:.1f}"
                 )
             ),
