@@ -10,9 +10,9 @@ import warnings
 from pathlib import Path
 
 import numpy as np
-import plotly.graph_objects as go
-import scipy.interpolate as interpolate
 import toml
+from plotly import graph_objects as go
+from scipy import interpolate as interpolate
 
 from ross.element import Element
 from ross.fluid_flow import fluid_flow as flow
