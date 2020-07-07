@@ -398,8 +398,14 @@ class FluidFlow:
         """This function calculates the constants that form the Poisson equation
         of the discrete pressure (central differences in the second
         derivatives).
-        Examples
+        Parameters
+        ----------
+        direction: str
+            If defined, it calculates the model based on the disturbance in the chosen direction: 'x' or 'y'.
+        Returns
         --------
+        c1, c2, c0w: matrix of float
+            Constants that form the Poisson equation.
         >>> my_fluid_flow = fluid_flow_example()
         >>> my_fluid_flow.calculate_coefficients()# doctest: +ELLIPSIS
         (array([[...
@@ -461,6 +467,16 @@ class FluidFlow:
 
     def mounting_matrix(self, c1, c2, c0w):
         """This function assembles the matrix M and the independent vector f.
+        Parameters
+        ----------
+        c1, c2, c0w: matrix of float
+            Constants that form the Poisson equation.
+        Returns
+        --------
+        M: matrix of float
+            Matrix composed of coefficients that multiply the pressures at each point in the discrete domain.
+        f: array of float
+            Pressure independent terms.
         Examples
         --------
         >>> my_fluid_flow = fluid_flow_example()
@@ -529,6 +545,16 @@ class FluidFlow:
 
     def resolves_matrix(self, M, f):
         """This function resolves the linear system [M]{P} = {f}.
+         Parameters
+        ----------
+        M: matrix of float
+            Matrix composed of coefficients that multiply the pressures at each point in the discrete domain.
+        f: array of float
+            Pressure independent terms.
+        Returns
+        --------
+        P: array of floats
+            Pressure. Unknowns of the finite difference system.
         Examples
         --------
         >>> my_fluid_flow = fluid_flow_example()
@@ -544,6 +570,10 @@ class FluidFlow:
 
     def calculate_pressure_matrix_numerical(self, direction=None):
         """This function calculates the pressure matrix numerically.
+        Parameters
+        ----------
+        direction: str
+            If defined, it calculates the model based on the disturbance in the chosen direction: 'x' or 'y'.
         Returns
         -------
         p_mat_numerical: matrix of float
