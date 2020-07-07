@@ -232,7 +232,7 @@ class Config:
 
         frequency_range : list, array
             Array with the desired range of frequencies. If None and cluster_points is
-            False, it creates an array from 0 to the max continuos speed times the 
+            False, it creates an array from 0 to the max continuos speed times the
             speed_factor.
             If None and cluster_points is True, it creates and automatic array based on
             the number of modes selected.
@@ -458,7 +458,7 @@ class Config:
                 "max_speed": 10000.0,
                 "oper_speed": None,
                 "trip_speed": None,
-                "speed_factor ": 1.25,
+                "speed_factor": 1.5,
                 "unit": "rpm",
             },
             "rotor_id": {"type": "turbine", "tag": "Model"},
