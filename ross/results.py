@@ -2136,7 +2136,9 @@ class StaticResults:
         self.nodes_pos = nodes_pos
         self.Vx_axis = Vx_axis
 
-    def plot_deformation(self, fig=None, **kwargs):
+    def plot_deformation(
+        self, deformation_units="m", shaft_length_units="m", fig=None, **kwargs
+    ):
         """Plot the shaft static deformation.
 
         This method plots:
@@ -2144,6 +2146,12 @@ class StaticResults:
 
         Parameters
         ----------
+        deformation_units : str
+            Deformation units.
+            Default is 'm'.
+        shaft_length_units : str
+            Deformation units.
+            Default is 'm'.
         fig : Plotly graph_objects.Figure()
             The figure object with the plot.
         kwargs : optional
@@ -2160,6 +2168,7 @@ class StaticResults:
             fig = go.Figure()
 
         shaft_end = max([sublist[-1] for sublist in self.nodes_pos])
+        shaft_end = Q_(shaft_end, "m").to(shaft_length_units).m
 
         # fig - plot centerline
         fig.add_trace(
@@ -2182,7 +2191,8 @@ class StaticResults:
                 nodes_pos[0], nodes_pos[-1], num=len(nodes_pos) * 20, endpoint=True
             )
 
-            ynew = interpolated(xnew)
+            ynew = Q_(interpolated(xnew), "m").to(deformation_units)
+            xnew = Q_(xnew, "m").to(deformation_units)
 
             fig.add_trace(
                 go.Scatter(
@@ -2192,14 +2202,14 @@ class StaticResults:
                     name=f"Shaft {count}",
                     showlegend=True,
                     hovertemplate=(
-                        "Shaft lengh: %{x:.2f}<br>" + "Displacement: %{y:.2e}"
+                        f"Shaft length ({shaft_length_units}): %{{x:.2f}}<br> Displacement ({deformation_units}): %{{y:.2e}}"
                     ),
                 )
             )
             count += 1
 
-        fig.update_xaxes(title_text="<b>Shaft Length</b>")
-        fig.update_yaxes(title_text="<b>Deformation</b>")
+        fig.update_xaxes(title_text=f"<b>Shaft Length ({shaft_length_units})</b>")
+        fig.update_yaxes(title_text=f"<b>Deformation ({deformation_units})</b>")
         fig.update_layout(title=dict(text="<b>Static Deformation</b>"), **kwargs)
 
         return fig
