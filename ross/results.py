@@ -719,7 +719,7 @@ class CampbellResults:
         self.log_dec = log_dec
         self.whirl_values = whirl_values
 
-    def plot(self, harmonics=[1], fig=None, **kwargs):
+    def plot(self, harmonics=[1], frequency_units="rad/s", fig=None, **kwargs):
         """Create Campbell Diagram figure using Plotly.
 
         Parameters
@@ -727,6 +727,9 @@ class CampbellResults:
         harmonics: list, optional
             List withe the harmonics to be plotted.
             The default is to plot 1x.
+        frequency_units : str, optional
+            Frequency units.
+            Default is "rad/s"
         fig : Plotly graph_objects.Figure()
             The figure object with the plot.
         kwargs : optional
@@ -739,11 +742,11 @@ class CampbellResults:
         fig : Plotly graph_objects.Figure()
             The figure object with the plot.
         """
-        wd = self.wd
+        wd = Q_(self.wd, "rad/s").to(frequency_units).m
         num_frequencies = wd.shape[1]
         log_dec = self.log_dec
         whirl = self.whirl_values
-        speed_range = self.speed_range
+        speed_range = Q_(self.speed_range, "rad/s").to(frequency_units).m
         log_dec_map = log_dec.flatten()
 
         if fig is None:
@@ -790,8 +793,7 @@ class CampbellResults:
                                 legendgroup="Crit. Speed",
                                 showlegend=False,
                                 hovertemplate=(
-                                    "Frequency: %{x:.2f}<br>"
-                                    + "Critical Speed: %{y:.2f}"
+                                    f"Frequency ({frequency_units}): %{{x:.2f}}<br> Critical Speed ({frequency_units}): %{{y:.2f}}"
                                 ),
                             )
                         )
@@ -847,11 +849,12 @@ class CampbellResults:
             )
 
         fig.update_xaxes(
-            title_text="<b>Frequency</b>",
+            title_text=f"<b>Frequency ({frequency_units})</b>",
             range=[np.min(speed_range), np.max(speed_range)],
         )
         fig.update_yaxes(
-            title_text="<b>Damped Natural Frequencies</b>", range=[0, 1.1 * np.max(wd)]
+            title_text=f"<b>Natural Frequencies ({frequency_units})</b>",
+            range=[0, 1.1 * np.max(wd)],
         )
         fig.update_layout(
             coloraxis=dict(
@@ -1492,13 +1495,13 @@ class ForcedResponseResults:
         dof : int
             Degree of freedom.
         frequency_units : str, optional
-            Units for the x axis.
+            Frequency units.
             Default is "rad/s"
         amplitude_units : str, optional
-            Units for the y axis.
+            Amplitude units.
             Default is "m/N"
         phase_units : str, optional
-            Units for the x axis.
+            Phase units.
             Default is "rad"
         mag_kwargs : optional
             Additional key word arguments can be passed to change the magnitude plot
