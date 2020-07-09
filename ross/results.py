@@ -2139,7 +2139,7 @@ class StaticResults:
             Deformation units.
             Default is 'm'.
         shaft_length_units : str
-            Deformation units.
+            Shaft length units.
             Default is 'm'.
         fig : Plotly graph_objects.Figure()
             The figure object with the plot.
@@ -2203,11 +2203,19 @@ class StaticResults:
 
         return fig
 
-    def plot_free_body_diagram(self, fig=None, **kwargs):
+    def plot_free_body_diagram(
+        self, force_units="N", shaft_length_units="m", fig=None, **kwargs
+    ):
         """Plot the rotor free-body diagram.
 
         Parameters
         ----------
+        force_units : str
+            Force units.
+            Default is 'N'.
+        shaft_length_units : str
+            Shaft length units.
+            Default is 'm'.
         subplots : Plotly graph_objects.make_subplots()
             The figure object with the plot.
         kwargs : optional
@@ -2239,7 +2247,7 @@ class StaticResults:
 
             fig.add_trace(
                 go.Scatter(
-                    x=nodes_pos,
+                    x=Q_(nodes_pos, "m").to(shaft_length_units).m,
                     y=np.zeros(len(nodes_pos)),
                     mode="lines",
                     line=dict(color="black"),
@@ -2251,7 +2259,7 @@ class StaticResults:
             )
             fig.add_trace(
                 go.Scatter(
-                    x=nodes_pos,
+                    x=Q_(nodes_pos, "m").to(shaft_length_units).m,
                     y=[y_start] * len(nodes_pos),
                     mode="lines",
                     line=dict(color="black"),
@@ -2263,13 +2271,13 @@ class StaticResults:
             )
 
             # fig - plot arrows indicating shaft weight distribution
-            text = "{:.1f}".format(self.w_shaft[j])
+            text = "{:.1f}".format(Q_(self.w_shaft[j], "N").to(force_units).m)
             ini = nodes_pos[0]
             fin = nodes_pos[-1]
             arrows_list = np.arange(ini, 1.01 * fin, (fin - ini) / 5.0)
             for node in arrows_list:
                 fig.add_annotation(
-                    x=node,
+                    x=Q_(node, "m").to(shaft_length_units).m,
                     y=0,
                     axref="x{}".format(j + 1),
                     ayref="y{}".format(j + 1),
@@ -2278,19 +2286,19 @@ class StaticResults:
                     arrowsize=1,
                     arrowwidth=5,
                     arrowcolor="DimGray",
-                    ax=node,
+                    ax=Q_(node, "m").to(shaft_length_units).m,
                     ay=y_start * 1.08,
                     row=row,
                     col=col,
                 )
             fig.add_annotation(
-                x=nodes_pos[0],
+                x=Q_(nodes_pos[0], "m").to(shaft_length_units).m,
                 y=y_start,
                 xref="x{}".format(j + 1),
                 yref="y{}".format(j + 1),
                 xshift=125,
                 yshift=20,
-                text="Shaft weight = {}N".format(text),
+                text=f"Shaft weight = {text}{force_units}",
                 align="right",
                 showarrow=False,
             )
@@ -2300,21 +2308,25 @@ class StaticResults:
                 _, node = k.split("_")
                 node = int(node)
                 if node in nodes:
-                    text = str(v)
+                    text = f"{Q_(v, 'N').to(force_units).m:.2f}"
                     var = 1 if v < 0 else -1
                     fig.add_annotation(
-                        x=nodes_pos[nodes.index(node)],
+                        x=Q_(nodes_pos[nodes.index(node)], "m")
+                        .to(shaft_length_units)
+                        .m,
                         y=0,
                         axref="x{}".format(j + 1),
                         ayref="y{}".format(j + 1),
-                        text="Fb = {}N".format(text),
+                        text=f"Fb = {text}{force_units}",
                         textangle=90,
                         showarrow=True,
                         arrowhead=2,
                         arrowsize=1,
                         arrowwidth=5,
                         arrowcolor="DarkSalmon",
-                        ax=nodes_pos[nodes.index(node)],
+                        ax=Q_(nodes_pos[nodes.index(node)], "m")
+                        .to(shaft_length_units)
+                        .m,
                         ay=var * 2.5 * y_start,
                         row=row,
                         col=col,
@@ -2325,26 +2337,32 @@ class StaticResults:
                 _, node = k.split("_")
                 node = int(node)
                 if node in nodes:
-                    text = str(-v)
+                    text = f"{-Q_(v, 'N').to(force_units).m:.2f}"
                     fig.add_annotation(
-                        x=nodes_pos[nodes.index(node)],
+                        x=Q_(nodes_pos[nodes.index(node)], "m")
+                        .to(shaft_length_units)
+                        .m,
                         y=0,
                         axref="x{}".format(j + 1),
                         ayref="y{}".format(j + 1),
-                        text="Fd = {}N".format(text),
+                        text=f"Fd = {text}{force_units}",
                         textangle=270,
                         showarrow=True,
                         arrowhead=2,
                         arrowsize=1,
                         arrowwidth=5,
                         arrowcolor="FireBrick",
-                        ax=nodes_pos[nodes.index(node)],
+                        ax=Q_(nodes_pos[nodes.index(node)], "m")
+                        .to(shaft_length_units)
+                        .m,
                         ay=2.5 * y_start,
                         row=row,
                         col=col,
                     )
 
-            fig.update_xaxes(title_text="Shaft Length", row=row, col=col)
+            fig.update_xaxes(
+                title_text=f"Shaft Length ({shaft_length_units})", row=row, col=col
+            )
             fig.update_yaxes(
                 visible=False, gridcolor="lightgray", showline=False, row=row, col=col
             )
