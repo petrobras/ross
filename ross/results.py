@@ -1795,9 +1795,7 @@ class ForcedResponseResults:
                     legendgroup="Orbit",
                     showlegend=False,
                     hovertemplate=(
-                        "Nodal Position: %{x:.2f}<br>"
-                        + "X - Amplitude: %{y:.2e}<br>"
-                        + "Y - Amplitude: %{z:.2e}"
+                        f"Position ({displacement_units}): %{{x:.2f}}<br>X - Amplitude ({displacement_units}): %{{y:.2e}}<br>Y - Amplitude ({displacement_units}): %{{z:.2e}}"
                     ),
                 )
             )
