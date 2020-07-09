@@ -18,7 +18,7 @@ from ross.element import Element
 from ross.fluid_flow import fluid_flow as flow
 from ross.fluid_flow.fluid_flow_coefficients import (
     calculate_short_damping_matrix, calculate_short_stiffness_matrix)
-from ross.units import check_units
+from ross.units import Q_, check_units
 from ross.utils import read_table_file
 
 # fmt: on
@@ -160,11 +160,15 @@ class _Coefficient:
         """
         return self.coefficient[item]
 
-    def plot(self, **kwargs):
+    def plot(self, frequency_units="rad/s", y_units=None, fig=None, **kwargs):
         """Plot coefficient vs frequency.
 
         Parameters
         ----------
+        frequency_units : str
+            Frequency units.
+            Default is rad/s.
+        y_units : str
         **kwargs : optional
             Additional key word arguments can be passed to change the plot layout only
             (e.g. width=1000, height=800, ...).
@@ -182,47 +186,29 @@ class _Coefficient:
         >>> # fig.show()
         """
         frequency_range = np.linspace(min(self.frequency), max(self.frequency), 30)
+        y_value = (
+            Q_(self.interpolated(frequency_range), self.coefficient_default_units)
+            .to(y_units)
+            .m
+        )
+        frequency_range = Q_(frequency_range, "rad/s").to(frequency_units).m
 
-        fig = go.Figure()
+        if fig is None:
+            fig = go.Figure()
 
         fig.add_trace(
             go.Scatter(
                 x=frequency_range,
-                y=self.interpolated(frequency_range),
+                y=y_value,
                 mode="lines",
-                line=dict(width=3.0, color="royalblue"),
                 showlegend=False,
-                hovertemplate=("Frequency: %{x:.2f}<br>" + "Coefficient: %{y:.3e}"),
+                hovertemplate=f"Frequency ({frequency_units}): %{{x:.2f}}<br> Coefficient ({y_units}): %{{y:.3e}}",
             )
         )
 
-        fig.update_xaxes(
-            title_text="<b>Frequency (rad/s)</b>",
-            title_font=dict(family="Arial", size=20),
-            tickfont=dict(size=16),
-            gridcolor="lightgray",
-            showline=True,
-            linewidth=2.5,
-            linecolor="black",
-            mirror=True,
-        )
-        fig.update_yaxes(
-            title_font=dict(family="Arial", size=20),
-            tickfont=dict(size=16),
-            gridcolor="lightgray",
-            showline=True,
-            linewidth=2.5,
-            linecolor="black",
-            mirror=True,
-            exponentformat="power",
-        )
-        fig.update_layout(
-            width=800,
-            height=600,
-            plot_bgcolor="white",
-            hoverlabel_align="right",
-            **kwargs,
-        )
+        fig.update_xaxes(title_text=f"Frequency ({frequency_units})")
+        fig.update_yaxes(exponentformat="power")
+        fig.update_layout(**kwargs)
 
         return fig
 
@@ -234,11 +220,19 @@ class _Stiffness_Coefficient(_Coefficient):
     coefficients.
     """
 
-    def plot(self, **kwargs):
+    coefficient_default_units = "N/m"
+
+    def plot(self, frequency_units="rad/s", stiffness_units="N/m", **kwargs):
         """Plot stiffness coefficient vs frequency.
 
         Parameters
         ----------
+        frequency_units : str
+            Frequency units.
+            Default is rad/s.
+        stiffness_units : str
+            Stiffness units.
+            Default is N/m.
         **kwargs : optional
             Additional key word arguments can be passed to change the plot layout only
             (e.g. width=1000, height=800, ...).
@@ -255,8 +249,10 @@ class _Stiffness_Coefficient(_Coefficient):
         >>> fig = bearing.kxx.plot()
         >>> # fig.show()
         """
-        fig = super().plot(**kwargs)
-        fig.update_yaxes(title_text="<b>Stiffness (N/m)</b>")
+        fig = super().plot(
+            frequency_units=frequency_units, y_units=stiffness_units, **kwargs
+        )
+        fig.update_yaxes(title_text=f"Stiffness ({stiffness_units})")
 
         return fig
 
@@ -268,7 +264,9 @@ class _Damping_Coefficient(_Coefficient):
     coefficients.
     """
 
-    def plot(self, **kwargs):
+    coefficient_default_units = "N*s/m"
+
+    def plot(self, frequency_units="rad/s", damping_units="N*s/m", **kwargs):
         """Plot damping coefficient vs frequency.
 
         Parameters
@@ -289,8 +287,10 @@ class _Damping_Coefficient(_Coefficient):
         >>> fig = bearing.cxx.plot()
         >>> # fig.show()
         """
-        fig = super().plot(**kwargs)
-        fig.update_yaxes(title_text="<b>Damping (Ns/m)</b>")
+        fig = super().plot(
+            frequency_units=frequency_units, y_units=damping_units, **kwargs
+        )
+        fig.update_yaxes(title_text=f"Damping ({damping_units})")
 
         return fig
 
