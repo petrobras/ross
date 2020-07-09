@@ -1771,7 +1771,7 @@ class Rotor(object):
         x_pos = []
         y_pos = np.linspace(0, 0, len(self.nodes_pos[::nodes]))
         for node, position in enumerate(self.nodes_pos[::nodes]):
-            text.append("<b>{}</b>".format(node * nodes))
+            text.append("{}".format(node * nodes))
             x_pos.append(position)
 
         fig.add_trace(
@@ -1819,18 +1819,18 @@ class Rotor(object):
             fig = p_mass._patch(position, fig)
 
         fig.update_xaxes(
-            title_text="<b>Axial location</b>",
+            title_text="Axial location",
             range=[-0.1 * shaft_end, 1.1 * shaft_end],
             showgrid=False,
             mirror=True,
         )
         fig.update_yaxes(
-            title_text="<b>Shaft radius</b>",
+            title_text="Shaft radius",
             range=[-0.3 * shaft_end, 0.3 * shaft_end],
             showgrid=False,
             mirror=True,
         )
-        fig.update_layout(title=dict(text="<b>Rotor Model</b>"), **kwargs)
+        fig.update_layout(title=dict(text="Rotor Model"), **kwargs)
 
         return fig
 
@@ -2128,18 +2128,14 @@ class Rotor(object):
         )
 
         fig.update_xaxes(
-            title_text=f"<b>Bearing Stiffness ({x_units})</b>",
+            title_text=f"Bearing Stiffness ({x_units})",
             type="log",
             exponentformat="power",
         )
         fig.update_yaxes(
-            title_text=f"<b>Critical Speed ({y_units})</b>",
-            type="log",
-            exponentformat="power",
+            title_text=f"Critical Speed ({y_units})", type="log", exponentformat="power"
         )
-        fig.update_layout(
-            title=dict(text="<b>Undamped Critical Speed Map</b>"), **kwargs
-        )
+        fig.update_layout(title=dict(text="Undamped Critical Speed Map"), **kwargs)
 
         return fig
 
@@ -2234,12 +2230,10 @@ class Rotor(object):
         )
 
         fig.update_xaxes(
-            title_text="<b>Applied Cross Coupled Stiffness</b>", exponentformat="power"
+            title_text="Applied Cross Coupled Stiffness", exponentformat="power"
         )
-        fig.update_yaxes(title_text="<b>Log Dec</b>", exponentformat="power")
-        fig.update_layout(
-            title=dict(text="<b>Level 1 stability analysis</b>"), **kwargs
-        )
+        fig.update_yaxes(title_text="Log Dec", exponentformat="power")
+        fig.update_layout(title=dict(text="Level 1 stability analysis"), **kwargs)
 
         return fig
 

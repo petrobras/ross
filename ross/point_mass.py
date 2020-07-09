@@ -249,9 +249,9 @@ class PointMass(Element):
 
         customdata = [self.n, self.mx, self.my]
         hovertemplate = (
-            f"<b>PointMass Node: {customdata[0]}<b><br>"
-            + f"<b>Mass (X): {customdata[1]:.3f}<b><br>"
-            + f"<b>Mass (Y): {customdata[2]:.3f}<b><br>"
+            f"PointMass Node: {customdata[0]}<br>"
+            + f"Mass (X): {customdata[1]:.3f}<br>"
+            + f"Mass (Y): {customdata[2]:.3f}<br>"
         )
 
         fig.add_trace(

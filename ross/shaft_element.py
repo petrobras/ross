@@ -897,8 +897,8 @@ class ShaftElement(Element):
         if check_sld:
             customdata = [self.n, self.slenderness_ratio]
             hovertemplate = (
-                f"<b>Element Number: {customdata[0]}<b><br>"
-                + f"<b>Slenderness Ratio: {customdata[1]:.3f}<b>"
+                f"Element Number: {customdata[0]}<br>"
+                + f"Slenderness Ratio: {customdata[1]:.3f}"
             )
         else:
             if isinstance(self, ShaftElement6DoF):
@@ -914,15 +914,15 @@ class ShaftElement(Element):
                     self.material.name,
                 ]
                 hovertemplate = (
-                    f"<b>Element Number: {customdata[0]}<b><br>"
-                    + f"<b>Left Outer Diameter: {round(customdata[1], 6)}<b><br>"
-                    + f"<b>Left Inner Diameter: {round(customdata[2], 6)}<b><br>"
-                    + f"<b>Right Outer Diameter: {round(customdata[3], 6)}<b><br>"
-                    + f"<b>Right Inner Diameter: {round(customdata[4], 6)}<b><br>"
-                    + f"<b>Alpha Damp. Factor: {round(customdata[5], 6)}<b><br>"
-                    + f"<b>Beta Damp. Factor: {round(customdata[6], 6)}<b><br>"
-                    + f"<b>Element Length: {round(customdata[7], 6)}<b><br>"
-                    + f"<b>Material: {customdata[8]}<b><br>"
+                    f"Element Number: {customdata[0]}<br>"
+                    + f"Left Outer Diameter: {round(customdata[1], 6)}<br>"
+                    + f"Left Inner Diameter: {round(customdata[2], 6)}<br>"
+                    + f"Right Outer Diameter: {round(customdata[3], 6)}<br>"
+                    + f"Right Inner Diameter: {round(customdata[4], 6)}<br>"
+                    + f"Alpha Damp. Factor: {round(customdata[5], 6)}<br>"
+                    + f"Beta Damp. Factor: {round(customdata[6], 6)}<br>"
+                    + f"Element Length: {round(customdata[7], 6)}<br>"
+                    + f"Material: {customdata[8]}<br>"
                 )
             else:
                 customdata = [
@@ -935,13 +935,13 @@ class ShaftElement(Element):
                     self.material.name,
                 ]
                 hovertemplate = (
-                    f"<b>Element Number: {customdata[0]}<b><br>"
-                    + f"<b>Left Outer Diameter: {round(customdata[1], 6)}<b><br>"
-                    + f"<b>Left Inner Diameter: {round(customdata[2], 6)}<b><br>"
-                    + f"<b>Right Outer Diameter: {round(customdata[3], 6)}<b><br>"
-                    + f"<b>Right Inner Diameter: {round(customdata[4], 6)}<b><br>"
-                    + f"<b>Element Length: {round(customdata[5], 6)}<b><br>"
-                    + f"<b>Material: {customdata[6]}<b><br>"
+                    f"Element Number: {customdata[0]}<br>"
+                    + f"Left Outer Diameter: {round(customdata[1], 6)}<br>"
+                    + f"Left Inner Diameter: {round(customdata[2], 6)}<br>"
+                    + f"Right Outer Diameter: {round(customdata[3], 6)}<br>"
+                    + f"Right Inner Diameter: {round(customdata[4], 6)}<br>"
+                    + f"Element Length: {round(customdata[5], 6)}<br>"
+                    + f"Material: {customdata[6]}<br>"
                 )
         fig.add_trace(
             go.Scatter(

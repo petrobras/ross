@@ -573,27 +573,21 @@ class ModalResults:
         fig.update_layout(
             scene=dict(
                 xaxis=dict(
-                    title=dict(text="<b>Rotor Length</b>"),
-                    autorange="reversed",
-                    nticks=5,
+                    title=dict(text="Rotor Length"), autorange="reversed", nticks=5
                 ),
                 yaxis=dict(
-                    title=dict(text="<b>Relative Displacement</b>"),
-                    range=[-2, 2],
-                    nticks=5,
+                    title=dict(text="Relative Displacement"), range=[-2, 2], nticks=5
                 ),
                 zaxis=dict(
-                    title=dict(text="<b>Relative Displacement</b>"),
-                    range=[-2, 2],
-                    nticks=5,
+                    title=dict(text="Relative Displacement"), range=[-2, 2], nticks=5
                 ),
             ),
             title=dict(
                 text=(
-                    f"<b>Mode</b> {mode + 1} | "
-                    f"<b>whirl</b>: {self.whirl_direction()[mode]} | "
-                    f"<b>ω<sub>n</sub></b> = {Q_(self.wn[mode], 'rad/s').to(frequency_units).m:.1f} {frequency_units} | "
-                    f"<b>log dec</b> = {self.log_dec[mode]:.1f}"
+                    f"Mode {mode + 1} | "
+                    f"whirl: {self.whirl_direction()[mode]} | "
+                    f"ω<sub>n</sub> = {Q_(self.wn[mode], 'rad/s').to(frequency_units).m:.1f} {frequency_units} | "
+                    f"log dec = {self.log_dec[mode]:.1f}"
                 )
             ),
             **kwargs,
@@ -673,15 +667,15 @@ class ModalResults:
             )
         )
 
-        fig.update_xaxes(title_text="<b>Rotor Length</b>")
-        fig.update_yaxes(title_text="<b>Relative Displacement</b>")
+        fig.update_xaxes(title_text="Rotor Length")
+        fig.update_yaxes(title_text="Relative Displacement")
         fig.update_layout(
             title=dict(
                 text=(
-                    f"<b>Mode</b> {mode + 1} | "
-                    f"<b>whirl</b>: {self.whirl_direction()[mode]} | "
-                    f"<b>ωn</b> = {Q_(self.wn[mode], 'rad/s').to(frequency_units).m:.1f} {frequency_units} | "
-                    f"<b>log dec</b> = {self.log_dec[mode]:.1f}"
+                    f"Mode {mode + 1} | "
+                    f"whirl: {self.whirl_direction()[mode]} | "
+                    f"ωn = {Q_(self.wn[mode], 'rad/s').to(frequency_units).m:.1f} {frequency_units} | "
+                    f"log dec = {self.log_dec[mode]:.1f}"
                 )
             ),
             **kwargs,
@@ -849,11 +843,11 @@ class CampbellResults:
             )
 
         fig.update_xaxes(
-            title_text=f"<b>Frequency ({frequency_units})</b>",
+            title_text=f"Frequency ({frequency_units})",
             range=[np.min(speed_range), np.max(speed_range)],
         )
         fig.update_yaxes(
-            title_text=f"<b>Natural Frequencies ({frequency_units})</b>",
+            title_text=f"Natural Frequencies ({frequency_units})",
             range=[0, 1.1 * np.max(wd)],
         )
         fig.update_layout(
@@ -861,7 +855,7 @@ class CampbellResults:
                 cmin=min(log_dec_map),
                 cmax=max(log_dec_map),
                 colorscale="rdbu",
-                colorbar=dict(title=dict(text="<b>Log Dec</b>", side="right")),
+                colorbar=dict(title=dict(text="Log Dec", side="right")),
             ),
             legend=dict(
                 itemsizing="constant",
@@ -966,10 +960,10 @@ class FrequencyResponseResults:
         )
 
         fig.update_xaxes(
-            title_text=f"<b>Frequency ({frequency_units})</b>",
+            title_text=f"Frequency ({frequency_units})",
             range=[np.min(frequency_range), np.max(frequency_range)],
         )
-        fig.update_yaxes(title_text=f"<b>Amplitude ({amplitude_units})</b>")
+        fig.update_yaxes(title_text=f"Amplitude ({amplitude_units})")
         fig.update_layout(**mag_kwargs)
 
         return fig
@@ -1040,10 +1034,10 @@ class FrequencyResponseResults:
         )
 
         fig.update_xaxes(
-            title_text=f"<b>Frequency ({frequency_units})</b>",
+            title_text=f"Frequency ({frequency_units})",
             range=[np.min(frequency_range), np.max(frequency_range)],
         )
-        fig.update_yaxes(title_text=f"<b>Phase ({phase_units})</b>")
+        fig.update_yaxes(title_text=f"Phase ({phase_units})")
         fig.update_layout(**phase_kwargs)
 
         return fig
@@ -1323,7 +1317,7 @@ class ForcedResponseResults:
         )
 
         fig.update_xaxes(
-            title_text=f"<b>Frequency ({frequency_units})</b>",
+            title_text=f"Frequency ({frequency_units})",
             range=[np.min(frequency_range), np.max(frequency_range)],
         )
         fig.update_yaxes(
@@ -1385,10 +1379,10 @@ class ForcedResponseResults:
         )
 
         fig.update_xaxes(
-            title_text=f"<b>Frequency ({frequency_units})</b>",
+            title_text=f"Frequency ({frequency_units})",
             range=[np.min(frequency_range), np.max(frequency_range)],
         )
-        fig.update_yaxes(title_text=f"<b>Phase ({phase_units})</b>")
+        fig.update_yaxes(title_text=f"Phase ({phase_units})")
         fig.update_layout(**kwargs)
 
         return fig
@@ -1714,9 +1708,7 @@ class ForcedResponseResults:
                 name="Major Axis",
                 legendgroup="Major_Axis_2d",
                 showlegend=False,
-                hovertemplate=(
-                    "<b>Nodal Position: %{x:.2f}</b><br>" + "<b>Amplitude: %{y:.2e}</b>"
-                ),
+                hovertemplate=("Nodal Position: %{x:.2f}<br>" + "Amplitude: %{y:.2e}"),
             )
         )
         # plot center line
@@ -1731,8 +1723,8 @@ class ForcedResponseResults:
             )
         )
 
-        fig.update_xaxes(title_text="<b>Rotor Length</b>")
-        fig.update_yaxes(title_text="<b>Major Axis Absolute Amplitude</b>")
+        fig.update_xaxes(title_text="Rotor Length")
+        fig.update_yaxes(title_text="Major Axis Absolute Amplitude")
         fig.update_layout(**kwargs)
 
         return fig
@@ -1806,9 +1798,9 @@ class ForcedResponseResults:
                     legendgroup="Orbit",
                     showlegend=False,
                     hovertemplate=(
-                        "<b>Nodal Position: %{x:.2f}</b><br>"
-                        + "<b>X - Amplitude: %{y:.2e}</b><br>"
-                        + "<b>Y - Amplitude: %{z:.2e}</b>"
+                        "Nodal Position: %{x:.2f}<br>"
+                        + "X - Amplitude: %{y:.2e}<br>"
+                        + "Y - Amplitude: %{z:.2e}"
                     ),
                 )
             )
@@ -1884,11 +1876,11 @@ class ForcedResponseResults:
         fig.update_layout(
             scene=dict(
                 bgcolor="white",
-                xaxis=dict(title=dict(text="<b>Rotor Length</b>")),
-                yaxis=dict(title=dict(text="<b>Amplitude - X</b>")),
-                zaxis=dict(title=dict(text="<b>Amplitude - Y</b>")),
+                xaxis=dict(title=dict(text="Rotor Length")),
+                yaxis=dict(title=dict(text="Amplitude - X")),
+                zaxis=dict(title=dict(text="Amplitude - Y")),
             ),
-            title=dict(text=(f"<b>Deflected Shape</b><br>" f"<b>Speed = {speed}</b>")),
+            title=dict(text=(f"Deflected Shape<br>" f"Speed = {speed}")),
             **kwargs,
         )
 
@@ -1937,9 +1929,7 @@ class ForcedResponseResults:
                 name="Bending Moment (X dir.)",
                 legendgroup="Mx",
                 showlegend=True,
-                hovertemplate=(
-                    "<b>Nodal Position: %{x:.2f}</b><br>" + "<b>Mx: %{y:.2e}</b>"
-                ),
+                hovertemplate=("Nodal Position: %{x:.2f}<br>" + "Mx: %{y:.2e}"),
             )
         )
         fig.add_trace(
@@ -1950,9 +1940,7 @@ class ForcedResponseResults:
                 name="Bending Moment (Y dir.)",
                 legendgroup="My",
                 showlegend=True,
-                hovertemplate=(
-                    "<b>Nodal Position: %{x:.2f}</b><br>" + "<b>My: %{y:.2e}</b>"
-                ),
+                hovertemplate=("Nodal Position: %{x:.2f}<br>" + "My: %{y:.2e}"),
             )
         )
         fig.add_trace(
@@ -1963,9 +1951,7 @@ class ForcedResponseResults:
                 name="Bending Moment (abs)",
                 legendgroup="Mr",
                 showlegend=True,
-                hovertemplate=(
-                    "<b>Nodal Position: %{x:.2f}</b><br>" + "<b>Mr: %{y:.2e}</b>"
-                ),
+                hovertemplate=("Nodal Position: %{x:.2f}<br>" + "Mr: %{y:.2e}"),
             )
         )
 
@@ -1981,8 +1967,8 @@ class ForcedResponseResults:
             )
         )
 
-        fig.update_xaxes(title_text="<b>Rotor Length</b>")
-        fig.update_yaxes(title_text="<b>Bending Moment</b>")
+        fig.update_xaxes(title_text="Rotor Length")
+        fig.update_yaxes(title_text="Bending Moment")
         fig.update_layout(**kwargs)
 
         return fig
@@ -2208,9 +2194,9 @@ class StaticResults:
             )
             count += 1
 
-        fig.update_xaxes(title_text=f"<b>Shaft Length ({shaft_length_units})</b>")
-        fig.update_yaxes(title_text=f"<b>Deformation ({deformation_units})</b>")
-        fig.update_layout(title=dict(text="<b>Static Deformation</b>"), **kwargs)
+        fig.update_xaxes(title_text=f"Shaft Length ({shaft_length_units})")
+        fig.update_yaxes(title_text=f"Deformation ({deformation_units})")
+        fig.update_layout(title=dict(text="Static Deformation"), **kwargs)
 
         return fig
 
@@ -2238,7 +2224,7 @@ class StaticResults:
                 rows=rows,
                 cols=cols,
                 subplot_titles=[
-                    "<b>Free-Body Diagram - Shaft {}</b>".format(j)
+                    "Free-Body Diagram - Shaft {}".format(j)
                     for j in range(len(self.nodes_pos))
                 ],
             )
@@ -2301,7 +2287,7 @@ class StaticResults:
                 yref="y{}".format(j + 1),
                 xshift=125,
                 yshift=20,
-                text="<b>Shaft weight = {}N</b>".format(text),
+                text="Shaft weight = {}N".format(text),
                 align="right",
                 showarrow=False,
             )
@@ -2318,7 +2304,7 @@ class StaticResults:
                         y=0,
                         axref="x{}".format(j + 1),
                         ayref="y{}".format(j + 1),
-                        text="<b>Fb = {}N</b>".format(text),
+                        text="Fb = {}N".format(text),
                         textangle=90,
                         showarrow=True,
                         arrowhead=2,
@@ -2342,7 +2328,7 @@ class StaticResults:
                         y=0,
                         axref="x{}".format(j + 1),
                         ayref="y{}".format(j + 1),
-                        text="<b>Fd = {}N</b>".format(text),
+                        text="Fd = {}N".format(text),
                         textangle=270,
                         showarrow=True,
                         arrowhead=2,
@@ -2355,7 +2341,7 @@ class StaticResults:
                         col=col,
                     )
 
-            fig.update_xaxes(title_text="<b>Shaft Length</b>", row=row, col=col)
+            fig.update_xaxes(title_text="Shaft Length", row=row, col=col)
             fig.update_yaxes(
                 visible=False, gridcolor="lightgray", showline=False, row=row, col=col
             )
@@ -2420,10 +2406,10 @@ class StaticResults:
             j += 1
 
         fig.update_xaxes(
-            title_text="<b>Shaft Length</b>", range=[-0.1 * shaft_end, 1.1 * shaft_end]
+            title_text="Shaft Length", range=[-0.1 * shaft_end, 1.1 * shaft_end]
         )
-        fig.update_yaxes(title_text="<b>Force</b>")
-        fig.update_layout(title=dict(text="<b>Shearing Force Diagram</b>"), **kwargs)
+        fig.update_yaxes(title_text="Force")
+        fig.update_layout(title=dict(text="Shearing Force Diagram"), **kwargs)
 
         return fig
 
@@ -2477,9 +2463,9 @@ class StaticResults:
             )
             j += 1
 
-        fig.update_xaxes(title_text="<b>Shaft Length</b>")
-        fig.update_yaxes(title_text="<b>Bending Moment</b>")
-        fig.update_layout(title=dict(text="<b>Bending Moment Diagram</b>"), **kwargs)
+        fig.update_xaxes(title_text="Shaft Length")
+        fig.update_yaxes(title_text="Bending Moment")
+        fig.update_layout(title=dict(text="Bending Moment Diagram"), **kwargs)
 
         return fig
 
@@ -2593,17 +2579,17 @@ class SummaryResults:
                 [{"type": "table"}, {"type": "table"}],
             ],
             subplot_titles=[
-                "<b>Rotor data</b>",
-                "<b>Shaft Element data</b>",
-                "<b>Disk Element data</b>",
-                "<b>Bearing Element data</b>",
+                "Rotor data",
+                "Shaft Element data",
+                "Disk Element data",
+                "Bearing Element data",
             ],
         )
         colors = ["#ffffff", "#c4d9ed"]
         fig.add_trace(
             go.Table(
                 header=dict(
-                    values=["<b>{}</b>".format(k) for k in rotor_data.keys()],
+                    values=["{}".format(k) for k in rotor_data.keys()],
                     font=dict(size=12, color="white"),
                     line=dict(color="#1f4060", width=1.5),
                     fill=dict(color="#1f4060"),
@@ -2626,7 +2612,7 @@ class SummaryResults:
         fig.add_trace(
             go.Table(
                 header=dict(
-                    values=["<b>{}</b>".format(k) for k in shaft_data.keys()],
+                    values=["{}".format(k) for k in shaft_data.keys()],
                     font=dict(family="Verdana", size=12, color="white"),
                     line=dict(color="#1e4162", width=1.5),
                     fill=dict(color="#1e4162"),
@@ -2649,7 +2635,7 @@ class SummaryResults:
         fig.add_trace(
             go.Table(
                 header=dict(
-                    values=["<b>{}</b>".format(k) for k in disk_data.keys()],
+                    values=["{}".format(k) for k in disk_data.keys()],
                     font=dict(family="Verdana", size=12, color="white"),
                     line=dict(color="#1e4162", width=1.5),
                     fill=dict(color="#1e4162"),
@@ -2672,7 +2658,7 @@ class SummaryResults:
         fig.add_trace(
             go.Table(
                 header=dict(
-                    values=["<b>{}</b>".format(k) for k in bearing_data.keys()],
+                    values=["{}".format(k) for k in bearing_data.keys()],
                     font=dict(family="Verdana", size=12, color="white"),
                     line=dict(color="#1e4162", width=1.5),
                     fill=dict(color="#1e4162"),
@@ -2745,10 +2731,7 @@ class ConvergenceResults:
             fig = make_subplots(
                 rows=1,
                 cols=2,
-                subplot_titles=[
-                    "<b>Frequency Evaluation</b>",
-                    "<b>Relative Error Evaluation</b>",
-                ],
+                subplot_titles=["Frequency Evaluation", "Relative Error Evaluation"],
             )
 
         # plot Frequency vs number of elements
@@ -2765,8 +2748,8 @@ class ConvergenceResults:
             row=1,
             col=1,
         )
-        fig.update_xaxes(title_text="<b>Number of Elements</b>", row=1, col=1)
-        fig.update_yaxes(title_text="<b>Frequency</b>", row=1, col=1)
+        fig.update_xaxes(title_text="Number of Elements", row=1, col=1)
+        fig.update_yaxes(title_text="Frequency", row=1, col=1)
 
         # plot Error vs number of elements
         fig.add_trace(
@@ -2783,8 +2766,8 @@ class ConvergenceResults:
             col=2,
         )
 
-        fig.update_xaxes(title_text="<b>Number of Elements</b>", row=1, col=2)
-        fig.update_yaxes(title_text="<b>Relative Error (%)</b>", row=1, col=2)
+        fig.update_xaxes(title_text="Number of Elements", row=1, col=2)
+        fig.update_yaxes(title_text="Relative Error (%)", row=1, col=2)
 
         fig.update_layout(**kwargs)
 
@@ -2881,12 +2864,10 @@ class TimeResponseResults:
             )
         )
 
-        fig.update_xaxes(title_text="<b>Time</b>")
-        fig.update_yaxes(title_text="<b>Amplitude</b>")
+        fig.update_xaxes(title_text="Time")
+        fig.update_yaxes(title_text="Amplitude")
         fig.update_layout(
-            title=dict(
-                text="<b>Response for node {} - DoF {}</b>".format(dof // 4, obs_dof)
-            ),
+            title=dict(text="Response for node {} - DoF {}".format(dof // 4, obs_dof)),
             **kwargs,
         )
 
@@ -2930,10 +2911,10 @@ class TimeResponseResults:
             )
         )
 
-        fig.update_xaxes(title_text="<b>Amplitude - X direction</b>")
-        fig.update_yaxes(title_text="<b>Amplitude - Y direction</b>")
+        fig.update_xaxes(title_text="Amplitude - X direction")
+        fig.update_yaxes(title_text="Amplitude - Y direction")
         fig.update_layout(
-            title=dict(text="<b>Response for node {}</b>".format(node)), **kwargs
+            title=dict(text="Response for node {}".format(node)), **kwargs
         )
 
         return fig
@@ -2997,9 +2978,9 @@ class TimeResponseResults:
 
         fig.update_layout(
             scene=dict(
-                xaxis=dict(title=dict(text="<b>Rotor Length</b>")),
-                yaxis=dict(title=dict(text="<b>Amplitude - X</b>")),
-                zaxis=dict(title=dict(text="<b>Amplitude - Y</b>")),
+                xaxis=dict(title=dict(text="Rotor Length")),
+                yaxis=dict(title=dict(text="Amplitude - X")),
+                zaxis=dict(title=dict(text="Amplitude - Y")),
             ),
             **kwargs,
         )
