@@ -1888,7 +1888,9 @@ class ForcedResponseResults:
 
         return fig
 
-    def plot_bending_moment(self, speed, moment_units="N*m", fig=None, **kwargs):
+    def plot_bending_moment(
+        self, speed, moment_units="N*m", shaft_length_units="m", fig=None, **kwargs
+    ):
         """Plot the bending moment diagram.
 
         Parameters
@@ -1899,6 +1901,9 @@ class ForcedResponseResults:
         moment_units : str, optional
             Moment units.
             Default is 'N*m'.
+        shaft_length_units : str
+            Shaft length units.
+            Default is m.
         kwargs : optional
             Additional key word arguments can be passed to change the deflected shape
             plot layout only (e.g. width=1000, height=800, ...).
@@ -1917,7 +1922,7 @@ class ForcedResponseResults:
         My = Q_(My, "N*m").to(moment_units).m
         Mr = np.sqrt(Mx ** 2 + My ** 2)
 
-        nodes_pos = self.rotor.nodes_pos
+        nodes_pos = Q_(self.rotor.nodes_pos, "m").to(shaft_length_units).m
 
         if fig is None:
             fig = go.Figure()
@@ -1967,7 +1972,7 @@ class ForcedResponseResults:
             )
         )
 
-        fig.update_xaxes(title_text="Rotor Length")
+        fig.update_xaxes(title_text=f"Rotor Length ({shaft_length_units})")
         fig.update_yaxes(title_text=f"Bending Moment ({moment_units})")
         fig.update_layout(**kwargs)
 
@@ -2372,7 +2377,9 @@ class StaticResults:
 
         return fig
 
-    def plot_shearing_force(self, fig=None, **kwargs):
+    def plot_shearing_force(
+        self, force_units="N", shaft_length_units="m", fig=None, **kwargs
+    ):
         """Plot the rotor shearing force diagram.
 
         This method plots:
@@ -2380,6 +2387,12 @@ class StaticResults:
 
         Parameters
         ----------
+        force_units : str
+            Force units.
+            Default is 'N'.
+        shaft_length_units : str
+            Shaft length units.
+            Default is 'm'.
         fig : Plotly graph_objects.Figure()
             The figure object with the plot.
         kwargs : optional
@@ -2395,7 +2408,11 @@ class StaticResults:
         if fig is None:
             fig = go.Figure()
 
-        shaft_end = max([sublist[-1] for sublist in self.nodes_pos])
+        shaft_end = (
+            Q_(max([sublist[-1] for sublist in self.nodes_pos]), "m")
+            .to(shaft_length_units)
+            .m
+        )
 
         # fig - plot centerline
         fig.add_trace(
@@ -2413,28 +2430,31 @@ class StaticResults:
         for Vx, Vx_axis in zip(self.Vx, self.Vx_axis):
             fig.add_trace(
                 go.Scatter(
-                    x=Vx_axis,
-                    y=Vx,
+                    x=Q_(Vx_axis, "m").to(shaft_length_units).m,
+                    y=Q_(Vx, "N").to(force_units).m,
                     mode="lines",
                     name=f"Shaft {j}",
                     legendgroup=f"Shaft {j}",
                     showlegend=True,
                     hovertemplate=(
-                        "Shaft lengh: %{x:.2f}<br>" + "Shearing Force: %{y:.2f}"
+                        f"Shaft length ({shaft_length_units}): %{{x:.2f}}<br>Shearing Force ({force_units}): %{{y:.2f}}"
                     ),
                 )
             )
             j += 1
 
         fig.update_xaxes(
-            title_text="Shaft Length", range=[-0.1 * shaft_end, 1.1 * shaft_end]
+            title_text=f"Shaft Length ({shaft_length_units})",
+            range=[-0.1 * shaft_end, 1.1 * shaft_end],
         )
-        fig.update_yaxes(title_text="Force")
+        fig.update_yaxes(title_text=f"Force ({force_units})")
         fig.update_layout(title=dict(text="Shearing Force Diagram"), **kwargs)
 
         return fig
 
-    def plot_bending_moment(self, fig=None, **kwargs):
+    def plot_bending_moment(
+        self, moment_units="N*m", shaft_length_units="m", fig=None, **kwargs
+    ):
         """Plot the rotor bending moment diagram.
 
         This method plots:
@@ -2442,6 +2462,12 @@ class StaticResults:
 
         Parameters
         ----------
+        moment_units : str, optional
+            Moment units.
+            Default is 'N*m'.
+        shaft_length_units : str
+            Shaft length units.
+            Default is 'm'.
         fig : Plotly graph_objects.Figure()
             Plotly figure with the bending moment diagram plot
 
@@ -2453,7 +2479,11 @@ class StaticResults:
         if fig is None:
             fig = go.Figure()
 
-        shaft_end = max([sublist[-1] for sublist in self.nodes_pos])
+        shaft_end = (
+            Q_(max([sublist[-1] for sublist in self.nodes_pos]), "m")
+            .to(shaft_length_units)
+            .m
+        )
 
         # fig - plot centerline
         fig.add_trace(
@@ -2471,21 +2501,21 @@ class StaticResults:
         for Bm, nodes_pos in zip(self.Bm, self.Vx_axis):
             fig.add_trace(
                 go.Scatter(
-                    x=nodes_pos,
-                    y=Bm,
+                    x=Q_(nodes_pos, "m").to(shaft_length_units).m,
+                    y=Q_(Bm, "N*m").to(moment_units).m,
                     mode="lines",
                     name=f"Shaft {j}",
                     legendgroup=f"Shaft {j}",
                     showlegend=True,
                     hovertemplate=(
-                        "Shaft lengh: %{x:.2f}<br>" + "Bending Moment: %{y:.2f}"
+                        f"Shaft length ({shaft_length_units}): %{{x:.2f}}<br>Bending Moment ({moment_units}): %{{y:.2f}}"
                     ),
                 )
             )
             j += 1
 
-        fig.update_xaxes(title_text="Shaft Length")
-        fig.update_yaxes(title_text="Bending Moment")
+        fig.update_xaxes(title_text=f"Shaft Length ({shaft_length_units})")
+        fig.update_yaxes(title_text=f"Bending Moment ({moment_units})")
         fig.update_layout(title=dict(text="Bending Moment Diagram"), **kwargs)
 
         return fig
