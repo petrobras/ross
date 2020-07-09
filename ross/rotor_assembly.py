@@ -1989,8 +1989,8 @@ class Rotor(object):
         num=30,
         fig=None,
         synchronous=False,
-        x_units="N/m",
-        y_units="rad/s",
+        stiffness_units="N/m",
+        frequency_units="rad/s",
         **kwargs,
     ):
         """Plot undamped critical speed map.
@@ -2015,10 +2015,10 @@ class Rotor(object):
             If True a synchronous analysis is carried out and the frequency of
             the first forward model will be equal to the speed.
             Default is False.
-        x_units : str, optional
+        stiffness_units : str, optional
             Units for the x axis.
             Default is N/m.
-        y_units : str, optional
+        frequency_units : str, optional
             Units for th y axis.
             Default is rad/s
         kwargs : optional
@@ -2071,17 +2071,25 @@ class Rotor(object):
             fig = go.Figure()
 
         # convert to desired units
-        stiffness_log = Q_(stiffness_log, "N/m").to(x_units).m
-        rotor_wn = Q_(rotor_wn, "rad/s").to(y_units).m
-        intersection_points["x"] = Q_(intersection_points["x"], "N/m").to(x_units).m
-        intersection_points["y"] = Q_(intersection_points["y"], "rad/s").to(y_units).m
+        stiffness_log = Q_(stiffness_log, "N/m").to(stiffness_units).m
+        rotor_wn = Q_(rotor_wn, "rad/s").to(frequency_units).m
+        intersection_points["x"] = (
+            Q_(intersection_points["x"], "N/m").to(stiffness_units).m
+        )
+        intersection_points["y"] = (
+            Q_(intersection_points["y"], "rad/s").to(frequency_units).m
+        )
         bearing_kxx_stiffness = (
-            Q_(bearing0.kxx.interpolated(bearing0.frequency), "N/m").to(x_units).m
+            Q_(bearing0.kxx.interpolated(bearing0.frequency), "N/m")
+            .to(stiffness_units)
+            .m
         )
         bearing_kyy_stiffness = (
-            Q_(bearing0.kyy.interpolated(bearing0.frequency), "N/m").to(x_units).m
+            Q_(bearing0.kyy.interpolated(bearing0.frequency), "N/m")
+            .to(stiffness_units)
+            .m
         )
-        bearing_frequency = Q_(bearing0.frequency, "rad/s").to(y_units).m
+        bearing_frequency = Q_(bearing0.frequency, "rad/s").to(frequency_units).m
 
         for j in range(rotor_wn.shape[0]):
             fig.add_trace(
@@ -2100,7 +2108,7 @@ class Rotor(object):
                 y=intersection_points["y"],
                 mode="markers",
                 marker=dict(symbol="circle-open-dot", color="red", size=8),
-                hovertemplate=f"Stiffness ({x_units}): %{{x:.2e}}<br>Frequency ({y_units}): %{{y:.2f}}",
+                hovertemplate=f"Stiffness ({stiffness_units}): %{{x:.2e}}<br>Frequency ({frequency_units}): %{{y:.2f}}",
                 showlegend=False,
                 name="",
             )
@@ -2128,12 +2136,14 @@ class Rotor(object):
         )
 
         fig.update_xaxes(
-            title_text=f"Bearing Stiffness ({x_units})",
+            title_text=f"Bearing Stiffness ({stiffness_units})",
             type="log",
             exponentformat="power",
         )
         fig.update_yaxes(
-            title_text=f"Critical Speed ({y_units})", type="log", exponentformat="power"
+            title_text=f"Critical Speed ({frequency_units})",
+            type="log",
+            exponentformat="power",
         )
         fig.update_layout(title=dict(text="Undamped Critical Speed Map"), **kwargs)
 
