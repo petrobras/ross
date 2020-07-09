@@ -1913,8 +1913,8 @@ class ForcedResponseResults:
             raise ValueError("No data available for this speed value.")
 
         Mx, My = self._calculate_bending_moment(speed=speed)
-        Mx = Q_(Mx, "N*m").to(moment_units)
-        My = Q_(My, "N*m").to(moment_units)
+        Mx = Q_(Mx, "N*m").to(moment_units).m
+        My = Q_(My, "N*m").to(moment_units).m
         Mr = np.sqrt(Mx ** 2 + My ** 2)
 
         nodes_pos = self.rotor.nodes_pos
