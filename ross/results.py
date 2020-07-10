@@ -733,10 +733,18 @@ class CampbellResults:
         log_dec = self.log_dec
         whirl = self.whirl_values
         speed_range = self.speed_range
-        log_dec_map = log_dec.flatten()
 
         if fig is None:
             fig = go.Figure()
+
+        default_values = dict(
+            coloraxis_cmin=0.0,
+            coloraxis_cmax=1.0,
+            coloraxis_colorscale="rdbu",
+            coloraxis_colorbar=dict(title=dict(text="<b>Log Dec</b>", side="right")),
+        )
+        for k, v in default_values.items():
+            kwargs.setdefault(k, v)
 
         scatter_marker = ["triangle-up", "circle", "triangle-down"]
         for mark, whirl_dir, legend in zip(
@@ -795,11 +803,8 @@ class CampbellResults:
                             y=w_i[whirl_mask],
                             marker=dict(
                                 symbol=mark,
-                                cmax=max(log_dec_map),
-                                cmin=min(log_dec_map),
                                 color=log_dec_i[whirl_mask],
                                 coloraxis="coloraxis",
-                                colorscale="rdbu",
                             ),
                             mode="markers",
                             name=legend,
@@ -838,17 +843,14 @@ class CampbellResults:
         fig.update_xaxes(
             title_text="<b>Frequency</b>",
             range=[np.min(speed_range), np.max(speed_range)],
+            exponentformat="none",
         )
         fig.update_yaxes(
-            title_text="<b>Damped Natural Frequencies</b>", range=[0, 1.1 * np.max(wd)]
+            title_text="<b>Damped Natural Frequencies</b>",
+            range=[0, 1.1 * np.max(wd)],
+            exponentformat="none",
         )
         fig.update_layout(
-            coloraxis=dict(
-                cmin=min(log_dec_map),
-                cmax=max(log_dec_map),
-                colorscale="rdbu",
-                colorbar=dict(title=dict(text="<b>Log Dec</b>", side="right")),
-            ),
             legend=dict(
                 itemsizing="constant",
                 orientation="h",
