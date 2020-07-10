@@ -2072,18 +2072,14 @@ class StaticResults:
         for deformation, Vx, Bm, nodes, nodes_pos, Vx_axis in zip(
             self.deformation, self.Vx, self.Bm, self.nodes, self.nodes_pos, self.Vx_axis
         ):
-            interpolated = interpolate.interp1d(nodes_pos, deformation, kind="cubic")
-            xnew = np.linspace(
-                nodes_pos[0], nodes_pos[-1], num=len(nodes_pos) * 20, endpoint=True
-            )
-
-            ynew = interpolated(xnew)
 
             fig.add_trace(
                 go.Scatter(
-                    x=xnew,
-                    y=ynew,
+                    x=nodes_pos,
+                    y=deformation,
                     mode="lines",
+                    line_shape="spline",
+                    line_smoothing=1.0,
                     name=f"Shaft {count}",
                     showlegend=True,
                     hovertemplate=(
@@ -2352,6 +2348,8 @@ class StaticResults:
                     x=nodes_pos,
                     y=Bm,
                     mode="lines",
+                    line_shape="spline",
+                    line_smoothing=1.0,
                     name=f"Shaft {j}",
                     legendgroup=f"Shaft {j}",
                     showlegend=True,
