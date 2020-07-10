@@ -5,10 +5,10 @@ This module returns graphs for each type of analyses in rotor_assembly.py.
 import copy
 
 import numpy as np
-import plotly.graph_objects as go
-import scipy.linalg as la
+from plotly import graph_objects as go
 from plotly.subplots import make_subplots
 from scipy import interpolate
+from scipy import linalg as la
 
 from ross.plotly_theme import tableau_colors
 from ross.units import Q_
@@ -741,10 +741,18 @@ class CampbellResults:
         log_dec = self.log_dec
         whirl = self.whirl_values
         speed_range = Q_(self.speed_range, "rad/s").to(frequency_units).m
-        log_dec_map = log_dec.flatten()
 
         if fig is None:
             fig = go.Figure()
+
+        default_values = dict(
+            coloraxis_cmin=0.0,
+            coloraxis_cmax=1.0,
+            coloraxis_colorscale="rdbu",
+            coloraxis_colorbar=dict(title=dict(text="<b>Log Dec</b>", side="right")),
+        )
+        for k, v in default_values.items():
+            kwargs.setdefault(k, v)
 
         scatter_marker = ["triangle-up", "circle", "triangle-down"]
         for mark, whirl_dir, legend in zip(
@@ -802,11 +810,8 @@ class CampbellResults:
                             y=w_i[whirl_mask],
                             marker=dict(
                                 symbol=mark,
-                                cmax=max(log_dec_map),
-                                cmin=min(log_dec_map),
                                 color=log_dec_i[whirl_mask],
                                 coloraxis="coloraxis",
-                                colorscale="rdbu",
                             ),
                             mode="markers",
                             name=legend,
@@ -845,18 +850,13 @@ class CampbellResults:
         fig.update_xaxes(
             title_text=f"Frequency ({frequency_units})",
             range=[np.min(speed_range), np.max(speed_range)],
+            exponentformat="none",
         )
         fig.update_yaxes(
             title_text=f"Natural Frequencies ({frequency_units})",
             range=[0, 1.1 * np.max(wd)],
         )
         fig.update_layout(
-            coloraxis=dict(
-                cmin=min(log_dec_map),
-                cmax=max(log_dec_map),
-                colorscale="rdbu",
-                colorbar=dict(title=dict(text="Log Dec", side="right")),
-            ),
             legend=dict(
                 itemsizing="constant",
                 orientation="h",

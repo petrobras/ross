@@ -3,8 +3,8 @@
 This modules provides functions to plot the elements statistic data.
 """
 import numpy as np
-import plotly.graph_objects as go
-import plotly.io as pio
+from plotly import graph_objects as go
+from plotly import io as pio
 from plotly.subplots import make_subplots
 from scipy.stats import gaussian_kde
 

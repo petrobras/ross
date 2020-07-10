@@ -1,5 +1,5 @@
 import numpy as np
-import plotly.graph_objects as go
+from plotly import graph_objects as go
 
 from ross.plotly_theme import tableau_colors
 
@@ -394,11 +394,7 @@ def plot_pressure_theta_cylindrical(
         else:
             p_mat = fluid_flow_object.p_mat_numerical
 
-    r = np.linspace(
-        fluid_flow_object.radius_rotor,
-        fluid_flow_object.radius_stator,
-        fluid_flow_object.nradius,
-    )
+    r = np.linspace(fluid_flow_object.radius_rotor, fluid_flow_object.radius_stator)
     theta = np.linspace(
         0.0, 2.0 * np.pi + fluid_flow_object.dtheta / 2, fluid_flow_object.ntheta
     )
