@@ -2015,13 +2015,15 @@ class ForcedResponseResults:
         samples : int, optional
             Number of samples to generate the orbit for each node.
             Default is 101.
-        units : str, optional
-            Magnitude unit system.
-            Options:
-                - "m" : meters
-                - "mic-pk-pk" : microns peak to peak
-                - "db" : decibels
-            Default is "mic-pk-pk".
+        displacement_units : str, optional
+            Displacement units.
+            Default is 'm'.
+        rotor_length_units : str, optional
+            Rotor length units.
+            Default is 'm'.
+        moment_units : str
+            Moment units.
+            Default is 'N*m'
         shape2d_kwargs : optional
             Additional key word arguments can be passed to change the 2D deflected shape
             plot layout only (e.g. width=1000, height=800, ...).
@@ -2885,7 +2887,7 @@ class TimeResponseResults:
         self.nodes_pos = nodes_pos
         self.number_dof = number_dof
 
-    def _plot1d(self, dof, fig=None, **kwargs):
+    def _plot1d(self, dof, displacement_units="m", time_units="s", fig=None, **kwargs):
         """Plot time response for a single DoF using Plotly.
 
         This function will take a rotor object and plot its time response using Plotly.
@@ -2894,6 +2896,12 @@ class TimeResponseResults:
         ----------
         dof : int
             Degree of freedom that will be observed.
+        displacement_units : str, optional
+            Displacement units.
+            Default is 'm'.
+        time_units : str
+            Time units.
+            Default is 's'.
         fig : Plotly graph_objects.Figure()
             The figure object with the plot.
         kwargs : optional
@@ -2920,26 +2928,25 @@ class TimeResponseResults:
 
         fig.add_trace(
             go.Scatter(
-                x=self.t,
-                y=self.yout[:, dof],
+                x=Q_(self.t, "s").to(time_units).m,
+                y=Q_(self.yout[:, dof], "m").to(displacement_units).m,
                 mode="lines",
                 name="Phase",
                 legendgroup="Phase",
                 showlegend=False,
-                hovertemplate=("Time: %{x:.2f}<br>" + "Amplitude: %{y:.2e}"),
+                hovertemplate=f"Time ({time_units}): %{{x:.2f}}<br>Amplitude ({displacement_units}): %{{y:.2e}}",
             )
         )
 
-        fig.update_xaxes(title_text="Time")
-        fig.update_yaxes(title_text="Amplitude")
+        fig.update_xaxes(title_text=f"Time ({time_units})")
+        fig.update_yaxes(title_text=f"Amplitude ({displacement_units})")
         fig.update_layout(
-            title=dict(text="Response for node {} - DoF {}".format(dof // 4, obs_dof)),
-            **kwargs,
+            title=dict(text=f"Response for node {dof // 4} - DoF {obs_dof}"), **kwargs
         )
 
         return fig
 
-    def _plot2d(self, node, fig=None, **kwargs):
+    def _plot2d(self, node, displacement_units="m", fig=None, **kwargs):
         """Plot orbit response (2D).
 
         This function will take a rotor object and plot its orbit response using Plotly.
@@ -2948,6 +2955,9 @@ class TimeResponseResults:
         ----------
         node: int, optional
             Selected node to plot orbit.
+        displacement_units : str, optional
+            Displacement units.
+            Default is 'm'.
         fig : Plotly graph_objects.Figure()
             The figure object with the plot.
         kwargs : optional
@@ -2965,33 +2975,45 @@ class TimeResponseResults:
 
         fig.add_trace(
             go.Scatter(
-                x=self.yout[:, self.number_dof * node],
-                y=self.yout[:, self.number_dof * node + 1],
+                x=Q_(self.yout[:, self.number_dof * node], "m")
+                .to(displacement_units)
+                .m,
+                y=Q_(self.yout[:, self.number_dof * node + 1], "m")
+                .to(displacement_units)
+                .m,
                 mode="lines",
                 name="Phase",
                 legendgroup="Phase",
                 showlegend=False,
                 hovertemplate=(
-                    "X - Amplitude: %{x:.2e}<br>" + "Y - Amplitude: %{y:.2e}"
+                    f"X - Amplitude ({displacement_units}): %{{x:.2e}}<br>Y - Amplitude ({displacement_units}): %{{y:.2e}}"
                 ),
             )
         )
 
-        fig.update_xaxes(title_text="Amplitude - X direction")
-        fig.update_yaxes(title_text="Amplitude - Y direction")
+        fig.update_xaxes(title_text=f"Amplitude ({displacement_units}) - X direction")
+        fig.update_yaxes(title_text=f"Amplitude ({displacement_units}) - Y direction")
         fig.update_layout(
             title=dict(text="Response for node {}".format(node)), **kwargs
         )
 
         return fig
 
-    def _plot3d(self, fig=None, **kwargs):
+    def _plot3d(
+        self, displacement_units="m", rotor_length_units="m", fig=None, **kwargs
+    ):
         """Plot orbit response (3D).
 
         This function will take a rotor object and plot its orbit response using Plotly.
 
         Parameters
         ----------
+        displacement_units : str
+            Displacement units.
+            Default is 'm'.
+        rotor_length_units : str
+            Rotor Length units.
+            Default is 'm'.
         fig : Plotly graph_objects.Figure()
             The figure object with the plot.
         kwargs : optional
@@ -3011,18 +3033,20 @@ class TimeResponseResults:
             x_pos = np.ones(self.yout.shape[0]) * self.nodes_pos[n]
             fig.add_trace(
                 go.Scatter3d(
-                    x=x_pos,
-                    y=self.yout[:, self.number_dof * n],
-                    z=self.yout[:, self.number_dof * n + 1],
+                    x=Q_(x_pos, "m").to(rotor_length_units).m,
+                    y=Q_(self.yout[:, self.number_dof * n], "m")
+                    .to(displacement_units)
+                    .m,
+                    z=Q_(self.yout[:, self.number_dof * n + 1], "m")
+                    .to(displacement_units)
+                    .m,
                     mode="lines",
                     line=dict(color=tableau_colors["blue"]),
                     name="Mean",
                     legendgroup="mean",
                     showlegend=False,
                     hovertemplate=(
-                        "Nodal Position: %{x:.2f}<br>"
-                        + "X - Amplitude: %{y:.2e}<br>"
-                        + "Y - Amplitude: %{z:.2e}"
+                        f"Nodal Position ({rotor_length_units}): %{{x:.2f}}<br>X - Amplitude ({displacement_units}): %{{y:.2e}}<br>Y - Amplitude ({displacement_units}): %{{z:.2e}}"
                     ),
                     **kwargs,
                 )
@@ -3033,7 +3057,7 @@ class TimeResponseResults:
 
         fig.add_trace(
             go.Scatter3d(
-                x=self.nodes_pos,
+                x=Q_(self.nodes_pos, "m").to(rotor_length_units).m,
                 y=line,
                 z=line,
                 mode="lines",
@@ -3044,16 +3068,26 @@ class TimeResponseResults:
 
         fig.update_layout(
             scene=dict(
-                xaxis=dict(title=dict(text="Rotor Length")),
-                yaxis=dict(title=dict(text="Amplitude - X")),
-                zaxis=dict(title=dict(text="Amplitude - Y")),
+                xaxis=dict(title=dict(text=f"Rotor Length ({rotor_length_units})")),
+                yaxis=dict(title=dict(text=f"Amplitude - X ({displacement_units})")),
+                zaxis=dict(title=dict(text=f"Amplitude - Y ({displacement_units})")),
             ),
             **kwargs,
         )
 
         return fig
 
-    def plot(self, plot_type="3d", dof=None, node=None, fig=None, **kwargs):
+    def plot(
+        self,
+        plot_type="3d",
+        dof=None,
+        node=None,
+        displacement_units="m",
+        rotor_length_units="m",
+        time_units="s",
+        fig=None,
+        **kwargs,
+    ):
         """Plot time response.
 
         The plot type options are:
@@ -3077,6 +3111,15 @@ class TimeResponseResults:
             Selected node to plot orbit.
             Fill this attribute only when selection plot_type = "2d".
             Default is None
+        displacement_units : str, optional
+            Displacement units.
+            Default is 'm'.
+        rotor_length_units : str, optional
+            Rotor length units.
+            Default is 'm'.
+        time_units : str
+            Time units.
+            Default is 's'.
         fig : Plotly graph_objects.Figure()
             The figure object with the plot.
         kwargs : optional
@@ -3101,16 +3144,18 @@ class TimeResponseResults:
             The figure object with the plot.
         """
         if plot_type == "3d":
-            return self._plot3d(**kwargs)
+            return self._plot3d(displacement_units, rotor_length_units, fig, **kwargs)
         elif plot_type == "2d":
             if node is None:
                 raise Exception("Select a node to plot orbit when plot_type '2d'")
             elif node not in self.nodes_list:
                 raise Exception("Select a valid node to plot 2D orbit")
-            return self._plot2d(node=node, **kwargs)
+            return self._plot2d(
+                node, displacement_units, rotor_length_units, fig, **kwargs
+            )
         elif plot_type == "1d":
             if dof is None:
                 raise Exception("Select a dof to plot orbit when plot_type == '1d'")
-            return self._plot1d(dof=dof, **kwargs)
+            return self._plot1d(dof, displacement_units, time_units, fig, **kwargs)
         else:
             raise ValueError(f"{plot_type} is not a valid plot type.")
