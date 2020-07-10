@@ -1666,7 +1666,7 @@ class ForcedResponseResults:
         return Mx, My
 
     def plot_deflected_shape_2d(
-        self, speed, displacement_units="m", fig=None, **kwargs
+        self, speed, displacement_units="m", rotor_length_units="m", fig=None, **kwargs
     ):
         """Plot the 2D deflected shape diagram.
 
@@ -1676,6 +1676,9 @@ class ForcedResponseResults:
             The rotor rotation speed. Must be an element from the speed_range argument
             passed to the class.
         displacement_units : str, optional
+            Displacement units.
+            Default is 'm'.
+        rotor_length_units : str, optional
             Displacement units.
             Default is 'm'.
         fig : Plotly graph_objects.Figure()
@@ -1693,7 +1696,7 @@ class ForcedResponseResults:
         if not any(np.isclose(self.speed_range, speed, atol=1e-6)):
             raise ValueError("No data available for this speed value.")
 
-        nodes_pos = Q_(self.rotor.nodes_pos, "m").to(displacement_units).m
+        nodes_pos = Q_(self.rotor.nodes_pos, "m").to(rotor_length_units).m
         maj_vect = self._calculate_major_axis(speed=speed)
         maj_vect = Q_(maj_vect[4].real, "m").to(displacement_units).m
 
@@ -1707,7 +1710,7 @@ class ForcedResponseResults:
                 name="Major Axis",
                 legendgroup="Major_Axis_2d",
                 showlegend=False,
-                hovertemplate=f"Nodal Position ({displacement_units}): %{{x:.2f}}<br>Amplitude ({displacement_units}): %{{y:.2e}}",
+                hovertemplate=f"Nodal Position ({rotor_length_units}): %{{x:.2f}}<br>Amplitude ({displacement_units}): %{{y:.2e}}",
             )
         )
         # plot center line
@@ -1722,7 +1725,7 @@ class ForcedResponseResults:
             )
         )
 
-        fig.update_xaxes(title_text=f"Rotor Length ({displacement_units})")
+        fig.update_xaxes(title_text=f"Rotor Length ({rotor_length_units})")
         fig.update_yaxes(
             title_text=f"Major Axis Absolute Amplitude ({displacement_units})"
         )
@@ -1731,7 +1734,13 @@ class ForcedResponseResults:
         return fig
 
     def plot_deflected_shape_3d(
-        self, speed, samples=101, displacement_units="m", fig=None, **kwargs
+        self,
+        speed,
+        samples=101,
+        displacement_units="m",
+        rotor_length_units="m",
+        fig=None,
+        **kwargs,
     ):
         """Plot the 3D deflected shape diagram.
 
@@ -1745,6 +1754,9 @@ class ForcedResponseResults:
             Default is 101.
         displacement_units : str, optional
             Displacement units.
+            Default is 'm'.
+        rotor_length_units : str, optional
+            Rotor Length units.
             Default is 'm'.
         fig : Plotly graph_objects.Figure()
             The figure object with the plot.
@@ -1765,7 +1777,7 @@ class ForcedResponseResults:
         phase = self.phase
         ub = self.unbalance
         nodes = self.rotor.nodes
-        nodes_pos = Q_(self.rotor.nodes_pos, "m").to(displacement_units).m
+        nodes_pos = Q_(self.rotor.nodes_pos, "m").to(rotor_length_units).m
         number_dof = self.rotor.number_dof
         idx = np.where(np.isclose(self.speed_range, speed, atol=1e-6))[0][0]
 
@@ -1786,7 +1798,7 @@ class ForcedResponseResults:
             # plot nodal orbit
             fig.add_trace(
                 go.Scatter3d(
-                    x=Q_(x_pos[n], "m").to(displacement_units).m,
+                    x=x_pos[n],
                     y=Q_(y, "m").to(displacement_units).m,
                     z=Q_(z, "m").to(displacement_units).m,
                     mode="lines",
@@ -1795,7 +1807,7 @@ class ForcedResponseResults:
                     legendgroup="Orbit",
                     showlegend=False,
                     hovertemplate=(
-                        f"Position ({displacement_units}): %{{x:.2f}}<br>X - Amplitude ({displacement_units}): %{{y:.2e}}<br>Y - Amplitude ({displacement_units}): %{{z:.2e}}"
+                        f"Position ({rotor_length_units}): %{{x:.2f}}<br>X - Amplitude ({displacement_units}): %{{y:.2e}}<br>Y - Amplitude ({displacement_units}): %{{z:.2e}}"
                     ),
                 )
             )
@@ -1805,7 +1817,7 @@ class ForcedResponseResults:
 
         fig.add_trace(
             go.Scatter3d(
-                x=Q_(x_pos[:, 0], "m").to(displacement_units).m,
+                x=x_pos[:, 0],
                 y=Q_(np.real(maj_vect[3]), "m").to(displacement_units).m,
                 z=Q_(np.imag(maj_vect[3]), "m").to(displacement_units).m,
                 mode="lines+markers",
@@ -1815,7 +1827,7 @@ class ForcedResponseResults:
                 legendgroup="Major_Axis",
                 showlegend=True,
                 hovertemplate=(
-                    f"Position ({displacement_units}): %{{x:.2f}}<br>X - Amplitude ({displacement_units}): %{{y:.2e}}<br>Y - Amplitude ({displacement_units}): %{{z:.2e}}"
+                    f"Position ({rotor_length_units}): %{{x:.2f}}<br>X - Amplitude ({displacement_units}): %{{y:.2e}}<br>Y - Amplitude ({displacement_units}): %{{z:.2e}}"
                 ),
             )
         )
@@ -1839,9 +1851,7 @@ class ForcedResponseResults:
         for n, m, p in zip(ub[0], ub[1], ub[2]):
             fig.add_trace(
                 go.Scatter3d(
-                    x=Q_([x_pos[int(n), 0], x_pos[int(n), 0]], "m")
-                    .to(displacement_units)
-                    .m,
+                    x=[x_pos[int(n), 0], x_pos[int(n), 0]],
                     y=Q_([0, np.amax(np.real(maj_vect[4])) / 2 * np.cos(p)], "m")
                     .to(displacement_units)
                     .m,
@@ -1857,7 +1867,7 @@ class ForcedResponseResults:
             )
             fig.add_trace(
                 go.Scatter3d(
-                    x=Q_([x_pos[int(n), 0]], "m").to(displacement_units).m,
+                    x=[x_pos[int(n), 0]],
                     y=Q_([np.amax(np.real(maj_vect[4])) / 2 * np.cos(p)], "m")
                     .to(displacement_units)
                     .m,
@@ -1878,7 +1888,7 @@ class ForcedResponseResults:
 
         fig.update_layout(
             scene=dict(
-                xaxis=dict(title=dict(text=f"Rotor Length ({displacement_units})")),
+                xaxis=dict(title=dict(text=f"Rotor Length ({rotor_length_units})")),
                 yaxis=dict(title=dict(text=f"Amplitude - X ({displacement_units})")),
                 zaxis=dict(title=dict(text=f"Amplitude - Y ({displacement_units})")),
             ),
@@ -1889,7 +1899,7 @@ class ForcedResponseResults:
         return fig
 
     def plot_bending_moment(
-        self, speed, moment_units="N*m", shaft_length_units="m", fig=None, **kwargs
+        self, speed, moment_units="N*m", rotor_length_units="m", fig=None, **kwargs
     ):
         """Plot the bending moment diagram.
 
@@ -1901,8 +1911,8 @@ class ForcedResponseResults:
         moment_units : str, optional
             Moment units.
             Default is 'N*m'.
-        shaft_length_units : str
-            Shaft length units.
+        rotor_length_units : str
+            Rotor Length units.
             Default is m.
         kwargs : optional
             Additional key word arguments can be passed to change the deflected shape
@@ -1922,7 +1932,7 @@ class ForcedResponseResults:
         My = Q_(My, "N*m").to(moment_units).m
         Mr = np.sqrt(Mx ** 2 + My ** 2)
 
-        nodes_pos = Q_(self.rotor.nodes_pos, "m").to(shaft_length_units).m
+        nodes_pos = Q_(self.rotor.nodes_pos, "m").to(rotor_length_units).m
 
         if fig is None:
             fig = go.Figure()
@@ -1972,7 +1982,7 @@ class ForcedResponseResults:
             )
         )
 
-        fig.update_xaxes(title_text=f"Rotor Length ({shaft_length_units})")
+        fig.update_xaxes(title_text=f"Rotor Length ({rotor_length_units})")
         fig.update_yaxes(title_text=f"Bending Moment ({moment_units})")
         fig.update_layout(**kwargs)
 
@@ -1983,6 +1993,7 @@ class ForcedResponseResults:
         speed,
         samples=101,
         displacement_units="m",
+        rotor_length_units="m",
         moment_units="N*m",
         shape2d_kwargs=None,
         shape3d_kwargs=None,
@@ -2040,11 +2051,15 @@ class ForcedResponseResults:
         bm_kwargs = {} if bm_kwargs is None else copy.copy(bm_kwargs)
         subplot_kwargs = {} if subplot_kwargs is None else copy.copy(subplot_kwargs)
 
-        fig0 = self.plot_deflected_shape_2d(speed, displacement_units, **shape2d_kwargs)
-        fig1 = self.plot_deflected_shape_3d(
-            speed, samples, displacement_units, **shape3d_kwargs
+        fig0 = self.plot_deflected_shape_2d(
+            speed, displacement_units, rotor_length_units, **shape2d_kwargs
         )
-        fig2 = self.plot_bending_moment(speed, moment_units, **bm_kwargs)
+        fig1 = self.plot_deflected_shape_3d(
+            speed, samples, displacement_units, rotor_length_units, **shape3d_kwargs
+        )
+        fig2 = self.plot_bending_moment(
+            speed, moment_units, rotor_length_units, **bm_kwargs
+        )
 
         subplots = make_subplots(
             rows=2, cols=2, specs=[[{}, {"type": "scene", "rowspan": 2}], [{}, None]]
@@ -2131,7 +2146,7 @@ class StaticResults:
         self.Vx_axis = Vx_axis
 
     def plot_deformation(
-        self, deformation_units="m", shaft_length_units="m", fig=None, **kwargs
+        self, deformation_units="m", rotor_length_units="m", fig=None, **kwargs
     ):
         """Plot the shaft static deformation.
 
@@ -2143,8 +2158,8 @@ class StaticResults:
         deformation_units : str
             Deformation units.
             Default is 'm'.
-        shaft_length_units : str
-            Shaft length units.
+        rotor_length_units : str
+            Rotor Length units.
             Default is 'm'.
         fig : Plotly graph_objects.Figure()
             The figure object with the plot.
@@ -2162,7 +2177,7 @@ class StaticResults:
             fig = go.Figure()
 
         shaft_end = max([sublist[-1] for sublist in self.nodes_pos])
-        shaft_end = Q_(shaft_end, "m").to(shaft_length_units).m
+        shaft_end = Q_(shaft_end, "m").to(rotor_length_units).m
 
         # fig - plot centerline
         fig.add_trace(
@@ -2196,20 +2211,20 @@ class StaticResults:
                     name=f"Shaft {count}",
                     showlegend=True,
                     hovertemplate=(
-                        f"Shaft length ({shaft_length_units}): %{{x:.2f}}<br> Displacement ({deformation_units}): %{{y:.2e}}"
+                        f"Rotor Length ({rotor_length_units}): %{{x:.2f}}<br> Displacement ({deformation_units}): %{{y:.2e}}"
                     ),
                 )
             )
             count += 1
 
-        fig.update_xaxes(title_text=f"Shaft Length ({shaft_length_units})")
+        fig.update_xaxes(title_text=f"Rotor Length ({rotor_length_units})")
         fig.update_yaxes(title_text=f"Deformation ({deformation_units})")
         fig.update_layout(title=dict(text="Static Deformation"), **kwargs)
 
         return fig
 
     def plot_free_body_diagram(
-        self, force_units="N", shaft_length_units="m", fig=None, **kwargs
+        self, force_units="N", rotor_length_units="m", fig=None, **kwargs
     ):
         """Plot the rotor free-body diagram.
 
@@ -2218,8 +2233,8 @@ class StaticResults:
         force_units : str
             Force units.
             Default is 'N'.
-        shaft_length_units : str
-            Shaft length units.
+        rotor_length_units : str
+            Rotor Length units.
             Default is 'm'.
         subplots : Plotly graph_objects.make_subplots()
             The figure object with the plot.
@@ -2252,7 +2267,7 @@ class StaticResults:
 
             fig.add_trace(
                 go.Scatter(
-                    x=Q_(nodes_pos, "m").to(shaft_length_units).m,
+                    x=Q_(nodes_pos, "m").to(rotor_length_units).m,
                     y=np.zeros(len(nodes_pos)),
                     mode="lines",
                     line=dict(color="black"),
@@ -2264,7 +2279,7 @@ class StaticResults:
             )
             fig.add_trace(
                 go.Scatter(
-                    x=Q_(nodes_pos, "m").to(shaft_length_units).m,
+                    x=Q_(nodes_pos, "m").to(rotor_length_units).m,
                     y=[y_start] * len(nodes_pos),
                     mode="lines",
                     line=dict(color="black"),
@@ -2282,7 +2297,7 @@ class StaticResults:
             arrows_list = np.arange(ini, 1.01 * fin, (fin - ini) / 5.0)
             for node in arrows_list:
                 fig.add_annotation(
-                    x=Q_(node, "m").to(shaft_length_units).m,
+                    x=Q_(node, "m").to(rotor_length_units).m,
                     y=0,
                     axref="x{}".format(j + 1),
                     ayref="y{}".format(j + 1),
@@ -2291,13 +2306,13 @@ class StaticResults:
                     arrowsize=1,
                     arrowwidth=5,
                     arrowcolor="DimGray",
-                    ax=Q_(node, "m").to(shaft_length_units).m,
+                    ax=Q_(node, "m").to(rotor_length_units).m,
                     ay=y_start * 1.08,
                     row=row,
                     col=col,
                 )
             fig.add_annotation(
-                x=Q_(nodes_pos[0], "m").to(shaft_length_units).m,
+                x=Q_(nodes_pos[0], "m").to(rotor_length_units).m,
                 y=y_start,
                 xref="x{}".format(j + 1),
                 yref="y{}".format(j + 1),
@@ -2317,7 +2332,7 @@ class StaticResults:
                     var = 1 if v < 0 else -1
                     fig.add_annotation(
                         x=Q_(nodes_pos[nodes.index(node)], "m")
-                        .to(shaft_length_units)
+                        .to(rotor_length_units)
                         .m,
                         y=0,
                         axref="x{}".format(j + 1),
@@ -2330,7 +2345,7 @@ class StaticResults:
                         arrowwidth=5,
                         arrowcolor="DarkSalmon",
                         ax=Q_(nodes_pos[nodes.index(node)], "m")
-                        .to(shaft_length_units)
+                        .to(rotor_length_units)
                         .m,
                         ay=var * 2.5 * y_start,
                         row=row,
@@ -2345,7 +2360,7 @@ class StaticResults:
                     text = f"{-Q_(v, 'N').to(force_units).m:.2f}"
                     fig.add_annotation(
                         x=Q_(nodes_pos[nodes.index(node)], "m")
-                        .to(shaft_length_units)
+                        .to(rotor_length_units)
                         .m,
                         y=0,
                         axref="x{}".format(j + 1),
@@ -2358,7 +2373,7 @@ class StaticResults:
                         arrowwidth=5,
                         arrowcolor="FireBrick",
                         ax=Q_(nodes_pos[nodes.index(node)], "m")
-                        .to(shaft_length_units)
+                        .to(rotor_length_units)
                         .m,
                         ay=2.5 * y_start,
                         row=row,
@@ -2366,7 +2381,7 @@ class StaticResults:
                     )
 
             fig.update_xaxes(
-                title_text=f"Shaft Length ({shaft_length_units})", row=row, col=col
+                title_text=f"Rotor Length ({rotor_length_units})", row=row, col=col
             )
             fig.update_yaxes(
                 visible=False, gridcolor="lightgray", showline=False, row=row, col=col
@@ -2378,7 +2393,7 @@ class StaticResults:
         return fig
 
     def plot_shearing_force(
-        self, force_units="N", shaft_length_units="m", fig=None, **kwargs
+        self, force_units="N", rotor_length_units="m", fig=None, **kwargs
     ):
         """Plot the rotor shearing force diagram.
 
@@ -2390,8 +2405,8 @@ class StaticResults:
         force_units : str
             Force units.
             Default is 'N'.
-        shaft_length_units : str
-            Shaft length units.
+        rotor_length_units : str
+            Rotor Length units.
             Default is 'm'.
         fig : Plotly graph_objects.Figure()
             The figure object with the plot.
@@ -2410,7 +2425,7 @@ class StaticResults:
 
         shaft_end = (
             Q_(max([sublist[-1] for sublist in self.nodes_pos]), "m")
-            .to(shaft_length_units)
+            .to(rotor_length_units)
             .m
         )
 
@@ -2430,21 +2445,21 @@ class StaticResults:
         for Vx, Vx_axis in zip(self.Vx, self.Vx_axis):
             fig.add_trace(
                 go.Scatter(
-                    x=Q_(Vx_axis, "m").to(shaft_length_units).m,
+                    x=Q_(Vx_axis, "m").to(rotor_length_units).m,
                     y=Q_(Vx, "N").to(force_units).m,
                     mode="lines",
                     name=f"Shaft {j}",
                     legendgroup=f"Shaft {j}",
                     showlegend=True,
                     hovertemplate=(
-                        f"Shaft length ({shaft_length_units}): %{{x:.2f}}<br>Shearing Force ({force_units}): %{{y:.2f}}"
+                        f"Rotor Length ({rotor_length_units}): %{{x:.2f}}<br>Shearing Force ({force_units}): %{{y:.2f}}"
                     ),
                 )
             )
             j += 1
 
         fig.update_xaxes(
-            title_text=f"Shaft Length ({shaft_length_units})",
+            title_text=f"Rotor Length ({rotor_length_units})",
             range=[-0.1 * shaft_end, 1.1 * shaft_end],
         )
         fig.update_yaxes(title_text=f"Force ({force_units})")
@@ -2453,7 +2468,7 @@ class StaticResults:
         return fig
 
     def plot_bending_moment(
-        self, moment_units="N*m", shaft_length_units="m", fig=None, **kwargs
+        self, moment_units="N*m", rotor_length_units="m", fig=None, **kwargs
     ):
         """Plot the rotor bending moment diagram.
 
@@ -2465,8 +2480,8 @@ class StaticResults:
         moment_units : str, optional
             Moment units.
             Default is 'N*m'.
-        shaft_length_units : str
-            Shaft length units.
+        rotor_length_units : str
+            Rotor Length units.
             Default is 'm'.
         fig : Plotly graph_objects.Figure()
             Plotly figure with the bending moment diagram plot
@@ -2481,7 +2496,7 @@ class StaticResults:
 
         shaft_end = (
             Q_(max([sublist[-1] for sublist in self.nodes_pos]), "m")
-            .to(shaft_length_units)
+            .to(rotor_length_units)
             .m
         )
 
@@ -2501,20 +2516,20 @@ class StaticResults:
         for Bm, nodes_pos in zip(self.Bm, self.Vx_axis):
             fig.add_trace(
                 go.Scatter(
-                    x=Q_(nodes_pos, "m").to(shaft_length_units).m,
+                    x=Q_(nodes_pos, "m").to(rotor_length_units).m,
                     y=Q_(Bm, "N*m").to(moment_units).m,
                     mode="lines",
                     name=f"Shaft {j}",
                     legendgroup=f"Shaft {j}",
                     showlegend=True,
                     hovertemplate=(
-                        f"Shaft length ({shaft_length_units}): %{{x:.2f}}<br>Bending Moment ({moment_units}): %{{y:.2f}}"
+                        f"Rotor Length ({rotor_length_units}): %{{x:.2f}}<br>Bending Moment ({moment_units}): %{{y:.2f}}"
                     ),
                 )
             )
             j += 1
 
-        fig.update_xaxes(title_text=f"Shaft Length ({shaft_length_units})")
+        fig.update_xaxes(title_text=f"Rotor Length ({rotor_length_units})")
         fig.update_yaxes(title_text=f"Bending Moment ({moment_units})")
         fig.update_layout(title=dict(text="Bending Moment Diagram"), **kwargs)
 
