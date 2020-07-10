@@ -3150,9 +3150,7 @@ class TimeResponseResults:
                 raise Exception("Select a node to plot orbit when plot_type '2d'")
             elif node not in self.nodes_list:
                 raise Exception("Select a valid node to plot 2D orbit")
-            return self._plot2d(
-                node, displacement_units, rotor_length_units, fig, **kwargs
-            )
+            return self._plot2d(node, displacement_units, fig, **kwargs)
         elif plot_type == "1d":
             if dof is None:
                 raise Exception("Select a dof to plot orbit when plot_type == '1d'")
