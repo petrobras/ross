@@ -781,7 +781,7 @@ class CampbellResults:
                             legendgroup="Crit. Speed",
                             showlegend=False,
                             hovertemplate=(
-                                f"Frequency ({frequency_units}): %{{x:.2f}}<br> Critical Speed ({frequency_units}): %{{y:.2f}}"
+                                f"Frequency ({frequency_units}): %{{x:.2f}}<br>Critical Speed ({frequency_units}): %{{y:.2f}}"
                             ),
                         )
                     )
@@ -1878,7 +1878,7 @@ class ForcedResponseResults:
                 yaxis=dict(title=dict(text=f"Amplitude - X ({displacement_units})")),
                 zaxis=dict(title=dict(text=f"Amplitude - Y ({displacement_units})")),
             ),
-            title=dict(text=f"Deflected Shape<br>" f"Speed = {speed}"),
+            title=dict(text=f"Deflected Shape<br>Speed = {speed}"),
             **kwargs,
         )
 
@@ -2194,7 +2194,7 @@ class StaticResults:
                     name=f"Shaft {count}",
                     showlegend=True,
                     hovertemplate=(
-                        f"Rotor Length ({rotor_length_units}): %{{x:.2f}}<br> Displacement ({deformation_units}): %{{y:.2e}}"
+                        f"Rotor Length ({rotor_length_units}): %{{x:.2f}}<br>Displacement ({deformation_units}): %{{y:.2e}}"
                     ),
                 )
             )
