@@ -7,11 +7,11 @@ import copy
 import numpy as np
 from plotly import graph_objects as go
 from plotly.subplots import make_subplots
-from scipy import interpolate
 from scipy import linalg as la
 
 from ross.plotly_theme import tableau_colors
 from ross.units import Q_
+from ross.utils import intersection
 
 
 class CriticalSpeedResults:
@@ -764,41 +764,27 @@ class CampbellResults:
                 log_dec_i = log_dec[:, i]
 
                 for harm in harmonics:
-                    idx = np.argwhere(np.diff(np.sign(w_i - harm * speed_range)))
-                    idx = idx.flatten()
-                    if len(idx) != 0:
-                        idx = idx[0]
+                    x1 = speed_range
+                    y1 = w_i
+                    x2 = speed_range
+                    y2 = harm * speed_range
 
-                        interpolated = interpolate.interp1d(
-                            x=[speed_range[idx], speed_range[idx + 1]],
-                            y=[w_i[idx], w_i[idx + 1]],
-                            kind="linear",
-                        )
-                        xnew = np.linspace(
-                            speed_range[idx],
-                            speed_range[idx + 1],
-                            num=30,
-                            endpoint=True,
-                        )
-                        ynew = interpolated(xnew)
-                        idx = np.argwhere(
-                            np.diff(np.sign(ynew - harm * xnew))
-                        ).flatten()
+                    x, y = intersection(x1, y1, x2, y2)
 
-                        fig.add_trace(
-                            go.Scatter(
-                                x=xnew[idx],
-                                y=ynew[idx],
-                                mode="markers",
-                                marker=dict(symbol="x", color="black"),
-                                name="Crit. Speed",
-                                legendgroup="Crit. Speed",
-                                showlegend=False,
-                                hovertemplate=(
-                                    f"Frequency ({frequency_units}): %{{x:.2f}}<br> Critical Speed ({frequency_units}): %{{y:.2f}}"
-                                ),
-                            )
+                    fig.add_trace(
+                        go.Scatter(
+                            x=x,
+                            y=y,
+                            mode="markers",
+                            marker=dict(symbol="x", color="black"),
+                            name="Crit. Speed",
+                            legendgroup="Crit. Speed",
+                            showlegend=False,
+                            hovertemplate=(
+                                f"Frequency ({frequency_units}): %{{x:.2f}}<br> Critical Speed ({frequency_units}): %{{y:.2f}}"
+                            ),
                         )
+                    )
 
                 whirl_mask = whirl_i == whirl_dir
                 if whirl_mask.shape[0] == 0:
@@ -827,7 +813,7 @@ class CampbellResults:
                     x=speed_range,
                     y=h * speed_range,
                     mode="lines",
-                    line=dict(dash="dashdot"),
+                    line=dict(dash="dashdot", color=list(tableau_colors)[j]),
                     name="{}x speed".format(h),
                     hoverinfo="none",
                 )

@@ -33,7 +33,7 @@ from ross.results import (CampbellResults, ConvergenceResults,
                           StaticResults, SummaryResults, TimeResponseResults)
 from ross.shaft_element import ShaftElement, ShaftElement6DoF
 from ross.units import Q_, check_units
-from ross.utils import convert
+from ross.utils import intersection
 
 # fmt: on
 
@@ -1963,21 +1963,13 @@ class Rotor(object):
         if not np.isnan(bearing0.frequency).all():
             for j in range(rotor_wn.shape[0]):
                 for coeff in ["kxx", "kyy"]:
-                    with warnings.catch_warnings():
-                        warnings.simplefilter("ignore")
-                        frequency_curve = UnivariateSpline(rotor_wn[j], stiffness_log)
-                    coeff_curve = getattr(bearing0, coeff).interpolated
-                    # search diff in several points to have a good precision
-                    search_range = np.linspace(
-                        bearing0.frequency[0], bearing0.frequency[-1], 10000
-                    )
-                    intersection_idx = np.argmin(
-                        abs(frequency_curve(search_range) - coeff_curve(search_range))
-                    )
-                    intersection_points["y"].append(search_range[intersection_idx])
-                    intersection_points["x"].append(
-                        frequency_curve(search_range[intersection_idx])
-                    )
+                    x1 = rotor_wn[j]
+                    y1 = stiffness_log
+                    x2 = bearing0.frequency
+                    y2 = getattr(bearing0, coeff).coefficient
+                    x, y = intersection(x1, y1, x2, y2)
+                    intersection_points["y"].append(float(x))
+                    intersection_points["x"].append(float(y))
 
         return stiffness_log, rotor_wn, bearing0, intersection_points
 
