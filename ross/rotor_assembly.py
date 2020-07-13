@@ -1968,8 +1968,12 @@ class Rotor(object):
                     x2 = bearing0.frequency
                     y2 = getattr(bearing0, coeff).coefficient
                     x, y = intersection(x1, y1, x2, y2)
-                    intersection_points["y"].append(float(x))
-                    intersection_points["x"].append(float(y))
+                    try:
+                        intersection_points["y"].append(float(x))
+                        intersection_points["x"].append(float(y))
+                    except TypeError:
+                        # pass if x/y is empty
+                        pass
 
         return stiffness_log, rotor_wn, bearing0, intersection_points
 
