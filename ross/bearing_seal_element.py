@@ -7,7 +7,6 @@ and 2 element options with 8 or 12 degrees of freedom.
 # fmt: off
 import os
 import warnings
-from pathlib import Path
 
 import numpy as np
 import toml
