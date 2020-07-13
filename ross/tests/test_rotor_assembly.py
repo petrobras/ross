@@ -1621,7 +1621,7 @@ def test_ucs_calc(rotor8):
     exp_intersection_points_x = np.array(
         [10058123.652648, 10058123.652648, 10363082.398797]
     )
-    exp_intersection_points_y = np.array([107.920792, 107.920792, 411.881188])
+    exp_intersection_points_y = np.array([107.542416, 107.542416, 409.451575])
     stiffness_range, rotor_wn, bearing, intersection_points = rotor8._calc_ucs()
     assert_allclose(stiffness_range[:3], exp_stiffness_range)
     assert_allclose(rotor_wn[0, :3], exp_rotor_wn)
