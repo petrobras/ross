@@ -36,6 +36,8 @@ units = {
     "width": "meter",
     "i_d": "meter",
     "o_d": "meter",
+    "unbalance_magnitude": "kg*m",
+    "unbalance_phase": "rad",
 }
 for i, unit in zip(["k", "c"], ["N/m", "N*s/m"]):
     for j in ["x", "y", "z"]:

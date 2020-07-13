@@ -296,10 +296,10 @@ class DiskElement(Element):
 
         customdata = [self.n, self.Ip, self.Id, self.m]
         hovertemplate = (
-            f"<b>Disk Node: {customdata[0]}<b><br>"
-            + f"<b>Polar Inertia: {customdata[1]:.3e}<b><br>"
-            + f"<b>Diametral Inertia: {customdata[2]:.3e}<b><br>"
-            + f"<b>Disk mass: {customdata[3]:.3f}<b><br>"
+            f"Disk Node: {customdata[0]}<br>"
+            + f"Polar Inertia: {customdata[1]:.3e}<br>"
+            + f"Diametral Inertia: {customdata[2]:.3e}<br>"
+            + f"Disk mass: {customdata[3]:.3f}<br>"
         )
 
         fig.add_trace(

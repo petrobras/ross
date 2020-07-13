@@ -15,11 +15,11 @@ def auxiliary_function():
     @check_units
     def func(E, G_s, rho, L, idl, idr, odl, odr, speed, frequency, m, mx, my, Ip, Id,
              width, i_d, o_d, kxx, kxy, kxz, kyx, kyy, kyz, kzx, kzy, kzz, cxx, cxy,
-             cxz, cyx, cyy, cyz, czx, czy, czz):
+             cxz, cyx, cyy, cyz, czx, czy, czz, unbalance_magnitude, unbalance_phase):
         return (
             E, G_s, rho, L, idl, idr, odl, odr, speed, frequency, m, mx, my, Ip, Id,
             width, i_d, o_d, kxx, kxy, kxz, kyx, kyy, kyz, kzx, kzy, kzz, cxx, cxy,
-            cxz, cyx, cyy, cyz, czx, czy, czz
+            cxz, cyx, cyy, cyz, czx, czy, czz, unbalance_magnitude, unbalance_phase
         )
     # fmt: on
     return func
@@ -31,14 +31,14 @@ def test_units(auxiliary_function):
         E=1, G_s=1, rho=1, L=1, idl=1, idr=1, odl=1, odr=1, speed=1, frequency=1,
         m=1, mx=1, my=1, Ip=1, Id=1, width=1, i_d=1, o_d=1, kxx=1, kxy=1, kxz=1, kyx=1,
         kyy=1, kyz=1, kzx=1, kzy=1, kzz=1, cxx=1, cxy=1, cxz=1, cyx=1, cyy=1, cyz=1,
-        czx=1, czy=1, czz=1,
+        czx=1, czy=1, czz=1, unbalance_magnitude=1, unbalance_phase=1
     )
     # check if all available units are tested
     assert len(results) == len(units)
 
     (E, G_s, rho, L, idl, idr, odl, odr, speed, frequency, m, mx, my, Ip, Id,
      width, i_d, o_d, kxx, kxy, kxz, kyx, kyy, kyz, kzx, kzy, kzz, cxx, cxy,
-     cxz, cyx, cyy, cyz, czx, czy, czz) = results
+     cxz, cyx, cyy, cyz, czx, czy, czz, unbalance_magnitude, unbalance_phase) = results
     # fmt: on
 
     assert E == 1
@@ -77,6 +77,8 @@ def test_units(auxiliary_function):
     assert czx == 1
     assert czy == 1
     assert czz == 1
+    assert unbalance_magnitude == 1
+    assert unbalance_phase == 1
 
 
 def test_unit_Q_(auxiliary_function):
@@ -117,6 +119,8 @@ def test_unit_Q_(auxiliary_function):
         czx=Q_(1, "N*s/m"),
         czy=Q_(1, "N*s/m"),
         czz=Q_(1, "N*s/m"),
+        unbalance_magnitude=Q_(1, "kg*m"),
+        unbalance_phase=Q_(1, "rad"),
     )
 
     # check if all available units are tested
@@ -124,7 +128,7 @@ def test_unit_Q_(auxiliary_function):
     # fmt: off
     (E, G_s, rho, L, idl, idr, odl, odr, speed, frequency, m, mx, my, Ip, Id,
      width, i_d, o_d, kxx, kxy, kxz, kyx, kyy, kyz, kzx, kzy, kzz, cxx, cxy,
-     cxz, cyx, cyy, cyz, czx, czy, czz) = results
+     cxz, cyx, cyy, cyz, czx, czy, czz, unbalance_magnitude, unbalance_phase) = results
     # fmt: on
 
     assert E == 1
@@ -163,6 +167,8 @@ def test_unit_Q_(auxiliary_function):
     assert czx == 1
     assert czy == 1
     assert czz == 1
+    unbalance_magnitude == 1
+    unbalance_phase == 1
 
 
 def test_unit_Q_conversion(auxiliary_function):
@@ -203,6 +209,8 @@ def test_unit_Q_conversion(auxiliary_function):
         czx=Q_(1, "lbf*s/in"),
         czy=Q_(1, "lbf*s/in"),
         czz=Q_(1, "lbf*s/in"),
+        unbalance_magnitude=Q_(1, "lb*in"),
+        unbalance_phase=Q_(1, "deg"),
     )
 
     # check if all available units are tested
@@ -211,7 +219,7 @@ def test_unit_Q_conversion(auxiliary_function):
     # fmt: off
     (E, G_s, rho, L, idl, idr, odl, odr, speed, frequency, m, mx, my, Ip, Id,
      width, i_d, o_d, kxx, kxy, kxz, kyx, kyy, kyz, kzx, kzy, kzz, cxx, cxy,
-     cxz, cyx, cyy, cyz, czx, czy, czz) = results
+     cxz, cyx, cyy, cyz, czx, czy, czz, unbalance_magnitude, unbalance_phase) = results
     # fmt: on
 
     assert E == 6894.7572931683635
@@ -250,6 +258,8 @@ def test_unit_Q_conversion(auxiliary_function):
     assert czx == 175.12683524647645
     assert czy == 175.12683524647645
     assert czz == 175.12683524647645
+    assert unbalance_magnitude == 0.011521246198000002
+    assert unbalance_phase == 0.017453292519943295
 
 
 # NOTE ABOUT TESTS BELOW

@@ -33,6 +33,7 @@ from ross.results import (CampbellResults, ConvergenceResults,
                           FrequencyResponseResults, ModalResults,
                           StaticResults, SummaryResults, TimeResponseResults)
 from ross.shaft_element import ShaftElement, ShaftElement6DoF
+from ross.units import Q_, check_units
 from ross.utils import convert
 
 # fmt: on
@@ -1546,12 +1547,13 @@ class Rotor(object):
 
         return F0
 
+    @check_units
     def run_unbalance_response(
         self,
         node,
-        magnitude,
-        phase,
-        frequency_range=None,
+        unbalance_magnitude,
+        unbalance_phase,
+        frequency=None,
         modes=None,
         cluster_points=False,
         num_modes=12,
@@ -1568,12 +1570,12 @@ class Rotor(object):
         ----------
         node : list, int
             Node where the unbalance is applied.
-        magnitude : list, float
-            Unbalance magnitude (kg.m)
-        phase : list, float
-            Unbalance phase (rad)
-        frequency_range : list, float
-            Array with the desired range of frequencies
+        unbalance_magnitude : list, float, pint.Quantity
+            Unbalance magnitude (kg.m).
+        unbalance_phase : list, float, pint.Quantity
+            Unbalance phase (rad).
+        frequency : list, float, pint.Quantity
+            Array with the desired range of frequencies (rad/s).
         modes : list, optional
             Modes that will be used to calculate the frequency response
             (all modes will be used if a list is not given).
@@ -1620,9 +1622,9 @@ class Rotor(object):
         >>> rotor = rotor_example()
         >>> speed = np.linspace(0, 1000, 101)
         >>> response = rotor.run_unbalance_response(node=3,
-        ...                                         magnitude=10.0,
-        ...                                         phase=0.0,
-        ...                                         frequency_range=speed)
+        ...                                         unbalance_magnitude=10.0,
+        ...                                         unbalance_phase=0.0,
+        ...                                         frequency=speed)
         >>> response.magnitude # doctest: +ELLIPSIS
         array([[0.00000000e+00, 5.06073311e-04, 2.10044826e-03, ...
 
@@ -1631,7 +1633,7 @@ class Rotor(object):
         how many points to add just before and after each critical speed.
 
         >>> response2 = rotor.run_unbalance_response(
-        ...     node=3, magnitude=0.01, phase=0.0, cluster_points=True, num_points=5
+        ...     node=3, unbalance_magnitude=0.01, unbalance_phase=0.0, cluster_points=True, num_points=5
         ... )
         >>> response2.speed_range.shape
         (61,)
@@ -1643,24 +1645,24 @@ class Rotor(object):
         >>> value = 600
         >>> fig = response.plot_deflected_shape(speed=value)
         """
-        if frequency_range is None:
+        if frequency is None:
             if cluster_points:
-                frequency_range = self._clustering_points(
-                    num_modes, num_points, modes, rtol
-                )
+                frequency = self._clustering_points(num_modes, num_points, modes, rtol)
 
-        force = np.zeros((self.ndof, len(frequency_range)), dtype=np.complex)
+        force = np.zeros((self.ndof, len(frequency)), dtype=np.complex)
 
         try:
-            for n, m, p in zip(node, magnitude, phase):
-                force += self._unbalance_force(n, m, p, frequency_range)
+            for n, m, p in zip(node, unbalance_magnitude, unbalance_phase):
+                force += self._unbalance_force(n, m, p, frequency)
         except TypeError:
-            force = self._unbalance_force(node, magnitude, phase, frequency_range)
+            force = self._unbalance_force(
+                node, unbalance_magnitude, unbalance_phase, frequency
+            )
 
         # fmt: off
-        ub = np.vstack((node, magnitude, phase))
+        ub = np.vstack((node, unbalance_magnitude, unbalance_phase))
         forced_response = self.forced_response(
-            force, frequency_range, modes, cluster_points, num_modes, num_points, rtol, ub
+            force, frequency, modes, cluster_points, num_modes, num_points, rtol, ub
         )
         # fmt: on
 
@@ -1769,7 +1771,7 @@ class Rotor(object):
         x_pos = []
         y_pos = np.linspace(0, 0, len(self.nodes_pos[::nodes]))
         for node, position in enumerate(self.nodes_pos[::nodes]):
-            text.append("<b>{}</b>".format(node * nodes))
+            text.append("{}".format(node * nodes))
             x_pos.append(position)
 
         fig.add_trace(
@@ -1817,18 +1819,18 @@ class Rotor(object):
             fig = p_mass._patch(position, fig)
 
         fig.update_xaxes(
-            title_text="<b>Axial location</b>",
+            title_text="Axial location",
             range=[-0.1 * shaft_end, 1.1 * shaft_end],
             showgrid=False,
             mirror=True,
         )
         fig.update_yaxes(
-            title_text="<b>Shaft radius</b>",
+            title_text="Shaft radius",
             range=[-0.3 * shaft_end, 0.3 * shaft_end],
             showgrid=False,
             mirror=True,
         )
-        fig.update_layout(title=dict(text="<b>Rotor Model</b>"), **kwargs)
+        fig.update_layout(title=dict(text="Rotor Model"), **kwargs)
 
         return fig
 
@@ -1987,6 +1989,8 @@ class Rotor(object):
         num=30,
         fig=None,
         synchronous=False,
+        stiffness_units="N/m",
+        frequency_units="rad/s",
         **kwargs,
     ):
         """Plot undamped critical speed map.
@@ -2011,6 +2015,12 @@ class Rotor(object):
             If True a synchronous analysis is carried out and the frequency of
             the first forward model will be equal to the speed.
             Default is False.
+        stiffness_units : str, optional
+            Units for the x axis.
+            Default is N/m.
+        frequency_units : str, optional
+            Units for th y axis.
+            Default is rad/s
         kwargs : optional
             Additional key word arguments can be passed to change the plot layout only
             (e.g. width=1000, height=800, ...).
@@ -2060,6 +2070,27 @@ class Rotor(object):
         if fig is None:
             fig = go.Figure()
 
+        # convert to desired units
+        stiffness_log = Q_(stiffness_log, "N/m").to(stiffness_units).m
+        rotor_wn = Q_(rotor_wn, "rad/s").to(frequency_units).m
+        intersection_points["x"] = (
+            Q_(intersection_points["x"], "N/m").to(stiffness_units).m
+        )
+        intersection_points["y"] = (
+            Q_(intersection_points["y"], "rad/s").to(frequency_units).m
+        )
+        bearing_kxx_stiffness = (
+            Q_(bearing0.kxx.interpolated(bearing0.frequency), "N/m")
+            .to(stiffness_units)
+            .m
+        )
+        bearing_kyy_stiffness = (
+            Q_(bearing0.kyy.interpolated(bearing0.frequency), "N/m")
+            .to(stiffness_units)
+            .m
+        )
+        bearing_frequency = Q_(bearing0.frequency, "rad/s").to(frequency_units).m
+
         for j in range(rotor_wn.shape[0]):
             fig.add_trace(
                 go.Scatter(
@@ -2077,7 +2108,7 @@ class Rotor(object):
                 y=intersection_points["y"],
                 mode="markers",
                 marker=dict(symbol="circle-open-dot", color="red", size=8),
-                hovertemplate="Stiffness (N/m): %{x:.2e}<br>Frequency (rad/s): %{y:.2f}",
+                hovertemplate=f"Stiffness ({stiffness_units}): %{{x:.2e}}<br>Frequency ({frequency_units}): %{{y:.2f}}",
                 showlegend=False,
                 name="",
             )
@@ -2085,8 +2116,8 @@ class Rotor(object):
 
         fig.add_trace(
             go.Scatter(
-                x=bearing0.kxx.interpolated(bearing0.frequency),
-                y=bearing0.frequency,
+                x=bearing_kxx_stiffness,
+                y=bearing_frequency,
                 mode="lines",
                 line=dict(dash="dashdot"),
                 hoverinfo="none",
@@ -2095,8 +2126,8 @@ class Rotor(object):
         )
         fig.add_trace(
             go.Scatter(
-                x=bearing0.kyy.interpolated(bearing0.frequency),
-                y=bearing0.frequency,
+                x=bearing_kyy_stiffness,
+                y=bearing_frequency,
                 mode="lines",
                 line=dict(dash="dashdot"),
                 hoverinfo="none",
@@ -2105,18 +2136,16 @@ class Rotor(object):
         )
 
         fig.update_xaxes(
-            title_text="<b>Bearing Stiffness (N/m)</b>",
+            title_text=f"Bearing Stiffness ({stiffness_units})",
             type="log",
             exponentformat="power",
         )
         fig.update_yaxes(
-            title_text="<b>Critical Speed (rad/s)</b>",
+            title_text=f"Critical Speed ({frequency_units})",
             type="log",
             exponentformat="power",
         )
-        fig.update_layout(
-            title=dict(text="<b>Undamped Critical Speed Map</b>"), **kwargs
-        )
+        fig.update_layout(title=dict(text="Undamped Critical Speed Map"), **kwargs)
 
         return fig
 
@@ -2211,12 +2240,10 @@ class Rotor(object):
         )
 
         fig.update_xaxes(
-            title_text="<b>Applied Cross Coupled Stiffness</b>", exponentformat="power"
+            title_text="Applied Cross Coupled Stiffness", exponentformat="power"
         )
-        fig.update_yaxes(title_text="<b>Log Dec</b>", exponentformat="power")
-        fig.update_layout(
-            title=dict(text="<b>Level 1 stability analysis</b>"), **kwargs
-        )
+        fig.update_yaxes(title_text="Log Dec", exponentformat="power")
+        fig.update_layout(title=dict(text="Level 1 stability analysis"), **kwargs)
 
         return fig
 
