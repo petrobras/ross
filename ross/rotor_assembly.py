@@ -11,7 +11,6 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 import toml
-from matplotlib import pyplot as plt
 from plotly import express as px
 from plotly import graph_objects as go
 from scipy import io as sio
@@ -3533,90 +3532,6 @@ def coaxrotor_example():
     bearings = [bearing0, bearing1, bearing2, bearing3]
 
     return CoAxialRotor(shaft, disks, bearings)
-
-
-def MAC(u, v):
-    """MAC - Modal Assurance Criterion.
-
-    MAC for a single pair of vectors.
-    The Modal Assurance Criterion (MAC) analysis is used to determine
-    the similarity of two mode shapes.
-
-    Parameters
-    ----------
-    u : array
-        complex modal vector
-    v : array
-        complex modal vector
-
-    Returns
-    -------
-    MAC from 'u' and 'v'
-    """
-    H = lambda a: a.T.conj()
-    return np.absolute((H(u) @ v) ** 2 / ((H(u) @ u) * (H(v) @ v)))
-
-
-def MAC_modes(U, V, n=None, plot=True):
-    """MAC - Modal Assurance Criterion.
-
-    MAC for multiple vectors
-    The Modal Assurance Criterion (MAC) analysis is used to determine
-    the similarity of two mode shapes.
-
-    Parameters
-    ----------
-    U : matrix
-        complex modal matrix
-    V : matrix
-        complex modal matrix
-    n : int
-        number of vectors to be analyzed
-    plot : bool
-        if True, returns a plot
-        if False, returns the macs values
-
-    Returns
-    -------
-    The macs values from 'U' and 'V'
-    """
-    # n is the number of modes to be evaluated
-    if n is None:
-        n = U.shape[1]
-    macs = np.zeros((n, n))
-    for u in enumerate(U.T[:n]):
-        for v in enumerate(V.T[:n]):
-            macs[u[0], v[0]] = MAC(u[1], v[1])
-
-    if not plot:
-        return macs
-
-    xpos, ypos = np.meshgrid(range(n), range(n))
-    xpos, ypos = 0.5 + xpos.flatten(), 0.5 + ypos.flatten()
-    zpos = np.zeros_like(xpos)
-    dx = 0.75 * np.ones_like(xpos)
-    dy = 0.75 * np.ones_like(xpos)
-    dz = macs.T.flatten()
-
-    fig = plt.figure(figsize=(12, 8))
-    # fig.suptitle('MAC - %s vs %s' % (U.name, V.name), fontsize=12)
-    ax = fig.add_subplot(111, projection="3d")
-    ax.bar3d(
-        xpos, ypos, zpos, dx, dy, dz, color=plt.cm.viridis(dz), alpha=0.7, zsort="max"
-    )
-    ax.set_xticks(range(1, n + 1))
-    ax.set_yticks(range(1, n + 1))
-    ax.set_zlim(0, 1)
-    # ax.set_xlabel('%s  modes' % U.name)
-    # ax.set_ylabel('%s  modes' % V.name)
-
-    sm = plt.cm.ScalarMappable(cmap=plt.cm.viridis, norm=plt.Normalize(vmin=0, vmax=1))
-    # fake up the array of the scalar mappable
-    sm._A = []
-    cbar = fig.colorbar(sm, shrink=0.5, aspect=10)
-    cbar.set_label("MAC")
-
-    return macs
 
 
 def rotor_example_6dof():
