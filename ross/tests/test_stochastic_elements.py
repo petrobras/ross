@@ -188,7 +188,7 @@ def test_st_bearing_error_messages(rand_bearing_constant_coefs):
     with pytest.raises(ValueError) as ex:
         rand_bearing_constant_coefs.plot_random_var(["kxy"])
     assert (
-        "Not random variable in var_list. Select variables from ['kxx', 'cxx', 'kyy', 'cyy']"
+        "Random variable not in var_list. Select variables from ['kxx', 'cxx', 'kyy', 'cyy']"
         in str(ex.value)
     )
 
@@ -205,7 +205,7 @@ def test_st_disk_error_messages(rand_disk_from_inertia):
     with pytest.raises(ValueError) as ex:
         rand_disk_from_inertia.plot_random_var(["n"])
     assert (
-        "Not random variable in var_list. Select variables from ['m', 'Id', 'Ip']"
+        "Random variable not in var_list. Select variables from ['m', 'Id', 'Ip']"
         in str(ex.value)
     )
 
@@ -222,7 +222,7 @@ def test_st_shaft_error_messages(rand_shaft):
     with pytest.raises(ValueError) as ex:
         rand_shaft.plot_random_var(["n"])
     assert (
-        "Not random variable in var_list. Select variables from ['L', 'idl', 'odl', 'idr', 'odr']"
+        "Random variable not in var_list. Select variables from ['L', 'idl', 'odl', 'idr', 'odr']"
         in str(ex.value)
     )
 
@@ -238,7 +238,7 @@ def test_st_shaft_error_messages(rand_shaft):
 def test_st_point_mass_error_messages(rand_point_mass):
     with pytest.raises(ValueError) as ex:
         rand_point_mass.plot_random_var(["n"])
-    assert "Not random variable in var_list. Select variables from ['mx', 'my']" in str(
+    assert "Random variable not in var_list. Select variables from ['mx', 'my']" in str(
         ex.value
     )
 
