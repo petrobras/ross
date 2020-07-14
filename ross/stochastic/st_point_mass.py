@@ -184,7 +184,7 @@ class ST_PointMass:
 
         return f_list
 
-    def plot_random_var(self, var_list=[], histogram_kwargs={}, plot_kwargs={}):
+    def plot_random_var(self, var_list=None, histogram_kwargs=None, plot_kwargs=None):
         """Plot histogram and the PDF.
 
         This function creates a histogram to display the random variable
@@ -194,6 +194,7 @@ class ST_PointMass:
         ----------
         var_list : list, optional
             List of random variables, in string format, to plot.
+            Default is plotting all the random variables.
         histogram_kwargs : dict, optional
             Additional key word arguments can be passed to change
             the plotly.go.histogram (e.g. histnorm="probability density", nbinsx=20...).
@@ -218,9 +219,11 @@ class ST_PointMass:
         label = dict(
             mx="Mass on the X direction", my="Mass on the Y direction", m="Mass",
         )
-        if not all(var in self.is_random for var in var_list):
+        if var_list is None:
+            var_list = self.is_random
+        elif not all(var in self.is_random for var in var_list):
             raise ValueError(
-                "Not random variable in var_list. Select variables from {}".format(
+                "Random variable not in var_list. Select variables from {}".format(
                     self.is_random
                 )
             )
