@@ -7,8 +7,8 @@ import numpy as np
 
 from ross.bearing_seal_element import BearingElement
 from ross.fluid_flow import fluid_flow as flow
-from ross.fluid_flow.fluid_flow_coefficients import (
-    calculate_short_damping_matrix, calculate_short_stiffness_matrix)
+from ross.fluid_flow.fluid_flow_coefficients import \
+    calculate_stiffness_and_damping_coefficients
 from ross.stochastic.st_results_elements import plot_histogram
 
 # fmt: on
@@ -297,7 +297,7 @@ class ST_BearingElement:
 
         return f_list
 
-    def plot_random_var(self, var_list=[], histogram_kwargs={}, plot_kwargs={}):
+    def plot_random_var(self, var_list=None, histogram_kwargs=None, plot_kwargs=None):
         """Plot histogram and the PDF.
 
         This function creates a histogram to display the random variable
@@ -307,6 +307,7 @@ class ST_BearingElement:
         ----------
         var_list : list, optional
             List of random variables, in string format, to plot.
+            Default is plotting all the random variables.
         histogram_kwargs : dict, optional
             Additional key word arguments can be passed to change
             the plotly.go.histogram (e.g. histnorm="probability density", nbinsx=20...).
@@ -329,24 +330,26 @@ class ST_BearingElement:
         >>> # fig.show()
         """
         label = dict(
-            kxx="Direct stiffness in the X direction",
-            kxy="Cross coupled stiffness in the X direction",
-            kyx="Cross coupled stiffness in the Y direction",
-            kyy="Direct stiffness in the Y direction",
-            cxx="Direct damping in the X direction",
-            cxy="Cross coupled damping in the X direction",
-            cyx="Cross coupled damping in the Y direction",
-            cyy="Direct damping in the y direction",
+            kxx="Kxx",
+            kxy="Kxy",
+            kyx="Kyx",
+            kyy="Kyy",
+            cxx="Cxx",
+            cxy="Cxy",
+            cyx="Cyx",
+            cyy="Cyy",
         )
-        if not all(var in self.is_random for var in var_list):
+        if var_list is None:
+            var_list = self.is_random
+        elif not all(var in self.is_random for var in var_list):
             raise ValueError(
-                "Not random variable in var_list. Select variables from {}".format(
+                "Random variable not in var_list. Select variables from {}".format(
                     self.is_random
                 )
             )
 
         return plot_histogram(
-            self.attribute_dict, label, var_list, histogram_kwargs={}, plot_kwargs={}
+            self.attribute_dict, label, var_list, histogram_kwargs, plot_kwargs
         )
 
     @classmethod
@@ -458,7 +461,6 @@ class ST_BearingElement:
         >>> import ross.stochastic as srs
         >>> nz = 30
         >>> ntheta = 20
-        >>> nradius = 11
         >>> length = 0.03
         >>> omega = 157.1
         >>> p_in = 0.
@@ -469,7 +471,7 @@ class ST_BearingElement:
         >>> visc = np.random.uniform(0.1, 0.2, 5)
         >>> rho = 860.0
         >>> elms = srs.ST_BearingElement.from_fluid_flow(
-        ...     0, nz, ntheta, nradius, length,
+        ...     0, nz, ntheta, length,
         ...     omega, p_in, p_out, radius_rotor,
         ...     radius_stator, visc, rho,
         ...     eccentricity=eccentricity, is_random=["visc"]
@@ -512,8 +514,7 @@ class ST_BearingElement:
                 eccentricity=attribute_dict["eccentricity"][i],
                 load=attribute_dict["load"][i],
             )
-            c = calculate_short_damping_matrix(fluid_flow)
-            k = calculate_short_stiffness_matrix(fluid_flow)
+            k, c = calculate_stiffness_and_damping_coefficients(fluid_flow)
             args_dict["kxx"].append(k[0])
             args_dict["kxy"].append(k[1])
             args_dict["kyx"].append(k[2])
