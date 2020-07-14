@@ -358,17 +358,19 @@ class ST_BearingElement:
         n,
         nz,
         ntheta,
-        nradius,
         length,
         omega,
         p_in,
         p_out,
         radius_rotor,
         radius_stator,
-        visc,
-        rho,
+        viscosity,
+        density,
+        attitude_angle=None,
         eccentricity=None,
         load=None,
+        omegap=None,
+        immediately_calculate_pressure_matrix_numerically=True,
         tag=None,
         n_link=None,
         scale_factor=1,
@@ -384,7 +386,8 @@ class ST_BearingElement:
             List of the object attributes to become random.
             Possibilities:
                 ["length", "omega", "p_in", "p_out", "radius_rotor",
-                 "radius_stator", "visc", "rho", "eccentricity", "load"]
+                 "radius_stator", "viscosity", "density", "attitude_angle",
+                 "eccentricity", "load", "omegap"]
         tag: str, optional
             A tag to name the element
             Default is None.
@@ -443,10 +446,10 @@ class ST_BearingElement:
         Fluid characteristics
         ^^^^^^^^^^^^^^^^^^^^^
         Describes the fluid characteristics.
-        visc: float, list
+        viscosity: float, list
             Viscosity (Pa.s).
             Input a list to make it random.
-        rho: float, list
+        density: float, list
             Fluid density(Kg/m^3).
             Input a list to make it random.
 
@@ -459,22 +462,23 @@ class ST_BearingElement:
         --------
         >>> import numpy as np
         >>> import ross.stochastic as srs
-        >>> nz = 30
-        >>> ntheta = 20
-        >>> length = 0.03
+        >>> nz = 8
+        >>> ntheta = 64
+        >>> length = 0.01
         >>> omega = 157.1
         >>> p_in = 0.
         >>> p_out = 0.
-        >>> radius_rotor = 0.0499
-        >>> radius_stator = 0.05
-        >>> eccentricity = (radius_stator - radius_rotor)*0.2663
-        >>> visc = np.random.uniform(0.1, 0.2, 5)
-        >>> rho = 860.0
-        >>> elms = srs.ST_BearingElement.from_fluid_flow(
+        >>> radius_rotor = 0.08
+        >>> radius_stator = 0.1
+        >>> viscosity = np.random.uniform(0.01, 0.02, 5)
+        >>> density = 860.
+        >>> eccentricity = 0.001
+        >>> attitude_angle = np.pi
+        >>> elms = ST_BearingElement.from_fluid_flow(
         ...     0, nz, ntheta, length,
         ...     omega, p_in, p_out, radius_rotor,
-        ...     radius_stator, visc, rho,
-        ...     eccentricity=eccentricity, is_random=["visc"]
+        ...     radius_stator, viscosity, density, attitude_angle,
+        ...     eccentricity, is_random=["viscosity"]
         ... )
         >>> len(list(iter(elms)))
         5
@@ -502,17 +506,19 @@ class ST_BearingElement:
             fluid_flow = flow.FluidFlow(
                 attribute_dict["nz"][i],
                 attribute_dict["ntheta"][i],
-                attribute_dict["nradius"][i],
                 attribute_dict["length"][i],
                 attribute_dict["omega"][i],
                 attribute_dict["p_in"][i],
                 attribute_dict["p_out"][i],
                 attribute_dict["radius_rotor"][i],
                 attribute_dict["radius_stator"][i],
-                attribute_dict["visc"][i],
-                attribute_dict["rho"][i],
-                eccentricity=attribute_dict["eccentricity"][i],
-                load=attribute_dict["load"][i],
+                attribute_dict["viscosity"][i],
+                attribute_dict["density"][i],
+                attribute_dict["attitude_angle"][i],
+                attribute_dict["eccentricity"][i],
+                attribute_dict["load"][i],
+                attribute_dict["omegap"][i],
+                attribute_dict["immediately_calculate_pressure_matrix_numerically"][i],
             )
             k, c = calculate_stiffness_and_damping_coefficients(fluid_flow)
             args_dict["kxx"].append(k[0])
