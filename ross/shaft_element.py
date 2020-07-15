@@ -392,7 +392,6 @@ class ShaftElement(Element):
             f"\nRight Out. Diam. (m): {self.odr:{10}.{5}}"
             f'\n{35*"-"}'
             f"\n{self.material}"
-            f"\n"
         )
 
     def __hash__(self):
@@ -1486,7 +1485,6 @@ class ShaftElement6DoF(ShaftElement):
             f"\nBeta damp. factor:    {self.beta:{10}.{5}}"
             f'\n{35*"-"}'
             f"\n{self.material}"
-            f"\n"
         )
 
     def save(self, file):
