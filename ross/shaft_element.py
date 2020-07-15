@@ -365,14 +365,31 @@ class ShaftElement(Element):
         Returns
         -------
         The object's parameters translated to strings
+
+        Example
+        -------
+        >>> print(ShaftElement(L=0.25, idl=0, odl=0.05, odr=0.08, material=steel))
+        Element Number:             None
+        Element Lenght   (m):       0.25
+        Left Int. Diam.  (m):        0.0
+        Left Out. Diam.  (m):       0.05
+        Right Int. Diam. (m):        0.0
+        Right Out. Diam. (m):       0.08
+        -----------------------------------
+        Steel
+        -----------------------------------
+        Density         (kg/m**3): 7810.0
+        Young`s modulus (N/m**2):  2.11e+11
+        Shear modulus   (N/m**2):  8.12e+10
+        Poisson coefficient     :  0.29926108
         """
         return (
-            f"\nElem. N:    {self.n}"
-            f"\nLenght:     {self.L:{10}.{5}}"
-            f"\nLeft Int. Diam.: {self.idl:{10}.{5}}"
-            f"\nLeft Out. Diam.: {self.odl:{10}.{5}}"
-            f"\nRight Int. Diam.: {self.idr:{10}.{5}}"
-            f"\nRight Out. Diam.: {self.odr:{10}.{5}}"
+            f"Element Number:             {self.n}"
+            f"\nElement Lenght   (m): {self.L:{10}.{5}}"
+            f"\nLeft Int. Diam.  (m): {self.idl:{10}.{5}}"
+            f"\nLeft Out. Diam.  (m): {self.odl:{10}.{5}}"
+            f"\nRight Int. Diam. (m): {self.idr:{10}.{5}}"
+            f"\nRight Out. Diam. (m): {self.odr:{10}.{5}}"
             f'\n{35*"-"}'
             f"\n{self.material}"
             f"\n"
@@ -1438,16 +1455,35 @@ class ShaftElement6DoF(ShaftElement):
         Returns
         -------
         The object's parameters translated to strings
+
+        Example
+        -------
+        >>> print(ShaftElement6DoF(L=0.25, idl=0, odl=0.05, odr=0.08, material=steel))
+        Element Number:             None
+        Element Lenght   (m):       0.25
+        Left Int. Diam.  (m):        0.0
+        Left Out. Diam.  (m):       0.05
+        Right Int. Diam. (m):        0.0
+        Right Out. Diam. (m):       0.08
+        Alpha damp. factor:          0.0
+        Beta damp. factor:           0.0
+        -----------------------------------
+        Steel
+        -----------------------------------
+        Density         (kg/m**3): 7810.0
+        Young`s modulus (N/m**2):  2.11e+11
+        Shear modulus   (N/m**2):  8.12e+10
+        Poisson coefficient     :  0.29926108
         """
         return (
-            f"\nElem. N:    {self.n}"
-            f"\nLenght:     {self.L:{10}.{5}}"
-            f"\nLeft Int. Diam.: {self.idl:{10}.{5}}"
-            f"\nLeft Out. Diam.: {self.odl:{10}.{5}}"
-            f"\nRight Int. Diam.: {self.idr:{10}.{5}}"
-            f"\nRight Out. Diam.: {self.odr:{10}.{5}}"
-            f"\nAlpha damp. factor: {self.alpha:{10}.{5}}"
-            f"\nBeta damp. factor: {self.beta:{10}.{5}}"
+            f"Element Number:             {self.n}"
+            f"\nElement Lenght   (m): {self.L:{10}.{5}}"
+            f"\nLeft Int. Diam.  (m): {self.idl:{10}.{5}}"
+            f"\nLeft Out. Diam.  (m): {self.odl:{10}.{5}}"
+            f"\nRight Int. Diam. (m): {self.idr:{10}.{5}}"
+            f"\nRight Out. Diam. (m): {self.odr:{10}.{5}}"
+            f"\nAlpha damp. factor:   {self.alpha:{10}.{5}}"
+            f"\nBeta damp. factor:    {self.beta:{10}.{5}}"
             f'\n{35*"-"}'
             f"\n{self.material}"
             f"\n"
