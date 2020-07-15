@@ -123,6 +123,30 @@ class DiskElement(Element):
             f"n={self.n}, tag={self.tag!r})"
         )
 
+    def __str__(self):
+        """Convert object into string.
+
+        Returns
+        -------
+        The object's parameters translated to strings
+
+        Example
+        -------
+        >>> print(DiskElement(n=0, m=32, Id=0.223, Ip=0.31223, tag="Disk"))
+        Tag:                      Disk
+        Node:                     0
+        Mass           (kg):      32.0
+        Diam. inertia  (kg*m**2): 0.223
+        Polar. inertia (kg*m**2): 0.31223
+        """
+        return (
+            f"\nTag:                      {self.tag}"
+            f"\nNode:                     {self.n}"
+            f"\nMass           (kg):      {self.m:{2}.{5}}"
+            f"\nDiam. inertia  (kg*m**2): {self.Id:{2}.{5}}"
+            f"\nPolar. inertia (kg*m**2): {self.Ip:{2}.{5}}"
+        )
+
     def __hash__(self):
         return hash(self.tag)
 
