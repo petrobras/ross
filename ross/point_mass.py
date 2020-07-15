@@ -113,6 +113,28 @@ class PointMass(Element):
             f" my={self.my:{0}.{5}}, tag={self.tag!r})"
         )
 
+    def __str__(self):
+        """Convert object into string.
+
+        Returns
+        -------
+        The object's parameters translated to strings
+
+        Example
+        -------
+        >>> print(PointMass(n=0, mx=2.5, my=3.25, tag="PointMass"))
+        Tag:              PointMass
+        Node:             0
+        Mass X dir. (kg): 2.5
+        Mass Y dir. (kg): 3.25
+        """
+        return (
+            f"\nTag:              {self.tag}"
+            f"\nNode:             {self.n}"
+            f"\nMass X dir. (kg): {self.mx:{2}.{5}}"
+            f"\nMass Y dir. (kg): {self.my:{2}.{5}}"
+        )
+
     def M(self):
         """Mass matrix for an instance of a point mass element.
 
