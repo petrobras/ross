@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="en">
+    <head>
+        <meta charset="utf-8">
+        <title>ross-bott report</title>
+        <link rel="stylesheet" href="static/bootstrap-sphinx.css" type="text/css" />
+        <link rel="stylesheet" href="static/pygments.css" type="text/css" />
+        <link rel="stylesheet" type="text/css" href="static/style.css" />
+
+        <script src="https://cdn.plot.ly/plotly-latest.min.js"></script> 
+        
+    <style>
+    * {
+      box-sizing: border-box;
+    }
+
+    /* Create two equal columns that floats next to each other */
+    .column {
+      float: left;
+      width: 33.33%;
+      padding: 10px;
+      height: 300px; /* Should be removed. Only for demonstration */
+    }
+
+    /* Clear floats after the columns */
+    .row:after {
+      content: "";
+      display: table;
+      clear: both;
+    }
+    </style>
+    </head>
+    <body>
+    <br>
+    <div class="row">
+        <div class="column">
+        {{ rotor_example }}
+        </div>
+        <div class="column">
+        {{ c123701 }}
+        </div>
+        <div class="column">
+        {{ injection }}
+        </div>
+    </div>
+    </body>
+</html>

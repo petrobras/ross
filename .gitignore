@@ -131,3 +131,5 @@ env.bak/
 venv.bak/
 pip-selfcheck.json
 
+/tools/plots/*.html
+!/tools/plots/index.html
