@@ -144,18 +144,18 @@ class Material:
         >>> print(rs.Material.use_material('Steel'))
         Steel
         -----------------------------------
-        Density         (N/m**3): 7810.0
-        Young`s modulus (N/m**2): 2.11e+11
-        Shear modulus   (N/m**2): 8.12e+10
-        Poisson coefficient     : 0.29926108
+        Density         (kg/m**3): 7810.0
+        Young`s modulus (N/m**2):  2.11e+11
+        Shear modulus   (N/m**2):  8.12e+10
+        Poisson coefficient     :  0.29926108
         """
         return (
             f"{self.name}"
             f'\n{35*"-"}'
-            f"\nDensity         (N/m**3): {self.rho:{2}.{8}}"
-            f"\nYoung`s modulus (N/m**2): {self.E:{2}.{8}}"
-            f"\nShear modulus   (N/m**2): {self.G_s:{2}.{8}}"
-            f"\nPoisson coefficient     : {self.Poisson:{2}.{8}}"
+            f"\nDensity         (kg/m**3): {self.rho:{2}.{8}}"
+            f"\nYoung`s modulus (N/m**2):  {self.E:{2}.{8}}"
+            f"\nShear modulus   (N/m**2):  {self.G_s:{2}.{8}}"
+            f"\nPoisson coefficient     :  {self.Poisson:{2}.{8}}"
         )
 
     @staticmethod
