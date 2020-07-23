@@ -1254,14 +1254,27 @@ class ForcedResponseResults:
         self.unbalance = unbalance
 
     def plot_magnitude(
-        self, dof, frequency_units="rad/s", amplitude_units="m", fig=None, **kwargs
+        self,
+        probe,
+        probe_units="rad",
+        frequency_units="rad/s",
+        amplitude_units="m",
+        fig=None,
+        **kwargs,
     ):
         """Plot forced response (magnitude) using Plotly.
 
         Parameters
         ----------
-        dof : int
-            Degree of freedom.
+        probe : list of tuples
+            List with tuples (node, orientation angle).
+            node : int
+                indicate the node where the probe is located.
+            orientation : float,
+                probe orientation angle about the shaft. The 0 refers to +X direction.
+        probe_units : str, option
+            Units for probe orientation.
+            Default is "rad".
         frequency_units : str, optional
             Units for the x axis.
             Default is "rad/s"
@@ -1280,27 +1293,43 @@ class ForcedResponseResults:
         fig : Plotly graph_objects.Figure()
             The figure object with the plot.
         """
-        frequency_range = self.speed_range
-        mag = self.magnitude
-
-        frequency_range = Q_(frequency_range, "rad/s").to(frequency_units).m
-        mag = Q_(mag, "m").to(amplitude_units).m
+        frequency_range = Q_(self.speed_range, "rad/s").to(frequency_units).m
+        magnitude = self.magnitude
+        number_dof = self.rotor.number_dof
 
         if fig is None:
             fig = go.Figure()
 
-        fig.add_trace(
-            go.Scatter(
-                x=frequency_range,
-                y=mag[dof],
-                mode="lines",
-                line=dict(color=tableau_colors["blue"]),
-                name="Amplitude",
-                legendgroup="Amplitude",
-                showlegend=False,
-                hovertemplate=f"Frequency ({frequency_units}): %{{x:.2f}}<br>Amplitude ({amplitude_units}): %{{y:.2e}}",
+        for i, p in enumerate(probe):
+            dofx = p[0] * number_dof
+            dofy = p[0] * number_dof + 1
+            angle = Q_(p[1], probe_units).to("rad").m
+
+            # fmt: off
+            operator = np.array(
+                [[np.cos(angle), - np.sin(angle)],
+                 [np.cos(angle), + np.sin(angle)]]
             )
-        )
+
+            probe_resp = operator @ np.vstack((magnitude[dofx], magnitude[dofy]))
+            z = np.sqrt((probe_resp[0] * np.cos(angle)) ** 2 +
+                        (probe_resp[1] * np.sin(angle)) ** 2)
+            # fmt: on
+
+            z = Q_(z, "m").to(amplitude_units).m
+
+            fig.add_trace(
+                go.Scatter(
+                    x=frequency_range,
+                    y=z,
+                    mode="lines",
+                    line=dict(color=list(tableau_colors)[i]),
+                    name=f"Probe {i + 1}",
+                    legendgroup=f"Probe {i + 1}",
+                    showlegend=True,
+                    hovertemplate=f"Frequency ({frequency_units}): %{{x:.2f}}<br>Amplitude ({amplitude_units}): %{{y:.2e}}",
+                )
+            )
 
         fig.update_xaxes(
             title_text=f"Frequency ({frequency_units})",
@@ -1314,14 +1343,27 @@ class ForcedResponseResults:
         return fig
 
     def plot_phase(
-        self, dof, frequency_units="rad/s", phase_units="rad", fig=None, **kwargs
+        self,
+        probe,
+        probe_units="rad",
+        frequency_units="rad/s",
+        phase_units="rad",
+        fig=None,
+        **kwargs,
     ):
         """Plot forced response (phase) using Plotly.
 
         Parameters
         ----------
-        dof : int
-            Degree of freedom.
+        probe : list of tuples
+            List with tuples (node, orientation angle).
+            node : int
+                indicate the node where the probe is located.
+            orientation : float,
+                probe orientation angle about the shaft. The 0 refers to +X direction.
+        probe_units : str, option
+            Units for probe orientation.
+            Default is "rad".
         frequency_units : str, optional
             Units for the x axis.
             Default is "rad/s"
@@ -1341,28 +1383,36 @@ class ForcedResponseResults:
             The figure object with the plot.
         """
         frequency_range = Q_(self.speed_range, "rad/s").to(frequency_units).m
-        phase = Q_(self.phase[dof], "rad").to(phase_units).m
-
-        if phase_units in ["rad", "radian", "radians"]:
-            phase = [i + 2 * np.pi if i < 0 else i for i in phase]
-        else:
-            phase = [i + 360 if i < 0 else i for i in phase]
+        number_dof = self.rotor.number_dof
 
         if fig is None:
             fig = go.Figure()
 
-        fig.add_trace(
-            go.Scatter(
-                x=frequency_range,
-                y=phase,
-                mode="lines",
-                line=dict(color=tableau_colors["blue"]),
-                name="Phase",
-                legendgroup="Phase",
-                showlegend=False,
-                hovertemplate=f"Frequency ({frequency_units}): %{{x:.2f}}<br>Phase ({phase_units}): %{{y:.2e}}",
+        for i, p in enumerate(probe):
+            probe_phase = Q_(self.phase[p[0] * number_dof], "rad").to(phase_units).m
+
+            if phase_units in ["rad", "radian", "radians"]:
+                probe_phase = np.array(
+                    [i + 2 * np.pi if i < 0 else i for i in probe_phase]
+                )
+            else:
+                probe_phase = np.array([i + 360 if i < 0 else i for i in probe_phase])
+
+            angle = Q_(p[1], probe_units).to(phase_units).m
+            probe_phase = probe_phase - angle
+
+            fig.add_trace(
+                go.Scatter(
+                    x=frequency_range,
+                    y=probe_phase,
+                    mode="lines",
+                    line=dict(color=list(tableau_colors)[i]),
+                    name=f"Probe {i + 1}",
+                    legendgroup=f"Probe {i + 1}",
+                    showlegend=True,
+                    hovertemplate=f"Frequency ({frequency_units}): %{{x:.2f}}<br>Phase ({phase_units}): %{{y:.2e}}",
+                )
             )
-        )
 
         fig.update_xaxes(
             title_text=f"Frequency ({frequency_units})",
@@ -1375,7 +1425,8 @@ class ForcedResponseResults:
 
     def plot_polar_bode(
         self,
-        dof,
+        probe,
+        probe_units="rad",
         frequency_units="rad/s",
         amplitude_units="m",
         phase_units="rad",
@@ -1386,8 +1437,15 @@ class ForcedResponseResults:
 
         Parameters
         ----------
-        dof : int
-            Degree of freedom.
+        probe : list of tuples
+            List with tuples (node, orientation angle).
+            node : int
+                indicate the node where the probe is located.
+            orientation : float,
+                probe orientation angle about the shaft. The 0 refers to +X direction.
+        probe_units : str, option
+            Units for probe orientation.
+            Default is "rad".
         frequency_units : str, optional
             Units for the x axis.
             Default is "rad/s"
@@ -1410,34 +1468,57 @@ class ForcedResponseResults:
             The figure object with the plot.
         """
         frequency_range = Q_(self.speed_range, "rad/s").to(frequency_units).m
-        mag = Q_(self.magnitude[dof], "m").to(amplitude_units).m
-        phase = Q_(self.phase[dof], "rad").to(phase_units).m
+        number_dof = self.rotor.number_dof
 
         if fig is None:
             fig = go.Figure()
 
-        if phase_units in ["rad", "radian", "radians"]:
-            polar_theta_unit = "radians"
-            phase = [i + 2 * np.pi if i < 0 else i for i in phase]
-        else:
-            polar_theta_unit = "degrees"
-            phase = [i + 360 if i < 0 else i for i in phase]
+        for i, p in enumerate(probe):
+            dofx = p[0] * number_dof
+            dofy = p[0] * number_dof + 1
+            angle = Q_(p[1], probe_units).to("rad").m
 
-        fig.add_trace(
-            go.Scatterpolar(
-                r=mag,
-                theta=phase,
-                customdata=frequency_range,
-                thetaunit=polar_theta_unit,
-                mode="lines+markers",
-                marker=dict(color=tableau_colors["blue"]),
-                line=dict(color=tableau_colors["blue"]),
-                name="Polar_plot",
-                legendgroup="Polar",
-                showlegend=False,
-                hovertemplate=f"Amplitude ({amplitude_units}): %{{r:.2e}}<br>Phase: %{{theta:.2f}}<br>Frequency ({frequency_units}): %{{customdata:.2f}}",
+            # fmt: off
+            operator = np.array([
+                [np.cos(angle), - np.sin(angle)],
+                [np.cos(angle), + np.sin(angle)],
+            ])
+            # fmt: on
+
+            resp = operator @ np.vstack((self.magnitude[dofx], self.magnitude[dofy]))
+            probe_mag = (
+                (resp[0] * np.cos(angle)) ** 2 + (resp[1] * np.sin(angle)) ** 2
+            ) ** 0.5
+
+            probe_mag = Q_(probe_mag, "m").to(amplitude_units).m
+
+            phase = Q_(self.phase[p[0] * number_dof], "rad").to(phase_units).m
+
+            if phase_units in ["rad", "radian", "radians"]:
+                polar_theta_unit = "radians"
+                phase = np.array([i + 2 * np.pi if i < 0 else i for i in phase])
+            else:
+                phase = np.array([i + 360 if i < 0 else i for i in phase])
+                polar_theta_unit = "degrees"
+
+            angle = Q_(p[1], probe_units).to(phase_units).m
+            phase = phase - angle
+
+            fig.add_trace(
+                go.Scatterpolar(
+                    r=probe_mag,
+                    theta=phase,
+                    customdata=frequency_range,
+                    thetaunit=polar_theta_unit,
+                    mode="lines+markers",
+                    marker=dict(color=list(tableau_colors)[i]),
+                    line=dict(color=list(tableau_colors)[i]),
+                    name=f"Probe {i + 1}",
+                    legendgroup=f"Probe {i + 1}",
+                    showlegend=True,
+                    hovertemplate=f"Amplitude ({amplitude_units}): %{{r:.2e}}<br>Phase: %{{theta:.2f}}<br>Frequency ({frequency_units}): %{{customdata:.2f}}",
+                )
             )
-        )
 
         fig.update_layout(
             polar=dict(
@@ -1454,7 +1535,8 @@ class ForcedResponseResults:
 
     def plot(
         self,
-        dof,
+        probe,
+        probe_units="rad",
         frequency_units="rad/s",
         amplitude_units="m",
         phase_units="rad",
@@ -1472,8 +1554,15 @@ class ForcedResponseResults:
 
         Parameters
         ----------
-        dof : int
-            Degree of freedom.
+        probe : list of tuples
+            List with tuples (node, orientation angle).
+            node : int
+                indicate the node where the probe is located.
+            orientation : float,
+                probe orientation angle about the shaft. The 0 refers to +X direction.
+        probe_units : str, option
+            Units for probe orientation.
+            Default is "rad".
         frequency_units : str, optional
             Frequency units.
             Default is "rad/s"
@@ -1512,18 +1601,26 @@ class ForcedResponseResults:
         polar_kwargs = {} if polar_kwargs is None else copy.copy(polar_kwargs)
         subplot_kwargs = {} if subplot_kwargs is None else copy.copy(subplot_kwargs)
 
-        fig0 = self.plot_magnitude(dof, frequency_units, amplitude_units, **mag_kwargs)
-        fig1 = self.plot_phase(dof, frequency_units, phase_units, **phase_kwargs)
-        fig2 = self.plot_polar_bode(
-            dof, frequency_units, amplitude_units, phase_units, **polar_kwargs
+        # fmt: off
+        fig0 = self.plot_magnitude(
+            probe, probe_units, frequency_units, amplitude_units, **mag_kwargs
         )
+        fig1 = self.plot_phase(
+            probe, probe_units, frequency_units, phase_units, **phase_kwargs
+        )
+        fig2 = self.plot_polar_bode(
+            probe, probe_units, frequency_units, amplitude_units, phase_units, **polar_kwargs
+        )
+        # fmt: on
 
         subplots = make_subplots(
             rows=2, cols=2, specs=[[{}, {"type": "polar", "rowspan": 2}], [{}, None]]
         )
         for data in fig0["data"]:
+            data.showlegend = False
             subplots.add_trace(data, row=1, col=1)
         for data in fig1["data"]:
+            data.showlegend = False
             subplots.add_trace(data, row=2, col=1)
         for data in fig2["data"]:
             subplots.add_trace(data, row=1, col=2)
