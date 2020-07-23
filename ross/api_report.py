@@ -780,8 +780,8 @@ class Report:
 
         for node in nodes:
             dof = 4 * node + 1
-            mag_plot = response.plot_magnitude(dof)
-            phs_plot = response.plot_phase(dof)
+            mag_plot = response.plot_magnitude([(node, np.pi / 2)])
+            phs_plot = response.plot_phase([(node, np.pi / 2)])
 
         magnitude = mag[dof]
         idx_max = argrelextrema(magnitude, np.greater)[0].tolist()
