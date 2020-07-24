@@ -1639,13 +1639,16 @@ class ForcedResponseResults:
 
         return subplots
 
-    def _calculate_major_axis(self, speed):
+    def _calculate_major_axis(self, speed, frequency_units="rad/s"):
         """Calculate the major axis for each nodal orbit.
 
         Parameters
         ----------
         speed : optional, float
             The rotor rotation speed.
+        frequency_units : str, optional
+            Frequency units.
+            Default is "rad/s"
 
         Returns
         -------
@@ -1660,6 +1663,7 @@ class ForcedResponseResults:
         nodes = self.rotor.nodes
         number_dof = self.rotor.number_dof
 
+        speed = Q_(speed, frequency_units).to("rad/s").m
         major_axis_vector = np.zeros((5, len(nodes)), dtype=complex)
         idx = np.where(np.isclose(self.speed_range, speed, atol=1e-6))[0][0]
 
@@ -1705,15 +1709,12 @@ class ForcedResponseResults:
             major_axis_vector[0] * np.exp(1j * max_major_axis_angle) +
             major_axis_vector[1] * np.exp(-1j * max_major_axis_angle)
         )
-        major_axis_vector[4] = (
-            np.real(major_axis_vector[3]) ** 2 +
-            np.imag(major_axis_vector[3]) ** 2
-        ) ** 0.5
+        major_axis_vector[4] = np.abs(major_axis_vector[3])
         # fmt: on
 
         return major_axis_vector
 
-    def _calculate_bending_moment(self, speed):
+    def _calculate_bending_moment(self, speed, frequency_units="rad/s"):
         """Calculate the bending moment in X and Y directions.
 
         This method calculate forces and moments on nodal positions for a deflected
@@ -1723,6 +1724,9 @@ class ForcedResponseResults:
         ----------
         speed : float
             The rotor rotation speed.
+        frequency_units : str, optional
+            Frequency units.
+            Default is "rad/s"
 
         Returns
         -------
@@ -1731,6 +1735,7 @@ class ForcedResponseResults:
         My : array
             Bending Moment on Y directon.
         """
+        speed = Q_(speed, frequency_units).to("rad/s").m
         idx = np.where(np.isclose(self.speed_range, speed, atol=1e-6))[0][0]
         mag = self.magnitude[:, idx]
         phase = self.phase[:, idx]
@@ -1749,7 +1754,13 @@ class ForcedResponseResults:
         return Mx, My
 
     def plot_deflected_shape_2d(
-        self, speed, displacement_units="m", rotor_length_units="m", fig=None, **kwargs
+        self,
+        speed,
+        frequency_units="rad/s",
+        displacement_units="m",
+        rotor_length_units="m",
+        fig=None,
+        **kwargs,
     ):
         """Plot the 2D deflected shape diagram.
 
@@ -1758,6 +1769,9 @@ class ForcedResponseResults:
         speed : float
             The rotor rotation speed. Must be an element from the speed_range argument
             passed to the class.
+        frequency_units : str, optional
+            Frequency units.
+            Default is "rad/s"
         displacement_units : str, optional
             Displacement units.
             Default is 'm'.
@@ -1776,6 +1790,7 @@ class ForcedResponseResults:
         fig : Plotly graph_objects.Figure()
             The figure object with the plot.
         """
+        speed = Q_(speed, frequency_units).to("rad/s").m
         if not any(np.isclose(self.speed_range, speed, atol=1e-6)):
             raise ValueError("No data available for this speed value.")
 
@@ -1785,6 +1800,7 @@ class ForcedResponseResults:
 
         if fig is None:
             fig = go.Figure()
+
         fig.add_trace(
             go.Scatter(
                 x=nodes_pos,
@@ -1820,6 +1836,7 @@ class ForcedResponseResults:
         self,
         speed,
         samples=101,
+        frequency_units="rad/s",
         displacement_units="m",
         rotor_length_units="m",
         fig=None,
@@ -1835,6 +1852,9 @@ class ForcedResponseResults:
         samples : int, optional
             Number of samples to generate the orbit for each node.
             Default is 101.
+        frequency_units : str, optional
+            Frequency units.
+            Default is "rad/s"
         displacement_units : str, optional
             Displacement units.
             Default is 'm'.
@@ -1853,6 +1873,7 @@ class ForcedResponseResults:
         fig : Plotly graph_objects.Figure()
             The figure object with the plot.
         """
+        speed = Q_(speed, frequency_units).to("rad/s").m
         if not any(np.isclose(self.speed_range, speed, atol=1e-6)):
             raise ValueError("No data available for this speed value.")
 
@@ -1866,11 +1887,11 @@ class ForcedResponseResults:
 
         # orbit of a single revolution
         t = np.linspace(0, 2 * np.pi / speed, samples)
-
         x_pos = np.repeat(nodes_pos, t.size).reshape(len(nodes_pos), t.size)
 
         if fig is None:
             fig = go.Figure()
+
         for i, n in enumerate(nodes):
             dofx = number_dof * n
             dofy = number_dof * n + 1
@@ -1896,7 +1917,7 @@ class ForcedResponseResults:
             )
 
         # plot major axis
-        maj_vect = self._calculate_major_axis(speed=speed)
+        maj_vect = self._calculate_major_axis(speed)
 
         fig.add_trace(
             go.Scatter3d(
@@ -1935,10 +1956,10 @@ class ForcedResponseResults:
             fig.add_trace(
                 go.Scatter3d(
                     x=[x_pos[int(n), 0], x_pos[int(n), 0]],
-                    y=Q_([0, np.amax(np.real(maj_vect[4])) / 2 * np.cos(p)], "m")
+                    y=Q_([0, np.amax(np.abs(maj_vect[4])) / 2 * np.cos(p)], "m")
                     .to(displacement_units)
                     .m,
-                    z=Q_([0, np.amax(np.real(maj_vect[4])) / 2 * np.sin(p)], "m")
+                    z=Q_([0, np.amax(np.abs(maj_vect[4])) / 2 * np.sin(p)], "m")
                     .to(displacement_units)
                     .m,
                     mode="lines",
@@ -1951,10 +1972,10 @@ class ForcedResponseResults:
             fig.add_trace(
                 go.Scatter3d(
                     x=[x_pos[int(n), 0]],
-                    y=Q_([np.amax(np.real(maj_vect[4])) / 2 * np.cos(p)], "m")
+                    y=Q_([np.amax(np.abs(maj_vect[4])) / 2 * np.cos(p)], "m")
                     .to(displacement_units)
                     .m,
-                    z=Q_([np.amax(np.real(maj_vect[4])) / 2 * np.sin(p)], "m")
+                    z=Q_([np.amax(np.abs(maj_vect[4])) / 2 * np.sin(p)], "m")
                     .to(displacement_units)
                     .m,
                     mode="markers",
@@ -1969,20 +1990,29 @@ class ForcedResponseResults:
             )
             i += 1
 
+        speed_str = Q_(speed, "rad/s").to(frequency_units).m
         fig.update_layout(
             scene=dict(
                 xaxis=dict(title=dict(text=f"Rotor Length ({rotor_length_units})")),
                 yaxis=dict(title=dict(text=f"Amplitude - X ({displacement_units})")),
                 zaxis=dict(title=dict(text=f"Amplitude - Y ({displacement_units})")),
             ),
-            title=dict(text=f"Deflected Shape<br>Speed = {speed}"),
+            title=dict(
+                text=f"Deflected Shape<br>Speed = {speed_str} {frequency_units}"
+            ),
             **kwargs,
         )
 
         return fig
 
     def plot_bending_moment(
-        self, speed, moment_units="N*m", rotor_length_units="m", fig=None, **kwargs
+        self,
+        speed,
+        frequency_units="rad/s",
+        moment_units="N*m",
+        rotor_length_units="m",
+        fig=None,
+        **kwargs,
     ):
         """Plot the bending moment diagram.
 
@@ -1991,12 +2021,17 @@ class ForcedResponseResults:
         speed : float
             The rotor rotation speed. Must be an element from the speed_range argument
             passed to the class.
+        frequency_units : str, optional
+            Frequency units.
+            Default is "rad/s"
         moment_units : str, optional
             Moment units.
             Default is 'N*m'.
         rotor_length_units : str
             Rotor Length units.
             Default is m.
+        fig : Plotly graph_objects.Figure()
+            The figure object with the plot.
         kwargs : optional
             Additional key word arguments can be passed to change the deflected shape
             plot layout only (e.g. width=1000, height=800, ...).
@@ -2007,6 +2042,7 @@ class ForcedResponseResults:
         fig : Plotly graph_objects.Figure()
             The figure object with the plot.
         """
+        speed = Q_(speed, frequency_units).to("rad/s").m
         if not any(np.isclose(self.speed_range, speed, atol=1e-6)):
             raise ValueError("No data available for this speed value.")
 
@@ -2075,6 +2111,7 @@ class ForcedResponseResults:
         self,
         speed,
         samples=101,
+        frequency_units="rad/s",
         displacement_units="m",
         rotor_length_units="m",
         moment_units="N*m",
@@ -2098,6 +2135,9 @@ class ForcedResponseResults:
         samples : int, optional
             Number of samples to generate the orbit for each node.
             Default is 101.
+        frequency_units : str, optional
+            Frequency units.
+            Default is "rad/s"
         displacement_units : str, optional
             Displacement units.
             Default is 'm'.
@@ -2136,15 +2176,17 @@ class ForcedResponseResults:
         bm_kwargs = {} if bm_kwargs is None else copy.copy(bm_kwargs)
         subplot_kwargs = {} if subplot_kwargs is None else copy.copy(subplot_kwargs)
 
+        # fmt: off
         fig0 = self.plot_deflected_shape_2d(
-            speed, displacement_units, rotor_length_units, **shape2d_kwargs
+            speed, frequency_units, displacement_units, rotor_length_units, **shape2d_kwargs
         )
         fig1 = self.plot_deflected_shape_3d(
-            speed, samples, displacement_units, rotor_length_units, **shape3d_kwargs
+            speed, samples, frequency_units, displacement_units, rotor_length_units, **shape3d_kwargs
         )
         fig2 = self.plot_bending_moment(
-            speed, moment_units, rotor_length_units, **bm_kwargs
+            speed, frequency_units, moment_units, rotor_length_units, **bm_kwargs
         )
+        # fmt: on
 
         subplots = make_subplots(
             rows=2, cols=2, specs=[[{}, {"type": "scene", "rowspan": 2}], [{}, None]]
