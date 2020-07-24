@@ -1638,7 +1638,9 @@ class Rotor(object):
         (61,)
 
         plot unbalance response:
-        >>> fig = response.plot(dof=13)
+        >>> probe_node = 3
+        >>> probe_angle = np.pi / 2
+        >>> fig = response.plot(probe=[(probe_node, probe_angle)])
 
         plot deflected shape configuration
         >>> value = 600
