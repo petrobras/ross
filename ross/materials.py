@@ -39,7 +39,7 @@ class Material:
     Poisson : float
         Poisson ratio (dimensionless).
     color : str
-        Can be used on plots.
+        Color that will be used on plots.
 
     Examples
     --------
