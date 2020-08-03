@@ -94,8 +94,8 @@ class Material:
         Examples
         --------
         >>> import ross as rs
-        >>> steel = rs.Material.use_material('Steel')
-        >>> AISI4140 = rs.Material.use_material('AISI4140')
+        >>> steel = rs.Material.load_material('Steel')
+        >>> AISI4140 = rs.Material.load_material('AISI4140')
         >>> steel == AISI4140
         False
         """
@@ -117,7 +117,7 @@ class Material:
         Examples
         --------
         >>> import ross as rs
-        >>> steel = rs.Material.use_material('Steel')
+        >>> steel = rs.Material.load_material('Steel')
         >>> steel # doctest: +ELLIPSIS
         Material(name="Steel", rho=7.81000e+03, G_s=8.12000e+10, E=2.11000e+11, color='#525252')
         """
@@ -141,7 +141,7 @@ class Material:
         Examples
         --------
         >>> import ross as rs
-        >>> print(rs.Material.use_material('Steel'))
+        >>> print(rs.Material.load_material('Steel'))
         Steel
         -----------------------------------
         Density         (kg/m**3): 7810.0
@@ -178,7 +178,7 @@ class Material:
         """Load material properties.
 
         This is an auxiliary function to load all saved materials properties in the
-        use_material method.
+        load_material method.
 
         Returns
         -------
@@ -194,7 +194,7 @@ class Material:
         return data
 
     @staticmethod
-    def use_material(name):
+    def load_material(name):
         """Load a material that is available in the data file.
 
         Returns
@@ -210,7 +210,7 @@ class Material:
         Examples
         --------
         >>> import ross as rs
-        >>> steel = rs.Material.use_material('Steel')
+        >>> steel = rs.Material.load_material('Steel')
         """
         data = Material.get_data()
         try:
@@ -233,7 +233,7 @@ class Material:
         Examples
         --------
         >>> import ross as rs
-        >>> steel = rs.Material.use_material('Steel')
+        >>> steel = rs.Material.load_material('Steel')
         >>> steel.name = 'test_material'
         >>> steel.save_material()
         >>> steel.remove_material('test_material')
@@ -258,7 +258,7 @@ class Material:
         Examples
         --------
         >>> import ross as rs
-        >>> steel = rs.Material.use_material('Steel')
+        >>> steel = rs.Material.load_material('Steel')
         >>> steel.name = 'test_material'
         >>> steel.save_material()
         >>> steel.remove_material('test_material')
