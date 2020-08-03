@@ -2972,13 +2972,13 @@ class TimeResponseResults:
     a single DoF, an orbit response for a single node or display orbit response for all
     nodes.
     The plot type options are:
-        - 1d: plot time response for a given degree of freedom of a rotor system.
+        - 1d: plot time response for given probes.
         - 2d: plot orbit of a selected node of a rotor system.
         - 3d: plot orbits for each node on the rotor system in a 3D view.
 
-    If plot_type = "1d": input a dof.
+    If plot_type = "1d": input probes.
     If plot_type = "2d": input a node.
-    if plot_type = "3d": no need to input a dof or node.
+    if plot_type = "3d": no need to input probes or node.
 
     Parameters
     ----------
@@ -3009,15 +3009,30 @@ class TimeResponseResults:
         self.nodes_pos = nodes_pos
         self.number_dof = number_dof
 
-    def _plot1d(self, dof, displacement_units="m", time_units="s", fig=None, **kwargs):
+    def _plot1d(
+        self,
+        probe,
+        probe_units="rad",
+        displacement_units="m",
+        time_units="s",
+        fig=None,
+        **kwargs
+    ):
         """Plot time response for a single DoF using Plotly.
 
         This function will take a rotor object and plot its time response using Plotly.
 
         Parameters
         ----------
-        dof : int
-            Degree of freedom that will be observed.
+        probe : list of tuples
+            List with tuples (node, orientation angle).
+            node : int
+                indicate the node where the probe is located.
+            orientation : float,
+                probe orientation angle about the shaft. The 0 refers to +X direction.
+        probe_units : str, option
+            Units for probe orientation.
+            Default is "rad".
         displacement_units : str, optional
             Displacement units.
             Default is 'm'.
@@ -3036,35 +3051,44 @@ class TimeResponseResults:
         fig : Plotly graph_objects.Figure()
             The figure object with the plot.
         """
-        if self.number_dof == 4:
-            dof_dict = {"0": "x", "1": "y", "2": "α", "3": "β"}
-
-        if self.number_dof == 6:
-            dof_dict = {"0": "x", "1": "y", "2": "z", "4": "α", "5": "β", "6": "θ"}
-
-        obs_dof = dof % self.number_dof
-        obs_dof = dof_dict[str(obs_dof)]
-
         if fig is None:
             fig = go.Figure()
 
-        fig.add_trace(
-            go.Scatter(
-                x=Q_(self.t, "s").to(time_units).m,
-                y=Q_(self.yout[:, dof], "m").to(displacement_units).m,
-                mode="lines",
-                name="Phase",
-                legendgroup="Phase",
-                showlegend=False,
-                hovertemplate=f"Time ({time_units}): %{{x:.2f}}<br>Amplitude ({displacement_units}): %{{y:.2e}}",
+        for i, p in enumerate(probe):
+            dofx = p[0] * self.number_dof
+            dofy = p[0] * self.number_dof + 1
+            angle = Q_(p[1], probe_units).to("rad").m
+
+            # fmt: off
+            operator = np.array(
+                [[np.cos(angle), - np.sin(angle)],
+                 [np.cos(angle), + np.sin(angle)]]
             )
-        )
+
+            _probe_resp = operator @ np.vstack((self.yout[:, dofx], self.yout[:, dofy]))
+            probe_resp = (
+                _probe_resp[0] * np.cos(angle) ** 2  +
+                _probe_resp[1] * np.sin(angle) ** 2
+            )
+            # fmt: on
+
+            probe_resp = Q_(probe_resp, "m").to(displacement_units).m
+
+            fig.add_trace(
+                go.Scatter(
+                    x=Q_(self.t, "s").to(time_units).m,
+                    y=Q_(probe_resp, "m").to(displacement_units).m,
+                    mode="lines",
+                    name=f"Probe {i + 1}",
+                    legendgroup=f"Probe {i + 1}",
+                    showlegend=True,
+                    hovertemplate=f"Time ({time_units}): %{{x:.2f}}<br>Amplitude ({displacement_units}): %{{y:.2e}}",
+                )
+            )
 
         fig.update_xaxes(title_text=f"Time ({time_units})")
         fig.update_yaxes(title_text=f"Amplitude ({displacement_units})")
-        fig.update_layout(
-            title=dict(text=f"Response for node {dof // 4} - DoF {obs_dof}"), **kwargs
-        )
+        fig.update_layout(**kwargs)
 
         return fig
 
@@ -3202,7 +3226,8 @@ class TimeResponseResults:
     def plot(
         self,
         plot_type="3d",
-        dof=None,
+        probe=None,
+        probe_units="rad",
         node=None,
         displacement_units="m",
         rotor_length_units="m",
@@ -3221,14 +3246,19 @@ class TimeResponseResults:
         ----------
         plot_type: str
             String to select the plot type.
-            - "1d": plot time response for a given degree of freedom of a rotor system.
+            - "1d": plot time response for given probes.
             - "2d": plot orbit of a selected node of a rotor system.
             - "3d": plot orbits for each node on the rotor system in a 3D view.
             Default is 3d.
-        dof : int
-            Degree of freedom that will be observed.
-            Fill this attribute only when selection plot_type = "1d".
-            Default is None.
+        probe : list of tuples
+            List with tuples (node, orientation angle).
+            node : int
+                indicate the node where the probe is located.
+            orientation : float,
+                probe orientation angle about the shaft. The 0 refers to +X direction.
+        probe_units : str, option
+            Units for probe orientation.
+            Default is "rad".
         node: int, optional
             Selected node to plot orbit.
             Fill this attribute only when selection plot_type = "2d".
@@ -3274,8 +3304,11 @@ class TimeResponseResults:
                 raise Exception("Select a valid node to plot 2D orbit")
             return self._plot2d(node, displacement_units, fig, **kwargs)
         elif plot_type == "1d":
-            if dof is None:
-                raise Exception("Select a dof to plot orbit when plot_type == '1d'")
-            return self._plot1d(dof, displacement_units, time_units, fig, **kwargs)
+            if probe is None:
+                raise Exception("Insert a list of probes when plot_type == '1d'")
+            return self._plot1d(
+                probe, probe_units, displacement_units, time_units, fig, **kwargs
+            )
         else:
             raise ValueError(f"{plot_type} is not a valid plot type.")
+
