@@ -154,7 +154,7 @@ class ShaftElement(Element):
             raise AttributeError("Material is not defined.")
 
         if type(material) is str:
-            self.material = Material.use_material(material)
+            self.material = Material.load_material(material)
         else:
             self.material = material
 
@@ -1282,7 +1282,7 @@ class ShaftElement6DoF(ShaftElement):
 
         if type(material) is str:
             # os.chdir(Path(os.path.dirname(ross.__file__)))
-            self.material = Material.use_material(material)
+            self.material = Material.load_material(material)
         else:
             self.material = material
 
