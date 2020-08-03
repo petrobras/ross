@@ -79,7 +79,7 @@ def test_serialization():
     available = Material.available_materials()
     obj1 = Material(name="obj1", rho=92e1, E=281.21, G_s=20e9)
     obj1.save_material()
-    obj2 = Material.use_material("obj1")
+    obj2 = Material.load_material("obj1")
     assert obj1.__dict__ == obj2.__dict__
 
     obj1.remove_material("obj1")
