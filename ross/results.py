@@ -3016,7 +3016,7 @@ class TimeResponseResults:
         displacement_units="m",
         time_units="s",
         fig=None,
-        **kwargs
+        **kwargs,
     ):
         """Plot time response for a single DoF using Plotly.
 
@@ -3311,4 +3311,3 @@ class TimeResponseResults:
             )
         else:
             raise ValueError(f"{plot_type} is not a valid plot type.")
-
