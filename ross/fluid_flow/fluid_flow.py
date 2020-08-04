@@ -278,7 +278,6 @@ class FluidFlow:
         self.geometry_description()
         self.analytical_pressure_matrix_available = False
         self.numerical_pressure_matrix_available = False
-        self.calculate_pressure_matrix_numerical()
         if immediately_calculate_pressure_matrix_numerically:
             self.calculate_pressure_matrix_numerical()
 
@@ -592,13 +591,9 @@ class FluidFlow:
             c1, c2, c0w = self.calculate_coefficients()
         M, f = self.mounting_matrix(c1, c2, c0w)
         P = self.resolves_matrix(M, f)
-        for i in range(self.nz):
-            for j in range(self.ntheta):
-                k = j * self.nz + i
-                if P[k] < 0:
-                    self.p_mat_numerical[i, j] = 0
-                else:
-                    self.p_mat_numerical[i, j] = P[k]
+        self.p_mat_numerical = np.clip(
+            P.reshape((self.ntheta, self.nz)), a_min=0, a_max=None
+        ).T
         self.numerical_pressure_matrix_available = True
         return self.p_mat_numerical
 
