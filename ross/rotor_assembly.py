@@ -2273,17 +2273,18 @@ class Rotor(object):
         >>> speed = 500.0
         >>> size = 1000
         >>> node = 3
-        >>> dof = 13
+        >>> probe1 = (3, 0)
         >>> t = np.linspace(0, 10, size)
         >>> F = np.zeros((size, rotor.ndof))
         >>> F[:, 4 * node] = 10 * np.cos(2 * t)
         >>> F[:, 4 * node + 1] = 10 * np.sin(2 * t)
         >>> response = rotor.run_time_response(speed, F, t)
+        >>> dof = 13
         >>> response.yout[:, dof] # doctest: +ELLIPSIS
         array([ 0.00000000e+00,  1.86686693e-07,  8.39130663e-07, ...
 
         # plot time response for a single DoF:
-        >>> fig1 = response.plot(plot_type="1d", dof=dof)
+        >>> fig1 = response.plot(plot_type="1d", probe=[probe1])
 
         # plot orbit response - plotting 2D nodal orbit:
         >>> fig2 = response.plot(plot_type="2d", node=node)
