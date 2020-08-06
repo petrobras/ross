@@ -2283,14 +2283,14 @@ class Rotor(object):
         >>> response.yout[:, dof] # doctest: +ELLIPSIS
         array([ 0.00000000e+00,  1.86686693e-07,  8.39130663e-07, ...
 
-        # plot time response for a single DoF:
-        >>> fig1 = response.plot(plot_type="1d", probe=[probe1])
+        # plot time response for a given probe:
+        >>> fig1 = response.plot_1d(probe=[probe1])
 
         # plot orbit response - plotting 2D nodal orbit:
-        >>> fig2 = response.plot(plot_type="2d", node=node)
+        >>> fig2 = response.plot_2d(node=node)
 
         # plot orbit response - plotting 3D orbits - full rotor model:
-        >>> fig3 = response.plot(plot_type="3d")
+        >>> fig3 = response.plot_3d()
         """
         t_, yout, xout = self.time_response(speed, F, t)
 
