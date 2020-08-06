@@ -2976,9 +2976,9 @@ class TimeResponseResults:
         - 2d: plot orbit of a selected node of a rotor system.
         - 3d: plot orbits for each node on the rotor system in a 3D view.
 
-    If plot_type = "1d": input probes.
-    If plot_type = "2d": input a node.
-    if plot_type = "3d": no need to input probes or node.
+    plot_1d: input probes.
+    plot_2d: input a node.
+    plot_3d: no need to input probes or node.
 
     Parameters
     ----------
@@ -3009,7 +3009,7 @@ class TimeResponseResults:
         self.nodes_pos = nodes_pos
         self.number_dof = number_dof
 
-    def _plot1d(
+    def plot_1d(
         self,
         probe,
         probe_units="rad",
@@ -3092,7 +3092,7 @@ class TimeResponseResults:
 
         return fig
 
-    def _plot2d(self, node, displacement_units="m", fig=None, **kwargs):
+    def plot_2d(self, node, displacement_units="m", fig=None, **kwargs):
         """Plot orbit response (2D).
 
         This function will take a rotor object and plot its orbit response using Plotly.
@@ -3145,7 +3145,7 @@ class TimeResponseResults:
 
         return fig
 
-    def _plot3d(
+    def plot_3d(
         self, displacement_units="m", rotor_length_units="m", fig=None, **kwargs
     ):
         """Plot orbit response (3D).
@@ -3222,92 +3222,3 @@ class TimeResponseResults:
         )
 
         return fig
-
-    def plot(
-        self,
-        plot_type="3d",
-        probe=None,
-        probe_units="rad",
-        node=None,
-        displacement_units="m",
-        rotor_length_units="m",
-        time_units="s",
-        fig=None,
-        **kwargs,
-    ):
-        """Plot time response.
-
-        The plot type options are:
-            - 1d: plot time response for a given degree of freedom of a rotor system.
-            - 2d: plot orbit of a selected node of a rotor system.
-            - 3d: plot orbits for each node on the rotor system in a 3D view.
-
-        Parameters
-        ----------
-        plot_type: str
-            String to select the plot type.
-            - "1d": plot time response for given probes.
-            - "2d": plot orbit of a selected node of a rotor system.
-            - "3d": plot orbits for each node on the rotor system in a 3D view.
-            Default is 3d.
-        probe : list of tuples
-            List with tuples (node, orientation angle).
-            node : int
-                indicate the node where the probe is located.
-            orientation : float,
-                probe orientation angle about the shaft. The 0 refers to +X direction.
-        probe_units : str, option
-            Units for probe orientation.
-            Default is "rad".
-        node: int, optional
-            Selected node to plot orbit.
-            Fill this attribute only when selection plot_type = "2d".
-            Default is None
-        displacement_units : str, optional
-            Displacement units.
-            Default is 'm'.
-        rotor_length_units : str, optional
-            Rotor length units.
-            Default is 'm'.
-        time_units : str
-            Time units.
-            Default is 's'.
-        fig : Plotly graph_objects.Figure()
-            The figure object with the plot.
-        kwargs : optional
-            Additional key word arguments can be passed to change the plot layout only
-            (e.g. width=1000, height=800, ...).
-            *See Plotly Python Figure Reference for more information.
-
-        Raises
-        ------
-        ValueError
-            Error raised if a non valid string is passed to plot_type.
-        ValueError
-            Error raised if no node is specified or an odd node is passed
-            when plot_type = "2d".
-        ValueError
-            Error raised if no dof is specified or an odd dof is passed
-            when plot_type = "1d".
-
-        Returns
-        -------
-        fig : Plotly graph_objects.Figure()
-            The figure object with the plot.
-        """
-        if plot_type == "3d":
-            return self._plot3d(displacement_units, rotor_length_units, fig, **kwargs)
-        elif plot_type == "2d":
-            if node is None:
-                raise Exception("Select a node to plot orbit when plot_type '2d'")
-            elif node not in self.nodes_list:
-                raise Exception("Select a valid node to plot 2D orbit")
-            return self._plot2d(node, displacement_units, fig, **kwargs)
-        elif plot_type == "1d":
-            if probe is None:
-                raise Exception("Insert a list of probes when plot_type == '1d'")
-            return self._plot1d(
-                probe, probe_units, displacement_units, time_units, fig, **kwargs
-            )
-        else:
-            raise ValueError(f"{plot_type} is not a valid plot type.")
