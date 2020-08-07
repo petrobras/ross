@@ -875,6 +875,39 @@ class Rotor(object):
 
         return K0
 
+    def Kst(self):
+        """Dynamic stiffness matrix for an instance of a rotor.
+
+        Returns
+        -------
+        Kst0 : np.ndarray
+            Dynamic stiffness matrix for the rotor.
+            This matris IS OMEGA dependent
+            Only useable to the 6 DoF model.
+
+        Examples
+        --------
+        >>> rotor = rotor_example()
+        >>> np.round(rotor.K(0)[:4, :4]/1e6)
+        array([[47.,  0.,  0.,  6.],
+               [ 0., 46., -6.,  0.],
+               [ 0., -6.,  1.,  0.],
+               [ 6.,  0.,  0.,  1.]])
+        """
+
+        Kst0 = np.zeros((self.ndof, self.ndof))
+
+        if self.number_dof == 6:
+
+            for elm in self.shaft_elements:
+                dofs = elm.dof_global_index
+                try:
+                    Kst0[np.ix_(dofs, dofs)] += elm.Kst()
+                except TypeError:
+                    Kst0[np.ix_(dofs, dofs)] += elm.Kst()
+
+        return Kst0
+
     def C(self, frequency):
         """Damping matrix for an instance of a rotor.
 
@@ -970,7 +1003,7 @@ class Rotor(object):
         # fmt: off
         A = np.vstack(
             [np.hstack([Z, I]),
-             np.hstack([la.solve(-self.M(), self.K(frequency)), la.solve(-self.M(), (self.C(frequency) + self.G() * speed))])])
+             np.hstack([la.solve(-self.M(), self.K(frequency) + self.Kst()*speed), la.solve(-self.M(), (self.C(frequency) + self.G() * speed))])])
         # fmt: on
 
         return A
