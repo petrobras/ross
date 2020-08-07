@@ -10,5 +10,6 @@ from .point_mass import *
 from .rotor_assembly import *
 from .shaft_element import *
 from .utils import visualize_matrix
+from .defects import *
 
 _pio.templates.default = "ross"
