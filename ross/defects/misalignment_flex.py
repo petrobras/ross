@@ -218,6 +218,13 @@ class MisalignmentFlex(Defect, ABC):
 
 class MisalignmentFlexParallel(MisalignmentFlex):
     def force(self):
+        """[summary]
+
+        Returns
+        -------
+        [type]
+            [description]
+        """
         return self._parallel()
 
 
