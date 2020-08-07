@@ -2308,7 +2308,7 @@ class Rotor(object):
 
         return fig
 
-    def run_time_response(self, speed, F, t):
+    def run_time_response(self, speed, F, t, defect=None):
         """Calculate the time response.
 
         This function will take a rotor object and calculate its time response
@@ -2356,6 +2356,14 @@ class Rotor(object):
         # plot orbit response - plotting 3D orbits - full rotor model:
         >>> fig3 = response.plot_3d()
         """
+
+        if defect is not None:
+            f_defect = defect.force
+            f_n1 = f_defect[:, :6]
+            f_n2 = f_defect[:, 6:]
+            F[:, defect.n1 * 6 : (defect.n1 + 1) * 6] += f_n1
+            F[:, defect.n2 * 6 : (defect.n2 + 1) * 6] += f_n2
+
         t_, yout, xout = self.time_response(speed, F, t)
 
         results = TimeResponseResults(

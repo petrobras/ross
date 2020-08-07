@@ -39,10 +39,9 @@ class MisalignmentFlex(Defect, ABC):
     connected by hexangular flexible coupling. Applied Acoustics, 155, 286-296..
     """
 
-    def __init__(
-        self, TetaV, kd, ks, eCOUPx, eCOUPy, Radius, alpha, TD, TL,
-    ):
-
+    def __init__(self, TetaV, kd, ks, eCOUPx, eCOUPy, Radius, alpha, TD, TL, n1, n2):
+        self.n1 = n1
+        self.n2 = n2
         beta = TetaV[1:]
         self.beta = beta
         # Desalinhamento Paralelo
@@ -159,7 +158,7 @@ class MisalignmentFlex(Defect, ABC):
         F_mis_p[7, 1:] = -Fpy
         F_mis_p[11, 1:] = self.TL
 
-        return F_mis_p
+        return F_mis_p.T
 
     def _angular(self):
         """Reaction forces of angular misalignment
@@ -198,7 +197,7 @@ class MisalignmentFlex(Defect, ABC):
         F_mis_a[7, 1:] = -Fay
         F_mis_a[11, 1:] = self.TL
 
-        return F_mis_a
+        return F_mis_a.T
 
     def _combined(self):
         """Reaction forces of combined (parallel and angular) misalignment
@@ -217,6 +216,7 @@ class MisalignmentFlex(Defect, ABC):
 
 
 class MisalignmentFlexParallel(MisalignmentFlex):
+    @property
     def force(self):
         """[summary]
 
@@ -229,11 +229,13 @@ class MisalignmentFlexParallel(MisalignmentFlex):
 
 
 class MisalignmentFlexAngular(MisalignmentFlex):
+    @property
     def force(self):
         return self._angular()
 
 
 class MisalignmentFlexCombined(MisalignmentFlex):
+    @property
     def force(self):
         return self._combined()
 
