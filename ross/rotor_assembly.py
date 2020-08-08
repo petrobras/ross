@@ -423,7 +423,11 @@ class Rotor(object):
             else:
                 break
 
-        dfb = df[(df.type == "BearingElement") | (df.type == "SealElement")]
+        dfb = df[
+            (df.type == "BearingElement")
+            | (df.type == "BearingElement6DoF")
+            | (df.type == "SealElement")
+        ]
         z_positions = [pos for pos in dfb["nodes_pos_l"]]
         z_positions = list(dict.fromkeys(z_positions))
         for z_pos in z_positions:
@@ -476,7 +480,11 @@ class Rotor(object):
                 y_pos_sup += 2 * mean_od * df["scale_factor"][df.tag == t].values[0]
 
         # define position for point mass elements
-        dfb = df[(df.type == "BearingElement") | (df.type == "SealElement")]
+        dfb = df[
+            (df.type == "BearingElement")
+            | (df.type == "BearingElement6DoF")
+            | (df.type == "SealElement")
+        ]
         for p in point_mass_elements:
             z_pos = dfb[dfb.n_l == p.n]["nodes_pos_l"].values[0]
             y_pos = dfb[dfb.n_l == p.n]["y_pos"].values[0]
