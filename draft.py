@@ -1,5 +1,4 @@
 import numpy as np
-import matplotlib.pyplot as plt
 from ross.defects import (
     MisalignmentFlexAngular,
     MisalignmentFlexParallel,
@@ -7,10 +6,8 @@ from ross.defects import (
 )
 import ross as rs
 
-import plotly.io as pio
-
 dt = 0.001
-t = np.arange(0, 10 + dt, dt)
+t = np.arange(0, 50 + dt, dt)
 
 speedI = 1200
 speedF = 1200
@@ -21,6 +18,7 @@ warF = speedF * np.pi / 30
 
 tI = t[0]
 tF = t[-1]
+print()
 
 Faxial = 0
 TorqueI = 0
@@ -48,6 +46,7 @@ coup = 1  # posicao do acoplamento - para correcao na matriz de rigidez
 kCOUP = 5e5  # k3 - rigidez no acoplamento
 nodeI = 1  # no inicial do acoplamento
 nodeF = 2  # no final do acoplamento
+
 eCOUPx = 2 * 10 ** (-4)  # Distancia de desalinhamento entre os eixos - direcao x
 eCOUPy = 2 * 10 ** (-4)  # Distancia de desalinhamento entre os eixos - direcao z
 kd = 40 * 10 ** (3)  # Rigidez radial do acoplamento flexivel
@@ -64,7 +63,20 @@ Nele = 0
 # teste2 = MisalignmentFlexAngular(TetaV, kd, ks, eCOUPx, eCOUPy, Radius, alpha, TD, TL)
 
 misalignment = MisalignmentFlexCombined(
-    TetaV, kd, ks, eCOUPx, eCOUPy, Radius, alpha, TD, TL, n1=0, n2=1
+    dt=0.0001,
+    tI=0,
+    tF=30,
+    kd=kd,
+    ks=ks,
+    eCOUPx=eCOUPx,
+    eCOUPy=eCOUPy,
+    Radius=Radius,
+    misalignment_angle=alpha,
+    TD=TD,
+    TL=TL,
+    n1=0,
+    n2=1,
+    speedI=1200,
 )
 
 steel = rs.materials.steel
@@ -121,6 +133,8 @@ bearing1 = rs.BearingElement6DoF(
 )
 
 rotor = rs.Rotor(shaft_elem, [disk0, disk1], [bearing0, bearing1])
+rotor.plot_rotor().show()
+
 
 # rotor6.transfer_matrix(speed=1500)
 # camp6 = rotor6.run_campbell(np.linspace(0, 400, 101), frequencies=18)
@@ -138,16 +152,20 @@ probe1 = (14, 0)
 probe2 = (22, 0)
 # t = np.linspace(0, 20, size)
 F = np.zeros((len(t), rotor.ndof))
-# F[:, 6 * node] = 10 * np.cos(2 * t)
-# F[:, 6 * node + 1] = 10 * np.sin(2 * t)
+F[:, 6 * node] = 10 * np.cos(2 * t)
+F[:, 6 * node + 1] = 10 * np.sin(2 * t)
 # response = rotor.run_time_response(speedI * np.pi / 30, F, t, defect=None)
-response = rotor.run_unbalance_response(
-    [12, 24],
-    [100e-06, 130e-06],
-    [-np.pi / 2, -np.pi / 2],
-    frequency=np.arange(0, speedI * np.pi / 30, 0.1),
-)
-
+# response.plot_1d(probe=[probe1, probe2]).show()
+# response = rotor.run_time_response(speedI * np.pi / 30, F, t, defect=misalignment)
+# response.plot_1d(probe=[probe1, probe2]).show()
+# response = rotor.run_unbalance_response(
+#     [12, 24],
+#     [100e-06, 130e-06],
+#     [-np.pi / 2, -np.pi / 2],
+#     frequency=[1200*np.pi/30, 2400*np.pi/30],
+# )
+response = rotor.run_modal(1200 * np.pi / 30)
+response.plot_mode_2d().show()
 # >>> response = rotor.run_unbalance_response(node=3,
 # ...                                         unbalance_magnitude=10.0,
 # ...                                         unbalance_phase=0.0,
@@ -155,7 +173,7 @@ response = rotor.run_unbalance_response(
 # response.yout[:, 77]  # doctest: +ELLIPSIS
 
 # plot time response for a given probe:
-fig1 = response.plot(probe=[probe1, probe2])
+# fig1 = response.plot_magnitude(probe=[probe1, probe2]).show()
 
 # plot orbit response - plotting 2D nodal orbit:
 
@@ -163,7 +181,7 @@ fig1 = response.plot(probe=[probe1, probe2])
 
 # plot orbit response - plotting 3D orbits - full rotor model:
 # fig3 = response.plot_3d()
-pio.show(fig1)
+# pio.show(fig1)
 # pio.show(fig3)
 # pio.show(fig2)
 
