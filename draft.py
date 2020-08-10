@@ -164,8 +164,9 @@ F[:, 6 * node + 1] = 10 * np.sin(2 * t)
 #     [-np.pi / 2, -np.pi / 2],
 #     frequency=[1200*np.pi/30, 2400*np.pi/30],
 # )
-response = rotor.run_modal(1200 * np.pi / 30)
-response.plot_mode_2d().show()
+speed_range = np.arange(0, 1000, 100)
+response = rotor.run_campbell(speed_range)
+response.plot().show()
 # >>> response = rotor.run_unbalance_response(node=3,
 # ...                                         unbalance_magnitude=10.0,
 # ...                                         unbalance_phase=0.0,
