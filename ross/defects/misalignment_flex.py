@@ -26,7 +26,7 @@ class MisalignmentFlex(Defect, ABC):
         Parallel misalignment offset between driving rotor and driven rotor along X direction
     eCOUPz : float
         Parallel misalignment offset between driving rotor and driven rotor along Y direction
-    alpha : float
+    misalignment_angle : float
         Angle of the angular misaligned 
     TD : float
         Driving torque
@@ -39,11 +39,49 @@ class MisalignmentFlex(Defect, ABC):
     connected by hexangular flexible coupling. Applied Acoustics, 155, 286-296..
     """
 
-    def __init__(self, TetaV, kd, ks, eCOUPx, eCOUPy, Radius, alpha, TD, TL, n1, n2):
+    def __init__(self, dt, tI,tF, kd, ks, eCOUPx, eCOUPy, Radius, misalignment_angle, TD, TL, n1, n2, speedI, speed_F=None):
         self.n1 = n1
         self.n2 = n2
-        beta = TetaV[1:]
-        self.beta = beta
+        
+        #
+
+        t = np.arange(tI, tF + dt, dt)
+
+        if speedF is None:
+            speedF = speedI
+
+
+
+        warI = speedI * np.pi / 30
+        warF = speedF * np.pi / 30
+
+        tI = t[0]
+        tF = t[-1]
+        
+        lambdat = 0.00001
+        Faxial = 0
+        TorqueI = 0
+        TorqueF = 0
+
+        sA = (warI * np.exp(-lambdat * tF) - warF * np.exp(-lambdat * tI)) / (
+            np.exp(-lambdat * tF) - np.exp(-lambdat * tI)
+        )
+        sB = (warF - warI) / (np.exp(-lambdat * tF) - np.exp(-lambdat * tI))
+
+        sAT = (TorqueI * np.exp(-lambdat * tF) - TorqueF * np.exp(-lambdat * tI)) / (
+            np.exp(-lambdat * tF) - np.exp(-lambdat * tI)
+        )
+        sBT = (TorqueF - TorqueI) / (np.exp(-lambdat * tF) - np.exp(-lambdat * tI))
+
+        SpeedV = sA + sB * np.exp(-lambdat * t)
+        TorqueV = sAT + sBT * np.exp(-lambdat * t)
+        AccelV = -lambdat * sB * np.exp(-lambdat * t)
+
+        TetaV = sA * t - (sB / lambdat) * np.exp(-lambdat * t) + (sB / lambdat)
+
+        angular_position = TetaV[1:]
+        self.angular_position = angular_position
+
         # Desalinhamento Paralelo
         fib = np.arctan(eCOUPy / eCOUPx)
         self.mi_y = (
@@ -55,11 +93,11 @@ class MisalignmentFlex(Defect, ABC):
                     + 2
                     * Radius
                     * np.sqrt(eCOUPx ** 2 + eCOUPy ** 2)
-                    * np.sin(fib + beta)
+                    * np.sin(fib + angular_position)
                 )
                 - Radius
             )
-            * np.cos(beta)
+            * np.cos(angular_position)
             + (
                 np.sqrt(
                     Radius ** 2
@@ -68,11 +106,11 @@ class MisalignmentFlex(Defect, ABC):
                     + 2
                     * Radius
                     * np.sqrt(eCOUPx ** 2 + eCOUPy ** 2)
-                    * np.cos(np.pi / 6 + fib + beta)
+                    * np.cos(np.pi / 6 + fib + angular_position)
                 )
                 - Radius
             )
-            * np.cos(2 * np.pi / 3 + beta)
+            * np.cos(2 * np.pi / 3 + angular_position)
             + (
                 Radius
                 - np.sqrt(
@@ -82,10 +120,10 @@ class MisalignmentFlex(Defect, ABC):
                     - 2
                     * Radius
                     * np.sqrt(eCOUPx ** 2 + eCOUPy ** 2)
-                    * np.sin(np.pi / 3 + fib + beta)
+                    * np.sin(np.pi / 3 + fib + angular_position)
                 )
             )
-            * np.cos(4 * np.pi / 3 + beta)
+            * np.cos(4 * np.pi / 3 + angular_position)
         )
 
         self.mi_x = (
@@ -97,11 +135,11 @@ class MisalignmentFlex(Defect, ABC):
                     + 2
                     * Radius
                     * np.sqrt(eCOUPx ** 2 + eCOUPy ** 2)
-                    * np.sin(fib + beta)
+                    * np.sin(fib + angular_position)
                 )
                 - Radius
             )
-            * np.sin(beta)
+            * np.sin(angular_position)
             + (
                 np.sqrt(
                     Radius ** 2
@@ -110,11 +148,11 @@ class MisalignmentFlex(Defect, ABC):
                     + 2
                     * Radius
                     * np.sqrt(eCOUPx ** 2 + eCOUPy ** 2)
-                    * np.cos(np.pi / 6 + fib + beta)
+                    * np.cos(np.pi / 6 + fib + angular_position)
                 )
                 - Radius
             )
-            * np.sin(2 * np.pi / 3 + beta)
+            * np.sin(2 * np.pi / 3 + angular_position)
             + (
                 Radius
                 - np.sqrt(
@@ -124,17 +162,17 @@ class MisalignmentFlex(Defect, ABC):
                     - 2
                     * Radius
                     * np.sqrt(eCOUPx ** 2 + eCOUPy ** 2)
-                    * np.sin(np.pi / 3 + fib + beta)
+                    * np.sin(np.pi / 3 + fib + angular_position)
                 )
             )
-            * np.sin(4 * np.pi / 3 + beta)
+            * np.sin(4 * np.pi / 3 + angular_position)
         )
-        self.C = ks * Radius * np.sqrt(2 - 2 * np.cos(alpha))
+        self.C = ks * Radius * np.sqrt(2 - 2 * np.cos(misalignment_angle))
 
         self.kd = kd
         self.TD = TD
         self.TL = TL
-        self.alpha = alpha
+        self.misalignment_angle = misalignment_angle
 
     def _parallel(self):
         """Reaction forces of parallel misalignment
@@ -145,7 +183,7 @@ class MisalignmentFlex(Defect, ABC):
             Excitation force caused by the parallel misalignment for a 6DOFs system with 'n' values of angular position  
         """
 
-        F_mis_p = np.zeros((12, len(self.beta) + 1))
+        F_mis_p = np.zeros((12, len(self.angular_position) + 1))
 
         Fpy = self.kd * self.mi_y
 
@@ -168,26 +206,26 @@ class MisalignmentFlex(Defect, ABC):
         F_mis_a(12,n) : numpy.ndarray
             Excitation force caused by the angular misalignment for a 6DOFs system with 'n' values of angular position 
         """
-        F_mis_a = np.zeros((12, len(self.beta) + 1))
+        F_mis_a = np.zeros((12, len(self.angular_position) + 1))
 
         # Desalinhamento Angular
 
         Fay = (
-            np.abs(self.C * np.sin(self.beta) * np.sin(self.alpha))
-            * np.sin(self.beta + np.pi)
-            + np.abs(self.C * np.sin(self.beta + 2 * np.pi / 3) * np.sin(self.alpha))
-            * np.sin(self.beta + np.pi + 2 * np.pi / 3)
-            + np.abs(self.C * np.sin(self.beta + 4 * np.pi / 3) * np.sin(self.alpha))
-            * np.sin(self.beta + np.pi + 4 * np.pi / 3)
+            np.abs(self.C * np.sin(self.angular_position) * np.sin(self.misalignment_angle))
+            * np.sin(self.angular_position + np.pi)
+            + np.abs(self.C * np.sin(self.angular_position + 2 * np.pi / 3) * np.sin(self.misalignment_angle))
+            * np.sin(self.angular_position + np.pi + 2 * np.pi / 3)
+            + np.abs(self.C * np.sin(self.angular_position + 4 * np.pi / 3) * np.sin(self.misalignment_angle))
+            * np.sin(self.angular_position + np.pi + 4 * np.pi / 3)
         )
 
         Fax = (
-            np.abs(self.C * np.sin(self.beta) * np.sin(self.alpha))
-            * np.cos(self.beta + np.pi)
-            + np.abs(self.C * np.sin(self.beta + 2 * np.pi / 3) * np.sin(self.alpha))
-            * np.cos(self.beta + np.pi + 2 * np.pi / 3)
-            + np.abs(self.C * np.sin(self.beta + 4 * np.pi / 3) * np.sin(self.alpha))
-            * np.cos(self.beta + np.pi + 4 * np.pi / 3)
+            np.abs(self.C * np.sin(self.angular_position) * np.sin(self.misalignment_angle))
+            * np.cos(self.angular_position + np.pi)
+            + np.abs(self.C * np.sin(self.angular_position + 2 * np.pi / 3) * np.sin(self.misalignment_angle))
+            * np.cos(self.angular_position + np.pi + 2 * np.pi / 3)
+            + np.abs(self.C * np.sin(self.angular_position + 4 * np.pi / 3) * np.sin(self.misalignment_angle))
+            * np.cos(self.angular_position + np.pi + 4 * np.pi / 3)
         )
 
         F_mis_a[0, 1:] = -Fax
@@ -238,86 +276,3 @@ class MisalignmentFlexCombined(MisalignmentFlex):
     @property
     def force(self):
         return self._combined()
-
-
-if __name__ == "__main__":
-
-    dt = 0.0001
-
-    time = np.arange(0, 10 + dt, dt)
-    speedI = 1200
-    speedF = 1200
-    lambdat = 0.00001
-
-    warI = speedI * np.pi / 30
-    warF = speedF * np.pi / 30
-
-    tI = time[0]
-    tF = time[-1]
-
-    Faxial = 0
-    TorqueI = 0
-    TorqueF = 0
-
-    sA = (warI * np.exp(-lambdat * tF) - warF * np.exp(-lambdat * tI)) / (
-        np.exp(-lambdat * tF) - np.exp(-lambdat * tI)
-    )
-    sB = (warF - warI) / (np.exp(-lambdat * tF) - np.exp(-lambdat * tI))
-
-    sAT = (TorqueI * np.exp(-lambdat * tF) - TorqueF * np.exp(-lambdat * tI)) / (
-        np.exp(-lambdat * tF) - np.exp(-lambdat * tI)
-    )
-    sBT = (TorqueF - TorqueI) / (np.exp(-lambdat * tF) - np.exp(-lambdat * tI))
-
-    SpeedV = sA + sB * np.exp(-lambdat * time)
-    TorqueV = sAT + sBT * np.exp(-lambdat * time)
-    AccelV = -lambdat * sB * np.exp(-lambdat * time)
-
-    TetaV = sA * time - (sB / lambdat) * np.exp(-lambdat * time) + (sB / lambdat)
-    # TetaV = np.loadtxt("data/angular_position.txt")
-
-    Radius = (1 / 2) * 19 * 1 * 10 ** (-3)
-    coup = 1  # posicao do acoplamento - para correcao na matriz de rigidez
-    kCOUP = 5e5  # k3 - rigidez no acoplamento
-    nodeI = 1  # no inicial do acoplamento
-    nodeF = 2  # no final do acoplamento
-    eCOUPx = 2 * 10 ** (-4)  # Distancia de desalinhamento entre os eixos - direcao x
-    eCOUPy = 2 * 10 ** (-4)  # Distancia de desalinhamento entre os eixos - direcao z
-    kd = 40 * 10 ** (3)  # Rigidez radial do acoplamento flexivel
-    ks = 38 * 10 ** (3)  # Rigidez de flexão do acoplamento flexivel
-    alpha = 5 * np.pi / 180  # Angulo do desalinhamento angular (rad)
-    fib = np.arctan2(eCOUPy, eCOUPx)  # Angulo de rotacao em torno de y;
-    TD = 0  # Torque antes do acoplamento
-    TL = 0  # Torque dopois do acoplamento
-    Nele = 0
-
-    teste1 = MisalignmentFlexParallel(
-        TetaV, kd, ks, eCOUPx, eCOUPy, Radius, alpha, TD, TL
-    )
-    teste2 = MisalignmentFlexAngular(
-        TetaV, kd, ks, eCOUPx, eCOUPy, Radius, alpha, TD, TL
-    )
-    teste3 = MisalignmentFlexCombined(
-        TetaV, kd, ks, eCOUPx, eCOUPy, Radius, alpha, TD, TL
-    )
-
-    # time = np.arange(0, 10 + 0.0001, 0.0001)
-
-    # matlab = np.loadtxt("test_data/combined_forces5.txt")
-    # dt = time[1] - time[0]
-    plt.figure
-    plt.subplot(311)
-    plt.plot(time, teste1.force()[0, ::])
-    plt.title("Fx")
-    plt.xlim([9, 10])
-
-    plt.subplot(312)
-    plt.plot(time, teste2.force()[0, ::])
-    plt.title("Fx")
-    plt.xlim([9, 10])
-    plt.subplot(313)
-    plt.plot(time, teste3.force()[0, ::])
-    plt.title("Fx")
-    plt.xlim([9, 10])
-    plt.show()
-    print(teste1.force())
