@@ -39,10 +39,27 @@ class MisalignmentFlex(Defect, ABC):
     connected by hexangular flexible coupling. Applied Acoustics, 155, 286-296..
     """
 
-    def __init__(self, dt, tI,tF, kd, ks, eCOUPx, eCOUPy, Radius, misalignment_angle, TD, TL, n1, n2, speedI, speed_F=None):
+    def __init__(
+        self,
+        dt,
+        tI,
+        tF,
+        kd,
+        ks,
+        eCOUPx,
+        eCOUPy,
+        Radius,
+        misalignment_angle,
+        TD,
+        TL,
+        n1,
+        n2,
+        speedI,
+        speedF=None,
+    ):
         self.n1 = n1
         self.n2 = n2
-        
+
         #
 
         t = np.arange(tI, tF + dt, dt)
@@ -50,14 +67,12 @@ class MisalignmentFlex(Defect, ABC):
         if speedF is None:
             speedF = speedI
 
-
-
         warI = speedI * np.pi / 30
         warF = speedF * np.pi / 30
 
         tI = t[0]
         tF = t[-1]
-        
+
         lambdat = 0.00001
         Faxial = 0
         TorqueI = 0
@@ -211,20 +226,40 @@ class MisalignmentFlex(Defect, ABC):
         # Desalinhamento Angular
 
         Fay = (
-            np.abs(self.C * np.sin(self.angular_position) * np.sin(self.misalignment_angle))
+            np.abs(
+                self.C * np.sin(self.angular_position) * np.sin(self.misalignment_angle)
+            )
             * np.sin(self.angular_position + np.pi)
-            + np.abs(self.C * np.sin(self.angular_position + 2 * np.pi / 3) * np.sin(self.misalignment_angle))
+            + np.abs(
+                self.C
+                * np.sin(self.angular_position + 2 * np.pi / 3)
+                * np.sin(self.misalignment_angle)
+            )
             * np.sin(self.angular_position + np.pi + 2 * np.pi / 3)
-            + np.abs(self.C * np.sin(self.angular_position + 4 * np.pi / 3) * np.sin(self.misalignment_angle))
+            + np.abs(
+                self.C
+                * np.sin(self.angular_position + 4 * np.pi / 3)
+                * np.sin(self.misalignment_angle)
+            )
             * np.sin(self.angular_position + np.pi + 4 * np.pi / 3)
         )
 
         Fax = (
-            np.abs(self.C * np.sin(self.angular_position) * np.sin(self.misalignment_angle))
+            np.abs(
+                self.C * np.sin(self.angular_position) * np.sin(self.misalignment_angle)
+            )
             * np.cos(self.angular_position + np.pi)
-            + np.abs(self.C * np.sin(self.angular_position + 2 * np.pi / 3) * np.sin(self.misalignment_angle))
+            + np.abs(
+                self.C
+                * np.sin(self.angular_position + 2 * np.pi / 3)
+                * np.sin(self.misalignment_angle)
+            )
             * np.cos(self.angular_position + np.pi + 2 * np.pi / 3)
-            + np.abs(self.C * np.sin(self.angular_position + 4 * np.pi / 3) * np.sin(self.misalignment_angle))
+            + np.abs(
+                self.C
+                * np.sin(self.angular_position + 4 * np.pi / 3)
+                * np.sin(self.misalignment_angle)
+            )
             * np.cos(self.angular_position + np.pi + 4 * np.pi / 3)
         )
 
