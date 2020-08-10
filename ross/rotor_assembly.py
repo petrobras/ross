@@ -1538,8 +1538,8 @@ class Rotor(object):
         array([0.000e+00+0.j, 1.000e+03+0.j, 4.000e+03+0.j, ...
         """
         F0 = np.zeros((self.ndof, len(omega)), dtype=np.complex128)
-        
-        b0 = np.zeros(self.number_dof)
+
+        b0 = np.zeros((self.number_dof), dtype=np.complex128)
         b0[0] = magnitude * np.exp(1j * phase)
         b0[1] = -1j * magnitude * np.exp(1j * phase)
         # b0[2] 1j*(Id - Ip)*beta*np.exp(1j*gamma)
