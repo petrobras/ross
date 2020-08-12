@@ -3,7 +3,6 @@ from plotly import io as _pio
 
 import ross.plotly_theme
 
-from .api_report import *
 from .bearing_seal_element import *
 from .disk_element import *
 from .materials import *
