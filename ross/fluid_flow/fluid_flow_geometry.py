@@ -1,4 +1,5 @@
 import numpy as np
+from scipy.optimize import root
 
 
 def calculate_attitude_angle(eccentricity_ratio):
@@ -232,10 +233,40 @@ def calculate_eccentricity_ratio(modified_s):
         -(4 + (np.pi ** 2) * (modified_s ** 2)),
         1,
     ]
-    roots = np.roots(coefficients)
-    for i in range(0, len(roots)):
-        if 0 <= roots[i] <= 1:
-            return np.sqrt(roots[i].real)
+    roots = list(np.roots(coefficients))
+    roots2 = roots.copy()
+    for i in roots2:
+        if not np.isreal(i):
+            roots.remove(i)
+    del roots2
+
+    roots.sort()
+    for i in range(len(roots)):
+        roots[i] = roots[i].real
+
+    def f(x):
+        """Fourth degree polynomial whose root is the square of the eccentricity ratio.
+        Parameters
+        ----------
+        x: float
+            Fourth degree polynomial coefficients.
+        Returns
+        -------
+        float
+            Polynomial value f at x."""
+        c = coefficients
+        return (
+            c[0] * x ** 4
+            + c[1] * x ** 3
+            + c[2] * x ** 2
+            + c[3] * x ** 1
+            + c[4] * x ** 0
+        )
+
+    for i in roots:
+        if 0 <= i <= 1:
+            roots = root(f, i, tol=1e-10).x[0]
+            return np.sqrt(roots)
     raise ValueError("Eccentricity ratio could not be calculated.")
 
 
