@@ -423,7 +423,11 @@ class Rotor(object):
             else:
                 break
 
-        dfb = df[(df.type == "BearingElement") | (df.type == "SealElement")]
+        dfb = df[
+            (df.type == "BearingElement")
+            | (df.type == "BearingElement6DoF")
+            | (df.type == "SealElement")
+        ]
         z_positions = [pos for pos in dfb["nodes_pos_l"]]
         z_positions = list(dict.fromkeys(z_positions))
         for z_pos in z_positions:
@@ -476,7 +480,11 @@ class Rotor(object):
                 y_pos_sup += 2 * mean_od * df["scale_factor"][df.tag == t].values[0]
 
         # define position for point mass elements
-        dfb = df[(df.type == "BearingElement") | (df.type == "SealElement")]
+        dfb = df[
+            (df.type == "BearingElement")
+            | (df.type == "BearingElement6DoF")
+            | (df.type == "SealElement")
+        ]
         for p in point_mass_elements:
             z_pos = dfb[dfb.n_l == p.n]["nodes_pos_l"].values[0]
             y_pos = dfb[dfb.n_l == p.n]["y_pos"].values[0]
@@ -1530,14 +1538,11 @@ class Rotor(object):
         array([0.000e+00+0.j, 1.000e+03+0.j, 4.000e+03+0.j, ...
         """
         F0 = np.zeros((self.ndof, len(omega)), dtype=np.complex128)
-        b0 = np.array(
-            [
-                magnitude * np.exp(1j * phase),
-                -1j * magnitude * np.exp(1j * phase),
-                0,  # 1j*(Id - Ip)*beta*np.exp(1j*gamma),
-                0,
-            ]
-        )  # (Id - Ip)*beta*np.exp(1j*gamma)])
+
+        b0 = np.zeros((self.number_dof), dtype=np.complex128)
+        b0[0] = magnitude * np.exp(1j * phase)
+        b0[1] = -1j * magnitude * np.exp(1j * phase)
+        # b0[2] 1j*(Id - Ip)*beta*np.exp(1j*gamma)
 
         n0 = self.number_dof * node
         n1 = n0 + self.number_dof
@@ -1638,7 +1643,9 @@ class Rotor(object):
         (61,)
 
         plot unbalance response:
-        >>> fig = response.plot(dof=13)
+        >>> probe_node = 3
+        >>> probe_angle = np.pi / 2
+        >>> fig = response.plot(probe=[(probe_node, probe_angle)])
 
         plot deflected shape configuration
         >>> value = 600
@@ -2271,23 +2278,24 @@ class Rotor(object):
         >>> speed = 500.0
         >>> size = 1000
         >>> node = 3
-        >>> dof = 13
+        >>> probe1 = (3, 0)
         >>> t = np.linspace(0, 10, size)
         >>> F = np.zeros((size, rotor.ndof))
         >>> F[:, 4 * node] = 10 * np.cos(2 * t)
         >>> F[:, 4 * node + 1] = 10 * np.sin(2 * t)
         >>> response = rotor.run_time_response(speed, F, t)
+        >>> dof = 13
         >>> response.yout[:, dof] # doctest: +ELLIPSIS
         array([ 0.00000000e+00,  1.86686693e-07,  8.39130663e-07, ...
 
-        # plot time response for a single DoF:
-        >>> fig1 = response.plot(plot_type="1d", dof=dof)
+        # plot time response for a given probe:
+        >>> fig1 = response.plot_1d(probe=[probe1])
 
         # plot orbit response - plotting 2D nodal orbit:
-        >>> fig2 = response.plot(plot_type="2d", node=node)
+        >>> fig2 = response.plot_2d(node=node)
 
         # plot orbit response - plotting 3D orbits - full rotor model:
-        >>> fig3 = response.plot(plot_type="3d")
+        >>> fig3 = response.plot_3d()
         """
         t_, yout, xout = self.time_response(speed, F, t)
 

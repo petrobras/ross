@@ -1254,14 +1254,27 @@ class ForcedResponseResults:
         self.unbalance = unbalance
 
     def plot_magnitude(
-        self, dof, frequency_units="rad/s", amplitude_units="m", fig=None, **kwargs
+        self,
+        probe,
+        probe_units="rad",
+        frequency_units="rad/s",
+        amplitude_units="m",
+        fig=None,
+        **kwargs,
     ):
         """Plot forced response (magnitude) using Plotly.
 
         Parameters
         ----------
-        dof : int
-            Degree of freedom.
+        probe : list of tuples
+            List with tuples (node, orientation angle).
+            node : int
+                indicate the node where the probe is located.
+            orientation : float,
+                probe orientation angle about the shaft. The 0 refers to +X direction.
+        probe_units : str, option
+            Units for probe orientation.
+            Default is "rad".
         frequency_units : str, optional
             Units for the x axis.
             Default is "rad/s"
@@ -1280,27 +1293,43 @@ class ForcedResponseResults:
         fig : Plotly graph_objects.Figure()
             The figure object with the plot.
         """
-        frequency_range = self.speed_range
-        mag = self.magnitude
-
-        frequency_range = Q_(frequency_range, "rad/s").to(frequency_units).m
-        mag = Q_(mag, "m").to(amplitude_units).m
+        frequency_range = Q_(self.speed_range, "rad/s").to(frequency_units).m
+        magnitude = self.magnitude
+        number_dof = self.rotor.number_dof
 
         if fig is None:
             fig = go.Figure()
 
-        fig.add_trace(
-            go.Scatter(
-                x=frequency_range,
-                y=mag[dof],
-                mode="lines",
-                line=dict(color=tableau_colors["blue"]),
-                name="Amplitude",
-                legendgroup="Amplitude",
-                showlegend=False,
-                hovertemplate=f"Frequency ({frequency_units}): %{{x:.2f}}<br>Amplitude ({amplitude_units}): %{{y:.2e}}",
+        for i, p in enumerate(probe):
+            dofx = p[0] * number_dof
+            dofy = p[0] * number_dof + 1
+            angle = Q_(p[1], probe_units).to("rad").m
+
+            # fmt: off
+            operator = np.array(
+                [[np.cos(angle), - np.sin(angle)],
+                 [np.cos(angle), + np.sin(angle)]]
             )
-        )
+
+            probe_resp = operator @ np.vstack((magnitude[dofx], magnitude[dofy]))
+            z = np.sqrt((probe_resp[0] * np.cos(angle)) ** 2 +
+                        (probe_resp[1] * np.sin(angle)) ** 2)
+            # fmt: on
+
+            z = Q_(z, "m").to(amplitude_units).m
+
+            fig.add_trace(
+                go.Scatter(
+                    x=frequency_range,
+                    y=z,
+                    mode="lines",
+                    line=dict(color=list(tableau_colors)[i]),
+                    name=f"Probe {i + 1}",
+                    legendgroup=f"Probe {i + 1}",
+                    showlegend=True,
+                    hovertemplate=f"Frequency ({frequency_units}): %{{x:.2f}}<br>Amplitude ({amplitude_units}): %{{y:.2e}}",
+                )
+            )
 
         fig.update_xaxes(
             title_text=f"Frequency ({frequency_units})",
@@ -1314,14 +1343,27 @@ class ForcedResponseResults:
         return fig
 
     def plot_phase(
-        self, dof, frequency_units="rad/s", phase_units="rad", fig=None, **kwargs
+        self,
+        probe,
+        probe_units="rad",
+        frequency_units="rad/s",
+        phase_units="rad",
+        fig=None,
+        **kwargs,
     ):
         """Plot forced response (phase) using Plotly.
 
         Parameters
         ----------
-        dof : int
-            Degree of freedom.
+        probe : list of tuples
+            List with tuples (node, orientation angle).
+            node : int
+                indicate the node where the probe is located.
+            orientation : float,
+                probe orientation angle about the shaft. The 0 refers to +X direction.
+        probe_units : str, option
+            Units for probe orientation.
+            Default is "rad".
         frequency_units : str, optional
             Units for the x axis.
             Default is "rad/s"
@@ -1341,28 +1383,36 @@ class ForcedResponseResults:
             The figure object with the plot.
         """
         frequency_range = Q_(self.speed_range, "rad/s").to(frequency_units).m
-        phase = Q_(self.phase[dof], "rad").to(phase_units).m
-
-        if phase_units in ["rad", "radian", "radians"]:
-            phase = [i + 2 * np.pi if i < 0 else i for i in phase]
-        else:
-            phase = [i + 360 if i < 0 else i for i in phase]
+        number_dof = self.rotor.number_dof
 
         if fig is None:
             fig = go.Figure()
 
-        fig.add_trace(
-            go.Scatter(
-                x=frequency_range,
-                y=phase,
-                mode="lines",
-                line=dict(color=tableau_colors["blue"]),
-                name="Phase",
-                legendgroup="Phase",
-                showlegend=False,
-                hovertemplate=f"Frequency ({frequency_units}): %{{x:.2f}}<br>Phase ({phase_units}): %{{y:.2e}}",
+        for i, p in enumerate(probe):
+            probe_phase = Q_(self.phase[p[0] * number_dof], "rad").to(phase_units).m
+
+            if phase_units in ["rad", "radian", "radians"]:
+                probe_phase = np.array(
+                    [i + 2 * np.pi if i < 0 else i for i in probe_phase]
+                )
+            else:
+                probe_phase = np.array([i + 360 if i < 0 else i for i in probe_phase])
+
+            angle = Q_(p[1], probe_units).to(phase_units).m
+            probe_phase = probe_phase - angle
+
+            fig.add_trace(
+                go.Scatter(
+                    x=frequency_range,
+                    y=probe_phase,
+                    mode="lines",
+                    line=dict(color=list(tableau_colors)[i]),
+                    name=f"Probe {i + 1}",
+                    legendgroup=f"Probe {i + 1}",
+                    showlegend=True,
+                    hovertemplate=f"Frequency ({frequency_units}): %{{x:.2f}}<br>Phase ({phase_units}): %{{y:.2e}}",
+                )
             )
-        )
 
         fig.update_xaxes(
             title_text=f"Frequency ({frequency_units})",
@@ -1375,7 +1425,8 @@ class ForcedResponseResults:
 
     def plot_polar_bode(
         self,
-        dof,
+        probe,
+        probe_units="rad",
         frequency_units="rad/s",
         amplitude_units="m",
         phase_units="rad",
@@ -1386,8 +1437,15 @@ class ForcedResponseResults:
 
         Parameters
         ----------
-        dof : int
-            Degree of freedom.
+        probe : list of tuples
+            List with tuples (node, orientation angle).
+            node : int
+                indicate the node where the probe is located.
+            orientation : float,
+                probe orientation angle about the shaft. The 0 refers to +X direction.
+        probe_units : str, option
+            Units for probe orientation.
+            Default is "rad".
         frequency_units : str, optional
             Units for the x axis.
             Default is "rad/s"
@@ -1410,34 +1468,57 @@ class ForcedResponseResults:
             The figure object with the plot.
         """
         frequency_range = Q_(self.speed_range, "rad/s").to(frequency_units).m
-        mag = Q_(self.magnitude[dof], "m").to(amplitude_units).m
-        phase = Q_(self.phase[dof], "rad").to(phase_units).m
+        number_dof = self.rotor.number_dof
 
         if fig is None:
             fig = go.Figure()
 
-        if phase_units in ["rad", "radian", "radians"]:
-            polar_theta_unit = "radians"
-            phase = [i + 2 * np.pi if i < 0 else i for i in phase]
-        else:
-            polar_theta_unit = "degrees"
-            phase = [i + 360 if i < 0 else i for i in phase]
+        for i, p in enumerate(probe):
+            dofx = p[0] * number_dof
+            dofy = p[0] * number_dof + 1
+            angle = Q_(p[1], probe_units).to("rad").m
 
-        fig.add_trace(
-            go.Scatterpolar(
-                r=mag,
-                theta=phase,
-                customdata=frequency_range,
-                thetaunit=polar_theta_unit,
-                mode="lines+markers",
-                marker=dict(color=tableau_colors["blue"]),
-                line=dict(color=tableau_colors["blue"]),
-                name="Polar_plot",
-                legendgroup="Polar",
-                showlegend=False,
-                hovertemplate=f"Amplitude ({amplitude_units}): %{{r:.2e}}<br>Phase: %{{theta:.2f}}<br>Frequency ({frequency_units}): %{{customdata:.2f}}",
+            # fmt: off
+            operator = np.array([
+                [np.cos(angle), - np.sin(angle)],
+                [np.cos(angle), + np.sin(angle)],
+            ])
+            # fmt: on
+
+            resp = operator @ np.vstack((self.magnitude[dofx], self.magnitude[dofy]))
+            probe_mag = (
+                (resp[0] * np.cos(angle)) ** 2 + (resp[1] * np.sin(angle)) ** 2
+            ) ** 0.5
+
+            probe_mag = Q_(probe_mag, "m").to(amplitude_units).m
+
+            phase = Q_(self.phase[p[0] * number_dof], "rad").to(phase_units).m
+
+            if phase_units in ["rad", "radian", "radians"]:
+                polar_theta_unit = "radians"
+                phase = np.array([i + 2 * np.pi if i < 0 else i for i in phase])
+            else:
+                phase = np.array([i + 360 if i < 0 else i for i in phase])
+                polar_theta_unit = "degrees"
+
+            angle = Q_(p[1], probe_units).to(phase_units).m
+            phase = phase - angle
+
+            fig.add_trace(
+                go.Scatterpolar(
+                    r=probe_mag,
+                    theta=phase,
+                    customdata=frequency_range,
+                    thetaunit=polar_theta_unit,
+                    mode="lines+markers",
+                    marker=dict(color=list(tableau_colors)[i]),
+                    line=dict(color=list(tableau_colors)[i]),
+                    name=f"Probe {i + 1}",
+                    legendgroup=f"Probe {i + 1}",
+                    showlegend=True,
+                    hovertemplate=f"Amplitude ({amplitude_units}): %{{r:.2e}}<br>Phase: %{{theta:.2f}}<br>Frequency ({frequency_units}): %{{customdata:.2f}}",
+                )
             )
-        )
 
         fig.update_layout(
             polar=dict(
@@ -1454,7 +1535,8 @@ class ForcedResponseResults:
 
     def plot(
         self,
-        dof,
+        probe,
+        probe_units="rad",
         frequency_units="rad/s",
         amplitude_units="m",
         phase_units="rad",
@@ -1472,8 +1554,15 @@ class ForcedResponseResults:
 
         Parameters
         ----------
-        dof : int
-            Degree of freedom.
+        probe : list of tuples
+            List with tuples (node, orientation angle).
+            node : int
+                indicate the node where the probe is located.
+            orientation : float,
+                probe orientation angle about the shaft. The 0 refers to +X direction.
+        probe_units : str, option
+            Units for probe orientation.
+            Default is "rad".
         frequency_units : str, optional
             Frequency units.
             Default is "rad/s"
@@ -1512,18 +1601,26 @@ class ForcedResponseResults:
         polar_kwargs = {} if polar_kwargs is None else copy.copy(polar_kwargs)
         subplot_kwargs = {} if subplot_kwargs is None else copy.copy(subplot_kwargs)
 
-        fig0 = self.plot_magnitude(dof, frequency_units, amplitude_units, **mag_kwargs)
-        fig1 = self.plot_phase(dof, frequency_units, phase_units, **phase_kwargs)
-        fig2 = self.plot_polar_bode(
-            dof, frequency_units, amplitude_units, phase_units, **polar_kwargs
+        # fmt: off
+        fig0 = self.plot_magnitude(
+            probe, probe_units, frequency_units, amplitude_units, **mag_kwargs
         )
+        fig1 = self.plot_phase(
+            probe, probe_units, frequency_units, phase_units, **phase_kwargs
+        )
+        fig2 = self.plot_polar_bode(
+            probe, probe_units, frequency_units, amplitude_units, phase_units, **polar_kwargs
+        )
+        # fmt: on
 
         subplots = make_subplots(
             rows=2, cols=2, specs=[[{}, {"type": "polar", "rowspan": 2}], [{}, None]]
         )
         for data in fig0["data"]:
+            data.showlegend = False
             subplots.add_trace(data, row=1, col=1)
         for data in fig1["data"]:
+            data.showlegend = False
             subplots.add_trace(data, row=2, col=1)
         for data in fig2["data"]:
             subplots.add_trace(data, row=1, col=2)
@@ -1542,13 +1639,16 @@ class ForcedResponseResults:
 
         return subplots
 
-    def _calculate_major_axis(self, speed):
+    def _calculate_major_axis(self, speed, frequency_units="rad/s"):
         """Calculate the major axis for each nodal orbit.
 
         Parameters
         ----------
         speed : optional, float
             The rotor rotation speed.
+        frequency_units : str, optional
+            Frequency units.
+            Default is "rad/s"
 
         Returns
         -------
@@ -1563,6 +1663,7 @@ class ForcedResponseResults:
         nodes = self.rotor.nodes
         number_dof = self.rotor.number_dof
 
+        speed = Q_(speed, frequency_units).to("rad/s").m
         major_axis_vector = np.zeros((5, len(nodes)), dtype=complex)
         idx = np.where(np.isclose(self.speed_range, speed, atol=1e-6))[0][0]
 
@@ -1608,15 +1709,12 @@ class ForcedResponseResults:
             major_axis_vector[0] * np.exp(1j * max_major_axis_angle) +
             major_axis_vector[1] * np.exp(-1j * max_major_axis_angle)
         )
-        major_axis_vector[4] = (
-            np.real(major_axis_vector[3]) ** 2 +
-            np.imag(major_axis_vector[3]) ** 2
-        ) ** 0.5
+        major_axis_vector[4] = np.abs(major_axis_vector[3])
         # fmt: on
 
         return major_axis_vector
 
-    def _calculate_bending_moment(self, speed):
+    def _calculate_bending_moment(self, speed, frequency_units="rad/s"):
         """Calculate the bending moment in X and Y directions.
 
         This method calculate forces and moments on nodal positions for a deflected
@@ -1626,6 +1724,9 @@ class ForcedResponseResults:
         ----------
         speed : float
             The rotor rotation speed.
+        frequency_units : str, optional
+            Frequency units.
+            Default is "rad/s"
 
         Returns
         -------
@@ -1634,6 +1735,7 @@ class ForcedResponseResults:
         My : array
             Bending Moment on Y directon.
         """
+        speed = Q_(speed, frequency_units).to("rad/s").m
         idx = np.where(np.isclose(self.speed_range, speed, atol=1e-6))[0][0]
         mag = self.magnitude[:, idx]
         phase = self.phase[:, idx]
@@ -1652,7 +1754,13 @@ class ForcedResponseResults:
         return Mx, My
 
     def plot_deflected_shape_2d(
-        self, speed, displacement_units="m", rotor_length_units="m", fig=None, **kwargs
+        self,
+        speed,
+        frequency_units="rad/s",
+        displacement_units="m",
+        rotor_length_units="m",
+        fig=None,
+        **kwargs,
     ):
         """Plot the 2D deflected shape diagram.
 
@@ -1661,6 +1769,9 @@ class ForcedResponseResults:
         speed : float
             The rotor rotation speed. Must be an element from the speed_range argument
             passed to the class.
+        frequency_units : str, optional
+            Frequency units.
+            Default is "rad/s"
         displacement_units : str, optional
             Displacement units.
             Default is 'm'.
@@ -1679,6 +1790,7 @@ class ForcedResponseResults:
         fig : Plotly graph_objects.Figure()
             The figure object with the plot.
         """
+        speed = Q_(speed, frequency_units).to("rad/s").m
         if not any(np.isclose(self.speed_range, speed, atol=1e-6)):
             raise ValueError("No data available for this speed value.")
 
@@ -1688,6 +1800,7 @@ class ForcedResponseResults:
 
         if fig is None:
             fig = go.Figure()
+
         fig.add_trace(
             go.Scatter(
                 x=nodes_pos,
@@ -1723,6 +1836,7 @@ class ForcedResponseResults:
         self,
         speed,
         samples=101,
+        frequency_units="rad/s",
         displacement_units="m",
         rotor_length_units="m",
         fig=None,
@@ -1738,6 +1852,9 @@ class ForcedResponseResults:
         samples : int, optional
             Number of samples to generate the orbit for each node.
             Default is 101.
+        frequency_units : str, optional
+            Frequency units.
+            Default is "rad/s"
         displacement_units : str, optional
             Displacement units.
             Default is 'm'.
@@ -1756,6 +1873,7 @@ class ForcedResponseResults:
         fig : Plotly graph_objects.Figure()
             The figure object with the plot.
         """
+        speed = Q_(speed, frequency_units).to("rad/s").m
         if not any(np.isclose(self.speed_range, speed, atol=1e-6)):
             raise ValueError("No data available for this speed value.")
 
@@ -1769,11 +1887,11 @@ class ForcedResponseResults:
 
         # orbit of a single revolution
         t = np.linspace(0, 2 * np.pi / speed, samples)
-
         x_pos = np.repeat(nodes_pos, t.size).reshape(len(nodes_pos), t.size)
 
         if fig is None:
             fig = go.Figure()
+
         for i, n in enumerate(nodes):
             dofx = number_dof * n
             dofy = number_dof * n + 1
@@ -1799,7 +1917,7 @@ class ForcedResponseResults:
             )
 
         # plot major axis
-        maj_vect = self._calculate_major_axis(speed=speed)
+        maj_vect = self._calculate_major_axis(speed)
 
         fig.add_trace(
             go.Scatter3d(
@@ -1838,10 +1956,10 @@ class ForcedResponseResults:
             fig.add_trace(
                 go.Scatter3d(
                     x=[x_pos[int(n), 0], x_pos[int(n), 0]],
-                    y=Q_([0, np.amax(np.real(maj_vect[4])) / 2 * np.cos(p)], "m")
+                    y=Q_([0, np.amax(np.abs(maj_vect[4])) / 2 * np.cos(p)], "m")
                     .to(displacement_units)
                     .m,
-                    z=Q_([0, np.amax(np.real(maj_vect[4])) / 2 * np.sin(p)], "m")
+                    z=Q_([0, np.amax(np.abs(maj_vect[4])) / 2 * np.sin(p)], "m")
                     .to(displacement_units)
                     .m,
                     mode="lines",
@@ -1854,10 +1972,10 @@ class ForcedResponseResults:
             fig.add_trace(
                 go.Scatter3d(
                     x=[x_pos[int(n), 0]],
-                    y=Q_([np.amax(np.real(maj_vect[4])) / 2 * np.cos(p)], "m")
+                    y=Q_([np.amax(np.abs(maj_vect[4])) / 2 * np.cos(p)], "m")
                     .to(displacement_units)
                     .m,
-                    z=Q_([np.amax(np.real(maj_vect[4])) / 2 * np.sin(p)], "m")
+                    z=Q_([np.amax(np.abs(maj_vect[4])) / 2 * np.sin(p)], "m")
                     .to(displacement_units)
                     .m,
                     mode="markers",
@@ -1872,20 +1990,29 @@ class ForcedResponseResults:
             )
             i += 1
 
+        speed_str = Q_(speed, "rad/s").to(frequency_units).m
         fig.update_layout(
             scene=dict(
                 xaxis=dict(title=dict(text=f"Rotor Length ({rotor_length_units})")),
                 yaxis=dict(title=dict(text=f"Amplitude - X ({displacement_units})")),
                 zaxis=dict(title=dict(text=f"Amplitude - Y ({displacement_units})")),
             ),
-            title=dict(text=f"Deflected Shape<br>Speed = {speed}"),
+            title=dict(
+                text=f"Deflected Shape<br>Speed = {speed_str} {frequency_units}"
+            ),
             **kwargs,
         )
 
         return fig
 
     def plot_bending_moment(
-        self, speed, moment_units="N*m", rotor_length_units="m", fig=None, **kwargs
+        self,
+        speed,
+        frequency_units="rad/s",
+        moment_units="N*m",
+        rotor_length_units="m",
+        fig=None,
+        **kwargs,
     ):
         """Plot the bending moment diagram.
 
@@ -1894,12 +2021,17 @@ class ForcedResponseResults:
         speed : float
             The rotor rotation speed. Must be an element from the speed_range argument
             passed to the class.
+        frequency_units : str, optional
+            Frequency units.
+            Default is "rad/s"
         moment_units : str, optional
             Moment units.
             Default is 'N*m'.
         rotor_length_units : str
             Rotor Length units.
             Default is m.
+        fig : Plotly graph_objects.Figure()
+            The figure object with the plot.
         kwargs : optional
             Additional key word arguments can be passed to change the deflected shape
             plot layout only (e.g. width=1000, height=800, ...).
@@ -1910,6 +2042,7 @@ class ForcedResponseResults:
         fig : Plotly graph_objects.Figure()
             The figure object with the plot.
         """
+        speed = Q_(speed, frequency_units).to("rad/s").m
         if not any(np.isclose(self.speed_range, speed, atol=1e-6)):
             raise ValueError("No data available for this speed value.")
 
@@ -1978,6 +2111,7 @@ class ForcedResponseResults:
         self,
         speed,
         samples=101,
+        frequency_units="rad/s",
         displacement_units="m",
         rotor_length_units="m",
         moment_units="N*m",
@@ -2001,6 +2135,9 @@ class ForcedResponseResults:
         samples : int, optional
             Number of samples to generate the orbit for each node.
             Default is 101.
+        frequency_units : str, optional
+            Frequency units.
+            Default is "rad/s"
         displacement_units : str, optional
             Displacement units.
             Default is 'm'.
@@ -2039,15 +2176,17 @@ class ForcedResponseResults:
         bm_kwargs = {} if bm_kwargs is None else copy.copy(bm_kwargs)
         subplot_kwargs = {} if subplot_kwargs is None else copy.copy(subplot_kwargs)
 
+        # fmt: off
         fig0 = self.plot_deflected_shape_2d(
-            speed, displacement_units, rotor_length_units, **shape2d_kwargs
+            speed, frequency_units, displacement_units, rotor_length_units, **shape2d_kwargs
         )
         fig1 = self.plot_deflected_shape_3d(
-            speed, samples, displacement_units, rotor_length_units, **shape3d_kwargs
+            speed, samples, frequency_units, displacement_units, rotor_length_units, **shape3d_kwargs
         )
         fig2 = self.plot_bending_moment(
-            speed, moment_units, rotor_length_units, **bm_kwargs
+            speed, frequency_units, moment_units, rotor_length_units, **bm_kwargs
         )
+        # fmt: on
 
         subplots = make_subplots(
             rows=2, cols=2, specs=[[{}, {"type": "scene", "rowspan": 2}], [{}, None]]
@@ -2833,13 +2972,13 @@ class TimeResponseResults:
     a single DoF, an orbit response for a single node or display orbit response for all
     nodes.
     The plot type options are:
-        - 1d: plot time response for a given degree of freedom of a rotor system.
+        - 1d: plot time response for given probes.
         - 2d: plot orbit of a selected node of a rotor system.
         - 3d: plot orbits for each node on the rotor system in a 3D view.
 
-    If plot_type = "1d": input a dof.
-    If plot_type = "2d": input a node.
-    if plot_type = "3d": no need to input a dof or node.
+    plot_1d: input probes.
+    plot_2d: input a node.
+    plot_3d: no need to input probes or node.
 
     Parameters
     ----------
@@ -2870,15 +3009,30 @@ class TimeResponseResults:
         self.nodes_pos = nodes_pos
         self.number_dof = number_dof
 
-    def _plot1d(self, dof, displacement_units="m", time_units="s", fig=None, **kwargs):
+    def plot_1d(
+        self,
+        probe,
+        probe_units="rad",
+        displacement_units="m",
+        time_units="s",
+        fig=None,
+        **kwargs,
+    ):
         """Plot time response for a single DoF using Plotly.
 
         This function will take a rotor object and plot its time response using Plotly.
 
         Parameters
         ----------
-        dof : int
-            Degree of freedom that will be observed.
+        probe : list of tuples
+            List with tuples (node, orientation angle).
+            node : int
+                indicate the node where the probe is located.
+            orientation : float,
+                probe orientation angle about the shaft. The 0 refers to +X direction.
+        probe_units : str, option
+            Units for probe orientation.
+            Default is "rad".
         displacement_units : str, optional
             Displacement units.
             Default is 'm'.
@@ -2897,39 +3051,48 @@ class TimeResponseResults:
         fig : Plotly graph_objects.Figure()
             The figure object with the plot.
         """
-        if self.number_dof == 4:
-            dof_dict = {"0": "x", "1": "y", "2": "α", "3": "β"}
-
-        if self.number_dof == 6:
-            dof_dict = {"0": "x", "1": "y", "2": "z", "4": "α", "5": "β", "6": "θ"}
-
-        obs_dof = dof % self.number_dof
-        obs_dof = dof_dict[str(obs_dof)]
-
         if fig is None:
             fig = go.Figure()
 
-        fig.add_trace(
-            go.Scatter(
-                x=Q_(self.t, "s").to(time_units).m,
-                y=Q_(self.yout[:, dof], "m").to(displacement_units).m,
-                mode="lines",
-                name="Phase",
-                legendgroup="Phase",
-                showlegend=False,
-                hovertemplate=f"Time ({time_units}): %{{x:.2f}}<br>Amplitude ({displacement_units}): %{{y:.2e}}",
+        for i, p in enumerate(probe):
+            dofx = p[0] * self.number_dof
+            dofy = p[0] * self.number_dof + 1
+            angle = Q_(p[1], probe_units).to("rad").m
+
+            # fmt: off
+            operator = np.array(
+                [[np.cos(angle), - np.sin(angle)],
+                 [np.cos(angle), + np.sin(angle)]]
             )
-        )
+
+            _probe_resp = operator @ np.vstack((self.yout[:, dofx], self.yout[:, dofy]))
+            probe_resp = (
+                _probe_resp[0] * np.cos(angle) ** 2  +
+                _probe_resp[1] * np.sin(angle) ** 2
+            )
+            # fmt: on
+
+            probe_resp = Q_(probe_resp, "m").to(displacement_units).m
+
+            fig.add_trace(
+                go.Scatter(
+                    x=Q_(self.t, "s").to(time_units).m,
+                    y=Q_(probe_resp, "m").to(displacement_units).m,
+                    mode="lines",
+                    name=f"Probe {i + 1}",
+                    legendgroup=f"Probe {i + 1}",
+                    showlegend=True,
+                    hovertemplate=f"Time ({time_units}): %{{x:.2f}}<br>Amplitude ({displacement_units}): %{{y:.2e}}",
+                )
+            )
 
         fig.update_xaxes(title_text=f"Time ({time_units})")
         fig.update_yaxes(title_text=f"Amplitude ({displacement_units})")
-        fig.update_layout(
-            title=dict(text=f"Response for node {dof // 4} - DoF {obs_dof}"), **kwargs
-        )
+        fig.update_layout(**kwargs)
 
         return fig
 
-    def _plot2d(self, node, displacement_units="m", fig=None, **kwargs):
+    def plot_2d(self, node, displacement_units="m", fig=None, **kwargs):
         """Plot orbit response (2D).
 
         This function will take a rotor object and plot its orbit response using Plotly.
@@ -2982,7 +3145,7 @@ class TimeResponseResults:
 
         return fig
 
-    def _plot3d(
+    def plot_3d(
         self, displacement_units="m", rotor_length_units="m", fig=None, **kwargs
     ):
         """Plot orbit response (3D).
@@ -3059,84 +3222,3 @@ class TimeResponseResults:
         )
 
         return fig
-
-    def plot(
-        self,
-        plot_type="3d",
-        dof=None,
-        node=None,
-        displacement_units="m",
-        rotor_length_units="m",
-        time_units="s",
-        fig=None,
-        **kwargs,
-    ):
-        """Plot time response.
-
-        The plot type options are:
-            - 1d: plot time response for a given degree of freedom of a rotor system.
-            - 2d: plot orbit of a selected node of a rotor system.
-            - 3d: plot orbits for each node on the rotor system in a 3D view.
-
-        Parameters
-        ----------
-        plot_type: str
-            String to select the plot type.
-            - "1d": plot time response for a given degree of freedom of a rotor system.
-            - "2d": plot orbit of a selected node of a rotor system.
-            - "3d": plot orbits for each node on the rotor system in a 3D view.
-            Default is 3d.
-        dof : int
-            Degree of freedom that will be observed.
-            Fill this attribute only when selection plot_type = "1d".
-            Default is None.
-        node: int, optional
-            Selected node to plot orbit.
-            Fill this attribute only when selection plot_type = "2d".
-            Default is None
-        displacement_units : str, optional
-            Displacement units.
-            Default is 'm'.
-        rotor_length_units : str, optional
-            Rotor length units.
-            Default is 'm'.
-        time_units : str
-            Time units.
-            Default is 's'.
-        fig : Plotly graph_objects.Figure()
-            The figure object with the plot.
-        kwargs : optional
-            Additional key word arguments can be passed to change the plot layout only
-            (e.g. width=1000, height=800, ...).
-            *See Plotly Python Figure Reference for more information.
-
-        Raises
-        ------
-        ValueError
-            Error raised if a non valid string is passed to plot_type.
-        ValueError
-            Error raised if no node is specified or an odd node is passed
-            when plot_type = "2d".
-        ValueError
-            Error raised if no dof is specified or an odd dof is passed
-            when plot_type = "1d".
-
-        Returns
-        -------
-        fig : Plotly graph_objects.Figure()
-            The figure object with the plot.
-        """
-        if plot_type == "3d":
-            return self._plot3d(displacement_units, rotor_length_units, fig, **kwargs)
-        elif plot_type == "2d":
-            if node is None:
-                raise Exception("Select a node to plot orbit when plot_type '2d'")
-            elif node not in self.nodes_list:
-                raise Exception("Select a valid node to plot 2D orbit")
-            return self._plot2d(node, displacement_units, fig, **kwargs)
-        elif plot_type == "1d":
-            if dof is None:
-                raise Exception("Select a dof to plot orbit when plot_type == '1d'")
-            return self._plot1d(dof, displacement_units, time_units, fig, **kwargs)
-        else:
-            raise ValueError(f"{plot_type} is not a valid plot type.")
