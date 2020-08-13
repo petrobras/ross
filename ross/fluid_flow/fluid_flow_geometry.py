@@ -234,7 +234,7 @@ def calculate_eccentricity_ratio(modified_s):
         1,
     ]
     roots = np.roots(coefficients)
-    roots = np.sort(roots[np.isreal(roots)].real)
+    roots = np.sort(roots[np.isclose(roots.imag, 1e-16)].real)
 
     def f(x):
         """Fourth degree polynomial whose root is the square of the eccentricity ratio.
