@@ -1,6 +1,8 @@
 from abc import ABC, abstractmethod
-from .abs_defect import Defect
+
 import numpy as np
+
+from .abs_defect import Defect
 
 __all__ = [
     "MisalignmentFlexParallel",
