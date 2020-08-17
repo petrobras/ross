@@ -306,40 +306,40 @@ class BearingElement(Element):
 
     Parameters
     ----------
-    n: int
+    n : int
         Node which the bearing will be located in
-    kxx: float, array, pint.Quantity
-        Direct stiffness in the x direction.
-    cxx: float, array, pint.Quantity
-        Direct damping in the x direction.
-    kyy: float, array, pint.Quantity, optional
-        Direct stiffness in the y direction.
+    kxx : float, array, pint.Quantity
+        Direct stiffness in the x direction (N/m).
+    cxx : float, array, pint.Quantity
+        Direct damping in the x direction (N*s/m).
+    kyy : float, array, pint.Quantity, optional
+        Direct stiffness in the y direction (N/m).
         (defaults to kxx)
-    cyy: float, array, pint.Quantity, optional
-        Direct damping in the y direction.
+    cyy : float, array, pint.Quantity, optional
+        Direct damping in the y direction (N*s/m).
         (defaults to cxx)
-    kxy: float, array, pint.Quantity ,optional
-        Cross coupled stiffness in the x direction.
+    kxy : float, array, pint.Quantity, optional
+        Cross coupled stiffness in the x direction (N/m).
         (defaults to 0)
-    cxy: float, array, pint.Quantity, optional
-        Cross coupled damping in the x direction.
+    cxy : float, array, pint.Quantity, optional
+        Cross coupled damping in the x direction (N*s/m).
         (defaults to 0)
-    kyx: float, array, pint.Quantity, optional
-        Cross coupled stiffness in the y direction.
+    kyx : float, array, pint.Quantity, optional
+        Cross coupled stiffness in the y direction (N/m).
         (defaults to 0)
-    cyx: float, array, pint.Quantity, optional
-        Cross coupled damping in the y direction.
+    cyx : float, array, pint.Quantity, optional
+        Cross coupled damping in the y direction (N*s/m).
         (defaults to 0)
-    frequency: array, pint.Quantity, optional
+    frequency : array, pint.Quantity, optional
         Array with the frequencies (rad/s).
-    tag: str, optional
+    tag : str, optional
         A tag to name the element
         Default is None.
-    n_link: int, optional
+    n_link : int, optional
         Node to which the bearing will connect. If None the bearing is
         connected to ground.
         Default is None.
-    scale_factor: float, optional
+    scale_factor : float, optional
         The scale factor is used to scale the bearing drawing.
         Default is 1.
     color : str, optional
@@ -572,7 +572,7 @@ class BearingElement(Element):
         Returns
         -------
         M : np.ndarray
-            Mass matrix.
+            Mass matrix (kg).
 
         Examples
         --------
@@ -594,7 +594,7 @@ class BearingElement(Element):
         Parameters
         ----------
         frequency : float
-            The excitation frequency.
+            The excitation frequency (rad/s).
 
         Returns
         -------
@@ -632,12 +632,12 @@ class BearingElement(Element):
         Parameters
         ----------
         frequency : float
-            The excitation frequency.
+            The excitation frequency (rad/s).
 
         Returns
         -------
         C : np.ndarray
-            A 2x2 matrix of floats containing the cxx, cxy, cyx, and cyy values.
+            A 2x2 matrix of floats containing the cxx, cxy, cyx, and cyy values (N*s/m).
 
         Examples
         --------
@@ -810,12 +810,12 @@ class BearingElement(Element):
         ----------
         n : int
             The node in which the bearing will be located in the rotor.
-        file: str
+        file : str
             Path to the file containing the bearing parameters.
 
         Returns
         -------
-        data: dict
+        data : dict
             A dict that is ready to save to toml and readable by ross.
 
         Examples
@@ -862,9 +862,9 @@ class BearingElement(Element):
         ----------
         n : int
             The node in which the bearing will be located in the rotor.
-        file: str
+        file : str
             Path to the file containing the bearing parameters.
-        sheet_name: int or str, optional
+        sheet_name : int or str, optional
             Position of the sheet in the file (starting from 0) or its name. If none is
             passed, it is assumed to be the first sheet in the file.
         tag : str, optional
@@ -883,7 +883,7 @@ class BearingElement(Element):
 
         Returns
         -------
-        bearing: rs.BearingElement
+        bearing : rs.BearingElement
             A bearing object.
 
         Examples
@@ -1064,38 +1064,43 @@ class SealElement(BearingElement):
     ----------
     n: int
         Node which the bearing will be located in
-    kxx: float, array, pint.Quantity
-        Direct stiffness in the x direction.
-    cxx: float, array, pint.Quantity
-        Direct damping in the x direction.
-    kyy: float, array, pint.Quantity, optional
-        Direct stiffness in the y direction.
+    kxx : float, array, pint.Quantity
+        Direct stiffness in the x direction (N/m).
+    cxx : float, array, pint.Quantity
+        Direct damping in the x direction (N*s/m).
+    kyy : float, array, pint.Quantity, optional
+        Direct stiffness in the y direction (N/m).
         (defaults to kxx)
-    cyy: float, array, pint.Quantity, optional
-        Direct damping in the y direction.
+    cyy : float, array, pint.Quantity, optional
+        Direct damping in the y direction (N*s/m).
         (defaults to cxx)
-    kxy: float, array, pint.Quantity, optional
-        Cross coupled stiffness in the x direction.
+    kxy : float, array, pint.Quantity, optional
+        Cross coupled stiffness in the x direction (N/m).
         (defaults to 0)
-    cxy: float, array, pint.Quantity, optional
-        Cross coupled damping in the x direction.
+    cxy : float, array, pint.Quantity, optional
+        Cross coupled damping in the x direction (N*s/m).
         (defaults to 0)
-    kyx: float, array, pint.Quantity, optional
-        Cross coupled stiffness in the y direction.
+    kyx : float, array, pint.Quantity, optional
+        Cross coupled stiffness in the y direction (N/m).
         (defaults to 0)
-    cyx: float, array, pint.Quantity, optional
-        Cross coupled damping in the y direction.
+    cyx : float, array, pint.Quantity, optional
+        Cross coupled damping in the y direction (N*s/m).
         (defaults to 0)
-    frequency: array, pint.Quantity, optional
-        Array with the speeds (rad/s).
-    seal_leakage: float, optional
-        Amount of leakage.
+    frequency : array, pint.Quantity, optional
+        Array with the frequencies (rad/s).
     tag : str, optional
         A tag to name the element
         Default is None.
-    scale_factor: float, optional
-        The scale factor is used to scale the seal drawing.
-        Default is 1
+    n_link : int, optional
+        Node to which the bearing will connect. If None the bearing is
+        connected to ground.
+        Default is None.
+    scale_factor : float, optional
+        The scale factor is used to scale the bearing drawing.
+        Default is 1.
+    color : str, optional
+        A color to be used when the element is represented.
+        Default is "#77ACA2".
 
     Examples
     --------
@@ -1131,6 +1136,7 @@ class SealElement(BearingElement):
         seal_leakage=None,
         tag=None,
         scale_factor=1.0,
+        color="#77ACA2",
     ):
         super().__init__(
             n=n,
@@ -1145,10 +1151,10 @@ class SealElement(BearingElement):
             cyy=cyy,
             tag=tag,
             scale_factor=scale_factor,
+            color=color,
         )
 
         self.seal_leakage = seal_leakage
-        self.color = "#77ACA2"
 
 
 class BallBearingElement(BearingElement):
@@ -1160,30 +1166,30 @@ class BallBearingElement(BearingElement):
 
     Parameters
     ----------
-    n: int
+    n : int
         Node which the bearing will be located in.
-    n_balls: float
+    n_balls : float
         Number of steel spheres in the bearing.
-    d_balls: float
+    d_balls : float
         Diameter of the steel sphere.
-    fs: float,optional
+    fs : float,optional
         Static bearing loading force.
-    alpha: float, optional
+    alpha : float, optional
         Contact angle between the steel sphere and the inner / outer raceway.
-    cxx: float, optional
+    cxx : float, optional
         Direct stiffness in the x direction.
         Default is None.
-    cyy: float, optional
+    cyy : float, optional
         Direct damping in the y direction.
         Defaults is None.
-    tag: str, optional
+    tag : str, optional
         A tag to name the element
         Default is None.
-    n_link: int, optional
+    n_link : int, optional
         Node to which the bearing will connect. If None the bearing is
         connected to ground.
         Default is None.
-    scale_factor: float, optional
+    scale_factor : float, optional
         The scale factor is used to scale the bearing drawing.
         Default is 1.
 
@@ -1268,37 +1274,37 @@ class RollerBearingElement(BearingElement):
 
     Parameters
     ----------
-    n: int
+    n : int
         Node which the bearing will be located in.
-    n_rollers: float
+    n_rollers : float
         Number of steel spheres in the bearing.
-    l_rollers: float
+    l_rollers : float
         Length of the steel rollers.
-    fs: float,optional
+    fs : float, optional
         Static bearing loading force.
-    alpha: float, optional
+    alpha : float, optional
         Contact angle between the steel sphere and the inner / outer raceway.
-    cxx: float, optional
+    cxx : float, optional
         Direct stiffness in the x direction.
         Default is None.
-    cyy: float, optional
+    cyy : float, optional
         Direct damping in the y direction.
         Defaults is None.
-    tag: str, optional
+    tag : str, optional
         A tag to name the element
         Default is None.
-    n_link: int, optional
+    n_link : int, optional
         Node to which the bearing will connect. If None the bearing is
         connected to ground.
         Default is None.
-    scale_factor: float, optional
+    scale_factor : float, optional
         The scale factor is used to scale the bearing drawing.
         Default is 1.
 
     Examples
     --------
     >>> n = 0
-    >>> n_rollers= 8
+    >>> n_rollers = 8
     >>> l_rollers = 0.03
     >>> fs = 500.0
     >>> alpha = np.pi / 6
@@ -1378,32 +1384,32 @@ class MagneticBearingElement(BearingElement):
     ----------
     n : int
         The node in which the magnetic bearing will be located in the rotor.
-    g0: float
+    g0 : float
         Air gap in m^2.
-    i0: float
+    i0 : float
         Bias current in Ampere
-    ag: float
+    ag : float
         Pole area in m^2.
-    nw: float or int
+    nw : float or int
         Number of windings
-    alpha: float or int
+    alpha : float or int
         Pole angle in radians.
-    kp_pid: float or int
+    kp_pid : float or int
         Proportional gain of the PID controller.
-    kd_pid: float or int
+    kd_pid : float or int
         Derivative gain of the PID controller.
-    k_amp: float or int
+    k_amp : float or int
         Gain of the amplifier model.
-    k_sense: float or int
+    k_sense : float or int
         Gain of the sensor model.
-    tag: str, optional
+    tag : str, optional
         A tag to name the element
         Default is None.
-    n_link: int, optional
+    n_link : int, optional
         Node to which the bearing will connect. If None the bearing is
         connected to ground.
         Default is None.
-    scale_factor: float, optional
+    scale_factor : float, optional
         The scale factor is used to scale the bearing drawing.
         Default is 1.
 
@@ -1540,44 +1546,44 @@ class BearingElement6DoF(BearingElement):
 
     Parameters
     ----------
-    kxx: float, array, pint.Quantity
-        Direct stiffness in the x direction.
-    cxx: float, array, pint.Quantity
-        Direct damping in the x direction.
-    kyy: float, array, pint.Quantity, optional
-        Direct stiffness in the y direction.
+    kxx : float, array, pint.Quantity
+        Direct stiffness in the x direction (N/m).
+    cxx : float, array, pint.Quantity
+        Direct damping in the x direction (N*s/m).
+    kyy : float, array, pint.Quantity, optional
+        Direct stiffness in the y direction (N/m).
         Defaults to kxx
-    cyy: float, array, pint.Quantity, optional
-        Direct damping in the y direction.
+    cyy : float, array, pint.Quantity, optional
+        Direct damping in the y direction (N*s/m).
         Default is to cxx
-    kxy: float, array, pint.Quantity, optional
-        Cross stiffness between xy directions.
+    kxy : float, array, pint.Quantity, optional
+        Cross stiffness between xy directions (N/m).
         Default is 0
-    kyx: float, array, pint.Quantity, optional
-        Cross stiffness between yx directions.
+    kyx : float, array, pint.Quantity, optional
+        Cross stiffness between yx directions (N/m).
         Default is 0
-    kzz: float, array, pint.Quantity, optional
-        Direct stiffness in the z direction.
+    kzz : float, array, pint.Quantity, optional
+        Direct stiffness in the z direction (N/m).
         Default is 0
-    cxy: float, array, pint.Quantity, optional
-        Cross damping between xy directions.
+    cxy : float, array, pint.Quantity, optional
+        Cross damping between xy directions (N*s/m).
         Default is 0
-    cyx: float, array, pint.Quantity, optional
-        Cross damping between yx directions.
+    cyx : float, array, pint.Quantity, optional
+        Cross damping between yx directions (N*s/m).
         Default is 0
-    czz: float, array, pint.Quantity, optional
-        Direct damping in the z direction.
+    czz : float, array, pint.Quantity, optional
+        Direct damping in the z direction (N*s/m).
         Default is 0
-    frequency: array, pint.Quantity, optional
+    frequency : array, pint.Quantity, optional
         Array with the frequencies (rad/s).
     tag : str, optional
         A tag to name the element
         Default is None
-    n_link: int, optional
+    n_link : int, optional
         Node to which the bearing will connect. If None the bearing is
         connected to ground.
         Default is None.
-    scale_factor: float, optional
+    scale_factor : float, optional
         The scale factor is used to scale the bearing drawing.
         Default is 1.
 
@@ -1803,12 +1809,12 @@ class BearingElement6DoF(BearingElement):
         Parameters
         ----------
         frequency : float
-            The excitation frequency.
+            The excitation frequency (rad/s).
 
         Returns
         -------
         K : np.ndarray
-            A 3x3 matrix of floats containing the kxx, kxy, kyx, kyy and kzz values.
+            A 3x3 matrix of floats containing the kxx, kxy, kyx, kyy and kzz values (N/m).
 
         Examples
         --------
@@ -1836,12 +1842,12 @@ class BearingElement6DoF(BearingElement):
         Parameters
         ----------
         frequency : float
-            The excitation frequency.
+            The excitation frequency (rad/s).
 
         Returns
         -------
         C: np.ndarray
-            A 3x3 matrix of floats containing the cxx, cxy, cyx, cyy, and czz values.
+            A 3x3 matrix of floats containing the cxx, cxy, cyx, cyy, and czz values (N/m).
 
         Examples
         --------

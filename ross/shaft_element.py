@@ -36,17 +36,17 @@ class ShaftElement(Element):
     Parameters
     ----------
     L : float, pint.Quantity
-        Element length.
+        Element length (m).
     idl : float, pint.Quantity
-        Inner diameter of the element at the left position..
+        Inner diameter of the element at the left position (m).
     odl : float, pint.Quantity
-        Outer diameter of the element at the left position.
+        Outer diameter of the element at the left position (m).
     idr : float, pint.Quantity, optional
-        Inner diameter of the element at the right position
-        Default is equal to idl value (cylindrical element)
+        Inner diameter of the element at the right position (m).
+        Default is equal to idl value (cylindrical element).
     odr : float, pint.Quantity, optional
-        Outer diameter of the element at the right position.
-        Default is equal to odl value (cylindrical element)
+        Outer diameter of the element at the right position (m).
+        Default is equal to odl value (cylindrical element).
     material : ross.material
         Shaft material.
     n : int, optional
@@ -55,9 +55,9 @@ class ShaftElement(Element):
         according to the element's position in the list supplied to
         the rotor constructor.
     axial_force : float, optional
-        Axial force.
+        Axial force (N).
     torque : float, optional
-        Torque.
+        Torque (N*m).
     shear_effects : bool, optional
         Determine if shear effects are taken into account.
         Default is True.
@@ -83,20 +83,20 @@ class ShaftElement(Element):
     Poisson : float
         Poisson coefficient for the element.
     A : float
-        Element section area at half length.
+        Element section area at half length (m**2).
     A_l : float
-        Element section area at left end.
+        Element section area at left end (m**2).
     A_r : float
-        Element section area at right end.
+        Element section area at right end (m**2).
     beam_cg : float
-        Element center of gravity local position.
+        Element center of gravity local position (m).
     axial_cg_pos : float
-        Element center of gravity global position.
+        Element center of gravity global position (m).
         This should be used only after the rotor is built.
         Default is None.
     Ie : float
         Ie is the second moment of area of the cross section about
-        the neutral plane.
+        the neutral plane (m**4).
     phi : float
         Constant that is used according to :cite:`friswell2010dynamics` to
         consider rotary inertia and shear effects. If these are not considered
@@ -1184,14 +1184,14 @@ class ShaftElement6DoF(ShaftElement):
     L : float, pint.Quantity
         Element length.
     idl : float, pint.Quantity
-        Inner diameter of the element at the left node.
+        Inner diameter of the element at the left node (m).
     odl : float, pint.Quantity
-        Outer diameter of the element at the left node.
+        Outer diameter of the element at the left node (m).
     idr : float, pint.Quantity, optional
-        Inner diameter of the element at the right node;
+        Inner diameter of the element at the right node (m).
         Default is equal to idl value for cylindrical element.
     odr : float, pint.Quantity, optional
-        Outer diameter of the element at the right node;
+        Outer diameter of the element at the right node (m).
         Default is equal to odl value for cylindrical element.
     material : ross.material
         Shaft material.
@@ -1200,15 +1200,15 @@ class ShaftElement6DoF(ShaftElement):
     beta : float, optional
         Proportional damping coefficient, associated to the element Stiffness matrix
     n : int, optional
-        Element number, coincident with it's first node.
+        Element number, coincident it's first node.
         If not given, it will be set when the rotor is assembled
         according to the element's position in the list supplied to
         the rotor constructor.
     axial_force : float, optional
-        Axial force;
+        Axial force (N).
         Default is zero.
     torque : float, optional
-        Torque moment;
+        Torque moment (N*m).
         Default is zero.
     shear_effects : bool, optional
         Determine if shear effects are taken into account;
