@@ -286,7 +286,7 @@ class DiskElement(Element):
     def _patch(self, position, fig):
         """Disk element patch.
 
-        Patch that will be used to draw the shaft element using Bokeh library.
+        Patch that will be used to draw the shaft element using plotly library.
 
         Parameters
         ----------
@@ -303,7 +303,7 @@ class DiskElement(Element):
         zpos, ypos, step = position
         radius = step / 6
 
-        # bokeh plot - coordinates to plot disks elements
+        # coordinates to plot disks elements
         z_upper = [zpos, zpos + step / 6, zpos - step / 6, zpos]
         y_upper = [ypos, ypos + 2 * step, ypos + 2 * step, ypos]
 

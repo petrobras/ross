@@ -890,7 +890,7 @@ class ShaftElement(Element):
             color = self.material.color
             legend = "Shaft"
 
-        # bokeh plot - plot the shaft
+        # plot the shaft
         z_upper = [position, position, position + self.L, position + self.L, position]
         y_upper = [self.idl / 2, self.odl / 2, self.odr / 2, self.idr / 2, self.idl / 2]
         z_lower = [position, position, position + self.L, position + self.L, position]
