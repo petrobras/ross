@@ -3,9 +3,7 @@ from .abs_defect import Defect
 import numpy as np
 
 __all__ = [
-    "MisalignmentFlexParallel",
-    "MisalignmentFlexAngular",
-    "MisalignmentFlexCombined",
+    "MisalignmentRigidParallel",
 ]
 
 
