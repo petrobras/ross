@@ -1,4 +1,4 @@
-__version__ = "0.3.3"
+__version__ = "0.4.0"
 from plotly import io as _pio
 
 import ross.plotly_theme
