@@ -8,7 +8,7 @@ __all__ = [
     "MisalignmentFlexParallel",
     "MisalignmentFlexAngular",
     "MisalignmentFlexCombined",
-    "MisalignmentRigidParallel",
+    "MisalignmentRigid",
     "Rubbing",
     "CrackGasch",
     "CrackMayes",
@@ -71,9 +71,6 @@ class MisalignmentFlex(Defect, ABC):
 
         self.t = np.arange(self.tI, self.tF + self.dt, self.dt)
 
-        if self.speedF is None:
-            self.speedF = self.speedI
-
         warI = self.speedI * np.pi / 30
         warF = self.speedF * np.pi / 30
 
@@ -108,7 +105,6 @@ class MisalignmentFlex(Defect, ABC):
         angular_position = TetaV[1:]
         self.angular_position = angular_position
 
-        # Desalinhamento Paralelo
         fib = np.arctan(self.eCOUPy / self.eCOUPx)
         self.mi_y = (
             (
@@ -231,8 +227,6 @@ class MisalignmentFlex(Defect, ABC):
         """
         F_mis_a = np.zeros((len(self.angular_position) + 1, self.ndof))
 
-        # Desalinhamento Angular
-
         Fay = (
             np.abs(
                 self.C * np.sin(self.angular_position) * np.sin(self.misalignment_angle)
@@ -324,7 +318,6 @@ class MisalignmentRigid(Defect, ABC):
         dt,
         tI,
         tF,
-        Nele,
         Kcoup_auxI,
         Kcoup_auxF,
         kCOUP,
@@ -335,40 +328,51 @@ class MisalignmentRigid(Defect, ABC):
         TD,
         TL,
         n1,
-        n2,
-        speedI,
-        speedF=None,
+        speed,
     ):
+        self.self.dt = dt
+        self.tI = tI
+        self.tF = tF
+        self.self.Kcoup_auxI = Kcoup_auxI
+        self.self.Kcoup_auxF = Kcoup_auxF
+        self.kCOUP = kCOUP
+        self.eCOUP = eCOUP
+        self.angANG = angANG
+        self.angPAR = angPAR
+        self.self.yfuture = yfuture
+        self.TD = TD
+        self.TL = TL
         self.n1 = n1
-        self.n2 = n2
-        self.N_GDL = 6 * (Nele + 1)
-        #
+        self.n2 = n1 + 1
+        self.speedI = speed
+        self.speedF = speed
 
-        t = np.arange(tI, tF + dt, dt)
+    def run(self, ndof):
+        self.ndof = ndof
+        t = np.arange(self.tI, self.tF + self.dt, self.dt)
 
-        if speedF is None:
-            speedF = speedI
+        warI = self.speedI * np.pi / 30
+        warF = self.speedF * np.pi / 30
 
-        warI = speedI * np.pi / 30
-        warF = speedF * np.pi / 30
-
-        tI = t[0]
-        tF = t[-1]
+        self.tI = t[0]
+        self.tF = t[-1]
 
         lambdat = 0.00001
         Faxial = 0
         TorqueI = 0
         TorqueF = 0
 
-        sA = (warI * np.exp(-lambdat * tF) - warF * np.exp(-lambdat * tI)) / (
-            np.exp(-lambdat * tF) - np.exp(-lambdat * tI)
+        sA = (warI * np.exp(-lambdat * self.tF) - warF * np.exp(-lambdat * self.tI)) / (
+            np.exp(-lambdat * self.tF) - np.exp(-lambdat * self.tI)
         )
-        sB = (warF - warI) / (np.exp(-lambdat * tF) - np.exp(-lambdat * tI))
+        sB = (warF - warI) / (np.exp(-lambdat * self.tF) - np.exp(-lambdat * self.tI))
 
-        sAT = (TorqueI * np.exp(-lambdat * tF) - TorqueF * np.exp(-lambdat * tI)) / (
-            np.exp(-lambdat * tF) - np.exp(-lambdat * tI)
+        sAT = (
+            TorqueI * np.exp(-lambdat * self.tF) - TorqueF * np.exp(-lambdat * self.tI)
+        ) / (np.exp(-lambdat * self.tF) - np.exp(-lambdat * self.tI))
+        sBT = (TorqueF - TorqueI) / (
+            np.exp(-lambdat * self.tF) - np.exp(-lambdat * self.tI)
         )
-        sBT = (TorqueF - TorqueI) / (np.exp(-lambdat * tF) - np.exp(-lambdat * tI))
 
         SpeedV = sA + sB * np.exp(-lambdat * t)
         TorqueV = sAT + sBT * np.exp(-lambdat * t)
@@ -388,14 +392,14 @@ class MisalignmentRigid(Defect, ABC):
 
         k_misalignbeta1 = np.array(
             [
-                self.k0 * Kcoup_auxI * self.delta1 * np.sin(self.beta - self.fir),
-                -self.k0 * Kcoup_auxI * self.delta1 * np.cos(self.beta - self.fir),
+                self.k0 * self.Kcoup_auxI * self.delta1 * np.sin(self.beta - self.fir),
+                -self.k0 * self.Kcoup_auxI * self.delta1 * np.cos(self.beta - self.fir),
                 0,
                 0,
                 0,
                 0,
-                -self.k0 * Kcoup_auxF * self.delta1 * np.sin(self.beta - self.fir),
-                self.k0 * Kcoup_auxF * self.delta1 * np.cos(self.beta - self.fir),
+                -self.k0 * self.Kcoup_auxF * self.delta1 * np.sin(self.beta - self.fir),
+                self.k0 * self.Kcoup_auxF * self.delta1 * np.cos(self.beta - self.fir),
                 0,
                 0,
                 0,
@@ -412,19 +416,21 @@ class MisalignmentRigid(Defect, ABC):
             (self.n1 * 6 - 3) - 1,
             (self.n1 * 6 - 4) - 1,
             (self.n1 * 6 - 2) - 1,
-            (self.n1 * 6) - 1,
+            (self.n1 * 6 - 0) - 1,
             (self.n1 * 6 - 1) - 1,
             (self.n2 * 6 - 5) - 1,
             (self.n2 * 6 - 3) - 1,
             (self.n2 * 6 - 4) - 1,
             (self.n2 * 6 - 2) - 1,
-            (self.n2 * 6) - 1,
+            (self.n2 * 6 - 0) - 1,
             (self.n2 * 6 - 1) - 1,
         ]
-        self.Force_kkmis = K_mis_matrix * yfuture[self.DoF]
+        self.Force_kkmis = K_mis_matrix * self.yfuture[self.DoF]
 
         self.TD = TD
         self.TL = TL
+
+        return self.force()
 
     def _parallel(self):
         F_misalign = np.array(
@@ -451,17 +457,10 @@ class MisalignmentRigid(Defect, ABC):
         )
 
         Fmis = self.Force_kkmis + F_misalign
-        FFmis = np.zeros(self.N_GDL)
+        FFmis = np.zeros(self.ndof)
         FFmis[self.DoF] = Fmis
 
         return Fmis, FFmis
 
-    @abstractmethod
-    def force(self):
-        pass
-
-
-class MisalignmentRigidParallel(MisalignmentRigid):
-    @property
     def force(self):
         return self._parallel()
