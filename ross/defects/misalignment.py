@@ -1,6 +1,8 @@
 from abc import ABC, abstractmethod
 
 import numpy as np
+import scipy.integrate
+import scipy.linalg
 
 from .abs_defect import Defect
 
@@ -9,9 +11,9 @@ __all__ = [
     "MisalignmentFlexAngular",
     "MisalignmentFlexCombined",
     "MisalignmentRigid",
-    "Rubbing",
-    "CrackGasch",
-    "CrackMayes",
+    # "Rubbing",
+    # "CrackGasch",
+    # "CrackMayes",
 ]
 
 
@@ -314,32 +316,15 @@ class MisalignmentFlexCombined(MisalignmentFlex):
 
 class MisalignmentRigid(Defect, ABC):
     def __init__(
-        self,
-        dt,
-        tI,
-        tF,
-        Kcoup_auxI,
-        Kcoup_auxF,
-        kCOUP,
-        eCOUP,
-        angANG,
-        angPAR,
-        yfuture,
-        TD,
-        TL,
-        n1,
-        speed,
+        self, dt, tI, tF, Kcoup_auxI, Kcoup_auxF, kCOUP, eCOUP, TD, TL, n1, speed,
     ):
-        self.self.dt = dt
+        self.dt = dt
         self.tI = tI
         self.tF = tF
-        self.self.Kcoup_auxI = Kcoup_auxI
-        self.self.Kcoup_auxF = Kcoup_auxF
+        self.Kcoup_auxI = Kcoup_auxI
+        self.Kcoup_auxF = Kcoup_auxF
         self.kCOUP = kCOUP
         self.eCOUP = eCOUP
-        self.angANG = angANG
-        self.angPAR = angPAR
-        self.self.yfuture = yfuture
         self.TD = TD
         self.TL = TL
         self.n1 = n1
@@ -347,10 +332,122 @@ class MisalignmentRigid(Defect, ABC):
         self.speedI = speed
         self.speedF = speed
 
-    def run(self, ndof):
-        self.ndof = ndof
-        t = np.arange(self.tI, self.tF + self.dt, self.dt)
+    def run(self, rotor):
+        self.T = 0
+        self.rotor = rotor
+        self.ndof = rotor.ndof
 
+        self.calculate_angular_position()
+
+        self.yfuture = np.zeros(len(self.t))
+        self.angANG = 0
+
+        Fmis, ft = self._parallel()
+
+        self.ModalTransformation(
+            rotor.K(self.speedI),
+            rotor.C(self.speedI),
+            rotor.G(),
+            rotor.M(),
+            rotor.Kst(),
+            ft,
+        )
+
+        y0 = np.zeros(24)
+        x = scipy.integrate.RK45(
+            self.EquationOfMovement,
+            0,
+            y0,
+            1,
+            max_step=100,
+            rtol=0.001,
+            atol=1e-06,
+            vectorized=False,
+            first_step=None,
+        )
+        print("")
+
+    def EquationOfMovement(self, T, Y):
+        self.T = T
+        Omega = self.speedI
+        ftmodal = self.ftmodal
+        y0 = Y[:12]  # position in space state
+        y1 = Y[12:]  # velocity in space state
+
+        self._parallel()
+        ### A\b = inv(A)*b
+        ### a/b = np.linalg.inv(A).dot(b)
+
+        # Y[0] = (
+        #    matrixmultiply(ftmodal, np.linalg.inv(self.Mmodal))
+        #    - matrixmultiply(
+        #        matrixmultiply(
+        #            (self.Cmodal + self.Gmodal * Omega), np.linalg.inv(self.Mmodal)
+        #        ),
+        #        y1,
+        #    )
+        #    - matrixmultiply(
+        #        matrixmultiply(
+        #            (self.Kmodal + self.Kstmodal * Omega), np.linalg.inv(self.Mmodal)
+        #        ),
+        #        y0,
+        #    )
+        # )  # TENTATIVA 1
+        # Y[1] = y1  # velocity of system
+
+        Y[:12] = (
+            ftmodal.dot(np.linalg.inv(self.Mmodal))
+            - ((self.Cmodal + self.Gmodal * Omega).dot(np.linalg.inv(self.Mmodal))).dot(
+                y1
+            )
+            - (
+                (self.Kmodal + self.Kstmodal * Omega).dot(np.linalg.inv(self.Mmodal))
+            ).dot(y0)
+        )  # TENTATIVA 2
+        Y[12:] = y1  # velocity of system
+
+        # Y[0] = (
+        #    ftmodal / self.Mmodal
+        #    - ((self.Cmodal + self.Gmodal * Omega) / self.Mmodal) * y1
+        #    - ((self.Kmodal + self.Kstmodal * Omega) / self.Mmodal) * y0
+        # )  # actual equation of movement
+        # Y[1] = y1  # velocity of system
+
+        self.yfuture = Y[:12]
+
+        kcoup_auxt = self.rotor.K(self.speedI)[5 + 6 * self.n2, 5 + 6 * self.n2] / (
+            self.rotor.K(self.speedI)[5 + 6 * self.n1, 5 + 6 * self.n1]
+            + self.rotor.K(self.speedI)[5 + 6 * self.n2, 5 + 6 * self.n2]
+        )
+
+        self.angANG = (
+            self.Kcoup_auxI * self.angular_position
+            + self.Kcoup_auxF * self.angular_position
+            + self.kCOUP
+            * kcoup_auxt
+            * self.eCOUP
+            * (
+                self.yfuture[0 + 6 * self.n1] * np.sin(self.angANG)
+                - self.yfuture[0 + 6 * self.n2] * np.sin(self.angANG)
+                - self.yfuture[1 + 6 * self.n1] * np.cos(self.angANG)
+                + self.yfuture[1 + 6 * self.n2] * np.cos(self.angANG)
+            )
+        )
+
+        Fmis, ft = self._parallel()
+        self.ModalTransformation(
+            self.rotor.K(self.speedI),
+            self.rotor.C(self.speedI),
+            self.rotor.G(),
+            self.rotor.M(),
+            self.rotor.Kst(),
+            ft,
+        )
+        return Y
+
+    def calculate_angular_position(self):
+        t = np.arange(self.tI, self.tF + self.dt, self.dt)
+        self.t = t
         warI = self.speedI * np.pi / 30
         warF = self.speedF * np.pi / 30
 
@@ -374,19 +471,39 @@ class MisalignmentRigid(Defect, ABC):
             np.exp(-lambdat * self.tF) - np.exp(-lambdat * self.tI)
         )
 
-        SpeedV = sA + sB * np.exp(-lambdat * t)
-        TorqueV = sAT + sBT * np.exp(-lambdat * t)
-        AccelV = -lambdat * sB * np.exp(-lambdat * t)
+        self.SpeedV = sA + sB * np.exp(-lambdat * t)
+        self.TorqueV = sAT + sBT * np.exp(-lambdat * t)
+        self.AccelV = -lambdat * sB * np.exp(-lambdat * t)
 
         TetaV = sA * t - (sB / lambdat) * np.exp(-lambdat * t) + (sB / lambdat)
 
-        angular_position = TetaV[1:]
-        self.angular_position = angular_position
+        # self.angular_position = TetaV[1:]
+        self.angular_position = self.T * self.speedI * 2 * np.pi / 60
 
-        self.k0 = kCOUP
-        self.delta1 = eCOUP
-        self.fir = angANG
-        self.teta = angPAR
+    def ModalTransformation(self, K, C, G, M, Kst, ft):
+
+        # Determining the modal matrix
+        _, ModMat = scipy.linalg.eigh(K, M)
+        ModMat = ModMat[:, :12]
+
+        # Modal transformations
+        self.Mmodal = ((ModMat.T).dot(M)).dot(ModMat)
+        self.Cmodal = ((ModMat.T).dot(C)).dot(ModMat)
+        self.Gmodal = ((ModMat.T).dot(G)).dot(ModMat)
+        self.Kmodal = ((ModMat.T).dot(K)).dot(ModMat)
+        self.Kstmodal = ((ModMat.T).dot(Kst)).dot(ModMat)
+        self.ftmodal = (ModMat.T).dot(ft)
+
+    def time_step(self, yfuturemodal, ModMat):
+        self.yfuturemodal = yfuturemodal
+        self.ModMat = ModMat
+        yfuture = ModMat.dot(yfuturemodal)
+
+    def _parallel(self):
+
+        self.k0 = self.kCOUP
+        self.delta1 = self.eCOUP
+        self.fir = self.angANG
 
         self.beta = 0
 
@@ -412,27 +529,21 @@ class MisalignmentRigid(Defect, ABC):
         K_mis_matrix[10, :] = -k_misalignbeta1
 
         self.DoF = [
-            (self.n1 * 6 - 5) - 1,
-            (self.n1 * 6 - 3) - 1,
-            (self.n1 * 6 - 4) - 1,
-            (self.n1 * 6 - 2) - 1,
-            (self.n1 * 6 - 0) - 1,
-            (self.n1 * 6 - 1) - 1,
-            (self.n2 * 6 - 5) - 1,
-            (self.n2 * 6 - 3) - 1,
-            (self.n2 * 6 - 4) - 1,
-            (self.n2 * 6 - 2) - 1,
-            (self.n2 * 6 - 0) - 1,
-            (self.n2 * 6 - 1) - 1,
+            (self.n1 * 6 - 5) + 5,
+            (self.n1 * 6 - 3) + 5,
+            (self.n1 * 6 - 4) + 5,
+            (self.n1 * 6 - 2) + 5,
+            (self.n1 * 6 - 0) + 5,
+            (self.n1 * 6 - 1) + 5,
+            (self.n2 * 6 - 5) + 5,
+            (self.n2 * 6 - 3) + 5,
+            (self.n2 * 6 - 4) + 5,
+            (self.n2 * 6 - 2) + 5,
+            (self.n2 * 6 - 0) + 5,
+            (self.n2 * 6 - 1) + 5,
         ]
-        self.Force_kkmis = K_mis_matrix * self.yfuture[self.DoF]
+        self.Force_kkmis = K_mis_matrix.dot(self.yfuture[self.DoF])
 
-        self.TD = TD
-        self.TL = TL
-
-        return self.force()
-
-    def _parallel(self):
         F_misalign = np.array(
             [
                 (
