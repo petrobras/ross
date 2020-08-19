@@ -55,8 +55,7 @@ class MisalignmentFlex(Defect, ABC):
         TL,
         n1,
         n2,
-        speedI,
-        speedF=None,
+        speed,
     ):
         self.dt = dt
         self.tI = tI
@@ -70,8 +69,10 @@ class MisalignmentFlex(Defect, ABC):
         self.TL = TL
         self.n1 = n1
         self.n2 = n2
-        self.speedI = speedI
-        self.speedF = speedF
+        self.speed = speed
+
+        self.speedI = speed
+        self.speedF = speed
 
     def run(self, Radius, ndof):
         #
