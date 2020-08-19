@@ -2372,7 +2372,7 @@ class Rotor(object):
         )
 
     def run_misalignment_rigid(self, misalignment):
-        pass
+        misalignment.run(self)
 
     def save_mat(self, file, speed, frequency=None):
         """Save matrices and rotor model to a .mat file.
