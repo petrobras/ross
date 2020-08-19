@@ -42,20 +42,7 @@ class MisalignmentFlex(Defect, ABC):
     """
 
     def __init__(
-        self,
-        dt,
-        tI,
-        tF,
-        kd,
-        ks,
-        eCOUPx,
-        eCOUPy,
-        misalignment_angle,
-        TD,
-        TL,
-        n1,
-        n2,
-        speed,
+        self, dt, tI, tF, kd, ks, eCOUPx, eCOUPy, misalignment_angle, TD, TL, n1, speed,
     ):
         self.dt = dt
         self.tI = tI
@@ -68,7 +55,7 @@ class MisalignmentFlex(Defect, ABC):
         self.TD = TD
         self.TL = TL
         self.n1 = n1
-        self.n2 = n2
+        self.n2 = n1 +1
         self.speed = speed
 
         self.speedI = speed

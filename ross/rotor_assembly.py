@@ -2365,7 +2365,7 @@ class Rotor(object):
         return results
 
     def run_misalignment(self, misalignment):
-        radius = self.shaft_elements[0].odl / 2
+        radius = self.df_shaft.iloc[misalignment.n1].o_d / 2
         F = misalignment.run(radius, self.ndof)
         return self.run_time_response(
             misalignment.speed * np.pi / 30, F, misalignment.t
