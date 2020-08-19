@@ -2364,10 +2364,12 @@ class Rotor(object):
 
         return results
 
-    def run_misalignment(self, speed, misalignment):
+    def run_misalignment(self, misalignment):
         radius = self.shaft_elements[0].odl / 2
         F = misalignment.run(radius, self.ndof)
-        return self.run_time_response(speed, F, misalignment.t)
+        return self.run_time_response(
+            misalignment.speed * np.pi / 30, F, misalignment.t
+        )
 
     def save_mat(self, file, speed, frequency=None):
         """Save matrices and rotor model to a .mat file.
