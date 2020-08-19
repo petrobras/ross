@@ -73,8 +73,9 @@ class MisalignmentFlex(Defect, ABC):
         self.speedI = speedI
         self.speedF = speedF
 
-    def run(self, Radius, ngdl):
+    def run(self, Radius, ndof):
         #
+        self.ndof = ndof
 
         self.t = np.arange(self.tI, self.tF + self.dt, self.dt)
 
@@ -202,7 +203,6 @@ class MisalignmentFlex(Defect, ABC):
         )
         self.C = self.ks * Radius * np.sqrt(2 - 2 * np.cos(self.misalignment_angle))
 
-        self.ngdl = ngdl
         return self.force()
 
     def _parallel(self):
@@ -214,7 +214,7 @@ class MisalignmentFlex(Defect, ABC):
             Excitation force caused by the parallel misalignment for a 6DOFs system with 'n' values of angular position  
         """
 
-        F_mis_p = np.zeros((len(self.angular_position) + 1, self.ngdl))
+        F_mis_p = np.zeros((len(self.angular_position) + 1, self.ndof))
 
         Fpy = self.kd * self.mi_y
 
@@ -237,7 +237,7 @@ class MisalignmentFlex(Defect, ABC):
         F_mis_a(12,n) : numpy.ndarray
             Excitation force caused by the angular misalignment for a 6DOFs system with 'n' values of angular position 
         """
-        F_mis_a = np.zeros((len(self.angular_position) + 1, self.ngdl))
+        F_mis_a = np.zeros((len(self.angular_position) + 1, self.ndof))
 
         # Desalinhamento Angular
 
