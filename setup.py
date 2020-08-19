@@ -52,7 +52,7 @@ EXTRAS = {
         "sphinx",
         "sphinx_bootstrap_theme",
         "nbsphinx",
-        "numpydoc",
+        "numpydoc==0.9.2",
         "sphinxcontrib-bibtex",
         "black",
         "isort",
