@@ -31,7 +31,7 @@ The website tracks the documentation for the released version with the following
 #. If 2 is True, the script will build the docs for that branch and push to the ross-website repo.
 
 So, if you want to modify the documentation website, modify the source files and then make a pull request
-to branch named as the current released version.
+to the branch named as the current released version.
 
 If you want to test the documentation locally:
 
