@@ -10,7 +10,7 @@ from ross.fluid_flow import fluid_flow as flow
 from ross.fluid_flow.fluid_flow_coefficients import (
     calculate_oil_film_force, calculate_short_damping_matrix,
     calculate_short_stiffness_matrix,
-    calculate_stiffness_and_damping_coefficients, find_equilibrium_position)
+    calculate_stiffness_and_damping_coefficients, find_equilibrium_position, find_equilibrium_position2)
 from ross.fluid_flow.fluid_flow_geometry import move_rotor_center
 from ross.fluid_flow.fluid_flow_graphics import (
     plot_eccentricity, plot_pressure_surface, plot_pressure_theta,
@@ -329,6 +329,15 @@ def test_find_equilibrium_position():
         atol=0.001,
     )
 
+def test_find_equilibrium_position2():
+    from ross.fluid_flow.fluid_flow import fluid_flow_example3
+    my_fluid_flow = fluid_flow_example3()
+    my_fluid_flow.load = 1000
+    find_equilibrium_position2(my_fluid_flow)
+    xi = 3.768417543196801e-10
+    yi = 7.661988810006873e-12
+    assert math.isclose(my_fluid_flow.xi,xi,rel_tol=1e-2)
+    assert math.isclose(my_fluid_flow.yi,yi,rel_tol=1e-2)
 
 def test_move_rotor_center():
     bearing = fluid_flow_short_friswell()
