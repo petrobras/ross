@@ -400,8 +400,8 @@ class MisalignmentRigid(Defect, ABC):
         #    first_step=None,
         # )
         dt = 0.0001
-        time = np.arange(dt, self.tF, dt)
-
+        # time = np.arange(dt, self.tF, dt)
+        self.inv_Mmodal = np.linalg.inv(self.Mmodal)
         t1 = time.time()
         x = scipy.integrate.solve_ivp(
             self.EquationOfMovement,
@@ -449,7 +449,8 @@ class MisalignmentRigid(Defect, ABC):
         if self.iteration % 100 == 0:
             print(f"iteration: {self.iteration} \n time: {T}")
 
-        self.yfuture = Y[:12]
+        X_dot = Y[:12]
+        V_dot = Y[12:]  # velocity ign space state
 
         kcoup_auxt = self.rotor.K(self.speedI)[5 + 6 * self.n2, 5 + 6 * self.n2] / (
             self.rotor.K(self.speedI)[5 + 6 * self.n1, 5 + 6 * self.n1]
@@ -465,34 +466,36 @@ class MisalignmentRigid(Defect, ABC):
             * kcoup_auxt
             * self.eCOUP
             * (
-                self.yfuture[0 + 6 * self.n1] * np.sin(self.angANG)
-                - self.yfuture[0 + 6 * self.n2] * np.sin(self.angANG)
-                - self.yfuture[1 + 6 * self.n1] * np.cos(self.angANG)
-                + self.yfuture[1 + 6 * self.n2] * np.cos(self.angANG)
+                -X_dot[0 + 6 * self.n1] * np.sin(self.angANG)
+                + X_dot[0 + 6 * self.n2] * np.sin(self.angANG)
+                - X_dot[1 + 6 * self.n1] * np.cos(self.angANG)
+                + X_dot[1 + 6 * self.n2] * np.cos(self.angANG)
             )
         )
-
-        Fmis, ft = self._parallel()
-        self.ModalTransformation(ft)
+        positionsMod = self.ModMat.dot(X_dot)
+        Fmis, ft = self._parallel(positionsMod, self.angANG)
+        ftmodal = self.ModalTransformation(ft)
 
         Omega = self.speedI
-        ftmodal = self.ftmodal
-        y0 = Y[:12]  # position in space state
-        y1 = Y[12:]  # velocity ign space state
 
-        aux = np.zeros(len(Y))
-        aux[12:] = (
-            ftmodal.dot(np.linalg.inv(self.Mmodal))
-            - ((self.Cmodal + self.Gmodal * Omega).dot(np.linalg.inv(self.Mmodal))).dot(
-                y1
-            )
-            - (
-                (self.Kmodal + self.Kstmodal * Omega).dot(np.linalg.inv(self.Mmodal))
-            ).dot(y0)
+        new_Y = np.zeros(len(Y))
+        new_V_dot = (
+            ftmodal
+            - ((self.Cmodal + self.Gmodal * Omega)).dot(V_dot)
+            - ((self.Kmodal + self.Kstmodal * Omega).dot(X_dot))
+        ).dot(
+            self.inv_Mmodal
         )  # proper equation of movement to be integrated in time
-        aux[:12] = y1
 
-        Y = aux
+        # aux[12:] = (
+        #    ftmodal.dot(self.inv_Mmodal)
+        #    - ((self.Cmodal + self.Gmodal * Omega).dot(self.inv_Mmodal)).dot(y1)
+        #    - ((self.Kmodal + self.Kstmodal * Omega).dot(self.inv_Mmodal)).dot(y0)
+        # )  # proper equation of movement to be integrated in time
+        new_X_dot = V_dot
+
+        new_Y[:12] = new_X_dot
+        new_Y[12:] = new_V_dot
 
         # Y[12:] = (
         #     ftmodal.dot(np.linalg.inv(self.Mmodal))
@@ -504,7 +507,7 @@ class MisalignmentRigid(Defect, ABC):
         #     ).dot(y0)
         # )  # proper equation of movement to be integrated in time
         # Y[:12] = y1  # velocity of system
-        return Y
+        return new_Y
 
     def calculate_angular_position(self, t):
 
@@ -516,31 +519,25 @@ class MisalignmentRigid(Defect, ABC):
 
     def ModalTransformation(self, ft):
 
-        self.ftmodal = (self.ModMat.T).dot(ft)
+        return (self.ModMat.T).dot(ft)
 
-    def time_step(self, yfuturemodal, ModMat):
-        self.yfuturemodal = yfuturemodal
-        self.ModMat = ModMat
-        yfuture = ModMat.dot(yfuturemodal)
-
-    def _parallel(self):
+    def _parallel(self, positions, fir):
 
         self.k0 = self.kCOUP
         self.delta1 = self.eCOUP
-        self.fir = self.angANG
 
         self.beta = 0
 
         k_misalignbeta1 = np.array(
             [
-                self.k0 * self.Kcoup_auxI * self.delta1 * np.sin(self.beta - self.fir),
-                -self.k0 * self.Kcoup_auxI * self.delta1 * np.cos(self.beta - self.fir),
+                self.k0 * self.Kcoup_auxI * self.delta1 * np.sin(self.beta - fir),
+                -self.k0 * self.Kcoup_auxI * self.delta1 * np.cos(self.beta - fir),
                 0,
                 0,
                 0,
                 0,
-                -self.k0 * self.Kcoup_auxF * self.delta1 * np.sin(self.beta - self.fir),
-                self.k0 * self.Kcoup_auxF * self.delta1 * np.cos(self.beta - self.fir),
+                -self.k0 * self.Kcoup_auxF * self.delta1 * np.sin(self.beta - fir),
+                self.k0 * self.Kcoup_auxF * self.delta1 * np.cos(self.beta - fir),
                 0,
                 0,
                 0,
@@ -566,24 +563,24 @@ class MisalignmentRigid(Defect, ABC):
             (self.n2 * 6 - 0) + 5,
             (self.n2 * 6 - 1) + 5,
         ]
-        self.Force_kkmis = K_mis_matrix.dot(self.yfuture[self.DoF])
+        self.Force_kkmis = K_mis_matrix.dot(positions[self.DoF])
 
         F_misalign = np.array(
             [
                 (
-                    -self.k0 * self.delta1 * np.cos(self.beta - self.fir)
+                    -self.k0 * self.delta1 * np.cos(self.beta - fir)
                     + self.k0 * self.delta1
                 ),
-                -self.k0 * self.delta1 * np.sin(self.beta - self.fir),
+                -self.k0 * self.delta1 * np.sin(self.beta - fir),
                 0,
                 0,
                 0,
                 self.TD - self.TL,
                 (
-                    self.k0 * self.delta1 * np.cos(self.beta - self.fir)
+                    self.k0 * self.delta1 * np.cos(self.beta - fir)
                     - self.k0 * self.delta1
                 ),
-                self.k0 * self.delta1 * np.sin(self.beta - self.fir),
+                self.k0 * self.delta1 * np.sin(self.beta - fir),
                 0,
                 0,
                 0,
