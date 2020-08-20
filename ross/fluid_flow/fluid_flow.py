@@ -6,11 +6,12 @@ import scipy as sp
 
 from ross.fluid_flow.fluid_flow_geometry import (calculate_attitude_angle,
                                                  calculate_eccentricity_ratio,
+                                                 calculate_eccentricity_ratio_iter,
                                                  calculate_rotor_load,
                                                  external_radius_function,
                                                  internal_radius_function,
                                                  modified_sommerfeld_number)
-
+from ross.fluid_flow.fluid_flow_coefficients import find_equilibrium_position2
 # fmt: on
 
 
@@ -201,6 +202,8 @@ class FluidFlow:
     ):
         if load is None and eccentricity is None:
             sys.exit("Either load or eccentricity must be given.")
+        calculate_equilibrium_position = load is not None
+
         self.nz = nz
         self.ntheta = ntheta
         self.n_interv_z = nz - 1
@@ -229,55 +232,71 @@ class FluidFlow:
         self.eccentricity = eccentricity
         self.eccentricity_ratio = None
         self.load = load
-        if self.eccentricity is None:
-            modified_s = modified_sommerfeld_number(
-                self.radius_stator,
-                self.omega,
-                self.viscosity,
-                self.length,
-                self.load,
-                self.radial_clearance,
-            )
-            self.eccentricity = (
-                calculate_eccentricity_ratio(modified_s) * self.radial_clearance
-            )
+
         self.omegap = omegap
         if self.omegap is None:
             self.omegap = self.omega
         else:
             self.omegap = omegap
-        self.eccentricity_ratio = self.eccentricity / self.radial_clearance
-        if self.load is None:
-            self.load = calculate_rotor_load(
-                self.radius_stator,
-                self.omega,
-                self.viscosity,
-                self.length,
-                self.radial_clearance,
-                self.eccentricity_ratio,
-            )
-        if attitude_angle is None:
-            self.attitude_angle = calculate_attitude_angle(self.eccentricity_ratio)
-        else:
-            self.attitude_angle = attitude_angle
-        self.xi = self.eccentricity * np.cos(3 * np.pi / 2 + self.attitude_angle)
-        self.yi = self.eccentricity * np.sin(3 * np.pi / 2 + self.attitude_angle)
+        self.z_list = np.zeros(self.nz)
         self.re = np.zeros([self.nz, self.ntheta])
         self.ri = np.zeros([self.nz, self.ntheta])
         self.xre = np.zeros([self.nz, self.ntheta])
         self.xri = np.zeros([self.nz, self.ntheta])
         self.yre = np.zeros([self.nz, self.ntheta])
         self.yri = np.zeros([self.nz, self.ntheta])
-        self.z_list = np.zeros(self.nz)
         self.gama = np.zeros([self.nz, self.ntheta])
         self.t = 0
         self.xp = 0
         self.yp = 0
+        if self.bearing_type == "short_bearing":
+            if self.eccentricity is None:
+                modified_s = modified_sommerfeld_number(
+                    self.radius_stator,
+                    self.omega,
+                    self.viscosity,
+                    self.length,
+                    self.load,
+                    self.radial_clearance,
+                )
+            if calculate_equilibrium_position is True:
+                self.eccentricity = (
+                        calculate_eccentricity_ratio(modified_s) * self.radial_clearance
+                )
+            self.eccentricity_ratio = self.eccentricity / self.radial_clearance
+            if attitude_angle is None:
+                self.attitude_angle = calculate_attitude_angle(self.eccentricity_ratio)
+            else:
+                self.attitude_angle = attitude_angle
+            self.xi = self.eccentricity * np.cos(3 * np.pi / 2 + self.attitude_angle)
+            self.yi = self.eccentricity * np.sin(3 * np.pi / 2 + self.attitude_angle)
+            self.geometry_description()
+            if self.load is None:
+                self.load = calculate_rotor_load(
+                    self.radius_stator,
+                    self.omega,
+                    self.viscosity,
+                    self.length,
+                    self.radial_clearance,
+                    self.eccentricity_ratio,
+                )
+        else:
+            if calculate_equilibrium_position is True:
+                find_equilibrium_position2(self)
+            else:
+                if attitude_angle is None:
+                    sys.exit("Attitude angle must be given.")
+                else:
+                    self.attitude_angle = attitude_angle
+            self.geometry_description()
+            # if load is None, then calculate it
+            # if attitude is None, then calculate it
+
         self.p_mat_analytical = np.zeros([self.nz, self.ntheta])
         self.p_mat_numerical = np.zeros([self.nz, self.ntheta])
-        self.geometry_description()
         self.analytical_pressure_matrix_available = False
         self.numerical_pressure_matrix_available = False
+
         if immediately_calculate_pressure_matrix_numerically:
             self.calculate_pressure_matrix_numerical()
 
@@ -675,5 +694,53 @@ def fluid_flow_example2():
         visc,
         rho,
         load=load,
+        immediately_calculate_pressure_matrix_numerically=False,
+    )
+
+def fluid_flow_example3():
+    """This function returns a different instance of a simple fluid flow.
+    The purpose is to make available a simple model
+    so that doctest can be written using it.
+
+    Parameters
+    ----------
+
+    Returns
+    -------
+    An instance of a fluid flow object.
+
+    Examples
+    --------
+    >>> my_fluid_flow = fluid_flow_example3()
+    >>> my_fluid_flow.load
+    525
+    """
+    from ross.fluid_flow import fluid_flow as flow
+    nz = 8
+    ntheta = 32 * 4
+    omega = 100.0 * 2 * np.pi / 60
+    p_in = 0.0
+    p_out = 0.0
+    radius_rotor = 1
+    h = 0.000194564
+    radius_stator = radius_rotor + h
+    length = 8 * 2 * radius_stator
+    visc = 0.015
+    rho = 860.0
+    eccentricity = 1e-4
+    attitude_angle = np.pi/4
+    return flow.FluidFlow(
+        nz,
+        ntheta,
+        length,
+        omega,
+        p_in,
+        p_out,
+        radius_rotor,
+        radius_stator,
+        visc,
+        rho,
+        eccentricity=eccentricity,
+        attitude_angle=attitude_angle,
         immediately_calculate_pressure_matrix_numerically=False,
     )
