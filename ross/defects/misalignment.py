@@ -3,6 +3,7 @@ from abc import ABC, abstractmethod
 import numpy as np
 import scipy.integrate
 import scipy.linalg
+import time
 
 from .abs_defect import Defect
 
@@ -334,18 +335,57 @@ class MisalignmentRigid(Defect, ABC):
     def run(self, rotor):
         self.rotor = rotor
         self.ndof = rotor.ndof
+        self.iteration = 0
 
+        warI = self.speedI * np.pi / 30
+        warF = self.speedF * np.pi / 30
+
+        self.lambdat = 0.00001
+        # Faxial = 0
+        # TorqueI = 0
+        # TorqueF = 0
+
+        self.sA = (
+            warI * np.exp(-self.lambdat * self.tF)
+            - warF * np.exp(-self.lambdat * self.tI)
+        ) / (np.exp(-self.lambdat * self.tF) - np.exp(-self.lambdat * self.tI))
+        self.sB = (warF - warI) / (
+            np.exp(-self.lambdat * self.tF) - np.exp(-self.lambdat * self.tI)
+        )
+
+        # sAT = (
+        #     TorqueI * np.exp(-lambdat * self.tF) - TorqueF * np.exp(-lambdat * self.tI)
+        # ) / (np.exp(-lambdat * self.tF) - np.exp(-lambdat * self.tI))
+        # sBT = (TorqueF - TorqueI) / (
+        #     np.exp(-lambdat * self.tF) - np.exp(-lambdat * self.tI)
+        # )
+
+        # self.SpeedV = sA + sB * np.exp(-lambdat * t)
+        # self.TorqueV = sAT + sBT * np.exp(-lambdat * t)
+        # self.AccelV = -lambdat * sB * np.exp(-lambdat * t)
+
+        # Determining the modal matrix
+        K = self.rotor.K(self.speedI * np.pi / 30)
+        C = self.rotor.C(self.speedI * np.pi / 30)
+        G = self.rotor.G()
+        M = self.rotor.M()
+        Kst = self.rotor.Kst()
+
+        _, ModMat = scipy.linalg.eigh(K, M)
+        ModMat = ModMat[:, :12]
+        self.ModMat = ModMat
+
+        # Modal transformations
+        self.Mmodal = ((ModMat.T).dot(M)).dot(ModMat)
+        self.Cmodal = ((ModMat.T).dot(C)).dot(ModMat)
+        self.Gmodal = ((ModMat.T).dot(G)).dot(ModMat)
+        self.Kmodal = ((ModMat.T).dot(K)).dot(ModMat)
+        self.Kstmodal = ((ModMat.T).dot(Kst)).dot(ModMat)
         self.angANG = -np.pi / 180
+
         FFmis = np.zeros(self.ndof)
 
-        self.ModalTransformation(
-            rotor.K(self.speedI),
-            rotor.C(self.speedI),
-            rotor.G(),
-            rotor.M(),
-            rotor.Kst(),
-            FFmis,
-        )
+        self.ModalTransformation(FFmis)
 
         y0 = np.zeros(24)
         # x = scipy.integrate.RK45(
@@ -359,6 +399,10 @@ class MisalignmentRigid(Defect, ABC):
         #    vectorized=False,
         #    first_step=None,
         # )
+        dt = 0.0001
+        time = np.arange(dt, self.tF, dt)
+
+        t1 = time.time()
         x = scipy.integrate.solve_ivp(
             self.EquationOfMovement,
             (self.tI, self.tF),
@@ -366,13 +410,15 @@ class MisalignmentRigid(Defect, ABC):
             method="RK45",
             # t_eval=time,
             # dense_output=True,
-            atol=1e-03,
-            rtol=0.1,
+            # atol=1e-03,
+            # rtol=0.1,
         )
-        print("")
-        deslocamento = x.y[:12, :]
-        velocidade = x.y[12:, :]
-        response = self.ModMat.dot(deslocamento)
+        t2 = time.time()
+        print(f"spend time: {t2-t1} s")
+
+        displacement = x.y[:12, :]
+        velocity = x.y[12:, :]
+        response = self.ModMat.dot(displacement)
         import plotly.graph_objects as go
 
         fig = go.Figure()
@@ -399,7 +445,10 @@ class MisalignmentRigid(Defect, ABC):
     # '''
 
     def EquationOfMovement(self, T, Y):
-        print(T)
+        self.iteration += 1
+        if self.iteration % 100 == 0:
+            print(f"iteration: {self.iteration} \n time: {T}")
+
         self.yfuture = Y[:12]
 
         kcoup_auxt = self.rotor.K(self.speedI)[5 + 6 * self.n2, 5 + 6 * self.n2] / (
@@ -424,14 +473,7 @@ class MisalignmentRigid(Defect, ABC):
         )
 
         Fmis, ft = self._parallel()
-        self.ModalTransformation(
-            self.rotor.K(self.speedI),
-            self.rotor.C(self.speedI),
-            self.rotor.G(),
-            self.rotor.M(),
-            self.rotor.Kst(),
-            ft,
-        )
+        self.ModalTransformation(ft)
 
         Omega = self.speedI
         ftmodal = self.ftmodal
@@ -465,47 +507,16 @@ class MisalignmentRigid(Defect, ABC):
         return Y
 
     def calculate_angular_position(self, t):
-        warI = self.speedI * np.pi / 30
-        warF = self.speedF * np.pi / 30
-
-        lambdat = 0.00001
-        Faxial = 0
-        TorqueI = 0
-        TorqueF = 0
-
-        sA = (warI * np.exp(-lambdat * self.tF) - warF * np.exp(-lambdat * self.tI)) / (
-            np.exp(-lambdat * self.tF) - np.exp(-lambdat * self.tI)
-        )
-        sB = (warF - warI) / (np.exp(-lambdat * self.tF) - np.exp(-lambdat * self.tI))
-
-        sAT = (
-            TorqueI * np.exp(-lambdat * self.tF) - TorqueF * np.exp(-lambdat * self.tI)
-        ) / (np.exp(-lambdat * self.tF) - np.exp(-lambdat * self.tI))
-        sBT = (TorqueF - TorqueI) / (
-            np.exp(-lambdat * self.tF) - np.exp(-lambdat * self.tI)
-        )
-
-        self.SpeedV = sA + sB * np.exp(-lambdat * t)
-        self.TorqueV = sAT + sBT * np.exp(-lambdat * t)
-        self.AccelV = -lambdat * sB * np.exp(-lambdat * t)
 
         self.angular_position = (
-            sA * t - (sB / lambdat) * np.exp(-lambdat * t) + (sB / lambdat)
+            self.sA * t
+            - (self.sB / self.lambdat) * np.exp(-self.lambdat * t)
+            + (self.sB / self.lambdat)
         )
 
-    def ModalTransformation(self, K, C, G, M, Kst, ft):
+    def ModalTransformation(self, ft):
 
-        # Determining the modal matrix
-        _, ModMat = scipy.linalg.eigh(K, M)
-        ModMat = ModMat[:, :12]
-        self.ModMat = ModMat
-        # Modal transformations
-        self.Mmodal = ((ModMat.T).dot(M)).dot(ModMat)
-        self.Cmodal = ((ModMat.T).dot(C)).dot(ModMat)
-        self.Gmodal = ((ModMat.T).dot(G)).dot(ModMat)
-        self.Kmodal = ((ModMat.T).dot(K)).dot(ModMat)
-        self.Kstmodal = ((ModMat.T).dot(Kst)).dot(ModMat)
-        self.ftmodal = (ModMat.T).dot(ft)
+        self.ftmodal = (self.ModMat.T).dot(ft)
 
     def time_step(self, yfuturemodal, ModMat):
         self.yfuturemodal = yfuturemodal
