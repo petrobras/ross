@@ -1,5 +1,5 @@
 import numpy as np
-from scipy.optimize import root
+from scipy.optimize import root, least_squares
 
 
 def calculate_attitude_angle(eccentricity_ratio):
@@ -261,6 +261,26 @@ def calculate_eccentricity_ratio(modified_s):
             return np.sqrt(roots)
     raise ValueError("Eccentricity ratio could not be calculated.")
 
+def calculate_eccentricity_ratio_iter(fluid_flow_object):
+
+    def residuals(x, *args):
+        bearing = args[0]
+        move_rotor_center_abs(bearing, x[0], x[1])
+        bearing.geometry_description()
+        bearing.calculate_pressure_matrix_numerical()
+        (_, _, fx, fy,) = fluid_flow_object.calculate_oil_film_force(bearing, force_type="numerical")
+        print("New pos.: ", x)
+        print("New forces: ", fx, fy)
+        print("Residuals: ", np.array([fx, (bearing.load - fy)]))
+        return np.array([fx, (bearing.load - fy)])
+
+    move_rotor_center_abs(fluid_flow_object, 1e-12, -1e-12)
+    fluid_flow_object.geometry_description()
+    fluid_flow_object.calculate_pressure_matrix_numerical()
+    (_, _, fx, fy,) = fluid_flow_object.calculate_oil_film_force(fluid_flow_object, force_type="numerical")
+    x0 = np.array([fluid_flow_object.xi, fluid_flow_object.yi])
+    result = least_squares(residuals, x0, args=[fluid_flow_object], xtol=1e-20, bounds=([-1e-3, -1e-3], [1e-3, 1e-3]))
+    return result
 
 def calculate_rotor_load(
     radius_stator, omega, viscosity, length, radial_clearance, eccentricity_ratio
@@ -338,6 +358,36 @@ def move_rotor_center(fluid_flow_object, dx, dy):
     """
     fluid_flow_object.xi = fluid_flow_object.xi + dx
     fluid_flow_object.yi = fluid_flow_object.yi + dy
+    fluid_flow_object.eccentricity = np.sqrt(
+        fluid_flow_object.xi ** 2 + fluid_flow_object.yi ** 2
+    )
+    fluid_flow_object.eccentricity_ratio = (
+        fluid_flow_object.eccentricity / fluid_flow_object.radial_clearance
+    )
+    fluid_flow_object.attitude_angle = np.arccos(
+        abs(fluid_flow_object.yi / fluid_flow_object.eccentricity)
+    )
+
+def move_rotor_center_abs(fluid_flow_object, x, y):
+    """Moves the rotor center to the coordinates (x, y) and calculates new eccentricity, attitude angle, and rotor center.
+    Parameters
+    ----------
+    fluid_flow_object: A FluidFlow object.
+    x: float
+        Coordinate along x axis.
+    y: float
+        Coordinate along y axis.
+    Returns
+    -------
+    None
+    --------
+    >>> from ross.fluid_flow.fluid_flow import fluid_flow_example
+    >>> my_fluid_flow = fluid_flow_example()
+    >>> move_rotor_center_abs(my_fluid_flow, 0, -1e-3*my_fluid_flow.radial_clearance)
+    >>> my_fluid_flow.eccentricity # doctest: +ELLIPSIS
+    """
+    fluid_flow_object.xi = x
+    fluid_flow_object.yi = y
     fluid_flow_object.eccentricity = np.sqrt(
         fluid_flow_object.xi ** 2 + fluid_flow_object.yi ** 2
     )
