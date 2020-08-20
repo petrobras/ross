@@ -1,11 +1,11 @@
 import warnings
 from math import isnan
-
+import sys
 import numpy as np
 from scipy import integrate
 
-from ross.fluid_flow.fluid_flow_geometry import move_rotor_center
-
+from ross.fluid_flow.fluid_flow_geometry import move_rotor_center, move_rotor_center_abs
+from scipy.optimize import least_squares
 
 def calculate_oil_film_force(fluid_flow_object, force_type=None):
     """This function calculates the forces of the oil film in the N and T directions, ie in the
@@ -556,3 +556,40 @@ def find_equilibrium_position(
         print(map_vector)
     if return_iteration_map:
         return map_vector
+
+def find_equilibrium_position2(fluid_flow_object):
+    """This function finds the equilibrium position of the rotor such that the fluid flow forces match the applied load.
+        Parameters
+        ----------
+        fluid_flow_object: A FluidFlow object.
+        Returns
+        -------
+        None
+        --------
+        >>> from ross.fluid_flow.fluid_flow import fluid_flow_example3
+        >>> my_fluid_flow = fluid_flow_example3()
+        >>> my_fluid_flow.load = 1000
+        >>> find_equilibrium_position2(my_fluid_flow)
+        >>> (my_fluid_flow.xi,my_fluid_flow.yi)
+        (3.768417543196801e-10, 7.661988810006873e-12)
+        """
+    def residuals(x, *args):
+        bearing = args[0]
+        move_rotor_center_abs(bearing, x[0]*fluid_flow_object.radial_clearance, x[1]*fluid_flow_object.radial_clearance)
+        bearing.geometry_description()
+        bearing.calculate_pressure_matrix_numerical()
+        (_, _, fx, fy,) = calculate_oil_film_force(bearing, force_type="numerical")
+        #print("New pos.: ", x)
+        #print("New forces: ", fx, fy)
+        return np.array([fx, (bearing.load - fy)])
+    if fluid_flow_object.load is None:
+        sys.exit("Load must be given to calculate the equilibrium position.")
+    x0 = np.array([0, -1e-3*fluid_flow_object.radial_clearance])
+    move_rotor_center_abs(fluid_flow_object, x0[0], x0[1])
+    fluid_flow_object.geometry_description()
+    fluid_flow_object.calculate_pressure_matrix_numerical()
+    (_, _, fx, fy,) = calculate_oil_film_force(fluid_flow_object, force_type="numerical")
+    result = least_squares(residuals, x0, args=[fluid_flow_object], jac='3-point',bounds=([-1, -1], [1, 1]))
+    move_rotor_center_abs(fluid_flow_object, result.x[0]*fluid_flow_object.radial_clearance, result.x[1]*fluid_flow_object.radial_clearance)
+    fluid_flow_object.geometry_description()
+    print("The equilibrium position (x0, y0) is: (",result.x[0]*fluid_flow_object.radial_clearance,",",result.x[1]*fluid_flow_object.radial_clearance,")")
