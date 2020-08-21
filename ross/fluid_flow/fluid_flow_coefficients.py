@@ -395,9 +395,7 @@ def find_equilibrium_position(fluid_flow_object, print_equilibrium_position=Fals
         x: array
             Rotor center coordinates
         *args : dict
-            Dictionary instanciating the ross.FluidFlow class.
-            The attributes that are supposed to be stochastic should be
-            set as lists of random variables.
+            Dictionary instantiating the ross.FluidFlow class.
         Returns
         -------
         array
