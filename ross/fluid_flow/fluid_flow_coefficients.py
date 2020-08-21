@@ -388,6 +388,18 @@ def find_equilibrium_position(fluid_flow_object, print_equilibrium_position=Fals
     """
 
     def residuals(x, *args):
+        """Calculates x component of the forces of the oil film and the difference
+        between the y component and the load.
+        Parameters
+        ----------
+        x: array
+            Rotor center coordinates
+        Returns
+        -------
+        array
+            Array with the x component of the forces of the oil film and the difference
+            between the y component and the load.
+        """
         bearing = args[0]
         move_rotor_center_abs(
             bearing,
