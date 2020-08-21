@@ -388,12 +388,16 @@ def find_equilibrium_position(fluid_flow_object, print_equilibrium_position=Fals
     """
 
     def residuals(x, *args):
-        """Calculates x component of the forces of the oil film and the difference
-        between the y component and the load.
+        """Calculates x component of the forces of the oil film and the
+        difference between the y component and the load.
         Parameters
         ----------
         x: array
             Rotor center coordinates
+        *args : dict
+            Dictionary instanciating the ross.FluidFlow class.
+            The attributes that are supposed to be stochastic should be
+            set as lists of random variables.
         Returns
         -------
         array
