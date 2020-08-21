@@ -351,7 +351,8 @@ def move_rotor_center(fluid_flow_object, dx, dy):
 
 
 def move_rotor_center_abs(fluid_flow_object, x, y):
-    """Moves the rotor center to the coordinates (x, y) and calculates new eccentricity, attitude angle, and rotor center.
+    """Moves the rotor center to the coordinates (x, y) and calculates new eccentricity,
+    attitude angle, and rotor center.
     Parameters
     ----------
     fluid_flow_object: A FluidFlow object.
