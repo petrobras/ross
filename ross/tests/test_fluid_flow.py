@@ -7,10 +7,11 @@ from numpy.testing import assert_allclose
 from plotly import graph_objects as go
 
 from ross.fluid_flow import fluid_flow as flow
+from ross.fluid_flow.fluid_flow import fluid_flow_example2
 from ross.fluid_flow.fluid_flow_coefficients import (
     calculate_oil_film_force, calculate_short_damping_matrix,
     calculate_short_stiffness_matrix,
-    calculate_stiffness_and_damping_coefficients, find_equilibrium_position, find_equilibrium_position2)
+    calculate_stiffness_and_damping_coefficients, find_equilibrium_position)
 from ross.fluid_flow.fluid_flow_geometry import move_rotor_center
 from ross.fluid_flow.fluid_flow_graphics import (
     plot_eccentricity, plot_pressure_surface, plot_pressure_theta,
@@ -75,6 +76,7 @@ def fluid_flow_short_friswell(set_load=True):
             rho,
             load=load,
             immediately_calculate_pressure_matrix_numerically=False,
+            bearing_type="short_bearing",
         )
     else:
         return flow.FluidFlow(
@@ -90,6 +92,7 @@ def fluid_flow_short_friswell(set_load=True):
             rho,
             eccentricity=eccentricity,
             immediately_calculate_pressure_matrix_numerically=False,
+            bearing_type="short_bearing",
         )
 
 
@@ -188,7 +191,6 @@ def fluid_flow_short_numerical():
     radius_stator = 0.1
     visc = 0.015
     rho = 860.0
-    attitude_angle = None
     eccentricity = 0.001
     return flow.FluidFlow(
         nz,
@@ -201,7 +203,6 @@ def fluid_flow_short_numerical():
         radius_stator,
         visc,
         rho,
-        attitude_angle=attitude_angle,
         eccentricity=eccentricity,
         immediately_calculate_pressure_matrix_numerically=False,
     )
@@ -220,6 +221,7 @@ def fluid_flow_long_numerical():
     visc = 0.015
     rho = 860.0
     eccentricity = 0.0001
+    attitude_angle = (5 * np.pi) / 100
     return flow.FluidFlow(
         nz,
         ntheta,
@@ -232,7 +234,8 @@ def fluid_flow_long_numerical():
         visc,
         rho,
         eccentricity=eccentricity,
-        immediately_calculate_pressure_matrix_numerically=False,
+        attitude_angle=attitude_angle,
+        immediately_calculate_pressure_matrix_numerically=True,
     )
 
 
@@ -314,30 +317,11 @@ def test_plots():
 
 
 def test_find_equilibrium_position():
-    bearing = flow.fluid_flow_example2()
-    find_equilibrium_position(
-        bearing,
-        print_along=False,
-        tolerance=0.1,
-        increment_factor=0.01,
-        max_iterations=2,
-        increment_reduction_limit=1e-03,
-    )
-    assert_allclose(
-        bearing.eccentricity,
-        (bearing.radius_stator - bearing.radius_rotor) * 0.2663,
-        atol=0.001,
-    )
+    bearing = fluid_flow_example2()
+    (n, t, force_x, force_y,) = calculate_oil_film_force(bearing)
+    assert math.isclose(force_x, 0, abs_tol=1e-4)
+    assert math.isclose(force_y, bearing.load, abs_tol=1e-2)
 
-def test_find_equilibrium_position2():
-    from ross.fluid_flow.fluid_flow import fluid_flow_example3
-    my_fluid_flow = fluid_flow_example3()
-    my_fluid_flow.load = 1000
-    find_equilibrium_position2(my_fluid_flow)
-    xi = 3.768417543196801e-10
-    yi = 7.661988810006873e-12
-    assert math.isclose(my_fluid_flow.xi,xi,rel_tol=1e-2)
-    assert math.isclose(my_fluid_flow.yi,yi,rel_tol=1e-2)
 
 def test_move_rotor_center():
     bearing = fluid_flow_short_friswell()
