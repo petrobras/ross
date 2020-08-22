@@ -383,8 +383,8 @@ def find_equilibrium_position(fluid_flow_object, print_equilibrium_position=Fals
     >>> from ross.fluid_flow.fluid_flow import fluid_flow_example2
     >>> my_fluid_flow = fluid_flow_example2()
     >>> find_equilibrium_position(my_fluid_flow)
-    >>> (my_fluid_flow.xi,my_fluid_flow.yi)
-    (2.2538447375166487e-05, -1.1774820372319799e-05)
+    >>> (my_fluid_flow.xi, my_fluid_flow.yi) # doctest: +ELLIPSIS
+    (2.25...
     """
 
     def residuals(x, *args):
