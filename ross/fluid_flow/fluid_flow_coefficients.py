@@ -5,8 +5,11 @@ import numpy as np
 from scipy import integrate
 from scipy.optimize import least_squares
 
+# fmt: off
 from ross.fluid_flow.fluid_flow_geometry import (move_rotor_center,
                                                  move_rotor_center_abs)
+
+# fmt: on
 
 
 def calculate_oil_film_force(fluid_flow_object, force_type=None):
