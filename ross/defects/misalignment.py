@@ -5,6 +5,9 @@ import scipy as sp
 import scipy.integrate
 import scipy.linalg
 import time
+from ross.units import Q_
+
+import plotly.graph_objects as go
 
 from .abs_defect import Defect
 
@@ -374,7 +377,7 @@ class MisalignmentRigid(Defect, ABC):
         self.M = self.rotor.M()
         self.Kst = self.rotor.Kst()
 
-        _, ModMat = scipy.linalg.eigh(self.K, self.M)
+        _, ModMat = scipy.linalg.eigh(self.K, self.M, type=1, turbo=False,)
         ModMat = ModMat[:, :12]
         self.ModMat = ModMat
 
@@ -384,32 +387,23 @@ class MisalignmentRigid(Defect, ABC):
         self.Gmodal = ((ModMat.T).dot(self.G)).dot(ModMat)
         self.Kmodal = ((ModMat.T).dot(self.K)).dot(ModMat)
         self.Kstmodal = ((ModMat.T).dot(self.Kst)).dot(ModMat)
+
         self.angANG = -np.pi / 180
 
         FFmis = np.zeros(self.ndof)
 
         y0 = np.zeros(24)
-        dt = 0.0001
-        tt = np.arange(dt, self.tF, dt)
-        self.inv_Mmodal = np.linalg.inv(self.Mmodal)
+        self.dt = 0.0001
+        t_eval = np.arange(self.dt, self.tF, self.dt)
+        self.inv_Mmodal = np.linalg.pinv(self.Mmodal)
         t1 = time.time()
-        # x = scipy.integrate.RK45(
-        #     self.EquationOfMovement,
-        #     0,
-        #     y0,
-        #     1,
-        #     # max_step=0.01,
-        #     rtol=0.001,
-        #     atol=1e-06,
-        #     vectorized=False,
-        #     first_step=None,
-        # )
+
         x = scipy.integrate.solve_ivp(
-            self.EquationOfMovement,
+            self._equation_of_movement,
             (self.tI, self.tF),
             y0,
-            method="RK45",
-            t_eval=tt,
+            method="Radau",
+            t_eval=t_eval,
             # dense_output=True,
             # atol=1e-03,
             # rtol=0.1,
@@ -417,47 +411,12 @@ class MisalignmentRigid(Defect, ABC):
         t2 = time.time()
         print(f"spend time: {t2-t1} s")
 
-        displacement = x.y[:12, :]
-        velocity = x.y[12:, :]
-        response = self.ModMat.dot(displacement)
-        import plotly.graph_objects as go
+        self.displacement = x.y[:12, :]
+        self.velocity = x.y[12:, :]
+        self.time_vector = x.t
+        self.response = self.ModMat.dot(self.displacement)
 
-        rows, cols = response.shape
-        AA = RotorSignalAnalysis(
-            response[84, int(cols / 2) :], response[84, int(cols / 2) :], dt
-        )
-        amp = AA.x_amp
-        freq = AA.freq
-
-        fig = go.Figure()
-        fig.add_trace(go.Scatter(x=x.t, y=response[84, :]))
-        fig.show()
-
-        fig1 = go.Figure()
-        fig1.add_trace(go.Scatter(x=freq, y=amp))
-        fig1.update_layout(yaxis_type="log")
-        fig1.show()
-
-    # '''
-    #         function Y=movimento(T,Y)
-    #             %controla a for�a
-    #             if T>tf
-    #                 ft=0;
-    #             else
-    #                 ft=f*sin(OM*T);
-    #             end
-
-    #             y0=Y(2,1); %posi��o (x)
-    #             y1=Y(1,1); %velocidade (v, x�)
-
-    #             Y(1,1)=ft/M-(C/M)*y1-(K/M)*y0; %equa��o do movimento for�ado com
-    #             %amortecimento
-
-    #             Y(2,1)=y1; %velocidade do sistema
-    #         end
-    # '''
-
-    def EquationOfMovement(self, T, Y):
+    def _equation_of_movement(self, T, Y):
         self.iteration += 1
         if self.iteration % 10000 == 0:
             print(f"iteration: {self.iteration} \n time: {T}")
@@ -475,7 +434,6 @@ class MisalignmentRigid(Defect, ABC):
             - (self.sB / self.lambdat) * np.exp(-self.lambdat * T)
             + (self.sB / self.lambdat)
         )
-        # SpeedV = sA + sB * np.exp(-lambdat * )
 
         self.angANG = (
             self.Kcoup_auxI * angular_position
@@ -494,12 +452,14 @@ class MisalignmentRigid(Defect, ABC):
         Fmis, ft = self._parallel(positionsMod, self.angANG)
         ftmodal = (self.ModMat.T).dot(ft)
 
-        Omega = self.speedI * np.pi / 30
+        # Omega = self.speedI * np.pi / 30
+        Omega = self.sA + self.sB * np.exp(-self.lambdat * T)
+        AccelV = -self.lambdat * self.sB * np.exp(-self.lambdat * T)
 
         new_V_dot = (
             ftmodal
             - ((self.Cmodal + self.Gmodal * Omega)).dot(velocity)
-            - ((self.Kmodal + self.Kstmodal * Omega).dot(positions))
+            - ((self.Kmodal + self.Kstmodal * AccelV).dot(positions))
         ).dot(
             self.inv_Mmodal
         )  # proper equation of movement to be integrated in time
@@ -532,18 +492,18 @@ class MisalignmentRigid(Defect, ABC):
         k0 = self.kCOUP
         delta1 = self.eCOUP
 
-        beta = 0
+        betam = 0
 
         k_misalignbeta1 = np.array(
             [
-                -k0 * self.Kcoup_auxI * delta1 * np.sin(beta - fir),
-                -k0 * self.Kcoup_auxI * delta1 * np.cos(beta - fir),
+                -k0 * self.Kcoup_auxI * delta1 * np.sin(betam - fir),
+                -k0 * self.Kcoup_auxI * delta1 * np.cos(betam - fir),
                 0,
                 0,
                 0,
                 0,
-                +k0 * self.Kcoup_auxF * delta1 * np.sin(beta - fir),
-                k0 * self.Kcoup_auxF * delta1 * np.cos(beta - fir),
+                +k0 * self.Kcoup_auxF * delta1 * np.sin(betam - fir),
+                k0 * self.Kcoup_auxF * delta1 * np.cos(betam - fir),
                 0,
                 0,
                 0,
@@ -559,14 +519,14 @@ class MisalignmentRigid(Defect, ABC):
 
         F_misalign = np.array(
             [
-                -(-k0 * delta1 * np.cos(beta - fir) + k0 * delta1),
-                -k0 * delta1 * np.sin(beta - fir),
+                -(-k0 * delta1 * np.cos(betam - fir) + k0 * delta1),
+                -k0 * delta1 * np.sin(betam - fir),
                 0,
                 0,
                 0,
                 self.TD - self.TL,
-                -(k0 * delta1 * np.cos(beta - fir) - k0 * delta1),
-                k0 * delta1 * np.sin(beta - fir),
+                -(k0 * delta1 * np.cos(betam - fir) - k0 * delta1),
+                k0 * delta1 * np.sin(betam - fir),
                 0,
                 0,
                 0,
@@ -583,201 +543,119 @@ class MisalignmentRigid(Defect, ABC):
     def force(self):
         return self._parallel()
 
+    def plot_time_response(
+        self,
+        probe,
+        probe_units="rad",
+        displacement_units="m",
+        time_units="s",
+        fig=None,
+        **kwargs,
+    ):
+        """
+        """
+        if fig is None:
+            fig = go.Figure()
 
-class RotorSignalAnalysis:
-    """ Contains signal analysis' methods, using vibration signals from perpendicular sensors, e.g. x and y directions. 
-    The reference coordenates system is: y-axis throught the shaft center; x-axis and z-axis in the sensors' planes
-    
-    Parameters
-    ----------
-    x : numpy.ndarray
-        Vibration signal in the time domain in x-axis.
-    z : numpy.ndarray
-        Vibration signal in the time domain in z-axis.
-    dt : float
-        Time step.
-    
-    References
-    ----------
-    .. [1] 'Application of full spectrum to rotating machinery diagnostics' by Ph.D. Paul Goldman ...
-    & Ph.D. Agnes Muszynska. Avaible at http://amconsulting.intellibit.com/499agnes.shtml.
+        for i, p in enumerate(probe):
+            dofx = p[0] * self.rotor.number_dof
+            dofy = p[0] * self.rotor.number_dof + 1
+            angle = Q_(p[1], probe_units).to("rad").m
 
-    Examples
-    --------
-    >>> from rotordynamics import RotorSignalAnalysis
-    >>> import numpy as np
-    >>> t = np.arange(0, 10, 0.01)
-    >>> dt = t[1] - t[0]
-    >>> w = 2
-    >>> x = np.sin(2 * np.pi * w * t) + np.random.rand(len(t)) / 10
-    >>> z = np.cos(2 * np.pi * w * t) + np.random.rand(len(t)) / 10
-    >>> r_analysis = RotorSignalAnalysis(x, z, dt)
-    >>> freq, amp = r_analysis.full_fft(plot=True)
-    """
+            # fmt: off
+            operator = np.array(
+                [[np.cos(angle), - np.sin(angle)],
+                 [np.cos(angle), + np.sin(angle)]]
+            )
 
-    def __init__(self, x, z, dt: float):
+            _probe_resp = operator @ np.vstack((self.response[dofx,:], self.response[dofy,:]))
+            probe_resp = (
+                _probe_resp[0] * np.cos(angle) ** 2  +
+                _probe_resp[1] * np.sin(angle) ** 2
+            )
+            # fmt: on
 
-        window = sp.signal.windows.boxcar(len(x))
+            probe_resp = Q_(probe_resp, "m").to(displacement_units).m
 
+            fig.add_trace(
+                go.Scatter(
+                    x=Q_(self.time_vector, "s").to(time_units).m,
+                    y=Q_(probe_resp, "m").to(displacement_units).m,
+                    mode="lines",
+                    name=f"Probe {i + 1}",
+                    legendgroup=f"Probe {i + 1}",
+                    showlegend=True,
+                    hovertemplate=f"Time ({time_units}): %{{x:.2f}}<br>Amplitude ({displacement_units}): %{{y:.2e}}",
+                )
+            )
+
+        fig.update_xaxes(title_text=f"Time ({time_units})")
+        fig.update_yaxes(title_text=f"Amplitude ({displacement_units})")
+        fig.update_layout(**kwargs)
+
+        return fig
+
+    def plot_dfft(
+        self, probe, probe_units="rad", fig=None, log=False, **kwargs,
+    ):
+        """
+        """
+        if fig is None:
+            fig = go.Figure()
+
+        for i, p in enumerate(probe):
+            dofx = p[0] * self.rotor.number_dof
+            dofy = p[0] * self.rotor.number_dof + 1
+            angle = Q_(p[1], probe_units).to("rad").m
+
+            # fmt: off
+            operator = np.array(
+                [[np.cos(angle), - np.sin(angle)],
+                 [np.cos(angle), + np.sin(angle)]]
+            )
+            row, cols = self.response.shape
+            _probe_resp = operator @ np.vstack((self.response[dofx,int(2*cols/3):], self.response[dofy,int(2*cols/3):]))
+            probe_resp = (
+                _probe_resp[0] * np.cos(angle) ** 2  +
+                _probe_resp[1] * np.sin(angle) ** 2
+            )
+            # fmt: on
+
+            amp, freq = self._dfft(probe_resp, self.dt)
+
+            fig.add_trace(
+                go.Scatter(
+                    x=freq,
+                    y=amp,
+                    mode="lines",
+                    name=f"Probe {i + 1}",
+                    legendgroup=f"Probe {i + 1}",
+                    showlegend=True,
+                    hovertemplate=f"Frequency (Hz): %{{x:.2f}}<br>Amplitude (m): %{{y:.2e}}",
+                )
+            )
+
+        fig.update_xaxes(title_text=f"Frequency (Hz)")
+        fig.update_yaxes(title_text=f"Amplitude (m)")
+        fig.update_layout(**kwargs)
+
+        if log:
+            fig.update_layout(yaxis_type="log")
+
+        return fig
+
+    def _dfft(self, x, dt):
         b = np.floor(len(x) / 2)
         c = len(x)
         df = 1 / (c * dt)
 
-        x_amp = sp.fft(x * window)[: int(b)]
+        x_amp = sp.fft(x)[: int(b)]
         x_amp = x_amp * 2 / c
-        self.x_phase = np.angle(x_amp)
-        self.x_amp = np.abs(x_amp)
-
-        b = np.floor(len(z) / 2)
-        c = len(z)
-        z_amp = sp.fft(z * window)[: int(b)]
-        z_amp = z_amp * 2 / c
-        self.z_phase = np.angle(z_amp)
-        self.z_amp = np.abs(z_amp)
+        x_phase = np.angle(x_amp)
+        x_amp = np.abs(x_amp)
 
         freq = np.arange(0, df * b, df)
         freq = freq[: int(b)]  # Frequency vector
 
-        self.freq = freq
+        return x_amp, freq
 
-    def forward(self, plot=False, log=False):
-        """Calculates the forward spectrum fourier transform.
-        
-        Parameters
-        ----------
-        plot : bool, optional
-            Set it as True to plot the forward spectrum, by default it is False
-        log : bool, optional
-            Set it as True to plot using 'log' scale in the y-axis
-
-        Returns
-        -------
-        freq : numpy.ndarray
-            Frequency vector
-        f_amp : numpy.ndarray
-            Forward amplitude vector
-            
-        Examples
-        --------
-
-        >>> from rotordynamics import RotorSignalAnalysis
-        >>> import numpy as np
-        >>> t = np.arange(0, 10, 0.01)
-        >>> dt = t[1] - t[0]
-        >>> w = 2
-        >>> x = np.sin(2 * np.pi * w * t) + np.random.rand(len(t)) / 10
-        >>> z = np.cos(2 * np.pi * w * t) + np.random.rand(len(t)) / 10
-        >>> r_analysis = RotorSignalAnalysis(x, z, dt)
-        >>> freq, f_amp = r_analysis.forward(plot=True)
-        """
-        f_amp = np.abs(
-            (
-                self.x_amp ** 2
-                + self.z_amp ** 2
-                - 2 * self.x_amp * self.z_amp * np.sin(self.x_phase - self.z_phase)
-            )
-            ** 0.5  # Forward amplitude
-        )
-        if plot:
-            self.__plot(
-                self.freq, f_amp, title="Forward Spectrum Fourier Transform", log=log
-            )
-        return self.freq, f_amp
-
-    def backward(self, plot=False, log=False):
-        """Calculates the backward spectrum fourier transform.
-        
-        Parameters
-        ----------
-        plot : bool, optional
-            Set it as True to plot the backward spectrum, by default it is False
-        log : bool, optional
-            Set it as True to plot using 'log' scale in the y-axis
-        
-        Returns
-        -------
-        freq : numpy.ndarray
-            Frequency vector
-        b_amp : numpy.ndarray
-            Backward amplitude vector
-
-        Examples
-        --------
-        >>> from rotordynamics import RotorSignalAnalysis
-        >>> import numpy as np
-        >>> t = np.arange(0, 10, 0.01)
-        >>> dt = t[1] - t[0]
-        >>> w = 2
-        >>> x = np.sin(2 * np.pi * w * t) + np.random.rand(len(t)) / 10
-        >>> z = np.cos(2 * np.pi * w * t) + np.random.rand(len(t)) / 10
-        >>> r_analysis = RotorSignalAnalysis(x, z, dt)
-        >>> freq, b_amp = r_analysis.backward(plot=True)
-        """
-        b_amp = np.abs(
-            (
-                self.x_amp ** 2
-                + self.z_amp ** 2
-                + 2 * self.x_amp * self.z_amp * np.sin(self.x_phase - self.z_phase)
-            )
-            ** 0.5  # Backward amplitude
-        )
-        if plot:
-            self.__plot(
-                self.freq, b_amp, title="Backward Spectrum Fourier Transform", log=log
-            )
-        return self.freq, b_amp
-
-    def full_fft(self, plot=False, log=False):
-        """Creates the full spectrum fourier transform vector.
-        
-        Parameters
-        ----------
-        plot : bool, optional
-            Set it as True to plot the full spectrum, by default it is False
-        log : bool, optional
-            Set it as True to plot using 'log' scale in the y-axis
-
-        Returns
-        -------
-        full_freq : numpy.ndarray
-            Frequency vector
-        full_amp : numpy.ndarray
-            Full amplitude vector
-
-        Examples
-        --------
-        >>> from rotordynamics import RotorSignalAnalysis
-        >>> import numpy as np
-        >>> t = np.arange(0, 10, 0.01)
-        >>> dt = t[1] - t[0]
-        >>> w = 2
-        >>> x = np.sin(2 * np.pi * w * t) + np.random.rand(len(t)) / 10
-        >>> z = np.cos(2 * np.pi * w * t) + np.random.rand(len(t)) / 10
-        >>> r_analysis = RotorSignalAnalysis(x, z, dt)
-        >>> freq, amp = r_analysis.full_fft(plot=True)
-        """
-        full_freq = np.concatenate(
-            (-self.freq[-1:0:-1], self.freq)
-        )  # full spectrum frequency -> [-n..0..n]
-        f_amp = self.forward()[1]
-        b_amp = self.backward()[1]
-        full_amp = np.concatenate(
-            (b_amp[-1:0:-1], f_amp)
-        )  # full spectrum amplitude -> [backward forward]
-
-        if plot:
-            self.__plot(
-                full_freq, full_amp, title="Full Spectrum Fourier Transform", log=log
-            )
-
-        return full_freq, full_amp
-
-    def __plot(self, x, y, title="", log=False):
-        fig = go.Figure()
-        fig.add_trace(go.Scatter(x=x, y=y, mode="lines"))
-        fig.update_layout(
-            title=title, xaxis_title="Frequency [Hz]", yaxis_title="Amplitude [um]",
-        )
-        if log:
-            fig.update_layout(yaxis_type="log")
-        fig.show()
