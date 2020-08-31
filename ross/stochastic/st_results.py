@@ -823,23 +823,30 @@ class ST_TimeResponseResults:
         self.nodes_pos = nodes_pos
         self.number_dof = number_dof
 
-    def _plot_time_response(
-        self, dof, percentile=[], conf_interval=[], *args, **kwargs
+    def plot_1d(
+        self, probe, percentile=[], conf_interval=[], fig=None, *args, **kwargs
     ):
         """Plot time response.
 
-        This method plots the time response given.
+        This method plots the time response given a tuple of probes with their nodes
+        and orientations.
 
         Parameters
         ----------
-        dof : int
-            Degree of freedom that will be observed.
+        probe : list of tuples
+            List with tuples (node, orientation angle).
+            node : int
+                indicate the node where the probe is located.
+            orientation : float,
+                probe orientation angle about the shaft. The 0 refers to +X direction.
         percentile : list, optional
             Sequence of percentiles to compute, which must be
             between 0 and 100 inclusive.
         conf_interval : list, optional
             Sequence of confidence intervals to compute, which must be
             between 0 and 100 inclusive.
+        fig : Plotly graph_objects.Figure()
+            The figure object with the plot.
         args : optional
             Additional plot axes
         kwargs : optional
@@ -852,14 +859,8 @@ class ST_TimeResponseResults:
         fig : Plotly graph_objects.Figure()
             The figure object with the plot.
         """
-        if self.number_dof == 4:
-            dof_dict = {"0": "x", "1": "y", "2": "α", "3": "β"}
-
-        if self.number_dof == 6:
-            dof_dict = {"0": "x", "1": "y", "2": "z", "4": "α", "5": "β", "6": "θ"}
-
-        obs_dof = dof % self.number_dof
-        obs_dof = dof_dict[str(obs_dof)]
+        if fig is None:
+            fig = go.Figure()
 
         default_values = dict(mode="lines")
         conf_interval = np.sort(conf_interval)
@@ -868,88 +869,74 @@ class ST_TimeResponseResults:
         for k, v in default_values.items():
             kwargs.setdefault(k, v)
 
-        fig = go.Figure()
+        for i, p in enumerate(probe):
+            dofx = p[0] * self.number_dof
+            dofy = p[0] * self.number_dof + 1
+            angle = p[1]
 
-        fig.add_trace(
-            go.Scatter(
-                x=self.time_range,
-                y=np.mean(self.yout[..., dof], axis=0),
-                opacity=1.0,
-                name="Mean",
-                line=dict(width=3.0, color="black"),
-                hovertemplate=("Time: %{x:.3f}<br>" + "Amplitude: %{y:.2e}"),
-                **kwargs,
+            # fmt: off
+            operator = np.array(
+                [[np.cos(angle), - np.sin(angle)],
+                 [np.cos(angle), + np.sin(angle)]]
             )
-        )
-        for i, p in enumerate(percentile):
+
+            probe_resp = np.zeros_like(self.yout[:, :, 0])
+            for j, y in enumerate(self.yout):
+                _probe_resp = operator @ np.vstack((y[:, dofx], y[:, dofy]))
+                probe_resp[j] = (
+                    _probe_resp[0] * np.cos(angle) ** 2 +
+                    _probe_resp[1] * np.sin(angle) ** 2
+                )
+            # fmt: on
+
             fig.add_trace(
                 go.Scatter(
                     x=self.time_range,
-                    y=np.percentile(self.yout[..., dof], p, axis=0),
-                    opacity=0.6,
-                    line=dict(width=2.5, color=colors2[i]),
-                    name="percentile: {}%".format(p),
+                    y=np.mean(probe_resp, axis=0),
+                    opacity=1.0,
+                    name=f"Probe {i + 1} - Mean",
+                    line=dict(width=3.0),
                     hovertemplate=("Time: %{x:.3f}<br>" + "Amplitude: %{y:.2e}"),
                     **kwargs,
                 )
             )
-
-        x = np.concatenate((self.time_range, self.time_range[::-1]))
-        for i, p in enumerate(conf_interval):
-            p1 = np.percentile(self.yout[..., dof], 50 + p / 2, axis=0)
-            p2 = np.percentile(self.yout[..., dof], 50 - p / 2, axis=0)
-            fig.add_trace(
-                go.Scatter(
-                    x=x,
-                    y=np.concatenate((p1, p2[::-1])),
-                    line=dict(width=1, color=colors1[i]),
-                    fill="toself",
-                    fillcolor=colors1[i],
-                    opacity=0.5,
-                    name="confidence interval: {}%".format(p),
-                    hovertemplate=("Time: %{x:.3f}<br>" + "Amplitude: %{y:.2e}"),
-                    **kwargs,
+            for j, p in enumerate(percentile):
+                fig.add_trace(
+                    go.Scatter(
+                        x=self.time_range,
+                        y=np.percentile(probe_resp, p, axis=0),
+                        opacity=0.6,
+                        line=dict(width=2.5),
+                        name=f"Probe {i + 1} - percentile: {p}%",
+                        hovertemplate=("Time: %{x:.3f}<br>" + "Amplitude: %{y:.2e}"),
+                        **kwargs,
+                    )
                 )
-            )
 
-        fig.update_xaxes(
-            title_text="<b>Time</b>",
-            title_font=dict(family="Arial", size=20),
-            tickfont=dict(size=16),
-            gridcolor="lightgray",
-            showline=True,
-            linewidth=2.5,
-            linecolor="black",
-            mirror=True,
-        )
-        fig.update_yaxes(
-            title_text="<b>Amplitude</b>",
-            title_font=dict(family="Arial", size=20),
-            tickfont=dict(size=16),
-            gridcolor="lightgray",
-            showline=True,
-            linewidth=2.5,
-            linecolor="black",
-            mirror=True,
-        )
-        fig.update_layout(
-            title="<b>Response for node {} and degree of freedom {}</b>".format(
-                dof // 4, obs_dof
-            ),
-            plot_bgcolor="white",
-            width=1200,
-            height=900,
-            legend=dict(
-                font=dict(family="sans-serif", size=14),
-                bgcolor="white",
-                bordercolor="black",
-                borderwidth=2,
-            ),
-        )
+            x = np.concatenate((self.time_range, self.time_range[::-1]))
+            for j, p in enumerate(conf_interval):
+                p1 = np.percentile(probe_resp, 50 + p / 2, axis=0)
+                p2 = np.percentile(probe_resp, 50 - p / 2, axis=0)
+                fig.add_trace(
+                    go.Scatter(
+                        x=x,
+                        y=np.concatenate((p1, p2[::-1])),
+                        line=dict(width=1),
+                        fill="toself",
+                        # fillcolor=colors1[j],
+                        opacity=0.5,
+                        name=f"Probe {i + 1} - confidence interval: {p}%",
+                        hovertemplate=("Time: %{x:.3f}<br>" + "Amplitude: %{y:.2e}"),
+                        **kwargs,
+                    )
+                )
+
+        fig.update_xaxes(title_text="<b>Time (s)</b>")
+        fig.update_yaxes(title_text="<b>Amplitude</b>")
 
         return fig
 
-    def _plot_orbit_2d(self, node, percentile=[], conf_interval=[], *args, **kwargs):
+    def plot_2d(self, node, percentile=[], conf_interval=[], fig=None, *args, **kwargs):
         """Plot orbit response (2D).
 
         This function plots orbits for a given node on the rotor system in a 2D view.
@@ -964,6 +951,8 @@ class ST_TimeResponseResults:
         conf_interval : list, optional
             Sequence of confidence intervals to compute, which must be
             between 0 and 100 inclusive.
+        fig : Plotly graph_objects.Figure()
+            The figure object with the plot.
         args : optional
             Additional plot axes
         kwargs : optional
@@ -984,7 +973,8 @@ class ST_TimeResponseResults:
         for k, v in default_values.items():
             kwargs.setdefault(k, v)
 
-        fig = go.Figure()
+        if fig is None:
+            fig = go.Figure()
 
         fig.add_trace(
             go.Scatter(
@@ -1035,40 +1025,13 @@ class ST_TimeResponseResults:
                 )
             )
 
-        fig.update_xaxes(
-            title_text="<b>Amplitude</b>",
-            title_font=dict(family="Arial", size=20),
-            tickfont=dict(size=16),
-            gridcolor="lightgray",
-            showline=True,
-            linewidth=2.5,
-            linecolor="black",
-            mirror=True,
-        )
-        fig.update_yaxes(
-            title_text="<b>Amplitude</b>",
-            title_font=dict(family="Arial", size=20),
-            tickfont=dict(size=16),
-            gridcolor="lightgray",
-            showline=True,
-            linewidth=2.5,
-            linecolor="black",
-            mirror=True,
-        )
-        fig.update_layout(
-            title="<b>Rotor Orbit: node {}</b>".format(node),
-            plot_bgcolor="white",
-            legend=dict(
-                font=dict(family="sans-serif", size=14),
-                bgcolor="white",
-                bordercolor="black",
-                borderwidth=2,
-            ),
-        )
+        fig.update_xaxes(title_text="<b>Amplitude</b>")
+        fig.update_yaxes(title_text="<b>Amplitude</b>")
+        fig.update_layout(title="<b>Rotor Orbit: node {}</b>".format(node)),
 
         return fig
 
-    def _plot_orbit_3d(self, percentile=[], conf_interval=[], *args, **kwargs):
+    def plot_3d(self, percentile=[], conf_interval=[], fig=None, *args, **kwargs):
         """Plot orbit response (3D).
 
         This function plots orbits for each node on the rotor system in a 3D view.
@@ -1081,6 +1044,8 @@ class ST_TimeResponseResults:
         conf_interval : list, optional
             Sequence of confidence intervals to compute, which must be
             between 0 and 100 inclusive.
+        fig : Plotly graph_objects.Figure()
+            The figure object with the plot.
         args : optional
             Additional plot axes
         kwargs : optional
@@ -1101,7 +1066,8 @@ class ST_TimeResponseResults:
         for k, v in default_values.items():
             kwargs.setdefault(k, v)
 
-        fig = go.Figure()
+        if fig is None:
+            fig = go.Figure()
 
         line = np.zeros(len(self.nodes_pos))
         fig.add_trace(
@@ -1195,113 +1161,13 @@ class ST_TimeResponseResults:
                 )
 
         fig.update_layout(
-            width=1200,
-            height=900,
             scene=dict(
-                bgcolor="white",
-                xaxis=dict(
-                    title=dict(text="<b>Rotor Length</b>", font=dict(size=14)),
-                    tickfont=dict(size=12),
-                    nticks=5,
-                    backgroundcolor="lightgray",
-                    gridcolor="white",
-                    showspikes=False,
-                ),
-                yaxis=dict(
-                    title=dict(text="<b>Amplitude - X</b>", font=dict(size=14)),
-                    tickfont=dict(size=12),
-                    nticks=5,
-                    backgroundcolor="lightgray",
-                    gridcolor="white",
-                    showspikes=False,
-                ),
-                zaxis=dict(
-                    title=dict(text="<b>Amplitude - Y</b>", font=dict(size=14)),
-                    tickfont=dict(size=12),
-                    nticks=5,
-                    backgroundcolor="lightgray",
-                    gridcolor="white",
-                    showspikes=False,
-                ),
+                xaxis=dict(title=dict(text="<b>Rotor Length</b>"), showspikes=False),
+                yaxis=dict(title=dict(text="<b>Amplitude - X</b>"), showspikes=False),
+                zaxis=dict(title=dict(text="<b>Amplitude - Y</b>"), showspikes=False),
             ),
         )
         return fig
-
-    def plot(
-        self,
-        plot_type="3d",
-        node=None,
-        dof=None,
-        percentile=[],
-        conf_interval=[],
-        *args,
-        **kwargs,
-    ):
-        """Plot stochastic time or orbit response.
-
-        This function plots calls the auxiliary methods to plot the stochastic orbit
-        response. The plot type options are:
-            - 1d: plot time response for a given degree of freedom of a rotor system.
-            - 2d: plot orbit of a selected node of a rotor system.
-            - 3d: plot orbits for each node on the rotor system in a 3D view.
-
-        If plot_type = "1d": input a dof.
-        If plot_type = "2d": input a node.
-        if plot_type = "3d": no need to input a dof or node.
-
-        Parameters
-        ----------
-        plot_type : str, optional
-            Defines with type of plot to display.
-            Options are: "1d","2d" or "3d"
-            Default is "3d".
-        node : int, optional
-            Select the node to display the respective orbit response.
-            Default is None.
-        dof : int
-            Degree of freedom that will be observed.
-        percentile : list, optional
-            Sequence of percentiles to compute, which must be
-            between 0 and 100 inclusive.
-        conf_interval : list, optional
-            Sequence of confidence intervals to compute, which must be
-            between 0 and 100 inclusive.
-        args : optional
-            Additional plot axes
-        kwargs : optional
-            Additional key word arguments can be passed to change the plot
-            (e.g. line=dict(width=4.0, color="royalblue"), opacity=1.0, ...)
-            *See Plotly Python Figure Reference for more information.
-
-        Raise
-        -----
-        ValueError
-            Error raised if no node is specified when plot_type = '2d'.
-        ValueError
-            Error raised if an odd string is specified to plot_type
-
-        Returns
-        -------
-        fig : Plotly graph_objects.Figure()
-            The figure object with the plot.
-        """
-        if plot_type == "1d":
-            return self._plot_time_response(
-                dof, percentile, conf_interval, *args, **kwargs
-            )
-        elif plot_type == "2d":
-            if node not in self.nodes_list:
-                raise ValueError("Please insert a valid node.")
-            else:
-                return self._plot_orbit_2d(
-                    node, percentile, conf_interval, *args, **kwargs
-                )
-        elif plot_type == "3d":
-            return self._plot_orbit_3d(percentile, conf_interval, *args, **kwargs)
-        else:
-            raise ValueError(
-                "plot_type not supported. Choose between '1d', '2d' or '3d'."
-            )
 
 
 class ST_ForcedResponseResults:
