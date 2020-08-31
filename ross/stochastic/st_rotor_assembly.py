@@ -593,11 +593,11 @@ class ST_Rotor(object):
 
         # Plotting Time Response 1D, 2D and 3D
 
-        >>> fig = results.plot(plot_type="1d", dof=dof, conf_interval=[90])
+        >>> fig = results.plot_1d(probe=[(3, np.pi / 2)], conf_interval=[90])
         >>> # fig.show()
-        >>> fig = results.plot(plot_type="2d", node=node, conf_interval=[90])
+        >>> fig = results.plot_2d(node=node, conf_interval=[90])
         >>> # fig.show()
-        >>> fig = results.plot(plot_type="3d", conf_interval=[90])
+        >>> fig = results.plot_3d(conf_interval=[90])
         >>> # fig.show()
         """
         t_size = len(time_range)
