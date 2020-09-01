@@ -13,14 +13,17 @@ from ross.fluid_flow.fluid_flow_geometry import (move_rotor_center,
 
 
 def calculate_oil_film_force(fluid_flow_object, force_type=None):
-    """This function calculates the forces of the oil film in the N and T directions, ie in the
-    opposite direction to the eccentricity and in the tangential direction.
+    """This function calculates the forces of the oil film in the N and T directions,
+    ie in the opposite direction to the eccentricity and in the tangential direction.
+
     Parameters
     ----------
     fluid_flow_object: A FluidFlow object.
     force_type: str
-        If set, calculates the oil film force matrix analytically considering the chosen type: 'short' or 'long'.
+        If set, calculates the oil film force matrix analytically considering the chosen
+        type: 'short' or 'long'.
         If set to 'numerical', calculates the oil film force numerically.
+
     Returns
     -------
     radial_force: float
@@ -31,6 +34,7 @@ def calculate_oil_film_force(fluid_flow_object, force_type=None):
         Components of forces in the x direction
     f_y: float
         Components of forces in the y direction
+
     Examples
     --------
     >>> from ross.fluid_flow.fluid_flow import fluid_flow_example
@@ -152,22 +156,24 @@ def calculate_oil_film_force(fluid_flow_object, force_type=None):
 
 def calculate_stiffness_and_damping_coefficients(fluid_flow_object):
     """This function calculates the bearing stiffness and damping matrices numerically.
-        Parameters
-        ----------
-        fluid_flow_object: A FluidFlow object.
-        Returns
-        -------
-        Two lists of floats
-            A list of length four including stiffness floats in this order: kxx, kxy, kyx, kyy.
-            And another list of length four including damping floats in this order: cxx, cxy, cyx, cyy.
-            And
-        Examples
-        --------
-        >>> from ross.fluid_flow.fluid_flow import fluid_flow_example
-        >>> my_fluid_flow = fluid_flow_example()
-        >>> calculate_stiffness_and_damping_coefficients(my_fluid_flow)  # doctest: +ELLIPSIS
-        ([428...
-        """
+
+    Parameters
+    ----------
+    fluid_flow_object: A FluidFlow object.
+
+    Returns
+    -------
+    Two lists of floats
+        A list of length four including stiffness floats in this order: kxx, kxy, kyx, kyy.
+        And another list of length four including damping floats in this order: cxx, cxy, cyx, cyy.
+
+    Examples
+    --------
+    >>> from ross.fluid_flow.fluid_flow import fluid_flow_example
+    >>> my_fluid_flow = fluid_flow_example()
+    >>> calculate_stiffness_and_damping_coefficients(my_fluid_flow)  # doctest: +ELLIPSIS
+    ([428...
+    """
     N = 6
     t = np.linspace(0, 2 * np.pi / fluid_flow_object.omegap, N)
     fluid_flow_object.xp = fluid_flow_object.radial_clearance * 0.0001
@@ -262,13 +268,16 @@ def calculate_stiffness_and_damping_coefficients(fluid_flow_object):
 
 def calculate_short_stiffness_matrix(fluid_flow_object):
     """This function calculates the stiffness matrix for the short bearing.
+
     Parameters
     ----------
     fluid_flow_object: A FluidFlow object.
+
     Returns
     -------
     list of floats
         A list of length four including stiffness floats in this order: kxx, kxy, kyx, kyy
+
     Examples
     --------
     >>> from ross.fluid_flow.fluid_flow import fluid_flow_example
@@ -340,13 +349,16 @@ def calculate_short_stiffness_matrix(fluid_flow_object):
 
 def calculate_short_damping_matrix(fluid_flow_object):
     """This function calculates the damping matrix for the short bearing.
+
     Parameters
     -------
     fluid_flow_object: A FluidFlow object.
+
     Returns
     -------
     list of floats
         A list of length four including damping floats in this order: cxx, cxy, cyx, cyy
+
     Examples
     --------
     >>> from ross.fluid_flow.fluid_flow import fluid_flow_example
@@ -375,14 +387,14 @@ def calculate_short_damping_matrix(fluid_flow_object):
 def find_equilibrium_position(fluid_flow_object, print_equilibrium_position=False):
     """This function finds the equilibrium position of the rotor such that the fluid flow
     forces match the applied load.
+
     Parameters
     ----------
     fluid_flow_object: A FluidFlow object.
     print_equilibrium_position: bool, optional
         If True, prints the equilibrium position.
-    Returns
-    -------
-    None
+
+    Examples
     --------
     >>> from ross.fluid_flow.fluid_flow import fluid_flow_example2
     >>> my_fluid_flow = fluid_flow_example2()
@@ -394,12 +406,14 @@ def find_equilibrium_position(fluid_flow_object, print_equilibrium_position=Fals
     def residuals(x, *args):
         """Calculates x component of the forces of the oil film and the
         difference between the y component and the load.
+
         Parameters
         ----------
         x: array
             Rotor center coordinates
         *args : dict
             Dictionary instantiating the ross.FluidFlow class.
+
         Returns
         -------
         array
@@ -414,7 +428,12 @@ def find_equilibrium_position(fluid_flow_object, print_equilibrium_position=Fals
         )
         bearing.geometry_description()
         bearing.calculate_pressure_matrix_numerical()
-        (_, _, fx, fy,) = calculate_oil_film_force(bearing, force_type="numerical")
+        (
+            _,
+            _,
+            fx,
+            fy,
+        ) = calculate_oil_film_force(bearing, force_type="numerical")
         return np.array([fx, (bearing.load - fy)])
 
     if fluid_flow_object.load is None:
@@ -423,9 +442,12 @@ def find_equilibrium_position(fluid_flow_object, print_equilibrium_position=Fals
     move_rotor_center_abs(fluid_flow_object, x0[0], x0[1])
     fluid_flow_object.geometry_description()
     fluid_flow_object.calculate_pressure_matrix_numerical()
-    (_, _, fx, fy,) = calculate_oil_film_force(
-        fluid_flow_object, force_type="numerical"
-    )
+    (
+        _,
+        _,
+        fx,
+        fy,
+    ) = calculate_oil_film_force(fluid_flow_object, force_type="numerical")
     result = least_squares(
         residuals,
         x0,

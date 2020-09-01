@@ -318,7 +318,12 @@ def test_plots():
 
 def test_find_equilibrium_position():
     bearing = fluid_flow_example2()
-    (n, t, force_x, force_y,) = calculate_oil_film_force(bearing)
+    (
+        n,
+        t,
+        force_x,
+        force_y,
+    ) = calculate_oil_film_force(bearing)
     assert math.isclose(force_x, 0, abs_tol=1e-4)
     assert math.isclose(force_y, bearing.load, abs_tol=1e-2)
 
