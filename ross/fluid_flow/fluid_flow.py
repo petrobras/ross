@@ -359,28 +359,18 @@ class FluidFlow:
                 for i in range(0, self.nz):
                     for j in range(0, self.ntheta):
                         self.p_mat_analytical[i, j] = (
-                            (
-                                6
-                                * self.viscosity
-                                * self.omega
-                                * (self.radius_rotor / self.radial_clearance) ** 2
-                                * self.eccentricity_ratio
-                                * np.sin(self.dtheta * j)
-                                * (
-                                    2
-                                    + self.eccentricity_ratio * np.cos(self.dtheta * j)
-                                )
-                            )
-                            / (
-                                (2 + self.eccentricity_ratio ** 2)
-                                * (
-                                    1
-                                    + self.eccentricity_ratio * np.cos(self.dtheta * j)
-                                )
-                                ** 2
-                            )
-                            + self.p_in
-                        )
+                            6
+                            * self.viscosity
+                            * self.omega
+                            * (self.radius_rotor / self.radial_clearance) ** 2
+                            * self.eccentricity_ratio
+                            * np.sin(self.dtheta * j)
+                            * (2 + self.eccentricity_ratio * np.cos(self.dtheta * j))
+                        ) / (
+                            (2 + self.eccentricity_ratio ** 2)
+                            * (1 + self.eccentricity_ratio * np.cos(self.dtheta * j))
+                            ** 2
+                        ) + self.p_in
                         if self.p_mat_analytical[i, j] < 0:
                             self.p_mat_analytical[i, j] = 0
         elif self.bearing_type == "medium_size":
