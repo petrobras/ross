@@ -1,3 +1,10 @@
+"""Misalignment module.
+
+This module defines the Defect classes which will be used to represent problems
+such as misalignments of various types on the shaft coupling, rubbing effects and
+cracks on the shaft. There are a number of options, for the formulation of 6 DoFs
+(degrees of freedom).
+"""
 from abc import ABC, abstractmethod
 
 import numpy as np
@@ -23,21 +30,26 @@ __all__ = [
 
 
 class MisalignmentFlex(Defect, ABC):
-    """Calculates the dynamic reaction force of hexangular flexible coupling induced by 6DOF's rotor parallel and angular misalignment.
+    """A flexible coupling with misalignment of some kind.
+    
+    Calculates the dynamic reaction force of hexangular flexible coupling 
+    induced by 6DOF's rotor parallel and angular misalignment.
 
     Parameters
     ----------
-    Radius : float
-        Radius of the shaft
-    TetaV :  numpy.ndarray 
-        Angular position of the shaft
+    dt : float
+        Time step
+    tI : float
+        Initial time
+    tF : float
+        Final time
     kd : float
         Radial stiffness of flexible coupling
     ks : float
         Bending stiffness of flexible coupling
     eCOUPx : float
         Parallel misalignment offset between driving rotor and driven rotor along X direction
-    eCOUPz : float
+    eCOUPy : float
         Parallel misalignment offset between driving rotor and driven rotor along Y direction
     misalignment_angle : float
         Angle of the angular misaligned 
@@ -45,11 +57,31 @@ class MisalignmentFlex(Defect, ABC):
         Driving torque
     TL : float
         Driven torque
+    n1 : float
+        Node where the misalignment is ocurring
+    speed : float
+        Operational speed of the machine
+
+    Returns
+    -------
+    A force to be applied on the shaft.
 
     References
     ----------
-    .. [1] 'Xia, Y., Pang, J., Yang, L., Zhao, Q., & Yang, X. (2019). Study on vibration response and orbits of misaligned rigid rotors 
-    connected by hexangular flexible coupling. Applied Acoustics, 155, 286-296..
+    .. [1] 'Xia, Y., Pang, J., Yang, L., Zhao, Q., & Yang, X. (2019). Study on vibration response 
+    and orbits of misaligned rigid rotors connected by hexangular flexible coupling. Applied 
+    Acoustics, 155, 286-296..
+
+    Examples
+    --------
+    AQUI AINDA TEM QUE SER ATUALIZADO, ABAIXO SEGUE SOMENTE UM EXEMPLO PARA A "SHAFT ELEMENT"
+    >>> from ross.materials import steel
+    >>> Timoshenko_Element = ShaftElement(
+    ...                         material=steel, L=0.5, idl=0.05, odl=0.1,
+    ...                         rotary_inertia=True,
+    ...                         shear_effects=True)
+    >>> Timoshenko_Element.phi
+    0.1571268472906404
     """
 
     def __init__(
@@ -73,7 +105,20 @@ class MisalignmentFlex(Defect, ABC):
         self.speedF = speed
 
     def run(self, Radius, ndof):
-        #
+        """Calculates the shaft angular position and the misalignment amount at X / Y directions.
+
+        Parameters
+        ----------
+        Radius : float
+                Radius of shaft in node of misalignment
+        ndof : float
+                Total number of degrees of freedom
+
+        Returns
+        -------
+        
+                
+        """
         self.ndof = ndof
 
         self.t = np.arange(self.tI, self.tF + self.dt, self.dt)
@@ -84,11 +129,13 @@ class MisalignmentFlex(Defect, ABC):
         self.tI = self.t[0]
         self.tF = self.t[-1]
 
+        # parameters for the time integration
         lambdat = 0.00001
         Faxial = 0
         TorqueI = 0
         TorqueF = 0
 
+        # pre-processing of auxilary variuables for the time integration
         sA = (warI * np.exp(-lambdat * self.tF) - warF * np.exp(-lambdat * self.tI)) / (
             np.exp(-lambdat * self.tF) - np.exp(-lambdat * self.tI)
         )
@@ -105,6 +152,7 @@ class MisalignmentFlex(Defect, ABC):
         TorqueV = sAT + sBT * np.exp(-lambdat * self.t)
         AccelV = -lambdat * sB * np.exp(-lambdat * self.t)
 
+        # determination of the angular position of the rotor at a given instant
         TetaV = (
             sA * self.t - (sB / lambdat) * np.exp(-lambdat * self.t) + (sB / lambdat)
         )
@@ -320,6 +368,60 @@ class MisalignmentFlexCombined(MisalignmentFlex):
 
 
 class MisalignmentRigid(Defect, ABC):
+    """A rigid coupling with parallel misalignment.
+    
+    Calculates the dynamic reaction force of hexangular rigid coupling 
+    induced by 6DOF's rotor parallel misalignment.
+
+    Parameters
+    ----------
+    dt : float
+        Time step
+    tI : float
+        Initial time
+    tF : float
+        Final time
+    kd : float
+        Radial stiffness of flexible coupling
+    ks : float
+        Bending stiffness of flexible coupling
+    eCOUPx : float
+        Parallel misalignment offset between driving rotor and driven rotor along X direction
+    eCOUPy : float
+        Parallel misalignment offset between driving rotor and driven rotor along Y direction
+    misalignment_angle : float
+        Angle of the angular misaligned 
+    TD : float
+        Driving torque
+    TL : float
+        Driven torque
+    n1 : float
+        Node where the misalignment is ocurring
+    speed : float
+        Operational speed of the machine
+
+    Returns
+    -------
+    A force to be applied on the shaft.
+
+    References
+    ----------
+    .. [1] 'Xia, Y., Pang, J., Yang, L., Zhao, Q., & Yang, X. (2019). Study on vibration response 
+    and orbits of misaligned rigid rotors connected by hexangular flexible coupling. Applied 
+    Acoustics, 155, 286-296..
+
+    Examples
+    --------
+    AQUI AINDA TEM QUE SER ATUALIZADO, ABAIXO SEGUE SOMENTE UM EXEMPLO PARA A "SHAFT ELEMENT"
+    >>> from ross.materials import steel
+    >>> Timoshenko_Element = ShaftElement(
+    ...                         material=steel, L=0.5, idl=0.05, odl=0.1,
+    ...                         rotary_inertia=True,
+    ...                         shear_effects=True)
+    >>> Timoshenko_Element.phi
+    0.1571268472906404
+    """
+
     def __init__(
         self, tI, tF, Kcoup_auxI, Kcoup_auxF, kCOUP, eCOUP, TD, TL, n1, speed,
     ):
@@ -338,6 +440,18 @@ class MisalignmentRigid(Defect, ABC):
         self.DoF = np.arange((self.n1 * 6), (self.n2 * 6 + 6))
 
     def run(self, rotor):
+        """Calculates the shaft angular position and the misalignment amount at X / Y directions.
+
+        Parameters
+        ----------
+        rotor : object
+                All properties from the rotor model
+
+        Returns
+        -------
+        The integrated variables.
+                
+        """
 
         self.rotor = rotor
         self.ndof = rotor.ndof
@@ -351,6 +465,7 @@ class MisalignmentRigid(Defect, ABC):
         # TorqueI = 0
         # TorqueF = 0
 
+        # pre-processing of auxilary variuables for the time integration
         self.sA = (
             warI * np.exp(-self.lambdat * self.tF)
             - warF * np.exp(-self.lambdat * self.tI)
@@ -359,6 +474,7 @@ class MisalignmentRigid(Defect, ABC):
             np.exp(-self.lambdat * self.tF) - np.exp(-self.lambdat * self.tI)
         )
 
+        # THIS LINES ARE USED FOR RUN-UP EVALUATIONS, CURRENTLY DISABLED.
         # sAT = (
         #     TorqueI * np.exp(-lambdat * self.tF) - TorqueF * np.exp(-lambdat * self.tI)
         # ) / (np.exp(-lambdat * self.tF) - np.exp(-lambdat * self.tI))
@@ -448,43 +564,27 @@ class MisalignmentRigid(Defect, ABC):
                 + positions[1 + 6 * self.n2] * np.cos(self.angANG)
             )
         )
-        positionsMod = self.ModMat.dot(positions)
-        Fmis, ft = self._parallel(positionsMod, self.angANG)
+        positionsFis = self.ModMat.dot(positions)
+        Fmis, ft = self._parallel(positionsFis, self.angANG)
         ftmodal = (self.ModMat.T).dot(ft)
 
         # Omega = self.speedI * np.pi / 30
         Omega = self.sA + self.sB * np.exp(-self.lambdat * T)
         AccelV = -self.lambdat * self.sB * np.exp(-self.lambdat * T)
 
+        # proper equation of movement to be integrated in time
         new_V_dot = (
             ftmodal
             - ((self.Cmodal + self.Gmodal * Omega)).dot(velocity)
             - ((self.Kmodal + self.Kstmodal * AccelV).dot(positions))
-        ).dot(
-            self.inv_Mmodal
-        )  # proper equation of movement to be integrated in time
+        ).dot(self.inv_Mmodal)
 
-        # aux[12:] = (
-        #    ftmodal.dot(self.inv_Mmodal)
-        #    - ((self.Cmodal + self.Gmodal * Omega).dot(self.inv_Mmodal)).dot(y1)
-        #    - ((self.Kmodal + self.Kstmodal * Omega).dot(self.inv_Mmodal)).dot(y0)
-        # )  # proper equation of movement to be integrated in time
         new_X_dot = velocity
 
         new_Y = np.zeros(24)
         new_Y[:12] = new_X_dot
         new_Y[12:] = new_V_dot
 
-        # Y[12:] = (
-        #     ftmodal.dot(np.linalg.inv(self.Mmodal))
-        #     - ((self.Cmodal + self.Gmodal * Omega).dot(np.linalg.inv(self.Mmodal))).dot(
-        #         y1
-        #     )
-        #     - (
-        #         (self.Kmodal + self.Kstmodal * Omega).dot(np.linalg.inv(self.Mmodal))
-        #     ).dot(y0)
-        # )  # proper equation of movement to be integrated in time
-        # Y[:12] = y1  # velocity of system
         return new_Y
 
     def _parallel(self, positions, fir):
