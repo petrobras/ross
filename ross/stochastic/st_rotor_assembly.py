@@ -737,6 +737,7 @@ class ST_Rotor(object):
             frequency_range=frequency_range,
             magnitude=mag_resp,
             phase=phs_resp,
+            number_dof=self.number_dof,
         )
 
         return results
