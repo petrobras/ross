@@ -683,12 +683,11 @@ class ST_Rotor(object):
         >>> n = 3
         >>> m = np.random.uniform(0.001, 0.002, 10)
         >>> p = 0.0
-        >>> dof = 13
         >>> results = rotors.run_unbalance_response(n, m, p, freq_range)
 
         # Plotting Frequency Response with Plotly
 
-        >>> fig = results.plot(dof, conf_interval=[90])
+        >>> fig = results.plot(probe=[(3, np.pi / 2)], conf_interval=[90])
         >>> # fig.show()
         """
         RV_size = self.RV_size
