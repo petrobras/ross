@@ -7,6 +7,7 @@ from plotly import express as px
 from plotly import graph_objects as go
 from plotly import io as pio
 from plotly.subplots import make_subplots
+
 from ross.plotly_theme import tableau_colors
 
 pio.renderers.default = "browser"
