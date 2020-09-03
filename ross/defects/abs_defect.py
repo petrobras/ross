@@ -10,5 +10,5 @@ class Defect(ABC):
         pass
 
     @abstractmethod
-    def force(self):
+    def run(self):
         pass
