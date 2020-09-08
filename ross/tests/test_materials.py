@@ -7,7 +7,11 @@ from ross.materials import *
 @pytest.fixture
 def AISI4140():
     return Material(
-        name="AISI4140", rho=7850, E=203200000000.0, G_s=80000000000.0, color="#525252",
+        name="AISI4140",
+        rho=7850,
+        E=203200000000.0,
+        G_s=80000000000.0,
+        color="#525252",
     )
 
 
