@@ -79,6 +79,8 @@ class Rubbing:
         miRUB,
         posRUB,
         speed,
+        massunb,
+        phaseunb,
         torque=False,
     ):
 
@@ -89,12 +91,14 @@ class Rubbing:
         self.cRUB = cRUB
         self.miRUB = miRUB
         self.posRUB = posRUB
-        # self.N_node = Nele + 1
-        # self.N_GDL = 6 * self.N_node #ndof
         self.speedI = speed
         self.speedF = speed
         self.DoF = np.arange((self.posRUB * 6), (self.posRUB * 6 + 6))
         self.torque = torque
+        self.MassUnb1 = massunb[0]
+        self.MassUnb2 = massunb[1]
+        self.PhaseUnb1 = phaseunb[0]
+        self.PhaseUnb2 = phaseunb[1]
 
     def run(self, rotor):
 
@@ -103,9 +107,13 @@ class Rubbing:
         self.iteration = 0
         self.radius = rotor.df_shaft.iloc[self.posRUB].o_d / 2
 
+        self.ndofd1 = (self.rotor.disk_elements[0].n) * 6
+        self.ndofd2 = (self.rotor.disk_elements[1].n) * 6
+
         warI = self.speedI * np.pi / 30
         warF = self.speedF * np.pi / 30
 
+        # self.FFunb = np.zeros(self.ndof)
         self.lambdat = 0.00001
         # Faxial = 0
         # TorqueI = 0
@@ -190,41 +198,57 @@ class Rubbing:
         velocityFis = self.ModMat.dot(velocity)
 
         Frub, ft = self._rub(positionsFis, velocityFis)
-        ftmodal = (self.ModMat.T).dot(ft)
+
+        tetaUNB1 = angular_position + self.PhaseUnb1
+        tetaUNB2 = angular_position + self.PhaseUnb2
 
         # Omega = self.speedI * np.pi / 30
         self.Omega = self.sA + self.sB * np.exp(-self.lambdat * T)
         AccelV = -self.lambdat * self.sB * np.exp(-self.lambdat * T)
 
+        unb1x = self.MassUnb1 * AccelV * np.cos(tetaUNB1) - self.MassUnb1 * (
+            self.Omega ** 2
+        ) * np.sin(tetaUNB1)
+
+        unb1y = -self.MassUnb1 * AccelV * np.sin(tetaUNB1) - self.MassUnb1 * (
+            self.Omega ** 2
+        ) * np.cos(tetaUNB1)
+
+        unb2x = self.MassUnb2 * AccelV * np.cos(tetaUNB2) - self.MassUnb2 * (
+            self.Omega ** 2
+        ) * np.sin(tetaUNB2)
+        unb2y = -self.MassUnb2 * AccelV * np.sin(tetaUNB2) - self.MassUnb2 * (
+            self.Omega ** 2
+        ) * np.cos(tetaUNB2)
+
+        ft[self.ndofd1] += unb1x
+        ft[self.ndofd1 + 1] += unb1y
+        ft[self.ndofd2] += unb2x
+        ft[self.ndofd2 + 1] += unb2y
+        # FFunb = np.zeros(self.ndof)
+
+        # FFunb[self.ndofd1] += unb1x
+        # FFunb[self.ndofd1 + 1] += unb1y
+        # FFunb[self.ndofd2] += unb2x
+        # FFunb[self.ndofd2 + 1] += unb2y
+
+        # ft += FFunb
+        ftmodal = (self.ModMat.T).dot(ft)
+        # ftmodal = (self.ModMat.T).dot(FFunb)
+
+        # proper equation of movement to be integrated in time
         new_V_dot = (
             ftmodal
             - ((self.Cmodal + self.Gmodal * self.Omega)).dot(velocity)
             - ((self.Kmodal + self.Kstmodal * AccelV).dot(positions))
-        ).dot(
-            self.inv_Mmodal
-        )  # proper equation of movement to be integrated in time
+        ).dot(self.inv_Mmodal)
 
-        # aux[12:] = (
-        #    ftmodal.dot(self.inv_Mmodal)
-        #    - ((self.Cmodal + self.Gmodal * Omega).dot(self.inv_Mmodal)).dot(y1)
-        #    - ((self.Kmodal + self.Kstmodal * Omega).dot(self.inv_Mmodal)).dot(y0)
-        # )  # proper equation of movement to be integrated in time
         new_X_dot = velocity
 
         new_Y = np.zeros(24)
         new_Y[:12] = new_X_dot
         new_Y[12:] = new_V_dot
 
-        # Y[12:] = (
-        #     ftmodal.dot(np.linalg.inv(self.Mmodal))
-        #     - ((self.Cmodal + self.Gmodal * Omega).dot(np.linalg.inv(self.Mmodal))).dot(
-        #         y1
-        #     )
-        #     - (
-        #         (self.Kmodal + self.Kstmodal * Omega).dot(np.linalg.inv(self.Mmodal))
-        #     ).dot(y0)
-        # )  # proper equation of movement to be integrated in time
-        # Y[:12] = y1  # velocity of system
         return new_Y
 
     def _rub(self, positionsFis, velocityFis):
