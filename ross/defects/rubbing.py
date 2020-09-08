@@ -197,50 +197,47 @@ class Rubbing:
         positionsFis = self.ModMat.dot(positions)
         velocityFis = self.ModMat.dot(velocity)
 
-        Frub, ft = self._rub(positionsFis, velocityFis)
-
-        tetaUNB1 = angular_position + self.PhaseUnb1
-        tetaUNB2 = angular_position + self.PhaseUnb2
+        self.tetaUNB1 = angular_position + self.PhaseUnb1
+        self.tetaUNB2 = angular_position + self.PhaseUnb2
 
         # Omega = self.speedI * np.pi / 30
         self.Omega = self.sA + self.sB * np.exp(-self.lambdat * T)
-        AccelV = -self.lambdat * self.sB * np.exp(-self.lambdat * T)
+        self.AccelV = -self.lambdat * self.sB * np.exp(-self.lambdat * T)
 
-        unb1x = self.MassUnb1 * AccelV * np.cos(tetaUNB1) - self.MassUnb1 * (
+        unb1x = self.MassUnb1 * self.AccelV * np.cos(self.tetaUNB1) - self.MassUnb1 * (
             self.Omega ** 2
-        ) * np.sin(tetaUNB1)
+        ) * np.sin(self.tetaUNB1)
 
-        unb1y = -self.MassUnb1 * AccelV * np.sin(tetaUNB1) - self.MassUnb1 * (
+        unb1y = -self.MassUnb1 * self.AccelV * np.sin(self.tetaUNB1) - self.MassUnb1 * (
             self.Omega ** 2
-        ) * np.cos(tetaUNB1)
+        ) * np.cos(self.tetaUNB1)
 
-        unb2x = self.MassUnb2 * AccelV * np.cos(tetaUNB2) - self.MassUnb2 * (
+        unb2x = self.MassUnb2 * self.AccelV * np.cos(self.tetaUNB2) - self.MassUnb2 * (
             self.Omega ** 2
-        ) * np.sin(tetaUNB2)
-        unb2y = -self.MassUnb2 * AccelV * np.sin(tetaUNB2) - self.MassUnb2 * (
+        ) * np.sin(self.tetaUNB2)
+        unb2y = -self.MassUnb2 * self.AccelV * np.sin(self.tetaUNB2) - self.MassUnb2 * (
             self.Omega ** 2
-        ) * np.cos(tetaUNB2)
+        ) * np.cos(self.tetaUNB2)
+        FFunb = np.zeros(self.ndof)
 
-        ft[self.ndofd1] += unb1x
-        ft[self.ndofd1 + 1] += unb1y
-        ft[self.ndofd2] += unb2x
-        ft[self.ndofd2 + 1] += unb2y
-        # FFunb = np.zeros(self.ndof)
+        FFunb[self.ndofd1] += unb1x
+        FFunb[self.ndofd1 + 1] += unb1y
+        FFunb[self.ndofd2] += unb2x
+        FFunb[self.ndofd2 + 1] += unb2y
 
-        # FFunb[self.ndofd1] += unb1x
-        # FFunb[self.ndofd1 + 1] += unb1y
-        # FFunb[self.ndofd2] += unb2x
-        # FFunb[self.ndofd2 + 1] += unb2y
+        Funbmodal = (self.ModMat.T).dot(FFunb)
 
-        # ft += FFunb
+        Frub, ft = self._rub(positionsFis, velocityFis)
         ftmodal = (self.ModMat.T).dot(ft)
+
         # ftmodal = (self.ModMat.T).dot(FFunb)
 
         # proper equation of movement to be integrated in time
         new_V_dot = (
             ftmodal
+            + Funbmodal
             - ((self.Cmodal + self.Gmodal * self.Omega)).dot(velocity)
-            - ((self.Kmodal + self.Kstmodal * AccelV).dot(positions))
+            - ((self.Kmodal + self.Kstmodal * self.AccelV).dot(positions))
         ).dot(self.inv_Mmodal)
 
         new_X_dot = velocity
@@ -476,16 +473,16 @@ class Rubbing:
                  [np.cos(angle), + np.sin(angle)]]
             )
             row, cols = self.response.shape
-            # _probe_resp = operator @ np.vstack((self.response[dofx,int(3*cols/4):], self.response[dofy,int(3*cols/4):]))
-            # probe_resp = (
-            #     _probe_resp[0] * np.cos(angle) ** 2  +
-            #     _probe_resp[1] * np.sin(angle) ** 2
-            # )
-            _probe_resp = operator @ np.vstack((self.response[dofx,400000:], self.response[dofy,400000:]))
+            _probe_resp = operator @ np.vstack((self.response[dofx,int(3*cols/4):], self.response[dofy,int(3*cols/4):]))
             probe_resp = (
                 _probe_resp[0] * np.cos(angle) ** 2  +
                 _probe_resp[1] * np.sin(angle) ** 2
             )
+            # _probe_resp = operator @ np.vstack((self.response[dofx,200000:], self.response[dofy,200000:]))
+            # probe_resp = (
+            #     _probe_resp[0] * np.cos(angle) ** 2  +
+            #     _probe_resp[1] * np.sin(angle) ** 2
+            # )
             # fmt: on
 
             amp, freq = self._dfft(probe_resp, self.dt)
