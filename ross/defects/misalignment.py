@@ -20,9 +20,7 @@ import plotly.graph_objects as go
 from .abs_defect import Defect
 
 __all__ = [
-    "MisalignmentFlexParallel",
-    "MisalignmentFlexAngular",
-    "MisalignmentFlexCombined",
+    "MisalignmentFlex",
     "MisalignmentRigid",
     # "Rubbing",
     # "CrackGasch",
@@ -86,7 +84,20 @@ class MisalignmentFlex(Defect, ABC):
     """
 
     def __init__(
-        self, dt, tI, tF, kd, ks, eCOUPx, eCOUPy, misalignment_angle, TD, TL, n1, speed,
+        self,
+        dt,
+        tI,
+        tF,
+        kd,
+        ks,
+        eCOUPx,
+        eCOUPy,
+        misalignment_angle,
+        TD,
+        TL,
+        n1,
+        speed,
+        mis_type,
     ):
         self.dt = dt
         self.tI = tI
@@ -105,7 +116,18 @@ class MisalignmentFlex(Defect, ABC):
         self.speedI = speed
         self.speedF = speed
 
-    def _run(self, rotor, mis_type=str):
+        self.mis_type = mis_type
+
+        if self.mis_type is None or self.mis_type == "parallel":
+            self._force = self._parallel
+        elif self.mis_type == "angular":
+            self._force = self._angular
+        elif self.mis_type == "combined":
+            self._force = self._combined
+        else:
+            raise Exception("Check the misalignment type!")
+
+    def run(self, rotor):
         """Calculates the shaft angular position and the misalignment amount at X / Y directions.
 
         Parameters
@@ -123,7 +145,6 @@ class MisalignmentFlex(Defect, ABC):
         self.rotor = rotor
         self.radius = rotor.elements[self.n1].odl / 2
         self.ndof = rotor.ndof
-        self.mis_type = mis_type
         self.iteration = 0
 
         self.Cte = (
@@ -215,15 +236,7 @@ class MisalignmentFlex(Defect, ABC):
             + (self.sB / self.lambdat)
         )
 
-        if self.mis_type is None or self.mis_type == "parallel":
-            ft = self._parallel()
-        elif self.mis_type == "angular":
-            ft = self._angular()
-        elif self.mis_type == "combined":
-            ft = self._combined()
-        else:
-            raise Exception("Check the misalignment type!")
-
+        ft = self._force()
         ftmodal = (self.ModMat.T).dot(ft)
 
         # Omega = self.speedI * np.pi / 30
@@ -427,7 +440,7 @@ class MisalignmentFlex(Defect, ABC):
         F_misalign = self._parallel() + self._angular()
         return F_misalign
 
-    def _plot_time_response(
+    def plot_time_response(
         self,
         probe,
         probe_units="rad",
@@ -479,7 +492,7 @@ class MisalignmentFlex(Defect, ABC):
 
         return fig
 
-    def _plot_dfft(
+    def plot_dfft(
         self, probe, probe_units="rad", fig=None, log=False, **kwargs,
     ):
         """
@@ -542,97 +555,6 @@ class MisalignmentFlex(Defect, ABC):
         freq = freq[: int(b)]  # Frequency vector
 
         return x_amp, freq
-
-
-class MisalignmentFlexParallel(MisalignmentFlex):
-    def run(self, rotor, mis_type="parallel"):
-        """[summary]
-
-        Returns
-        -------
-        [type]
-            [description]
-        """
-        return self._run(rotor, mis_type)
-
-    def plot_time_response(
-        self,
-        probe,
-        probe_units="rad",
-        displacement_units="m",
-        time_units="s",
-        fig=None,
-        **kwargs,
-    ):
-        return self._plot_time_response(
-            probe,
-            probe_units=probe_units,
-            displacement_units=displacement_units,
-            time_units=time_units,
-            fig=fig,
-            **kwargs,
-        )
-
-    def plot_dfft(self, probe, probe_units="rad", fig=None, log=False, **kwargs):
-        return self._plot_dfft(
-            probe, probe_units=probe_units, fig=fig, log=log, **kwargs
-        )
-
-
-class MisalignmentFlexAngular(MisalignmentFlex):
-    def run(self, rotor, mis_type="angular"):
-        return self._run(rotor, mis_type)
-
-    def plot_time_response(
-        self,
-        probe,
-        probe_units="rad",
-        displacement_units="m",
-        time_units="s",
-        fig=None,
-        **kwargs,
-    ):
-        return self._plot_time_response(
-            probe,
-            probe_units=probe_units,
-            displacement_units=displacement_units,
-            time_units=time_units,
-            fig=fig,
-            **kwargs,
-        )
-
-    def plot_dfft(self, probe, probe_units="rad", fig=None, log=False, **kwargs):
-        return self._plot_dfft(
-            probe, probe_units=probe_units, fig=fig, log=log, **kwargs
-        )
-
-
-class MisalignmentFlexCombined(MisalignmentFlex):
-    def run(self, rotor, mis_type="combined"):
-        return self._run(rotor, mis_type)
-
-    def plot_time_response(
-        self,
-        probe,
-        probe_units="rad",
-        displacement_units="m",
-        time_units="s",
-        fig=None,
-        **kwargs,
-    ):
-        return self._plot_time_response(
-            probe,
-            probe_units=probe_units,
-            displacement_units=displacement_units,
-            time_units=time_units,
-            fig=fig,
-            **kwargs,
-        )
-
-    def plot_dfft(self, probe, probe_units="rad", fig=None, log=False, **kwargs):
-        return self._plot_dfft(
-            probe, probe_units=probe_units, fig=fig, log=log, **kwargs
-        )
 
 
 class MisalignmentRigid(Defect, ABC):
