@@ -62,6 +62,13 @@ class FluidFlow:
         The center of the stator is in position (0,0).
     attitude_angle: float, optional
         Attitude angle. Angle between the load line and the eccentricity (rad).
+    bearing_type: str
+        type of structure. 'short_bearing': short; 'long_bearing': long;
+        The default is None. In this case it is automatically calculated
+        following the parameter:
+        'medium_size': in between short and long.
+        if length/diameter <= 1/4 it is short.
+        if length/diameter > 8 it is long.
 
     Fluid characteristics
     ^^^^^^^^^^^^^^^^^^^^^
@@ -139,11 +146,6 @@ class FluidFlow:
     characteristic_speed: float
         Characteristic fluid speeds.
         In journal bearings, characteristic_speed = omega * radius_rotor
-    bearing_type: str
-        type of structure. 'short_bearing': short; 'long_bearing': long;
-        'medium_size': in between short and long.
-        if length/diameter <= 1/4 it is short.
-        if length/diameter > 8 it is long.
     analytical_pressure_matrix_available: bool
         True if analytically calculated pressure matrix is available.
     numerical_pressure_matrix_available: bool
@@ -183,27 +185,24 @@ class FluidFlow:
     """
 
     def __init__(
-        self,
-        nz,
-        ntheta,
-        length,
-        omega,
-        p_in,
-        p_out,
-        radius_rotor,
-        radius_stator,
-        viscosity,
-        density,
-        attitude_angle=None,
-        eccentricity=None,
-        load=None,
-        omegap=None,
-        immediately_calculate_pressure_matrix_numerically=True,
-        bearing_type=None,
+            self,
+            nz,
+            ntheta,
+            length,
+            omega,
+            p_in,
+            p_out,
+            radius_rotor,
+            radius_stator,
+            viscosity,
+            density,
+            attitude_angle=None,
+            eccentricity=None,
+            load=None,
+            omegap=None,
+            immediately_calculate_pressure_matrix_numerically=True,
+            bearing_type=None,
     ):
-        if load is None and eccentricity is None:
-            sys.exit("Either load or eccentricity must be given.")
-        calculate_equilibrium_position = load is not None
 
         self.nz = nz
         self.ntheta = ntheta
@@ -232,6 +231,7 @@ class FluidFlow:
             else:
                 self.bearing_type = "medium_size"
         self.eccentricity = eccentricity
+        self.attitude_angle = attitude_angle
         self.eccentricity_ratio = None
         self.load = load
 
@@ -252,7 +252,7 @@ class FluidFlow:
         self.xp = 0
         self.yp = 0
         if self.bearing_type == "short_bearing":
-            if self.eccentricity is None:
+            if self.eccentricity is None and load is not None:
                 modified_s = modified_sommerfeld_number(
                     self.radius_stator,
                     self.omega,
@@ -261,19 +261,30 @@ class FluidFlow:
                     self.load,
                     self.radial_clearance,
                 )
-            if calculate_equilibrium_position is True:
+                self.eccentricity_ratio = calculate_eccentricity_ratio(modified_s)
                 self.eccentricity = (
-                    calculate_eccentricity_ratio(modified_s) * self.radial_clearance
+                        calculate_eccentricity_ratio(modified_s) * self.radial_clearance
                 )
-            self.eccentricity_ratio = self.eccentricity / self.radial_clearance
-            if attitude_angle is None:
-                self.attitude_angle = calculate_attitude_angle(self.eccentricity_ratio)
-            else:
-                self.attitude_angle = attitude_angle
-            self.xi = self.eccentricity * np.cos(3 * np.pi / 2 + self.attitude_angle)
-            self.yi = self.eccentricity * np.sin(3 * np.pi / 2 + self.attitude_angle)
-            self.geometry_description()
-            if self.load is None:
+                if attitude_angle is None:
+                    self.attitude_angle = calculate_attitude_angle(
+                        self.eccentricity_ratio
+                    )
+            elif self.eccentricity is not None and load is not None:
+                modified_s = modified_sommerfeld_number(
+                    self.radius_stator,
+                    self.omega,
+                    self.viscosity,
+                    self.length,
+                    self.load,
+                    self.radial_clearance,
+                )
+                self.eccentricity_ratio = calculate_eccentricity_ratio(modified_s)
+                if attitude_angle is None:
+                    self.attitude_angle = calculate_attitude_angle(
+                        self.eccentricity_ratio
+                    )
+            elif eccentricity is not None and load is None:
+                self.eccentricity_ratio = self.eccentricity / self.radial_clearance
                 self.load = calculate_rotor_load(
                     self.radius_stator,
                     self.omega,
@@ -282,14 +293,29 @@ class FluidFlow:
                     self.radial_clearance,
                     self.eccentricity_ratio,
                 )
+                if attitude_angle is None:
+                    self.attitude_angle = calculate_attitude_angle(
+                        self.eccentricity_ratio
+                    )
+            else:
+                sys.exit("Either load or eccentricity must be given.")
+
+            self.xi = self.eccentricity * np.cos(3 * np.pi / 2 + self.attitude_angle)
+            self.yi = self.eccentricity * np.sin(3 * np.pi / 2 + self.attitude_angle)
+            self.geometry_description()
+
         else:
-            if calculate_equilibrium_position is True:
+            if load is not None:
                 find_equilibrium_position(self)
+                if eccentricity is not None:
+                    self.eccentricity = eccentricity
+                if attitude_angle is not None:
+                    self.attitude_angle = attitude_angle
             else:
                 if attitude_angle is None:
-                    sys.exit("Attitude angle must be given.")
-                else:
-                    self.attitude_angle = attitude_angle
+                    sys.exit("Attitude angle or load must be given.")
+                if eccentricity is None:
+                    sys.exit("Eccentricity or load must be given.")
             self.geometry_description()
             self.eccentricity_ratio = self.eccentricity / self.radial_clearance
             self.xi = self.eccentricity * np.cos(3 * np.pi / 2 + self.attitude_angle)
