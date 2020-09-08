@@ -185,23 +185,23 @@ class FluidFlow:
     """
 
     def __init__(
-            self,
-            nz,
-            ntheta,
-            length,
-            omega,
-            p_in,
-            p_out,
-            radius_rotor,
-            radius_stator,
-            viscosity,
-            density,
-            attitude_angle=None,
-            eccentricity=None,
-            load=None,
-            omegap=None,
-            immediately_calculate_pressure_matrix_numerically=True,
-            bearing_type=None,
+        self,
+        nz,
+        ntheta,
+        length,
+        omega,
+        p_in,
+        p_out,
+        radius_rotor,
+        radius_stator,
+        viscosity,
+        density,
+        attitude_angle=None,
+        eccentricity=None,
+        load=None,
+        omegap=None,
+        immediately_calculate_pressure_matrix_numerically=True,
+        bearing_type=None,
     ):
 
         self.nz = nz
@@ -263,7 +263,7 @@ class FluidFlow:
                 )
                 self.eccentricity_ratio = calculate_eccentricity_ratio(modified_s)
                 self.eccentricity = (
-                        calculate_eccentricity_ratio(modified_s) * self.radial_clearance
+                    calculate_eccentricity_ratio(modified_s) * self.radial_clearance
                 )
                 if attitude_angle is None:
                     self.attitude_angle = calculate_attitude_angle(
