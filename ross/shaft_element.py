@@ -13,7 +13,7 @@ from plotly import graph_objects as go
 
 from ross.element import Element
 from ross.materials import Material, steel
-from ross.units import check_units, Q_
+from ross.units import Q_, check_units
 from ross.utils import read_table_file
 
 __all__ = ["ShaftElement", "ShaftElement6DoF"]
