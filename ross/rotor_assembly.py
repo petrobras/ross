@@ -1711,7 +1711,7 @@ class Rotor(object):
         modal = self.run_modal(speed=speed)
         return signal.lsim(modal.lti, F, t, X0=ic)
 
-    def plot_rotor(self, nodes=1, check_sld=False, **kwargs):
+    def plot_rotor(self, nodes=1, check_sld=False, length_units="m", **kwargs):
         """Plot a rotor object.
 
         This function will take a rotor object and plot its elements representation
@@ -1725,6 +1725,9 @@ class Rotor(object):
             If True, checks the slenderness ratio for each element.
             The shaft elements which has a slenderness ratio < 1.6 will be displayed in
             yellow color.
+        length_units : str, optional
+            length units to length and diameter.
+            Default is 'm'.
         kwargs : optional
             Additional key word arguments can be passed to change the plot layout only
             (e.g. width=1000, height=800, ...).
@@ -1756,10 +1759,13 @@ class Rotor(object):
                     + " Results may not converge correctly"
                 )
 
+        nodes_pos = Q_(self.nodes_pos, "m").to(length_units).m
+        nodes_o_d = Q_(self.nodes_o_d, "m").to(length_units).m
+
         fig = go.Figure()
 
         # plot shaft centerline
-        shaft_end = max(self.nodes_pos)
+        shaft_end = max(nodes_pos)
         fig.add_trace(
             go.Scatter(
                 x=[-0.2 * shaft_end, 1.2 * shaft_end],
@@ -1775,8 +1781,8 @@ class Rotor(object):
         # plot nodes icons
         text = []
         x_pos = []
-        y_pos = np.linspace(0, 0, len(self.nodes_pos[::nodes]))
-        for node, position in enumerate(self.nodes_pos[::nodes]):
+        y_pos = np.linspace(0, 0, len(nodes_pos[::nodes]))
+        for node, position in enumerate(nodes_pos[::nodes]):
             text.append("{}".format(node * nodes))
             x_pos.append(position)
 
@@ -1800,38 +1806,58 @@ class Rotor(object):
         # plot shaft elements
         for sh_elm in self.shaft_elements:
             position = self.nodes_pos[sh_elm.n]
-            fig = sh_elm._patch(position, check_sld, fig)
+            fig = sh_elm._patch(position, check_sld, fig, length_units)
 
-        mean_od = np.mean(self.nodes_o_d)
+        mean_od = np.mean(nodes_o_d)
         # plot disk elements
         for disk in self.disk_elements:
             step = disk.scale_factor * mean_od
-            position = (self.nodes_pos[disk.n], self.nodes_o_d[disk.n] / 2, step)
+            position = (nodes_pos[disk.n], nodes_o_d[disk.n] / 2, step)
             fig = disk._patch(position, fig)
 
         # plot bearings
         for bearing in self.bearing_elements:
-            z_pos = self.df[self.df.tag == bearing.tag]["nodes_pos_l"].values[0]
-            y_pos = self.df[self.df.tag == bearing.tag]["y_pos"].values[0]
-            y_pos_sup = self.df[self.df.tag == bearing.tag]["y_pos_sup"].values[0]
+            z_pos = (
+                Q_(self.df[self.df.tag == bearing.tag]["nodes_pos_l"].values[0], "m")
+                .to(length_units)
+                .m
+            )
+            y_pos = (
+                Q_(self.df[self.df.tag == bearing.tag]["y_pos"].values[0], "m")
+                .to(length_units)
+                .m
+            )
+            y_pos_sup = (
+                Q_(self.df[self.df.tag == bearing.tag]["y_pos_sup"].values[0], "m")
+                .to(length_units)
+                .m
+            )
             position = (z_pos, y_pos, y_pos_sup)
             bearing._patch(position, fig)
 
         # plot point mass
         for p_mass in self.point_mass_elements:
-            z_pos = self.df[self.df.tag == p_mass.tag]["nodes_pos_l"].values[0]
-            y_pos = self.df[self.df.tag == p_mass.tag]["y_pos"].values[0]
+            z_pos = (
+                Q_(self.df[self.df.tag == p_mass.tag]["nodes_pos_l"].values[0], "m")
+                .to(length_units)
+                .m
+            )
+            y_pos = (
+                Q_(self.df[self.df.tag == p_mass.tag]["y_pos"].values[0], "m")
+                .to(length_units)
+                .m
+            )
             position = (z_pos, y_pos)
             fig = p_mass._patch(position, fig)
 
         fig.update_xaxes(
-            title_text="Axial location",
+            title_text=f"Axial location ({length_units})",
             range=[-0.1 * shaft_end, 1.1 * shaft_end],
             showgrid=False,
             mirror=True,
         )
         fig.update_yaxes(
-            title_text="Shaft radius",
+            title_text=f"Shaft radius ({length_units})",
             range=[-0.3 * shaft_end, 0.3 * shaft_end],
             showgrid=False,
             mirror=True,
