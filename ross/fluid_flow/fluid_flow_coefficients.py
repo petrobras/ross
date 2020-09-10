@@ -13,17 +13,14 @@ from ross.fluid_flow.fluid_flow_geometry import (move_rotor_center,
 
 
 def calculate_oil_film_force(fluid_flow_object, force_type=None):
-    """This function calculates the forces of the oil film in the N and T directions,
-    ie in the opposite direction to the eccentricity and in the tangential direction.
-
+    """This function calculates the forces of the oil film in the N and T directions, ie in the
+    opposite direction to the eccentricity and in the tangential direction.
     Parameters
     ----------
     fluid_flow_object: A FluidFlow object.
     force_type: str
-        If set, calculates the oil film force matrix analytically considering the chosen
-        type: 'short' or 'long'.
+        If set, calculates the oil film force matrix analytically considering the chosen type: 'short' or 'long'.
         If set to 'numerical', calculates the oil film force numerically.
-
     Returns
     -------
     radial_force: float
@@ -34,7 +31,6 @@ def calculate_oil_film_force(fluid_flow_object, force_type=None):
         Components of forces in the x direction
     f_y: float
         Components of forces in the y direction
-
     Examples
     --------
     >>> from ross.fluid_flow.fluid_flow import fluid_flow_example
@@ -70,6 +66,12 @@ def calculate_oil_film_force(fluid_flow_object, force_type=None):
                 / (2 * (1 - fluid_flow_object.eccentricity_ratio ** 2) ** (3.0 / 2))
             )
         )
+        force_x = -radial_force * np.sin(
+            fluid_flow_object.attitude_angle
+        ) + tangential_force * np.cos(fluid_flow_object.attitude_angle)
+        force_y = radial_force * np.cos(
+            fluid_flow_object.attitude_angle
+        ) + tangential_force * np.sin(fluid_flow_object.attitude_angle)
     elif force_type != "numerical" and (
         force_type == "long" or fluid_flow_object.bearing_type == "long_bearing"
     ):
@@ -105,6 +107,12 @@ def calculate_oil_film_force(fluid_flow_object, force_type=None):
                 )
             )
         )
+        force_x = -radial_force * np.sin(
+            fluid_flow_object.attitude_angle
+        ) + tangential_force * np.cos(fluid_flow_object.attitude_angle)
+        force_y = radial_force * np.cos(
+            fluid_flow_object.attitude_angle
+        ) + tangential_force * np.sin(fluid_flow_object.attitude_angle)
     else:
         p_mat = fluid_flow_object.p_mat_numerical
         a = np.zeros([fluid_flow_object.nz, fluid_flow_object.ntheta])
@@ -118,21 +126,16 @@ def calculate_oil_film_force(fluid_flow_object, force_type=None):
             ]
         )
         for i in range(fluid_flow_object.nz):
-            for j in range(int(fluid_flow_object.ntheta / 2)):
+            for j in range(int(fluid_flow_object.ntheta)):
                 vector_from_rotor = np.array(
                     [
                         fluid_flow_object.xre[i][j] - fluid_flow_object.xi,
                         fluid_flow_object.yre[i][j] - fluid_flow_object.yi,
                     ]
                 )
-                angle_between_vectors = np.arccos(
-                    np.dot(base_vector, vector_from_rotor)
-                    / (np.linalg.norm(base_vector) * np.linalg.norm(vector_from_rotor))
-                )
-                if isnan(angle_between_vectors):
-                    angle_between_vectors = 0
-                if angle_between_vectors != 0 and j * fluid_flow_object.dtheta > np.pi:
-                    angle_between_vectors += np.pi
+                angle_between_vectors = np.arctan2(vector_from_rotor[1], vector_from_rotor[0]) - np.arctan2(base_vector[1], base_vector[0])
+                if(angle_between_vectors<0):
+                    angle_between_vectors += 2*np.pi
                 a[i][j] = p_mat[i][j] * np.cos(angle_between_vectors)
                 b[i][j] = p_mat[i][j] * np.sin(angle_between_vectors)
 
@@ -145,35 +148,34 @@ def calculate_oil_film_force(fluid_flow_object, force_type=None):
 
         radial_force = -fluid_flow_object.radius_rotor * integral1
         tangential_force = fluid_flow_object.radius_rotor * integral2
-    force_x = -radial_force * np.sin(
-        fluid_flow_object.attitude_angle
-    ) + tangential_force * np.cos(fluid_flow_object.attitude_angle)
-    force_y = radial_force * np.cos(
-        fluid_flow_object.attitude_angle
-    ) + tangential_force * np.sin(fluid_flow_object.attitude_angle)
+        force_x = -radial_force * np.cos(
+            np.arctan2(base_vector[1],base_vector[0])
+        ) + tangential_force * np.sin(np.arctan2(base_vector[1],base_vector[0]))
+        force_y = -radial_force * np.sin(
+            np.arctan2(base_vector[1],base_vector[0])
+        ) - tangential_force * np.cos(np.arctan2(base_vector[1],base_vector[0]))
+
     return radial_force, tangential_force, force_x, force_y
 
 
 def calculate_stiffness_and_damping_coefficients(fluid_flow_object):
     """This function calculates the bearing stiffness and damping matrices numerically.
-
-    Parameters
-    ----------
-    fluid_flow_object: A FluidFlow object.
-
-    Returns
-    -------
-    Two lists of floats
-        A list of length four including stiffness floats in this order: kxx, kxy, kyx, kyy.
-        And another list of length four including damping floats in this order: cxx, cxy, cyx, cyy.
-
-    Examples
-    --------
-    >>> from ross.fluid_flow.fluid_flow import fluid_flow_example
-    >>> my_fluid_flow = fluid_flow_example()
-    >>> calculate_stiffness_and_damping_coefficients(my_fluid_flow)  # doctest: +ELLIPSIS
-    ([428...
-    """
+        Parameters
+        ----------
+        fluid_flow_object: A FluidFlow object.
+        Returns
+        -------
+        Two lists of floats
+            A list of length four including stiffness floats in this order: kxx, kxy, kyx, kyy.
+            And another list of length four including damping floats in this order: cxx, cxy, cyx, cyy.
+            And
+        Examples
+        --------
+        >>> from ross.fluid_flow.fluid_flow import fluid_flow_example
+        >>> my_fluid_flow = fluid_flow_example()
+        >>> calculate_stiffness_and_damping_coefficients(my_fluid_flow)  # doctest: +ELLIPSIS
+        ([428...
+        """
     N = 6
     t = np.linspace(0, 2 * np.pi / fluid_flow_object.omegap, N)
     fluid_flow_object.xp = fluid_flow_object.radial_clearance * 0.0001
@@ -268,16 +270,13 @@ def calculate_stiffness_and_damping_coefficients(fluid_flow_object):
 
 def calculate_short_stiffness_matrix(fluid_flow_object):
     """This function calculates the stiffness matrix for the short bearing.
-
     Parameters
     ----------
     fluid_flow_object: A FluidFlow object.
-
     Returns
     -------
     list of floats
         A list of length four including stiffness floats in this order: kxx, kxy, kyx, kyy
-
     Examples
     --------
     >>> from ross.fluid_flow.fluid_flow import fluid_flow_example
@@ -349,16 +348,13 @@ def calculate_short_stiffness_matrix(fluid_flow_object):
 
 def calculate_short_damping_matrix(fluid_flow_object):
     """This function calculates the damping matrix for the short bearing.
-
     Parameters
     -------
     fluid_flow_object: A FluidFlow object.
-
     Returns
     -------
     list of floats
         A list of length four including damping floats in this order: cxx, cxy, cyx, cyy
-
     Examples
     --------
     >>> from ross.fluid_flow.fluid_flow import fluid_flow_example
@@ -387,14 +383,14 @@ def calculate_short_damping_matrix(fluid_flow_object):
 def find_equilibrium_position(fluid_flow_object, print_equilibrium_position=False):
     """This function finds the equilibrium position of the rotor such that the fluid flow
     forces match the applied load.
-
     Parameters
     ----------
     fluid_flow_object: A FluidFlow object.
     print_equilibrium_position: bool, optional
         If True, prints the equilibrium position.
-
-    Examples
+    Returns
+    -------
+    None
     --------
     >>> from ross.fluid_flow.fluid_flow import fluid_flow_example2
     >>> my_fluid_flow = fluid_flow_example2()
@@ -406,14 +402,12 @@ def find_equilibrium_position(fluid_flow_object, print_equilibrium_position=Fals
     def residuals(x, *args):
         """Calculates x component of the forces of the oil film and the
         difference between the y component and the load.
-
         Parameters
         ----------
         x: array
             Rotor center coordinates
         *args : dict
             Dictionary instantiating the ross.FluidFlow class.
-
         Returns
         -------
         array
@@ -428,32 +422,24 @@ def find_equilibrium_position(fluid_flow_object, print_equilibrium_position=Fals
         )
         bearing.geometry_description()
         bearing.calculate_pressure_matrix_numerical()
-        (
-            _,
-            _,
-            fx,
-            fy,
-        ) = calculate_oil_film_force(bearing, force_type="numerical")
-        return np.array([fx, (bearing.load - fy)])
+        (_, _, fx, fy,) = calculate_oil_film_force(bearing, force_type="numerical")
+        return np.array([fx, (fy-bearing.load)])
 
     if fluid_flow_object.load is None:
         sys.exit("Load must be given to calculate the equilibrium position.")
-    x0 = np.array([0, -1e-3 * fluid_flow_object.radial_clearance])
+    x0 = np.array([0*fluid_flow_object.radial_clearance, -1e-3*fluid_flow_object.radial_clearance])
     move_rotor_center_abs(fluid_flow_object, x0[0], x0[1])
     fluid_flow_object.geometry_description()
     fluid_flow_object.calculate_pressure_matrix_numerical()
-    (
-        _,
-        _,
-        fx,
-        fy,
-    ) = calculate_oil_film_force(fluid_flow_object, force_type="numerical")
+    (_, _, fx, fy,) = calculate_oil_film_force(
+        fluid_flow_object, force_type="numerical"
+    )
     result = least_squares(
         residuals,
         x0,
         args=[fluid_flow_object],
         jac="3-point",
-        bounds=([-1, -1], [1, 1]),
+        bounds=([0, -1], [1, 0]),
     )
     move_rotor_center_abs(
         fluid_flow_object,
