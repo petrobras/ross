@@ -13,7 +13,7 @@ from plotly import graph_objects as go
 
 from ross.element import Element
 from ross.materials import Material, steel
-from ross.units import check_units
+from ross.units import check_units, Q_
 from ross.utils import read_table_file
 
 __all__ = ["ShaftElement", "ShaftElement6DoF"]
@@ -863,7 +863,7 @@ class ShaftElement(Element):
 
         return G
 
-    def _patch(self, position, check_sld, fig):
+    def _patch(self, position, check_sld, fig, units):
         """Shaft element patch.
 
         Patch that will be used to draw the shaft element using Plotly library.
@@ -877,6 +877,9 @@ class ShaftElement(Element):
             the elements in yellow if slenderness ratio < 1.6
         fig : plotly.graph_objects.Figure
             The figure object which traces are added on.
+        units : str, optional
+            Element length and radius units.
+            Default is 'm'.
 
         Returns
         -------
@@ -903,11 +906,9 @@ class ShaftElement(Element):
         ]
 
         z_pos = z_upper
-        z_pos.append(None)
         z_pos.extend(z_lower)
 
         y_pos = y_upper
-        y_upper.append(None)
         y_pos.extend(y_lower)
 
         if check_sld:
@@ -920,49 +921,49 @@ class ShaftElement(Element):
             if isinstance(self, ShaftElement6DoF):
                 customdata = [
                     self.n,
-                    self.odl,
-                    self.idl,
-                    self.odr,
-                    self.idr,
+                    Q_(self.odl, "m").to(units).m,
+                    Q_(self.idl, "m").to(units).m,
+                    Q_(self.odr, "m").to(units).m,
+                    Q_(self.idr, "m").to(units).m,
                     self.alpha,
                     self.beta,
-                    self.L,
+                    Q_(self.L, "m").to(units).m,
                     self.material.name,
                 ]
                 hovertemplate = (
                     f"Element Number: {customdata[0]}<br>"
-                    + f"Left Outer Diameter: {round(customdata[1], 6)}<br>"
-                    + f"Left Inner Diameter: {round(customdata[2], 6)}<br>"
-                    + f"Right Outer Diameter: {round(customdata[3], 6)}<br>"
-                    + f"Right Inner Diameter: {round(customdata[4], 6)}<br>"
+                    + f"Left Outer Diameter: {round(customdata[1], 6)} {units}<br>"
+                    + f"Left Inner Diameter: {round(customdata[2], 6)} {units}<br>"
+                    + f"Right Outer Diameter: {round(customdata[3], 6)} {units}<br>"
+                    + f"Right Inner Diameter: {round(customdata[4], 6)} {units}<br>"
                     + f"Alpha Damp. Factor: {round(customdata[5], 6)}<br>"
                     + f"Beta Damp. Factor: {round(customdata[6], 6)}<br>"
-                    + f"Element Length: {round(customdata[7], 6)}<br>"
+                    + f"Element Length: {round(customdata[7], 6)} {units} <br>"
                     + f"Material: {customdata[8]}<br>"
                 )
             else:
                 customdata = [
                     self.n,
-                    self.odl,
-                    self.idl,
-                    self.odr,
-                    self.idr,
-                    self.L,
+                    Q_(self.odl, "m").to(units).m,
+                    Q_(self.idl, "m").to(units).m,
+                    Q_(self.odr, "m").to(units).m,
+                    Q_(self.idr, "m").to(units).m,
+                    Q_(self.L, "m").to(units).m,
                     self.material.name,
                 ]
                 hovertemplate = (
                     f"Element Number: {customdata[0]}<br>"
-                    + f"Left Outer Diameter: {round(customdata[1], 6)}<br>"
-                    + f"Left Inner Diameter: {round(customdata[2], 6)}<br>"
-                    + f"Right Outer Diameter: {round(customdata[3], 6)}<br>"
-                    + f"Right Inner Diameter: {round(customdata[4], 6)}<br>"
-                    + f"Element Length: {round(customdata[5], 6)}<br>"
+                    + f"Left Outer Diameter: {round(customdata[1], 6)} {units}<br>"
+                    + f"Left Inner Diameter: {round(customdata[2], 6)} {units}<br>"
+                    + f"Right Outer Diameter: {round(customdata[3], 6)} {units}<br>"
+                    + f"Right Inner Diameter: {round(customdata[4], 6)} {units}<br>"
+                    + f"Element Length: {round(customdata[5], 6)} {units}<br>"
                     + f"Material: {customdata[6]}<br>"
                 )
         fig.add_trace(
             go.Scatter(
-                x=z_pos,
-                y=y_pos,
+                x=Q_(z_pos, "m").to(units).m,
+                y=Q_(y_pos, "m").to(units).m,
                 customdata=[customdata] * len(z_pos),
                 text=hovertemplate,
                 mode="lines",
