@@ -645,10 +645,8 @@ class ModalResults:
         xn, yn, zn, xc, yc, zc_pos, nn = self.calc_mode_shape(mode=mode, evec=evec)
         nodes_pos = Q_(self.nodes_pos, "m").to(length_units).m
 
-        vn = np.zeros(len(zn))
-        for i in range(len(zn)):
-            theta = np.arctan(xn[i] / yn[i])
-            vn[i] = xn[i] * np.sin(theta) + yn[i] * np.cos(theta)
+        theta = np.arctan(xn[0] / yn[0])
+        vn = xn * np.sin(theta) + yn * np.cos(theta)
 
         # remove repetitive values from zn and vn
         idx_remove = []
