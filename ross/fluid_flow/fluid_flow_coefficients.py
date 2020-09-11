@@ -41,7 +41,7 @@ def calculate_oil_film_force(fluid_flow_object, force_type=None):
     if force_type != "numerical" and (
         force_type == "short" or fluid_flow_object.bearing_type == "short_bearing"
     ):
-        radial_force = (
+        radial_force = -(
             0.5
             * fluid_flow_object.viscosity
             * (fluid_flow_object.radius_rotor / fluid_flow_object.radial_clearance) ** 2
@@ -75,7 +75,7 @@ def calculate_oil_film_force(fluid_flow_object, force_type=None):
     elif force_type != "numerical" and (
         force_type == "long" or fluid_flow_object.bearing_type == "long_bearing"
     ):
-        radial_force = (
+        radial_force = -(
             6
             * fluid_flow_object.viscosity
             * (fluid_flow_object.radius_rotor / fluid_flow_object.radial_clearance) ** 2
@@ -133,9 +133,11 @@ def calculate_oil_film_force(fluid_flow_object, force_type=None):
                         fluid_flow_object.yre[i][j] - fluid_flow_object.yi,
                     ]
                 )
-                angle_between_vectors = np.arctan2(vector_from_rotor[1], vector_from_rotor[0]) - np.arctan2(base_vector[1], base_vector[0])
-                if(angle_between_vectors<0):
-                    angle_between_vectors += 2*np.pi
+                angle_between_vectors = np.arctan2(
+                    vector_from_rotor[1], vector_from_rotor[0]
+                ) - np.arctan2(base_vector[1], base_vector[0])
+                if angle_between_vectors < 0:
+                    angle_between_vectors += 2 * np.pi
                 a[i][j] = p_mat[i][j] * np.cos(angle_between_vectors)
                 b[i][j] = p_mat[i][j] * np.sin(angle_between_vectors)
 
@@ -146,14 +148,14 @@ def calculate_oil_film_force(fluid_flow_object, force_type=None):
         integral1 = integrate.simps(g1, fluid_flow_object.z_list)
         integral2 = integrate.simps(g2, fluid_flow_object.z_list)
 
-        radial_force = -fluid_flow_object.radius_rotor * integral1
+        radial_force = fluid_flow_object.radius_rotor * integral1
         tangential_force = fluid_flow_object.radius_rotor * integral2
         force_x = -radial_force * np.cos(
-            np.arctan2(base_vector[1],base_vector[0])
-        ) + tangential_force * np.sin(np.arctan2(base_vector[1],base_vector[0]))
+            np.arctan2(base_vector[1], base_vector[0])
+        ) + tangential_force * np.sin(np.arctan2(base_vector[1], base_vector[0]))
         force_y = -radial_force * np.sin(
-            np.arctan2(base_vector[1],base_vector[0])
-        ) - tangential_force * np.cos(np.arctan2(base_vector[1],base_vector[0]))
+            np.arctan2(base_vector[1], base_vector[0])
+        ) - tangential_force * np.cos(np.arctan2(base_vector[1], base_vector[0]))
 
     return radial_force, tangential_force, force_x, force_y
 
@@ -423,11 +425,16 @@ def find_equilibrium_position(fluid_flow_object, print_equilibrium_position=Fals
         bearing.geometry_description()
         bearing.calculate_pressure_matrix_numerical()
         (_, _, fx, fy,) = calculate_oil_film_force(bearing, force_type="numerical")
-        return np.array([fx, (fy-bearing.load)])
+        return np.array([fx, (fy - bearing.load)])
 
     if fluid_flow_object.load is None:
         sys.exit("Load must be given to calculate the equilibrium position.")
-    x0 = np.array([0*fluid_flow_object.radial_clearance, -1e-3*fluid_flow_object.radial_clearance])
+    x0 = np.array(
+        [
+            0 * fluid_flow_object.radial_clearance,
+            -1e-3 * fluid_flow_object.radial_clearance,
+        ]
+    )
     move_rotor_center_abs(fluid_flow_object, x0[0], x0[1])
     fluid_flow_object.geometry_description()
     fluid_flow_object.calculate_pressure_matrix_numerical()
