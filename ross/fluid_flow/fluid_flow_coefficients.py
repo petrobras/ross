@@ -41,7 +41,7 @@ def calculate_oil_film_force(fluid_flow_object, force_type=None):
     if force_type != "numerical" and (
         force_type == "short" or fluid_flow_object.bearing_type == "short_bearing"
     ):
-        radial_force = -(
+        radial_force = (
             0.5
             * fluid_flow_object.viscosity
             * (fluid_flow_object.radius_rotor / fluid_flow_object.radial_clearance) ** 2
@@ -75,7 +75,7 @@ def calculate_oil_film_force(fluid_flow_object, force_type=None):
     elif force_type != "numerical" and (
         force_type == "long" or fluid_flow_object.bearing_type == "long_bearing"
     ):
-        radial_force = -(
+        radial_force = (
             6
             * fluid_flow_object.viscosity
             * (fluid_flow_object.radius_rotor / fluid_flow_object.radial_clearance) ** 2
