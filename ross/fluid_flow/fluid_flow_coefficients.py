@@ -39,67 +39,67 @@ def calculate_oil_film_force(fluid_flow_object, force_type=None):
     (...
     """
     if force_type != "numerical" and (
-            force_type == "short" or fluid_flow_object.bearing_type == "short_bearing"
+        force_type == "short" or fluid_flow_object.bearing_type == "short_bearing"
     ):
         radial_force = (
-                0.5
-                * fluid_flow_object.viscosity
-                * (fluid_flow_object.radius_rotor / fluid_flow_object.radial_clearance) ** 2
-                * (fluid_flow_object.length ** 3 / fluid_flow_object.radius_rotor)
-                * (
-                        (
-                                2
-                                * fluid_flow_object.eccentricity_ratio ** 2
-                                * fluid_flow_object.omega
-                        )
-                        / (1 - fluid_flow_object.eccentricity_ratio ** 2) ** 2
+            0.5
+            * fluid_flow_object.viscosity
+            * (fluid_flow_object.radius_rotor / fluid_flow_object.radial_clearance) ** 2
+            * (fluid_flow_object.length ** 3 / fluid_flow_object.radius_rotor)
+            * (
+                (
+                    2
+                    * fluid_flow_object.eccentricity_ratio ** 2
+                    * fluid_flow_object.omega
                 )
+                / (1 - fluid_flow_object.eccentricity_ratio ** 2) ** 2
+            )
         )
 
         tangential_force = (
-                0.5
-                * fluid_flow_object.viscosity
-                * (fluid_flow_object.radius_rotor / fluid_flow_object.radial_clearance) ** 2
-                * (fluid_flow_object.length ** 3 / fluid_flow_object.radius_rotor)
-                * (
-                        (np.pi * fluid_flow_object.eccentricity_ratio * fluid_flow_object.omega)
-                        / (2 * (1 - fluid_flow_object.eccentricity_ratio ** 2) ** (3.0 / 2))
-                )
+            0.5
+            * fluid_flow_object.viscosity
+            * (fluid_flow_object.radius_rotor / fluid_flow_object.radial_clearance) ** 2
+            * (fluid_flow_object.length ** 3 / fluid_flow_object.radius_rotor)
+            * (
+                (np.pi * fluid_flow_object.eccentricity_ratio * fluid_flow_object.omega)
+                / (2 * (1 - fluid_flow_object.eccentricity_ratio ** 2) ** (3.0 / 2))
+            )
         )
     elif force_type != "numerical" and (
-            force_type == "long" or fluid_flow_object.bearing_type == "long_bearing"
+        force_type == "long" or fluid_flow_object.bearing_type == "long_bearing"
     ):
         radial_force = (
-                6
-                * fluid_flow_object.viscosity
-                * (fluid_flow_object.radius_rotor / fluid_flow_object.radial_clearance) ** 2
-                * fluid_flow_object.radius_rotor
-                * fluid_flow_object.length
-                * (
-                        (
-                                2
-                                * fluid_flow_object.eccentricity_ratio ** 2
-                                * fluid_flow_object.omega
-                        )
-                        / (
-                                (2 + fluid_flow_object.eccentricity_ratio ** 2)
-                                * (1 - fluid_flow_object.eccentricity_ratio ** 2)
-                        )
+            6
+            * fluid_flow_object.viscosity
+            * (fluid_flow_object.radius_rotor / fluid_flow_object.radial_clearance) ** 2
+            * fluid_flow_object.radius_rotor
+            * fluid_flow_object.length
+            * (
+                (
+                    2
+                    * fluid_flow_object.eccentricity_ratio ** 2
+                    * fluid_flow_object.omega
                 )
+                / (
+                    (2 + fluid_flow_object.eccentricity_ratio ** 2)
+                    * (1 - fluid_flow_object.eccentricity_ratio ** 2)
+                )
+            )
         )
         tangential_force = (
-                6
-                * fluid_flow_object.viscosity
-                * (fluid_flow_object.radius_rotor / fluid_flow_object.radial_clearance) ** 2
-                * fluid_flow_object.radius_rotor
-                * fluid_flow_object.length
-                * (
-                        (np.pi * fluid_flow_object.eccentricity_ratio * fluid_flow_object.omega)
-                        / (
-                                (2 + fluid_flow_object.eccentricity_ratio ** 2)
-                                * (1 - fluid_flow_object.eccentricity_ratio ** 2) ** 0.5
-                        )
+            6
+            * fluid_flow_object.viscosity
+            * (fluid_flow_object.radius_rotor / fluid_flow_object.radial_clearance) ** 2
+            * fluid_flow_object.radius_rotor
+            * fluid_flow_object.length
+            * (
+                (np.pi * fluid_flow_object.eccentricity_ratio * fluid_flow_object.omega)
+                / (
+                    (2 + fluid_flow_object.eccentricity_ratio ** 2)
+                    * (1 - fluid_flow_object.eccentricity_ratio ** 2) ** 0.5
                 )
+            )
         )
     else:
         p_mat = fluid_flow_object.p_mat_numerical
@@ -121,9 +121,10 @@ def calculate_oil_film_force(fluid_flow_object, force_type=None):
                         fluid_flow_object.yre[i][j] - fluid_flow_object.yi,
                     ]
                 )
-                angle_between_vectors = np.arctan2(vector_from_rotor[1], vector_from_rotor[0]) - np.arctan2(
-                    base_vector[1], base_vector[0])
-                if (angle_between_vectors < 0):
+                angle_between_vectors = np.arctan2(
+                    vector_from_rotor[1], vector_from_rotor[0]
+                ) - np.arctan2(base_vector[1], base_vector[0])
+                if angle_between_vectors < 0:
                     angle_between_vectors += 2 * np.pi
                 a[i][j] = p_mat[i][j] * np.cos(angle_between_vectors)
                 b[i][j] = p_mat[i][j] * np.sin(angle_between_vectors)
@@ -135,12 +136,19 @@ def calculate_oil_film_force(fluid_flow_object, force_type=None):
         integral1 = integrate.simps(g1, fluid_flow_object.z_list)
         integral2 = integrate.simps(g2, fluid_flow_object.z_list)
 
-        angle_corr = np.pi / 2 - np.arctan2(base_vector[1], base_vector[0]) + fluid_flow_object.attitude_angle
+        angle_corr = (
+            np.pi / 2
+            - np.arctan2(base_vector[1], base_vector[0])
+            + fluid_flow_object.attitude_angle
+        )
         radial_force_aux = fluid_flow_object.radius_rotor * integral1
         tangential_force_aux = fluid_flow_object.radius_rotor * integral2
-        radial_force = radial_force_aux * np.cos(angle_corr + np.pi) + tangential_force_aux * np.cos(
-            angle_corr + np.pi / 2)
-        tangential_force = radial_force_aux * np.cos(angle_corr + np.pi / 2) + tangential_force_aux * np.cos(angle_corr)
+        radial_force = radial_force_aux * np.cos(
+            angle_corr + np.pi
+        ) + tangential_force_aux * np.cos(angle_corr + np.pi / 2)
+        tangential_force = radial_force_aux * np.cos(
+            angle_corr + np.pi / 2
+        ) + tangential_force_aux * np.cos(angle_corr)
 
     force_x = -radial_force * np.sin(
         fluid_flow_object.attitude_angle

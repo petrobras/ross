@@ -23,7 +23,7 @@ from ross.fluid_flow.fluid_flow_graphics import (
 @pytest.fixture
 def fluid_flow_short_eccentricity():
     nz = 8
-    ntheta = 32*4
+    ntheta = 32 * 4
     omega = 100.0 * 2 * np.pi / 60
     p_in = 0.0
     p_out = 0.0
@@ -320,12 +320,7 @@ def test_plots():
 
 def test_find_equilibrium_position():
     bearing = fluid_flow_example2()
-    (
-        n,
-        t,
-        force_x,
-        force_y,
-    ) = calculate_oil_film_force(bearing)
+    (n, t, force_x, force_y,) = calculate_oil_film_force(bearing)
     assert math.isclose(force_x, 0, abs_tol=1e-4)
     assert math.isclose(force_y, bearing.load, abs_tol=1e-2)
 
