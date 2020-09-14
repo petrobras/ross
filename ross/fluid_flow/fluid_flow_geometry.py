@@ -163,7 +163,7 @@ def reynolds_number(density, characteristic_speed, radial_clearance, viscosity):
         >>> viscosity = my_fluid_flow.viscosity
         >>> reynolds_number(density, characteristic_speed, radial_clearance, viscosity) # doctest: +ELLIPSIS
         24.01...
-        """
+    """
     return (density * characteristic_speed * radial_clearance) / viscosity
 
 

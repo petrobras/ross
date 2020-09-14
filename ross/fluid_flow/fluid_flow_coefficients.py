@@ -161,22 +161,22 @@ def calculate_oil_film_force(fluid_flow_object, force_type=None):
 
 def calculate_stiffness_and_damping_coefficients(fluid_flow_object):
     """This function calculates the bearing stiffness and damping matrices numerically.
-        Parameters
-        ----------
-        fluid_flow_object: A FluidFlow object.
-        Returns
-        -------
-        Two lists of floats
-            A list of length four including stiffness floats in this order: kxx, kxy, kyx, kyy.
-            And another list of length four including damping floats in this order: cxx, cxy, cyx, cyy.
-            And
-        Examples
-        --------
-        >>> from ross.fluid_flow.fluid_flow import fluid_flow_example
-        >>> my_fluid_flow = fluid_flow_example()
-        >>> calculate_stiffness_and_damping_coefficients(my_fluid_flow)  # doctest: +ELLIPSIS
-        ([429...
-        """
+    Parameters
+    ----------
+    fluid_flow_object: A FluidFlow object.
+    Returns
+    -------
+    Two lists of floats
+        A list of length four including stiffness floats in this order: kxx, kxy, kyx, kyy.
+        And another list of length four including damping floats in this order: cxx, cxy, cyx, cyy.
+        And
+    Examples
+    --------
+    >>> from ross.fluid_flow.fluid_flow import fluid_flow_example
+    >>> my_fluid_flow = fluid_flow_example()
+    >>> calculate_stiffness_and_damping_coefficients(my_fluid_flow)  # doctest: +ELLIPSIS
+    ([429...
+    """
     N = 6
     t = np.linspace(0, 2 * np.pi / fluid_flow_object.omegap, N)
     fluid_flow_object.xp = fluid_flow_object.radial_clearance * 0.0001
@@ -423,7 +423,12 @@ def find_equilibrium_position(fluid_flow_object, print_equilibrium_position=Fals
         )
         bearing.geometry_description()
         bearing.calculate_pressure_matrix_numerical()
-        (_, _, fx, fy,) = calculate_oil_film_force(bearing, force_type="numerical")
+        (
+            _,
+            _,
+            fx,
+            fy,
+        ) = calculate_oil_film_force(bearing, force_type="numerical")
         return np.array([fx, (fy - bearing.load)])
 
     if fluid_flow_object.load is None:
@@ -437,9 +442,12 @@ def find_equilibrium_position(fluid_flow_object, print_equilibrium_position=Fals
     move_rotor_center_abs(fluid_flow_object, x0[0], x0[1])
     fluid_flow_object.geometry_description()
     fluid_flow_object.calculate_pressure_matrix_numerical()
-    (_, _, fx, fy,) = calculate_oil_film_force(
-        fluid_flow_object, force_type="numerical"
-    )
+    (
+        _,
+        _,
+        fx,
+        fy,
+    ) = calculate_oil_film_force(fluid_flow_object, force_type="numerical")
     result = least_squares(
         residuals,
         x0,
