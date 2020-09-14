@@ -481,7 +481,13 @@ class ModalResults:
         return xn, yn, zn, x_circles, y_circles, z_circles_pos, nn
 
     def plot_mode_3d(
-        self, mode=None, evec=None, fig=None, frequency_units="rad/s", **kwargs
+        self,
+        mode=None,
+        evec=None,
+        fig=None,
+        length_units="m",
+        frequency_units="rad/s",
+        **kwargs,
     ):
         """Plot (3D view) the mode shapes.
 
@@ -497,6 +503,9 @@ class ModalResults:
         frequency_units : str, optional
             Frequency units that will be used in the plot title.
             Default is rad/s.
+        length_units : str, optional
+            length units.
+            Default is 'm'.
         kwargs : optional
             Additional key word arguments can be passed to change the plot layout only
             (e.g. width=1000, height=800, ...).
@@ -517,7 +526,7 @@ class ModalResults:
         for node in nodes:
             fig.add_trace(
                 go.Scatter3d(
-                    x=zc_pos[10:, node],
+                    x=Q_(zc_pos[10:, node], "m").to(length_units).m,
                     y=xc[10:, node],
                     z=yc[10:, node],
                     mode="lines",
@@ -533,7 +542,7 @@ class ModalResults:
             )
             fig.add_trace(
                 go.Scatter3d(
-                    x=[zc_pos[10, node]],
+                    x=Q_([zc_pos[10, node]], "m").to(length_units).m,
                     y=[xc[10, node]],
                     z=[yc[10, node]],
                     mode="markers",
@@ -545,7 +554,7 @@ class ModalResults:
 
         fig.add_trace(
             go.Scatter3d(
-                x=zn,
+                x=Q_(zn, "m").to(length_units).m,
                 y=xn,
                 z=yn,
                 mode="lines",
@@ -561,7 +570,7 @@ class ModalResults:
         zn_cl = np.linspace(zn_cl0, zn_cl1, 30)
         fig.add_trace(
             go.Scatter3d(
-                x=zn_cl,
+                x=Q_(zn_cl, "m").to(length_units).m,
                 y=zn_cl * 0,
                 z=zn_cl * 0,
                 mode="lines",
@@ -573,7 +582,9 @@ class ModalResults:
         fig.update_layout(
             scene=dict(
                 xaxis=dict(
-                    title=dict(text="Rotor Length"), autorange="reversed", nticks=5
+                    title=dict(text=f"Rotor Length ({length_units})"),
+                    autorange="reversed",
+                    nticks=5,
                 ),
                 yaxis=dict(
                     title=dict(text="Relative Displacement"), range=[-2, 2], nticks=5
@@ -596,7 +607,13 @@ class ModalResults:
         return fig
 
     def plot_mode_2d(
-        self, mode=None, evec=None, fig=None, frequency_units="rad/s", **kwargs
+        self,
+        mode=None,
+        evec=None,
+        fig=None,
+        length_units="m",
+        frequency_units="rad/s",
+        **kwargs,
     ):
         """Plot (2D view) the mode shapes.
 
@@ -612,6 +629,9 @@ class ModalResults:
         frequency_units : str, optional
             Frequency units that will be used in the plot title.
             Default is rad/s.
+        length_units : str, optional
+            length units.
+            Default is 'm'.
         kwargs : optional
             Additional key word arguments can be passed to change the plot layout only
             (e.g. width=1000, height=800, ...).
@@ -623,12 +643,10 @@ class ModalResults:
             The figure object with the plot.
         """
         xn, yn, zn, xc, yc, zc_pos, nn = self.calc_mode_shape(mode=mode, evec=evec)
-        nodes_pos = self.nodes_pos
+        nodes_pos = Q_(self.nodes_pos, "m").to(length_units).m
 
-        vn = np.zeros(len(zn))
-        for i in range(len(zn)):
-            theta = np.arctan(xn[i] / yn[i])
-            vn[i] = xn[i] * np.sin(theta) + yn[i] * np.cos(theta)
+        theta = np.arctan(xn[0] / yn[0])
+        vn = xn * np.sin(theta) + yn * np.cos(theta)
 
         # remove repetitive values from zn and vn
         idx_remove = []
@@ -646,7 +664,7 @@ class ModalResults:
 
         fig.add_trace(
             go.Scatter(
-                x=zn,
+                x=Q_(zn, "m").to(length_units).m,
                 y=vn,
                 mode="lines",
                 line=dict(color=whirl_dir),
@@ -667,7 +685,7 @@ class ModalResults:
             )
         )
 
-        fig.update_xaxes(title_text="Rotor Length")
+        fig.update_xaxes(title_text=f"Rotor Length ({length_units})")
         fig.update_yaxes(title_text="Relative Displacement")
         fig.update_layout(
             title=dict(
@@ -1614,7 +1632,11 @@ class ForcedResponseResults:
         # fmt: on
 
         subplots = make_subplots(
-            rows=2, cols=2, specs=[[{}, {"type": "polar", "rowspan": 2}], [{}, None]]
+            rows=2,
+            cols=2,
+            specs=[[{}, {"type": "polar", "rowspan": 2}], [{}, None]],
+            shared_xaxes=True,
+            vertical_spacing=0.02,
         )
         for data in fig0["data"]:
             data.showlegend = False
@@ -1625,7 +1647,6 @@ class ForcedResponseResults:
         for data in fig2["data"]:
             subplots.add_trace(data, row=1, col=2)
 
-        subplots.update_xaxes(fig0.layout.xaxis, row=1, col=1)
         subplots.update_yaxes(fig0.layout.yaxis, row=1, col=1)
         subplots.update_xaxes(fig1.layout.xaxis, row=2, col=1)
         subplots.update_yaxes(fig1.layout.yaxis, row=2, col=1)
@@ -1826,7 +1847,8 @@ class ForcedResponseResults:
 
         fig.update_xaxes(title_text=f"Rotor Length ({rotor_length_units})")
         fig.update_yaxes(
-            title_text=f"Major Axis Absolute Amplitude ({displacement_units})"
+            title_text=f"Major Axis Abs Amplitude ({displacement_units})",
+            title_font=dict(size=12),
         )
         fig.update_layout(**kwargs)
 
@@ -2102,7 +2124,10 @@ class ForcedResponseResults:
         )
 
         fig.update_xaxes(title_text=f"Rotor Length ({rotor_length_units})")
-        fig.update_yaxes(title_text=f"Bending Moment ({moment_units})")
+        fig.update_yaxes(
+            title_text=f"Bending Moment ({moment_units})",
+            title_font=dict(size=12),
+        )
         fig.update_layout(**kwargs)
 
         return fig
@@ -2189,7 +2214,11 @@ class ForcedResponseResults:
         # fmt: on
 
         subplots = make_subplots(
-            rows=2, cols=2, specs=[[{}, {"type": "scene", "rowspan": 2}], [{}, None]]
+            rows=2,
+            cols=2,
+            specs=[[{}, {"type": "scene", "rowspan": 2}], [{}, None]],
+            shared_xaxes=True,
+            vertical_spacing=0.02,
         )
         for data in fig0["data"]:
             subplots.add_trace(data, row=1, col=1)
@@ -2198,7 +2227,6 @@ class ForcedResponseResults:
         for data in fig2["data"]:
             subplots.add_trace(data, row=2, col=1)
 
-        subplots.update_xaxes(fig0.layout.xaxis, row=1, col=1)
         subplots.update_yaxes(fig0.layout.yaxis, row=1, col=1)
         subplots.update_xaxes(fig2.layout.xaxis, row=2, col=1)
         subplots.update_yaxes(fig2.layout.yaxis, row=2, col=1)
@@ -3067,7 +3095,7 @@ class TimeResponseResults:
 
             _probe_resp = operator @ np.vstack((self.yout[:, dofx], self.yout[:, dofy]))
             probe_resp = (
-                _probe_resp[0] * np.cos(angle) ** 2  +
+                _probe_resp[0] * np.cos(angle) ** 2 +
                 _probe_resp[1] * np.sin(angle) ** 2
             )
             # fmt: on
