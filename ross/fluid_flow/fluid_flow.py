@@ -69,6 +69,21 @@ class FluidFlow:
         'medium_size': in between short and long.
         if length/diameter <= 1/4 it is short.
         if length/diameter > 8 it is long.
+    bearing_type: str
+        type of structure. 'short_bearing': short; 'long_bearing': long;
+        The default is None. In this case it is automatically calculated
+        following the parameter:
+        'medium_size': in between short and long.
+        if length/diameter <= 1/4 it is short.
+        if length/diameter > 8 it is long.
+    shape_geometry: str
+        Determines the type of bearing geometry.
+        'cylindrical': cylindrical bearing; 'eliptical': eliptical bearing
+        The default is 'cylindrical'.
+    preload: float
+        Ellipticity ratio. The value must be between 0 and 1. If preload = 0
+        the bearing becomes cylindrical. Not used in cylindrical bearings.
+        The default is 0.05.
 
     Fluid characteristics
     ^^^^^^^^^^^^^^^^^^^^^
@@ -146,6 +161,11 @@ class FluidFlow:
     characteristic_speed: float
         Characteristic fluid speeds.
         In journal bearings, characteristic_speed = omega * radius_rotor
+    bearing_type: str
+        type of structure. 'short_bearing': short; 'long_bearing': long;
+        'medium_size': in between short and long.
+        if length/diameter <= 1/4 it is short.
+        if length/diameter > 8 it is long.
     analytical_pressure_matrix_available: bool
         True if analytically calculated pressure matrix is available.
     numerical_pressure_matrix_available: bool
@@ -202,6 +222,8 @@ class FluidFlow:
         omegap=None,
         immediately_calculate_pressure_matrix_numerically=True,
         bearing_type=None,
+        shape_geometry="cylindrical",
+        preload=0.05,
     ):
 
         self.nz = nz
@@ -230,6 +252,8 @@ class FluidFlow:
                 self.bearing_type = "long_bearing"
             else:
                 self.bearing_type = "medium_size"
+        self.shape_geometry = shape_geometry
+        self.preload = preload
         self.eccentricity = eccentricity
         self.attitude_angle = attitude_angle
         self.eccentricity_ratio = None
@@ -251,7 +275,10 @@ class FluidFlow:
         self.t = 0
         self.xp = 0
         self.yp = 0
-        if self.bearing_type == "short_bearing":
+        if (
+            self.bearing_type == "short_bearing"
+            and self.shape_geometry == "cylindrical"
+        ):
             if self.eccentricity is None and load is not None:
                 modified_s = modified_sommerfeld_number(
                     self.radius_stator,
@@ -330,7 +357,8 @@ class FluidFlow:
             self.calculate_pressure_matrix_numerical()
 
     def calculate_pressure_matrix_analytical(self, method=0, force_type=None):
-        """This function calculates the pressure matrix analytically.
+        """This function calculates the pressure matrix analytically
+        for the cylindrical bearing.
         Parameters
         ----------
         method: int
@@ -385,25 +413,36 @@ class FluidFlow:
                 for i in range(0, self.nz):
                     for j in range(0, self.ntheta):
                         self.p_mat_analytical[i, j] = (
-                            6
-                            * self.viscosity
-                            * self.omega
-                            * (self.radius_rotor / self.radial_clearance) ** 2
-                            * self.eccentricity_ratio
-                            * np.sin(self.dtheta * j)
-                            * (2 + self.eccentricity_ratio * np.cos(self.dtheta * j))
-                        ) / (
-                            (2 + self.eccentricity_ratio ** 2)
-                            * (1 + self.eccentricity_ratio * np.cos(self.dtheta * j))
-                            ** 2
-                        ) + self.p_in
+                            (
+                                6
+                                * self.viscosity
+                                * self.omega
+                                * (self.radius_rotor / self.radial_clearance) ** 2
+                                * self.eccentricity_ratio
+                                * np.sin(self.dtheta * j)
+                                * (
+                                    2
+                                    + self.eccentricity_ratio * np.cos(self.dtheta * j)
+                                )
+                            )
+                            / (
+                                (2 + self.eccentricity_ratio ** 2)
+                                * (
+                                    1
+                                    + self.eccentricity_ratio * np.cos(self.dtheta * j)
+                                )
+                                ** 2
+                            )
+                            + self.p_in
+                        )
                         if self.p_mat_analytical[i, j] < 0:
                             self.p_mat_analytical[i, j] = 0
-        elif self.bearing_type == "medium_size":
+        elif self.bearing_type == "medium_size" or self.shape_geometry != "cylindrical":
             raise ValueError(
-                "The pressure matrix for a bearing that is neither short or long can only be calculated "
-                "numerically. Try calling calculate_pressure_matrix_numerical or setting force_type "
-                "to either 'short' or 'long' in calculate_pressure_matrix_analytical."
+                "The pressure matrix can only be calculated analytically for short or long cylindrical "
+                "bearings. For cylindrical bearings: Try calling calculate_pressure_matrix_numerical "
+                "or setting force_type to either 'short' or 'long' in calculate_pressure_matrix_analytical. "
+                "For other geometries: Try calling calculate_pressure_matrix_numerical"
             )
         self.analytical_pressure_matrix_available = True
         return self.p_mat_analytical
@@ -416,14 +455,20 @@ class FluidFlow:
         >>> my_fluid_flow = fluid_flow_example()
         >>> my_fluid_flow.geometry_description()
         """
+        if self.shape_geometry == "cylindrical":
+            start = (np.pi / 2) + self.attitude_angle
+        else:
+            start = 0
+
         for i in range(0, self.nz):
             zno = i * self.dz
             self.z_list[i] = zno
             for j in range(0, self.ntheta):
                 # fmt: off
-                self.gama[i, j] = j * self.dtheta + np.pi / 2 + self.attitude_angle
+                self.gama[i, j] = j * self.dtheta + start
                 [radius_external, self.xre[i, j], self.yre[i, j]] = \
-                    external_radius_function(self.gama[i, j], self.radius_stator)
+                    external_radius_function(self.gama[i, j], self.radius_stator, self.radius_rotor,
+                                             shape=self.shape_geometry, m=self.preload)
                 [radius_internal, self.xri[i, j], self.yri[i, j]] = \
                     internal_radius_function(self.gama[i, j], self.attitude_angle, self.radius_rotor,
                                              self.eccentricity)

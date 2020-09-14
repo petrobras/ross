@@ -110,12 +110,7 @@ def external_radius_function(
     >>> radius_external
     0.2002
     """
-    if shape == "cylindrical":
-        radius_external = radius_stator
-        xre = radius_external * np.cos(gama)
-        yre = radius_external * np.sin(gama)
-
-    elif shape == "eliptical":
+    if shape == "eliptical":
         cr = radius_stator - radius_rotor
         elip = m * cr
         if 0 <= gama <= np.pi / 2:
@@ -128,10 +123,16 @@ def external_radius_function(
             alpha = 5 * np.pi / 2 - gama
 
         radius_external = elip * np.cos(alpha) + np.sqrt(
-            ((radius_stator) ** 2) - (elip * np.sin(alpha))**2
+            ((radius_stator) ** 2) - (elip * np.sin(alpha)) ** 2
         )
         xre = radius_external * np.cos(gama)
         yre = radius_external * np.sin(gama)
+
+    else:
+        radius_external = radius_stator
+        xre = radius_external * np.cos(gama)
+        yre = radius_external * np.sin(gama)
+
     return radius_external, xre, yre
 
 
