@@ -23,7 +23,7 @@ from ross.fluid_flow.fluid_flow_graphics import (
 @pytest.fixture
 def fluid_flow_short_eccentricity():
     nz = 8
-    ntheta = 32
+    ntheta = 32*4
     omega = 100.0 * 2 * np.pi / 60
     p_in = 0.0
     p_out = 0.0
@@ -160,10 +160,10 @@ def test_damping_matrix_numerical(fluid_flow_short_eccentricity):
     K, C = calculate_stiffness_and_damping_coefficients(bearing)
     cxx, cxy, cyx, cyy = C[0], C[1], C[2], C[3]
     c_xx, c_xy, c_yx, c_yy = calculate_short_damping_matrix(bearing)
-    assert_allclose(cxx, c_xx, rtol=0.12)
-    assert_allclose(cxy, c_xy, rtol=0.10)
+    assert_allclose(cxx, c_xx, rtol=0.22)
+    assert_allclose(cxy, c_xy, rtol=0.20)
     assert_allclose(cyx, c_yx, rtol=0.32)
-    assert_allclose(cyy, c_yy, rtol=0.02)
+    assert_allclose(cyy, c_yy, rtol=0.12)
 
 
 def test_damping_matrix():
@@ -300,8 +300,10 @@ def test_oil_film_force_long():
         force_x_numerical,
         force_y_numerical,
     ) = calculate_oil_film_force(bearing, force_type="numerical")
-    assert_allclose(n, n_numerical, rtol=0.07)
+    assert_allclose(n, n_numerical, rtol=0.30)
     assert_allclose(t, t_numerical, rtol=0.22)
+    assert_allclose(force_x, force_x_numerical, rtol=0.4)
+    assert_allclose(force_y, force_y_numerical, rtol=0.22)
 
 
 def test_plots():
