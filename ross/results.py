@@ -665,7 +665,7 @@ class ModalResults:
         fig.add_trace(
             go.Scatter(
                 x=Q_(zn, "m").to(length_units).m,
-                y=vn,
+                y=vn / vn[np.argmax(np.abs(vn))],
                 mode="lines",
                 line=dict(color=whirl_dir),
                 name="mode shape",
@@ -1716,8 +1716,6 @@ class ForcedResponseResults:
             # Adjusting points to the same quadrant
             if ang_maj_ax > np.pi:
                 ang_maj_ax -= np.pi
-            if ang_maj_ax > np.pi / 2:
-                ang_maj_ax -= np.pi / 2
 
             major_axis_vector[0, i] = fow
             major_axis_vector[1, i] = back
@@ -1730,7 +1728,10 @@ class ForcedResponseResults:
             major_axis_vector[0] * np.exp(1j * max_major_axis_angle) +
             major_axis_vector[1] * np.exp(-1j * max_major_axis_angle)
         )
-        major_axis_vector[4] = np.abs(major_axis_vector[3])
+        major_axis_vector[4] = np.abs(
+            major_axis_vector[0] * np.exp(1j * major_axis_vector[2]) +
+            major_axis_vector[1] * np.exp(-1j * major_axis_vector[2])
+        )
         # fmt: on
 
         return major_axis_vector
