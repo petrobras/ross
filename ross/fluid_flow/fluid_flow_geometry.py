@@ -5,18 +5,15 @@ from scipy.optimize import least_squares, root
 def calculate_attitude_angle(eccentricity_ratio):
     """Calculates the attitude angle based on the eccentricity ratio.
     Suitable only for short bearings.
-
     Parameters
     ----------
     eccentricity_ratio: float
         The ratio between the journal displacement, called just eccentricity, and
         the radial clearance.
-
     Returns
     -------
     float
         Attitude angle
-
     Examples
     --------
     >>> from ross.fluid_flow.fluid_flow import fluid_flow_example
@@ -33,7 +30,6 @@ def internal_radius_function(gama, attitude_angle, radius_rotor, eccentricity):
     """This function calculates the x and y of the internal radius of the rotor,
     as well as its distance from the origin, given the distance in the theta-axis,
     the attitude angle, the radius of the rotor and the eccentricity.
-
     Parameters
     ----------
     gama: float
@@ -44,7 +40,6 @@ def internal_radius_function(gama, attitude_angle, radius_rotor, eccentricity):
         The radius of the journal.
     eccentricity: float
         The journal displacement from the center of the stator.
-
     Returns
     -------
     radius_internal: float
@@ -53,7 +48,6 @@ def internal_radius_function(gama, attitude_angle, radius_rotor, eccentricity):
         The position x of the returned internal radius.
     yri: float
         The position y of the returned internal radius.
-
     Examples
     --------
     >>> from ross.fluid_flow.fluid_flow import fluid_flow_example
@@ -78,18 +72,27 @@ def internal_radius_function(gama, attitude_angle, radius_rotor, eccentricity):
     return radius_internal, xri, yri
 
 
-def external_radius_function(gama, radius_stator):
-    """This function returns the x and y of the radius of the stator, as well as its
-    distance from the origin, given the distance in the theta-axis and the radius of
-    the bearing.
-
+def external_radius_function(
+    gama, radius_stator, radius_rotor=None, shape="cylindrical", m=0.05
+):
+    """This function returns the x and y of the radius of the stator, as well as its distance from the
+    origin, given the distance in the theta-axis and the radius of the bearing.
     Parameters
     ----------
     gama: float
         Gama is the distance in the theta-axis. It should range from 0 to 2*np.pi.
     radius_stator : float
         The external radius of the bearing.
-
+    radius_rotor : float
+        The internal radius of the bearing.
+    shape : str
+        Determines the type of bearing geometry.
+        'cylindrical': cylindrical bearing;
+        'eliptical': eliptical bearing
+        The default is 'cylindrical'.
+    m : float
+        The ellipticity ratio of the bearing if the shape is eliptical. Varies between 0 and 1.
+        The default is 0.05.
     Returns
     -------
     radius_external: float
@@ -98,7 +101,6 @@ def external_radius_function(gama, radius_stator):
         The position x of the returned external radius.
     yre: float
         The position y of the returned external radius.
-
     Examples
     --------
     >>> from ross.fluid_flow.fluid_flow import fluid_flow_example
@@ -108,45 +110,59 @@ def external_radius_function(gama, radius_stator):
     >>> radius_external
     0.2002
     """
-    radius_external = radius_stator
-    xre = radius_external * np.cos(gama)
-    yre = radius_external * np.sin(gama)
+    if shape == "eliptical":
+        cr = radius_stator - radius_rotor
+        elip = m * cr
+        if 0 <= gama <= np.pi / 2:
+            alpha = np.pi / 2 + gama
+        elif np.pi / 2 < gama <= np.pi:
+            alpha = 3 * np.pi / 2 - gama
+        elif np.pi < gama <= 3 * np.pi / 2:
+            alpha = gama - np.pi / 2
+        else:
+            alpha = 5 * np.pi / 2 - gama
+
+        radius_external = elip * np.cos(alpha) + np.sqrt(
+            ((radius_stator) ** 2) - (elip * np.sin(alpha)) ** 2
+        )
+        xre = radius_external * np.cos(gama)
+        yre = radius_external * np.sin(gama)
+
+    else:
+        radius_external = radius_stator
+        xre = radius_external * np.cos(gama)
+        yre = radius_external * np.sin(gama)
 
     return radius_external, xre, yre
 
 
 def reynolds_number(density, characteristic_speed, radial_clearance, viscosity):
-    """Return the reynolds number based on the characteristic speed.
-
-    This number denotes the ratio between fluid inertia (advection) forces and
-    viscous-shear forces.
-
-    Parameters
-    ----------
-    density: float
-        Fluid density(Kg/m^3).
-    characteristic_speed: float
-        Characteristic fluid speeds.
-    radial_clearance: float
-        Difference between both stator and rotor radius, regardless of eccentricity.
-    viscosity: float
-        Viscosity (Pa.s).
-
-    Returns
-    -------
-    float
-        The reynolds number.
-
-    Examples
-    --------
-    >>> from ross.fluid_flow.fluid_flow import fluid_flow_example
-    >>> my_fluid_flow = fluid_flow_example()
-    >>> density = my_fluid_flow.density
-    >>> characteristic_speed = my_fluid_flow.characteristic_speed
-    >>> radial_clearance = my_fluid_flow.radial_clearance
-    >>> viscosity = my_fluid_flow.viscosity
-    >>> reynolds_number(density, characteristic_speed, radial_clearance, viscosity) # doctest: +ELLIPSIS
-    24.01...
+    """Returns the reynolds number based on the characteristic speed.
+    This number denotes the ratio between fluid inertia (advection) forces and viscous-shear forces.
+        Parameters
+        ----------
+        density: float
+            Fluid density(Kg/m^3).
+        characteristic_speed: float
+            Characteristic fluid speeds.
+        radial_clearance: float
+            Difference between both stator and rotor radius, regardless of eccentricity.
+        viscosity: float
+            Viscosity (Pa.s).
+        Returns
+        -------
+        float
+            The reynolds number.
+        Examples
+        --------
+        >>> from ross.fluid_flow.fluid_flow import fluid_flow_example
+        >>> my_fluid_flow = fluid_flow_example()
+        >>> density = my_fluid_flow.density
+        >>> characteristic_speed = my_fluid_flow.characteristic_speed
+        >>> radial_clearance = my_fluid_flow.radial_clearance
+        >>> viscosity = my_fluid_flow.viscosity
+        >>> reynolds_number(density, characteristic_speed, radial_clearance, viscosity) # doctest: +ELLIPSIS
+        24.01...
     """
     return (density * characteristic_speed * radial_clearance) / viscosity
 
@@ -154,8 +170,7 @@ def reynolds_number(density, characteristic_speed, radial_clearance, viscosity):
 def modified_sommerfeld_number(
     radius_stator, omega, viscosity, length, load, radial_clearance
 ):
-    """Return the modified sommerfeld number.
-
+    """Returns the modified sommerfeld number.
     Parameters
     ----------
     radius_stator : float
@@ -175,7 +190,6 @@ def modified_sommerfeld_number(
     -------
     float
         The modified sommerfeld number.
-
     Examples
     --------
     >>> from ross.fluid_flow.fluid_flow import fluid_flow_example
@@ -196,8 +210,7 @@ def modified_sommerfeld_number(
 
 
 def sommerfeld_number(modified_s, radius_stator, length):
-    """Return the sommerfeld number, based on the modified sommerfeld number.
-
+    """Returns the sommerfeld number, based on the modified sommerfeld number.
     Parameters
     ----------
     modified_s: float
@@ -210,7 +223,6 @@ def sommerfeld_number(modified_s, radius_stator, length):
     -------
     float
         The sommerfeld number.
-
     Examples
     --------
     >>> from ross.fluid_flow.fluid_flow import fluid_flow_example
@@ -231,19 +243,15 @@ def sommerfeld_number(modified_s, radius_stator, length):
 
 def calculate_eccentricity_ratio(modified_s):
     """Calculate the eccentricity ratio for a given load using the sommerfeld number.
-
     Suitable only for short bearings.
-
     Parameters
     ----------
     modified_s: float
         The modified sommerfeld number.
-
     Returns
     -------
     float
         The eccentricity ratio.
-
     Examples
     --------
     >>> modified_s = 6.329494061103412
@@ -262,17 +270,14 @@ def calculate_eccentricity_ratio(modified_s):
 
     def f(x):
         """Fourth degree polynomial whose root is the square of the eccentricity ratio.
-
         Parameters
         ----------
         x: float
             Fourth degree polynomial coefficients.
-
         Returns
         -------
         float
-            Polynomial value f at x.
-        """
+            Polynomial value f at x."""
         c = coefficients
         return (
             c[0] * x ** 4
@@ -292,10 +297,8 @@ def calculate_eccentricity_ratio(modified_s):
 def calculate_rotor_load(
     radius_stator, omega, viscosity, length, radial_clearance, eccentricity_ratio
 ):
-    """Return the load applied to the rotor, based on the eccentricity ratio.
-
+    """Returns the load applied to the rotor, based on the eccentricity ratio.
     Suitable only for short bearings.
-
     Parameters
     ----------
     radius_stator : float
@@ -311,12 +314,10 @@ def calculate_rotor_load(
     eccentricity_ratio: float
         The ratio between the journal displacement, called just eccentricity, and
         the radial clearance.
-
     Returns
     -------
     float
         Load applied to the rotor.
-
     Examples
     --------
     >>> from ross.fluid_flow.fluid_flow import fluid_flow_example
@@ -346,8 +347,9 @@ def calculate_rotor_load(
 
 
 def move_rotor_center(fluid_flow_object, dx, dy):
-    """For a given step on x or y axis, moves the rotor center and calculates new
-    eccentricity, attitude angle, and rotor center.
+    """For a given step on x or y axis,
+    moves the rotor center and calculates new eccentricity, attitude angle,
+    and rotor center.
 
     Parameters
     ----------
@@ -356,8 +358,9 @@ def move_rotor_center(fluid_flow_object, dx, dy):
         The step on x axis.
     dy: float
         The step on y axis.
-
-    Examples
+    Returns
+    -------
+    None
     --------
     >>> from ross.fluid_flow.fluid_flow import fluid_flow_example2
     >>> my_fluid_flow = fluid_flow_example2()
@@ -381,7 +384,6 @@ def move_rotor_center(fluid_flow_object, dx, dy):
 def move_rotor_center_abs(fluid_flow_object, x, y):
     """Moves the rotor center to the coordinates (x, y) and calculates new eccentricity,
     attitude angle, and rotor center.
-
     Parameters
     ----------
     fluid_flow_object: A FluidFlow object.
@@ -389,8 +391,9 @@ def move_rotor_center_abs(fluid_flow_object, x, y):
         Coordinate along x axis.
     y: float
         Coordinate along y axis.
-
-    Examples
+    Returns
+    -------
+    None
     --------
     >>> from ross.fluid_flow.fluid_flow import fluid_flow_example
     >>> my_fluid_flow = fluid_flow_example()
