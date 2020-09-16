@@ -78,11 +78,12 @@ class Crack:
     """
 
     def __init__(self, dt, tI, tF, cd, n_crack, speed):
+
         self.dt = dt
         self.tI = tI
         self.tF = tF
-        self.cd = (cd,)
-        self.n_crack = (n_crack,)
+        self.cd = cd
+        self.n_crack = n_crack
         self.speed = speed
 
     def run(self, rotor):
@@ -101,13 +102,9 @@ class Crack:
                 
         """
         self.rotor = rotor
-        self.radius = rotor.elements[self.n1].odl / 2
+        self.radius = rotor.elements[self.n_crack].odl / 2
         self.ndof = rotor.ndof
         self.iteration = 0
-
-        self.Cte = (
-            self.ks * self.radius * np.sqrt(2 - 2 * np.cos(self.misalignment_angle))
-        )
 
         warI = self.speedI * np.pi / 30
         warF = self.speedF * np.pi / 30
@@ -144,4 +141,78 @@ class Crack:
         self.G = self.rotor.G()
         self.M = self.rotor.M()
         self.Kst = self.rotor.Kst()
+
+        _, ModMat = scipy.linalg.eigh(self.K, self.M, type=1, turbo=False,)
+        ModMat = ModMat[:, :12]
+        self.ModMat = ModMat
+
+        # Modal transformations
+        self.Mmodal = ((ModMat.T).dot(self.M)).dot(ModMat)
+        self.Cmodal = ((ModMat.T).dot(self.C)).dot(ModMat)
+        self.Gmodal = ((ModMat.T).dot(self.G)).dot(ModMat)
+        self.Kmodal = ((ModMat.T).dot(self.K)).dot(ModMat)
+        self.Kstmodal = ((ModMat.T).dot(self.Kst)).dot(ModMat)
+
+        y0 = np.zeros(24)
+        self.dt = 0.0001
+        t_eval = np.arange(self.dt, self.tF, self.dt)
+        self.inv_Mmodal = np.linalg.pinv(self.Mmodal)
+        t1 = time.time()
+
+        x = Integrator(0, y0, self.tF, self.dt, self._equation_of_movement)
+        x = x.rk4()
+        t2 = time.time()
+        print(f"spend time: {t2-t1} s")
+
+        self.displacement = x[:12, :]
+        self.velocity = x[12:, :]
+        self.time_vector = t_eval
+        self.response = self.ModMat.dot(self.displacement)
+
+    def _equation_of_movement(self, T, Y):
+        self.iteration += 1
+        if self.iteration % 10000 == 0:
+            print(f"iteration: {self.iteration} \n time: {T}")
+
+        positions = Y[:12]
+        velocity = Y[12:]  # velocity ign space state
+
+        self.angular_position = (
+            self.sA * T
+            - (self.sB / self.lambdat) * np.exp(-self.lambdat * T)
+            + (self.sB / self.lambdat)
+        )
+
+        ft = self._force()
+        ftmodal = (self.ModMat.T).dot(ft)
+
+        # Omega = self.speedI * np.pi / 30
+        Omega = self.sA + self.sB * np.exp(-self.lambdat * T)
+        AccelV = -self.lambdat * self.sB * np.exp(-self.lambdat * T)
+
+        # proper equation of movement to be integrated in time
+        new_V_dot = (
+            ftmodal
+            - ((self.Cmodal + self.Gmodal * Omega)).dot(velocity)
+            - ((self.Kmodal + self.Kstmodal * AccelV).dot(positions))
+        ).dot(self.inv_Mmodal)
+
+        new_X_dot = velocity
+
+        new_Y = np.zeros(24)
+        new_Y[:12] = new_X_dot
+        new_Y[12:] = new_V_dot
+
+        return new_Y
+
+    def _crack(self):
+        """Reaction forces of cracked element
+        
+        Returns
+        -------
+        F_mis_p(12,n) : numpy.ndarray
+            Excitation force caused by the parallel misalignment for a 6DOFs system with 'n' values of angular position  
+        """
+
+        dof_crack = np.arange((self.n_crack * 6), (self.n_crack * 6 + 6))
 
