@@ -18,6 +18,7 @@ from ross.units import Q_
 import plotly.graph_objects as go
 
 from .abs_defect import Defect
+from .integrate_solver import Integrator
 
 __all__ = [
     "MisalignmentFlex",
@@ -204,22 +205,14 @@ class MisalignmentFlex(Defect, ABC):
         self.inv_Mmodal = np.linalg.pinv(self.Mmodal)
         t1 = time.time()
 
-        x = scipy.integrate.solve_ivp(
-            self._equation_of_movement,
-            (self.tI, self.tF),
-            y0,
-            method="Radau",
-            t_eval=t_eval,
-            # dense_output=True,
-            # atol=1e-03,
-            # rtol=0.1,
-        )
+        x = Integrator(0, y0, self.tF, self.dt, self._equation_of_movement)
+        x = x.rk4()
         t2 = time.time()
-        print(f"Time spent: {t2-t1} s")
+        print(f"spend time: {t2-t1} s")
 
-        self.displacement = x.y[:12, :]
-        self.velocity = x.y[12:, :]
-        self.time_vector = x.t
+        self.displacement = x[:12, :]
+        self.velocity = x[12:, :]
+        self.time_vector = t_eval
         self.response = self.ModMat.dot(self.displacement)
 
     def _equation_of_movement(self, T, Y):
@@ -359,10 +352,10 @@ class MisalignmentFlex(Defect, ABC):
 
         Fpx = self.kd * self.mi_x
 
-        F_mis_p[0 + 6 * self.n1] = -Fpx
+        F_mis_p[0 + 6 * self.n1] = Fpx
         F_mis_p[1 + 6 * self.n1] = Fpy
         F_mis_p[5 + 6 * self.n1] = self.TD
-        F_mis_p[0 + 6 * self.n2] = Fpx
+        F_mis_p[0 + 6 * self.n2] = -Fpx
         F_mis_p[1 + 6 * self.n2] = -Fpy
         F_mis_p[5 + 6 * self.n2] = self.TL
 
@@ -420,10 +413,10 @@ class MisalignmentFlex(Defect, ABC):
             * np.cos(self.angular_position + np.pi + 4 * np.pi / 3)
         )
 
-        F_mis_a[0 + 6 * self.n1] = -Fax
+        F_mis_a[0 + 6 * self.n1] = Fax
         F_mis_a[1 + 6 * self.n1] = Fay
         F_mis_a[5 + 6 * self.n1] = self.TD
-        F_mis_a[0 + 6 * self.n2] = Fax
+        F_mis_a[0 + 6 * self.n2] = -Fax
         F_mis_a[1 + 6 * self.n2] = -Fay
         F_mis_a[5 + 6 * self.n2] = self.TL
 
@@ -704,22 +697,14 @@ class MisalignmentRigid(Defect, ABC):
         self.inv_Mmodal = np.linalg.pinv(self.Mmodal)
         t1 = time.time()
 
-        x = scipy.integrate.solve_ivp(
-            self._equation_of_movement,
-            (self.tI, self.tF),
-            y0,
-            method="Radau",
-            t_eval=t_eval,
-            # dense_output=True,
-            # atol=1e-03,
-            # rtol=0.1,
-        )
+        x = Integrator(0, y0, self.tF, self.dt, self._equation_of_movement)
+        x = x.rk4()
         t2 = time.time()
-        print(f"Time spent: {t2-t1} s")
+        print(f"spend time: {t2-t1} s")
 
-        self.displacement = x.y[:12, :]
-        self.velocity = x.y[12:, :]
-        self.time_vector = x.t
+        self.displacement = x[:12, :]
+        self.velocity = x[12:, :]
+        self.time_vector = t_eval
         self.response = self.ModMat.dot(self.displacement)
 
     def _equation_of_movement(self, T, Y):

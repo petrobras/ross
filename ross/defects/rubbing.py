@@ -6,10 +6,12 @@ import scipy.integrate
 import scipy.linalg
 import time
 from ross.units import Q_
+from scipy.io import savemat
 
 import plotly.graph_objects as go
 
 from .abs_defect import Defect
+from .integrate_solver import Integrator
 
 __all__ = [
     "Rubbing",
@@ -145,7 +147,14 @@ class Rubbing:
         self.M = self.rotor.M()
         self.Kst = self.rotor.Kst()
 
-        _, ModMat = scipy.linalg.eigh(self.K, self.M, type=1, turbo=False,)
+        V1, ModMat = scipy.linalg.eigh(
+            self.K,
+            self.M,
+            # lower=False,
+            # type=1,
+            driver="gvd",
+        )
+
         ModMat = ModMat[:, :12]
         self.ModMat = ModMat
 
@@ -162,22 +171,14 @@ class Rubbing:
         self.inv_Mmodal = np.linalg.pinv(self.Mmodal)
         t1 = time.time()
 
-        x = scipy.integrate.solve_ivp(
-            self._equation_of_movement,
-            (self.tI, self.tF),
-            y0,
-            method="Radau",
-            t_eval=t_eval,
-            # dense_output=True,
-            # atol=1e-03,
-            # rtol=0.1,
-        )
+        x = Integrator(0, y0, self.tF, self.dt, self._equation_of_movement)
+        x = x.rk45()
         t2 = time.time()
         print(f"spend time: {t2-t1} s")
 
-        self.displacement = x.y[:12, :]
-        self.velocity = x.y[12:, :]
-        self.time_vector = x.t
+        self.displacement = x[:12, :]
+        self.velocity = x[12:, :]
+        self.time_vector = t_eval
         self.response = self.ModMat.dot(self.displacement)
 
     def _equation_of_movement(self, T, Y):
@@ -229,8 +230,6 @@ class Rubbing:
 
         Frub, ft = self._rub(positionsFis, velocityFis)
         ftmodal = (self.ModMat.T).dot(ft)
-
-        # ftmodal = (self.ModMat.T).dot(FFunb)
 
         # proper equation of movement to be integrated in time
         new_V_dot = (
@@ -473,7 +472,7 @@ class Rubbing:
                  [np.cos(angle), + np.sin(angle)]]
             )
             row, cols = self.response.shape
-            _probe_resp = operator @ np.vstack((self.response[dofx,int(3*cols/4):], self.response[dofy,int(3*cols/4):]))
+            _probe_resp = operator @ np.vstack((self.response[dofx,int(2*cols/3):], self.response[dofy,int(2*cols/3):]))
             probe_resp = (
                 _probe_resp[0] * np.cos(angle) ** 2  +
                 _probe_resp[1] * np.sin(angle) ** 2
