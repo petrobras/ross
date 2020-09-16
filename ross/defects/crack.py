@@ -102,8 +102,85 @@ class Crack:
                 
         """
         self.rotor = rotor
-        self.radius = rotor.elements[self.n_crack].odl / 2
         self.ndof = rotor.ndof
+        self.L = rotor.elements[self.n_crack].L
+        
+        radius = rotor.elements[self.n_crack].odl / 2
+        Poisson = rotor.elements[self.n_crack].material.Poisson
+        E = rotor.elements[self.n_crack].material.E
+        G_s = rotor.elements[self.n_crack].material.G_s
+        odr = rotor.elements[self.n_crack].odr
+        odl = rotor.elements[self.n_crack].odl
+        idr = rotor.elements[self.n_crack].idr
+        idl = rotor.elements[self.n_crack].idl
+
+
+        self.dof_crack = np.arange((self.n_crack * 6), (self.n_crack* 6 + 12))
+        tempS = np.pi * (
+            (
+                (odr / 2) ** 2
+                + (odl / 2) ** 2
+            )
+            / 2
+            - (
+                (idr / 2) ** 2
+                + (idl / 2) ** 2
+            )
+            / 2
+        )
+        tempI = (
+            np.pi
+            / 4
+            * (
+                ((odr / 2) ** 4 + (odl / 2) ** 4) / 2
+                - ((idr / 2) ** 4 + (idl / 2) ** 4) / 2
+            )
+        )
+
+        r = ((idl + idr) / 2) / ((odl + odr) / 2)
+        r2 = r * r
+        r12 = (1 + r2) ** 2
+        
+        kappa = 6 * r12 * ((1 + Poisson) /
+                        ((r12 * (7 + 12 * Poisson + 4 * Poisson ** 2) +
+                        4 * r2 * (5 + 6 * Poisson + 2 * Poisson ** 2))))
+        
+        A =
+            12
+            * E
+            * tempI
+            / (G_s * kappa * tempS * (self.L ** 2))
+        
+        
+        #fmt = off
+        Coxy=np.array([[(self.L**3)*(1+A/4)/(3*E*tempI) , -(self.L**2)/(2*E*tempI)],
+                       [     -(self.L**2)/(2*E*tempI) ,        self.L/(E*tempI)]])
+    
+        Coyz=np.array([[(self.L**3)*(1+A/4)/(3*E*tempI) , (self.L**2)/(2*E*tempI)],
+                       [      (self.L**2)/(2*E*tempI) ,       self.L/(E*tempI)]])
+    
+        Co=np.array([[Coxy[0,0] , 0         , 0         , Coxy[0,1]],
+                     [0         , Coyz[0,0] , Coyz[0,1] , 0        ],
+                     [0         , Coyz[1,0] , Coyz[1,1] , 0        ],
+                     [Coxy[1,0] , 0         , 0         , Coxy[1,1]])
+        #fmt = on
+        
+        if self.cd == 0:
+            Cc=Co
+        elif:
+            Cc=Co+np.array([[0,     0,    0,    0],
+                            [0,     0,    0,    0],
+                            [0,     0,  c55,  c45],
+                            [0,     0,  c45,  c44]])
+        
+        self.Kele=np.linalg.pinv(Co)
+        self.ko=Kele[0,0]
+    
+        self.kc=np.linalg.pinv(Cc)    
+        self.kcx=kc[0,0]
+        self.kcz=kc[1,1]
+        self.fcrack = np.zeros(self.ndof)
+        
         self.iteration = 0
 
         warI = self.speedI * np.pi / 30
@@ -175,7 +252,7 @@ class Crack:
             print(f"iteration: {self.iteration} \n time: {T}")
 
         positions = Y[:12]
-        velocity = Y[12:]  # velocity ign space state
+        velocity = Y[12:]  # velocity in space state
 
         self.angular_position = (
             self.sA * T
@@ -190,7 +267,7 @@ class Crack:
         Omega = self.sA + self.sB * np.exp(-self.lambdat * T)
         AccelV = -self.lambdat * self.sB * np.exp(-self.lambdat * T)
 
-        # proper equation of movement to be integrated in time
+        # equation of movement to be integrated in time
         new_V_dot = (
             ftmodal
             - ((self.Cmodal + self.Gmodal * Omega)).dot(velocity)
@@ -213,6 +290,77 @@ class Crack:
         F_mis_p(12,n) : numpy.ndarray
             Excitation force caused by the parallel misalignment for a 6DOFs system with 'n' values of angular position  
         """
+        
+        T_matrix=np.array([[ np.cos(self.angular_position) , np.sin(self.angular_position)],
+                           [-np.sin(self.angular_position) , np.cos(self.angular_position)]])
+                    
+        #Gasch
+        kme=(self.ko+self.kcx)/2     
+        kmn=(self.ko+self.kcz)/2
+        kde=(self.ko-self.kcx)/2
+        kdn=(self.ko-self.kcz)/2
+        
+        kee=kme+(4/np.pi)*kde*(np.cos(self.angular_position)-np.cos(3*self.angular_position)/3+np.cos(5*self.angular_position)/5-np.cos(7*self.angular_position)/7+np.cos(9*self.angular_position)/9-np.cos(11*self.angular_position)/11+np.cos(13*self.angular_position)/13-np.cos(15*self.angular_position)/15+np.cos(17*self.angular_position)/17-np.cos(19*self.angular_position)/19+np.cos(21*self.angular_position)/21-np.cos(23*self.angular_position)/23+np.cos(25*self.angular_position)/25-np.cos(27*self.angular_position)/27+np.cos(29*self.angular_position)/29-np.cos(31*self.angular_position)/31+np.cos(33*self.angular_position)/33-np.cos(35*self.angular_position)/35)
+        
+        knn=kmn+(4/pi)*kdn*(np.cos(self.angular_position)-np.cos(3*self.angular_position)/3+np.cos(5*self.angular_position)/5-np.cos(7*self.angular_position)/7+np.cos(9*self.angular_position)/9-np.cos(11*self.angular_position)/11+np.cos(13*self.angular_position)/13-np.cos(15*self.angular_position)/15+np.cos(17*self.angular_position)/17-np.cos(19*self.angular_position)/19+np.cos(21*self.angular_position)/21-np.cos(23*self.angular_position)/23+np.cos(25*self.angular_position)/25-np.cos(27*self.angular_position)/27+np.cos(29*self.angular_position)/29-np.cos(31*self.angular_position)/31+np.cos(33*self.angular_position)/33-np.cos(35*self.angular_position)/35)
+        
+        aux = np.array([[kee, 0],[ 0, knn]])
+        
+        K=((T_matrix.T).dot(aux)).dot(T_matrix)
 
-        dof_crack = np.arange((self.n_crack * 6), (self.n_crack * 6 + 6))
+        #Mayes
 
+        kee=0.5*(ko+kcx)+0.5*(ko-kcx)*np.cos(self.angular_position);
+        knn=0.5*(ko+kcz)+0.5*(ko-kcz)*np.cos(self.angular_position);
+        aux = np.array([[kee, 0],[ 0, knn]])
+                        
+        K=T_matrix.T*aux*T_matrix
+        
+        # igual pros dois
+        
+        k11=K[0,0]
+        k12=K[0,1]
+        k22=K[1,1]
+
+        #Stiffness matrix of the cracked element
+        Toxy=np.array([[-1, 0],
+                       [L, -1],
+                       [1, 0],
+                       [0, 1]])  # OXY
+        
+        kxy=np.array([[self.Kele[0,0], self.Kele[0,3]],
+                      [self.Kele[3,0], self.Kele[3,3]]])
+        
+        
+        kxy[0,0]=k11;
+        Koxy=((Toxy).dot(kxy)).dot(Toxy.T)
+
+        Toyz=no.array([[-1, 0],
+                       [-L,-1],
+                       [1, 0],
+                       [0, 1]]) # OYZ
+                       
+        kyz=np.array([[self.Kele[1,1], self.Kele[1,2]],
+                      [self.Kele[2,1], self.Kele[2,2]]])
+                     
+        kyz[0,0] = k22
+        Koyz=((Toyz).dot(kyz)).dot(Toyz.T)
+
+        # fmt: off
+        KK_crack = np.array([[Koxy[0,0]	,0  , 0         , 0	        , 0	, Koxy[0,1] , Koxy[0,2] , 0 ,         0 , 0         , 0	, Koxy[0,3]],
+                             [0	        ,0  , 0         , 0	        , 0 ,         0 ,         0 , 0 ,         0 , 0         , 0 ,         0],
+                             [0	        ,0	, Koyz[0,0] , Koyz[0,1]	, 0 ,         0 ,         0 , 0 , Koyz[0,2] , Koyz[0,3] , 0 ,         0],
+                             [0	        ,0	, Koyz[1,0] , Koyz[1,1] , 0 ,         0 ,         0 , 0 , Koyz[1,2] , Koyz[1,3] , 0 ,         0],
+                             [0	        ,0  , 0         , 0	        , 0 ,         0 ,         0 , 0 ,         0 , 0         , 0 ,         0],
+                             [Koxy[1,0]	,0  , 0         , 0	        , 0	, Koxy[1,1] , Koxy[1,2] , 0 ,         0 , 0         , 0	, Koxy[1,3]],
+                             [Koxy[2,0]	,0  , 0         , 0	        , 0	, Koxy[2,1] , Koxy[2,2] , 0 ,         0 , 0         , 0	, Koxy[2,3]],
+                             [0	        ,0  , 0         , 0	        , 0 ,         0 ,         0 , 0 ,         0 , 0         , 0 ,         0],
+                             [0	        ,0	, Koyz[2,0] , Koyz[2,1]	, 0 ,         0 ,         0 , 0 , Koyz[2,2] , Koyz[2,3] , 0 ,         0],
+                             [0	        ,0	, Koyz[3,0] , Koyz[3,1]	, 0 ,         0 ,         0 , 0 , Koyz[3,2] , Koyz[3,3] , 0 ,         0],
+                             [0	        ,0  , 0         , 0	        , 0 ,         0 ,         0 , 0 ,         0 , 0         , 0 ,         0],
+                             [Koxy[3,0]	,0  , 0         , 0	        , 0	, Koxy[3,1] , Koxy[3,2] , 0 ,         0 , 0         , 0	, Koxy[3,3]]])
+        # fmt: on
+
+        KK_CRACK = Kc - KK_crack;
+        FF_CRACK = KK_CRACK.dot(positionsFis(self.dof_crack,1))
+        F_CRACK(self.dof_crack) = FF_CRACK;
