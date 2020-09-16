@@ -1036,7 +1036,7 @@ def misalignment_flex_parallel_example():
 
     rotor = base_rotor_example()
 
-    misalignment = MisalignmentFlexParallel(
+    misalignment = MisalignmentFlex(
         dt=0.0001,
         tI=0,
         tF=30,
@@ -1049,6 +1049,7 @@ def misalignment_flex_parallel_example():
         TL=0,  # Torque dopois do acoplamento
         n1=0,
         speed=1200,
+        mis_type="parallel",
     )
 
     misalignment = rotor.run_misalignment(misalignment)
@@ -1077,7 +1078,7 @@ def misalignment_flex_angular_example():
 
     rotor = base_rotor_example()
 
-    misalignment = MisalignmentFlexAngular(
+    misalignment = MisalignmentFlex(
         dt=0.0001,
         tI=0,
         tF=30,
@@ -1090,6 +1091,7 @@ def misalignment_flex_angular_example():
         TL=0,  # Torque dopois do acoplamento
         n1=0,
         speed=1200,
+        mis_type="angular",
     )
 
     misalignment = rotor.run_misalignment(misalignment)
@@ -1118,7 +1120,7 @@ def misalignment_flex_combined_example():
 
     rotor = base_rotor_example()
 
-    misalignment = MisalignmentFlexCombined(
+    misalignment = MisalignmentFlex(
         dt=0.0001,
         tI=0,
         tF=30,
@@ -1131,6 +1133,7 @@ def misalignment_flex_combined_example():
         TL=0,  # Torque dopois do acoplamento
         n1=0,
         speed=1200,
+        mis_type="combined",
     )
 
     misalignment = rotor.run_misalignment(misalignment)
