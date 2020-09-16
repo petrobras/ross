@@ -2364,13 +2364,9 @@ class Rotor(object):
 
         return results
 
-    def run_misalignment(self, misalignment):
-        misalignment.run(self)
-        return misalignment
-
-    def run_rubbing(self, rubbing):
-        rubbing.run(self)
-        return rubbing
+    def run_defect(self, defect):
+        defect.run(self)
+        return defect
 
     def save_mat(self, file, speed, frequency=None):
         """Save matrices and rotor model to a .mat file.
