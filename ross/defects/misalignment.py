@@ -1,9 +1,7 @@
 """Misalignment module.
 
-This module defines the Defect classes which will be used to represent problems
-such as misalignments of various types on the shaft coupling, rubbing effects and
-cracks on the shaft. There are a number of options, for the formulation of 6 DoFs
-(degrees of freedom).
+This module defines misalignments of various types on the shaft coupling. There are 
+a number of options, for the formulation of 6 DoFs (degrees of freedom).
 """
 from abc import ABC, abstractmethod
 
@@ -23,9 +21,6 @@ from .integrate_solver import Integrator
 __all__ = [
     "MisalignmentFlex",
     "MisalignmentRigid",
-    # "Rubbing",
-    # "CrackGasch",
-    # "CrackMayes",
 ]
 
 
