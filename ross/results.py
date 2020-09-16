@@ -665,7 +665,7 @@ class ModalResults:
         fig.add_trace(
             go.Scatter(
                 x=Q_(zn, "m").to(length_units).m,
-                y=vn,
+                y=vn / vn[np.argmax(np.abs(vn))],
                 mode="lines",
                 line=dict(color=whirl_dir),
                 name="mode shape",
@@ -1660,16 +1660,14 @@ class ForcedResponseResults:
 
         return subplots
 
-    def _calculate_major_axis(self, speed, frequency_units="rad/s"):
+    def _calculate_major_axis(self, speed):
         """Calculate the major axis for each nodal orbit.
 
         Parameters
         ----------
         speed : optional, float
-            The rotor rotation speed.
-        frequency_units : str, optional
-            Frequency units.
-            Default is "rad/s"
+            The rotor rotation speed. Must be an element from the speed_range argument
+            passed to the class (rad/s).
 
         Returns
         -------
@@ -1684,7 +1682,6 @@ class ForcedResponseResults:
         nodes = self.rotor.nodes
         number_dof = self.rotor.number_dof
 
-        speed = Q_(speed, frequency_units).to("rad/s").m
         major_axis_vector = np.zeros((5, len(nodes)), dtype=complex)
         idx = np.where(np.isclose(self.speed_range, speed, atol=1e-6))[0][0]
 
@@ -1716,8 +1713,6 @@ class ForcedResponseResults:
             # Adjusting points to the same quadrant
             if ang_maj_ax > np.pi:
                 ang_maj_ax -= np.pi
-            if ang_maj_ax > np.pi / 2:
-                ang_maj_ax -= np.pi / 2
 
             major_axis_vector[0, i] = fow
             major_axis_vector[1, i] = back
@@ -1730,12 +1725,15 @@ class ForcedResponseResults:
             major_axis_vector[0] * np.exp(1j * max_major_axis_angle) +
             major_axis_vector[1] * np.exp(-1j * max_major_axis_angle)
         )
-        major_axis_vector[4] = np.abs(major_axis_vector[3])
+        major_axis_vector[4] = np.abs(
+            major_axis_vector[0] * np.exp(1j * major_axis_vector[2]) +
+            major_axis_vector[1] * np.exp(-1j * major_axis_vector[2])
+        )
         # fmt: on
 
         return major_axis_vector
 
-    def _calculate_bending_moment(self, speed, frequency_units="rad/s"):
+    def _calculate_bending_moment(self, speed):
         """Calculate the bending moment in X and Y directions.
 
         This method calculate forces and moments on nodal positions for a deflected
@@ -1744,10 +1742,8 @@ class ForcedResponseResults:
         Parameters
         ----------
         speed : float
-            The rotor rotation speed.
-        frequency_units : str, optional
-            Frequency units.
-            Default is "rad/s"
+            The rotor rotation speed. Must be an element from the speed_range argument
+            passed to the class (rad/s).
 
         Returns
         -------
@@ -1756,7 +1752,6 @@ class ForcedResponseResults:
         My : array
             Bending Moment on Y directon.
         """
-        speed = Q_(speed, frequency_units).to("rad/s").m
         idx = np.where(np.isclose(self.speed_range, speed, atol=1e-6))[0][0]
         mag = self.magnitude[:, idx]
         phase = self.phase[:, idx]
@@ -1789,7 +1784,7 @@ class ForcedResponseResults:
         ----------
         speed : float
             The rotor rotation speed. Must be an element from the speed_range argument
-            passed to the class.
+            passed to the class (rad/s).
         frequency_units : str, optional
             Frequency units.
             Default is "rad/s"
@@ -1811,7 +1806,6 @@ class ForcedResponseResults:
         fig : Plotly graph_objects.Figure()
             The figure object with the plot.
         """
-        speed = Q_(speed, frequency_units).to("rad/s").m
         if not any(np.isclose(self.speed_range, speed, atol=1e-6)):
             raise ValueError("No data available for this speed value.")
 
@@ -1870,7 +1864,7 @@ class ForcedResponseResults:
         ----------
         speed : float
             The rotor rotation speed. Must be an element from the speed_range argument
-            passed to the class.
+            passed to the class (rad/s).
         samples : int, optional
             Number of samples to generate the orbit for each node.
             Default is 101.
@@ -1895,7 +1889,6 @@ class ForcedResponseResults:
         fig : Plotly graph_objects.Figure()
             The figure object with the plot.
         """
-        speed = Q_(speed, frequency_units).to("rad/s").m
         if not any(np.isclose(self.speed_range, speed, atol=1e-6)):
             raise ValueError("No data available for this speed value.")
 
@@ -2042,7 +2035,7 @@ class ForcedResponseResults:
         ----------
         speed : float
             The rotor rotation speed. Must be an element from the speed_range argument
-            passed to the class.
+            passed to the class (rad/s).
         frequency_units : str, optional
             Frequency units.
             Default is "rad/s"
@@ -2064,7 +2057,6 @@ class ForcedResponseResults:
         fig : Plotly graph_objects.Figure()
             The figure object with the plot.
         """
-        speed = Q_(speed, frequency_units).to("rad/s").m
         if not any(np.isclose(self.speed_range, speed, atol=1e-6)):
             raise ValueError("No data available for this speed value.")
 
@@ -2156,7 +2148,7 @@ class ForcedResponseResults:
         ----------
         speed : float
             The rotor rotation speed. Must be an element from the speed_range argument
-            passed to the class.
+            passed to the class (rad/s).
         samples : int, optional
             Number of samples to generate the orbit for each node.
             Default is 101.
@@ -2200,6 +2192,7 @@ class ForcedResponseResults:
         shape3d_kwargs = {} if shape3d_kwargs is None else copy.copy(shape3d_kwargs)
         bm_kwargs = {} if bm_kwargs is None else copy.copy(bm_kwargs)
         subplot_kwargs = {} if subplot_kwargs is None else copy.copy(subplot_kwargs)
+        speed_str = Q_(speed, "rad/s").to(frequency_units).m
 
         # fmt: off
         fig0 = self.plot_deflected_shape_2d(
@@ -2236,6 +2229,9 @@ class ForcedResponseResults:
                 xaxis=fig1.layout.scene.xaxis,
                 yaxis=fig1.layout.scene.yaxis,
                 zaxis=fig1.layout.scene.zaxis,
+            ),
+            title=dict(
+                text=f"Deflected Shape<br>Speed = {speed_str} {frequency_units}"
             ),
             **subplot_kwargs,
         )
