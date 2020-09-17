@@ -289,22 +289,23 @@ class Crack:
         self.tetaUNB2 = self.angular_position + self.PhaseUnb2 + np.pi / 2
 
         # Omega = self.speedI * np.pi / 30
-        self.Omega = self.sA + self.sB * np.exp(-self.lambdat * T)
-        self.AccelV = -self.lambdat * self.sB * np.exp(-self.lambdat * T)
 
-        unb1x = self.MassUnb1 * self.AccelV * np.cos(self.tetaUNB1) - self.MassUnb1 * (
-            self.Omega ** 2
+        Omega = self.sA + self.sB * np.exp(-self.lambdat * T)
+        AccelV = -self.lambdat * self.sB * np.exp(-self.lambdat * T)
+
+        unb1x = self.MassUnb1 * AccelV * np.cos(self.tetaUNB1) - self.MassUnb1 * (
+            Omega ** 2
         ) * np.sin(self.tetaUNB1)
 
-        unb1y = -self.MassUnb1 * self.AccelV * np.sin(self.tetaUNB1) - self.MassUnb1 * (
-            self.Omega ** 2
+        unb1y = -self.MassUnb1 * AccelV * np.sin(self.tetaUNB1) - self.MassUnb1 * (
+            Omega ** 2
         ) * np.cos(self.tetaUNB1)
 
-        unb2x = self.MassUnb2 * self.AccelV * np.cos(self.tetaUNB2) - self.MassUnb2 * (
-            self.Omega ** 2
+        unb2x = self.MassUnb2 * AccelV * np.cos(self.tetaUNB2) - self.MassUnb2 * (
+            Omega ** 2
         ) * np.sin(self.tetaUNB2)
-        unb2y = -self.MassUnb2 * self.AccelV * np.sin(self.tetaUNB2) - self.MassUnb2 * (
-            self.Omega ** 2
+        unb2y = -self.MassUnb2 * AccelV * np.sin(self.tetaUNB2) - self.MassUnb2 * (
+            Omega ** 2
         ) * np.cos(self.tetaUNB2)
         FFunb = np.zeros(self.ndof)
 
@@ -317,10 +318,6 @@ class Crack:
 
         FF_CRACK, ft = self._crack(self.crack_model)
         ftmodal = (self.ModMat.T).dot(ft)
-
-        # Omega = self.speedI * np.pi / 30
-        Omega = self.sA + self.sB * np.exp(-self.lambdat * T)
-        AccelV = -self.lambdat * self.sB * np.exp(-self.lambdat * T)
 
         # equation of movement to be integrated in time
         new_V_dot = (
@@ -429,7 +426,7 @@ class Crack:
             - np.cos(35 * self.angular_position) / 35
         )
 
-        knn = kmn + (4 / pi) * kdn * (
+        knn = kmn + (4 / np.pi) * kdn * (
             np.cos(self.angular_position)
             - np.cos(3 * self.angular_position) / 3
             + np.cos(5 * self.angular_position) / 5
