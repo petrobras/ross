@@ -147,22 +147,8 @@ class Crack:
             )
         )
 
-        r = ((idl + idr) / 2) / ((odl + odr) / 2)
-        r2 = r * r
-        r12 = (1 + r2) ** 2
-
-        kappa = (
-            6
-            * r12
-            * (
-                (1 + self.Poisson)
-                / (
-                    (
-                        r12 * (7 + 12 * self.Poisson + 4 * self.Poisson ** 2)
-                        + 4 * r2 * (5 + 6 * self.Poisson + 2 * self.Poisson ** 2)
-                    )
-                )
-            )
+        kappa = (6 * (1 + self.Poisson) ** 2) / (
+            7 + 12 * self.Poisson + 4 * self.Poisson ** 2
         )
 
         A = 12 * self.E * tempI / (G_s * kappa * tempS * (self.L ** 2))
@@ -273,7 +259,7 @@ class Crack:
         t1 = time.time()
 
         x = Integrator(0, y0, self.tF, self.dt, self._equation_of_movement)
-        x = x.rk4()
+        x = x.rk45()
         t2 = time.time()
         print(f"spend time: {t2-t1} s")
 
@@ -299,8 +285,8 @@ class Crack:
         self.positionsFis = self.ModMat.dot(positions)
         self.velocityFis = self.ModMat.dot(velocity)
 
-        self.tetaUNB1 = self.angular_position + self.PhaseUnb1
-        self.tetaUNB2 = self.angular_position + self.PhaseUnb2
+        self.tetaUNB1 = self.angular_position + self.PhaseUnb1 + np.pi / 2
+        self.tetaUNB2 = self.angular_position + self.PhaseUnb2 + np.pi / 2
 
         # Omega = self.speedI * np.pi / 30
         self.Omega = self.sA + self.sB * np.exp(-self.lambdat * T)
@@ -394,18 +380,18 @@ class Crack:
         Koyz = ((Toyz).dot(kyz)).dot(Toyz.T)
 
         # fmt: off
-        KK_crack = np.array([[Koxy[0,0]	,0  , 0         , 0	        , 0	, Koxy[0,1] , Koxy[0,2] , 0 ,         0 , 0         , 0	, Koxy[0,3]],
-                             [0	        ,0  , 0         , 0	        , 0 ,         0 ,         0 , 0 ,         0 , 0         , 0 ,         0],
-                             [0	        ,0	, Koyz[0,0] , Koyz[0,1]	, 0 ,         0 ,         0 , 0 , Koyz[0,2] , Koyz[0,3] , 0 ,         0],
-                             [0	        ,0	, Koyz[1,0] , Koyz[1,1] , 0 ,         0 ,         0 , 0 , Koyz[1,2] , Koyz[1,3] , 0 ,         0],
-                             [0	        ,0  , 0         , 0	        , 0 ,         0 ,         0 , 0 ,         0 , 0         , 0 ,         0],
-                             [Koxy[1,0]	,0  , 0         , 0	        , 0	, Koxy[1,1] , Koxy[1,2] , 0 ,         0 , 0         , 0	, Koxy[1,3]],
-                             [Koxy[2,0]	,0  , 0         , 0	        , 0	, Koxy[2,1] , Koxy[2,2] , 0 ,         0 , 0         , 0	, Koxy[2,3]],
-                             [0	        ,0  , 0         , 0	        , 0 ,         0 ,         0 , 0 ,         0 , 0         , 0 ,         0],
-                             [0	        ,0	, Koyz[2,0] , Koyz[2,1]	, 0 ,         0 ,         0 , 0 , Koyz[2,2] , Koyz[2,3] , 0 ,         0],
-                             [0	        ,0	, Koyz[3,0] , Koyz[3,1]	, 0 ,         0 ,         0 , 0 , Koyz[3,2] , Koyz[3,3] , 0 ,         0],
-                             [0	        ,0  , 0         , 0	        , 0 ,         0 ,         0 , 0 ,         0 , 0         , 0 ,         0],
-                             [Koxy[3,0]	,0  , 0         , 0	        , 0	, Koxy[3,1] , Koxy[3,2] , 0 ,         0 , 0         , 0	, Koxy[3,3]]])
+        KK_crack = np.array([[Koxy[0,0]	,0           ,0         ,0	        ,Koxy[0,1]	,0	        ,Koxy[0,2]	        ,0                  ,0      ,0                  ,Koxy[0,3]	,0],
+                             [0	        ,Koyz[0,0]   ,0         ,Koyz[0,1]	,0          ,0          ,0                  ,Koyz[0,2]	        ,0      ,Koyz[0,3]	        ,0          ,0],
+                             [0	        ,0	         ,0         ,0	        ,0          ,0          ,0                  ,0                  ,0      ,0                  ,0          ,0],
+                             [0	        ,Koyz[1,0]	 ,0         ,Koyz[1,1]  ,0          ,0          ,0                  ,Koyz[1,2]          ,0      ,Koyz[1,3]          ,0          ,0],
+                             [Koxy[1,0]	,0           ,0         ,0	        ,Koxy[1,1]  ,0          ,Koxy[1,2]          ,0                  ,0      ,0                  ,Koxy[1,3]  ,0],
+                             [0	        ,0           ,0         ,0	        ,0	        ,0          ,0                  ,0                  ,0      ,0                  ,0	        ,0],
+                             [Koxy[2,0]	,0           ,0         ,0	        ,Koxy[2,1]	,0          ,Koxy[2,2]          ,0                  ,0      ,0                  ,Koxy[2,3]	,0],
+                             [0	        ,Koyz[2,0]   ,0         ,Koyz[2,1]	,0 ,         0          ,0                  ,Koyz[2,2]          ,0      ,Koyz[2,3]          ,0          ,0],
+                             [0	        ,0	         ,0         ,0	        ,0 ,         0          ,0                  ,0                  ,0      ,0                  ,0          ,0],
+                             [0	        ,Koyz[3,0]	 ,0         ,Koyz[3,1]	,0 ,         0          ,0                  ,Koyz[3,2]          ,0      ,Koyz[3,3]          ,0          ,0],
+                             [Koxy[3,0]	,0           ,0         , 0	        ,Koxy[3,1]  ,0          ,Koxy[3,2]          ,0                  ,0      ,0                  ,Koxy[3,3]  ,0],
+                             [0	        ,0           ,0         , 0	        ,0	        ,0          ,0                  ,0                  ,0      ,0                  ,0	        ,0]])
         # fmt: on
         F_CRACK = np.zeros(self.ndof)
 
