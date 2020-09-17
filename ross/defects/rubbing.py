@@ -202,22 +202,22 @@ class Rubbing:
         self.tetaUNB2 = angular_position + self.PhaseUnb2
 
         # Omega = self.speedI * np.pi / 30
-        self.Omega = self.sA + self.sB * np.exp(-self.lambdat * T)
-        self.AccelV = -self.lambdat * self.sB * np.exp(-self.lambdat * T)
+        Omega = self.sA + self.sB * np.exp(-self.lambdat * T)
+        AccelV = -self.lambdat * self.sB * np.exp(-self.lambdat * T)
 
-        unb1x = self.MassUnb1 * self.AccelV * np.cos(self.tetaUNB1) - self.MassUnb1 * (
-            self.Omega ** 2
+        unb1x = self.MassUnb1 * AccelV * np.cos(self.tetaUNB1) - self.MassUnb1 * (
+            Omega ** 2
         ) * np.sin(self.tetaUNB1)
 
-        unb1y = -self.MassUnb1 * self.AccelV * np.sin(self.tetaUNB1) - self.MassUnb1 * (
-            self.Omega ** 2
+        unb1y = -self.MassUnb1 * AccelV * np.sin(self.tetaUNB1) - self.MassUnb1 * (
+            Omega ** 2
         ) * np.cos(self.tetaUNB1)
 
-        unb2x = self.MassUnb2 * self.AccelV * np.cos(self.tetaUNB2) - self.MassUnb2 * (
-            self.Omega ** 2
+        unb2x = self.MassUnb2 * AccelV * np.cos(self.tetaUNB2) - self.MassUnb2 * (
+            Omega ** 2
         ) * np.sin(self.tetaUNB2)
-        unb2y = -self.MassUnb2 * self.AccelV * np.sin(self.tetaUNB2) - self.MassUnb2 * (
-            self.Omega ** 2
+        unb2y = -self.MassUnb2 * AccelV * np.sin(self.tetaUNB2) - self.MassUnb2 * (
+            Omega ** 2
         ) * np.cos(self.tetaUNB2)
         FFunb = np.zeros(self.ndof)
 
@@ -235,8 +235,8 @@ class Rubbing:
         new_V_dot = (
             ftmodal
             + Funbmodal
-            - ((self.Cmodal + self.Gmodal * self.Omega)).dot(velocity)
-            - ((self.Kmodal + self.Kstmodal * self.AccelV).dot(positions))
+            - ((self.Cmodal + self.Gmodal * Omega)).dot(velocity)
+            - ((self.Kmodal + self.Kstmodal * AccelV).dot(positions))
         ).dot(self.inv_Mmodal)
 
         new_X_dot = velocity

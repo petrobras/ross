@@ -93,6 +93,8 @@ class MisalignmentFlex(Defect, ABC):
         TL,
         n1,
         speed,
+        massunb,
+        phaseunb,
         mis_type,
     ):
         self.dt = dt
@@ -108,6 +110,10 @@ class MisalignmentFlex(Defect, ABC):
         self.n1 = n1
         self.n2 = n1 + 1
         self.speed = speed
+        self.MassUnb1 = massunb[0]
+        self.MassUnb2 = massunb[1]
+        self.PhaseUnb1 = phaseunb[0]
+        self.PhaseUnb2 = phaseunb[1]
 
         self.speedI = speed
         self.speedF = speed
@@ -142,6 +148,8 @@ class MisalignmentFlex(Defect, ABC):
         self.radius = rotor.elements[self.n1].odl / 2
         self.ndof = rotor.ndof
         self.iteration = 0
+        self.ndofd1 = (self.rotor.disk_elements[0].n) * 6
+        self.ndofd2 = (self.rotor.disk_elements[1].n) * 6
 
         self.Cte = (
             self.ks * self.radius * np.sqrt(2 - 2 * np.cos(self.misalignment_angle))
@@ -201,7 +209,7 @@ class MisalignmentFlex(Defect, ABC):
         t1 = time.time()
 
         x = Integrator(0, y0, self.tF, self.dt, self._equation_of_movement)
-        x = x.rk4()
+        x = x.rk45()
         t2 = time.time()
         print(f"spend time: {t2-t1} s")
 
@@ -231,9 +239,36 @@ class MisalignmentFlex(Defect, ABC):
         Omega = self.sA + self.sB * np.exp(-self.lambdat * T)
         AccelV = -self.lambdat * self.sB * np.exp(-self.lambdat * T)
 
+        self.tetaUNB1 = self.angular_position + self.PhaseUnb1 + np.pi / 2
+        self.tetaUNB2 = self.angular_position + self.PhaseUnb2 + np.pi / 2
+
+        unb1x = self.MassUnb1 * AccelV * np.cos(self.tetaUNB1) - self.MassUnb1 * (
+            Omega ** 2
+        ) * np.sin(self.tetaUNB1)
+
+        unb1y = -self.MassUnb1 * AccelV * np.sin(self.tetaUNB1) - self.MassUnb1 * (
+            Omega ** 2
+        ) * np.cos(self.tetaUNB1)
+
+        unb2x = self.MassUnb2 * AccelV * np.cos(self.tetaUNB2) - self.MassUnb2 * (
+            Omega ** 2
+        ) * np.sin(self.tetaUNB2)
+        unb2y = -self.MassUnb2 * AccelV * np.sin(self.tetaUNB2) - self.MassUnb2 * (
+            Omega ** 2
+        ) * np.cos(self.tetaUNB2)
+        FFunb = np.zeros(self.ndof)
+
+        FFunb[self.ndofd1] += unb1x
+        FFunb[self.ndofd1 + 1] += unb1y
+        FFunb[self.ndofd2] += unb2x
+        FFunb[self.ndofd2 + 1] += unb2y
+
+        Funbmodal = (self.ModMat.T).dot(FFunb)
+
         # proper equation of movement to be integrated in time
         new_V_dot = (
             ftmodal
+            + Funbmodal
             - ((self.Cmodal + self.Gmodal * Omega)).dot(velocity)
             - ((self.Kmodal + self.Kstmodal * AccelV).dot(positions))
         ).dot(self.inv_Mmodal)
@@ -601,7 +636,19 @@ class MisalignmentRigid(Defect, ABC):
     """
 
     def __init__(
-        self, tI, tF, Kcoup_auxI, Kcoup_auxF, kCOUP, eCOUP, TD, TL, n1, speed,
+        self,
+        tI,
+        tF,
+        Kcoup_auxI,
+        Kcoup_auxF,
+        kCOUP,
+        eCOUP,
+        TD,
+        TL,
+        n1,
+        speed,
+        massunb,
+        phaseunb,
     ):
         self.tI = tI
         self.tF = tF
@@ -615,6 +662,10 @@ class MisalignmentRigid(Defect, ABC):
         self.n2 = n1 + 1
         self.speedI = speed
         self.speedF = speed
+        self.MassUnb1 = massunb[0]
+        self.MassUnb2 = massunb[1]
+        self.PhaseUnb1 = phaseunb[0]
+        self.PhaseUnb2 = phaseunb[1]
         self.DoF = np.arange((self.n1 * 6), (self.n2 * 6 + 6))
 
     def run(self, rotor):
@@ -634,6 +685,9 @@ class MisalignmentRigid(Defect, ABC):
         self.rotor = rotor
         self.ndof = rotor.ndof
         self.iteration = 0
+
+        self.ndofd1 = (self.rotor.disk_elements[0].n) * 6
+        self.ndofd2 = (self.rotor.disk_elements[1].n) * 6
 
         warI = self.speedI * np.pi / 30
         warF = self.speedF * np.pi / 30
@@ -693,7 +747,7 @@ class MisalignmentRigid(Defect, ABC):
         t1 = time.time()
 
         x = Integrator(0, y0, self.tF, self.dt, self._equation_of_movement)
-        x = x.rk4()
+        x = x.rk45()
         t2 = time.time()
         print(f"spend time: {t2-t1} s")
 
@@ -742,9 +796,36 @@ class MisalignmentRigid(Defect, ABC):
         Omega = self.sA + self.sB * np.exp(-self.lambdat * T)
         AccelV = -self.lambdat * self.sB * np.exp(-self.lambdat * T)
 
+        self.tetaUNB1 = angular_position + self.PhaseUnb1 + np.pi / 2
+        self.tetaUNB2 = angular_position + self.PhaseUnb2 + np.pi / 2
+
+        unb1x = self.MassUnb1 * AccelV * np.cos(self.tetaUNB1) - self.MassUnb1 * (
+            Omega ** 2
+        ) * np.sin(self.tetaUNB1)
+
+        unb1y = -self.MassUnb1 * AccelV * np.sin(self.tetaUNB1) - self.MassUnb1 * (
+            Omega ** 2
+        ) * np.cos(self.tetaUNB1)
+
+        unb2x = self.MassUnb2 * AccelV * np.cos(self.tetaUNB2) - self.MassUnb2 * (
+            Omega ** 2
+        ) * np.sin(self.tetaUNB2)
+        unb2y = -self.MassUnb2 * AccelV * np.sin(self.tetaUNB2) - self.MassUnb2 * (
+            Omega ** 2
+        ) * np.cos(self.tetaUNB2)
+        FFunb = np.zeros(self.ndof)
+
+        FFunb[self.ndofd1] += unb1x
+        FFunb[self.ndofd1 + 1] += unb1y
+        FFunb[self.ndofd2] += unb2x
+        FFunb[self.ndofd2 + 1] += unb2y
+
+        Funbmodal = (self.ModMat.T).dot(FFunb)
+
         # proper equation of movement to be integrated in time
         new_V_dot = (
             ftmodal
+            + Funbmodal
             - ((self.Cmodal + self.Gmodal * Omega)).dot(velocity)
             - ((self.Kmodal + self.Kstmodal * AccelV).dot(positions))
         ).dot(self.inv_Mmodal)
