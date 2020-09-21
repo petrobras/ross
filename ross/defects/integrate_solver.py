@@ -6,8 +6,9 @@ rotors defined by the user, and return the time signals for rotor displacement.
 
 """
 
-import ross
 import numpy as np
+
+import ross
 
 
 class Integrator:

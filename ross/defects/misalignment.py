@@ -3,17 +3,18 @@
 This module defines misalignments of various types on the shaft coupling. There are 
 a number of options, for the formulation of 6 DoFs (degrees of freedom).
 """
+import time
 from abc import ABC, abstractmethod
 
-import ross
 import numpy as np
+import plotly.graph_objects as go
 import scipy as sp
 import scipy.integrate
 import scipy.linalg
-import time
-from ross.units import Q_
 
-import plotly.graph_objects as go
+import ross
+from ross.results import FrequencyResponseResults, TimeResponseResults
+from ross.units import Q_
 
 from .abs_defect import Defect
 from .integrate_solver import Integrator
@@ -24,7 +25,7 @@ __all__ = [
 ]
 
 
-class MisalignmentFlex(Defect, ABC):
+class MisalignmentFlex(Defect):
     """A flexible coupling with misalignment of some kind.
     
     Calculates the dynamic reaction force of hexangular flexible coupling 
@@ -134,10 +135,8 @@ class MisalignmentFlex(Defect, ABC):
 
         Parameters
         ----------
-        radius : float
-                Radius of shaft in node of misalignment
-        ndof : float
-                Total number of degrees of freedom
+        rotor : ross.Rotor object
+              The Rotor object
 
         Returns
         -------
@@ -463,60 +462,19 @@ class MisalignmentFlex(Defect, ABC):
         F_misalign = self._parallel() + self._angular()
         return F_misalign
 
-    def plot_time_response(
-        self,
-        probe,
-        probe_units="rad",
-        displacement_units="m",
-        time_units="s",
-        fig=None,
-        **kwargs,
-    ):
-        """
-        """
-        if fig is None:
-            fig = go.Figure()
-
-        for i, p in enumerate(probe):
-            dofx = p[0] * self.rotor.number_dof
-            dofy = p[0] * self.rotor.number_dof + 1
-            angle = Q_(p[1], probe_units).to("rad").m
-
-            # fmt: off
-            operator = np.array(
-                [[np.cos(angle), - np.sin(angle)],
-                 [np.cos(angle), + np.sin(angle)]]
-            )
-
-            _probe_resp = operator @ np.vstack((self.response[dofx,:], self.response[dofy,:]))
-            probe_resp = (
-                _probe_resp[0] * np.cos(angle) ** 2  +
-                _probe_resp[1] * np.sin(angle) ** 2
-            )
-            # fmt: on
-
-            probe_resp = Q_(probe_resp, "m").to(displacement_units).m
-
-            fig.add_trace(
-                go.Scatter(
-                    x=Q_(self.time_vector, "s").to(time_units).m,
-                    y=Q_(probe_resp, "m").to(displacement_units).m,
-                    mode="lines",
-                    name=f"Probe {i + 1}",
-                    legendgroup=f"Probe {i + 1}",
-                    showlegend=True,
-                    hovertemplate=f"Time ({time_units}): %{{x:.2f}}<br>Amplitude ({displacement_units}): %{{y:.2e}}",
-                )
-            )
-
-        fig.update_xaxes(title_text=f"Time ({time_units})")
-        fig.update_yaxes(title_text=f"Amplitude ({displacement_units})")
-        fig.update_layout(**kwargs)
-
-        return fig
+    def run_time_response(self):
+        results = TimeResponseResults(
+            t=self.time_vector,
+            yout=self.response.T,  # I'm transposing the matrix to match the method's syntax,
+            xout=[],  # It doesn't matter in this case.
+            nodes_list=self.rotor.nodes,
+            nodes_pos=self.rotor.nodes_pos,
+            number_dof=self.rotor.number_dof,
+        )
+        return results
 
     def plot_dfft(
-        self, probe, probe_units="rad", fig=None, log=False, **kwargs,
+        self, probe, probe_units="rad", range_freq=None, fig=None, log=False, **kwargs,
     ):
         """
         """
@@ -542,6 +500,11 @@ class MisalignmentFlex(Defect, ABC):
             # fmt: on
 
             amp, freq = self._dfft(probe_resp, self.dt)
+
+            if range_freq is not None:
+                amp = amp[(freq >= range_freq[0]) & (freq <= range_freq[1])]
+
+                freq = freq[(freq >= range_freq[0]) & (freq <= range_freq[1])]
 
             fig.add_trace(
                 go.Scatter(
@@ -580,7 +543,7 @@ class MisalignmentFlex(Defect, ABC):
         return x_amp, freq
 
 
-class MisalignmentRigid(Defect, ABC):
+class MisalignmentRigid(Defect):
     """A rigid coupling with parallel misalignment.
     
     Calculates the dynamic reaction force of hexangular rigid coupling 
@@ -891,60 +854,19 @@ class MisalignmentRigid(Defect, ABC):
 
         return Fmis, FFmis
 
-    def plot_time_response(
-        self,
-        probe,
-        probe_units="rad",
-        displacement_units="m",
-        time_units="s",
-        fig=None,
-        **kwargs,
-    ):
-        """
-        """
-        if fig is None:
-            fig = go.Figure()
-
-        for i, p in enumerate(probe):
-            dofx = p[0] * self.rotor.number_dof
-            dofy = p[0] * self.rotor.number_dof + 1
-            angle = Q_(p[1], probe_units).to("rad").m
-
-            # fmt: off
-            operator = np.array(
-                [[np.cos(angle), - np.sin(angle)],
-                 [np.cos(angle), + np.sin(angle)]]
-            )
-
-            _probe_resp = operator @ np.vstack((self.response[dofx,:], self.response[dofy,:]))
-            probe_resp = (
-                _probe_resp[0] * np.cos(angle) ** 2  +
-                _probe_resp[1] * np.sin(angle) ** 2
-            )
-            # fmt: on
-
-            probe_resp = Q_(probe_resp, "m").to(displacement_units).m
-
-            fig.add_trace(
-                go.Scatter(
-                    x=Q_(self.time_vector, "s").to(time_units).m,
-                    y=Q_(probe_resp, "m").to(displacement_units).m,
-                    mode="lines",
-                    name=f"Probe {i + 1}",
-                    legendgroup=f"Probe {i + 1}",
-                    showlegend=True,
-                    hovertemplate=f"Time ({time_units}): %{{x:.2f}}<br>Amplitude ({displacement_units}): %{{y:.2e}}",
-                )
-            )
-
-        fig.update_xaxes(title_text=f"Time ({time_units})")
-        fig.update_yaxes(title_text=f"Amplitude ({displacement_units})")
-        fig.update_layout(**kwargs)
-
-        return fig
+    def run_time_response(self):
+        results = TimeResponseResults(
+            t=self.time_vector,
+            yout=self.response.T,  # I'm transposing the matrix to match the method's syntax,
+            xout=[],  # It doesn't matter in this case.
+            nodes_list=self.rotor.nodes,
+            nodes_pos=self.rotor.nodes_pos,
+            number_dof=self.rotor.number_dof,
+        )
+        return results
 
     def plot_dfft(
-        self, probe, probe_units="rad", fig=None, log=False, **kwargs,
+        self, probe, probe_units="rad", range_freq=None, fig=None, log=False, **kwargs,
     ):
         """
         """
@@ -970,6 +892,11 @@ class MisalignmentRigid(Defect, ABC):
             # fmt: on
 
             amp, freq = self._dfft(probe_resp, self.dt)
+
+            if range_freq is not None:
+                amp = amp[(freq >= range_freq[0]) & (freq <= range_freq[1])]
+
+                freq = freq[(freq >= range_freq[0]) & (freq <= range_freq[1])]
 
             fig.add_trace(
                 go.Scatter(
