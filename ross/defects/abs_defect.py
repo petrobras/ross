@@ -23,8 +23,8 @@ class Defect(ABC):
     def run_time_response(self):
         results = TimeResponseResults(
             t=self.time_vector,
-            yout=self.response.T,  # I'm transposing the matrix to match the method's syntax,
-            xout=[],  # It doesn't matter in this case.
+            yout=self.response.T,
+            xout=[],
             nodes_list=self.rotor.nodes,
             nodes_pos=self.rotor.nodes_pos,
             number_dof=self.rotor.number_dof,
@@ -32,7 +32,7 @@ class Defect(ABC):
         return results
 
     def plot_dfft(
-        self, probe, probe_units="rad", range_freq=None, fig=None, log=False, **kwargs,
+        self, probe, probe_units="rad", range_freq=None, fig=None, **kwargs,
     ):
         """
         """
@@ -79,9 +79,6 @@ class Defect(ABC):
         fig.update_xaxes(title_text=f"Frequency (Hz)")
         fig.update_yaxes(title_text=f"Amplitude (m)")
         fig.update_layout(**kwargs)
-
-        if log:
-            fig.update_layout(yaxis_type="log")
 
         return fig
 
