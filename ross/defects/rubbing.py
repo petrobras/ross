@@ -1,14 +1,14 @@
+import time
 from abc import ABC, abstractmethod
 
 import numpy as np
+import plotly.graph_objects as go
 import scipy as sp
 import scipy.integrate
 import scipy.linalg
-import time
-from ross.units import Q_
 from scipy.io import savemat
 
-import plotly.graph_objects as go
+from ross.units import Q_
 
 from .abs_defect import Defect
 from .integrate_solver import Integrator
@@ -521,4 +521,3 @@ class Rubbing:
         freq = freq[: int(b)]  # Frequency vector
 
         return x_amp, freq
-

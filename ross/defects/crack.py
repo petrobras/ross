@@ -3,17 +3,17 @@
 This module defines the Defect classes for cracks on the shaft. There 
 are a number of options, for the formulation of 6 DoFs (degrees of freedom).
 """
+import time
 from abc import ABC, abstractmethod
 
-import ross
 import numpy as np
+import plotly.graph_objects as go
 import scipy as sp
 import scipy.integrate
 import scipy.linalg
-import time
-from ross.units import Q_
 
-import plotly.graph_objects as go
+import ross
+from ross.units import Q_
 
 from .abs_defect import Defect
 from .integrate_solver import Integrator
