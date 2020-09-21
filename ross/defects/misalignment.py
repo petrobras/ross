@@ -13,7 +13,7 @@ import scipy.integrate
 import scipy.linalg
 
 import ross
-from ross.results import FrequencyResponseResults, TimeResponseResults
+from ross.results import TimeResponseResults
 from ross.units import Q_
 
 from .abs_defect import Defect
@@ -34,30 +34,36 @@ class MisalignmentFlex(Defect):
     Parameters
     ----------
     dt : float
-        Time step
+        Time step.
     tI : float
-        Initial time
+        Initial time.
     tF : float
-        Final time
+        Final time.
     kd : float
-        Radial stiffness of flexible coupling
+        Radial stiffness of flexible coupling.
     ks : float
-        Bending stiffness of flexible coupling
+        Bending stiffness of flexible coupling.
     eCOUPx : float
-        Parallel misalignment offset between driving rotor and driven rotor along X direction
+        Parallel misalignment offset between driving rotor and driven rotor along X direction.
     eCOUPy : float
-        Parallel misalignment offset between driving rotor and driven rotor along Y direction
+        Parallel misalignment offset between driving rotor and driven rotor along Y direction.
     misalignment_angle : float
-        Angle of the angular misaligned 
+        Angular misalignment angle.
     TD : float
-        Driving torque
+        Driving torque.
     TL : float
-        Driven torque
+        Driven torque.
     n1 : float
-        Node where the misalignment is ocurring
+        Node where the misalignment is ocurring.
     speed : float
-        Operational speed of the machine
-
+        Operational speed of the machine.
+    massunb : array
+        Array with the unbalance magnitude. The unit is kg.m.
+    phaseunb : array
+        Array with the unbalance phase. The unit is rad.
+    mis_type: string
+        String containing the misalignment type choosed. The avaible types are: parallel, by default; angular; combined.
+    
     Returns
     -------
     A force to be applied on the shaft.
@@ -66,18 +72,16 @@ class MisalignmentFlex(Defect):
     ----------
     .. [1] 'Xia, Y., Pang, J., Yang, L., Zhao, Q., & Yang, X. (2019). Study on vibration response 
     and orbits of misaligned rigid rotors connected by hexangular flexible coupling. Applied 
-    Acoustics, 155, 286-296..
+    Acoustics, 155, 286-296 ..
 
     Examples
     --------
-    AQUI AINDA TEM QUE SER ATUALIZADO, ABAIXO SEGUE SOMENTE UM EXEMPLO PARA A "SHAFT ELEMENT"
-    >>> from ross.materials import steel
-    >>> Timoshenko_Element = ShaftElement(
-    ...                         material=steel, L=0.5, idl=0.05, odl=0.1,
-    ...                         rotary_inertia=True,
-    ...                         shear_effects=True)
-    >>> Timoshenko_Element.phi
-    0.1571268472906404
+    >>> from ross.defects.misalignment import misalignment_flex_parallel_example
+    >>> probe1 = (14, 0)
+    >>> probe2 = (22, 0)
+    >>> response = rotor.run_defect(misalignment)
+    >>> results = misalignment.run_time_response()
+    >>> response.plot_dfft(probe=[probe1, probe2], range_freq=[0, 100]).show()
     """
 
     def __init__(
@@ -135,12 +139,8 @@ class MisalignmentFlex(Defect):
 
         Parameters
         ----------
-        rotor : ross.Rotor object
-              The Rotor object
-
-        Returns
-        -------
-        
+        rotor : ross.Rotor Object
+             6 DoF rotor model
                 
         """
         self.rotor = rotor
@@ -218,6 +218,21 @@ class MisalignmentFlex(Defect):
         self.response = self.ModMat.dot(self.displacement)
 
     def _equation_of_movement(self, T, Y):
+        """ Calculates the displacement and velocity using state-space representation in the modal domain.
+
+        Parameters
+        ----------
+        T : float
+            Iteration time.
+        Y : array
+            Array of displacement and velocity, in the modal domain.
+
+        Returns
+        -------
+        new_Y :  array
+            Array of the new displacement and velocity, in the modal domain.
+        """
+
         self.iteration += 1
         if self.iteration % 10000 == 0:
             print(f"iteration: {self.iteration} \n time: {T}")
@@ -285,8 +300,8 @@ class MisalignmentFlex(Defect):
         
         Returns
         -------
-        F_mis_p(12,n) : numpy.ndarray
-            Excitation force caused by the parallel misalignment for a 6DOFs system with 'n' values of angular position  
+        F_mis_p : array
+            Excitation force caused by the parallel misalignment on the entire system. 
         """
 
         F_mis_p = np.zeros(self.ndof)
@@ -395,8 +410,8 @@ class MisalignmentFlex(Defect):
         
         Returns
         -------
-        F_mis_a(12,n) : numpy.ndarray
-            Excitation force caused by the angular misalignment for a 6DOFs system with 'n' values of angular position 
+        F_mis_a : array
+            Excitation force caused by the parallel misalignment on the entire system.
         """
         F_mis_a = np.zeros(self.ndof)
 
@@ -456,91 +471,11 @@ class MisalignmentFlex(Defect):
         
         Returns
         -------
-        F_misalign(12,n) : numpy.ndarray
-            Excitation force caused by the combined misalignment for a 6DOFs system with 'n' values of angular position 
+        F_misalign : array
+            Excitation force caused by the parallel misalignment on the entire system.
         """
         F_misalign = self._parallel() + self._angular()
         return F_misalign
-
-    def run_time_response(self):
-        results = TimeResponseResults(
-            t=self.time_vector,
-            yout=self.response.T,  # I'm transposing the matrix to match the method's syntax,
-            xout=[],  # It doesn't matter in this case.
-            nodes_list=self.rotor.nodes,
-            nodes_pos=self.rotor.nodes_pos,
-            number_dof=self.rotor.number_dof,
-        )
-        return results
-
-    def plot_dfft(
-        self, probe, probe_units="rad", range_freq=None, fig=None, log=False, **kwargs,
-    ):
-        """
-        """
-        if fig is None:
-            fig = go.Figure()
-
-        for i, p in enumerate(probe):
-            dofx = p[0] * self.rotor.number_dof
-            dofy = p[0] * self.rotor.number_dof + 1
-            angle = Q_(p[1], probe_units).to("rad").m
-
-            # fmt: off
-            operator = np.array(
-                [[np.cos(angle), - np.sin(angle)],
-                 [np.cos(angle), + np.sin(angle)]]
-            )
-            row, cols = self.response.shape
-            _probe_resp = operator @ np.vstack((self.response[dofx,int(2*cols/3):], self.response[dofy,int(2*cols/3):]))
-            probe_resp = (
-                _probe_resp[0] * np.cos(angle) ** 2  +
-                _probe_resp[1] * np.sin(angle) ** 2
-            )
-            # fmt: on
-
-            amp, freq = self._dfft(probe_resp, self.dt)
-
-            if range_freq is not None:
-                amp = amp[(freq >= range_freq[0]) & (freq <= range_freq[1])]
-
-                freq = freq[(freq >= range_freq[0]) & (freq <= range_freq[1])]
-
-            fig.add_trace(
-                go.Scatter(
-                    x=freq,
-                    y=amp,
-                    mode="lines",
-                    name=f"Probe {i + 1}",
-                    legendgroup=f"Probe {i + 1}",
-                    showlegend=True,
-                    hovertemplate=f"Frequency (Hz): %{{x:.2f}}<br>Amplitude (m): %{{y:.2e}}",
-                )
-            )
-
-        fig.update_xaxes(title_text=f"Frequency (Hz)")
-        fig.update_yaxes(title_text=f"Amplitude (m)")
-        fig.update_layout(**kwargs)
-
-        if log:
-            fig.update_layout(yaxis_type="log")
-
-        return fig
-
-    def _dfft(self, x, dt):
-        b = np.floor(len(x) / 2)
-        c = len(x)
-        df = 1 / (c * dt)
-
-        x_amp = sp.fft(x)[: int(b)]
-        x_amp = x_amp * 2 / c
-        x_phase = np.angle(x_amp)
-        x_amp = np.abs(x_amp)
-
-        freq = np.arange(0, df * b, df)
-        freq = freq[: int(b)]  # Frequency vector
-
-        return x_amp, freq
 
 
 class MisalignmentRigid(Defect):
@@ -575,6 +510,10 @@ class MisalignmentRigid(Defect):
         Node where the misalignment is ocurring
     speed : float
         Operational speed of the machine
+    massunb : array
+        Array with the unbalance magnitude. The unit is kg.m
+    phaseunb : array
+        Array with the unbalance phase. The unit is rad
 
     Returns
     -------
@@ -582,20 +521,17 @@ class MisalignmentRigid(Defect):
 
     References
     ----------
-    .. [1] 'Xia, Y., Pang, J., Yang, L., Zhao, Q., & Yang, X. (2019). Study on vibration response 
-    and orbits of misaligned rigid rotors connected by hexangular flexible coupling. Applied 
-    Acoustics, 155, 286-296..
+
+    .. [1] 'Al-Hussain, K. M., & Redmond, I. (2002). Dynamic response of two rotors connected by rigid mechanical coupling with parallel misalignment. Journal of Sound and vibration, 249(3), 483-498..
 
     Examples
     --------
-    AQUI AINDA TEM QUE SER ATUALIZADO, ABAIXO SEGUE SOMENTE UM EXEMPLO PARA A "SHAFT ELEMENT"
-    >>> from ross.materials import steel
-    >>> Timoshenko_Element = ShaftElement(
-    ...                         material=steel, L=0.5, idl=0.05, odl=0.1,
-    ...                         rotary_inertia=True,
-    ...                         shear_effects=True)
-    >>> Timoshenko_Element.phi
-    0.1571268472906404
+    >>> from ross.defects.misalignment import misalignment_rigid_example
+    >>> probe1 = (14, 0)
+    >>> probe2 = (22, 0)
+    >>> response = rotor.run_defect(misalignment)
+    >>> results = misalignment.run_time_response()
+    >>> response.plot_dfft(probe=[probe1, probe2], range_freq=[0, 100]).show()
     """
 
     def __init__(
@@ -636,15 +572,10 @@ class MisalignmentRigid(Defect):
 
         Parameters
         ----------
-        rotor : object
-                All properties from the rotor model
-
-        Returns
-        -------
-        The integrated variables.
+        rotor : ross.Rotor Object
+             6 DoF rotor model
                 
         """
-
         self.rotor = rotor
         self.ndof = rotor.ndof
         self.iteration = 0
@@ -720,6 +651,20 @@ class MisalignmentRigid(Defect):
         self.response = self.ModMat.dot(self.displacement)
 
     def _equation_of_movement(self, T, Y):
+        """ Calculates the displacement and velocity using state-space representation in the modal domain.
+
+        Parameters
+        ----------
+        T : float
+            Iteration time.
+        Y : array
+            Array of displacement and velocity, in the modal domain.
+
+        Returns
+        -------
+        new_Y :  array
+            Array of the new displacement and velocity, in the modal domain.
+        """
         self.iteration += 1
         if self.iteration % 10000 == 0:
             print(f"iteration: {self.iteration} \n time: {T}")
@@ -802,7 +747,15 @@ class MisalignmentRigid(Defect):
         return new_Y
 
     def _parallel(self, positions, fir):
-
+        """Reaction forces of parallel misalignment
+        
+        Returns
+        -------
+        Fmis : array
+            Excitation force caused by the parallel misalignment on the node of application.
+        FFmis : array
+            Excitation force caused by the parallel misalignment on the entire system.
+        """
         k0 = self.kCOUP
         delta1 = self.eCOUP
 
@@ -854,97 +807,19 @@ class MisalignmentRigid(Defect):
 
         return Fmis, FFmis
 
-    def run_time_response(self):
-        results = TimeResponseResults(
-            t=self.time_vector,
-            yout=self.response.T,  # I'm transposing the matrix to match the method's syntax,
-            xout=[],  # It doesn't matter in this case.
-            nodes_list=self.rotor.nodes,
-            nodes_pos=self.rotor.nodes_pos,
-            number_dof=self.rotor.number_dof,
-        )
-        return results
-
-    def plot_dfft(
-        self, probe, probe_units="rad", range_freq=None, fig=None, log=False, **kwargs,
-    ):
-        """
-        """
-        if fig is None:
-            fig = go.Figure()
-
-        for i, p in enumerate(probe):
-            dofx = p[0] * self.rotor.number_dof
-            dofy = p[0] * self.rotor.number_dof + 1
-            angle = Q_(p[1], probe_units).to("rad").m
-
-            # fmt: off
-            operator = np.array(
-                [[np.cos(angle), - np.sin(angle)],
-                 [np.cos(angle), + np.sin(angle)]]
-            )
-            row, cols = self.response.shape
-            _probe_resp = operator @ np.vstack((self.response[dofx,int(2*cols/3):], self.response[dofy,int(2*cols/3):]))
-            probe_resp = (
-                _probe_resp[0] * np.cos(angle) ** 2  +
-                _probe_resp[1] * np.sin(angle) ** 2
-            )
-            # fmt: on
-
-            amp, freq = self._dfft(probe_resp, self.dt)
-
-            if range_freq is not None:
-                amp = amp[(freq >= range_freq[0]) & (freq <= range_freq[1])]
-
-                freq = freq[(freq >= range_freq[0]) & (freq <= range_freq[1])]
-
-            fig.add_trace(
-                go.Scatter(
-                    x=freq,
-                    y=amp,
-                    mode="lines",
-                    name=f"Probe {i + 1}",
-                    legendgroup=f"Probe {i + 1}",
-                    showlegend=True,
-                    hovertemplate=f"Frequency (Hz): %{{x:.2f}}<br>Amplitude (m): %{{y:.2e}}",
-                )
-            )
-
-        fig.update_xaxes(title_text=f"Frequency (Hz)")
-        fig.update_yaxes(title_text=f"Amplitude (m)")
-        fig.update_layout(**kwargs)
-
-        if log:
-            fig.update_layout(yaxis_type="log")
-
-        return fig
-
-    def _dfft(self, x, dt):
-        b = np.floor(len(x) / 2)
-        c = len(x)
-        df = 1 / (c * dt)
-
-        x_amp = sp.fft(x)[: int(b)]
-        x_amp = x_amp * 2 / c
-        x_phase = np.angle(x_amp)
-        x_amp = np.abs(x_amp)
-
-        freq = np.arange(0, df * b, df)
-        freq = freq[: int(b)]  # Frequency vector
-
-        return x_amp, freq
-
 
 def base_rotor_example():
     """Internal routine that create an example of a rotor, to be used in
-    the following misalignment problems as a prerequisite.
+    the associated misalignment problems as a prerequisite.
 
     This function returns an instance of a 6 DoF rotor, with a number of
-    components attached.
+    components attached. As this is not the focus of the example here, but
+    only a requisite, see the example in "rotor assembly" for additional
+    information on the rotor object.
 
     Returns
     -------
-    rotor : ross.Rotor
+    rotor : ross.Rotor Object
         An instance of a flexible 6 DoF rotor object.
 
     Examples
@@ -990,20 +865,20 @@ def base_rotor_example():
     ]
 
     Id = 0.003844540885417
-    Ip = 2 * Id
+    Ip = 0.007513248437500
 
     disk0 = ross.DiskElement6DoF(n=12, m=2.6375, Id=Id, Ip=Ip)
     disk1 = ross.DiskElement6DoF(n=24, m=2.6375, Id=Id, Ip=Ip)
 
     kxx1 = 4.40e5
-    kyy1 = 9.50e5
+    kyy1 = 4.6114e5
     kzz = 0
     cxx1 = 27.4
-    cyy1 = 50.4
+    cyy1 = 2.505
     czz = 0
-    kxx2 = 4.6114e5
+    kxx2 = 9.50e5
     kyy2 = 1.09e8
-    cxx2 = 2.505
+    cxx2 = 50.4
     cyy2 = 100.4553
 
     bearing0 = ross.BearingElement6DoF(
@@ -1027,12 +902,12 @@ def misalignment_flex_parallel_example():
 
     Returns
     -------
-    misalignment : ross.MisalignmentFlexParallel
+    misalignment : ross.MisalignmentFlex Object
         An instance of a flexible parallel misalignment model object.
 
     Examples
     --------
-    >>> misalignment = MisalignmentFlexParallel()
+    >>> misalignment = misalignment_flex_parallel_example()
     >>> misalignment.speed[0]
     1200.0
     """
@@ -1043,15 +918,17 @@ def misalignment_flex_parallel_example():
         dt=0.0001,
         tI=0,
         tF=30,
-        kd=40 * 10 ** (3),  # Rigidez radial do acoplamento flexivel
-        ks=38 * 10 ** (3),  # Rigidez de flexão do acoplamento flexivel
-        eCOUPx=2 * 10 ** (-4),  # Distancia de desalinhamento entre os eixos - direcao x
-        eCOUPy=2 * 10 ** (-4),  # Distancia de desalinhamento entre os eixos - direcao z
-        misalignment_angle=5 * np.pi / 180,  # Angulo do desalinhamento angular (rad)
-        TD=0,  # Torque antes do acoplamento
-        TL=0,  # Torque dopois do acoplamento
+        kd=40 * 10 ** (3),
+        ks=38 * 10 ** (3),
+        eCOUPx=2 * 10 ** (-4),
+        eCOUPy=2 * 10 ** (-4),
+        misalignment_angle=5 * np.pi / 180,
+        TD=0,
+        TL=0,
         n1=0,
         speed=1200,
+        massunb=np.array([5e-4, 0]),
+        phaseunb=np.array([-np.pi / 2, 0]),
         mis_type="parallel",
     )
 
@@ -1069,12 +946,12 @@ def misalignment_flex_angular_example():
 
     Returns
     -------
-    misalignment : ross.MisalignmentFlexAngular
+    misalignment : ross.MisalignmentFlex Object
         An instance of a flexible Angular misalignment model object.
 
     Examples
     --------
-    >>> misalignment = MisalignmentFlexAngular()
+    >>> misalignment = misalignment_flex_angular_example()
     >>> misalignment.speed[0]
     1200.0
     """
@@ -1085,15 +962,17 @@ def misalignment_flex_angular_example():
         dt=0.0001,
         tI=0,
         tF=30,
-        kd=40 * 10 ** (3),  # Rigidez radial do acoplamento flexivel
-        ks=38 * 10 ** (3),  # Rigidez de flexão do acoplamento flexivel
-        eCOUPx=2 * 10 ** (-4),  # Distancia de desalinhamento entre os eixos - direcao x
-        eCOUPy=2 * 10 ** (-4),  # Distancia de desalinhamento entre os eixos - direcao z
-        misalignment_angle=5 * np.pi / 180,  # Angulo do desalinhamento angular (rad)
-        TD=0,  # Torque antes do acoplamento
-        TL=0,  # Torque dopois do acoplamento
+        kd=40 * 10 ** (3),
+        ks=38 * 10 ** (3),
+        eCOUPx=2 * 10 ** (-4),
+        eCOUPy=2 * 10 ** (-4),
+        misalignment_angle=5 * np.pi / 180,
+        TD=0,
+        TL=0,
         n1=0,
         speed=1200,
+        massunb=np.array([5e-4, 0]),
+        phaseunb=np.array([-np.pi / 2, 0]),
         mis_type="angular",
     )
 
@@ -1111,12 +990,12 @@ def misalignment_flex_combined_example():
 
     Returns
     -------
-    misalignment : ross.MisalignmentFlexCombined
+    misalignment : ross.MisalignmentFlex Object
         An instance of a flexible combined misalignment model object.
 
     Examples
     --------
-    >>> misalignment = MisalignmentFlexCombined()
+    >>> misalignment = misalignment_flex_combined_example()
     >>> misalignment.speed[0]
     1200.0
     """
@@ -1127,15 +1006,17 @@ def misalignment_flex_combined_example():
         dt=0.0001,
         tI=0,
         tF=30,
-        kd=40 * 10 ** (3),  # Rigidez radial do acoplamento flexivel
-        ks=38 * 10 ** (3),  # Rigidez de flexão do acoplamento flexivel
-        eCOUPx=2 * 10 ** (-4),  # Distancia de desalinhamento entre os eixos - direcao x
-        eCOUPy=2 * 10 ** (-4),  # Distancia de desalinhamento entre os eixos - direcao z
-        misalignment_angle=5 * np.pi / 180,  # Angulo do desalinhamento angular (rad)
-        TD=0,  # Torque antes do acoplamento
-        TL=0,  # Torque dopois do acoplamento
+        kd=40 * 10 ** (3),
+        ks=38 * 10 ** (3),
+        eCOUPx=2 * 10 ** (-4),
+        eCOUPy=2 * 10 ** (-4),
+        misalignment_angle=5 * np.pi / 180,
+        TD=0,
+        TL=0,
         n1=0,
         speed=1200,
+        massunb=np.array([5e-4, 0]),
+        phaseunb=np.array([-np.pi / 2, 0]),
         mis_type="combined",
     )
 
@@ -1153,12 +1034,12 @@ def misalignment_rigid_example():
 
     Returns
     -------
-    misalignment : ross.MisalignmentRigid
+    misalignment : ross.MisalignmentRigid Object
         An instance of a rigid misalignment model object.
 
     Examples
     --------
-    >>> misalignment = MisalignmentRigid()
+    >>> misalignment = misalignment_rigid_example()
     >>> misalignment.speed[0]
     1200.0
     """
