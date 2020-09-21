@@ -77,11 +77,13 @@ class MisalignmentFlex(Defect):
     Examples
     --------
     >>> from ross.defects.misalignment import misalignment_flex_parallel_example
+    >>> misalignment = misalignment_flex_parallel_example()
     >>> probe1 = (14, 0)
     >>> probe2 = (22, 0)
     >>> response = rotor.run_defect(misalignment)
     >>> results = misalignment.run_time_response()
-    >>> response.plot_dfft(probe=[probe1, probe2], range_freq=[0, 100]).show()
+    >>> fig = response.plot_dfft(probe=[probe1, probe2], range_freq=[0, 100], yaxis_type="log")
+    >>> # fig.show()
     """
 
     def __init__(
@@ -140,7 +142,7 @@ class MisalignmentFlex(Defect):
         Parameters
         ----------
         rotor : ross.Rotor Object
-             6 DoF rotor model
+             6 DoF rotor model.
                 
         """
         self.rotor = rotor
@@ -296,7 +298,7 @@ class MisalignmentFlex(Defect):
         return new_Y
 
     def _parallel(self):
-        """Reaction forces of parallel misalignment
+        """Reaction forces of parallel misalignment.
         
         Returns
         -------
@@ -406,7 +408,7 @@ class MisalignmentFlex(Defect):
         return F_mis_p
 
     def _angular(self):
-        """Reaction forces of angular misalignment
+        """Reaction forces of angular misalignment.
         
         Returns
         -------
@@ -467,7 +469,7 @@ class MisalignmentFlex(Defect):
         return F_mis_a
 
     def _combined(self):
-        """Reaction forces of combined (parallel and angular) misalignment
+        """Reaction forces of combined (parallel and angular) misalignment.
         
         Returns
         -------
@@ -487,33 +489,25 @@ class MisalignmentRigid(Defect):
     Parameters
     ----------
     dt : float
-        Time step
+        Time step.
     tI : float
-        Initial time
+        Initial time.
     tF : float
-        Final time
-    kd : float
-        Radial stiffness of flexible coupling
-    ks : float
-        Bending stiffness of flexible coupling
-    eCOUPx : float
-        Parallel misalignment offset between driving rotor and driven rotor along X direction
-    eCOUPy : float
-        Parallel misalignment offset between driving rotor and driven rotor along Y direction
-    misalignment_angle : float
-        Angle of the angular misaligned 
+        Final time.
+    eCOUP : float
+        Parallel misalignment offset between driving rotor and driven rotor along X direction.
     TD : float
-        Driving torque
+        Driving torque.
     TL : float
-        Driven torque
+        Driven torque.
     n1 : float
-        Node where the misalignment is ocurring
+        Node where the misalignment is ocurring.
     speed : float
-        Operational speed of the machine
+        Operational speed of the machine.
     massunb : array
-        Array with the unbalance magnitude. The unit is kg.m
+        Array with the unbalance magnitude. The unit is kg.m.
     phaseunb : array
-        Array with the unbalance phase. The unit is rad
+        Array with the unbalance phase. The unit is rad.
 
     Returns
     -------
@@ -527,33 +521,21 @@ class MisalignmentRigid(Defect):
     Examples
     --------
     >>> from ross.defects.misalignment import misalignment_rigid_example
+    >>> misalignment = misalignment_rigid_example()
     >>> probe1 = (14, 0)
     >>> probe2 = (22, 0)
     >>> response = rotor.run_defect(misalignment)
     >>> results = misalignment.run_time_response()
-    >>> response.plot_dfft(probe=[probe1, probe2], range_freq=[0, 100]).show()
+    >>> fig = response.plot_dfft(probe=[probe1, probe2], range_freq=[0, 100], yaxis_type="log")
+    >>> # fig.show
     """
 
     def __init__(
-        self,
-        tI,
-        tF,
-        Kcoup_auxI,
-        Kcoup_auxF,
-        kCOUP,
-        eCOUP,
-        TD,
-        TL,
-        n1,
-        speed,
-        massunb,
-        phaseunb,
+        self, dt, tI, tF, eCOUP, TD, TL, n1, speed, massunb, phaseunb,
     ):
+        self.dt = dt
         self.tI = tI
         self.tF = tF
-        self.Kcoup_auxI = Kcoup_auxI
-        self.Kcoup_auxF = Kcoup_auxF
-        self.kCOUP = kCOUP
         self.eCOUP = eCOUP
         self.TD = TD
         self.TL = TL
@@ -568,12 +550,12 @@ class MisalignmentRigid(Defect):
         self.DoF = np.arange((self.n1 * 6), (self.n2 * 6 + 6))
 
     def run(self, rotor):
-        """Calculates the shaft angular position and the misalignment amount at X / Y directions.
+        """Calculates the shaft angular position and the misalignment amount at X directions.
 
         Parameters
         ----------
         rotor : ross.Rotor Object
-             6 DoF rotor model
+             6 DoF rotor model.
                 
         """
         self.rotor = rotor
@@ -635,7 +617,6 @@ class MisalignmentRigid(Defect):
         FFmis = np.zeros(self.ndof)
 
         y0 = np.zeros(24)
-        self.dt = 0.0001
         t_eval = np.arange(self.dt, self.tF, self.dt)
         self.inv_Mmodal = np.linalg.pinv(self.Mmodal)
         t1 = time.time()
@@ -672,7 +653,21 @@ class MisalignmentRigid(Defect):
         positions = Y[:12]
         velocity = Y[12:]  # velocity ign space state
 
-        kcoup_auxt = self.K[5 + 6 * self.n2, 5 + 6 * self.n2] / (
+        kcoup_auxt = 1 / (
+            self.K[5 + 6 * self.n1, 5 + 6 * self.n1]
+            + self.K[5 + 6 * self.n2, 5 + 6 * self.n2]
+        )
+
+        self.kCOUP = (
+            self.K[6 * self.n1, 6 * self.n1] * self.K[6 * self.n2, 6 * self.n2]
+        ) / (self.K[6 * self.n1, 6 * self.n1] + self.K[6 * self.n2, 6 * self.n2])
+
+        self.Kcoup_auxI = self.K[5 + 6 * self.n1, 5 + 6 * self.n1] / (
+            self.K[5 + 6 * self.n1, 5 + 6 * self.n1]
+            + self.K[5 + 6 * self.n2, 5 + 6 * self.n2]
+        )
+
+        self.Kcoup_auxF = self.K[5 + 6 * self.n2, 5 + 6 * self.n2] / (
             self.K[5 + 6 * self.n1, 5 + 6 * self.n1]
             + self.K[5 + 6 * self.n2, 5 + 6 * self.n2]
         )
@@ -692,8 +687,8 @@ class MisalignmentRigid(Defect):
             * (
                 -positions[0 + 6 * self.n1] * np.sin(self.angANG)
                 + positions[0 + 6 * self.n2] * np.sin(self.angANG)
-                - positions[1 + 6 * self.n1] * np.cos(self.angANG)
-                + positions[1 + 6 * self.n2] * np.cos(self.angANG)
+                + positions[1 + 6 * self.n1] * np.cos(self.angANG)
+                - positions[1 + 6 * self.n2] * np.cos(self.angANG)
             )
         )
         positionsFis = self.ModMat.dot(positions)
@@ -747,7 +742,7 @@ class MisalignmentRigid(Defect):
         return new_Y
 
     def _parallel(self, positions, fir):
-        """Reaction forces of parallel misalignment
+        """Reaction forces of parallel misalignment.
         
         Returns
         -------
@@ -763,14 +758,14 @@ class MisalignmentRigid(Defect):
 
         k_misalignbeta1 = np.array(
             [
-                -k0 * self.Kcoup_auxI * delta1 * np.sin(betam - fir),
                 -k0 * self.Kcoup_auxI * delta1 * np.cos(betam - fir),
+                -k0 * self.Kcoup_auxI * delta1 * np.sin(betam - fir),
                 0,
                 0,
                 0,
                 0,
-                +k0 * self.Kcoup_auxF * delta1 * np.sin(betam - fir),
                 k0 * self.Kcoup_auxF * delta1 * np.cos(betam - fir),
+                k0 * self.Kcoup_auxF * delta1 * np.sin(betam - fir),
                 0,
                 0,
                 0,
@@ -1047,16 +1042,16 @@ def misalignment_rigid_example():
     rotor = base_rotor_example()
 
     misalignment = MisalignmentRigid(
+        dt=0.0001,
         tI=0,
-        tF=50,
-        Kcoup_auxI=0.5,
-        Kcoup_auxF=0.5,
-        kCOUP=2e5,
+        tF=30,
         eCOUP=2e-4,
         TD=0,
         TL=0,
         n1=0,
         speed=1200,
+        massunb=np.array([5e-4, 0]),
+        phaseunb=np.array([-np.pi / 2, 0]),
     )
 
     misalignment = rotor.run_misalignment(misalignment)
