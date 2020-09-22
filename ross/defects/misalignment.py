@@ -253,6 +253,10 @@ class MisalignmentFlex(Defect):
         self.inv_Mmodal = np.linalg.pinv(self.Mmodal)
         t1 = time.time()
 
+        self.ft_modal = [
+            (self.ModMat.T).dot(self._force(ap)) for ap in self.angular_position
+        ]
+
         x = Integrator(0, y0, self.tF, self.dt, self._equation_of_movement)
         x = x.rk45()
         t2 = time.time()
@@ -288,8 +292,7 @@ class MisalignmentFlex(Defect):
         positions = Y[:12]
         velocity = Y[12:]  # velocity ign space state
 
-        ft = self._force(self.angular_position[i])
-        ftmodal = (self.ModMat.T).dot(ft)
+        ftmodal = self.ft_modal[i]
 
         # proper equation of movement to be integrated in time
         new_V_dot = (
