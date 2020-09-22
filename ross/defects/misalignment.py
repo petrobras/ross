@@ -252,10 +252,12 @@ class MisalignmentFlex(Defect):
 
         self.inv_Mmodal = np.linalg.pinv(self.Mmodal)
         t1 = time.time()
+        forces = self._force(self.angular_position)
 
-        self.ft_modal = [
-            (self.ModMat.T).dot(self._force(ap)) for ap in self.angular_position
-        ]
+        self.ft_modal = (self.ModMat.T).dot(forces).T
+        # [
+        #     (self.ModMat.T).dot(self._force(ap)) for ap in self.angular_position
+        # ]
 
         x = Integrator(0, y0, self.tF, self.dt, self._equation_of_movement)
         x = x.rk45()
@@ -322,7 +324,7 @@ class MisalignmentFlex(Defect):
                Excitation force caused by the parallel misalignment on the entire system. 
         """
 
-        F_mis_p = np.zeros(self.ndof)
+        F_mis_p = np.zeros((self.ndof, len(angular_position)))
 
         fib = np.arctan(self.eCOUPy / self.eCOUPx)
 
@@ -434,7 +436,7 @@ class MisalignmentFlex(Defect):
         F_mis_a : array
             Excitation force caused by the parallel misalignment on the entire system.
         """
-        F_mis_a = np.zeros(self.ndof)
+        F_mis_a = np.zeros((self.ndof, len(angular_position)))
 
         Fay = (
             np.abs(
