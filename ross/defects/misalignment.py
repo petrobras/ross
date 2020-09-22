@@ -148,7 +148,6 @@ class MisalignmentFlex(Defect):
         self.rotor = rotor
         self.radius = rotor.elements[self.n1].odl / 2
         self.ndof = rotor.ndof
-        self.iteration = 0
         self.ndofd1 = (self.rotor.disk_elements[0].n) * 6
         self.ndofd2 = (self.rotor.disk_elements[1].n) * 6
 
@@ -210,7 +209,7 @@ class MisalignmentFlex(Defect):
         # Omega = self.speedI * np.pi / 30
 
         y0 = np.zeros(24)
-        t_eval = np.arange(self.tI, self.tF, self.dt)
+        t_eval = np.arange(self.tI, self.tF + self.dt, self.dt)
         T = t_eval
 
         self.angular_position = (
@@ -255,11 +254,8 @@ class MisalignmentFlex(Defect):
         forces = self._force(self.angular_position)
 
         self.ft_modal = (self.ModMat.T).dot(forces).T
-        # [
-        #     (self.ModMat.T).dot(self._force(ap)) for ap in self.angular_position
-        # ]
 
-        x = Integrator(0, y0, self.tF, self.dt, self._equation_of_movement)
+        x = Integrator(self.tI, y0, self.tF, self.dt, self._equation_of_movement)
         x = x.rk45()
         t2 = time.time()
         print(f"Time spent: {t2-t1} s")
@@ -286,10 +282,6 @@ class MisalignmentFlex(Defect):
         new_Y :  array
             Array of the new displacement and velocity, in the modal domain.
         """
-
-        self.iteration += 1
-        if self.iteration % 10000 == 0:
-            print(f"Iteration: {self.iteration} \n Time: {T}")
 
         positions = Y[:12]
         velocity = Y[12:]  # velocity ign space state
@@ -580,7 +572,6 @@ class MisalignmentRigid(Defect):
         """
         self.rotor = rotor
         self.ndof = rotor.ndof
-        self.iteration = 0
 
         self.ndofd1 = (self.rotor.disk_elements[0].n) * 6
         self.ndofd2 = (self.rotor.disk_elements[1].n) * 6
@@ -661,7 +652,7 @@ class MisalignmentRigid(Defect):
         # Omega = self.speedI * np.pi / 30
 
         y0 = np.zeros(24)
-        t_eval = np.arange(self.tI, self.tF, self.dt)
+        t_eval = np.arange(self.tI, self.tF + self.dt, self.dt)
         T = t_eval
 
         self.angular_position = (
@@ -704,7 +695,7 @@ class MisalignmentRigid(Defect):
         self.inv_Mmodal = np.linalg.pinv(self.Mmodal)
         t1 = time.time()
 
-        x = Integrator(0, y0, self.tF, self.dt, self._equation_of_movement)
+        x = Integrator(self.tI, y0, self.tF, self.dt, self._equation_of_movement)
         x = x.rk45()
         t2 = time.time()
         print(f"Time spent: {t2-t1} s")
@@ -731,10 +722,6 @@ class MisalignmentRigid(Defect):
         new_Y :  array
             Array of the new displacement and velocity, in the modal domain.
         """
-        self.iteration += 1
-        if self.iteration % 10000 == 0:
-            print(f"Iteration: {self.iteration} \n Time: {T}")
-
         positions = Y[:12]
         velocity = Y[12:]  # velocity ign space state
 

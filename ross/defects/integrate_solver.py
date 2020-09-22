@@ -65,6 +65,9 @@ class Integrator:
         # 4th-order Runge-Kutta
 
         for i in range(1, n + 1):
+            if i % 10000 == 0:
+                print(f"Iteration: {i} \n Time: {self.x0}")
+
             "Apply Runge Kutta Formulas to find next value of y"
             k1 = self.h * self.func(self.x0, y, i)
             k2 = self.h * self.func(self.x0 + 0.5 * self.h, y + 0.5 * k1, i)
@@ -92,7 +95,10 @@ class Integrator:
         result = np.zeros((24, n + 1))
         result[:, 0] = self.y0
 
-        for i in range(0, n):
+        for i in range(1, n + 1):
+            if i % 1000 == 0:
+                print(f"Iteration: {i} \n Time: {self.x0}")
+
             "Apply Runge Kutta Formulas to find next value of y"
             k1 = 1 * self.func(self.x0, y, i)
             yp2 = y + k1 * (self.h / 5)
