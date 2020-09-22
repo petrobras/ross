@@ -55,7 +55,7 @@ class Integrator:
 
         # Count number of iterations using step size or
         # step height h
-        n = (int)((self.x - self.x0) / self.h)
+        n = int((self.x - self.x0) / self.h)
 
         # Iterate for number of iterations
         y = self.y0
@@ -66,10 +66,10 @@ class Integrator:
 
         for i in range(1, n + 1):
             "Apply Runge Kutta Formulas to find next value of y"
-            k1 = self.h * self.func(self.x0, y)
-            k2 = self.h * self.func(self.x0 + 0.5 * self.h, y + 0.5 * k1)
-            k3 = self.h * self.func(self.x0 + 0.5 * self.h, y + 0.5 * k2)
-            k4 = self.h * self.func(self.x0 + self.h, y + k3)
+            k1 = self.h * self.func(self.x0, y, i)
+            k2 = self.h * self.func(self.x0 + 0.5 * self.h, y + 0.5 * k1, i)
+            k3 = self.h * self.func(self.x0 + 0.5 * self.h, y + 0.5 * k2, i)
+            k4 = self.h * self.func(self.x0 + self.h, y + k3, i)
 
             # Update next value of y
             y = y + (1.0 / 6.0) * (k1 + 2 * k2 + 2 * k3 + k4)
@@ -85,7 +85,7 @@ class Integrator:
 
         # Count number of iterations using step size or
         # step height h
-        n = (int)((self.x - self.x0) / self.h)
+        n = int((self.x - self.x0) / self.h)
 
         # Iterate for number of iterations
         y = self.y0
@@ -94,18 +94,18 @@ class Integrator:
 
         for i in range(0, n):
             "Apply Runge Kutta Formulas to find next value of y"
-            k1 = 1 * self.func(self.x0, y)
+            k1 = 1 * self.func(self.x0, y, i)
             yp2 = y + k1 * (self.h / 5)
-            k2 = 1 * self.func(self.x0 + (self.h / 5), yp2)
+            k2 = 1 * self.func(self.x0 + (self.h / 5), yp2, i)
             yp3 = y + k1 * (3 * self.h / 40) + k2 * (9 * self.h / 40)
-            k3 = 1 * self.func(self.x0 + (3 * self.h / 10), yp3)
+            k3 = 1 * self.func(self.x0 + (3 * self.h / 10), yp3, i)
             yp4 = (
                 y
                 + k1 * (3 * self.h / 10)
                 - k2 * (9 * self.h / 10)
                 + k3 * (6 * self.h / 5)
             )
-            k4 = 1 * self.func(self.x0 + (3 * self.h / 5), yp4)
+            k4 = 1 * self.func(self.x0 + (3 * self.h / 5), yp4, i)
             yp5 = (
                 y
                 - k1 * (11 * self.h / 54)
@@ -113,7 +113,7 @@ class Integrator:
                 - k3 * (70 * self.h / 27)
                 + k4 * (35 * self.h / 27)
             )
-            k5 = 1 * self.func(self.x0 + self.h, yp5)
+            k5 = 1 * self.func(self.x0 + self.h, yp5, i)
             yp6 = (
                 y
                 + k1 * (1631 * self.h / 55296)
@@ -122,7 +122,7 @@ class Integrator:
                 + k4 * (44275 * self.h / 110592)
                 + k5 * (253 * self.h / 4096)
             )
-            k6 = 1 * self.func(self.x0 + (7 * self.h / 8), yp6)
+            k6 = 1 * self.func(self.x0 + (7 * self.h / 8), yp6, i)
 
             # Update next value of y
             y = y + self.h * (
