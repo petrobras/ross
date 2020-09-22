@@ -174,13 +174,17 @@ class MisalignmentFlex(Defect):
             np.exp(-self.lambdat * self.tF) - np.exp(-self.lambdat * self.tI)
         )
 
+        # This code below here is used for acceleration and torque application to the rotor. As of
+        # september/2020 it is unused, but might be implemented in future releases. These would be
+        # run-up and run-down operations and variations of operating conditions.
+        #
         # sAT = (
         #     TorqueI * np.exp(-lambdat * self.tF) - TorqueF * np.exp(-lambdat * self.tI)
         # ) / (np.exp(-lambdat * self.tF) - np.exp(-lambdat * self.tI))
         # sBT = (TorqueF - TorqueI) / (
         #     np.exp(-lambdat * self.tF) - np.exp(-lambdat * self.tI)
         # )
-
+        #
         # SpeedV = sA + sB * np.exp(-lambdat * self.t)
         # TorqueV = sAT + sBT * np.exp(-lambdat * self.t)
         # AccelV = -lambdat * sB * np.exp(-lambdat * self.t)
@@ -203,23 +207,63 @@ class MisalignmentFlex(Defect):
         self.Kmodal = ((ModMat.T).dot(self.K)).dot(ModMat)
         self.Kstmodal = ((ModMat.T).dot(self.Kst)).dot(ModMat)
 
+        # Omega = self.speedI * np.pi / 30
+
         y0 = np.zeros(24)
-        self.dt = 0.0001
-        t_eval = np.arange(self.dt, self.tF, self.dt)
+        t_eval = np.arange(self.tI, self.tF, self.dt)
+        T = t_eval
+
+        self.angular_position = (
+            self.sA * T
+            - (self.sB / self.lambdat) * np.exp(-self.lambdat * T)
+            + (self.sB / self.lambdat)
+        )
+
+        self.Omega = self.sA + self.sB * np.exp(-self.lambdat * T)
+        self.AccelV = -self.lambdat * self.sB * np.exp(-self.lambdat * T)
+
+        self.tetaUNB1 = self.angular_position + self.PhaseUnb1 + np.pi / 2
+        self.tetaUNB2 = self.angular_position + self.PhaseUnb2 + np.pi / 2
+
+        unb1x = self.MassUnb1 * (
+            (self.AccelV) * (np.cos(self.tetaUNB1))
+        ) - self.MassUnb1 * ((self.Omega ** 2)) * (np.sin(self.tetaUNB1))
+
+        unb1y = -self.MassUnb1 * (self.AccelV) * (
+            np.sin(self.tetaUNB1)
+        ) - self.MassUnb1 * (self.Omega ** 2) * (np.cos(self.tetaUNB1))
+
+        unb2x = self.MassUnb2 * (self.AccelV) * (
+            np.cos(self.tetaUNB2)
+        ) - self.MassUnb2 * (self.Omega ** 2) * (np.sin(self.tetaUNB2))
+
+        unb2y = -self.MassUnb2 * (self.AccelV) * (
+            np.sin(self.tetaUNB2)
+        ) - self.MassUnb2 * (self.Omega ** 2) * (np.cos(self.tetaUNB2))
+
+        FFunb = np.zeros((self.ndof, len(t_eval)))
+
+        FFunb[self.ndofd1, :] += unb1x
+        FFunb[self.ndofd1 + 1, :] += unb1y
+        FFunb[self.ndofd2, :] += unb2x
+        FFunb[self.ndofd2 + 1, :] += unb2y
+
+        self.Funbmodal = (self.ModMat.T).dot(FFunb)
+
         self.inv_Mmodal = np.linalg.pinv(self.Mmodal)
         t1 = time.time()
 
         x = Integrator(0, y0, self.tF, self.dt, self._equation_of_movement)
         x = x.rk45()
         t2 = time.time()
-        print(f"spend time: {t2-t1} s")
+        print(f"Time spent: {t2-t1} s")
 
         self.displacement = x[:12, :]
         self.velocity = x[12:, :]
         self.time_vector = t_eval
         self.response = self.ModMat.dot(self.displacement)
 
-    def _equation_of_movement(self, T, Y):
+    def _equation_of_movement(self, T, Y, i):
         """ Calculates the displacement and velocity using state-space representation in the modal domain.
 
         Parameters
@@ -228,6 +272,8 @@ class MisalignmentFlex(Defect):
             Iteration time.
         Y : array
             Array of displacement and velocity, in the modal domain.
+        i : int
+            Iteration step.
 
         Returns
         -------
@@ -237,56 +283,20 @@ class MisalignmentFlex(Defect):
 
         self.iteration += 1
         if self.iteration % 10000 == 0:
-            print(f"iteration: {self.iteration} \n time: {T}")
+            print(f"Iteration: {self.iteration} \n Time: {T}")
 
         positions = Y[:12]
         velocity = Y[12:]  # velocity ign space state
 
-        self.angular_position = (
-            self.sA * T
-            - (self.sB / self.lambdat) * np.exp(-self.lambdat * T)
-            + (self.sB / self.lambdat)
-        )
-
-        ft = self._force()
+        ft = self._force(self.angular_position[i])
         ftmodal = (self.ModMat.T).dot(ft)
-
-        # Omega = self.speedI * np.pi / 30
-        Omega = self.sA + self.sB * np.exp(-self.lambdat * T)
-        AccelV = -self.lambdat * self.sB * np.exp(-self.lambdat * T)
-
-        self.tetaUNB1 = self.angular_position + self.PhaseUnb1 + np.pi / 2
-        self.tetaUNB2 = self.angular_position + self.PhaseUnb2 + np.pi / 2
-
-        unb1x = self.MassUnb1 * AccelV * np.cos(self.tetaUNB1) - self.MassUnb1 * (
-            Omega ** 2
-        ) * np.sin(self.tetaUNB1)
-
-        unb1y = -self.MassUnb1 * AccelV * np.sin(self.tetaUNB1) - self.MassUnb1 * (
-            Omega ** 2
-        ) * np.cos(self.tetaUNB1)
-
-        unb2x = self.MassUnb2 * AccelV * np.cos(self.tetaUNB2) - self.MassUnb2 * (
-            Omega ** 2
-        ) * np.sin(self.tetaUNB2)
-        unb2y = -self.MassUnb2 * AccelV * np.sin(self.tetaUNB2) - self.MassUnb2 * (
-            Omega ** 2
-        ) * np.cos(self.tetaUNB2)
-        FFunb = np.zeros(self.ndof)
-
-        FFunb[self.ndofd1] += unb1x
-        FFunb[self.ndofd1 + 1] += unb1y
-        FFunb[self.ndofd2] += unb2x
-        FFunb[self.ndofd2 + 1] += unb2y
-
-        Funbmodal = (self.ModMat.T).dot(FFunb)
 
         # proper equation of movement to be integrated in time
         new_V_dot = (
             ftmodal
-            + Funbmodal
-            - ((self.Cmodal + self.Gmodal * Omega)).dot(velocity)
-            - ((self.Kmodal + self.Kstmodal * AccelV).dot(positions))
+            + self.Funbmodal[:, i]
+            - ((self.Cmodal + self.Gmodal * self.Omega[i])).dot(velocity)
+            - ((self.Kmodal + self.Kstmodal * self.AccelV[i]).dot(positions))
         ).dot(self.inv_Mmodal)
 
         new_X_dot = velocity
@@ -297,13 +307,16 @@ class MisalignmentFlex(Defect):
 
         return new_Y
 
-    def _parallel(self):
+    def _parallel(self, angular_position):
         """Reaction forces of parallel misalignment.
+        
+        angular_position : float
+                        Angular position of the shaft.
         
         Returns
         -------
         F_mis_p : array
-            Excitation force caused by the parallel misalignment on the entire system. 
+               Excitation force caused by the parallel misalignment on the entire system. 
         """
 
         F_mis_p = np.zeros(self.ndof)
@@ -319,11 +332,11 @@ class MisalignmentFlex(Defect):
                     + 2
                     * self.radius
                     * np.sqrt(self.eCOUPx ** 2 + self.eCOUPy ** 2)
-                    * np.sin(fib + self.angular_position)
+                    * np.sin(fib + angular_position)
                 )
                 - self.radius
             )
-            * np.cos(self.angular_position)
+            * np.cos(angular_position)
             + (
                 np.sqrt(
                     self.radius ** 2
@@ -332,11 +345,11 @@ class MisalignmentFlex(Defect):
                     + 2
                     * self.radius
                     * np.sqrt(self.eCOUPx ** 2 + self.eCOUPy ** 2)
-                    * np.cos(np.pi / 6 + fib + self.angular_position)
+                    * np.cos(np.pi / 6 + fib + angular_position)
                 )
                 - self.radius
             )
-            * np.cos(2 * np.pi / 3 + self.angular_position)
+            * np.cos(2 * np.pi / 3 + angular_position)
             + (
                 self.radius
                 - np.sqrt(
@@ -346,10 +359,10 @@ class MisalignmentFlex(Defect):
                     - 2
                     * self.radius
                     * np.sqrt(self.eCOUPx ** 2 + self.eCOUPy ** 2)
-                    * np.sin(np.pi / 3 + fib + self.angular_position)
+                    * np.sin(np.pi / 3 + fib + angular_position)
                 )
             )
-            * np.cos(4 * np.pi / 3 + self.angular_position)
+            * np.cos(4 * np.pi / 3 + angular_position)
         )
 
         self.mi_x = (
@@ -361,11 +374,11 @@ class MisalignmentFlex(Defect):
                     + 2
                     * self.radius
                     * np.sqrt(self.eCOUPx ** 2 + self.eCOUPy ** 2)
-                    * np.sin(fib + self.angular_position)
+                    * np.sin(fib + angular_position)
                 )
                 - self.radius
             )
-            * np.sin(self.angular_position)
+            * np.sin(angular_position)
             + (
                 np.sqrt(
                     self.radius ** 2
@@ -374,11 +387,11 @@ class MisalignmentFlex(Defect):
                     + 2
                     * self.radius
                     * np.sqrt(self.eCOUPx ** 2 + self.eCOUPy ** 2)
-                    * np.cos(np.pi / 6 + fib + self.angular_position)
+                    * np.cos(np.pi / 6 + fib + angular_position)
                 )
                 - self.radius
             )
-            * np.sin(2 * np.pi / 3 + self.angular_position)
+            * np.sin(2 * np.pi / 3 + angular_position)
             + (
                 self.radius
                 - np.sqrt(
@@ -388,10 +401,10 @@ class MisalignmentFlex(Defect):
                     - 2
                     * self.radius
                     * np.sqrt(self.eCOUPx ** 2 + self.eCOUPy ** 2)
-                    * np.sin(np.pi / 3 + fib + self.angular_position)
+                    * np.sin(np.pi / 3 + fib + angular_position)
                 )
             )
-            * np.sin(4 * np.pi / 3 + self.angular_position)
+            * np.sin(4 * np.pi / 3 + angular_position)
         )
 
         Fpy = self.kd * self.mi_y
@@ -407,8 +420,11 @@ class MisalignmentFlex(Defect):
 
         return F_mis_p
 
-    def _angular(self):
+    def _angular(self, angular_position):
         """Reaction forces of angular misalignment.
+
+        angular_position : float
+                Angular position of the shaft.
         
         Returns
         -------
@@ -419,44 +435,40 @@ class MisalignmentFlex(Defect):
 
         Fay = (
             np.abs(
-                self.Cte
-                * np.sin(self.angular_position)
-                * np.sin(self.misalignment_angle)
+                self.Cte * np.sin(angular_position) * np.sin(self.misalignment_angle)
             )
-            * np.sin(self.angular_position + np.pi)
+            * np.sin(angular_position + np.pi)
             + np.abs(
                 self.Cte
-                * np.sin(self.angular_position + 2 * np.pi / 3)
+                * np.sin(angular_position + 2 * np.pi / 3)
                 * np.sin(self.misalignment_angle)
             )
-            * np.sin(self.angular_position + np.pi + 2 * np.pi / 3)
+            * np.sin(angular_position + np.pi + 2 * np.pi / 3)
             + np.abs(
                 self.Cte
-                * np.sin(self.angular_position + 4 * np.pi / 3)
+                * np.sin(angular_position + 4 * np.pi / 3)
                 * np.sin(self.misalignment_angle)
             )
-            * np.sin(self.angular_position + np.pi + 4 * np.pi / 3)
+            * np.sin(angular_position + np.pi + 4 * np.pi / 3)
         )
 
         Fax = (
             np.abs(
-                self.Cte
-                * np.sin(self.angular_position)
-                * np.sin(self.misalignment_angle)
+                self.Cte * np.sin(angular_position) * np.sin(self.misalignment_angle)
             )
-            * np.cos(self.angular_position + np.pi)
+            * np.cos(angular_position + np.pi)
             + np.abs(
                 self.Cte
-                * np.sin(self.angular_position + 2 * np.pi / 3)
+                * np.sin(angular_position + 2 * np.pi / 3)
                 * np.sin(self.misalignment_angle)
             )
-            * np.cos(self.angular_position + np.pi + 2 * np.pi / 3)
+            * np.cos(angular_position + np.pi + 2 * np.pi / 3)
             + np.abs(
                 self.Cte
-                * np.sin(self.angular_position + 4 * np.pi / 3)
+                * np.sin(angular_position + 4 * np.pi / 3)
                 * np.sin(self.misalignment_angle)
             )
-            * np.cos(self.angular_position + np.pi + 4 * np.pi / 3)
+            * np.cos(angular_position + np.pi + 4 * np.pi / 3)
         )
 
         F_mis_a[0 + 6 * self.n1] = Fax
@@ -468,15 +480,18 @@ class MisalignmentFlex(Defect):
 
         return F_mis_a
 
-    def _combined(self):
+    def _combined(self, angular_position):
         """Reaction forces of combined (parallel and angular) misalignment.
+
+        angular_position : float
+                Angular position of the shaft.
         
         Returns
         -------
         F_misalign : array
             Excitation force caused by the parallel misalignment on the entire system.
         """
-        F_misalign = self._parallel() + self._angular()
+        F_misalign = self._parallel(angular_position) + self._angular(angular_position)
         return F_misalign
 
 
@@ -582,14 +597,17 @@ class MisalignmentRigid(Defect):
             np.exp(-self.lambdat * self.tF) - np.exp(-self.lambdat * self.tI)
         )
 
-        # THIS LINES ARE USED FOR RUN-UP EVALUATIONS, CURRENTLY DISABLED.
+        # This code below here is used for acceleration and torque application to the rotor. As of
+        # september/2020 it is unused, but might be implemented in future releases. These would be
+        # run-up and run-down operations and variations of operating conditions.
+        #
         # sAT = (
         #     TorqueI * np.exp(-lambdat * self.tF) - TorqueF * np.exp(-lambdat * self.tI)
         # ) / (np.exp(-lambdat * self.tF) - np.exp(-lambdat * self.tI))
         # sBT = (TorqueF - TorqueI) / (
         #     np.exp(-lambdat * self.tF) - np.exp(-lambdat * self.tI)
         # )
-
+        #
         # self.SpeedV = sA + sB * np.exp(-lambdat * t)
         # self.TorqueV = sAT + sBT * np.exp(-lambdat * t)
         # self.AccelV = -lambdat * sB * np.exp(-lambdat * t)
@@ -614,46 +632,7 @@ class MisalignmentRigid(Defect):
 
         self.angANG = -np.pi / 180
 
-        FFmis = np.zeros(self.ndof)
-
-        y0 = np.zeros(24)
-        t_eval = np.arange(self.dt, self.tF, self.dt)
-        self.inv_Mmodal = np.linalg.pinv(self.Mmodal)
-        t1 = time.time()
-
-        x = Integrator(0, y0, self.tF, self.dt, self._equation_of_movement)
-        x = x.rk45()
-        t2 = time.time()
-        print(f"spend time: {t2-t1} s")
-
-        self.displacement = x[:12, :]
-        self.velocity = x[12:, :]
-        self.time_vector = t_eval
-        self.response = self.ModMat.dot(self.displacement)
-
-    def _equation_of_movement(self, T, Y):
-        """ Calculates the displacement and velocity using state-space representation in the modal domain.
-
-        Parameters
-        ----------
-        T : float
-            Iteration time.
-        Y : array
-            Array of displacement and velocity, in the modal domain.
-
-        Returns
-        -------
-        new_Y :  array
-            Array of the new displacement and velocity, in the modal domain.
-        """
-        self.iteration += 1
-        if self.iteration % 10000 == 0:
-            print(f"iteration: {self.iteration} \n time: {T}")
-
-        positions = Y[:12]
-        velocity = Y[12:]  # velocity ign space state
-
-        kcoup_auxt = 1 / (
+        self.kcoup_auxt = 1 / (
             self.K[5 + 6 * self.n1, 5 + 6 * self.n1]
             + self.K[5 + 6 * self.n2, 5 + 6 * self.n2]
         )
@@ -672,65 +651,113 @@ class MisalignmentRigid(Defect):
             + self.K[5 + 6 * self.n2, 5 + 6 * self.n2]
         )
 
-        angular_position = (
+        FFmis = np.zeros(self.ndof)
+
+        # Omega = self.speedI * np.pi / 30
+
+        y0 = np.zeros(24)
+        t_eval = np.arange(self.tI, self.tF, self.dt)
+        T = t_eval
+
+        self.angular_position = (
             self.sA * T
             - (self.sB / self.lambdat) * np.exp(-self.lambdat * T)
             + (self.sB / self.lambdat)
         )
 
+        self.Omega = self.sA + self.sB * np.exp(-self.lambdat * T)
+        self.AccelV = -self.lambdat * self.sB * np.exp(-self.lambdat * T)
+
+        self.tetaUNB1 = self.angular_position + self.PhaseUnb1 + np.pi / 2
+        self.tetaUNB2 = self.angular_position + self.PhaseUnb2 + np.pi / 2
+
+        unb1x = self.MassUnb1 * (
+            (self.AccelV) * (np.cos(self.tetaUNB1))
+        ) - self.MassUnb1 * ((self.Omega ** 2)) * (np.sin(self.tetaUNB1))
+
+        unb1y = -self.MassUnb1 * (self.AccelV) * (
+            np.sin(self.tetaUNB1)
+        ) - self.MassUnb1 * (self.Omega ** 2) * (np.cos(self.tetaUNB1))
+
+        unb2x = self.MassUnb2 * (self.AccelV) * (
+            np.cos(self.tetaUNB2)
+        ) - self.MassUnb2 * (self.Omega ** 2) * (np.sin(self.tetaUNB2))
+
+        unb2y = -self.MassUnb2 * (self.AccelV) * (
+            np.sin(self.tetaUNB2)
+        ) - self.MassUnb2 * (self.Omega ** 2) * (np.cos(self.tetaUNB2))
+
+        FFunb = np.zeros((self.ndof, len(t_eval)))
+
+        FFunb[self.ndofd1, :] += unb1x
+        FFunb[self.ndofd1 + 1, :] += unb1y
+        FFunb[self.ndofd2, :] += unb2x
+        FFunb[self.ndofd2 + 1, :] += unb2y
+
+        self.Funbmodal = (self.ModMat.T).dot(FFunb)
+
+        self.inv_Mmodal = np.linalg.pinv(self.Mmodal)
+        t1 = time.time()
+
+        x = Integrator(0, y0, self.tF, self.dt, self._equation_of_movement)
+        x = x.rk45()
+        t2 = time.time()
+        print(f"Time spent: {t2-t1} s")
+
+        self.displacement = x[:12, :]
+        self.velocity = x[12:, :]
+        self.time_vector = t_eval
+        self.response = self.ModMat.dot(self.displacement)
+
+    def _equation_of_movement(self, T, Y, i):
+        """ Calculates the displacement and velocity using state-space representation in the modal domain.
+
+        Parameters
+        ----------
+        T : float
+            Iteration time.
+        Y : array
+            Array of displacement and velocity, in the modal domain.
+        i : int
+            Iteration step.
+
+        Returns
+        -------
+        new_Y :  array
+            Array of the new displacement and velocity, in the modal domain.
+        """
+        self.iteration += 1
+        if self.iteration % 10000 == 0:
+            print(f"Iteration: {self.iteration} \n Time: {T}")
+
+        positions = Y[:12]
+        velocity = Y[12:]  # velocity ign space state
+
+        positionsFis = self.ModMat.dot(positions)
+
         self.angANG = (
-            self.Kcoup_auxI * angular_position
-            + self.Kcoup_auxF * angular_position
+            self.Kcoup_auxI * self.angular_position[i]
+            + self.Kcoup_auxF * self.angular_position[i]
             + self.kCOUP
-            * kcoup_auxt
+            * self.kcoup_auxt
             * self.eCOUP
             * (
-                -positions[0 + 6 * self.n1] * np.sin(self.angANG)
-                + positions[0 + 6 * self.n2] * np.sin(self.angANG)
-                + positions[1 + 6 * self.n1] * np.cos(self.angANG)
-                - positions[1 + 6 * self.n2] * np.cos(self.angANG)
+                -positionsFis[0 + 6 * self.n1] * np.sin(self.angANG)
+                + positionsFis[0 + 6 * self.n2] * np.sin(self.angANG)
+                + positionsFis[1 + 6 * self.n1] * np.cos(self.angANG)
+                - positionsFis[1 + 6 * self.n2] * np.cos(self.angANG)
             )
         )
-        positionsFis = self.ModMat.dot(positions)
+
         Fmis, ft = self._parallel(positionsFis, self.angANG)
         ftmodal = (self.ModMat.T).dot(ft)
-
-        # Omega = self.speedI * np.pi / 30
-        Omega = self.sA + self.sB * np.exp(-self.lambdat * T)
-        AccelV = -self.lambdat * self.sB * np.exp(-self.lambdat * T)
-
-        self.tetaUNB1 = angular_position + self.PhaseUnb1 + np.pi / 2
-        self.tetaUNB2 = angular_position + self.PhaseUnb2 + np.pi / 2
-
-        unb1x = self.MassUnb1 * AccelV * np.cos(self.tetaUNB1) - self.MassUnb1 * (
-            Omega ** 2
-        ) * np.sin(self.tetaUNB1)
-
-        unb1y = -self.MassUnb1 * AccelV * np.sin(self.tetaUNB1) - self.MassUnb1 * (
-            Omega ** 2
-        ) * np.cos(self.tetaUNB1)
-
-        unb2x = self.MassUnb2 * AccelV * np.cos(self.tetaUNB2) - self.MassUnb2 * (
-            Omega ** 2
-        ) * np.sin(self.tetaUNB2)
-        unb2y = -self.MassUnb2 * AccelV * np.sin(self.tetaUNB2) - self.MassUnb2 * (
-            Omega ** 2
-        ) * np.cos(self.tetaUNB2)
-        FFunb = np.zeros(self.ndof)
-
-        FFunb[self.ndofd1] += unb1x
-        FFunb[self.ndofd1 + 1] += unb1y
-        FFunb[self.ndofd2] += unb2x
-        FFunb[self.ndofd2 + 1] += unb2y
-
-        Funbmodal = (self.ModMat.T).dot(FFunb)
 
         # proper equation of movement to be integrated in time
         new_V_dot = (
             ftmodal
-            + Funbmodal
-            - ((self.Cmodal + self.Gmodal * Omega)).dot(velocity)
-            - ((self.Kmodal + self.Kstmodal * AccelV).dot(positions))
+            + self.Funbmodal[:, i]
+            - ((self.Cmodal + self.Gmodal * self.Omega[i])).dot(velocity)
+            - ((self.Kmodal + self.Kstmodal * self.AccelV[i]).dot(positions))
         ).dot(self.inv_Mmodal)
 
         new_X_dot = velocity
@@ -758,14 +785,14 @@ class MisalignmentRigid(Defect):
 
         k_misalignbeta1 = np.array(
             [
-                -k0 * self.Kcoup_auxI * delta1 * np.cos(betam - fir),
-                -k0 * self.Kcoup_auxI * delta1 * np.sin(betam - fir),
+                k0 * self.Kcoup_auxI * delta1 * np.sin(betam + fir),
+                -k0 * self.Kcoup_auxI * delta1 * np.cos(betam + fir),
                 0,
                 0,
                 0,
                 0,
-                k0 * self.Kcoup_auxF * delta1 * np.cos(betam - fir),
-                k0 * self.Kcoup_auxF * delta1 * np.sin(betam - fir),
+                k0 * self.Kcoup_auxF * delta1 * np.sin(betam + fir),
+                -k0 * self.Kcoup_auxF * delta1 * np.cos(betam + fir),
                 0,
                 0,
                 0,
@@ -781,14 +808,14 @@ class MisalignmentRigid(Defect):
 
         F_misalign = np.array(
             [
-                -(-k0 * delta1 * np.cos(betam - fir) + k0 * delta1),
-                -k0 * delta1 * np.sin(betam - fir),
+                (-k0 * delta1 * np.cos(betam + fir) + k0 * delta1),
+                -k0 * delta1 * np.sin(betam + fir),
                 0,
                 0,
                 0,
                 self.TD - self.TL,
-                -(k0 * delta1 * np.cos(betam - fir) - k0 * delta1),
-                k0 * delta1 * np.sin(betam - fir),
+                (k0 * delta1 * np.cos(betam + fir) - k0 * delta1),
+                k0 * delta1 * np.sin(betam + fir),
                 0,
                 0,
                 0,
