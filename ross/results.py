@@ -2229,10 +2229,20 @@ class ForcedResponseResults:
                 xaxis=fig1.layout.scene.xaxis,
                 yaxis=fig1.layout.scene.yaxis,
                 zaxis=fig1.layout.scene.zaxis,
+                domain=dict(x=[0.47, 1]),
             ),
             title=dict(
-                text=f"Deflected Shape<br>Speed = {speed_str} {frequency_units}"
+                text=f"Deflected Shape<br>Speed = {speed_str} {frequency_units}",
             ),
+            legend=dict(
+                orientation="h",
+                xanchor="center",
+                yanchor="bottom",
+                x=0.5,
+                y=-0.3,
+            ),
+            width=800,
+            height=600,
             **subplot_kwargs,
         )
 
