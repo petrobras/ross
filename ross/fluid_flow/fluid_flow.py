@@ -684,7 +684,7 @@ class FluidFlow:
 
 def fluid_flow_example():
     """This function returns an instance of a simple fluid flow.
-    The purpose is to make available a simple model
+    The purpose is to make available a simple short-bearing model
     so that doctest can be written using it.
 
     Parameters
@@ -720,7 +720,7 @@ def fluid_flow_example():
 
 def fluid_flow_example2():
     """This function returns a different instance of a simple fluid flow.
-    The purpose is to make available a simple model
+    The purpose is to make available a simple medium-bearing model
     so that doctest can be written using it.
 
     Parameters
@@ -765,7 +765,7 @@ def fluid_flow_example2():
 
 def fluid_flow_example3():
     """This function returns a different instance of a simple fluid flow.
-    The purpose is to make available a simple model
+    The purpose is to make available a simple eliptical-bearing model
     so that doctest can be written using it.
 
     Parameters
@@ -778,25 +778,23 @@ def fluid_flow_example3():
     Examples
     --------
     >>> my_fluid_flow = fluid_flow_example3()
-    >>> my_fluid_flow.eccentricity
-    0.0001
+    >>> my_fluid_flow.load
+    100
     """
-    from ross.fluid_flow import fluid_flow as flow
-
     nz = 8
-    ntheta = 32 * 4
-    omega = 100.0 * 2 * np.pi / 60
+    ntheta = 32
+    omega = 2500 * np.pi / 30.0
     p_in = 0.0
     p_out = 0.0
-    radius_rotor = 1
-    h = 0.000194564
-    radius_stator = radius_rotor + h
-    length = 8 * 2 * radius_stator
-    visc = 0.015
-    rho = 860.0
-    eccentricity = 1e-4
-    attitude_angle = np.pi / 4
-    return flow.FluidFlow(
+    radius_stator = (3 * 10 ** (-2)) / 2
+    cr = 9 * 10 ** (-5)
+    m = 0.4
+    radius_rotor = radius_stator - cr
+    length = 2 * 10 ** (-2)
+    load = 100
+    viscosity = 5.449 * 10 ** (-2)
+    density = 881
+    return FluidFlow(
         nz,
         ntheta,
         length,
@@ -805,9 +803,59 @@ def fluid_flow_example3():
         p_out,
         radius_rotor,
         radius_stator,
-        visc,
-        rho,
-        eccentricity=eccentricity,
-        attitude_angle=attitude_angle,
-        immediately_calculate_pressure_matrix_numerically=False,
+        viscosity,
+        density,
+        load=load,
+        shape_geometry="eliptical",
+        preload=m
+    )
+
+
+def fluid_flow_example4():
+    """This function returns a different instance of a simple fluid flow.
+    The purpose is to make available a simple wear-bearing model
+    so that doctest can be written using it.
+
+    Parameters
+    ----------
+
+    Returns
+    -------
+    An instance of a fluid flow object.
+
+    Examples
+    --------
+    >>> my_fluid_flow = fluid_flow_example3()
+    >>> my_fluid_flow.load
+    100
+    """
+    nz = 8
+    ntheta = 32
+    omega = 1000 * np.pi / 30.0
+    p_in = 0.0
+    p_out = 0.0
+    radius_stator = (30 / 2) * 10**(-3)
+    cr = 90 * 10 ** (-5)
+    radius_rotor = radius_stator - cr
+    length = 20 * 10**(-3)
+    load = 18.9
+    viscosity = 1044 * 10 ** (-1)
+    density = 881
+    max_depth = 50 * 10 ** (-5)
+    y = 0
+    return FluidFlow(
+        nz,
+        ntheta,
+        length,
+        omega,
+        p_in,
+        p_out,
+        radius_rotor,
+        radius_stator,
+        viscosity,
+        density,
+        load=load,
+        shape_geometry="wear",
+        max_depth=max_depth,
+        displacement=y
     )
