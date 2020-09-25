@@ -825,9 +825,9 @@ def fluid_flow_example4():
 
     Examples
     --------
-    >>> my_fluid_flow = fluid_flow_example3()
+    >>> my_fluid_flow = fluid_flow_example4()
     >>> my_fluid_flow.load
-    100
+    18.9
     """
     nz = 8
     ntheta = 32
