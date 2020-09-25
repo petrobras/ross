@@ -1756,16 +1756,39 @@ class ForcedResponseResults:
         mag = self.magnitude[:, idx]
         phase = self.phase[:, idx]
         number_dof = self.rotor.number_dof
-        ndof = self.rotor.ndof
+        nodes = self.rotor.nodes
 
-        disp = np.zeros(ndof)
-        for i in range(number_dof):
-            disp[i::number_dof] = mag[i::number_dof] * np.cos(-phase[i::number_dof])
+        Mx = np.zeros_like(nodes, dtype=np.float64)
+        My = np.zeros_like(nodes, dtype=np.float64)
+        mag = mag * np.cos(-phase)
 
-        nodal_forces = self.rotor.K(speed) @ disp
+        # fmt: off
+        for i, el in enumerate(self.rotor.shaft_elements):
+            x = (-el.material.E * el.Ie / el.L ** 2) * np.array([
+                [-6, +6, -4 * el.L, -2 * el.L],
+                [+6, -6, +2 * el.L, +4 * el.L],
+            ])
+            response_x = np.array([
+                [mag[number_dof * el.n_l + 0]],
+                [mag[number_dof * el.n_r + 0]],
+                [mag[number_dof * el.n_l + 3]],
+                [mag[number_dof * el.n_r + 3]],
+            ])
 
-        Mx = np.cumsum(nodal_forces[2::number_dof])
-        My = np.cumsum(nodal_forces[3::number_dof])
+            Mx[[el.n_l, el.n_r]] += (x @ response_x).flatten()
+
+            y = (-el.material.E * el.Ie / el.L ** 2) * np.array([
+                [-6, +6, +4 * el.L, +2 * el.L],
+                [+6, -6, -2 * el.L, -4 * el.L],
+            ])
+            response_y = np.array([
+                [mag[number_dof * el.n_l + 1]],
+                [mag[number_dof * el.n_r + 1]],
+                [mag[number_dof * el.n_l + 2]],
+                [mag[number_dof * el.n_r + 2]],
+            ])
+            My[[el.n_l, el.n_r]] += (y @ response_y).flatten()
+        # fmt: on
 
         return Mx, My
 
@@ -2229,10 +2252,20 @@ class ForcedResponseResults:
                 xaxis=fig1.layout.scene.xaxis,
                 yaxis=fig1.layout.scene.yaxis,
                 zaxis=fig1.layout.scene.zaxis,
+                domain=dict(x=[0.47, 1]),
             ),
             title=dict(
-                text=f"Deflected Shape<br>Speed = {speed_str} {frequency_units}"
+                text=f"Deflected Shape<br>Speed = {speed_str} {frequency_units}",
             ),
+            legend=dict(
+                orientation="h",
+                xanchor="center",
+                yanchor="bottom",
+                x=0.5,
+                y=-0.3,
+            ),
+            width=800,
+            height=600,
             **subplot_kwargs,
         )
 
