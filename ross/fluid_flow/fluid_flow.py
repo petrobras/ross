@@ -69,21 +69,27 @@ class FluidFlow:
         'medium_size': in between short and long.
         if length/diameter <= 1/4 it is short.
         if length/diameter > 8 it is long.
-    bearing_type: str
+    bearing_type: str, optional
         type of structure. 'short_bearing': short; 'long_bearing': long;
         The default is None. In this case it is automatically calculated
         following the parameter:
         'medium_size': in between short and long.
         if length/diameter <= 1/4 it is short.
         if length/diameter > 8 it is long.
-    shape_geometry: str
+    shape_geometry: str, optional
         Determines the type of bearing geometry.
-        'cylindrical': cylindrical bearing; 'eliptical': eliptical bearing
+        'cylindrical': cylindrical bearing; 'eliptical': eliptical bearing;
+        'wear': journal bearing wear.
         The default is 'cylindrical'.
     preload: float
         Ellipticity ratio. The value must be between 0 and 1. If preload = 0
         the bearing becomes cylindrical. Not used in cylindrical bearings.
-        The default is 0.05.
+        The default is 0.4.
+    displacement : float, optional
+        Angular displacement of the bearing wear in relation to the vertical axis.
+        Only necessary if shape_geometry is wear.
+    max_depth: float
+        The maximum wear depth. Only necessary if shape_geometry is wear..
 
     Fluid characteristics
     ^^^^^^^^^^^^^^^^^^^^^
@@ -223,7 +229,9 @@ class FluidFlow:
         immediately_calculate_pressure_matrix_numerically=True,
         bearing_type=None,
         shape_geometry="cylindrical",
-        preload=0.05,
+        preload=0.4,
+        displacement=0,
+        max_depth=None,
     ):
 
         self.nz = nz
@@ -254,6 +262,8 @@ class FluidFlow:
                 self.bearing_type = "medium_size"
         self.shape_geometry = shape_geometry
         self.preload = preload
+        self.displacement = displacement
+        self.max_depth = max_depth
         self.eccentricity = eccentricity
         self.attitude_angle = attitude_angle
         self.eccentricity_ratio = None
@@ -458,7 +468,8 @@ class FluidFlow:
                 self.gama[i, j] = j * self.dtheta + start
                 [radius_external, self.xre[i, j], self.yre[i, j]] = \
                     external_radius_function(self.gama[i, j], self.radius_stator, self.radius_rotor,
-                                             shape=self.shape_geometry, m=self.preload)
+                                             shape=self.shape_geometry, preload=self.preload,
+                                             displacement=self.displacement, max_depth=self.max_depth)
                 [radius_internal, self.xri[i, j], self.yri[i, j]] = \
                     internal_radius_function(self.gama[i, j], self.attitude_angle, self.radius_rotor,
                                              self.eccentricity)
