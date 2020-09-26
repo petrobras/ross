@@ -4,7 +4,7 @@ from plotly import graph_objects as go
 from ross.plotly_theme import tableau_colors
 
 
-def plot_eccentricity(fluid_flow_object, z=0, fig=None, **kwargs):
+def plot_eccentricity(fluid_flow_object, z=0, fig=None, scale_factor=1.0, **kwargs):
     """Plot the rotor eccentricity.
 
     This function assembles pressure graphic along the z-axis.
@@ -17,6 +17,10 @@ def plot_eccentricity(fluid_flow_object, z=0, fig=None, **kwargs):
         The distance in z where to cut and plot.
     fig : Plotly graph_objects.Figure()
         The figure object with the plot.
+    scale_factor : float, optional
+        Scaling factor to plot the rotor shape. Values must range between 0 and 1
+        inclusive. 1 is the true scale (1 : 1).
+        Default is to 1.0.
     kwargs : optional
         Additional key word arguments can be passed to change the plot layout only
         (e.g. width=1000, height=800, ...).
@@ -33,61 +37,104 @@ def plot_eccentricity(fluid_flow_object, z=0, fig=None, **kwargs):
     >>> my_fluid_flow = fluid_flow_example()
     >>> fig = plot_eccentricity(my_fluid_flow, z=int(my_fluid_flow.nz/2))
     >>> # to show the plots you can use:
-    >>> # show(fig)
+    >>> # fig.show()
     """
+    if not 0 <= scale_factor <= 1:
+        raise ValueError("scale_factor value must be between 0 and 1.")
+
+    s = 0.5 * scale_factor + 0.5
+    angle = fluid_flow_object.attitude_angle
+    xre = fluid_flow_object.xre[z]
+    xri = fluid_flow_object.xri[z]
+    yre = fluid_flow_object.yre[z]
+    yri = fluid_flow_object.yri[z]
+
+    val_min = np.min(
+        np.sqrt(xre ** 2 + yre ** 2) - np.sqrt((xri * s) ** 2 + (yri * s) ** 2)
+    )
+    val_ref = np.min(np.sqrt(xre ** 2 + yre ** 2) - np.sqrt(xri ** 2 + yri ** 2))
+
     if fig is None:
         fig = go.Figure()
+
+    customdata = [
+        fluid_flow_object.attitude_angle * 180 / np.pi,
+        fluid_flow_object.eccentricity,
+        fluid_flow_object.radius_rotor,
+        fluid_flow_object.radius_stator,
+        fluid_flow_object.preload,
+        fluid_flow_object.shape_geometry,
+    ]
+    hovertemplate_rotor = (
+        "Attitude angle: {:.2f}°<br>"
+        + "Eccentricity: {:.2e}<br>"
+        + "Rotor radius: {:.2e}<br>"
+    ).format(customdata[0], customdata[1], customdata[2])
+    hovertemplate_stator = (
+        "Stator radius: {:.2e}<br>"
+        + "Ellipticity ratio: {:.2f}<br>"
+        + "Shape Geometry: {}<br>"
+    ).format(customdata[3], customdata[4], customdata[5])
+
     fig.add_trace(
         go.Scatter(
-            x=fluid_flow_object.xre[z],
-            y=fluid_flow_object.yre[z],
+            x=xre,
+            y=yre,
+            customdata=[customdata] * len(xre),
             mode="markers+lines",
             marker=dict(color=tableau_colors["red"]),
             line=dict(color=tableau_colors["red"]),
             name="Stator",
             legendgroup="Stator",
-            hovertemplate=("<b>X: %{x:.3e}</b><br>" + "<b>Y: %{y:.3e}</b>"),
+            hovertemplate=hovertemplate_stator,
         )
     )
     fig.add_trace(
         go.Scatter(
-            x=fluid_flow_object.xri[z],
-            y=fluid_flow_object.yri[z],
+            x=xri * s + s * (val_min - val_ref) * np.sin(angle),
+            y=yri * s - s * (val_min - val_ref) * np.cos(angle),
+            customdata=[customdata] * len(xre),
             mode="markers+lines",
             marker=dict(color=tableau_colors["blue"]),
             line=dict(color=tableau_colors["blue"]),
             name="Rotor",
             legendgroup="Rotor",
-            hovertemplate=("<b>X: %{x:.3e}</b><br>" + "<b>Y: %{y:.3e}</b>"),
+            hovertemplate=hovertemplate_rotor,
         )
     )
     fig.add_trace(
         go.Scatter(
-            x=[fluid_flow_object.xi],
-            y=[fluid_flow_object.yi],
-            marker=dict(color=tableau_colors["red"]),
-            name="Stator",
-            legendgroup="Stator",
+            x=np.array([fluid_flow_object.xi]) * s
+            + s * (val_min - val_ref) * np.sin(angle),
+            y=np.array([fluid_flow_object.yi]) * s
+            - s * (val_min - val_ref) * np.cos(angle),
+            customdata=[customdata],
+            marker=dict(size=8, color=tableau_colors["blue"]),
+            name="Rotor",
+            legendgroup="Rotor",
             showlegend=False,
-            hovertemplate=("<b>X: %{x:.3e}</b><br>" + "<b>Y: %{y:.3e}</b>"),
+            hovertemplate=hovertemplate_rotor,
         )
     )
     fig.add_trace(
         go.Scatter(
             x=[0],
             y=[0],
-            marker=dict(color=tableau_colors["blue"]),
-            name="Rotor",
-            legendgroup="Rotor",
+            customdata=[customdata],
+            marker=dict(size=8, color=tableau_colors["red"]),
+            name="Stator",
+            legendgroup="Stator",
             showlegend=False,
-            hovertemplate=("<b>X: %{x:.3e}</b><br>" + "<b>Y: %{y:.3e}</b>"),
+            hovertemplate=hovertemplate_stator,
         )
     )
+
     fig.update_xaxes(title_text="<b>X axis</b>")
     fig.update_yaxes(title_text="<b>Y axis</b>")
     fig.update_layout(
         title=dict(text="<b>Cut in plane Z={}</b>".format(z)),
-        yaxis=dict(scaleanchor="x", scaleratio=1, **kwargs),
+        yaxis=dict(scaleanchor="x", scaleratio=1),
+        **kwargs,
     )
 
     return fig

@@ -1,9 +1,10 @@
 import numpy as np
-from scipy.optimize import root
+from scipy.optimize import least_squares, root
 
 
 def calculate_attitude_angle(eccentricity_ratio):
     """Calculates the attitude angle based on the eccentricity ratio.
+    Suitable only for short bearings.
     Parameters
     ----------
     eccentricity_ratio: float
@@ -71,7 +72,9 @@ def internal_radius_function(gama, attitude_angle, radius_rotor, eccentricity):
     return radius_internal, xri, yri
 
 
-def external_radius_function(gama, radius_stator):
+def external_radius_function(
+    gama, radius_stator, radius_rotor=None, shape="cylindrical", m=0.05
+):
     """This function returns the x and y of the radius of the stator, as well as its distance from the
     origin, given the distance in the theta-axis and the radius of the bearing.
     Parameters
@@ -80,6 +83,16 @@ def external_radius_function(gama, radius_stator):
         Gama is the distance in the theta-axis. It should range from 0 to 2*np.pi.
     radius_stator : float
         The external radius of the bearing.
+    radius_rotor : float
+        The internal radius of the bearing.
+    shape : str
+        Determines the type of bearing geometry.
+        'cylindrical': cylindrical bearing;
+        'eliptical': eliptical bearing
+        The default is 'cylindrical'.
+    m : float
+        The ellipticity ratio of the bearing if the shape is eliptical. Varies between 0 and 1.
+        The default is 0.05.
     Returns
     -------
     radius_external: float
@@ -97,9 +110,28 @@ def external_radius_function(gama, radius_stator):
     >>> radius_external
     0.2002
     """
-    radius_external = radius_stator
-    xre = radius_external * np.cos(gama)
-    yre = radius_external * np.sin(gama)
+    if shape == "eliptical":
+        cr = radius_stator - radius_rotor
+        elip = m * cr
+        if 0 <= gama <= np.pi / 2:
+            alpha = np.pi / 2 + gama
+        elif np.pi / 2 < gama <= np.pi:
+            alpha = 3 * np.pi / 2 - gama
+        elif np.pi < gama <= 3 * np.pi / 2:
+            alpha = gama - np.pi / 2
+        else:
+            alpha = 5 * np.pi / 2 - gama
+
+        radius_external = elip * np.cos(alpha) + np.sqrt(
+            ((radius_stator) ** 2) - (elip * np.sin(alpha)) ** 2
+        )
+        xre = radius_external * np.cos(gama)
+        yre = radius_external * np.sin(gama)
+
+    else:
+        radius_external = radius_stator
+        xre = radius_external * np.cos(gama)
+        yre = radius_external * np.sin(gama)
 
     return radius_external, xre, yre
 
@@ -131,7 +163,7 @@ def reynolds_number(density, characteristic_speed, radial_clearance, viscosity):
         >>> viscosity = my_fluid_flow.viscosity
         >>> reynolds_number(density, characteristic_speed, radial_clearance, viscosity) # doctest: +ELLIPSIS
         24.01...
-        """
+    """
     return (density * characteristic_speed * radial_clearance) / viscosity
 
 
@@ -334,10 +366,43 @@ def move_rotor_center(fluid_flow_object, dx, dy):
     >>> my_fluid_flow = fluid_flow_example2()
     >>> move_rotor_center(my_fluid_flow, 0, 0)
     >>> my_fluid_flow.eccentricity # doctest: +ELLIPSIS
-    2.6627...
+    2.54...
     """
     fluid_flow_object.xi = fluid_flow_object.xi + dx
     fluid_flow_object.yi = fluid_flow_object.yi + dy
+    fluid_flow_object.eccentricity = np.sqrt(
+        fluid_flow_object.xi ** 2 + fluid_flow_object.yi ** 2
+    )
+    fluid_flow_object.eccentricity_ratio = (
+        fluid_flow_object.eccentricity / fluid_flow_object.radial_clearance
+    )
+    fluid_flow_object.attitude_angle = np.arccos(
+        abs(fluid_flow_object.yi / fluid_flow_object.eccentricity)
+    )
+
+
+def move_rotor_center_abs(fluid_flow_object, x, y):
+    """Moves the rotor center to the coordinates (x, y) and calculates new eccentricity,
+    attitude angle, and rotor center.
+    Parameters
+    ----------
+    fluid_flow_object: A FluidFlow object.
+    x: float
+        Coordinate along x axis.
+    y: float
+        Coordinate along y axis.
+    Returns
+    -------
+    None
+    --------
+    >>> from ross.fluid_flow.fluid_flow import fluid_flow_example
+    >>> my_fluid_flow = fluid_flow_example()
+    >>> move_rotor_center_abs(my_fluid_flow, 0, -1e-3*my_fluid_flow.radial_clearance)
+    >>> my_fluid_flow.eccentricity # doctest: +ELLIPSIS
+    1.99...
+    """
+    fluid_flow_object.xi = x
+    fluid_flow_object.yi = y
     fluid_flow_object.eccentricity = np.sqrt(
         fluid_flow_object.xi ** 2 + fluid_flow_object.yi ** 2
     )

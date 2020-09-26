@@ -9,7 +9,7 @@ before_install:
 - sudo apt-get install pandoc
 install:
 - pip install -e .[dev]
-before_script:
+after_script:
 - black --check ross
 - isort ross --check-only
 script:

@@ -593,11 +593,11 @@ class ST_Rotor(object):
 
         # Plotting Time Response 1D, 2D and 3D
 
-        >>> fig = results.plot(plot_type="1d", dof=dof, conf_interval=[90])
+        >>> fig = results.plot_1d(probe=[(3, np.pi / 2)], conf_interval=[90])
         >>> # fig.show()
-        >>> fig = results.plot(plot_type="2d", node=node, conf_interval=[90])
+        >>> fig = results.plot_2d(node=node, conf_interval=[90])
         >>> # fig.show()
-        >>> fig = results.plot(plot_type="3d", conf_interval=[90])
+        >>> fig = results.plot_3d(conf_interval=[90])
         >>> # fig.show()
         """
         t_size = len(time_range)
@@ -683,12 +683,11 @@ class ST_Rotor(object):
         >>> n = 3
         >>> m = np.random.uniform(0.001, 0.002, 10)
         >>> p = 0.0
-        >>> dof = 13
         >>> results = rotors.run_unbalance_response(n, m, p, freq_range)
 
         # Plotting Frequency Response with Plotly
 
-        >>> fig = results.plot(dof, conf_interval=[90])
+        >>> fig = results.plot(probe=[(3, np.pi / 2)], conf_interval=[90])
         >>> # fig.show()
         """
         RV_size = self.RV_size
@@ -737,6 +736,7 @@ class ST_Rotor(object):
             frequency_range=frequency_range,
             magnitude=mag_resp,
             phase=phs_resp,
+            number_dof=self.number_dof,
         )
 
         return results

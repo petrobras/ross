@@ -36,7 +36,7 @@ class Element(ABC):
         >>> from tempfile import tempdir
         >>> from pathlib import Path
         >>> from ross.disk_element import disk_example
-        >>> # create path for a temporary file 
+        >>> # create path for a temporary file
         >>> file = Path(tempdir) / 'disk.toml'
         >>> disk = disk_example()
         >>> disk.save(file)
@@ -77,7 +77,7 @@ class Element(ABC):
         >>> from pathlib import Path
         >>> from ross.bearing_seal_element import bearing_example
         >>> from ross.bearing_seal_element import BearingElement
-        >>> # create path for a temporary file 
+        >>> # create path for a temporary file
         >>> file = Path(tempdir) / 'bearing1.toml'
         >>> bearing1 = bearing_example()
         >>> bearing1.save(file)

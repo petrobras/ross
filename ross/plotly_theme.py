@@ -1,3 +1,4 @@
+"""Plotly theme to ROSS - Rotordynamic Open Source Sofware."""
 from plotly import graph_objects as go
 from plotly import io as pio
 
@@ -115,6 +116,11 @@ pio.templates["ross"] = go.layout.Template(
                 "ticks": "",
                 "zerolinecolor": "#EBF0F8",
                 "showspikes": False,
+            },
+            "camera": {
+                "up": {"x": 0, "y": 0, "z": 1},
+                "center": {"x": 0, "y": 0, "z": 0},
+                "eye": {"x": 2.0, "y": 2.0, "z": 2.0},
             },
         },
         "shapedefaults": {"line": {"color": "#2a3f5f"}},

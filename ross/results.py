@@ -481,7 +481,13 @@ class ModalResults:
         return xn, yn, zn, x_circles, y_circles, z_circles_pos, nn
 
     def plot_mode_3d(
-        self, mode=None, evec=None, fig=None, frequency_units="rad/s", **kwargs
+        self,
+        mode=None,
+        evec=None,
+        fig=None,
+        length_units="m",
+        frequency_units="rad/s",
+        **kwargs,
     ):
         """Plot (3D view) the mode shapes.
 
@@ -497,6 +503,9 @@ class ModalResults:
         frequency_units : str, optional
             Frequency units that will be used in the plot title.
             Default is rad/s.
+        length_units : str, optional
+            length units.
+            Default is 'm'.
         kwargs : optional
             Additional key word arguments can be passed to change the plot layout only
             (e.g. width=1000, height=800, ...).
@@ -517,7 +526,7 @@ class ModalResults:
         for node in nodes:
             fig.add_trace(
                 go.Scatter3d(
-                    x=zc_pos[10:, node],
+                    x=Q_(zc_pos[10:, node], "m").to(length_units).m,
                     y=xc[10:, node],
                     z=yc[10:, node],
                     mode="lines",
@@ -533,7 +542,7 @@ class ModalResults:
             )
             fig.add_trace(
                 go.Scatter3d(
-                    x=[zc_pos[10, node]],
+                    x=Q_([zc_pos[10, node]], "m").to(length_units).m,
                     y=[xc[10, node]],
                     z=[yc[10, node]],
                     mode="markers",
@@ -545,7 +554,7 @@ class ModalResults:
 
         fig.add_trace(
             go.Scatter3d(
-                x=zn,
+                x=Q_(zn, "m").to(length_units).m,
                 y=xn,
                 z=yn,
                 mode="lines",
@@ -561,7 +570,7 @@ class ModalResults:
         zn_cl = np.linspace(zn_cl0, zn_cl1, 30)
         fig.add_trace(
             go.Scatter3d(
-                x=zn_cl,
+                x=Q_(zn_cl, "m").to(length_units).m,
                 y=zn_cl * 0,
                 z=zn_cl * 0,
                 mode="lines",
@@ -573,7 +582,9 @@ class ModalResults:
         fig.update_layout(
             scene=dict(
                 xaxis=dict(
-                    title=dict(text="Rotor Length"), autorange="reversed", nticks=5
+                    title=dict(text=f"Rotor Length ({length_units})"),
+                    autorange="reversed",
+                    nticks=5,
                 ),
                 yaxis=dict(
                     title=dict(text="Relative Displacement"), range=[-2, 2], nticks=5
@@ -596,7 +607,13 @@ class ModalResults:
         return fig
 
     def plot_mode_2d(
-        self, mode=None, evec=None, fig=None, frequency_units="rad/s", **kwargs
+        self,
+        mode=None,
+        evec=None,
+        fig=None,
+        length_units="m",
+        frequency_units="rad/s",
+        **kwargs,
     ):
         """Plot (2D view) the mode shapes.
 
@@ -612,6 +629,9 @@ class ModalResults:
         frequency_units : str, optional
             Frequency units that will be used in the plot title.
             Default is rad/s.
+        length_units : str, optional
+            length units.
+            Default is 'm'.
         kwargs : optional
             Additional key word arguments can be passed to change the plot layout only
             (e.g. width=1000, height=800, ...).
@@ -623,12 +643,10 @@ class ModalResults:
             The figure object with the plot.
         """
         xn, yn, zn, xc, yc, zc_pos, nn = self.calc_mode_shape(mode=mode, evec=evec)
-        nodes_pos = self.nodes_pos
+        nodes_pos = Q_(self.nodes_pos, "m").to(length_units).m
 
-        vn = np.zeros(len(zn))
-        for i in range(len(zn)):
-            theta = np.arctan(xn[i] / yn[i])
-            vn[i] = xn[i] * np.sin(theta) + yn[i] * np.cos(theta)
+        theta = np.arctan(xn[0] / yn[0])
+        vn = xn * np.sin(theta) + yn * np.cos(theta)
 
         # remove repetitive values from zn and vn
         idx_remove = []
@@ -646,8 +664,8 @@ class ModalResults:
 
         fig.add_trace(
             go.Scatter(
-                x=zn,
-                y=vn,
+                x=Q_(zn, "m").to(length_units).m,
+                y=vn / vn[np.argmax(np.abs(vn))],
                 mode="lines",
                 line=dict(color=whirl_dir),
                 name="mode shape",
@@ -667,7 +685,7 @@ class ModalResults:
             )
         )
 
-        fig.update_xaxes(title_text="Rotor Length")
+        fig.update_xaxes(title_text=f"Rotor Length ({length_units})")
         fig.update_yaxes(title_text="Relative Displacement")
         fig.update_layout(
             title=dict(
@@ -1614,7 +1632,11 @@ class ForcedResponseResults:
         # fmt: on
 
         subplots = make_subplots(
-            rows=2, cols=2, specs=[[{}, {"type": "polar", "rowspan": 2}], [{}, None]]
+            rows=2,
+            cols=2,
+            specs=[[{}, {"type": "polar", "rowspan": 2}], [{}, None]],
+            shared_xaxes=True,
+            vertical_spacing=0.02,
         )
         for data in fig0["data"]:
             data.showlegend = False
@@ -1625,7 +1647,6 @@ class ForcedResponseResults:
         for data in fig2["data"]:
             subplots.add_trace(data, row=1, col=2)
 
-        subplots.update_xaxes(fig0.layout.xaxis, row=1, col=1)
         subplots.update_yaxes(fig0.layout.yaxis, row=1, col=1)
         subplots.update_xaxes(fig1.layout.xaxis, row=2, col=1)
         subplots.update_yaxes(fig1.layout.yaxis, row=2, col=1)
@@ -1639,16 +1660,14 @@ class ForcedResponseResults:
 
         return subplots
 
-    def _calculate_major_axis(self, speed, frequency_units="rad/s"):
+    def _calculate_major_axis(self, speed):
         """Calculate the major axis for each nodal orbit.
 
         Parameters
         ----------
         speed : optional, float
-            The rotor rotation speed.
-        frequency_units : str, optional
-            Frequency units.
-            Default is "rad/s"
+            The rotor rotation speed. Must be an element from the speed_range argument
+            passed to the class (rad/s).
 
         Returns
         -------
@@ -1663,7 +1682,6 @@ class ForcedResponseResults:
         nodes = self.rotor.nodes
         number_dof = self.rotor.number_dof
 
-        speed = Q_(speed, frequency_units).to("rad/s").m
         major_axis_vector = np.zeros((5, len(nodes)), dtype=complex)
         idx = np.where(np.isclose(self.speed_range, speed, atol=1e-6))[0][0]
 
@@ -1695,8 +1713,6 @@ class ForcedResponseResults:
             # Adjusting points to the same quadrant
             if ang_maj_ax > np.pi:
                 ang_maj_ax -= np.pi
-            if ang_maj_ax > np.pi / 2:
-                ang_maj_ax -= np.pi / 2
 
             major_axis_vector[0, i] = fow
             major_axis_vector[1, i] = back
@@ -1709,12 +1725,15 @@ class ForcedResponseResults:
             major_axis_vector[0] * np.exp(1j * max_major_axis_angle) +
             major_axis_vector[1] * np.exp(-1j * max_major_axis_angle)
         )
-        major_axis_vector[4] = np.abs(major_axis_vector[3])
+        major_axis_vector[4] = np.abs(
+            major_axis_vector[0] * np.exp(1j * major_axis_vector[2]) +
+            major_axis_vector[1] * np.exp(-1j * major_axis_vector[2])
+        )
         # fmt: on
 
         return major_axis_vector
 
-    def _calculate_bending_moment(self, speed, frequency_units="rad/s"):
+    def _calculate_bending_moment(self, speed):
         """Calculate the bending moment in X and Y directions.
 
         This method calculate forces and moments on nodal positions for a deflected
@@ -1723,10 +1742,8 @@ class ForcedResponseResults:
         Parameters
         ----------
         speed : float
-            The rotor rotation speed.
-        frequency_units : str, optional
-            Frequency units.
-            Default is "rad/s"
+            The rotor rotation speed. Must be an element from the speed_range argument
+            passed to the class (rad/s).
 
         Returns
         -------
@@ -1735,21 +1752,43 @@ class ForcedResponseResults:
         My : array
             Bending Moment on Y directon.
         """
-        speed = Q_(speed, frequency_units).to("rad/s").m
         idx = np.where(np.isclose(self.speed_range, speed, atol=1e-6))[0][0]
         mag = self.magnitude[:, idx]
         phase = self.phase[:, idx]
         number_dof = self.rotor.number_dof
-        ndof = self.rotor.ndof
+        nodes = self.rotor.nodes
 
-        disp = np.zeros(ndof)
-        for i in range(number_dof):
-            disp[i::number_dof] = mag[i::number_dof] * np.cos(-phase[i::number_dof])
+        Mx = np.zeros_like(nodes, dtype=np.float64)
+        My = np.zeros_like(nodes, dtype=np.float64)
+        mag = mag * np.cos(-phase)
 
-        nodal_forces = self.rotor.K(speed) @ disp
+        # fmt: off
+        for i, el in enumerate(self.rotor.shaft_elements):
+            x = (-el.material.E * el.Ie / el.L ** 2) * np.array([
+                [-6, +6, -4 * el.L, -2 * el.L],
+                [+6, -6, +2 * el.L, +4 * el.L],
+            ])
+            response_x = np.array([
+                [mag[number_dof * el.n_l + 0]],
+                [mag[number_dof * el.n_r + 0]],
+                [mag[number_dof * el.n_l + 3]],
+                [mag[number_dof * el.n_r + 3]],
+            ])
 
-        Mx = np.cumsum(nodal_forces[2::number_dof])
-        My = np.cumsum(nodal_forces[3::number_dof])
+            Mx[[el.n_l, el.n_r]] += (x @ response_x).flatten()
+
+            y = (-el.material.E * el.Ie / el.L ** 2) * np.array([
+                [-6, +6, +4 * el.L, +2 * el.L],
+                [+6, -6, -2 * el.L, -4 * el.L],
+            ])
+            response_y = np.array([
+                [mag[number_dof * el.n_l + 1]],
+                [mag[number_dof * el.n_r + 1]],
+                [mag[number_dof * el.n_l + 2]],
+                [mag[number_dof * el.n_r + 2]],
+            ])
+            My[[el.n_l, el.n_r]] += (y @ response_y).flatten()
+        # fmt: on
 
         return Mx, My
 
@@ -1768,7 +1807,7 @@ class ForcedResponseResults:
         ----------
         speed : float
             The rotor rotation speed. Must be an element from the speed_range argument
-            passed to the class.
+            passed to the class (rad/s).
         frequency_units : str, optional
             Frequency units.
             Default is "rad/s"
@@ -1790,7 +1829,6 @@ class ForcedResponseResults:
         fig : Plotly graph_objects.Figure()
             The figure object with the plot.
         """
-        speed = Q_(speed, frequency_units).to("rad/s").m
         if not any(np.isclose(self.speed_range, speed, atol=1e-6)):
             raise ValueError("No data available for this speed value.")
 
@@ -1826,7 +1864,8 @@ class ForcedResponseResults:
 
         fig.update_xaxes(title_text=f"Rotor Length ({rotor_length_units})")
         fig.update_yaxes(
-            title_text=f"Major Axis Absolute Amplitude ({displacement_units})"
+            title_text=f"Major Axis Abs Amplitude ({displacement_units})",
+            title_font=dict(size=12),
         )
         fig.update_layout(**kwargs)
 
@@ -1848,7 +1887,7 @@ class ForcedResponseResults:
         ----------
         speed : float
             The rotor rotation speed. Must be an element from the speed_range argument
-            passed to the class.
+            passed to the class (rad/s).
         samples : int, optional
             Number of samples to generate the orbit for each node.
             Default is 101.
@@ -1873,7 +1912,6 @@ class ForcedResponseResults:
         fig : Plotly graph_objects.Figure()
             The figure object with the plot.
         """
-        speed = Q_(speed, frequency_units).to("rad/s").m
         if not any(np.isclose(self.speed_range, speed, atol=1e-6)):
             raise ValueError("No data available for this speed value.")
 
@@ -2020,7 +2058,7 @@ class ForcedResponseResults:
         ----------
         speed : float
             The rotor rotation speed. Must be an element from the speed_range argument
-            passed to the class.
+            passed to the class (rad/s).
         frequency_units : str, optional
             Frequency units.
             Default is "rad/s"
@@ -2042,7 +2080,6 @@ class ForcedResponseResults:
         fig : Plotly graph_objects.Figure()
             The figure object with the plot.
         """
-        speed = Q_(speed, frequency_units).to("rad/s").m
         if not any(np.isclose(self.speed_range, speed, atol=1e-6)):
             raise ValueError("No data available for this speed value.")
 
@@ -2102,7 +2139,10 @@ class ForcedResponseResults:
         )
 
         fig.update_xaxes(title_text=f"Rotor Length ({rotor_length_units})")
-        fig.update_yaxes(title_text=f"Bending Moment ({moment_units})")
+        fig.update_yaxes(
+            title_text=f"Bending Moment ({moment_units})",
+            title_font=dict(size=12),
+        )
         fig.update_layout(**kwargs)
 
         return fig
@@ -2131,7 +2171,7 @@ class ForcedResponseResults:
         ----------
         speed : float
             The rotor rotation speed. Must be an element from the speed_range argument
-            passed to the class.
+            passed to the class (rad/s).
         samples : int, optional
             Number of samples to generate the orbit for each node.
             Default is 101.
@@ -2175,6 +2215,7 @@ class ForcedResponseResults:
         shape3d_kwargs = {} if shape3d_kwargs is None else copy.copy(shape3d_kwargs)
         bm_kwargs = {} if bm_kwargs is None else copy.copy(bm_kwargs)
         subplot_kwargs = {} if subplot_kwargs is None else copy.copy(subplot_kwargs)
+        speed_str = Q_(speed, "rad/s").to(frequency_units).m
 
         # fmt: off
         fig0 = self.plot_deflected_shape_2d(
@@ -2189,7 +2230,11 @@ class ForcedResponseResults:
         # fmt: on
 
         subplots = make_subplots(
-            rows=2, cols=2, specs=[[{}, {"type": "scene", "rowspan": 2}], [{}, None]]
+            rows=2,
+            cols=2,
+            specs=[[{}, {"type": "scene", "rowspan": 2}], [{}, None]],
+            shared_xaxes=True,
+            vertical_spacing=0.02,
         )
         for data in fig0["data"]:
             subplots.add_trace(data, row=1, col=1)
@@ -2198,7 +2243,6 @@ class ForcedResponseResults:
         for data in fig2["data"]:
             subplots.add_trace(data, row=2, col=1)
 
-        subplots.update_xaxes(fig0.layout.xaxis, row=1, col=1)
         subplots.update_yaxes(fig0.layout.yaxis, row=1, col=1)
         subplots.update_xaxes(fig2.layout.xaxis, row=2, col=1)
         subplots.update_yaxes(fig2.layout.yaxis, row=2, col=1)
@@ -2208,7 +2252,20 @@ class ForcedResponseResults:
                 xaxis=fig1.layout.scene.xaxis,
                 yaxis=fig1.layout.scene.yaxis,
                 zaxis=fig1.layout.scene.zaxis,
+                domain=dict(x=[0.47, 1]),
             ),
+            title=dict(
+                text=f"Deflected Shape<br>Speed = {speed_str} {frequency_units}",
+            ),
+            legend=dict(
+                orientation="h",
+                xanchor="center",
+                yanchor="bottom",
+                x=0.5,
+                y=-0.3,
+            ),
+            width=800,
+            height=600,
             **subplot_kwargs,
         )
 
@@ -3067,7 +3124,7 @@ class TimeResponseResults:
 
             _probe_resp = operator @ np.vstack((self.yout[:, dofx], self.yout[:, dofy]))
             probe_resp = (
-                _probe_resp[0] * np.cos(angle) ** 2  +
+                _probe_resp[0] * np.cos(angle) ** 2 +
                 _probe_resp[1] * np.sin(angle) ** 2
             )
             # fmt: on
