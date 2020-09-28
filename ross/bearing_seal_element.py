@@ -1029,7 +1029,7 @@ class BearingElement(Element):
             cyy=c[3],
             cxy=c[1],
             cyx=c[2],
-            frequency=fluid_flow.omega,
+            frequency=[fluid_flow.omega],
         )
 
 
