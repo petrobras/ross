@@ -8,8 +8,6 @@ rotors defined by the user, and return the time signals for rotor displacement.
 
 import numpy as np
 
-import ross
-
 
 class Integrator:
 
@@ -140,3 +138,4 @@ class Integrator:
             self.x0 = self.x0 + self.h
 
         return result
+

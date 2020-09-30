@@ -2364,7 +2364,15 @@ class Rotor(object):
 
         return results
 
-    def run_defect(self, defect):
+    def run_misalignment(self, defect):
+        defect.run(self)
+        return defect
+
+    def run_rubbing(self, defect):
+        defect.run(self)
+        return defect
+
+    def run_crack(self, defect):
         defect.run(self)
         return defect
 
