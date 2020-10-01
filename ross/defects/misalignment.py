@@ -77,11 +77,10 @@ class MisalignmentFlex(Defect):
     Examples
     --------
     >>> from ross.defects.misalignment import misalignment_flex_parallel_example
-    >>> misalignment = misalignment_flex_parallel_example()
     >>> probe1 = (14, 0)
     >>> probe2 = (22, 0)
-    >>> response = rotor.run_defect(misalignment)
-    >>> results = misalignment.run_time_response()
+    >>> response = misalignment_flex_parallel_example()
+    >>> results = response.run_time_response()
     >>> fig = response.plot_dfft(probe=[probe1, probe2], range_freq=[0, 100], yaxis_type="log")
     >>> # fig.show()
     """
@@ -533,11 +532,10 @@ class MisalignmentRigid(Defect):
     Examples
     --------
     >>> from ross.defects.misalignment import misalignment_rigid_example
-    >>> misalignment = misalignment_rigid_example()
     >>> probe1 = (14, 0)
     >>> probe2 = (22, 0)
-    >>> response = rotor.run_defect(misalignment)
-    >>> results = misalignment.run_time_response()
+    >>> response = misalignment_rigid_example()
+    >>> results = response.run_time_response()
     >>> fig = response.plot_dfft(probe=[probe1, probe2], range_freq=[0, 100], yaxis_type="log")
     >>> # fig.show
     """
@@ -928,7 +926,8 @@ def misalignment_flex_parallel_example():
 
     rotor = base_rotor_example()
 
-    misalignment = MisalignmentFlex(
+    misalignment = rotor.run_misalignment(
+        coupling="flex",
         dt=0.0001,
         tI=0,
         tF=30,
@@ -945,8 +944,6 @@ def misalignment_flex_parallel_example():
         phaseunb=np.array([-np.pi / 2, 0]),
         mis_type="parallel",
     )
-
-    misalignment = rotor.run_misalignment(misalignment)
 
     return misalignment
 
@@ -972,7 +969,8 @@ def misalignment_flex_angular_example():
 
     rotor = base_rotor_example()
 
-    misalignment = MisalignmentFlex(
+    misalignment = rotor.run_misalignment(
+        coupling="flex",
         dt=0.0001,
         tI=0,
         tF=30,
@@ -989,8 +987,6 @@ def misalignment_flex_angular_example():
         phaseunb=np.array([-np.pi / 2, 0]),
         mis_type="angular",
     )
-
-    misalignment = rotor.run_misalignment(misalignment)
 
     return misalignment
 
@@ -1016,7 +1012,8 @@ def misalignment_flex_combined_example():
 
     rotor = base_rotor_example()
 
-    misalignment = MisalignmentFlex(
+    misalignment = rotor.run_misalignment(
+        coupling="flex",
         dt=0.0001,
         tI=0,
         tF=30,
@@ -1033,8 +1030,6 @@ def misalignment_flex_combined_example():
         phaseunb=np.array([-np.pi / 2, 0]),
         mis_type="combined",
     )
-
-    misalignment = rotor.run_misalignment(misalignment)
 
     return misalignment
 
@@ -1060,7 +1055,8 @@ def misalignment_rigid_example():
 
     rotor = base_rotor_example()
 
-    misalignment = MisalignmentRigid(
+    misalignment = rotor.run_misalignment(
+        coupling="rigid",
         dt=0.0001,
         tI=0,
         tF=30,
@@ -1072,7 +1068,6 @@ def misalignment_rigid_example():
         massunb=np.array([5e-4, 0]),
         phaseunb=np.array([-np.pi / 2, 0]),
     )
-
     misalignment = rotor.run_misalignment(misalignment)
 
     return misalignment

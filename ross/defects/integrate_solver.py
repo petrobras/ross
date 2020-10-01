@@ -138,4 +138,3 @@ class Integrator:
             self.x0 = self.x0 + self.h
 
         return result
-
