@@ -551,6 +551,7 @@ class MisalignmentRigid(Defect):
         self.TL = TL
         self.n1 = n1
         self.n2 = n1 + 1
+        self.speed = speed
         self.speedI = speed
         self.speedF = speed
         self.MassUnb1 = massunb[0]
@@ -682,6 +683,7 @@ class MisalignmentRigid(Defect):
         ) - self.MassUnb2 * (self.Omega ** 2) * (np.cos(self.tetaUNB2))
 
         FFunb = np.zeros((self.ndof, len(t_eval)))
+        self.forces = np.zeros((self.ndof, len(t_eval)))
 
         FFunb[self.ndofd1, :] += unb1x
         FFunb[self.ndofd1 + 1, :] += unb1y
@@ -740,6 +742,7 @@ class MisalignmentRigid(Defect):
         )
 
         Fmis, ft = self._parallel(positionsFis, self.angANG)
+        self.forces[:, i] = ft
         ftmodal = (self.ModMat.T).dot(ft)
 
         # proper equation of movement to be integrated in time
