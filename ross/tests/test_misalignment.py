@@ -6,8 +6,6 @@ import numpy as np
 import pytest
 from numpy.testing import assert_allclose, assert_almost_equal
 
-# from ross.materials import steel
-# from ross.shaft_element import ShaftElement, ShaftElement6DoF
 import ross as rs
 from ross.defects.misalignment import MisalignmentFlex
 from ross.units import Q_
@@ -15,6 +13,7 @@ from ross.units import Q_
 steel = rs.materials.steel
 steel.rho = 7.85e3
 steel.E = 2.17e11
+
 #  Rotor with 6 DoFs, with internal damping, with 10 shaft elements, 2 disks and 2 bearings.
 i_d = 0
 o_d = 0.019
@@ -85,13 +84,13 @@ def mis_comb():
         dt=0.1,
         tI=0,
         tF=5,
-        kd=40 * 10 ** (3),  # Rigidez radial do acoplamento flexivel
-        ks=38 * 10 ** (3),  # Rigidez de flexão do acoplamento flexivel
-        eCOUPx=2 * 10 ** (-4),  # Distancia de desalinhamento entre os eixos - direcao x
-        eCOUPy=2 * 10 ** (-4),  # Distancia de desalinhamento entre os eixos - direcao z
-        misalignment_angle=5 * np.pi / 180,  # Angulo do desalinhamento angular (rad)
-        TD=0,  # Torque antes do acoplamento
-        TL=0,  # Torque dopois do acoplamento
+        kd=40 * 10 ** (3),
+        ks=38 * 10 ** (3),
+        eCOUPx=2 * 10 ** (-4),
+        eCOUPy=2 * 10 ** (-4),
+        misalignment_angle=5 * np.pi / 180,
+        TD=0,
+        TL=0,
         n1=0,
         speed=1200,
         massunb=massunbt,
@@ -206,13 +205,13 @@ def mis_parallel():
         dt=0.1,
         tI=0,
         tF=5,
-        kd=40 * 10 ** (3),  # Rigidez radial do acoplamento flexivel
-        ks=38 * 10 ** (3),  # Rigidez de flexão do acoplamento flexivel
-        eCOUPx=2 * 10 ** (-4),  # Distancia de desalinhamento entre os eixos - direcao x
-        eCOUPy=2 * 10 ** (-4),  # Distancia de desalinhamento entre os eixos - direcao z
-        misalignment_angle=5 * np.pi / 180,  # Angulo do desalinhamento angular (rad)
-        TD=0,  # Torque antes do acoplamento
-        TL=0,  # Torque dopois do acoplamento
+        kd=40 * 10 ** (3),
+        ks=38 * 10 ** (3),
+        eCOUPx=2 * 10 ** (-4),
+        eCOUPy=2 * 10 ** (-4),
+        misalignment_angle=5 * np.pi / 180,
+        TD=0,
+        TL=0,
         n1=0,
         speed=1200,
         massunb=massunbt,
@@ -325,13 +324,13 @@ def mis_angular():
         dt=0.1,
         tI=0,
         tF=5,
-        kd=40 * 10 ** (3),  # Rigidez radial do acoplamento flexivel
-        ks=38 * 10 ** (3),  # Rigidez de flexão do acoplamento flexivel
-        eCOUPx=2 * 10 ** (-4),  # Distancia de desalinhamento entre os eixos - direcao x
-        eCOUPy=2 * 10 ** (-4),  # Distancia de desalinhamento entre os eixos - direcao z
-        misalignment_angle=5 * np.pi / 180,  # Angulo do desalinhamento angular (rad)
-        TD=0,  # Torque antes do acoplamento
-        TL=0,  # Torque dopois do acoplamento
+        kd=40 * 10 ** (3),
+        ks=38 * 10 ** (3),
+        eCOUPx=2 * 10 ** (-4),
+        eCOUPy=2 * 10 ** (-4),
+        misalignment_angle=5 * np.pi / 180,
+        TD=0,
+        TL=0,
         n1=0,
         speed=1200,
         massunb=massunbt,
