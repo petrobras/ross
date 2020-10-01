@@ -24,6 +24,7 @@ from ross.bearing_seal_element import (BallBearingElement, BearingElement,
                                        BearingElement6DoF,
                                        MagneticBearingElement,
                                        RollerBearingElement, SealElement)
+from ross.defects import Crack, MisalignmentFlex, MisalignmentRigid, Rubbing
 from ross.disk_element import DiskElement, DiskElement6DoF
 from ross.materials import steel
 from ross.point_mass import PointMass
@@ -2364,15 +2365,98 @@ class Rotor(object):
 
         return results
 
-    def run_misalignment(self, defect):
+    def run_misalignment(self, coupling="flex", **kwargs):
+        """Execute the misalignment defect and generates the misalignment object on the back-end. There are two types of coupling, flexible (flex) and rigid, which have different entries. These entries are provided via **kwargs to the specific method.
+
+        Parameters
+        ----------
+        coupling : str
+            Coupling type. The avaible types are: flex, by default; and rigid.
+
+        **kwargs: dictionary
+        
+            In the case of coupling = "flex", **kwargs receives:
+                dt : float
+                    Time step.
+                tI : float
+                    Initial time.
+                tF : float
+                    Final time.
+                kd : float
+                    Radial stiffness of flexible coupling.
+                ks : float
+                    Bending stiffness of flexible coupling.
+                eCOUPx : float
+                    Parallel misalignment offset between driving rotor and driven rotor along X direction.
+                eCOUPy : float
+                    Parallel misalignment offset between driving rotor and driven rotor along Y direction.
+                misalignment_angle : float
+                    Angular misalignment angle.
+                TD : float
+                    Driving torque.
+                TL : float
+                    Driven torque.
+                n1 : float
+                    Node where the misalignment is ocurring.
+                speed : float
+                    Operational speed of the machine.
+                massunb : array
+                    Array with the unbalance magnitude. The unit is kg.m.
+                phaseunb : array
+                    Array with the unbalance phase. The unit is rad.
+                mis_type: string
+                    String containing the misalignment type choosed. The avaible types are: parallel, by default; angular; combined.
+
+            In the case of coupling = "rigid", **kwargs receives:
+                dt : float
+                    Time step.
+                tI : float
+                    Initial time.
+                tF : float
+                    Final time.
+                eCOUP : float
+                    Parallel misalignment offset between driving rotor and driven rotor along X direction.
+                TD : float
+                    Driving torque.
+                TL : float
+                    Driven torque.
+                n1 : float
+                    Node where the misalignment is ocurring.
+                speed : float
+                    Operational speed of the machine.
+                massunb : array
+                    Array with the unbalance magnitude. The unit is kg.m.
+                phaseunb : array
+                    Array with the unbalance phase. The unit is rad.
+
+        Examples
+        --------
+        >>> from ross.defects.misalignment import misalignment_flex_parallel_example
+        >>> probe1 = (14, 0)
+        >>> probe2 = (22, 0)
+        >>> response = misalignment_flex_parallel_example()
+        >>> results = response.run_time_response()
+        >>> fig = response.plot_dfft(probe=[probe1, probe2], range_freq=[0, 100], yaxis_type="log")
+        >>> fig.show()
+        """
+
+        if coupling == "flex" or coupling == None:
+            defect = MisalignmentFlex(**kwargs)
+        elif coupling == "rigid":
+            defect = MisalignmentRigid(**kwargs)
+        else:
+            raise Exception("Check the choosed coupling type!")
+
         defect.run(self)
         return defect
 
-    def run_rubbing(self, defect):
+    def run_rubbing(self, **kwargs):
+        defect = Rubbing(**kwargs)
         defect.run(self)
         return defect
 
-    def run_crack(self, defect):
+    def run_crack(self, **kwargs):
+        defect = Crack(**kwargs)
         defect.run(self)
         return defect
 

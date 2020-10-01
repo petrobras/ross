@@ -6,8 +6,8 @@ import plotly.graph_objects as go
 import scipy as sp
 import scipy.integrate
 import scipy.linalg
-from scipy.io import savemat
 
+from ross.results import TimeResponseResults
 from ross.units import Q_
 
 from .abs_defect import Defect
@@ -18,7 +18,7 @@ __all__ = [
 ]
 
 
-class Rubbing:
+class Rubbing(Defect):
     """Contains a rubbing model for applications on finite element models of rotative machinery.
     The reference coordenates system is: z-axis throught the shaft center; x-axis and y-axis in the sensors' planes 
 
@@ -72,6 +72,7 @@ class Rubbing:
 
     def __init__(
         self,
+        dt,
         tI,
         tF,
         # ShaftRad,  # passado do rotor
@@ -86,6 +87,7 @@ class Rubbing:
         torque=False,
     ):
 
+        self.dt = dt
         self.tI = tI
         self.tF = tF
         self.deltaRUB = deltaRUB
@@ -166,77 +168,76 @@ class Rubbing:
         self.Kstmodal = ((ModMat.T).dot(self.Kst)).dot(ModMat)
 
         y0 = np.zeros(24)
-        self.dt = 0.0001
-        t_eval = np.arange(self.dt, self.tF, self.dt)
+        t_eval = np.arange(self.tI, self.tF + self.dt, self.dt)
+        T = t_eval
+
+        self.angular_position = (
+            self.sA * T
+            - (self.sB / self.lambdat) * np.exp(-self.lambdat * T)
+            + (self.sB / self.lambdat)
+        )
+
+        self.Omega = self.sA + self.sB * np.exp(-self.lambdat * T)
+        self.AccelV = -self.lambdat * self.sB * np.exp(-self.lambdat * T)
+
+        self.tetaUNB1 = self.angular_position + self.PhaseUnb1 + np.pi / 2
+        self.tetaUNB2 = self.angular_position + self.PhaseUnb2 + np.pi / 2
+
+        unb1x = self.MassUnb1 * (
+            (self.AccelV) * (np.cos(self.tetaUNB1))
+        ) - self.MassUnb1 * ((self.Omega ** 2)) * (np.sin(self.tetaUNB1))
+
+        unb1y = -self.MassUnb1 * (self.AccelV) * (
+            np.sin(self.tetaUNB1)
+        ) - self.MassUnb1 * (self.Omega ** 2) * (np.cos(self.tetaUNB1))
+
+        unb2x = self.MassUnb2 * (self.AccelV) * (
+            np.cos(self.tetaUNB2)
+        ) - self.MassUnb2 * (self.Omega ** 2) * (np.sin(self.tetaUNB2))
+
+        unb2y = -self.MassUnb2 * (self.AccelV) * (
+            np.sin(self.tetaUNB2)
+        ) - self.MassUnb2 * (self.Omega ** 2) * (np.cos(self.tetaUNB2))
+
+        FFunb = np.zeros((self.ndof, len(t_eval)))
+
+        FFunb[self.ndofd1, :] += unb1x
+        FFunb[self.ndofd1 + 1, :] += unb1y
+        FFunb[self.ndofd2, :] += unb2x
+        FFunb[self.ndofd2 + 1, :] += unb2y
+
+        self.Funbmodal = (self.ModMat.T).dot(FFunb)
+
         self.inv_Mmodal = np.linalg.pinv(self.Mmodal)
         t1 = time.time()
 
-        x = Integrator(0, y0, self.tF, self.dt, self._equation_of_movement)
-        x = x.rk45()
+        x = Integrator(self.tI, y0, self.tF, self.dt, self._equation_of_movement)
+        x = x.rk4()
         t2 = time.time()
-        print(f"spend time: {t2-t1} s")
+        print(f"Time spent: {t2-t1} s")
 
         self.displacement = x[:12, :]
         self.velocity = x[12:, :]
         self.time_vector = t_eval
         self.response = self.ModMat.dot(self.displacement)
 
-    def _equation_of_movement(self, T, Y):
-        self.iteration += 1
-        if self.iteration % 10000 == 0:
-            print(f"iteration: {self.iteration} \n time: {T}")
+    def _equation_of_movement(self, T, Y, i):
 
         positions = Y[:12]
         velocity = Y[12:]  # velocity in space state
 
-        angular_position = (
-            self.sA * T
-            - (self.sB / self.lambdat) * np.exp(-self.lambdat * T)
-            + (self.sB / self.lambdat)
-        )
-
         positionsFis = self.ModMat.dot(positions)
         velocityFis = self.ModMat.dot(velocity)
 
-        self.tetaUNB1 = angular_position + self.PhaseUnb1
-        self.tetaUNB2 = angular_position + self.PhaseUnb2
-
-        # Omega = self.speedI * np.pi / 30
-        self.Omega = self.sA + self.sB * np.exp(-self.lambdat * T)
-        self.AccelV = -self.lambdat * self.sB * np.exp(-self.lambdat * T)
-
-        unb1x = self.MassUnb1 * self.AccelV * np.cos(self.tetaUNB1) - self.MassUnb1 * (
-            self.Omega ** 2
-        ) * np.sin(self.tetaUNB1)
-
-        unb1y = -self.MassUnb1 * self.AccelV * np.sin(self.tetaUNB1) - self.MassUnb1 * (
-            self.Omega ** 2
-        ) * np.cos(self.tetaUNB1)
-
-        unb2x = self.MassUnb2 * self.AccelV * np.cos(self.tetaUNB2) - self.MassUnb2 * (
-            self.Omega ** 2
-        ) * np.sin(self.tetaUNB2)
-        unb2y = -self.MassUnb2 * self.AccelV * np.sin(self.tetaUNB2) - self.MassUnb2 * (
-            self.Omega ** 2
-        ) * np.cos(self.tetaUNB2)
-        FFunb = np.zeros(self.ndof)
-
-        FFunb[self.ndofd1] += unb1x
-        FFunb[self.ndofd1 + 1] += unb1y
-        FFunb[self.ndofd2] += unb2x
-        FFunb[self.ndofd2 + 1] += unb2y
-
-        Funbmodal = (self.ModMat.T).dot(FFunb)
-
-        Frub, ft = self._rub(positionsFis, velocityFis)
+        Frub, ft = self._rub(positionsFis, velocityFis, self.Omega[i])
         ftmodal = (self.ModMat.T).dot(ft)
 
         # proper equation of movement to be integrated in time
         new_V_dot = (
             ftmodal
-            + Funbmodal
-            - ((self.Cmodal + self.Gmodal * self.Omega)).dot(velocity)
-            - ((self.Kmodal + self.Kstmodal * self.AccelV).dot(positions))
+            + self.Funbmodal[:, i]
+            - ((self.Cmodal + self.Gmodal * self.Omega[i])).dot(velocity)
+            - ((self.Kmodal + self.Kstmodal * self.AccelV[i]).dot(positions))
         ).dot(self.inv_Mmodal)
 
         new_X_dot = velocity
@@ -247,7 +248,7 @@ class Rubbing:
 
         return new_Y
 
-    def _rub(self, positionsFis, velocityFis):
+    def _rub(self, positionsFis, velocityFis, ang):
         self.F_k = np.zeros(self.ndof)
         self.F_c = np.zeros(self.ndof)
         self.F_f = np.zeros(self.ndof)
@@ -274,7 +275,7 @@ class Rubbing:
                 ii + self.ndof
             ] * sp.cos(self.phi_angle)
 
-            if Vt + self.Omega * self.radius > 0:
+            if Vt + ang * self.radius > 0:
                 self.F_f[ii] = -self._tangential_force(self.F_k[ii], self.F_c[ii])
                 self.F_f[ii + 1] = self._tangential_force(
                     self.F_k[ii + 1], self.F_c[ii + 1]
@@ -284,7 +285,7 @@ class Rubbing:
                     self.F_f[ii + 5] = self._torque_force(
                         self.F_f[ii], self.F_f[ii + 1], self.y[ii]
                     )
-            elif Vt + self.Omega * self.radius < 0:
+            elif Vt + ang * self.radius < 0:
                 self.F_f[ii] = self._tangential_force(self.F_k[ii], self.F_c[ii])
                 self.F_f[ii + 1] = -self._tangential_force(
                     self.F_k[ii + 1], self.F_c[ii + 1]
@@ -400,124 +401,3 @@ class Rubbing:
     @property
     def forces(self):
         pass
-
-    def plot_time_response(
-        self,
-        probe,
-        probe_units="rad",
-        displacement_units="m",
-        time_units="s",
-        fig=None,
-        **kwargs,
-    ):
-        """
-        """
-        if fig is None:
-            fig = go.Figure()
-
-        for i, p in enumerate(probe):
-            dofx = p[0] * self.rotor.number_dof
-            dofy = p[0] * self.rotor.number_dof + 1
-            angle = Q_(p[1], probe_units).to("rad").m
-
-            # fmt: off
-            operator = np.array(
-                [[np.cos(angle), - np.sin(angle)],
-                 [np.cos(angle), + np.sin(angle)]]
-            )
-
-            _probe_resp = operator @ np.vstack((self.response[dofx,:], self.response[dofy,:]))
-            probe_resp = (
-                _probe_resp[0] * np.cos(angle) ** 2  +
-                _probe_resp[1] * np.sin(angle) ** 2
-            )
-            # fmt: on
-
-            probe_resp = Q_(probe_resp, "m").to(displacement_units).m
-
-            fig.add_trace(
-                go.Scatter(
-                    x=Q_(self.time_vector, "s").to(time_units).m,
-                    y=Q_(probe_resp, "m").to(displacement_units).m,
-                    mode="lines",
-                    name=f"Probe {i + 1}",
-                    legendgroup=f"Probe {i + 1}",
-                    showlegend=True,
-                    hovertemplate=f"Time ({time_units}): %{{x:.2f}}<br>Amplitude ({displacement_units}): %{{y:.2e}}",
-                )
-            )
-
-        fig.update_xaxes(title_text=f"Time ({time_units})")
-        fig.update_yaxes(title_text=f"Amplitude ({displacement_units})")
-        fig.update_layout(**kwargs)
-
-        return fig
-
-    def plot_dfft(
-        self, probe, probe_units="rad", fig=None, log=False, **kwargs,
-    ):
-        """
-        """
-        if fig is None:
-            fig = go.Figure()
-
-        for i, p in enumerate(probe):
-            dofx = p[0] * self.rotor.number_dof
-            dofy = p[0] * self.rotor.number_dof + 1
-            angle = Q_(p[1], probe_units).to("rad").m
-
-            # fmt: off
-            operator = np.array(
-                [[np.cos(angle), - np.sin(angle)],
-                 [np.cos(angle), + np.sin(angle)]]
-            )
-            row, cols = self.response.shape
-            _probe_resp = operator @ np.vstack((self.response[dofx,int(2*cols/3):], self.response[dofy,int(2*cols/3):]))
-            probe_resp = (
-                _probe_resp[0] * np.cos(angle) ** 2  +
-                _probe_resp[1] * np.sin(angle) ** 2
-            )
-            # _probe_resp = operator @ np.vstack((self.response[dofx,200000:], self.response[dofy,200000:]))
-            # probe_resp = (
-            #     _probe_resp[0] * np.cos(angle) ** 2  +
-            #     _probe_resp[1] * np.sin(angle) ** 2
-            # )
-            # fmt: on
-
-            amp, freq = self._dfft(probe_resp, self.dt)
-
-            fig.add_trace(
-                go.Scatter(
-                    x=freq,
-                    y=amp,
-                    mode="lines",
-                    name=f"Probe {i + 1}",
-                    legendgroup=f"Probe {i + 1}",
-                    showlegend=True,
-                    hovertemplate=f"Frequency (Hz): %{{x:.2f}}<br>Amplitude (m): %{{y:.2e}}",
-                )
-            )
-
-        fig.update_xaxes(title_text=f"Frequency (Hz)")
-        fig.update_yaxes(title_text=f"Amplitude (m)")
-        fig.update_layout(**kwargs)
-
-        if log:
-            fig.update_layout(yaxis_type="log")
-
-        return fig
-
-    def _dfft(self, x, dt):
-        b = np.floor(len(x) / 2)
-        c = len(x)
-        df = 1 / (c * dt)
-
-        x_amp = sp.fft(x)[: int(b)]
-        x_amp = x_amp * 2 / c
-        x_phase = np.angle(x_amp)
-        x_amp = np.abs(x_amp)
-
-        freq = np.arange(0, df * b, df)
-        freq = freq[: int(b)]  # Frequency vector
-
-        return x_amp, freq
