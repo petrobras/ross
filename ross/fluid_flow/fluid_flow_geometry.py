@@ -149,40 +149,17 @@ def external_radius_function(
             theta_f = 2 * np.pi + theta_f_0
             theta_0 = theta_s + (theta_f - theta_s) / 2
 
-            A = np.array(
-                [
-                    [theta_s ** 2, theta_s, 1],
-                    [theta_f ** 2, theta_f, 1],
-                    [theta_0 ** 2, theta_0, 1],
-                ]
-            )
-            f = np.array([0, 0, max_depth])
-            C = np.linalg.solve(A, f)
-
-            def wear_description(x):
-                """Calculates the parabola that defines the wear depth at each angle.
-                Parameters
-                ----------
-                x: float
-                    The distance in the theta-axis
-                Returns
-                -------
-                float
-                    Depth of wear at each angle.
-                """
-                return C[0] * x ** 2 + C[1] * x + C[2]
-
             if theta_f <= 2 * np.pi:
                 if theta_s <= gama <= theta_f:
-                    d_theta = wear_description(gama)
+                    d_theta = max_depth - cr * (1 + np.cos(gama - np.pi / 2 - displacement))
                 else:
                     d_theta = 0
             else:
                 if theta_s <= gama <= 2 * np.pi:
-                    d_theta = wear_description(gama)
+                    d_theta = max_depth - cr * (1 + np.cos(gama - np.pi / 2 - displacement))
                 elif 0 <= gama <= theta_f_0:
                     gama2 = gama + 2 * np.pi
-                    d_theta = wear_description(gama2)
+                    d_theta = max_depth - cr * (1 + np.cos(gama2 - np.pi / 2 - displacement))
                 else:
                     d_theta = 0
 
