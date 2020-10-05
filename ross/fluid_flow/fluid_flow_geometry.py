@@ -140,14 +140,13 @@ def external_radius_function(
         yre = radius_external * np.sin(gama)
 
     elif shape == "wear":
-        if max_depth ==0:
+        if max_depth == 0:
             d_theta = 0
         else:
             cr = radius_stator - radius_rotor
             theta_s = np.pi / 2 + np.arccos(max_depth / cr - 1) + displacement
             theta_f_0 = np.pi / 2 - np.arccos(max_depth / cr - 1) + displacement
             theta_f = 2 * np.pi + theta_f_0
-            theta_0 = theta_s + (theta_f - theta_s) / 2
 
             if theta_f <= 2 * np.pi:
                 if theta_s <= gama <= theta_f:
