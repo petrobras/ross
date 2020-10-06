@@ -835,14 +835,14 @@ def fluid_flow_example4():
     p_in = 0.0
     p_out = 0.0
     radius_stator = (30 / 2) * 10**(-3)
-    cr = 90 * 10 ** (-5)
+    cr = 90 * 10 ** (-6)
     radius_rotor = radius_stator - cr
     length = 20 * 10**(-3)
     load = 18.9
-    viscosity = 1044 * 10 ** (-1)
+    viscosity = 1.044/10.0
     density = 881
-    max_depth = 50 * 10 ** (-5)
-    y = 0
+    max_depth = 50 * 10 ** (-6)
+    y = 10 * np.pi / 180
     return FluidFlow(
         nz,
         ntheta,
