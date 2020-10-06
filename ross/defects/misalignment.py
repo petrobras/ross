@@ -844,9 +844,9 @@ def base_rotor_example():
     0.003844540885417
     """
 
-    steel = ross.materials.steel
-    steel.rho = 7.85e3
-    steel.E = 2.17e11
+    steel2 = ross.materials.steel
+    steel2.rho = 7.85e3
+    steel2.E = 2.17e11
     #  Rotor with 6 DoFs, with internal damping, with 10 shaft elements, 2 disks and 2 bearings.
     i_d = 0
     o_d = 0.019
@@ -865,7 +865,7 @@ def base_rotor_example():
 
     shaft_elem = [
         ross.ShaftElement6DoF(
-            material=steel,
+            material=steel2,
             L=l,
             idl=i_d,
             odl=o_d,
