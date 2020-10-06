@@ -24,7 +24,8 @@ from ross.bearing_seal_element import (BallBearingElement, BearingElement,
                                        BearingElement6DoF,
                                        MagneticBearingElement,
                                        RollerBearingElement, SealElement)
-from ross.defects import Crack, MisalignmentFlex, MisalignmentRigid, Rubbing
+from ross.defects import MisalignmentFlex, MisalignmentRigid
+# from ross.defects import Crack, MisalignmentFlex, MisalignmentRigid, Rubbing
 from ross.disk_element import DiskElement, DiskElement6DoF
 from ross.materials import steel
 from ross.point_mass import PointMass
@@ -2450,15 +2451,15 @@ class Rotor(object):
         defect.run(self)
         return defect
 
-    def run_rubbing(self, **kwargs):
-        defect = Rubbing(**kwargs)
-        defect.run(self)
-        return defect
+    # def run_rubbing(self, **kwargs):
+    #     defect = Rubbing(**kwargs)
+    #     defect.run(self)
+    #     return defect
 
-    def run_crack(self, **kwargs):
-        defect = Crack(**kwargs)
-        defect.run(self)
-        return defect
+    # def run_crack(self, **kwargs):
+    #     defect = Crack(**kwargs)
+    #     defect.run(self)
+    #     return defect
 
     def save_mat(self, file, speed, frequency=None):
         """Save matrices and rotor model to a .mat file.
