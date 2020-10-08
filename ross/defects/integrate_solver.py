@@ -38,15 +38,14 @@ class Integrator:
 
     """
 
-    def __init__(
-        self, x0, y0, x, h, func,
-    ):
+    def __init__(self, x0, y0, x, h, func, print_progress=False):
 
         self.x0 = x0
         self.y0 = y0
         self.x = x
         self.h = h
         self.func = func
+        self.print_progress = print_progress
 
     def rk4(self):
         # Runge-Kutta 4th order (RK4)
@@ -63,7 +62,7 @@ class Integrator:
         # 4th-order Runge-Kutta
 
         for i in range(1, n + 1):
-            if i % 10000 == 0:
+            if i % 10000 == 0 and self.print_progress:
                 print(f"Iteration: {i} \n Time: {self.x0}")
 
             "Apply Runge Kutta Formulas to find next value of y"
@@ -94,7 +93,7 @@ class Integrator:
         result[:, 0] = self.y0
 
         for i in range(1, n + 1):
-            if i % 1000 == 0:
+            if i % 10000 == 0 and self.print_progress:
                 print(f"Iteration: {i} \n Time: {self.x0}")
 
             "Apply Runge Kutta Formulas to find next value of y"

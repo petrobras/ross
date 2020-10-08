@@ -63,6 +63,9 @@ class MisalignmentFlex(Defect):
         Array with the unbalance phase. The unit is rad.
     mis_type: string
         String containing the misalignment type choosed. The avaible types are: parallel, by default; angular; combined.
+    print_progress : bool
+        Set it True, to print the time iterations and the total time spent.
+        False by default.
     
     Returns
     -------
@@ -102,6 +105,7 @@ class MisalignmentFlex(Defect):
         massunb,
         phaseunb,
         mis_type,
+        print_progress=False,
     ):
         self.dt = dt
         self.tI = tI
@@ -125,6 +129,7 @@ class MisalignmentFlex(Defect):
         self.speedF = speed
 
         self.mis_type = mis_type
+        self.print_progress = print_progress
 
         if self.mis_type is None or self.mis_type == "parallel":
             self._force = self._parallel
@@ -254,10 +259,18 @@ class MisalignmentFlex(Defect):
 
         self.ft_modal = (self.ModMat.T).dot(self.forces).T
 
-        x = Integrator(self.tI, y0, self.tF, self.dt, self._equation_of_movement)
+        x = Integrator(
+            self.tI,
+            y0,
+            self.tF,
+            self.dt,
+            self._equation_of_movement,
+            self.print_progress,
+        )
         x = x.rk45()
         t2 = time.time()
-        print(f"Time spent: {t2-t1} s")
+        if self.print_progress:
+            print(f"Time spent: {t2-t1} s")
 
         self.displacement = x[:12, :]
         self.velocity = x[12:, :]
@@ -519,6 +532,9 @@ class MisalignmentRigid(Defect):
         Array with the unbalance magnitude. The unit is kg.m.
     phaseunb : array
         Array with the unbalance phase. The unit is rad.
+    print_progress : bool
+        Set it True, to print the time iterations and the total time spent.
+        False by default.
 
     Returns
     -------
@@ -541,7 +557,18 @@ class MisalignmentRigid(Defect):
     """
 
     def __init__(
-        self, dt, tI, tF, eCOUP, TD, TL, n1, speed, massunb, phaseunb,
+        self,
+        dt,
+        tI,
+        tF,
+        eCOUP,
+        TD,
+        TL,
+        n1,
+        speed,
+        massunb,
+        phaseunb,
+        print_progress=False,
     ):
         self.dt = dt
         self.tI = tI
@@ -559,6 +586,7 @@ class MisalignmentRigid(Defect):
         self.PhaseUnb1 = phaseunb[0]
         self.PhaseUnb2 = phaseunb[1]
         self.DoF = np.arange((self.n1 * 6), (self.n2 * 6 + 6))
+        self.print_progress = print_progress
 
     def run(self, rotor):
         """Calculates the shaft angular position and the misalignment amount at X directions.
@@ -695,10 +723,18 @@ class MisalignmentRigid(Defect):
         self.inv_Mmodal = np.linalg.pinv(self.Mmodal)
         t1 = time.time()
 
-        x = Integrator(self.tI, y0, self.tF, self.dt, self._equation_of_movement)
+        x = Integrator(
+            self.tI,
+            y0,
+            self.tF,
+            self.dt,
+            self._equation_of_movement,
+            self.print_progress,
+        )
         x = x.rk45()
         t2 = time.time()
-        print(f"Time spent: {t2-t1} s")
+        if self.print_progress:
+            print(f"Time spent: {t2-t1} s")
 
         self.displacement = x[:12, :]
         self.velocity = x[12:, :]
@@ -840,13 +876,10 @@ def base_rotor_example():
     Examples
     --------
     >>> rotor = base_rotor_example()
-    >>> rotor.Id[0]
-    0.003844540885417
+    >>> rotor.Ip
+    0.015118294226367068
     """
-
-    steel2 = ross.materials.steel
-    steel2.rho = 7.85e3
-    steel2.E = 2.17e11
+    steel2 = ross.Material(name="Steel", rho=7850, E=2.17e11, G_s=81.2e9)
     #  Rotor with 6 DoFs, with internal damping, with 10 shaft elements, 2 disks and 2 bearings.
     i_d = 0
     o_d = 0.019
@@ -923,8 +956,8 @@ def misalignment_flex_parallel_example():
     Examples
     --------
     >>> misalignment = misalignment_flex_parallel_example()
-    >>> misalignment.speed[0]
-    1200.0
+    >>> misalignment.speed
+    1200
     """
 
     rotor = base_rotor_example()
@@ -946,6 +979,7 @@ def misalignment_flex_parallel_example():
         massunb=np.array([5e-4, 0]),
         phaseunb=np.array([-np.pi / 2, 0]),
         mis_type="parallel",
+        print_progress=False,
     )
 
     return misalignment
@@ -966,8 +1000,8 @@ def misalignment_flex_angular_example():
     Examples
     --------
     >>> misalignment = misalignment_flex_angular_example()
-    >>> misalignment.speed[0]
-    1200.0
+    >>> misalignment.speed
+    1200
     """
 
     rotor = base_rotor_example()
@@ -989,6 +1023,7 @@ def misalignment_flex_angular_example():
         massunb=np.array([5e-4, 0]),
         phaseunb=np.array([-np.pi / 2, 0]),
         mis_type="angular",
+        print_progress=False,
     )
 
     return misalignment
@@ -1009,8 +1044,8 @@ def misalignment_flex_combined_example():
     Examples
     --------
     >>> misalignment = misalignment_flex_combined_example()
-    >>> misalignment.speed[0]
-    1200.0
+    >>> misalignment.speed
+    1200
     """
 
     rotor = base_rotor_example()
@@ -1032,6 +1067,7 @@ def misalignment_flex_combined_example():
         massunb=np.array([5e-4, 0]),
         phaseunb=np.array([-np.pi / 2, 0]),
         mis_type="combined",
+        print_progress=False,
     )
 
     return misalignment
@@ -1052,8 +1088,8 @@ def misalignment_rigid_example():
     Examples
     --------
     >>> misalignment = misalignment_rigid_example()
-    >>> misalignment.speed[0]
-    1200.0
+    >>> misalignment.speed
+    1200
     """
 
     rotor = base_rotor_example()
@@ -1070,7 +1106,7 @@ def misalignment_rigid_example():
         speed=1200,
         massunb=np.array([5e-4, 0]),
         phaseunb=np.array([-np.pi / 2, 0]),
+        print_progress=False,
     )
-    misalignment = rotor.run_misalignment(misalignment)
 
     return misalignment

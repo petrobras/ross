@@ -2407,6 +2407,9 @@ class Rotor(object):
                     Array with the unbalance phase. The unit is rad.
                 mis_type: string
                     String containing the misalignment type choosed. The avaible types are: parallel, by default; angular; combined.
+                print_progress : bool
+                    Set it True, to print the time iterations and the total time spent.
+                    False by default.
 
             In the case of coupling = "rigid", **kwargs receives:
                 dt : float
@@ -2429,6 +2432,9 @@ class Rotor(object):
                     Array with the unbalance magnitude. The unit is kg.m.
                 phaseunb : array
                     Array with the unbalance phase. The unit is rad.
+                print_progress : bool
+                    Set it True, to print the time iterations and the total time spent.
+                    False by default.
 
         Examples
         --------
@@ -2438,7 +2444,7 @@ class Rotor(object):
         >>> response = misalignment_flex_parallel_example()
         >>> results = response.run_time_response()
         >>> fig = response.plot_dfft(probe=[probe1, probe2], range_freq=[0, 100], yaxis_type="log")
-        >>> fig.show()
+        >>> # fig.show()
         """
 
         if coupling == "flex" or coupling == None:

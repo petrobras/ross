@@ -10,9 +10,7 @@ import ross as rs
 from ross.defects.misalignment import MisalignmentFlex
 from ross.units import Q_
 
-steel2 = rs.materials.steel
-steel2.rho = 7.85e3
-steel2.E = 2.17e11
+steel2 = rs.Material(name="Steel", rho=7850, E=2.17e11, G_s=81.2e9)
 
 #  Rotor with 6 DoFs, with internal damping, with 10 shaft elements, 2 disks and 2 bearings.
 i_d = 0
