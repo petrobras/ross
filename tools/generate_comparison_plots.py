@@ -1,16 +1,11 @@
-import os.path
 import sys
-
-sys.path.append(
-    os.path.abspath(os.path.join(os.path.dirname(__file__), os.path.pardir))
-)
-
 from pathlib import Path
 
 import numpy as np
 import plotly.io as pio
 from jinja2 import Environment, FileSystemLoader
 
+sys.path.append(str(Path(__file__).parent.parent))
 import ross as rs
 
 dir_path = Path(__file__).parent
