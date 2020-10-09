@@ -5,7 +5,7 @@ repos:
     - id: black
       language_version: python3.7
 
--   repo: https://github.com/pre-commit/mirrors-isort
+-   repo: https://github.com/timothycrosley/isort
     rev: ''
     hooks:
       - id: isort
