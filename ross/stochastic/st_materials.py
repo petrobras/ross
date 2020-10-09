@@ -91,7 +91,12 @@ class ST_Material:
             Poisson = np.asarray(Poisson)
 
         attribute_dict = dict(
-            name=name, rho=rho, E=E, G_s=G_s, Poisson=Poisson, color=color,
+            name=name,
+            rho=rho,
+            E=E,
+            G_s=G_s,
+            Poisson=Poisson,
+            color=color,
         )
         self.is_random = is_random
         self.attribute_dict = attribute_dict

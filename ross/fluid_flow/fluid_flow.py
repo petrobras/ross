@@ -4,6 +4,7 @@ import sys
 import numpy as np
 import scipy as sp
 
+from ross.fluid_flow.fluid_flow_coefficients import find_equilibrium_position
 from ross.fluid_flow.fluid_flow_geometry import (calculate_attitude_angle,
                                                  calculate_eccentricity_ratio,
                                                  calculate_rotor_load,
@@ -61,6 +62,34 @@ class FluidFlow:
         The center of the stator is in position (0,0).
     attitude_angle: float, optional
         Attitude angle. Angle between the load line and the eccentricity (rad).
+    bearing_type: str
+        type of structure. 'short_bearing': short; 'long_bearing': long;
+        The default is None. In this case it is automatically calculated
+        following the parameter:
+        'medium_size': in between short and long.
+        if length/diameter <= 1/4 it is short.
+        if length/diameter > 8 it is long.
+    bearing_type: str, optional
+        type of structure. 'short_bearing': short; 'long_bearing': long;
+        The default is None. In this case it is automatically calculated
+        following the parameter:
+        'medium_size': in between short and long.
+        if length/diameter <= 1/4 it is short.
+        if length/diameter > 8 it is long.
+    shape_geometry: str, optional
+        Determines the type of bearing geometry.
+        'cylindrical': cylindrical bearing; 'eliptical': eliptical bearing;
+        'wear': journal bearing wear.
+        The default is 'cylindrical'.
+    preload: float
+        Ellipticity ratio. The value must be between 0 and 1. If preload = 0
+        the bearing becomes cylindrical. Not used in cylindrical bearings.
+        The default is 0.4.
+    displacement : float, optional
+        Angular displacement of the bearing wear in relation to the vertical axis.
+        Only necessary if shape_geometry is wear.
+    max_depth: float
+        The maximum wear depth. Only necessary if shape_geometry is wear..
 
     Fluid characteristics
     ^^^^^^^^^^^^^^^^^^^^^
@@ -198,9 +227,13 @@ class FluidFlow:
         load=None,
         omegap=None,
         immediately_calculate_pressure_matrix_numerically=True,
+        bearing_type=None,
+        shape_geometry="cylindrical",
+        preload=0.4,
+        displacement=0,
+        max_depth=None,
     ):
-        if load is None and eccentricity is None:
-            sys.exit("Either load or eccentricity must be given.")
+
         self.nz = nz
         self.ntheta = ntheta
         self.n_interv_z = nz - 1
@@ -219,70 +252,123 @@ class FluidFlow:
         self.density = density
         self.characteristic_speed = self.omega * self.radius_rotor
         self.radial_clearance = self.radius_stator - self.radius_rotor
-        self.bearing_type = ""
-        if self.length / (2 * self.radius_stator) <= 1 / 4:
-            self.bearing_type = "short_bearing"
-        elif self.length / (2 * self.radius_stator) > 4:
-            self.bearing_type = "long_bearing"
-        else:
-            self.bearing_type = "medium_size"
+        self.bearing_type = bearing_type
+        if bearing_type is None:
+            if self.length / (2 * self.radius_stator) <= 1 / 4:
+                self.bearing_type = "short_bearing"
+            elif self.length / (2 * self.radius_stator) > 4:
+                self.bearing_type = "long_bearing"
+            else:
+                self.bearing_type = "medium_size"
+        self.shape_geometry = shape_geometry
+        self.preload = preload
+        self.displacement = displacement
+        self.max_depth = max_depth
         self.eccentricity = eccentricity
+        self.attitude_angle = attitude_angle
         self.eccentricity_ratio = None
         self.load = load
-        if self.eccentricity is None:
-            modified_s = modified_sommerfeld_number(
-                self.radius_stator,
-                self.omega,
-                self.viscosity,
-                self.length,
-                self.load,
-                self.radial_clearance,
-            )
-            self.eccentricity = (
-                calculate_eccentricity_ratio(modified_s) * self.radial_clearance
-            )
+
         self.omegap = omegap
         if self.omegap is None:
             self.omegap = self.omega
         else:
             self.omegap = omegap
-        self.eccentricity_ratio = self.eccentricity / self.radial_clearance
-        if self.load is None:
-            self.load = calculate_rotor_load(
-                self.radius_stator,
-                self.omega,
-                self.viscosity,
-                self.length,
-                self.radial_clearance,
-                self.eccentricity_ratio,
-            )
-        if attitude_angle is None:
-            self.attitude_angle = calculate_attitude_angle(self.eccentricity_ratio)
-        else:
-            self.attitude_angle = attitude_angle
-        self.xi = self.eccentricity * np.cos(3 * np.pi / 2 + self.attitude_angle)
-        self.yi = self.eccentricity * np.sin(3 * np.pi / 2 + self.attitude_angle)
+        self.z_list = np.zeros(self.nz)
         self.re = np.zeros([self.nz, self.ntheta])
         self.ri = np.zeros([self.nz, self.ntheta])
         self.xre = np.zeros([self.nz, self.ntheta])
         self.xri = np.zeros([self.nz, self.ntheta])
         self.yre = np.zeros([self.nz, self.ntheta])
         self.yri = np.zeros([self.nz, self.ntheta])
-        self.z_list = np.zeros(self.nz)
         self.gama = np.zeros([self.nz, self.ntheta])
         self.t = 0
         self.xp = 0
         self.yp = 0
+        if (
+            self.bearing_type == "short_bearing"
+            and self.shape_geometry == "cylindrical"
+        ):
+            if self.eccentricity is None and load is not None:
+                modified_s = modified_sommerfeld_number(
+                    self.radius_stator,
+                    self.omega,
+                    self.viscosity,
+                    self.length,
+                    self.load,
+                    self.radial_clearance,
+                )
+                self.eccentricity_ratio = calculate_eccentricity_ratio(modified_s)
+                self.eccentricity = (
+                    calculate_eccentricity_ratio(modified_s) * self.radial_clearance
+                )
+                if attitude_angle is None:
+                    self.attitude_angle = calculate_attitude_angle(
+                        self.eccentricity_ratio
+                    )
+            elif self.eccentricity is not None and load is not None:
+                modified_s = modified_sommerfeld_number(
+                    self.radius_stator,
+                    self.omega,
+                    self.viscosity,
+                    self.length,
+                    self.load,
+                    self.radial_clearance,
+                )
+                self.eccentricity_ratio = calculate_eccentricity_ratio(modified_s)
+                if attitude_angle is None:
+                    self.attitude_angle = calculate_attitude_angle(
+                        self.eccentricity_ratio
+                    )
+            elif eccentricity is not None and load is None:
+                self.eccentricity_ratio = self.eccentricity / self.radial_clearance
+                self.load = calculate_rotor_load(
+                    self.radius_stator,
+                    self.omega,
+                    self.viscosity,
+                    self.length,
+                    self.radial_clearance,
+                    self.eccentricity_ratio,
+                )
+                if attitude_angle is None:
+                    self.attitude_angle = calculate_attitude_angle(
+                        self.eccentricity_ratio
+                    )
+            else:
+                sys.exit("Either load or eccentricity must be given.")
+
+            self.xi = self.eccentricity * np.cos(3 * np.pi / 2 + self.attitude_angle)
+            self.yi = self.eccentricity * np.sin(3 * np.pi / 2 + self.attitude_angle)
+            self.geometry_description()
+
+        else:
+            if load is not None:
+                find_equilibrium_position(self)
+                if eccentricity is not None:
+                    self.eccentricity = eccentricity
+                if attitude_angle is not None:
+                    self.attitude_angle = attitude_angle
+            else:
+                if attitude_angle is None:
+                    sys.exit("Attitude angle or load must be given.")
+                if eccentricity is None:
+                    sys.exit("Eccentricity or load must be given.")
+            self.geometry_description()
+            self.eccentricity_ratio = self.eccentricity / self.radial_clearance
+            self.xi = self.eccentricity * np.cos(3 * np.pi / 2 + self.attitude_angle)
+            self.yi = self.eccentricity * np.sin(3 * np.pi / 2 + self.attitude_angle)
+
         self.p_mat_analytical = np.zeros([self.nz, self.ntheta])
         self.p_mat_numerical = np.zeros([self.nz, self.ntheta])
-        self.geometry_description()
         self.analytical_pressure_matrix_available = False
         self.numerical_pressure_matrix_available = False
+
         if immediately_calculate_pressure_matrix_numerically:
             self.calculate_pressure_matrix_numerical()
 
     def calculate_pressure_matrix_analytical(self, method=0, force_type=None):
-        """This function calculates the pressure matrix analytically.
+        """This function calculates the pressure matrix analytically
+        for the cylindrical bearing.
         Parameters
         ----------
         method: int
@@ -337,35 +423,26 @@ class FluidFlow:
                 for i in range(0, self.nz):
                     for j in range(0, self.ntheta):
                         self.p_mat_analytical[i, j] = (
-                            (
-                                6
-                                * self.viscosity
-                                * self.omega
-                                * (self.radius_rotor / self.radial_clearance) ** 2
-                                * self.eccentricity_ratio
-                                * np.sin(self.dtheta * j)
-                                * (
-                                    2
-                                    + self.eccentricity_ratio * np.cos(self.dtheta * j)
-                                )
-                            )
-                            / (
-                                (2 + self.eccentricity_ratio ** 2)
-                                * (
-                                    1
-                                    + self.eccentricity_ratio * np.cos(self.dtheta * j)
-                                )
-                                ** 2
-                            )
-                            + self.p_in
-                        )
+                            6
+                            * self.viscosity
+                            * self.omega
+                            * (self.radius_rotor / self.radial_clearance) ** 2
+                            * self.eccentricity_ratio
+                            * np.sin(self.dtheta * j)
+                            * (2 + self.eccentricity_ratio * np.cos(self.dtheta * j))
+                        ) / (
+                            (2 + self.eccentricity_ratio ** 2)
+                            * (1 + self.eccentricity_ratio * np.cos(self.dtheta * j))
+                            ** 2
+                        ) + self.p_in
                         if self.p_mat_analytical[i, j] < 0:
                             self.p_mat_analytical[i, j] = 0
-        elif self.bearing_type == "medium_size":
+        elif self.bearing_type == "medium_size" or self.shape_geometry != "cylindrical":
             raise ValueError(
-                "The pressure matrix for a bearing that is neither short or long can only be calculated "
-                "numerically. Try calling calculate_pressure_matrix_numerical or setting force_type "
-                "to either 'short' or 'long' in calculate_pressure_matrix_analytical."
+                "The pressure matrix can only be calculated analytically for short or long cylindrical "
+                "bearings. For cylindrical bearings: Try calling calculate_pressure_matrix_numerical "
+                "or setting force_type to either 'short' or 'long' in calculate_pressure_matrix_analytical. "
+                "For other geometries: Try calling calculate_pressure_matrix_numerical"
             )
         self.analytical_pressure_matrix_available = True
         return self.p_mat_analytical
@@ -378,14 +455,21 @@ class FluidFlow:
         >>> my_fluid_flow = fluid_flow_example()
         >>> my_fluid_flow.geometry_description()
         """
+        if self.shape_geometry == "cylindrical":
+            start = (np.pi / 2) + self.attitude_angle
+        else:
+            start = 0
+
         for i in range(0, self.nz):
             zno = i * self.dz
             self.z_list[i] = zno
             for j in range(0, self.ntheta):
                 # fmt: off
-                self.gama[i, j] = j * self.dtheta + np.pi / 2 + self.attitude_angle
+                self.gama[i, j] = j * self.dtheta + start
                 [radius_external, self.xre[i, j], self.yre[i, j]] = \
-                    external_radius_function(self.gama[i, j], self.radius_stator)
+                    external_radius_function(self.gama[i, j], self.radius_stator, self.radius_rotor,
+                                             shape=self.shape_geometry, preload=self.preload,
+                                             displacement=self.displacement, max_depth=self.max_depth)
                 [radius_internal, self.xri[i, j], self.yri[i, j]] = \
                     internal_radius_function(self.gama[i, j], self.attitude_angle, self.radius_rotor,
                                              self.eccentricity)
@@ -600,7 +684,7 @@ class FluidFlow:
 
 def fluid_flow_example():
     """This function returns an instance of a simple fluid flow.
-    The purpose is to make available a simple model
+    The purpose is to make available a simple short-bearing model
     so that doctest can be written using it.
 
     Parameters
@@ -636,7 +720,7 @@ def fluid_flow_example():
 
 def fluid_flow_example2():
     """This function returns a different instance of a simple fluid flow.
-    The purpose is to make available a simple model
+    The purpose is to make available a simple medium-bearing model
     so that doctest can be written using it.
 
     Parameters
@@ -675,5 +759,103 @@ def fluid_flow_example2():
         visc,
         rho,
         load=load,
-        immediately_calculate_pressure_matrix_numerically=False,
+        immediately_calculate_pressure_matrix_numerically=True,
+    )
+
+
+def fluid_flow_example3():
+    """This function returns a different instance of a simple fluid flow.
+    The purpose is to make available a simple eliptical-bearing model
+    so that doctest can be written using it.
+
+    Parameters
+    ----------
+
+    Returns
+    -------
+    An instance of a fluid flow object.
+
+    Examples
+    --------
+    >>> my_fluid_flow = fluid_flow_example3()
+    >>> my_fluid_flow.load
+    100
+    """
+    nz = 8
+    ntheta = 32
+    omega = 2500 * np.pi / 30.0
+    p_in = 0.0
+    p_out = 0.0
+    radius_stator = (3 * 10 ** (-2)) / 2
+    cr = 9 * 10 ** (-5)
+    m = 0.4
+    radius_rotor = radius_stator - cr
+    length = 2 * 10 ** (-2)
+    load = 100
+    viscosity = 5.449 * 10 ** (-2)
+    density = 881
+    return FluidFlow(
+        nz,
+        ntheta,
+        length,
+        omega,
+        p_in,
+        p_out,
+        radius_rotor,
+        radius_stator,
+        viscosity,
+        density,
+        load=load,
+        shape_geometry="eliptical",
+        preload=m
+    )
+
+
+def fluid_flow_example4():
+    """This function returns a different instance of a simple fluid flow.
+    The purpose is to make available a simple wear-bearing model
+    so that doctest can be written using it.
+
+    Parameters
+    ----------
+
+    Returns
+    -------
+    An instance of a fluid flow object.
+
+    Examples
+    --------
+    >>> my_fluid_flow = fluid_flow_example4()
+    >>> my_fluid_flow.load
+    18.9
+    """
+    nz = 8
+    ntheta = 32
+    omega = 1000 * np.pi / 30.0
+    p_in = 0.0
+    p_out = 0.0
+    radius_stator = (30 / 2) * 10**(-3)
+    cr = 90 * 10 ** (-6)
+    radius_rotor = radius_stator - cr
+    length = 20 * 10**(-3)
+    load = 18.9
+    viscosity = 1.044/10.0
+    density = 881
+    max_depth = 50 * 10 ** (-6)
+    y = 10 * np.pi / 180
+    return FluidFlow(
+        nz,
+        ntheta,
+        length,
+        omega,
+        p_in,
+        p_out,
+        radius_rotor,
+        radius_stator,
+        viscosity,
+        density,
+        load=load,
+        shape_geometry="wear",
+        max_depth=max_depth,
+        displacement=y
     )

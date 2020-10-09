@@ -7,7 +7,7 @@ Install Python
 --------------
 
 The first step is to install Python. Since ROSS requires several packages to be installed besides Python, such as
-numpy, scipy and bokeh we recommend installing `Anaconda <https://www.anaconda.com/distribution/>`_ (version 3.6 or higher) which is a
+numpy and scipy and we recommend installing `Anaconda <https://www.anaconda.com/distribution/>`_ (version 3.6 or higher) which is a
 scientific Python distribution that aims to simplify package management and deployment. It contains Python and a large
 number of packages that are commonly used.
 Alternatively, you may refer to the `Python website

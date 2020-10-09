@@ -13,7 +13,7 @@ from plotly import graph_objects as go
 
 from ross.element import Element
 from ross.materials import Material, steel
-from ross.units import check_units
+from ross.units import Q_, check_units
 from ross.utils import read_table_file
 
 __all__ = ["ShaftElement", "ShaftElement6DoF"]
@@ -36,17 +36,17 @@ class ShaftElement(Element):
     Parameters
     ----------
     L : float, pint.Quantity
-        Element length.
+        Element length (m).
     idl : float, pint.Quantity
-        Inner diameter of the element at the left position..
+        Inner diameter of the element at the left position (m).
     odl : float, pint.Quantity
-        Outer diameter of the element at the left position.
+        Outer diameter of the element at the left position (m).
     idr : float, pint.Quantity, optional
-        Inner diameter of the element at the right position
-        Default is equal to idl value (cylindrical element)
+        Inner diameter of the element at the right position (m).
+        Default is equal to idl value (cylindrical element).
     odr : float, pint.Quantity, optional
-        Outer diameter of the element at the right position.
-        Default is equal to odl value (cylindrical element)
+        Outer diameter of the element at the right position (m).
+        Default is equal to odl value (cylindrical element).
     material : ross.material
         Shaft material.
     n : int, optional
@@ -55,9 +55,9 @@ class ShaftElement(Element):
         according to the element's position in the list supplied to
         the rotor constructor.
     axial_force : float, optional
-        Axial force.
+        Axial force (N).
     torque : float, optional
-        Torque.
+        Torque (N*m).
     shear_effects : bool, optional
         Determine if shear effects are taken into account.
         Default is True.
@@ -83,20 +83,20 @@ class ShaftElement(Element):
     Poisson : float
         Poisson coefficient for the element.
     A : float
-        Element section area at half length.
+        Element section area at half length (m**2).
     A_l : float
-        Element section area at left end.
+        Element section area at left end (m**2).
     A_r : float
-        Element section area at right end.
+        Element section area at right end (m**2).
     beam_cg : float
-        Element center of gravity local position.
+        Element center of gravity local position (m).
     axial_cg_pos : float
-        Element center of gravity global position.
+        Element center of gravity global position (m).
         This should be used only after the rotor is built.
         Default is None.
     Ie : float
         Ie is the second moment of area of the cross section about
-        the neutral plane.
+        the neutral plane (m**4).
     phi : float
         Constant that is used according to :cite:`friswell2010dynamics` to
         consider rotary inertia and shear effects. If these are not considered
@@ -863,7 +863,7 @@ class ShaftElement(Element):
 
         return G
 
-    def _patch(self, position, check_sld, fig):
+    def _patch(self, position, check_sld, fig, units):
         """Shaft element patch.
 
         Patch that will be used to draw the shaft element using Plotly library.
@@ -877,6 +877,9 @@ class ShaftElement(Element):
             the elements in yellow if slenderness ratio < 1.6
         fig : plotly.graph_objects.Figure
             The figure object which traces are added on.
+        units : str, optional
+            Element length and radius units.
+            Default is 'm'.
 
         Returns
         -------
@@ -890,7 +893,7 @@ class ShaftElement(Element):
             color = self.material.color
             legend = "Shaft"
 
-        # bokeh plot - plot the shaft
+        # plot the shaft
         z_upper = [position, position, position + self.L, position + self.L, position]
         y_upper = [self.idl / 2, self.odl / 2, self.odr / 2, self.idr / 2, self.idl / 2]
         z_lower = [position, position, position + self.L, position + self.L, position]
@@ -903,11 +906,9 @@ class ShaftElement(Element):
         ]
 
         z_pos = z_upper
-        z_pos.append(None)
         z_pos.extend(z_lower)
 
         y_pos = y_upper
-        y_upper.append(None)
         y_pos.extend(y_lower)
 
         if check_sld:
@@ -920,49 +921,49 @@ class ShaftElement(Element):
             if isinstance(self, ShaftElement6DoF):
                 customdata = [
                     self.n,
-                    self.odl,
-                    self.idl,
-                    self.odr,
-                    self.idr,
+                    Q_(self.odl, "m").to(units).m,
+                    Q_(self.idl, "m").to(units).m,
+                    Q_(self.odr, "m").to(units).m,
+                    Q_(self.idr, "m").to(units).m,
                     self.alpha,
                     self.beta,
-                    self.L,
+                    Q_(self.L, "m").to(units).m,
                     self.material.name,
                 ]
                 hovertemplate = (
                     f"Element Number: {customdata[0]}<br>"
-                    + f"Left Outer Diameter: {round(customdata[1], 6)}<br>"
-                    + f"Left Inner Diameter: {round(customdata[2], 6)}<br>"
-                    + f"Right Outer Diameter: {round(customdata[3], 6)}<br>"
-                    + f"Right Inner Diameter: {round(customdata[4], 6)}<br>"
+                    + f"Left Outer Diameter: {round(customdata[1], 6)} {units}<br>"
+                    + f"Left Inner Diameter: {round(customdata[2], 6)} {units}<br>"
+                    + f"Right Outer Diameter: {round(customdata[3], 6)} {units}<br>"
+                    + f"Right Inner Diameter: {round(customdata[4], 6)} {units}<br>"
                     + f"Alpha Damp. Factor: {round(customdata[5], 6)}<br>"
                     + f"Beta Damp. Factor: {round(customdata[6], 6)}<br>"
-                    + f"Element Length: {round(customdata[7], 6)}<br>"
+                    + f"Element Length: {round(customdata[7], 6)} {units} <br>"
                     + f"Material: {customdata[8]}<br>"
                 )
             else:
                 customdata = [
                     self.n,
-                    self.odl,
-                    self.idl,
-                    self.odr,
-                    self.idr,
-                    self.L,
+                    Q_(self.odl, "m").to(units).m,
+                    Q_(self.idl, "m").to(units).m,
+                    Q_(self.odr, "m").to(units).m,
+                    Q_(self.idr, "m").to(units).m,
+                    Q_(self.L, "m").to(units).m,
                     self.material.name,
                 ]
                 hovertemplate = (
                     f"Element Number: {customdata[0]}<br>"
-                    + f"Left Outer Diameter: {round(customdata[1], 6)}<br>"
-                    + f"Left Inner Diameter: {round(customdata[2], 6)}<br>"
-                    + f"Right Outer Diameter: {round(customdata[3], 6)}<br>"
-                    + f"Right Inner Diameter: {round(customdata[4], 6)}<br>"
-                    + f"Element Length: {round(customdata[5], 6)}<br>"
+                    + f"Left Outer Diameter: {round(customdata[1], 6)} {units}<br>"
+                    + f"Left Inner Diameter: {round(customdata[2], 6)} {units}<br>"
+                    + f"Right Outer Diameter: {round(customdata[3], 6)} {units}<br>"
+                    + f"Right Inner Diameter: {round(customdata[4], 6)} {units}<br>"
+                    + f"Element Length: {round(customdata[5], 6)} {units}<br>"
                     + f"Material: {customdata[6]}<br>"
                 )
         fig.add_trace(
             go.Scatter(
-                x=z_pos,
-                y=y_pos,
+                x=Q_(z_pos, "m").to(units).m,
+                y=Q_(y_pos, "m").to(units).m,
                 customdata=[customdata] * len(z_pos),
                 text=hovertemplate,
                 mode="lines",
@@ -1184,14 +1185,14 @@ class ShaftElement6DoF(ShaftElement):
     L : float, pint.Quantity
         Element length.
     idl : float, pint.Quantity
-        Inner diameter of the element at the left node.
+        Inner diameter of the element at the left node (m).
     odl : float, pint.Quantity
-        Outer diameter of the element at the left node.
+        Outer diameter of the element at the left node (m).
     idr : float, pint.Quantity, optional
-        Inner diameter of the element at the right node;
+        Inner diameter of the element at the right node (m).
         Default is equal to idl value for cylindrical element.
     odr : float, pint.Quantity, optional
-        Outer diameter of the element at the right node;
+        Outer diameter of the element at the right node (m).
         Default is equal to odl value for cylindrical element.
     material : ross.material
         Shaft material.
@@ -1200,15 +1201,15 @@ class ShaftElement6DoF(ShaftElement):
     beta : float, optional
         Proportional damping coefficient, associated to the element Stiffness matrix
     n : int, optional
-        Element number, coincident with it's first node.
+        Element number, coincident it's first node.
         If not given, it will be set when the rotor is assembled
         according to the element's position in the list supplied to
         the rotor constructor.
     axial_force : float, optional
-        Axial force;
+        Axial force (N).
         Default is zero.
     torque : float, optional
-        Torque moment;
+        Torque moment (N*m).
         Default is zero.
     shear_effects : bool, optional
         Determine if shear effects are taken into account;

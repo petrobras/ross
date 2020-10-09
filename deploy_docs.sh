@@ -8,6 +8,8 @@ echo "Building and deploying ross-website version $ROSS_VERSION"
 set -e # Exit with nonzero exit code if anything fails
 
 if [ "$TRAVIS_PULL_REQUEST" != "false" -o "$TRAVIS_BRANCH" != "$ROSS_VERSION" ]; then
+    echo "TRAVIS_PULL_REQUEST: $TRAVIS_PULL_REQUEST"
+    echo "TRAVIS_BRANCH: $TRAVIS_BRANCH"
     echo "Skipping documentation deployment. This is done only on current released version."
     exit 0
 fi
