@@ -423,18 +423,28 @@ class FluidFlow:
                 for i in range(0, self.nz):
                     for j in range(0, self.ntheta):
                         self.p_mat_analytical[i, j] = (
-                            6
-                            * self.viscosity
-                            * self.omega
-                            * (self.radius_rotor / self.radial_clearance) ** 2
-                            * self.eccentricity_ratio
-                            * np.sin(self.dtheta * j)
-                            * (2 + self.eccentricity_ratio * np.cos(self.dtheta * j))
-                        ) / (
-                            (2 + self.eccentricity_ratio ** 2)
-                            * (1 + self.eccentricity_ratio * np.cos(self.dtheta * j))
-                            ** 2
-                        ) + self.p_in
+                            (
+                                6
+                                * self.viscosity
+                                * self.omega
+                                * (self.radius_rotor / self.radial_clearance) ** 2
+                                * self.eccentricity_ratio
+                                * np.sin(self.dtheta * j)
+                                * (
+                                    2
+                                    + self.eccentricity_ratio * np.cos(self.dtheta * j)
+                                )
+                            )
+                            / (
+                                (2 + self.eccentricity_ratio ** 2)
+                                * (
+                                    1
+                                    + self.eccentricity_ratio * np.cos(self.dtheta * j)
+                                )
+                                ** 2
+                            )
+                            + self.p_in
+                        )
                         if self.p_mat_analytical[i, j] < 0:
                             self.p_mat_analytical[i, j] = 0
         elif self.bearing_type == "medium_size" or self.shape_geometry != "cylindrical":
@@ -807,7 +817,7 @@ def fluid_flow_example3():
         density,
         load=load,
         shape_geometry="eliptical",
-        preload=m
+        preload=m,
     )
 
 
@@ -834,12 +844,12 @@ def fluid_flow_example4():
     omega = 1000 * np.pi / 30.0
     p_in = 0.0
     p_out = 0.0
-    radius_stator = (30 / 2) * 10**(-3)
+    radius_stator = (30 / 2) * 10 ** (-3)
     cr = 90 * 10 ** (-6)
     radius_rotor = radius_stator - cr
-    length = 20 * 10**(-3)
+    length = 20 * 10 ** (-3)
     load = 18.9
-    viscosity = 1.044/10.0
+    viscosity = 1.044 / 10.0
     density = 881
     max_depth = 50 * 10 ** (-6)
     y = 10 * np.pi / 180
@@ -857,5 +867,5 @@ def fluid_flow_example4():
         load=load,
         shape_geometry="wear",
         max_depth=max_depth,
-        displacement=y
+        displacement=y,
     )
