@@ -121,17 +121,17 @@ T_ref=Tcuba # [Celsius]
 # Thermal Properties Oil ----------------------------------------------------
 
 # Thermal conductivity
-kt=0.07031*math.exp(484.1/(Tcuba+273.15+474)) # [J/s.m.C]
+kt=0.07031*np.exp(484.1/(Tcuba+273.15+474)) # [J/s.m.C]
 
 # Specific heat
-Cp=(16.5*math.exp(-2442/(Tcuba+273.15+829.1)))*1e3 # [J/kgC]
+Cp=(16.5*np.exp(-2442/(Tcuba+273.15+829.1)))*1e3 # [J/kgC]
 
 # Specific mass
-rho=0.04514*math.exp(9103/(Tcuba+273.15+2766))*1e3 # [kg/m**2]
+rho=0.04514*np.exp(9103/(Tcuba+273.15+2766))*1e3 # [kg/m**2]
 
 # Reference viscosity
 #mi_ref=0.0752
-mi_ref=5.506e-09*math.exp(5012/(Tcuba+273.15+0.1248)) # [N.s/m**2]
+mi_ref=5.506e-09*np.exp(5012/(Tcuba+273.15+0.1248)) # [N.s/m**2]
 
 # Bearing Position ---------------------------------------------------------
 
@@ -157,8 +157,8 @@ Z1=0 # initial coordinate z dimensionless
 Z2=1 # final coordinate z dimensionless
 dZ=1/(nZ) # differential z dimensionless
 dz=dZ*L # differential z dimensional: [m]
-XZ(1)=Z1
-XZ(nZ+2)=Z2
+XZ[1]=Z1
+XZ[nZ+2]=Z2
 # XZ(2:nZ+1)=Z1+0.5*dZ:dZ:Z2-0.5*dZ # vector z dimensionless
 XZ(2:nZ+1)=Z1+0.5* np.array([dz, Z2-0.5*dZ, dz]) # vector z dimensionless
 XZdim=XZ*L # vector z dimensional [m]
@@ -166,8 +166,8 @@ XZdim=XZ*L # vector z dimensional [m]
 N1=0 # initial coordinate netha dimensionless
 N2=1 # final coordinate netha dimensionless
 dN=1/(nN) # differential netha dimensionless
-netha(1)=N1
-netha(nN+2)=N2
+netha[1]=N1
+netha[nN+2]=N2
 # netha(2:nN+1)=N1+0.5*dN:dN:N2-0.5*dN # vector netha dimensionless
 netha(2:nN+1)=N1+0.5* np.array([dN, N2-0.5*dN, dN]) # vector netha dimensionless
 
