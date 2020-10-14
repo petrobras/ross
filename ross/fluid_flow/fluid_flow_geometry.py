@@ -150,15 +150,21 @@ def external_radius_function(
 
             if theta_f <= 2 * np.pi:
                 if theta_s <= gama <= theta_f:
-                    d_theta = max_depth - cr * (1 + np.cos(gama - np.pi / 2 - displacement))
+                    d_theta = max_depth - cr * (
+                        1 + np.cos(gama - np.pi / 2 - displacement)
+                    )
                 else:
                     d_theta = 0
             else:
                 if theta_s <= gama <= 2 * np.pi:
-                    d_theta = max_depth - cr * (1 + np.cos(gama - np.pi / 2 - displacement))
+                    d_theta = max_depth - cr * (
+                        1 + np.cos(gama - np.pi / 2 - displacement)
+                    )
                 elif 0 <= gama <= theta_f_0:
                     gama2 = gama + 2 * np.pi
-                    d_theta = max_depth - cr * (1 + np.cos(gama2 - np.pi / 2 - displacement))
+                    d_theta = max_depth - cr * (
+                        1 + np.cos(gama2 - np.pi / 2 - displacement)
+                    )
                 else:
                     d_theta = 0
 
