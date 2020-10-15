@@ -1022,7 +1022,7 @@ class BearingElement(Element):
         ...                                p_out, radius_rotor, radius_stator,
         ...                                visc, rho, load=load) # doctest: +ELLIPSIS
         BearingElement(n=0, n_link=None,
-         kxx=[...
+         kxx=array([...
         """
         K = np.zeros((4, len(omega)))
         C = np.zeros((4, len(omega)))
