@@ -15,8 +15,8 @@ from scipy import interpolate as interpolate
 
 from ross.element import Element
 from ross.fluid_flow import fluid_flow as flow
-from ross.fluid_flow.fluid_flow_coefficients import (
-    calculate_short_damping_matrix, calculate_short_stiffness_matrix)
+from ross.fluid_flow.fluid_flow_coefficients import \
+    calculate_stiffness_and_damping_coefficients
 from ross.units import Q_, check_units
 from ross.utils import read_table_file
 
@@ -928,8 +928,15 @@ class BearingElement(Element):
         rho,
         eccentricity=None,
         load=None,
+        tag=None,
+        n_link=None,
+        scale_factor=1.0,
     ):
         """Instantiate a bearing using inputs from its fluid flow.
+
+        This method always creates elements with frequency-dependent coefficients.
+        It calculates a set of coefficients for each frequency value appendend to
+        "omega".
 
         Parameters
         ----------
@@ -951,8 +958,9 @@ class BearingElement(Element):
         Operation conditions
         ^^^^^^^^^^^^^^^^^^^^
         Describes the operation conditions.
-        omega: float
-            Rotation of the rotor (rad/s).
+        omega: list
+            List of frequencies (rad/s) used to calculate the coefficients.
+            If the length is greater than 1, an array of coefficients is returned.
         p_in: float
             Input Pressure (Pa).
         p_out: float
@@ -979,6 +987,19 @@ class BearingElement(Element):
         rho: float
             Fluid density(Kg/m^3).
 
+        Others
+        ^^^^^^
+        tag : str, optional
+            A tag to name the element
+            Default is None.
+        n_link : int, optional
+            Node to which the bearing will connect. If None the bearing is
+            connected to ground.
+            Default is None.
+        scale_factor : float, optional
+            The scale factor is used to scale the bearing drawing.
+            Default is 1.
+
         Returns
         -------
         bearing: rs.BearingElement
@@ -989,7 +1010,7 @@ class BearingElement(Element):
         >>> nz = 30
         >>> ntheta = 20
         >>> length = 0.03
-        >>> omega = 157.1
+        >>> omega = [157.1]
         >>> p_in = 0.
         >>> p_out = 0.
         >>> radius_rotor = 0.0499
@@ -1003,33 +1024,37 @@ class BearingElement(Element):
         BearingElement(n=0, n_link=None,
          kxx=[...
         """
-        fluid_flow = flow.FluidFlow(
-            nz,
-            ntheta,
-            length,
-            omega,
-            p_in,
-            p_out,
-            radius_rotor,
-            radius_stator,
-            visc,
-            rho,
-            eccentricity=eccentricity,
-            load=load,
-        )
-        c = calculate_short_damping_matrix(fluid_flow)
-        k = calculate_short_stiffness_matrix(fluid_flow)
+        K = np.zeros((4, len(omega)))
+        C = np.zeros((4, len(omega)))
+
+        for i, w in enumerate(omega):
+            fluid_flow = flow.FluidFlow(
+                nz,
+                ntheta,
+                length,
+                w,
+                p_in,
+                p_out,
+                radius_rotor,
+                radius_stator,
+                visc,
+                rho,
+                eccentricity=eccentricity,
+                load=load,
+            )
+            K[:, i], C[:, i] = calculate_stiffness_and_damping_coefficients(fluid_flow)
+
         return cls(
             n,
-            kxx=k[0],
-            cxx=c[0],
-            kyy=k[3],
-            kxy=k[1],
-            kyx=k[2],
-            cyy=c[3],
-            cxy=c[1],
-            cyx=c[2],
-            frequency=[fluid_flow.omega],
+            kxx=K[0],
+            kxy=K[1],
+            kyx=K[2],
+            kyy=K[3],
+            cxx=C[0],
+            cxy=C[1],
+            cyx=C[2],
+            cyy=C[3],
+            frequency=omega,
         )
 
 
