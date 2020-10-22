@@ -4,6 +4,7 @@ from plotly import io as _pio
 import ross.plotly_theme
 
 from .bearing_seal_element import *
+from .defects import *
 from .disk_element import *
 from .materials import *
 from .point_mass import *
