@@ -219,9 +219,235 @@ Vw=np.zeros((nN,ntheta))
 YH = np.zeros[nN+2,nX+2,npad]
 
 XH = np.zeros[nN+2,nX+2]
-for ii = 1:nX+2
+
+
+for ii in range(1,nX+2+1):
     XH[:,ii] = Xtheta[ii]
 
 
+for n_p=1:npad              % LOOP NAS PADS!!!!!
+    alpha=psi_pad(n_p);
+    %transformation of coordinates
+    xryr=[cos(sigma(n_p)) sin(sigma(n_p)) ; -sin(sigma(n_p)) cos(sigma(n_p))]*[xx ; yy];
+    xryrpt=[cos(sigma(n_p)) sin(sigma(n_p)) ; -sin(sigma(n_p)) cos(sigma(n_p))]*[xpt ; ypt];
+    xr=xryr(1);
+    yr=xryr(2);
+    
+    xrpt=xryrpt(1);
+    yrpt=xryrpt(2);
+    
+    %Temperature matrix with boundary conditions
+    T_novo=T_ref*ones(nN+2,ntheta+2);
+    
+    Tcomp=1.2*T_novo;
+    
+    while norm((T_novo-Tcomp)/norm(Tcomp))>0.01              % LOOP DA TEMPERATURA DO OLEO!!!!!
+        mi=minovo;
+        Tcomp=T_novo;
+        
+        nk=(nZ)*(ntheta);
+        K_null=zeros(1,nk);
+        Kij_null=zeros(nZ,ntheta);
+        ki=1;
+        kj=1;
+        k=0; %indice utilizado na vetoriza��o da press�o
+        nn=1;
+        
+        Mat_coef=zeros(nk,nk);
+        b=zeros(nk);
+        
+        for ii=(Z1+0.5*dZ):dZ:(Z2-0.5*dZ)              % CORRENDO A MALHA EM Z!!!!!
+            
+            for jj=(theta1+0.5*dtheta):dtheta:(theta2-0.5*dtheta)              % CORRENDO A MALHA EM THETA!!!!!
+                
+                if kj==1
+                    vector_mi(1,:)=mi(ki,kj,:);
+                    vector_mi(2,:)=mi(ki,kj+1,:);
+                    vector_mi(3,:)=mi(ki,kj,:);
+                end
+                
+                if kj==ntheta
+                    vector_mi(1,:)=mi(ki,kj,:);
+                    vector_mi(2,:)=mi(ki,kj,:);
+                    vector_mi(3,:)=mi(ki,kj-1,:);
+                end
+                
+                if kj>1 && kj<ntheta
+                    vector_mi(1,:)=mi(ki,kj,:);
+                    vector_mi(2,:)=mi(ki,kj+1,:);
+                    vector_mi(3,:)=mi(ki,kj-1,:);
+                end
+                
+                for kk=N1+0.5*dN:dN:N2-0.5*dN
+                    
+                    mi_adP=vector_mi(1,nN+1-nn)/mi_ref;
+                    mi_adE=vector_mi(2,nN+1-nn)/mi_ref;
+                    mi_adW=vector_mi(3,nN+1-nn)/mi_ref;
+                    
+                    auxFF0P(nn+1)=(1/mi_adP);
+                    auxFF1P(nn+1)=(kk/mi_adP);
+                    auxFF0E(nn+1)=(1/mi_adE);
+                    auxFF1E(nn+1)=(kk/mi_adE);
+                    auxFF0W(nn+1)=(1/mi_adW);
+                    auxFF1W(nn+1)=(kk/mi_adW);
+                    
+                    nn=nn+1;
+                end
+                nn=1;
+                
+                auxFF0P(1)=auxFF0P(2);
+                auxFF0P(nN+2)=auxFF0P(nN+1);
+                
+                auxFF1P(1)=0;
+                auxFF1P(nN+2)=(N2/(vector_mi(1,nN)/mi_ref));
+                
+                auxFF0E(1)=auxFF0E(2);
+                auxFF0E(nN+2)=auxFF0E(nN+1);
+                
+                auxFF1E(1)=0;
+                auxFF1E(nN+2)=(N2/(vector_mi(2,nN)/mi_ref));
+                
+                auxFF0W(1)=auxFF0W(2);
+                auxFF0W(nN+2)=auxFF0W(nN+1);
+                
+                auxFF1W(1)=0;
+                auxFF1W(nN+2)=(N2/(vector_mi(3,nN)/mi_ref));
+                
+                FF0P=0.5*sum((netha(2:end)-netha(1:end-1)).*(auxFF0P(2:end)+auxFF0P(1:end-1)));
+                FF1P=0.5*sum((netha(2:end)-netha(1:end-1)).*(auxFF1P(2:end)+auxFF1P(1:end-1)));
+                FF0E=0.5*sum((netha(2:end)-netha(1:end-1)).*(auxFF0E(2:end)+auxFF0E(1:end-1)));
+                FF1E=0.5*sum((netha(2:end)-netha(1:end-1)).*(auxFF1E(2:end)+auxFF1E(1:end-1)));
+                FF0W=0.5*sum((netha(2:end)-netha(1:end-1)).*(auxFF0W(2:end)+auxFF0W(1:end-1)));
+                FF1W=0.5*sum((netha(2:end)-netha(1:end-1)).*(auxFF1W(2:end)+auxFF1W(1:end-1)));
+                
+                FF0e=0.5*(FF0P+FF0E);
+                FF0w=0.5*(FF0P+FF0W);
+                FF1e=0.5*(FF1P+FF1E);
+                FF1w=0.5*(FF1P+FF1W);
+                
+                for kk=N1+0.5*dN:dN:N2-0.5*dN
+                    
+                    mi_adP=vector_mi(1,nN+1-nn)/mi_ref;
+                    mi_adE=vector_mi(2,nN+1-nn)/mi_ref;
+                    mi_adW=vector_mi(3,nN+1-nn)/mi_ref;
+                    
+                    auxFF2P(nn+1)=(kk/mi_adP)*(kk-FF1P/FF0P);
+                    auxFF2E(nn+1)=(kk/mi_adE)*(kk-FF1E/FF0E);
+                    auxFF2W(nn+1)=(kk/mi_adW)*(kk-FF1W/FF0W);
+                    nn=nn+1;
+                end
+                nn=1;
+                
+                auxFF2P(1)=0;
+                auxFF2P(nN+2)=(N2/(vector_mi(1,nN)/mi_ref))*(N2-FF1P/FF0P);
+                
+                auxFF2E(1)=0;
+                auxFF2E(nN+2)=(N2/(vector_mi(2,nN)/mi_ref))*(N2-FF1P/FF0P);
+                
+                auxFF2W(1)=0;
+                auxFF2W(nN+2)=(N2/(vector_mi(3,nN)/mi_ref))*(N2-FF1P/FF0P);
+                
+                % INTEGRAÇÕES
+                FF2P=0.5*sum((netha(2:end)-netha(1:end-1)).*(auxFF2P(2:end)+auxFF2P(1:end-1)));
+                FF2E=0.5*sum((netha(2:end)-netha(1:end-1)).*(auxFF2E(2:end)+auxFF2E(1:end-1)));
+                FF2W=0.5*sum((netha(2:end)-netha(1:end-1)).*(auxFF2W(2:end)+auxFF2W(1:end-1)));
+                
+                FF2e=0.5*(FF2P+FF2E);
+                FF2w=0.5*(FF2P+FF2W);
+                FF2n=FF2P;
+                FF2s=FF2n;
+                
+                %espessura do filme adimensional
+                hP=(Rs-R-(sin(jj)*(yr+alpha*(Rs+esp))+cos(jj)*(xr+Rs-R-Cr)))/Cr;
+                he=(Rs-R-(sin(jj+0.5*dtheta)*(yr+alpha*(Rs+esp))+cos(jj+0.5*dtheta)*(xr+Rs-R-Cr)))/Cr;
+                hw=(Rs-R-(sin(jj-0.5*dtheta)*(yr+alpha*(Rs+esp))+cos(jj-0.5*dtheta)*(xr+Rs-R-Cr)))/Cr;
+                hn=hP;
+                hs=hn;
+                hpt=-(1/(Cr*war))*(cos(jj)*xrpt+sin(jj)*yrpt+sin(jj)*(Rs+esp)*alphapt);%adimensional
+                
+                CE=1/(betha_s)^2*(FF2e*he^3)*dZ/dX;
+                CW=1/(betha_s)^2*(FF2w*hw^3)*dZ/dX;
+                CN=(FF2n*hn^3)*(dX/dZ)*(Rs/L)^2;
+                CS=(FF2s*hs^3)*(dX/dZ)*(Rs/L)^2;
+                CP=-(CE+CW+CN+CS);
+                B=(R/(Rs*betha_s))*dZ*(he*(1-FF1e/FF0e)-hw*(1-FF1w/FF0w))+hpt*dX*dZ;
+                k=k+1;
+                b(k,1)=B;
+                hhh(k,n_p)=hP*Cr;
+                if ki==1 && kj==1
+                    Mat_coef(k,k)=CP-CN-CW;
+                    Mat_coef(k,k+1)=CE;
+                    Mat_coef(k,k+ntheta)=CS;
+                end
+                
+                if ki==1 && kj>1 && kj<nX
+                    Mat_coef(k,k)=CP-CN;
+                    Mat_coef(k,k+1)=CE;
+                    Mat_coef(k,k-1)=CW;
+                    Mat_coef(k,k+ntheta)=CS;
+                end
+                
+                if ki==1 && kj==nX
+                    Mat_coef(k,k)=CP-CE-CN;
+                    Mat_coef(k,k-1)=CW;
+                    Mat_coef(k,k+ntheta)=CS;
+                end
+                
+                if kj==1 && ki>1 && ki<nZ
+                    Mat_coef(k,k)=CP-CW;
+                    Mat_coef(k,k+1)=CE;
+                    Mat_coef(k,k-ntheta)=CN;
+                    Mat_coef(k,k+ntheta)=CS;
+                end
+                
+                if ki>1 && ki<nZ && kj>1 && kj<nX
+                    Mat_coef(k,k)=CP;
+                    Mat_coef(k,k-1)=CW;
+                    Mat_coef(k,k-ntheta)=CN;
+                    Mat_coef(k,k+ntheta)=CS;
+                    Mat_coef(k,k+1)=CE;
+                end
+                
+                if kj==nX && ki>1 && ki<nZ
+                    Mat_coef(k,k)=CP-CE;
+                    Mat_coef(k,k-1)=CW;
+                    Mat_coef(k,k-ntheta)=CN;
+                    Mat_coef(k,k+ntheta)=CS;
+                end
+                
+                if kj==1 && ki==nZ
+                    Mat_coef(k,k)=CP-CS-CW;
+                    Mat_coef(k,k+1)=CE;
+                    Mat_coef(k,k-ntheta)=CN;
+                end
+                
+                if ki==nZ && kj>1 && kj<nX
+                    Mat_coef(k,k)=CP-CS;
+                    Mat_coef(k,k+1)=CE;
+                    Mat_coef(k,k-1)=CW;
+                    Mat_coef(k,k-ntheta)=CN;
+                end
+                
+                if ki==nZ && kj==nX
+                    Mat_coef(k,k)=CP-CE-CS;
+                    Mat_coef(k,k-1)=CW;
+                    Mat_coef(k,k-ntheta)=CN;
+                end
+                
+                if isempty(find(drop_pressure_Ele_nZ==ki+1))==0 & isempty(find(drop_pressure_Ele_ntetha==kj+1))==0
+                    K_null(k)=k;
+                    Kij_null(ki,kj)=1;
+                end
+                
+                
+                kj=kj+1;
+            end
+            kj=1;
+            ki=ki+1;
+            
+        end
+        
+        %%%%%%%%%%%%%%%%%%%%%% Solu��o do Campo de Press�o %%%%%%%%%%%%%%%%%%%%
+        
 
 
