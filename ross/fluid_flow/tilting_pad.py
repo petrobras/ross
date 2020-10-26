@@ -8,6 +8,7 @@ ROSS framework. This routine can also be used for bearing properties esti-
 mation for other purposes.
 """
 
+
 import os
 import warnings
 
@@ -22,6 +23,8 @@ from ross.fluid_flow.fluid_flow_coefficients import (
     calculate_short_damping_matrix, calculate_short_stiffness_matrix)
 from ross.units import Q_, check_units
 from ross.utils import read_table_file
+
+
 
 # __all__ = [
 # ]
@@ -46,7 +49,7 @@ from ross.utils import read_table_file
         
 
 
-
+"""
 P1
 T1
 XH
@@ -63,7 +66,7 @@ Fhy
 Pmax
 hmin
 Tmax
-
+"""
 
 # x=[0.000321298907440948 0.000218101024776208 0.000241891712348458 0.000385504446042090 0.000516992650533115 0.000460227890390222];
 
@@ -159,8 +162,10 @@ dZ=1/(nZ) # differential z dimensionless
 dz=dZ*L # differential z dimensional: [m]
 XZ[1]=Z1
 XZ[nZ+2]=Z2
+
 # XZ(2:nZ+1)=Z1+0.5*dZ:dZ:Z2-0.5*dZ # vector z dimensionless
-XZ(2:nZ+1)=Z1+0.5* np.array([dz, Z2-0.5*dZ, dz]) # vector z dimensionless
+XZ[1:nZ] = Z1+0.5* np.array([dz, Z2-0.5*dZ, dz]) # vector z dimensionless
+
 XZdim=XZ*L # vector z dimensional [m]
 
 N1=0 # initial coordinate netha dimensionless
@@ -168,16 +173,18 @@ N2=1 # final coordinate netha dimensionless
 dN=1/(nN) # differential netha dimensionless
 netha[1]=N1
 netha[nN+2]=N2
+
 # netha(2:nN+1)=N1+0.5*dN:dN:N2-0.5*dN # vector netha dimensionless
-netha(2:nN+1)=N1+0.5* np.array([dN, N2-0.5*dN, dN]) # vector netha dimensionless
+netha[1:nN]=N1+0.5* np.array([dN, N2-0.5*dN, dN]) # vector netha dimensionless
 
 theta1=-(rp_pad)*betha_s # initial coordinate theta [rad]
 theta2=(1-rp_pad)*betha_s # final coordinate theta [rad]
 dtheta=betha_s/(ntheta) # differential theta [rad]
-Xtheta(1)=theta1
-Xtheta(ntheta+2)=theta2
+Xtheta[0]=theta1
+Xtheta[ntheta+1]=theta2
+
 # Xtheta(2:ntheta+1)=theta1+0.5*dtheta:dtheta:theta2-0.5*dtheta # vector theta [rad]
-Xtheta(2:ntheta+1)=theta1+0.5* np.array([dtheta, theta2-0.5*dtheta, dtheta]) # vector theta [rad]
+Xtheta[1:ntheta]=theta1+0.5* np.array([dtheta, theta2-0.5*dtheta, dtheta]) # vector theta [rad]
 
 dX=1/nX # differential x dimensionless
 dx=dX*(betha_s*Rs) # differential x dimensional: [m]
@@ -196,6 +203,24 @@ drop_pressure_pos_betha=np.array([start_pos_betha, start_pos_betha+len_betha])
 
 # Initial Parameters ---------------------------------------------------------------
 
+Tmist=T_ref*np.ones((nN+2))
+minovo=mi_ref*np.ones((nZ,ntheta,nN)) # Initial viscosity field
+
+# Velocity field  - 3D
+vu=np.zeros((nZ,ntheta,nN))
+vv=np.zeros((nZ,ntheta,nN))
+vw=np.zeros((nZ,ntheta,nN))
+
+# Velocity field - 2D
+Vu=np.zeros((nN,ntheta))
+Vv=np.zeros((nN,ntheta))
+Vw=np.zeros((nN,ntheta))
+
+YH = np.zeros[nN+2,nX+2,npad]
+
+XH = np.zeros[nN+2,nX+2]
+for ii = 1:nX+2
+    XH[:,ii] = Xtheta[ii]
 
 
 
