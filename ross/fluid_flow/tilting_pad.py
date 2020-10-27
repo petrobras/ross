@@ -265,40 +265,40 @@ for n_p in range(1,npad+1): # LOOP NAS PADS!!!!!
         Mat_coef=np.zeros[nk,nk]
         b=np.zeros[nk]
         
-        for ii=(Z1+0.5*dZ):dZ:(Z2-0.5*dZ)              # CORRENDO A MALHA EM Z!!!!!
+        # for ii=(Z1+0.5*dZ):dZ:(Z2-0.5*dZ)              # CORRENDO A MALHA EM Z!!!!!
+        for ii in range((Z1+0.5*dZ), dZ, (Z2-0.5*dZ)):              # CORRENDO A MALHA EM Z!!!!!
             
-            for jj=(theta1+0.5*dtheta):dtheta:(theta2-0.5*dtheta)              # CORRENDO A MALHA EM THETA!!!!!
+            # for jj=(theta1+0.5*dtheta):dtheta:(theta2-0.5*dtheta)              # CORRENDO A MALHA EM THETA!!!!!
+            for jj in range((theta1+0.5*dtheta), dtheta, (theta2-0.5*dtheta)):              # CORRENDO A MALHA EM THETA!!!!!
                 
-                if kj==1
-                    vector_mi(1,:)=mi(ki,kj,:)
-                    vector_mi(2,:)=mi(ki,kj+1,:)
-                    vector_mi(3,:)=mi(ki,kj,:)
-                end
+                if kj==1 :
+                    vector_mi[0,]=mi[ki,kj,]
+                    vector_mi[1,]=mi[ki,kj+1,]
+                    vector_mi[2,]=mi[ki,kj,]
                 
-                if kj==ntheta
-                    vector_mi(1,:)=mi(ki,kj,:)
-                    vector_mi(2,:)=mi(ki,kj,:)
-                    vector_mi(3,:)=mi(ki,kj-1,:)
-                end
+                if kj==ntheta :
+                    vector_mi[0,]=mi[ki,kj,]
+                    vector_mi[1,]=mi[ki,kj,]
+                    vector_mi[2,]=mi[ki,kj-1,]
                 
-                if kj>1 && kj<ntheta
-                    vector_mi(1,:)=mi(ki,kj,:)
-                    vector_mi(2,:)=mi(ki,kj+1,:)
-                    vector_mi(3,:)=mi(ki,kj-1,:)
-                end
+                if (kj>1 and kj<ntheta) :
+                    vector_mi[0,]=mi[ki,kj,]
+                    vector_mi[1,]=mi[ki,kj+1,]
+                    vector_mi[2,]=mi[ki,kj-1,]
                 
-                for kk=N1+0.5*dN:dN:N2-0.5*dN
+                # for kk=N1+0.5*dN:dN:N2-0.5*dN
+                for kk in range(N1+0.5*dN, dN, N2-0.5*dN):
                     
                     mi_adP=vector_mi(1,nN+1-nn)/mi_ref
                     mi_adE=vector_mi(2,nN+1-nn)/mi_ref
                     mi_adW=vector_mi(3,nN+1-nn)/mi_ref
                     
-                    auxFF0P(nn+1)=(1/mi_adP)
-                    auxFF1P(nn+1)=(kk/mi_adP)
-                    auxFF0E(nn+1)=(1/mi_adE)
-                    auxFF1E(nn+1)=(kk/mi_adE)
-                    auxFF0W(nn+1)=(1/mi_adW)
-                    auxFF1W(nn+1)=(kk/mi_adW)
+                    auxFF0P[nn+1]=(1/mi_adP)
+                    auxFF1P[nn+1]=(kk/mi_adP)
+                    auxFF0E[nn+1]=(1/mi_adE)
+                    auxFF1E[nn+1]=(kk/mi_adE)
+                    auxFF0W[nn+1]=(1/mi_adW)
+                    auxFF1W[nn+1]=(kk/mi_adW)
                     
                     nn=nn+1
                 end
