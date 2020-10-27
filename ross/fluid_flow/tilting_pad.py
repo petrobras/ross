@@ -232,34 +232,38 @@ for n_p in range(1,npad+1): # LOOP NAS PADS!!!!!
     alpha=psi_pad[n_p]
 
     # transformation of coordinates
-    xryr=np.array([np.cos(sigma(n_p))  , np.sin(sigma(n_p))] ; 
-                  [-np.sin(sigma(n_p)) , np.cos(sigma(n_p))]) * np.array([[xx]; [yy]])
-    xryrpt=[np.cos(sigma(n_p)) np.sin(sigma(n_p)) ; -np.sin(sigma(n_p)) np.cos(sigma(n_p))]*[xpt ; ypt]
-    xr=xryr(1)
-    yr=xryr(2)
+    xryr=np.array([[np.cos(sigma(n_p))  , np.sin(sigma(n_p))]; 
+                   [-np.sin(sigma(n_p)) , np.cos(sigma(n_p))]]) * np.array([[xx]; [yy]])
+
+    xryrpt=np.array([[np.cos(sigma(n_p))  , np.sin(sigma(n_p))]; 
+                     [-np.sin(sigma(n_p)) , np.cos(sigma(n_p))]]) * np.array([[xpt]; [ypt]])
+
+    xr=xryr[0]
+    yr=xryr[1]
     
-    xrpt=xryrpt(1)
-    yrpt=xryrpt(2)
+    xrpt=xryrpt[0]
+    yrpt=xryrpt[1]
     
     # Temperature matrix with boundary conditions
     T_novo=T_ref*np.ones(nN+2,ntheta+2)
     
     Tcomp=1.2*T_novo
     
-    while norm((T_novo-Tcomp)/norm(Tcomp))>0.01              # LOOP DA TEMPERATURA DO OLEO!!!!!
+    while np.linalg.norm((T_novo-Tcomp) / np.linalg.norm(Tcomp)) > 0.01              # LOOP DA TEMPERATURA DO OLEO!!!!!
+    
         mi=minovo
         Tcomp=T_novo
         
-        nk=(nZ)*(ntheta)
-        K_null=np.zeros(1,nk)
-        Kij_null=np.zeros(nZ,ntheta)
+        nk=nZ*ntheta
+        K_null=np.zeros[0,nk]
+        Kij_null=np.zeros[nZ,ntheta]
         ki=1
         kj=1
         k=0; # indice utilizado na vetoriza��o da press�o
         nn=1
         
-        Mat_coef=np.zeros(nk,nk)
-        b=np.zeros(nk)
+        Mat_coef=np.zeros[nk,nk]
+        b=np.zeros[nk]
         
         for ii=(Z1+0.5*dZ):dZ:(Z2-0.5*dZ)              # CORRENDO A MALHA EM Z!!!!!
             
