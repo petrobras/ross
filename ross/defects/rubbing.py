@@ -46,6 +46,8 @@ class Rubbing(Defect):
         Node where the rubbing is ocurring.
     torque : bool, optional
         Set it as True to consider the torque provided by the rubbing, by default False.
+    print_progress : bool
+        Set it True, to print the time iterations and the total time spent, by default False.
 
     References
     ----------
@@ -85,6 +87,7 @@ class Rubbing(Defect):
         massunb,
         phaseunb,
         torque=False,
+        print_progress=False,
     ):
 
         self.dt = dt
@@ -103,6 +106,7 @@ class Rubbing(Defect):
         self.MassUnb2 = massunb[1]
         self.PhaseUnb1 = phaseunb[0]
         self.PhaseUnb2 = phaseunb[1]
+        self.print_progress = print_progress
 
     def run(self, rotor):
 
@@ -152,9 +156,11 @@ class Rubbing(Defect):
         V1, ModMat = scipy.linalg.eigh(
             self.K,
             self.M,
+            type=1,
+            turbo=False,
             # lower=False,
             # type=1,
-            driver="gvd",
+            # driver="gvd",
         )
 
         ModMat = ModMat[:, :12]
@@ -169,6 +175,7 @@ class Rubbing(Defect):
 
         y0 = np.zeros(24)
         t_eval = np.arange(self.tI, self.tF + self.dt, self.dt)
+        # t_eval = np.arange(self.tI, self.tF, self.dt)
         T = t_eval
 
         self.angular_position = (
@@ -200,6 +207,7 @@ class Rubbing(Defect):
         ) - self.MassUnb2 * (self.Omega ** 2) * (np.cos(self.tetaUNB2))
 
         FFunb = np.zeros((self.ndof, len(t_eval)))
+        self.forces_rub = np.zeros((self.ndof, len(t_eval)))
 
         FFunb[self.ndofd1, :] += unb1x
         FFunb[self.ndofd1 + 1, :] += unb1y
@@ -211,10 +219,18 @@ class Rubbing(Defect):
         self.inv_Mmodal = np.linalg.pinv(self.Mmodal)
         t1 = time.time()
 
-        x = Integrator(self.tI, y0, self.tF, self.dt, self._equation_of_movement)
+        x = Integrator(
+            self.tI,
+            y0,
+            self.tF,
+            self.dt,
+            self._equation_of_movement,
+            self.print_progress,
+        )
         x = x.rk4()
         t2 = time.time()
-        print(f"Time spent: {t2-t1} s")
+        if self.print_progress:
+            print(f"Time spent: {t2-t1} s")
 
         self.displacement = x[:12, :]
         self.velocity = x[12:, :]
@@ -230,6 +246,7 @@ class Rubbing(Defect):
         velocityFis = self.ModMat.dot(velocity)
 
         Frub, ft = self._rub(positionsFis, velocityFis, self.Omega[i])
+        self.forces_rub[:, i] = ft
         ftmodal = (self.ModMat.T).dot(ft)
 
         # proper equation of movement to be integrated in time
