@@ -2464,6 +2464,50 @@ class Rotor(object):
         return defect
 
     def run_rubbing(self, **kwargs):
+        """Execute the rubbing defect and generates the rubbing object on the back-end.
+
+        Parameters
+        ----------
+        **kwargs: dictionary
+        
+            **kwargs receives:
+                    dt : float
+                        Time step.
+                    tI : float
+                        Initial time.
+                    tF : float
+                        Final time.
+                    deltaRUB : float
+                        Distance between the housing and shaft surface.
+                    kRUB : float
+                        Contact stiffness.
+                    cRUB : float
+                        Contact damping.
+                    miRUB : float
+                        Friction coefficient.
+                    posRUB : int
+                        Node where the rubbing is ocurring.
+                    speed : float
+                        Operational speed of the machine.
+                    massunb : array
+                        Array with the unbalance magnitude. The unit is kg.m.
+                    phaseunb : array
+                        Array with the unbalance phase. The unit is rad.
+                    torque : bool, optional
+                        Set it as True to consider the torque provided by the rubbing, by default False.
+                    print_progress : bool
+                        Set it True, to print the time iterations and the total time spent, by default False.
+        Examples
+        --------
+        >>> from ross.defects.rubbing import rubbing_example
+        >>> probe1 = (14, 0)
+        >>> probe2 = (22, 0)
+        >>> response = rubbing_example()
+        >>> results = response.run_time_response()
+        >>> fig = response.plot_dfft(probe=[probe1, probe2], range_freq=[0, 100], yaxis_type="log")
+        >>> # fig.show()
+        """
+
         defect = Rubbing(**kwargs)
         defect.run(self)
         return defect
