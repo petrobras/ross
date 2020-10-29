@@ -24,7 +24,7 @@ from ross.bearing_seal_element import (BallBearingElement, BearingElement,
                                        BearingElement6DoF,
                                        MagneticBearingElement,
                                        RollerBearingElement, SealElement)
-from ross.defects import MisalignmentFlex, MisalignmentRigid , Rubbing
+from ross.defects import MisalignmentFlex, MisalignmentRigid, Rubbing
 # from ross.defects import Crack, MisalignmentFlex, MisalignmentRigid, Rubbing
 from ross.disk_element import DiskElement, DiskElement6DoF
 from ross.materials import steel
@@ -2467,32 +2467,32 @@ class Rotor(object):
         **kwargs: dictionary
         
             **kwargs receives:
-                    dt : float
-                        Time step.
-                    tI : float
-                        Initial time.
-                    tF : float
-                        Final time.
-                    deltaRUB : float
-                        Distance between the housing and shaft surface.
-                    kRUB : float
-                        Contact stiffness.
-                    cRUB : float
-                        Contact damping.
-                    miRUB : float
-                        Friction coefficient.
-                    posRUB : int
-                        Node where the rubbing is ocurring.
-                    speed : float
-                        Operational speed of the machine.
-                    massunb : array
-                        Array with the unbalance magnitude. The unit is kg.m.
-                    phaseunb : array
-                        Array with the unbalance phase. The unit is rad.
-                    torque : bool, optional
-                        Set it as True to consider the torque provided by the rubbing, by default False.
-                    print_progress : bool
-                        Set it True, to print the time iterations and the total time spent, by default False.
+                dt : float
+                    Time step.
+                tI : float
+                    Initial time.
+                tF : float
+                    Final time.
+                deltaRUB : float
+                    Distance between the housing and shaft surface.
+                kRUB : float
+                    Contact stiffness.
+                cRUB : float
+                    Contact damping.
+                miRUB : float
+                    Friction coefficient.
+                posRUB : int
+                    Node where the rubbing is ocurring.
+                speed : float
+                    Operational speed of the machine.
+                massunb : array
+                    Array with the unbalance magnitude. The unit is kg.m.
+                phaseunb : array
+                    Array with the unbalance phase. The unit is rad.
+                torque : bool
+                    Set it as True to consider the torque provided by the rubbing, by default False.
+                print_progress : bool
+                    Set it True, to print the time iterations and the total time spent, by default False.
         Examples
         --------
         >>> from ross.defects.rubbing import rubbing_example
