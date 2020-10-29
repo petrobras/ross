@@ -383,67 +383,67 @@ for n_p in range(1,npad+1): # LOOP NAS PADS!!!!!
                 b[k,0]=B
                 hhh[k,n_p]=hP*Cr
 
-###################### BREAK HERE FOR NOW!
-
-                if ki==1 && kj==1
-                    Mat_coef(k,k)=CP-CN-CW
-                    Mat_coef(k,k+1)=CE
-                    Mat_coef(k,k+ntheta)=CS
-                end
+                if (ki==1 and kj==1):
+                    Mat_coef[k,k]=CP-CN-CW
+                    Mat_coef[k,k+1]=CE
+                    Mat_coef[k,k+ntheta]=CS
                 
-                if ki==1 && kj>1 && kj<nX
-                    Mat_coef(k,k)=CP-CN
-                    Mat_coef(k,k+1)=CE
-                    Mat_coef(k,k-1)=CW
-                    Mat_coef(k,k+ntheta)=CS
-                end
                 
-                if ki==1 && kj==nX
-                    Mat_coef(k,k)=CP-CE-CN
-                    Mat_coef(k,k-1)=CW
-                    Mat_coef(k,k+ntheta)=CS
-                end
+                if (ki==1 and kj>1 and kj<nX):
+                    Mat_coef[k,k]=CP-CN
+                    Mat_coef[k,k+1]=CE
+                    Mat_coef[k,k-1]=CW
+                    Mat_coef[k,k+ntheta]=CS
                 
-                if kj==1 && ki>1 && ki<nZ
-                    Mat_coef(k,k)=CP-CW
-                    Mat_coef(k,k+1)=CE
-                    Mat_coef(k,k-ntheta)=CN
-                    Mat_coef(k,k+ntheta)=CS
-                end
                 
-                if ki>1 && ki<nZ && kj>1 && kj<nX
-                    Mat_coef(k,k)=CP
-                    Mat_coef(k,k-1)=CW
-                    Mat_coef(k,k-ntheta)=CN
-                    Mat_coef(k,k+ntheta)=CS
-                    Mat_coef(k,k+1)=CE
-                end
+                if (ki==1 and kj==nX):
+                    Mat_coef[k,k]=CP-CE-CN
+                    Mat_coef[k,k-1]=CW
+                    Mat_coef[k,k+ntheta]=CS
                 
-                if kj==nX && ki>1 && ki<nZ
-                    Mat_coef(k,k)=CP-CE
-                    Mat_coef(k,k-1)=CW
-                    Mat_coef(k,k-ntheta)=CN
-                    Mat_coef(k,k+ntheta)=CS
-                end
                 
-                if kj==1 && ki==nZ
-                    Mat_coef(k,k)=CP-CS-CW
-                    Mat_coef(k,k+1)=CE
-                    Mat_coef(k,k-ntheta)=CN
-                end
+                if (kj==1 and ki>1 and ki<nZ):
+                    Mat_coef[k,k]=CP-CW
+                    Mat_coef[k,k+1]=CE
+                    Mat_coef[k,k-ntheta]=CN
+                    Mat_coef[k,k+ntheta]=CS
                 
-                if ki==nZ && kj>1 && kj<nX
-                    Mat_coef(k,k)=CP-CS
-                    Mat_coef(k,k+1)=CE
-                    Mat_coef(k,k-1)=CW
-                    Mat_coef(k,k-ntheta)=CN
-                end
                 
-                if ki==nZ && kj==nX
-                    Mat_coef(k,k)=CP-CE-CS
-                    Mat_coef(k,k-1)=CW
-                    Mat_coef(k,k-ntheta)=CN
-                end
+                if (ki>1 and ki<nZ and kj>1 and kj<nX):
+                    Mat_coef[k,k]=CP
+                    Mat_coef[k,k-1]=CW
+                    Mat_coef[k,k-ntheta]=CN
+                    Mat_coef[k,k+ntheta]=CS
+                    Mat_coef[k,k+1]=CE
+                
+                
+                if (kj==nX and ki>1 and ki<nZ):
+                    Mat_coef[k,k]=CP-CE
+                    Mat_coef[k,k-1]=CW
+                    Mat_coef[k,k-ntheta]=CN
+                    Mat_coef[k,k+ntheta]=CS
+                
+                
+                if (kj==1 and ki==nZ):
+                    Mat_coef[k,k]=CP-CS-CW
+                    Mat_coef[k,k+1]=CE
+                    Mat_coef[k,k-ntheta]=CN
+                
+                
+                if (ki==nZ and kj>1 and kj<nX):
+                    Mat_coef[k,k]=CP-CS
+                    Mat_coef[k,k+1]=CE
+                    Mat_coef[k,k-1]=CW
+                    Mat_coef[k,k-ntheta]=CN
+                
+                
+                if (ki==nZ and kj==nX):
+                    Mat_coef[k,k]=CP-CE-CS
+                    Mat_coef[k,k-1]=CW
+                    Mat_coef[k,k-ntheta]=CN
+                
+################### BREAK HERE!!!
+                
                 
                 if isempty(find(drop_pressure_Ele_nZ==ki+1))==0 & isempty(find(drop_pressure_Ele_ntetha==kj+1))==0
                     K_null(k)=k
