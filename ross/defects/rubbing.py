@@ -47,7 +47,7 @@ class Rubbing(Defect):
         Array with the unbalance magnitude. The unit is kg.m.
     phaseunb : array
         Array with the unbalance phase. The unit is rad.
-    torque : bool, optional
+    torque : bool
         Set it as True to consider the torque provided by the rubbing, by default False.
     print_progress : bool
         Set it True, to print the time iterations and the total time spent, by default False.
@@ -58,7 +58,7 @@ class Rubbing(Defect):
 
     References
     ----------
-    .. [1] Yamamoto, T., Ishida, Y., &Kirk, R.(2002). Linear and Nonlinear Rotordynamics: A Modern Treatment with Applications, pp. 215-222.
+    .. [1] Yamamoto, T., Ishida, Y., &Kirk, R.(2002). Linear and Nonlinear Rotordynamics: A Modern Treatment with Applications, pp. 215-222 ..
 
     Examples
     --------
@@ -550,7 +550,8 @@ def rubbing_example():
         speed=1200,
         massunb=np.array([5e-4, 0]),
         phaseunb=np.array([-np.pi / 2, 0]),
-        print_progress=True,
+        torque=False,
+        print_progress=False,
     )
 
     return rubbing
