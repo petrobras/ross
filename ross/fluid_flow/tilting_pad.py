@@ -224,10 +224,6 @@ XH = np.zeros[nN+2,nX+2]
 for ii in range(1,nX+2+1):
     XH[:,ii] = Xtheta[ii]
 
-
-################### from here downwards, still in the works
-
-
 for n_p in range(1,npad+1): # LOOP NAS PADS!!!!!
     alpha=psi_pad[n_p]
 
@@ -347,6 +343,8 @@ for n_p in range(1,npad+1): # LOOP NAS PADS!!!!!
                     auxFF2W[nn]=(kk/mi_adW)*(kk-FF1W/FF0W)
                     nn=nn+1
                 
+
+################### from here downwards, still in the works
 
                 nn=1
                 
