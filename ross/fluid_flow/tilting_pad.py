@@ -323,29 +323,31 @@ for n_p in range(1,npad+1): # LOOP NAS PADS!!!!!
                 auxFF1W[0]=0
                 auxFF1W[nN+1]=(N2/(vector_mi[2,nN]/mi_ref))
                 
-                FF0P=0.5*sum((netha(2:end)-netha(1:end-1)).*(auxFF0P(2:end)+auxFF0P(1:end-1)))
-                FF1P=0.5*sum((netha(2:end)-netha(1:end-1)).*(auxFF1P(2:end)+auxFF1P(1:end-1)))
-                FF0E=0.5*sum((netha(2:end)-netha(1:end-1)).*(auxFF0E(2:end)+auxFF0E(1:end-1)))
-                FF1E=0.5*sum((netha(2:end)-netha(1:end-1)).*(auxFF1E(2:end)+auxFF1E(1:end-1)))
-                FF0W=0.5*sum((netha(2:end)-netha(1:end-1)).*(auxFF0W(2:end)+auxFF0W(1:end-1)))
-                FF1W=0.5*sum((netha(2:end)-netha(1:end-1)).*(auxFF1W(2:end)+auxFF1W(1:end-1)))
+                FF0P=0.5*np.sum((netha[1:]-netha[0:-2]).*(auxFF0P[1:]+auxFF0P[0:-2]))
+                FF1P=0.5*np.sum((netha[1:]-netha[0:-2]).*(auxFF1P[1:]+auxFF1P[0:-2]))
+                FF0E=0.5*np.sum((netha[1:]-netha[0:-2]).*(auxFF0E[1:]+auxFF0E[0:-2]))
+                FF1E=0.5*np.sum((netha[1:]-netha[0:-2]).*(auxFF1E[1:]+auxFF1E[0:-2]))
+                FF0W=0.5*np.sum((netha[1:]-netha[0:-2]).*(auxFF0W[1:]+auxFF0W[0:-2]))
+                FF1W=0.5*np.sum((netha[1:]-netha[0:-2]).*(auxFF1W[1:]+auxFF1W[0:-2]))
                 
                 FF0e=0.5*(FF0P+FF0E)
                 FF0w=0.5*(FF0P+FF0W)
                 FF1e=0.5*(FF1P+FF1E)
                 FF1w=0.5*(FF1P+FF1W)
                 
-                for kk=N1+0.5*dN:dN:N2-0.5*dN
+                # for kk=N1+0.5*dN:dN:N2-0.5*dN
+                for kk in range(N1+0.5*dN, dN, N2-0.5*dN):
                     
-                    mi_adP=vector_mi(1,nN+1-nn)/mi_ref
-                    mi_adE=vector_mi(2,nN+1-nn)/mi_ref
-                    mi_adW=vector_mi(3,nN+1-nn)/mi_ref
+                    mi_adP=vector_mi[0,nN-nn]/mi_ref
+                    mi_adE=vector_mi[1,nN-nn]/mi_ref
+                    mi_adW=vector_mi[2,nN-nn]/mi_ref
                     
-                    auxFF2P(nn+1)=(kk/mi_adP)*(kk-FF1P/FF0P)
-                    auxFF2E(nn+1)=(kk/mi_adE)*(kk-FF1E/FF0E)
-                    auxFF2W(nn+1)=(kk/mi_adW)*(kk-FF1W/FF0W)
+                    auxFF2P[nn]=(kk/mi_adP)*(kk-FF1P/FF0P)
+                    auxFF2E[nn]=(kk/mi_adE)*(kk-FF1E/FF0E)
+                    auxFF2W[nn]=(kk/mi_adW)*(kk-FF1W/FF0W)
                     nn=nn+1
-                end
+                
+
                 nn=1
                 
                 auxFF2P(1)=0
