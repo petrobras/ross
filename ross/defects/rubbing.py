@@ -96,6 +96,7 @@ class Rubbing(Defect):
         self.cRUB = cRUB
         self.miRUB = miRUB
         self.posRUB = posRUB
+        self.speed = speed
         self.speedI = speed
         self.speedF = speed
         self.DoF = np.arange((self.posRUB * 6), (self.posRUB * 6 + 6))
