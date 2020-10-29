@@ -32,10 +32,14 @@ class Defect(ABC):
         return results
 
     def plot_dfft(
-        self, probe, probe_units="rad", range_freq=None, fig=None, **kwargs,
+        self,
+        probe,
+        probe_units="rad",
+        range_freq=None,
+        fig=None,
+        **kwargs,
     ):
-        """
-        """
+        """"""
         if fig is None:
             fig = go.Figure()
 

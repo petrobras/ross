@@ -245,7 +245,7 @@ for n_p in range(1,npad+1): # LOOP NAS PADS!!!!!
     
     Tcomp=1.2*T_novo
     
-    while np.linalg.norm((T_novo-Tcomp) / np.linalg.norm(Tcomp)) > 0.01              # LOOP DA TEMPERATURA DO OLEO!!!!!
+    while (np.linalg.norm((T_novo-Tcomp) / np.linalg.norm(Tcomp)) > 0.01):              # LOOP DA TEMPERATURA DO OLEO!!!!!
     
         mi=minovo
         Tcomp=T_novo
@@ -443,7 +443,7 @@ for n_p in range(1,npad+1): # LOOP NAS PADS!!!!!
                     Mat_coef[k,k-ntheta]=CN
                 
                 
-                if isempty(find(drop_pressure_Ele_nZ==ki+1))==0 & isempty(find(drop_pressure_Ele_ntetha==kj+1))==0
+                if (isempty(find(drop_pressure_Ele_nZ==ki+1))==0 & isempty(find(drop_pressure_Ele_ntetha==kj+1))==0):
                     K_null[k]=k
                     Kij_null[ki,kj]=1
                 

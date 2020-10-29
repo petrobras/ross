@@ -2140,7 +2140,8 @@ class ForcedResponseResults:
 
         fig.update_xaxes(title_text=f"Rotor Length ({rotor_length_units})")
         fig.update_yaxes(
-            title_text=f"Bending Moment ({moment_units})", title_font=dict(size=12),
+            title_text=f"Bending Moment ({moment_units})",
+            title_font=dict(size=12),
         )
         fig.update_layout(**kwargs)
 
@@ -2257,7 +2258,11 @@ class ForcedResponseResults:
                 text=f"Deflected Shape<br>Speed = {speed_str} {frequency_units}",
             ),
             legend=dict(
-                orientation="h", xanchor="center", yanchor="bottom", x=0.5, y=-0.3,
+                orientation="h",
+                xanchor="center",
+                yanchor="bottom",
+                x=0.5,
+                y=-0.3,
             ),
             width=800,
             height=600,

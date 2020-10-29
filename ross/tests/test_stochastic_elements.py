@@ -33,7 +33,11 @@ def rand_shaft():
 @pytest.fixture
 def rand_disk_from_inertia():
     elm = ST_DiskElement(
-        n=1, m=[30, 40], Id=[0.2, 0.3], Ip=[0.5, 0.7], is_random=["m", "Id", "Ip"],
+        n=1,
+        m=[30, 40],
+        Id=[0.2, 0.3],
+        Ip=[0.5, 0.7],
+        is_random=["m", "Id", "Ip"],
     )
     return elm
 

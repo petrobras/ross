@@ -375,7 +375,11 @@ class ST_FrequencyResponseResults:
         self.phase = phase
 
     def plot_magnitude(
-        self, percentile=[], conf_interval=[], units="mic-pk-pk", **kwargs,
+        self,
+        percentile=[],
+        conf_interval=[],
+        units="mic-pk-pk",
+        **kwargs,
     ):
         """Plot amplitude vs frequency.
 
@@ -611,7 +615,11 @@ class ST_FrequencyResponseResults:
         return fig
 
     def plot_polar_bode(
-        self, percentile=[], conf_interval=[], units="mic-pk-pk", **kwargs,
+        self,
+        percentile=[],
+        conf_interval=[],
+        units="mic-pk-pk",
+        **kwargs,
     ):
         """Plot polar forced response using Plotly.
 
