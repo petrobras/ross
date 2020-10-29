@@ -343,30 +343,32 @@ for n_p in range(1,npad+1): # LOOP NAS PADS!!!!!
                     auxFF2W[nn]=(kk/mi_adW)*(kk-FF1W/FF0W)
                     nn=nn+1
                 
-
-################### from here downwards, still in the works
-
                 nn=1
                 
-                auxFF2P(1)=0
-                auxFF2P(nN+2)=(N2/(vector_mi(1,nN)/mi_ref))*(N2-FF1P/FF0P)
+                auxFF2P[0]=0
+                auxFF2P[nN+1]=(N2/(vector_mi[0,nN]/mi_ref))*(N2-FF1P/FF0P)
                 
-                auxFF2E(1)=0
-                auxFF2E(nN+2)=(N2/(vector_mi(2,nN)/mi_ref))*(N2-FF1P/FF0P)
+                auxFF2E[0]=0
+                auxFF2E[nN+1]=(N2/(vector_mi[1,nN]/mi_ref))*(N2-FF1P/FF0P)
                 
-                auxFF2W(1)=0
-                auxFF2W(nN+2)=(N2/(vector_mi(3,nN)/mi_ref))*(N2-FF1P/FF0P)
+                auxFF2W[0]=0
+                auxFF2W[nN+1]=(N2/(vector_mi[2,nN]/mi_ref))*(N2-FF1P/FF0P)
                 
                 # INTEGRAÇÕES
-                FF2P=0.5*sum((netha(2:end)-netha(1:end-1)).*(auxFF2P(2:end)+auxFF2P(1:end-1)))
-                FF2E=0.5*sum((netha(2:end)-netha(1:end-1)).*(auxFF2E(2:end)+auxFF2E(1:end-1)))
-                FF2W=0.5*sum((netha(2:end)-netha(1:end-1)).*(auxFF2W(2:end)+auxFF2W(1:end-1)))
+                FF2P=0.5*np.sum((netha[1:]-netha[0:-2]).*(auxFF2P[1:]+auxFF2P[0:-2]))
+                FF2E=0.5*np.sum((netha[1:]-netha[0:-2]).*(auxFF2E[1:]+auxFF2E[0:-2]))
+                FF2W=0.5*np.sum((netha[1:]-netha[0:-2]).*(auxFF2W[1:]+auxFF2W[0:-2]))
                 
                 FF2e=0.5*(FF2P+FF2E)
                 FF2w=0.5*(FF2P+FF2W)
                 FF2n=FF2P
                 FF2s=FF2n
                 
+
+
+################### from here downwards, still in the works
+
+
                 # espessura do filme adimensional
                 hP=(Rs-R-(sin(jj)*(yr+alpha*(Rs+esp))+cos(jj)*(xr+Rs-R-Cr)))/Cr
                 he=(Rs-R-(sin(jj+0.5*dtheta)*(yr+alpha*(Rs+esp))+cos(jj+0.5*dtheta)*(xr+Rs-R-Cr)))/Cr
