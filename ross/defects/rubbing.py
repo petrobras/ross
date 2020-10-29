@@ -7,6 +7,7 @@ import scipy as sp
 import scipy.integrate
 import scipy.linalg
 
+import ross
 from ross.results import TimeResponseResults
 from ross.units import Q_
 
@@ -24,16 +25,12 @@ class Rubbing(Defect):
 
     Parameters
     ----------
-    ShaftRad : numpy.ndarray
-        Vector containing the radius of each element.
-    Nele : int
-        Number of elements. 
-    yfuture : numpy.ndarray
-        Displacement vector of each element.
-    yptfuture : numpy.ndarray
-        Velocity vector of each element.
-    Omega : float
-        Angular velocity.
+    dt : float
+        Time step.
+    tI : float
+        Initial time.
+    tF : float
+        Final time.
     deltaRUB : float
         Distance between the housing and shaft surface.
     kRUB : float
@@ -44,10 +41,20 @@ class Rubbing(Defect):
         Friction coefficient.
     posRUB : int
         Node where the rubbing is ocurring.
+    speed : float
+        Operational speed of the machine.
+    massunb : array
+        Array with the unbalance magnitude. The unit is kg.m.
+    phaseunb : array
+        Array with the unbalance phase. The unit is rad.
     torque : bool, optional
         Set it as True to consider the torque provided by the rubbing, by default False.
     print_progress : bool
         Set it True, to print the time iterations and the total time spent, by default False.
+
+    Returns
+    -------
+    A force to be applied on the shaft.
 
     References
     ----------
@@ -55,21 +62,13 @@ class Rubbing(Defect):
 
     Examples
     --------
-    >>> from rubbing import Rubbing
-    >>> import numpy as np
-    >>> Nele = 33
-    >>> posRUB = 5
-    >>> deltaRUB = 2.3e-7
-    >>> kRUB = 2e6
-    >>> cRUB = 4e2
-    >>> miRUB = 0.2
-    >>> ShaftRad = np.ones(33)
-    >>> ShaftRad *= 0.0095
-    >>> yfuture = np.loadtxt("yf.txt")
-    >>> yptfuture = np.loadtxt("yptf.txt")
-    >>> Omega = 94.2478
-    >>> Rubbing = Rubbing(ShaftRad, Nele, yfuture, yptfuture, Omega, deltaRUB, kRUB, cRUB, miRUB, posRUB)
-    >>> Force = Rubbing.forces
+    >>> from ross.defects.rubbing import rubbing_example
+    >>> probe1 = (14, 0)
+    >>> probe2 = (22, 0)
+    >>> response = rubbing_example()
+    >>> results = response.run_time_response()
+    >>> fig = response.plot_dfft(probe=[probe1, probe2], range_freq=[0, 100], yaxis_type="log")
+    >>> # fig.show()
     """
 
     def __init__(
@@ -77,7 +76,6 @@ class Rubbing(Defect):
         dt,
         tI,
         tF,
-        # ShaftRad,  # passado do rotor
         deltaRUB,
         kRUB,
         cRUB,
@@ -109,6 +107,14 @@ class Rubbing(Defect):
         self.print_progress = print_progress
 
     def run(self, rotor):
+        """Calculates the shaft angular position and the unbalance forces at X / Y directions.
+
+        Parameters
+        ----------
+        rotor : ross.Rotor Object
+             6 DoF rotor model.
+                
+        """
 
         self.rotor = rotor
         self.ndof = rotor.ndof
@@ -121,7 +127,6 @@ class Rubbing(Defect):
         warI = self.speedI * np.pi / 30
         warF = self.speedF * np.pi / 30
 
-        # self.FFunb = np.zeros(self.ndof)
         self.lambdat = 0.00001
         # Faxial = 0
         # TorqueI = 0
@@ -153,15 +158,7 @@ class Rubbing(Defect):
         self.M = self.rotor.M()
         self.Kst = self.rotor.Kst()
 
-        V1, ModMat = scipy.linalg.eigh(
-            self.K,
-            self.M,
-            type=1,
-            turbo=False,
-            # lower=False,
-            # type=1,
-            # driver="gvd",
-        )
+        V1, ModMat = scipy.linalg.eigh(self.K, self.M, type=1, turbo=False,)
 
         ModMat = ModMat[:, :12]
         self.ModMat = ModMat
@@ -238,6 +235,22 @@ class Rubbing(Defect):
         self.response = self.ModMat.dot(self.displacement)
 
     def _equation_of_movement(self, T, Y, i):
+        """ Calculates the displacement and velocity using state-space representation in the modal domain.
+
+        Parameters
+        ----------
+        T : float
+            Iteration time.
+        Y : array
+            Array of displacement and velocity, in the modal domain.
+        i : int
+            Iteration step.
+
+        Returns
+        -------
+        new_Y :  array
+            Array of the new displacement and velocity, in the modal domain.
+        """
 
         positions = Y[:12]
         velocity = Y[12:]  # velocity in space state
@@ -418,3 +431,125 @@ class Rubbing(Defect):
     @property
     def forces(self):
         pass
+
+
+def base_rotor_example():
+    """Internal routine that create an example of a rotor, to be used in
+    the associated misalignment problems as a prerequisite.
+
+    This function returns an instance of a 6 DoF rotor, with a number of
+    components attached. As this is not the focus of the example here, but
+    only a requisite, see the example in "rotor assembly" for additional
+    information on the rotor object.
+
+    Returns
+    -------
+    rotor : ross.Rotor Object
+        An instance of a flexible 6 DoF rotor object.
+
+    Examples
+    --------
+    >>> rotor = base_rotor_example()
+    >>> rotor.Ip
+    0.015118294226367068
+    """
+    steel2 = ross.Material(
+        name="Steel", rho=7850, E=2.17e11, Poisson=0.2992610837438423
+    )
+    #  Rotor with 6 DoFs, with internal damping, with 10 shaft elements, 2 disks and 2 bearings.
+    i_d = 0
+    o_d = 0.019
+    n = 33
+
+    # fmt: off
+    L = np.array(
+            [0  ,  25,  64, 104, 124, 143, 175, 207, 239, 271,
+            303, 335, 345, 355, 380, 408, 436, 466, 496, 526,
+            556, 586, 614, 647, 657, 667, 702, 737, 772, 807,
+            842, 862, 881, 914]
+            )/ 1000
+    # fmt: on
+
+    L = [L[i] - L[i - 1] for i in range(1, len(L))]
+
+    shaft_elem = [
+        ross.ShaftElement6DoF(
+            material=steel2,
+            L=l,
+            idl=i_d,
+            odl=o_d,
+            idr=i_d,
+            odr=o_d,
+            alpha=8.0501,
+            beta=1.0e-5,
+            rotary_inertia=True,
+            shear_effects=True,
+        )
+        for l in L
+    ]
+
+    Id = 0.003844540885417
+    Ip = 0.007513248437500
+
+    disk0 = ross.DiskElement6DoF(n=12, m=2.6375, Id=Id, Ip=Ip)
+    disk1 = ross.DiskElement6DoF(n=24, m=2.6375, Id=Id, Ip=Ip)
+
+    kxx1 = 4.40e5
+    kyy1 = 4.6114e5
+    kzz = 0
+    cxx1 = 27.4
+    cyy1 = 2.505
+    czz = 0
+    kxx2 = 9.50e5
+    kyy2 = 1.09e8
+    cxx2 = 50.4
+    cyy2 = 100.4553
+
+    bearing0 = ross.BearingElement6DoF(
+        n=4, kxx=kxx1, kyy=kyy1, cxx=cxx1, cyy=cyy1, kzz=kzz, czz=czz
+    )
+    bearing1 = ross.BearingElement6DoF(
+        n=31, kxx=kxx2, kyy=kyy2, cxx=cxx2, cyy=cyy2, kzz=kzz, czz=czz
+    )
+
+    rotor = ross.Rotor(shaft_elem, [disk0, disk1], [bearing0, bearing1])
+
+    return rotor
+
+
+def rubbing_example():
+    """Create an example of a rubbing defect.
+
+    This function returns an instance of a rubbing defect. The purpose is to make 
+    available a simple model so that a doctest can be written using it.
+
+    Returns
+    -------
+    rubbing : ross.Rubbing Object
+        An instance of a rubbing model object.
+
+    Examples
+    --------
+    >>> rubbing = rubbing_example()
+    >>> rubbing.speed
+    1200
+    """
+
+    rotor = base_rotor_example()
+
+    rubbing = rotor.run_rubbing(
+        dt=0.0001,
+        tI=0,
+        tF=30,
+        deltaRUB=7.95e-5,
+        kRUB=1.1e6,
+        cRUB=40,
+        miRUB=0.3,
+        posRUB=12,
+        speed=1200,
+        massunb=np.array([5e-4, 0]),
+        phaseunb=np.array([-np.pi / 2, 0]),
+        print_progress=True,
+    )
+
+    return rubbing
