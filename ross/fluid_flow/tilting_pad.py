@@ -365,27 +365,25 @@ for n_p in range(1,npad+1): # LOOP NAS PADS!!!!!
                 FF2s=FF2n
                 
 
-
-################### from here downwards, still in the works
-
-
                 # espessura do filme adimensional
-                hP=(Rs-R-(sin(jj)*(yr+alpha*(Rs+esp))+cos(jj)*(xr+Rs-R-Cr)))/Cr
-                he=(Rs-R-(sin(jj+0.5*dtheta)*(yr+alpha*(Rs+esp))+cos(jj+0.5*dtheta)*(xr+Rs-R-Cr)))/Cr
-                hw=(Rs-R-(sin(jj-0.5*dtheta)*(yr+alpha*(Rs+esp))+cos(jj-0.5*dtheta)*(xr+Rs-R-Cr)))/Cr
+                hP=(Rs-R-(np.sin(jj)*(yr+alpha*(Rs+esp))+np.cos(jj)*(xr+Rs-R-Cr)))/Cr
+                he=(Rs-R-(np.sin(jj+0.5*dtheta)*(yr+alpha*(Rs+esp))+np.cos(jj+0.5*dtheta)*(xr+Rs-R-Cr)))/Cr
+                hw=(Rs-R-(np.sin(jj-0.5*dtheta)*(yr+alpha*(Rs+esp))+np.cos(jj-0.5*dtheta)*(xr+Rs-R-Cr)))/Cr
                 hn=hP
                 hs=hn
-                hpt=-(1/(Cr*war))*(cos(jj)*xrpt+sin(jj)*yrpt+sin(jj)*(Rs+esp)*alphapt) # adimensional
+                hpt=-(1/(Cr*war))*(np.cos(jj)*xrpt+np.sin(jj)*yrpt+np.sin(jj)*(Rs+esp)*alphapt) # adimensional
                 
-                CE=1/(betha_s)^2*(FF2e*he^3)*dZ/dX
-                CW=1/(betha_s)^2*(FF2w*hw^3)*dZ/dX
-                CN=(FF2n*hn^3)*(dX/dZ)*(Rs/L)^2
-                CS=(FF2s*hs^3)*(dX/dZ)*(Rs/L)^2
+                CE=1/(betha_s)**2*(FF2e*he**3)*dZ/dX
+                CW=1/(betha_s)**2*(FF2w*hw**3)*dZ/dX
+                CN=(FF2n*hn**3)*(dX/dZ)*(Rs/L)**2
+                CS=(FF2s*hs**3)*(dX/dZ)*(Rs/L)**2
                 CP=-(CE+CW+CN+CS)
                 B=(R/(Rs*betha_s))*dZ*(he*(1-FF1e/FF0e)-hw*(1-FF1w/FF0w))+hpt*dX*dZ
                 k=k+1
-                b(k,1)=B
-                hhh(k,n_p)=hP*Cr
+                b[k,0]=B
+                hhh[k,n_p]=hP*Cr
+
+###################### BREAK HERE FOR NOW!
 
                 if ki==1 && kj==1
                     Mat_coef(k,k)=CP-CN-CW
