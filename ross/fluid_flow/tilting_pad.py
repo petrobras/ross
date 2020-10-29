@@ -442,21 +442,20 @@ for n_p in range(1,npad+1): # LOOP NAS PADS!!!!!
                     Mat_coef[k,k-1]=CW
                     Mat_coef[k,k-ntheta]=CN
                 
-################### BREAK HERE!!!
-                
                 
                 if isempty(find(drop_pressure_Ele_nZ==ki+1))==0 & isempty(find(drop_pressure_Ele_ntetha==kj+1))==0
-                    K_null(k)=k
-                    Kij_null(ki,kj)=1
-                end
+                    K_null[k]=k
+                    Kij_null[ki,kj]=1
                 
                 
                 kj=kj+1
-            end
+            # loop end
+            
             kj=1
             ki=ki+1
-            
-        end
+        # loop end
+
+        
         
         # %%%%%%%%%%%%%%%%%%%%%% Solu��o do Campo de Press�o %%%%%%%%%%%%%%%%%%%%
         
