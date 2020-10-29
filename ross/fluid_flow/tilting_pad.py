@@ -301,26 +301,27 @@ for n_p in range(1,npad+1): # LOOP NAS PADS!!!!!
                     auxFF1W[nn+1]=(kk/mi_adW)
                     
                     nn=nn+1
-                end
+                
+
                 nn=1
                 
-                auxFF0P(1)=auxFF0P(2)
-                auxFF0P(nN+2)=auxFF0P(nN+1)
+                auxFF0P[0]=auxFF0P[1]
+                auxFF0P[nN+1]=auxFF0P[nN]
                 
-                auxFF1P(1)=0
-                auxFF1P(nN+2)=(N2/(vector_mi(1,nN)/mi_ref))
+                auxFF1P[0]=0
+                auxFF1P[nN+1]=(N2/(vector_mi[0,nN]/mi_ref))
                 
-                auxFF0E(1)=auxFF0E(2)
-                auxFF0E(nN+2)=auxFF0E(nN+1)
+                auxFF0E[0]=auxFF0E[1]
+                auxFF0E[nN+1]=auxFF0E[nN]
 
-                auxFF1E(1)=0
-                auxFF1E(nN+2)=(N2/(vector_mi(2,nN)/mi_ref))
+                auxFF1E[0]=0
+                auxFF1E[nN+1]=(N2/(vector_mi[1,nN]/mi_ref))
                 
-                auxFF0W(1)=auxFF0W(2)
-                auxFF0W(nN+2)=auxFF0W(nN+1)
+                auxFF0W[0]=auxFF0W[1]
+                auxFF0W[nN+1]=auxFF0W[nN]
                 
-                auxFF1W(1)=0
-                auxFF1W(nN+2)=(N2/(vector_mi(3,nN)/mi_ref))
+                auxFF1W[0]=0
+                auxFF1W[nN+1]=(N2/(vector_mi[2,nN]/mi_ref))
                 
                 FF0P=0.5*sum((netha(2:end)-netha(1:end-1)).*(auxFF0P(2:end)+auxFF0P(1:end-1)))
                 FF1P=0.5*sum((netha(2:end)-netha(1:end-1)).*(auxFF1P(2:end)+auxFF1P(1:end-1)))
