@@ -541,7 +541,7 @@ def rubbing_example():
     rubbing = rotor.run_rubbing(
         dt=0.0001,
         tI=0,
-        tF=30,
+        tF=0.5,
         deltaRUB=7.95e-5,
         kRUB=1.1e6,
         cRUB=40,
