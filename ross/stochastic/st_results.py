@@ -375,7 +375,7 @@ class ST_FrequencyResponseResults:
         self.phase = phase
 
     def plot_magnitude(
-        self, percentile=[], conf_interval=[], units="mic-pk-pk", **kwargs,
+        self, percentile=[], conf_interval=[], units="mic-pk-pk", **kwargs
     ):
         """Plot amplitude vs frequency.
 
@@ -611,7 +611,7 @@ class ST_FrequencyResponseResults:
         return fig
 
     def plot_polar_bode(
-        self, percentile=[], conf_interval=[], units="mic-pk-pk", **kwargs,
+        self, percentile=[], conf_interval=[], units="mic-pk-pk", **kwargs
     ):
         """Plot polar forced response using Plotly.
 
@@ -718,7 +718,7 @@ class ST_FrequencyResponseResults:
                     linecolor="black",
                     linewidth=2.5,
                 ),
-            ),
+            )
         )
 
         return fig
@@ -1167,7 +1167,7 @@ class ST_TimeResponseResults:
                 xaxis=dict(title=dict(text="<b>Rotor Length</b>"), showspikes=False),
                 yaxis=dict(title=dict(text="<b>Amplitude - X</b>"), showspikes=False),
                 zaxis=dict(title=dict(text="<b>Amplitude - Y</b>"), showspikes=False),
-            ),
+            )
         )
         return fig
 
@@ -1644,7 +1644,7 @@ class ST_ForcedResponseResults:
             polar=dict(
                 radialaxis=fig2.layout.polar.radialaxis,
                 angularaxis=fig2.layout.polar.angularaxis,
-            ),
+            )
         )
 
         return fig

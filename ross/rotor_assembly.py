@@ -2377,7 +2377,7 @@ class Rotor(object):
             Coupling type. The avaible types are: flex, by default; and rigid.
 
         **kwargs: dictionary
-        
+
             In the case of coupling = "flex", **kwargs receives:
                 dt : float
                     Time step.

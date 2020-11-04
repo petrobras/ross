@@ -423,7 +423,7 @@ def find_equilibrium_position(fluid_flow_object, print_equilibrium_position=Fals
         )
         bearing.geometry_description()
         bearing.calculate_pressure_matrix_numerical()
-        (_, _, fx, fy,) = calculate_oil_film_force(bearing, force_type="numerical")
+        (_, _, fx, fy) = calculate_oil_film_force(bearing, force_type="numerical")
         return np.array([fx, (fy - bearing.load)])
 
     if fluid_flow_object.load is None:
@@ -437,15 +437,9 @@ def find_equilibrium_position(fluid_flow_object, print_equilibrium_position=Fals
     move_rotor_center_abs(fluid_flow_object, x0[0], x0[1])
     fluid_flow_object.geometry_description()
     fluid_flow_object.calculate_pressure_matrix_numerical()
-    (_, _, fx, fy,) = calculate_oil_film_force(
-        fluid_flow_object, force_type="numerical"
-    )
+    (_, _, fx, fy) = calculate_oil_film_force(fluid_flow_object, force_type="numerical")
     result = least_squares(
-        residuals,
-        x0,
-        args=[fluid_flow_object],
-        jac="3-point",
-        bounds=([0, -1], [1, 0]),
+        residuals, x0, args=[fluid_flow_object], jac="3-point", bounds=([0, -1], [1, 0])
     )
     move_rotor_center_abs(
         fluid_flow_object,

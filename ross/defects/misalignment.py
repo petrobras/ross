@@ -19,16 +19,13 @@ from ross.units import Q_
 from .abs_defect import Defect
 from .integrate_solver import Integrator
 
-__all__ = [
-    "MisalignmentFlex",
-    "MisalignmentRigid",
-]
+__all__ = ["MisalignmentFlex", "MisalignmentRigid"]
 
 
 class MisalignmentFlex(Defect):
     """A flexible coupling with misalignment of some kind.
-    
-    Calculates the dynamic reaction force of hexangular flexible coupling 
+
+    Calculates the dynamic reaction force of hexangular flexible coupling
     induced by 6DOF's rotor parallel and angular misalignment.
 
     Parameters
@@ -66,15 +63,15 @@ class MisalignmentFlex(Defect):
     print_progress : bool
         Set it True, to print the time iterations and the total time spent.
         False by default.
-    
+
     Returns
     -------
     A force to be applied on the shaft.
 
     References
     ----------
-    .. [1] 'Xia, Y., Pang, J., Yang, L., Zhao, Q., & Yang, X. (2019). Study on vibration response 
-    and orbits of misaligned rigid rotors connected by hexangular flexible coupling. Applied 
+    .. [1] 'Xia, Y., Pang, J., Yang, L., Zhao, Q., & Yang, X. (2019). Study on vibration response
+    and orbits of misaligned rigid rotors connected by hexangular flexible coupling. Applied
     Acoustics, 155, 286-296 ..
 
     Examples
@@ -147,7 +144,7 @@ class MisalignmentFlex(Defect):
         ----------
         rotor : ross.Rotor Object
              6 DoF rotor model.
-                
+
         """
         self.rotor = rotor
         self.radius = rotor.elements[self.n1].odl / 2
@@ -199,7 +196,7 @@ class MisalignmentFlex(Defect):
         self.M = self.rotor.M()
         self.Kst = self.rotor.Kst()
 
-        _, ModMat = scipy.linalg.eigh(self.K, self.M, type=1, turbo=False,)
+        _, ModMat = scipy.linalg.eigh(self.K, self.M, type=1, turbo=False)
         ModMat = ModMat[:, :12]
         self.ModMat = ModMat
 
@@ -278,7 +275,7 @@ class MisalignmentFlex(Defect):
         self.response = self.ModMat.dot(self.displacement)
 
     def _equation_of_movement(self, T, Y, i):
-        """ Calculates the displacement and velocity using state-space representation in the modal domain.
+        """Calculates the displacement and velocity using state-space representation in the modal domain.
 
         Parameters
         ----------
@@ -318,14 +315,14 @@ class MisalignmentFlex(Defect):
 
     def _parallel(self, angular_position):
         """Reaction forces of parallel misalignment.
-        
+
         angular_position : float
                         Angular position of the shaft.
-        
+
         Returns
         -------
         F_mis_p : array
-               Excitation force caused by the parallel misalignment on the entire system. 
+               Excitation force caused by the parallel misalignment on the entire system.
         """
 
         F_mis_p = np.zeros((self.ndof, len(angular_position)))
@@ -434,7 +431,7 @@ class MisalignmentFlex(Defect):
 
         angular_position : float
                 Angular position of the shaft.
-        
+
         Returns
         -------
         F_mis_a : array
@@ -494,7 +491,7 @@ class MisalignmentFlex(Defect):
 
         angular_position : float
                 Angular position of the shaft.
-        
+
         Returns
         -------
         F_misalign : array
@@ -506,8 +503,8 @@ class MisalignmentFlex(Defect):
 
 class MisalignmentRigid(Defect):
     """A rigid coupling with parallel misalignment.
-    
-    Calculates the dynamic reaction force of hexangular rigid coupling 
+
+    Calculates the dynamic reaction force of hexangular rigid coupling
     induced by 6DOF's rotor parallel misalignment.
 
     Parameters
@@ -595,7 +592,7 @@ class MisalignmentRigid(Defect):
         ----------
         rotor : ross.Rotor Object
              6 DoF rotor model.
-                
+
         """
         self.rotor = rotor
         self.ndof = rotor.ndof
@@ -642,7 +639,7 @@ class MisalignmentRigid(Defect):
         self.M = self.rotor.M()
         self.Kst = self.rotor.Kst()
 
-        _, ModMat = scipy.linalg.eigh(self.K, self.M, type=1, turbo=False,)
+        _, ModMat = scipy.linalg.eigh(self.K, self.M, type=1, turbo=False)
         ModMat = ModMat[:, :12]
         self.ModMat = ModMat
 
@@ -742,7 +739,7 @@ class MisalignmentRigid(Defect):
         self.response = self.ModMat.dot(self.displacement)
 
     def _equation_of_movement(self, T, Y, i):
-        """ Calculates the displacement and velocity using state-space representation in the modal domain.
+        """Calculates the displacement and velocity using state-space representation in the modal domain.
 
         Parameters
         ----------
@@ -799,7 +796,7 @@ class MisalignmentRigid(Defect):
 
     def _parallel(self, positions, fir):
         """Reaction forces of parallel misalignment.
-        
+
         Returns
         -------
         Fmis : array
@@ -944,8 +941,8 @@ def base_rotor_example():
 def misalignment_flex_parallel_example():
     """Create an example of a flexible parallel misalignment defect.
 
-    This function returns an instance of a flexible parallel misalignment 
-    defect. The purpose is to make available a simple model so that a 
+    This function returns an instance of a flexible parallel misalignment
+    defect. The purpose is to make available a simple model so that a
     doctest can be written using it.
 
     Returns
@@ -988,8 +985,8 @@ def misalignment_flex_parallel_example():
 def misalignment_flex_angular_example():
     """Create an example of a flexible angular misalignment defect.
 
-    This function returns an instance of a flexible angular misalignment 
-    defect. The purpose is to make available a simple model so that a 
+    This function returns an instance of a flexible angular misalignment
+    defect. The purpose is to make available a simple model so that a
     doctest can be written using it.
 
     Returns
@@ -1032,8 +1029,8 @@ def misalignment_flex_angular_example():
 def misalignment_flex_combined_example():
     """Create an example of a flexible combined misalignment defect.
 
-    This function returns an instance of a flexible combined misalignment 
-    defect. The purpose is to make available a simple model so that a 
+    This function returns an instance of a flexible combined misalignment
+    defect. The purpose is to make available a simple model so that a
     doctest can be written using it.
 
     Returns
@@ -1076,8 +1073,8 @@ def misalignment_flex_combined_example():
 def misalignment_rigid_example():
     """Create an example of a rigid misalignment defect.
 
-    This function returns an instance of a rigid misalignment 
-    defect. The purpose is to make available a simple model so that a 
+    This function returns an instance of a rigid misalignment
+    defect. The purpose is to make available a simple model so that a
     doctest can be written using it.
 
     Returns
