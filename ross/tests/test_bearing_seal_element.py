@@ -425,5 +425,5 @@ def test_bearing_fluid_flow():
                   [ -41535.76386708,  309417.62615761]])
     # fmt: on
 
-    assert_allclose(bearing.K(0), K)
-    assert_allclose(bearing.C(0), C)
+    assert_allclose(bearing.K(0), K, rtol=1e-3)
+    assert_allclose(bearing.C(0), C, rtol=1e-3)
