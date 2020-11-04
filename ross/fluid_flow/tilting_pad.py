@@ -532,33 +532,31 @@ for n_p in range(1,npad+1):
                         dPdx=(Pdim[ki,kj]-Pdim[ki,kj-1])/dx
                         dPdz=(Pdim[ki,kj]-Pdim[ki-1,kj])/dz
                     
+                    # Dimensional film thickness in Meters
+                    h=Rs-R-(np.sin(jj)*(yr+alpha*(Rs+esp))+np.cos(jj)*(xr+Rs-R-Cr))
                     
-                    h=Rs-R-(sin(jj)*(yr+alpha*(Rs+esp))+cos(jj)*(xr+Rs-R-Cr))
-                    %espessura dimensional [m]
+                    auxFF0 = zeros[1,netha.size]
+                    auxFF1 = zeros[1,netha.size]
                     
-                    auxFF0 = zeros(1,length(netha))
-                    auxFF1 = zeros(1,length(netha))
-                    
-                    for contk=(N1+0.5*dN)*h:(dN*h):(N2-(0.5*dN))*h
-                        auxFF0(nn+1)=1/mi(ki,kj,nN+1-nn)
-                        auxFF1(nn+1)=contk/mi(ki,kj,nN+1-nn)
+                    for contk in range(((N1+0.5*dN)*h), (dN*h), ((N2-(0.5*dN))*h)):
+                        auxFF0[nn+1]=1/mi[ki,kj,nN+1-nn]
+                        auxFF1[nn+1]=contk/mi[ki,kj,nN+1-nn]
                         nn=nn+1
-                    end
                     nn=1
                     
-                    auxFF0(1)=auxFF0(2)
-                    auxFF0(nN+2)=auxFF0(nN+1)
+                    auxFF0[0]=auxFF0[1]
+                    auxFF0[nN+2]=auxFF0[nN+1]
                     
-                    auxFF1(1)=0
-                    auxFF1(nN+2)=(N2*h)/mi(ki,kj,1)
+                    auxFF1[0]=0
+                    auxFF1[nN+2]=(N2*h)/mi[ki,kj,1]
                     
                     ydim1=h*netha
-                    FF0=0.5*sum((ydim1(2:end)-ydim1(1:end-1)).*(auxFF0(2:end)+auxFF0(1:end-1)))
-                    FF1=0.5*sum((ydim1(2:end)-ydim1(1:end-1)).*(auxFF1(2:end)+auxFF1(1:end-1)))
+                    FF0=0.5*np.sum((ydim1(2:end)-ydim1(1:end-1)).*(auxFF0(2:end)+auxFF0(1:end-1)))
+                    FF1=0.5*np.sum((ydim1(2:end)-ydim1(1:end-1)).*(auxFF1(2:end)+auxFF1(1:end-1)))
                     
-                    auxG0 = zeros(1,length(N1:dN:ky))
-                    auxG1 = zeros(1,length(N1:dN:ky))
-                    ydim2 = zeros(1,length(N1:dN:ky))
+                    auxG0 = np.zeros[1,length(N1:dN:ky)]
+                    auxG1 = np.zeros[1,length(N1:dN:ky)]
+                    ydim2 = np.zeros[1,length(N1:dN:ky)]
                     
                     for contk=(N1+0.5*dN)*h:dN*h:ky*h
                         auxG0(nn+1)=1/mi(ki,kj,nN+1-nn)
