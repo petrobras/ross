@@ -497,5 +497,94 @@ for n_p in range(1,npad+1):
         
 
 
-        %%%%%%%%%%%%%%%%%%% Solu��o do Campo de Temperatura %%%%%%%%%%%%%%%%%%%
+        # %%%%%%%%%%%%%%%%%%% Temperature field solution %%%%%%%%%%%%%%%%%%%
         
+        # Velocity field calculation
+        ki=1
+        kj=1
+        kk=1
+        nn=1
+        
+        # Dimensionless Netha loop ====================================================
+        for ky in range((N1+0.5*dN), dN, (N2-0.5*dN)):
+            # Mesh loop in Z direction ====================================================
+            for ii in range((Z1+0.5*dZ), dZ, (Z2-0.5*dZ)):
+                # Mesh loop in THETA direction ====================================================
+                for jj in range((theta1+0.5*dtheta), dtheta, (theta2-0.5*dtheta)):
+                    
+                    %C�lculo dos Gradientes de Press�o
+                    if ki==1 && kj==1
+                        dPdx=Pdim(ki,kj)/(0.5*dx)
+                        dPdz=Pdim(ki,kj)/(0.5*dz)
+                    end
+                    
+                    if ki==1 && kj>1
+                        dPdx=(Pdim(ki,kj)-Pdim(ki,kj-1))/dx
+                        dPdz=Pdim(ki,kj)/(0.5*dz)
+                    end
+                    
+                    if ki>1 && kj==1
+                        dPdx=Pdim(ki,kj)/(0.5*dx)
+                        dPdz=(Pdim(ki,kj)-Pdim(ki-1,kj))/dz
+                    end
+                    
+                    if ki>1 && kj>1
+                        dPdx=(Pdim(ki,kj)-Pdim(ki,kj-1))/dx
+                        dPdz=(Pdim(ki,kj)-Pdim(ki-1,kj))/dz
+                    end
+                    
+                    h=Rs-R-(sin(jj)*(yr+alpha*(Rs+esp))+cos(jj)*(xr+Rs-R-Cr))
+                    %espessura dimensional [m]
+                    
+                    auxFF0 = zeros(1,length(netha))
+                    auxFF1 = zeros(1,length(netha))
+                    
+                    for contk=(N1+0.5*dN)*h:(dN*h):(N2-(0.5*dN))*h
+                        auxFF0(nn+1)=1/mi(ki,kj,nN+1-nn)
+                        auxFF1(nn+1)=contk/mi(ki,kj,nN+1-nn)
+                        nn=nn+1
+                    end
+                    nn=1
+                    
+                    auxFF0(1)=auxFF0(2)
+                    auxFF0(nN+2)=auxFF0(nN+1)
+                    
+                    auxFF1(1)=0
+                    auxFF1(nN+2)=(N2*h)/mi(ki,kj,1)
+                    
+                    ydim1=h*netha
+                    FF0=0.5*sum((ydim1(2:end)-ydim1(1:end-1)).*(auxFF0(2:end)+auxFF0(1:end-1)))
+                    FF1=0.5*sum((ydim1(2:end)-ydim1(1:end-1)).*(auxFF1(2:end)+auxFF1(1:end-1)))
+                    
+                    auxG0 = zeros(1,length(N1:dN:ky))
+                    auxG1 = zeros(1,length(N1:dN:ky))
+                    ydim2 = zeros(1,length(N1:dN:ky))
+                    
+                    for contk=(N1+0.5*dN)*h:dN*h:ky*h
+                        auxG0(nn+1)=1/mi(ki,kj,nN+1-nn)
+                        auxG1(nn+1)=contk/mi(ki,kj,nN+1-nn)
+                        ydim2(nn+1)=contk
+                        nn=nn+1
+                    end
+                    nn=1
+                    auxG0(1)=auxG0(2)
+                    auxG1(1)=0
+                    ydim2(1)=N1*h
+                    
+                    G0=0.5*sum((ydim2(2:end)-ydim2(1:end-1)).*(auxG0(2:end)+auxG0(1:end-1)))
+                    G1=0.5*sum((ydim2(2:end)-ydim2(1:end-1)).*(auxG1(2:end)+auxG1(1:end-1)))
+                    
+                    vu(ki,kj,kk)=dPdx*G1+(war*R/FF0-FF1/FF0*dPdx)*G0
+                    vw(ki,kj,kk)=dPdz*G1-(FF1/FF0*dPdz)*G0
+                    
+                    kj=kj+1
+                end
+                kj=1
+                ki=ki+1
+            end
+            ki=1
+            kk=kk+1
+        end
+
+
+        %AQUI COME�A O CALCULO DA VELOCIDADE RADIAL
