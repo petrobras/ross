@@ -7,9 +7,7 @@ import scipy as sp
 from ross.results import TimeResponseResults
 from ross.units import Q_
 
-__all__ = [
-    "Defect",
-]
+__all__ = ["Defect"]
 
 
 class Defect(ABC):
@@ -31,11 +29,8 @@ class Defect(ABC):
         )
         return results
 
-    def plot_dfft(
-        self, probe, probe_units="rad", range_freq=None, fig=None, **kwargs,
-    ):
-        """
-        """
+    def plot_dfft(self, probe, probe_units="rad", range_freq=None, fig=None, **kwargs):
+        """"""
         if fig is None:
             fig = go.Figure()
 
