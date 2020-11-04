@@ -475,28 +475,26 @@ for n_p in range(1,npad+1):
                     
                     if P(i,j) < 0
                         P(i,j)=0
+                    
 
-        
         # Pressure border conditions ====================================================
         for i in range(1, nZ):  # Loop in Z
             for j in range(1, ntheta):  # Loop in THETA
                 if (P[i,j]<0):
                     P[i,j]=0
-                end
-            end
-        end
+                
         
-        % C�lculo da Press�o Dimensional [Pa]
-        Pdim=P*mi_ref*war*Rs^2/Cr^2;
+        # Dimmensional pressure determination in Pascals
+        Pdim=P*mi_ref*war*Rs^2/Cr^2
         
-        % Campo de Press�o Completo - Incluindo os Contornos
-        PPdim=zeros(nZ+2,ntheta+2);
+        # Full pressure field with borders
+        PPdim=zeros[nZ+2,ntheta+2]
         
-        for i=2:nZ+1
-            for j=2:ntheta+1
-                PPdim(i,j)=Pdim(i-1,j-1);
-            end
-        end
+        for i in range(2, nZ+1):  # Loop in Z
+            for j in range(2, ntheta+1):  # Loop in THETA
+                PPdim[i,j]=Pdim[i-1,j-1]
+            
+        
 
 
         %%%%%%%%%%%%%%%%%%% Solu��o do Campo de Temperatura %%%%%%%%%%%%%%%%%%%
