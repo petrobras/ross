@@ -461,14 +461,13 @@ for n_p in range(1,npad+1):
         cc=find(K_null==0)
         p=Mat_coef(cc,cc)\b(cc,cc) # verificar matriz b
         
-        cont=0;
+        cont=0
         
-        # Matrix form of the pressure field
-        
-        for i=1:nZ
-            for j=1:ntheta
+        # Matrix form of the pressure field ====================================================
+        for i in range(1, nZ):  # Loop in Z
+            for j in range(1, ntheta):  # Loop in THETA
                 if isempty(find(drop_pressure_Ele_nZ==i+1))==0 & isempty(find(drop_pressure_Ele_ntetha==j+1))==0
-                    P(i,j)=0
+                    P[i,j]=0
                 else
                     
                     cont=cont+1
@@ -478,12 +477,11 @@ for n_p in range(1,npad+1):
                         P(i,j)=0
 
         
-        # Pressure border conditions
-        
-        for i=1:nZ
-            for j=1:ntheta
-                if P(i,j)<0
-                    P(i,j)=0;
+        # Pressure border conditions ====================================================
+        for i in range(1, nZ):  # Loop in Z
+            for j in range(1, ntheta):  # Loop in THETA
+                if (P[i,j]<0):
+                    P[i,j]=0
                 end
             end
         end
