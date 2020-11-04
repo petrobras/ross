@@ -512,26 +512,26 @@ for n_p in range(1,npad+1):
                 # Mesh loop in THETA direction ====================================================
                 for jj in range((theta1+0.5*dtheta), dtheta, (theta2-0.5*dtheta)):
                     
-                    %C�lculo dos Gradientes de Press�o
-                    if ki==1 && kj==1
-                        dPdx=Pdim(ki,kj)/(0.5*dx)
-                        dPdz=Pdim(ki,kj)/(0.5*dz)
-                    end
+                    # Pressure gradients calculation
+                    if (ki==1 and kj==1):
+                        dPdx=Pdim[ki,kj]/(0.5*dx)
+                        dPdz=Pdim[ki,kj]/(0.5*dz)
                     
-                    if ki==1 && kj>1
-                        dPdx=(Pdim(ki,kj)-Pdim(ki,kj-1))/dx
-                        dPdz=Pdim(ki,kj)/(0.5*dz)
-                    end
                     
-                    if ki>1 && kj==1
-                        dPdx=Pdim(ki,kj)/(0.5*dx)
-                        dPdz=(Pdim(ki,kj)-Pdim(ki-1,kj))/dz
-                    end
+                    if (ki==1 and kj>1):
+                        dPdx=(Pdim[ki,kj]-Pdim[ki,kj-1])/dx
+                        dPdz=Pdim[ki,kj]/(0.5*dz)
                     
-                    if ki>1 && kj>1
-                        dPdx=(Pdim(ki,kj)-Pdim(ki,kj-1))/dx
-                        dPdz=(Pdim(ki,kj)-Pdim(ki-1,kj))/dz
-                    end
+                    
+                    if (ki>1 and kj==1):
+                        dPdx=Pdim[ki,kj]/(0.5*dx)
+                        dPdz=(Pdim[ki,kj]-Pdim[ki-1,kj])/dz
+                    
+                    
+                    if (ki>1 and kj>1):
+                        dPdx=(Pdim[ki,kj]-Pdim[ki,kj-1])/dx
+                        dPdz=(Pdim[ki,kj]-Pdim[ki-1,kj])/dz
+                    
                     
                     h=Rs-R-(sin(jj)*(yr+alpha*(Rs+esp))+cos(jj)*(xr+Rs-R-Cr))
                     %espessura dimensional [m]
