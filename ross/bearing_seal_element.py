@@ -1005,7 +1005,7 @@ class BearingFluidFlow(BearingElement):
     ...                  p_out, radius_rotor, radius_stator,
     ...                  visc, rho, load=load) # doctest: +ELLIPSIS
     BearingFluidFlow(n=0, n_link=None,
-     kxx=array([14547442...
+     kxx=array([145...
     """
 
     def __init__(
