@@ -5,7 +5,7 @@ simulated for a given set of properties, until the model reaches a steady-
 -state of numerical convergence. These properties can then be exported to
 external files, and used in the bearing_seal_element.py routine inside the
 ROSS framework. This routine can also be used for bearing properties esti-
-mation for other purposes.
+mation for general purposes.
 """
 
 
@@ -68,6 +68,7 @@ hmin
 Tmax
 """
 
+# optim values from legacy codes
 # x=[0.000321298907440948 0.000218101024776208 0.000241891712348458 0.000385504446042090 0.000516992650533115 0.000460227890390222];
 
 psi_pad = np.array([x[1], x[2], x[3], x[4], x[5], x[6]])
@@ -76,7 +77,7 @@ npad = 6
 # Radial clearance
 Cr = 250e-6
 
-# Temperature of oil tank
+# Oil tank temperature
 Tcuba = 40
 
 # Rotor center position
@@ -85,7 +86,7 @@ yy = E * Cr * np.sin(phi)
 alphapt = 0 * (2 * pi * 5) * alpha
 
 
-# Geometric parameters of bearing --------------------------------------------
+# Geometric parameters for the bearing --------------------------------------------
 
 # Journal radius
 R = 0.5 * 930e-3
@@ -106,12 +107,11 @@ rp_pad=0.6
 # Bength of bearing
 L=197e-3 # [m]
 
-# Angular position of pivot
-#sigma=0:60:300 # [degree]
+# Angular position of the pivot
 sigma = np.array([0,300,60]) # [degree]
 sigma= sigma*(np.pi/180) # [rad]
 
-# Loading bearing
+# Bearing loading 
 fR=90.6e3 # [N]
 
 # Rotor speed
@@ -121,7 +121,7 @@ war=wa*(np.pi/30) # rad/s
 # Reference temperature
 T_ref=Tcuba # [Celsius]
 
-# Thermal Properties Oil ----------------------------------------------------
+# Thermal properties for the oil ----------------------------------------------------
 
 # Thermal conductivity
 kt=0.07031*np.exp(484.1/(Tcuba+273.15+474)) # [J/s.m.C]
@@ -142,7 +142,7 @@ mi_ref=5.506e-09*np.exp(5012/(Tcuba+273.15+0.1248)) # [N.s/m**2]
 xpt=-(2*np.pi*5)*yy
 ypt=(2*np.pi*5)*xx
 
-#  Discretizated Mesh ------------------------------------------------------
+#  Discretized Mesh ------------------------------------------------------
 
 # Number of volumes in theta direction
 ntheta=48
@@ -153,7 +153,7 @@ nX=ntheta
 # Number of volumes in z direction
 nZ=48
 
-# Number of volumes in netha direction
+# Number of volumes in neta direction
 nN=30
 
 Z1=0 # initial coordinate z dimensionless
@@ -163,7 +163,6 @@ dz=dZ*L # differential z dimensional: [m]
 XZ[1]=Z1
 XZ[nZ+2]=Z2
 
-# XZ(2:nZ+1)=Z1+0.5*dZ:dZ:Z2-0.5*dZ # vector z dimensionless
 XZ[1:nZ] = Z1+0.5* np.array([dz, Z2-0.5*dZ, dz]) # vector z dimensionless
 
 XZdim=XZ*L # vector z dimensional [m]
@@ -174,7 +173,6 @@ dN=1/(nN) # differential netha dimensionless
 netha[1]=N1
 netha[nN+2]=N2
 
-# netha(2:nN+1)=N1+0.5*dN:dN:N2-0.5*dN # vector netha dimensionless
 netha[1:nN]=N1+0.5* np.array([dN, N2-0.5*dN, dN]) # vector netha dimensionless
 
 theta1=-(rp_pad)*betha_s # initial coordinate theta [rad]
@@ -183,7 +181,6 @@ dtheta=betha_s/(ntheta) # differential theta [rad]
 Xtheta[0]=theta1
 Xtheta[ntheta+1]=theta2
 
-# Xtheta(2:ntheta+1)=theta1+0.5*dtheta:dtheta:theta2-0.5*dtheta # vector theta [rad]
 Xtheta[1:ntheta]=theta1+0.5* np.array([dtheta, theta2-0.5*dtheta, dtheta]) # vector theta [rad]
 
 dX=1/nX # differential x dimensionless
@@ -224,7 +221,8 @@ XH = np.zeros[nN+2,nX+2]
 for ii in range(1,nX+2+1):
     XH[:,ii] = Xtheta[ii]
 
-for n_p in range(1,npad+1): # LOOP NAS PADS!!!!!
+# Loop on the pads ==========================================================================
+for n_p in range(1,npad+1): 
     alpha=psi_pad[n_p]
 
     # transformation of coordinates
@@ -240,12 +238,13 @@ for n_p in range(1,npad+1): # LOOP NAS PADS!!!!!
     xrpt=xryrpt[0]
     yrpt=xryrpt[1]
     
-    # Temperature matrix with boundary conditions
+    # Temperature matrix with boundary conditions ====================================
     T_novo=T_ref*np.ones(nN+2,ntheta+2)
     
     Tcomp=1.2*T_novo
     
-    while (np.linalg.norm((T_novo-Tcomp) / np.linalg.norm(Tcomp)) > 0.01):              # LOOP DA TEMPERATURA DO OLEO!!!!!
+    # Oil temperature field loop ================================================================
+    while (np.linalg.norm((T_novo-Tcomp) / np.linalg.norm(Tcomp)) > 0.01):
     
         mi=minovo
         Tcomp=T_novo
@@ -261,11 +260,11 @@ for n_p in range(1,npad+1): # LOOP NAS PADS!!!!!
         Mat_coef=np.zeros[nk,nk]
         b=np.zeros[nk]
         
-        # for ii=(Z1+0.5*dZ):dZ:(Z2-0.5*dZ)              # CORRENDO A MALHA EM Z!!!!!
-        for ii in range((Z1+0.5*dZ), dZ, (Z2-0.5*dZ)):              # CORRENDO A MALHA EM Z!!!!!
+        # Mesh loop in Z direction ====================================================
+        for ii in range((Z1+0.5*dZ), dZ, (Z2-0.5*dZ)):
             
-            # for jj=(theta1+0.5*dtheta):dtheta:(theta2-0.5*dtheta)              # CORRENDO A MALHA EM THETA!!!!!
-            for jj in range((theta1+0.5*dtheta), dtheta, (theta2-0.5*dtheta)):              # CORRENDO A MALHA EM THETA!!!!!
+            # Mesh loop in THETA direction ====================================================
+            for jj in range((theta1+0.5*dtheta), dtheta, (theta2-0.5*dtheta)):
                 
                 if kj==1 :
                     vector_mi[0,]=mi[ki,kj,]
@@ -282,7 +281,7 @@ for n_p in range(1,npad+1): # LOOP NAS PADS!!!!!
                     vector_mi[1,]=mi[ki,kj+1,]
                     vector_mi[2,]=mi[ki,kj-1,]
                 
-                # for kk=N1+0.5*dN:dN:N2-0.5*dN
+                # Loop in N 
                 for kk in range(N1+0.5*dN, dN, N2-0.5*dN):
                     
                     mi_adP=vector_mi(1,nN+1-nn)/mi_ref
@@ -331,7 +330,7 @@ for n_p in range(1,npad+1): # LOOP NAS PADS!!!!!
                 FF1e=0.5*(FF1P+FF1E)
                 FF1w=0.5*(FF1P+FF1W)
                 
-                # for kk=N1+0.5*dN:dN:N2-0.5*dN
+                # Loop in N 
                 for kk in range(N1+0.5*dN, dN, N2-0.5*dN):
                     
                     mi_adP=vector_mi[0,nN-nn]/mi_ref
@@ -354,7 +353,7 @@ for n_p in range(1,npad+1): # LOOP NAS PADS!!!!!
                 auxFF2W[0]=0
                 auxFF2W[nN+1]=(N2/(vector_mi[2,nN]/mi_ref))*(N2-FF1P/FF0P)
                 
-                # INTEGRAÇÕES
+                # integration process ===================================================
                 FF2P=0.5*np.sum((netha[1:]-netha[0:-2]).*(auxFF2P[1:]+auxFF2P[0:-2]))
                 FF2E=0.5*np.sum((netha[1:]-netha[0:-2]).*(auxFF2E[1:]+auxFF2E[0:-2]))
                 FF2W=0.5*np.sum((netha[1:]-netha[0:-2]).*(auxFF2W[1:]+auxFF2W[0:-2]))
@@ -365,13 +364,13 @@ for n_p in range(1,npad+1): # LOOP NAS PADS!!!!!
                 FF2s=FF2n
                 
 
-                # espessura do filme adimensional
+                # Admensional oil film thickness ========================================
                 hP=(Rs-R-(np.sin(jj)*(yr+alpha*(Rs+esp))+np.cos(jj)*(xr+Rs-R-Cr)))/Cr
                 he=(Rs-R-(np.sin(jj+0.5*dtheta)*(yr+alpha*(Rs+esp))+np.cos(jj+0.5*dtheta)*(xr+Rs-R-Cr)))/Cr
                 hw=(Rs-R-(np.sin(jj-0.5*dtheta)*(yr+alpha*(Rs+esp))+np.cos(jj-0.5*dtheta)*(xr+Rs-R-Cr)))/Cr
                 hn=hP
                 hs=hn
-                hpt=-(1/(Cr*war))*(np.cos(jj)*xrpt+np.sin(jj)*yrpt+np.sin(jj)*(Rs+esp)*alphapt) # adimensional
+                hpt=-(1/(Cr*war))*(np.cos(jj)*xrpt+np.sin(jj)*yrpt+np.sin(jj)*(Rs+esp)*alphapt) # admensional
                 
                 CE=1/(betha_s)**2*(FF2e*he**3)*dZ/dX
                 CW=1/(betha_s)**2*(FF2w*hw**3)*dZ/dX
@@ -457,7 +456,50 @@ for n_p in range(1,npad+1): # LOOP NAS PADS!!!!!
 
         
         
-        # %%%%%%%%%%%%%%%%%%%%%% Solu��o do Campo de Press�o %%%%%%%%%%%%%%%%%%%%
+        # Pressure field solution ==============================================================
         
+        cc=find(K_null==0)
+        p=Mat_coef(cc,cc)\b(cc,cc) # verificar matriz b
+        
+        cont=0;
+        
+        # Matrix form of the pressure field
+        
+        for i=1:nZ
+            for j=1:ntheta
+                if isempty(find(drop_pressure_Ele_nZ==i+1))==0 & isempty(find(drop_pressure_Ele_ntetha==j+1))==0
+                    P(i,j)=0
+                else
+                    
+                    cont=cont+1
+                    P(i,j)=p(cont)
+                    
+                    if P(i,j) < 0
+                        P(i,j)=0
+
+        
+        # Pressure border conditions
+        
+        for i=1:nZ
+            for j=1:ntheta
+                if P(i,j)<0
+                    P(i,j)=0;
+                end
+            end
+        end
+        
+        % C�lculo da Press�o Dimensional [Pa]
+        Pdim=P*mi_ref*war*Rs^2/Cr^2;
+        
+        % Campo de Press�o Completo - Incluindo os Contornos
+        PPdim=zeros(nZ+2,ntheta+2);
+        
+        for i=2:nZ+1
+            for j=2:ntheta+1
+                PPdim(i,j)=Pdim(i-1,j-1);
+            end
+        end
 
 
+        %%%%%%%%%%%%%%%%%%% Solu��o do Campo de Temperatura %%%%%%%%%%%%%%%%%%%
+        
