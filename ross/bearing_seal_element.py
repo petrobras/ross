@@ -5,10 +5,11 @@ bearings and seals. There are 7 different classes to represent bearings options,
 and 2 element options with 8 or 12 degrees of freedom.
 """
 # fmt: off
-import os
 import warnings
 
 import numpy as np
+import pandas as pd
+import rossml as rsml
 import toml
 from plotly import graph_objects as go
 from scipy import interpolate as interpolate
@@ -1564,6 +1565,314 @@ class MagneticBearingElement(BearingElement):
             tag=tag,
             n_link=n_link,
             scale_factor=scale_factor,
+        )
+
+
+class AnnBearingElement(BearingElement):
+    """Create bearings or seals via Neural Netwarks.
+
+    This class creates a element from a trained neural network. In order to create it
+    properly, one should bear in mind the name of the trained network, and the
+    parameters used. The results will be given in a dataframe form. When the number of
+    features is different from the trained one, a error is displayed and the same
+    occurs when the variable name is wrong due to a typo.
+
+    Parameters
+    ----------
+    arq : str
+        The neural network folder's name, which must be located at ross-ml package.
+        The model files are loaded from this folder.
+    n : int
+        The node in which the element will be located in the rotor.
+    n_link : int, optional
+        Node to which the bearing will connect. If None the bearing is
+        connected to ground.
+        Default is None.
+    scale_factor : float, optional
+        The scale factor is used to scale the bearing drawing.
+        Default is 1.
+    kwargs : optional
+        The required arguments to the neural network predict the rotordynamic
+        coefficients. It must match the features from the neural network.
+        It may varies with the loaded model.
+
+    Returns
+    -------
+    A AnnBearingElement object.
+
+    Raises
+    ------
+    KeyError
+        Error raised if kwargs does not match the features from the neural netowork
+        model.
+
+    Examples
+    --------
+    >>> import ross as rs
+    >>> import rossml as rsml
+
+    Specify the neural netowark to be used. "arq" must match one of the folders name
+    of a neural network previously saved inside rossml. You can check the available
+    models with:
+
+    >>> rsml.available_models()
+    ['test_model']
+
+    Now, select one of the available options.
+    >>> nn_model = "test_model"
+
+    Or build a neu neural network model (see ross-ml documentation).
+
+    Before setting data to the neural network, check what are the required features
+    according to the loaded model.
+
+    First, load the neural network:
+
+    >>> model = rsml.Model(nn_model)
+
+    Check for the features:
+    >>> # features = model.features
+
+    Now, enter the respective values for each key in "model.features". Or use other
+    classes with preset parameters.
+
+    >>> seal = rs.AnnBearingElement(
+    ...     n=0,
+    ...     arq=nn_model,
+    ...     seal_radius=141.61,
+    ...     number_of_teeth=22,
+    ...     tooth_pitch=8.58,
+    ...     tooth_height=8.37,
+    ...     radial_clearance=0.16309,
+    ...     methane=0.11907,
+    ...     hydrogen=0.11584,
+    ...     oxygen=0.05794,
+    ...     co2=0.05224,
+    ...     reservoir_temperature=25.0,
+    ...     reservoir_pressure=568.90,
+    ...     sump_pressure=5.3,
+    ...     inlet_tangential_velocity_ratio=0.617,
+    ...     whirl_speed=8310.5,
+    ...     speeds=7658.3,
+    ... )
+    >>> seal # doctest: +ELLIPSIS
+    AnnBearingElement(n=0...
+
+    If kwargs has different argumments than model.features, an error is raised
+    informing how many which are the features and how many kwargs has been entered.
+    Users can copy the list directly from the error message to set the correct keys in
+    kwargs.
+
+    >>> seal = rs.AnnBearingElement(
+    ...     n=0,
+    ...     arq=nn_model,
+    ...     seal_radius=141.61,
+    ...     number_of_teeth=22,
+    ...     tooth_pitch=8.58,
+    ...     tooth_height=8.37,
+    ...     radial_clearance=0.16309,
+    ...     ethane=0.14548,
+    ...     propane=0.00542,
+    ...     isobutan=.17441,
+    ...     butane=0.22031,
+    ...     nitrogen=0.10908,
+    ...     methane=0.11907,
+    ...     hydrogen=0.11584,
+    ...     oxygen=0.05794,
+    ...     co2=0.05224,
+    ...     reservoir_temperature=25.0,
+    ...     reservoir_pressure=568.90,
+    ...     sump_pressure=5.3,
+    ...     inlet_tangential_velocity_ratio=0.617,
+    ...     whirl_speed=8310.5,
+    ...     speeds=7658.3,
+    ... ) # doctest: +ELLIPSIS
+    KeyError...
+    """
+
+    def __init__(self, arq=None, n=None, n_link=None, scale_factor=1.0, **kwargs):
+        # loading neural network model
+        model = rsml.Model(arq)
+        features = model.features
+
+        # checking data consistency
+        if any(key not in kwargs.keys() for key in features):
+            raise KeyError(
+                f"Model '{arq}' has the following {len(list(features))} features: "
+                f"{list(features)}, and {len(kwargs)} are given. "
+                f"Check the **kwargs dictionary for the same keys."
+            )
+
+        reordered_dict = {k: kwargs[k] for k in features}
+        data = pd.Series(reordered_dict)
+
+        results = model.predict(data)
+        kxx, kxy, kyx, kyy, cxx, cxy, cyx, cyy = results.loc[0]
+
+        super().__init__(
+            n=n,
+            frequency=None,
+            kxx=kxx,
+            kxy=kxy,
+            kyx=kyx,
+            kyy=kyy,
+            cxx=cxx,
+            cxy=cyx,
+            cyx=cyx,
+            cyy=cyy,
+            tag=arq,
+            n_link=n_link,
+            scale_factor=scale_factor,
+        )
+
+
+class SealLabyrinthElement(AnnBearingElement):
+    """Create labyrinth Seal elements via Neural Netwarks.
+
+    This class creates an Labyrinth Seal Element from a trained neural network.
+    The parameters inserted are used to predict the rotordynamics coefficients.
+
+    Parameters
+    ----------
+    n : int
+        The node in which the element will be located in the rotor.
+    arq : str
+        The neural network folder's name, which must be located at ross-ml package.
+        The model files are loaded from this folder.
+    seal_radius : float
+        The seal radius.
+    number_of_teeth : int
+        Number of teeth present on the seal .
+    tooth_pitch : float
+        The pitch between two teeth.
+    tooth_height : float
+        The tooth height.
+    radial_clearance : float
+        The seal radial clearance.
+    methane : float
+        The proportion of methane in the gas.
+    ethane : float
+        The proportion of ethane in the gas.
+    propane,
+        The proportion of propane in the gas.
+    isobutan,
+        The proportion of isobutan in the gas.
+    butane,
+        The proportion of butane in the gas.
+    hydrogen,
+        The proportion of hydrogen in the gas.
+    nitrogen,
+        The proportion of nitrogen in the gas.
+    oxygen,
+        The proportion of oxygen in the gas.
+    co2,
+        The proportion of co2 in the gas.
+    reservoir_temperature : float
+        The reservoir temperature.
+    reservoir_pressure : float
+        The reservoir pressure.
+    sump_pressure,
+        The sump pressure.
+    inlet_tangential_velocity_ratio,
+        The inlet tangential velocity ratio.
+    whirl_speed : float
+        Whirl speed value.
+    speeds : float
+        The frequency of interest.
+    n_link : int, optional
+        Node to which the bearing will connect. If None the bearing is
+        connected to ground.
+        Default is None.
+    scale_factor : float, optional
+        The scale factor is used to scale the bearing drawing.
+        Default is 1.
+
+    Returns
+    -------
+    A SealLabyrinthElement object.
+
+    Examples
+    --------
+    >>> seal = SealLabyrinthElement(
+    ...     arq="test_model", n=0,
+    ...     seal_radius=141.60965632804,
+    ...     number_of_teeth=22,
+    ...     tooth_pitch=8.58370220849736,
+    ...     tooth_height=8.369750873237724,
+    ...     radial_clearance=0.16309012139139262,
+    ...     methane=0.11907483818379025,
+    ...     hydrogen=0.11584137533357493,
+    ...     oxygen=0.05794358525114542,
+    ...     co2=0.052243764797109724,
+    ...     ethane=0.1454836854619626,
+    ...     propane=0.005424100482971933,
+    ...     isobutan=0.17441663090080106,
+    ...     butane=0.22031291584401053,
+    ...     nitrogen=0.10908265522969644,
+    ...     reservoir_temperature=25.037483348934998,
+    ...     reservoir_pressure=568.9058098384347,
+    ...     sump_pressure=5.299447680455862,
+    ...     inlet_tangential_velocity_ratio=0.6171344358228346,
+    ...     whirl_speed=8310.497837226783,
+    ...     speeds=7658.340362809778
+    ... )
+    >>> seal # doctest: +ELLIPSIS
+    SealLabyrinthElement(n=0...
+    """
+
+    def __init__(
+        self,
+        n,
+        arq,
+        seal_radius,
+        number_of_teeth,
+        tooth_pitch,
+        tooth_height,
+        radial_clearance,
+        methane,
+        ethane,
+        propane,
+        isobutan,
+        butane,
+        hydrogen,
+        nitrogen,
+        oxygen,
+        co2,
+        reservoir_temperature,
+        reservoir_pressure,
+        sump_pressure,
+        inlet_tangential_velocity_ratio,
+        whirl_speed,
+        speeds,
+        n_link=None,
+        scale_factor=1.0,
+    ):
+
+        super().__init__(
+            arq=arq,
+            n=n,
+            n_link=n_link,
+            scale_factor=scale_factor,
+            seal_radius=seal_radius,
+            number_of_teeth=number_of_teeth,
+            tooth_pitch=tooth_pitch,
+            tooth_height=tooth_height,
+            radial_clearance=radial_clearance,
+            methane=methane,
+            ethane=ethane,
+            propane=propane,
+            isobutan=isobutan,
+            butane=butane,
+            hydrogen=hydrogen,
+            nitrogen=nitrogen,
+            oxygen=oxygen,
+            co2=co2,
+            reservoir_temperature=reservoir_temperature,
+            reservoir_pressure=reservoir_pressure,
+            sump_pressure=sump_pressure,
+            inlet_tangential_velocity_ratio=inlet_tangential_velocity_ratio,
+            whirl_speed=whirl_speed,
+            speeds=speeds,
         )
 
 
