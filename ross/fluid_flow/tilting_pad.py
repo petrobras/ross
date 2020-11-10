@@ -551,8 +551,8 @@ for n_p in range(1,npad+1):
                     auxFF1[nN+2]=(N2*h)/mi[ki,kj,1]
                     
                     ydim1=h*netha
-                    FF0=0.5*np.sum((ydim1(2:end)-ydim1(1:end-1)).*(auxFF0(2:end)+auxFF0(1:end-1)))
-                    FF1=0.5*np.sum((ydim1(2:end)-ydim1(1:end-1)).*(auxFF1(2:end)+auxFF1(1:end-1)))
+                    FF0=0.5*np.sum((ydim[1:]-ydim1[0:-1]).*(auxFF0[1:]+auxFF0[0:-1]))
+                    FF1=0.5*np.sum((ydim1[1:]-ydim1[0:-1]).*(auxFF1[1:]+auxFF1[0:-1]))
                     
                     auxG0 = np.zeros[1,length(N1:dN:ky)]
                     auxG1 = np.zeros[1,length(N1:dN:ky)]
@@ -577,7 +577,7 @@ for n_p in range(1,npad+1):
                     
                     kj=kj+1
                 
-                
+
                 kj=1
                 ki=ki+1
             
@@ -588,3 +588,75 @@ for n_p in range(1,npad+1):
 
 
         %AQUI COME�A O CALCULO DA VELOCIDADE RADIAL
+        nn=1;
+        ki=1;
+        kj=1;
+        kk=1;
+        
+
+        for ii=Z1+0.5*dZ:dZ:Z2-0.5*dZ
+            
+            for jj=theta1+0.5*dtheta:dtheta:theta2-0.5*dtheta
+                hpt=-(cos(jj)*xrpt+sin(jj)*yrpt+sin(jj)*(Rs+esp)*alphapt);
+                
+                if ki==1 && kj==1
+                    for contk=N1+0.5*dN:dN:N2-0.5*dN
+                        dudx(1,nn+1)=0;
+                        dwdz(1,nn+1)=0;
+                        nn=nn+1;
+                    end
+                    nn=1;
+                end
+                
+                
+                if ki==1 && kj>1
+                    for contk=N1+0.5*dN:dN:N2-0.5*dN
+                        dudx(1,nn+1)=(vu(ki,kj,nn)-vu(ki,kj-1,nn))/dx;
+                        dwdz(1,nn+1)=0;
+                        nn=nn+1;
+                    end
+                    nn=1;
+                end
+                
+                if ki>1 && kj==1
+                    for contk=N1+0.5*dN:dN:N2-0.5*dN
+                        dudx(1,nn+1)=0;
+                        dwdz(1,nn+1)=(vw(ki,kj,nn)-vw(ki-1,kj,nn))/dz;
+                        nn=nn+1;
+                    end
+                    nn=1;
+                end
+                
+                if ki>1 && ki<nN && kj>1 && kj<nX
+                    for contk=N1+0.5*dN:dN:N2-0.5*dN
+                        dudx(1,nn+1)=(vu(ki,kj,nn)-vu(ki,kj-1,nn))/dx;
+                        dwdz(1,nn+1)=(vw(ki,kj,nn)-vw(ki-1,kj,nn))/dz;
+                        nn=nn+1;
+                    end
+                    nn=1;
+                end
+                
+                dudx(1,1)=dudx(1,2);
+                dwdz(1,1)=dwdz(1,2);
+                dudx(1,nN+2)=dudx(1,nN+1);
+                dwdz(1,nN+2)=dwdz(1,nN+1);
+                
+                auxD=dudx+dwdz;
+                intv=0.5*sum((ydim1(2:end)-ydim1(1:end-1)).*(auxD(2:end)+auxD(1:end-1)));
+                vv(ki,kj,:)=-intv+hpt;
+                kj=kj+1;
+            end
+            kj=1;
+            ki=ki+1;
+        end
+        ki=1;
+        ki=nN;
+        for ii=1:nN
+            for jj=1:ntheta
+                Vu(ii,jj)= mean(vu(:,jj,ki));
+                Vv(ii,jj)= mean(vv(:,jj,ki));
+                Vw(ii,jj)= mean(vw(:,jj,ki));
+            end
+            ki=ki-1;
+        end
+        %AQUI TERMINA O CALCULO DA VELOCIDADE RADIAL
