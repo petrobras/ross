@@ -355,29 +355,33 @@ class Rotor(object):
             global_dof_mapping = {}
             for k, v in dof_mapping.items():
                 dof_letter, dof_number = k.split("_")
-                global_dof_mapping[dof_letter + "_" + str(int(dof_number) + elm.n)] = v
+                global_dof_mapping[
+                    dof_letter + "_" + str(int(dof_number) + elm.n)
+                ] = int(v)
             dof_tuple = namedtuple("GlobalIndex", global_dof_mapping)
 
             if elm.n <= n_last + 1:
                 for k, v in global_dof_mapping.items():
-                    global_dof_mapping[k] = self.number_dof * elm.n + v
+                    global_dof_mapping[k] = int(self.number_dof * elm.n + v)
             else:
                 for k, v in global_dof_mapping.items():
-                    global_dof_mapping[k] = (
+                    global_dof_mapping[k] = int(
                         2 * n_last + self.number_dof / 2 * elm.n + self.number_dof + v
                     )
 
             if hasattr(elm, "n_link") and elm.n_link is not None:
                 if elm.n_link <= n_last + 1:
-                    global_dof_mapping[f"x_{elm.n_link}"] = self.number_dof * elm.n_link
-                    global_dof_mapping[f"y_{elm.n_link}"] = (
+                    global_dof_mapping[f"x_{elm.n_link}"] = int(
+                        self.number_dof * elm.n_link
+                    )
+                    global_dof_mapping[f"y_{elm.n_link}"] = int(
                         self.number_dof * elm.n_link + 1
                     )
                 else:
-                    global_dof_mapping[f"x_{elm.n_link}"] = (
+                    global_dof_mapping[f"x_{elm.n_link}"] = int(
                         2 * n_last + 2 * elm.n_link + self.number_dof
                     )
-                    global_dof_mapping[f"y_{elm.n_link}"] = (
+                    global_dof_mapping[f"y_{elm.n_link}"] = int(
                         2 * n_last + 2 * elm.n_link + self.number_dof + 1
                     )
 
