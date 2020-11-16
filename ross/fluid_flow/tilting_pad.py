@@ -894,36 +894,34 @@ for n_p in range(1,npad+1):
                 a_ps=0
                 b_ps=1
                 
-                Ae=(Me*(0.5-a_pe)-D11e/dksi*b_pe-(D21n-D21s)/(4*dksi));
-                Aw=(-Mw*(0.5+a_pw)-D11w/dksi*b_pw+(D21n-D21s)/(4*dksi));
-                An=(Mn*(0.5-a_pn)-D22n/dN*b_pn-(D12e-D12w)/(4*dN));
-                As=(-Ms*(0.5+a_ps)-D22s/dN*b_ps-(D12w-D12e)/(4*dN));
-                Ane=-D12e/(4*dN)-D21n/(4*dksi);
-                Ase=D12e/(4*dN)+D21s/(4*dksi);
-                Anw=D12w/(4*dN)+D21n/(4*dksi);
-                Asw=-D12w/(4*dN)-D21s/(4*dksi);
-                Ap=-(Ae+Aw+An+As+Ane+Ase+Anw+Asw);
+                Ae=(Me*(0.5-a_pe)-D11e/dksi*b_pe-(D21n-D21s)/(4*dksi))
+                Aw=(-Mw*(0.5+a_pw)-D11w/dksi*b_pw+(D21n-D21s)/(4*dksi))
+                An=(Mn*(0.5-a_pn)-D22n/dN*b_pn-(D12e-D12w)/(4*dN))
+                As=(-Ms*(0.5+a_ps)-D22s/dN*b_ps-(D12w-D12e)/(4*dN))
+                Ane=-D12e/(4*dN)-D21n/(4*dksi)
+                Ase=D12e/(4*dN)+D21s/(4*dksi)
+                Anw=D12w/(4*dN)+D21n/(4*dksi)
+                Asw=-D12w/(4*dN)-D21s/(4*dksi)
+                Ap=-(Ae+Aw+An+As+Ane+Ase+Anw+Asw)
                 
-                up_a=uP/(R*war);
-                uw_a=uW/(R*war);
-                ue_a=uE/(R*war);
-                us_a=uS/(R*war);
-                un_a=uN/(R*war);
+                up_a=uP/(R*war)
+                uw_a=uW/(R*war)
+                ue_a=uE/(R*war)
+                us_a=uS/(R*war)
+                un_a=uN/(R*war)
                 
-                vp_a=vP/(R*war);
-                vw_a=vW/(R*war);
-                ve_a=vE/(R*war);
-                vs_a=vS/(R*war);
-                vn_a=vN/(R*war);
+                vp_a=vP/(R*war)
+                vw_a=vW/(R*war)
+                ve_a=vE/(R*war)
+                vs_a=vS/(R*war)
+                vn_a=vN/(R*war)
                 
-                wp_a=wP/(R*war);
-                ww_a=wW/(R*war);
-                we_a=wE/(R*war);
-                ws_a=wS/(R*war);
-                wn_a=wN/(R*war);
+                wp_a=wP/(R*war)
+                ww_a=wW/(R*war)
+                we_a=wE/(R*war)
+                ws_a=wS/(R*war)
+                wn_a=wN/(R*war)
                 
                 
-                fdiss=2*((Cr*hP*(up_a-uw_a)/dksi-np*Cr*dhdksi_p*(up_a-us_a)/dN)^2+(betha_s*Rs*(vn_a-vp_a)/dN)^2+ ...
-                    (betha_s*Rs*(up_a-us_a)/dN+Cr*hP*(vp_a-vw_a)/dksi-np*Cr*dhdksi_p*(vp_a-vs_a)/dksi)^2+...
-                    (Cr*hP*(wp_a-ww_a)/dksi-np*Cr*dhdksi_p*(wp_a-ws_a)/dN)^2+(betha_s*Rs*(wp_a-ws_a)/dksi)^2);
+                fdiss=2*((Cr*hP*(up_a-uw_a)/dksi-np*Cr*dhdksi_p*(up_a-us_a)/dN)**2+(betha_s*Rs*(vn_a-vp_a)/dN)**2+(betha_s*Rs*(up_a-us_a)/dN+Cr*hP*(vp_a-vw_a)/dksi-np*Cr*dhdksi_p*(vp_a-vs_a)/dksi)**2+(Cr*hP*(wp_a-ww_a)/dksi-np*Cr*dhdksi_p*(wp_a-ws_a)/dN)**2+(betha_s*Rs*(wp_a-ws_a)/dksi)**2)
                 
