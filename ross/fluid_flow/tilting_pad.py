@@ -821,78 +821,78 @@ for n_p in range(1,npad+1):
                 nn=np+dN
                 ns=np-dN
 
-                dhdksi_p=-betha_s*(cos(theta)*(yr+alpha*(Rs+esp))-sin(theta)*(xr+Rs-R-Cr));
-                dhdksi_e=-betha_s*(cos(theta+0.5*dtheta)*(yr+alpha*(Rs+esp))-sin(theta+0.5*dtheta)*(xr+Rs-R-Cr));
-                dhdksi_w=-betha_s*(cos(theta-0.5*dtheta)*(yr+alpha*(Rs+esp))-sin(theta-0.5*dtheta)*(xr+Rs-R-Cr));
-                dhdksi_n=dhdksi_p;
-                dhdksi_s=dhdksi_n;
+                dhdksi_p=-betha_s*(np.cos[theta]*(yr+alpha*(Rs+esp))-np.sin[theta]*(xr+Rs-R-Cr))
+                dhdksi_e=-betha_s*(np.cos[theta+0.5*dtheta]*(yr+alpha*(Rs+esp))-np.sin[theta+0.5*dtheta]*(xr+Rs-R-Cr))
+                dhdksi_w=-betha_s*(np.cos[theta-0.5*dtheta]*(yr+alpha*(Rs+esp))-np.sin[theta-0.5*dtheta]*(xr+Rs-R-Cr))
+                dhdksi_n=dhdksi_p
+                dhdksi_s=dhdksi_n
                 
-                VP=betha_s*Rs*vP-np*dhdksi_p*uP;
-                Vn=betha_s*Rs*vn-nn*dhdksi_n*un;
-                Vs=betha_s*Rs*vs-ns*dhdksi_s*us;
+                VP=betha_s*Rs*vP-np*dhdksi_p*uP
+                Vn=betha_s*Rs*vn-nn*dhdksi_n*un
+                Vs=betha_s*Rs*vs-ns*dhdksi_s*us
                 
-                alpha11P=HP^2;
-                alpha11e=He^2;
-                alpha11w=Hw^2;
+                alpha11P=HP**2
+                alpha11e=He**2
+                alpha11w=Hw**2
                 
-                alpha12P=-np*HP*dhdksi_p;
-                alpha12e=-ne*He*dhdksi_e;
-                alpha12w=-nw*Hw*dhdksi_w;
+                alpha12P=-np*HP*dhdksi_p
+                alpha12e=-ne*He*dhdksi_e
+                alpha12w=-nw*Hw*dhdksi_w
                 
-                alpha21P=alpha12P;
-                alpha21n=-nn*Hn*dhdksi_n;
-                alpha21s=-ns*Hs*dhdksi_s;
+                alpha21P=alpha12P
+                alpha21n=-nn*Hn*dhdksi_n
+                alpha21s=-ns*Hs*dhdksi_s
                 
-                alpha22P=(betha_s*Rs)^2+(np*dhdksi_p)^2;
-                alpha22n=(betha_s*Rs)^2+(nn*dhdksi_n)^2;
-                alpha22s=(betha_s*Rs)^2+(ns*dhdksi_s)^2;
+                alpha22P=(betha_s*Rs)**2+(np*dhdksi_p)**2;
+                alpha22n=(betha_s*Rs)**2+(nn*dhdksi_n)**2;
+                alpha22s=(betha_s*Rs)**2+(ns*dhdksi_s)**2;
                 
-                Me=rho*Ue*dN;
-                Mw=rho*Uw*dN;
-                Mn=rho*Vn*dksi;
-                Ms=rho*Vs*dksi;
+                Me=rho*Ue*dN
+                Mw=rho*Uw*dN
+                Mn=rho*Vn*dksi
+                Ms=rho*Vs*dksi
                 
-                D11=kt/Cp*JP*alpha11P*dN;
-                D11e=kt/Cp*Je*alpha11e*dN;
-                D11w=kt/Cp*Jw*alpha11w*dN;
+                D11=kt/Cp*JP*alpha11P*dN
+                D11e=kt/Cp*Je*alpha11e*dN
+                D11w=kt/Cp*Jw*alpha11w*dN
                 
-                D12=kt/Cp*JP*alpha12P*dN;
-                D12e=kt/Cp*Je*alpha12e*dN;
-                D12w=kt/Cp*Jw*alpha12w*dN;
+                D12=kt/Cp*JP*alpha12P*dN
+                D12e=kt/Cp*Je*alpha12e*dN
+                D12w=kt/Cp*Jw*alpha12w*dN
                 
-                D21=kt/Cp*JP*alpha21P*dksi;
-                D21n=kt/Cp*Jn*alpha21n*dksi;
-                D21s=kt/Cp*Js*alpha21s*dksi;
+                D21=kt/Cp*JP*alpha21P*dksi
+                D21n=kt/Cp*Jn*alpha21n*dksi
+                D21s=kt/Cp*Js*alpha21s*dksi
                 
-                D22=kt/Cp*JP*alpha22P*dksi;
-                D22n=kt/Cp*Jn*alpha22n*dksi;
-                D22s=kt/Cp*Js*alpha22s*dksi;
+                D22=kt/Cp*JP*alpha22P*dksi
+                D22n=kt/Cp*Jn*alpha22n*dksi
+                D22s=kt/Cp*Js*alpha22s*dksi
                 
-                %Coeficientes de Interpola��o
+                # Interpolation coefficients
                 
-                Pee=rho*uE*Cp*dtheta*Rs/kt; %N�mero de Peclet
-                Pew=rho*uW*Cp*dtheta*Rs/kt;
+                Pee=rho*uE*Cp*dtheta*Rs/kt # Peclet's number
+                Pew=rho*uW*Cp*dtheta*Rs/kt
                 
-                Pen=rho*uN*Cp*dtheta*Rs/kt;
-                Pes=rho*uS*Cp*dtheta*Rs/kt;
+                Pen=rho*uN*Cp*dtheta*Rs/kt
+                Pes=rho*uS*Cp*dtheta*Rs/kt
                 
-                a_pe=Pee^2/(10+2*Pee^2);
-                b_pe=(1+0.005*Pee^2)/(1+0.05*Pee^2);
+                a_pe=Pee**2/(10+2*Pee**2)
+                b_pe=(1+0.005*Pee**2)/(1+0.05*Pee**2)
+
+                a_pw=Pew**2/(10+2*Pew**2)
+                b_pw=(1+0.005*Pew**2)/(1+0.05*Pew**2)
                 
-                a_pw=Pew^2/(10+2*Pew^2);
-                b_pw=(1+0.005*Pew^2)/(1+0.05*Pew^2);
+                a_sw=Pes**2/(10+2*Pes**2)
+                b_sw=(1+0.005*Pes**2)/(1+0.05*Pes**2)
                 
-                a_sw=Pes^2/(10+2*Pes^2);
-                b_sw=(1+0.005*Pes^2)/(1+0.05*Pes^2);
+                a_nw=Pen**2/(10+2*Pen**2)
+                b_nw=(1+0.005*Pen**2)/(1+0.05*Pen**2)
                 
-                a_nw=Pen^2/(10+2*Pen^2);
-                b_nw=(1+0.005*Pen^2)/(1+0.05*Pen^2);
+                a_pn=0 # Central differences
+                b_pn=1
                 
-                a_pn=0; %Diferen�as Centrais
-                b_pn=1;
-                
-                a_ps=0;
-                b_ps=1;
+                a_ps=0
+                b_ps=1
                 
                 Ae=(Me*(0.5-a_pe)-D11e/dksi*b_pe-(D21n-D21s)/(4*dksi));
                 Aw=(-Mw*(0.5+a_pw)-D11w/dksi*b_pw+(D21n-D21s)/(4*dksi));
