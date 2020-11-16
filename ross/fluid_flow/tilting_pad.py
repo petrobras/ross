@@ -1064,60 +1064,51 @@ for n_p in range(1,npad+1):
 
     # WHILE ENDS HERE ==========================================================
 
+    T1[,,n_p]=T_novo[,]
+    P1[,,n_p]=PPdim
+    
+    yh=Rs-R-(np.sin[Xtheta]*(yr+alpha*(Rs+esp))+np.cos[Xtheta]*(xr+Rs-R-Cr))
+    for jj in range(0, nX+1):
+        YH[,jj,n_p] = fliplr(linspace(0,yh(jj),nN+2))
+    
+    
+    # Integration of pressure field - HydroForces
+    auxF=np.array([np.cos[Xtheta[0:-1]]; 
+                   np.sin[Xtheta[0:-1]]])
+    dA=dx*dz
+    
+    auxP=P1[1:-1, 1:-1, n_p]*dA
+    
+    vector_auxF_x=auxF[0,]
+    vector_auxF_y=auxF[1,]
+    
+    auxFx=auxP*vector_auxF_x'
+    auxFy=auxP*vector_auxF_y'
+    
+    fxj[n_p]=-np.sum(auxFx)
+    fyj=-np.sum(auxFy)
+    
+    My[n_p]=fyj*(Rs+esp)
+    
+    if (fxj(n_p)>=-1):
+        My[n_p]=10e6
+    
+    
+# END PADS FOR LOOP ===============================================================
 
-    T1(:,:,n_p)=T_novo(:,:);
-    P1(:,:,n_p)=PPdim;
-    
-    % if norm(P1)==0
-    %     score=1e36;
-    % end
-    
-    yh=Rs-R-(sin(Xtheta)*(yr+alpha*(Rs+esp))+cos(Xtheta)*(xr+Rs-R-Cr));
-    for jj = 1:nX+2
-        YH(:,jj,n_p) = fliplr(linspace(0,yh(jj),nN+2));
-    end
-    
-    %Integration of pressure field - HydroForces
-    auxF=[cos(Xtheta(2:(end-1))); sin(Xtheta(2:(end-1)))];
-    dA=dx*dz;
-    
-    auxP=P1(2:end-1,2:end-1,n_p)*dA;
-    
-    vector_auxF_x=auxF(1,:);
-    vector_auxF_y=auxF(2,:);
-    
-    auxFx=auxP*vector_auxF_x';
-    auxFy=auxP*vector_auxF_y';
-    
-    fxj(n_p)=-sum(auxFx);
-    fyj=-sum(auxFy);
-    
-    
-    My(n_p)=fyj*(Rs+esp);
-    
-    if fxj(n_p)>=-1
-    My(n_p)=10e6;
-    end
-    
-    %
-    %     if norm(PPdim(:,round(2*end/3):end)) < 1
-    %         score=1e10;
-    %     end
-end
+score[0]=My[0]
+score[1]=My[1]
+score[2]=My[2]
+score[3]=My[3]
+score[4]=My[4]
+score[5]=My[5]
 
-score(1)=My(1)
-score(2)=My(2)
-score(3)=My(3)
-score(4)=My(4)
-score(5)=My(5)
-score(6)=My(6)
+# hydrodynamic forces
+Fhx=fxj[0]*np.cos[psi_pad[0]+sigma[0]]+fxj[1]*np.cos[psi_pad[1]+sigma[1]]+fxj[2]*np.cos[psi_pad[2]+sigma[2]]+fxj[3]*np.cos[psi_pad[3]+sigma[3]]+fxj[4]*np.cos[psi_pad[4]+sigma[4]]+fxj[5]*np.cos[psi_pad[5]+sigma[5]]
+Fhy=fxj[0]*np.sin[psi_pad[0]+sigma[0]]+fxj[1]*np.sin[psi_pad[1]+sigma[1]]+fxj[2]*np.sin[psi_pad[2]+sigma[2]]+fxj[3]*np.sin[psi_pad[3]+sigma[3]]+fxj[4]*np.sin[psi_pad[4]+sigma[4]]+fxj[5]*np.sin[psi_pad[5]+sigma[5]]
 
-%hydroforces
-Fhx=fxj(1)*cos(psi_pad(1)+sigma(1))+fxj(2)*cos(psi_pad(2)+sigma(2))+fxj(3)*cos(psi_pad(3)+sigma(3))+fxj(4)*cos(psi_pad(4)+sigma(4))+fxj(5)*cos(psi_pad(5)+sigma(5))+fxj(6)*cos(psi_pad(6)+sigma(6));
-Fhy=fxj(1)*sin(psi_pad(1)+sigma(1))+fxj(2)*sin(psi_pad(2)+sigma(2))+fxj(3)*sin(psi_pad(3)+sigma(3))+fxj(4)*sin(psi_pad(4)+sigma(4))+fxj(5)*sin(psi_pad(5)+sigma(5))+fxj(6)*sin(psi_pad(6)+sigma(6));
+# Maximum pressure, maximum temperature and minimum thickness
+Pmax=np.max[np.max[np.max[P1]]]
+Tmax=np.max[np.max[np.max[T1]]]
+hmin=np.min[np.min[hhh]]
 
-%Maximum pressure, maximum temperature and minimum thickness
-Pmax=max(max(max(P1)));
-Tmax=max(max(max(T1)));
-hmin=min(min(hhh));
-return
