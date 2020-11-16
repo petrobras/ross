@@ -601,7 +601,7 @@ for n_p in range(1,npad+1):
                 hpt=-(np.cos[jj]*xrpt+np.sin[jj]*yrpt+np.sin[jj]*(Rs+esp)*alphapt)
                 
                 if (ki==1 and kj==1):
-                    for contk in range (N1+0.5*dN, dN, N2-0.5*dN):
+                    for contk in range(N1+0.5*dN, dN, N2-0.5*dN):
                         dudx[0,nn+1]=0
                         dwdz[0,nn+1]=0
                         nn=nn+1
@@ -611,7 +611,7 @@ for n_p in range(1,npad+1):
                 
                 
                 if (ki==1 and kj>1):
-                    for contk in range (N1+0.5*dN, dN, N2-0.5*dN):
+                    for contk in range(N1+0.5*dN, dN, N2-0.5*dN):
                         dudx(1,nn+1)=(vu[ki,kj,nn]-vu[ki,kj-1,nn])/dx
                         dwdz(1,nn+1)=0
                         nn=nn+1
@@ -620,7 +620,7 @@ for n_p in range(1,npad+1):
                 
                 
                 if (ki>1 and kj==1):
-                    for contk in range (N1+0.5*dN, dN, N2-0.5*dN):
+                    for contk in range(N1+0.5*dN, dN, N2-0.5*dN):
                         dudx[0,nn+1]=0
                         dwdz[0,nn+1]=(vw[ki,kj,nn]-vw[ki-1,kj,nn])/dz
                         nn=nn+1
@@ -628,36 +628,37 @@ for n_p in range(1,npad+1):
                     nn=1
                 
                 
-                if ki>1 && ki<nN && kj>1 && kj<nX
-                    for contk=N1+0.5*dN:dN:N2-0.5*dN
-                        dudx(1,nn+1)=(vu(ki,kj,nn)-vu(ki,kj-1,nn))/dx;
-                        dwdz(1,nn+1)=(vw(ki,kj,nn)-vw(ki-1,kj,nn))/dz;
-                        nn=nn+1;
-                    end
-                    nn=1;
-                end
+                if (ki>1 and ki<nN and kj>1 and kj<nX):
+                    for contk in range(N1+0.5*dN, dN, N2-0.5*dN):
+                        dudx[0,nn+1]=(vu[ki,kj,nn]-vu[ki,kj-1,nn])/dx
+                        dwdz[0,nn+1]=(vw[ki,kj,nn]-vw[ki-1,kj,nn])/dz
+                        nn=nn+1
+                    
+                    nn=1
                 
-                dudx(1,1)=dudx(1,2);
-                dwdz(1,1)=dwdz(1,2);
-                dudx(1,nN+2)=dudx(1,nN+1);
-                dwdz(1,nN+2)=dwdz(1,nN+1);
                 
-                auxD=dudx+dwdz;
-                intv=0.5*sum((ydim1(2:end)-ydim1(1:end-1)).*(auxD(2:end)+auxD(1:end-1)));
-                vv(ki,kj,:)=-intv+hpt;
-                kj=kj+1;
-            end
-            kj=1;
-            ki=ki+1;
-        end
-        ki=1;
-        ki=nN;
-        for ii=1:nN
-            for jj=1:ntheta
-                Vu(ii,jj)= mean(vu(:,jj,ki));
-                Vv(ii,jj)= mean(vv(:,jj,ki));
-                Vw(ii,jj)= mean(vw(:,jj,ki));
-            end
-            ki=ki-1;
-        end
+                dudx[0,0]=dudx[0,1]
+                dwdz[0,0]=dwdz[0,1]
+                dudx[0,nN+2]=dudx[0,nN+1]
+                dwdz[0,nN+2]=dwdz[0,nN+1]
+                
+                auxD=dudx+dwdz
+                intv=0.5*np.sum((ydim1[1:]-ydim1[0:-1]).*(auxD[1:]+auxD[0:-1]))
+                vv[ki,kj,]=-intv+hpt
+                kj=kj+1
+            
+            kj=1
+            ki=ki+1
+        
+        ki=1
+        ki=nN
+        for ii in range(1, nN):
+            for jj in range(1, ntheta):
+                Vu[ii,jj]= mean(vu[,jj,ki])
+                Vv[ii,jj]= mean(vv[,jj,ki])
+                Vw[ii,jj]= mean(vw[,jj,ki])
+            
+            ki=ki-1
+        
+        # Radial velociti calculation ending ------------------------------
         %AQUI TERMINA O CALCULO DA VELOCIDADE RADIAL
