@@ -661,4 +661,161 @@ for n_p in range(1,npad+1):
             ki=ki-1
         
         # Radial velociti calculation ending ------------------------------
-        %AQUI TERMINA O CALCULO DA VELOCIDADE RADIAL
+        ksi1=0;
+        ksi2=1;
+        ki=1;
+        kj=1;
+        dksi=dX;
+        for ii=1:nZ
+            for jj=1:nN
+                Mi(jj,ii)=mi(1,ii,jj);
+            end
+        end
+        nk=nN*ntheta;
+        Mat_coef=zeros(nk,nk);
+        b=zeros(nk,1);
+        k=0;
+        
+        for ii=N1+0.5*dN:dN:N2-0.5*dN
+            
+            for jj=ksi1+0.5*dksi:dksi:ksi2-0.5*dksi
+                
+                theta=(-0.5+jj)*betha_s;
+                HP=Rs-R-(sin(theta)*(yr+alpha*(Rs+esp))+cos(theta)*(xr+Rs-R-Cr));
+                He=Rs-R-(sin(theta+0.5*dtheta)*(yr+alpha*(Rs+esp))+cos(theta+0.5*dtheta)*(xr+Rs-R-Cr));
+                Hw=Rs-R-(sin(theta-0.5*dtheta)*(yr+alpha*(Rs+esp))+cos(theta-0.5*dtheta)*(xr+Rs-R-Cr));
+                Hn=HP;
+                Hs=Hn;
+                Hnw=Hw;
+                Hsw=Hnw;
+                
+                yh(kj)=HP;
+                xh(kj)=theta;
+                
+                JP=1/(betha_s*Rs*HP);
+                Je=1/(betha_s*Rs*He);
+                Jw=1/(betha_s*Rs*Hw);
+                Jn=1/(betha_s*Rs*Hn);
+                Js=1/(betha_s*Rs*Hs);
+                
+                if ki==1 && kj==1
+                    
+                    uP=Vu(ki,kj);
+                    uE=Vu(ki,kj+1);
+                    uW=Vu(ki,kj);
+                    uN=Vu(ki,kj);
+                    uS=Vu(ki+1,kj);
+                    
+                    vP=Vv(ki,kj);
+                    vE=Vv(ki,kj+1);
+                    vW=Vv(ki,kj);
+                    vN=Vv(ki,kj);
+                    vS=Vv(ki+1,kj);
+                    
+                    wP=Vw(ki,kj);
+                    wE=Vw(ki,kj+1);
+                    wW=Vw(ki,kj);
+                    wN=Vw(ki,kj);
+                    wS=Vw(ki+1,kj);
+                end
+                
+                if ki==1 && kj>1 && kj<nX
+                    uP=Vu(ki,kj);
+                    uE=Vu(ki,kj+1);
+                    uW=Vu(ki,kj-1);
+                    uN=Vu(ki,kj);
+                    uS=Vu(ki+1,kj);
+                end
+                
+                if ki>1 && ki<nN && kj==1
+                    uP=Vu(ki,kj);
+                    uE=Vu(ki,kj+1);
+                    uW=Vu(ki,kj);
+                    uN=Vu(ki-1,kj);
+                    uS=Vu(ki+1,kj);
+                end
+                
+                if ki==nN && kj==1
+                    uP=Vu(ki,kj);
+                    uE=Vu(ki,kj+1);
+                    uW=Vu(ki,kj);
+                    uN=Vu(ki-1,kj);
+                    uS=Vu(ki,kj);
+                end
+                
+                if ki==1 && kj==nX
+                    uP=Vu(ki,kj);
+                    uE=Vu(ki,kj);
+                    uW=Vu(ki,kj-1);
+                    uN=Vu(ki,kj);
+                    uS=Vu(ki+1,kj);
+                end
+                
+                if ki>1 && ki<nN && kj==nX
+                    uP=Vu(ki,kj);
+                    uE=Vu(ki,kj);
+                    uW=Vu(ki,kj-1);
+                    uN=Vu(ki-1,kj);
+                    uS=Vu(ki+1,kj);
+                end
+                
+                if ki==nN && kj==nX
+                    uP=Vu(ki,kj);
+                    uE=Vu(ki,kj);
+                    uW=Vu(ki,kj-1);
+                    uN=Vu(ki-1,kj);
+                    uS=Vu(ki,kj);
+                end
+                
+                if ki==nN && kj>1 && kj<nX
+                    uP=Vu(ki,kj);
+                    uE=Vu(ki,kj+1);
+                    uW=Vu(ki,kj-1);
+                    uN=Vu(ki-1,kj);
+                    uS=Vu(ki,kj);
+                end
+                
+                if ki>1 && ki<nN && kj>1 && kj<nX
+                    uP=Vu(ki,kj);
+                    uE=Vu(ki,kj+1);
+                    uW=Vu(ki,kj-1);
+                    uN=Vu(ki-1,kj);
+                    uS=Vu(ki+1,kj);
+                    
+                    vP=Vv(ki,kj);
+                    vE=Vv(ki,kj+1);
+                    vW=Vv(ki,kj-1);
+                    vN=Vv(ki-1,kj);
+                    vS=Vv(ki+1,kj);
+                    
+                    wP=Vw(ki,kj);
+                    wE=Vw(ki,kj+1);
+                    wW=Vw(ki,kj-1);
+                    wN=Vw(ki-1,kj);
+                    wS=Vw(ki+1,kj);
+                end
+                
+                ue=0.5*(uP+uE);
+                uw=0.5*(uP+uW);
+                un=0.5*(uP+uN);
+                us=0.5*(uP+uS);
+                
+                ve=0.5*(vP+vE);
+                vw=0.5*(vP+vW);
+                vn=0.5*(vP+vN);
+                vs=0.5*(vP+vS);
+                
+                we=0.5*(wP+wE);
+                ww=0.5*(wP+wW);
+                wn=0.5*(wP+wN);
+                ws=0.5*(wP+wS);
+                
+                UP=hP*uP;
+                Ue=He*ue;
+                Uw=Hw*uw;
+                
+                np=1-ii;
+                ne=np;
+                nw=np;
+                nn=np+dN;
+                ns=np-dN;
