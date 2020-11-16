@@ -1031,5 +1031,93 @@ for n_p in range(1,npad+1):
             
         
         # Viscosity equation ========================================================================
-        %%%%%%%%%%%%%%%%%%%%%%%%%%%% Equa��o da viscosidade %%%%%%%%%%%%%%%%%%%%%%
+        # VG68 - Polynomial adjustment using predetermined values
+        # 
+        # Via Oil_Regression_Analyses.m and propvalue.m the equation coefficients
+        # are obtained for the regression on the viscosity determination as a 
+        # function of the temperature.
         
+        # 3D temperature field -----------------------------------------------------
+        TT=np.zeros(nZ,nX,nN)
+        for k in range(0, nN):
+            for j in range(0, X):
+                TT[,j,k]=T[k,j]
+            
+        # Regression equation coefficients
+        a=5.506e-09
+        b=5012
+        c=0.1248
+        minovo=a*np.exp(b/(TT+273.15+c))
+        k=0
+        
+        # Full temperature matrix, including borders
+        for i in range(1, nN):
+            for j in range(1, ntheta):
+                T_novo[i,j]=T[i-1,j-1]
+            
+        
+        T_novo[0,]=T_novo[1,]
+        T_novo[nN+1,]=T_novo[nN,]
+        T_novo[1:nN,0]=Tmist[1,nN]
+        T_novo[,nX+1]=T_novo[,nX]
+
+
+    # WHILE ENDS HERE ==========================================================
+
+
+    T1(:,:,n_p)=T_novo(:,:);
+    P1(:,:,n_p)=PPdim;
+    
+    % if norm(P1)==0
+    %     score=1e36;
+    % end
+    
+    yh=Rs-R-(sin(Xtheta)*(yr+alpha*(Rs+esp))+cos(Xtheta)*(xr+Rs-R-Cr));
+    for jj = 1:nX+2
+        YH(:,jj,n_p) = fliplr(linspace(0,yh(jj),nN+2));
+    end
+    
+    %Integration of pressure field - HydroForces
+    auxF=[cos(Xtheta(2:(end-1))); sin(Xtheta(2:(end-1)))];
+    dA=dx*dz;
+    
+    auxP=P1(2:end-1,2:end-1,n_p)*dA;
+    
+    vector_auxF_x=auxF(1,:);
+    vector_auxF_y=auxF(2,:);
+    
+    auxFx=auxP*vector_auxF_x';
+    auxFy=auxP*vector_auxF_y';
+    
+    fxj(n_p)=-sum(auxFx);
+    fyj=-sum(auxFy);
+    
+    
+    My(n_p)=fyj*(Rs+esp);
+    
+    if fxj(n_p)>=-1
+    My(n_p)=10e6;
+    end
+    
+    %
+    %     if norm(PPdim(:,round(2*end/3):end)) < 1
+    %         score=1e10;
+    %     end
+end
+
+score(1)=My(1)
+score(2)=My(2)
+score(3)=My(3)
+score(4)=My(4)
+score(5)=My(5)
+score(6)=My(6)
+
+%hydroforces
+Fhx=fxj(1)*cos(psi_pad(1)+sigma(1))+fxj(2)*cos(psi_pad(2)+sigma(2))+fxj(3)*cos(psi_pad(3)+sigma(3))+fxj(4)*cos(psi_pad(4)+sigma(4))+fxj(5)*cos(psi_pad(5)+sigma(5))+fxj(6)*cos(psi_pad(6)+sigma(6));
+Fhy=fxj(1)*sin(psi_pad(1)+sigma(1))+fxj(2)*sin(psi_pad(2)+sigma(2))+fxj(3)*sin(psi_pad(3)+sigma(3))+fxj(4)*sin(psi_pad(4)+sigma(4))+fxj(5)*sin(psi_pad(5)+sigma(5))+fxj(6)*sin(psi_pad(6)+sigma(6));
+
+%Maximum pressure, maximum temperature and minimum thickness
+Pmax=max(max(max(P1)));
+Tmax=max(max(max(T1)));
+hmin=min(min(hhh));
+return
