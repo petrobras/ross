@@ -820,3 +820,110 @@ for n_p in range(1,npad+1):
                 nw=np
                 nn=np+dN
                 ns=np-dN
+
+                dhdksi_p=-betha_s*(cos(theta)*(yr+alpha*(Rs+esp))-sin(theta)*(xr+Rs-R-Cr));
+                dhdksi_e=-betha_s*(cos(theta+0.5*dtheta)*(yr+alpha*(Rs+esp))-sin(theta+0.5*dtheta)*(xr+Rs-R-Cr));
+                dhdksi_w=-betha_s*(cos(theta-0.5*dtheta)*(yr+alpha*(Rs+esp))-sin(theta-0.5*dtheta)*(xr+Rs-R-Cr));
+                dhdksi_n=dhdksi_p;
+                dhdksi_s=dhdksi_n;
+                
+                VP=betha_s*Rs*vP-np*dhdksi_p*uP;
+                Vn=betha_s*Rs*vn-nn*dhdksi_n*un;
+                Vs=betha_s*Rs*vs-ns*dhdksi_s*us;
+                
+                alpha11P=HP^2;
+                alpha11e=He^2;
+                alpha11w=Hw^2;
+                
+                alpha12P=-np*HP*dhdksi_p;
+                alpha12e=-ne*He*dhdksi_e;
+                alpha12w=-nw*Hw*dhdksi_w;
+                
+                alpha21P=alpha12P;
+                alpha21n=-nn*Hn*dhdksi_n;
+                alpha21s=-ns*Hs*dhdksi_s;
+                
+                alpha22P=(betha_s*Rs)^2+(np*dhdksi_p)^2;
+                alpha22n=(betha_s*Rs)^2+(nn*dhdksi_n)^2;
+                alpha22s=(betha_s*Rs)^2+(ns*dhdksi_s)^2;
+                
+                Me=rho*Ue*dN;
+                Mw=rho*Uw*dN;
+                Mn=rho*Vn*dksi;
+                Ms=rho*Vs*dksi;
+                
+                D11=kt/Cp*JP*alpha11P*dN;
+                D11e=kt/Cp*Je*alpha11e*dN;
+                D11w=kt/Cp*Jw*alpha11w*dN;
+                
+                D12=kt/Cp*JP*alpha12P*dN;
+                D12e=kt/Cp*Je*alpha12e*dN;
+                D12w=kt/Cp*Jw*alpha12w*dN;
+                
+                D21=kt/Cp*JP*alpha21P*dksi;
+                D21n=kt/Cp*Jn*alpha21n*dksi;
+                D21s=kt/Cp*Js*alpha21s*dksi;
+                
+                D22=kt/Cp*JP*alpha22P*dksi;
+                D22n=kt/Cp*Jn*alpha22n*dksi;
+                D22s=kt/Cp*Js*alpha22s*dksi;
+                
+                %Coeficientes de Interpola��o
+                
+                Pee=rho*uE*Cp*dtheta*Rs/kt; %N�mero de Peclet
+                Pew=rho*uW*Cp*dtheta*Rs/kt;
+                
+                Pen=rho*uN*Cp*dtheta*Rs/kt;
+                Pes=rho*uS*Cp*dtheta*Rs/kt;
+                
+                a_pe=Pee^2/(10+2*Pee^2);
+                b_pe=(1+0.005*Pee^2)/(1+0.05*Pee^2);
+                
+                a_pw=Pew^2/(10+2*Pew^2);
+                b_pw=(1+0.005*Pew^2)/(1+0.05*Pew^2);
+                
+                a_sw=Pes^2/(10+2*Pes^2);
+                b_sw=(1+0.005*Pes^2)/(1+0.05*Pes^2);
+                
+                a_nw=Pen^2/(10+2*Pen^2);
+                b_nw=(1+0.005*Pen^2)/(1+0.05*Pen^2);
+                
+                a_pn=0; %Diferen�as Centrais
+                b_pn=1;
+                
+                a_ps=0;
+                b_ps=1;
+                
+                Ae=(Me*(0.5-a_pe)-D11e/dksi*b_pe-(D21n-D21s)/(4*dksi));
+                Aw=(-Mw*(0.5+a_pw)-D11w/dksi*b_pw+(D21n-D21s)/(4*dksi));
+                An=(Mn*(0.5-a_pn)-D22n/dN*b_pn-(D12e-D12w)/(4*dN));
+                As=(-Ms*(0.5+a_ps)-D22s/dN*b_ps-(D12w-D12e)/(4*dN));
+                Ane=-D12e/(4*dN)-D21n/(4*dksi);
+                Ase=D12e/(4*dN)+D21s/(4*dksi);
+                Anw=D12w/(4*dN)+D21n/(4*dksi);
+                Asw=-D12w/(4*dN)-D21s/(4*dksi);
+                Ap=-(Ae+Aw+An+As+Ane+Ase+Anw+Asw);
+                
+                up_a=uP/(R*war);
+                uw_a=uW/(R*war);
+                ue_a=uE/(R*war);
+                us_a=uS/(R*war);
+                un_a=uN/(R*war);
+                
+                vp_a=vP/(R*war);
+                vw_a=vW/(R*war);
+                ve_a=vE/(R*war);
+                vs_a=vS/(R*war);
+                vn_a=vN/(R*war);
+                
+                wp_a=wP/(R*war);
+                ww_a=wW/(R*war);
+                we_a=wE/(R*war);
+                ws_a=wS/(R*war);
+                wn_a=wN/(R*war);
+                
+                
+                fdiss=2*((Cr*hP*(up_a-uw_a)/dksi-np*Cr*dhdksi_p*(up_a-us_a)/dN)^2+(betha_s*Rs*(vn_a-vp_a)/dN)^2+ ...
+                    (betha_s*Rs*(up_a-us_a)/dN+Cr*hP*(vp_a-vw_a)/dksi-np*Cr*dhdksi_p*(vp_a-vs_a)/dksi)^2+...
+                    (Cr*hP*(wp_a-ww_a)/dksi-np*Cr*dhdksi_p*(wp_a-ws_a)/dN)^2+(betha_s*Rs*(wp_a-ws_a)/dksi)^2);
+                
