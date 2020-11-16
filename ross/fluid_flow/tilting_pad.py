@@ -586,46 +586,47 @@ for n_p in range(1,npad+1):
             kk=kk+1
         
 
-
-        %AQUI COME�A O CALCULO DA VELOCIDADE RADIAL
-        nn=1;
-        ki=1;
-        kj=1;
-        kk=1;
+        # Radial speed calculation start ----------------------------------------------------
+        nn=1
+        ki=1
+        kj=1
+        kk=1
         
 
-        for ii=Z1+0.5*dZ:dZ:Z2-0.5*dZ
-            
-            for jj=theta1+0.5*dtheta:dtheta:theta2-0.5*dtheta
-                hpt=-(cos(jj)*xrpt+sin(jj)*yrpt+sin(jj)*(Rs+esp)*alphapt);
+        # Mesh loop in Z direction ====================================================
+        for ii in range((Z1+0.5*dZ), dZ, (Z2-0.5*dZ)):
+            # Mesh loop in THETA direction ====================================================
+            for jj in range((theta1+0.5*dtheta), dtheta, (theta2-0.5*dtheta)):
+
+                hpt=-(np.cos[jj]*xrpt+np.sin[jj]*yrpt+np.sin[jj]*(Rs+esp)*alphapt)
                 
-                if ki==1 && kj==1
-                    for contk=N1+0.5*dN:dN:N2-0.5*dN
-                        dudx(1,nn+1)=0;
-                        dwdz(1,nn+1)=0;
-                        nn=nn+1;
-                    end
-                    nn=1;
-                end
+                if (ki==1 and kj==1):
+                    for contk in range (N1+0.5*dN, dN, N2-0.5*dN):
+                        dudx[0,nn+1]=0
+                        dwdz[0,nn+1]=0
+                        nn=nn+1
+                    
+                    nn=1
                 
                 
-                if ki==1 && kj>1
-                    for contk=N1+0.5*dN:dN:N2-0.5*dN
-                        dudx(1,nn+1)=(vu(ki,kj,nn)-vu(ki,kj-1,nn))/dx;
-                        dwdz(1,nn+1)=0;
-                        nn=nn+1;
-                    end
-                    nn=1;
-                end
                 
-                if ki>1 && kj==1
-                    for contk=N1+0.5*dN:dN:N2-0.5*dN
-                        dudx(1,nn+1)=0;
-                        dwdz(1,nn+1)=(vw(ki,kj,nn)-vw(ki-1,kj,nn))/dz;
-                        nn=nn+1;
-                    end
-                    nn=1;
-                end
+                if (ki==1 and kj>1):
+                    for contk in range (N1+0.5*dN, dN, N2-0.5*dN):
+                        dudx(1,nn+1)=(vu[ki,kj,nn]-vu[ki,kj-1,nn])/dx
+                        dwdz(1,nn+1)=0
+                        nn=nn+1
+                    
+                    nn=1
+                
+                
+                if (ki>1 and kj==1):
+                    for contk in range (N1+0.5*dN, dN, N2-0.5*dN):
+                        dudx[0,nn+1]=0
+                        dwdz[0,nn+1]=(vw[ki,kj,nn]-vw[ki-1,kj,nn])/dz
+                        nn=nn+1
+                    
+                    nn=1
+                
                 
                 if ki>1 && ki<nN && kj>1 && kj<nX
                     for contk=N1+0.5*dN:dN:N2-0.5*dN
