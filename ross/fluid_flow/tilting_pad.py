@@ -926,112 +926,110 @@ for n_p in range(1,npad+1):
                 fdiss=2*((Cr*hP*(up_a-uw_a)/dksi-np*Cr*dhdksi_p*(up_a-us_a)/dN)**2+(betha_s*Rs*(vn_a-vp_a)/dN)**2+(betha_s*Rs*(up_a-us_a)/dN+Cr*hP*(vp_a-vw_a)/dksi-np*Cr*dhdksi_p*(vp_a-vs_a)/dksi)**2+(Cr*hP*(wp_a-ww_a)/dksi-np*Cr*dhdksi_p*(wp_a-ws_a)/dN)**2+(betha_s*Rs*(wp_a-ws_a)/dksi)**2)
                 
                 
-                % TERMO FONTE
-                Bp=JP*(war*R)^2*Mi(ki,kj)/Cp*dN*dksi*fdiss;
+                # Source term ----------------
+                Bp=JP*(war*R)**2*Mi(ki,kj)/Cp*dN*dksi*fdiss
                 
-                %vetoriza��o
-                k=k+1;
+                # Vectorizing
+                k=k+1
                 
-                b(k,1)=Bp;
+                b[k,0]=Bp
                 
-                if ki==1 && kj==1
-                    Mat_coef(k,k)=Ap+An-Aw;
-                    Mat_coef(k,k+1)=Ae+Ane;
-                    Mat_coef(k,k+ntheta)=As-Asw;
-                    Mat_coef(k,k+ntheta+1)=Ase;
-                    b(k,1)=b(k,1)-2*(Aw*Tmist(ki+1)+Asw*Tmist(ki+2))-Anw*(Tmist(ki));
-                end
-                
-                if ki==1 && kj>1 && kj<nX
-                    Mat_coef(k,k)=Ap+An;
-                    Mat_coef(k,k+1)=Ae+Ane;
-                    Mat_coef(k,k-1)=Aw+Anw;
-                    Mat_coef(k,k+ntheta)=As;
-                    Mat_coef(k,k+ntheta+1)=Ase;
-                    Mat_coef(k,k+ntheta-1)=Asw;
+                if (ki==1 and kj==1):
+                    Mat_coef[k,k]=Ap+An-Aw
+                    Mat_coef[k,k+1]=Ae+Ane
+                    Mat_coef[k,k+ntheta]=As-Asw
+                    Mat_coef[k,k+ntheta+1]=Ase
+                    b[k,0]=b[k,0]-2*(Aw*Tmist[ki+1]+Asw*Tmist[ki+2])-Anw*(Tmist[ki])
                     
-                end
-                
-                if ki==1 && kj==nX
-                    Mat_coef(k,k)=Ap+An+Ane+Ae;
-                    Mat_coef(k,k-1)=Aw+Anw;
-                    Mat_coef(k,k+ntheta)=As+Ase;
-                    Mat_coef(k,k+ntheta-1)=Asw;
+                if (ki==1 and kj>1 and kj<nX):
+                    Mat_coef[k,k]=Ap+An
+                    Mat_coef[k,k+1]=Ae+Ane
+                    Mat_coef[k,k-1]=Aw+Anw
+                    Mat_coef[k,k+ntheta]=As
+                    Mat_coef[k,k+ntheta+1]=Ase
+                    Mat_coef[k,k+ntheta-1]=Asw
                     
-                end
                 
-                if kj==1 && ki>1 && ki<nN
-                    Mat_coef(k,k)=Ap-Aw;
-                    Mat_coef(k,k+1)=Ae;
-                    Mat_coef(k,k+ntheta)=As-Asw;
-                    Mat_coef(k,k-ntheta)=An-Anw;
-                    Mat_coef(k,k+ntheta+1)=Ase;
-                    Mat_coef(k,k-ntheta+1)=Ane;
-                    b(k,1)=b(k,1)-2*Tmist(ki-1)*Anw-2*Tmist(ki+1)*Aw-2*Tmist(ki+2)*Asw;
-                end
+                if (ki==1 and kj==nX):
+                    Mat_coef[k,k]=Ap+An+Ane+Ae
+                    Mat_coef[k,k-1]=Aw+Anw
+                    Mat_coef[k,k+ntheta]=As+Ase
+                    Mat_coef[k,k+ntheta-1]=Asw
+
                 
-                if ki>1 && ki<nN && kj>1 && kj<nX
-                    Mat_coef(k,k)=Ap;
-                    Mat_coef(k,k+1)=Ae;
-                    Mat_coef(k,k-1)=Aw;
-                    Mat_coef(k,k+ntheta)=As;
-                    Mat_coef(k,k-ntheta)=An;
-                    Mat_coef(k,k+ntheta+1)=Ase;
-                    Mat_coef(k,k+ntheta-1)=Asw;
-                    Mat_coef(k,k-ntheta+1)=Ane;
-                    Mat_coef(k,k-ntheta-1)=Anw;
-                end
+                if (kj==1 and ki>1 and ki<nN):
+                    Mat_coef[k,k]=Ap-Aw
+                    Mat_coef[k,k+1]=Ae
+                    Mat_coef[k,k+ntheta]=As-Asw
+                    Mat_coef[k,k-ntheta]=An-Anw
+                    Mat_coef[k,k+ntheta+1]=Ase
+                    Mat_coef[k,k-ntheta+1]=Ane
+                    b[k,0]=b[k,0]-2*Tmist[ki-1]*Anw-2*Tmist[ki+1]*Aw-2*Tmist[ki+2]*Asw
                 
-                if kj==nX && ki>1 && ki<nN
-                    Mat_coef(k,k)=Ap+Ae;
-                    Mat_coef(k,k-1)=Aw;
-                    Mat_coef(k,k+ntheta)=As+Ase;
-                    Mat_coef(k,k-ntheta)=An+Ane;
-                    Mat_coef(k,k+ntheta-1)=Asw;
-                    Mat_coef(k,k-ntheta-1)=Anw;
-                end
                 
-                if kj==1 && ki==nN
-                    Mat_coef(k,k)=Ap+As-Aw;
-                    Mat_coef(k,k+1)=Ae+Ase;
-                    Mat_coef(k,k-ntheta)=An-Anw;
-                    Mat_coef(k,k-ntheta+1)=Ane;
-                    b(k,1)=b(k,1)-2*Tmist(ki+1)*Aw-2*Tmist(ki)*Anw-Tmist(ki+2)*Asw;
-                end
+                if (ki>1 and ki<nN and kj>1 and kj<nX):
+                    Mat_coef[k,k]=Ap
+                    Mat_coef[k,k+1]=Ae
+                    Mat_coef[k,k-1]=Aw
+                    Mat_coef[k,k+ntheta]=As
+                    Mat_coef[k,k-ntheta]=An
+                    Mat_coef[k,k+ntheta+1]=Ase
+                    Mat_coef[k,k+ntheta-1]=Asw
+                    Mat_coef[k,k-ntheta+1]=Ane
+                    Mat_coef[k,k-ntheta-1]=Anw
                 
-                if ki==nN && kj>1 && kj<nX
-                    Mat_coef(k,k)=Ap+As;
-                    Mat_coef(k,k+1)=Ae+Ase;
-                    Mat_coef(k,k-1)=Aw+Asw;
-                    Mat_coef(k,k-ntheta)=An;
-                    Mat_coef(k,k-ntheta+1)=Ane;
-                    Mat_coef(k,k-ntheta-1)=Anw;
-                end
                 
-                if ki==nN && kj==nX
-                    Mat_coef(k,k)=Ap+As+Ae+Ase;
-                    Mat_coef(k,k-1)=Aw+Asw;
-                    Mat_coef(k,k-ntheta)=An+Ane;
-                    Mat_coef(k,k-ntheta-1)=Anw;
-                end
-                kj=kj+1;
-            end
-            kj=1;
-            ki=ki+1;
-        end
-        ki=1;
-        nn=1;
-        t=Mat_coef\b; %calculo da temperatura vetorizada
+                if (kj==nX and ki>1 and ki<nN):
+                    Mat_coef[k,k]=Ap+Ae
+                    Mat_coef[k,k-1]=Aw
+                    Mat_coef[k,k+ntheta]=As+Ase
+                    Mat_coef[k,k-ntheta]=An+Ane
+                    Mat_coef[k,k+ntheta-1]=Asw
+                    Mat_coef[k,k-ntheta-1]=Anw
+                
+                
+                if (kj==1 and ki==nN):
+                    Mat_coef[k,k]=Ap+As-Aw
+                    Mat_coef[k,k+1]=Ae+Ase
+                    Mat_coef[k,k-ntheta]=An-Anw
+                    Mat_coef[k,k-ntheta+1]=Ane
+                    b[k,0]=b[k,0]-2*Tmist[ki+1]*Aw-2*Tmist[ki]*Anw-Tmist[ki+2]*Asw
+                
+                
+                if (ki==nN and kj>1 and kj<nX):
+                    Mat_coef[k,k]=Ap+As
+                    Mat_coef[k,k+1]=Ae+Ase
+                    Mat_coef[k,k-1]=Aw+Asw
+                    Mat_coef[k,k-ntheta]=An
+                    Mat_coef[k,k-ntheta+1]=Ane
+                    Mat_coef[k,k-ntheta-1]=Anw
+                
+                
+                if (ki==nN and kj==nX):
+                    Mat_coef[k,k]=Ap+As+Ae+Ase
+                    Mat_coef[k,k-1]=Aw+Asw
+                    Mat_coef[k,k-ntheta]=An+Ane
+                    Mat_coef[k,k-ntheta-1]=Anw
+                
+
+                kj=kj+1
+            
+            kj=1
+            ki=ki+1
         
-        % Matriz de Temperatura
-        cont=1;
+        ki=1
+        nn=1
+        t=Mat_coef\b # calculo da temperatura vetorizada
         
-        for i=1:(nN)
-            for j=1:(nX)
-                T(i,j)=t(cont);
-                cont=cont+1;
-            end
-        end
+        # Temperature matrix ----------------------
+        cont=1
         
+        for i in range(0, nN)
+            for jin range (0, nX)
+                T[i,j]=t[cont]
+                cont=cont+1
+            
+        
+        # Viscosity equation ========================================================================
         %%%%%%%%%%%%%%%%%%%%%%%%%%%% Equa��o da viscosidade %%%%%%%%%%%%%%%%%%%%%%
         
