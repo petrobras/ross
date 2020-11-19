@@ -1272,7 +1272,7 @@ class ST_ForcedResponseResults:
             probe_resp = np.zeros_like(self.magnitude[:, :, 0])
             for j, mag in enumerate(self.magnitude):
                 _probe_resp = operator @ np.vstack((mag[:, dofx], mag[:, dofy]))
-                probe_resp[i] = np.sqrt((_probe_resp[0] * np.cos(angle)) ** 2 +
+                probe_resp[j] = np.sqrt((_probe_resp[0] * np.cos(angle)) ** 2 +
                                         (_probe_resp[1] * np.sin(angle)) ** 2)
             # fmt: on
 
@@ -1323,7 +1323,7 @@ class ST_ForcedResponseResults:
                 )
                 color_i += 1
 
-        fig.update_xaxes(title_text="<b>Frequency</b>")
+        fig.update_xaxes(title_text="<b>Frequency (rad/s)</b>")
         fig.update_yaxes(title_text=y_axis_label)
         fig.update_layout(**kwargs)
 
@@ -1372,11 +1372,11 @@ class ST_ForcedResponseResults:
             probe_phase = np.zeros_like(self.phase[:, :, 0])
             for j, phs in enumerate(self.phase):
                 aux_phase = phs[:, p[0] * self.number_dof]
-                probe_phase[i] = np.array(
+                probe_phase[j] = np.array(
                     [i + 2 * np.pi if i < 0 else i for i in aux_phase]
                 )
                 angle = p[1]
-                probe_phase[i] = probe_phase[i] - angle
+                probe_phase[j] = probe_phase[j] - angle
 
             fig.add_trace(
                 go.Scatter(
@@ -1425,8 +1425,8 @@ class ST_ForcedResponseResults:
                 )
                 color_i += 1
 
-        fig.update_xaxes(title_text="<b>Frequency</b>")
-        fig.update_yaxes(title_text="<b>Phase Angle</b>")
+        fig.update_xaxes(title_text="<b>Frequency (rad/s)</b>")
+        fig.update_yaxes(title_text="<b>Phase Angle (rad)</b>")
         fig.update_layout(**kwargs),
 
         return fig
@@ -1500,18 +1500,18 @@ class ST_ForcedResponseResults:
             probe_resp = np.zeros_like(self.magnitude[:, :, 0])
             for j, mag in enumerate(self.magnitude):
                 _probe_resp = operator @ np.vstack((mag[:, dofx], mag[:, dofy]))
-                probe_resp[i] = np.sqrt((_probe_resp[0] * np.cos(angle)) ** 2 +
+                probe_resp[j] = np.sqrt((_probe_resp[0] * np.cos(angle)) ** 2 +
                                         (_probe_resp[1] * np.sin(angle)) ** 2)
             # fmt: on
 
             probe_phase = np.zeros_like(self.phase[:, :, 0])
             for j, phs in enumerate(self.phase):
                 aux_phase = phs[:, p[0] * self.number_dof]
-                probe_phase[i] = np.array(
+                probe_phase[j] = np.array(
                     [i + 2 * np.pi if i < 0 else i for i in aux_phase]
                 )
                 angle = p[1]
-                probe_phase[i] = probe_phase[i] - angle
+                probe_phase[j] = probe_phase[j] - angle
 
             fig.add_trace(
                 go.Scatterpolar(
