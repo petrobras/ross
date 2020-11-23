@@ -226,11 +226,11 @@ for n_p in range(0,npad):
     alpha=psi_pad[n_p-1]
 
     # transformation of coordinates
-    xryr=np.array([[np.cos(sigma(n_p))  , np.sin(sigma(n_p))]; 
-                   [-np.sin(sigma(n_p)) , np.cos(sigma(n_p))]]) * np.array([[xx]; [yy]])
+    xryr=np.array([[np.cos(sigma(n_p))  , np.sin(sigma(n_p))],
+                   [-np.sin(sigma(n_p)) , np.cos(sigma(n_p))]]) * np.array([[xx], [yy]])
 
-    xryrpt=np.array([[np.cos(sigma(n_p))  , np.sin(sigma(n_p))]; 
-                     [-np.sin(sigma(n_p)) , np.cos(sigma(n_p))]]) * np.array([[xpt]; [ypt]])
+    xryrpt=np.array([[np.cos(sigma(n_p))  , np.sin(sigma(n_p))],
+                     [-np.sin(sigma(n_p)) , np.cos(sigma(n_p))]]) * np.array([[xpt], [ypt]])
 
     xr=xryr[0]
     yr=xryr[1]
@@ -318,12 +318,12 @@ for n_p in range(0,npad):
                 auxFF1W[0]=0
                 auxFF1W[nN]=(N2/(vector_mi[2,nN]/mi_ref))
                 
-                FF0P=0.5*np.sum((netha[1:]-netha[0:-2]).*(auxFF0P[1:]+auxFF0P[0:-2]))
-                FF1P=0.5*np.sum((netha[1:]-netha[0:-2]).*(auxFF1P[1:]+auxFF1P[0:-2]))
-                FF0E=0.5*np.sum((netha[1:]-netha[0:-2]).*(auxFF0E[1:]+auxFF0E[0:-2]))
-                FF1E=0.5*np.sum((netha[1:]-netha[0:-2]).*(auxFF1E[1:]+auxFF1E[0:-2]))
-                FF0W=0.5*np.sum((netha[1:]-netha[0:-2]).*(auxFF0W[1:]+auxFF0W[0:-2]))
-                FF1W=0.5*np.sum((netha[1:]-netha[0:-2]).*(auxFF1W[1:]+auxFF1W[0:-2]))
+                FF0P=0.5*np.sum((netha[1:]-netha[0:-2])*(auxFF0P[1:]+auxFF0P[0:-2]))
+                FF1P=0.5*np.sum((netha[1:]-netha[0:-2])*(auxFF1P[1:]+auxFF1P[0:-2]))
+                FF0E=0.5*np.sum((netha[1:]-netha[0:-2])*(auxFF0E[1:]+auxFF0E[0:-2]))
+                FF1E=0.5*np.sum((netha[1:]-netha[0:-2])*(auxFF1E[1:]+auxFF1E[0:-2]))
+                FF0W=0.5*np.sum((netha[1:]-netha[0:-2])*(auxFF0W[1:]+auxFF0W[0:-2]))
+                FF1W=0.5*np.sum((netha[1:]-netha[0:-2])*(auxFF1W[1:]+auxFF1W[0:-2]))
                 
                 FF0e=0.5*(FF0P+FF0E)
                 FF0w=0.5*(FF0P+FF0W)
@@ -354,9 +354,9 @@ for n_p in range(0,npad):
                 auxFF2W[nN+1]=(N2/(vector_mi[2,nN]/mi_ref))*(N2-FF1P/FF0P)
                 
                 # integration process ===================================================
-                FF2P=0.5*np.sum((netha[1:]-netha[0:-2]).*(auxFF2P[1:]+auxFF2P[0:-2]))
-                FF2E=0.5*np.sum((netha[1:]-netha[0:-2]).*(auxFF2E[1:]+auxFF2E[0:-2]))
-                FF2W=0.5*np.sum((netha[1:]-netha[0:-2]).*(auxFF2W[1:]+auxFF2W[0:-2]))
+                FF2P=0.5*np.sum((netha[1:]-netha[0:-2])*(auxFF2P[1:]+auxFF2P[0:-2]))
+                FF2E=0.5*np.sum((netha[1:]-netha[0:-2])*(auxFF2E[1:]+auxFF2E[0:-2]))
+                FF2W=0.5*np.sum((netha[1:]-netha[0:-2])*(auxFF2W[1:]+auxFF2W[0:-2]))
                 
                 FF2e=0.5*(FF2P+FF2E)
                 FF2w=0.5*(FF2P+FF2W)
@@ -471,10 +471,10 @@ for n_p in range(0,npad):
                 else:
                     
                     cont=cont+1
-                    P(i,j)=p(cont)
+                    P[i,j]=p(cont)
                     
-                    if (P(i,j) < 0):
-                        P(i,j)=0
+                    if (P[i,j] < 0):
+                        P[i,j]=0
                     
 
         # Pressure border conditions ====================================================
@@ -495,8 +495,6 @@ for n_p in range(0,npad):
                 PPdim[i,j]=Pdim[i-1,j-1]
             
         
-
-
         # %%%%%%%%%%%%%%%%%%% Temperature field solution %%%%%%%%%%%%%%%%%%%
         
         # Velocity field calculation
@@ -551,12 +549,12 @@ for n_p in range(0,npad):
                     auxFF1[nN+2]=(N2*h)/mi[ki,kj,1]
                     
                     ydim1=h*netha
-                    FF0=0.5*np.sum((ydim[1:]-ydim1[0:-1]).*(auxFF0[1:]+auxFF0[0:-1]))
-                    FF1=0.5*np.sum((ydim1[1:]-ydim1[0:-1]).*(auxFF1[1:]+auxFF1[0:-1]))
+                    FF0=0.5*np.sum((ydim[1:]-ydim1[0:-1])*(auxFF0[1:]+auxFF0[0:-1]))
+                    FF1=0.5*np.sum((ydim1[1:]-ydim1[0:-1])*(auxFF1[1:]+auxFF1[0:-1]))
                     
-                    auxG0 = np.zeros[1,length(N1:dN:ky)]
-                    auxG1 = np.zeros[1,length(N1:dN:ky)]
-                    ydim2 = np.zeros[1,length(N1:dN:ky)]
+                    auxG0 = np.zeros[1,length(N1, dN, ky)]
+                    auxG1 = np.zeros[1,length(N1, dN, ky)]
+                    ydim2 = np.zeros[1,length(N1, dN, ky)]
                     
                     for contk in range (((N1+0.5*dN)*h), (dN*h), (ky*h)):
                         auxG0[nn+1]=1/mi[ki, kj, nN+1-nn]
@@ -569,8 +567,8 @@ for n_p in range(0,npad):
                     auxG1[0]=0
                     ydim2[0]=N1*h
                     
-                    G0=0.5*np.sum[(ydim2[1:]-ydim2[0:-1]).*(auxG0[1:]+auxG0[0:-1])]
-                    G1=0.5*np.sum[(ydim2[1:]-ydim2[0:-1]).*(auxG1[1:]+auxG1[0:-1])]
+                    G0=0.5*np.sum[(ydim2[1:]-ydim2[0:-1])*(auxG0[1:]+auxG0[0:-1])]
+                    G1=0.5*np.sum[(ydim2[1:]-ydim2[0:-1])*(auxG1[1:]+auxG1[0:-1])]
                     
                     vu[ki,kj,kk]=dPdx*G1+(war*R/FF0-FF1/FF0*dPdx)*G0
                     vw[ki,kj,kk]=dPdz*G1-(FF1/FF0*dPdz)*G0
@@ -602,8 +600,8 @@ for n_p in range(0,npad):
                 
                 if (ki==1 and kj==1):
                     for contk in range(N1+0.5*dN, dN, N2-0.5*dN):
-                        dudx[0,nn+1]=0
-                        dwdz[0,nn+1]=0
+                        dudx[0,nn]=0
+                        dwdz[0,nn]=0
                         nn=nn+1
                     
                     nn=1
@@ -612,8 +610,8 @@ for n_p in range(0,npad):
                 
                 if (ki==1 and kj>1):
                     for contk in range(N1+0.5*dN, dN, N2-0.5*dN):
-                        dudx(1,nn+1)=(vu[ki,kj,nn]-vu[ki,kj-1,nn])/dx
-                        dwdz(1,nn+1)=0
+                        dudx[0,nn+1]=(vu[ki,kj,nn]-vu[ki,kj-1,nn])/dx
+                        dwdz[0,nn+1]=0
                         nn=nn+1
                     
                     nn=1
@@ -643,7 +641,7 @@ for n_p in range(0,npad):
                 dwdz[0,nN+2]=dwdz[0,nN+1]
                 
                 auxD=dudx+dwdz
-                intv=0.5*np.sum((ydim1[1:]-ydim1[0:-1]).*(auxD[1:]+auxD[0:-1]))
+                intv=0.5*np.sum((ydim1[1:]-ydim1[0:-1])*(auxD[1:]+auxD[0:-1]))
                 vv[ki,kj,]=-intv+hpt
                 kj=kj+1
             
@@ -654,9 +652,9 @@ for n_p in range(0,npad):
         ki=nN
         for ii in range(1, nN):
             for jj in range(1, ntheta):
-                Vu[ii,jj]= mean(vu[,jj,ki])
-                Vv[ii,jj]= mean(vv[,jj,ki])
-                Vw[ii,jj]= mean(vw[,jj,ki])
+                Vu[ii,jj]= mean(vu[:,jj,ki])
+                Vv[ii,jj]= mean(vv[:,jj,ki])
+                Vw[ii,jj]= mean(vw[:,jj,ki])
             
             ki=ki-1
         
@@ -679,7 +677,7 @@ for n_p in range(0,npad):
         
         for ii in range(N1+0.5*dN, dN, N2-0.5*dN):
             
-            for jjin range(ksi1+0.5*dksi, dksi, ksi2-0.5*dksi):
+            for jj in range(ksi1+0.5*dksi, dksi, ksi2-0.5*dksi):
                 
                 theta=(-0.5+jj)*betha_s
                 HP=Rs-R-(np.sin[theta]*(yr+alpha*(Rs+esp))+np.cos[theta]*(xr+Rs-R-Cr))
@@ -1024,8 +1022,8 @@ for n_p in range(0,npad):
         # Temperature matrix ----------------------
         cont=1
         
-        for i in range(0, nN)
-            for jin range (0, nX)
+        for i in range(0, nN):
+            for j in range (0, nX):
                 T[i,j]=t[cont]
                 cont=cont+1
             
@@ -1041,7 +1039,7 @@ for n_p in range(0,npad):
         TT=np.zeros(nZ,nX,nN)
         for k in range(0, nN):
             for j in range(0, X):
-                TT[,j,k]=T[k,j]
+                TT[:,j,k]=T[k,j]
             
         # Regression equation coefficients
         a=5.506e-09
@@ -1059,21 +1057,21 @@ for n_p in range(0,npad):
         T_novo[0,]=T_novo[1,]
         T_novo[nN+1,]=T_novo[nN,]
         T_novo[1:nN,0]=Tmist[1,nN]
-        T_novo[,nX+1]=T_novo[,nX]
+        T_novo[:,nX+1]=T_novo[:,nX]
 
 
     # WHILE ENDS HERE ==========================================================
 
-    T1[,,n_p]=T_novo[,]
-    P1[,,n_p]=PPdim
+    T1[:,:,n_p]=T_novo
+    P1[:,:,n_p]=PPdim
     
     yh=Rs-R-(np.sin[Xtheta]*(yr+alpha*(Rs+esp))+np.cos[Xtheta]*(xr+Rs-R-Cr))
     for jj in range(0, nX+1):
-        YH[,jj,n_p] = fliplr(linspace(0,yh(jj),nN+2))
+        YH[:,jj,n_p] = fliplr(linspace(0,yh(jj),nN+2))
     
     
     # Integration of pressure field - HydroForces
-    auxF=np.array([np.cos[Xtheta[0:-1]]; 
+    auxF=np.array([np.cos[Xtheta[0:-1]],
                    np.sin[Xtheta[0:-1]]])
     dA=dx*dz
     
@@ -1082,8 +1080,8 @@ for n_p in range(0,npad):
     vector_auxF_x=auxF[0,]
     vector_auxF_y=auxF[1,]
     
-    auxFx=auxP*vector_auxF_x'
-    auxFy=auxP*vector_auxF_y'
+    auxFx=auxP*vector_auxF_x.T
+    auxFy=auxP*vector_auxF_y.T
     
     fxj[n_p]=-np.sum(auxFx)
     fyj=-np.sum(auxFy)
