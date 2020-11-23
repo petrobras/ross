@@ -195,8 +195,8 @@ start_pos_betha=0*betha_s
 drop_pressure_pos_L=np.array([center_pos_L-len_L/2, center_pos_L+len_L/2])
 drop_pressure_pos_betha=np.array([start_pos_betha, start_pos_betha+len_betha])
 
-#drop_pressure_Ele_nZ=find(XZdim>drop_pressure_pos_L(1) & XZdim<drop_pressure_pos_L(2))
-#drop_pressure_Ele_ntetha=find(Xtheta>=drop_pressure_pos_betha(1)+theta1 & Xtheta<=drop_pressure_pos_betha(2)+theta1)
+drop_pressure_Ele_nZ=np.intersect1d(np.where(XZdim>drop_pressure_pos_L[0]), np.where(XZdim<drop_pressure_pos_L[1]))
+drop_pressure_Ele_ntetha=np.intersect1d(np.where(Xtheta>=drop_pressure_pos_betha[0]+theta1), np.where(Xtheta<=drop_pressure_pos_betha[1]+theta1))
 
 # Initial Parameters ---------------------------------------------------------------
 
@@ -442,7 +442,7 @@ for n_p in range(0,npad):
                     Mat_coef[k,k-ntheta]=CN
                 
                 
-                if (isempty(find(drop_pressure_Ele_nZ==ki+1))==0 & isempty(find(drop_pressure_Ele_ntetha==kj+1))==0):
+                if (len(np.where(drop_pressure_Ele_nZ==ki+1)[0])==0 and len(np.where(drop_pressure_Ele_ntetha==kj+1)[0])==0):
                     K_null[k]=k
                     Kij_null[ki,kj]=1
                 
@@ -459,21 +459,21 @@ for n_p in range(0,npad):
         # Pressure field solution ==============================================================
         
         cc=find(K_null==0)
-        p=Mat_coef(cc,cc)\b(cc,cc) # verificar matriz b
+        p=np.linalg.solve(Mat_coef[cc,cc], b[cc,cc]) # verificar matriz b
         
         cont=0
         
         # Matrix form of the pressure field ====================================================
         for i in range(1, nZ):  # Loop in Z
             for j in range(1, ntheta):  # Loop in THETA
-                if isempty(find(drop_pressure_Ele_nZ==i+1))==0 & isempty(find(drop_pressure_Ele_ntetha==j+1))==0
+                if (len(np.where(drop_pressure_Ele_nZ==i+1)[0])==0 and len(np.where(drop_pressure_Ele_ntetha==j+1)[0])==0):
                     P[i,j]=0
-                else
+                else:
                     
                     cont=cont+1
                     P(i,j)=p(cont)
                     
-                    if P(i,j) < 0
+                    if (P(i,j) < 0):
                         P(i,j)=0
                     
 
@@ -1019,7 +1019,7 @@ for n_p in range(0,npad):
         
         ki=1
         nn=1
-        t=Mat_coef\b # calculo da temperatura vetorizada
+        t=np.linalg.solve(Mat_coef, b) # calculo da temperatura vetorizada
         
         # Temperature matrix ----------------------
         cont=1
