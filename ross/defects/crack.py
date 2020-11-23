@@ -1,8 +1,3 @@
-"""Cracks module.
-
-This module defines the Defect classes for cracks on the shaft. There 
-are a number of options, for the formulation of 6 DoFs (degrees of freedom).
-"""
 import time
 from abc import ABC, abstractmethod
 
@@ -13,6 +8,7 @@ import scipy.integrate
 import scipy.linalg
 
 import ross
+from ross.results import TimeResponseResults
 from ross.units import Q_
 
 from .abs_defect import Defect
@@ -24,8 +20,8 @@ __all__ = [
 
 
 class Crack:
-    """A Gasch and Mayes crack models for a shaft.
-    
+    """Contains a Gasch and Mayes transversal crack models for applications on finite element models of rotative machinery.
+    The reference coordenates system is: z-axis throught the shaft center; x-axis and y-axis in the sensors' planes 
     Calculates the dynamic forces of a crack on a given shaft element.
 
     Parameters
@@ -36,24 +32,20 @@ class Crack:
         Initial time
     tF : float
         Final time
-    kd : float
-        Radial stiffness of flexible coupling
-    ks : float
-        Bending stiffness of flexible coupling
-    eCOUPx : float
-        Parallel misalignment offset between driving rotor and driven rotor along X direction
-    eCOUPy : float
-        Parallel misalignment offset between driving rotor and driven rotor along Y direction
-    misalignment_angle : float
-        Angle of the angular misaligned 
-    TD : float
-        Driving torque
-    TL : float
-        Driven torque
-    n1 : float
-        Node where the misalignment is ocurring
+    cd : float
+        Crack depth
+    n_crack : float
+        Element where the crack is located
     speed : float
         Operational speed of the machine
+    massunb : array
+        Array with the unbalance magnitude. The unit is kg.m.
+    phaseunb : array
+        Array with the unbalance phase. The unit is rad.
+    crack_type : string
+        String containing type of crack model chosed. The avaible types are: Mayes and Gasch.
+    print_progress : bool
+        Set it True, to print the time iterations and the total time spent, by default False.
 
     Returns
     -------
@@ -61,9 +53,12 @@ class Crack:
 
     References
     ----------
-    .. [1] 'Xia, Y., Pang, J., Yang, L., Zhao, Q., & Yang, X. (2019). Study on vibration response 
-    and orbits of misaligned rigid rotors connected by hexangular flexible coupling. Applied 
-    Acoustics, 155, 286-296..
+    .. [1] Mayes, I. W., & Davies, W. G. R. (1984). Analysis of the response of a multi-rotor-bearing system
+           containing a transverse crack in a rotor;
+       [2] Gasch, R. (1993). A survey of the dynamic behaviour of a simple rotating shaft with a transverse
+           crack. Journal of sound and vibration, 160(2), 313-332;
+       [3] Papadopoulos, C. A., & Dimarogonas, A. D. (1987). Coupled longitudinal and bending vibrations
+           of a rotating shaft with an open crack. Journal of sound and vibration, 117(1), 81-93...
 
     Examples
     --------
@@ -78,7 +73,17 @@ class Crack:
     """
 
     def __init__(
-        self, dt, tI, tF, cd, n_crack, speed, massunb, phaseunb, crack_type="Mayes"
+        self,
+        dt,
+        tI,
+        tF,
+        cd,
+        n_crack,
+        speed,
+        massunb,
+        phaseunb,
+        crack_type="Mayes",
+        print_progress=False,
     ):
 
         self.dt = dt
@@ -93,6 +98,7 @@ class Crack:
         self.MassUnb2 = massunb[1]
         self.PhaseUnb1 = phaseunb[0]
         self.PhaseUnb2 = phaseunb[1]
+        self.print_progress = print_progress
 
         if crack_type is None or crack_type == "Mayes":
             self.crack_model = self._mayes
@@ -102,20 +108,15 @@ class Crack:
             raise Exception("Check the crack model!")
 
     def run(self, rotor):
-        """Calculates the shaft angular position and the misalignment amount at X / Y directions.
+        """Calculates the shaft angular position and the unbalance forces at X / Y directions.
 
         Parameters
         ----------
-        radius : float
-                Radius of shaft in node of misalignment
-        ndof : float
-                Total number of degrees of freedom
-
-        Returns
-        -------
-        
+        rotor : ross.Rotor Object
+             6 DoF rotor model.
                 
         """
+
         self.rotor = rotor
         self.ndof = rotor.ndof
         self.L = rotor.elements[self.n_crack].L
@@ -254,27 +255,9 @@ class Crack:
 
         y0 = np.zeros(24)
         self.dt = 0.0001
-        t_eval = np.arange(self.dt, self.tF, self.dt)
-        self.inv_Mmodal = np.linalg.pinv(self.Mmodal)
-        t1 = time.time()
-
-        x = Integrator(0, y0, self.tF, self.dt, self._equation_of_movement)
-        x = x.rk45()
-        t2 = time.time()
-        print(f"spend time: {t2-t1} s")
-
-        self.displacement = x[:12, :]
-        self.velocity = x[12:, :]
-        self.time_vector = t_eval
-        self.response = self.ModMat.dot(self.displacement)
-
-    def _equation_of_movement(self, T, Y):
-        self.iteration += 1
-        if self.iteration % 10000 == 0:
-            print(f"iteration: {self.iteration} \n time: {T}")
-
-        positions = Y[:12]
-        velocity = Y[12:]  # velocity in space state
+        t_eval = np.arange(self.tI, self.tF + self.dt, self.dt)
+        # t_eval = np.arange(self.dt, self.tF, self.dt)
+        T = t_eval
 
         self.angular_position = (
             self.sA * T
@@ -282,49 +265,100 @@ class Crack:
             + (self.sB / self.lambdat)
         )
 
-        self.positionsFis = self.ModMat.dot(positions)
-        self.velocityFis = self.ModMat.dot(velocity)
+        self.Omega = self.sA + self.sB * np.exp(-self.lambdat * T)
+        self.AccelV = -self.lambdat * self.sB * np.exp(-self.lambdat * T)
 
         self.tetaUNB1 = self.angular_position + self.PhaseUnb1 + np.pi / 2
         self.tetaUNB2 = self.angular_position + self.PhaseUnb2 + np.pi / 2
 
-        # Omega = self.speedI * np.pi / 30
+        unb1x = self.MassUnb1 * (
+            (self.AccelV) * (np.cos(self.tetaUNB1))
+        ) - self.MassUnb1 * ((self.Omega ** 2)) * (np.sin(self.tetaUNB1))
 
-        Omega = self.sA + self.sB * np.exp(-self.lambdat * T)
-        AccelV = -self.lambdat * self.sB * np.exp(-self.lambdat * T)
+        unb1y = -self.MassUnb1 * (self.AccelV) * (
+            np.sin(self.tetaUNB1)
+        ) - self.MassUnb1 * (self.Omega ** 2) * (np.cos(self.tetaUNB1))
 
-        unb1x = self.MassUnb1 * AccelV * np.cos(self.tetaUNB1) - self.MassUnb1 * (
-            Omega ** 2
-        ) * np.sin(self.tetaUNB1)
+        unb2x = self.MassUnb2 * (self.AccelV) * (
+            np.cos(self.tetaUNB2)
+        ) - self.MassUnb2 * (self.Omega ** 2) * (np.sin(self.tetaUNB2))
 
-        unb1y = -self.MassUnb1 * AccelV * np.sin(self.tetaUNB1) - self.MassUnb1 * (
-            Omega ** 2
-        ) * np.cos(self.tetaUNB1)
+        unb2y = -self.MassUnb2 * (self.AccelV) * (
+            np.sin(self.tetaUNB2)
+        ) - self.MassUnb2 * (self.Omega ** 2) * (np.cos(self.tetaUNB2))
 
-        unb2x = self.MassUnb2 * AccelV * np.cos(self.tetaUNB2) - self.MassUnb2 * (
-            Omega ** 2
-        ) * np.sin(self.tetaUNB2)
-        unb2y = -self.MassUnb2 * AccelV * np.sin(self.tetaUNB2) - self.MassUnb2 * (
-            Omega ** 2
-        ) * np.cos(self.tetaUNB2)
-        FFunb = np.zeros(self.ndof)
+        FFunb = np.zeros((self.ndof, len(t_eval)))
+        self.forces_crack = np.zeros((self.ndof, len(t_eval)))
 
-        FFunb[self.ndofd1] += unb1x
-        FFunb[self.ndofd1 + 1] += unb1y
-        FFunb[self.ndofd2] += unb2x
-        FFunb[self.ndofd2 + 1] += unb2y
+        FFunb[self.ndofd1, :] += unb1x
+        FFunb[self.ndofd1 + 1, :] += unb1y
+        FFunb[self.ndofd2, :] += unb2x
+        FFunb[self.ndofd2 + 1, :] += unb2y
 
-        Funbmodal = (self.ModMat.T).dot(FFunb)
+        self.Funbmodal = (self.ModMat.T).dot(FFunb)
 
-        FF_CRACK, ft = self._crack(self.crack_model)
+        self.inv_Mmodal = np.linalg.pinv(self.Mmodal)
+        t1 = time.time()
+
+        x = Integrator(
+            self.tI,
+            y0,
+            self.tF,
+            self.dt,
+            self._equation_of_movement,
+            self.print_progress,
+        )
+        x = x.rk45()
+        t2 = time.time()
+        if self.print_progress:
+            print(f"Time spent: {t2-t1} s")
+
+        self.displacement = x[:12, :]
+        self.velocity = x[12:, :]
+        self.time_vector = t_eval
+        self.response = self.ModMat.dot(self.displacement)
+
+    def _equation_of_movement(self, T, Y, i):
+        """ Calculates the displacement and velocity using state-space representation in the modal domain.
+
+        Parameters
+        ----------
+        T : float
+            Iteration time.
+        Y : array
+            Array of displacement and velocity, in the modal domain.
+        i : int
+            Iteration step.
+
+        Returns
+        -------
+        new_Y :  array
+            Array of the new displacement and velocity, in the modal domain.
+        """
+
+        positions = Y[:12]
+        velocity = Y[12:]  # velocity in space state
+
+        self.positionsFis = self.ModMat.dot(positions)
+        self.velocityFis = self.ModMat.dot(velocity)
+        self.T_matrix = np.array(
+            [
+                [np.cos(self.angular_position[i]), np.sin(self.angular_position[i])],
+                [-np.sin(self.angular_position[i]), np.cos(self.angular_position[i])],
+            ]
+        )
+        self.tp = self.crack_model(self.angular_position[i])
+
+        FF_CRACK, ft = self._crack(self.tp, self.angular_position[i])
+        self.forces_crack[:, i] = ft
         ftmodal = (self.ModMat.T).dot(ft)
 
         # equation of movement to be integrated in time
         new_V_dot = (
             ftmodal
-            + Funbmodal
-            - ((self.Cmodal + self.Gmodal * Omega)).dot(velocity)
-            - ((self.Kmodal + self.Kstmodal * AccelV).dot(positions))
+            + self.Funbmodal[:, i]
+            - ((self.Cmodal + self.Gmodal * self.Omega[i])).dot(velocity)
+            - ((self.Kmodal + self.Kstmodal * self.AccelV[i]).dot(positions))
         ).dot(self.inv_Mmodal)
 
         new_X_dot = velocity
@@ -335,7 +369,7 @@ class Crack:
 
         return new_Y
 
-    def _crack(self, func):
+    def _crack(self, func, ap):
         """Reaction forces of cracked element
         
         Returns
@@ -344,14 +378,9 @@ class Crack:
             Excitation force caused by the parallel misalignment for a 6DOFs system with 'n' values of angular position  
         """
 
-        self.T_matrix = np.array(
-            [
-                [np.cos(self.angular_position), np.sin(self.angular_position)],
-                [-np.sin(self.angular_position), np.cos(self.angular_position)],
-            ]
-        )
+        # self.T_matrix = np.array([[np.cos(ap), np.sin(ap)], [-np.sin(ap), np.cos(ap)],])
 
-        K = func()
+        K = func
 
         k11 = K[0, 0]
         k12 = K[0, 1]
@@ -398,7 +427,7 @@ class Crack:
 
         return FF_CRACK, F_CRACK
 
-    def _gasch(self):
+    def _gasch(self, ap):
         # Gasch
         kme = (self.ko + self.kcx) / 2
         kmn = (self.ko + self.kcz) / 2
@@ -406,45 +435,45 @@ class Crack:
         kdn = (self.ko - self.kcz) / 2
 
         kee = kme + (4 / np.pi) * kde * (
-            np.cos(self.angular_position)
-            - np.cos(3 * self.angular_position) / 3
-            + np.cos(5 * self.angular_position) / 5
-            - np.cos(7 * self.angular_position) / 7
-            + np.cos(9 * self.angular_position) / 9
-            - np.cos(11 * self.angular_position) / 11
-            + np.cos(13 * self.angular_position) / 13
-            - np.cos(15 * self.angular_position) / 15
-            + np.cos(17 * self.angular_position) / 17
-            - np.cos(19 * self.angular_position) / 19
-            + np.cos(21 * self.angular_position) / 21
-            - np.cos(23 * self.angular_position) / 23
-            + np.cos(25 * self.angular_position) / 25
-            - np.cos(27 * self.angular_position) / 27
-            + np.cos(29 * self.angular_position) / 29
-            - np.cos(31 * self.angular_position) / 31
-            + np.cos(33 * self.angular_position) / 33
-            - np.cos(35 * self.angular_position) / 35
+            np.cos(ap)
+            - np.cos(3 * ap) / 3
+            + np.cos(5 * ap) / 5
+            - np.cos(7 * ap) / 7
+            + np.cos(9 * ap) / 9
+            - np.cos(11 * ap) / 11
+            + np.cos(13 * ap) / 13
+            - np.cos(15 * ap) / 15
+            + np.cos(17 * ap) / 17
+            - np.cos(19 * ap) / 19
+            + np.cos(21 * ap) / 21
+            - np.cos(23 * ap) / 23
+            + np.cos(25 * ap) / 25
+            - np.cos(27 * ap) / 27
+            + np.cos(29 * ap) / 29
+            - np.cos(31 * ap) / 31
+            + np.cos(33 * ap) / 33
+            - np.cos(35 * ap) / 35
         )
 
         knn = kmn + (4 / np.pi) * kdn * (
-            np.cos(self.angular_position)
-            - np.cos(3 * self.angular_position) / 3
-            + np.cos(5 * self.angular_position) / 5
-            - np.cos(7 * self.angular_position) / 7
-            + np.cos(9 * self.angular_position) / 9
-            - np.cos(11 * self.angular_position) / 11
-            + np.cos(13 * self.angular_position) / 13
-            - np.cos(15 * self.angular_position) / 15
-            + np.cos(17 * self.angular_position) / 17
-            - np.cos(19 * self.angular_position) / 19
-            + np.cos(21 * self.angular_position) / 21
-            - np.cos(23 * self.angular_position) / 23
-            + np.cos(25 * self.angular_position) / 25
-            - np.cos(27 * self.angular_position) / 27
-            + np.cos(29 * self.angular_position) / 29
-            - np.cos(31 * self.angular_position) / 31
-            + np.cos(33 * self.angular_position) / 33
-            - np.cos(35 * self.angular_position) / 35
+            np.cos(ap)
+            - np.cos(3 * ap) / 3
+            + np.cos(5 * ap) / 5
+            - np.cos(7 * ap) / 7
+            + np.cos(9 * ap) / 9
+            - np.cos(11 * ap) / 11
+            + np.cos(13 * ap) / 13
+            - np.cos(15 * ap) / 15
+            + np.cos(17 * ap) / 17
+            - np.cos(19 * ap) / 19
+            + np.cos(21 * ap) / 21
+            - np.cos(23 * ap) / 23
+            + np.cos(25 * ap) / 25
+            - np.cos(27 * ap) / 27
+            + np.cos(29 * ap) / 29
+            - np.cos(31 * ap) / 31
+            + np.cos(33 * ap) / 33
+            - np.cos(35 * ap) / 35
         )
 
         aux = np.array([[kee, 0], [0, knn]])
@@ -453,16 +482,12 @@ class Crack:
 
         return K
 
-    def _mayes(self):
+    def _mayes(self, ap):
         # Mayes
 
-        kee = 0.5 * (self.ko + self.kcx) + 0.5 * (self.ko - self.kcx) * np.cos(
-            self.angular_position
-        )
+        kee = 0.5 * (self.ko + self.kcx) + 0.5 * (self.ko - self.kcx) * np.cos(ap)
 
-        knn = 0.5 * (self.ko + self.kcz) + 0.5 * (self.ko - self.kcz) * np.cos(
-            self.angular_position
-        )
+        knn = 0.5 * (self.ko + self.kcz) + 0.5 * (self.ko - self.kcz) * np.cos(ap)
 
         aux = np.array([[kee, 0], [0, knn]])
 
@@ -472,7 +497,7 @@ class Crack:
 
     def _get_coefs(self, coef):
         x = scipy.io.loadmat(
-            "/home/izabela/Documents/Projeto EDGE Petro/ross/PAPADOPOULOS_c"
+            "/home/izabela/Documents/Projeto EDGE Petro/ross/tools/data/PAPADOPOULOS_c"
         )
 
         c = x[coef]
@@ -480,124 +505,3 @@ class Crack:
         c = c[aux[0], 0] * (1 - self.Poisson ** 2) / (self.E * (self.radius ** 3))
 
         return c
-
-    def plot_time_response(
-        self,
-        probe,
-        probe_units="rad",
-        displacement_units="m",
-        time_units="s",
-        fig=None,
-        **kwargs,
-    ):
-        """
-        """
-        if fig is None:
-            fig = go.Figure()
-
-        for i, p in enumerate(probe):
-            dofx = p[0] * self.rotor.number_dof
-            dofy = p[0] * self.rotor.number_dof + 1
-            angle = Q_(p[1], probe_units).to("rad").m
-
-            # fmt: off
-            operator = np.array(
-                [[np.cos(angle), - np.sin(angle)],
-                 [np.cos(angle), + np.sin(angle)]]
-            )
-
-            _probe_resp = operator @ np.vstack((self.response[dofx,:], self.response[dofy,:]))
-            probe_resp = (
-                _probe_resp[0] * np.cos(angle) ** 2  +
-                _probe_resp[1] * np.sin(angle) ** 2
-            )
-            # fmt: on
-
-            probe_resp = Q_(probe_resp, "m").to(displacement_units).m
-
-            fig.add_trace(
-                go.Scatter(
-                    x=Q_(self.time_vector, "s").to(time_units).m,
-                    y=Q_(probe_resp, "m").to(displacement_units).m,
-                    mode="lines",
-                    name=f"Probe {i + 1}",
-                    legendgroup=f"Probe {i + 1}",
-                    showlegend=True,
-                    hovertemplate=f"Time ({time_units}): %{{x:.2f}}<br>Amplitude ({displacement_units}): %{{y:.2e}}",
-                )
-            )
-
-        fig.update_xaxes(title_text=f"Time ({time_units})")
-        fig.update_yaxes(title_text=f"Amplitude ({displacement_units})")
-        fig.update_layout(**kwargs)
-
-        return fig
-
-    def plot_dfft(
-        self, probe, probe_units="rad", fig=None, log=False, **kwargs,
-    ):
-        """
-        """
-        if fig is None:
-            fig = go.Figure()
-
-        for i, p in enumerate(probe):
-            dofx = p[0] * self.rotor.number_dof
-            dofy = p[0] * self.rotor.number_dof + 1
-            angle = Q_(p[1], probe_units).to("rad").m
-
-            # fmt: off
-            operator = np.array(
-                [[np.cos(angle), - np.sin(angle)],
-                 [np.cos(angle), + np.sin(angle)]]
-            )
-            row, cols = self.response.shape
-            _probe_resp = operator @ np.vstack((self.response[dofx,int(2*cols/3):], self.response[dofy,int(2*cols/3):]))
-            probe_resp = (
-                _probe_resp[0] * np.cos(angle) ** 2  +
-                _probe_resp[1] * np.sin(angle) ** 2
-            )
-            # _probe_resp = operator @ np.vstack((self.response[dofx,200000:], self.response[dofy,200000:]))
-            # probe_resp = (
-            #     _probe_resp[0] * np.cos(angle) ** 2  +
-            #     _probe_resp[1] * np.sin(angle) ** 2
-            # )
-            # fmt: on
-
-            amp, freq = self._dfft(probe_resp, self.dt)
-
-            fig.add_trace(
-                go.Scatter(
-                    x=freq,
-                    y=amp,
-                    mode="lines",
-                    name=f"Probe {i + 1}",
-                    legendgroup=f"Probe {i + 1}",
-                    showlegend=True,
-                    hovertemplate=f"Frequency (Hz): %{{x:.2f}}<br>Amplitude (m): %{{y:.2e}}",
-                )
-            )
-
-        fig.update_xaxes(title_text=f"Frequency (Hz)")
-        fig.update_yaxes(title_text=f"Amplitude (m)")
-        fig.update_layout(**kwargs)
-
-        if log:
-            fig.update_layout(yaxis_type="log")
-
-        return fig
-
-    def _dfft(self, x, dt):
-        b = np.floor(len(x) / 2)
-        c = len(x)
-        df = 1 / (c * dt)
-
-        x_amp = sp.fft(x)[: int(b)]
-        x_amp = x_amp * 2 / c
-        x_phase = np.angle(x_amp)
-        x_amp = np.abs(x_amp)
-
-        freq = np.arange(0, df * b, df)
-        freq = freq[: int(b)]  # Frequency vector
-
-        return x_amp, freq
