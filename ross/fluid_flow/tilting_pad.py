@@ -284,16 +284,16 @@ for n_p in range(0,npad):
                 # Loop in N 
                 for kk in range(N1+0.5*dN, dN, N2-0.5*dN):
                     
-                    mi_adP=vector_mi(1,nN+1-nn)/mi_ref
-                    mi_adE=vector_mi(2,nN+1-nn)/mi_ref
-                    mi_adW=vector_mi(3,nN+1-nn)/mi_ref
+                    mi_adP=vector_mi(0,nN-nn)/mi_ref
+                    mi_adE=vector_mi(1,nN-nn)/mi_ref
+                    mi_adW=vector_mi(2,nN-nn)/mi_ref
                     
-                    auxFF0P[nn+1]=(1/mi_adP)
-                    auxFF1P[nn+1]=(kk/mi_adP)
-                    auxFF0E[nn+1]=(1/mi_adE)
-                    auxFF1E[nn+1]=(kk/mi_adE)
-                    auxFF0W[nn+1]=(1/mi_adW)
-                    auxFF1W[nn+1]=(kk/mi_adW)
+                    auxFF0P[nn]=(1/mi_adP)
+                    auxFF1P[nn]=(kk/mi_adP)
+                    auxFF0E[nn]=(1/mi_adE)
+                    auxFF1E[nn]=(kk/mi_adE)
+                    auxFF0W[nn]=(1/mi_adW)
+                    auxFF1W[nn]=(kk/mi_adW)
                     
                     nn=nn+1
                 
@@ -301,22 +301,22 @@ for n_p in range(0,npad):
                 nn=1
                 
                 auxFF0P[0]=auxFF0P[1]
-                auxFF0P[nN+1]=auxFF0P[nN]
+                auxFF0P[nN]=auxFF0P[nN]
                 
                 auxFF1P[0]=0
-                auxFF1P[nN+1]=(N2/(vector_mi[0,nN]/mi_ref))
+                auxFF1P[nN]=(N2/(vector_mi[0,nN]/mi_ref))
                 
                 auxFF0E[0]=auxFF0E[1]
-                auxFF0E[nN+1]=auxFF0E[nN]
+                auxFF0E[nN]=auxFF0E[nN]
 
                 auxFF1E[0]=0
-                auxFF1E[nN+1]=(N2/(vector_mi[1,nN]/mi_ref))
+                auxFF1E[nN]=(N2/(vector_mi[1,nN]/mi_ref))
                 
                 auxFF0W[0]=auxFF0W[1]
-                auxFF0W[nN+1]=auxFF0W[nN]
+                auxFF0W[nN]=auxFF0W[nN]
                 
                 auxFF1W[0]=0
-                auxFF1W[nN+1]=(N2/(vector_mi[2,nN]/mi_ref))
+                auxFF1W[nN]=(N2/(vector_mi[2,nN]/mi_ref))
                 
                 FF0P=0.5*np.sum((netha[1:]-netha[0:-2]).*(auxFF0P[1:]+auxFF0P[0:-2]))
                 FF1P=0.5*np.sum((netha[1:]-netha[0:-2]).*(auxFF1P[1:]+auxFF1P[0:-2]))
