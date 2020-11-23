@@ -2,7 +2,13 @@
 
 This module returns graphs for each type of analyses in st_rotor_assembly.py.
 """
+import inspect
+from abc import ABC
+from collections.abc import Iterable
+from pathlib import Path
+
 import numpy as np
+import toml
 from plotly import express as px
 from plotly import graph_objects as go
 from plotly import io as pio
@@ -16,8 +22,131 @@ pio.renderers.default = "browser"
 colors1 = px.colors.qualitative.Dark24
 colors2 = px.colors.qualitative.Light24
 
+__all__ = [
+    "ST_CampbellResults",
+    "ST_FrequencyResponseResults",
+    "ST_TimeResponseResults",
+    "ST_ForcedResponseResults",
+    "ST_Results",
+]
 
-class ST_CampbellResults:
+
+class ST_Results(ABC):
+    """Results class.
+
+    This class is a general abstract class to be implemented in other classes
+    for post-processing results, in order to add saving and loading data options.
+    """
+
+    def save(self, file):
+        """Save results in a .toml file.
+
+        This function will save the simulation results to a .toml file.
+        The file will have all the argument's names and values that are needed to
+        reinstantiate the class.
+
+        Parameters
+        ----------
+        file : str, pathlib.Path
+            The name of the file the results will be saved in.
+
+        Examples
+        --------
+        >>> # Example running a stochastic unbalance response
+        >>> from tempfile import tempdir
+        >>> from pathlib import Path
+        >>> import ross.stochastic as srs
+
+        >>> # Running an example
+        >>> rotors = srs.st_rotor_example()
+        >>> freq_range = np.linspace(0, 500, 31)
+        >>> n = 3
+        >>> m = np.random.uniform(0.001, 0.002, 10)
+        >>> p = 0.0
+        >>> results = rotors.run_unbalance_response(n, m, p, freq_range)
+
+        >>> # create path for a temporary file
+        >>> file = Path(tempdir) / 'results.toml'
+        >>> results.save(file)
+        """
+        # get __init__ arguments
+        signature = inspect.signature(self.__init__)
+        args_list = list(signature.parameters)
+        args = {arg: getattr(self, arg) for arg in args_list}
+        try:
+            data = toml.load(file)
+        except FileNotFoundError:
+            data = {}
+
+        data[f"{self.__class__.__name__}"] = args
+        with open(file, "w") as f:
+            toml.dump(data, f, encoder=toml.TomlNumpyEncoder())
+
+    @classmethod
+    def read_toml_data(cls, data):
+        """Read and parse data stored in a .toml file.
+
+        The data passed to this method needs to be according to the
+        format saved in the .toml file by the .save() method.
+
+        Parameters
+        ----------
+        data : dict
+            Dictionary obtained from toml.load().
+
+        Returns
+        -------
+        The result object.
+        """
+        return cls(**data)
+
+    @classmethod
+    def load(cls, file):
+        """Load results from a .toml file.
+
+        This function will load the simulation results from a .toml file.
+        The file must have all the argument's names and values that are needed to
+        reinstantiate the class.
+
+        Parameters
+        ----------
+        file : str, pathlib.Path
+            The name of the file the results will be loaded from.
+
+        Examples
+        --------
+        >>> # Example running a stochastic unbalance response
+        >>> from tempfile import tempdir
+        >>> from pathlib import Path
+        >>> import ross.stochastic as srs
+
+        >>> # Running an example
+        >>> rotors = srs.st_rotor_example()
+        >>> freq_range = np.linspace(0, 500, 31)
+        >>> n = 3
+        >>> m = np.random.uniform(0.001, 0.002, 10)
+        >>> p = 0.0
+        >>> results = rotors.run_unbalance_response(n, m, p, freq_range)
+
+        >>> # create path for a temporary file
+        >>> file = Path(tempdir) / 'results.toml'
+        >>> results.save(file)
+
+        >>> # Loading file
+        >>> results2 = srs.ST_ForcedResponseResults.load(file)
+        >>> results2.magnitude.all() == results.magnitude.all()
+        True
+        """
+        data = toml.load(file)
+        # extract single dictionary in the data
+        data = list(data.values())[0]
+        for key, value in data.items():
+            if isinstance(value, Iterable):
+                data[key] = np.array(value)
+        return cls.read_toml_data(data)
+
+
+class ST_CampbellResults(ST_Results):
     """Store stochastic results and provide plots for Campbell Diagram.
 
     It's possible to visualize multiples harmonics in a single plot to check
@@ -142,7 +271,7 @@ class ST_CampbellResults:
                 )
 
         fig.update_xaxes(
-            title_text="<b>Rotor speed</b>",
+            title_text="<b>Rotor speed (rad/s)</b>",
             title_font=dict(family="Arial", size=20),
             tickfont=dict(size=16),
             gridcolor="lightgray",
@@ -152,7 +281,7 @@ class ST_CampbellResults:
             mirror=True,
         )
         fig.update_yaxes(
-            title_text="<b>Damped Natural Frequencies</b>",
+            title_text="<b>Damped Natural Frequencies (rad/s)</b>",
             title_font=dict(family="Arial", size=20),
             tickfont=dict(size=16),
             gridcolor="lightgray",
@@ -349,7 +478,7 @@ class ST_CampbellResults:
         return subplots
 
 
-class ST_FrequencyResponseResults:
+class ST_FrequencyResponseResults(ST_Results):
     """Store stochastic results and provide plots for Frequency Response.
 
     Parameters
@@ -375,7 +504,11 @@ class ST_FrequencyResponseResults:
         self.phase = phase
 
     def plot_magnitude(
-        self, percentile=[], conf_interval=[], units="mic-pk-pk", **kwargs
+        self,
+        percentile=[],
+        conf_interval=[],
+        units="mic-pk-pk",
+        **kwargs,
     ):
         """Plot amplitude vs frequency.
 
@@ -611,7 +744,11 @@ class ST_FrequencyResponseResults:
         return fig
 
     def plot_polar_bode(
-        self, percentile=[], conf_interval=[], units="mic-pk-pk", **kwargs
+        self,
+        percentile=[],
+        conf_interval=[],
+        units="mic-pk-pk",
+        **kwargs,
     ):
         """Plot polar forced response using Plotly.
 
@@ -718,7 +855,7 @@ class ST_FrequencyResponseResults:
                     linecolor="black",
                     linewidth=2.5,
                 ),
-            )
+            ),
         )
 
         return fig
@@ -793,7 +930,7 @@ class ST_FrequencyResponseResults:
         return subplots
 
 
-class ST_TimeResponseResults:
+class ST_TimeResponseResults(ST_Results):
     """Store stochastic results and provide plots for Time Response and Orbit Response.
 
     Parameters
@@ -1167,12 +1304,12 @@ class ST_TimeResponseResults:
                 xaxis=dict(title=dict(text="<b>Rotor Length</b>"), showspikes=False),
                 yaxis=dict(title=dict(text="<b>Amplitude - X</b>"), showspikes=False),
                 zaxis=dict(title=dict(text="<b>Amplitude - Y</b>"), showspikes=False),
-            )
+            ),
         )
         return fig
 
 
-class ST_ForcedResponseResults:
+class ST_ForcedResponseResults(ST_Results):
     """Store stochastic results and provide plots for Forced Response.
 
     Parameters
@@ -1644,7 +1781,7 @@ class ST_ForcedResponseResults:
             polar=dict(
                 radialaxis=fig2.layout.polar.radialaxis,
                 angularaxis=fig2.layout.polar.angularaxis,
-            )
+            ),
         )
 
         return fig
