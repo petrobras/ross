@@ -71,7 +71,7 @@ Tmax
 # optim values from legacy codes
 # x=[0.000321298907440948 0.000218101024776208 0.000241891712348458 0.000385504446042090 0.000516992650533115 0.000460227890390222];
 
-psi_pad = np.array([x[1], x[2], x[3], x[4], x[5], x[6]])
+psi_pad = np.array([x[0], x[1], x[2], x[3], x[4], x[5]])
 npad = 6
 
 # Radial clearance
@@ -160,10 +160,10 @@ Z1=0 # initial coordinate z dimensionless
 Z2=1 # final coordinate z dimensionless
 dZ=1/(nZ) # differential z dimensionless
 dz=dZ*L # differential z dimensional: [m]
-XZ[1]=Z1
-XZ[nZ+2]=Z2
+XZ[0]=Z1
+XZ[nZ+1]=Z2
 
-XZ[1:nZ] = Z1+0.5* np.array([dz, Z2-0.5*dZ, dz]) # vector z dimensionless
+XZ[0:nZ-1] = Z1+0.5* np.array([dz, Z2-0.5*dZ, dz]) # vector z dimensionless
 
 XZdim=XZ*L # vector z dimensional [m]
 
@@ -171,17 +171,17 @@ N1=0 # initial coordinate netha dimensionless
 N2=1 # final coordinate netha dimensionless
 dN=1/(nN) # differential netha dimensionless
 netha[1]=N1
-netha[nN+2]=N2
+netha[nN+1]=N2
 
-netha[1:nN]=N1+0.5* np.array([dN, N2-0.5*dN, dN]) # vector netha dimensionless
+netha[0:nN-1]=N1+0.5* np.array([dN, N2-0.5*dN, dN]) # vector netha dimensionless
 
 theta1=-(rp_pad)*betha_s # initial coordinate theta [rad]
 theta2=(1-rp_pad)*betha_s # final coordinate theta [rad]
 dtheta=betha_s/(ntheta) # differential theta [rad]
 Xtheta[0]=theta1
-Xtheta[ntheta+1]=theta2
+Xtheta[ntheta]=theta2
 
-Xtheta[1:ntheta]=theta1+0.5* np.array([dtheta, theta2-0.5*dtheta, dtheta]) # vector theta [rad]
+Xtheta[0:ntheta-1]=theta1+0.5* np.array([dtheta, theta2-0.5*dtheta, dtheta]) # vector theta [rad]
 
 dX=1/nX # differential x dimensionless
 dx=dX*(betha_s*Rs) # differential x dimensional: [m]
@@ -218,12 +218,12 @@ YH = np.zeros[nN+2,nX+2,npad]
 XH = np.zeros[nN+2,nX+2]
 
 
-for ii in range(1,nX+2+1):
+for ii in range(0,nX+2):
     XH[:,ii] = Xtheta[ii]
 
 # Loop on the pads ==========================================================================
-for n_p in range(1,npad+1): 
-    alpha=psi_pad[n_p]
+for n_p in range(0,npad): 
+    alpha=psi_pad[n_p-1]
 
     # transformation of coordinates
     xryr=np.array([[np.cos(sigma(n_p))  , np.sin(sigma(n_p))]; 
@@ -250,11 +250,11 @@ for n_p in range(1,npad+1):
         Tcomp=T_novo
         
         nk=nZ*ntheta
-        K_null=np.zeros[0,nk]
+        K_null=np.zeros[1,nk]
         Kij_null=np.zeros[nZ,ntheta]
         ki=1
         kj=1
-        k=0; # indice utilizado na vetoriza��o da press�o
+        k=0; # pressure vectorization index
         nn=1
         
         Mat_coef=np.zeros[nk,nk]
