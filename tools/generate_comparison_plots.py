@@ -1,14 +1,16 @@
+import sys
 from pathlib import Path
 
 import numpy as np
 import plotly.io as pio
 from jinja2 import Environment, FileSystemLoader
 
+sys.path.append(str(Path(__file__).parent.parent))
 import ross as rs
 
 dir_path = Path(__file__).parent
 rotors = {
-    k: rs.Rotor.load((dir_path / "data" / k))
+    k: rs.rotor_assembly.Rotor.load((dir_path / "data" / k))
     for k in ["rotor_example", "c123701", "injection"]
 }
 
@@ -78,7 +80,7 @@ kwargs = {
             unbalance_phase=0,
             frequency=np.linspace(0, 2000),
         )
-        .plot(0),
+        .plot([(0, 0)]),
         include_plotlyjs=False,
         full_html=False,
     )

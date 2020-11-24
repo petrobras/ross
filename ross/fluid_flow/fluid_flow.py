@@ -69,21 +69,27 @@ class FluidFlow:
         'medium_size': in between short and long.
         if length/diameter <= 1/4 it is short.
         if length/diameter > 8 it is long.
-    bearing_type: str
+    bearing_type: str, optional
         type of structure. 'short_bearing': short; 'long_bearing': long;
         The default is None. In this case it is automatically calculated
         following the parameter:
         'medium_size': in between short and long.
         if length/diameter <= 1/4 it is short.
         if length/diameter > 8 it is long.
-    shape_geometry: str
+    shape_geometry: str, optional
         Determines the type of bearing geometry.
-        'cylindrical': cylindrical bearing; 'eliptical': eliptical bearing
+        'cylindrical': cylindrical bearing; 'eliptical': eliptical bearing;
+        'wear': journal bearing wear.
         The default is 'cylindrical'.
     preload: float
         Ellipticity ratio. The value must be between 0 and 1. If preload = 0
         the bearing becomes cylindrical. Not used in cylindrical bearings.
-        The default is 0.05.
+        The default is 0.4.
+    displacement : float, optional
+        Angular displacement of the bearing wear in relation to the vertical axis.
+        Only necessary if shape_geometry is wear.
+    max_depth: float
+        The maximum wear depth. Only necessary if shape_geometry is wear..
 
     Fluid characteristics
     ^^^^^^^^^^^^^^^^^^^^^
@@ -223,7 +229,9 @@ class FluidFlow:
         immediately_calculate_pressure_matrix_numerically=True,
         bearing_type=None,
         shape_geometry="cylindrical",
-        preload=0.05,
+        preload=0.4,
+        displacement=0,
+        max_depth=None,
     ):
 
         self.nz = nz
@@ -254,6 +262,8 @@ class FluidFlow:
                 self.bearing_type = "medium_size"
         self.shape_geometry = shape_geometry
         self.preload = preload
+        self.displacement = displacement
+        self.max_depth = max_depth
         self.eccentricity = eccentricity
         self.attitude_angle = attitude_angle
         self.eccentricity_ratio = None
@@ -458,7 +468,8 @@ class FluidFlow:
                 self.gama[i, j] = j * self.dtheta + start
                 [radius_external, self.xre[i, j], self.yre[i, j]] = \
                     external_radius_function(self.gama[i, j], self.radius_stator, self.radius_rotor,
-                                             shape=self.shape_geometry, m=self.preload)
+                                             shape=self.shape_geometry, preload=self.preload,
+                                             displacement=self.displacement, max_depth=self.max_depth)
                 [radius_internal, self.xri[i, j], self.yri[i, j]] = \
                     internal_radius_function(self.gama[i, j], self.attitude_angle, self.radius_rotor,
                                              self.eccentricity)
@@ -673,7 +684,7 @@ class FluidFlow:
 
 def fluid_flow_example():
     """This function returns an instance of a simple fluid flow.
-    The purpose is to make available a simple model
+    The purpose is to make available a simple short-bearing model
     so that doctest can be written using it.
 
     Parameters
@@ -709,7 +720,7 @@ def fluid_flow_example():
 
 def fluid_flow_example2():
     """This function returns a different instance of a simple fluid flow.
-    The purpose is to make available a simple model
+    The purpose is to make available a simple medium-bearing model
     so that doctest can be written using it.
 
     Parameters
@@ -754,7 +765,7 @@ def fluid_flow_example2():
 
 def fluid_flow_example3():
     """This function returns a different instance of a simple fluid flow.
-    The purpose is to make available a simple model
+    The purpose is to make available a simple eliptical-bearing model
     so that doctest can be written using it.
 
     Parameters
@@ -767,25 +778,23 @@ def fluid_flow_example3():
     Examples
     --------
     >>> my_fluid_flow = fluid_flow_example3()
-    >>> my_fluid_flow.eccentricity
-    0.0001
+    >>> my_fluid_flow.load
+    100
     """
-    from ross.fluid_flow import fluid_flow as flow
-
     nz = 8
-    ntheta = 32 * 4
-    omega = 100.0 * 2 * np.pi / 60
+    ntheta = 32
+    omega = 2500 * np.pi / 30.0
     p_in = 0.0
     p_out = 0.0
-    radius_rotor = 1
-    h = 0.000194564
-    radius_stator = radius_rotor + h
-    length = 8 * 2 * radius_stator
-    visc = 0.015
-    rho = 860.0
-    eccentricity = 1e-4
-    attitude_angle = np.pi / 4
-    return flow.FluidFlow(
+    radius_stator = (3 * 10 ** (-2)) / 2
+    cr = 9 * 10 ** (-5)
+    m = 0.4
+    radius_rotor = radius_stator - cr
+    length = 2 * 10 ** (-2)
+    load = 100
+    viscosity = 5.449 * 10 ** (-2)
+    density = 881
+    return FluidFlow(
         nz,
         ntheta,
         length,
@@ -794,9 +803,59 @@ def fluid_flow_example3():
         p_out,
         radius_rotor,
         radius_stator,
-        visc,
-        rho,
-        eccentricity=eccentricity,
-        attitude_angle=attitude_angle,
-        immediately_calculate_pressure_matrix_numerically=False,
+        viscosity,
+        density,
+        load=load,
+        shape_geometry="eliptical",
+        preload=m,
+    )
+
+
+def fluid_flow_example4():
+    """This function returns a different instance of a simple fluid flow.
+    The purpose is to make available a simple wear-bearing model
+    so that doctest can be written using it.
+
+    Parameters
+    ----------
+
+    Returns
+    -------
+    An instance of a fluid flow object.
+
+    Examples
+    --------
+    >>> my_fluid_flow = fluid_flow_example4()
+    >>> my_fluid_flow.load
+    18.9
+    """
+    nz = 8
+    ntheta = 32
+    omega = 1000 * np.pi / 30.0
+    p_in = 0.0
+    p_out = 0.0
+    radius_stator = (30 / 2) * 10 ** (-3)
+    cr = 90 * 10 ** (-6)
+    radius_rotor = radius_stator - cr
+    length = 20 * 10 ** (-3)
+    load = 18.9
+    viscosity = 1.044 / 10.0
+    density = 881
+    max_depth = 50 * 10 ** (-6)
+    y = 10 * np.pi / 180
+    return FluidFlow(
+        nz,
+        ntheta,
+        length,
+        omega,
+        p_in,
+        p_out,
+        radius_rotor,
+        radius_stator,
+        viscosity,
+        density,
+        load=load,
+        shape_geometry="wear",
+        max_depth=max_depth,
+        displacement=y,
     )

@@ -73,7 +73,13 @@ def internal_radius_function(gama, attitude_angle, radius_rotor, eccentricity):
 
 
 def external_radius_function(
-    gama, radius_stator, radius_rotor=None, shape="cylindrical", m=0.05
+    gama,
+    radius_stator,
+    radius_rotor=None,
+    shape="cylindrical",
+    preload=None,
+    displacement=None,
+    max_depth=None,
 ):
     """This function returns the x and y of the radius of the stator, as well as its distance from the
     origin, given the distance in the theta-axis and the radius of the bearing.
@@ -88,11 +94,16 @@ def external_radius_function(
     shape : str
         Determines the type of bearing geometry.
         'cylindrical': cylindrical bearing;
-        'eliptical': eliptical bearing
+        'eliptical': eliptical bearing;
+        'wear': journal bearing wear.
         The default is 'cylindrical'.
-    m : float
+    preload : float
         The ellipticity ratio of the bearing if the shape is eliptical. Varies between 0 and 1.
         The default is 0.05.
+    displacement : float
+        Angular displacement of the bearing wear in relation to the vertical axis.
+    max_depth: float
+        The maximum wear depth.
     Returns
     -------
     radius_external: float
@@ -112,7 +123,7 @@ def external_radius_function(
     """
     if shape == "eliptical":
         cr = radius_stator - radius_rotor
-        elip = m * cr
+        elip = preload * cr
         if 0 <= gama <= np.pi / 2:
             alpha = np.pi / 2 + gama
         elif np.pi / 2 < gama <= np.pi:
@@ -125,6 +136,39 @@ def external_radius_function(
         radius_external = elip * np.cos(alpha) + np.sqrt(
             ((radius_stator) ** 2) - (elip * np.sin(alpha)) ** 2
         )
+        xre = radius_external * np.cos(gama)
+        yre = radius_external * np.sin(gama)
+
+    elif shape == "wear":
+        if max_depth == 0:
+            d_theta = 0
+        else:
+            cr = radius_stator - radius_rotor
+            theta_s = np.pi / 2 + np.arccos(max_depth / cr - 1) + displacement
+            theta_f_0 = np.pi / 2 - np.arccos(max_depth / cr - 1) + displacement
+            theta_f = 2 * np.pi + theta_f_0
+
+            if theta_f <= 2 * np.pi:
+                if theta_s <= gama <= theta_f:
+                    d_theta = max_depth - cr * (
+                        1 + np.cos(gama - np.pi / 2 - displacement)
+                    )
+                else:
+                    d_theta = 0
+            else:
+                if theta_s <= gama <= 2 * np.pi:
+                    d_theta = max_depth - cr * (
+                        1 + np.cos(gama - np.pi / 2 - displacement)
+                    )
+                elif 0 <= gama <= theta_f_0:
+                    gama2 = gama + 2 * np.pi
+                    d_theta = max_depth - cr * (
+                        1 + np.cos(gama2 - np.pi / 2 - displacement)
+                    )
+                else:
+                    d_theta = 0
+
+        radius_external = radius_stator + d_theta
         xre = radius_external * np.cos(gama)
         yre = radius_external * np.sin(gama)
 

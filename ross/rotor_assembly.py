@@ -24,6 +24,8 @@ from ross.bearing_seal_element import (BallBearingElement, BearingElement,
                                        BearingElement6DoF,
                                        MagneticBearingElement,
                                        RollerBearingElement, SealElement)
+from ross.defects import MisalignmentFlex, MisalignmentRigid, Rubbing
+# from ross.defects import Crack, MisalignmentFlex, MisalignmentRigid, Rubbing
 from ross.disk_element import DiskElement, DiskElement6DoF
 from ross.materials import steel
 from ross.point_mass import PointMass
@@ -353,29 +355,33 @@ class Rotor(object):
             global_dof_mapping = {}
             for k, v in dof_mapping.items():
                 dof_letter, dof_number = k.split("_")
-                global_dof_mapping[dof_letter + "_" + str(int(dof_number) + elm.n)] = v
+                global_dof_mapping[
+                    dof_letter + "_" + str(int(dof_number) + elm.n)
+                ] = int(v)
             dof_tuple = namedtuple("GlobalIndex", global_dof_mapping)
 
             if elm.n <= n_last + 1:
                 for k, v in global_dof_mapping.items():
-                    global_dof_mapping[k] = self.number_dof * elm.n + v
+                    global_dof_mapping[k] = int(self.number_dof * elm.n + v)
             else:
                 for k, v in global_dof_mapping.items():
-                    global_dof_mapping[k] = (
+                    global_dof_mapping[k] = int(
                         2 * n_last + self.number_dof / 2 * elm.n + self.number_dof + v
                     )
 
             if hasattr(elm, "n_link") and elm.n_link is not None:
                 if elm.n_link <= n_last + 1:
-                    global_dof_mapping[f"x_{elm.n_link}"] = self.number_dof * elm.n_link
-                    global_dof_mapping[f"y_{elm.n_link}"] = (
+                    global_dof_mapping[f"x_{elm.n_link}"] = int(
+                        self.number_dof * elm.n_link
+                    )
+                    global_dof_mapping[f"y_{elm.n_link}"] = int(
                         self.number_dof * elm.n_link + 1
                     )
                 else:
-                    global_dof_mapping[f"x_{elm.n_link}"] = (
+                    global_dof_mapping[f"x_{elm.n_link}"] = int(
                         2 * n_last + 2 * elm.n_link + self.number_dof
                     )
-                    global_dof_mapping[f"y_{elm.n_link}"] = (
+                    global_dof_mapping[f"y_{elm.n_link}"] = int(
                         2 * n_last + 2 * elm.n_link + self.number_dof + 1
                     )
 
@@ -875,6 +881,41 @@ class Rotor(object):
 
         return K0
 
+    def Kst(self):
+        """Dynamic stiffness matrix for an instance of a rotor.
+
+        Returns
+        -------
+        Kst0 : np.ndarray
+            Dynamic stiffness matrix for the rotor.
+            This matris IS OMEGA dependent
+            Only useable to the 6 DoF model.
+
+        Examples
+        --------
+        >>> rotor = rotor_example_6dof()
+        >>> np.round(rotor.Kst()[:6, :6]*1e6)
+        array([[     0., -23002.,      0.,   -479.,      0.,      0.],
+               [     0.,      0.,      0.,      0.,      0.,      0.],
+               [     0.,      0.,      0.,      0.,      0.,      0.],
+               [     0.,      0.,      0.,      0.,      0.,      0.],
+               [     0.,    479.,      0.,    160.,      0.,      0.],
+               [     0.,      0.,      0.,      0.,      0.,      0.]])
+        """
+
+        Kst0 = np.zeros((self.ndof, self.ndof))
+
+        if self.number_dof == 6:
+
+            for elm in self.shaft_elements:
+                dofs = elm.dof_global_index
+                try:
+                    Kst0[np.ix_(dofs, dofs)] += elm.Kst()
+                except TypeError:
+                    Kst0[np.ix_(dofs, dofs)] += elm.Kst()
+
+        return Kst0
+
     def C(self, frequency):
         """Damping matrix for an instance of a rotor.
 
@@ -970,7 +1011,7 @@ class Rotor(object):
         # fmt: off
         A = np.vstack(
             [np.hstack([Z, I]),
-             np.hstack([la.solve(-self.M(), self.K(frequency)), la.solve(-self.M(), (self.C(frequency) + self.G() * speed))])])
+             np.hstack([la.solve(-self.M(), self.K(frequency) + self.Kst()*speed), la.solve(-self.M(), (self.C(frequency) + self.G() * speed))])])
         # fmt: on
 
         return A
@@ -1904,7 +1945,7 @@ class Rotor(object):
         results = np.zeros([len(speed_range), frequencies, 5])
 
         for i, w in enumerate(speed_range):
-            modal = self.run_modal(speed=w, num_modes=36)
+            modal = self.run_modal(speed=w, num_modes=2 * frequencies)
 
             if frequency_type == "wd":
                 results[i, :, 0] = modal.wd[:frequencies]
@@ -2330,6 +2371,151 @@ class Rotor(object):
         )
 
         return results
+
+    def run_misalignment(self, coupling="flex", **kwargs):
+        """Execute the misalignment defect and generates the misalignment object on the back-end. There are two types of coupling, flexible (flex) and rigid, which have different entries. These entries are provided via **kwargs to the specific method.
+
+        Parameters
+        ----------
+        coupling : str
+            Coupling type. The avaible types are: flex, by default; and rigid.
+
+        **kwargs: dictionary
+
+            In the case of coupling = "flex", **kwargs receives:
+                dt : float
+                    Time step.
+                tI : float
+                    Initial time.
+                tF : float
+                    Final time.
+                kd : float
+                    Radial stiffness of flexible coupling.
+                ks : float
+                    Bending stiffness of flexible coupling.
+                eCOUPx : float
+                    Parallel misalignment offset between driving rotor and driven rotor along X direction.
+                eCOUPy : float
+                    Parallel misalignment offset between driving rotor and driven rotor along Y direction.
+                misalignment_angle : float
+                    Angular misalignment angle.
+                TD : float
+                    Driving torque.
+                TL : float
+                    Driven torque.
+                n1 : float
+                    Node where the misalignment is ocurring.
+                speed : float
+                    Operational speed of the machine.
+                massunb : array
+                    Array with the unbalance magnitude. The unit is kg.m.
+                phaseunb : array
+                    Array with the unbalance phase. The unit is rad.
+                mis_type: string
+                    String containing the misalignment type choosed. The avaible types are: parallel, by default; angular; combined.
+                print_progress : bool
+                    Set it True, to print the time iterations and the total time spent.
+                    False by default.
+
+            In the case of coupling = "rigid", **kwargs receives:
+                dt : float
+                    Time step.
+                tI : float
+                    Initial time.
+                tF : float
+                    Final time.
+                eCOUP : float
+                    Parallel misalignment offset between driving rotor and driven rotor along X direction.
+                TD : float
+                    Driving torque.
+                TL : float
+                    Driven torque.
+                n1 : float
+                    Node where the misalignment is ocurring.
+                speed : float
+                    Operational speed of the machine.
+                massunb : array
+                    Array with the unbalance magnitude. The unit is kg.m.
+                phaseunb : array
+                    Array with the unbalance phase. The unit is rad.
+                print_progress : bool
+                    Set it True, to print the time iterations and the total time spent.
+                    False by default.
+
+        Examples
+        --------
+        >>> from ross.defects.misalignment import misalignment_flex_parallel_example
+        >>> probe1 = (14, 0)
+        >>> probe2 = (22, 0)
+        >>> response = misalignment_flex_parallel_example()
+        >>> results = response.run_time_response()
+        >>> fig = response.plot_dfft(probe=[probe1, probe2], range_freq=[0, 100], yaxis_type="log")
+        >>> # fig.show()
+        """
+
+        if coupling == "flex" or coupling == None:
+            defect = MisalignmentFlex(**kwargs)
+        elif coupling == "rigid":
+            defect = MisalignmentRigid(**kwargs)
+        else:
+            raise Exception("Check the choosed coupling type!")
+
+        defect.run(self)
+        return defect
+
+    def run_rubbing(self, **kwargs):
+        """Execute the rubbing defect and generates the rubbing object on the back-end.
+
+        Parameters
+        ----------
+        **kwargs: dictionary
+        
+            **kwargs receives:
+                dt : float
+                    Time step.
+                tI : float
+                    Initial time.
+                tF : float
+                    Final time.
+                deltaRUB : float
+                    Distance between the housing and shaft surface.
+                kRUB : float
+                    Contact stiffness.
+                cRUB : float
+                    Contact damping.
+                miRUB : float
+                    Friction coefficient.
+                posRUB : int
+                    Node where the rubbing is ocurring.
+                speed : float
+                    Operational speed of the machine.
+                massunb : array
+                    Array with the unbalance magnitude. The unit is kg.m.
+                phaseunb : array
+                    Array with the unbalance phase. The unit is rad.
+                torque : bool
+                    Set it as True to consider the torque provided by the rubbing, by default False.
+                print_progress : bool
+                    Set it True, to print the time iterations and the total time spent, by default False.
+        Examples
+        --------
+        >>> from ross.defects.rubbing import rubbing_example
+        >>> probe1 = (14, 0)
+        >>> probe2 = (22, 0)
+        >>> response = rubbing_example()
+        >>> results = response.run_time_response()
+        >>> fig = response.plot_dfft(probe=[probe1, probe2], range_freq=[0, 100], yaxis_type="log")
+        >>> # fig.show()
+        """
+
+        defect = Rubbing(**kwargs)
+        defect.run(self)
+        return defect
+
+    # def run_crack(self, **kwargs):
+    #     defect = Crack(**kwargs)
+    #     defect.run(self)
+    #     return defect
 
     def save_mat(self, file, speed, frequency=None):
         """Save matrices and rotor model to a .mat file.

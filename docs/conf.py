@@ -15,8 +15,9 @@
 import os
 import sys
 
-import ross
 import sphinx_bootstrap_theme
+
+import ross
 
 # sys.path.insert(0, os.path.abspath('.'))
 sys.path.insert(0, os.path.abspath("sphinxext"))
@@ -25,7 +26,7 @@ sys.path.append(os.path.abspath("../../ross"))
 # -- Project information -----------------------------------------------------
 
 project = "ross"
-copyright = "2019, Team ROSS"
+copyright = "2020, Team ROSS"
 author = "Team ROSS"
 
 
