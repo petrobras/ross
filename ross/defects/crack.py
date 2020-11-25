@@ -19,7 +19,7 @@ __all__ = [
 ]
 
 
-class Crack:
+class Crack(Defect):
     """Contains a Gasch and Mayes transversal crack models for applications on finite element models of rotative machinery.
     The reference coordenates system is: z-axis throught the shaft center; x-axis and y-axis in the sensors' planes 
     Calculates the dynamic forces of a crack on a given shaft element.
