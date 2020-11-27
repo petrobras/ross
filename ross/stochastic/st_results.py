@@ -143,6 +143,8 @@ class ST_Results(ABC):
         for key, value in data.items():
             if isinstance(value, Iterable):
                 data[key] = np.array(value)
+                if data[key].dtype == np.dtype("<U49"):
+                    data[key] = np.array(value).astype(np.complex128)
         return cls.read_toml_data(data)
 
 
