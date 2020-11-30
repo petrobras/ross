@@ -6,6 +6,7 @@ import plotly.graph_objects as go
 import scipy as sp
 import scipy.integrate
 import scipy.linalg
+import os, sys
 
 import ross
 from ross.results import TimeResponseResults
@@ -13,6 +14,7 @@ from ross.units import Q_
 
 from .abs_defect import Defect
 from .integrate_solver import Integrator
+
 
 __all__ = [
     "Crack",
@@ -496,9 +498,9 @@ class Crack(Defect):
         return K
 
     def _get_coefs(self, coef):
-        x = scipy.io.loadmat(
-            "/home/izabela/Documents/Projeto EDGE Petro/ross/tools/data/PAPADOPOULOS_c"
-        )
+
+        cwd = os.getcwd()
+        x = scipy.io.loadmat(cwd + "/tools/data/PAPADOPOULOS_c")
 
         c = x[coef]
         aux = np.where(c[:, 1] >= self.cd * 2)[0]
