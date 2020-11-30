@@ -18,7 +18,7 @@ You can check the tutorial and examples on `binder <https://mybinder.org/v2/gh/r
    :caption: Contents:
 
    installation
-   examples/tutorial
+   tutorials
    examples
    download
    api
