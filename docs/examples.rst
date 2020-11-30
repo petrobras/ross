@@ -13,3 +13,4 @@ Examples
    examples/example_7
    examples/example_8
    examples/example_stochastic_ross
+   examples/fluif_flow_theory
