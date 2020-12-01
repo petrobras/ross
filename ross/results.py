@@ -3,8 +3,13 @@
 This module returns graphs for each type of analyses in rotor_assembly.py.
 """
 import copy
+import inspect
+from abc import ABC
+from collections.abc import Iterable
+from pathlib import Path
 
 import numpy as np
+import toml
 from plotly import graph_objects as go
 from plotly.subplots import make_subplots
 from scipy import linalg as la
@@ -13,8 +18,146 @@ from ross.plotly_theme import tableau_colors
 from ross.units import Q_
 from ross.utils import intersection
 
+__all__ = [
+    "CriticalSpeedResults",
+    "ModalResults",
+    "CampbellResults",
+    "FrequencyResponseResults",
+    "ForcedResponseResults",
+    "StaticResults",
+    "SummaryResults",
+    "ConvergenceResults",
+    "TimeResponseResults",
+]
 
-class CriticalSpeedResults:
+
+class Results(ABC):
+    """Results class.
+
+    This class is a general abstract class to be implemented in other classes
+    for post-processing results, in order to add saving and loading data options.
+    """
+
+    def save(self, file):
+        """Save results in a .toml file.
+
+        This function will save the simulation results to a .toml file.
+        The file will have all the argument's names and values that are needed to
+        reinstantiate the class.
+
+        Parameters
+        ----------
+        file : str, pathlib.Path
+            The name of the file the results will be saved in.
+
+        Examples
+        --------
+        >>> # Example running a unbalance response
+        >>> from tempfile import tempdir
+        >>> from pathlib import Path
+        >>> import ross as rs
+
+        >>> # Running an example
+        >>> rotor = rs.rotor_example()
+        >>> speed = np.linspace(0, 1000, 101)
+        >>> response = rotor.run_unbalance_response(node=3,
+        ...                                         unbalance_magnitude=0.001,
+        ...                                         unbalance_phase=0.0,
+        ...                                         frequency=speed)
+
+        >>> # create path for a temporary file
+        >>> file = Path(tempdir) / 'unb_resp.toml'
+        >>> response.save(file)
+        """
+        # get __init__ arguments
+        signature = inspect.signature(self.__init__)
+        args_list = list(signature.parameters)
+        args = {arg: getattr(self, arg) for arg in args_list}
+        try:
+            data = toml.load(file)
+        except FileNotFoundError:
+            data = {}
+
+        data[f"{self.__class__.__name__}"] = args
+        with open(file, "w") as f:
+            toml.dump(data, f, encoder=toml.TomlNumpyEncoder())
+
+        if args["rotor"]:
+            aux_file = str(file)[:-5] + "_rotor" + str(file)[-5:]
+            args["rotor"].save(aux_file)
+
+    @classmethod
+    def read_toml_data(cls, data):
+        """Read and parse data stored in a .toml file.
+
+        The data passed to this method needs to be according to the
+        format saved in the .toml file by the .save() method.
+
+        Parameters
+        ----------
+        data : dict
+            Dictionary obtained from toml.load().
+
+        Returns
+        -------
+        The result object.
+        """
+        return cls(**data)
+
+    @classmethod
+    def load(cls, file):
+        """Load results from a .toml file.
+
+        This function will load the simulation results from a .toml file.
+        The file must have all the argument's names and values that are needed to
+        reinstantiate the class.
+
+        Parameters
+        ----------
+        file : str, pathlib.Path
+            The name of the file the results will be loaded from.
+
+        Examples
+        --------
+        >>> # Example running a stochastic unbalance response
+        >>> from tempfile import tempdir
+        >>> from pathlib import Path
+        >>> import ross as rs
+
+        >>> # Running an example
+        >>> rotor = rs.rotor_example()
+        >>> freq_range = np.linspace(0, 500, 31)
+        >>> n = 3
+        >>> m = 0.01
+        >>> p = 0.0
+        >>> results = rotor.run_unbalance_response(n, m, p, freq_range)
+
+        >>> # create path for a temporary file
+        >>> file = Path(tempdir) / 'unb_resp.toml'
+        >>> results.save(file)
+
+        >>> # Loading file
+        >>> results2 = rs.ForcedResponseResults.load(file)
+        >>> results2.magnitude.all() == results.magnitude.all()
+        True
+        """
+        data = toml.load(file)
+        data = list(data.values())[0]
+        for key, value in data.items():
+            if isinstance(value, Iterable):
+                data[key] = np.array(value)
+                if data[key].dtype == np.dtype("<U49"):
+                    data[key] = np.array(value).astype(np.complex128)
+
+            if key == "rotor":
+                aux_file = str(file)[:-5] + "_rotor" + str(file)[-5:]
+                from ross.rotor_assembly import Rotor
+                data[key] = Rotor.load(aux_file)
+
+        return cls.read_toml_data(data)
+
+
+class CriticalSpeedResults(Results):
     """Class used to store results from run_critical_speed() method.
 
     Parameters
@@ -36,7 +179,7 @@ class CriticalSpeedResults:
         self.damping_ratio = damping_ratio
 
 
-class ModalResults:
+class ModalResults(Results):
     """Class used to store results and provide plots for Modal Analysis.
 
     Two options for plottting are available: plot_mode3D (mode shape 3D view)
@@ -702,7 +845,7 @@ class ModalResults:
         return fig
 
 
-class CampbellResults:
+class CampbellResults(Results):
     """Class used to store results and provide plots for Campbell Diagram.
 
     It's possible to visualize multiples harmonics in a single plot to check
@@ -875,7 +1018,7 @@ class CampbellResults:
         return fig
 
 
-class FrequencyResponseResults:
+class FrequencyResponseResults(Results):
     """Class used to store results and provide plots for Frequency Response.
 
     Parameters
@@ -1234,7 +1377,7 @@ class FrequencyResponseResults:
         return subplots
 
 
-class ForcedResponseResults:
+class ForcedResponseResults(Results):
     """Store results and provide plots for Unbalance and Forced Response analysis.
 
     Parameters
@@ -2119,7 +2262,7 @@ class ForcedResponseResults:
                 x=nodes_pos,
                 y=Mr,
                 mode="lines",
-                name="Bending Moment (abs)",
+                name=f"Bending Moment (abs) ({moment_units})",
                 legendgroup="Mr",
                 showlegend=True,
                 hovertemplate=f"Nodal Position: %{{x:.2f}}<br>Mr ({moment_units}): %{{y:.2e}}",
@@ -2140,7 +2283,8 @@ class ForcedResponseResults:
 
         fig.update_xaxes(title_text=f"Rotor Length ({rotor_length_units})")
         fig.update_yaxes(
-            title_text=f"Bending Moment ({moment_units})", title_font=dict(size=12)
+            title_text=f"Bending Moment ({moment_units})",
+            title_font=dict(size=12),
         )
         fig.update_layout(**kwargs)
 
@@ -2254,10 +2398,14 @@ class ForcedResponseResults:
                 domain=dict(x=[0.47, 1]),
             ),
             title=dict(
-                text=f"Deflected Shape<br>Speed = {speed_str} {frequency_units}"
+                text=f"Deflected Shape<br>Speed = {speed_str} {frequency_units}",
             ),
             legend=dict(
-                orientation="h", xanchor="center", yanchor="bottom", x=0.5, y=-0.3
+                orientation="h",
+                xanchor="center",
+                yanchor="bottom",
+                x=0.5,
+                y=-0.3,
             ),
             width=800,
             height=600,
@@ -2267,7 +2415,7 @@ class ForcedResponseResults:
         return subplots
 
 
-class StaticResults:
+class StaticResults(Results):
     """Class used to store results and provide plots for Static Analysis.
 
     This class plots free-body diagram, deformed shaft, shearing
@@ -2712,7 +2860,7 @@ class StaticResults:
         return fig
 
 
-class SummaryResults:
+class SummaryResults(Results):
     """Class used to store results and provide plots rotor summary.
 
     This class aims to present a summary of the main parameters and attributes
@@ -2921,7 +3069,7 @@ class SummaryResults:
         return fig
 
 
-class ConvergenceResults:
+class ConvergenceResults(Results):
     """Class used to store results and provide plots for Convergence Analysis.
 
     This class plots:
@@ -3016,7 +3164,7 @@ class ConvergenceResults:
         return fig
 
 
-class TimeResponseResults:
+class TimeResponseResults(Results):
     """Class used to store results and provide plots for Time Response Analysis.
 
     This class takes the results from time response analysis and creates a
