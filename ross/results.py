@@ -928,7 +928,8 @@ class FrequencyResponseResults:
             Default is "rad/s"
         amplitude_units : str, optional
             Units for the y axis.
-            Default is "m/N"
+            Default is "m/N" 0 to peak.
+            To use peak to peak use the prefix 'pkpk_' (e.g. pkpk_m)
         fig : Plotly graph_objects.Figure()
             The figure object with the plot.
         mag_kwargs : optional
@@ -1072,7 +1073,8 @@ class FrequencyResponseResults:
             Default is "rad/s"
         amplitude_units : str, optional
             Units for the y axis.
-            Default is "m/N"
+            Default is "m/N" 0 to peak.
+            To use peak to peak use the prefix 'pkpk_' (e.g. pkpk_m)
         phase_units : str, optional
             Units for the x axis.
             Default is "rad"
@@ -1168,7 +1170,8 @@ class FrequencyResponseResults:
             Default is "rad/s"
         amplitude_units : str, optional
             Units for the y axis.
-            Default is "m/N"
+            Default is "m/N" 0 to peak.
+            To use peak to peak use the prefix 'pkpk_' (e.g. pkpk_m)
         phase_units : str, optional
             Units for the x axis.
             Default is "rad"
@@ -1298,7 +1301,8 @@ class ForcedResponseResults:
             Default is "rad/s"
         amplitude_units : str, optional
             Units for the y axis.
-            Default is "m"
+            Default is "m" 0 to peak.
+            To use peak to peak use the prefix 'pkpk_' (e.g. pkpk_m)
         fig : Plotly graph_objects.Figure()
             The figure object with the plot.
         kwargs : optional
@@ -1469,7 +1473,8 @@ class ForcedResponseResults:
             Default is "rad/s"
         amplitude_units : str, optional
             Units for the y axis.
-            Default is "m"
+            Default is "m" 0 to peak.
+            To use peak to peak use the prefix 'pkpk_' (e.g. pkpk_m)
         phase_units : str, optional
             Units for the x axis.
             Default is "rad"
@@ -1586,7 +1591,8 @@ class ForcedResponseResults:
             Default is "rad/s"
         amplitude_units : str, optional
             Amplitude units.
-            Default is "m/N"
+            Default is "m/N" 0 to peak.
+            To use peak to peak use the prefix 'pkpk_' (e.g. pkpk_m)
         phase_units : str, optional
             Phase units.
             Default is "rad"
