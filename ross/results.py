@@ -82,7 +82,7 @@ class Results(ABC):
         with open(file, "w") as f:
             toml.dump(data, f, encoder=toml.TomlNumpyEncoder())
 
-        if args["rotor"]:
+        if "rotor" in args.keys():
             aux_file = str(file)[:-5] + "_rotor" + str(file)[-5:]
             args["rotor"].save(aux_file)
 
@@ -141,18 +141,21 @@ class Results(ABC):
         >>> results2.magnitude.all() == results.magnitude.all()
         True
         """
+        str_type = [np.dtype(f"<U4{i}") for i in range(10)]
+
         data = toml.load(file)
         data = list(data.values())[0]
         for key, value in data.items():
-            if isinstance(value, Iterable):
-                data[key] = np.array(value)
-                if data[key].dtype == np.dtype("<U49"):
-                    data[key] = np.array(value).astype(np.complex128)
-
             if key == "rotor":
                 aux_file = str(file)[:-5] + "_rotor" + str(file)[-5:]
                 from ross.rotor_assembly import Rotor
+
                 data[key] = Rotor.load(aux_file)
+
+            elif isinstance(value, Iterable):
+                data[key] = np.array(value)
+                if data[key].dtype in str_type:
+                    data[key] = np.array(value).astype(np.complex128)
 
         return cls.read_toml_data(data)
 
@@ -202,8 +205,6 @@ class ModalResults(Results):
         Logarithmic decrement for each mode.
     damping_ratio : array
         Damping ratio for each mode.
-    lti : StateSpaceContinuous
-        Space State Continuos with A, B, C and D matrices.
     ndof : int
         Number of degrees of freedom.
     nodes : list
@@ -223,7 +224,6 @@ class ModalResults(Results):
         wd,
         damping_ratio,
         log_dec,
-        lti,
         ndof,
         nodes,
         nodes_pos,
@@ -236,7 +236,6 @@ class ModalResults(Results):
         self.wd = wd
         self.damping_ratio = damping_ratio
         self.log_dec = log_dec
-        self.lti = lti
         self.ndof = ndof
         self.nodes = nodes
         self.nodes_pos = nodes_pos

@@ -616,7 +616,7 @@ class Rotor(object):
         with warnings.catch_warnings():
             warnings.simplefilter("ignore")
             log_dec = 2 * np.pi * damping_ratio / np.sqrt(1 - damping_ratio ** 2)
-        lti = self._lti(speed)
+
         modal_results = ModalResults(
             speed,
             evalues,
@@ -625,7 +625,6 @@ class Rotor(object):
             wd,
             damping_ratio,
             log_dec,
-            lti,
             self.ndof,
             self.nodes,
             self.nodes_pos,
@@ -1749,8 +1748,8 @@ class Rotor(object):
         >>> rotor.time_response(speed, F, t) # doctest: +ELLIPSIS
         (array([0.        , 0.18518519, 0.37037037, ...
         """
-        modal = self.run_modal(speed=speed)
-        return signal.lsim(modal.lti, F, t, X0=ic)
+        lti = self._lti(speed)
+        return signal.lsim(lti, F, t, X0=ic)
 
     def plot_rotor(self, nodes=1, check_sld=False, length_units="m", **kwargs):
         """Plot a rotor object.
@@ -2469,7 +2468,7 @@ class Rotor(object):
         Parameters
         ----------
         **kwargs: dictionary
-        
+
             **kwargs receives:
                 dt : float
                     Time step.
