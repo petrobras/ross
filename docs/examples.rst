@@ -12,5 +12,7 @@ Examples
    examples/example_6
    examples/example_7
    examples/example_8
-   examples/example_stochastic_ross
+   examples/example_9
+   examples/example_10
+   examples/example_11
    examples/fluif_flow_theory
