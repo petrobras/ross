@@ -312,19 +312,19 @@ for n_p in range(0, npad):
             for jj in Xtheta:
 
                 if kj == 1:
-                    vector_mi[0, :] = mi[ki, kj, :]
-                    vector_mi[1, :] = mi[ki, kj + 1, :]
-                    vector_mi[2, :] = mi[ki, kj, :]
-
-                if kj == ntheta:
-                    vector_mi[0, :] = mi[ki, kj, :]
+                    vector_mi[0, :] = mi[ki, kj - 1, :]
                     vector_mi[1, :] = mi[ki, kj, :]
                     vector_mi[2, :] = mi[ki, kj - 1, :]
 
+                if kj == ntheta:
+                    vector_mi[0, :] = mi[ki, kj - 1, :]
+                    vector_mi[1, :] = mi[ki, kj - 1, :]
+                    vector_mi[2, :] = mi[ki, kj - 2, :]
+
                 if kj > 1 and kj < ntheta:
-                    vector_mi[0, :] = mi[ki, kj, :]
-                    vector_mi[1, :] = mi[ki, kj + 1, :]
-                    vector_mi[2, :] = mi[ki, kj - 1, :]
+                    vector_mi[0, :] = mi[ki, kj - 1, :]
+                    vector_mi[1, :] = mi[ki, kj, :]
+                    vector_mi[2, :] = mi[ki, kj - 2, :]
 
                 # Loop in N
                 # for kk in range(N1+0.5*dN, dN, N2-0.5*dN):
@@ -476,7 +476,6 @@ for n_p in range(0, npad):
                     he * (1 - FF1e / FF0e) - hw * (1 - FF1w / FF0w)
                 ) + hpt * dX * dZ
 
-                k = k + 1
                 b[k] = B
                 hhh[k, n_p] = hP * Cr
 
@@ -536,9 +535,10 @@ for n_p in range(0, npad):
                     and len(np.where(drop_pressure_Ele_ntetha == kj + 1)[0]) == 0
                 ):
                     K_null[0, k] = k
-                    Kij_null[ki, kj] = 1
+                    Kij_null[ki, kj - 2] = 1
 
                 kj = kj + 1
+                k = k + 1
             # loop end
 
             kj = 0
@@ -748,7 +748,7 @@ for n_p in range(0, npad):
             kj = 0
             ki = ki + 1
 
-        ki = 1
+        ki = 0
         ki = nN
         for ii in range(1, nN):
             for jj in range(1, ntheta):
