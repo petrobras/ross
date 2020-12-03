@@ -149,7 +149,6 @@ class Results(ABC):
             if key == "rotor":
                 aux_file = str(file)[:-5] + "_rotor" + str(file)[-5:]
                 from ross.rotor_assembly import Rotor
-
                 data[key] = Rotor.load(aux_file)
 
             elif isinstance(value, Iterable):
@@ -1430,11 +1429,13 @@ class ForcedResponseResults(Results):
         Parameters
         ----------
         probe : list of tuples
-            List with tuples (node, orientation angle).
+            List with tuples (node, orientation angle, tag).
             node : int
                 indicate the node where the probe is located.
-            orientation : float,
+            orientation : float
                 probe orientation angle about the shaft. The 0 refers to +X direction.
+            tag : str, optional
+                probe tag to be displayed at the legend.
         probe_units : str, option
             Units for probe orientation.
             Default is "rad".
@@ -1458,38 +1459,26 @@ class ForcedResponseResults(Results):
             The figure object with the plot.
         """
         frequency_range = Q_(self.speed_range, "rad/s").to(frequency_units).m
-        magnitude = self.magnitude
-        number_dof = self.rotor.number_dof
 
         if fig is None:
             fig = go.Figure()
 
         for i, p in enumerate(probe):
-            dofx = p[0] * number_dof
-            dofy = p[0] * number_dof + 1
             angle = Q_(p[1], probe_units).to("rad").m
-
-            # fmt: off
-            operator = np.array(
-                [[np.cos(angle), - np.sin(angle)],
-                 [np.cos(angle), + np.sin(angle)]]
-            )
-
-            probe_resp = operator @ np.vstack((magnitude[dofx], magnitude[dofy]))
-            z = np.sqrt((probe_resp[0] * np.cos(angle)) ** 2 +
-                        (probe_resp[1] * np.sin(angle)) ** 2)
-            # fmt: on
-
-            z = Q_(z, "m").to(amplitude_units).m
+            vector = self._calculate_major_axis_per_node(node=p[0], angle=angle)
+            try:
+                probe_tag = p[2] + f" - Node {p[0]}"
+            except IndexError:
+                probe_tag = f"Probe {i+1} - Node {p[0]}"
 
             fig.add_trace(
                 go.Scatter(
                     x=frequency_range,
-                    y=z,
+                    y=Q_(np.abs(vector[3]), "m").to(amplitude_units).m,
                     mode="lines",
                     line=dict(color=list(tableau_colors)[i]),
-                    name=f"Probe {i + 1}",
-                    legendgroup=f"Probe {i + 1}",
+                    name=probe_tag,
+                    legendgroup=probe_tag,
                     showlegend=True,
                     hovertemplate=f"Frequency ({frequency_units}): %{{x:.2f}}<br>Amplitude ({amplitude_units}): %{{y:.2e}}",
                 )
@@ -1520,11 +1509,13 @@ class ForcedResponseResults(Results):
         Parameters
         ----------
         probe : list of tuples
-            List with tuples (node, orientation angle).
+            List with tuples (node, orientation angle, tag).
             node : int
                 indicate the node where the probe is located.
-            orientation : float,
+            orientation : float
                 probe orientation angle about the shaft. The 0 refers to +X direction.
+            tag : str, optional
+                probe tag to be displayed at the legend.
         probe_units : str, option
             Units for probe orientation.
             Default is "rad".
@@ -1553,17 +1544,17 @@ class ForcedResponseResults(Results):
             fig = go.Figure()
 
         for i, p in enumerate(probe):
-            probe_phase = Q_(self.phase[p[0] * number_dof], "rad").to(phase_units).m
+            angle = Q_(p[1], probe_units).to("rad").m
+            vector = self._calculate_major_axis_per_node(node=p[0], angle=angle)
 
-            if phase_units in ["rad", "radian", "radians"]:
-                probe_phase = np.array(
-                    [i + 2 * np.pi if i < 0 else i for i in probe_phase]
-                )
-            else:
-                probe_phase = np.array([i + 360 if i < 0 else i for i in probe_phase])
+            probe_phase = self.phase[p[0] * number_dof] - np.real(vector[2])
+            probe_phase = np.array([i + 2 * np.pi if i < 0 else i for i in probe_phase])
+            probe_phase = Q_(probe_phase, "rad").to(phase_units).m
 
-            angle = Q_(p[1], probe_units).to(phase_units).m
-            probe_phase = probe_phase - angle
+            try:
+                probe_tag = p[2] + f" - Node {p[0]}"
+            except IndexError:
+                probe_tag = f"Probe {i+1} - Node {p[0]}"
 
             fig.add_trace(
                 go.Scatter(
@@ -1571,8 +1562,8 @@ class ForcedResponseResults(Results):
                     y=probe_phase,
                     mode="lines",
                     line=dict(color=list(tableau_colors)[i]),
-                    name=f"Probe {i + 1}",
-                    legendgroup=f"Probe {i + 1}",
+                    name=probe_tag,
+                    legendgroup=probe_tag,
                     showlegend=True,
                     hovertemplate=f"Frequency ({frequency_units}): %{{x:.2f}}<br>Phase ({phase_units}): %{{y:.2e}}",
                 )
@@ -1602,11 +1593,13 @@ class ForcedResponseResults(Results):
         Parameters
         ----------
         probe : list of tuples
-            List with tuples (node, orientation angle).
+            List with tuples (node, orientation angle, tag).
             node : int
                 indicate the node where the probe is located.
-            orientation : float,
+            orientation : float
                 probe orientation angle about the shaft. The 0 refers to +X direction.
+            tag : str, optional
+                probe tag to be displayed at the legend.
         probe_units : str, option
             Units for probe orientation.
             Default is "rad".
@@ -1639,47 +1632,34 @@ class ForcedResponseResults(Results):
             fig = go.Figure()
 
         for i, p in enumerate(probe):
-            dofx = p[0] * number_dof
-            dofy = p[0] * number_dof + 1
             angle = Q_(p[1], probe_units).to("rad").m
+            vector = self._calculate_major_axis_per_node(node=p[0], angle=angle)
 
-            # fmt: off
-            operator = np.array([
-                [np.cos(angle), - np.sin(angle)],
-                [np.cos(angle), + np.sin(angle)],
-            ])
-            # fmt: on
-
-            resp = operator @ np.vstack((self.magnitude[dofx], self.magnitude[dofy]))
-            probe_mag = (
-                (resp[0] * np.cos(angle)) ** 2 + (resp[1] * np.sin(angle)) ** 2
-            ) ** 0.5
-
-            probe_mag = Q_(probe_mag, "m").to(amplitude_units).m
-
-            phase = Q_(self.phase[p[0] * number_dof], "rad").to(phase_units).m
+            probe_phase = self.phase[p[0] * number_dof] - np.real(vector[2])
+            probe_phase = np.array([i + 2 * np.pi if i < 0 else i for i in probe_phase])
+            probe_phase = Q_(probe_phase, "rad").to(phase_units).m
 
             if phase_units in ["rad", "radian", "radians"]:
                 polar_theta_unit = "radians"
-                phase = np.array([i + 2 * np.pi if i < 0 else i for i in phase])
-            else:
-                phase = np.array([i + 360 if i < 0 else i for i in phase])
+            elif phase_units in ["degree", "degrees", "deg"]:
                 polar_theta_unit = "degrees"
 
-            angle = Q_(p[1], probe_units).to(phase_units).m
-            phase = phase - angle
+            try:
+                probe_tag = p[2] + f" - Node {p[0]}"
+            except IndexError:
+                probe_tag = f"Probe {i+1} - Node {p[0]}"
 
             fig.add_trace(
                 go.Scatterpolar(
-                    r=probe_mag,
-                    theta=phase,
+                    r=Q_(np.abs(vector[3]), "m").to(amplitude_units).m,
+                    theta=probe_phase,
                     customdata=frequency_range,
                     thetaunit=polar_theta_unit,
                     mode="lines+markers",
                     marker=dict(color=list(tableau_colors)[i]),
                     line=dict(color=list(tableau_colors)[i]),
-                    name=f"Probe {i + 1}",
-                    legendgroup=f"Probe {i + 1}",
+                    name=probe_tag,
+                    legendgroup=probe_tag,
                     showlegend=True,
                     hovertemplate=f"Amplitude ({amplitude_units}): %{{r:.2e}}<br>Phase: %{{theta:.2f}}<br>Frequency ({frequency_units}): %{{customdata:.2f}}",
                 )
@@ -1720,11 +1700,13 @@ class ForcedResponseResults(Results):
         Parameters
         ----------
         probe : list of tuples
-            List with tuples (node, orientation angle).
+            List with tuples (node, orientation angle, tag).
             node : int
                 indicate the node where the probe is located.
-            orientation : float,
+            orientation : float
                 probe orientation angle about the shaft. The 0 refers to +X direction.
+            tag : str, optional
+                probe tag to be displayed at the legend.
         probe_units : str, option
             Units for probe orientation.
             Default is "rad".
@@ -1733,7 +1715,7 @@ class ForcedResponseResults(Results):
             Default is "rad/s"
         amplitude_units : str, optional
             Amplitude units.
-            Default is "m/N" 0 to peak.
+            Default is "m" 0 to peak.
             To use peak to peak use the prefix 'pkpk_' (e.g. pkpk_m)
         phase_units : str, optional
             Phase units.
@@ -1808,12 +1790,84 @@ class ForcedResponseResults(Results):
 
         return subplots
 
-    def _calculate_major_axis(self, speed):
+    def _calculate_major_axis_per_node(self, node, angle):
+        """Calculate the major axis for a node for each frequency.
+
+        Parameters
+        ----------
+        node : float
+            A node from the rotor model.
+        angle : float, str
+            The orientation angle of the axis.
+            Options are:
+                float : angle in rad capture the response in a probe orientation;
+                str : "major" to capture the response for the major axis;
+                str : "minor" to capture the response for the minor axis.
+
+        Returns
+        -------
+        major_axis_vector : np.ndarray
+            major_axis_vector[0, :] = foward vector
+            major_axis_vector[1, :] = backward vector
+            major_axis_vector[2, :] = axis angle
+            major_axis_vector[3, :] = axis vector for the input angle
+        """
+        forced_resp = self.forced_resp
+        number_dof = self.rotor.number_dof
+
+        major_axis_vector = np.zeros((4, len(self.speed_range)), dtype=complex)
+        dofx = number_dof * node
+        dofy = number_dof * node + 1
+
+        # Relative angle between probes (90°)
+        Rel_ang = np.exp(1j * np.pi / 2)
+
+        for i, f in enumerate(self.speed_range):
+
+            # Foward and Backward vectors
+            fow = forced_resp[dofx, i] / 2 + Rel_ang * forced_resp[dofy, i] / 2
+            back = (
+                np.conj(forced_resp[dofx, i]) / 2
+                + Rel_ang * np.conj(forced_resp[dofy, i]) / 2
+            )
+
+            ang_fow = np.angle(fow)
+            if ang_fow < 0:
+                ang_fow += 2 * np.pi
+
+            ang_back = np.angle(back)
+            if ang_back < 0:
+                ang_back += 2 * np.pi
+
+            if angle == "major":
+                # Major axis angles
+                axis_angle = (ang_back - ang_fow) / 2
+                if axis_angle > np.pi:
+                    axis_angle -= np.pi
+
+            elif angle == "minor":
+                axis_angle = (ang_back - ang_fow + np.pi) / 2
+                if axis_angle > np.pi:
+                    axis_angle -= np.pi
+
+            else:
+                axis_angle = angle
+
+            major_axis_vector[0, i] = fow
+            major_axis_vector[1, i] = back
+            major_axis_vector[2, i] = axis_angle
+            major_axis_vector[3, i] = np.abs(
+                fow * np.exp(1j * axis_angle) + back * np.exp(-1j * axis_angle)
+            )
+
+        return major_axis_vector
+
+    def _calculate_major_axis_per_speed(self, speed):
         """Calculate the major axis for each nodal orbit.
 
         Parameters
         ----------
-        speed : optional, float
+        speed : float
             The rotor rotation speed. Must be an element from the speed_range argument
             passed to the class (rad/s).
 
@@ -1981,7 +2035,7 @@ class ForcedResponseResults(Results):
             raise ValueError("No data available for this speed value.")
 
         nodes_pos = Q_(self.rotor.nodes_pos, "m").to(rotor_length_units).m
-        maj_vect = self._calculate_major_axis(speed=speed)
+        maj_vect = self._calculate_major_axis_per_speed(speed=speed)
         maj_vect = Q_(maj_vect[4].real, "m").to(displacement_units).m
 
         if fig is None:
@@ -2103,7 +2157,7 @@ class ForcedResponseResults(Results):
             )
 
         # plot major axis
-        maj_vect = self._calculate_major_axis(speed)
+        maj_vect = self._calculate_major_axis_per_speed(speed)
 
         fig.add_trace(
             go.Scatter3d(
@@ -3230,11 +3284,13 @@ class TimeResponseResults(Results):
         Parameters
         ----------
         probe : list of tuples
-            List with tuples (node, orientation angle).
+            List with tuples (node, orientation angle, tag).
             node : int
                 indicate the node where the probe is located.
-            orientation : float,
+            orientation : float
                 probe orientation angle about the shaft. The 0 refers to +X direction.
+            tag : str, optional
+                probe tag to be displayed at the legend.
         probe_units : str, option
             Units for probe orientation.
             Default is "rad".
@@ -3279,13 +3335,18 @@ class TimeResponseResults(Results):
 
             probe_resp = Q_(probe_resp, "m").to(displacement_units).m
 
+            try:
+                probe_tag = p[2] + f" - Node {p[0]}"
+            except IndexError:
+                probe_tag = f"Probe {i+1} - Node {p[0]}"
+
             fig.add_trace(
                 go.Scatter(
                     x=Q_(self.t, "s").to(time_units).m,
                     y=Q_(probe_resp, "m").to(displacement_units).m,
                     mode="lines",
-                    name=f"Probe {i + 1}",
-                    legendgroup=f"Probe {i + 1}",
+                    name=probe_tag,
+                    legendgroup=probe_tag,
                     showlegend=True,
                     hovertemplate=f"Time ({time_units}): %{{x:.2f}}<br>Amplitude ({displacement_units}): %{{y:.2e}}",
                 )
@@ -3333,8 +3394,8 @@ class TimeResponseResults(Results):
                 .to(displacement_units)
                 .m,
                 mode="lines",
-                name="Phase",
-                legendgroup="Phase",
+                name=f"Orbit",
+                legendgroup="Orbit",
                 showlegend=False,
                 hovertemplate=(
                     f"X - Amplitude ({displacement_units}): %{{x:.2e}}<br>Y - Amplitude ({displacement_units}): %{{y:.2e}}"
