@@ -68,8 +68,12 @@ hmin
 Tmax
 """
 
+phi=30*np.pi/180
+E=0.5
+
+
 # optim values from legacy codes
-# x=[0.000321298907440948 0.000218101024776208 0.000241891712348458 0.000385504446042090 0.000516992650533115 0.000460227890390222];
+x=np.array([0.000321298907440948, 0.000218101024776208, 0.000241891712348458, 0.000385504446042090, 0.000516992650533115, 0.000460227890390222])
 
 psi_pad = np.array([x[0], x[1], x[2], x[3], x[4], x[5]])
 npad = 6
@@ -83,7 +87,7 @@ Tcuba = 40
 # Rotor center position
 xx = E * Cr * np.cos(phi)
 yy = E * Cr * np.sin(phi)
-alphapt = 0 * (2 * pi * 5) * alpha
+alphapt = 0 # * (2 * np.pi * 5) * alpha
 
 
 # Geometric parameters for the bearing --------------------------------------------
@@ -160,28 +164,29 @@ Z1=0 # initial coordinate z dimensionless
 Z2=1 # final coordinate z dimensionless
 dZ=1/(nZ) # differential z dimensionless
 dz=dZ*L # differential z dimensional: [m]
+XZ = np.zeros([nZ+2])
 XZ[0]=Z1
 XZ[nZ+1]=Z2
-
-XZ[0:nZ-1] = Z1+0.5* np.array([dz, Z2-0.5*dZ, dz]) # vector z dimensionless
+XZ[1:nZ+1] = Z1+np.arange(0.5*dZ, Z2, dZ) # vector z dimensionless
 
 XZdim=XZ*L # vector z dimensional [m]
 
 N1=0 # initial coordinate netha dimensionless
 N2=1 # final coordinate netha dimensionless
 dN=1/(nN) # differential netha dimensionless
-netha[1]=N1
-netha[nN+1]=N2
 
-netha[0:nN-1]=N1+0.5* np.array([dN, N2-0.5*dN, dN]) # vector netha dimensionless
+netha = np.zeros([nN+2])
+netha[0]=N1
+netha[nN+1]=N2
+netha[1:nN+1]=N1+np.arange(0.5*dN, N2, dN) # vector netha dimensionless
 
 theta1=-(rp_pad)*betha_s # initial coordinate theta [rad]
 theta2=(1-rp_pad)*betha_s # final coordinate theta [rad]
 dtheta=betha_s/(ntheta) # differential theta [rad]
+Xtheta = np.zeros([ntheta+2])
 Xtheta[0]=theta1
-Xtheta[ntheta]=theta2
-
-Xtheta[0:ntheta-1]=theta1+0.5* np.array([dtheta, theta2-0.5*dtheta, dtheta]) # vector theta [rad]
+Xtheta[ntheta+1]=theta2
+Xtheta[1:ntheta+1]=np.arange(theta1+0.5*dtheta, theta2, dtheta) # vector theta [rad]
 
 dX=1/nX # differential x dimensionless
 dx=dX*(betha_s*Rs) # differential x dimensional: [m]
@@ -213,9 +218,22 @@ Vu=np.zeros((nN,ntheta))
 Vv=np.zeros((nN,ntheta))
 Vw=np.zeros((nN,ntheta))
 
-YH = np.zeros[nN+2,nX+2,npad]
+YH = np.zeros((nN+2,nX+2,npad))
 
-XH = np.zeros[nN+2,nX+2]
+XH = np.zeros((nN+2,nX+2))
+
+
+
+vector_mi=np.zeros((3,nN+1))
+auxFF0P=np.zeros((nN+2))
+auxFF1P=np.zeros((nN+2))
+auxFF0E=np.zeros((nN+2))
+auxFF1E=np.zeros((nN+2))
+auxFF0W=np.zeros((nN+2))
+auxFF1W=np.zeros((nN+2))
+auxFF2P=np.zeros((nN+2))
+auxFF2E=np.zeros((nN+2))
+auxFF2W=np.zeros((nN+2))
 
 
 for ii in range(0,nX+2):
@@ -226,11 +244,11 @@ for n_p in range(0,npad):
     alpha=psi_pad[n_p-1]
 
     # transformation of coordinates
-    xryr=np.array([[np.cos(sigma(n_p))  , np.sin(sigma(n_p))],
-                   [-np.sin(sigma(n_p)) , np.cos(sigma(n_p))]]) * np.array([[xx], [yy]])
+    xryr=np.array([[np.cos(sigma[n_p])  , np.sin(sigma[n_p])],
+                   [-np.sin(sigma[n_p]) , np.cos(sigma[n_p])]]) * np.array([[xx], [yy]])
 
-    xryrpt=np.array([[np.cos(sigma(n_p))  , np.sin(sigma(n_p))],
-                     [-np.sin(sigma(n_p)) , np.cos(sigma(n_p))]]) * np.array([[xpt], [ypt]])
+    xryrpt=np.array([[np.cos(sigma[n_p])  , np.sin(sigma[n_p])],
+                     [-np.sin(sigma[n_p]) , np.cos(sigma[n_p])]]) * np.array([[xpt], [ypt]])
 
     xr=xryr[0]
     yr=xryr[1]
@@ -239,7 +257,7 @@ for n_p in range(0,npad):
     yrpt=xryrpt[1]
     
     # Temperature matrix with boundary conditions ====================================
-    T_novo=T_ref*np.ones(nN+2,ntheta+2)
+    T_novo=T_ref*np.ones((nN+2,ntheta+2))
     
     Tcomp=1.2*T_novo
     
@@ -250,21 +268,24 @@ for n_p in range(0,npad):
         Tcomp=T_novo
         
         nk=nZ*ntheta
-        K_null=np.zeros[1,nk]
-        Kij_null=np.zeros[nZ,ntheta]
-        ki=1
-        kj=1
-        k=0; # pressure vectorization index
-        nn=1
+        K_null=np.zeros((1,nk))
+        Kij_null=np.zeros((nZ,ntheta))
+        ki=0
+        kj=0
+        k=0 # pressure vectorization index
+        nn=0
         
-        Mat_coef=np.zeros[nk,nk]
-        b=np.zeros[nk]
+        Mat_coef=np.zeros((nk,nk))
+        b=np.zeros((nk))
         
+
         # Mesh loop in Z direction ====================================================
-        for ii in range((Z1+0.5*dZ), dZ, (Z2-0.5*dZ)):
+        #for ii in range((Z1+0.5*dZ), dZ, (Z2-0.5*dZ)):
+        for ii in XZ:
             
             # Mesh loop in THETA direction ====================================================
-            for jj in range((theta1+0.5*dtheta), dtheta, (theta2-0.5*dtheta)):
+            #for jj in range((theta1+0.5*dtheta), dtheta, (theta2-0.5*dtheta)):
+            for jj in Xtheta:
                 
                 if kj==1 :
                     vector_mi[0,]=mi[ki,kj,]
@@ -282,11 +303,12 @@ for n_p in range(0,npad):
                     vector_mi[2,]=mi[ki,kj-1,]
                 
                 # Loop in N 
-                for kk in range(N1+0.5*dN, dN, N2-0.5*dN):
+                #for kk in range(N1+0.5*dN, dN, N2-0.5*dN):
+                for kk in netha:
                     
-                    mi_adP=vector_mi(0,nN-nn)/mi_ref
-                    mi_adE=vector_mi(1,nN-nn)/mi_ref
-                    mi_adW=vector_mi(2,nN-nn)/mi_ref
+                    mi_adP=vector_mi[0,nN-nn]/mi_ref
+                    mi_adE=vector_mi[1,nN-nn]/mi_ref
+                    mi_adW=vector_mi[2,nN-nn]/mi_ref
                     
                     auxFF0P[nn]=(1/mi_adP)
                     auxFF1P[nn]=(kk/mi_adP)
@@ -298,32 +320,32 @@ for n_p in range(0,npad):
                     nn=nn+1
                 
 
-                nn=1
+                nn=0
                 
                 auxFF0P[0]=auxFF0P[1]
-                auxFF0P[nN]=auxFF0P[nN]
+                auxFF0P[nN+1]=auxFF0P[nN]
                 
                 auxFF1P[0]=0
-                auxFF1P[nN]=(N2/(vector_mi[0,nN]/mi_ref))
+                auxFF1P[nN+1]=(N2/(vector_mi[0,nN]/mi_ref))
                 
                 auxFF0E[0]=auxFF0E[1]
-                auxFF0E[nN]=auxFF0E[nN]
+                auxFF0E[nN+1]=auxFF0E[nN]
 
                 auxFF1E[0]=0
-                auxFF1E[nN]=(N2/(vector_mi[1,nN]/mi_ref))
+                auxFF1E[nN+1]=(N2/(vector_mi[1,nN]/mi_ref))
                 
                 auxFF0W[0]=auxFF0W[1]
-                auxFF0W[nN]=auxFF0W[nN]
+                auxFF0W[nN+1]=auxFF0W[nN]
                 
                 auxFF1W[0]=0
-                auxFF1W[nN]=(N2/(vector_mi[2,nN]/mi_ref))
+                auxFF1W[nN+1]=(N2/(vector_mi[2,nN]/mi_ref))
                 
-                FF0P=0.5*np.sum((netha[1:]-netha[0:-2])*(auxFF0P[1:]+auxFF0P[0:-2]))
-                FF1P=0.5*np.sum((netha[1:]-netha[0:-2])*(auxFF1P[1:]+auxFF1P[0:-2]))
-                FF0E=0.5*np.sum((netha[1:]-netha[0:-2])*(auxFF0E[1:]+auxFF0E[0:-2]))
-                FF1E=0.5*np.sum((netha[1:]-netha[0:-2])*(auxFF1E[1:]+auxFF1E[0:-2]))
-                FF0W=0.5*np.sum((netha[1:]-netha[0:-2])*(auxFF0W[1:]+auxFF0W[0:-2]))
-                FF1W=0.5*np.sum((netha[1:]-netha[0:-2])*(auxFF1W[1:]+auxFF1W[0:-2]))
+                FF0P=0.5*np.sum((netha[1:]-netha[0:-1])*(auxFF0P[1:]+auxFF0P[0:-1]))
+                FF1P=0.5*np.sum((netha[1:]-netha[0:-1])*(auxFF1P[1:]+auxFF1P[0:-1]))
+                FF0E=0.5*np.sum((netha[1:]-netha[0:-1])*(auxFF0E[1:]+auxFF0E[0:-1]))
+                FF1E=0.5*np.sum((netha[1:]-netha[0:-1])*(auxFF1E[1:]+auxFF1E[0:-1]))
+                FF0W=0.5*np.sum((netha[1:]-netha[0:-1])*(auxFF0W[1:]+auxFF0W[0:-1]))
+                FF1W=0.5*np.sum((netha[1:]-netha[0:-1])*(auxFF1W[1:]+auxFF1W[0:-1]))
                 
                 FF0e=0.5*(FF0P+FF0E)
                 FF0w=0.5*(FF0P+FF0W)
@@ -331,7 +353,8 @@ for n_p in range(0,npad):
                 FF1w=0.5*(FF1P+FF1W)
                 
                 # Loop in N 
-                for kk in range(N1+0.5*dN, dN, N2-0.5*dN):
+                #for kk in range(N1+0.5*dN, dN, N2-0.5*dN):
+                for kk in netha:
                     
                     mi_adP=vector_mi[0,nN-nn]/mi_ref
                     mi_adE=vector_mi[1,nN-nn]/mi_ref
@@ -342,7 +365,7 @@ for n_p in range(0,npad):
                     auxFF2W[nn]=(kk/mi_adW)*(kk-FF1W/FF0W)
                     nn=nn+1
                 
-                nn=1
+                nn=0
                 
                 auxFF2P[0]=0
                 auxFF2P[nN+1]=(N2/(vector_mi[0,nN]/mi_ref))*(N2-FF1P/FF0P)
@@ -354,9 +377,9 @@ for n_p in range(0,npad):
                 auxFF2W[nN+1]=(N2/(vector_mi[2,nN]/mi_ref))*(N2-FF1P/FF0P)
                 
                 # integration process ===================================================
-                FF2P=0.5*np.sum((netha[1:]-netha[0:-2])*(auxFF2P[1:]+auxFF2P[0:-2]))
-                FF2E=0.5*np.sum((netha[1:]-netha[0:-2])*(auxFF2E[1:]+auxFF2E[0:-2]))
-                FF2W=0.5*np.sum((netha[1:]-netha[0:-2])*(auxFF2W[1:]+auxFF2W[0:-2]))
+                FF2P=0.5*np.sum((netha[1:]-netha[0:-1])*(auxFF2P[1:]+auxFF2P[0:-1]))
+                FF2E=0.5*np.sum((netha[1:]-netha[0:-1])*(auxFF2E[1:]+auxFF2E[0:-1]))
+                FF2W=0.5*np.sum((netha[1:]-netha[0:-1])*(auxFF2W[1:]+auxFF2W[0:-1]))
                 
                 FF2e=0.5*(FF2P+FF2E)
                 FF2w=0.5*(FF2P+FF2W)
@@ -450,7 +473,7 @@ for n_p in range(0,npad):
                 kj=kj+1
             # loop end
             
-            kj=1
+            kj=0
             ki=ki+1
         # loop end
 
@@ -498,10 +521,10 @@ for n_p in range(0,npad):
         # %%%%%%%%%%%%%%%%%%% Temperature field solution %%%%%%%%%%%%%%%%%%%
         
         # Velocity field calculation
-        ki=1
-        kj=1
-        kk=1
-        nn=1
+        ki=0
+        kj=0
+        kk=0
+        nn=0
         
         # Dimensionless Netha loop ====================================================
         for ky in range((N1+0.5*dN), dN, (N2-0.5*dN)):
@@ -540,7 +563,7 @@ for n_p in range(0,npad):
                         auxFF0[nn+1]=1/mi[ki,kj,nN+1-nn]
                         auxFF1[nn+1]=contk/mi[ki,kj,nN+1-nn]
                         nn=nn+1
-                    nn=1
+                    nn=0
                     
                     auxFF0[0]=auxFF0[1]
                     auxFF0[nN+2]=auxFF0[nN+1]
@@ -561,8 +584,8 @@ for n_p in range(0,npad):
                         auxG1[nn+1]=contk/mi[ki, kj, nN+1-nn]
                         ydim2[nn+1]=contk
                         nn=nn+1
-                    
-                    nn=1
+                    nn=0
+
                     auxG0[0]=auxG0[1]
                     auxG1[0]=0
                     ydim2[0]=N1*h
@@ -576,19 +599,19 @@ for n_p in range(0,npad):
                     kj=kj+1
                 
 
-                kj=1
+                kj=0
                 ki=ki+1
             
 
-            ki=1
+            ki=0
             kk=kk+1
         
 
         # Radial speed calculation start ----------------------------------------------------
-        nn=1
-        ki=1
-        kj=1
-        kk=1
+        nn=0
+        ki=0
+        kj=0
+        kk=0
         
 
         # Mesh loop in Z direction ====================================================
@@ -603,8 +626,7 @@ for n_p in range(0,npad):
                         dudx[0,nn]=0
                         dwdz[0,nn]=0
                         nn=nn+1
-                    
-                    nn=1
+                    nn=0
                 
                 
                 
@@ -613,8 +635,7 @@ for n_p in range(0,npad):
                         dudx[0,nn+1]=(vu[ki,kj,nn]-vu[ki,kj-1,nn])/dx
                         dwdz[0,nn+1]=0
                         nn=nn+1
-                    
-                    nn=1
+                    nn=0
                 
                 
                 if (ki>1 and kj==1):
@@ -622,8 +643,7 @@ for n_p in range(0,npad):
                         dudx[0,nn+1]=0
                         dwdz[0,nn+1]=(vw[ki,kj,nn]-vw[ki-1,kj,nn])/dz
                         nn=nn+1
-                    
-                    nn=1
+                    nn=0
                 
                 
                 if (ki>1 and ki<nN and kj>1 and kj<nX):
@@ -631,8 +651,7 @@ for n_p in range(0,npad):
                         dudx[0,nn+1]=(vu[ki,kj,nn]-vu[ki,kj-1,nn])/dx
                         dwdz[0,nn+1]=(vw[ki,kj,nn]-vw[ki-1,kj,nn])/dz
                         nn=nn+1
-                    
-                    nn=1
+                    nn=0
                 
                 
                 dudx[0,0]=dudx[0,1]
@@ -645,7 +664,7 @@ for n_p in range(0,npad):
                 vv[ki,kj,]=-intv+hpt
                 kj=kj+1
             
-            kj=1
+            kj=0
             ki=ki+1
         
         ki=1
@@ -661,8 +680,9 @@ for n_p in range(0,npad):
         # Radial velociti calculation ending ------------------------------
         ksi1=0
         ksi2=1
-        ki=1
-        kj=1
+
+        ki=0
+        kj=0
         dksi=dX
         
         for ii in range(1, nZ):
@@ -1012,15 +1032,15 @@ for n_p in range(0,npad):
 
                 kj=kj+1
             
-            kj=1
+            kj=0
             ki=ki+1
         
-        ki=1
-        nn=1
+        ki=0
+        nn=0
         t=np.linalg.solve(Mat_coef, b) # calculo da temperatura vetorizada
         
         # Temperature matrix ----------------------
-        cont=1
+        cont=0
         
         for i in range(0, nN):
             for j in range (0, nX):
