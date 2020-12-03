@@ -1663,7 +1663,8 @@ class Rotor(object):
 
         Examples
         --------
-        >>> rotor = rotor_example()
+        >>> import ross as rs
+        >>> rotor = rs.rotor_example()
         >>> speed = np.linspace(0, 1000, 101)
         >>> response = rotor.run_unbalance_response(node=3,
         ...                                         unbalance_magnitude=10.0,
@@ -1685,7 +1686,8 @@ class Rotor(object):
         plot unbalance response:
         >>> probe_node = 3
         >>> probe_angle = np.pi / 2
-        >>> fig = response.plot(probe=[(probe_node, probe_angle)])
+        >>> probe_tag = "my_probe"  # Tag is optional
+        >>> fig = response.plot(probe=[(probe_node, probe_angle, probe_tag)])
 
         plot deflected shape configuration
         >>> value = 600
