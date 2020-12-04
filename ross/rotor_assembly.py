@@ -1689,6 +1689,18 @@ class Rotor(object):
         >>> probe_tag = "my_probe"  # Tag is optional
         >>> fig = response.plot(probe=[(probe_node, probe_angle, probe_tag)])
 
+        plot response for major axis:
+        >>> probe_node = 3
+        >>> probe_angle = "major"   # for major axis
+        >>> probe_tag = "my_probe"  # optional
+        >>> fig = response.plot(probe=[(probe_node, probe_angle, probe_tag)])
+
+        plot response for minor axis:
+        >>> probe_node = 3
+        >>> probe_angle = "minor"   # for minor axis
+        >>> probe_tag = "my_probe"  # optional
+        >>> fig = response.plot(probe=[(probe_node, probe_angle, probe_tag)])
+
         plot deflected shape configuration
         >>> value = 600
         >>> fig = response.plot_deflected_shape(speed=value)
