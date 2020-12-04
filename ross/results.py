@@ -1467,7 +1467,7 @@ class ForcedResponseResults(Results):
             angle = Q_(p[1], probe_units).to("rad").m
             vector = self._calculate_major_axis_per_node(node=p[0], angle=angle)
             try:
-                probe_tag = p[2] + f" - Node {p[0]}"
+                probe_tag = p[2]
             except IndexError:
                 probe_tag = f"Probe {i+1} - Node {p[0]}"
 
@@ -1552,7 +1552,7 @@ class ForcedResponseResults(Results):
             probe_phase = Q_(probe_phase, "rad").to(phase_units).m
 
             try:
-                probe_tag = p[2] + f" - Node {p[0]}"
+                probe_tag = p[2]
             except IndexError:
                 probe_tag = f"Probe {i+1} - Node {p[0]}"
 
@@ -1645,7 +1645,7 @@ class ForcedResponseResults(Results):
                 polar_theta_unit = "degrees"
 
             try:
-                probe_tag = p[2] + f" - Node {p[0]}"
+                probe_tag = p[2]
             except IndexError:
                 probe_tag = f"Probe {i+1} - Node {p[0]}"
 
@@ -3336,7 +3336,7 @@ class TimeResponseResults(Results):
             probe_resp = Q_(probe_resp, "m").to(displacement_units).m
 
             try:
-                probe_tag = p[2] + f" - Node {p[0]}"
+                probe_tag = p[2]
             except IndexError:
                 probe_tag = f"Probe {i+1} - Node {p[0]}"
 
