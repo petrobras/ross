@@ -71,8 +71,8 @@ def test_save_load_freqresponse(rotor1):
 
     assert response2.freq_resp.all() == response.freq_resp.all()
     assert response2.speed_range.all() == response.speed_range.all()
-    assert response2.magnitude.all() == response.magnitude.all()
-    assert response2.phase.all() == response.phase.all()
+    assert response2.velc_resp.all() == response.velc_resp.all()
+    assert response2.accl_resp.all() == response.accl_resp.all()
 
 
 def test_save_load_unbalance_response(rotor1):
@@ -86,8 +86,8 @@ def test_save_load_unbalance_response(rotor1):
     assert response2.rotor == response.rotor
     assert response2.forced_resp.all() == response.forced_resp.all()
     assert response2.speed_range.all() == response.speed_range.all()
-    assert response2.magnitude.all() == response.magnitude.all()
-    assert response2.phase.all() == response.phase.all()
+    assert response2.velc_resp.all() == response.velc_resp.all()
+    assert response2.accl_resp.all() == response.accl_resp.all()
     assert response2.unbalance.all() == response.unbalance.all()
 
 

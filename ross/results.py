@@ -138,7 +138,7 @@ class Results(ABC):
 
         >>> # Loading file
         >>> results2 = rs.ForcedResponseResults.load(file)
-        >>> results2.magnitude.all() == results.magnitude.all()
+        >>> abs(results2.forced_resp).all() == abs(results.forced_resp).all()
         True
         """
         str_type = [np.dtype(f"<U4{i}") for i in range(10)]

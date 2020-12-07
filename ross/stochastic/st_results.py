@@ -273,7 +273,7 @@ class ST_CampbellResults(ST_Results):
                 )
 
         fig.update_xaxes(
-            title_text="<b>Rotor speed</b>",
+            title_text="<b>Rotor speed (rad/s)</b>",
             title_font=dict(family="Arial", size=20),
             tickfont=dict(size=16),
             gridcolor="lightgray",
@@ -283,7 +283,7 @@ class ST_CampbellResults(ST_Results):
             mirror=True,
         )
         fig.update_yaxes(
-            title_text="<b>Damped Natural Frequencies</b>",
+            title_text="<b>Damped Natural Frequencies (rad/s)</b>",
             title_font=dict(family="Arial", size=20),
             tickfont=dict(size=16),
             gridcolor="lightgray",

@@ -1390,7 +1390,7 @@ class Rotor(object):
         >>> rotor = rotor_example()
         >>> speed = np.linspace(0, 1000, 101)
         >>> response = rotor.run_freq_response(speed_range=speed)
-        >>> response.magnitude # doctest: +ELLIPSIS
+        >>> abs(response.freq_resp) # doctest: +ELLIPSIS
         array([[[1.00000000e-06, 1.00261725e-06, 1.01076952e-06, ...
 
         Using clustered points option.
@@ -1499,14 +1499,14 @@ class Rotor(object):
 
         Returns
         -------
-        force_resp : array
+        forced_resp : array
             Array with the force response for each node for each frequency
         speed_range : array
             Array with the frequencies
-        magnitude : array
-            Magnitude (dB) of the frequency response for node for each frequency
-        phase : array
-            Phase of the frequency response for node for each frequency
+        velc_resp : array
+            Array with the velocity response for each node for each frequency
+        accl_resp : array
+            Array with the acceleration response for each node for each frequency
 
         Examples
         --------
@@ -1514,7 +1514,7 @@ class Rotor(object):
         >>> speed = np.linspace(0, 1000, 101)
         >>> force = rotor._unbalance_force(3, 10.0, 0.0, speed)
         >>> resp = rotor.forced_response(force=force, speed_range=speed)
-        >>> resp.magnitude # doctest: +ELLIPSIS
+        >>> abs(resp.forced_resp) # doctest: +ELLIPSIS
         array([[0.00000000e+00, 5.06073311e-04, 2.10044826e-03, ...
 
         Using clustered points option.
@@ -1663,16 +1663,14 @@ class Rotor(object):
 
         Returns
         -------
-        force_resp : array
-            Array with the force response for each node for each frequency
+        forced_resp : array
+            Array with the forced response for each node for each frequency
         speed_range : array
             Array with the frequencies
-        magdb : array
-            Magnitude (dB) of the frequency response for each pair input/output.
-            The order of the array is: [output, input, magnitude]
-        phase : array
-            Phase of the frequency response for each pair input/output.
-            The order of the array is: [output, input, phase]
+        velc_resp : array
+            Array with the velocity response for each node for each frequency
+        accl_resp : array
+            Array with the acceleration response for each node for each frequency
 
         Examples
         --------
@@ -1683,7 +1681,7 @@ class Rotor(object):
         ...                                         unbalance_magnitude=10.0,
         ...                                         unbalance_phase=0.0,
         ...                                         frequency=speed)
-        >>> response.magnitude # doctest: +ELLIPSIS
+        >>> abs(response.forced_resp) # doctest: +ELLIPSIS
         array([[0.00000000e+00, 5.06073311e-04, 2.10044826e-03, ...
 
         Using clustered points option.
