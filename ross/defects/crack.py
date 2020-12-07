@@ -6,7 +6,9 @@ import plotly.graph_objects as go
 import scipy as sp
 import scipy.integrate
 import scipy.linalg
-import os, sys
+import pathlib
+from pathlib import Path
+import pandas as pd
 
 import ross
 from ross.results import TimeResponseResults
@@ -108,6 +110,9 @@ class Crack(Defect):
             self.crack_model = self._gasch
         else:
             raise Exception("Check the crack model!")
+
+        dir_path = Path(__file__).parents[2] / "tools/data/PAPADOPOULOS.csv"
+        self.data_coefs = pd.read_csv(dir_path)
 
     def run(self, rotor):
         """Calculates the shaft angular position and the unbalance forces at X / Y directions.
@@ -436,47 +441,13 @@ class Crack(Defect):
         kde = (self.ko - self.kcx) / 2
         kdn = (self.ko - self.kcz) / 2
 
-        kee = kme + (4 / np.pi) * kde * (
-            np.cos(ap)
-            - np.cos(3 * ap) / 3
-            + np.cos(5 * ap) / 5
-            - np.cos(7 * ap) / 7
-            + np.cos(9 * ap) / 9
-            - np.cos(11 * ap) / 11
-            + np.cos(13 * ap) / 13
-            - np.cos(15 * ap) / 15
-            + np.cos(17 * ap) / 17
-            - np.cos(19 * ap) / 19
-            + np.cos(21 * ap) / 21
-            - np.cos(23 * ap) / 23
-            + np.cos(25 * ap) / 25
-            - np.cos(27 * ap) / 27
-            + np.cos(29 * ap) / 29
-            - np.cos(31 * ap) / 31
-            + np.cos(33 * ap) / 33
-            - np.cos(35 * ap) / 35
+        size = 18
+        cosine_sum = np.sum(
+            [(-1) ** i * np.cos((2 * i + 1) * ap) / (2 * i + 1) for i in range(size)]
         )
 
-        knn = kmn + (4 / np.pi) * kdn * (
-            np.cos(ap)
-            - np.cos(3 * ap) / 3
-            + np.cos(5 * ap) / 5
-            - np.cos(7 * ap) / 7
-            + np.cos(9 * ap) / 9
-            - np.cos(11 * ap) / 11
-            + np.cos(13 * ap) / 13
-            - np.cos(15 * ap) / 15
-            + np.cos(17 * ap) / 17
-            - np.cos(19 * ap) / 19
-            + np.cos(21 * ap) / 21
-            - np.cos(23 * ap) / 23
-            + np.cos(25 * ap) / 25
-            - np.cos(27 * ap) / 27
-            + np.cos(29 * ap) / 29
-            - np.cos(31 * ap) / 31
-            + np.cos(33 * ap) / 33
-            - np.cos(35 * ap) / 35
-        )
+        kee = kme + (4 / np.pi) * kde * cosine_sum
+        knn = kmn + (4 / np.pi) * kdn * cosine_sum
 
         aux = np.array([[kee, 0], [0, knn]])
 
@@ -499,10 +470,7 @@ class Crack(Defect):
 
     def _get_coefs(self, coef):
 
-        cwd = os.getcwd()
-        x = scipy.io.loadmat(cwd + "/tools/data/PAPADOPOULOS_c")
-
-        c = x[coef]
+        c = np.array(pd.eval(self.data_coefs[coef]))
         aux = np.where(c[:, 1] >= self.cd * 2)[0]
         c = c[aux[0], 0] * (1 - self.Poisson ** 2) / (self.E * (self.radius ** 3))
 
