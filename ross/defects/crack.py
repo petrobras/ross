@@ -66,14 +66,13 @@ class Crack(Defect):
 
     Examples
     --------
-    AQUI AINDA TEM QUE SER ATUALIZADO, ABAIXO SEGUE SOMENTE UM EXEMPLO PARA A "SHAFT ELEMENT"
-    >>> from ross.materials import steel
-    >>> Timoshenko_Element = ShaftElement(
-    ...                         material=steel, L=0.5, idl=0.05, odl=0.1,
-    ...                         rotary_inertia=True,
-    ...                         shear_effects=True)
-    >>> Timoshenko_Element.phi
-    0.1571268472906404
+    >>> from ross.defects.crack import crack_example
+    >>> probe1 = (14, 0)
+    >>> probe2 = (22, 0)
+    >>> response = crack_example()
+    >>> results = response.run_time_response()
+    >>> fig = response.plot_dfft(probe=[probe1, probe2], range_freq=[0, 100], yaxis_type="log")
+    >>> # fig.show()
     """
 
     def __init__(
@@ -381,11 +380,11 @@ class Crack(Defect):
         
         Returns
         -------
-        F_mis_p(12,n) : numpy.ndarray
-            Excitation force caused by the parallel misalignment for a 6DOFs system with 'n' values of angular position  
+        F_CRACK : array
+            Excitation force caused by the parallel misalignment on the node of application.
+        FF_CRACK : array
+            Excitation force caused by the parallel misalignment on the entire system.
         """
-
-        # self.T_matrix = np.array([[np.cos(ap), np.sin(ap)], [-np.sin(ap), np.cos(ap)],])
 
         K = func
 
@@ -435,6 +434,19 @@ class Crack(Defect):
         return FF_CRACK, F_CRACK
 
     def _gasch(self, ap):
+        """Stiffness matrix of the cracked element according to the Gasch model.
+
+        Paramenters
+        -----------
+        ap : float
+            Angular position of the shaft.
+        
+        Returns
+        -------
+        K : np.ndarray
+            Stiffness matrix of cracked element.
+        """
+
         # Gasch
         kme = (self.ko + self.kcx) / 2
         kmn = (self.ko + self.kcz) / 2
@@ -456,6 +468,18 @@ class Crack(Defect):
         return K
 
     def _mayes(self, ap):
+        """Stiffness matrix of the cracked element according to the Mayes model.
+
+        Paramenters
+        -----------
+        ap : float
+            Angular position of the shaft.
+        
+        Returns
+        -------
+        K : np.ndarray
+            Stiffness matrix of cracked element.
+        """
         # Mayes
 
         kee = 0.5 * (self.ko + self.kcx) + 0.5 * (self.ko - self.kcx) * np.cos(ap)
@@ -469,9 +493,140 @@ class Crack(Defect):
         return K
 
     def _get_coefs(self, coef):
+        """Terms os the compliance matrix.
+
+        Paramenters
+        -----------
+        coef : string
+            Name of the Coefficient according to the corresponding direction.
+        
+        Returns
+        -------
+        c : np.ndarray
+            Compliance coefficient according to the crack depth.
+        """
 
         c = np.array(pd.eval(self.data_coefs[coef]))
         aux = np.where(c[:, 1] >= self.cd * 2)[0]
         c = c[aux[0], 0] * (1 - self.Poisson ** 2) / (self.E * (self.radius ** 3))
 
         return c
+
+
+def base_rotor_example():
+    """Internal routine that create an example of a rotor, to be used in
+    the associated crack problems as a prerequisite.
+
+    This function returns an instance of a 6 DoF rotor, with a number of
+    components attached. As this is not the focus of the example here, but
+    only a requisite, see the example in "rotor assembly" for additional
+    information on the rotor object.
+
+    Returns
+    -------
+    rotor : ross.Rotor Object
+        An instance of a flexible 6 DoF rotor object.
+
+    Examples
+    --------
+    >>> rotor = base_rotor_example()
+    >>> rotor.Ip
+    0.015118294226367068
+    """
+    steel2 = ross.Material(name="Steel", rho=7850, E=2.17e11, G_s=81.2e9)
+    #  Rotor with 6 DoFs, with internal damping, with 10 shaft elements, 2 disks and 2 bearings.
+    i_d = 0
+    o_d = 0.019
+    n = 33
+
+    # fmt: off
+    L = np.array(
+            [0  ,  25,  64, 104, 124, 143, 175, 207, 239, 271,
+            303, 335, 345, 355, 380, 408, 436, 466, 496, 526,
+            556, 586, 614, 647, 657, 667, 702, 737, 772, 807,
+            842, 862, 881, 914]
+            )/ 1000
+    # fmt: on
+
+    L = [L[i] - L[i - 1] for i in range(1, len(L))]
+
+    shaft_elem = [
+        ross.ShaftElement6DoF(
+            material=steel2,
+            L=l,
+            idl=i_d,
+            odl=o_d,
+            idr=i_d,
+            odr=o_d,
+            alpha=8.0501,
+            beta=1.0e-5,
+            rotary_inertia=True,
+            shear_effects=True,
+        )
+        for l in L
+    ]
+
+    Id = 0.003844540885417
+    Ip = 0.007513248437500
+
+    disk0 = ross.DiskElement6DoF(n=12, m=2.6375, Id=Id, Ip=Ip)
+    disk1 = ross.DiskElement6DoF(n=24, m=2.6375, Id=Id, Ip=Ip)
+
+    kxx1 = 4.40e5
+    kyy1 = 4.6114e5
+    kzz = 0
+    cxx1 = 27.4
+    cyy1 = 2.505
+    czz = 0
+    kxx2 = 9.50e5
+    kyy2 = 1.09e8
+    cxx2 = 50.4
+    cyy2 = 100.4553
+
+    bearing0 = ross.BearingElement6DoF(
+        n=4, kxx=kxx1, kyy=kyy1, cxx=cxx1, cyy=cyy1, kzz=kzz, czz=czz
+    )
+    bearing1 = ross.BearingElement6DoF(
+        n=31, kxx=kxx2, kyy=kyy2, cxx=cxx2, cyy=cyy2, kzz=kzz, czz=czz
+    )
+
+    rotor = ross.Rotor(shaft_elem, [disk0, disk1], [bearing0, bearing1])
+
+    return rotor
+
+
+def crack_example():
+    """Create an example to evaluate the influence of transverse cracks in a rotating shaft.
+
+    This function returns an instance of a transversal crack
+    defect. The purpose is to make available a simple model so that a
+    doctest can be written using it.
+
+    Returns
+    -------
+    crack : ross.Crack Object
+        An instance of a crack model object.
+
+    Examples
+    --------
+    >>> crack = crack_example()
+    >>> crack.speed
+    1200
+    """
+
+    rotor = base_rotor_example()
+
+    crack = rotor.run_crack(
+        dt=0.0001,
+        tI=0,
+        tF=0.5,
+        cd=0.2,
+        n_crack=18,
+        speed=1200,
+        massunb=np.array([5e-4, 0]),
+        phaseunb=np.array([-np.pi / 2, 0]),
+        crack_type="Mayes",
+        print_progress=False,
+    )
+
+    return crack
