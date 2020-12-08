@@ -414,7 +414,6 @@ class ST_Rotor(object):
         """
         args_dict = args[0]
         new_args = self._random_var(is_random, args_dict)
-        # print(list(new_args))
         f_list = (f(*arg) for arg in new_args)
 
         return f_list
