@@ -626,6 +626,8 @@ class ModalResults(Results):
         mode=None,
         evec=None,
         fig=None,
+        frequency_type="wd",
+        title=None,
         length_units="m",
         frequency_units="rad/s",
         **kwargs,
@@ -641,12 +643,20 @@ class ModalResults(Results):
             Array containing the system eigenvectors
         fig : Plotly graph_objects.Figure()
             The figure object with the plot.
-        frequency_units : str, optional
-            Frequency units that will be used in the plot title.
-            Default is rad/s.
+        frequency_type : str, optional
+            "wd" calculates de map for the damped natural frequencies.
+            "wn" calculates de map for the undamped natural frequencies.
+            Defaults is "wd".
+        title : str, optional
+            A brief title to the mode shape plot, it will be displayed above other
+            relevant data in the plot area. It does not modify the figure layout from
+            Plotly.
         length_units : str, optional
             length units.
             Default is 'm'.
+        frequency_units : str, optional
+            Frequency units that will be used in the plot title.
+            Default is rad/s.
         kwargs : optional
             Additional key word arguments can be passed to change the plot layout only
             (e.g. width=1000, height=800, ...).
@@ -663,6 +673,14 @@ class ModalResults(Results):
         nodes = self.nodes
         kappa_mode = self.kappa_modes[mode]
         xn, yn, zn, xc, yc, zc_pos, nn = self.calc_mode_shape(mode=mode, evec=evec)
+
+        # fmt: off
+        frequency = {
+            "wd":  f"ω<sub>d</sub> = {Q_(self.wd[mode], 'rad/s').to(frequency_units).m:.1f}",
+            "wn":  f"ω<sub>n</sub> = {Q_(self.wn[mode], 'rad/s').to(frequency_units).m:.1f}",
+            "speed": f"Speed = {Q_(self.speed, 'rad/s').to(frequency_units).m:.1f}",
+        }
+        # fmt: on
 
         for node in nodes:
             fig.add_trace(
@@ -720,6 +738,10 @@ class ModalResults(Results):
                 showlegend=False,
             )
         )
+
+        if title is None:
+            title = ""
+
         fig.update_layout(
             scene=dict(
                 xaxis=dict(
@@ -736,10 +758,13 @@ class ModalResults(Results):
             ),
             title=dict(
                 text=(
+                    f"{title}<br>"
                     f"Mode {mode + 1} | "
+                    f"{frequency['speed']} {frequency_units} | "
                     f"whirl: {self.whirl_direction()[mode]} | "
-                    f"ω<sub>n</sub> = {Q_(self.wn[mode], 'rad/s').to(frequency_units).m:.1f} {frequency_units} | "
-                    f"log dec = {self.log_dec[mode]:.1f}"
+                    f"{frequency[frequency_type]} {frequency_units} | "
+                    f"Log. Dec. = {self.log_dec[mode]:.1f} | "
+                    f"Damping ratio = {self.damping_ratio[mode]:.2f}"
                 )
             ),
             **kwargs,
@@ -752,6 +777,8 @@ class ModalResults(Results):
         mode=None,
         evec=None,
         fig=None,
+        frequency_type="wd",
+        title=None,
         length_units="m",
         frequency_units="rad/s",
         **kwargs,
@@ -767,12 +794,20 @@ class ModalResults(Results):
             Array containing the system eigenvectors
         fig : Plotly graph_objects.Figure()
             The figure object with the plot.
-        frequency_units : str, optional
-            Frequency units that will be used in the plot title.
-            Default is rad/s.
+        frequency_type : str, optional
+            "wd" calculates de map for the damped natural frequencies.
+            "wn" calculates de map for the undamped natural frequencies.
+            Defaults is "wd".
+        title : str, optional
+            A brief title to the mode shape plot, it will be displayed above other
+            relevant data in the plot area. It does not modify the figure layout from
+            Plotly.
         length_units : str, optional
             length units.
             Default is 'm'.
+        frequency_units : str, optional
+            Frequency units that will be used in the plot title.
+            Default is rad/s.
         kwargs : optional
             Additional key word arguments can be passed to change the plot layout only
             (e.g. width=1000, height=800, ...).
@@ -801,6 +836,14 @@ class ModalResults(Results):
             fig = go.Figure()
 
         colors = dict(Backward="red", Mixed="black", Forward="blue")
+
+        # fmt: off
+        frequency = {
+            "wd":  f"ω<sub>d</sub> = {Q_(self.wd[mode], 'rad/s').to(frequency_units).m:.1f}",
+            "wn":  f"ω<sub>n</sub> = {Q_(self.wn[mode], 'rad/s').to(frequency_units).m:.1f}",
+            "speed": f"Speed = {Q_(self.speed, 'rad/s').to(frequency_units).m:.1f}",
+        }
+        # fmt: on
         whirl_dir = colors[self.whirl_direction()[mode]]
 
         fig.add_trace(
@@ -826,15 +869,21 @@ class ModalResults(Results):
             )
         )
 
+        if title is None:
+            title = ""
+
         fig.update_xaxes(title_text=f"Rotor Length ({length_units})")
         fig.update_yaxes(title_text="Relative Displacement")
         fig.update_layout(
             title=dict(
                 text=(
+                    f"{title}<br>"
                     f"Mode {mode + 1} | "
+                    f"{frequency['speed']} {frequency_units} | "
                     f"whirl: {self.whirl_direction()[mode]} | "
-                    f"ωn = {Q_(self.wn[mode], 'rad/s').to(frequency_units).m:.1f} {frequency_units} | "
-                    f"log dec = {self.log_dec[mode]:.1f}"
+                    f"{frequency[frequency_type]} {frequency_units} | "
+                    f"Log. Dec. = {self.log_dec[mode]:.1f} | "
+                    f"Damping ratio = {self.damping_ratio[mode]:.2f}"
                 )
             ),
             **kwargs,
