@@ -52,13 +52,6 @@ If you want to test the documentation locally:
 
 After that you can access your local server (http://0.0.0.0:8000/) and see the generated docs.
 
-Integrated development environment: PyCharm
--------------------------------------------
-The ROSS development team adopted PyCharm as integrated development environment (IDE).
-You don't need PyCharm to run or contribute to ROSS, as you can choose your preferred IDE or
-even no IDE at all. But in case you want to use PyCharm, go to the `PyCharm website
-<https://www.jetbrains.com/pycharm/>`_ to download and install it.
-
 How to contribute to ROSS using git
 -----------------------------------
 .. _git-configuration:
@@ -77,7 +70,7 @@ From the command line::
     cd ross
     git remote add upstream https://github.com/ross-rotordynamics/ross.git
 
-Step 2: Keep in sync with changes in Ross
+Step 2: Keep in sync with changes in ROSS
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 Setup your local repository, so it pulls from upstream by default::
 
