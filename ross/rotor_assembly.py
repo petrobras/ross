@@ -313,6 +313,11 @@ class Rotor(object):
         self.nodes = list(range(len(self.nodes_pos)))
         self.L = nodes_pos[-1]
 
+        if "n_link" in df.columns:
+            self.link_nodes = list(df["n_link"].dropna().unique().astype(int))
+        else:
+            self.link_nodes = []
+
         # rotor mass can also be calculated with self.M()[::4, ::4].sum()
         self.m_disks = np.sum([disk.m for disk in self.disk_elements])
         self.m_shaft = np.sum([sh_el.m for sh_el in self.shaft_elements])
@@ -2398,9 +2403,7 @@ class Rotor(object):
         """
         t_, yout, xout = self.time_response(speed, F, t)
 
-        results = TimeResponseResults(
-            t, yout, xout, self.nodes, self.nodes_pos, self.number_dof
-        )
+        results = TimeResponseResults(self, t, yout, xout)
 
         return results
 
