@@ -122,8 +122,7 @@ class Rotor(object):
     ):
 
         self.parameters = {"min_w": min_w, "max_w": max_w, "rated_w": rated_w}
-        if tag is None:
-            self.tag = "Rotor 0"
+        self.tag = "Rotor 0" if tag is None else tag
 
         ####################################################
         # Config attributes
