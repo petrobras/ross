@@ -138,6 +138,4 @@ def test_save_load_timeresponse(rotor1):
     assert response2.t.all() == response.t.all()
     assert response2.yout.all() == response.yout.all()
     assert response2.xout.all() == response.xout.all()
-    assert np.array(response2.nodes_list).all() == np.array(response.nodes_list).all()
-    assert np.array(response2.nodes_pos).all() == np.array(response.nodes_pos).all()
-    assert response2.number_dof == response.number_dof
+    assert response2.rotor == response.rotor

@@ -149,6 +149,7 @@ class Results(ABC):
             if key == "rotor":
                 aux_file = str(file)[:-5] + "_rotor" + str(file)[-5:]
                 from ross.rotor_assembly import Rotor
+
                 data[key] = Rotor.load(aux_file)
 
             elif isinstance(value, Iterable):
@@ -1498,15 +1499,29 @@ class FrequencyResponseResults(Results):
             inp, out, frequency_units, amplitude_units, None, **mag_kwargs
         )
         fig1 = self.plot_phase(
-            inp, out, frequency_units, amplitude_units, phase_units, None, **phase_kwargs
+            inp,
+            out,
+            frequency_units,
+            amplitude_units,
+            phase_units,
+            None,
+            **phase_kwargs,
         )
         fig2 = self.plot_polar_bode(
-            inp, out, frequency_units, amplitude_units, phase_units, None, **polar_kwargs
+            inp,
+            out,
+            frequency_units,
+            amplitude_units,
+            phase_units,
+            None,
+            **polar_kwargs,
         )
 
         if fig is None:
             fig = make_subplots(
-                rows=2, cols=2, specs=[[{}, {"type": "polar", "rowspan": 2}], [{}, None]]
+                rows=2,
+                cols=2,
+                specs=[[{}, {"type": "polar", "rowspan": 2}], [{}, None]],
             )
 
         for data in fig0["data"]:
@@ -2023,7 +2038,9 @@ class ForcedResponseResults(Results):
             major_axis_vector[3, :] = axis vector response for the input angle
             major_axis_vector[4, :] = phase response for the input angle
         """
-        number_dof = self.rotor.number_dof
+        ndof = self.rotor.number_dof
+        nodes = self.rotor.nodes
+        link_nodes = self.rotor.link_nodes
 
         unit_type = str(Q_(1, amplitude_units).dimensionality)
         try:
@@ -2034,8 +2051,10 @@ class ForcedResponseResults(Results):
             )
 
         major_axis_vector = np.zeros((5, len(self.speed_range)), dtype=complex)
-        dofx = number_dof * node
-        dofy = number_dof * node + 1
+
+        fix_dof = (node - nodes[-1] - 1) * ndof // 2 if node in link_nodes else 0
+        dofx = ndof * node - fix_dof
+        dofy = ndof * node + 1 - fix_dof
 
         # Relative angle between probes (90°)
         Rel_ang = np.exp(1j * np.pi / 2)
@@ -2111,7 +2130,7 @@ class ForcedResponseResults(Results):
             major_axis_vector[4, :] = absolute values for major axes vectors
         """
         nodes = self.rotor.nodes
-        number_dof = self.rotor.number_dof
+        ndof = self.rotor.number_dof
 
         major_axis_vector = np.zeros((5, len(nodes)), dtype=complex)
         idx = np.where(np.isclose(self.speed_range, speed, atol=1e-6))[0][0]
@@ -2125,8 +2144,8 @@ class ForcedResponseResults(Results):
             )
 
         for i, n in enumerate(nodes):
-            dofx = number_dof * n
-            dofy = number_dof * n + 1
+            dofx = ndof * n
+            dofy = ndof * n + 1
 
             # Relative angle between probes (90°)
             Rel_ang = np.exp(1j * np.pi / 2)
@@ -3507,18 +3526,14 @@ class TimeResponseResults(Results):
 
     Parameters
     ----------
+    rotor : Rotor.object
+        The Rotor object
     t : array
         Time values for the output.
     yout : array
         System response.
     xout : array
         Time evolution of the state vector.
-    nodes_list : array
-        list with nodes from a rotor model.
-    nodes_pos : array
-        Rotor nodes axial positions.
-    number_dof : int
-        Number of degrees of freedom per shaft element's node
 
     Returns
     -------
@@ -3526,13 +3541,11 @@ class TimeResponseResults(Results):
         The figure object with the plot.
     """
 
-    def __init__(self, t, yout, xout, nodes_list, nodes_pos, number_dof):
+    def __init__(self, rotor, t, yout, xout):
         self.t = t
         self.yout = yout
         self.xout = xout
-        self.nodes_list = nodes_list
-        self.nodes_pos = nodes_pos
-        self.number_dof = number_dof
+        self.rotor = rotor
 
     def plot_1d(
         self,
@@ -3578,12 +3591,18 @@ class TimeResponseResults(Results):
         fig : Plotly graph_objects.Figure()
             The figure object with the plot.
         """
+        nodes = self.rotor.nodes
+        link_nodes = self.rotor.link_nodes
+        ndof = self.rotor.number_dof
+
         if fig is None:
             fig = go.Figure()
 
         for i, p in enumerate(probe):
-            dofx = p[0] * self.number_dof
-            dofy = p[0] * self.number_dof + 1
+            fix_dof = (p[0] - nodes[-1] - 1) * ndof // 2 if p[0] in link_nodes else 0
+            dofx = ndof * p[0] - fix_dof
+            dofy = ndof * p[0] + 1 - fix_dof
+
             angle = Q_(p[1], probe_units).to("rad").m
 
             # fmt: off
@@ -3648,19 +3667,23 @@ class TimeResponseResults(Results):
         fig : Plotly graph_objects.Figure()
             The figure object with the plot.
         """
+        nodes = self.rotor.nodes
+        link_nodes = self.rotor.link_nodes
+        ndof = self.rotor.number_dof
+
+        fix_dof = (node - nodes[-1] - 1) * ndof // 2 if node in link_nodes else 0
+        dofx = ndof * node - fix_dof
+        dofy = ndof * node + 1 - fix_dof
+
         if fig is None:
             fig = go.Figure()
 
         fig.add_trace(
             go.Scatter(
-                x=Q_(self.yout[:, self.number_dof * node], "m")
-                .to(displacement_units)
-                .m,
-                y=Q_(self.yout[:, self.number_dof * node + 1], "m")
-                .to(displacement_units)
-                .m,
+                x=Q_(self.yout[:, dofx], "m").to(displacement_units).m,
+                y=Q_(self.yout[:, dofy], "m").to(displacement_units).m,
                 mode="lines",
-                name=f"Orbit",
+                name="Orbit",
                 legendgroup="Orbit",
                 showlegend=False,
                 hovertemplate=(
@@ -3704,20 +3727,20 @@ class TimeResponseResults(Results):
         fig : Plotly graph_objects.Figure()
             The figure object with the plot.
         """
+        nodes_pos = self.rotor.nodes_pos
+        nodes = self.rotor.nodes
+        ndof = self.rotor.number_dof
+
         if fig is None:
             fig = go.Figure()
 
-        for n in self.nodes_list:
-            x_pos = np.ones(self.yout.shape[0]) * self.nodes_pos[n]
+        for n in nodes:
+            x_pos = np.ones(self.yout.shape[0]) * nodes_pos[n]
             fig.add_trace(
                 go.Scatter3d(
                     x=Q_(x_pos, "m").to(rotor_length_units).m,
-                    y=Q_(self.yout[:, self.number_dof * n], "m")
-                    .to(displacement_units)
-                    .m,
-                    z=Q_(self.yout[:, self.number_dof * n + 1], "m")
-                    .to(displacement_units)
-                    .m,
+                    y=Q_(self.yout[:, ndof * n], "m").to(displacement_units).m,
+                    z=Q_(self.yout[:, ndof * n + 1], "m").to(displacement_units).m,
                     mode="lines",
                     line=dict(color=tableau_colors["blue"]),
                     name="Mean",
@@ -3731,11 +3754,11 @@ class TimeResponseResults(Results):
             )
 
         # plot center line
-        line = np.zeros(len(self.nodes_pos))
+        line = np.zeros(len(nodes_pos))
 
         fig.add_trace(
             go.Scatter3d(
-                x=Q_(self.nodes_pos, "m").to(rotor_length_units).m,
+                x=Q_(nodes_pos, "m").to(rotor_length_units).m,
                 y=line,
                 z=line,
                 mode="lines",
