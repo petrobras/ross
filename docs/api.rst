@@ -21,6 +21,11 @@ Elements
     DiskElement
     BearingElement
     SealElement
+    BallBearingElement
+    RollerBearingElement
+    BearingFluidFlow
+    BearingElement6DoF
+    MagneticBearingElement
 
 Rotor
 -------
