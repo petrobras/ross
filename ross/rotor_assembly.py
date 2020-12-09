@@ -2399,9 +2399,7 @@ class Rotor(object):
         """
         t_, yout, xout = self.time_response(speed, F, t)
 
-        results = TimeResponseResults(
-            t, yout, xout, self.nodes, self.nodes_pos, self.number_dof
-        )
+        results = TimeResponseResults(self, t, yout, xout)
 
         return results
 
