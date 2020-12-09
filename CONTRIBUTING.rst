@@ -37,18 +37,18 @@ If you want to test the documentation locally:
 
 - Install `pandoc <https://pandoc.org/installing.html>`_, which is needed to convert the notebook files;
 
-- Clone the ross-website to ``~/ross-website/html``::
+- Clone the ross-website to ``<some-path>/ross-website/html``::
 
-    $ git clone https://github.com/ross-rotordynamics/ross-website ~/ross-website/html
+    git clone https://github.com/ross-rotordynamics/ross-website <some-path>/ross-website/html
 
-- From the docs source directory <~/ross/docs/> run sphinx::
+- From the docs source directory </ross/docs/> run sphinx::
 
-    $ make html BUILDDIR=~/ross-website
+    make html BUILDDIR=<some-path>/ross-website
 
 - Go to the builddir and run a html server::
 
-    $ cd ~/ross-website/html
-    $ python -m http.server
+    cd <some-path>/ross-website/html
+    python -m http.server
 
 After that you can access your local server (http://0.0.0.0:8000/) and see the generated docs.
 
