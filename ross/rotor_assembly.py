@@ -1347,17 +1347,14 @@ class Rotor(object):
         This method returns the frequency response for a mdof system given a range of
         frequencies and the modes that will be used.
 
-        General parameters
-        ------------------
+        Parameters
+        ----------
         speed_range : array, optional
             Array with the desired range of frequencies.
             Default is 0 to 1.5 x highest damped natural frequency.
         modes : list, optional
             Modes that will be used to calculate the frequency response
             (all modes will be used if a list is not given).
-
-        Frequency spacing parameters
-        ----------------------------
         cluster_points : bool, optional
             boolean to activate the automatic frequency spacing method. If True, the
             method uses _clustering_points() to create an speed_range.
@@ -1393,7 +1390,7 @@ class Rotor(object):
         >>> rotor = rotor_example()
         >>> speed = np.linspace(0, 1000, 101)
         >>> response = rotor.run_freq_response(speed_range=speed)
-        >>> response.magnitude # doctest: +ELLIPSIS
+        >>> abs(response.freq_resp) # doctest: +ELLIPSIS
         array([[[1.00000000e-06, 1.00261725e-06, 1.01076952e-06, ...
 
         Using clustered points option.
@@ -1406,6 +1403,15 @@ class Rotor(object):
 
         # plot frequency response function:
         >>> fig = response.plot(inp=13, out=13)
+
+        To plot velocity and acceleration responses, you must change amplitude_units
+        from "[length]/[force]" units to "[speed]/[force]" or "[acceleration]/[force]"
+        respectively
+        >>> # Plotting velocity response
+        >>> fig = response.plot(inp=13, out=13, amplitude_units="m/s/N")
+
+        >>> # Plotting acceleration response
+        >>> fig = response.plot(inp=13, out=13, amplitude_units="m/s**2/N")
         """
         if speed_range is None:
             if not cluster_points:
@@ -1419,16 +1425,21 @@ class Rotor(object):
         self._check_frequency_array(speed_range)
 
         freq_resp = np.empty((self.ndof, self.ndof, len(speed_range)), dtype=np.complex)
+        velc_resp = np.empty((self.ndof, self.ndof, len(speed_range)), dtype=np.complex)
+        accl_resp = np.empty((self.ndof, self.ndof, len(speed_range)), dtype=np.complex)
 
         for i, speed in enumerate(speed_range):
             H = self.transfer_matrix(speed=speed, modes=modes)
             freq_resp[..., i] = H
+            velc_resp[..., i] = 1j * speed * H
+            accl_resp[..., i] = - speed ** 2 * H
 
         results = FrequencyResponseResults(
             freq_resp=freq_resp,
+            velc_resp=velc_resp,
+            accl_resp=accl_resp,
             speed_range=speed_range,
-            magnitude=abs(freq_resp),
-            phase=np.angle(freq_resp),
+            number_dof=self.number_dof,
         )
 
         return results
@@ -1464,9 +1475,6 @@ class Rotor(object):
             with deflected shape. This argument is set only if running an unbalance
             response analysis.
             Default is None.
-
-        Frequency spacing parameters
-        ----------------------------
         cluster_points : bool, optional
             boolean to activate the automatic frequency spacing method. If True, the
             method uses _clustering_points() to create an speed_range.
@@ -1491,14 +1499,14 @@ class Rotor(object):
 
         Returns
         -------
-        force_resp : array
+        forced_resp : array
             Array with the force response for each node for each frequency
         speed_range : array
             Array with the frequencies
-        magnitude : array
-            Magnitude (dB) of the frequency response for node for each frequency
-        phase : array
-            Phase of the frequency response for node for each frequency
+        velc_resp : array
+            Array with the velocity response for each node for each frequency
+        accl_resp : array
+            Array with the acceleration response for each node for each frequency
 
         Examples
         --------
@@ -1506,7 +1514,7 @@ class Rotor(object):
         >>> speed = np.linspace(0, 1000, 101)
         >>> force = rotor._unbalance_force(3, 10.0, 0.0, speed)
         >>> resp = rotor.forced_response(force=force, speed_range=speed)
-        >>> resp.magnitude # doctest: +ELLIPSIS
+        >>> abs(resp.forced_resp) # doctest: +ELLIPSIS
         array([[0.00000000e+00, 5.06073311e-04, 2.10044826e-03, ...
 
         Using clustered points option.
@@ -1532,16 +1540,24 @@ class Rotor(object):
         forced_resp = np.zeros(
             (self.ndof, len(freq_resp.speed_range)), dtype=np.complex
         )
+        velc_resp = np.zeros(
+            (self.ndof, len(freq_resp.speed_range)), dtype=np.complex
+        )
+        accl_resp = np.zeros(
+            (self.ndof, len(freq_resp.speed_range)), dtype=np.complex
+        )
 
         for i in range(len(freq_resp.speed_range)):
             forced_resp[:, i] = freq_resp.freq_resp[..., i] @ force[..., i]
+            velc_resp[:, i] = freq_resp.velc_resp[..., i] @ force[..., i]
+            accl_resp[:, i] = freq_resp.accl_resp[..., i] @ force[..., i]
 
         forced_resp = ForcedResponseResults(
             rotor=self,
             forced_resp=forced_resp,
+            velc_resp=velc_resp,
+            accl_resp=accl_resp,
             speed_range=speed_range,
-            magnitude=abs(forced_resp),
-            phase=np.angle(forced_resp),
             unbalance=unbalance,
         )
 
@@ -1623,9 +1639,6 @@ class Rotor(object):
         modes : list, optional
             Modes that will be used to calculate the frequency response
             (all modes will be used if a list is not given).
-
-        Frequency spacing parameters
-        ----------------------------
         cluster_points : bool, optional
             boolean to activate the automatic frequency spacing method. If True, the
             method uses _clustering_points() to create an speed_range.
@@ -1650,16 +1663,14 @@ class Rotor(object):
 
         Returns
         -------
-        force_resp : array
-            Array with the force response for each node for each frequency
+        forced_resp : array
+            Array with the forced response for each node for each frequency
         speed_range : array
             Array with the frequencies
-        magdb : array
-            Magnitude (dB) of the frequency response for each pair input/output.
-            The order of the array is: [output, input, magnitude]
-        phase : array
-            Phase of the frequency response for each pair input/output.
-            The order of the array is: [output, input, phase]
+        velc_resp : array
+            Array with the velocity response for each node for each frequency
+        accl_resp : array
+            Array with the acceleration response for each node for each frequency
 
         Examples
         --------
@@ -1670,7 +1681,7 @@ class Rotor(object):
         ...                                         unbalance_magnitude=10.0,
         ...                                         unbalance_phase=0.0,
         ...                                         frequency=speed)
-        >>> response.magnitude # doctest: +ELLIPSIS
+        >>> abs(response.forced_resp) # doctest: +ELLIPSIS
         array([[0.00000000e+00, 5.06073311e-04, 2.10044826e-03, ...
 
         Using clustered points option.
@@ -1686,20 +1697,29 @@ class Rotor(object):
         plot unbalance response:
         >>> probe_node = 3
         >>> probe_angle = np.pi / 2
-        >>> probe_tag = "my_probe"  # Tag is optional
+        >>> probe_tag = "my_probe"  # optional
         >>> fig = response.plot(probe=[(probe_node, probe_angle, probe_tag)])
 
-        plot response for major axis:
+        plot response for major or minor axis:
         >>> probe_node = 3
         >>> probe_angle = "major"   # for major axis
+        >>> # probe_angle = "minor" # for minor axis
         >>> probe_tag = "my_probe"  # optional
         >>> fig = response.plot(probe=[(probe_node, probe_angle, probe_tag)])
 
-        plot response for minor axis:
-        >>> probe_node = 3
-        >>> probe_angle = "minor"   # for minor axis
-        >>> probe_tag = "my_probe"  # optional
-        >>> fig = response.plot(probe=[(probe_node, probe_angle, probe_tag)])
+        To plot velocity and acceleration responses, you must change amplitude_units
+        from "[length]" units to "[length]/[time]" or "[length]/[time] ** 2" respectively
+        >>> # Plotting velocity response
+        >>> fig = response.plot(
+        ...     probe=[(probe_node, probe_angle, probe_tag)],
+        ...     amplitude_units="m/s"
+        ... )
+
+        >>> # Plotting acceleration response
+        >>> fig = response.plot(
+        ...     probe=[(probe_node, probe_angle, probe_tag)],
+        ...     amplitude_units="m/s"
+        ... )
 
         plot deflected shape configuration
         >>> value = 600

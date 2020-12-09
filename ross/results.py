@@ -138,7 +138,7 @@ class Results(ABC):
 
         >>> # Loading file
         >>> results2 = rs.ForcedResponseResults.load(file)
-        >>> results2.magnitude.all() == results.magnitude.all()
+        >>> abs(results2.forced_resp).all() == abs(results.forced_resp).all()
         True
         """
         str_type = [np.dtype(f"<U4{i}") for i in range(10)]
@@ -1022,15 +1022,15 @@ class FrequencyResponseResults(Results):
     Parameters
     ----------
     freq_resp : array
-        Array with the transfer matrix
+        Array with the frequency response (displacement).
+    velc_resp : array
+        Array with the frequency response (velocity).
+    accl_resp : array
+        Array with the frequency response (acceleration).
     speed_range : array
         Array with the speed range in rad/s.
-    magnitude : array
-        Array with the frequencies, magnitude (dB) of the frequency
-        response for each pair input/output
-    phase : array
-        Array with the frequencies, phase of the frequency
-        response for each pair input/output
+    number_dof : int
+        Number of degrees of freedom per node
 
     Returns
     -------
@@ -1038,11 +1038,17 @@ class FrequencyResponseResults(Results):
         Plotly figure with Amplitude vs Frequency and Phase vs Frequency plots.
     """
 
-    def __init__(self, freq_resp, speed_range, magnitude, phase):
+    def __init__(self, freq_resp, velc_resp, accl_resp, speed_range, number_dof):
         self.freq_resp = freq_resp
+        self.velc_resp = velc_resp
+        self.accl_resp = accl_resp
         self.speed_range = speed_range
-        self.magnitude = magnitude
-        self.phase = phase
+        self.number_dof = number_dof
+
+        if self.number_dof == 4:
+            self.dof_dict = {"0": "x", "1": "y", "2": "α", "3": "β"}
+        elif self.number_dof == 6:
+            self.dof_dict = {"0": "x", "1": "y", "2": "z", "4": "α", "5": "β", "6": "θ"}
 
     def plot_magnitude(
         self,
@@ -1057,6 +1063,10 @@ class FrequencyResponseResults(Results):
 
         This method plots the frequency response magnitude given an output and
         an input using Plotly.
+        It is possible to plot displacement, velocity and accelaration responses,
+        depending on the unit entered in 'amplitude_units'. If '[length]/[force]',
+        it displays the displacement; If '[speed]/[force]', it displays the velocity;
+        If '[acceleration]/[force]', it displays the acceleration.
 
         Parameters
         ----------
@@ -1069,8 +1079,12 @@ class FrequencyResponseResults(Results):
             Default is "rad/s"
         amplitude_units : str, optional
             Units for the y axis.
+            Acceptable units are:
+                '[length]/[force]' - Displays the displacement;
+                '[speed]/[force]' - Displays the velocity;
+                '[acceleration]/[force]' - Displays the acceleration.
             Default is "m/N" 0 to peak.
-            To use peak to peak use the prefix 'pkpk_' (e.g. pkpk_m)
+            To use peak to peak use the prefix 'pkpk_' (e.g. pkpk_m/N)
         fig : Plotly graph_objects.Figure()
             The figure object with the plot.
         mag_kwargs : optional
@@ -1083,24 +1097,44 @@ class FrequencyResponseResults(Results):
         fig : Plotly graph_objects.Figure()
             The figure object with the plot.
         """
-        frequency_range = self.speed_range
-        mag = self.magnitude
+        inpn = inp // self.number_dof
+        idof = self.dof_dict[str(inp % self.number_dof)]
+        outn = out // self.number_dof
+        odof = self.dof_dict[str(out % self.number_dof)]
 
-        frequency_range = Q_(frequency_range, "rad/s").to(frequency_units).m
-        mag = Q_(mag, "m/N").to(amplitude_units).m
+        frequency_range = Q_(self.speed_range, "rad/s").to(frequency_units).m
+
+        dummy_var = Q_(1, amplitude_units)
+        if dummy_var.check("[length]/[force]"):
+            mag = np.abs(self.freq_resp)
+            mag = Q_(mag, "m/N").to(amplitude_units).m
+            y_label = "Displacement"
+        elif dummy_var.check("[speed]/[force]"):
+            mag = np.abs(self.velc_resp)
+            mag = Q_(mag, "m/s/N").to(amplitude_units).m
+            y_label = "Velocity"
+        elif dummy_var.check("[acceleration]/[force]"):
+            mag = np.abs(self.accl_resp)
+            mag = Q_(mag, "m/s**2/N").to(amplitude_units).m
+            y_label = "Acceleration"
+        else:
+            raise ValueError(
+                "Not supported unit. Options are '[length]/[force]', '[speed]/[force]', '[acceleration]/[force]'"
+            )
 
         if fig is None:
             fig = go.Figure()
+        idx = len(fig.data)
 
         fig.add_trace(
             go.Scatter(
                 x=frequency_range,
                 y=mag[inp, out, :],
                 mode="lines",
-                line=dict(color=tableau_colors["blue"]),
-                name="Amplitude",
-                legendgroup="Amplitude",
-                showlegend=False,
+                line=dict(color=list(tableau_colors)[idx]),
+                name=f"inp: node {inpn} | dof: {idof}<br>out: node {outn} | dof: {odof}",
+                legendgroup=f"inp: node {inpn} | dof: {idof}<br>out: node {outn} | dof: {odof}",
+                showlegend=True,
                 hovertemplate=f"Frequency ({frequency_units}): %{{x:.2f}}<br>Amplitude ({amplitude_units}): %{{y:.2e}}",
             )
         )
@@ -1109,7 +1143,7 @@ class FrequencyResponseResults(Results):
             title_text=f"Frequency ({frequency_units})",
             range=[np.min(frequency_range), np.max(frequency_range)],
         )
-        fig.update_yaxes(title_text=f"Amplitude ({amplitude_units})")
+        fig.update_yaxes(title_text=f"{y_label} ({amplitude_units})")
         fig.update_layout(**mag_kwargs)
 
         return fig
@@ -1119,6 +1153,7 @@ class FrequencyResponseResults(Results):
         inp,
         out,
         frequency_units="rad/s",
+        amplitude_units="m/N",
         phase_units="rad",
         fig=None,
         **phase_kwargs,
@@ -1137,6 +1172,14 @@ class FrequencyResponseResults(Results):
         frequency_units : str, optional
             Units for the x axis.
             Default is "rad/s"
+        amplitude_units : str, optional
+            Units for the y axis.
+            Acceptable units are:
+                '[length]/[force]' - Displays the displacement;
+                '[speed]/[force]' - Displays the velocity;
+                '[acceleration]/[force]' - Displays the acceleration.
+            Default is "m/N" 0 to peak.
+            To use peak to peak use the prefix 'pkpk_' (e.g. pkpk_m/N)
         phase_units : str, optional
             Units for the x axis.
             Default is "rad"
@@ -1152,10 +1195,25 @@ class FrequencyResponseResults(Results):
         fig : Plotly graph_objects.Figure()
             The figure object with the plot.
         """
-        frequency_range = self.speed_range
-        phase = self.phase[inp, out, :]
+        inpn = inp // self.number_dof
+        idof = self.dof_dict[str(inp % self.number_dof)]
+        outn = out // self.number_dof
+        odof = self.dof_dict[str(out % self.number_dof)]
 
-        frequency_range = Q_(frequency_range, "rad/s").to(frequency_units).m
+        frequency_range = Q_(self.speed_range, "rad/s").to(frequency_units).m
+
+        dummy_var = Q_(1, amplitude_units)
+        if dummy_var.check("[length]/[force]"):
+            phase = np.angle(self.freq_resp[inp, out, :])
+        elif dummy_var.check("[speed]/[force]"):
+            phase = np.angle(self.velc_resp[inp, out, :])
+        elif dummy_var.check("[acceleration]/[force]"):
+            phase = np.angle(self.accl_resp[inp, out, :])
+        else:
+            raise ValueError(
+                "Not supported unit. Options are '[length]/[force]', '[speed]/[force]', '[acceleration]/[force]'"
+            )
+
         phase = Q_(phase, "rad").to(phase_units).m
 
         if phase_units in ["rad", "radian", "radians"]:
@@ -1166,15 +1224,16 @@ class FrequencyResponseResults(Results):
         if fig is None:
             fig = go.Figure()
 
+        idx = len(fig.data)
         fig.add_trace(
             go.Scatter(
                 x=frequency_range,
                 y=phase,
                 mode="lines",
-                line=dict(color=tableau_colors["blue"]),
-                name="Phase",
-                legendgroup="Phase",
-                showlegend=False,
+                line=dict(color=list(tableau_colors)[idx]),
+                name=f"inp: node {inpn} | dof: {idof}<br>out: node {outn} | dof: {odof}",
+                legendgroup=f"inp: node {inpn} | dof: {idof}<br>out: node {outn} | dof: {odof}",
+                showlegend=True,
                 hovertemplate=f"Frequency ({frequency_units}): %{{x:.2f}}<br>Phase: %{{y:.2e}}",
             )
         )
@@ -1202,6 +1261,10 @@ class FrequencyResponseResults(Results):
 
         This method plots the frequency response (polar graph) given an output and
         an input using Plotly.
+        It is possible to plot displacement, velocity and accelaration responses,
+        depending on the unit entered in 'amplitude_units'. If '[length]/[force]',
+        it displays the displacement; If '[speed]/[force]', it displays the velocity;
+        If '[acceleration]/[force]', it displays the acceleration.
 
         Parameters
         ----------
@@ -1214,8 +1277,12 @@ class FrequencyResponseResults(Results):
             Default is "rad/s"
         amplitude_units : str, optional
             Units for the y axis.
+            Acceptable units are:
+                '[length]/[force]' - Displays the displacement;
+                '[speed]/[force]' - Displays the velocity;
+                '[acceleration]/[force]' - Displays the acceleration.
             Default is "m/N" 0 to peak.
-            To use peak to peak use the prefix 'pkpk_' (e.g. pkpk_m)
+            To use peak to peak use the prefix 'pkpk_' (e.g. pkpk_m/N)
         phase_units : str, optional
             Units for the x axis.
             Default is "rad"
@@ -1231,16 +1298,35 @@ class FrequencyResponseResults(Results):
         fig : Plotly graph_objects.Figure()
             The figure object with the plot.
         """
-        frequency_range = self.speed_range
-        mag = self.magnitude[inp, out, :]
-        phase = self.phase[inp, out, :]
+        inpn = inp // self.number_dof
+        idof = self.dof_dict[str(inp % self.number_dof)]
+        outn = out // self.number_dof
+        odof = self.dof_dict[str(out % self.number_dof)]
 
-        frequency_range = Q_(frequency_range, "rad/s").to(frequency_units).m
-        mag = Q_(mag, "m/N").to(amplitude_units).m
+        frequency_range = Q_(self.speed_range, "rad/s").to(frequency_units).m
+
+        dummy_var = Q_(1, amplitude_units)
+        if dummy_var.check("[length]/[force]"):
+            mag = np.abs(self.freq_resp[inp, out, :])
+            mag = Q_(mag, "m/N").to(amplitude_units).m
+            phase = np.angle(self.freq_resp[inp, out, :])
+            y_label = "Displacement"
+        elif dummy_var.check("[speed]/[force]"):
+            mag = np.abs(self.velc_resp[inp, out, :])
+            mag = Q_(mag, "m/s/N").to(amplitude_units).m
+            phase = np.angle(self.velc_resp[inp, out, :])
+            y_label = "Velocity"
+        elif dummy_var.check("[acceleration]/[force]"):
+            mag = np.abs(self.accl_resp[inp, out, :])
+            mag = Q_(mag, "m/s**2/N").to(amplitude_units).m
+            phase = np.angle(self.accl_resp[inp, out, :])
+            y_label = "Acceleration"
+        else:
+            raise ValueError(
+                "Not supported unit. Options are '[length]/[force]', '[speed]/[force]', '[acceleration]/[force]'"
+            )
+
         phase = Q_(phase, "rad").to(phase_units).m
-
-        if fig is None:
-            fig = go.Figure()
 
         if phase_units in ["rad", "radian", "radians"]:
             polar_theta_unit = "radians"
@@ -1249,6 +1335,10 @@ class FrequencyResponseResults(Results):
             polar_theta_unit = "degrees"
             phase = [i + 360 if i < 0 else i for i in phase]
 
+        if fig is None:
+            fig = go.Figure()
+        idx = len(fig.data)
+
         fig.add_trace(
             go.Scatterpolar(
                 r=mag,
@@ -1256,11 +1346,11 @@ class FrequencyResponseResults(Results):
                 customdata=frequency_range,
                 thetaunit=polar_theta_unit,
                 mode="lines+markers",
-                marker=dict(color=tableau_colors["blue"]),
-                line=dict(color=tableau_colors["blue"]),
-                name="Polar_plot",
-                legendgroup="Polar",
-                showlegend=False,
+                marker=dict(color=list(tableau_colors)[idx]),
+                line=dict(color=list(tableau_colors)[idx]),
+                name=f"inp: node {inpn} | dof: {idof}<br>out: node {outn} | dof: {odof}",
+                legendgroup=f"inp: node {inpn} | dof: {idof}<br>out: node {outn} | dof: {odof}",
+                showlegend=True,
                 hovertemplate=f"Amplitude ({amplitude_units}): %{{r:.2e}}<br>Phase: %{{theta:.2f}}<br>Frequency ({frequency_units}): %{{customdata:.2f}}",
             )
         )
@@ -1268,7 +1358,7 @@ class FrequencyResponseResults(Results):
         fig.update_layout(
             polar=dict(
                 radialaxis=dict(
-                    title=dict(text=f"Amplitude ({amplitude_units})"),
+                    title=dict(text=f"{y_label} ({amplitude_units})"),
                     exponentformat="power",
                 ),
                 angularaxis=dict(thetaunit=polar_theta_unit),
@@ -1285,10 +1375,11 @@ class FrequencyResponseResults(Results):
         frequency_units="rad/s",
         amplitude_units="m/N",
         phase_units="rad",
+        fig=None,
         mag_kwargs=None,
         phase_kwargs=None,
         polar_kwargs=None,
-        subplot_kwargs=None,
+        fig_kwargs=None,
     ):
         """Plot frequency response.
 
@@ -1299,6 +1390,11 @@ class FrequencyResponseResults(Results):
             - Frequency vs Amplitude;
             - Frequency vs Phase Angle;
             - Polar plot Amplitude vs Phase Angle;
+
+        Amplitude can be displacement, velocity or accelaration responses,
+        depending on the unit entered in 'amplitude_units'. If '[length]/[force]',
+        it displays the displacement; If '[speed]/[force]', it displays the velocity;
+        If '[acceleration]/[force]', it displays the acceleration.
 
         Parameters
         ----------
@@ -1311,8 +1407,12 @@ class FrequencyResponseResults(Results):
             Default is "rad/s"
         amplitude_units : str, optional
             Units for the y axis.
+            Acceptable units are:
+                '[length]/[force]' - Displays the displacement;
+                '[speed]/[force]' - Displays the velocity;
+                '[acceleration]/[force]' - Displays the acceleration.
             Default is "m/N" 0 to peak.
-            To use peak to peak use the prefix 'pkpk_' (e.g. pkpk_m)
+            To use peak to peak use the prefix 'pkpk_' (e.g. pkpk_m/N)
         phase_units : str, optional
             Units for the x axis.
             Default is "rad"
@@ -1328,7 +1428,7 @@ class FrequencyResponseResults(Results):
             Additional key word arguments can be passed to change the polar plot
             layout only (e.g. width=1000, height=800, ...).
             *See Plotly Python Figure Reference for more information.
-        subplot_kwargs : optional
+        fig_kwargs : optional
             Additional key word arguments can be passed to change the plot layout only
             (e.g. width=1000, height=800, ...). This kwargs override "mag_kwargs",
             "phase_kwargs" and "polar_kwargs" dictionaries.
@@ -1343,39 +1443,45 @@ class FrequencyResponseResults(Results):
         mag_kwargs = {} if mag_kwargs is None else copy.copy(mag_kwargs)
         phase_kwargs = {} if phase_kwargs is None else copy.copy(phase_kwargs)
         polar_kwargs = {} if polar_kwargs is None else copy.copy(polar_kwargs)
-        subplot_kwargs = {} if subplot_kwargs is None else copy.copy(subplot_kwargs)
+        fig_kwargs = {} if fig_kwargs is None else copy.copy(fig_kwargs)
 
         fig0 = self.plot_magnitude(
-            inp, out, frequency_units, amplitude_units, **mag_kwargs
+            inp, out, frequency_units, amplitude_units, None, **mag_kwargs
         )
-        fig1 = self.plot_phase(inp, out, frequency_units, phase_units, **phase_kwargs)
+        fig1 = self.plot_phase(
+            inp, out, frequency_units, amplitude_units, phase_units, None, **phase_kwargs
+        )
         fig2 = self.plot_polar_bode(
-            inp, out, frequency_units, amplitude_units, phase_units, **polar_kwargs
+            inp, out, frequency_units, amplitude_units, phase_units, None, **polar_kwargs
         )
 
-        subplots = make_subplots(
-            rows=2, cols=2, specs=[[{}, {"type": "polar", "rowspan": 2}], [{}, None]]
-        )
+        if fig is None:
+            fig = make_subplots(
+                rows=2, cols=2, specs=[[{}, {"type": "polar", "rowspan": 2}], [{}, None]]
+            )
+
         for data in fig0["data"]:
-            subplots.add_trace(data, row=1, col=1)
+            fig.add_trace(data, row=1, col=1)
         for data in fig1["data"]:
-            subplots.add_trace(data, row=2, col=1)
+            data.showlegend = False
+            fig.add_trace(data, row=2, col=1)
         for data in fig2["data"]:
-            subplots.add_trace(data, row=1, col=2)
+            data.showlegend = False
+            fig.add_trace(data, row=1, col=2)
 
-        subplots.update_xaxes(fig0.layout.xaxis, row=1, col=1)
-        subplots.update_yaxes(fig0.layout.yaxis, row=1, col=1)
-        subplots.update_xaxes(fig1.layout.xaxis, row=2, col=1)
-        subplots.update_yaxes(fig1.layout.yaxis, row=2, col=1)
-        subplots.update_layout(
+        fig.update_xaxes(fig0.layout.xaxis, row=1, col=1)
+        fig.update_yaxes(fig0.layout.yaxis, row=1, col=1)
+        fig.update_xaxes(fig1.layout.xaxis, row=2, col=1)
+        fig.update_yaxes(fig1.layout.yaxis, row=2, col=1)
+        fig.update_layout(
             polar=dict(
                 radialaxis=fig2.layout.polar.radialaxis,
                 angularaxis=fig2.layout.polar.angularaxis,
             ),
-            **subplot_kwargs,
+            **fig_kwargs,
         )
 
-        return subplots
+        return fig
 
 
 class ForcedResponseResults(Results):
@@ -1386,13 +1492,13 @@ class ForcedResponseResults(Results):
     rotor : ross.Rotor object
         The Rotor object
     force_resp : array
-        Array with the force response for each node for each frequency.
+        Array with the forced response (displacement) for each node for each frequency.
+    velc_resp : array
+        Array with the forced response (velocity) for each node for each frequency.
+    accl_resp : array
+        Array with the forced response (acceleration) for each node for each frequency.
     speed_range : array
         Array with the frequencies.
-    magnitude : array
-        Magnitude (dB) of the frequency response for node for each frequency.
-    phase : array
-        Phase of the frequency response for node for each frequency.
     unbalance : array, optional
         Array with the unbalance data (node, magnitude and phase) to be plotted
         with deflected shape. This argument is set only if running an unbalance
@@ -1406,14 +1512,20 @@ class ForcedResponseResults(Results):
     """
 
     def __init__(
-        self, rotor, forced_resp, speed_range, magnitude, phase, unbalance=None
+        self, rotor, forced_resp, velc_resp, accl_resp, speed_range, unbalance=None
     ):
         self.rotor = rotor
         self.forced_resp = forced_resp
+        self.velc_resp = velc_resp
+        self.accl_resp = accl_resp
         self.speed_range = speed_range
-        self.magnitude = magnitude
-        self.phase = phase
         self.unbalance = unbalance
+
+        self.default_units = {
+            "[length]": ["m", "forced_resp"],
+            "[length] / [time]": ["m/s", "velc_resp"],
+            "[length] / [time] ** 2": ["m/s**2", "accl_resp"],
+        }
 
     def plot_magnitude(
         self,
@@ -1444,6 +1556,10 @@ class ForcedResponseResults(Results):
             Default is "rad/s"
         amplitude_units : str, optional
             Units for the y axis.
+            Acceptable units dimensionality are:
+                '[length]' - Displays the displacement;
+                '[speed]' - Displays the velocity;
+                '[acceleration]' - Displays the acceleration.
             Default is "m" 0 to peak.
             To use peak to peak use the prefix 'pkpk_' (e.g. pkpk_m)
         fig : Plotly graph_objects.Figure()
@@ -1460,12 +1576,22 @@ class ForcedResponseResults(Results):
         """
         frequency_range = Q_(self.speed_range, "rad/s").to(frequency_units).m
 
+        unit_type = str(Q_(1, amplitude_units).dimensionality)
+        try:
+            base_unit = self.default_units[unit_type][0]
+        except KeyError:
+            raise ValueError(
+                "Not supported unit. Dimensionality options are '[length]', '[speed]', '[acceleration]'"
+            )
+
         if fig is None:
             fig = go.Figure()
 
         for i, p in enumerate(probe):
             angle = Q_(p[1], probe_units).to("rad").m
-            vector = self._calculate_major_axis_per_node(node=p[0], angle=angle)
+            vector = self._calculate_major_axis_per_node(
+                node=p[0], angle=angle, amplitude_units=amplitude_units
+            )[3]
             try:
                 probe_tag = p[2]
             except IndexError:
@@ -1474,7 +1600,7 @@ class ForcedResponseResults(Results):
             fig.add_trace(
                 go.Scatter(
                     x=frequency_range,
-                    y=Q_(np.abs(vector[3]), "m").to(amplitude_units).m,
+                    y=Q_(np.abs(vector), base_unit).to(amplitude_units).m,
                     mode="lines",
                     line=dict(color=list(tableau_colors)[i]),
                     name=probe_tag,
@@ -1500,6 +1626,7 @@ class ForcedResponseResults(Results):
         probe,
         probe_units="rad",
         frequency_units="rad/s",
+        amplitude_units="m",
         phase_units="rad",
         fig=None,
         **kwargs,
@@ -1522,6 +1649,14 @@ class ForcedResponseResults(Results):
         frequency_units : str, optional
             Units for the x axis.
             Default is "rad/s"
+        amplitude_units : str, optional
+            Units for the y axis.
+            Acceptable units dimensionality are:
+                '[length]' - Displays the displacement;
+                '[speed]' - Displays the velocity;
+                '[acceleration]' - Displays the acceleration.
+            Default is "m" 0 to peak.
+            To use peak to peak use the prefix 'pkpk_' (e.g. pkpk_m)
         phase_units : str, optional
             Units for the x axis.
             Default is "rad"
@@ -1538,16 +1673,17 @@ class ForcedResponseResults(Results):
             The figure object with the plot.
         """
         frequency_range = Q_(self.speed_range, "rad/s").to(frequency_units).m
-        number_dof = self.rotor.number_dof
 
         if fig is None:
             fig = go.Figure()
 
         for i, p in enumerate(probe):
             angle = Q_(p[1], probe_units).to("rad").m
-            vector = self._calculate_major_axis_per_node(node=p[0], angle=angle)
+            vector = self._calculate_major_axis_per_node(
+                node=p[0], angle=angle, amplitude_units=amplitude_units
+            )[4]
 
-            probe_phase = self.phase[p[0] * number_dof] - np.real(vector[2])
+            probe_phase = np.real(vector)
             probe_phase = np.array([i + 2 * np.pi if i < 0 else i for i in probe_phase])
             probe_phase = Q_(probe_phase, "rad").to(phase_units).m
 
@@ -1608,6 +1744,10 @@ class ForcedResponseResults(Results):
             Default is "rad/s"
         amplitude_units : str, optional
             Units for the y axis.
+            Acceptable units dimensionality are:
+                '[length]' - Displays the displacement;
+                '[speed]' - Displays the velocity;
+                '[acceleration]' - Displays the acceleration.
             Default is "m" 0 to peak.
             To use peak to peak use the prefix 'pkpk_' (e.g. pkpk_m)
         phase_units : str, optional
@@ -1626,16 +1766,25 @@ class ForcedResponseResults(Results):
             The figure object with the plot.
         """
         frequency_range = Q_(self.speed_range, "rad/s").to(frequency_units).m
-        number_dof = self.rotor.number_dof
+
+        unit_type = str(Q_(1, amplitude_units).dimensionality)
+        try:
+            base_unit = self.default_units[unit_type][0]
+        except KeyError:
+            raise ValueError(
+                "Not supported unit. Dimensionality options are '[length]', '[speed]', '[acceleration]'"
+            )
 
         if fig is None:
             fig = go.Figure()
 
         for i, p in enumerate(probe):
             angle = Q_(p[1], probe_units).to("rad").m
-            vector = self._calculate_major_axis_per_node(node=p[0], angle=angle)
+            vector = self._calculate_major_axis_per_node(
+                node=p[0], angle=angle, amplitude_units=amplitude_units
+            )
 
-            probe_phase = self.phase[p[0] * number_dof] - np.real(vector[2])
+            probe_phase = np.real(vector[4])
             probe_phase = np.array([i + 2 * np.pi if i < 0 else i for i in probe_phase])
             probe_phase = Q_(probe_phase, "rad").to(phase_units).m
 
@@ -1651,7 +1800,7 @@ class ForcedResponseResults(Results):
 
             fig.add_trace(
                 go.Scatterpolar(
-                    r=Q_(np.abs(vector[3]), "m").to(amplitude_units).m,
+                    r=Q_(np.abs(vector[3]), base_unit).to(amplitude_units).m,
                     theta=probe_phase,
                     customdata=frequency_range,
                     thetaunit=polar_theta_unit,
@@ -1714,7 +1863,11 @@ class ForcedResponseResults(Results):
             Frequency units.
             Default is "rad/s"
         amplitude_units : str, optional
-            Amplitude units.
+            Units for the y axis.
+            Acceptable units dimensionality are:
+                '[length]' - Displays the displacement;
+                '[speed]' - Displays the velocity;
+                '[acceleration]' - Displays the acceleration.
             Default is "m" 0 to peak.
             To use peak to peak use the prefix 'pkpk_' (e.g. pkpk_m)
         phase_units : str, optional
@@ -1754,7 +1907,7 @@ class ForcedResponseResults(Results):
             probe, probe_units, frequency_units, amplitude_units, **mag_kwargs
         )
         fig1 = self.plot_phase(
-            probe, probe_units, frequency_units, phase_units, **phase_kwargs
+            probe, probe_units, frequency_units, amplitude_units, phase_units, **phase_kwargs
         )
         fig2 = self.plot_polar_bode(
             probe, probe_units, frequency_units, amplitude_units, phase_units, **polar_kwargs
@@ -1790,7 +1943,7 @@ class ForcedResponseResults(Results):
 
         return subplots
 
-    def _calculate_major_axis_per_node(self, node, angle):
+    def _calculate_major_axis_per_node(self, node, angle, amplitude_units="m"):
         """Calculate the major axis for a node for each frequency.
 
         Parameters
@@ -1803,6 +1956,14 @@ class ForcedResponseResults(Results):
                 float : angle in rad capture the response in a probe orientation;
                 str : "major" to capture the response for the major axis;
                 str : "minor" to capture the response for the minor axis.
+        amplitude_units : str, optional
+            Units for the y axis.
+            Acceptable units dimensionality are:
+                '[length]' - Displays the displacement;
+                '[speed]' - Displays the velocity;
+                '[acceleration]' - Displays the acceleration.
+            Default is "m" 0 to peak.
+            To use peak to peak use the prefix 'pkpk_' (e.g. pkpk_m)
 
         Returns
         -------
@@ -1810,12 +1971,20 @@ class ForcedResponseResults(Results):
             major_axis_vector[0, :] = foward vector
             major_axis_vector[1, :] = backward vector
             major_axis_vector[2, :] = axis angle
-            major_axis_vector[3, :] = axis vector for the input angle
+            major_axis_vector[3, :] = axis vector response for the input angle
+            major_axis_vector[4, :] = phase response for the input angle
         """
-        forced_resp = self.forced_resp
         number_dof = self.rotor.number_dof
 
-        major_axis_vector = np.zeros((4, len(self.speed_range)), dtype=complex)
+        unit_type = str(Q_(1, amplitude_units).dimensionality)
+        try:
+            response = self.__dict__[self.default_units[unit_type][1]]
+        except KeyError:
+            raise ValueError(
+                "Not supported unit. Dimensionality options are '[length]', '[speed]', '[acceleration]'"
+            )
+
+        major_axis_vector = np.zeros((5, len(self.speed_range)), dtype=complex)
         dofx = number_dof * node
         dofy = number_dof * node + 1
 
@@ -1825,10 +1994,10 @@ class ForcedResponseResults(Results):
         for i, f in enumerate(self.speed_range):
 
             # Foward and Backward vectors
-            fow = forced_resp[dofx, i] / 2 + Rel_ang * forced_resp[dofy, i] / 2
+            fow = response[dofx, i] / 2 + Rel_ang * response[dofy, i] / 2
             back = (
-                np.conj(forced_resp[dofx, i]) / 2
-                + Rel_ang * np.conj(forced_resp[dofy, i]) / 2
+                np.conj(response[dofx, i]) / 2
+                + Rel_ang * np.conj(response[dofy, i]) / 2
             )
 
             ang_fow = np.angle(fow)
@@ -1840,12 +2009,13 @@ class ForcedResponseResults(Results):
                 ang_back += 2 * np.pi
 
             if angle == "major":
-                # Major axis angles
+                # Major axis angle
                 axis_angle = (ang_back - ang_fow) / 2
                 if axis_angle > np.pi:
                     axis_angle -= np.pi
 
             elif angle == "minor":
+                # Minor axis angle
                 axis_angle = (ang_back - ang_fow + np.pi) / 2
                 if axis_angle > np.pi:
                     axis_angle -= np.pi
@@ -1859,10 +2029,13 @@ class ForcedResponseResults(Results):
             major_axis_vector[3, i] = np.abs(
                 fow * np.exp(1j * axis_angle) + back * np.exp(-1j * axis_angle)
             )
+            major_axis_vector[4, i] = np.angle(
+                fow * np.exp(1j * axis_angle) + back * np.exp(-1j * axis_angle)
+            )
 
         return major_axis_vector
 
-    def _calculate_major_axis_per_speed(self, speed):
+    def _calculate_major_axis_per_speed(self, speed, amplitude_units="m"):
         """Calculate the major axis for each nodal orbit.
 
         Parameters
@@ -1870,6 +2043,14 @@ class ForcedResponseResults(Results):
         speed : float
             The rotor rotation speed. Must be an element from the speed_range argument
             passed to the class (rad/s).
+        amplitude_units : str, optional
+            Units for the y axis.
+            Acceptable units dimensionality are:
+                '[length]' - Displays the displacement;
+                '[speed]' - Displays the velocity;
+                '[acceleration]' - Displays the acceleration.
+            Default is "m" 0 to peak.
+            To use peak to peak use the prefix 'pkpk_' (e.g. pkpk_m)
 
         Returns
         -------
@@ -1880,12 +2061,19 @@ class ForcedResponseResults(Results):
             major_axis_vector[3, :] = major axis vector for the maximum major axis angle
             major_axis_vector[4, :] = absolute values for major axes vectors
         """
-        forced_resp = self.forced_resp
         nodes = self.rotor.nodes
         number_dof = self.rotor.number_dof
 
         major_axis_vector = np.zeros((5, len(nodes)), dtype=complex)
         idx = np.where(np.isclose(self.speed_range, speed, atol=1e-6))[0][0]
+
+        unit_type = str(Q_(1, amplitude_units).dimensionality)
+        try:
+            response = self.__dict__[self.default_units[unit_type][1]]
+        except KeyError:
+            raise ValueError(
+                "Not supported unit. Dimensionality options are '[length]', '[speed]', '[acceleration]'"
+            )
 
         for i, n in enumerate(nodes):
             dofx = number_dof * n
@@ -1895,10 +2083,10 @@ class ForcedResponseResults(Results):
             Rel_ang = np.exp(1j * np.pi / 2)
 
             # Foward and Backward vectors
-            fow = forced_resp[dofx, idx] / 2 + Rel_ang * forced_resp[dofy, idx] / 2
+            fow = response[dofx, idx] / 2 + Rel_ang * response[dofy, idx] / 2
             back = (
-                np.conj(forced_resp[dofx, idx]) / 2
-                + Rel_ang * np.conj(forced_resp[dofy, idx]) / 2
+                np.conj(response[dofx, idx]) / 2
+                + Rel_ang * np.conj(response[dofy, idx]) / 2
             )
 
             ang_fow = np.angle(fow)
@@ -1955,8 +2143,8 @@ class ForcedResponseResults(Results):
             Bending Moment on Y directon.
         """
         idx = np.where(np.isclose(self.speed_range, speed, atol=1e-6))[0][0]
-        mag = self.magnitude[:, idx]
-        phase = self.phase[:, idx]
+        mag = np.abs(self.forced_resp[:, idx])
+        phase = np.angle(self.forced_resp[:, idx])
         number_dof = self.rotor.number_dof
         nodes = self.rotor.nodes
 
@@ -1998,7 +2186,7 @@ class ForcedResponseResults(Results):
         self,
         speed,
         frequency_units="rad/s",
-        displacement_units="m",
+        amplitude_units="m",
         rotor_length_units="m",
         fig=None,
         **kwargs,
@@ -2013,9 +2201,14 @@ class ForcedResponseResults(Results):
         frequency_units : str, optional
             Frequency units.
             Default is "rad/s"
-        displacement_units : str, optional
-            Displacement units.
-            Default is 'm'.
+        amplitude_units : str, optional
+            Units for the y axis.
+            Acceptable units dimensionality are:
+                '[length]' - Displays the displacement;
+                '[speed]' - Displays the velocity;
+                '[acceleration]' - Displays the acceleration.
+            Default is "m" 0 to peak.
+            To use peak to peak use the prefix 'pkpk_' (e.g. pkpk_m)
         rotor_length_units : str, optional
             Displacement units.
             Default is 'm'.
@@ -2034,9 +2227,17 @@ class ForcedResponseResults(Results):
         if not any(np.isclose(self.speed_range, speed, atol=1e-6)):
             raise ValueError("No data available for this speed value.")
 
+        unit_type = str(Q_(1, amplitude_units).dimensionality)
+        try:
+            base_unit = self.default_units[unit_type][0]
+        except KeyError:
+            raise ValueError(
+                "Not supported unit. Dimensionality options are '[length]', '[speed]', '[acceleration]'"
+            )
+
         nodes_pos = Q_(self.rotor.nodes_pos, "m").to(rotor_length_units).m
-        maj_vect = self._calculate_major_axis_per_speed(speed=speed)
-        maj_vect = Q_(maj_vect[4].real, "m").to(displacement_units).m
+        maj_vect = self._calculate_major_axis_per_speed(speed, amplitude_units)
+        maj_vect = Q_(maj_vect[4].real, base_unit).to(amplitude_units).m
 
         if fig is None:
             fig = go.Figure()
@@ -2049,7 +2250,7 @@ class ForcedResponseResults(Results):
                 name="Major Axis",
                 legendgroup="Major_Axis_2d",
                 showlegend=False,
-                hovertemplate=f"Nodal Position ({rotor_length_units}): %{{x:.2f}}<br>Amplitude ({displacement_units}): %{{y:.2e}}",
+                hovertemplate=f"Nodal Position ({rotor_length_units}): %{{x:.2f}}<br>Amplitude ({amplitude_units}): %{{y:.2e}}",
             )
         )
         # plot center line
@@ -2066,7 +2267,7 @@ class ForcedResponseResults(Results):
 
         fig.update_xaxes(title_text=f"Rotor Length ({rotor_length_units})")
         fig.update_yaxes(
-            title_text=f"Major Axis Abs Amplitude ({displacement_units})",
+            title_text=f"Major Axis Abs Amplitude ({amplitude_units})",
             title_font=dict(size=12),
         )
         fig.update_layout(**kwargs)
@@ -2078,7 +2279,7 @@ class ForcedResponseResults(Results):
         speed,
         samples=101,
         frequency_units="rad/s",
-        displacement_units="m",
+        amplitude_units="m",
         rotor_length_units="m",
         fig=None,
         **kwargs,
@@ -2096,9 +2297,14 @@ class ForcedResponseResults(Results):
         frequency_units : str, optional
             Frequency units.
             Default is "rad/s"
-        displacement_units : str, optional
-            Displacement units.
-            Default is 'm'.
+        amplitude_units : str, optional
+            Units for the y axis.
+            Acceptable units dimensionality are:
+                '[length]' - Displays the displacement;
+                '[speed]' - Displays the velocity;
+                '[acceleration]' - Displays the acceleration.
+            Default is "m" 0 to peak.
+            To use peak to peak use the prefix 'pkpk_' (e.g. pkpk_m)
         rotor_length_units : str, optional
             Rotor Length units.
             Default is 'm'.
@@ -2117,8 +2323,16 @@ class ForcedResponseResults(Results):
         if not any(np.isclose(self.speed_range, speed, atol=1e-6)):
             raise ValueError("No data available for this speed value.")
 
-        mag = self.magnitude
-        phase = self.phase
+        unit_type = str(Q_(1, amplitude_units).dimensionality)
+        try:
+            base_unit = self.default_units[unit_type][0]
+        except KeyError:
+            raise ValueError(
+                "Not supported unit. Dimensionality options are '[length]', '[speed]', '[acceleration]'"
+            )
+
+        mag = np.abs(self.__dict__[self.default_units[unit_type][1]])
+        phase = np.angle(self.__dict__[self.default_units[unit_type][1]])
         ub = self.unbalance
         nodes = self.rotor.nodes
         nodes_pos = Q_(self.rotor.nodes_pos, "m").to(rotor_length_units).m
@@ -2143,27 +2357,27 @@ class ForcedResponseResults(Results):
             fig.add_trace(
                 go.Scatter3d(
                     x=x_pos[n],
-                    y=Q_(y, "m").to(displacement_units).m,
-                    z=Q_(z, "m").to(displacement_units).m,
+                    y=Q_(y, base_unit).to(amplitude_units).m,
+                    z=Q_(z, base_unit).to(amplitude_units).m,
                     mode="lines",
                     line=dict(color="royalblue"),
                     name="Orbit",
                     legendgroup="Orbit",
                     showlegend=False,
                     hovertemplate=(
-                        f"Position ({rotor_length_units}): %{{x:.2f}}<br>X - Amplitude ({displacement_units}): %{{y:.2e}}<br>Y - Amplitude ({displacement_units}): %{{z:.2e}}"
+                        f"Position ({rotor_length_units}): %{{x:.2f}}<br>X - Amplitude ({amplitude_units}): %{{y:.2e}}<br>Y - Amplitude ({amplitude_units}): %{{z:.2e}}"
                     ),
                 )
             )
 
         # plot major axis
-        maj_vect = self._calculate_major_axis_per_speed(speed)
+        maj_vect = self._calculate_major_axis_per_speed(speed, amplitude_units)
 
         fig.add_trace(
             go.Scatter3d(
                 x=x_pos[:, 0],
-                y=Q_(np.real(maj_vect[3]), "m").to(displacement_units).m,
-                z=Q_(np.imag(maj_vect[3]), "m").to(displacement_units).m,
+                y=Q_(np.real(maj_vect[3]), base_unit).to(amplitude_units).m,
+                z=Q_(np.imag(maj_vect[3]), base_unit).to(amplitude_units).m,
                 mode="lines+markers",
                 marker=dict(color="black"),
                 line=dict(color="black", dash="dashdot"),
@@ -2171,7 +2385,7 @@ class ForcedResponseResults(Results):
                 legendgroup="Major_Axis",
                 showlegend=True,
                 hovertemplate=(
-                    f"Position ({rotor_length_units}): %{{x:.2f}}<br>X - Amplitude ({displacement_units}): %{{y:.2e}}<br>Y - Amplitude ({displacement_units}): %{{z:.2e}}"
+                    f"Position ({rotor_length_units}): %{{x:.2f}}<br>X - Amplitude ({amplitude_units}): %{{y:.2e}}<br>Y - Amplitude ({amplitude_units}): %{{z:.2e}}"
                 ),
             )
         )
@@ -2196,11 +2410,11 @@ class ForcedResponseResults(Results):
             fig.add_trace(
                 go.Scatter3d(
                     x=[x_pos[int(n), 0], x_pos[int(n), 0]],
-                    y=Q_([0, np.amax(np.abs(maj_vect[4])) / 2 * np.cos(p)], "m")
-                    .to(displacement_units)
+                    y=Q_([0, np.amax(np.abs(maj_vect[4])) / 2 * np.cos(p)], base_unit)
+                    .to(amplitude_units)
                     .m,
-                    z=Q_([0, np.amax(np.abs(maj_vect[4])) / 2 * np.sin(p)], "m")
-                    .to(displacement_units)
+                    z=Q_([0, np.amax(np.abs(maj_vect[4])) / 2 * np.sin(p)], base_unit)
+                    .to(amplitude_units)
                     .m,
                     mode="lines",
                     line=dict(color="firebrick"),
@@ -2212,11 +2426,11 @@ class ForcedResponseResults(Results):
             fig.add_trace(
                 go.Scatter3d(
                     x=[x_pos[int(n), 0]],
-                    y=Q_([np.amax(np.abs(maj_vect[4])) / 2 * np.cos(p)], "m")
-                    .to(displacement_units)
+                    y=Q_([np.amax(np.abs(maj_vect[4])) / 2 * np.cos(p)], base_unit)
+                    .to(amplitude_units)
                     .m,
-                    z=Q_([np.amax(np.abs(maj_vect[4])) / 2 * np.sin(p)], "m")
-                    .to(displacement_units)
+                    z=Q_([np.amax(np.abs(maj_vect[4])) / 2 * np.sin(p)], base_unit)
+                    .to(amplitude_units)
                     .m,
                     mode="markers",
                     marker=dict(symbol="diamond", color="firebrick"),
@@ -2234,8 +2448,8 @@ class ForcedResponseResults(Results):
         fig.update_layout(
             scene=dict(
                 xaxis=dict(title=dict(text=f"Rotor Length ({rotor_length_units})")),
-                yaxis=dict(title=dict(text=f"Amplitude - X ({displacement_units})")),
-                zaxis=dict(title=dict(text=f"Amplitude - Y ({displacement_units})")),
+                yaxis=dict(title=dict(text=f"Amplitude - X ({amplitude_units})")),
+                zaxis=dict(title=dict(text=f"Amplitude - Y ({amplitude_units})")),
             ),
             title=dict(
                 text=f"Deflected Shape<br>Speed = {speed_str} {frequency_units}"
@@ -2354,7 +2568,7 @@ class ForcedResponseResults(Results):
         speed,
         samples=101,
         frequency_units="rad/s",
-        displacement_units="m",
+        amplitude_units="m",
         rotor_length_units="m",
         moment_units="N*m",
         shape2d_kwargs=None,
@@ -2380,9 +2594,14 @@ class ForcedResponseResults(Results):
         frequency_units : str, optional
             Frequency units.
             Default is "rad/s"
-        displacement_units : str, optional
-            Displacement units.
-            Default is 'm'.
+        amplitude_units : str, optional
+            Units for the y axis.
+            Acceptable units dimensionality are:
+                '[length]' - Displays the displacement;
+                '[speed]' - Displays the velocity;
+                '[acceleration]' - Displays the acceleration.
+            Default is "m" 0 to peak.
+            To use peak to peak use the prefix 'pkpk_' (e.g. pkpk_m)
         rotor_length_units : str, optional
             Rotor length units.
             Default is 'm'.
@@ -2421,10 +2640,10 @@ class ForcedResponseResults(Results):
 
         # fmt: off
         fig0 = self.plot_deflected_shape_2d(
-            speed, frequency_units, displacement_units, rotor_length_units, **shape2d_kwargs
+            speed, frequency_units, amplitude_units, rotor_length_units, **shape2d_kwargs
         )
         fig1 = self.plot_deflected_shape_3d(
-            speed, samples, frequency_units, displacement_units, rotor_length_units, **shape3d_kwargs
+            speed, samples, frequency_units, amplitude_units, rotor_length_units, **shape3d_kwargs
         )
         fig2 = self.plot_bending_moment(
             speed, frequency_units, moment_units, rotor_length_units, **bm_kwargs
@@ -2466,8 +2685,6 @@ class ForcedResponseResults(Results):
                 x=0.5,
                 y=-0.3,
             ),
-            width=800,
-            height=600,
             **subplot_kwargs,
         )
 
