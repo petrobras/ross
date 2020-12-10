@@ -259,7 +259,6 @@ class Crack(Defect):
         self.Kstmodal = ((ModMat.T).dot(self.Kst)).dot(ModMat)
 
         y0 = np.zeros(24)
-        self.dt = 0.0001
         t_eval = np.arange(self.tI, self.tF + self.dt, self.dt)
         # t_eval = np.arange(self.dt, self.tF, self.dt)
         T = t_eval
