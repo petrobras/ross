@@ -16,6 +16,7 @@ from ross.stochastic.st_results import (ST_CampbellResults,
                                         ST_FrequencyResponseResults,
                                         ST_TimeResponseResults)
 from ross.stochastic.st_shaft_element import ST_ShaftElement
+from ross.units import check_units
 
 # fmt: on
 
@@ -287,6 +288,7 @@ class ST_Rotor(object):
         self.ndof = aux_rotor.ndof
         self.nodes = aux_rotor.nodes
         self.number_dof = aux_rotor.number_dof
+        self.link_nodes = aux_rotor.link_nodes
 
         if "shaft_elements" in self.is_random:
             if any(
@@ -478,7 +480,17 @@ class ST_Rotor(object):
 
         return results
 
-    def run_freq_response(self, speed_range, inp, out, modes=None):
+    def run_freq_response(
+        self,
+        inp,
+        out,
+        speed_range=None,
+        modes=None,
+        cluster_points=False,
+        num_modes=12,
+        num_points=10,
+        rtol=0.005,
+    ):
         """Stochastic frequency response for multiples rotor systems.
 
         This method returns the frequency response for every rotor instance,
@@ -487,15 +499,37 @@ class ST_Rotor(object):
 
         Parameters
         ----------
-        speed_range : array
-            Array with the desired range of frequencies.
         inp : int
-            Degree of freedom to be excited.
+            Input DoF.
         out : int
-            Degree of freedom to be observed.
+            Output DoF.
+        speed_range : array, optional
+            Array with the desired range of frequencies.
+            Default is 0 to 1.5 x highest damped natural frequency.
         modes : list, optional
             Modes that will be used to calculate the frequency response
             (all modes will be used if a list is not given).
+        cluster_points : bool, optional
+            boolean to activate the automatic frequency spacing method. If True, the
+            method uses _clustering_points() to create an speed_range.
+            Default is False
+        num_points : int, optional
+            The number of points generated per critical speed.
+            The method set the same number of points for slightly less and slightly
+            higher than the natural circular frequency. It means there'll be num_points
+            greater and num_points smaller than a given critical speed.
+            num_points may be between 2 and 12. Anything above this range defaults
+            to 10 and anything below this range defaults to 4.
+            The default is 10.
+        num_modes
+            The number of eigenvalues and eigenvectors to be calculated using ARPACK.
+            It also defines the range for the output array, since the method generates
+            points only for the critical speed calculated by run_critical_speed().
+            Default is 12.
+        rtol : float, optional
+            Tolerance (relative) for termination. Applied to scipy.optimize.newton to
+            calculate the approximated critical speeds.
+            Default is 0.005 (0.5%).
 
         Returns
         -------
@@ -516,7 +550,7 @@ class ST_Rotor(object):
         >>> speed_range = np.linspace(0, 500, 31)
         >>> inp = 9
         >>> out = 9
-        >>> results = rotors.run_freq_response(speed_range, inp, out)
+        >>> results = rotors.run_freq_response(inp, out, speed_range)
 
         # Plotting Frequency Response with Plotly
 
@@ -525,16 +559,28 @@ class ST_Rotor(object):
         """
         FRF_size = len(speed_range)
         RV_size = self.RV_size
-        magnitude = np.zeros(((FRF_size, RV_size)))
-        phase = np.zeros(((FRF_size, RV_size)))
+
+        freq_resp = np.empty((FRF_size, RV_size), dtype=np.complex)
+        velc_resp = np.empty((FRF_size, RV_size), dtype=np.complex)
+        accl_resp = np.empty((FRF_size, RV_size), dtype=np.complex)
 
         # Monte Carlo - results storage
         for i, rotor in enumerate(iter(self)):
-            results = rotor.run_freq_response(speed_range, modes)
-            magnitude[:, i] = abs(results.freq_resp[inp, out, :])
-            phase[:, i] = np.angle(results.freq_resp[inp, out, :])
+            results = rotor.run_freq_response(
+                speed_range,
+                modes,
+                cluster_points,
+                num_modes,
+                num_points,
+                rtol,
+            )
+            freq_resp[:, i] = results.freq_resp[inp, out, :]
+            velc_resp[:, i] = results.velc_resp[inp, out, :]
+            accl_resp[:, i] = results.accl_resp[inp, out, :]
 
-        results = ST_FrequencyResponseResults(speed_range, magnitude, phase)
+        results = ST_FrequencyResponseResults(
+            speed_range, freq_resp, velc_resp, accl_resp
+        )
 
         return results
 
@@ -603,6 +649,10 @@ class ST_Rotor(object):
         t_size = len(time_range)
         RV_size = self.RV_size
         ndof = self.ndof
+        number_dof = self.number_dof
+        nodes = self.nodes
+        link_nodes = self.link_nodes
+        nodes_pos = self.nodes_pos
 
         xout = np.zeros((RV_size, t_size, 2 * ndof))
         yout = np.zeros((RV_size, t_size, ndof))
@@ -626,12 +676,30 @@ class ST_Rotor(object):
                 i += 1
 
         results = ST_TimeResponseResults(
-            time_range, yout, xout, self.number_dof, self.nodes, self.nodes_pos
+            time_range,
+            yout,
+            xout,
+            number_dof,
+            nodes,
+            link_nodes,
+            nodes_pos,
         )
 
         return results
 
-    def run_unbalance_response(self, node, magnitude, phase, frequency_range):
+    @check_units
+    def run_unbalance_response(
+        self,
+        node,
+        unbalance_magnitude,
+        unbalance_phase,
+        frequency_range=None,
+        modes=None,
+        cluster_points=False,
+        num_modes=12,
+        num_points=10,
+        rtol=0.005,
+    ):
         """Stochastic unbalance response for multiples rotor systems.
 
         This method returns the unbalanced response for every rotor instance,
@@ -644,15 +712,15 @@ class ST_Rotor(object):
         ----------
         node : list, int
             Node where the unbalance is applied.
-        magnitude : list, float
-            Unbalance magnitude.
+        unbalance_magnitude : list, float, pint.Quantity
+            Unbalance magnitude (kg.m).
             If node is int, input a list to make make it random.
             If node is list, input a list of lists to make it random.
             If there're multiple unbalances and not all of the magnitudes are supposed
             to be stochastic, input a list with repeated values to the unbalance
             magnitude considered deterministic.
-        phase : list, float
-            Unbalance phase.
+        unbalance_phase : list, float, pint.Quantity
+            Unbalance phase (rad).
             If node is int, input a list to make make it random.
             If node is list, input a list of lists to make it random.
             If there're multiple unbalances and not all of the phases are supposed
@@ -660,6 +728,30 @@ class ST_Rotor(object):
             considered deterministic.
         frequency_range : list, float
             Array with the desired range of frequencies.
+        modes : list, optional
+            Modes that will be used to calculate the frequency response
+            (all modes will be used if a list is not given).
+        cluster_points : bool, optional
+            boolean to activate the automatic frequency spacing method. If True, the
+            method uses _clustering_points() to create an speed_range.
+            Default is False
+        num_points : int, optional
+            The number of points generated per critical speed.
+            The method set the same number of points for slightly less and slightly
+            higher than the natural circular frequency. It means there'll be num_points
+            greater and num_points smaller than a given critical speed.
+            num_points may be between 2 and 12. Anything above this range defaults
+            to 10 and anything below this range defaults to 4.
+            The default is 10.
+        num_modes
+            The number of eigenvalues and eigenvectors to be calculated using ARPACK.
+            It also defines the range for the output array, since the method generates
+            points only for the critical speed calculated by run_critical_speed().
+            Default is 12.
+        rtol : float, optional
+            Tolerance (relative) for termination. Applied to scipy.optimize.newton to
+            calculate the approximated critical speeds.
+            Default is 0.005 (0.5%).
 
         Returns
         -------
@@ -675,7 +767,7 @@ class ST_Rotor(object):
         Example
         -------
         >>> import ross.stochastic as srs
-        >>> rotors = srs.st_rotor_example()
+        >>> rotors = st_rotor_example()
 
         # Running Frequency Response and saving the results
 
@@ -687,30 +779,38 @@ class ST_Rotor(object):
 
         # Plotting Frequency Response with Plotly
 
-        >>> fig = results.plot(probe=[(3, np.pi / 2)], conf_interval=[90])
+        >>> fig = results.plot_magnitude(probe=[(3, np.pi / 2)], conf_interval=[90])
         >>> # fig.show()
         """
         RV_size = self.RV_size
         freq_size = len(frequency_range)
         ndof = self.ndof
         args_dict = dict(
-            node=node, magnitude=magnitude, phase=phase, frequency_range=frequency_range
+            node=node,
+            unbalance_magnitude=unbalance_magnitude,
+            unbalance_phase=unbalance_phase,
+            frequency_range=frequency_range,
+            modes=modes,
+            cluster_points=cluster_points,
+            num_modes=num_modes,
+            num_points=num_points,
+            rtol=rtol,
         )
 
-        forced_resp = np.zeros((RV_size, freq_size, ndof), dtype=np.complex)
-        mag_resp = np.zeros((RV_size, freq_size, ndof))
-        phs_resp = np.zeros((RV_size, freq_size, ndof))
+        forced_resp = np.zeros((RV_size, ndof, freq_size), dtype=np.complex)
+        velc_resp = np.zeros((RV_size, ndof, freq_size), dtype=np.complex)
+        accl_resp = np.zeros((RV_size, ndof, freq_size), dtype=np.complex)
         is_random = []
 
-        if (isinstance(node, int) and isinstance(magnitude, Iterable)) or (
-            isinstance(node, Iterable) and isinstance(magnitude[0], Iterable)
+        if (isinstance(node, int) and isinstance(unbalance_magnitude, Iterable)) or (
+            isinstance(node, Iterable) and isinstance(unbalance_magnitude[0], Iterable)
         ):
-            is_random.append("magnitude")
+            is_random.append("unbalance_magnitude")
 
-        if (isinstance(node, int) and isinstance(phase, Iterable)) or (
-            isinstance(node, Iterable) and isinstance(phase[0], Iterable)
+        if (isinstance(node, int) and isinstance(unbalance_phase, Iterable)) or (
+            isinstance(node, Iterable) and isinstance(unbalance_phase[0], Iterable)
         ):
-            is_random.append("phase")
+            is_random.append("unbalance_phase")
 
         # Monte Carlo - results storage
         if len(is_random):
@@ -718,25 +818,27 @@ class ST_Rotor(object):
             unbalance_args = self._random_var(is_random, args_dict)
             for rotor, args in zip(iter(self), unbalance_args):
                 results = rotor.run_unbalance_response(*args)
-                forced_resp[i] = results.forced_resp.T
-                mag_resp[i] = abs(results.forced_resp).T
-                phs_resp[i] = np.angle(results.forced_resp).T
+                forced_resp[i] = results.forced_resp
+                velc_resp[i] = results.velc_resp
+                accl_resp[i] = results.accl_resp
                 i += 1
         else:
             for i, rotor in enumerate(iter(self)):
                 results = rotor.run_unbalance_response(
-                    node, magnitude, phase, frequency_range
+                    node, unbalance_magnitude, unbalance_phase, frequency_range
                 )
-                forced_resp[i] = results.forced_resp.T
-                mag_resp[i] = abs(results.forced_resp).T
-                phs_resp[i] = np.angle(results.forced_resp).T
+                forced_resp[i] = results.forced_resp
+                velc_resp[i] = results.velc_resp
+                accl_resp[i] = results.accl_resp
 
         results = ST_ForcedResponseResults(
             forced_resp=forced_resp,
             frequency_range=frequency_range,
-            magnitude=mag_resp,
-            phase=phs_resp,
+            velc_resp=velc_resp,
+            accl_resp=accl_resp,
             number_dof=self.number_dof,
+            nodes=self.nodes,
+            link_nodes=self.link_nodes,
         )
 
         return results
