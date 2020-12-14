@@ -10,6 +10,7 @@ from ross.fluid_flow import fluid_flow as flow
 from ross.fluid_flow.fluid_flow_coefficients import \
     calculate_stiffness_and_damping_coefficients
 from ross.stochastic.st_results_elements import plot_histogram
+from ross.units import check_units
 
 # fmt: on
 
@@ -110,6 +111,7 @@ class ST_BearingElement:
     5
     """
 
+    @check_units
     def __init__(
         self,
         n,
@@ -485,6 +487,7 @@ class ST_BearingElement:
         attribute_dict = locals()
         attribute_dict.pop("cls")
         attribute_dict.pop("omega")
+        attribute_dict.pop("is_random")
         size = len(attribute_dict[is_random[0]])
         args_dict = {
             "kxx": np.zeros((len(omega), size)),
