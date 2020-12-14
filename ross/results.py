@@ -173,13 +173,48 @@ class CriticalSpeedResults(Results):
         Logarithmic decrement for each critical speed.
     damping_ratio : array
         Damping ratio for each critical speed.
+    whirl_direction : array
+        Whirl direction for each critical speed. Can be forward, backward or mixed.
     """
 
-    def __init__(self, wn, wd, log_dec, damping_ratio):
-        self.wn = wn
-        self.wd = wd
+    def __init__(self, wn, wd, log_dec, damping_ratio, whirl_direction):
+        self._wn = wn
+        self._wd = wd
         self.log_dec = log_dec
         self.damping_ratio = damping_ratio
+        self.whirl_direction = whirl_direction
+
+    def wn(self, frequency_units="rad/s"):
+        """Convert units for undamped critical speeds.
+
+        Parameters
+        ----------
+        frequency_units : str, optional
+            Units critical speeds.
+            Default is rad/s
+
+        Returns
+        -------
+        wn : array
+            Undamped critical speeds array.
+        """
+        return Q_(self.__dict__["_wn"], "rad/s").to(frequency_units).m
+
+    def wd(self, frequency_units="rad/s"):
+        """Convert units for damped critical speeds.
+
+        Parameters
+        ----------
+        frequency_units : str, optional
+            Units critical speeds.
+            Default is rad/s
+
+        Returns
+        -------
+        wd : array
+            Undamped critical speeds array.
+        """
+        return Q_(self.__dict__["_wd"], "rad/s").to(frequency_units).m
 
 
 class ModalResults(Results):
@@ -1080,7 +1115,7 @@ class FrequencyResponseResults(Results):
     speed_range : array
         Array with the speed range in rad/s.
     number_dof : int
-        Number of degrees of freedom per node
+        Number of degrees of freedom per node.
 
     Returns
     -------
@@ -1273,8 +1308,8 @@ class FrequencyResponseResults(Results):
 
         if fig is None:
             fig = go.Figure()
-
         idx = len(fig.data)
+
         fig.add_trace(
             go.Scatter(
                 x=frequency_range,
@@ -3556,9 +3591,10 @@ class TimeResponseResults(Results):
         fig=None,
         **kwargs,
     ):
-        """Plot time response for a single DoF using Plotly.
+        """Plot time response.
 
-        This function will take a rotor object and plot its time response using Plotly.
+        This method plots the time response given a tuple of probes with their nodes
+        and orientations.
 
         Parameters
         ----------

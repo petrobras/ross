@@ -637,7 +637,7 @@ class Rotor(object):
 
         return modal_results
 
-    def run_critical_speed(self, num_modes=12, sparse=True, rtol=0.005):
+    def run_critical_speed(self, speed_range=None, num_modes=12, rtol=0.005):
         """Calculate the critical speeds and damping ratios for the rotor model.
 
         This function runs an iterative method over "run_modal()" to minimize
@@ -657,19 +657,16 @@ class Rotor(object):
 
         Parameters
         ----------
+        speed_range : tuple
+            Tuple (start, end) with the desired range of frequencies (rad/s).
+            The function returns all eigenvalues within this range.
         num_modes : int, optional
             The number of eigenvalues and eigenvectors to be calculated using ARPACK.
             If sparse=True, it determines the number of eigenvalues and eigenvectors
             to be calculated. It must be smaller than Rotor.ndof - 1. It is not
             possible to compute all eigenvectors of a matrix with ARPACK.
-            If sparse=False, num_modes does not have any effect over the method.
+            If speed_range is not None, num_modes is overrided.
             Default is 12.
-        sparse : bool, optional
-            If True, ARPACK is used to calculate a desired number (according to
-            num_modes) or eigenvalues and eigenvectors.
-            If False, scipy.linalg.eig() is used to calculate all the eigenvalues and
-            eigenvectors.
-            Default is True.
         rtol : float, optional
             Tolerance (relative) for termination. Applied to scipy.optimize.newton.
             Default is 0.005 (0.5%).
@@ -684,33 +681,65 @@ class Rotor(object):
 
         Examples
         --------
-        >>> rotor = rotor_example()
+        >>> import ross as rs
+        >>> rotor = rs.rotor_example()
+
+        Finding the first Nth critical speeds
         >>> results = rotor.run_critical_speed(num_modes=8)
-        >>> np.round(results.wd)
+        >>> np.round(results.wd())
         array([ 92.,  96., 271., 300.])
-        >>> np.round(results.wn)
+        >>> np.round(results.wn())
         array([ 92.,  96., 271., 300.])
+
+        Finding the first critical speeds within a speed range
+        >>> results = rotor.run_critical_speed(speed_range=(100, 1000))
+        >>> np.round(results.wd())
+        array([271., 300., 636., 867.])
+
+        Changing output units
+        >>> np.round(results.wd("rpm"))
+        array([2590., 2868., 6074., 8278.])
+
+        Retrieving whirl directions
+        >>> results.whirl_direction # doctest: +ELLIPSIS
+        array([...
         """
-        _wn = self.run_modal(0, num_modes, sparse).wn
+        num_modes = (self.ndof - 4) * 2 if speed_range is not None else num_modes
+
+        modal = self.run_modal(0, num_modes)
+        _wn = modal.wn
+        _wd = modal.wd
         wn = np.zeros_like(_wn)
-        wd = np.zeros_like(_wn)
-        log_dec = np.zeros_like(_wn)
-        damping_ratio = np.zeros_like(_wn)
+        wd = np.zeros_like(_wd)
 
         for i in range(len(wn)):
-            wn_func = lambda s: (s - self.run_modal(s, num_modes, sparse).wn[i])
+            wn_func = lambda s: (s - self.run_modal(s, num_modes).wn[i])
             wn[i] = newton(func=wn_func, x0=_wn[i], rtol=rtol)
 
-        for i in range(len(wn)):
-            wd_func = lambda s: (s - self.run_modal(s, num_modes, sparse).wd[i])
-            wd[i] = newton(func=wd_func, x0=wn[i], rtol=rtol)
+        for i in range(len(wd)):
+            wd_func = lambda s: (s - self.run_modal(s, num_modes).wd[i])
+            wd[i] = newton(func=wd_func, x0=_wd[i], rtol=rtol)
 
+        log_dec = np.zeros_like(wn)
+        damping_ratio = np.zeros_like(wn)
+        whirl_direction = list(np.zeros_like(wn))
         for i, s in enumerate(wd):
-            modal = self.run_modal(s, num_modes, sparse)
+            modal = self.run_modal(s, num_modes)
             log_dec[i] = modal.log_dec[i]
             damping_ratio[i] = modal.damping_ratio[i]
+            whirl_direction[i] = modal.whirl_direction()[i]
 
-        return CriticalSpeedResults(wn, wd, log_dec, damping_ratio)
+        whirl_direction = np.array(whirl_direction)
+        if speed_range is not None:
+            vmin, vmax = speed_range
+            idx = np.where((wd >= vmin) & (wd <= vmax))
+            wn = wn[idx]
+            wd = wd[idx]
+            log_dec = log_dec[idx]
+            damping_ratio = damping_ratio[idx]
+            whirl_direction = whirl_direction[idx]
+
+        return CriticalSpeedResults(wn, wd, log_dec, damping_ratio, whirl_direction)
 
     def convergence(self, n_eigval=0, err_max=1e-02):
         """Run convergence analysis.
@@ -1098,7 +1127,7 @@ class Rotor(object):
         (61,)
         """
         critical_speeds = self.run_critical_speed(num_modes=num_modes, rtol=rtol)
-        omega = critical_speeds.wd
+        omega = critical_speeds._wd
         damping = critical_speeds.damping_ratio
         damping = np.array([d if d >= 0.005 else 0.005 for d in damping])
 
