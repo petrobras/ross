@@ -165,9 +165,9 @@ class CriticalSpeedResults(Results):
 
     Parameters
     ----------
-    wn : array
+    _wn : array
         Undamped critical speeds array.
-    wd : array
+    _wd : array
         Undamped critical speeds array.
     log_dec : array
         Logarithmic decrement for each critical speed.
@@ -177,9 +177,9 @@ class CriticalSpeedResults(Results):
         Whirl direction for each critical speed. Can be forward, backward or mixed.
     """
 
-    def __init__(self, wn, wd, log_dec, damping_ratio, whirl_direction):
-        self._wn = wn
-        self._wd = wd
+    def __init__(self, _wn, _wd, log_dec, damping_ratio, whirl_direction):
+        self._wn = _wn
+        self._wd = _wd
         self.log_dec = log_dec
         self.damping_ratio = damping_ratio
         self.whirl_direction = whirl_direction
@@ -190,7 +190,7 @@ class CriticalSpeedResults(Results):
         Parameters
         ----------
         frequency_units : str, optional
-            Units critical speeds.
+            Critical speeds units.
             Default is rad/s
 
         Returns
@@ -206,7 +206,7 @@ class CriticalSpeedResults(Results):
         Parameters
         ----------
         frequency_units : str, optional
-            Units critical speeds.
+            Critical speeds units.
             Default is rad/s
 
         Returns
