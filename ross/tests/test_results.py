@@ -5,8 +5,8 @@ import numpy as np
 import pytest
 from numpy.testing import assert_allclose, assert_almost_equal, assert_equal
 
-from ross.rotor_assembly import *
 from ross.results import *
+from ross.rotor_assembly import *
 
 
 @pytest.fixture
@@ -35,8 +35,8 @@ def test_save_load_criticalspeed(rotor1):
     response.save(file)
     response2 = CriticalSpeedResults.load(file)
 
-    assert response2.wn.all() == response.wn.all()
-    assert response2.wd.all() == response.wd.all()
+    assert response2._wn.all() == response._wn.all()
+    assert response2._wd.all() == response._wd.all()
     assert response2.log_dec.all() == response.log_dec.all()
     assert response2.damping_ratio.all() == response.damping_ratio.all()
 
@@ -58,7 +58,10 @@ def test_save_load_modal(rotor1):
     assert response2.ndof == response.ndof
     assert np.array(response2.nodes).all() == np.array(response.nodes).all()
     assert np.array(response2.nodes_pos).all() == np.array(response.nodes_pos).all()
-    assert np.array(response2.shaft_elements_length).all() == np.array(response.shaft_elements_length).all()
+    assert (
+        np.array(response2.shaft_elements_length).all()
+        == np.array(response.shaft_elements_length).all()
+    )
 
 
 def test_save_load_freqresponse(rotor1):
