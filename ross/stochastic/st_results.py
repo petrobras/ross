@@ -337,7 +337,6 @@ class ST_CampbellResults(ST_Results):
                     line=dict(width=3, color=colors1[j]),
                     legendgroup="mean{}".format(j),
                     hovertemplate=("Frequency: %{x:.3f}<br>" + "Log Dec: %{y:.3f}"),
-                    **kwargs,
                 )
             )
 
@@ -351,7 +350,6 @@ class ST_CampbellResults(ST_Results):
                         name="percentile: {}%".format(p),
                         legendgroup="percentile{}{}".format(j, i),
                         hoverinfo="none",
-                        **kwargs,
                     )
                 )
 
@@ -369,7 +367,6 @@ class ST_CampbellResults(ST_Results):
                         name="confidence interval: {}% - Mode {}".format(p, j + 1),
                         legendgroup="conf{}{}".format(j, i),
                         hoverinfo="none",
-                        **kwargs,
                     )
                 )
 
