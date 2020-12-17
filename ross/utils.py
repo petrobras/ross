@@ -574,13 +574,13 @@ def get_data_from_figure(fig):
     >>> df = rs.get_data_from_figure(fig)
 
     Use the probe tag to navigate through pandas data
-    >>> df["probe1"] # doctest: +ELLIPSIS
-    Frequency (rad/s)    [0.0, 10.0, 20.0, 30.0, 40.0, 50.0, 60.0, 70.0...
-    Amplitude (m)        [0.0, 1.6057020543675704e-07, 6.63435909084514...
-    Name: probe1, dtype: object
-
+    Index 0 for frequency array
     >>> df["probe1"][0] # doctest: +ELLIPSIS
     array([   0.,   10.,   20.,   30.,...
+
+    Index 1 for amplitude array
+    >>> df["probe1"][1] # doctest: +ELLIPSIS
+    array([0.00000000e+00,...
 
     Or use "iloc" to obtain the desired array from pandas
     >>> df.iloc[1, 0] # doctest: +ELLIPSIS
