@@ -11,6 +11,6 @@ from .point_mass import *
 from .results import *
 from .rotor_assembly import *
 from .shaft_element import *
-from .utils import visualize_matrix
+from .utils import visualize_matrix, get_data_from_figure
 
 _pio.templates.default = "ross"
