@@ -122,8 +122,7 @@ class Rotor(object):
     ):
 
         self.parameters = {"min_w": min_w, "max_w": max_w, "rated_w": rated_w}
-        if tag is None:
-            self.tag = "Rotor 0"
+        self.tag = "Rotor 0" if tag is None else tag
 
         ####################################################
         # Config attributes
@@ -313,6 +312,11 @@ class Rotor(object):
 
         self.nodes = list(range(len(self.nodes_pos)))
         self.L = nodes_pos[-1]
+
+        if "n_link" in df.columns:
+            self.link_nodes = list(df["n_link"].dropna().unique().astype(int))
+        else:
+            self.link_nodes = []
 
         # rotor mass can also be calculated with self.M()[::4, ::4].sum()
         self.m_disks = np.sum([disk.m for disk in self.disk_elements])
@@ -616,7 +620,7 @@ class Rotor(object):
         with warnings.catch_warnings():
             warnings.simplefilter("ignore")
             log_dec = 2 * np.pi * damping_ratio / np.sqrt(1 - damping_ratio ** 2)
-        lti = self._lti(speed)
+
         modal_results = ModalResults(
             speed,
             evalues,
@@ -625,7 +629,6 @@ class Rotor(object):
             wd,
             damping_ratio,
             log_dec,
-            lti,
             self.ndof,
             self.nodes,
             self.nodes_pos,
@@ -634,7 +637,7 @@ class Rotor(object):
 
         return modal_results
 
-    def run_critical_speed(self, num_modes=12, sparse=True, rtol=0.005):
+    def run_critical_speed(self, speed_range=None, num_modes=12, rtol=0.005):
         """Calculate the critical speeds and damping ratios for the rotor model.
 
         This function runs an iterative method over "run_modal()" to minimize
@@ -654,19 +657,16 @@ class Rotor(object):
 
         Parameters
         ----------
+        speed_range : tuple
+            Tuple (start, end) with the desired range of frequencies (rad/s).
+            The function returns all eigenvalues within this range.
         num_modes : int, optional
             The number of eigenvalues and eigenvectors to be calculated using ARPACK.
             If sparse=True, it determines the number of eigenvalues and eigenvectors
             to be calculated. It must be smaller than Rotor.ndof - 1. It is not
             possible to compute all eigenvectors of a matrix with ARPACK.
-            If sparse=False, num_modes does not have any effect over the method.
+            If speed_range is not None, num_modes is overrided.
             Default is 12.
-        sparse : bool, optional
-            If True, ARPACK is used to calculate a desired number (according to
-            num_modes) or eigenvalues and eigenvectors.
-            If False, scipy.linalg.eig() is used to calculate all the eigenvalues and
-            eigenvectors.
-            Default is True.
         rtol : float, optional
             Tolerance (relative) for termination. Applied to scipy.optimize.newton.
             Default is 0.005 (0.5%).
@@ -681,33 +681,65 @@ class Rotor(object):
 
         Examples
         --------
-        >>> rotor = rotor_example()
+        >>> import ross as rs
+        >>> rotor = rs.rotor_example()
+
+        Finding the first Nth critical speeds
         >>> results = rotor.run_critical_speed(num_modes=8)
-        >>> np.round(results.wd)
+        >>> np.round(results.wd())
         array([ 92.,  96., 271., 300.])
-        >>> np.round(results.wn)
+        >>> np.round(results.wn())
         array([ 92.,  96., 271., 300.])
+
+        Finding the first critical speeds within a speed range
+        >>> results = rotor.run_critical_speed(speed_range=(100, 1000))
+        >>> np.round(results.wd())
+        array([271., 300., 636., 867.])
+
+        Changing output units
+        >>> np.round(results.wd("rpm"))
+        array([2590., 2868., 6074., 8278.])
+
+        Retrieving whirl directions
+        >>> results.whirl_direction # doctest: +ELLIPSIS
+        array([...
         """
-        _wn = self.run_modal(0, num_modes, sparse).wn
+        num_modes = (self.ndof - 4) * 2 if speed_range is not None else num_modes
+
+        modal = self.run_modal(0, num_modes)
+        _wn = modal.wn
+        _wd = modal.wd
         wn = np.zeros_like(_wn)
-        wd = np.zeros_like(_wn)
-        log_dec = np.zeros_like(_wn)
-        damping_ratio = np.zeros_like(_wn)
+        wd = np.zeros_like(_wd)
 
         for i in range(len(wn)):
-            wn_func = lambda s: (s - self.run_modal(s, num_modes, sparse).wn[i])
+            wn_func = lambda s: (s - self.run_modal(s, num_modes).wn[i])
             wn[i] = newton(func=wn_func, x0=_wn[i], rtol=rtol)
 
-        for i in range(len(wn)):
-            wd_func = lambda s: (s - self.run_modal(s, num_modes, sparse).wd[i])
-            wd[i] = newton(func=wd_func, x0=wn[i], rtol=rtol)
+        for i in range(len(wd)):
+            wd_func = lambda s: (s - self.run_modal(s, num_modes).wd[i])
+            wd[i] = newton(func=wd_func, x0=_wd[i], rtol=rtol)
 
+        log_dec = np.zeros_like(wn)
+        damping_ratio = np.zeros_like(wn)
+        whirl_direction = list(np.zeros_like(wn))
         for i, s in enumerate(wd):
-            modal = self.run_modal(s, num_modes, sparse)
+            modal = self.run_modal(s, num_modes)
             log_dec[i] = modal.log_dec[i]
             damping_ratio[i] = modal.damping_ratio[i]
+            whirl_direction[i] = modal.whirl_direction()[i]
 
-        return CriticalSpeedResults(wn, wd, log_dec, damping_ratio)
+        whirl_direction = np.array(whirl_direction)
+        if speed_range is not None:
+            vmin, vmax = speed_range
+            idx = np.where((wd >= vmin) & (wd <= vmax))
+            wn = wn[idx]
+            wd = wd[idx]
+            log_dec = log_dec[idx]
+            damping_ratio = damping_ratio[idx]
+            whirl_direction = whirl_direction[idx]
+
+        return CriticalSpeedResults(wn, wd, log_dec, damping_ratio, whirl_direction)
 
     def convergence(self, n_eigval=0, err_max=1e-02):
         """Run convergence analysis.
@@ -1095,7 +1127,7 @@ class Rotor(object):
         (61,)
         """
         critical_speeds = self.run_critical_speed(num_modes=num_modes, rtol=rtol)
-        omega = critical_speeds.wd
+        omega = critical_speeds._wd
         damping = critical_speeds.damping_ratio
         damping = np.array([d if d >= 0.005 else 0.005 for d in damping])
 
@@ -1348,17 +1380,14 @@ class Rotor(object):
         This method returns the frequency response for a mdof system given a range of
         frequencies and the modes that will be used.
 
-        General parameters
-        ------------------
+        Parameters
+        ----------
         speed_range : array, optional
             Array with the desired range of frequencies.
             Default is 0 to 1.5 x highest damped natural frequency.
         modes : list, optional
             Modes that will be used to calculate the frequency response
             (all modes will be used if a list is not given).
-
-        Frequency spacing parameters
-        ----------------------------
         cluster_points : bool, optional
             boolean to activate the automatic frequency spacing method. If True, the
             method uses _clustering_points() to create an speed_range.
@@ -1394,7 +1423,7 @@ class Rotor(object):
         >>> rotor = rotor_example()
         >>> speed = np.linspace(0, 1000, 101)
         >>> response = rotor.run_freq_response(speed_range=speed)
-        >>> response.magnitude # doctest: +ELLIPSIS
+        >>> abs(response.freq_resp) # doctest: +ELLIPSIS
         array([[[1.00000000e-06, 1.00261725e-06, 1.01076952e-06, ...
 
         Using clustered points option.
@@ -1407,6 +1436,15 @@ class Rotor(object):
 
         # plot frequency response function:
         >>> fig = response.plot(inp=13, out=13)
+
+        To plot velocity and acceleration responses, you must change amplitude_units
+        from "[length]/[force]" units to "[speed]/[force]" or "[acceleration]/[force]"
+        respectively
+        >>> # Plotting velocity response
+        >>> fig = response.plot(inp=13, out=13, amplitude_units="m/s/N")
+
+        >>> # Plotting acceleration response
+        >>> fig = response.plot(inp=13, out=13, amplitude_units="m/s**2/N")
         """
         if speed_range is None:
             if not cluster_points:
@@ -1420,16 +1458,21 @@ class Rotor(object):
         self._check_frequency_array(speed_range)
 
         freq_resp = np.empty((self.ndof, self.ndof, len(speed_range)), dtype=np.complex)
+        velc_resp = np.empty((self.ndof, self.ndof, len(speed_range)), dtype=np.complex)
+        accl_resp = np.empty((self.ndof, self.ndof, len(speed_range)), dtype=np.complex)
 
         for i, speed in enumerate(speed_range):
             H = self.transfer_matrix(speed=speed, modes=modes)
             freq_resp[..., i] = H
+            velc_resp[..., i] = 1j * speed * H
+            accl_resp[..., i] = - speed ** 2 * H
 
         results = FrequencyResponseResults(
             freq_resp=freq_resp,
+            velc_resp=velc_resp,
+            accl_resp=accl_resp,
             speed_range=speed_range,
-            magnitude=abs(freq_resp),
-            phase=np.angle(freq_resp),
+            number_dof=self.number_dof,
         )
 
         return results
@@ -1465,9 +1508,6 @@ class Rotor(object):
             with deflected shape. This argument is set only if running an unbalance
             response analysis.
             Default is None.
-
-        Frequency spacing parameters
-        ----------------------------
         cluster_points : bool, optional
             boolean to activate the automatic frequency spacing method. If True, the
             method uses _clustering_points() to create an speed_range.
@@ -1492,14 +1532,14 @@ class Rotor(object):
 
         Returns
         -------
-        force_resp : array
+        forced_resp : array
             Array with the force response for each node for each frequency
         speed_range : array
             Array with the frequencies
-        magnitude : array
-            Magnitude (dB) of the frequency response for node for each frequency
-        phase : array
-            Phase of the frequency response for node for each frequency
+        velc_resp : array
+            Array with the velocity response for each node for each frequency
+        accl_resp : array
+            Array with the acceleration response for each node for each frequency
 
         Examples
         --------
@@ -1507,7 +1547,7 @@ class Rotor(object):
         >>> speed = np.linspace(0, 1000, 101)
         >>> force = rotor._unbalance_force(3, 10.0, 0.0, speed)
         >>> resp = rotor.forced_response(force=force, speed_range=speed)
-        >>> resp.magnitude # doctest: +ELLIPSIS
+        >>> abs(resp.forced_resp) # doctest: +ELLIPSIS
         array([[0.00000000e+00, 5.06073311e-04, 2.10044826e-03, ...
 
         Using clustered points option.
@@ -1533,16 +1573,24 @@ class Rotor(object):
         forced_resp = np.zeros(
             (self.ndof, len(freq_resp.speed_range)), dtype=np.complex
         )
+        velc_resp = np.zeros(
+            (self.ndof, len(freq_resp.speed_range)), dtype=np.complex
+        )
+        accl_resp = np.zeros(
+            (self.ndof, len(freq_resp.speed_range)), dtype=np.complex
+        )
 
         for i in range(len(freq_resp.speed_range)):
             forced_resp[:, i] = freq_resp.freq_resp[..., i] @ force[..., i]
+            velc_resp[:, i] = freq_resp.velc_resp[..., i] @ force[..., i]
+            accl_resp[:, i] = freq_resp.accl_resp[..., i] @ force[..., i]
 
         forced_resp = ForcedResponseResults(
             rotor=self,
             forced_resp=forced_resp,
+            velc_resp=velc_resp,
+            accl_resp=accl_resp,
             speed_range=speed_range,
-            magnitude=abs(forced_resp),
-            phase=np.angle(forced_resp),
             unbalance=unbalance,
         )
 
@@ -1624,9 +1672,6 @@ class Rotor(object):
         modes : list, optional
             Modes that will be used to calculate the frequency response
             (all modes will be used if a list is not given).
-
-        Frequency spacing parameters
-        ----------------------------
         cluster_points : bool, optional
             boolean to activate the automatic frequency spacing method. If True, the
             method uses _clustering_points() to create an speed_range.
@@ -1651,26 +1696,25 @@ class Rotor(object):
 
         Returns
         -------
-        force_resp : array
-            Array with the force response for each node for each frequency
+        forced_resp : array
+            Array with the forced response for each node for each frequency
         speed_range : array
             Array with the frequencies
-        magdb : array
-            Magnitude (dB) of the frequency response for each pair input/output.
-            The order of the array is: [output, input, magnitude]
-        phase : array
-            Phase of the frequency response for each pair input/output.
-            The order of the array is: [output, input, phase]
+        velc_resp : array
+            Array with the velocity response for each node for each frequency
+        accl_resp : array
+            Array with the acceleration response for each node for each frequency
 
         Examples
         --------
-        >>> rotor = rotor_example()
+        >>> import ross as rs
+        >>> rotor = rs.rotor_example()
         >>> speed = np.linspace(0, 1000, 101)
         >>> response = rotor.run_unbalance_response(node=3,
         ...                                         unbalance_magnitude=10.0,
         ...                                         unbalance_phase=0.0,
         ...                                         frequency=speed)
-        >>> response.magnitude # doctest: +ELLIPSIS
+        >>> abs(response.forced_resp) # doctest: +ELLIPSIS
         array([[0.00000000e+00, 5.06073311e-04, 2.10044826e-03, ...
 
         Using clustered points option.
@@ -1686,7 +1730,29 @@ class Rotor(object):
         plot unbalance response:
         >>> probe_node = 3
         >>> probe_angle = np.pi / 2
-        >>> fig = response.plot(probe=[(probe_node, probe_angle)])
+        >>> probe_tag = "my_probe"  # optional
+        >>> fig = response.plot(probe=[(probe_node, probe_angle, probe_tag)])
+
+        plot response for major or minor axis:
+        >>> probe_node = 3
+        >>> probe_angle = "major"   # for major axis
+        >>> # probe_angle = "minor" # for minor axis
+        >>> probe_tag = "my_probe"  # optional
+        >>> fig = response.plot(probe=[(probe_node, probe_angle, probe_tag)])
+
+        To plot velocity and acceleration responses, you must change amplitude_units
+        from "[length]" units to "[length]/[time]" or "[length]/[time] ** 2" respectively
+        >>> # Plotting velocity response
+        >>> fig = response.plot(
+        ...     probe=[(probe_node, probe_angle, probe_tag)],
+        ...     amplitude_units="m/s"
+        ... )
+
+        >>> # Plotting acceleration response
+        >>> fig = response.plot(
+        ...     probe=[(probe_node, probe_angle, probe_tag)],
+        ...     amplitude_units="m/s"
+        ... )
 
         plot deflected shape configuration
         >>> value = 600
@@ -1749,8 +1815,8 @@ class Rotor(object):
         >>> rotor.time_response(speed, F, t) # doctest: +ELLIPSIS
         (array([0.        , 0.18518519, 0.37037037, ...
         """
-        modal = self.run_modal(speed=speed)
-        return signal.lsim(modal.lti, F, t, X0=ic)
+        lti = self._lti(speed)
+        return signal.lsim(lti, F, t, X0=ic)
 
     def plot_rotor(self, nodes=1, check_sld=False, length_units="m", **kwargs):
         """Plot a rotor object.
@@ -2366,9 +2432,7 @@ class Rotor(object):
         """
         t_, yout, xout = self.time_response(speed, F, t)
 
-        results = TimeResponseResults(
-            t, yout, xout, self.nodes, self.nodes_pos, self.number_dof
-        )
+        results = TimeResponseResults(self, t, yout, xout)
 
         return results
 
@@ -2469,7 +2533,7 @@ class Rotor(object):
         Parameters
         ----------
         **kwargs: dictionary
-        
+
             **kwargs receives:
                 dt : float
                     Time step.

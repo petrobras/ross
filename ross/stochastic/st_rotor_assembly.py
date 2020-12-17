@@ -352,7 +352,7 @@ class ST_Rotor(object):
         ----------
         is_random : list
             List of the object attributes to become stochastic.
-         *args : dict
+        *args : dict
             Dictionary instanciating the ross.Rotor class.
             The attributes that are supposed to be stochastic should be
             set as lists of random variables.
@@ -531,8 +531,8 @@ class ST_Rotor(object):
         # Monte Carlo - results storage
         for i, rotor in enumerate(iter(self)):
             results = rotor.run_freq_response(speed_range, modes)
-            magnitude[:, i] = results.magnitude[inp, out, :]
-            phase[:, i] = results.phase[inp, out, :]
+            magnitude[:, i] = abs(results.freq_resp[inp, out, :])
+            phase[:, i] = np.angle(results.freq_resp[inp, out, :])
 
         results = ST_FrequencyResponseResults(speed_range, magnitude, phase)
 
@@ -579,7 +579,7 @@ class ST_Rotor(object):
 
         # Running Time Response and saving the results
 
-        >>> size = 1000
+        >>> size = 10
         >>> ndof = rotors.ndof
         >>> node = 3 # node where the force is applied
 
@@ -719,8 +719,8 @@ class ST_Rotor(object):
             for rotor, args in zip(iter(self), unbalance_args):
                 results = rotor.run_unbalance_response(*args)
                 forced_resp[i] = results.forced_resp.T
-                mag_resp[i] = results.magnitude.T
-                phs_resp[i] = results.phase.T
+                mag_resp[i] = abs(results.forced_resp).T
+                phs_resp[i] = np.angle(results.forced_resp).T
                 i += 1
         else:
             for i, rotor in enumerate(iter(self)):
@@ -728,8 +728,8 @@ class ST_Rotor(object):
                     node, magnitude, phase, frequency_range
                 )
                 forced_resp[i] = results.forced_resp.T
-                mag_resp[i] = results.magnitude.T
-                phs_resp[i] = results.phase.T
+                mag_resp[i] = abs(results.forced_resp).T
+                phs_resp[i] = np.angle(results.forced_resp).T
 
         results = ST_ForcedResponseResults(
             forced_resp=forced_resp,
