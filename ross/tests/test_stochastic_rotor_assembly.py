@@ -48,7 +48,11 @@ def rotor1():
 ###############################################################################
 def test_st_shaft_elements_odd_length():
     tim0 = ST_ShaftElement(
-        L=[1, 1.1], idl=0, odl=[0.1, 0.2], material=steel, is_random=["L", "odl"]
+        L=[1, 1.1],
+        idl=0,
+        odl=[0.1, 0.2],
+        material=steel,
+        is_random=["L", "odl"],
     )
     tim1 = ST_ShaftElement(
         L=[1, 1.1, 1.2],
@@ -78,17 +82,33 @@ def test_st_disk_elements_odd_length():
 
 
 def test_st_bearing_elements_odd_length():
-    tim0 = ShaftElement(L=0.25, idl=0, odl=0.05, material=steel)
-    tim1 = ShaftElement(L=0.25, idl=0, odl=0.05, material=steel)
+    tim0 = ShaftElement(
+        L=0.25,
+        idl=0,
+        odl=0.05,
+        material=steel,
+    )
+    tim1 = ShaftElement(
+        L=0.25,
+        idl=0,
+        odl=0.05,
+        material=steel,
+    )
     shaft_elm = [tim0, tim1]
 
     disk0 = DiskElement(n=1, m=20, Id=1, Ip=1)
 
     brg0 = ST_BearingElement(
-        n=0, kxx=[1e6, 2e6], cxx=[1e3, 2e3], is_random=["kxx", "cxx"]
+        n=0,
+        kxx=[1e6, 2e6],
+        cxx=[1e3, 2e3],
+        is_random=["kxx", "cxx"],
     )
     brg1 = ST_BearingElement(
-        n=2, kxx=[1e6, 2e6, 3e6], cxx=[1e3, 2e3, 3e3], is_random=["kxx", "cxx"]
+        n=2,
+        kxx=[1e6, 2e6, 3e6],
+        cxx=[1e3, 2e3, 3e3],
+        is_random=["kxx", "cxx"],
     )
 
     with pytest.raises(ValueError) as ex:
@@ -118,7 +138,11 @@ def test_st_point_mass_elements_odd_length():
 
 def test_elements_odd_length():
     tim0 = ST_ShaftElement(
-        L=[1, 1.1], idl=0, odl=[0.1, 0.2], material=steel, is_random=["L", "odl"]
+        L=[1, 1.1],
+        idl=0,
+        odl=[0.1, 0.2],
+        material=steel,
+        is_random=["L", "odl"],
     )
     shaft_elm = [tim0, tim0]
 
@@ -127,10 +151,16 @@ def test_elements_odd_length():
     disks = [disk0, disk1]
 
     brg0 = ST_BearingElement(
-        n=0, kxx=[1e6, 2e6], cxx=[1e3, 2e3], is_random=["kxx", "cxx"]
+        n=0,
+        kxx=[1e6, 2e6],
+        cxx=[1e3, 2e3],
+        is_random=["kxx", "cxx"],
     )
     brg1 = ST_BearingElement(
-        n=2, kxx=[1e6, 2e6], cxx=[1e3, 2e3], is_random=["kxx", "cxx"]
+        n=2,
+        kxx=[1e6, 2e6],
+        cxx=[1e3, 2e3],
+        is_random=["kxx", "cxx"],
     )
     bearings = [brg0, brg1]
 
@@ -257,7 +287,7 @@ def test_run_freq_response(rotor1):
     speed_range = np.linspace(0, 300, 21)
     inp = 13
     out = 13
-    results = rotor1.run_freq_response(speed_range, inp, out)
+    results = rotor1.run_freq_response(inp, out, speed_range)
 
     # fmt: off
     magnitude = np.array(
@@ -313,10 +343,11 @@ def test_run_freq_response(rotor1):
     )
     # fmt: on
 
-    assert results.magnitude.shape == (21, 2)
-    assert results.phase.shape == (21, 2)
-    assert_allclose(results.magnitude, magnitude, atol=1e-6)
-    assert_allclose(results.phase, phase, atol=1e-6)
+    assert results.freq_resp.shape == (21, 2)
+    assert results.velc_resp.shape == (21, 2)
+    assert results.accl_resp.shape == (21, 2)
+    assert_allclose(np.abs(results.freq_resp), magnitude, atol=1e-6)
+    assert_allclose(np.angle(results.freq_resp), phase, atol=1e-6)
 
 
 def test_run_unbalance_response(rotor1):
@@ -407,12 +438,12 @@ def test_run_unbalance_response(rotor1):
     )
     # fmt: on
 
-    assert results.forced_resp.shape == (2, 21, 28)
-    assert results.magnitude.shape == (2, 21, 28)
-    assert results.phase.shape == (2, 21, 28)
-    assert_allclose(results.forced_resp[0, :8, :8], forced_resp, atol=1e-8)
-    assert_allclose(results.magnitude[0, :8, :8], magnitude, atol=1e-8)
-    assert_allclose(results.phase[0, :8, :8], phase, atol=1e-8)
+    assert results.forced_resp.shape == (2, 28, 21)
+    assert results.velc_resp.shape == (2, 28, 21)
+    assert results.accl_resp.shape == (2, 28, 21)
+    assert_allclose(results.forced_resp[0, :8, :8].T, forced_resp, atol=1e-8)
+    assert_allclose(np.abs(results.forced_resp[0, :8, :8]).T, magnitude, atol=1e-8)
+    assert_allclose(np.angle(results.forced_resp[0, :8, :8]).T, phase, atol=1e-8)
 
 
 def test_time_response(rotor1):

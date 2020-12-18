@@ -5,6 +5,7 @@ analysis.
 """
 from ross.point_mass import PointMass
 from ross.stochastic.st_results_elements import plot_histogram
+from ross.units import check_units
 
 __all__ = ["ST_PointMass", "st_pointmass_example"]
 
@@ -56,10 +57,25 @@ class ST_PointMass:
     5
     """
 
+    @check_units
     def __init__(
-        self, n, m=None, mx=None, my=None, tag=None, color="DarkSalmon", is_random=None
+        self,
+        n,
+        m=None,
+        mx=None,
+        my=None,
+        tag=None,
+        color="DarkSalmon",
+        is_random=None,
     ):
-        attribute_dict = dict(n=n, m=m, mx=mx, my=my, tag=tag, color=color)
+        attribute_dict = dict(
+            n=n,
+            m=m,
+            mx=mx,
+            my=my,
+            tag=tag,
+            color=color,
+        )
 
         self.is_random = is_random
         self.attribute_dict = attribute_dict
@@ -217,7 +233,9 @@ class ST_PointMass:
         >>> # fig.show()
         """
         label = dict(
-            mx="Mass on the X direction", my="Mass on the Y direction", m="Mass"
+            mx="Mass on the X direction",
+            my="Mass on the Y direction",
+            m="Mass",
         )
         if var_list is None:
             var_list = self.is_random
