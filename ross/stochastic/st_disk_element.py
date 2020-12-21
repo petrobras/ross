@@ -8,6 +8,7 @@ import numpy as np
 from ross.disk_element import DiskElement
 from ross.stochastic.st_materials import ST_Material
 from ross.stochastic.st_results_elements import plot_histogram
+from ross.units import check_units
 
 __all__ = ["ST_DiskElement", "st_disk_example"]
 
@@ -55,7 +56,17 @@ class ST_DiskElement:
     5
     """
 
-    def __init__(self, n, m, Id, Ip, tag=None, color="Firebrick", is_random=None):
+    @check_units
+    def __init__(
+        self,
+        n,
+        m,
+        Id,
+        Ip,
+        tag=None,
+        color="Firebrick",
+        is_random=None,
+    ):
         attribute_dict = dict(n=n, m=m, Id=Id, Ip=Ip, tag=tag, color=color)
 
         self.is_random = is_random
@@ -216,7 +227,9 @@ class ST_DiskElement:
         >>> # fig.show()
         """
         label = dict(
-            m="Mass", Id="Diametral moment of inertia", Ip="Polar moment of inertia"
+            m="Mass",
+            Id="Diametral moment of inertia",
+            Ip="Polar moment of inertia",
         )
         if var_list is None:
             var_list = self.is_random
@@ -232,7 +245,17 @@ class ST_DiskElement:
         )
 
     @classmethod
-    def from_geometry(cls, n, material, width, i_d, o_d, tag=None, is_random=None):
+    @check_units
+    def from_geometry(
+        cls,
+        n,
+        material,
+        width,
+        i_d,
+        o_d,
+        tag=None,
+        is_random=None,
+    ):
         """Random disk element.
 
         Creates an object containing a list with random instances of
@@ -293,7 +316,12 @@ class ST_DiskElement:
             o_d = np.array(o_d)
 
         attribute_dict = dict(
-            n=n, material=material, width=width, i_d=i_d, o_d=o_d, tag=tag
+            n=n,
+            material=material,
+            width=width,
+            i_d=i_d,
+            o_d=o_d,
+            tag=tag,
         )
         size = len(attribute_dict[is_random[0]])
 
@@ -336,6 +364,10 @@ def st_disk_example():
     2
     """
     elm = ST_DiskElement(
-        n=1, m=[30, 40], Id=[0.2, 0.3], Ip=[0.5, 0.7], is_random=["m", "Id", "Ip"]
+        n=1,
+        m=[30, 40],
+        Id=[0.2, 0.3],
+        Ip=[0.5, 0.7],
+        is_random=["m", "Id", "Ip"],
     )
     return elm
