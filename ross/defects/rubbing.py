@@ -3,7 +3,6 @@ from abc import ABC, abstractmethod
 
 import numpy as np
 import plotly.graph_objects as go
-import scipy as sp
 import scipy.integrate
 import scipy.linalg
 
@@ -21,7 +20,7 @@ __all__ = [
 
 class Rubbing(Defect):
     """Contains a rubbing model for applications on finite element models of rotative machinery.
-    The reference coordenates system is: z-axis throught the shaft center; x-axis and y-axis in the sensors' planes 
+    The reference coordenates system is: z-axis throught the shaft center; x-axis and y-axis in the sensors' planes
 
     Parameters
     ----------
@@ -114,7 +113,7 @@ class Rubbing(Defect):
         ----------
         rotor : ross.Rotor Object
              6 DoF rotor model.
-                
+
         """
 
         self.rotor = rotor
@@ -159,7 +158,12 @@ class Rubbing(Defect):
         self.M = self.rotor.M()
         self.Kst = self.rotor.Kst()
 
-        V1, ModMat = scipy.linalg.eigh(self.K, self.M, type=1, turbo=False,)
+        V1, ModMat = scipy.linalg.eigh(
+            self.K,
+            self.M,
+            type=1,
+            turbo=False,
+        )
 
         ModMat = ModMat[:, :12]
         self.ModMat = ModMat
@@ -236,7 +240,7 @@ class Rubbing(Defect):
         self.response = self.ModMat.dot(self.displacement)
 
     def _equation_of_movement(self, T, Y, i):
-        """ Calculates the displacement and velocity using state-space representation in the modal domain.
+        """Calculates the displacement and velocity using state-space representation in the modal domain.
 
         Parameters
         ----------
@@ -302,9 +306,9 @@ class Rubbing(Defect):
             self.F_c[ii] = self._damping_force(self.y[ii + self.ndof])
             self.F_c[ii + 1] = self._damping_force(self.y[ii + 1 + self.ndof])
 
-            Vt = -self.y[ii + self.ndof + 1] * sp.sin(self.phi_angle) + self.y[
+            Vt = -self.y[ii + self.ndof + 1] * np.sin(self.phi_angle) + self.y[
                 ii + self.ndof
-            ] * sp.cos(self.phi_angle)
+            ] * np.cos(self.phi_angle)
 
             if Vt + ang * self.radius > 0:
                 self.F_f[ii] = -self._tangential_force(self.F_k[ii], self.F_c[ii])
@@ -521,7 +525,7 @@ def base_rotor_example():
 def rubbing_example():
     """Create an example of a rubbing defect.
 
-    This function returns an instance of a rubbing defect. The purpose is to make 
+    This function returns an instance of a rubbing defect. The purpose is to make
     available a simple model so that a doctest can be written using it.
 
     Returns

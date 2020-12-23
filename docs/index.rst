@@ -13,6 +13,8 @@ available at `github <https://github.com/ross-rotordynamics/ross>`_.
 
 You can check the tutorial and examples on `binder <https://mybinder.org/v2/gh/ross-rotordynamics/ross/0.3?filepath=%2Fdocs%2Fexamples>`_.
 
+Please, cite our `paper <https://joss.theoj.org/papers/10.21105/joss.02120>`_ published in JOSS - Journal of Open Source Software.
+
 .. toctree::
    :maxdepth: 1
    :caption: Contents:
