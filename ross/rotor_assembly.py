@@ -571,6 +571,10 @@ class Rotor(object):
         eigenvalues and eigenvectors, hence, different natural frequencies and damping
         ratios are returned.
 
+        Available plotting methods:
+            .plot_mode_2d()
+            .plot_mode_3d()
+
         Parameters
         ----------
         speed : float
@@ -604,13 +608,21 @@ class Rotor(object):
 
         Example
         -------
-        >>> rotor = rotor_example()
+        >>> import ross as rs
+        >>> rotor = rs.rotor_example()
         >>> modal = rotor.run_modal(speed=0, sparse=False)
         >>> modal.wn[:2]
         array([91.79655318, 96.28899977])
         >>> modal.wd[:2]
         array([91.79655318, 96.28899977])
-        >>> fig = modal.plot_mode_3d(0)
+
+        Plotting 3D mode shape
+        >>> mode1 = 0  # First mode
+        >>> fig = modal.plot_mode_3d(mode1)
+
+        Plotting 2D mode shape
+        >>> mode2 = 1  # Second mode
+        >>> fig = modal.plot_mode_2d(mode2)
         """
         evalues, evectors = self._eigen(speed, num_modes=num_modes, sparse=sparse)
         wn_len = num_modes // 2
@@ -673,11 +685,13 @@ class Rotor(object):
 
         Returns
         -------
-        CriticalSpeedResults : array
-            CriticalSpeedResults.wn : undamped critical speeds.
-            CriticalSpeedResults.wd : damped critical speeds.
+        CriticalSpeedResults : An instance of CriticalSpeedResults class, which is
+        used to post-process results. Attributes stored:
+            CriticalSpeedResults.wn() : undamped critical speeds.
+            CriticalSpeedResults.wd(): damped critical speeds.
             CriticalSpeedResults.log_dec : log_dec for each critical speed.
             CriticalSpeedResults.damping_ratio : damping ratio for each critical speed.
+            CriticalSpeedResults.whirl_direction : whirl dir. for each critical speed.
 
         Examples
         --------
@@ -758,10 +772,14 @@ class Rotor(object):
 
         Returns
         -------
-        Lists containing the information about:
-            The number or elements in each run;
-            The relative error calculated in each run;
-            The natural frequency calculated in each run.
+        results : An instance of ConvergenceResults class, which is used to post-process
+        results. Attributes stored:
+            el_num : array
+                Array with number of elements in each iteraction
+            eigv_arr : array
+                Array with the n'th natural frequency in each iteraction
+            error_arr : array
+                Array with the relative error in each iteraction
 
         Example
         -------
@@ -783,6 +801,9 @@ class Rotor(object):
         >>> convergence = rotor0.convergence(n_eigval=0, err_max=1e-08)
         >>> len(rotor0.shaft_elements)
         96
+
+        Plotting convergence graphics
+        >>> fig = convergence.plot()
         """
         el_num = np.array([len(self.shaft_elements)])
         eigv_arr = np.array([])
@@ -1205,14 +1226,14 @@ class Rotor(object):
 
         Parameters
         ----------
-        speed: float
+        speed : float
             Rotor speed.
         frequency: float
             Excitation frequency.
-        sorted_: bool, optional
+        sorted_ : bool, optional
             Sort considering the imaginary part (wd)
             Default is True
-        A: np.array, optional
+        A : np.array, optional
             Matrix for which eig will be calculated.
             Defaul is the rotor A matrix.
         sparse : bool, optional
@@ -1379,6 +1400,12 @@ class Rotor(object):
 
         This method returns the frequency response for a mdof system given a range of
         frequencies and the modes that will be used.
+        
+        Available plotting methods:
+            .plot()
+            .plot_magnitude()
+            .plot_phase()
+            .plot_polar_bode()
 
         Parameters
         ----------
@@ -1412,11 +1439,20 @@ class Rotor(object):
 
         Returns
         -------
-        results : array
-            Array with the frequencies, magnitude (dB) of the frequency
-            response for each pair input/output, and
-            phase of the frequency response for each pair input/output.
-            It will be returned if plot=False.
+        results : object
+            An instance of ForcedResponseResult class, which is used to post-process
+            results. Attributes stored:
+            freq_resp : array
+                Array with the frequency response for each node for each pair
+                input/output.
+            speed_range : array
+                Array with the frequencies.
+            velc_resp : array
+                Array with the velocity response for each node for each pair
+                input/output.
+            accl_resp : array
+                Array with the acceleration response for each node for each pair
+                input/output.
 
         Examples
         --------
@@ -1434,16 +1470,17 @@ class Rotor(object):
         >>> response.speed_range.shape
         (61,)
 
-        # plot frequency response function:
+        Plotting frequency response function:
         >>> fig = response.plot(inp=13, out=13)
 
         To plot velocity and acceleration responses, you must change amplitude_units
         from "[length]/[force]" units to "[speed]/[force]" or "[acceleration]/[force]"
         respectively
-        >>> # Plotting velocity response
+
+        Plotting velocity response
         >>> fig = response.plot(inp=13, out=13, amplitude_units="m/s/N")
 
-        >>> # Plotting acceleration response
+        Plotting acceleration response
         >>> fig = response.plot(inp=13, out=13, amplitude_units="m/s**2/N")
         """
         if speed_range is None:
@@ -1494,6 +1531,16 @@ class Rotor(object):
         given magnitude and phase of the unbalance, the node where it's
         applied and a frequency range.
 
+        Available plotting methods:
+            .plot()
+            .plot_magnitude()
+            .plot_phase()
+            .plot_polar_bode()
+            .plot_deflected_shape()
+            .plot_bending_moment()
+            .plot_deflected_shape_3d()
+            .plot_deflected_shape_2d()
+
         Parameters
         ----------
         force : list, array
@@ -1532,14 +1579,17 @@ class Rotor(object):
 
         Returns
         -------
-        forced_resp : array
-            Array with the force response for each node for each frequency
-        speed_range : array
-            Array with the frequencies
-        velc_resp : array
-            Array with the velocity response for each node for each frequency
-        accl_resp : array
-            Array with the acceleration response for each node for each frequency
+        forced_resp : object
+            An instance of ForcedResponseResult class, which is used to post-process
+            results. Attributes stored:
+            forced_resp : array
+                Array with the forced response for each node for each frequency.
+            speed_range : array
+                Array with the frequencies.
+            velc_resp : array
+                Array with the velocity response for each node for each frequency.
+            accl_resp : array
+                Array with the acceleration response for each node for each frequency.
 
         Examples
         --------
@@ -1573,12 +1623,8 @@ class Rotor(object):
         forced_resp = np.zeros(
             (self.ndof, len(freq_resp.speed_range)), dtype=np.complex
         )
-        velc_resp = np.zeros(
-            (self.ndof, len(freq_resp.speed_range)), dtype=np.complex
-        )
-        accl_resp = np.zeros(
-            (self.ndof, len(freq_resp.speed_range)), dtype=np.complex
-        )
+        velc_resp = np.zeros((self.ndof, len(freq_resp.speed_range)), dtype=np.complex)
+        accl_resp = np.zeros((self.ndof, len(freq_resp.speed_range)), dtype=np.complex)
 
         for i in range(len(freq_resp.speed_range)):
             forced_resp[:, i] = freq_resp.freq_resp[..., i] @ force[..., i]
@@ -1659,6 +1705,16 @@ class Rotor(object):
         given magnitide and phase of the unbalance, the node where it's
         applied and a frequency range.
 
+        Available plotting methods:
+            .plot()
+            .plot_magnitude()
+            .plot_phase()
+            .plot_polar_bode()
+            .plot_deflected_shape()
+            .plot_bending_moment()
+            .plot_deflected_shape_3d()
+            .plot_deflected_shape_2d()
+
         Parameters
         ----------
         node : list, int
@@ -1696,14 +1752,17 @@ class Rotor(object):
 
         Returns
         -------
-        forced_resp : array
-            Array with the forced response for each node for each frequency
-        speed_range : array
-            Array with the frequencies
-        velc_resp : array
-            Array with the velocity response for each node for each frequency
-        accl_resp : array
-            Array with the acceleration response for each node for each frequency
+        forced_response : object
+            An instance of ForcedResponseResult class, which is used to post-process
+            results. Attributes stored:
+            forced_resp : array
+                Array with the forced response for each node for each frequency.
+            speed_range : array
+                Array with the frequencies.
+            velc_resp : array
+                Array with the velocity response for each node for each frequency.
+            accl_resp : array
+                Array with the acceleration response for each node for each frequency.
 
         Examples
         --------
@@ -1727,13 +1786,13 @@ class Rotor(object):
         >>> response2.speed_range.shape
         (61,)
 
-        plot unbalance response:
+        Plotting unbalance response:
         >>> probe_node = 3
         >>> probe_angle = np.pi / 2
         >>> probe_tag = "my_probe"  # optional
         >>> fig = response.plot(probe=[(probe_node, probe_angle, probe_tag)])
 
-        plot response for major or minor axis:
+        Plotting response for major or minor axis:
         >>> probe_node = 3
         >>> probe_angle = "major"   # for major axis
         >>> # probe_angle = "minor" # for minor axis
@@ -1744,18 +1803,19 @@ class Rotor(object):
         from "[length]" units to "[length]/[time]" or "[length]/[time] ** 2" respectively
         >>> # Plotting velocity response
         >>> fig = response.plot(
-        ...     probe=[(probe_node, probe_angle, probe_tag)],
+        ...     probe=[(probe_node, probe_angle)],
         ...     amplitude_units="m/s"
         ... )
 
-        >>> # Plotting acceleration response
+        Plotting acceleration response
         >>> fig = response.plot(
-        ...     probe=[(probe_node, probe_angle, probe_tag)],
-        ...     amplitude_units="m/s"
+        ...     probe=[(probe_node, probe_angle)],
+        ...     amplitude_units="m/s**2"
         ... )
 
-        plot deflected shape configuration
-        >>> value = 600
+        Plotting deflected shape configuration
+        Speed value must be in speed_range.
+        >>> value = 600 
         >>> fig = response.plot_deflected_shape(speed=value)
         """
         if frequency is None:
@@ -1979,6 +2039,9 @@ class Rotor(object):
         This function will calculate the damped natural frequencies
         for a speed range.
 
+        Available plotting methods:
+            .plot()
+
         Parameters
         ----------
         speed_range : array
@@ -2000,8 +2063,7 @@ class Rotor(object):
         >>> speed = np.linspace(0, 400, 101)
         >>> camp = rotor1.run_campbell(speed)
 
-        # plot Campbell Diagram
-
+        Plotting Campbell Diagram
         >>> fig = camp.plot()
         """
         # store in results [speeds(x axis), frequencies[0] or logdec[1] or
@@ -2388,6 +2450,11 @@ class Rotor(object):
         This function will take a rotor object and calculate its time response
         given a force and a time.
 
+        Available plotting methods:
+            .plot_1d()
+            .plot_2d()
+            .plot_3d()
+
         Parameters
         ----------
         speed : float
@@ -2561,6 +2628,7 @@ class Rotor(object):
                     Set it as True to consider the torque provided by the rubbing, by default False.
                 print_progress : bool
                     Set it True, to print the time iterations and the total time spent, by default False.
+
         Examples
         --------
         >>> from ross.defects.rubbing import rubbing_example
@@ -2700,6 +2768,12 @@ class Rotor(object):
         Static analysis calculates free-body diagram, deformed shaft, shearing
         force diagram and bending moment diagram.
 
+        Available plotting methods:
+            .plot_deformation()
+            .plot_bending_moment()
+            .plot_shearing_force()
+            .plot_free_body_diagram()
+
         Attributes
         ----------
         shaft_weight: float
@@ -2731,15 +2805,25 @@ class Rotor(object):
 
         Example
         -------
-        >>> rotor = rotor_example()
+        >>> import ross as rs
+        >>> rotor = rs.rotor_example()
         >>> static = rotor.run_static()
         >>> rotor.bearing_forces_nodal
         {'node_0': 432.4, 'node_6': 432.4}
         >>> rotor.bearing_forces_tag
         {'Bearing 0': 432.4, 'Bearing 1': 432.4}
 
-        # plotting static deformation
+        Plotting static deformation
         >>> fig = static.plot_deformation()
+
+        Plotting bending moment
+        >>> fig = static.plot_bending_moment()
+
+        Plotting shearing force
+        >>> fig = static.plot_shearing_force()
+
+        Plotting free-body diagram
+        >>> fig = static.plot_free_body_diagram()
         """
         if not len(self.df_bearings):
             raise ValueError("Rotor has no bearings")
