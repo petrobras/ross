@@ -198,12 +198,12 @@ class Element(ABC):
         n                             0
         n_l                           0
         n_r                           0
-        m                       32.5897
+        m                     32.589728
         Id                     0.178089
         Ip                     0.329564
         tag                        None
         color                 Firebrick
-        scale_factor                  1
+        scale_factor           1.000000
         dof_global_index           None
         type                DiskElement
         dtype: object
