@@ -998,6 +998,37 @@ class CampbellResults(Results):
         for k, v in default_values.items():
             kwargs.setdefault(k, v)
 
+        crit_x = []
+        crit_y = []
+        for i in range(num_frequencies):
+            w_i = wd[:, i]
+
+            for harm in harmonics:
+                x1 = speed_range
+                y1 = w_i
+                x2 = speed_range
+                y2 = harm * speed_range
+
+                x, y = intersection(x1, y1, x2, y2)
+                crit_x.extend(x)
+                crit_y.extend(y)
+
+        if len(crit_x) and len(crit_y):
+            fig.add_trace(
+                go.Scatter(
+                    x=crit_x,
+                    y=crit_y,
+                    mode="markers",
+                    marker=dict(symbol="x", color="black"),
+                    name="Crit. Speed",
+                    legendgroup="Crit. Speed",
+                    showlegend=True,
+                    hovertemplate=(
+                        f"Frequency ({frequency_units}): %{{x:.2f}}<br>Critical Speed ({frequency_units}): %{{y:.2f}}"
+                    ),
+                )
+            )
+
         scatter_marker = ["triangle-up", "circle", "triangle-down"]
         for mark, whirl_dir, legend in zip(
             scatter_marker, [0.0, 0.5, 1.0], ["Foward", "Mixed", "Backward"]
@@ -1007,33 +1038,8 @@ class CampbellResults(Results):
                 whirl_i = whirl[:, i]
                 log_dec_i = log_dec[:, i]
 
-                for harm in harmonics:
-                    x1 = speed_range
-                    y1 = w_i
-                    x2 = speed_range
-                    y2 = harm * speed_range
-
-                    x, y = intersection(x1, y1, x2, y2)
-
-                    fig.add_trace(
-                        go.Scatter(
-                            x=x,
-                            y=y,
-                            mode="markers",
-                            marker=dict(symbol="x", color="black"),
-                            name="Crit. Speed",
-                            legendgroup="Crit. Speed",
-                            showlegend=False,
-                            hovertemplate=(
-                                f"Frequency ({frequency_units}): %{{x:.2f}}<br>Critical Speed ({frequency_units}): %{{y:.2f}}"
-                            ),
-                        )
-                    )
-
                 whirl_mask = whirl_i == whirl_dir
-                if whirl_mask.shape[0] == 0:
-                    continue
-                else:
+                if any(check for check in whirl_mask):
                     fig.add_trace(
                         go.Scatter(
                             x=speed_range[whirl_mask],
@@ -1050,6 +1056,8 @@ class CampbellResults(Results):
                             hoverinfo="none",
                         )
                     )
+                else:
+                    continue
 
         for j, h in enumerate(harmonics):
             fig.add_trace(
@@ -1063,8 +1071,8 @@ class CampbellResults(Results):
                 )
             )
         # turn legend glyphs black
-        scatter_marker = ["triangle-up", "circle", "triangle-down", "x"]
-        legends = ["Foward", "Mixed", "Backward", "Crit. Speed"]
+        scatter_marker = ["triangle-up", "circle", "triangle-down"]
+        legends = ["Foward", "Mixed", "Backward"]
         for mark, legend in zip(scatter_marker, legends):
             fig.add_trace(
                 go.Scatter(
@@ -1074,6 +1082,7 @@ class CampbellResults(Results):
                     name=legend,
                     legendgroup=legend,
                     marker=dict(symbol=mark, color="black"),
+                    hoverinfo="none",
                 )
             )
 
