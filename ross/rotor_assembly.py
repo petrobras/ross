@@ -1466,7 +1466,7 @@ class Rotor(object):
 
         Return the response phase
         >>> np.angle(response.freq_resp) # doctest: +ELLIPSIS
-        array([[[ ...
+        array([[[...
 
         Using clustered points option.
         Set `cluster_points=True` and choose how many modes the method must search and
