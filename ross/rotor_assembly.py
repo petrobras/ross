@@ -1459,8 +1459,14 @@ class Rotor(object):
         >>> rotor = rotor_example()
         >>> speed = np.linspace(0, 1000, 101)
         >>> response = rotor.run_freq_response(speed_range=speed)
+
+        Return the response amplitude
         >>> abs(response.freq_resp) # doctest: +ELLIPSIS
         array([[[1.00000000e-06, 1.00261725e-06, 1.01076952e-06, ...
+
+        Return the response phase
+        >>> np.angle(response.freq_resp) # doctest: +ELLIPSIS
+        array([[[ ...
 
         Using clustered points option.
         Set `cluster_points=True` and choose how many modes the method must search and
@@ -1773,8 +1779,14 @@ class Rotor(object):
         ...                                         unbalance_magnitude=10.0,
         ...                                         unbalance_phase=0.0,
         ...                                         frequency=speed)
+
+        Return the response amplitude
         >>> abs(response.forced_resp) # doctest: +ELLIPSIS
         array([[0.00000000e+00, 5.06073311e-04, 2.10044826e-03, ...
+
+        Return the response phase
+        >>> np.angle(response.forced_resp) # doctest: +ELLIPSIS
+        array([[ 0.00000000e+00, ...
 
         Using clustered points option.
         Set `cluster_points=True` and choose how many modes the method must search and
@@ -1786,13 +1798,13 @@ class Rotor(object):
         >>> response2.speed_range.shape
         (61,)
 
-        Plotting unbalance response:
+        plot unbalance response:
         >>> probe_node = 3
         >>> probe_angle = np.pi / 2
         >>> probe_tag = "my_probe"  # optional
         >>> fig = response.plot(probe=[(probe_node, probe_angle, probe_tag)])
 
-        Plotting response for major or minor axis:
+        plot response for major or minor axis:
         >>> probe_node = 3
         >>> probe_angle = "major"   # for major axis
         >>> # probe_angle = "minor" # for minor axis
@@ -1801,7 +1813,7 @@ class Rotor(object):
 
         To plot velocity and acceleration responses, you must change amplitude_units
         from "[length]" units to "[length]/[time]" or "[length]/[time] ** 2" respectively
-        >>> # Plotting velocity response
+        Plotting velocity response
         >>> fig = response.plot(
         ...     probe=[(probe_node, probe_angle)],
         ...     amplitude_units="m/s"
@@ -1815,7 +1827,7 @@ class Rotor(object):
 
         Plotting deflected shape configuration
         Speed value must be in speed_range.
-        >>> value = 600 
+        >>> value = 600
         >>> fig = response.plot_deflected_shape(speed=value)
         """
         if frequency is None:
