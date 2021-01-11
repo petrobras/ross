@@ -15,4 +15,5 @@ Examples
    examples/example_9
    examples/example_10
    examples/example_11
+   examples/example_12
    examples/fluif_flow_theory
