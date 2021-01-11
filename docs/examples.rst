@@ -16,4 +16,7 @@ Examples
    examples/example_10
    examples/example_11
    examples/example_12
-   examples/fluif_flow_theory
+   examples/fluid_flow_theory
+   examples/fluid_flow_elliptical_bearing
+   examples/fluid_flow_wear_bearing
+   examples/fluid_flow_short_bearing
