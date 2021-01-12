@@ -428,6 +428,7 @@ class Crack(Defect):
         KK_CRACK = self.KK - KK_crack
         FF_CRACK = (KK_CRACK).dot(self.positionsFis[self.dof_crack])
         F_CRACK[self.dof_crack] = FF_CRACK
+        self.KK_CRACK = KK_CRACK
 
         return FF_CRACK, F_CRACK
 
