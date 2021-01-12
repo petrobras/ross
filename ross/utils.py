@@ -170,12 +170,18 @@ def read_table_file(file, element, sheet_name=0, n=0, sheet_type="Model"):
         material_rho = []
         material_e = []
         material_g_s = []
+        material_color = []
         for index, row in df_material.iterrows():
             if not pd.isna(row["matno"]):
                 material_name.append(int(row["matno"]))
                 material_rho.append(row["rhoa"])
                 material_e.append(row["ea"])
                 material_g_s.append(row["ga"])
+                if pd.isna(row["color"]):
+                    material_color.append("#525252")
+                else:
+                    material_color.append(row["color"])
+
             else:
                 break
         if convert_to_metric:
@@ -187,6 +193,7 @@ def read_table_file(file, element, sheet_name=0, n=0, sheet_type="Model"):
         new_materials["rhoa"] = material_rho
         new_materials["ea"] = material_e
         new_materials["ga"] = material_g_s
+        new_materials["color"] = material_color
 
     df = pd.read_excel(file, header=header_index, sheet_name=sheet_name)
     df.columns = df.columns.str.lower()
