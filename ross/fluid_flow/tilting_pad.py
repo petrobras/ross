@@ -191,12 +191,14 @@ netha[1 : nN + 1] = N1 + np.arange(0.5 * dN, N2, dN)  # vector netha dimensionle
 
 theta1 = -(rp_pad) * betha_s  # initial coordinate theta [rad]
 theta2 = (1 - rp_pad) * betha_s  # final coordinate theta [rad]
+# theta1 = -(rp_pad-1) * betha_s  # initial coordinate theta [rad]
+# theta2 = (rp_pad) * betha_s  # final coordinate theta [rad]
 dtheta = betha_s / (ntheta)  # differential theta [rad]
 Xtheta = np.zeros([ntheta + 2])
 Xtheta[0] = theta1
 Xtheta[ntheta + 1] = theta2
-Xtheta[1 : ntheta + 1] = np.arange(
-    theta1 + 0.5 * dtheta, theta2, dtheta
+Xtheta[1:ntheta] = np.arange(
+    theta1 + 0.5 * dtheta, theta2 - 0.5 * dtheta, dtheta
 )  # vector theta [rad]
 
 dX = 1 / nX  # differential x dimensionless
@@ -506,6 +508,7 @@ for n_p in range(0, npad):
                     Mat_coef[k, k - 1] = CW
                     Mat_coef[k, k - ntheta] = CN
                     Mat_coef[k, k + ntheta] = CS
+                    print(k)
                     Mat_coef[k, k + 1] = CE
 
                 if kj == nX and ki > 1 and ki < nZ:
