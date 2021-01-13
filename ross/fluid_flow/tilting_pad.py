@@ -238,9 +238,11 @@ Vw = np.zeros((nN, ntheta))
 
 # Pressure field
 P = np.zeros((ntheta, ntheta))
+P1 = np.zeros((ntheta, ntheta, npad))
 
 # Temperature field
 T = np.zeros((nN, ntheta))
+T1 = np.zeros((nN, ntheta, npad))
 
 # Field derivatives
 dudx = np.zeros((1, ntheta))
@@ -251,6 +253,8 @@ Mi = np.zeros((nZ, nN))
 YH = np.zeros((nN + 2, nX + 2, npad))
 XH = np.zeros((nN + 2, nX + 2))
 
+fxj = np.zeros((npad))
+My = np.zeros((npad))
 
 for ii in range(0, nX + 2):
     XH[:, ii] = Xtheta[ii]
@@ -1236,7 +1240,7 @@ for n_p in range(0, npad):
         )
     )
     for jj in range(0, nX + 1):
-        YH[:, jj, n_p] = fliplr(linspace(0, yh(jj), nN + 2))
+        YH[:, jj, n_p] = np.fliplr(np.linspace(0, yh(jj), nN + 2))
 
     # Integration of pressure field - HydroForces
     auxF = np.array([np.cos[Xtheta[0:-1]], np.sin[Xtheta[0:-1]]])
