@@ -239,6 +239,9 @@ Vw = np.zeros((nN, ntheta))
 # Pressure field
 P = np.zeros((ntheta, ntheta))
 
+# Field derivatives
+dudx = np.zeros((1, ntheta))
+dwdz = np.zeros((1, ntheta))
 
 YH = np.zeros((nN + 2, nX + 2, npad))
 
