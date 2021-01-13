@@ -236,6 +236,10 @@ Vu = np.zeros((nN, ntheta))
 Vv = np.zeros((nN, ntheta))
 Vw = np.zeros((nN, ntheta))
 
+# Pressure field
+P = np.zeros((ntheta, ntheta))
+
+
 YH = np.zeros((nN + 2, nX + 2, npad))
 
 XH = np.zeros((nN + 2, nX + 2))
@@ -550,7 +554,7 @@ for n_p in range(0, npad):
 
         # Pressure field solution ==============================================================
 
-        cc = find(K_null == 0)
+        cc = (K_null == 0).nonzero()  # cc = find(K_null == 0)
         p = np.linalg.solve(Mat_coef[cc, cc], b[cc, cc])  # verificar matriz b
 
         cont = 0
@@ -650,15 +654,16 @@ for n_p in range(0, npad):
 
                     ydim1 = h * netha
                     FF0 = 0.5 * np.sum(
-                        (ydim[1:] - ydim1[0:-1]) * (auxFF0[1:] + auxFF0[0:-1])
+                        (ydim1[1:] - ydim1[0:-1]) * (auxFF0[1:] + auxFF0[0:-1])
                     )
                     FF1 = 0.5 * np.sum(
                         (ydim1[1:] - ydim1[0:-1]) * (auxFF1[1:] + auxFF1[0:-1])
                     )
 
-                    auxG0 = np.zeros[1, length(N1, dN, ky)]
-                    auxG1 = np.zeros[1, length(N1, dN, ky)]
-                    ydim2 = np.zeros[1, length(N1, dN, ky)]
+                    aux_var_1 = np.arange(N1, ky + 1, dN)  # N1:dN:ky
+                    auxG0 = np.zeros[1, aux_var_1.size]
+                    auxG1 = np.zeros[1, aux_var_1.size]
+                    ydim2 = np.zeros[1, aux_var_1.size]
 
                     for contk in range(((N1 + 0.5 * dN) * h), (dN * h), (ky * h)):
                         auxG0[nn + 1] = 1 / mi[ki, kj, nN + 1 - nn]
