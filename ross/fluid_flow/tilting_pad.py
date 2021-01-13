@@ -239,12 +239,16 @@ Vw = np.zeros((nN, ntheta))
 # Pressure field
 P = np.zeros((ntheta, ntheta))
 
+# Temperature field
+T = np.zeros((nN, ntheta))
+
 # Field derivatives
 dudx = np.zeros((1, ntheta))
 dwdz = np.zeros((1, ntheta))
 
+# Other variables declarations
+Mi = np.zeros((nZ, nN))
 YH = np.zeros((nN + 2, nX + 2, npad))
-
 XH = np.zeros((nN + 2, nX + 2))
 
 
@@ -1194,7 +1198,7 @@ for n_p in range(0, npad):
         # 3D temperature field -----------------------------------------------------
         TT = np.zeros(nZ, nX, nN)
         for k in range(0, nN):
-            for j in range(0, X):
+            for j in range(0, nX):
                 TT[:, j, k] = T[k, j]
 
         # Regression equation coefficients
