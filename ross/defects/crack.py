@@ -96,10 +96,8 @@ class Crack(Defect):
         self.speed = speed
         self.speedI = speed
         self.speedF = speed
-        self.MassUnb1 = massunb[0]
-        self.MassUnb2 = massunb[1]
-        self.PhaseUnb1 = phaseunb[0]
-        self.PhaseUnb2 = phaseunb[1]
+        self.MassUnb = massunb
+        self.PhaseUnb = phaseunb
         self.print_progress = print_progress
 
         if crack_type is None or crack_type == "Mayes":
@@ -108,6 +106,11 @@ class Crack(Defect):
             self.crack_model = self._gasch
         else:
             raise Exception("Check the crack model!")
+
+        if len(self.MassUnb) != len(self.PhaseUnb):
+            raise Exception(
+                "The unbalance magnitude vector and phase must have the same size!"
+            )
 
         dir_path = Path(__file__).parents[2] / "tools/data/PAPADOPOULOS.csv"
         self.data_coefs = pd.read_csv(dir_path)
@@ -123,15 +126,20 @@ class Crack(Defect):
         """
 
         self.rotor = rotor
+        self.n_disk = len(self.rotor.disk_elements)
+        if self.n_disk != len(self.MassUnb):
+            raise Exception("The number of discs and unbalances must agree!")
+
         self.ndof = rotor.ndof
         self.L = rotor.elements[self.n_crack].L
         self.KK = rotor.elements[self.n_crack].K()
         self.radius = rotor.elements[self.n_crack].odl / 2
         self.Poisson = rotor.elements[self.n_crack].material.Poisson
         self.E = rotor.elements[self.n_crack].material.E
+        self.ndofd = np.zeros(len(self.rotor.disk_elements))
 
-        self.ndofd1 = (self.rotor.disk_elements[0].n) * 6
-        self.ndofd2 = (self.rotor.disk_elements[1].n) * 6
+        for ii in range(self.n_disk):
+            self.ndofd[ii] = (self.rotor.disk_elements[ii].n) * 6
 
         G_s = rotor.elements[self.n_crack].material.G_s
         odr = rotor.elements[self.n_crack].odr
@@ -272,32 +280,26 @@ class Crack(Defect):
         self.Omega = self.sA + self.sB * np.exp(-self.lambdat * T)
         self.AccelV = -self.lambdat * self.sB * np.exp(-self.lambdat * T)
 
-        self.tetaUNB1 = self.angular_position + self.PhaseUnb1 + np.pi / 2
-        self.tetaUNB2 = self.angular_position + self.PhaseUnb2 + np.pi / 2
-
-        unb1x = self.MassUnb1 * (
-            (self.AccelV) * (np.cos(self.tetaUNB1))
-        ) - self.MassUnb1 * ((self.Omega ** 2)) * (np.sin(self.tetaUNB1))
-
-        unb1y = -self.MassUnb1 * (self.AccelV) * (
-            np.sin(self.tetaUNB1)
-        ) - self.MassUnb1 * (self.Omega ** 2) * (np.cos(self.tetaUNB1))
-
-        unb2x = self.MassUnb2 * (self.AccelV) * (
-            np.cos(self.tetaUNB2)
-        ) - self.MassUnb2 * (self.Omega ** 2) * (np.sin(self.tetaUNB2))
-
-        unb2y = -self.MassUnb2 * (self.AccelV) * (
-            np.sin(self.tetaUNB2)
-        ) - self.MassUnb2 * (self.Omega ** 2) * (np.cos(self.tetaUNB2))
+        self.tetaUNB = np.zeros((len(self.PhaseUnb), len(self.angular_position)))
+        unbx = np.zeros(len(self.angular_position))
+        unby = np.zeros(len(self.angular_position))
 
         FFunb = np.zeros((self.ndof, len(t_eval)))
         self.forces_crack = np.zeros((self.ndof, len(t_eval)))
 
-        FFunb[self.ndofd1, :] += unb1x
-        FFunb[self.ndofd1 + 1, :] += unb1y
-        FFunb[self.ndofd2, :] += unb2x
-        FFunb[self.ndofd2 + 1, :] += unb2y
+        for ii in range(self.n_disk):
+            self.tetaUNB[ii, :] = self.angular_position + self.PhaseUnb[ii] + np.pi / 2
+
+            unbx = self.MassUnb[ii] * (self.AccelV) * (
+                np.cos(self.tetaUNB[ii, :])
+            ) - self.MassUnb[ii] * ((self.Omega ** 2)) * (np.sin(self.tetaUNB[ii, :]))
+
+            unby = -self.MassUnb[ii] * (self.AccelV) * (
+                np.sin(self.tetaUNB[ii, :])
+            ) - self.MassUnb[ii] * (self.Omega ** 2) * (np.cos(self.tetaUNB[ii, :]))
+
+            FFunb[int(self.ndofd[ii]), :] += unbx
+            FFunb[int(self.ndofd[ii] + 1), :] += unby
 
         self.Funbmodal = (self.ModMat.T).dot(FFunb)
 
