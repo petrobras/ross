@@ -348,18 +348,18 @@ for n_p in range(0, npad):
 
                 # Loop in N
                 # for kk in range(N1 + 0.5 * dN, dN, N2 - 0.5 * dN):
-                for kk in range(0, nN):
+                for kk in range(1, nN):
 
                     mi_adP = vector_mi[0, nN - nn - 1] / mi_ref
                     mi_adE = vector_mi[1, nN - nn - 1] / mi_ref
                     mi_adW = vector_mi[2, nN - nn - 1] / mi_ref
 
                     auxFF0P[nn] = 1 / mi_adP
-                    auxFF1P[nn] = kk / mi_adP
+                    auxFF1P[nn] = (dN * (0.5 + kk)) / mi_adP
                     auxFF0E[nn] = 1 / mi_adE
-                    auxFF1E[nn] = kk / mi_adE
+                    auxFF1E[nn] = (dN * (0.5 + kk)) / mi_adE
                     auxFF0W[nn] = 1 / mi_adW
-                    auxFF1W[nn] = kk / mi_adW
+                    auxFF1W[nn] = (dN * (0.5 + kk)) / mi_adW
 
                     nn = nn + 1
 
@@ -384,23 +384,26 @@ for n_p in range(0, npad):
                 auxFF1W[nN + 1] = N2 / (vector_mi[2, nN - 1] / mi_ref)
 
                 # Numerical integration
+
+                # FF0P=0.5*sum((netha(2:end)-netha(1:end-1)).*(auxFF0P(2:end)+auxFF0P(1:end-1)));
+
                 FF0P = 0.5 * np.sum(
-                    (netha[1:-1] - netha[0:-2]) * (auxFF0P[1:-1] + auxFF0P[0:-2])
+                    (netha[1:] - netha[0:-1]) * (auxFF0P[1:] + auxFF0P[0:-1])
                 )
                 FF1P = 0.5 * np.sum(
-                    (netha[1:-1] - netha[0:-2]) * (auxFF1P[1:-1] + auxFF1P[0:-2])
+                    (netha[1:] - netha[0:-1]) * (auxFF1P[1:] + auxFF1P[0:-1])
                 )
                 FF0E = 0.5 * np.sum(
-                    (netha[1:-1] - netha[0:-2]) * (auxFF0E[1:-1] + auxFF0E[0:-2])
+                    (netha[1:] - netha[0:-1]) * (auxFF0E[1:] + auxFF0E[0:-1])
                 )
                 FF1E = 0.5 * np.sum(
-                    (netha[1:-1] - netha[0:-2]) * (auxFF1E[1:-1] + auxFF1E[0:-2])
+                    (netha[1:] - netha[0:-1]) * (auxFF1E[1:] + auxFF1E[0:-1])
                 )
                 FF0W = 0.5 * np.sum(
-                    (netha[1:-1] - netha[0:-2]) * (auxFF0W[1:-1] + auxFF0W[0:-2])
+                    (netha[1:] - netha[0:-1]) * (auxFF0W[1:] + auxFF0W[0:-1])
                 )
                 FF1W = 0.5 * np.sum(
-                    (netha[1:-1] - netha[0:-2]) * (auxFF1W[1:-1] + auxFF1W[0:-2])
+                    (netha[1:] - netha[0:-1]) * (auxFF1W[1:] + auxFF1W[0:-1])
                 )
 
                 FF0e = 0.5 * (FF0P + FF0E)
@@ -410,15 +413,21 @@ for n_p in range(0, npad):
 
                 # Loop in N
                 # for kk in range(N1 + 0.5 * dN, dN, N2 - 0.5 * dN):
-                for kk in range(0, nN):
+                for kk in range(1, nN):
 
                     mi_adP = vector_mi[0, nN - nn - 1] / mi_ref
                     mi_adE = vector_mi[1, nN - nn - 1] / mi_ref
                     mi_adW = vector_mi[2, nN - nn - 1] / mi_ref
 
-                    auxFF2P[nn] = (kk / mi_adP) * (kk - FF1P / FF0P)
-                    auxFF2E[nn] = (kk / mi_adE) * (kk - FF1E / FF0E)
-                    auxFF2W[nn] = (kk / mi_adW) * (kk - FF1W / FF0W)
+                    auxFF2P[nn] = ((dN * (0.5 + kk)) / mi_adP) * (
+                        (dN * (0.5 + kk)) - FF1P / FF0P
+                    )
+                    auxFF2E[nn] = ((dN * (0.5 + kk)) / mi_adE) * (
+                        (dN * (0.5 + kk)) - FF1E / FF0E
+                    )
+                    auxFF2W[nn] = ((dN * (0.5 + kk)) / mi_adW) * (
+                        (dN * (0.5 + kk)) - FF1W / FF0W
+                    )
                     nn = nn + 1
 
                 nn = 0
@@ -440,13 +449,13 @@ for n_p in range(0, npad):
 
                 # integration process ===================================================
                 FF2P = 0.5 * np.sum(
-                    (netha[1:-1] - netha[0:-2]) * (auxFF2P[1:-1] + auxFF2P[0:-2])
+                    (netha[1:] - netha[0:-1]) * (auxFF2P[1:] + auxFF2P[0:-1])
                 )
                 FF2E = 0.5 * np.sum(
-                    (netha[1:-1] - netha[0:-2]) * (auxFF2E[1:-1] + auxFF2E[0:-2])
+                    (netha[1:] - netha[0:-1]) * (auxFF2E[1:] + auxFF2E[0:-1])
                 )
                 FF2W = 0.5 * np.sum(
-                    (netha[1:-1] - netha[0:-2]) * (auxFF2W[1:-1] + auxFF2W[0:-2])
+                    (netha[1:] - netha[0:-1]) * (auxFF2W[1:] + auxFF2W[0:-1])
                 )
 
                 FF2e = 0.5 * (FF2P + FF2E)
