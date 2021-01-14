@@ -459,34 +459,36 @@ for n_p in range(0, npad):
                     Rs
                     - R
                     - (
-                        np.sin(Xtheta[jj + 1]) * (yr + alpha * (Rs + esp))
-                        + np.cos(Xtheta[jj + 1]) * (xr + Rs - R - Cr)
+                        np.sin(dtheta * (0.5 + jj)) * (yr + alpha * (Rs + esp))
+                        + np.cos(dtheta * (0.5 + jj)) * (xr + Rs - R - Cr)
                     )
                 ) / Cr
                 he = (
                     Rs
                     - R
                     - (
-                        np.sin(Xtheta[jj + 1] + 0.5 * dtheta)
+                        np.sin(dtheta * (0.5 + jj) + 0.5 * dtheta)
                         * (yr + alpha * (Rs + esp))
-                        + np.cos(Xtheta[jj + 1] + 0.5 * dtheta) * (xr + Rs - R - Cr)
+                        + np.cos(dtheta * (0.5 + jj) + 0.5 * dtheta)
+                        * (xr + Rs - R - Cr)
                     )
                 ) / Cr
                 hw = (
                     Rs
                     - R
                     - (
-                        np.sin(Xtheta[jj + 1] - 0.5 * dtheta)
+                        np.sin(dtheta * (0.5 + jj) - 0.5 * dtheta)
                         * (yr + alpha * (Rs + esp))
-                        + np.cos(Xtheta[jj + 1] - 0.5 * dtheta) * (xr + Rs - R - Cr)
+                        + np.cos(dtheta * (0.5 + jj) - 0.5 * dtheta)
+                        * (xr + Rs - R - Cr)
                     )
                 ) / Cr
                 hn = hP
                 hs = hn
                 hpt = -(1 / (Cr * war)) * (
-                    np.cos(Xtheta[jj + 1]) * xrpt
-                    + np.sin(Xtheta[jj + 1]) * yrpt
-                    + np.sin(Xtheta[jj + 1]) * (Rs + esp) * alphapt
+                    np.cos(dtheta * (0.5 + jj)) * xrpt
+                    + np.sin(dtheta * (0.5 + jj)) * yrpt
+                    + np.sin(dtheta * (0.5 + jj)) * (Rs + esp) * alphapt
                 )  # admensional
 
                 CE = 1 / (betha_s) ** 2 * (FF2e * he ** 3) * dZ / dX
@@ -724,9 +726,9 @@ for n_p in range(0, npad):
             for jj in range((theta1 + 0.5 * dtheta), dtheta, (theta2 - 0.5 * dtheta)):
 
                 hpt = -(
-                    np.cos[jj] * xrpt
-                    + np.sin[jj] * yrpt
-                    + np.sin[jj] * (Rs + esp) * alphapt
+                    np.cos[dtheta * (0.5 + jj)] * xrpt
+                    + np.sin[dtheta * (0.5 + jj)] * yrpt
+                    + np.sin[dtheta * (0.5 + jj)] * (Rs + esp) * alphapt
                 )
 
                 if ki == 1 and kj == 1:
@@ -803,7 +805,7 @@ for n_p in range(0, npad):
 
             for jj in range(ksi1 + 0.5 * dksi, dksi, ksi2 - 0.5 * dksi):
 
-                theta = (-0.5 + jj) * betha_s
+                theta = (-0.5 + dtheta * (0.5 + jj)) * betha_s
                 HP = (
                     Rs
                     - R
