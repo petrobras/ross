@@ -325,30 +325,30 @@ for n_p in range(0, npad):
 
         # Mesh loop in Z direction ====================================================
         # for ii in range((Z1 + 0.5 * dZ), dZ, (Z2 - 0.5 * dZ)):
-        for ii in range(0, nZ - 1):
+        for ii in range(0, nZ):
 
             # Mesh loop in THETA direction ====================================================
             # for jj in range((theta1 + 0.5 * dtheta), dtheta, (theta2 - 0.5 * dtheta)):
-            for jj in range(0, ntheta - 1):
+            for jj in range(0, ntheta):
 
-                if kj == 1:
+                if kj == 0:
                     vector_mi[0, :] = mi[ki, kj - 1, :]
                     vector_mi[1, :] = mi[ki, kj, :]
                     vector_mi[2, :] = mi[ki, kj - 1, :]
 
-                if kj == ntheta:
+                if kj == ntheta - 1:
                     vector_mi[0, :] = mi[ki, kj - 1, :]
                     vector_mi[1, :] = mi[ki, kj - 1, :]
                     vector_mi[2, :] = mi[ki, kj - 2, :]
 
-                if kj > 1 and kj < ntheta:
+                if kj > 0 and kj < ntheta - 1:
                     vector_mi[0, :] = mi[ki, kj - 1, :]
                     vector_mi[1, :] = mi[ki, kj, :]
                     vector_mi[2, :] = mi[ki, kj - 2, :]
 
                 # Loop in N
                 # for kk in range(N1 + 0.5 * dN, dN, N2 - 0.5 * dN):
-                for kk in range(0, nN - 1):
+                for kk in range(0, nN):
 
                     mi_adP = vector_mi[0, nN - nn - 1] / mi_ref
                     mi_adE = vector_mi[1, nN - nn - 1] / mi_ref
@@ -383,23 +383,24 @@ for n_p in range(0, npad):
                 auxFF1W[0] = 0
                 auxFF1W[nN + 1] = N2 / (vector_mi[2, nN - 1] / mi_ref)
 
+                # Numerical integration
                 FF0P = 0.5 * np.sum(
-                    (netha[1:] - netha[0:-1]) * (auxFF0P[1:] + auxFF0P[0:-1])
+                    (netha[1:-1] - netha[0:-2]) * (auxFF0P[1:-1] + auxFF0P[0:-2])
                 )
                 FF1P = 0.5 * np.sum(
-                    (netha[1:] - netha[0:-1]) * (auxFF1P[1:] + auxFF1P[0:-1])
+                    (netha[1:-1] - netha[0:-2]) * (auxFF1P[1:-1] + auxFF1P[0:-2])
                 )
                 FF0E = 0.5 * np.sum(
-                    (netha[1:] - netha[0:-1]) * (auxFF0E[1:] + auxFF0E[0:-1])
+                    (netha[1:-1] - netha[0:-2]) * (auxFF0E[1:-1] + auxFF0E[0:-2])
                 )
                 FF1E = 0.5 * np.sum(
-                    (netha[1:] - netha[0:-1]) * (auxFF1E[1:] + auxFF1E[0:-1])
+                    (netha[1:-1] - netha[0:-2]) * (auxFF1E[1:-1] + auxFF1E[0:-2])
                 )
                 FF0W = 0.5 * np.sum(
-                    (netha[1:] - netha[0:-1]) * (auxFF0W[1:] + auxFF0W[0:-1])
+                    (netha[1:-1] - netha[0:-2]) * (auxFF0W[1:-1] + auxFF0W[0:-2])
                 )
                 FF1W = 0.5 * np.sum(
-                    (netha[1:] - netha[0:-1]) * (auxFF1W[1:] + auxFF1W[0:-1])
+                    (netha[1:-1] - netha[0:-2]) * (auxFF1W[1:-1] + auxFF1W[0:-2])
                 )
 
                 FF0e = 0.5 * (FF0P + FF0E)
@@ -409,7 +410,7 @@ for n_p in range(0, npad):
 
                 # Loop in N
                 # for kk in range(N1 + 0.5 * dN, dN, N2 - 0.5 * dN):
-                for kk in range(0, nN - 1):
+                for kk in range(0, nN):
 
                     mi_adP = vector_mi[0, nN - nn - 1] / mi_ref
                     mi_adE = vector_mi[1, nN - nn - 1] / mi_ref
@@ -439,13 +440,13 @@ for n_p in range(0, npad):
 
                 # integration process ===================================================
                 FF2P = 0.5 * np.sum(
-                    (netha[1:] - netha[0:-1]) * (auxFF2P[1:] + auxFF2P[0:-1])
+                    (netha[1:-1] - netha[0:-2]) * (auxFF2P[1:-1] + auxFF2P[0:-2])
                 )
                 FF2E = 0.5 * np.sum(
-                    (netha[1:] - netha[0:-1]) * (auxFF2E[1:] + auxFF2E[0:-1])
+                    (netha[1:-1] - netha[0:-2]) * (auxFF2E[1:-1] + auxFF2E[0:-2])
                 )
                 FF2W = 0.5 * np.sum(
-                    (netha[1:] - netha[0:-1]) * (auxFF2W[1:] + auxFF2W[0:-1])
+                    (netha[1:-1] - netha[0:-2]) * (auxFF2W[1:-1] + auxFF2W[0:-2])
                 )
 
                 FF2e = 0.5 * (FF2P + FF2E)
@@ -458,32 +459,34 @@ for n_p in range(0, npad):
                     Rs
                     - R
                     - (
-                        np.sin(jj) * (yr + alpha * (Rs + esp))
-                        + np.cos(jj) * (xr + Rs - R - Cr)
+                        np.sin(Xtheta[jj + 1]) * (yr + alpha * (Rs + esp))
+                        + np.cos(Xtheta[jj + 1]) * (xr + Rs - R - Cr)
                     )
                 ) / Cr
                 he = (
                     Rs
                     - R
                     - (
-                        np.sin(jj + 0.5 * dtheta) * (yr + alpha * (Rs + esp))
-                        + np.cos(jj + 0.5 * dtheta) * (xr + Rs - R - Cr)
+                        np.sin(Xtheta[jj + 1] + 0.5 * dtheta)
+                        * (yr + alpha * (Rs + esp))
+                        + np.cos(Xtheta[jj + 1] + 0.5 * dtheta) * (xr + Rs - R - Cr)
                     )
                 ) / Cr
                 hw = (
                     Rs
                     - R
                     - (
-                        np.sin(jj - 0.5 * dtheta) * (yr + alpha * (Rs + esp))
-                        + np.cos(jj - 0.5 * dtheta) * (xr + Rs - R - Cr)
+                        np.sin(Xtheta[jj + 1] - 0.5 * dtheta)
+                        * (yr + alpha * (Rs + esp))
+                        + np.cos(Xtheta[jj + 1] - 0.5 * dtheta) * (xr + Rs - R - Cr)
                     )
                 ) / Cr
                 hn = hP
                 hs = hn
                 hpt = -(1 / (Cr * war)) * (
-                    np.cos(jj) * xrpt
-                    + np.sin(jj) * yrpt
-                    + np.sin(jj) * (Rs + esp) * alphapt
+                    np.cos(Xtheta[jj + 1]) * xrpt
+                    + np.sin(Xtheta[jj + 1]) * yrpt
+                    + np.sin(Xtheta[jj + 1]) * (Rs + esp) * alphapt
                 )  # admensional
 
                 CE = 1 / (betha_s) ** 2 * (FF2e * he ** 3) * dZ / dX
@@ -600,8 +603,8 @@ for n_p in range(0, npad):
         # Full pressure field with borders
         PPdim = np.zeros((nZ + 1, ntheta + 1))
 
-        for i in range(1, nZ):  # Loop in Z
-            for j in range(1, ntheta):  # Loop in THETA
+        for i in range(0, nZ - 1):  # Loop in Z
+            for j in range(0, ntheta - 1):  # Loop in THETA
                 PPdim[i, j] = Pdim[i - 1, j - 1]
 
         # %%%%%%%%%%%%%%%%%%% Temperature field solution %%%%%%%%%%%%%%%%%%%
