@@ -177,10 +177,13 @@ def read_table_file(file, element, sheet_name=0, n=0, sheet_type="Model"):
                 material_rho.append(row["rhoa"])
                 material_e.append(row["ea"])
                 material_g_s.append(row["ga"])
-                if pd.isna(row["color"]):
-                    material_color.append("#525252")
+                if "color" in df_material.columns:
+                    if pd.isna(row["color"]):
+                        material_color.append("#525252")
+                    else:
+                        material_color.append(row["color"])
                 else:
-                    material_color.append(row["color"])
+                    material_color.append("#525252")
 
             else:
                 break
