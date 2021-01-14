@@ -117,10 +117,8 @@ class MisalignmentFlex(Defect):
         self.n1 = n1
         self.n2 = n1 + 1
         self.speed = speed
-        self.MassUnb1 = massunb[0]
-        self.MassUnb2 = massunb[1]
-        self.PhaseUnb1 = phaseunb[0]
-        self.PhaseUnb2 = phaseunb[1]
+        self.MassUnb = massunb
+        self.PhaseUnb = phaseunb
 
         self.speedI = speed
         self.speedF = speed
