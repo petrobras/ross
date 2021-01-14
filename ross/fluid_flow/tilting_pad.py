@@ -346,8 +346,6 @@ for n_p in range(0, npad):
                     vector_mi[1, :] = mi[ki, kj, :]
                     vector_mi[2, :] = mi[ki, kj - 2, :]
 
-                # Loop in N
-                # for kk in range(N1 + 0.5 * dN, dN, N2 - 0.5 * dN):
                 for kk in range(1, nN):
 
                     mi_adP = vector_mi[0, nN - nn - 1] / mi_ref
