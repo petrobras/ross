@@ -223,8 +223,12 @@ drop_pressure_Ele_ntetha = np.intersect1d(
 
 # Initial Parameters ---------------------------------------------------------------
 
+# Startup
+npad = npad - 1
 Tmist = T_ref * np.ones((nN + 2))
-minovo = mi_ref * np.ones((nZ, ntheta, nN))  # Initial viscosity field
+
+# Initial viscosity field
+minovo = mi_ref * np.ones((nZ, ntheta, nN))
 
 # Velocity field  - 3D
 vu = np.zeros((nZ, ntheta, nN))
@@ -261,9 +265,9 @@ for ii in range(0, nX + 2):
 
 # Loop on the pads ==========================================================================
 for n_p in range(0, npad):
-    alpha = psi_pad[n_p - 1]
+    alpha = psi_pad[n_p]
 
-    # transformation of coordinates
+    # transformation of coordinates - inertial to pivot referential
     xryr = np.dot(
         [
             [np.cos(sigma[n_p]), np.sin(sigma[n_p])],
@@ -288,7 +292,6 @@ for n_p in range(0, npad):
 
     # Temperature matrix with boundary conditions ====================================
     T_novo = T_ref * np.ones((nN + 2, ntheta + 2))
-
     Tcomp = 1.2 * T_novo
 
     # Oil temperature field loop ================================================================
@@ -305,7 +308,7 @@ for n_p in range(0, npad):
         auxFF2P = np.zeros((nN + 2))
         auxFF2E = np.zeros((nN + 2))
         auxFF2W = np.zeros((nN + 2))
-        hhh = np.zeros((nk, npad))
+        hhh = np.zeros((nk, npad))  # oil film thickness
         K_null = np.zeros((1, nk))
         Kij_null = np.zeros((nZ, ntheta))
 
@@ -496,29 +499,29 @@ for n_p in range(0, npad):
                 b[k] = B
                 hhh[k, n_p] = hP * Cr
 
-                if ki == 1 and kj == 1:
+                if ki == 0 and kj == 0:
                     Mat_coef[k, k] = CP - CN - CW
                     Mat_coef[k, k + 1] = CE
                     Mat_coef[k, k + ntheta] = CS
 
-                if ki == 1 and kj > 1 and kj < nX:
+                if ki == 0 and kj > 0 and kj < nX:
                     Mat_coef[k, k] = CP - CN
                     Mat_coef[k, k + 1] = CE
                     Mat_coef[k, k - 1] = CW
                     Mat_coef[k, k + ntheta] = CS
 
-                if ki == 1 and kj == nX:
+                if ki == 0 and kj == nX:
                     Mat_coef[k, k] = CP - CE - CN
                     Mat_coef[k, k - 1] = CW
                     Mat_coef[k, k + ntheta] = CS
 
-                if kj == 1 and ki > 1 and ki < nZ:
+                if kj == 0 and ki > 0 and ki < nZ:
                     Mat_coef[k, k] = CP - CW
                     Mat_coef[k, k + 1] = CE
                     Mat_coef[k, k - ntheta] = CN
                     Mat_coef[k, k + ntheta] = CS
 
-                if ki > 1 and ki < nZ and kj > 1 and kj < nX:
+                if ki > 0 and ki < nZ and kj > 0 and kj < nX:
                     Mat_coef[k, k] = CP
                     Mat_coef[k, k - 1] = CW
                     Mat_coef[k, k - ntheta] = CN
@@ -526,18 +529,18 @@ for n_p in range(0, npad):
                     print(k)
                     Mat_coef[k, k + 1] = CE
 
-                if kj == nX and ki > 1 and ki < nZ:
+                if kj == nX and ki > 0 and ki < nZ:
                     Mat_coef[k, k] = CP - CE
                     Mat_coef[k, k - 1] = CW
                     Mat_coef[k, k - ntheta] = CN
                     Mat_coef[k, k + ntheta] = CS
 
-                if kj == 1 and ki == nZ:
+                if kj == 0 and ki == nZ:
                     Mat_coef[k, k] = CP - CS - CW
                     Mat_coef[k, k + 1] = CE
                     Mat_coef[k, k - ntheta] = CN
 
-                if ki == nZ and kj > 1 and kj < nX:
+                if ki == nZ and kj > 0 and kj < nX:
                     Mat_coef[k, k] = CP - CS
                     Mat_coef[k, k + 1] = CE
                     Mat_coef[k, k - 1] = CW
