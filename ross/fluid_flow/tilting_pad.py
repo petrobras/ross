@@ -324,12 +324,12 @@ for n_p in range(0, npad):
         b = np.zeros((nk))
 
         # Mesh loop in Z direction ====================================================
-        # for ii in range((Z1+0.5*dZ), dZ, (Z2-0.5*dZ)):
-        for ii in XZ:
+        # for ii in range((Z1 + 0.5 * dZ), dZ, (Z2 - 0.5 * dZ)):
+        for ii in range(0, nZ - 1):
 
             # Mesh loop in THETA direction ====================================================
-            # for jj in range((theta1+0.5*dtheta), dtheta, (theta2-0.5*dtheta)):
-            for jj in Xtheta:
+            # for jj in range((theta1 + 0.5 * dtheta), dtheta, (theta2 - 0.5 * dtheta)):
+            for jj in range(0, ntheta - 1):
 
                 if kj == 1:
                     vector_mi[0, :] = mi[ki, kj - 1, :]
@@ -347,8 +347,8 @@ for n_p in range(0, npad):
                     vector_mi[2, :] = mi[ki, kj - 2, :]
 
                 # Loop in N
-                # for kk in range(N1+0.5*dN, dN, N2-0.5*dN):
-                for kk in netha:
+                # for kk in range(N1 + 0.5 * dN, dN, N2 - 0.5 * dN):
+                for kk in range(0, nN - 1):
 
                     mi_adP = vector_mi[0, nN - nn - 1] / mi_ref
                     mi_adE = vector_mi[1, nN - nn - 1] / mi_ref
@@ -408,8 +408,8 @@ for n_p in range(0, npad):
                 FF1w = 0.5 * (FF1P + FF1W)
 
                 # Loop in N
-                # for kk in range(N1+0.5*dN, dN, N2-0.5*dN):
-                for kk in netha:
+                # for kk in range(N1 + 0.5 * dN, dN, N2 - 0.5 * dN):
+                for kk in range(0, nN - 1):
 
                     mi_adP = vector_mi[0, nN - nn - 1] / mi_ref
                     mi_adE = vector_mi[1, nN - nn - 1] / mi_ref
@@ -504,49 +504,48 @@ for n_p in range(0, npad):
                     Mat_coef[k, k + 1] = CE
                     Mat_coef[k, k + ntheta] = CS
 
-                if ki == 0 and kj > 0 and kj < nX:
+                if ki == 0 and kj > 0 and kj < nX - 1:
                     Mat_coef[k, k] = CP - CN
                     Mat_coef[k, k + 1] = CE
                     Mat_coef[k, k - 1] = CW
                     Mat_coef[k, k + ntheta] = CS
 
-                if ki == 0 and kj == nX:
+                if ki == 0 and kj == nX - 1:
                     Mat_coef[k, k] = CP - CE - CN
                     Mat_coef[k, k - 1] = CW
                     Mat_coef[k, k + ntheta] = CS
 
-                if kj == 0 and ki > 0 and ki < nZ:
+                if kj == 0 and ki > 0 and ki < nZ - 1:
                     Mat_coef[k, k] = CP - CW
                     Mat_coef[k, k + 1] = CE
                     Mat_coef[k, k - ntheta] = CN
                     Mat_coef[k, k + ntheta] = CS
 
-                if ki > 0 and ki < nZ and kj > 0 and kj < nX:
+                if ki > 0 and ki < nZ - 1 and kj > 0 and kj < nX - 1:
                     Mat_coef[k, k] = CP
                     Mat_coef[k, k - 1] = CW
                     Mat_coef[k, k - ntheta] = CN
                     Mat_coef[k, k + ntheta] = CS
-                    print(k)
                     Mat_coef[k, k + 1] = CE
 
-                if kj == nX and ki > 0 and ki < nZ:
+                if kj == nX - 1 and ki > 0 and ki < nZ - 1:
                     Mat_coef[k, k] = CP - CE
                     Mat_coef[k, k - 1] = CW
                     Mat_coef[k, k - ntheta] = CN
                     Mat_coef[k, k + ntheta] = CS
 
-                if kj == 0 and ki == nZ:
+                if kj == 0 and ki == nZ - 1:
                     Mat_coef[k, k] = CP - CS - CW
                     Mat_coef[k, k + 1] = CE
                     Mat_coef[k, k - ntheta] = CN
 
-                if ki == nZ and kj > 0 and kj < nX:
+                if ki == nZ - 1 and kj > 0 and kj < nX - 1:
                     Mat_coef[k, k] = CP - CS
                     Mat_coef[k, k + 1] = CE
                     Mat_coef[k, k - 1] = CW
                     Mat_coef[k, k - ntheta] = CN
 
-                if ki == nZ and kj == nX:
+                if ki == nZ - 1 and kj == nX - 1:
                     Mat_coef[k, k] = CP - CE - CS
                     Mat_coef[k, k - 1] = CW
                     Mat_coef[k, k - ntheta] = CN
@@ -574,8 +573,8 @@ for n_p in range(0, npad):
         cont = 0
 
         # Matrix form of the pressure field ====================================================
-        for i in range(1, nZ):  # Loop in Z
-            for j in range(1, ntheta):  # Loop in THETA
+        for i in range(0, nZ - 1):  # Loop in Z
+            for j in range(0, ntheta - 1):  # Loop in THETA
                 if (
                     len(np.where(drop_pressure_Ele_nZ == i + 1)[0]) == 0
                     and len(np.where(drop_pressure_Ele_ntetha == j + 1)[0]) == 0
@@ -590,8 +589,8 @@ for n_p in range(0, npad):
                         P[i, j] = 0
 
         # Pressure border conditions ====================================================
-        for i in range(1, nZ):  # Loop in Z
-            for j in range(1, ntheta):  # Loop in THETA
+        for i in range(0, nZ - 1):  # Loop in Z
+            for j in range(0, ntheta - 1):  # Loop in THETA
                 if P[i, j] < 0:
                     P[i, j] = 0
 
@@ -599,10 +598,10 @@ for n_p in range(0, npad):
         Pdim = P * mi_ref * war * Rs ^ 2 / Cr ^ 2
 
         # Full pressure field with borders
-        PPdim = np.zeros((nZ + 2, ntheta + 2))
+        PPdim = np.zeros((nZ + 1, ntheta + 1))
 
-        for i in range(2, nZ + 1):  # Loop in Z
-            for j in range(2, ntheta + 1):  # Loop in THETA
+        for i in range(1, nZ):  # Loop in Z
+            for j in range(1, ntheta):  # Loop in THETA
                 PPdim[i, j] = Pdim[i - 1, j - 1]
 
         # %%%%%%%%%%%%%%%%%%% Temperature field solution %%%%%%%%%%%%%%%%%%%
@@ -623,19 +622,19 @@ for n_p in range(0, npad):
                 ):
 
                     # Pressure gradients calculation
-                    if ki == 1 and kj == 1:
+                    if ki == 0 and kj == 0:
                         dPdx = Pdim[ki, kj] / (0.5 * dx)
                         dPdz = Pdim[ki, kj] / (0.5 * dz)
 
-                    if ki == 1 and kj > 1:
+                    if ki == 0 and kj > 0:
                         dPdx = (Pdim[ki, kj] - Pdim[ki, kj - 1]) / dx
                         dPdz = Pdim[ki, kj] / (0.5 * dz)
 
-                    if ki > 1 and kj == 1:
+                    if ki > 0 and kj == 0:
                         dPdx = Pdim[ki, kj] / (0.5 * dx)
                         dPdz = (Pdim[ki, kj] - Pdim[ki - 1, kj]) / dz
 
-                    if ki > 1 and kj > 1:
+                    if ki > 0 and kj > 0:
                         dPdx = (Pdim[ki, kj] - Pdim[ki, kj - 1]) / dx
                         dPdz = (Pdim[ki, kj] - Pdim[ki - 1, kj]) / dz
 
