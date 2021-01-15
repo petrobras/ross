@@ -16,6 +16,9 @@ build: off
 test_script:
   - "%PYTHON%\\python.exe -m pytest ross"
 
+after_test:
+  - codecov
+
 artifacts:
   - path: dist\*
 
