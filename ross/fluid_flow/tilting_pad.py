@@ -346,7 +346,7 @@ for n_p in range(0, npad):
                     vector_mi[1, :] = mi[ki, kj + 1, :]
                     vector_mi[2, :] = mi[ki, kj - 1, :]
 
-                for kk in range(1, nN):
+                for kk in range(1, nN + 1):
 
                     mi_adP = vector_mi[0, nN - nn - 1] / mi_ref
                     mi_adE = vector_mi[1, nN - nn - 1] / mi_ref
