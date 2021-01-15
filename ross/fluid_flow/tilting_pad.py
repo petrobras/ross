@@ -332,19 +332,19 @@ for n_p in range(0, npad):
             for jj in range(0, ntheta):
 
                 if kj == 0:
-                    vector_mi[0, :] = mi[ki, kj - 1, :]
+                    vector_mi[0, :] = mi[ki, kj, :]
+                    vector_mi[1, :] = mi[ki, kj + 1, :]
+                    vector_mi[2, :] = mi[ki, kj, :]
+
+                if kj == ntheta - 1:
+                    vector_mi[0, :] = mi[ki, kj, :]
                     vector_mi[1, :] = mi[ki, kj, :]
                     vector_mi[2, :] = mi[ki, kj - 1, :]
 
-                if kj == ntheta - 1:
-                    vector_mi[0, :] = mi[ki, kj - 1, :]
-                    vector_mi[1, :] = mi[ki, kj - 1, :]
-                    vector_mi[2, :] = mi[ki, kj - 2, :]
-
                 if kj > 0 and kj < ntheta - 1:
-                    vector_mi[0, :] = mi[ki, kj - 1, :]
-                    vector_mi[1, :] = mi[ki, kj, :]
-                    vector_mi[2, :] = mi[ki, kj - 2, :]
+                    vector_mi[0, :] = mi[ki, kj, :]
+                    vector_mi[1, :] = mi[ki, kj + 1, :]
+                    vector_mi[2, :] = mi[ki, kj - 1, :]
 
                 for kk in range(1, nN):
 
