@@ -75,12 +75,12 @@ E = 0.5
 # optim values from legacy codes
 x = np.array(
     [
-        0.000321298907440948,
-        0.000218101024776208,
-        0.000241891712348458,
-        0.000385504446042090,
-        0.000516992650533115,
-        0.000460227890390222,
+        0.000401905634685165,
+        0.000210288009621476,
+        0.000136772568561263,
+        0.000273217426488742,
+        0.000537108459033454,
+        0.000574699109242178,
     ]
 )
 
@@ -191,19 +191,18 @@ netha[1 : nN + 1] = N1 + np.arange(0.5 * dN, N2, dN)  # vector netha dimensionle
 
 theta1 = -(rp_pad) * betha_s  # initial coordinate theta [rad]
 theta2 = (1 - rp_pad) * betha_s  # final coordinate theta [rad]
-# theta1 = -(rp_pad-1) * betha_s  # initial coordinate theta [rad]
-# theta2 = (rp_pad) * betha_s  # final coordinate theta [rad]
+
 dtheta = betha_s / (ntheta)  # differential theta [rad]
 Xtheta = np.zeros([ntheta + 2])
 Xtheta[0] = theta1
 Xtheta[ntheta + 1] = theta2
-Xtheta[1:ntheta] = np.arange(
-    theta1 + 0.5 * dtheta, theta2 - 0.5 * dtheta, dtheta
+Xtheta[1 : ntheta + 1] = np.arange(
+    theta1 + 0.5 * dtheta, theta2, dtheta
 )  # vector theta [rad]
 
 dX = 1 / nX  # differential x dimensionless
 dx = dX * (betha_s * Rs)  # differential x dimensional: [m]
-XX = Xtheta * Rs  # vector x dimensional: [m
+XX = Xtheta * Rs  # vector x dimensional: [m]
 
 # Pad recess
 len_betha = 0.39 * betha_s  # Pad Angle with recess
@@ -462,40 +461,39 @@ for n_p in range(0, npad):
                 FF2s = FF2n
 
                 # Admensional oil film thickness ========================================
+
                 hP = (
                     Rs
                     - R
                     - (
-                        np.sin(dtheta * (-0.5 + jj)) * (yr + alpha * (Rs + esp))
-                        + np.cos(dtheta * (-0.5 + jj)) * (xr + Rs - R - Cr)
+                        np.sin(Xtheta[jj + 1]) * (yr + alpha * (Rs + esp))
+                        + np.cos(Xtheta[jj + 1]) * (xr + Rs - R - Cr)
                     )
                 ) / Cr
                 he = (
                     Rs
                     - R
                     - (
-                        np.sin(dtheta * (-0.5 + jj) + 0.5 * dtheta)
+                        np.sin(Xtheta[jj + 1] + 0.5 * dtheta)
                         * (yr + alpha * (Rs + esp))
-                        + np.cos(dtheta * (-0.5 + jj) + 0.5 * dtheta)
-                        * (xr + Rs - R - Cr)
+                        + np.cos(Xtheta[jj + 1] + 0.5 * dtheta) * (xr + Rs - R - Cr)
                     )
                 ) / Cr
                 hw = (
                     Rs
                     - R
                     - (
-                        np.sin(dtheta * (-0.5 + jj) - 0.5 * dtheta)
+                        np.sin(Xtheta[jj + 1] - 0.5 * dtheta)
                         * (yr + alpha * (Rs + esp))
-                        + np.cos(dtheta * (-0.5 + jj) - 0.5 * dtheta)
-                        * (xr + Rs - R - Cr)
+                        + np.cos(Xtheta[jj + 1] - 0.5 * dtheta) * (xr + Rs - R - Cr)
                     )
                 ) / Cr
                 hn = hP
                 hs = hn
                 hpt = -(1 / (Cr * war)) * (
-                    np.cos(dtheta * (-0.5 + jj)) * xrpt
-                    + np.sin(dtheta * (-0.5 + jj)) * yrpt
-                    + np.sin(dtheta * (-0.5 + jj)) * (Rs + esp) * alphapt
+                    np.cos(Xtheta[jj + 1]) * xrpt
+                    + np.sin(Xtheta[jj + 1]) * yrpt
+                    + np.sin(Xtheta[jj + 1]) * (Rs + esp) * alphapt
                 )  # admensional
 
                 CE = 1 / (betha_s) ** 2 * (FF2e * he ** 3) * dZ / dX
