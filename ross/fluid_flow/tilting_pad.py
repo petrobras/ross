@@ -353,11 +353,11 @@ for n_p in range(0, npad):
                     mi_adW = vector_mi[2, nN - nn - 1] / mi_ref
 
                     auxFF0P[nn + 1] = 1 / mi_adP
-                    auxFF1P[nn + 1] = (dN * (0.5 + kk)) / mi_adP
+                    auxFF1P[nn + 1] = (dN * (-0.5 + kk)) / mi_adP
                     auxFF0E[nn + 1] = 1 / mi_adE
-                    auxFF1E[nn + 1] = (dN * (0.5 + kk)) / mi_adE
+                    auxFF1E[nn + 1] = (dN * (-0.5 + kk)) / mi_adE
                     auxFF0W[nn + 1] = 1 / mi_adW
-                    auxFF1W[nn + 1] = (dN * (0.5 + kk)) / mi_adW
+                    auxFF1W[nn + 1] = (dN * (-0.5 + kk)) / mi_adW
 
                     nn = nn + 1
 
@@ -411,20 +411,20 @@ for n_p in range(0, npad):
 
                 # Loop in N
                 # for kk in range(N1 + 0.5 * dN, dN, N2 - 0.5 * dN):
-                for kk in range(1, nN):
+                for kk in range(0, nN + 1):
 
                     mi_adP = vector_mi[0, nN - nn - 1] / mi_ref
                     mi_adE = vector_mi[1, nN - nn - 1] / mi_ref
                     mi_adW = vector_mi[2, nN - nn - 1] / mi_ref
 
-                    auxFF2P[nn] = ((dN * (0.5 + kk)) / mi_adP) * (
-                        (dN * (0.5 + kk)) - FF1P / FF0P
+                    auxFF2P[nn] = ((dN * (-0.5 + kk)) / mi_adP) * (
+                        (dN * (-0.5 + kk)) - FF1P / FF0P
                     )
-                    auxFF2E[nn] = ((dN * (0.5 + kk)) / mi_adE) * (
-                        (dN * (0.5 + kk)) - FF1E / FF0E
+                    auxFF2E[nn] = ((dN * (-0.5 + kk)) / mi_adE) * (
+                        (dN * (-0.5 + kk)) - FF1E / FF0E
                     )
-                    auxFF2W[nn] = ((dN * (0.5 + kk)) / mi_adW) * (
-                        (dN * (0.5 + kk)) - FF1W / FF0W
+                    auxFF2W[nn] = ((dN * (-0.5 + kk)) / mi_adW) * (
+                        (dN * (-0.5 + kk)) - FF1W / FF0W
                     )
                     nn = nn + 1
 
@@ -466,17 +466,17 @@ for n_p in range(0, npad):
                     Rs
                     - R
                     - (
-                        np.sin(dtheta * (0.5 + jj)) * (yr + alpha * (Rs + esp))
-                        + np.cos(dtheta * (0.5 + jj)) * (xr + Rs - R - Cr)
+                        np.sin(dtheta * (-0.5 + jj)) * (yr + alpha * (Rs + esp))
+                        + np.cos(dtheta * (-0.5 + jj)) * (xr + Rs - R - Cr)
                     )
                 ) / Cr
                 he = (
                     Rs
                     - R
                     - (
-                        np.sin(dtheta * (0.5 + jj) + 0.5 * dtheta)
+                        np.sin(dtheta * (-0.5 + jj) + 0.5 * dtheta)
                         * (yr + alpha * (Rs + esp))
-                        + np.cos(dtheta * (0.5 + jj) + 0.5 * dtheta)
+                        + np.cos(dtheta * (-0.5 + jj) + 0.5 * dtheta)
                         * (xr + Rs - R - Cr)
                     )
                 ) / Cr
@@ -484,18 +484,18 @@ for n_p in range(0, npad):
                     Rs
                     - R
                     - (
-                        np.sin(dtheta * (0.5 + jj) - 0.5 * dtheta)
+                        np.sin(dtheta * (-0.5 + jj) - 0.5 * dtheta)
                         * (yr + alpha * (Rs + esp))
-                        + np.cos(dtheta * (0.5 + jj) - 0.5 * dtheta)
+                        + np.cos(dtheta * (-0.5 + jj) - 0.5 * dtheta)
                         * (xr + Rs - R - Cr)
                     )
                 ) / Cr
                 hn = hP
                 hs = hn
                 hpt = -(1 / (Cr * war)) * (
-                    np.cos(dtheta * (0.5 + jj)) * xrpt
-                    + np.sin(dtheta * (0.5 + jj)) * yrpt
-                    + np.sin(dtheta * (0.5 + jj)) * (Rs + esp) * alphapt
+                    np.cos(dtheta * (-0.5 + jj)) * xrpt
+                    + np.sin(dtheta * (-0.5 + jj)) * yrpt
+                    + np.sin(dtheta * (-0.5 + jj)) * (Rs + esp) * alphapt
                 )  # admensional
 
                 CE = 1 / (betha_s) ** 2 * (FF2e * he ** 3) * dZ / dX
