@@ -578,8 +578,16 @@ for n_p in range(0, npad):
         # loop end
 
         # Pressure field solution ==============================================================
-        cc = (K_null == 0).nonzero()  # cc = find(K_null == 0)
-        p = np.linalg.solve(Mat_coef[cc, cc], b[cc])
+
+        # cc = (K_null == 0).nonzero()  # cc = find(K_null == 0)
+        cc_aux = np.where(K_null == 0)  # cc = find(K_null == 0)
+        cc = cc_aux[1]
+
+        lalala = Mat_coef[[cc, cc]]
+
+        lalala2 = b[cc]
+
+        p = np.linalg.solve(Mat_coef[[cc, cc]], b[cc])
 
         cont = 0
 
