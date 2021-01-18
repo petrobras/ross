@@ -14,7 +14,7 @@ install:
 build: off
 
 test_script:
-  - "%PYTHON%\\python.exe -m pytest ross"
+  - "%PYTHON%\\python.exe -m pytest ross --cov=ross"
 
 after_test:
   - codecov
