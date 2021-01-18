@@ -593,7 +593,8 @@ for n_p in range(0, npad):
 
         # lalala2 = b[cc]
 
-        p = np.linalg.solve(Mat_coef[[cc, cc]], b[cc])
+        # p = np.linalg.solve(Mat_coef[[cc, cc]], b[cc])
+        p = np.linalg.solve(Mat_coef, b)
 
         cont = 0
 
