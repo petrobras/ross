@@ -352,12 +352,12 @@ for n_p in range(0, npad):
                     mi_adE = vector_mi[1, nN - nn - 1] / mi_ref
                     mi_adW = vector_mi[2, nN - nn - 1] / mi_ref
 
-                    auxFF0P[nn] = 1 / mi_adP
-                    auxFF1P[nn] = (dN * (0.5 + kk)) / mi_adP
-                    auxFF0E[nn] = 1 / mi_adE
-                    auxFF1E[nn] = (dN * (0.5 + kk)) / mi_adE
-                    auxFF0W[nn] = 1 / mi_adW
-                    auxFF1W[nn] = (dN * (0.5 + kk)) / mi_adW
+                    auxFF0P[nn + 1] = 1 / mi_adP
+                    auxFF1P[nn + 1] = (dN * (0.5 + kk)) / mi_adP
+                    auxFF0E[nn + 1] = 1 / mi_adE
+                    auxFF1E[nn + 1] = (dN * (0.5 + kk)) / mi_adE
+                    auxFF0W[nn + 1] = 1 / mi_adW
+                    auxFF1W[nn + 1] = (dN * (0.5 + kk)) / mi_adW
 
                     nn = nn + 1
 
