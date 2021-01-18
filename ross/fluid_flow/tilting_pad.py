@@ -579,7 +579,7 @@ for n_p in range(0, npad):
 
         # Pressure field solution ==============================================================
         cc = (K_null == 0).nonzero()  # cc = find(K_null == 0)
-        p = np.linalg.solve(Mat_coef[cc, cc], b[cc, cc])  # verificar matriz b
+        p = np.linalg.solve(Mat_coef[cc, cc], b[cc])
 
         cont = 0
 
