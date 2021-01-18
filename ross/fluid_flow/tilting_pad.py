@@ -496,6 +496,7 @@ for n_p in range(0, npad):
                     + np.sin(Xtheta[jj + 1]) * (Rs + esp) * alphapt
                 )  # admensional
 
+                # Finite volume frontiers
                 CE = 1 / (betha_s) ** 2 * (FF2e * he ** 3) * dZ / dX
                 CW = 1 / (betha_s) ** 2 * (FF2w * hw ** 3) * dZ / dX
                 CN = (FF2n * hn ** 3) * (dX / dZ) * (Rs / L) ** 2
@@ -509,6 +510,7 @@ for n_p in range(0, npad):
                 b[k] = B
                 hhh[k, n_p] = hP * Cr
 
+                # Mat_coef determination depending on its mesh localization
                 if ki == 0 and kj == 0:
                     Mat_coef[k, k] = CP - CN - CW
                     Mat_coef[k, k + 1] = CE
@@ -576,7 +578,6 @@ for n_p in range(0, npad):
         # loop end
 
         # Pressure field solution ==============================================================
-
         cc = (K_null == 0).nonzero()  # cc = find(K_null == 0)
         p = np.linalg.solve(Mat_coef[cc, cc], b[cc, cc])  # verificar matriz b
 
