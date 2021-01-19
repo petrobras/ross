@@ -686,9 +686,9 @@ for n_p in range(0, npad):
                     )
 
                     aux_var_1 = np.arange(N1, ky + 1, dN)  # N1:dN:ky
-                    auxG0 = np.zeros[1, aux_var_1.size]
-                    auxG1 = np.zeros[1, aux_var_1.size]
-                    ydim2 = np.zeros[1, aux_var_1.size]
+                    auxG0 = np.zeros([aux_var_1.size])
+                    auxG1 = np.zeros([aux_var_1.size])
+                    ydim2 = np.zeros([aux_var_1.size])
 
                     for contk in range(((N1 + 0.5 * dN) * h), (dN * h), (ky * h)):
                         auxG0[nn + 1] = 1 / mi[ki, kj, nN + 1 - nn]
