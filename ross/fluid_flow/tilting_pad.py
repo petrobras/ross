@@ -661,21 +661,21 @@ for n_p in range(0, npad):
                         )
                     )
 
-                    auxFF0 = np.zeros((1, netha.size))
-                    auxFF1 = np.zeros((1, netha.size))
+                    auxFF0 = np.zeros((netha.size))
+                    auxFF1 = np.zeros((netha.size))
 
                     # for contk in range(((N1 + 0.5 * dN) * h), (dN * h), ((N2 - (0.5 * dN)) * h)):
-                    for contk in range(0, nN - 1):
-                        auxFF0[nn] = 1 / mi[ki, kj, nN - nn]
-                        auxFF1[nn] = (dN * (-0.5 + kk) * h) / mi[ki, kj, nN - nn]
+                    for contk in range(1, nN + 1):
                         nn = nn + 1
+                        auxFF0[nn] = 1 / mi[ki, kj, nN - 1 - nn]
+                        auxFF1[nn] = (dN * (-0.5 + contk) * h) / mi[ki, kj, nN - 1 - nn]
                     nn = 0
 
                     auxFF0[0] = auxFF0[1]
-                    auxFF0[nN + 2] = auxFF0[nN + 1]
+                    auxFF0[nN + 1] = auxFF0[nN]
 
                     auxFF1[0] = 0
-                    auxFF1[nN + 2] = (N2 * h) / mi[ki, kj, 1]
+                    auxFF1[nN + 1] = (N2 * h) / mi[ki, kj, 1]
 
                     ydim1 = h * netha
                     FF0 = 0.5 * np.sum(
