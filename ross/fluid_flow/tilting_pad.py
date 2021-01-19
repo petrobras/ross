@@ -381,9 +381,6 @@ for n_p in range(0, npad):
                 auxFF1W[nN + 1] = N2 / (vector_mi[2, nN - 1] / mi_ref)
 
                 # Numerical integration
-
-                # FF0P=0.5*sum((netha(2:end)-netha(1:end-1)).*(auxFF0P(2:end)+auxFF0P(1:end-1)));
-
                 FF0P = 0.5 * np.sum(
                     (netha[1:] - netha[0:-1]) * (auxFF0P[1:] + auxFF0P[0:-1])
                 )
@@ -581,8 +578,8 @@ for n_p in range(0, npad):
 
         # cc = (K_null == 0).nonzero()  # cc = find(K_null == 0)
 
-        cc_aux = np.where(K_null == 0)  # cc = find(K_null == 0)
-        cc = cc_aux[1]
+        # cc_aux = np.where(K_null == 0)  # cc = find(K_null == 0)
+        # cc = cc_aux[1]
 
         # lalala = Mat_coef[[cc, cc]]
 
@@ -594,6 +591,7 @@ for n_p in range(0, npad):
         # lalala2 = b[cc]
 
         # p = np.linalg.solve(Mat_coef[[cc, cc]], b[cc])
+
         p = np.linalg.solve(Mat_coef, b)
 
         cont = 0
