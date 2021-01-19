@@ -458,7 +458,6 @@ for n_p in range(0, npad):
                 FF2s = FF2n
 
                 # Admensional oil film thickness ========================================
-
                 hP = (
                     Rs
                     - R
@@ -577,19 +576,8 @@ for n_p in range(0, npad):
         # Pressure field solution ==============================================================
 
         # cc = (K_null == 0).nonzero()  # cc = find(K_null == 0)
-
         # cc_aux = np.where(K_null == 0)  # cc = find(K_null == 0)
         # cc = cc_aux[1]
-
-        # lalala = Mat_coef[[cc, cc]]
-
-        # lalala = np.zeros([len.Mat_coef, len.Mat_coef])
-        # for cont_1 in range(0, len.cc):
-        #    for cont_2 in range(0, len.cc):
-        #        lalala[cont_1, cont_2] = cc
-
-        # lalala2 = b[cc]
-
         # p = np.linalg.solve(Mat_coef[[cc, cc]], b[cc])
 
         p = np.linalg.solve(Mat_coef, b)
@@ -637,13 +625,14 @@ for n_p in range(0, npad):
         nn = 0
 
         # Dimensionless Netha loop ====================================================
-        for ky in range((N1 + 0.5 * dN), dN, (N2 - 0.5 * dN)):
+        # for ky in range((N1 + 0.5 * dN), dN, (N2 - 0.5 * dN)):
+        for kk in range(0, nN + 1):
             # Mesh loop in Z direction ====================================================
-            for ii in range((Z1 + 0.5 * dZ), dZ, (Z2 - 0.5 * dZ)):
+            # for ii in range((Z1 + 0.5 * dZ), dZ, (Z2 - 0.5 * dZ)):
+            for ii in range(0, nZ):
                 # Mesh loop in THETA direction ====================================================
-                for jj in range(
-                    (theta1 + 0.5 * dtheta), dtheta, (theta2 - 0.5 * dtheta)
-                ):
+                # for jj in range((theta1 + 0.5 * dtheta), dtheta, (theta2 - 0.5 * dtheta)):
+                for jj in range(0, ntheta):
 
                     # Pressure gradients calculation
                     if ki == 0 and kj == 0:
@@ -667,8 +656,8 @@ for n_p in range(0, npad):
                         Rs
                         - R
                         - (
-                            np.sin(jj) * (yr + alpha * (Rs + esp))
-                            + np.cos(jj) * (xr + Rs - R - Cr)
+                            np.sin(Xtheta[jj + 1]) * (yr + alpha * (Rs + esp))
+                            + np.cos(Xtheta[jj + 1]) * (xr + Rs - R - Cr)
                         )
                     )
 
