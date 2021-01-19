@@ -626,7 +626,7 @@ for n_p in range(0, npad):
 
         # Dimensionless Netha loop ====================================================
         # for ky in range((N1 + 0.5 * dN), dN, (N2 - 0.5 * dN)):
-        for kk in range(0, nN + 1):
+        for ky in range(0, nN + 1):
             # Mesh loop in Z direction ====================================================
             # for ii in range((Z1 + 0.5 * dZ), dZ, (Z2 - 0.5 * dZ)):
             for ii in range(0, nZ):
@@ -651,7 +651,7 @@ for n_p in range(0, npad):
                         dPdx = (Pdim[ki, kj] - Pdim[ki, kj - 1]) / dx
                         dPdz = (Pdim[ki, kj] - Pdim[ki - 1, kj]) / dz
 
-                    # Dimensional film thickness in Meters
+                    # Dimensional oil film thickness in Meters
                     h = (
                         Rs
                         - R
@@ -664,11 +664,10 @@ for n_p in range(0, npad):
                     auxFF0 = np.zeros((1, netha.size))
                     auxFF1 = np.zeros((1, netha.size))
 
-                    for contk in range(
-                        ((N1 + 0.5 * dN) * h), (dN * h), ((N2 - (0.5 * dN)) * h)
-                    ):
-                        auxFF0[nn + 1] = 1 / mi[ki, kj, nN + 1 - nn]
-                        auxFF1[nn + 1] = contk / mi[ki, kj, nN + 1 - nn]
+                    # for contk in range(((N1 + 0.5 * dN) * h), (dN * h), ((N2 - (0.5 * dN)) * h)):
+                    for contk in range(0, nN - 1):
+                        auxFF0[nn] = 1 / mi[ki, kj, nN - nn]
+                        auxFF1[nn] = (dN * (-0.5 + kk) * h) / mi[ki, kj, nN - nn]
                         nn = nn + 1
                     nn = 0
 
