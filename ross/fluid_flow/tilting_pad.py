@@ -685,15 +685,21 @@ for n_p in range(0, npad):
                         (ydim1[1:] - ydim1[0:-1]) * (auxFF1[1:] + auxFF1[0:-1])
                     )
 
+                    # auxG0 = zeros(1,length(N1:dN:ky));
+                    # auxG1 = zeros(1,length(N1:dN:ky));
+                    # ydim2 = zeros(1,length(N1:dN:ky));
+
                     aux_var_1 = np.arange(N1, ky + 1, dN)  # N1:dN:ky
                     auxG0 = np.zeros([aux_var_1.size])
                     auxG1 = np.zeros([aux_var_1.size])
                     ydim2 = np.zeros([aux_var_1.size])
 
-                    for contk in range(((N1 + 0.5 * dN) * h), (dN * h), (ky * h)):
-                        auxG0[nn + 1] = 1 / mi[ki, kj, nN + 1 - nn]
-                        auxG1[nn + 1] = contk / mi[ki, kj, nN + 1 - nn]
-                        ydim2[nn + 1] = contk
+                    # for contk in range(((N1 + 0.5 * dN) * h), (dN * h), (ky * h)):
+                    for contk in range(1, nN + 1):
+                        nn = nn + 1
+                        auxG0[nn] = 1 / mi[ki, kj, nN - 1 - nn]
+                        auxG1[nn] = (dN * (-0.5 + contk) * h) / mi[ki, kj, nN - 1 - nn]
+                        ydim2[nn] = dN * (-0.5 + contk) * h
                         nn = nn + 1
                     nn = 0
 
