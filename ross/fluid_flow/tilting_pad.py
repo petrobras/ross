@@ -696,7 +696,6 @@ for n_p in range(0, npad):
 
                     # for contk in range(((N1 + 0.5 * dN) * h), (dN * h), (ky * h)):
                     for contk in range(1, nN + 1):
-                        nn = nn + 1
                         auxG0[nn] = 1 / mi[ki, kj, nN - 1 - nn]
                         auxG1[nn] = (dN * (-0.5 + contk) * h) / mi[ki, kj, nN - 1 - nn]
                         ydim2[nn] = dN * (-0.5 + contk) * h
