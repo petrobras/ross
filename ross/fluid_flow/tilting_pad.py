@@ -706,17 +706,17 @@ for n_p in range(0, npad):
                     auxG1[0] = 0
                     ydim2[0] = N1 * h
 
-                    G0 = (
-                        0.5
-                        * np.sum[(ydim2[1:] - ydim2[0:-1]) * (auxG0[1:] + auxG0[0:-1])]
+                    G0 = 0.5 * np.sum(
+                        (ydim2[1:] - ydim2[0:-1]) * (auxG0[1:] + auxG0[0:-1])
                     )
-                    G1 = (
-                        0.5
-                        * np.sum[(ydim2[1:] - ydim2[0:-1]) * (auxG1[1:] + auxG1[0:-1])]
+                    G1 = 0.5 * np.sum(
+                        (ydim2[1:] - ydim2[0:-1]) * (auxG1[1:] + auxG1[0:-1])
                     )
 
-                    vu[ki, kj, kk] = dPdx * G1 + (war * R / FF0 - FF1 / FF0 * dPdx) * G0
-                    vw[ki, kj, kk] = dPdz * G1 - (FF1 / FF0 * dPdz) * G0
+                    vu[ki, kj, kk - 1] = (
+                        dPdx * G1 + (war * R / FF0 - FF1 / FF0 * dPdx) * G0
+                    )
+                    vw[ki, kj, kk - 1] = dPdz * G1 - (FF1 / FF0 * dPdz) * G0
 
                     kj = kj + 1
 
