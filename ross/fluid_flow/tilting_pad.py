@@ -607,7 +607,7 @@ for n_p in range(0, npad):
                 else:
 
                     cont = cont + 1
-                    P[i, j] = p(cont)
+                    P[i, j] = p[cont]
 
                     if P[i, j] < 0:
                         P[i, j] = 0
@@ -619,7 +619,7 @@ for n_p in range(0, npad):
                     P[i, j] = 0
 
         # Dimmensional pressure determination in Pascals
-        Pdim = P * mi_ref * war * Rs ^ 2 / Cr ^ 2
+        Pdim = (P * mi_ref * war * (Rs ** 2)) / (Cr ** 2)
 
         # Full pressure field with borders
         PPdim = np.zeros((nZ + 1, ntheta + 1))
