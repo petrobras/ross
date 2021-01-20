@@ -248,8 +248,8 @@ T = np.zeros((nN, ntheta))
 T1 = np.zeros((nN, ntheta, npad))
 
 # Field derivatives
-dudx = np.zeros((1, ntheta))
-dwdz = np.zeros((1, ntheta))
+dudx = np.zeros((nN))
+dwdz = np.zeros((nN))
 
 # Other variables declarations
 Mi = np.zeros((nZ, nN))
@@ -748,39 +748,39 @@ for n_p in range(0, npad):
                 if ki == 0 and kj == 0:
                     # for contk in range(N1 + 0.5 * dN, dN, N2 - 0.5 * dN):
                     for contk in range(0, nN + 1):
-                        dudx[0, nn] = 0
-                        dwdz[0, nn] = 0
+                        dudx[nn] = 0
+                        dwdz[nn] = 0
                         nn = nn + 1
                     nn = 0
 
                 if ki == 0 and kj > 0:
                     # for contk in range(N1 + 0.5 * dN, dN, N2 - 0.5 * dN):
                     for contk in range(0, nN + 1):
-                        dudx[0, nn] = (vu[ki, kj, nn] - vu[ki, kj - 1, nn]) / dx
-                        dwdz[0, nn] = 0
+                        dudx[nn] = (vu[ki, kj, nn] - vu[ki, kj - 1, nn]) / dx
+                        dwdz[nn] = 0
                         nn = nn + 1
                     nn = 0
 
                 if ki > 0 and kj == 0:
                     # for contk in range(N1 + 0.5 * dN, dN, N2 - 0.5 * dN):
                     for contk in range(0, nN + 1):
-                        dudx[0, nn] = 0
-                        dwdz[0, nn] = (vw[ki, kj, nn] - vw[ki - 1, kj, nn]) / dz
+                        dudx[nn] = 0
+                        dwdz[nn] = (vw[ki, kj, nn] - vw[ki - 1, kj, nn]) / dz
                         nn = nn + 1
                     nn = 0
 
                 if ki > 0 and ki < nN - 1 and kj > 0 and kj < nX - 1:
                     # for contk in range(N1 + 0.5 * dN, dN, N2 - 0.5 * dN):
                     for contk in range(0, nN + 1):
-                        dudx[0, nn] = (vu[ki, kj, nn] - vu[ki, kj - 1, nn]) / dx
-                        dwdz[0, nn] = (vw[ki, kj, nn] - vw[ki - 1, kj, nn]) / dz
+                        dudx[nn] = (vu[ki, kj, nn] - vu[ki, kj - 1, nn]) / dx
+                        dwdz[nn] = (vw[ki, kj, nn] - vw[ki - 1, kj, nn]) / dz
                         nn = nn + 1
                     nn = 0
 
-                dudx[0, 0] = dudx[0, 1]
-                dwdz[0, 0] = dwdz[0, 1]
-                dudx[0, nN + 1] = dudx[0, nN]
-                dwdz[0, nN + 1] = dwdz[0, nN]
+                dudx[0] = dudx[1]
+                dwdz[0] = dwdz[1]
+                dudx[nN + 1] = dudx[nN]
+                dwdz[nN + 1] = dwdz[nN]
 
                 auxD = dudx + dwdz
                 intv = 0.5 * np.sum((ydim1[1:] - ydim1[0:-1]) * (auxD[1:] + auxD[0:-1]))
