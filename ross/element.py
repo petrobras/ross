@@ -194,19 +194,10 @@ class Element(ABC):
         >>> # Example using DiskElement
         >>> from ross.disk_element import disk_example
         >>> disk = disk_example()
-        >>> disk.summary()
+        >>> disk.summary() # doctest: +ELLIPSIS
         n                             0
         n_l                           0
-        n_r                           0
-        m                       32.5897
-        Id                     0.178089
-        Ip                     0.329564
-        tag                        None
-        color                 Firebrick
-        scale_factor                  1
-        dof_global_index           None
-        type                DiskElement
-        dtype: object
+        n_r                           0...
         """
         attributes = self.__dict__
         attributes["type"] = self.__class__.__name__
