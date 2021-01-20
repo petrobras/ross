@@ -248,8 +248,8 @@ T = np.zeros((nN, ntheta))
 T1 = np.zeros((nN, ntheta, npad))
 
 # Field derivatives
-dudx = np.zeros((nN))
-dwdz = np.zeros((nN))
+dudx = np.zeros((nN + 2))
+dwdz = np.zeros((nN + 2))
 
 # Other variables declarations
 Mi = np.zeros((nZ, nN))
@@ -756,7 +756,7 @@ for n_p in range(0, npad):
                 if ki == 0 and kj > 0:
                     # for contk in range(N1 + 0.5 * dN, dN, N2 - 0.5 * dN):
                     for contk in range(0, nN + 1):
-                        dudx[nn] = (vu[ki, kj, nn] - vu[ki, kj - 1, nn]) / dx
+                        dudx[nn] = (vu[ki, kj, nn - 1] - vu[ki, kj - 1, nn - 1]) / dx
                         dwdz[nn] = 0
                         nn = nn + 1
                     nn = 0
@@ -765,15 +765,15 @@ for n_p in range(0, npad):
                     # for contk in range(N1 + 0.5 * dN, dN, N2 - 0.5 * dN):
                     for contk in range(0, nN + 1):
                         dudx[nn] = 0
-                        dwdz[nn] = (vw[ki, kj, nn] - vw[ki - 1, kj, nn]) / dz
+                        dwdz[nn] = (vw[ki, kj, nn - 1] - vw[ki - 1, kj, nn - 1]) / dz
                         nn = nn + 1
                     nn = 0
 
                 if ki > 0 and ki < nN - 1 and kj > 0 and kj < nX - 1:
                     # for contk in range(N1 + 0.5 * dN, dN, N2 - 0.5 * dN):
                     for contk in range(0, nN + 1):
-                        dudx[nn] = (vu[ki, kj, nn] - vu[ki, kj - 1, nn]) / dx
-                        dwdz[nn] = (vw[ki, kj, nn] - vw[ki - 1, kj, nn]) / dz
+                        dudx[nn] = (vu[ki, kj, nn - 1] - vu[ki, kj - 1, nn - 1]) / dx
+                        dwdz[nn] = (vw[ki, kj, nn - 1] - vw[ki - 1, kj, nn - 1]) / dz
                         nn = nn + 1
                     nn = 0
 
