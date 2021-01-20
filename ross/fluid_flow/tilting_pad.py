@@ -794,11 +794,11 @@ for n_p in range(0, npad):
 
         ki = 0
         ki = nN
-        for ii in range(1, nN):
-            for jj in range(1, ntheta):
-                Vu[ii, jj] = vu[:, jj, ki].mean
-                Vv[ii, jj] = vv[:, jj, ki].mean
-                Vw[ii, jj] = vw[:, jj, ki].mean
+        for ii in range(0, nN):
+            for jj in range(0, ntheta):
+                Vu[ii, jj] = vu[:, jj, ki - 1].mean
+                Vv[ii, jj] = vv[:, jj, ki - 1].mean
+                Vw[ii, jj] = vw[:, jj, ki - 1].mean
 
             ki = ki - 1
 
