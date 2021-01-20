@@ -796,9 +796,9 @@ for n_p in range(0, npad):
         ki = nN
         for ii in range(0, nN):
             for jj in range(0, ntheta):
-                Vu[ii, jj] = vu[:, jj, ki - 1].mean
-                Vv[ii, jj] = vv[:, jj, ki - 1].mean
-                Vw[ii, jj] = vw[:, jj, ki - 1].mean
+                Vu[ii, jj] = np.mean(vu[:, jj, ki - 1])
+                Vv[ii, jj] = np.mean(vv[:, jj, ki - 1])
+                Vw[ii, jj] = np.mean(vw[:, jj, ki - 1])
 
             ki = ki - 1
 
