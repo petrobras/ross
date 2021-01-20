@@ -685,10 +685,6 @@ for n_p in range(0, npad):
                         (ydim1[1:] - ydim1[0:-1]) * (auxFF1[1:] + auxFF1[0:-1])
                     )
 
-                    # auxG0 = zeros(1,length(N1:dN:ky));
-                    # auxG1 = zeros(1,length(N1:dN:ky));
-                    # ydim2 = zeros(1,length(N1:dN:ky));
-
                     aux_var_1 = np.arange(N1, ky + 1, dN)  # N1:dN:ky
                     auxG0 = np.zeros([aux_var_1.size])
                     auxG1 = np.zeros([aux_var_1.size])
@@ -713,9 +709,12 @@ for n_p in range(0, npad):
                         (ydim2[1:] - ydim2[0:-1]) * (auxG1[1:] + auxG1[0:-1])
                     )
 
+                    # vu(ki,kj,kk)=dPdx*G1+(war*R/FF0-FF1/FF0*dPdx)*G0;
                     vu[ki, kj, kk - 1] = (
                         dPdx * G1 + (war * R / FF0 - FF1 / FF0 * dPdx) * G0
                     )
+
+                    # vw(ki,kj,kk)=dPdz*G1-(FF1/FF0*dPdz)*G0;
                     vw[ki, kj, kk - 1] = dPdz * G1 - (FF1 / FF0 * dPdz) * G0
 
                     kj = kj + 1
@@ -783,7 +782,10 @@ for n_p in range(0, npad):
                 dwdz[nN + 1] = dwdz[nN]
 
                 auxD = dudx + dwdz
+
+                # intv=0.5*sum((ydim1(2:end)-ydim1(1:end-1)).*(auxD(2:end)+auxD(1:end-1)));
                 intv = 0.5 * np.sum((ydim1[1:] - ydim1[0:-1]) * (auxD[1:] + auxD[0:-1]))
+
                 vv[ki, kj,] = (
                     -intv + hpt
                 )
@@ -810,8 +812,8 @@ for n_p in range(0, npad):
         kj = 0
         dksi = dX
 
-        for ii in range(1, nZ):
-            for jj in range(1, nN):
+        for ii in range(0, nZ - 1):
+            for jj in range(0, nN - 1):
                 Mi[jj, ii] = mi[0, ii, jj]
 
         nk = nN * ntheta
