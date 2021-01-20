@@ -733,38 +733,40 @@ for n_p in range(0, npad):
         kk = 0
 
         # Mesh loop in Z direction ====================================================
-        for ii in range((Z1 + 0.5 * dZ), dZ, (Z2 - 0.5 * dZ)):
+        # for ii in range((Z1 + 0.5 * dZ), dZ, (Z2 - 0.5 * dZ)):
+        for ii in range(0, nZ):
             # Mesh loop in THETA direction ====================================================
-            for jj in range((theta1 + 0.5 * dtheta), dtheta, (theta2 - 0.5 * dtheta)):
+            # for jj in range((theta1 + 0.5 * dtheta), dtheta, (theta2 - 0.5 * dtheta)):
+            for jj in range(0, ntheta):
 
                 hpt = -(
-                    np.cos[dtheta * (0.5 + jj)] * xrpt
-                    + np.sin[dtheta * (0.5 + jj)] * yrpt
-                    + np.sin[dtheta * (0.5 + jj)] * (Rs + esp) * alphapt
+                    np.cos(Xtheta[jj + 1]) * xrpt
+                    + np.sin(Xtheta[jj + 1]) * yrpt
+                    + np.sin(Xtheta[jj + 1]) * (Rs + esp) * alphapt
                 )
 
-                if ki == 1 and kj == 1:
+                if ki == 0 and kj == 0:
                     for contk in range(N1 + 0.5 * dN, dN, N2 - 0.5 * dN):
                         dudx[0, nn] = 0
                         dwdz[0, nn] = 0
                         nn = nn + 1
                     nn = 0
 
-                if ki == 1 and kj > 1:
+                if ki == 0 and kj > 0:
                     for contk in range(N1 + 0.5 * dN, dN, N2 - 0.5 * dN):
                         dudx[0, nn + 1] = (vu[ki, kj, nn] - vu[ki, kj - 1, nn]) / dx
                         dwdz[0, nn + 1] = 0
                         nn = nn + 1
                     nn = 0
 
-                if ki > 1 and kj == 1:
+                if ki > 0 and kj == 0:
                     for contk in range(N1 + 0.5 * dN, dN, N2 - 0.5 * dN):
                         dudx[0, nn + 1] = 0
                         dwdz[0, nn + 1] = (vw[ki, kj, nn] - vw[ki - 1, kj, nn]) / dz
                         nn = nn + 1
                     nn = 0
 
-                if ki > 1 and ki < nN and kj > 1 and kj < nX:
+                if ki > 0 and ki < nN - 1 and kj > 0 and kj < nX - 1:
                     for contk in range(N1 + 0.5 * dN, dN, N2 - 0.5 * dN):
                         dudx[0, nn + 1] = (vu[ki, kj, nn] - vu[ki, kj - 1, nn]) / dx
                         dwdz[0, nn + 1] = (vw[ki, kj, nn] - vw[ki - 1, kj, nn]) / dz
@@ -773,8 +775,8 @@ for n_p in range(0, npad):
 
                 dudx[0, 0] = dudx[0, 1]
                 dwdz[0, 0] = dwdz[0, 1]
-                dudx[0, nN + 2] = dudx[0, nN + 1]
-                dwdz[0, nN + 2] = dwdz[0, nN + 1]
+                dudx[0, nN + 1] = dudx[0, nN]
+                dwdz[0, nN + 1] = dwdz[0, nN]
 
                 auxD = dudx + dwdz
                 intv = 0.5 * np.sum((ydim1[1:] - ydim1[0:-1]) * (auxD[1:] + auxD[0:-1]))
