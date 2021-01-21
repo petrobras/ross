@@ -824,9 +824,11 @@ for n_p in range(0, npad):
         # for ii in range(N1 + 0.5 * dN, dN, N2 - 0.5 * dN):
         for ii in range(0, nN):
 
-            for jj in range(ksi1 + 0.5 * dksi, dksi, ksi2 - 0.5 * dksi):
+            # for jj in range(ksi1 + 0.5 * dksi, dksi, ksi2 - 0.5 * dksi):
+            # jj is equivalent to: dksi * (-0.5 + jj)
+            for jj in range(0, nX):
 
-                theta = (-0.5 + dtheta * (0.5 + jj)) * betha_s
+                theta = (-0.5 + (dksi * (-0.5 + jj))) * betha_s
                 HP = (
                     Rs
                     - R
