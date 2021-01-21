@@ -1116,96 +1116,96 @@ for n_p in range(0, npad):
                 )
 
                 # Source term ----------------
-                Bp = JP * (war * R) ** 2 * Mi(ki, kj) / Cp * dN * dksi * fdiss
+                Bp = JP * (war * R) ** 2 * Mi[ki, kj] / Cp * dN * dksi * fdiss
 
                 # Vectorizing
                 k = k + 1
 
-                b[k, 0] = Bp
+                b[k - 1, 0] = Bp
 
-                if ki == 1 and kj == 1:
-                    Mat_coef[k, k] = Ap + An - Aw
-                    Mat_coef[k, k + 1] = Ae + Ane
-                    Mat_coef[k, k + ntheta] = As - Asw
-                    Mat_coef[k, k + ntheta + 1] = Ase
-                    b[k, 0] = (
-                        b[k, 0]
+                if ki == 0 and kj == 0:
+                    Mat_coef[k - 1, k - 1] = Ap + An - Aw
+                    Mat_coef[k - 1, k] = Ae + Ane
+                    Mat_coef[k - 1, k - 1 + ntheta] = As - Asw
+                    Mat_coef[k - 1, k - 1 + ntheta] = Ase
+                    b[k - 1, 0] = (
+                        b[k - 1, 0]
                         - 2 * (Aw * Tmist[ki + 1] + Asw * Tmist[ki + 2])
                         - Anw * (Tmist[ki])
                     )
 
-                if ki == 1 and kj > 1 and kj < nX:
-                    Mat_coef[k, k] = Ap + An
-                    Mat_coef[k, k + 1] = Ae + Ane
-                    Mat_coef[k, k - 1] = Aw + Anw
-                    Mat_coef[k, k + ntheta] = As
-                    Mat_coef[k, k + ntheta + 1] = Ase
-                    Mat_coef[k, k + ntheta - 1] = Asw
+                if ki == 0 and kj > 0 and kj < nX - 1:
+                    Mat_coef[k - 1, k - 1] = Ap + An
+                    Mat_coef[k - 1, k] = Ae + Ane
+                    Mat_coef[k - 1, k - 2] = Aw + Anw
+                    Mat_coef[k - 1, k + ntheta - 1] = As
+                    Mat_coef[k - 1, k + ntheta] = Ase
+                    Mat_coef[k - 1, k + ntheta - 2] = Asw
 
-                if ki == 1 and kj == nX:
-                    Mat_coef[k, k] = Ap + An + Ane + Ae
-                    Mat_coef[k, k - 1] = Aw + Anw
-                    Mat_coef[k, k + ntheta] = As + Ase
-                    Mat_coef[k, k + ntheta - 1] = Asw
+                if ki == 0 and kj == nX:
+                    Mat_coef[k - 1, k - 1] = Ap + An + Ane + Ae
+                    Mat_coef[k - 1, k - 2] = Aw + Anw
+                    Mat_coef[k - 1, k + ntheta - 1] = As + Ase
+                    Mat_coef[k - 1, k + ntheta - 2] = Asw
 
-                if kj == 1 and ki > 1 and ki < nN:
-                    Mat_coef[k, k] = Ap - Aw
-                    Mat_coef[k, k + 1] = Ae
-                    Mat_coef[k, k + ntheta] = As - Asw
-                    Mat_coef[k, k - ntheta] = An - Anw
-                    Mat_coef[k, k + ntheta + 1] = Ase
-                    Mat_coef[k, k - ntheta + 1] = Ane
-                    b[k, 0] = (
-                        b[k, 0]
+                if kj == 0 and ki > 0 and ki < nN - 1:
+                    Mat_coef[k - 1, k - 1] = Ap - Aw
+                    Mat_coef[k - 1, k] = Ae
+                    Mat_coef[k - 1, k + ntheta - 1] = As - Asw
+                    Mat_coef[k - 1, k - ntheta - 1] = An - Anw
+                    Mat_coef[k - 1, k + ntheta] = Ase
+                    Mat_coef[k - 1, k - ntheta] = Ane
+                    b[k - 1, 0] = (
+                        b[k - 1, 0]
                         - 2 * Tmist[ki - 1] * Anw
                         - 2 * Tmist[ki + 1] * Aw
                         - 2 * Tmist[ki + 2] * Asw
                     )
 
-                if ki > 1 and ki < nN and kj > 1 and kj < nX:
-                    Mat_coef[k, k] = Ap
-                    Mat_coef[k, k + 1] = Ae
-                    Mat_coef[k, k - 1] = Aw
-                    Mat_coef[k, k + ntheta] = As
-                    Mat_coef[k, k - ntheta] = An
-                    Mat_coef[k, k + ntheta + 1] = Ase
-                    Mat_coef[k, k + ntheta - 1] = Asw
-                    Mat_coef[k, k - ntheta + 1] = Ane
-                    Mat_coef[k, k - ntheta - 1] = Anw
+                if ki > 0 and ki < nN - 1 and kj > 0 and kj < nX - 1:
+                    Mat_coef[k - 1, k - 1] = Ap
+                    Mat_coef[k - 1, k] = Ae
+                    Mat_coef[k - 1, k - 2] = Aw
+                    Mat_coef[k - 1, k + ntheta - 1] = As
+                    Mat_coef[k - 1, k - ntheta - 1] = An
+                    Mat_coef[k - 1, k + ntheta] = Ase
+                    Mat_coef[k - 1, k + ntheta - 2] = Asw
+                    Mat_coef[k - 1, k - ntheta] = Ane
+                    Mat_coef[k - 1, k - ntheta - 2] = Anw
 
-                if kj == nX and ki > 1 and ki < nN:
-                    Mat_coef[k, k] = Ap + Ae
-                    Mat_coef[k, k - 1] = Aw
-                    Mat_coef[k, k + ntheta] = As + Ase
-                    Mat_coef[k, k - ntheta] = An + Ane
-                    Mat_coef[k, k + ntheta - 1] = Asw
-                    Mat_coef[k, k - ntheta - 1] = Anw
+                if kj == nX - 1 and ki > 0 and ki < nN - 1:
+                    Mat_coef[k - 1, k - 1] = Ap + Ae
+                    Mat_coef[k - 1, k - 2] = Aw
+                    Mat_coef[k - 1, k + ntheta - 1] = As + Ase
+                    Mat_coef[k - 1, k - ntheta - 1] = An + Ane
+                    Mat_coef[k - 1, k + ntheta - 2] = Asw
+                    Mat_coef[k - 1, k - ntheta - 2] = Anw
 
-                if kj == 1 and ki == nN:
-                    Mat_coef[k, k] = Ap + As - Aw
-                    Mat_coef[k, k + 1] = Ae + Ase
-                    Mat_coef[k, k - ntheta] = An - Anw
-                    Mat_coef[k, k - ntheta + 1] = Ane
-                    b[k, 0] = (
-                        b[k, 0]
+                if kj == 0 and ki == nN - 1:
+                    Mat_coef[k - 1, k - 1] = Ap + As - Aw
+                    Mat_coef[k - 1, k] = Ae + Ase
+                    Mat_coef[k - 1, k - ntheta - 1] = An - Anw
+                    Mat_coef[k - 1, k - ntheta] = Ane
+                    b[k - 1, 0] = (
+                        b[k - 1, 0]
                         - 2 * Tmist[ki + 1] * Aw
                         - 2 * Tmist[ki] * Anw
                         - Tmist[ki + 2] * Asw
                     )
 
-                if ki == nN and kj > 1 and kj < nX:
-                    Mat_coef[k, k] = Ap + As
-                    Mat_coef[k, k + 1] = Ae + Ase
-                    Mat_coef[k, k - 1] = Aw + Asw
-                    Mat_coef[k, k - ntheta] = An
-                    Mat_coef[k, k - ntheta + 1] = Ane
-                    Mat_coef[k, k - ntheta - 1] = Anw
+                if ki == nN - 1 and kj > 0 and kj < nX - 1:
+                    Mat_coef[k - 1, k - 1] = Ap + As
+                    Mat_coef[k - 1, k] = Ae + Ase
+                    Mat_coef[k - 1, k - 2] = Aw + Asw
+                    Mat_coef[k - 1, k - ntheta - 1] = An
+                    Mat_coef[k - 1, k - ntheta] = Ane
+                    Mat_coef[k - 1, k - ntheta - 2] = Anw
 
-                if ki == nN and kj == nX:
-                    Mat_coef[k, k] = Ap + As + Ae + Ase
-                    Mat_coef[k, k - 1] = Aw + Asw
-                    Mat_coef[k, k - ntheta] = An + Ane
-                    Mat_coef[k, k - ntheta - 1] = Anw
+                if ki == nN - 1 and kj == nX - 1:
+                    Mat_coef[k - 1, k - 1] = Ap + As + Ae + Ase
+                    Mat_coef[k - 1, k - 2] = Aw + Asw
+                    Mat_coef[k - 1, k - ntheta - 1] = An + Ane
+                    Mat_coef[k - 1, k - ntheta - 2] = Anw
 
                 kj = kj + 1
 
