@@ -833,24 +833,24 @@ for n_p in range(0, npad):
                     Rs
                     - R
                     - (
-                        np.sin[theta] * (yr + alpha * (Rs + esp))
-                        + np.cos[theta] * (xr + Rs - R - Cr)
+                        np.sin(theta) * (yr + alpha * (Rs + esp))
+                        + np.cos(theta) * (xr + Rs - R - Cr)
                     )
                 )
                 He = (
                     Rs
                     - R
                     - (
-                        np.sin[theta + 0.5 * dtheta] * (yr + alpha * (Rs + esp))
-                        + np.cos[theta + 0.5 * dtheta] * (xr + Rs - R - Cr)
+                        np.sin(theta + 0.5 * dtheta) * (yr + alpha * (Rs + esp))
+                        + np.cos(theta + 0.5 * dtheta) * (xr + Rs - R - Cr)
                     )
                 )
                 Hw = (
                     Rs
                     - R
                     - (
-                        np.sin[theta - 0.5 * dtheta] * (yr + alpha * (Rs + esp))
-                        + np.cos[theta - 0.5 * dtheta] * (xr + Rs - R - Cr)
+                        np.sin(theta - 0.5 * dtheta) * (yr + alpha * (Rs + esp))
+                        + np.cos(theta - 0.5 * dtheta) * (xr + Rs - R - Cr)
                     )
                 )
                 Hn = HP
