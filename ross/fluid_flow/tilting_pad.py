@@ -1214,7 +1214,7 @@ for n_p in range(0, npad):
 
         ki = 0
         nn = 0
-        t = np.linalg.solve(Mat_coef, b)  # calculo da temperatura vetorizada
+        t = np.linalg.solve(Mat_coef, b)  # vectorized temperature field calculation
 
         # Temperature matrix ----------------------
         cont = 0
