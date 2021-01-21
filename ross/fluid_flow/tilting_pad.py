@@ -869,7 +869,7 @@ for n_p in range(0, npad):
                 Jn = 1 / (betha_s * Rs * Hn)
                 Js = 1 / (betha_s * Rs * Hs)
 
-                if ki == 1 and kj == 1:
+                if ki == 0 and kj == 0:
 
                     uP = Vu[ki, kj]
                     uE = Vu[ki, kj + 1]
@@ -889,56 +889,56 @@ for n_p in range(0, npad):
                     wN = Vw[ki, kj]
                     wS = Vw[ki + 1, kj]
 
-                if ki == 1 and kj > 1 and kj < nX:
+                if ki == 0 and kj > 0 and kj < nX - 1:
                     uP = Vu[ki, kj]
                     uE = Vu[ki, kj + 1]
                     uW = Vu[ki, kj - 1]
                     uN = Vu[ki, kj]
                     uS = Vu[ki + 1, kj]
 
-                if ki > 1 and ki < nN and kj == 1:
+                if ki > 0 and ki < nN - 1 and kj == 0:
                     uP = Vu[ki, kj]
                     uE = Vu[ki, kj + 1]
                     uW = Vu[ki, kj]
                     uN = Vu[ki - 1, kj]
                     uS = Vu[ki + 1, kj]
 
-                if ki == nN and kj == 1:
+                if ki == nN - 1 and kj == 0:
                     uP = Vu[ki, kj]
                     uE = Vu[ki, kj + 1]
                     uW = Vu[ki, kj]
                     uN = Vu[ki - 1, kj]
                     uS = Vu[ki, kj]
 
-                if ki == 1 and kj == nX:
+                if ki == 0 and kj == nX - 1:
                     uP = Vu[ki, kj]
                     uE = Vu[ki, kj]
                     uW = Vu[ki, kj - 1]
                     uN = Vu[ki, kj]
                     uS = Vu[ki + 1, kj]
 
-                if ki > 1 and ki < nN and kj == nX:
+                if ki > 0 and ki < nN - 1 and kj == nX - 1:
                     uP = Vu[ki, kj]
                     uE = Vu[ki, kj]
                     uW = Vu[ki, kj - 1]
                     uN = Vu[ki - 1, kj]
                     uS = Vu[ki + 1, kj]
 
-                if ki == nN and kj == nX:
+                if ki == nN - 1 and kj == nX - 1:
                     uP = Vu[ki, kj]
                     uE = Vu[ki, kj]
                     uW = Vu[ki, kj - 1]
                     uN = Vu[ki - 1, kj]
                     uS = Vu[ki, kj]
 
-                if ki == nN and kj > 1 and kj < nX:
+                if ki == nN - 1 and kj > 0 and kj < nX - 1:
                     uP = Vu[ki, kj]
                     uE = Vu[ki, kj + 1]
                     uW = Vu[ki, kj - 1]
                     uN = Vu[ki - 1, kj]
                     uS = Vu[ki, kj]
 
-                if ki > 1 and ki < nN and kj > 1 and kj < nX:
+                if ki > 0 and ki < nN - 1 and kj > 0 and kj < nX - 1:
                     uP = Vu[ki, kj]
                     uE = Vu[ki, kj + 1]
                     uW = Vu[ki, kj - 1]
