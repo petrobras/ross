@@ -1267,12 +1267,12 @@ for n_p in range(0, npad):
         Rs
         - R
         - (
-            np.sin[Xtheta] * (yr + alpha * (Rs + esp))
-            + np.cos[Xtheta] * (xr + Rs - R - Cr)
+            np.sin(Xtheta) * (yr + alpha * (Rs + esp))
+            + np.cos(Xtheta) * (xr + Rs - R - Cr)
         )
     )
     for jj in range(0, nX + 1):
-        YH[:, jj, n_p] = np.fliplr(np.linspace(0, yh(jj), nN + 2))
+        YH[:, jj, n_p] = np.fliplr(np.linspace(0, yh[jj], nN + 2))
 
     # Integration of pressure field - HydroForces
     auxF = np.array([np.cos[Xtheta[0:-1]], np.sin[Xtheta[0:-1]]])
