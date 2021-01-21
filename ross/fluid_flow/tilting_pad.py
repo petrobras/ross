@@ -957,20 +957,20 @@ for n_p in range(0, npad):
                     wN = Vw[ki - 1, kj]
                     wS = Vw[ki + 1, kj]
 
-                ue = 0.5 * [uP + uE]
-                uw = 0.5 * [uP + uW]
-                un = 0.5 * [uP + uN]
-                us = 0.5 * [uP + uS]
+                ue = 0.5 * (uP + uE)
+                uw = 0.5 * (uP + uW)
+                un = 0.5 * (uP + uN)
+                us = 0.5 * (uP + uS)
 
-                ve = 0.5 * [vP + vE]
-                vw = 0.5 * [vP + vW]
-                vn = 0.5 * [vP + vN]
-                vs = 0.5 * [vP + vS]
+                ve = 0.5 * (vP + vE)
+                vw = 0.5 * (vP + vW)
+                vn = 0.5 * (vP + vN)
+                vs = 0.5 * (vP + vS)
 
-                we = 0.5 * [wP + wE]
-                ww = 0.5 * [wP + wW]
-                wn = 0.5 * [wP + wN]
-                ws = 0.5 * [wP + wS]
+                we = 0.5 * (wP + wE)
+                ww = 0.5 * (wP + wW)
+                wn = 0.5 * (wP + wN)
+                ws = 0.5 * (wP + wS)
 
                 UP = hP * uP
                 Ue = He * ue
