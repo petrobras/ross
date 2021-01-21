@@ -817,11 +817,12 @@ for n_p in range(0, npad):
                 Mi[jj, ii] = mi[0, ii, jj]
 
         nk = nN * ntheta
-        Mat_coef = np.zeros[nk, nk]
-        b = np.zeros[nk, 1]
+        Mat_coef = np.zeros((nk, nk))
+        b = np.zeros((nk, 1))
         k = 0
 
-        for ii in range(N1 + 0.5 * dN, dN, N2 - 0.5 * dN):
+        # for ii in range(N1 + 0.5 * dN, dN, N2 - 0.5 * dN):
+        for ii in range(0, nN):
 
             for jj in range(ksi1 + 0.5 * dksi, dksi, ksi2 - 0.5 * dksi):
 
