@@ -976,11 +976,11 @@ for n_p in range(0, npad):
                 Ue = He * ue
                 Uw = Hw * uw
 
-                np = 1 - ii
-                ne = np
-                nw = np
-                nn = np + dN
-                ns = np - dN
+                n_p = 1 - ii
+                ne = n_p
+                nw = n_p
+                nn = n_p + dN
+                ns = n_p - dN
 
                 dhdksi_p = -betha_s * (
                     np.cos(theta) * (yr + alpha * (Rs + esp))
@@ -997,7 +997,7 @@ for n_p in range(0, npad):
                 dhdksi_n = dhdksi_p
                 dhdksi_s = dhdksi_n
 
-                VP = betha_s * Rs * vP - np * dhdksi_p * uP
+                VP = betha_s * Rs * vP - n_p * dhdksi_p * uP
                 Vn = betha_s * Rs * vn - nn * dhdksi_n * un
                 Vs = betha_s * Rs * vs - ns * dhdksi_s * us
 
@@ -1005,7 +1005,7 @@ for n_p in range(0, npad):
                 alpha11e = He ** 2
                 alpha11w = Hw ** 2
 
-                alpha12P = -np * HP * dhdksi_p
+                alpha12P = -n_p * HP * dhdksi_p
                 alpha12e = -ne * He * dhdksi_e
                 alpha12w = -nw * Hw * dhdksi_w
 
@@ -1013,7 +1013,7 @@ for n_p in range(0, npad):
                 alpha21n = -nn * Hn * dhdksi_n
                 alpha21s = -ns * Hs * dhdksi_s
 
-                alpha22P = (betha_s * Rs) ** 2 + (np * dhdksi_p) ** 2
+                alpha22P = (betha_s * Rs) ** 2 + (n_p * dhdksi_p) ** 2
                 alpha22n = (betha_s * Rs) ** 2 + (nn * dhdksi_n) ** 2
                 alpha22s = (betha_s * Rs) ** 2 + (ns * dhdksi_s) ** 2
 
