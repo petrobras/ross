@@ -1097,19 +1097,19 @@ for n_p in range(0, npad):
                 fdiss = 2 * (
                     (
                         Cr * hP * (up_a - uw_a) / dksi
-                        - np * Cr * dhdksi_p * (up_a - us_a) / dN
+                        - n_p * Cr * dhdksi_p * (up_a - us_a) / dN
                     )
                     ** 2
                     + (betha_s * Rs * (vn_a - vp_a) / dN) ** 2
                     + (
                         betha_s * Rs * (up_a - us_a) / dN
                         + Cr * hP * (vp_a - vw_a) / dksi
-                        - np * Cr * dhdksi_p * (vp_a - vs_a) / dksi
+                        - n_p * Cr * dhdksi_p * (vp_a - vs_a) / dksi
                     )
                     ** 2
                     + (
                         Cr * hP * (wp_a - ww_a) / dksi
-                        - np * Cr * dhdksi_p * (wp_a - ws_a) / dN
+                        - n_p * Cr * dhdksi_p * (wp_a - ws_a) / dN
                     )
                     ** 2
                     + (betha_s * Rs * (wp_a - ws_a) / dksi) ** 2
