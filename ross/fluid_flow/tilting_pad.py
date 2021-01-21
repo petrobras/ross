@@ -983,16 +983,16 @@ for n_p in range(0, npad):
                 ns = np - dN
 
                 dhdksi_p = -betha_s * (
-                    np.cos[theta] * (yr + alpha * (Rs + esp))
-                    - np.sin[theta] * (xr + Rs - R - Cr)
+                    np.cos(theta) * (yr + alpha * (Rs + esp))
+                    - np.sin(theta) * (xr + Rs - R - Cr)
                 )
                 dhdksi_e = -betha_s * (
-                    np.cos[theta + 0.5 * dtheta] * (yr + alpha * (Rs + esp))
-                    - np.sin[theta + 0.5 * dtheta] * (xr + Rs - R - Cr)
+                    np.cos(theta + 0.5 * dtheta) * (yr + alpha * (Rs + esp))
+                    - np.sin(theta + 0.5 * dtheta) * (xr + Rs - R - Cr)
                 )
                 dhdksi_w = -betha_s * (
-                    np.cos[theta - 0.5 * dtheta] * (yr + alpha * (Rs + esp))
-                    - np.sin[theta - 0.5 * dtheta] * (xr + Rs - R - Cr)
+                    np.cos(theta - 0.5 * dtheta) * (yr + alpha * (Rs + esp))
+                    - np.sin(theta - 0.5 * dtheta) * (xr + Rs - R - Cr)
                 )
                 dhdksi_n = dhdksi_p
                 dhdksi_s = dhdksi_n
