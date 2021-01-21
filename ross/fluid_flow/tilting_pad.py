@@ -307,6 +307,8 @@ for n_p in range(0, npad):
         auxFF2P = np.zeros((nN + 2))
         auxFF2E = np.zeros((nN + 2))
         auxFF2W = np.zeros((nN + 2))
+        xh = np.zeros((nX))
+        yh = np.zeros((nX))
         hhh = np.zeros((nk, npad))  # oil film thickness
         K_null = np.zeros((1, nk))
         Kij_null = np.zeros((nZ, ntheta))
