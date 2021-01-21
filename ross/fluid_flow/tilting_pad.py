@@ -252,7 +252,7 @@ dudx = np.zeros((nN + 2))
 dwdz = np.zeros((nN + 2))
 
 # Other variables declarations
-Mi = np.zeros((nZ, nN))
+Mi = np.zeros((nN, nZ))
 YH = np.zeros((nN + 2, nX + 2, npad))
 XH = np.zeros((nN + 2, nX + 2))
 
