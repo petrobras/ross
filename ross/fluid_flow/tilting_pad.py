@@ -1310,23 +1310,23 @@ score[5] = My[5]
 
 # hydrodynamic forces
 Fhx = (
-    fxj[0] * np.cos[psi_pad[0] + sigma[0]]
-    + fxj[1] * np.cos[psi_pad[1] + sigma[1]]
-    + fxj[2] * np.cos[psi_pad[2] + sigma[2]]
-    + fxj[3] * np.cos[psi_pad[3] + sigma[3]]
-    + fxj[4] * np.cos[psi_pad[4] + sigma[4]]
-    + fxj[5] * np.cos[psi_pad[5] + sigma[5]]
+    fxj[0] * np.cos(psi_pad[0] + sigma[0])
+    + fxj[1] * np.cos(psi_pad[1] + sigma[1])
+    + fxj[2] * np.cos(psi_pad[2] + sigma[2])
+    + fxj[3] * np.cos(psi_pad[3] + sigma[3])
+    + fxj[4] * np.cos(psi_pad[4] + sigma[4])
+    + fxj[5] * np.cos(psi_pad[5] + sigma[5])
 )
 Fhy = (
-    fxj[0] * np.sin[psi_pad[0] + sigma[0]]
-    + fxj[1] * np.sin[psi_pad[1] + sigma[1]]
-    + fxj[2] * np.sin[psi_pad[2] + sigma[2]]
-    + fxj[3] * np.sin[psi_pad[3] + sigma[3]]
-    + fxj[4] * np.sin[psi_pad[4] + sigma[4]]
-    + fxj[5] * np.sin[psi_pad[5] + sigma[5]]
+    fxj[0] * np.sin(psi_pad[0] + sigma[0])
+    + fxj[1] * np.sin(psi_pad[1] + sigma[1])
+    + fxj[2] * np.sin(psi_pad[2] + sigma[2])
+    + fxj[3] * np.sin(psi_pad[3] + sigma[3])
+    + fxj[4] * np.sin(psi_pad[4] + sigma[4])
+    + fxj[5] * np.sin(psi_pad[5] + sigma[5])
 )
 
 # Maximum pressure, maximum temperature and minimum thickness
-Pmax = np.max[np.max[np.max[P1]]]
-Tmax = np.max[np.max[np.max[T1]]]
-hmin = np.min[np.min[hhh]]
+Pmax = np.max(P1)
+Tmax = np.max(T1)
+hmin = np.min(hhh)
