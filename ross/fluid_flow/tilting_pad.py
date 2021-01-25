@@ -1275,7 +1275,7 @@ for n_p in range(0, npad):
         YH[:, jj, n_p] = np.fliplr(np.linspace(0, yh[jj], nN + 2))
 
     # Integration of pressure field - HydroForces
-    auxF = np.array([np.cos[Xtheta[0:-1]], np.sin[Xtheta[0:-1]]])
+    auxF = np.array([np.cos(Xtheta[0:-1]), np.sin(Xtheta[0:-1])])
     dA = dx * dz
 
     auxP = P1[1:-1, 1:-1, n_p] * dA
@@ -1295,7 +1295,7 @@ for n_p in range(0, npad):
 
     My[n_p] = fyj * (Rs + esp)
 
-    if fxj(n_p) >= -1:
+    if fxj[n_p] >= -1:
         My[n_p] = 10e6
 
 
