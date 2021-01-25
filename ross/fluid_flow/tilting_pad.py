@@ -1116,7 +1116,7 @@ for n_p in range(0, npad):
                 )
 
                 # Source term ----------------
-                Bp = JP * (war * R) ** 2 * Mi[ki, kj] / Cp * dN * dksi * fdiss
+                Bp = JP * ((war * R) ** 2) * Mi[ki, kj] / Cp * dN * dksi * fdiss
 
                 # Vectorizing
                 k = k + 1
