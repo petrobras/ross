@@ -32,7 +32,7 @@ jobs:
 
       - name: Build docs
         run: |
-          make -C docs html BUILDDIR=$HOME/ross-website
+          make -C docs html
 
       - name: Deploy 🚀
         uses: JamesIves/github-pages-deploy-action@3.7.1
@@ -40,5 +40,5 @@ jobs:
           ACCESS_TOKEN: ${{ secrets.ACCESS_TOKEN_ROSS_BOTT }}
           REPOSITORY_NAME: ross-rotordynamics/ross-website
           BRANCH: master # The branch the action should deploy to.
-          FOLDER: $HOME/ross-website/html # The folder the action should deploy.
+          FOLDER: docs/_build/html # The folder the action should deploy.
           CLEAN: true # Automatically remove deleted files from the deploy branch
