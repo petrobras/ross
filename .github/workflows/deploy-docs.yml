@@ -26,6 +26,10 @@ jobs:
         run: |
           sudo apt-get install pandoc
 
+      - name: Install Jupyter
+        run: |
+          pip install notebook
+
       - name: Build docs
         run: |
           make -C docs html BUILDDIR=$HOME/ross-website
