@@ -249,22 +249,19 @@ class THDCylindrical:
                             MI_s = 0.5 * (mi[ki, kj] + mi[ki - 1, kj])
                             MI_n = mi[ki, kj]
 
-                        mi_e = MI_e[n_p]
-                        mi_w = MI_w[n_p]
-                        mi_n = MI_n[n_p]
-                        mi_s = MI_s[n_p]
+       
 
                         CE = (self.dZ * he ** 3) / (
-                            12 * mi_e * self.dY * self.betha_s ** 2
+                            12 * MI_e[n_p] * self.dY * self.betha_s ** 2
                         )
                         CW = (self.dZ * hw ** 3) / (
-                            12 * mi_w * self.dY * self.betha_s ** 2
+                            12 * MI_w[n_p] * self.dY * self.betha_s ** 2
                         )
                         CN = (self.dY * (self.R ** 2) * hn ** 3) / (
-                            12 * mi_n * self.dZ * self.L ** 2
+                            12 * MI_n[n_p] * self.dZ * self.L ** 2
                         )
                         CS = (self.dY * (self.R ** 2) * hs ** 3) / (
-                            12 * mi_s * self.dZ * self.L ** 2
+                            12 * MI_s[n_p] * self.dZ * self.L ** 2
                         )
                         CP = -(CE + CW + CN + CS)
 
