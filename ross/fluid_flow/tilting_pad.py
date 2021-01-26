@@ -830,7 +830,7 @@ for n_p in range(0, npad):
             # jj is equivalent to: dksi * (-0.5 + jj)
             for jj in range(0, nX):
 
-                theta = (-0.5 + (dksi * (-0.5 + jj))) * betha_s
+                theta = (-0.5 + (dksi * (+0.5 + jj))) * betha_s
                 HP = (
                     Rs
                     - R
