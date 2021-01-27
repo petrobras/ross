@@ -2,8 +2,6 @@ name: Build and Deploy docs
 on:
   push:
     branches: [ master ]
-  pull_request:
-    branches: [ master ]
 
 jobs:
   build-docs:
