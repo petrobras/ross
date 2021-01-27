@@ -1400,7 +1400,7 @@ class Rotor(object):
 
         This method returns the frequency response for a mdof system given a range of
         frequencies and the modes that will be used.
-        
+
         Available plotting methods:
             .plot()
             .plot_magnitude()
@@ -1508,7 +1508,7 @@ class Rotor(object):
             H = self.transfer_matrix(speed=speed, modes=modes)
             freq_resp[..., i] = H
             velc_resp[..., i] = 1j * speed * H
-            accl_resp[..., i] = - speed ** 2 * H
+            accl_resp[..., i] = -(speed ** 2) * H
 
         results = FrequencyResponseResults(
             freq_resp=freq_resp,
