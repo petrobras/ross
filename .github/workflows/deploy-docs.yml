@@ -2,8 +2,6 @@ name: Build and Deploy docs
 on:
   push:
     branches: [ master ]
-  pull_request:
-    branches: [ master ]
 
 jobs:
   build-docs:
@@ -45,7 +43,7 @@ jobs:
           GIT_CONFIG_NAME: ross-bott
           GIT_CONFIG_EMAIL: raphaeltimbo@gmail.com
           REPOSITORY_NAME: ross-rotordynamics/ross-website
-          BRANCH: master # The branch the action should deploy to.
+          BRANCH: master
           FOLDER: docs/_build/html # The folder the action should deploy.
           CLEAN: true # Automatically remove deleted files from the deploy branch.
           SSH: true
