@@ -34,12 +34,18 @@ jobs:
         run: |
           make -C docs html
 
+      - name: Install SSH Client 🔑
+        uses: webfactory/ssh-agent@v0.4.1 # This step installs the ssh client into the workflow run. There's many options available for this on the action marketplace.
+        with:
+          ssh-private-key: ${{ secrets.DEPLOY_KEY }}
+
       - name: Deploy
         uses: JamesIves/github-pages-deploy-action@3.7.1
         with:
+          GIT_CONFIG_NAME: ross-bott
           GIT_CONFIG_EMAIL: raphaeltimbo@gmail.com
-          ACCESS_TOKEN: ${{ secrets.ACCESS_TOKEN_ROSS_BOTT }}
           REPOSITORY_NAME: ross-rotordynamics/ross-website
           BRANCH: master # The branch the action should deploy to.
           FOLDER: docs/_build/html # The folder the action should deploy.
           CLEAN: true # Automatically remove deleted files from the deploy branch.
+          SSH: true
