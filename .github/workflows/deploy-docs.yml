@@ -34,7 +34,7 @@ jobs:
         run: |
           make -C docs html
 
-      - name: Deploy 🚀
+      - name: Deploy
         uses: JamesIves/github-pages-deploy-action@3.7.1
         with:
           GIT_CONFIG_NAME: "ross-bott"
