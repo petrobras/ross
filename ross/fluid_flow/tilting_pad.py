@@ -1031,13 +1031,13 @@ for n_p in range(0, npad):
                 D11e = kt / Cp * Je * alpha11e * dN
                 D11w = kt / Cp * Jw * alpha11w * dN
 
-                D12 = kt / Cp * JP * alpha12P * dN
-                D12e = kt / Cp * Je * alpha12e * dN
-                D12w = kt / Cp * Jw * alpha12w * dN
+                D12 = kt / Cp * JP * alpha12P * dN  ## alpha12P missing the mark!
+                D12e = kt / Cp * Je * alpha12e * dN  ## alpha12e missing the mark!
+                D12w = kt / Cp * Jw * alpha12w * dN  ## alpha12w missing the mark!
 
-                D21 = kt / Cp * JP * alpha21P * dksi
-                D21n = kt / Cp * Jn * alpha21n * dksi
-                D21s = kt / Cp * Js * alpha21s * dksi
+                D21 = kt / Cp * JP * alpha21P * dksi  ## alpha21P missing the mark!
+                D21n = kt / Cp * Jn * alpha21n * dksi  ## alpha21e missing the mark!
+                D21s = kt / Cp * Js * alpha21s * dksi  ## alpha21w missing the mark!
 
                 D22 = kt / Cp * JP * alpha22P * dksi
                 D22n = kt / Cp * Jn * alpha22n * dksi
