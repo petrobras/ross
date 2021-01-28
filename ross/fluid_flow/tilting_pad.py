@@ -798,8 +798,8 @@ for n_p in range(0, npad):
 
         ki = 0
         ki = nN
-        for ii in range(0, nN):
-            for jj in range(0, ntheta):
+        for ii in range(0, nN - 1):
+            for jj in range(0, ntheta - 1):
                 Vu[ii, jj] = np.mean(vu[:, jj, ki - 1])
                 Vv[ii, jj] = np.mean(vv[:, jj, ki - 1])
                 Vw[ii, jj] = np.mean(vw[:, jj, ki - 1])
@@ -830,6 +830,7 @@ for n_p in range(0, npad):
             # jj is equivalent to: dksi * (-0.5 + jj)
             for jj in range(0, nX):
 
+                #
                 theta = (-0.5 + (dksi * (+0.5 + jj))) * betha_s
                 HP = (
                     Rs
@@ -1214,6 +1215,7 @@ for n_p in range(0, npad):
 
         ki = 0
         nn = 0
+
         t = np.linalg.solve(Mat_coef, b)  # vectorized temperature field calculation
 
         # Temperature matrix ----------------------
