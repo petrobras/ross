@@ -687,10 +687,14 @@ for n_p in range(0, npad):
                         (ydim1[1:] - ydim1[0:-1]) * (auxFF1[1:] + auxFF1[0:-1])
                     )
 
-                    aux_var_1 = np.arange(N1, ky + 1, dN)  # N1:dN:ky
-                    auxG0 = np.zeros([aux_var_1.size])
-                    auxG1 = np.zeros([aux_var_1.size])
-                    ydim2 = np.zeros([aux_var_1.size])
+                    # aux_var_1 = np.arange(N1, ky, dN)  # N1:dN:ky
+                    # auxG0 = np.zeros([aux_var_1.size])
+                    # auxG1 = np.zeros([aux_var_1.size])
+                    # ydim2 = np.zeros([aux_var_1.size])
+
+                    auxG0 = np.zeros([nN + 1])
+                    auxG1 = np.zeros([nN + 1])
+                    ydim2 = np.zeros([nN + 1])
 
                     # for contk in range(((N1 + 0.5 * dN) * h), (dN * h), (ky * h)):
                     for contk in range(1, nN + 1):
@@ -798,8 +802,8 @@ for n_p in range(0, npad):
 
         ki = 0
         ki = nN
-        for ii in range(0, nN - 1):
-            for jj in range(0, ntheta - 1):
+        for ii in range(0, nN):
+            for jj in range(0, ntheta):
                 Vu[ii, jj] = np.mean(vu[:, jj, ki - 1])
                 Vv[ii, jj] = np.mean(vv[:, jj, ki - 1])
                 Vw[ii, jj] = np.mean(vw[:, jj, ki - 1])
