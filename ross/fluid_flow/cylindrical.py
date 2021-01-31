@@ -155,7 +155,7 @@ class THDCylindrical:
             while (
                 np.linalg.norm(T_new[:, :, n_p] - T[:, :, n_p])
                 / np.linalg.norm(T[:, :, n_p])
-                >= 1e-1
+                >= 1.5e-1
             ):
                 # print(
                 #     np.linalg.norm(T_new[:, :, n_p] - T[:, :, n_p])
@@ -265,7 +265,7 @@ class THDCylindrical:
                         )
                         CP = -(CE + CW + CN + CS)
 
-                        B = (self.dZ / 2 * self.betha_s) * (he - hw) - (
+                        B = (self.dZ / (2 * self.betha_s)) * (he - hw) - (
                             (self.Ypt * np.cos(jj) + self.Xpt * np.sin(jj))
                             * self.dy
                             * self.dZ
@@ -438,7 +438,7 @@ class THDCylindrical:
                                 ((HP ** 3) * dPdy[ki, kj, n_p] * self.dZ)
                                 / (12 * mi_p * (self.betha_s ** 2))
                             )
-                            - ((HP) * self.dZ / 2 * self.betha_s)
+                            - ((HP) * self.dZ / (2 * self.betha_s))
                             - (
                                 (self.kt * HP * self.dZ)
                                 / (
