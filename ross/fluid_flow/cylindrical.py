@@ -630,24 +630,26 @@ class THDCylindrical:
 
         self.PPlot = PPlot
 
-        auxF[0, :] = np.cos(self.Ytheta)
-        auxF[1, :] = np.sin(self.Ytheta)
-
-        dA = self.dy * self.dz
-
-        auxP = PPlot * dA
-
-        vector_auxF_x = auxF[0, :]
-        vector_auxF_y = auxF[1, :]
-
-        auxFx = auxP * vector_auxF_x
-        auxFy = auxP * vector_auxF_y
-
-        fxj = -0.5 * np.sum(auxFx)
-        fyj = -0.5 * np.sum(auxFy)
-
-        Fhx = fxj
-        Fhy = fyj
+        auxF=np.zeros((2,len(self.Ytheta[1:-1])))
+    
+        auxF[0,:]=np.cos(self.Ytheta[1:-1])
+        auxF[1,:]=np.sin(self.Ytheta[1:-1])
+        
+        dA=self.dy*self.dz 
+        
+        auxP=PPlot[1:-1,1:-1]*dA
+        
+        vector_auxF_x=auxF[0,:]
+        vector_auxF_y=auxF[1,:]
+        
+        auxFx=auxP*vector_auxF_x
+        auxFy=auxP*vector_auxF_y
+        
+        fxj=-np.sum(auxFx)
+        fyj=-np.sum(auxFy)
+        
+        Fhx=fxj
+        Fhy=fyj
 
         return Fhx, Fhy
 
