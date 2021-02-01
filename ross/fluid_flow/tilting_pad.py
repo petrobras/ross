@@ -628,13 +628,13 @@ for n_p in range(0, npad):
 
         # Dimensionless Netha loop ====================================================
         # for ky in range((N1 + 0.5 * dN), dN, (N2 - 0.5 * dN)):
-        for ky in range(0, nN + 1):
+        for ky in range(0, nN - 1):
             # Mesh loop in Z direction ====================================================
             # for ii in range((Z1 + 0.5 * dZ), dZ, (Z2 - 0.5 * dZ)):
-            for ii in range(0, nZ):
+            for ii in range(0, nZ - 1):
                 # Mesh loop in THETA direction ====================================================
                 # for jj in range((theta1 + 0.5 * dtheta), dtheta, (theta2 - 0.5 * dtheta)):
-                for jj in range(0, ntheta):
+                for jj in range(0, ntheta - 1):
 
                     # Pressure gradients calculation
                     if ki == 0 and kj == 0:
@@ -696,11 +696,20 @@ for n_p in range(0, npad):
                     auxG1 = np.zeros([nN + 1])
                     ydim2 = np.zeros([nN + 1])
 
+                    # Auxiliary variable for counting
+                    aux_nN = np.linspace(
+                        ((N1 + 0.5 * dN) * h),
+                        (ky * h),
+                        num=((((N1 + 0.5 * dN) * h) - (ky * h)) / (dN * h)),
+                    )
+
                     # for contk in range(((N1 + 0.5 * dN) * h), (dN * h), (ky * h)):
-                    for contk in range(1, nN + 1):
-                        auxG0[nn] = 1 / mi[ki, kj, nN - 1 - nn]
-                        auxG1[nn] = (dN * (-0.5 + contk) * h) / mi[ki, kj, nN - 1 - nn]
-                        ydim2[nn] = dN * (-0.5 + contk) * h
+                    for contk in range(1, nN):
+                        auxG0[nn + 1] = 1 / mi[ki, kj, nN - 1 - nn]
+                        auxG1[nn + 1] = (dN * (-0.5 + contk) * h) / mi[
+                            ki, kj, nN - 1 - nn
+                        ]
+                        ydim2[nn + 1] = (dN * h) * (-0.5 + nn)
                         nn = nn + 1
                     nn = 0
 
@@ -716,12 +725,10 @@ for n_p in range(0, npad):
                     )
 
                     # vu(ki,kj,kk)=dPdx*G1+(war*R/FF0-FF1/FF0*dPdx)*G0;
-                    vu[ki, kj, kk - 1] = (
-                        dPdx * G1 + (war * R / FF0 - FF1 / FF0 * dPdx) * G0
-                    )
+                    vu[ki, kj, kk] = dPdx * G1 + (war * R / FF0 - FF1 / FF0 * dPdx) * G0
 
                     # vw(ki,kj,kk)=dPdz*G1-(FF1/FF0*dPdz)*G0;
-                    vw[ki, kj, kk - 1] = dPdz * G1 - (FF1 / FF0 * dPdz) * G0
+                    vw[ki, kj, kk] = dPdz * G1 - (FF1 / FF0 * dPdz) * G0
 
                     kj = kj + 1
 
@@ -801,12 +808,12 @@ for n_p in range(0, npad):
             ki = ki + 1
 
         ki = 0
-        ki = nN
-        for ii in range(0, nN):
-            for jj in range(0, ntheta):
-                Vu[ii, jj] = np.mean(vu[:, jj, ki - 1])
-                Vv[ii, jj] = np.mean(vv[:, jj, ki - 1])
-                Vw[ii, jj] = np.mean(vw[:, jj, ki - 1])
+        ki = nN - 1
+        for ii in range(0, nN - 1):
+            for jj in range(0, ntheta - 1):
+                Vu[ii, jj] = np.mean(vu[:, jj, ki])
+                Vv[ii, jj] = np.mean(vv[:, jj, ki])
+                Vw[ii, jj] = np.mean(vw[:, jj, ki])
 
             ki = ki - 1
 
