@@ -981,7 +981,7 @@ for n_p in range(0, npad):
                 Ue = He * ue
                 Uw = Hw * uw
 
-                n_p = 1 - ii
+                n_p = 1 - ((ii + 1) * dN)
                 ne = n_p
                 nw = n_p
                 nn = n_p + dN
