@@ -710,14 +710,22 @@ for n_p in range(0, npad):
                     #    num=np.round((((N1 + 0.5 * dN) * h) - (ky * h)) / (dN * h)),
                     # )
 
-                    # for contk in range(((N1 + 0.5 * dN) * h), (dN * h), (ky * h)):
-                    for contk in range(1, nN):
+                    #     # for contk in range(((N1 + 0.5 * dN) * h), (dN * h), (ky * h)):
+                    # for contk in range(1, nN):
+                    #     auxG0[nn + 1] = 1 / mi[ki, kj, nN - 1 - nn]
+                    #     auxG1[nn + 1] = ((dN * h) * (-0.5 + nn)) / mi[
+                    #         ki, kj, nN - 1 - nn
+                    #     ]
+                    #     ydim2[nn + 1] = (dN * h) * (-0.5 + nn)
+                    #     nn = nn + 1
+
+                    for contk in range(((N1 + 0.5 * dN) * h), (dN * h), (ky * h)):
+                        # for contk in range(1, nN):
                         auxG0[nn + 1] = 1 / mi[ki, kj, nN - 1 - nn]
-                        auxG1[nn + 1] = (dN * (-0.5 + contk) * h) / mi[
-                            ki, kj, nN - 1 - nn
-                        ]
-                        ydim2[nn + 1] = (dN * h) * (-0.5 + nn)
+                        auxG1[nn + 1] = contk / mi[ki, kj, nN - 1 - nn]
+                        ydim2[nn + 1] = contk
                         nn = nn + 1
+
                     nn = 0
 
                     auxG0[0] = auxG0[1]
