@@ -1,7 +1,7 @@
 # Rotordynamic Open Source Software (ROSS)
 [![Binder](https://mybinder.org/badge_logo.svg)](https://mybinder.org/v2/gh/ross-rotordynamics/ross/0.3?filepath=%2Fdocs%2Fexamples)
-[![Build Status](https://travis-ci.com/ross-rotordynamics/ross.svg?branch=master)](https://travis-ci.com/ross-rotordynamics/ross)
-[![Build status](https://ci.appveyor.com/api/projects/status/tvsj4jh7bowvn0ht/branch/master?svg=true)](https://ci.appveyor.com/project/raphaeltimbo/ross/branch/master)
+![github actions](https://github.com/ross-rotordynamics/ross/workflows/Tests/badge.svg)
+![github actions](https://github.com/ross-rotordynamics/ross/workflows/Docs/badge.svg)
 <a href="https://codecov.io/gh/ross-rotordynamics/ross">
 <img src="https://codecov.io/gh/ross-rotordynamics/ross/branch/master/graph/badge.svg">
 </a>
