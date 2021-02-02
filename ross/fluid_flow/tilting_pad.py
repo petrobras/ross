@@ -697,18 +697,18 @@ for n_p in range(0, npad):
                     ydim2 = np.zeros([nN + 1])
 
                     # Auxiliary variable for counting
-                    num1 = ((-(N1 + 0.5 * dN) * h) + (ky * h)) / (dN * h)
-                    num2 = ((N1 + 0.5 * dN) * h) - (ky * h)
-                    num3 = dN * h
-                    num4 = (N1 + 0.5 * dN) * h
-                    num5 = ky * h
-                    num = 0
+                    # num1 = ((-(N1 + 0.5 * dN) * h) + (ky * h)) / (dN * h)
+                    # num2 = ((N1 + 0.5 * dN) * h) - (ky * h)
+                    # num3 = dN * h
+                    # num4 = (N1 + 0.5 * dN) * h
+                    # num5 = ky * h
+                    # num = 0
 
-                    aux_nN = np.linspace(
-                        ((N1 + 0.5 * dN) * h),
-                        (ky * h),
-                        num=np.round((((N1 + 0.5 * dN) * h) - (ky * h)) / (dN * h)),
-                    )
+                    # aux_nN = np.linspace(
+                    #    ((N1 + 0.5 * dN) * h),
+                    #    (ky * h),
+                    #    num=np.round((((N1 + 0.5 * dN) * h) - (ky * h)) / (dN * h)),
+                    # )
 
                     # for contk in range(((N1 + 0.5 * dN) * h), (dN * h), (ky * h)):
                     for contk in range(1, nN):
