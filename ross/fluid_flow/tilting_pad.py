@@ -688,39 +688,39 @@ for n_p in range(0, npad):
                     )
 
                     # Auxiliary variable for counting
-                    num1 = ((-(N1 + 0.5 * dN) * h) + (ky * h)) / (dN * h)
-                    num2 = ((N1 + 0.5 * dN) * h) - (ky * h)
-                    num3 = dN * h
-                    num4 = (N1 + 0.5 * dN) * h
-                    num5 = ky * h
-                    num = 0
-
-                    aux_nN_num = (
-                        np.int(np.round((((N1 + 0.5 * dN) * h) - (ky * h)) / (dN * h)))
-                        + 2
+                    aux_nN_num = abs(
+                        np.int(
+                            np.round(
+                                (abs((N1 + 0.5 * dN) * h) - abs(ky * h)) / (dN * h)
+                            )
+                        )
                     )
 
                     aux_nN = np.linspace(
                         (ky * h), ((N1 + 0.5 * dN) * h), num=aux_nN_num
                     )
 
+                    # Auxilary variables declaration/reset
                     auxG0 = np.zeros([aux_nN.size])
                     auxG1 = np.zeros([aux_nN.size])
                     ydim2 = np.zeros([aux_nN.size])
 
                     # for contk in range(((N1 + 0.5 * dN) * h), (dN * h), (ky * h)):
                     for contk in range(0, aux_nN.size):
+                        print(nn)
                         auxG0[nn] = 1 / mi[ki, kj, nN - 1 - nn]
                         auxG1[nn] = aux_nN[nn] / mi[ki, kj, nN - 1 - nn]
                         ydim2[nn] = aux_nN[nn]
                         nn = nn + 1
                         print(nn)
 
+                    # Counter reset
                     nn = 0
 
-                    auxG0[0] = auxG0[1]
-                    auxG1[0] = 0
-                    ydim2[0] = N1 * h
+                    # First position fix
+                    # auxG0[0] = auxG0[1]
+                    # auxG1[0] = 0
+                    # ydim2[0] = N1 * h
 
                     G0 = 0.5 * np.sum(
                         (ydim2[1:] - ydim2[0:-1]) * (auxG0[1:] + auxG0[0:-1])
