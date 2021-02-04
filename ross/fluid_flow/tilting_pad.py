@@ -688,12 +688,15 @@ for n_p in range(0, npad):
                     )
 
                     # Auxiliary variable for counting
-                    aux_nN_num = abs(
-                        np.int(
-                            np.round(
-                                (abs((N1 + 0.5 * dN) * h) - abs(ky * h)) / (dN * h)
+                    aux_nN_num = (
+                        abs(
+                            np.int(
+                                np.round(
+                                    (abs((N1 + 0.5 * dN) * h) - abs(ky * h)) / (dN * h)
+                                )
                             )
                         )
+                        + 2
                     )
 
                     aux_nN = np.linspace(
@@ -716,11 +719,6 @@ for n_p in range(0, npad):
 
                     # Counter reset
                     nn = 0
-
-                    # First position fix
-                    # auxG0[0] = auxG0[1]
-                    # auxG1[0] = 0
-                    # ydim2[0] = N1 * h
 
                     G0 = 0.5 * np.sum(
                         (ydim2[1:] - ydim2[0:-1]) * (auxG0[1:] + auxG0[0:-1])
