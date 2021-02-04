@@ -692,7 +692,8 @@ for n_p in range(0, npad):
                         abs(
                             np.int(
                                 np.round(
-                                    (abs((N1 + 0.5 * dN) * h) - abs(ky * h)) / (dN * h)
+                                    (abs((N1 + 0.5 * dN) * h) - abs(ky * h))
+                                    / abs(dN * h)
                                 )
                             )
                         )
@@ -703,10 +704,13 @@ for n_p in range(0, npad):
                         (ky * h), ((N1 + 0.5 * dN) * h), num=aux_nN_num
                     )
 
+                    aux_N1_ky_num_1 = np.int(abs((abs(N1) - abs(ky)) / abs(dN))) + 2
+                    aux_N1_ky_num_2 = np.linspace(N1, ky, num=aux_N1_ky_num_1)
+
                     # Auxilary variables declaration/reset
-                    auxG0 = np.zeros([aux_nN.size])
-                    auxG1 = np.zeros([aux_nN.size])
-                    ydim2 = np.zeros([aux_nN.size])
+                    auxG0 = np.zeros([aux_N1_ky_num_2.size])
+                    auxG1 = np.zeros([aux_N1_ky_num_2.size])
+                    ydim2 = np.zeros([aux_N1_ky_num_2.size])
 
                     # Counter reset
                     nn = 0
