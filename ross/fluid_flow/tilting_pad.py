@@ -708,8 +708,11 @@ for n_p in range(0, npad):
                     auxG1 = np.zeros([aux_nN.size])
                     ydim2 = np.zeros([aux_nN.size])
 
+                    # Counter reset
+                    nn = 0
+
                     # for contk in range(((N1 + 0.5 * dN) * h), (dN * h), (ky * h)):
-                    for contk in range(0, aux_nN.size):
+                    for contk in range(0, aux_nN.size - 1):
                         print(nn)
                         auxG0[nn] = 1 / mi[ki, kj, nN - 1 - nn]
                         auxG1[nn] = aux_nN[nn] / mi[ki, kj, nN - 1 - nn]
