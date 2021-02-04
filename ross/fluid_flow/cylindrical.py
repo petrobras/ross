@@ -137,7 +137,7 @@ class THDCylindrical:
 
         for n_p in np.arange(self.n_pad):
 
-            self.T_aux = T_mist_aux[n_p - 1]
+            self.T_aux = T_mist_aux[n_p]
 
             self.theta1 = (
                 n_p * self.betha_s
@@ -155,7 +155,7 @@ class THDCylindrical:
             while (
                 np.linalg.norm(T_new[:, :, n_p] - T[:, :, n_p])
                 / np.linalg.norm(T[:, :, n_p])
-                >= 1.5e-1
+                >= 1e-1
             ):
                 # print(
                 #     np.linalg.norm(T_new[:, :, n_p] - T[:, :, n_p])
@@ -167,7 +167,7 @@ class THDCylindrical:
 
                 mi = mi_new
 
-                T[:, :, n_p] = T_mist[:, :, n_p]
+                T[:, :, n_p] = T_new[:, :, n_p]
 
                 k = 0  # vectorization pressure index
 
@@ -179,13 +179,13 @@ class THDCylindrical:
                         hP = 1 - self.Y * np.cos(jj) - self.X * np.sin(jj)
                         he = (
                             1
-                            - self.Y * np.cos(jj + 0.5 * self.dY)
-                            - self.X * np.sin(jj + 0.5 * self.dY)
+                            - self.Y * np.cos(jj + 0.5 * self.dtheta)
+                            - self.X * np.sin(jj + 0.5 * self.dtheta)
                         )
                         hw = (
                             1
-                            - self.Y * np.cos(jj - 0.5 * self.dY)
-                            - self.X * np.sin(jj - 0.5 * self.dY)
+                            - self.Y * np.cos(jj - 0.5 * self.dtheta)
+                            - self.X * np.sin(jj - 0.5 * self.dtheta)
                         )
                         hn = hP
                         hs = hn
