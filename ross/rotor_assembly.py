@@ -2661,7 +2661,7 @@ class Rotor(object):
         Parameters
         ----------
         **kwargs: dictionary
-        
+
             **kwargs receives:
                 dt : float
                     Time step

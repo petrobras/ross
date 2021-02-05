@@ -24,7 +24,7 @@ __all__ = [
 
 class Crack(Defect):
     """Contains a Gasch and Mayes transversal crack models for applications on finite element models of rotative machinery.
-    The reference coordenates system is: z-axis throught the shaft center; x-axis and y-axis in the sensors' planes 
+    The reference coordenates system is: z-axis throught the shaft center; x-axis and y-axis in the sensors' planes
     Calculates the dynamic forces of a crack on a given shaft element.
 
     Parameters
@@ -122,7 +122,7 @@ class Crack(Defect):
         ----------
         rotor : ross.Rotor Object
              6 DoF rotor model.
-                
+
         """
 
         self.rotor = rotor
@@ -255,7 +255,12 @@ class Crack(Defect):
         self.M = self.rotor.M()
         self.Kst = self.rotor.Kst()
 
-        _, ModMat = scipy.linalg.eigh(self.K, self.M, type=1, turbo=False,)
+        _, ModMat = scipy.linalg.eigh(
+            self.K,
+            self.M,
+            type=1,
+            turbo=False,
+        )
         ModMat = ModMat[:, :12]
         self.ModMat = ModMat
 
@@ -325,7 +330,7 @@ class Crack(Defect):
         self.response = self.ModMat.dot(self.displacement)
 
     def _equation_of_movement(self, T, Y, i):
-        """ Calculates the displacement and velocity using state-space representation in the modal domain.
+        """Calculates the displacement and velocity using state-space representation in the modal domain.
 
         Parameters
         ----------
@@ -377,7 +382,7 @@ class Crack(Defect):
 
     def _crack(self, func, ap):
         """Reaction forces of cracked element
-        
+
         Returns
         -------
         F_CRACK : array
@@ -441,7 +446,7 @@ class Crack(Defect):
         -----------
         ap : float
             Angular position of the shaft.
-        
+
         Returns
         -------
         K : np.ndarray
@@ -475,7 +480,7 @@ class Crack(Defect):
         -----------
         ap : float
             Angular position of the shaft.
-        
+
         Returns
         -------
         K : np.ndarray
@@ -500,7 +505,7 @@ class Crack(Defect):
         -----------
         coef : string
             Name of the Coefficient according to the corresponding direction.
-        
+
         Returns
         -------
         c : np.ndarray
