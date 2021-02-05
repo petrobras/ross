@@ -10,6 +10,7 @@ from ross.fluid_flow import fluid_flow as flow
 from ross.fluid_flow.fluid_flow_coefficients import \
     calculate_stiffness_and_damping_coefficients
 from ross.stochastic.st_results_elements import plot_histogram
+from ross.units import check_units
 
 # fmt: on
 
@@ -110,6 +111,7 @@ class ST_BearingElement:
     5
     """
 
+    @check_units
     def __init__(
         self,
         n,
@@ -464,36 +466,38 @@ class ST_BearingElement:
         >>> import ross.stochastic as srs
         >>> nz = 8
         >>> ntheta = 64
-        >>> length = 0.01
-        >>> omega = 157.1
+        >>> length = 1.5 * 0.0254
+        >>> omega = [157.1, 300]
         >>> p_in = 0.
         >>> p_out = 0.
-        >>> radius_rotor = 0.08
-        >>> radius_stator = 0.1
-        >>> viscosity = np.random.uniform(0.01, 0.02, 5)
-        >>> density = 860.
-        >>> eccentricity = 0.001
-        >>> attitude_angle = np.pi
-        >>> elms = ST_BearingElement.from_fluid_flow(
-        ...     0, nz, ntheta, length,
-        ...     omega, p_in, p_out, radius_rotor,
-        ...     radius_stator, viscosity, density, attitude_angle,
-        ...     eccentricity, is_random=["viscosity"]
+        >>> radius_rotor = 3 * 0.0254
+        >>> radius_stator = 3.003 * 0.0254
+        >>> viscosity = np.random.uniform(2.4e-03, 2.8e-03, 5)
+        >>> density = 860
+        >>> load = 1244.1
+        >>> elms = srs.ST_BearingElement.from_fluid_flow(
+        ...     0, nz=nz, ntheta=ntheta, length=length,
+        ...     omega=omega, p_in=p_in, p_out=p_out, radius_rotor=radius_rotor,
+        ...     radius_stator=radius_stator, viscosity=viscosity, density=density,
+        ...     load=load, is_random=["viscosity"]
         ... )
         >>> len(list(iter(elms)))
         5
         """
         attribute_dict = locals()
+        attribute_dict.pop("cls")
+        attribute_dict.pop("omega")
+        attribute_dict.pop("is_random")
         size = len(attribute_dict[is_random[0]])
         args_dict = {
-            "kxx": [],
-            "kxy": [],
-            "kyx": [],
-            "kyy": [],
-            "cxx": [],
-            "cxy": [],
-            "cyx": [],
-            "cyy": [],
+            "kxx": np.zeros((len(omega), size)),
+            "kxy": np.zeros((len(omega), size)),
+            "kyx": np.zeros((len(omega), size)),
+            "kyy": np.zeros((len(omega), size)),
+            "cxx": np.zeros((len(omega), size)),
+            "cxy": np.zeros((len(omega), size)),
+            "cyx": np.zeros((len(omega), size)),
+            "cyy": np.zeros((len(omega), size)),
         }
 
         for k, v in attribute_dict.items():
@@ -502,33 +506,34 @@ class ST_BearingElement:
             else:
                 attribute_dict[k] = np.asarray(v)
 
-        for i in range(size):
-            fluid_flow = flow.FluidFlow(
-                attribute_dict["nz"][i],
-                attribute_dict["ntheta"][i],
-                attribute_dict["length"][i],
-                attribute_dict["omega"][i],
-                attribute_dict["p_in"][i],
-                attribute_dict["p_out"][i],
-                attribute_dict["radius_rotor"][i],
-                attribute_dict["radius_stator"][i],
-                attribute_dict["viscosity"][i],
-                attribute_dict["density"][i],
-                attribute_dict["attitude_angle"][i],
-                attribute_dict["eccentricity"][i],
-                attribute_dict["load"][i],
-                attribute_dict["omegap"][i],
-                attribute_dict["immediately_calculate_pressure_matrix_numerically"][i],
-            )
-            k, c = calculate_stiffness_and_damping_coefficients(fluid_flow)
-            args_dict["kxx"].append(k[0])
-            args_dict["kxy"].append(k[1])
-            args_dict["kyx"].append(k[2])
-            args_dict["kyy"].append(k[3])
-            args_dict["cxx"].append(c[0])
-            args_dict["cxy"].append(c[1])
-            args_dict["cyx"].append(c[2])
-            args_dict["cyy"].append(c[3])
+        for j, frequency in enumerate(omega):
+            for i in range(size):
+                fluid_flow = flow.FluidFlow(
+                    attribute_dict["nz"][i],
+                    attribute_dict["ntheta"][i],
+                    attribute_dict["length"][i],
+                    frequency,
+                    attribute_dict["p_in"][i],
+                    attribute_dict["p_out"][i],
+                    attribute_dict["radius_rotor"][i],
+                    attribute_dict["radius_stator"][i],
+                    attribute_dict["viscosity"][i],
+                    attribute_dict["density"][i],
+                    attribute_dict["attitude_angle"][i],
+                    attribute_dict["eccentricity"][i],
+                    attribute_dict["load"][i],
+                    attribute_dict["omegap"][i],
+                )
+                k, c = calculate_stiffness_and_damping_coefficients(fluid_flow)
+
+                args_dict["kxx"][j, i] = k[0]
+                args_dict["kxy"][j, i] = k[1]
+                args_dict["kyx"][j, i] = k[2]
+                args_dict["kyy"][j, i] = k[3]
+                args_dict["cxx"][j, i] = c[0]
+                args_dict["cxy"][j, i] = c[1]
+                args_dict["cyx"][j, i] = c[2]
+                args_dict["cyy"][j, i] = c[3]
 
         return cls(
             n,
@@ -540,7 +545,7 @@ class ST_BearingElement:
             cyy=args_dict["cyy"],
             cxy=args_dict["cxy"],
             cyx=args_dict["cyx"],
-            frequency=[fluid_flow.omega],
+            frequency=omega,
             tag=tag,
             n_link=n_link,
             scale_factor=scale_factor,

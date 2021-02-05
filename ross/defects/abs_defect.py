@@ -7,9 +7,7 @@ import scipy as sp
 from ross.results import TimeResponseResults
 from ross.units import Q_
 
-__all__ = [
-    "Defect",
-]
+__all__ = ["Defect"]
 
 
 class Defect(ABC):
@@ -22,20 +20,15 @@ class Defect(ABC):
 
     def run_time_response(self):
         results = TimeResponseResults(
+            rotor=self.rotor,
             t=self.time_vector,
             yout=self.response.T,
             xout=[],
-            nodes_list=self.rotor.nodes,
-            nodes_pos=self.rotor.nodes_pos,
-            number_dof=self.rotor.number_dof,
         )
         return results
 
-    def plot_dfft(
-        self, probe, probe_units="rad", range_freq=None, fig=None, **kwargs,
-    ):
-        """
-        """
+    def plot_dfft(self, probe, probe_units="rad", range_freq=None, fig=None, **kwargs):
+        """"""
         if fig is None:
             fig = go.Figure()
 
@@ -52,7 +45,7 @@ class Defect(ABC):
             row, cols = self.response.shape
             _probe_resp = operator @ np.vstack((self.response[dofx,int(2*cols/3):], self.response[dofy,int(2*cols/3):]))
             probe_resp = (
-                _probe_resp[0] * np.cos(angle) ** 2  +
+                _probe_resp[0] * np.cos(angle) ** 2 +
                 _probe_resp[1] * np.sin(angle) ** 2
             )
             # fmt: on
@@ -87,7 +80,7 @@ class Defect(ABC):
         c = len(x)
         df = 1 / (c * dt)
 
-        x_amp = sp.fft(x)[: int(b)]
+        x_amp = sp.fft.fft(x)[: int(b)]
         x_amp = x_amp * 2 / c
         x_phase = np.angle(x_amp)
         x_amp = np.abs(x_amp)

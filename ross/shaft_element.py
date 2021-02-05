@@ -1025,6 +1025,7 @@ class ShaftElement(Element):
                     rho=parameters["rhoa"][i],
                     E=parameters["ea"][i],
                     G_s=parameters["ga"][i],
+                    color=parameters["color"][i],
                 )
                 new_materials["shaft_mat_" + str(parameters["matno"][i])] = new_material
             for i in range(0, len(parameters["L"])):

@@ -8,7 +8,7 @@ import pytest
 from numpy.testing import assert_allclose
 
 from ross.bearing_seal_element import (BallBearingElement, BearingElement,
-                                       BearingElement6DoF,
+                                       BearingElement6DoF, BearingFluidFlow,
                                        MagneticBearingElement,
                                        RollerBearingElement)
 
@@ -388,3 +388,42 @@ def test_save_load(bearing0, bearing_constant, bearing_6dof):
     bearing_6dof.save(file)
     bearing_6dof_loaded = BearingElement6DoF.load(file)
     assert bearing_6dof == bearing_6dof_loaded
+
+
+def test_bearing_fluid_flow():
+    nz = 30
+    ntheta = 20
+    length = 0.03
+    omega = [157.1]
+    p_in = 0.0
+    p_out = 0.0
+    radius_rotor = 0.0499
+    radius_stator = 0.05
+    load = 525
+    visc = 0.1
+    rho = 860.0
+    bearing = BearingFluidFlow(
+        0,
+        nz,
+        ntheta,
+        length,
+        omega,
+        p_in,
+        p_out,
+        radius_rotor,
+        radius_stator,
+        visc,
+        rho,
+        load=load,
+    )
+
+    # fmt: off
+    K = np.array([[14547442.70620538, 15571505.36655864],
+                  [-25596382.88167763, 12526684.40342712]])
+
+    C = np.array([[ 263025.76330117, -128749.90335233],
+                  [ -41535.76386708,  309417.62615761]])
+    # fmt: on
+
+    assert_allclose(bearing.K(0), K, rtol=1e-3)
+    assert_allclose(bearing.C(0), C, rtol=1e-3)
