@@ -190,7 +190,7 @@ def plot_pressure_z(fluid_flow_object, theta=0, fig=None, **kwargs):
             go.Scatter(
                 x=fluid_flow_object.z_list,
                 y=fluid_flow_object.p_mat_numerical[:, theta],
-                mode="lines",
+                mode="markers+lines",
                 line=dict(color=tableau_colors["blue"]),
                 showlegend=True,
                 name="<b>Numerical pressure</b>",
@@ -205,7 +205,7 @@ def plot_pressure_z(fluid_flow_object, theta=0, fig=None, **kwargs):
             go.Scatter(
                 x=fluid_flow_object.z_list,
                 y=fluid_flow_object.p_mat_analytical[:, theta],
-                mode="lines",
+                mode="markers+lines",
                 line=dict(color=tableau_colors["red"]),
                 showlegend=True,
                 name="<b>Analytical pressure</b>",
@@ -266,7 +266,7 @@ def plot_shape(fluid_flow_object, theta=0, fig=None, **kwargs):
         go.Scatter(
             x=fluid_flow_object.z_list,
             y=fluid_flow_object.re[:, theta],
-            mode="lines",
+            mode="markers+lines",
             line=dict(color=tableau_colors["red"]),
             showlegend=True,
             hoverinfo="none",
@@ -277,7 +277,7 @@ def plot_shape(fluid_flow_object, theta=0, fig=None, **kwargs):
         go.Scatter(
             x=fluid_flow_object.z_list,
             y=fluid_flow_object.ri[:, theta],
-            mode="lines",
+            mode="markers+lines",
             line=dict(color=tableau_colors["blue"]),
             showlegend=True,
             hoverinfo="none",
@@ -348,7 +348,7 @@ def plot_pressure_theta(fluid_flow_object, z=0, fig=None, **kwargs):
             go.Scatter(
                 x=fluid_flow_object.gama[z],
                 y=fluid_flow_object.p_mat_numerical[z],
-                mode="lines",
+                mode="markers+lines",
                 line=dict(color=tableau_colors["blue"]),
                 showlegend=True,
                 name="<b>Numerical pressure</b>",
@@ -362,7 +362,7 @@ def plot_pressure_theta(fluid_flow_object, z=0, fig=None, **kwargs):
             go.Scatter(
                 x=fluid_flow_object.gama[z],
                 y=fluid_flow_object.p_mat_analytical[z],
-                mode="lines",
+                mode="markers+lines",
                 line=dict(color=tableau_colors["red"]),
                 showlegend=True,
                 name="<b>Analytical pressure</b>",

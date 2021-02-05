@@ -5,6 +5,7 @@ analysis.
 """
 from ross.point_mass import PointMass
 from ross.stochastic.st_results_elements import plot_histogram
+from ross.units import check_units
 
 __all__ = ["ST_PointMass", "st_pointmass_example"]
 
@@ -56,6 +57,7 @@ class ST_PointMass:
     5
     """
 
+    @check_units
     def __init__(
         self,
         n,

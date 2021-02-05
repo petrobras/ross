@@ -37,27 +37,20 @@ If you want to test the documentation locally:
 
 - Install `pandoc <https://pandoc.org/installing.html>`_, which is needed to convert the notebook files;
 
-- Clone the ross-website to ``~/ross-website/html``::
+- Clone the ross-website to ``<some-path>/ross-website/html``::
 
-    $ git clone https://github.com/ross-rotordynamics/ross-website ~/ross-website/html
+    git clone https://github.com/ross-rotordynamics/ross-website <some-path>/ross-website/html
 
-- From the docs source directory <~/ross/docs/> run sphinx::
+- From the docs source directory </ross/docs/> run sphinx::
 
-    $ make html BUILDDIR=~/ross-website
+    make html BUILDDIR=<some-path>/ross-website
 
 - Go to the builddir and run a html server::
 
-    $ cd ~/ross-website/html
-    $ python -m http.server
+    cd <some-path>/ross-website/html
+    python -m http.server
 
 After that you can access your local server (http://0.0.0.0:8000/) and see the generated docs.
-
-Integrated development environment: PyCharm
--------------------------------------------
-The ROSS development team adopted PyCharm as integrated development environment (IDE).
-You don't need PyCharm to run or contribute to ROSS, as you can choose your preferred IDE or
-even no IDE at all. But in case you want to use PyCharm, go to the `PyCharm website
-<https://www.jetbrains.com/pycharm/>`_ to download and install it.
 
 How to contribute to ROSS using git
 -----------------------------------
@@ -77,7 +70,7 @@ From the command line::
     cd ross
     git remote add upstream https://github.com/ross-rotordynamics/ross.git
 
-Step 2: Keep in sync with changes in Ross
+Step 2: Keep in sync with changes in ROSS
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 Setup your local repository, so it pulls from upstream by default::
 

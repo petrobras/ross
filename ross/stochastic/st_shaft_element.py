@@ -6,6 +6,7 @@ analysis.
 from ross.shaft_element import ShaftElement
 from ross.stochastic.st_materials import ST_Material
 from ross.stochastic.st_results_elements import plot_histogram
+from ross.units import Q_, check_units
 
 __all__ = ["ST_ShaftElement", "st_shaft_example"]
 
@@ -84,6 +85,7 @@ class ST_ShaftElement:
     5
     """
 
+    @check_units
     def __init__(
         self,
         L,

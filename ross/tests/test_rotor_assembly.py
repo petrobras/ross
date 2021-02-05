@@ -594,21 +594,21 @@ def test_freq_response_w_force(rotor4):
 
     omega = np.linspace(0.0, 450.0, 4)
     freq_resp = rotor4.forced_response(force=F0, speed_range=omega)
-    mag = freq_resp.magnitude
+    mag = abs(freq_resp.forced_resp)
     assert_allclose(mag[:4, :4], mag_exp)
 
     freq_resp = rotor4.run_unbalance_response(2, 0.001, 0, frequency=omega)
-    mag = freq_resp.magnitude
+    mag = abs(freq_resp.forced_resp)
     assert_allclose(mag[:4, :4], mag_exp)
 
     freq_resp = rotor4.run_unbalance_response(2, 0.001, 0, frequency=omega)
-    mag = freq_resp.magnitude
+    mag = abs(freq_resp.forced_resp)
     assert_allclose(mag[:4, :4], mag_exp)
 
     freq_resp = rotor4.run_unbalance_response(
         [2, 3], [0.001, 0.001], [0.0, 0], frequency=omega
     )
-    mag = freq_resp.magnitude
+    mag = abs(freq_resp.forced_resp)
     assert_allclose(mag[:4, :4], mag_exp_2_unb)
 
 
@@ -961,13 +961,13 @@ def test_run_critical_speed(rotor5, rotor6):
     log_dec6 = np.zeros_like(wd6)
     damping_ratio6 = np.zeros_like(wd6)
 
-    assert_almost_equal(results5.wd, wd5, decimal=4)
-    assert_almost_equal(results5.wn, wn5, decimal=4)
+    assert_almost_equal(results5._wd, wd5, decimal=4)
+    assert_almost_equal(results5._wn, wn5, decimal=4)
     assert_almost_equal(results5.log_dec, log_dec5, decimal=4)
     assert_almost_equal(results5.damping_ratio, damping_ratio5, decimal=4)
 
-    assert_almost_equal(results6.wd, wd6, decimal=4)
-    assert_almost_equal(results6.wn, wn6, decimal=4)
+    assert_almost_equal(results6._wd, wd6, decimal=4)
+    assert_almost_equal(results6._wn, wn6, decimal=4)
     assert_almost_equal(results6.log_dec, log_dec6, decimal=4)
     assert_almost_equal(results6.damping_ratio, damping_ratio6, decimal=4)
 

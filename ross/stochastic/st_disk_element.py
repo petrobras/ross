@@ -8,6 +8,7 @@ import numpy as np
 from ross.disk_element import DiskElement
 from ross.stochastic.st_materials import ST_Material
 from ross.stochastic.st_results_elements import plot_histogram
+from ross.units import check_units
 
 __all__ = ["ST_DiskElement", "st_disk_example"]
 
@@ -55,6 +56,7 @@ class ST_DiskElement:
     5
     """
 
+    @check_units
     def __init__(
         self,
         n,
@@ -243,6 +245,7 @@ class ST_DiskElement:
         )
 
     @classmethod
+    @check_units
     def from_geometry(
         cls,
         n,
