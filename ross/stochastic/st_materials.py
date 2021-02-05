@@ -9,6 +9,7 @@ import numpy as np
 
 from ross.materials import Material
 from ross.stochastic.st_results_elements import plot_histogram
+from ross.units import check_units
 
 __all__ = ["ST_Material"]
 
@@ -60,6 +61,7 @@ class ST_Material:
     5
     """
 
+    @check_units
     def __init__(
         self, name, rho, E=None, G_s=None, Poisson=None, color="#525252", **kwargs
     ):
@@ -91,7 +93,12 @@ class ST_Material:
             Poisson = np.asarray(Poisson)
 
         attribute_dict = dict(
-            name=name, rho=rho, E=E, G_s=G_s, Poisson=Poisson, color=color
+            name=name,
+            rho=rho,
+            E=E,
+            G_s=G_s,
+            Poisson=Poisson,
+            color=color,
         )
         self.is_random = is_random
         self.attribute_dict = attribute_dict

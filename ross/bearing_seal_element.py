@@ -1447,7 +1447,7 @@ class MagneticBearingElement(BearingElement):
     See the following reference for the electromagnetic parameters g0, i0, ag, nw, alpha:
     Book: Magnetic Bearings. Theory, Design, and Application to Rotating Machinery
     Authors: Gerhard Schweitzer and Eric H. Maslen
-    Page: 84-95
+    Page: 69-80
 
     Examples
     --------
@@ -1505,7 +1505,7 @@ class MagneticBearingElement(BearingElement):
 
         # From: "Magnetic Bearings. Theory, Design, and Application to Rotating Machinery"
         # Authors: Gerhard Schweitzer and Eric H. Maslen
-        # Page: 354
+        # Page: 343
         ks = (
             -4.0
             * pA[1] ** 2.0

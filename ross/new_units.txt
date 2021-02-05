@@ -1,3 +1,6 @@
 RPM = rpm * 1
 Hz = rps
 hour = 60 * minute = h = hr
+
+# prefixes
+pkpk_- = 0.5
