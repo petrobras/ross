@@ -460,12 +460,12 @@ class Tilting:
                             Mat_coef[k, k - 1] = CW
                             Mat_coef[k, k - self.ntheta] = CN
 
-                        if (
-                            len(np.where(self.drop_pressure_Ele_nZ == ki + 1)[0]) == 0
-                            and len(np.where(self.drop_pressure_Ele_ntetha == kj + 1)[0]) == 0
-                        ):
-                            K_null[0, k] = k
-                            Kij_null[ki, kj - 2] = 1
+                        # if (
+                        #     len(np.where(self.drop_pressure_Ele_nZ == ki)[0]) == 1
+                        #     and len(np.where(self.drop_pressure_Ele_ntetha == kj)[0]) == 1
+                        # ):
+                        #     K_null[0, k] = k
+                        #     Kij_null[ki, kj - 2] = 1
 
                         kj = kj + 1
                         k = k + 1
