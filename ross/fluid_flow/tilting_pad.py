@@ -687,45 +687,78 @@ for n_p in range(0, npad):
                         (ydim1[1:] - ydim1[0:-1]) * (auxFF1[1:] + auxFF1[0:-1])
                     )
 
-                    # Auxiliary variable for counting
-                    aux_nN_num = (
-                        abs(
-                            np.int(
-                                np.round(
-                                    (abs((N1 + 0.5 * dN) * h) - abs(ky * h))
-                                    / abs(dN * h)
-                                )
-                            )
-                        )
-                        + 2
-                    )
+                    # # Auxiliary variable for counting
+                    # aux_nN_num = (
+                    #     abs(
+                    #         np.int(
+                    #             np.round(
+                    #                 (abs((N1 + 0.5 * dN) * h) - abs(ky * h))
+                    #                 / abs(dN * h)
+                    #             )
+                    #         )
+                    #     )
+                    #     + 2
+                    # )
+                    #
+                    # aux_nN = np.linspace(
+                    #     (ky * h), ((N1 + 0.5 * dN) * h), num=aux_nN_num
+                    # )
+                    #
+                    # aux_N1_ky_num_1 = np.int(abs((abs(N1) - abs(ky)) / abs(dN))) + 2
+                    # aux_N1_ky_num_2 = np.linspace(N1, ky, num=aux_N1_ky_num_1)
+                    #
+                    # # Auxilary variables declaration/reset
+                    # auxG0 = np.zeros([aux_N1_ky_num_2.size])
+                    # auxG1 = np.zeros([aux_N1_ky_num_2.size])
+                    # ydim2 = np.zeros([aux_N1_ky_num_2.size])
+                    #
+                    ## Counter reset
+                    # nn = 0
+                    #
+                    ## for contk in range(((N1 + 0.5 * dN) * h), (dN * h), (ky * h)):
+                    # for contk in range(0, aux_nN.size - 1):
+                    #    print(nn)
+                    #    auxG0[nn] = 1 / mi[ki, kj, nN - 1 - nn]
+                    #    auxG1[nn] = aux_nN[nn] / mi[ki, kj, nN - 1 - nn]
+                    #    ydim2[nn] = aux_nN[nn]
+                    #    nn = nn + 1
+                    #    print(nn)
 
-                    aux_nN = np.linspace(
-                        (ky * h), ((N1 + 0.5 * dN) * h), num=aux_nN_num
-                    )
+                    auxG0 = np.zeros((netha.size))
+                    auxG1 = np.zeros((netha.size))
+                    ydim2 = np.zeros((netha.size))
 
-                    aux_N1_ky_num_1 = np.int(abs((abs(N1) - abs(ky)) / abs(dN))) + 2
-                    aux_N1_ky_num_2 = np.linspace(N1, ky, num=aux_N1_ky_num_1)
-
-                    # Auxilary variables declaration/reset
-                    auxG0 = np.zeros([aux_N1_ky_num_2.size])
-                    auxG1 = np.zeros([aux_N1_ky_num_2.size])
-                    ydim2 = np.zeros([aux_N1_ky_num_2.size])
-
-                    # Counter reset
-                    nn = 0
+                    ## for contk in range(((N1 + 0.5 * dN) * h), (dN * h), ((N2 - (0.5 * dN)) * h)):
+                    # for contk in range(1, nN + 1):
+                    #    nn = nn + 1
+                    #    auxFF0[nn] = 1 / mi[ki, kj, nN - 1 - nn]
+                    #    auxFF1[nn] = (dN * (-0.5 + contk) * h) / mi[ki, kj, nN - 1 - nn]
+                    # nn = 0
+                    #
+                    # auxFF0[0] = auxFF0[1]
+                    # auxFF0[nN + 1] = auxFF0[nN]
+                    #
+                    # auxFF1[0] = 0
+                    # auxFF1[nN + 1] = (N2 * h) / mi[ki, kj, 1]
+                    #
+                    # ydim1 = h * netha
 
                     # for contk in range(((N1 + 0.5 * dN) * h), (dN * h), (ky * h)):
-                    for contk in range(0, aux_nN.size - 1):
-                        print(nn)
-                        auxG0[nn] = 1 / mi[ki, kj, nN - 1 - nn]
-                        auxG1[nn] = aux_nN[nn] / mi[ki, kj, nN - 1 - nn]
-                        ydim2[nn] = aux_nN[nn]
+                    for contk in range(1, nN + 1):
                         nn = nn + 1
                         print(nn)
+                        auxG0[nn] = 1 / mi[ki, kj, nN - 1 - nn]
+                        auxG1[nn] = (dN * (-0.5 + contk) * h) / mi[ki, kj, nN - 1 - nn]
+                        ydim2[nn] = dN * (-0.5 + contk) * h
 
                     # Counter reset
                     nn = 0
+
+                    auxG0[0] = auxG0[1]
+                    auxG0[nN + 1] = auxG0[nN]
+
+                    auxG1[0] = 0
+                    auxG1[nN + 1] = (N2 * h) / mi[ki, kj, 1]
 
                     G0 = 0.5 * np.sum(
                         (ydim2[1:] - ydim2[0:-1]) * (auxG0[1:] + auxG0[0:-1])
