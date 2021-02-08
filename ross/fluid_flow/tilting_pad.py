@@ -487,19 +487,28 @@ class Tilting:
                 cont = 0
 
                 # Matrix form of the pressure field ====================================================
-                for i in range(0, self.nZ - 1):  # Loop in Z
-                    for j in range(0, self.ntheta - 1):  # Loop in THETA
-                        if (
-                            len(np.where(self.drop_pressure_Ele_nZ == i + 1)[0]) == 0
-                            and len(np.where(self.drop_pressure_Ele_ntetha == j + 1)[0]) == 0
-                        ):
-                            P[i, j] = 0
-                        else:
+                # for i in range(0, self.nZ - 1):  # Loop in Z
+                #     for j in range(0, self.ntheta - 1):  # Loop in THETA
+                #         if (
+                #             len(np.where(self.drop_pressure_Ele_nZ == i + 1)[0]) == 0
+                #             and len(np.where(self.drop_pressure_Ele_ntetha == j + 1)[0]) == 0
+                #         ):
+                #             P[i, j] = 0
+                #         else:
 
-                            cont = cont + 1
-                            P[i, j] = p[cont]
+                #             cont = cont + 1
+                #             P[i, j] = p[cont]
 
-                            if P[i, j] < 0:
+                #             if P[i, j] < 0:
+                #                 P[i, j] = 0
+
+                for i in np.arange(self.nZ):
+                    for j in np.arange(self.ntheta):
+
+                        P[i, j] = p[cont]
+                        cont = cont + 1
+
+                        if P[i, j] < 0:
                                 P[i, j] = 0
 
                 # Pressure border conditions ====================================================
