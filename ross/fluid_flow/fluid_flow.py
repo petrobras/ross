@@ -24,6 +24,8 @@ class FluidFlow:
     It is supposed to be an attribute of a bearing element,
     but can work on its on to provide graphics for the user.
 
+    The complete FluidFlow theory can be found at :cite:`mota2020`
+
     Parameters
     ----------
     Grid related
@@ -179,7 +181,7 @@ class FluidFlow:
 
     References
     ----------
-    The complete FluidFlow theory can be found at :cite:`mota2020`
+    .. bibliography:: ../../../docs/refs.bib
 
     Examples
     --------
