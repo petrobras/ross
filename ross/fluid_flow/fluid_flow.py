@@ -16,7 +16,7 @@ from ross.fluid_flow.fluid_flow_geometry import (calculate_attitude_angle,
 
 
 class FluidFlow:
-    r"""Generate dynamic coefficients for bearings and seals.
+    r"""Generate dynamic coefficients for hydrodynamic bearings.
 
     This class calculate the pressure matrix and the stiffness and damping matrices
     of a fluid flow with the given parameters.
@@ -176,6 +176,10 @@ class FluidFlow:
         True if analytically calculated pressure matrix is available.
     numerical_pressure_matrix_available: bool
         True if numerically calculated pressure matrix is available.
+
+    References
+    ----------
+    The complete FluidFlow theory can be found at :cite:`mota2020`
 
     Examples
     --------

@@ -11,7 +11,7 @@
 ROSS is a library written in Python for rotordynamic analysis. The source is
 available at `github <https://github.com/ross-rotordynamics/ross>`_.
 
-ROSS prsent other packages that will allow you to improve your rotodynamic analysis:
+ROSS presents other packages that will allow you to improve your rotodynamic analysis:
 
 FluidFlow
 ---------
