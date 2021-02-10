@@ -1,4 +1,5 @@
 import numpy as np
+from decimal import Decimal
 
 
 class Tilting:
@@ -588,15 +589,23 @@ class Tilting:
                 # Dimensionless Netha loop ====================================================
                 for ky in np.arange(
                     (self.N1 + 0.5 * self.dN),
-                    (self.N2 - 0.5 * self.dN)+self.dN,
+                    (self.N2 - 0.5 * self.dN) + self.dN,
                     self.dN,
                 ):
                     # for ky in range(0, self.nN - 1):
                     # Mesh loop in Z direction ====================================================
-                    for ii in np.arange((self.Z1 + 0.5 * self.dZ), (self.Z2 - 0.5 * self.dZ) + self.dZ, self.dZ):
+                    for ii in np.arange(
+                        (self.Z1 + 0.5 * self.dZ),
+                        (self.Z2 - 0.5 * self.dZ) + self.dZ,
+                        self.dZ,
+                    ):
                         # for ii in range(0, self.nZ):
                         # Mesh loop in THETA direction ====================================================
-                        for jj in np.arange((self.theta1 + 0.5 * self.dtheta), (self.theta2 - 0 * self.dtheta), self.dtheta):
+                        for jj in np.arange(
+                            (self.theta1 + 0.5 * self.dtheta),
+                            (self.theta2 - 0 * self.dtheta),
+                            self.dtheta,
+                        ):
                             # for jj in range(0, self.ntheta):
 
                             # Pressure gradients calculation
@@ -621,10 +630,8 @@ class Tilting:
                                 self.Rs
                                 - self.R
                                 - (
-                                    np.sin(jj)
-                                    * (yr + alpha * (self.Rs + self.esp))
-                                    + np.cos(jj)
-                                    * (xr + self.Rs - self.R - self.Cr)
+                                    np.sin(jj) * (yr + alpha * (self.Rs + self.esp))
+                                    + np.cos(jj) * (xr + self.Rs - self.R - self.Cr)
                                 )
                             )
 
@@ -676,15 +683,15 @@ class Tilting:
                             nn = 0
 
                             # auxG0 = auxG0[::-1]
-                            auxG0 = auxG0[:int(len(aux_size))]
+                            auxG0 = auxG0[: int(len(aux_size))]
                             auxG0[0] = auxG0[1]
 
                             # auxG1 = auxG1[::-1]
-                            auxG1 = auxG1[:int(len(aux_size))]
+                            auxG1 = auxG1[: int(len(aux_size))]
                             auxG1[0] = 0
 
                             # ydim2 = ydim2[::-1]
-                            ydim2 = ydim2[:int(len(aux_size))]
+                            ydim2 = ydim2[: int(len(aux_size))]
                             ydim2[0] = self.N1 * h
 
                             G0 = 0.5 * np.sum(
@@ -816,7 +823,7 @@ class Tilting:
 
                 nk = self.nN * self.ntheta
                 Mat_coef = np.zeros((nk, nk))
-                b = np.zeros((nk, 1))
+                b = np.zeros((nk))
                 k = 0
 
                 # for ii in range(N1 + 0.5 * self.dN, self.dN, self.N2 - 0.5 * self.dN):
@@ -977,15 +984,14 @@ class Tilting:
                         Ue = He * ue
                         Uw = Hw * uw
 
-                        n_p = 1 - ((ii + 0.5) * self.dN)
-                        ne = n_p
-                        nw = n_p
-                        nn = n_p + self.dN
-                        ns = n_p - self.dN
+                        np2 = 1 - ((ii + 0.5) * self.dN)
+                        ne = np2
+                        nw = np2
+                        nn = np2 + self.dN
+                        ns = np2 - self.dN
 
                         dhdksi_p = -self.betha_s * (
                             np.cos(theta) * (yr + alpha * (self.Rs + self.esp))
-                            - np.sin(theta) * (xr + self.Rs - self.R - self.Cr)
                             - np.sin(theta) * (xr + self.Rs - self.R - self.Cr)
                         )
                         dhdksi_e = -self.betha_s * (
@@ -1003,7 +1009,7 @@ class Tilting:
                         dhdksi_n = dhdksi_p
                         dhdksi_s = dhdksi_n
 
-                        VP = self.betha_s * self.Rs * vP - n_p * dhdksi_p * uP
+                        VP = self.betha_s * self.Rs * vP - np2 * dhdksi_p * uP
                         Vn = self.betha_s * self.Rs * vn - nn * dhdksi_n * un
                         Vs = self.betha_s * self.Rs * vs - ns * dhdksi_s * us
 
@@ -1011,7 +1017,7 @@ class Tilting:
                         alpha11e = He ** 2
                         alpha11w = Hw ** 2
 
-                        alpha12P = -n_p * HP * dhdksi_p
+                        alpha12P = -np2 * HP * dhdksi_p
                         alpha12e = -ne * He * dhdksi_e
                         alpha12w = -nw * Hw * dhdksi_w
 
@@ -1019,7 +1025,7 @@ class Tilting:
                         alpha21n = -nn * Hn * dhdksi_n
                         alpha21s = -ns * Hs * dhdksi_s
 
-                        alpha22P = (self.betha_s * self.Rs) ** 2 + (n_p * dhdksi_p) ** 2
+                        alpha22P = (self.betha_s * self.Rs) ** 2 + (np2 * dhdksi_p) ** 2
                         alpha22n = (self.betha_s * self.Rs) ** 2 + (nn * dhdksi_n) ** 2
                         alpha22s = (self.betha_s * self.Rs) ** 2 + (ns * dhdksi_s) ** 2
 
@@ -1119,26 +1125,26 @@ class Tilting:
                         fdiss = 2 * (
                             (
                                 self.Cr * hP * (up_a - uw_a) / dksi
-                                - n_p * self.Cr * dhdksi_p * (up_a - us_a) / self.dN
+                                - np2 * self.Cr * dhdksi_p * (up_a - us_a) / self.dN
                             )
                             ** 2
                             + (self.betha_s * self.Rs * (vn_a - vp_a) / self.dN) ** 2
                             + (
                                 self.betha_s * self.Rs * (up_a - us_a) / self.dN
                                 + self.Cr * hP * (vp_a - vw_a) / dksi
-                                - n_p * self.Cr * dhdksi_p * (vp_a - vs_a) / dksi
+                                - np2 * self.Cr * dhdksi_p * (vp_a - vs_a) / dksi
                             )
                             ** 2
                             + (
                                 self.Cr * hP * (wp_a - ww_a) / dksi
-                                - n_p * self.Cr * dhdksi_p * (wp_a - ws_a) / self.dN
+                                - np2 * self.Cr * dhdksi_p * (wp_a - ws_a) / self.dN
                             )
                             ** 2
                             + (self.betha_s * self.Rs * (wp_a - ws_a) / dksi) ** 2
                         )
 
                         # Source term ----------------
-                        Bp = (
+                        Bp = Decimal(
                             JP
                             * ((self.war * self.R) ** 2)
                             * Mi[ki, kj]
@@ -1151,15 +1157,15 @@ class Tilting:
                         # Vectorizing
                         k = k + 1
 
-                        b[k - 1, 0] = Bp
+                        b[k - 1] = Bp
 
                         if ki == 0 and kj == 0:
                             Mat_coef[k - 1, k - 1] = Ap + An - Aw
                             Mat_coef[k - 1, k] = Ae + Ane
                             Mat_coef[k - 1, k - 1 + self.ntheta] = As - Asw
                             Mat_coef[k - 1, k + self.ntheta] = Ase
-                            b[k - 1, 0] = (
-                                b[k - 1, 0]
+                            b[k - 1] = (
+                                b[k - 1]
                                 - 2 * (Aw * Tmist[ki] + Asw * Tmist[ki + 1])
                                 - Anw * (Tmist[ki - 1])
                             )
@@ -1185,8 +1191,8 @@ class Tilting:
                             Mat_coef[k - 1, k - self.ntheta - 1] = An - Anw
                             Mat_coef[k - 1, k + self.ntheta] = Ase
                             Mat_coef[k - 1, k - self.ntheta] = Ane
-                            b[k - 1, 0] = (
-                                b[k - 1, 0]
+                            b[k - 1] = (
+                                b[k - 1]
                                 - 2 * Tmist[ki - 2] * Anw
                                 - 2 * Tmist[ki] * Aw
                                 - 2 * Tmist[ki + 1] * Asw
@@ -1216,8 +1222,8 @@ class Tilting:
                             Mat_coef[k - 1, k] = Ae + Ase
                             Mat_coef[k - 1, k - self.ntheta - 1] = An - Anw
                             Mat_coef[k - 1, k - self.ntheta] = Ane
-                            b[k - 1, 0] = (
-                                b[k - 1, 0]
+                            b[k - 1] = (
+                                b[k - 1]
                                 - 2 * Tmist[ki] * Aw
                                 - 2 * Tmist[ki - 1] * Anw
                                 - Tmist[ki + 1] * Asw
