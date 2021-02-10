@@ -1,5 +1,6 @@
 import numpy as np
 
+
 class Tilting:
     def __init__(
         self,
@@ -58,7 +59,6 @@ class Tilting:
         self.yy = E * Cr * np.sin(phi)
         self.alphapt = alpha  # * (2 * np.pi * 5) * alpha
 
-
         self.xpt = -(2 * np.pi * 5) * self.yy
         self.ypt = (2 * np.pi * 5) * self.xx
 
@@ -69,7 +69,9 @@ class Tilting:
         XZ = np.zeros([nZ + 2])
         XZ[0] = self.Z1
         XZ[nZ + 1] = self.Z2
-        XZ[1 : nZ + 1] = self.Z1 + np.arange(0.5 * self.dZ, self.Z2, self.dZ)  # vector z dimensionless
+        XZ[1 : nZ + 1] = self.Z1 + np.arange(
+            0.5 * self.dZ, self.Z2, self.dZ
+        )  # vector z dimensionless
 
         self.XZ = XZ
 
@@ -82,7 +84,9 @@ class Tilting:
         netha = np.zeros([nN + 2])
         netha[0] = self.N1
         netha[nN + 1] = self.N2
-        netha[1 : nN + 1] = self.N1 + np.arange(0.5 * self.dN, self.N2, self.dN)  # vector netha dimensionless
+        netha[1 : nN + 1] = self.N1 + np.arange(
+            0.5 * self.dN, self.N2, self.dN
+        )  # vector netha dimensionless
 
         self.netha = netha
 
@@ -97,7 +101,7 @@ class Tilting:
             self.theta1 + 0.5 * self.dtheta, self.theta2, self.dtheta
         )  # vector theta [rad]
         self.Xtheta = Xtheta
-        
+
         self.dX = 1 / nX  # differential x dimensionless
         self.dx = self.dX * (self.betha_s * Rs)  # differential x dimensional: [m]
         self.XX = Xtheta * Rs  # vector x dimensional: [m]
@@ -107,11 +111,16 @@ class Tilting:
         self.len_L = 0.71 * L  # Bearing length with recess
         self.center_pos_L = L / 2
         self.start_pos_betha = 0 * self.betha_s
-        self.drop_pressure_pos_L = np.array([self.center_pos_L - self.len_L / 2, self.center_pos_L + self.len_L / 2])
-        self.drop_pressure_pos_betha = np.array([self.start_pos_betha, self.start_pos_betha + self.len_betha])
+        self.drop_pressure_pos_L = np.array(
+            [self.center_pos_L - self.len_L / 2, self.center_pos_L + self.len_L / 2]
+        )
+        self.drop_pressure_pos_betha = np.array(
+            [self.start_pos_betha, self.start_pos_betha + self.len_betha]
+        )
 
         self.drop_pressure_Ele_nZ = np.intersect1d(
-            np.where(self.XZdim > self.drop_pressure_pos_L[0]), np.where(self.XZdim < self.drop_pressure_pos_L[1])
+            np.where(self.XZdim > self.drop_pressure_pos_L[0]),
+            np.where(self.XZdim < self.drop_pressure_pos_L[1]),
         )
         self.drop_pressure_Ele_ntetha = np.intersect1d(
             np.where(Xtheta >= self.drop_pressure_pos_betha[0] + self.theta1),
@@ -268,38 +277,50 @@ class Tilting:
                         auxFF0P[self.nN + 1] = auxFF0P[self.nN]
 
                         auxFF1P[0] = 0
-                        auxFF1P[self.nN + 1] = self.N2 / (vector_mi[0, self.nN - 1] / self.mi_ref)
+                        auxFF1P[self.nN + 1] = self.N2 / (
+                            vector_mi[0, self.nN - 1] / self.mi_ref
+                        )
 
                         auxFF0E[0] = auxFF0E[1]
                         auxFF0E[self.nN + 1] = auxFF0E[self.nN]
 
                         auxFF1E[0] = 0
-                        auxFF1E[self.nN + 1] = self.N2 / (vector_mi[1, self.nN - 1] / self.mi_ref)
+                        auxFF1E[self.nN + 1] = self.N2 / (
+                            vector_mi[1, self.nN - 1] / self.mi_ref
+                        )
 
                         auxFF0W[0] = auxFF0W[1]
                         auxFF0W[self.nN + 1] = auxFF0W[self.nN]
 
                         auxFF1W[0] = 0
-                        auxFF1W[self.nN + 1] = self.N2 / (vector_mi[2, self.nN - 1] / self.mi_ref)
+                        auxFF1W[self.nN + 1] = self.N2 / (
+                            vector_mi[2, self.nN - 1] / self.mi_ref
+                        )
 
                         # Numerical integration
                         FF0P = 0.5 * np.sum(
-                            (self.netha[1:] - self.netha[0:-1]) * (auxFF0P[1:] + auxFF0P[0:-1])
+                            (self.netha[1:] - self.netha[0:-1])
+                            * (auxFF0P[1:] + auxFF0P[0:-1])
                         )
                         FF1P = 0.5 * np.sum(
-                            (self.netha[1:] - self.netha[0:-1]) * (auxFF1P[1:] + auxFF1P[0:-1])
+                            (self.netha[1:] - self.netha[0:-1])
+                            * (auxFF1P[1:] + auxFF1P[0:-1])
                         )
                         FF0E = 0.5 * np.sum(
-                            (self.netha[1:] - self.netha[0:-1]) * (auxFF0E[1:] + auxFF0E[0:-1])
+                            (self.netha[1:] - self.netha[0:-1])
+                            * (auxFF0E[1:] + auxFF0E[0:-1])
                         )
                         FF1E = 0.5 * np.sum(
-                            (self.netha[1:] - self.netha[0:-1]) * (auxFF1E[1:] + auxFF1E[0:-1])
+                            (self.netha[1:] - self.netha[0:-1])
+                            * (auxFF1E[1:] + auxFF1E[0:-1])
                         )
                         FF0W = 0.5 * np.sum(
-                            (self.netha[1:] - self.netha[0:-1]) * (auxFF0W[1:] + auxFF0W[0:-1])
+                            (self.netha[1:] - self.netha[0:-1])
+                            * (auxFF0W[1:] + auxFF0W[0:-1])
                         )
                         FF1W = 0.5 * np.sum(
-                            (self.netha[1:] - self.netha[0:-1]) * (auxFF1W[1:] + auxFF1W[0:-1])
+                            (self.netha[1:] - self.netha[0:-1])
+                            * (auxFF1W[1:] + auxFF1W[0:-1])
                         )
 
                         FF0e = 0.5 * (FF0P + FF0E)
@@ -329,29 +350,32 @@ class Tilting:
                         nn = 0
 
                         auxFF2P[0] = 0
-                        auxFF2P[self.nN + 1] = (self.N2 / (vector_mi[0, self.nN - 1] / self.mi_ref)) * (
-                            self.N2 - FF1P / FF0P
-                        )
+                        auxFF2P[self.nN + 1] = (
+                            self.N2 / (vector_mi[0, self.nN - 1] / self.mi_ref)
+                        ) * (self.N2 - FF1P / FF0P)
 
                         auxFF2E[0] = 0
-                        auxFF2E[self.nN + 1] = (self.N2 / (vector_mi[1, self.nN - 1] / self.mi_ref)) * (
-                            self.N2 - FF1P / FF0P
-                        )
+                        auxFF2E[self.nN + 1] = (
+                            self.N2 / (vector_mi[1, self.nN - 1] / self.mi_ref)
+                        ) * (self.N2 - FF1P / FF0P)
 
                         auxFF2W[0] = 0
-                        auxFF2W[self.nN + 1] = (self.N2 / (vector_mi[2, self.nN - 1] / self.mi_ref)) * (
-                            self.N2 - FF1P / FF0P
-                        )
+                        auxFF2W[self.nN + 1] = (
+                            self.N2 / (vector_mi[2, self.nN - 1] / self.mi_ref)
+                        ) * (self.N2 - FF1P / FF0P)
 
                         # integration process ===================================================
                         FF2P = 0.5 * np.sum(
-                            (self.netha[1:] - self.netha[0:-1]) * (auxFF2P[1:] + auxFF2P[0:-1])
+                            (self.netha[1:] - self.netha[0:-1])
+                            * (auxFF2P[1:] + auxFF2P[0:-1])
                         )
                         FF2E = 0.5 * np.sum(
-                            (self.netha[1:] - self.netha[0:-1]) * (auxFF2E[1:] + auxFF2E[0:-1])
+                            (self.netha[1:] - self.netha[0:-1])
+                            * (auxFF2E[1:] + auxFF2E[0:-1])
                         )
                         FF2W = 0.5 * np.sum(
-                            (self.netha[1:] - self.netha[0:-1]) * (auxFF2W[1:] + auxFF2W[0:-1])
+                            (self.netha[1:] - self.netha[0:-1])
+                            * (auxFF2W[1:] + auxFF2W[0:-1])
                         )
 
                         FF2e = 0.5 * (FF2P + FF2E)
@@ -364,8 +388,10 @@ class Tilting:
                             self.Rs
                             - self.R
                             - (
-                                np.sin(self.Xtheta[jj + 1]) * (yr + alpha * (self.Rs + self.esp))
-                                + np.cos(self.Xtheta[jj + 1]) * (xr + self.Rs - self.R - self.Cr)
+                                np.sin(self.Xtheta[jj + 1])
+                                * (yr + alpha * (self.Rs + self.esp))
+                                + np.cos(self.Xtheta[jj + 1])
+                                * (xr + self.Rs - self.R - self.Cr)
                             )
                         ) / self.Cr
                         he = (
@@ -374,7 +400,8 @@ class Tilting:
                             - (
                                 np.sin(self.Xtheta[jj + 1] + 0.5 * self.dtheta)
                                 * (yr + alpha * (self.Rs + self.esp))
-                                + np.cos(self.Xtheta[jj + 1] + 0.5 * self.dtheta) * (xr + self.Rs - self.R - self.Cr)
+                                + np.cos(self.Xtheta[jj + 1] + 0.5 * self.dtheta)
+                                * (xr + self.Rs - self.R - self.Cr)
                             )
                         ) / self.Cr
                         hw = (
@@ -383,7 +410,8 @@ class Tilting:
                             - (
                                 np.sin(self.Xtheta[jj + 1] - 0.5 * self.dtheta)
                                 * (yr + alpha * (self.Rs + self.esp))
-                                + np.cos(self.Xtheta[jj + 1] - 0.5 * self.dtheta) * (xr + self.Rs - self.R - self.Cr)
+                                + np.cos(self.Xtheta[jj + 1] - 0.5 * self.dtheta)
+                                * (xr + self.Rs - self.R - self.Cr)
                             )
                         ) / self.Cr
                         hn = hP
@@ -391,14 +419,36 @@ class Tilting:
                         hpt = -(1 / (self.Cr * self.war)) * (
                             np.cos(self.Xtheta[jj + 1]) * xrpt
                             + np.sin(self.Xtheta[jj + 1]) * yrpt
-                            + np.sin(self.Xtheta[jj + 1]) * (self.Rs + self.esp) * self.alphapt
+                            + np.sin(self.Xtheta[jj + 1])
+                            * (self.Rs + self.esp)
+                            * self.alphapt
                         )  # admensional
 
                         # Finite volume frontiers
-                        CE = 1 / (self.betha_s) ** 2 * (FF2e * he ** 3) * self.dZ / self.dX
-                        CW = 1 / (self.betha_s) ** 2 * (FF2w * hw ** 3) * self.dZ / self.dX
-                        CN = (FF2n * hn ** 3) * (self.dX / self.dZ) * (self.Rs / self.L) ** 2
-                        CS = (FF2s * hs ** 3) * (self.dX / self.dZ) * (self.Rs / self.L) ** 2
+                        CE = (
+                            1
+                            / (self.betha_s) ** 2
+                            * (FF2e * he ** 3)
+                            * self.dZ
+                            / self.dX
+                        )
+                        CW = (
+                            1
+                            / (self.betha_s) ** 2
+                            * (FF2w * hw ** 3)
+                            * self.dZ
+                            / self.dX
+                        )
+                        CN = (
+                            (FF2n * hn ** 3)
+                            * (self.dX / self.dZ)
+                            * (self.Rs / self.L) ** 2
+                        )
+                        CS = (
+                            (FF2s * hs ** 3)
+                            * (self.dX / self.dZ)
+                            * (self.Rs / self.L) ** 2
+                        )
                         CP = -(CE + CW + CN + CS)
 
                         B = (self.R / (self.Rs * self.betha_s)) * self.dZ * (
@@ -509,7 +559,7 @@ class Tilting:
                         cont = cont + 1
 
                         if P[i, j] < 0:
-                                P[i, j] = 0
+                            P[i, j] = 0
 
                 # Pressure border conditions ====================================================
                 for i in range(0, self.nZ - 1):  # Loop in Z
@@ -536,8 +586,12 @@ class Tilting:
                 nn = 0
 
                 # Dimensionless Netha loop ====================================================
-                # for ky in range((N1 + 0.5 * self.dN), self.dN, (self.N2 - 0.5 * self.dN)):
-                for ky in range(0, self.nN - 1):
+                for ky in np.arange(
+                    (self.N1 + 0.5 * self.dN),
+                    (self.N2 - 0.5 * self.dN + self.dN),
+                    self.dN,
+                ):
+                    # for ky in range(0, self.nN - 1):
                     # Mesh loop in Z direction ====================================================
                     # for ii in range((Z1 + 0.5 * self.dZ), self.dZ, (Z2 - 0.5 * self.dZ)):
                     for ii in range(0, self.nZ - 1):
@@ -567,8 +621,10 @@ class Tilting:
                                 self.Rs
                                 - self.R
                                 - (
-                                    np.sin(self.Xtheta[jj + 1]) * (yr + alpha * (self.Rs + self.esp))
-                                    + np.cos(self.Xtheta[jj + 1]) * (xr + self.Rs - self.R - self.Cr)
+                                    np.sin(self.Xtheta[jj + 1])
+                                    * (yr + alpha * (self.Rs + self.esp))
+                                    + np.cos(self.Xtheta[jj + 1])
+                                    * (xr + self.Rs - self.R - self.Cr)
                                 )
                             )
 
@@ -579,7 +635,10 @@ class Tilting:
                             for contk in range(1, self.nN + 1):
                                 nn = nn + 1
                                 auxFF0[nn] = 1 / mi[ki, kj, self.nN - 1 - nn]
-                                auxFF1[nn] = (self.dN * (-0.5 + contk) * h) / mi[ki, kj, self.nN - 1 - nn]
+                                auxFF1[nn] = (self.dN * (-0.5 + contk) * h) / mi[
+                                    ki, kj, self.nN - 1 - nn
+                                ]
+
                             nn = 0
 
                             auxFF0[0] = auxFF0[1]
@@ -596,50 +655,34 @@ class Tilting:
                                 (ydim1[1:] - ydim1[0:-1]) * (auxFF1[1:] + auxFF1[0:-1])
                             )
 
-                            # Auxiliary variable for counting
-                            # aux_nN_num = (
-                            #     abs(
-                            #         np.int(
-                            #             np.round(
-                            #                 (abs((self.N1 + 0.5 * self.dN) * h) - abs(ky * h))
-                            #                 / abs(self.dN * h)
-                            #             )
-                            #         )
-                            #     )
-                            #     + 2
-                            # )
-
-                            # aux_nN = np.linspace(
-                            #     (ky * h), ((self.N1 + 0.5 * self.dN) * h), num=aux_nN_num
-                            # )
-
-                            # aux_N1_ky_num_1 = np.int(abs((abs(self.N1) - abs(ky)) / abs(self.dN))) + 2
-                            # aux_N1_ky_num_2 = np.linspace(self.N1, ky, num=aux_N1_ky_num_1)
-
                             # Auxilary variables declaration/reset
-                            auxG0 = np.zeros((self.netha.size))
-                            auxG1 = np.zeros((self.netha.size))
-                            ydim2 = np.zeros((self.netha.size))
+                            aux_size = np.arange(self.N1, ky + self.dN, self.dN)
+                            auxG0 = np.zeros(len(aux_size))
+                            auxG1 = np.zeros(len(aux_size))
+                            ydim2 = np.zeros(len(aux_size))
 
-                            # Counter reset
-                            nn = 0
+                            for contk in np.arange(
+                                ((self.N1 + 0.5 * self.dN) * h),
+                                ((ky + self.dN) * h),
+                                (self.dN * h),
+                            ):
 
-                            # for contk in range(((N1 + 0.5 * self.dN) * h), (self.dN * h), (ky * h)):
-                            for contk in range(1, self.nN + 1):
-                                nn = nn + 1
-                                # print(nn)
                                 auxG0[nn] = 1 / mi[ki, kj, self.nN - 1 - nn]
-                                auxG1[nn] = (self.dN * (-0.5 + contk) * h) / mi[ki, kj, self.nN - 1 - nn]
-                                ydim2[nn] = self.dN * (-0.5 + contk) * h
+                                auxG1[nn] = contk / mi[ki, kj, self.nN - 1 - nn]
+                                ydim2[nn] = contk
+                                nn = nn + 1
 
                             # Counter reset
                             nn = 0
 
+                            auxG0 = auxG0[::-1]
                             auxG0[0] = auxG0[1]
-                            auxG0[nN + 1] = auxG0[nN]
 
+                            auxG1 = auxG1[::-1]
                             auxG1[0] = 0
-                            auxG1[nN + 1] = (self.N2 * h) / mi[ki, kj, 1]
+
+                            ydim2 = ydim2[::-1]
+                            ydim2[0] = self.N1 * h
 
                             G0 = 0.5 * np.sum(
                                 (ydim2[1:] - ydim2[0:-1]) * (auxG0[1:] + auxG0[0:-1])
@@ -649,7 +692,10 @@ class Tilting:
                             )
 
                             # vu(ki,kj,kk)=dPdx*G1+(self.war*R/FF0-FF1/FF0*dPdx)*G0;
-                            vu[ki, kj, kk] = dPdx * G1 + (self.war * self.R / FF0 - FF1 / FF0 * dPdx) * G0
+                            vu[ki, kj, kk] = (
+                                dPdx * G1
+                                + (self.war * self.R / FF0 - FF1 / FF0 * dPdx) * G0
+                            )
 
                             # vw(ki,kj,kk)=dPdz*G1-(FF1/FF0*dPdz)*G0;
                             vw[ki, kj, kk] = dPdz * G1 - (FF1 / FF0 * dPdz) * G0
@@ -678,7 +724,9 @@ class Tilting:
                         hpt = -(
                             np.cos(self.Xtheta[jj + 1]) * xrpt
                             + np.sin(self.Xtheta[jj + 1]) * yrpt
-                            + np.sin(self.Xtheta[jj + 1]) * (self.Rs + self.esp) * self.alphapt
+                            + np.sin(self.Xtheta[jj + 1])
+                            * (self.Rs + self.esp)
+                            * self.alphapt
                         )
 
                         if ki == 0 and kj == 0:
@@ -692,7 +740,9 @@ class Tilting:
                         if ki == 0 and kj > 0:
                             # for contk in range(N1 + 0.5 * self.dN, self.dN, self.N2 - 0.5 * self.dN):
                             for contk in range(0, self.nN + 1):
-                                dudx[nn] = (vu[ki, kj, nn - 1] - vu[ki, kj - 1, nn - 1]) / self.dx
+                                dudx[nn] = (
+                                    vu[ki, kj, nn - 1] - vu[ki, kj - 1, nn - 1]
+                                ) / self.dx
                                 dwdz[nn] = 0
                                 nn = nn + 1
                             nn = 0
@@ -701,15 +751,21 @@ class Tilting:
                             # for contk in range(N1 + 0.5 * self.dN, self.dN, self.N2 - 0.5 * self.dN):
                             for contk in range(0, self.nN + 1):
                                 dudx[nn] = 0
-                                dwdz[nn] = (vw[ki, kj, nn - 1] - vw[ki - 1, kj, nn - 1]) / self.dz
+                                dwdz[nn] = (
+                                    vw[ki, kj, nn - 1] - vw[ki - 1, kj, nn - 1]
+                                ) / self.dz
                                 nn = nn + 1
                             nn = 0
 
                         if ki > 0 and ki < self.nN - 1 and kj > 0 and kj < self.nX - 1:
                             # for contk in range(N1 + 0.5 * self.dN, self.dN, self.N2 - 0.5 * self.dN):
                             for contk in range(0, self.nN + 1):
-                                dudx[nn] = (vu[ki, kj, nn - 1] - vu[ki, kj - 1, nn - 1]) / self.dx
-                                dwdz[nn] = (vw[ki, kj, nn - 1] - vw[ki - 1, kj, nn - 1]) / self.dz
+                                dudx[nn] = (
+                                    vu[ki, kj, nn - 1] - vu[ki, kj - 1, nn - 1]
+                                ) / self.dx
+                                dwdz[nn] = (
+                                    vw[ki, kj, nn - 1] - vw[ki - 1, kj, nn - 1]
+                                ) / self.dz
                                 nn = nn + 1
                             nn = 0
 
@@ -721,7 +777,9 @@ class Tilting:
                         auxD = dudx + dwdz
 
                         # intv=0.5*sum((ydim1(2:end)-ydim1(1:end-1)).*(auxD(2:end)+auxD(1:end-1)));
-                        intv = 0.5 * np.sum((ydim1[1:] - ydim1[0:-1]) * (auxD[1:] + auxD[0:-1]))
+                        intv = 0.5 * np.sum(
+                            (ydim1[1:] - ydim1[0:-1]) * (auxD[1:] + auxD[0:-1])
+                        )
 
                         vv[ki, kj,] = (
                             -intv + hpt
@@ -779,16 +837,20 @@ class Tilting:
                             self.Rs
                             - self.R
                             - (
-                                np.sin(theta + 0.5 * self.dtheta) * (yr + alpha * (self.Rs + self.esp))
-                                + np.cos(theta + 0.5 * self.dtheta) * (xr + self.Rs - self.R - self.Cr)
+                                np.sin(theta + 0.5 * self.dtheta)
+                                * (yr + alpha * (self.Rs + self.esp))
+                                + np.cos(theta + 0.5 * self.dtheta)
+                                * (xr + self.Rs - self.R - self.Cr)
                             )
                         )
                         Hw = (
                             self.Rs
                             - self.R
                             - (
-                                np.sin(theta - 0.5 * self.dtheta) * (yr + alpha * (self.Rs + self.esp))
-                                + np.cos(theta - 0.5 * self.dtheta) * (xr + self.Rs - self.R - self.Cr)
+                                np.sin(theta - 0.5 * self.dtheta)
+                                * (yr + alpha * (self.Rs + self.esp))
+                                + np.cos(theta - 0.5 * self.dtheta)
+                                * (xr + self.Rs - self.R - self.Cr)
                             )
                         )
                         Hn = HP
@@ -924,12 +986,16 @@ class Tilting:
                             - np.sin(theta) * (xr + self.Rs - self.R - self.Cr)
                         )
                         dhdksi_e = -self.betha_s * (
-                            np.cos(theta + 0.5 * self.dtheta) * (yr + alpha * (self.Rs + self.esp))
-                            - np.sin(theta + 0.5 * self.dtheta) * (xr + self.Rs - self.R - self.Cr)
+                            np.cos(theta + 0.5 * self.dtheta)
+                            * (yr + alpha * (self.Rs + self.esp))
+                            - np.sin(theta + 0.5 * self.dtheta)
+                            * (xr + self.Rs - self.R - self.Cr)
                         )
                         dhdksi_w = -self.betha_s * (
-                            np.cos(theta - 0.5 * self.dtheta) * (yr + alpha * (self.Rs + self.esp))
-                            - np.sin(theta - 0.5 * self.dtheta) * (xr + self.Rs - self.R - self.Cr)
+                            np.cos(theta - 0.5 * self.dtheta)
+                            * (yr + alpha * (self.Rs + self.esp))
+                            - np.sin(theta - 0.5 * self.dtheta)
+                            * (xr + self.Rs - self.R - self.Cr)
                         )
                         dhdksi_n = dhdksi_p
                         dhdksi_s = dhdksi_n
@@ -977,7 +1043,9 @@ class Tilting:
 
                         # Interpolation coefficients
 
-                        Pee = self.rho * uE * self.Cp * self.dtheta * self.Rs / self.kt  # Peclet's number
+                        Pee = (
+                            self.rho * uE * self.Cp * self.dtheta * self.Rs / self.kt
+                        )  # Peclet's number
                         Pew = self.rho * uW * self.Cp * self.dtheta * self.Rs / self.kt
 
                         Pen = self.rho * uN * self.Cp * self.dtheta * self.Rs / self.kt
@@ -1001,12 +1069,26 @@ class Tilting:
                         a_ps = 0
                         b_ps = 1
 
-                        Ae = Me * (0.5 - a_pe) - D11e / dksi * b_pe - (D21n - D21s) / (4 * dksi)
-                        Aw = (
-                            -Mw * (0.5 + a_pw) - D11w / dksi * b_pw + (D21n - D21s) / (4 * dksi)
+                        Ae = (
+                            Me * (0.5 - a_pe)
+                            - D11e / dksi * b_pe
+                            - (D21n - D21s) / (4 * dksi)
                         )
-                        An = Mn * (0.5 - a_pn) - D22n / self.dN * b_pn - (D12e - D12w) / (4 * self.dN)
-                        As = -Ms * (0.5 + a_ps) - D22s / self.dN * b_ps - (D12w - D12e) / (4 * self.dN)
+                        Aw = (
+                            -Mw * (0.5 + a_pw)
+                            - D11w / dksi * b_pw
+                            + (D21n - D21s) / (4 * dksi)
+                        )
+                        An = (
+                            Mn * (0.5 - a_pn)
+                            - D22n / self.dN * b_pn
+                            - (D12e - D12w) / (4 * self.dN)
+                        )
+                        As = (
+                            -Ms * (0.5 + a_ps)
+                            - D22s / self.dN * b_ps
+                            - (D12w - D12e) / (4 * self.dN)
+                        )
                         Ane = -D12e / (4 * self.dN) - D21n / (4 * dksi)
                         Ase = D12e / (4 * self.dN) + D21s / (4 * dksi)
                         Anw = D12w / (4 * self.dN) + D21n / (4 * dksi)
@@ -1053,7 +1135,15 @@ class Tilting:
                         )
 
                         # Source term ----------------
-                        Bp = JP * ((self.war * self.R) ** 2) * Mi[ki, kj] / self.Cp * self.dN * dksi * fdiss
+                        Bp = (
+                            JP
+                            * ((self.war * self.R) ** 2)
+                            * Mi[ki, kj]
+                            / self.Cp
+                            * self.dN
+                            * dksi
+                            * fdiss
+                        )
 
                         # Vectorizing
                         k = k + 1
@@ -1068,7 +1158,7 @@ class Tilting:
                             b[k - 1, 0] = (
                                 b[k - 1, 0]
                                 - 2 * (Aw * Tmist[ki] + Asw * Tmist[ki + 1])
-                                - Anw * (Tmist[ki-1])
+                                - Anw * (Tmist[ki - 1])
                             )
 
                         if ki == 0 and kj > 0 and kj < self.nX - 1:
@@ -1126,7 +1216,7 @@ class Tilting:
                             b[k - 1, 0] = (
                                 b[k - 1, 0]
                                 - 2 * Tmist[ki] * Aw
-                                - 2 * Tmist[ki-1] * Anw
+                                - 2 * Tmist[ki - 1] * Anw
                                 - Tmist[ki + 1] * Asw
                             )
 
@@ -1152,7 +1242,9 @@ class Tilting:
                 ki = 0
                 nn = 0
 
-                t = np.linalg.solve(Mat_coef, b)  # vectorized temperature field calculation
+                t = np.linalg.solve(
+                    Mat_coef, b
+                )  # vectorized temperature field calculation
 
                 # Temperature matrix ----------------------
                 cont = 0
@@ -1193,7 +1285,7 @@ class Tilting:
                 T_novo[self.nN + 1,] = T_novo[
                     self.nN,
                 ]
-                T_novo[1:self.nN, 0] = Tmist[1, self.nN]
+                T_novo[1 : self.nN, 0] = Tmist[1, self.nN]
                 T_novo[:, self.nX + 1] = T_novo[:, self.nX]
 
             # WHILE ENDS HERE ==========================================================
@@ -1236,7 +1328,6 @@ class Tilting:
             if fxj[n_p] >= -1:
                 My[n_p] = 10e6
 
-
         # END PADS FOR LOOP ===============================================================
 
         score[0] = My[0]
@@ -1264,18 +1355,17 @@ class Tilting:
             + fxj[5] * np.sin(self.psi_pad[5] + self.sigma[5])
         )
 
-        return Fhx,Fhy
+        return Fhx, Fhy
 
     def run(self):
-        Fhx,Fhy = self._forces()
-        print(f'Fhx = {Fhx}\nFhy = {Fhy}\n')
+        Fhx, Fhy = self._forces()
+        print(f"Fhx = {Fhx}\nFhy = {Fhy}\n")
 
 
 if __name__ == "__main__":
 
     phi = 30 * np.pi / 180
     E = 0.5
-
 
     # optim values from legacy codes
     x = np.array(
@@ -1313,7 +1403,7 @@ if __name__ == "__main__":
 
     # Pad arc
     betha_s = 25  # [degree]
-    
+
     # Pivot position (arc pivot/arc pad)
     rp_pad = 0.6
 
@@ -1322,7 +1412,7 @@ if __name__ == "__main__":
 
     # Angular position of the pivot
     sigma = np.array([0, 300, 60])  # [degree]
-    
+
     # Bearing loading
     fR = 90.6e3  # [N]
 
