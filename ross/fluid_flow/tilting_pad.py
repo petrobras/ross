@@ -1,4 +1,6 @@
 import numpy as np
+from numpy.linalg import pinv
+from scipy.linalg import solve
 from decimal import Decimal
 
 
@@ -1251,9 +1253,11 @@ class Tilting:
                 ki = 0
                 nn = 0
 
-                t = np.linalg.solve(
-                    Mat_coef, b
-                )  # vectorized temperature field calculation
+                # t = solve(
+                #     Mat_coef, b
+                # )  # vectorized temperature field calculation
+
+                t = pinv(Mat_coef) * b
 
                 # Temperature matrix ----------------------
                 cont = 0
