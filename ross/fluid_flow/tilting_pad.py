@@ -588,16 +588,16 @@ class Tilting:
                 # Dimensionless Netha loop ====================================================
                 for ky in np.arange(
                     (self.N1 + 0.5 * self.dN),
-                    (self.N2 - 0.5 * self.dN + self.dN),
+                    (self.N2 - 0.5 * self.dN)+self.dN,
                     self.dN,
                 ):
                     # for ky in range(0, self.nN - 1):
                     # Mesh loop in Z direction ====================================================
-                    # for ii in range((Z1 + 0.5 * self.dZ), self.dZ, (Z2 - 0.5 * self.dZ)):
-                    for ii in range(0, self.nZ - 1):
+                    for ii in np.arange((self.Z1 + 0.5 * self.dZ), (self.Z2 - 0.5 * self.dZ) + self.dZ, self.dZ):
+                        # for ii in range(0, self.nZ):
                         # Mesh loop in THETA direction ====================================================
-                        # for jj in range((theta1 + 0.5 * self.dtheta), self.dtheta, (theta2 - 0.5 * self.dtheta)):
-                        for jj in range(0, self.ntheta - 1):
+                        for jj in np.arange((self.theta1 + 0.5 * self.dtheta), (self.theta2 - 0 * self.dtheta), self.dtheta):
+                            # for jj in range(0, self.ntheta):
 
                             # Pressure gradients calculation
                             if ki == 0 and kj == 0:
@@ -621,9 +621,9 @@ class Tilting:
                                 self.Rs
                                 - self.R
                                 - (
-                                    np.sin(self.Xtheta[jj + 1])
+                                    np.sin(jj)
                                     * (yr + alpha * (self.Rs + self.esp))
-                                    + np.cos(self.Xtheta[jj + 1])
+                                    + np.cos(jj)
                                     * (xr + self.Rs - self.R - self.Cr)
                                 )
                             )
@@ -657,31 +657,34 @@ class Tilting:
 
                             # Auxilary variables declaration/reset
                             aux_size = np.arange(self.N1, ky + self.dN, self.dN)
-                            auxG0 = np.zeros(len(aux_size))
-                            auxG1 = np.zeros(len(aux_size))
-                            ydim2 = np.zeros(len(aux_size))
+                            auxG0 = np.zeros(self.netha.size)
+                            auxG1 = np.zeros(self.netha.size)
+                            ydim2 = np.zeros(self.netha.size)
 
                             for contk in np.arange(
                                 ((self.N1 + 0.5 * self.dN) * h),
                                 ((ky + self.dN) * h),
                                 (self.dN * h),
                             ):
+                                nn = nn + 1
 
                                 auxG0[nn] = 1 / mi[ki, kj, self.nN - 1 - nn]
                                 auxG1[nn] = contk / mi[ki, kj, self.nN - 1 - nn]
                                 ydim2[nn] = contk
-                                nn = nn + 1
 
                             # Counter reset
                             nn = 0
 
-                            auxG0 = auxG0[::-1]
+                            # auxG0 = auxG0[::-1]
+                            auxG0 = auxG0[:int(len(aux_size))]
                             auxG0[0] = auxG0[1]
 
-                            auxG1 = auxG1[::-1]
+                            # auxG1 = auxG1[::-1]
+                            auxG1 = auxG1[:int(len(aux_size))]
                             auxG1[0] = 0
 
-                            ydim2 = ydim2[::-1]
+                            # ydim2 = ydim2[::-1]
+                            ydim2 = ydim2[:int(len(aux_size))]
                             ydim2[0] = self.N1 * h
 
                             G0 = 0.5 * np.sum(
@@ -791,8 +794,8 @@ class Tilting:
 
                 ki = 0
                 ki = self.nN - 1
-                for ii in range(0, self.nN - 1):
-                    for jj in range(0, self.ntheta - 1):
+                for ii in range(0, self.nN):
+                    for jj in range(0, self.ntheta):
                         Vu[ii, jj] = np.mean(vu[:, jj, ki])
                         Vv[ii, jj] = np.mean(vv[:, jj, ki])
                         Vw[ii, jj] = np.mean(vw[:, jj, ki])
@@ -1020,10 +1023,10 @@ class Tilting:
                         alpha22n = (self.betha_s * self.Rs) ** 2 + (nn * dhdksi_n) ** 2
                         alpha22s = (self.betha_s * self.Rs) ** 2 + (ns * dhdksi_s) ** 2
 
-                        Me = rho * Ue * self.dN
-                        Mw = rho * Uw * self.dN
-                        Mn = rho * Vn * dksi
-                        Ms = rho * Vs * dksi
+                        Me = self.rho * Ue * self.dN
+                        Mw = self.rho * Uw * self.dN
+                        Mn = self.rho * Vn * dksi
+                        Ms = self.rho * Vs * dksi
 
                         D11 = self.kt / self.Cp * JP * alpha11P * self.dN
                         D11e = self.kt / self.Cp * Je * alpha11e * self.dN
