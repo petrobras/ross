@@ -335,13 +335,6 @@ class Rotor(object):
         Ip_dsk = np.sum([disk.Ip for disk in self.disk_elements])
         self.Ip = Ip_sh + Ip_dsk
 
-        # values for evalues and evectors will be calculated by self.run_modal
-        self.evalues = None
-        self.evectors = None
-        self.wn = None
-        self.wd = None
-        self.lti = None
-
         self._v0 = None  # used to call eigs
 
         # number of dofs
@@ -3607,13 +3600,6 @@ class CoAxialRotor(Rotor):
         Ip_dsk = np.sum([disk.Ip for disk in self.disk_elements])
         self.Ip = Ip_sh + Ip_dsk
 
-        # values for evalues and evectors will be calculated by self.run_modal
-        self.evalues = None
-        self.evectors = None
-        self.wn = None
-        self.wd = None
-        self.lti = None
-
         self._v0 = None  # used to call eigs
 
         # number of dofs
@@ -3670,6 +3656,13 @@ class CoAxialRotor(Rotor):
         self.df_point_mass = df_point_mass
         self.df_seals = df_seals
 
+        if "n_link" in df.columns and df_point_mass.index.size > 0:
+            aux_link = list(df["n_link"].dropna().unique().astype(int))
+            aux_node = list(df_point_mass["n"].dropna().unique().astype(int))
+            self.link_nodes = list(set(aux_link) & set(aux_node))
+        else:
+            self.link_nodes = []
+
         # global indexes for dofs
         n_last = self.shaft_elements[-1].n
         for elm in self.elements:
@@ -3703,11 +3696,6 @@ class CoAxialRotor(Rotor):
             df.at[
                 df.loc[df.tag == elm.tag].index[0], "dof_global_index"
             ] = elm.dof_global_index
-
-        #  values for static analysis will be calculated by def static
-        self.Vx = None
-        self.Bm = None
-        self.disp_y = None
 
         # define positions for disks
         for disk in disk_elements:
