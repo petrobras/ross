@@ -819,8 +819,8 @@ class Tilting:
                 kj = 0
                 dksi = self.dX
 
-                for ii in range(0, self.nZ - 1):
-                    for jj in range(0, self.nN - 1):
+                for ii in range(0, self.nZ - 0):
+                    for jj in range(0, self.nN - 0):
                         Mi[jj, ii] = mi[0, ii, jj]
 
                 nk = self.nN * self.ntheta
