@@ -2,7 +2,6 @@ import numpy as np
 from numpy.linalg import pinv
 from scipy.linalg import solve
 from decimal import Decimal
-from mpmath import *
 
 
 class Tilting:
@@ -514,13 +513,6 @@ class Tilting:
                             Mat_coef[k, k - 1] = CW
                             Mat_coef[k, k - self.ntheta] = CN
 
-                        # if (
-                        #     len(np.where(self.drop_pressure_Ele_nZ == ki)[0]) == 1
-                        #     and len(np.where(self.drop_pressure_Ele_ntetha == kj)[0]) == 1
-                        # ):
-                        #     K_null[0, k] = k
-                        #     Kij_null[ki, kj - 2] = 1
-
                         kj = kj + 1
                         k = k + 1
                     # loop end
@@ -530,31 +522,9 @@ class Tilting:
                 # loop end
 
                 # Pressure field solution ==============================================================
-
-                # cc = (K_null == 0).nonzero()  # cc = find(K_null == 0)
-                # cc_aux = np.where(K_null == 0)  # cc = find(K_null == 0)
-                # cc = cc_aux[1]
-                # p = np.linalg.solve(Mat_coef[[cc, cc]], b[cc])
-
                 p = np.linalg.solve(Mat_coef, b)
 
                 cont = 0
-
-                # Matrix form of the pressure field ====================================================
-                # for i in range(0, self.nZ - 1):  # Loop in Z
-                #     for j in range(0, self.ntheta - 1):  # Loop in THETA
-                #         if (
-                #             len(np.where(self.drop_pressure_Ele_nZ == i + 1)[0]) == 0
-                #             and len(np.where(self.drop_pressure_Ele_ntetha == j + 1)[0]) == 0
-                #         ):
-                #             P[i, j] = 0
-                #         else:
-
-                #             cont = cont + 1
-                #             P[i, j] = p[cont]
-
-                #             if P[i, j] < 0:
-                #                 P[i, j] = 0
 
                 for i in np.arange(self.nZ):
                     for j in np.arange(self.ntheta):
@@ -1054,7 +1024,6 @@ class Tilting:
                         D22s = self.kt / self.Cp * Js * alpha22s * dksi
 
                         # Interpolation coefficients
-
                         Pee = (
                             self.rho * uE * self.Cp * self.dtheta * self.Rs / self.kt
                         )  # Peclet's number
@@ -1147,7 +1116,6 @@ class Tilting:
                         )
 
                         # Source term ----------------
-
                         Bp = (
                             JP
                             * ((self.war * self.R) ** 2)
@@ -1158,17 +1126,6 @@ class Tilting:
                             * fdiss
                         )
 
-                        # Bp = Decimal(
-                        #    JP
-                        #    * ((self.war * self.R) ** 2)
-                        #    * Mi[ki, kj]
-                        #    / self.Cp
-                        #    * self.dN
-                        #    * dksi
-                        #    * fdiss
-                        # )
-
-                        # Vectorizing
                         k = k + 1
 
                         b[k - 1] = Bp
@@ -1265,17 +1222,8 @@ class Tilting:
                 ki = 0
                 nn = 0
 
-                # t = solve(
-                #     Mat_coef, b
-                # )  # vectorized temperature field calculation
-
+                # Linear system solution via pseudoinverse for robustness
                 t = np.dot(pinv(Mat_coef), b)
-
-                # new_a = fp.matrix(Mat_coef)
-                # new_b = fp.matrix(b)
-                # t2 = fp.lu_solve(new_a, new_b)
-
-                # residual(Mat_coef, t, b)
 
                 # Temperature matrix ----------------------
                 cont = 0
