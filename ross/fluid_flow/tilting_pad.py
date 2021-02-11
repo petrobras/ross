@@ -2,6 +2,7 @@ import numpy as np
 from numpy.linalg import pinv
 from scipy.linalg import solve
 from decimal import Decimal
+from mpmath import *
 
 
 class Tilting:
@@ -819,8 +820,8 @@ class Tilting:
                 kj = 0
                 dksi = self.dX
 
-                for ii in range(0, self.nZ - 0):
-                    for jj in range(0, self.nN - 0):
+                for ii in range(0, self.nZ):
+                    for jj in range(0, self.nN):
                         Mi[jj, ii] = mi[0, ii, jj]
 
                 nk = self.nN * self.ntheta
@@ -1146,7 +1147,8 @@ class Tilting:
                         )
 
                         # Source term ----------------
-                        Bp = Decimal(
+
+                        Bp = (
                             JP
                             * ((self.war * self.R) ** 2)
                             * Mi[ki, kj]
@@ -1155,6 +1157,16 @@ class Tilting:
                             * dksi
                             * fdiss
                         )
+
+                        # Bp = Decimal(
+                        #    JP
+                        #    * ((self.war * self.R) ** 2)
+                        #    * Mi[ki, kj]
+                        #    / self.Cp
+                        #    * self.dN
+                        #    * dksi
+                        #    * fdiss
+                        # )
 
                         # Vectorizing
                         k = k + 1
@@ -1257,7 +1269,13 @@ class Tilting:
                 #     Mat_coef, b
                 # )  # vectorized temperature field calculation
 
-                t = pinv(Mat_coef) * b
+                t = np.dot(pinv(Mat_coef), b)
+
+                # new_a = fp.matrix(Mat_coef)
+                # new_b = fp.matrix(b)
+                # t2 = fp.lu_solve(new_a, new_b)
+
+                # residual(Mat_coef, t, b)
 
                 # Temperature matrix ----------------------
                 cont = 0
