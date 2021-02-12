@@ -157,7 +157,7 @@ class Tilting:
 
         # Temperature field
         T = np.zeros((self.nN, self.ntheta))
-        T1 = np.zeros((self.nN, self.ntheta, npad))
+        T1 = np.zeros((self.nN + 2, self.ntheta + 2, npad))
 
         # Field derivatives
         dudx = np.zeros((self.nN + 2))
@@ -1241,7 +1241,7 @@ class Tilting:
                 # function of the temperature.
 
                 # 3D temperature field -----------------------------------------------------
-                TT = np.zeros(self.nZ, self.nX, self.nN)
+                TT = np.zeros((self.nZ, self.nX, self.nN))
                 for k in range(0, self.nN):
                     for j in range(0, self.nX):
                         TT[:, j, k] = T[k, j]
@@ -1261,15 +1261,13 @@ class Tilting:
                 T_novo[0,] = T_novo[
                     1,
                 ]
-                T_novo[self.nN + 1,] = T_novo[
-                    self.nN,
-                ]
-                T_novo[1 : self.nN, 0] = Tmist[1, self.nN]
+                T_novo[self.nN + 1, :] = T_novo[self.nN, :]
+                T_novo[1 : self.nN, 0] = Tmist[1 : self.nN]
                 T_novo[:, self.nX + 1] = T_novo[:, self.nX]
 
             # WHILE ENDS HERE ==========================================================
 
-            T1[:, :, n_p] = T_novo
+            T1[:, :, n_p] = T_novo[:, :]
             P1[:, :, n_p] = PPdim
 
             yh = (
