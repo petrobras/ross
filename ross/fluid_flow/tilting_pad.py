@@ -1223,6 +1223,19 @@ class Tilting:
                 ki = 0
                 nn = 0
 
+                matcoef_test = np.loadtxt(
+                    "/home/verg1lio/Desktop/ross/ross/fluid_flow/matcoef.txt"
+                )
+                b_test = np.loadtxt("/home/verg1lio/Desktop/ross/ross/fluid_flow/b.txt")
+
+                error_matcoef = np.abs(matcoef_test - Mat_coef)
+                error_b = np.abs(b_test - b)
+
+                error_arg1 = np.where(error_matcoef > 1e-4)
+                error_arg2 = np.where(error_b > 1e-4)
+
+                lalalalla = 1
+
                 # Linear system solution via pseudoinverse for robustness
                 t = np.dot(pinv(Mat_coef), b)
 
@@ -1248,10 +1261,10 @@ class Tilting:
                         TT[:, j, k] = T[k, j]
 
                 # Regression equation coefficients
-                a = 5.506e-09
-                b = 5012
-                c = 0.1248
-                minovo = a * np.exp(b / (TT + 273.15 + c))
+                a_c = 5.506e-09
+                b_c = 5012
+                c_c = 0.1248
+                minovo = a_c * np.exp(b_c / (TT + 273.15 + c_c))
                 k = 0
 
                 # Full temperature matrix, including borders
