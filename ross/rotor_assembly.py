@@ -3955,7 +3955,9 @@ def coaxrotor_example():
     stfx = 1e6
     stfy = 1e6
     bearing0 = BearingElement(0, n_link=18, kxx=stfx, kyy=stfy, cxx=0, scale_factor=0.4)
-    bearing1 = BearingElement(10, n_link=19, kxx=stfx, kyy=stfy, cxx=0, scale_factor=0.4)
+    bearing1 = BearingElement(
+        10, n_link=19, kxx=stfx, kyy=stfy, cxx=0, scale_factor=0.4
+    )
     bearing2 = BearingElement(11, kxx=stfx, kyy=stfy, cxx=0, scale_factor=0.4)
     bearing3 = BearingElement(8, n_link=17, kxx=stfx, kyy=stfy, cxx=0, scale_factor=0.4)
 
