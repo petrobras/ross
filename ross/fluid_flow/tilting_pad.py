@@ -535,20 +535,20 @@ class Tilting:
                         if P[i, j] < 0:
                             P[i, j] = 0
 
-                # Pressure border conditions ====================================================
-                for i in range(0, self.nZ - 1):  # Loop in Z
-                    for j in range(0, self.ntheta - 1):  # Loop in THETA
-                        if P[i, j] < 0:
-                            P[i, j] = 0
+                ## Pressure border conditions ====================================================
+                # for i in range(0, self.nZ - 1):  # Loop in Z
+                #    for j in range(0, self.ntheta - 1):  # Loop in THETA
+                #        if P[i, j] < 0:
+                #            P[i, j] = 0
 
                 # Dimmensional pressure determination in Pascals
                 Pdim = (P * self.mi_ref * self.war * (self.Rs ** 2)) / (self.Cr ** 2)
 
                 # Full pressure field with borders
-                PPdim = np.zeros((self.nZ + 1, self.ntheta + 1))
+                PPdim = np.zeros((self.nZ + 2, self.ntheta + 2))
 
-                for i in range(0, self.nZ - 1):  # Loop in Z
-                    for j in range(0, self.ntheta - 1):  # Loop in THETA
+                for i in range(1, self.nZ + 1):  # Loop in Z
+                    for j in range(1, self.ntheta + 1):  # Loop in THETA
                         PPdim[i, j] = Pdim[i - 1, j - 1]
 
                 # %%%%%%%%%%%%%%%%%%% Temperature field solution %%%%%%%%%%%%%%%%%%%
@@ -1295,8 +1295,8 @@ class Tilting:
                 1,
             ]
 
-            auxFx = auxP * vector_auxF_x.T
-            auxFy = auxP * vector_auxF_y.T
+            auxFx = np.dot(auxP, vector_auxF_x.T)
+            auxFy = np.dot(auxP, vector_auxF_y.T)
 
             fxj[n_p] = -np.sum(auxFx)
             fyj = -np.sum(auxFy)
