@@ -1932,7 +1932,7 @@ def seal_example():
 
     Examples
     --------
-    >>> seal = bearing_example()
+    >>> seal = seal_example()
     >>> seal.frequency[0]
     0.0
     """
@@ -1954,9 +1954,9 @@ def bearing_6dof_example():
 
     Examples
     --------
-    >>> bearing = bearing_example()
-    >>> bearing.frequency[0]
-    0.0
+    >>> bearing = bearing_6dof_example()
+    >>> bearing.kxx
+    [1000000.0]
     """
     bearing = BearingElement6DoF(
         n=0, kxx=1e6, kyy=0.8e6, cxx=2e2, cyy=1.5e2, kzz=1e5, czz=0.5e2
