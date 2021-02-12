@@ -153,11 +153,12 @@ class Tilting:
 
         # Pressure field
         P = np.zeros((self.ntheta, self.ntheta))
-        P1 = np.zeros((self.ntheta + 1, self.ntheta + 1, npad + 1))
+        # P1 = np.zeros((self.ntheta + 2, self.ntheta + 2, npad))
+        P1 = np.zeros((self.ntheta, self.ntheta, npad))
 
         # Temperature field
         T = np.zeros((self.nN, self.ntheta))
-        T1 = np.zeros((self.nN + 2, self.ntheta + 2, npad + 1))
+        T1 = np.zeros((self.nN + 2, self.ntheta + 2, npad))
 
         # Field derivatives
         dudx = np.zeros((self.nN + 2))
@@ -1267,8 +1268,9 @@ class Tilting:
 
             # WHILE ENDS HERE ==========================================================
 
-            T1[:, :, n_p] = T_novo[:, :]
-            P1[:, :, n_p] = PPdim
+            T1[:, :, n_p] = T_novo
+            # P1[:, :, n_p] = PPdim
+            P1[:, :, n_p] = Pdim
 
             yh = (
                 self.Rs
@@ -1283,10 +1285,11 @@ class Tilting:
                 YH[:, jj, n_p] = aux_yh[::-1]
 
             # Integration of pressure field - HydroForces
-            auxF = np.array([np.cos(self.Xtheta[1:-2]), np.sin(self.Xtheta[1:-2])])
+            auxF = np.array([np.cos(self.Xtheta[1:-1]), np.sin(self.Xtheta[1:-1])])
             dA = self.dx * self.dz
 
-            auxP = P1[1:-1, 1:-1, n_p] * dA
+            # auxP = P1[1:-2, 1:-2, n_p] * dA
+            auxP = P1[:, :, n_p] * dA
 
             vector_auxF_x = auxF[
                 0,
