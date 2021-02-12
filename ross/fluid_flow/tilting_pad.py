@@ -153,11 +153,11 @@ class Tilting:
 
         # Pressure field
         P = np.zeros((self.ntheta, self.ntheta))
-        P1 = np.zeros((self.ntheta, self.ntheta, npad))
+        P1 = np.zeros((self.ntheta + 1, self.ntheta + 1, npad + 1))
 
         # Temperature field
         T = np.zeros((self.nN, self.ntheta))
-        T1 = np.zeros((self.nN + 2, self.ntheta + 2, npad))
+        T1 = np.zeros((self.nN + 2, self.ntheta + 2, npad + 1))
 
         # Field derivatives
         dudx = np.zeros((self.nN + 2))
