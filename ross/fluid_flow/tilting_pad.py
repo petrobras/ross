@@ -135,7 +135,7 @@ class Tilting:
         T_ref = self.Tcuba
 
         # Startup
-        npad = self.npad - 1
+        npad = self.npad
         Tmist = T_ref * np.ones((self.nN + 2))
 
         # Initial viscosity field
@@ -681,7 +681,7 @@ class Tilting:
                             )
 
                             # vw(ki,kj,kk)=dPdz*G1-(FF1/FF0*dPdz)*G0;
-                            vw[ki, kj, kk] = dPdz * G1 - (FF1 / FF0 * dPdz) * G0
+                            vw[ki, kj, kk] = dPdz * G1 - ((FF1 / FF0) * dPdz) * G0
 
                             kj = kj + 1
 
@@ -944,7 +944,7 @@ class Tilting:
                         us = 0.5 * (uP + uS)
 
                         ve = 0.5 * (vP + vE)
-                        vw = 0.5 * (vP + vW)
+                        # vw = 0.5 * (vP + vW)
                         vn = 0.5 * (vP + vN)
                         vs = 0.5 * (vP + vS)
 
@@ -1278,11 +1278,12 @@ class Tilting:
                     + np.cos(self.Xtheta) * (xr + self.Rs - self.R - self.Cr)
                 )
             )
-            for jj in range(0, self.nX + 1):
-                YH[:, jj, n_p] = np.fliplr(np.linspace(0, yh[jj], self.nN + 2))
+            for jj in range(0, self.nX + 2):
+                aux_yh = np.linspace(0, yh[jj], self.nN + 2)
+                YH[:, jj, n_p] = aux_yh[::-1]
 
             # Integration of pressure field - HydroForces
-            auxF = np.array([np.cos(self.Xtheta[0:-1]), np.sin(self.Xtheta[0:-1])])
+            auxF = np.array([np.cos(self.Xtheta[1:-2]), np.sin(self.Xtheta[1:-2])])
             dA = self.dx * self.dz
 
             auxP = P1[1:-1, 1:-1, n_p] * dA
@@ -1307,6 +1308,7 @@ class Tilting:
 
         # END PADS FOR LOOP ===============================================================
 
+        score = np.zeros([self.npad])
         score[0] = My[0]
         score[1] = My[1]
         score[2] = My[2]
@@ -1368,7 +1370,6 @@ if __name__ == "__main__":
     alpha = 0  # * (2 * np.pi * 5) * alpha
 
     # Geometric parameters for the bearing --------------------------------------------
-
     # Journal radius
     R = 0.5 * 930e-3
 
@@ -1387,8 +1388,8 @@ if __name__ == "__main__":
     # Bength of bearing
     L = 197e-3  # [m]
 
-    # Angular position of the pivot
-    sigma = np.array([0, 300, 60])  # [degree]
+    # Angular position of the pivots [degrees]
+    sigma = np.array([0, 60, 120, 180, 240, 300])
 
     # Bearing loading
     fR = 90.6e3  # [N]
@@ -1400,7 +1401,6 @@ if __name__ == "__main__":
     T_ref = Tcuba  # [Celsius]
 
     # Thermal properties for the oil ----------------------------------------------------
-
     # Thermal conductivity
     kt = 0.07031 * np.exp(484.1 / (Tcuba + 273.15 + 474))  # [J/s.m.C]
 
