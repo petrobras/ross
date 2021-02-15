@@ -289,15 +289,21 @@ class Crack(Defect):
         self.forces_crack = np.zeros((self.ndof, len(t_eval)))
 
         for ii in range(self.n_disk):
-            self.tetaUNB[ii, :] = self.angular_position + self.unbalance_phase[ii] + np.pi / 2
+            self.tetaUNB[ii, :] = (
+                self.angular_position + self.unbalance_phase[ii] + np.pi / 2
+            )
 
             unbx = self.unbalance_magnitude[ii] * (self.AccelV) * (
                 np.cos(self.tetaUNB[ii, :])
-            ) - self.unbalance_magnitude[ii] * ((self.Omega ** 2)) * (np.sin(self.tetaUNB[ii, :]))
+            ) - self.unbalance_magnitude[ii] * ((self.Omega ** 2)) * (
+                np.sin(self.tetaUNB[ii, :])
+            )
 
             unby = -self.unbalance_magnitude[ii] * (self.AccelV) * (
                 np.sin(self.tetaUNB[ii, :])
-            ) - self.unbalance_magnitude[ii] * (self.Omega ** 2) * (np.cos(self.tetaUNB[ii, :]))
+            ) - self.unbalance_magnitude[ii] * (self.Omega ** 2) * (
+                np.cos(self.tetaUNB[ii, :])
+            )
 
             FFunb[int(self.ndofd[ii]), :] += unbx
             FFunb[int(self.ndofd[ii] + 1), :] += unby
