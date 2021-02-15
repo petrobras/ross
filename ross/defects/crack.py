@@ -34,8 +34,8 @@ class Crack(Defect):
         Crack depth
     n_crack : float
         Element where the crack is located
-    speed : float
-        Operational speed of the machine
+    speed : float, pint.Quantity
+        Operational speed of the machine. Default is rad/s.
     unbalance_magnitude : array
         Array with the unbalance magnitude. The unit is kg.m.
     unbalance_phase : array
