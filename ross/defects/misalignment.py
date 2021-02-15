@@ -14,7 +14,7 @@ import scipy.linalg
 
 import ross
 from ross.results import TimeResponseResults
-from ross.units import Q_
+from ross.units import Q_, check_units
 
 from .abs_defect import Defect
 from .integrate_solver import Integrator
@@ -54,9 +54,9 @@ class MisalignmentFlex(Defect):
         Node where the misalignment is ocurring.
     speed : float
         Operational speed of the machine.
-    massunb : array
+    unbalance_magnitude : array
         Array with the unbalance magnitude. The unit is kg.m.
-    phaseunb : array
+    unbalance_phase : array
         Array with the unbalance phase. The unit is rad.
     mis_type: string
         String containing the misalignment type choosed. The avaible types are: parallel, by default; angular; combined.
@@ -84,7 +84,7 @@ class MisalignmentFlex(Defect):
     >>> fig = response.plot_dfft(probe=[probe1, probe2], range_freq=[0, 100], yaxis_type="log")
     >>> # fig.show()
     """
-
+    @check_units
     def __init__(
         self,
         dt,
@@ -99,8 +99,8 @@ class MisalignmentFlex(Defect):
         TL,
         n1,
         speed,
-        massunb,
-        phaseunb,
+        unbalance_magnitude,
+        unbalance_phase,
         mis_type,
         print_progress=False,
     ):
@@ -117,8 +117,8 @@ class MisalignmentFlex(Defect):
         self.n1 = n1
         self.n2 = n1 + 1
         self.speed = speed
-        self.MassUnb = massunb
-        self.PhaseUnb = phaseunb
+        self.MassUnb = unbalance_magnitude
+        self.PhaseUnb = unbalance_phase
 
         self.speedI = speed
         self.speedF = speed

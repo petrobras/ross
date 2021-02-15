@@ -12,7 +12,7 @@ import scipy.linalg
 
 import ross
 from ross.results import TimeResponseResults
-from ross.units import Q_
+from ross.units import Q_, check_units
 
 from .abs_defect import Defect
 from .integrate_solver import Integrator
@@ -41,9 +41,9 @@ class Crack(Defect):
         Element where the crack is located
     speed : float
         Operational speed of the machine
-    massunb : array
+    unbalance_magnitude : array
         Array with the unbalance magnitude. The unit is kg.m.
-    phaseunb : array
+    unbalance_phase : array
         Array with the unbalance phase. The unit is rad.
     crack_type : string
         String containing type of crack model chosed. The avaible types are: Mayes and Gasch.
@@ -73,7 +73,7 @@ class Crack(Defect):
     >>> fig = response.plot_dfft(probe=[probe1, probe2], range_freq=[0, 100], yaxis_type="log")
     >>> # fig.show()
     """
-
+    @check_units
     def __init__(
         self,
         dt,
@@ -82,8 +82,8 @@ class Crack(Defect):
         cd,
         n_crack,
         speed,
-        massunb,
-        phaseunb,
+        unbalance_magnitude,
+        unbalance_phase,
         crack_type="Mayes",
         print_progress=False,
     ):
@@ -96,8 +96,8 @@ class Crack(Defect):
         self.speed = speed
         self.speedI = speed
         self.speedF = speed
-        self.MassUnb = massunb
-        self.PhaseUnb = phaseunb
+        self.MassUnb = unbalance_magnitude
+        self.PhaseUnb = unbalance_phase
         self.print_progress = print_progress
 
         if crack_type is None or crack_type == "Mayes":

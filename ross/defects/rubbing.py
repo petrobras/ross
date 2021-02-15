@@ -8,7 +8,7 @@ import scipy.linalg
 
 import ross
 from ross.results import TimeResponseResults
-from ross.units import Q_
+from ross.units import Q_, check_units
 
 from .abs_defect import Defect
 from .integrate_solver import Integrator
@@ -42,9 +42,9 @@ class Rubbing(Defect):
         Node where the rubbing is ocurring.
     speed : float
         Operational speed of the machine.
-    massunb : array
+    unbalance_magnitude : array
         Array with the unbalance magnitude. The unit is kg.m.
-    phaseunb : array
+    unbalance_phase : array
         Array with the unbalance phase. The unit is rad.
     torque : bool
         Set it as True to consider the torque provided by the rubbing, by default False.
@@ -69,7 +69,7 @@ class Rubbing(Defect):
     >>> fig = response.plot_dfft(probe=[probe1, probe2], range_freq=[0, 100], yaxis_type="log")
     >>> # fig.show()
     """
-
+    @check_units
     def __init__(
         self,
         dt,
@@ -81,8 +81,8 @@ class Rubbing(Defect):
         miRUB,
         posRUB,
         speed,
-        massunb,
-        phaseunb,
+        unbalance_magnitude,
+        unbalance_phase,
         torque=False,
         print_progress=False,
     ):
@@ -100,8 +100,8 @@ class Rubbing(Defect):
         self.speedF = speed
         self.DoF = np.arange((self.posRUB * 6), (self.posRUB * 6 + 6))
         self.torque = torque
-        self.MassUnb = massunb
-        self.PhaseUnb = phaseunb
+        self.MassUnb = unbalance_magnitude
+        self.PhaseUnb = unbalance_phase
         self.print_progress = print_progress
 
         if len(self.MassUnb) != len(self.PhaseUnb):
