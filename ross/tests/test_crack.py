@@ -94,6 +94,28 @@ def crack_mayes():
 
 
 @pytest.fixture
+def crack_mayes_units():
+
+    unbalance_magnitudet = Q_(np.array([0.043398083107259365, 0]), "lb*in")
+    unbalance_phaset = Q_(np.array([-90.0, 0.0]), "degrees")
+
+    crack = rotor.run_crack(
+        dt=0.01,
+        tI=0,
+        tF=0.5,
+        depth=Q_(7.874015748031496, "inches"),
+        n_crack=18,
+        speed=Q_(11459.155902616465, "RPM"),
+        unbalance_magnitude=unbalance_magnitudet,
+        unbalance_phase=unbalance_phaset,
+        crack_type="Mayes",
+        print_progress=False,
+    )
+
+    return crack
+
+
+@pytest.fixture
 def crack_gasch():
 
     unbalance_magnitudet = np.array([5e-4, 0])
@@ -124,6 +146,15 @@ def test_crack_mayes_parameters(crack_mayes):
     assert crack_mayes.speed == 1200
 
 
+def test_crack_mayes_parameters_units(crack_mayes_units):
+    assert crack_mayes_units.dt == 0.01
+    assert crack_mayes_units.tI == 0
+    assert crack_mayes_units.tF == 0.5
+    assert crack_mayes_units.depth == 0.2
+    assert crack_mayes_units.n_crack == 18
+    assert crack_mayes_units.speed == 1200
+
+
 def test_crack_mayes_parameters(crack_gasch):
     assert crack_gasch.dt == 0.01
     assert crack_gasch.tI == 0
@@ -135,6 +166,21 @@ def test_crack_mayes_parameters(crack_gasch):
 
 def test_crack_mayes_kc(crack_mayes):
     assert crack_mayes.kc == pytest.approx(
+        # fmt: off
+        np.array([[ 3.30362822e+08,  1.90566722e+07, -4.61655368e+05,
+         4.91833707e+06],
+       [ 1.90566722e+07,  2.73811859e+08, -3.54836778e+06,
+         4.61655368e+05],
+       [-4.61655368e+05, -3.54836778e+06,  8.59606031e+04,
+        -1.11837826e+04],
+       [ 4.91833707e+06,  4.61655368e+05, -1.11837826e+04,
+         1.19148647e+05]])
+        # fmt: on
+    )
+
+
+def test_crack_mayes_kc_units(crack_mayes_units):
+    assert crack_mayes_units.kc == pytest.approx(
         # fmt: off
         np.array([[ 3.30362822e+08,  1.90566722e+07, -4.61655368e+05,
          4.91833707e+06],
