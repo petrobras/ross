@@ -74,8 +74,8 @@ rotor = rs.Rotor(shaft_elem, [disk0, disk1], [bearing0, bearing1])
 @pytest.fixture
 def crack_mayes():
 
-    massunbt = np.array([5e-4, 0])
-    phaseunbt = np.array([-np.pi / 2, 0])
+    unbalance_magnitudet = np.array([5e-4, 0])
+    unbalance_phaset = np.array([-np.pi / 2, 0])
 
     crack = rotor.run_crack(
         dt=0.01,
@@ -84,8 +84,8 @@ def crack_mayes():
         cd=0.2,
         n_crack=18,
         speed=1200,
-        massunb=massunbt,
-        phaseunb=phaseunbt,
+        unbalance_magnitude=unbalance_magnitudet,
+        unbalance_phase=unbalance_phaset,
         crack_type="Mayes",
         print_progress=False,
     )
@@ -96,8 +96,8 @@ def crack_mayes():
 @pytest.fixture
 def crack_gasch():
 
-    massunbt = np.array([5e-4, 0])
-    phaseunbt = np.array([-np.pi / 2, 0])
+    unbalance_magnitudet = np.array([5e-4, 0])
+    unbalance_phaset = np.array([-np.pi / 2, 0])
 
     crack = rotor.run_crack(
         dt=0.01,
@@ -106,8 +106,8 @@ def crack_gasch():
         cd=0.2,
         n_crack=18,
         speed=1200,
-        massunb=massunbt,
-        phaseunb=phaseunbt,
+        unbalance_magnitude=unbalance_magnitudet,
+        unbalance_phase=unbalance_phaset,
         crack_type="Gasch",
         print_progress=False,
     )

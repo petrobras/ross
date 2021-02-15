@@ -74,8 +74,8 @@ rotor = rs.Rotor(shaft_elem, [disk0, disk1], [bearing0, bearing1])
 @pytest.fixture
 def rub():
 
-    massunbt = np.array([5e-4, 0])
-    phaseunbt = np.array([-np.pi / 2, 0])
+    unbalance_magnitudet = np.array([5e-4, 0])
+    unbalance_phaset = np.array([-np.pi / 2, 0])
 
     rubbing = rotor.run_rubbing(
         dt=0.001,
@@ -87,8 +87,8 @@ def rub():
         miRUB=0.3,
         posRUB=12,
         speed=1200,
-        massunb=massunbt,
-        phaseunb=phaseunbt,
+        unbalance_magnitude=unbalance_magnitudet,
+        unbalance_phase=unbalance_phaset,
         print_progress=True,
     )
 

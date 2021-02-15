@@ -528,9 +528,9 @@ class MisalignmentRigid(Defect):
         Node where the misalignment is ocurring.
     speed : float
         Operational speed of the machine.
-    massunb : array
+    unbalance_magnitude : array
         Array with the unbalance magnitude. The unit is kg.m.
-    phaseunb : array
+    unbalance_phase : array
         Array with the unbalance phase. The unit is rad.
     print_progress : bool
         Set it True, to print the time iterations and the total time spent.
@@ -555,7 +555,7 @@ class MisalignmentRigid(Defect):
     >>> fig = response.plot_dfft(probe=[probe1, probe2], range_freq=[0, 100], yaxis_type="log")
     >>> # fig.show
     """
-
+    @check_units
     def __init__(
         self,
         dt,
@@ -566,8 +566,8 @@ class MisalignmentRigid(Defect):
         TL,
         n1,
         speed,
-        massunb,
-        phaseunb,
+        unbalance_magnitude,
+        unbalance_phase,
         print_progress=False,
     ):
         self.dt = dt
@@ -581,8 +581,8 @@ class MisalignmentRigid(Defect):
         self.speed = speed
         self.speedI = speed
         self.speedF = speed
-        self.MassUnb = massunb
-        self.PhaseUnb = phaseunb
+        self.MassUnb = unbalance_magnitude
+        self.PhaseUnb = unbalance_phase
         self.DoF = np.arange((self.n1 * 6), (self.n2 * 6 + 6))
         self.print_progress = print_progress
 
@@ -978,8 +978,8 @@ def misalignment_flex_parallel_example():
         TL=0,
         n1=0,
         speed=1200,
-        massunb=np.array([5e-4, 0]),
-        phaseunb=np.array([-np.pi / 2, 0]),
+        unbalance_magnitude=np.array([5e-4, 0]),
+        unbalance_phase=np.array([-np.pi / 2, 0]),
         mis_type="parallel",
         print_progress=False,
     )
@@ -1022,8 +1022,8 @@ def misalignment_flex_angular_example():
         TL=0,
         n1=0,
         speed=1200,
-        massunb=np.array([5e-4, 0]),
-        phaseunb=np.array([-np.pi / 2, 0]),
+        unbalance_magnitude=np.array([5e-4, 0]),
+        unbalance_phase=np.array([-np.pi / 2, 0]),
         mis_type="angular",
         print_progress=False,
     )
@@ -1066,8 +1066,8 @@ def misalignment_flex_combined_example():
         TL=0,
         n1=0,
         speed=1200,
-        massunb=np.array([5e-4, 0]),
-        phaseunb=np.array([-np.pi / 2, 0]),
+        unbalance_magnitude=np.array([5e-4, 0]),
+        unbalance_phase=np.array([-np.pi / 2, 0]),
         mis_type="combined",
         print_progress=False,
     )
@@ -1106,8 +1106,8 @@ def misalignment_rigid_example():
         TL=0,
         n1=0,
         speed=1200,
-        massunb=np.array([5e-4, 0]),
-        phaseunb=np.array([-np.pi / 2, 0]),
+        unbalance_magnitude=np.array([5e-4, 0]),
+        unbalance_phase=np.array([-np.pi / 2, 0]),
         print_progress=False,
     )
 

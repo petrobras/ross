@@ -629,8 +629,8 @@ def crack_example():
         cd=0.2,
         n_crack=18,
         speed=1200,
-        massunb=np.array([5e-4, 0]),
-        phaseunb=np.array([-np.pi / 2, 0]),
+        unbalance_magnitude=np.array([5e-4, 0]),
+        unbalance_phase=np.array([-np.pi / 2, 0]),
         crack_type="Mayes",
         print_progress=False,
     )

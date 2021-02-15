@@ -74,8 +74,8 @@ rotor = rs.Rotor(shaft_elem, [disk0, disk1], [bearing0, bearing1])
 @pytest.fixture
 def mis_comb():
 
-    massunbt = np.array([5e-4, 0])
-    phaseunbt = np.array([-np.pi / 2, 0])
+    unbalance_magnitudet = np.array([5e-4, 0])
+    unbalance_phaset = np.array([-np.pi / 2, 0])
 
     misalignment = rotor.run_misalignment(
         coupling="flex",
@@ -91,8 +91,8 @@ def mis_comb():
         TL=0,
         n1=0,
         speed=1200,
-        massunb=massunbt,
-        phaseunb=phaseunbt,
+        unbalance_magnitude=unbalance_magnitudet,
+        unbalance_phase=unbalance_phaset,
         mis_type="combined",
         print_progress=False,
     )
@@ -196,8 +196,8 @@ def test_mis_comb_forces(mis_comb):
 @pytest.fixture
 def mis_parallel():
 
-    massunbt = np.array([5e-4, 0])
-    phaseunbt = np.array([-np.pi / 2, 0])
+    unbalance_magnitudet = np.array([5e-4, 0])
+    unbalance_phaset = np.array([-np.pi / 2, 0])
 
     misalignment = rotor.run_misalignment(
         coupling="flex",
@@ -213,8 +213,8 @@ def mis_parallel():
         TL=0,
         n1=0,
         speed=1200,
-        massunb=massunbt,
-        phaseunb=phaseunbt,
+        unbalance_magnitude=unbalance_magnitudet,
+        unbalance_phase=unbalance_phaset,
         mis_type="parallel",
         print_progress=False,
     )
@@ -316,8 +316,8 @@ def test_mis_parallel_forces(mis_parallel):
 @pytest.fixture
 def mis_angular():
 
-    massunbt = np.array([5e-4, 0])
-    phaseunbt = np.array([-np.pi / 2, 0])
+    unbalance_magnitudet = np.array([5e-4, 0])
+    unbalance_phaset = np.array([-np.pi / 2, 0])
 
     misalignment = rotor.run_misalignment(
         coupling="flex",
@@ -333,8 +333,8 @@ def mis_angular():
         TL=0,
         n1=0,
         speed=1200,
-        massunb=massunbt,
-        phaseunb=phaseunbt,
+        unbalance_magnitude=unbalance_magnitudet,
+        unbalance_phase=unbalance_phaset,
         mis_type="angular",
         print_progress=False,
     )
@@ -442,8 +442,8 @@ def test_mis_angular_forces(mis_angular):
 @pytest.fixture
 def mis_rigid():
 
-    massunbt = np.array([5e-4, 0])
-    phaseunbt = np.array([-np.pi / 2, 0])
+    unbalance_magnitudet = np.array([5e-4, 0])
+    unbalance_phaset = np.array([-np.pi / 2, 0])
 
     misalignment = rotor.run_misalignment(
         coupling="rigid",
@@ -455,8 +455,8 @@ def mis_rigid():
         TL=0,
         n1=0,
         speed=1200,
-        massunb=massunbt,
-        phaseunb=phaseunbt,
+        unbalance_magnitude=unbalance_magnitudet,
+        unbalance_phase=unbalance_phaset,
         print_progress=False,
     )
 
