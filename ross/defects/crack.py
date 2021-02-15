@@ -30,12 +30,12 @@ class Crack(Defect):
         Initial time
     tF : float
         Final time
-    cd : float
-        Crack depth
+    depth : float, pint.Quantity
+        Crack depth. Default unit is meter.
     n_crack : float
         Element where the crack is located
     speed : float, pint.Quantity
-        Operational speed of the machine. Default is rad/s.
+        Operational speed of the machine. Default unit is rad/s.
     unbalance_magnitude : array
         Array with the unbalance magnitude. The unit is kg.m.
     unbalance_phase : array
@@ -75,7 +75,7 @@ class Crack(Defect):
         dt,
         tI,
         tF,
-        cd,
+        depth,
         n_crack,
         speed,
         unbalance_magnitude,
@@ -87,7 +87,7 @@ class Crack(Defect):
         self.dt = dt
         self.tI = tI
         self.tF = tF
-        self.cd = cd
+        self.depth = depth
         self.n_crack = n_crack
         self.speed = speed
         self.speedI = speed
@@ -198,7 +198,7 @@ class Crack(Defect):
         c55 = self._get_coefs("c55")
         c45 = self._get_coefs("c45")
 
-        if self.cd == 0:
+        if self.depth == 0:
             Cc = Co
         else:
             Cc = Co + np.array(
@@ -509,7 +509,7 @@ class Crack(Defect):
         """
 
         c = np.array(pd.eval(self.data_coefs[coef]))
-        aux = np.where(c[:, 1] >= self.cd * 2)[0]
+        aux = np.where(c[:, 1] >= self.depth * 2)[0]
         c = c[aux[0], 0] * (1 - self.Poisson ** 2) / (self.E * (self.radius ** 3))
 
         return c
@@ -622,7 +622,7 @@ def crack_example():
         dt=0.0001,
         tI=0,
         tF=0.5,
-        cd=0.2,
+        depth=0.2,
         n_crack=18,
         speed=1200,
         unbalance_magnitude=np.array([5e-4, 0]),

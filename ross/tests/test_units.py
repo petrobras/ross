@@ -14,11 +14,11 @@ def auxiliary_function():
     # fmt: off
     @check_units
     def func(E, G_s, rho, L, idl, idr, odl, odr, speed, frequency, m, mx, my, Ip, Id,
-             width, i_d, o_d, kxx, kxy, kxz, kyx, kyy, kyz, kzx, kzy, kzz, cxx, cxy,
+             width, depth, i_d, o_d, kxx, kxy, kxz, kyx, kyy, kyz, kzx, kzy, kzz, cxx, cxy,
              cxz, cyx, cyy, cyz, czx, czy, czz, unbalance_magnitude, unbalance_phase):
         return (
             E, G_s, rho, L, idl, idr, odl, odr, speed, frequency, m, mx, my, Ip, Id,
-            width, i_d, o_d, kxx, kxy, kxz, kyx, kyy, kyz, kzx, kzy, kzz, cxx, cxy,
+            width, depth, i_d, o_d, kxx, kxy, kxz, kyx, kyy, kyz, kzx, kzy, kzz, cxx, cxy,
             cxz, cyx, cyy, cyz, czx, czy, czz, unbalance_magnitude, unbalance_phase
         )
     # fmt: on
@@ -29,7 +29,7 @@ def test_units(auxiliary_function):
     # fmt: off
     results = auxiliary_function(
         E=1, G_s=1, rho=1, L=1, idl=1, idr=1, odl=1, odr=1, speed=1, frequency=1,
-        m=1, mx=1, my=1, Ip=1, Id=1, width=1, i_d=1, o_d=1, kxx=1, kxy=1, kxz=1, kyx=1,
+        m=1, mx=1, my=1, Ip=1, Id=1, width=1,  depth=1, i_d=1, o_d=1, kxx=1, kxy=1, kxz=1, kyx=1,
         kyy=1, kyz=1, kzx=1, kzy=1, kzz=1, cxx=1, cxy=1, cxz=1, cyx=1, cyy=1, cyz=1,
         czx=1, czy=1, czz=1, unbalance_magnitude=1, unbalance_phase=1
     )
@@ -37,7 +37,7 @@ def test_units(auxiliary_function):
     assert len(results) == len(units)
 
     (E, G_s, rho, L, idl, idr, odl, odr, speed, frequency, m, mx, my, Ip, Id,
-     width, i_d, o_d, kxx, kxy, kxz, kyx, kyy, kyz, kzx, kzy, kzz, cxx, cxy,
+     width, depth, i_d, o_d, kxx, kxy, kxz, kyx, kyy, kyz, kzx, kzy, kzz, cxx, cxy,
      cxz, cyx, cyy, cyz, czx, czy, czz, unbalance_magnitude, unbalance_phase) = results
     # fmt: on
 
@@ -57,6 +57,7 @@ def test_units(auxiliary_function):
     assert Ip == 1
     assert Id == 1
     assert width == 1
+    assert depth == 1
     assert i_d == 1
     assert o_d == 1
     assert kxx == 1
@@ -99,6 +100,7 @@ def test_unit_Q_(auxiliary_function):
         Ip=Q_(1, "kg*m**2"),
         Id=Q_(1, "kg*m**2"),
         width=Q_(1, "meter"),
+        depth=Q_(1, "meter"),
         i_d=Q_(1, "meter"),
         o_d=Q_(1, "meter"),
         kxx=Q_(1, "N/m"),
@@ -127,7 +129,7 @@ def test_unit_Q_(auxiliary_function):
     assert len(results) == len(units)
     # fmt: off
     (E, G_s, rho, L, idl, idr, odl, odr, speed, frequency, m, mx, my, Ip, Id,
-     width, i_d, o_d, kxx, kxy, kxz, kyx, kyy, kyz, kzx, kzy, kzz, cxx, cxy,
+     width, depth, i_d, o_d, kxx, kxy, kxz, kyx, kyy, kyz, kzx, kzy, kzz, cxx, cxy,
      cxz, cyx, cyy, cyz, czx, czy, czz, unbalance_magnitude, unbalance_phase) = results
     # fmt: on
 
@@ -147,6 +149,7 @@ def test_unit_Q_(auxiliary_function):
     assert Ip == 1
     assert Id == 1
     assert width == 1
+    assert depth == 1
     assert i_d == 1
     assert o_d == 1
     assert kxx == 1
@@ -189,6 +192,7 @@ def test_unit_Q_conversion(auxiliary_function):
         Ip=Q_(1, "lb*in**2"),
         Id=Q_(1, "lb*in**2"),
         width=Q_(1, "inches"),
+        depth=Q_(1, "inches"),
         i_d=Q_(1, "inches"),
         o_d=Q_(1, "inches"),
         kxx=Q_(1, "lbf/in"),
@@ -218,7 +222,7 @@ def test_unit_Q_conversion(auxiliary_function):
 
     # fmt: off
     (E, G_s, rho, L, idl, idr, odl, odr, speed, frequency, m, mx, my, Ip, Id,
-     width, i_d, o_d, kxx, kxy, kxz, kyx, kyy, kyz, kzx, kzy, kzz, cxx, cxy,
+     width, depth, i_d, o_d, kxx, kxy, kxz, kyx, kyy, kyz, kzx, kzy, kzz, cxx, cxy,
      cxz, cyx, cyy, cyz, czx, czy, czz, unbalance_magnitude, unbalance_phase) = results
     # fmt: on
 
@@ -238,6 +242,7 @@ def test_unit_Q_conversion(auxiliary_function):
     assert Ip == 0.0002926396534292
     assert Id == 0.0002926396534292
     assert width == 0.0254
+    assert depth == 0.0254
     assert i_d == 0.0254
     assert o_d == 0.0254
     assert kxx == 175.12683524647645

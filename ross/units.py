@@ -34,6 +34,7 @@ units = {
     "Ip": "kg*m**2",
     "Id": "kg*m**2",
     "width": "meter",
+    "depth": "meter",
     "i_d": "meter",
     "o_d": "meter",
     "unbalance_magnitude": "kg*m",

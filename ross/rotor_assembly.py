@@ -2662,7 +2662,7 @@ class Rotor(object):
                     Initial time
                 tF : float
                     Final time
-                cd : float
+                depth : float
                     Crack depth
                 n_crack : float
                     Element where the crack is located

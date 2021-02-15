@@ -81,7 +81,7 @@ def crack_mayes():
         dt=0.01,
         tI=0,
         tF=0.5,
-        cd=0.2,
+        depth=0.2,
         n_crack=18,
         speed=1200,
         unbalance_magnitude=unbalance_magnitudet,
@@ -103,7 +103,7 @@ def crack_gasch():
         dt=0.01,
         tI=0,
         tF=0.5,
-        cd=0.2,
+        depth=0.2,
         n_crack=18,
         speed=1200,
         unbalance_magnitude=unbalance_magnitudet,
@@ -119,7 +119,7 @@ def test_crack_mayes_parameters(crack_mayes):
     assert crack_mayes.dt == 0.01
     assert crack_mayes.tI == 0
     assert crack_mayes.tF == 0.5
-    assert crack_mayes.cd == 0.2
+    assert crack_mayes.depth == 0.2
     assert crack_mayes.n_crack == 18
     assert crack_mayes.speed == 1200
 
@@ -128,7 +128,7 @@ def test_crack_mayes_parameters(crack_gasch):
     assert crack_gasch.dt == 0.01
     assert crack_gasch.tI == 0
     assert crack_gasch.tF == 0.5
-    assert crack_gasch.cd == 0.2
+    assert crack_gasch.depth == 0.2
     assert crack_gasch.n_crack == 18
     assert crack_gasch.speed == 1200
 
