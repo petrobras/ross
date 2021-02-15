@@ -69,6 +69,7 @@ class Rubbing(Defect):
     >>> fig = response.plot_dfft(probe=[probe1, probe2], range_freq=[0, 100], yaxis_type="log")
     >>> # fig.show()
     """
+
     @check_units
     def __init__(
         self,
