@@ -101,11 +101,11 @@ class Rubbing(Defect):
         self.speedF = speed
         self.DoF = np.arange((self.posRUB * 6), (self.posRUB * 6 + 6))
         self.torque = torque
-        self.MassUnb = unbalance_magnitude
-        self.PhaseUnb = unbalance_phase
+        self.unbalance_magnitude = unbalance_magnitude
+        self.unbalance_phase = unbalance_phase
         self.print_progress = print_progress
 
-        if len(self.MassUnb) != len(self.PhaseUnb):
+        if len(self.unbalance_magnitude) != len(self.unbalance_phase):
             raise Exception(
                 "The unbalance magnitude vector and phase must have the same size!"
             )
@@ -122,7 +122,7 @@ class Rubbing(Defect):
 
         self.rotor = rotor
         self.n_disk = len(self.rotor.disk_elements)
-        if self.n_disk != len(self.MassUnb):
+        if self.n_disk != len(self.unbalance_magnitude):
             raise Exception("The number of discs and unbalances must agree!")
 
         self.ndof = rotor.ndof
@@ -198,7 +198,7 @@ class Rubbing(Defect):
         self.Omega = self.sA + self.sB * np.exp(-self.lambdat * T)
         self.AccelV = -self.lambdat * self.sB * np.exp(-self.lambdat * T)
 
-        self.tetaUNB = np.zeros((len(self.PhaseUnb), len(self.angular_position)))
+        self.tetaUNB = np.zeros((len(self.unbalance_phase), len(self.angular_position)))
         unbx = np.zeros(len(self.angular_position))
         unby = np.zeros(len(self.angular_position))
 
@@ -206,15 +206,15 @@ class Rubbing(Defect):
         self.forces_rub = np.zeros((self.ndof, len(t_eval)))
 
         for ii in range(self.n_disk):
-            self.tetaUNB[ii, :] = self.angular_position + self.PhaseUnb[ii] + np.pi / 2
+            self.tetaUNB[ii, :] = self.angular_position + self.unbalance_phase[ii] + np.pi / 2
 
-            unbx = self.MassUnb[ii] * (self.AccelV) * (
+            unbx = self.unbalance_magnitude[ii] * (self.AccelV) * (
                 np.cos(self.tetaUNB[ii, :])
-            ) - self.MassUnb[ii] * ((self.Omega ** 2)) * (np.sin(self.tetaUNB[ii, :]))
+            ) - self.unbalance_magnitude[ii] * ((self.Omega ** 2)) * (np.sin(self.tetaUNB[ii, :]))
 
-            unby = -self.MassUnb[ii] * (self.AccelV) * (
+            unby = -self.unbalance_magnitude[ii] * (self.AccelV) * (
                 np.sin(self.tetaUNB[ii, :])
-            ) - self.MassUnb[ii] * (self.Omega ** 2) * (np.cos(self.tetaUNB[ii, :]))
+            ) - self.unbalance_magnitude[ii] * (self.Omega ** 2) * (np.cos(self.tetaUNB[ii, :]))
 
             FFunb[int(self.ndofd[ii]), :] += unbx
             FFunb[int(self.ndofd[ii] + 1), :] += unby
