@@ -49,8 +49,8 @@ class MisalignmentFlex(Defect):
         Driven torque.
     n1 : float
         Node where the misalignment is ocurring.
-    speed : float
-        Operational speed of the machine.
+    speed : float, pint.Quantity
+        Operational speed of the machine. Default unit is rad/s.
     unbalance_magnitude : array
         Array with the unbalance magnitude. The unit is kg.m.
     unbalance_phase : array
@@ -524,8 +524,8 @@ class MisalignmentRigid(Defect):
         Driven torque.
     n1 : float
         Node where the misalignment is ocurring.
-    speed : float
-        Operational speed of the machine.
+    speed : float, pint.Quantity    
+        Operational speed of the machine. Default unit is rad/s.
     unbalance_magnitude : array
         Array with the unbalance magnitude. The unit is kg.m.
     unbalance_phase : array

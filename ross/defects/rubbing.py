@@ -37,8 +37,8 @@ class Rubbing(Defect):
         Friction coefficient.
     posRUB : int
         Node where the rubbing is ocurring.
-    speed : float
-        Operational speed of the machine.
+    speed : float, pint.Quantity
+        Operational speed of the machine. Default unit is rad/s.
     unbalance_magnitude : array
         Array with the unbalance magnitude. The unit is kg.m.
     unbalance_phase : array
