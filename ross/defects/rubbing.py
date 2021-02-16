@@ -161,7 +161,12 @@ class Rubbing(Defect):
         self.M = self.rotor.M()
         self.Kst = self.rotor.Kst()
 
-        V1, ModMat = scipy.linalg.eigh(self.K, self.M, type=1, turbo=False,)
+        V1, ModMat = scipy.linalg.eigh(
+            self.K,
+            self.M,
+            type=1,
+            turbo=False,
+        )
 
         ModMat = ModMat[:, :12]
         self.ModMat = ModMat
