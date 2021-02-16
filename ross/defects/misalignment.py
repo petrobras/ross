@@ -236,15 +236,21 @@ class MisalignmentFlex(Defect):
         FFunb = np.zeros((self.ndof, len(t_eval)))
 
         for ii in range(self.n_disk):
-            self.tetaUNB[ii, :] = self.angular_position + self.unbalance_phase[ii] + np.pi / 2
+            self.tetaUNB[ii, :] = (
+                self.angular_position + self.unbalance_phase[ii] + np.pi / 2
+            )
 
             unbx = self.unbalance_magnitude[ii] * (self.AccelV) * (
                 np.cos(self.tetaUNB[ii, :])
-            ) - self.unbalance_magnitude[ii] * ((self.Omega ** 2)) * (np.sin(self.tetaUNB[ii, :]))
+            ) - self.unbalance_magnitude[ii] * ((self.Omega ** 2)) * (
+                np.sin(self.tetaUNB[ii, :])
+            )
 
             unby = -self.unbalance_magnitude[ii] * (self.AccelV) * (
                 np.sin(self.tetaUNB[ii, :])
-            ) - self.unbalance_magnitude[ii] * (self.Omega ** 2) * (np.cos(self.tetaUNB[ii, :]))
+            ) - self.unbalance_magnitude[ii] * (self.Omega ** 2) * (
+                np.cos(self.tetaUNB[ii, :])
+            )
 
             FFunb[int(self.ndofd[ii]), :] += unbx
             FFunb[int(self.ndofd[ii] + 1), :] += unby
@@ -524,7 +530,7 @@ class MisalignmentRigid(Defect):
         Driven torque.
     n1 : float
         Node where the misalignment is ocurring.
-    speed : float, pint.Quantity    
+    speed : float, pint.Quantity
         Operational speed of the machine. Default unit is rad/s.
     unbalance_magnitude : array
         Array with the unbalance magnitude. The unit is kg.m.
@@ -705,15 +711,21 @@ class MisalignmentRigid(Defect):
         FFunb = np.zeros((self.ndof, len(t_eval)))
 
         for ii in range(self.n_disk):
-            self.tetaUNB[ii, :] = self.angular_position + self.unbalance_phase[ii] + np.pi / 2
+            self.tetaUNB[ii, :] = (
+                self.angular_position + self.unbalance_phase[ii] + np.pi / 2
+            )
 
             unbx = self.unbalance_magnitude[ii] * (self.AccelV) * (
                 np.cos(self.tetaUNB[ii, :])
-            ) - self.unbalance_magnitude[ii] * ((self.Omega ** 2)) * (np.sin(self.tetaUNB[ii, :]))
+            ) - self.unbalance_magnitude[ii] * ((self.Omega ** 2)) * (
+                np.sin(self.tetaUNB[ii, :])
+            )
 
             unby = -self.unbalance_magnitude[ii] * (self.AccelV) * (
                 np.sin(self.tetaUNB[ii, :])
-            ) - self.unbalance_magnitude[ii] * (self.Omega ** 2) * (np.cos(self.tetaUNB[ii, :]))
+            ) - self.unbalance_magnitude[ii] * (self.Omega ** 2) * (
+                np.cos(self.tetaUNB[ii, :])
+            )
 
             FFunb[int(self.ndofd[ii]), :] += unbx
             FFunb[int(self.ndofd[ii] + 1), :] += unby

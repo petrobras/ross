@@ -99,6 +99,7 @@ def mis_comb():
 
     return misalignment
 
+
 @pytest.fixture
 def mis_comb_units():
 
@@ -141,6 +142,7 @@ def test_mis_comb_parameters(mis_comb):
     assert mis_comb.TL == 0
     assert mis_comb.n1 == 0
     assert mis_comb.speed == 1200
+
 
 def test_mis_comb_parameters_units(mis_comb_units):
     assert mis_comb_units.dt == 0.1
@@ -233,6 +235,7 @@ def test_mis_comb_forces(mis_comb):
     )
         # fmt: on
     )
+
 
 def test_mis_comb_forces_units(mis_comb_units):
     assert mis_comb_units.forces[mis_comb_units.n1 * 6, :] == pytest.approx(
@@ -340,6 +343,7 @@ def mis_parallel():
 
     return misalignment
 
+
 @pytest.fixture
 def mis_parallel_units():
 
@@ -383,6 +387,7 @@ def test_mis_parallel_parameters(mis_parallel):
     assert mis_parallel.n1 == 0
     assert mis_parallel.speed == 1200
 
+
 def test_mis_parallel_parameters_units(mis_parallel_units):
     assert mis_parallel_units.dt == 0.1
     assert mis_parallel_units.tI == 0
@@ -396,6 +401,7 @@ def test_mis_parallel_parameters_units(mis_parallel_units):
     assert mis_parallel_units.TL == 0
     assert mis_parallel_units.n1 == 0
     assert mis_parallel_units.speed == 1200
+
 
 def test_mis_parallel_forces(mis_parallel):
     assert mis_parallel.forces[mis_parallel.n1 * 6, :] == pytest.approx(
@@ -471,6 +477,7 @@ def test_mis_parallel_forces(mis_parallel):
     )
         # fmt: on
     )
+
 
 def test_mis_parallel_forces_units(mis_parallel_units):
     assert mis_parallel_units.forces[mis_parallel_units.n1 * 6, :] == pytest.approx(
@@ -576,6 +583,7 @@ def mis_angular():
 
     return misalignment
 
+
 @pytest.fixture
 def mis_angular_units():
 
@@ -618,6 +626,7 @@ def test_mis_angular_parameters(mis_angular):
     assert mis_angular.TL == 0
     assert mis_angular.n1 == 0
     assert mis_angular.speed == 1200
+
 
 def test_mis_angular_parameters_units(mis_angular_units):
     assert mis_angular_units.dt == 0.1
@@ -714,6 +723,7 @@ def test_mis_angular_forces(mis_angular):
     )
         # fmt: on
     )
+
 
 def test_mis_angular_forces_units(mis_angular_units):
     assert mis_angular_units.forces[mis_angular_units.n1 * 6, :] == pytest.approx(
@@ -820,6 +830,7 @@ def mis_rigid():
 
     return misalignment
 
+
 @pytest.fixture
 def mis_rigid_units():
 
@@ -853,6 +864,7 @@ def test_mis_rigid_parameters(mis_rigid):
     assert mis_rigid.TL == 0
     assert mis_rigid.n1 == 0
     assert mis_rigid.speed == 1200
+
 
 def test_mis_rigid_parameters_units(mis_rigid_units):
     assert mis_rigid_units.dt == 0.0001

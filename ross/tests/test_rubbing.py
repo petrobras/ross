@@ -94,6 +94,7 @@ def rub():
 
     return rubbing
 
+
 @pytest.fixture
 def rub_units():
 
@@ -128,6 +129,7 @@ def test_rub_parameters(rub):
     assert rub.miRUB == 0.3
     assert rub.posRUB == 12
     assert rub.speed == 1200
+
 
 def test_rub_parameters_units(rub_units):
     assert rub_units.dt == 0.001
@@ -403,6 +405,7 @@ def test_rub_forces(rub):
         0.00000000e+00])
         # fmt: on
     )
+
 
 def test_rub_forces_units(rub_units):
     assert rub_units.forces_rub[rub_units.posRUB * 6, :] == pytest.approx(
