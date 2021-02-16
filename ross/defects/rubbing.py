@@ -1,13 +1,10 @@
 import time
-from abc import ABC, abstractmethod
 
 import numpy as np
-import plotly.graph_objects as go
 import scipy.integrate
 import scipy.linalg
 
 import ross
-from ross.results import TimeResponseResults
 from ross.units import Q_, check_units
 
 from .abs_defect import Defect

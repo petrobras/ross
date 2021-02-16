@@ -4,16 +4,13 @@ This module defines misalignments of various types on the shaft coupling. There 
 a number of options, for the formulation of 6 DoFs (degrees of freedom).
 """
 import time
-from abc import ABC, abstractmethod
 
 import numpy as np
-import plotly.graph_objects as go
 import scipy as sp
 import scipy.integrate
 import scipy.linalg
 
 import ross
-from ross.results import TimeResponseResults
 from ross.units import Q_, check_units
 
 from .abs_defect import Defect
