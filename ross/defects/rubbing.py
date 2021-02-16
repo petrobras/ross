@@ -130,19 +130,16 @@ class Rubbing(Defect):
         for ii in range(self.n_disk):
             self.ndofd[ii] = (self.rotor.disk_elements[ii].n) * 6
 
-        warI = self.speedI * np.pi / 30
-        warF = self.speedF * np.pi / 30
-
         self.lambdat = 0.00001
         # Faxial = 0
         # TorqueI = 0
         # TorqueF = 0
 
         self.sA = (
-            warI * np.exp(-self.lambdat * self.tF)
-            - warF * np.exp(-self.lambdat * self.tI)
+            self.speedI * np.exp(-self.lambdat * self.tF)
+            - self.speedF * np.exp(-self.lambdat * self.tI)
         ) / (np.exp(-self.lambdat * self.tF) - np.exp(-self.lambdat * self.tI))
-        self.sB = (warF - warI) / (
+        self.sB = (self.speedF - self.speedI) / (
             np.exp(-self.lambdat * self.tF) - np.exp(-self.lambdat * self.tI)
         )
 
@@ -158,18 +155,13 @@ class Rubbing(Defect):
         # self.AccelV = -lambdat * sB * np.exp(-lambdat * t)
 
         # Determining the modal matrix
-        self.K = self.rotor.K(self.speedI * np.pi / 30)
-        self.C = self.rotor.C(self.speedI * np.pi / 30)
+        self.K = self.rotor.K(self.speed)
+        self.C = self.rotor.C(self.speed)
         self.G = self.rotor.G()
         self.M = self.rotor.M()
         self.Kst = self.rotor.Kst()
 
-        V1, ModMat = scipy.linalg.eigh(
-            self.K,
-            self.M,
-            type=1,
-            turbo=False,
-        )
+        V1, ModMat = scipy.linalg.eigh(self.K, self.M, type=1, turbo=False,)
 
         ModMat = ModMat[:, :12]
         self.ModMat = ModMat
@@ -543,7 +535,7 @@ def rubbing_example():
     --------
     >>> rubbing = rubbing_example()
     >>> rubbing.speed
-    1200
+    125.66370614359172
     """
 
     rotor = base_rotor_example()
@@ -557,7 +549,7 @@ def rubbing_example():
         cRUB=40,
         miRUB=0.3,
         posRUB=12,
-        speed=1200,
+        speed=Q_(1200, "RPM"),
         unbalance_magnitude=np.array([5e-4, 0]),
         unbalance_phase=np.array([-np.pi / 2, 0]),
         torque=False,

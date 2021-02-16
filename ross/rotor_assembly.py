@@ -2540,8 +2540,8 @@ class Rotor(object):
                     Driven torque.
                 n1 : float
                     Node where the misalignment is ocurring.
-                speed : float
-                    Operational speed of the machine.
+                speed : float, pint.Quantity
+                    Operational speed of the machine. Default unit is rad/s.
                 unbalance_magnitude : array
                     Array with the unbalance magnitude. The unit is kg.m.
                 unbalance_phase : array
@@ -2567,8 +2567,8 @@ class Rotor(object):
                     Driven torque.
                 n1 : float
                     Node where the misalignment is ocurring.
-                speed : float
-                    Operational speed of the machine.
+                speed : float, pint.Quantity
+                    Operational speed of the machine. Default unit is rad/s.
                 unbalance_magnitude : array
                     Array with the unbalance magnitude. The unit is kg.m.
                 unbalance_phase : array
@@ -2622,8 +2622,8 @@ class Rotor(object):
                     Friction coefficient.
                 posRUB : int
                     Node where the rubbing is ocurring.
-                speed : float
-                    Operational speed of the machine.
+                speed : float, pint.Quantity
+                    Operational speed of the machine. Default unit is rad/s.
                 unbalance_magnitude : array
                     Array with the unbalance magnitude. The unit is kg.m.
                 unbalance_phase : array
@@ -2662,12 +2662,12 @@ class Rotor(object):
                     Initial time
                 tF : float
                     Final time
-                depth : float
-                    Crack depth
+                depth_ratio : float
+                    Crack depth ratio. A depth value of 0.1 is equal to 10%, 0.2 equal to 20%, and so on.
                 n_crack : float
                     Element where the crack is located
-                speed : float
-                    Operational speed of the machine
+                speed : float, pint.Quantity
+                    Operational speed of the machine. Default unit is rad/s.
                 unbalance_magnitude : array
                     Array with the unbalance magnitude. The unit is kg.m.
                 unbalance_phase : array

@@ -86,7 +86,7 @@ def rub():
         cRUB=40,
         miRUB=0.3,
         posRUB=12,
-        speed=1200,
+        speed=125.66370614359172,
         unbalance_magnitude=unbalance_magnitudet,
         unbalance_phase=unbalance_phaset,
         print_progress=True,
@@ -110,7 +110,7 @@ def rub_units():
         cRUB=40,
         miRUB=0.3,
         posRUB=12,
-        speed=Q_(11459.155902616465, "RPM"),
+        speed=Q_(1200, "RPM"),
         unbalance_magnitude=unbalance_magnitudet,
         unbalance_phase=unbalance_phaset,
         print_progress=True,
@@ -128,7 +128,7 @@ def test_rub_parameters(rub):
     assert rub.cRUB == 40
     assert rub.miRUB == 0.3
     assert rub.posRUB == 12
-    assert rub.speed == 1200
+    assert rub.speed == 125.66370614359172
 
 
 def test_rub_parameters_units(rub_units):
@@ -140,7 +140,7 @@ def test_rub_parameters_units(rub_units):
     assert rub_units.cRUB == 40
     assert rub_units.miRUB == 0.3
     assert rub_units.posRUB == 12
-    assert rub_units.speed == 1200
+    assert rub_units.speed == 125.66370614359172
 
 
 def test_rub_forces(rub):

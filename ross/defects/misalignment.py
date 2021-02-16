@@ -163,9 +163,6 @@ class MisalignmentFlex(Defect):
             self.ks * self.radius * np.sqrt(2 - 2 * np.cos(self.misalignment_angle))
         )
 
-        warI = self.speedI * np.pi / 30
-        warF = self.speedF * np.pi / 30
-
         # parameters for the time integration
         self.lambdat = 0.00001
         Faxial = 0
@@ -174,10 +171,10 @@ class MisalignmentFlex(Defect):
 
         # pre-processing of auxilary variuables for the time integration
         self.sA = (
-            warI * np.exp(-self.lambdat * self.tF)
-            - warF * np.exp(-self.lambdat * self.tI)
+            self.speedI * np.exp(-self.lambdat * self.tF)
+            - self.speedF * np.exp(-self.lambdat * self.tI)
         ) / (np.exp(-self.lambdat * self.tF) - np.exp(-self.lambdat * self.tI))
-        self.sB = (warF - warI) / (
+        self.sB = (self.speedF - self.speedI) / (
             np.exp(-self.lambdat * self.tF) - np.exp(-self.lambdat * self.tI)
         )
 
@@ -197,8 +194,8 @@ class MisalignmentFlex(Defect):
         # AccelV = -lambdat * sB * np.exp(-lambdat * self.t)
 
         # Determining the modal matrix
-        self.K = self.rotor.K(self.speedI * np.pi / 30)
-        self.C = self.rotor.C(self.speedI * np.pi / 30)
+        self.K = self.rotor.K(self.speed)
+        self.C = self.rotor.C(self.speed)
         self.G = self.rotor.G()
         self.M = self.rotor.M()
         self.Kst = self.rotor.Kst()
@@ -616,9 +613,6 @@ class MisalignmentRigid(Defect):
         for ii in range(self.n_disk):
             self.ndofd[ii] = (self.rotor.disk_elements[ii].n) * 6
 
-        warI = self.speedI * np.pi / 30
-        warF = self.speedF * np.pi / 30
-
         self.lambdat = 0.00001
         # Faxial = 0
         # TorqueI = 0
@@ -626,10 +620,10 @@ class MisalignmentRigid(Defect):
 
         # pre-processing of auxilary variuables for the time integration
         self.sA = (
-            warI * np.exp(-self.lambdat * self.tF)
-            - warF * np.exp(-self.lambdat * self.tI)
+            self.speedI * np.exp(-self.lambdat * self.tF)
+            - self.speedF * np.exp(-self.lambdat * self.tI)
         ) / (np.exp(-self.lambdat * self.tF) - np.exp(-self.lambdat * self.tI))
-        self.sB = (warF - warI) / (
+        self.sB = (self.speedF - self.speedI) / (
             np.exp(-self.lambdat * self.tF) - np.exp(-self.lambdat * self.tI)
         )
 
@@ -649,8 +643,8 @@ class MisalignmentRigid(Defect):
         # self.AccelV = -lambdat * sB * np.exp(-lambdat * t)
 
         # Determining the modal matrix
-        self.K = self.rotor.K(self.speedI * np.pi / 30)
-        self.C = self.rotor.C(self.speedI * np.pi / 30)
+        self.K = self.rotor.K(self.speed)
+        self.C = self.rotor.C(self.speed)
         self.G = self.rotor.G()
         self.M = self.rotor.M()
         self.Kst = self.rotor.Kst()
@@ -970,7 +964,7 @@ def misalignment_flex_parallel_example():
     --------
     >>> misalignment = misalignment_flex_parallel_example()
     >>> misalignment.speed
-    1200
+    125.66370614359172
     """
 
     rotor = base_rotor_example()
@@ -988,7 +982,7 @@ def misalignment_flex_parallel_example():
         TD=0,
         TL=0,
         n1=0,
-        speed=1200,
+        speed=Q_(1200, "RPM"),
         unbalance_magnitude=np.array([5e-4, 0]),
         unbalance_phase=np.array([-np.pi / 2, 0]),
         mis_type="parallel",
@@ -1014,7 +1008,7 @@ def misalignment_flex_angular_example():
     --------
     >>> misalignment = misalignment_flex_angular_example()
     >>> misalignment.speed
-    1200
+    125.66370614359172
     """
 
     rotor = base_rotor_example()
@@ -1032,7 +1026,7 @@ def misalignment_flex_angular_example():
         TD=0,
         TL=0,
         n1=0,
-        speed=1200,
+        speed=Q_(1200, "RPM"),
         unbalance_magnitude=np.array([5e-4, 0]),
         unbalance_phase=np.array([-np.pi / 2, 0]),
         mis_type="angular",
@@ -1058,7 +1052,7 @@ def misalignment_flex_combined_example():
     --------
     >>> misalignment = misalignment_flex_combined_example()
     >>> misalignment.speed
-    1200
+    125.66370614359172
     """
 
     rotor = base_rotor_example()
@@ -1076,7 +1070,7 @@ def misalignment_flex_combined_example():
         TD=0,
         TL=0,
         n1=0,
-        speed=1200,
+        speed=Q_(1200, "RPM"),
         unbalance_magnitude=np.array([5e-4, 0]),
         unbalance_phase=np.array([-np.pi / 2, 0]),
         mis_type="combined",
@@ -1102,7 +1096,7 @@ def misalignment_rigid_example():
     --------
     >>> misalignment = misalignment_rigid_example()
     >>> misalignment.speed
-    1200
+    125.66370614359172
     """
 
     rotor = base_rotor_example()
@@ -1116,7 +1110,7 @@ def misalignment_rigid_example():
         TD=0,
         TL=0,
         n1=0,
-        speed=1200,
+        speed=Q_(1200, "RPM"),
         unbalance_magnitude=np.array([5e-4, 0]),
         unbalance_phase=np.array([-np.pi / 2, 0]),
         print_progress=False,

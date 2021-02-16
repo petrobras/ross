@@ -90,7 +90,7 @@ def mis_comb():
         TD=0,
         TL=0,
         n1=0,
-        speed=1200,
+        speed=125.66370614359172,
         unbalance_magnitude=unbalance_magnitudet,
         unbalance_phase=unbalance_phaset,
         mis_type="combined",
@@ -119,7 +119,7 @@ def mis_comb_units():
         TD=0,
         TL=0,
         n1=0,
-        speed=Q_(11459.155902616465, "RPM"),
+        speed=Q_(1200, "RPM"),
         unbalance_magnitude=unbalance_magnitudet,
         unbalance_phase=unbalance_phaset,
         mis_type="combined",
@@ -141,7 +141,7 @@ def test_mis_comb_parameters(mis_comb):
     assert mis_comb.TD == 0
     assert mis_comb.TL == 0
     assert mis_comb.n1 == 0
-    assert mis_comb.speed == 1200
+    assert mis_comb.speed == 125.66370614359172
 
 
 def test_mis_comb_parameters_units(mis_comb_units):
@@ -156,7 +156,7 @@ def test_mis_comb_parameters_units(mis_comb_units):
     assert mis_comb_units.TD == 0
     assert mis_comb_units.TL == 0
     assert mis_comb_units.n1 == 0
-    assert mis_comb_units.speed == 1200
+    assert mis_comb_units.speed == 125.66370614359172
 
 
 def test_mis_comb_forces(mis_comb):
@@ -334,7 +334,7 @@ def mis_parallel():
         TD=0,
         TL=0,
         n1=0,
-        speed=1200,
+        speed=125.66370614359172,
         unbalance_magnitude=unbalance_magnitudet,
         unbalance_phase=unbalance_phaset,
         mis_type="parallel",
@@ -363,7 +363,7 @@ def mis_parallel_units():
         TD=0,
         TL=0,
         n1=0,
-        speed=Q_(11459.155902616465, "RPM"),
+        speed=Q_(1200, "RPM"),
         unbalance_magnitude=unbalance_magnitudet,
         unbalance_phase=unbalance_phaset,
         mis_type="parallel",
@@ -385,7 +385,7 @@ def test_mis_parallel_parameters(mis_parallel):
     assert mis_parallel.TD == 0
     assert mis_parallel.TL == 0
     assert mis_parallel.n1 == 0
-    assert mis_parallel.speed == 1200
+    assert mis_parallel.speed == 125.66370614359172
 
 
 def test_mis_parallel_parameters_units(mis_parallel_units):
@@ -400,7 +400,7 @@ def test_mis_parallel_parameters_units(mis_parallel_units):
     assert mis_parallel_units.TD == 0
     assert mis_parallel_units.TL == 0
     assert mis_parallel_units.n1 == 0
-    assert mis_parallel_units.speed == 1200
+    assert mis_parallel_units.speed == 125.66370614359172
 
 
 def test_mis_parallel_forces(mis_parallel):
@@ -574,7 +574,7 @@ def mis_angular():
         TD=0,
         TL=0,
         n1=0,
-        speed=1200,
+        speed=125.66370614359172,
         unbalance_magnitude=unbalance_magnitudet,
         unbalance_phase=unbalance_phaset,
         mis_type="angular",
@@ -603,7 +603,7 @@ def mis_angular_units():
         TD=0,
         TL=0,
         n1=0,
-        speed=Q_(11459.155902616465, "RPM"),
+        speed=Q_(1200, "RPM"),
         unbalance_magnitude=unbalance_magnitudet,
         unbalance_phase=unbalance_phaset,
         mis_type="angular",
@@ -625,7 +625,7 @@ def test_mis_angular_parameters(mis_angular):
     assert mis_angular.TD == 0
     assert mis_angular.TL == 0
     assert mis_angular.n1 == 0
-    assert mis_angular.speed == 1200
+    assert mis_angular.speed == 125.66370614359172
 
 
 def test_mis_angular_parameters_units(mis_angular_units):
@@ -640,7 +640,7 @@ def test_mis_angular_parameters_units(mis_angular_units):
     assert mis_angular_units.TD == 0
     assert mis_angular_units.TL == 0
     assert mis_angular_units.n1 == 0
-    assert mis_angular_units.speed == 1200
+    assert mis_angular_units.speed == 125.66370614359172
 
 
 def test_mis_angular_forces(mis_angular):
@@ -822,7 +822,7 @@ def mis_rigid():
         TD=0,
         TL=0,
         n1=0,
-        speed=1200,
+        speed=125.66370614359172,
         unbalance_magnitude=unbalance_magnitudet,
         unbalance_phase=unbalance_phaset,
         print_progress=False,
@@ -846,7 +846,7 @@ def mis_rigid_units():
         TD=0,
         TL=0,
         n1=0,
-        speed=Q_(11459.155902616465, "RPM"),
+        speed=Q_(1200, "RPM"),
         unbalance_magnitude=unbalance_magnitudet,
         unbalance_phase=unbalance_phaset,
         print_progress=False,
@@ -863,7 +863,7 @@ def test_mis_rigid_parameters(mis_rigid):
     assert mis_rigid.TD == 0
     assert mis_rigid.TL == 0
     assert mis_rigid.n1 == 0
-    assert mis_rigid.speed == 1200
+    assert mis_rigid.speed == 125.66370614359172
 
 
 def test_mis_rigid_parameters_units(mis_rigid_units):
@@ -874,7 +874,7 @@ def test_mis_rigid_parameters_units(mis_rigid_units):
     assert mis_rigid_units.TD == 0
     assert mis_rigid_units.TL == 0
     assert mis_rigid_units.n1 == 0
-    assert mis_rigid_units.speed == 1200
+    assert mis_rigid_units.speed == 125.66370614359172
 
 
 def test_mis_rigid_forces(mis_rigid):

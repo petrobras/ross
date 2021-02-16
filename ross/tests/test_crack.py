@@ -81,9 +81,9 @@ def crack_mayes():
         dt=0.01,
         tI=0,
         tF=0.5,
-        depth=0.2,
+        depth_ratio=0.2,
         n_crack=18,
-        speed=1200,
+        speed=125.66370614359172,
         unbalance_magnitude=unbalance_magnitudet,
         unbalance_phase=unbalance_phaset,
         crack_type="Mayes",
@@ -103,9 +103,9 @@ def crack_mayes_units():
         dt=0.01,
         tI=0,
         tF=0.5,
-        depth=Q_(7.874015748031496, "inches"),
+        depth_ratio=0.2,
         n_crack=18,
-        speed=Q_(11459.155902616465, "RPM"),
+        speed=Q_(1200, "RPM"),
         unbalance_magnitude=unbalance_magnitudet,
         unbalance_phase=unbalance_phaset,
         crack_type="Mayes",
@@ -125,9 +125,9 @@ def crack_gasch():
         dt=0.01,
         tI=0,
         tF=0.5,
-        depth=0.2,
+        depth_ratio=0.2,
         n_crack=18,
-        speed=1200,
+        speed=125.66370614359172,
         unbalance_magnitude=unbalance_magnitudet,
         unbalance_phase=unbalance_phaset,
         crack_type="Gasch",
@@ -141,27 +141,27 @@ def test_crack_mayes_parameters(crack_mayes):
     assert crack_mayes.dt == 0.01
     assert crack_mayes.tI == 0
     assert crack_mayes.tF == 0.5
-    assert crack_mayes.depth == 0.2
+    assert crack_mayes.depth_ratio == 0.2
     assert crack_mayes.n_crack == 18
-    assert crack_mayes.speed == 1200
+    assert crack_mayes.speed == 125.66370614359172
 
 
 def test_crack_mayes_parameters_units(crack_mayes_units):
     assert crack_mayes_units.dt == 0.01
     assert crack_mayes_units.tI == 0
     assert crack_mayes_units.tF == 0.5
-    assert crack_mayes_units.depth == 0.2
+    assert crack_mayes_units.depth_ratio == 0.2
     assert crack_mayes_units.n_crack == 18
-    assert crack_mayes_units.speed == 1200
+    assert crack_mayes_units.speed == 125.66370614359172
 
 
 def test_crack_mayes_parameters(crack_gasch):
     assert crack_gasch.dt == 0.01
     assert crack_gasch.tI == 0
     assert crack_gasch.tF == 0.5
-    assert crack_gasch.depth == 0.2
+    assert crack_gasch.depth_ratio == 0.2
     assert crack_gasch.n_crack == 18
-    assert crack_gasch.speed == 1200
+    assert crack_gasch.speed == 125.66370614359172
 
 
 def test_crack_mayes_kc(crack_mayes):
