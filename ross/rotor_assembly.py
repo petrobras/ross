@@ -1448,7 +1448,8 @@ class Rotor(object):
 
         Examples
         --------
-        >>> rotor = rotor_example()
+        >>> import ross as rs
+        >>> rotor = rs.rotor_example()
         >>> speed = np.linspace(0, 1000, 101)
         >>> response = rotor.run_freq_response(speed_range=speed)
 
@@ -1467,6 +1468,11 @@ class Rotor(object):
         >>> response = rotor.run_freq_response(cluster_points=True, num_points=5)
         >>> response.speed_range.shape
         (61,)
+
+        Selecting the disirable modes, if you want a reduced model:
+        >>> response = rotor.run_freq_response(speed_range=speed, modes=[0, 1, 2])
+        >>> abs(response.freq_resp) # doctest: +ELLIPSIS
+        array([[[2.00154633e-07, 2.02422522e-07, 2.09522044e-07, ...
 
         Plotting frequency response function:
         >>> fig = response.plot(inp=13, out=13)
@@ -2053,6 +2059,10 @@ class Rotor(object):
         frequencies : int, optional
             Number of frequencies that will be calculated.
             Default is 6.
+        frequency_type : str, optional
+            Choose between displaying results related to the undamped natural
+            frequencies ("wn") or damped natural frequencies ("wd").
+            The default is "wd".
 
         Returns
         -------
@@ -2063,8 +2073,14 @@ class Rotor(object):
 
         Examples
         --------
-        >>> rotor1 = rotor_example()
+        >>> import ross as rs
+        >>> rotor1 = rs.rotor_example()
         >>> speed = np.linspace(0, 400, 101)
+
+        Diagram with undamped natural frequencies
+        >>> camp = rotor1.run_campbell(speed, frequency_type="wn")
+
+        Diagram with damped natural frequencies
         >>> camp = rotor1.run_campbell(speed)
 
         Plotting Campbell Diagram
@@ -3896,7 +3912,12 @@ def coaxrotor_example():
 
     Examples
     --------
-    >>> rotor = coaxrotor_example()
+    >>> import ross as rs
+    >>> rotor = rs.coaxrotor_example()
+
+    Plotting rotor model
+    >>> fig = rotor.plot_rotor()
+
     >>> modal = rotor.run_modal(speed=0)
     >>> np.round(modal.wd[:4])
     array([39., 39., 99., 99.])
@@ -3916,16 +3937,16 @@ def coaxrotor_example():
     coaxial_shaft = [ShaftElement(l, i_d, o_d, material=steel) for l in L]
 
     disk0 = DiskElement.from_geometry(
-        n=1, material=steel, width=0.07, i_d=0.05, o_d=0.28
+        n=1, material=steel, width=0.07, i_d=0.05, o_d=0.28, scale_factor=0.8
     )
     disk1 = DiskElement.from_geometry(
-        n=9, material=steel, width=0.07, i_d=0.05, o_d=0.28
+        n=9, material=steel, width=0.07, i_d=0.05, o_d=0.28, scale_factor=0.8
     )
     disk2 = DiskElement.from_geometry(
-        n=13, material=steel, width=0.07, i_d=0.20, o_d=0.48
+        n=13, material=steel, width=0.07, i_d=0.20, o_d=0.48, scale_factor=0.8
     )
     disk3 = DiskElement.from_geometry(
-        n=15, material=steel, width=0.07, i_d=0.20, o_d=0.48
+        n=15, material=steel, width=0.07, i_d=0.20, o_d=0.48, scale_factor=0.8
     )
 
     shaft = [axial_shaft, coaxial_shaft]
@@ -3933,13 +3954,23 @@ def coaxrotor_example():
 
     stfx = 1e6
     stfy = 1e6
-    bearing0 = BearingElement(0, kxx=stfx, kyy=stfy, cxx=0)
-    bearing1 = BearingElement(10, kxx=stfx, kyy=stfy, cxx=0)
-    bearing2 = BearingElement(11, kxx=stfx, kyy=stfy, cxx=0)
-    bearing3 = BearingElement(8, n_link=17, kxx=stfx, kyy=stfy, cxx=0)
-    bearings = [bearing0, bearing1, bearing2, bearing3]
+    bearing0 = BearingElement(0, n_link=18, kxx=stfx, kyy=stfy, cxx=0, scale_factor=0.4)
+    bearing1 = BearingElement(
+        10, n_link=19, kxx=stfx, kyy=stfy, cxx=0, scale_factor=0.4
+    )
+    bearing2 = BearingElement(11, kxx=stfx, kyy=stfy, cxx=0, scale_factor=0.4)
+    bearing3 = BearingElement(8, n_link=17, kxx=stfx, kyy=stfy, cxx=0, scale_factor=0.4)
 
-    return CoAxialRotor(shaft, disks, bearings)
+    base0 = BearingElement(18, kxx=1e8, kyy=1e8, cxx=0, scale_factor=0.4)
+    base1 = BearingElement(19, kxx=1e8, kyy=1e8, cxx=0, scale_factor=0.4)
+
+    pointmass0 = PointMass(n=18, m=20)
+    pointmass1 = PointMass(n=19, m=20)
+
+    bearings = [bearing0, bearing1, bearing2, bearing3, base0, base1]
+    pointmasses = [pointmass0, pointmass1]
+
+    return CoAxialRotor(shaft, disks, bearings, pointmasses)
 
 
 def rotor_example_6dof():
