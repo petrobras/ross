@@ -98,8 +98,11 @@ pygments_style = "abap"
 # a list of builtin themes.
 #
 nbsphinx_allow_errors = True
-nbsphinx_kernel_name = 'python3'
-nbsphinx_execute = 'always'
+nbsphinx_kernel_name = "python3"
+try:
+    nbsphinx_execute = os.environ["NBSPHINX_EXECUTE"]
+except KeyError:
+    nbsphinx_execute = "always"
 html_theme = "bootstrap"
 htlm_theme_path = sphinx_bootstrap_theme.get_html_theme_path()
 
