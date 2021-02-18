@@ -562,6 +562,8 @@ class Rotor(object):
         rotor speed. It means that for each speed input there's a different set of
         eigenvalues and eigenvectors, hence, different natural frequencies and damping
         ratios are returned.
+        This method will return a ModalResults object which stores all data generated
+        and also provides so methods for plotting.
 
         Available plotting methods:
             .plot_mode_2d()
@@ -587,19 +589,12 @@ class Rotor(object):
 
         Returns
         -------
-        evalues : array
-            Eigenvalues array
-        evectors : array
-            Eigenvectors array
-        wn : array
-            Undamped natural frequencies array
-        wd : array
-            Damped natural frequencies array
-        log_dec : array
-            Logarithmic decrement array
+        results : ross.ModalResults
+            For more information on attributes and methods available see:
+            :py:class:`ross.ModalResults`
 
-        Example
-        -------
+        Examples
+        --------
         >>> import ross as rs
         >>> rotor = rs.rotor_example()
         >>> modal = rotor.run_modal(speed=0, sparse=False)
@@ -607,12 +602,10 @@ class Rotor(object):
         array([91.79655318, 96.28899977])
         >>> modal.wd[:2]
         array([91.79655318, 96.28899977])
-
-        Plotting 3D mode shape
+        >>> # Plotting 3D mode shape
         >>> mode1 = 0  # First mode
         >>> fig = modal.plot_mode_3d(mode1)
-
-        Plotting 2D mode shape
+        >>> # Plotting 2D mode shape
         >>> mode2 = 1  # Second mode
         >>> fig = modal.plot_mode_2d(mode2)
         """
@@ -1518,7 +1511,7 @@ class Rotor(object):
 
         return results
 
-    def forced_response(
+    def run_forced_response(
         self,
         force=None,
         speed_range=None,
@@ -1600,7 +1593,7 @@ class Rotor(object):
         >>> rotor = rotor_example()
         >>> speed = np.linspace(0, 1000, 101)
         >>> force = rotor._unbalance_force(3, 10.0, 0.0, speed)
-        >>> resp = rotor.forced_response(force=force, speed_range=speed)
+        >>> resp = rotor.run_forced_response(force=force, speed_range=speed)
         >>> abs(resp.forced_resp) # doctest: +ELLIPSIS
         array([[0.00000000e+00, 5.06073311e-04, 2.10044826e-03, ...
 
@@ -1608,7 +1601,7 @@ class Rotor(object):
         Set `cluster_points=True` and choose how many modes the method must search and
         how many points to add just before and after each critical speed.
 
-        >>> response = rotor.forced_response(
+        >>> response = rotor.run_forced_response(
         ...     force=force, cluster_points=True, num_modes=12, num_points=5
         ... )
         >>> response.speed_range.shape
@@ -1844,7 +1837,7 @@ class Rotor(object):
 
         # fmt: off
         ub = np.vstack((node, unbalance_magnitude, unbalance_phase))
-        forced_response = self.forced_response(
+        forced_response = self.run_forced_response(
             force, frequency, modes, cluster_points, num_modes, num_points, rtol, ub
         )
         # fmt: on
