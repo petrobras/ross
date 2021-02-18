@@ -18,18 +18,49 @@ Elements
     :toctree: generated/elements
 
     ShaftElement
+    ShaftElement6DoF
     DiskElement
     BearingElement
+    BearingElement6DoF
     SealElement
     BallBearingElement
     RollerBearingElement
     BearingFluidFlow
-    BearingElement6DoF
     MagneticBearingElement
 
-Rotor
+Rotor and Results
+-----------------
+Rotor class and available methods for analysis (`run_` methods).
+
+.. autosummary::
+    :toctree: generated/rotor
+
+    Rotor
+    Rotor.run_modal
+    Rotor.run_critical_speed
+    Rotor.run_freq_response
+    Rotor.forced_response
+    Rotor.run_unbalance_response
+    Rotor.run_campbell
+    Rotor.run_time_response
+    Rotor.run_static
+    Rotor.run_misalignment
+    Rotor.run_rubbing
+    Rotor.run_crack
+
+Results
 -------
+These are classes used to store results and to provide useful methods such as plotting.
+
 .. autosummary::
     :toctree: generated/results
 
-    Rotor
+    CriticalSpeedResults
+    ModalResults
+    CampbellResults
+    FrequencyResponseResults
+    ForcedResponseResults
+    StaticResults
+    SummaryResults
+    ConvergenceResults
+    TimeResponseResults

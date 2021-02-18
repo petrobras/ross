@@ -20,3 +20,7 @@ help:
 
 # To build the docs without running the notebooks do:
 # make NBSPHINX_EXECUTE="never" html
+
+clean:
+	-rm -rf $(BUILDDIR)/*
+	-rm -rf generated/*
