@@ -122,7 +122,6 @@ class THDCylindrical:
         dPdz = np.zeros((self.nZ, self.ntheta, self.n_pad))
         T = np.ones((self.nZ, self.ntheta, self.n_pad))
         T_new = np.ones((self.nZ, self.ntheta, self.n_pad)) * 1.2
-        T_mist = np.ones((self.nZ, self.ntheta, self.n_pad)) * 1.2
         T_mist_aux = self.Treserv * np.ones(self.n_pad)
         mi_new = np.ones((self.nZ, self.ntheta, self.n_pad))
         PPlot = np.zeros(((self.nZ + 2), (len(self.Ytheta))))
@@ -606,9 +605,6 @@ class THDCylindrical:
                     self.fat_mist * self.Treserv + (1 - self.fat_mist) * T_end
                 )
 
-                T_mist = np.ones((self.nZ, self.ntheta, self.n_pad)) * (
-                    T_mist_aux[n_p] / self.Treserv
-                )
 
                 for i in np.arange(self.nZ):
                     for j in np.arange(self.ntheta):
@@ -769,8 +765,8 @@ if __name__ == "__main__":
     L = float(0.263144)  # [metros]
     R = float(0.2)  # [metros]
     Cr = float(1.945e-4)  # [metros]
-    nTheta = int(38)
-    nZ = int(30)
+    nTheta = int(41)
+    nZ = int(10)
     nY = None
 
     mu = float(0.02)  # [Ns/m²]
@@ -778,13 +774,13 @@ if __name__ == "__main__":
     Wx = float(0)  # [N]
     Wy = float(-112814.91)  # [N]
     k = float(0.15327)  # Thermal conductivity [J/s.m.°C]
-    Cp = float(1800.24)  # Specific heat [J/kg°C]
+    Cp = float(1915.24)  # Specific heat [J/kg°C]
     rho = float(880)  # Specific mass [kg/m³]
     Tref = float(50)  # Temperature of oil tank [ºC]
     mix = float(0.8)  # Mixing factor. Used because the oil supply flow is not known.
-    nGap = int(2)  #    Number of volumes in recess zone
+    nGap = int(1)  #    Number of volumes in recess zone
     nPad = int(2)  #    Number of pads
-    betha_s = 170
+    betha_s = 176
 
     mancal = THDCylindrical(
         L,
