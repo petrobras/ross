@@ -33,7 +33,7 @@ with open(f"{dir_path}/plots/plot_rotor.html", "w") as f:
 # plot_ucs
 kwargs = {
     rotor: pio.to_html(
-        rotors[rotor].plot_ucs(), include_plotlyjs=False, full_html=False
+        rotors[rotor].run_ucs().plot(), include_plotlyjs=False, full_html=False
     )
     for rotor in rotors
 }

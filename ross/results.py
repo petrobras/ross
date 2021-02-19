@@ -3884,32 +3884,6 @@ class UCSResults(Results):
         -------
         fig : Plotly graph_objects.Figure()
             The figure object with the plot.
-
-        Example
-        -------
-        >>> i_d = 0
-        >>> o_d = 0.05
-        >>> n = 6
-        >>> L = [0.25 for _ in range(n)]
-        >>> shaft_elem = [
-        ...     ShaftElement(
-        ...         l, i_d, o_d, material=steel, shear_effects=True,
-        ...         rotary_inertia=True, gyroscopic=True
-        ...     )
-        ...     for l in L
-        ... ]
-        >>> disk0 = DiskElement.from_geometry(
-        ...     n=2, material=steel, width=0.07, i_d=0.05, o_d=0.28
-        ... )
-        >>> disk1 = DiskElement.from_geometry(
-        ...     n=4, material=steel, width=0.07, i_d=0.05, o_d=0.28
-        ... )
-        >>> stfx = [1e6, 2e7, 3e8]
-        >>> stfy = [0.8e6, 1.6e7, 2.4e8]
-        >>> bearing0 = BearingElement(0, kxx=stfx, kyy=stfy, cxx=0, frequency=[0,1000, 2000])
-        >>> bearing1 = BearingElement(6, kxx=stfx, kyy=stfy, cxx=0, frequency=[0,1000, 2000])
-        >>> rotor = Rotor(shaft_elem, [disk0, disk1], [bearing0, bearing1])
-        >>> fig = rotor.plot_ucs()
         """
 
         stiffness_log = self.stiffness_log
@@ -3998,3 +3972,63 @@ class UCSResults(Results):
         fig.update_layout(title=dict(text="Undamped Critical Speed Map"), **kwargs)
 
         return fig
+
+
+class Level1Results(Results):
+    """Class used to store results and provide plots for Level 1 Stability Analysis.
+
+    Parameters
+    ----------
+    stiffness_range : array
+        Stiffness array used in the calculation.
+    log_dec : array
+        Calculated log dec array for each cross coupling.
+    """
+
+    def __init__(self, stiffness_range, log_dec):
+        self.stiffness_range = stiffness_range
+        self.log_dec = log_dec
+
+    def plot(self, fig=None, **kwargs):
+        """Plot level 1 stability analysis.
+
+        This method will plot the stability 1 analysis for a
+        given stiffness range.
+
+        Parameters
+        ----------
+        fig : Plotly graph_objects.Figure
+            The figure object with the plot.
+
+        kwargs : optional
+            Additional key word arguments can be passed to change the plot layout only
+            (e.g. width=1000, height=800, ...).
+            *See Plotly Python Figure Reference for more information.
+
+        Returns
+        -------
+        fig : Plotly graph_objects.Figure()
+            The figure object with the plot.
+        """
+        if fig is None:
+            fig = go.Figure()
+
+        stiffness = self.stiffness_range
+        log_dec = self.log_dec
+
+        fig.add_trace(
+            go.Scatter(
+                x=stiffness,
+                y=log_dec,
+                mode="lines",
+                line=dict(width=3),
+                showlegend=False,
+                hovertemplate=("Stiffness: %{x:.2e}<br>" + "Log Dec: %{y:.2f}"),
+            )
+        )
+
+        fig.update_xaxes(
+            title_text="Applied Cross Coupled Stiffness", exponentformat="power"
+        )
+        fig.update_yaxes(title_text="Log Dec", exponentformat="power")
+        fig.update_layout(title=dict(text="Level 1 stability analysis"), **kwargs)
