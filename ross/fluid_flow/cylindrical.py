@@ -116,502 +116,508 @@ class THDCylindrical:
 
             self.Xpt = xpt0 / (self.Cr * self.war)
             self.Ypt = ypt0 / (self.Cr * self.war)
-
-        P = np.zeros((self.nZ, self.ntheta, self.n_pad))
-        dPdy = np.zeros((self.nZ, self.ntheta, self.n_pad))
-        dPdz = np.zeros((self.nZ, self.ntheta, self.n_pad))
-        T = np.ones((self.nZ, self.ntheta, self.n_pad))
-        T_new = np.ones((self.nZ, self.ntheta, self.n_pad)) * 1.2
-        T_mist_aux = self.Treserv * np.ones(self.n_pad)
-        mi_new = np.ones((self.nZ, self.ntheta, self.n_pad))
-        PPlot = np.zeros(((self.nZ + 2), (len(self.Ytheta))))
-        auxF = np.zeros((2, len(self.Ytheta)))
-
-        nk = (self.nZ) * (self.ntheta)
-
-        Mat_coef = np.zeros((nk, nk))
-        Mat_coef_t = np.zeros((nk, nk))
-        b = np.zeros((nk, 1))
-        b_t = np.zeros((nk, 1))
-
-        for n_p in np.arange(self.n_pad):
-
-            self.T_aux = T_mist_aux[n_p]
-
-            self.theta1 = (
-                n_p * self.betha_s
-                + self.dtheta * self.ngap / 2
-                + (n_p * self.dtheta * self.ngap)
-            )
-
-            self.theta2 = self.theta1 + self.betha_s
-
-            # self.dtheta = (self.theta2 - self.theta1) / (self.ntheta)
-
-            Z1 = 0  # initial coordinate z dimensionless
-            Z2 = 1  # final coordinate z dimensionless
-
-            while (
-                np.linalg.norm(T_new[:, :, n_p] - T[:, :, n_p])
-                / np.linalg.norm(T[:, :, n_p])
-                >= 1e-1
-            ):
-                # print(
-                #     np.linalg.norm(T_new[:, :, n_p] - T[:, :, n_p])
-                #     / np.linalg.norm(T[:, :, n_p])
-                # )
-
-                ki = 0
-                kj = 0
-
-                mi = mi_new
-
-                T[:, :, n_p] = T_new[:, :, n_p]
-
-                k = 0  # vectorization pressure index
-
-                for ii in np.arange((Z1 + 0.5 * self.dZ), Z2, self.dZ):
-                    for jj in np.arange(
-                        self.theta1 + (self.dtheta / 2), self.theta2, self.dtheta
-                    ):
-
-                        hP = 1 - self.Y * np.cos(jj) - self.X * np.sin(jj)
-                        he = (
-                            1
-                            - self.Y * np.cos(jj + 0.5 * self.dtheta)
-                            - self.X * np.sin(jj + 0.5 * self.dtheta)
-                        )
-                        hw = (
-                            1
-                            - self.Y * np.cos(jj - 0.5 * self.dtheta)
-                            - self.X * np.sin(jj - 0.5 * self.dtheta)
-                        )
-                        hn = hP
-                        hs = hn
-
-                        if kj == 0 and ki == 0:
-                            MI_e = 0.5 * (mi[ki, kj] + mi[ki, kj + 1])
-                            MI_w = mi[ki, kj]
-                            MI_s = mi[ki, kj]
-                            MI_n = 0.5 * (mi[ki, kj] + mi[ki + 1, kj])
-
-                        if kj == 0 and ki > 0 and ki < self.nZ - 1:
-                            MI_e = 0.5 * (mi[ki, kj] + mi[ki, kj + 1])
-                            MI_w = mi[ki, kj]
-                            MI_s = 0.5 * (mi[ki, kj] + mi[ki - 1, kj])
-                            MI_n = 0.5 * (mi[ki, kj] + mi[ki + 1, kj])
-
-                        if kj == 0 and ki == self.nZ - 1:
-                            MI_e = 0.5 * (mi[ki, kj] + mi[ki, kj + 1])
-                            MI_w = mi[ki, kj]
-                            MI_s = 0.5 * (mi[ki, kj] + mi[ki - 1, kj])
-                            MI_n = mi[ki, kj]
-
-                        if ki == 0 and kj > 0 and kj < self.ntheta - 1:
-                            MI_e = 0.5 * (mi[ki, kj] + mi[ki, kj + 1])
-                            MI_w = 0.5 * (mi[ki, kj] + mi[ki, kj - 1])
-                            MI_s = mi[ki, kj]
-                            MI_n = 0.5 * (mi[ki, kj] + mi[ki + 1, kj])
-
-                        if (
-                            kj > 0
-                            and kj < self.ntheta - 1
-                            and ki > 0
-                            and ki < self.nZ - 1
-                        ):
-                            MI_e = 0.5 * (mi[ki, kj] + mi[ki, kj + 1])
-                            MI_w = 0.5 * (mi[ki, kj] + mi[ki, kj - 1])
-                            MI_s = 0.5 * (mi[ki, kj] + mi[ki - 1, kj])
-                            MI_n = 0.5 * (mi[ki, kj] + mi[ki + 1, kj])
-
-                        if ki == self.nZ - 1 and kj > 0 and kj < self.ntheta - 1:
-                            MI_e = 0.5 * (mi[ki, kj] + mi[ki, kj + 1])
-                            MI_w = 0.5 * (mi[ki, kj] + mi[ki, kj - 1])
-                            MI_s = 0.5 * (mi[ki, kj] + mi[ki - 1, kj])
-                            MI_n = mi[ki, kj]
-
-                        if ki == 0 and kj == self.ntheta - 1:
-                            MI_e = mi[ki, kj]
-                            MI_w = 0.5 * (mi[ki, kj] + mi[ki, kj - 1])
-                            MI_s = mi[ki, kj]
-                            MI_n = 0.5 * (mi[ki, kj] + mi[ki + 1, kj])
-
-                        if kj == self.ntheta - 1 and ki > 0 and ki < self.nZ - 1:
-                            MI_e = mi[ki, kj]
-                            MI_w = 0.5 * (mi[ki, kj] + mi[ki, kj - 1])
-                            MI_s = 0.5 * (mi[ki, kj] + mi[ki - 1, kj])
-                            MI_n = 0.5 * (mi[ki, kj] + mi[ki + 1, kj])
-
-                        if kj == self.ntheta - 1 and ki == self.nZ - 1:
-                            MI_e = mi[ki, kj]
-                            MI_w = 0.5 * (mi[ki, kj] + mi[ki, kj - 1])
-                            MI_s = 0.5 * (mi[ki, kj] + mi[ki - 1, kj])
-                            MI_n = mi[ki, kj]
-
-       
-
-                        CE = (self.dZ * he ** 3) / (
-                            12 * MI_e[n_p] * self.dY * self.betha_s ** 2
-                        )
-                        CW = (self.dZ * hw ** 3) / (
-                            12 * MI_w[n_p] * self.dY * self.betha_s ** 2
-                        )
-                        CN = (self.dY * (self.R ** 2) * hn ** 3) / (
-                            12 * MI_n[n_p] * self.dZ * self.L ** 2
-                        )
-                        CS = (self.dY * (self.R ** 2) * hs ** 3) / (
-                            12 * MI_s[n_p] * self.dZ * self.L ** 2
-                        )
-                        CP = -(CE + CW + CN + CS)
-
-                        B = (self.dZ / (2 * self.betha_s)) * (he - hw) - (
-                            (self.Ypt * np.cos(jj) + self.Xpt * np.sin(jj))
-                            * self.dy
-                            * self.dZ
-                        )
-
-                        k = k + 1
-                        b[k - 1, 0] = B
-
-                        if ki == 0 and kj == 0:
-                            Mat_coef[k - 1, k - 1] = CP - CS - CW
-                            Mat_coef[k - 1, k] = CE
-                            Mat_coef[k - 1, k + self.ntheta - 1] = CN
-
-                        elif kj == 0 and ki > 0 and ki < self.nZ - 1:
-                            Mat_coef[k - 1, k - 1] = CP - CW
-                            Mat_coef[k - 1, k] = CE
-                            Mat_coef[k - 1, k - self.ntheta - 1] = CS
-                            Mat_coef[k - 1, k + self.ntheta - 1] = CN
-
-                        elif kj == 0 and ki == self.nZ - 1:
-                            Mat_coef[k - 1, k - 1] = CP - CN - CW
-                            Mat_coef[k - 1, k] = CE
-                            Mat_coef[k - 1, k - self.ntheta - 1] = CS
-
-                        elif ki == 0 and kj > 0 and kj < self.nY - 1:
-                            Mat_coef[k - 1, k - 1] = CP - CS
-                            Mat_coef[k - 1, k] = CE
-                            Mat_coef[k - 1, k - 2] = CW
-                            Mat_coef[k - 1, k + self.ntheta - 1] = CN
-
-                        elif (
-                            ki > 0 and ki < self.nZ - 1 and kj > 0 and kj < self.nY - 1
-                        ):
-                            Mat_coef[k - 1, k - 1] = CP
-                            Mat_coef[k - 1, k - 2] = CW
-                            Mat_coef[k - 1, k - self.ntheta - 1] = CS
-                            Mat_coef[k - 1, k + self.ntheta - 1] = CN
-                            Mat_coef[k - 1, k] = CE
-
-                        elif ki == self.nZ - 1 and kj > 0 and kj < self.nY - 1:
-                            Mat_coef[k - 1, k - 1] = CP - CN
-                            Mat_coef[k - 1, k] = CE
-                            Mat_coef[k - 1, k - 2] = CW
-                            Mat_coef[k - 1, k - self.ntheta - 1] = CS
-
-                        elif ki == 0 and kj == self.nY - 1:
-                            Mat_coef[k - 1, k - 1] = CP - CE - CS
-                            Mat_coef[k - 1, k - 2] = CW
-                            Mat_coef[k - 1, k + self.ntheta - 1] = CN
-
-                        elif kj == self.nY - 1 and ki > 0 and ki < self.nZ - 1:
-                            Mat_coef[k - 1, k - 1] = CP - CE
-                            Mat_coef[k - 1, k - 2] = CW
-                            Mat_coef[k - 1, k - self.ntheta - 1] = CS
-                            Mat_coef[k - 1, k + self.ntheta - 1] = CN
-
-                        elif ki == self.nZ - 1 and kj == self.nY - 1:
-                            Mat_coef[k - 1, k - 1] = CP - CE - CN
-                            Mat_coef[k - 1, k - 2] = CW
-                            Mat_coef[k - 1, k - self.ntheta - 1] = CS
-
-                        kj = kj + 1
-
+            
+        for i in range(4):
+            P = np.zeros((self.nZ, self.ntheta, self.n_pad))
+            dPdy = np.zeros((self.nZ, self.ntheta, self.n_pad))
+            dPdz = np.zeros((self.nZ, self.ntheta, self.n_pad))
+            T = np.ones((self.nZ, self.ntheta, self.n_pad))
+            T_new = np.ones((self.nZ, self.ntheta, self.n_pad)) * 1.2
+            
+            if i == 0:
+                T_mist_aux = self.Treserv * np.ones(self.n_pad)
+                
+            mi_new = 1.1*np.ones((self.nZ, self.ntheta, self.n_pad))
+            PPlot = np.zeros(((self.nZ + 2), (len(self.Ytheta))))
+            auxF = np.zeros((2, len(self.Ytheta)))
+    
+            nk = (self.nZ) * (self.ntheta)
+    
+            Mat_coef = np.zeros((nk, nk))
+            Mat_coef_t = np.zeros((nk, nk))
+            b = np.zeros((nk, 1))
+            b_t = np.zeros((nk, 1))
+    
+            for n_p in np.arange(self.n_pad):
+    
+                T_ref = T_mist_aux[n_p-1]
+    
+                self.theta1 = (
+                    n_p * self.betha_s
+                    + self.dtheta * self.ngap / 2
+                    + (n_p * self.dtheta * self.ngap)
+                )
+    
+                self.theta2 = self.theta1 + self.betha_s
+    
+                # self.dtheta = (self.theta2 - self.theta1) / (self.ntheta)
+    
+                Z1 = 0  # initial coordinate z dimensionless
+                Z2 = 1  # final coordinate z dimensionless
+    
+                while (
+                    np.linalg.norm(T_new[:, :, n_p] - T[:, :, n_p])
+                    / np.linalg.norm(T[:, :, n_p])
+                    >= 1e-3
+                ):
+                    # print(
+                    #     np.linalg.norm(T_new[:, :, n_p] - T[:, :, n_p])
+                    #     / np.linalg.norm(T[:, :, n_p])
+                    # )
+    
+                    ki = 0
                     kj = 0
-                    ki = ki + 1
-
-                #    %%%%%%%%%%%%%%%%%%%%%% Solution of pressure field %%%%%%%%%%%%%%%%%%%%
-
-                p = np.linalg.solve(Mat_coef, b)
-
-                cont = 0
-
-                for i in np.arange(self.nZ):
-                    for j in np.arange(self.ntheta):
-
-                        P[i, j, n_p] = p[cont]
-                        cont = cont + 1
-
-                #    %Boundary condiction of pressure
-
-                for i in np.arange(self.nZ):
-                    for j in np.arange(self.ntheta):
-                        if P[i, j, n_p] < 0:
-                            P[i, j, n_p] = 0
-
-                #    % Dimensional pressure fied [Pa]
-
-                Pdim = (P * self.mi_ref * self.war * (self.R ** 2)) / (self.Cr ** 2)
-
-                #    %%%%%%%%%%%%%%%%%%%%%% Solution of temperature field %%%%%%%%%%%%%%%%%%%%
-
-                ki = 0
-                kj = 0
-                k = 0  # vectorization pressure index
-
-                for ii in np.arange((Z1 + 0.5 * self.dZ), (Z2), self.dZ):
-                    for jj in np.arange(
-                        self.theta1 + (self.dtheta / 2), self.theta2, self.dtheta
-                    ):
-
-                        #                  Pressure gradients
-
-                        if kj == 0 and ki == 0:
-                            dPdy[ki, kj, n_p] = (P[ki, kj + 1, n_p] - 0) / (2 * self.dY)
-                            dPdz[ki, kj, n_p] = (P[ki + 1, kj, n_p] - 0) / (2 * self.dZ)
-
-                        if kj == 0 and ki > 0 and ki < self.nZ - 1:
-                            dPdy[ki, kj, n_p] = (P[ki, kj + 1, n_p] - 0) / (2 * self.dY)
-                            dPdz[ki, kj, n_p] = (
-                                P[ki + 1, kj, n_p] - P[ki - 1, kj, n_p]
-                            ) / (2 * self.dZ)
-
-                        if kj == 0 and ki == self.nZ - 1:
-                            dPdy[ki, kj, n_p] = (P[ki, kj + 1, n_p] - 0) / (2 * self.dY)
-                            dPdz[ki, kj, n_p] = (0 - P[ki - 1, kj, n_p]) / (2 * self.dZ)
-
-                        if ki == 0 and kj > 0 and kj < self.ntheta - 1:
-                            dPdy[ki, kj, n_p] = (
-                                P[ki, kj + 1, n_p] - P[ki, kj - 1, n_p]
-                            ) / (2 * self.dY)
-                            dPdz[ki, kj, n_p] = (P[ki + 1, kj, n_p] - 0) / (2 * self.dZ)
-
-                        if (
-                            kj > 0
-                            and kj < self.ntheta - 1
-                            and ki > 0
-                            and ki < self.nZ - 1
+                    
+                    T_ref = T_mist_aux[n_p-1]
+                    
+                    mi = mi_new
+    
+                    T[:, :, n_p] = T_new[:, :, n_p]
+    
+                    k = 0  # vectorization pressure index
+    
+                    for ii in np.arange((Z1 + 0.5 * self.dZ), Z2, self.dZ):
+                        for jj in np.arange(
+                            self.theta1 + (self.dtheta / 2), self.theta2, self.dtheta
                         ):
-                            dPdy[ki, kj, n_p] = (
-                                P[ki, kj + 1, n_p] - P[ki, kj - 1, n_p]
-                            ) / (2 * self.dY)
-                            dPdz[ki, kj, n_p] = (
-                                P[ki + 1, kj, n_p] - P[ki - 1, kj, n_p]
-                            ) / (2 * self.dZ)
-
-                        if ki == self.nZ - 1 and kj > 0 and kj < self.ntheta - 1:
-                            dPdy[ki, kj, n_p] = (
-                                P[ki, kj + 1, n_p] - P[ki, kj - 1, n_p]
-                            ) / (2 * self.dY)
-                            dPdz[ki, kj, n_p] = (0 - P[ki - 1, kj, n_p]) / (2 * self.dZ)
-
-                        if ki == 0 and kj == self.ntheta - 1:
-                            dPdy[ki, kj, n_p] = (0 - P[ki, kj - 1, n_p]) / (2 * self.dY)
-                            dPdz[ki, kj, n_p] = (P[ki + 1, kj, n_p] - 0) / (2 * self.dZ)
-
-                        if kj == self.ntheta - 1 and ki > 0 and ki < self.nZ - 1:
-                            dPdy[ki, kj, n_p] = (0 - P[ki, kj - 1, n_p]) / (2 * self.dY)
-                            dPdz[ki, kj, n_p] = (
-                                P[ki + 1, kj, n_p] - P[ki - 1, kj, n_p]
-                            ) / (2 * self.dZ)
-
-                        if kj == self.ntheta - 1 and ki == self.nZ - 1:
-                            dPdy[ki, kj, n_p] = (0 - P[ki, kj - 1, n_p]) / (2 * self.dY)
-                            dPdz[ki, kj, n_p] = (0 - P[ki - 1, kj, n_p]) / (2 * self.dZ)
-
-                        HP = 1 - self.Y * np.cos(jj) - self.X * np.sin(jj)
-                        hpt = self.Ypt * np.sin(jj) + self.Xpt * np.cos(jj)
-
-                        mi_p = mi[ki, kj, n_p]
-
-                        AE = -(self.kt * HP * self.dZ) / (
-                            self.rho
-                            * self.Cp
-                            * self.war
-                            * ((self.betha_s * R) ** 2)
-                            * self.dY
-                        )
-                        AW = (
-                            (
-                                ((HP ** 3) * dPdy[ki, kj, n_p] * self.dZ)
-                                / (12 * mi_p * (self.betha_s ** 2))
+    
+                            hP = 1 - self.X * np.cos(jj) - self.Y * np.sin(jj)
+                            he = (
+                                1
+                                - self.X * np.cos(jj + 0.5 * self.dtheta)
+                                - self.Y * np.sin(jj + 0.5 * self.dtheta)
                             )
-                            - ((HP) * self.dZ / (2 * self.betha_s))
-                            - (
-                                (self.kt * HP * self.dZ)
-                                / (
-                                    self.rho
-                                    * self.Cp
-                                    * self.war
-                                    * ((self.betha_s * R) ** 2)
-                                    * self.dY
+                            hw = (
+                                1
+                                - self.X * np.cos(jj - 0.5 * self.dtheta)
+                                - self.Y * np.sin(jj - 0.5 * self.dtheta)
+                            )
+                            hn = hP
+                            hs = hn
+    
+                            if kj == 0 and ki == 0:
+                                MI_e = 0.5 * (mi[ki, kj] + mi[ki, kj + 1])
+                                MI_w = mi[ki, kj]
+                                MI_s = mi[ki, kj]
+                                MI_n = 0.5 * (mi[ki, kj] + mi[ki + 1, kj])
+    
+                            if kj == 0 and ki > 0 and ki < self.nZ - 1:
+                                MI_e = 0.5 * (mi[ki, kj] + mi[ki, kj + 1])
+                                MI_w = mi[ki, kj]
+                                MI_s = 0.5 * (mi[ki, kj] + mi[ki - 1, kj])
+                                MI_n = 0.5 * (mi[ki, kj] + mi[ki + 1, kj])
+    
+                            if kj == 0 and ki == self.nZ - 1:
+                                MI_e = 0.5 * (mi[ki, kj] + mi[ki, kj + 1])
+                                MI_w = mi[ki, kj]
+                                MI_s = 0.5 * (mi[ki, kj] + mi[ki - 1, kj])
+                                MI_n = mi[ki, kj]
+    
+                            if ki == 0 and kj > 0 and kj < self.ntheta - 1:
+                                MI_e = 0.5 * (mi[ki, kj] + mi[ki, kj + 1])
+                                MI_w = 0.5 * (mi[ki, kj] + mi[ki, kj - 1])
+                                MI_s = mi[ki, kj]
+                                MI_n = 0.5 * (mi[ki, kj] + mi[ki + 1, kj])
+    
+                            if (
+                                kj > 0
+                                and kj < self.ntheta - 1
+                                and ki > 0
+                                and ki < self.nZ - 1
+                            ):
+                                MI_e = 0.5 * (mi[ki, kj] + mi[ki, kj + 1])
+                                MI_w = 0.5 * (mi[ki, kj] + mi[ki, kj - 1])
+                                MI_s = 0.5 * (mi[ki, kj] + mi[ki - 1, kj])
+                                MI_n = 0.5 * (mi[ki, kj] + mi[ki + 1, kj])
+    
+                            if ki == self.nZ - 1 and kj > 0 and kj < self.ntheta - 1:
+                                MI_e = 0.5 * (mi[ki, kj] + mi[ki, kj + 1])
+                                MI_w = 0.5 * (mi[ki, kj] + mi[ki, kj - 1])
+                                MI_s = 0.5 * (mi[ki, kj] + mi[ki - 1, kj])
+                                MI_n = mi[ki, kj]
+    
+                            if ki == 0 and kj == self.ntheta - 1:
+                                MI_e = mi[ki, kj]
+                                MI_w = 0.5 * (mi[ki, kj] + mi[ki, kj - 1])
+                                MI_s = mi[ki, kj]
+                                MI_n = 0.5 * (mi[ki, kj] + mi[ki + 1, kj])
+    
+                            if kj == self.ntheta - 1 and ki > 0 and ki < self.nZ - 1:
+                                MI_e = mi[ki, kj]
+                                MI_w = 0.5 * (mi[ki, kj] + mi[ki, kj - 1])
+                                MI_s = 0.5 * (mi[ki, kj] + mi[ki - 1, kj])
+                                MI_n = 0.5 * (mi[ki, kj] + mi[ki + 1, kj])
+    
+                            if kj == self.ntheta - 1 and ki == self.nZ - 1:
+                                MI_e = mi[ki, kj]
+                                MI_w = 0.5 * (mi[ki, kj] + mi[ki, kj - 1])
+                                MI_s = 0.5 * (mi[ki, kj] + mi[ki - 1, kj])
+                                MI_n = mi[ki, kj]
+    
+           
+    
+                            CE = (self.dZ * he ** 3) / (
+                                12 * MI_e[n_p] * self.dY * self.betha_s ** 2
+                            )
+                            CW = (self.dZ * hw ** 3) / (
+                                12 * MI_w[n_p] * self.dY * self.betha_s ** 2
+                            )
+                            CN = (self.dY * (self.R ** 2) * hn ** 3) / (
+                                12 * MI_n[n_p] * self.dZ * self.L ** 2
+                            )
+                            CS = (self.dY * (self.R ** 2) * hs ** 3) / (
+                                12 * MI_s[n_p] * self.dZ * self.L ** 2
+                            )
+                            CP = -(CE + CW + CN + CS)
+    
+                            B = (self.dZ / (2 * self.betha_s)) * (he - hw) - (
+                                (self.Ypt * np.cos(jj) + self.Xpt * np.sin(jj))
+                                * self.dy
+                                * self.dZ
+                            )
+    
+                            k = k + 1
+                            b[k - 1, 0] = B
+    
+                            if ki == 0 and kj == 0:
+                                Mat_coef[k - 1, k - 1] = CP - CS - CW
+                                Mat_coef[k - 1, k] = CE
+                                Mat_coef[k - 1, k + self.ntheta - 1] = CN
+    
+                            elif kj == 0 and ki > 0 and ki < self.nZ - 1:
+                                Mat_coef[k - 1, k - 1] = CP - CW
+                                Mat_coef[k - 1, k] = CE
+                                Mat_coef[k - 1, k - self.ntheta - 1] = CS
+                                Mat_coef[k - 1, k + self.ntheta - 1] = CN
+    
+                            elif kj == 0 and ki == self.nZ - 1:
+                                Mat_coef[k - 1, k - 1] = CP - CN - CW
+                                Mat_coef[k - 1, k] = CE
+                                Mat_coef[k - 1, k - self.ntheta - 1] = CS
+    
+                            elif ki == 0 and kj > 0 and kj < self.nY - 1:
+                                Mat_coef[k - 1, k - 1] = CP - CS
+                                Mat_coef[k - 1, k] = CE
+                                Mat_coef[k - 1, k - 2] = CW
+                                Mat_coef[k - 1, k + self.ntheta - 1] = CN
+    
+                            elif (
+                                ki > 0 and ki < self.nZ - 1 and kj > 0 and kj < self.nY - 1
+                            ):
+                                Mat_coef[k - 1, k - 1] = CP
+                                Mat_coef[k - 1, k - 2] = CW
+                                Mat_coef[k - 1, k - self.ntheta - 1] = CS
+                                Mat_coef[k - 1, k + self.ntheta - 1] = CN
+                                Mat_coef[k - 1, k] = CE
+    
+                            elif ki == self.nZ - 1 and kj > 0 and kj < self.nY - 1:
+                                Mat_coef[k - 1, k - 1] = CP - CN
+                                Mat_coef[k - 1, k] = CE
+                                Mat_coef[k - 1, k - 2] = CW
+                                Mat_coef[k - 1, k - self.ntheta - 1] = CS
+    
+                            elif ki == 0 and kj == self.nY - 1:
+                                Mat_coef[k - 1, k - 1] = CP - CE - CS
+                                Mat_coef[k - 1, k - 2] = CW
+                                Mat_coef[k - 1, k + self.ntheta - 1] = CN
+    
+                            elif kj == self.nY - 1 and ki > 0 and ki < self.nZ - 1:
+                                Mat_coef[k - 1, k - 1] = CP - CE
+                                Mat_coef[k - 1, k - 2] = CW
+                                Mat_coef[k - 1, k - self.ntheta - 1] = CS
+                                Mat_coef[k - 1, k + self.ntheta - 1] = CN
+    
+                            elif ki == self.nZ - 1 and kj == self.nY - 1:
+                                Mat_coef[k - 1, k - 1] = CP - CE - CN
+                                Mat_coef[k - 1, k - 2] = CW
+                                Mat_coef[k - 1, k - self.ntheta - 1] = CS
+    
+                            kj = kj + 1
+    
+                        kj = 0
+                        ki = ki + 1
+    
+                    #    %%%%%%%%%%%%%%%%%%%%%% Solution of pressure field %%%%%%%%%%%%%%%%%%%%
+    
+                    p = np.linalg.solve(Mat_coef, b)
+    
+                    cont = 0
+    
+                    for i in np.arange(self.nZ):
+                        for j in np.arange(self.ntheta):
+    
+                            P[i, j, n_p] = p[cont]
+                            cont = cont + 1
+    
+                    #    %Boundary condiction of pressure
+    
+                    for i in np.arange(self.nZ):
+                        for j in np.arange(self.ntheta):
+                            if P[i, j, n_p] < 0:
+                                P[i, j, n_p] = 0
+    
+                    #    % Dimensional pressure fied [Pa]
+    
+                    Pdim = (P * self.mi_ref * self.war * (self.R ** 2)) / (self.Cr ** 2)
+    
+                    #    %%%%%%%%%%%%%%%%%%%%%% Solution of temperature field %%%%%%%%%%%%%%%%%%%%
+    
+                    ki = 0
+                    kj = 0
+                    k = 0  # vectorization pressure index
+    
+                    for ii in np.arange((Z1 + 0.5 * self.dZ), (Z2), self.dZ):
+                        for jj in np.arange(
+                            self.theta1 + (self.dtheta / 2), self.theta2, self.dtheta
+                        ):
+    
+                            #                  Pressure gradients
+    
+                            if kj == 0 and ki == 0:
+                                dPdy[ki, kj, n_p] = (P[ki, kj + 1, n_p] - 0) / (2 * self.dY)
+                                dPdz[ki, kj, n_p] = (P[ki + 1, kj, n_p] - 0) / (2 * self.dZ)
+    
+                            if kj == 0 and ki > 0 and ki < self.nZ - 1:
+                                dPdy[ki, kj, n_p] = (P[ki, kj + 1, n_p] - 0) / (2 * self.dY)
+                                dPdz[ki, kj, n_p] = (
+                                    P[ki + 1, kj, n_p] - P[ki - 1, kj, n_p]
+                                ) / (2 * self.dZ)
+    
+                            if kj == 0 and ki == self.nZ - 1:
+                                dPdy[ki, kj, n_p] = (P[ki, kj + 1, n_p] - 0) / (2 * self.dY)
+                                dPdz[ki, kj, n_p] = (0 - P[ki - 1, kj, n_p]) / (2 * self.dZ)
+    
+                            if ki == 0 and kj > 0 and kj < self.ntheta - 1:
+                                dPdy[ki, kj, n_p] = (
+                                    P[ki, kj + 1, n_p] - P[ki, kj - 1, n_p]
+                                ) / (2 * self.dY)
+                                dPdz[ki, kj, n_p] = (P[ki + 1, kj, n_p] - 0) / (2 * self.dZ)
+    
+                            if (
+                                kj > 0
+                                and kj < self.ntheta - 1
+                                and ki > 0
+                                and ki < self.nZ - 1
+                            ):
+                                dPdy[ki, kj, n_p] = (
+                                    P[ki, kj + 1, n_p] - P[ki, kj - 1, n_p]
+                                ) / (2 * self.dY)
+                                dPdz[ki, kj, n_p] = (
+                                    P[ki + 1, kj, n_p] - P[ki - 1, kj, n_p]
+                                ) / (2 * self.dZ)
+    
+                            if ki == self.nZ - 1 and kj > 0 and kj < self.ntheta - 1:
+                                dPdy[ki, kj, n_p] = (
+                                    P[ki, kj + 1, n_p] - P[ki, kj - 1, n_p]
+                                ) / (2 * self.dY)
+                                dPdz[ki, kj, n_p] = (0 - P[ki - 1, kj, n_p]) / (2 * self.dZ)
+    
+                            if ki == 0 and kj == self.ntheta - 1:
+                                dPdy[ki, kj, n_p] = (0 - P[ki, kj - 1, n_p]) / (2 * self.dY)
+                                dPdz[ki, kj, n_p] = (P[ki + 1, kj, n_p] - 0) / (2 * self.dZ)
+    
+                            if kj == self.ntheta - 1 and ki > 0 and ki < self.nZ - 1:
+                                dPdy[ki, kj, n_p] = (0 - P[ki, kj - 1, n_p]) / (2 * self.dY)
+                                dPdz[ki, kj, n_p] = (
+                                    P[ki + 1, kj, n_p] - P[ki - 1, kj, n_p]
+                                ) / (2 * self.dZ)
+    
+                            if kj == self.ntheta - 1 and ki == self.nZ - 1:
+                                dPdy[ki, kj, n_p] = (0 - P[ki, kj - 1, n_p]) / (2 * self.dY)
+                                dPdz[ki, kj, n_p] = (0 - P[ki - 1, kj, n_p]) / (2 * self.dZ)
+    
+                            HP = 1 - self.X * np.cos(jj) - self.Y * np.sin(jj)
+                            hpt = -self.Ypt * np.cos(jj) + self.Xpt * np.sin(jj)
+    
+                            mi_p = mi[ki, kj, n_p]
+    
+                            AE = -(self.kt * HP * self.dZ) / (
+                                self.rho
+                                * self.Cp
+                                * self.war
+                                * ((self.betha_s * R) ** 2)
+                                * self.dY
+                            )
+                            AW = (
+                                (
+                                    ((HP ** 3) * dPdy[ki, kj, n_p] * self.dZ)
+                                    / (12 * mi_p * (self.betha_s ** 2))
+                                )
+                                - ((HP) * self.dZ / (2 * self.betha_s))
+                                - (
+                                    (self.kt * HP * self.dZ)
+                                    / (
+                                        self.rho
+                                        * self.Cp
+                                        * self.war
+                                        * ((self.betha_s * R) ** 2)
+                                        * self.dY
+                                    )
                                 )
                             )
-                        )
-                        AN = -(self.kt * HP * self.dY) / (
-                            self.rho * self.Cp * self.war * (self.L ** 2) * self.dZ
-                        )
-                        AS = (
-                            ((self.R ** 2) * (HP ** 3) * dPdz[ki, kj, n_p] * self.dY)
-                            / (12 * (self.L ** 2) * mi_p)
-                        ) - (
-                            (self.kt * HP * self.dY)
-                            / (self.rho * self.Cp * self.war * (self.L ** 2) * self.dZ)
-                        )
-                        AP = -(AE + AW + AN + AS)
-
-                        auxB_t = (self.war * self.mi_ref) / (
-                            self.rho * self.Cp * self.T_aux * self.Cr
-                        )
-                        B_tG = (
-                            self.mi_ref
-                            * self.war
-                            * (R ** 2)
-                            * self.dY
-                            * self.dZ
-                            * P[ki, kj, n_p]
-                            * hpt
-                        ) / (self.rho * self.Cp * self.T_aux * (self.Cr ** 2))
-                        B_tH = (
-                            self.war
-                            * self.mi_ref
-                            * (hpt ** 2)
-                            * 4
-                            * mi_p
-                            * self.dY
-                            * self.dZ
-                        ) / (self.rho * self.Cp * self.T_aux * 3 * HP)
-                        B_tI = (
-                            auxB_t
-                            * (mi_p * (self.R ** 2) * self.dY * self.dZ)
-                            / (HP * self.Cr)
-                        )
-                        B_tJ = (
-                            auxB_t
-                            * (
-                                (self.R ** 2)
-                                * (HP ** 3)
-                                * (dPdy[ki, kj, n_p] ** 2)
+                            AN = -(self.kt * HP * self.dY) / (
+                                self.rho * self.Cp * self.war * (self.L ** 2) * self.dZ
+                            )
+                            AS = (
+                                ((self.R ** 2) * (HP ** 3) * dPdz[ki, kj, n_p] * self.dY)
+                                / (12 * (self.L ** 2) * mi_p)
+                            ) - (
+                                (self.kt * HP * self.dY)
+                                / (self.rho * self.Cp * self.war * (self.L ** 2) * self.dZ)
+                            )
+                            AP = -(AE + AW + AN + AS)
+    
+                            auxB_t = (self.war * self.mi_ref) / (
+                                self.rho * self.Cp * self.Treserv * self.Cr
+                            )
+                            B_tG = (
+                                self.mi_ref
+                                * self.war
+                                * (R ** 2)
                                 * self.dY
                                 * self.dZ
-                            )
-                            / (12 * self.Cr * (self.betha_s ** 2) * mi_p)
-                        )
-                        B_tK = (
-                            auxB_t
-                            * (
-                                (self.R ** 4)
-                                * (HP ** 3)
-                                * (dPdz[ki, kj, n_p] ** 2)
+                                * P[ki, kj, n_p]
+                                * hpt
+                            ) / (self.rho * self.Cp * self.Treserv * (self.Cr ** 2))
+                            B_tH = (
+                                self.war
+                                * self.mi_ref
+                                * (hpt ** 2)
+                                * 4
+                                * mi_p
                                 * self.dY
                                 * self.dZ
+                            ) / (self.rho * self.Cp * self.Treserv * 3 * HP)
+                            B_tI = (
+                                auxB_t
+                                * (mi_p * (self.R ** 2) * self.dY * self.dZ)
+                                / (HP * self.Cr)
                             )
-                            / (12 * self.Cr * (self.L ** 2) * mi_p)
-                        )
-
-                        B_t = B_tG + B_tH + B_tI + B_tJ + B_tK
-
-                        k = k + 1
-
-                        b_t[k - 1, 0] = B_t
-
-                        if ki == 0 and kj == 0:
-                            Mat_coef_t[k - 1, k - 1] = AP + AS - AW
-                            Mat_coef_t[k - 1, k] = AE
-                            Mat_coef_t[k - 1, k + self.ntheta - 1] = AN
-                            b_t[k - 1, 0] = b_t[k - 1, 0] - 2 * AW * (
-                                T_mist_aux[n_p] / self.Treserv
+                            B_tJ = (
+                                auxB_t
+                                * (
+                                    (self.R ** 2)
+                                    * (HP ** 3)
+                                    * (dPdy[ki, kj, n_p] ** 2)
+                                    * self.dY
+                                    * self.dZ
+                                )
+                                / (12 * self.Cr * (self.betha_s ** 2) * mi_p)
                             )
-
-                        elif kj == 0 and ki > 0 and ki < self.nZ - 1:
-                            Mat_coef_t[k - 1, k - 1] = AP - AW
-                            Mat_coef_t[k - 1, k] = AE
-                            Mat_coef_t[k - 1, k - self.ntheta - 1] = AS
-                            Mat_coef_t[k - 1, k + self.ntheta - 1] = AN
-                            b_t[k - 1, 0] = b_t[k - 1, 0] - 2 * AW * (
-                                T_mist_aux[n_p] / self.Treserv
+                            B_tK = (
+                                auxB_t
+                                * (
+                                    (self.R ** 4)
+                                    * (HP ** 3)
+                                    * (dPdz[ki, kj, n_p] ** 2)
+                                    * self.dY
+                                    * self.dZ
+                                )
+                                / (12 * self.Cr * (self.L ** 2) * mi_p)
                             )
-
-                        elif kj == 0 and ki == self.nZ - 1:
-                            Mat_coef_t[k - 1, k - 1] = AP + AN - AW
-                            Mat_coef_t[k - 1, k] = AE
-                            Mat_coef_t[k - 1, k - self.ntheta - 1] = AS
-                            b_t[k - 1, 0] = b_t[k - 1, 0] - 2 * AW * (
-                                T_mist_aux[n_p] / self.Treserv
-                            )
-
-                        elif ki == 0 and kj > 0 and kj < self.nY - 1:
-                            Mat_coef_t[k - 1, k - 1] = AP + AS
-                            Mat_coef_t[k - 1, k] = AE
-                            Mat_coef_t[k - 1, k - 2] = AW
-                            Mat_coef_t[k - 1, k + self.ntheta - 1] = AN
-
-                        elif (
-                            ki > 0 and ki < self.nZ - 1 and kj > 0 and kj < self.nY - 1
-                        ):
-                            Mat_coef_t[k - 1, k - 1] = AP
-                            Mat_coef_t[k - 1, k - 2] = AW
-                            Mat_coef_t[k - 1, k - self.ntheta - 1] = AS
-                            Mat_coef_t[k - 1, k + self.ntheta - 1] = AN
-                            Mat_coef_t[k - 1, k] = AE
-
-                        elif ki == self.nZ - 1 and kj > 0 and kj < self.nY - 1:
-                            Mat_coef_t[k - 1, k - 1] = AP + AN
-                            Mat_coef_t[k - 1, k] = AE
-                            Mat_coef_t[k - 1, k - 2] = AW
-                            Mat_coef_t[k - 1, k - self.ntheta - 1] = AS
-
-                        elif ki == 0 and kj == self.nY - 1:
-                            Mat_coef_t[k - 1, k - 1] = AP + AE + AS
-                            Mat_coef_t[k - 1, k - 2] = AW
-                            Mat_coef_t[k - 1, k + self.ntheta - 1] = AN
-
-                        elif kj == self.nY - 1 and ki > 0 and ki < self.nZ - 1:
-                            Mat_coef_t[k - 1, k - 1] = AP + AE
-                            Mat_coef_t[k - 1, k - 2] = AW
-                            Mat_coef_t[k - 1, k - self.ntheta - 1] = AS
-                            Mat_coef_t[k - 1, k + self.ntheta - 1] = AN
-
-                        elif ki == self.nZ - 1 and kj == self.nY - 1:
-                            Mat_coef_t[k - 1, k - 1] = AP + AE + AN
-                            Mat_coef_t[k - 1, k - 2] = AW
-                            Mat_coef_t[k - 1, k - self.ntheta - 1] = AS
-
-                        kj = kj + 1
-
-                    kj = 0
-                    ki = ki + 1
-
-                #    %%%%%%%%%%%%%%%%%%%%%% Solution of temperature field %%%%%%%%%%%%%%%%%%%%
-
-                t = np.linalg.solve(Mat_coef_t, b_t)
-
-                cont = 0
-
-                for i in np.arange(self.nZ):
-                    for j in np.arange(self.ntheta):
-
-                        T_new[i, j, n_p] = t[cont]
-                        cont = cont + 1
-
-                #    % Dimensional Temperature fied [Pa]
-
-                Tdim = T_new * self.Treserv
-
-                T_end = np.sum(Tdim[:, -1, n_p]) / self.nZ
-
-                T_mist_aux[n_p] = (
-                    self.fat_mist * self.Treserv + (1 - self.fat_mist) * T_end
-                )
-
-
-                for i in np.arange(self.nZ):
-                    for j in np.arange(self.ntheta):
-
-                        mi_new[i, j, n_p] = (
-                            6.4065 * (Tdim[i, j, n_p]) ** -1.475
-                        ) / self.mi_ref
+    
+                            B_t = B_tG + B_tH + B_tI + B_tJ + B_tK
+    
+                            k = k + 1
+    
+                            b_t[k - 1, 0] = B_t
+    
+                            if ki == 0 and kj == 0:
+                                Mat_coef_t[k - 1, k - 1] = AP + AS - AW
+                                Mat_coef_t[k - 1, k] = AE
+                                Mat_coef_t[k - 1, k + self.ntheta - 1] = AN
+                                b_t[k - 1, 0] = b_t[k - 1, 0] - 2 * AW * (
+                                    T_ref / self.Treserv
+                                )
+    
+                            elif kj == 0 and ki > 0 and ki < self.nZ - 1:
+                                Mat_coef_t[k - 1, k - 1] = AP - AW
+                                Mat_coef_t[k - 1, k] = AE
+                                Mat_coef_t[k - 1, k - self.ntheta - 1] = AS
+                                Mat_coef_t[k - 1, k + self.ntheta - 1] = AN
+                                b_t[k - 1, 0] = b_t[k - 1, 0] - 2 * AW * (
+                                    T_ref / self.Treserv
+                                )
+    
+                            elif kj == 0 and ki == self.nZ - 1:
+                                Mat_coef_t[k - 1, k - 1] = AP + AN - AW
+                                Mat_coef_t[k - 1, k] = AE
+                                Mat_coef_t[k - 1, k - self.ntheta - 1] = AS
+                                b_t[k - 1, 0] = b_t[k - 1, 0] - 2 * AW * (
+                                    T_ref / self.Treserv
+                                )
+    
+                            elif ki == 0 and kj > 0 and kj < self.nY - 1:
+                                Mat_coef_t[k - 1, k - 1] = AP + AS
+                                Mat_coef_t[k - 1, k] = AE
+                                Mat_coef_t[k - 1, k - 2] = AW
+                                Mat_coef_t[k - 1, k + self.ntheta - 1] = AN
+    
+                            elif (
+                                ki > 0 and ki < self.nZ - 1 and kj > 0 and kj < self.nY - 1
+                            ):
+                                Mat_coef_t[k - 1, k - 1] = AP
+                                Mat_coef_t[k - 1, k - 2] = AW
+                                Mat_coef_t[k - 1, k - self.ntheta - 1] = AS
+                                Mat_coef_t[k - 1, k + self.ntheta - 1] = AN
+                                Mat_coef_t[k - 1, k] = AE
+    
+                            elif ki == self.nZ - 1 and kj > 0 and kj < self.nY - 1:
+                                Mat_coef_t[k - 1, k - 1] = AP + AN
+                                Mat_coef_t[k - 1, k] = AE
+                                Mat_coef_t[k - 1, k - 2] = AW
+                                Mat_coef_t[k - 1, k - self.ntheta - 1] = AS
+    
+                            elif ki == 0 and kj == self.nY - 1:
+                                Mat_coef_t[k - 1, k - 1] = AP + AE + AS
+                                Mat_coef_t[k - 1, k - 2] = AW
+                                Mat_coef_t[k - 1, k + self.ntheta - 1] = AN
+    
+                            elif kj == self.nY - 1 and ki > 0 and ki < self.nZ - 1:
+                                Mat_coef_t[k - 1, k - 1] = AP + AE
+                                Mat_coef_t[k - 1, k - 2] = AW
+                                Mat_coef_t[k - 1, k - self.ntheta - 1] = AS
+                                Mat_coef_t[k - 1, k + self.ntheta - 1] = AN
+    
+                            elif ki == self.nZ - 1 and kj == self.nY - 1:
+                                Mat_coef_t[k - 1, k - 1] = AP + AE + AN
+                                Mat_coef_t[k - 1, k - 2] = AW
+                                Mat_coef_t[k - 1, k - self.ntheta - 1] = AS
+    
+                            kj = kj + 1
+    
+                        kj = 0
+                        ki = ki + 1
+    
+                    #    %%%%%%%%%%%%%%%%%%%%%% Solution of temperature field %%%%%%%%%%%%%%%%%%%%
+    
+                    t = np.linalg.solve(Mat_coef_t, b_t)
+    
+                    cont = 0
+    
+                    for i in np.arange(self.nZ):
+                        for j in np.arange(self.ntheta):
+    
+                            T_new[i, j, n_p] = t[cont]
+                            cont = cont + 1
+    
+                    #    % Dimensional Temperature fied [Pa]
+    
+                    Tdim = T_new * self.Treserv
+    
+                    T_end = np.sum(Tdim[:, -1, n_p]) / self.nZ
+    
+                    T_mist_aux[n_p] = (
+                        self.fat_mist * self.Treserv + (1 - self.fat_mist) * T_end
+                    )
+    
+    
+                    for i in np.arange(self.nZ):
+                        for j in np.arange(self.ntheta):
+    
+                            mi_new[i, j, n_p] = (
+                                6.4065 * (Tdim[i, j, n_p]) ** -1.475
+                            ) / self.mi_ref
 
         cont = 0
         for n_p in np.arange(self.n_pad):
@@ -774,10 +780,10 @@ if __name__ == "__main__":
     Wx = float(0)  # [N]
     Wy = float(-112814.91)  # [N]
     k = float(0.15327)  # Thermal conductivity [J/s.m.°C]
-    Cp = float(1915.24)  # Specific heat [J/kg°C]
-    rho = float(880)  # Specific mass [kg/m³]
-    Tref = float(50)  # Temperature of oil tank [ºC]
-    mix = float(0.8)  # Mixing factor. Used because the oil supply flow is not known.
+    Cp = float(1915.5)  # Specific heat [J/kg°C]
+    rho = float(854.952)  # Specific mass [kg/m³]
+    Treserv = float(50)  # Temperature of oil tank [ºC]
+    mix = float(0.5)  # Mixing factor. Used because the oil supply flow is not known.
     nGap = int(1)  #    Number of volumes in recess zone
     nPad = int(2)  #    Number of pads
     betha_s = 176
@@ -799,7 +805,7 @@ if __name__ == "__main__":
         k,
         Cp,
         rho,
-        Tref,
+        Treserv,
         mix,
     )
     mancal.run(x0,print_progress=True,plot_pressure=True)
