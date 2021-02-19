@@ -30,9 +30,9 @@ from ross.materials import steel
 from ross.point_mass import PointMass
 from ross.results import (CampbellResults, ConvergenceResults,
                           CriticalSpeedResults, ForcedResponseResults,
-                          FrequencyResponseResults, ModalResults,
-                          StaticResults, SummaryResults, TimeResponseResults,
-                          UCSResults)
+                          FrequencyResponseResults, Level1Results,
+                          ModalResults, StaticResults, SummaryResults,
+                          TimeResponseResults, UCSResults)
 from ross.shaft_element import ShaftElement, ShaftElement6DoF
 from ross.units import Q_, check_units
 from ross.utils import intersection
@@ -2217,7 +2217,7 @@ class Rotor(object):
 
         return results
 
-    def plot_level1(self, n=5, stiffness_range=None, num=5, **kwargs):
+    def run_level1(self, n=5, stiffness_range=None, num=5, **kwargs):
         """Plot level 1 stability analysis.
 
         This method will plot the stability 1 analysis for a
@@ -2266,7 +2266,8 @@ class Rotor(object):
         >>> bearing0 = BearingElement(0, kxx=stfx, kyy=stfy, cxx=0)
         >>> bearing1 = BearingElement(6, kxx=stfx, kyy=stfy, cxx=0)
         >>> rotor = Rotor(shaft_elem, [disk0, disk1], [bearing0, bearing1], rated_w=0)
-        >>> fig = rotor.plot_level1(n=0, stiffness_range=(1e6, 1e11))
+        >>> level1 = rotor.run_level1(n=0, stiffness_range=(1e6, 1e11))
+        >>> fig = level1.plot()
         """
         if stiffness_range is None:
             if self.rated_w is not None:
@@ -2295,25 +2296,9 @@ class Rotor(object):
             non_backward = modal.whirl_direction() != "Backward"
             log_dec[i] = modal.log_dec[non_backward][0]
 
-        fig = go.Figure()
-        fig.add_trace(
-            go.Scatter(
-                x=stiffness,
-                y=log_dec,
-                mode="lines",
-                line=dict(width=3, color=colors[0]),
-                showlegend=False,
-                hovertemplate=("Stiffness: %{x:.2e}<br>" + "Log Dec: %{y:.2f}"),
-            )
-        )
+        results = Level1Results(stiffness, log_dec)
 
-        fig.update_xaxes(
-            title_text="Applied Cross Coupled Stiffness", exponentformat="power"
-        )
-        fig.update_yaxes(title_text="Log Dec", exponentformat="power")
-        fig.update_layout(title=dict(text="Level 1 stability analysis"), **kwargs)
-
-        return fig
+        return results
 
     def run_time_response(self, speed, F, t):
         """Calculate the time response.
