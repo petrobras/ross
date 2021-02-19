@@ -31,7 +31,8 @@ from ross.point_mass import PointMass
 from ross.results import (CampbellResults, ConvergenceResults,
                           CriticalSpeedResults, ForcedResponseResults,
                           FrequencyResponseResults, ModalResults,
-                          StaticResults, SummaryResults, TimeResponseResults)
+                          StaticResults, SummaryResults, TimeResponseResults,
+                          UCSResults)
 from ross.shaft_element import ShaftElement, ShaftElement6DoF
 from ross.units import Q_, check_units
 from ross.utils import intersection
@@ -2110,7 +2111,7 @@ class Rotor(object):
 
         return results
 
-    def _calc_ucs(
+    def run_ucs(
         self,
         stiffness_range=None,
         num_modes=16,
@@ -2119,7 +2120,27 @@ class Rotor(object):
         synchronous=False,
         **kwargs,
     ):
+        """Run Undamped Critical Speeds analyzes.
 
+        This method will run the undamped critical speed analyzes for a given range
+        of stiffness values. If the range is not provided, the bearing
+        stiffness at rated speed will be used to create a range.
+
+        Parameters
+        ----------
+        stiffness_range : tuple, optional
+            Tuple with (start, end) for stiffness range.
+        num : int
+            Number of steps in the range.
+            Default is 20.
+        num_modes : int, optional
+            Number of modes to be calculated. This uses scipy.sparse.eigs method.
+            Default is 16.
+        synchronous : bool
+            If True a synchronous analysis is carried out and the frequency of
+            the first forward model will be equal to the speed.
+            Default is False.
+        """
         if stiffness_range is None:
             if self.rated_w is not None:
                 bearing = self.bearing_elements[0]
@@ -2190,174 +2211,11 @@ class Rotor(object):
                         # pass if x/y is empty
                         pass
 
-        return stiffness_log, rotor_wn, bearing0, intersection_points
-
-    def plot_ucs(
-        self,
-        stiffness_range=None,
-        num_modes=16,
-        num=30,
-        fig=None,
-        synchronous=False,
-        stiffness_units="N/m",
-        frequency_units="rad/s",
-        **kwargs,
-    ):
-        """Plot undamped critical speed map.
-
-        This method will plot the undamped critical speed map for a given range
-        of stiffness values. If the range is not provided, the bearing
-        stiffness at rated speed will be used to create a range.
-
-        Parameters
-        ----------
-        stiffness_range : tuple, optional
-            Tuple with (start, end) for stiffness range.
-        num : int
-            Number of steps in the range.
-            Default is 20.
-        num_modes : int, optional
-            Number of modes to be calculated. This uses scipy.sparse.eigs method.
-            Default is 16.
-        fig : Plotly graph_objects.Figure()
-            The figure object with the plot.
-        synchronous : bool
-            If True a synchronous analysis is carried out and the frequency of
-            the first forward model will be equal to the speed.
-            Default is False.
-        stiffness_units : str, optional
-            Units for the x axis.
-            Default is N/m.
-        frequency_units : str, optional
-            Units for th y axis.
-            Default is rad/s
-        kwargs : optional
-            Additional key word arguments can be passed to change the plot layout only
-            (e.g. width=1000, height=800, ...).
-            *See Plotly Python Figure Reference for more information.
-
-        Returns
-        -------
-        fig : Plotly graph_objects.Figure()
-            The figure object with the plot.
-
-        Example
-        -------
-        >>> i_d = 0
-        >>> o_d = 0.05
-        >>> n = 6
-        >>> L = [0.25 for _ in range(n)]
-        >>> shaft_elem = [
-        ...     ShaftElement(
-        ...         l, i_d, o_d, material=steel, shear_effects=True,
-        ...         rotary_inertia=True, gyroscopic=True
-        ...     )
-        ...     for l in L
-        ... ]
-        >>> disk0 = DiskElement.from_geometry(
-        ...     n=2, material=steel, width=0.07, i_d=0.05, o_d=0.28
-        ... )
-        >>> disk1 = DiskElement.from_geometry(
-        ...     n=4, material=steel, width=0.07, i_d=0.05, o_d=0.28
-        ... )
-        >>> stfx = [1e6, 2e7, 3e8]
-        >>> stfy = [0.8e6, 1.6e7, 2.4e8]
-        >>> bearing0 = BearingElement(0, kxx=stfx, kyy=stfy, cxx=0, frequency=[0,1000, 2000])
-        >>> bearing1 = BearingElement(6, kxx=stfx, kyy=stfy, cxx=0, frequency=[0,1000, 2000])
-        >>> rotor = Rotor(shaft_elem, [disk0, disk1], [bearing0, bearing1])
-        >>> fig = rotor.plot_ucs()
-        """
-
-        stiffness_log, rotor_wn, bearing0, intersection_points = self._calc_ucs(
-            stiffness_range=stiffness_range,
-            num_modes=num_modes,
-            num=num,
-            fig=fig,
-            synchronous=synchronous,
-            **kwargs,
+        results = UCSResults(
+            stiffness_range, stiffness_log, rotor_wn, bearing0, intersection_points
         )
 
-        if fig is None:
-            fig = go.Figure()
-
-        # convert to desired units
-        stiffness_log = Q_(stiffness_log, "N/m").to(stiffness_units).m
-        rotor_wn = Q_(rotor_wn, "rad/s").to(frequency_units).m
-        intersection_points["x"] = (
-            Q_(intersection_points["x"], "N/m").to(stiffness_units).m
-        )
-        intersection_points["y"] = (
-            Q_(intersection_points["y"], "rad/s").to(frequency_units).m
-        )
-        bearing_kxx_stiffness = (
-            Q_(bearing0.kxx.interpolated(bearing0.frequency), "N/m")
-            .to(stiffness_units)
-            .m
-        )
-        bearing_kyy_stiffness = (
-            Q_(bearing0.kyy.interpolated(bearing0.frequency), "N/m")
-            .to(stiffness_units)
-            .m
-        )
-        bearing_frequency = Q_(bearing0.frequency, "rad/s").to(frequency_units).m
-
-        for j in range(rotor_wn.shape[0]):
-            fig.add_trace(
-                go.Scatter(
-                    x=stiffness_log,
-                    y=rotor_wn[j],
-                    mode="lines",
-                    hoverinfo="none",
-                    showlegend=False,
-                )
-            )
-
-        fig.add_trace(
-            go.Scatter(
-                x=intersection_points["x"],
-                y=intersection_points["y"],
-                mode="markers",
-                marker=dict(symbol="circle-open-dot", color="red", size=8),
-                hovertemplate=f"Stiffness ({stiffness_units}): %{{x:.2e}}<br>Frequency ({frequency_units}): %{{y:.2f}}",
-                showlegend=False,
-                name="",
-            )
-        )
-
-        fig.add_trace(
-            go.Scatter(
-                x=bearing_kxx_stiffness,
-                y=bearing_frequency,
-                mode="lines",
-                line=dict(dash="dashdot"),
-                hoverinfo="none",
-                name="Kxx",
-            )
-        )
-        fig.add_trace(
-            go.Scatter(
-                x=bearing_kyy_stiffness,
-                y=bearing_frequency,
-                mode="lines",
-                line=dict(dash="dashdot"),
-                hoverinfo="none",
-                name="Kyy",
-            )
-        )
-
-        fig.update_xaxes(
-            title_text=f"Bearing Stiffness ({stiffness_units})",
-            type="log",
-            exponentformat="power",
-        )
-        fig.update_yaxes(
-            title_text=f"Critical Speed ({frequency_units})",
-            type="log",
-            exponentformat="power",
-        )
-        fig.update_layout(title=dict(text="Undamped Critical Speed Map"), **kwargs)
-
-        return fig
+        return results
 
     def plot_level1(self, n=5, stiffness_range=None, num=5, **kwargs):
         """Plot level 1 stability analysis.
