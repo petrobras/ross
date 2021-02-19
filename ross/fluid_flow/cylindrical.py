@@ -100,10 +100,10 @@ class THDCylindrical:
             self.x0 = x0
 
             xr = (
-                self.x0[0] * self.Cr * np.sin(self.x0[1])
+                self.x0[0] * self.Cr * np.cos(self.x0[1])
             )  # Representa a posição do centro do eixo ao longo da direção "Y"
             yr = (
-                self.x0[0] * self.Cr * np.cos(self.x0[1])
+                self.x0[0] * self.Cr * np.sin(self.x0[1])
             )  # Representa a posição do centro do eixo ao longo da direção "X"
             self.Y = yr / self.Cr  # Representa a posição em x adimensional
             self.X = xr / self.Cr
@@ -150,7 +150,7 @@ class THDCylindrical:
     
                 self.theta2 = self.theta1 + self.betha_s
     
-                # self.dtheta = (self.theta2 - self.theta1) / (self.ntheta)
+                self.dtheta = (self.theta2 - self.theta1) / (self.ntheta)
     
                 Z1 = 0  # initial coordinate z dimensionless
                 Z2 = 1  # final coordinate z dimensionless
@@ -783,7 +783,7 @@ if __name__ == "__main__":
     Cp = float(1915.5)  # Specific heat [J/kg°C]
     rho = float(854.952)  # Specific mass [kg/m³]
     Treserv = float(50)  # Temperature of oil tank [ºC]
-    mix = float(0.5)  # Mixing factor. Used because the oil supply flow is not known.
+    mix = float(0.52)  # Mixing factor. Used because the oil supply flow is not known.
     nGap = int(1)  #    Number of volumes in recess zone
     nPad = int(2)  #    Number of pads
     betha_s = 176
