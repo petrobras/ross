@@ -1,6 +1,6 @@
 # fmt: off
-import os
-import shutil
+import inspect
+import sys
 import warnings
 from collections import Counter, namedtuple
 from collections.abc import Iterable
@@ -21,7 +21,7 @@ from scipy.optimize import newton
 from scipy.sparse import linalg as las
 
 from ross.bearing_seal_element import (BallBearingElement, BearingElement,
-                                       BearingElement6DoF,
+                                       BearingElement6DoF, BearingFluidFlow,
                                        MagneticBearingElement,
                                        RollerBearingElement, SealElement)
 from ross.defects import Crack, MisalignmentFlex, MisalignmentRigid, Rubbing
@@ -426,15 +426,13 @@ class Rotor(object):
             else:
                 break
 
-        # fmt: off
-        dfb = df[
-            df.type.isin([
-                "BallBearingElement", "BearingElement", "BearingElement6DoF",
-                "BearingFluidFlow", "MagneticBearingElement", "RollerBearingElement",
-                "SealElement"])
+        classes = [
+            _class
+            for _class, _ in inspect.getmembers(
+                sys.modules["ross.bearing_seal_element"], inspect.isclass
+            )
         ]
-        # fmt: on
-
+        dfb = df[df.type.isin(classes)]
         z_positions = [pos for pos in dfb["nodes_pos_l"]]
         z_positions = list(dict.fromkeys(z_positions))
         for z_pos in z_positions:
@@ -487,14 +485,7 @@ class Rotor(object):
                 y_pos_sup += 2 * mean_od * df["scale_factor"][df.tag == t].values[0]
 
         # define position for point mass elements
-        # fmt: off
-        dfb = df[
-            df.type.isin([
-                "BallBearingElement", "BearingElement", "BearingFluidFlow",
-                "BearingElement6DoF", "MagneticBearingElement", "RollerBearingElement",
-                "SealElement"])
-        ]
-        # fmt: on
+        dfb = df[df.type.isin(classes)]
         for p in point_mass_elements:
             z_pos = dfb[dfb.n_l == p.n]["nodes_pos_l"].values[0]
             y_pos = dfb[dfb.n_l == p.n]["y_pos"].values[0]
