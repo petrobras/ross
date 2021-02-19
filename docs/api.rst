@@ -39,10 +39,12 @@ Rotor class and available methods for analysis (`run_` methods).
     Rotor.run_modal
     Rotor.run_critical_speed
     Rotor.run_freq_response
-    Rotor.forced_response
+    Rotor.run_forced_response
     Rotor.run_unbalance_response
     Rotor.run_campbell
     Rotor.run_time_response
+    Rotor.run_level1
+    Rotor.run_ucs
     Rotor.run_static
     Rotor.run_misalignment
     Rotor.run_rubbing
