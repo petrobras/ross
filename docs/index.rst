@@ -64,6 +64,7 @@ package written in python.
 
    installation
    tutorials
+   examples
    download
    api
    contributing
