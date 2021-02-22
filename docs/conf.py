@@ -98,6 +98,11 @@ pygments_style = "abap"
 # a list of builtin themes.
 #
 nbsphinx_allow_errors = True
+nbsphinx_kernel_name = "python3"
+try:
+    nbsphinx_execute = os.environ["NBSPHINX_EXECUTE"]
+except KeyError:
+    nbsphinx_execute = "always"
 html_theme = "bootstrap"
 htlm_theme_path = sphinx_bootstrap_theme.get_html_theme_path()
 
@@ -178,6 +183,7 @@ html_theme_options = {
     # Choose Bootstrap version.
     # Values: "3" (default) or "2" (in quotes)
     "bootstrap_version": "3",
+    "body_max_width": "100%",
 }
 
 # Add any paths that contain custom static files (such as style sheets) here,
@@ -272,4 +278,4 @@ epub_exclude_files = ["search.html"]
 
 # -- Extension configuration -------------------------------------------------
 def setup(app):
-    app.add_stylesheet("style.css")
+    app.add_css_file("style.css")
