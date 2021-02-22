@@ -248,7 +248,12 @@ class Crack(Defect):
         self.M = self.rotor.M()
         self.Kst = self.rotor.Kst()
 
-        _, ModMat = scipy.linalg.eigh(self.K, self.M, type=1, turbo=False,)
+        _, ModMat = scipy.linalg.eigh(
+            self.K,
+            self.M,
+            type=1,
+            turbo=False,
+        )
         ModMat = ModMat[:, :12]
         self.ModMat = ModMat
 
