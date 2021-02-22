@@ -1,18 +1,13 @@
-import pathlib
 import time
-from abc import ABC, abstractmethod
 from pathlib import Path
 
 import numpy as np
 import pandas as pd
-import plotly.graph_objects as go
-import scipy as sp
 import scipy.integrate
 import scipy.linalg
 
 import ross
-from ross.results import TimeResponseResults
-from ross.units import Q_
+from ross.units import Q_, check_units
 
 from .abs_defect import Defect
 from .integrate_solver import Integrator
@@ -35,15 +30,15 @@ class Crack(Defect):
         Initial time
     tF : float
         Final time
-    cd : float
-        Crack depth
+    depth_ratio : float
+        Crack depth ratio related to the diameter of the crack container element. A depth value of 0.1 is equal to 10%, 0.2 equal to 20%, and so on.
     n_crack : float
         Element where the crack is located
-    speed : float
-        Operational speed of the machine
-    massunb : array
+    speed : float, pint.Quantity
+        Operational speed of the machine. Default unit is rad/s.
+    unbalance_magnitude : array
         Array with the unbalance magnitude. The unit is kg.m.
-    phaseunb : array
+    unbalance_phase : array
         Array with the unbalance phase. The unit is rad.
     crack_type : string
         String containing type of crack model chosed. The avaible types are: Mayes and Gasch.
@@ -74,16 +69,17 @@ class Crack(Defect):
     >>> # fig.show()
     """
 
+    @check_units
     def __init__(
         self,
         dt,
         tI,
         tF,
-        cd,
+        depth_ratio,
         n_crack,
         speed,
-        massunb,
-        phaseunb,
+        unbalance_magnitude,
+        unbalance_phase,
         crack_type="Mayes",
         print_progress=False,
     ):
@@ -91,13 +87,13 @@ class Crack(Defect):
         self.dt = dt
         self.tI = tI
         self.tF = tF
-        self.cd = cd
+        self.depth_ratio = depth_ratio
         self.n_crack = n_crack
         self.speed = speed
         self.speedI = speed
         self.speedF = speed
-        self.MassUnb = massunb
-        self.PhaseUnb = phaseunb
+        self.unbalance_magnitude = unbalance_magnitude
+        self.unbalance_phase = unbalance_phase
         self.print_progress = print_progress
 
         if crack_type is None or crack_type == "Mayes":
@@ -107,7 +103,7 @@ class Crack(Defect):
         else:
             raise Exception("Check the crack model!")
 
-        if len(self.MassUnb) != len(self.PhaseUnb):
+        if len(self.unbalance_magnitude) != len(self.unbalance_phase):
             raise Exception(
                 "The unbalance magnitude vector and phase must have the same size!"
             )
@@ -127,7 +123,7 @@ class Crack(Defect):
 
         self.rotor = rotor
         self.n_disk = len(self.rotor.disk_elements)
-        if self.n_disk != len(self.MassUnb):
+        if self.n_disk != len(self.unbalance_magnitude):
             raise Exception("The number of discs and unbalances must agree!")
 
         self.ndof = rotor.ndof
@@ -202,7 +198,7 @@ class Crack(Defect):
         c55 = self._get_coefs("c55")
         c45 = self._get_coefs("c45")
 
-        if self.cd == 0:
+        if self.depth_ratio == 0:
             Cc = Co
         else:
             Cc = Co + np.array(
@@ -219,9 +215,6 @@ class Crack(Defect):
 
         self.iteration = 0
 
-        warI = self.speedI * np.pi / 30
-        warF = self.speedF * np.pi / 30
-
         # parameters for the time integration
         self.lambdat = 0.00001
         Faxial = 0
@@ -230,10 +223,10 @@ class Crack(Defect):
 
         # pre-processing of auxilary variuables for the time integration
         self.sA = (
-            warI * np.exp(-self.lambdat * self.tF)
-            - warF * np.exp(-self.lambdat * self.tI)
+            self.speedI * np.exp(-self.lambdat * self.tF)
+            - self.speedF * np.exp(-self.lambdat * self.tI)
         ) / (np.exp(-self.lambdat * self.tF) - np.exp(-self.lambdat * self.tI))
-        self.sB = (warF - warI) / (
+        self.sB = (self.speedF - self.speedI) / (
             np.exp(-self.lambdat * self.tF) - np.exp(-self.lambdat * self.tI)
         )
 
@@ -249,8 +242,8 @@ class Crack(Defect):
         # AccelV = -lambdat * sB * np.exp(-lambdat * self.t)
 
         # Determining the modal matrix
-        self.K = self.rotor.K(self.speedI * np.pi / 30)
-        self.C = self.rotor.C(self.speedI * np.pi / 30)
+        self.K = self.rotor.K(self.speed)
+        self.C = self.rotor.C(self.speed)
         self.G = self.rotor.G()
         self.M = self.rotor.M()
         self.Kst = self.rotor.Kst()
@@ -285,7 +278,7 @@ class Crack(Defect):
         self.Omega = self.sA + self.sB * np.exp(-self.lambdat * T)
         self.AccelV = -self.lambdat * self.sB * np.exp(-self.lambdat * T)
 
-        self.tetaUNB = np.zeros((len(self.PhaseUnb), len(self.angular_position)))
+        self.tetaUNB = np.zeros((len(self.unbalance_phase), len(self.angular_position)))
         unbx = np.zeros(len(self.angular_position))
         unby = np.zeros(len(self.angular_position))
 
@@ -293,15 +286,21 @@ class Crack(Defect):
         self.forces_crack = np.zeros((self.ndof, len(t_eval)))
 
         for ii in range(self.n_disk):
-            self.tetaUNB[ii, :] = self.angular_position + self.PhaseUnb[ii] + np.pi / 2
+            self.tetaUNB[ii, :] = (
+                self.angular_position + self.unbalance_phase[ii] + np.pi / 2
+            )
 
-            unbx = self.MassUnb[ii] * (self.AccelV) * (
+            unbx = self.unbalance_magnitude[ii] * (self.AccelV) * (
                 np.cos(self.tetaUNB[ii, :])
-            ) - self.MassUnb[ii] * ((self.Omega ** 2)) * (np.sin(self.tetaUNB[ii, :]))
-
-            unby = -self.MassUnb[ii] * (self.AccelV) * (
+            ) - self.unbalance_magnitude[ii] * ((self.Omega ** 2)) * (
                 np.sin(self.tetaUNB[ii, :])
-            ) - self.MassUnb[ii] * (self.Omega ** 2) * (np.cos(self.tetaUNB[ii, :]))
+            )
+
+            unby = -self.unbalance_magnitude[ii] * (self.AccelV) * (
+                np.sin(self.tetaUNB[ii, :])
+            ) - self.unbalance_magnitude[ii] * (self.Omega ** 2) * (
+                np.cos(self.tetaUNB[ii, :])
+            )
 
             FFunb[int(self.ndofd[ii]), :] += unbx
             FFunb[int(self.ndofd[ii] + 1), :] += unby
@@ -513,7 +512,7 @@ class Crack(Defect):
         """
 
         c = np.array(pd.eval(self.data_coefs[coef]))
-        aux = np.where(c[:, 1] >= self.cd * 2)[0]
+        aux = np.where(c[:, 1] >= self.depth_ratio * 2)[0]
         c = c[aux[0], 0] * (1 - self.Poisson ** 2) / (self.E * (self.radius ** 3))
 
         return c
@@ -617,7 +616,7 @@ def crack_example():
     --------
     >>> crack = crack_example()
     >>> crack.speed
-    1200
+    125.66370614359172
     """
 
     rotor = base_rotor_example()
@@ -626,11 +625,11 @@ def crack_example():
         dt=0.0001,
         tI=0,
         tF=0.5,
-        cd=0.2,
+        depth_ratio=0.2,
         n_crack=18,
-        speed=1200,
-        massunb=np.array([5e-4, 0]),
-        phaseunb=np.array([-np.pi / 2, 0]),
+        speed=Q_(1200, "RPM"),
+        unbalance_magnitude=np.array([5e-4, 0]),
+        unbalance_phase=np.array([-np.pi / 2, 0]),
         crack_type="Mayes",
         print_progress=False,
     )

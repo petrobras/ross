@@ -2390,11 +2390,11 @@ class Rotor(object):
                     Driven torque.
                 n1 : float
                     Node where the misalignment is ocurring.
-                speed : float
-                    Operational speed of the machine.
-                massunb : array
+                speed : float, pint.Quantity
+                    Operational speed of the machine. Default unit is rad/s.
+                unbalance_magnitude : array
                     Array with the unbalance magnitude. The unit is kg.m.
-                phaseunb : array
+                unbalance_phase : array
                     Array with the unbalance phase. The unit is rad.
                 mis_type: string
                     String containing the misalignment type choosed. The avaible types are: parallel, by default; angular; combined.
@@ -2417,11 +2417,11 @@ class Rotor(object):
                     Driven torque.
                 n1 : float
                     Node where the misalignment is ocurring.
-                speed : float
-                    Operational speed of the machine.
-                massunb : array
+                speed : float, pint.Quantity
+                    Operational speed of the machine. Default unit is rad/s.
+                unbalance_magnitude : array
                     Array with the unbalance magnitude. The unit is kg.m.
-                phaseunb : array
+                unbalance_phase : array
                     Array with the unbalance phase. The unit is rad.
                 print_progress : bool
                     Set it True, to print the time iterations and the total time spent.
@@ -2472,11 +2472,11 @@ class Rotor(object):
                     Friction coefficient.
                 posRUB : int
                     Node where the rubbing is ocurring.
-                speed : float
-                    Operational speed of the machine.
-                massunb : array
+                speed : float, pint.Quantity
+                    Operational speed of the machine. Default unit is rad/s.
+                unbalance_magnitude : array
                     Array with the unbalance magnitude. The unit is kg.m.
-                phaseunb : array
+                unbalance_phase : array
                     Array with the unbalance phase. The unit is rad.
                 torque : bool
                     Set it as True to consider the torque provided by the rubbing, by default False.
@@ -2512,15 +2512,15 @@ class Rotor(object):
                     Initial time
                 tF : float
                     Final time
-                cd : float
-                    Crack depth
+                depth_ratio : float
+                    Crack depth ratio related to the diameter of the crack container element. A depth value of 0.1 is equal to 10%, 0.2 equal to 20%, and so on.
                 n_crack : float
                     Element where the crack is located
-                speed : float
-                    Operational speed of the machine
-                massunb : array
+                speed : float, pint.Quantity
+                    Operational speed of the machine. Default unit is rad/s.
+                unbalance_magnitude : array
                     Array with the unbalance magnitude. The unit is kg.m.
-                phaseunb : array
+                unbalance_phase : array
                     Array with the unbalance phase. The unit is rad.
                 crack_type : string
                     String containing type of crack model chosed. The avaible types are: Mayes and Gasch.
