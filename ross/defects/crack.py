@@ -31,7 +31,7 @@ class Crack(Defect):
     tF : float
         Final time
     depth_ratio : float
-        Crack depth ratio. A depth value of 0.1 is equal to 10%, 0.2 equal to 20%, and so on.
+        Crack depth ratio related to the diameter of the crack container element. A depth value of 0.1 is equal to 10%, 0.2 equal to 20%, and so on.
     n_crack : float
         Element where the crack is located
     speed : float, pint.Quantity
@@ -248,12 +248,7 @@ class Crack(Defect):
         self.M = self.rotor.M()
         self.Kst = self.rotor.Kst()
 
-        _, ModMat = scipy.linalg.eigh(
-            self.K,
-            self.M,
-            type=1,
-            turbo=False,
-        )
+        _, ModMat = scipy.linalg.eigh(self.K, self.M, type=1, turbo=False,)
         ModMat = ModMat[:, :12]
         self.ModMat = ModMat
 
