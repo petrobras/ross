@@ -12,8 +12,6 @@ from scipy.stats import gaussian_kde
 
 from ross.plotly_theme import tableau_colors
 
-pio.renderers.default = "browser"
-
 
 def plot_histogram(
     attribute_dict, label={}, var_list=[], histogram_kwargs=None, plot_kwargs=None

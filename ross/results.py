@@ -3822,3 +3822,213 @@ class TimeResponseResults(Results):
         )
 
         return fig
+
+
+class UCSResults(Results):
+    """Class used to store results and provide plots for UCS Analysis.
+
+    Parameters
+    ----------
+    stiffness_range : tuple, optional
+        Tuple with (start, end) for stiffness range.
+    stiffness_log : tuple, optional
+        Evenly numbers spaced evenly on a log scale to create a better visualization
+        (see np.logspace).
+    wn : array
+        Undamped natural frequencies array.
+    bearing : ross.BearingElement
+        Bearing used in the calculation.
+    intersection_points : array
+        Points where there is a intersection between undamped natural frequency and
+        the bearing stiffness.
+    """
+
+    def __init__(
+        self, stiffness_range, stiffness_log, wn, bearing, intersection_points
+    ):
+        self.stiffness_range = stiffness_range
+        self.stiffness_log = stiffness_log
+        self.wn = wn
+        self.bearing = bearing
+        self.intersection_points = intersection_points
+
+    def plot(
+        self,
+        fig=None,
+        stiffness_units="N/m",
+        frequency_units="rad/s",
+        **kwargs,
+    ):
+        """Plot undamped critical speed map.
+
+        This method will plot the undamped critical speed map for a given range
+        of stiffness values. If the range is not provided, the bearing
+        stiffness at rated speed will be used to create a range.
+
+        Parameters
+        ----------
+        fig : Plotly graph_objects.Figure()
+            The figure object with the plot.
+        stiffness_units : str, optional
+            Units for the x axis.
+            Default is N/m.
+        frequency_units : str, optional
+            Units for th y axis.
+            Default is rad/s
+        kwargs : optional
+            Additional key word arguments can be passed to change the plot layout only
+            (e.g. width=1000, height=800, ...).
+            *See Plotly Python Figure Reference for more information.
+
+        Returns
+        -------
+        fig : Plotly graph_objects.Figure()
+            The figure object with the plot.
+        """
+
+        stiffness_log = self.stiffness_log
+        rotor_wn = self.wn
+        bearing0 = self.bearing
+        intersection_points = self.intersection_points
+
+        if fig is None:
+            fig = go.Figure()
+
+        # convert to desired units
+        stiffness_log = Q_(stiffness_log, "N/m").to(stiffness_units).m
+        rotor_wn = Q_(rotor_wn, "rad/s").to(frequency_units).m
+        intersection_points["x"] = (
+            Q_(intersection_points["x"], "N/m").to(stiffness_units).m
+        )
+        intersection_points["y"] = (
+            Q_(intersection_points["y"], "rad/s").to(frequency_units).m
+        )
+        bearing_kxx_stiffness = (
+            Q_(bearing0.kxx.interpolated(bearing0.frequency), "N/m")
+            .to(stiffness_units)
+            .m
+        )
+        bearing_kyy_stiffness = (
+            Q_(bearing0.kyy.interpolated(bearing0.frequency), "N/m")
+            .to(stiffness_units)
+            .m
+        )
+        bearing_frequency = Q_(bearing0.frequency, "rad/s").to(frequency_units).m
+
+        for j in range(rotor_wn.shape[0]):
+            fig.add_trace(
+                go.Scatter(
+                    x=stiffness_log,
+                    y=rotor_wn[j],
+                    mode="lines",
+                    hoverinfo="none",
+                    showlegend=False,
+                )
+            )
+
+        fig.add_trace(
+            go.Scatter(
+                x=intersection_points["x"],
+                y=intersection_points["y"],
+                mode="markers",
+                marker=dict(symbol="circle-open-dot", color="red", size=8),
+                hovertemplate=f"Stiffness ({stiffness_units}): %{{x:.2e}}<br>Frequency ({frequency_units}): %{{y:.2f}}",
+                showlegend=False,
+                name="",
+            )
+        )
+
+        fig.add_trace(
+            go.Scatter(
+                x=bearing_kxx_stiffness,
+                y=bearing_frequency,
+                mode="lines",
+                line=dict(dash="dashdot"),
+                hoverinfo="none",
+                name="Kxx",
+            )
+        )
+        fig.add_trace(
+            go.Scatter(
+                x=bearing_kyy_stiffness,
+                y=bearing_frequency,
+                mode="lines",
+                line=dict(dash="dashdot"),
+                hoverinfo="none",
+                name="Kyy",
+            )
+        )
+
+        fig.update_xaxes(
+            title_text=f"Bearing Stiffness ({stiffness_units})",
+            type="log",
+            exponentformat="power",
+        )
+        fig.update_yaxes(
+            title_text=f"Critical Speed ({frequency_units})",
+            type="log",
+            exponentformat="power",
+        )
+        fig.update_layout(title=dict(text="Undamped Critical Speed Map"), **kwargs)
+
+        return fig
+
+
+class Level1Results(Results):
+    """Class used to store results and provide plots for Level 1 Stability Analysis.
+
+    Parameters
+    ----------
+    stiffness_range : array
+        Stiffness array used in the calculation.
+    log_dec : array
+        Calculated log dec array for each cross coupling.
+    """
+
+    def __init__(self, stiffness_range, log_dec):
+        self.stiffness_range = stiffness_range
+        self.log_dec = log_dec
+
+    def plot(self, fig=None, **kwargs):
+        """Plot level 1 stability analysis.
+
+        This method will plot the stability 1 analysis for a
+        given stiffness range.
+
+        Parameters
+        ----------
+        fig : Plotly graph_objects.Figure
+            The figure object with the plot.
+
+        kwargs : optional
+            Additional key word arguments can be passed to change the plot layout only
+            (e.g. width=1000, height=800, ...).
+            *See Plotly Python Figure Reference for more information.
+
+        Returns
+        -------
+        fig : Plotly graph_objects.Figure()
+            The figure object with the plot.
+        """
+        if fig is None:
+            fig = go.Figure()
+
+        stiffness = self.stiffness_range
+        log_dec = self.log_dec
+
+        fig.add_trace(
+            go.Scatter(
+                x=stiffness,
+                y=log_dec,
+                mode="lines",
+                line=dict(width=3),
+                showlegend=False,
+                hovertemplate=("Stiffness: %{x:.2e}<br>" + "Log Dec: %{y:.2f}"),
+            )
+        )
+
+        fig.update_xaxes(
+            title_text="Applied Cross Coupled Stiffness", exponentformat="power"
+        )
+        fig.update_yaxes(title_text="Log Dec", exponentformat="power")
+        fig.update_layout(title=dict(text="Level 1 stability analysis"), **kwargs)

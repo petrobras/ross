@@ -1,6 +1,6 @@
 # fmt: off
-import os
-import shutil
+import inspect
+import sys
 import warnings
 from collections import Counter, namedtuple
 from collections.abc import Iterable
@@ -21,7 +21,7 @@ from scipy.optimize import newton
 from scipy.sparse import linalg as las
 
 from ross.bearing_seal_element import (BallBearingElement, BearingElement,
-                                       BearingElement6DoF,
+                                       BearingElement6DoF, BearingFluidFlow,
                                        MagneticBearingElement,
                                        RollerBearingElement, SealElement)
 from ross.defects import Crack, MisalignmentFlex, MisalignmentRigid, Rubbing
@@ -30,8 +30,9 @@ from ross.materials import steel
 from ross.point_mass import PointMass
 from ross.results import (CampbellResults, ConvergenceResults,
                           CriticalSpeedResults, ForcedResponseResults,
-                          FrequencyResponseResults, ModalResults,
-                          StaticResults, SummaryResults, TimeResponseResults)
+                          FrequencyResponseResults, Level1Results,
+                          ModalResults, StaticResults, SummaryResults,
+                          TimeResponseResults, UCSResults)
 from ross.shaft_element import ShaftElement, ShaftElement6DoF
 from ross.units import Q_, check_units
 from ross.utils import intersection
@@ -425,11 +426,13 @@ class Rotor(object):
             else:
                 break
 
-        dfb = df[
-            (df.type == "BearingElement")
-            | (df.type == "BearingElement6DoF")
-            | (df.type == "SealElement")
+        classes = [
+            _class
+            for _class, _ in inspect.getmembers(
+                sys.modules["ross.bearing_seal_element"], inspect.isclass
+            )
         ]
+        dfb = df[df.type.isin(classes)]
         z_positions = [pos for pos in dfb["nodes_pos_l"]]
         z_positions = list(dict.fromkeys(z_positions))
         for z_pos in z_positions:
@@ -482,11 +485,7 @@ class Rotor(object):
                 y_pos_sup += 2 * mean_od * df["scale_factor"][df.tag == t].values[0]
 
         # define position for point mass elements
-        dfb = df[
-            (df.type == "BearingElement")
-            | (df.type == "BearingElement6DoF")
-            | (df.type == "SealElement")
-        ]
+        dfb = df[df.type.isin(classes)]
         for p in point_mass_elements:
             z_pos = dfb[dfb.n_l == p.n]["nodes_pos_l"].values[0]
             y_pos = dfb[dfb.n_l == p.n]["y_pos"].values[0]
@@ -562,6 +561,8 @@ class Rotor(object):
         rotor speed. It means that for each speed input there's a different set of
         eigenvalues and eigenvectors, hence, different natural frequencies and damping
         ratios are returned.
+        This method will return a ModalResults object which stores all data generated
+        and also provides so methods for plotting.
 
         Available plotting methods:
             .plot_mode_2d()
@@ -587,19 +588,12 @@ class Rotor(object):
 
         Returns
         -------
-        evalues : array
-            Eigenvalues array
-        evectors : array
-            Eigenvectors array
-        wn : array
-            Undamped natural frequencies array
-        wd : array
-            Damped natural frequencies array
-        log_dec : array
-            Logarithmic decrement array
+        results : ross.ModalResults
+            For more information on attributes and methods available see:
+            :py:class:`ross.ModalResults`
 
-        Example
-        -------
+        Examples
+        --------
         >>> import ross as rs
         >>> rotor = rs.rotor_example()
         >>> modal = rotor.run_modal(speed=0, sparse=False)
@@ -607,12 +601,10 @@ class Rotor(object):
         array([91.79655318, 96.28899977])
         >>> modal.wd[:2]
         array([91.79655318, 96.28899977])
-
-        Plotting 3D mode shape
+        >>> # Plotting 3D mode shape
         >>> mode1 = 0  # First mode
         >>> fig = modal.plot_mode_3d(mode1)
-
-        Plotting 2D mode shape
+        >>> # Plotting 2D mode shape
         >>> mode2 = 1  # Second mode
         >>> fig = modal.plot_mode_2d(mode2)
         """
@@ -1448,7 +1440,8 @@ class Rotor(object):
 
         Examples
         --------
-        >>> rotor = rotor_example()
+        >>> import ross as rs
+        >>> rotor = rs.rotor_example()
         >>> speed = np.linspace(0, 1000, 101)
         >>> response = rotor.run_freq_response(speed_range=speed)
 
@@ -1467,6 +1460,11 @@ class Rotor(object):
         >>> response = rotor.run_freq_response(cluster_points=True, num_points=5)
         >>> response.speed_range.shape
         (61,)
+
+        Selecting the disirable modes, if you want a reduced model:
+        >>> response = rotor.run_freq_response(speed_range=speed, modes=[0, 1, 2])
+        >>> abs(response.freq_resp) # doctest: +ELLIPSIS
+        array([[[2.00154633e-07, 2.02422522e-07, 2.09522044e-07, ...
 
         Plotting frequency response function:
         >>> fig = response.plot(inp=13, out=13)
@@ -1512,7 +1510,7 @@ class Rotor(object):
 
         return results
 
-    def forced_response(
+    def run_forced_response(
         self,
         force=None,
         speed_range=None,
@@ -1594,7 +1592,7 @@ class Rotor(object):
         >>> rotor = rotor_example()
         >>> speed = np.linspace(0, 1000, 101)
         >>> force = rotor._unbalance_force(3, 10.0, 0.0, speed)
-        >>> resp = rotor.forced_response(force=force, speed_range=speed)
+        >>> resp = rotor.run_forced_response(force=force, speed_range=speed)
         >>> abs(resp.forced_resp) # doctest: +ELLIPSIS
         array([[0.00000000e+00, 5.06073311e-04, 2.10044826e-03, ...
 
@@ -1602,7 +1600,7 @@ class Rotor(object):
         Set `cluster_points=True` and choose how many modes the method must search and
         how many points to add just before and after each critical speed.
 
-        >>> response = rotor.forced_response(
+        >>> response = rotor.run_forced_response(
         ...     force=force, cluster_points=True, num_modes=12, num_points=5
         ... )
         >>> response.speed_range.shape
@@ -1838,7 +1836,7 @@ class Rotor(object):
 
         # fmt: off
         ub = np.vstack((node, unbalance_magnitude, unbalance_phase))
-        forced_response = self.forced_response(
+        forced_response = self.run_forced_response(
             force, frequency, modes, cluster_points, num_modes, num_points, rtol, ub
         )
         # fmt: on
@@ -2053,6 +2051,10 @@ class Rotor(object):
         frequencies : int, optional
             Number of frequencies that will be calculated.
             Default is 6.
+        frequency_type : str, optional
+            Choose between displaying results related to the undamped natural
+            frequencies ("wn") or damped natural frequencies ("wd").
+            The default is "wd".
 
         Returns
         -------
@@ -2063,8 +2065,14 @@ class Rotor(object):
 
         Examples
         --------
-        >>> rotor1 = rotor_example()
+        >>> import ross as rs
+        >>> rotor1 = rs.rotor_example()
         >>> speed = np.linspace(0, 400, 101)
+
+        Diagram with undamped natural frequencies
+        >>> camp = rotor1.run_campbell(speed, frequency_type="wn")
+
+        Diagram with damped natural frequencies
         >>> camp = rotor1.run_campbell(speed)
 
         Plotting Campbell Diagram
@@ -2101,7 +2109,7 @@ class Rotor(object):
 
         return results
 
-    def _calc_ucs(
+    def run_ucs(
         self,
         stiffness_range=None,
         num_modes=16,
@@ -2110,7 +2118,27 @@ class Rotor(object):
         synchronous=False,
         **kwargs,
     ):
+        """Run Undamped Critical Speeds analyzes.
 
+        This method will run the undamped critical speed analyzes for a given range
+        of stiffness values. If the range is not provided, the bearing
+        stiffness at rated speed will be used to create a range.
+
+        Parameters
+        ----------
+        stiffness_range : tuple, optional
+            Tuple with (start, end) for stiffness range.
+        num : int
+            Number of steps in the range.
+            Default is 20.
+        num_modes : int, optional
+            Number of modes to be calculated. This uses scipy.sparse.eigs method.
+            Default is 16.
+        synchronous : bool
+            If True a synchronous analysis is carried out and the frequency of
+            the first forward model will be equal to the speed.
+            Default is False.
+        """
         if stiffness_range is None:
             if self.rated_w is not None:
                 bearing = self.bearing_elements[0]
@@ -2181,176 +2209,13 @@ class Rotor(object):
                         # pass if x/y is empty
                         pass
 
-        return stiffness_log, rotor_wn, bearing0, intersection_points
-
-    def plot_ucs(
-        self,
-        stiffness_range=None,
-        num_modes=16,
-        num=30,
-        fig=None,
-        synchronous=False,
-        stiffness_units="N/m",
-        frequency_units="rad/s",
-        **kwargs,
-    ):
-        """Plot undamped critical speed map.
-
-        This method will plot the undamped critical speed map for a given range
-        of stiffness values. If the range is not provided, the bearing
-        stiffness at rated speed will be used to create a range.
-
-        Parameters
-        ----------
-        stiffness_range : tuple, optional
-            Tuple with (start, end) for stiffness range.
-        num : int
-            Number of steps in the range.
-            Default is 20.
-        num_modes : int, optional
-            Number of modes to be calculated. This uses scipy.sparse.eigs method.
-            Default is 16.
-        fig : Plotly graph_objects.Figure()
-            The figure object with the plot.
-        synchronous : bool
-            If True a synchronous analysis is carried out and the frequency of
-            the first forward model will be equal to the speed.
-            Default is False.
-        stiffness_units : str, optional
-            Units for the x axis.
-            Default is N/m.
-        frequency_units : str, optional
-            Units for th y axis.
-            Default is rad/s
-        kwargs : optional
-            Additional key word arguments can be passed to change the plot layout only
-            (e.g. width=1000, height=800, ...).
-            *See Plotly Python Figure Reference for more information.
-
-        Returns
-        -------
-        fig : Plotly graph_objects.Figure()
-            The figure object with the plot.
-
-        Example
-        -------
-        >>> i_d = 0
-        >>> o_d = 0.05
-        >>> n = 6
-        >>> L = [0.25 for _ in range(n)]
-        >>> shaft_elem = [
-        ...     ShaftElement(
-        ...         l, i_d, o_d, material=steel, shear_effects=True,
-        ...         rotary_inertia=True, gyroscopic=True
-        ...     )
-        ...     for l in L
-        ... ]
-        >>> disk0 = DiskElement.from_geometry(
-        ...     n=2, material=steel, width=0.07, i_d=0.05, o_d=0.28
-        ... )
-        >>> disk1 = DiskElement.from_geometry(
-        ...     n=4, material=steel, width=0.07, i_d=0.05, o_d=0.28
-        ... )
-        >>> stfx = [1e6, 2e7, 3e8]
-        >>> stfy = [0.8e6, 1.6e7, 2.4e8]
-        >>> bearing0 = BearingElement(0, kxx=stfx, kyy=stfy, cxx=0, frequency=[0,1000, 2000])
-        >>> bearing1 = BearingElement(6, kxx=stfx, kyy=stfy, cxx=0, frequency=[0,1000, 2000])
-        >>> rotor = Rotor(shaft_elem, [disk0, disk1], [bearing0, bearing1])
-        >>> fig = rotor.plot_ucs()
-        """
-
-        stiffness_log, rotor_wn, bearing0, intersection_points = self._calc_ucs(
-            stiffness_range=stiffness_range,
-            num_modes=num_modes,
-            num=num,
-            fig=fig,
-            synchronous=synchronous,
-            **kwargs,
+        results = UCSResults(
+            stiffness_range, stiffness_log, rotor_wn, bearing0, intersection_points
         )
 
-        if fig is None:
-            fig = go.Figure()
+        return results
 
-        # convert to desired units
-        stiffness_log = Q_(stiffness_log, "N/m").to(stiffness_units).m
-        rotor_wn = Q_(rotor_wn, "rad/s").to(frequency_units).m
-        intersection_points["x"] = (
-            Q_(intersection_points["x"], "N/m").to(stiffness_units).m
-        )
-        intersection_points["y"] = (
-            Q_(intersection_points["y"], "rad/s").to(frequency_units).m
-        )
-        bearing_kxx_stiffness = (
-            Q_(bearing0.kxx.interpolated(bearing0.frequency), "N/m")
-            .to(stiffness_units)
-            .m
-        )
-        bearing_kyy_stiffness = (
-            Q_(bearing0.kyy.interpolated(bearing0.frequency), "N/m")
-            .to(stiffness_units)
-            .m
-        )
-        bearing_frequency = Q_(bearing0.frequency, "rad/s").to(frequency_units).m
-
-        for j in range(rotor_wn.shape[0]):
-            fig.add_trace(
-                go.Scatter(
-                    x=stiffness_log,
-                    y=rotor_wn[j],
-                    mode="lines",
-                    hoverinfo="none",
-                    showlegend=False,
-                )
-            )
-
-        fig.add_trace(
-            go.Scatter(
-                x=intersection_points["x"],
-                y=intersection_points["y"],
-                mode="markers",
-                marker=dict(symbol="circle-open-dot", color="red", size=8),
-                hovertemplate=f"Stiffness ({stiffness_units}): %{{x:.2e}}<br>Frequency ({frequency_units}): %{{y:.2f}}",
-                showlegend=False,
-                name="",
-            )
-        )
-
-        fig.add_trace(
-            go.Scatter(
-                x=bearing_kxx_stiffness,
-                y=bearing_frequency,
-                mode="lines",
-                line=dict(dash="dashdot"),
-                hoverinfo="none",
-                name="Kxx",
-            )
-        )
-        fig.add_trace(
-            go.Scatter(
-                x=bearing_kyy_stiffness,
-                y=bearing_frequency,
-                mode="lines",
-                line=dict(dash="dashdot"),
-                hoverinfo="none",
-                name="Kyy",
-            )
-        )
-
-        fig.update_xaxes(
-            title_text=f"Bearing Stiffness ({stiffness_units})",
-            type="log",
-            exponentformat="power",
-        )
-        fig.update_yaxes(
-            title_text=f"Critical Speed ({frequency_units})",
-            type="log",
-            exponentformat="power",
-        )
-        fig.update_layout(title=dict(text="Undamped Critical Speed Map"), **kwargs)
-
-        return fig
-
-    def plot_level1(self, n=5, stiffness_range=None, num=5, **kwargs):
+    def run_level1(self, n=5, stiffness_range=None, num=5, **kwargs):
         """Plot level 1 stability analysis.
 
         This method will plot the stability 1 analysis for a
@@ -2399,7 +2264,8 @@ class Rotor(object):
         >>> bearing0 = BearingElement(0, kxx=stfx, kyy=stfy, cxx=0)
         >>> bearing1 = BearingElement(6, kxx=stfx, kyy=stfy, cxx=0)
         >>> rotor = Rotor(shaft_elem, [disk0, disk1], [bearing0, bearing1], rated_w=0)
-        >>> fig = rotor.plot_level1(n=0, stiffness_range=(1e6, 1e11))
+        >>> level1 = rotor.run_level1(n=0, stiffness_range=(1e6, 1e11))
+        >>> fig = level1.plot()
         """
         if stiffness_range is None:
             if self.rated_w is not None:
@@ -2428,25 +2294,9 @@ class Rotor(object):
             non_backward = modal.whirl_direction() != "Backward"
             log_dec[i] = modal.log_dec[non_backward][0]
 
-        fig = go.Figure()
-        fig.add_trace(
-            go.Scatter(
-                x=stiffness,
-                y=log_dec,
-                mode="lines",
-                line=dict(width=3, color=colors[0]),
-                showlegend=False,
-                hovertemplate=("Stiffness: %{x:.2e}<br>" + "Log Dec: %{y:.2f}"),
-            )
-        )
+        results = Level1Results(stiffness, log_dec)
 
-        fig.update_xaxes(
-            title_text="Applied Cross Coupled Stiffness", exponentformat="power"
-        )
-        fig.update_yaxes(title_text="Log Dec", exponentformat="power")
-        fig.update_layout(title=dict(text="Level 1 stability analysis"), **kwargs)
-
-        return fig
+        return results
 
     def run_time_response(self, speed, F, t):
         """Calculate the time response.
@@ -3896,7 +3746,12 @@ def coaxrotor_example():
 
     Examples
     --------
-    >>> rotor = coaxrotor_example()
+    >>> import ross as rs
+    >>> rotor = rs.coaxrotor_example()
+
+    Plotting rotor model
+    >>> fig = rotor.plot_rotor()
+
     >>> modal = rotor.run_modal(speed=0)
     >>> np.round(modal.wd[:4])
     array([39., 39., 99., 99.])
@@ -3916,16 +3771,16 @@ def coaxrotor_example():
     coaxial_shaft = [ShaftElement(l, i_d, o_d, material=steel) for l in L]
 
     disk0 = DiskElement.from_geometry(
-        n=1, material=steel, width=0.07, i_d=0.05, o_d=0.28
+        n=1, material=steel, width=0.07, i_d=0.05, o_d=0.28, scale_factor=0.8
     )
     disk1 = DiskElement.from_geometry(
-        n=9, material=steel, width=0.07, i_d=0.05, o_d=0.28
+        n=9, material=steel, width=0.07, i_d=0.05, o_d=0.28, scale_factor=0.8
     )
     disk2 = DiskElement.from_geometry(
-        n=13, material=steel, width=0.07, i_d=0.20, o_d=0.48
+        n=13, material=steel, width=0.07, i_d=0.20, o_d=0.48, scale_factor=0.8
     )
     disk3 = DiskElement.from_geometry(
-        n=15, material=steel, width=0.07, i_d=0.20, o_d=0.48
+        n=15, material=steel, width=0.07, i_d=0.20, o_d=0.48, scale_factor=0.8
     )
 
     shaft = [axial_shaft, coaxial_shaft]
@@ -3933,13 +3788,23 @@ def coaxrotor_example():
 
     stfx = 1e6
     stfy = 1e6
-    bearing0 = BearingElement(0, kxx=stfx, kyy=stfy, cxx=0)
-    bearing1 = BearingElement(10, kxx=stfx, kyy=stfy, cxx=0)
-    bearing2 = BearingElement(11, kxx=stfx, kyy=stfy, cxx=0)
-    bearing3 = BearingElement(8, n_link=17, kxx=stfx, kyy=stfy, cxx=0)
-    bearings = [bearing0, bearing1, bearing2, bearing3]
+    bearing0 = BearingElement(0, n_link=18, kxx=stfx, kyy=stfy, cxx=0, scale_factor=0.4)
+    bearing1 = BearingElement(
+        10, n_link=19, kxx=stfx, kyy=stfy, cxx=0, scale_factor=0.4
+    )
+    bearing2 = BearingElement(11, kxx=stfx, kyy=stfy, cxx=0, scale_factor=0.4)
+    bearing3 = BearingElement(8, n_link=17, kxx=stfx, kyy=stfy, cxx=0, scale_factor=0.4)
 
-    return CoAxialRotor(shaft, disks, bearings)
+    base0 = BearingElement(18, kxx=1e8, kyy=1e8, cxx=0, scale_factor=0.4)
+    base1 = BearingElement(19, kxx=1e8, kyy=1e8, cxx=0, scale_factor=0.4)
+
+    pointmass0 = PointMass(n=18, m=20)
+    pointmass1 = PointMass(n=19, m=20)
+
+    bearings = [bearing0, bearing1, bearing2, bearing3, base0, base1]
+    pointmasses = [pointmass0, pointmass1]
+
+    return CoAxialRotor(shaft, disks, bearings, pointmasses)
 
 
 def rotor_example_6dof():
