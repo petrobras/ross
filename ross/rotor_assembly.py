@@ -2358,7 +2358,12 @@ class Rotor(object):
         return results
 
     def run_misalignment(self, coupling="flex", **kwargs):
-        """Execute the misalignment defect and generates the misalignment object on the back-end. There are two types of coupling, flexible (flex) and rigid, which have different entries. These entries are provided via **kwargs to the specific method.
+        """Run an analyzes with misalignment.
+
+        Execute the misalignment defect and generates the misalignment object
+        on the back-end. There are two types of coupling, flexible (flex)
+        and rigid, which have different entries. These entries are provided
+        via **kwargs to the specific method.
 
         Parameters
         ----------
@@ -2449,7 +2454,9 @@ class Rotor(object):
         return defect
 
     def run_rubbing(self, **kwargs):
-        """Execute the rubbing defect and generates the rubbing object on the back-end.
+        """Run an analyzes with rubbing.
+
+        Execute the rubbing defect and generates the rubbing object on the back-end.
 
         Parameters
         ----------
@@ -2499,7 +2506,9 @@ class Rotor(object):
         return defect
 
     def run_crack(self, **kwargs):
-        """Execute the crack defect and generates the crack object on the back-end.
+        """Run an analyzes with rubbing.
+
+        Execute the crack defect and generates the crack object on the back-end.
 
         Parameters
         ----------
