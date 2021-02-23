@@ -1593,7 +1593,7 @@ class FrequencyResponseResults(Results):
 
 
 class ForcedResponseResults(Results):
-    """Store results and provide plots for Unbalance and Forced Response analysis.
+    """Class used to store results and provide plots for Forced Response analysis.
 
     Parameters
     ----------
