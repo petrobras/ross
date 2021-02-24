@@ -3418,7 +3418,7 @@ class CoAxialRotor(Rotor):
 
         # check consistence for disks and bearings location
         if len(df_point_mass) > 0:
-            max_loc_point_mass = df_point_mass.n.max()
+            max_loc_point_mass = df_point_mass._n.max()
         else:
             max_loc_point_mass = 0
         max_location = max(df_shaft.n_r.max(), max_loc_point_mass)
@@ -3612,7 +3612,7 @@ class CoAxialRotor(Rotor):
         for z_pos in dfb["nodes_pos_l"]:
             dfb_z_pos = dfb[dfb.nodes_pos_l == z_pos]
             dfb_z_pos = dfb_z_pos.sort_values(by="n_l")
-            for n, t, nlink in zip(dfb_z_pos.n, dfb_z_pos.tag, dfb_z_pos.n_link):
+            for n, t, nlink in zip(dfb_z_pos._n, dfb_z_pos.tag, dfb_z_pos.n_link):
                 if n in self.nodes:
                     if z_pos == df_shaft["nodes_pos_l"].iloc[0]:
                         y_pos = (np.max(df_shaft["odl"][df_shaft.n_l == n].values)) / 2
