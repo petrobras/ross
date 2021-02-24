@@ -3389,12 +3389,12 @@ class CoAxialRotor(Rotor):
                     nodes_pos_r[k + i] = nodes_pos_l[k + i] + df_shaft.loc[k + i, "L"]
 
                 if sh.n in df_bearings["n_link"].values:
-                    idx = df_bearings.loc[df_bearings.n_link == sh.n, "n"].values[0]
+                    idx = df_bearings.loc[df_bearings.n_link == sh.n, "_n"].values[0]
                     nodes_pos_l[i : sh.n] += nodes_pos_l[idx] - nodes_pos_l[k + i]
                     nodes_pos_r[i : sh.n] += nodes_pos_r[idx] - nodes_pos_r[k + i]
                     axial_cg_pos[i : sh.n] += nodes_pos_r[idx] - nodes_pos_r[k + i]
                 elif sh.n_r in df_bearings["n_link"].values:
-                    idx = df_bearings.loc[df_bearings.n_link == sh.n_r, "n"].values[0]
+                    idx = df_bearings.loc[df_bearings.n_link == sh.n_r, "_n"].values[0]
                     nodes_pos_l[i : sh.n_r] += nodes_pos_l[idx - 1] - nodes_pos_l[k + i]
                     nodes_pos_r[i : sh.n_r] += nodes_pos_r[idx - 1] - nodes_pos_r[k + i]
                     axial_cg_pos[i : sh.n_r] += (
@@ -3527,7 +3527,7 @@ class CoAxialRotor(Rotor):
 
         if "n_link" in df.columns and df_point_mass.index.size > 0:
             aux_link = list(df["n_link"].dropna().unique().astype(int))
-            aux_node = list(df_point_mass["n"].dropna().unique().astype(int))
+            aux_node = list(df_point_mass["_n"].dropna().unique().astype(int))
             self.link_nodes = list(set(aux_link) & set(aux_node))
         else:
             self.link_nodes = []
