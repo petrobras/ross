@@ -53,8 +53,10 @@ class PointMass(Element):
 
     @check_units
     def __init__(self, n=None, m=None, mx=None, my=None, tag=None, color="DarkSalmon"):
-        self.n = n
+        self._n = n
         self.m = m
+        self.n_l = n
+        self.n_r = n
 
         if mx is None and my is None:
             mx = float(m)

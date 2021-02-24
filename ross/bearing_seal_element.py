@@ -425,7 +425,7 @@ class BearingElement(Element):
         for k, v in coefficients.items():
             setattr(self, k, v)
 
-        self.n = n
+        self._n = n
         self.n_link = n_link
         self.n_l = n
         self.n_r = n

@@ -287,7 +287,7 @@ class Rotor(object):
 
         # check consistence for disks and bearings location
         if len(df_point_mass) > 0:
-            max_loc_point_mass = df_point_mass.n.max()
+            max_loc_point_mass = df_point_mass._n.max()
         else:
             max_loc_point_mass = 0
         max_location = max(df_shaft.n_r.max(), max_loc_point_mass)
@@ -408,11 +408,20 @@ class Rotor(object):
             if bearings_no_zloc:
                 if b in bearings_no_zloc:
                     # first check if b.n is on list, if not, check for n_link
-                    node_l = df.loc[(df.n_l == b.n) & (df.tag != b.tag), "nodes_pos_l"]
-                    node_r = df.loc[(df.n_r == b.n) & (df.tag != b.tag), "nodes_pos_r"]
+                    node_l = df.loc[
+                        (df.n_l == b.n) & (df.tag != b.tag) & (df.type != "PointMass"),
+                        "nodes_pos_l",
+                    ]
+                    node_r = df.loc[
+                        (df.n_r == b.n) & (df.tag != b.tag) & (df.type != "PointMass"),
+                        "nodes_pos_r",
+                    ]
                     if len(node_l) == 0 and len(node_r) == 0:
                         node_l = df.loc[
-                            (df.n_link == b.n) & (df.tag != b.tag), "nodes_pos_l"
+                            (df.n_link == b.n)
+                            & (df.tag != b.tag)
+                            & (df.type != "PointMass"),
+                            "nodes_pos_l",
                         ]
                         node_r = node_l
                     if len(node_l):
@@ -433,6 +442,7 @@ class Rotor(object):
             )
         ]
         dfb = df[df.type.isin(classes)]
+
         z_positions = [pos for pos in dfb["nodes_pos_l"]]
         z_positions = list(dict.fromkeys(z_positions))
         for z_pos in z_positions:
@@ -2822,16 +2832,16 @@ class Rotor(object):
                 & (aux_rotor.df["shaft_number"] == i)
             ]
             for j, row in aux_df.iterrows():
-                if row["n"] == n_max:
+                if row["_n"] == n_max:
                     force = -np.round(elm_forces_y[-1, 1], 1)
                 else:
-                    force = np.round(elm_forces_y[int(row["n"]) - n_min, 0], 1)
+                    force = np.round(elm_forces_y[int(row["_n"]) - n_min, 0], 1)
 
                 if row["type"] == "DiskElement":
-                    DskForce_nodal["node_" + str(int(row["n"]))] = force
+                    DskForce_nodal["node_" + str(int(row["_n"]))] = force
                     DskForce_tag[row["tag"]] = force
                 elif row["type"] == "BearingElement":
-                    BrgForce_nodal["node_" + str(int(row["n"]))] = force
+                    BrgForce_nodal["node_" + str(int(row["_n"]))] = force
                     BrgForce_tag[row["tag"]] = force
                     if not pd.isna(row["n_link"]):
                         BrgForce_nodal["node_" + str(int(row["n_link"]))] = -force

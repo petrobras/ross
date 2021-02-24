@@ -52,7 +52,7 @@ class DiskElement(Element):
 
     @check_units
     def __init__(self, n, m, Id, Ip, tag=None, scale_factor=1.0, color="Firebrick"):
-        self.n = int(n)
+        self._n = int(n)
         self.n_l = n
         self.n_r = n
 

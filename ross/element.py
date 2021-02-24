@@ -15,8 +15,47 @@ class Element(ABC):
     """
 
     def __init__(self, n, tag=None):
-        self.n = n
+        self._n = n
         self.tag = tag
+
+    @property
+    def n(self):
+        """Set the element number as property.
+
+        Returns
+        -------
+        n : int
+            Element number
+        """
+        return self._n
+
+    @n.setter
+    def n(self, value):
+        """Set a new value for the element number.
+
+        Parameters
+        ----------
+        value : int
+            element number
+
+        Example
+        -------
+        >>> from ross.materials import steel
+        >>> shaft1 = ShaftElement(
+        ...        L=0.25, idl=0, idr=0, odl=0.05, odr=0.08,
+        ...        material=steel, rotary_inertia=True, shear_effects=True
+        ... )
+        >>> shaft1.n = 0
+        >>> shaft1 # doctest: +ELLIPSIS
+        ShaftElement(L=0.25, idl=0.0...
+        """
+        self._n = value
+        self.n_l = value
+        if value is not None:
+            if hasattr(self, "L"):
+                self.n_r = value + 1
+            else:
+                self.n_r = value
 
     def save(self, file):
         """Save the element in a .toml file.
@@ -195,7 +234,7 @@ class Element(ABC):
         >>> from ross.disk_element import disk_example
         >>> disk = disk_example()
         >>> disk.summary() # doctest: +ELLIPSIS
-        n                             0
+        _n                            0
         n_l                           0
         n_r                           0...
         """

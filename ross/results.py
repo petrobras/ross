@@ -3334,8 +3334,8 @@ class SummaryResults(Results):
         disk_data = {
             "Tag": self.df_disks["tag"],
             "Shaft number": self.df_disks["shaft_number"],
-            "Node": self.df_disks["n"],
-            "Nodal Position": self.nodes_pos[self.df_bearings["n"]],
+            "Node": self.df_disks["_n"],
+            "Nodal Position": self.nodes_pos[self.df_bearings["_n"]],
             "Mass": self.df_disks["m"].map("{:.3f}".format),
             "Ip": self.df_disks["Ip"].map("{:.3e}".format),
         }
@@ -3343,9 +3343,9 @@ class SummaryResults(Results):
         bearing_data = {
             "Tag": self.df_bearings["tag"],
             "Shaft number": self.df_bearings["shaft_number"],
-            "Node": self.df_bearings["n"],
+            "Node": self.df_bearings["_n"],
             "N_link": self.df_bearings["n_link"],
-            "Nodal Position": self.nodes_pos[self.df_bearings["n"]],
+            "Nodal Position": self.nodes_pos[self.df_bearings["_n"]],
             "Bearing force": list(self.brg_forces.values()),
         }
 
