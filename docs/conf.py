@@ -97,7 +97,7 @@ pygments_style = "abap"
 # The theme to use for HTML and HTML Help pages.  See the documentation for
 # a list of builtin themes.
 #
-nbsphinx_allow_errors = True
+nbsphinx_allow_errors = False
 nbsphinx_kernel_name = "python3"
 try:
     nbsphinx_execute = os.environ["NBSPHINX_EXECUTE"]
