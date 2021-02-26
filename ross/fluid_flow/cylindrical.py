@@ -9,6 +9,126 @@ import sys
 
 
 class THDCylindrical:
+    """ This class calculate the pressure and temperature field in oil film of
+    cylindrical bearing.
+    
+    
+    Parameters
+    ----------
+    Bearing Geometry: 
+    =================
+    Describes the geometric data of the problem.
+    
+    L: float
+        Bearing length (m)    
+    R: float
+        Rotor radius (m).
+    c_r: float
+        Radial clearence between rotor and bearing (m).
+    betha_s: float
+        Arc length of each pad (degree)
+        
+        
+    Operation conditions
+    ====================
+    Describes the operation conditions of the bearing.
+    speed: float
+        Rotation of the rotor (Rpm).
+    Wx: Float
+        Load in X direction (N).
+    Wy: Float
+        Load in Y direction (N).
+    
+    Fluid propierties
+    =================
+    Describes the fluid characteristics.
+    
+    mu_ref: float
+        Viscosity (Pa.s).
+    rho: float
+        Fluid density (Kg/m**3).
+    k_t:  Float
+        Thermal conductivity of oil (J/s.m.°C)
+    Cp: float
+        Oil specific heat (J/kg°C)
+    Treserv: float
+        Oil reservoir temperature (°C)
+    fat_mixt: float
+        Mixture factor is used because the oil supply flow is not known. 
+        Corresponds to a percentage of cold oil coming from the reservoir that 
+        mixes with the already heated oil that circulates in the bearing.
+    
+    Mesh discretization
+    ===================
+    
+    Describes the discretization of bearing to solve the problem.
+    
+    ntheta: int
+        Number of volumes along the direction theta (direction of flow).
+    nz: int
+        Number of volumes along the Z direction (Axial).
+    n_gap= int
+        Number of volumes in recess zone.
+        
+     
+    Returns
+    =======
+    Dynamics coeficients. Pressure and temperature distribution
+    
+    References
+    ==========
+        
+    [1] BARBOSA, J. S. ; LOBATO, FRAN S. ; CAMPANINE SICCHIERI, LEONARDO ; CAVALINI JR, 
+    ALDEMIR AP. ; Steffen Jr, V. . Determinação da Posição de Equilíbrio em Mancais 
+    Hidrodinâmicos Cilíndricos usando o Algoritmo de Evolução Diferencial. 
+    REVISTA CEREUS, v. 10, p. 224-239, 2018.
+    [2] DANIEL, G.B. Desenvolvimento de um Modelo Termohidrodinâmico para Análise 
+    em Mancais Segmentados. Campinas: Faculdade de Engenharia Mecânica, Universidade 
+    Estadual de Campinas, 2012. Tese (Doutorado).
+    [3] NICOLETTI, R., Efeitos Térmicos em Mancais Segmentados Híbridos – Teoria e 
+    Experimento. 1999. Dissertação de Mestrado. Universidade Estadual de Campinas, Campinas.
+    
+    Attributes
+    ==========
+    n_pad: int
+        Number of pads that compose the inner surface of the bearings. For this code
+        the default value is 2. The objective is to simulate a cylindrical 
+        bearing with two gaps where cold oil is mixed to a hot oil that already
+        circulates.
+    thetaI: float
+        Initial coordenate in circunferential direction.
+    thetaF: float
+        Final coordenate in circunferential direction.
+    dtheta: float
+        Range size in circunferencial direction.
+    Ytheta: array
+        Vector that associates the elements bearing as a whole in circunferential 
+        direction. Joins the pads and the gaps. 
+    dY: float
+        Range size in circunferencial direction dimensionless.
+    dZ: float
+        Range size in axial direction dimensionless.
+    Z_I: float 
+        Initial coordenate in Z direction. Dimensionless.
+    Z_F: float 
+        Final coordenate in Z direction. Dimensionless.
+    Z: array
+        Vector of dimensionless elements in axial direcetion.
+    d_y: float
+        Dimensional range size in circunferencial direction.
+    d_z: float
+        Dimensional range size in axial direction dimensionless.
+    Zdim: array
+        Vector of dimensional elements in axial direcetion. 
+    
+    
+        
+    Examples
+    --------
+    >>> from ross.cylindrical import cylindrical as cyl
+    >>> 
+    """
+    
     def __init__(
         self,
         L,
@@ -94,6 +214,60 @@ class THDCylindrical:
         self.Zdim = self.Z * L
 
     def _forces(self, x0, y0, xpt0, ypt0):
+        """Calculates forces in Y and X direction.
+        Parameters
+        ==========
+        xr: float
+            Represents the position of the center of the axis along the X direction.
+        yr: float
+            Represents the position of the center of the axis along the Y direction.
+            yr = self.x0[0] * self.c_r * np.sin(self.x0[1])
+        X: float
+            Dimensionless of xr.
+        Y: float
+            Dimensionless of yr.
+        P: array of shape (n_z, n_theta,n_pad)
+            Distribution of pressure matrix. Dimensionless.
+        dPdy: array of shape(n_z, n_theta, n_pad)
+            Diferential of pressure matrix in Y direction. Dimensionless.
+        dPdz: array of shape(n_z, n_theta, n_pad)
+            Diferential of pressure matrix in Z direction. Dimensionless.
+        T : array of shape (n_z, n_theta, n_pad)
+            Distribution of Temperature matrix. Dimensioless.
+        T_new : array of shape (n_z, n_theta, n_pad)
+            Actualized distribution of Temperature matrix. Dimensioless.
+        T_mist: float
+            Mixture temperature.
+        mi_new: array of shape (n_z, n_theta, n_pad)
+            Actualized viscosity matrix. Dimensionless.
+        PPlot: array of shape(n_z + 2, len(Ytheta))
+            Pressure matrix that englobe all bearing (with boundary conditions and gaps)
+        auxF: array of shape(2, len(self.Ytheta))
+            Auxiliary to calculate resultant forces
+        Mat_coef: array of shape (nk, nk)
+            Coeficients matrix used to calculate pressure distribution.
+        Mat_coef_T: array of shape (nk, nk)
+            Coeficients matrix used to calculate temperature distribution.
+        b: array
+            Vector source term to calculate pressure distribution.
+        b_T: array
+            Vector source term to calculate temperature distribution.
+        hP: float
+            Oil film thickness at the center of the volume.
+        he: float
+            Oil film thickness at the east of the volume.
+        hw: float
+            Oil film thickness at the west of the volume.
+        hn: float
+            Oil film thickness at the north of the volume.
+        hs: float
+            Oil film thickness at the south of the volume.
+        
+        Returns
+        =======
+        Fhx and Fhy: float
+            Resultant forces in X and Y direction.
+        """
         if y0 is None and xpt0 is None and ypt0 is None:
             self.x0 = x0
 
