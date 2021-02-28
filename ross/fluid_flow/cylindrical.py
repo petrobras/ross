@@ -14,7 +14,7 @@ class THDCylindrical:
     
     
     Parameters
-    ----------
+    ==========
     Bearing Geometry: 
     =================
     Describes the geometric data of the problem.
@@ -215,6 +215,7 @@ class THDCylindrical:
 
     def _forces(self, x0, y0, xpt0, ypt0):
         """Calculates forces in Y and X direction.
+        
         Parameters
         ==========
         xr: float
@@ -867,7 +868,30 @@ class THDCylindrical:
         return Fhx, Fhy
 
     def run(self, x0, plot_pressure=False, print_progress=False):
-
+        """This method used to set and run minimize optimization to find the 
+        equilibrium position of rotor. 
+       
+        Parameters
+       ==========
+        method:  
+            The default is Nelder-Mead optimization algorithm. Used approach 
+            for non-differentiable objective functions. The Nelder-Mead 
+            optimization algorithm is a type of pattern search that does 
+            not use function gradients.
+        tol: float
+            Tolerance to set the end of the minimun search.
+       maxiter : int
+            Maximum iterations allowed to find the result of minimize routine.  
+        
+        Returns
+       ========
+         res: object
+           Optimize result object of scipy.optimize module.
+        
+        Example
+        =======
+        >>> 
+        """
         args = print_progress
         t1 = time.time()
         res = minimize(
@@ -887,6 +911,45 @@ class THDCylindrical:
             self._plotPressure()
 
     def coefficients(self, show_coef=False):
+        """This method calculates the dynamic coefficients of stiffness "k" and 
+        damping "c". The formulation is based in application of virtual displacements 
+        and speeds on the rotor from its equilibrium position to determine the 
+        bearing stiffness and damping coefficients.
+       
+        Parameters
+        ==========
+        xeq : float 
+            X coordinate of rotor equilibrium position.
+        yeq : float 
+            Y coordinate of rotor equilibrium position.
+        dE : float
+            Percentage of displacement applied to rotor.
+        epix : float
+            Displacement applied to rotor in X direction.  
+        epiy : float
+            Displacement applied to rotor in Y direction.  
+        epixpt : float
+            Velocity applied to rotor in X direction.  
+        epiypt : float
+            Velocity applied to rotor in Y direction.
+        Aux01, Aux02, Aux03, Aux04, Aux05, Aux06, Aux07, Aux08 : float
+            Auxiliary variables used to receive the result of method forces with 
+            the virtual displacements and velocities applied.
+        Kxx, Kxy, Kyx, Kyy : float
+            Stiffness coefficients in the expanded shape.
+        Cxx, Cxy, Cyx, Cyy : float
+            Damping coefficients in the expanded shape.
+        kxx, kxy, kyx, kyy : float
+            Stiffness coefficients in the reduced shape.
+        cxx, cxy, cyx, cyy : float
+            Damping coefficients in the reduced shape.
+        
+        Returns
+        ========
+        coefs : array
+            Bearing stiffness and damping coefficients.
+  
+        """
         if self.equilibrium_pos is None:
             self.run([0.1, -0.1], True, True)
             self.coefficients()
@@ -958,6 +1021,19 @@ class THDCylindrical:
             return coefs
 
     def _score(self, x, print_progress=False):
+        """This method used to set the objective function of minimize optimization. 
+        
+        Parameters
+        ==========
+        score: float
+           Balanced Force expression between the load aplied in bearing and the 
+           resultant force provide by oil film.
+        
+        Returns
+        ========
+        Score coefficient.
+         
+        """
         Fhx, Fhy = self._forces(x, None, None, None)
         score = np.sqrt(((self.Wx + Fhx) ** 2) + ((self.Wy + Fhy) ** 2))
         if print_progress:
@@ -971,7 +1047,20 @@ class THDCylindrical:
         return score
 
     def summerfeld(self, force_x,force_y):
-
+        """This method used to define the expression to calculate the sommerfeld number. 
+        This dimensionless number is used to calculate the dynamic coeficients "K" and "C".
+        
+        Parameters
+        ==========
+        S : float
+            Sommerfeld number expression.
+        Ss: float
+           Geometry corrected Sommerfeld number.
+        
+        Returns
+        ========
+        Sommerfeld number. 
+        """
         if self.summerfeld_type == 1:
             S = (self.mu_ref * ((self.R) ** 3) * self.L * self.speed) / (
                 np.pi * (self.c_r ** 2) * np.sqrt((self.Wx ** 2) + (self.Wy ** 2))
