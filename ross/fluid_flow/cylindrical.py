@@ -96,7 +96,7 @@ class THDCylindrical:
     >>> from ross.fluid_flow.cylindrical import cylindrical_bearing_example
     >>> x0 = [0.1,-0.1]
     >>> bearing = cylindrical_bearing_example()
-    >>> bearing.run()
+    >>> bearing.run(x0)
     >>> bearing.Fhy
     112814.91
     """
@@ -111,7 +111,6 @@ class THDCylindrical:
         n_z,
         n_y,
         n_gap,
-        n_pad,
         betha_s,
         mu_ref,
         speed,
@@ -132,7 +131,6 @@ class THDCylindrical:
         self.n_z = n_z
         self.n_y = n_y
         self.n_gap = n_gap
-        self.n_pad = n_pad
         self.mu_ref = mu_ref
         self.speed = speed
         self.Wx = Wx
@@ -149,6 +147,8 @@ class THDCylindrical:
             self.n_y = self.n_theta
 
         self.betha_s = betha_s * np.pi / 180
+
+        self.n_pad = 2
 
         self.thetaI = 0
         self.thetaF = self.betha_s
@@ -566,7 +566,7 @@ class THDCylindrical:
                                 self.rho
                                 * self.Cp
                                 * self.speed
-                                * ((self.betha_s * R) ** 2)
+                                * ((self.betha_s * self.R) ** 2)
                                 * self.dY
                             )
                             AW = (
@@ -581,7 +581,7 @@ class THDCylindrical:
                                         self.rho
                                         * self.Cp
                                         * self.speed
-                                        * ((self.betha_s * R) ** 2)
+                                        * ((self.betha_s * self.R) ** 2)
                                         * self.dY
                                     )
                                 )
@@ -619,7 +619,7 @@ class THDCylindrical:
                             b_TG = (
                                 self.mu_ref
                                 * self.speed
-                                * (R ** 2)
+                                * (self.R ** 2)
                                 * self.dY
                                 * self.dZ
                                 * P[ki, kj, n_p]
@@ -1019,8 +1019,9 @@ def cylindrical_bearing_example():
         L=0.263144,
         R=0.2,
         c_r=1.945e-4,
-        n_theta=41,
+        n_theta=38,
         n_z=10,
+        n_y=None,
         n_gap=1,
         betha_s=176,
         mu_ref=0.02,
@@ -1030,7 +1031,7 @@ def cylindrical_bearing_example():
         k_t=0.15327,
         Cp=1915.5,
         rho=854.952,
-        Treserv=50,
+        T_reserv=50,
         fat_mixt=0.52,
     )
 
@@ -1068,7 +1069,6 @@ if __name__ == "__main__":
         nZ,
         nY,
         nGap,
-        nPad,
         betha_s,
         mu,
         speed,
