@@ -1,12 +1,14 @@
-import numpy as np
-from scipy.optimize import minimize
-from numpy.linalg import pinv
-import matplotlib.pyplot as plt
-from matplotlib import cm
-from ross.units import Q_, check_units
-import time
 import math
 import sys
+import time
+
+import matplotlib.pyplot as plt
+import numpy as np
+from matplotlib import cm
+from numpy.linalg import pinv
+from scipy.optimize import minimize
+
+from ross.units import Q_, check_units
 
 
 class THDCylindrical:
@@ -98,6 +100,7 @@ class THDCylindrical:
     >>> bearing.Fhy
     112814.91
     """
+
     @check_units
     def __init__(
         self,
@@ -848,7 +851,7 @@ class THDCylindrical:
         Returns
         -------
         coefs : tuple
-            Bearing stiffness and damping coefficients. 
+            Bearing stiffness and damping coefficients.
             Its shape is: ((kxx, kxy, kyx, kyy), (cxx, cxy, cyx, cyy))
 
         """
@@ -1004,6 +1007,7 @@ class THDCylindrical:
         )
         plt.show()
 
+
 def cylindrical_bearing_example():
     """[summary]
 
@@ -1020,7 +1024,7 @@ def cylindrical_bearing_example():
         n_gap=1,
         betha_s=176,
         mu_ref=0.02,
-        speed=Q_(900,"RPM"),
+        speed=Q_(900, "RPM"),
         Wx=0,
         Wy=-112814.91,
         k_t=0.15327,
@@ -1029,8 +1033,9 @@ def cylindrical_bearing_example():
         Treserv=50,
         fat_mixt=0.52,
     )
-    
+
     return bearing
+
 
 if __name__ == "__main__":
 
@@ -1043,7 +1048,7 @@ if __name__ == "__main__":
     nY = None
 
     mu = float(0.02)  # [Ns/m²]
-    speed = Q_(900,"RPM")  # [RPM]
+    speed = Q_(900, "RPM")  # [RPM]
     Wx = float(0)  # [N]
     Wy = float(-112814.91)  # [N]
     k = float(0.15327)  # Thermal conductivity [J/s.m.°C]
