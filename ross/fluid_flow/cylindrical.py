@@ -3,132 +3,102 @@ from scipy.optimize import minimize
 from numpy.linalg import pinv
 import matplotlib.pyplot as plt
 from matplotlib import cm
+from ross.units import Q_, check_units
 import time
 import math
 import sys
 
 
 class THDCylindrical:
-    """ This class calculate the pressure and temperature field in oil film of
-    cylindrical bearing.
-    
-    
+    """This class calculates the pressure and temperature field in oil film of a cylindrical bearing, with two (2) pads. It is also possible to obtain the stiffness and damping coefficients.
+
     Parameters
-    ==========
-    Bearing Geometry: 
-    =================
-    Describes the geometric data of the problem.
-    
-    L: float
-        Bearing length (m)    
-    R: float
-        Rotor radius (m).
-    c_r: float
-        Radial clearence between rotor and bearing (m).
-    betha_s: float
-        Arc length of each pad (degree)
-        
-        
+    ----------
+    Bearing Geometry
+    ^^^^^^^^^^^^^^^^
+    Describes the geometric characteristics.
+    L : float, pint.Quantity
+        Bearing length. Default unit is meter.
+    R : float
+        Rotor radius. The unit is meter.
+    c_r : float
+        Radial clearence between rotor and bearing. The unit is meter.
+    betha_s : float
+        Arc length of each pad. The unit is degree.
+
+
     Operation conditions
-    ====================
+    ^^^^^^^^^^^^^^^^^^^^
     Describes the operation conditions of the bearing.
-    speed: float
-        Rotation of the rotor (Rpm).
-    Wx: Float
-        Load in X direction (N).
-    Wy: Float
-        Load in Y direction (N).
-    
+    speed : float, pint.Quantity
+        Rotor rotational speed. Default unit is rad/s.
+    Wx : Float
+        Load in X direction. The unit is newton.
+    Wy : Float
+        Load in Y direction. The unit is newton.
+
     Fluid propierties
-    =================
+    ^^^^^^^^^^^^^^^^^
     Describes the fluid characteristics.
-    
-    mu_ref: float
-        Viscosity (Pa.s).
-    rho: float
-        Fluid density (Kg/m**3).
-    k_t:  Float
-        Thermal conductivity of oil (J/s.m.°C)
-    Cp: float
-        Oil specific heat (J/kg°C)
-    Treserv: float
-        Oil reservoir temperature (°C)
-    fat_mixt: float
-        Mixture factor is used because the oil supply flow is not known. 
-        Corresponds to a percentage of cold oil coming from the reservoir that 
-        mixes with the already heated oil that circulates in the bearing.
-    
+    mu_ref : float
+        Fluid reference viscosity. The unit is Pa*s.
+    rho : float, pint.Quantity
+        Fluid density. Default unit is kg/m^3.
+    k_t :  Float
+        Fluid thermal conductivity. The unit is J/(s*m*°C).
+    Cp : float
+        Fluid specific heat. The unit is J/(kg*°C).
+    Treserv : float
+        Oil reservoir temperature. The unit is celsius.
+    fat_mixt : float
+        Ratio of oil in Treserv temperature that mixes with the circulating oil.
+
     Mesh discretization
-    ===================
-    
-    Describes the discretization of bearing to solve the problem.
-    
-    ntheta: int
+    ^^^^^^^^^^^^^^^^^^^
+    Describes the discretization of the bearing.
+    ntheta : int
         Number of volumes along the direction theta (direction of flow).
-    nz: int
-        Number of volumes along the Z direction (Axial).
-    n_gap= int
+    nz : int
+        Number of volumes along the Z direction (axial direction).
+    n_gap : int
         Number of volumes in recess zone.
-        
-     
+
+
     Returns
-    =======
-    Dynamics coeficients. Pressure and temperature distribution
-    
+    -------
+    A THDCylindrical object.
+
     References
-    ==========
-        
-    [1] BARBOSA, J. S. ; LOBATO, FRAN S. ; CAMPANINE SICCHIERI, LEONARDO ; CAVALINI JR, 
-    ALDEMIR AP. ; Steffen Jr, V. . Determinação da Posição de Equilíbrio em Mancais 
-    Hidrodinâmicos Cilíndricos usando o Algoritmo de Evolução Diferencial. 
-    REVISTA CEREUS, v. 10, p. 224-239, 2018.
-    [2] DANIEL, G.B. Desenvolvimento de um Modelo Termohidrodinâmico para Análise 
-    em Mancais Segmentados. Campinas: Faculdade de Engenharia Mecânica, Universidade 
-    Estadual de Campinas, 2012. Tese (Doutorado).
-    [3] NICOLETTI, R., Efeitos Térmicos em Mancais Segmentados Híbridos – Teoria e 
-    Experimento. 1999. Dissertação de Mestrado. Universidade Estadual de Campinas, Campinas.
-    
+    ----------
+    .. [1] BARBOSA, J. S.; LOBATO, FRAN S.; CAMPANINE SICCHIERI, LEONARDO;CAVALINI JR, ALDEMIR AP. ; STEFFEN JR, VALDER. Determinação da Posição de Equilíbrio em Mancais Hidrodinâmicos Cilíndricos usando o Algoritmo de Evolução Diferencial. REVISTA CEREUS, v. 10, p. 224-239, 2018. ..
+    .. [2] DANIEL, G.B. Desenvolvimento de um Modelo Termohidrodinâmico para Análise em Mancais Segmentados. Campinas: Faculdade de Engenharia Mecânica, Universidade Estadual de Campinas, 2012. Tese (Doutorado). ..
+    .. [3] NICOLETTI, R., Efeitos Térmicos em Mancais Segmentados Híbridos – Teoria e Experimento. 1999. Dissertação de Mestrado. Universidade Estadual de Campinas, Campinas. ..
+
     Attributes
-    ==========
-    n_pad: int
-        Number of pads that compose the inner surface of the bearings. For this code
-        the default value is 2. The objective is to simulate a cylindrical 
-        bearing with two gaps where cold oil is mixed to a hot oil that already
-        circulates.
-    thetaI: float
-        Initial coordenate in circunferential direction.
-    thetaF: float
-        Final coordenate in circunferential direction.
-    dtheta: float
-        Range size in circunferencial direction.
-    Ytheta: array
-        Vector that associates the elements bearing as a whole in circunferential 
-        direction. Joins the pads and the gaps. 
-    dY: float
-        Range size in circunferencial direction dimensionless.
-    dZ: float
-        Range size in axial direction dimensionless.
-    Z_I: float 
-        Initial coordenate in Z direction. Dimensionless.
-    Z_F: float 
-        Final coordenate in Z direction. Dimensionless.
-    Z: array
-        Vector of dimensionless elements in axial direcetion.
-    d_y: float
-        Dimensional range size in circunferencial direction.
-    d_z: float
-        Dimensional range size in axial direction dimensionless.
-    Zdim: array
-        Vector of dimensional elements in axial direcetion. 
-    
-    
-        
+    ----------
+    Pdim : array
+        Dimensional pressure field. The unit is pascal.
+    dPdz : array
+        Differential pressure field in z direction.
+    dPdy : array
+        Differential pressure field in theta direction.
+    Tdim : array
+        Dimensional temperature field. The unit is celsius.
+    Fhx : float
+        Force in X direction. The unit is newton.
+    Fhy : float
+        Force in Y direction. The unit is newton.
+
     Examples
     --------
-    >>> from ross.cylindrical import cylindrical as cyl
-    >>> 
+    >>> from ross.fluid_flow.cylindrical import cylindrical_bearing_example
+    >>> x0 = [0.1,-0.1]
+    >>> bearing = cylindrical_bearing_example()
+    >>> bearing.run()
+    >>> bearing.Fhy
+    112814.91
     """
-    
+    @check_units
     def __init__(
         self,
         L,
@@ -149,7 +119,7 @@ class THDCylindrical:
         rho,
         T_reserv,
         fat_mixt,
-        summerfeld_type=2,
+        sommerfeld_type=2,
     ):
 
         self.L = L
@@ -170,7 +140,7 @@ class THDCylindrical:
         self.T_reserv = T_reserv
         self.fat_mixt = fat_mixt
         self.equilibrium_pos = None
-        self.summerfeld_type = summerfeld_type
+        self.sommerfeld_type = sommerfeld_type
 
         if self.n_y == None:
             self.n_y = self.n_theta
@@ -214,60 +184,27 @@ class THDCylindrical:
         self.Zdim = self.Z * L
 
     def _forces(self, x0, y0, xpt0, ypt0):
-        """Calculates forces in Y and X direction.
-        
+        """Calculates the forces in Y and X direction.
+
         Parameters
-        ==========
-        xr: float
-            Represents the position of the center of the axis along the X direction.
-        yr: float
-            Represents the position of the center of the axis along the Y direction.
-            yr = self.x0[0] * self.c_r * np.sin(self.x0[1])
-        X: float
-            Dimensionless of xr.
-        Y: float
-            Dimensionless of yr.
-        P: array of shape (n_z, n_theta,n_pad)
-            Distribution of pressure matrix. Dimensionless.
-        dPdy: array of shape(n_z, n_theta, n_pad)
-            Diferential of pressure matrix in Y direction. Dimensionless.
-        dPdz: array of shape(n_z, n_theta, n_pad)
-            Diferential of pressure matrix in Z direction. Dimensionless.
-        T : array of shape (n_z, n_theta, n_pad)
-            Distribution of Temperature matrix. Dimensioless.
-        T_new : array of shape (n_z, n_theta, n_pad)
-            Actualized distribution of Temperature matrix. Dimensioless.
-        T_mist: float
-            Mixture temperature.
-        mi_new: array of shape (n_z, n_theta, n_pad)
-            Actualized viscosity matrix. Dimensionless.
-        PPlot: array of shape(n_z + 2, len(Ytheta))
-            Pressure matrix that englobe all bearing (with boundary conditions and gaps)
-        auxF: array of shape(2, len(self.Ytheta))
-            Auxiliary to calculate resultant forces
-        Mat_coef: array of shape (nk, nk)
-            Coeficients matrix used to calculate pressure distribution.
-        Mat_coef_T: array of shape (nk, nk)
-            Coeficients matrix used to calculate temperature distribution.
-        b: array
-            Vector source term to calculate pressure distribution.
-        b_T: array
-            Vector source term to calculate temperature distribution.
-        hP: float
-            Oil film thickness at the center of the volume.
-        he: float
-            Oil film thickness at the east of the volume.
-        hw: float
-            Oil film thickness at the west of the volume.
-        hn: float
-            Oil film thickness at the north of the volume.
-        hs: float
-            Oil film thickness at the south of the volume.
-        
+        ----------
+        x0 : array, float
+            If the other parameters are None, x0 is an array with eccentricity ratio and attitude angle.
+            Else, x0 is the position of the center of the rotor in the x-axis.
+        y0 : float
+            The position of the center of the rotor in the y-axis.
+        xpt0 : float
+            The speed of the center of the rotor in the x-axis.
+        ypt0 : float
+            The speed of the center of the rotor in the y-axis.
+
+
         Returns
-        =======
-        Fhx and Fhy: float
-            Resultant forces in X and Y direction.
+        -------
+        Fhx : float
+            Force in X direction. The unit is newton.
+        Fhy : float
+            Force in Y direction. The unit is newton.
         """
         if y0 is None and xpt0 is None and ypt0 is None:
             self.x0 = x0
@@ -865,38 +802,27 @@ class THDCylindrical:
         Fhx = fxj
         Fhy = fyj
 
+        self.Fhx = Fhx
+        self.Fhy = Fhy
+
         return Fhx, Fhy
 
-    def run(self, x0, plot_pressure=False, print_progress=False):
-        """This method used to set and run minimize optimization to find the 
-        equilibrium position of rotor. 
-       
+    def run(self, x, plot_pressure=False, print_progress=False):
+        """This method runs the optimization to find the equilibrium position of the rotor's center.
+
         Parameters
-       ==========
-        method:  
-            The default is Nelder-Mead optimization algorithm. Used approach 
-            for non-differentiable objective functions. The Nelder-Mead 
-            optimization algorithm is a type of pattern search that does 
-            not use function gradients.
-        tol: float
-            Tolerance to set the end of the minimun search.
-       maxiter : int
-            Maximum iterations allowed to find the result of minimize routine.  
-        
-        Returns
-       ========
-         res: object
-           Optimize result object of scipy.optimize module.
-        
-        Example
-        =======
-        >>> 
+        ----------
+        x : array
+            Array with eccentricity ratio and attitude angle
+        print_progress : bool
+            Set it True to print the score and forces on each iteration.
+            False by default.
         """
         args = print_progress
         t1 = time.time()
         res = minimize(
             self._score,
-            x0,
+            x,
             args,
             method="Nelder-Mead",
             tol=10e-3,
@@ -911,44 +837,20 @@ class THDCylindrical:
             self._plotPressure()
 
     def coefficients(self, show_coef=False):
-        """This method calculates the dynamic coefficients of stiffness "k" and 
-        damping "c". The formulation is based in application of virtual displacements 
-        and speeds on the rotor from its equilibrium position to determine the 
-        bearing stiffness and damping coefficients.
-       
+        """Calculates the dynamic coefficients of stiffness "k" and damping "c". The formulation is based in application of virtual displacements and speeds on the rotor from its equilibrium position to determine the bearing stiffness and damping coefficients.
+
         Parameters
-        ==========
-        xeq : float 
-            X coordinate of rotor equilibrium position.
-        yeq : float 
-            Y coordinate of rotor equilibrium position.
-        dE : float
-            Percentage of displacement applied to rotor.
-        epix : float
-            Displacement applied to rotor in X direction.  
-        epiy : float
-            Displacement applied to rotor in Y direction.  
-        epixpt : float
-            Velocity applied to rotor in X direction.  
-        epiypt : float
-            Velocity applied to rotor in Y direction.
-        Aux01, Aux02, Aux03, Aux04, Aux05, Aux06, Aux07, Aux08 : float
-            Auxiliary variables used to receive the result of method forces with 
-            the virtual displacements and velocities applied.
-        Kxx, Kxy, Kyx, Kyy : float
-            Stiffness coefficients in the expanded shape.
-        Cxx, Cxy, Cyx, Cyy : float
-            Damping coefficients in the expanded shape.
-        kxx, kxy, kyx, kyy : float
-            Stiffness coefficients in the reduced shape.
-        cxx, cxy, cyx, cyy : float
-            Damping coefficients in the reduced shape.
-        
+        ----------
+        show_coef : bool
+            Set it True, to print the calculated coefficients.
+            False by default.
+
         Returns
-        ========
-        coefs : array
-            Bearing stiffness and damping coefficients.
-  
+        -------
+        coefs : tuple
+            Bearing stiffness and damping coefficients. 
+            Its shape is: ((kxx, kxy, kyx, kyy), (cxx, cxy, cyx, cyy))
+
         """
         if self.equilibrium_pos is None:
             self.run([0.1, -0.1], True, True)
@@ -975,17 +877,33 @@ class THDCylindrical:
             Aux07 = self._forces(xeq, yeq, 0, epiypt)
             Aux08 = self._forces(xeq, yeq, 0, -epiypt)
 
-            # Ss = self.summerfeld(Aux08[0],Aux08[1])
+            # Ss = self.sommerfeld(Aux08[0],Aux08[1])
 
-            Kxx = -self.summerfeld(Aux01[0],Aux02[1]) * ((Aux01[0] - Aux02[0]) / (epix / self.c_r))
-            Kxy = -self.summerfeld(Aux03[0],Aux04[1]) * ((Aux03[0] - Aux04[0]) / (epiy / self.c_r))
-            Kyx = -self.summerfeld(Aux01[1],Aux02[1]) * ((Aux01[1] - Aux02[1]) / (epix / self.c_r))
-            Kyy = -self.summerfeld(Aux03[1],Aux04[1]) * ((Aux03[1] - Aux04[1]) / (epiy / self.c_r))
+            Kxx = -self.sommerfeld(Aux01[0], Aux02[1]) * (
+                (Aux01[0] - Aux02[0]) / (epix / self.c_r)
+            )
+            Kxy = -self.sommerfeld(Aux03[0], Aux04[1]) * (
+                (Aux03[0] - Aux04[0]) / (epiy / self.c_r)
+            )
+            Kyx = -self.sommerfeld(Aux01[1], Aux02[1]) * (
+                (Aux01[1] - Aux02[1]) / (epix / self.c_r)
+            )
+            Kyy = -self.sommerfeld(Aux03[1], Aux04[1]) * (
+                (Aux03[1] - Aux04[1]) / (epiy / self.c_r)
+            )
 
-            Cxx = -self.summerfeld(Aux05[0],Aux06[0]) * ((Aux05[0] - Aux06[0]) / (epixpt / self.c_r / self.speed))
-            Cxy = -self.summerfeld(Aux07[0],Aux08[0]) * ((Aux07[0] - Aux08[0]) / (epiypt / self.c_r / self.speed))
-            Cyx = -self.summerfeld(Aux05[1],Aux06[1]) * ((Aux05[1] - Aux06[1]) / (epixpt / self.c_r / self.speed))
-            Cyy = -self.summerfeld(Aux07[1],Aux08[1]) * ((Aux07[1] - Aux08[1]) / (epiypt / self.c_r / self.speed))
+            Cxx = -self.sommerfeld(Aux05[0], Aux06[0]) * (
+                (Aux05[0] - Aux06[0]) / (epixpt / self.c_r / self.speed)
+            )
+            Cxy = -self.sommerfeld(Aux07[0], Aux08[0]) * (
+                (Aux07[0] - Aux08[0]) / (epiypt / self.c_r / self.speed)
+            )
+            Cyx = -self.sommerfeld(Aux05[1], Aux06[1]) * (
+                (Aux05[1] - Aux06[1]) / (epixpt / self.c_r / self.speed)
+            )
+            Cyy = -self.sommerfeld(Aux07[1], Aux08[1]) * (
+                (Aux07[1] - Aux08[1]) / (epiypt / self.c_r / self.speed)
+            )
 
             kxx = (np.sqrt((self.Wx ** 2) + (self.Wy ** 2)) / self.c_r) * Kxx
             kxy = (np.sqrt((self.Wx ** 2) + (self.Wy ** 2)) / self.c_r) * Kxy
@@ -1021,18 +939,18 @@ class THDCylindrical:
             return coefs
 
     def _score(self, x, print_progress=False):
-        """This method used to set the objective function of minimize optimization. 
-        
+        """This method used to set the objective function of minimize optimization.
+
         Parameters
         ==========
         score: float
-           Balanced Force expression between the load aplied in bearing and the 
+           Balanced Force expression between the load aplied in bearing and the
            resultant force provide by oil film.
-        
+
         Returns
         ========
         Score coefficient.
-         
+
         """
         Fhx, Fhy = self._forces(x, None, None, None)
         score = np.sqrt(((self.Wx + Fhx) ** 2) + ((self.Wy + Fhy) ** 2))
@@ -1046,27 +964,27 @@ class THDCylindrical:
 
         return score
 
-    def summerfeld(self, force_x,force_y):
-        """This method used to define the expression to calculate the sommerfeld number. 
-        This dimensionless number is used to calculate the dynamic coeficients "K" and "C".
-        
+    def sommerfeld(self, force_x, force_y):
+        """Calculate the sommerfeld number. This dimensionless number is used to calculate the dynamic coeficients.
+
         Parameters
-        ==========
-        S : float
-            Sommerfeld number expression.
-        Ss: float
-           Geometry corrected Sommerfeld number.
-        
+        ----------
+        force_x : float
+            Force in x direction. The unit is newton.
+        force_y : float
+            Force in y direction. The unit is newton.
+
         Returns
-        ========
-        Sommerfeld number. 
+        -------
+        Ss : float
+            Sommerfeld number.
         """
-        if self.summerfeld_type == 1:
+        if self.sommerfeld_type == 1:
             S = (self.mu_ref * ((self.R) ** 3) * self.L * self.speed) / (
                 np.pi * (self.c_r ** 2) * np.sqrt((self.Wx ** 2) + (self.Wy ** 2))
             )
 
-        elif self.summerfeld_type == 2:
+        elif self.sommerfeld_type == 2:
             S = 1 / (
                 2
                 * ((self.L / (2 * self.R)) ** 2)
@@ -1086,6 +1004,33 @@ class THDCylindrical:
         )
         plt.show()
 
+def cylindrical_bearing_example():
+    """[summary]
+
+    Returns:
+        [type]: [description]
+    """
+
+    bearing = THDCylindrical(
+        L=0.263144,
+        R=0.2,
+        c_r=1.945e-4,
+        n_theta=41,
+        n_z=10,
+        n_gap=1,
+        betha_s=176,
+        mu_ref=0.02,
+        speed=Q_(900,"RPM"),
+        Wx=0,
+        Wy=-112814.91,
+        k_t=0.15327,
+        Cp=1915.5,
+        rho=854.952,
+        Treserv=50,
+        fat_mixt=0.52,
+    )
+    
+    return bearing
 
 if __name__ == "__main__":
 
@@ -1098,7 +1043,7 @@ if __name__ == "__main__":
     nY = None
 
     mu = float(0.02)  # [Ns/m²]
-    speed = float(900)  # [RPM]
+    speed = Q_(900,"RPM")  # [RPM]
     Wx = float(0)  # [N]
     Wy = float(-112814.91)  # [N]
     k = float(0.15327)  # Thermal conductivity [J/s.m.°C]
@@ -1130,5 +1075,7 @@ if __name__ == "__main__":
         Treserv,
         mix,
     )
-    mancal.run(x0, print_progress=True, plot_pressure=True)
+    mancal.run(
+        x0, print_progress=True, plot_pressure=True, method="Riman", max_iter=1000
+    )
     # mancal.coefficients()
