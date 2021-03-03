@@ -28,7 +28,36 @@ class Defect(ABC):
         return results
 
     def plot_dfft(self, probe, probe_units="rad", range_freq=None, fig=None, **kwargs):
-        """"""
+        """Plot response in frequency domain (dFFT - discrete Fourier Transform) using Plotly.
+
+        Parameters
+        ----------
+        probe : list of tuples
+            List with tuples (node, orientation angle, tag).
+            node : int
+                indicate the node where the probe is located.
+            orientation : float
+                probe orientation angle about the shaft. The 0 refers to +X direction.
+            tag : str, optional
+                probe tag to be displayed at the legend.
+        probe_units : str, option
+            Units for probe orientation.
+            Default is "rad".
+        range_freq : list, optional
+            Units for the x axis.
+            Default is "Hz"
+        fig : Plotly graph_objects.Figure()
+            The figure object with the plot.
+        kwargs : optional
+            Additional key word arguments can be passed to change the plot layout only
+            (e.g. width=1000, height=800, ...).
+            *See Plotly Python Figure Reference for more information.
+
+        Returns
+        -------
+        fig : Plotly graph_objects.Figure()
+            The figure object with the plot.
+        """
         if fig is None:
             fig = go.Figure()
 
@@ -62,8 +91,8 @@ class Defect(ABC):
                     x=freq,
                     y=amp,
                     mode="lines",
-                    name=f"Probe {i + 1}",
-                    legendgroup=f"Probe {i + 1}",
+                    name=f"Probe {i + 1} - Node {p[0]}",
+                    legendgroup=f"Probe {i + 1} - Node {p[0]}",
                     showlegend=True,
                     hovertemplate=f"Frequency (Hz): %{{x:.2f}}<br>Amplitude (m): %{{y:.2e}}",
                 )
@@ -76,6 +105,26 @@ class Defect(ABC):
         return fig
 
     def _dfft(self, x, dt):
+        """Calculate dFFT - discrete Fourier Transform.
+
+        Parameters
+        ----------
+        x : np.array
+            Magnitude of the response in time domain.
+            Default is "m".
+        dt : int
+            Time step.
+            Default is "s".
+
+        Returns
+        -------
+        x_amp : np.array
+            Amplitude of the response in frequency domain.
+            Default is "m".
+        freq : np.array
+            Frequency range.
+            Default is "Hz".
+        """
         b = np.floor(len(x) / 2)
         c = len(x)
         df = 1 / (c * dt)
