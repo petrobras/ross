@@ -446,8 +446,8 @@ class THDCylindrical:
 
                     # Solution of pressure field end
 
-                    p = np.dot(pinv(Mat_coef), b)
-
+#                    p = np.dot(pinv(Mat_coef), b)
+                    p=np.linalg.solve(Mat_coef,b)
                     cont = 0
 
                     for i in np.arange(self.n_z):
@@ -740,8 +740,8 @@ class THDCylindrical:
 
                     # Solution of temperature field end
 
-                    t = np.dot(pinv(Mat_coef_T), b_T)
-
+#                    t = np.dot(pinv(Mat_coef_T), b_T)
+                    t=np.linalg.solve(Mat_coef_T,b_T)
                     cont = 0
 
                     for i in np.arange(self.n_z):
@@ -1009,10 +1009,15 @@ class THDCylindrical:
 
 
 def cylindrical_bearing_example():
-    """[summary]
-
-    Returns:
-        [type]: [description]
+    """Create an example of a cylindrical bearing with termo hydrodynamic effects. This function returns pressure and temperature field and dynamic coefficient. The purpose is to make available a simple model so that a doctest can be written using it.
+    Returns
+    -------
+    THDCylindrical : ross.THDCylindrical Object
+        An instance of a termo-hydrodynamic cylendrical bearing model object.
+    Examples
+    --------
+    >>> THDCylindrical = cylindrical_bearing_example()
+    
     """
 
     bearing = THDCylindrical(
@@ -1081,6 +1086,5 @@ if __name__ == "__main__":
         mix,
     )
     mancal.run(
-        x0, print_progress=True, plot_pressure=True, method="Riman", max_iter=1000
-    )
+        x0, print_progress=True, plot_pressure=True)
     # mancal.coefficients()
