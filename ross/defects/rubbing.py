@@ -1,14 +1,11 @@
 import time
-from abc import ABC, abstractmethod
 
 import numpy as np
-import plotly.graph_objects as go
 import scipy.integrate
 import scipy.linalg
 
 import ross
-from ross.results import TimeResponseResults
-from ross.units import Q_
+from ross.units import Q_, check_units
 
 from .abs_defect import Defect
 from .integrate_solver import Integrator
@@ -40,11 +37,11 @@ class Rubbing(Defect):
         Friction coefficient.
     posRUB : int
         Node where the rubbing is ocurring.
-    speed : float
-        Operational speed of the machine.
-    massunb : array
+    speed : float, pint.Quantity
+        Operational speed of the machine. Default unit is rad/s.
+    unbalance_magnitude : array
         Array with the unbalance magnitude. The unit is kg.m.
-    phaseunb : array
+    unbalance_phase : array
         Array with the unbalance phase. The unit is rad.
     torque : bool
         Set it as True to consider the torque provided by the rubbing, by default False.
@@ -70,6 +67,7 @@ class Rubbing(Defect):
     >>> # fig.show()
     """
 
+    @check_units
     def __init__(
         self,
         dt,
@@ -81,8 +79,8 @@ class Rubbing(Defect):
         miRUB,
         posRUB,
         speed,
-        massunb,
-        phaseunb,
+        unbalance_magnitude,
+        unbalance_phase,
         torque=False,
         print_progress=False,
     ):
@@ -100,11 +98,11 @@ class Rubbing(Defect):
         self.speedF = speed
         self.DoF = np.arange((self.posRUB * 6), (self.posRUB * 6 + 6))
         self.torque = torque
-        self.MassUnb = massunb
-        self.PhaseUnb = phaseunb
+        self.unbalance_magnitude = unbalance_magnitude
+        self.unbalance_phase = unbalance_phase
         self.print_progress = print_progress
 
-        if len(self.MassUnb) != len(self.PhaseUnb):
+        if len(self.unbalance_magnitude) != len(self.unbalance_phase):
             raise Exception(
                 "The unbalance magnitude vector and phase must have the same size!"
             )
@@ -121,7 +119,7 @@ class Rubbing(Defect):
 
         self.rotor = rotor
         self.n_disk = len(self.rotor.disk_elements)
-        if self.n_disk != len(self.MassUnb):
+        if self.n_disk != len(self.unbalance_magnitude):
             raise Exception("The number of discs and unbalances must agree!")
 
         self.ndof = rotor.ndof
@@ -132,19 +130,16 @@ class Rubbing(Defect):
         for ii in range(self.n_disk):
             self.ndofd[ii] = (self.rotor.disk_elements[ii].n) * 6
 
-        warI = self.speedI * np.pi / 30
-        warF = self.speedF * np.pi / 30
-
         self.lambdat = 0.00001
         # Faxial = 0
         # TorqueI = 0
         # TorqueF = 0
 
         self.sA = (
-            warI * np.exp(-self.lambdat * self.tF)
-            - warF * np.exp(-self.lambdat * self.tI)
+            self.speedI * np.exp(-self.lambdat * self.tF)
+            - self.speedF * np.exp(-self.lambdat * self.tI)
         ) / (np.exp(-self.lambdat * self.tF) - np.exp(-self.lambdat * self.tI))
-        self.sB = (warF - warI) / (
+        self.sB = (self.speedF - self.speedI) / (
             np.exp(-self.lambdat * self.tF) - np.exp(-self.lambdat * self.tI)
         )
 
@@ -160,8 +155,8 @@ class Rubbing(Defect):
         # self.AccelV = -lambdat * sB * np.exp(-lambdat * t)
 
         # Determining the modal matrix
-        self.K = self.rotor.K(self.speedI * np.pi / 30)
-        self.C = self.rotor.C(self.speedI * np.pi / 30)
+        self.K = self.rotor.K(self.speed)
+        self.C = self.rotor.C(self.speed)
         self.G = self.rotor.G()
         self.M = self.rotor.M()
         self.Kst = self.rotor.Kst()
@@ -197,7 +192,7 @@ class Rubbing(Defect):
         self.Omega = self.sA + self.sB * np.exp(-self.lambdat * T)
         self.AccelV = -self.lambdat * self.sB * np.exp(-self.lambdat * T)
 
-        self.tetaUNB = np.zeros((len(self.PhaseUnb), len(self.angular_position)))
+        self.tetaUNB = np.zeros((len(self.unbalance_phase), len(self.angular_position)))
         unbx = np.zeros(len(self.angular_position))
         unby = np.zeros(len(self.angular_position))
 
@@ -205,15 +200,21 @@ class Rubbing(Defect):
         self.forces_rub = np.zeros((self.ndof, len(t_eval)))
 
         for ii in range(self.n_disk):
-            self.tetaUNB[ii, :] = self.angular_position + self.PhaseUnb[ii] + np.pi / 2
+            self.tetaUNB[ii, :] = (
+                self.angular_position + self.unbalance_phase[ii] + np.pi / 2
+            )
 
-            unbx = self.MassUnb[ii] * (self.AccelV) * (
+            unbx = self.unbalance_magnitude[ii] * (self.AccelV) * (
                 np.cos(self.tetaUNB[ii, :])
-            ) - self.MassUnb[ii] * ((self.Omega ** 2)) * (np.sin(self.tetaUNB[ii, :]))
-
-            unby = -self.MassUnb[ii] * (self.AccelV) * (
+            ) - self.unbalance_magnitude[ii] * ((self.Omega ** 2)) * (
                 np.sin(self.tetaUNB[ii, :])
-            ) - self.MassUnb[ii] * (self.Omega ** 2) * (np.cos(self.tetaUNB[ii, :]))
+            )
+
+            unby = -self.unbalance_magnitude[ii] * (self.AccelV) * (
+                np.sin(self.tetaUNB[ii, :])
+            ) - self.unbalance_magnitude[ii] * (self.Omega ** 2) * (
+                np.cos(self.tetaUNB[ii, :])
+            )
 
             FFunb[int(self.ndofd[ii]), :] += unbx
             FFunb[int(self.ndofd[ii] + 1), :] += unby
@@ -539,7 +540,7 @@ def rubbing_example():
     --------
     >>> rubbing = rubbing_example()
     >>> rubbing.speed
-    1200
+    125.66370614359172
     """
 
     rotor = base_rotor_example()
@@ -553,9 +554,9 @@ def rubbing_example():
         cRUB=40,
         miRUB=0.3,
         posRUB=12,
-        speed=1200,
-        massunb=np.array([5e-4, 0]),
-        phaseunb=np.array([-np.pi / 2, 0]),
+        speed=Q_(1200, "RPM"),
+        unbalance_magnitude=np.array([5e-4, 0]),
+        unbalance_phase=np.array([-np.pi / 2, 0]),
         torque=False,
         print_progress=False,
     )

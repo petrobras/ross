@@ -34,7 +34,9 @@ class Integrator:
 
     References
     ----------
-    .. [1] https://en.wikipedia.org/wiki/Runge–Kutta_methods ..
+    .. [1] BUTCHER, John Charles; GOODWIN, Nicolette. Numerical methods for ordinary differential equations. New York: Wiley, 2008. ..
+    .. [2] CASH, Jeff R.; KARP, Alan H. A variable order Runge-Kutta method for initial value problems with rapidly varying right-hand sides.
+           ACM Transactions on Mathematical Software (TOMS), v. 16, n. 3, p. 201-222, 1990. ..
 
     """
 
@@ -81,7 +83,7 @@ class Integrator:
         return result
 
     def rk45(self):
-        # Runge-Kutta-Fehlberg (RKF45)
+        # Runge-Kutta Cash-Karp (CK45)
 
         # Count number of iterations using step size or
         # step height h

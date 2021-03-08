@@ -39,6 +39,6 @@ def setup(app):
     app.connect("builder-inited", scb_static_path)
 
     # Add relevant code to headers
-    app.add_stylesheet("sphinx_copybutton.css")
-    app.add_javascript("sphinx_copybutton.js")
-    app.add_javascript(clipboard_js_url)
+    app.add_css_file("sphinx_copybutton.css")
+    app.add_js_file("sphinx_copybutton.js")
+    app.add_js_file(clipboard_js_url)

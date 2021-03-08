@@ -593,7 +593,7 @@ def test_freq_response_w_force(rotor4):
     )
 
     omega = np.linspace(0.0, 450.0, 4)
-    freq_resp = rotor4.forced_response(force=F0, speed_range=omega)
+    freq_resp = rotor4.run_forced_response(force=F0, speed_range=omega)
     mag = abs(freq_resp.forced_resp)
     assert_allclose(mag[:4, :4], mag_exp)
 
@@ -1622,11 +1622,15 @@ def test_ucs_calc(rotor8):
         [10058123.652648, 10058123.652648, 10363082.398797]
     )
     exp_intersection_points_y = np.array([107.542416, 107.542416, 409.451575])
-    stiffness_range, rotor_wn, bearing, intersection_points = rotor8._calc_ucs()
-    assert_allclose(stiffness_range[:3], exp_stiffness_range)
-    assert_allclose(rotor_wn[0, :3], exp_rotor_wn)
-    assert_allclose(intersection_points["x"][:3], exp_intersection_points_x, rtol=1e-3)
-    assert_allclose(intersection_points["y"][:3], exp_intersection_points_y, rtol=1e-3)
+    ucs_results = rotor8.run_ucs()
+    assert_allclose(ucs_results.stiffness_log[:3], exp_stiffness_range)
+    assert_allclose(ucs_results.wn[0, :3], exp_rotor_wn)
+    assert_allclose(
+        ucs_results.intersection_points["x"][:3], exp_intersection_points_x, rtol=1e-3
+    )
+    assert_allclose(
+        ucs_results.intersection_points["y"][:3], exp_intersection_points_y, rtol=1e-3
+    )
 
 
 def test_save_load(rotor8):
