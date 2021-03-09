@@ -1,12 +1,8 @@
-import math
-import sys
 import time
-from scipy.optimize import curve_fit #######################################################
-import matplotlib.pyplot as plt
+
 import numpy as np
-from matplotlib import cm
 from numpy.linalg import pinv
-from scipy.optimize import minimize
+from scipy.optimize import curve_fit, minimize
 
 from ross.units import Q_, check_units
 
@@ -133,7 +129,7 @@ class THDCylindrical:
         rho,
         T_reserv,
         fat_mixt,
-        T_muI, 
+        T_muI,
         T_muF,
         mu_I,
         mu_F,
@@ -201,11 +197,9 @@ class THDCylindrical:
         self.dy = self.dY * self.betha_s * self.R
 
         self.Zdim = self.Z * L
-        
+
         # Interpolation coefficients
-        self.a,self.b = self._interpol(T_muI,T_muF,mu_I,mu_F)
-        
-        
+        self.a, self.b = self._interpol(T_muI, T_muF, mu_I, mu_F)
 
     def _forces(self, x0, y0, xpt0, ypt0):
         """Calculates the forces in Y and X direction.
@@ -259,7 +253,7 @@ class THDCylindrical:
                 T_mist = self.T_reserv * np.ones(self.n_pad)
 
             mi_new = 1.1 * np.ones((self.n_z, self.n_theta, self.n_pad))
-            PPlot = np.zeros(((self.n_z + 2), (len(self.Ytheta))))
+            PP = np.zeros(((self.n_z + 2), (len(self.Ytheta))))
             auxF = np.zeros((2, len(self.Ytheta)))
 
             nk = (self.n_z) * (self.n_theta)
@@ -467,8 +461,7 @@ class THDCylindrical:
 
                     # Solution of pressure field end
 
-#                    p = np.dot(pinv(Mat_coef), b)
-                    p=np.linalg.solve(Mat_coef,b)
+                    p = np.linalg.solve(Mat_coef, b)
                     cont = 0
 
                     for i in np.arange(self.n_z):
@@ -761,8 +754,7 @@ class THDCylindrical:
 
                     # Solution of temperature field end
 
-#                    t = np.dot(pinv(Mat_coef_T), b_T)
-                    t=np.linalg.solve(Mat_coef_T,b_T)
+                    t = np.linalg.solve(Mat_coef_T, b_T)
                     cont = 0
 
                     for i in np.arange(self.n_z):
@@ -780,13 +772,11 @@ class THDCylindrical:
                     )
 
                     for i in np.arange(self.n_z):
-                        for j in np.arange(self.n_theta): ###################################################################################
+                        for j in np.arange(self.n_theta):
 
                             mi_new[i, j, n_p] = (
                                 self.a * (Tdim[i, j, n_p]) ** self.b
                             ) / self.mu_ref
-
-        ## Plot  ## Remove later
 
         cont = 0
         for n_p in np.arange(self.n_pad):
@@ -798,12 +788,10 @@ class THDCylindrical:
                 )
                 for jj in np.arange(1, self.n_theta + 1):
 
-                    PPlot[ii, int(cont)] = Pdim[int(ii - 1), int(jj - 1), int(n_p)]
+                    PP[ii, int(cont)] = Pdim[int(ii - 1), int(jj - 1), int(n_p)]
                     cont = cont + 1
 
-        self.PPlot = PPlot
-
-        ##
+        self.PP = PP
 
         auxF = np.zeros((2, len(self.Ytheta[1:-1])))
 
@@ -812,7 +800,7 @@ class THDCylindrical:
 
         dA = self.dy * self.dz
 
-        auxP = PPlot[1:-1, 1:-1] * dA
+        auxP = PP[1:-1, 1:-1] * dA
 
         vector_auxF_x = auxF[0, :]
         vector_auxF_y = auxF[1, :]
@@ -831,7 +819,7 @@ class THDCylindrical:
 
         return Fhx, Fhy
 
-    def run(self, x, plot_pressure=False, print_progress=False):
+    def run(self, x, print_progress=False):
         """This method runs the optimization to find the equilibrium position of the rotor's center.
 
         Parameters
@@ -857,33 +845,29 @@ class THDCylindrical:
         print(res)
         print(f"Time Spent: {t2-t1} seconds")
 
-        if plot_pressure:
-            self._plotPressure()
-
-    def _interpol(self, T_muI, T_muF, mu_I, mu_F): 
+    def _interpol(self, T_muI, T_muF, mu_I, mu_F):
         """
-        
+
         Parameters
         ----------
-           
-        
-        
+
+
+
         Returns
         -------
-          
+
         """
-        def viscosity(x,a,b):
-            return a * ( x ** b)
-        
-        xdata = [T_muI,T_muF]   # changed boundary conditions to avoid division by ]
-        ydata=[mu_I,mu_F]
-        
-        
-        popt, pcov = curve_fit(viscosity, xdata, ydata, p0=(6.0,-1.0))
-        a , b = popt
-        
+
+        def viscosity(x, a, b):
+            return a * (x ** b)
+
+        xdata = [T_muI, T_muF]  # changed boundary conditions to avoid division by ]
+        ydata = [mu_I, mu_F]
+
+        popt, pcov = curve_fit(viscosity, xdata, ydata, p0=(6.0, -1.0))
+        a, b = popt
+
         return a, b
-    
 
     def coefficients(self, show_coef=False):
         """Calculates the dynamic coefficients of stiffness "k" and damping "c". The formulation is based in application of virtual displacements and speeds on the rotor from its equilibrium position to determine the bearing stiffness and damping coefficients.
@@ -1044,15 +1028,6 @@ class THDCylindrical:
 
         return Ss
 
-    def _plotPressure(self):
-        fig = plt.figure()
-        ax = fig.gca(projection="3d")
-        Ydim, Zdim = np.meshgrid(self.Ytheta, self.Zdim)
-        surf = ax.plot_surface(
-            Ydim, Zdim, self.PPlot, cmap=cm.coolwarm, linewidth=0, antialiased=False
-        )
-        plt.show()
-
 
 def cylindrical_bearing_example():
     """Create an example of a cylindrical bearing with termo hydrodynamic effects. This function returns pressure and temperature field and dynamic coefficient. The purpose is to make available a simple model so that a doctest can be written using it.
@@ -1063,7 +1038,7 @@ def cylindrical_bearing_example():
     Examples
     --------
     >>> THDCylindrical = cylindrical_bearing_example()
-    
+
     """
 
     bearing = THDCylindrical(
@@ -1112,7 +1087,7 @@ if __name__ == "__main__":
     nPad = int(2)  #    Number of pads
     betha_s = 176
     T_1 = float(50)
-    T_2 = float(80)##########################################################################################
+    T_2 = float(80)
     mu_ref1 = float(0.02)
     mu_ref2 = float(0.01)
 
@@ -1136,9 +1111,8 @@ if __name__ == "__main__":
         mix,
         T_1,
         T_2,
-        mu_ref1, ##############################################################################################
+        mu_ref1,
         mu_ref2,
     )
-    mancal.run(
-        x0, print_progress=True, plot_pressure=True)
+    mancal.run(x0, print_progress=True)
     # mancal.coefficients()
