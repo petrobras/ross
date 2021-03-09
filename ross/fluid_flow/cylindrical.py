@@ -106,7 +106,7 @@ class THDCylindrical:
     >>> bearing = cylindrical_bearing_example()
     >>> bearing.run(x0)
     >>> bearing.Fhy
-    112814.91
+    112814.91132813913
     """
 
     @check_units
@@ -1040,16 +1040,17 @@ def cylindrical_bearing_example():
         An instance of a termo-hydrodynamic cylendrical bearing model object.
     Examples
     --------
-    >>> THDCylindrical = cylindrical_bearing_example()
-
+    >>> bearing = cylindrical_bearing_example()
+    >>> bearing.L
+    0.263144
     """
 
     bearing = THDCylindrical(
         L=0.263144,
         R=0.2,
-        c_r=1.945e-4,
-        n_theta=38,
-        n_z=10,
+        c_r=1.95e-4,
+        n_theta=41,
+        n_z=5,
         n_y=None,
         n_gap=1,
         betha_s=176,
@@ -1058,10 +1059,15 @@ def cylindrical_bearing_example():
         Wx=0,
         Wy=-112814.91,
         k_t=0.15327,
-        Cp=1915.5,
+        Cp=1915.24,
         rho=854.952,
         T_reserv=50,
         fat_mixt=0.52,
+        T_muI=50,
+        T_muF=80,
+        mu_I=0.02,
+        mu_F=0.01,
+        sommerfeld_type=2,
     )
 
     return bearing
