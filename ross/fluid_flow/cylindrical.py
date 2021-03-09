@@ -1,7 +1,7 @@
 import math
 import sys
 import time
-
+from scipy.optimize import curve_fit #######################################################
 import matplotlib.pyplot as plt
 import numpy as np
 from matplotlib import cm
@@ -54,6 +54,18 @@ class THDCylindrical:
         Oil reservoir temperature. The unit is celsius.
     fat_mixt : float
         Ratio of oil in Treserv temperature that mixes with the circulating oil.
+
+    Viscosity interpolation
+    ^^^^^^^^^^^^^^^^^^^^^^^
+    Interpolation data required.
+    T_muI : float
+        Inferior limit temperature. The unit is celsius.
+    T_muF : float
+        Upper limit temperature. The unit is celsius.
+    mu_I : float
+        Inferior limit viscosity. The unit is Pa*s.
+    mu_F : float
+        Upper limit viscosity. The unit is Pa*s.
 
     Mesh discretization
     ^^^^^^^^^^^^^^^^^^^
@@ -121,6 +133,10 @@ class THDCylindrical:
         rho,
         T_reserv,
         fat_mixt,
+        T_muI, 
+        T_muF,
+        mu_I,
+        mu_F,
         sommerfeld_type=2,
     ):
 
@@ -185,6 +201,11 @@ class THDCylindrical:
         self.dy = self.dY * self.betha_s * self.R
 
         self.Zdim = self.Z * L
+        
+        # Interpolation coefficients
+        self.a,self.b = self._interpol(T_muI,T_muF,mu_I,mu_F)
+        
+        
 
     def _forces(self, x0, y0, xpt0, ypt0):
         """Calculates the forces in Y and X direction.
@@ -759,10 +780,10 @@ class THDCylindrical:
                     )
 
                     for i in np.arange(self.n_z):
-                        for j in np.arange(self.n_theta):
+                        for j in np.arange(self.n_theta): ###################################################################################
 
                             mi_new[i, j, n_p] = (
-                                6.4065 * (Tdim[i, j, n_p]) ** -1.475
+                                self.a * (Tdim[i, j, n_p]) ** self.b
                             ) / self.mu_ref
 
         ## Plot  ## Remove later
@@ -838,6 +859,31 @@ class THDCylindrical:
 
         if plot_pressure:
             self._plotPressure()
+
+    def _interpol(self, T_muI, T_muF, mu_I, mu_F): 
+        """
+        
+        Parameters
+        ----------
+           
+        
+        
+        Returns
+        -------
+          
+        """
+        def viscosity(x,a,b):
+            return a * ( x ** b)
+        
+        xdata = [T_muI,T_muF]   # changed boundary conditions to avoid division by ]
+        ydata=[mu_I,mu_F]
+        
+        
+        popt, pcov = curve_fit(viscosity, xdata, ydata, p0=(6.0,-1.0))
+        a , b = popt
+        
+        return a, b
+    
 
     def coefficients(self, show_coef=False):
         """Calculates the dynamic coefficients of stiffness "k" and damping "c". The formulation is based in application of virtual displacements and speeds on the rotor from its equilibrium position to determine the bearing stiffness and damping coefficients.
@@ -1065,6 +1111,10 @@ if __name__ == "__main__":
     nGap = int(1)  #    Number of volumes in recess zone
     nPad = int(2)  #    Number of pads
     betha_s = 176
+    T_1 = float(50)
+    T_2 = float(80)##########################################################################################
+    mu_ref1 = float(0.02)
+    mu_ref2 = float(0.01)
 
     mancal = THDCylindrical(
         L,
@@ -1084,6 +1134,10 @@ if __name__ == "__main__":
         rho,
         Treserv,
         mix,
+        T_1,
+        T_2,
+        mu_ref1, ##############################################################################################
+        mu_ref2,
     )
     mancal.run(
         x0, print_progress=True, plot_pressure=True)
