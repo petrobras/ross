@@ -98,6 +98,9 @@ class THDCylindrical:
         Force in X direction. The unit is newton.
     Fhy : float
         Force in Y direction. The unit is newton.
+    equilibrium_pos : array
+        Array with excentricity ratio and attitude angle information.
+        Its shape is: array([excentricity, angle])
 
     Examples
     --------
@@ -105,8 +108,8 @@ class THDCylindrical:
     >>> x0 = [0.1,-0.1]
     >>> bearing = cylindrical_bearing_example()
     >>> bearing.run(x0)
-    >>> bearing.Fhy
-    112814.91132813913
+    >>> bearing.equilibrium_pos
+    array([ 0.58761001, -0.67311115])
     """
 
     @check_units
