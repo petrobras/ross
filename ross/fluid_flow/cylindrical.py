@@ -819,7 +819,7 @@ class THDCylindrical:
 
         return Fhx, Fhy
 
-    def run(self, x, print_result=False, print_progress=False):
+    def run(self, x, print_result=False, print_progress=False, print_time=False):
         """This method runs the optimization to find the equilibrium position of the rotor's center.
 
         Parameters
@@ -846,7 +846,8 @@ class THDCylindrical:
         if print_result:
             print(res)
 
-        print(f"Time Spent: {t2-t1} seconds")
+        if print_time:
+            print(f"Time Spent: {t2-t1} seconds")
 
     def _interpol(self, T_muI, T_muF, mu_I, mu_F):
         """
