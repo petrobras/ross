@@ -819,7 +819,7 @@ class THDCylindrical:
 
         return Fhx, Fhy
 
-    def run(self, x, print_progress=False):
+    def run(self, x, print_result=False, print_progress=False):
         """This method runs the optimization to find the equilibrium position of the rotor's center.
 
         Parameters
@@ -842,7 +842,10 @@ class THDCylindrical:
         )
         self.equilibrium_pos = res.x
         t2 = time.time()
-        print(res)
+
+        if print_result:
+            print(res)
+
         print(f"Time Spent: {t2-t1} seconds")
 
     def _interpol(self, T_muI, T_muF, mu_I, mu_F):
@@ -1062,57 +1065,3 @@ def cylindrical_bearing_example():
     )
 
     return bearing
-
-
-if __name__ == "__main__":
-
-    x0 = [0.1, -0.1]
-    L = float(0.263144)  # [metros]
-    R = float(0.2)  # [metros]
-    Cr = float(1.945e-4)  # [metros]
-    nTheta = int(41)
-    nZ = int(10)
-    nY = None
-
-    mu = float(0.02)  # [Ns/m²]
-    speed = Q_(900, "RPM")  # [RPM]
-    Wx = float(0)  # [N]
-    Wy = float(-112814.91)  # [N]
-    k = float(0.15327)  # Thermal conductivity [J/s.m.°C]
-    Cp = float(1915.5)  # Specific heat [J/kg°C]
-    rho = float(854.952)  # Specific mass [kg/m³]
-    Treserv = float(50)  # Temperature of oil tank [ºC]
-    mix = float(0.52)  # Mixing factor. Used because the oil supply flow is not known.
-    nGap = int(1)  #    Number of volumes in recess zone
-    nPad = int(2)  #    Number of pads
-    betha_s = 176
-    T_1 = float(50)
-    T_2 = float(80)
-    mu_ref1 = float(0.02)
-    mu_ref2 = float(0.01)
-
-    mancal = THDCylindrical(
-        L,
-        R,
-        Cr,
-        nTheta,
-        nZ,
-        nY,
-        nGap,
-        betha_s,
-        mu,
-        speed,
-        Wx,
-        Wy,
-        k,
-        Cp,
-        rho,
-        Treserv,
-        mix,
-        T_1,
-        T_2,
-        mu_ref1,
-        mu_ref2,
-    )
-    mancal.run(x0, print_progress=True)
-    # mancal.coefficients()
