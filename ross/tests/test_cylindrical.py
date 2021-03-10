@@ -7,6 +7,7 @@ from numpy.testing import assert_allclose, assert_almost_equal
 from ross.fluid_flow.cylindrical import THDCylindrical
 from ross.units import Q_
 
+
 @pytest.fixture
 def cylindrical():
 
@@ -93,22 +94,23 @@ def test_cylindrical_equilibrium_pos(cylindrical):
     assert math.isclose(cylindrical.equilibrium_pos[0], 0.58656872, rel_tol=0.01)
     assert math.isclose(cylindrical.equilibrium_pos[1], -0.67207557, rel_tol=0.01)
 
+
 def test_cylindrical_coefficients(cylindrical):
-   coefs = cylindrical.coefficients()
-   kxx = coefs[0][0]
-   kxy = coefs[0][1]
-   kyx = coefs[0][2]
-   kyy = coefs[0][3]
-   cxx = coefs[1][0]
-   cxy = coefs[1][1]
-   cyx = coefs[1][2]
-   cyy = coefs[1][3]
-   
-   assert math.isclose(kxx, 977553273.755312, rel_tol=0.0001)
-   assert math.isclose(kxy, 413651036.60706633, rel_tol=0.0001)
-   assert math.isclose(kyx,-1357492195.2509518, rel_tol=0.0001)
-   assert math.isclose(kyy, 950696959.9668411, rel_tol=0.0001)
-   assert math.isclose(cxx, -6788417498.235009, rel_tol=0.0001)
-   assert math.isclose(cxy, 5412613308.752171, rel_tol=0.0001)
-   assert math.isclose(cyx, 16755460.575634956, rel_tol=0.0001)
-   assert math.isclose(cyy, -7127858.166934674, rel_tol=0.0001)
+    coefs = cylindrical.coefficients()
+    kxx = coefs[0][0]
+    kxy = coefs[0][1]
+    kyx = coefs[0][2]
+    kyy = coefs[0][3]
+    cxx = coefs[1][0]
+    cxy = coefs[1][1]
+    cyx = coefs[1][2]
+    cyy = coefs[1][3]
+
+    assert math.isclose(kxx, 977553273.755312, rel_tol=0.0001)
+    assert math.isclose(kxy, 413651036.60706633, rel_tol=0.0001)
+    assert math.isclose(kyx, -1357492195.2509518, rel_tol=0.0001)
+    assert math.isclose(kyy, 950696959.9668411, rel_tol=0.0001)
+    assert math.isclose(cxx, -6788417498.235009, rel_tol=0.0001)
+    assert math.isclose(cxy, 5412613308.752171, rel_tol=0.0001)
+    assert math.isclose(cyx, 16755460.575634956, rel_tol=0.0001)
+    assert math.isclose(cyy, -7127858.166934674, rel_tol=0.0001)
