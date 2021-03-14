@@ -169,7 +169,6 @@ class THDCylindrical:
         self.thetaF = self.betha_s
         self.dtheta = (self.thetaF - self.thetaI) / (self.n_theta)
 
-
         ##
         # Dimensionless discretization variables
 
@@ -249,8 +248,8 @@ class THDCylindrical:
                 T_mist = self.T_reserv * np.ones(self.n_pad)
 
             mi_new = 1.1 * np.ones((self.n_z, self.n_theta, self.n_pad))
-            PP = np.zeros(((self.n_z), (2*self.n_theta)))
-#            auxF = np.zeros((2, len(self.Ytheta)))
+            PP = np.zeros(((self.n_z), (2 * self.n_theta)))
+            #            auxF = np.zeros((2, len(self.Ytheta)))
 
             nk = (self.n_z) * (self.n_theta)
 
@@ -270,12 +269,12 @@ class THDCylindrical:
                 self.thetaF = self.thetaI + self.betha_s
 
                 self.dtheta = (self.thetaF - self.thetaI) / (self.n_theta)
-                
-                if n_p==0:
-                    Ytheta1 = np.arange(self.thetaI,self.thetaF,self.dtheta)
+
+                if n_p == 0:
+                    Ytheta1 = np.arange(self.thetaI, self.thetaF, self.dtheta)
                 else:
-                    Ytheta2 = np.arange(self.thetaI,self.thetaF,self.dtheta)
-                
+                    Ytheta2 = np.arange(self.thetaI, self.thetaF, self.dtheta)
+
                 T_ref = T_mist[n_p - 1]
 
                 # Temperature convergence while
@@ -779,34 +778,31 @@ class THDCylindrical:
                                 self.a * (Tdim[i, j, n_p]) ** self.b
                             ) / self.mu_ref
 
+        PP = np.zeros(((self.n_z), (2 * self.n_theta)))
 
-                            
-        PP = np.zeros(((self.n_z),(2*self.n_theta)))
-        
-   
-        PP=np.concatenate((Pdim[:,:,0],Pdim[:,:,1]),axis=1)
-        Ytheta=np.concatenate((Ytheta1,Ytheta2))
-                
-        auxF=np.zeros((2,len(Ytheta)))
-        
-        auxF[0,:]=np.cos(Ytheta)
-        auxF[1,:]=np.sin(Ytheta)
-        
-        dA=self.dy*self.dz 
-        
-        auxP=PP*dA
-        
-        vector_auxF_x=auxF[0,:]
-        vector_auxF_y=auxF[1,:]
-        
-        auxFx=auxP*vector_auxF_x
-        auxFy=auxP*vector_auxF_y
-        
-        fxj=-np.sum(auxFx)
-        fyj=-np.sum(auxFy)
-        
-        Fhx=fxj
-        Fhy=fyj                                    
+        PP = np.concatenate((Pdim[:, :, 0], Pdim[:, :, 1]), axis=1)
+        Ytheta = np.concatenate((Ytheta1, Ytheta2))
+
+        auxF = np.zeros((2, len(Ytheta)))
+
+        auxF[0, :] = np.cos(Ytheta)
+        auxF[1, :] = np.sin(Ytheta)
+
+        dA = self.dy * self.dz
+
+        auxP = PP * dA
+
+        vector_auxF_x = auxF[0, :]
+        vector_auxF_y = auxF[1, :]
+
+        auxFx = auxP * vector_auxF_x
+        auxFy = auxP * vector_auxF_y
+
+        fxj = -np.sum(auxFx)
+        fyj = -np.sum(auxFy)
+
+        Fhx = fxj
+        Fhy = fyj
         self.Fhx = Fhx
         self.Fhy = Fhy
         return Fhx, Fhy
@@ -1064,4 +1060,3 @@ def cylindrical_bearing_example():
     )
 
     return bearing
-
