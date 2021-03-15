@@ -235,8 +235,13 @@ class THDCylindrical:
 
             self.Xpt = xpt0 / (self.c_r * self.speed)
             self.Ypt = ypt0 / (self.c_r * self.speed)
+    
+        T_conv = 0.8*self.T_reserv
+    
+        T_mist = self.T_reserv*np.ones(self.n_pad)
 
-        for i in range(4):
+        while (T_mist[0]-T_conv) >= 1e-2:
+        
 
             P = np.zeros((self.n_z, self.n_theta, self.n_pad))
             dPdy = np.zeros((self.n_z, self.n_theta, self.n_pad))
@@ -244,12 +249,11 @@ class THDCylindrical:
             T = np.ones((self.n_z, self.n_theta, self.n_pad))
             T_new = np.ones((self.n_z, self.n_theta, self.n_pad)) * 1.2
 
-            if i == 0:
-                T_mist = self.T_reserv * np.ones(self.n_pad)
+            T_conv = T_mist[0]
 
             mi_new = 1.1 * np.ones((self.n_z, self.n_theta, self.n_pad))
             PP = np.zeros(((self.n_z), (2 * self.n_theta)))
-            #            auxF = np.zeros((2, len(self.Ytheta)))
+
 
             nk = (self.n_z) * (self.n_theta)
 
