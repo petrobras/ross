@@ -9,6 +9,7 @@ from collections.abc import Iterable
 from pathlib import Path
 
 import numpy as np
+import pandas as pd
 import toml
 from plotly import graph_objects as go
 from plotly.subplots import make_subplots
