@@ -9,6 +9,7 @@ from collections.abc import Iterable
 from pathlib import Path
 
 import numpy as np
+import pandas as pd
 import toml
 from plotly import graph_objects as go
 from plotly.subplots import make_subplots
@@ -1635,6 +1636,145 @@ class ForcedResponseResults(Results):
             "[length] / [time] ** 2": ["m/s**2", "accl_resp"],
         }
 
+    def data_magnitude(
+        self,
+        probe,
+        probe_units="rad",
+        frequency_units="rad/s",
+        amplitude_units="m",
+    ):
+        """Return the forced response (magnitude) in DataFrame format.
+
+        Parameters
+        ----------
+        probe : list of tuples
+            List with tuples (node, orientation angle, tag).
+            node : int
+                indicate the node where the probe is located.
+            orientation : float
+                probe orientation angle about the shaft. The 0 refers to +X direction.
+            tag : str, optional
+                probe tag to be add a DataFrame column title.
+        probe_units : str, option
+            Units for probe orientation.
+            Default is "rad".
+        frequency_units : str, optional
+            Units for the frequency range.
+            Default is "rad/s"
+        amplitude_units : str, optional
+            Units for the response magnitude.
+            Acceptable units dimensionality are:
+                '[length]' - Displays the displacement;
+                '[speed]' - Displays the velocity;
+                '[acceleration]' - Displays the acceleration.
+            Default is "m" 0 to peak.
+            To use peak to peak use the prefix 'pkpk_' (e.g. pkpk_m)
+
+        Returns
+        -------
+        df : pd.DataFrame
+            DataFrame storing magnitude data arrays. They columns are set based on the
+            probe's tag.
+        """
+        frequency_range = Q_(self.speed_range, "rad/s").to(frequency_units).m
+
+        unit_type = str(Q_(1, amplitude_units).dimensionality)
+        try:
+            base_unit = self.default_units[unit_type][0]
+        except KeyError:
+            raise ValueError(
+                "Not supported unit. Dimensionality options are '[length]', '[speed]', '[acceleration]'"
+            )
+
+        data = {}
+        data["frequency"] = frequency_range
+
+        for i, p in enumerate(probe):
+            angle = Q_(p[1], probe_units).to("rad").m
+            vector = self._calculate_major_axis_per_node(
+                node=p[0], angle=angle, amplitude_units=amplitude_units
+            )[3]
+            try:
+                probe_tag = p[2]
+            except IndexError:
+                probe_tag = f"Probe {i+1} - Node {p[0]}"
+
+            data[probe_tag] = Q_(np.abs(vector), base_unit).to(amplitude_units).m
+
+        df = pd.DataFrame(data)
+
+        return df
+
+    def data_phase(
+        self,
+        probe,
+        probe_units="rad",
+        frequency_units="rad/s",
+        amplitude_units="m",
+        phase_units="rad",
+    ):
+        """Return the forced response (phase) in DataFrame format.
+
+        Parameters
+        ----------
+        probe : list of tuples
+            List with tuples (node, orientation angle, tag).
+            node : int
+                indicate the node where the probe is located.
+            orientation : float
+                probe orientation angle about the shaft. The 0 refers to +X direction.
+            tag : str, optional
+                probe tag to be add a DataFrame column title.
+        probe_units : str, option
+            Units for probe orientation.
+            Default is "rad".
+        frequency_units : str, optional
+            Units for the x axis.
+            Default is "rad/s"
+        amplitude_units : str, optional
+            Units for the y axis.
+            Acceptable units dimensionality are:
+                '[length]' - Displays the displacement;
+                '[speed]' - Displays the velocity;
+                '[acceleration]' - Displays the acceleration.
+            Default is "m" 0 to peak.
+            To use peak to peak use the prefix 'pkpk_' (e.g. pkpk_m)
+        phase_units : str, optional
+            Units for the x axis.
+            Default is "rad"
+
+        Returns
+        -------
+        df : pd.DataFrame
+            DataFrame storing phase data arrays. They columns are set based on the
+            probe's tag.
+        """
+        frequency_range = Q_(self.speed_range, "rad/s").to(frequency_units).m
+
+        data = {}
+        data["frequency"] = frequency_range
+
+        for i, p in enumerate(probe):
+            angle = Q_(p[1], probe_units).to("rad").m
+            vector = self._calculate_major_axis_per_node(
+                node=p[0], angle=angle, amplitude_units=amplitude_units
+            )[4]
+
+            probe_phase = np.real(vector)
+            probe_phase = np.array([i + 2 * np.pi if i < 0 else i for i in probe_phase])
+            probe_phase = Q_(probe_phase, "rad").to(phase_units).m
+
+            try:
+                probe_tag = p[2]
+            except IndexError:
+                probe_tag = f"Probe {i+1} - Node {p[0]}"
+
+            data[probe_tag] = probe_phase
+
+        df = pd.DataFrame(data)
+
+        return df
+
     def plot_magnitude(
         self,
         probe,
@@ -1682,37 +1822,20 @@ class ForcedResponseResults(Results):
         fig : Plotly graph_objects.Figure()
             The figure object with the plot.
         """
-        frequency_range = Q_(self.speed_range, "rad/s").to(frequency_units).m
-
-        unit_type = str(Q_(1, amplitude_units).dimensionality)
-        try:
-            base_unit = self.default_units[unit_type][0]
-        except KeyError:
-            raise ValueError(
-                "Not supported unit. Dimensionality options are '[length]', '[speed]', '[acceleration]'"
-            )
+        df = self.data_magnitude(probe, probe_units, frequency_units, amplitude_units)
 
         if fig is None:
             fig = go.Figure()
 
-        for i, p in enumerate(probe):
-            angle = Q_(p[1], probe_units).to("rad").m
-            vector = self._calculate_major_axis_per_node(
-                node=p[0], angle=angle, amplitude_units=amplitude_units
-            )[3]
-            try:
-                probe_tag = p[2]
-            except IndexError:
-                probe_tag = f"Probe {i+1} - Node {p[0]}"
-
+        for i, column in enumerate(df.columns[1:]):
             fig.add_trace(
                 go.Scatter(
-                    x=frequency_range,
-                    y=Q_(np.abs(vector), base_unit).to(amplitude_units).m,
+                    x=df["frequency"],
+                    y=df[column],
                     mode="lines",
                     line=dict(color=list(tableau_colors)[i]),
-                    name=probe_tag,
-                    legendgroup=probe_tag,
+                    name=column,
+                    legendgroup=column,
                     showlegend=True,
                     hovertemplate=f"Frequency ({frequency_units}): %{{x:.2f}}<br>Amplitude ({amplitude_units}): %{{y:.2e}}",
                 )
@@ -1720,7 +1843,7 @@ class ForcedResponseResults(Results):
 
         fig.update_xaxes(
             title_text=f"Frequency ({frequency_units})",
-            range=[np.min(frequency_range), np.max(frequency_range)],
+            range=[np.min(df["frequency"]), np.max(df["frequency"])],
         )
         fig.update_yaxes(
             title_text=f"Amplitude ({amplitude_units})", exponentformat="power"
@@ -1780,34 +1903,22 @@ class ForcedResponseResults(Results):
         fig : Plotly graph_objects.Figure()
             The figure object with the plot.
         """
-        frequency_range = Q_(self.speed_range, "rad/s").to(frequency_units).m
+        df = self.data_phase(
+            probe, probe_units, frequency_units, amplitude_units, phase_units
+        )
 
         if fig is None:
             fig = go.Figure()
 
-        for i, p in enumerate(probe):
-            angle = Q_(p[1], probe_units).to("rad").m
-            vector = self._calculate_major_axis_per_node(
-                node=p[0], angle=angle, amplitude_units=amplitude_units
-            )[4]
-
-            probe_phase = np.real(vector)
-            probe_phase = np.array([i + 2 * np.pi if i < 0 else i for i in probe_phase])
-            probe_phase = Q_(probe_phase, "rad").to(phase_units).m
-
-            try:
-                probe_tag = p[2]
-            except IndexError:
-                probe_tag = f"Probe {i+1} - Node {p[0]}"
-
+        for i, column in enumerate(df.columns[1:]):
             fig.add_trace(
                 go.Scatter(
-                    x=frequency_range,
-                    y=probe_phase,
+                    x=df["frequency"],
+                    y=df[column],
                     mode="lines",
                     line=dict(color=list(tableau_colors)[i]),
-                    name=probe_tag,
-                    legendgroup=probe_tag,
+                    name=column,
+                    legendgroup=column,
                     showlegend=True,
                     hovertemplate=f"Frequency ({frequency_units}): %{{x:.2f}}<br>Phase ({phase_units}): %{{y:.2e}}",
                 )
@@ -1815,7 +1926,7 @@ class ForcedResponseResults(Results):
 
         fig.update_xaxes(
             title_text=f"Frequency ({frequency_units})",
-            range=[np.min(frequency_range), np.max(frequency_range)],
+            range=[np.min(df["frequency"]), np.max(df["frequency"])],
         )
         fig.update_yaxes(title_text=f"Phase ({phase_units})")
         fig.update_layout(**kwargs)
@@ -1873,50 +1984,31 @@ class ForcedResponseResults(Results):
         fig : Plotly graph_objects.Figure()
             The figure object with the plot.
         """
-        frequency_range = Q_(self.speed_range, "rad/s").to(frequency_units).m
-
-        unit_type = str(Q_(1, amplitude_units).dimensionality)
-        try:
-            base_unit = self.default_units[unit_type][0]
-        except KeyError:
-            raise ValueError(
-                "Not supported unit. Dimensionality options are '[length]', '[speed]', '[acceleration]'"
-            )
+        df_m = self.data_magnitude(probe, probe_units, frequency_units, amplitude_units)
+        df_p = self.data_phase(
+            probe, probe_units, frequency_units, amplitude_units, phase_units
+        )
 
         if fig is None:
             fig = go.Figure()
 
-        for i, p in enumerate(probe):
-            angle = Q_(p[1], probe_units).to("rad").m
-            vector = self._calculate_major_axis_per_node(
-                node=p[0], angle=angle, amplitude_units=amplitude_units
-            )
+        if phase_units in ["rad", "radian", "radians"]:
+            polar_theta_unit = "radians"
+        elif phase_units in ["degree", "degrees", "deg"]:
+            polar_theta_unit = "degrees"
 
-            probe_phase = np.real(vector[4])
-            probe_phase = np.array([i + 2 * np.pi if i < 0 else i for i in probe_phase])
-            probe_phase = Q_(probe_phase, "rad").to(phase_units).m
-
-            if phase_units in ["rad", "radian", "radians"]:
-                polar_theta_unit = "radians"
-            elif phase_units in ["degree", "degrees", "deg"]:
-                polar_theta_unit = "degrees"
-
-            try:
-                probe_tag = p[2]
-            except IndexError:
-                probe_tag = f"Probe {i+1} - Node {p[0]}"
-
+        for i, column in enumerate(df_m.columns[1:]):
             fig.add_trace(
                 go.Scatterpolar(
-                    r=Q_(np.abs(vector[3]), base_unit).to(amplitude_units).m,
-                    theta=probe_phase,
-                    customdata=frequency_range,
+                    r=df_m[column],
+                    theta=df_p[column],
+                    customdata=df_m["frequency"],
                     thetaunit=polar_theta_unit,
                     mode="lines+markers",
                     marker=dict(color=list(tableau_colors)[i]),
                     line=dict(color=list(tableau_colors)[i]),
-                    name=probe_tag,
-                    legendgroup=probe_tag,
+                    name=column,
+                    legendgroup=column,
                     showlegend=True,
                     hovertemplate=f"Amplitude ({amplitude_units}): %{{r:.2e}}<br>Phase: %{{theta:.2f}}<br>Frequency ({frequency_units}): %{{customdata:.2f}}",
                 )
