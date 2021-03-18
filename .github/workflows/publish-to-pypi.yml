@@ -1,5 +1,9 @@
 name: Release
-on: github.event_name == 'push' && startsWith(github.ref, 'refs/tags')
+on:
+  push:
+    tags:
+      - '*'
+
 jobs:
   build-n-publish:
     name: Build and publish Python 🐍 distributions 📦 to PyPI
@@ -27,4 +31,5 @@ jobs:
     - name: Publish distribution 📦 to PyPI
       uses: pypa/gh-action-pypi-publish@master
       with:
+        user: __token__
         password: ${{ secrets.PYPI_API_TOKEN }}
