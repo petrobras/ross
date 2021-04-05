@@ -109,7 +109,7 @@ class THDCylindrical:
     >>> bearing = cylindrical_bearing_example()
     >>> bearing.run(x0)
     >>> bearing.equilibrium_pos
-    array([ 0.58761001, -0.67311115])
+    array([ 0.58768737, -0.67319389])
     """
 
     @check_units
@@ -235,13 +235,12 @@ class THDCylindrical:
 
             self.Xpt = xpt0 / (self.c_r * self.speed)
             self.Ypt = ypt0 / (self.c_r * self.speed)
-    
-        T_conv = 0.8*self.T_reserv
-    
-        T_mist = self.T_reserv*np.ones(self.n_pad)
 
-        while (T_mist[0]-T_conv) >= 1e-2:
-        
+        T_conv = 0.8 * self.T_reserv
+
+        T_mist = self.T_reserv * np.ones(self.n_pad)
+
+        while (T_mist[0] - T_conv) >= 1e-2:
 
             P = np.zeros((self.n_z, self.n_theta, self.n_pad))
             dPdy = np.zeros((self.n_z, self.n_theta, self.n_pad))
@@ -253,7 +252,6 @@ class THDCylindrical:
 
             mi_new = 1.1 * np.ones((self.n_z, self.n_theta, self.n_pad))
             PP = np.zeros(((self.n_z), (2 * self.n_theta)))
-
 
             nk = (self.n_z) * (self.n_theta)
 

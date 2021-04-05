@@ -106,11 +106,11 @@ def test_cylindrical_coefficients(cylindrical):
     cyx = coefs[1][2]
     cyy = coefs[1][3]
 
-    assert math.isclose(kxx, 977553273.755312, rel_tol=0.0001)
-    assert math.isclose(kxy, 413651036.60706633, rel_tol=0.0001)
-    assert math.isclose(kyx, -1357492195.2509518, rel_tol=0.0001)
-    assert math.isclose(kyy, 950696959.9668411, rel_tol=0.0001)
-    assert math.isclose(cxx, -6788417498.235009, rel_tol=0.0001)
-    assert math.isclose(cxy, 5412613308.752171, rel_tol=0.0001)
-    assert math.isclose(cyx, 16755460.575634956, rel_tol=0.0001)
-    assert math.isclose(cyy, -7127858.166934674, rel_tol=0.0001)
+    assert math.isclose(kxx, 977643474.5159643, rel_tol=0.0001)
+    assert math.isclose(kxy, 413634353.49338, rel_tol=0.0001)
+    assert math.isclose(kyx, -1357594347.1180925, rel_tol=0.0001)
+    assert math.isclose(kyy, 950762635.3205317, rel_tol=0.0001)
+    assert math.isclose(cxx, -6787713330.66299, rel_tol=0.0001)
+    assert math.isclose(cxy, 5412970444.499972, rel_tol=0.0001)
+    assert math.isclose(cyx, 16756868.948928362, rel_tol=0.0001)
+    assert math.isclose(cyy, -7129475.427663623, rel_tol=0.0001)
