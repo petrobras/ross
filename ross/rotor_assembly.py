@@ -2082,7 +2082,7 @@ class Rotor(object):
         # whirl[2](y axis), 3]
         self._check_frequency_array(speed_range)
 
-        results = np.zeros([len(speed_range), frequencies, 5])
+        results = np.zeros([len(speed_range), frequencies, 6])
 
         for i, w in enumerate(speed_range):
             modal = self.run_modal(speed=w, num_modes=2 * frequencies)
@@ -2090,21 +2090,24 @@ class Rotor(object):
             if frequency_type == "wd":
                 results[i, :, 0] = modal.wd[:frequencies]
                 results[i, :, 1] = modal.log_dec[:frequencies]
-                results[i, :, 2] = modal.whirl_values()[:frequencies]
+                results[i, :, 2] = modal.damping_ratio[:frequencies]
+                results[i, :, 3] = modal.whirl_values()[:frequencies]
             else:
                 idx = modal.wn.argsort()
                 results[i, :, 0] = modal.wn[idx][:frequencies]
                 results[i, :, 1] = modal.log_dec[idx][:frequencies]
-                results[i, :, 2] = modal.whirl_values()[idx][:frequencies]
+                results[i, :, 2] = modal.damping_ratio[idx][:frequencies]
+                results[i, :, 3] = modal.whirl_values()[idx][:frequencies]
 
-            results[i, :, 3] = w
-            results[i, :, 4] = modal.wn[:frequencies]
+            results[i, :, 4] = w
+            results[i, :, 5] = modal.wn[:frequencies]
 
         results = CampbellResults(
             speed_range=speed_range,
             wd=results[..., 0],
             log_dec=results[..., 1],
-            whirl_values=results[..., 2],
+            damping_ratio=results[..., 2],
+            whirl_values=results[..., 3],
         )
 
         return results

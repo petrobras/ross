@@ -952,13 +952,21 @@ class CampbellResults(Results):
         The figure object with the plot.
     """
 
-    def __init__(self, speed_range, wd, log_dec, whirl_values):
+    def __init__(self, speed_range, wd, log_dec, damping_ratio, whirl_values):
         self.speed_range = speed_range
         self.wd = wd
         self.log_dec = log_dec
+        self.damping_ratio = damping_ratio
         self.whirl_values = whirl_values
 
-    def plot(self, harmonics=[1], frequency_units="rad/s", fig=None, **kwargs):
+    def plot(
+        self,
+        harmonics=[1],
+        frequency_units="rad/s",
+        damping="log_dec",
+        fig=None,
+        **kwargs,
+    ):
         """Create Campbell Diagram figure using Plotly.
 
         Parameters
@@ -969,6 +977,9 @@ class CampbellResults(Results):
         frequency_units : str, optional
             Frequency units.
             Default is "rad/s"
+        damping : str, optional
+            Define which value to show for damping. We can use "log_dec" or "damping_ratio".
+            Default is "log_dec".
         fig : Plotly graph_objects.Figure()
             The figure object with the plot.
         kwargs : optional
@@ -983,9 +994,20 @@ class CampbellResults(Results):
         """
         wd = Q_(self.wd, "rad/s").to(frequency_units).m
         num_frequencies = wd.shape[1]
-        log_dec = self.log_dec
+
         whirl = self.whirl_values
         speed_range = Q_(self.speed_range, "rad/s").to(frequency_units).m
+
+        if damping == "log_dec":
+            damping_values = self.log_dec
+            title_text = "<b>Log Dec</b>"
+        elif damping == "damping_ratio":
+            damping_values = self.damping_ratio
+            title_text = "<b>Damping Ratio</b>"
+        else:
+            raise ValueError(
+                f"damping can be 'log_dec' or 'damping_ratio'. {damping} is not valid"
+            )
 
         if fig is None:
             fig = go.Figure()
@@ -994,7 +1016,7 @@ class CampbellResults(Results):
             coloraxis_cmin=0.0,
             coloraxis_cmax=1.0,
             coloraxis_colorscale="rdbu",
-            coloraxis_colorbar=dict(title=dict(text="<b>Log Dec</b>", side="right")),
+            coloraxis_colorbar=dict(title=dict(text=title_text, side="right")),
         )
         for k, v in default_values.items():
             kwargs.setdefault(k, v)
@@ -1037,7 +1059,7 @@ class CampbellResults(Results):
             for i in range(num_frequencies):
                 w_i = wd[:, i]
                 whirl_i = whirl[:, i]
-                log_dec_i = log_dec[:, i]
+                damping_values_i = damping_values[:, i]
 
                 whirl_mask = whirl_i == whirl_dir
                 if any(check for check in whirl_mask):
@@ -1047,7 +1069,7 @@ class CampbellResults(Results):
                             y=w_i[whirl_mask],
                             marker=dict(
                                 symbol=mark,
-                                color=log_dec_i[whirl_mask],
+                                color=damping_values_i[whirl_mask],
                                 coloraxis="coloraxis",
                             ),
                             mode="markers",
