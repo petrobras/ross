@@ -1179,7 +1179,7 @@ class FrequencyResponseResults(Results):
                 '[speed]/[force]' - Displays the velocity;
                 '[acceleration]/[force]' - Displays the acceleration.
             Default is "m/N" 0 to peak.
-            To use peak to peak use the prefix 'pkpk_' (e.g. pkpk_m/N)
+            To use peak to peak use '<units> pkpk' (e.g. 'm/N pkpk')
         fig : Plotly graph_objects.Figure()
             The figure object with the plot.
         mag_kwargs : optional
@@ -1274,7 +1274,7 @@ class FrequencyResponseResults(Results):
                 '[speed]/[force]' - Displays the velocity;
                 '[acceleration]/[force]' - Displays the acceleration.
             Default is "m/N" 0 to peak.
-            To use peak to peak use the prefix 'pkpk_' (e.g. pkpk_m/N)
+            To use peak to peak use '<units> pkpk' (e.g. 'm/N pkpk')
         phase_units : str, optional
             Units for the x axis.
             Default is "rad"
@@ -1377,7 +1377,7 @@ class FrequencyResponseResults(Results):
                 '[speed]/[force]' - Displays the velocity;
                 '[acceleration]/[force]' - Displays the acceleration.
             Default is "m/N" 0 to peak.
-            To use peak to peak use the prefix 'pkpk_' (e.g. pkpk_m/N)
+            To use peak to peak use '<units> pkpk' (e.g. 'm/N pkpk')
         phase_units : str, optional
             Units for the x axis.
             Default is "rad"
@@ -1507,7 +1507,7 @@ class FrequencyResponseResults(Results):
                 '[speed]/[force]' - Displays the velocity;
                 '[acceleration]/[force]' - Displays the acceleration.
             Default is "m/N" 0 to peak.
-            To use peak to peak use the prefix 'pkpk_' (e.g. pkpk_m/N)
+            To use peak to peak use '<units> pkpk' (e.g. 'm/N pkpk')
         phase_units : str, optional
             Units for the x axis.
             Default is "rad"
@@ -1650,11 +1650,13 @@ class ForcedResponseResults(Results):
         probe : list of tuples
             List with tuples (node, orientation angle, tag).
             node : int
-                indicate the node where the probe is located.
+                Indicate the node where the probe is located.
             orientation : float
-                probe orientation angle about the shaft. The 0 refers to +X direction.
+                Probe orientation angle about the shaft. The 0 refers to +X direction.
+                The strings 'major' and 'minor' can also be used to reference the major
+                and minor axis.
             tag : str, optional
-                probe tag to be add a DataFrame column title.
+                Probe tag to be add a DataFrame column title.
         probe_units : str, option
             Units for probe orientation.
             Default is "rad".
@@ -1668,7 +1670,7 @@ class ForcedResponseResults(Results):
                 '[speed]' - Displays the velocity;
                 '[acceleration]' - Displays the acceleration.
             Default is "m" 0 to peak.
-            To use peak to peak use the prefix 'pkpk_' (e.g. pkpk_m)
+            To use peak to peak use '<unit> pkpk' (e.g. 'm pkpk')
 
         Returns
         -------
@@ -1720,11 +1722,13 @@ class ForcedResponseResults(Results):
         probe : list of tuples
             List with tuples (node, orientation angle, tag).
             node : int
-                indicate the node where the probe is located.
+                Indicate the node where the probe is located.
             orientation : float
-                probe orientation angle about the shaft. The 0 refers to +X direction.
+                Probe orientation angle about the shaft. The 0 refers to +X direction.
+                The strings 'major' and 'minor' can also be used to reference the major
+                and minor axis.
             tag : str, optional
-                probe tag to be add a DataFrame column title.
+                Probe tag to be add a DataFrame column title.
         probe_units : str, option
             Units for probe orientation.
             Default is "rad".
@@ -1738,7 +1742,7 @@ class ForcedResponseResults(Results):
                 '[speed]' - Displays the velocity;
                 '[acceleration]' - Displays the acceleration.
             Default is "m" 0 to peak.
-            To use peak to peak use the prefix 'pkpk_' (e.g. pkpk_m)
+            To use peak to peak use '<unit> pkpk' (e.g. 'm pkpk')
         phase_units : str, optional
             Units for the x axis.
             Default is "rad"
@@ -1791,11 +1795,13 @@ class ForcedResponseResults(Results):
         probe : list of tuples
             List with tuples (node, orientation angle, tag).
             node : int
-                indicate the node where the probe is located.
+                Indicate the node where the probe is located.
             orientation : float
-                probe orientation angle about the shaft. The 0 refers to +X direction.
+                Probe orientation angle about the shaft. The 0 refers to +X direction.
+                The strings 'major' and 'minor' can also be used to reference the major
+                and minor axis.
             tag : str, optional
-                probe tag to be displayed at the legend.
+                Probe tag to be displayed at the legend.
         probe_units : str, option
             Units for probe orientation.
             Default is "rad".
@@ -1809,7 +1815,7 @@ class ForcedResponseResults(Results):
                 '[speed]' - Displays the velocity;
                 '[acceleration]' - Displays the acceleration.
             Default is "m" 0 to peak.
-            To use peak to peak use the prefix 'pkpk_' (e.g. pkpk_m)
+            To use peak to peak use '<unit> pkpk' (e.g. 'm pkpk')
         fig : Plotly graph_objects.Figure()
             The figure object with the plot.
         kwargs : optional
@@ -1869,11 +1875,13 @@ class ForcedResponseResults(Results):
         probe : list of tuples
             List with tuples (node, orientation angle, tag).
             node : int
-                indicate the node where the probe is located.
+                Indicate the node where the probe is located.
             orientation : float
-                probe orientation angle about the shaft. The 0 refers to +X direction.
+                Probe orientation angle about the shaft. The 0 refers to +X direction.
+                The strings 'major' and 'minor' can also be used to reference the major
+                and minor axis.
             tag : str, optional
-                probe tag to be displayed at the legend.
+                Probe tag to be displayed at the legend.
         probe_units : str, option
             Units for probe orientation.
             Default is "rad".
@@ -1887,7 +1895,7 @@ class ForcedResponseResults(Results):
                 '[speed]' - Displays the velocity;
                 '[acceleration]' - Displays the acceleration.
             Default is "m" 0 to peak.
-            To use peak to peak use the prefix 'pkpk_' (e.g. pkpk_m)
+            To use peak to peak use '<unit> pkpk' (e.g. 'm pkpk')
         phase_units : str, optional
             Units for the x axis.
             Default is "rad"
@@ -1950,11 +1958,13 @@ class ForcedResponseResults(Results):
         probe : list of tuples
             List with tuples (node, orientation angle, tag).
             node : int
-                indicate the node where the probe is located.
+                Indicate the node where the probe is located.
             orientation : float
-                probe orientation angle about the shaft. The 0 refers to +X direction.
+                Probe orientation angle about the shaft. The 0 refers to +X direction.
+                The strings 'major' and 'minor' can also be used to reference the major
+                and minor axis.
             tag : str, optional
-                probe tag to be displayed at the legend.
+                Probe tag to be displayed at the legend.
         probe_units : str, option
             Units for probe orientation.
             Default is "rad".
@@ -1968,7 +1978,7 @@ class ForcedResponseResults(Results):
                 '[speed]' - Displays the velocity;
                 '[acceleration]' - Displays the acceleration.
             Default is "m" 0 to peak.
-            To use peak to peak use the prefix 'pkpk_' (e.g. pkpk_m)
+            To use peak to peak use '<unit> pkpk' (e.g. 'm pkpk')
         phase_units : str, optional
             Units for the x axis.
             Default is "rad"
@@ -2051,11 +2061,13 @@ class ForcedResponseResults(Results):
         probe : list of tuples
             List with tuples (node, orientation angle, tag).
             node : int
-                indicate the node where the probe is located.
+                Indicate the node where the probe is located.
             orientation : float
-                probe orientation angle about the shaft. The 0 refers to +X direction.
+                Probe orientation angle about the shaft. The 0 refers to +X direction.
+                The strings 'major' and 'minor' can also be used to reference the major
+                and minor axis.
             tag : str, optional
-                probe tag to be displayed at the legend.
+                Probe tag to be displayed at the legend.
         probe_units : str, option
             Units for probe orientation.
             Default is "rad".
@@ -2069,7 +2081,7 @@ class ForcedResponseResults(Results):
                 '[speed]' - Displays the velocity;
                 '[acceleration]' - Displays the acceleration.
             Default is "m" 0 to peak.
-            To use peak to peak use the prefix 'pkpk_' (e.g. pkpk_m)
+            To use peak to peak use '<unit> pkpk' (e.g. 'm pkpk')
         phase_units : str, optional
             Phase units.
             Default is "rad"
@@ -2163,7 +2175,7 @@ class ForcedResponseResults(Results):
                 '[speed]' - Displays the velocity;
                 '[acceleration]' - Displays the acceleration.
             Default is "m" 0 to peak.
-            To use peak to peak use the prefix 'pkpk_' (e.g. pkpk_m)
+            To use peak to peak use '<unit> pkpk' (e.g. 'm pkpk')
 
         Returns
         -------
@@ -2254,7 +2266,7 @@ class ForcedResponseResults(Results):
                 '[speed]' - Displays the velocity;
                 '[acceleration]' - Displays the acceleration.
             Default is "m" 0 to peak.
-            To use peak to peak use the prefix 'pkpk_' (e.g. pkpk_m)
+            To use peak to peak use '<unit> pkpk' (e.g. 'm pkpk')
 
         Returns
         -------
@@ -2412,7 +2424,7 @@ class ForcedResponseResults(Results):
                 '[speed]' - Displays the velocity;
                 '[acceleration]' - Displays the acceleration.
             Default is "m" 0 to peak.
-            To use peak to peak use the prefix 'pkpk_' (e.g. pkpk_m)
+            To use peak to peak use '<unit> pkpk' (e.g. 'm pkpk')
         rotor_length_units : str, optional
             Displacement units.
             Default is 'm'.
@@ -2508,7 +2520,7 @@ class ForcedResponseResults(Results):
                 '[speed]' - Displays the velocity;
                 '[acceleration]' - Displays the acceleration.
             Default is "m" 0 to peak.
-            To use peak to peak use the prefix 'pkpk_' (e.g. pkpk_m)
+            To use peak to peak use '<unit> pkpk' (e.g. 'm pkpk')
         rotor_length_units : str, optional
             Rotor Length units.
             Default is 'm'.
@@ -2805,7 +2817,7 @@ class ForcedResponseResults(Results):
                 '[speed]' - Displays the velocity;
                 '[acceleration]' - Displays the acceleration.
             Default is "m" 0 to peak.
-            To use peak to peak use the prefix 'pkpk_' (e.g. pkpk_m)
+            To use peak to peak use '<units> pkpk' (e.g. 'm/N pkpk')
         rotor_length_units : str, optional
             Rotor length units.
             Default is 'm'.
@@ -3702,11 +3714,13 @@ class TimeResponseResults(Results):
         probe : list of tuples
             List with tuples (node, orientation angle, tag).
             node : int
-                indicate the node where the probe is located.
+                Indicate the node where the probe is located.
             orientation : float
-                probe orientation angle about the shaft. The 0 refers to +X direction.
+                Probe orientation angle about the shaft. The 0 refers to +X direction.
+                The strings 'major' and 'minor' can also be used to reference the major
+                and minor axis.
             tag : str, optional
-                probe tag to be displayed at the legend.
+                Probe tag to be displayed at the legend.
         probe_units : str, option
             Units for probe orientation.
             Default is "rad".
