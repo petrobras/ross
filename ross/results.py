@@ -1179,7 +1179,7 @@ class FrequencyResponseResults(Results):
                 '[speed]/[force]' - Displays the velocity;
                 '[acceleration]/[force]' - Displays the acceleration.
             Default is "m/N" 0 to peak.
-            To use peak to peak use the prefix 'pkpk_' (e.g. pkpk_m/N)
+            To use peak to peak use '<units> pkpk' (e.g. 'm/N pkpk')
         fig : Plotly graph_objects.Figure()
             The figure object with the plot.
         mag_kwargs : optional
@@ -1274,7 +1274,7 @@ class FrequencyResponseResults(Results):
                 '[speed]/[force]' - Displays the velocity;
                 '[acceleration]/[force]' - Displays the acceleration.
             Default is "m/N" 0 to peak.
-            To use peak to peak use the prefix 'pkpk_' (e.g. pkpk_m/N)
+            To use peak to peak use '<units> pkpk' (e.g. 'm/N pkpk')
         phase_units : str, optional
             Units for the x axis.
             Default is "rad"
@@ -1377,7 +1377,7 @@ class FrequencyResponseResults(Results):
                 '[speed]/[force]' - Displays the velocity;
                 '[acceleration]/[force]' - Displays the acceleration.
             Default is "m/N" 0 to peak.
-            To use peak to peak use the prefix 'pkpk_' (e.g. pkpk_m/N)
+            To use peak to peak use '<units> pkpk' (e.g. 'm/N pkpk')
         phase_units : str, optional
             Units for the x axis.
             Default is "rad"
@@ -1507,7 +1507,7 @@ class FrequencyResponseResults(Results):
                 '[speed]/[force]' - Displays the velocity;
                 '[acceleration]/[force]' - Displays the acceleration.
             Default is "m/N" 0 to peak.
-            To use peak to peak use the prefix 'pkpk_' (e.g. pkpk_m/N)
+            To use peak to peak use '<units> pkpk' (e.g. 'm/N pkpk')
         phase_units : str, optional
             Units for the x axis.
             Default is "rad"
@@ -1668,7 +1668,7 @@ class ForcedResponseResults(Results):
                 '[speed]' - Displays the velocity;
                 '[acceleration]' - Displays the acceleration.
             Default is "m" 0 to peak.
-            To use peak to peak use the prefix 'pkpk_' (e.g. pkpk_m)
+            To use peak to peak use '<unit> pkpk' (e.g. 'm pkpk')
 
         Returns
         -------
@@ -1738,7 +1738,7 @@ class ForcedResponseResults(Results):
                 '[speed]' - Displays the velocity;
                 '[acceleration]' - Displays the acceleration.
             Default is "m" 0 to peak.
-            To use peak to peak use the prefix 'pkpk_' (e.g. pkpk_m)
+            To use peak to peak use '<unit> pkpk' (e.g. 'm pkpk')
         phase_units : str, optional
             Units for the x axis.
             Default is "rad"
@@ -1809,7 +1809,7 @@ class ForcedResponseResults(Results):
                 '[speed]' - Displays the velocity;
                 '[acceleration]' - Displays the acceleration.
             Default is "m" 0 to peak.
-            To use peak to peak use the prefix 'pkpk_' (e.g. pkpk_m)
+            To use peak to peak use '<unit> pkpk' (e.g. 'm pkpk')
         fig : Plotly graph_objects.Figure()
             The figure object with the plot.
         kwargs : optional
@@ -1887,7 +1887,7 @@ class ForcedResponseResults(Results):
                 '[speed]' - Displays the velocity;
                 '[acceleration]' - Displays the acceleration.
             Default is "m" 0 to peak.
-            To use peak to peak use the prefix 'pkpk_' (e.g. pkpk_m)
+            To use peak to peak use '<unit> pkpk' (e.g. 'm pkpk')
         phase_units : str, optional
             Units for the x axis.
             Default is "rad"
@@ -1968,7 +1968,7 @@ class ForcedResponseResults(Results):
                 '[speed]' - Displays the velocity;
                 '[acceleration]' - Displays the acceleration.
             Default is "m" 0 to peak.
-            To use peak to peak use the prefix 'pkpk_' (e.g. pkpk_m)
+            To use peak to peak use '<unit> pkpk' (e.g. 'm pkpk')
         phase_units : str, optional
             Units for the x axis.
             Default is "rad"
@@ -2069,7 +2069,7 @@ class ForcedResponseResults(Results):
                 '[speed]' - Displays the velocity;
                 '[acceleration]' - Displays the acceleration.
             Default is "m" 0 to peak.
-            To use peak to peak use the prefix 'pkpk_' (e.g. pkpk_m)
+            To use peak to peak use '<unit> pkpk' (e.g. 'm pkpk')
         phase_units : str, optional
             Phase units.
             Default is "rad"
@@ -2163,7 +2163,7 @@ class ForcedResponseResults(Results):
                 '[speed]' - Displays the velocity;
                 '[acceleration]' - Displays the acceleration.
             Default is "m" 0 to peak.
-            To use peak to peak use the prefix 'pkpk_' (e.g. pkpk_m)
+            To use peak to peak use '<unit> pkpk' (e.g. 'm pkpk')
 
         Returns
         -------
@@ -2254,7 +2254,7 @@ class ForcedResponseResults(Results):
                 '[speed]' - Displays the velocity;
                 '[acceleration]' - Displays the acceleration.
             Default is "m" 0 to peak.
-            To use peak to peak use the prefix 'pkpk_' (e.g. pkpk_m)
+            To use peak to peak use '<unit> pkpk' (e.g. 'm pkpk')
 
         Returns
         -------
@@ -2412,7 +2412,7 @@ class ForcedResponseResults(Results):
                 '[speed]' - Displays the velocity;
                 '[acceleration]' - Displays the acceleration.
             Default is "m" 0 to peak.
-            To use peak to peak use the prefix 'pkpk_' (e.g. pkpk_m)
+            To use peak to peak use '<unit> pkpk' (e.g. 'm pkpk')
         rotor_length_units : str, optional
             Displacement units.
             Default is 'm'.
@@ -2508,7 +2508,7 @@ class ForcedResponseResults(Results):
                 '[speed]' - Displays the velocity;
                 '[acceleration]' - Displays the acceleration.
             Default is "m" 0 to peak.
-            To use peak to peak use the prefix 'pkpk_' (e.g. pkpk_m)
+            To use peak to peak use '<unit> pkpk' (e.g. 'm pkpk')
         rotor_length_units : str, optional
             Rotor Length units.
             Default is 'm'.
@@ -2805,7 +2805,7 @@ class ForcedResponseResults(Results):
                 '[speed]' - Displays the velocity;
                 '[acceleration]' - Displays the acceleration.
             Default is "m" 0 to peak.
-            To use peak to peak use the prefix 'pkpk_' (e.g. pkpk_m)
+            To use peak to peak use '<units> pkpk' (e.g. 'm/N pkpk')
         rotor_length_units : str, optional
             Rotor length units.
             Default is 'm'.
