@@ -1650,11 +1650,13 @@ class ForcedResponseResults(Results):
         probe : list of tuples
             List with tuples (node, orientation angle, tag).
             node : int
-                indicate the node where the probe is located.
+                Indicate the node where the probe is located.
             orientation : float
-                probe orientation angle about the shaft. The 0 refers to +X direction.
+                Probe orientation angle about the shaft. The 0 refers to +X direction.
+                The strings 'major' and 'minor' can also be used to reference the major
+                and minor axis.
             tag : str, optional
-                probe tag to be add a DataFrame column title.
+                Probe tag to be add a DataFrame column title.
         probe_units : str, option
             Units for probe orientation.
             Default is "rad".
@@ -1720,11 +1722,13 @@ class ForcedResponseResults(Results):
         probe : list of tuples
             List with tuples (node, orientation angle, tag).
             node : int
-                indicate the node where the probe is located.
+                Indicate the node where the probe is located.
             orientation : float
-                probe orientation angle about the shaft. The 0 refers to +X direction.
+                Probe orientation angle about the shaft. The 0 refers to +X direction.
+                The strings 'major' and 'minor' can also be used to reference the major
+                and minor axis.
             tag : str, optional
-                probe tag to be add a DataFrame column title.
+                Probe tag to be add a DataFrame column title.
         probe_units : str, option
             Units for probe orientation.
             Default is "rad".
@@ -1791,11 +1795,13 @@ class ForcedResponseResults(Results):
         probe : list of tuples
             List with tuples (node, orientation angle, tag).
             node : int
-                indicate the node where the probe is located.
+                Indicate the node where the probe is located.
             orientation : float
-                probe orientation angle about the shaft. The 0 refers to +X direction.
+                Probe orientation angle about the shaft. The 0 refers to +X direction.
+                The strings 'major' and 'minor' can also be used to reference the major
+                and minor axis.
             tag : str, optional
-                probe tag to be displayed at the legend.
+                Probe tag to be displayed at the legend.
         probe_units : str, option
             Units for probe orientation.
             Default is "rad".
@@ -1869,11 +1875,13 @@ class ForcedResponseResults(Results):
         probe : list of tuples
             List with tuples (node, orientation angle, tag).
             node : int
-                indicate the node where the probe is located.
+                Indicate the node where the probe is located.
             orientation : float
-                probe orientation angle about the shaft. The 0 refers to +X direction.
+                Probe orientation angle about the shaft. The 0 refers to +X direction.
+                The strings 'major' and 'minor' can also be used to reference the major
+                and minor axis.
             tag : str, optional
-                probe tag to be displayed at the legend.
+                Probe tag to be displayed at the legend.
         probe_units : str, option
             Units for probe orientation.
             Default is "rad".
@@ -1950,11 +1958,13 @@ class ForcedResponseResults(Results):
         probe : list of tuples
             List with tuples (node, orientation angle, tag).
             node : int
-                indicate the node where the probe is located.
+                Indicate the node where the probe is located.
             orientation : float
-                probe orientation angle about the shaft. The 0 refers to +X direction.
+                Probe orientation angle about the shaft. The 0 refers to +X direction.
+                The strings 'major' and 'minor' can also be used to reference the major
+                and minor axis.
             tag : str, optional
-                probe tag to be displayed at the legend.
+                Probe tag to be displayed at the legend.
         probe_units : str, option
             Units for probe orientation.
             Default is "rad".
@@ -2051,11 +2061,13 @@ class ForcedResponseResults(Results):
         probe : list of tuples
             List with tuples (node, orientation angle, tag).
             node : int
-                indicate the node where the probe is located.
+                Indicate the node where the probe is located.
             orientation : float
-                probe orientation angle about the shaft. The 0 refers to +X direction.
+                Probe orientation angle about the shaft. The 0 refers to +X direction.
+                The strings 'major' and 'minor' can also be used to reference the major
+                and minor axis.
             tag : str, optional
-                probe tag to be displayed at the legend.
+                Probe tag to be displayed at the legend.
         probe_units : str, option
             Units for probe orientation.
             Default is "rad".
@@ -3702,11 +3714,13 @@ class TimeResponseResults(Results):
         probe : list of tuples
             List with tuples (node, orientation angle, tag).
             node : int
-                indicate the node where the probe is located.
+                Indicate the node where the probe is located.
             orientation : float
-                probe orientation angle about the shaft. The 0 refers to +X direction.
+                Probe orientation angle about the shaft. The 0 refers to +X direction.
+                The strings 'major' and 'minor' can also be used to reference the major
+                and minor axis.
             tag : str, optional
-                probe tag to be displayed at the legend.
+                Probe tag to be displayed at the legend.
         probe_units : str, option
             Units for probe orientation.
             Default is "rad".
