@@ -963,7 +963,7 @@ class CampbellResults(Results):
         self,
         harmonics=[1],
         frequency_units="rad/s",
-        damping="log_dec",
+        damping_parameter="log_dec",
         fig=None,
         **kwargs,
     ):
@@ -977,7 +977,9 @@ class CampbellResults(Results):
         frequency_units : str, optional
             Frequency units.
             Default is "rad/s"
-        damping : str, optional
+        frequency_range : tuple
+            Tuple with (min, max) values
+        damping_parameter : str, optional
             Define which value to show for damping. We can use "log_dec" or "damping_ratio".
             Default is "log_dec".
         fig : Plotly graph_objects.Figure()
@@ -998,15 +1000,15 @@ class CampbellResults(Results):
         whirl = self.whirl_values
         speed_range = Q_(self.speed_range, "rad/s").to(frequency_units).m
 
-        if damping == "log_dec":
+        if damping_parameter == "log_dec":
             damping_values = self.log_dec
             title_text = "<b>Log Dec</b>"
-        elif damping == "damping_ratio":
+        elif damping_parameter == "damping_ratio":
             damping_values = self.damping_ratio
             title_text = "<b>Damping Ratio</b>"
         else:
             raise ValueError(
-                f"damping can be 'log_dec' or 'damping_ratio'. {damping} is not valid"
+                f"damping_parameter can be 'log_dec' or 'damping_ratio'. {damping_parameter} is not valid"
             )
 
         if fig is None:
