@@ -16,7 +16,7 @@ from plotly.subplots import make_subplots
 from scipy import linalg as la
 
 from ross.plotly_theme import tableau_colors
-from ross.units import Q_
+from ross.units import Q_, check_units
 from ross.utils import intersection
 
 __all__ = [
@@ -952,13 +952,24 @@ class CampbellResults(Results):
         The figure object with the plot.
     """
 
-    def __init__(self, speed_range, wd, log_dec, whirl_values):
+    def __init__(self, speed_range, wd, log_dec, damping_ratio, whirl_values):
         self.speed_range = speed_range
         self.wd = wd
         self.log_dec = log_dec
+        self.damping_ratio = damping_ratio
         self.whirl_values = whirl_values
 
-    def plot(self, harmonics=[1], frequency_units="rad/s", fig=None, **kwargs):
+    @check_units
+    def plot(
+        self,
+        harmonics=[1],
+        frequency_units="rad/s",
+        damping_parameter="log_dec",
+        frequency_range=None,
+        damping_range=None,
+        fig=None,
+        **kwargs,
+    ):
         """Create Campbell Diagram figure using Plotly.
 
         Parameters
@@ -969,6 +980,18 @@ class CampbellResults(Results):
         frequency_units : str, optional
             Frequency units.
             Default is "rad/s"
+        damping_parameter : str, optional
+            Define which value to show for damping. We can use "log_dec" or "damping_ratio".
+            Default is "log_dec".
+        frequency_range : tuple, pint.Quantity(tuple), optional
+            Tuple with (min, max) values for the frequencies that will be plotted.
+            Frequencies that are not within the range are filtered out and are not plotted.
+            It is possible to use a pint Quantity (e.g. Q_((2000, 1000), "RPM")).
+            Default is None (no filter).
+        damping_range : tuple, optional
+            Tuple with (min, max) values for the damping parameter that will be plotted.
+            Damping values that are not within the range are filtered out and are not plotted.
+            Default is None (no filter).
         fig : Plotly graph_objects.Figure()
             The figure object with the plot.
         kwargs : optional
@@ -980,12 +1003,39 @@ class CampbellResults(Results):
         -------
         fig : Plotly graph_objects.Figure()
             The figure object with the plot.
+
+        Examples
+        --------
+        >>> import ross as rs
+        >>> import numpy as np
+        >>> Q_ = rs.Q_
+        >>> rotor = rs.rotor_example()
+        >>> speed = np.linspace(0, 400, 101)
+        >>> camp = rotor.run_campbell(speed)
+        >>> fig = camp.plot(
+        ...     harmonics=[1, 2],
+        ...     damping_parameter="damping_ratio",
+        ...     frequency_range=Q_((2000, 10000), "RPM"),
+        ...     damping_range=(-0.1, 100),
+        ...     frequency_units="RPM",
+        ... )
         """
-        wd = Q_(self.wd, "rad/s").to(frequency_units).m
+        if damping_parameter == "log_dec":
+            damping_values = self.log_dec
+            title_text = "<b>Log Dec</b>"
+        elif damping_parameter == "damping_ratio":
+            damping_values = self.damping_ratio
+            title_text = "<b>Damping Ratio</b>"
+        else:
+            raise ValueError(
+                f"damping_parameter can be 'log_dec' or 'damping_ratio'. {damping_parameter} is not valid"
+            )
+
+        wd = self.wd
         num_frequencies = wd.shape[1]
-        log_dec = self.log_dec
+
         whirl = self.whirl_values
-        speed_range = Q_(self.speed_range, "rad/s").to(frequency_units).m
+        speed_range = self.speed_range
 
         if fig is None:
             fig = go.Figure()
@@ -994,7 +1044,7 @@ class CampbellResults(Results):
             coloraxis_cmin=0.0,
             coloraxis_cmax=1.0,
             coloraxis_colorscale="rdbu",
-            coloraxis_colorbar=dict(title=dict(text="<b>Log Dec</b>", side="right")),
+            coloraxis_colorbar=dict(title=dict(text=title_text, side="right")),
         )
         for k, v in default_values.items():
             kwargs.setdefault(k, v)
@@ -1014,11 +1064,22 @@ class CampbellResults(Results):
                 crit_x.extend(x)
                 crit_y.extend(y)
 
+        # filter frequency range
+        if frequency_range is not None:
+            crit_x_filtered = []
+            crit_y_filtered = []
+            for x, y in zip(crit_x, crit_y):
+                if frequency_range[0] < y < frequency_range[1]:
+                    crit_x_filtered.append(x)
+                    crit_y_filtered.append(y)
+            crit_x = crit_x_filtered
+            crit_y = crit_y_filtered
+
         if len(crit_x) and len(crit_y):
             fig.add_trace(
                 go.Scatter(
-                    x=crit_x,
-                    y=crit_y,
+                    x=Q_(crit_x, "rad/s").to(frequency_units).m,
+                    y=Q_(crit_y, "rad/s").to(frequency_units).m,
                     mode="markers",
                     marker=dict(symbol="x", color="black"),
                     name="Crit. Speed",
@@ -1037,17 +1098,29 @@ class CampbellResults(Results):
             for i in range(num_frequencies):
                 w_i = wd[:, i]
                 whirl_i = whirl[:, i]
-                log_dec_i = log_dec[:, i]
+                damping_values_i = damping_values[:, i]
 
                 whirl_mask = whirl_i == whirl_dir
-                if any(check for check in whirl_mask):
+                mask = whirl_mask
+                if frequency_range is not None:
+                    frequency_mask = (w_i > frequency_range[0]) & (
+                        w_i < frequency_range[1]
+                    )
+                    mask = mask & frequency_mask
+                if damping_range is not None:
+                    damping_mask = (damping_values_i > damping_range[0]) & (
+                        damping_values_i < damping_range[1]
+                    )
+                    mask = mask & damping_mask
+
+                if any(check for check in mask):
                     fig.add_trace(
                         go.Scatter(
-                            x=speed_range[whirl_mask],
-                            y=w_i[whirl_mask],
+                            x=Q_(speed_range[mask], "rad/s").to(frequency_units).m,
+                            y=Q_(w_i[mask], "rad/s").to(frequency_units).m,
                             marker=dict(
                                 symbol=mark,
-                                color=log_dec_i[whirl_mask],
+                                color=damping_values_i[mask],
                                 coloraxis="coloraxis",
                             ),
                             mode="markers",
@@ -1063,8 +1136,8 @@ class CampbellResults(Results):
         for j, h in enumerate(harmonics):
             fig.add_trace(
                 go.Scatter(
-                    x=speed_range,
-                    y=h * speed_range,
+                    x=Q_(speed_range, "rad/s").to(frequency_units).m,
+                    y=h * Q_(speed_range, "rad/s").to(frequency_units).m,
                     mode="lines",
                     line=dict(dash="dashdot", color=list(tableau_colors)[j]),
                     name="{}x speed".format(h),
@@ -1089,12 +1162,15 @@ class CampbellResults(Results):
 
         fig.update_xaxes(
             title_text=f"Frequency ({frequency_units})",
-            range=[np.min(speed_range), np.max(speed_range)],
+            range=[
+                np.min(Q_(speed_range, "rad/s").to(frequency_units).m),
+                np.max(Q_(speed_range, "rad/s").to(frequency_units).m),
+            ],
             exponentformat="none",
         )
         fig.update_yaxes(
             title_text=f"Natural Frequencies ({frequency_units})",
-            range=[0, 1.1 * np.max(wd)],
+            range=[0, 1.1 * np.max(Q_(wd, "rad/s").to(frequency_units).m)],
         )
         fig.update_layout(
             legend=dict(

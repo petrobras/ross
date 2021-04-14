@@ -13,11 +13,11 @@ def test_new_units_loaded():
 def auxiliary_function():
     # fmt: off
     @check_units
-    def func(E, G_s, rho, L, idl, idr, odl, odr, speed, frequency, m, mx, my, Ip, Id,
+    def func(E, G_s, rho, L, idl, idr, odl, odr, speed, frequency, frequency_range, m, mx, my, Ip, Id,
              width, depth, i_d, o_d, kxx, kxy, kxz, kyx, kyy, kyz, kzx, kzy, kzz, cxx, cxy,
              cxz, cyx, cyy, cyz, czx, czy, czz, unbalance_magnitude, unbalance_phase):
         return (
-            E, G_s, rho, L, idl, idr, odl, odr, speed, frequency, m, mx, my, Ip, Id,
+            E, G_s, rho, L, idl, idr, odl, odr, speed, frequency, frequency_range,m, mx, my, Ip, Id,
             width, depth, i_d, o_d, kxx, kxy, kxz, kyx, kyy, kyz, kzx, kzy, kzz, cxx, cxy,
             cxz, cyx, cyy, cyz, czx, czy, czz, unbalance_magnitude, unbalance_phase
         )
@@ -28,7 +28,7 @@ def auxiliary_function():
 def test_units(auxiliary_function):
     # fmt: off
     results = auxiliary_function(
-        E=1, G_s=1, rho=1, L=1, idl=1, idr=1, odl=1, odr=1, speed=1, frequency=1,
+        E=1, G_s=1, rho=1, L=1, idl=1, idr=1, odl=1, odr=1, speed=1, frequency=1, frequency_range=(1, 1),
         m=1, mx=1, my=1, Ip=1, Id=1, width=1,  depth=1, i_d=1, o_d=1, kxx=1, kxy=1, kxz=1, kyx=1,
         kyy=1, kyz=1, kzx=1, kzy=1, kzz=1, cxx=1, cxy=1, cxz=1, cyx=1, cyy=1, cyz=1,
         czx=1, czy=1, czz=1, unbalance_magnitude=1, unbalance_phase=1
@@ -36,7 +36,7 @@ def test_units(auxiliary_function):
     # check if all available units are tested
     assert len(results) == len(units)
 
-    (E, G_s, rho, L, idl, idr, odl, odr, speed, frequency, m, mx, my, Ip, Id,
+    (E, G_s, rho, L, idl, idr, odl, odr, speed, frequency, frequency_range,m, mx, my, Ip, Id,
      width, depth, i_d, o_d, kxx, kxy, kxz, kyx, kyy, kyz, kzx, kzy, kzz, cxx, cxy,
      cxz, cyx, cyy, cyz, czx, czy, czz, unbalance_magnitude, unbalance_phase) = results
     # fmt: on
@@ -51,6 +51,7 @@ def test_units(auxiliary_function):
     assert odr == 1
     assert speed == 1
     assert frequency == 1
+    assert_allclose(frequency_range, (1, 1))
     assert m == 1
     assert mx == 1
     assert my == 1
@@ -94,6 +95,7 @@ def test_unit_Q_(auxiliary_function):
         odr=Q_(1, "meter"),
         speed=Q_(1, "radian/second"),
         frequency=Q_(1, "radian/second"),
+        frequency_range=Q_((1, 1), "radian/second"),
         m=Q_(1, "kg"),
         mx=Q_(1, "kg"),
         my=Q_(1, "kg"),
@@ -128,7 +130,7 @@ def test_unit_Q_(auxiliary_function):
     # check if all available units are tested
     assert len(results) == len(units)
     # fmt: off
-    (E, G_s, rho, L, idl, idr, odl, odr, speed, frequency, m, mx, my, Ip, Id,
+    (E, G_s, rho, L, idl, idr, odl, odr, speed, frequency, frequency_range,m, mx, my, Ip, Id,
      width, depth, i_d, o_d, kxx, kxy, kxz, kyx, kyy, kyz, kzx, kzy, kzz, cxx, cxy,
      cxz, cyx, cyy, cyz, czx, czy, czz, unbalance_magnitude, unbalance_phase) = results
     # fmt: on
@@ -143,6 +145,7 @@ def test_unit_Q_(auxiliary_function):
     assert odr == 1
     assert speed == 1
     assert frequency == 1
+    assert_allclose(frequency_range, (1, 1))
     assert m == 1
     assert mx == 1
     assert my == 1
@@ -186,6 +189,7 @@ def test_unit_Q_conversion(auxiliary_function):
         odr=Q_(1, "inches"),
         speed=Q_(1, "RPM"),
         frequency=Q_(1, "RPM"),
+        frequency_range=Q_((1, 1), "RPM"),
         m=Q_(1, "lb"),
         mx=Q_(1, "lb"),
         my=Q_(1, "lb"),
@@ -221,7 +225,7 @@ def test_unit_Q_conversion(auxiliary_function):
     assert len(results) == len(units)
 
     # fmt: off
-    (E, G_s, rho, L, idl, idr, odl, odr, speed, frequency, m, mx, my, Ip, Id,
+    (E, G_s, rho, L, idl, idr, odl, odr, speed, frequency, frequency_range,m, mx, my, Ip, Id,
      width, depth, i_d, o_d, kxx, kxy, kxz, kyx, kyy, kyz, kzx, kzy, kzz, cxx, cxy,
      cxz, cyx, cyy, cyz, czx, czy, czz, unbalance_magnitude, unbalance_phase) = results
     # fmt: on
@@ -236,6 +240,7 @@ def test_unit_Q_conversion(auxiliary_function):
     assert odr == 0.0254
     assert speed == 0.10471975511965977
     assert frequency == 0.10471975511965977
+    assert_allclose(frequency_range, (0.10471975511965977, 0.10471975511965977))
     assert m == 0.4535923700000001
     assert mx == 0.4535923700000001
     assert my == 0.4535923700000001

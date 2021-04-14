@@ -28,6 +28,7 @@ units = {
     "odr": "meter",
     "speed": "radian/second",
     "frequency": "radian/second",
+    "frequency_range": "radian/second",
     "m": "kg",
     "mx": "kg",
     "my": "kg",

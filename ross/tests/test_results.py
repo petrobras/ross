@@ -5,6 +5,7 @@ import numpy as np
 import pytest
 from numpy.testing import assert_allclose, assert_almost_equal, assert_equal
 
+from ross import Q_
 from ross.results import *
 from ross.rotor_assembly import *
 
@@ -142,3 +143,23 @@ def test_save_load_timeresponse(rotor1):
     assert response2.yout.all() == response.yout.all()
     assert response2.xout.all() == response.xout.all()
     assert response2.rotor == response.rotor
+
+
+def test_campbell_plot(rotor1):
+    speed = np.linspace(0, 400, 101)
+    camp = rotor1.run_campbell(speed)
+    fig = camp.plot(
+        harmonics=[1, 2],
+        damping_parameter="damping_ratio",
+        frequency_range=Q_((2000, 10000), "RPM"),
+        damping_range=(-0.1, 100),
+        frequency_units="RPM",
+    )
+    crit_array_x = np.array(
+        [2590.2641754, 1306.51513941, 2868.14592367, 1420.76907353, 3264.81334336]
+    )
+    crit_array_y = np.array(
+        [2590.2641754, 2613.03027882, 2868.14592367, 2841.53814705, 6529.62668672]
+    )
+    assert_allclose(fig.data[0]["x"], crit_array_x)
+    assert_allclose(fig.data[0]["y"], crit_array_y)
