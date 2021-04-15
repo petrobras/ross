@@ -26,7 +26,7 @@ sys.path.append(os.path.abspath("../../ross"))
 # -- Project information -----------------------------------------------------
 
 project = "ross"
-copyright = "2020, Team ROSS"
+copyright = "2021, Team ROSS"
 author = "Team ROSS"
 
 
