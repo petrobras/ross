@@ -29,6 +29,8 @@ __all__ = [
     "SummaryResults",
     "ConvergenceResults",
     "TimeResponseResults",
+    "UCSResults",
+    "Level1Results",
 ]
 
 
@@ -124,7 +126,6 @@ class Results(ABC):
         >>> from tempfile import tempdir
         >>> from pathlib import Path
         >>> import ross as rs
-
         >>> # Running an example
         >>> rotor = rs.rotor_example()
         >>> freq_range = np.linspace(0, 500, 31)
@@ -132,11 +133,9 @@ class Results(ABC):
         >>> m = 0.01
         >>> p = 0.0
         >>> results = rotor.run_unbalance_response(n, m, p, freq_range)
-
         >>> # create path for a temporary file
         >>> file = Path(tempdir) / 'unb_resp.toml'
         >>> results.save(file)
-
         >>> # Loading file
         >>> results2 = rs.ForcedResponseResults.load(file)
         >>> abs(results2.forced_resp).all() == abs(results.forced_resp).all()
@@ -1249,13 +1248,17 @@ class FrequencyResponseResults(Results):
             Units for the x axis.
             Default is "rad/s"
         amplitude_units : str, optional
-            Units for the y axis.
-            Acceptable units are:
-                '[length]/[force]' - Displays the displacement;
-                '[speed]/[force]' - Displays the velocity;
-                '[acceleration]/[force]' - Displays the acceleration.
+            Units for the response magnitude.
+            Acceptable units dimensionality are:
+
+            '[length]' - Displays the displacement;
+
+            '[speed]' - Displays the velocity;
+
+            '[acceleration]' - Displays the acceleration.
+
             Default is "m/N" 0 to peak.
-            To use peak to peak use '<units> pkpk' (e.g. 'm/N pkpk')
+            To use peak to peak use '<unit> pkpk' (e.g. 'm/N pkpk')
         fig : Plotly graph_objects.Figure()
             The figure object with the plot.
         mag_kwargs : optional
@@ -1344,13 +1347,17 @@ class FrequencyResponseResults(Results):
             Units for the x axis.
             Default is "rad/s"
         amplitude_units : str, optional
-            Units for the y axis.
-            Acceptable units are:
-                '[length]/[force]' - Displays the displacement;
-                '[speed]/[force]' - Displays the velocity;
-                '[acceleration]/[force]' - Displays the acceleration.
+            Units for the response magnitude.
+            Acceptable units dimensionality are:
+
+            '[length]' - Displays the displacement;
+
+            '[speed]' - Displays the velocity;
+
+            '[acceleration]' - Displays the acceleration.
+
             Default is "m/N" 0 to peak.
-            To use peak to peak use '<units> pkpk' (e.g. 'm/N pkpk')
+            To use peak to peak use '<unit> pkpk' (e.g. 'm/N pkpk')
         phase_units : str, optional
             Units for the x axis.
             Default is "rad"
@@ -1447,13 +1454,17 @@ class FrequencyResponseResults(Results):
             Units for the x axis.
             Default is "rad/s"
         amplitude_units : str, optional
-            Units for the y axis.
-            Acceptable units are:
-                '[length]/[force]' - Displays the displacement;
-                '[speed]/[force]' - Displays the velocity;
-                '[acceleration]/[force]' - Displays the acceleration.
+            Units for the response magnitude.
+            Acceptable units dimensionality are:
+
+            '[length]' - Displays the displacement;
+
+            '[speed]' - Displays the velocity;
+
+            '[acceleration]' - Displays the acceleration.
+
             Default is "m/N" 0 to peak.
-            To use peak to peak use '<units> pkpk' (e.g. 'm/N pkpk')
+            To use peak to peak use '<unit> pkpk' (e.g. 'm/N pkpk')
         phase_units : str, optional
             Units for the x axis.
             Default is "rad"
@@ -1577,13 +1588,17 @@ class FrequencyResponseResults(Results):
             Units for the x axis.
             Default is "rad/s"
         amplitude_units : str, optional
-            Units for the y axis.
-            Acceptable units are:
-                '[length]/[force]' - Displays the displacement;
-                '[speed]/[force]' - Displays the velocity;
-                '[acceleration]/[force]' - Displays the acceleration.
+            Units for the response magnitude.
+            Acceptable units dimensionality are:
+
+            '[length]' - Displays the displacement;
+
+            '[speed]' - Displays the velocity;
+
+            '[acceleration]' - Displays the acceleration.
+
             Default is "m/N" 0 to peak.
-            To use peak to peak use '<units> pkpk' (e.g. 'm/N pkpk')
+            To use peak to peak use '<unit> pkpk' (e.g. 'm/N pkpk')
         phase_units : str, optional
             Units for the x axis.
             Default is "rad"
@@ -1723,16 +1738,17 @@ class ForcedResponseResults(Results):
 
         Parameters
         ----------
-        probe : list of tuples
+        probe : list
             List with tuples (node, orientation angle, tag).
-            node : int
-                Indicate the node where the probe is located.
-            orientation : float
-                Probe orientation angle about the shaft. The 0 refers to +X direction.
-                The strings 'major' and 'minor' can also be used to reference the major
-                and minor axis.
-            tag : str, optional
-                Probe tag to be add a DataFrame column title.
+
+            node : int -> Indicate the node where the probe is located.
+
+            orientation : float -> Probe orientation angle about the shaft.
+            The 0 refers to +X direction.
+            The strings 'major' and 'minor' can also be used to reference the major
+            and minor axis.
+
+            tag : str, optional -> Probe tag to be add a DataFrame column title.
         probe_units : str, option
             Units for probe orientation.
             Default is "rad".
@@ -1742,16 +1758,20 @@ class ForcedResponseResults(Results):
         amplitude_units : str, optional
             Units for the response magnitude.
             Acceptable units dimensionality are:
-                '[length]' - Displays the displacement;
-                '[speed]' - Displays the velocity;
-                '[acceleration]' - Displays the acceleration.
+
+            '[length]' - Displays the displacement;
+
+            '[speed]' - Displays the velocity;
+
+            '[acceleration]' - Displays the acceleration.
+
             Default is "m" 0 to peak.
             To use peak to peak use '<unit> pkpk' (e.g. 'm pkpk')
 
         Returns
         -------
         df : pd.DataFrame
-            DataFrame storing magnitude data arrays. They columns are set based on the
+            DataFrame storing magnitude data arrays. The columns are set based on the
             probe's tag.
         """
         frequency_range = Q_(self.speed_range, "rad/s").to(frequency_units).m
@@ -1795,16 +1815,17 @@ class ForcedResponseResults(Results):
 
         Parameters
         ----------
-        probe : list of tuples
+        probe : list
             List with tuples (node, orientation angle, tag).
-            node : int
-                Indicate the node where the probe is located.
-            orientation : float
-                Probe orientation angle about the shaft. The 0 refers to +X direction.
-                The strings 'major' and 'minor' can also be used to reference the major
-                and minor axis.
-            tag : str, optional
-                Probe tag to be add a DataFrame column title.
+
+            node : int -> Indicate the node where the probe is located.
+
+            orientation : float -> Probe orientation angle about the shaft.
+            The 0 refers to +X direction.
+            The strings 'major' and 'minor' can also be used to reference the major
+            and minor axis.
+
+            tag : str, optional -> Probe tag to be add a DataFrame column title.
         probe_units : str, option
             Units for probe orientation.
             Default is "rad".
@@ -1812,11 +1833,15 @@ class ForcedResponseResults(Results):
             Units for the x axis.
             Default is "rad/s"
         amplitude_units : str, optional
-            Units for the y axis.
+            Units for the response magnitude.
             Acceptable units dimensionality are:
-                '[length]' - Displays the displacement;
-                '[speed]' - Displays the velocity;
-                '[acceleration]' - Displays the acceleration.
+
+            '[length]' - Displays the displacement;
+
+            '[speed]' - Displays the velocity;
+
+            '[acceleration]' - Displays the acceleration.
+
             Default is "m" 0 to peak.
             To use peak to peak use '<unit> pkpk' (e.g. 'm pkpk')
         phase_units : str, optional
@@ -1868,16 +1893,17 @@ class ForcedResponseResults(Results):
 
         Parameters
         ----------
-        probe : list of tuples
+        probe : list
             List with tuples (node, orientation angle, tag).
-            node : int
-                Indicate the node where the probe is located.
-            orientation : float
-                Probe orientation angle about the shaft. The 0 refers to +X direction.
-                The strings 'major' and 'minor' can also be used to reference the major
-                and minor axis.
-            tag : str, optional
-                Probe tag to be displayed at the legend.
+
+            node : int -> Indicate the node where the probe is located.
+
+            orientation : float -> Probe orientation angle about the shaft.
+            The 0 refers to +X direction.
+            The strings 'major' and 'minor' can also be used to reference the major
+            and minor axis.
+
+            tag : str, optional -> Probe tag to be add a DataFrame column title.
         probe_units : str, option
             Units for probe orientation.
             Default is "rad".
@@ -1885,11 +1911,15 @@ class ForcedResponseResults(Results):
             Units for the x axis.
             Default is "rad/s"
         amplitude_units : str, optional
-            Units for the y axis.
+            Units for the response magnitude.
             Acceptable units dimensionality are:
-                '[length]' - Displays the displacement;
-                '[speed]' - Displays the velocity;
-                '[acceleration]' - Displays the acceleration.
+
+            '[length]' - Displays the displacement;
+
+            '[speed]' - Displays the velocity;
+
+            '[acceleration]' - Displays the acceleration.
+
             Default is "m" 0 to peak.
             To use peak to peak use '<unit> pkpk' (e.g. 'm pkpk')
         fig : Plotly graph_objects.Figure()
@@ -1948,16 +1978,17 @@ class ForcedResponseResults(Results):
 
         Parameters
         ----------
-        probe : list of tuples
+        probe : list
             List with tuples (node, orientation angle, tag).
-            node : int
-                Indicate the node where the probe is located.
-            orientation : float
-                Probe orientation angle about the shaft. The 0 refers to +X direction.
-                The strings 'major' and 'minor' can also be used to reference the major
-                and minor axis.
-            tag : str, optional
-                Probe tag to be displayed at the legend.
+
+            node : int -> Indicate the node where the probe is located.
+
+            orientation : float -> Probe orientation angle about the shaft.
+            The 0 refers to +X direction.
+            The strings 'major' and 'minor' can also be used to reference the major
+            and minor axis.
+
+            tag : str, optional -> Probe tag to be add a DataFrame column title.
         probe_units : str, option
             Units for probe orientation.
             Default is "rad".
@@ -1965,11 +1996,15 @@ class ForcedResponseResults(Results):
             Units for the x axis.
             Default is "rad/s"
         amplitude_units : str, optional
-            Units for the y axis.
+            Units for the response magnitude.
             Acceptable units dimensionality are:
-                '[length]' - Displays the displacement;
-                '[speed]' - Displays the velocity;
-                '[acceleration]' - Displays the acceleration.
+
+            '[length]' - Displays the displacement;
+
+            '[speed]' - Displays the velocity;
+
+            '[acceleration]' - Displays the acceleration.
+
             Default is "m" 0 to peak.
             To use peak to peak use '<unit> pkpk' (e.g. 'm pkpk')
         phase_units : str, optional
@@ -2031,16 +2066,17 @@ class ForcedResponseResults(Results):
 
         Parameters
         ----------
-        probe : list of tuples
+        probe : list
             List with tuples (node, orientation angle, tag).
-            node : int
-                Indicate the node where the probe is located.
-            orientation : float
-                Probe orientation angle about the shaft. The 0 refers to +X direction.
-                The strings 'major' and 'minor' can also be used to reference the major
-                and minor axis.
-            tag : str, optional
-                Probe tag to be displayed at the legend.
+
+            node : int -> Indicate the node where the probe is located.
+
+            orientation : float -> Probe orientation angle about the shaft.
+            The 0 refers to +X direction.
+            The strings 'major' and 'minor' can also be used to reference the major
+            and minor axis.
+
+            tag : str, optional -> Probe tag to be add a DataFrame column title.
         probe_units : str, option
             Units for probe orientation.
             Default is "rad".
@@ -2048,11 +2084,15 @@ class ForcedResponseResults(Results):
             Units for the x axis.
             Default is "rad/s"
         amplitude_units : str, optional
-            Units for the y axis.
+            Units for the response magnitude.
             Acceptable units dimensionality are:
-                '[length]' - Displays the displacement;
-                '[speed]' - Displays the velocity;
-                '[acceleration]' - Displays the acceleration.
+
+            '[length]' - Displays the displacement;
+
+            '[speed]' - Displays the velocity;
+
+            '[acceleration]' - Displays the acceleration.
+
             Default is "m" 0 to peak.
             To use peak to peak use '<unit> pkpk' (e.g. 'm pkpk')
         phase_units : str, optional
@@ -2134,16 +2174,17 @@ class ForcedResponseResults(Results):
 
         Parameters
         ----------
-        probe : list of tuples
+        probe : list
             List with tuples (node, orientation angle, tag).
-            node : int
-                Indicate the node where the probe is located.
-            orientation : float
-                Probe orientation angle about the shaft. The 0 refers to +X direction.
-                The strings 'major' and 'minor' can also be used to reference the major
-                and minor axis.
-            tag : str, optional
-                Probe tag to be displayed at the legend.
+
+            node : int -> Indicate the node where the probe is located.
+
+            orientation : float -> Probe orientation angle about the shaft.
+            The 0 refers to +X direction.
+            The strings 'major' and 'minor' can also be used to reference the major
+            and minor axis.
+
+            tag : str, optional -> Probe tag to be add a DataFrame column title.
         probe_units : str, option
             Units for probe orientation.
             Default is "rad".
@@ -2151,11 +2192,15 @@ class ForcedResponseResults(Results):
             Frequency units.
             Default is "rad/s"
         amplitude_units : str, optional
-            Units for the y axis.
+            Units for the response magnitude.
             Acceptable units dimensionality are:
-                '[length]' - Displays the displacement;
-                '[speed]' - Displays the velocity;
-                '[acceleration]' - Displays the acceleration.
+
+            '[length]' - Displays the displacement;
+
+            '[speed]' - Displays the velocity;
+
+            '[acceleration]' - Displays the acceleration.
+
             Default is "m" 0 to peak.
             To use peak to peak use '<unit> pkpk' (e.g. 'm pkpk')
         phase_units : str, optional
@@ -2241,15 +2286,23 @@ class ForcedResponseResults(Results):
         angle : float, str
             The orientation angle of the axis.
             Options are:
-                float : angle in rad capture the response in a probe orientation;
-                str : "major" to capture the response for the major axis;
-                str : "minor" to capture the response for the minor axis.
+
+            float : angle in rad capture the response in a probe orientation;
+
+            str : "major" to capture the response for the major axis;
+
+            str : "minor" to capture the response for the minor axis.
+
         amplitude_units : str, optional
-            Units for the y axis.
+            Units for the response magnitude.
             Acceptable units dimensionality are:
-                '[length]' - Displays the displacement;
-                '[speed]' - Displays the velocity;
-                '[acceleration]' - Displays the acceleration.
+
+            '[length]' - Displays the displacement;
+
+            '[speed]' - Displays the velocity;
+
+            '[acceleration]' - Displays the acceleration.
+
             Default is "m" 0 to peak.
             To use peak to peak use '<unit> pkpk' (e.g. 'm pkpk')
 
@@ -2336,11 +2389,15 @@ class ForcedResponseResults(Results):
             The rotor rotation speed. Must be an element from the speed_range argument
             passed to the class (rad/s).
         amplitude_units : str, optional
-            Units for the y axis.
+            Units for the response magnitude.
             Acceptable units dimensionality are:
-                '[length]' - Displays the displacement;
-                '[speed]' - Displays the velocity;
-                '[acceleration]' - Displays the acceleration.
+
+            '[length]' - Displays the displacement;
+
+            '[speed]' - Displays the velocity;
+
+            '[acceleration]' - Displays the acceleration.
+
             Default is "m" 0 to peak.
             To use peak to peak use '<unit> pkpk' (e.g. 'm pkpk')
 
@@ -2494,11 +2551,15 @@ class ForcedResponseResults(Results):
             Frequency units.
             Default is "rad/s"
         amplitude_units : str, optional
-            Units for the y axis.
+            Units for the response magnitude.
             Acceptable units dimensionality are:
-                '[length]' - Displays the displacement;
-                '[speed]' - Displays the velocity;
-                '[acceleration]' - Displays the acceleration.
+
+            '[length]' - Displays the displacement;
+
+            '[speed]' - Displays the velocity;
+
+            '[acceleration]' - Displays the acceleration.
+
             Default is "m" 0 to peak.
             To use peak to peak use '<unit> pkpk' (e.g. 'm pkpk')
         rotor_length_units : str, optional
@@ -2590,11 +2651,15 @@ class ForcedResponseResults(Results):
             Frequency units.
             Default is "rad/s"
         amplitude_units : str, optional
-            Units for the y axis.
+            Units for the response magnitude.
             Acceptable units dimensionality are:
-                '[length]' - Displays the displacement;
-                '[speed]' - Displays the velocity;
-                '[acceleration]' - Displays the acceleration.
+
+            '[length]' - Displays the displacement;
+
+            '[speed]' - Displays the velocity;
+
+            '[acceleration]' - Displays the acceleration.
+
             Default is "m" 0 to peak.
             To use peak to peak use '<unit> pkpk' (e.g. 'm pkpk')
         rotor_length_units : str, optional
@@ -2887,13 +2952,17 @@ class ForcedResponseResults(Results):
             Frequency units.
             Default is "rad/s"
         amplitude_units : str, optional
-            Units for the y axis.
+            Units for the response magnitude.
             Acceptable units dimensionality are:
-                '[length]' - Displays the displacement;
-                '[speed]' - Displays the velocity;
-                '[acceleration]' - Displays the acceleration.
-            Default is "m" 0 to peak.
-            To use peak to peak use '<units> pkpk' (e.g. 'm/N pkpk')
+
+            '[length]' - Displays the displacement;
+
+            '[speed]' - Displays the velocity;
+
+            '[acceleration]' - Displays the acceleration.
+
+            Default is "m/N" 0 to peak.
+            To use peak to peak use '<unit> pkpk' (e.g. 'm/N pkpk')
         rotor_length_units : str, optional
             Rotor length units.
             Default is 'm'.
@@ -3787,16 +3856,17 @@ class TimeResponseResults(Results):
 
         Parameters
         ----------
-        probe : list of tuples
+        probe : list
             List with tuples (node, orientation angle, tag).
-            node : int
-                Indicate the node where the probe is located.
-            orientation : float
-                Probe orientation angle about the shaft. The 0 refers to +X direction.
-                The strings 'major' and 'minor' can also be used to reference the major
-                and minor axis.
-            tag : str, optional
-                Probe tag to be displayed at the legend.
+
+            node : int -> Indicate the node where the probe is located.
+
+            orientation : float -> Probe orientation angle about the shaft.
+            The 0 refers to +X direction.
+            The strings 'major' and 'minor' can also be used to reference the major
+            and minor axis.
+
+            tag : str, optional -> Probe tag to be add a DataFrame column title.
         probe_units : str, option
             Units for probe orientation.
             Default is "rad".
