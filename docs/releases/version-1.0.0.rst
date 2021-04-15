@@ -28,6 +28,7 @@ Add minor and major axes to response plots
 We can now select the major and minor axis when plotting responses:
 
 .. code-block:: python
+
     # plot response for major or minor axis:
     >>> probe_node = 3
     >>> probe_angle = "major"   # for major axis
@@ -68,6 +69,7 @@ The plot_level1 and plot_ucs methods were refactore so that they behave as other
 Now we the run* prefix to call them and they will return Results objects.
 
 .. code-block:: python
+
     ucs = rotor.run_ucs(...)
     ucs.plot(...)
 
