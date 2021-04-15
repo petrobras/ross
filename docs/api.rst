@@ -66,3 +66,5 @@ These are classes used to store results and to provide useful methods such as pl
     SummaryResults
     ConvergenceResults
     TimeResponseResults
+    Level1Results
+    UCSResults
