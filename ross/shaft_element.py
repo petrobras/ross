@@ -1171,16 +1171,22 @@ class ShaftElement6DoF(ShaftElement):
     The matrices will be defined considering the following local
     coordinate vector:
 
-    :math:`[u_0, v_0, w_0, \theta_0, \psi_0, \phi_0, u_1, v_1, w_1, \theta_1, \psi_1, \phi_1]^T`
+    .. math::
 
+        [u_0, v_0, w_0, \theta_0, \psi_0, \phi_0, u_1, v_1, w_1, \theta_1, \psi_1, \phi_1]^T
     Being the following their ordering for an element:
 
-        :math:`x_0,u_0`  - horizontal translation;
-        :math:`y_0,v_0`  - vertical translation;
-        :math:`z_0,w_0`  - axial translation;
-        :math:`\theta_0` - rotation around horizontal, bending on the yz plane;
-        :math:`\psi_0`   - rotation around vertical, bending on the xz plane;
-        :math:`\phi_0`   - torsion around axial, z direction.
+    :math:`x_0,u_0`  - horizontal translation;
+
+    :math:`y_0,v_0`  - vertical translation;
+
+    :math:`z_0,w_0`  - axial translation;
+
+    :math:`\theta_0` - rotation around horizontal, bending on the yz plane;
+
+    :math:`\psi_0`   - rotation around vertical, bending on the xz plane;
+
+    :math:`\phi_0`   - torsion around axial, z direction.
 
     Parameters
     ----------
@@ -1228,8 +1234,8 @@ class ShaftElement6DoF(ShaftElement):
 
     Returns
     -------
-    A 6 degrees of freedom shaft element, with available gyroscopic, shear and rotary
-    inertia effects.
+    shaft_element : rs.ShaftElement6DoF
+        A 6 degrees of freedom shaft element, with available gyroscopic, shear and rotary inertia effects.
 
     Attributes
     ----------
@@ -1285,7 +1291,6 @@ class ShaftElement6DoF(ShaftElement):
             raise AttributeError("Material is not defined.")
 
         if type(material) is str:
-            # os.chdir(Path(os.path.dirname(ross.__file__)))
             self.material = Material.load_material(material)
         else:
             self.material = material
