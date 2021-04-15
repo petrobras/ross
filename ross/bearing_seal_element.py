@@ -1230,7 +1230,8 @@ class BallBearingElement(BearingElement):
 
     References
     ----------
-    .. bibliography:: ../../../docs/refs.bib
+    .. bibliography::
+        :filter: docname in docnames
 
     Examples
     --------
@@ -1347,7 +1348,8 @@ class RollerBearingElement(BearingElement):
 
     References
     ----------
-    .. bibliography:: ../../../docs/refs.bib
+    .. bibliography::
+        :filter: docname in docnames
 
     Examples
     --------
