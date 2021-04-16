@@ -765,9 +765,7 @@ class Tilting:
                             (ydim1[1:] - ydim1[0:-1]) * (auxD[1:] + auxD[0:-1])
                         )
 
-                        vv[ki, kj,] = (
-                            -intv + hpt
-                        )
+                        vv[ki, kj,] = -intv + hpt
                         kj = kj + 1
 
                     kj = 0
@@ -1355,6 +1353,138 @@ class Tilting:
     def run(self):
         Fhx, Fhy = self._forces()
         print(f"Fhx = {Fhx}\nFhy = {Fhy}\n")
+
+    def coefficients(self, show_coef=False):
+        """Calculates the dynamic coefficients of stiffness "k" and damping "c". 
+            The formulation is based in application of virtual displacements and speeds 
+            on the rotor from its equilibrium position to determine the bearing stiffness 
+            and damping coefficients.
+            
+            Parameters
+            ----------
+            show_coef : bool
+                Set it True, to print the calculated coefficients.
+                False by default.
+            Returns
+            -------
+            coefs : tuple
+                Bearing stiffness and damping coefficients.
+                Its shape is: ((kxx, kxy, kyx, kyy), (cxx, cxy, cyx, cyy))
+            """
+        if self.equilibrium_pos is None:
+            self.run([0.1, -0.1], True, True)
+            self.coefficients()
+        else:
+            xeq = self.equilibrium_pos[0] * self.c_r * np.cos(self.equilibrium_pos[1])
+            yeq = self.equilibrium_pos[0] * self.c_r * np.sin(self.equilibrium_pos[1])
+
+            dE = 0.001
+            epix = np.abs(dE * self.c_r * np.cos(self.equilibrium_pos[1]))
+            epiy = np.abs(dE * self.c_r * np.sin(self.equilibrium_pos[1]))
+
+            Va = self.speed * (self.R)
+            epixpt = 0.000001 * np.abs(Va * np.sin(self.equilibrium_pos[1]))
+            epiypt = 0.000001 * np.abs(Va * np.cos(self.equilibrium_pos[1]))
+
+            Aux01 = self._forces(xeq + epix, yeq, 0, 0)
+            Aux02 = self._forces(xeq - epix, yeq, 0, 0)
+            Aux03 = self._forces(xeq, yeq + epiy, 0, 0)
+            Aux04 = self._forces(xeq, yeq - epiy, 0, 0)
+
+            Aux05 = self._forces(xeq, yeq, epixpt, 0)
+            Aux06 = self._forces(xeq, yeq, -epixpt, 0)
+            Aux07 = self._forces(xeq, yeq, 0, epiypt)
+            Aux08 = self._forces(xeq, yeq, 0, -epiypt)
+
+            # Ss = self.sommerfeld(Aux08[0],Aux08[1])
+
+            Kxx = -self.sommerfeld(Aux01[0], Aux02[1]) * (
+                (Aux01[0] - Aux02[0]) / (epix / self.c_r)
+            )
+            Kxy = -self.sommerfeld(Aux03[0], Aux04[1]) * (
+                (Aux03[0] - Aux04[0]) / (epiy / self.c_r)
+            )
+            Kyx = -self.sommerfeld(Aux01[1], Aux02[1]) * (
+                (Aux01[1] - Aux02[1]) / (epix / self.c_r)
+            )
+            Kyy = -self.sommerfeld(Aux03[1], Aux04[1]) * (
+                (Aux03[1] - Aux04[1]) / (epiy / self.c_r)
+            )
+
+            Cxx = -self.sommerfeld(Aux05[0], Aux06[0]) * (
+                (Aux06[0] - Aux05[0]) / (epixpt / self.c_r / self.speed)
+            )
+            Cxy = -self.sommerfeld(Aux07[0], Aux08[0]) * (
+                (Aux08[0] - Aux07[0]) / (epiypt / self.c_r / self.speed)
+            )
+            Cyx = -self.sommerfeld(Aux05[1], Aux06[1]) * (
+                (Aux06[1] - Aux05[1]) / (epixpt / self.c_r / self.speed)
+            )
+            Cyy = -self.sommerfeld(Aux07[1], Aux08[1]) * (
+                (Aux08[1] - Aux07[1]) / (epiypt / self.c_r / self.speed)
+            )
+
+            kxx = (np.sqrt((self.Wx ** 2) + (self.Wy ** 2)) / self.c_r) * Kxx
+            kxy = (np.sqrt((self.Wx ** 2) + (self.Wy ** 2)) / self.c_r) * Kxy
+            kyx = (np.sqrt((self.Wx ** 2) + (self.Wy ** 2)) / self.c_r) * Kyx
+            kyy = (np.sqrt((self.Wx ** 2) + (self.Wy ** 2)) / self.c_r) * Kyy
+
+            cxx = (
+                np.sqrt((self.Wx ** 2) + (self.Wy ** 2)) / (self.c_r * self.speed)
+            ) * Cxx
+            cxy = (
+                np.sqrt((self.Wx ** 2) + (self.Wy ** 2)) / (self.c_r * self.speed)
+            ) * Cxy
+            cyx = (
+                np.sqrt((self.Wx ** 2) + (self.Wy ** 2)) / (self.c_r * self.speed)
+            ) * Cyx
+            cyy = (
+                np.sqrt((self.Wx ** 2) + (self.Wy ** 2)) / (self.c_r * self.speed)
+            ) * Cyy
+
+            if show_coef:
+                print(f"kxx = {kxx}")
+                print(f"kxy = {kxy}")
+                print(f"kyx = {kyx}")
+                print(f"kyy = {kyy}")
+
+                print(f"cxx = {cxx}")
+                print(f"cxy = {cxy}")
+                print(f"cyx = {cyx}")
+                print(f"cyy = {cyy}")
+
+            coefs = ((kxx, kxy, kyx, kyy), (cxx, cxy, cyx, cyy))
+
+            return coefs
+
+    def sommerfeld(self, force_x, force_y):
+        """Calculate the sommerfeld number. This dimensionless number is used to calculate the dynamic coeficients.
+        Parameters
+        ----------
+        force_x : float
+            Force in x direction. The unit is newton.
+        force_y : float
+            Force in y direction. The unit is newton.
+        Returns
+        -------
+        Ss : float
+            Sommerfeld number.
+        """
+        if self.sommerfeld_type == 1:
+            S = (self.mu_ref * ((self.R) ** 3) * self.L * self.speed) / (
+                np.pi * (self.c_r ** 2) * np.sqrt((self.Wx ** 2) + (self.Wy ** 2))
+            )
+
+        elif self.sommerfeld_type == 2:
+            S = 1 / (
+                2
+                * ((self.L / (2 * self.R)) ** 2)
+                * (np.sqrt((force_x ** 2) + (force_y ** 2)))
+            )
+
+        Ss = S * ((self.L / (2 * self.R)) ** 2)
+
+        return Ss
 
 
 if __name__ == "__main__":
