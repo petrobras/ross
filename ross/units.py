@@ -36,10 +36,18 @@ units = {
     "Id": "kg*m**2",
     "width": "meter",
     "depth": "meter",
+    "pitch": "meter",
+    "height": "meter",
+    "shaft_radius": "meter",
+    "radial_clearance": "meter",
     "i_d": "meter",
     "o_d": "meter",
     "unbalance_magnitude": "kg*m",
     "unbalance_phase": "rad",
+    "inlet_pressure": "pascal",
+    "outlet_pressure": "pascal",
+    "inlet_temperature": "degK",
+    "inlet_swirl_velocity": "m/s",
 }
 for i, unit in zip(["k", "c"], ["N/m", "N*s/m"]):
     for j in ["x", "y", "z"]:
