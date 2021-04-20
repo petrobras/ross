@@ -331,6 +331,20 @@ def visualize_matrix(rotor, matrix, frequency=None, **kwargs):
     -------
     fig : Plotly graph_objects.Figure()
         The figure object with the plot.
+
+    Examples
+    --------
+    >>> import ross as rs
+    >>> rotor = rs.rotor_example()
+
+    Visualizing Mass Matrix:
+    >>> fig = rs.visualize_matrix(rotor, "M")
+
+    Visualizing Stiffness Matrix:
+    >>> fig = rs.visualize_matrix(rotor, "K", frequency=100)
+
+    Visualizing Gyroscopic Matrix:
+    >>> fig = rs.visualize_matrix(rotor, "G")
     """
     A = np.zeros((rotor.ndof, rotor.ndof))
     # E will store element's names and contributions to the global matrix

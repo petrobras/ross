@@ -26,7 +26,7 @@ sys.path.append(os.path.abspath("../../ross"))
 # -- Project information -----------------------------------------------------
 
 project = "ross"
-copyright = "2020, Team ROSS"
+copyright = "2021, Team ROSS"
 author = "Team ROSS"
 
 
@@ -64,6 +64,9 @@ extensions = [
 autosummary_generate = True
 numpydoc_show_class_members = False
 
+# bibtex
+bibtex_bibfiles = ["refs.bib"]
+
 # Add any paths that contain templates here, relative to this directory.
 templates_path = ["_templates"]
 
@@ -97,7 +100,12 @@ pygments_style = "abap"
 # The theme to use for HTML and HTML Help pages.  See the documentation for
 # a list of builtin themes.
 #
-nbsphinx_allow_errors = True
+nbsphinx_allow_errors = False
+nbsphinx_kernel_name = "python3"
+try:
+    nbsphinx_execute = os.environ["NBSPHINX_EXECUTE"]
+except KeyError:
+    nbsphinx_execute = "always"
 html_theme = "bootstrap"
 htlm_theme_path = sphinx_bootstrap_theme.get_html_theme_path()
 
@@ -178,6 +186,7 @@ html_theme_options = {
     # Choose Bootstrap version.
     # Values: "3" (default) or "2" (in quotes)
     "bootstrap_version": "3",
+    "body_max_width": "100%",
 }
 
 # Add any paths that contain custom static files (such as style sheets) here,
@@ -272,4 +281,4 @@ epub_exclude_files = ["search.html"]
 
 # -- Extension configuration -------------------------------------------------
 def setup(app):
-    app.add_stylesheet("style.css")
+    app.add_css_file("style.css")

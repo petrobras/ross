@@ -12,7 +12,7 @@ scientific Python distribution that aims to simplify package management and depl
 number of packages that are commonly used.
 Alternatively, you may refer to the `Python website
 <http://www.python.org/>`_.
-Ross’s code is tested in Python 3.6 and higher.
+ROSS code is tested in Python 3.6 and higher.
 
 Install ROSS
 ------------

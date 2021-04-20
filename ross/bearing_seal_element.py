@@ -1194,6 +1194,11 @@ class BallBearingElement(BearingElement):
     constructive parameters of ball bearings. The main difference is that
     cross-coupling stiffness and damping are not modeled in this case.
 
+    The theory used to calculate the stiffness coeficients is based on
+    :cite:`friswell2010dynamics` (pages 182-185). Damping is low in rolling-element
+    bearings and the direct damping coefficient is typically in the range of
+    (0.25 ~ 2.5) x 10e-5 x Kxx (or Kyy).
+
     Parameters
     ----------
     n : int
@@ -1208,10 +1213,10 @@ class BallBearingElement(BearingElement):
         Contact angle between the steel sphere and the inner / outer raceway.
     cxx : float, optional
         Direct stiffness in the x direction.
-        Default is None.
+        Default is 1.25*10e-5 * kxx.
     cyy : float, optional
         Direct damping in the y direction.
-        Defaults is None.
+        Default is 1.25*10e-5 * kyy.
     tag : str, optional
         A tag to name the element
         Default is None.
@@ -1222,6 +1227,11 @@ class BallBearingElement(BearingElement):
     scale_factor : float, optional
         The scale factor is used to scale the bearing drawing.
         Default is 1.
+
+    References
+    ----------
+    .. bibliography::
+        :filter: docname in docnames
 
     Examples
     --------
@@ -1268,8 +1278,8 @@ class BallBearingElement(BearingElement):
         if n_balls in dict_ratio.keys():
             kxx = dict_ratio[n_balls] * kyy
         else:
-            f = interpolate.interp1d(nb, ratio, kind="quadratic")
-            kxx = f(n_balls)
+            f = interpolate.interp1d(nb, ratio, "quadratic", fill_value="extrapolate")
+            kxx = f(n_balls) * kyy
 
         if cxx is None:
             cxx = 1.25e-5 * kxx
@@ -1302,6 +1312,11 @@ class RollerBearingElement(BearingElement):
     constructive parameters of roller bearings. The main difference is that
     cross-coupling stiffness and damping are not modeled in this case.
 
+    The theory used to calculate the stiffness coeficients is based on
+    :cite:`friswell2010dynamics` (pages 182-185). Damping is low in rolling-element
+    bearings and the direct damping coefficient is typically in the range of
+    (0.25 ~ 2.5) x 10e-5 x Kxx (or Kyy).
+
     Parameters
     ----------
     n : int
@@ -1316,10 +1331,10 @@ class RollerBearingElement(BearingElement):
         Contact angle between the steel sphere and the inner / outer raceway.
     cxx : float, optional
         Direct stiffness in the x direction.
-        Default is None.
+        Default is 1.25*10e-5 * kxx.
     cyy : float, optional
         Direct damping in the y direction.
-        Defaults is None.
+        Default is 1.25*10e-5 * kyy.
     tag : str, optional
         A tag to name the element
         Default is None.
@@ -1330,6 +1345,11 @@ class RollerBearingElement(BearingElement):
     scale_factor : float, optional
         The scale factor is used to scale the bearing drawing.
         Default is 1.
+
+    References
+    ----------
+    .. bibliography::
+        :filter: docname in docnames
 
     Examples
     --------
@@ -1376,8 +1396,8 @@ class RollerBearingElement(BearingElement):
         if n_rollers in dict_ratio.keys():
             kxx = dict_ratio[n_rollers] * kyy
         else:
-            f = interpolate.interp1d(nr, ratio, kind="quadratic")
-            kxx = f(n_rollers)
+            f = interpolate.interp1d(nr, ratio, "quadratic", fill_value="extrapolate")
+            kxx = f(n_rollers) * kyy
 
         if cxx is None:
             cxx = 1.25e-5 * kxx
@@ -1932,7 +1952,7 @@ def seal_example():
 
     Examples
     --------
-    >>> seal = bearing_example()
+    >>> seal = seal_example()
     >>> seal.frequency[0]
     0.0
     """
@@ -1954,9 +1974,9 @@ def bearing_6dof_example():
 
     Examples
     --------
-    >>> bearing = bearing_example()
-    >>> bearing.frequency[0]
-    0.0
+    >>> bearing = bearing_6dof_example()
+    >>> bearing.kxx
+    [1000000.0]
     """
     bearing = BearingElement6DoF(
         n=0, kxx=1e6, kyy=0.8e6, cxx=2e2, cyy=1.5e2, kzz=1e5, czz=0.5e2
