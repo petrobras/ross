@@ -1333,11 +1333,9 @@ class TiltingPadBearing:
                         cont = cont + 1
 
                 # Viscosity equation ========================================================================
-                # VG68 - Polynomial adjustment using predetermined values
-                #
-                # Via Oil_Regression_Analyses.m and propvalue.m the equation coefficients
-                # are obtained for the regression on the viscosity determination as a
-                # function of the temperature.
+                # VG68 - Polynomial adjustment using predetermined values. The equation
+                # coefficients are obtained for the regression on the viscosity determination
+                # as a function of the temperature.
 
                 # 3D temperature field -----------------------------------------------------
                 TT = np.zeros((self.nZ, self.nX, self.nN))
@@ -1367,7 +1365,6 @@ class TiltingPadBearing:
             # WHILE ENDS HERE ==========================================================
 
             T1[:, :, n_p] = T_novo
-            # P1[:, :, n_p] = PPdim
             P1[:, :, n_p] = Pdim
 
             yh = (
@@ -1439,7 +1436,7 @@ class TiltingPadBearing:
 
     def run(self):
         Fhx, Fhy = self._forces()
-        print(f"Fhx = {Fhx}\nFhy = {Fhy}\n")
+        # print(f"Fhx = {Fhx}\nFhy = {Fhy}\n")
 
     def coefficients(self, show_coef=False):
         """Calculates the dynamic coefficients of stiffness "k" and damping "c". 
