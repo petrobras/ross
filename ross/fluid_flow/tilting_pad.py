@@ -4,7 +4,103 @@ from scipy.linalg import solve
 from decimal import Decimal
 
 
-class Tilting:
+class TiltingPadBearing:
+
+    """This class calculates the pressure, velocity, and temperature field in oil film of a 
+    thermo-hydro-dynamic tilting-pad bearing, with "n" pads. It is also possible to obtain 
+    the stiffness and damping coefficients.
+    
+    Parameters
+    ----------
+
+    Cr : float
+        Radial clearance
+
+    Tcuba : float
+        Oil tank temperature
+
+    R : float
+        Journal radius [m]
+        
+    Rs : float
+        Pad radius [m]
+
+    esp : float
+        Pad radius [m]
+
+    betha_s : float
+        Pad arc [degrees]
+
+    rp_pad : float
+        Pivot position [arc pivot/arc pad]
+
+    L : float
+        Length of bearing [m]
+
+    fR : float
+        Bearing loading [N]
+
+    wa : float
+        Rotor speed [rpm]
+
+    ntheta: float
+        Number of volumes in theta direction
+
+    nX = ntheta : float
+        Number of volumes in x direction
+
+    nZ: float
+        Number of volumes in z direction
+
+    nN: float
+        Number of volumes in neta direction
+
+    Returns
+    -------
+    A TiltingPadBearing object.
+
+    References
+    ----------
+    .. [1] BARBOSA, J. S.; LOBATO, FRAN S.; CAMPANINE SICCHIERI, LEONARDO;CAVALINI JR, ALDEMIR AP. 
+        ; STEFFEN JR, VALDER. Determinação da Posição de Equilíbrio em Mancais Hidrodinâmicos Cilíndricos 
+        usando o Algoritmo de Evolução Diferencial. REVISTA CEREUS, v. 10, p. 224-239, 2018. ..
+    .. [2] DANIEL, G.B. Desenvolvimento de um Modelo Termohidrodinâmico para Análise em Mancais 
+        Segmentados. Campinas: Faculdade de Engenharia Mecânica, Universidade Estadual de Campinas, 
+        2012. Tese (Doutorado). ..
+    .. [3] NICOLETTI, R., Efeitos Térmicos em Mancais Segmentados Híbridos – Teoria e Experimento. 
+        1999. Dissertação de Mestrado. Universidade Estadual de Campinas, Campinas. ..
+    
+    Attributes
+    ----------
+    Pdim : array
+        Dimensional pressure field. The unit is pascal.
+    dPdz : array
+        Differential pressure field in z direction.
+    dPdy : array
+        Differential pressure field in theta direction.
+    Tdim : array
+        Dimensional temperature field. The unit is celsius.
+    Fhx : float
+        Force in X direction. The unit is newton.
+    Fhy : float
+        Force in Y direction. The unit is newton.
+    equilibrium_pos : array
+        Array with excentricity ratio and attitude angle information.
+        Its shape is: array([excentricity, angle])
+
+    Examples
+    --------
+
+    ##### STIL TO BE UPDATED ONCE MERGED, WILL BE DONE IN A FUTURE PR #####
+
+    >>> from ross.fluid_flow.cylindrical import cylindrical_bearing_example
+    >>> x0 = [0.1,-0.1]
+    >>> bearing = cylindrical_bearing_example()
+    >>> bearing.run(x0)
+    >>> bearing.equilibrium_pos
+    array([ 0.58768737, -0.67319389])
+    """
+
     def __init__(
         self,
         R,
