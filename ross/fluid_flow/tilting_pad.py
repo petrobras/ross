@@ -1311,18 +1311,15 @@ class TiltingPadBearing:
                 ki = 0
                 nn = 0
 
-                matcoef_test = np.loadtxt(
-                    "/home/verg1lio/Desktop/ross/ross/fluid_flow/matcoef.txt"
-                )
-                b_test = np.loadtxt("/home/verg1lio/Desktop/ross/ross/fluid_flow/b.txt")
-
-                error_matcoef = np.abs(matcoef_test - Mat_coef)
-                error_b = np.abs(b_test - b)
-
-                error_arg1 = np.where(error_matcoef > 1e-4)
-                error_arg2 = np.where(error_b > 1e-4)
-
-                lalalalla = 1
+                # matcoef_test = np.loadtxt(
+                #     "/home/verg1lio/Desktop/ross/ross/fluid_flow/matcoef.txt"
+                # )
+                # b_test = np.loadtxt("/home/verg1lio/Desktop/ross/ross/fluid_flow/b.txt")
+                # error_matcoef = np.abs(matcoef_test - Mat_coef)
+                # error_b = np.abs(b_test - b)
+                # error_arg1 = np.where(error_matcoef > 1e-4)
+                # error_arg2 = np.where(error_b > 1e-4)
+                # lalalalla = 1
 
                 # Linear system solution via pseudoinverse for robustness
                 t = np.dot(pinv(Mat_coef), b)
