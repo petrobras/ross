@@ -22,5 +22,5 @@ Here you can download the tutorial and examples notebooks.
 | :download:`Stochastic ROSS - Example 14 </examples/example_14.ipynb>`
 | :download:`FluidFlow - Theory </examples/fluid_flow_theory.ipynb>`
 | :download:`FluidFlow - Elliptical bearing </examples/fluid_flow_elliptical_bearing.ipynb>`
-| :download:`FluidFlow - Wear bearing </fluid_flow_wear_bearing.ipynb>`
-| :download:`FluidFlow - Short bearing </fluid_flow_short_bearing.ipynb>`
+| :download:`FluidFlow - Wear bearing </examples/fluid_flow_wear_bearing.ipynb>`
+| :download:`FluidFlow - Short bearing </examples/fluid_flow_short_bearing.ipynb>`

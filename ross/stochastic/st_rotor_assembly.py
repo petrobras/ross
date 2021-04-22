@@ -767,7 +767,7 @@ class ST_Rotor(object):
         Example
         -------
         >>> import ross.stochastic as srs
-        >>> rotors = st_rotor_example()
+        >>> rotors = srs.st_rotor_example()
 
         # Running Frequency Response and saving the results
 
@@ -777,10 +777,25 @@ class ST_Rotor(object):
         >>> p = 0.0
         >>> results = rotors.run_unbalance_response(n, m, p, freq_range)
 
-        # Plotting Frequency Response with Plotly
+        Plot unbalance response:
+        >>> probe_node = 3
+        >>> probe_angle = np.pi / 2
+        >>> probe_tag = "my_probe"  # optional
+        >>> fig = results.plot(probe=[(probe_node, probe_angle, probe_tag)])
 
-        >>> fig = results.plot_magnitude(probe=[(3, np.pi / 2)], conf_interval=[90])
-        >>> # fig.show()
+        To plot velocity and acceleration responses, you must change amplitude_units
+        from "[length]" units to "[length]/[time]" or "[length]/[time] ** 2" respectively
+        Plotting velocity response:
+        >>> fig = results.plot(
+        ...     probe=[(probe_node, probe_angle)],
+        ...     amplitude_units="m/s"
+        ... )
+
+        Plotting acceleration response:
+        >>> fig = results.plot(
+        ...     probe=[(probe_node, probe_angle)],
+        ...     amplitude_units="m/s**2"
+        ... )
         """
         RV_size = self.RV_size
         freq_size = len(frequency_range)
