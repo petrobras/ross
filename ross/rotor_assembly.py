@@ -669,13 +669,9 @@ class Rotor(object):
 
         Returns
         -------
-        CriticalSpeedResults : An instance of CriticalSpeedResults class, which is
-        used to post-process results. Attributes stored:
-            CriticalSpeedResults.wn() : undamped critical speeds.
-            CriticalSpeedResults.wd(): damped critical speeds.
-            CriticalSpeedResults.log_dec : log_dec for each critical speed.
-            CriticalSpeedResults.damping_ratio : damping ratio for each critical speed.
-            CriticalSpeedResults.whirl_direction : whirl dir. for each critical speed.
+        results : ross.CriticalSpeedResults
+            For more information on attributes and methods available see:
+            :py:class:`ross.CriticalSpeedResults`
 
         Examples
         --------
@@ -1423,20 +1419,9 @@ class Rotor(object):
 
         Returns
         -------
-        results : object
-            An instance of ForcedResponseResult class, which is used to post-process
-            results. Attributes stored:
-            freq_resp : array
-                Array with the frequency response for each node for each pair
-                input/output.
-            speed_range : array
-                Array with the frequencies.
-            velc_resp : array
-                Array with the velocity response for each node for each pair
-                input/output.
-            accl_resp : array
-                Array with the acceleration response for each node for each pair
-                input/output.
+        results : ross.FrequencyResponseResults
+            For more information on attributes and methods available see:
+            :py:class:`ross.FrequencyResponseResults`
 
         Examples
         --------
@@ -1575,17 +1560,9 @@ class Rotor(object):
 
         Returns
         -------
-        forced_resp : object
-            An instance of ForcedResponseResult class, which is used to post-process
-            results. Attributes stored:
-            forced_resp : array
-                Array with the forced response for each node for each frequency.
-            speed_range : array
-                Array with the frequencies.
-            velc_resp : array
-                Array with the velocity response for each node for each frequency.
-            accl_resp : array
-                Array with the acceleration response for each node for each frequency.
+        results : ross.ForcedResponseResult
+            For more information on attributes and methods available see:
+            :py:class:`ross.ForcedResponseResult`
 
         Examples
         --------
@@ -1748,17 +1725,9 @@ class Rotor(object):
 
         Returns
         -------
-        forced_response : object
-            An instance of ForcedResponseResult class, which is used to post-process
-            results. Attributes stored:
-            forced_resp : array
-                Array with the forced response for each node for each frequency.
-            speed_range : array
-                Array with the frequencies.
-            velc_resp : array
-                Array with the velocity response for each node for each frequency.
-            accl_resp : array
-                Array with the acceleration response for each node for each frequency.
+        results : ross.ForcedResponseResult
+            For more information on attributes and methods available see:
+            :py:class:`ross.ForcedResponseResult`
 
         Examples
         --------
@@ -2058,10 +2027,9 @@ class Rotor(object):
 
         Returns
         -------
-        results : array
-            Array with the damped natural frequencies, log dec and precessions
-            corresponding to each speed of the speed_rad array.
-            It will be returned if plot=False.
+        results : ross.CampbellResults
+            For more information on attributes and methods available see:
+            :py:class:`ross.CampbellResults`
 
         Examples
         --------
@@ -2082,7 +2050,7 @@ class Rotor(object):
         # whirl[2](y axis), 3]
         self._check_frequency_array(speed_range)
 
-        results = np.zeros([len(speed_range), frequencies, 5])
+        results = np.zeros([len(speed_range), frequencies, 6])
 
         for i, w in enumerate(speed_range):
             modal = self.run_modal(speed=w, num_modes=2 * frequencies)
@@ -2090,21 +2058,24 @@ class Rotor(object):
             if frequency_type == "wd":
                 results[i, :, 0] = modal.wd[:frequencies]
                 results[i, :, 1] = modal.log_dec[:frequencies]
-                results[i, :, 2] = modal.whirl_values()[:frequencies]
+                results[i, :, 2] = modal.damping_ratio[:frequencies]
+                results[i, :, 3] = modal.whirl_values()[:frequencies]
             else:
                 idx = modal.wn.argsort()
                 results[i, :, 0] = modal.wn[idx][:frequencies]
                 results[i, :, 1] = modal.log_dec[idx][:frequencies]
-                results[i, :, 2] = modal.whirl_values()[idx][:frequencies]
+                results[i, :, 2] = modal.damping_ratio[idx][:frequencies]
+                results[i, :, 3] = modal.whirl_values()[idx][:frequencies]
 
-            results[i, :, 3] = w
-            results[i, :, 4] = modal.wn[:frequencies]
+            results[i, :, 4] = w
+            results[i, :, 5] = modal.wn[:frequencies]
 
         results = CampbellResults(
             speed_range=speed_range,
             wd=results[..., 0],
             log_dec=results[..., 1],
-            whirl_values=results[..., 2],
+            damping_ratio=results[..., 2],
+            whirl_values=results[..., 3],
         )
 
         return results
@@ -2138,6 +2109,12 @@ class Rotor(object):
             If True a synchronous analysis is carried out and the frequency of
             the first forward model will be equal to the speed.
             Default is False.
+
+        Returns
+        -------
+        results : ross.UCSResults
+            For more information on attributes and methods available see:
+            :py:class:`ross.UCSResults`
         """
         if stiffness_range is None:
             if self.rated_w is not None:
@@ -2237,8 +2214,9 @@ class Rotor(object):
 
         Returns
         -------
-        fig : Plotly graph_objects.Figure()
-            The figure object with the plot.
+        results : ross.Level1Results
+            For more information on attributes and methods available see:
+            :py:class:`ross.Level1Results`
 
         Example
         -------
@@ -2321,10 +2299,9 @@ class Rotor(object):
 
         Returns
         -------
-        results : array
-            Array containing the time array, the system response, and the
-            time evolution of the state vector.
-            It will be returned if plot=False.
+        results : ross.TimeResponseResults
+            For more information on attributes and methods available see:
+            :py:class:`ross.TimeResponseResults`
 
         Examples
         --------
@@ -2341,14 +2318,11 @@ class Rotor(object):
         >>> dof = 13
         >>> response.yout[:, dof] # doctest: +ELLIPSIS
         array([ 0.00000000e+00,  1.86686693e-07,  8.39130663e-07, ...
-
-        # plot time response for a given probe:
+        >>> # plot time response for a given probe:
         >>> fig1 = response.plot_1d(probe=[probe1])
-
-        # plot orbit response - plotting 2D nodal orbit:
+        >>> # plot orbit response - plotting 2D nodal orbit:
         >>> fig2 = response.plot_2d(node=node)
-
-        # plot orbit response - plotting 3D orbits - full rotor model:
+        >>> # plot orbit response - plotting 3D orbits - full rotor model:
         >>> fig3 = response.plot_3d()
         """
         t_, yout, xout = self.time_response(speed, F, t)
@@ -2695,8 +2669,9 @@ class Rotor(object):
 
         Returns
         -------
-        results: object
-            An instance of StaticResult class, which is used to create plots.
+        results : ross.StaticResults
+            For more information on attributes and methods available see:
+            :py:class:`ross.StaticResults`
 
         Raises
         ------

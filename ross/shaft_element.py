@@ -29,7 +29,7 @@ class ShaftElement(Element):
 
     .. math::
 
-        [x_0, y_0, \alpha_0, \beta_0, x_1, y_1, \alpha_1, \beta_1]**T
+        [x_0, y_0, \alpha_0, \beta_0, x_1, y_1, \alpha_1, \beta_1]^T
     Where :math:`\alpha_0` and :math:`\alpha_1` are the bending on the yz plane
     and :math:`\beta_0` and :math:`\beta_1` are the bending on the xz plane.
 
@@ -47,7 +47,7 @@ class ShaftElement(Element):
     odr : float, pint.Quantity, optional
         Outer diameter of the element at the right position (m).
         Default is equal to odl value (cylindrical element).
-    material : ross.material
+    material : ross.Material
         Shaft material.
     n : int, optional
         Element number (coincident with it's first node).
@@ -67,7 +67,7 @@ class ShaftElement(Element):
     gyroscopic : bool, optional
         Determine if gyroscopic effects are taken into account.
         Default is True.
-    shear_method_calc : string, optional
+    shear_method_calc : str, optional
         Determines which shear calculation method the user will adopt
         Default is 'cowper'
     tag : str, optional
@@ -76,7 +76,8 @@ class ShaftElement(Element):
 
     Returns
     -------
-    A shaft element
+    shaft_element : ross.ShaftElement
+        A shaft_element object.
 
     Attributes
     ----------
@@ -106,7 +107,8 @@ class ShaftElement(Element):
 
     References
     ----------
-    .. bibliography:: ../../../docs/refs.bib
+    .. bibliography::
+        :filter: docname in docnames
 
     Examples
     --------
@@ -652,7 +654,6 @@ class ShaftElement(Element):
         Returns
         -------
         K : np.ndarray
-
             Stiffness matrix for the shaft element.
 
         Examples
@@ -1170,16 +1171,22 @@ class ShaftElement6DoF(ShaftElement):
     The matrices will be defined considering the following local
     coordinate vector:
 
-    :math:`[u_0, v_0, w_0, \theta_0, \psi_0, \phi_0, u_1, v_1, w_1, \theta_1, \psi_1, \phi_1]**T`
+    .. math::
 
+        [u_0, v_0, w_0, \theta_0, \psi_0, \phi_0, u_1, v_1, w_1, \theta_1, \psi_1, \phi_1]^T
     Being the following their ordering for an element:
 
-        :math:`x_0,u_0`  - horizontal translation;
-        :math:`y_0,v_0`  - vertical translation;
-        :math:`z_0,w_0`  - axial translation;
-        :math:`\theta_0` - rotation around horizontal, bending on the yz plane;
-        :math:`\psi_0`   - rotation around vertical, bending on the xz plane;
-        :math:`\phi_0`   - torsion around axial, z direction.
+    :math:`x_0,u_0`  - horizontal translation;
+
+    :math:`y_0,v_0`  - vertical translation;
+
+    :math:`z_0,w_0`  - axial translation;
+
+    :math:`\theta_0` - rotation around horizontal, bending on the yz plane;
+
+    :math:`\psi_0`   - rotation around vertical, bending on the xz plane;
+
+    :math:`\phi_0`   - torsion around axial, z direction.
 
     Parameters
     ----------
@@ -1195,7 +1202,7 @@ class ShaftElement6DoF(ShaftElement):
     odr : float, pint.Quantity, optional
         Outer diameter of the element at the right node (m).
         Default is equal to odl value for cylindrical element.
-    material : ross.material
+    material : ross.Material
         Shaft material.
     alpha : float, optional
         Proportional damping coefficient, associated to the element Mass matrix
@@ -1227,8 +1234,8 @@ class ShaftElement6DoF(ShaftElement):
 
     Returns
     -------
-    A 6 degrees of freedom shaft element, with available gyroscopic, shear and rotary
-    inertia effects.
+    shaft_element : rs.ShaftElement6DoF
+        A 6 degrees of freedom shaft element, with available gyroscopic, shear and rotary inertia effects.
 
     Attributes
     ----------
@@ -1240,7 +1247,8 @@ class ShaftElement6DoF(ShaftElement):
 
     References
     ----------
-    .. bibliography:: ../../../docs/refs.bib
+    .. bibliography::
+        :filter: docname in docnames
 
     Examples
     --------
@@ -1283,7 +1291,6 @@ class ShaftElement6DoF(ShaftElement):
             raise AttributeError("Material is not defined.")
 
         if type(material) is str:
-            # os.chdir(Path(os.path.dirname(ross.__file__)))
             self.material = Material.load_material(material)
         else:
             self.material = material
@@ -1780,18 +1787,20 @@ class ShaftElement6DoF(ShaftElement):
     def Kst(self):
         """Dynamic stiffness matrix for an instance of a 6 DoF shaft element.
 
+        Dynamic stiffness matrix for the 6 DoF shaft element. This is
+        directly dependent on the rotation speed Omega. It needs to be
+        multiplied by the adequate Omega value when used in time depen-
+        dent analyses. The matrix multiplier term is:
+
+        [(Iz*Omega*rho)/(15*L)] * [Kst]
+
+        and here the Omega value has been suppressed and must be added
+        in the adequate analyses.
+
         Returns
         -------
         Kst : np.ndarray
-            Dynamic stiffness matrix for the 6 DoF shaft element. This is
-            directly dependent on the rotation speed Omega. It needs to be
-            multiplied by the adequate Omega value when used in time depen-
-            dent analyses. The matrix multiplier term is:
-
-            [(Iz*Omega*rho)/(15*L)] * [Kst]
-
-            and here the Omega value has been suppressed and must be added
-            in the adequate analyses.
+            Dynamic stiffness matrix for the 6 DoF shaft element.
 
         Examples
         --------
@@ -1855,13 +1864,15 @@ class ShaftElement6DoF(ShaftElement):
     def G(self):
         """Gyroscopic matrix for an instance of a 6 DoFs shaft element.
 
+        Gyroscopic matrix for the 6 DoF shaft element. Similar to the Kst
+        stiffness matrix, this Gyro matrix is also multiplied by the value
+        of the rotating speed Omega. It is omitted from this and must be
+        added in the respective analyses.
+
         Returns
         -------
         G : np.ndarray
-            Gyroscopic matrix for the 6 DoF shaft element. Similar to the Kst
-            stiffness matrix, this Gyro matrix is also multiplied by the value
-            of the rotating speed Omega. It is omitted from this and must be
-            added in the respective analyses.
+            Gyroscopic matrix for the 6 DoF shaft element.
 
         Examples
         --------

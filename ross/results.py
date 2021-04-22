@@ -9,13 +9,14 @@ from collections.abc import Iterable
 from pathlib import Path
 
 import numpy as np
+import pandas as pd
 import toml
 from plotly import graph_objects as go
 from plotly.subplots import make_subplots
 from scipy import linalg as la
 
 from ross.plotly_theme import tableau_colors
-from ross.units import Q_
+from ross.units import Q_, check_units
 from ross.utils import intersection
 
 __all__ = [
@@ -28,6 +29,8 @@ __all__ = [
     "SummaryResults",
     "ConvergenceResults",
     "TimeResponseResults",
+    "UCSResults",
+    "Level1Results",
 ]
 
 
@@ -123,7 +126,6 @@ class Results(ABC):
         >>> from tempfile import tempdir
         >>> from pathlib import Path
         >>> import ross as rs
-
         >>> # Running an example
         >>> rotor = rs.rotor_example()
         >>> freq_range = np.linspace(0, 500, 31)
@@ -131,11 +133,9 @@ class Results(ABC):
         >>> m = 0.01
         >>> p = 0.0
         >>> results = rotor.run_unbalance_response(n, m, p, freq_range)
-
         >>> # create path for a temporary file
         >>> file = Path(tempdir) / 'unb_resp.toml'
         >>> results.save(file)
-
         >>> # Loading file
         >>> results2 = rs.ForcedResponseResults.load(file)
         >>> abs(results2.forced_resp).all() == abs(results.forced_resp).all()
@@ -951,13 +951,24 @@ class CampbellResults(Results):
         The figure object with the plot.
     """
 
-    def __init__(self, speed_range, wd, log_dec, whirl_values):
+    def __init__(self, speed_range, wd, log_dec, damping_ratio, whirl_values):
         self.speed_range = speed_range
         self.wd = wd
         self.log_dec = log_dec
+        self.damping_ratio = damping_ratio
         self.whirl_values = whirl_values
 
-    def plot(self, harmonics=[1], frequency_units="rad/s", fig=None, **kwargs):
+    @check_units
+    def plot(
+        self,
+        harmonics=[1],
+        frequency_units="rad/s",
+        damping_parameter="log_dec",
+        frequency_range=None,
+        damping_range=None,
+        fig=None,
+        **kwargs,
+    ):
         """Create Campbell Diagram figure using Plotly.
 
         Parameters
@@ -968,6 +979,18 @@ class CampbellResults(Results):
         frequency_units : str, optional
             Frequency units.
             Default is "rad/s"
+        damping_parameter : str, optional
+            Define which value to show for damping. We can use "log_dec" or "damping_ratio".
+            Default is "log_dec".
+        frequency_range : tuple, pint.Quantity(tuple), optional
+            Tuple with (min, max) values for the frequencies that will be plotted.
+            Frequencies that are not within the range are filtered out and are not plotted.
+            It is possible to use a pint Quantity (e.g. Q_((2000, 1000), "RPM")).
+            Default is None (no filter).
+        damping_range : tuple, optional
+            Tuple with (min, max) values for the damping parameter that will be plotted.
+            Damping values that are not within the range are filtered out and are not plotted.
+            Default is None (no filter).
         fig : Plotly graph_objects.Figure()
             The figure object with the plot.
         kwargs : optional
@@ -979,12 +1002,39 @@ class CampbellResults(Results):
         -------
         fig : Plotly graph_objects.Figure()
             The figure object with the plot.
+
+        Examples
+        --------
+        >>> import ross as rs
+        >>> import numpy as np
+        >>> Q_ = rs.Q_
+        >>> rotor = rs.rotor_example()
+        >>> speed = np.linspace(0, 400, 101)
+        >>> camp = rotor.run_campbell(speed)
+        >>> fig = camp.plot(
+        ...     harmonics=[1, 2],
+        ...     damping_parameter="damping_ratio",
+        ...     frequency_range=Q_((2000, 10000), "RPM"),
+        ...     damping_range=(-0.1, 100),
+        ...     frequency_units="RPM",
+        ... )
         """
-        wd = Q_(self.wd, "rad/s").to(frequency_units).m
+        if damping_parameter == "log_dec":
+            damping_values = self.log_dec
+            title_text = "<b>Log Dec</b>"
+        elif damping_parameter == "damping_ratio":
+            damping_values = self.damping_ratio
+            title_text = "<b>Damping Ratio</b>"
+        else:
+            raise ValueError(
+                f"damping_parameter can be 'log_dec' or 'damping_ratio'. {damping_parameter} is not valid"
+            )
+
+        wd = self.wd
         num_frequencies = wd.shape[1]
-        log_dec = self.log_dec
+
         whirl = self.whirl_values
-        speed_range = Q_(self.speed_range, "rad/s").to(frequency_units).m
+        speed_range = self.speed_range
 
         if fig is None:
             fig = go.Figure()
@@ -993,7 +1043,7 @@ class CampbellResults(Results):
             coloraxis_cmin=0.0,
             coloraxis_cmax=1.0,
             coloraxis_colorscale="rdbu",
-            coloraxis_colorbar=dict(title=dict(text="<b>Log Dec</b>", side="right")),
+            coloraxis_colorbar=dict(title=dict(text=title_text, side="right")),
         )
         for k, v in default_values.items():
             kwargs.setdefault(k, v)
@@ -1013,11 +1063,22 @@ class CampbellResults(Results):
                 crit_x.extend(x)
                 crit_y.extend(y)
 
+        # filter frequency range
+        if frequency_range is not None:
+            crit_x_filtered = []
+            crit_y_filtered = []
+            for x, y in zip(crit_x, crit_y):
+                if frequency_range[0] < y < frequency_range[1]:
+                    crit_x_filtered.append(x)
+                    crit_y_filtered.append(y)
+            crit_x = crit_x_filtered
+            crit_y = crit_y_filtered
+
         if len(crit_x) and len(crit_y):
             fig.add_trace(
                 go.Scatter(
-                    x=crit_x,
-                    y=crit_y,
+                    x=Q_(crit_x, "rad/s").to(frequency_units).m,
+                    y=Q_(crit_y, "rad/s").to(frequency_units).m,
                     mode="markers",
                     marker=dict(symbol="x", color="black"),
                     name="Crit. Speed",
@@ -1036,17 +1097,29 @@ class CampbellResults(Results):
             for i in range(num_frequencies):
                 w_i = wd[:, i]
                 whirl_i = whirl[:, i]
-                log_dec_i = log_dec[:, i]
+                damping_values_i = damping_values[:, i]
 
                 whirl_mask = whirl_i == whirl_dir
-                if any(check for check in whirl_mask):
+                mask = whirl_mask
+                if frequency_range is not None:
+                    frequency_mask = (w_i > frequency_range[0]) & (
+                        w_i < frequency_range[1]
+                    )
+                    mask = mask & frequency_mask
+                if damping_range is not None:
+                    damping_mask = (damping_values_i > damping_range[0]) & (
+                        damping_values_i < damping_range[1]
+                    )
+                    mask = mask & damping_mask
+
+                if any(check for check in mask):
                     fig.add_trace(
                         go.Scatter(
-                            x=speed_range[whirl_mask],
-                            y=w_i[whirl_mask],
+                            x=Q_(speed_range[mask], "rad/s").to(frequency_units).m,
+                            y=Q_(w_i[mask], "rad/s").to(frequency_units).m,
                             marker=dict(
                                 symbol=mark,
-                                color=log_dec_i[whirl_mask],
+                                color=damping_values_i[mask],
                                 coloraxis="coloraxis",
                             ),
                             mode="markers",
@@ -1062,8 +1135,8 @@ class CampbellResults(Results):
         for j, h in enumerate(harmonics):
             fig.add_trace(
                 go.Scatter(
-                    x=speed_range,
-                    y=h * speed_range,
+                    x=Q_(speed_range, "rad/s").to(frequency_units).m,
+                    y=h * Q_(speed_range, "rad/s").to(frequency_units).m,
                     mode="lines",
                     line=dict(dash="dashdot", color=list(tableau_colors)[j]),
                     name="{}x speed".format(h),
@@ -1088,12 +1161,15 @@ class CampbellResults(Results):
 
         fig.update_xaxes(
             title_text=f"Frequency ({frequency_units})",
-            range=[np.min(speed_range), np.max(speed_range)],
+            range=[
+                np.min(Q_(speed_range, "rad/s").to(frequency_units).m),
+                np.max(Q_(speed_range, "rad/s").to(frequency_units).m),
+            ],
             exponentformat="none",
         )
         fig.update_yaxes(
             title_text=f"Natural Frequencies ({frequency_units})",
-            range=[0, 1.1 * np.max(wd)],
+            range=[0, 1.1 * np.max(Q_(wd, "rad/s").to(frequency_units).m)],
         )
         fig.update_layout(
             legend=dict(
@@ -1172,13 +1248,17 @@ class FrequencyResponseResults(Results):
             Units for the x axis.
             Default is "rad/s"
         amplitude_units : str, optional
-            Units for the y axis.
-            Acceptable units are:
-                '[length]/[force]' - Displays the displacement;
-                '[speed]/[force]' - Displays the velocity;
-                '[acceleration]/[force]' - Displays the acceleration.
+            Units for the response magnitude.
+            Acceptable units dimensionality are:
+
+            '[length]' - Displays the displacement;
+
+            '[speed]' - Displays the velocity;
+
+            '[acceleration]' - Displays the acceleration.
+
             Default is "m/N" 0 to peak.
-            To use peak to peak use the prefix 'pkpk_' (e.g. pkpk_m/N)
+            To use peak to peak use '<unit> pkpk' (e.g. 'm/N pkpk')
         fig : Plotly graph_objects.Figure()
             The figure object with the plot.
         mag_kwargs : optional
@@ -1267,13 +1347,17 @@ class FrequencyResponseResults(Results):
             Units for the x axis.
             Default is "rad/s"
         amplitude_units : str, optional
-            Units for the y axis.
-            Acceptable units are:
-                '[length]/[force]' - Displays the displacement;
-                '[speed]/[force]' - Displays the velocity;
-                '[acceleration]/[force]' - Displays the acceleration.
+            Units for the response magnitude.
+            Acceptable units dimensionality are:
+
+            '[length]' - Displays the displacement;
+
+            '[speed]' - Displays the velocity;
+
+            '[acceleration]' - Displays the acceleration.
+
             Default is "m/N" 0 to peak.
-            To use peak to peak use the prefix 'pkpk_' (e.g. pkpk_m/N)
+            To use peak to peak use '<unit> pkpk' (e.g. 'm/N pkpk')
         phase_units : str, optional
             Units for the x axis.
             Default is "rad"
@@ -1370,13 +1454,17 @@ class FrequencyResponseResults(Results):
             Units for the x axis.
             Default is "rad/s"
         amplitude_units : str, optional
-            Units for the y axis.
-            Acceptable units are:
-                '[length]/[force]' - Displays the displacement;
-                '[speed]/[force]' - Displays the velocity;
-                '[acceleration]/[force]' - Displays the acceleration.
+            Units for the response magnitude.
+            Acceptable units dimensionality are:
+
+            '[length]' - Displays the displacement;
+
+            '[speed]' - Displays the velocity;
+
+            '[acceleration]' - Displays the acceleration.
+
             Default is "m/N" 0 to peak.
-            To use peak to peak use the prefix 'pkpk_' (e.g. pkpk_m/N)
+            To use peak to peak use '<unit> pkpk' (e.g. 'm/N pkpk')
         phase_units : str, optional
             Units for the x axis.
             Default is "rad"
@@ -1500,13 +1588,17 @@ class FrequencyResponseResults(Results):
             Units for the x axis.
             Default is "rad/s"
         amplitude_units : str, optional
-            Units for the y axis.
-            Acceptable units are:
-                '[length]/[force]' - Displays the displacement;
-                '[speed]/[force]' - Displays the velocity;
-                '[acceleration]/[force]' - Displays the acceleration.
+            Units for the response magnitude.
+            Acceptable units dimensionality are:
+
+            '[length]' - Displays the displacement;
+
+            '[speed]' - Displays the velocity;
+
+            '[acceleration]' - Displays the acceleration.
+
             Default is "m/N" 0 to peak.
-            To use peak to peak use the prefix 'pkpk_' (e.g. pkpk_m/N)
+            To use peak to peak use '<unit> pkpk' (e.g. 'm/N pkpk')
         phase_units : str, optional
             Units for the x axis.
             Default is "rad"
@@ -1635,6 +1727,159 @@ class ForcedResponseResults(Results):
             "[length] / [time] ** 2": ["m/s**2", "accl_resp"],
         }
 
+    def data_magnitude(
+        self,
+        probe,
+        probe_units="rad",
+        frequency_units="rad/s",
+        amplitude_units="m",
+    ):
+        """Return the forced response (magnitude) in DataFrame format.
+
+        Parameters
+        ----------
+        probe : list
+            List with tuples (node, orientation angle, tag).
+
+            node : int -> Indicate the node where the probe is located.
+
+            orientation : float -> Probe orientation angle about the shaft.
+            The 0 refers to +X direction.
+            The strings 'major' and 'minor' can also be used to reference the major
+            and minor axis.
+
+            tag : str, optional -> Probe tag to be add a DataFrame column title.
+        probe_units : str, option
+            Units for probe orientation.
+            Default is "rad".
+        frequency_units : str, optional
+            Units for the frequency range.
+            Default is "rad/s"
+        amplitude_units : str, optional
+            Units for the response magnitude.
+            Acceptable units dimensionality are:
+
+            '[length]' - Displays the displacement;
+
+            '[speed]' - Displays the velocity;
+
+            '[acceleration]' - Displays the acceleration.
+
+            Default is "m" 0 to peak.
+            To use peak to peak use '<unit> pkpk' (e.g. 'm pkpk')
+
+        Returns
+        -------
+        df : pd.DataFrame
+            DataFrame storing magnitude data arrays. The columns are set based on the
+            probe's tag.
+        """
+        frequency_range = Q_(self.speed_range, "rad/s").to(frequency_units).m
+
+        unit_type = str(Q_(1, amplitude_units).dimensionality)
+        try:
+            base_unit = self.default_units[unit_type][0]
+        except KeyError:
+            raise ValueError(
+                "Not supported unit. Dimensionality options are '[length]', '[speed]', '[acceleration]'"
+            )
+
+        data = {}
+        data["frequency"] = frequency_range
+
+        for i, p in enumerate(probe):
+            angle = Q_(p[1], probe_units).to("rad").m
+            vector = self._calculate_major_axis_per_node(
+                node=p[0], angle=angle, amplitude_units=amplitude_units
+            )[3]
+            try:
+                probe_tag = p[2]
+            except IndexError:
+                probe_tag = f"Probe {i+1} - Node {p[0]}"
+
+            data[probe_tag] = Q_(np.abs(vector), base_unit).to(amplitude_units).m
+
+        df = pd.DataFrame(data)
+
+        return df
+
+    def data_phase(
+        self,
+        probe,
+        probe_units="rad",
+        frequency_units="rad/s",
+        amplitude_units="m",
+        phase_units="rad",
+    ):
+        """Return the forced response (phase) in DataFrame format.
+
+        Parameters
+        ----------
+        probe : list
+            List with tuples (node, orientation angle, tag).
+
+            node : int -> Indicate the node where the probe is located.
+
+            orientation : float -> Probe orientation angle about the shaft.
+            The 0 refers to +X direction.
+            The strings 'major' and 'minor' can also be used to reference the major
+            and minor axis.
+
+            tag : str, optional -> Probe tag to be add a DataFrame column title.
+        probe_units : str, option
+            Units for probe orientation.
+            Default is "rad".
+        frequency_units : str, optional
+            Units for the x axis.
+            Default is "rad/s"
+        amplitude_units : str, optional
+            Units for the response magnitude.
+            Acceptable units dimensionality are:
+
+            '[length]' - Displays the displacement;
+
+            '[speed]' - Displays the velocity;
+
+            '[acceleration]' - Displays the acceleration.
+
+            Default is "m" 0 to peak.
+            To use peak to peak use '<unit> pkpk' (e.g. 'm pkpk')
+        phase_units : str, optional
+            Units for the x axis.
+            Default is "rad"
+
+        Returns
+        -------
+        df : pd.DataFrame
+            DataFrame storing phase data arrays. They columns are set based on the
+            probe's tag.
+        """
+        frequency_range = Q_(self.speed_range, "rad/s").to(frequency_units).m
+
+        data = {}
+        data["frequency"] = frequency_range
+
+        for i, p in enumerate(probe):
+            angle = Q_(p[1], probe_units).to("rad").m
+            vector = self._calculate_major_axis_per_node(
+                node=p[0], angle=angle, amplitude_units=amplitude_units
+            )[4]
+
+            probe_phase = np.real(vector)
+            probe_phase = np.array([i + 2 * np.pi if i < 0 else i for i in probe_phase])
+            probe_phase = Q_(probe_phase, "rad").to(phase_units).m
+
+            try:
+                probe_tag = p[2]
+            except IndexError:
+                probe_tag = f"Probe {i+1} - Node {p[0]}"
+
+            data[probe_tag] = probe_phase
+
+        df = pd.DataFrame(data)
+
+        return df
+
     def plot_magnitude(
         self,
         probe,
@@ -1648,14 +1893,17 @@ class ForcedResponseResults(Results):
 
         Parameters
         ----------
-        probe : list of tuples
+        probe : list
             List with tuples (node, orientation angle, tag).
-            node : int
-                indicate the node where the probe is located.
-            orientation : float
-                probe orientation angle about the shaft. The 0 refers to +X direction.
-            tag : str, optional
-                probe tag to be displayed at the legend.
+
+            node : int -> Indicate the node where the probe is located.
+
+            orientation : float -> Probe orientation angle about the shaft.
+            The 0 refers to +X direction.
+            The strings 'major' and 'minor' can also be used to reference the major
+            and minor axis.
+
+            tag : str, optional -> Probe tag to be add a DataFrame column title.
         probe_units : str, option
             Units for probe orientation.
             Default is "rad".
@@ -1663,13 +1911,17 @@ class ForcedResponseResults(Results):
             Units for the x axis.
             Default is "rad/s"
         amplitude_units : str, optional
-            Units for the y axis.
+            Units for the response magnitude.
             Acceptable units dimensionality are:
-                '[length]' - Displays the displacement;
-                '[speed]' - Displays the velocity;
-                '[acceleration]' - Displays the acceleration.
+
+            '[length]' - Displays the displacement;
+
+            '[speed]' - Displays the velocity;
+
+            '[acceleration]' - Displays the acceleration.
+
             Default is "m" 0 to peak.
-            To use peak to peak use the prefix 'pkpk_' (e.g. pkpk_m)
+            To use peak to peak use '<unit> pkpk' (e.g. 'm pkpk')
         fig : Plotly graph_objects.Figure()
             The figure object with the plot.
         kwargs : optional
@@ -1682,37 +1934,20 @@ class ForcedResponseResults(Results):
         fig : Plotly graph_objects.Figure()
             The figure object with the plot.
         """
-        frequency_range = Q_(self.speed_range, "rad/s").to(frequency_units).m
-
-        unit_type = str(Q_(1, amplitude_units).dimensionality)
-        try:
-            base_unit = self.default_units[unit_type][0]
-        except KeyError:
-            raise ValueError(
-                "Not supported unit. Dimensionality options are '[length]', '[speed]', '[acceleration]'"
-            )
+        df = self.data_magnitude(probe, probe_units, frequency_units, amplitude_units)
 
         if fig is None:
             fig = go.Figure()
 
-        for i, p in enumerate(probe):
-            angle = Q_(p[1], probe_units).to("rad").m
-            vector = self._calculate_major_axis_per_node(
-                node=p[0], angle=angle, amplitude_units=amplitude_units
-            )[3]
-            try:
-                probe_tag = p[2]
-            except IndexError:
-                probe_tag = f"Probe {i+1} - Node {p[0]}"
-
+        for i, column in enumerate(df.columns[1:]):
             fig.add_trace(
                 go.Scatter(
-                    x=frequency_range,
-                    y=Q_(np.abs(vector), base_unit).to(amplitude_units).m,
+                    x=df["frequency"],
+                    y=df[column],
                     mode="lines",
                     line=dict(color=list(tableau_colors)[i]),
-                    name=probe_tag,
-                    legendgroup=probe_tag,
+                    name=column,
+                    legendgroup=column,
                     showlegend=True,
                     hovertemplate=f"Frequency ({frequency_units}): %{{x:.2f}}<br>Amplitude ({amplitude_units}): %{{y:.2e}}",
                 )
@@ -1720,7 +1955,7 @@ class ForcedResponseResults(Results):
 
         fig.update_xaxes(
             title_text=f"Frequency ({frequency_units})",
-            range=[np.min(frequency_range), np.max(frequency_range)],
+            range=[np.min(df["frequency"]), np.max(df["frequency"])],
         )
         fig.update_yaxes(
             title_text=f"Amplitude ({amplitude_units})", exponentformat="power"
@@ -1743,14 +1978,17 @@ class ForcedResponseResults(Results):
 
         Parameters
         ----------
-        probe : list of tuples
+        probe : list
             List with tuples (node, orientation angle, tag).
-            node : int
-                indicate the node where the probe is located.
-            orientation : float
-                probe orientation angle about the shaft. The 0 refers to +X direction.
-            tag : str, optional
-                probe tag to be displayed at the legend.
+
+            node : int -> Indicate the node where the probe is located.
+
+            orientation : float -> Probe orientation angle about the shaft.
+            The 0 refers to +X direction.
+            The strings 'major' and 'minor' can also be used to reference the major
+            and minor axis.
+
+            tag : str, optional -> Probe tag to be add a DataFrame column title.
         probe_units : str, option
             Units for probe orientation.
             Default is "rad".
@@ -1758,13 +1996,17 @@ class ForcedResponseResults(Results):
             Units for the x axis.
             Default is "rad/s"
         amplitude_units : str, optional
-            Units for the y axis.
+            Units for the response magnitude.
             Acceptable units dimensionality are:
-                '[length]' - Displays the displacement;
-                '[speed]' - Displays the velocity;
-                '[acceleration]' - Displays the acceleration.
+
+            '[length]' - Displays the displacement;
+
+            '[speed]' - Displays the velocity;
+
+            '[acceleration]' - Displays the acceleration.
+
             Default is "m" 0 to peak.
-            To use peak to peak use the prefix 'pkpk_' (e.g. pkpk_m)
+            To use peak to peak use '<unit> pkpk' (e.g. 'm pkpk')
         phase_units : str, optional
             Units for the x axis.
             Default is "rad"
@@ -1780,34 +2022,22 @@ class ForcedResponseResults(Results):
         fig : Plotly graph_objects.Figure()
             The figure object with the plot.
         """
-        frequency_range = Q_(self.speed_range, "rad/s").to(frequency_units).m
+        df = self.data_phase(
+            probe, probe_units, frequency_units, amplitude_units, phase_units
+        )
 
         if fig is None:
             fig = go.Figure()
 
-        for i, p in enumerate(probe):
-            angle = Q_(p[1], probe_units).to("rad").m
-            vector = self._calculate_major_axis_per_node(
-                node=p[0], angle=angle, amplitude_units=amplitude_units
-            )[4]
-
-            probe_phase = np.real(vector)
-            probe_phase = np.array([i + 2 * np.pi if i < 0 else i for i in probe_phase])
-            probe_phase = Q_(probe_phase, "rad").to(phase_units).m
-
-            try:
-                probe_tag = p[2]
-            except IndexError:
-                probe_tag = f"Probe {i+1} - Node {p[0]}"
-
+        for i, column in enumerate(df.columns[1:]):
             fig.add_trace(
                 go.Scatter(
-                    x=frequency_range,
-                    y=probe_phase,
+                    x=df["frequency"],
+                    y=df[column],
                     mode="lines",
                     line=dict(color=list(tableau_colors)[i]),
-                    name=probe_tag,
-                    legendgroup=probe_tag,
+                    name=column,
+                    legendgroup=column,
                     showlegend=True,
                     hovertemplate=f"Frequency ({frequency_units}): %{{x:.2f}}<br>Phase ({phase_units}): %{{y:.2e}}",
                 )
@@ -1815,7 +2045,7 @@ class ForcedResponseResults(Results):
 
         fig.update_xaxes(
             title_text=f"Frequency ({frequency_units})",
-            range=[np.min(frequency_range), np.max(frequency_range)],
+            range=[np.min(df["frequency"]), np.max(df["frequency"])],
         )
         fig.update_yaxes(title_text=f"Phase ({phase_units})")
         fig.update_layout(**kwargs)
@@ -1836,14 +2066,17 @@ class ForcedResponseResults(Results):
 
         Parameters
         ----------
-        probe : list of tuples
+        probe : list
             List with tuples (node, orientation angle, tag).
-            node : int
-                indicate the node where the probe is located.
-            orientation : float
-                probe orientation angle about the shaft. The 0 refers to +X direction.
-            tag : str, optional
-                probe tag to be displayed at the legend.
+
+            node : int -> Indicate the node where the probe is located.
+
+            orientation : float -> Probe orientation angle about the shaft.
+            The 0 refers to +X direction.
+            The strings 'major' and 'minor' can also be used to reference the major
+            and minor axis.
+
+            tag : str, optional -> Probe tag to be add a DataFrame column title.
         probe_units : str, option
             Units for probe orientation.
             Default is "rad".
@@ -1851,13 +2084,17 @@ class ForcedResponseResults(Results):
             Units for the x axis.
             Default is "rad/s"
         amplitude_units : str, optional
-            Units for the y axis.
+            Units for the response magnitude.
             Acceptable units dimensionality are:
-                '[length]' - Displays the displacement;
-                '[speed]' - Displays the velocity;
-                '[acceleration]' - Displays the acceleration.
+
+            '[length]' - Displays the displacement;
+
+            '[speed]' - Displays the velocity;
+
+            '[acceleration]' - Displays the acceleration.
+
             Default is "m" 0 to peak.
-            To use peak to peak use the prefix 'pkpk_' (e.g. pkpk_m)
+            To use peak to peak use '<unit> pkpk' (e.g. 'm pkpk')
         phase_units : str, optional
             Units for the x axis.
             Default is "rad"
@@ -1873,50 +2110,31 @@ class ForcedResponseResults(Results):
         fig : Plotly graph_objects.Figure()
             The figure object with the plot.
         """
-        frequency_range = Q_(self.speed_range, "rad/s").to(frequency_units).m
-
-        unit_type = str(Q_(1, amplitude_units).dimensionality)
-        try:
-            base_unit = self.default_units[unit_type][0]
-        except KeyError:
-            raise ValueError(
-                "Not supported unit. Dimensionality options are '[length]', '[speed]', '[acceleration]'"
-            )
+        df_m = self.data_magnitude(probe, probe_units, frequency_units, amplitude_units)
+        df_p = self.data_phase(
+            probe, probe_units, frequency_units, amplitude_units, phase_units
+        )
 
         if fig is None:
             fig = go.Figure()
 
-        for i, p in enumerate(probe):
-            angle = Q_(p[1], probe_units).to("rad").m
-            vector = self._calculate_major_axis_per_node(
-                node=p[0], angle=angle, amplitude_units=amplitude_units
-            )
+        if phase_units in ["rad", "radian", "radians"]:
+            polar_theta_unit = "radians"
+        elif phase_units in ["degree", "degrees", "deg"]:
+            polar_theta_unit = "degrees"
 
-            probe_phase = np.real(vector[4])
-            probe_phase = np.array([i + 2 * np.pi if i < 0 else i for i in probe_phase])
-            probe_phase = Q_(probe_phase, "rad").to(phase_units).m
-
-            if phase_units in ["rad", "radian", "radians"]:
-                polar_theta_unit = "radians"
-            elif phase_units in ["degree", "degrees", "deg"]:
-                polar_theta_unit = "degrees"
-
-            try:
-                probe_tag = p[2]
-            except IndexError:
-                probe_tag = f"Probe {i+1} - Node {p[0]}"
-
+        for i, column in enumerate(df_m.columns[1:]):
             fig.add_trace(
                 go.Scatterpolar(
-                    r=Q_(np.abs(vector[3]), base_unit).to(amplitude_units).m,
-                    theta=probe_phase,
-                    customdata=frequency_range,
+                    r=df_m[column],
+                    theta=df_p[column],
+                    customdata=df_m["frequency"],
                     thetaunit=polar_theta_unit,
                     mode="lines+markers",
                     marker=dict(color=list(tableau_colors)[i]),
                     line=dict(color=list(tableau_colors)[i]),
-                    name=probe_tag,
-                    legendgroup=probe_tag,
+                    name=column,
+                    legendgroup=column,
                     showlegend=True,
                     hovertemplate=f"Amplitude ({amplitude_units}): %{{r:.2e}}<br>Phase: %{{theta:.2f}}<br>Frequency ({frequency_units}): %{{customdata:.2f}}",
                 )
@@ -1956,14 +2174,17 @@ class ForcedResponseResults(Results):
 
         Parameters
         ----------
-        probe : list of tuples
+        probe : list
             List with tuples (node, orientation angle, tag).
-            node : int
-                indicate the node where the probe is located.
-            orientation : float
-                probe orientation angle about the shaft. The 0 refers to +X direction.
-            tag : str, optional
-                probe tag to be displayed at the legend.
+
+            node : int -> Indicate the node where the probe is located.
+
+            orientation : float -> Probe orientation angle about the shaft.
+            The 0 refers to +X direction.
+            The strings 'major' and 'minor' can also be used to reference the major
+            and minor axis.
+
+            tag : str, optional -> Probe tag to be add a DataFrame column title.
         probe_units : str, option
             Units for probe orientation.
             Default is "rad".
@@ -1971,13 +2192,17 @@ class ForcedResponseResults(Results):
             Frequency units.
             Default is "rad/s"
         amplitude_units : str, optional
-            Units for the y axis.
+            Units for the response magnitude.
             Acceptable units dimensionality are:
-                '[length]' - Displays the displacement;
-                '[speed]' - Displays the velocity;
-                '[acceleration]' - Displays the acceleration.
+
+            '[length]' - Displays the displacement;
+
+            '[speed]' - Displays the velocity;
+
+            '[acceleration]' - Displays the acceleration.
+
             Default is "m" 0 to peak.
-            To use peak to peak use the prefix 'pkpk_' (e.g. pkpk_m)
+            To use peak to peak use '<unit> pkpk' (e.g. 'm pkpk')
         phase_units : str, optional
             Phase units.
             Default is "rad"
@@ -2061,17 +2286,25 @@ class ForcedResponseResults(Results):
         angle : float, str
             The orientation angle of the axis.
             Options are:
-                float : angle in rad capture the response in a probe orientation;
-                str : "major" to capture the response for the major axis;
-                str : "minor" to capture the response for the minor axis.
+
+            float : angle in rad capture the response in a probe orientation;
+
+            str : "major" to capture the response for the major axis;
+
+            str : "minor" to capture the response for the minor axis.
+
         amplitude_units : str, optional
-            Units for the y axis.
+            Units for the response magnitude.
             Acceptable units dimensionality are:
-                '[length]' - Displays the displacement;
-                '[speed]' - Displays the velocity;
-                '[acceleration]' - Displays the acceleration.
+
+            '[length]' - Displays the displacement;
+
+            '[speed]' - Displays the velocity;
+
+            '[acceleration]' - Displays the acceleration.
+
             Default is "m" 0 to peak.
-            To use peak to peak use the prefix 'pkpk_' (e.g. pkpk_m)
+            To use peak to peak use '<unit> pkpk' (e.g. 'm pkpk')
 
         Returns
         -------
@@ -2156,13 +2389,17 @@ class ForcedResponseResults(Results):
             The rotor rotation speed. Must be an element from the speed_range argument
             passed to the class (rad/s).
         amplitude_units : str, optional
-            Units for the y axis.
+            Units for the response magnitude.
             Acceptable units dimensionality are:
-                '[length]' - Displays the displacement;
-                '[speed]' - Displays the velocity;
-                '[acceleration]' - Displays the acceleration.
+
+            '[length]' - Displays the displacement;
+
+            '[speed]' - Displays the velocity;
+
+            '[acceleration]' - Displays the acceleration.
+
             Default is "m" 0 to peak.
-            To use peak to peak use the prefix 'pkpk_' (e.g. pkpk_m)
+            To use peak to peak use '<unit> pkpk' (e.g. 'm pkpk')
 
         Returns
         -------
@@ -2314,13 +2551,17 @@ class ForcedResponseResults(Results):
             Frequency units.
             Default is "rad/s"
         amplitude_units : str, optional
-            Units for the y axis.
+            Units for the response magnitude.
             Acceptable units dimensionality are:
-                '[length]' - Displays the displacement;
-                '[speed]' - Displays the velocity;
-                '[acceleration]' - Displays the acceleration.
+
+            '[length]' - Displays the displacement;
+
+            '[speed]' - Displays the velocity;
+
+            '[acceleration]' - Displays the acceleration.
+
             Default is "m" 0 to peak.
-            To use peak to peak use the prefix 'pkpk_' (e.g. pkpk_m)
+            To use peak to peak use '<unit> pkpk' (e.g. 'm pkpk')
         rotor_length_units : str, optional
             Displacement units.
             Default is 'm'.
@@ -2410,13 +2651,17 @@ class ForcedResponseResults(Results):
             Frequency units.
             Default is "rad/s"
         amplitude_units : str, optional
-            Units for the y axis.
+            Units for the response magnitude.
             Acceptable units dimensionality are:
-                '[length]' - Displays the displacement;
-                '[speed]' - Displays the velocity;
-                '[acceleration]' - Displays the acceleration.
+
+            '[length]' - Displays the displacement;
+
+            '[speed]' - Displays the velocity;
+
+            '[acceleration]' - Displays the acceleration.
+
             Default is "m" 0 to peak.
-            To use peak to peak use the prefix 'pkpk_' (e.g. pkpk_m)
+            To use peak to peak use '<unit> pkpk' (e.g. 'm pkpk')
         rotor_length_units : str, optional
             Rotor Length units.
             Default is 'm'.
@@ -2707,13 +2952,17 @@ class ForcedResponseResults(Results):
             Frequency units.
             Default is "rad/s"
         amplitude_units : str, optional
-            Units for the y axis.
+            Units for the response magnitude.
             Acceptable units dimensionality are:
-                '[length]' - Displays the displacement;
-                '[speed]' - Displays the velocity;
-                '[acceleration]' - Displays the acceleration.
-            Default is "m" 0 to peak.
-            To use peak to peak use the prefix 'pkpk_' (e.g. pkpk_m)
+
+            '[length]' - Displays the displacement;
+
+            '[speed]' - Displays the velocity;
+
+            '[acceleration]' - Displays the acceleration.
+
+            Default is "m/N" 0 to peak.
+            To use peak to peak use '<unit> pkpk' (e.g. 'm/N pkpk')
         rotor_length_units : str, optional
             Rotor length units.
             Default is 'm'.
@@ -3607,14 +3856,17 @@ class TimeResponseResults(Results):
 
         Parameters
         ----------
-        probe : list of tuples
+        probe : list
             List with tuples (node, orientation angle, tag).
-            node : int
-                indicate the node where the probe is located.
-            orientation : float
-                probe orientation angle about the shaft. The 0 refers to +X direction.
-            tag : str, optional
-                probe tag to be displayed at the legend.
+
+            node : int -> Indicate the node where the probe is located.
+
+            orientation : float -> Probe orientation angle about the shaft.
+            The 0 refers to +X direction.
+            The strings 'major' and 'minor' can also be used to reference the major
+            and minor axis.
+
+            tag : str, optional -> Probe tag to be add a DataFrame column title.
         probe_units : str, option
             Units for probe orientation.
             Default is "rad".

@@ -26,7 +26,7 @@ sys.path.append(os.path.abspath("../../ross"))
 # -- Project information -----------------------------------------------------
 
 project = "ross"
-copyright = "2020, Team ROSS"
+copyright = "2021, Team ROSS"
 author = "Team ROSS"
 
 
@@ -63,6 +63,9 @@ extensions = [
 # Generate the API documentation when building
 autosummary_generate = True
 numpydoc_show_class_members = False
+
+# bibtex
+bibtex_bibfiles = ["refs.bib"]
 
 # Add any paths that contain templates here, relative to this directory.
 templates_path = ["_templates"]
