@@ -632,12 +632,6 @@ class TiltingPadBearing:
                         if P[i, j] < 0:
                             P[i, j] = 0
 
-                ## Pressure border conditions ====================================================
-                # for i in range(0, self.nZ - 1):  # Loop in Z
-                #    for j in range(0, self.ntheta - 1):  # Loop in THETA
-                #        if P[i, j] < 0:
-                #            P[i, j] = 0
-
                 # Dimmensional pressure determination in Pascals
                 Pdim = (P * self.mi_ref * self.war * (self.Rs ** 2)) / (self.Cr ** 2)
 
