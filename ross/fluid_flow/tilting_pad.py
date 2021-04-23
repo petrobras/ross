@@ -1577,7 +1577,7 @@ if __name__ == "__main__":
     E = 0.5
 
     # optim values from legacy codes
-    x = np.array(
+    psi_pad = np.array(
         [
             0.000401905634685165,
             0.000210288009621476,
@@ -1587,8 +1587,8 @@ if __name__ == "__main__":
             0.000574699109242178,
         ]
     )
-    # psi_pad = x
-    psi_pad = np.array([x[0], x[1], x[2], x[3], x[4], x[5]])
+
+    # Number of pads
     npad = 6
 
     # Radial clearance
@@ -1660,7 +1660,7 @@ if __name__ == "__main__":
     # Number of volumes in neta direction
     nN = 30
 
-    mancal = Tilting(
+    mancal = TiltingPadBearing(
         R,
         Rs,
         esp,
