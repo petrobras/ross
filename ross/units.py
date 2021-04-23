@@ -28,7 +28,6 @@ units = {
     "odr": "meter",
     "speed": "radian/second",
     "frequency": "radian/second",
-    "frequency_range": "radian/second",
     "m": "kg",
     "mx": "kg",
     "my": "kg",
@@ -36,18 +35,21 @@ units = {
     "Id": "kg*m**2",
     "width": "meter",
     "depth": "meter",
+    "thickness": "meter",
     "pitch": "meter",
     "height": "meter",
-    "shaft_radius": "meter",
-    "radial_clearance": "meter",
+    "radius": "meter",
+    "diameter": "meter",
+    "clearance": "meter",
+    "length": "meter",
     "i_d": "meter",
     "o_d": "meter",
     "unbalance_magnitude": "kg*m",
     "unbalance_phase": "rad",
-    "inlet_pressure": "pascal",
-    "outlet_pressure": "pascal",
-    "inlet_temperature": "degK",
-    "inlet_swirl_velocity": "m/s",
+    "pressure": "pascal",
+    "temperature": "degK",
+    "velocity": "m/s",
+    "angle": "rad",
 }
 for i, unit in zip(["k", "c"], ["N/m", "N*s/m"]):
     for j in ["x", "y", "z"]:
@@ -88,24 +90,34 @@ def check_units(func):
         args_names = inspect.getfullargspec(func)[0]
 
         for arg_name, arg_value in zip(args_names, args):
-            if arg_name in units and arg_value is not None:
-                # For now, we only return the magnitude for the converted Quantity
-                # If pint is fully adopted by ross in the future, and we have all Quantities
-                # using it, we could remove this, which would allows us to use pint in its full capability
-                try:
-                    base_unit_args.append(arg_value.to(units[arg_name]).m)
-                except AttributeError:
-                    base_unit_args.append(Q_(arg_value, units[arg_name]).m)
+            names = arg_name.split("_")
+            if arg_name not in names:
+                names.append(arg_name)
+            for name in names:
+                if name in units and arg_value is not None:
+                    # For now, we only return the magnitude for the converted Quantity
+                    # If pint is fully adopted by ross in the future, and we have all Quantities
+                    # using it, we could remove this, which would allows us to use pint in its full capability
+                    try:
+                        base_unit_args.append(arg_value.to(units[name]).m)
+                    except AttributeError:
+                        base_unit_args.append(Q_(arg_value, units[name]).m)
+                    break
             else:
                 base_unit_args.append(arg_value)
 
         base_unit_kwargs = {}
         for k, v in kwargs.items():
-            if k in units and v is not None:
-                try:
-                    base_unit_kwargs[k] = v.to(units[k]).m
-                except AttributeError:
-                    base_unit_kwargs[k] = Q_(v, units[k]).m
+            names = k.split("_")
+            if k not in names:
+                names.append(k)
+            for name in names:
+                if name in units and v is not None:
+                    try:
+                        base_unit_kwargs[k] = v.to(units[name]).m
+                    except AttributeError:
+                        base_unit_kwargs[k] = Q_(v, units[name]).m
+                    break
             else:
                 base_unit_kwargs[k] = v
 

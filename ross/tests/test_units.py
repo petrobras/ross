@@ -1,7 +1,7 @@
 import pytest
 from numpy.testing import assert_allclose
 
-from ross.units import Q_, check_units, units
+from ross.units import Q_, check_units
 
 
 def test_new_units_loaded():
@@ -167,8 +167,6 @@ def test_units(auxiliary_function):
         czy=1,
         czz=1,
     )
-    # check if all available units are tested
-    assert len(results) == len(units)
 
     (
         E,
@@ -323,8 +321,6 @@ def test_unit_Q_(auxiliary_function):
         czz=Q_(1, "N*s/m"),
     )
 
-    # check if all available units are tested
-    assert len(results) == len(units)
     (
         E,
         G_s,
@@ -478,9 +474,6 @@ def test_unit_Q_conversion(auxiliary_function):
         czz=Q_(1, "lbf*s/in"),
     )
 
-    # check if all available units are tested
-    assert len(results) == len(units)
-
     (
         E,
         G_s,
@@ -583,8 +576,6 @@ def test_units_pint(auxiliary_function):
     results = auxiliary_function(
         E=1, G_s=1, rho=1, L=1, idl=1, idr=1, odl=1, odr=1, speed=1, frequency=1
     )
-    # check if all available units are tested
-    assert len(results) == len(units)
 
     E, G_s, rho, L, idl, idr, odl, odr, speed, frequency = results
 
@@ -634,9 +625,6 @@ def test_unit_Q__pint(auxiliary_function):
         frequency=Q_(1, "radian/second"),
     )
 
-    # check if all available units are tested
-    assert len(results) == len(units)
-
     E, G_s, rho, L, idl, idr, odl, odr, speed, frequency = results
 
     assert E.magnitude == 1
@@ -684,9 +672,6 @@ def test_unit_Q_conversion_pint(auxiliary_function):
         speed=Q_(1, "RPM"),
         frequency=Q_(1, "RPM"),
     )
-
-    # check if all available units are tested
-    assert len(results) == len(units)
 
     E, G_s, rho, L, idl, idr, odl, odr, speed, frequency = results
 
