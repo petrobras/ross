@@ -127,6 +127,7 @@ class TiltingPadBearing:
         nX,
         nZ,
         nN,
+        coefs,
     ):
         self.R = R
         self.Rs = Rs
