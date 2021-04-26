@@ -1571,12 +1571,23 @@ class TiltingPadBearing:
         return Ss
 
 
-if __name__ == "__main__":
+def tilting_pad_bearing_example():
+    """Create an example of a tilting pad bearing with termo hydrodynamic effects. 
+    This function returns pressure and temperature fields as well as the dynamic 
+    coefficients. The purpose is to make available a simple model so that a doctest 
+    can be written using it.
+    Returns
+    -------
+    TiltingPadBearing : ross.TiltingPadBearing Object
+        An instance of a termo-hydrodynamic tilting pad bearing model object.
+    Examples
+    --------
+    >>> bearing = tilting_pad_bearing_example()
+    >>> bearing.L
+    0.263144
+    """
 
-    phi = 30 * np.pi / 180
-    E = 0.5
-
-    # optim values from legacy codes
+    # optimized near hit position values from legacy codes
     psi_pad = np.array(
         [
             0.000401905634685165,
@@ -1588,79 +1599,50 @@ if __name__ == "__main__":
         ]
     )
 
-    # Number of pads
-    npad = 6
+    # General properties
+    phi = 30 * np.pi / 180
+    E = 0.5
 
-    # Radial clearance
-    Cr = 250e-6
-
-    # Oil tank temperature
-    Tcuba = 40
-
+    # Bearing properties
+    npad = 6  # Number of pads
+    Cr = 250e-6  # Radial clearance
+    Tcuba = 40  # Oil tank temperature
     alpha = 0  # * (2 * np.pi * 5) * alpha
+    R = 0.5 * 930e-3  # Journal radius
+    Rs = 0.5 * 934e-3  # Pad radius [m]
+    esp = 67e-3  #  Pad thickness [m]
+    betha_s = 25  # Pad arc [degree]
+    rp_pad = 0.6  # Pivot position (arc pivot/arc pad)
+    L = 197e-3  # Bength of bearing [m]
+    sigma = np.array(
+        [0, 60, 120, 180, 240, 300]
+    )  # Angular position of the pivots [degrees]
+    fR = 90.6e3  # Bearing loading [N]
+    wa = 300  # Rotor speed [rpm]
 
-    # Geometric parameters for the bearing --------------------------------------------
-    # Journal radius
-    R = 0.5 * 930e-3
+    # Oil properties
+    T_ref = Tcuba  # Reference temperature [Celsius]
+    kt = 0.07031 * np.exp(
+        484.1 / (Tcuba + 273.15 + 474)
+    )  # Thermal conductivity [J/s.m.C]
+    Cp = (
+        16.5 * np.exp(-2442 / (Tcuba + 273.15 + 829.1))
+    ) * 1e3  # Specific heat [J/kgC]
+    rho = (
+        0.04514 * np.exp(9103 / (Tcuba + 273.15 + 2766)) * 1e3
+    )  # Specific mass [kg/m**2]
+    mi_ref = 5.506e-09 * np.exp(
+        5012 / (Tcuba + 273.15 + 0.1248)
+    )  # Reference viscosity [N.s/m**2]
+    sommerfeld_type = 2  # Sommerfeld number calculation technique
 
-    # Pad radius
-    Rs = 0.5 * 934e-3  # [m]
+    # Meshing properties (both Finite Volumes, Differences, and Elements)
+    ntheta = 48  # Number of volumes in theta direction
+    nX = ntheta  # Number of volumes in x direction
+    nZ = 48  # Number of volumes in z direction
+    nN = 30  # Number of volumes in neta direction
 
-    # Pad thickness
-    esp = 67e-3  # [m]
-
-    # Pad arc
-    betha_s = 25  # [degree]
-
-    # Pivot position (arc pivot/arc pad)
-    rp_pad = 0.6
-
-    # Bength of bearing
-    L = 197e-3  # [m]
-
-    # Angular position of the pivots [degrees]
-    sigma = np.array([0, 60, 120, 180, 240, 300])
-
-    # Bearing loading
-    fR = 90.6e3  # [N]
-
-    # Rotor speed
-    wa = 300  # [rpm]
-
-    # Reference temperature
-    T_ref = Tcuba  # [Celsius]
-
-    # Thermal properties for the oil ----------------------------------------------------
-    # Thermal conductivity
-    kt = 0.07031 * np.exp(484.1 / (Tcuba + 273.15 + 474))  # [J/s.m.C]
-
-    # Specific heat
-    Cp = (16.5 * np.exp(-2442 / (Tcuba + 273.15 + 829.1))) * 1e3  # [J/kgC]
-
-    # Specific mass
-    rho = 0.04514 * np.exp(9103 / (Tcuba + 273.15 + 2766)) * 1e3  # [kg/m**2]
-
-    # Reference viscosity
-    # mi_ref=0.0752
-    mi_ref = 5.506e-09 * np.exp(5012 / (Tcuba + 273.15 + 0.1248))  # [N.s/m**2]
-
-    # Bearing Position ---------------------------------------------------------
-
-    #  Discretized Mesh ------------------------------------------------------
-
-    # Number of volumes in theta direction
-    ntheta = 48
-
-    # Number of volumes in x direction
-    nX = ntheta
-
-    # Number of volumes in z direction
-    nZ = 48
-
-    # Number of volumes in neta direction
-    nN = 30
-
-    mancal = TiltingPadBearing(
+    THD_tilting_pad = TiltingPadBearing(
         R,
         Rs,
         esp,
@@ -1685,6 +1667,10 @@ if __name__ == "__main__":
         nX,
         nZ,
         nN,
+        sommerfeld_type,
     )
-    mancal.run()
-    # mancal.coefficients()
+    THD_tilting_pad.run()
+    THD_tilting_pad.coefficients()
+
+    return THD_tilting_pad
+
