@@ -307,14 +307,6 @@ class Thrust:
         )  # the "2" option denotes the equivalent method to the matlab defaut one
 
         # disp('SCORE')
-        # disp(score)
-        # disp(' ')
-        # disp('mx')
-        # disp(mx);
-        # disp(' ')
-        # disp('my')
-        # disp(my);
-        # disp(' ')
-        # disp('fre')
-        # disp(fre);
-        # disp(' ')
+        # disp(mx)
+        # disp(my)
+        # disp(fre)
