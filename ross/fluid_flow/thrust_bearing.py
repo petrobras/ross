@@ -256,12 +256,11 @@ class Thrust:
         #            RESULTING FORCE AND MOMENTUM: Equilibrium position
         # -------------------------------------------------------------------------
         # -------------------------------------------------------------------------
+        XR = r1*(np.arange((R1+0.5*dR),(R2-0.5*dR),dR))
 
-        XR = r1*(R1+0.5*dR:dR:R2-0.5*dR)
+        Xrp = rp*(1+(np.zeros(ZR.shape)))
 
-        Xrp=rp*ones(size(XR));
-
-        XTETA=teta0*(TETA1+0.5*dTETA:dTETA:TETA2-0.5*dTETA);
+        XTETA = teta0*(np.arange((TETA1+0.5*dTETA),(TETA2-0.5*dTETA),dTETA))
 
         for ii=1:NTETA
             Mxr(:,ii)=(Pdim(:,ii).*(XR'.^2)).*sin(XTETA(ii)-tetap);
