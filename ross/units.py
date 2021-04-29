@@ -58,7 +58,7 @@ units = {
     "convection": "W/(m²*degK)",
     "conductivity": "W/(m*degK)",
     "expansion": "1/degK",
-    "stiffness": "N/m²",
+    "stiffness": "N/m",
     "weight": "N",
     "load": "N",
     "flowv": "m³/s",
