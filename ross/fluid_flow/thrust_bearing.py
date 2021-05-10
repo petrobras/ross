@@ -412,16 +412,15 @@ class Thrust:
                     MI_s= 0.5*(MI[kR,kTETA]+MI[kR-1,kTETA])
                 
                 # Coefficients for solving the Reynolds equation
+                CE=1/(24*teta0^2*MI_e)*(dR/dTETA)*(H0ne[kR,kTETA]**3/Rn+H0se[kR,kTETA]**3/Rs)
+                CW=1/(24*teta0^2*MI_w)*(dR/dTETA)*(H0nw[kR,kTETA]**3/Rn+H0sw[kR,kTETA]**3/Rs)
+                CN=Rn/(24*MI_n)*(dTETA/dR)*(H0ne[kR,kTETA]**3+H0nw[kR,kTETA]**3)
+                CS=Rs/(24*MI_s)*(dTETA/dR)*(H0se[kR,kTETA]**3+H0sw[kR,kTETA]**3)
+                CP=-(CE+CW+CN+CS)
                 
-                CE=1/(24*teta0^2*MI_e)*(dR/dTETA)*(H0ne(kR,kTETA)^3/Rn+H0se(kR,kTETA)^3/Rs);
-                CW=1/(24*teta0^2*MI_w)*(dR/dTETA)*(H0nw(kR,kTETA)^3/Rn+H0sw(kR,kTETA)^3/Rs);
-                CN=Rn/(24*MI_n)*(dTETA/dR)*(H0ne(kR,kTETA)^3+H0nw(kR,kTETA)^3);
-                CS=Rs/(24*MI_s)*(dTETA/dR)*(H0se(kR,kTETA)^3+H0sw(kR,kTETA)^3);
-                CP=-(CE+CW+CN+CS);
+                k=k+1; #vectorization index
                 
-                k=k+1; %vectorization index
-                
-                b(k,1)=dR/(4*teta0)*(Rn*H0ne(kR,kTETA)+Rs*H0se(kR,kTETA)-Rn*H0nw(kR,kTETA)-Rs*H0sw(kR,kTETA));
+                b[k,1]=dR/(4*teta0)*(Rn*H0ne[kR,kTETA]+Rs*H0se[kR,kTETA]-Rn*H0nw[kR,kTETA]-Rs*H0sw[kR,kTETA])
                 
                 if kTETA==1 && kR==1
                     Mat_coef(k,k)=CP-CS-CW;
