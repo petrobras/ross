@@ -507,7 +507,6 @@ class Thrust:
         wp=war
         WP=wp/war
 
-
         MI=(1/mi0)*mi
 
         kR=1
@@ -530,131 +529,112 @@ class Thrust:
                 Rn=R+0.5*dR
                 Rs=R-0.5*dR
                 
-                if kTETA==1 && kR==1
-                    MI_e= 0.5*(MI(kR,kTETA)+MI(kR,kTETA+1));
-                    MI_w= MI(kR,kTETA);
-                    MI_n= 0.5*(MI(kR,kTETA)+MI(kR+1,kTETA));
-                    MI_s= MI(kR,kTETA);
+                if kTETA==1 and kR==1:
+                    MI_e= 0.5*(MI[kR,kTETA]+MI[kR,kTETA+1])
+                    MI_w= MI[kR,kTETA]
+                    MI_n= 0.5*(MI[kR,kTETA]+MI[kR+1,kTETA])
+                    MI_s= MI[kR,kTETA]
+                    dPdTETAe=(P0[kR,kTETA+1]-P0[kR,kTETA])/dTETA
+                    dPdTETAw=P0[kR,kTETA]/(0.5*dTETA)
+                    dPdRn=(P0[kR+1,kTETA]-P0[kR,kTETA])/dR
+                    dPdRs=P0[kR,kTETA]/(0.5*dR)
+                
+                if kTETA==1 and kR>1 and kR<NR:
+                    MI_e= 0.5*(MI[kR,kTETA]+MI[kR,kTETA+1])
+                    MI_w= MI[kR,kTETA]
+                    MI_n= 0.5*(MI[kR,kTETA]+MI[kR+1,kTETA])
+                    MI_s= 0.5*(MI[kR,kTETA]+MI[kR-1,kTETA])
+                    dPdTETAe=(P0[kR,kTETA+1]-P0[kR,kTETA])/dTETA
+                    dPdTETAw=P0[kR,kTETA]/(0.5*dTETA)
+                    dPdRn=(P0[kR+1,kTETA]-P0[kR,kTETA])/dR
+                    dPdRs=(P0[kR,kTETA]-P0[kR-1,kTETA])/dR
+                
+                if kTETA==1 and kR==NR:
+                    MI_e= 0.5*(MI[kR,kTETA]+MI[kR,kTETA+1])
+                    MI_w= MI[kR,kTETA]
+                    MI_n= MI[kR,kTETA]
+                    MI_s= 0.5*(MI[kR,kTETA]+MI[kR-1,kTETA])
+                    dPdTETAe=(P0[kR,kTETA+1]-P0[kR,kTETA])/dTETA
+                    dPdTETAw=P0[kR,kTETA]/(0.5*dTETA)
+                    dPdRn=-P0[kR,kTETA]/(0.5*dR)
+                    dPdRs=(P0[kR,kTETA]-P0[kR-1,kTETA])/dR
                     
-                    dPdTETAe=(P0(kR,kTETA+1)-P0(kR,kTETA))/dTETA;
-                    dPdTETAw=P0(kR,kTETA)/(0.5*dTETA);
-                    dPdRn=(P0(kR+1,kTETA)-P0(kR,kTETA))/dR;
-                    dPdRs=P0(kR,kTETA)/(0.5*dR);
-                end
+                if kR==1 and kTETA>1 and kTETA<NTETA:
+                    MI_e= 0.5*(MI[kR,kTETA]+MI[kR,kTETA+1])
+                    MI_w= 0.5*(MI[kR,kTETA]+MI[kR,kTETA-1])
+                    MI_n= 0.5*(MI[kR,kTETA]+MI[kR+1,kTETA])
+                    MI_s= MI[kR,kTETA]
+                    dPdTETAe=(P0[kR,kTETA+1]-P0[kR,kTETA])/dTETA
+                    dPdTETAw=(P0[kR,kTETA]-P0[kR,kTETA-1])/dTETA
+                    dPdRn=(P0[kR+1,kTETA]-P0[kR,kTETA])/dR
+                    dPdRs=P0[kR,kTETA]/(0.5*dR)
                 
-                if kTETA==1 && kR>1 && kR<NR
-                    MI_e= 0.5*(MI(kR,kTETA)+MI(kR,kTETA+1));
-                    MI_w= MI(kR,kTETA);
-                    MI_n= 0.5*(MI(kR,kTETA)+MI(kR+1,kTETA));
-                    MI_s= 0.5*(MI(kR,kTETA)+MI(kR-1,kTETA));
-                    
-                    dPdTETAe=(P0(kR,kTETA+1)-P0(kR,kTETA))/dTETA;
-                    dPdTETAw=P0(kR,kTETA)/(0.5*dTETA);
-                    dPdRn=(P0(kR+1,kTETA)-P0(kR,kTETA))/dR;
-                    dPdRs=(P0(kR,kTETA)-P0(kR-1,kTETA))/dR;
-                end
+                if kTETA>1 and kTETA<NTETA and kR>1 and kR<NR:
+                    MI_e= 0.5*(MI[kR,kTETA]+MI[kR,kTETA+1])
+                    MI_w= 0.5*(MI[kR,kTETA]+MI[kR,kTETA-1])
+                    MI_n= 0.5*(MI[kR,kTETA]+MI[kR+1,kTETA])
+                    MI_s= 0.5*(MI[kR,kTETA]+MI[kR-1,kTETA])
+                    dPdTETAe=(P0[kR,kTETA+1]-P0[kR,kTETA])/dTETA
+                    dPdTETAw=(P0[kR,kTETA]-P0[kR,kTETA-1])/dTETA
+                    dPdRn=(P0[kR+1,kTETA]-P0[kR,kTETA])/dR
+                    dPdRs=(P0[kR,kTETA]-P0[kR-1,kTETA])/dR
                 
-                if kTETA==1 && kR==NR
-                    MI_e= 0.5*(MI(kR,kTETA)+MI(kR,kTETA+1));
-                    MI_w= MI(kR,kTETA);
-                    MI_n= MI(kR,kTETA);
-                    MI_s= 0.5*(MI(kR,kTETA)+MI(kR-1,kTETA));
-
-                    dPdTETAe=(P0(kR,kTETA+1)-P0(kR,kTETA))/dTETA;
-                    dPdTETAw=P0(kR,kTETA)/(0.5*dTETA);
-                    dPdRn=-P0(kR,kTETA)/(0.5*dR);
-                    dPdRs=(P0(kR,kTETA)-P0(kR-1,kTETA))/dR;
-                    
-                end
+                if kR==NR and kTETA>1 and kTETA<NTETA:
+                    MI_e= 0.5*(MI[kR,kTETA]+MI[kR,kTETA+1])
+                    MI_w= 0.5*(MI[kR,kTETA]+MI[kR,kTETA-1])
+                    MI_n= MI[kR,kTETA]
+                    MI_s= 0.5*(MI[kR,kTETA]+MI[kR-1,kTETA])
+                    dPdTETAe=(P0[kR,kTETA+1]-P0[kR,kTETA])/dTETA
+                    dPdTETAw=(P0[kR,kTETA]-P0[kR,kTETA-1])/dTETA
+                    dPdRn=-P0[kR,kTETA]/(0.5*dR)
+                    dPdRs=(P0[kR,kTETA]-P0[kR-1,kTETA])/dR
                 
-                if kR==1 && kTETA>1 && kTETA<NTETA
-                    MI_e= 0.5*(MI(kR,kTETA)+MI(kR,kTETA+1));
-                    MI_w= 0.5*(MI(kR,kTETA)+MI(kR,kTETA-1));
-                    MI_n= 0.5*(MI(kR,kTETA)+MI(kR+1,kTETA));
-                    MI_s= MI(kR,kTETA);
-                    
-                    dPdTETAe=(P0(kR,kTETA+1)-P0(kR,kTETA))/dTETA;
-                    dPdTETAw=(P0(kR,kTETA)-P0(kR,kTETA-1))/dTETA;
-                    dPdRn=(P0(kR+1,kTETA)-P0(kR,kTETA))/dR;
-                    dPdRs=P0(kR,kTETA)/(0.5*dR);
-                end
+                if kR==1 and kTETA==NTETA:
+                    MI_e= MI[kR,kTETA]
+                    MI_w= 0.5*(MI[kR,kTETA]+MI[kR,kTETA-1])
+                    MI_n= 0.5*(MI[kR,kTETA]+MI[kR+1,kTETA])
+                    MI_s= MI[kR,kTETA]
+                    dPdTETAe=-P0[kR,kTETA]/dTETA
+                    dPdTETAw=(P0[kR,kTETA]-P0[kR,kTETA-1])/dTETA
+                    dPdRn=(P0[kR+1,kTETA]-P0[kR,kTETA])/dR
+                    dPdRs=P0[kR,kTETA]/dR
                 
-                if kTETA>1 && kTETA<NTETA && kR>1 && kR<NR
-                    MI_e= 0.5*(MI(kR,kTETA)+MI(kR,kTETA+1));
-                    MI_w= 0.5*(MI(kR,kTETA)+MI(kR,kTETA-1));
-                    MI_n= 0.5*(MI(kR,kTETA)+MI(kR+1,kTETA));
-                    MI_s= 0.5*(MI(kR,kTETA)+MI(kR-1,kTETA));
-                    
-                    dPdTETAe=(P0(kR,kTETA+1)-P0(kR,kTETA))/dTETA;
-                    dPdTETAw=(P0(kR,kTETA)-P0(kR,kTETA-1))/dTETA;
-                    dPdRn=(P0(kR+1,kTETA)-P0(kR,kTETA))/dR;
-                    dPdRs=(P0(kR,kTETA)-P0(kR-1,kTETA))/dR;
-                end
+                if kTETA==NTETA and kR>1 and kR<NR:
+                    MI_e= MI[kR,kTETA]
+                    MI_w= 0.5*(MI[kR,kTETA]+MI[kR,kTETA-1])
+                    MI_n= 0.5*(MI[kR,kTETA]+MI[kR+1,kTETA])
+                    MI_s= 0.5*(MI[kR,kTETA]+MI[kR-1,kTETA])
+                    dPdTETAe=-P0[kR,kTETA]/(0.5*dTETA)
+                    dPdTETAw=(P0[kR,kTETA]-P0[kR,kTETA-1])/dTETA
+                    dPdRn=(P0[kR+1,kTETA]-P0[kR,kTETA])/dR
+                    dPdRs=(P0[kR,kTETA]-P0[kR-1,kTETA])/dR
                 
-                if kR==NR && kTETA>1 && kTETA<NTETA
-                    MI_e= 0.5*(MI(kR,kTETA)+MI(kR,kTETA+1));
-                    MI_w= 0.5*(MI(kR,kTETA)+MI(kR,kTETA-1));
-                    MI_n= MI(kR,kTETA);
-                    MI_s= 0.5*(MI(kR,kTETA)+MI(kR-1,kTETA));
-                    
-                    dPdTETAe=(P0(kR,kTETA+1)-P0(kR,kTETA))/dTETA;
-                    dPdTETAw=(P0(kR,kTETA)-P0(kR,kTETA-1))/dTETA;
-                    dPdRn=-P0(kR,kTETA)/(0.5*dR);
-                    dPdRs=(P0(kR,kTETA)-P0(kR-1,kTETA))/dR;
-                end
+                if kTETA==NTETA and kR==NR:
+                    MI_e= MI[kR,kTETA]
+                    MI_w= 0.5*(MI[kR,kTETA]+MI[kR,kTETA-1])
+                    MI_n= MI[kR,kTETA]
+                    MI_s= 0.5*(MI[kR,kTETA]+MI[kR-1,kTETA])
+                    dPdTETAe=-P0[kR,kTETA]/(0.5*dTETA)
+                    dPdTETAw=(P0[kR,kTETA]-P0[kR,kTETA-1])/dTETA
+                    dPdRn=-P0[kR,kTETA]/(0.5*dR)
+                    dPdRs=(P0[kR,kTETA]-P0[kR-1,kTETA])/dR
                 
-                if kR==1 && kTETA==NTETA
-                    MI_e= MI(kR,kTETA);
-                    MI_w= 0.5*(MI(kR,kTETA)+MI(kR,kTETA-1));
-                    MI_n= 0.5*(MI(kR,kTETA)+MI(kR+1,kTETA));
-                    MI_s= MI(kR,kTETA);
-                    
-                    dPdTETAe=-P0(kR,kTETA)/dTETA;
-                    dPdTETAw=(P0(kR,kTETA)-P0(kR,kTETA-1))/dTETA;
-                    dPdRn=(P0(kR+1,kTETA)-P0(kR,kTETA))/dR;
-                    dPdRs=P0(kR,kTETA)/dR;
-                end
+                As_ne=1
+                As_nw=1
+                As_se=1
+                As_sw=1
                 
-                if kTETA==NTETA && kR>1 && kR<NR
-                    MI_e= MI(kR,kTETA);
-                    MI_w= 0.5*(MI(kR,kTETA)+MI(kR,kTETA-1));
-                    MI_n= 0.5*(MI(kR,kTETA)+MI(kR+1,kTETA));
-                    MI_s= 0.5*(MI(kR,kTETA)+MI(kR-1,kTETA));
-                    
-                    dPdTETAe=-P0(kR,kTETA)/(0.5*dTETA);
-                    dPdTETAw=(P0(kR,kTETA)-P0(kR,kTETA-1))/dTETA;
-                    dPdRn=(P0(kR+1,kTETA)-P0(kR,kTETA))/dR;
-                    dPdRs=(P0(kR,kTETA)-P0(kR-1,kTETA))/dR;
-                end
+                # G1=dhpivotdR=0
+                G1_ne=0
+                G1_nw=0
+                G1_se=0
+                G1_sw=0
                 
-                if kTETA==NTETA && kR==NR
-                    MI_e= MI(kR,kTETA);
-                    MI_w= 0.5*(MI(kR,kTETA)+MI(kR,kTETA-1));
-                    MI_n= MI(kR,kTETA);
-                    MI_s= 0.5*(MI(kR,kTETA)+MI(kR-1,kTETA));
-                    
-                    dPdTETAe=-P0(kR,kTETA)/(0.5*dTETA);
-                    dPdTETAw=(P0(kR,kTETA)-P0(kR,kTETA-1))/dTETA;
-                    dPdRn=-P0(kR,kTETA)/(0.5*dR);
-                    dPdRs=(P0(kR,kTETA)-P0(kR-1,kTETA))/dR;            
-                end
-                
-                As_ne=1;
-                As_nw=1;
-                As_se=1;
-                As_sw=1;
-                
-                %G1=dhpivotdR=0
-                G1_ne=0;
-                G1_nw=0;
-                G1_se=0;
-                G1_sw=0;
-                
-                %Gs=dhpivotdTETA=0
-                G2_ne=0;
-                G2_nw=0;
-                G2_se=0;
-                G2_sw=0;
+                # Gs=dhpivotdTETA=0
+                G2_ne=0
+                G2_nw=0
+                G2_se=0
+                G2_sw=0
                 
                 %Coefficients for solving the Reynolds equation
                 
