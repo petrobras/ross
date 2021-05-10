@@ -83,14 +83,14 @@ class Thrust:
         nk = (NR) * (NTETA)
         # number of volumes
 
-        Mat_coef = np.zeros[nk, nk]  # Coefficients Matrix
-        b = np.zeros[nk, 1]
+        Mat_coef = np.zeros(nk, nk)  # Coefficients Matrix
+        b = np.zeros(nk, 1)
         cont = 0
 
         # for R in range(0, aux_dR)
-        for R in np.arange((R1 + 0.5 * dR), (R2 - 0.5 * dR), dR,):
+        for R in np.arange((R1 + 0.5 * dR), (R2 - 0.5 * dR), dR):
             # for TETA in range(0, aux_dTETA):
-            for TETA in np.arange((TETA1 + 0.5 * dTETA), (TETA2 - 0.5 * dTETA), dTETA,):
+            for TETA in np.arange((TETA1 + 0.5 * dTETA), (TETA2 - 0.5 * dTETA), dTETA):
 
                 cont = cont + 1
                 TETAe = TETA + 0.5 * dTETA
@@ -333,15 +333,15 @@ class Thrust:
         k=0  # index using for pressure vectorization
         nk=(NR)*(NTETA) # number of volumes
         
-        Mat_coef=np.zeros[nk,nk] #Coefficients Matrix
-        b=np.zeros[nk,1]
+        Mat_coef=np.zeros(nk,nk) #Coefficients Matrix
+        b=np.zeros(nk,1)
         cont=0
 
 
         # for R in range(0, aux_dR)
-        for R in np.arange((R1 + 0.5 * dR), (R2 - 0.5 * dR), dR,):
+        for R in np.arange((R1 + 0.5 * dR), (R2 - 0.5 * dR), dR):
             # for TETA in range(0, aux_dTETA):
-            for TETA in np.arange((TETA1 + 0.5 * dTETA), (TETA2 - 0.5 * dTETA), dTETA,):
+            for TETA in np.arange((TETA1 + 0.5 * dTETA), (TETA2 - 0.5 * dTETA), dTETA):
 
                 cont=cont+1
                 TETAe=TETA+0.5*dTETA
@@ -482,23 +482,16 @@ class Thrust:
         p = np.linalg.solve(Mat_coef, b) 
         cont=0
 
-        for ii=1:NR
-            for jj=1:NTETA
-                cont=cont+1;
-                P0(ii,jj)=p(cont); %matrix of pressure
-            end
-        end
+        for ii in range(1,NR):
+            for jj in range(1,NTETA):
+                cont=cont+1
+                P0[ii,jj]=p(cont) #matrix of pressure
 
-        %boundary conditions of pressure
-        for ii=1:NR
-            for jj=1:NTETA
-                if P0(ii,jj)<0
-                    P0(ii,jj)=0;
-                end
-            end
-        end
-
-        return
+        # boundary conditions of pressure
+        for ii in range(1,NR):
+            for jj in range(1,NTETA):
+                if P0[ii,jj]<0:
+                    P0[ii,jj]=0
 
 
 
@@ -515,32 +508,27 @@ class Thrust:
         WP=wp/war
 
 
+        MI=(1/mi0)*mi
 
-
-
-        function [fre,mx,my] = HYDROCOEFF_z(P0,H0ne,H0nw,H0se,H0sw,mi,WP,h0)
-        global r1 rp teta0 tetap mi0 NTETA NR war R1 R2 TETA1 TETA2 dR dTETA
-
-        MI=(1/mi0)*mi;
-
-        kR=1; 
-        kTETA=1;
-        k=0; %index using for pressure vectorization
-        nk=(NR)*(NTETA); %number of volumes
+        kR=1
+        kTETA=1
+        k=0 #index using for pressure vectorization
+        nk=(NR)*(NTETA) #number of volumes
         
-        Mat_coef=zeros(nk,nk); %Coefficients Matrix
-        b=zeros(nk,1);
-        cont=0;
+        Mat_coef=np.zeros(nk,nk) #Coefficients Matrix
+        b=np.zeros(nk,1)
+        cont=0
 
-        for R=(R1+0.5*dR):dR:(R2-0.5*dR)
-            
-            for TETA=(TETA1+0.5*dTETA):dTETA:(TETA2-0.5*dTETA)
-                
-                cont=cont+1;
-                TETAe=TETA+0.5*dTETA;
-                TETAw=TETA-0.5*dTETA;
-                Rn=R+0.5*dR;
-                Rs=R-0.5*dR;
+        # for R in range(0, aux_dR)
+        for R in np.arange((R1 + 0.5 * dR), (R2 - 0.5 * dR), dR):
+            # for TETA in range(0, aux_dTETA):
+            for TETA in np.arange((TETA1 + 0.5 * dTETA), (TETA2 - 0.5 * dTETA), dTETA):
+
+                cont=cont+1
+                TETAe=TETA+0.5*dTETA
+                TETAw=TETA-0.5*dTETA
+                Rn=R+0.5*dR
+                Rs=R-0.5*dR
                 
                 if kTETA==1 && kR==1
                     MI_e= 0.5*(MI(kR,kTETA)+MI(kR,kTETA+1));
