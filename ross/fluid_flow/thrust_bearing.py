@@ -337,30 +337,24 @@ class Thrust:
         b=np.zeros[nk,1]
         cont=0
 
-        for R=(R1+0.5*dR):dR:(R2-0.5*dR)
-            
-            for TETA=(TETA1+0.5*dTETA):dTETA:(TETA2-0.5*dTETA)
+
+        # for R in range(0, aux_dR)
+        for R in np.arange((R1 + 0.5 * dR), (R2 - 0.5 * dR), dR,):
+            # for TETA in range(0, aux_dTETA):
+            for TETA in np.arange((TETA1 + 0.5 * dTETA), (TETA2 - 0.5 * dTETA), dTETA,):
+
+                cont=cont+1
+                TETAe=TETA+0.5*dTETA
+                TETAw=TETA-0.5*dTETA
+                Rn=R+0.5*dR
+                Rs=R-0.5*dR
                 
-                cont=cont+1;
-                TETAe=TETA+0.5*dTETA;
-                TETAw=TETA-0.5*dTETA;
-                Rn=R+0.5*dR;
-                Rs=R-0.5*dR;
-                
-                H0(kR,kTETA)=h0/h0+As*(Rp-R*cos(teta0*(TETA-TETAp)))+...
-                    Ar*R*sin(teta0*(TETA-TETAp));
-                %oil film thickness - faces
-                H0ne(kR,kTETA)=h0/h0+As*(Rp-Rn*cos(teta0*(TETAe-TETAp)))+...
-                    Ar*Rn*sin(teta0*(TETAe-TETAp));
-                
-                H0nw(kR,kTETA)=h0/h0+As*(Rp-Rn*cos(teta0*(TETAw-TETAp)))+...
-                    Ar*Rn*sin(teta0*(TETAw-TETAp));
-                
-                H0se(kR,kTETA)=h0/h0+As*(Rp-Rs*cos(teta0*(TETAe-TETAp)))+...
-                    Ar*Rs*sin(teta0*(TETAe-TETAp));
-                
-                H0sw(kR,kTETA)=h0/h0+As*(Rp-Rs*cos(teta0*(TETAw-TETAp)))+...
-                    Ar*Rs*sin(teta0*(TETAw-TETAp));
+                H0[kR,kTETA]=h0/h0+As*(Rp-R*np.cos(teta0*(TETA-TETAp)))+Ar*R*np.sin(teta0*(TETA-TETAp));
+                # oil film thickness - faces
+                H0ne[kR,kTETA]=h0/h0+As*(Rp-Rn*np.cos(teta0*(TETAe-TETAp)))+Ar*Rn*np.sin(teta0*(TETAe-TETAp))
+                H0nw[kR,kTETA]=h0/h0+As*(Rp-Rn*np.cos(teta0*(TETAw-TETAp)))+Ar*Rn*np.sin(teta0*(TETAw-TETAp))
+                H0se[kR,kTETA]=h0/h0+As*(Rp-Rs*np.cos(teta0*(TETAe-TETAp)))+Ar*Rs*np.sin(teta0*(TETAe-TETAp))
+                H0sw[kR,kTETA]=h0/h0+As*(Rp-Rs*np.cos(teta0*(TETAw-TETAp)))+Ar*Rs*np.sin(teta0*(TETAw-TETAp))
                 
                 
                 if kTETA==1 && kR==1
