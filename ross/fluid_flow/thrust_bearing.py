@@ -310,3 +310,23 @@ class Thrust:
         # disp(mx)
         # disp(my)
         # disp(fre)
+
+
+
+        #--------------------------------------------------------------------------
+        #----------------- Stiffness and Damping Coefficients ---------------------
+        #--------------------------------------------------------------------------
+        #perturbation frequency [rad/s]
+        wp=war
+        WP=wp/war
+        [kk_zz,kk_arz,kk_asz] = HYDROCOEFF_z(P0,H0ne,H0nw,H0se,H0sw,mi,WP,h0);
+
+        K=Npad*real(kk_zz); %Stiffness Coefficient
+        C=Npad*1/wp*imag(kk_zz); %Damping Coefficient
+
+        %----- Output values----%
+        %results - Pmax [Pa]- hmax[m] - hmin[m] - h0[m] 
+        Pmax=max(max(PPdim)) 
+        hmax=max(max(h0*H0))
+        hmin=min(min(h0*H0))
+        h0
