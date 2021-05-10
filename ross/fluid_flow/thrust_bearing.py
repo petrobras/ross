@@ -306,46 +306,36 @@ class Thrust:
             [mx, my, fre], 2
         )  # the "2" option denotes the equivalent method to the matlab defaut one
 
-        # disp('SCORE')
-        # disp(mx)
-        # disp(my)
-        # disp(fre)
 
-
-        %Equilibrium position
-        ar=x(1); %[rad]
-        as=x(2); %[rad]
-        h0=x(3); %[m]
+        # Equilibrium position
+        ar=x(1) #[rad]
+        a_s=x(2) #[rad]
+        h0=x(3) #[m]
             
-        %Viscosity field
-            for ii=1:NR
-                for jj=1:NTETA
-                    mi(ii,jj)=mi0; %[Pa.s]
-                end
-            end
-            
+        # Viscosity field
+        for ii in range(1,NR):
+            for jj in range(1,NTETA):
+                mi[ii,jj]=mi0 #[Pa.s]
+                    
+        Ar=ar*r1/h0
+        As=a_s*r1/h0
 
+        MI=1/mi0*mi
 
+        # -------------------------------------------------------------------------
+        # -------------------------------------------------------------------------
+        #             PRESSURE FIELD - Solution of Reynolds equation
+        # -------------------------------------------------------------------------
+        # -------------------------------------------------------------------------
 
-        Ar=ar*r1/h0;
-        As=as*r1/h0;
-
-        MI=1/mi0*mi;
-
-        % -------------------------------------------------------------------------
-        % -------------------------------------------------------------------------
-        %             PRESSURE FIELD - Solution of Reynolds equation
-        % -------------------------------------------------------------------------
-        % -------------------------------------------------------------------------
-
-        kR=1; 
-        kTETA=1;
-        k=0; %index using for pressure vectorization
-        nk=(NR)*(NTETA); %number of volumes
+        kR=1
+        kTETA=1
+        k=0  # index using for pressure vectorization
+        nk=(NR)*(NTETA) # number of volumes
         
-        Mat_coef=zeros(nk,nk); %Coefficients Matrix
-        b=zeros(nk,1);
-        cont=0;
+        Mat_coef=np.zeros[nk,nk] #Coefficients Matrix
+        b=np.zeros[nk,1]
+        cont=0
 
         for R=(R1+0.5*dR):dR:(R2-0.5*dR)
             
