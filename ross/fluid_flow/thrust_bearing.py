@@ -357,70 +357,61 @@ class Thrust:
                 H0sw[kR,kTETA]=h0/h0+As*(Rp-Rs*np.cos(teta0*(TETAw-TETAp)))+Ar*Rs*np.sin(teta0*(TETAw-TETAp))
                 
                 
-                if kTETA==1 && kR==1
-                    MI_e= 0.5*(MI(kR,kTETA)+MI(kR,kTETA+1));
-                    MI_w= MI(kR,kTETA);
-                    MI_n= 0.5*(MI(kR,kTETA)+MI(kR+1,kTETA));
-                    MI_s= MI(kR,kTETA);
-                end
+                if kTETA==1 and kR==1:
+                    MI_e= 0.5*(MI[kR,kTETA]+MI[kR,kTETA+1])
+                    MI_w= MI[kR,kTETA]
+                    MI_n= 0.5*(MI[kR,kTETA]+MI[kR+1,kTETA])
+                    MI_s= MI[kR,kTETA]
                 
-                if kTETA==1 && kR>1 && kR<NR
-                    MI_e= 0.5*(MI(kR,kTETA)+MI(kR,kTETA+1));
-                    MI_w= MI(kR,kTETA);
-                    MI_n= 0.5*(MI(kR,kTETA)+MI(kR+1,kTETA));
-                    MI_s= 0.5*(MI(kR,kTETA)+MI(kR-1,kTETA));
-                end
+                if kTETA==1 and kR>1 and kR<NR:
+                    MI_e= 0.5*(MI[kR,kTETA]+MI[kR,kTETA+1])
+                    MI_w= MI[kR,kTETA]
+                    MI_n= 0.5*(MI[kR,kTETA]+MI[kR+1,kTETA])
+                    MI_s= 0.5*(MI[kR,kTETA]+MI[kR-1,kTETA])
                 
-                if kTETA==1 && kR==NR
-                    MI_e= 0.5*(MI(kR,kTETA)+MI(kR,kTETA+1));
-                    MI_w= MI(kR,kTETA);
-                    MI_n= MI(kR,kTETA);
-                    MI_s= 0.5*(MI(kR,kTETA)+MI(kR-1,kTETA));
-                end
+                if kTETA==1 and kR==NR:
+                    MI_e= 0.5*(MI[kR,kTETA]+MI[kR,kTETA+1])
+                    MI_w= MI[kR,kTETA]
+                    MI_n= MI[kR,kTETA]
+                    MI_s= 0.5*(MI[kR,kTETA]+MI[kR-1,kTETA])
                 
-                if kR==1 && kTETA>1 && kTETA<NTETA
-                    MI_e= 0.5*(MI(kR,kTETA)+MI(kR,kTETA+1));
-                    MI_w= 0.5*(MI(kR,kTETA)+MI(kR,kTETA-1));
-                    MI_n= 0.5*(MI(kR,kTETA)+MI(kR+1,kTETA));
-                    MI_s= MI(kR,kTETA);
-                end
+                if kR==1 and kTETA>1 and kTETA<NTETA:
+                    MI_e= 0.5*(MI[kR,kTETA]+MI[kR,kTETA+1])
+                    MI_w= 0.5*(MI[kR,kTETA]+MI[kR,kTETA-1])
+                    MI_n= 0.5*(MI[kR,kTETA]+MI[kR+1,kTETA])
+                    MI_s= MI[kR,kTETA]
                 
-                if kTETA>1 && kTETA<NTETA && kR>1 && kR<NR
-                    MI_e= 0.5*(MI(kR,kTETA)+MI(kR,kTETA+1));
-                    MI_w= 0.5*(MI(kR,kTETA)+MI(kR,kTETA-1));
-                    MI_n= 0.5*(MI(kR,kTETA)+MI(kR+1,kTETA));
-                    MI_s= 0.5*(MI(kR,kTETA)+MI(kR-1,kTETA));
-                end
+                if kTETA>1 and kTETA<NTETA and kR>1 and kR<NR:
+                    MI_e= 0.5*(MI[kR,kTETA]+MI[kR,kTETA+1])
+                    MI_w= 0.5*(MI[kR,kTETA]+MI[kR,kTETA-1])
+                    MI_n= 0.5*(MI[kR,kTETA]+MI[kR+1,kTETA])
+                    MI_s= 0.5*(MI[kR,kTETA]+MI[kR-1,kTETA])
                 
-                if kR==NR && kTETA>1 && kTETA<NTETA
-                    MI_e= 0.5*(MI(kR,kTETA)+MI(kR,kTETA+1));
-                    MI_w= 0.5*(MI(kR,kTETA)+MI(kR,kTETA-1));
-                    MI_n= MI(kR,kTETA);
-                    MI_s= 0.5*(MI(kR,kTETA)+MI(kR-1,kTETA));
-                end
+                if kR==NR and kTETA>1 and kTETA<NTETA:
+                    MI_e= 0.5*(MI[kR,kTETA]+MI[kR,kTETA+1])
+                    MI_w= 0.5*(MI[kR,kTETA]+MI[kR,kTETA-1])
+                    MI_n= MI[kR,kTETA]
+                    MI_s= 0.5*(MI[kR,kTETA]+MI[kR-1,kTETA])
                 
-                if kR==1 && kTETA==NTETA
-                    MI_e= MI(kR,kTETA);
-                    MI_w= 0.5*(MI(kR,kTETA)+MI(kR,kTETA-1));
-                    MI_n= 0.5*(MI(kR,kTETA)+MI(kR+1,kTETA));
-                    MI_s= MI(kR,kTETA);
-                end
+                if kR==1 and kTETA==NTETA:
+                    MI_e= MI[kR,kTETA]
+                    MI_w= 0.5*(MI[kR,kTETA]+MI[kR,kTETA-1])
+                    MI_n= 0.5*(MI[kR,kTETA]+MI[kR+1,kTETA])
+                    MI_s= MI[kR,kTETA]
                 
-                if kTETA==NTETA && kR>1 && kR<NR
-                    MI_e= MI(kR,kTETA);
-                    MI_w= 0.5*(MI(kR,kTETA)+MI(kR,kTETA-1));
-                    MI_n= 0.5*(MI(kR,kTETA)+MI(kR+1,kTETA));
-                    MI_s= 0.5*(MI(kR,kTETA)+MI(kR-1,kTETA));
-                end
+                if kTETA==NTETA and kR>1 and kR<NR:
+                    MI_e= MI[kR,kTETA]
+                    MI_w= 0.5*(MI[kR,kTETA]+MI[kR,kTETA-1])
+                    MI_n= 0.5*(MI[kR,kTETA]+MI[kR+1,kTETA])
+                    MI_s= 0.5*(MI[kR,kTETA]+MI[kR-1,kTETA])
                 
-                if kTETA==NTETA && kR==NR
-                    MI_e= MI(kR,kTETA);
-                    MI_w= 0.5*(MI(kR,kTETA)+MI(kR,kTETA-1));
-                    MI_n= MI(kR,kTETA);
-                    MI_s= 0.5*(MI(kR,kTETA)+MI(kR-1,kTETA));
-                end
+                if kTETA==NTETA and kR==NR:
+                    MI_e= MI[kR,kTETA]
+                    MI_w= 0.5*(MI[kR,kTETA]+MI[kR,kTETA-1])
+                    MI_n= MI[kR,kTETA]
+                    MI_s= 0.5*(MI[kR,kTETA]+MI[kR-1,kTETA])
                 
-                %Coefficients for solving the Reynolds equation
+                # Coefficients for solving the Reynolds equation
                 
                 CE=1/(24*teta0^2*MI_e)*(dR/dTETA)*(H0ne(kR,kTETA)^3/Rn+H0se(kR,kTETA)^3/Rs);
                 CW=1/(24*teta0^2*MI_w)*(dR/dTETA)*(H0nw(kR,kTETA)^3/Rn+H0sw(kR,kTETA)^3/Rs);
