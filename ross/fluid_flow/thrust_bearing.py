@@ -734,31 +734,32 @@ class Thrust:
 
         Pdim=P*(r1**2)*war*mi0/(h0**3) # dimensional pressure
 
-        % -------------------------------------------------------------------------
-        % -------------------------------------------------------------------------
-        %            RESULTING FORCE AND MOMENTUM: Equilibrium position
-        % -------------------------------------------------------------------------
-        % -------------------------------------------------------------------------
+        # -------------------------------------------------------------------------
+        # -------------------------------------------------------------------------
+        #            RESULTING FORCE AND MOMENTUM: Equilibrium position
+        # -------------------------------------------------------------------------
+        # -------------------------------------------------------------------------
 
-        XR=r1*(R1+0.5*dR:dR:R2-0.5*dR);
+        # XR=r1*(R1+0.5*dR:dR:R2-0.5*dR);
+        XR = r1*np.arange(R1+0.5*dR , R2-0.5*dR , dR)
 
-        Xrp=rp*ones(size(XR));
+        Xrp=rp*(1 + np.zeros(XR.shape))
 
-        XTETA=teta0*(TETA1+0.5*dTETA:dTETA:TETA2-0.5*dTETA);
+        # XTETA=teta0*(TETA1+0.5*dTETA:dTETA:TETA2-0.5*dTETA);
+        XTETA = teta0*np.arange(TETA1+0.5*dTETA , TETA2-0.5*dTETA , dTETA)
 
-        for ii=1:NTETA
-            Mxr(:,ii)=(Pdim(:,ii).*(XR'.**2)).*sin(XTETA(ii)-tetap);
-            Myr(:,ii)=-Pdim(:,ii).*XR'.*(XR.*cos(XTETA(ii)-tetap)-Xrp)';
-            Frer(:,ii)=Pdim(:,ii).*XR';
-        end
+        for ii in range(1,NTETA):
+            Mxr(:,ii)=(Pdim(:,ii).*(XR'.**2)).*sin(XTETA(ii)-tetap)
+            Myr(:,ii)=-Pdim(:,ii).*XR'.*(XR.*cos(XTETA(ii)-tetap)-Xrp)'
+            Frer(:,ii)=Pdim(:,ii).*XR'
 
-        mxr=trapz(XR,Mxr);
-        myr=trapz(XR,Myr);
-        frer=trapz(XR,Frer);
+        mxr=trapz(XR,Mxr)
+        myr=trapz(XR,Myr)
+        frer=trapz(XR,Frer)
 
-        mx=-trapz(XTETA,mxr);
-        my=-trapz(XTETA,myr);
-        fre=-trapz(XTETA,frer);
+        mx=-trapz(XTETA,mxr)
+        my=-trapz(XTETA,myr)
+        fre=-trapz(XTETA,frer)
 
         return
 
