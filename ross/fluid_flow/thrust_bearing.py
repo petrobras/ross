@@ -74,8 +74,8 @@ class Thrust:
 
         # -------------------------------------------------------------------
         # PRESSURE FIELD - Solution of Reynolds equation
-        kR = 1
-        kTETA = 1
+        kR = 0
+        kTETA = 0
         k = 0  # index using for pressure vectorization
         nk = (NR) * (NTETA)
         # number of volumes
@@ -246,7 +246,7 @@ class Thrust:
                 kTETA = kTETA + 1
 
         kR = kR + 1
-        kTETA = 1
+        kTETA = 0
 
         # -------------------------------------------------------------------
         # PRESSURE FIELD SOLUTION
@@ -324,8 +324,8 @@ class Thrust:
         # -------------------------------------------------------------------------
         # -------------------------------------------------------------------------
 
-        kR = 1
-        kTETA = 1
+        kR = 0
+        kTETA = 0
         k = 0  # index using for pressure vectorization
         nk = (NR) * (NTETA)  # number of volumes
 
@@ -519,7 +519,7 @@ class Thrust:
                 kTETA = kTETA + 1
 
             kR = kR + 1
-            kTETA = 1
+            kTETA = 0
 
         # %%%%%%%%%%%%%%%% Vectorized pressure field solution %%%%%%%%%%%%%%
         p = np.linalg.solve(Mat_coef, b)
@@ -545,8 +545,8 @@ class Thrust:
 
         MI = (1 / mi0) * mi
 
-        kR = 1
-        kTETA = 1
+        kR = 0
+        kTETA = 0
         k = 0  # index using for pressure vectorization
         nk = (NR) * (NTETA)  # number of volumes
 
@@ -823,7 +823,7 @@ class Thrust:
                 kTETA = kTETA + 1
 
             kR = kR + 1
-            kTETA = 1
+            kTETA = 0
 
         # %%%%%%%%%%%%%%%%%%%%%% Pressure field solution %%%%%%%%%%%%%%%%%%%%
         p = np.linalg.solve(Mat_coef, b)
