@@ -34,7 +34,7 @@ class Thrust:
         self.Npad = Npad
         self.NTETA = NTETA
         self.NR = NR
-        # self.war = war
+        self.war = war
         self.war = wa * (np.pi / 30)
         self.R1 = R1
         self.R2 = R2
@@ -59,12 +59,9 @@ class Thrust:
 
         # ENTRY VARIABLES FROM ANOTHER CODE, STILL TO BE INTEGRATED HERE
         # Pitch angles alpha_r and alpha_p and oil filme thickness at pivot h0
-        a_r = x[0]
-        # [rad]
-        a_s = x[1]
-        # [rad]
-        h0 = x[2]
-        # [m]
+        a_r = x[0]  # [rad]
+        a_s = x[1]  # [rad]
+        h0 = x[2]  # [m]
 
         for ii in range(0, self.NR):
             for jj in range(0, self.NTETA):
@@ -266,7 +263,7 @@ class Thrust:
         for ii in np.range(1, NR):
             for jj in np.range(1, NTETA):
                 cont = cont + 1
-                P[ii, jj] = p[cont]  # matrix of pressure
+                P[ii, jj] = p[cont]  # non dimensional pressure matrix
 
         # boundary conditions of pressure
         for ii in np.range(1, NR):
@@ -274,7 +271,7 @@ class Thrust:
                 if P[ii, jj] < 0:
                     P[ii, jj] = 0
 
-        Pdim = P * (r1 ** 2) * war * mi0 / (h0 ** 2)  # dimensional pressure
+        Pdim = P * (r1 ** 2) * war * mi0 / (h0 ** 2)  # dimensional pressure matrix
 
         #            RESULTING FORCE AND MOMENTUM: Equilibrium position
         # -------------------------------------------------------------------------
@@ -456,7 +453,6 @@ class Thrust:
                 CP = -(CE + CW + CN + CS)
 
                 k = k + 1
-                # vectorization index
 
                 b[k, 1] = (
                     dR
