@@ -722,20 +722,17 @@ class Thrust:
             kTETA=1
             
 
-        %%%%%%%%%%%%%%%%%%%%%% Pressure field solution %%%%%%%%%%%%%%%%%%%%
+        # %%%%%%%%%%%%%%%%%%%%%% Pressure field solution %%%%%%%%%%%%%%%%%%%%
+        p = np.linalg.solve(Mat_coef, b)
 
-        p=Mat_coef\b; %solve pressure vectorized
+        cont=0
 
-        cont=0;
+        for ii in range(1,NR):
+            for jj in range(1,NTETA):
+                cont=cont+1
+                P[ii,jj]=p[cont] #pressure matrix
 
-        for ii=1:NR
-            for jj=1:NTETA
-                cont=cont+1;
-                P(ii,jj)=p(cont); %matrix of pressure
-            end
-        end
-
-        Pdim=P*(r1**2)*war*mi0/(h0**3); %dimensional pressure
+        Pdim=P*(r1**2)*war*mi0/(h0**3) # dimensional pressure
 
         % -------------------------------------------------------------------------
         % -------------------------------------------------------------------------
