@@ -412,8 +412,8 @@ class Thrust:
                     MI_s= 0.5*(MI[kR,kTETA]+MI[kR-1,kTETA])
                 
                 # Coefficients for solving the Reynolds equation
-                CE=1/(24*teta0^2*MI_e)*(dR/dTETA)*(H0ne[kR,kTETA]**3/Rn+H0se[kR,kTETA]**3/Rs)
-                CW=1/(24*teta0^2*MI_w)*(dR/dTETA)*(H0nw[kR,kTETA]**3/Rn+H0sw[kR,kTETA]**3/Rs)
+                CE=1/(24*teta0**2*MI_e)*(dR/dTETA)*(H0ne[kR,kTETA]**3/Rn+H0se[kR,kTETA]**3/Rs)
+                CW=1/(24*teta0**2*MI_w)*(dR/dTETA)*(H0nw[kR,kTETA]**3/Rn+H0sw[kR,kTETA]**3/Rs)
                 CN=Rn/(24*MI_n)*(dTETA/dR)*(H0ne[kR,kTETA]**3+H0nw[kR,kTETA]**3)
                 CS=Rs/(24*MI_s)*(dTETA/dR)*(H0se[kR,kTETA]**3+H0sw[kR,kTETA]**3)
                 CP=-(CE+CW+CN+CS)
@@ -636,33 +636,32 @@ class Thrust:
                 G2_se=0
                 G2_sw=0
                 
-                %Coefficients for solving the Reynolds equation
+                # Coefficients for solving the Reynolds equation
+                CE_1=1/(24*teta0**2*MI_e)*(dR/dTETA)*(As_ne*H0ne[kR,kTETA]**3/Rn+As_se*H0se[kR,kTETA]**3/Rs)
+                CE_2=dR/(48*teta0**2*MI_e)*(G2_ne*H0ne[kR,kTETA]**3/Rn+G2_se*H0se[kR,kTETA]**3/Rs)
+                CE=CE_1+CE_2
                 
-                CE_1=1/(24*teta0^2*MI_e)*(dR/dTETA)*(As_ne*H0ne(kR,kTETA)^3/Rn+As_se*H0se(kR,kTETA)^3/Rs);
-                CE_2=dR/(48*teta0^2*MI_e)*(G2_ne*H0ne(kR,kTETA)^3/Rn+G2_se*H0se(kR,kTETA)^3/Rs);
-                CE=CE_1+CE_2;
+                CW_1=1/(24*teta0**2*MI_w)*(dR/dTETA)*(As_nw*H0nw[kR,kTETA]**3/Rn+As_sw*H0sw[kR,kTETA]**3/Rs)
+                CW_2=-dR/(48*teta0**2*MI_w)*(G2_nw*H0nw[kR,kTETA]**3/Rn+G2_sw*H0sw[kR,kTETA]**3/Rs)
+                CW=CW_1+CW_2
                 
-                CW_1=1/(24*teta0^2*MI_w)*(dR/dTETA)*(As_nw*H0nw(kR,kTETA)^3/Rn+As_sw*H0sw(kR,kTETA)^3/Rs);
-                CW_2=-dR/(48*teta0^2*MI_w)*(G2_nw*H0nw(kR,kTETA)^3/Rn+G2_sw*H0sw(kR,kTETA)^3/Rs);
-                CW=CW_1+CW_2;
+                CN_1=Rn/(24*MI_n)*(dTETA/dR)*(As_ne*H0ne[kR,kTETA]**3+As_nw*H0nw[kR,kTETA]**3)
+                CN_2=Rn/(48*MI_n)*(dTETA)*(G1_ne*H0ne[kR,kTETA]**3+G1_nw*H0nw[kR,kTETA]**3)
+                CN=CN_1+CN_2
                 
-                CN_1=Rn/(24*MI_n)*(dTETA/dR)*(As_ne*H0ne(kR,kTETA)^3+As_nw*H0nw(kR,kTETA)^3);
-                CN_2=Rn/(48*MI_n)*(dTETA)*(G1_ne*H0ne(kR,kTETA)^3+G1_nw*H0nw(kR,kTETA)^3);
-                CN=CN_1+CN_2;
+                CS_1=Rs/(24*MI_s)*(dTETA/dR)*(As_se*H0se[kR,kTETA]**3+As_sw*H0sw[kR,kTETA]**3)
+                CS_2=-Rs/(48*MI_s)*(dTETA)*(G1_se*H0se[kR,kTETA]**3+G1_sw*H0sw[kR,kTETA]**3)
+                CS=CS_1+CS_2
                 
-                CS_1=Rs/(24*MI_s)*(dTETA/dR)*(As_se*H0se(kR,kTETA)^3+As_sw*H0sw(kR,kTETA)^3);
-                CS_2=-Rs/(48*MI_s)*(dTETA)*(G1_se*H0se(kR,kTETA)^3+G1_sw*H0sw(kR,kTETA)^3);
-                CS=CS_1+CS_2;
+                CP=-(CE_1+CW_1+CN_1+CS_1)+(CE_2+CW_2+CN_2+CS_2)
                 
-                CP=-(CE_1+CW_1+CN_1+CS_1)+(CE_2+CW_2+CN_2+CS_2);
+                B_1=(Rn*dTETA/(8*MI_n))*dPdRn*(As_ne*H0ne[kR,kTETA]**2+As_nw*H0nw[kR,kTETA]**2)-(Rs*dTETA/(8*MI_s))*dPdRs*(As_se*H0se[kR,kTETA]**2+As_sw*H0sw[kR,kTETA]**2)
+                B_2=(dR/(8*teta0**2*MI_e))*dPdTETAe*(As_ne*H0ne[kR,kTETA]**2/Rn+As_se*H0se[kR,kTETA]**2/Rs)-(dR/(8*teta0**2*MI_w))*dPdTETAw*(As_nw*H0nw[kR,kTETA]**2/Rn+As_nw*H0sw[kR,kTETA]**2/Rs)
+                B_3=dR/(4*teta0)*(As_ne*Rn+As_se*Rs)-dR/(4*teta0)*(As_nw*Rn+As_sw*Rs)
+                B_4=i*WP*dR*dTETA/4*(Rn*As_ne+Rn*As_nw+Rs*As_se+Rs*As_sw)
                 
-                B_1=(Rn*dTETA/(8*MI_n))*dPdRn*(As_ne*H0ne(kR,kTETA)^2+As_nw*H0nw(kR,kTETA)^2)-(Rs*dTETA/(8*MI_s))*dPdRs*(As_se*H0se(kR,kTETA)^2+As_sw*H0sw(kR,kTETA)^2);
-                B_2=(dR/(8*teta0^2*MI_e))*dPdTETAe*(As_ne*H0ne(kR,kTETA)^2/Rn+As_se*H0se(kR,kTETA)^2/Rs)-(dR/(8*teta0^2*MI_w))*dPdTETAw*(As_nw*H0nw(kR,kTETA)^2/Rn+As_nw*H0sw(kR,kTETA)^2/Rs);
-                B_3=dR/(4*teta0)*(As_ne*Rn+As_se*Rs)-dR/(4*teta0)*(As_nw*Rn+As_sw*Rs);
-                B_4=i*WP*dR*dTETA/4*(Rn*As_ne+Rn*As_nw+Rs*As_se+Rs*As_sw);
-                
-                
-                k=k+1; %vectorization index
+
+                k=k+1 #vectorization index
                 
                 b(k,1)=-(B_1+B_2)+B_3+B_4;
                 
@@ -745,7 +744,7 @@ class Thrust:
             end
         end
 
-        Pdim=P*(r1^2)*war*mi0/(h0^3); %dimensional pressure
+        Pdim=P*(r1**2)*war*mi0/(h0**3); %dimensional pressure
 
         % -------------------------------------------------------------------------
         % -------------------------------------------------------------------------
@@ -760,7 +759,7 @@ class Thrust:
         XTETA=teta0*(TETA1+0.5*dTETA:dTETA:TETA2-0.5*dTETA);
 
         for ii=1:NTETA
-            Mxr(:,ii)=(Pdim(:,ii).*(XR'.^2)).*sin(XTETA(ii)-tetap);
+            Mxr(:,ii)=(Pdim(:,ii).*(XR'.**2)).*sin(XTETA(ii)-tetap);
             Myr(:,ii)=-Pdim(:,ii).*XR'.*(XR.*cos(XTETA(ii)-tetap)-Xrp)';
             Frer(:,ii)=Pdim(:,ii).*XR';
         end
