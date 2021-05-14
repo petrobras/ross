@@ -270,10 +270,11 @@ class Thrust:
                 if P[ii, jj] < 0:
                     P[ii, jj] = 0
 
+        # non dimensional pressure matrix
         for ii in np.range(1, self.NR):
             for jj in np.range(1, self.NTETA):
                 cont = cont + 1
-                P[ii, jj] = p[cont]  # non dimensional pressure matrix
+                P[ii, jj] = p[cont]
 
         # boundary conditions of pressure
         for ii in np.range(1, self.NR):
@@ -281,9 +282,8 @@ class Thrust:
                 if P[ii, jj] < 0:
                     P[ii, jj] = 0
 
-        Pdim = (
-            P * (self.r1 ** 2) * self.war * self.mi0 / (h0 ** 2)
-        )  # dimensional pressure matrix
+        # dimensional pressure matrix
+        Pdim = P * (self.r1 ** 2) * self.war * self.mi0 / (h0 ** 2)
 
         #            RESULTING FORCE AND MOMENTUM: Equilibrium position
         # -------------------------------------------------------------------------
@@ -324,7 +324,7 @@ class Thrust:
         )  # the "2" option denotes the equivalent method to the matlab defaut one
 
         # Equilibrium position
-        ar = x(1)  # [rad]
+        a_r = x(1)  # [rad]
         a_s = x(2)  # [rad]
         h0 = x(3)  # [m]
 
@@ -333,7 +333,7 @@ class Thrust:
             for jj in range(1, self.NTETA):
                 mi[ii, jj] = self.mi0  # [Pa.s]
 
-        Ar = ar * self.r1 / h0
+        Ar = a_r * self.r1 / h0
         As = a_s * self.r1 / h0
 
         MI = 1 / self.mi0 * mi
@@ -375,6 +375,7 @@ class Thrust:
                     + As * (self.Rp - R * np.cos(self.teta0 * (TETA - self.TETAp)))
                     + Ar * R * np.sin(self.teta0 * (TETA - self.TETAp))
                 )
+
                 # oil film thickness - faces
                 H0ne[kR, kTETA] = (
                     h0 / h0
