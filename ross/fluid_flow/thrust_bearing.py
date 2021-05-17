@@ -7,9 +7,14 @@ from decimal import Decimal
 class Thrust:
     def __init__(
         r1,
+        r2,
         rp,
         teta0,
         tetap,
+        TC,
+        Tin,
+        T0,
+        rho,
         mi0,
         fz,
         Npad,
@@ -24,11 +29,18 @@ class Thrust:
         TETAp,
         dR,
         dTETA,
+        Ti,
+        x0,
     ):
         self.r1 = r1
+        self.r2 = r2
         self.rp = rp
         self.teta0 = teta0
         self.tetap = tetap
+        self.TC = TC
+        self.Tin = Tin
+        self.T0 = T0
+        self.rho = rho
         self.mi0 = mi0
         self.fz = fz
         self.Npad = Npad
@@ -44,6 +56,8 @@ class Thrust:
         self.TETAp = TETAp
         self.dR = dR
         self.dTETA = dTETA
+        self.Ti = Ti
+        self.x0 = x0
 
         # -------------------------------------------------------------------
         # PRE PROCESSING - Preparing auxilary variables and declarations
@@ -937,90 +951,34 @@ def thrust_bearing_example():
     0.263144
     """
 
-
-% PAD radius (r1 = inner / r2 = outer / rp = pivot) [m]
-r1=0.5*90e-3;
-r2=0.5*160e-3;
-rp=(r2-r1)*0.5+r1;
-
-% -------------------------------------------------------------------------
-% PAD angle (teta0 = complete / tetap = pivot ) [rad]
-teta0=35*pi/180;
-tetap=19.5*pi/180;
- 
-% ----------------------Reference Temperature------------------------------
-%Collar temperature [K]
-TC=40+273.15;
-% Temperature of cold oil [K]
-Tin=40+273.15;
-
-%Reference temperature [K]
-T0=0.5*(TC+Tin);
-
-%------------------------Lubricant properties------------------------------
-rho=870; %[kg/m³]
-mi0=1e-6*rho*22; %Oil VG 22
-
-% ----------------------Operating conditions ------------------------------
-% Rotation speed of the shaft [RPM ]
-wa=1200;
-war=(wa*pi)/30; %rad/s
-
-% -------------------------------------------------------------------------
-% Number of PADs
-Npad=3;
-
-% Loading in Y direction [N]
-fz=370*9.81;
-
-%--------------------------------------------------------------------------
-%                     FINITE VOLUMES METHOD
-% -------------------------------------------------------------------------
-% Number of Volumes in the TETA direction 
-NTETA=40;
-% Number of Volumes in the R direction
-NR=40;
-
-R1=1; %inner pad radius 
-R2=r2/r1; %outer pad radius
-
-TETA1=0; %inicial angular coordinate
-TETA2=1; %final nagular coordinate
-
-Rp=rp/r1; %radial pivot position
-TETAp=tetap/teta0; %angular pivot position
-
-% Lenght of Volumes at R and TETA direction
-dR=(R2-R1)/(NR);
-dTETA=(TETA2-TETA1)/(NTETA);
-
-%Inicial Temperature field [°C]
-Ti=T0*ones(NR,NTETA);
-
- xo=[-2.251004554793839e-04 -1.332796067467349e-04 2.152552477569639e-05];
-
-
-
-
     bearing = Thrust(
-        r1=,
-        rp=,
-        teta0=,
-        tetap=,
-        mi0=,
-        fz=,
-        Npad=,
-        NTETA=,
-        NR=,
-        war=,
-        R1=,
-        R2=,
-        TETA1=,
-        TETA2=,
-        Rp=,
-        TETAp=,
-        dR=,
-        dTETA=,
+        r1=0.5 * 90e-3,
+        r2=0.5 * 160e-3,
+        rp=(r2 - r1) * 0.5 + r1,
+        teta0=35 * pi / 180,
+        tetap=19.5 * pi / 180,
+        TC=40 + 273.15,
+        Tin=40 + 273.15,
+        T0=0.5 * (TC + Tin),
+        rho=870,
+        mi0=1e-6 * rho * 22,
+        fz=370 * 9.81,
+        Npad=3,
+        NTETA=40,
+        NR=40,
+        war=(1200 * pi) / 30,
+        R1=1,
+        R2=r2 / r1,
+        TETA1=0,
+        TETA2=1,
+        Rp=rp / r1,
+        TETAp=tetap / teta0,
+        dR=(R2 - R1) / (NR),
+        dTETA=(TETA2 - TETA1) / (NTETA),
+        Ti=T0 * ones(NR, NTETA),
+        x0=np.array(
+            -2.251004554793839e-04, -1.332796067467349e-04, 2.152552477569639e-05
+        ),
     )
 
     return bearing
