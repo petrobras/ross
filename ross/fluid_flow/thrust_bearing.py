@@ -61,15 +61,18 @@ class Thrust:
 
         # -------------------------------------------------------------------
         # PRE PROCESSING - Preparing auxilary variables and declarations
+
+        # vector aux_dR dimensionless
         aux_dR = np.zeros([nK + 2])
         aux_dR[0 : nK + 1] = np.arange(
             self.R1 + 0.5 * self.dR, self.R2 - 0.5 * self.dR, self.dR
-        )  # vector aux_dR dimensionless
+        )
 
+        # vector aux_dTETA dimensionless
         aux_dTETA = np.zeros([nK + 2])
         aux_dTETA[0 : nK + 1] = np.arange(
             self.TETA1 + 0.5 * self.dTETA, self.TETA2 - 0.5 * self.dTETA, self.dTETA
-        )  # vector aux_dTETA dimensionless
+        )
 
         # ENTRY VARIABLES FROM ANOTHER CODE, STILL TO BE INTEGRATED HERE
         # Pitch angles alpha_r and alpha_p and oil filme thickness at pivot h0
@@ -89,12 +92,16 @@ class Thrust:
         # -------------------------------------------------------------------
         # PRESSURE FIELD - Solution of Reynolds equation
         kR = 0
-        kTETA = 0
-        k = 0  # index using for pressure vectorization
-        nk = (self.NR) * (self.NTETA)
-        # number of volumes
 
-        Mat_coef = np.zeros(nk, nk)  # Coefficients Matrix
+        # index using for pressure vectorization
+        kTETA = 0
+        k = 0
+
+        # number of volumes
+        nk = (self.NR) * (self.NTETA)
+
+        # Coefficients Matrix
+        Mat_coef = np.zeros(nk, nk)
         b = np.zeros(nk, 1)
         cont = 0
 
@@ -191,7 +198,6 @@ class Thrust:
                     MI_s = 0.5 * (MI[kR, kTETA] + MI[kR - 1, kTETA])
 
                 # Coefficients for solving the Reynolds equation
-
                 CE = (
                     1
                     / (24 * self.teta0 ** 2 * MI_e)
@@ -208,7 +214,8 @@ class Thrust:
                 CS = Rs / (24 * MI_s) * (self.dTETA / self.dR) * (Hse ** 3 + Hsw ** 3)
                 CP = -(CE + CW + CN + CS)
 
-                k = k + 1  # vectorization index
+                # vectorization index
+                k = k + 1
 
                 b[k, 0] = (
                     self.dR
@@ -301,7 +308,6 @@ class Thrust:
 
         #            RESULTING FORCE AND MOMENTUM: Equilibrium position
         # -------------------------------------------------------------------------
-        # -------------------------------------------------------------------------
         XR = self.r1 * (
             np.arange((self.R1 + 0.5 * self.dR), (self.R2 - 0.5 * self.dR), self.dR)
         )
@@ -352,18 +358,17 @@ class Thrust:
 
         MI = 1 / self.mi0 * mi
 
-        # -------------------------------------------------------------------------
-        # -------------------------------------------------------------------------
         #             PRESSURE FIELD - Solution of Reynolds equation
         # -------------------------------------------------------------------------
-        # -------------------------------------------------------------------------
-
         kR = 0
         kTETA = 0
-        k = 0  # index using for pressure vectorization
-        nk = (self.NR) * (self.NTETA)  # number of volumes
+        # index using for pressure vectorization
+        k = 0
+        # number of volumes
+        nk = (self.NR) * (self.NTETA)
 
-        Mat_coef = np.zeros(nk, nk)  # Coefficients Matrix
+        # Coefficients Matrix
+        Mat_coef = np.zeros(nk, nk)
         b = np.zeros(nk, 1)
         cont = 0
 
@@ -563,6 +568,7 @@ class Thrust:
             kTETA = 0
 
         # %%%%%%%%%%%%%%%% Vectorized pressure field solution %%%%%%%%%%%%%%
+        # --------------------------------------------------------------------------
         p = np.linalg.solve(Mat_coef, b)
         cont = 0
 
@@ -577,7 +583,6 @@ class Thrust:
                 if P0[ii, jj] < 0:
                     P0[ii, jj] = 0
 
-        # --------------------------------------------------------------------------
         # ----------------- Stiffness and Damping Coefficients ---------------------
         # --------------------------------------------------------------------------
         # perturbation frequency [rad/s]
@@ -588,10 +593,15 @@ class Thrust:
 
         kR = 0
         kTETA = 0
-        k = 0  # index using for pressure vectorization
-        nk = (self.NR) * (self.NTETA)  # number of volumes
 
-        Mat_coef = np.zeros(nk, nk)  # Coefficients Matrix
+        # index using for pressure vectorization
+        k = 0
+
+        # number of volumes
+        nk = (self.NR) * (self.NTETA)
+
+        # Coefficients Matrix
+        Mat_coef = np.zeros(nk, nk)
         b = np.zeros(nk, 1)
         cont = 0
 
@@ -812,7 +822,8 @@ class Thrust:
                     * (Rn * As_ne + Rn * As_nw + Rs * As_se + Rs * As_sw)
                 )
 
-                k = k + 1  # vectorization index
+                # vectorization index
+                k = k + 1
 
                 b[k, 1] = -(B_1 + B_2) + B_3 + B_4
 
@@ -872,41 +883,41 @@ class Thrust:
             kR = kR + 1
             kTETA = 0
 
+        # -------------------------------------------------------------------------
         # %%%%%%%%%%%%%%%%%%%%%% Pressure field solution %%%%%%%%%%%%%%%%%%%%
         p = np.linalg.solve(Mat_coef, b)
 
         cont = 0
 
+        # pressure matrix
         for ii in range(1, self.NR):
             for jj in range(1, self.NTETA):
                 cont = cont + 1
-                P[ii, jj] = p[cont]  # pressure matrix
+                P[ii, jj] = p[cont]  
 
+        # dimensional pressure
         Pdim = (
             P * (self.r1 ** 2) * self.war * self.mi0 / (h0 ** 3)
-        )  # dimensional pressure
+        )  
 
-        # -------------------------------------------------------------------------
-        # -------------------------------------------------------------------------
         #            RESULTING FORCE AND MOMENTUM: Equilibrium position
         # -------------------------------------------------------------------------
-        # -------------------------------------------------------------------------
-
-        # XR=r1*(R1+0.5*dR:dR:R2-0.5*dR);
         XR = self.r1 * np.arange(
             self.R1 + 0.5 * self.dR, self.R2 - 0.5 * self.dR, self.dR
         )
 
         Xrp = self.rp * (1 + np.zeros(XR.shape))
 
-        # XTETA=teta0*(TETA1+0.5*dTETA:dTETA:TETA2-0.5*dTETA);
         XTETA = self.teta0 * np.arange(
             self.TETA1 + 0.5 * self.dTETA, self.TETA2 - 0.5 * self.dTETA, self.dTETA
         )
 
         for ii in range(1, self.NTETA):
             Mxr[:, ii] = (Pdim[:, ii] * (np.inv(XR) ** 2)) * np.sin(
-                XTETA[ii] - self.tetap
+        """__init__ [summary]
+
+        [extended_summary]
+        """                XTETA[ii] - self.tetap
             )
             Myr[:, ii] = (
                 -Pdim[:, ii]
@@ -923,8 +934,11 @@ class Thrust:
         my = -np.trapz(XTETA, myr)
         fre = -np.trapz(XTETA, frer)
 
-        K = self.Npad * np.real(kk_zz)  # Stiffness Coefficient
-        C = self.Npad * 1 / wp * np.imag(kk_zz)  # Damping Coefficient
+        # Stiffness Coefficient
+        K = self.Npad * np.real(kk_zz)  
+
+        # Damping Coefficient
+        C = self.Npad * 1 / wp * np.imag(kk_zz)  
 
         # ----- Output values----
         # results - Pmax [Pa]- hmax[m] - hmin[m] - h0[m]
