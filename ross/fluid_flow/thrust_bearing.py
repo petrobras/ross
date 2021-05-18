@@ -977,23 +977,23 @@ def thrust_bearing_example():
         T0=0.5 * (TC + Tin),                # Reference temperature     [K]
         rho=870,                            # Oil density               [kg/m³]
         mi0=1e-6 * rho * 22,                # Oil VG 22
-        fz=370 * 9.81,
-        Npad=3,
-        NTETA=40,
-        NR=40,
-        war=(1200 * pi) / 30,
-        R1=1,
-        R2=r2 / r1,
-        TETA1=0,
-        TETA2=1,
-        Rp=rp / r1,
-        TETAp=tetap / teta0,
-        dR=(R2 - R1) / (NR),
-        dTETA=(TETA2 - TETA1) / (NTETA),
-        Ti=T0 * ones(NR, NTETA),
+        fz=370 * 9.81,                      # Loading in Y direction    [N]
+        Npad=3,                             # Number of PADs
+        NTETA=40,                           # TETA direction N volumes
+        NR=40,                              # R direction N volumes
+        war=(1200 * pi) / 30,               # Shaft rotation speed      [RPM]
+        R1=1,                               # Inner pad FEM radius
+        R2=r2 / r1,                         # Outer pad FEM radius
+        TETA1=0,                            # Initial angular coordinate
+        TETA2=1,                            # Final angular coordinate
+        Rp=rp / r1,                         # Radial pivot position
+        TETAp=tetap / teta0,                # Angular pivot position
+        dR=(R2 - R1) / (NR),                # R direction volumes length 
+        dTETA=(TETA2 - TETA1) / (NTETA),    # TETA direction volumes length 
+        Ti=T0 * ones(NR, NTETA),            # Initial temperature field [°C]
         x0=np.array(
             -2.251004554793839e-04, -1.332796067467349e-04, 2.152552477569639e-05
-        ),
+        ),                                  # Initial equilibrium position value
     )
 
     return bearing
