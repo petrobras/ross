@@ -307,8 +307,8 @@ class Thrust:
         # dimensional pressure matrix
         Pdim = P * (self.r1 ** 2) * self.war * self.mi0 / (h0 ** 2)
 
-        #            RESULTING FORCE AND MOMENTUM: Equilibrium position
         # -------------------------------------------------------------------------
+        # RESULTING FORCE AND MOMENTUM: Equilibrium position
         XR = self.r1 * (
             np.arange((self.R1 + 0.5 * self.dR), (self.R2 - 0.5 * self.dR), self.dR)
         )
@@ -359,12 +359,14 @@ class Thrust:
 
         MI = 1 / self.mi0 * mi
 
-        #             PRESSURE FIELD - Solution of Reynolds equation
         # -------------------------------------------------------------------------
+        # PRESSURE FIELD - Solution of Reynolds equation
         kR = 0
         kTETA = 0
+
         # index using for pressure vectorization
         k = 0
+
         # number of volumes
         nk = (self.NR) * (self.NTETA)
 
@@ -568,8 +570,8 @@ class Thrust:
             kR = kR + 1
             kTETA = 0
 
-        # %%%%%%%%%%%%%%%% Vectorized pressure field solution %%%%%%%%%%%%%%
         # --------------------------------------------------------------------------
+        # Vectorized pressure field solution
         p = np.linalg.solve(Mat_coef, b)
         cont = 0
 
@@ -584,8 +586,8 @@ class Thrust:
                 if P0[ii, jj] < 0:
                     P0[ii, jj] = 0
 
-        # ----------------- Stiffness and Damping Coefficients ---------------------
         # --------------------------------------------------------------------------
+        # Stiffness and Damping Coefficients
         # perturbation frequency [rad/s]
         wp = self.war
         WP = wp / self.war
@@ -885,7 +887,7 @@ class Thrust:
             kTETA = 0
 
         # -------------------------------------------------------------------------
-        # %%%%%%%%%%%%%%%%%%%%%% Pressure field solution %%%%%%%%%%%%%%%%%%%%
+        #  Pressure field solution
         p = np.linalg.solve(Mat_coef, b)
 
         cont = 0
@@ -900,7 +902,7 @@ class Thrust:
         Pdim = P * (self.r1 ** 2) * self.war * self.mi0 / (h0 ** 3)
 
         # -------------------------------------------------------------------------
-        #            RESULTING FORCE AND MOMENTUM: Equilibrium position
+        # RESULTING FORCE AND MOMENTUM: Equilibrium position
         XR = self.r1 * np.arange(
             self.R1 + 0.5 * self.dR, self.R2 - 0.5 * self.dR, self.dR
         )
@@ -936,7 +938,7 @@ class Thrust:
         # Damping Coefficient
         C = self.Npad * 1 / wp * np.imag(kk_zz)
 
-        # ----- Output values----
+        # Output values
         # results - Pmax [Pa]- hmax[m] - hmin[m] - h0[m]
         Pmax = np.max(PPdim)
         hmax = np.max(h0 * H0)
