@@ -74,6 +74,7 @@ class Thrust:
             self.TETA1 + 0.5 * self.dTETA, self.TETA2 - 0.5 * self.dTETA, self.dTETA
         )
 
+        # -------------------------------------------------------------------------
         # ENTRY VARIABLES FROM ANOTHER CODE, STILL TO BE INTEGRATED HERE
         # Pitch angles alpha_r and alpha_p and oil filme thickness at pivot h0
         a_r = x[0]  # [rad]
@@ -900,8 +901,8 @@ class Thrust:
             P * (self.r1 ** 2) * self.war * self.mi0 / (h0 ** 3)
         )  
 
-        #            RESULTING FORCE AND MOMENTUM: Equilibrium position
         # -------------------------------------------------------------------------
+        #            RESULTING FORCE AND MOMENTUM: Equilibrium position
         XR = self.r1 * np.arange(
             self.R1 + 0.5 * self.dR, self.R2 - 0.5 * self.dR, self.dR
         )
@@ -966,16 +967,16 @@ def thrust_bearing_example():
     """
 
     bearing = Thrust(
-        r1=0.5 * 90e-3,
-        r2=0.5 * 160e-3,
-        rp=(r2 - r1) * 0.5 + r1,
-        teta0=35 * pi / 180,
-        tetap=19.5 * pi / 180,
-        TC=40 + 273.15,
-        Tin=40 + 273.15,
-        T0=0.5 * (TC + Tin),
-        rho=870,
-        mi0=1e-6 * rho * 22,
+        r1=0.5 * 90e-3,                     # pad inner radius          [m]
+        r2=0.5 * 160e-3,                    # pad outer radius          [m]
+        rp=(r2 - r1) * 0.5 + r1,            # pad pivot radius          [m]
+        teta0=35 * pi / 180,                # pad complete angle        [rad]
+        tetap=19.5 * pi / 180,              # pad pivot angle           [rad]
+        TC=40 + 273.15,                     # Collar temperature        [K]
+        Tin=40 + 273.15,                    # Cold oil temperature      [K]
+        T0=0.5 * (TC + Tin),                # Reference temperature     [K]
+        rho=870,                            # Oil density               [kg/m³]
+        mi0=1e-6 * rho * 22,                # Oil VG 22
         fz=370 * 9.81,
         Npad=3,
         NTETA=40,
