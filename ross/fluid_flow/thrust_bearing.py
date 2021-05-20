@@ -426,76 +426,67 @@ class Thrust:
             b=np.zeros(nk,1)
             cont=0
 
-            for R=(R1+0.5*dR):dR:(R2-0.5*dR)
+
+
+
+            # for R in range(0, aux_dR)
+            for R in np.arange(
+                (self.R1 + 0.5 * self.dR), (self.R2 - 0.5 * self.dR), self.dR
+            ):
+                # for TETA in range(0, aux_dTETA):
+                for TETA in np.arange(
+                    (self.TETA1 + 0.5 * self.dTETA),
+                    (self.TETA2 - 0.5 * self.dTETA),
+                    self.dTETA,
+                ):
                 
-                for TETA=(TETA1+0.5*dTETA):dTETA:(TETA2-0.5*dTETA)
+                    cont=cont+1
+                    TETAe=TETA+0.5*dTETA
+                    TETAw=TETA-0.5*dTETA
+                    Rn=R+0.5*dR
+                    Rs=R-0.5*dR
+                
                     
-                    cont=cont+1;
-                    TETAe=TETA+0.5*dTETA;
-                    TETAw=TETA-0.5*dTETA;
-                    Rn=R+0.5*dR;
-                    Rs=R-0.5*dR;
-                
-            
-            %Coefficients for solving the energy equation
-                
-            aux_n=dTETA/12*(R*H0(kR,kTETA)^3/MI(kR,kTETA)*dP0dR(kR,kTETA));
+                    # Coefficients for the energy equation solution
+                    aux_n=dTETA/12*(R*H0[kR,kTETA]**3/MI[kR,kTETA]*dP0dR[kR,kTETA])
+                    CN_1=0.5*aux_n
+                    CS_1=-0.5*aux_n
+                    CP_1=-(CS_1+CN_1)
 
-            CN_1=0.5*aux_n;
+                    aux_e=(dR/(12*teta0**2)*(H0[kR,kTETA]**3/(R*MI[kR,kTETA])*dP0dTETA[kR,kTETA])-dR/(2*teta0)*H0[kR,kTETA]*R)
+                    CE_1=0*aux_e
+                    CW_1=-1*aux_e
+                    CP_2=-(CE_1+CW_1)
 
-            CS_1=-0.5*aux_n;
+                    # difusive terms - central differences   
+                    CN_2=kt/(rho*cp*war*r1**2)*(dTETA*Rn)/(dR)*H0[kR,kTETA]
+                    CS_2=kt/(rho*cp*war*r1**2)*(dTETA*Rs)/(dR)*H0[kR,kTETA]
+                    CP_3=-(CN_2+CS_2)
+                    CE_2=kt/(rho*cp*war*r1**2)*dR/(teta0**2*dTETA)*H0[kR,kTETA]/R
+                    CW_2=kt/(rho*cp*war*r1**2)*dR/(teta0**2*dTETA)*H0[kR,kTETA]/R
+                    CP_4=-(CE_2+CW_2)
 
-            CP_1=-(CS_1+CN_1);
+                    CW=CW_1+CW_2
+                    CS=CS_1+CS_2
+                    CN=CN_1+CN_2
+                    CE=CE_1+CE_2
+                    CP=CP_1+CP_2+CP_3+CP_4
+                        
+                    B_F=0
+                    B_G=0
+                    B_H=dR*dTETA/(12*teta0**2)*(H0[kR,kTETA]**3/(MI[kR,kTETA]*R)*dP0dTETA[kR,kTETA]**2)
+                    B_I=MI[kR,kTETA]*R**3/(H0[kR,kTETA])*dR*dTETA
+                    B_J=dR*dTETA/12*(R*H0[kR,kTETA]**3/MI[kR,kTETA])*dP0dR[kR,kTETA]**2
+                    B_K=dR*dTETA/(12*teta0)*(H0[kR,kTETA]**3/R)*dP0dTETA[kR,kTETA]
+                    B_L=dR*dTETA/60*(H0[kR,kTETA]**5/(MI[kR,kTETA]*R))*dP0dR[kR,kTETA]**2
+                    B_M=2*dR*dTETA*(R*MI[kR,kTETA]/H0[kR,kTETA])*(dHdT)**2
+                    B_N=dR*dTETA/3*R*MI[kR,kTETA]*H0[kR,kTETA]
+                    B_O=dR*dTETA/(120*teta0**2)*(H0[kR,kTETA]**5/(MI[kR,kTETA]*R**3))*dP0dTETA[kR,kTETA]**2
 
-            aux_e=(dR/(12*teta0^2)*(H0(kR,kTETA)^3/(R*MI(kR,kTETA))*dP0dTETA(kR,kTETA))-dR/(2*teta0)*H0(kR,kTETA)*R);
-
-            CE_1=0*aux_e;
-
-            CW_1=-1*aux_e;
-
-            CP_2=-(CE_1+CW_1);
-
-                
-                %difusive terms - central differences   
-                CN_2=kt/(rho*cp*war*r1^2)*(dTETA*Rn)/(dR)*H0(kR,kTETA);
-                
-                CS_2=kt/(rho*cp*war*r1^2)*(dTETA*Rs)/(dR)*H0(kR,kTETA);
-                
-                CP_3=-(CN_2+CS_2);
-
-                CE_2=kt/(rho*cp*war*r1^2)*dR/(teta0^2*dTETA)*H0(kR,kTETA)/R;
-                
-                CW_2=kt/(rho*cp*war*r1^2)*dR/(teta0^2*dTETA)*H0(kR,kTETA)/R;
-                
-                CP_4=-(CE_2+CW_2);
-                
-                CW=CW_1+CW_2; CS=CS_1+CS_2; CN=CN_1+CN_2; CE=CE_1+CE_2;
-                
-                CP=CP_1+CP_2+CP_3+CP_4;
-                    
-                B_F=0;
-                    
-                B_G=0;
-                    
-                B_H=dR*dTETA/(12*teta0^2)*(H0(kR,kTETA)^3/(MI(kR,kTETA)*R)*dP0dTETA(kR,kTETA)^2);
-                
-                B_I=MI(kR,kTETA)*R^3/(H0(kR,kTETA))*dR*dTETA;
-                
-                B_J=dR*dTETA/12*(R*H0(kR,kTETA)^3/MI(kR,kTETA))*dP0dR(kR,kTETA)^2;
-                
-                B_K=dR*dTETA/(12*teta0)*(H0(kR,kTETA)^3/R)*dP0dTETA(kR,kTETA);
-                
-                B_L=dR*dTETA/60*(H0(kR,kTETA)^5/(MI(kR,kTETA)*R))*dP0dR(kR,kTETA)^2;
-                
-                B_M=2*dR*dTETA*(R*MI(kR,kTETA)/H0(kR,kTETA))*(dHdT)^2;
-                    
-                B_N=dR*dTETA/3*R*MI(kR,kTETA)*H0(kR,kTETA);
-                
-                B_O=dR*dTETA/(120*teta0^2)*(H0(kR,kTETA)^5/(MI(kR,kTETA)*R^3))*dP0dTETA(kR,kTETA)^2;
-                
-                k=k+1; %vectorization index
-                    
-                b(k,1)=-B_F+(war*mi0*r1^2/(rho*cp*h0^2*T0))*(B_G-B_H-B_I-B_J)+(mi0*war/(rho*cp*T0))*(B_K-B_L-B_M-B_N-B_O);
+                    # vectorization index
+                    k=k+1
+                        
+                    b[k,1]=-B_F+(war*mi0*r1**2/(rho*cp*h0**2*T0))*(B_G-B_H-B_I-B_J)+(mi0*war/(rho*cp*T0))*(B_K-B_L-B_M-B_N-B_O)
 
                     if kTETA==1 && kR==1
                         Mat_coef(k,k)=CP+CS;
@@ -600,7 +591,7 @@ class Thrust:
             % -------------------------------------------------------------------------
             % -------------------------------------------------------------------------
 
-            Pdim=P0*(r1^2)*war*mi0/(h0^2); %dimensional pressure
+            Pdim=P0*(r1**2)*war*mi0/(h0**2); %dimensional pressure
 
             XR=r1*(R1+0.5*dR:dR:R2-0.5*dR);
 
@@ -609,7 +600,7 @@ class Thrust:
             XTETA=teta0*(TETA1+0.5*dTETA:dTETA:TETA2-0.5*dTETA);
 
             for ii=1:NTETA
-                Mxr(:,ii)=(Pdim(:,ii).*(XR'.^2)).*sin(XTETA(ii)-tetap);
+                Mxr(:,ii)=(Pdim(:,ii).*(XR'.**2)).*sin(XTETA(ii)-tetap);
                 Myr(:,ii)=-Pdim(:,ii).*XR'.*(XR.*cos(XTETA(ii)-tetap)-Xrp)';
                 Frer(:,ii)=Pdim(:,ii).*XR';
             end
