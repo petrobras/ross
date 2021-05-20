@@ -15,6 +15,11 @@ class Thrust:
         Tin,
         T0,
         rho,
+        cp,
+        kt,
+        k1,
+        k2,
+        k3,
         mi0,
         fz,
         Npad,
@@ -41,7 +46,12 @@ class Thrust:
         self.Tin = Tin
         self.T0 = T0
         self.rho = rho
-        self.mi0 = mi0
+        self.cp = cp
+        self.kt = kt
+        self.k1 = k1
+        self.k2 = k2
+        self.k3 = k3
+        self.mi0 = (1e-3)*k1*np.exp(k2/(T0-k3))
         self.fz = fz
         self.Npad = Npad
         self.NTETA = NTETA
@@ -973,6 +983,11 @@ def thrust_bearing_example():
         Tin=40 + 273.15,  # Cold oil temperature      [K]
         T0=0.5 * (TC + Tin),  # Reference temperature     [K]
         rho=870,  # Oil density               [kg/m³]
+        cp=1850 # Oil thermal capacity [J/kg/K]
+        kt=0.15 # Oil thermal conductivity [W/m/K]
+        k1=0.06246 # Coefficient for ISO VG 32 turbine oil - Vogel's equation
+        k2=868.8 # Coefficient for ISO VG 32 turbine oil - Vogel's equation
+        k3=170.4 # Coefficient for ISO VG 32 turbine oil - Vogel's equation
         mi0=1e-6 * rho * 22,  # Oil VG 22
         fz=370 * 9.81,  # Loading in Y direction    [N]
         Npad=3,  # Number of PADs
