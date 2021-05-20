@@ -974,26 +974,26 @@ def thrust_bearing_example():
     """
 
     bearing = Thrust(
-        r1=0.5 * 90e-3,  # pad inner radius          [m]
-        r2=0.5 * 160e-3,  # pad outer radius          [m]
-        rp=(r2 - r1) * 0.5 + r1,  # pad pivot radius          [m]
-        teta0=35 * pi / 180,  # pad complete angle        [rad]
-        tetap=19.5 * pi / 180,  # pad pivot angle           [rad]
-        TC=40 + 273.15,  # Collar temperature        [K]
-        Tin=40 + 273.15,  # Cold oil temperature      [K]
-        T0=0.5 * (TC + Tin),  # Reference temperature     [K]
-        rho=870,  # Oil density               [kg/m³]
+        r1=0.5 * 90e-3,  # pad inner radius [m]
+        r2=0.5 * 160e-3,  # pad outer radius [m]
+        rp=(r2 - r1) * 0.5 + r1,  # pad pivot radius [m]
+        teta0=35 * pi / 180,  # pad complete angle [rad]
+        tetap=19.5 * pi / 180,  # pad pivot angle [rad]
+        TC=40 + 273.15,  # Collar temperature [K]
+        Tin=40 + 273.15,  # Cold oil temperature [K]
+        T0=0.5 * (TC + Tin),  # Reference temperature [K]
+        rho=870,  # Oil density [kg/m³]
         cp=1850 # Oil thermal capacity [J/kg/K]
         kt=0.15 # Oil thermal conductivity [W/m/K]
         k1=0.06246 # Coefficient for ISO VG 32 turbine oil - Vogel's equation
         k2=868.8 # Coefficient for ISO VG 32 turbine oil - Vogel's equation
         k3=170.4 # Coefficient for ISO VG 32 turbine oil - Vogel's equation
         mi0=1e-6 * rho * 22,  # Oil VG 22
-        fz=370 * 9.81,  # Loading in Y direction    [N]
+        fz=370 * 9.81,  # Loading in Y direction [N]
         Npad=3,  # Number of PADs
         NTETA=40,  # TETA direction N volumes
         NR=40,  # R direction N volumes
-        war=(1200 * pi) / 30,  # Shaft rotation speed      [RPM]
+        war=(1200 * pi) / 30,  # Shaft rotation speed [RPM]
         R1=1,  # Inner pad FEM radius
         R2=r2 / r1,  # Outer pad FEM radius
         TETA1=0,  # Initial angular coordinate
