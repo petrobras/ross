@@ -426,9 +426,6 @@ class Thrust:
             b=np.zeros(nk,1)
             cont=0
 
-
-
-
             # for R in range(0, aux_dR)
             for R in np.arange(
                 (self.R1 + 0.5 * self.dR), (self.R2 - 0.5 * self.dR), self.dR
@@ -446,7 +443,6 @@ class Thrust:
                     Rn=R+0.5*dR
                     Rs=R-0.5*dR
                 
-                    
                     # Coefficients for the energy equation solution
                     aux_n=dTETA/12*(R*H0[kR,kTETA]**3/MI[kR,kTETA]*dP0dR[kR,kTETA])
                     CN_1=0.5*aux_n
@@ -494,8 +490,6 @@ class Thrust:
                         Mat_coef[k,k+(NTETA)]=CN
                         b[k,1]=b[k,1]-1*CW
                     
-
-                    
                     if kTETA==1 and kR>1 and kR<NR:
                         Mat_coef[k,k]=CP
                         Mat_coef[k,k+1]=CE
@@ -503,21 +497,17 @@ class Thrust:
                         Mat_coef[k,k-(NTETA)]=CS
                         b[k,1]=b[k,1]-1*CW
                     
-                    
-                    
                     if kTETA==1 and kR==NR:
                         Mat_coef[k,k]=CP+CN
                         Mat_coef[k,k+1]=CE
                         Mat_coef[k,k-(NTETA)]=CS
                         b[k,1]=b[k,1]-1*CW
                             
-                
                     if kR==1 and kTETA>1 and kTETA<NTETA:
                         Mat_coef[k,k]=CP+CS
                         Mat_coef[k,k+1]=CE
                         Mat_coef[k,k-1]=CW
                         Mat_coef[k,k+(NTETA)]=CN
-                    
                     
                     if kTETA>1 and kTETA<NTETA and kR>1 and kR<NR:
                         Mat_coef[k,k]=CP
@@ -526,20 +516,16 @@ class Thrust:
                         Mat_coef[k,k-(NTETA)]=CS
                         Mat_coef[k,k+1]=CE
                     
-                    
                     if kR==NR and kTETA>1 and kTETA<NTETA:
                         Mat_coef[k,k]=CP+CN
                         Mat_coef[k,k-1]=CW
                         Mat_coef[k,k+1]=CE
                         Mat_coef[k,k-(NTETA)]=CS
                     
-                    
-                    
                     if kR==1 and kTETA==NTETA:
                         Mat_coef[k,k]=CP+CE+CS
                         Mat_coef[k,k-1]=CW
                         Mat_coef[k,k+(NTETA)]=CN
-                    
                     
                     if kTETA==NTETA and kR>1 and kR<NR:
                         Mat_coef[k,k]=CP+CE
@@ -547,12 +533,10 @@ class Thrust:
                         Mat_coef[k,k-(NTETA)]=CS
                         Mat_coef[k,k+(NTETA)]=CN
                     
-                    
                     if kTETA==NTETA and kR==NR:
                         Mat_coef[k,k]=CP+CN+CE
                         Mat_coef[k,k-1]=CW
                         Mat_coef[k,k-(NTETA)]=CS
-                    
                     
                     kTETA=kTETA+1
                 
@@ -579,49 +563,46 @@ class Thrust:
                 
             T=T_new
 
+
             # -------------------------------------------------------------------------
             # RESULTING FORCE AND MOMENTUM: Equilibrium position
 
             # dimensional pressure
-            Pdim=P0*(r1**2)*war*mi0/(h0**2) 
+            Pdim=self.P0*(self.r1**2)*self.war*self.mi0/(h0**2) 
 
             # vector XR
-            XR = r1*np.arange(
+            XR = self.r1*np.arange(
                 self.R1 + 0.5 * self.dR, self.R2 - 0.5 * self.dR, self.dR
             )
 
             # vector XR
-            XTETA = teta0*np.arange(
+            XTETA = self.teta0*np.arange(
                 self.TETA1 + 0.5 * self.dTETA, self.TETA2 - 0.5 * self.dTETA, self.dTETA
             )
 
+            for ii in range(1, self.NTETA):
+                Mxr[:, ii] = (Pdim[:, ii] * (np.linalg.inv(XR) ** 2)) * np.sin(
+                    XTETA[ii] - self.tetap
+                )
+                Myr[:, ii] = (
+                    -Pdim[:, ii]
+                    * np.linalg.inv(XR)
+                    * np.linalg.inv(XR * np.cos(XTETA[ii] - self.tetap) - Xrp)
+                )
+                Frer[:, ii] = Pdim[:, ii] * np.linalg.inv(XR)
 
-            for ii=1:NTETA
-                Mxr(:,ii)=(Pdim(:,ii).*(XR'.**2)).*sin(XTETA(ii)-tetap)
-                Myr(:,ii)=-Pdim(:,ii).*XR'.*(XR.*cos(XTETA(ii)-tetap)-Xrp)'
-                Frer(:,ii)=Pdim(:,ii).*XR'
-            
 
-            mxr=trapz(XR,Mxr)
-            myr=trapz(XR,Myr)
-            frer=trapz(XR,Frer)
+            mxr=np.trapz[XR,Mxr]
+            myr=np.trapz[XR,Myr]
+            frer=np.trapz[XR,Frer]
 
-            mx=trapz(XTETA,mxr)
-            my=trapz(XTETA,myr)
-            fre=-trapz(XTETA,frer)+fz/Npad
+            mx=np.trapz[XTETA,mxr]
+            my=np.trapz[XTETA,myr]
+            fre=-np.trapz[XTETA,frer]+fz/Npad
 
             resMx=mx
             resMy=my
             resFre=fre
-
-
-
-
-
-
-
-
-
 
 
             # Temperature results conference
