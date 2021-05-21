@@ -563,25 +563,20 @@ class Thrust:
             # -------------------------------------------------------------------
             # VECTORIZED PRESSURE FIELD SOLUTION
             p = np.linalg.solve(Mat_coef, b)
-
             cont=0
 
-            for ii=1:NR
-                for jj=1:NTETA
+            # pressure field
+            for ii in np.range(1, self.NR):
+                for jj in np.range(1, self.NTETA):
                     cont=cont+1
-                    T_new(ii,jj)=t(cont) %matrix of pressure
+                    T_new[ii,jj]=t(cont)
                 
-            
-
-            %viscositu field
-            for ii=1:NR
-                for jj=1:NTETA
-                    MI_new(ii,jj)=(1e-3)*(1/mi0)*k1*exp(k2/(T0*T_new(ii,jj)-k3))
-                    varMI(ii,jj)=abs((MI_new(ii,jj)-MI(ii,jj))/MI(ii,jj))
+            # viscosity field
+            for ii in np.range(1, self.NR):
+                for jj in np.range(1, self.NTETA):
+                    MI_new[ii,jj]=(1e-3)*(1/mi0)*k1*np.exp(k2/(T0*T_new[ii,jj]-k3))
+                    varMI[ii,jj]=np.abs((MI_new[ii,jj]-MI[ii,jj])/MI[ii,jj])
                 
-            
-
-            
             T=T_new
 
 
