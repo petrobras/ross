@@ -489,69 +489,69 @@ class Thrust:
                     b[k,1]=-B_F+(war*mi0*r1**2/(rho*cp*h0**2*T0))*(B_G-B_H-B_I-B_J)+(mi0*war/(rho*cp*T0))*(B_K-B_L-B_M-B_N-B_O)
 
                     if kTETA==1 and kR==1:
-                        Mat_coef(k,k)=CP+CS
-                        Mat_coef(k,k+1)=CE
-                        Mat_coef(k,k+(NTETA))=CN
-                        b(k,1)=b(k,1)-1*CW
+                        Mat_coef[k,k]=CP+CS
+                        Mat_coef[k,k+1]=CE
+                        Mat_coef[k,k+(NTETA)]=CN
+                        b[k,1]=b[k,1]-1*CW
                     
 
                     
                     if kTETA==1 and kR>1 and kR<NR:
-                        Mat_coef(k,k)=CP
-                        Mat_coef(k,k+1)=CE
-                        Mat_coef(k,k+(NTETA))=CN
-                        Mat_coef(k,k-(NTETA))=CS
-                        b(k,1)=b(k,1)-1*CW
+                        Mat_coef[k,k]=CP
+                        Mat_coef[k,k+1]=CE
+                        Mat_coef[k,k+(NTETA)]=CN
+                        Mat_coef[k,k-(NTETA)]=CS
+                        b[k,1]=b[k,1]-1*CW
                     
                     
                     
                     if kTETA==1 and kR==NR:
-                        Mat_coef(k,k)=CP+CN
-                        Mat_coef(k,k+1)=CE
-                        Mat_coef(k,k-(NTETA))=CS
-                        b(k,1)=b(k,1)-1*CW
+                        Mat_coef[k,k]=CP+CN
+                        Mat_coef[k,k+1]=CE
+                        Mat_coef[k,k-(NTETA)]=CS
+                        b[k,1]=b[k,1]-1*CW
                             
                 
                     if kR==1 and kTETA>1 and kTETA<NTETA:
-                        Mat_coef(k,k)=CP+CS
-                        Mat_coef(k,k+1)=CE
-                        Mat_coef(k,k-1)=CW
-                        Mat_coef(k,k+(NTETA))=CN
+                        Mat_coef[k,k]=CP+CS
+                        Mat_coef[k,k+1]=CE
+                        Mat_coef[k,k-1]=CW
+                        Mat_coef[k,k+(NTETA)]=CN
                     
                     
                     if kTETA>1 and kTETA<NTETA and kR>1 and kR<NR:
-                        Mat_coef(k,k)=CP
-                        Mat_coef(k,k-1)=CW
-                        Mat_coef(k,k+(NTETA))=CN
-                        Mat_coef(k,k-(NTETA))=CS
-                        Mat_coef(k,k+1)=CE
+                        Mat_coef[k,k]=CP
+                        Mat_coef[k,k-1]=CW
+                        Mat_coef[k,k+(NTETA)]=CN
+                        Mat_coef[k,k-(NTETA)]=CS
+                        Mat_coef[k,k+1]=CE
                     
                     
                     if kR==NR and kTETA>1 and kTETA<NTETA:
-                        Mat_coef(k,k)=CP+CN
-                        Mat_coef(k,k-1)=CW
-                        Mat_coef(k,k+1)=CE
-                        Mat_coef(k,k-(NTETA))=CS
+                        Mat_coef[k,k]=CP+CN
+                        Mat_coef[k,k-1]=CW
+                        Mat_coef[k,k+1]=CE
+                        Mat_coef[k,k-(NTETA)]=CS
                     
                     
                     
                     if kR==1 and kTETA==NTETA:
-                        Mat_coef(k,k)=CP+CE+CS
-                        Mat_coef(k,k-1)=CW
-                        Mat_coef(k,k+(NTETA))=CN
+                        Mat_coef[k,k]=CP+CE+CS
+                        Mat_coef[k,k-1]=CW
+                        Mat_coef[k,k+(NTETA)]=CN
                     
                     
                     if kTETA==NTETA and kR>1 and kR<NR:
-                        Mat_coef(k,k)=CP+CE
-                        Mat_coef(k,k-1)=CW
-                        Mat_coef(k,k-(NTETA))=CS
-                        Mat_coef(k,k+(NTETA))=CN
+                        Mat_coef[k,k]=CP+CE
+                        Mat_coef[k,k-1]=CW
+                        Mat_coef[k,k-(NTETA)]=CS
+                        Mat_coef[k,k+(NTETA)]=CN
                     
                     
                     if kTETA==NTETA and kR==NR:
-                        Mat_coef(k,k)=CP+CN+CE
-                        Mat_coef(k,k-1)=CW
-                        Mat_coef(k,k-(NTETA))=CS
+                        Mat_coef[k,k]=CP+CN+CE
+                        Mat_coef[k,k-1]=CW
+                        Mat_coef[k,k-(NTETA)]=CS
                     
                     
                     kTETA=kTETA+1
@@ -560,9 +560,9 @@ class Thrust:
                 kTETA=1
             
 
-            %%%%%%%%%%%%%%%%%%%%%% Pressure field solution %%%%%%%%%%%%%%%%%%%%
-
-            t=Mat_coef\b %solve pressure vectorized
+            # -------------------------------------------------------------------
+            # VECTORIZED PRESSURE FIELD SOLUTION
+            p = np.linalg.solve(Mat_coef, b)
 
             cont=0
 
