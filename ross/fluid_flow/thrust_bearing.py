@@ -70,6 +70,13 @@ class Thrust:
         self.x0 = x0
 
         # --------------------------------------------------------------------------
+        # PRE-PROCESSING
+
+        # loop counters for ease of understanding
+        vec_R = np.arange((R1+0.5*dR), (R2-0.5*dR), dR)
+        vec_TETA = np.arange((TETA1+0.5*dTETA), (TETA2-0.5*dTETA), dTETA)
+
+        # --------------------------------------------------------------------------
         # WHILE LOOP INITIALIZATION
         ResFM = 1
         tolFM = 1e-8
@@ -118,7 +125,17 @@ class Thrust:
             for jj in range(0, NTETA):
                 mi[ii, jj] = (1e-3) * k1 * np.exp(k2 / (Ti[ii, jj] - k3))  # [Pa.s]
 
+        # ==========================================================================
+        # PRESSURE =================================================================
+        # STARTS HERE ==============================================================
+        # ==========================================================================
+
         [P0, H0, H0ne, H0nw, H0se, H0sw] = PRESSURE(a_r, a_s, h0, mi)
+
+        # ==========================================================================
+        # PRESSURE =================================================================
+        # ENDS HERE ================================================================
+        # ==========================================================================
 
         # --------------------------------------------------------------------------
         # Stiffness and Damping Coefficients
@@ -130,263 +147,244 @@ class Thrust:
         # STARTS HERE ==============================================================
         # ==========================================================================
 
-        MI=(1/mi0)*mi;
+        MI=(1/mi0)*mi
 
-        kR=1; 
-        kTETA=1;
-        k=0; %index using for pressure vectorization
-        nk=(NR)*(NTETA); %number of volumes
+        kR=1
+        kTETA=1
+        k=0 # pressure vectorization index
+        nk=NR*NTETA # volumes number
         
-        Mat_coef=zeros(nk,nk); %Coefficients Matrix
-        b=zeros(nk,1);
-        cont=0;
+        # coefficients matrix
+        Mat_coef=np.zeros(nk,nk)
+        b=np.zeros(nk,1)
+        cont=0
 
-        for R=(R1+0.5*dR):dR:(R2-0.5*dR)
+        for R in vec_R:
+            for TETA in vec_TETA:
+                
+                cont=cont+1
+                TETAe=TETA+0.5*dTETA
+                TETAw=TETA-0.5*dTETA
+                Rn=R+0.5*dR
+                Rs=R-0.5*dR
+                
+                if kTETA==1 and kR==1:
+                    MI_e= 0.5*(MI[kR,kTETA]+MI[kR,kTETA+1])
+                    MI_w= MI[kR,kTETA]
+                    MI_n= 0.5*(MI[kR,kTETA]+MI[kR+1,kTETA])
+                    MI_s= MI[kR,kTETA]
+                    dPdTETAe=(P0[kR,kTETA+1]-P0[kR,kTETA])/dTETA
+                    dPdTETAw=P0[kR,kTETA]/(0.5*dTETA)
+                    dPdRn=(P0[kR+1,kTETA]-P0[kR,kTETA])/dR
+                    dPdRs=P0[kR,kTETA]/(0.5*dR)
+                
+                if kTETA==1 and kR>1 and kR<NR:
+                    MI_e= 0.5*(MI[kR,kTETA]+MI[kR,kTETA+1])
+                    MI_w= MI[kR,kTETA]
+                    MI_n= 0.5*(MI[kR,kTETA]+MI[kR+1,kTETA])
+                    MI_s= 0.5*(MI[kR,kTETA]+MI[kR-1,kTETA])
+                    dPdTETAe=(P0[kR,kTETA+1]-P0[kR,kTETA])/dTETA
+                    dPdTETAw=P0[kR,kTETA]/(0.5*dTETA)
+                    dPdRn=(P0[kR+1,kTETA]-P0[kR,kTETA])/dR
+                    dPdRs=(P0[kR,kTETA]-P0[kR-1,kTETA])/dR
+                
+                if kTETA==1 and kR==NR:
+                    MI_e= 0.5*(MI[kR,kTETA]+MI[kR,kTETA+1])
+                    MI_w= MI[kR,kTETA]
+                    MI_n= MI[kR,kTETA]
+                    MI_s= 0.5*(MI[kR,kTETA]+MI[kR-1,kTETA])
+                    dPdTETAe=(P0[kR,kTETA+1]-P0[kR,kTETA])/dTETA
+                    dPdTETAw=P0[kR,kTETA]/(0.5*dTETA)
+                    dPdRn=-P0[kR,kTETA]/(0.5*dR)
+                    dPdRs=(P0[kR,kTETA]-P0[kR-1,kTETA])/dR
+                    
+                if kR==1 and kTETA>1 and kTETA<NTETA:
+                    MI_e= 0.5*(MI[kR,kTETA]+MI[kR,kTETA+1])
+                    MI_w= 0.5*(MI[kR,kTETA]+MI[kR,kTETA-1])
+                    MI_n= 0.5*(MI[kR,kTETA]+MI[kR+1,kTETA])
+                    MI_s= MI[kR,kTETA]
+                    dPdTETAe=(P0[kR,kTETA+1]-P0[kR,kTETA])/dTETA
+                    dPdTETAw=(P0[kR,kTETA]-P0[kR,kTETA-1])/dTETA
+                    dPdRn=(P0[kR+1,kTETA]-P0[kR,kTETA])/dR
+                    dPdRs=P0[kR,kTETA]/(0.5*dR)
+                
+                if kTETA>1 and kTETA<NTETA and kR>1 and kR<NR:
+                    MI_e= 0.5*(MI[kR,kTETA]+MI[kR,kTETA+1])
+                    MI_w= 0.5*(MI[kR,kTETA]+MI[kR,kTETA-1])
+                    MI_n= 0.5*(MI[kR,kTETA]+MI[kR+1,kTETA])
+                    MI_s= 0.5*(MI[kR,kTETA]+MI[kR-1,kTETA])
+                    dPdTETAe=(P0[kR,kTETA+1]-P0[kR,kTETA])/dTETA
+                    dPdTETAw=(P0[kR,kTETA]-P0[kR,kTETA-1])/dTETA
+                    dPdRn=(P0[kR+1,kTETA]-P0[kR,kTETA])/dR
+                    dPdRs=(P0[kR,kTETA]-P0[kR-1,kTETA])/dR
+                
+                if kR==NR and kTETA>1 and kTETA<NTETA:
+                    MI_e= 0.5*(MI[kR,kTETA]+MI[kR,kTETA+1])
+                    MI_w= 0.5*(MI[kR,kTETA]+MI[kR,kTETA-1])
+                    MI_n= MI[kR,kTETA]
+                    MI_s= 0.5*(MI[kR,kTETA]+MI[kR-1,kTETA])
+                    dPdTETAe=(P0[kR,kTETA+1]-P0[kR,kTETA])/dTETA
+                    dPdTETAw=(P0[kR,kTETA]-P0[kR,kTETA-1])/dTETA
+                    dPdRn=-P0[kR,kTETA]/(0.5*dR)
+                    dPdRs=(P0[kR,kTETA]-P0[kR-1,kTETA])/dR
+                
+                if kR==1 and kTETA==NTETA:
+                    MI_e= MI[kR,kTETA]
+                    MI_w= 0.5*(MI[kR,kTETA]+MI[kR,kTETA-1])
+                    MI_n= 0.5*(MI[kR,kTETA]+MI[kR+1,kTETA])
+                    MI_s= MI[kR,kTETA]
+                    dPdTETAe=-P0[kR,kTETA]/(0.5*dTETA)
+                    dPdTETAw=(P0[kR,kTETA]-P0[kR,kTETA-1])/dTETA
+                    dPdRn=(P0[kR+1,kTETA]-P0[kR,kTETA])/dR
+                    dPdRs=P0[kR,kTETA]/(0.5*dR)
+                
+                if kTETA==NTETA and kR>1 and kR<NR:
+                    MI_e= MI[kR,kTETA]
+                    MI_w= 0.5*(MI[kR,kTETA]+MI[kR,kTETA-1])
+                    MI_n= 0.5*(MI[kR,kTETA]+MI[kR+1,kTETA])
+                    MI_s= 0.5*(MI[kR,kTETA]+MI[kR-1,kTETA])
+                    dPdTETAe=-P0[kR,kTETA]/(0.5*dTETA)
+                    dPdTETAw=(P0[kR,kTETA]-P0[kR,kTETA-1])/dTETA
+                    dPdRn=(P0[kR+1,kTETA]-P0[kR,kTETA])/dR
+                    dPdRs=(P0[kR,kTETA]-P0[kR-1,kTETA])/dR
+                
+                if kTETA==NTETA and kR==NR:
+                    MI_e= MI[kR,kTETA]
+                    MI_w= 0.5*(MI[kR,kTETA]+MI[kR,kTETA-1])
+                    MI_n= MI[kR,kTETA]
+                    MI_s= 0.5*(MI[kR,kTETA]+MI[kR-1,kTETA])
+                    dPdTETAe=-P0[kR,kTETA]/(0.5*dTETA)
+                    dPdTETAw=(P0[kR,kTETA]-P0[kR,kTETA-1])/dTETA
+                    dPdRn=-P0[kR,kTETA]/(0.5*dR)
+                    dPdRs=(P0[kR,kTETA]-P0[kR-1,kTETA])/dR            
+                
+                As_ne=1
+                As_nw=1
+                As_se=1
+                As_sw=1
+                
+                # G1=dhpivotdR=0
+                G1_ne=0
+                G1_nw=0
+                G1_se=0
+                G1_sw=0
+                
+                # Gs=dhpivotdTETA=0
+                G2_ne=0
+                G2_nw=0
+                G2_se=0
+                G2_sw=0
+                
+                # Coefficients for solving the Reynolds equation
+                
+                CE_1=1/(24*teta0^2*MI_e)*(dR/dTETA)*(As_ne*H0ne[kR,kTETA]^3/Rn+As_se*H0se[kR,kTETA]^3/Rs)
+                CE_2=dR/(48*teta0^2*MI_e)*(G2_ne*H0ne[kR,kTETA]^3/Rn+G2_se*H0se[kR,kTETA]^3/Rs)
+                CE=CE_1+CE_2
+                
+                CW_1=1/(24*teta0^2*MI_w)*(dR/dTETA)*(As_nw*H0nw[kR,kTETA]^3/Rn+As_sw*H0sw[kR,kTETA]^3/Rs)
+                CW_2=-dR/(48*teta0^2*MI_w)*(G2_nw*H0nw[kR,kTETA]^3/Rn+G2_sw*H0sw[kR,kTETA]^3/Rs)
+                CW=CW_1+CW_2
+                
+                CN_1=Rn/(24*MI_n)*(dTETA/dR)*(As_ne*H0ne[kR,kTETA]^3+As_nw*H0nw[kR,kTETA]^3)
+                CN_2=Rn/(48*MI_n)*(dTETA)*(G1_ne*H0ne[kR,kTETA]^3+G1_nw*H0nw[kR,kTETA]^3)
+                CN=CN_1+CN_2
+                
+                CS_1=Rs/(24*MI_s)*(dTETA/dR)*(As_se*H0se[kR,kTETA]^3+As_sw*H0sw[kR,kTETA]^3)
+                CS_2=-Rs/(48*MI_s)*(dTETA)*(G1_se*H0se[kR,kTETA]^3+G1_sw*H0sw[kR,kTETA]^3)
+                CS=CS_1+CS_2
+                
+                CP=-(CE_1+CW_1+CN_1+CS_1)+(CE_2+CW_2+CN_2+CS_2)
+                
+                B_1=(Rn*dTETA/(8*MI_n))*dPdRn*(As_ne*H0ne[kR,kTETA]^2+As_nw*H0nw[kR,kTETA]^2)-(Rs*dTETA/(8*MI_s))*dPdRs*(As_se*H0se[kR,kTETA]^2+As_sw*H0sw[kR,kTETA]^2)
+                B_2=(dR/(8*teta0^2*MI_e))*dPdTETAe*(As_ne*H0ne[kR,kTETA]^2/Rn+As_se*H0se[kR,kTETA]^2/Rs)-(dR/(8*teta0^2*MI_w))*dPdTETAw*(As_nw*H0nw[kR,kTETA]^2/Rn+As_sw*H0sw[kR,kTETA]^2/Rs)
+                B_3=dR/(4*teta0)*(As_ne*Rn+As_se*Rs)-dR/(4*teta0)*(As_nw*Rn+As_sw*Rs)
+                B_4=i*WP*dR*dTETA/4*(Rn*As_ne+Rn*As_nw+Rs*As_se+Rs*As_sw)
+                
+                
+                k=k+1 %vectorization index
+                
+                b(k,1)=-(B_1+B_2)+B_3+B_4
+                
+                if kTETA==1 and kR==1
+                    Mat_coef(k,k)=CP-CW-CS
+                    Mat_coef(k,k+1)=CE
+                    Mat_coef(k,k+(NTETA))=CN
+                
+                
+                if kTETA==1 and kR>1 and kR<NR
+                    Mat_coef(k,k)=CP-CW
+                    Mat_coef(k,k+1)=CE
+                    Mat_coef(k,k+(NTETA))=CN
+                    Mat_coef(k,k-(NTETA))=CS
+                
+                
+                if kTETA==1 and kR==NR
+                    Mat_coef(k,k)=CP-CW-CN
+                    Mat_coef(k,k+1)=CE
+                    Mat_coef(k,k-(NTETA))=CS
+                
+                
+                if kR==1 and kTETA>1 and kTETA<NTETA
+                    Mat_coef(k,k)=CP-CS
+                    Mat_coef(k,k+1)=CE
+                    Mat_coef(k,k-1)=CW
+                    Mat_coef(k,k+(NTETA))=CN
+                
+                
+                if kTETA>1 and kTETA<NTETA and kR>1 and kR<NR
+                    Mat_coef(k,k)=CP
+                    Mat_coef(k,k-1)=CW
+                    Mat_coef(k,k+(NTETA))=CN
+                    Mat_coef(k,k-(NTETA))=CS
+                    Mat_coef(k,k+1)=CE
+                
+                
+                if kR==NR and kTETA>1 and kTETA<NTETA
+                    Mat_coef(k,k)=CP-CN
+                    Mat_coef(k,k-1)=CW
+                    Mat_coef(k,k+1)=CE
+                    Mat_coef(k,k-(NTETA))=CS
+                
+                
+                if kR==1 and kTETA==NTETA
+                    Mat_coef(k,k)=CP-CE-CS
+                    Mat_coef(k,k-1)=CW
+                    Mat_coef(k,k+(NTETA))=CN
+                
+                
+                if kTETA==NTETA and kR>1 and kR<NR
+                    Mat_coef(k,k)=CP-CE
+                    Mat_coef(k,k-1)=CW
+                    Mat_coef(k,k-(NTETA))=CS
+                    Mat_coef(k,k+(NTETA))=CN
+                
+                
+                if kTETA==NTETA and kR==NR
+                    Mat_coef(k,k)=CP-CE-CN
+                    Mat_coef(k,k-1)=CW
+                    Mat_coef(k,k-(NTETA))=CS
+                
+                
+                kTETA=kTETA+1
             
-            for TETA=(TETA1+0.5*dTETA):dTETA:(TETA2-0.5*dTETA)
-                
-                cont=cont+1;
-                TETAe=TETA+0.5*dTETA;
-                TETAw=TETA-0.5*dTETA;
-                Rn=R+0.5*dR;
-                Rs=R-0.5*dR;
-                
-                if kTETA==1 && kR==1
-                    MI_e= 0.5*(MI(kR,kTETA)+MI(kR,kTETA+1));
-                    MI_w= MI(kR,kTETA);
-                    MI_n= 0.5*(MI(kR,kTETA)+MI(kR+1,kTETA));
-                    MI_s= MI(kR,kTETA);
-                    
-                    dPdTETAe=(P0(kR,kTETA+1)-P0(kR,kTETA))/dTETA;
-                    dPdTETAw=P0(kR,kTETA)/(0.5*dTETA);
-                    dPdRn=(P0(kR+1,kTETA)-P0(kR,kTETA))/dR;
-                    dPdRs=P0(kR,kTETA)/(0.5*dR);
-                end
-                
-                if kTETA==1 && kR>1 && kR<NR
-                    MI_e= 0.5*(MI(kR,kTETA)+MI(kR,kTETA+1));
-                    MI_w= MI(kR,kTETA);
-                    MI_n= 0.5*(MI(kR,kTETA)+MI(kR+1,kTETA));
-                    MI_s= 0.5*(MI(kR,kTETA)+MI(kR-1,kTETA));
-                    
-                    dPdTETAe=(P0(kR,kTETA+1)-P0(kR,kTETA))/dTETA;
-                    dPdTETAw=P0(kR,kTETA)/(0.5*dTETA);
-                    dPdRn=(P0(kR+1,kTETA)-P0(kR,kTETA))/dR;
-                    dPdRs=(P0(kR,kTETA)-P0(kR-1,kTETA))/dR;
-                end
-                
-                if kTETA==1 && kR==NR
-                    MI_e= 0.5*(MI(kR,kTETA)+MI(kR,kTETA+1));
-                    MI_w= MI(kR,kTETA);
-                    MI_n= MI(kR,kTETA);
-                    MI_s= 0.5*(MI(kR,kTETA)+MI(kR-1,kTETA));
-
-                    dPdTETAe=(P0(kR,kTETA+1)-P0(kR,kTETA))/dTETA;
-                    dPdTETAw=P0(kR,kTETA)/(0.5*dTETA);
-                    dPdRn=-P0(kR,kTETA)/(0.5*dR);
-                    dPdRs=(P0(kR,kTETA)-P0(kR-1,kTETA))/dR;
-                    
-                end
-                
-                if kR==1 && kTETA>1 && kTETA<NTETA
-                    MI_e= 0.5*(MI(kR,kTETA)+MI(kR,kTETA+1));
-                    MI_w= 0.5*(MI(kR,kTETA)+MI(kR,kTETA-1));
-                    MI_n= 0.5*(MI(kR,kTETA)+MI(kR+1,kTETA));
-                    MI_s= MI(kR,kTETA);
-                    
-                    dPdTETAe=(P0(kR,kTETA+1)-P0(kR,kTETA))/dTETA;
-                    dPdTETAw=(P0(kR,kTETA)-P0(kR,kTETA-1))/dTETA;
-                    dPdRn=(P0(kR+1,kTETA)-P0(kR,kTETA))/dR;
-                    dPdRs=P0(kR,kTETA)/(0.5*dR);
-                end
-                
-                if kTETA>1 && kTETA<NTETA && kR>1 && kR<NR
-                    MI_e= 0.5*(MI(kR,kTETA)+MI(kR,kTETA+1));
-                    MI_w= 0.5*(MI(kR,kTETA)+MI(kR,kTETA-1));
-                    MI_n= 0.5*(MI(kR,kTETA)+MI(kR+1,kTETA));
-                    MI_s= 0.5*(MI(kR,kTETA)+MI(kR-1,kTETA));
-                    
-                    dPdTETAe=(P0(kR,kTETA+1)-P0(kR,kTETA))/dTETA;
-                    dPdTETAw=(P0(kR,kTETA)-P0(kR,kTETA-1))/dTETA;
-                    dPdRn=(P0(kR+1,kTETA)-P0(kR,kTETA))/dR;
-                    dPdRs=(P0(kR,kTETA)-P0(kR-1,kTETA))/dR;
-                end
-                
-                if kR==NR && kTETA>1 && kTETA<NTETA
-                    MI_e= 0.5*(MI(kR,kTETA)+MI(kR,kTETA+1));
-                    MI_w= 0.5*(MI(kR,kTETA)+MI(kR,kTETA-1));
-                    MI_n= MI(kR,kTETA);
-                    MI_s= 0.5*(MI(kR,kTETA)+MI(kR-1,kTETA));
-                    
-                    dPdTETAe=(P0(kR,kTETA+1)-P0(kR,kTETA))/dTETA;
-                    dPdTETAw=(P0(kR,kTETA)-P0(kR,kTETA-1))/dTETA;
-                    dPdRn=-P0(kR,kTETA)/(0.5*dR);
-                    dPdRs=(P0(kR,kTETA)-P0(kR-1,kTETA))/dR;
-                end
-                
-                if kR==1 && kTETA==NTETA
-                    MI_e= MI(kR,kTETA);
-                    MI_w= 0.5*(MI(kR,kTETA)+MI(kR,kTETA-1));
-                    MI_n= 0.5*(MI(kR,kTETA)+MI(kR+1,kTETA));
-                    MI_s= MI(kR,kTETA);
-                    
-                    dPdTETAe=-P0(kR,kTETA)/(0.5*dTETA);
-                    dPdTETAw=(P0(kR,kTETA)-P0(kR,kTETA-1))/dTETA;
-                    dPdRn=(P0(kR+1,kTETA)-P0(kR,kTETA))/dR;
-                    dPdRs=P0(kR,kTETA)/(0.5*dR);
-                end
-                
-                if kTETA==NTETA && kR>1 && kR<NR
-                    MI_e= MI(kR,kTETA);
-                    MI_w= 0.5*(MI(kR,kTETA)+MI(kR,kTETA-1));
-                    MI_n= 0.5*(MI(kR,kTETA)+MI(kR+1,kTETA));
-                    MI_s= 0.5*(MI(kR,kTETA)+MI(kR-1,kTETA));
-                    
-                    dPdTETAe=-P0(kR,kTETA)/(0.5*dTETA);
-                    dPdTETAw=(P0(kR,kTETA)-P0(kR,kTETA-1))/dTETA;
-                    dPdRn=(P0(kR+1,kTETA)-P0(kR,kTETA))/dR;
-                    dPdRs=(P0(kR,kTETA)-P0(kR-1,kTETA))/dR;
-                end
-                
-                if kTETA==NTETA && kR==NR
-                    MI_e= MI(kR,kTETA);
-                    MI_w= 0.5*(MI(kR,kTETA)+MI(kR,kTETA-1));
-                    MI_n= MI(kR,kTETA);
-                    MI_s= 0.5*(MI(kR,kTETA)+MI(kR-1,kTETA));
-                    
-                    dPdTETAe=-P0(kR,kTETA)/(0.5*dTETA);
-                    dPdTETAw=(P0(kR,kTETA)-P0(kR,kTETA-1))/dTETA;
-                    dPdRn=-P0(kR,kTETA)/(0.5*dR);
-                    dPdRs=(P0(kR,kTETA)-P0(kR-1,kTETA))/dR;            
-                end
-                
-                As_ne=1;
-                As_nw=1;
-                As_se=1;
-                As_sw=1;
-                
-                %G1=dhpivotdR=0
-                G1_ne=0;
-                G1_nw=0;
-                G1_se=0;
-                G1_sw=0;
-                
-                %Gs=dhpivotdTETA=0
-                G2_ne=0;
-                G2_nw=0;
-                G2_se=0;
-                G2_sw=0;
-                
-                %Coefficients for solving the Reynolds equation
-                
-                CE_1=1/(24*teta0^2*MI_e)*(dR/dTETA)*(As_ne*H0ne(kR,kTETA)^3/Rn+As_se*H0se(kR,kTETA)^3/Rs);
-                CE_2=dR/(48*teta0^2*MI_e)*(G2_ne*H0ne(kR,kTETA)^3/Rn+G2_se*H0se(kR,kTETA)^3/Rs);
-                CE=CE_1+CE_2;
-                
-                CW_1=1/(24*teta0^2*MI_w)*(dR/dTETA)*(As_nw*H0nw(kR,kTETA)^3/Rn+As_sw*H0sw(kR,kTETA)^3/Rs);
-                CW_2=-dR/(48*teta0^2*MI_w)*(G2_nw*H0nw(kR,kTETA)^3/Rn+G2_sw*H0sw(kR,kTETA)^3/Rs);
-                CW=CW_1+CW_2;
-                
-                CN_1=Rn/(24*MI_n)*(dTETA/dR)*(As_ne*H0ne(kR,kTETA)^3+As_nw*H0nw(kR,kTETA)^3);
-                CN_2=Rn/(48*MI_n)*(dTETA)*(G1_ne*H0ne(kR,kTETA)^3+G1_nw*H0nw(kR,kTETA)^3);
-                CN=CN_1+CN_2;
-                
-                CS_1=Rs/(24*MI_s)*(dTETA/dR)*(As_se*H0se(kR,kTETA)^3+As_sw*H0sw(kR,kTETA)^3);
-                CS_2=-Rs/(48*MI_s)*(dTETA)*(G1_se*H0se(kR,kTETA)^3+G1_sw*H0sw(kR,kTETA)^3);
-                CS=CS_1+CS_2;
-                
-                CP=-(CE_1+CW_1+CN_1+CS_1)+(CE_2+CW_2+CN_2+CS_2);
-                
-                B_1=(Rn*dTETA/(8*MI_n))*dPdRn*(As_ne*H0ne(kR,kTETA)^2+As_nw*H0nw(kR,kTETA)^2)-(Rs*dTETA/(8*MI_s))*dPdRs*(As_se*H0se(kR,kTETA)^2+As_sw*H0sw(kR,kTETA)^2);
-                B_2=(dR/(8*teta0^2*MI_e))*dPdTETAe*(As_ne*H0ne(kR,kTETA)^2/Rn+As_se*H0se(kR,kTETA)^2/Rs)-(dR/(8*teta0^2*MI_w))*dPdTETAw*(As_nw*H0nw(kR,kTETA)^2/Rn+As_sw*H0sw(kR,kTETA)^2/Rs);
-                B_3=dR/(4*teta0)*(As_ne*Rn+As_se*Rs)-dR/(4*teta0)*(As_nw*Rn+As_sw*Rs);
-                B_4=i*WP*dR*dTETA/4*(Rn*As_ne+Rn*As_nw+Rs*As_se+Rs*As_sw);
-                
-                
-                k=k+1; %vectorization index
-                
-                b(k,1)=-(B_1+B_2)+B_3+B_4;
-                
-                if kTETA==1 && kR==1
-                    Mat_coef(k,k)=CP-CW-CS;
-                    Mat_coef(k,k+1)=CE;
-                    Mat_coef(k,k+(NTETA))=CN;
-                end
-                
-                if kTETA==1 && kR>1 && kR<NR
-                    Mat_coef(k,k)=CP-CW;
-                    Mat_coef(k,k+1)=CE;
-                    Mat_coef(k,k+(NTETA))=CN;
-                    Mat_coef(k,k-(NTETA))=CS;
-                end
-                
-                if kTETA==1 && kR==NR
-                    Mat_coef(k,k)=CP-CW-CN;
-                    Mat_coef(k,k+1)=CE;
-                    Mat_coef(k,k-(NTETA))=CS;
-                end
-                
-                if kR==1 && kTETA>1 && kTETA<NTETA
-                    Mat_coef(k,k)=CP-CS;
-                    Mat_coef(k,k+1)=CE;
-                    Mat_coef(k,k-1)=CW;
-                    Mat_coef(k,k+(NTETA))=CN;
-                end
-                
-                if kTETA>1 && kTETA<NTETA && kR>1 && kR<NR
-                    Mat_coef(k,k)=CP;
-                    Mat_coef(k,k-1)=CW;
-                    Mat_coef(k,k+(NTETA))=CN;
-                    Mat_coef(k,k-(NTETA))=CS;
-                    Mat_coef(k,k+1)=CE;
-                end
-                
-                if kR==NR && kTETA>1 && kTETA<NTETA
-                    Mat_coef(k,k)=CP-CN;
-                    Mat_coef(k,k-1)=CW;
-                    Mat_coef(k,k+1)=CE;
-                    Mat_coef(k,k-(NTETA))=CS;
-                end
-                
-                if kR==1 && kTETA==NTETA
-                    Mat_coef(k,k)=CP-CE-CS;
-                    Mat_coef(k,k-1)=CW;
-                    Mat_coef(k,k+(NTETA))=CN;
-                end
-                
-                if kTETA==NTETA && kR>1 && kR<NR
-                    Mat_coef(k,k)=CP-CE;
-                    Mat_coef(k,k-1)=CW;
-                    Mat_coef(k,k-(NTETA))=CS;
-                    Mat_coef(k,k+(NTETA))=CN;
-                end
-                
-                if kTETA==NTETA && kR==NR
-                    Mat_coef(k,k)=CP-CE-CN;
-                    Mat_coef(k,k-1)=CW;
-                    Mat_coef(k,k-(NTETA))=CS;
-                end
-                
-                kTETA=kTETA+1;
-            end
-            kR=kR+1;
-            kTETA=1;
-        end
+            kR=kR+1
+            kTETA=1
+        
 
         %%%%%%%%%%%%%%%%%%%%%% Pressure field solution %%%%%%%%%%%%%%%%%%%%
 
-        p=Mat_coef\b; %solve pressure vectorized
+        p=Mat_coef\b %solve pressure vectorized
 
-        cont=0;
+        cont=0
 
         for ii=1:NR
             for jj=1:NTETA
-                cont=cont+1;
-                P(ii,jj)=p(cont); %matrix of pressure
-            end
-        end
+                cont=cont+1
+                P(ii,jj)=p(cont) %matrix of pressure
+            
+        
 
-        Pdim=P*(r1^2)*war*mi0/(h0^3); %dimensional pressure
+        Pdim=P*(r1^2)*war*mi0/(h0^3) %dimensional pressure
 
         % -------------------------------------------------------------------------
         % -------------------------------------------------------------------------
@@ -394,25 +392,25 @@ class Thrust:
         % -------------------------------------------------------------------------
         % -------------------------------------------------------------------------
 
-        XR=r1*(R1+0.5*dR:dR:R2-0.5*dR);
+        XR=r1*(R1+0.5*dR:dR:R2-0.5*dR)
 
-        Xrp=rp*ones(size(XR));
+        Xrp=rp*ones(size(XR))
 
-        XTETA=teta0*(TETA1+0.5*dTETA:dTETA:TETA2-0.5*dTETA);
+        XTETA=teta0*(TETA1+0.5*dTETA:dTETA:TETA2-0.5*dTETA)
 
         for ii=1:NTETA
-            Mxr(:,ii)=(Pdim(:,ii).*(XR'.^2)).*sin(XTETA(ii)-tetap);
-            Myr(:,ii)=-Pdim(:,ii).*XR'.*(XR.*cos(XTETA(ii)-tetap)-Xrp)';
-            Frer(:,ii)=Pdim(:,ii).*XR';
-        end
+            Mxr(:,ii)=(Pdim(:,ii).*(XR'.^2)).*sin(XTETA(ii)-tetap)
+            Myr(:,ii)=-Pdim(:,ii).*XR'.*(XR.*cos(XTETA(ii)-tetap)-Xrp)'
+            Frer(:,ii)=Pdim(:,ii).*XR'
+        
 
-        mxr=trapz(XR,Mxr);
-        myr=trapz(XR,Myr);
-        frer=trapz(XR,Frer);
+        mxr=trapz(XR,Mxr)
+        myr=trapz(XR,Myr)
+        frer=trapz(XR,Frer)
 
-        mx=-trapz(XTETA,mxr);
-        my=-trapz(XTETA,myr);
-        fre=-trapz(XTETA,frer);
+        mx=-trapz(XTETA,mxr)
+        my=-trapz(XTETA,myr)
+        fre=-trapz(XTETA,frer)
 
 
         # ==========================================================================
