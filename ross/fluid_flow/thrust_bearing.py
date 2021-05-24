@@ -1,6 +1,7 @@
 import numpy as np
 from numpy.linalg import pinv
 from scipy.linalg import solve
+from scipy.optimize import fmin
 from decimal import Decimal
 
 
@@ -75,12 +76,8 @@ class Thrust:
         tolFM=1e-8
         while ResFM >= tolFM:
             # --------------------------------------------------------------------------
-            # Equilibrium position [h0,ar,ap]
-            
-            OPTIONS=optimset('Tolx',1e-8,'Tolfun',1e-8,'MaxFunEvals',100000,'MaxIter',100000)
-            [x,score]=fminsearch('ArAsh0Equilibrium',xo,OPTIONS)
-            
-            #Equilibrium position
+            # Equilibrium position optimization [h0,ar,ap]
+            x = scipy.optimize.fmin(ArAsh0Equilibrium, x0, args=(), xtol=tolFM, ftol=tolFM, maxiter=100000, maxfun=100000, full_output=0, disp=1, retall=0, callback=None, initial_simplex=None)
             a_r=x[1] # [rad]
             a_s=x[2] # [rad]
             h0=x[3] # [m]
