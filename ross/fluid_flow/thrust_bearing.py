@@ -52,7 +52,7 @@ class Thrust:
         self.k1 = k1
         self.k2 = k2
         self.k3 = k3
-        self.mi0 = (1e-3)*k1*np.exp(k2/(T0-k3))
+        self.mi0 = (1e-3) * k1 * np.exp(k2 / (T0 - k3))
         self.fz = fz
         self.Npad = Npad
         self.NTETA = NTETA
@@ -66,65 +66,76 @@ class Thrust:
         self.TETAp = TETAp
         self.dR = dR
         self.dTETA = dTETA
-        self.Ti = T0*(1+np.zeros(NR,NTETA))
+        self.Ti = T0 * (1 + np.zeros(NR, NTETA))
         self.x0 = x0
-
 
         # --------------------------------------------------------------------------
         # WHILE LOOP INITIALIZATION
-        ResFM=1
-        tolFM=1e-8
+        ResFM = 1
+        tolFM = 1e-8
         while ResFM >= tolFM:
             # --------------------------------------------------------------------------
             # Equilibrium position optimization [h0,ar,ap]
-            x = scipy.optimize.fmin(ArAsh0Equilibrium, x0, args=(), xtol=tolFM, ftol=tolFM, maxiter=100000, maxfun=100000, full_output=0, disp=1, retall=0, callback=None, initial_simplex=None)
-            a_r=x[1] # [rad]
-            a_s=x[2] # [rad]
-            h0=x[3] # [m]
+            x = scipy.optimize.fmin(
+                ArAsh0Equilibrium,
+                x0,
+                args=(),
+                xtol=tolFM,
+                ftol=tolFM,
+                maxiter=100000,
+                maxfun=100000,
+                full_output=0,
+                disp=1,
+                retall=0,
+                callback=None,
+                initial_simplex=None,
+            )
+            a_r = x[0]  # [rad]
+            a_s = x[1]  # [rad]
+            h0 = x[2]  # [m]
 
             # --------------------------------------------------------------------------
-            #  Temperature field 
-            tolMI=1e-6
-            [T,resMx,resMy,resFre]=TEMPERATURE(h0,a_r,a_s,tolMI)
-            Ti=T*T0
-            ResFM=np.norm(resMx, resMy, resFre)
-            xo=x
-            
+            #  Temperature field
+            tolMI = 1e-6
+            [T, resMx, resMy, resFre] = TEMPERATURE(h0, a_r, a_s, tolMI)
+            Ti = T * T0
+            ResFM = np.norm(resMx, resMy, resFre)
+            xo = x
 
+        # --------------------------------------------------------------------------
         # Full temperature field
-        TT=1+np.zeros(NR+2,NTETA+2)
-        TT[2:NR+1,2:NTETA+1]=Ti[NR:-1:1,1:NTETA]
-        TT[:,1]=T0
-        TT[1,:]=TT[2,:]
-        TT[NR+2,:]=TT[NR+1,:]
-        TT[:,NTETA+2]=TT[:,NTETA+1]
-        TT=TT-273.15
-        
+        TT = 1 + np.zeros(NR + 1, NTETA + 1)
+        TT[1:NR, 1:NTETA] = np.fliplr(Ti)
+        TT[:, 0] = T0
+        TT[0, :] = TT[1, :]
+        TT[NR + 1, :] = TT[NR, :]
+        TT[:, NTETA + 1] = TT[:, NTETA]
+        TT = TT - 273.15
+
+        # --------------------------------------------------------------------------
         # Viscosity field
-        for ii in range(1,NR):
-            for jj in range(1,NTETA):
-                mi[ii,jj]=(1e-3)*k1*np.exp(k2/(Ti[ii,jj]-k3)) #[Pa.s]
-        
-        [P0,H0,H0ne,H0nw,H0se,H0sw]= PRESSURE(a_r,a_s,h0,mi)
+        for ii in range(0, NR):
+            for jj in range(0, NTETA):
+                mi[ii, jj] = (1e-3) * k1 * np.exp(k2 / (Ti[ii, jj] - k3))  # [Pa.s]
+
+        [P0, H0, H0ne, H0nw, H0se, H0sw] = PRESSURE(a_r, a_s, h0, mi)
 
         # --------------------------------------------------------------------------
         # Stiffness and Damping Coefficients
-        wp=war # perturbation frequency [rad/s]
-        WP=wp/war
-        [kk_zz,kk_arz,kk_asz] = HYDROCOEFF_z(P0,H0ne,H0nw,H0se,H0sw,mi,WP,h0)
+        wp = war  # perturbation frequency [rad/s]
+        WP = wp / war
+        [kk_zz, kk_arz, kk_asz] = HYDROCOEFF_z(P0, H0ne, H0nw, H0se, H0sw, mi, WP, h0)
 
-        K=Npad*np.real(kk_zz) # Stiffness Coefficient
-        C=Npad*1/wp*np.imag(kk_zz) # Damping Coefficient
+        K = Npad * np.real(kk_zz)  # Stiffness Coefficient
+        C = Npad * 1 / wp * np.imag(kk_zz)  # Damping Coefficient
 
         # --------------------------------------------------------------------------
-        # Output values
-        # results - Pmax [Pa]- hmax[m] - hmin[m] - h0[m] 
-        Pmax=np.max(PPdim)
-        hmax=np.max(h0*H0)
-        hmin=np.min(h0*H0)
-        Tmax=np.max(TT)
+        # Output values - Pmax [Pa]- hmax[m] - hmin[m] - h0[m]
+        Pmax = np.max(PPdim)
+        hmax = np.max(h0 * H0)
+        hmin = np.min(h0 * H0)
+        Tmax = np.max(TT)
         h0
-
 
 
 def thrust_bearing_example():
@@ -154,11 +165,11 @@ def thrust_bearing_example():
         Tin=40 + 273.15,  # Cold oil temperature [K]
         T0=0.5 * (TC + Tin),  # Reference temperature [K]
         rho=870,  # Oil density [kg/m³]
-        cp=1850 # Oil thermal capacity [J/kg/K]
-        kt=0.15 # Oil thermal conductivity [W/m/K]
-        k1=0.06246 # Coefficient for ISO VG 32 turbine oil - Vogel's equation
-        k2=868.8 # Coefficient for ISO VG 32 turbine oil - Vogel's equation
-        k3=170.4 # Coefficient for ISO VG 32 turbine oil - Vogel's equation
+        cp=1850,  # Oil thermal capacity [J/kg/K]
+        kt=0.15,  # Oil thermal conductivity [W/m/K]
+        k1=0.06246,  # Coefficient for ISO VG 32 turbine oil - Vogel's equation
+        k2=868.8,  # Coefficient for ISO VG 32 turbine oil - Vogel's equation
+        k3=170.4,  # Coefficient for ISO VG 32 turbine oil - Vogel's equation
         mi0=1e-6 * rho * 22,  # Oil VG 22
         fz=370 * 9.81,  # Loading in Y direction [N]
         Npad=3,  # Number of PADs
