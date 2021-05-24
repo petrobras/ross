@@ -56,7 +56,6 @@ class Thrust:
         self.Npad = Npad
         self.NTETA = NTETA
         self.NR = NR
-        # self.war = war
         self.war = wa * (np.pi / 30)
         self.R1 = R1
         self.R2 = R2
@@ -70,66 +69,64 @@ class Thrust:
         self.x0 = x0
 
 
-
-    ResFM=1;
-    tolFM=1e-8;
-    while ResFM>=tolFM
         # --------------------------------------------------------------------------
-        # Equilibrium position [h0,ar,ap]
+        # WHILE LOOP INITIALIZATION
+        ResFM=1
+        tolFM=1e-8
+        while ResFM >= tolFM:
+            # --------------------------------------------------------------------------
+            # Equilibrium position [h0,ar,ap]
+            
+            OPTIONS=optimset('Tolx',1e-8,'Tolfun',1e-8,'MaxFunEvals',100000,'MaxIter',100000)
+            [x,score]=fminsearch('ArAsh0Equilibrium',xo,OPTIONS)
+            
+            #Equilibrium position
+            a_r=x[1] # [rad]
+            a_s=x[2] # [rad]
+            h0=x[3] # [m]
+
+            # --------------------------------------------------------------------------
+            #  Temperature field 
+            tolMI=1e-6
+            [T,resMx,resMy,resFre]=TEMPERATURE(h0,a_r,a_s,tolMI)
+            Ti=T*T0
+            ResFM=np.norm(resMx, resMy, resFre)
+            xo=x
+            
+
+        # Full temperature field
+        TT=1+np.zeros(NR+2,NTETA+2)
+        TT[2:NR+1,2:NTETA+1]=Ti[NR:-1:1,1:NTETA]
+        TT[:,1]=T0
+        TT[1,:]=TT[2,:]
+        TT[NR+2,:]=TT[NR+1,:]
+        TT[:,NTETA+2]=TT[:,NTETA+1]
+        TT=TT-273.15
         
-        OPTIONS=optimset('Tolx',1e-8,'Tolfun',1e-8,'MaxFunEvals',100000,'MaxIter',100000);
-        [x,score]=fminsearch('ArAsh0Equilibrium',xo,OPTIONS);
+        # Viscosity field
+        for ii in range(1,NR):
+            for jj in range(1,NTETA):
+                mi[ii,jj]=(1e-3)*k1*np.exp(k2/(Ti[ii,jj]-k3)) #[Pa.s]
         
-        #Equilibrium position
-        ar=x(1); %[rad]
-        as=x(2); %[rad]
-        h0=x(3); %[m]
+        [P0,H0,H0ne,H0nw,H0se,H0sw]= PRESSURE(a_r,a_s,h0,mi)
 
         # --------------------------------------------------------------------------
-        #  Temperature field 
-        tolMI=1e-6;
-        [T,resMx,resMy,resFre]=TEMPERATURE(h0,ar,as,tolMI);
-        Ti=T*T0;
-        ResFM=norm([resMx resMy resFre]);
-        xo=x;
-        
+        # Stiffness and Damping Coefficients
+        wp=war # perturbation frequency [rad/s]
+        WP=wp/war
+        [kk_zz,kk_arz,kk_asz] = HYDROCOEFF_z(P0,H0ne,H0nw,H0se,H0sw,mi,WP,h0)
 
-    # Full temperature field
-    TT=ones(NR+2,NTETA+2);
-    TT(2:NR+1,2:NTETA+1)=Ti(NR:-1:1,1:NTETA);
-    TT(:,1)=T0;
-    TT(1,:)=TT(2,:);
-    TT(NR+2,:)=TT(NR+1,:);
-    TT(:,NTETA+2)=TT(:,NTETA+1);
-    TT=TT-273.15;
-    
-    # Viscosity field
-    for ii=1:NR
-        for jj=1:NTETA
-            mi(ii,jj)=(1e-3)*k1*exp(k2/(Ti(ii,jj)-k3)); %[Pa.s]
-        end
-    end
-    
-    [P0,H0,H0ne,H0nw,H0se,H0sw]= PRESSURE(ar,as,h0,mi);
+        K=Npad*np.real(kk_zz) # Stiffness Coefficient
+        C=Npad*1/wp*np.imag(kk_zz) # Damping Coefficient
 
-    # --------------------------------------------------------------------------
-    # Stiffness and Damping Coefficients
-    # perturbation frequency [rad/s]
-    wp=war;
-    WP=wp/war;
-    [kk_zz,kk_arz,kk_asz] = HYDROCOEFF_z(P0,H0ne,H0nw,H0se,H0sw,mi,WP,h0);
-
-    K=Npad*real(kk_zz); # Stiffness Coefficient
-    C=Npad*1/wp*imag(kk_zz); # Damping Coefficient
-
-    # --------------------------------------------------------------------------
-    # Output values
-    # results - Pmax [Pa]- hmax[m] - hmin[m] - h0[m] 
-    Pmax=max(max(PPdim)) 
-    hmax=max(max(h0*H0))
-    hmin=min(min(h0*H0))
-    Tmax=max(max(TT))
-    h0
+        # --------------------------------------------------------------------------
+        # Output values
+        # results - Pmax [Pa]- hmax[m] - hmin[m] - h0[m] 
+        Pmax=np.max(PPdim)
+        hmax=np.max(h0*H0)
+        hmin=np.min(h0*H0)
+        Tmax=np.max(TT)
+        h0
 
 
 
