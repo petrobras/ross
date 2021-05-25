@@ -73,8 +73,10 @@ class Thrust:
         # PRE-PROCESSING
 
         # loop counters for ease of understanding
-        vec_R = np.arange((R1 + 0.5 * dR), (R2 - 0.5 * dR), dR)
-        vec_TETA = np.arange((TETA1 + 0.5 * dTETA), (TETA2 - 0.5 * dTETA), dTETA)
+        vec_R = np.arange((self.R1 + 0.5 * self.dR), (self.R2 - 0.5 * self.dR), self.dR)
+        vec_TETA = np.arange(
+            (self.TETA1 + 0.5 * self.dTETA), (self.TETA2 - 0.5 * self.dTETA), self.dTETA
+        )
 
         # --------------------------------------------------------------------------
         # WHILE LOOP INITIALIZATION
@@ -85,7 +87,7 @@ class Thrust:
             # Equilibrium position optimization [h0,ar,ap]
             x = scipy.optimize.fmin(
                 ArAsh0Equilibrium,
-                x0,
+                self.x0,
                 args=(),
                 xtol=tolFM,
                 ftol=tolFM,
@@ -105,25 +107,27 @@ class Thrust:
             #  Temperature field
             tolMI = 1e-6
             [T, resMx, resMy, resFre] = TEMPERATURE(h0, a_r, a_s, tolMI)
-            Ti = T * T0
+            self.Ti = T * self.T0
             ResFM = np.norm(resMx, resMy, resFre)
             xo = x
 
         # --------------------------------------------------------------------------
         # Full temperature field
-        TT = 1 + np.zeros(NR + 1, NTETA + 1)
-        TT[1:NR, 1:NTETA] = np.fliplr(Ti)
-        TT[:, 0] = T0
+        TT = 1 + np.zeros(self.NR + 1, self.Npad + 1)
+        TT[1 : self.NR, 1 : self.Npad] = np.fliplr(self.Ti)
+        TT[:, 0] = self.T0
         TT[0, :] = TT[1, :]
-        TT[NR + 1, :] = TT[NR, :]
-        TT[:, NTETA + 1] = TT[:, NTETA]
+        TT[self.NR + 1, :] = TT[self.NR, :]
+        TT[:, self.Npad + 1] = TT[:, self.Npad]
         TT = TT - 273.15
 
         # --------------------------------------------------------------------------
         # Viscosity field
-        for ii in range(0, NR):
-            for jj in range(0, NTETA):
-                mi[ii, jj] = (1e-3) * k1 * np.exp(k2 / (Ti[ii, jj] - k3))  # [Pa.s]
+        for ii in range(0, self.NR):
+            for jj in range(0, self.Npad):
+                mi[ii, jj] = (
+                    (1e-3) * self.k1 * np.exp(self.k2 / (self.Ti[ii, jj] - self.k3))
+                )  # [Pa.s]
 
         # ==========================================================================
         # PRESSURE =================================================================
@@ -139,20 +143,20 @@ class Thrust:
 
         # --------------------------------------------------------------------------
         # Stiffness and Damping Coefficients
-        wp = war  # perturbation frequency [rad/s]
-        WP = wp / war
+        wp = self.war  # perturbation frequency [rad/s]
+        WP = wp / self.war
 
         # ==========================================================================
         # HYDROCOEFF_z =============================================================
         # STARTS HERE ==============================================================
         # ==========================================================================
 
-        MI = (1 / mi0) * mi
+        MI = (1 / self.mi0) * mi
 
         kR = 0
         kTETA = 0
         k = -1  # pressure vectorization index
-        nk = NR * NTETA  # volumes number
+        nk = self.NR * self.Npad  # volumes number
 
         # coefficients matrix
         Mat_coef = np.zeros(nk, nk)
@@ -163,100 +167,100 @@ class Thrust:
             for TETA in vec_TETA:
 
                 cont = cont + 1
-                TETAe = TETA + 0.5 * dTETA
-                TETAw = TETA - 0.5 * dTETA
-                Rn = R + 0.5 * dR
-                Rs = R - 0.5 * dR
+                TETAe = TETA + 0.5 * self.dTETA
+                TETAw = TETA - 0.5 * self.dTETA
+                Rn = R + 0.5 * self.dR
+                Rs = R - 0.5 * self.dR
 
                 if kTETA == 0 and kR == 0:
                     MI_e = 0.5 * (MI[kR, kTETA] + MI[kR, kTETA + 1])
                     MI_w = MI[kR, kTETA]
                     MI_n = 0.5 * (MI[kR, kTETA] + MI[kR + 1, kTETA])
                     MI_s = MI[kR, kTETA]
-                    dPdTETAe = (P0[kR, kTETA + 1] - P0[kR, kTETA]) / dTETA
-                    dPdTETAw = P0[kR, kTETA] / (0.5 * dTETA)
-                    dPdRn = (P0[kR + 1, kTETA] - P0[kR, kTETA]) / dR
-                    dPdRs = P0[kR, kTETA] / (0.5 * dR)
+                    dPdTETAe = (P0[kR, kTETA + 1] - P0[kR, kTETA]) / self.dTETA
+                    dPdTETAw = P0[kR, kTETA] / (0.5 * self.dTETA)
+                    dPdRn = (P0[kR + 1, kTETA] - P0[kR, kTETA]) / self.dR
+                    dPdRs = P0[kR, kTETA] / (0.5 * self.dR)
 
-                if kTETA == 0 and kR > 0 and kR < NR - 1:
+                if kTETA == 0 and kR > 0 and kR < self.NR - 1:
                     MI_e = 0.5 * (MI[kR, kTETA] + MI[kR, kTETA + 1])
                     MI_w = MI[kR, kTETA]
                     MI_n = 0.5 * (MI[kR, kTETA] + MI[kR + 1, kTETA])
                     MI_s = 0.5 * (MI[kR, kTETA] + MI[kR - 1, kTETA])
-                    dPdTETAe = (P0[kR, kTETA + 1] - P0[kR, kTETA]) / dTETA
-                    dPdTETAw = P0[kR, kTETA] / (0.5 * dTETA)
-                    dPdRn = (P0[kR + 1, kTETA] - P0[kR, kTETA]) / dR
-                    dPdRs = (P0[kR, kTETA] - P0[kR - 1, kTETA]) / dR
+                    dPdTETAe = (P0[kR, kTETA + 1] - P0[kR, kTETA]) / self.dTETA
+                    dPdTETAw = P0[kR, kTETA] / (0.5 * self.dTETA)
+                    dPdRn = (P0[kR + 1, kTETA] - P0[kR, kTETA]) / self.dR
+                    dPdRs = (P0[kR, kTETA] - P0[kR - 1, kTETA]) / self.dR
 
-                if kTETA == 0 and kR == NR - 1:
+                if kTETA == 0 and kR == self.NR - 1:
                     MI_e = 0.5 * (MI[kR, kTETA] + MI[kR, kTETA + 1])
                     MI_w = MI[kR, kTETA]
                     MI_n = MI[kR, kTETA]
                     MI_s = 0.5 * (MI[kR, kTETA] + MI[kR - 1, kTETA])
-                    dPdTETAe = (P0[kR, kTETA + 1] - P0[kR, kTETA]) / dTETA
-                    dPdTETAw = P0[kR, kTETA] / (0.5 * dTETA)
-                    dPdRn = -P0[kR, kTETA] / (0.5 * dR)
-                    dPdRs = (P0[kR, kTETA] - P0[kR - 1, kTETA]) / dR
+                    dPdTETAe = (P0[kR, kTETA + 1] - P0[kR, kTETA]) / self.dTETA
+                    dPdTETAw = P0[kR, kTETA] / (0.5 * self.dTETA)
+                    dPdRn = -P0[kR, kTETA] / (0.5 * self.dR)
+                    dPdRs = (P0[kR, kTETA] - P0[kR - 1, kTETA]) / self.dR
 
-                if kR == 0 and kTETA > 0 and kTETA < NTETA:
+                if kR == 0 and kTETA > 0 and kTETA < self.Npad:
                     MI_e = 0.5 * (MI[kR, kTETA] + MI[kR, kTETA + 1])
                     MI_w = 0.5 * (MI[kR, kTETA] + MI[kR, kTETA - 1])
                     MI_n = 0.5 * (MI[kR, kTETA] + MI[kR + 1, kTETA])
                     MI_s = MI[kR, kTETA]
-                    dPdTETAe = (P0[kR, kTETA + 1] - P0[kR, kTETA]) / dTETA
-                    dPdTETAw = (P0[kR, kTETA] - P0[kR, kTETA - 1]) / dTETA
-                    dPdRn = (P0[kR + 1, kTETA] - P0[kR, kTETA]) / dR
-                    dPdRs = P0[kR, kTETA] / (0.5 * dR)
+                    dPdTETAe = (P0[kR, kTETA + 1] - P0[kR, kTETA]) / self.dTETA
+                    dPdTETAw = (P0[kR, kTETA] - P0[kR, kTETA - 1]) / self.dTETA
+                    dPdRn = (P0[kR + 1, kTETA] - P0[kR, kTETA]) / self.dR
+                    dPdRs = P0[kR, kTETA] / (0.5 * self.dR)
 
-                if kTETA > 0 and kTETA < NTETA and kR > 0 and kR < NR:
+                if kTETA > 0 and kTETA < self.Npad and kR > 0 and kR < self.NR:
                     MI_e = 0.5 * (MI[kR, kTETA] + MI[kR, kTETA + 1])
                     MI_w = 0.5 * (MI[kR, kTETA] + MI[kR, kTETA - 1])
                     MI_n = 0.5 * (MI[kR, kTETA] + MI[kR + 1, kTETA])
                     MI_s = 0.5 * (MI[kR, kTETA] + MI[kR - 1, kTETA])
-                    dPdTETAe = (P0[kR, kTETA + 1] - P0[kR, kTETA]) / dTETA
-                    dPdTETAw = (P0[kR, kTETA] - P0[kR, kTETA - 1]) / dTETA
-                    dPdRn = (P0[kR + 1, kTETA] - P0[kR, kTETA]) / dR
-                    dPdRs = (P0[kR, kTETA] - P0[kR - 1, kTETA]) / dR
+                    dPdTETAe = (P0[kR, kTETA + 1] - P0[kR, kTETA]) / self.dTETA
+                    dPdTETAw = (P0[kR, kTETA] - P0[kR, kTETA - 1]) / self.dTETA
+                    dPdRn = (P0[kR + 1, kTETA] - P0[kR, kTETA]) / self.dR
+                    dPdRs = (P0[kR, kTETA] - P0[kR - 1, kTETA]) / self.dR
 
-                if kR == NR and kTETA > 0 and kTETA < NTETA:
+                if kR == self.NR and kTETA > 0 and kTETA < self.Npad:
                     MI_e = 0.5 * (MI[kR, kTETA] + MI[kR, kTETA + 1])
                     MI_w = 0.5 * (MI[kR, kTETA] + MI[kR, kTETA - 1])
                     MI_n = MI[kR, kTETA]
                     MI_s = 0.5 * (MI[kR, kTETA] + MI[kR - 1, kTETA])
-                    dPdTETAe = (P0[kR, kTETA + 1] - P0[kR, kTETA]) / dTETA
-                    dPdTETAw = (P0[kR, kTETA] - P0[kR, kTETA - 1]) / dTETA
-                    dPdRn = -P0[kR, kTETA] / (0.5 * dR)
-                    dPdRs = (P0[kR, kTETA] - P0[kR - 1, kTETA]) / dR
+                    dPdTETAe = (P0[kR, kTETA + 1] - P0[kR, kTETA]) / self.dTETA
+                    dPdTETAw = (P0[kR, kTETA] - P0[kR, kTETA - 1]) / self.dTETA
+                    dPdRn = -P0[kR, kTETA] / (0.5 * self.dR)
+                    dPdRs = (P0[kR, kTETA] - P0[kR - 1, kTETA]) / self.dR
 
-                if kR == 0 and kTETA == NTETA:
+                if kR == 0 and kTETA == self.Npad:
                     MI_e = MI[kR, kTETA]
                     MI_w = 0.5 * (MI[kR, kTETA] + MI[kR, kTETA - 1])
                     MI_n = 0.5 * (MI[kR, kTETA] + MI[kR + 1, kTETA])
                     MI_s = MI[kR, kTETA]
-                    dPdTETAe = -P0[kR, kTETA] / (0.5 * dTETA)
-                    dPdTETAw = (P0[kR, kTETA] - P0[kR, kTETA - 1]) / dTETA
-                    dPdRn = (P0[kR + 1, kTETA] - P0[kR, kTETA]) / dR
-                    dPdRs = P0[kR, kTETA] / (0.5 * dR)
+                    dPdTETAe = -P0[kR, kTETA] / (0.5 * self.dTETA)
+                    dPdTETAw = (P0[kR, kTETA] - P0[kR, kTETA - 1]) / self.dTETA
+                    dPdRn = (P0[kR + 1, kTETA] - P0[kR, kTETA]) / self.dR
+                    dPdRs = P0[kR, kTETA] / (0.5 * self.dR)
 
-                if kTETA == NTETA and kR > 0 and kR < NR:
+                if kTETA == self.Npad and kR > 0 and kR < self.NR:
                     MI_e = MI[kR, kTETA]
                     MI_w = 0.5 * (MI[kR, kTETA] + MI[kR, kTETA - 1])
                     MI_n = 0.5 * (MI[kR, kTETA] + MI[kR + 1, kTETA])
                     MI_s = 0.5 * (MI[kR, kTETA] + MI[kR - 1, kTETA])
-                    dPdTETAe = -P0[kR, kTETA] / (0.5 * dTETA)
-                    dPdTETAw = (P0[kR, kTETA] - P0[kR, kTETA - 1]) / dTETA
-                    dPdRn = (P0[kR + 1, kTETA] - P0[kR, kTETA]) / dR
-                    dPdRs = (P0[kR, kTETA] - P0[kR - 1, kTETA]) / dR
+                    dPdTETAe = -P0[kR, kTETA] / (0.5 * self.dTETA)
+                    dPdTETAw = (P0[kR, kTETA] - P0[kR, kTETA - 1]) / self.dTETA
+                    dPdRn = (P0[kR + 1, kTETA] - P0[kR, kTETA]) / self.dR
+                    dPdRs = (P0[kR, kTETA] - P0[kR - 1, kTETA]) / self.dR
 
-                if kTETA == NTETA and kR == NR:
+                if kTETA == self.Npad and kR == self.NR:
                     MI_e = MI[kR, kTETA]
                     MI_w = 0.5 * (MI[kR, kTETA] + MI[kR, kTETA - 1])
                     MI_n = MI[kR, kTETA]
                     MI_s = 0.5 * (MI[kR, kTETA] + MI[kR - 1, kTETA])
-                    dPdTETAe = -P0[kR, kTETA] / (0.5 * dTETA)
-                    dPdTETAw = (P0[kR, kTETA] - P0[kR, kTETA - 1]) / dTETA
-                    dPdRn = -P0[kR, kTETA] / (0.5 * dR)
-                    dPdRs = (P0[kR, kTETA] - P0[kR - 1, kTETA]) / dR
+                    dPdTETAe = -P0[kR, kTETA] / (0.5 * self.dTETA)
+                    dPdTETAw = (P0[kR, kTETA] - P0[kR, kTETA - 1]) / self.dTETA
+                    dPdRn = -P0[kR, kTETA] / (0.5 * self.dR)
+                    dPdRs = (P0[kR, kTETA] - P0[kR - 1, kTETA]) / self.dR
 
                 As_ne = 1
                 As_nw = 1
@@ -278,16 +282,16 @@ class Thrust:
                 # Coefficients for solving the Reynolds equation
                 CE_1 = (
                     1
-                    / (24 * teta0 ** 2 * MI_e)
-                    * (dR / dTETA)
+                    / (24 * self.teta0 ** 2 * MI_e)
+                    * (self.dR / self.dTETA)
                     * (
                         As_ne * H0ne[kR, kTETA] ** 3 / Rn
                         + As_se * H0se[kR, kTETA] ** 3 / Rs
                     )
                 )
                 CE_2 = (
-                    dR
-                    / (48 * teta0 ** 2 * MI_e)
+                    self.dR
+                    / (48 * self.teta0 ** 2 * MI_e)
                     * (
                         G2_ne * H0ne[kR, kTETA] ** 3 / Rn
                         + G2_se * H0se[kR, kTETA] ** 3 / Rs
@@ -297,16 +301,16 @@ class Thrust:
 
                 CW_1 = (
                     1
-                    / (24 * teta0 ** 2 * MI_w)
-                    * (dR / dTETA)
+                    / (24 * self.teta0 ** 2 * MI_w)
+                    * (self.dR / self.dTETA)
                     * (
                         As_nw * H0nw[kR, kTETA] ** 3 / Rn
                         + As_sw * H0sw[kR, kTETA] ** 3 / Rs
                     )
                 )
                 CW_2 = (
-                    -dR
-                    / (48 * teta0 ** 2 * MI_w)
+                    -self.dR
+                    / (48 * self.teta0 ** 2 * MI_w)
                     * (
                         G2_nw * H0nw[kR, kTETA] ** 3 / Rn
                         + G2_sw * H0sw[kR, kTETA] ** 3 / Rs
@@ -317,13 +321,13 @@ class Thrust:
                 CN_1 = (
                     Rn
                     / (24 * MI_n)
-                    * (dTETA / dR)
+                    * (self.dTETA / self.dR)
                     * (As_ne * H0ne[kR, kTETA] ** 3 + As_nw * H0nw[kR, kTETA] ** 3)
                 )
                 CN_2 = (
                     Rn
                     / (48 * MI_n)
-                    * (dTETA)
+                    * (self.dTETA)
                     * (G1_ne * H0ne[kR, kTETA] ** 3 + G1_nw * H0nw[kR, kTETA] ** 3)
                 )
                 CN = CN_1 + CN_2
@@ -331,39 +335,39 @@ class Thrust:
                 CS_1 = (
                     Rs
                     / (24 * MI_s)
-                    * (dTETA / dR)
+                    * (self.dTETA / self.dR)
                     * (As_se * H0se[kR, kTETA] ** 3 + As_sw * H0sw[kR, kTETA] ** 3)
                 )
                 CS_2 = (
                     -Rs
                     / (48 * MI_s)
-                    * (dTETA)
+                    * (self.dTETA)
                     * (G1_se * H0se[kR, kTETA] ** 3 + G1_sw * H0sw[kR, kTETA] ** 3)
                 )
                 CS = CS_1 + CS_2
 
                 CP = -(CE_1 + CW_1 + CN_1 + CS_1) + (CE_2 + CW_2 + CN_2 + CS_2)
 
-                B_1 = (Rn * dTETA / (8 * MI_n)) * dPdRn * (
+                B_1 = (Rn * self.dTETA / (8 * MI_n)) * dPdRn * (
                     As_ne * H0ne[kR, kTETA] ** 2 + As_nw * H0nw[kR, kTETA] ** 2
-                ) - (Rs * dTETA / (8 * MI_s)) * dPdRs * (
+                ) - (Rs * self.dTETA / (8 * MI_s)) * dPdRs * (
                     As_se * H0se[kR, kTETA] ** 2 + As_sw * H0sw[kR, kTETA] ** 2
                 )
-                B_2 = (dR / (8 * teta0 ** 2 * MI_e)) * dPdTETAe * (
+                B_2 = (self.dR / (8 * self.teta0 ** 2 * MI_e)) * dPdTETAe * (
                     As_ne * H0ne[kR, kTETA] ** 2 / Rn
                     + As_se * H0se[kR, kTETA] ** 2 / Rs
-                ) - (dR / (8 * teta0 ** 2 * MI_w)) * dPdTETAw * (
+                ) - (self.dR / (8 * self.teta0 ** 2 * MI_w)) * dPdTETAw * (
                     As_nw * H0nw[kR, kTETA] ** 2 / Rn
                     + As_sw * H0sw[kR, kTETA] ** 2 / Rs
                 )
-                B_3 = dR / (4 * teta0) * (As_ne * Rn + As_se * Rs) - dR / (
-                    4 * teta0
-                ) * (As_nw * Rn + As_sw * Rs)
+                B_3 = self.dR / (4 * self.teta0) * (
+                    As_ne * Rn + As_se * Rs
+                ) - self.dR / (4 * self.teta0) * (As_nw * Rn + As_sw * Rs)
                 B_4 = (
                     complex(0, 1)
                     * WP
-                    * dR
-                    * dTETA
+                    * self.dR
+                    * self.dTETA
                     / 4
                     * (Rn * As_ne + Rn * As_nw + Rs * As_se + Rs * As_sw)
                 )
@@ -376,53 +380,53 @@ class Thrust:
                 if kTETA == 0 and kR == 0:
                     Mat_coef[k, k] = CP - CW - CS
                     Mat_coef[k, k + 1] = CE
-                    Mat_coef[k, k + NTETA] = CN
+                    Mat_coef[k, k + self.Npad] = CN
 
-                if kTETA == 0 and kR > 0 and kR < NR:
+                if kTETA == 0 and kR > 0 and kR < self.NR:
                     Mat_coef[k, k] = CP - CW
                     Mat_coef[k, k + 1] = CE
-                    Mat_coef[k, k + NTETA] = CN
-                    Mat_coef[k, k - NTETA] = CS
+                    Mat_coef[k, k + self.Npad] = CN
+                    Mat_coef[k, k - self.Npad] = CS
 
-                if kTETA == 0 and kR == NR:
+                if kTETA == 0 and kR == self.NR:
                     Mat_coef[k, k] = CP - CW - CN
                     Mat_coef[k, k + 1] = CE
-                    Mat_coef[k, k - NTETA] = CS
+                    Mat_coef[k, k - self.Npad] = CS
 
-                if kR == 0 and kTETA > 0 and kTETA < NTETA:
+                if kR == 0 and kTETA > 0 and kTETA < self.Npad:
                     Mat_coef[k, k] = CP - CS
                     Mat_coef[k, k + 1] = CE
                     Mat_coef[k, k - 1] = CW
-                    Mat_coef[k, k + NTETA] = CN
+                    Mat_coef[k, k + self.Npad] = CN
 
-                if kTETA > 0 and kTETA < NTETA and kR > 0 and kR < NR:
+                if kTETA > 0 and kTETA < self.Npad and kR > 0 and kR < self.NR:
                     Mat_coef[k, k] = CP
                     Mat_coef[k, k - 1] = CW
-                    Mat_coef[k, k + NTETA] = CN
-                    Mat_coef[k, k - NTETA] = CS
+                    Mat_coef[k, k + self.Npad] = CN
+                    Mat_coef[k, k - self.Npad] = CS
                     Mat_coef[k, k + 1] = CE
 
-                if kR == NR and kTETA > 0 and kTETA < NTETA:
+                if kR == self.NR and kTETA > 0 and kTETA < self.Npad:
                     Mat_coef[k, k] = CP - CN
                     Mat_coef[k, k - 1] = CW
                     Mat_coef[k, k + 1] = CE
-                    Mat_coef[k, k - NTETA] = CS
+                    Mat_coef[k, k - self.Npad] = CS
 
-                if kR == 0 and kTETA == NTETA:
+                if kR == 0 and kTETA == self.Npad:
                     Mat_coef[k, k] = CP - CE - CS
                     Mat_coef[k, k - 1] = CW
-                    Mat_coef[k, k + NTETA] = CN
+                    Mat_coef[k, k + self.Npad] = CN
 
-                if kTETA == NTETA and kR > 0 and kR < NR:
+                if kTETA == self.Npad and kR > 0 and kR < self.NR:
                     Mat_coef[k, k] = CP - CE
                     Mat_coef[k, k - 1] = CW
-                    Mat_coef[k, k - NTETA] = CS
-                    Mat_coef[k, k + NTETA] = CN
+                    Mat_coef[k, k - self.Npad] = CS
+                    Mat_coef[k, k + self.Npad] = CN
 
-                if kTETA == NTETA and kR == NR:
+                if kTETA == self.Npad and kR == self.NR:
                     Mat_coef[k, k] = CP - CE - CN
                     Mat_coef[k, k - 1] = CW
-                    Mat_coef[k, k - NTETA] = CS
+                    Mat_coef[k, k - self.Npad] = CS
 
                 kTETA = kTETA + 1
 
@@ -434,20 +438,20 @@ class Thrust:
         cont = 0
 
         # pressure matrix
-        for ii in range(0, NR):
-            for jj in range(0, NTETA):
+        for ii in range(0, self.NR):
+            for jj in range(0, self.Npad):
                 cont = cont + 1
                 P[ii, jj] = p[cont]
 
         # dimensional pressure
-        Pdim = P * (r1 ** 2) * war * mi0 / (h0 ** 3)
+        Pdim = P * (self.r1 ** 2) * self.war * self.mi0 / (h0 ** 3)
 
         # RESULTING FORCE AND MOMENTUM: Equilibrium position
-        XR = r1 * vec_R
-        XTETA = teta0 * vec_TETA
-        Xrp = rp * (1 + np.zeros(XR, XR))
+        XR = self.r1 * vec_R
+        XTETA = self.teta0 * vec_TETA
+        Xrp = self.rp * (1 + np.zeros(XR, XR))
 
-        for ii in range(0, NTETA):
+        for ii in range(0, self.Npad):
             Mxr[:, ii] = (Pdim[:, ii] * (np.transpose(XR) ** 2)) * np.sin(
                 XTETA(ii) - tetap
             )
@@ -471,8 +475,8 @@ class Thrust:
         # ENDS HERE ================================================================
         # ==========================================================================
 
-        K = Npad * np.real(kk_zz)  # Stiffness Coefficient
-        C = Npad * 1 / wp * np.imag(kk_zz)  # Damping Coefficient
+        K = self.Npad * np.real(kk_zz)  # Stiffness Coefficient
+        C = self.Npad * 1 / wp * np.imag(kk_zz)  # Damping Coefficient
 
         # --------------------------------------------------------------------------
         # Output values - Pmax [Pa]- hmax[m] - hmin[m] - h0[m]
@@ -504,33 +508,40 @@ def ArAsh0Equilibrium(
     k2,
     k3,
     T1,
+    x,
 ):
 
     # loop counters for ease of understanding
-    vec_R = np.arange((R1 + 0.5 * dR), (R2 - 0.5 * dR), dR)
-    vec_TETA = np.arange((TETA1 + 0.5 * dTETA), (TETA2 - 0.5 * dTETA), dTETA)
+    vec_R = np.arange((self.R1 + 0.5 * self.dR), (self.R2 - 0.5 * self.dR), self.dR)
+    vec_TETA = np.arange(
+        (self.TETA1 + 0.5 * self.dTETA), (self.TETA2 - 0.5 * self.dTETA), self.dTETA
+    )
 
     # Pitch angles alpha_r and alpha_p and oil filme thickness at pivot h0
-    a_r = x[1]  # [rad]
-    a_s = x[2]  # [rad]
-    h0 = x[3]  # [m]
+    a_r = self.x[1]  # [rad]
+    a_s = self.x[2]  # [rad]
+    h0 = self.x[3]  # [m]
 
-    for ii in range(0, NR):
-        for jj in range(0, NTETA):
+    for ii in range(0, self.NR):
+        for jj in range(0, self.Npad):
             MI[ii, jj] = (
-                1 / mi0 * (1e-3) * k1 * np.exp(k2 / (Ti[ii, jj] - k3))
+                1
+                / self.mi0
+                * (1e-3)
+                * self.k1
+                * np.exp(self.k2 / (self.Ti[ii, jj] - self.k3))
             )  # dimensionless
 
     # Dimensioneless Parameters
-    Ar = a_r * r1 / h0
-    As = a_s * r1 / h0
+    Ar = a_r * self.r1 / h0
+    As = a_s * self.r1 / h0
     H0 = h0 / h0
 
     # PRESSURE FIELD - Solution of Reynolds equation
     kR = 0
     kTETA = 0
     k = -1  # pressure vectorization index
-    nk = (NR) * (NTETA)  # number of volumes
+    nk = (self.NR) * (self.Npad)  # number of volumes
 
     # Coefficients Matrix
     Mat_coef = np.zeros(nk, nk)
@@ -541,30 +552,30 @@ def ArAsh0Equilibrium(
         for TETA in vec_TETA:
 
             cont = cont + 1
-            TETAe = TETA + 0.5 * dTETA
-            TETAw = TETA - 0.5 * dTETA
-            Rn = R + 0.5 * dR
-            Rs = R - 0.5 * dR
+            TETAe = TETA + 0.5 * self.dTETA
+            TETAw = TETA - 0.5 * self.dTETA
+            Rn = R + 0.5 * self.dR
+            Rs = R - 0.5 * self.dR
 
             Hne = (
                 H0
-                + As * (Rp - Rn * np.cos(teta0 * (TETAe - TETAp)))
-                + Ar * Rn * np.sin(teta0 * (TETAe - TETAp))
+                + As * (self.Rp - Rn * np.cos(self.teta0 * (TETAe - self.TETAp)))
+                + Ar * Rn * np.sin(self.teta0 * (TETAe - self.TETAp))
             )
             Hnw = (
                 H0
-                + As * (Rp - Rn * np.cos(teta0 * (TETAw - TETAp)))
-                + Ar * Rn * np.sin(teta0 * (TETAw - TETAp))
+                + As * (self.Rp - Rn * np.cos(self.teta0 * (TETAw - self.TETAp)))
+                + Ar * Rn * np.sin(self.teta0 * (TETAw - self.TETAp))
             )
             Hse = (
                 H0
-                + As * (Rp - Rs * np.cos(teta0 * (TETAe - TETAp)))
-                + Ar * Rs * np.sin(teta0 * (TETAe - TETAp))
+                + As * (self.Rp - Rs * np.cos(self.teta0 * (TETAe - self.TETAp)))
+                + Ar * Rs * np.sin(self.teta0 * (TETAe - self.TETAp))
             )
             Hsw = (
                 H0
-                + As * (Rp - Rs * np.cos(teta0 * (TETAw - TETAp)))
-                + Ar * Rs * np.sin(teta0 * (TETAw - TETAp))
+                + As * (self.Rp - Rs * np.cos(self.teta0 * (TETAw - self.TETAp)))
+                + Ar * Rs * np.sin(self.teta0 * (TETAw - self.TETAp))
             )
 
             if kTETA == 0 and kR == 0:
@@ -573,49 +584,49 @@ def ArAsh0Equilibrium(
                 MI_n = 0.5 * (MI[kR, kTETA] + MI[kR + 1, kTETA])
                 MI_s = MI[kR, kTETA]
 
-            if kTETA == 0 and kR > 0 and kR < NR:
+            if kTETA == 0 and kR > 0 and kR < self.NR:
                 MI_e = 0.5 * (MI[kR, kTETA] + MI[kR, kTETA + 1])
                 MI_w = MI[kR, kTETA]
                 MI_n = 0.5 * (MI[kR, kTETA] + MI[kR + 1, kTETA])
                 MI_s = 0.5 * (MI[kR, kTETA] + MI[kR - 1, kTETA])
 
-            if kTETA == 0 and kR == NR:
+            if kTETA == 0 and kR == self.NR:
                 MI_e = 0.5 * (MI[kR, kTETA] + MI[kR, kTETA + 1])
                 MI_w = MI[kR, kTETA]
                 MI_n = MI[kR, kTETA]
                 MI_s = 0.5 * (MI[kR, kTETA] + MI[kR - 1, kTETA])
 
-            if kR == 0 and kTETA > 0 and kTETA < NTETA:
+            if kR == 0 and kTETA > 0 and kTETA < self.Npad:
                 MI_e = 0.5 * (MI[kR, kTETA] + MI[kR, kTETA + 1])
                 MI_w = 0.5 * (MI[kR, kTETA] + MI[kR, kTETA - 1])
                 MI_n = 0.5 * (MI[kR, kTETA] + MI[kR + 1, kTETA])
                 MI_s = MI[kR, kTETA]
 
-            if kTETA > 0 and kTETA < NTETA and kR > 0 and kR < NR:
+            if kTETA > 0 and kTETA < self.Npad and kR > 0 and kR < self.NR:
                 MI_e = 0.5 * (MI[kR, kTETA] + MI[kR, kTETA + 1])
                 MI_w = 0.5 * (MI[kR, kTETA] + MI[kR, kTETA - 1])
                 MI_n = 0.5 * (MI[kR, kTETA] + MI[kR + 1, kTETA])
                 MI_s = 0.5 * (MI[kR, kTETA] + MI[kR - 1, kTETA])
 
-            if kR == NR and kTETA > 0 and kTETA < NTETA:
+            if kR == self.NR and kTETA > 0 and kTETA < self.Npad:
                 MI_e = 0.5 * (MI[kR, kTETA] + MI[kR, kTETA + 1])
                 MI_w = 0.5 * (MI[kR, kTETA] + MI[kR, kTETA - 1])
                 MI_n = MI[kR, kTETA]
                 MI_s = 0.5 * (MI[kR, kTETA] + MI[kR - 1, kTETA])
 
-            if kR == 0 and kTETA == NTETA:
+            if kR == 0 and kTETA == self.Npad:
                 MI_e = MI[kR, kTETA]
                 MI_w = 0.5 * (MI[kR, kTETA] + MI[kR, kTETA - 1])
                 MI_n = 0.5 * (MI[kR, kTETA] + MI[kR + 1, kTETA])
                 MI_s = MI[kR, kTETA]
 
-            if kTETA == NTETA and kR > 0 and kR < NR:
+            if kTETA == self.Npad and kR > 0 and kR < self.NR:
                 MI_e = MI[kR, kTETA]
                 MI_w = 0.5 * (MI[kR, kTETA] + MI[kR, kTETA - 1])
                 MI_n = 0.5 * (MI[kR, kTETA] + MI[kR + 1, kTETA])
                 MI_s = 0.5 * (MI[kR, kTETA] + MI[kR - 1, kTETA])
 
-            if kTETA == NTETA and kR == NR:
+            if kTETA == self.Npad and kR == self.NR:
                 MI_e = MI[kR, kTETA]
                 MI_w = 0.5 * (MI[kR, kTETA] + MI[kR, kTETA - 1])
                 MI_n = MI[kR, kTETA]
@@ -624,75 +635,77 @@ def ArAsh0Equilibrium(
             # Coefficients for solving the Reynolds equation
             CE = (
                 1
-                / (24 * teta0 ** 2 * MI_e)
-                * (dR / dTETA)
+                / (24 * self.teta0 ** 2 * MI_e)
+                * (self.dR / self.dTETA)
                 * (Hne ** 3 / Rn + Hse ** 3 / Rs)
             )
             CW = (
                 1
-                / (24 * teta0 ** 2 * MI_w)
-                * (dR / dTETA)
+                / (24 * self.teta0 ** 2 * MI_w)
+                * (self.dR / self.dTETA)
                 * (Hnw ** 3 / Rn + Hsw ** 3 / Rs)
             )
-            CN = Rn / (24 * MI_n) * (dTETA / dR) * (Hne ** 3 + Hnw ** 3)
-            CS = Rs / (24 * MI_s) * (dTETA / dR) * (Hse ** 3 + Hsw ** 3)
+            CN = Rn / (24 * MI_n) * (self.dTETA / self.dR) * (Hne ** 3 + Hnw ** 3)
+            CS = Rs / (24 * MI_s) * (self.dTETA / self.dR) * (Hse ** 3 + Hsw ** 3)
             CP = -(CE + CW + CN + CS)
 
             # vectorization index
             k = k + 1
 
-            b[k, 1] = dR / (4 * teta0) * (Rn * Hne + Rs * Hse - Rn * Hnw - Rs * Hsw)
+            b[k, 1] = (
+                self.dR / (4 * self.teta0) * (Rn * Hne + Rs * Hse - Rn * Hnw - Rs * Hsw)
+            )
 
             if kTETA == 1 and kR == 1:
                 Mat_coef[k, k] = CP - CS - CW
                 Mat_coef[k, k + 1] = CE
-                Mat_coef[k, k + NTETA] = CN
+                Mat_coef[k, k + self.Npad] = CN
 
-            if kTETA == 1 and kR > 1 and kR < NR:
+            if kTETA == 1 and kR > 1 and kR < self.NR:
                 Mat_coef[k, k] = CP - CW
                 Mat_coef[k, k + 1] = CE
-                Mat_coef[k, k + NTETA] = CN
-                Mat_coef[k, k - NTETA] = CS
+                Mat_coef[k, k + self.Npad] = CN
+                Mat_coef[k, k - self.Npad] = CS
 
-            if kTETA == 1 and kR == NR:
+            if kTETA == 1 and kR == self.NR:
                 Mat_coef[k, k] = CP - CW - CN
                 Mat_coef[k, k + 1] = CE
-                Mat_coef[k, k - NTETA] = CS
+                Mat_coef[k, k - self.Npad] = CS
 
-            if kR == 1 and kTETA > 1 and kTETA < NTETA:
+            if kR == 1 and kTETA > 1 and kTETA < self.Npad:
                 Mat_coef[k, k] = CP - CS
                 Mat_coef[k, k + 1] = CE
                 Mat_coef[k, k - 1] = CW
-                Mat_coef[k, k + NTETA] = CN
+                Mat_coef[k, k + self.Npad] = CN
 
-            if kTETA > 1 and kTETA < NTETA and kR > 1 and kR < NR:
+            if kTETA > 1 and kTETA < self.Npad and kR > 1 and kR < self.NR:
                 Mat_coef[k, k] = CP
                 Mat_coef[k, k - 1] = CW
-                Mat_coef[k, k + NTETA] = CN
-                Mat_coef[k, k - NTETA] = CS
+                Mat_coef[k, k + self.Npad] = CN
+                Mat_coef[k, k - self.Npad] = CS
                 Mat_coef[k, k + 1] = CE
 
-            if kR == NR and kTETA > 1 and kTETA < NTETA:
+            if kR == self.NR and kTETA > 1 and kTETA < self.Npad:
                 Mat_coef[k, k] = CP - CN
                 Mat_coef[k, k - 1] = CW
                 Mat_coef[k, k + 1] = CE
-                Mat_coef[k, k - NTETA] = CS
+                Mat_coef[k, k - self.Npad] = CS
 
-            if kR == 1 and kTETA == NTETA:
+            if kR == 1 and kTETA == self.Npad:
                 Mat_coef[k, k] = CP - CE - CS
                 Mat_coef[k, k - 1] = CW
-                Mat_coef[k, k + NTETA] = CN
+                Mat_coef[k, k + self.Npad] = CN
 
-            if kTETA == NTETA and kR > 1 and kR < NR:
+            if kTETA == self.Npad and kR > 1 and kR < self.NR:
                 Mat_coef[k, k] = CP - CE
                 Mat_coef[k, k - 1] = CW
-                Mat_coef[k, k - NTETA] = CS
-                Mat_coef[k, k + NTETA] = CN
+                Mat_coef[k, k - self.Npad] = CS
+                Mat_coef[k, k + self.Npad] = CN
 
-            if kTETA == NTETA and kR == NR:
+            if kTETA == self.Npad and kR == self.NR:
                 Mat_coef[k, k] = CP - CE - CN
                 Mat_coef[k, k - 1] = CW
-                Mat_coef[k, k - NTETA] = CS
+                Mat_coef[k, k - self.Npad] = CS
 
             kTETA = kTETA + 1
 
@@ -705,31 +718,33 @@ def ArAsh0Equilibrium(
     cont = 0
 
     # pressure matrix
-    for ii in range(0, NR):
-        for jj in range(0, NTETA):
+    for ii in range(0, self.NR):
+        for jj in range(0, self.Npad):
             cont = cont + 1
             P[ii, jj] = p[cont]
 
     # boundary conditions of pressure
-    for ii in range(0, NR):
-        for jj in range(0, NTETA):
+    for ii in range(0, self.NR):
+        for jj in range(0, self.Npad):
             if P[ii, jj] < 0:
                 P[ii, jj] = 0
 
     # dimensional pressure
-    Pdim = P * (r1 ** 2) * war * mi0 / (h0 ** 2)
+    Pdim = P * (self.r1 ** 2) * self.war * self.mi0 / (h0 ** 2)
 
     # RESULTING FORCE AND MOMENTUM: Equilibrium position
-    XR = r1 * vec_R
-    XTETA = teta0 * vec_TETA
-    Xrp = rp * (1 + np.zeros(XR, XR))
+    XR = self.r1 * vec_R
+    XTETA = self.teta0 * vec_TETA
+    Xrp = self.rp * (1 + np.zeros(XR, XR))
 
-    for ii in range(0, NTETA):
-        Mxr[:, ii] = (Pdim[:, ii] * (np.transpose(XR) ** 2)) * np.sin(XTETA[ii] - tetap)
+    for ii in range(0, self.Npad):
+        Mxr[:, ii] = (Pdim[:, ii] * (np.transpose(XR) ** 2)) * np.sin(
+            XTETA[ii] - self.tetap
+        )
         Myr[:, ii] = (
             -Pdim[:, ii]
             * np.transpose(XR)
-            * np.transpose(XR * np.cos(XTETA(ii) - tetap) - Xrp)
+            * np.transpose(XR * np.cos(XTETA(ii) - self.tetap) - Xrp)
         )
         Frer[:, ii] = Pdim[:, ii] * np.transpose(XR)
 
@@ -739,7 +754,7 @@ def ArAsh0Equilibrium(
 
     mx = np.trapz(XTETA, mxr)
     my = np.trapz(XTETA, myr)
-    fre = -np.trapz(XTETA, frer) + fz / Npad
+    fre = -np.trapz(XTETA, frer) + self.fz / self.Npad
 
     score = np.norm(mx, my, fre)
 
