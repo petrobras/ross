@@ -614,65 +614,56 @@ def ArAsh0Equilibrium(
             
             b[k,1]=dR/(4*teta0)*(Rn*Hne+Rs*Hse-Rn*Hnw-Rs*Hsw)
             
-            if kTETA==1 and kR==1
-                Mat_coef(k,k)=CP-CS-CW
-                Mat_coef(k,k+1)=CE
-                Mat_coef(k,k+(NTETA))=CN
+            if kTETA==1 and kR==1:
+                Mat_coef[k,k]=CP-CS-CW
+                Mat_coef[k,k+1]=CE
+                Mat_coef[k,k+NTETA]=CN
             
+            if kTETA==1 and kR>1 and kR<NR:
+                Mat_coef[k,k]=CP-CW
+                Mat_coef[k,k+1]=CE
+                Mat_coef[k,k+NTETA]=CN
+                Mat_coef[k,k-NTETA]=CS
             
-            if kTETA==1 and kR>1 and kR<NR
-                Mat_coef(k,k)=CP-CW
-                Mat_coef(k,k+1)=CE
-                Mat_coef(k,k+(NTETA))=CN
-                Mat_coef(k,k-(NTETA))=CS
+            if kTETA==1 and kR==NR:
+                Mat_coef[k,k]=CP-CW-CN
+                Mat_coef[k,k+1]=CE
+                Mat_coef[k,k-NTETA]=CS
             
+            if kR==1 and kTETA>1 and kTETA<NTETA:
+                Mat_coef[k,k]=CP-CS
+                Mat_coef[k,k+1]=CE
+                Mat_coef[k,k-1]=CW
+                Mat_coef[k,k+NTETA]=CN
             
-            if kTETA==1 and kR==NR
-                Mat_coef(k,k)=CP-CW-CN
-                Mat_coef(k,k+1)=CE
-                Mat_coef(k,k-(NTETA))=CS
+            if kTETA>1 and kTETA<NTETA and kR>1 and kR<NR:
+                Mat_coef[k,k]=CP
+                Mat_coef[k,k-1]=CW
+                Mat_coef[k,k+NTETA]=CN
+                Mat_coef[k,k-NTETA]=CS
+                Mat_coef[k,k+1]=CE
             
+            if kR==NR and kTETA>1 and kTETA<NTETA:
+                Mat_coef[k,k]=CP-CN
+                Mat_coef[k,k-1]=CW
+                Mat_coef[k,k+1]=CE
+                Mat_coef[k,k-NTETA]=CS
             
-            if kR==1 and kTETA>1 and kTETA<NTETA
-                Mat_coef(k,k)=CP-CS
-                Mat_coef(k,k+1)=CE
-                Mat_coef(k,k-1)=CW
-                Mat_coef(k,k+(NTETA))=CN
+            if kR==1 and kTETA==NTETA:
+                Mat_coef[k,k]=CP-CE-CS
+                Mat_coef[k,k-1]=CW
+                Mat_coef[k,k+NTETA]=CN
             
+            if kTETA==NTETA and kR>1 and kR<NR:
+                Mat_coef[k,k]=CP-CE
+                Mat_coef[k,k-1]=CW
+                Mat_coef[k,k-NTETA]=CS
+                Mat_coef[k,k+NTETA]=CN
             
-            if kTETA>1 and kTETA<NTETA and kR>1 and kR<NR
-                Mat_coef(k,k)=CP
-                Mat_coef(k,k-1)=CW
-                Mat_coef(k,k+(NTETA))=CN
-                Mat_coef(k,k-(NTETA))=CS
-                Mat_coef(k,k+1)=CE
-            
-            
-            if kR==NR and kTETA>1 and kTETA<NTETA
-                Mat_coef(k,k)=CP-CN
-                Mat_coef(k,k-1)=CW
-                Mat_coef(k,k+1)=CE
-                Mat_coef(k,k-(NTETA))=CS
-            
-            
-            if kR==1 and kTETA==NTETA
-                Mat_coef(k,k)=CP-CE-CS
-                Mat_coef(k,k-1)=CW
-                Mat_coef(k,k+(NTETA))=CN
-            
-            
-            if kTETA==NTETA and kR>1 and kR<NR
-                Mat_coef(k,k)=CP-CE
-                Mat_coef(k,k-1)=CW
-                Mat_coef(k,k-(NTETA))=CS
-                Mat_coef(k,k+(NTETA))=CN
-            
-            
-            if kTETA==NTETA and kR==NR
-                Mat_coef(k,k)=CP-CE-CN
-                Mat_coef(k,k-1)=CW
-                Mat_coef(k,k-(NTETA))=CS
-            
+            if kTETA==NTETA and kR==NR:
+                Mat_coef[k,k]=CP-CE-CN
+                Mat_coef[k,k-1]=CW
+                Mat_coef[k,k-NTETA]=CS
             
             kTETA=kTETA+1
         
@@ -680,10 +671,9 @@ def ArAsh0Equilibrium(
         kTETA=1
     
 
-    %%%%%%%%%%%%%%%%%%%%%% Pressure field solution %%%%%%%%%%%%%%%%%%%%
-
-    p=Mat_coef\b %solve pressure vectorized
-
+    # Pressure field solution
+    p = np.linalg.solve(Mat_coef, b)
+    
     cont=0
 
     for ii=1:NR
