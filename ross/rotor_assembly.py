@@ -3260,9 +3260,9 @@ class CoAxialRotor(Rotor):
                 disk.tag = "Disk " + str(i)
 
         # calculate scale factor if disks have scale_factor='mass'
-        if all([disk.scale_factor == "mass" for disk in self.disk_elements]):
-            max_mass = max([disk.m for disk in self.disk_elements])
-            for disk in self.disk_elements:
+        if all([disk.scale_factor == "mass" for disk in disk_elements]):
+            max_mass = max([disk.m for disk in disk_elements])
+            for disk in disk_elements:
                 f = disk.m / max_mass
                 disk.scale_factor = (1 - f) * 0.5 + f * 1.0
 
