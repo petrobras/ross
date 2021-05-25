@@ -276,7 +276,6 @@ class Thrust:
                 G2_sw=0
                 
                 # Coefficients for solving the Reynolds equation
-                
                 CE_1=1/(24*teta0**2*MI_e)*(dR/dTETA)*(As_ne*H0ne[kR,kTETA]**3/Rn+As_se*H0se[kR,kTETA]**3/Rs)
                 CE_2=dR/(48*teta0**2*MI_e)*(G2_ne*H0ne[kR,kTETA]**3/Rn+G2_se*H0se[kR,kTETA]**3/Rs)
                 CE=CE_1+CE_2
@@ -361,28 +360,21 @@ class Thrust:
             kR=kR+1
             kTETA=1
         
-
-        %%%%%%%%%%%%%%%%%%%%%% Pressure field solution %%%%%%%%%%%%%%%%%%%%
-
-        p=Mat_coef\b %solve pressure vectorized
-
+        # vectorized pressure field solution
+        p = np.linalg.solve(Mat_coef, b)
         cont=0
 
-        for ii=1:NR
-            for jj=1:NTETA
+        # pressure matrix
+        for ii in range(0,NR):
+            for jj in range(0,NTETA):
                 cont=cont+1
-                P(ii,jj)=p(cont) %matrix of pressure
-            
+                P[ii,jj]=p[cont] 
         
+        # dimensional pressure
+        Pdim=P*(r1**2)*war*mi0/(h0**3) 
 
-        Pdim=P*(r1**2)*war*mi0/(h0**3) %dimensional pressure
-
-        % -------------------------------------------------------------------------
-        % -------------------------------------------------------------------------
-        %            RESULTING FORCE AND MOMENTUM: Equilibrium position
-        % -------------------------------------------------------------------------
-        % -------------------------------------------------------------------------
-
+        # RESULTING FORCE AND MOMENTUM: Equilibrium position
+        
         XR=r1*(R1+0.5*dR:dR:R2-0.5*dR)
 
         Xrp=rp*ones(size(XR))
