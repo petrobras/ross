@@ -36,8 +36,12 @@ class DiskElement(Element):
     tag : str, optional
         A tag to name the element
         Default is None
-    scale_factor: float, optional
+    scale_factor: float or str, optional
         The scale factor is used to scale the disk drawing.
+        For disks it is also possible to provide 'mass' as the scale factor.
+        In this case the code will calculate scale factors for each disk based
+        on the disk with the higher mass. Notice that in this case you have to
+        create all disks with the scale_factor='mass'.
         Default is 1.
     color : str, optional
         A color to be used when the element is represented.
