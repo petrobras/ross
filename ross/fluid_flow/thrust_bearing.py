@@ -87,7 +87,7 @@ class Thrust:
             # Equilibrium position optimization [h0,ar,ap]
             x = scipy.optimize.fmin(
                 ArAsh0Equilibrium,
-                self.x0,
+                x0,
                 args=(),
                 xtol=tolFM,
                 ftol=tolFM,
@@ -106,7 +106,19 @@ class Thrust:
             # --------------------------------------------------------------------------
             #  Temperature field
             tolMI = 1e-6
+
+            # ==========================================================================
+            # TEMPERATURE ==============================================================
+            # STARTS HERE ==============================================================
+            # ==========================================================================
+
             [T, resMx, resMy, resFre] = TEMPERATURE(h0, a_r, a_s, tolMI)
+
+            # ==========================================================================
+            # TEMPERATURE ==============================================================
+            # ENDS HERE ================================================================
+            # ==========================================================================
+
             self.Ti = T * self.T0
             ResFM = np.norm(resMx, resMy, resFre)
             xo = x
@@ -134,7 +146,215 @@ class Thrust:
         # STARTS HERE ==============================================================
         # ==========================================================================
 
-        [P0, H0, H0ne, H0nw, H0se, H0sw] = PRESSURE(a_r, a_s, h0, mi)
+        Ar=a_r*r1/h0
+        As=a_s*r1/h0
+        MI=1/mi0*mi
+
+        # PRESSURE FIELD - Solution of Reynolds equation
+        kR=1
+        kTETA=1
+
+        # index using for pressure vectorization
+        k=0 
+
+        # number of volumes
+        nk=(NR)*(NTETA) 
+        
+        # Coefficients Matrix
+        Mat_coef=np.zeros(nk,nk) 
+        b=np.zeros(nk,0)
+        cont=0
+
+        for R=(R1+0.5*dR):dR:(R2-0.5*dR)
+            
+            for TETA=(TETA1+0.5*dTETA):dTETA:(TETA2-0.5*dTETA)
+                
+                cont=cont+1;
+                TETAe=TETA+0.5*dTETA;
+                TETAw=TETA-0.5*dTETA;
+                Rn=R+0.5*dR;
+                Rs=R-0.5*dR;
+                
+                H0(kR,kTETA)=h0/h0+As*(Rp-R*cos(teta0*(TETA-TETAp)))+...
+                    Ar*R*sin(teta0*(TETA-TETAp));
+                %oil film thickness - faces
+                H0ne(kR,kTETA)=h0/h0+As*(Rp-Rn*cos(teta0*(TETAe-TETAp)))+...
+                    Ar*Rn*sin(teta0*(TETAe-TETAp));
+                
+                H0nw(kR,kTETA)=h0/h0+As*(Rp-Rn*cos(teta0*(TETAw-TETAp)))+...
+                    Ar*Rn*sin(teta0*(TETAw-TETAp));
+                
+                H0se(kR,kTETA)=h0/h0+As*(Rp-Rs*cos(teta0*(TETAe-TETAp)))+...
+                    Ar*Rs*sin(teta0*(TETAe-TETAp));
+                
+                H0sw(kR,kTETA)=h0/h0+As*(Rp-Rs*cos(teta0*(TETAw-TETAp)))+...
+                    Ar*Rs*sin(teta0*(TETAw-TETAp));
+                
+                
+                if kTETA==1 && kR==1
+                    MI_e= 0.5*(MI(kR,kTETA)+MI(kR,kTETA+1));
+                    MI_w= MI(kR,kTETA);
+                    MI_n= 0.5*(MI(kR,kTETA)+MI(kR+1,kTETA));
+                    MI_s= MI(kR,kTETA);
+                end
+                
+                if kTETA==1 && kR>1 && kR<NR
+                    MI_e= 0.5*(MI(kR,kTETA)+MI(kR,kTETA+1));
+                    MI_w= MI(kR,kTETA);
+                    MI_n= 0.5*(MI(kR,kTETA)+MI(kR+1,kTETA));
+                    MI_s= 0.5*(MI(kR,kTETA)+MI(kR-1,kTETA));
+                end
+                
+                if kTETA==1 && kR==NR
+                    MI_e= 0.5*(MI(kR,kTETA)+MI(kR,kTETA+1));
+                    MI_w= MI(kR,kTETA);
+                    MI_n= MI(kR,kTETA);
+                    MI_s= 0.5*(MI(kR,kTETA)+MI(kR-1,kTETA));
+                end
+                
+                if kR==1 && kTETA>1 && kTETA<NTETA
+                    MI_e= 0.5*(MI(kR,kTETA)+MI(kR,kTETA+1));
+                    MI_w= 0.5*(MI(kR,kTETA)+MI(kR,kTETA-1));
+                    MI_n= 0.5*(MI(kR,kTETA)+MI(kR+1,kTETA));
+                    MI_s= MI(kR,kTETA);
+                end
+                
+                if kTETA>1 && kTETA<NTETA && kR>1 && kR<NR
+                    MI_e= 0.5*(MI(kR,kTETA)+MI(kR,kTETA+1));
+                    MI_w= 0.5*(MI(kR,kTETA)+MI(kR,kTETA-1));
+                    MI_n= 0.5*(MI(kR,kTETA)+MI(kR+1,kTETA));
+                    MI_s= 0.5*(MI(kR,kTETA)+MI(kR-1,kTETA));
+                end
+                
+                if kR==NR && kTETA>1 && kTETA<NTETA
+                    MI_e= 0.5*(MI(kR,kTETA)+MI(kR,kTETA+1));
+                    MI_w= 0.5*(MI(kR,kTETA)+MI(kR,kTETA-1));
+                    MI_n= MI(kR,kTETA);
+                    MI_s= 0.5*(MI(kR,kTETA)+MI(kR-1,kTETA));
+                end
+                
+                if kR==1 && kTETA==NTETA
+                    MI_e= MI(kR,kTETA);
+                    MI_w= 0.5*(MI(kR,kTETA)+MI(kR,kTETA-1));
+                    MI_n= 0.5*(MI(kR,kTETA)+MI(kR+1,kTETA));
+                    MI_s= MI(kR,kTETA);
+                end
+                
+                if kTETA==NTETA && kR>1 && kR<NR
+                    MI_e= MI(kR,kTETA);
+                    MI_w= 0.5*(MI(kR,kTETA)+MI(kR,kTETA-1));
+                    MI_n= 0.5*(MI(kR,kTETA)+MI(kR+1,kTETA));
+                    MI_s= 0.5*(MI(kR,kTETA)+MI(kR-1,kTETA));
+                end
+                
+                if kTETA==NTETA && kR==NR
+                    MI_e= MI(kR,kTETA);
+                    MI_w= 0.5*(MI(kR,kTETA)+MI(kR,kTETA-1));
+                    MI_n= MI(kR,kTETA);
+                    MI_s= 0.5*(MI(kR,kTETA)+MI(kR-1,kTETA));
+                end
+                
+                %Coefficients for solving the Reynolds equation
+                
+                CE=1/(24*teta0^2*MI_e)*(dR/dTETA)*(H0ne(kR,kTETA)^3/Rn+H0se(kR,kTETA)^3/Rs);
+                CW=1/(24*teta0^2*MI_w)*(dR/dTETA)*(H0nw(kR,kTETA)^3/Rn+H0sw(kR,kTETA)^3/Rs);
+                CN=Rn/(24*MI_n)*(dTETA/dR)*(H0ne(kR,kTETA)^3+H0nw(kR,kTETA)^3);
+                CS=Rs/(24*MI_s)*(dTETA/dR)*(H0se(kR,kTETA)^3+H0sw(kR,kTETA)^3);
+                CP=-(CE+CW+CN+CS);
+                
+                k=k+1; %vectorization index
+                
+                b(k,1)=dR/(4*teta0)*(Rn*H0ne(kR,kTETA)+Rs*H0se(kR,kTETA)-Rn*H0nw(kR,kTETA)-Rs*H0sw(kR,kTETA));
+                
+                if kTETA==1 && kR==1
+                    Mat_coef(k,k)=CP-CS-CW;
+                    Mat_coef(k,k+1)=CE;
+                    Mat_coef(k,k+(NTETA))=CN;
+                end
+                
+                if kTETA==1 && kR>1 && kR<NR
+                    Mat_coef(k,k)=CP-CW;
+                    Mat_coef(k,k+1)=CE;
+                    Mat_coef(k,k+(NTETA))=CN;
+                    Mat_coef(k,k-(NTETA))=CS;
+                end
+                
+                if kTETA==1 && kR==NR
+                    Mat_coef(k,k)=CP-CW-CN;
+                    Mat_coef(k,k+1)=CE;
+                    Mat_coef(k,k-(NTETA))=CS;
+                end
+                
+                if kR==1 && kTETA>1 && kTETA<NTETA
+                    Mat_coef(k,k)=CP-CS;
+                    Mat_coef(k,k+1)=CE;
+                    Mat_coef(k,k-1)=CW;
+                    Mat_coef(k,k+(NTETA))=CN;
+                end
+                
+                if kTETA>1 && kTETA<NTETA && kR>1 && kR<NR
+                    Mat_coef(k,k)=CP;
+                    Mat_coef(k,k-1)=CW;
+                    Mat_coef(k,k+(NTETA))=CN;
+                    Mat_coef(k,k-(NTETA))=CS;
+                    Mat_coef(k,k+1)=CE;
+                end
+                
+                if kR==NR && kTETA>1 && kTETA<NTETA
+                    Mat_coef(k,k)=CP-CN;
+                    Mat_coef(k,k-1)=CW;
+                    Mat_coef(k,k+1)=CE;
+                    Mat_coef(k,k-(NTETA))=CS;
+                end
+                
+                if kR==1 && kTETA==NTETA
+                    Mat_coef(k,k)=CP-CE-CS;
+                    Mat_coef(k,k-1)=CW;
+                    Mat_coef(k,k+(NTETA))=CN;
+                end
+                
+                if kTETA==NTETA && kR>1 && kR<NR
+                    Mat_coef(k,k)=CP-CE;
+                    Mat_coef(k,k-1)=CW;
+                    Mat_coef(k,k-(NTETA))=CS;
+                    Mat_coef(k,k+(NTETA))=CN;
+                end
+                
+                if kTETA==NTETA && kR==NR
+                    Mat_coef(k,k)=CP-CE-CN;
+                    Mat_coef(k,k-1)=CW;
+                    Mat_coef(k,k-(NTETA))=CS;
+                end
+                
+                kTETA=kTETA+1;
+            end
+            kR=kR+1;
+            kTETA=1;
+        end
+
+        %%%%%%%%%%%%%%%%%%%%%% Pressure field solution %%%%%%%%%%%%%%%%%%%%
+
+        p=Mat_coef\b; %solve pressure vectorized
+
+        cont=0;
+
+        for ii=1:NR
+            for jj=1:NTETA
+                cont=cont+1;
+                P0(ii,jj)=p(cont); %matrix of pressure
+            end
+        end
+
+        %boundary conditions of pressure
+        for ii=1:NR
+            for jj=1:NTETA
+                if P0(ii,jj)<0
+                    P0(ii,jj)=0;
+                end
+            end
+        end
+
+        return
 
         # ==========================================================================
         # PRESSURE =================================================================
