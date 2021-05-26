@@ -770,7 +770,11 @@ def ArAsh0Equilibrium(
     # PRESSURE FIELD - Solution of Reynolds equation
     kR = 0
     kTETA = 0
-    k = -1  # pressure vectorization index
+
+    # pressure vectorization index
+    k = -1
+
+    # number of volumes
     nk = (NR) * (Npad)  # number of volumes
 
     # Coefficients Matrix
