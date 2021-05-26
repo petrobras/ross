@@ -26,6 +26,7 @@ class Thrust:
         Npad,
         NTETA,
         NR,
+        wa,
         war,
         R1,
         R2,
@@ -37,6 +38,14 @@ class Thrust:
         dTETA,
         Ti,
         x0,
+        mi,
+        P0,
+        MI,
+        H0,
+        H0ne,
+        H0se,
+        H0nw,
+        H0sw,
     ):
         self.r1 = r1
         self.r2 = r2
@@ -57,6 +66,7 @@ class Thrust:
         self.Npad = Npad
         self.NTETA = NTETA
         self.NR = NR
+        self.wa = wa
         self.war = wa * (np.pi / 30)
         self.R1 = R1
         self.R2 = R2
@@ -68,11 +78,17 @@ class Thrust:
         self.dTETA = dTETA
         self.Ti = T0 * (1 + np.zeros(NR, NTETA))
         self.x0 = x0
+        self.mi = mi
+        self.P0 = P0
+        self.MI = MI
+        self.H0 = H0
+        self.H0ne = H0ne
+        self.H0se = H0se
+        self.H0nw = H0nw
+        self.H0sw = H0sw
 
         # --------------------------------------------------------------------------
-        # PRE-PROCESSING
-
-        # loop counters for ease of understanding
+        # Pre-processing loop counters for ease of understanding
         vec_R = np.arange((R1 + 0.5 * dR), (R2 - 0.5 * dR), dR)
         vec_TETA = np.arange((TETA1 + 0.5 * dTETA), (TETA2 - 0.5 * dTETA), dTETA)
 
@@ -80,7 +96,9 @@ class Thrust:
         # WHILE LOOP INITIALIZATION
         ResFM = 1
         tolFM = 1e-8
+
         while ResFM >= tolFM:
+
             # --------------------------------------------------------------------------
             # Equilibrium position optimization [h0,ar,ap]
             x = scipy.optimize.fmin(
@@ -105,17 +123,13 @@ class Thrust:
             #  Temperature field
             tolMI = 1e-6
 
-            # ==========================================================================
             # TEMPERATURE ==============================================================
             # STARTS HERE ==============================================================
-            # ==========================================================================
 
             [T, resMx, resMy, resFre] = TEMPERATURE(h0, a_r, a_s, tolMI)
 
-            # ==========================================================================
             # TEMPERATURE ==============================================================
             # ENDS HERE ================================================================
-            # ==========================================================================
 
             Ti = T * T0
             ResFM = np.norm(resMx, resMy, resFre)
@@ -137,10 +151,8 @@ class Thrust:
             for jj in range(0, Npad):
                 mi[ii, jj] = (1e-3) * k1 * np.exp(k2 / (Ti[ii, jj] - k3))  # [Pa.s]
 
-        # ==========================================================================
         # PRESSURE =================================================================
         # STARTS HERE ==============================================================
-        # ==========================================================================
 
         Ar = a_r * r1 / h0
         As = a_s * r1 / h0
@@ -363,20 +375,16 @@ class Thrust:
                 if P0[ii, jj] < 0:
                     P0[ii, jj] = 0
 
-        # ==========================================================================
         # PRESSURE =================================================================
         # ENDS HERE ================================================================
-        # ==========================================================================
 
         # --------------------------------------------------------------------------
         # Stiffness and Damping Coefficients
         wp = war  # perturbation frequency [rad/s]
         WP = wp / war
 
-        # ==========================================================================
         # HYDROCOEFF_z =============================================================
         # STARTS HERE ==============================================================
-        # ==========================================================================
 
         MI = (1 / mi0) * mi
 
@@ -697,10 +705,8 @@ class Thrust:
         my = -np.trapz[XTETA, myr]
         fre = -np.trapz[XTETA, frer]
 
-        # ==========================================================================
         # HYDROCOEFF_z =============================================================
         # ENDS HERE ================================================================
-        # ==========================================================================
 
         K = Npad * np.real(kk_zz)  # Stiffness Coefficient
         C = Npad * 1 / wp * np.imag(kk_zz)  # Damping Coefficient
@@ -736,6 +742,9 @@ def ArAsh0Equilibrium(
     k3,
     T1,
     x,
+    MI,
+    TETAp,
+    Ti,
 ):
 
     # loop counters for ease of understanding
