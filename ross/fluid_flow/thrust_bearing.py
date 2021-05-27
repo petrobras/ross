@@ -133,13 +133,12 @@ class Thrust:
 
             for ii in range(0, NR):
                 for jj in range(0, NTETA):
-                    mi_i[ii,jj]=(1e-3)*k1*np.exp(k2/(T_i(ii,jj)-k3)) # [Pa.s]
+                    mi_i[ii,jj]=(1e-3)*k1*np.exp(k2/(T_i[ii,jj]-k3)) # [Pa.s]
 
             MI_new=(1/mi0)*mi_i
             MI=0.2*MI_new
 
             # TEMPERATURE FIELD - Solution of ENERGY equation
-
             for ii in range(0, NR):
                 for jj in range(0, NTETA):
                     varMI=np.abs((MI_new[ii,jj]-MI[ii,jj])/MI[ii,jj])
@@ -280,34 +279,25 @@ class Thrust:
                 
                 # Temperature field solution
                 t = np.linalg.solve(Mat_coef, b)
-                cont=0
+                cont=-1
                 
-                for ii=1:NR
-                    for jj=1:NTETA
+                # Temperature matrix
+                for ii in range(0, NR):
+                    for jj in range(0, NTETA):
                         cont=cont+1
-                        T_new(ii,jj)=t(cont) %matrix of pressure
+                        T_new[ii,jj]=t[cont]
                     
-                
-                
-                %viscositu field
-                for ii=1:NR
-                    for jj=1:NTETA
-                        MI_new(ii,jj)=(1e-3)*(1/mi0)*k1*exp(k2/(T0*T_new(ii,jj)-k3))
-                        varMI(ii,jj)=abs((MI_new(ii,jj)-MI(ii,jj))/MI(ii,jj))
+                # viscosity field
+                for ii in range(0, NR):
+                    for jj in range(0, NTETA):
+                        MI_new[ii,jj]=(1e-3)*(1/mi0)*k1*np.exp(k2/(T0*T_new[ii,jj]-k3))
+                        varMI[ii,jj]=np.abs((MI_new[ii,jj]-MI[ii,jj])/MI[ii,jj])
                     
-                
-                
-            
             T=T_new
 
-
-            % -------------------------------------------------------------------------
-            % -------------------------------------------------------------------------
-            %            RESULTING FORCE AND MOMENTUM: Equilibrium position
-            % -------------------------------------------------------------------------
-            % -------------------------------------------------------------------------
-
-            Pdim=P0*(r1**2)*war*mi0/(h0**2) %dimensional pressure
+            # RESULTING FORCE AND MOMENTUM: Equilibrium position
+            # dimensional pressure
+            Pdim=P0*(r1**2)*war*mi0/(h0**2) 
 
             XR=r1*(R1+0.5*dR:dR:R2-0.5*dR)
 
