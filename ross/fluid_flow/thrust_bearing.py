@@ -126,50 +126,49 @@ class Thrust:
             # TEMPERATURE ==============================================================
             # STARTS HERE ==============================================================
 
-            function [T,resMx,resMy,resFre]=TEMPERATURE(h0,ar,as,tolMI)
+            dHdT=0
 
-            global r1  teta0 mi0 fz Npad NTETA NR war R1 R2...
-                TETA1 TETA2 rp tetap dR dTETA k1 k2 k3 rho cp kt T0 Ti
+            # initial temperature field
+            T_i=Ti
 
-            dHdT=0;
+            for ii in range(0, NR):
+                for jj in range(0, NTETA):
+                    mi_i[ii,jj]=(1e-3)*k1*np.exp(k2/(T_i(ii,jj)-k3)) # [Pa.s]
 
-            %inicial temperature field
-            T_i=Ti;
+            MI_new=(1/mi0)*mi_i
+            MI=0.2*MI_new
 
-            for ii=1:NR
-                for jj=1:NTETA
-                    mi_i(ii,jj)=(1e-3)*k1*exp(k2/(T_i(ii,jj)-k3)); %[Pa.s]
-                end
-            end
+            # TEMPERATURE FIELD - Solution of ENERGY equation
 
-            MI_new=(1/mi0)*mi_i;
-            MI=0.2*MI_new;
+            for ii in range(0, NR):
+                for jj in range(0, NTETA):
+                    varMI=np.abs((MI_new[ii,jj]-MI[ii,jj])/MI[ii,jj])
 
-            % -------------------------------------------------------------------------
-            % -------------------------------------------------------------------------
-            %             TEMPERATURE FIELD - Solution of ENERGY equation
-            % -------------------------------------------------------------------------
-            % -------------------------------------------------------------------------
-
-            for ii=1:NR
-                for jj=1:NTETA
-                    varMI=abs((MI_new(ii,jj)-MI(ii,jj))/MI(ii,jj));
-                end
-            end
-
-            while max(max(varMI))>=tolMI
+            while max(varMI)>=tolMI:
                 
-                MI=MI_new;
+                MI=MI_new
+
+                # PRESSURE_THD =============================================================
+                # STARTS HERE ==============================================================
+
                 [P0,H0,dP0dR,dP0dTETA]= PRESSURE_THD(ar,as,h0,MI);
+
+                # PRESSURE_THD =============================================================
+                # ENDS HERE ================================================================
                 
-                kR=1;
-                kTETA=1;
-                k=0; %index using for pressure vectorization
-                nk=(NR)*(NTETA); %number of volumes
+                kR=0
+                kTETA=0
+
+                # pressure vectorization index
+                k=-1
+
+                # volumes number
+                nk=(NR)*(NTETA)
                 
-                Mat_coef=zeros(nk,nk); %Coefficients Matrix
-                b=zeros(nk,1);
-                cont=0;
+                # Coefficients Matrix
+                Mat_coef=np.zeros(nk,nk) 
+                b=np.zeros(nk,1)
+                cont=0
                 
                 for R=(R1+0.5*dR):dR:(R2-0.5*dR)
                     
