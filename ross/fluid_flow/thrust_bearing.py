@@ -156,12 +156,17 @@ class Thrust:
                 # PRESSURE FIELD - Solution of Reynolds equation
                 kR=1
                 kTETA=1
-                k=0; %index using for pressure vectorization
-                nk=(NR)*(NTETA); %number of volumes
 
-                Mat_coef=zeros(nk,nk); %Coefficients Matrix
-                b=zeros(nk,1);
-                cont=0;
+                # pressure vectorization index
+                k=0
+
+                # volumes number
+                nk=(NR)*(NTETA)
+
+                # 
+                Mat_coef=np.zeros(nk,nk)
+                b=np.zeros(nk,1)
+                cont=0
 
                 for R=(R1+0.5*dR):dR:(R2-0.5*dR)
                     
