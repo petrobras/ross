@@ -151,7 +151,7 @@ class Thrust:
                 # PRESSURE_THD =============================================================
                 # STARTS HERE ==============================================================
 
-                [P0,H0,dP0dR,dP0dTETA]= PRESSURE_THD(ar,as,h0,MI);
+                [P0,H0,dP0dR,dP0dTETA]= PRESSURE_THD(ar,as,h0,MI)
 
                 # PRESSURE_THD =============================================================
                 # ENDS HERE ================================================================
@@ -168,7 +168,7 @@ class Thrust:
                 # Coefficients Matrix
                 Mat_coef=np.zeros(nk,nk) 
                 b=np.zeros(nk,1)
-                cont=0
+                cont=-1
                 
                 for R in vec_R:
                     for TETA in vec_TETA:
@@ -178,7 +178,6 @@ class Thrust:
                         TETAw=TETA-0.5*dTETA
                         Rn=R+0.5*dR
                         Rs=R-0.5*dR
-                        
                         
                         # Coefficients for solving the energy equation
                         aux_n=dTETA/12*(R*H0[kR,kTETA]**3/MI[kR,kTETA]*dP0dR[kR,kTETA])
@@ -220,101 +219,86 @@ class Thrust:
                         
                         b[k,1]=-B_F+(war*mi0*r1**2/(rho*cp*h0**2*T0))*(B_G-B_H-B_I-B_J)+(mi0*war/(rho*cp*T0))*(B_K-B_L-B_M-B_N-B_O)
                         
-                        if kTETA==1 && kR==1
-                            Mat_coef(k,k)=CP+CS;
-                            Mat_coef(k,k+1)=CE;
-                            Mat_coef(k,k+(NTETA))=CN;
-                            b[k,1]=b[k,1]-1*CW;
-                        end
+                        if kTETA==1 and kR==1:
+                            Mat_coef[k,k]=CP+CS
+                            Mat_coef[k,k+1]=CE
+                            Mat_coef[k,k+NTETA]=CN
+                            b[k,1]=b[k,1]-1*CW
                         
+                        if kTETA==1 and kR>1 and kR<NR:
+                            Mat_coef[k,k]=CP
+                            Mat_coef[k,k+1]=CE
+                            Mat_coef[k,k+NTETA]=CN
+                            Mat_coef[k,k-NTETA]=CS
+                            b[k,1]=b[k,1]-1*CW
                         
-                        if kTETA==1 && kR>1 && kR<NR
-                            Mat_coef(k,k)=CP;
-                            Mat_coef(k,k+1)=CE;
-                            Mat_coef(k,k+(NTETA))=CN;
-                            Mat_coef(k,k-(NTETA))=CS;
-                            b[k,1]=b[k,1]-1*CW;
-                        end
+                        if kTETA==1 and kR==NR:
+                            Mat_coef[k,k]=CP+CN
+                            Mat_coef[k,k+1]=CE
+                            Mat_coef[k,k-NTETA]=CS
+                            b[k,1]=b[k,1]-1*CW
                         
+                        if kR==1 and kTETA>1 and kTETA<NTETA:
+                            Mat_coef[k,k]=CP+CS
+                            Mat_coef[k,k+1]=CE
+                            Mat_coef[k,k-1]=CW
+                            Mat_coef[k,k+NTETA]=CN
                         
-                        if kTETA==1 && kR==NR
-                            Mat_coef(k,k)=CP+CN;
-                            Mat_coef(k,k+1)=CE;
-                            Mat_coef(k,k-(NTETA))=CS;
-                            b[k,1]=b[k,1]-1*CW;
-                        end
+                        if kTETA>1 and kTETA<NTETA and kR>1 and kR<NR:
+                            Mat_coef[k,k]=CP
+                            Mat_coef[k,k-1]=CW
+                            Mat_coef[k,k+NTETA]=CN
+                            Mat_coef[k,k-NTETA]=CS
+                            Mat_coef[k,k+1]=CE
                         
-                        if kR==1 && kTETA>1 && kTETA<NTETA
-                            Mat_coef(k,k)=CP+CS;
-                            Mat_coef(k,k+1)=CE;
-                            Mat_coef(k,k-1)=CW;
-                            Mat_coef(k,k+(NTETA))=CN;
-                        end
+                        if kR==NR and kTETA>1 and kTETA<NTETA:
+                            Mat_coef[k,k]=CP+CN
+                            Mat_coef[k,k-1]=CW
+                            Mat_coef[k,k+1]=CE
+                            Mat_coef[k,k-NTETA]=CS
                         
-                        if kTETA>1 && kTETA<NTETA && kR>1 && kR<NR
-                            Mat_coef(k,k)=CP;
-                            Mat_coef(k,k-1)=CW;
-                            Mat_coef(k,k+(NTETA))=CN;
-                            Mat_coef(k,k-(NTETA))=CS;
-                            Mat_coef(k,k+1)=CE;
-                        end
+                        if kR==1 and kTETA==NTETA:
+                            Mat_coef[k,k]=CP+CE+CS
+                            Mat_coef[k,k-1]=CW
+                            Mat_coef[k,k+NTETA]=CN
                         
-                        if kR==NR && kTETA>1 && kTETA<NTETA
-                            Mat_coef(k,k)=CP+CN;
-                            Mat_coef(k,k-1)=CW;
-                            Mat_coef(k,k+1)=CE;
-                            Mat_coef(k,k-(NTETA))=CS;
-                        end
+                        if kTETA==NTETA and kR>1 and kR<NR:
+                            Mat_coef[k,k]=CP+CE
+                            Mat_coef[k,k-1]=CW
+                            Mat_coef[k,k-NTETA]=CS
+                            Mat_coef[k,k+NTETA]=CN
                         
+                        if kTETA==NTETA and kR==NR:
+                            Mat_coef[k,k]=CP+CN+CE
+                            Mat_coef[k,k-1]=CW
+                            Mat_coef[k,k-NTETA]=CS
                         
-                        if kR==1 && kTETA==NTETA
-                            Mat_coef(k,k)=CP+CE+CS;
-                            Mat_coef(k,k-1)=CW;
-                            Mat_coef(k,k+(NTETA))=CN;
-                        end
-                        
-                        if kTETA==NTETA && kR>1 && kR<NR
-                            Mat_coef(k,k)=CP+CE;
-                            Mat_coef(k,k-1)=CW;
-                            Mat_coef(k,k-(NTETA))=CS;
-                            Mat_coef(k,k+(NTETA))=CN;
-                        end
-                        
-                        if kTETA==NTETA && kR==NR
-                            Mat_coef(k,k)=CP+CN+CE;
-                            Mat_coef(k,k-1)=CW;
-                            Mat_coef(k,k-(NTETA))=CS;
-                        end
-                        
-                        kTETA=kTETA+1;
-                    end
-                    kR=kR+1;
-                    kTETA=1;
-                end
+                        kTETA=kTETA+1
+                    
+                    kR=kR+1
+                    kTETA=1
                 
-                %%%%%%%%%%%%%%%%%%%%%% Pressure field solution %%%%%%%%%%%%%%%%%%%%
-                
-                t=Mat_coef\b; %solve pressure vectorized
-                
-                cont=0;
+                # Temperature field solution
+                t = np.linalg.solve(Mat_coef, b)
+                cont=0
                 
                 for ii=1:NR
                     for jj=1:NTETA
-                        cont=cont+1;
-                        T_new(ii,jj)=t(cont); %matrix of pressure
-                    end
-                end
+                        cont=cont+1
+                        T_new(ii,jj)=t(cont) %matrix of pressure
+                    
+                
                 
                 %viscositu field
                 for ii=1:NR
                     for jj=1:NTETA
-                        MI_new(ii,jj)=(1e-3)*(1/mi0)*k1*exp(k2/(T0*T_new(ii,jj)-k3));
-                        varMI(ii,jj)=abs((MI_new(ii,jj)-MI(ii,jj))/MI(ii,jj));
-                    end
-                end
+                        MI_new(ii,jj)=(1e-3)*(1/mi0)*k1*exp(k2/(T0*T_new(ii,jj)-k3))
+                        varMI(ii,jj)=abs((MI_new(ii,jj)-MI(ii,jj))/MI(ii,jj))
+                    
                 
-            end
-            T=T_new;
+                
+            
+            T=T_new
 
 
             % -------------------------------------------------------------------------
@@ -323,31 +307,31 @@ class Thrust:
             % -------------------------------------------------------------------------
             % -------------------------------------------------------------------------
 
-            Pdim=P0*(r1**2)*war*mi0/(h0**2); %dimensional pressure
+            Pdim=P0*(r1**2)*war*mi0/(h0**2) %dimensional pressure
 
-            XR=r1*(R1+0.5*dR:dR:R2-0.5*dR);
+            XR=r1*(R1+0.5*dR:dR:R2-0.5*dR)
 
-            Xrp=rp*ones(size(XR));
+            Xrp=rp*ones(size(XR))
 
-            XTETA=teta0*(TETA1+0.5*dTETA:dTETA:TETA2-0.5*dTETA);
+            XTETA=teta0*(TETA1+0.5*dTETA:dTETA:TETA2-0.5*dTETA)
 
             for ii=1:NTETA
-                Mxr(:,ii)=(Pdim(:,ii).*(XR'.**2)).*sin(XTETA(ii)-tetap);
-                Myr(:,ii)=-Pdim(:,ii).*XR'.*(XR.*cos(XTETA(ii)-tetap)-Xrp)';
-                Frer(:,ii)=Pdim(:,ii).*XR';
-            end
+                Mxr(:,ii)=(Pdim(:,ii).*(XR'.**2)).*sin(XTETA(ii)-tetap)
+                Myr(:,ii)=-Pdim(:,ii).*XR'.*(XR.*cos(XTETA(ii)-tetap)-Xrp)'
+                Frer(:,ii)=Pdim(:,ii).*XR'
+            
 
-            mxr=trapz(XR,Mxr);
-            myr=trapz(XR,Myr);
-            frer=trapz(XR,Frer);
+            mxr=trapz(XR,Mxr)
+            myr=trapz(XR,Myr)
+            frer=trapz(XR,Frer)
 
-            mx=trapz(XTETA,mxr);
-            my=trapz(XTETA,myr);
-            fre=-trapz(XTETA,frer)+fz/Npad;
+            mx=trapz(XTETA,mxr)
+            my=trapz(XTETA,myr)
+            fre=-trapz(XTETA,frer)+fz/Npad
 
-            resMx=mx;
-            resMy=my;
-            resFre=fre;
+            resMx=mx
+            resMy=my
+            resFre=fre
             return
 
             # TEMPERATURE ==============================================================
