@@ -216,26 +216,26 @@ class Thrust:
                         # vectorization index
                         k=k+1
                         
-                        b[k,1]=-B_F+(war*mi0*r1**2/(rho*cp*h0**2*T0))*(B_G-B_H-B_I-B_J)+(mi0*war/(rho*cp*T0))*(B_K-B_L-B_M-B_N-B_O)
+                        b[k,0]=-B_F+(war*mi0*r1**2/(rho*cp*h0**2*T0))*(B_G-B_H-B_I-B_J)+(mi0*war/(rho*cp*T0))*(B_K-B_L-B_M-B_N-B_O)
                         
                         if kTETA==1 and kR==1:
                             Mat_coef[k,k]=CP+CS
                             Mat_coef[k,k+1]=CE
                             Mat_coef[k,k+NTETA]=CN
-                            b[k,1]=b[k,1]-1*CW
+                            b[k,0]=b[k,0]-1*CW
                         
                         if kTETA==1 and kR>1 and kR<NR:
                             Mat_coef[k,k]=CP
                             Mat_coef[k,k+1]=CE
                             Mat_coef[k,k+NTETA]=CN
                             Mat_coef[k,k-NTETA]=CS
-                            b[k,1]=b[k,1]-1*CW
+                            b[k,0]=b[k,0]-1*CW
                         
                         if kTETA==1 and kR==NR:
                             Mat_coef[k,k]=CP+CN
                             Mat_coef[k,k+1]=CE
                             Mat_coef[k,k-NTETA]=CS
-                            b[k,1]=b[k,1]-1*CW
+                            b[k,0]=b[k,0]-1*CW
                         
                         if kR==1 and kTETA>1 and kTETA<NTETA:
                             Mat_coef[k,k]=CP+CS
@@ -275,7 +275,7 @@ class Thrust:
                         kTETA=kTETA+1
                     
                     kR=kR+1
-                    kTETA=1
+                    kTETA=0
                 
                 # Temperature field solution
                 t = np.linalg.solve(Mat_coef, b)
@@ -296,33 +296,32 @@ class Thrust:
             T=T_new
 
             # RESULTING FORCE AND MOMENTUM: Equilibrium position
+
             # dimensional pressure
             Pdim=P0*(r1**2)*war*mi0/(h0**2) 
 
-            XR=r1*(R1+0.5*dR:dR:R2-0.5*dR)
+            # RESULTING FORCE AND MOMENTUM: Equilibrium position
+            XR = r1 * vec_R
+            XTETA = teta0 * vec_TETA
+            Xrp = rp * (1 + np.zeros(XR, XR))
 
-            Xrp=rp*ones(size(XR))
-
-            XTETA=teta0*(TETA1+0.5*dTETA:dTETA:TETA2-0.5*dTETA)
-
-            for ii=1:NTETA
-                Mxr(:,ii)=(Pdim(:,ii).*(XR'.**2)).*sin(XTETA(ii)-tetap)
-                Myr(:,ii)=-Pdim(:,ii).*XR'.*(XR.*cos(XTETA(ii)-tetap)-Xrp)'
-                Frer(:,ii)=Pdim(:,ii).*XR'
+            for ii in range(0,NTETA):
+                Mxr[:,ii]=(Pdim[:,ii]*(np.transpose(XR)**2))*np.sin(XTETA[ii]-tetap)
+                Myr[:,ii]=-Pdim[:,ii]*np.transpose(XR)*np.transpose(XR*np.cos(XTETA[ii]-tetap)-Xrp)
+                Frer[:,ii]=Pdim[:,ii]*np.transpose(XR)
             
 
-            mxr=trapz(XR,Mxr)
-            myr=trapz(XR,Myr)
-            frer=trapz(XR,Frer)
+            mxr=np.trapz(XR,Mxr)
+            myr=np.trapz(XR,Myr)
+            frer=np.trapz(XR,Frer)
 
-            mx=trapz(XTETA,mxr)
-            my=trapz(XTETA,myr)
-            fre=-trapz(XTETA,frer)+fz/Npad
+            mx=np.trapz(XTETA,mxr)
+            my=np.trapz(XTETA,myr)
+            fre=-np.trapz(XTETA,frer)+fz/Npad
 
             resMx=mx
             resMy=my
             resFre=fre
-            return
 
             # TEMPERATURE ==============================================================
             # ENDS HERE ================================================================
