@@ -126,7 +126,251 @@ class Thrust:
             # TEMPERATURE ==============================================================
             # STARTS HERE ==============================================================
 
-            [T, resMx, resMy, resFre] = TEMPERATURE(h0, a_r, a_s, tolMI)
+            function [T,resMx,resMy,resFre]=TEMPERATURE(h0,ar,as,tolMI)
+
+            global r1  teta0 mi0 fz Npad NTETA NR war R1 R2...
+                TETA1 TETA2 rp tetap dR dTETA k1 k2 k3 rho cp kt T0 Ti
+
+            dHdT=0;
+
+            %inicial temperature field
+            T_i=Ti;
+
+            for ii=1:NR
+                for jj=1:NTETA
+                    mi_i(ii,jj)=(1e-3)*k1*exp(k2/(T_i(ii,jj)-k3)); %[Pa.s]
+                end
+            end
+
+            MI_new=(1/mi0)*mi_i;
+            MI=0.2*MI_new;
+
+            % -------------------------------------------------------------------------
+            % -------------------------------------------------------------------------
+            %             TEMPERATURE FIELD - Solution of ENERGY equation
+            % -------------------------------------------------------------------------
+            % -------------------------------------------------------------------------
+
+            for ii=1:NR
+                for jj=1:NTETA
+                    varMI=abs((MI_new(ii,jj)-MI(ii,jj))/MI(ii,jj));
+                end
+            end
+
+            while max(max(varMI))>=tolMI
+                
+                MI=MI_new;
+                [P0,H0,dP0dR,dP0dTETA]= PRESSURE_THD(ar,as,h0,MI);
+                
+                kR=1;
+                kTETA=1;
+                k=0; %index using for pressure vectorization
+                nk=(NR)*(NTETA); %number of volumes
+                
+                Mat_coef=zeros(nk,nk); %Coefficients Matrix
+                b=zeros(nk,1);
+                cont=0;
+                
+                for R=(R1+0.5*dR):dR:(R2-0.5*dR)
+                    
+                    for TETA=(TETA1+0.5*dTETA):dTETA:(TETA2-0.5*dTETA)
+                        
+                        cont=cont+1;
+                        TETAe=TETA+0.5*dTETA;
+                        TETAw=TETA-0.5*dTETA;
+                        Rn=R+0.5*dR;
+                        Rs=R-0.5*dR;
+                        
+                        
+                        %Coefficients for solving the energy equation
+                        
+                        aux_n=dTETA/12*(R*H0(kR,kTETA)^3/MI(kR,kTETA)*dP0dR(kR,kTETA));
+                        
+                        CN_1=0.5*aux_n;
+                        
+                        CS_1=-0.5*aux_n;
+                        
+                        CP_1=-(CS_1+CN_1);
+                        
+                        aux_e=(dR/(12*teta0^2)*(H0(kR,kTETA)^3/(R*MI(kR,kTETA))*dP0dTETA(kR,kTETA))-dR/(2*teta0)*H0(kR,kTETA)*R);
+                        
+                        CE_1=0*aux_e;
+                        
+                        CW_1=-1*aux_e;
+                        
+                        CP_2=-(CE_1+CW_1);
+                        
+                        
+                        %difusive terms - central differences
+                        CN_2=kt/(rho*cp*war*r1^2)*(dTETA*Rn)/(dR)*H0(kR,kTETA);
+                        
+                        CS_2=kt/(rho*cp*war*r1^2)*(dTETA*Rs)/(dR)*H0(kR,kTETA);
+                        
+                        CP_3=-(CN_2+CS_2);
+                        
+                        CE_2=kt/(rho*cp*war*r1^2)*dR/(teta0^2*dTETA)*H0(kR,kTETA)/R;
+                        
+                        CW_2=kt/(rho*cp*war*r1^2)*dR/(teta0^2*dTETA)*H0(kR,kTETA)/R;
+                        
+                        CP_4=-(CE_2+CW_2);
+                        
+                        CW=CW_1+CW_2; CS=CS_1+CS_2; CN=CN_1+CN_2; CE=CE_1+CE_2;
+                        
+                        CP=CP_1+CP_2+CP_3+CP_4;
+                        
+                        B_F=0;
+                        
+                        B_G=0;
+                        
+                        B_H=dR*dTETA/(12*teta0^2)*(H0(kR,kTETA)^3/(MI(kR,kTETA)*R)*dP0dTETA(kR,kTETA)^2);
+                        
+                        B_I=MI(kR,kTETA)*R^3/(H0(kR,kTETA))*dR*dTETA;
+                        
+                        B_J=dR*dTETA/12*(R*H0(kR,kTETA)^3/MI(kR,kTETA))*dP0dR(kR,kTETA)^2;
+                        
+                        B_K=dR*dTETA/(12*teta0)*(H0(kR,kTETA)^3/R)*dP0dTETA(kR,kTETA);
+                        
+                        B_L=dR*dTETA/60*(H0(kR,kTETA)^5/(MI(kR,kTETA)*R))*dP0dR(kR,kTETA)^2;
+                        
+                        B_M=2*dR*dTETA*(R*MI(kR,kTETA)/H0(kR,kTETA))*(dHdT)^2;
+                        
+                        B_N=dR*dTETA/3*R*MI(kR,kTETA)*H0(kR,kTETA);
+                        
+                        B_O=dR*dTETA/(120*teta0^2)*(H0(kR,kTETA)^5/(MI(kR,kTETA)*R^3))*dP0dTETA(kR,kTETA)^2;
+                        
+                        k=k+1; %vectorization index
+                        
+                        b(k,1)=-B_F+(war*mi0*r1^2/(rho*cp*h0^2*T0))*(B_G-B_H-B_I-B_J)+(mi0*war/(rho*cp*T0))*(B_K-B_L-B_M-B_N-B_O);
+                        
+                        if kTETA==1 && kR==1
+                            Mat_coef(k,k)=CP+CS;
+                            Mat_coef(k,k+1)=CE;
+                            Mat_coef(k,k+(NTETA))=CN;
+                            b(k,1)=b(k,1)-1*CW;
+                        end
+                        
+                        
+                        if kTETA==1 && kR>1 && kR<NR
+                            Mat_coef(k,k)=CP;
+                            Mat_coef(k,k+1)=CE;
+                            Mat_coef(k,k+(NTETA))=CN;
+                            Mat_coef(k,k-(NTETA))=CS;
+                            b(k,1)=b(k,1)-1*CW;
+                        end
+                        
+                        
+                        if kTETA==1 && kR==NR
+                            Mat_coef(k,k)=CP+CN;
+                            Mat_coef(k,k+1)=CE;
+                            Mat_coef(k,k-(NTETA))=CS;
+                            b(k,1)=b(k,1)-1*CW;
+                        end
+                        
+                        if kR==1 && kTETA>1 && kTETA<NTETA
+                            Mat_coef(k,k)=CP+CS;
+                            Mat_coef(k,k+1)=CE;
+                            Mat_coef(k,k-1)=CW;
+                            Mat_coef(k,k+(NTETA))=CN;
+                        end
+                        
+                        if kTETA>1 && kTETA<NTETA && kR>1 && kR<NR
+                            Mat_coef(k,k)=CP;
+                            Mat_coef(k,k-1)=CW;
+                            Mat_coef(k,k+(NTETA))=CN;
+                            Mat_coef(k,k-(NTETA))=CS;
+                            Mat_coef(k,k+1)=CE;
+                        end
+                        
+                        if kR==NR && kTETA>1 && kTETA<NTETA
+                            Mat_coef(k,k)=CP+CN;
+                            Mat_coef(k,k-1)=CW;
+                            Mat_coef(k,k+1)=CE;
+                            Mat_coef(k,k-(NTETA))=CS;
+                        end
+                        
+                        
+                        if kR==1 && kTETA==NTETA
+                            Mat_coef(k,k)=CP+CE+CS;
+                            Mat_coef(k,k-1)=CW;
+                            Mat_coef(k,k+(NTETA))=CN;
+                        end
+                        
+                        if kTETA==NTETA && kR>1 && kR<NR
+                            Mat_coef(k,k)=CP+CE;
+                            Mat_coef(k,k-1)=CW;
+                            Mat_coef(k,k-(NTETA))=CS;
+                            Mat_coef(k,k+(NTETA))=CN;
+                        end
+                        
+                        if kTETA==NTETA && kR==NR
+                            Mat_coef(k,k)=CP+CN+CE;
+                            Mat_coef(k,k-1)=CW;
+                            Mat_coef(k,k-(NTETA))=CS;
+                        end
+                        
+                        kTETA=kTETA+1;
+                    end
+                    kR=kR+1;
+                    kTETA=1;
+                end
+                
+                %%%%%%%%%%%%%%%%%%%%%% Pressure field solution %%%%%%%%%%%%%%%%%%%%
+                
+                t=Mat_coef\b; %solve pressure vectorized
+                
+                cont=0;
+                
+                for ii=1:NR
+                    for jj=1:NTETA
+                        cont=cont+1;
+                        T_new(ii,jj)=t(cont); %matrix of pressure
+                    end
+                end
+                
+                %viscositu field
+                for ii=1:NR
+                    for jj=1:NTETA
+                        MI_new(ii,jj)=(1e-3)*(1/mi0)*k1*exp(k2/(T0*T_new(ii,jj)-k3));
+                        varMI(ii,jj)=abs((MI_new(ii,jj)-MI(ii,jj))/MI(ii,jj));
+                    end
+                end
+                
+            end
+            T=T_new;
+
+
+            % -------------------------------------------------------------------------
+            % -------------------------------------------------------------------------
+            %            RESULTING FORCE AND MOMENTUM: Equilibrium position
+            % -------------------------------------------------------------------------
+            % -------------------------------------------------------------------------
+
+            Pdim=P0*(r1^2)*war*mi0/(h0^2); %dimensional pressure
+
+            XR=r1*(R1+0.5*dR:dR:R2-0.5*dR);
+
+            Xrp=rp*ones(size(XR));
+
+            XTETA=teta0*(TETA1+0.5*dTETA:dTETA:TETA2-0.5*dTETA);
+
+            for ii=1:NTETA
+                Mxr(:,ii)=(Pdim(:,ii).*(XR'.^2)).*sin(XTETA(ii)-tetap);
+                Myr(:,ii)=-Pdim(:,ii).*XR'.*(XR.*cos(XTETA(ii)-tetap)-Xrp)';
+                Frer(:,ii)=Pdim(:,ii).*XR';
+            end
+
+            mxr=trapz(XR,Mxr);
+            myr=trapz(XR,Myr);
+            frer=trapz(XR,Frer);
+
+            mx=trapz(XTETA,mxr);
+            my=trapz(XTETA,myr);
+            fre=-trapz(XTETA,frer)+fz/Npad;
+
+            resMx=mx;
+            resMy=my;
+            resFre=fre;
+            return
 
             # TEMPERATURE ==============================================================
             # ENDS HERE ================================================================
