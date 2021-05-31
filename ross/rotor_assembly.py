@@ -3259,6 +3259,13 @@ class CoAxialRotor(Rotor):
             if disk.tag is None:
                 disk.tag = "Disk " + str(i)
 
+        # calculate scale factor if disks have scale_factor='mass'
+        if all([disk.scale_factor == "mass" for disk in disk_elements]):
+            max_mass = max([disk.m for disk in disk_elements])
+            for disk in disk_elements:
+                f = disk.m / max_mass
+                disk.scale_factor = (1 - f) * 0.5 + f * 1.0
+
         for i, brg in enumerate(bearing_elements):
             if brg.__class__.__name__ == "BearingElement" and brg.tag is None:
                 brg.tag = "Bearing " + str(i)
