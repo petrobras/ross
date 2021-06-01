@@ -137,6 +137,7 @@ class THDCylindrical:
         mu_I,
         mu_F,
         sommerfeld_type=2,
+        oip=0,
     ):
 
         self.L = L
@@ -185,6 +186,11 @@ class THDCylindrical:
         Z[self.n_z + 1] = self.Z_F
         Z[1 : self.n_z + 1] = np.arange(self.Z_I + 0.5 * self.dZ, self.Z_F, self.dZ)
         self.Z = Z
+
+        self.pct = np.round(self.n_z/10)
+
+        self.pct_aux1 = np.round((self.n_z-self.pct)/2)
+        self.pct_aux2 = np.round(self.pct_aux1+self.pct)
 
         # Dimensionalization
 
@@ -1058,7 +1064,8 @@ def cylindrical_bearing_example():
         T_muF=80,
         mu_I=0.02,
         mu_F=0.01,
-        sommerfeld_type=1,
+        sommerfeld_type=2,
+        oip=0,
     )
 
     return bearing
