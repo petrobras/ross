@@ -1058,7 +1058,7 @@ def cylindrical_bearing_example():
         T_muF=80,
         mu_I=0.02,
         mu_F=0.01,
-        sommerfeld_type=2,
+        sommerfeld_type=1,
     )
 
     return bearing
