@@ -1013,16 +1013,16 @@ class THDCylindrical:
             )
 
             Cxx = -self.sommerfeld(Aux05[0], Aux06[0]) * (
-                (Aux05[0] - Aux06[0]) / (epixpt / self.c_r / self.speed)
+                (Aux06[0] - Aux05[0]) / (epixpt / self.c_r / self.speed)
             )
             Cxy = -self.sommerfeld(Aux07[0], Aux08[0]) * (
-                (Aux07[0] - Aux08[0]) / (epiypt / self.c_r / self.speed)
+                (Aux08[0] - Aux07[0]) / (epiypt / self.c_r / self.speed)
             )
             Cyx = -self.sommerfeld(Aux05[1], Aux06[1]) * (
-                (Aux05[1] - Aux06[1]) / (epixpt / self.c_r / self.speed)
+                (Aux06[1] - Aux05[1]) / (epixpt / self.c_r / self.speed)
             )
             Cyy = -self.sommerfeld(Aux07[1], Aux08[1]) * (
-                (Aux07[1] - Aux08[1]) / (epiypt / self.c_r / self.speed)
+                (Aux08[1] - Aux07[1]) / (epiypt / self.c_r / self.speed)
             )
 
             kxx = (np.sqrt((self.Wx ** 2) + (self.Wy ** 2)) / self.c_r) * Kxx
