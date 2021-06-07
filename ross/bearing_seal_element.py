@@ -1165,6 +1165,7 @@ class SealElement(BearingElement):
         frequency=None,
         seal_leakage=None,
         tag=None,
+        n_link=None,
         scale_factor=1.0,
         color="#77ACA2",
     ):
