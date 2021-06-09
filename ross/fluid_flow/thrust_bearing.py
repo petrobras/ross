@@ -1,4 +1,5 @@
 import numpy as np
+import scipy
 from numpy.linalg import pinv
 from scipy.linalg import solve
 from scipy.optimize import fmin
@@ -7,6 +8,7 @@ from decimal import Decimal
 
 class Thrust:
     def __init__(
+        self,
         r1,
         r2,
         rp,
@@ -38,14 +40,14 @@ class Thrust:
         dTETA,
         Ti,
         x0,
-        mi,
-        P0,
-        MI,
-        H0,
-        H0ne,
-        H0se,
-        H0nw,
-        H0sw,
+        # mi,
+        # P0,
+        # MI,
+        # H0,
+        # H0ne,
+        # H0se,
+        # H0nw,
+        # H0sw,
     ):
         self.r1 = r1
         self.r2 = r2
@@ -76,16 +78,16 @@ class Thrust:
         self.TETAp = TETAp
         self.dR = dR
         self.dTETA = dTETA
-        self.Ti = T0 * (1 + np.zeros(NR, NTETA))
+        self.Ti = T0 * (1 + np.zeros((NR, NTETA)))
         self.x0 = x0
-        self.mi = mi
-        self.P0 = P0
-        self.MI = MI
-        self.H0 = H0
-        self.H0ne = H0ne
-        self.H0se = H0se
-        self.H0nw = H0nw
-        self.H0sw = H0sw
+        # self.mi = mi
+        # self.P0 = P0
+        # self.MI = MI
+        # self.H0 = H0
+        # self.H0ne = H0ne
+        # self.H0se = H0se
+        # self.H0nw = H0nw
+        # self.H0sw = H0sw
 
         # --------------------------------------------------------------------------
         # Pre-processing loop counters for ease of understanding
@@ -1580,9 +1582,9 @@ def ArAsh0Equilibrium(
 
 
 def thrust_bearing_example():
-    """Create an example of a thrust bearing with hydrodynamic effects. 
-    This function returns pressure field and dynamic coefficient. The 
-    purpose is to make available a simple model so that a doctest can be 
+    """Create an example of a thrust bearing with hydrodynamic effects.
+    This function returns pressure field and dynamic coefficient. The
+    purpose is to make available a simple model so that a doctest can be
     written using it.
 
     Returns
@@ -1596,38 +1598,47 @@ def thrust_bearing_example():
     0.263144
     """
 
-    r1 = (0.5 * 90e-3,)  # pad inner radius [m]
-    r2 = (0.5 * 160e-3,)  # pad outer radius [m]
-    rp = ((r2 - r1) * 0.5 + r1,)  # pad pivot radius [m]
-    teta0 = (35 * np.pi / 180,)  # pad complete angle [rad]
-    tetap = (19.5 * np.pi / 180,)  # pad pivot angle [rad]
-    TC = (40 + 273.15,)  # Collar temperature [K]
-    Tin = (40 + 273.15,)  # Cold oil temperature [K]
-    T0 = (0.5 * (TC + Tin),)  # Reference temperature [K]
-    rho = (870,)  # Oil density [kg/m³]
-    cp = (1850,)  # Oil thermal capacity [J/kg/K]
-    kt = (0.15,)  # Oil thermal conductivity [W/m/K]
-    k1 = (0.06246,)  # Coefficient for ISO VG 32 turbine oil - Vogel's equation
-    k2 = (868.8,)  # Coefficient for ISO VG 32 turbine oil - Vogel's equation
-    k3 = (170.4,)  # Coefficient for ISO VG 32 turbine oil - Vogel's equation
-    mi0 = (1e-6 * rho * 22,)  # Oil VG 22
-    fz = (370 * 9.81,)  # Loading in Y direction [N]
-    Npad = (3,)  # Number of PADs
-    NTETA = (40,)  # TETA direction N volumes
-    NR = (40,)  # R direction N volumes
-    war = ((1200 * np.pi) / 30,)  # Shaft rotation speed [RPM]
-    R1 = (1,)  # Inner pad FEM radius
-    R2 = (r2 / r1,)  # Outer pad FEM radius
-    TETA1 = (0,)  # Initial angular coordinate
-    TETA2 = (1,)  # Final angular coordinate
-    Rp = (rp / r1,)  # Radial pivot position
-    TETAp = (tetap / teta0,)  # Angular pivot position
-    dR = ((R2 - R1) / (NR),)  # R direction volumes length
-    dTETA = ((TETA2 - TETA1) / (NTETA),)  # TETA direction volumes length
-    Ti = (T0 * (1 + np.zeros(NR, NTETA)),)  # Initial temperature field [°C]
-    x0 = (
-        np.array(-2.251004554793839e-04, -1.332796067467349e-04, 2.152552477569639e-05),
+    r1 = 0.5 * 90e-3  # pad inner radius [m]
+    r2 = 0.5 * 160e-3  # pad outer radius [m]
+    rp = (r2 - r1) * 0.5 + r1  # pad pivot radius [m]
+    teta0 = 35 * np.pi / 180  # pad complete angle [rad]
+    tetap = 19.5 * np.pi / 180  # pad pivot angle [rad]
+    TC = 40 + 273.15  # Collar temperature [K]
+    Tin = 40 + 273.15  # Cold oil temperature [K]
+    T0 = 0.5 * (TC + Tin)  # Reference temperature [K]
+    rho = 870  # Oil density [kg/m³]
+    cp = 1850  # Oil thermal capacity [J/kg/K]
+    kt = 0.15  # Oil thermal conductivity [W/m/K]
+    k1 = 0.06246  # Coefficient for ISO VG 32 turbine oil - Vogel's equation
+    k2 = 868.8  # Coefficient for ISO VG 32 turbine oil - Vogel's equation
+    k3 = 170.4  # Coefficient for ISO VG 32 turbine oil - Vogel's equation
+    mi0 = 1e-6 * rho * 22  # Oil VG 22
+    fz = 370 * 9.81  # Loading in Y direction [N]
+    Npad = 3  # Number of PADs
+    NTETA = 40  # TETA direction N volumes
+    NR = 40  # R direction N volumes
+    wa = 1200  # Shaft rotation speed [rads]
+    war = (1200 * np.pi) / 30  # Shaft rotation speed [RPM]
+    R1 = 1  # Inner pad FEM radius
+    R2 = r2 / r1  # Outer pad FEM radius
+    TETA1 = 0  # Initial angular coordinate
+    TETA2 = 1  # Final angular coordinate
+    Rp = rp / r1  # Radial pivot position
+    TETAp = tetap / teta0  # Angular pivot position
+    dR = (R2 - R1) / (NR)  # R direction volumes length
+    dTETA = (TETA2 - TETA1) / (NTETA)  # TETA direction volumes length
+    Ti = T0 * (1 + np.zeros((NR, NTETA)))  # Initial temperature field [°C]
+    x0 = np.array(
+        (-2.251004554793839e-04, -1.332796067467349e-04, 2.152552477569639e-05)
     )  # Initial equilibrium position
+    # mi =
+    # P0 =
+    # MI =
+    # H0 =
+    # H0ne =
+    # H0se =
+    # H0nw =
+    # H0sw =
 
     bearing = Thrust(
         r1=r1,
@@ -1649,6 +1660,7 @@ def thrust_bearing_example():
         Npad=Npad,
         NTETA=NTETA,
         NR=NR,
+        wa=wa,
         war=war,
         R1=R1,
         R2=R2,
@@ -1660,6 +1672,18 @@ def thrust_bearing_example():
         dTETA=dTETA,
         Ti=Ti,
         x0=x0,
+        # mi=mi,
+        # P0=P0,
+        # MI=MI,
+        # H0=H0,
+        # H0ne=H0ne,
+        # H0se=H0se,
+        # H0nw=H0nw,
+        # H0sw=H0sw,
     )
 
     return bearing
+
+
+if __name__ == "__main__":
+    thrust_bearing_example()
