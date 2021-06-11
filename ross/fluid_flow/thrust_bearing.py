@@ -152,6 +152,7 @@ class Thrust:
             # STARTS HERE ==============================================================
 
             dHdT = 0
+            mi_i = np.zeros((NR, NTETA))
 
             # initial temperature field
             T_i = Ti
