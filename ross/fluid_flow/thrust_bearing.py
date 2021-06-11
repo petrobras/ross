@@ -192,7 +192,7 @@ class Thrust:
 
                 #
                 Mat_coef = np.zeros((nk, nk))
-                b = np.zeros((nk, 0))
+                b = np.zeros((nk, 1))
                 cont = -1
 
                 for R in vec_R:
@@ -483,7 +483,7 @@ class Thrust:
 
                 # Coefficients Matrix
                 Mat_coef = np.zeros((nk, nk))
-                b = np.zeros((nk, 0))
+                b = np.zeros((nk, 1))
                 cont = -1
 
                 for R in vec_R:
@@ -735,7 +735,7 @@ class Thrust:
 
             mx = np.trapz(XTETA, mxr)
             my = np.trapz(XTETA, myr)
-            fre = -np.trapz(XTETA, frer) + fz / Npad
+            fre = -np.trapz(XTETA, frer) + fz / Npad - 1
 
             resMx = mx
             resMy = my
@@ -783,7 +783,7 @@ class Thrust:
 
         # Coefficients Matrix
         Mat_coef = np.zeros((nk, nk))
-        b = np.zeros((nk, 0))
+        b = np.zeros((nk, 1))
         cont = -1
 
         for R in vec_R:
@@ -1008,7 +1008,7 @@ class Thrust:
 
         # coefficients matrix
         Mat_coef = np.zeros((nk, nk))
-        b = np.zeros((nk, 0))
+        b = np.zeros((nk, 1))
         cont = -1
 
         for R in vec_R:
@@ -1393,7 +1393,7 @@ def ArAsh0Equilibrium(
 
     # Coefficients Matrix
     Mat_coef = np.zeros((nk, nk))
-    b = np.zeros((nk, 0))
+    b = np.zeros((nk, 1))
     cont = -1
 
     for R in vec_R:
@@ -1444,37 +1444,37 @@ def ArAsh0Equilibrium(
                 MI_n = MI[kR, kTETA]
                 MI_s = 0.5 * (MI[kR, kTETA] + MI[kR - 1, kTETA])
 
-            if kR == 0 and kTETA > 0 and kTETA < Npad:
+            if kR == 0 and kTETA > 0 and kTETA < Npad - 1:
                 MI_e = 0.5 * (MI[kR, kTETA] + MI[kR, kTETA + 1])
                 MI_w = 0.5 * (MI[kR, kTETA] + MI[kR, kTETA - 1])
                 MI_n = 0.5 * (MI[kR, kTETA] + MI[kR + 1, kTETA])
                 MI_s = MI[kR, kTETA]
 
-            if kTETA > 0 and kTETA < Npad and kR > 0 and kR < NR:
+            if kTETA > 0 and kTETA < Npad - 1 and kR > 0 and kR < NR:
                 MI_e = 0.5 * (MI[kR, kTETA] + MI[kR, kTETA + 1])
                 MI_w = 0.5 * (MI[kR, kTETA] + MI[kR, kTETA - 1])
                 MI_n = 0.5 * (MI[kR, kTETA] + MI[kR + 1, kTETA])
                 MI_s = 0.5 * (MI[kR, kTETA] + MI[kR - 1, kTETA])
 
-            if kR == NR and kTETA > 0 and kTETA < Npad:
+            if kR == NR and kTETA > 0 and kTETA < Npad - 1:
                 MI_e = 0.5 * (MI[kR, kTETA] + MI[kR, kTETA + 1])
                 MI_w = 0.5 * (MI[kR, kTETA] + MI[kR, kTETA - 1])
                 MI_n = MI[kR, kTETA]
                 MI_s = 0.5 * (MI[kR, kTETA] + MI[kR - 1, kTETA])
 
-            if kR == 0 and kTETA == Npad:
+            if kR == 0 and kTETA == Npad - 1:
                 MI_e = MI[kR, kTETA]
                 MI_w = 0.5 * (MI[kR, kTETA] + MI[kR, kTETA - 1])
                 MI_n = 0.5 * (MI[kR, kTETA] + MI[kR + 1, kTETA])
                 MI_s = MI[kR, kTETA]
 
-            if kTETA == Npad and kR > 0 and kR < NR:
+            if kTETA == Npad - 1 and kR > 0 and kR < NR:
                 MI_e = MI[kR, kTETA]
                 MI_w = 0.5 * (MI[kR, kTETA] + MI[kR, kTETA - 1])
                 MI_n = 0.5 * (MI[kR, kTETA] + MI[kR + 1, kTETA])
                 MI_s = 0.5 * (MI[kR, kTETA] + MI[kR - 1, kTETA])
 
-            if kTETA == Npad and kR == NR:
+            if kTETA == Npad - 1 and kR == NR:
                 MI_e = MI[kR, kTETA]
                 MI_w = 0.5 * (MI[kR, kTETA] + MI[kR, kTETA - 1])
                 MI_n = MI[kR, kTETA]
@@ -1505,53 +1505,53 @@ def ArAsh0Equilibrium(
             if kTETA == 0 and kR == 0:
                 Mat_coef[k, k] = CP - CS - CW
                 Mat_coef[k, k + 1] = CE
-                Mat_coef[k, k + Npad] = CN
+                Mat_coef[k, k + Npad - 1] = CN
 
             if kTETA == 0 and kR > 0 and kR < NR:
                 Mat_coef[k, k] = CP - CW
                 Mat_coef[k, k + 1] = CE
-                Mat_coef[k, k + Npad] = CN
-                Mat_coef[k, k - Npad] = CS
+                Mat_coef[k, k + Npad - 1] = CN
+                Mat_coef[k, k - Npad - 1] = CS
 
             if kTETA == 0 and kR == NR:
                 Mat_coef[k, k] = CP - CW - CN
                 Mat_coef[k, k + 1] = CE
-                Mat_coef[k, k - Npad] = CS
+                Mat_coef[k, k - Npad - 1] = CS
 
-            if kR == 0 and kTETA > 0 and kTETA < Npad:
+            if kR == 0 and kTETA > 0 and kTETA < Npad - 1:
                 Mat_coef[k, k] = CP - CS
                 Mat_coef[k, k + 1] = CE
                 Mat_coef[k, k - 1] = CW
-                Mat_coef[k, k + Npad] = CN
+                Mat_coef[k, k + Npad - 1] = CN
 
-            if kTETA > 0 and kTETA < Npad and kR > 0 and kR < NR:
+            if kTETA > 0 and kTETA < Npad - 1 and kR > 0 and kR < NR:
                 Mat_coef[k, k] = CP
                 Mat_coef[k, k - 1] = CW
-                Mat_coef[k, k + Npad] = CN
-                Mat_coef[k, k - Npad] = CS
+                Mat_coef[k, k + Npad - 1] = CN
+                Mat_coef[k, k - Npad - 1] = CS
                 Mat_coef[k, k + 1] = CE
 
-            if kR == NR and kTETA > 0 and kTETA < Npad:
+            if kR == NR and kTETA > 0 and kTETA < Npad - 1:
                 Mat_coef[k, k] = CP - CN
                 Mat_coef[k, k - 1] = CW
                 Mat_coef[k, k + 1] = CE
-                Mat_coef[k, k - Npad] = CS
+                Mat_coef[k, k - Npad - 1] = CS
 
-            if kR == 0 and kTETA == Npad:
+            if kR == 0 and kTETA == Npad - 1:
                 Mat_coef[k, k] = CP - CE - CS
                 Mat_coef[k, k - 1] = CW
-                Mat_coef[k, k + Npad] = CN
+                Mat_coef[k, k + Npad - 1] = CN
 
-            if kTETA == Npad and kR > 0 and kR < NR:
+            if kTETA == Npad - 1 and kR > 0 and kR < NR:
                 Mat_coef[k, k] = CP - CE
                 Mat_coef[k, k - 1] = CW
-                Mat_coef[k, k - Npad] = CS
-                Mat_coef[k, k + Npad] = CN
+                Mat_coef[k, k - Npad - 1] = CS
+                Mat_coef[k, k + Npad - 1] = CN
 
-            if kTETA == Npad and kR == NR:
+            if kTETA == Npad - 1 and kR == NR:
                 Mat_coef[k, k] = CP - CE - CN
                 Mat_coef[k, k - 1] = CW
-                Mat_coef[k, k - Npad] = CS
+                Mat_coef[k, k - Npad - 1] = CS
 
             kTETA = kTETA + 1
 
@@ -1565,13 +1565,13 @@ def ArAsh0Equilibrium(
 
     # pressure matrix
     for ii in range(0, NR):
-        for jj in range(0, Npad):
+        for jj in range(0, Npad - 1):
             cont = cont + 1
             P[ii, jj] = p[cont]
 
     # boundary conditions of pressure
     for ii in range(0, NR):
-        for jj in range(0, Npad):
+        for jj in range(0, Npad - 1):
             if P[ii, jj] < 0:
                 P[ii, jj] = 0
 
@@ -1583,7 +1583,7 @@ def ArAsh0Equilibrium(
     XTETA = teta0 * vec_TETA
     Xrp = rp * (1 + np.zeros((XR, XR)))
 
-    for ii in range(0, Npad):
+    for ii in range(0, Npad - 1):
         Mxr[:, ii] = (Pdim[:, ii] * (np.transpose(XR) ** 2)) * np.sin(XTETA[ii] - tetap)
         Myr[:, ii] = (
             -Pdim[:, ii]
@@ -1598,7 +1598,7 @@ def ArAsh0Equilibrium(
 
     mx = np.trapz(XTETA, mxr)
     my = np.trapz(XTETA, myr)
-    fre = -np.trapz(XTETA, frer) + fz / Npad
+    fre = -np.trapz(XTETA, frer) + fz / Npad - 1
 
     x = np.norm(mx, my, fre)
 
