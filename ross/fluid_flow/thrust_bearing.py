@@ -126,6 +126,7 @@ class Thrust:
                     k3,
                     TETAp,
                     Ti,
+                    x0,
                 ),
                 x0,
                 args=(),
@@ -190,8 +191,8 @@ class Thrust:
                 nk = (NR) * (NTETA)
 
                 #
-                Mat_coef = np.zeros(nk, nk)
-                b = np.zeros(nk, 1)
+                Mat_coef = np.zeros((nk, nk))
+                b = np.zeros((nk, 0))
                 cont = -1
 
                 for R in vec_R:
@@ -481,8 +482,8 @@ class Thrust:
                 nk = (NR) * (NTETA)
 
                 # Coefficients Matrix
-                Mat_coef = np.zeros(nk, nk)
-                b = np.zeros(nk, 1)
+                Mat_coef = np.zeros((nk, nk))
+                b = np.zeros((nk, 0))
                 cont = -1
 
                 for R in vec_R:
@@ -715,7 +716,7 @@ class Thrust:
             # RESULTING FORCE AND MOMENTUM: Equilibrium position
             XR = r1 * vec_R
             XTETA = teta0 * vec_TETA
-            Xrp = rp * (1 + np.zeros(XR, XR))
+            Xrp = rp * (1 + np.zeros((XR, XR)))
 
             for ii in range(0, NTETA):
                 Mxr[:, ii] = (Pdim[:, ii] * (np.transpose(XR) ** 2)) * np.sin(
@@ -749,7 +750,7 @@ class Thrust:
 
         # --------------------------------------------------------------------------
         # Full temperature field
-        TT = 1 + np.zeros(NR + 1, Npad + 1)
+        TT = 1 + np.zeros((NR + 1, Npad + 1))
         TT[1:NR, 1:Npad] = np.fliplr(Ti)
         TT[:, 0] = T0
         TT[0, :] = TT[1, :]
@@ -781,8 +782,8 @@ class Thrust:
         nk = (NR) * (NTETA)
 
         # Coefficients Matrix
-        Mat_coef = np.zeros(nk, nk)
-        b = np.zeros(nk, 0)
+        Mat_coef = np.zeros((nk, nk))
+        b = np.zeros((nk, 0))
         cont = -1
 
         for R in vec_R:
@@ -1006,8 +1007,8 @@ class Thrust:
         nk = NR * Npad  # volumes number
 
         # coefficients matrix
-        Mat_coef = np.zeros(nk, nk)
-        b = np.zeros(nk, 1)
+        Mat_coef = np.zeros((nk, nk))
+        b = np.zeros((nk, 0))
         cont = -1
 
         for R in vec_R:
@@ -1296,7 +1297,7 @@ class Thrust:
         # RESULTING FORCE AND MOMENTUM: Equilibrium position
         XR = r1 * vec_R
         XTETA = teta0 * vec_TETA
-        Xrp = rp * (1 + np.zeros(XR, XR))
+        Xrp = rp * (1 + np.zeros((XR, XR)))
 
         for ii in range(0, Npad):
             Mxr[:, ii] = (Pdim[:, ii] * (np.transpose(XR) ** 2)) * np.sin(
@@ -1354,16 +1355,20 @@ def ArAsh0Equilibrium(
     k3,
     TETAp,
     Ti,
+    x0,
 ):
+
+    # Variable startup
+    MI = np.zeros((NR, Npad))
 
     # loop counters for ease of understanding
     vec_R = np.arange((R1 + 0.5 * dR), (R2 - 0.5 * dR), dR)
     vec_TETA = np.arange((TETA1 + 0.5 * dTETA), (TETA2 - 0.5 * dTETA), dTETA)
 
     # Pitch angles alpha_r and alpha_p and oil filme thickness at pivot h0
-    a_r = x[0]  # [rad]
-    a_s = x[1]  # [rad]
-    h0 = x[2]  # [m]
+    a_r = x0[0]  # [rad]
+    a_s = x0[1]  # [rad]
+    h0 = x0[2]  # [m]
 
     for ii in range(0, NR):
         for jj in range(0, Npad):
@@ -1387,8 +1392,8 @@ def ArAsh0Equilibrium(
     nk = (NR) * (Npad)  # number of volumes
 
     # Coefficients Matrix
-    Mat_coef = np.zeros(nk, nk)
-    b = np.zeros(nk, 0)
+    Mat_coef = np.zeros((nk, nk))
+    b = np.zeros((nk, 0))
     cont = -1
 
     for R in vec_R:
@@ -1576,7 +1581,7 @@ def ArAsh0Equilibrium(
     # RESULTING FORCE AND MOMENTUM: Equilibrium position
     XR = r1 * vec_R
     XTETA = teta0 * vec_TETA
-    Xrp = rp * (1 + np.zeros(XR, XR))
+    Xrp = rp * (1 + np.zeros((XR, XR)))
 
     for ii in range(0, Npad):
         Mxr[:, ii] = (Pdim[:, ii] * (np.transpose(XR) ** 2)) * np.sin(XTETA[ii] - tetap)
@@ -1595,9 +1600,9 @@ def ArAsh0Equilibrium(
     my = np.trapz(XTETA, myr)
     fre = -np.trapz(XTETA, frer) + fz / Npad
 
-    score = np.norm(mx, my, fre)
+    x = np.norm(mx, my, fre)
 
-    return score
+    return x
 
 
 def thrust_bearing_example():
