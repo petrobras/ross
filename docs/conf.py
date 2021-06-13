@@ -106,6 +106,15 @@ try:
     nbsphinx_execute = os.environ["NBSPHINX_EXECUTE"]
 except KeyError:
     nbsphinx_execute = "always"
+html_js_files = []
+nbsphinx_prolog = r"""
+.. raw:: html
+
+    <script src='http://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js'></script>
+    <script>require=requirejs;</script>
+
+
+"""
 html_theme = "bootstrap"
 htlm_theme_path = sphinx_bootstrap_theme.get_html_theme_path()
 
@@ -282,6 +291,3 @@ epub_exclude_files = ["search.html"]
 # -- Extension configuration -------------------------------------------------
 def setup(app):
     app.add_css_file("style.css")
-    app.add_js_file(
-        "https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"
-    )
