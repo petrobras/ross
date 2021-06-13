@@ -1181,6 +1181,7 @@ class SealElement(BearingElement):
             cyx=cyx,
             cyy=cyy,
             tag=tag,
+            n_link=n_link,
             scale_factor=scale_factor,
             color=color,
         )
