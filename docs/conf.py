@@ -107,14 +107,10 @@ try:
 except KeyError:
     nbsphinx_execute = "always"
 html_js_files = []
-nbsphinx_prolog = r"""
-.. raw:: html
+nbsphinx_requirejs_path = (
+    "https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"
+)
 
-    <script src='http://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js'></script>
-    <script>require=requirejs;</script>
-
-
-"""
 html_theme = "bootstrap"
 htlm_theme_path = sphinx_bootstrap_theme.get_html_theme_path()
 
