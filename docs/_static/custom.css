@@ -47,3 +47,7 @@ nav.bd-links ul.nav.sidenav_l1 {
 img {
     margin-bottom: 1em;
 }
+
+p {
+    text-align: justify;
+}

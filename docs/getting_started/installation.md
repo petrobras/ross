@@ -1,10 +1,26 @@
 # Installation
 
-You can install `ccp` with:
+(introduction)=
+
+## Install Python
+
+The first step is to install Python. Since ROSS requires several packages to be installed besides Python, such as
+numpy and scipy, we recommend installing [Anaconda](https://www.anaconda.com/distribution/) (version 3.6 or higher) which is a
+scientific Python distribution that aims to simplify package management and deployment. It contains Python and a large
+number of packages that are commonly used.
+Alternatively, you may refer to the [Python website](http://www.python.org/).
+ROSS code is tested in Python 3.6 and higher.
+
+## Install ROSS
+
+Using the terminal (or the Anaconda prompt if on Windows) you can install the latest release version with:
 
 ```{code-block}
-pip install ccp-performance
+pip install ross-rotordynamics
 ```
 
-To run `ccp` you need to have `REFPROP` in your computer, and an environment variable called `RPPREFIX` pointing to the `REFPROP` path.
+Alternatively, you can install the development version from github:
 
+```{code-block}
+pip install git+https://github.com/ross-rotordynamics/ross.git
+```
