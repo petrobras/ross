@@ -106,7 +106,6 @@ try:
     nbsphinx_execute = os.environ["NBSPHINX_EXECUTE"]
 except KeyError:
     nbsphinx_execute = "always"
-html_js_files = []
 nbsphinx_requirejs_path = (
     "https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.4/require.min.js"
 )
