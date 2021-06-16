@@ -51,6 +51,7 @@ EXTRAS = {
         "codecov",
         "sphinx",
         "sphinx_bootstrap_theme",
+        "sphinx-copybutton",
         "nbsphinx",
         "numpydoc==0.9.2",
         "sphinxcontrib-bibtex>=2.2",

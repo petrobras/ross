@@ -58,6 +58,7 @@ extensions = [
     "numpydoc",
     "sphinx_copybutton",
     "sphinxcontrib.bibtex",
+    "sphinx_copybutton",
 ]
 
 # Generate the API documentation when building
