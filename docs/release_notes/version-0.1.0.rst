@@ -85,12 +85,12 @@ into run_static() method.
 Added user guide on how to use ROSS
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 A tutorial has been added to the documentation. This is available as a
-jupyter notebook and is also rendered in the :ref:`tutorial`
+jupyter notebook and is also rendered in the :doc:`../tutorials/tutorial_part_1`
 documentation page.
 
 Jupyter examples
 ^^^^^^^^^^^^^^^^
-Implementation of the following examples, taken from Frisswell:
+Implementation of the following examples, taken from Friswell:
  * 5.9.1
  * 5.9.2
  * 5.9.4
