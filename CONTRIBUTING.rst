@@ -120,8 +120,8 @@ To create a Pull Request (PR), refer to `the github PR guide <https://help.githu
 Documentation
 -------------
 We use `sphinx <http://www.sphinx-doc.org/en/master/>`_ to generate the project's documentation. We keep the source
-files at ~/ross/docs, and the website is hosted at
-`readthedocs<https://ross.readthedocs.io/en/latest/>`_.
+files at ~/ross/docs, and the website is hosted
+`here <https://ross.readthedocs.io/en/latest/>`_.
 The website tracks the documentation for the released version with the 'Docs'
 GitHub Action.
 
