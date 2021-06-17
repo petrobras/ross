@@ -3,8 +3,8 @@
 ROSS is a library written in Python for rotordynamic analysis. The source code is
 available at [github](https://github.com/ross-rotordynamics/ross).
 
-For a fast introduction to the library you can check out the :doc:`tutorials <tutorials>`
-and {doc}`examples <examples>`. These are also available on [binder](https://mybinder.org/v2/gh/ross-rotordynamics/ross/0.4?filepath=%2Fdocs%2Fexamples).
+For a fast introduction to the library you can check out the {doc}`tutorials<tutorials>`
+and {doc}`examples<examples>`. These are also available on [binder](https://mybinder.org/v2/gh/ross-rotordynamics/ross/0.4?filepath=%2Fdocs%2Fexamples).
 
 ROSS has a core library in which you can create elements (shaft, disks, bearings etc.) and assemble these elements in a rotor object where you can run analysis. 
 
@@ -21,4 +21,22 @@ getting_started/installation
 tutorials/tutorial_part_1
 tutorials/tutorial_part_2
 tutorials/tutorial_part_3
+```
+
+```{toctree}
+:maxdepth: 1
+:caption: Discussions and Examples
+discussions/discussions
+```
+
+```{toctree}
+:maxdepth: 1
+:caption: How-To Guides
+how_to_guides/how_to_guides
+```
+
+```{toctree}
+:maxdepth: 1
+:caption: References
+references/api
 ```
