@@ -1,7 +1,7 @@
 # Rotordynamic Open Source Software (ROSS)
 [![Binder](https://mybinder.org/badge_logo.svg)](https://mybinder.org/v2/gh/ross-rotordynamics/ross/0.3?filepath=%2Fdocs%2Fexamples)
 ![github actions](https://github.com/ross-rotordynamics/ross/workflows/Tests/badge.svg)
-![github actions](https://github.com/ross-rotordynamics/ross/workflows/Docs/badge.svg)
+[![Documentation Status](https://readthedocs.org/projects/ross/badge/?version=latest)](https://ross.readthedocs.io/en/latest/?badge=latest)
 <a href="https://codecov.io/gh/ross-rotordynamics/ross">
 <img src="https://codecov.io/gh/ross-rotordynamics/ross/branch/master/graph/badge.svg">
 </a>
@@ -19,11 +19,11 @@ Campbell Diagram, mode shapes, frequency response, and time response.
 You can try it out now by running the tutorial on [binder](https://mybinder.org/v2/gh/ross-rotordynamics/ross/0.3?filepath=%2Fdocs%2Fexamples).
 
 # Documentation 
-Access the documentation [here](https://ross-rotordynamics.github.io/ross-website/).
-There you can find the [installation procedure](https://ross-rotordynamics.github.io/ross-website/installation.html), 
-[a tutorial](https://ross-rotordynamics.github.io/ross-website/examples/tutorial.html), 
-[examples](https://ross-rotordynamics.github.io/ross-website/examples.html) and the 
-[API reference](https://ross-rotordynamics.github.io/ross-website/api.html).
+Access the documentation [here](https://ross.readthedocs.io/en/latest/index.html).
+There you can find the [installation procedure](https://ross.readthedocs.io/en/latest/getting_started/installation.html), 
+[a tutorial](https://ross.readthedocs.io/en/latest/tutorials/tutorial_part_1.html), 
+[examples](https://ross.readthedocs.io/en/latest/discussions/discussions.html) and the 
+[API reference](https://ross.readthedocs.io/en/latest/references/api.html).
 
 # Questions
 If you have any questions you can open a new issue with the tag <question>.
