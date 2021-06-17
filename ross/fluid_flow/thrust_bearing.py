@@ -182,8 +182,8 @@ class Thrust:
                 As = a_s * r1 / h0
 
                 # PRESSURE FIELD - Solution of Reynolds equation
-                kR = 1
-                kTETA = 1
+                kR = 0
+                kTETA = 0
 
                 # pressure vectorization index
                 k = 0
@@ -194,6 +194,11 @@ class Thrust:
                 #
                 Mat_coef = np.zeros((nk, nk))
                 b = np.zeros((nk, 1))
+                H0ne = np.zeros((kR, kTETA))
+                H0nw = np.zeros((kR, kTETA))
+                H0se = np.zeros((kR, kTETA))
+                H0sw = np.zeros((kR, kTETA))
+                P0 = np.zeros((NR, NTETA))
                 cont = -1
 
                 for R in vec_R:
