@@ -40,3 +40,21 @@ how_to_guides/how_to_guides
 :caption: References
 references/api
 ```
+
+```{toctree}
+:maxdepth: 1
+:caption: Additional Info
+release_notes/release_notes
+```
+
+```{toctree}
+:maxdepth: 1
+contributing
+```
+
+```{toctree}
+:maxdepth: 1
+citing
+```
+
+
