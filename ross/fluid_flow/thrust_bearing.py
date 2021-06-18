@@ -194,10 +194,11 @@ class Thrust:
                 #
                 Mat_coef = np.zeros((nk, nk))
                 b = np.zeros((nk, 1))
-                H0ne = np.zeros((kR, kTETA))
-                H0nw = np.zeros((kR, kTETA))
-                H0se = np.zeros((kR, kTETA))
-                H0sw = np.zeros((kR, kTETA))
+                H0 = np.zeros((NR, NTETA))
+                H0ne = np.zeros((NR, NTETA))
+                H0nw = np.zeros((NR, NTETA))
+                H0se = np.zeros((NR, NTETA))
+                H0sw = np.zeros((NR, NTETA))
                 P0 = np.zeros((NR, NTETA))
                 cont = -1
 
