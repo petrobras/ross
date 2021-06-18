@@ -206,7 +206,12 @@ class Thrust:
                 Myr = np.zeros((NR, NTETA))
                 Frer = np.zeros((NR, NTETA))
                 P0 = np.zeros((NR, NTETA))
+                P = np.zeros((NR, Npad))
                 mi = np.zeros((NR, Npad))
+
+                PPdim = np.zeros((NR + 1, NTETA + 1))
+                PPdim[1:-1, 1:-1] = (r1 ** 2 * war * mi0 / h0 ** 2) * np.fliplr(P0)
+
                 cont = -1
 
                 for R in vec_R:
@@ -1335,8 +1340,8 @@ class Thrust:
         # HYDROCOEFF_z =============================================================
         # ENDS HERE ================================================================
 
-        K = Npad * np.real(kk_zz)  # Stiffness Coefficient
-        C = Npad * 1 / wp * np.imag(kk_zz)  # Damping Coefficient
+        K = Npad * np.real(fre)  # Stiffness Coefficient
+        C = Npad * 1 / wp * np.imag(fre)  # Damping Coefficient
 
         # --------------------------------------------------------------------------
         # Output values - Pmax [Pa]- hmax[m] - hmin[m] - h0[m]
@@ -1374,6 +1379,10 @@ def ArAsh0Equilibrium(
 
     # Variable startup
     MI = np.zeros((NR, Npad))
+    P = np.zeros((NR, Npad))
+    Mxr = np.zeros((NR, NTETA))
+    Myr = np.zeros((NR, NTETA))
+    Frer = np.zeros((NR, NTETA))
 
     # loop counters for ease of understanding
     vec_R = np.arange((R1 + 0.5 * dR), (R2 - 0.5 * dR), dR)
@@ -1598,11 +1607,13 @@ def ArAsh0Equilibrium(
     Xrp = rp * (1 + np.zeros((XR, XR)))
 
     for ii in range(0, Npad - 1):
-        Mxr[:, ii] = (Pdim[:, ii] * (np.transpose(XR) ** 2)) * np.sin(XTETA[ii] - tetap)
+        Mxr[:, ii] = (Pdim[:, ii] * (np.transpose(XR) ** 2)) * np.sin(
+            XTETA[ii] - TETAp * teta0
+        )
         Myr[:, ii] = (
             -Pdim[:, ii]
             * np.transpose(XR)
-            * np.transpose(XR * np.cos(XTETA(ii) - tetap) - Xrp)
+            * np.transpose(XR * np.cos(XTETA(ii) - TETAp * teta0) - Xrp)
         )
         Frer[:, ii] = Pdim[:, ii] * np.transpose(XR)
 
