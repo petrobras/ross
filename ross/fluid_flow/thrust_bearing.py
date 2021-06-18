@@ -204,7 +204,9 @@ class Thrust:
                 T_new = np.zeros((NR, NTETA))
                 Mxr = np.zeros((NR, NTETA))
                 Myr = np.zeros((NR, NTETA))
+                Frer = np.zeros((NR, NTETA))
                 P0 = np.zeros((NR, NTETA))
+                mi = np.zeros((NR, Npad))
                 cont = -1
 
                 for R in vec_R:
