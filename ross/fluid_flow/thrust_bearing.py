@@ -199,6 +199,11 @@ class Thrust:
                 H0nw = np.zeros((NR, NTETA))
                 H0se = np.zeros((NR, NTETA))
                 H0sw = np.zeros((NR, NTETA))
+                dP0dR = np.zeros((NR, NTETA))
+                dP0dTETA = np.zeros((NR, NTETA))
+                T_new = np.zeros((NR, NTETA))
+                Mxr = np.zeros((NR, NTETA))
+                Myr = np.zeros((NR, NTETA))
                 P0 = np.zeros((NR, NTETA))
                 cont = -1
 
