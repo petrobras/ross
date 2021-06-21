@@ -1412,7 +1412,7 @@ def ArAsh0Equilibrium(
     k = -1
 
     # number of volumes
-    nk = (NR) * (Npad)  # number of volumes
+    nk = (NR) * (NTETA)  # number of volumes
 
     # Coefficients Matrix
     Mat_coef = np.zeros((nk, nk))
