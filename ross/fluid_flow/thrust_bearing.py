@@ -1,5 +1,7 @@
 import numpy as np
 import scipy
+
+# import tensorflow as tf
 from numpy.linalg import pinv
 from scipy.linalg import solve
 from scipy.optimize import fmin
