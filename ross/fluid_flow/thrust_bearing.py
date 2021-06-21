@@ -96,8 +96,6 @@ class Thrust:
         vec_TETA = np.arange((TETA1 + 0.5 * dTETA), (TETA2 - 0.5 * dTETA), dTETA)
         vec_TETA = np.append([vec_TETA], [TETA2 - 0.5 * dTETA])
 
-        np.disp([TETA2 - 0.5 * dTETA])
-
         # --------------------------------------------------------------------------
         # WHILE LOOP INITIALIZATION
         ResFM = 1
@@ -1586,6 +1584,7 @@ def ArAsh0Equilibrium(
         kTETA = 1
 
     # Pressure field solution
+    aaaa = np.linalg.cond(Mat_coef)
     p = np.linalg.solve(Mat_coef, b)
 
     cont = -1
