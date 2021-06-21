@@ -92,9 +92,11 @@ class Thrust:
         # --------------------------------------------------------------------------
         # Pre-processing loop counters for ease of understanding
         vec_R = np.arange((R1 + 0.5 * dR), (R2 - 0.5 * dR), dR)
-        vec_R = np.append(vec_R, [R2 - 0.5 * dR])
+        vec_R = np.append([vec_R], [R2 - 0.5 * dR])
         vec_TETA = np.arange((TETA1 + 0.5 * dTETA), (TETA2 - 0.5 * dTETA), dTETA)
-        vec_TETA = np.append(vec_TETA, [TETA2 - 0.5 * dTETA])
+        vec_TETA = np.append([vec_TETA], [TETA2 - 0.5 * dTETA])
+
+        np.disp([TETA2 - 0.5 * dTETA])
 
         # --------------------------------------------------------------------------
         # WHILE LOOP INITIALIZATION
