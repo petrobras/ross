@@ -1588,6 +1588,7 @@ def ArAsh0Equilibrium(
     # Pressure field solution
     aaaa = np.linalg.cond(Mat_coef)
     p = np.linalg.solve(Mat_coef, b)
+    # p = tf.linalg.solve(Mat_coef, b)
 
     cont = -1
 
