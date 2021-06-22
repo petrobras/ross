@@ -1594,6 +1594,7 @@ def ArAsh0Equilibrium(
 
     # p = np.linalg.solve(Mat_coef, b)
 
+    aaaa = np.linalg.cond(Mat_coef)
     Mat_coef = fp.iv.matrix(Mat_coef)
     b = fp.iv.matrix(b)
     p = fp.iv.lu_solve(Mat_coef, b)
