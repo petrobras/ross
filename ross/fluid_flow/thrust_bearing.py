@@ -2,6 +2,8 @@ import numpy as np
 import scipy
 
 # import tensorflow as tf
+import mpmath as fp
+
 from numpy.linalg import pinv
 from scipy.linalg import solve
 from scipy.optimize import fmin
@@ -97,6 +99,7 @@ class Thrust:
         vec_R = np.append([vec_R], [R2 - 0.5 * dR])
         vec_TETA = np.arange((TETA1 + 0.5 * dTETA), (TETA2 - 0.5 * dTETA), dTETA)
         vec_TETA = np.append([vec_TETA], [TETA2 - 0.5 * dTETA])
+        fp.mp.dps = 100  # numerical solver precision setting
 
         # --------------------------------------------------------------------------
         # WHILE LOOP INITIALIZATION
@@ -1586,9 +1589,15 @@ def ArAsh0Equilibrium(
         kTETA = 1
 
     # Pressure field solution
-    aaaa = np.linalg.cond(Mat_coef)
-    p = np.linalg.solve(Mat_coef, b)
+    # aaaa = np.linalg.cond(Mat_coef)
     # p = tf.linalg.solve(Mat_coef, b)
+
+    # p = np.linalg.solve(Mat_coef, b)
+
+    Mat_coef = fp.iv.matrix(Mat_coef)
+    b = fp.iv.matrix(b)
+    p = fp.iv.lu_solve(Mat_coef, b)
+    np.disp(np.residual(Mat_coef, p, b))
 
     cont = -1
 
