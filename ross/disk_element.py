@@ -124,7 +124,7 @@ class DiskElement(Element):
             f"{self.__class__.__name__}"
             f"(Id={self.Id:{0}.{5}}, Ip={self.Ip:{0}.{5}}, "
             f"m={self.m:{0}.{5}}, color={self.color!r}, "
-            f"n={self.n}, tag={self.tag!r})"
+            f"n={self.n}, scale_factor={self.scale_factor}, tag={self.tag!r})"
         )
 
     def __str__(self):

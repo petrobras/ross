@@ -1639,3 +1639,60 @@ def test_save_load(rotor8):
     rotor8_loaded = Rotor.load(file)
 
     rotor8 == rotor8_loaded
+
+
+def test_plot_rotor(rotor8):
+    fig = rotor8.plot_rotor()
+
+    for d in fig.data:
+        if d["name"] == "Disk 0":
+            actual_x = d["x"]
+            actual_y = d["y"]
+    expected_x = [
+        0.5,
+        0.5083333333333333,
+        0.49166666666666664,
+        0.5,
+        None,
+        0.5,
+        0.5083333333333333,
+        0.49166666666666664,
+        0.5,
+    ]
+    expected_y = [0.025, 0.125, 0.125, 0.025, None, -0.025, -0.125, -0.125, -0.025]
+    assert_allclose(actual_x[:4], expected_x[:4])
+    assert_allclose(actual_y[:4], expected_y[:4])
+
+    # mass scale factor
+    for disk in rotor8.disk_elements:
+        disk.scale_factor = "mass"
+
+    fig = rotor8.plot_rotor()
+    for d in fig.data:
+        if d["name"] == "Disk 0":
+            actual_x = d["x"]
+            actual_y = d["y"]
+    expected_x = [
+        0.5,
+        0.5068020833333333,
+        0.4931979166666667,
+        0.5,
+        None,
+        0.5,
+        0.5068020833333333,
+        0.4931979166666667,
+        0.5,
+    ]
+    expected_y = [
+        0.025,
+        0.106625,
+        0.106625,
+        0.025,
+        None,
+        -0.025,
+        -0.106625,
+        -0.106625,
+        -0.025,
+    ]
+    assert_allclose(actual_x[:4], expected_x[:4])
+    assert_allclose(actual_y[:4], expected_y[:4])
