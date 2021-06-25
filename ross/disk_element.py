@@ -124,7 +124,7 @@ class DiskElement(Element):
             f"{self.__class__.__name__}"
             f"(Id={self.Id:{0}.{5}}, Ip={self.Ip:{0}.{5}}, "
             f"m={self.m:{0}.{5}}, color={self.color!r}, "
-            f"n={self.n}, tag={self.tag!r})"
+            f"n={self.n}, scale_factor={self.scale_factor}, tag={self.tag!r})"
         )
 
     def __str__(self):
@@ -477,7 +477,7 @@ class DiskElement(Element):
         >>> file_path = os.path.dirname(os.path.realpath(__file__)) + '/tests/data/shaft_si.xls'
         >>> list_of_disks = DiskElement.from_table(file_path, sheet_name="More")
         >>> list_of_disks[0]
-        DiskElement(Id=0.0, Ip=0.0, m=15.12, color='Firebrick', n=3, tag=None)
+        DiskElement(Id=0.0, Ip=0.0, m=15.12, color='Firebrick', n=3, scale_factor=1, tag=None)
         """
         parameters = read_table_file(file, "disk", sheet_name=sheet_name)
         if tag is None:
