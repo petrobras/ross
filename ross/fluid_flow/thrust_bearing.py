@@ -99,7 +99,7 @@ class Thrust:
         vec_R = np.append([vec_R], [R2 - 0.5 * dR])
         vec_TETA = np.arange((TETA1 + 0.5 * dTETA), (TETA2 - 0.5 * dTETA), dTETA)
         vec_TETA = np.append([vec_TETA], [TETA2 - 0.5 * dTETA])
-        fp.mp.dps = 100  # numerical solver precision setting
+        fp.mp.dps = 800  # numerical solver precision setting
 
         # --------------------------------------------------------------------------
         # WHILE LOOP INITIALIZATION
