@@ -1589,16 +1589,17 @@ def ArAsh0Equilibrium(
         kTETA = 1
 
     # Pressure field solution
-    # aaaa = np.linalg.cond(Mat_coef)
-    # p = tf.linalg.solve(Mat_coef, b)
+    scipy.sparse(Mat_coef)
+    aaaa = np.linalg.cond(Mat_coef)
+    p = tf.linalg.solve(Mat_coef, b)
 
     # p = np.linalg.solve(Mat_coef, b)
 
-    aaaa = np.linalg.cond(Mat_coef)
-    Mat_coef = fp.iv.matrix(Mat_coef)
-    b = fp.iv.matrix(b)
-    p = fp.iv.lu_solve(Mat_coef, b)
-    np.disp(np.residual(Mat_coef, p, b))
+    # aaaa = np.linalg.cond(Mat_coef)
+    # Mat_coef = fp.iv.matrix(Mat_coef)
+    # b = fp.iv.matrix(b)
+    # p = fp.iv.lu_solve(Mat_coef, b)
+    # np.disp(np.residual(Mat_coef, p, b))
 
     cont = -1
 
@@ -1680,8 +1681,10 @@ def thrust_bearing_example():
     mi0 = 1e-6 * rho * 22  # Oil VG 22
     fz = 370 * 9.81  # Loading in Y direction [N]
     Npad = 3  # Number of PADs
-    NTETA = 40  # TETA direction N volumes
-    NR = 40  # R direction N volumes
+    # NTETA = 40  # TETA direction N volumes
+    # NR = 40  # R direction N volumes
+    NTETA = 10  # TETA direction N volumes
+    NR = 10  # R direction N volumes
     wa = 1200  # Shaft rotation speed [rads]
     war = (1200 * np.pi) / 30  # Shaft rotation speed [RPM]
     R1 = 1  # Inner pad FEM radius
