@@ -1683,8 +1683,8 @@ def thrust_bearing_example():
     Npad = 3  # Number of PADs
     # NTETA = 40  # TETA direction N volumes
     # NR = 40  # R direction N volumes
-    NTETA = 10  # TETA direction N volumes
-    NR = 10  # R direction N volumes
+    NTETA = 4  # TETA direction N volumes
+    NR = 4  # R direction N volumes
     wa = 1200  # Shaft rotation speed [rads]
     war = (1200 * np.pi) / 30  # Shaft rotation speed [RPM]
     R1 = 1  # Inner pad FEM radius
