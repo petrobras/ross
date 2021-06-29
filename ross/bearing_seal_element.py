@@ -1551,7 +1551,7 @@ class MagneticBearingElement(BearingElement):
             / (4.0 * pA[0] ** 2)
         )
         k = ki * pA[7] * pA[8] * (pA[5] + np.divide(ks, ki * pA[7] * pA[8]))
-        c = ki * pA[7] * pA[5] * pA[8]
+        c = ki * pA[7] * pA[6] * pA[8]
         # k = ki * k_amp*k_sense*(kp_pid+ np.divide(ks, ki*k_amp*k_sense))
         # c = ki*k_amp*kd_pid*k_sense
 
