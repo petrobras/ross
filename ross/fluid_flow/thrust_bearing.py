@@ -1589,17 +1589,17 @@ def ArAsh0Equilibrium(
         kTETA = 1
 
     # Pressure field solution
-    scipy.sparse(Mat_coef)
-    aaaa = np.linalg.cond(Mat_coef)
-    p = tf.linalg.solve(Mat_coef, b)
+    # scipy.sparse(Mat_coef)
+    # aaaa = np.linalg.cond(Mat_coef)
+    # p = tf.linalg.solve(Mat_coef, b)
 
     # p = np.linalg.solve(Mat_coef, b)
 
-    # aaaa = np.linalg.cond(Mat_coef)
-    # Mat_coef = fp.iv.matrix(Mat_coef)
-    # b = fp.iv.matrix(b)
-    # p = fp.iv.lu_solve(Mat_coef, b)
-    # np.disp(np.residual(Mat_coef, p, b))
+    aaaa = np.linalg.cond(Mat_coef)
+    Mat_coef = fp.iv.matrix(Mat_coef)
+    b = fp.iv.matrix(b)
+    p = fp.iv.lu_solve(Mat_coef, b)
+    np.disp(np.residual(Mat_coef, p, b))
 
     cont = -1
 
