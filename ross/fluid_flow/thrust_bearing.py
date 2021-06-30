@@ -193,12 +193,12 @@ class Thrust:
                 kTETA = 0
 
                 # pressure vectorization index
-                k = 0
+                k = -1
 
                 # volumes number
                 nk = (NR) * (NTETA)
 
-                #
+                # Variable initialization
                 Mat_coef = np.zeros((nk, nk))
                 b = np.zeros((nk, 1))
                 H0 = np.zeros((NR, NTETA))
@@ -1030,7 +1030,7 @@ class Thrust:
         kR = 0
         kTETA = 0
         k = -1  # pressure vectorization index
-        nk = NR * Npad  # volumes number
+        nk = (NR) * (Npad)  # volumes number
 
         # coefficients matrix
         Mat_coef = np.zeros((nk, nk))
@@ -1393,7 +1393,9 @@ def ArAsh0Equilibrium(
 
     # loop counters for ease of understanding
     vec_R = np.arange((R1 + 0.5 * dR), (R2 - 0.5 * dR), dR)
+    vec_R = np.append([vec_R], [R2 - 0.5 * dR])
     vec_TETA = np.arange((TETA1 + 0.5 * dTETA), (TETA2 - 0.5 * dTETA), dTETA)
+    vec_TETA = np.append([vec_TETA], [TETA2 - 0.5 * dTETA])
 
     # Pitch angles alpha_r and alpha_p and oil filme thickness at pivot h0
     a_r = x0[0]  # [rad]
@@ -1648,7 +1650,7 @@ def ArAsh0Equilibrium(
 
 
 def thrust_bearing_example():
-    """Create an example of a thrust bearing with hydrodynamic effects.
+    """Create an example of a thrust bearing with Thermo-Hydro-Dynamic effects.
     This function returns pressure field and dynamic coefficient. The
     purpose is to make available a simple model so that a doctest can be
     written using it.
