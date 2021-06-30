@@ -1476,37 +1476,37 @@ def ArAsh0Equilibrium(
                 MI_n = MI[kR, kTETA]
                 MI_s = 0.5 * (MI[kR, kTETA] + MI[kR - 1, kTETA])
 
-            if kR == 0 and kTETA > 0 and kTETA < Npad - 1:
+            if kR == 0 and kTETA > 0 and kTETA < NTETA - 1:
                 MI_e = 0.5 * (MI[kR, kTETA] + MI[kR, kTETA + 1])
                 MI_w = 0.5 * (MI[kR, kTETA] + MI[kR, kTETA - 1])
                 MI_n = 0.5 * (MI[kR, kTETA] + MI[kR + 1, kTETA])
                 MI_s = MI[kR, kTETA]
 
-            if kTETA > 0 and kTETA < Npad - 1 and kR > 0 and kR < NR:
+            if kTETA > 0 and kTETA < NTETA - 1 and kR > 0 and kR < NR:
                 MI_e = 0.5 * (MI[kR, kTETA] + MI[kR, kTETA + 1])
                 MI_w = 0.5 * (MI[kR, kTETA] + MI[kR, kTETA - 1])
                 MI_n = 0.5 * (MI[kR, kTETA] + MI[kR + 1, kTETA])
                 MI_s = 0.5 * (MI[kR, kTETA] + MI[kR - 1, kTETA])
 
-            if kR == NR and kTETA > 0 and kTETA < Npad - 1:
+            if kR == NR and kTETA > 0 and kTETA < NTETA - 1:
                 MI_e = 0.5 * (MI[kR, kTETA] + MI[kR, kTETA + 1])
                 MI_w = 0.5 * (MI[kR, kTETA] + MI[kR, kTETA - 1])
                 MI_n = MI[kR, kTETA]
                 MI_s = 0.5 * (MI[kR, kTETA] + MI[kR - 1, kTETA])
 
-            if kR == 0 and kTETA == Npad - 1:
+            if kR == 0 and kTETA == NTETA - 1:
                 MI_e = MI[kR, kTETA]
                 MI_w = 0.5 * (MI[kR, kTETA] + MI[kR, kTETA - 1])
                 MI_n = 0.5 * (MI[kR, kTETA] + MI[kR + 1, kTETA])
                 MI_s = MI[kR, kTETA]
 
-            if kTETA == Npad - 1 and kR > 0 and kR < NR:
+            if kTETA == NTETA - 1 and kR > 0 and kR < NR:
                 MI_e = MI[kR, kTETA]
                 MI_w = 0.5 * (MI[kR, kTETA] + MI[kR, kTETA - 1])
                 MI_n = 0.5 * (MI[kR, kTETA] + MI[kR + 1, kTETA])
                 MI_s = 0.5 * (MI[kR, kTETA] + MI[kR - 1, kTETA])
 
-            if kTETA == Npad - 1 and kR == NR:
+            if kTETA == NTETA - 1 and kR == NR:
                 MI_e = MI[kR, kTETA]
                 MI_w = 0.5 * (MI[kR, kTETA] + MI[kR, kTETA - 1])
                 MI_n = MI[kR, kTETA]
