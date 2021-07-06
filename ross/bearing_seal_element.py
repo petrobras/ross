@@ -366,29 +366,82 @@ class BearingElement(Element):
         except FileNotFoundError:
             data = {}
 
-        args = {
-            "n": self.n,
-            "kxx": [float(i) for i in self.kxx],
-            "cxx": [float(i) for i in self.cxx],
-            "kyy": [float(i) for i in self.kyy],
-            "kxy": [float(i) for i in self.kxy],
-            "kyx": [float(i) for i in self.kyx],
-            "cyy": [float(i) for i in self.cyy],
-            "cxy": [float(i) for i in self.cxy],
-            "cyx": [float(i) for i in self.cyx],
-            "tag": self.tag,
-            "n_link": self.n_link,
-            "scale_factor": self.scale_factor,
-        }
-        if self.frequency is not None:
-            args["frequency"] = [float(i) for i in self.frequency]
-        else:
-            args["frequency"] = self.frequency
+        # remove some info before saving
+        brg_data = self.__dict__.copy()
+        params_to_remove = [
+            "kxx_interpolated",
+            "kyy_interpolated",
+            "kxy_interpolated",
+            "kyx_interpolated",
+            "cxx_interpolated",
+            "cyy_interpolated",
+            "cxy_interpolated",
+            "cyx_interpolated",
+            "n_l",
+            "n_r",
+            "dof_global_index",
+        ]
+        for p in params_to_remove:
+            brg_data.pop(p)
 
-        data[f"{self.__class__.__name__}_{self.tag}"] = args
+        # change np.array to lists so that we can save in .toml as list(floats)
+        params = [
+            "kxx",
+            "kyy",
+            "kxy",
+            "kyx",
+            "cxx",
+            "cyy",
+            "cxy",
+            "cyx",
+            "frequency",
+        ]
+        for p in params:
+            try:
+                brg_data[p] = [float(i) for i in brg_data[p]]
+            except TypeError:
+                pass
+
+        data[f"{self.__class__.__name__}_{self.tag}"] = brg_data
 
         with open(file, "w") as f:
             toml.dump(data, f)
+
+    @classmethod
+    def load(cls, file):
+        data = toml.load(file)
+        # extract single dictionary in the data
+        data = list(data.values())[0]
+        params = [
+            "kxx",
+            "kyy",
+            "kxy",
+            "kyx",
+            "cxx",
+            "cyy",
+            "cxy",
+            "cyx",
+            "frequency",
+            "n",
+            "tag",
+            "n_link",
+            "scale_factor",
+        ]
+        kwargs = {}
+        for p in params:
+            try:
+                kwargs[p] = data.pop(p)
+            except KeyError:
+                pass
+
+        if issubclass(cls, BearingElement):
+            bearing = super().__init__(**kwargs)
+        else:
+            bearing = cls(**kwargs)
+        for k, v in data.items():
+            setattr(bearing, k, v)
+
+        return bearing
 
     def dof_mapping(self):
         """Degrees of freedom mapping.
@@ -1359,6 +1412,16 @@ class MagneticBearingElement(BearingElement):
         n_link=None,
         scale_factor=1,
     ):
+        self.g0 = g0
+        self.i0 = i0
+        self.ag = ag
+        self.nw = nw
+        self.alpha = alpha
+        self.kp_pid = kp_pid
+        self.kd_pid = kd_pid
+        self.k_amp = k_amp
+        self.k_sense = k_sense
+
         pL = [g0, i0, ag, nw, alpha, kp_pid, kd_pid, k_amp, k_sense]
         pA = [0, 0, 0, 0, 0, 0, 0, 0, 0]
 
@@ -1653,36 +1716,91 @@ class BearingElement6DoF(BearingElement):
         return False
 
     def save(self, file):
-        try:
-            data = toml.load(file)
-        except FileNotFoundError:
-            data = {}
+        def save(self, file):
+            try:
+                data = toml.load(file)
+            except FileNotFoundError:
+                data = {}
 
-        args = {
-            "n": self.n,
-            "kxx": [float(i) for i in self.kxx],
-            "cxx": [float(i) for i in self.cxx],
-            "kyy": [float(i) for i in self.kyy],
-            "kxy": [float(i) for i in self.kxy],
-            "kyx": [float(i) for i in self.kyx],
-            "kzz": [float(i) for i in self.kzz],
-            "cyy": [float(i) for i in self.cyy],
-            "cxy": [float(i) for i in self.cxy],
-            "cyx": [float(i) for i in self.cyx],
-            "czz": [float(i) for i in self.czz],
-            "tag": self.tag,
-            "n_link": self.n_link,
-            "scale_factor": self.scale_factor,
-        }
-        if self.frequency is not None:
-            args["frequency"] = [float(i) for i in self.frequency]
-        else:
-            args["frequency"] = self.frequency
+            # remove some info before saving
+            brg_data = self.__dict__.copy()
+            params_to_remove = [
+                "kxx_interpolated",
+                "kyy_interpolated",
+                "kxy_interpolated",
+                "kyx_interpolated",
+                "kzz_interpolated",
+                "cxx_interpolated",
+                "cyy_interpolated",
+                "cxy_interpolated",
+                "cyx_interpolated",
+                "czz_interpolated",
+                "n_l",
+                "n_r",
+                "dof_global_index",
+            ]
+            for p in params_to_remove:
+                brg_data.pop(p)
 
-        data[f"{self.__class__.__name__}_{self.tag}"] = args
+            # change np.array to lists so that we can save in .toml as list(floats)
+            params = [
+                "kxx",
+                "kyy",
+                "kxy",
+                "kyx",
+                "kzz",
+                "cxx",
+                "cyy",
+                "cxy",
+                "cyx",
+                "czz",
+                "frequency",
+            ]
+            for p in params:
+                try:
+                    brg_data[p] = [float(i) for i in brg_data[p]]
+                except TypeError:
+                    pass
 
-        with open(file, "w") as f:
-            toml.dump(data, f)
+            data[f"{self.__class__.__name__}_{self.tag}"] = brg_data
+
+            with open(file, "w") as f:
+                toml.dump(data, f)
+
+    @classmethod
+    def load(cls, file):
+        data = toml.load(file)
+        # extract single dictionary in the data
+        data = list(data.values())[0]
+        params = [
+            "kxx",
+            "kyy",
+            "kxy",
+            "kyx",
+            "kzz",
+            "cxx",
+            "cyy",
+            "cxy",
+            "cyx",
+            "czz",
+            "frequency",
+            "n",
+            "tag",
+            "n_link",
+            "scale_factor",
+        ]
+        kwargs = {}
+        for p in params:
+            try:
+                kwargs[p] = data.pop(p)
+            except KeyError:
+                pass
+
+        bearing = cls(**kwargs)
+        for k, v in data.items():
+            setattr(bearing, k, v)
+
+        return bearing
 
     def dof_mapping(self):
         """Degrees of freedom mapping.
