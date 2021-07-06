@@ -1073,7 +1073,7 @@ class Rotor(object):
         """
         # fmt: off
         for bearing in self.bearing_elements:
-            if bearing.kxx.frequency is not None:
+            if bearing.frequency is not None:
                 if (np.max(frequency_range) > max(bearing.frequency) or
                     np.min(frequency_range) < min(bearing.frequency)):
                     warnings.warn(
@@ -2177,7 +2177,7 @@ class Rotor(object):
                     x1 = rotor_wn[j]
                     y1 = stiffness_log
                     x2 = bearing0.frequency
-                    y2 = getattr(bearing0, coeff).coefficient
+                    y2 = getattr(bearing0, coeff)
                     x, y = intersection(x1, y1, x2, y2)
                     try:
                         intersection_points["y"].append(float(x))
