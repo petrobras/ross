@@ -1948,8 +1948,20 @@ class Rotor(object):
 
         mean_od = np.mean(nodes_o_d)
         # plot disk elements
+
+        # calculate scale factor if disks have scale_factor='mass'
+        if all([disk.scale_factor == "mass" for disk in self.disk_elements]):
+            max_mass = max([disk.m for disk in self.disk_elements])
+            for disk in self.disk_elements:
+                f = disk.m / max_mass
+                disk._scale_factor_calculated = (1 - f) * 0.5 + f * 1.0
+
         for disk in self.disk_elements:
-            step = disk.scale_factor * mean_od
+            scale_factor = disk.scale_factor
+            if scale_factor == "mass":
+                scale_factor = disk._scale_factor_calculated
+            step = scale_factor * mean_od
+
             position = (nodes_pos[disk.n], nodes_o_d[disk.n] / 2, step)
             fig = disk._patch(position, fig)
 
@@ -3258,13 +3270,6 @@ class CoAxialRotor(Rotor):
         for i, disk in enumerate(disk_elements):
             if disk.tag is None:
                 disk.tag = "Disk " + str(i)
-
-        # calculate scale factor if disks have scale_factor='mass'
-        if all([disk.scale_factor == "mass" for disk in disk_elements]):
-            max_mass = max([disk.m for disk in disk_elements])
-            for disk in disk_elements:
-                f = disk.m / max_mass
-                disk.scale_factor = (1 - f) * 0.5 + f * 1.0
 
         for i, brg in enumerate(bearing_elements):
             if brg.__class__.__name__ == "BearingElement" and brg.tag is None:
