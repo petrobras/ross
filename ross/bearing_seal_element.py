@@ -33,268 +33,6 @@ __all__ = [
 ]
 
 
-class _Coefficient:
-    """Auxiliary bearing coefficient class.
-
-    This class takes bearing elements' coefficients and frequencies values and
-    interpolate the arrays when necessary.
-
-    Parameters
-    ----------
-    coefficient : int, float, array, pint.Quantity
-        Bearing element stiffness or damping coefficient (direct or cross-coupled).
-        If coefficient is int or float, it is considered constant along the frequency
-        array. If coefficient is an array, it's interpolated with the frequency array.
-    frequency: array, pint.Quantity, optional
-        Array with the frequencies (rad/s).
-        Frequency is optional only if coefficient is an int or a float (constant value).
-
-    Returns
-    -------
-    The bearing element dynamic coefficient.
-        Kxx, Kxy, Kyx, Kyy, Cxx, Cxy, Cyx, Cyy.
-
-    Examples
-    --------
-    >>> bearing = bearing_example()
-    >>> bearing.kxx # doctest: +ELLIPSIS
-    [1000000.0...
-    """
-
-    def __init__(self, coefficient, frequency=None):
-        if isinstance(coefficient, (int, float)):
-            if frequency is not None and type(frequency) != float:
-                coefficient = [coefficient for _ in range(len(frequency))]
-            else:
-                coefficient = [coefficient]
-
-        self.coefficient = coefficient
-        self.frequency = frequency
-
-        if len(self.coefficient) > 1:
-            try:
-                with warnings.catch_warnings():
-                    warnings.simplefilter("ignore")
-                    self.interpolated = interpolate.UnivariateSpline(
-                        self.frequency, self.coefficient
-                    )
-            #  dfitpack.error is not exposed by scipy
-            #  so a bare except is used
-            except:
-                try:
-                    if len(self.frequency) in (2, 3):
-                        self.interpolated = interpolate.interp1d(
-                            self.frequency,
-                            self.coefficient,
-                            kind=len(self.frequency) - 1,
-                            fill_value="extrapolate",
-                        )
-                except:
-                    raise ValueError(
-                        "Arguments (coefficients and frequency)"
-                        " must have the same dimension"
-                    )
-        else:
-            self.interpolated = lambda x: np.array(self.coefficient[0])
-
-    def __eq__(self, other):
-        """Equality method for comparasions.
-
-        Parameters
-        ----------
-        other: object
-            The second object to be compared with.
-
-        Returns
-        -------
-        bool
-            True if the comparison is true; False otherwise.
-
-        Examples
-        --------
-        >>> bearing1 = bearing_example()
-        >>> bearing2 = bearing_example()
-        >>> bearing1.kxx == bearing2.kxx
-        True
-        """
-        if np.allclose(self.__dict__["coefficient"], other.__dict__["coefficient"]):
-            return True
-        else:
-            return False
-
-    def __repr__(self):
-        """Return a string representation of a bearing element.
-
-        Returns
-        -------
-        A string representation of a bearing element object.
-
-        Examples
-        --------
-        >>> bearing = bearing_example()
-        >>> bearing.cxx # doctest: +ELLIPSIS
-        [200.0, 200.0, 200.0,...
-        """
-        return repr(self.coefficient)
-
-    def __getitem__(self, item):
-        """Return an element from the coeffcient array.
-
-        This method allows the elements from the coefficient array to be returned as
-        ints or floats, given an index (item).
-
-        Parameters
-        ----------
-        item : int, slices
-            Array index.
-
-        Returns
-        -------
-        An element from the coefficient array.
-
-        Examples
-        --------
-        >>> bearing = bearing_example()
-        >>> bearing.kxx[0]
-        1000000.0
-        """
-        return self.coefficient[item]
-
-    def plot(self, frequency_units="rad/s", y_units=None, fig=None, **kwargs):
-        """Plot coefficient vs frequency.
-
-        Parameters
-        ----------
-        frequency_units : str
-            Frequency units.
-            Default is rad/s.
-        y_units : str
-        **kwargs : optional
-            Additional key word arguments can be passed to change the plot layout only
-            (e.g. width=1000, height=800, ...).
-            *See Plotly Python Figure Reference for more information.
-
-        Returns
-        -------
-        fig : Plotly graph_objects.Figure()
-            The figure object with the plot.
-
-        Example
-        -------
-        >>> bearing = bearing_example()
-        >>> fig = bearing.kxx.plot()
-        >>> # fig.show()
-        """
-        frequency_range = np.linspace(min(self.frequency), max(self.frequency), 30)
-        y_value = (
-            Q_(self.interpolated(frequency_range), self.coefficient_default_units)
-            .to(y_units)
-            .m
-        )
-        frequency_range = Q_(frequency_range, "rad/s").to(frequency_units).m
-
-        if fig is None:
-            fig = go.Figure()
-
-        fig.add_trace(
-            go.Scatter(
-                x=frequency_range,
-                y=y_value,
-                mode="lines",
-                showlegend=False,
-                hovertemplate=f"Frequency ({frequency_units}): %{{x:.2f}}<br> Coefficient ({y_units}): %{{y:.3e}}",
-            )
-        )
-
-        fig.update_xaxes(title_text=f"Frequency ({frequency_units})")
-        fig.update_yaxes(exponentformat="power")
-        fig.update_layout(**kwargs)
-
-        return fig
-
-
-class _Stiffness_Coefficient(_Coefficient):
-    """Stiffness coefficient auxiliary class.
-
-    Inherits from _Coefficient class. It will adapt the plot layout to stiffness
-    coefficients.
-    """
-
-    coefficient_default_units = "N/m"
-
-    def plot(self, frequency_units="rad/s", stiffness_units="N/m", **kwargs):
-        """Plot stiffness coefficient vs frequency.
-
-        Parameters
-        ----------
-        frequency_units : str
-            Frequency units.
-            Default is rad/s.
-        stiffness_units : str
-            Stiffness units.
-            Default is N/m.
-        **kwargs : optional
-            Additional key word arguments can be passed to change the plot layout only
-            (e.g. width=1000, height=800, ...).
-            *See Plotly Python Figure Reference for more information.
-
-        Returns
-        -------
-        fig : Plotly graph_objects.Figure()
-            The figure object with the plot.
-
-        Example
-        -------
-        >>> bearing = bearing_example()
-        >>> fig = bearing.kxx.plot()
-        >>> # fig.show()
-        """
-        fig = super().plot(
-            frequency_units=frequency_units, y_units=stiffness_units, **kwargs
-        )
-        fig.update_yaxes(title_text=f"Stiffness ({stiffness_units})")
-
-        return fig
-
-
-class _Damping_Coefficient(_Coefficient):
-    """Stiffness coefficient auxiliary class.
-
-    Inherits from _Coefficient class. It will adapt the plot layout to damping
-    coefficients.
-    """
-
-    coefficient_default_units = "N*s/m"
-
-    def plot(self, frequency_units="rad/s", damping_units="N*s/m", **kwargs):
-        """Plot damping coefficient vs frequency.
-
-        Parameters
-        ----------
-        **kwargs : optional
-            Additional key word arguments can be passed to change the plot layout only
-            (e.g. width=1000, height=800, ...).
-            *See Plotly Python Figure Reference for more information.
-
-        Returns
-        -------
-        fig : Plotly graph_objects.Figure()
-            The figure object with the plot.
-
-        Example
-        -------
-        >>> bearing = bearing_example()
-        >>> fig = bearing.cxx.plot()
-        >>> # fig.show()
-        """
-        fig = super().plot(
-            frequency_units=frequency_units, y_units=damping_units, **kwargs
-        )
-        fig.update_yaxes(title_text=f"Damping ({damping_units})")
-
-        return fig
-
-
 class BearingElement(Element):
     """A bearing element.
 
@@ -303,7 +41,7 @@ class BearingElement(Element):
     For speed dependent parameters, each argument should be passed
     as an array and the correspondent speed values should also be
     passed as an array.
-    Values for each parameter will be interpolated for the speed.
+    Values for each parameter will be_interpolated for the speed.
 
     Parameters
     ----------
@@ -383,29 +121,28 @@ class BearingElement(Element):
         scale_factor=1,
         color="#355d7a",
     ):
-
+        if frequency is not None:
+            self.frequency = np.array(frequency, dtype=np.float64)
+        else:
+            self.frequency = frequency
         args = ["kxx", "kyy", "kxy", "kyx", "cxx", "cyy", "cxy", "cyx"]
 
         # all args to coefficients
         args_dict = locals()
-        coefficients = {}
 
         if kyy is None:
             args_dict["kyy"] = kxx
         if cyy is None:
             args_dict["cyy"] = cxx
 
-        for arg in args:
-            if arg[0] == "k":
-                coefficients[arg] = _Stiffness_Coefficient(
-                    coefficient=args_dict[arg], frequency=args_dict["frequency"]
-                )
-            else:
-                coefficients[arg] = _Damping_Coefficient(
-                    args_dict[arg], args_dict["frequency"]
-                )
+        # check coefficients len for consistency
+        coefficients_len = []
 
-        coefficients_len = [len(v.coefficient) for v in coefficients.values()]
+        for arg in args:
+            coefficient, interpolated = self._process_coefficient(args_dict[arg])
+            setattr(self, arg, coefficient)
+            setattr(self, f"{arg}_interpolated", interpolated)
+            coefficients_len.append(len(coefficient))
 
         if frequency is not None and type(frequency) != float:
             coefficients_len.append(len(args_dict["frequency"]))
@@ -422,21 +159,135 @@ class BearingElement(Element):
                         " must have the same dimension"
                     )
 
-        for k, v in coefficients.items():
-            setattr(self, k, v)
-
         self.n = n
         self.n_link = n_link
         self.n_l = n
         self.n_r = n
-        if frequency is not None:
-            self.frequency = np.array(frequency, dtype=np.float64)
-        else:
-            self.frequency = frequency
         self.tag = tag
         self.color = color
         self.scale_factor = scale_factor
         self.dof_global_index = None
+
+    def _process_coefficient(self, coefficient):
+        """Helper function used to process the coefficient data."""
+        interpolated = None
+
+        if isinstance(coefficient, (int, float)):
+            if self.frequency is not None and type(self.frequency) != float:
+                coefficient = [coefficient for _ in range(len(self.frequency))]
+            else:
+                coefficient = [coefficient]
+
+        if len(coefficient) > 1:
+            try:
+                with warnings.catch_warnings():
+                    warnings.simplefilter("ignore")
+                    interpolated = interpolate.UnivariateSpline(
+                        self.frequency, coefficient
+                    )
+            #  dfitpack.error is not exposed by scipy
+            #  so a bare except is used
+            except:
+                try:
+                    if len(self.frequency) in (2, 3):
+                        interpolated = interpolate.interp1d(
+                            self.frequency,
+                            coefficient,
+                            kind=len(self.frequency) - 1,
+                            fill_value="extrapolate",
+                        )
+                except:
+                    raise ValueError(
+                        "Arguments (coefficients and frequency)"
+                        " must have the same dimension"
+                    )
+        else:
+            interpolated = lambda x: np.array(coefficient[0])
+
+        return coefficient, interpolated
+
+    def plot(
+        self,
+        coefficients=None,
+        frequency_units="rad/s",
+        stiffness_units="N/m",
+        damping_units="N*s/m",
+        fig=None,
+        **kwargs,
+    ):
+        """Plot coefficient vs frequency.
+
+        Parameters
+        ----------
+        coefficients : list, str
+            List or str with the coefficients to plot.
+        frequency_units : str
+            Frequency units.
+            Default is rad/s.
+        y_units : str
+        **kwargs : optional
+            Additional key word arguments can be passed to change the plot layout only
+            (e.g. width=1000, height=800, ...).
+            *See Plotly Python Figure Reference for more information.
+
+        Returns
+        -------
+        fig : Plotly graph_objects.Figure()
+            The figure object with the plot.
+
+        Example
+        -------
+        >>> bearing = bearing_example()
+        >>> fig = bearing.plot('kxx')
+        >>> # fig.show()
+        """
+        if fig is None:
+            fig = go.Figure()
+
+        if isinstance(coefficients, str):
+            coefficients = [coefficients]
+        # check coefficients consistency
+        coefficients_set = set([coeff[0] for coeff in coefficients])
+        if len(coefficients_set) > 1:
+            raise ValueError("Can only plot stiffness or damping in the same plot.")
+
+        coeff_to_plot = coefficients_set.pop()
+
+        if coeff_to_plot == "k":
+            default_units = "N/m"
+            y_units = stiffness_units
+        else:
+            default_units = "N*s/m"
+            y_units = damping_units
+
+        frequency_range = np.linspace(min(self.frequency), max(self.frequency), 30)
+
+        for coeff in coefficients:
+            y_value = (
+                Q_(
+                    getattr(self, f"{coeff}_interpolated")(frequency_range),
+                    default_units,
+                )
+                .to(y_units)
+                .m
+            )
+            frequency_range = Q_(frequency_range, "rad/s").to(frequency_units).m
+
+            fig.add_trace(
+                go.Scatter(
+                    x=frequency_range,
+                    y=y_value,
+                    mode="lines",
+                    showlegend=False,
+                    hovertemplate=f"Frequency ({frequency_units}): %{{x:.2f}}<br> Coefficient ({y_units}): %{{y:.3e}}",
+                )
+            )
+
+        fig.update_xaxes(title_text=f"Frequency ({frequency_units})")
+        fig.update_yaxes(exponentformat="power")
+        fig.update_layout(**kwargs)
+
+        return fig
 
     def __repr__(self):
         """Return a string representation of a bearing element.
@@ -498,8 +349,9 @@ class BearingElement(Element):
         if isinstance(other, self.__class__):
             return all(
                 (
-                    np.array(getattr(self, attr)).all()
-                    == np.array(getattr(other, attr)).all()
+                    (
+                        np.array(getattr(self, attr)) == np.array(getattr(other, attr))
+                    ).all()
                     for attr in compared_attributes
                 )
             )
@@ -516,14 +368,14 @@ class BearingElement(Element):
 
         args = {
             "n": self.n,
-            "kxx": [float(i) for i in self.kxx.coefficient],
-            "cxx": [float(i) for i in self.cxx.coefficient],
-            "kyy": [float(i) for i in self.kyy.coefficient],
-            "kxy": [float(i) for i in self.kxy.coefficient],
-            "kyx": [float(i) for i in self.kyx.coefficient],
-            "cyy": [float(i) for i in self.cyy.coefficient],
-            "cxy": [float(i) for i in self.cxy.coefficient],
-            "cyx": [float(i) for i in self.cyx.coefficient],
+            "kxx": [float(i) for i in self.kxx],
+            "cxx": [float(i) for i in self.cxx],
+            "kyy": [float(i) for i in self.kyy],
+            "kxy": [float(i) for i in self.kxy],
+            "kyx": [float(i) for i in self.kyx],
+            "cyy": [float(i) for i in self.cyy],
+            "cxy": [float(i) for i in self.cxy],
+            "cyx": [float(i) for i in self.cyx],
             "tag": self.tag,
             "n_link": self.n_link,
             "scale_factor": self.scale_factor,
@@ -609,10 +461,10 @@ class BearingElement(Element):
         array([[1000000.,       0.],
                [      0.,  800000.]])
         """
-        kxx = self.kxx.interpolated(frequency)
-        kyy = self.kyy.interpolated(frequency)
-        kxy = self.kxy.interpolated(frequency)
-        kyx = self.kyx.interpolated(frequency)
+        kxx = self.kxx_interpolated(frequency)
+        kyy = self.kyy_interpolated(frequency)
+        kxy = self.kxy_interpolated(frequency)
+        kyx = self.kyx_interpolated(frequency)
 
         K = np.array([[kxx, kxy], [kyx, kyy]])
 
@@ -647,10 +499,10 @@ class BearingElement(Element):
         array([[200.,   0.],
                [  0., 150.]])
         """
-        cxx = self.cxx.interpolated(frequency)
-        cyy = self.cyy.interpolated(frequency)
-        cxy = self.cxy.interpolated(frequency)
-        cyx = self.cyx.interpolated(frequency)
+        cxx = self.cxx_interpolated(frequency)
+        cyy = self.cyy_interpolated(frequency)
+        cxy = self.cxy_interpolated(frequency)
+        cyx = self.cyx_interpolated(frequency)
 
         C = np.array([[cxx, cxy], [cyx, cyy]])
 
@@ -829,14 +681,14 @@ class BearingElement(Element):
         b_elem = cls.from_table(n, file)
         data = {
             "n": b_elem.n,
-            "kxx": b_elem.kxx.coefficient,
-            "cxx": b_elem.cxx.coefficient,
-            "kyy": b_elem.kyy.coefficient,
-            "kxy": b_elem.kxy.coefficient,
-            "kyx": b_elem.kyx.coefficient,
-            "cyy": b_elem.cyy.coefficient,
-            "cxy": b_elem.cxy.coefficient,
-            "cyx": b_elem.cyx.coefficient,
+            "kxx": b_elem.kxx,
+            "cxx": b_elem.cxx,
+            "kyy": b_elem.kyy,
+            "kxy": b_elem.kxy,
+            "kyx": b_elem.kyx,
+            "cyy": b_elem.cyy,
+            "cxy": b_elem.cxy,
+            "cyx": b_elem.cyx,
             "frequency": b_elem.frequency,
         }
         return data
@@ -893,7 +745,7 @@ class BearingElement(Element):
         >>> file_path = os.path.dirname(os.path.realpath(__file__)) + '/tests/data/bearing_seal_si.xls'
         >>> BearingElement.from_table(0, file_path, n_link=1) # doctest: +ELLIPSIS
         BearingElement(n=0, n_link=1,
-         kxx=array([...
+         kxx=[1.379...
         """
         parameters = read_table_file(file, "bearing", sheet_name, n)
         return cls(
@@ -1005,7 +857,7 @@ class BearingFluidFlow(BearingElement):
     ...                  p_out, radius_rotor, radius_stator,
     ...                  visc, rho, load=load) # doctest: +ELLIPSIS
     BearingFluidFlow(n=0, n_link=None,
-     kxx=array([145...
+     kxx=[145...
     """
 
     def __init__(
@@ -1074,7 +926,7 @@ class SealElement(BearingElement):
     For speed dependent parameters, each argument should be passed
     as an array and the correspondent speed values should also be
     passed as an array.
-    Values for each parameter will be interpolated for the speed.
+    Values for each parameter will be_interpolated for the speed.
 
     SealElement objects are handled differently in the Rotor class, even though it
     inherits from BearingElement class. Seal elements are not considered in static
@@ -1696,31 +1548,35 @@ class BearingElement6DoF(BearingElement):
         coefficients = {}
 
         if kzz is None:
-            args_dict["kzz"] = (
-                kxx * 0.6
-            )  # NSK manufacturer sugestion for deep groove ball bearings
+            args_dict["kzz"] = kxx * 0.0
         if czz is None:
-            args_dict["czz"] = cxx
+            args_dict["czz"] = cxx * 0.0
+
+        # check coefficients len for consistency
+        coefficients_len = []
 
         for arg in new_args:
-            if arg[0] == "k":
-                coefficients[arg] = _Stiffness_Coefficient(
-                    coefficient=args_dict[arg], frequency=None
-                )
-            else:
-                coefficients[arg] = _Damping_Coefficient(args_dict[arg], None)
+            coefficient, interpolated = self._process_coefficient(args_dict[arg])
+            setattr(self, arg, coefficient)
+            setattr(self, f"{arg}_interpolated", interpolated)
+            coefficients_len.append(len(coefficient))
 
         coefficients_len = [len(v.coefficient) for v in coefficients.values()]
 
-        for c in coefficients_len:
-            if c != 1:
+        if frequency is not None and type(frequency) != float:
+            coefficients_len.append(len(args_dict["frequency"]))
+            if len(set(coefficients_len)) > 1:
                 raise ValueError(
                     "Arguments (coefficients and frequency)"
                     " must have the same dimension"
                 )
-
-        for k, v in coefficients.items():
-            setattr(self, k, v)
+        else:
+            for c in coefficients_len:
+                if c != 1:
+                    raise ValueError(
+                        "Arguments (coefficients and frequency)"
+                        " must have the same dimension"
+                    )
 
     def __hash__(self):
         return hash(self.tag)
@@ -1788,8 +1644,9 @@ class BearingElement6DoF(BearingElement):
         if isinstance(other, self.__class__):
             return all(
                 (
-                    np.array(getattr(self, attr)).all()
-                    == np.array(getattr(other, attr)).all()
+                    (
+                        np.array(getattr(self, attr)) == np.array(getattr(other, attr))
+                    ).all()
                     for attr in compared_attributes
                 )
             )
@@ -1803,16 +1660,16 @@ class BearingElement6DoF(BearingElement):
 
         args = {
             "n": self.n,
-            "kxx": [float(i) for i in self.kxx.coefficient],
-            "cxx": [float(i) for i in self.cxx.coefficient],
-            "kyy": [float(i) for i in self.kyy.coefficient],
-            "kxy": [float(i) for i in self.kxy.coefficient],
-            "kyx": [float(i) for i in self.kyx.coefficient],
-            "kzz": [float(i) for i in self.kzz.coefficient],
-            "cyy": [float(i) for i in self.cyy.coefficient],
-            "cxy": [float(i) for i in self.cxy.coefficient],
-            "cyx": [float(i) for i in self.cyx.coefficient],
-            "czz": [float(i) for i in self.czz.coefficient],
+            "kxx": [float(i) for i in self.kxx],
+            "cxx": [float(i) for i in self.cxx],
+            "kyy": [float(i) for i in self.kyy],
+            "kxy": [float(i) for i in self.kxy],
+            "kyx": [float(i) for i in self.kyx],
+            "kzz": [float(i) for i in self.kzz],
+            "cyy": [float(i) for i in self.cyy],
+            "cxy": [float(i) for i in self.cxy],
+            "cyx": [float(i) for i in self.cyx],
+            "czz": [float(i) for i in self.czz],
             "tag": self.tag,
             "n_link": self.n_link,
             "scale_factor": self.scale_factor,
@@ -1876,11 +1733,11 @@ class BearingElement6DoF(BearingElement):
                [      0.,  800000.,       0.],
                [      0.,       0.,  100000.]])
         """
-        kxx = self.kxx.interpolated(frequency)
-        kyy = self.kyy.interpolated(frequency)
-        kxy = self.kxy.interpolated(frequency)
-        kyx = self.kyx.interpolated(frequency)
-        kzz = self.kzz.interpolated(frequency)
+        kxx = self.kxx_interpolated(frequency)
+        kyy = self.kyy_interpolated(frequency)
+        kxy = self.kxy_interpolated(frequency)
+        kyx = self.kyx_interpolated(frequency)
+        kzz = self.kzz_interpolated(frequency)
 
         K = np.array([[kxx, kxy, 0], [kyx, kyy, 0], [0, 0, kzz]])
 
@@ -1909,11 +1766,11 @@ class BearingElement6DoF(BearingElement):
                [  0., 150.,   0.],
                [  0.,   0.,  50.]])
         """
-        cxx = self.cxx.interpolated(frequency)
-        cyy = self.cyy.interpolated(frequency)
-        cxy = self.cxy.interpolated(frequency)
-        cyx = self.cyx.interpolated(frequency)
-        czz = self.czz.interpolated(frequency)
+        cxx = self.cxx_interpolated(frequency)
+        cyy = self.cyy_interpolated(frequency)
+        cxy = self.cxy_interpolated(frequency)
+        cyx = self.cyx_interpolated(frequency)
+        czz = self.czz_interpolated(frequency)
 
         C = np.array([[cxx, cxy, 0], [cyx, cyy, 0], [0, 0, czz]])
 

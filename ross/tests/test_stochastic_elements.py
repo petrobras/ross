@@ -130,14 +130,14 @@ def test_st_disk_element_from_geometry(rand_disk_from_geometry):
 def test_st_bearing_element_constant_coef(rand_bearing_constant_coefs):
     elm = list(iter(rand_bearing_constant_coefs))
     assert [brg.n for brg in elm] == [1, 1]
-    assert [brg.kxx.coefficient for brg in elm] == [[1000000.0], [2000000.0]]
-    assert [brg.kyy.coefficient for brg in elm] == [[1000000.0], [2000000.0]]
-    assert [brg.kxy.coefficient for brg in elm] == [[0], [0]]
-    assert [brg.kyx.coefficient for brg in elm] == [[0], [0]]
-    assert [brg.cxx.coefficient for brg in elm] == [[1000.0], [2000.0]]
-    assert [brg.cyy.coefficient for brg in elm] == [[1000.0], [2000.0]]
-    assert [brg.cxy.coefficient for brg in elm] == [[0], [0]]
-    assert [brg.cyx.coefficient for brg in elm] == [[0], [0]]
+    assert [brg.kxx for brg in elm] == [[1000000.0], [2000000.0]]
+    assert [brg.kyy for brg in elm] == [[1000000.0], [2000000.0]]
+    assert [brg.kxy for brg in elm] == [[0], [0]]
+    assert [brg.kyx for brg in elm] == [[0], [0]]
+    assert [brg.cxx for brg in elm] == [[1000.0], [2000.0]]
+    assert [brg.cyy for brg in elm] == [[1000.0], [2000.0]]
+    assert [brg.cxy for brg in elm] == [[0], [0]]
+    assert [brg.cyx for brg in elm] == [[0], [0]]
 
 
 def test_st_bearing_element_varying_coef(rand_bearing_varying_coefs):
