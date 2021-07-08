@@ -293,7 +293,8 @@ def test_roller_bearing_element():
     assert_allclose(rollerbearing.G(), G)
 
 
-def test_magnetic_bearing_element():
+@pytest.fixture
+def magnetic_bearing():
     n = 0
     g0 = 1e-3
     i0 = 1.0
@@ -305,7 +306,7 @@ def test_magnetic_bearing_element():
     k_amp = 1.0
     k_sense = 1.0
     tag = "magneticbearing"
-    mbearing = MagneticBearingElement(
+    magnetic_bearing = MagneticBearingElement(
         n=n,
         g0=g0,
         i0=i0,
@@ -316,16 +317,21 @@ def test_magnetic_bearing_element():
         kd_pid=kd_pid,
         k_amp=k_amp,
         k_sense=k_sense,
+        tag=tag,
     )
+    return magnetic_bearing
+
+
+def test_magnetic_bearing_element(magnetic_bearing):
     M = np.array([[0.0, 0.0], [0.0, 0.0]])
     K = np.array([[-4640.62337718, 0.0], [0.0, -4640.62337718]])
     C = np.array([[4.64526865, 0.0], [0.0, 4.64526865]])
     G = np.array([[0.0, 0.0], [0.0, 0.0]])
 
-    assert_allclose(mbearing.M(), M)
-    assert_allclose(mbearing.K(0), K)
-    assert_allclose(mbearing.C(0), C)
-    assert_allclose(mbearing.G(), G)
+    assert_allclose(magnetic_bearing.M(), M)
+    assert_allclose(magnetic_bearing.K(0), K)
+    assert_allclose(magnetic_bearing.C(0), C)
+    assert_allclose(magnetic_bearing.G(), G)
 
 
 @pytest.fixture
@@ -373,7 +379,7 @@ def test_bearing_6dof_equality():
     assert bearing_6dof_0 != bearing_6dof_2
 
 
-def test_save_load(bearing0, bearing_constant, bearing_6dof):
+def test_save_load(bearing0, bearing_constant, bearing_6dof, magnetic_bearing):
     file = Path(tempdir) / "bearing0.toml"
     bearing0.save(file)
     bearing0_loaded = BearingElement.load(file)
@@ -388,6 +394,11 @@ def test_save_load(bearing0, bearing_constant, bearing_6dof):
     bearing_6dof.save(file)
     bearing_6dof_loaded = BearingElement6DoF.load(file)
     assert bearing_6dof == bearing_6dof_loaded
+
+    file = Path(tempdir) / "magnetic_bearing.toml"
+    magnetic_bearing.save(file)
+    magnetic_bearing_loaded = MagneticBearingElement.load(file)
+    assert magnetic_bearing == magnetic_bearing_loaded
 
 
 def test_bearing_fluid_flow():

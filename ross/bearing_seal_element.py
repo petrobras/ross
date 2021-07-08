@@ -7,6 +7,7 @@ and 2 element options with 8 or 12 degrees of freedom.
 # fmt: off
 import os
 import warnings
+from inspect import signature
 
 import numpy as np
 import toml
@@ -120,6 +121,7 @@ class BearingElement(Element):
         n_link=None,
         scale_factor=1,
         color="#355d7a",
+        **kwargs,
     ):
         if frequency is not None:
             self.frequency = np.array(frequency, dtype=np.float64)
@@ -343,11 +345,25 @@ class BearingElement(Element):
             "cxy",
             "cyx",
             "frequency",
-            "n",
-            "n_link",
         ]
         if isinstance(other, self.__class__):
-            return all(
+            init_args = []
+            for arg in signature(self.__init__).parameters:
+                if arg not in ["kwargs"]:
+                    init_args.append(arg)
+
+            init_args_comparison = []
+            for arg in init_args:
+                comparison = getattr(self, arg) == getattr(other, arg)
+                try:
+                    comparison = all(comparison)
+                except TypeError:
+                    pass
+
+                init_args_comparison.append(comparison)
+
+            init_args_comparison = all(init_args_comparison)
+            attributes_comparison = all(
                 (
                     (
                         np.array(getattr(self, attr)) == np.array(getattr(other, attr))
@@ -355,6 +371,8 @@ class BearingElement(Element):
                     for attr in compared_attributes
                 )
             )
+
+            return init_args_comparison and attributes_comparison
         return False
 
     def __hash__(self):
@@ -366,26 +384,43 @@ class BearingElement(Element):
         except FileNotFoundError:
             data = {}
 
-        args = {
-            "n": self.n,
-            "kxx": [float(i) for i in self.kxx],
-            "cxx": [float(i) for i in self.cxx],
-            "kyy": [float(i) for i in self.kyy],
-            "kxy": [float(i) for i in self.kxy],
-            "kyx": [float(i) for i in self.kyx],
-            "cyy": [float(i) for i in self.cyy],
-            "cxy": [float(i) for i in self.cxy],
-            "cyx": [float(i) for i in self.cyx],
-            "tag": self.tag,
-            "n_link": self.n_link,
-            "scale_factor": self.scale_factor,
-        }
-        if self.frequency is not None:
-            args["frequency"] = [float(i) for i in self.frequency]
-        else:
-            args["frequency"] = self.frequency
+        # remove some info before saving
+        brg_data = self.__dict__.copy()
+        params_to_remove = [
+            "kxx_interpolated",
+            "kyy_interpolated",
+            "kxy_interpolated",
+            "kyx_interpolated",
+            "cxx_interpolated",
+            "cyy_interpolated",
+            "cxy_interpolated",
+            "cyx_interpolated",
+            "n_l",
+            "n_r",
+            "dof_global_index",
+        ]
+        for p in params_to_remove:
+            brg_data.pop(p)
 
-        data[f"{self.__class__.__name__}_{self.tag}"] = args
+        # change np.array to lists so that we can save in .toml as list(floats)
+        params = [
+            "kxx",
+            "kyy",
+            "kxy",
+            "kyx",
+            "cxx",
+            "cyy",
+            "cxy",
+            "cyx",
+            "frequency",
+        ]
+        for p in params:
+            try:
+                brg_data[p] = [float(i) for i in brg_data[p]]
+            except TypeError:
+                pass
+
+        data[f"{self.__class__.__name__}_{self.tag}"] = brg_data
 
         with open(file, "w") as f:
             toml.dump(data, f)
@@ -1358,7 +1393,18 @@ class MagneticBearingElement(BearingElement):
         tag=None,
         n_link=None,
         scale_factor=1,
+        **kwargs,
     ):
+        self.g0 = g0
+        self.i0 = i0
+        self.ag = ag
+        self.nw = nw
+        self.alpha = alpha
+        self.kp_pid = kp_pid
+        self.kd_pid = kd_pid
+        self.k_amp = k_amp
+        self.k_sense = k_sense
+
         pL = [g0, i0, ag, nw, alpha, kp_pid, kd_pid, k_amp, k_sense]
         pA = [0, 0, 0, 0, 0, 0, 0, 0, 0]
 
@@ -1631,18 +1677,32 @@ class BearingElement6DoF(BearingElement):
             "kyy",
             "kxy",
             "kyx",
+            "kzz",
             "cxx",
             "cyy",
             "cxy",
             "cyx",
-            "kzz",
             "czz",
             "frequency",
-            "n",
-            "n_link",
         ]
         if isinstance(other, self.__class__):
-            return all(
+            init_args = []
+            for arg in signature(self.__init__).parameters:
+                if arg not in ["kwargs"]:
+                    init_args.append(arg)
+
+            init_args_comparison = []
+            for arg in init_args:
+                comparison = getattr(self, arg) == getattr(other, arg)
+                try:
+                    comparison = all(comparison)
+                except TypeError:
+                    pass
+
+                init_args_comparison.append(comparison)
+
+            init_args_comparison = all(init_args_comparison)
+            attributes_comparison = all(
                 (
                     (
                         np.array(getattr(self, attr)) == np.array(getattr(other, attr))
@@ -1650,6 +1710,8 @@ class BearingElement6DoF(BearingElement):
                     for attr in compared_attributes
                 )
             )
+
+            return init_args_comparison and attributes_comparison
         return False
 
     def save(self, file):
@@ -1658,31 +1720,85 @@ class BearingElement6DoF(BearingElement):
         except FileNotFoundError:
             data = {}
 
-        args = {
-            "n": self.n,
-            "kxx": [float(i) for i in self.kxx],
-            "cxx": [float(i) for i in self.cxx],
-            "kyy": [float(i) for i in self.kyy],
-            "kxy": [float(i) for i in self.kxy],
-            "kyx": [float(i) for i in self.kyx],
-            "kzz": [float(i) for i in self.kzz],
-            "cyy": [float(i) for i in self.cyy],
-            "cxy": [float(i) for i in self.cxy],
-            "cyx": [float(i) for i in self.cyx],
-            "czz": [float(i) for i in self.czz],
-            "tag": self.tag,
-            "n_link": self.n_link,
-            "scale_factor": self.scale_factor,
-        }
-        if self.frequency is not None:
-            args["frequency"] = [float(i) for i in self.frequency]
-        else:
-            args["frequency"] = self.frequency
+        # remove some info before saving
+        brg_data = self.__dict__.copy()
+        params_to_remove = [
+            "kxx_interpolated",
+            "kyy_interpolated",
+            "kxy_interpolated",
+            "kyx_interpolated",
+            "kzz_interpolated",
+            "cxx_interpolated",
+            "cyy_interpolated",
+            "cxy_interpolated",
+            "cyx_interpolated",
+            "czz_interpolated",
+            "n_l",
+            "n_r",
+            "dof_global_index",
+        ]
+        for p in params_to_remove:
+            brg_data.pop(p)
 
-        data[f"{self.__class__.__name__}_{self.tag}"] = args
+        # change np.array to lists so that we can save in .toml as list(floats)
+        params = [
+            "kxx",
+            "kyy",
+            "kxy",
+            "kyx",
+            "kzz",
+            "cxx",
+            "cyy",
+            "cxy",
+            "cyx",
+            "czz",
+            "frequency",
+        ]
+        for p in params:
+            try:
+                brg_data[p] = [float(i) for i in brg_data[p]]
+            except TypeError:
+                pass
+
+        data[f"{self.__class__.__name__}_{self.tag}"] = brg_data
 
         with open(file, "w") as f:
             toml.dump(data, f)
+
+    @classmethod
+    def load(cls, file):
+        data = toml.load(file)
+        # extract single dictionary in the data
+        data = list(data.values())[0]
+        params = [
+            "kxx",
+            "kyy",
+            "kxy",
+            "kyx",
+            "kzz",
+            "cxx",
+            "cyy",
+            "cxy",
+            "cyx",
+            "czz",
+            "frequency",
+            "n",
+            "tag",
+            "n_link",
+            "scale_factor",
+        ]
+        kwargs = {}
+        for p in params:
+            try:
+                kwargs[p] = data.pop(p)
+            except KeyError:
+                pass
+
+        bearing = cls(**kwargs)
+        for k, v in data.items():
+            setattr(bearing, k, v)
+
+        return bearing
 
     def dof_mapping(self):
         """Degrees of freedom mapping.
