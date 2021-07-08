@@ -380,20 +380,20 @@ def test_bearing_6dof_equality():
 
 
 def test_save_load(bearing0, bearing_constant, bearing_6dof, magnetic_bearing):
-    # file = Path(tempdir) / "bearing0.toml"
-    # bearing0.save(file)
-    # bearing0_loaded = BearingElement.load(file)
-    # assert bearing0 == bearing0_loaded
-    #
-    # file = Path(tempdir) / "bearing_constant.toml"
-    # bearing_constant.save(file)
-    # bearing_constant_loaded = BearingElement.load(file)
-    # assert bearing_constant == bearing_constant_loaded
-    #
-    # file = Path(tempdir) / "bearing_6dof.toml"
-    # bearing_6dof.save(file)
-    # bearing_6dof_loaded = BearingElement6DoF.load(file)
-    # assert bearing_6dof == bearing_6dof_loaded
+    file = Path(tempdir) / "bearing0.toml"
+    bearing0.save(file)
+    bearing0_loaded = BearingElement.load(file)
+    assert bearing0 == bearing0_loaded
+
+    file = Path(tempdir) / "bearing_constant.toml"
+    bearing_constant.save(file)
+    bearing_constant_loaded = BearingElement.load(file)
+    assert bearing_constant == bearing_constant_loaded
+
+    file = Path(tempdir) / "bearing_6dof.toml"
+    bearing_6dof.save(file)
+    bearing_6dof_loaded = BearingElement6DoF.load(file)
+    assert bearing_6dof == bearing_6dof_loaded
 
     file = Path(tempdir) / "magnetic_bearing.toml"
     magnetic_bearing.save(file)
