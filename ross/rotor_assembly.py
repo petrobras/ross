@@ -2624,7 +2624,11 @@ class Rotor(object):
             if el_name == "parameters":
                 continue
             class_name = el_name.split("_")[0]
-            elements.append(globals()[class_name].read_toml_data(el_data))
+            try:
+                elements.append(globals()[class_name].read_toml_data(el_data))
+            except KeyError:
+                import rossxl as rsxl
+                elements.append(getattr(rsxl, class_name).read_toml_data(el_data))
 
         shaft_elements = []
         disk_elements = []
