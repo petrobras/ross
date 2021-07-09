@@ -403,22 +403,11 @@ class BearingElement(Element):
             brg_data.pop(p)
 
         # change np.array to lists so that we can save in .toml as list(floats)
-        params = [
-            "kxx",
-            "kyy",
-            "kxy",
-            "kyx",
-            "cxx",
-            "cyy",
-            "cxy",
-            "cyx",
-            "frequency",
-        ]
-        for p in params:
-            try:
-                brg_data[p] = [float(i) for i in brg_data[p]]
-            except TypeError:
-                pass
+        for k, v in brg_data.items():
+            if isinstance(v, np.generic):
+                brg_data[k] = brg_data[k].item()
+            elif isinstance(v, np.ndarray):
+                brg_data[k] = brg_data[k].tolist()
 
         data[f"{self.__class__.__name__}_{self.tag}"] = brg_data
 
