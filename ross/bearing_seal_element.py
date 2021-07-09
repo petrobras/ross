@@ -1050,6 +1050,7 @@ class SealElement(BearingElement):
         n_link=None,
         scale_factor=1.0,
         color="#77ACA2",
+        **kwargs,
     ):
         super().__init__(
             n=n,
