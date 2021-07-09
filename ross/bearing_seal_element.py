@@ -408,6 +408,12 @@ class BearingElement(Element):
                 brg_data[k] = brg_data[k].item()
             elif isinstance(v, np.ndarray):
                 brg_data[k] = brg_data[k].tolist()
+            # case for a container with np.float (e.g. list(np.float))
+            else:
+                try:
+                    brg_data[k] = [i.item() for i in brg_data[k]]
+                except (TypeError, AttributeError):
+                    pass
 
         data[f"{self.__class__.__name__}_{self.tag}"] = brg_data
 
