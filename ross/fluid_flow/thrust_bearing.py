@@ -107,7 +107,7 @@ class Thrust:
         tolFM = 1e-8
 
         while ResFM >= tolFM:
-
+            print('passei no while')######################################################################################################################################
             # --------------------------------------------------------------------------
             # Equilibrium position optimization [h0,ar,ap]
             x = scipy.optimize.fmin(
@@ -494,7 +494,7 @@ class Thrust:
 
                     kR = kR + 1
                     kTETA = 0
-
+                print('passei no pressure')######################################################################################################################################
                 # PRESSURE_THD =============================================================
                 # ENDS HERE ================================================================
 
@@ -766,7 +766,7 @@ class Thrust:
             resMx = mx
             resMy = my
             resFre = fre
-
+            print('passei no temperature')######################################################################################################################################
             # TEMPERATURE ==============================================================
             # ENDS HERE ================================================================
 
@@ -776,18 +776,18 @@ class Thrust:
 
         # --------------------------------------------------------------------------
         # Full temperature field
-        TT = 1 + np.zeros((NR + 1, Npad + 1))
-        TT[1:NR, 1:Npad] = np.fliplr(Ti)
+        TT = np.ones((NR + 2, NTETA + 2))
+        TT[1:NR+1, 1:NTETA+1] = np.fliplr(Ti)
         TT[:, 0] = T0
         TT[0, :] = TT[1, :]
-        TT[NR + 1, :] = TT[NR, :]
-        TT[:, Npad + 1] = TT[:, Npad]
+        TT[NR + 2, :] = TT[NR+1, :]
+        TT[:, NTETA + 2] = TT[:, NTETA+1]
         TT = TT - 273.15
 
         # --------------------------------------------------------------------------
         # Viscosity field
         for ii in range(0, NR):
-            for jj in range(0, Npad):
+            for jj in range(0, NTETA):
                 mi[ii, jj] = (1e-3) * k1 * np.exp(k2 / (Ti[ii, jj] - k3))  # [Pa.s]
 
         # PRESSURE =================================================================
@@ -798,8 +798,8 @@ class Thrust:
         MI = 1 / mi0 * mi
 
         # PRESSURE FIELD - Solution of Reynolds equation
-        kR = 1
-        kTETA = 1
+        kR = 0
+        kTETA = 0
 
         # index using for pressure vectorization
         k = 0
@@ -853,49 +853,49 @@ class Thrust:
                     MI_n = 0.5 * (MI[kR, kTETA] + MI[kR + 1, kTETA])
                     MI_s = MI[kR, kTETA]
 
-                if kTETA == 0 and kR > 0 and kR < NR:
+                if kTETA == 0 and kR > 0 and kR < NR-1:
                     MI_e = 0.5 * (MI[kR, kTETA] + MI[kR, kTETA + 1])
                     MI_w = MI[kR, kTETA]
                     MI_n = 0.5 * (MI[kR, kTETA] + MI[kR + 1, kTETA])
                     MI_s = 0.5 * (MI[kR, kTETA] + MI[kR - 1, kTETA])
 
-                if kTETA == 0 and kR == NR:
+                if kTETA == 0 and kR == NR-1:
                     MI_e = 0.5 * (MI[kR, kTETA] + MI[kR, kTETA + 1])
                     MI_w = MI[kR, kTETA]
                     MI_n = MI[kR, kTETA]
                     MI_s = 0.5 * (MI[kR, kTETA] + MI[kR - 1, kTETA])
 
-                if kR == 0 and kTETA > 0 and kTETA < NTETA:
+                if kR == 0 and kTETA > 0 and kTETA < NTETA-1:
                     MI_e = 0.5 * (MI[kR, kTETA] + MI[kR, kTETA + 1])
                     MI_w = 0.5 * (MI[kR, kTETA] + MI[kR, kTETA - 1])
                     MI_n = 0.5 * (MI[kR, kTETA] + MI[kR + 1, kTETA])
                     MI_s = MI[kR, kTETA]
 
-                if kTETA > 0 and kTETA < NTETA and kR > 0 and kR < NR:
+                if kTETA > 0 and kTETA < NTETA-1 and kR > 0 and kR < NR-1:
                     MI_e = 0.5 * (MI[kR, kTETA] + MI[kR, kTETA + 1])
                     MI_w = 0.5 * (MI[kR, kTETA] + MI[kR, kTETA - 1])
                     MI_n = 0.5 * (MI[kR, kTETA] + MI[kR + 1, kTETA])
                     MI_s = 0.5 * (MI[kR, kTETA] + MI[kR - 1, kTETA])
 
-                if kR == NR and kTETA > 0 and kTETA < NTETA:
+                if kR == NR-1 and kTETA > 0 and kTETA < NTETA-1:
                     MI_e = 0.5 * (MI[kR, kTETA] + MI[kR, kTETA + 1])
                     MI_w = 0.5 * (MI[kR, kTETA] + MI[kR, kTETA - 1])
                     MI_n = MI[kR, kTETA]
                     MI_s = 0.5 * (MI[kR, kTETA] + MI[kR - 1, kTETA])
 
-                if kR == 0 and kTETA == NTETA:
+                if kR == 0 and kTETA == NTETA-1:
                     MI_e = MI[kR, kTETA]
                     MI_w = 0.5 * (MI[kR, kTETA] + MI[kR, kTETA - 1])
                     MI_n = 0.5 * (MI[kR, kTETA] + MI[kR + 1, kTETA])
                     MI_s = MI[kR, kTETA]
 
-                if kTETA == NTETA and kR > 0 and kR < NR:
+                if kTETA == NTETA-1 and kR > 0 and kR < NR-1:
                     MI_e = MI[kR, kTETA]
                     MI_w = 0.5 * (MI[kR, kTETA] + MI[kR, kTETA - 1])
                     MI_n = 0.5 * (MI[kR, kTETA] + MI[kR + 1, kTETA])
                     MI_s = 0.5 * (MI[kR, kTETA] + MI[kR - 1, kTETA])
 
-                if kTETA == NTETA and kR == NR:
+                if kTETA == NTETA-1 and kR == NR-1:
                     MI_e = MI[kR, kTETA]
                     MI_w = 0.5 * (MI[kR, kTETA] + MI[kR, kTETA - 1])
                     MI_n = MI[kR, kTETA]
@@ -947,48 +947,48 @@ class Thrust:
                     Mat_coef[k, k + 1] = CE
                     Mat_coef[k, k + NTETA] = CN
 
-                if kTETA == 0 and kR > 0 and kR < NR:
+                if kTETA == 0 and kR > 0 and kR < NR-1:
                     Mat_coef[k, k] = CP - CW
                     Mat_coef[k, k + 1] = CE
                     Mat_coef[k, k + NTETA] = CN
                     Mat_coef[k, k - NTETA] = CS
 
-                if kTETA == 0 and kR == NR:
+                if kTETA == 0 and kR == NR-1:
                     Mat_coef[k, k] = CP - CW - CN
                     Mat_coef[k, k + 1] = CE
                     Mat_coef[k, k - NTETA] = CS
 
-                if kR == 0 and kTETA > 0 and kTETA < NTETA:
+                if kR == 0 and kTETA > 0 and kTETA < NTETA-1:
                     Mat_coef[k, k] = CP - CS
                     Mat_coef[k, k + 1] = CE
                     Mat_coef[k, k - 1] = CW
                     Mat_coef[k, k + NTETA] = CN
 
-                if kTETA > 0 and kTETA < NTETA and kR > 0 and kR < NR:
+                if kTETA > 0 and kTETA < NTETA-1 and kR > 0 and kR < NR-1:
                     Mat_coef[k, k] = CP
                     Mat_coef[k, k - 1] = CW
                     Mat_coef[k, k + NTETA] = CN
                     Mat_coef[k, k - NTETA] = CS
                     Mat_coef[k, k + 1] = CE
 
-                if kR == NR and kTETA > 0 and kTETA < NTETA:
+                if kR == NR-1 and kTETA > 0 and kTETA < NTETA-1:
                     Mat_coef[k, k] = CP - CN
                     Mat_coef[k, k - 1] = CW
                     Mat_coef[k, k + 1] = CE
                     Mat_coef[k, k - NTETA] = CS
 
-                if kR == 0 and kTETA == NTETA:
+                if kR == 0 and kTETA == NTETA-1:
                     Mat_coef[k, k] = CP - CE - CS
                     Mat_coef[k, k - 1] = CW
                     Mat_coef[k, k + NTETA] = CN
 
-                if kTETA == NTETA and kR > 0 and kR < NR:
+                if kTETA == NTETA-1 and kR > 0 and kR < NR-1:
                     Mat_coef[k, k] = CP - CE
                     Mat_coef[k, k - 1] = CW
                     Mat_coef[k, k - NTETA] = CS
                     Mat_coef[k, k + NTETA] = CN
 
-                if kTETA == NTETA and kR == NR:
+                if kTETA == NTETA-1 and kR == NR-1:
                     Mat_coef[k, k] = CP - CE - CN
                     Mat_coef[k, k - 1] = CW
                     Mat_coef[k, k - NTETA] = CS
@@ -996,7 +996,7 @@ class Thrust:
                 kTETA = kTETA + 1
 
             kR = kR + 1
-            kTETA = 1
+            kTETA = 0
 
         # Pressure field solution
         p = np.linalg.solve(Mat_coef, b)
@@ -1030,7 +1030,7 @@ class Thrust:
         kR = 0
         kTETA = 0
         k = -1  # pressure vectorization index
-        nk = (NR) * (Npad)  # volumes number
+        nk = (NR) * (NTETA)  # volumes number
 
         # coefficients matrix
         Mat_coef = np.zeros((nk, nk))
@@ -1076,7 +1076,7 @@ class Thrust:
                     dPdRn = -P0[kR, kTETA] / (0.5 * dR)
                     dPdRs = (P0[kR, kTETA] - P0[kR - 1, kTETA]) / dR
 
-                if kR == 0 and kTETA > 0 and kTETA < Npad:
+                if kR == 0 and kTETA > 0 and kTETA < NTETA-1:
                     MI_e = 0.5 * (MI[kR, kTETA] + MI[kR, kTETA + 1])
                     MI_w = 0.5 * (MI[kR, kTETA] + MI[kR, kTETA - 1])
                     MI_n = 0.5 * (MI[kR, kTETA] + MI[kR + 1, kTETA])
@@ -1086,7 +1086,7 @@ class Thrust:
                     dPdRn = (P0[kR + 1, kTETA] - P0[kR, kTETA]) / dR
                     dPdRs = P0[kR, kTETA] / (0.5 * dR)
 
-                if kTETA > 0 and kTETA < Npad and kR > 0 and kR < NR:
+                if kTETA > 0 and kTETA < NTETA-1 and kR > 0 and kR < NR-1:
                     MI_e = 0.5 * (MI[kR, kTETA] + MI[kR, kTETA + 1])
                     MI_w = 0.5 * (MI[kR, kTETA] + MI[kR, kTETA - 1])
                     MI_n = 0.5 * (MI[kR, kTETA] + MI[kR + 1, kTETA])
@@ -1096,7 +1096,7 @@ class Thrust:
                     dPdRn = (P0[kR + 1, kTETA] - P0[kR, kTETA]) / dR
                     dPdRs = (P0[kR, kTETA] - P0[kR - 1, kTETA]) / dR
 
-                if kR == NR and kTETA > 0 and kTETA < Npad:
+                if kR == NR-1 and kTETA > 0 and kTETA < NTETA -1:
                     MI_e = 0.5 * (MI[kR, kTETA] + MI[kR, kTETA + 1])
                     MI_w = 0.5 * (MI[kR, kTETA] + MI[kR, kTETA - 1])
                     MI_n = MI[kR, kTETA]
@@ -1106,7 +1106,7 @@ class Thrust:
                     dPdRn = -P0[kR, kTETA] / (0.5 * dR)
                     dPdRs = (P0[kR, kTETA] - P0[kR - 1, kTETA]) / dR
 
-                if kR == 0 and kTETA == Npad:
+                if kR == 0 and kTETA == NTETA-1:
                     MI_e = MI[kR, kTETA]
                     MI_w = 0.5 * (MI[kR, kTETA] + MI[kR, kTETA - 1])
                     MI_n = 0.5 * (MI[kR, kTETA] + MI[kR + 1, kTETA])
@@ -1116,7 +1116,7 @@ class Thrust:
                     dPdRn = (P0[kR + 1, kTETA] - P0[kR, kTETA]) / dR
                     dPdRs = P0[kR, kTETA] / (0.5 * dR)
 
-                if kTETA == Npad and kR > 0 and kR < NR:
+                if kTETA == NTETA-1 and kR > 0 and kR < NR-1:
                     MI_e = MI[kR, kTETA]
                     MI_w = 0.5 * (MI[kR, kTETA] + MI[kR, kTETA - 1])
                     MI_n = 0.5 * (MI[kR, kTETA] + MI[kR + 1, kTETA])
@@ -1126,7 +1126,7 @@ class Thrust:
                     dPdRn = (P0[kR + 1, kTETA] - P0[kR, kTETA]) / dR
                     dPdRs = (P0[kR, kTETA] - P0[kR - 1, kTETA]) / dR
 
-                if kTETA == Npad and kR == NR:
+                if kTETA == NTETA-1 and kR == NR-1:
                     MI_e = MI[kR, kTETA]
                     MI_w = 0.5 * (MI[kR, kTETA] + MI[kR, kTETA - 1])
                     MI_n = MI[kR, kTETA]
@@ -1254,53 +1254,53 @@ class Thrust:
                 if kTETA == 0 and kR == 0:
                     Mat_coef[k, k] = CP - CW - CS
                     Mat_coef[k, k + 1] = CE
-                    Mat_coef[k, k + Npad] = CN
+                    Mat_coef[k, k + NTETA-1] = CN
 
-                if kTETA == 0 and kR > 0 and kR < NR:
+                if kTETA == 0 and kR > 0 and kR < NR-1:
                     Mat_coef[k, k] = CP - CW
                     Mat_coef[k, k + 1] = CE
-                    Mat_coef[k, k + Npad] = CN
-                    Mat_coef[k, k - Npad] = CS
+                    Mat_coef[k, k + NTETA-1] = CN
+                    Mat_coef[k, k - NTETA-1] = CS
 
-                if kTETA == 0 and kR == NR:
+                if kTETA == 0 and kR == NR-1:
                     Mat_coef[k, k] = CP - CW - CN
                     Mat_coef[k, k + 1] = CE
-                    Mat_coef[k, k - Npad] = CS
+                    Mat_coef[k, k - NTETA-1] = CS
 
-                if kR == 0 and kTETA > 0 and kTETA < Npad:
+                if kR == 0 and kTETA > 0 and kTETA < NTETA-1:
                     Mat_coef[k, k] = CP - CS
                     Mat_coef[k, k + 1] = CE
                     Mat_coef[k, k - 1] = CW
-                    Mat_coef[k, k + Npad] = CN
+                    Mat_coef[k, k + NTETA-1] = CN
 
-                if kTETA > 0 and kTETA < Npad and kR > 0 and kR < NR:
+                if kTETA > 0 and kTETA < NTETA-1 and kR > 0 and kR < NR-1:
                     Mat_coef[k, k] = CP
                     Mat_coef[k, k - 1] = CW
-                    Mat_coef[k, k + Npad] = CN
-                    Mat_coef[k, k - Npad] = CS
+                    Mat_coef[k, k + NTETA-1] = CN
+                    Mat_coef[k, k - NTETA-1] = CS
                     Mat_coef[k, k + 1] = CE
 
-                if kR == NR and kTETA > 0 and kTETA < Npad:
+                if kR == NR-1 and kTETA > 0 and kTETA < NTETA-1:
                     Mat_coef[k, k] = CP - CN
                     Mat_coef[k, k - 1] = CW
                     Mat_coef[k, k + 1] = CE
                     Mat_coef[k, k - Npad] = CS
 
-                if kR == 0 and kTETA == Npad:
+                if kR == 0 and kTETA == NTETA-1:
                     Mat_coef[k, k] = CP - CE - CS
                     Mat_coef[k, k - 1] = CW
-                    Mat_coef[k, k + Npad] = CN
+                    Mat_coef[k, k + NTETA-1] = CN
 
-                if kTETA == Npad and kR > 0 and kR < NR:
+                if kTETA == NTETA-1 and kR > 0 and kR < NR-1:
                     Mat_coef[k, k] = CP - CE
                     Mat_coef[k, k - 1] = CW
-                    Mat_coef[k, k - Npad] = CS
-                    Mat_coef[k, k + Npad] = CN
+                    Mat_coef[k, k - NTETA-1] = CS
+                    Mat_coef[k, k + NTETA-1] = CN
 
-                if kTETA == Npad and kR == NR:
+                if kTETA == NTETA-1 and kR == NR-1:
                     Mat_coef[k, k] = CP - CE - CN
                     Mat_coef[k, k - 1] = CW
-                    Mat_coef[k, k - Npad] = CS
+                    Mat_coef[k, k - NTETA] = CS
 
                 kTETA = kTETA + 1
 
@@ -1313,7 +1313,7 @@ class Thrust:
 
         # pressure matrix
         for ii in range(0, NR):
-            for jj in range(0, Npad):
+            for jj in range(0, NTETA):
                 cont = cont + 1
                 P[ii, jj] = p[cont]
 
@@ -1607,13 +1607,13 @@ def ArAsh0Equilibrium(
 
     # pressure matrix
     for ii in range(0, NR):
-        for jj in range(0, Npad - 1):
+        for jj in range(0, NTETA):
             cont = cont + 1
             P[ii, jj] = p[cont]
 
     # boundary conditions of pressure
     for ii in range(0, NR):
-        for jj in range(0, Npad - 1):
+        for jj in range(0, NTETA):
             if P[ii, jj] < 0:
                 P[ii, jj] = 0
 
