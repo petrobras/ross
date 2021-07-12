@@ -2628,6 +2628,7 @@ class Rotor(object):
                 elements.append(globals()[class_name].read_toml_data(el_data))
             except KeyError:
                 import rossxl as rsxl
+
                 elements.append(getattr(rsxl, class_name).read_toml_data(el_data))
 
         shaft_elements = []
