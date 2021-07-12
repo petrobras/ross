@@ -761,7 +761,7 @@ class Thrust:
 
             mx = np.trapz(XTETA, mxr)
             my = np.trapz(XTETA, myr)
-            fre = -np.trapz(XTETA, frer) + fz / Npad - 1
+            fre = -np.trapz(XTETA, frer) + fz / Npad
 
             resMx = mx
             resMy = my
@@ -772,7 +772,7 @@ class Thrust:
 
             Ti = T * T0
             ResFM = np.norm(resMx, resMy, resFre)
-            xo = x
+            x0 = x
 
         # --------------------------------------------------------------------------
         # Full temperature field
@@ -1284,7 +1284,7 @@ class Thrust:
                     Mat_coef[k, k] = CP - CN
                     Mat_coef[k, k - 1] = CW
                     Mat_coef[k, k + 1] = CE
-                    Mat_coef[k, k - Npad] = CS
+                    Mat_coef[k, k - NTETA-1] = CS
 
                 if kR == 0 and kTETA == NTETA-1:
                     Mat_coef[k, k] = CP - CE - CS
@@ -1625,10 +1625,9 @@ def ArAsh0Equilibrium(
     XTETA = teta0 * vec_TETA
     Xrp = rp * (1 + np.zeros((XR, XR)))
 
-    for ii in range(0, Npad - 1):
+    for ii in range(0, NTETA):
         Mxr[:, ii] = (Pdim[:, ii] * (np.transpose(XR) ** 2)) * np.sin(
-            XTETA[ii] - TETAp * teta0
-        )
+            XTETA[ii] - TETAp)
         Myr[:, ii] = (
             -Pdim[:, ii]
             * np.transpose(XR)
@@ -1642,7 +1641,7 @@ def ArAsh0Equilibrium(
 
     mx = np.trapz(XTETA, mxr)
     my = np.trapz(XTETA, myr)
-    fre = -np.trapz(XTETA, frer) + fz / Npad - 1
+    fre = -np.trapz(XTETA, frer) + fz / Npad 
 
     x = np.norm(mx, my, fre)
 
