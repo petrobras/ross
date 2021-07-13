@@ -115,6 +115,7 @@ class Thrust:
                     r1,
                     rp,
                     teta0,
+                    tetap,
                     mi0,
                     fz,
                     Npad,
@@ -1363,6 +1364,7 @@ def ArAsh0Equilibrium(
     r1,
     rp,
     teta0,
+    tetap,
     mi0,
     fz,
     Npad,
@@ -1623,19 +1625,19 @@ def ArAsh0Equilibrium(
     # RESULTING FORCE AND MOMENTUM: Equilibrium position
     XR = r1 * vec_R
     XTETA = teta0 * vec_TETA
-    Xrp = rp * (1+np.zeros((np.size(XR),np.size(XR))))
+    Xrp = rp * (1+np.zeros((np.size(XR))))
 
     for ii in range(0, NTETA):
         Mxr[:, ii] = (Pdim[:, ii] * (np.transpose(XR) ** 2)) * np.sin(
-            XTETA[ii] - TETAp)
+            XTETA[ii] - tetap)
         Myr[:, ii] = (
             -Pdim[:, ii]
             * np.transpose(XR)
-            * np.transpose(XR * np.cos(XTETA(ii) - TETAp * teta0) - Xrp)
+            * np.transpose(XR * np.cos(XTETA[ii] - tetap) - Xrp)
         )
         Frer[:, ii] = Pdim[:, ii] * np.transpose(XR)
 
-    mxr = np.trapz(XR, Mxr)
+    mxr = np.trapz( Mxr, XR)
     myr = np.trapz(XR, Myr)
     frer = np.trapz(XR, Frer)
 
@@ -1643,7 +1645,7 @@ def ArAsh0Equilibrium(
     my = np.trapz(XTETA, myr)
     fre = -np.trapz(XTETA, frer) + fz / Npad 
 
-    x = np.norm(mx, my, fre)
+    x = np.linalg.norm([mx, my, fre])
 
     return x
 
