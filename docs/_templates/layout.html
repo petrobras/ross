@@ -1,14 +1,10 @@
 {% extends "!layout.html" %}
+  {% block footer %} {{ super() }}
 
-{% block footer %}
-{{ super() }}
-<!-- Global site tag (gtag.js) - Google Analytics -->
-<script async src="https://www.googletagmanager.com/gtag/js?id=UA-157532410-1"></script>
-<script>
-  window.dataLayer = window.dataLayer || [];
-  function gtag(){dataLayer.push(arguments);}
-  gtag('js', new Date());
-
-  gtag('config', 'UA-157532410-1');
-</script>
+  <style>
+    /* Sidebar header (and topbar for mobile) */
+    .wy-side-nav-search, .wy-nav-top {
+      background: #cce6f4;
+    }
+  </style>
 {% endblock %}

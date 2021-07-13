@@ -120,8 +120,8 @@ To create a Pull Request (PR), refer to `the github PR guide <https://help.githu
 Documentation
 -------------
 We use `sphinx <http://www.sphinx-doc.org/en/master/>`_ to generate the project's documentation. We keep the source
-files at ~/ross/docs, and we keep the html files used to build the website in a
-`separate repository <https://github.com/ross-rotordynamics/ross-website>`_.
+files at ~/ross/docs, and the website is hosted
+`here <https://ross.readthedocs.io/en/latest/>`_.
 The website tracks the documentation for the released version with the 'Docs'
 GitHub Action.
 
@@ -136,7 +136,7 @@ Go to the ~/ross/docs folder and run::
 
 Optionally, if you don't want run all notebooks you can use::
 
-    make NBSPHINX_EXECUTE='never' html
+    make EXECUTE_NOTEBOOKS='off' html
 
 After building the docs, go to the _build/html directory (~/ross/docs/_build/html)
 and start a python http server::

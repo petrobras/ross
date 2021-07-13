@@ -36,8 +36,12 @@ class DiskElement(Element):
     tag : str, optional
         A tag to name the element
         Default is None
-    scale_factor: float, optional
+    scale_factor: float or str, optional
         The scale factor is used to scale the disk drawing.
+        For disks it is also possible to provide 'mass' as the scale factor.
+        In this case the code will calculate scale factors for each disk based
+        on the disk with the higher mass. Notice that in this case you have to
+        create all disks with the scale_factor='mass'.
         Default is 1.
     color : str, optional
         A color to be used when the element is represented.
@@ -120,7 +124,7 @@ class DiskElement(Element):
             f"{self.__class__.__name__}"
             f"(Id={self.Id:{0}.{5}}, Ip={self.Ip:{0}.{5}}, "
             f"m={self.m:{0}.{5}}, color={self.color!r}, "
-            f"n={self.n}, tag={self.tag!r})"
+            f"n={self.n}, scale_factor={self.scale_factor}, tag={self.tag!r})"
         )
 
     def __str__(self):
@@ -473,7 +477,7 @@ class DiskElement(Element):
         >>> file_path = os.path.dirname(os.path.realpath(__file__)) + '/tests/data/shaft_si.xls'
         >>> list_of_disks = DiskElement.from_table(file_path, sheet_name="More")
         >>> list_of_disks[0]
-        DiskElement(Id=0.0, Ip=0.0, m=15.12, color='Firebrick', n=3, tag=None)
+        DiskElement(Id=0.0, Ip=0.0, m=15.12, color='Firebrick', n=3, scale_factor=1, tag=None)
         """
         parameters = read_table_file(file, "disk", sheet_name=sheet_name)
         if tag is None:
