@@ -1867,7 +1867,7 @@ class ShaftElement6DoF(ShaftElement):
         Gyroscopic matrix for the 6 DoF shaft element. Similar to the Kst
         stiffness matrix, this Gyro matrix is also multiplied by the value
         of the rotating speed Omega. It is omitted from this and must be
-        added in the respective analyses.
+        added in the respective analyses...
 
         Returns
         -------
