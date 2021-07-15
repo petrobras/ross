@@ -278,11 +278,11 @@ def test_evals_sorted_rotor2(rotor2):
             -4.838034e-14 - 34.822138j,
         ]
     )
-    modal2_0 = rotor2.run_modal(speed=0)
+    modal2_0 = rotor2.run_modal(speed=0, sparse=False)
     rotor2_evals, rotor2_evects = rotor2._eigen(speed=0)
     assert_allclose(rotor2_evals, evals_sorted, rtol=1e-3)
     assert_allclose(modal2_0.evalues, evals_sorted, rtol=1e-3)
-    modal2_10000 = rotor2.run_modal(speed=10000)
+    modal2_10000 = rotor2.run_modal(speed=10000, sparse=False)
     assert_allclose(modal2_10000.evalues, evals_sorted_w_10000, rtol=1e-1)
 
 
@@ -368,7 +368,7 @@ def test_rotor_attributes(rotor1, rotor3, rotor3_odd):
 
 def test_kappa_rotor3(rotor3):
     # TODO: Move this to test_results.py
-    modal3_0 = rotor3.run_modal(speed=0)
+    modal3_0 = rotor3.run_modal(speed=0, sparse=False)
     assert_allclose(modal3_0.kappa(0, 0)["Frequency"], 82.653037, rtol=1e-3)
     assert_allclose(modal3_0.kappa(0, 0)["Major axes"], 0.001454062985920231, rtol=1e-3)
     assert_allclose(
@@ -378,7 +378,7 @@ def test_kappa_rotor3(rotor3):
         modal3_0.kappa(0, 0)["kappa"], -1.415311171090584e-08, rtol=1e-3, atol=1e-6
     )
 
-    modal3_2000 = rotor3.run_modal(speed=2000)
+    modal3_2000 = rotor3.run_modal(speed=2000, sparse=False)
     assert_allclose(modal3_2000.kappa(0, 0)["Frequency"], 77.37957042, rtol=1e-3)
     assert_allclose(
         modal3_2000.kappa(0, 0)["Major axes"], 0.0011885396330204021, rtol=1e-3
@@ -408,7 +408,7 @@ def test_kappa_rotor3(rotor3):
 
 
 def test_kappa_mode_rotor3(rotor3):
-    modal3_2000 = rotor3.run_modal(2000)
+    modal3_2000 = rotor3.run_modal(2000, sparse=False)
     assert_allclose(
         modal3_2000.kappa_mode(0),
         [-0.614884, -0.696056, -0.723983, -0.729245, -0.708471, -0.656976, -0.513044],
@@ -614,7 +614,7 @@ def test_freq_response_w_force(rotor4):
 
 def test_mesh_convergence(rotor3):
     rotor3.convergence(n_eigval=0, err_max=1e-08)
-    modal3 = rotor3.run_modal(speed=0)
+    modal3 = rotor3.run_modal(speed=0, sparse=False)
 
     assert_allclose(len(rotor3.shaft_elements), 96, atol=0)
     assert_allclose(modal3.wn[0], 82.653037335, atol=1e-02)
@@ -1188,7 +1188,7 @@ def rotor7():
 def test_whirl_values(rotor7):
     speed_range = np.linspace(50, 500, 10)
     for speed in speed_range:
-        modal7 = rotor7.run_modal(speed)
+        modal7 = rotor7.run_modal(speed, sparse=False)
         assert_allclose(modal7.whirl_values(), [1.0, 0.0, 1.0, 0.0, 1.0, 0.0], atol=0)
         assert_equal(
             modal7.whirl_direction(),
@@ -1200,7 +1200,7 @@ def test_whirl_values(rotor7):
 
 
 def test_kappa_mode(rotor7):
-    modal7 = rotor7.run_modal(100.0)
+    modal7 = rotor7.run_modal(100.0, sparse=False)
     assert_allclose(
         modal7.kappa_mode(0),
         [
@@ -1241,7 +1241,7 @@ def test_kappa_mode(rotor7):
         rtol=1e-7,
     )
 
-    modal7 = rotor7.run_modal(speed=250.0)
+    modal7 = rotor7.run_modal(speed=250.0, sparse=False)
     assert_allclose(
         modal7.kappa_mode(0),
         [
@@ -1282,7 +1282,7 @@ def test_kappa_mode(rotor7):
         rtol=1e-7,
     )
 
-    modal7 = rotor7.run_modal(500.0)
+    modal7 = rotor7.run_modal(500.0, sparse=False)
     assert_allclose(
         modal7.kappa_mode(0),
         [
@@ -1325,7 +1325,7 @@ def test_kappa_mode(rotor7):
 
 
 def test_kappa_axes_values(rotor7):
-    modal7 = rotor7.run_modal(50)
+    modal7 = rotor7.run_modal(50, sparse=False)
     assert_allclose(modal7.kappa(3, 0)["Minor axes"], 0.0024460977827471028, atol=1e-6)
     assert_allclose(modal7.kappa(3, 1)["Minor axes"], 0.0024415401094917922, atol=1e-6)
     assert_allclose(modal7.kappa(3, 2)["Minor axes"], 7.753006465896838e-05, atol=1e-8)
@@ -1333,7 +1333,7 @@ def test_kappa_axes_values(rotor7):
     assert_allclose(modal7.kappa(3, 1)["Major axes"], 0.0024415401094980776, atol=1e-6)
     assert_allclose(modal7.kappa(3, 2)["Major axes"], 7.753006466024783e-05, atol=1e-8)
 
-    modal7 = rotor7.run_modal(200)
+    modal7 = rotor7.run_modal(200, sparse=False)
     assert_allclose(modal7.kappa(3, 0)["Minor axes"], 0.002453197790184042, atol=1e-6)
     assert_allclose(modal7.kappa(3, 1)["Minor axes"], 0.0024349531472631354, atol=1e-6)
     assert_allclose(modal7.kappa(3, 2)["Minor axes"], 8.081580235887124e-05, atol=1e-8)
@@ -1341,7 +1341,7 @@ def test_kappa_axes_values(rotor7):
     assert_allclose(modal7.kappa(3, 1)["Major axes"], 0.0024349531472711047, atol=1e-6)
     assert_allclose(modal7.kappa(3, 2)["Major axes"], 8.081580235956821e-05, atol=1e-8)
 
-    modal7 = rotor7.run_modal(400)
+    modal7 = rotor7.run_modal(400, sparse=False)
     assert_allclose(modal7.kappa(3, 0)["Minor axes"], 0.002463187671800876, atol=1e-6)
     assert_allclose(modal7.kappa(3, 1)["Minor axes"], 0.0024266089747119572, atol=1e-6)
     assert_allclose(modal7.kappa(3, 2)["Minor axes"], 8.480305842194371e-05, atol=1e-8)
@@ -1569,11 +1569,11 @@ def rotor_6dof():
     return Rotor(shaft_elem, [disk0, disk1], [bearing0, bearing1])
 
 
-@pytest.mark.skip(
-    reason="Needs investigation. It fails depending on system. Most likely due to eig solution precision"
+#@pytest.mark.skip(
+#   reason="Needs investigation. It fails depending on system. Most likely due to eig solution precision"
 )
 def test_modal_6dof(rotor_6dof):
-    modal = rotor_6dof.run_modal(speed=0)
+    modal = rotor_6dof.run_modal(speed=0, sparse=False)
     wn = np.array(
         [
             1.52311799e-05,
