@@ -3827,7 +3827,6 @@ def rotor_example_6dof():
     >>> import ross as rs
     >>> import numpy as np
     >>> rotor6 = rs.rotor_assembly.rotor_example_6dof()
-    >>> camp6 = rotor6.run_campbell(np.linspace(0,400,101),frequencies=18)
 
     Plotting rotor model
     >>> fig = rotor6.plot_rotor()
@@ -3840,6 +3839,7 @@ def rotor_example_6dof():
     >>> print(f"Damped natural frequencies:\n {modal6.wd}")
 
     Plotting Campbell Diagram
+    >>> camp6 = rotor6.run_campbell(np.linspace(0,400,101),frequencies=18)
     >>> fig = camp6.plot()
     >>> fig.show()
     """
