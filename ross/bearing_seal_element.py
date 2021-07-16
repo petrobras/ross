@@ -204,7 +204,12 @@ class BearingElement(Element):
                         " must have the same dimension"
                     )
         else:
-            interpolated = lambda x: np.array(coefficient[0])
+            interpolated = interpolate.interp1d(
+                [0, 1],
+                [coefficient[0], coefficient[0]],
+                kind="linear",
+                fill_value="extrapolate",
+            )
 
         return coefficient, interpolated
 
@@ -1946,8 +1951,7 @@ def bearing_6dof_example():
     --------
     >>> bearing = bearing_6dof_example()
     >>> bearing.kxx
-    [1000000.0]
-    """
+    [1000000.0]"""
     bearing = BearingElement6DoF(
         n=0, kxx=1e6, kyy=0.8e6, cxx=2e2, cyy=1.5e2, kzz=1e5, czz=0.5e2
     )
