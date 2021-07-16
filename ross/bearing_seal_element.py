@@ -204,7 +204,12 @@ class BearingElement(Element):
                         " must have the same dimension"
                     )
         else:
-            interpolated = lambda x: np.array(coefficient[0])
+            interpolated = interpolate.interp1d(
+                [0, 1],
+                [coefficient[0], coefficient[0]],
+                kind='linear',
+                fill_value="extrapolate",
+            )
 
         return coefficient, interpolated
 
