@@ -384,23 +384,22 @@ class BearingElement(Element):
         except FileNotFoundError:
             data = {}
 
-        # remove some info before saving
-        brg_data = self.__dict__.copy()
-        params_to_remove = [
-            "kxx_interpolated",
-            "kyy_interpolated",
-            "kxy_interpolated",
-            "kyx_interpolated",
-            "cxx_interpolated",
-            "cyy_interpolated",
-            "cxy_interpolated",
-            "cyx_interpolated",
-            "n_l",
-            "n_r",
-            "dof_global_index",
+        # save initialization args and coefficients
+        args = list(signature(self.__init__).parameters)
+        args += [
+            "kxx",
+            "kyy",
+            "kxy",
+            "kyx",
+            "cxx",
+            "cyy",
+            "cxy",
+            "cyx",
         ]
-        for p in params_to_remove:
-            brg_data.pop(p)
+        brg_data = {}
+        for arg in args:
+            if arg not in ["kwargs"]:
+                brg_data[arg] = self.__dict__[arg]
 
         # change np.array to lists so that we can save in .toml as list(floats)
         for k, v in brg_data.items():
