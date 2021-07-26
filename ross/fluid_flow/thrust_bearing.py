@@ -110,34 +110,13 @@ class Thrust:
             print('passei no while')######################################################################################################################################
             # --------------------------------------------------------------------------
             # Equilibrium position optimization [h0,ar,ap]
+            
+            entrada= tuple((r1,rp,teta0,tetap,mi0,fz,Npad,NTETA,NR,war,R1,R2,TETA1,TETA2,Rp,dR,dTETA,k1,k2,k3,TETAp,Ti,x0))
+            
             x = scipy.optimize.fmin(
-                ArAsh0Equilibrium(
-                    r1,
-                    rp,
-                    teta0,
-                    tetap,
-                    mi0,
-                    fz,
-                    Npad,
-                    NTETA,
-                    NR,
-                    war,
-                    R1,
-                    R2,
-                    TETA1,
-                    TETA2,
-                    Rp,
-                    dR,
-                    dTETA,
-                    k1,
-                    k2,
-                    k3,
-                    TETAp,
-                    Ti,
-                    x0,
-                ),
+                ArAsh0Equilibrium,                  
                 x0,
-                args=(),
+                args=entrada,
                 xtol=tolFM,
                 ftol=tolFM,
                 maxiter=100000,
@@ -178,8 +157,8 @@ class Thrust:
             for ii in range(0, NR):
                 for jj in range(0, NTETA):
                     varMI = np.abs((MI_new[ii, jj] - MI[ii, jj]) / MI[ii, jj])
-
-            while max(varMI) >= tolMI:
+            ely=1
+            while ely >= tolMI:
 
                 MI = MI_new
 
@@ -217,7 +196,7 @@ class Thrust:
                 P = np.zeros((NR, NTETA))
                 mi = np.zeros((NR, NTETA))
 
-                PPdim = np.zeros((NR + 1, NTETA + 1))
+                PPdim = np.zeros((NR + 2, NTETA + 2))
                 PPdim[1:-1, 1:-1] = (r1 ** 2 * war * mi0 / h0 ** 2) * np.fliplr(P0)
 
                 cont = -1
@@ -734,7 +713,7 @@ class Thrust:
                         )
 
             T = T_new
-
+            ely=max(varMI)
             # RESULTING FORCE AND MOMENTUM: Equilibrium position
 
             # dimensional pressure
@@ -1360,31 +1339,35 @@ class Thrust:
         h0
 
 
-def ArAsh0Equilibrium(
-    r1,
-    rp,
-    teta0,
-    tetap,
-    mi0,
-    fz,
-    Npad,
-    NTETA,
-    NR,
-    war,
-    R1,
-    R2,
-    TETA1,
-    TETA2,
-    Rp,
-    dR,
-    dTETA,
-    k1,
-    k2,
-    k3,
-    TETAp,
-    Ti,
-    x0,
-):
+#def ArAsh0Equilibrium(
+#    r1,
+#    rp,
+#    teta0,
+#    tetap,
+#    mi0,
+#    fz,
+#    Npad,
+#    NTETA,
+#    NR,
+#    war,
+#    R1,
+#    R2,
+#    TETA1,
+#    TETA2,
+#    Rp,
+#    dR,
+#    dTETA,
+#    k1,
+#    k2,
+#    k3,
+#    TETAp,
+#    Ti,
+#    x0,
+#):
+def ArAsh0Equilibrium(x,*args):
+    r1,rp,teta0,tetap,mi0,fz,Npad,NTETA,NR,war,R1,R2,TETA1,TETA2,Rp,dR,dTETA,k1,k2,k3,TETAp,Ti,x0=args
+
+
 
     # Variable startup
     MI = np.zeros((NR, NTETA))
@@ -1592,18 +1575,7 @@ def ArAsh0Equilibrium(
         kR = kR + 1
         kTETA = 0
 
-    # Pressure field solution
-    # scipy.sparse(Mat_coef)
-    # aaaa = np.linalg.cond(Mat_coef)
-    # p = tf.linalg.solve(Mat_coef, b)
 
-    # p = np.linalg.solve(Mat_coef, b)
-
-#    aaaa = np.linalg.cond(Mat_coef)
-#    Mat_coef = fp.iv.matrix(Mat_coef)
-#    b = fp.iv.matrix(b)
-#    p = fp.iv.lu_solve(Mat_coef, b)
-#    np.disp(np.residual(Mat_coef, p, b))
     p = np.linalg.solve(Mat_coef, b)
     cont = -1
 
