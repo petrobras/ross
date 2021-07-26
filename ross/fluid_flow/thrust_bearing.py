@@ -158,9 +158,10 @@ class Thrust:
                 for jj in range(0, NTETA):
                     varMI = np.abs((MI_new[ii, jj] - MI[ii, jj]) / MI[ii, jj])
             ely=1
+            
             while ely >= tolMI:
 
-                MI = MI_new
+                MI = np.array(MI_new)
 
                 # PRESSURE_THD =============================================================
                 # STARTS HERE ==============================================================
@@ -320,7 +321,7 @@ class Thrust:
 
                         # vectorization index
                         k = k + 1
-                        b[k, 1] = (
+                        b[k, 0] = (
                             dR
                             / (4 * teta0)
                             * (
@@ -395,9 +396,10 @@ class Thrust:
                 # pressure matrix
                 for ii in range(0, NR):
                     for jj in range(0, NTETA):
-                        cont = cont + 1
+                        
                         P0[ii, jj] = p[cont]
-
+                        cont = cont + 1
+              
                 # pressure boundary conditions
                 for ii in range(0, NR):
                     for jj in range(0, NTETA):
@@ -700,6 +702,7 @@ class Thrust:
                         T_new[ii, jj] = t[cont]
 
                 # viscosity field
+                varMI=np.zeros((NR, NTETA))
                 for ii in range(0, NR):
                     for jj in range(0, NTETA):
                         MI_new[ii, jj] = (
@@ -708,12 +711,12 @@ class Thrust:
                             * k1
                             * np.exp(k2 / (T0 * T_new[ii, jj] - k3))
                         )
-                        varMI[ii, jj] = np.abs(
-                            (MI_new[ii, jj] - MI[ii, jj]) / MI[ii, jj]
-                        )
+                        varMI[ii, jj] = abs((MI_new[ii, jj] - MI[ii, jj]) / MI[ii, jj])
 
-            T = T_new
-            ely=max(varMI)
+                T = T_new
+                ely=np.max(varMI)
+                print(ely)
+            
             # RESULTING FORCE AND MOMENTUM: Equilibrium position
 
             # dimensional pressure
@@ -722,7 +725,7 @@ class Thrust:
             # RESULTING FORCE AND MOMENTUM: Equilibrium position
             XR = r1 * vec_R
             XTETA = teta0 * vec_TETA
-            Xrp = rp * (1 + np.zeros((XR, XR)))
+            Xrp = rp * (np.ones((np.size(XR))))
 
             for ii in range(0, NTETA):
                 Mxr[:, ii] = (Pdim[:, ii] * (np.transpose(XR) ** 2)) * np.sin(
@@ -751,7 +754,7 @@ class Thrust:
             # ENDS HERE ================================================================
 
             Ti = T * T0
-            ResFM = np.norm(resMx, resMy, resFre)
+            ResFM = np.linalg.norm(np.array([resMx, resMy, resFre]))
             x0 = x
 
         # --------------------------------------------------------------------------
