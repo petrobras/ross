@@ -1885,6 +1885,11 @@ class ShaftElement6DoF(ShaftElement):
             # temporary material and geometrical constants, determined as mean values
             # from the left and right radii of the tapered shaft
             L = self.L
+
+            tempS = np.pi * (
+                ((self.odr / 2) ** 2 + (self.odl / 2) ** 2) / 2
+                - ((self.idr / 2) ** 2 + (self.idl / 2) ** 2) / 2
+            )
             tempI = (
                 np.pi
                 / 4
@@ -1896,19 +1901,34 @@ class ShaftElement6DoF(ShaftElement):
 
             # fmt: off
             # Gyroscopic effect matrix
-            G = (self.material.rho * tempI / (15 * L)) * np.array([
-                [  0, -36, 0,  -3*L,      0, 0,    0,   36, 0,  -3*L,      0, 0],
-                [ 36,   0, 0,     0,   -3*L, 0,  -36,    0, 0,     0,   -3*L, 0],
-                [  0,   0, 0,     0,      0, 0,    0,    0, 0,     0,      0, 0],
-                [3*L,   0, 0,     0,-4*L**2, 0, -3*L,    0, 0,     0,   L**2, 0],
-                [  0, 3*L, 0,4*L**2,      0, 0,    0, -3*L, 0, -L**2,      0, 0],
-                [  0,   0, 0,     0,      0, 0,    0,    0, 0,     0,      0, 0],
-                [  0,  36, 0,   3*L,      0, 0,    0,  -36, 0,   3*L,      0, 0],
-                [-36,   0, 0,     0,    3*L, 0,   36,    0, 0,     0,    3*L, 0],
-                [  0,   0, 0,     0,      0, 0,    0,    0, 0,     0,      0, 0],
-                [3*L,   0, 0,     0,   L**2, 0, -3*L,    0, 0,     0,-4*L**2, 0],
-                [  0, 3*L, 0, -L**2,      0, 0,    0, -3*L, 0,4*L**2,      0, 0],
-                [  0,   0, 0,     0,      0, 0,    0,    0, 0,     0,      0, 0],
+            
+            # auxiliary variables
+            
+            phi=(
+            12
+            * self.material.E
+            * tempI
+            / (self.material.G_s * self.kappa * tempS * L ** 2)
+        )
+
+            g1 = 36
+            g2 = (3 - 15*phi) * L
+            g3 = (4 + 5*phi + 10*phi**2) * L**2
+            g4 = (-1 - 5*phi + 5*phi**2) * L**2
+
+            G = (self.material.rho * tempI / (15*((1+phi)**2) * L)) * np.array([
+                    [   0,  g1, 0,   -g2,   0, 0,     0, -g1, 0,   -g2,   0, 0],
+                    [ -g1,   0, 0,     0, -g2, 0,    g1,   0, 0,     0, -g2, 0],
+                    [   0,   0, 0,     0,   0, 0,     0,   0, 0,     0,   0, 0],
+                    [  g2,   0, 0,     0,  g3, 0,   -g2,   0, 0,     0,  g4, 0],
+                    [   0,  g2, 0,   -g3,   0, 0,     0, -g2, 0,   -g4,   0, 0],
+                    [   0,   0, 0,     0,   0, 0,     0,   0, 0,     0,   0, 0],
+                    [   0, -g1, 0,    g2,   0, 0,     0,  g1, 0,    g2,   0, 0],
+                    [  g1,   0, 0,     0,  g2, 0,   -g1,   0, 0,     0,  g2, 0],
+                    [   0,   0, 0,     0,   0, 0,     0,   0, 0,     0,   0, 0],
+                    [  g2,   0, 0,     0,  g4, 0,   -g2,   0, 0,     0,  g3, 0],
+                    [   0,  g2, 0,   -g4,   0, 0,     0, -g2, 0,   -g3,   0, 0],
+                    [   0,   0, 0,     0,   0, 0,     0,   0, 0,     0,   0, 0],
             ])
             # fmt: on
         else:
