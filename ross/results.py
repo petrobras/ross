@@ -352,8 +352,7 @@ class ModalResults(Results):
         to the natural frequency of interest:
 
         .. math::
-           :nowrap:
-
+           
            \begin{eqnarray}
               \begin{bmatrix}
               u(t)\\
