@@ -130,7 +130,7 @@ class Thrust:
             a_r = x[0]  # [rad]
             a_s = x[1]  # [rad]
             h0 = x[2]  # [m]
-
+            print(x)
             # --------------------------------------------------------------------------
             #  Temperature field
             tolMI = 1e-6
@@ -1386,9 +1386,9 @@ def ArAsh0Equilibrium(x,*args):
     vec_TETA = np.append([vec_TETA], [TETA2 - 0.5 * dTETA])
 
     # Pitch angles alpha_r and alpha_p and oil filme thickness at pivot h0
-    a_r = x0[0]  # [rad]
-    a_s = x0[1]  # [rad]
-    h0 = x0[2]  # [m]
+    a_r = x[0]  # [rad]
+    a_s = x[1]  # [rad]
+    h0 = x[2]  # [m]
 
     for ii in range(0, NR):
         for jj in range(0, NTETA):
@@ -1620,9 +1620,9 @@ def ArAsh0Equilibrium(x,*args):
     my = np.trapz( myr, XTETA)
     fre = -np.trapz( frer, XTETA) + fz / Npad 
 
-    x = np.linalg.norm([mx, my, fre])
+    score = np.linalg.norm([mx, my, fre])
 
-    return x
+    return score
 
 
 def thrust_bearing_example():
