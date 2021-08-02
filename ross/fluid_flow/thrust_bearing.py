@@ -772,8 +772,8 @@ class Thrust:
         TT[1:NR+1, 1:NTETA+1] = np.fliplr(Ti)
         TT[:, 0] = T0
         TT[0, :] = TT[1, :]
-        TT[NR + 2, :] = TT[NR+1, :]
-        TT[:, NTETA + 2] = TT[:, NTETA+1]
+        TT[NR + 1, :] = TT[NR, :]
+        TT[:, NTETA + 1] = TT[:, NTETA]
         TT = TT - 273.15
 
         # --------------------------------------------------------------------------
@@ -1315,16 +1315,16 @@ class Thrust:
         # RESULTING FORCE AND MOMENTUM: Equilibrium position
         XR = r1 * vec_R
         XTETA = teta0 * vec_TETA
-        Xrp = rp * (1 + np.zeros((XR, XR)))
+        Xrp = rp * (1+np.zeros((np.size(XR))))
 
         for ii in range(0, NTETA):
             Mxr[:, ii] = (Pdim[:, ii] * (np.transpose(XR) ** 2)) * np.sin(
-                XTETA(ii) - tetap
+                XTETA[ii] - tetap
             )
             Myr[:, ii] = (
                 -Pdim[:, ii]
                 * np.transpose(XR)
-                * np.transpose(XR * np.cos(XTETA(ii) - tetap) - Xrp)
+                * np.transpose(XR * np.cos(XTETA[ii] - tetap) - Xrp)
             )
             Frer[:, ii] = Pdim[:, ii] * np.transpose(XR)
 
