@@ -1328,13 +1328,21 @@ class Thrust:
             )
             Frer[:, ii] = Pdim[:, ii] * np.transpose(XR)
 
-        mxr = np.trapz[XR, Mxr]
-        myr = np.trapz[XR, Myr]
-        frer = np.trapz[XR, Frer]
+#        mxr = np.trapz[XR, Mxr]
+#        myr = np.trapz[XR, Myr]
+#        frer = np.trapz[XR, Frer]
+#
+#        mx = -np.trapz[XTETA, mxr]
+#        my = -np.trapz[XTETA, myr]
+#        fre = -np.trapz[XTETA, frer]
 
-        mx = -np.trapz[XTETA, mxr]
-        my = -np.trapz[XTETA, myr]
-        fre = -np.trapz[XTETA, frer]
+        mxr = np.trapz( Mxr, XR, axis=- 2)
+        myr = np.trapz( Myr, XR, axis=- 2)
+        frer = np.trapz( Frer, XR)
+
+        mx = np.trapz(mxr, XTETA)
+        my = np.trapz( myr, XTETA)
+        fre = -np.trapz( frer, XTETA) + fz / Npad 
 
         # HYDROCOEFF_z =============================================================
         # ENDS HERE ================================================================
