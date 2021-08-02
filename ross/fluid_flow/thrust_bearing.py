@@ -335,53 +335,53 @@ class Thrust:
                         if kTETA == 0 and kR == 0:
                             Mat_coef[k, k] = CP - CS - CW
                             Mat_coef[k, k + 1] = CE
-                            Mat_coef[k, k + NTETA-1] = CN
+                            Mat_coef[k, k + NTETA] = CN
 
                         if kTETA == 0 and kR > 0 and kR < NR-1:
                             Mat_coef[k, k] = CP - CW
                             Mat_coef[k, k + 1] = CE
-                            Mat_coef[k, k + NTETA-1] = CN
-                            Mat_coef[k, k - NTETA-1] = CS
+                            Mat_coef[k, k + NTETA] = CN
+                            Mat_coef[k, k - NTETA] = CS
 
                         if kTETA == 0 and kR == NR-1:
                             Mat_coef[k, k] = CP - CW - CN
                             Mat_coef[k, k + 1] = CE
-                            Mat_coef[k, k - NTETA-1] = CS
+                            Mat_coef[k, k - NTETA] = CS
 
                         if kR == 0 and kTETA > 0 and kTETA < NTETA-1:
                             Mat_coef[k, k] = CP - CS
                             Mat_coef[k, k + 1] = CE
                             Mat_coef[k, k - 1] = CW
-                            Mat_coef[k, k + NTETA-1] = CN
+                            Mat_coef[k, k + NTETA] = CN
 
                         if kTETA > 0 and kTETA < NTETA-1 and kR > 0 and kR < NR-1:
                             Mat_coef[k, k] = CP
                             Mat_coef[k, k - 1] = CW
-                            Mat_coef[k, k + NTETA-1] = CN
-                            Mat_coef[k, k - NTETA-1] = CS
+                            Mat_coef[k, k + NTETA] = CN
+                            Mat_coef[k, k - NTETA] = CS
                             Mat_coef[k, k + 1] = CE
 
                         if kR == NR-1 and kTETA > 0 and kTETA < NTETA-1:
                             Mat_coef[k, k] = CP - CN
                             Mat_coef[k, k - 1] = CW
                             Mat_coef[k, k + 1] = CE
-                            Mat_coef[k, k - NTETA-1] = CS
+                            Mat_coef[k, k - NTETA] = CS
 
                         if kR == 0 and kTETA == NTETA-1:
                             Mat_coef[k, k] = CP - CE - CS
                             Mat_coef[k, k - 1] = CW
-                            Mat_coef[k, k + NTETA-1] = CN
+                            Mat_coef[k, k + NTETA] = CN
 
                         if kTETA == NTETA-1 and kR > 0 and kR < NR-1:
                             Mat_coef[k, k] = CP - CE
                             Mat_coef[k, k - 1] = CW
-                            Mat_coef[k, k - NTETA-1] = CS
-                            Mat_coef[k, k + NTETA-1] = CN
+                            Mat_coef[k, k - NTETA] = CS
+                            Mat_coef[k, k + NTETA] = CN
 
                         if kTETA == NTETA-1 and kR == NR-1:
                             Mat_coef[k, k] = CP - CE - CN
                             Mat_coef[k, k - 1] = CW
-                            Mat_coef[k, k - NTETA-1] = CS
+                            Mat_coef[k, k - NTETA] = CS
 
                         kTETA = kTETA + 1
 
@@ -635,56 +635,56 @@ class Thrust:
                         if kTETA == 0 and kR == 0:
                             Mat_coef[k, k] = CP + CS
                             Mat_coef[k, k + 1] = CE
-                            Mat_coef[k, k + NTETA-1] = CN
+                            Mat_coef[k, k + NTETA] = CN
                             b[k, 0] = b[k, 0] - 1 * CW
 
                         if kTETA == 0 and kR > 0 and kR < NR-1:
                             Mat_coef[k, k] = CP
                             Mat_coef[k, k + 1] = CE
-                            Mat_coef[k, k + NTETA-1] = CN
-                            Mat_coef[k, k - NTETA-1] = CS
+                            Mat_coef[k, k + NTETA] = CN
+                            Mat_coef[k, k - NTETA] = CS
                             b[k, 0] = b[k, 0] - 1 * CW
 
                         if kTETA == 0 and kR == NR-1:
                             Mat_coef[k, k] = CP + CN
                             Mat_coef[k, k + 1] = CE
-                            Mat_coef[k, k - NTETA-1] = CS
+                            Mat_coef[k, k - NTETA] = CS
                             b[k, 0] = b[k, 0] - 1 * CW
 
                         if kR == 0 and kTETA > 0 and kTETA < NTETA-1:
                             Mat_coef[k, k] = CP + CS
                             Mat_coef[k, k + 1] = CE
                             Mat_coef[k, k - 1] = CW
-                            Mat_coef[k, k + NTETA-1] = CN
+                            Mat_coef[k, k + NTETA] = CN
 
                         if kTETA > 0 and kTETA < NTETA-1 and kR > 0 and kR < NR-1:
                             Mat_coef[k, k] = CP
                             Mat_coef[k, k - 1] = CW
-                            Mat_coef[k, k + NTETA-1] = CN
-                            Mat_coef[k, k - NTETA-1] = CS
+                            Mat_coef[k, k + NTETA] = CN
+                            Mat_coef[k, k - NTETA] = CS
                             Mat_coef[k, k + 1] = CE
 
                         if kR == NR-1 and kTETA > 0 and kTETA < NTETA-1:
                             Mat_coef[k, k] = CP + CN
                             Mat_coef[k, k - 1] = CW
                             Mat_coef[k, k + 1] = CE
-                            Mat_coef[k, k - NTETA-1] = CS
+                            Mat_coef[k, k - NTETA] = CS
 
                         if kR == 0 and kTETA == NTETA-1:
                             Mat_coef[k, k] = CP + CE + CS
                             Mat_coef[k, k - 1] = CW
-                            Mat_coef[k, k + NTETA-1] = CN
+                            Mat_coef[k, k + NTETA] = CN
 
                         if kTETA == NTETA-1 and kR > 0 and kR < NR-1:
                             Mat_coef[k, k] = CP + CE
                             Mat_coef[k, k - 1] = CW
-                            Mat_coef[k, k - NTETA-1] = CS
-                            Mat_coef[k, k + NTETA-1] = CN
+                            Mat_coef[k, k - NTETA] = CS
+                            Mat_coef[k, k + NTETA] = CN
 
                         if kTETA == NTETA-1 and kR == NR-1:
                             Mat_coef[k, k] = CP + CN + CE
                             Mat_coef[k, k - 1] = CW
-                            Mat_coef[k, k - NTETA-1] = CS
+                            Mat_coef[k, k - NTETA] = CS
 
                         kTETA = kTETA + 1
 
