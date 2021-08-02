@@ -104,10 +104,10 @@ class Thrust:
         # --------------------------------------------------------------------------
         # WHILE LOOP INITIALIZATION
         ResFM = 1
-        tolFM = 1e-8
+        tolFM = 1e-6
 
         while ResFM >= tolFM:
-            print('passei no while')######################################################################################################################################
+            print(ResFM)######################################################################################################################################
             # --------------------------------------------------------------------------
             # Equilibrium position optimization [h0,ar,ap]
             
@@ -130,7 +130,7 @@ class Thrust:
             a_r = x[0]  # [rad]
             a_s = x[1]  # [rad]
             h0 = x[2]  # [m]
-            print(x)
+
             # --------------------------------------------------------------------------
             #  Temperature field
             tolMI = 1e-6
@@ -476,7 +476,7 @@ class Thrust:
 
                     kR = kR + 1
                     kTETA = 0
-                print('passei no pressure')######################################################################################################################################
+#                print('passei no pressure')######################################################################################################################################
                 # PRESSURE_THD =============================================================
                 # ENDS HERE ================================================================
 
@@ -738,18 +738,27 @@ class Thrust:
                 )
                 Frer[:, ii] = Pdim[:, ii] * np.transpose(XR)
 
-            mxr = np.trapz(XR, Mxr)
-            myr = np.trapz(XR, Myr)
-            frer = np.trapz(XR, Frer)
+#            mxr = np.trapz(XR, Mxr)
+#            myr = np.trapz(XR, Myr)
+#            frer = np.trapz(XR, Frer)
+#
+#            mx = np.trapz(XTETA, mxr)
+#            my = np.trapz(XTETA, myr)
+#            fre = -np.trapz(XTETA, frer) + fz / Npad
+            ######################################################################
+            mxr = np.trapz( Mxr, XR, axis=- 2)
+            myr = np.trapz( Myr, XR, axis=- 2)
+            frer = np.trapz( Frer, XR)
 
-            mx = np.trapz(XTETA, mxr)
-            my = np.trapz(XTETA, myr)
-            fre = -np.trapz(XTETA, frer) + fz / Npad
+            mx = np.trapz(mxr, XTETA)
+            my = np.trapz( myr, XTETA)
+            fre = -np.trapz( frer, XTETA) + fz / Npad 
+            ######################################################################
 
             resMx = mx
             resMy = my
             resFre = fre
-            print('passei no temperature')######################################################################################################################################
+#            print('passei no temperature')######################################################################################################################################
             # TEMPERATURE ==============================================================
             # ENDS HERE ================================================================
 
@@ -1621,7 +1630,15 @@ def ArAsh0Equilibrium(x,*args):
     fre = -np.trapz( frer, XTETA) + fz / Npad 
 
     score = np.linalg.norm([mx, my, fre])
-
+#    print(x0)
+#    print(f'Score: ', score)
+#    print('============================================')
+#    print(f'mx: ', mx)
+#    print('============================================')
+#    print(f'my: ', my)
+#    print('============================================')
+#    print(f'fre: ', fre)
+#    print('')
     return score
 
 
