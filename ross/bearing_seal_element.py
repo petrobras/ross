@@ -204,7 +204,12 @@ class BearingElement(Element):
                         " must have the same dimension"
                     )
         else:
-            interpolated = lambda x: np.array(coefficient[0])
+            interpolated = interpolate.interp1d(
+                [0, 1],
+                [coefficient[0], coefficient[0]],
+                kind="linear",
+                fill_value="extrapolate",
+            )
 
         return coefficient, interpolated
 
@@ -384,26 +389,9 @@ class BearingElement(Element):
         except FileNotFoundError:
             data = {}
 
-        # remove some info before saving
-        brg_data = self.__dict__.copy()
-        params_to_remove = [
-            "kxx_interpolated",
-            "kyy_interpolated",
-            "kxy_interpolated",
-            "kyx_interpolated",
-            "cxx_interpolated",
-            "cyy_interpolated",
-            "cxy_interpolated",
-            "cyx_interpolated",
-            "n_l",
-            "n_r",
-            "dof_global_index",
-        ]
-        for p in params_to_remove:
-            brg_data.pop(p)
-
-        # change np.array to lists so that we can save in .toml as list(floats)
-        params = [
+        # save initialization args and coefficients
+        args = list(signature(self.__init__).parameters)
+        args += [
             "kxx",
             "kyy",
             "kxy",
@@ -412,13 +400,24 @@ class BearingElement(Element):
             "cyy",
             "cxy",
             "cyx",
-            "frequency",
         ]
-        for p in params:
-            try:
-                brg_data[p] = [float(i) for i in brg_data[p]]
-            except TypeError:
-                pass
+        brg_data = {}
+        for arg in args:
+            if arg not in ["kwargs"]:
+                brg_data[arg] = self.__dict__[arg]
+
+        # change np.array to lists so that we can save in .toml as list(floats)
+        for k, v in brg_data.items():
+            if isinstance(v, np.generic):
+                brg_data[k] = brg_data[k].item()
+            elif isinstance(v, np.ndarray):
+                brg_data[k] = brg_data[k].tolist()
+            # case for a container with np.float (e.g. list(np.float))
+            else:
+                try:
+                    brg_data[k] = [i.item() for i in brg_data[k]]
+                except (TypeError, AttributeError):
+                    pass
 
         data[f"{self.__class__.__name__}_{self.tag}"] = brg_data
 
@@ -1055,6 +1054,7 @@ class SealElement(BearingElement):
         n_link=None,
         scale_factor=1.0,
         color="#77ACA2",
+        **kwargs,
     ):
         super().__init__(
             n=n,
@@ -1951,8 +1951,7 @@ def bearing_6dof_example():
     --------
     >>> bearing = bearing_6dof_example()
     >>> bearing.kxx
-    [1000000.0]
-    """
+    [1000000.0]"""
     bearing = BearingElement6DoF(
         n=0, kxx=1e6, kyy=0.8e6, cxx=2e2, cyy=1.5e2, kzz=1e5, czz=0.5e2
     )
