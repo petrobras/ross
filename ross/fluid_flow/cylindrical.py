@@ -261,21 +261,21 @@ class THDCylindrical:
             b_T = np.zeros((nk, 1))
 
             for n_p in np.arange(self.n_pad):
-
-                self.thetaI = (
-                    n_p * self.betha_s
-                    + self.dtheta * self.n_gap / 2
-                    + (n_p * self.dtheta * self.n_gap)
-                )
-
-                self.thetaF = self.thetaI + self.betha_s
-
-                self.dtheta = (self.thetaF - self.thetaI) / (self.n_theta)
-
+                
+ 
                 if n_p == 0:
-                    Ytheta1 = np.arange(self.thetaI, self.thetaF, self.dtheta)
+                    self.thetaI = (np.pi - self.betha_s)/2
+                    
+                    self.thetaF = self.thetaI + self.betha_s
+                    
+                    Ytheta1 = np.linspace(self.thetaI, self.thetaF, self.n_theta)
+                
                 else:
-                    Ytheta2 = np.arange(self.thetaI, self.thetaF, self.dtheta)
+                    self.thetaI = np.pi + ((np.pi - self.betha_s)/2)
+                    
+                    self.thetaF = self.thetaI + self.betha_s
+                    
+                    Ytheta2 = np.linspace(self.thetaI, self.thetaF, self.n_theta)
 
                 T_ref = T_mist[n_p - 1]
 
@@ -1040,7 +1040,7 @@ def cylindrical_bearing_example():
         L=0.263144,
         R=0.2,
         c_r=1.95e-4,
-        n_theta=41,
+        n_theta=11,
         n_z=5,
         n_y=None,
         n_gap=1,
@@ -1062,4 +1062,10 @@ def cylindrical_bearing_example():
     )
 
     return bearing
-a
+
+if __name__ == "__main__":
+    x0 = [0.1,-0.1]
+    bearing = cylindrical_bearing_example()
+    bearing.run(x0)
+    bearing.equilibrium_pos
+    print(bearing.equilibrium_pos)
