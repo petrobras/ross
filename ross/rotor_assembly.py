@@ -2722,14 +2722,15 @@ class Rotor(object):
 
         aux_brg = []
         for elm in self.bearing_elements:
-            if elm.n not in self.nodes:
-                pass
-            elif elm.n_link in self.nodes:
-                aux_brg.append(
-                    BearingElement(n=elm.n, n_link=elm.n_link, kxx=1e14, cxx=0)
-                )
-            else:
-                aux_brg.append(BearingElement(n=elm.n, kxx=1e14, cxx=0))
+            if not isinstance(elm, SealElement):
+                if elm.n not in self.nodes:
+                    pass
+                elif elm.n_link in self.nodes:
+                    aux_brg.append(
+                        BearingElement(n=elm.n, n_link=elm.n_link, kxx=1e14, cxx=0)
+                    )
+                else:
+                    aux_brg.append(BearingElement(n=elm.n, kxx=1e14, cxx=0))
 
         if isinstance(self, CoAxialRotor):
             aux_rotor = CoAxialRotor(self.shafts, self.disk_elements, aux_brg)

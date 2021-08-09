@@ -831,6 +831,13 @@ def rotor6():
     return Rotor(shaft_elem, [disk0, disk1], [bearing0, bearing1])
 
 
+@pytest.fixture
+def rotor9():
+    # More complex rotor based on a centrifugal compressor
+    rotor9 = Rotor.load(Path(__file__).parent / "data/rotor.toml")
+    return rotor9
+
+
 def test_static_analysis_rotor6(rotor6):
     static = rotor6.run_static()
 
@@ -909,6 +916,11 @@ def test_static_analysis_rotor6(rotor6):
         ),
         decimal=3,
     )
+
+
+def test_static_analysis_rotor9(rotor9):
+    static = rotor9.run_static()
+    assert_almost_equal(static.bearing_forces["node_7"], 1216.3)
 
 
 def test_run_critical_speed(rotor5, rotor6):
