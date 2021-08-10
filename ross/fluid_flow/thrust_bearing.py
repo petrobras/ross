@@ -773,7 +773,7 @@ class Thrust:
         # --------------------------------------------------------------------------
         # Full temperature field
         TT = np.ones((NR + 2, NTETA + 2))
-        TT[1:NR+1, 1:NTETA+1] = np.fliplr(Ti)
+        TT[1:NR+1, 1:NTETA+1] = np.flipud(Ti)
         TT[:, 0] = T0
         TT[0, :] = TT[1, :]
         TT[NR + 1, :] = TT[NR, :]
