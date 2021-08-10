@@ -104,7 +104,7 @@ class Thrust:
         # --------------------------------------------------------------------------
         # WHILE LOOP INITIALIZATION
         ResFM = 1
-        tolFM = 1e-6
+        tolFM = 1e-8
 
         while ResFM >= tolFM:
             print(ResFM)######################################################################################################################################
@@ -157,9 +157,9 @@ class Thrust:
             for ii in range(0, NR):
                 for jj in range(0, NTETA):
                     varMI = np.abs((MI_new[ii, jj] - MI[ii, jj]) / MI[ii, jj])
-            ely=1
+            aux1=1
             
-            while ely >= tolMI:
+            while aux1 >= tolMI:
 
                 MI = np.array(MI_new)
 
@@ -193,12 +193,12 @@ class Thrust:
                 Mxr = np.zeros((NR, NTETA))
                 Myr = np.zeros((NR, NTETA))
                 Frer = np.zeros((NR, NTETA))
-                P0 = np.zeros((NR, NTETA))
+                P0 = np.ones((NR, NTETA))
                 P = np.zeros((NR, NTETA))
                 mi = np.zeros((NR, NTETA))
 
                 PPdim = np.zeros((NR + 2, NTETA + 2))
-                PPdim[1:-1, 1:-1] = (r1 ** 2 * war * mi0 / h0 ** 2) * np.fliplr(P0)
+                
 
                 cont = -1
 
@@ -406,6 +406,10 @@ class Thrust:
                         if P0[ii, jj] < 0:
                             P0[ii, jj] = 0
 
+
+                PPdim[1:-1, 1:-1] = (r1 ** 2 * war * mi0 / h0 ** 2) * np.flipud(P0)
+                
+                
                 # Pressure derivatives on the faces: dPdR dPdTETA dP2dR2 dP2dTETA2
                 kR = 0
                 kTETA = 0
@@ -476,7 +480,7 @@ class Thrust:
 
                     kR = kR + 1
                     kTETA = 0
-#                print('passei no pressure')######################################################################################################################################
+
                 # PRESSURE_THD =============================================================
                 # ENDS HERE ================================================================
 
@@ -714,8 +718,8 @@ class Thrust:
                         varMI[ii, jj] = abs((MI_new[ii, jj] - MI[ii, jj]) / MI[ii, jj])
 
                 T = T_new
-                ely=np.max(varMI)
-#                print(ely)
+                aux1=np.max(varMI)
+
             
             # RESULTING FORCE AND MOMENTUM: Equilibrium position
 
@@ -758,7 +762,7 @@ class Thrust:
             resMx = mx
             resMy = my
             resFre = fre
-#            print('passei no temperature')######################################################################################################################################
+
             # TEMPERATURE ==============================================================
             # ENDS HERE ================================================================
 
@@ -1005,6 +1009,10 @@ class Thrust:
             for jj in range(0, NTETA):
                 if P0[ii, jj] < 0:
                     P0[ii, jj] = 0
+
+        PPdim = np.zeros((NR + 2, NTETA + 2))
+        PPdim[1:-1, 1:-1] = (r1 ** 2 * war * mi0 / h0 ** 2) * np.flipud(P0)
+#        print(PPdim)
 
         # PRESSURE =================================================================
         # ENDS HERE ================================================================
@@ -1357,7 +1365,11 @@ class Thrust:
         hmin = np.min(h0 * H0)
         Tmax = np.max(TT)
         h0
-
+        print(f'Pmax: ', Pmax)
+        print(f'hmax: ', hmax)
+        print(f'hmin: ', hmin)
+        print(f'Tmax: ', Tmax)
+        print(f'h0: ', h0)
 
 #def ArAsh0Equilibrium(
 #    r1,
@@ -1638,15 +1650,15 @@ def ArAsh0Equilibrium(x,*args):
     fre = -np.trapz( frer, XTETA) + fz / Npad 
 
     score = np.linalg.norm([mx, my, fre])
-#    print(x0)
-#    print(f'Score: ', score)
-#    print('============================================')
-#    print(f'mx: ', mx)
-#    print('============================================')
-#    print(f'my: ', my)
-#    print('============================================')
-#    print(f'fre: ', fre)
-#    print('')
+    print(x0)
+    print(f'Score: ', score)
+    print('============================================')
+    print(f'mx: ', mx)
+    print('============================================')
+    print(f'my: ', my)
+    print('============================================')
+    print(f'fre: ', fre)
+    print('')
     return score
 
 
