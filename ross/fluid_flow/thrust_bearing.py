@@ -1034,7 +1034,13 @@ class Thrust:
 
         # coefficients matrix
         Mat_coef = np.zeros((nk, nk))
-        b = np.zeros((nk, 1))
+#        b_c = np. empty(nk, dtype=complex)
+        b_c = np.zeros((nk,1),dtype=complex)
+        p_c = np.zeros((nk,1),dtype=complex)
+        P_c = np.zeros((NR,NTETA),dtype=complex)
+        Mxr_c = np.zeros((NR,NTETA),dtype=complex)
+        Myr_c = np.zeros((NR,NTETA),dtype=complex)
+        Frer_c = np.zeros((NR,NTETA),dtype=complex)
         cont = -1
 
         for R in vec_R:
@@ -1249,7 +1255,7 @@ class Thrust:
                 # vectorization index
                 k = k + 1
 
-                b[k, 0] = -(B_1 + B_2) + B_3 + B_4
+                b_c[k, 0] = -(B_1 + B_2) + B_3 + B_4
 
                 if kTETA == 0 and kR == 0:
                     Mat_coef[k, k] = CP - CW - CS
@@ -1308,17 +1314,17 @@ class Thrust:
             kTETA = 0
 
         # vectorized pressure field solution
-        p = np.linalg.solve(Mat_coef, b)
+        p_c = np.linalg.solve(Mat_coef, b_c)
         cont = -1
-
+#        p=np.array(p)
         # pressure matrix
         for ii in range(0, NR):
             for jj in range(0, NTETA):
                 cont = cont + 1
-                P[ii, jj] = p[cont]
+                P_c[ii, jj] = p_c[cont]
 
         # dimensional pressure
-        Pdim = P * (r1 ** 2) * war * mi0 / (h0 ** 3)
+        Pdim_c = P_c * (r1 ** 2) * war * mi0 / (h0 ** 3)
 
         # RESULTING FORCE AND MOMENTUM: Equilibrium position
         XR = r1 * vec_R
@@ -1326,15 +1332,15 @@ class Thrust:
         Xrp = rp * (1+np.zeros((np.size(XR))))
 
         for ii in range(0, NTETA):
-            Mxr[:, ii] = (Pdim[:, ii] * (np.transpose(XR) ** 2)) * np.sin(
+            Mxr_c[:, ii] = (Pdim_c[:, ii] * (np.transpose(XR) ** 2)) * np.sin(
                 XTETA[ii] - tetap
             )
-            Myr[:, ii] = (
-                -Pdim[:, ii]
+            Myr_c[:, ii] = (
+                -Pdim_c[:, ii]
                 * np.transpose(XR)
                 * np.transpose(XR * np.cos(XTETA[ii] - tetap) - Xrp)
             )
-            Frer[:, ii] = Pdim[:, ii] * np.transpose(XR)
+            Frer_c[:, ii] = Pdim_c[:, ii] * np.transpose(XR)
 
 #        mxr = np.trapz[XR, Mxr]
 #        myr = np.trapz[XR, Myr]
@@ -1344,13 +1350,13 @@ class Thrust:
 #        my = -np.trapz[XTETA, myr]
 #        fre = -np.trapz[XTETA, frer]
 
-        mxr = np.trapz( Mxr, XR, axis=- 2)
-        myr = np.trapz( Myr, XR, axis=- 2)
-        frer = np.trapz( Frer, XR)
+        mxr_c = np.trapz( Mxr_c, XR, axis=- 2)
+        myr_c = np.trapz( Myr_c, XR, axis=- 2)
+        frer_c = np.trapz( Frer_c, XR)
 
-        mx = np.trapz(mxr, XTETA)
-        my = np.trapz( myr, XTETA)
-        fre = -np.trapz( frer, XTETA) + fz / Npad 
+        mx = np.trapz(mxr_c, XTETA)
+        my = np.trapz( myr_c, XTETA)
+        fre = -np.trapz( frer_c, XTETA) + fz / Npad 
 
         # HYDROCOEFF_z =============================================================
         # ENDS HERE ================================================================
@@ -1364,12 +1370,14 @@ class Thrust:
         hmax = np.max(h0 * H0)
         hmin = np.min(h0 * H0)
         Tmax = np.max(TT)
-        h0
+
         print(f'Pmax: ', Pmax)
         print(f'hmax: ', hmax)
         print(f'hmin: ', hmin)
         print(f'Tmax: ', Tmax)
         print(f'h0: ', h0)
+        print(f'K: ', K)
+        print(f'C: ', C)
 
 #def ArAsh0Equilibrium(
 #    r1,
