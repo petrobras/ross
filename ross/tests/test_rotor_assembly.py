@@ -1569,9 +1569,6 @@ def rotor_6dof():
     return Rotor(shaft_elem, [disk0, disk1], [bearing0, bearing1])
 
 
-# @pytest.mark.skip(
-#   reason="Needs investigation. It fails depending on system. Most likely due to eig solution precision"
-# )
 def test_modal_6dof(rotor_6dof):
     modal = rotor_6dof.run_modal(speed=0, sparse=False)
     wn = np.array(
