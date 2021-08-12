@@ -3827,21 +3827,20 @@ def rotor_example_6dof():
     >>> import ross as rs
     >>> import numpy as np
     >>> rotor6 = rs.rotor_assembly.rotor_example_6dof()
-
-    Plotting rotor model
+    >>> # Plotting rotor model
     >>> fig = rotor6.plot_rotor()
-    >>> fig.show()
-
-    Running modal
+    >>> # fig.show()
+    >>> # Running modal
     >>> rotor_speed = 100.0 # rad/s
     >>> modal6 = rotor6.run_modal(rotor_speed)
-    >>> print(f"Undamped natural frequencies:\n {modal6.wn}")
-    >>> print(f"Damped natural frequencies:\n {modal6.wd}")
-
-    Plotting Campbell Diagram
-    >>> camp6 = rotor6.run_campbell(np.linspace(0,400,101),frequencies=18)
+    >>> print(f"Undamped natural frequencies: {np.round(modal6.wn, 2)}") # doctest: +ELLIPSIS
+    Undamped natural frequencies: [  0.    47.62  91.79 ...
+    >>> print(f"Damped natural frequencies: {np.round(modal6.wd, 2)}") # doctest: +ELLIPSIS
+    Damped natural frequencies: [  0.    47.62  91.79 ...
+    >>> # Plotting Campbell Diagram
+    >>> camp6 = rotor6.run_campbell(np.linspace(0, 400, 101), frequencies=18)
     >>> fig = camp6.plot()
-    >>> fig.show()
+    >>> # fig.show()
     """
     #  Rotor with 6 DoFs, with internal damping, with 10 shaft elements, 2 disks and 2 bearings.
     i_d = 0
