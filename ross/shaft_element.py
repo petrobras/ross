@@ -35,7 +35,7 @@ class ShaftElement(Element):
 
     Parameters
     ----------
-    
+
     idl : float, pint.Quantity
         Inner diameter of the element at the left position (m).
     odl : float, pint.Quantity
@@ -1893,10 +1893,10 @@ class ShaftElement6DoF(ShaftElement):
                 )
             )
             tempS = np.pi * (
-            ((self.odr / 2) ** 2 + (self.odl / 2) ** 2) / 2
-            - ((self.idr / 2) ** 2 + (self.idl / 2) ** 2) / 2
+                ((self.odr / 2) ** 2 + (self.odl / 2) ** 2) / 2
+                - ((self.idr / 2) ** 2 + (self.idl / 2) ** 2) / 2
             )
-            
+
             # fmt: off
             # Gyroscopic effect matrix
             phi=(
