@@ -70,8 +70,7 @@ class THDCylindrical:
         Number of volumes along the direction theta (direction of flow).
     nz : int
         Number of volumes along the Z direction (axial direction).
-    n_gap : int
-        Number of volumes in recess zone.
+
 
 
     Returns
@@ -121,7 +120,6 @@ class THDCylindrical:
         n_theta,
         n_z,
         n_y,
-        n_gap,
         betha_s,
         mu_ref,
         speed,
@@ -145,7 +143,6 @@ class THDCylindrical:
         self.n_theta = n_theta
         self.n_z = n_z
         self.n_y = n_y
-        self.n_gap = n_gap
         self.mu_ref = mu_ref
         self.speed = speed
         self.Wx = Wx
@@ -863,7 +860,7 @@ class THDCylindrical:
 
         return a, b
 
-    def coefficients(self, show_coef=False):
+    def coefficients(self, show_coef=True):
         """Calculates the dynamic coefficients of stiffness "k" and damping "c". The formulation is based in application of virtual displacements and speeds on the rotor from its equilibrium position to determine the bearing stiffness and damping coefficients.
 
         Parameters
@@ -1043,7 +1040,6 @@ def cylindrical_bearing_example():
         n_theta=11,
         n_z=3,
         n_y=None,
-        n_gap=1,
         betha_s=176,
         mu_ref=0.02,
         speed=Q_(900, "RPM"),
