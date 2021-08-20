@@ -18,7 +18,6 @@ def cylindrical():
         n_theta=41,
         n_z=5,
         n_y=None,
-        n_gap=1,
         betha_s=176,
         mu_ref=0.02,
         speed=94.24777960769379,
@@ -53,7 +52,6 @@ def cylindrical_units():
         n_theta=41,
         n_z=5,
         n_y=None,
-        n_gap=1,
         betha_s=176,
         mu_ref=0.02,
         speed=speed,
@@ -91,8 +89,8 @@ def test_cylindrical_parameters_units(cylindrical_units):
 
 
 def test_cylindrical_equilibrium_pos(cylindrical):
-    assert math.isclose(cylindrical.equilibrium_pos[0], 0.58656872, rel_tol=0.01)
-    assert math.isclose(cylindrical.equilibrium_pos[1], -0.67207557, rel_tol=0.01)
+    assert math.isclose(cylindrical.equilibrium_pos[0], 0.56787259, rel_tol=0.01)
+    assert math.isclose(cylindrical.equilibrium_pos[1], -0.70017854, rel_tol=0.01)
 
 
 def test_cylindrical_coefficients(cylindrical):
@@ -106,11 +104,11 @@ def test_cylindrical_coefficients(cylindrical):
     cyx = coefs[1][2]
     cyy = coefs[1][3]
 
-    assert math.isclose(kxx, 977643474.5159643, rel_tol=0.0001)
-    assert math.isclose(kxy, 413634353.49338, rel_tol=0.0001)
-    assert math.isclose(kyx, -1357594347.1180925, rel_tol=0.0001)
-    assert math.isclose(kyy, 950762635.3205317, rel_tol=0.0001)
-    assert math.isclose(cxx, -6787713330.66299, rel_tol=0.0001)
-    assert math.isclose(cxy, 5412970444.499972, rel_tol=0.0001)
-    assert math.isclose(cyx, 16756868.948928362, rel_tol=0.0001)
-    assert math.isclose(cyy, -7129475.427663623, rel_tol=0.0001)
+    assert math.isclose(kxx, 1092049753.1287675, rel_tol=0.0001)
+    assert math.isclose(kxy, 429382922.1736517, rel_tol=0.0001)
+    assert math.isclose(kyx, -1323580421.569568, rel_tol=0.0001)
+    assert math.isclose(kyy, 981756962.9451787, rel_tol=0.0001)
+    assert math.isclose(cxx, 6567887247.215568, rel_tol=0.0001)
+    assert math.isclose(cxy, -5534060052.007937, rel_tol=0.0001)
+    assert math.isclose(cyx, -17036571.56142904, rel_tol=0.0001)
+    assert math.isclose(cyy, 6173065.363999774, rel_tol=0.0001)
