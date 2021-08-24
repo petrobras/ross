@@ -73,7 +73,6 @@ class THDCylindrical:
     n_gap : int
         Number of volumes in recess zone.
 
-
     Returns
     -------
     A THDCylindrical object.
