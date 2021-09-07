@@ -1091,7 +1091,7 @@ class CampbellResults(Results):
 
         scatter_marker = ["triangle-up", "circle", "triangle-down"]
         for mark, whirl_dir, legend in zip(
-            scatter_marker, [0.0, 0.5, 1.0], ["Foward", "Mixed", "Backward"]
+            scatter_marker, [0.0, 0.5, 1.0], ["Forward", "Mixed", "Backward"]
         ):
             for i in range(num_frequencies):
                 w_i = wd[:, i]
@@ -1144,7 +1144,7 @@ class CampbellResults(Results):
             )
         # turn legend glyphs black
         scatter_marker = ["triangle-up", "circle", "triangle-down"]
-        legends = ["Foward", "Mixed", "Backward"]
+        legends = ["Forward", "Mixed", "Backward"]
         for mark, legend in zip(scatter_marker, legends):
             fig.add_trace(
                 go.Scatter(
@@ -2308,7 +2308,7 @@ class ForcedResponseResults(Results):
         Returns
         -------
         major_axis_vector : np.ndarray
-            major_axis_vector[0, :] = foward vector
+            major_axis_vector[0, :] = forward vector
             major_axis_vector[1, :] = backward vector
             major_axis_vector[2, :] = axis angle
             major_axis_vector[3, :] = axis vector response for the input angle
@@ -2403,7 +2403,7 @@ class ForcedResponseResults(Results):
         Returns
         -------
         major_axis_vector : np.ndarray
-            major_axis_vector[0, :] = foward vector
+            major_axis_vector[0, :] = forward vector
             major_axis_vector[1, :] = backward vector
             major_axis_vector[2, :] = major axis angle
             major_axis_vector[3, :] = major axis vector for the maximum major axis angle
