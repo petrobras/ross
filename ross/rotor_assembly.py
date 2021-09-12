@@ -426,12 +426,16 @@ class Rotor(object):
             else:
                 break
 
+        # TODO fix this so that we don't have to add here every custom bearing class
         classes = [
             _class
             for _class, _ in inspect.getmembers(
                 sys.modules["ross.bearing_seal_element"], inspect.isclass
             )
         ]
+        # add custom bearing classes for now
+        classes += ["MaxBrg", "HComb", "Laby3"]
+
         dfb = df[df.type.isin(classes)]
         z_positions = [pos for pos in dfb["nodes_pos_l"]]
         z_positions = list(dict.fromkeys(z_positions))
