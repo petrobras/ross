@@ -1564,9 +1564,9 @@ class Rotor(object):
 
         Returns
         -------
-        results : ross.ForcedResponseResult
+        results : ross.ForcedResponseResults
             For more information on attributes and methods available see:
-            :py:class:`ross.ForcedResponseResult`
+            :py:class:`ross.ForcedResponseResults`
 
         Examples
         --------
@@ -1729,9 +1729,9 @@ class Rotor(object):
 
         Returns
         -------
-        results : ross.ForcedResponseResult
+        results : ross.ForcedResponseResults
             For more information on attributes and methods available see:
-            :py:class:`ross.ForcedResponseResult`
+            :py:class:`ross.ForcedResponseResults`
 
         Examples
         --------
