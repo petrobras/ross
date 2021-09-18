@@ -1,4 +1,3 @@
-# fmt: off
 import os
 from pathlib import Path
 from tempfile import tempdir
@@ -7,12 +6,14 @@ import numpy as np
 import pytest
 from numpy.testing import assert_allclose
 
-from ross.bearing_seal_element import (BallBearingElement, BearingElement,
-                                       BearingElement6DoF, BearingFluidFlow,
-                                       MagneticBearingElement,
-                                       RollerBearingElement)
-
-# fmt: on
+from ross.bearing_seal_element import (
+    BallBearingElement,
+    BearingElement,
+    BearingElement6DoF,
+    BearingFluidFlow,
+    MagneticBearingElement,
+    RollerBearingElement,
+)
 
 
 @pytest.fixture

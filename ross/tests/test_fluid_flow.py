@@ -1,4 +1,3 @@
-# fmt: off
 import math
 
 import numpy as np
@@ -9,15 +8,21 @@ from plotly import graph_objects as go
 from ross.fluid_flow import fluid_flow as flow
 from ross.fluid_flow.fluid_flow import fluid_flow_example2
 from ross.fluid_flow.fluid_flow_coefficients import (
-    calculate_oil_film_force, calculate_short_damping_matrix,
+    calculate_oil_film_force,
+    calculate_short_damping_matrix,
     calculate_short_stiffness_matrix,
-    calculate_stiffness_and_damping_coefficients, find_equilibrium_position)
+    calculate_stiffness_and_damping_coefficients,
+    find_equilibrium_position,
+)
 from ross.fluid_flow.fluid_flow_geometry import move_rotor_center
 from ross.fluid_flow.fluid_flow_graphics import (
-    plot_eccentricity, plot_pressure_surface, plot_pressure_theta,
-    plot_pressure_theta_cylindrical, plot_pressure_z, plot_shape)
-
-# fmt: on
+    plot_eccentricity,
+    plot_pressure_surface,
+    plot_pressure_theta,
+    plot_pressure_theta_cylindrical,
+    plot_pressure_z,
+    plot_shape,
+)
 
 
 @pytest.fixture
