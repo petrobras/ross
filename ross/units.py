@@ -4,16 +4,22 @@ import warnings
 from functools import wraps
 from pathlib import Path
 
-from pint import Quantity, UnitRegistry
+import pint
+
+
+new_units_path = Path(__file__).parent / "new_units.txt"
+ureg = pint.get_application_registry()
+if isinstance(ureg, pint.registry.LazyRegistry):
+    ureg = pint.UnitRegistry()
+    ureg.load_definitions(str(new_units_path))
+    # set ureg to make pickle possible
+    pint.set_application_registry(ureg)
+
+Q_ = ureg.Quantity
 
 with warnings.catch_warnings():
     warnings.simplefilter("ignore")
-    Quantity([])
-
-new_units_path = Path(__file__).parent / "new_units.txt"
-ureg = UnitRegistry()
-ureg.load_definitions(str(new_units_path))
-Q_ = ureg.Quantity
+    pint.Quantity([])
 
 __all__ = ["Q_", "check_units"]
 
