@@ -1,4 +1,3 @@
-# fmt: off
 import inspect
 import sys
 import warnings
@@ -20,24 +19,35 @@ from scipy.interpolate import UnivariateSpline
 from scipy.optimize import newton
 from scipy.sparse import linalg as las
 
-from ross.bearing_seal_element import (BallBearingElement, BearingElement,
-                                       BearingElement6DoF, BearingFluidFlow,
-                                       MagneticBearingElement,
-                                       RollerBearingElement, SealElement)
+from ross.bearing_seal_element import (
+    BallBearingElement,
+    BearingElement,
+    BearingElement6DoF,
+    BearingFluidFlow,
+    MagneticBearingElement,
+    RollerBearingElement,
+    SealElement,
+)
 from ross.defects import Crack, MisalignmentFlex, MisalignmentRigid, Rubbing
 from ross.disk_element import DiskElement, DiskElement6DoF
 from ross.materials import steel
 from ross.point_mass import PointMass
-from ross.results import (CampbellResults, ConvergenceResults,
-                          CriticalSpeedResults, ForcedResponseResults,
-                          FrequencyResponseResults, Level1Results,
-                          ModalResults, StaticResults, SummaryResults,
-                          TimeResponseResults, UCSResults)
+from ross.results import (
+    CampbellResults,
+    ConvergenceResults,
+    CriticalSpeedResults,
+    ForcedResponseResults,
+    FrequencyResponseResults,
+    Level1Results,
+    ModalResults,
+    StaticResults,
+    SummaryResults,
+    TimeResponseResults,
+    UCSResults,
+)
 from ross.shaft_element import ShaftElement, ShaftElement6DoF
 from ross.units import Q_, check_units
 from ross.utils import intersection
-
-# fmt: on
 
 __all__ = ["Rotor", "CoAxialRotor", "rotor_example", "coaxrotor_example"]
 

@@ -1,4 +1,3 @@
-# fmt: off
 import os
 from pathlib import Path
 from tempfile import tempdir
@@ -15,8 +14,6 @@ from ross.bearing_seal_element import (
     MagneticBearingElement,
     RollerBearingElement,
 )
-
-# fmt: on
 
 
 @pytest.fixture
