@@ -39,7 +39,6 @@ jobs:
       - name: Code Lint 
         run: |
           black --check ross
-          isort ross --check-only
         if: success()
       - name: Coverage and Deployment
         run: codecov
