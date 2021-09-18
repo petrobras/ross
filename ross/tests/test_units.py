@@ -10,8 +10,8 @@ def test_new_units_loaded():
     speed = Q_(1, "RPM")
     assert speed.m == 1
     # check if h is hour instead of planck constant
-    v = Q_(3600, 'm/h')
-    assert v.to('m/s').m == 1
+    v = Q_(3600, "m/h")
+    assert v.to("m/s").m == 1
 
 
 # each possible argument
