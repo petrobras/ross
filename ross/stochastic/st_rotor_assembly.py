@@ -2,7 +2,6 @@
 
 This module creates random rotor instances and run stochastic analysis.
 """
-# fmt: off
 from collections.abc import Iterable
 
 import numpy as np
@@ -11,14 +10,14 @@ from ross.rotor_assembly import Rotor
 from ross.stochastic.st_bearing_seal_element import ST_BearingElement
 from ross.stochastic.st_disk_element import ST_DiskElement
 from ross.stochastic.st_point_mass import ST_PointMass
-from ross.stochastic.st_results import (ST_CampbellResults,
-                                        ST_ForcedResponseResults,
-                                        ST_FrequencyResponseResults,
-                                        ST_TimeResponseResults)
+from ross.stochastic.st_results import (
+    ST_CampbellResults,
+    ST_ForcedResponseResults,
+    ST_FrequencyResponseResults,
+    ST_TimeResponseResults,
+)
 from ross.stochastic.st_shaft_element import ST_ShaftElement
 from ross.units import check_units
-
-# fmt: on
 
 __all__ = ["ST_Rotor", "st_rotor_example"]
 

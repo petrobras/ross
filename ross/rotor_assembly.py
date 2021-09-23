@@ -1,4 +1,3 @@
-# fmt: off
 import inspect
 import sys
 import warnings
@@ -20,24 +19,35 @@ from scipy.interpolate import UnivariateSpline
 from scipy.optimize import newton
 from scipy.sparse import linalg as las
 
-from ross.bearing_seal_element import (BallBearingElement, BearingElement,
-                                       BearingElement6DoF, BearingFluidFlow,
-                                       MagneticBearingElement,
-                                       RollerBearingElement, SealElement)
+from ross.bearing_seal_element import (
+    BallBearingElement,
+    BearingElement,
+    BearingElement6DoF,
+    BearingFluidFlow,
+    MagneticBearingElement,
+    RollerBearingElement,
+    SealElement,
+)
 from ross.defects import Crack, MisalignmentFlex, MisalignmentRigid, Rubbing
 from ross.disk_element import DiskElement, DiskElement6DoF
 from ross.materials import steel
 from ross.point_mass import PointMass
-from ross.results import (CampbellResults, ConvergenceResults,
-                          CriticalSpeedResults, ForcedResponseResults,
-                          FrequencyResponseResults, Level1Results,
-                          ModalResults, StaticResults, SummaryResults,
-                          TimeResponseResults, UCSResults)
+from ross.results import (
+    CampbellResults,
+    ConvergenceResults,
+    CriticalSpeedResults,
+    ForcedResponseResults,
+    FrequencyResponseResults,
+    Level1Results,
+    ModalResults,
+    StaticResults,
+    SummaryResults,
+    TimeResponseResults,
+    UCSResults,
+)
 from ross.shaft_element import ShaftElement, ShaftElement6DoF
 from ross.units import Q_, check_units
 from ross.utils import intersection
-
-# fmt: on
 
 __all__ = ["Rotor", "CoAxialRotor", "rotor_example", "coaxrotor_example"]
 
@@ -426,12 +436,16 @@ class Rotor(object):
             else:
                 break
 
+        # TODO fix this so that we don't have to add here every custom bearing class
         classes = [
             _class
             for _class, _ in inspect.getmembers(
                 sys.modules["ross.bearing_seal_element"], inspect.isclass
             )
         ]
+        # add custom bearing classes for now
+        classes += ["MaxBrg", "HComb", "Laby3"]
+
         dfb = df[df.type.isin(classes)]
         z_positions = [pos for pos in dfb["nodes_pos_l"]]
         z_positions = list(dict.fromkeys(z_positions))
@@ -1560,9 +1574,9 @@ class Rotor(object):
 
         Returns
         -------
-        results : ross.ForcedResponseResult
+        results : ross.ForcedResponseResults
             For more information on attributes and methods available see:
-            :py:class:`ross.ForcedResponseResult`
+            :py:class:`ross.ForcedResponseResults`
 
         Examples
         --------
@@ -1725,9 +1739,9 @@ class Rotor(object):
 
         Returns
         -------
-        results : ross.ForcedResponseResult
+        results : ross.ForcedResponseResults
             For more information on attributes and methods available see:
-            :py:class:`ross.ForcedResponseResult`
+            :py:class:`ross.ForcedResponseResults`
 
         Examples
         --------

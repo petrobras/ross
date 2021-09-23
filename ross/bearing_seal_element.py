@@ -4,7 +4,6 @@ This module defines the BearingElement classes which will be used to represent t
 bearings and seals. There are 7 different classes to represent bearings options,
 and 2 element options with 8 or 12 degrees of freedom.
 """
-# fmt: off
 import os
 import warnings
 from inspect import signature
@@ -16,12 +15,11 @@ from scipy import interpolate as interpolate
 
 from ross.element import Element
 from ross.fluid_flow import fluid_flow as flow
-from ross.fluid_flow.fluid_flow_coefficients import \
-    calculate_stiffness_and_damping_coefficients
+from ross.fluid_flow.fluid_flow_coefficients import (
+    calculate_stiffness_and_damping_coefficients,
+)
 from ross.units import Q_, check_units
 from ross.utils import read_table_file
-
-# fmt: on
 
 __all__ = [
     "BearingElement",
