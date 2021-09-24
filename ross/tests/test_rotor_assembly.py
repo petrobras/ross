@@ -1387,15 +1387,6 @@ def test_H_kappa(rotor7):
     )
 
 
-def test_save_load():
-    a = rotor_example()
-    a.save("teste00000000000000001")
-    b = Rotor.load("teste00000000000000001.rsm")
-    (Path.cwd() / "teste00000000000000001.rsm").unlink()
-
-    assert a == b
-
-
 def test_global_index():
     i_d = 0
     o_d = 0.05
