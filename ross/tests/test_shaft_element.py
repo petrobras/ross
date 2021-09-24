@@ -1,4 +1,5 @@
 import os
+import pickle
 from pathlib import Path
 from tempfile import tempdir
 
@@ -306,6 +307,11 @@ def test_match_gyroscopic_matrix(tap2, tim2):
     G_tap = tap2.G()
     G_tim = tim2.G()
     assert_almost_equal(G_tap, G_tim, decimal=5)
+
+
+def test_pickle(tim):
+    tim_pickled = pickle.loads(pickle.dumps(tim))
+    assert tim == tim_pickled
 
 
 def test_save_load(tim, tap_tim):
