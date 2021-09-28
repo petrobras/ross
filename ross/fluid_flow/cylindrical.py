@@ -158,7 +158,7 @@ class THDCylindrical:
         if self.n_y == None:
             self.n_y = self.n_theta
 
-        self.betha_sdg = self.betha_s
+        self.betha_sdg = betha_s
         self.betha_s = betha_s * np.pi / 180
 
         self.n_pad = 2
@@ -240,9 +240,9 @@ class THDCylindrical:
         
         self.pad_ct = [ang for ang in range(0,360,int(360/self.n_pad))]
     
-        self.thetaI = np.radians([pad+(180/self.n_pad)-(self.betha_s_dg/2) for pad in self.pad_ct])
+        self.thetaI = np.radians([pad+(180/self.n_pad)-(self.betha_sdg/2) for pad in self.pad_ct])
             
-        self.thetaF = np.radians([pad+(180/self.n_pad)+(self.betha_s_dg/2) for pad in self.pad_ct])
+        self.thetaF = np.radians([pad+(180/self.n_pad)+(self.betha_sdg/2) for pad in self.pad_ct])
     
         Ytheta = [np.linspace(t1, t2, self.n_theta) for t1, t2 in zip(self.thetaI,self.thetaF)]
 
@@ -772,10 +772,15 @@ class THDCylindrical:
                                 self.a * (Tdim[i, j, n_p]) ** self.b
                             ) / self.mu_ref
 
-        PP = np.zeros(((self.n_z), (2 * self.n_theta)))
-
-        PP = np.concatenate((Pdim[:, :, 0], Pdim[:, :, 1]), axis=1)
-        Ytheta = np.concatenate((Ytheta1, Ytheta2))
+        PP = np.zeros(((self.n_z), (self.n_pad * self.n_theta)))
+            
+        i = 0
+        for i in range(self.n_z):
+        
+            PP[i]=Pdim[i,:,:].ravel('F') 
+        
+        Ytheta = np.array(Ytheta)
+        Ytheta = Ytheta.flatten()   
 
         auxF = np.zeros((2, len(Ytheta)))
 
@@ -1053,3 +1058,9 @@ def cylindrical_bearing_example():
     )
 
     return bearing
+if __name__ == "__main__":
+    x0 = [0.1,-0.1]
+    bearing = cylindrical_bearing_example()
+    bearing.run(x0)
+    bearing.equilibrium_pos
+    print(bearing.equilibrium_pos) 
