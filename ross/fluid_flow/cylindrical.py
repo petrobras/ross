@@ -158,6 +158,7 @@ class THDCylindrical:
         if self.n_y == None:
             self.n_y = self.n_theta
 
+        self.betha_sdg = self.betha_s
         self.betha_s = betha_s * np.pi / 180
 
         self.n_pad = 2
@@ -236,6 +237,14 @@ class THDCylindrical:
         T_conv = 0.8 * self.T_reserv
 
         T_mist = self.T_reserv * np.ones(self.n_pad)
+        
+        self.pad_ct = [ang for ang in range(0,360,int(360/self.n_pad))]
+    
+        self.thetaI = np.radians([pad+(180/self.n_pad)-(self.betha_s_dg/2) for pad in self.pad_ct])
+            
+        self.thetaF = np.radians([pad+(180/self.n_pad)+(self.betha_s_dg/2) for pad in self.pad_ct])
+    
+        Ytheta = [np.linspace(t1, t2, self.n_theta) for t1, t2 in zip(self.thetaI,self.thetaF)]
 
         while (T_mist[0] - T_conv) >= 1e-2:
 
@@ -259,20 +268,6 @@ class THDCylindrical:
 
             for n_p in np.arange(self.n_pad):
                 
- 
-                if n_p == 0:
-                    self.thetaI = (np.pi - self.betha_s)/2
-                    
-                    self.thetaF = self.thetaI + self.betha_s
-                    
-                    Ytheta1 = np.linspace(self.thetaI, self.thetaF, self.n_theta)
-                
-                else:
-                    self.thetaI = np.pi + ((np.pi - self.betha_s)/2)
-                    
-                    self.thetaF = self.thetaI + self.betha_s
-                    
-                    Ytheta2 = np.linspace(self.thetaI, self.thetaF, self.n_theta)
 
                 T_ref = T_mist[n_p - 1]
 
