@@ -108,7 +108,7 @@ class THDCylindrical:
     >>> bearing = cylindrical_bearing_example()
     >>> bearing.run(x0)
     >>> bearing.equilibrium_pos
-    array([ 0.58768737, -0.67319389])
+    array([ 0.56787259, -0.70017854])
     """
 
     @check_units
