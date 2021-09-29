@@ -290,10 +290,10 @@ class THDCylindrical:
                     k = 0
 
                     # Solution of pressure field initialization
-
+                   
                     for ii in np.arange((self.Z_I + 0.5 * self.dZ), self.Z_F, self.dZ):
                         for jj in np.arange(
-                            self.thetaI + (self.dtheta / 2), self.thetaF, self.dtheta
+                            self.thetaI[n_p] + (self.dtheta / 2), self.thetaF[n_p], self.dtheta
                         ):
 
                             hP = 1 - self.X * np.cos(jj) - self.Y * np.sin(jj)
@@ -483,7 +483,7 @@ class THDCylindrical:
                         (self.Z_I + 0.5 * self.dZ), (self.Z_F), self.dZ
                     ):
                         for jj in np.arange(
-                            self.thetaI + (self.dtheta / 2), self.thetaF, self.dtheta
+                            self.thetaI[n_p] + (self.dtheta / 2), self.thetaF[n_p], self.dtheta
                         ):
 
                             # Pressure gradients
