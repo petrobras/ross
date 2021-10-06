@@ -70,8 +70,7 @@ class THDCylindrical:
         Number of volumes along the direction theta (direction of flow).
     nz : int
         Number of volumes along the Z direction (axial direction).
-    n_gap : int
-        Number of volumes in recess zone.
+
 
 
     Returns
@@ -109,7 +108,7 @@ class THDCylindrical:
     >>> bearing = cylindrical_bearing_example()
     >>> bearing.run(x0)
     >>> bearing.equilibrium_pos
-    array([ 0.58768737, -0.67319389])
+    array([ 0.56787259, -0.70017854])
     """
 
     @check_units
@@ -121,7 +120,6 @@ class THDCylindrical:
         n_theta,
         n_z,
         n_y,
-        n_gap,
         betha_s,
         mu_ref,
         speed,
@@ -145,7 +143,6 @@ class THDCylindrical:
         self.n_theta = n_theta
         self.n_z = n_z
         self.n_y = n_y
-        self.n_gap = n_gap
         self.mu_ref = mu_ref
         self.speed = speed
         self.Wx = Wx
@@ -161,6 +158,7 @@ class THDCylindrical:
         if self.n_y == None:
             self.n_y = self.n_theta
 
+        self.betha_sdg = betha_s
         self.betha_s = betha_s * np.pi / 180
 
         self.n_pad = 2
@@ -240,6 +238,21 @@ class THDCylindrical:
 
         T_mist = self.T_reserv * np.ones(self.n_pad)
 
+        self.pad_ct = [ang for ang in range(0, 360, int(360 / self.n_pad))]
+
+        self.thetaI = np.radians(
+            [pad + (180 / self.n_pad) - (self.betha_sdg / 2) for pad in self.pad_ct]
+        )
+
+        self.thetaF = np.radians(
+            [pad + (180 / self.n_pad) + (self.betha_sdg / 2) for pad in self.pad_ct]
+        )
+
+        Ytheta = [
+            np.linspace(t1, t2, self.n_theta)
+            for t1, t2 in zip(self.thetaI, self.thetaF)
+        ]
+
         while (T_mist[0] - T_conv) >= 1e-2:
 
             P = np.zeros((self.n_z, self.n_theta, self.n_pad))
@@ -261,21 +274,6 @@ class THDCylindrical:
             b_T = np.zeros((nk, 1))
 
             for n_p in np.arange(self.n_pad):
-
-                self.thetaI = (
-                    n_p * self.betha_s
-                    + self.dtheta * self.n_gap / 2
-                    + (n_p * self.dtheta * self.n_gap)
-                )
-
-                self.thetaF = self.thetaI + self.betha_s
-
-                self.dtheta = (self.thetaF - self.thetaI) / (self.n_theta)
-
-                if n_p == 0:
-                    Ytheta1 = np.arange(self.thetaI, self.thetaF, self.dtheta)
-                else:
-                    Ytheta2 = np.arange(self.thetaI, self.thetaF, self.dtheta)
 
                 T_ref = T_mist[n_p - 1]
 
@@ -301,7 +299,9 @@ class THDCylindrical:
 
                     for ii in np.arange((self.Z_I + 0.5 * self.dZ), self.Z_F, self.dZ):
                         for jj in np.arange(
-                            self.thetaI + (self.dtheta / 2), self.thetaF, self.dtheta
+                            self.thetaI[n_p] + (self.dtheta / 2),
+                            self.thetaF[n_p],
+                            self.dtheta,
                         ):
 
                             hP = 1 - self.X * np.cos(jj) - self.Y * np.sin(jj)
@@ -491,7 +491,9 @@ class THDCylindrical:
                         (self.Z_I + 0.5 * self.dZ), (self.Z_F), self.dZ
                     ):
                         for jj in np.arange(
-                            self.thetaI + (self.dtheta / 2), self.thetaF, self.dtheta
+                            self.thetaI[n_p] + (self.dtheta / 2),
+                            self.thetaF[n_p],
+                            self.dtheta,
                         ):
 
                             # Pressure gradients
@@ -780,10 +782,15 @@ class THDCylindrical:
                                 self.a * (Tdim[i, j, n_p]) ** self.b
                             ) / self.mu_ref
 
-        PP = np.zeros(((self.n_z), (2 * self.n_theta)))
+        PP = np.zeros(((self.n_z), (self.n_pad * self.n_theta)))
 
-        PP = np.concatenate((Pdim[:, :, 0], Pdim[:, :, 1]), axis=1)
-        Ytheta = np.concatenate((Ytheta1, Ytheta2))
+        i = 0
+        for i in range(self.n_z):
+
+            PP[i] = Pdim[i, :, :].ravel("F")
+
+        Ytheta = np.array(Ytheta)
+        Ytheta = Ytheta.flatten()
 
         auxF = np.zeros((2, len(Ytheta)))
 
@@ -863,7 +870,7 @@ class THDCylindrical:
 
         return a, b
 
-    def coefficients(self, show_coef=False):
+    def coefficients(self, show_coef=True):
         """Calculates the dynamic coefficients of stiffness "k" and damping "c". The formulation is based in application of virtual displacements and speeds on the rotor from its equilibrium position to determine the bearing stiffness and damping coefficients.
 
         Parameters
@@ -920,16 +927,16 @@ class THDCylindrical:
             )
 
             Cxx = -self.sommerfeld(Aux05[0], Aux06[0]) * (
-                (Aux05[0] - Aux06[0]) / (epixpt / self.c_r / self.speed)
+                (Aux06[0] - Aux05[0]) / (epixpt / self.c_r / self.speed)
             )
             Cxy = -self.sommerfeld(Aux07[0], Aux08[0]) * (
-                (Aux07[0] - Aux08[0]) / (epiypt / self.c_r / self.speed)
+                (Aux08[0] - Aux07[0]) / (epiypt / self.c_r / self.speed)
             )
             Cyx = -self.sommerfeld(Aux05[1], Aux06[1]) * (
-                (Aux05[1] - Aux06[1]) / (epixpt / self.c_r / self.speed)
+                (Aux06[1] - Aux05[1]) / (epixpt / self.c_r / self.speed)
             )
             Cyy = -self.sommerfeld(Aux07[1], Aux08[1]) * (
-                (Aux07[1] - Aux08[1]) / (epiypt / self.c_r / self.speed)
+                (Aux08[1] - Aux07[1]) / (epiypt / self.c_r / self.speed)
             )
 
             kxx = (np.sqrt((self.Wx ** 2) + (self.Wy ** 2)) / self.c_r) * Kxx
@@ -1040,10 +1047,9 @@ def cylindrical_bearing_example():
         L=0.263144,
         R=0.2,
         c_r=1.95e-4,
-        n_theta=41,
-        n_z=5,
+        n_theta=11,
+        n_z=3,
         n_y=None,
-        n_gap=1,
         betha_s=176,
         mu_ref=0.02,
         speed=Q_(900, "RPM"),
@@ -1062,3 +1068,11 @@ def cylindrical_bearing_example():
     )
 
     return bearing
+
+
+if __name__ == "__main__":
+    x0 = [0.1, -0.1]
+    bearing = cylindrical_bearing_example()
+    bearing.run(x0)
+    bearing.equilibrium_pos
+    print(bearing.equilibrium_pos)
