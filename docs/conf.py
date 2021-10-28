@@ -129,7 +129,6 @@ html_js_files = [
 
 myst_enable_extensions = [
     "amsmath",
-    "dollarmath",
     "html_image",
     "linkify",
 ]
