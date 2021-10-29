@@ -35,7 +35,7 @@ DESCRIPTION = "ROSS: Rotordynamic Open Source Software"
 URL = "https://github.com/ross-rotordynamics/ross"
 EMAIL = "raphaelts@gmail.com"
 AUTHOR = "ROSS developers"
-REQUIRES_PYTHON = ">=3.6.0"
+REQUIRES_PYTHON = ">=3.7.0, <3.10"
 VERSION = version("ross/__init__.py")
 
 # What packages are required for this module to be executed?

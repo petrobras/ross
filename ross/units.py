@@ -9,7 +9,7 @@ import pint
 
 new_units_path = Path(__file__).parent / "new_units.txt"
 ureg = pint.get_application_registry()
-if isinstance(ureg, pint.registry.LazyRegistry):
+if isinstance(ureg.get(), pint.registry.LazyRegistry):
     ureg = pint.UnitRegistry()
     ureg.load_definitions(str(new_units_path))
     # set ureg to make pickle possible
