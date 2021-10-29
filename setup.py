@@ -56,7 +56,7 @@ EXTRAS = {
         "sphinx-copybutton",
         "sphinx-rtd-theme",
         "linkify-it-py",
-        "numpydoc==0.9.2",
+        "numpydoc",
         "sphinxcontrib-bibtex>=2.2",
         "black",
         "isort",

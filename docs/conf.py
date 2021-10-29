@@ -50,6 +50,7 @@ extensions = [
     "sphinx_copybutton",
     "sphinx.ext.autodoc",
     "sphinx.ext.autosummary",
+    "sphinx.ext.mathjax",
     "numpydoc",
 ]
 
@@ -133,6 +134,18 @@ myst_enable_extensions = [
     "html_image",
     "linkify",
 ]
+
+mathjax_path = (
+    "https://cdn.jsdelivr.net/npm/mathjax@2/MathJax.js?config=TeX-AMS-MML_HTMLorMML"
+)
+mathjax2_config = {
+    "tex2jax": {
+        "inlineMath": [["$", "$"], ["\\(", "\\)"]],
+        "processEscapes": True,
+        "ignoreClass": "document",
+        "processClass": "math|output_area",
+    }
+}
 
 try:
     jupyter_execute_notebooks = os.environ["EXECUTE_NOTEBOOKS"]
