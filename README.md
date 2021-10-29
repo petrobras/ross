@@ -26,7 +26,7 @@ There you can find the [installation procedure](https://ross.readthedocs.io/en/l
 [API reference](https://ross.readthedocs.io/en/latest/references/api.html).
 
 # Questions
-If you have any questions you can open a new issue with the tag <question>.
+If you have any questions you can use the [Discussions](https://github.com/ross-rotordynamics/ross/discussions) area in the repository.
 
 # Contributing to ROSS
 Check [CONTRIBUTING.rst](https://github.com/ross-rotordynamics/ross/blob/master/CONTRIBUTING.rst).
