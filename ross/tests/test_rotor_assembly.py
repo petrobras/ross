@@ -3,6 +3,7 @@ from tempfile import tempdir
 
 import numpy as np
 import pytest
+import pickle
 from numpy.testing import assert_allclose, assert_almost_equal, assert_equal
 
 from ross.bearing_seal_element import *
@@ -1638,6 +1639,11 @@ def test_ucs_calc(rotor8):
     assert_allclose(
         ucs_results.intersection_points["y"][:3], exp_intersection_points_y, rtol=1e-3
     )
+
+
+def test_pickle(rotor8):
+    rotor8_pickled = pickle.loads(pickle.dumps(rotor8))
+    assert rotor8 == rotor8_pickled
 
 
 def test_save_load(rotor8):
