@@ -1,4 +1,5 @@
 import os
+import pickle
 from pathlib import Path
 from tempfile import tempdir
 
@@ -378,6 +379,12 @@ def test_bearing_6dof_equality():
     assert bearing_6dof_0 == bearing_6dof_1
     assert bearing_6dof_1 != bearing_6dof_2
     assert bearing_6dof_0 != bearing_6dof_2
+
+
+def test_pickle(bearing0, bearing_constant, bearing_6dof, magnetic_bearing):
+    for bearing in [bearing0, bearing_constant, bearing_6dof, magnetic_bearing]:
+        bearing_pickled = pickle.loads(pickle.dumps(bearing))
+        assert bearing == bearing_pickled
 
 
 def test_save_load(bearing0, bearing_constant, bearing_6dof, magnetic_bearing):

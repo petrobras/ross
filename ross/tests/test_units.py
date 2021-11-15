@@ -1,8 +1,8 @@
+import pickle
 from collections import namedtuple
 
 import pytest
 from numpy.testing import assert_allclose
-
 from ross.units import Q_, check_units
 
 
@@ -12,6 +12,12 @@ def test_new_units_loaded():
     # check if h is hour instead of planck constant
     v = Q_(3600, "m/h")
     assert v.to("m/s").m == 1
+
+
+def test_units_pickle():
+    speed = Q_(1, "RPM")
+    speed_pickled = pickle.loads(pickle.dumps(speed))
+    assert speed == speed_pickled
 
 
 # each possible argument

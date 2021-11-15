@@ -1,4 +1,5 @@
 import os
+import pickle
 from pathlib import Path
 from tempfile import tempdir
 
@@ -49,7 +50,12 @@ def disk_from_geometry():
     return DiskElement.from_geometry(0, steel, 0.07, 0.05, 0.28)
 
 
-def test_save_load(disk, disk_from_geometry):
+def test_pickle(disk):
+    disk_pickled = pickle.loads(pickle.dumps(disk))
+    assert disk == disk_pickled
+
+
+def test_save_load(disk):
     file = Path(tempdir) / "disk.toml"
     disk.save(file)
     disk_loaded = DiskElement.load(file)

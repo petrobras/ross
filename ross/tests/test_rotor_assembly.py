@@ -3,6 +3,7 @@ from tempfile import tempdir
 
 import numpy as np
 import pytest
+import pickle
 from numpy.testing import assert_allclose, assert_almost_equal, assert_equal
 
 from ross.bearing_seal_element import *
@@ -1387,15 +1388,6 @@ def test_H_kappa(rotor7):
     )
 
 
-def test_save_load():
-    a = rotor_example()
-    a.save("teste00000000000000001")
-    b = Rotor.load("teste00000000000000001.rsm")
-    (Path.cwd() / "teste00000000000000001.rsm").unlink()
-
-    assert a == b
-
-
 def test_global_index():
     i_d = 0
     o_d = 0.05
@@ -1444,37 +1436,37 @@ def test_global_index():
     bearings = rotor.bearing_elements
     pointmass = rotor.point_mass_elements
 
-    assert shaft[0].dof_global_index.x_0 == 0
-    assert shaft[0].dof_global_index.y_0 == 1
-    assert shaft[0].dof_global_index.alpha_0 == 2
-    assert shaft[0].dof_global_index.beta_0 == 3
-    assert shaft[0].dof_global_index.x_1 == 4
-    assert shaft[0].dof_global_index.y_1 == 5
-    assert shaft[0].dof_global_index.alpha_1 == 6
-    assert shaft[0].dof_global_index.beta_1 == 7
+    assert shaft[0].dof_global_index["x_0"] == 0
+    assert shaft[0].dof_global_index["y_0"] == 1
+    assert shaft[0].dof_global_index["alpha_0"] == 2
+    assert shaft[0].dof_global_index["beta_0"] == 3
+    assert shaft[0].dof_global_index["x_1"] == 4
+    assert shaft[0].dof_global_index["y_1"] == 5
+    assert shaft[0].dof_global_index["alpha_1"] == 6
+    assert shaft[0].dof_global_index["beta_1"] == 7
 
-    assert disks[0].dof_global_index.x_2 == 8
-    assert disks[0].dof_global_index.y_2 == 9
-    assert disks[0].dof_global_index.alpha_2 == 10
-    assert disks[0].dof_global_index.beta_2 == 11
+    assert disks[0].dof_global_index["x_2"] == 8
+    assert disks[0].dof_global_index["y_2"] == 9
+    assert disks[0].dof_global_index["alpha_2"] == 10
+    assert disks[0].dof_global_index["beta_2"] == 11
 
-    assert bearings[0].dof_global_index.x_0 == 0
-    assert bearings[0].dof_global_index.y_0 == 1
-    assert bearings[0].dof_global_index.x_7 == 28
-    assert bearings[0].dof_global_index.y_7 == 29
-    assert bearings[1].dof_global_index.x_6 == 24
-    assert bearings[1].dof_global_index.y_6 == 25
-    assert bearings[1].dof_global_index.x_8 == 30
-    assert bearings[1].dof_global_index.y_8 == 31
-    assert bearings[2].dof_global_index.x_7 == 28
-    assert bearings[2].dof_global_index.y_7 == 29
-    assert bearings[3].dof_global_index.x_8 == 30
-    assert bearings[3].dof_global_index.y_8 == 31
+    assert bearings[0].dof_global_index["x_0"] == 0
+    assert bearings[0].dof_global_index["y_0"] == 1
+    assert bearings[0].dof_global_index["x_7"] == 28
+    assert bearings[0].dof_global_index["y_7"] == 29
+    assert bearings[1].dof_global_index["x_6"] == 24
+    assert bearings[1].dof_global_index["y_6"] == 25
+    assert bearings[1].dof_global_index["x_8"] == 30
+    assert bearings[1].dof_global_index["y_8"] == 31
+    assert bearings[2].dof_global_index["x_7"] == 28
+    assert bearings[2].dof_global_index["y_7"] == 29
+    assert bearings[3].dof_global_index["x_8"] == 30
+    assert bearings[3].dof_global_index["y_8"] == 31
 
-    assert pointmass[0].dof_global_index.x_7 == 28
-    assert pointmass[0].dof_global_index.y_7 == 29
-    assert pointmass[1].dof_global_index.x_8 == 30
-    assert pointmass[1].dof_global_index.y_8 == 31
+    assert pointmass[0].dof_global_index["x_7"] == 28
+    assert pointmass[0].dof_global_index["y_7"] == 29
+    assert pointmass[1].dof_global_index["x_8"] == 30
+    assert pointmass[1].dof_global_index["y_8"] == 31
 
 
 def test_distincts_dof_elements_error():
@@ -1647,6 +1639,16 @@ def test_ucs_calc(rotor8):
     assert_allclose(
         ucs_results.intersection_points["y"][:3], exp_intersection_points_y, rtol=1e-3
     )
+
+
+def test_pickle(rotor8):
+    rotor8_pickled = pickle.loads(pickle.dumps(rotor8))
+    assert rotor8 == rotor8_pickled
+
+
+def test_pickle(rotor_6dof):
+    rotor_6dof_pickled = pickle.loads(pickle.dumps(rotor_6dof))
+    assert rotor_6dof == rotor_6dof_pickled
 
 
 def test_save_load(rotor8):
