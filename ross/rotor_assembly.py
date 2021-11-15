@@ -1,7 +1,7 @@
 import inspect
 import sys
 import warnings
-from collections import Counter, namedtuple
+from collections import Counter
 from collections.abc import Iterable
 from copy import copy, deepcopy
 from itertools import chain, cycle
@@ -365,7 +365,6 @@ class Rotor(object):
                 global_dof_mapping[
                     dof_letter + "_" + str(int(dof_number) + elm.n)
                 ] = int(v)
-            dof_tuple = namedtuple("GlobalIndex", global_dof_mapping)
 
             if elm.n <= n_last + 1:
                 for k, v in global_dof_mapping.items():
@@ -392,8 +391,7 @@ class Rotor(object):
                         2 * n_last + 2 * elm.n_link + self.number_dof + 1
                     )
 
-            dof_tuple = namedtuple("GlobalIndex", global_dof_mapping)
-            elm.dof_global_index = dof_tuple(**global_dof_mapping)
+            elm.dof_global_index = global_dof_mapping
             df.at[
                 df.loc[df.tag == elm.tag].index[0], "dof_global_index"
             ] = elm.dof_global_index
@@ -890,7 +888,7 @@ class Rotor(object):
         M0 = np.zeros((self.ndof, self.ndof))
 
         for elm in self.elements:
-            dofs = elm.dof_global_index
+            dofs = list(elm.dof_global_index.values())
             M0[np.ix_(dofs, dofs)] += elm.M()
 
         return M0
@@ -920,7 +918,7 @@ class Rotor(object):
         K0 = np.zeros((self.ndof, self.ndof))
 
         for elm in self.elements:
-            dofs = elm.dof_global_index
+            dofs = list(elm.dof_global_index.values())
             try:
                 K0[np.ix_(dofs, dofs)] += elm.K(frequency)
             except TypeError:
@@ -955,7 +953,7 @@ class Rotor(object):
         if self.number_dof == 6:
 
             for elm in self.shaft_elements:
-                dofs = elm.dof_global_index
+                dofs = list(elm.dof_global_index.values())
                 try:
                     Kst0[np.ix_(dofs, dofs)] += elm.Kst()
                 except TypeError:
@@ -988,8 +986,7 @@ class Rotor(object):
         C0 = np.zeros((self.ndof, self.ndof))
 
         for elm in self.elements:
-            dofs = elm.dof_global_index
-
+            dofs = list(elm.dof_global_index.values())
             try:
                 C0[np.ix_(dofs, dofs)] += elm.C(frequency)
             except TypeError:
@@ -1017,7 +1014,7 @@ class Rotor(object):
         G0 = np.zeros((self.ndof, self.ndof))
 
         for elm in self.elements:
-            dofs = elm.dof_global_index
+            dofs = list(elm.dof_global_index.values())
             G0[np.ix_(dofs, dofs)] += elm.G()
 
         return G0
@@ -2754,7 +2751,7 @@ class Rotor(object):
         aux_K = aux_rotor.K(0)
         for elm in aux_rotor.bearing_elements:
             if isinstance(elm, SealElement):
-                dofs = elm.dof_global_index
+                dofs = list(elm.dof_global_index.values())
                 try:
                     aux_K[np.ix_(dofs, dofs)] -= elm.K(0)
                 except TypeError:
@@ -3557,8 +3554,7 @@ class CoAxialRotor(Rotor):
                         2 * n_last + 2 * elm.n_link + 5
                     )
 
-            dof_tuple = namedtuple("GlobalIndex", global_dof_mapping)
-            elm.dof_global_index = dof_tuple(**global_dof_mapping)
+            elm.dof_global_index = global_dof_mapping
             df.at[
                 df.loc[df.tag == elm.tag].index[0], "dof_global_index"
             ] = elm.dof_global_index
