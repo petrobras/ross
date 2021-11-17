@@ -2749,13 +2749,6 @@ class Rotor(object):
             aux_rotor = Rotor(self.shaft_elements, self.disk_elements, aux_brg)
 
         aux_K = aux_rotor.K(0)
-        for elm in aux_rotor.bearing_elements:
-            if isinstance(elm, SealElement):
-                dofs = list(elm.dof_global_index.values())
-                try:
-                    aux_K[np.ix_(dofs, dofs)] -= elm.K(0)
-                except TypeError:
-                    aux_K[np.ix_(dofs, dofs)] -= elm.K()
 
         df_num = aux_rotor.df["shaft_number"].values
         sh_num = [int(item) for item, count in Counter(df_num).items() if count > 1]
