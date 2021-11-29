@@ -2732,21 +2732,27 @@ class Rotor(object):
             raise ValueError("Rotor has no bearings")
 
         aux_brg = []
+        aux_brg_1 = []
         for elm in self.bearing_elements:
             if not isinstance(elm, SealElement):
                 if elm.n not in self.nodes:
                     pass
                 elif elm.n_link in self.nodes:
                     aux_brg.append(
-                        BearingElement(n=elm.n, n_link=elm.n_link, kxx=1e14, cxx=0)
+                        BearingElement(n=elm.n, n_link=elm.n_link, kxx=1e20, cxx=0)
+                    )
+                    aux_brg_1.append(
+                        BearingElement(n=elm.n, n_link=elm.n_link, kxx=0, cxx=0)
                     )
                 else:
-                    aux_brg.append(BearingElement(n=elm.n, kxx=1e14, cxx=0))
+                    aux_brg.append(BearingElement(n=elm.n, kxx=1e20, cxx=0))
+                    aux_brg_1.append(BearingElement(n=elm.n, kxx=0, cxx=0))
 
         if isinstance(self, CoAxialRotor):
             aux_rotor = CoAxialRotor(self.shafts, self.disk_elements, aux_brg)
         else:
             aux_rotor = Rotor(self.shaft_elements, self.disk_elements, aux_brg)
+            aux_rotor_1 = Rotor(self.shaft_elements, self.disk_elements, aux_brg_1)
 
         aux_K = aux_rotor.K(0)
 
@@ -2767,7 +2773,7 @@ class Rotor(object):
         disp_y = []
 
         # calculate forces
-        nodal_forces = self.K(0) @ disp
+        nodal_forces = aux_rotor_1.K(0) @ disp
 
         Vx_axis, Vx, Mx = [], [], []
         nodes, nodes_pos = [], []
