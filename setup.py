@@ -49,7 +49,7 @@ EXTRAS = {
         "pytest-cov",
         "coverage",
         "codecov",
-        "sphinx<4.3",
+        "sphinx",
         "myst-nb",
         "sphinx-book-theme",
         "sphinx-panels",
