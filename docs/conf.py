@@ -146,6 +146,9 @@ mathjax2_config = {
         "processClass": "math|output_area",
     }
 }
+mathjax_options = {
+    "async": "async",
+}
 
 try:
     jupyter_execute_notebooks = os.environ["EXECUTE_NOTEBOOKS"]
