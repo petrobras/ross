@@ -12,6 +12,7 @@ from ross.materials import steel
 from ross.point_mass import *
 from ross.rotor_assembly import *
 from ross.shaft_element import *
+from ross.units import Q_
 
 
 @pytest.fixture
@@ -286,6 +287,10 @@ def test_evals_sorted_rotor2(rotor2):
     modal2_10000 = rotor2.run_modal(speed=10000)
     assert_allclose(modal2_10000.evalues, evals_sorted_w_10000, rtol=1e-1)
 
+    # test run_modal with Q_
+    modal2_10000 = rotor2.run_modal(speed=Q_(95492.96585513721, "RPM"))
+    assert_allclose(modal2_10000.evalues, evals_sorted_w_10000, rtol=1e-1)
+
 
 @pytest.fixture
 def rotor3():
@@ -543,7 +548,6 @@ def test_freq_response(rotor4):
 
 
 def test_freq_response_w_force(rotor4):
-    # modal4 = rotor4.run_modal(0)
     F0 = np.array(
         [
             [0.0 + 0.0j, 0.0 + 0.0j, 0.0 + 0.0j, 0.0 + 0.0j],
