@@ -565,6 +565,7 @@ class Rotor(object):
         else:
             return False
 
+    @check_units
     def run_modal(self, speed, num_modes=12, sparse=True):
         """Run modal analysis.
 
@@ -1205,6 +1206,7 @@ class Rotor(object):
 
         return idx
 
+    @check_units
     def _eigen(
         self, speed, num_modes=12, frequency=None, sorted_=True, A=None, sparse=True
     ):
@@ -1217,10 +1219,10 @@ class Rotor(object):
 
         Parameters
         ----------
-        speed : float
-            Rotor speed.
-        frequency: float
-            Excitation frequency.
+        speed : float, pint.Quantity
+            Rotor speed. Default unit is rad/s.
+        frequency: float, pint.Quantity
+            Excitation frequency. Default units is rad/s.
         sorted_ : bool, optional
             Sort considering the imaginary part (wd)
             Default is True
