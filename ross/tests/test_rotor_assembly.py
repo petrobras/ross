@@ -925,12 +925,14 @@ def test_static_analysis_rotor6(rotor6):
 
 def test_static_analysis_rotor9(rotor9):
     static = rotor9.run_static()
-    assert_almost_equal(static.bearing_forces["node_7"], 1216.3)
+    assert_allclose(sum(static.bearing_forces.values()), rotor9.m * 9.8065)
+    assert_almost_equal(static.bearing_forces["node_7"], 1216.2827567768297)
 
 
 def test_static_analysis_high_stiffness(rotor2):
     static = rotor2.run_static()
-    assert_almost_equal(static.bearing_forces["node_0"], 197.4)
+    assert_allclose(sum(static.bearing_forces.values()), rotor2.m * 9.8065)
+    assert_almost_equal(static.bearing_forces["node_0"], 197.39100421969422)
     stf = 1e14
     bearing0 = BearingElement(0, kxx=stf, cxx=0)
     bearing1 = BearingElement(2, kxx=stf, cxx=0)
@@ -940,7 +942,8 @@ def test_static_analysis_high_stiffness(rotor2):
         bearing_elements=[bearing0, bearing1],
     )
     static = rotor2.run_static()
-    assert_almost_equal(static.bearing_forces["node_0"], 197.4)
+    assert_allclose(sum(static.bearing_forces.values()), rotor2.m * 9.8065)
+    assert_almost_equal(static.bearing_forces["node_0"], 197.39100421969422)
 
 
 def test_static_bearing_with_disks(rotor3):
@@ -954,7 +957,8 @@ def test_static_bearing_with_disks(rotor3):
     )
 
     static = rotor.run_static()
-    assert static.bearing_forces["node_0"] != 494.3
+    assert_allclose(sum(static.bearing_forces.values()), rotor.m * 9.8065)
+    assert_almost_equal(static.bearing_forces["node_0"], 504.08103349786404)
 
 
 def test_run_critical_speed(rotor5, rotor6):
