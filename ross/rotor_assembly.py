@@ -2714,9 +2714,9 @@ class Rotor(object):
         >>> rotor = rs.rotor_example()
         >>> static = rotor.run_static()
         >>> rotor.bearing_forces_nodal
-        {'node_0': 432.4, 'node_6': 432.4}
-        >>> rotor.bearing_forces_tag
-        {'Bearing 0': 432.4, 'Bearing 1': 432.4}
+        {'node_0': 432...
+        >>> rotor.bearing_forces_tag # doctest: +ELLIPSIS
+        {'Bearing 0': 432...
 
         Plotting static deformation
         >>> fig = static.plot_deformation()
@@ -2799,9 +2799,11 @@ class Rotor(object):
 
         for bearing in aux_rotor.bearing_elements:
             bearing_force_nodal[f"node_{bearing.n:d}"] = reaction_forces[bearing.n]
+            bearing_force_tag[f"{bearing.tag}"] = reaction_forces[bearing.n]
 
         for disk in aux_rotor.disk_elements:
             disk_force_nodal[f"node_{disk.n:d}"] = -disk.m * g
+            disk_force_tag[f"{disk.tag}"] = -disk.m * g
 
         nodal_forces_y = aux_nodal_forces[1 :: self.number_dof] - nodal_shaft_weight
         elm_forces_y = np.zeros_like(elm_weight)
