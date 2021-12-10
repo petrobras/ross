@@ -2844,7 +2844,7 @@ class Rotor(object):
         self.bearing_forces_tag = bearing_force_tag
         self.disk_forces_tag = disk_force_tag
 
-        self.w_shaft = [sum(self.df_shaft["m"]) * (-g)]
+        self.w_shaft = sum(self.df_shaft["m"]) * (-g)
 
         results = StaticResults(
             displacement_y,

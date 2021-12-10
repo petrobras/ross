@@ -3200,109 +3200,101 @@ class StaticResults(Results):
         subplots : Plotly graph_objects.make_subplots()
             The figure object with the plot.
         """
-        cols = 1 if len(self.nodes_pos) < 2 else 2
-        rows = len(self.nodes_pos) // 2 + len(self.nodes_pos) % 2
+        col = cols = 1
+        row = rows = 1
         if fig is None:
             fig = make_subplots(
                 rows=rows,
                 cols=cols,
-                subplot_titles=[
-                    "Free-Body Diagram - Shaft {}".format(j)
-                    for j in range(len(self.nodes_pos))
-                ],
+                subplot_titles=["Free-Body Diagram"],
             )
-        j = 0
+
         y_start = 5.0
-        for nodes_pos, nodes in zip(self.nodes_pos, self.nodes):
-            col = j % 2 + 1
-            row = j // 2 + 1
+        nodes_pos = self.nodes_pos
+        nodes = self.nodes
 
-            fig.add_trace(
-                go.Scatter(
-                    x=Q_(nodes_pos, "m").to(rotor_length_units).m,
-                    y=np.zeros(len(nodes_pos)),
-                    mode="lines",
-                    line=dict(color="black"),
-                    hoverinfo="none",
-                    showlegend=False,
-                ),
+        fig.add_trace(
+            go.Scatter(
+                x=Q_(nodes_pos, "m").to(rotor_length_units).m,
+                y=np.zeros(len(nodes_pos)),
+                mode="lines",
+                line=dict(color="black"),
+                hoverinfo="none",
+                showlegend=False,
+            ),
+            row=row,
+            col=col,
+        )
+        fig.add_trace(
+            go.Scatter(
+                x=Q_(nodes_pos, "m").to(rotor_length_units).m,
+                y=[y_start] * len(nodes_pos),
+                mode="lines",
+                line=dict(color="black"),
+                hoverinfo="none",
+                showlegend=False,
+            ),
+            row=row,
+            col=col,
+        )
+
+        # fig - plot arrows indicating shaft weight distribution
+        text = "{:.1f}".format(Q_(self.w_shaft, "N").to(force_units).m)
+        ini = nodes_pos[0]
+        fin = nodes_pos[-1]
+        arrows_list = np.arange(ini, 1.01 * fin, (fin - ini) / 5.0)
+        for node in arrows_list:
+            fig.add_annotation(
+                x=Q_(node, "m").to(rotor_length_units).m,
+                y=0,
+                axref="x{}".format(1),
+                ayref="y{}".format(1),
+                showarrow=True,
+                arrowhead=2,
+                arrowsize=1,
+                arrowwidth=5,
+                arrowcolor="DimGray",
+                ax=Q_(node, "m").to(rotor_length_units).m,
+                ay=y_start * 1.08,
                 row=row,
                 col=col,
             )
-            fig.add_trace(
-                go.Scatter(
-                    x=Q_(nodes_pos, "m").to(rotor_length_units).m,
-                    y=[y_start] * len(nodes_pos),
-                    mode="lines",
-                    line=dict(color="black"),
-                    hoverinfo="none",
-                    showlegend=False,
-                ),
-                row=row,
-                col=col,
-            )
+        fig.add_annotation(
+            x=Q_(nodes_pos[0], "m").to(rotor_length_units).m,
+            y=y_start,
+            xref="x{}".format(1),
+            yref="y{}".format(1),
+            xshift=125,
+            yshift=20,
+            text=f"Shaft weight = {text}{force_units}",
+            align="right",
+            showarrow=False,
+        )
 
-            # fig - plot arrows indicating shaft weight distribution
-            text = "{:.1f}".format(Q_(self.w_shaft[j], "N").to(force_units).m)
-            ini = nodes_pos[0]
-            fin = nodes_pos[-1]
-            arrows_list = np.arange(ini, 1.01 * fin, (fin - ini) / 5.0)
-            for node in arrows_list:
+        # plot bearing reaction forces
+        for k, v in self.bearing_forces.items():
+            _, node = k.split("_")
+            node = int(node)
+            if node in nodes:
+                text = f"{Q_(v, 'N').to(force_units).m:.2f}"
+                var = 1 if v < 0 else -1
                 fig.add_annotation(
-                    x=Q_(node, "m").to(rotor_length_units).m,
+                    x=Q_(nodes_pos[nodes.index(node)], "m").to(rotor_length_units).m,
                     y=0,
-                    axref="x{}".format(j + 1),
-                    ayref="y{}".format(j + 1),
+                    axref="x{}".format(1),
+                    ayref="y{}".format(1),
+                    text=f"Fb = {text}{force_units}",
+                    textangle=90,
                     showarrow=True,
                     arrowhead=2,
                     arrowsize=1,
                     arrowwidth=5,
-                    arrowcolor="DimGray",
-                    ax=Q_(node, "m").to(rotor_length_units).m,
-                    ay=y_start * 1.08,
+                    arrowcolor="DarkSalmon",
+                    ax=Q_(nodes_pos[nodes.index(node)], "m").to(rotor_length_units).m,
+                    ay=var * 2.5 * y_start,
                     row=row,
                     col=col,
                 )
-            fig.add_annotation(
-                x=Q_(nodes_pos[0], "m").to(rotor_length_units).m,
-                y=y_start,
-                xref="x{}".format(j + 1),
-                yref="y{}".format(j + 1),
-                xshift=125,
-                yshift=20,
-                text=f"Shaft weight = {text}{force_units}",
-                align="right",
-                showarrow=False,
-            )
-
-            # plot bearing reaction forces
-            for k, v in self.bearing_forces.items():
-                _, node = k.split("_")
-                node = int(node)
-                if node in nodes:
-                    text = f"{Q_(v, 'N').to(force_units).m:.2f}"
-                    var = 1 if v < 0 else -1
-                    fig.add_annotation(
-                        x=Q_(nodes_pos[nodes.index(node)], "m")
-                        .to(rotor_length_units)
-                        .m,
-                        y=0,
-                        axref="x{}".format(j + 1),
-                        ayref="y{}".format(j + 1),
-                        text=f"Fb = {text}{force_units}",
-                        textangle=90,
-                        showarrow=True,
-                        arrowhead=2,
-                        arrowsize=1,
-                        arrowwidth=5,
-                        arrowcolor="DarkSalmon",
-                        ax=Q_(nodes_pos[nodes.index(node)], "m")
-                        .to(rotor_length_units)
-                        .m,
-                        ay=var * 2.5 * y_start,
-                        row=row,
-                        col=col,
-                    )
 
             # plot disk forces
             for k, v in self.disk_forces.items():
@@ -3315,8 +3307,8 @@ class StaticResults(Results):
                         .to(rotor_length_units)
                         .m,
                         y=0,
-                        axref="x{}".format(j + 1),
-                        ayref="y{}".format(j + 1),
+                        axref="x{}".format(1),
+                        ayref="y{}".format(1),
                         text=f"Fd = {text}{force_units}",
                         textangle=270,
                         showarrow=True,
@@ -3338,7 +3330,7 @@ class StaticResults(Results):
             fig.update_yaxes(
                 visible=False, gridcolor="lightgray", showline=False, row=row, col=col
             )
-            j += 1
+            # j += 1
 
         fig.update_layout(**kwargs)
 
@@ -3375,11 +3367,7 @@ class StaticResults(Results):
         if fig is None:
             fig = go.Figure()
 
-        shaft_end = (
-            Q_(max([sublist[-1] for sublist in self.nodes_pos]), "m")
-            .to(rotor_length_units)
-            .m
-        )
+        shaft_end = Q_(self.nodes_pos[-1], "m").to(rotor_length_units).m
 
         # fig - plot centerline
         fig.add_trace(
@@ -3393,22 +3381,20 @@ class StaticResults(Results):
             )
         )
 
-        j = 0
-        for Vx, Vx_axis in zip(self.Vx, self.Vx_axis):
-            fig.add_trace(
-                go.Scatter(
-                    x=Q_(Vx_axis, "m").to(rotor_length_units).m,
-                    y=Q_(Vx, "N").to(force_units).m,
-                    mode="lines",
-                    name=f"Shaft {j}",
-                    legendgroup=f"Shaft {j}",
-                    showlegend=True,
-                    hovertemplate=(
-                        f"Rotor Length ({rotor_length_units}): %{{x:.2f}}<br>Shearing Force ({force_units}): %{{y:.2f}}"
-                    ),
-                )
+        Vx, Vx_axis = self.Vx, self.Vx_axis
+        fig.add_trace(
+            go.Scatter(
+                x=Q_(Vx_axis, "m").to(rotor_length_units).m,
+                y=Q_(Vx, "N").to(force_units).m,
+                mode="lines",
+                name=f"Shaft",
+                legendgroup=f"Shaft",
+                showlegend=True,
+                hovertemplate=(
+                    f"Rotor Length ({rotor_length_units}): %{{x:.2f}}<br>Shearing Force ({force_units}): %{{y:.2f}}"
+                ),
             )
-            j += 1
+        )
 
         fig.update_xaxes(
             title_text=f"Rotor Length ({rotor_length_units})",
@@ -3446,11 +3432,7 @@ class StaticResults(Results):
         if fig is None:
             fig = go.Figure()
 
-        shaft_end = (
-            Q_(max([sublist[-1] for sublist in self.nodes_pos]), "m")
-            .to(rotor_length_units)
-            .m
-        )
+        shaft_end = Q_(self.nodes_pos[-1], "m").to(rotor_length_units).m
 
         # fig - plot centerline
         fig.add_trace(
@@ -3464,24 +3446,22 @@ class StaticResults(Results):
             )
         )
 
-        j = 0
-        for Bm, nodes_pos in zip(self.Bm, self.Vx_axis):
-            fig.add_trace(
-                go.Scatter(
-                    x=Q_(nodes_pos, "m").to(rotor_length_units).m,
-                    y=Q_(Bm, "N*m").to(moment_units).m,
-                    mode="lines",
-                    line_shape="spline",
-                    line_smoothing=1.0,
-                    name=f"Shaft {j}",
-                    legendgroup=f"Shaft {j}",
-                    showlegend=True,
-                    hovertemplate=(
-                        f"Rotor Length ({rotor_length_units}): %{{x:.2f}}<br>Bending Moment ({moment_units}): %{{y:.2f}}"
-                    ),
-                )
+        Bm, nodes_pos = self.Bm, self.Vx_axis
+        fig.add_trace(
+            go.Scatter(
+                x=Q_(nodes_pos, "m").to(rotor_length_units).m,
+                y=Q_(Bm, "N*m").to(moment_units).m,
+                mode="lines",
+                line_shape="spline",
+                line_smoothing=1.0,
+                name=f"Shaft",
+                legendgroup=f"Shaft",
+                showlegend=True,
+                hovertemplate=(
+                    f"Rotor Length ({rotor_length_units}): %{{x:.2f}}<br>Bending Moment ({moment_units}): %{{y:.2f}}"
+                ),
             )
-            j += 1
+        )
 
         fig.update_xaxes(title_text=f"Rotor Length ({rotor_length_units})")
         fig.update_yaxes(title_text=f"Bending Moment ({moment_units})")
