@@ -1,4 +1,4 @@
-Version v1.0.0
+Version 1.0.0
 --------------
 
 The following enhancements and bug fixes were implemented for this release:
