@@ -2763,13 +2763,10 @@ class Rotor(object):
 
         # calculates u, for [K]*(u) = (F)
         displacement = (la.solve(aux_K, weight)).flatten()
-        displacement_y = [displacement[1 :: self.number_dof]]
+        displacement_y = displacement[1 :: self.number_dof]
 
         # calculate forces
         nodal_forces = aux_rotor_1.K(0) @ displacement
-
-        Vx_axis, Vx, Mx = [], [], []
-        nodes, nodes_pos = [], []
 
         bearing_force_nodal = {}
         disk_force_nodal = {}
@@ -2779,9 +2776,9 @@ class Rotor(object):
         elm_weight = np.zeros((len(self.nodes_pos) - 1, 2))
         nodal_shaft_weight = np.zeros(len(self.nodes_pos))
 
-        aux_vx_axis = np.zeros_like(elm_weight)
+        vx_axis = np.zeros_like(elm_weight)
         for sh in self.shaft_elements:
-            aux_vx_axis[sh.n_l] = [
+            vx_axis[sh.n_l] = [
                 self.nodes_pos[sh.n_l],
                 self.nodes_pos[sh.n_r],
             ]
@@ -2813,40 +2810,34 @@ class Rotor(object):
 
         # Calculate shearing force
         # Each line represents an element, each column a station from the element
-        aux_vx = np.zeros_like(elm_weight)
-        for j in range(aux_vx.shape[0]):
+        vx = np.zeros_like(elm_weight)
+        for j in range(vx.shape[0]):
             if j == 0:
-                aux_vx[j] = [elm_forces_y[j, 0], sum(elm_forces_y[j])]
-            elif j == aux_vx.shape[0] - 1:
-                aux_vx[j, 0] = aux_vx[j - 1, 1] + elm_forces_y[j, 0]
-                aux_vx[j, 1] = elm_forces_y[j, 1]
+                vx[j] = [elm_forces_y[j, 0], sum(elm_forces_y[j])]
+            elif j == vx.shape[0] - 1:
+                vx[j, 0] = vx[j - 1, 1] + elm_forces_y[j, 0]
+                vx[j, 1] = elm_forces_y[j, 1]
             else:
-                aux_vx[j, 0] = aux_vx[j - 1, 1] + elm_forces_y[j, 0]
-                aux_vx[j, 1] = aux_vx[j, 0] + elm_forces_y[j, 1]
-        aux_vx = -aux_vx
+                vx[j, 0] = vx[j - 1, 1] + elm_forces_y[j, 0]
+                vx[j, 1] = vx[j, 0] + elm_forces_y[j, 1]
+        vx = -vx
 
         # Calculate bending moment
         # Each line represents an element, each column a station from the element
-        aux_mx = np.zeros_like(aux_vx)
-        for j in range(aux_mx.shape[0]):
+        mx = np.zeros_like(vx)
+        for j in range(mx.shape[0]):
             if j == 0:
-                aux_mx[j] = [0, 0.5 * sum(aux_vx[j]) * np.diff(aux_vx_axis[j])]
-            if j == aux_mx.shape[0] - 1:
-                aux_mx[j] = [-0.5 * sum(aux_vx[j]) * np.diff(aux_vx_axis[j]), 0]
+                mx[j] = [0, 0.5 * sum(vx[j]) * np.diff(vx_axis[j])]
+            if j == mx.shape[0] - 1:
+                mx[j] = [-0.5 * sum(vx[j]) * np.diff(vx_axis[j]), 0]
             else:
-                aux_mx[j, 0] = aux_mx[j - 1, 1]
-                aux_mx[j, 1] = aux_mx[j, 0] + 0.5 * sum(aux_vx[j]) * np.diff(
-                    aux_vx_axis[j]
-                )
+                mx[j, 0] = mx[j - 1, 1]
+                mx[j, 1] = mx[j, 0] + 0.5 * sum(vx[j]) * np.diff(vx_axis[j])
 
         # flattening arrays
-        aux_vx = aux_vx.flatten()
-        aux_vx_axis = aux_vx_axis.flatten()
-        aux_mx = aux_mx.flatten()
-
-        Vx.append(aux_vx)
-        Vx_axis.append(aux_vx_axis)
-        Mx.append(aux_mx)
+        vx = vx.flatten()
+        vx_axis = vx_axis.flatten()
+        mx = mx.flatten()
 
         self.disk_forces_nodal = disk_force_nodal
         self.bearing_forces_nodal = bearing_force_nodal
@@ -2857,14 +2848,14 @@ class Rotor(object):
 
         results = StaticResults(
             displacement_y,
-            Vx,
-            Mx,
+            vx,
+            mx,
             self.w_shaft,
             self.disk_forces_nodal,
             self.bearing_forces_nodal,
-            nodes,
-            nodes_pos,
-            Vx_axis,
+            self.nodes,
+            self.nodes_pos,
+            vx_axis,
         )
 
         return results

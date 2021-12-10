@@ -3139,7 +3139,7 @@ class StaticResults(Results):
         if fig is None:
             fig = go.Figure()
 
-        shaft_end = max([sublist[-1] for sublist in self.nodes_pos])
+        shaft_end = self.nodes_pos[-1]
         shaft_end = Q_(shaft_end, "m").to(rotor_length_units).m
 
         # fig - plot centerline
@@ -3154,26 +3154,20 @@ class StaticResults(Results):
             )
         )
 
-        count = 0
-        for deformation, Vx, Bm, nodes, nodes_pos, Vx_axis in zip(
-            self.deformation, self.Vx, self.Bm, self.nodes, self.nodes_pos, self.Vx_axis
-        ):
-
-            fig.add_trace(
-                go.Scatter(
-                    x=Q_(nodes_pos, "m").to(rotor_length_units).m,
-                    y=Q_(deformation, "m").to(deformation_units).m,
-                    mode="lines",
-                    line_shape="spline",
-                    line_smoothing=1.0,
-                    name=f"Shaft {count}",
-                    showlegend=True,
-                    hovertemplate=(
-                        f"Rotor Length ({rotor_length_units}): %{{x:.2f}}<br>Displacement ({deformation_units}): %{{y:.2e}}"
-                    ),
-                )
+        fig.add_trace(
+            go.Scatter(
+                x=Q_(self.nodes_pos, "m").to(rotor_length_units).m,
+                y=Q_(self.deformation, "m").to(deformation_units).m,
+                mode="lines",
+                line_shape="spline",
+                line_smoothing=1.0,
+                name=f"Shaft",
+                showlegend=True,
+                hovertemplate=(
+                    f"Rotor Length ({rotor_length_units}): %{{x:.2f}}<br>Displacement ({deformation_units}): %{{y:.2e}}"
+                ),
             )
-            count += 1
+        )
 
         fig.update_xaxes(title_text=f"Rotor Length ({rotor_length_units})")
         fig.update_yaxes(title_text=f"Deformation ({deformation_units})")

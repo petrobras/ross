@@ -635,7 +635,7 @@ def test_static_analysis_rotor3(rotor3):
     static = rotor3.run_static()
 
     assert_almost_equal(
-        static.deformation[0],
+        static.deformation,
         np.array(
             [
                 -4.94274533e-12,
@@ -650,7 +650,7 @@ def test_static_analysis_rotor3(rotor3):
         decimal=6,
     )
     assert_almost_equal(
-        static.Vx[0],
+        static.Vx,
         np.array(
             [
                 -494.2745,
@@ -670,7 +670,7 @@ def test_static_analysis_rotor3(rotor3):
         decimal=3,
     )
     assert_almost_equal(
-        static.Bm[0],
+        static.Bm,
         np.array(
             [
                 0.0,
@@ -727,7 +727,7 @@ def test_static_analysis_rotor5(rotor5):
     static = rotor5.run_static()
 
     assert_almost_equal(
-        static.deformation[0],
+        static.deformation,
         np.array(
             [
                 8.12651626e-04,
@@ -746,7 +746,7 @@ def test_static_analysis_rotor5(rotor5):
         decimal=6,
     )
     assert_almost_equal(
-        static.Vx[0],
+        static.Vx,
         np.array(
             [
                 0.0,
@@ -774,7 +774,7 @@ def test_static_analysis_rotor5(rotor5):
         decimal=3,
     )
     assert_almost_equal(
-        static.Bm[0],
+        static.Bm,
         np.array(
             [
                 0.0,
@@ -847,7 +847,7 @@ def test_static_analysis_rotor6(rotor6):
     static = rotor6.run_static()
 
     assert_almost_equal(
-        static.deformation[0],
+        static.deformation,
         np.array(
             [
                 -1.03951876e-04,
@@ -866,7 +866,7 @@ def test_static_analysis_rotor6(rotor6):
         decimal=6,
     )
     assert_almost_equal(
-        static.Vx[0],
+        static.Vx,
         np.array(
             [
                 -0.0,
@@ -894,7 +894,7 @@ def test_static_analysis_rotor6(rotor6):
         decimal=3,
     )
     assert_almost_equal(
-        static.Bm[0],
+        static.Bm,
         np.array(
             [
                 0.0,
@@ -957,8 +957,27 @@ def test_static_bearing_with_disks(rotor3):
     )
 
     static = rotor.run_static()
+
     assert_allclose(sum(static.bearing_forces.values()), rotor.m * 9.8065)
     assert_almost_equal(static.bearing_forces["node_0"], 504.08103349786404)
+    expected_deformation = np.array(
+        [
+            -5.04081033e-18,
+            -4.51249080e-04,
+            -7.88420862e-04,
+            -9.18114186e-04,
+            -8.08560214e-04,
+            -4.68788883e-04,
+            -5.56171636e-18,
+        ]
+    )
+
+    assert_allclose(static.deformation, expected_deformation)
+
+    # test plot
+    fig = static.plot_deformation()
+
+    assert_allclose(fig.data[1]["y"], expected_deformation)
 
 
 def test_run_critical_speed(rotor5, rotor6):
