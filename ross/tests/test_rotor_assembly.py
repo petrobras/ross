@@ -42,7 +42,7 @@ def rotor1():
     )
 
     shaft_elm = [tim0, tim1]
-    return Rotor(shaft_elm, [], [])
+    return Rotor(shaft_elm)
 
 
 def test_index_eigenvalues_rotor1(rotor1):
@@ -1775,3 +1775,11 @@ def test_plot_rotor(rotor8):
     ]
     assert_allclose(actual_x[:4], expected_x[:4])
     assert_allclose(actual_y[:4], expected_y[:4])
+
+
+def test_plot_rotor_without_disk(rotor1):
+    fig = rotor1.plot_rotor()
+    expected_element_y = np.array(
+        [0.0, 0.025, 0.025, 0.0, 0.0, -0.0, -0.025, -0.025, -0.0, -0.0]
+    )
+    assert_allclose(fig.data[-1]["y"], expected_element_y)
