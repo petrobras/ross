@@ -308,19 +308,29 @@ class Rotor(object):
         nodes_pos = list(df_shaft.groupby("n_l")["nodes_pos_l"].max())
         nodes_pos.append(df_shaft["nodes_pos_r"].iloc[-1])
         self.nodes_pos = nodes_pos
+        self.nodes = list(range(len(self.nodes_pos)))
 
-        nodes_i_d = list(df_shaft.groupby("n_l")["i_d"].min())
-        nodes_i_d.append(df_shaft["i_d"].iloc[-1])
+        nodes_i_d = []
+        for n in self.nodes:
+            nodes_i_d.append(
+                self.df_shaft[
+                    (self.df_shaft.n_l == n) | (self.df_shaft.n_r == n)
+                ].i_d.min()
+            )
         self.nodes_i_d = nodes_i_d
 
-        nodes_o_d = list(df_shaft.groupby("n_l")["o_d"].max())
-        nodes_o_d.append(df_shaft["o_d"].iloc[-1])
+        nodes_o_d = []
+        for n in self.nodes:
+            nodes_o_d.append(
+                self.df_shaft[
+                    (self.df_shaft.n_l == n) | (self.df_shaft.n_r == n)
+                ].o_d.max()
+            )
         self.nodes_o_d = nodes_o_d
 
         shaft_elements_length = list(df_shaft.groupby("n_l")["L"].min())
         self.shaft_elements_length = shaft_elements_length
 
-        self.nodes = list(range(len(self.nodes_pos)))
         self.L = nodes_pos[-1]
 
         if "n_link" in df.columns:
