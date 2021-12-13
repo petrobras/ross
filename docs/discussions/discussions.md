@@ -18,6 +18,7 @@ example_12
 example_13
 example_14
 example_15
+example_16
 fluid_flow_elliptical_bearing
 fluid_flow_short_bearing
 fluid_flow_theory
