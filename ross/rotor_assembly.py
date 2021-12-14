@@ -2121,7 +2121,6 @@ class Rotor(object):
         stiffness_range=None,
         num_modes=16,
         num=20,
-        fig=None,
         synchronous=False,
         **kwargs,
     ):
@@ -2140,7 +2139,9 @@ class Rotor(object):
             Default is 20.
         num_modes : int, optional
             Number of modes to be calculated. This uses scipy.sparse.eigs method.
-            Default is 16.
+            Default is 16. In this case 4 modes are plotted, since for each pair
+            of eigenvalues calculated we have one wn, and we show only the
+            forward mode in the plots.
         synchronous : bool
             If True a synchronous analysis is carried out and the frequency of
             the first forward model will be equal to the speed.
@@ -2162,7 +2163,9 @@ class Rotor(object):
                 stiffness_range = (6, 11)
 
         stiffness_log = np.logspace(*stiffness_range, num=num)
-        rotor_wn = np.zeros((self.number_dof, len(stiffness_log)))
+        # for each pair of eigenvalues calculated we have one wn, and we show only
+        # the forward mode in the plots, therefore we have num_modes / 2 / 2
+        rotor_wn = np.zeros((num_modes // 2 // 2, len(stiffness_log)))
 
         bearings_elements = []  # exclude the seals
         for bearing in self.bearing_elements:
@@ -2194,12 +2197,10 @@ class Rotor(object):
             if synchronous:
                 rotor_wn[:, i] = modal.wn[modal.whirl_direction() == "Forward"]
             # if not sync, with speed=0 whirl direction can be confusing, with
-            # two close modes being forward or backward, so we select on mode in
+            # two close modes being forward or backward, so we select one mode in
             # each 2 modes.
             else:
-                rotor_wn[:, i] = modal.wn[
-                    : int(self.number_dof * 2) : int(self.number_dof / 2)
-                ]
+                rotor_wn[:, i] = modal.wn[::2]
 
         bearing0 = bearings_elements[0]
 
@@ -2207,20 +2208,23 @@ class Rotor(object):
         intersection_points = {"x": [], "y": []}
 
         # if bearing does not have constant coefficient, check intersection points
-        if not np.isnan(bearing0.frequency).all():
-            for j in range(rotor_wn.shape[0]):
-                for coeff in ["kxx", "kyy"]:
-                    x1 = rotor_wn[j]
-                    y1 = stiffness_log
-                    x2 = bearing0.frequency
-                    y2 = getattr(bearing0, coeff)
-                    x, y = intersection(x1, y1, x2, y2)
-                    try:
-                        intersection_points["y"].append(float(x))
-                        intersection_points["x"].append(float(y))
-                    except TypeError:
-                        # pass if x/y is empty
-                        pass
+        if bearing0.frequency is None:
+            bearing_frequency = np.linspace(rotor_wn.min(), rotor_wn.max(), 10)
+        else:
+            bearing_frequency = bearing0.frequency
+        for j in range(rotor_wn.shape[0]):
+            for coeff in ["kxx", "kyy"]:
+                x1 = rotor_wn[j]
+                y1 = stiffness_log
+                x2 = bearing_frequency
+                y2 = getattr(bearing0, f"{coeff}_interpolated")(bearing_frequency)
+                x, y = intersection(x1, y1, x2, y2)
+                try:
+                    intersection_points["y"].append(float(x))
+                    intersection_points["x"].append(float(y))
+                except TypeError:
+                    # pass if x/y is empty
+                    pass
 
         results = UCSResults(
             stiffness_range, stiffness_log, rotor_wn, bearing0, intersection_points
