@@ -1530,7 +1530,7 @@ def test_global_index():
     assert pointmass[1].dof_global_index["y_8"] == 31
 
 
-def test_distincts_dof_elements_error():
+def test_distinct_dof_elements_error():
     with pytest.raises(Exception):
         i_d = 0
         o_d = 0.05
@@ -1684,6 +1684,25 @@ def rotor8():
     return Rotor(shaft_elem, [disk0, disk1], [bearing0, bearing1])
 
 
+def test_ucs_calc_rotor2(rotor2):
+    ucs_results = rotor2.run_ucs()
+    expected_intersection_points_y = [
+        215.37072557303264,
+        215.37072557303264,
+        598.024741157381,
+        598.024741157381,
+        3956.224979518562,
+        3956.224979518562,
+        4965.289823255782,
+        4965.289823255782,
+    ]
+    assert_allclose(
+        ucs_results.intersection_points["y"], expected_intersection_points_y
+    )
+    fig = ucs_results.plot()
+    assert_allclose(fig.data[4]["y"], expected_intersection_points_y)
+
+
 def test_ucs_calc(rotor8):
     exp_stiffness_range = np.array([1000000.0, 1832980.710832, 3359818.286284])
     exp_rotor_wn = np.array([86.658114, 95.660573, 101.868254])
@@ -1700,6 +1719,36 @@ def test_ucs_calc(rotor8):
     assert_allclose(
         ucs_results.intersection_points["y"][:3], exp_intersection_points_y, rtol=1e-3
     )
+
+
+def test_ucs_rotor9(rotor9):
+    ucs_results = rotor9.run_ucs(num_modes=32)
+    fig = ucs_results.plot()
+    expected_x = np.array(
+        [
+            1.00000000e06,
+            1.83298071e06,
+            3.35981829e06,
+            6.15848211e06,
+            1.12883789e07,
+            2.06913808e07,
+            3.79269019e07,
+            6.95192796e07,
+            1.27427499e08,
+            2.33572147e08,
+            4.28133240e08,
+            7.84759970e08,
+            1.43844989e09,
+            2.63665090e09,
+            4.83293024e09,
+            8.85866790e09,
+            1.62377674e10,
+            2.97635144e10,
+            5.45559478e10,
+            1.00000000e11,
+        ]
+    )
+    assert_allclose(fig.data[0]["x"], expected_x)
 
 
 def test_pickle(rotor8):
