@@ -304,15 +304,15 @@ class DiskElement(Element):
         fig : plotly.graph_objects.Figure
             The figure object which traces are added on.
         """
-        zpos, ypos, step = position
-        radius = step / 6
+        zpos, ypos, scale_factor = position
+        radius = scale_factor / 8
 
         # coordinates to plot disks elements
-        z_upper = [zpos, zpos + step / 6, zpos - step / 6, zpos]
-        y_upper = [ypos, ypos + 2 * step, ypos + 2 * step, ypos]
+        z_upper = [zpos, zpos + scale_factor / 25, zpos - scale_factor / 25, zpos]
+        y_upper = [ypos, ypos + 2 * scale_factor, ypos + 2 * scale_factor, ypos]
 
-        z_lower = [zpos, zpos + step / 6, zpos - step / 6, zpos]
-        y_lower = [-ypos, -ypos - 2 * step, -ypos - 2 * step, -ypos]
+        z_lower = [zpos, zpos + scale_factor / 6, zpos - scale_factor / 6, zpos]
+        y_lower = [-ypos, -ypos - 2 * scale_factor, -ypos - 2 * scale_factor, -ypos]
 
         z_pos = z_upper
         z_pos.append(None)
@@ -355,9 +355,9 @@ class DiskElement(Element):
                 type="circle",
                 xref="x",
                 yref="y",
-                x0=z_upper[1],
+                x0=zpos - radius,
                 y0=y_upper[1] - radius,
-                x1=z_upper[2],
+                x1=zpos + radius,
                 y1=y_upper[1] + radius,
                 fillcolor=self.color,
                 line_color=self.color,
