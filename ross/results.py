@@ -4115,6 +4115,10 @@ class UCSResults(Results):
         rotor_wn = self.wn
         bearing0 = self.bearing
         intersection_points = self.intersection_points
+        if bearing0.frequency is None:
+            frequency_range = np.linspace(rotor_wn.min(), rotor_wn.max(), 10)
+        else:
+            frequency_range = bearing0.frequency
 
         if fig is None:
             fig = go.Figure()
@@ -4129,16 +4133,12 @@ class UCSResults(Results):
             Q_(intersection_points["y"], "rad/s").to(frequency_units).m
         )
         bearing_kxx_stiffness = (
-            Q_(bearing0.kxx.interpolated(bearing0.frequency), "N/m")
-            .to(stiffness_units)
-            .m
+            Q_(bearing0.kxx_interpolated(frequency_range), "N/m").to(stiffness_units).m
         )
         bearing_kyy_stiffness = (
-            Q_(bearing0.kyy.interpolated(bearing0.frequency), "N/m")
-            .to(stiffness_units)
-            .m
+            Q_(bearing0.kyy_interpolated(frequency_range), "N/m").to(stiffness_units).m
         )
-        bearing_frequency = Q_(bearing0.frequency, "rad/s").to(frequency_units).m
+        bearing_frequency = Q_(frequency_range, "rad/s").to(frequency_units).m
 
         for j in range(rotor_wn.shape[0]):
             fig.add_trace(
