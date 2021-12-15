@@ -4114,7 +4114,7 @@ class UCSResults(Results):
         stiffness_log = self.stiffness_log
         rotor_wn = self.wn
         bearing0 = self.bearing
-        intersection_points = self.intersection_points
+        intersection_points = copy.copy(self.intersection_points)
         if bearing0.frequency is None:
             frequency_range = np.linspace(rotor_wn.min(), rotor_wn.max(), 10)
         else:
