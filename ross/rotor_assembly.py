@@ -2117,12 +2117,7 @@ class Rotor(object):
         return results
 
     def run_ucs(
-        self,
-        stiffness_range=None,
-        num_modes=16,
-        num=20,
-        synchronous=False,
-        **kwargs,
+        self, stiffness_range=None, num_modes=16, num=20, synchronous=False, **kwargs,
     ):
         """Run Undamped Critical Speeds analyzes.
 
@@ -2231,8 +2226,37 @@ class Rotor(object):
                     # pass if x/y is empty
                     pass
 
+        # save critical mode shapes in the results
+        critical_points_modal = []
+
+        for k, speed in zip(intersection_points["x"], intersection_points["y"]):
+            # create bearing
+            bearings = [BearingElement(b.n, kxx=k, cxx=0) for b in bearings_elements]
+            # create rotor
+            rotor_critical = Rotor(
+                shaft_elements=self.shaft_elements,
+                disk_elements=self.disk_elements,
+                bearing_elements=bearings,
+            )
+
+            modal_critical = rotor_critical.run_modal(speed=speed)
+
+            # select nearest forward
+            forward_frequencies = modal_critical.wd[
+                modal_critical.whirl_direction() == "Forward"
+            ]
+            idx_forward = (np.abs(forward_frequencies - speed)).argmin()
+            forward_frequency = forward_frequencies[idx_forward]
+            idx = (np.abs(modal_critical.wd - forward_frequency)).argmin()
+            critical_points_modal.append(modal_critical)
+
         results = UCSResults(
-            stiffness_range, stiffness_log, rotor_wn, bearing0, intersection_points
+            stiffness_range,
+            stiffness_log,
+            rotor_wn,
+            bearing0,
+            intersection_points,
+            critical_points_modal,
         )
 
         return results

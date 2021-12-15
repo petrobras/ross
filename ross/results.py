@@ -4066,14 +4066,17 @@ class UCSResults(Results):
     intersection_points : array
         Points where there is a intersection between undamped natural frequency and
         the bearing stiffness.
+    critical_points_modal : list
+        List with modal results for each critical (intersection) point.
     """
 
     def __init__(
-        self, stiffness_range, stiffness_log, wn, bearing, intersection_points
+        self, stiffness_range, stiffness_log, wn, bearing, intersection_points, critical_points_modal
     ):
         self.stiffness_range = stiffness_range
         self.stiffness_log = stiffness_log
         self.wn = wn
+        self.critical_points_modal = critical_points_modal
         self.bearing = bearing
         self.intersection_points = intersection_points
 
