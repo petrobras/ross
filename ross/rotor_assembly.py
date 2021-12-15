@@ -2209,7 +2209,12 @@ class Rotor(object):
 
         # if bearing does not have constant coefficient, check intersection points
         if bearing0.frequency is None:
-            bearing_frequency = np.linspace(rotor_wn.min(), rotor_wn.max(), 10)
+            bearing_frequency_margin = rotor_wn.min() * 0.1
+            bearing_frequency = np.linspace(
+                rotor_wn.min() - bearing_frequency_margin,
+                rotor_wn.max() + bearing_frequency_margin,
+                10,
+            )
         else:
             bearing_frequency = bearing0.frequency
         for j in range(rotor_wn.shape[0]):
