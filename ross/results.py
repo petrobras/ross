@@ -1727,11 +1727,7 @@ class ForcedResponseResults(Results):
         }
 
     def data_magnitude(
-        self,
-        probe,
-        probe_units="rad",
-        frequency_units="rad/s",
-        amplitude_units="m",
+        self, probe, probe_units="rad", frequency_units="rad/s", amplitude_units="m",
     ):
         """Return the forced response (magnitude) in DataFrame format.
 
@@ -2912,8 +2908,7 @@ class ForcedResponseResults(Results):
 
         fig.update_xaxes(title_text=f"Rotor Length ({rotor_length_units})")
         fig.update_yaxes(
-            title_text=f"Bending Moment ({moment_units})",
-            title_font=dict(size=12),
+            title_text=f"Bending Moment ({moment_units})", title_font=dict(size=12),
         )
         fig.update_layout(**kwargs)
 
@@ -3039,11 +3034,7 @@ class ForcedResponseResults(Results):
                 text=f"Deflected Shape<br>Speed = {speed_str} {frequency_units}",
             ),
             legend=dict(
-                orientation="h",
-                xanchor="center",
-                yanchor="bottom",
-                x=0.5,
-                y=-0.3,
+                orientation="h", xanchor="center", yanchor="bottom", x=0.5, y=-0.3,
             ),
             **subplot_kwargs,
         )
@@ -3204,9 +3195,7 @@ class StaticResults(Results):
         row = rows = 1
         if fig is None:
             fig = make_subplots(
-                rows=rows,
-                cols=cols,
-                subplot_titles=["Free-Body Diagram"],
+                rows=rows, cols=cols, subplot_titles=["Free-Body Diagram"],
             )
 
         y_start = 5.0
@@ -4071,7 +4060,13 @@ class UCSResults(Results):
     """
 
     def __init__(
-        self, stiffness_range, stiffness_log, wn, bearing, intersection_points, critical_points_modal
+        self,
+        stiffness_range,
+        stiffness_log,
+        wn,
+        bearing,
+        intersection_points,
+        critical_points_modal,
     ):
         self.stiffness_range = stiffness_range
         self.stiffness_log = stiffness_log
@@ -4081,11 +4076,7 @@ class UCSResults(Results):
         self.intersection_points = intersection_points
 
     def plot(
-        self,
-        fig=None,
-        stiffness_units="N/m",
-        frequency_units="rad/s",
-        **kwargs,
+        self, fig=None, stiffness_units="N/m", frequency_units="rad/s", **kwargs,
     ):
         """Plot undamped critical speed map.
 
@@ -4200,6 +4191,137 @@ class UCSResults(Results):
         fig.update_layout(title=dict(text="Undamped Critical Speed Map"), **kwargs)
 
         return fig
+
+    def plot_mode_2d(
+        self,
+        critical_mode,
+        evec=None,
+        fig=None,
+        frequency_type="wd",
+        title=None,
+        length_units="m",
+        frequency_units="rad/s",
+        **kwargs,
+    ):
+        """Plot (2D view) the mode shape.
+
+        Parameters
+        ----------
+        critical_mode : int
+            The n'th critical mode.
+        evec : array
+            Array containing the system eigenvectors
+        fig : Plotly graph_objects.Figure()
+            The figure object with the plot.
+        frequency_type : str, optional
+            "wd" calculates de map for the damped natural frequencies.
+            "wn" calculates de map for the undamped natural frequencies.
+            Defaults is "wd".
+        title : str, optional
+            A brief title to the mode shape plot, it will be displayed above other
+            relevant data in the plot area. It does not modify the figure layout from
+            Plotly.
+        length_units : str, optional
+            length units.
+            Default is 'm'.
+        frequency_units : str, optional
+            Frequency units that will be used in the plot title.
+            Default is rad/s.
+        kwargs : optional
+            Additional key word arguments can be passed to change the plot layout only
+            (e.g. width=1000, height=800, ...).
+            *See Plotly Python Figure Reference for more information.
+
+        Returns
+        -------
+        fig : Plotly graph_objects.Figure()
+            The figure object with the plot.
+        """
+        modal_critical = self.critical_points_modal[critical_mode]
+        # select nearest forward
+        forward_frequencies = modal_critical.wd[
+            modal_critical.whirl_direction() == "Forward"
+        ]
+        idx_forward = (np.abs(forward_frequencies - modal_critical.speed)).argmin()
+        forward_frequency = forward_frequencies[idx_forward]
+        idx = (np.abs(modal_critical.wd - forward_frequency)).argmin()
+        fig = modal_critical.plot_mode_2d(
+            idx,
+            evec=evec,
+            fig=fig,
+            frequency_type=frequency_type,
+            title=title,
+            length_units=length_units,
+            frequency_units=frequency_units,
+            **kwargs,
+        )
+
+        return fig
+
+    def plot_mode_3d(
+        self,
+        critical_mode,
+        evec=None,
+        fig=None,
+        frequency_type="wd",
+        title=None,
+        length_units="m",
+        frequency_units="rad/s",
+        **kwargs,
+    ):
+        """Plot (3D view) the mode shapes.
+
+        Parameters
+        ----------
+        critical_mode : int
+            The n'th critical mode.
+            Default is None
+        evec : array
+            Array containing the system eigenvectors
+        fig : Plotly graph_objects.Figure()
+            The figure object with the plot.
+        frequency_type : str, optional
+            "wd" calculates de map for the damped natural frequencies.
+            "wn" calculates de map for the undamped natural frequencies.
+            Defaults is "wd".
+        title : str, optional
+            A brief title to the mode shape plot, it will be displayed above other
+            relevant data in the plot area. It does not modify the figure layout from
+            Plotly.
+        length_units : str, optional
+            length units.
+            Default is 'm'.
+        frequency_units : str, optional
+            Frequency units that will be used in the plot title.
+            Default is rad/s.
+        kwargs : optional
+            Additional key word arguments can be passed to change the plot layout only
+            (e.g. width=1000, height=800, ...).
+            *See Plotly Python Figure Reference for more information.
+
+        Returns
+        -------
+        fig : Plotly graph_objects.Figure()
+            The figure object with the plot.
+        """
+        modal_critical = self.critical_points_modal[critical_mode]
+        # select nearest forward
+        forward_frequencies = modal_critical.wd[
+            modal_critical.whirl_direction() == "Forward"
+        ]
+        idx_forward = (np.abs(forward_frequencies - modal_critical.speed)).argmin()
+        forward_frequency = forward_frequencies[idx_forward]
+        idx = (np.abs(modal_critical.wd - forward_frequency)).argmin()
+        fig = modal_critical.plot_mode_3d(
+            idx,
+            evec=evec,
+            fig=fig,
+            frequency_type=frequency_type,
+            title=title,
+            length_units=length_units,
+            frequency_units=frequency_units,
+            **kwargs,
+        )
 
 
 class Level1Results(Results):

@@ -2241,13 +2241,6 @@ class Rotor(object):
 
             modal_critical = rotor_critical.run_modal(speed=speed)
 
-            # select nearest forward
-            forward_frequencies = modal_critical.wd[
-                modal_critical.whirl_direction() == "Forward"
-            ]
-            idx_forward = (np.abs(forward_frequencies - speed)).argmin()
-            forward_frequency = forward_frequencies[idx_forward]
-            idx = (np.abs(modal_critical.wd - forward_frequency)).argmin()
             critical_points_modal.append(modal_critical)
 
         results = UCSResults(
