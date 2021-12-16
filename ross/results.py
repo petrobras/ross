@@ -4145,10 +4145,14 @@ class UCSResults(Results):
             Q_(intersection_points["y"], "rad/s").to(frequency_units).m
         )
         bearing_kxx_stiffness = (
-            Q_(bearing0.kxx_interpolated(bearing_frequency_range), "N/m").to(stiffness_units).m
+            Q_(bearing0.kxx_interpolated(bearing_frequency_range), "N/m")
+            .to(stiffness_units)
+            .m
         )
         bearing_kyy_stiffness = (
-            Q_(bearing0.kyy_interpolated(bearing_frequency_range), "N/m").to(stiffness_units).m
+            Q_(bearing0.kyy_interpolated(bearing_frequency_range), "N/m")
+            .to(stiffness_units)
+            .m
         )
         bearing_frequency = Q_(bearing_frequency_range, "rad/s").to(frequency_units).m
 

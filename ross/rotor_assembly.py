@@ -2171,7 +2171,9 @@ class Rotor(object):
                 stiffness_range = (6, 11)
 
         if bearing_frequency_range:
-            bearing_frequency_range = np.linspace(bearing_frequency_range[0], bearing_frequency_range[1], 30)
+            bearing_frequency_range = np.linspace(
+                bearing_frequency_range[0], bearing_frequency_range[1], 30
+            )
 
         stiffness_log = np.logspace(*stiffness_range, num=num)
         # for each pair of eigenvalues calculated we have one wn, and we show only
