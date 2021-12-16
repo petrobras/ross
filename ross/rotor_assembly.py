@@ -2170,6 +2170,9 @@ class Rotor(object):
             else:
                 stiffness_range = (6, 11)
 
+        if bearing_frequency_range:
+            bearing_frequency_range = np.linspace(bearing_frequency_range[0], bearing_frequency_range[1], 30)
+
         stiffness_log = np.logspace(*stiffness_range, num=num)
         # for each pair of eigenvalues calculated we have one wn, and we show only
         # the forward mode in the plots, therefore we have num_modes / 2 / 2
@@ -2260,6 +2263,7 @@ class Rotor(object):
         results = UCSResults(
             stiffness_range,
             stiffness_log,
+            bearing_frequency_range,
             rotor_wn,
             bearing0,
             intersection_points,
