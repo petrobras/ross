@@ -4059,6 +4059,10 @@ class UCSResults(Results):
     stiffness_log : tuple, optional
         Evenly numbers spaced evenly on a log scale to create a better visualization
         (see np.logspace).
+    bearing_frequency_range : tuple, optional
+        The bearing frequency range used to calculate the intersection points.
+        In some cases bearing coefficients will have to be extrapolated.
+        The default is None. In this case the bearing frequency attribute is used.
     wn : array
         Undamped natural frequencies array.
     bearing : ross.BearingElement
@@ -4074,6 +4078,7 @@ class UCSResults(Results):
         self,
         stiffness_range,
         stiffness_log,
+        bearing_frequency_range,
         wn,
         bearing,
         intersection_points,
@@ -4081,6 +4086,7 @@ class UCSResults(Results):
     ):
         self.stiffness_range = stiffness_range
         self.stiffness_log = stiffness_log
+        self.bearing_frequency_range = bearing_frequency_range
         self.wn = wn
         self.critical_points_modal = critical_points_modal
         self.bearing = bearing
@@ -4124,10 +4130,7 @@ class UCSResults(Results):
         rotor_wn = self.wn
         bearing0 = self.bearing
         intersection_points = copy.copy(self.intersection_points)
-        if bearing0.frequency is None:
-            frequency_range = np.linspace(rotor_wn.min(), rotor_wn.max(), 10)
-        else:
-            frequency_range = bearing0.frequency
+        bearing_frequency_range = self.bearing_frequency_range
 
         if fig is None:
             fig = go.Figure()
@@ -4142,12 +4145,12 @@ class UCSResults(Results):
             Q_(intersection_points["y"], "rad/s").to(frequency_units).m
         )
         bearing_kxx_stiffness = (
-            Q_(bearing0.kxx_interpolated(frequency_range), "N/m").to(stiffness_units).m
+            Q_(bearing0.kxx_interpolated(bearing_frequency_range), "N/m").to(stiffness_units).m
         )
         bearing_kyy_stiffness = (
-            Q_(bearing0.kyy_interpolated(frequency_range), "N/m").to(stiffness_units).m
+            Q_(bearing0.kyy_interpolated(bearing_frequency_range), "N/m").to(stiffness_units).m
         )
-        bearing_frequency = Q_(frequency_range, "rad/s").to(frequency_units).m
+        bearing_frequency = Q_(bearing_frequency_range, "rad/s").to(frequency_units).m
 
         for j in range(rotor_wn.shape[0]):
             fig.add_trace(
