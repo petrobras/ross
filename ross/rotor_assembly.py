@@ -2117,7 +2117,12 @@ class Rotor(object):
         return results
 
     def run_ucs(
-        self, stiffness_range=None, num_modes=16, num=20, synchronous=False, **kwargs,
+        self,
+        stiffness_range=None,
+        num_modes=16,
+        num=20,
+        synchronous=False,
+        **kwargs,
     ):
         """Run Undamped Critical Speeds analyzes.
 
