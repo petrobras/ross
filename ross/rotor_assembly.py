@@ -2119,6 +2119,7 @@ class Rotor(object):
     def run_ucs(
         self,
         stiffness_range=None,
+        bearing_frequency_range=None,
         num_modes=16,
         num=20,
         synchronous=False,
@@ -2137,6 +2138,10 @@ class Rotor(object):
             In linear space, the sequence starts at ``base ** start``
             (`base` to the power of `start`) and ends with ``base ** stop``
             (see `endpoint` below). Here base is 10.0.
+        bearing_frequency_range : tuple, optional
+            The bearing frequency range used to calculate the intersection points.
+            In some cases bearing coefficients will have to be extrapolated.
+            The default is None. In this case the bearing frequency attribute is used.
         num : int
             Number of steps in the range.
             Default is 20.
@@ -2159,7 +2164,7 @@ class Rotor(object):
         if stiffness_range is None:
             if self.rated_w is not None:
                 bearing = self.bearing_elements[0]
-                k = bearing.kxx.interpolated(self.rated_w)
+                k = bearing.kxx_interpolated(self.rated_w)
                 k = int(np.log10(k))
                 stiffness_range = (k - 3, k + 3)
             else:
@@ -2211,21 +2216,22 @@ class Rotor(object):
         intersection_points = {"x": [], "y": []}
 
         # if bearing does not have constant coefficient, check intersection points
-        if bearing0.frequency is None:
-            bearing_frequency_margin = rotor_wn.min() * 0.1
-            bearing_frequency = np.linspace(
-                rotor_wn.min() - bearing_frequency_margin,
-                rotor_wn.max() + bearing_frequency_margin,
-                10,
-            )
-        else:
-            bearing_frequency = bearing0.frequency
+        if bearing_frequency_range is None:
+            if bearing0.frequency is None:
+                bearing_frequency_margin = rotor_wn.min() * 0.1
+                bearing_frequency_range = np.linspace(
+                    rotor_wn.min() - bearing_frequency_margin,
+                    rotor_wn.max() + bearing_frequency_margin,
+                    10,
+                )
+            else:
+                bearing_frequency_range = bearing0.frequency
         for j in range(rotor_wn.shape[0]):
             for coeff in ["kxx", "kyy"]:
                 x1 = rotor_wn[j]
                 y1 = stiffness_log
-                x2 = bearing_frequency
-                y2 = getattr(bearing0, f"{coeff}_interpolated")(bearing_frequency)
+                x2 = bearing_frequency_range
+                y2 = getattr(bearing0, f"{coeff}_interpolated")(bearing_frequency_range)
                 x, y = intersection(x1, y1, x2, y2)
                 try:
                     intersection_points["y"].append(float(x))
