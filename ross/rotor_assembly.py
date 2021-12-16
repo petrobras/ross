@@ -2133,7 +2133,10 @@ class Rotor(object):
         Parameters
         ----------
         stiffness_range : tuple, optional
-            Tuple with (start, end) for stiffness range.
+            Tuple with (start, end) for stiffness range in a log scale.
+            In linear space, the sequence starts at ``base ** start``
+            (`base` to the power of `start`) and ends with ``base ** stop``
+            (see `endpoint` below). Here base is 10.0.
         num : int
             Number of steps in the range.
             Default is 20.
