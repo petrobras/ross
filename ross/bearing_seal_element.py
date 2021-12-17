@@ -1054,6 +1054,8 @@ class SealElement(BearingElement):
         color="#77ACA2",
         **kwargs,
     ):
+        # make seals with half the bearing size as a default
+        seal_scale_factor = scale_factor / 2
         super().__init__(
             n=n,
             frequency=frequency,
@@ -1067,7 +1069,7 @@ class SealElement(BearingElement):
             cyy=cyy,
             tag=tag,
             n_link=n_link,
-            scale_factor=scale_factor,
+            scale_factor=seal_scale_factor,
             color=color,
         )
 
