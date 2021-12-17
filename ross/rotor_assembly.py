@@ -497,7 +497,8 @@ class Rotor(object):
                     / 2
                 )
             mean_od = np.mean(nodes_o_d)
-            scale_size = dfb["scale_factor"] * mean_od
+            # use a 0.5 factor here based on plot experience for real machines
+            scale_size = 0.5 * dfb["scale_factor"] * mean_od
             y_pos_sup = y_pos + 2 * scale_size
 
             for t in dfb_z_pos.tag:
