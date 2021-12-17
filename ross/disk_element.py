@@ -311,7 +311,7 @@ class DiskElement(Element):
         z_upper = [zpos, zpos + scale_factor / 25, zpos - scale_factor / 25, zpos]
         y_upper = [ypos, ypos + 2 * scale_factor, ypos + 2 * scale_factor, ypos]
 
-        z_lower = [zpos, zpos + scale_factor / 6, zpos - scale_factor / 6, zpos]
+        z_lower = [zpos, zpos + scale_factor / 25, zpos - scale_factor / 25, zpos]
         y_lower = [-ypos, -ypos - 2 * scale_factor, -ypos - 2 * scale_factor, -ypos]
 
         z_pos = z_upper
@@ -339,6 +339,7 @@ class DiskElement(Element):
                 mode="lines",
                 fill="toself",
                 fillcolor=self.color,
+                opacity=0.8,
                 line=dict(width=2.0, color=self.color),
                 showlegend=False,
                 name=self.tag,
@@ -368,10 +369,10 @@ class DiskElement(Element):
                 type="circle",
                 xref="x",
                 yref="y",
-                x0=z_lower[1],
-                y0=y_lower[1] + radius,
-                x1=z_lower[2],
-                y1=y_lower[1] - radius,
+                x0=zpos - radius,
+                y0=y_lower[1] - radius,
+                x1=zpos + radius,
+                y1=y_lower[1] + radius,
                 fillcolor=self.color,
                 line_color=self.color,
             )

@@ -587,7 +587,7 @@ class BearingElement(Element):
         """
         default_values = dict(
             mode="lines",
-            line=dict(width=3.5, color=self.color),
+            line=dict(width=1, color=self.color),
             name=self.tag,
             legendgroup="bearings",
             showlegend=False,
@@ -603,8 +603,8 @@ class BearingElement(Element):
         n = 5  # number of ground lines
         step = icon_w / (coils + 1)  # spring step
 
-        zs0 = zpos - (icon_w / 2.0)
-        zs1 = zpos + (icon_w / 2.0)
+        zs0 = zpos - (icon_w / 3.5)
+        zs1 = zpos + (icon_w / 3.5)
         ys0 = ypos + 0.25 * icon_h
 
         # plot bottom base
