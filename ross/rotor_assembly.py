@@ -2569,29 +2569,27 @@ class Rotor(object):
 
         Parameters
         ----------
-        **kwargs: dictionary
+        dt : float
+            Time step
+        tI : float
+            Initial time
+        tF : float
+            Final time
+        depth_ratio : float
+            Crack depth ratio related to the diameter of the crack container element. A depth value of 0.1 is equal to 10%, 0.2 equal to 20%, and so on.
+        n_crack : float
+            Element where the crack is located
+        speed : float, pint.Quantity
+            Operational speed of the machine. Default unit is rad/s.
+        unbalance_magnitude : array
+            Array with the unbalance magnitude. The unit is kg.m.
+        unbalance_phase : array
+            Array with the unbalance phase. The unit is rad.
+        crack_type : string
+            String containing type of crack model chosed. The avaible types are: Mayes and Gasch.
+        print_progress : bool
+            Set it True, to print the time iterations and the total time spent, by default False.
 
-            **kwargs receives:
-                dt : float
-                    Time step
-                tI : float
-                    Initial time
-                tF : float
-                    Final time
-                depth_ratio : float
-                    Crack depth ratio related to the diameter of the crack container element. A depth value of 0.1 is equal to 10%, 0.2 equal to 20%, and so on.
-                n_crack : float
-                    Element where the crack is located
-                speed : float, pint.Quantity
-                    Operational speed of the machine. Default unit is rad/s.
-                unbalance_magnitude : array
-                    Array with the unbalance magnitude. The unit is kg.m.
-                unbalance_phase : array
-                    Array with the unbalance phase. The unit is rad.
-                crack_type : string
-                    String containing type of crack model chosed. The avaible types are: Mayes and Gasch.
-                print_progress : bool
-                    Set it True, to print the time iterations and the total time spent, by default False.
         Examples
         --------
         >>> from ross.defects.crack import crack_example
