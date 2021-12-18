@@ -790,6 +790,8 @@ class ModalResults(Results):
                 zaxis=dict(
                     title=dict(text="Relative Displacement"), range=[-2, 2], nticks=5
                 ),
+                aspectmode="manual",
+                aspectratio=dict(x=2.5, y=1, z=1),
             ),
             title=dict(
                 text=(
@@ -2806,6 +2808,8 @@ class ForcedResponseResults(Results):
                 xaxis=dict(title=dict(text=f"Rotor Length ({rotor_length_units})")),
                 yaxis=dict(title=dict(text=f"Amplitude - X ({amplitude_units})")),
                 zaxis=dict(title=dict(text=f"Amplitude - Y ({amplitude_units})")),
+                aspectmode="manual",
+                aspectratio=dict(x=2.5, y=1, z=1),
             ),
             title=dict(
                 text=f"Deflected Shape<br>Speed = {speed_str} {frequency_units}"
@@ -3033,6 +3037,8 @@ class ForcedResponseResults(Results):
                 xaxis=fig1.layout.scene.xaxis,
                 yaxis=fig1.layout.scene.yaxis,
                 zaxis=fig1.layout.scene.zaxis,
+                aspectmode="manual",
+                aspectratio=dict(x=2.5, y=1, z=1),
                 domain=dict(x=[0.47, 1]),
             ),
             title=dict(
@@ -4042,6 +4048,8 @@ class TimeResponseResults(Results):
                 xaxis=dict(title=dict(text=f"Rotor Length ({rotor_length_units})")),
                 yaxis=dict(title=dict(text=f"Amplitude - X ({displacement_units})")),
                 zaxis=dict(title=dict(text=f"Amplitude - Y ({displacement_units})")),
+                aspectmode="manual",
+                aspectratio=dict(x=2.5, y=1, z=1),
             ),
             **kwargs,
         )
