@@ -203,26 +203,28 @@ n = 0
 kxx = [ 1000000.0,]
 cxx = [ 1000.0,]
 kyy = [ 800000.0,]
-kxy = [ 0.0,]
-kyx = [ 0.0,]
+kxy = [ 0,]
+kyx = [ 0,]
 cyy = [ 1000.0,]
-cxy = [ 0.0,]
-cyx = [ 0.0,]
+cxy = [ 0,]
+cyx = [ 0,]
 tag = "Bearing 0"
 scale_factor = 1
+color = "#355d7a"
 
 ["BearingElement_Bearing 1"]
 n = 12
 kxx = [ 1000000.0,]
 cxx = [ 1000.0,]
 kyy = [ 800000.0,]
-kxy = [ 0.0,]
-kyx = [ 0.0,]
+kxy = [ 0,]
+kyx = [ 0,]
 cyy = [ 1000.0,]
-cxy = [ 0.0,]
-cyx = [ 0.0,]
+cxy = [ 0,]
+cyx = [ 0,]
 tag = "Bearing 1"
 scale_factor = 1
+color = "#355d7a"
 
 ["ShaftElement_ShaftElement 0".material]
 name = "Steel"
