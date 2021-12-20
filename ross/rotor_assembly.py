@@ -504,8 +504,8 @@ class Rotor(object):
             for t in dfb_z_pos.tag:
                 df.loc[df.tag == t, "y_pos"] = y_pos
                 df.loc[df.tag == t, "y_pos_sup"] = y_pos_sup
-                y_pos += 2 * mean_od * df["scale_factor"][df.tag == t].values[0]
-                y_pos_sup += 2 * mean_od * df["scale_factor"][df.tag == t].values[0]
+                y_pos += mean_od * df["scale_factor"][df.tag == t].values[0]
+                y_pos_sup += mean_od * df["scale_factor"][df.tag == t].values[0]
 
         # define position for point mass elements
         dfb = df[df.type.isin(classes)]
