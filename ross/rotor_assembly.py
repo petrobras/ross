@@ -2041,6 +2041,7 @@ class Rotor(object):
 
         return fig
 
+    @check_units
     def run_campbell(self, speed_range, frequencies=6, frequency_type="wd"):
         """Calculate the Campbell diagram.
 
