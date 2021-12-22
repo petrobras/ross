@@ -665,6 +665,7 @@ class ModalResults(Results):
         title=None,
         length_units="m",
         frequency_units="rad/s",
+        damping_parameter="log_dec",
         **kwargs,
     ):
         """Plot (3D view) the mode shapes.
@@ -692,6 +693,9 @@ class ModalResults(Results):
         frequency_units : str, optional
             Frequency units that will be used in the plot title.
             Default is rad/s.
+        damping_parameter : str, optional
+            Define which value to show for damping. We can use "log_dec" or "damping_ratio".
+            Default is "log_dec".
         kwargs : optional
             Additional key word arguments can be passed to change the plot layout only
             (e.g. width=1000, height=800, ...).
@@ -704,6 +708,12 @@ class ModalResults(Results):
         """
         if fig is None:
             fig = go.Figure()
+
+        damping_name = "Log. Dec."
+        damping_value = self.log_dec[mode]
+        if damping_parameter == "damping_ratio":
+            damping_name = "Damping ratio"
+            damping_value = self.damping_ratio[mode]
 
         nodes = self.nodes
         kappa_mode = self.kappa_modes[mode]
@@ -796,13 +806,14 @@ class ModalResults(Results):
             title=dict(
                 text=(
                     f"{title}<br>"
-                    f"Mode {mode + 1} | "
+                    f"Mode {mode} | "
                     f"{frequency['speed']} {frequency_units} | "
                     f"whirl: {self.whirl_direction()[mode]} | "
                     f"{frequency[frequency_type]} {frequency_units} | "
-                    f"Log. Dec. = {self.log_dec[mode]:.1f} | "
-                    f"Damping ratio = {self.damping_ratio[mode]:.2f}"
-                )
+                    f"{damping_name} = {damping_value:.1f}"
+                ),
+                x=0.5,
+                xanchor="center",
             ),
             **kwargs,
         )
@@ -818,6 +829,7 @@ class ModalResults(Results):
         title=None,
         length_units="m",
         frequency_units="rad/s",
+        damping_parameter="log_dec",
         **kwargs,
     ):
         """Plot (2D view) the mode shapes.
@@ -845,6 +857,9 @@ class ModalResults(Results):
         frequency_units : str, optional
             Frequency units that will be used in the plot title.
             Default is rad/s.
+        damping_parameter : str, optional
+            Define which value to show for damping. We can use "log_dec" or "damping_ratio".
+            Default is "log_dec".
         kwargs : optional
             Additional key word arguments can be passed to change the plot layout only
             (e.g. width=1000, height=800, ...).
@@ -855,6 +870,12 @@ class ModalResults(Results):
         fig : Plotly graph_objects.Figure()
             The figure object with the plot.
         """
+        damping_name = "Log. Dec."
+        damping_value = self.log_dec[mode]
+        if damping_parameter == "damping_ratio":
+            damping_name = "Damping ratio"
+            damping_value = self.damping_ratio[mode]
+
         xn, yn, zn, xc, yc, zc_pos, nn = self.calc_mode_shape(mode=mode, evec=evec)
         nodes_pos = Q_(self.nodes_pos, "m").to(length_units).m
 
@@ -915,15 +936,110 @@ class ModalResults(Results):
             title=dict(
                 text=(
                     f"{title}<br>"
-                    f"Mode {mode + 1} | "
+                    f"Mode {mode} | "
                     f"{frequency['speed']} {frequency_units} | "
                     f"whirl: {self.whirl_direction()[mode]} | "
                     f"{frequency[frequency_type]} {frequency_units} | "
-                    f"Log. Dec. = {self.log_dec[mode]:.1f} | "
-                    f"Damping ratio = {self.damping_ratio[mode]:.2f}"
-                )
+                    f"{damping_name} = {damping_value:.1f}"
+                ),
+                x=0.5,
+                xanchor="center",
             ),
             **kwargs,
+        )
+
+        return fig
+
+    def plot_orbit(
+        self,
+        mode=None,
+        nodes=None,
+        fig=None,
+        frequency_type="wd",
+        title=None,
+        frequency_units="rad/s",
+        **kwargs,
+    ):
+        """Plot (2D view) the mode shapes.
+
+        Parameters
+        ----------
+        mode : int
+            The n'th vibration mode
+            Default is None
+        nodes : int, list(ints)
+            Int or list of ints with the nodes selected to be plotted.
+        fig : Plotly graph_objects.Figure()
+            The figure object with the plot.
+        frequency_type : str, optional
+            "wd" calculates de map for the damped natural frequencies.
+            "wn" calculates de map for the undamped natural frequencies.
+            Defaults is "wd".
+        title : str, optional
+            A brief title to the mode shape plot, it will be displayed above other
+            relevant data in the plot area. It does not modify the figure layout from
+            Plotly.
+        frequency_units : str, optional
+            Frequency units that will be used in the plot title.
+            Default is rad/s.
+        kwargs : optional
+            Additional key word arguments can be passed to change the plot layout only
+            (e.g. width=1000, height=800, ...).
+            *See Plotly Python Figure Reference for more information.
+
+        Returns
+        -------
+        fig : Plotly graph_objects.Figure()
+            The figure object with the plot.
+        """
+        if fig is None:
+            fig = go.Figure()
+
+        # case where an int is given
+        if not isinstance(nodes, Iterable):
+            nodes = [nodes]
+
+        kappa_mode = self.kappa_modes[mode]
+        xn, yn, zn, xc, yc, zc_pos, nn = self.calc_mode_shape(mode=mode, evec=None)
+
+        for node in nodes:
+            fig.add_trace(
+                go.Scatter(
+                    x=xc[10:, node],
+                    y=yc[10:, node],
+                    mode="lines",
+                    line=dict(color=kappa_mode[node]),
+                    name=f"node {node}<br>{self.whirl_direction()[mode]}",
+                    showlegend=False,
+                    hovertemplate=(
+                        "X - Relative Displacement: %{x:.2f}<br>"
+                        + "Y - Relative Displacement: %{y:.2f}"
+                    ),
+                )
+            )
+
+            fig.add_trace(
+                go.Scatter(
+                    x=[xc[10, node]],
+                    y=[yc[10, node]],
+                    mode="markers",
+                    marker=dict(color=kappa_mode[node]),
+                    name="node {}".format(node),
+                    showlegend=False,
+                )
+            )
+
+        fig.update_layout(
+            autosize=False,
+            width=500,
+            height=500,
+            xaxis_range=[-1, 1],
+            yaxis_range=[-1, 1],
+            title={
+                "text": f"Mode {mode} - Nodes {nodes}",
+                "x": 0.5,
+                "xanchor": "center",
+            },
         )
 
         return fig
