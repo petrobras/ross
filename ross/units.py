@@ -69,6 +69,7 @@ units = {
     "load": "N",
     "flowv": "m³/s",
     "fit": "m",
+    "viscosity": "pascal*s",
 }
 for i, unit in zip(["k", "c"], ["N/m", "N*s/m"]):
     for j in ["x", "y", "z"]:

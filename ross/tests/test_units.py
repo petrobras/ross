@@ -76,6 +76,7 @@ arguments = {
     "czx": Argument(1, "N*s/m", "lbf*s/in", 175.12683524647645),
     "czy": Argument(1, "N*s/m", "lbf*s/in", 175.12683524647645),
     "czz": Argument(1, "N*s/m", "lbf*s/in", 175.12683524647645),
+    "viscosity": Argument(1, "Pa*s", "lb/ft/s", 1.488164),
 }
 
 
@@ -132,6 +133,7 @@ def auxiliary_function():
         czx,
         czy,
         czz,
+        viscosity,
     ):
         return (
             E,
@@ -183,6 +185,7 @@ def auxiliary_function():
             czx,
             czy,
             czz,
+            viscosity,
         )
 
     return func
