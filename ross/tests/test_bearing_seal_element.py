@@ -502,7 +502,15 @@ def test_cylindrical_hydrodynamic():
     )
     expected_modified_sommerfeld = np.array([1.009798, 1.346397])
     expected_sommerfeld = np.array([3.571429, 4.761905])
+    expected_eccentricity = np.array([0.266298, 0.212571])
+    expected_attitude_angle = np.array([0.198931, 0.161713])
+    expected_k = np.array([[12.80796, 16.393593], [-25.060393, 8.815303]])
+    expected_c = np.array([[232.89693, -81.924371], [-81.924371, 294.911619]])
     assert_allclose(
         cylindrical.modified_sommerfeld, expected_modified_sommerfeld, rtol=1e-6
     )
     assert_allclose(cylindrical.sommerfeld, expected_sommerfeld, rtol=1e-6)
+    assert_allclose(cylindrical.eccentricity, expected_eccentricity, rtol=1e-5)
+    assert_allclose(cylindrical.attitude_angle, expected_attitude_angle, rtol=1e-5)
+    assert_allclose(cylindrical.K(Q_(1500, "RPM")) / 1e6, expected_k, rtol=1e-6)
+    assert_allclose(cylindrical.C(Q_(1500, "RPM")) / 1e3, expected_c, rtol=1e-6)
