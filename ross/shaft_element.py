@@ -747,7 +747,7 @@ class ShaftElement(Element):
         K = self.material.E * Ie_l / (105 * L ** 3 * (1 + phi) ** 2) * (K1 + 105 * phi * K2)
 
         # axial force
-        k10 = 36 + 60 * phi + 3 * phi ** 2
+        k10 = 36 + 60 * phi + 30 * phi ** 2
         k11 = L * 3
         k12 = L ** 2 * (4 + 5 * phi + 2.5 * phi ** 2)
         k13 = L ** 2 * (1 + 5 * phi + 2.5 * phi ** 2)
