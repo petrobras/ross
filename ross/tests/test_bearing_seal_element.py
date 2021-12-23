@@ -6,6 +6,7 @@ from tempfile import tempdir
 import numpy as np
 import pytest
 from numpy.testing import assert_allclose
+from ross.units import Q_
 
 from ross.bearing_seal_element import (
     BallBearingElement,
@@ -14,6 +15,7 @@ from ross.bearing_seal_element import (
     BearingFluidFlow,
     MagneticBearingElement,
     RollerBearingElement,
+    CylindricalBearing,
 )
 
 
@@ -486,3 +488,21 @@ def test_plot(bearing0):
     )
     assert_allclose(fig.data[0]["x"][:5], expected_x)
     assert_allclose(fig.data[0]["y"][:5], expected_y)
+
+
+def test_cylindrical_hydrodynamic():
+    cylindrical = CylindricalBearing(
+        n=0,
+        speed=Q_([1500, 2000], "RPM"),
+        weight=525,
+        bearing_length=Q_(30, "mm"),
+        journal_diameter=Q_(100, "mm"),
+        radial_clearance=Q_(0.1, "mm"),
+        oil_viscosity=0.1,
+    )
+    expected_modified_sommerfeld = np.array([1.009798, 1.346397])
+    expected_sommerfeld = np.array([3.571429, 4.761905])
+    assert_allclose(
+        cylindrical.modified_sommerfeld, expected_modified_sommerfeld, rtol=1e-6
+    )
+    assert_allclose(cylindrical.sommerfeld, expected_sommerfeld, rtol=1e-6)
