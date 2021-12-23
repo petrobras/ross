@@ -1529,6 +1529,11 @@ class CylindricalBearing(BearingElement):
     -------
         CylindricalBearing element.
 
+    References
+    ----------
+    .. bibliography::
+        :filter: docname in docnames
+
     Examples
     --------
     >>> import ross as rs
