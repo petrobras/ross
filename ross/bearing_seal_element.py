@@ -10,6 +10,7 @@ from inspect import signature
 
 import numpy as np
 import toml
+from numpy.polynomial import Polynomial
 from plotly import graph_objects as go
 from scipy import interpolate as interpolate
 
@@ -29,6 +30,7 @@ __all__ = [
     "BearingFluidFlow",
     "BearingElement6DoF",
     "MagneticBearingElement",
+    "CylindricalBearing",
 ]
 
 
@@ -1485,6 +1487,107 @@ class MagneticBearingElement(BearingElement):
             n_link=n_link,
             scale_factor=scale_factor,
         )
+
+
+class CylindricalBearing(BearingElement):
+    """Cylindrical hydrodynamic bearing.
+
+    A cylindrical hydrodynamic bearing modeled as per
+    :cite:`friswell2010dynamics` (page 177) assuming the following:
+
+    - the flow is laminar and Reynolds’s equation applies
+    - the bearing is very short, so that L /D << 1, where L is the bearing length and
+    D is the bearing diameter, which means that the pressure gradients are much
+    larger in the axial than in the circumferential direction
+    - the lubricant pressure is zero at the edges of the bearing
+    - the bearing is operating under steady running conditions
+    - the lubricant properties do not vary substantially throughout the oil film
+    - the shaft does not tilt in the bearing
+
+    Parameters
+    ----------
+    n : int
+        Node which the bearing will be located in.
+    speed : list, pint.Quantity
+        List with shaft speeds frequency (rad/s).
+    weight : float, pint.Quantity
+        Gravity load (N).
+        It is a positive value in the -Y direction. For a symmetric rotor that is
+        supported by two journal bearings, it is half of the total rotor weight.
+    bearing_length : float, pint.Quantity
+        Bearing axial length (m).
+    journal_diameter : float, pint.Quantity
+        Journal diameter (m).
+    radial_clearance : float, pint.Quantity
+        Bore assembly radial clearance (m).
+    oil_viscosity : float, pint.Quantity
+        Oil viscosity (Pa.s).
+    """
+
+    @check_units
+    def __init__(
+        self,
+        n,
+        speed=None,
+        weight=None,
+        bearing_length=None,
+        journal_diameter=None,
+        radial_clearance=None,
+        oil_viscosity=None,
+        tag=None,
+        n_link=None,
+        scale_factor=1,
+    ):
+        self.speed = speed
+        self.weight = weight
+        self.bearing_length = bearing_length
+        self.journal_diameter = journal_diameter
+        self.radial_clearance = radial_clearance
+        self.oil_viscosity = oil_viscosity
+        self.tag = tag
+        self.n_link = n_link
+        self.scale_factor = scale_factor
+
+        # modified Sommerfeld number or the Ocvirk number
+        Ss = (
+            journal_diameter
+            * speed
+            * oil_viscosity
+            * bearing_length ** 3
+            / (8 * radial_clearance ** 2 * weight)
+        )
+
+        self.modified_sommerfeld = Ss
+        self.sommerfeld = (Ss / np.pi) * (journal_diameter / bearing_length) ** 2
+
+        # find roots
+        self.roots = []
+        for s in Ss:
+            poly = Polynomial(
+                [
+                    1,
+                    -(4 + np.pi ** 2 * s ** 2),
+                    (6 - s ** 2 * (16 - np.pi ** 2)),
+                    -4,
+                    1,
+                ]
+            )
+            self.roots.append(poly.roots())
+
+        # select real root between 0 and 1
+        self.root = []
+        for roots in self.roots:
+            for root in roots:
+                if (0 < root < 1) and np.isreal(root):
+                    self.root.append(np.real(root))
+
+        self.eccentricity = [np.sqrt(root) for root in self.root]
+
+        for e in self.eccentricity:
+            h0 = 1 / (np.pi ** 2 * (1 - e ** 2) + 16 * e ** 2) ** (3 / 2)
+            auu = h0 * 4 * (np.pi ** 2 * (2 - e ** 2) + 16 * e ** 2)
+
+            #
 
 
 class BearingElement6DoF(BearingElement):
