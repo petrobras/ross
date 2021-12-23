@@ -67,6 +67,8 @@ units = {
     "stiffness": "N/m",
     "weight": "N",
     "load": "N",
+    "force": "N",
+    "torque": "N*m",
     "flowv": "m³/s",
     "fit": "m",
     "viscosity": "pascal*s",
