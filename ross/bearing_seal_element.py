@@ -1547,9 +1547,9 @@ class CylindricalBearing(BearingElement):
     ...     radial_clearance=Q_(0.1, "mm"),
     ...     oil_viscosity=0.1,
     ... )
-    >>> cylindrical.K(Q_(1500, "RPM"))
-    array([[ 12807959.57740874,  16393593.24867441],
-           [-25060393.27644925,   8815302.74116861]])
+    >>> cylindrical.K(Q_(1500, "RPM")) # doctest: +ELLIPSIS
+    array([[ 12807959...,  16393593...],
+           [-25060393...,   8815302...]])
     """
 
     @check_units
