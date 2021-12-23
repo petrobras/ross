@@ -745,6 +745,26 @@ class ShaftElement(Element):
         ])
 
         K = self.material.E * Ie_l / (105 * L ** 3 * (1 + phi) ** 2) * (K1 + 105 * phi * K2)
+
+        # axial force
+        k10 = 36 + 60 * phi + 3 * phi ** 2
+        k11 = L * 3
+        k12 = L ** 2 * (4 + 5 * phi + 2.5 * phi ** 2)
+        k13 = L ** 2 * (1 + 5 * phi + 2.5 * phi ** 2)
+
+        Kaxial = np.array([
+            [ k10,    0,    0,  k11, -k10,    0,    0,  k11],
+            [   0,  k10, -k11,    0,    0, -k10, -k11,    0],
+            [   0, -k11,  k12,    0,    0,  k11, -k13,    0],
+            [ k11,    0,    0,  k12, -k11,    0,    0, -k13],
+            [-k10,    0,    0, -k11,  k10,    0,    0, -k11],
+            [   0, -k10,  k11,    0,    0,  k10,  k11,    0],
+            [   0, -k11, -k13,    0,    0,  k11,  k12,    0],
+            [ k11,    0,    0, -k13, -k11,    0,    0,  k12],
+        ])
+
+        Kaxial *= self.axial_force / (30 * L * (1 + phi) ** 2)
+        K += Kaxial
         # fmt: on
 
         return K
@@ -1145,16 +1165,16 @@ class ShaftElement(Element):
 
         elements = [
             cls(
-                le,
-                (s_idr - s_idl) * i * le / L + s_idl,
-                (s_odr - s_odl) * i * le / L + s_odl,
-                (s_idr - s_idl) * (i + 1) * le / L + s_idl,
-                (s_odr - s_odl) * (i + 1) * le / L + s_odl,
-                material,
-                n,
-                shear_effects,
-                rotary_inertia,
-                gyroscopic,
+                L=le,
+                idl=(s_idr - s_idl) * i * le / L + s_idl,
+                odl=(s_odr - s_odl) * i * le / L + s_odl,
+                idr=(s_idr - s_idl) * (i + 1) * le / L + s_idl,
+                odr=(s_odr - s_odl) * (i + 1) * le / L + s_odl,
+                material=material,
+                n=n,
+                shear_effects=shear_effects,
+                rotary_inertia=rotary_inertia,
+                gyroscopic=gyroscopic,
             )
             for i in range(ne)
         ]
@@ -2088,16 +2108,16 @@ class ShaftElement6DoF(ShaftElement):
 
         elements = [
             cls(
-                le,
-                (s_idr - s_idl) * i * le / L + s_idl,
-                (s_odr - s_odl) * i * le / L + s_odl,
-                (s_idr - s_idl) * (i + 1) * le / L + s_idl,
-                (s_odr - s_odl) * (i + 1) * le / L + s_odl,
-                alpha,
-                beta,
-                material,
-                n,
-                gyroscopic,
+                L=le,
+                idl=(s_idr - s_idl) * i * le / L + s_idl,
+                odl=(s_odr - s_odl) * i * le / L + s_odl,
+                idr=(s_idr - s_idl) * (i + 1) * le / L + s_idl,
+                odr=(s_odr - s_odl) * (i + 1) * le / L + s_odl,
+                alpha=alpha,
+                beta=beta,
+                material=material,
+                n=n,
+                gyroscopic=gyroscopic,
             )
             for i in range(ne)
         ]
