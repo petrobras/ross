@@ -765,6 +765,21 @@ class ShaftElement(Element):
 
         Kaxial *= self.axial_force / (30 * L * (1 + phi) ** 2)
         K += Kaxial
+
+        # torque
+        Ktorque = np.array([
+            [   0,    0,    1,    0,    0,    0,   -1,    0],
+            [   0,    0,    0,    1,    0,    0,    0,   -1],
+            [   1,    0,    0, -L/2,   -1,    0,    0,  L/2],
+            [   0,    1,  L/2,    0,    0,   -1, -L/2,    0],
+            [   0,    0,   -1,    0,    0,    0,    1,    0],
+            [   0,    0,    0,   -1,    0,    0,    0,    1],
+            [  -1,    0,    0, -L/2,    1,    0,    0,  L/2],
+            [   0,   -1,  L/2,    0,    0,    1, -L/2,    0],
+        ])
+
+        Ktorque *= self.torque / L
+        K += Ktorque
         # fmt: on
 
         return K
@@ -1710,7 +1725,7 @@ class ShaftElement6DoF(ShaftElement):
         T = self.torque
 
         # temporary material and geometrical constants, determined as mean values
-        # from the left and right radii of the taperad shaft
+        # from the left and right radii of the tapered shaft
         L = self.L
         tempS = np.pi * (
             ((self.odr / 2) ** 2 + (self.odl / 2) ** 2) / 2
@@ -1748,7 +1763,7 @@ class ShaftElement6DoF(ShaftElement):
 
         # fmt: off
         # pure stiffness matrix [Kc], added to the axial loads stiffness matrix [Ka],
-        # torsional stiffnesses matrix [Kr] and Tinoshenko shear compensation [Ks].
+        # torsional stiffness matrix [Kr] and Timoshenko shear compensation [Ks].
         Kc_plus = a1 * np.array([
             [  12,   0,      0,            0,         -6*L,      0, -12,    0,      0,            0,         -6*L,      0],
             [   0,  12,      0,          6*L,            0,      0,   0,  -12,      0,          6*L,            0,      0],
