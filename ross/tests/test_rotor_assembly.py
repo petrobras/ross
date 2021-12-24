@@ -8,7 +8,7 @@ from numpy.testing import assert_allclose, assert_almost_equal, assert_equal
 
 from ross.bearing_seal_element import *
 from ross.disk_element import *
-from ross.materials import steel
+from ross.materials import steel, Material
 from ross.point_mass import *
 from ross.rotor_assembly import *
 from ross.shaft_element import *
@@ -1803,3 +1803,67 @@ def test_plot_rotor_without_disk(rotor1):
         [0.0, 0.025, 0.025, 0.0, 0.0, -0.0, -0.025, -0.025, -0.0, -0.0]
     )
     assert_allclose(fig.data[-1]["y"], expected_element_y)
+
+
+def test_axial_force():
+    steel = Material("steel", E=211e9, G_s=81.2e9, rho=7810)
+    L = 0.25
+    N = 6
+    idl = 0
+    odl = 0.05
+
+    bearings = [
+        BearingElement(n=0, kxx=1e6, cxx=0, scale_factor=2),
+        BearingElement(n=N, kxx=1e6, cxx=0, scale_factor=2),
+    ]
+    disks = [
+        DiskElement.from_geometry(
+            n=2, material=steel, width=0.07, i_d=odl, o_d=0.28, scale_factor="mass"
+        ),
+        DiskElement.from_geometry(
+            n=4, material=steel, width=0.07, i_d=odl, o_d=0.35, scale_factor="mass"
+        ),
+    ]
+
+    shaft = [
+        ShaftElement(L=L, idl=idl, odl=odl, material=steel, axial_force=Q_(100, "kN"))
+        for i in range(N)
+    ]
+    rotor = Rotor(shaft_elements=shaft, disk_elements=disks, bearing_elements=bearings)
+    modal = rotor.run_modal(Q_(4000, "RPM"))
+    expected_wd = np.array(
+        [93.416071, 95.2335, 267.475281, 309.918575, 634.40757, 873.763214]
+    )
+    assert_allclose(modal.wd, expected_wd)
+
+
+def test_torque():
+    steel = Material("steel", E=211e9, G_s=81.2e9, rho=7810)
+    L = 0.25
+    N = 6
+    idl = 0
+    odl = 0.05
+
+    bearings = [
+        BearingElement(n=0, kxx=1e6, cxx=0, scale_factor=2),
+        BearingElement(n=N, kxx=1e6, cxx=0, scale_factor=2),
+    ]
+    disks = [
+        DiskElement.from_geometry(
+            n=2, material=steel, width=0.07, i_d=odl, o_d=0.28, scale_factor="mass"
+        ),
+        DiskElement.from_geometry(
+            n=4, material=steel, width=0.07, i_d=odl, o_d=0.35, scale_factor="mass"
+        ),
+    ]
+
+    shaft = [
+        ShaftElement(L=L, idl=idl, odl=odl, material=steel, torque=Q_(100, "kN*m"))
+        for i in range(N)
+    ]
+    rotor = Rotor(shaft_elements=shaft, disk_elements=disks, bearing_elements=bearings)
+    modal = rotor.run_modal(Q_(4000, "RPM"))
+    expected_wd = np.array(
+        [81.324905, 84.769077, 242.822862, 286.158147, 591.519983, 827.003048]
+    )
+    assert_allclose(modal.wd, expected_wd)
