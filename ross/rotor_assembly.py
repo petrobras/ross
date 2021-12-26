@@ -1081,7 +1081,7 @@ class Rotor(object):
 
         If any value of frequency_range argument is out of any bearing frequency
         parameter, the warning is raised.
-        If none of the bearings has a frequency argument assinged, no warning will be
+        If none of the bearings has a frequency argument assigned, no warning will be
         raised.
 
         Parameters
@@ -1094,16 +1094,15 @@ class Rotor(object):
             It warns the user if the frequency_range causes the bearing coefficients
             to be extrapolated.
         """
-        # fmt: off
         for bearing in self.bearing_elements:
             if bearing.frequency is not None:
-                if (np.max(frequency_range) > max(bearing.frequency) or
-                    np.min(frequency_range) < min(bearing.frequency)):
+                if (np.max(frequency_range) > max(bearing.frequency)) or (
+                    np.min(frequency_range) < min(bearing.frequency)
+                ):
                     warnings.warn(
                         "Extrapolating bearing coefficients. Be careful when post-processing the results."
                     )
                     break
-        # fmt: on
 
     def _clustering_points(self, num_modes=12, num_points=10, modes=None, rtol=0.005):
         """Create an array with points clustered close to the natural frequencies.

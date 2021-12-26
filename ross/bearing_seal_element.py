@@ -1565,7 +1565,14 @@ class CylindricalBearing(BearingElement):
         **kwargs,
     ):
         self.n = n
-        self.speed = speed
+
+        self.speed = []
+        for spd in speed:
+            if spd == 0:
+                # replace 0 speed with small value to avoid errors
+                self.speed.append(0.1)
+            else:
+                self.speed.append(spd)
         self.weight = weight
         self.bearing_length = bearing_length
         self.journal_diameter = journal_diameter
