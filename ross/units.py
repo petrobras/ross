@@ -85,6 +85,11 @@ def check_units(func):
     If we use the check_units decorator in a function the arguments are checked,
     and if they are in the dictionary, they are converted to the 'default' unit given
     in the dictionary.
+    The check is carried out by splitting the argument name on '_', and checking
+    if any of the names are in the dictionary. So an argument such as 'inlet_pressure',
+    will be split into ['inlet', 'pressure'], and since we have the name 'pressure'
+    in the dictionary mapped to 'Pa', we will automatically convert the value to
+    this default unit.
 
     For example:
     >>> units = {
@@ -123,7 +128,11 @@ def check_units(func):
                     try:
                         base_unit_args.append(arg_value.to(units[name]).m)
                     except AttributeError:
-                        base_unit_args.append(Q_(arg_value, units[name]).m)
+                        try:
+                            base_unit_args.append(Q_(arg_value, units[name]).m)
+                        except TypeError:
+                            # Handle erros that we get with bool for example
+                            base_unit_args.append(arg_value)
                     break
             else:
                 base_unit_args.append(arg_value)
@@ -138,7 +147,11 @@ def check_units(func):
                     try:
                         base_unit_kwargs[k] = v.to(units[name]).m
                     except AttributeError:
-                        base_unit_kwargs[k] = Q_(v, units[name]).m
+                        try:
+                            base_unit_kwargs[k] = Q_(v, units[name]).m
+                        except TypeError:
+                            # Handle erros that we get with bool for example
+                            base_unit_kwargs[k] = v
                     break
             else:
                 base_unit_kwargs[k] = v
