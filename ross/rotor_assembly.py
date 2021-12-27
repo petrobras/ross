@@ -2036,7 +2036,8 @@ class Rotor(object):
             showgrid=False,
             mirror=True,
         )
-        fig.update_layout(title=dict(text="Rotor Model"), **kwargs)
+        kwargs["title"] = kwargs.get("title", "Rotor Model")
+        fig.update_layout(**kwargs)
 
         return fig
 
