@@ -1062,4 +1062,11 @@ def cylindrical_bearing_example():
     )
 
     return bearing
-Turbulence
+
+if __name__ == "__main__":
+    bearing = cylindrical_bearing_example()
+    x0 = [0.1,-0.1]
+    bearing = cylindrical_bearing_example()
+    bearing.run(x0)
+    bearing.equilibrium_pos
+    print(bearing.equilibrium_pos)
