@@ -239,6 +239,10 @@ class THDCylindrical:
         T_conv = 0.8 * self.T_reserv
 
         T_mist = self.T_reserv * np.ones(self.n_pad)
+        
+        Reyn = np.zeros((self.n_z,self.n_theta,self.n_pad))
+    
+
 
         while (T_mist[0] - T_conv) >= 1e-2:
 
@@ -251,6 +255,8 @@ class THDCylindrical:
             T_conv = T_mist[0]
 
             mi_new = 1.1 * np.ones((self.n_z, self.n_theta, self.n_pad))
+            mi_turb = 1.3*np.ones((self.n_z,self.n_theta,self.n_pad))
+            
             PP = np.zeros(((self.n_z), (2 * self.n_theta)))
 
             nk = (self.n_z) * (self.n_theta)
@@ -578,6 +584,43 @@ class THDCylindrical:
 
                             mi_p = mi[ki, kj, n_p]
 
+
+
+
+
+                            Reyn[ki,kj,n_p] = self.rho*self.speed*self.R*(HP/self.L)*self.c_r/(self.mu_ref)
+    
+                        
+                            if Reyn[ki,kj,n_p] <= 500:
+                              
+                                delta_turb = 0
+                            
+                            elif Reyn[ki,kj,n_p] > 400 and Reyn[ki,kj,n_p] <= 1000:
+                                
+                                delta_turb = 1-((1000-Reyn[ki,kj,n_p])/500)**(1/8)
+                                
+                            elif Reyn[ki,kj,n_p] > 1000:
+                               
+                                delta_turb = 1
+         
+                            
+                            dudx = (((HP/mi_turb[ki,kj,n_p])*dPdy[ki,kj,n_p])-(self.speed/HP))
+                            
+                            dwdx = ((HP/mi_turb[ki,kj,n_p])*dPdz[ki,kj,n_p])
+                            
+                            tal = mi_turb[ki,kj,n_p]*np.sqrt((dudx**2)+(dwdx**2))
+                            
+                            ywall = ((HP*self.c_r*2)/(self.mu_ref*mi_turb[ki,kj,n_p]/self.rho))*((abs(tal)/self.rho)**0.5)
+                            
+                            emv = 0.4*(ywall-(10.7*np.tanh(ywall/10.7)))
+                            
+                            mi_turb[ki,kj,n_p] = mi_p*(1+(delta_turb*emv))
+                            
+                            mi_t = mi_turb[ki,kj,n_p]
+
+
+
+
                             AE = -(self.k_t * HP * self.dZ) / (
                                 self.rho
                                 * self.Cp
@@ -588,7 +631,7 @@ class THDCylindrical:
                             AW = (
                                 (
                                     ((HP ** 3) * dPdy[ki, kj, n_p] * self.dZ)
-                                    / (12 * mi_p * (self.betha_s ** 2))
+                                    / (12 * mi_t * (self.betha_s ** 2))
                                 )
                                 - ((HP) * self.dZ / (2 * self.betha_s))
                                 - (
@@ -616,7 +659,7 @@ class THDCylindrical:
                                     * dPdz[ki, kj, n_p]
                                     * self.dY
                                 )
-                                / (12 * (self.L ** 2) * mi_p)
+                                / (12 * (self.L ** 2) * mi_t)
                             ) - (
                                 (self.k_t * HP * self.dY)
                                 / (
