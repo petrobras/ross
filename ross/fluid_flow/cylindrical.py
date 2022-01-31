@@ -63,6 +63,17 @@ class THDCylindrical:
     mu_F : float
         Upper limit viscosity. The unit is Pa*s.
 
+    Turbulence Model
+    ^^^^^^^^^^^^^^^^
+    Turbulence model to improve analysis in higher speed.The model represents 
+    the turbulence by eddy diffusivities.
+    Reyn : Array
+        The Reynolds number is a dimensionless number used to calculate the 
+        fluid flow regime inside the bearing.
+    delta_turb : float
+        Eddy viscosity scaling factor. Coefficient to assign weight to laminar, 
+        transitional and turbulent flows to calculate viscosity.
+   
     Mesh discretization
     ^^^^^^^^^^^^^^^^^^^
     Describes the discretization of the bearing.
@@ -603,9 +614,9 @@ class THDCylindrical:
                             
                             tal = mi_turb[ki,kj,n_p]*np.sqrt((dudy**2)+(dwdy**2))
                             
-                            ywall = ((HP*self.c_r*2)/(self.mu_ref*mi_turb[ki,kj,n_p]/self.rho))*((abs(tal)/self.rho)**0.5)
+                            x_wall = ((HP*self.c_r*2)/(self.mu_ref*mi_turb[ki,kj,n_p]/self.rho))*((abs(tal)/self.rho)**0.5)
                             
-                            emv = 0.4*(ywall-(10.7*np.tanh(ywall/10.7)))
+                            emv = 0.4*(x_wall-(10.7*np.tanh(x_wall/10.7)))
                             
                             mi_turb[ki,kj,n_p] = mi_p*(1+(self.delta_turb*emv))
                             
