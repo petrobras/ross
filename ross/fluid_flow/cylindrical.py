@@ -160,7 +160,8 @@ class THDCylindrical:
 
         if self.n_y == None:
             self.n_y = self.n_theta
-
+        
+        self.betha_s_dg = betha_s
         self.betha_s = betha_s * np.pi / 180
 
         self.n_pad = 2
@@ -242,6 +243,13 @@ class THDCylindrical:
         
         Reyn = np.zeros((self.n_z,self.n_theta,self.n_pad))
     
+        pad_ct = [ang for ang in range(0,360,int(360/self.n_pad))]
+
+        self.thetaI = np.radians([pad+(180/self.n_pad)-(self.betha_s_dg/2) for pad in pad_ct])
+                
+        self.thetaF = np.radians([pad+(180/self.n_pad)+(self.betha_s_dg/2) for pad in pad_ct])
+        
+        Ytheta = [np.linspace(t1, t2, self.n_theta) for t1, t2 in zip(self.thetaI,self.thetaF)]
 
 
         while (T_mist[0] - T_conv) >= 1e-2:
@@ -268,21 +276,6 @@ class THDCylindrical:
 
             for n_p in np.arange(self.n_pad):
 
-                self.thetaI = (
-                    n_p * self.betha_s
-                    + self.dtheta * self.n_gap / 2
-                    + (n_p * self.dtheta * self.n_gap)
-                )
-
-                self.thetaF = self.thetaI + self.betha_s
-
-                self.dtheta = (self.thetaF - self.thetaI) / (self.n_theta)
-
-                if n_p == 0:
-                    Ytheta1 = np.arange(self.thetaI, self.thetaF, self.dtheta)
-                else:
-                    Ytheta2 = np.arange(self.thetaI, self.thetaF, self.dtheta)
-
                 T_ref = T_mist[n_p - 1]
 
                 # Temperature convergence while
@@ -307,7 +300,7 @@ class THDCylindrical:
 
                     for ii in np.arange((self.Z_I + 0.5 * self.dZ), self.Z_F, self.dZ):
                         for jj in np.arange(
-                            self.thetaI + (self.dtheta / 2), self.thetaF, self.dtheta
+                            self.thetaI[n_p] + (self.dtheta / 2), self.thetaF[n_p], self.dtheta
                         ):
 
                             hP = 1 - self.X * np.cos(jj) - self.Y * np.sin(jj)
@@ -497,7 +490,7 @@ class THDCylindrical:
                         (self.Z_I + 0.5 * self.dZ), (self.Z_F), self.dZ
                     ):
                         for jj in np.arange(
-                            self.thetaI + (self.dtheta / 2), self.thetaF, self.dtheta
+                            self.thetaI[n_p] + (self.dtheta / 2), self.thetaF[n_p], self.dtheta
                         ):
 
                             # Pressure gradients
@@ -593,28 +586,28 @@ class THDCylindrical:
                         
                             if Reyn[ki,kj,n_p] <= 500:
                               
-                                delta_turb = 0
+                                self.delta_turb = 0
                             
                             elif Reyn[ki,kj,n_p] > 400 and Reyn[ki,kj,n_p] <= 1000:
                                 
-                                delta_turb = 1-((1000-Reyn[ki,kj,n_p])/500)**(1/8)
+                                self.delta_turb = 1-((1000-Reyn[ki,kj,n_p])/500)**(1/8)
                                 
                             elif Reyn[ki,kj,n_p] > 1000:
                                
-                                delta_turb = 1
+                                self.delta_turb = 1
          
                             
-                            dudx = (((HP/mi_turb[ki,kj,n_p])*dPdy[ki,kj,n_p])-(self.speed/HP))
+                            dudy = (((HP/mi_turb[ki,kj,n_p])*dPdy[ki,kj,n_p])-(self.speed/HP))
                             
-                            dwdx = ((HP/mi_turb[ki,kj,n_p])*dPdz[ki,kj,n_p])
+                            dwdy = ((HP/mi_turb[ki,kj,n_p])*dPdz[ki,kj,n_p])
                             
-                            tal = mi_turb[ki,kj,n_p]*np.sqrt((dudx**2)+(dwdx**2))
+                            tal = mi_turb[ki,kj,n_p]*np.sqrt((dudy**2)+(dwdy**2))
                             
                             ywall = ((HP*self.c_r*2)/(self.mu_ref*mi_turb[ki,kj,n_p]/self.rho))*((abs(tal)/self.rho)**0.5)
                             
                             emv = 0.4*(ywall-(10.7*np.tanh(ywall/10.7)))
                             
-                            mi_turb[ki,kj,n_p] = mi_p*(1+(delta_turb*emv))
+                            mi_turb[ki,kj,n_p] = mi_p*(1+(self.delta_turb*emv))
                             
                             mi_t = mi_turb[ki,kj,n_p]
 
@@ -823,10 +816,21 @@ class THDCylindrical:
                                 self.a * (Tdim[i, j, n_p]) ** self.b
                             ) / self.mu_ref
 
-        PP = np.zeros(((self.n_z), (2 * self.n_theta)))
+        # PP = np.zeros(((self.n_z), (2 * self.n_theta)))
+        
+        # n_gap = round((self.n_theta*(360-(self.betha_s_dg*self.n_pad))/self.betha_s_dg)/self.n_pad)
+        
+        PP=np.zeros((self.n_z,self.n_theta*self.n_pad))
+            
+               
+        i = 0
+        for i in range(self.n_z):
+            
+            PP[i]=Pdim[i,:,:].ravel('F') 
+        
 
-        PP = np.concatenate((Pdim[:, :, 0], Pdim[:, :, 1]), axis=1)
-        Ytheta = np.concatenate((Ytheta1, Ytheta2))
+        Ytheta = np.array(Ytheta)
+        Ytheta = Ytheta.flatten()       
 
         auxF = np.zeros((2, len(Ytheta)))
 
