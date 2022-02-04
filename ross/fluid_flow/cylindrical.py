@@ -50,7 +50,7 @@ class THDCylindrical:
         Oil reservoir temperature. The unit is celsius.
     fat_mixt : list, numpy array, tuple or float
         Ratio of oil in Treserv temperature that mixes with the circulating oil.
-        
+        Is required one fat_mixt per pad.
 
     Viscosity interpolation
     ^^^^^^^^^^^^^^^^^^^^^^^
@@ -120,7 +120,7 @@ class THDCylindrical:
     >>> bearing = cylindrical_bearing_example()
     >>> bearing.run(x0)
     >>> bearing.equilibrium_pos
-    array([ 0.58768737, -0.67319389])
+    array([ 0.59321244 -0.71808458])
     """
 
     @check_units
