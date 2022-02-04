@@ -48,8 +48,9 @@ class THDCylindrical:
         Fluid specific heat. The unit is J/(kg*°C).
     Treserv : float
         Oil reservoir temperature. The unit is celsius.
-    fat_mixt : float
+    fat_mixt : list, numpy array, tuple or float
         Ratio of oil in Treserv temperature that mixes with the circulating oil.
+        
 
     Viscosity interpolation
     ^^^^^^^^^^^^^^^^^^^^^^^
@@ -81,8 +82,7 @@ class THDCylindrical:
         Number of volumes along the direction theta (direction of flow).
     nz : int
         Number of volumes along the Z direction (axial direction).
-    n_gap : int
-        Number of volumes in recess zone.
+
 
 
     Returns
@@ -132,7 +132,7 @@ class THDCylindrical:
         n_theta,
         n_z,
         n_y,
-        n_gap,
+        n_pad,
         betha_s,
         mu_ref,
         speed,
@@ -156,7 +156,7 @@ class THDCylindrical:
         self.n_theta = n_theta
         self.n_z = n_z
         self.n_y = n_y
-        self.n_gap = n_gap
+        self.n_pad = n_pad
         self.mu_ref = mu_ref
         self.speed = speed
         self.Wx = Wx
@@ -165,7 +165,7 @@ class THDCylindrical:
         self.Cp = Cp
         self.rho = rho
         self.T_reserv = T_reserv
-        self.fat_mixt = fat_mixt
+        self.fat_mixt = np.array(fat_mixt)
         self.equilibrium_pos = None
         self.sommerfeld_type = sommerfeld_type
 
@@ -175,7 +175,7 @@ class THDCylindrical:
         self.betha_s_dg = betha_s
         self.betha_s = betha_s * np.pi / 180
 
-        self.n_pad = 2
+#        self.n_pad = 2
 
         self.thetaI = 0
         self.thetaF = self.betha_s
@@ -817,7 +817,7 @@ class THDCylindrical:
                     T_end = np.sum(Tdim[:, -1, n_p]) / self.n_z
 
                     T_mist[n_p] = (
-                        self.fat_mixt * self.T_reserv + (1 - self.fat_mixt) * T_end
+                        self.fat_mixt[n_p] * self.T_reserv + (1 - self.fat_mixt[n_p]) * T_end
                     )
 
                     for i in np.arange(self.n_z):
@@ -827,9 +827,7 @@ class THDCylindrical:
                                 self.a * (Tdim[i, j, n_p]) ** self.b
                             ) / self.mu_ref
 
-        # PP = np.zeros(((self.n_z), (2 * self.n_theta)))
-        
-        # n_gap = round((self.n_theta*(360-(self.betha_s_dg*self.n_pad))/self.betha_s_dg)/self.n_pad)
+
         
         PP=np.zeros((self.n_z,self.n_theta*self.n_pad))
             
@@ -1101,7 +1099,7 @@ def cylindrical_bearing_example():
         n_theta=41,
         n_z=5,
         n_y=None,
-        n_gap=1,
+        n_pad=2,
         betha_s=176,
         mu_ref=0.02,
         speed=Q_(900, "RPM"),
@@ -1111,7 +1109,7 @@ def cylindrical_bearing_example():
         Cp=1915.24,
         rho=854.952,
         T_reserv=50,
-        fat_mixt=0.52,
+        fat_mixt=[0.52 , 0.48],
         T_muI=50,
         T_muF=80,
         mu_I=0.02,
