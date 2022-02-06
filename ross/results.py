@@ -4528,3 +4528,5 @@ class Level1Results(Results):
         )
         fig.update_yaxes(title_text="Log Dec", exponentformat="power")
         fig.update_layout(title=dict(text="Level 1 stability analysis"), **kwargs)
+
+        return fig
