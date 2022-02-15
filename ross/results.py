@@ -634,10 +634,10 @@ class ModalResults(Results):
         yn = np.zeros(nn * (len(nodes) - 1))
         zn = np.zeros(nn * (len(nodes) - 1))
 
-        N1 = onn - 3 * zeta ** 2 + 2 * zeta ** 3
-        N2 = zeta - 2 * zeta ** 2 + zeta ** 3
-        N3 = 3 * zeta ** 2 - 2 * zeta ** 3
-        N4 = -(zeta ** 2) + zeta ** 3
+        N1 = onn - 3 * zeta**2 + 2 * zeta**3
+        N2 = zeta - 2 * zeta**2 + zeta**3
+        N3 = 3 * zeta**2 - 2 * zeta**3
+        N4 = -(zeta**2) + zeta**3
 
         for Le, n in zip(shaft_elements_length, nodes):
             node_pos = nodes_pos[n]
@@ -2978,7 +2978,7 @@ class ForcedResponseResults(Results):
         Mx, My = self._calculate_bending_moment(speed=speed)
         Mx = Q_(Mx, "N*m").to(moment_units).m
         My = Q_(My, "N*m").to(moment_units).m
-        Mr = np.sqrt(Mx ** 2 + My ** 2)
+        Mr = np.sqrt(Mx**2 + My**2)
 
         nodes_pos = Q_(self.rotor.nodes_pos, "m").to(rotor_length_units).m
 

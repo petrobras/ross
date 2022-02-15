@@ -639,7 +639,7 @@ class Rotor(object):
         damping_ratio = (-np.real(evalues) / np.absolute(evalues))[:wn_len]
         with warnings.catch_warnings():
             warnings.simplefilter("ignore")
-            log_dec = 2 * np.pi * damping_ratio / np.sqrt(1 - damping_ratio ** 2)
+            log_dec = 2 * np.pi * damping_ratio / np.sqrt(1 - damping_ratio**2)
 
         modal_results = ModalResults(
             speed,
@@ -1506,7 +1506,7 @@ class Rotor(object):
             H = self.transfer_matrix(speed=speed, modes=modes)
             freq_resp[..., i] = H
             velc_resp[..., i] = 1j * speed * H
-            accl_resp[..., i] = -(speed ** 2) * H
+            accl_resp[..., i] = -(speed**2) * H
 
         results = FrequencyResponseResults(
             freq_resp=freq_resp,
@@ -1678,7 +1678,7 @@ class Rotor(object):
         n0 = self.number_dof * node
         n1 = n0 + self.number_dof
         for i, w in enumerate(omega):
-            F0[n0:n1, i] += w ** 2 * b0
+            F0[n0:n1, i] += w**2 * b0
 
         return F0
 
