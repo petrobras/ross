@@ -129,10 +129,10 @@ def test_stiffness_matrix():
     """
     bearing = fluid_flow_short_friswell()
     kxx, kxy, kyx, kyy = calculate_short_stiffness_matrix(bearing)
-    assert math.isclose(kxx / 10 ** 6, 12.81, rel_tol=0.01)
-    assert math.isclose(kxy / 10 ** 6, 16.39, rel_tol=0.01)
-    assert math.isclose(kyx / 10 ** 6, -25.06, rel_tol=0.01)
-    assert math.isclose(kyy / 10 ** 6, 8.815, rel_tol=0.01)
+    assert math.isclose(kxx / 10**6, 12.81, rel_tol=0.01)
+    assert math.isclose(kxy / 10**6, 16.39, rel_tol=0.01)
+    assert math.isclose(kyx / 10**6, -25.06, rel_tol=0.01)
+    assert math.isclose(kyy / 10**6, 8.815, rel_tol=0.01)
 
 
 def test_stiffness_matrix_numerical(fluid_flow_short_eccentricity):
@@ -179,10 +179,10 @@ def test_damping_matrix():
     """
     bearing = fluid_flow_short_friswell()
     cxx, cxy, cyx, cyy = calculate_short_damping_matrix(bearing)
-    assert math.isclose(cxx / 10 ** 3, 232.9, rel_tol=0.01)
-    assert math.isclose(cxy / 10 ** 3, -81.92, rel_tol=0.01)
-    assert math.isclose(cyx / 10 ** 3, -81.92, rel_tol=0.01)
-    assert math.isclose(cyy / 10 ** 3, 294.9, rel_tol=0.01)
+    assert math.isclose(cxx / 10**3, 232.9, rel_tol=0.01)
+    assert math.isclose(cxy / 10**3, -81.92, rel_tol=0.01)
+    assert math.isclose(cyx / 10**3, -81.92, rel_tol=0.01)
+    assert math.isclose(cyy / 10**3, 294.9, rel_tol=0.01)
 
 
 def fluid_flow_short_numerical():

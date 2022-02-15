@@ -427,14 +427,14 @@ class DiskElement(Element):
         >>> disk.Ip
         0.32956362089137037
         """
-        m = 0.25 * material.rho * np.pi * width * (o_d ** 2 - i_d ** 2)
+        m = 0.25 * material.rho * np.pi * width * (o_d**2 - i_d**2)
         # fmt: off
         Id = (
             0.015625 * material.rho * np.pi * width * (o_d ** 4 - i_d ** 4)
             + m * (width ** 2) / 12
         )
         # fmt: on
-        Ip = 0.03125 * material.rho * np.pi * width * (o_d ** 4 - i_d ** 4)
+        Ip = 0.03125 * material.rho * np.pi * width * (o_d**4 - i_d**4)
 
         tag = tag
 
