@@ -18,7 +18,8 @@ __all__ = [
 
 
 class Crack(Defect):
-    """Contains a Gasch and Mayes transversal crack models for applications on finite element models of rotative machinery.
+    """Contains a :cite:`gasch1993survey` and :cite:`mayes1984analysis` transversal crack models for applications on
+    finite element models of rotative machinery.
     The reference coordenates system is: z-axis throught the shaft center; x-axis and y-axis in the sensors' planes
     Calculates the dynamic forces of a crack on a given shaft element.
 
@@ -31,7 +32,8 @@ class Crack(Defect):
     tF : float
         Final time
     depth_ratio : float
-        Crack depth ratio related to the diameter of the crack container element. A depth value of 0.1 is equal to 10%, 0.2 equal to 20%, and so on.
+        Crack depth ratio related to the diameter of the crack container element. A depth value of 0.1 is equal to 10%,
+        0.2 equal to 20%, and so on.
     n_crack : float
         Element where the crack is located
     speed : float, pint.Quantity
@@ -51,12 +53,8 @@ class Crack(Defect):
 
     References
     ----------
-    .. [1] Mayes, I. W., & Davies, W. G. R. (1984). Analysis of the response of a multi-rotor-bearing system
-           containing a transverse crack in a rotor;
-       [2] Gasch, R. (1993). A survey of the dynamic behaviour of a simple rotating shaft with a transverse
-           crack. Journal of sound and vibration, 160(2), 313-332;
-       [3] Papadopoulos, C. A., & Dimarogonas, A. D. (1987). Coupled longitudinal and bending vibrations
-           of a rotating shaft with an open crack. Journal of sound and vibration, 117(1), 81-93...
+    .. bibliography::
+        :filter: docname in docnames
 
     Examples
     --------
@@ -158,29 +156,29 @@ class Crack(Defect):
         )
 
         kappa = (6 * (1 + self.Poisson) ** 2) / (
-            7 + 12 * self.Poisson + 4 * self.Poisson ** 2
+            7 + 12 * self.Poisson + 4 * self.Poisson**2
         )
 
-        A = 12 * self.E * tempI / (G_s * kappa * tempS * (self.L ** 2))
+        A = 12 * self.E * tempI / (G_s * kappa * tempS * (self.L**2))
 
         # fmt = off
         Coxy = np.array(
             [
                 [
-                    (self.L ** 3) * (1 + A / 4) / (3 * self.E * tempI),
-                    -(self.L ** 2) / (2 * self.E * tempI),
+                    (self.L**3) * (1 + A / 4) / (3 * self.E * tempI),
+                    -(self.L**2) / (2 * self.E * tempI),
                 ],
-                [-(self.L ** 2) / (2 * self.E * tempI), self.L / (self.E * tempI)],
+                [-(self.L**2) / (2 * self.E * tempI), self.L / (self.E * tempI)],
             ]
         )
 
         Coyz = np.array(
             [
                 [
-                    (self.L ** 3) * (1 + A / 4) / (3 * self.E * tempI),
-                    (self.L ** 2) / (2 * self.E * tempI),
+                    (self.L**3) * (1 + A / 4) / (3 * self.E * tempI),
+                    (self.L**2) / (2 * self.E * tempI),
                 ],
-                [(self.L ** 2) / (2 * self.E * tempI), self.L / (self.E * tempI)],
+                [(self.L**2) / (2 * self.E * tempI), self.L / (self.E * tempI)],
             ]
         )
 
@@ -292,13 +290,13 @@ class Crack(Defect):
 
             unbx = self.unbalance_magnitude[ii] * (self.AccelV) * (
                 np.cos(self.tetaUNB[ii, :])
-            ) - self.unbalance_magnitude[ii] * ((self.Omega ** 2)) * (
+            ) - self.unbalance_magnitude[ii] * ((self.Omega**2)) * (
                 np.sin(self.tetaUNB[ii, :])
             )
 
             unby = -self.unbalance_magnitude[ii] * (self.AccelV) * (
                 np.sin(self.tetaUNB[ii, :])
-            ) - self.unbalance_magnitude[ii] * (self.Omega ** 2) * (
+            ) - self.unbalance_magnitude[ii] * (self.Omega**2) * (
                 np.cos(self.tetaUNB[ii, :])
             )
 
@@ -513,7 +511,7 @@ class Crack(Defect):
 
         c = np.array(pd.eval(self.data_coefs[coef]))
         aux = np.where(c[:, 1] >= self.depth_ratio * 2)[0]
-        c = c[aux[0], 0] * (1 - self.Poisson ** 2) / (self.E * (self.radius ** 3))
+        c = c[aux[0], 0] * (1 - self.Poisson**2) / (self.E * (self.radius**3))
 
         return c
 

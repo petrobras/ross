@@ -4,10 +4,8 @@
 import io
 import os
 import re
-import sys
-from shutil import rmtree
 
-from setuptools import Command, find_packages, setup
+from setuptools import find_packages, setup
 
 
 def read(path, encoding="utf-8"):
@@ -35,7 +33,7 @@ DESCRIPTION = "ROSS: Rotordynamic Open Source Software"
 URL = "https://github.com/ross-rotordynamics/ross"
 EMAIL = "raphaelts@gmail.com"
 AUTHOR = "ROSS developers"
-REQUIRES_PYTHON = ">=3.6.0"
+REQUIRES_PYTHON = ">=3.7.0, <3.10"
 VERSION = version("ross/__init__.py")
 
 # What packages are required for this module to be executed?
@@ -56,7 +54,7 @@ EXTRAS = {
         "sphinx-copybutton",
         "sphinx-rtd-theme",
         "linkify-it-py",
-        "numpydoc==0.9.2",
+        "numpydoc",
         "sphinxcontrib-bibtex>=2.2",
         "black",
         "isort",
@@ -77,44 +75,6 @@ try:
         long_description = "\n" + f.read()
 except FileNotFoundError:
     long_description = DESCRIPTION
-
-
-class UploadCommand(Command):
-    """Support setup.py upload."""
-
-    description = "Build and publish the package."
-    user_options = []
-
-    @staticmethod
-    def status(s):
-        """Prints things in bold."""
-        print("\033[1m{0}\033[0m".format(s))
-
-    def initialize_options(self):
-        pass
-
-    def finalize_options(self):
-        pass
-
-    def run(self):
-        try:
-            self.status("Removing previous builds…")
-            rmtree(os.path.join(here, "dist"))
-        except OSError:
-            pass
-
-        self.status("Building Source and Wheel (universal) distribution…")
-        os.system("{0} setup.py sdist bdist_wheel --universal".format(sys.executable))
-
-        self.status("Uploading the package to PyPI via Twine…")
-        os.system("twine upload dist/*")
-
-        self.status("Pushing git tags…")
-        os.system("git tag v{0}".format(about["__version__"]))
-        os.system("git push --tags")
-
-        sys.exit()
-
 
 # Where the magic happens:
 setup(
@@ -147,6 +107,4 @@ setup(
         "Programming Language :: Python :: 3.6",
         "Programming Language :: Python :: Implementation :: CPython",
     ],
-    # $ setup.py publish support.
-    cmdclass={"upload": UploadCommand},
 )

@@ -1,10 +1,12 @@
 import os
+import pickle
 from pathlib import Path
 from tempfile import tempdir
 
 import numpy as np
 import pytest
 from numpy.testing import assert_allclose
+from ross.units import Q_
 
 from ross.bearing_seal_element import (
     BallBearingElement,
@@ -13,6 +15,7 @@ from ross.bearing_seal_element import (
     BearingFluidFlow,
     MagneticBearingElement,
     RollerBearingElement,
+    CylindricalBearing,
 )
 
 
@@ -380,6 +383,12 @@ def test_bearing_6dof_equality():
     assert bearing_6dof_0 != bearing_6dof_2
 
 
+def test_pickle(bearing0, bearing_constant, bearing_6dof, magnetic_bearing):
+    for bearing in [bearing0, bearing_constant, bearing_6dof, magnetic_bearing]:
+        bearing_pickled = pickle.loads(pickle.dumps(bearing))
+        assert bearing == bearing_pickled
+
+
 def test_save_load(bearing0, bearing_constant, bearing_6dof, magnetic_bearing):
     file = Path(tempdir) / "bearing0.toml"
     bearing0.save(file)
@@ -479,3 +488,29 @@ def test_plot(bearing0):
     )
     assert_allclose(fig.data[0]["x"][:5], expected_x)
     assert_allclose(fig.data[0]["y"][:5], expected_y)
+
+
+def test_cylindrical_hydrodynamic():
+    cylindrical = CylindricalBearing(
+        n=0,
+        speed=Q_([1500, 2000], "RPM"),
+        weight=525,
+        bearing_length=Q_(30, "mm"),
+        journal_diameter=Q_(100, "mm"),
+        radial_clearance=Q_(0.1, "mm"),
+        oil_viscosity=0.1,
+    )
+    expected_modified_sommerfeld = np.array([1.009798, 1.346397])
+    expected_sommerfeld = np.array([3.571429, 4.761905])
+    expected_eccentricity = np.array([0.266298, 0.212571])
+    expected_attitude_angle = np.array([0.198931, 0.161713])
+    expected_k = np.array([[12.80796, 16.393593], [-25.060393, 8.815303]])
+    expected_c = np.array([[232.89693, -81.924371], [-81.924371, 294.911619]])
+    assert_allclose(
+        cylindrical.modified_sommerfeld, expected_modified_sommerfeld, rtol=1e-6
+    )
+    assert_allclose(cylindrical.sommerfeld, expected_sommerfeld, rtol=1e-6)
+    assert_allclose(cylindrical.eccentricity, expected_eccentricity, rtol=1e-5)
+    assert_allclose(cylindrical.attitude_angle, expected_attitude_angle, rtol=1e-5)
+    assert_allclose(cylindrical.K(Q_(1500, "RPM")) / 1e6, expected_k, rtol=1e-6)
+    assert_allclose(cylindrical.C(Q_(1500, "RPM")) / 1e3, expected_c, rtol=1e-6)

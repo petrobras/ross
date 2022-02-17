@@ -436,7 +436,7 @@ class FluidFlow:
                             * np.sin(self.dtheta * j)
                             * (2 + self.eccentricity_ratio * np.cos(self.dtheta * j))
                         ) / (
-                            (2 + self.eccentricity_ratio ** 2)
+                            (2 + self.eccentricity_ratio**2)
                             * (1 + self.eccentricity_ratio * np.cos(self.dtheta * j))
                             ** 2
                         ) + self.p_in

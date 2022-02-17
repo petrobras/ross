@@ -356,7 +356,7 @@ def visualize_matrix(rotor, matrix, frequency=None, **kwargs):
             E[i, j] = []
 
     for elm in rotor.elements:
-        g_dofs = elm.dof_global_index
+        g_dofs = list(elm.dof_global_index.values())
         l_dofs = elm.dof_local_index()
         try:
             elm_matrix = getattr(elm, matrix)(frequency)
@@ -379,7 +379,7 @@ def visualize_matrix(rotor, matrix, frequency=None, **kwargs):
     dof_list = [0 for i in range(rotor.ndof)]
 
     for elm in rotor.elements:
-        for k, v in elm.dof_global_index._asdict().items():
+        for k, v in elm.dof_global_index.items():
             dof_list[v] = k
 
     data = {"row": [], "col": [], "value": [], "pos_value": [], "elements": []}

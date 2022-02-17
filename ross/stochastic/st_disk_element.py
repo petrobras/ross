@@ -331,14 +331,14 @@ class ST_DiskElement:
             else:
                 v = np.array(v)
 
-        m = 0.25 * rho * np.pi * width * (o_d ** 2 - i_d ** 2)
+        m = 0.25 * rho * np.pi * width * (o_d**2 - i_d**2)
         # fmt: off
         Id = (
             0.015625 * rho * np.pi * width * (o_d ** 4 - i_d ** 4)
             + m * (width ** 2) / 12
         )
         # fmt: on
-        Ip = 0.03125 * rho * np.pi * width * (o_d ** 4 - i_d ** 4)
+        Ip = 0.03125 * rho * np.pi * width * (o_d**4 - i_d**4)
 
         is_random = ["m", "Id", "Ip"]
 

@@ -206,13 +206,13 @@ class Rubbing(Defect):
 
             unbx = self.unbalance_magnitude[ii] * (self.AccelV) * (
                 np.cos(self.tetaUNB[ii, :])
-            ) - self.unbalance_magnitude[ii] * ((self.Omega ** 2)) * (
+            ) - self.unbalance_magnitude[ii] * ((self.Omega**2)) * (
                 np.sin(self.tetaUNB[ii, :])
             )
 
             unby = -self.unbalance_magnitude[ii] * (self.AccelV) * (
                 np.sin(self.tetaUNB[ii, :])
-            ) - self.unbalance_magnitude[ii] * (self.Omega ** 2) * (
+            ) - self.unbalance_magnitude[ii] * (self.Omega**2) * (
                 np.cos(self.tetaUNB[ii, :])
             )
 
@@ -408,7 +408,7 @@ class Rubbing(Defect):
             Force magnitude.
         """
         force = self.radius * (
-            np.sqrt(F_f ** 2 + F_fp ** 2) * y / abs(self.radial_displ_node)
+            np.sqrt(F_f**2 + F_fp**2) * y / abs(self.radial_displ_node)
         )
         return force
 

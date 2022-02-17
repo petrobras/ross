@@ -308,7 +308,7 @@ pio.templates["ross"] = go.layout.Template(
         "scatter3d": [
             {
                 "line": {"colorbar": {"outlinewidth": 0, "ticks": ""}},
-                "marker": {"colorbar": {"outlinewidth": 0, "ticks": ""}},
+                "marker": {"colorbar": {"outlinewidth": 0, "ticks": ""}, "size": 4},
                 "type": "scatter3d",
             }
         ],

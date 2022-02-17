@@ -634,10 +634,10 @@ class ModalResults(Results):
         yn = np.zeros(nn * (len(nodes) - 1))
         zn = np.zeros(nn * (len(nodes) - 1))
 
-        N1 = onn - 3 * zeta ** 2 + 2 * zeta ** 3
-        N2 = zeta - 2 * zeta ** 2 + zeta ** 3
-        N3 = 3 * zeta ** 2 - 2 * zeta ** 3
-        N4 = -(zeta ** 2) + zeta ** 3
+        N1 = onn - 3 * zeta**2 + 2 * zeta**3
+        N2 = zeta - 2 * zeta**2 + zeta**3
+        N3 = 3 * zeta**2 - 2 * zeta**3
+        N4 = -(zeta**2) + zeta**3
 
         for Le, n in zip(shaft_elements_length, nodes):
             node_pos = nodes_pos[n]
@@ -665,6 +665,7 @@ class ModalResults(Results):
         title=None,
         length_units="m",
         frequency_units="rad/s",
+        damping_parameter="log_dec",
         **kwargs,
     ):
         """Plot (3D view) the mode shapes.
@@ -692,6 +693,9 @@ class ModalResults(Results):
         frequency_units : str, optional
             Frequency units that will be used in the plot title.
             Default is rad/s.
+        damping_parameter : str, optional
+            Define which value to show for damping. We can use "log_dec" or "damping_ratio".
+            Default is "log_dec".
         kwargs : optional
             Additional key word arguments can be passed to change the plot layout only
             (e.g. width=1000, height=800, ...).
@@ -704,6 +708,12 @@ class ModalResults(Results):
         """
         if fig is None:
             fig = go.Figure()
+
+        damping_name = "Log. Dec."
+        damping_value = self.log_dec[mode]
+        if damping_parameter == "damping_ratio":
+            damping_name = "Damping ratio"
+            damping_value = self.damping_ratio[mode]
 
         nodes = self.nodes
         kappa_mode = self.kappa_modes[mode]
@@ -790,17 +800,20 @@ class ModalResults(Results):
                 zaxis=dict(
                     title=dict(text="Relative Displacement"), range=[-2, 2], nticks=5
                 ),
+                aspectmode="manual",
+                aspectratio=dict(x=2.5, y=1, z=1),
             ),
             title=dict(
                 text=(
                     f"{title}<br>"
-                    f"Mode {mode + 1} | "
+                    f"Mode {mode} | "
                     f"{frequency['speed']} {frequency_units} | "
                     f"whirl: {self.whirl_direction()[mode]} | "
                     f"{frequency[frequency_type]} {frequency_units} | "
-                    f"Log. Dec. = {self.log_dec[mode]:.1f} | "
-                    f"Damping ratio = {self.damping_ratio[mode]:.2f}"
-                )
+                    f"{damping_name} = {damping_value:.1f}"
+                ),
+                x=0.5,
+                xanchor="center",
             ),
             **kwargs,
         )
@@ -816,6 +829,7 @@ class ModalResults(Results):
         title=None,
         length_units="m",
         frequency_units="rad/s",
+        damping_parameter="log_dec",
         **kwargs,
     ):
         """Plot (2D view) the mode shapes.
@@ -843,6 +857,9 @@ class ModalResults(Results):
         frequency_units : str, optional
             Frequency units that will be used in the plot title.
             Default is rad/s.
+        damping_parameter : str, optional
+            Define which value to show for damping. We can use "log_dec" or "damping_ratio".
+            Default is "log_dec".
         kwargs : optional
             Additional key word arguments can be passed to change the plot layout only
             (e.g. width=1000, height=800, ...).
@@ -853,6 +870,12 @@ class ModalResults(Results):
         fig : Plotly graph_objects.Figure()
             The figure object with the plot.
         """
+        damping_name = "Log. Dec."
+        damping_value = self.log_dec[mode]
+        if damping_parameter == "damping_ratio":
+            damping_name = "Damping ratio"
+            damping_value = self.damping_ratio[mode]
+
         xn, yn, zn, xc, yc, zc_pos, nn = self.calc_mode_shape(mode=mode, evec=evec)
         nodes_pos = Q_(self.nodes_pos, "m").to(length_units).m
 
@@ -913,15 +936,110 @@ class ModalResults(Results):
             title=dict(
                 text=(
                     f"{title}<br>"
-                    f"Mode {mode + 1} | "
+                    f"Mode {mode} | "
                     f"{frequency['speed']} {frequency_units} | "
                     f"whirl: {self.whirl_direction()[mode]} | "
                     f"{frequency[frequency_type]} {frequency_units} | "
-                    f"Log. Dec. = {self.log_dec[mode]:.1f} | "
-                    f"Damping ratio = {self.damping_ratio[mode]:.2f}"
-                )
+                    f"{damping_name} = {damping_value:.1f}"
+                ),
+                x=0.5,
+                xanchor="center",
             ),
             **kwargs,
+        )
+
+        return fig
+
+    def plot_orbit(
+        self,
+        mode=None,
+        nodes=None,
+        fig=None,
+        frequency_type="wd",
+        title=None,
+        frequency_units="rad/s",
+        **kwargs,
+    ):
+        """Plot (2D view) the mode shapes.
+
+        Parameters
+        ----------
+        mode : int
+            The n'th vibration mode
+            Default is None
+        nodes : int, list(ints)
+            Int or list of ints with the nodes selected to be plotted.
+        fig : Plotly graph_objects.Figure()
+            The figure object with the plot.
+        frequency_type : str, optional
+            "wd" calculates de map for the damped natural frequencies.
+            "wn" calculates de map for the undamped natural frequencies.
+            Defaults is "wd".
+        title : str, optional
+            A brief title to the mode shape plot, it will be displayed above other
+            relevant data in the plot area. It does not modify the figure layout from
+            Plotly.
+        frequency_units : str, optional
+            Frequency units that will be used in the plot title.
+            Default is rad/s.
+        kwargs : optional
+            Additional key word arguments can be passed to change the plot layout only
+            (e.g. width=1000, height=800, ...).
+            *See Plotly Python Figure Reference for more information.
+
+        Returns
+        -------
+        fig : Plotly graph_objects.Figure()
+            The figure object with the plot.
+        """
+        if fig is None:
+            fig = go.Figure()
+
+        # case where an int is given
+        if not isinstance(nodes, Iterable):
+            nodes = [nodes]
+
+        kappa_mode = self.kappa_modes[mode]
+        xn, yn, zn, xc, yc, zc_pos, nn = self.calc_mode_shape(mode=mode, evec=None)
+
+        for node in nodes:
+            fig.add_trace(
+                go.Scatter(
+                    x=xc[10:, node],
+                    y=yc[10:, node],
+                    mode="lines",
+                    line=dict(color=kappa_mode[node]),
+                    name=f"node {node}<br>{self.whirl_direction()[mode]}",
+                    showlegend=False,
+                    hovertemplate=(
+                        "X - Relative Displacement: %{x:.2f}<br>"
+                        + "Y - Relative Displacement: %{y:.2f}"
+                    ),
+                )
+            )
+
+            fig.add_trace(
+                go.Scatter(
+                    x=[xc[10, node]],
+                    y=[yc[10, node]],
+                    mode="markers",
+                    marker=dict(color=kappa_mode[node]),
+                    name="node {}".format(node),
+                    showlegend=False,
+                )
+            )
+
+        fig.update_layout(
+            autosize=False,
+            width=500,
+            height=500,
+            xaxis_range=[-1, 1],
+            yaxis_range=[-1, 1],
+            title={
+                "text": f"Mode {mode} - Nodes {nodes}",
+                "x": 0.5,
+                "xanchor": "center",
+            },
         )
 
         return fig
@@ -2806,6 +2924,8 @@ class ForcedResponseResults(Results):
                 xaxis=dict(title=dict(text=f"Rotor Length ({rotor_length_units})")),
                 yaxis=dict(title=dict(text=f"Amplitude - X ({amplitude_units})")),
                 zaxis=dict(title=dict(text=f"Amplitude - Y ({amplitude_units})")),
+                aspectmode="manual",
+                aspectratio=dict(x=2.5, y=1, z=1),
             ),
             title=dict(
                 text=f"Deflected Shape<br>Speed = {speed_str} {frequency_units}"
@@ -2858,7 +2978,7 @@ class ForcedResponseResults(Results):
         Mx, My = self._calculate_bending_moment(speed=speed)
         Mx = Q_(Mx, "N*m").to(moment_units).m
         My = Q_(My, "N*m").to(moment_units).m
-        Mr = np.sqrt(Mx ** 2 + My ** 2)
+        Mr = np.sqrt(Mx**2 + My**2)
 
         nodes_pos = Q_(self.rotor.nodes_pos, "m").to(rotor_length_units).m
 
@@ -3033,6 +3153,8 @@ class ForcedResponseResults(Results):
                 xaxis=fig1.layout.scene.xaxis,
                 yaxis=fig1.layout.scene.yaxis,
                 zaxis=fig1.layout.scene.zaxis,
+                aspectmode="manual",
+                aspectratio=dict(x=2.5, y=1, z=1),
                 domain=dict(x=[0.47, 1]),
             ),
             title=dict(
@@ -3139,7 +3261,7 @@ class StaticResults(Results):
         if fig is None:
             fig = go.Figure()
 
-        shaft_end = max([sublist[-1] for sublist in self.nodes_pos])
+        shaft_end = self.nodes_pos[-1]
         shaft_end = Q_(shaft_end, "m").to(rotor_length_units).m
 
         # fig - plot centerline
@@ -3154,26 +3276,20 @@ class StaticResults(Results):
             )
         )
 
-        count = 0
-        for deformation, Vx, Bm, nodes, nodes_pos, Vx_axis in zip(
-            self.deformation, self.Vx, self.Bm, self.nodes, self.nodes_pos, self.Vx_axis
-        ):
-
-            fig.add_trace(
-                go.Scatter(
-                    x=Q_(nodes_pos, "m").to(rotor_length_units).m,
-                    y=Q_(deformation, "m").to(deformation_units).m,
-                    mode="lines",
-                    line_shape="spline",
-                    line_smoothing=1.0,
-                    name=f"Shaft {count}",
-                    showlegend=True,
-                    hovertemplate=(
-                        f"Rotor Length ({rotor_length_units}): %{{x:.2f}}<br>Displacement ({deformation_units}): %{{y:.2e}}"
-                    ),
-                )
+        fig.add_trace(
+            go.Scatter(
+                x=Q_(self.nodes_pos, "m").to(rotor_length_units).m,
+                y=Q_(self.deformation, "m").to(deformation_units).m,
+                mode="lines",
+                line_shape="spline",
+                line_smoothing=1.0,
+                name=f"Shaft",
+                showlegend=True,
+                hovertemplate=(
+                    f"Rotor Length ({rotor_length_units}): %{{x:.2f}}<br>Displacement ({deformation_units}): %{{y:.2e}}"
+                ),
             )
-            count += 1
+        )
 
         fig.update_xaxes(title_text=f"Rotor Length ({rotor_length_units})")
         fig.update_yaxes(title_text=f"Deformation ({deformation_units})")
@@ -3206,109 +3322,101 @@ class StaticResults(Results):
         subplots : Plotly graph_objects.make_subplots()
             The figure object with the plot.
         """
-        cols = 1 if len(self.nodes_pos) < 2 else 2
-        rows = len(self.nodes_pos) // 2 + len(self.nodes_pos) % 2
+        col = cols = 1
+        row = rows = 1
         if fig is None:
             fig = make_subplots(
                 rows=rows,
                 cols=cols,
-                subplot_titles=[
-                    "Free-Body Diagram - Shaft {}".format(j)
-                    for j in range(len(self.nodes_pos))
-                ],
+                subplot_titles=["Free-Body Diagram"],
             )
-        j = 0
+
         y_start = 5.0
-        for nodes_pos, nodes in zip(self.nodes_pos, self.nodes):
-            col = j % 2 + 1
-            row = j // 2 + 1
+        nodes_pos = self.nodes_pos
+        nodes = self.nodes
 
-            fig.add_trace(
-                go.Scatter(
-                    x=Q_(nodes_pos, "m").to(rotor_length_units).m,
-                    y=np.zeros(len(nodes_pos)),
-                    mode="lines",
-                    line=dict(color="black"),
-                    hoverinfo="none",
-                    showlegend=False,
-                ),
+        fig.add_trace(
+            go.Scatter(
+                x=Q_(nodes_pos, "m").to(rotor_length_units).m,
+                y=np.zeros(len(nodes_pos)),
+                mode="lines",
+                line=dict(color="black"),
+                hoverinfo="none",
+                showlegend=False,
+            ),
+            row=row,
+            col=col,
+        )
+        fig.add_trace(
+            go.Scatter(
+                x=Q_(nodes_pos, "m").to(rotor_length_units).m,
+                y=[y_start] * len(nodes_pos),
+                mode="lines",
+                line=dict(color="black"),
+                hoverinfo="none",
+                showlegend=False,
+            ),
+            row=row,
+            col=col,
+        )
+
+        # fig - plot arrows indicating shaft weight distribution
+        text = "{:.1f}".format(Q_(self.w_shaft, "N").to(force_units).m)
+        ini = nodes_pos[0]
+        fin = nodes_pos[-1]
+        arrows_list = np.arange(ini, 1.01 * fin, (fin - ini) / 5.0)
+        for node in arrows_list:
+            fig.add_annotation(
+                x=Q_(node, "m").to(rotor_length_units).m,
+                y=0,
+                axref="x{}".format(1),
+                ayref="y{}".format(1),
+                showarrow=True,
+                arrowhead=2,
+                arrowsize=1,
+                arrowwidth=5,
+                arrowcolor="DimGray",
+                ax=Q_(node, "m").to(rotor_length_units).m,
+                ay=y_start * 1.08,
                 row=row,
                 col=col,
             )
-            fig.add_trace(
-                go.Scatter(
-                    x=Q_(nodes_pos, "m").to(rotor_length_units).m,
-                    y=[y_start] * len(nodes_pos),
-                    mode="lines",
-                    line=dict(color="black"),
-                    hoverinfo="none",
-                    showlegend=False,
-                ),
-                row=row,
-                col=col,
-            )
+        fig.add_annotation(
+            x=Q_(nodes_pos[0], "m").to(rotor_length_units).m,
+            y=y_start,
+            xref="x{}".format(1),
+            yref="y{}".format(1),
+            xshift=125,
+            yshift=20,
+            text=f"Shaft weight = {text}{force_units}",
+            align="right",
+            showarrow=False,
+        )
 
-            # fig - plot arrows indicating shaft weight distribution
-            text = "{:.1f}".format(Q_(self.w_shaft[j], "N").to(force_units).m)
-            ini = nodes_pos[0]
-            fin = nodes_pos[-1]
-            arrows_list = np.arange(ini, 1.01 * fin, (fin - ini) / 5.0)
-            for node in arrows_list:
+        # plot bearing reaction forces
+        for k, v in self.bearing_forces.items():
+            _, node = k.split("_")
+            node = int(node)
+            if node in nodes:
+                text = f"{Q_(v, 'N').to(force_units).m:.2f}"
+                var = 1 if v < 0 else -1
                 fig.add_annotation(
-                    x=Q_(node, "m").to(rotor_length_units).m,
+                    x=Q_(nodes_pos[nodes.index(node)], "m").to(rotor_length_units).m,
                     y=0,
-                    axref="x{}".format(j + 1),
-                    ayref="y{}".format(j + 1),
+                    axref="x{}".format(1),
+                    ayref="y{}".format(1),
+                    text=f"Fb = {text}{force_units}",
+                    textangle=90,
                     showarrow=True,
                     arrowhead=2,
                     arrowsize=1,
                     arrowwidth=5,
-                    arrowcolor="DimGray",
-                    ax=Q_(node, "m").to(rotor_length_units).m,
-                    ay=y_start * 1.08,
+                    arrowcolor="DarkSalmon",
+                    ax=Q_(nodes_pos[nodes.index(node)], "m").to(rotor_length_units).m,
+                    ay=var * 2.5 * y_start,
                     row=row,
                     col=col,
                 )
-            fig.add_annotation(
-                x=Q_(nodes_pos[0], "m").to(rotor_length_units).m,
-                y=y_start,
-                xref="x{}".format(j + 1),
-                yref="y{}".format(j + 1),
-                xshift=125,
-                yshift=20,
-                text=f"Shaft weight = {text}{force_units}",
-                align="right",
-                showarrow=False,
-            )
-
-            # plot bearing reaction forces
-            for k, v in self.bearing_forces.items():
-                _, node = k.split("_")
-                node = int(node)
-                if node in nodes:
-                    text = f"{Q_(v, 'N').to(force_units).m:.2f}"
-                    var = 1 if v < 0 else -1
-                    fig.add_annotation(
-                        x=Q_(nodes_pos[nodes.index(node)], "m")
-                        .to(rotor_length_units)
-                        .m,
-                        y=0,
-                        axref="x{}".format(j + 1),
-                        ayref="y{}".format(j + 1),
-                        text=f"Fb = {text}{force_units}",
-                        textangle=90,
-                        showarrow=True,
-                        arrowhead=2,
-                        arrowsize=1,
-                        arrowwidth=5,
-                        arrowcolor="DarkSalmon",
-                        ax=Q_(nodes_pos[nodes.index(node)], "m")
-                        .to(rotor_length_units)
-                        .m,
-                        ay=var * 2.5 * y_start,
-                        row=row,
-                        col=col,
-                    )
 
             # plot disk forces
             for k, v in self.disk_forces.items():
@@ -3321,8 +3429,8 @@ class StaticResults(Results):
                         .to(rotor_length_units)
                         .m,
                         y=0,
-                        axref="x{}".format(j + 1),
-                        ayref="y{}".format(j + 1),
+                        axref="x{}".format(1),
+                        ayref="y{}".format(1),
                         text=f"Fd = {text}{force_units}",
                         textangle=270,
                         showarrow=True,
@@ -3344,7 +3452,7 @@ class StaticResults(Results):
             fig.update_yaxes(
                 visible=False, gridcolor="lightgray", showline=False, row=row, col=col
             )
-            j += 1
+            # j += 1
 
         fig.update_layout(**kwargs)
 
@@ -3381,11 +3489,7 @@ class StaticResults(Results):
         if fig is None:
             fig = go.Figure()
 
-        shaft_end = (
-            Q_(max([sublist[-1] for sublist in self.nodes_pos]), "m")
-            .to(rotor_length_units)
-            .m
-        )
+        shaft_end = Q_(self.nodes_pos[-1], "m").to(rotor_length_units).m
 
         # fig - plot centerline
         fig.add_trace(
@@ -3399,22 +3503,20 @@ class StaticResults(Results):
             )
         )
 
-        j = 0
-        for Vx, Vx_axis in zip(self.Vx, self.Vx_axis):
-            fig.add_trace(
-                go.Scatter(
-                    x=Q_(Vx_axis, "m").to(rotor_length_units).m,
-                    y=Q_(Vx, "N").to(force_units).m,
-                    mode="lines",
-                    name=f"Shaft {j}",
-                    legendgroup=f"Shaft {j}",
-                    showlegend=True,
-                    hovertemplate=(
-                        f"Rotor Length ({rotor_length_units}): %{{x:.2f}}<br>Shearing Force ({force_units}): %{{y:.2f}}"
-                    ),
-                )
+        Vx, Vx_axis = self.Vx, self.Vx_axis
+        fig.add_trace(
+            go.Scatter(
+                x=Q_(Vx_axis, "m").to(rotor_length_units).m,
+                y=Q_(Vx, "N").to(force_units).m,
+                mode="lines",
+                name=f"Shaft",
+                legendgroup=f"Shaft",
+                showlegend=True,
+                hovertemplate=(
+                    f"Rotor Length ({rotor_length_units}): %{{x:.2f}}<br>Shearing Force ({force_units}): %{{y:.2f}}"
+                ),
             )
-            j += 1
+        )
 
         fig.update_xaxes(
             title_text=f"Rotor Length ({rotor_length_units})",
@@ -3452,11 +3554,7 @@ class StaticResults(Results):
         if fig is None:
             fig = go.Figure()
 
-        shaft_end = (
-            Q_(max([sublist[-1] for sublist in self.nodes_pos]), "m")
-            .to(rotor_length_units)
-            .m
-        )
+        shaft_end = Q_(self.nodes_pos[-1], "m").to(rotor_length_units).m
 
         # fig - plot centerline
         fig.add_trace(
@@ -3470,24 +3568,22 @@ class StaticResults(Results):
             )
         )
 
-        j = 0
-        for Bm, nodes_pos in zip(self.Bm, self.Vx_axis):
-            fig.add_trace(
-                go.Scatter(
-                    x=Q_(nodes_pos, "m").to(rotor_length_units).m,
-                    y=Q_(Bm, "N*m").to(moment_units).m,
-                    mode="lines",
-                    line_shape="spline",
-                    line_smoothing=1.0,
-                    name=f"Shaft {j}",
-                    legendgroup=f"Shaft {j}",
-                    showlegend=True,
-                    hovertemplate=(
-                        f"Rotor Length ({rotor_length_units}): %{{x:.2f}}<br>Bending Moment ({moment_units}): %{{y:.2f}}"
-                    ),
-                )
+        Bm, nodes_pos = self.Bm, self.Vx_axis
+        fig.add_trace(
+            go.Scatter(
+                x=Q_(nodes_pos, "m").to(rotor_length_units).m,
+                y=Q_(Bm, "N*m").to(moment_units).m,
+                mode="lines",
+                line_shape="spline",
+                line_smoothing=1.0,
+                name=f"Shaft",
+                legendgroup=f"Shaft",
+                showlegend=True,
+                hovertemplate=(
+                    f"Rotor Length ({rotor_length_units}): %{{x:.2f}}<br>Bending Moment ({moment_units}): %{{y:.2f}}"
+                ),
             )
-            j += 1
+        )
 
         fig.update_xaxes(title_text=f"Rotor Length ({rotor_length_units})")
         fig.update_yaxes(title_text=f"Bending Moment ({moment_units})")
@@ -4068,6 +4164,8 @@ class TimeResponseResults(Results):
                 xaxis=dict(title=dict(text=f"Rotor Length ({rotor_length_units})")),
                 yaxis=dict(title=dict(text=f"Amplitude - X ({displacement_units})")),
                 zaxis=dict(title=dict(text=f"Amplitude - Y ({displacement_units})")),
+                aspectmode="manual",
+                aspectratio=dict(x=2.5, y=1, z=1),
             ),
             **kwargs,
         )
@@ -4085,6 +4183,10 @@ class UCSResults(Results):
     stiffness_log : tuple, optional
         Evenly numbers spaced evenly on a log scale to create a better visualization
         (see np.logspace).
+    bearing_frequency_range : tuple, optional
+        The bearing frequency range used to calculate the intersection points.
+        In some cases bearing coefficients will have to be extrapolated.
+        The default is None. In this case the bearing frequency attribute is used.
     wn : array
         Undamped natural frequencies array.
     bearing : ross.BearingElement
@@ -4092,14 +4194,25 @@ class UCSResults(Results):
     intersection_points : array
         Points where there is a intersection between undamped natural frequency and
         the bearing stiffness.
+    critical_points_modal : list
+        List with modal results for each critical (intersection) point.
     """
 
     def __init__(
-        self, stiffness_range, stiffness_log, wn, bearing, intersection_points
+        self,
+        stiffness_range,
+        stiffness_log,
+        bearing_frequency_range,
+        wn,
+        bearing,
+        intersection_points,
+        critical_points_modal,
     ):
         self.stiffness_range = stiffness_range
         self.stiffness_log = stiffness_log
+        self.bearing_frequency_range = bearing_frequency_range
         self.wn = wn
+        self.critical_points_modal = critical_points_modal
         self.bearing = bearing
         self.intersection_points = intersection_points
 
@@ -4140,7 +4253,8 @@ class UCSResults(Results):
         stiffness_log = self.stiffness_log
         rotor_wn = self.wn
         bearing0 = self.bearing
-        intersection_points = self.intersection_points
+        intersection_points = copy.copy(self.intersection_points)
+        bearing_frequency_range = self.bearing_frequency_range
 
         if fig is None:
             fig = go.Figure()
@@ -4155,16 +4269,16 @@ class UCSResults(Results):
             Q_(intersection_points["y"], "rad/s").to(frequency_units).m
         )
         bearing_kxx_stiffness = (
-            Q_(bearing0.kxx.interpolated(bearing0.frequency), "N/m")
+            Q_(bearing0.kxx_interpolated(bearing_frequency_range), "N/m")
             .to(stiffness_units)
             .m
         )
         bearing_kyy_stiffness = (
-            Q_(bearing0.kyy.interpolated(bearing0.frequency), "N/m")
+            Q_(bearing0.kyy_interpolated(bearing_frequency_range), "N/m")
             .to(stiffness_units)
             .m
         )
-        bearing_frequency = Q_(bearing0.frequency, "rad/s").to(frequency_units).m
+        bearing_frequency = Q_(bearing_frequency_range, "rad/s").to(frequency_units).m
 
         for j in range(rotor_wn.shape[0]):
             fig.add_trace(
@@ -4223,6 +4337,137 @@ class UCSResults(Results):
         fig.update_layout(title=dict(text="Undamped Critical Speed Map"), **kwargs)
 
         return fig
+
+    def plot_mode_2d(
+        self,
+        critical_mode,
+        evec=None,
+        fig=None,
+        frequency_type="wd",
+        title=None,
+        length_units="m",
+        frequency_units="rad/s",
+        **kwargs,
+    ):
+        """Plot (2D view) the mode shape.
+
+        Parameters
+        ----------
+        critical_mode : int
+            The n'th critical mode.
+        evec : array
+            Array containing the system eigenvectors
+        fig : Plotly graph_objects.Figure()
+            The figure object with the plot.
+        frequency_type : str, optional
+            "wd" calculates de map for the damped natural frequencies.
+            "wn" calculates de map for the undamped natural frequencies.
+            Defaults is "wd".
+        title : str, optional
+            A brief title to the mode shape plot, it will be displayed above other
+            relevant data in the plot area. It does not modify the figure layout from
+            Plotly.
+        length_units : str, optional
+            length units.
+            Default is 'm'.
+        frequency_units : str, optional
+            Frequency units that will be used in the plot title.
+            Default is rad/s.
+        kwargs : optional
+            Additional key word arguments can be passed to change the plot layout only
+            (e.g. width=1000, height=800, ...).
+            *See Plotly Python Figure Reference for more information.
+
+        Returns
+        -------
+        fig : Plotly graph_objects.Figure()
+            The figure object with the plot.
+        """
+        modal_critical = self.critical_points_modal[critical_mode]
+        # select nearest forward
+        forward_frequencies = modal_critical.wd[
+            modal_critical.whirl_direction() == "Forward"
+        ]
+        idx_forward = (np.abs(forward_frequencies - modal_critical.speed)).argmin()
+        forward_frequency = forward_frequencies[idx_forward]
+        idx = (np.abs(modal_critical.wd - forward_frequency)).argmin()
+        fig = modal_critical.plot_mode_2d(
+            idx,
+            evec=evec,
+            fig=fig,
+            frequency_type=frequency_type,
+            title=title,
+            length_units=length_units,
+            frequency_units=frequency_units,
+            **kwargs,
+        )
+
+        return fig
+
+    def plot_mode_3d(
+        self,
+        critical_mode,
+        evec=None,
+        fig=None,
+        frequency_type="wd",
+        title=None,
+        length_units="m",
+        frequency_units="rad/s",
+        **kwargs,
+    ):
+        """Plot (3D view) the mode shapes.
+
+        Parameters
+        ----------
+        critical_mode : int
+            The n'th critical mode.
+            Default is None
+        evec : array
+            Array containing the system eigenvectors
+        fig : Plotly graph_objects.Figure()
+            The figure object with the plot.
+        frequency_type : str, optional
+            "wd" calculates de map for the damped natural frequencies.
+            "wn" calculates de map for the undamped natural frequencies.
+            Defaults is "wd".
+        title : str, optional
+            A brief title to the mode shape plot, it will be displayed above other
+            relevant data in the plot area. It does not modify the figure layout from
+            Plotly.
+        length_units : str, optional
+            length units.
+            Default is 'm'.
+        frequency_units : str, optional
+            Frequency units that will be used in the plot title.
+            Default is rad/s.
+        kwargs : optional
+            Additional key word arguments can be passed to change the plot layout only
+            (e.g. width=1000, height=800, ...).
+            *See Plotly Python Figure Reference for more information.
+
+        Returns
+        -------
+        fig : Plotly graph_objects.Figure()
+            The figure object with the plot.
+        """
+        modal_critical = self.critical_points_modal[critical_mode]
+        # select nearest forward
+        forward_frequencies = modal_critical.wd[
+            modal_critical.whirl_direction() == "Forward"
+        ]
+        idx_forward = (np.abs(forward_frequencies - modal_critical.speed)).argmin()
+        forward_frequency = forward_frequencies[idx_forward]
+        idx = (np.abs(modal_critical.wd - forward_frequency)).argmin()
+        fig = modal_critical.plot_mode_3d(
+            idx,
+            evec=evec,
+            fig=fig,
+            frequency_type=frequency_type,
+            title=title,
+            length_units=length_units,
+            frequency_units=frequency_units,
+            **kwargs,
+        )
 
 
 class Level1Results(Results):
@@ -4283,3 +4528,5 @@ class Level1Results(Results):
         )
         fig.update_yaxes(title_text="Log Dec", exponentformat="power")
         fig.update_layout(title=dict(text="Level 1 stability analysis"), **kwargs)
+
+        return fig

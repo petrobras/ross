@@ -18,6 +18,12 @@ example_12
 example_13
 example_14
 example_15
+example_16
+example_17
+example_18
+example_19
+example_20
+example_21
 fluid_flow_elliptical_bearing
 fluid_flow_short_bearing
 fluid_flow_theory

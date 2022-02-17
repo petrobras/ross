@@ -1,5 +1,5 @@
 # Rotordynamic Open Source Software (ROSS)
-[![Binder](https://mybinder.org/badge_logo.svg)](https://mybinder.org/v2/gh/ross-rotordynamics/ross/0.3?filepath=%2Fdocs%2Fexamples)
+[![Binder](https://mybinder.org/badge_logo.svg)](https://mybinder.org/v2/gh/ross-rotordynamics/ross/1.1.0?filepath=%2Fdocs%2Ftutorials)
 ![github actions](https://github.com/ross-rotordynamics/ross/workflows/Tests/badge.svg)
 [![Documentation Status](https://readthedocs.org/projects/ross/badge/?version=latest)](https://ross.readthedocs.io/en/latest/?badge=latest)
 <a href="https://codecov.io/gh/ross-rotordynamics/ross">
@@ -16,7 +16,7 @@ thus their strain energy is not taken into account. And bearings/seals are inclu
 After defining the elements for the model, you can plot the rotor geometry and runs simulations such as static analysis, 
 Campbell Diagram, mode shapes, frequency response, and time response.
 
-You can try it out now by running the tutorial on [binder](https://mybinder.org/v2/gh/ross-rotordynamics/ross/0.3?filepath=%2Fdocs%2Fexamples).
+You can try it out now by running the tutorial on [binder](https://mybinder.org/v2/gh/ross-rotordynamics/ross/1.1.0?filepath=%2Fdocs%2Ftutorials)
 
 # Documentation 
 Access the documentation [here](https://ross.readthedocs.io/en/latest/index.html).
@@ -26,7 +26,7 @@ There you can find the [installation procedure](https://ross.readthedocs.io/en/l
 [API reference](https://ross.readthedocs.io/en/latest/references/api.html).
 
 # Questions
-If you have any questions you can open a new issue with the tag <question>.
+If you have any questions you can use the [Discussions](https://github.com/ross-rotordynamics/ross/discussions) area in the repository.
 
 # Contributing to ROSS
 Check [CONTRIBUTING.rst](https://github.com/ross-rotordynamics/ross/blob/master/CONTRIBUTING.rst).

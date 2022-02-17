@@ -304,15 +304,15 @@ class DiskElement(Element):
         fig : plotly.graph_objects.Figure
             The figure object which traces are added on.
         """
-        zpos, ypos, step = position
-        radius = step / 6
+        zpos, ypos, scale_factor = position
+        radius = scale_factor / 8
 
         # coordinates to plot disks elements
-        z_upper = [zpos, zpos + step / 6, zpos - step / 6, zpos]
-        y_upper = [ypos, ypos + 2 * step, ypos + 2 * step, ypos]
+        z_upper = [zpos, zpos + scale_factor / 25, zpos - scale_factor / 25, zpos]
+        y_upper = [ypos, ypos + 2 * scale_factor, ypos + 2 * scale_factor, ypos]
 
-        z_lower = [zpos, zpos + step / 6, zpos - step / 6, zpos]
-        y_lower = [-ypos, -ypos - 2 * step, -ypos - 2 * step, -ypos]
+        z_lower = [zpos, zpos + scale_factor / 25, zpos - scale_factor / 25, zpos]
+        y_lower = [-ypos, -ypos - 2 * scale_factor, -ypos - 2 * scale_factor, -ypos]
 
         z_pos = z_upper
         z_pos.append(None)
@@ -339,6 +339,7 @@ class DiskElement(Element):
                 mode="lines",
                 fill="toself",
                 fillcolor=self.color,
+                opacity=0.8,
                 line=dict(width=2.0, color=self.color),
                 showlegend=False,
                 name=self.tag,
@@ -355,9 +356,9 @@ class DiskElement(Element):
                 type="circle",
                 xref="x",
                 yref="y",
-                x0=z_upper[1],
+                x0=zpos - radius,
                 y0=y_upper[1] - radius,
-                x1=z_upper[2],
+                x1=zpos + radius,
                 y1=y_upper[1] + radius,
                 fillcolor=self.color,
                 line_color=self.color,
@@ -368,10 +369,10 @@ class DiskElement(Element):
                 type="circle",
                 xref="x",
                 yref="y",
-                x0=z_lower[1],
-                y0=y_lower[1] + radius,
-                x1=z_lower[2],
-                y1=y_lower[1] - radius,
+                x0=zpos - radius,
+                y0=y_lower[1] - radius,
+                x1=zpos + radius,
+                y1=y_lower[1] + radius,
                 fillcolor=self.color,
                 line_color=self.color,
             )
@@ -426,14 +427,14 @@ class DiskElement(Element):
         >>> disk.Ip
         0.32956362089137037
         """
-        m = 0.25 * material.rho * np.pi * width * (o_d ** 2 - i_d ** 2)
+        m = 0.25 * material.rho * np.pi * width * (o_d**2 - i_d**2)
         # fmt: off
         Id = (
             0.015625 * material.rho * np.pi * width * (o_d ** 4 - i_d ** 4)
             + m * (width ** 2) / 12
         )
         # fmt: on
-        Ip = 0.03125 * material.rho * np.pi * width * (o_d ** 4 - i_d ** 4)
+        Ip = 0.03125 * material.rho * np.pi * width * (o_d**4 - i_d**4)
 
         tag = tag
 

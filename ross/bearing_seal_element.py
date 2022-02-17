@@ -10,6 +10,7 @@ from inspect import signature
 
 import numpy as np
 import toml
+from numpy.polynomial import Polynomial
 from plotly import graph_objects as go
 from scipy import interpolate as interpolate
 
@@ -29,6 +30,7 @@ __all__ = [
     "BearingFluidFlow",
     "BearingElement6DoF",
     "MagneticBearingElement",
+    "CylindricalBearing",
 ]
 
 
@@ -470,6 +472,7 @@ class BearingElement(Element):
 
         return M
 
+    @check_units
     def K(self, frequency):
         """Stiffness matrix for an instance of a bearing element.
 
@@ -508,6 +511,7 @@ class BearingElement(Element):
 
         return K
 
+    @check_units
     def C(self, frequency):
         """Damping matrix for an instance of a bearing element.
 
@@ -587,7 +591,7 @@ class BearingElement(Element):
         """
         default_values = dict(
             mode="lines",
-            line=dict(width=3.5, color=self.color),
+            line=dict(width=1, color=self.color),
             name=self.tag,
             legendgroup="bearings",
             showlegend=False,
@@ -603,8 +607,8 @@ class BearingElement(Element):
         n = 5  # number of ground lines
         step = icon_w / (coils + 1)  # spring step
 
-        zs0 = zpos - (icon_w / 2.0)
-        zs1 = zpos + (icon_w / 2.0)
+        zs0 = zpos - (icon_w / 3.5)
+        zs1 = zpos + (icon_w / 3.5)
         ys0 = ypos + 0.25 * icon_h
 
         # plot bottom base
@@ -1054,6 +1058,8 @@ class SealElement(BearingElement):
         color="#77ACA2",
         **kwargs,
     ):
+        # make seals with half the bearing size as a default
+        seal_scale_factor = scale_factor / 2
         super().__init__(
             n=n,
             frequency=frequency,
@@ -1067,7 +1073,7 @@ class SealElement(BearingElement):
             cyy=cyy,
             tag=tag,
             n_link=n_link,
-            scale_factor=scale_factor,
+            scale_factor=seal_scale_factor,
             color=color,
         )
 
@@ -1270,9 +1276,9 @@ class RollerBearingElement(BearingElement):
         Kb = 1.0e9
         kyy = (
             Kb
-            * n_rollers ** 0.9
-            * l_rollers ** 0.8
-            * fs ** 0.1
+            * n_rollers**0.9
+            * l_rollers**0.8
+            * fs**0.1
             * (np.cos(alpha)) ** 1.9
         )
 
@@ -1483,6 +1489,169 @@ class MagneticBearingElement(BearingElement):
             n_link=n_link,
             scale_factor=scale_factor,
         )
+
+
+class CylindricalBearing(BearingElement):
+    """Cylindrical hydrodynamic bearing.
+
+    A cylindrical hydrodynamic bearing modeled as per
+    :cite:`friswell2010dynamics` (page 177) assuming the following:
+
+    - the flow is laminar and Reynolds’s equation applies
+    - the bearing is very short, so that L /D << 1, where L is the bearing length and
+    D is the bearing diameter, which means that the pressure gradients are much
+    larger in the axial than in the circumferential direction
+    - the lubricant pressure is zero at the edges of the bearing
+    - the bearing is operating under steady running conditions
+    - the lubricant properties do not vary substantially throughout the oil film
+    - the shaft does not tilt in the bearing
+
+    Parameters
+    ----------
+    n : int
+        Node which the bearing will be located in.
+    speed : list, pint.Quantity
+        List with shaft speeds frequency (rad/s).
+    weight : float, pint.Quantity
+        Gravity load (N).
+        It is a positive value in the -Y direction. For a symmetric rotor that is
+        supported by two journal bearings, it is half of the total rotor weight.
+    bearing_length : float, pint.Quantity
+        Bearing axial length (m).
+    journal_diameter : float, pint.Quantity
+        Journal diameter (m).
+    radial_clearance : float, pint.Quantity
+        Bore assembly radial clearance (m).
+    oil_viscosity : float, pint.Quantity
+        Oil viscosity (Pa.s).
+
+    Returns
+    -------
+        CylindricalBearing element.
+
+    References
+    ----------
+    .. bibliography::
+        :filter: docname in docnames
+
+    Examples
+    --------
+    >>> import ross as rs
+    >>> Q_ = rs.Q_
+    >>> cylindrical = CylindricalBearing(
+    ...     n=0,
+    ...     speed=Q_([1500, 2000], "RPM"),
+    ...     weight=525,
+    ...     bearing_length=Q_(30, "mm"),
+    ...     journal_diameter=Q_(100, "mm"),
+    ...     radial_clearance=Q_(0.1, "mm"),
+    ...     oil_viscosity=0.1,
+    ... )
+    >>> cylindrical.K(Q_(1500, "RPM")) # doctest: +ELLIPSIS
+    array([[ 12807959...,  16393593...],
+           [-25060393...,   8815302...]])
+    """
+
+    @check_units
+    def __init__(
+        self,
+        n,
+        speed=None,
+        weight=None,
+        bearing_length=None,
+        journal_diameter=None,
+        radial_clearance=None,
+        oil_viscosity=None,
+        **kwargs,
+    ):
+        self.n = n
+
+        self.speed = []
+        for spd in speed:
+            if spd == 0:
+                # replace 0 speed with small value to avoid errors
+                self.speed.append(0.1)
+            else:
+                self.speed.append(spd)
+        self.weight = weight
+        self.bearing_length = bearing_length
+        self.journal_diameter = journal_diameter
+        self.radial_clearance = radial_clearance
+        self.oil_viscosity = oil_viscosity
+
+        # modified Sommerfeld number or the Ocvirk number
+        Ss = (
+            journal_diameter
+            * speed
+            * oil_viscosity
+            * bearing_length**3
+            / (8 * radial_clearance**2 * weight)
+        )
+
+        self.modified_sommerfeld = Ss
+        self.sommerfeld = (Ss / np.pi) * (journal_diameter / bearing_length) ** 2
+
+        # find roots
+        self.roots = []
+        for s in Ss:
+            poly = Polynomial(
+                [
+                    1,
+                    -(4 + np.pi**2 * s**2),
+                    (6 - s**2 * (16 - np.pi**2)),
+                    -4,
+                    1,
+                ]
+            )
+            self.roots.append(poly.roots())
+
+        # select real root between 0 and 1
+        self.root = []
+        for roots in self.roots:
+            for root in roots:
+                if (0 < root < 1) and np.isreal(root):
+                    self.root.append(np.real(root))
+
+        self.eccentricity = [np.sqrt(root) for root in self.root]
+        self.attitude_angle = [
+            np.arctan(np.pi * np.sqrt(1 - e**2) / 4 * e) for e in self.eccentricity
+        ]
+
+        coefficients = [
+            "kxx",
+            "kxy",
+            "kyx",
+            "kyy",
+            "cxx",
+            "cxy",
+            "cyx",
+            "cyy",
+        ]
+        coefficients_dict = {coeff: [] for coeff in coefficients}
+
+        for e, spd in zip(self.eccentricity, self.speed):
+            π = np.pi
+            # fmt: off
+            h0 = 1 / (π ** 2 * (1 - e ** 2) + 16 * e ** 2) ** (3 / 2)
+            auu = h0 * 4 * (π ** 2 * (2 - e ** 2) + 16 * e ** 2)
+            auv = h0 * π * (π ** 2 * (1 - e ** 2) ** 2 - 16 * e ** 4) / (e * np.sqrt(1 - e ** 2))
+            avu = - h0 * π * (π ** 2 * (1 - e ** 2) * (1 + 2 * e ** 2) + 32 * e ** 2 * (1 + e ** 2)) / (e * np.sqrt(1 - e ** 2))
+            avv = h0 * 4 * (π ** 2 * (1 + 2 * e ** 2) + 32 * e ** 2 * (1 + e ** 2) / (1 - e ** 2))
+            buu = h0 * 2 * π * np.sqrt(1 - e ** 2) * (π ** 2 * (1 + 2 * e ** 2) - 16 * e ** 2) / e
+            buv = bvu = -h0 * 8 * (π ** 2 * (1 + 2 * e ** 2) - 16 * e ** 2)
+            bvv = h0 * 2 * π * (π ** 2 * (1 - e ** 2) ** 2 + 48 * e ** 2) / (e * np.sqrt(1 - e ** 2))
+            # fmt: on
+            for coeff, term in zip(
+                coefficients, [auu, auv, avu, avv, buu, buv, bvu, bvv]
+            ):
+                if coeff[0] == "k":
+                    coefficients_dict[coeff].append(weight / radial_clearance * term)
+                elif coeff[0] == "c":
+                    coefficients_dict[coeff].append(
+                        weight / (radial_clearance * spd) * term
+                    )
+
+        super().__init__(self.n, frequency=self.speed, **coefficients_dict, **kwargs)
 
 
 class BearingElement6DoF(BearingElement):
