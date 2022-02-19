@@ -267,26 +267,27 @@ class BearingElement(Element):
             default_units = "N*s/m"
             y_units = damping_units
 
-        frequency_range = np.linspace(min(self.frequency), max(self.frequency), 30)
+        _frequency_range = np.linspace(min(self.frequency), max(self.frequency), 30)
 
         for coeff in coefficients:
             y_value = (
                 Q_(
-                    getattr(self, f"{coeff}_interpolated")(frequency_range),
+                    getattr(self, f"{coeff}_interpolated")(_frequency_range),
                     default_units,
                 )
                 .to(y_units)
                 .m
             )
-            frequency_range = Q_(frequency_range, "rad/s").to(frequency_units).m
+            frequency_range = Q_(_frequency_range, "rad/s").to(frequency_units).m
 
             fig.add_trace(
                 go.Scatter(
                     x=frequency_range,
                     y=y_value,
                     mode="lines",
-                    showlegend=False,
+                    showlegend=True,
                     hovertemplate=f"Frequency ({frequency_units}): %{{x:.2f}}<br> Coefficient ({y_units}): %{{y:.3e}}",
+                    name=f"{coeff}",
                 )
             )
 
@@ -1276,9 +1277,9 @@ class RollerBearingElement(BearingElement):
         Kb = 1.0e9
         kyy = (
             Kb
-            * n_rollers ** 0.9
-            * l_rollers ** 0.8
-            * fs ** 0.1
+            * n_rollers**0.9
+            * l_rollers**0.8
+            * fs**0.1
             * (np.cos(alpha)) ** 1.9
         )
 
@@ -1584,8 +1585,8 @@ class CylindricalBearing(BearingElement):
             journal_diameter
             * speed
             * oil_viscosity
-            * bearing_length ** 3
-            / (8 * radial_clearance ** 2 * weight)
+            * bearing_length**3
+            / (8 * radial_clearance**2 * weight)
         )
 
         self.modified_sommerfeld = Ss
@@ -1597,8 +1598,8 @@ class CylindricalBearing(BearingElement):
             poly = Polynomial(
                 [
                     1,
-                    -(4 + np.pi ** 2 * s ** 2),
-                    (6 - s ** 2 * (16 - np.pi ** 2)),
+                    -(4 + np.pi**2 * s**2),
+                    (6 - s**2 * (16 - np.pi**2)),
                     -4,
                     1,
                 ]
@@ -1614,7 +1615,7 @@ class CylindricalBearing(BearingElement):
 
         self.eccentricity = [np.sqrt(root) for root in self.root]
         self.attitude_angle = [
-            np.arctan(np.pi * np.sqrt(1 - e ** 2) / 4 * e) for e in self.eccentricity
+            np.arctan(np.pi * np.sqrt(1 - e**2) / 4 * e) for e in self.eccentricity
         ]
 
         coefficients = [
