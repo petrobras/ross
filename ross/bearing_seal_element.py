@@ -267,26 +267,27 @@ class BearingElement(Element):
             default_units = "N*s/m"
             y_units = damping_units
 
-        frequency_range = np.linspace(min(self.frequency), max(self.frequency), 30)
+        _frequency_range = np.linspace(min(self.frequency), max(self.frequency), 30)
 
         for coeff in coefficients:
             y_value = (
                 Q_(
-                    getattr(self, f"{coeff}_interpolated")(frequency_range),
+                    getattr(self, f"{coeff}_interpolated")(_frequency_range),
                     default_units,
                 )
                 .to(y_units)
                 .m
             )
-            frequency_range = Q_(frequency_range, "rad/s").to(frequency_units).m
+            frequency_range = Q_(_frequency_range, "rad/s").to(frequency_units).m
 
             fig.add_trace(
                 go.Scatter(
                     x=frequency_range,
                     y=y_value,
                     mode="lines",
-                    showlegend=False,
+                    showlegend=True,
                     hovertemplate=f"Frequency ({frequency_units}): %{{x:.2f}}<br> Coefficient ({y_units}): %{{y:.3e}}",
+                    name=f"{coeff}",
                 )
             )
 
