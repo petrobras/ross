@@ -89,8 +89,8 @@ def test_cylindrical_parameters_units(cylindrical_units):
 
 
 def test_cylindrical_equilibrium_pos(cylindrical):
-    assert math.isclose(cylindrical.equilibrium_pos[0], 0.56787259, rel_tol=0.01)
-    assert math.isclose(cylindrical.equilibrium_pos[1], -0.70017854, rel_tol=0.01)
+    assert math.isclose(cylindrical.equilibrium_pos[0], 0.57085649, rel_tol=0.01)
+    assert math.isclose(cylindrical.equilibrium_pos[1], -0.70347548, rel_tol=0.01)
 
 
 def test_cylindrical_coefficients(cylindrical):
