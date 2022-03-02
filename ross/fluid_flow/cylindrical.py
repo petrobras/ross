@@ -2,9 +2,8 @@ import time
 
 import numpy as np
 from numpy.linalg import pinv
-from scipy.optimize import curve_fit, minimize
-
 from ross.units import Q_, check_units
+from scipy.optimize import curve_fit, minimize
 
 
 class THDCylindrical:
