@@ -340,6 +340,10 @@ def st_shaft_example():
     from ross.materials import steel
 
     elm = ST_ShaftElement(
-        L=[1.0, 1.1], idl=0.0, odl=[0.1, 0.2], material=steel, is_random=["L", "odl"],
+        L=[1.0, 1.1],
+        idl=0.0,
+        odl=[0.1, 0.2],
+        material=steel,
+        is_random=["L", "odl"],
     )
     return elm

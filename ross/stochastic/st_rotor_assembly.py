@@ -10,10 +10,12 @@ from ross.rotor_assembly import Rotor
 from ross.stochastic.st_bearing_seal_element import ST_BearingElement
 from ross.stochastic.st_disk_element import ST_DiskElement
 from ross.stochastic.st_point_mass import ST_PointMass
-from ross.stochastic.st_results import (ST_CampbellResults,
-                                        ST_ForcedResponseResults,
-                                        ST_FrequencyResponseResults,
-                                        ST_TimeResponseResults)
+from ross.stochastic.st_results import (
+    ST_CampbellResults,
+    ST_ForcedResponseResults,
+    ST_FrequencyResponseResults,
+    ST_TimeResponseResults,
+)
 from ross.stochastic.st_shaft_element import ST_ShaftElement
 from ross.units import check_units
 
@@ -564,7 +566,12 @@ class ST_Rotor(object):
         # Monte Carlo - results storage
         for i, rotor in enumerate(iter(self)):
             results = rotor.run_freq_response(
-                speed_range, modes, cluster_points, num_modes, num_points, rtol,
+                speed_range,
+                modes,
+                cluster_points,
+                num_modes,
+                num_points,
+                rtol,
             )
             freq_resp[:, i] = results.freq_resp[inp, out, :]
             velc_resp[:, i] = results.velc_resp[inp, out, :]
@@ -668,7 +675,13 @@ class ST_Rotor(object):
                 i += 1
 
         results = ST_TimeResponseResults(
-            time_range, yout, xout, number_dof, nodes, link_nodes, nodes_pos,
+            time_range,
+            yout,
+            xout,
+            number_dof,
+            nodes,
+            link_nodes,
+            nodes_pos,
         )
 
         return results

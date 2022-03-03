@@ -19,19 +19,32 @@ from scipy.interpolate import UnivariateSpline
 from scipy.optimize import newton
 from scipy.sparse import linalg as las
 
-from ross.bearing_seal_element import (BallBearingElement, BearingElement,
-                                       BearingElement6DoF, BearingFluidFlow,
-                                       MagneticBearingElement,
-                                       RollerBearingElement, SealElement)
+from ross.bearing_seal_element import (
+    BallBearingElement,
+    BearingElement,
+    BearingElement6DoF,
+    BearingFluidFlow,
+    MagneticBearingElement,
+    RollerBearingElement,
+    SealElement,
+)
 from ross.defects import Crack, MisalignmentFlex, MisalignmentRigid, Rubbing
 from ross.disk_element import DiskElement, DiskElement6DoF
 from ross.materials import steel
 from ross.point_mass import PointMass
-from ross.results import (CampbellResults, ConvergenceResults,
-                          CriticalSpeedResults, ForcedResponseResults,
-                          FrequencyResponseResults, Level1Results,
-                          ModalResults, StaticResults, SummaryResults,
-                          TimeResponseResults, UCSResults)
+from ross.results import (
+    CampbellResults,
+    ConvergenceResults,
+    CriticalSpeedResults,
+    ForcedResponseResults,
+    FrequencyResponseResults,
+    Level1Results,
+    ModalResults,
+    StaticResults,
+    SummaryResults,
+    TimeResponseResults,
+    UCSResults,
+)
 from ross.shaft_element import ShaftElement, ShaftElement6DoF
 from ross.units import Q_, check_units
 from ross.utils import intersection
@@ -626,7 +639,7 @@ class Rotor(object):
         damping_ratio = (-np.real(evalues) / np.absolute(evalues))[:wn_len]
         with warnings.catch_warnings():
             warnings.simplefilter("ignore")
-            log_dec = 2 * np.pi * damping_ratio / np.sqrt(1 - damping_ratio ** 2)
+            log_dec = 2 * np.pi * damping_ratio / np.sqrt(1 - damping_ratio**2)
 
         modal_results = ModalResults(
             speed,
@@ -1493,7 +1506,7 @@ class Rotor(object):
             H = self.transfer_matrix(speed=speed, modes=modes)
             freq_resp[..., i] = H
             velc_resp[..., i] = 1j * speed * H
-            accl_resp[..., i] = -(speed ** 2) * H
+            accl_resp[..., i] = -(speed**2) * H
 
         results = FrequencyResponseResults(
             freq_resp=freq_resp,
@@ -1665,7 +1678,7 @@ class Rotor(object):
         n0 = self.number_dof * node
         n1 = n0 + self.number_dof
         for i, w in enumerate(omega):
-            F0[n0:n1, i] += w ** 2 * b0
+            F0[n0:n1, i] += w**2 * b0
 
         return F0
 

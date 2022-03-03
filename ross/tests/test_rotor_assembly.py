@@ -650,7 +650,8 @@ def test_static_analysis_rotor3(rotor3):
     )
 
     assert_allclose(
-        static.deformation, expected_deformation,
+        static.deformation,
+        expected_deformation,
     )
     fig = static.plot_deformation()
     assert_allclose(fig.data[1]["y"], expected_deformation)

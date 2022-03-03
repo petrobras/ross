@@ -7,11 +7,15 @@ import numpy as np
 import pytest
 from numpy.testing import assert_allclose
 
-from ross.bearing_seal_element import (BallBearingElement, BearingElement,
-                                       BearingElement6DoF, BearingFluidFlow,
-                                       CylindricalBearing,
-                                       MagneticBearingElement,
-                                       RollerBearingElement)
+from ross.bearing_seal_element import (
+    BallBearingElement,
+    BearingElement,
+    BearingElement6DoF,
+    BearingFluidFlow,
+    CylindricalBearing,
+    MagneticBearingElement,
+    RollerBearingElement,
+)
 from ross.units import Q_
 
 
@@ -449,10 +453,22 @@ def test_bearing_fluid_flow():
 def test_plot(bearing0):
     fig = bearing0.plot(coefficients="kxx")
     expected_x = np.array(
-        [314.2, 343.0862069, 371.97241379, 400.85862069, 429.74482759,]
+        [
+            314.2,
+            343.0862069,
+            371.97241379,
+            400.85862069,
+            429.74482759,
+        ]
     )
     expected_y = np.array(
-        [8.50000000e07, 9.39094443e07, 1.00985975e08, 1.06782950e08, 1.11853726e08,]
+        [
+            8.50000000e07,
+            9.39094443e07,
+            1.00985975e08,
+            1.06782950e08,
+            1.11853726e08,
+        ]
     )
     assert_allclose(fig.data[0]["x"][:5], expected_x)
     assert_allclose(fig.data[0]["y"][:5], expected_y)

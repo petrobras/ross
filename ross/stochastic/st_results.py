@@ -291,7 +291,11 @@ class ST_CampbellResults(ST_Results):
         return fig
 
     def plot_log_dec(
-        self, percentile=[], conf_interval=[], frequency_units="rad/s", **kwargs,
+        self,
+        percentile=[],
+        conf_interval=[],
+        frequency_units="rad/s",
+        **kwargs,
     ):
         """Plot the log. decrement vs frequency.
 
@@ -371,7 +375,9 @@ class ST_CampbellResults(ST_Results):
             range=[np.min(speed_range), np.max(speed_range)],
             exponentformat="none",
         )
-        fig.update_yaxes(title_text="Logarithmic decrement",)
+        fig.update_yaxes(
+            title_text="Logarithmic decrement",
+        )
         fig.update_layout(**kwargs)
 
         return fig
@@ -2091,7 +2097,9 @@ class ST_ForcedResponseResults(ST_Results):
 
         fig.update_layout(
             polar=dict(
-                radialaxis=dict(title=dict(text=f"Amplitude ({amplitude_units})"),),
+                radialaxis=dict(
+                    title=dict(text=f"Amplitude ({amplitude_units})"),
+                ),
                 angularaxis=dict(thetaunit=polar_theta_unit),
             ),
             **kwargs,

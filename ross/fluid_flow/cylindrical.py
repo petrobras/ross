@@ -66,15 +66,15 @@ class THDCylindrical:
 
     Turbulence Model
     ^^^^^^^^^^^^^^^^
-    Turbulence model to improve analysis in higher speed.The model represents 
+    Turbulence model to improve analysis in higher speed.The model represents
     the turbulence by eddy diffusivities.
     Reyn : Array
-        The Reynolds number is a dimensionless number used to calculate the 
+        The Reynolds number is a dimensionless number used to calculate the
         fluid flow regime inside the bearing.
     delta_turb : float
-        Eddy viscosity scaling factor. Coefficient to assign weight to laminar, 
+        Eddy viscosity scaling factor. Coefficient to assign weight to laminar,
         transitional and turbulent flows to calculate viscosity.
-   
+
     Mesh discretization
     ^^^^^^^^^^^^^^^^^^^
     Describes the discretization of the bearing.
@@ -408,17 +408,17 @@ class THDCylindrical:
                                 MI_s = 0.5 * (mi[ki, kj] + mi[ki - 1, kj])
                                 MI_n = mi[ki, kj]
 
-                            CE = (self.dZ * he ** 3) / (
-                                12 * MI_e[n_p] * self.dY * self.betha_s ** 2
+                            CE = (self.dZ * he**3) / (
+                                12 * MI_e[n_p] * self.dY * self.betha_s**2
                             )
-                            CW = (self.dZ * hw ** 3) / (
-                                12 * MI_w[n_p] * self.dY * self.betha_s ** 2
+                            CW = (self.dZ * hw**3) / (
+                                12 * MI_w[n_p] * self.dY * self.betha_s**2
                             )
-                            CN = (self.dY * (self.R ** 2) * hn ** 3) / (
-                                12 * MI_n[n_p] * self.dZ * self.L ** 2
+                            CN = (self.dY * (self.R**2) * hn**3) / (
+                                12 * MI_n[n_p] * self.dZ * self.L**2
                             )
-                            CS = (self.dY * (self.R ** 2) * hs ** 3) / (
-                                12 * MI_s[n_p] * self.dZ * self.L ** 2
+                            CS = (self.dY * (self.R**2) * hs**3) / (
+                                12 * MI_s[n_p] * self.dZ * self.L**2
                             )
                             CP = -(CE + CW + CN + CS)
 
@@ -508,8 +508,8 @@ class THDCylindrical:
 
                     # Dimensional pressure fied
 
-                    Pdim = (P * self.mu_ref * self.speed * (self.R ** 2)) / (
-                        self.c_r ** 2
+                    Pdim = (P * self.mu_ref * self.speed * (self.R**2)) / (
+                        self.c_r**2
                     )
 
                     ki = 0
@@ -641,7 +641,7 @@ class THDCylindrical:
                             dwdy = (HP / mi_turb[ki, kj, n_p]) * dPdz[ki, kj, n_p]
 
                             tal = mi_turb[ki, kj, n_p] * np.sqrt(
-                                (dudy ** 2) + (dwdy ** 2)
+                                (dudy**2) + (dwdy**2)
                             )
 
                             x_wall = (
@@ -664,8 +664,8 @@ class THDCylindrical:
                             )
                             AW = (
                                 (
-                                    ((HP ** 3) * dPdy[ki, kj, n_p] * self.dZ)
-                                    / (12 * mi_t * (self.betha_s ** 2))
+                                    ((HP**3) * dPdy[ki, kj, n_p] * self.dZ)
+                                    / (12 * mi_t * (self.betha_s**2))
                                 )
                                 - ((HP) * self.dZ / (2 * self.betha_s))
                                 - (
@@ -683,24 +683,24 @@ class THDCylindrical:
                                 self.rho
                                 * self.Cp
                                 * self.speed
-                                * (self.L ** 2)
+                                * (self.L**2)
                                 * self.dZ
                             )
                             AS = (
                                 (
-                                    (self.R ** 2)
-                                    * (HP ** 3)
+                                    (self.R**2)
+                                    * (HP**3)
                                     * dPdz[ki, kj, n_p]
                                     * self.dY
                                 )
-                                / (12 * (self.L ** 2) * mi_t)
+                                / (12 * (self.L**2) * mi_t)
                             ) - (
                                 (self.k_t * HP * self.dY)
                                 / (
                                     self.rho
                                     * self.Cp
                                     * self.speed
-                                    * (self.L ** 2)
+                                    * (self.L**2)
                                     * self.dZ
                                 )
                             )
@@ -712,16 +712,16 @@ class THDCylindrical:
                             b_TG = (
                                 self.mu_ref
                                 * self.speed
-                                * (self.R ** 2)
+                                * (self.R**2)
                                 * self.dY
                                 * self.dZ
                                 * P[ki, kj, n_p]
                                 * hpt
-                            ) / (self.rho * self.Cp * self.T_reserv * (self.c_r ** 2))
+                            ) / (self.rho * self.Cp * self.T_reserv * (self.c_r**2))
                             b_TH = (
                                 self.speed
                                 * self.mu_ref
-                                * (hpt ** 2)
+                                * (hpt**2)
                                 * 4
                                 * mi_t
                                 * self.dY
@@ -729,30 +729,30 @@ class THDCylindrical:
                             ) / (self.rho * self.Cp * self.T_reserv * 3 * HP)
                             b_TI = (
                                 auxb_T
-                                * (mi_t * (self.R ** 2) * self.dY * self.dZ)
+                                * (mi_t * (self.R**2) * self.dY * self.dZ)
                                 / (HP * self.c_r)
                             )
                             b_TJ = (
                                 auxb_T
                                 * (
-                                    (self.R ** 2)
-                                    * (HP ** 3)
+                                    (self.R**2)
+                                    * (HP**3)
                                     * (dPdy[ki, kj, n_p] ** 2)
                                     * self.dY
                                     * self.dZ
                                 )
-                                / (12 * self.c_r * (self.betha_s ** 2) * mi_t)
+                                / (12 * self.c_r * (self.betha_s**2) * mi_t)
                             )
                             b_TK = (
                                 auxb_T
                                 * (
-                                    (self.R ** 4)
-                                    * (HP ** 3)
+                                    (self.R**4)
+                                    * (HP**3)
                                     * (dPdz[ki, kj, n_p] ** 2)
                                     * self.dY
                                     * self.dZ
                                 )
-                                / (12 * self.c_r * (self.L ** 2) * mi_t)
+                                / (12 * self.c_r * (self.L**2) * mi_t)
                             )
 
                             B_T = b_TG + b_TH + b_TI + b_TJ + b_TK
@@ -936,7 +936,7 @@ class THDCylindrical:
         """
 
         def viscosity(x, a, b):
-            return a * (x ** b)
+            return a * (x**b)
 
         xdata = [T_muI, T_muF]  # changed boundary conditions to avoid division by ]
         ydata = [mu_I, mu_F]
@@ -1015,22 +1015,22 @@ class THDCylindrical:
                 (Aux08[1] - Aux07[1]) / (epiypt / self.c_r / self.speed)
             )
 
-            kxx = (np.sqrt((self.Wx ** 2) + (self.Wy ** 2)) / self.c_r) * Kxx
-            kxy = (np.sqrt((self.Wx ** 2) + (self.Wy ** 2)) / self.c_r) * Kxy
-            kyx = (np.sqrt((self.Wx ** 2) + (self.Wy ** 2)) / self.c_r) * Kyx
-            kyy = (np.sqrt((self.Wx ** 2) + (self.Wy ** 2)) / self.c_r) * Kyy
+            kxx = (np.sqrt((self.Wx**2) + (self.Wy**2)) / self.c_r) * Kxx
+            kxy = (np.sqrt((self.Wx**2) + (self.Wy**2)) / self.c_r) * Kxy
+            kyx = (np.sqrt((self.Wx**2) + (self.Wy**2)) / self.c_r) * Kyx
+            kyy = (np.sqrt((self.Wx**2) + (self.Wy**2)) / self.c_r) * Kyy
 
             cxx = (
-                np.sqrt((self.Wx ** 2) + (self.Wy ** 2)) / (self.c_r * self.speed)
+                np.sqrt((self.Wx**2) + (self.Wy**2)) / (self.c_r * self.speed)
             ) * Cxx
             cxy = (
-                np.sqrt((self.Wx ** 2) + (self.Wy ** 2)) / (self.c_r * self.speed)
+                np.sqrt((self.Wx**2) + (self.Wy**2)) / (self.c_r * self.speed)
             ) * Cxy
             cyx = (
-                np.sqrt((self.Wx ** 2) + (self.Wy ** 2)) / (self.c_r * self.speed)
+                np.sqrt((self.Wx**2) + (self.Wy**2)) / (self.c_r * self.speed)
             ) * Cyx
             cyy = (
-                np.sqrt((self.Wx ** 2) + (self.Wy ** 2)) / (self.c_r * self.speed)
+                np.sqrt((self.Wx**2) + (self.Wy**2)) / (self.c_r * self.speed)
             ) * Cyy
 
             if show_coef:
@@ -1091,14 +1091,14 @@ class THDCylindrical:
         """
         if self.sommerfeld_type == 1:
             S = (self.mu_ref * ((self.R) ** 3) * self.L * self.speed) / (
-                np.pi * (self.c_r ** 2) * np.sqrt((self.Wx ** 2) + (self.Wy ** 2))
+                np.pi * (self.c_r**2) * np.sqrt((self.Wx**2) + (self.Wy**2))
             )
 
         elif self.sommerfeld_type == 2:
             S = 1 / (
                 2
                 * ((self.L / (2 * self.R)) ** 2)
-                * (np.sqrt((force_x ** 2) + (force_y ** 2)))
+                * (np.sqrt((force_x**2) + (force_y**2)))
             )
 
         Ss = S * ((self.L / (2 * self.R)) ** 2)

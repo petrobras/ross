@@ -6,8 +6,9 @@ import numpy as np
 
 from ross.bearing_seal_element import BearingElement
 from ross.fluid_flow import fluid_flow as flow
-from ross.fluid_flow.fluid_flow_coefficients import \
-    calculate_stiffness_and_damping_coefficients
+from ross.fluid_flow.fluid_flow_coefficients import (
+    calculate_stiffness_and_damping_coefficients,
+)
 from ross.stochastic.st_results_elements import plot_histogram
 from ross.units import check_units
 

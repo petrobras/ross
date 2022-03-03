@@ -156,29 +156,29 @@ class Crack(Defect):
         )
 
         kappa = (6 * (1 + self.Poisson) ** 2) / (
-            7 + 12 * self.Poisson + 4 * self.Poisson ** 2
+            7 + 12 * self.Poisson + 4 * self.Poisson**2
         )
 
-        A = 12 * self.E * tempI / (G_s * kappa * tempS * (self.L ** 2))
+        A = 12 * self.E * tempI / (G_s * kappa * tempS * (self.L**2))
 
         # fmt = off
         Coxy = np.array(
             [
                 [
-                    (self.L ** 3) * (1 + A / 4) / (3 * self.E * tempI),
-                    -(self.L ** 2) / (2 * self.E * tempI),
+                    (self.L**3) * (1 + A / 4) / (3 * self.E * tempI),
+                    -(self.L**2) / (2 * self.E * tempI),
                 ],
-                [-(self.L ** 2) / (2 * self.E * tempI), self.L / (self.E * tempI)],
+                [-(self.L**2) / (2 * self.E * tempI), self.L / (self.E * tempI)],
             ]
         )
 
         Coyz = np.array(
             [
                 [
-                    (self.L ** 3) * (1 + A / 4) / (3 * self.E * tempI),
-                    (self.L ** 2) / (2 * self.E * tempI),
+                    (self.L**3) * (1 + A / 4) / (3 * self.E * tempI),
+                    (self.L**2) / (2 * self.E * tempI),
                 ],
-                [(self.L ** 2) / (2 * self.E * tempI), self.L / (self.E * tempI)],
+                [(self.L**2) / (2 * self.E * tempI), self.L / (self.E * tempI)],
             ]
         )
 
@@ -246,7 +246,12 @@ class Crack(Defect):
         self.M = self.rotor.M()
         self.Kst = self.rotor.Kst()
 
-        _, ModMat = scipy.linalg.eigh(self.K, self.M, type=1, turbo=False,)
+        _, ModMat = scipy.linalg.eigh(
+            self.K,
+            self.M,
+            type=1,
+            turbo=False,
+        )
         ModMat = ModMat[:, :12]
         self.ModMat = ModMat
 
@@ -285,13 +290,13 @@ class Crack(Defect):
 
             unbx = self.unbalance_magnitude[ii] * (self.AccelV) * (
                 np.cos(self.tetaUNB[ii, :])
-            ) - self.unbalance_magnitude[ii] * ((self.Omega ** 2)) * (
+            ) - self.unbalance_magnitude[ii] * ((self.Omega**2)) * (
                 np.sin(self.tetaUNB[ii, :])
             )
 
             unby = -self.unbalance_magnitude[ii] * (self.AccelV) * (
                 np.sin(self.tetaUNB[ii, :])
-            ) - self.unbalance_magnitude[ii] * (self.Omega ** 2) * (
+            ) - self.unbalance_magnitude[ii] * (self.Omega**2) * (
                 np.cos(self.tetaUNB[ii, :])
             )
 
@@ -506,7 +511,7 @@ class Crack(Defect):
 
         c = np.array(pd.eval(self.data_coefs[coef]))
         aux = np.where(c[:, 1] >= self.depth_ratio * 2)[0]
-        c = c[aux[0], 0] * (1 - self.Poisson ** 2) / (self.E * (self.radius ** 3))
+        c = c[aux[0], 0] * (1 - self.Poisson**2) / (self.E * (self.radius**3))
 
         return c
 
