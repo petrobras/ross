@@ -1,6 +1,6 @@
+import pickle
 from pathlib import Path
 from tempfile import tempdir
-import pickle
 
 import numpy as np
 from numpy.testing import assert_allclose

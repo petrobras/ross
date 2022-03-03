@@ -20,10 +20,7 @@ class Defect(ABC):
 
     def run_time_response(self):
         results = TimeResponseResults(
-            rotor=self.rotor,
-            t=self.time_vector,
-            yout=self.response.T,
-            xout=[],
+            rotor=self.rotor, t=self.time_vector, yout=self.response.T, xout=[],
         )
         return results
 

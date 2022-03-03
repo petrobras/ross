@@ -634,10 +634,10 @@ class ModalResults(Results):
         yn = np.zeros(nn * (len(nodes) - 1))
         zn = np.zeros(nn * (len(nodes) - 1))
 
-        N1 = onn - 3 * zeta**2 + 2 * zeta**3
-        N2 = zeta - 2 * zeta**2 + zeta**3
-        N3 = 3 * zeta**2 - 2 * zeta**3
-        N4 = -(zeta**2) + zeta**3
+        N1 = onn - 3 * zeta ** 2 + 2 * zeta ** 3
+        N2 = zeta - 2 * zeta ** 2 + zeta ** 3
+        N3 = 3 * zeta ** 2 - 2 * zeta ** 3
+        N4 = -(zeta ** 2) + zeta ** 3
 
         for Le, n in zip(shaft_elements_length, nodes):
             node_pos = nodes_pos[n]
@@ -1845,11 +1845,7 @@ class ForcedResponseResults(Results):
         }
 
     def data_magnitude(
-        self,
-        probe,
-        probe_units="rad",
-        frequency_units="rad/s",
-        amplitude_units="m",
+        self, probe, probe_units="rad", frequency_units="rad/s", amplitude_units="m",
     ):
         """Return the forced response (magnitude) in DataFrame format.
 
@@ -2978,7 +2974,7 @@ class ForcedResponseResults(Results):
         Mx, My = self._calculate_bending_moment(speed=speed)
         Mx = Q_(Mx, "N*m").to(moment_units).m
         My = Q_(My, "N*m").to(moment_units).m
-        Mr = np.sqrt(Mx**2 + My**2)
+        Mr = np.sqrt(Mx ** 2 + My ** 2)
 
         nodes_pos = Q_(self.rotor.nodes_pos, "m").to(rotor_length_units).m
 
@@ -3032,8 +3028,7 @@ class ForcedResponseResults(Results):
 
         fig.update_xaxes(title_text=f"Rotor Length ({rotor_length_units})")
         fig.update_yaxes(
-            title_text=f"Bending Moment ({moment_units})",
-            title_font=dict(size=12),
+            title_text=f"Bending Moment ({moment_units})", title_font=dict(size=12),
         )
         fig.update_layout(**kwargs)
 
@@ -3161,11 +3156,7 @@ class ForcedResponseResults(Results):
                 text=f"Deflected Shape<br>Speed = {speed_str} {frequency_units}",
             ),
             legend=dict(
-                orientation="h",
-                xanchor="center",
-                yanchor="bottom",
-                x=0.5,
-                y=-0.3,
+                orientation="h", xanchor="center", yanchor="bottom", x=0.5, y=-0.3,
             ),
             **subplot_kwargs,
         )
@@ -3326,9 +3317,7 @@ class StaticResults(Results):
         row = rows = 1
         if fig is None:
             fig = make_subplots(
-                rows=rows,
-                cols=cols,
-                subplot_titles=["Free-Body Diagram"],
+                rows=rows, cols=cols, subplot_titles=["Free-Body Diagram"],
             )
 
         y_start = 5.0
@@ -4217,11 +4206,7 @@ class UCSResults(Results):
         self.intersection_points = intersection_points
 
     def plot(
-        self,
-        fig=None,
-        stiffness_units="N/m",
-        frequency_units="rad/s",
-        **kwargs,
+        self, fig=None, stiffness_units="N/m", frequency_units="rad/s", **kwargs,
     ):
         """Plot undamped critical speed map.
 

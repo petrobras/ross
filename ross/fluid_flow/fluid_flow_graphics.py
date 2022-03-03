@@ -50,9 +50,9 @@ def plot_eccentricity(fluid_flow_object, z=0, fig=None, scale_factor=1.0, **kwar
     yri = fluid_flow_object.yri[z]
 
     val_min = np.min(
-        np.sqrt(xre**2 + yre**2) - np.sqrt((xri * s) ** 2 + (yri * s) ** 2)
+        np.sqrt(xre ** 2 + yre ** 2) - np.sqrt((xri * s) ** 2 + (yri * s) ** 2)
     )
-    val_ref = np.min(np.sqrt(xre**2 + yre**2) - np.sqrt(xri**2 + yri**2))
+    val_ref = np.min(np.sqrt(xre ** 2 + yre ** 2) - np.sqrt(xri ** 2 + yri ** 2))
 
     if fig is None:
         fig = go.Figure()

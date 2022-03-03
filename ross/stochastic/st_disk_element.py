@@ -58,14 +58,7 @@ class ST_DiskElement:
 
     @check_units
     def __init__(
-        self,
-        n,
-        m,
-        Id,
-        Ip,
-        tag=None,
-        color="Firebrick",
-        is_random=None,
+        self, n, m, Id, Ip, tag=None, color="Firebrick", is_random=None,
     ):
         attribute_dict = dict(n=n, m=m, Id=Id, Ip=Ip, tag=tag, color=color)
 
@@ -227,9 +220,7 @@ class ST_DiskElement:
         >>> # fig.show()
         """
         label = dict(
-            m="Mass",
-            Id="Diametral moment of inertia",
-            Ip="Polar moment of inertia",
+            m="Mass", Id="Diametral moment of inertia", Ip="Polar moment of inertia",
         )
         if var_list is None:
             var_list = self.is_random
@@ -247,14 +238,7 @@ class ST_DiskElement:
     @classmethod
     @check_units
     def from_geometry(
-        cls,
-        n,
-        material,
-        width,
-        i_d,
-        o_d,
-        tag=None,
-        is_random=None,
+        cls, n, material, width, i_d, o_d, tag=None, is_random=None,
     ):
         """Random disk element.
 
@@ -316,12 +300,7 @@ class ST_DiskElement:
             o_d = np.array(o_d)
 
         attribute_dict = dict(
-            n=n,
-            material=material,
-            width=width,
-            i_d=i_d,
-            o_d=o_d,
-            tag=tag,
+            n=n, material=material, width=width, i_d=i_d, o_d=o_d, tag=tag,
         )
         size = len(attribute_dict[is_random[0]])
 
@@ -331,14 +310,14 @@ class ST_DiskElement:
             else:
                 v = np.array(v)
 
-        m = 0.25 * rho * np.pi * width * (o_d**2 - i_d**2)
+        m = 0.25 * rho * np.pi * width * (o_d ** 2 - i_d ** 2)
         # fmt: off
         Id = (
             0.015625 * rho * np.pi * width * (o_d ** 4 - i_d ** 4)
             + m * (width ** 2) / 12
         )
         # fmt: on
-        Ip = 0.03125 * rho * np.pi * width * (o_d**4 - i_d**4)
+        Ip = 0.03125 * rho * np.pi * width * (o_d ** 4 - i_d ** 4)
 
         is_random = ["m", "Id", "Ip"]
 
@@ -364,10 +343,6 @@ def st_disk_example():
     2
     """
     elm = ST_DiskElement(
-        n=1,
-        m=[30, 40],
-        Id=[0.2, 0.3],
-        Ip=[0.5, 0.7],
-        is_random=["m", "Id", "Ip"],
+        n=1, m=[30, 40], Id=[0.2, 0.3], Ip=[0.5, 0.7], is_random=["m", "Id", "Ip"],
     )
     return elm

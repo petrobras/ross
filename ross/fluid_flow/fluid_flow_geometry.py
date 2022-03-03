@@ -22,7 +22,7 @@ def calculate_attitude_angle(eccentricity_ratio):
     0.93...
     """
     return np.arctan(
-        (np.pi * (1 - eccentricity_ratio**2) ** (1 / 2)) / (4 * eccentricity_ratio)
+        (np.pi * (1 - eccentricity_ratio ** 2) ** (1 / 2)) / (4 * eccentricity_ratio)
     )
 
 
@@ -64,7 +64,7 @@ def internal_radius_function(gama, attitude_angle, radius_rotor, eccentricity):
     else:
         alpha = gama + np.pi / 2 - attitude_angle
     radius_internal = np.sqrt(
-        radius_rotor**2 - (eccentricity * np.sin(alpha)) ** 2
+        radius_rotor ** 2 - (eccentricity * np.sin(alpha)) ** 2
     ) + eccentricity * np.cos(alpha)
     xri = radius_internal * np.cos(gama)
     yri = radius_internal * np.sin(gama)
@@ -248,8 +248,8 @@ def modified_sommerfeld_number(
     ...                            length, load, radial_clearance) # doctest: +ELLIPSIS
     0.33...
     """
-    return (radius_stator * 2 * omega * viscosity * (length**3)) / (
-        8 * load * (radial_clearance**2)
+    return (radius_stator * 2 * omega * viscosity * (length ** 3)) / (
+        8 * load * (radial_clearance ** 2)
     )
 
 
@@ -305,8 +305,8 @@ def calculate_eccentricity_ratio(modified_s):
     coefficients = [
         1,
         -4,
-        (6 - (modified_s**2) * (16 - np.pi**2)),
-        -(4 + (np.pi**2) * (modified_s**2)),
+        (6 - (modified_s ** 2) * (16 - np.pi ** 2)),
+        -(4 + (np.pi ** 2) * (modified_s ** 2)),
         1,
     ]
     roots = np.roots(coefficients)
@@ -324,11 +324,11 @@ def calculate_eccentricity_ratio(modified_s):
             Polynomial value f at x."""
         c = coefficients
         return (
-            c[0] * x**4
-            + c[1] * x**3
-            + c[2] * x**2
-            + c[3] * x**1
-            + c[4] * x**0
+            c[0] * x ** 4
+            + c[1] * x ** 3
+            + c[2] * x ** 2
+            + c[3] * x ** 1
+            + c[4] * x ** 0
         )
 
     for i in roots:
@@ -383,11 +383,11 @@ def calculate_rotor_load(
             * 2
             * omega
             * viscosity
-            * (length**3)
+            * (length ** 3)
             * eccentricity_ratio
         )
-        / (8 * (radial_clearance**2) * ((1 - eccentricity_ratio**2) ** 2))
-    ) * (np.sqrt((16 / (np.pi**2) - 1) * eccentricity_ratio**2 + 1))
+        / (8 * (radial_clearance ** 2) * ((1 - eccentricity_ratio ** 2) ** 2))
+    ) * (np.sqrt((16 / (np.pi ** 2) - 1) * eccentricity_ratio ** 2 + 1))
 
 
 def move_rotor_center(fluid_flow_object, dx, dy):
@@ -415,7 +415,7 @@ def move_rotor_center(fluid_flow_object, dx, dy):
     fluid_flow_object.xi = fluid_flow_object.xi + dx
     fluid_flow_object.yi = fluid_flow_object.yi + dy
     fluid_flow_object.eccentricity = np.sqrt(
-        fluid_flow_object.xi**2 + fluid_flow_object.yi**2
+        fluid_flow_object.xi ** 2 + fluid_flow_object.yi ** 2
     )
     fluid_flow_object.eccentricity_ratio = (
         fluid_flow_object.eccentricity / fluid_flow_object.radial_clearance
@@ -448,7 +448,7 @@ def move_rotor_center_abs(fluid_flow_object, x, y):
     fluid_flow_object.xi = x
     fluid_flow_object.yi = y
     fluid_flow_object.eccentricity = np.sqrt(
-        fluid_flow_object.xi**2 + fluid_flow_object.yi**2
+        fluid_flow_object.xi ** 2 + fluid_flow_object.yi ** 2
     )
     fluid_flow_object.eccentricity_ratio = (
         fluid_flow_object.eccentricity / fluid_flow_object.radial_clearance

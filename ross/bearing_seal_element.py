@@ -16,9 +16,8 @@ from scipy import interpolate as interpolate
 
 from ross.element import Element
 from ross.fluid_flow import fluid_flow as flow
-from ross.fluid_flow.fluid_flow_coefficients import (
-    calculate_stiffness_and_damping_coefficients,
-)
+from ross.fluid_flow.fluid_flow_coefficients import \
+    calculate_stiffness_and_damping_coefficients
 from ross.units import Q_, check_units
 from ross.utils import read_table_file
 
@@ -1277,9 +1276,9 @@ class RollerBearingElement(BearingElement):
         Kb = 1.0e9
         kyy = (
             Kb
-            * n_rollers**0.9
-            * l_rollers**0.8
-            * fs**0.1
+            * n_rollers ** 0.9
+            * l_rollers ** 0.8
+            * fs ** 0.1
             * (np.cos(alpha)) ** 1.9
         )
 
@@ -1585,8 +1584,8 @@ class CylindricalBearing(BearingElement):
             journal_diameter
             * speed
             * oil_viscosity
-            * bearing_length**3
-            / (8 * radial_clearance**2 * weight)
+            * bearing_length ** 3
+            / (8 * radial_clearance ** 2 * weight)
         )
 
         self.modified_sommerfeld = Ss
@@ -1598,8 +1597,8 @@ class CylindricalBearing(BearingElement):
             poly = Polynomial(
                 [
                     1,
-                    -(4 + np.pi**2 * s**2),
-                    (6 - s**2 * (16 - np.pi**2)),
+                    -(4 + np.pi ** 2 * s ** 2),
+                    (6 - s ** 2 * (16 - np.pi ** 2)),
                     -4,
                     1,
                 ]
@@ -1615,7 +1614,7 @@ class CylindricalBearing(BearingElement):
 
         self.eccentricity = [np.sqrt(root) for root in self.root]
         self.attitude_angle = [
-            np.arctan(np.pi * np.sqrt(1 - e**2) / 4 * e) for e in self.eccentricity
+            np.arctan(np.pi * np.sqrt(1 - e ** 2) / 4 * e) for e in self.eccentricity
         ]
 
         coefficients = [

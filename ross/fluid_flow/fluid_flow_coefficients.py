@@ -5,7 +5,8 @@ import numpy as np
 from scipy import integrate
 from scipy.optimize import least_squares
 
-from ross.fluid_flow.fluid_flow_geometry import move_rotor_center, move_rotor_center_abs
+from ross.fluid_flow.fluid_flow_geometry import (move_rotor_center,
+                                                 move_rotor_center_abs)
 
 
 def calculate_oil_film_force(fluid_flow_object, force_type=None):
@@ -41,14 +42,14 @@ def calculate_oil_film_force(fluid_flow_object, force_type=None):
             0.5
             * fluid_flow_object.viscosity
             * (fluid_flow_object.radius_rotor / fluid_flow_object.radial_clearance) ** 2
-            * (fluid_flow_object.length**3 / fluid_flow_object.radius_rotor)
+            * (fluid_flow_object.length ** 3 / fluid_flow_object.radius_rotor)
             * (
                 (
                     2
-                    * fluid_flow_object.eccentricity_ratio**2
+                    * fluid_flow_object.eccentricity_ratio ** 2
                     * fluid_flow_object.omega
                 )
-                / (1 - fluid_flow_object.eccentricity_ratio**2) ** 2
+                / (1 - fluid_flow_object.eccentricity_ratio ** 2) ** 2
             )
         )
 
@@ -56,10 +57,10 @@ def calculate_oil_film_force(fluid_flow_object, force_type=None):
             0.5
             * fluid_flow_object.viscosity
             * (fluid_flow_object.radius_rotor / fluid_flow_object.radial_clearance) ** 2
-            * (fluid_flow_object.length**3 / fluid_flow_object.radius_rotor)
+            * (fluid_flow_object.length ** 3 / fluid_flow_object.radius_rotor)
             * (
                 (np.pi * fluid_flow_object.eccentricity_ratio * fluid_flow_object.omega)
-                / (2 * (1 - fluid_flow_object.eccentricity_ratio**2) ** (3.0 / 2))
+                / (2 * (1 - fluid_flow_object.eccentricity_ratio ** 2) ** (3.0 / 2))
             )
         )
     elif force_type != "numerical" and (
@@ -74,12 +75,12 @@ def calculate_oil_film_force(fluid_flow_object, force_type=None):
             * (
                 (
                     2
-                    * fluid_flow_object.eccentricity_ratio**2
+                    * fluid_flow_object.eccentricity_ratio ** 2
                     * fluid_flow_object.omega
                 )
                 / (
-                    (2 + fluid_flow_object.eccentricity_ratio**2)
-                    * (1 - fluid_flow_object.eccentricity_ratio**2)
+                    (2 + fluid_flow_object.eccentricity_ratio ** 2)
+                    * (1 - fluid_flow_object.eccentricity_ratio ** 2)
                 )
             )
         )
@@ -92,8 +93,8 @@ def calculate_oil_film_force(fluid_flow_object, force_type=None):
             * (
                 (np.pi * fluid_flow_object.eccentricity_ratio * fluid_flow_object.omega)
                 / (
-                    (2 + fluid_flow_object.eccentricity_ratio**2)
-                    * (1 - fluid_flow_object.eccentricity_ratio**2) ** 0.5
+                    (2 + fluid_flow_object.eccentricity_ratio ** 2)
+                    * (1 - fluid_flow_object.eccentricity_ratio ** 2) ** 0.5
                 )
             )
         )
@@ -283,8 +284,8 @@ def calculate_short_stiffness_matrix(fluid_flow_object):
     """
     h0 = 1.0 / (
         (
-            (np.pi**2) * (1 - fluid_flow_object.eccentricity_ratio**2)
-            + 16 * fluid_flow_object.eccentricity_ratio**2
+            (np.pi ** 2) * (1 - fluid_flow_object.eccentricity_ratio ** 2)
+            + 16 * fluid_flow_object.eccentricity_ratio ** 2
         )
         ** 1.5
     )
@@ -294,8 +295,8 @@ def calculate_short_stiffness_matrix(fluid_flow_object):
         * h0
         * 4
         * (
-            (np.pi**2) * (2 - fluid_flow_object.eccentricity_ratio**2)
-            + 16 * fluid_flow_object.eccentricity_ratio**2
+            (np.pi ** 2) * (2 - fluid_flow_object.eccentricity_ratio ** 2)
+            + 16 * fluid_flow_object.eccentricity_ratio ** 2
         )
     )
     kxy = (
@@ -303,12 +304,12 @@ def calculate_short_stiffness_matrix(fluid_flow_object):
         * h0
         * np.pi
         * (
-            (np.pi**2) * (1 - fluid_flow_object.eccentricity_ratio**2) ** 2
-            - 16 * fluid_flow_object.eccentricity_ratio**4
+            (np.pi ** 2) * (1 - fluid_flow_object.eccentricity_ratio ** 2) ** 2
+            - 16 * fluid_flow_object.eccentricity_ratio ** 4
         )
         / (
             fluid_flow_object.eccentricity_ratio
-            * np.sqrt(1 - fluid_flow_object.eccentricity_ratio**2)
+            * np.sqrt(1 - fluid_flow_object.eccentricity_ratio ** 2)
         )
     )
     kyx = (
@@ -316,15 +317,15 @@ def calculate_short_stiffness_matrix(fluid_flow_object):
         * h0
         * np.pi
         * (
-            (np.pi**2)
-            * (1 - fluid_flow_object.eccentricity_ratio**2)
-            * (1 + 2 * fluid_flow_object.eccentricity_ratio**2)
-            + (32 * fluid_flow_object.eccentricity_ratio**2)
-            * (1 + fluid_flow_object.eccentricity_ratio**2)
+            (np.pi ** 2)
+            * (1 - fluid_flow_object.eccentricity_ratio ** 2)
+            * (1 + 2 * fluid_flow_object.eccentricity_ratio ** 2)
+            + (32 * fluid_flow_object.eccentricity_ratio ** 2)
+            * (1 + fluid_flow_object.eccentricity_ratio ** 2)
         )
         / (
             fluid_flow_object.eccentricity_ratio
-            * np.sqrt(1 - fluid_flow_object.eccentricity_ratio**2)
+            * np.sqrt(1 - fluid_flow_object.eccentricity_ratio ** 2)
         )
     )
     kyy = (
@@ -332,12 +333,12 @@ def calculate_short_stiffness_matrix(fluid_flow_object):
         * h0
         * 4
         * (
-            (np.pi**2) * (1 + 2 * fluid_flow_object.eccentricity_ratio**2)
+            (np.pi ** 2) * (1 + 2 * fluid_flow_object.eccentricity_ratio ** 2)
             + (
-                (32 * fluid_flow_object.eccentricity_ratio**2)
-                * (1 + fluid_flow_object.eccentricity_ratio**2)
+                (32 * fluid_flow_object.eccentricity_ratio ** 2)
+                * (1 + fluid_flow_object.eccentricity_ratio ** 2)
             )
-            / (1 - fluid_flow_object.eccentricity_ratio**2)
+            / (1 - fluid_flow_object.eccentricity_ratio ** 2)
         )
     )
     return [kxx, kxy, kyx, kyy]

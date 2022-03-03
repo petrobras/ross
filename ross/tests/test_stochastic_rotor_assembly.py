@@ -48,11 +48,7 @@ def rotor1():
 ###############################################################################
 def test_st_shaft_elements_odd_length():
     tim0 = ST_ShaftElement(
-        L=[1, 1.1],
-        idl=0,
-        odl=[0.1, 0.2],
-        material=steel,
-        is_random=["L", "odl"],
+        L=[1, 1.1], idl=0, odl=[0.1, 0.2], material=steel, is_random=["L", "odl"],
     )
     tim1 = ST_ShaftElement(
         L=[1, 1.1, 1.2],
@@ -82,33 +78,17 @@ def test_st_disk_elements_odd_length():
 
 
 def test_st_bearing_elements_odd_length():
-    tim0 = ShaftElement(
-        L=0.25,
-        idl=0,
-        odl=0.05,
-        material=steel,
-    )
-    tim1 = ShaftElement(
-        L=0.25,
-        idl=0,
-        odl=0.05,
-        material=steel,
-    )
+    tim0 = ShaftElement(L=0.25, idl=0, odl=0.05, material=steel,)
+    tim1 = ShaftElement(L=0.25, idl=0, odl=0.05, material=steel,)
     shaft_elm = [tim0, tim1]
 
     disk0 = DiskElement(n=1, m=20, Id=1, Ip=1)
 
     brg0 = ST_BearingElement(
-        n=0,
-        kxx=[1e6, 2e6],
-        cxx=[1e3, 2e3],
-        is_random=["kxx", "cxx"],
+        n=0, kxx=[1e6, 2e6], cxx=[1e3, 2e3], is_random=["kxx", "cxx"],
     )
     brg1 = ST_BearingElement(
-        n=2,
-        kxx=[1e6, 2e6, 3e6],
-        cxx=[1e3, 2e3, 3e3],
-        is_random=["kxx", "cxx"],
+        n=2, kxx=[1e6, 2e6, 3e6], cxx=[1e3, 2e3, 3e3], is_random=["kxx", "cxx"],
     )
 
     with pytest.raises(ValueError) as ex:
@@ -138,11 +118,7 @@ def test_st_point_mass_elements_odd_length():
 
 def test_elements_odd_length():
     tim0 = ST_ShaftElement(
-        L=[1, 1.1],
-        idl=0,
-        odl=[0.1, 0.2],
-        material=steel,
-        is_random=["L", "odl"],
+        L=[1, 1.1], idl=0, odl=[0.1, 0.2], material=steel, is_random=["L", "odl"],
     )
     shaft_elm = [tim0, tim0]
 
@@ -151,16 +127,10 @@ def test_elements_odd_length():
     disks = [disk0, disk1]
 
     brg0 = ST_BearingElement(
-        n=0,
-        kxx=[1e6, 2e6],
-        cxx=[1e3, 2e3],
-        is_random=["kxx", "cxx"],
+        n=0, kxx=[1e6, 2e6], cxx=[1e3, 2e3], is_random=["kxx", "cxx"],
     )
     brg1 = ST_BearingElement(
-        n=2,
-        kxx=[1e6, 2e6],
-        cxx=[1e3, 2e3],
-        is_random=["kxx", "cxx"],
+        n=2, kxx=[1e6, 2e6], cxx=[1e3, 2e3], is_random=["kxx", "cxx"],
     )
     bearings = [brg0, brg1]
 

@@ -239,13 +239,13 @@ class MisalignmentFlex(Defect):
 
             unbx = self.unbalance_magnitude[ii] * (self.AccelV) * (
                 np.cos(self.tetaUNB[ii, :])
-            ) - self.unbalance_magnitude[ii] * ((self.Omega**2)) * (
+            ) - self.unbalance_magnitude[ii] * ((self.Omega ** 2)) * (
                 np.sin(self.tetaUNB[ii, :])
             )
 
             unby = -self.unbalance_magnitude[ii] * (self.AccelV) * (
                 np.sin(self.tetaUNB[ii, :])
-            ) - self.unbalance_magnitude[ii] * (self.Omega**2) * (
+            ) - self.unbalance_magnitude[ii] * (self.Omega ** 2) * (
                 np.cos(self.tetaUNB[ii, :])
             )
 
@@ -336,12 +336,12 @@ class MisalignmentFlex(Defect):
         self.mi_y = (
             (
                 np.sqrt(
-                    self.radius**2
-                    + self.eCOUPx**2
-                    + self.eCOUPy**2
+                    self.radius ** 2
+                    + self.eCOUPx ** 2
+                    + self.eCOUPy ** 2
                     + 2
                     * self.radius
-                    * np.sqrt(self.eCOUPx**2 + self.eCOUPy**2)
+                    * np.sqrt(self.eCOUPx ** 2 + self.eCOUPy ** 2)
                     * np.sin(fib + angular_position)
                 )
                 - self.radius
@@ -349,12 +349,12 @@ class MisalignmentFlex(Defect):
             * np.cos(angular_position)
             + (
                 np.sqrt(
-                    self.radius**2
-                    + self.eCOUPx**2
-                    + self.eCOUPy**2
+                    self.radius ** 2
+                    + self.eCOUPx ** 2
+                    + self.eCOUPy ** 2
                     + 2
                     * self.radius
-                    * np.sqrt(self.eCOUPx**2 + self.eCOUPy**2)
+                    * np.sqrt(self.eCOUPx ** 2 + self.eCOUPy ** 2)
                     * np.cos(np.pi / 6 + fib + angular_position)
                 )
                 - self.radius
@@ -363,12 +363,12 @@ class MisalignmentFlex(Defect):
             + (
                 self.radius
                 - np.sqrt(
-                    self.radius**2
-                    + self.eCOUPx**2
-                    + self.eCOUPy**2
+                    self.radius ** 2
+                    + self.eCOUPx ** 2
+                    + self.eCOUPy ** 2
                     - 2
                     * self.radius
-                    * np.sqrt(self.eCOUPx**2 + self.eCOUPy**2)
+                    * np.sqrt(self.eCOUPx ** 2 + self.eCOUPy ** 2)
                     * np.sin(np.pi / 3 + fib + angular_position)
                 )
             )
@@ -378,12 +378,12 @@ class MisalignmentFlex(Defect):
         self.mi_x = (
             (
                 np.sqrt(
-                    self.radius**2
-                    + self.eCOUPx**2
-                    + self.eCOUPy**2
+                    self.radius ** 2
+                    + self.eCOUPx ** 2
+                    + self.eCOUPy ** 2
                     + 2
                     * self.radius
-                    * np.sqrt(self.eCOUPx**2 + self.eCOUPy**2)
+                    * np.sqrt(self.eCOUPx ** 2 + self.eCOUPy ** 2)
                     * np.sin(fib + angular_position)
                 )
                 - self.radius
@@ -391,12 +391,12 @@ class MisalignmentFlex(Defect):
             * np.sin(angular_position)
             + (
                 np.sqrt(
-                    self.radius**2
-                    + self.eCOUPx**2
-                    + self.eCOUPy**2
+                    self.radius ** 2
+                    + self.eCOUPx ** 2
+                    + self.eCOUPy ** 2
                     + 2
                     * self.radius
-                    * np.sqrt(self.eCOUPx**2 + self.eCOUPy**2)
+                    * np.sqrt(self.eCOUPx ** 2 + self.eCOUPy ** 2)
                     * np.cos(np.pi / 6 + fib + angular_position)
                 )
                 - self.radius
@@ -405,12 +405,12 @@ class MisalignmentFlex(Defect):
             + (
                 self.radius
                 - np.sqrt(
-                    self.radius**2
-                    + self.eCOUPx**2
-                    + self.eCOUPy**2
+                    self.radius ** 2
+                    + self.eCOUPx ** 2
+                    + self.eCOUPy ** 2
                     - 2
                     * self.radius
-                    * np.sqrt(self.eCOUPx**2 + self.eCOUPy**2)
+                    * np.sqrt(self.eCOUPx ** 2 + self.eCOUPy ** 2)
                     * np.sin(np.pi / 3 + fib + angular_position)
                 )
             )
@@ -711,13 +711,13 @@ class MisalignmentRigid(Defect):
 
             unbx = self.unbalance_magnitude[ii] * (self.AccelV) * (
                 np.cos(self.tetaUNB[ii, :])
-            ) - self.unbalance_magnitude[ii] * ((self.Omega**2)) * (
+            ) - self.unbalance_magnitude[ii] * ((self.Omega ** 2)) * (
                 np.sin(self.tetaUNB[ii, :])
             )
 
             unby = -self.unbalance_magnitude[ii] * (self.AccelV) * (
                 np.sin(self.tetaUNB[ii, :])
-            ) - self.unbalance_magnitude[ii] * (self.Omega**2) * (
+            ) - self.unbalance_magnitude[ii] * (self.Omega ** 2) * (
                 np.cos(self.tetaUNB[ii, :])
             )
 
