@@ -48,8 +48,9 @@ class THDCylindrical:
         Fluid specific heat. The unit is J/(kg*°C).
     Treserv : float
         Oil reservoir temperature. The unit is celsius.
-    fat_mixt : float
+    fat_mixt : list, numpy array, tuple or float
         Ratio of oil in Treserv temperature that mixes with the circulating oil.
+        Is required one fat_mixt per pad.
 
     Viscosity interpolation
     ^^^^^^^^^^^^^^^^^^^^^^^
@@ -62,6 +63,17 @@ class THDCylindrical:
         Inferior limit viscosity. The unit is Pa*s.
     mu_F : float
         Upper limit viscosity. The unit is Pa*s.
+
+    Turbulence Model
+    ^^^^^^^^^^^^^^^^
+    Turbulence model to improve analysis in higher speed.The model represents
+    the turbulence by eddy diffusivities.
+    Reyn : Array
+        The Reynolds number is a dimensionless number used to calculate the
+        fluid flow regime inside the bearing.
+    delta_turb : float
+        Eddy viscosity scaling factor. Coefficient to assign weight to laminar,
+        transitional and turbulent flows to calculate viscosity.
 
     Mesh discretization
     ^^^^^^^^^^^^^^^^^^^
@@ -108,7 +120,7 @@ class THDCylindrical:
     >>> bearing = cylindrical_bearing_example()
     >>> bearing.run(x0)
     >>> bearing.equilibrium_pos
-    array([ 0.56787259, -0.70017854])
+    array([ 0.57085649, -0.70347548])
     """
 
     @check_units
@@ -151,14 +163,14 @@ class THDCylindrical:
         self.Cp = Cp
         self.rho = rho
         self.T_reserv = T_reserv
-        self.fat_mixt = fat_mixt
+        self.fat_mixt = np.array(fat_mixt)
         self.equilibrium_pos = None
         self.sommerfeld_type = sommerfeld_type
 
         if self.n_y == None:
             self.n_y = self.n_theta
 
-        self.betha_sdg = betha_s
+        self.betha_s_dg = betha_s
         self.betha_s = betha_s * np.pi / 180
 
         self.n_pad = 2
@@ -238,14 +250,31 @@ class THDCylindrical:
 
         T_mist = self.T_reserv * np.ones(self.n_pad)
 
-        self.pad_ct = [ang for ang in range(0, 360, int(360 / self.n_pad))]
+        Reyn = np.zeros((self.n_z, self.n_theta, self.n_pad))
+
+        pad_ct = [ang for ang in range(0, 360, int(360 / self.n_pad))]
 
         self.thetaI = np.radians(
-            [pad + (180 / self.n_pad) - (self.betha_sdg / 2) for pad in self.pad_ct]
+            [pad + (180 / self.n_pad) - (self.betha_s_dg / 2) for pad in pad_ct]
         )
 
         self.thetaF = np.radians(
-            [pad + (180 / self.n_pad) + (self.betha_sdg / 2) for pad in self.pad_ct]
+            [pad + (180 / self.n_pad) + (self.betha_s_dg / 2) for pad in pad_ct]
+        )
+
+        Ytheta = [
+            np.linspace(t1, t2, self.n_theta)
+            for t1, t2 in zip(self.thetaI, self.thetaF)
+        ]
+
+        self.pad_ct = [ang for ang in range(0, 360, int(360 / self.n_pad))]
+
+        self.thetaI = np.radians(
+            [pad + (180 / self.n_pad) - (self.betha_s_dg / 2) for pad in self.pad_ct]
+        )
+
+        self.thetaF = np.radians(
+            [pad + (180 / self.n_pad) + (self.betha_s_dg / 2) for pad in self.pad_ct]
         )
 
         Ytheta = [
@@ -264,6 +293,8 @@ class THDCylindrical:
             T_conv = T_mist[0]
 
             mi_new = 1.1 * np.ones((self.n_z, self.n_theta, self.n_pad))
+            mi_turb = 1.3 * np.ones((self.n_z, self.n_theta, self.n_pad))
+
             PP = np.zeros(((self.n_z), (2 * self.n_theta)))
 
             nk = (self.n_z) * (self.n_theta)
@@ -580,6 +611,50 @@ class THDCylindrical:
 
                             mi_p = mi[ki, kj, n_p]
 
+                            Reyn[ki, kj, n_p] = (
+                                self.rho
+                                * self.speed
+                                * self.R
+                                * (HP / self.L)
+                                * self.c_r
+                                / (self.mu_ref)
+                            )
+
+                            if Reyn[ki, kj, n_p] <= 500:
+
+                                self.delta_turb = 0
+
+                            elif Reyn[ki, kj, n_p] > 400 and Reyn[ki, kj, n_p] <= 1000:
+
+                                self.delta_turb = 1 - (
+                                    (1000 - Reyn[ki, kj, n_p]) / 500
+                                ) ** (1 / 8)
+
+                            elif Reyn[ki, kj, n_p] > 1000:
+
+                                self.delta_turb = 1
+
+                            dudy = ((HP / mi_turb[ki, kj, n_p]) * dPdy[ki, kj, n_p]) - (
+                                self.speed / HP
+                            )
+
+                            dwdy = (HP / mi_turb[ki, kj, n_p]) * dPdz[ki, kj, n_p]
+
+                            tal = mi_turb[ki, kj, n_p] * np.sqrt(
+                                (dudy**2) + (dwdy**2)
+                            )
+
+                            x_wall = (
+                                (HP * self.c_r * 2)
+                                / (self.mu_ref * mi_turb[ki, kj, n_p] / self.rho)
+                            ) * ((abs(tal) / self.rho) ** 0.5)
+
+                            emv = 0.4 * (x_wall - (10.7 * np.tanh(x_wall / 10.7)))
+
+                            mi_turb[ki, kj, n_p] = mi_p * (1 + (self.delta_turb * emv))
+
+                            mi_t = mi_turb[ki, kj, n_p]
+
                             AE = -(self.k_t * HP * self.dZ) / (
                                 self.rho
                                 * self.Cp
@@ -590,7 +665,7 @@ class THDCylindrical:
                             AW = (
                                 (
                                     ((HP**3) * dPdy[ki, kj, n_p] * self.dZ)
-                                    / (12 * mi_p * (self.betha_s**2))
+                                    / (12 * mi_t * (self.betha_s**2))
                                 )
                                 - ((HP) * self.dZ / (2 * self.betha_s))
                                 - (
@@ -618,7 +693,7 @@ class THDCylindrical:
                                     * dPdz[ki, kj, n_p]
                                     * self.dY
                                 )
-                                / (12 * (self.L**2) * mi_p)
+                                / (12 * (self.L**2) * mi_t)
                             ) - (
                                 (self.k_t * HP * self.dY)
                                 / (
@@ -648,13 +723,13 @@ class THDCylindrical:
                                 * self.mu_ref
                                 * (hpt**2)
                                 * 4
-                                * mi_p
+                                * mi_t
                                 * self.dY
                                 * self.dZ
                             ) / (self.rho * self.Cp * self.T_reserv * 3 * HP)
                             b_TI = (
                                 auxb_T
-                                * (mi_p * (self.R**2) * self.dY * self.dZ)
+                                * (mi_t * (self.R**2) * self.dY * self.dZ)
                                 / (HP * self.c_r)
                             )
                             b_TJ = (
@@ -666,7 +741,7 @@ class THDCylindrical:
                                     * self.dY
                                     * self.dZ
                                 )
-                                / (12 * self.c_r * (self.betha_s**2) * mi_p)
+                                / (12 * self.c_r * (self.betha_s**2) * mi_t)
                             )
                             b_TK = (
                                 auxb_T
@@ -677,7 +752,7 @@ class THDCylindrical:
                                     * self.dY
                                     * self.dZ
                                 )
-                                / (12 * self.c_r * (self.L**2) * mi_p)
+                                / (12 * self.c_r * (self.L**2) * mi_t)
                             )
 
                             B_T = b_TG + b_TH + b_TI + b_TJ + b_TK
@@ -772,7 +847,8 @@ class THDCylindrical:
                     T_end = np.sum(Tdim[:, -1, n_p]) / self.n_z
 
                     T_mist[n_p] = (
-                        self.fat_mixt * self.T_reserv + (1 - self.fat_mixt) * T_end
+                        self.fat_mixt[n_p] * self.T_reserv
+                        + (1 - self.fat_mixt[n_p]) * T_end
                     )
 
                     for i in np.arange(self.n_z):
@@ -1059,7 +1135,7 @@ def cylindrical_bearing_example():
         Cp=1915.24,
         rho=854.952,
         T_reserv=50,
-        fat_mixt=0.52,
+        fat_mixt=[0.52, 0.48],
         T_muI=50,
         T_muF=80,
         mu_I=0.02,
@@ -1068,11 +1144,3 @@ def cylindrical_bearing_example():
     )
 
     return bearing
-
-
-if __name__ == "__main__":
-    x0 = [0.1, -0.1]
-    bearing = cylindrical_bearing_example()
-    bearing.run(x0)
-    bearing.equilibrium_pos
-    print(bearing.equilibrium_pos)

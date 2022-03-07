@@ -6,17 +6,17 @@ from tempfile import tempdir
 import numpy as np
 import pytest
 from numpy.testing import assert_allclose
-from ross.units import Q_
 
 from ross.bearing_seal_element import (
     BallBearingElement,
     BearingElement,
     BearingElement6DoF,
     BearingFluidFlow,
+    CylindricalBearing,
     MagneticBearingElement,
     RollerBearingElement,
-    CylindricalBearing,
 )
+from ross.units import Q_
 
 
 @pytest.fixture

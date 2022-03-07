@@ -6,7 +6,6 @@ from pathlib import Path
 
 import pint
 
-
 new_units_path = Path(__file__).parent / "new_units.txt"
 ureg = pint.get_application_registry()
 if isinstance(ureg.get(), pint.registry.LazyRegistry):

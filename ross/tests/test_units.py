@@ -3,6 +3,7 @@ from collections import namedtuple
 
 import pytest
 from numpy.testing import assert_allclose
+
 from ross.units import Q_, check_units
 
 

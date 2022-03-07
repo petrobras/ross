@@ -1,14 +1,14 @@
+import pickle
 from pathlib import Path
 from tempfile import tempdir
 
 import numpy as np
 import pytest
-import pickle
 from numpy.testing import assert_allclose, assert_almost_equal, assert_equal
 
 from ross.bearing_seal_element import *
 from ross.disk_element import *
-from ross.materials import steel, Material
+from ross.materials import Material, steel
 from ross.point_mass import *
 from ross.rotor_assembly import *
 from ross.shaft_element import *

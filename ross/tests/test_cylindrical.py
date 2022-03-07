@@ -27,7 +27,7 @@ def cylindrical():
         Cp=1915.24,
         rho=854.952,
         T_reserv=50,
-        fat_mixt=0.52,
+        fat_mixt=[0.52, 0.48],
         T_muI=50,
         T_muF=80,
         mu_I=0.02,
@@ -61,7 +61,7 @@ def cylindrical_units():
         Cp=1915.24,
         rho=854.952,
         T_reserv=50,
-        fat_mixt=0.52,
+        fat_mixt=[0.52, 0.48],
         T_muI=50,
         T_muF=80,
         mu_I=0.02,
@@ -89,8 +89,8 @@ def test_cylindrical_parameters_units(cylindrical_units):
 
 
 def test_cylindrical_equilibrium_pos(cylindrical):
-    assert math.isclose(cylindrical.equilibrium_pos[0], 0.56787259, rel_tol=0.01)
-    assert math.isclose(cylindrical.equilibrium_pos[1], -0.70017854, rel_tol=0.01)
+    assert math.isclose(cylindrical.equilibrium_pos[0], 0.57085649, rel_tol=0.01)
+    assert math.isclose(cylindrical.equilibrium_pos[1], -0.70347548, rel_tol=0.01)
 
 
 def test_cylindrical_coefficients(cylindrical):
@@ -104,11 +104,11 @@ def test_cylindrical_coefficients(cylindrical):
     cyx = coefs[1][2]
     cyy = coefs[1][3]
 
-    assert math.isclose(kxx, 1092049753.1287675, rel_tol=0.0001)
-    assert math.isclose(kxy, 429382922.1736517, rel_tol=0.0001)
-    assert math.isclose(kyx, -1323580421.569568, rel_tol=0.0001)
-    assert math.isclose(kyy, 981756962.9451787, rel_tol=0.0001)
-    assert math.isclose(cxx, 6567887247.215568, rel_tol=0.0001)
-    assert math.isclose(cxy, -5534060052.007937, rel_tol=0.0001)
-    assert math.isclose(cyx, -17036571.56142904, rel_tol=0.0001)
-    assert math.isclose(cyy, 6173065.363999774, rel_tol=0.0001)
+    assert math.isclose(kxx, 1096250664.880629, rel_tol=0.0001)
+    assert math.isclose(kxy, 427843589.07147664, rel_tol=0.0001)
+    assert math.isclose(kyx, -1319415053.509655, rel_tol=0.0001)
+    assert math.isclose(kyy, 979130735.9372679, rel_tol=0.0001)
+    assert math.isclose(cxx, 6542323143.165833, rel_tol=0.0001)
+    assert math.isclose(cxy, -5549506475.211899, rel_tol=0.0001)
+    assert math.isclose(cyx, -17074332.738419067, rel_tol=0.0001)
+    assert math.isclose(cyy, 6226520.595067979, rel_tol=0.0001)
