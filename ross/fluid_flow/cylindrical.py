@@ -135,6 +135,7 @@ class THDCylindrical:
         mu_I,
         mu_F,
         sommerfeld_type=2,
+        oip=0,
     ):
 
         self.L = L
@@ -183,6 +184,11 @@ class THDCylindrical:
         Z[self.n_z + 1] = self.Z_F
         Z[1 : self.n_z + 1] = np.arange(self.Z_I + 0.5 * self.dZ, self.Z_F, self.dZ)
         self.Z = Z
+
+        self.pct = np.round(self.n_z/10)
+
+        self.pct_aux1 = np.round((self.n_z-self.pct)/2)
+        self.pct_aux2 = np.round(self.pct_aux1+self.pct)
 
         # Dimensionalization
 
@@ -237,6 +243,8 @@ class THDCylindrical:
         T_conv = 0.8 * self.T_reserv
 
         T_mist = self.T_reserv * np.ones(self.n_pad)
+        
+        Tdim = np.ones((self.n_z,self.n_theta,self.n_pad))*self.T_reserv 
 
         self.pad_ct = [ang for ang in range(0, 360, int(360 / self.n_pad))]
 
@@ -686,70 +694,155 @@ class THDCylindrical:
 
                             b_T[k - 1, 0] = B_T
 
-                            if ki == 0 and kj == 0:
-                                Mat_coef_T[k - 1, k - 1] = AP + AS - AW
-                                Mat_coef_T[k - 1, k] = AE
-                                Mat_coef_T[k - 1, k + self.n_theta - 1] = AN
-                                b_T[k - 1, 0] = b_T[k - 1, 0] - 2 * AW * (
-                                    T_ref / self.T_reserv
-                                )
+                            if oip == 0:
+                                if ki == 0 and kj == 0:
+                                    Mat_coef_T[k - 1, k - 1] = AP + AS - AW
+                                    Mat_coef_T[k - 1, k] = AE
+                                    Mat_coef_T[k - 1, k + self.n_theta - 1] = AN
+                                    b_T[k - 1, 0] = b_T[k - 1, 0] - 2 * AW * (
+                                        T_ref / self.T_reserv
+                                    )
+    
+                                elif kj == 0 and ki > 0 and ki < self.n_z - 1:
+                                    Mat_coef_T[k - 1, k - 1] = AP - AW
+                                    Mat_coef_T[k - 1, k] = AE
+                                    Mat_coef_T[k - 1, k - self.n_theta - 1] = AS
+                                    Mat_coef_T[k - 1, k + self.n_theta - 1] = AN
+                                    b_T[k - 1, 0] = b_T[k - 1, 0] - 2 * AW * (
+                                        T_ref / self.T_reserv
+                                    )
+    
+                                elif kj == 0 and ki == self.n_z - 1:
+                                    Mat_coef_T[k - 1, k - 1] = AP + AN - AW
+                                    Mat_coef_T[k - 1, k] = AE
+                                    Mat_coef_T[k - 1, k - self.n_theta - 1] = AS
+                                    b_T[k - 1, 0] = b_T[k - 1, 0] - 2 * AW * (
+                                        T_ref / self.T_reserv
+                                    )
+                                    
+                                elif ki == 0 and kj > 0 and kj < self.n_y - 1:
+                                    Mat_coef_T[k - 1, k - 1] = AP + AS
+                                    Mat_coef_T[k - 1, k] = AE
+                                    Mat_coef_T[k - 1, k - 2] = AW
+                                    Mat_coef_T[k - 1, k + self.n_theta - 1] = AN
+    
+                                elif (
+                                    ki > 0
+                                    and ki < self.n_z - 1
+                                    and kj > 0
+                                    and kj < self.n_y - 1
+                                ):
+                                    Mat_coef_T[k - 1, k - 1] = AP
+                                    Mat_coef_T[k - 1, k - 2] = AW
+                                    Mat_coef_T[k - 1, k - self.n_theta - 1] = AS
+                                    Mat_coef_T[k - 1, k + self.n_theta - 1] = AN
+                                    Mat_coef_T[k - 1, k] = AE
+    
+                                elif ki == self.n_z - 1 and kj > 0 and kj < self.n_y - 1:
+                                    Mat_coef_T[k - 1, k - 1] = AP + AN
+                                    Mat_coef_T[k - 1, k] = AE
+                                    Mat_coef_T[k - 1, k - 2] = AW
+                                    Mat_coef_T[k - 1, k - self.n_theta - 1] = AS
+    
+                                elif ki == 0 and kj == self.n_y - 1:
+                                    Mat_coef_T[k - 1, k - 1] = AP + AE + AS
+                                    Mat_coef_T[k - 1, k - 2] = AW
+                                    Mat_coef_T[k - 1, k + self.n_theta - 1] = AN
+    
+                                elif kj == self.n_y - 1 and ki > 0 and ki < self.n_z - 1:
+                                    Mat_coef_T[k - 1, k - 1] = AP + AE
+                                    Mat_coef_T[k - 1, k - 2] = AW
+                                    Mat_coef_T[k - 1, k - self.n_theta - 1] = AS
+                                    Mat_coef_T[k - 1, k + self.n_theta - 1] = AN
+    
+                                elif ki == self.n_z - 1 and kj == self.n_y - 1:
+                                    Mat_coef_T[k - 1, k - 1] = AP + AE + AN
+                                    Mat_coef_T[k - 1, k - 2] = AW
+                                    Mat_coef_T[k - 1, k - self.n_theta - 1] = AS
+                                    
+                            else:
+                                if ki == 0 and kj == 0:
+                                    Mat_coef_T[k - 1, k - 1] = AP + AS - AW
+                                    Mat_coef_T[k - 1, k] = AE
+                                    Mat_coef_T[k - 1, k + self.n_theta - 1] = AN
+                                    b_T[k - 1, 0] = b_T[k - 1, 0] - 2 * AW * (
+                                        Tdim[ki,self.n_theta-1,n_p-1] / self.T_reserv
+                                    )
+    
+                                elif kj == 0 and ki > 0 and ki < self.pct_aux1:
+                                    Mat_coef_T[k - 1, k - 1] = AP - AW
+                                    Mat_coef_T[k - 1, k] = AE
+                                    Mat_coef_T[k - 1, k - self.n_theta - 1] = AS
+                                    Mat_coef_T[k - 1, k + self.n_theta - 1] = AN
+                                    b_T[k - 1, 0] = b_T[k - 1, 0] - 2 * AW * (
+                                        Tdim[ki,self.n_theta-1,n_p-1] / self.T_reserv
+                                    )
+                                    
+                                elif kj == 0 and ki >= self.pct_aux1 and ki <= self.pct_aux2:
+                                    Mat_coef_T[k - 1, k - 1] = AP - AW
+                                    Mat_coef_T[k - 1, k] = AE
+                                    Mat_coef_T[k - 1, k - self.n_theta - 1] = AS
+                                    Mat_coef_T[k - 1, k + self.n_theta - 1] = AN
+                                    b_T[k - 1, 0] = b_T[k - 1, 0] - 2 * AW * (
+                                        T_ref / self.T_reserv
+                                    )    
+                                
+                                elif kj == 0 and ki > self.pct_aux2 and ki < self.n_z - 1:
+                                    Mat_coef_T[k - 1, k - 1] = AP - AW
+                                    Mat_coef_T[k - 1, k] = AE
+                                    Mat_coef_T[k - 1, k - self.n_theta - 1] = AS
+                                    Mat_coef_T[k - 1, k + self.n_theta - 1] = AN
+                                    b_T[k - 1, 0] = b_T[k - 1, 0] - 2 * AW * (
+                                        Tdim[ki,self.n_theta-1,n_p-1] / self.T_reserv
+                                    )  
+                                
+                                
+                                elif kj == 0 and ki == self.n_z - 1:
+                                    Mat_coef_T[k - 1, k - 1] = AP + AN - AW
+                                    Mat_coef_T[k - 1, k] = AE
+                                    Mat_coef_T[k - 1, k - self.n_theta - 1] = AS
+                                    b_T[k - 1, 0] = b_T[k - 1, 0] - 2 * AW * (
+                                    Tdim[ki,self.n_theta-1,n_p-1] / self.T_reserv)
+                                        
+                                elif ki == 0 and kj > 0 and kj < self.n_y - 1:
+                                    Mat_coef_T[k - 1, k - 1] = AP + AS
+                                    Mat_coef_T[k - 1, k] = AE
+                                    Mat_coef_T[k - 1, k - 2] = AW
+                                    Mat_coef_T[k - 1, k + self.n_theta - 1] = AN
 
-                            elif kj == 0 and ki > 0 and ki < self.n_z - 1:
-                                Mat_coef_T[k - 1, k - 1] = AP - AW
-                                Mat_coef_T[k - 1, k] = AE
-                                Mat_coef_T[k - 1, k - self.n_theta - 1] = AS
-                                Mat_coef_T[k - 1, k + self.n_theta - 1] = AN
-                                b_T[k - 1, 0] = b_T[k - 1, 0] - 2 * AW * (
-                                    T_ref / self.T_reserv
-                                )
-
-                            elif kj == 0 and ki == self.n_z - 1:
-                                Mat_coef_T[k - 1, k - 1] = AP + AN - AW
-                                Mat_coef_T[k - 1, k] = AE
-                                Mat_coef_T[k - 1, k - self.n_theta - 1] = AS
-                                b_T[k - 1, 0] = b_T[k - 1, 0] - 2 * AW * (
-                                    T_ref / self.T_reserv
-                                )
-
-                            elif ki == 0 and kj > 0 and kj < self.n_y - 1:
-                                Mat_coef_T[k - 1, k - 1] = AP + AS
-                                Mat_coef_T[k - 1, k] = AE
-                                Mat_coef_T[k - 1, k - 2] = AW
-                                Mat_coef_T[k - 1, k + self.n_theta - 1] = AN
-
-                            elif (
-                                ki > 0
-                                and ki < self.n_z - 1
-                                and kj > 0
-                                and kj < self.n_y - 1
-                            ):
-                                Mat_coef_T[k - 1, k - 1] = AP
-                                Mat_coef_T[k - 1, k - 2] = AW
-                                Mat_coef_T[k - 1, k - self.n_theta - 1] = AS
-                                Mat_coef_T[k - 1, k + self.n_theta - 1] = AN
-                                Mat_coef_T[k - 1, k] = AE
-
-                            elif ki == self.n_z - 1 and kj > 0 and kj < self.n_y - 1:
-                                Mat_coef_T[k - 1, k - 1] = AP + AN
-                                Mat_coef_T[k - 1, k] = AE
-                                Mat_coef_T[k - 1, k - 2] = AW
-                                Mat_coef_T[k - 1, k - self.n_theta - 1] = AS
-
-                            elif ki == 0 and kj == self.n_y - 1:
-                                Mat_coef_T[k - 1, k - 1] = AP + AE + AS
-                                Mat_coef_T[k - 1, k - 2] = AW
-                                Mat_coef_T[k - 1, k + self.n_theta - 1] = AN
-
-                            elif kj == self.n_y - 1 and ki > 0 and ki < self.n_z - 1:
-                                Mat_coef_T[k - 1, k - 1] = AP + AE
-                                Mat_coef_T[k - 1, k - 2] = AW
-                                Mat_coef_T[k - 1, k - self.n_theta - 1] = AS
-                                Mat_coef_T[k - 1, k + self.n_theta - 1] = AN
-
-                            elif ki == self.n_z - 1 and kj == self.n_y - 1:
-                                Mat_coef_T[k - 1, k - 1] = AP + AE + AN
-                                Mat_coef_T[k - 1, k - 2] = AW
-                                Mat_coef_T[k - 1, k - self.n_theta - 1] = AS
+                                elif (
+                                    ki > 0
+                                    and ki < self.n_z - 1
+                                    and kj > 0
+                                    and kj < self.n_y - 1
+                                ):
+                                    Mat_coef_T[k - 1, k - 1] = AP
+                                    Mat_coef_T[k - 1, k - 2] = AW
+                                    Mat_coef_T[k - 1, k - self.n_theta - 1] = AS
+                                    Mat_coef_T[k - 1, k + self.n_theta - 1] = AN
+                                    Mat_coef_T[k - 1, k] = AE
+    
+                                elif ki == self.n_z - 1 and kj > 0 and kj < self.n_y - 1:
+                                    Mat_coef_T[k - 1, k - 1] = AP + AN
+                                    Mat_coef_T[k - 1, k] = AE
+                                    Mat_coef_T[k - 1, k - 2] = AW
+                                    Mat_coef_T[k - 1, k - self.n_theta - 1] = AS
+    
+                                elif ki == 0 and kj == self.n_y - 1:
+                                    Mat_coef_T[k - 1, k - 1] = AP + AE + AS
+                                    Mat_coef_T[k - 1, k - 2] = AW
+                                    Mat_coef_T[k - 1, k + self.n_theta - 1] = AN
+    
+                                elif kj == self.n_y - 1 and ki > 0 and ki < self.n_z - 1:
+                                    Mat_coef_T[k - 1, k - 1] = AP + AE
+                                    Mat_coef_T[k - 1, k - 2] = AW
+                                    Mat_coef_T[k - 1, k - self.n_theta - 1] = AS
+                                    Mat_coef_T[k - 1, k + self.n_theta - 1] = AN
+    
+                                elif ki == self.n_z - 1 and kj == self.n_y - 1:
+                                    Mat_coef_T[k - 1, k - 1] = AP + AE + AN
+                                    Mat_coef_T[k - 1, k - 2] = AW
+                                    Mat_coef_T[k - 1, k - self.n_theta - 1] = AS
 
                             kj = kj + 1
 
@@ -1065,6 +1158,7 @@ def cylindrical_bearing_example():
         mu_I=0.02,
         mu_F=0.01,
         sommerfeld_type=2,
+        oip=0,
     )
 
     return bearing
