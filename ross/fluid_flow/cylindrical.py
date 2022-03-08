@@ -1144,3 +1144,4 @@ def cylindrical_bearing_example():
     )
 
     return bearing
+.
