@@ -1412,6 +1412,64 @@ def test_kappa_axes_values(rotor7):
     assert_allclose(modal7.kappa(3, 2)["Major axes"], 8.480305842205874e-05, atol=1e-8)
 
 
+def test_plot_mode(rotor7):
+    modal7 = rotor7.run_modal(50)
+    fig = modal7.plot_mode_2d(1)
+
+    expected_x = np.array([0.0, 0.0125, 0.025, 0.0375, 0.05])
+    expected_y = np.array([0.33349272, 0.35024114, 0.36698684, 0.38371907, 0.40042712])
+
+    assert fig.data[0]["line"]["color"] == "blue"
+    assert_allclose(fig.data[0]["x"][:5], expected_x, rtol=1e-5)
+    assert_allclose(fig.data[0]["y"][:5], expected_y, rtol=1e-5)
+
+    fig = modal7.plot_mode_3d(1)
+
+    expected_x = np.array([0.0, 0.0125, 0.025, 0.0375, 0.05])
+    expected_y = np.array([0.01876129, 0.01827158, 0.01778194, 0.01729269, 0.01680419])
+    expected_z = np.array([0.33274591, 0.34953757, 0.36632648, 0.38310191, 0.39985308])
+
+    assert fig.data[0]["line"]["color"] == "blue"
+    # -2 is the black line that passes through each orbit starting point
+    assert_allclose(fig.data[-2]["x"][:5], expected_x, rtol=1e-5)
+    assert_allclose(fig.data[-2]["y"][:5], expected_y, rtol=1e-5)
+    assert_allclose(fig.data[-2]["z"][:5], expected_z, rtol=1e-5)
+
+
+def test_deflected_shape(rotor7):
+    forced = rotor7.run_unbalance_response(
+        node=0, unbalance_magnitude=1, unbalance_phase=0, frequency=[50]
+    )
+    fig = forced.plot_deflected_shape_3d(speed=50)
+    # check major axis
+    expected_x = np.array([0.0, 0.25, 0.5, 0.75, 1.0, 1.25, 1.5])
+    expected_y = np.array(
+        [
+            -0.00270852,
+            -0.00249748,
+            -0.00223173,
+            -0.00186858,
+            -0.0014004,
+            -0.00083703,
+            -0.00022118,
+        ]
+    )
+    expected_z = np.array(
+        [
+            -4.14338169e-04,
+            -3.79035881e-04,
+            -3.35581247e-04,
+            -2.77637765e-04,
+            -2.04136131e-04,
+            -1.16593615e-04,
+            -2.13187804e-05,
+        ]
+    )
+    assert_allclose(fig.data[-4]["x"], expected_x, rtol=1e-4)
+    assert_allclose(fig.data[-4]["y"], expected_y, rtol=1e-4)
+    assert_allclose(fig.data[-4]["z"], expected_z, rtol=1e-4)
+
+
 @pytest.mark.skip(reason="Fails for very small values")
 def test_H_kappa(rotor7):
     rotor7.w = 400
