@@ -94,6 +94,8 @@ class THDCylindrical:
     .. [1] BARBOSA, J. S.; LOBATO, FRAN S.; CAMPANINE SICCHIERI, LEONARDO;CAVALINI JR, ALDEMIR AP. ; STEFFEN JR, VALDER. Determinação da Posição de Equilíbrio em Mancais Hidrodinâmicos Cilíndricos usando o Algoritmo de Evolução Diferencial. REVISTA CEREUS, v. 10, p. 224-239, 2018. ..
     .. [2] DANIEL, G.B. Desenvolvimento de um Modelo Termohidrodinâmico para Análise em Mancais Segmentados. Campinas: Faculdade de Engenharia Mecânica, Universidade Estadual de Campinas, 2012. Tese (Doutorado). ..
     .. [3] NICOLETTI, R., Efeitos Térmicos em Mancais Segmentados Híbridos – Teoria e Experimento. 1999. Dissertação de Mestrado. Universidade Estadual de Campinas, Campinas. ..
+    .. [4] SUGANAMI, T.; SZERI, A. Z. A thermohydrodynamic analysis of journal bearings. 1979. ..
+    .. [5] LUND, J. W.; THOMSEN, K. K. A calculation method and data for the dynamic coefficients of oil-lubricated journal bearings. Topics in fluid film bearing and rotor bearing system design and optimization, n. 1000118, 1978. ..
 
     Attributes
     ----------
@@ -1050,8 +1052,8 @@ class THDCylindrical:
             return coefs
 
     def coefficients_lund(self, show_coef=True):
-        """Calculates the dynamic coefficients of stiffness "k" and damping "c". The formulation is based in application of virtual displacements and speeds on the rotor from its equilibrium position to determine the bearing stiffness and damping coefficients.
-
+        """Calculates the dynamic coefficients of stiffness "k" and damping "c". A small amplitude whirl of the journal center (a first order perturbation solution) is aplied. 
+        The four stiffness coefficients, and the four damping coefficients is obtained by integration of the pressure field. 
         Parameters
         ----------
         show_coef : bool
