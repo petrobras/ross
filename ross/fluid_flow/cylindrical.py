@@ -286,7 +286,7 @@ class THDCylindrical:
 
         while (T_mist[0] - T_conv) >= 1e-2:
 
-            P = np.zeros((self.n_z, self.n_theta, self.n_pad))
+            self.P = np.zeros((self.n_z, self.n_theta, self.n_pad))
             dPdy = np.zeros((self.n_z, self.n_theta, self.n_pad))
             dPdz = np.zeros((self.n_z, self.n_theta, self.n_pad))
             T = np.ones((self.n_z, self.n_theta, self.n_pad))
@@ -503,15 +503,15 @@ class THDCylindrical:
                     for i in np.arange(self.n_z):
                         for j in np.arange(self.n_theta):
 
-                            P[i, j, n_p] = p[cont]
+                            self.P[i, j, n_p] = p[cont]
                             cont = cont + 1
 
-                            if P[i, j, n_p] < 0:
-                                P[i, j, n_p] = 0
+                            if self.P[i, j, n_p] < 0:
+                                self.P[i, j, n_p] = 0
 
                     # Dimensional pressure fied
 
-                    self.Pdim = (P * self.mu_ref * self.speed * (self.R**2)) / (
+                    self.Pdim = (self.P * self.mu_ref * self.speed * (self.R**2)) / (
                         self.c_r**2
                     )
 
@@ -533,34 +533,34 @@ class THDCylindrical:
                             # Pressure gradients
 
                             if kj == 0 and ki == 0:
-                                dPdy[ki, kj, n_p] = (P[ki, kj + 1, n_p] - 0) / (
+                                dPdy[ki, kj, n_p] = (self.P[ki, kj + 1, n_p] - 0) / (
                                     2 * self.dY
                                 )
-                                dPdz[ki, kj, n_p] = (P[ki + 1, kj, n_p] - 0) / (
+                                dPdz[ki, kj, n_p] = (self.P[ki + 1, kj, n_p] - 0) / (
                                     2 * self.dZ
                                 )
 
                             if kj == 0 and ki > 0 and ki < self.n_z - 1:
-                                dPdy[ki, kj, n_p] = (P[ki, kj + 1, n_p] - 0) / (
+                                dPdy[ki, kj, n_p] = (self.P[ki, kj + 1, n_p] - 0) / (
                                     2 * self.dY
                                 )
                                 dPdz[ki, kj, n_p] = (
-                                    P[ki + 1, kj, n_p] - P[ki - 1, kj, n_p]
+                                    self.P[ki + 1, kj, n_p] - self.P[ki - 1, kj, n_p]
                                 ) / (2 * self.dZ)
 
                             if kj == 0 and ki == self.n_z - 1:
-                                dPdy[ki, kj, n_p] = (P[ki, kj + 1, n_p] - 0) / (
+                                dPdy[ki, kj, n_p] = (self.P[ki, kj + 1, n_p] - 0) / (
                                     2 * self.dY
                                 )
-                                dPdz[ki, kj, n_p] = (0 - P[ki - 1, kj, n_p]) / (
+                                dPdz[ki, kj, n_p] = (0 - self.P[ki - 1, kj, n_p]) / (
                                     2 * self.dZ
                                 )
 
                             if ki == 0 and kj > 0 and kj < self.n_theta - 1:
                                 dPdy[ki, kj, n_p] = (
-                                    P[ki, kj + 1, n_p] - P[ki, kj - 1, n_p]
+                                    self.P[ki, kj + 1, n_p] - self.P[ki, kj - 1, n_p]
                                 ) / (2 * self.dY)
-                                dPdz[ki, kj, n_p] = (P[ki + 1, kj, n_p] - 0) / (
+                                dPdz[ki, kj, n_p] = (self.P[ki + 1, kj, n_p] - 0) / (
                                     2 * self.dZ
                                 )
 
@@ -571,41 +571,41 @@ class THDCylindrical:
                                 and ki < self.n_z - 1
                             ):
                                 dPdy[ki, kj, n_p] = (
-                                    P[ki, kj + 1, n_p] - P[ki, kj - 1, n_p]
+                                    self.P[ki, kj + 1, n_p] - self.P[ki, kj - 1, n_p]
                                 ) / (2 * self.dY)
                                 dPdz[ki, kj, n_p] = (
-                                    P[ki + 1, kj, n_p] - P[ki - 1, kj, n_p]
+                                    self.P[ki + 1, kj, n_p] - self.P[ki - 1, kj, n_p]
                                 ) / (2 * self.dZ)
 
                             if ki == self.n_z - 1 and kj > 0 and kj < self.n_theta - 1:
                                 dPdy[ki, kj, n_p] = (
-                                    P[ki, kj + 1, n_p] - P[ki, kj - 1, n_p]
+                                    self.P[ki, kj + 1, n_p] - self.P[ki, kj - 1, n_p]
                                 ) / (2 * self.dY)
-                                dPdz[ki, kj, n_p] = (0 - P[ki - 1, kj, n_p]) / (
+                                dPdz[ki, kj, n_p] = (0 - self.P[ki - 1, kj, n_p]) / (
                                     2 * self.dZ
                                 )
 
                             if ki == 0 and kj == self.n_theta - 1:
-                                dPdy[ki, kj, n_p] = (0 - P[ki, kj - 1, n_p]) / (
+                                dPdy[ki, kj, n_p] = (0 - self.P[ki, kj - 1, n_p]) / (
                                     2 * self.dY
                                 )
-                                dPdz[ki, kj, n_p] = (P[ki + 1, kj, n_p] - 0) / (
+                                dPdz[ki, kj, n_p] = (self.P[ki + 1, kj, n_p] - 0) / (
                                     2 * self.dZ
                                 )
 
                             if kj == self.n_theta - 1 and ki > 0 and ki < self.n_z - 1:
-                                dPdy[ki, kj, n_p] = (0 - P[ki, kj - 1, n_p]) / (
+                                dPdy[ki, kj, n_p] = (0 - self.P[ki, kj - 1, n_p]) / (
                                     2 * self.dY
                                 )
                                 dPdz[ki, kj, n_p] = (
-                                    P[ki + 1, kj, n_p] - P[ki - 1, kj, n_p]
+                                    self.P[ki + 1, kj, n_p] - self.P[ki - 1, kj, n_p]
                                 ) / (2 * self.dZ)
 
                             if kj == self.n_theta - 1 and ki == self.n_z - 1:
-                                dPdy[ki, kj, n_p] = (0 - P[ki, kj - 1, n_p]) / (
+                                dPdy[ki, kj, n_p] = (0 - self.P[ki, kj - 1, n_p]) / (
                                     2 * self.dY
                                 )
-                                dPdz[ki, kj, n_p] = (0 - P[ki - 1, kj, n_p]) / (
+                                dPdz[ki, kj, n_p] = (0 - self.P[ki - 1, kj, n_p]) / (
                                     2 * self.dZ
                                 )
 
@@ -718,7 +718,7 @@ class THDCylindrical:
                                 * (self.R**2)
                                 * self.dY
                                 * self.dZ
-                                * P[ki, kj, n_p]
+                                * self.P[ki, kj, n_p]
                                 * hpt
                             ) / (self.rho * self.Cp * self.T_reserv * (self.c_r**2))
                             b_TH = (
@@ -1072,7 +1072,7 @@ class THDCylindrical:
             self.coefficients_lund()
         else:
             
-            p = self.Pdim
+            p = self.P
      
             x0 = self.equilibrium_pos
 
