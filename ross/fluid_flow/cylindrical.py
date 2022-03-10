@@ -353,28 +353,28 @@ class THDCylindrical:
                             hs = hn
 
                             if kj == 0 and ki == 0:
-                                MI_e = 0.5 * (mu[ki, kj] + mu[ki, kj + 1])
-                                MI_w = mu[ki, kj]
-                                MI_s = mu[ki, kj]
-                                MI_n = 0.5 * (mu[ki, kj] + mu[ki + 1, kj])
+                                MU_e = 0.5 * (mu[ki, kj] + mu[ki, kj + 1])
+                                MU_w = mu[ki, kj]
+                                MU_s = mu[ki, kj]
+                                MU_n = 0.5 * (mu[ki, kj] + mu[ki + 1, kj])
 
                             if kj == 0 and ki > 0 and ki < self.n_z - 1:
-                                MI_e = 0.5 * (mu[ki, kj] + mu[ki, kj + 1])
-                                MI_w = mu[ki, kj]
-                                MI_s = 0.5 * (mu[ki, kj] + mu[ki - 1, kj])
-                                MI_n = 0.5 * (mu[ki, kj] + mu[ki + 1, kj])
+                                MU_e = 0.5 * (mu[ki, kj] + mu[ki, kj + 1])
+                                MU_w = mu[ki, kj]
+                                MU_s = 0.5 * (mu[ki, kj] + mu[ki - 1, kj])
+                                MU_n = 0.5 * (mu[ki, kj] + mu[ki + 1, kj])
 
                             if kj == 0 and ki == self.n_z - 1:
-                                MI_e = 0.5 * (mu[ki, kj] + mu[ki, kj + 1])
-                                MI_w = mu[ki, kj]
-                                MI_s = 0.5 * (mu[ki, kj] + mu[ki - 1, kj])
-                                MI_n = mu[ki, kj]
+                                MU_e = 0.5 * (mu[ki, kj] + mu[ki, kj + 1])
+                                MU_w = mu[ki, kj]
+                                MU_s = 0.5 * (mu[ki, kj] + mu[ki - 1, kj])
+                                MU_n = mu[ki, kj]
 
                             if ki == 0 and kj > 0 and kj < self.n_theta - 1:
-                                MI_e = 0.5 * (mu[ki, kj] + mu[ki, kj + 1])
-                                MI_w = 0.5 * (mu[ki, kj] + mu[ki, kj - 1])
-                                MI_s = mu[ki, kj]
-                                MI_n = 0.5 * (mu[ki, kj] + mu[ki + 1, kj])
+                                MU_e = 0.5 * (mu[ki, kj] + mu[ki, kj + 1])
+                                MU_w = 0.5 * (mu[ki, kj] + mu[ki, kj - 1])
+                                MU_s = mu[ki, kj]
+                                MU_n = 0.5 * (mu[ki, kj] + mu[ki + 1, kj])
 
                             if (
                                 kj > 0
@@ -382,46 +382,46 @@ class THDCylindrical:
                                 and ki > 0
                                 and ki < self.n_z - 1
                             ):
-                                MI_e = 0.5 * (mu[ki, kj] + mu[ki, kj + 1])
-                                MI_w = 0.5 * (mu[ki, kj] + mu[ki, kj - 1])
-                                MI_s = 0.5 * (mu[ki, kj] + mu[ki - 1, kj])
-                                MI_n = 0.5 * (mu[ki, kj] + mu[ki + 1, kj])
+                                MU_e = 0.5 * (mu[ki, kj] + mu[ki, kj + 1])
+                                MU_w = 0.5 * (mu[ki, kj] + mu[ki, kj - 1])
+                                MU_s = 0.5 * (mu[ki, kj] + mu[ki - 1, kj])
+                                MU_n = 0.5 * (mu[ki, kj] + mu[ki + 1, kj])
 
                             if ki == self.n_z - 1 and kj > 0 and kj < self.n_theta - 1:
-                                MI_e = 0.5 * (mu[ki, kj] + mu[ki, kj + 1])
-                                MI_w = 0.5 * (mu[ki, kj] + mu[ki, kj - 1])
-                                MI_s = 0.5 * (mu[ki, kj] + mu[ki - 1, kj])
-                                MI_n = mu[ki, kj]
+                                MU_e = 0.5 * (mu[ki, kj] + mu[ki, kj + 1])
+                                MU_w = 0.5 * (mu[ki, kj] + mu[ki, kj - 1])
+                                MU_s = 0.5 * (mu[ki, kj] + mu[ki - 1, kj])
+                                MU_n = mu[ki, kj]
 
                             if ki == 0 and kj == self.n_theta - 1:
-                                MI_e = mu[ki, kj]
-                                MI_w = 0.5 * (mu[ki, kj] + mu[ki, kj - 1])
-                                MI_s = mu[ki, kj]
-                                MI_n = 0.5 * (mu[ki, kj] + mu[ki + 1, kj])
+                                MU_e = mu[ki, kj]
+                                MU_w = 0.5 * (mu[ki, kj] + mu[ki, kj - 1])
+                                MU_s = mu[ki, kj]
+                                MU_n = 0.5 * (mu[ki, kj] + mu[ki + 1, kj])
 
                             if kj == self.n_theta - 1 and ki > 0 and ki < self.n_z - 1:
-                                MI_e = mu[ki, kj]
-                                MI_w = 0.5 * (mu[ki, kj] + mu[ki, kj - 1])
-                                MI_s = 0.5 * (mu[ki, kj] + mu[ki - 1, kj])
-                                MI_n = 0.5 * (mu[ki, kj] + mu[ki + 1, kj])
+                                MU_e = mu[ki, kj]
+                                MU_w = 0.5 * (mu[ki, kj] + mu[ki, kj - 1])
+                                MU_s = 0.5 * (mu[ki, kj] + mu[ki - 1, kj])
+                                MU_n = 0.5 * (mu[ki, kj] + mu[ki + 1, kj])
 
                             if kj == self.n_theta - 1 and ki == self.n_z - 1:
-                                MI_e = mu[ki, kj]
-                                MI_w = 0.5 * (mu[ki, kj] + mu[ki, kj - 1])
-                                MI_s = 0.5 * (mu[ki, kj] + mu[ki - 1, kj])
-                                MI_n = mu[ki, kj]
+                                MU_e = mu[ki, kj]
+                                MU_w = 0.5 * (mu[ki, kj] + mu[ki, kj - 1])
+                                MU_s = 0.5 * (mu[ki, kj] + mu[ki - 1, kj])
+                                MU_n = mu[ki, kj]
 
                             CE = (self.dZ * he**3) / (
-                                12 * MI_e[n_p] * self.dY * self.betha_s**2
+                                12 * MU_e[n_p] * self.dY * self.betha_s**2
                             )
                             CW = (self.dZ * hw**3) / (
-                                12 * MI_w[n_p] * self.dY * self.betha_s**2
+                                12 * MU_w[n_p] * self.dY * self.betha_s**2
                             )
                             CN = (self.dY * (self.R**2) * hn**3) / (
-                                12 * MI_n[n_p] * self.dZ * self.L**2
+                                12 * MU_n[n_p] * self.dZ * self.L**2
                             )
                             CS = (self.dY * (self.R**2) * hs**3) / (
-                                12 * MI_s[n_p] * self.dZ * self.L**2
+                                12 * MU_s[n_p] * self.dZ * self.L**2
                             )
                             CP = -(CE + CW + CN + CS)
 
@@ -1154,10 +1154,10 @@ class THDCylindrical:
                         
                     
                         if kj==0 and ki==0:
-                            MI_e = 0.5*(self.mu_l[ki,kj,n_p]+self.mu_l[ki,kj+1,n_p])
-                            MI_w = self.mu_l[ki,kj,n_p]
-                            MI_s = self.mu_l[ki,kj,n_p]
-                            MI_n = 0.5*(self.mu_l[ki,kj,n_p]+self.mu_l[ki+1,kj,n_p])
+                            MU_e = 0.5*(self.mu_l[ki,kj,n_p]+self.mu_l[ki,kj+1,n_p])
+                            MU_w = self.mu_l[ki,kj,n_p]
+                            MU_s = self.mu_l[ki,kj,n_p]
+                            MU_n = 0.5*(self.mu_l[ki,kj,n_p]+self.mu_l[ki+1,kj,n_p])
                             
                             pE= p[ki,kj+1,n_p]
                             pW= -p[ki,kj,n_p]
@@ -1166,10 +1166,10 @@ class THDCylindrical:
                       
                     
                         if kj==0 and ki>0 and ki<self.n_z-1:
-                            MI_e= 0.5*(self.mu_l[ki,kj,n_p]+self.mu_l[ki,kj+1,n_p])
-                            MI_w= self.mu_l[ki,kj,n_p]
-                            MI_s= 0.5*(self.mu_l[ki,kj,n_p]+self.mu_l[ki-1,kj,n_p])
-                            MI_n= 0.5*(self.mu_l[ki,kj,n_p]+self.mu_l[ki+1,kj,n_p])
+                            MU_e= 0.5*(self.mu_l[ki,kj,n_p]+self.mu_l[ki,kj+1,n_p])
+                            MU_w= self.mu_l[ki,kj,n_p]
+                            MU_s= 0.5*(self.mu_l[ki,kj,n_p]+self.mu_l[ki-1,kj,n_p])
+                            MU_n= 0.5*(self.mu_l[ki,kj,n_p]+self.mu_l[ki+1,kj,n_p])
                             
                             pE= p[ki,kj+1,n_p]
                             pW= -p[ki,kj,n_p]
@@ -1178,10 +1178,10 @@ class THDCylindrical:
                       
                     
                         if kj==0 and ki==self.n_z-1:
-                            MI_e= 0.5*(self.mu_l[ki,kj,n_p]+self.mu_l[ki,kj+1,n_p])
-                            MI_w= self.mu_l[ki,kj,n_p]
-                            MI_s= 0.5*(self.mu_l[ki,kj,n_p]+self.mu_l[ki-1,kj,n_p])
-                            MI_n= self.mu_l[ki,kj,n_p]
+                            MU_e= 0.5*(self.mu_l[ki,kj,n_p]+self.mu_l[ki,kj+1,n_p])
+                            MU_w= self.mu_l[ki,kj,n_p]
+                            MU_s= 0.5*(self.mu_l[ki,kj,n_p]+self.mu_l[ki-1,kj,n_p])
+                            MU_n= self.mu_l[ki,kj,n_p]
                             
                             pE= p[ki,kj+1,n_p]
                             pW= -p[ki,kj,n_p]
@@ -1190,10 +1190,10 @@ class THDCylindrical:
                        
                     
                         if ki==0 and kj>0 and kj<self.n_theta-1:
-                            MI_e= 0.5*(self.mu_l[ki,kj,n_p]+self.mu_l[ki,kj+1,n_p])
-                            MI_w= 0.5*(self.mu_l[ki,kj,n_p]+self.mu_l[ki,kj-1,n_p])
-                            MI_s= self.mu_l[ki,kj,n_p]
-                            MI_n= 0.5*(self.mu_l[ki,kj,n_p]+self.mu_l[ki+1,kj,n_p])
+                            MU_e= 0.5*(self.mu_l[ki,kj,n_p]+self.mu_l[ki,kj+1,n_p])
+                            MU_w= 0.5*(self.mu_l[ki,kj,n_p]+self.mu_l[ki,kj-1,n_p])
+                            MU_s= self.mu_l[ki,kj,n_p]
+                            MU_n= 0.5*(self.mu_l[ki,kj,n_p]+self.mu_l[ki+1,kj,n_p])
                             
                             pE= p[ki,kj+1,n_p]
                             pW= p[ki,kj-1,n_p]
@@ -1202,10 +1202,10 @@ class THDCylindrical:
                     
                     
                         if kj>0 and kj<self.n_theta-1 and ki>0 and ki<self.n_z-1:
-                            MI_e= 0.5*(self.mu_l[ki,kj,n_p]+self.mu_l[ki,kj+1,n_p])
-                            MI_w= 0.5*(self.mu_l[ki,kj,n_p]+self.mu_l[ki,kj-1,n_p])
-                            MI_s= 0.5*(self.mu_l[ki,kj,n_p]+self.mu_l[ki-1,kj,n_p])
-                            MI_n= 0.5*(self.mu_l[ki,kj,n_p]+self.mu_l[ki+1,kj,n_p])
+                            MU_e= 0.5*(self.mu_l[ki,kj,n_p]+self.mu_l[ki,kj+1,n_p])
+                            MU_w= 0.5*(self.mu_l[ki,kj,n_p]+self.mu_l[ki,kj-1,n_p])
+                            MU_s= 0.5*(self.mu_l[ki,kj,n_p]+self.mu_l[ki-1,kj,n_p])
+                            MU_n= 0.5*(self.mu_l[ki,kj,n_p]+self.mu_l[ki+1,kj,n_p])
                 
                             pE= p[ki,kj+1,n_p]
                             pW= p[ki,kj-1,n_p]
@@ -1214,10 +1214,10 @@ class THDCylindrical:
                     
                     
                         if ki==self.n_z-1 and kj>0 and kj<self.n_theta-1:
-                            MI_e= 0.5*(self.mu_l[ki,kj,n_p]+self.mu_l[ki,kj+1,n_p])
-                            MI_w= 0.5*(self.mu_l[ki,kj,n_p]+self.mu_l[ki,kj-1,n_p])
-                            MI_s= 0.5*(self.mu_l[ki,kj,n_p]+self.mu_l[ki-1,kj,n_p])
-                            MI_n= self.mu_l[ki,kj,n_p]
+                            MU_e= 0.5*(self.mu_l[ki,kj,n_p]+self.mu_l[ki,kj+1,n_p])
+                            MU_w= 0.5*(self.mu_l[ki,kj,n_p]+self.mu_l[ki,kj-1,n_p])
+                            MU_s= 0.5*(self.mu_l[ki,kj,n_p]+self.mu_l[ki-1,kj,n_p])
+                            MU_n= self.mu_l[ki,kj,n_p]
                             
                             pE= p[ki,kj+1,n_p]
                             pW= p[ki,kj-1,n_p]
@@ -1226,10 +1226,10 @@ class THDCylindrical:
                        
                     
                         if ki==0 and kj==self.n_theta-1:
-                            MI_e= self.mu_l[ki,kj,n_p]
-                            MI_w= 0.5*(self.mu_l[ki,kj,n_p]+self.mu_l[ki,kj-1,n_p])
-                            MI_s= self.mu_l[ki,kj,n_p]
-                            MI_n= 0.5*(self.mu_l[ki,kj,n_p]+self.mu_l[ki+1,kj,n_p])
+                            MU_e= self.mu_l[ki,kj,n_p]
+                            MU_w= 0.5*(self.mu_l[ki,kj,n_p]+self.mu_l[ki,kj-1,n_p])
+                            MU_s= self.mu_l[ki,kj,n_p]
+                            MU_n= 0.5*(self.mu_l[ki,kj,n_p]+self.mu_l[ki+1,kj,n_p])
                             
                             pE= -p[ki,kj,n_p]
                             pW= p[ki,kj-1,n_p]
@@ -1238,10 +1238,10 @@ class THDCylindrical:
                       
                     
                         if kj==self.n_theta-1 and ki>0 and ki<self.n_z-1:
-                            MI_e= self.mu_l[ki,kj,n_p]
-                            MI_w= 0.5*(self.mu_l[ki,kj,n_p]+self.mu_l[ki,kj-1,n_p])
-                            MI_s= 0.5*(self.mu_l[ki,kj,n_p]+self.mu_l[ki-1,kj,n_p])
-                            MI_n= 0.5*(self.mu_l[ki,kj,n_p]+self.mu_l[ki+1,kj,n_p])
+                            MU_e= self.mu_l[ki,kj,n_p]
+                            MU_w= 0.5*(self.mu_l[ki,kj,n_p]+self.mu_l[ki,kj-1,n_p])
+                            MU_s= 0.5*(self.mu_l[ki,kj,n_p]+self.mu_l[ki-1,kj,n_p])
+                            MU_n= 0.5*(self.mu_l[ki,kj,n_p]+self.mu_l[ki+1,kj,n_p])
                     
                             pE= -p[ki,kj,n_p]
                             pW= p[ki,kj-1,n_p]
@@ -1250,10 +1250,10 @@ class THDCylindrical:
                     
                     
                         if kj==self.n_theta-1 and ki==self.n_z-1:
-                            MI_e= self.mu_l[ki,kj,n_p]
-                            MI_w= 0.5*(self.mu_l[ki,kj,n_p]+self.mu_l[ki,kj-1,n_p])
-                            MI_s= 0.5*(self.mu_l[ki,kj,n_p]+self.mu_l[ki-1,kj,n_p])
-                            MI_n= self.mu_l[ki,kj,n_p]
+                            MU_e= self.mu_l[ki,kj,n_p]
+                            MU_w= 0.5*(self.mu_l[ki,kj,n_p]+self.mu_l[ki,kj-1,n_p])
+                            MU_s= 0.5*(self.mu_l[ki,kj,n_p]+self.mu_l[ki-1,kj,n_p])
+                            MU_n= self.mu_l[ki,kj,n_p]
                     
                             pE= -p[ki,kj,n_p]
                             pW= p[ki,kj-1,n_p]
@@ -1262,28 +1262,28 @@ class THDCylindrical:
                     
                         pP=p[ki,kj,n_p]
                         
-                        CE=(self.dZ*he**3)/(12*MI_e*self.dY*self.betha_s**2)
-                        CW=(self.dZ*hw**3)/(12*MI_w*self.dY*self.betha_s**2)
-                        CN=(self.dY*(self.R**2)*hn**3)/(12*MI_n*self.dZ*self.L**2)
-                        CS=(self.dY*(self.R**2)*hs**3)/(12*MI_s*self.dZ*self.L**2)
+                        CE=(self.dZ*he**3)/(12*MU_e*self.dY*self.betha_s**2)
+                        CW=(self.dZ*hw**3)/(12*MU_w*self.dY*self.betha_s**2)
+                        CN=(self.dY*(self.R**2)*hn**3)/(12*MU_n*self.dZ*self.L**2)
+                        CS=(self.dY*(self.R**2)*hs**3)/(12*MU_s*self.dZ*self.L**2)
                         
                         CP=-(CE+CW+CN+CS)
                         
-                        BXE = -(self.dZ/(self.dY*self.betha_s**2))*((3*he**2*hXe)/(12*MI_e))
+                        BXE = -(self.dZ/(self.dY*self.betha_s**2))*((3*he**2*hXe)/(12*MU_e))
                         
-                        BYE = -(self.dZ/(self.dY*self.betha_s**2))*((3*he**2*hYe)/(12*MI_e))
+                        BYE = -(self.dZ/(self.dY*self.betha_s**2))*((3*he**2*hYe)/(12*MU_e))
                         
-                        BXW = -(self.dZ/(self.dY*self.betha_s**2))*((3*hw**2*hXw)/(12*MI_w))
+                        BXW = -(self.dZ/(self.dY*self.betha_s**2))*((3*hw**2*hXw)/(12*MU_w))
                         
-                        BYW = -(self.dZ/(self.dY*self.betha_s**2))*((3*hw**2*hYw)/(12*MI_w))
+                        BYW = -(self.dZ/(self.dY*self.betha_s**2))*((3*hw**2*hYw)/(12*MU_w))
                         
-                        BXN = -((self.R**2)*self.dY/(self.dZ*self.L**2))*((3*hn**2*hXn)/(12*MI_n))
+                        BXN = -((self.R**2)*self.dY/(self.dZ*self.L**2))*((3*hn**2*hXn)/(12*MU_n))
                         
-                        BYN = -((self.R**2)*self.dY/(self.dZ*self.L**2))*((3*hn**2*hYn)/(12*MI_n))
+                        BYN = -((self.R**2)*self.dY/(self.dZ*self.L**2))*((3*hn**2*hYn)/(12*MU_n))
                         
-                        BXS = -((self.R**2)*self.dY/(self.dZ*self.L**2))*((3*hs**2*hXs)/(12*MI_s))
+                        BXS = -((self.R**2)*self.dY/(self.dZ*self.L**2))*((3*hs**2*hXs)/(12*MU_s))
                         
-                        BYS = -((self.R**2)*self.dY/(self.dZ*self.L**2))*((3*hs**2*hYs)/(12*MI_s))
+                        BYS = -((self.R**2)*self.dY/(self.dZ*self.L**2))*((3*hs**2*hYs)/(12*MU_s))
                         
                         BXP = -(BXE+BXW+BXN+BXS)
                         
