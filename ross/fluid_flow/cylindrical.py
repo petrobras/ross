@@ -295,7 +295,7 @@ class THDCylindrical:
             T_conv = T_mist[0]
 
             mu_new = 1.1 * np.ones((self.n_z, self.n_theta, self.n_pad))
-            mi_turb = 1.3 * np.ones((self.n_z, self.n_theta, self.n_pad))
+            mu_turb = 1.3 * np.ones((self.n_z, self.n_theta, self.n_pad))
 
             PP = np.zeros(((self.n_z), (2 * self.n_theta)))
 
@@ -612,7 +612,7 @@ class THDCylindrical:
                             HP = 1 - self.X * np.cos(jj) - self.Y * np.sin(jj)
                             hpt = -self.Ypt * np.cos(jj) + self.Xpt * np.sin(jj)
 
-                            mi_p = mu[ki, kj, n_p]
+                            mu_p = mu[ki, kj, n_p]
 
                             Reyn[ki, kj, n_p] = (
                                 self.rho
@@ -637,26 +637,26 @@ class THDCylindrical:
 
                                 self.delta_turb = 1
 
-                            dudy = ((HP / mi_turb[ki, kj, n_p]) * dPdy[ki, kj, n_p]) - (
+                            dudy = ((HP / mu_turb[ki, kj, n_p]) * dPdy[ki, kj, n_p]) - (
                                 self.speed / HP
                             )
 
-                            dwdy = (HP / mi_turb[ki, kj, n_p]) * dPdz[ki, kj, n_p]
+                            dwdy = (HP / mu_turb[ki, kj, n_p]) * dPdz[ki, kj, n_p]
 
-                            tal = mi_turb[ki, kj, n_p] * np.sqrt(
+                            tal = mu_turb[ki, kj, n_p] * np.sqrt(
                                 (dudy**2) + (dwdy**2)
                             )
 
                             x_wall = (
                                 (HP * self.c_r * 2)
-                                / (self.mu_ref * mi_turb[ki, kj, n_p] / self.rho)
+                                / (self.mu_ref * mu_turb[ki, kj, n_p] / self.rho)
                             ) * ((abs(tal) / self.rho) ** 0.5)
 
                             emv = 0.4 * (x_wall - (10.7 * np.tanh(x_wall / 10.7)))
 
-                            mi_turb[ki, kj, n_p] = mi_p * (1 + (self.delta_turb * emv))
+                            mu_turb[ki, kj, n_p] = mu_p * (1 + (self.delta_turb * emv))
 
-                            mi_t = mi_turb[ki, kj, n_p]
+                            mi_t = mu_turb[ki, kj, n_p]
 
                             AE = -(self.k_t * HP * self.dZ) / (
                                 self.rho
