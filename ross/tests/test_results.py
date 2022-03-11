@@ -163,3 +163,17 @@ def test_campbell_plot(rotor1):
     )
     assert_allclose(fig.data[0]["x"], crit_array_x)
     assert_allclose(fig.data[0]["y"], crit_array_y)
+
+
+def test_orbit():
+    orb = Orbit((1 + 1j), (1 - 1j))
+    assert_allclose(orb.minor_axes, np.sqrt(2))
+    assert_allclose(orb.major_axes, np.sqrt(2))
+    assert_allclose(orb.kappa, 1)
+    assert orb.whirl == "forward"
+
+    orb = Orbit((1 - 1j), (1 + 1j))
+    assert_allclose(orb.minor_axes, np.sqrt(2))
+    assert_allclose(orb.major_axes, np.sqrt(2))
+    assert_allclose(orb.kappa, -1)
+    assert orb.whirl == "backward"

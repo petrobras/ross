@@ -20,6 +20,7 @@ from ross.units import Q_, check_units
 from ross.utils import intersection
 
 __all__ = [
+    "Orbit",
     "CriticalSpeedResults",
     "ModalResults",
     "CampbellResults",
@@ -158,6 +159,89 @@ class Results(ABC):
                     data[key] = np.array(value).astype(np.complex128)
 
         return cls.read_toml_data(data)
+
+
+class Orbit(Results):
+    """Class used to construct orbits for a node in a mode or deflected shape.
+
+    Parameters
+    ----------
+    ru_e : complex
+        Element in the vector corresponding to the x direction.
+    rv_e : complex
+        Element in the vector corresponding to the y direction.
+    """
+
+    def __init__(self, ru_e, rv_e):
+        self.ru_e = ru_e
+        self.rv_e = rv_e
+        # calculate T matrix
+        ru = np.absolute(ru_e)
+        rv = np.absolute(rv_e)
+
+        nu = np.angle(ru_e)
+        nv = np.angle(rv_e)
+        # fmt: off
+        T = np.array([[ru * np.cos(nu), -ru * np.sin(nu)],
+                      [rv * np.cos(nv), -rv * np.sin(nv)]])
+        # fmt: on
+        H = T @ T.T
+
+        lam = la.eig(H)[0]
+        # lam is the eigenvalue -> sqrt(lam) is the minor/major axis.
+        # kappa encodes the relation between the axis and the precession.
+        minor = np.sqrt(lam.min())
+        major = np.sqrt(lam.max())
+        kappa = minor / major
+        diff = nv - nu
+
+        # we need to evaluate if 0 < nv - nu < pi.
+        if diff < -np.pi:
+            diff += 2 * np.pi
+        elif diff > np.pi:
+            diff -= 2 * np.pi
+
+        # if nv = nu or nv = nu + pi then the response is a straight line.
+        if diff == 0 or diff == np.pi:
+            kappa = 0
+
+        # if 0 < nv - nu < pi, then a backward rotating mode exists.
+        elif 0 < diff < np.pi:
+            kappa *= -1
+
+        self.minor_axes = np.real(minor)
+        self.major_axes = np.real(major)
+        self.kappa = np.real(kappa)
+        self.whirl = "forward" if self.kappa > 0 else "backward"
+
+
+class Shape(Results):
+    """Class used to construct a mode or a deflected shape from a eigen or response vector.
+
+    Parameters
+    ----------
+    vector : np.array
+        Complex array with the eigenvector or response vector from a forced response analysis.
+    nodes : list
+        List of nodes number.
+    nodes_pos : list
+        List of nodes positions.
+    shaft_elements_length : list
+        List with Rotor shaft elements lengths.
+    """
+
+    def __init__(self, vector, nodes, nodes_pos, shaft_elements_length):
+        pass
+        # calculate
+
+    def plot_orbit(self, node):
+        pass
+
+    def plot_2d(self):
+        pass
+
+    def plot_3d(self):
+        pass
 
 
 class CriticalSpeedResults(Results):
