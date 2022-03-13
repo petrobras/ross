@@ -950,7 +950,7 @@ class THDCylindrical:
         return a, b
 
     def coefficients(self, method="lund", show_coef=True):
-        """Calculates the dynamic coefficients of stiffness "k" and damping "c". The formulation is based in application of virtual displacements and speeds on the rotor from its equilibrium position to determine the bearing stiffness and damping coefficients.
+        """Calculates the dynamic coefficients of stiffness "k" and damping "c". 
 
         Parameters
         ----------
@@ -994,7 +994,7 @@ class THDCylindrical:
             return coefs
         
     def _pertubation_method(self):
-        """perturbation method explain
+        """In this method the formulation is based in application of virtual displacements and speeds on the rotor from its equilibrium position to determine the bearing stiffness and damping coefficients.
 
         """
         
@@ -1068,7 +1068,7 @@ class THDCylindrical:
         return (kxx,kxy,kyx,kyy),(cxx,cxy,cyx,cyy)
     
     def _lund_method(self):
-        """Calculates the dynamic coefficients of stiffness "k" and damping "c". A small amplitude whirl of the journal center (a first order perturbation solution) is aplied. 
+        """In this method a small amplitude whirl of the journal center (a first order perturbation solution) is aplied. 
         The four stiffness coefficients, and the four damping coefficients is obtained by integration of the pressure field. 
 
 
