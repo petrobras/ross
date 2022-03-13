@@ -177,7 +177,6 @@ class THDCylindrical:
         self.betha_s_dg = betha_s
         self.betha_s = betha_s * np.pi / 180
 
-
         self.thetaI = 0
         self.thetaF = self.betha_s
         self.dtheta = (self.thetaF - self.thetaI) / (self.n_theta)
@@ -322,8 +321,8 @@ class THDCylindrical:
                     T_ref = T_mist[n_p - 1]
 
                     mu = mu_new
-                    self.mu_l=mu_new
-                    
+                    self.mu_l = mu_new
+
                     T[:, :, n_p] = T_new[:, :, n_p]
 
                     ki = 0
@@ -412,17 +411,17 @@ class THDCylindrical:
                                 MU_s = 0.5 * (mu[ki, kj] + mu[ki - 1, kj])
                                 MU_n = mu[ki, kj]
 
-                            CE = (self.dZ * he**3) / (
-                                12 * MU_e[n_p] * self.dY * self.betha_s**2
+                            CE = (self.dZ * he ** 3) / (
+                                12 * MU_e[n_p] * self.dY * self.betha_s ** 2
                             )
-                            CW = (self.dZ * hw**3) / (
-                                12 * MU_w[n_p] * self.dY * self.betha_s**2
+                            CW = (self.dZ * hw ** 3) / (
+                                12 * MU_w[n_p] * self.dY * self.betha_s ** 2
                             )
-                            CN = (self.dY * (self.R**2) * hn**3) / (
-                                12 * MU_n[n_p] * self.dZ * self.L**2
+                            CN = (self.dY * (self.R ** 2) * hn ** 3) / (
+                                12 * MU_n[n_p] * self.dZ * self.L ** 2
                             )
-                            CS = (self.dY * (self.R**2) * hs**3) / (
-                                12 * MU_s[n_p] * self.dZ * self.L**2
+                            CS = (self.dY * (self.R ** 2) * hs ** 3) / (
+                                12 * MU_s[n_p] * self.dZ * self.L ** 2
                             )
                             CP = -(CE + CW + CN + CS)
 
@@ -512,8 +511,8 @@ class THDCylindrical:
 
                     # Dimensional pressure fied
 
-                    self.Pdim = (self.P * self.mu_ref * self.speed * (self.R**2)) / (
-                        self.c_r**2
+                    self.Pdim = (self.P * self.mu_ref * self.speed * (self.R ** 2)) / (
+                        self.c_r ** 2
                     )
 
                     ki = 0
@@ -645,7 +644,7 @@ class THDCylindrical:
                             dwdy = (HP / mu_turb[ki, kj, n_p]) * dPdz[ki, kj, n_p]
 
                             tal = mu_turb[ki, kj, n_p] * np.sqrt(
-                                (dudy**2) + (dwdy**2)
+                                (dudy ** 2) + (dwdy ** 2)
                             )
 
                             x_wall = (
@@ -668,8 +667,8 @@ class THDCylindrical:
                             )
                             AW = (
                                 (
-                                    ((HP**3) * dPdy[ki, kj, n_p] * self.dZ)
-                                    / (12 * mi_t * (self.betha_s**2))
+                                    ((HP ** 3) * dPdy[ki, kj, n_p] * self.dZ)
+                                    / (12 * mi_t * (self.betha_s ** 2))
                                 )
                                 - ((HP) * self.dZ / (2 * self.betha_s))
                                 - (
@@ -687,24 +686,24 @@ class THDCylindrical:
                                 self.rho
                                 * self.Cp
                                 * self.speed
-                                * (self.L**2)
+                                * (self.L ** 2)
                                 * self.dZ
                             )
                             AS = (
                                 (
-                                    (self.R**2)
-                                    * (HP**3)
+                                    (self.R ** 2)
+                                    * (HP ** 3)
                                     * dPdz[ki, kj, n_p]
                                     * self.dY
                                 )
-                                / (12 * (self.L**2) * mi_t)
+                                / (12 * (self.L ** 2) * mi_t)
                             ) - (
                                 (self.k_t * HP * self.dY)
                                 / (
                                     self.rho
                                     * self.Cp
                                     * self.speed
-                                    * (self.L**2)
+                                    * (self.L ** 2)
                                     * self.dZ
                                 )
                             )
@@ -716,16 +715,16 @@ class THDCylindrical:
                             b_TG = (
                                 self.mu_ref
                                 * self.speed
-                                * (self.R**2)
+                                * (self.R ** 2)
                                 * self.dY
                                 * self.dZ
                                 * self.P[ki, kj, n_p]
                                 * hpt
-                            ) / (self.rho * self.Cp * self.T_reserv * (self.c_r**2))
+                            ) / (self.rho * self.Cp * self.T_reserv * (self.c_r ** 2))
                             b_TH = (
                                 self.speed
                                 * self.mu_ref
-                                * (hpt**2)
+                                * (hpt ** 2)
                                 * 4
                                 * mi_t
                                 * self.dY
@@ -733,30 +732,30 @@ class THDCylindrical:
                             ) / (self.rho * self.Cp * self.T_reserv * 3 * HP)
                             b_TI = (
                                 auxb_T
-                                * (mi_t * (self.R**2) * self.dY * self.dZ)
+                                * (mi_t * (self.R ** 2) * self.dY * self.dZ)
                                 / (HP * self.c_r)
                             )
                             b_TJ = (
                                 auxb_T
                                 * (
-                                    (self.R**2)
-                                    * (HP**3)
+                                    (self.R ** 2)
+                                    * (HP ** 3)
                                     * (dPdy[ki, kj, n_p] ** 2)
                                     * self.dY
                                     * self.dZ
                                 )
-                                / (12 * self.c_r * (self.betha_s**2) * mi_t)
+                                / (12 * self.c_r * (self.betha_s ** 2) * mi_t)
                             )
                             b_TK = (
                                 auxb_T
                                 * (
-                                    (self.R**4)
-                                    * (HP**3)
+                                    (self.R ** 4)
+                                    * (HP ** 3)
                                     * (dPdz[ki, kj, n_p] ** 2)
                                     * self.dY
                                     * self.dZ
                                 )
-                                / (12 * self.c_r * (self.L**2) * mi_t)
+                                / (12 * self.c_r * (self.L ** 2) * mi_t)
                             )
 
                             B_T = b_TG + b_TH + b_TI + b_TJ + b_TK
@@ -940,7 +939,7 @@ class THDCylindrical:
         """
 
         def viscosity(x, a, b):
-            return a * (x**b)
+            return a * (x ** b)
 
         xdata = [T_muI, T_muF]  # changed boundary conditions to avoid division by ]
         ydata = [mu_I, mu_F]
@@ -972,13 +971,13 @@ class THDCylindrical:
         """
         if self.equilibrium_pos is None:
             self.run([0.1, -0.1], True, True)
-            self.coefficients(method=method,show_coef=show_coef)
+            self.coefficients(method=method, show_coef=show_coef)
         else:
-            if method ==  "lund":
-                k,c = self._lund_method()
+            if method == "lund":
+                k, c = self._lund_method()
             elif method == "perturbation":
-                k,c = self._pertubation_method()
-                
+                k, c = self._pertubation_method()
+
             if show_coef:
                 print(f"kxx = {k[0]}")
                 print(f"kxy = {k[1]}")
@@ -990,15 +989,15 @@ class THDCylindrical:
                 print(f"cyx = {c[2]}")
                 print(f"cyy = {c[3]}")
 
-            coefs = (k,c)
+            coefs = (k, c)
 
             return coefs
-        
+
     def _pertubation_method(self):
         """In this method the formulation is based in application of virtual displacements and speeds on the rotor from its equilibrium position to determine the bearing stiffness and damping coefficients.
 
         """
-        
+
         xeq = self.equilibrium_pos[0] * self.c_r * np.cos(self.equilibrium_pos[1])
         yeq = self.equilibrium_pos[0] * self.c_r * np.sin(self.equilibrium_pos[1])
 
@@ -1048,387 +1047,471 @@ class THDCylindrical:
             (Aux08[1] - Aux07[1]) / (epiypt / self.c_r / self.speed)
         )
 
-        kxx = (np.sqrt((self.Wx**2) + (self.Wy**2)) / self.c_r) * Kxx
-        kxy = (np.sqrt((self.Wx**2) + (self.Wy**2)) / self.c_r) * Kxy
-        kyx = (np.sqrt((self.Wx**2) + (self.Wy**2)) / self.c_r) * Kyx
-        kyy = (np.sqrt((self.Wx**2) + (self.Wy**2)) / self.c_r) * Kyy
+        kxx = (np.sqrt((self.Wx ** 2) + (self.Wy ** 2)) / self.c_r) * Kxx
+        kxy = (np.sqrt((self.Wx ** 2) + (self.Wy ** 2)) / self.c_r) * Kxy
+        kyx = (np.sqrt((self.Wx ** 2) + (self.Wy ** 2)) / self.c_r) * Kyx
+        kyy = (np.sqrt((self.Wx ** 2) + (self.Wy ** 2)) / self.c_r) * Kyy
 
-        cxx = (
-            np.sqrt((self.Wx**2) + (self.Wy**2)) / (self.c_r * self.speed)
-        ) * Cxx
-        cxy = (
-            np.sqrt((self.Wx**2) + (self.Wy**2)) / (self.c_r * self.speed)
-        ) * Cxy
-        cyx = (
-            np.sqrt((self.Wx**2) + (self.Wy**2)) / (self.c_r * self.speed)
-        ) * Cyx
-        cyy = (
-            np.sqrt((self.Wx**2) + (self.Wy**2)) / (self.c_r * self.speed)
-        ) * Cyy
-        
-        return (kxx,kxy,kyx,kyy),(cxx,cxy,cyx,cyy)
-    
+        cxx = (np.sqrt((self.Wx ** 2) + (self.Wy ** 2)) / (self.c_r * self.speed)) * Cxx
+        cxy = (np.sqrt((self.Wx ** 2) + (self.Wy ** 2)) / (self.c_r * self.speed)) * Cxy
+        cyx = (np.sqrt((self.Wx ** 2) + (self.Wy ** 2)) / (self.c_r * self.speed)) * Cyx
+        cyy = (np.sqrt((self.Wx ** 2) + (self.Wy ** 2)) / (self.c_r * self.speed)) * Cyy
+
+        return (kxx, kxy, kyx, kyy), (cxx, cxy, cyx, cyy)
+
     def _lund_method(self):
         """In this method a small amplitude whirl of the journal center (a first order perturbation solution) is aplied. 
         The four stiffness coefficients, and the four damping coefficients is obtained by integration of the pressure field. 
 
 
         """
-            
+
         p = self.P
- 
+
         x0 = self.equilibrium_pos
 
-        dZ=1/self.n_z
-  
-        Z1=0        #initial coordinate z dimensionless
-        Z2=1
-        Z = np.arange(Z1+0.5*dZ,Z2,dZ) #vector z dimensionless
-        Zdim=Z*self.L
+        dZ = 1 / self.n_z
 
-   
-        Ytheta = np.zeros((self.n_pad,self.n_theta))
-        
+        Z1 = 0  # initial coordinate z dimensionless
+        Z2 = 1
+        Z = np.arange(Z1 + 0.5 * dZ, Z2, dZ)  # vector z dimensionless
+        Zdim = Z * self.L
+
+        Ytheta = np.zeros((self.n_pad, self.n_theta))
+
         # Dimensionless
-        xr = x0[0] * self.c_r * np.cos(x0[1])  # Representa a posição do centro do eixo ao longo da direção "Y"
-        yr = x0[0] * self.c_r * np.sin(x0[1])  # Representa a posição do centro do eixo ao longo da direção "X"
-        Y = yr/self.c_r                        # Representa a posição em x adimensional
-        X = xr/self.c_r    
+        xr = (
+            x0[0] * self.c_r * np.cos(x0[1])
+        )  # Representa a posição do centro do eixo ao longo da direção "Y"
+        yr = (
+            x0[0] * self.c_r * np.sin(x0[1])
+        )  # Representa a posição do centro do eixo ao longo da direção "X"
+        Y = yr / self.c_r  # Representa a posição em x adimensional
+        X = xr / self.c_r
 
-        nk=(self.n_z)*(self.n_theta)
-        
-        gamma = 0.001 #Frequencia da perturbação sobre velocidade de rotação
-        
-        wp = gamma*self.speed
-        
-        Mat_coef=np.zeros((nk,nk))
-        
-        bX=np.zeros((nk,1)).astype(complex)
-        
-        bY=np.zeros((nk,1)).astype(complex)
-        
-        hX = np.zeros((self.n_pad,self.n_theta))
-        
-        hY = np.zeros((self.n_pad,self.n_theta))
-        
-        PX=np.zeros((self.n_z,self.n_theta,self.n_pad)).astype(complex)
-        
-        PY=np.zeros((self.n_z,self.n_theta,self.n_pad)).astype(complex)
-        
-        H=np.zeros((2,2)).astype(complex)
-        
+        nk = (self.n_z) * (self.n_theta)
+
+        gamma = 0.001  # Frequencia da perturbação sobre velocidade de rotação
+
+        wp = gamma * self.speed
+
+        Mat_coef = np.zeros((nk, nk))
+
+        bX = np.zeros((nk, 1)).astype(complex)
+
+        bY = np.zeros((nk, 1)).astype(complex)
+
+        hX = np.zeros((self.n_pad, self.n_theta))
+
+        hY = np.zeros((self.n_pad, self.n_theta))
+
+        PX = np.zeros((self.n_z, self.n_theta, self.n_pad)).astype(complex)
+
+        PY = np.zeros((self.n_z, self.n_theta, self.n_pad)).astype(complex)
+
+        H = np.zeros((2, 2)).astype(complex)
+
         n_p = 0
-        
-        for n_p in np.arange(self.n_pad):
-            
-            Ytheta[n_p,:] = np.arange(self.thetaI[n_p]+(self.dtheta/2),self.thetaF[n_p],self.dtheta)
-            
-            ki=0
-            kj=0
-            
-            k=0 #vectorization pressure index
-            
-            for ii in np.arange((self.Z_I + 0.5 * self.dZ), self.Z_F, self.dZ):
-                for jj in np.arange(self.thetaI[n_p] + (self.dtheta / 2),self.thetaF[n_p],self.dtheta):
 
-                     
-                    hP=1-X*np.cos(jj)-Y*np.sin(jj)                
-                    he=1-X*np.cos(jj+0.5*self.dtheta)-self.Y*np.sin(jj+0.5*self.dtheta)
-                    hw=1-X*np.cos(jj-0.5*self.dtheta)-self.Y*np.sin(jj-0.5*self.dtheta)
-                    hn=hP
-                    hs=hn
-                    
+        for n_p in np.arange(self.n_pad):
+
+            Ytheta[n_p, :] = np.arange(
+                self.thetaI[n_p] + (self.dtheta / 2), self.thetaF[n_p], self.dtheta
+            )
+
+            ki = 0
+            kj = 0
+
+            k = 0  # vectorization pressure index
+
+            for ii in np.arange((self.Z_I + 0.5 * self.dZ), self.Z_F, self.dZ):
+                for jj in np.arange(
+                    self.thetaI[n_p] + (self.dtheta / 2), self.thetaF[n_p], self.dtheta
+                ):
+
+                    hP = 1 - X * np.cos(jj) - Y * np.sin(jj)
+                    he = (
+                        1
+                        - X * np.cos(jj + 0.5 * self.dtheta)
+                        - self.Y * np.sin(jj + 0.5 * self.dtheta)
+                    )
+                    hw = (
+                        1
+                        - X * np.cos(jj - 0.5 * self.dtheta)
+                        - self.Y * np.sin(jj - 0.5 * self.dtheta)
+                    )
+                    hn = hP
+                    hs = hn
+
                     hXP = -np.cos(jj)
-                    hXe = -np.cos(jj+0.5*self.dtheta)
-                    hXw = -np.cos(jj-0.5*self.dtheta)
+                    hXe = -np.cos(jj + 0.5 * self.dtheta)
+                    hXw = -np.cos(jj - 0.5 * self.dtheta)
                     hXn = hXP
                     hXs = hXn
-                    
+
                     hYP = -np.sin(jj)
-                    hYe = -np.sin(jj+0.5*self.dtheta)
-                    hYw = -np.sin(jj-0.5*self.dtheta)
+                    hYe = -np.sin(jj + 0.5 * self.dtheta)
+                    hYw = -np.sin(jj - 0.5 * self.dtheta)
                     hYn = hYP
                     hYs = hYn
-                    
-                    if ki==0:
-                        hX[n_p,kj] = hXP
-                        hY[n_p,kj] = hYP
-                    
-                    
-                
-                    if kj==0 and ki==0:
-                        MU_e = 0.5*(self.mu_l[ki,kj,n_p]+self.mu_l[ki,kj+1,n_p])
-                        MU_w = self.mu_l[ki,kj,n_p]
-                        MU_s = self.mu_l[ki,kj,n_p]
-                        MU_n = 0.5*(self.mu_l[ki,kj,n_p]+self.mu_l[ki+1,kj,n_p])
-                        
-                        pE= p[ki,kj+1,n_p]
-                        pW= -p[ki,kj,n_p]
-                        pN= p[ki+1,kj,n_p]
-                        pS= -p[ki,kj,n_p]
-                  
-                
-                    if kj==0 and ki>0 and ki<self.n_z-1:
-                        MU_e= 0.5*(self.mu_l[ki,kj,n_p]+self.mu_l[ki,kj+1,n_p])
-                        MU_w= self.mu_l[ki,kj,n_p]
-                        MU_s= 0.5*(self.mu_l[ki,kj,n_p]+self.mu_l[ki-1,kj,n_p])
-                        MU_n= 0.5*(self.mu_l[ki,kj,n_p]+self.mu_l[ki+1,kj,n_p])
-                        
-                        pE= p[ki,kj+1,n_p]
-                        pW= -p[ki,kj,n_p]
-                        pN= p[ki+1,kj,n_p]
-                        pS= p[ki-1,kj,n_p]
-                  
-                
-                    if kj==0 and ki==self.n_z-1:
-                        MU_e= 0.5*(self.mu_l[ki,kj,n_p]+self.mu_l[ki,kj+1,n_p])
-                        MU_w= self.mu_l[ki,kj,n_p]
-                        MU_s= 0.5*(self.mu_l[ki,kj,n_p]+self.mu_l[ki-1,kj,n_p])
-                        MU_n= self.mu_l[ki,kj,n_p]
-                        
-                        pE= p[ki,kj+1,n_p]
-                        pW= -p[ki,kj,n_p]
-                        pN= -p[ki,kj,n_p]
-                        pS= p[ki-1,kj,n_p]
-                   
-                
-                    if ki==0 and kj>0 and kj<self.n_theta-1:
-                        MU_e= 0.5*(self.mu_l[ki,kj,n_p]+self.mu_l[ki,kj+1,n_p])
-                        MU_w= 0.5*(self.mu_l[ki,kj,n_p]+self.mu_l[ki,kj-1,n_p])
-                        MU_s= self.mu_l[ki,kj,n_p]
-                        MU_n= 0.5*(self.mu_l[ki,kj,n_p]+self.mu_l[ki+1,kj,n_p])
-                        
-                        pE= p[ki,kj+1,n_p]
-                        pW= p[ki,kj-1,n_p]
-                        pN= p[ki+1,kj,n_p]
-                        pS= -p[ki,kj,n_p]
-                
-                
-                    if kj>0 and kj<self.n_theta-1 and ki>0 and ki<self.n_z-1:
-                        MU_e= 0.5*(self.mu_l[ki,kj,n_p]+self.mu_l[ki,kj+1,n_p])
-                        MU_w= 0.5*(self.mu_l[ki,kj,n_p]+self.mu_l[ki,kj-1,n_p])
-                        MU_s= 0.5*(self.mu_l[ki,kj,n_p]+self.mu_l[ki-1,kj,n_p])
-                        MU_n= 0.5*(self.mu_l[ki,kj,n_p]+self.mu_l[ki+1,kj,n_p])
-            
-                        pE= p[ki,kj+1,n_p]
-                        pW= p[ki,kj-1,n_p]
-                        pN= p[ki+1,kj,n_p]
-                        pS= p[ki-1,kj,n_p]
-                
-                
-                    if ki==self.n_z-1 and kj>0 and kj<self.n_theta-1:
-                        MU_e= 0.5*(self.mu_l[ki,kj,n_p]+self.mu_l[ki,kj+1,n_p])
-                        MU_w= 0.5*(self.mu_l[ki,kj,n_p]+self.mu_l[ki,kj-1,n_p])
-                        MU_s= 0.5*(self.mu_l[ki,kj,n_p]+self.mu_l[ki-1,kj,n_p])
-                        MU_n= self.mu_l[ki,kj,n_p]
-                        
-                        pE= p[ki,kj+1,n_p]
-                        pW= p[ki,kj-1,n_p]
-                        pN= -p[ki,kj,n_p]
-                        pS= p[ki-1,kj,n_p]
-                   
-                
-                    if ki==0 and kj==self.n_theta-1:
-                        MU_e= self.mu_l[ki,kj,n_p]
-                        MU_w= 0.5*(self.mu_l[ki,kj,n_p]+self.mu_l[ki,kj-1,n_p])
-                        MU_s= self.mu_l[ki,kj,n_p]
-                        MU_n= 0.5*(self.mu_l[ki,kj,n_p]+self.mu_l[ki+1,kj,n_p])
-                        
-                        pE= -p[ki,kj,n_p]
-                        pW= p[ki,kj-1,n_p]
-                        pN= p[ki+1,kj,n_p]
-                        pS= -p[ki,kj,n_p]
-                  
-                
-                    if kj==self.n_theta-1 and ki>0 and ki<self.n_z-1:
-                        MU_e= self.mu_l[ki,kj,n_p]
-                        MU_w= 0.5*(self.mu_l[ki,kj,n_p]+self.mu_l[ki,kj-1,n_p])
-                        MU_s= 0.5*(self.mu_l[ki,kj,n_p]+self.mu_l[ki-1,kj,n_p])
-                        MU_n= 0.5*(self.mu_l[ki,kj,n_p]+self.mu_l[ki+1,kj,n_p])
-                
-                        pE= -p[ki,kj,n_p]
-                        pW= p[ki,kj-1,n_p]
-                        pN= p[ki+1,kj,n_p]
-                        pS= p[ki-1,kj,n_p]
-                
-                
-                    if kj==self.n_theta-1 and ki==self.n_z-1:
-                        MU_e= self.mu_l[ki,kj,n_p]
-                        MU_w= 0.5*(self.mu_l[ki,kj,n_p]+self.mu_l[ki,kj-1,n_p])
-                        MU_s= 0.5*(self.mu_l[ki,kj,n_p]+self.mu_l[ki-1,kj,n_p])
-                        MU_n= self.mu_l[ki,kj,n_p]
-                
-                        pE= -p[ki,kj,n_p]
-                        pW= p[ki,kj-1,n_p]
-                        pN= -p[ki,kj,n_p]
-                        pS= p[ki-1,kj,n_p]
-                
-                    pP=p[ki,kj,n_p]
-                    
-                    CE=(self.dZ*he**3)/(12*MU_e*self.dY*self.betha_s**2)
-                    CW=(self.dZ*hw**3)/(12*MU_w*self.dY*self.betha_s**2)
-                    CN=(self.dY*(self.R**2)*hn**3)/(12*MU_n*self.dZ*self.L**2)
-                    CS=(self.dY*(self.R**2)*hs**3)/(12*MU_s*self.dZ*self.L**2)
-                    
-                    CP=-(CE+CW+CN+CS)
-                    
-                    BXE = -(self.dZ/(self.dY*self.betha_s**2))*((3*he**2*hXe)/(12*MU_e))
-                    
-                    BYE = -(self.dZ/(self.dY*self.betha_s**2))*((3*he**2*hYe)/(12*MU_e))
-                    
-                    BXW = -(self.dZ/(self.dY*self.betha_s**2))*((3*hw**2*hXw)/(12*MU_w))
-                    
-                    BYW = -(self.dZ/(self.dY*self.betha_s**2))*((3*hw**2*hYw)/(12*MU_w))
-                    
-                    BXN = -((self.R**2)*self.dY/(self.dZ*self.L**2))*((3*hn**2*hXn)/(12*MU_n))
-                    
-                    BYN = -((self.R**2)*self.dY/(self.dZ*self.L**2))*((3*hn**2*hYn)/(12*MU_n))
-                    
-                    BXS = -((self.R**2)*self.dY/(self.dZ*self.L**2))*((3*hs**2*hXs)/(12*MU_s))
-                    
-                    BYS = -((self.R**2)*self.dY/(self.dZ*self.L**2))*((3*hs**2*hYs)/(12*MU_s))
-                    
-                    BXP = -(BXE+BXW+BXN+BXS)
-                    
-                    BYP = -(BYE+BYW+BYN+BYS)
-                    
-                    BX=(self.dZ/(2*self.betha_s))*(hXe-hXw)+(self.dY*self.dZ*1j*gamma*hXP)+BXE*pE+BXW*pW+BXN*pN+BXS*pS+BXP*pP
-                    
-                    BY=(self.dZ/(2*self.betha_s))*(hYe-hYw)+(self.dY*self.dZ*1j*gamma*hYP)+BYE*pE+BYW*pW+BYN*pN+BYS*pS+BYP*pP
-            
-                    k=k+1
-                    bX[k-1,0]=BX
-                    bY[k-1,0]=BY
-                
-                    if ki==0 and kj==0:
-                        Mat_coef[k-1,k-1]=CP-CS-CW
-                        Mat_coef[k-1,k]=CE
-                        Mat_coef[k-1,k+self.n_theta-1]=CN
-                   
-                    
-                    elif kj==0 and ki>0 and ki<self.n_z-1:
-                        Mat_coef[k-1,k-1]=CP-CW
-                        Mat_coef[k-1,k]=CE
-                        Mat_coef[k-1,k-self.n_theta-1]=CS
-                        Mat_coef[k-1,k+self.n_theta-1]=CN
-                        
-                    elif kj==0 and ki==self.n_z-1:
-                        Mat_coef[k-1,k-1]=CP-CN-CW
-                        Mat_coef[k-1,k]=CE
-                        Mat_coef[k-1,k-self.n_theta-1]=CS 
-                
-                
-                    elif ki==0 and kj>0 and kj<self.n_theta-1:
-                        Mat_coef[k-1,k-1]=CP-CS
-                        Mat_coef[k-1,k]=CE
-                        Mat_coef[k-1,k-2]=CW
-                        Mat_coef[k-1,k+self.n_theta-1]=CN
-                  
-                    
-                    if ki>0 and ki<self.n_z-1 and kj>0 and kj<self.n_theta-1:
-                        Mat_coef[k-1,k-1]=CP
-                        Mat_coef[k-1,k-2]=CW
-                        Mat_coef[k-1,k-self.n_theta-1]=CS
-                        Mat_coef[k-1,k+self.n_theta-1]=CN
-                        Mat_coef[k-1,k]=CE
-                    
-                    
-                    elif ki==self.n_z-1 and kj>0 and kj<self.n_theta-1:
-                        Mat_coef[k-1,k-1]=CP-CN
-                        Mat_coef[k-1,k]=CE
-                        Mat_coef[k-1,k-2]=CW
-                        Mat_coef[k-1,k-self.n_theta-1]=CS
-                       
-                        
-                    elif ki==0 and kj==self.n_theta-1:
-                        Mat_coef[k-1,k-1]=CP-CE-CS
-                        Mat_coef[k-1,k-2]=CW
-                        Mat_coef[k-1,k+self.n_theta-1]=CN
-                        
-                        
-                    elif kj==self.n_theta-1 and ki>0 and ki<self.n_z-1:
-                        Mat_coef[k-1,k-1]=CP-CE
-                        Mat_coef[k-1,k-2]=CW
-                        Mat_coef[k-1,k-self.n_theta-1]=CS
-                        Mat_coef[k-1,k+self.n_theta-1]=CN       
-                  
-                                   
-                    elif ki==self.n_z-1 and kj==self.n_theta-1:
-                        Mat_coef[k-1,k-1]=CP-CE-CN
-                        Mat_coef[k-1,k-2]=CW
-                        Mat_coef[k-1,k-self.n_theta-1]=CS
-                     
-                    kj=kj+1
-                   
-                kj=0
-                ki=ki+1
-                   
+
+                    if ki == 0:
+                        hX[n_p, kj] = hXP
+                        hY[n_p, kj] = hYP
+
+                    if kj == 0 and ki == 0:
+                        MU_e = 0.5 * (
+                            self.mu_l[ki, kj, n_p] + self.mu_l[ki, kj + 1, n_p]
+                        )
+                        MU_w = self.mu_l[ki, kj, n_p]
+                        MU_s = self.mu_l[ki, kj, n_p]
+                        MU_n = 0.5 * (
+                            self.mu_l[ki, kj, n_p] + self.mu_l[ki + 1, kj, n_p]
+                        )
+
+                        pE = p[ki, kj + 1, n_p]
+                        pW = -p[ki, kj, n_p]
+                        pN = p[ki + 1, kj, n_p]
+                        pS = -p[ki, kj, n_p]
+
+                    if kj == 0 and ki > 0 and ki < self.n_z - 1:
+                        MU_e = 0.5 * (
+                            self.mu_l[ki, kj, n_p] + self.mu_l[ki, kj + 1, n_p]
+                        )
+                        MU_w = self.mu_l[ki, kj, n_p]
+                        MU_s = 0.5 * (
+                            self.mu_l[ki, kj, n_p] + self.mu_l[ki - 1, kj, n_p]
+                        )
+                        MU_n = 0.5 * (
+                            self.mu_l[ki, kj, n_p] + self.mu_l[ki + 1, kj, n_p]
+                        )
+
+                        pE = p[ki, kj + 1, n_p]
+                        pW = -p[ki, kj, n_p]
+                        pN = p[ki + 1, kj, n_p]
+                        pS = p[ki - 1, kj, n_p]
+
+                    if kj == 0 and ki == self.n_z - 1:
+                        MU_e = 0.5 * (
+                            self.mu_l[ki, kj, n_p] + self.mu_l[ki, kj + 1, n_p]
+                        )
+                        MU_w = self.mu_l[ki, kj, n_p]
+                        MU_s = 0.5 * (
+                            self.mu_l[ki, kj, n_p] + self.mu_l[ki - 1, kj, n_p]
+                        )
+                        MU_n = self.mu_l[ki, kj, n_p]
+
+                        pE = p[ki, kj + 1, n_p]
+                        pW = -p[ki, kj, n_p]
+                        pN = -p[ki, kj, n_p]
+                        pS = p[ki - 1, kj, n_p]
+
+                    if ki == 0 and kj > 0 and kj < self.n_theta - 1:
+                        MU_e = 0.5 * (
+                            self.mu_l[ki, kj, n_p] + self.mu_l[ki, kj + 1, n_p]
+                        )
+                        MU_w = 0.5 * (
+                            self.mu_l[ki, kj, n_p] + self.mu_l[ki, kj - 1, n_p]
+                        )
+                        MU_s = self.mu_l[ki, kj, n_p]
+                        MU_n = 0.5 * (
+                            self.mu_l[ki, kj, n_p] + self.mu_l[ki + 1, kj, n_p]
+                        )
+
+                        pE = p[ki, kj + 1, n_p]
+                        pW = p[ki, kj - 1, n_p]
+                        pN = p[ki + 1, kj, n_p]
+                        pS = -p[ki, kj, n_p]
+
+                    if (
+                        kj > 0
+                        and kj < self.n_theta - 1
+                        and ki > 0
+                        and ki < self.n_z - 1
+                    ):
+                        MU_e = 0.5 * (
+                            self.mu_l[ki, kj, n_p] + self.mu_l[ki, kj + 1, n_p]
+                        )
+                        MU_w = 0.5 * (
+                            self.mu_l[ki, kj, n_p] + self.mu_l[ki, kj - 1, n_p]
+                        )
+                        MU_s = 0.5 * (
+                            self.mu_l[ki, kj, n_p] + self.mu_l[ki - 1, kj, n_p]
+                        )
+                        MU_n = 0.5 * (
+                            self.mu_l[ki, kj, n_p] + self.mu_l[ki + 1, kj, n_p]
+                        )
+
+                        pE = p[ki, kj + 1, n_p]
+                        pW = p[ki, kj - 1, n_p]
+                        pN = p[ki + 1, kj, n_p]
+                        pS = p[ki - 1, kj, n_p]
+
+                    if ki == self.n_z - 1 and kj > 0 and kj < self.n_theta - 1:
+                        MU_e = 0.5 * (
+                            self.mu_l[ki, kj, n_p] + self.mu_l[ki, kj + 1, n_p]
+                        )
+                        MU_w = 0.5 * (
+                            self.mu_l[ki, kj, n_p] + self.mu_l[ki, kj - 1, n_p]
+                        )
+                        MU_s = 0.5 * (
+                            self.mu_l[ki, kj, n_p] + self.mu_l[ki - 1, kj, n_p]
+                        )
+                        MU_n = self.mu_l[ki, kj, n_p]
+
+                        pE = p[ki, kj + 1, n_p]
+                        pW = p[ki, kj - 1, n_p]
+                        pN = -p[ki, kj, n_p]
+                        pS = p[ki - 1, kj, n_p]
+
+                    if ki == 0 and kj == self.n_theta - 1:
+                        MU_e = self.mu_l[ki, kj, n_p]
+                        MU_w = 0.5 * (
+                            self.mu_l[ki, kj, n_p] + self.mu_l[ki, kj - 1, n_p]
+                        )
+                        MU_s = self.mu_l[ki, kj, n_p]
+                        MU_n = 0.5 * (
+                            self.mu_l[ki, kj, n_p] + self.mu_l[ki + 1, kj, n_p]
+                        )
+
+                        pE = -p[ki, kj, n_p]
+                        pW = p[ki, kj - 1, n_p]
+                        pN = p[ki + 1, kj, n_p]
+                        pS = -p[ki, kj, n_p]
+
+                    if kj == self.n_theta - 1 and ki > 0 and ki < self.n_z - 1:
+                        MU_e = self.mu_l[ki, kj, n_p]
+                        MU_w = 0.5 * (
+                            self.mu_l[ki, kj, n_p] + self.mu_l[ki, kj - 1, n_p]
+                        )
+                        MU_s = 0.5 * (
+                            self.mu_l[ki, kj, n_p] + self.mu_l[ki - 1, kj, n_p]
+                        )
+                        MU_n = 0.5 * (
+                            self.mu_l[ki, kj, n_p] + self.mu_l[ki + 1, kj, n_p]
+                        )
+
+                        pE = -p[ki, kj, n_p]
+                        pW = p[ki, kj - 1, n_p]
+                        pN = p[ki + 1, kj, n_p]
+                        pS = p[ki - 1, kj, n_p]
+
+                    if kj == self.n_theta - 1 and ki == self.n_z - 1:
+                        MU_e = self.mu_l[ki, kj, n_p]
+                        MU_w = 0.5 * (
+                            self.mu_l[ki, kj, n_p] + self.mu_l[ki, kj - 1, n_p]
+                        )
+                        MU_s = 0.5 * (
+                            self.mu_l[ki, kj, n_p] + self.mu_l[ki - 1, kj, n_p]
+                        )
+                        MU_n = self.mu_l[ki, kj, n_p]
+
+                        pE = -p[ki, kj, n_p]
+                        pW = p[ki, kj - 1, n_p]
+                        pN = -p[ki, kj, n_p]
+                        pS = p[ki - 1, kj, n_p]
+
+                    pP = p[ki, kj, n_p]
+
+                    CE = (self.dZ * he ** 3) / (12 * MU_e * self.dY * self.betha_s ** 2)
+                    CW = (self.dZ * hw ** 3) / (12 * MU_w * self.dY * self.betha_s ** 2)
+                    CN = (self.dY * (self.R ** 2) * hn ** 3) / (
+                        12 * MU_n * self.dZ * self.L ** 2
+                    )
+                    CS = (self.dY * (self.R ** 2) * hs ** 3) / (
+                        12 * MU_s * self.dZ * self.L ** 2
+                    )
+
+                    CP = -(CE + CW + CN + CS)
+
+                    BXE = -(self.dZ / (self.dY * self.betha_s ** 2)) * (
+                        (3 * he ** 2 * hXe) / (12 * MU_e)
+                    )
+
+                    BYE = -(self.dZ / (self.dY * self.betha_s ** 2)) * (
+                        (3 * he ** 2 * hYe) / (12 * MU_e)
+                    )
+
+                    BXW = -(self.dZ / (self.dY * self.betha_s ** 2)) * (
+                        (3 * hw ** 2 * hXw) / (12 * MU_w)
+                    )
+
+                    BYW = -(self.dZ / (self.dY * self.betha_s ** 2)) * (
+                        (3 * hw ** 2 * hYw) / (12 * MU_w)
+                    )
+
+                    BXN = -((self.R ** 2) * self.dY / (self.dZ * self.L ** 2)) * (
+                        (3 * hn ** 2 * hXn) / (12 * MU_n)
+                    )
+
+                    BYN = -((self.R ** 2) * self.dY / (self.dZ * self.L ** 2)) * (
+                        (3 * hn ** 2 * hYn) / (12 * MU_n)
+                    )
+
+                    BXS = -((self.R ** 2) * self.dY / (self.dZ * self.L ** 2)) * (
+                        (3 * hs ** 2 * hXs) / (12 * MU_s)
+                    )
+
+                    BYS = -((self.R ** 2) * self.dY / (self.dZ * self.L ** 2)) * (
+                        (3 * hs ** 2 * hYs) / (12 * MU_s)
+                    )
+
+                    BXP = -(BXE + BXW + BXN + BXS)
+
+                    BYP = -(BYE + BYW + BYN + BYS)
+
+                    BX = (
+                        (self.dZ / (2 * self.betha_s)) * (hXe - hXw)
+                        + (self.dY * self.dZ * 1j * gamma * hXP)
+                        + BXE * pE
+                        + BXW * pW
+                        + BXN * pN
+                        + BXS * pS
+                        + BXP * pP
+                    )
+
+                    BY = (
+                        (self.dZ / (2 * self.betha_s)) * (hYe - hYw)
+                        + (self.dY * self.dZ * 1j * gamma * hYP)
+                        + BYE * pE
+                        + BYW * pW
+                        + BYN * pN
+                        + BYS * pS
+                        + BYP * pP
+                    )
+
+                    k = k + 1
+                    bX[k - 1, 0] = BX
+                    bY[k - 1, 0] = BY
+
+                    if ki == 0 and kj == 0:
+                        Mat_coef[k - 1, k - 1] = CP - CS - CW
+                        Mat_coef[k - 1, k] = CE
+                        Mat_coef[k - 1, k + self.n_theta - 1] = CN
+
+                    elif kj == 0 and ki > 0 and ki < self.n_z - 1:
+                        Mat_coef[k - 1, k - 1] = CP - CW
+                        Mat_coef[k - 1, k] = CE
+                        Mat_coef[k - 1, k - self.n_theta - 1] = CS
+                        Mat_coef[k - 1, k + self.n_theta - 1] = CN
+
+                    elif kj == 0 and ki == self.n_z - 1:
+                        Mat_coef[k - 1, k - 1] = CP - CN - CW
+                        Mat_coef[k - 1, k] = CE
+                        Mat_coef[k - 1, k - self.n_theta - 1] = CS
+
+                    elif ki == 0 and kj > 0 and kj < self.n_theta - 1:
+                        Mat_coef[k - 1, k - 1] = CP - CS
+                        Mat_coef[k - 1, k] = CE
+                        Mat_coef[k - 1, k - 2] = CW
+                        Mat_coef[k - 1, k + self.n_theta - 1] = CN
+
+                    if (
+                        ki > 0
+                        and ki < self.n_z - 1
+                        and kj > 0
+                        and kj < self.n_theta - 1
+                    ):
+                        Mat_coef[k - 1, k - 1] = CP
+                        Mat_coef[k - 1, k - 2] = CW
+                        Mat_coef[k - 1, k - self.n_theta - 1] = CS
+                        Mat_coef[k - 1, k + self.n_theta - 1] = CN
+                        Mat_coef[k - 1, k] = CE
+
+                    elif ki == self.n_z - 1 and kj > 0 and kj < self.n_theta - 1:
+                        Mat_coef[k - 1, k - 1] = CP - CN
+                        Mat_coef[k - 1, k] = CE
+                        Mat_coef[k - 1, k - 2] = CW
+                        Mat_coef[k - 1, k - self.n_theta - 1] = CS
+
+                    elif ki == 0 and kj == self.n_theta - 1:
+                        Mat_coef[k - 1, k - 1] = CP - CE - CS
+                        Mat_coef[k - 1, k - 2] = CW
+                        Mat_coef[k - 1, k + self.n_theta - 1] = CN
+
+                    elif kj == self.n_theta - 1 and ki > 0 and ki < self.n_z - 1:
+                        Mat_coef[k - 1, k - 1] = CP - CE
+                        Mat_coef[k - 1, k - 2] = CW
+                        Mat_coef[k - 1, k - self.n_theta - 1] = CS
+                        Mat_coef[k - 1, k + self.n_theta - 1] = CN
+
+                    elif ki == self.n_z - 1 and kj == self.n_theta - 1:
+                        Mat_coef[k - 1, k - 1] = CP - CE - CN
+                        Mat_coef[k - 1, k - 2] = CW
+                        Mat_coef[k - 1, k - self.n_theta - 1] = CS
+
+                    kj = kj + 1
+
+                kj = 0
+                ki = ki + 1
+
                 #    ###################### Solution of pressure field #######################
-                
-            pX=np.linalg.solve(Mat_coef,bX)
-            
-            pY=np.linalg.solve(Mat_coef,bY)
-            
-            cont=0
-            
+
+            pX = np.linalg.solve(Mat_coef, bX)
+
+            pY = np.linalg.solve(Mat_coef, bY)
+
+            cont = 0
+
             for i in np.arange(self.n_z):
                 for j in np.arange(self.n_theta):
-                    
-                    PX[i,j,n_p]=pX[cont]
-                    PY[i,j,n_p]=pY[cont]
-                    cont=cont+1
-        
-        PPlotX=np.zeros((self.n_z,self.n_theta*self.n_pad)).astype(complex)
-        PPlotY=np.zeros((self.n_z,self.n_theta*self.n_pad)).astype(complex)
-        
+
+                    PX[i, j, n_p] = pX[cont]
+                    PY[i, j, n_p] = pY[cont]
+                    cont = cont + 1
+
+        PPlotX = np.zeros((self.n_z, self.n_theta * self.n_pad)).astype(complex)
+        PPlotY = np.zeros((self.n_z, self.n_theta * self.n_pad)).astype(complex)
+
         i = 0
         for i in range(self.n_z):
-            
-            PPlotX[i]=PX[i,:,:].ravel('F')
-            PPlotY[i]=PY[i,:,:].ravel('F')
-        
-        
+
+            PPlotX[i] = PX[i, :, :].ravel("F")
+            PPlotY[i] = PY[i, :, :].ravel("F")
+
         Ytheta = Ytheta.flatten()
-        
-        
-        PPlotXdim = PPlotX*(self.mu_ref*self.speed*(self.R**2))/(self.c_r**3)
-        
-        PPlotYdim = PPlotY*(self.mu_ref*self.speed*(self.R**2))/(self.c_r**3)
-        
+
+        PPlotXdim = (
+            PPlotX * (self.mu_ref * self.speed * (self.R ** 2)) / (self.c_r ** 3)
+        )
+
+        PPlotYdim = (
+            PPlotY * (self.mu_ref * self.speed * (self.R ** 2)) / (self.c_r ** 3)
+        )
+
         hX = hX.flatten()
         hY = hY.flatten()
-        
-        aux_intXX = PPlotXdim*hX.T
-        
-        aux_intXY = PPlotXdim*hY.T
-        
-        aux_intYX = PPlotYdim*hX.T
-        
-        aux_intYY = PPlotYdim*hY.T
-        
-        H[0,0] = -np.trapz(np.trapz(aux_intXX,Ytheta*self.R),Zdim)
-        
-        H[0,1] = -np.trapz(np.trapz(aux_intXY,Ytheta*self.R),Zdim)
-        
-        H[1,0] = -np.trapz(np.trapz(aux_intYX,Ytheta*self.R),Zdim)
-        
-        H[1,1] = -np.trapz(np.trapz(aux_intYY,Ytheta*self.R),Zdim)
-        
+
+        aux_intXX = PPlotXdim * hX.T
+
+        aux_intXY = PPlotXdim * hY.T
+
+        aux_intYX = PPlotYdim * hX.T
+
+        aux_intYY = PPlotYdim * hY.T
+
+        H[0, 0] = -np.trapz(np.trapz(aux_intXX, Ytheta * self.R), Zdim)
+
+        H[0, 1] = -np.trapz(np.trapz(aux_intXY, Ytheta * self.R), Zdim)
+
+        H[1, 0] = -np.trapz(np.trapz(aux_intYX, Ytheta * self.R), Zdim)
+
+        H[1, 1] = -np.trapz(np.trapz(aux_intYY, Ytheta * self.R), Zdim)
+
         K = np.real(H)
-        C = np.imag(H)/wp
-        
-        kxx=K[0,0]
-        kxy=K[0,1]
-        kyx=K[1,0]
-        kyy=K[1,1]
-        
-        
-        cxx=C[0,0]
-        cxy=C[0,1]
-        cyx=C[1,0]
-        cyy=C[1,1]
-        
-        return (kxx,kxy,kyx,kyy),(cxx,cxy,cyx,cyy)           
+        C = np.imag(H) / wp
+
+        kxx = K[0, 0]
+        kxy = K[0, 1]
+        kyx = K[1, 0]
+        kyy = K[1, 1]
+
+        cxx = C[0, 0]
+        cxy = C[0, 1]
+        cyx = C[1, 0]
+        cyy = C[1, 1]
+
+        return (kxx, kxy, kyx, kyy), (cxx, cxy, cyx, cyy)
 
     def _score(self, x, print_progress=False):
         """This method used to set the objective function of minimize optimization.
@@ -1473,14 +1556,14 @@ class THDCylindrical:
         """
         if self.sommerfeld_type == 1:
             S = (self.mu_ref * ((self.R) ** 3) * self.L * self.speed) / (
-                np.pi * (self.c_r**2) * np.sqrt((self.Wx**2) + (self.Wy**2))
+                np.pi * (self.c_r ** 2) * np.sqrt((self.Wx ** 2) + (self.Wy ** 2))
             )
 
         elif self.sommerfeld_type == 2:
             S = 1 / (
                 2
                 * ((self.L / (2 * self.R)) ** 2)
-                * (np.sqrt((force_x**2) + (force_y**2)))
+                * (np.sqrt((force_x ** 2) + (force_y ** 2)))
             )
 
         Ss = S * ((self.L / (2 * self.R)) ** 2)
@@ -1528,9 +1611,10 @@ def cylindrical_bearing_example():
 
     return bearing
 
+
 if __name__ == "__main__":
-    
-    x0 = [0.1,-0.1]
+
+    x0 = [0.1, -0.1]
     bearing = cylindrical_bearing_example()
     bearing.run(x0)
     bearing.coefficients(method="lund")
