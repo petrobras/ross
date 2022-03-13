@@ -1610,12 +1610,3 @@ def cylindrical_bearing_example():
     )
 
     return bearing
-
-
-if __name__ == "__main__":
-
-    x0 = [0.1, -0.1]
-    bearing = cylindrical_bearing_example()
-    bearing.run(x0)
-    bearing.coefficients(method="lund")
-    bearing.equilibrium_pos
