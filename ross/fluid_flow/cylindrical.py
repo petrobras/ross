@@ -134,6 +134,7 @@ class THDCylindrical:
         n_theta,
         n_z,
         n_y,
+        n_pad,
         betha_s,
         mu_ref,
         speed,
@@ -157,6 +158,7 @@ class THDCylindrical:
         self.n_theta = n_theta
         self.n_z = n_z
         self.n_y = n_y
+        self.n_pad = n_pad
         self.mu_ref = mu_ref
         self.speed = speed
         self.Wx = Wx
@@ -175,7 +177,6 @@ class THDCylindrical:
         self.betha_s_dg = betha_s
         self.betha_s = betha_s * np.pi / 180
 
-        self.n_pad = 2
 
         self.thetaI = 0
         self.thetaF = self.betha_s
@@ -1507,6 +1508,7 @@ def cylindrical_bearing_example():
         n_theta=11,
         n_z=3,
         n_y=None,
+        n_pad=2,
         betha_s=176,
         mu_ref=0.02,
         speed=Q_(900, "RPM"),
@@ -1532,4 +1534,4 @@ if __name__ == "__main__":
     bearing = cylindrical_bearing_example()
     bearing.run(x0)
     bearing.coefficients(method="lund")
-    bearing.equilibrium_pos()
+    bearing.equilibrium_pos
