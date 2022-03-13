@@ -18,6 +18,7 @@ def cylindrical():
         n_theta=11,
         n_z=3,
         n_y=None,
+        n_pad=2,
         betha_s=176,
         mu_ref=0.02,
         speed=94.24777960769379,
@@ -52,6 +53,7 @@ def cylindrical_units():
         n_theta=11,
         n_z=3,
         n_y=None,
+        n_pad=2,
         betha_s=176,
         mu_ref=0.02,
         speed=speed,
@@ -94,7 +96,7 @@ def test_cylindrical_equilibrium_pos(cylindrical):
 
 
 def test_cylindrical_coefficients(cylindrical):
-    coefs = cylindrical.coefficients()
+    coefs = cylindrical.coefficients(method="perturbation")
     kxx = coefs[0][0]
     kxy = coefs[0][1]
     kyx = coefs[0][2]
