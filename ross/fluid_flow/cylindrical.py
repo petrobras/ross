@@ -8,7 +8,9 @@ from ross.units import Q_, check_units
 
 
 class THDCylindrical:
-    """This class calculates the pressure and temperature field in oil film of a cylindrical bearing, with two (2) pads. It is also possible to obtain the stiffness and damping coefficients.
+    """This class calculates the pressure and temperature field in oil film of 
+    a cylindrical bearing. It is also possible to obtain the stiffness and 
+    damping coefficients.
 
     Parameters
     ----------
@@ -214,8 +216,9 @@ class THDCylindrical:
         Parameters
         ----------
         x0 : array, float
-            If the other parameters are None, x0 is an array with eccentricity ratio and attitude angle.
-            Else, x0 is the position of the center of the rotor in the x-axis.
+            If the other parameters are None, x0 is an array with eccentricity 
+            ratio and attitude angle. Else, x0 is the position of the center of 
+            the rotor in the x-axis.
         y0 : float
             The position of the center of the rotor in the y-axis.
         xpt0 : float
@@ -896,7 +899,8 @@ class THDCylindrical:
         return Fhx, Fhy
 
     def run(self, x, print_result=False, print_progress=False, print_time=False):
-        """This method runs the optimization to find the equilibrium position of the rotor's center.
+        """This method runs the optimization to find the equilibrium position of 
+        the rotor's center.
 
         Parameters
         ----------
@@ -994,7 +998,9 @@ class THDCylindrical:
             return coefs
 
     def _pertubation_method(self):
-        """In this method the formulation is based in application of virtual displacements and speeds on the rotor from its equilibrium position to determine the bearing stiffness and damping coefficients.
+        """In this method the formulation is based in application of virtual 
+        displacements and speeds on the rotor from its equilibrium position to 
+        determine the bearing stiffness and damping coefficients.
 
         """
 
@@ -1060,8 +1066,10 @@ class THDCylindrical:
         return (kxx, kxy, kyx, kyy), (cxx, cxy, cyx, cyy)
 
     def _lund_method(self):
-        """In this method a small amplitude whirl of the journal center (a first order perturbation solution) is aplied. 
-        The four stiffness coefficients, and the four damping coefficients is obtained by integration of the pressure field. 
+        """In this method a small amplitude whirl of the journal center (a first 
+        order perturbation solution) is aplied. The four stiffness coefficients, 
+        and the four damping coefficients is obtained by integration of the pressure 
+        field. 
 
 
         """
@@ -1532,15 +1540,16 @@ class THDCylindrical:
         if print_progress:
             print(f"Score: ", score)
             print("============================================")
-            print(f"Força na direção x: ", Fhx)
+            print(f"Force x direction: ", Fhx)
             print("============================================")
-            print(f"Força na direção y: ", Fhy)
+            print(f"Force y direction: ", Fhy)
             print("")
 
         return score
 
     def sommerfeld(self, force_x, force_y):
-        """Calculate the sommerfeld number. This dimensionless number is used to calculate the dynamic coeficients.
+        """Calculate the sommerfeld number. This dimensionless number is used to 
+        calculate the dynamic coeficients.
 
         Parameters
         ----------
@@ -1572,7 +1581,10 @@ class THDCylindrical:
 
 
 def cylindrical_bearing_example():
-    """Create an example of a cylindrical bearing with termo hydrodynamic effects. This function returns pressure and temperature field and dynamic coefficient. The purpose is to make available a simple model so that a doctest can be written using it.
+    """Create an example of a cylindrical bearing with termo hydrodynamic effects. 
+    This function returns pressure and temperature field and dynamic coefficient. 
+    The purpose is to make available a simple model so that a doctest can be written 
+    using it.
     Returns
     -------
     THDCylindrical : ross.THDCylindrical Object
