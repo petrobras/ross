@@ -2,8 +2,9 @@ import time
 
 import numpy as np
 from numpy.linalg import pinv
-from ross.units import Q_, check_units
 from scipy.optimize import curve_fit, minimize
+
+from ross.units import Q_, check_units
 
 
 class THDCylindrical:
@@ -123,7 +124,7 @@ class THDCylindrical:
     >>> bearing = cylindrical_bearing_example()
     >>> bearing.run(x0)
     >>> bearing.equilibrium_pos
-    array([ 0.57085649, -0.70347548])
+    array([ 0.57086823 -0.70347935])
     """
 
     @check_units
@@ -684,21 +685,14 @@ class THDCylindrical:
                                     )
                                 )
                             )
-                            AN = -(self.k_t * HP * self.dY) / (
-                                self.rho
-                                * self.Cp
-                                * self.speed
-                                * (self.L ** 2)
-                                * self.dZ
-                            )
-                            AS = (
+
+                            AN = -(
                                 (
                                     (self.R ** 2)
                                     * (HP ** 3)
-                                    * dPdz[ki, kj, n_p]
-                                    * self.dY
+                                    * (dPdz[ki, kj, n_p] * self.dY)
                                 )
-                                / (12 * (self.L ** 2) * mi_t)
+                                / (2 * 12 * (self.L ** 2) * mi_t)
                             ) - (
                                 (self.k_t * HP * self.dY)
                                 / (
@@ -709,6 +703,25 @@ class THDCylindrical:
                                     * self.dZ
                                 )
                             )
+
+                            AS = (
+                                (
+                                    (self.R ** 2)
+                                    * (HP ** 3)
+                                    * (dPdz[ki, kj, n_p] * self.dY)
+                                )
+                                / (2 * 12 * (self.L ** 2) * mi_t)
+                            ) - (
+                                (self.k_t * HP * self.dY)
+                                / (
+                                    self.rho
+                                    * self.Cp
+                                    * self.speed
+                                    * (self.L ** 2)
+                                    * self.dZ
+                                )
+                            )
+
                             AP = -(AE + AW + AN + AS)
 
                             auxb_T = (self.speed * self.mu_ref) / (
@@ -1024,8 +1037,6 @@ class THDCylindrical:
         Aux07 = self._forces(xeq, yeq, 0, epiypt)
         Aux08 = self._forces(xeq, yeq, 0, -epiypt)
 
-        # Ss = self.sommerfeld(Aux08[0],Aux08[1])
-
         Kxx = -self.sommerfeld(Aux01[0], Aux02[1]) * (
             (Aux01[0] - Aux02[0]) / (epix / self.c_r)
         )
@@ -1079,26 +1090,22 @@ class THDCylindrical:
 
         dZ = 1 / self.n_z
 
-        Z1 = 0  # initial coordinate z dimensionless
+        Z1 = 0
         Z2 = 1
-        Z = np.arange(Z1 + 0.5 * dZ, Z2, dZ)  # vector z dimensionless
+        Z = np.arange(Z1 + 0.5 * dZ, Z2, dZ)
         Zdim = Z * self.L
 
         Ytheta = np.zeros((self.n_pad, self.n_theta))
 
         # Dimensionless
-        xr = (
-            x0[0] * self.c_r * np.cos(x0[1])
-        )  # Representa a posição do centro do eixo ao longo da direção "Y"
-        yr = (
-            x0[0] * self.c_r * np.sin(x0[1])
-        )  # Representa a posição do centro do eixo ao longo da direção "X"
-        Y = yr / self.c_r  # Representa a posição em x adimensional
+        xr = x0[0] * self.c_r * np.cos(x0[1])
+        yr = x0[0] * self.c_r * np.sin(x0[1])
+        Y = yr / self.c_r
         X = xr / self.c_r
 
         nk = (self.n_z) * (self.n_theta)
 
-        gamma = 0.001  # Frequencia da perturbação sobre velocidade de rotação
+        gamma = 0.001
 
         wp = gamma * self.speed
 
@@ -1129,7 +1136,7 @@ class THDCylindrical:
             ki = 0
             kj = 0
 
-            k = 0  # vectorization pressure index
+            k = 0
 
             for ii in np.arange((self.Z_I + 0.5 * self.dZ), self.Z_F, self.dZ):
                 for jj in np.arange(
@@ -1621,3 +1628,12 @@ def cylindrical_bearing_example():
     )
 
     return bearing
+
+
+if __name__ == "__main__":
+    x0 = [0.1, -0.1]
+    bearing = cylindrical_bearing_example()
+    bearing.run(x0)
+    bearing.coefficients(method="perturbation")
+    bearing.equilibrium_pos
+    print(bearing.equilibrium_pos)
