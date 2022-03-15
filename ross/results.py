@@ -166,13 +166,16 @@ class Orbit(Results):
 
     Parameters
     ----------
+    node : int
+        Orbit node in the rotor.
     ru_e : complex
         Element in the vector corresponding to the x direction.
     rv_e : complex
         Element in the vector corresponding to the y direction.
     """
 
-    def __init__(self, ru_e, rv_e):
+    def __init__(self, *, node, ru_e, rv_e):
+        self.node = node
         self.ru_e = ru_e
         self.rv_e = rv_e
         # calculate T matrix
