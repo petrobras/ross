@@ -503,6 +503,14 @@ class THDCylindrical:
                     p = np.linalg.solve(Mat_coef, b)
                     cont = 0
 
+
+
+
+
+
+
+
+
                     for i in np.arange(self.n_z):
                         for j in np.arange(self.n_theta):
 
@@ -523,6 +531,16 @@ class THDCylindrical:
                     k = 0
 
                     # Solution of temperature field initialization
+
+
+
+
+
+
+
+
+
+
 
                     for ii in np.arange(
                         (self.Z_I + 0.5 * self.dZ), (self.Z_F), self.dZ
@@ -579,6 +597,17 @@ class THDCylindrical:
                                 dPdz[ki, kj, n_p] = (
                                     self.P[ki + 1, kj, n_p] - self.P[ki - 1, kj, n_p]
                                 ) / (2 * self.dZ)
+
+
+
+
+
+
+
+
+
+
+
 
                             if ki == self.n_z - 1 and kj > 0 and kj < self.n_theta - 1:
                                 dPdy[ki, kj, n_p] = (
