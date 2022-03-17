@@ -21,6 +21,7 @@ from ross.utils import intersection
 
 __all__ = [
     "Orbit",
+    "Shape",
     "CriticalSpeedResults",
     "ModalResults",
     "CampbellResults",
@@ -174,10 +175,20 @@ class Orbit(Results):
         Element in the vector corresponding to the y direction.
     """
 
-    def __init__(self, *, node, ru_e, rv_e):
+    def __init__(self, *, node, node_pos, ru_e, rv_e):
         self.node = node
+        self.node_pos = node_pos
         self.ru_e = ru_e
         self.rv_e = rv_e
+
+        # data for plotting
+        num_points = 201
+        c = np.linspace(0, 2 * np.pi, num_points)
+        circle = np.exp(1j * c)
+
+        self.x_circle = np.real(ru_e * circle)
+        self.y_circle = np.real(rv_e * circle)
+
         # calculate T matrix
         ru = np.absolute(ru_e)
         rv = np.absolute(rv_e)
@@ -216,6 +227,42 @@ class Orbit(Results):
         self.major_axes = np.real(major)
         self.kappa = np.real(kappa)
         self.whirl = "forward" if self.kappa > 0 else "backward"
+        self.orbit_color = "blue" if self.whirl == "forward" else "red"
+
+    def plot_orbit(self, fig=None):
+        if fig is None:
+            fig = go.Figure()
+
+        xc = self.x_circle
+        yc = self.y_circle
+
+        fig.add_trace(
+            go.Scatter(
+                x=xc[10:],
+                y=yc[10:],
+                mode="lines",
+                line=dict(color=self.orbit_color),
+                name=f"node {self.node}<br>{self.whirl}",
+                showlegend=False,
+                hovertemplate=(
+                    "X - Relative Displacement: %{x:.2f}<br>"
+                    + "Y - Relative Displacement: %{y:.2f}"
+                ),
+            )
+        )
+
+        fig.add_trace(
+            go.Scatter(
+                x=[xc[10]],
+                y=[yc[10]],
+                mode="markers",
+                marker=dict(color=self.orbit_color),
+                name="node {}".format(self.node),
+                showlegend=False,
+            )
+        )
+
+        return fig
 
 
 class Shape(Results):
