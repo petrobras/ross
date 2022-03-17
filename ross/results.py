@@ -479,8 +479,18 @@ class ModalResults(Results):
         self.nodes_pos = nodes_pos
         self.shaft_elements_length = shaft_elements_length
         self.modes = self.evectors[: self.ndof]
+        self.shapes = []
         kappa_modes = []
         for mode in range(len(self.wn)):
+            self.shapes.append(
+                Shape(
+                    vector=self.modes[:, mode],
+                    nodes=self.nodes,
+                    nodes_pos=self.nodes_pos,
+                    shaft_elements_length=self.shaft_elements_length,
+                    normalize=True,
+                )
+            )
             kappa_color = []
             kappa_mode = self.kappa_mode(mode)
             for kappa in kappa_mode:
