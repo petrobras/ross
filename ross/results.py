@@ -1212,35 +1212,8 @@ class ModalResults(Results):
         if not isinstance(nodes, Iterable):
             nodes = [nodes]
 
-        kappa_mode = self.kappa_modes[mode]
-        xn, yn, zn, xc, yc, zc_pos, nn = self.calc_mode_shape(mode=mode, evec=None)
-
-        for node in nodes:
-            fig.add_trace(
-                go.Scatter(
-                    x=xc[10:, node],
-                    y=yc[10:, node],
-                    mode="lines",
-                    line=dict(color=kappa_mode[node]),
-                    name=f"node {node}<br>{self.whirl_direction()[mode]}",
-                    showlegend=False,
-                    hovertemplate=(
-                        "X - Relative Displacement: %{x:.2f}<br>"
-                        + "Y - Relative Displacement: %{y:.2f}"
-                    ),
-                )
-            )
-
-            fig.add_trace(
-                go.Scatter(
-                    x=[xc[10, node]],
-                    y=[yc[10, node]],
-                    mode="markers",
-                    marker=dict(color=kappa_mode[node]),
-                    name="node {}".format(node),
-                    showlegend=False,
-                )
-            )
+        shape = self.shapes[mode]
+        fig = shape.plot_orbit(nodes, fig=fig)
 
         fig.update_layout(
             autosize=False,
