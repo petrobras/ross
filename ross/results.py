@@ -272,20 +272,89 @@ class Shape(Results):
     ----------
     vector : np.array
         Complex array with the eigenvector or response vector from a forced response analysis.
+        Array shape should be equal to the number of degrees of freedom of
+        the complete rotor (ndof * number_of_nodes).
     nodes : list
         List of nodes number.
     nodes_pos : list
         List of nodes positions.
     shaft_elements_length : list
         List with Rotor shaft elements lengths.
+    normalize : bool, optional
+        If True the vector is normalized.
+        Default is False.
     """
 
-    def __init__(self, vector, nodes, nodes_pos, shaft_elements_length):
-        pass
-        # calculate
+    def __init__(
+        self, vector, nodes, nodes_pos, shaft_elements_length, normalize=False
+    ):
+        evec = np.copy(vector)
 
-    def plot_orbit(self, node):
-        pass
+        if normalize:
+            modex = evec[0::4]
+            modey = evec[1::4]
+            xmax, ixmax = max(abs(modex)), np.argmax(abs(modex))
+            ymax, iymax = max(abs(modey)), np.argmax(abs(modey))
+
+            if ymax > 0.4 * xmax:
+                evec /= modey[iymax]
+            else:
+                evec /= modex[ixmax]
+
+        # calculate each orbit
+        self.orbits = []
+        for node, node_pos in zip(nodes, nodes_pos):
+            ru_e, rv_e = evec[4 * node : 4 * node + 2]
+            self.orbits.append(
+                Orbit(node=node, node_pos=node_pos, ru_e=ru_e, rv_e=rv_e)
+            )
+
+        # plot lines
+        nn = 21  # number of points in each line between nodes
+        zeta = np.linspace(0, 1, nn)
+        onn = np.ones_like(zeta)
+
+        zeta = zeta.reshape(nn, 1)
+        onn = onn.reshape(nn, 1)
+
+        xn = np.zeros(nn * (len(nodes) - 1))
+        yn = np.zeros(nn * (len(nodes) - 1))
+        zn = np.zeros(nn * (len(nodes) - 1))
+
+        N1 = onn - 3 * zeta**2 + 2 * zeta**3
+        N2 = zeta - 2 * zeta**2 + zeta**3
+        N3 = 3 * zeta**2 - 2 * zeta**3
+        N4 = -(zeta**2) + zeta**3
+
+        for Le, n in zip(shaft_elements_length, nodes):
+            node_pos = nodes_pos[n]
+            Nx = np.hstack((N1, Le * N2, N3, Le * N4))
+            Ny = np.hstack((N1, -Le * N2, N3, -Le * N4))
+
+            xx = [4 * n, 4 * n + 3, 4 * n + 4, 4 * n + 7]
+            yy = [4 * n + 1, 4 * n + 2, 4 * n + 5, 4 * n + 6]
+
+            pos0 = nn * n
+            pos1 = nn * (n + 1)
+
+            xn[pos0:pos1] = Nx @ evec[xx].real
+            yn[pos0:pos1] = Ny @ evec[yy].real
+            zn[pos0:pos1] = (node_pos * onn + Le * zeta).reshape(nn)
+
+        self.xn = xn
+        self.yn = yn
+        self.zn = zn
+
+    def plot_orbit(self, nodes, fig=None):
+        if fig is None:
+            fig = go.Figure()
+
+        selected_orbits = [orbit for orbit in self.orbits if orbit.node in nodes]
+
+        for orbit in selected_orbits:
+            fig = orbit.plot_orbit(fig=fig)
+
+        return fig
 
     def plot_2d(self):
         pass
