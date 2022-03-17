@@ -1414,6 +1414,16 @@ def test_kappa_axes_values(rotor7):
 
 def test_plot_mode(rotor7):
     modal7 = rotor7.run_modal(50)
+
+    fig = modal7.plot_orbit(1, 3)
+    expected_x = np.array(
+        [-0.30901699, -0.33873792, -0.36812455, -0.39714789, -0.42577929]
+    )
+    expected_y = np.array([0.95105652, 0.94088077, 0.92977649, 0.91775463, 0.90482705])
+    assert fig.data[0]["line"]["color"] == "blue"
+    assert_allclose(fig.data[0]["x"][:5], expected_x, rtol=1e-5)
+    assert_allclose(fig.data[0]["y"][:5], expected_y, rtol=1e-5)
+
     fig = modal7.plot_mode_2d(1)
 
     expected_x = np.array([0.0, 0.0125, 0.025, 0.0375, 0.05])
