@@ -320,6 +320,7 @@ class Shape(Results):
         xn = np.zeros(nn * (len(nodes) - 1))
         yn = np.zeros(nn * (len(nodes) - 1))
         zn = np.zeros(nn * (len(nodes) - 1))
+        major = np.zeros(nn * (len(nodes) - 1))
 
         N1 = onn - 3 * zeta**2 + 2 * zeta**3
         N2 = zeta - 2 * zeta**2 + zeta**3
@@ -341,9 +342,17 @@ class Shape(Results):
             yn[pos0:pos1] = Ny @ evec[yy].real
             zn[pos0:pos1] = (node_pos * onn + Le * zeta).reshape(nn)
 
+            # major axes calculation
+            # select orbits
+            orbits = self.orbits[n : n + 2]
+            major[pos0:pos1] = Nx @ np.array(
+                [orbits[0].major_axes, 0, orbits[1].major_axes, 0]
+            )
+
         self.xn = xn
         self.yn = yn
         self.zn = zn
+        self.major_axes = major
 
     def plot_orbit(self, nodes, fig=None):
         if fig is None:
