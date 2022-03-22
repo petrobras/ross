@@ -130,23 +130,23 @@ class THDCylindrical:
     @check_units
     def __init__(
         self,
-        L,
-        R,
-        c_r,
-        n_theta,
-        n_z,
+        Lenght,
+        Radius,
+        Radial_clearence,
+        Elements_theta_direction,
+        Elements_z_direction,
         n_y,
-        n_pad,
-        betha_s,
-        mu_ref,
+        number_segments,
+        Segment_arc_length,
+        viscosity_reference,
         speed,
-        Wx,
-        Wy,
+        Force_x_direction,
+        Force_y_direction,
         k_t,
         Cp,
         rho,
-        T_reserv,
-        fat_mixt,
+        Temperature_reservoir,
+        Groove_factor,
         T_muI,
         T_muF,
         mu_I,
@@ -154,30 +154,30 @@ class THDCylindrical:
         sommerfeld_type=2,
     ):
 
-        self.L = L
-        self.R = R
-        self.c_r = c_r
-        self.n_theta = n_theta
-        self.n_z = n_z
+        self.L = Lenght
+        self.R = Radius
+        self.c_r = Radial_clearence
+        self.n_theta = Elements_theta_direction
+        self.n_z = Elements_z_direction
         self.n_y = n_y
-        self.n_pad = n_pad
-        self.mu_ref = mu_ref
+        self.n_pad = number_segments
+        self.mu_ref = viscosity_reference
         self.speed = speed
-        self.Wx = Wx
-        self.Wy = Wy
+        self.Wx = Force_x_direction
+        self.Wy = Force_y_direction
         self.k_t = k_t
         self.Cp = Cp
         self.rho = rho
-        self.T_reserv = T_reserv
-        self.fat_mixt = np.array(fat_mixt)
+        self.T_reserv = Temperature_reservoir
+        self.fat_mixt = np.array(Groove_factor)
         self.equilibrium_pos = None
         self.sommerfeld_type = sommerfeld_type
 
         if self.n_y == None:
             self.n_y = self.n_theta
 
-        self.betha_s_dg = betha_s
-        self.betha_s = betha_s * np.pi / 180
+        self.betha_s_dg = Segment_arc_length
+        self.betha_s = Segment_arc_length * np.pi / 180
 
         self.thetaI = 0
         self.thetaF = self.betha_s
@@ -205,7 +205,7 @@ class THDCylindrical:
         self.dz = self.dZ * self.L
         self.dy = self.dY * self.betha_s * self.R
 
-        self.Zdim = self.Z * L
+        self.Zdim = self.Z * self.L
 
         # Interpolation coefficients
         self.a, self.b = self._interpol(T_muI, T_muF, mu_I, mu_F)
@@ -910,7 +910,7 @@ class THDCylindrical:
         self.Fhy = Fhy
         return Fhx, Fhy
 
-    def run(self, x, print_result=False, print_progress=False, print_time=False):
+    def run(self, x, print_result=True, print_progress=False, print_time=False):
         """This method runs the optimization to find the equilibrium position of
         the rotor's center.
 
@@ -1603,23 +1603,23 @@ def cylindrical_bearing_example():
     """
 
     bearing = THDCylindrical(
-        L=0.263144,
-        R=0.2,
-        c_r=1.95e-4,
-        n_theta=11,
-        n_z=3,
+        Lenght=0.263144,
+        Radius=0.2,
+        Radial_clearence=1.95e-4,
+        Elements_theta_direction=11,
+        Elements_z_direction=3,
         n_y=None,
-        n_pad=2,
-        betha_s=176,
-        mu_ref=0.02,
+        number_segments=2,
+        Segment_arc_length=176,
+        viscosity_reference=0.02,
         speed=Q_(900, "RPM"),
-        Wx=0,
-        Wy=-112814.91,
+        Force_x_direction=0,
+        Force_y_direction=-112814.91,
         k_t=0.15327,
         Cp=1915.24,
         rho=854.952,
-        T_reserv=50,
-        fat_mixt=[0.52, 0.48],
+        Temperature_reservoir=50,
+        Groove_factor=[0.52, 0.48],
         T_muI=50,
         T_muF=80,
         mu_I=0.02,
@@ -1628,4 +1628,10 @@ def cylindrical_bearing_example():
     )
 
     return bearing
-.
+
+if __name__ == "__main__":
+    x0 = [0.1,-0.1]
+    bearing = cylindrical_bearing_example()
+    bearing.run(x0)
+    bearing.equilibrium_pos
+    
