@@ -120,9 +120,7 @@ class THDCylindrical:
     Examples
     --------
     >>> from ross.fluid_flow.cylindrical import cylindrical_bearing_example
-    >>> x0 = [0.1,-0.1]
     >>> bearing = cylindrical_bearing_example()
-    >>> bearing.run(x0)
     >>> bearing.equilibrium_pos
     array([ 0.57086823, -0.70347935])
     """
@@ -130,45 +128,46 @@ class THDCylindrical:
     @check_units
     def __init__(
         self,
-        Lenght,
-        Radius,
-        Radial_clearence,
-        Elements_theta_direction,
-        Elements_z_direction,
+        axial_length,
+        journal_radius,
+        radial_clearance,
+        elements_in_circunferencial_direction,
+        elements_in_axial_direction,
         n_y,
-        number_segments,
-        Segment_arc_length,
-        viscosity_reference,
+        number_of_segments,
+        segment_arc_length,
+        reservoir_temperature,
+        viscosity_at_reservoir_temperature,
         speed,
-        Force_x_direction,
-        Force_y_direction,
+        load_x_direction,
+        load_y_direction,
         k_t,
         Cp,
         rho,
-        Temperature_reservoir,
         Groove_factor,
         T_muI,
         T_muF,
         mu_I,
         mu_F,
         sommerfeld_type=2,
+        x0 = [0.1,-0.1],
     ):
 
-        self.L = Lenght
-        self.R = Radius
-        self.c_r = Radial_clearence
-        self.n_theta = Elements_theta_direction
-        self.n_z = Elements_z_direction
+        self.L = axial_length
+        self.R = journal_radius
+        self.c_r = radial_clearance
+        self.n_theta = elements_in_circunferencial_direction
+        self.n_z = elements_in_axial_direction
         self.n_y = n_y
-        self.n_pad = number_segments
-        self.mu_ref = viscosity_reference
+        self.n_pad = number_of_segments
+        self.T_reserv = reservoir_temperature
+        self.mu_ref = viscosity_at_reservoir_temperature
         self.speed = speed
-        self.Wx = Force_x_direction
-        self.Wy = Force_y_direction
+        self.Wx = load_x_direction
+        self.Wy = load_y_direction
         self.k_t = k_t
         self.Cp = Cp
         self.rho = rho
-        self.T_reserv = Temperature_reservoir
         self.fat_mixt = np.array(Groove_factor)
         self.equilibrium_pos = None
         self.sommerfeld_type = sommerfeld_type
@@ -176,8 +175,8 @@ class THDCylindrical:
         if self.n_y == None:
             self.n_y = self.n_theta
 
-        self.betha_s_dg = Segment_arc_length
-        self.betha_s = Segment_arc_length * np.pi / 180
+        self.betha_s_dg = segment_arc_length
+        self.betha_s = segment_arc_length * np.pi / 180
 
         self.thetaI = 0
         self.thetaF = self.betha_s
@@ -209,6 +208,8 @@ class THDCylindrical:
 
         # Interpolation coefficients
         self.a, self.b = self._interpol(T_muI, T_muF, mu_I, mu_F)
+        
+        self.run(x0)
 
     def _forces(self, x0, y0, xpt0, ypt0):
         """Calculates the forces in Y and X direction.
@@ -1603,35 +1604,35 @@ def cylindrical_bearing_example():
     """
 
     bearing = THDCylindrical(
-        Lenght=0.263144,
-        Radius=0.2,
-        Radial_clearence=1.95e-4,
-        Elements_theta_direction=11,
-        Elements_z_direction=3,
+        axial_length=0.263144,
+        journal_radius=0.2,
+        radial_clearance=1.95e-4,
+        elements_in_circunferencial_direction=11,
+        elements_in_axial_direction=3,
         n_y=None,
-        number_segments=2,
-        Segment_arc_length=176,
-        viscosity_reference=0.02,
+        number_of_segments=2,
+        segment_arc_length=176,
+        reservoir_temperature=50,
+        viscosity_at_reservoir_temperature=0.02,
         speed=Q_(900, "RPM"),
-        Force_x_direction=0,
-        Force_y_direction=-112814.91,
+        load_x_direction=0,
+        load_y_direction=-112814.91,
         k_t=0.15327,
         Cp=1915.24,
         rho=854.952,
-        Temperature_reservoir=50,
         Groove_factor=[0.52, 0.48],
         T_muI=50,
         T_muF=80,
         mu_I=0.02,
         mu_F=0.01,
         sommerfeld_type=2,
+        x0 = [0.1,-0.1],
     )
 
     return bearing
 
 if __name__ == "__main__":
-    x0 = [0.1,-0.1]
     bearing = cylindrical_bearing_example()
-    bearing.run(x0)
     bearing.equilibrium_pos
+    
     
