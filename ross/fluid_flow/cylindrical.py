@@ -17,13 +17,13 @@ class THDCylindrical:
     Bearing Geometry
     ^^^^^^^^^^^^^^^^
     Describes the geometric characteristics.
-    L : float, pint.Quantity
+    axial_length : float, pint.Quantity
         Bearing length. Default unit is meter.
-    R : float
+    journal_radius : float
         Rotor radius. The unit is meter.
-    c_r : float
+    radial_clearance : float
         Radial clearence between rotor and bearing. The unit is meter.
-    betha_s : float
+    segment_arc_length : float
         Arc length of each pad. The unit is degree.
 
 
@@ -32,9 +32,9 @@ class THDCylindrical:
     Describes the operation conditions of the bearing.
     speed : float, pint.Quantity
         Rotor rotational speed. Default unit is rad/s.
-    Wx : Float
+    load_x_direction : Float
         Load in X direction. The unit is newton.
-    Wy : Float
+    load_y_direction : Float
         Load in Y direction. The unit is newton.
 
     Fluid propierties
@@ -48,11 +48,11 @@ class THDCylindrical:
         Fluid thermal conductivity. The unit is J/(s*m*°C).
     Cp : float
         Fluid specific heat. The unit is J/(kg*°C).
-    Treserv : float
+    reservoir_temperature : float
         Oil reservoir temperature. The unit is celsius.
-    fat_mixt : list, numpy array, tuple or float
-        Ratio of oil in Treserv temperature that mixes with the circulating oil.
-        Is required one fat_mixt per pad.
+    groove_factor : list, numpy array, tuple or float
+        Ratio of oil in reservoir temperature that mixes with the circulating oil.
+        Is required one factor per segment.
 
     Viscosity interpolation
     ^^^^^^^^^^^^^^^^^^^^^^^
@@ -80,9 +80,9 @@ class THDCylindrical:
     Mesh discretization
     ^^^^^^^^^^^^^^^^^^^
     Describes the discretization of the bearing.
-    ntheta : int
+    elements_in_circunferencial_direction : int
         Number of volumes along the direction theta (direction of flow).
-    nz : int
+    elements_in_axial_direction : int
         Number of volumes along the Z direction (axial direction).
 
 
@@ -144,7 +144,7 @@ class THDCylindrical:
         k_t,
         Cp,
         rho,
-        Groove_factor,
+        groove_factor,
         T_muI,
         T_muF,
         mu_I,
@@ -168,7 +168,7 @@ class THDCylindrical:
         self.k_t = k_t
         self.Cp = Cp
         self.rho = rho
-        self.fat_mixt = np.array(Groove_factor)
+        self.fat_mixt = np.array(groove_factor)
         self.equilibrium_pos = None
         self.sommerfeld_type = sommerfeld_type
 
@@ -1620,7 +1620,7 @@ def cylindrical_bearing_example():
         k_t=0.15327,
         Cp=1915.24,
         rho=854.952,
-        Groove_factor=[0.52, 0.48],
+        groove_factor=[0.52, 0.48],
         T_muI=50,
         T_muF=80,
         mu_I=0.02,
