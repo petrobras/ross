@@ -26,7 +26,6 @@ class THDCylindrical:
     segment_arc_length : float
         Arc length of each pad. The unit is degree.
 
-
     Operation conditions
     ^^^^^^^^^^^^^^^^^^^^
     Describes the operation conditions of the bearing.
