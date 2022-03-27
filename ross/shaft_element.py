@@ -677,7 +677,10 @@ class ShaftElement(Element):
         b2 = self.b2
         delta = self.delta
         gama = self.gama
+        A = self.A
+        A_l = self.A_l
         Ie_l = self.Ie_l
+        E = self.material.E
 
         # fmt: off
         k1 = 1260 + 630 * a2 + 504 * b2 + 441 * gama + 396 * delta
@@ -744,7 +747,7 @@ class ShaftElement(Element):
             [L*k8,     0,       0, L**2*k9, -L*k8,     0,       0, L**2*k9],
         ])
 
-        K = self.material.E * Ie_l / (105 * L ** 3 * (1 + phi) ** 2) * (K1 + 105 * phi * K2)
+        K = E * Ie_l / (105 * L ** 3 * (1 + phi) ** 2) * (K1 + 105 * phi * K2 * A_l / A)
 
         # axial force
         k10 = 36 + 60 * phi + 30 * phi ** 2
