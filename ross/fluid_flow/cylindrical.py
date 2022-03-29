@@ -39,14 +39,15 @@ class THDCylindrical:
     Fluid propierties
     ^^^^^^^^^^^^^^^^^
     Describes the fluid characteristics.
-    mu_ref : float
-        Fluid reference viscosity. The unit is Pa*s.
+    
     rho : float, pint.Quantity
         Fluid density. Default unit is kg/m^3.
     k_t :  Float
         Fluid thermal conductivity. The unit is J/(s*m*°C).
     Cp : float
         Fluid specific heat. The unit is J/(kg*°C).
+    viscosity_at_reservoir_temperature: float
+        Fluid reference viscosity. The unit is Pa*s.
     reservoir_temperature : float
         Oil reservoir temperature. The unit is celsius.
     groove_factor : list, numpy array, tuple or float
