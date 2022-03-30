@@ -290,9 +290,48 @@ class Shape(Results):
     def __init__(
         self, vector, nodes, nodes_pos, shaft_elements_length, normalize=False
     ):
-        evec = np.copy(vector)
+        self.vector = vector
+        self.nodes = nodes
+        self.nodes_pos = nodes_pos
+        self.shaft_elements_length = shaft_elements_length
+        self.normalize = normalize
+        self._evec = np.copy(vector)
+        self.orbits = None
+        self.whirl = None
+        self.shape_color = None
+        self.xn = None
+        self.yn = None
+        self.zn = None
+        self.major_axes = None
 
-        if normalize:
+    def _calculate_orbits(self):
+        orbits = []
+        whirl = []
+        for node, node_pos in zip(self.nodes, self.nodes_pos):
+            ru_e, rv_e = self._evec[4 * node : 4 * node + 2]
+            orbit = Orbit(node=node, node_pos=node_pos, ru_e=ru_e, rv_e=rv_e)
+            orbits.append(orbit)
+            whirl.append(orbit.whirl)
+
+        self.orbits = orbits
+        # check shape whirl
+        if all(w == "Forward" for w in whirl):
+            self.whirl = "Forward"
+            self.shape_color = "blue"
+        elif all(w == "Backward" for w in whirl):
+            self.whirl = "Backward"
+            self.shape_color = "red"
+        else:
+            self.whirl = "Mixed"
+            self.shape_color = "black"
+
+    def _calculate(self):
+        evec = self._evec
+        nodes = self.nodes
+        shaft_elements_length = self.shaft_elements_length
+        nodes_pos = self.nodes_pos
+
+        if self.normalize:
             modex = evec[0::4]
             modey = evec[1::4]
             xmax, ixmax = max(abs(modex)), np.argmax(abs(modex))
@@ -304,12 +343,7 @@ class Shape(Results):
                 evec /= modex[ixmax]
 
         # calculate each orbit
-        self.orbits = []
-        for node, node_pos in zip(nodes, nodes_pos):
-            ru_e, rv_e = evec[4 * node : 4 * node + 2]
-            self.orbits.append(
-                Orbit(node=node, node_pos=node_pos, ru_e=ru_e, rv_e=rv_e)
-            )
+        self._calculate_orbits()
 
         # plot lines
         nn = 21  # number of points in each line between nodes
@@ -321,6 +355,8 @@ class Shape(Results):
 
         xn = np.zeros(nn * (len(nodes) - 1))
         yn = np.zeros(nn * (len(nodes) - 1))
+        xn_complex = np.zeros(nn * (len(nodes) - 1), dtype=np.complex)
+        yn_complex = np.zeros(nn * (len(nodes) - 1), dtype=np.complex)
         zn = np.zeros(nn * (len(nodes) - 1))
         major = np.zeros(nn * (len(nodes) - 1))
 
@@ -357,6 +393,9 @@ class Shape(Results):
         self.major_axes = major
 
     def plot_orbit(self, nodes, fig=None):
+        # only perform calculation if necessary
+        if self.orbits is None:
+            self._calculate()
         if fig is None:
             fig = go.Figure()
 
