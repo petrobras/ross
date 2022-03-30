@@ -195,6 +195,8 @@ class Orbit(Results):
 
         nu = np.angle(ru_e)
         nv = np.angle(rv_e)
+        self.nu = nu
+        self.nv = nv
         # fmt: off
         T = np.array([[ru * np.cos(nu), -ru * np.sin(nu)],
                       [rv * np.cos(nv), -rv * np.sin(nv)]])
@@ -226,7 +228,7 @@ class Orbit(Results):
         self.minor_axes = np.real(minor)
         self.major_axes = np.real(major)
         self.kappa = np.real(kappa)
-        self.whirl = "forward" if self.kappa > 0 else "backward"
+        self.whirl = "Forward" if self.kappa > 0 else "Backward"
         self.orbit_color = "blue" if self.whirl == "forward" else "red"
 
     def plot_orbit(self, fig=None):
