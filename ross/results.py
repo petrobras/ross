@@ -381,11 +381,14 @@ class Shape(Results):
             zn[pos0:pos1] = (node_pos * onn + Le * zeta).reshape(nn)
 
             # major axes calculation
-            # select orbits
-            orbits = self.orbits[n : n + 2]
-            major[pos0:pos1] = Nx @ np.array(
-                [orbits[0].major_axes, 0, orbits[1].major_axes, 0]
-            )
+            xn_complex[pos0:pos1] = Nx @ evec[xx]
+            yn_complex[pos0:pos1] = Ny @ evec[yy]
+            for i in range(pos0, pos1):
+                orb = Orbit(node=0, node_pos=0, ru_e=xn_complex[i], rv_e=yn_complex[i])
+                major[i] = orb.major_axes
+
+        if self.normalize:
+            major /= max(major)
 
         self.xn = xn
         self.yn = yn
