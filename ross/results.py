@@ -409,8 +409,83 @@ class Shape(Results):
 
         return fig
 
-    def plot_2d(self):
-        pass
+    def plot_2d(self, orientation="major", length_units="m", fig=None):
+        """Rotor shape 2d plot.
+
+        Parameters
+        ----------
+        orientation : str, optional
+            Orientation can be 'major', 'x' or 'y'.
+            Default is 'major' to display the major axis.
+        length_units : str, optional
+            length units.
+            Default is 'm'.
+        fig : Plotly graph_objects.Figure()
+            The figure object with the plot.
+
+        Returns
+        -------
+        fig : Plotly graph_objects.Figure()
+            The figure object with the plot.
+        """
+        if self.orbits is None:
+            self._calculate()
+        xn = self.xn.copy()
+        yn = self.yn.copy()
+        zn = self.zn.copy()
+        nodes_pos = Q_(self.nodes_pos, "m").to(length_units).m
+
+        if fig is None:
+            fig = go.Figure()
+
+        if orientation == "major":
+            values = self.major_axes.copy()
+        elif orientation == "x":
+            values = xn
+        elif orientation == "y":
+            values = yn
+        else:
+            raise ValueError(f"Invalid orientation {orientation}.")
+
+        fig.add_trace(
+            go.Scatter(
+                x=Q_(zn, "m").to(length_units).m,
+                y=values,
+                mode="lines",
+                line=dict(color=self.shape_color),
+                name="mode shape",
+                showlegend=False,
+            )
+        )
+
+        if orientation == "major":
+            # duplicate
+            fig.add_trace(
+                go.Scatter(
+                    x=Q_(zn, "m").to(length_units).m,
+                    y=-1 * values,
+                    mode="lines",
+                    line=dict(color=self.shape_color),
+                    name="mode shape",
+                    showlegend=False,
+                )
+            )
+        # plot center line
+        fig.add_trace(
+            go.Scatter(
+                x=nodes_pos,
+                y=np.zeros(len(nodes_pos)),
+                mode="lines",
+                line=dict(color="black", dash="dashdot"),
+                name="centerline",
+                hoverinfo="none",
+                showlegend=False,
+            )
+        )
+
+        fig.update_xaxes(title_text=f"Rotor Length ({length_units})")
+
+        return fig
 
     def plot_3d(self):
         pass
