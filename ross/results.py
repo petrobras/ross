@@ -1164,7 +1164,6 @@ class ModalResults(Results):
     def plot_mode_2d(
         self,
         mode=None,
-        evec=None,
         fig=None,
         frequency_type="wd",
         title=None,
@@ -1179,14 +1178,11 @@ class ModalResults(Results):
         ----------
         mode : int
             The n'th vibration mode
-            Default is None
-        evec : array
-            Array containing the system eigenvectors
         fig : Plotly graph_objects.Figure()
             The figure object with the plot.
         frequency_type : str, optional
-            "wd" calculates de map for the damped natural frequencies.
-            "wn" calculates de map for the undamped natural frequencies.
+            "wd" calculates the damped natural frequencies.
+            "wn" calculates the undamped natural frequencies.
             Defaults is "wd".
         title : str, optional
             A brief title to the mode shape plot, it will be displayed above other
@@ -1217,56 +1213,17 @@ class ModalResults(Results):
             damping_name = "Damping ratio"
             damping_value = self.damping_ratio[mode]
 
-        xn, yn, zn, xc, yc, zc_pos, nn = self.calc_mode_shape(mode=mode, evec=evec)
-        nodes_pos = Q_(self.nodes_pos, "m").to(length_units).m
-
-        theta = np.arctan(xn[0] / yn[0])
-        vn = xn * np.sin(theta) + yn * np.cos(theta)
-
-        # remove repetitive values from zn and vn
-        idx_remove = []
-        for i in range(1, len(zn)):
-            if zn[i] == zn[i - 1]:
-                idx_remove.append(i)
-        zn = np.delete(zn, idx_remove)
-        vn = np.delete(vn, idx_remove)
-
         if fig is None:
             fig = go.Figure()
 
-        colors = dict(Backward="red", Mixed="black", Forward="blue")
-
-        # fmt: off
         frequency = {
-            "wd":  f"ω<sub>d</sub> = {Q_(self.wd[mode], 'rad/s').to(frequency_units).m:.1f}",
-            "wn":  f"ω<sub>n</sub> = {Q_(self.wn[mode], 'rad/s').to(frequency_units).m:.1f}",
+            "wd": f"ω<sub>d</sub> = {Q_(self.wd[mode], 'rad/s').to(frequency_units).m:.1f}",
+            "wn": f"ω<sub>n</sub> = {Q_(self.wn[mode], 'rad/s').to(frequency_units).m:.1f}",
             "speed": f"Speed = {Q_(self.speed, 'rad/s').to(frequency_units).m:.1f}",
         }
-        # fmt: on
-        whirl_dir = colors[self.whirl_direction()[mode]]
 
-        fig.add_trace(
-            go.Scatter(
-                x=Q_(zn, "m").to(length_units).m,
-                y=vn / vn[np.argmax(np.abs(vn))],
-                mode="lines",
-                line=dict(color=whirl_dir),
-                name="mode shape",
-                showlegend=False,
-            )
-        )
-        # plot center line
-        fig.add_trace(
-            go.Scatter(
-                x=nodes_pos,
-                y=np.zeros(len(nodes_pos)),
-                mode="lines",
-                line=dict(color="black", dash="dashdot"),
-                name="centerline",
-                hoverinfo="none",
-                showlegend=False,
-            )
-        )
+        shape = self.shapes[mode]
+        fig = shape.plot_2d(fig=fig)
 
         if title is None:
             title = ""
