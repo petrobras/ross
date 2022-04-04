@@ -182,12 +182,15 @@ class Orbit(Results):
         self.rv_e = rv_e
 
         # data for plotting
-        num_points = 201
+        num_points = 360
         c = np.linspace(0, 2 * np.pi, num_points)
         circle = np.exp(1j * c)
 
         self.x_circle = np.real(ru_e * circle)
         self.y_circle = np.real(rv_e * circle)
+        self.angle = np.arctan(self.y_circle / self.x_circle)
+
+        self.major_index = np.argmax(np.sqrt(self.x_circle**2 + self.y_circle**2))
 
         # calculate T matrix
         ru = np.absolute(ru_e)
@@ -225,11 +228,11 @@ class Orbit(Results):
         elif 0 < diff < np.pi:
             kappa *= -1
 
-        self.minor_axes = np.real(minor)
-        self.major_axes = np.real(major)
+        self.minor_axis = np.real(minor)
+        self.major_axis = np.real(major)
         self.kappa = np.real(kappa)
         self.whirl = "Forward" if self.kappa > 0 else "Backward"
-        self.orbit_color = "blue" if self.whirl == "forward" else "red"
+        self.orbit_color = "blue" if self.whirl == "Forward" else "red"
 
     def plot_orbit(self, fig=None):
         if fig is None:
@@ -302,7 +305,7 @@ class Shape(Results):
         self.xn = None
         self.yn = None
         self.zn = None
-        self.major_axes = None
+        self.major_axis = None
 
     def _calculate_orbits(self):
         orbits = []
@@ -385,7 +388,7 @@ class Shape(Results):
             yn_complex[pos0:pos1] = Ny @ evec[yy]
             for i in range(pos0, pos1):
                 orb = Orbit(node=0, node_pos=0, ru_e=xn_complex[i], rv_e=yn_complex[i])
-                major[i] = orb.major_axes
+                major[i] = orb.major_axis
 
         if self.normalize:
             major /= max(major)
@@ -393,7 +396,7 @@ class Shape(Results):
         self.xn = xn
         self.yn = yn
         self.zn = zn
-        self.major_axes = major
+        self.major_axis = major
 
     def plot_orbit(self, nodes, fig=None):
         # only perform calculation if necessary
@@ -439,7 +442,7 @@ class Shape(Results):
             fig = go.Figure()
 
         if orientation == "major":
-            values = self.major_axes.copy()
+            values = self.major_axis.copy()
         elif orientation == "x":
             values = xn
         elif orientation == "y":
