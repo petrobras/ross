@@ -188,7 +188,9 @@ class Orbit(Results):
 
         self.x_circle = np.real(ru_e * circle)
         self.y_circle = np.real(rv_e * circle)
-        self.angle = np.arctan(self.y_circle / self.x_circle)
+        angle = np.arctan2(self.y_circle, self.x_circle)
+        angle[angle < 0] = angle[angle < 0] + 2 * np.pi
+        self.angle = angle
 
         # find major axis index looking at the first half circle
         self.major_index = np.argmax(
