@@ -1442,10 +1442,10 @@ def test_plot_mode(rotor7):
     expected_z = np.array([0.33274591, 0.34953757, 0.36632648, 0.38310191, 0.39985308])
 
     assert fig.data[0]["line"]["color"] == "blue"
-    # -2 is the black line that passes through each orbit starting point
-    assert_allclose(fig.data[-2]["x"][:5], expected_x, rtol=1e-5)
-    assert_allclose(fig.data[-2]["y"][:5], expected_y, rtol=1e-5)
-    assert_allclose(fig.data[-2]["z"][:5], expected_z, rtol=1e-5)
+    # -3 is the black line that passes through each orbit starting point
+    assert_allclose(fig.data[-3]["x"][:5], expected_x, rtol=1e-5)
+    assert_allclose(fig.data[-3]["y"][:5], expected_y, rtol=1e-5)
+    assert_allclose(fig.data[-3]["z"][:5], expected_z, rtol=1e-5)
 
 
 def test_deflected_shape(rotor7):
