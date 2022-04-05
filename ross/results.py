@@ -520,9 +520,136 @@ class Shape(Results):
 
         return fig
 
-    def plot_3d(self):
-        # TODO implement 3d
-        pass
+    def plot_3d(
+        self,
+        mode=None,
+        orientation="major",
+        title=None,
+        length_units="m",
+        phase_units="rad",
+        fig=None,
+        **kwargs,
+    ):
+
+        if fig is None:
+            fig = go.Figure()
+
+        if self.orbits is None:
+            self._calculate()
+        major_x = self.major_x.copy()
+        major_y = self.major_y.copy()
+        xn = self.xn.copy()
+        yn = self.yn.copy()
+        zn = self.zn.copy()
+        nodes_pos = Q_(self.nodes_pos, "m").to(length_units).m
+
+        # plot orbits
+        for orbit in self.orbits:
+            zc_pos = (
+                Q_(np.repeat(orbit.node_pos, len(orbit.x_circle)), "m")
+                .to(length_units)
+                .m
+            )
+            fig.add_trace(
+                go.Scatter3d(
+                    x=zc_pos[:-10],
+                    y=orbit.x_circle[:-10],
+                    z=orbit.y_circle[:-10],
+                    mode="lines",
+                    line=dict(color=orbit.color),
+                    name="node {}".format(orbit.node),
+                    showlegend=False,
+                    hovertemplate=(
+                        "Nodal Position: %{x:.2f}<br>"
+                        + "X - Displacement: %{y:.2f}<br>"
+                        + "Y - Displacement: %{z:.2f}"
+                    ),
+                )
+            )
+            # add orbit start
+            fig.add_trace(
+                go.Scatter3d(
+                    x=[zc_pos[0]],
+                    y=[orbit.x_circle[0]],
+                    z=[orbit.y_circle[0]],
+                    mode="markers",
+                    marker=dict(color=orbit.color),
+                    name="node {}".format(orbit.node),
+                    showlegend=False,
+                    hovertemplate=(
+                        "Nodal Position: %{x:.2f}<br>"
+                        + "X - Displacement: %{y:.2f}<br>"
+                        + "Y - Displacement: %{z:.2f}"
+                    ),
+                )
+            )
+            # add orbit major axis marker
+            fig.add_trace(
+                go.Scatter3d(
+                    x=[zc_pos[0]],
+                    y=[orbit.major_x],
+                    z=[orbit.major_y],
+                    mode="markers",
+                    marker=dict(color=orbit.color, symbol="x", size=2),
+                    name="node {}".format(orbit.node),
+                    showlegend=False,
+                    customdata=np.array(
+                        [
+                            orbit.major_axis,
+                            Q_(orbit.major_angle, "rad").to(phase_units).m,
+                        ]
+                    ).reshape(1, 2),
+                    hovertemplate=(
+                        "Nodal Position: %{x:.2f}<br>"
+                        + "Major axis: %{customdata[0]:.2f}<br>"
+                        + "Angle: %{customdata[1]:.2f}"
+                    ),
+                )
+            )
+
+        # plot line connecting orbits starting points
+        fig.add_trace(
+            go.Scatter3d(
+                x=Q_(zn, "m").to(length_units).m,
+                y=xn,
+                z=yn,
+                mode="lines",
+                line=dict(color="black", dash="dash"),
+                name="mode shape",
+                showlegend=False,
+            )
+        )
+
+        # plot center line
+        zn_cl0 = -(zn[-1] * 0.1)
+        zn_cl1 = zn[-1] * 1.1
+        zn_cl = np.linspace(zn_cl0, zn_cl1, 30)
+        fig.add_trace(
+            go.Scatter3d(
+                x=Q_(zn_cl, "m").to(length_units).m,
+                y=zn_cl * 0,
+                z=zn_cl * 0,
+                mode="lines",
+                line=dict(color="black", dash="dashdot"),
+                hoverinfo="none",
+                showlegend=False,
+            )
+        )
+
+        # plot major axis line
+        fig.add_trace(
+            go.Scatter3d(
+                x=Q_(zn, "m").to(length_units).m,
+                y=self.major_x,
+                z=self.major_y,
+                mode="lines",
+                line=dict(color="black", dash="dashdot"),
+                hoverinfo="none",
+                showlegend=False,
+            )
+        )
+
+        return fig
 
 
 class CriticalSpeedResults(Results):
@@ -1034,13 +1161,13 @@ class ModalResults(Results):
     def plot_mode_3d(
         self,
         mode=None,
-        evec=None,
-        fig=None,
         frequency_type="wd",
         title=None,
         length_units="m",
+        phase_units="rad",
         frequency_units="rad/s",
         damping_parameter="log_dec",
+        fig=None,
         **kwargs,
     ):
         """Plot (3D view) the mode shapes.
@@ -1050,10 +1177,6 @@ class ModalResults(Results):
         mode : int
             The n'th vibration mode
             Default is None
-        evec : array
-            Array containing the system eigenvectors
-        fig : Plotly graph_objects.Figure()
-            The figure object with the plot.
         frequency_type : str, optional
             "wd" calculates de map for the damped natural frequencies.
             "wn" calculates de map for the undamped natural frequencies.
@@ -1065,12 +1188,17 @@ class ModalResults(Results):
         length_units : str, optional
             length units.
             Default is 'm'.
+        phase_units : str, optional
+            Phase units.
+            Default is "rad"
         frequency_units : str, optional
             Frequency units that will be used in the plot title.
             Default is rad/s.
         damping_parameter : str, optional
             Define which value to show for damping. We can use "log_dec" or "damping_ratio".
             Default is "log_dec".
+        fig : Plotly graph_objects.Figure()
+            The figure object with the plot.
         kwargs : optional
             Additional key word arguments can be passed to change the plot layout only
             (e.g. width=1000, height=800, ...).
@@ -1090,74 +1218,14 @@ class ModalResults(Results):
             damping_name = "Damping ratio"
             damping_value = self.damping_ratio[mode]
 
-        nodes = self.nodes
-        kappa_mode = self.kappa_modes[mode]
-        xn, yn, zn, xc, yc, zc_pos, nn = self.calc_mode_shape(mode=mode, evec=evec)
-
-        # fmt: off
         frequency = {
-            "wd":  f"ω<sub>d</sub> = {Q_(self.wd[mode], 'rad/s').to(frequency_units).m:.1f}",
-            "wn":  f"ω<sub>n</sub> = {Q_(self.wn[mode], 'rad/s').to(frequency_units).m:.1f}",
+            "wd": f"ω<sub>d</sub> = {Q_(self.wd[mode], 'rad/s').to(frequency_units).m:.1f}",
+            "wn": f"ω<sub>n</sub> = {Q_(self.wn[mode], 'rad/s').to(frequency_units).m:.1f}",
             "speed": f"Speed = {Q_(self.speed, 'rad/s').to(frequency_units).m:.1f}",
         }
-        # fmt: on
 
-        for node in nodes:
-            fig.add_trace(
-                go.Scatter3d(
-                    x=Q_(zc_pos[:-10, node], "m").to(length_units).m,
-                    y=xc[:-10, node],
-                    z=yc[:-10, node],
-                    mode="lines",
-                    line=dict(color=kappa_mode[node]),
-                    name="node {}".format(node),
-                    showlegend=False,
-                    hovertemplate=(
-                        "Nodal Position: %{x:.2f}<br>"
-                        + "X - Relative Displacement: %{y:.2f}<br>"
-                        + "Y - Relative Displacement: %{z:.2f}"
-                    ),
-                )
-            )
-            fig.add_trace(
-                go.Scatter3d(
-                    x=Q_([zc_pos[0, node]], "m").to(length_units).m,
-                    y=[xc[0, node]],
-                    z=[yc[0, node]],
-                    mode="markers",
-                    marker=dict(color=kappa_mode[node]),
-                    name="node {}".format(node),
-                    showlegend=False,
-                )
-            )
-
-        fig.add_trace(
-            go.Scatter3d(
-                x=Q_(zn, "m").to(length_units).m,
-                y=xn,
-                z=yn,
-                mode="lines",
-                line=dict(color="black", dash="dash"),
-                name="mode shape",
-                showlegend=False,
-            )
-        )
-
-        # plot center line
-        zn_cl0 = -(zn[-1] * 0.1)
-        zn_cl1 = zn[-1] * 1.1
-        zn_cl = np.linspace(zn_cl0, zn_cl1, 30)
-        fig.add_trace(
-            go.Scatter3d(
-                x=Q_(zn_cl, "m").to(length_units).m,
-                y=zn_cl * 0,
-                z=zn_cl * 0,
-                mode="lines",
-                line=dict(color="black", dash="dashdot"),
-                hoverinfo="none",
-                showlegend=False,
-            )
-        )
+        shape = self.shapes[mode]
+        fig = shape.plot_3d(length_units=length_units, phase_units=phase_units, fig=fig)
 
         if title is None:
             title = ""
