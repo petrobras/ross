@@ -243,8 +243,8 @@ class Orbit(Results):
 
         fig.add_trace(
             go.Scatter(
-                x=xc[10:],
-                y=yc[10:],
+                x=xc[:-10],
+                y=yc[:-10],
                 mode="lines",
                 line=dict(color=self.orbit_color),
                 name=f"node {self.node}<br>{self.whirl}",
@@ -258,8 +258,8 @@ class Orbit(Results):
 
         fig.add_trace(
             go.Scatter(
-                x=[xc[10]],
-                y=[yc[10]],
+                x=[xc[0]],
+                y=[yc[0]],
                 mode="markers",
                 marker=dict(color=self.orbit_color),
                 name="node {}".format(self.node),
@@ -1074,9 +1074,9 @@ class ModalResults(Results):
         for node in nodes:
             fig.add_trace(
                 go.Scatter3d(
-                    x=Q_(zc_pos[10:, node], "m").to(length_units).m,
-                    y=xc[10:, node],
-                    z=yc[10:, node],
+                    x=Q_(zc_pos[:-10, node], "m").to(length_units).m,
+                    y=xc[:-10, node],
+                    z=yc[:-10, node],
                     mode="lines",
                     line=dict(color=kappa_mode[node]),
                     name="node {}".format(node),
@@ -1090,9 +1090,9 @@ class ModalResults(Results):
             )
             fig.add_trace(
                 go.Scatter3d(
-                    x=Q_([zc_pos[10, node]], "m").to(length_units).m,
-                    y=[xc[10, node]],
-                    z=[yc[10, node]],
+                    x=Q_([zc_pos[0, node]], "m").to(length_units).m,
+                    y=[xc[0, node]],
+                    z=[yc[0, node]],
                     mode="markers",
                     marker=dict(color=kappa_mode[node]),
                     name="node {}".format(node),
