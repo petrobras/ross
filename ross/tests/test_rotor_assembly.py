@@ -1413,11 +1413,13 @@ def test_kappa_axes_values(rotor7):
 
 
 def test_plot_mode(rotor7):
-    modal7 = rotor7.run_modal(50)
+    # run this test with sparse=False, since small differences in the
+    # eigenvector can cause the assertion to fail
+    modal7 = rotor7.run_modal(50, sparse=False)
 
     fig = modal7.plot_orbit(1, 3)
     expected_x = np.array(
-        [8.897507e-12, -1.750102e-02, -3.499667e-02, -5.248161e-02, -6.995046e-02]
+        [-9.172248e-11, -1.750102e-02, -3.499667e-02, -5.248161e-02, -6.995046e-02]
     )
     expected_y = np.array([1.0, 0.999847, 0.999387, 0.998622, 0.99755])
     assert fig.data[0]["line"]["color"] == "blue"
