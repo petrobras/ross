@@ -238,7 +238,7 @@ class Orbit(Results):
         self.major_axis = np.real(major)
         self.kappa = np.real(kappa)
         self.whirl = "Forward" if self.kappa > 0 else "Backward"
-        self.orbit_color = "blue" if self.whirl == "Forward" else "red"
+        self.color = "blue" if self.whirl == "Forward" else "red"
 
     def plot_orbit(self, fig=None):
         if fig is None:
@@ -252,7 +252,7 @@ class Orbit(Results):
                 x=xc[:-10],
                 y=yc[:-10],
                 mode="lines",
-                line=dict(color=self.orbit_color),
+                line=dict(color=self.color),
                 name=f"node {self.node}<br>{self.whirl}",
                 showlegend=False,
             )
@@ -263,7 +263,7 @@ class Orbit(Results):
                 x=[xc[0]],
                 y=[yc[0]],
                 mode="markers",
-                marker=dict(color=self.orbit_color),
+                marker=dict(color=self.color),
                 name="node {}".format(self.node),
                 showlegend=False,
             )
@@ -303,7 +303,7 @@ class Shape(Results):
         self._evec = np.copy(vector)
         self.orbits = None
         self.whirl = None
-        self.shape_color = None
+        self.color = None
         self.xn = None
         self.yn = None
         self.zn = None
@@ -322,13 +322,13 @@ class Shape(Results):
         # check shape whirl
         if all(w == "Forward" for w in whirl):
             self.whirl = "Forward"
-            self.shape_color = "blue"
+            self.color = "blue"
         elif all(w == "Backward" for w in whirl):
             self.whirl = "Backward"
-            self.shape_color = "red"
+            self.color = "red"
         else:
             self.whirl = "Mixed"
-            self.shape_color = "black"
+            self.color = "black"
 
     def _calculate(self):
         evec = self._evec
@@ -471,7 +471,7 @@ class Shape(Results):
                 x=Q_(zn, "m").to(length_units).m,
                 y=values,
                 mode="lines",
-                line=dict(color=self.shape_color),
+                line=dict(color=self.color),
                 name=f"{orientation}",
                 showlegend=False,
                 customdata=Q_(self.major_angle, "rad").to(phase_units).m,
@@ -489,7 +489,7 @@ class Shape(Results):
                     x=Q_(zn, "m").to(length_units).m,
                     y=-1 * values,
                     mode="lines",
-                    line=dict(color=self.shape_color),
+                    line=dict(color=self.color),
                     name=f"{orientation}",
                     showlegend=False,
                     customdata=np.stack(
