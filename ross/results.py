@@ -190,7 +190,13 @@ class Orbit(Results):
         self.y_circle = np.real(rv_e * circle)
         self.angle = np.arctan(self.y_circle / self.x_circle)
 
-        self.major_index = np.argmax(np.sqrt(self.x_circle**2 + self.y_circle**2))
+        # find major axis index looking at the first half circle
+        self.major_index = np.argmax(
+            np.sqrt(self.x_circle[:180] ** 2 + self.y_circle[:180] ** 2)
+        )
+        self.major_x = self.x_circle[self.major_index]
+        self.major_y = self.y_circle[self.major_index]
+        self.major_angle = self.angle[self.major_index]
 
         # calculate T matrix
         ru = np.absolute(ru_e)
@@ -249,10 +255,6 @@ class Orbit(Results):
                 line=dict(color=self.orbit_color),
                 name=f"node {self.node}<br>{self.whirl}",
                 showlegend=False,
-                hovertemplate=(
-                    "X - Relative Displacement: %{x:.2f}<br>"
-                    + "Y - Relative Displacement: %{y:.2f}"
-                ),
             )
         )
 
@@ -362,6 +364,9 @@ class Shape(Results):
         yn_complex = np.zeros(nn * (len(nodes) - 1), dtype=np.complex)
         zn = np.zeros(nn * (len(nodes) - 1))
         major = np.zeros(nn * (len(nodes) - 1))
+        major_x = np.zeros(nn * (len(nodes) - 1))
+        major_y = np.zeros(nn * (len(nodes) - 1))
+        major_angle = np.zeros(nn * (len(nodes) - 1))
 
         N1 = onn - 3 * zeta**2 + 2 * zeta**3
         N2 = zeta - 2 * zeta**2 + zeta**3
@@ -389,6 +394,9 @@ class Shape(Results):
             for i in range(pos0, pos1):
                 orb = Orbit(node=0, node_pos=0, ru_e=xn_complex[i], rv_e=yn_complex[i])
                 major[i] = orb.major_axis
+                major_x[i] = orb.major_x
+                major_y[i] = orb.major_y
+                major_angle[i] = orb.major_angle
 
         if self.normalize:
             major /= max(major)
@@ -397,6 +405,9 @@ class Shape(Results):
         self.yn = yn
         self.zn = zn
         self.major_axis = major
+        self.major_x = major_x
+        self.major_y = major_y
+        self.major_angle = major_angle
 
     def plot_orbit(self, nodes, fig=None):
         # only perform calculation if necessary
@@ -412,7 +423,9 @@ class Shape(Results):
 
         return fig
 
-    def plot_2d(self, orientation="major", length_units="m", fig=None):
+    def plot_2d(
+        self, orientation="major", length_units="m", phase_units="rad", fig=None
+    ):
         """Rotor shape 2d plot.
 
         Parameters
@@ -423,6 +436,9 @@ class Shape(Results):
         length_units : str, optional
             length units.
             Default is 'm'.
+        phase_units : str, optional
+            Phase units.
+            Default is "rad"
         fig : Plotly graph_objects.Figure()
             The figure object with the plot.
 
@@ -433,8 +449,8 @@ class Shape(Results):
         """
         if self.orbits is None:
             self._calculate()
-        xn = self.xn.copy()
-        yn = self.yn.copy()
+        xn = self.major_x.copy()
+        yn = self.major_y.copy()
         zn = self.zn.copy()
         nodes_pos = Q_(self.nodes_pos, "m").to(length_units).m
 
@@ -456,9 +472,14 @@ class Shape(Results):
                 y=values,
                 mode="lines",
                 line=dict(color=self.shape_color),
-                name="mode shape",
+                name=f"{orientation}",
                 showlegend=False,
-            )
+                customdata=Q_(self.major_angle, "rad").to(phase_units).m,
+                hovertemplate=(
+                    f"Displacement: %{{y:.2f}}<br>"
+                    + f"Angle {phase_units}: %{{customdata:.2f}}"
+                ),
+            ),
         )
 
         if orientation == "major":
@@ -469,9 +490,16 @@ class Shape(Results):
                     y=-1 * values,
                     mode="lines",
                     line=dict(color=self.shape_color),
-                    name="mode shape",
+                    name=f"{orientation}",
                     showlegend=False,
-                )
+                    customdata=np.stack(
+                        (values, Q_(self.major_angle, "rad").to(phase_units).m)
+                    ).T,
+                    hovertemplate=(
+                        f"Displacement: %{{customdata[0]:.2f}}<br>"
+                        + f"Angle {phase_units}: %{{customdata[1]:.2f}}"
+                    ),
+                ),
             )
         # plot center line
         fig.add_trace(
@@ -491,6 +519,7 @@ class Shape(Results):
         return fig
 
     def plot_3d(self):
+        # TODO implement 3d
         pass
 
 
