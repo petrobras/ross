@@ -965,7 +965,7 @@ class THDCylindrical:
 
         return a, b
 
-    def coefficients(self, method="lund", show_coef=True):
+    def coefficients(self, method="lund", show_coef=False):
         """Calculates the dynamic coefficients of stiffness "k" and damping "c".
 
         Parameters
