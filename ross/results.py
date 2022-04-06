@@ -3021,6 +3021,44 @@ class ForcedResponseResults(Results):
 
         return Mx, My
 
+    def plot_deflected_shape_2d2(
+        self,
+        speed,
+        frequency_units="rad/s",
+        amplitude_units="m",
+        rotor_length_units="m",
+        fig=None,
+        **kwargs,
+    ):
+        if not any(np.isclose(self.speed_range, speed, atol=1e-6)):
+            raise ValueError("No data available for this speed value.")
+
+        unit_type = str(Q_(1, amplitude_units).dimensionality)
+        try:
+            base_unit = self.default_units[unit_type][0]
+        except KeyError:
+            raise ValueError(
+                "Not supported unit. Dimensionality options are '[length]', '[speed]', '[acceleration]'"
+            )
+
+        # get response with the right displacement units and speed
+        response = self.__dict__[self.default_units[unit_type][1]]
+        idx = np.where(np.isclose(self.speed_range, speed, atol=1e-6))[0][0]
+        response = response[:, idx]
+
+        shape = Shape(
+            vector=response,
+            nodes=self.rotor.nodes,
+            nodes_pos=self.rotor.nodes_pos,
+            shaft_elements_length=self.rotor.shaft_elements_length,
+        )
+
+        if fig is None:
+            fig = go.Figure()
+        fig = shape.plot_2d(length_units=rotor_length_units, fig=fig)
+
+        return fig
+
     def plot_deflected_shape_2d(
         self,
         speed,
