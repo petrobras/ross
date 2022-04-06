@@ -240,7 +240,9 @@ class Orbit(Results):
         self.major_axis = np.real(major)
         self.kappa = np.real(kappa)
         self.whirl = "Forward" if self.kappa > 0 else "Backward"
-        self.color = "blue" if self.whirl == "Forward" else "red"
+        self.color = (
+            tableau_colors["blue"] if self.whirl == "Forward" else tableau_colors["red"]
+        )
 
     def plot_orbit(self, fig=None):
         if fig is None:
@@ -324,13 +326,13 @@ class Shape(Results):
         # check shape whirl
         if all(w == "Forward" for w in whirl):
             self.whirl = "Forward"
-            self.color = "blue"
+            self.color = tableau_colors["blue"]
         elif all(w == "Backward" for w in whirl):
             self.whirl = "Backward"
-            self.color = "red"
+            self.color = tableau_colors["red"]
         else:
             self.whirl = "Mixed"
-            self.color = "black"
+            self.color = tableau_colors["gray"]
 
     def _calculate(self):
         evec = self._evec
