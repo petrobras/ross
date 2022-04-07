@@ -3004,7 +3004,8 @@ class ForcedResponseResults(Results):
 
         return Mx, My
 
-    def plot_deflected_shape_2d2(
+    @check_units
+    def plot_deflected_shape_2d(
         self,
         speed,
         amplitude_units="m",
@@ -3013,6 +3014,44 @@ class ForcedResponseResults(Results):
         fig=None,
         **kwargs,
     ):
+        """Plot the 2D deflected shape diagram.
+
+        Parameters
+        ----------
+        speed : float, pint.Quantity
+            The rotor rotation speed. Must be an element from the speed_range argument
+            passed to the class.
+            Default unit is rad/s.
+        amplitude_units : str, optional
+            Units for the response magnitude.
+            Acceptable units dimensionality are:
+
+            '[length]' - Displays the displacement;
+
+            '[speed]' - Displays the velocity;
+
+            '[acceleration]' - Displays the acceleration.
+
+            Default is "m" 0 to peak.
+            To use peak to peak use '<unit> pkpk' (e.g. 'm pkpk')
+        phase_units : str, optional
+            Phase units.
+            Default is "rad"
+        rotor_length_units : str, optional
+            Displacement units.
+            Default is 'm'.
+        fig : Plotly graph_objects.Figure()
+            The figure object with the plot.
+        kwargs : optional
+            Additional key word arguments can be passed to change the deflected shape
+            plot layout only (e.g. width=1000, height=800, ...).
+            *See Plotly Python Figure Reference for more information.
+
+        Returns
+        -------
+        fig : Plotly graph_objects.Figure()
+            The figure object with the plot.
+        """
         if not any(np.isclose(self.speed_range, speed, atol=1e-6)):
             raise ValueError("No data available for this speed value.")
 
@@ -3055,102 +3094,6 @@ class ForcedResponseResults(Results):
         fig.update_yaxes(
             title_text=f"Major Axis Amplitude ({amplitude_units})",
         )
-
-        return fig
-
-    def plot_deflected_shape_2d(
-        self,
-        speed,
-        frequency_units="rad/s",
-        amplitude_units="m",
-        rotor_length_units="m",
-        fig=None,
-        **kwargs,
-    ):
-        """Plot the 2D deflected shape diagram.
-
-        Parameters
-        ----------
-        speed : float
-            The rotor rotation speed. Must be an element from the speed_range argument
-            passed to the class (rad/s).
-        frequency_units : str, optional
-            Frequency units.
-            Default is "rad/s"
-        amplitude_units : str, optional
-            Units for the response magnitude.
-            Acceptable units dimensionality are:
-
-            '[length]' - Displays the displacement;
-
-            '[speed]' - Displays the velocity;
-
-            '[acceleration]' - Displays the acceleration.
-
-            Default is "m" 0 to peak.
-            To use peak to peak use '<unit> pkpk' (e.g. 'm pkpk')
-        rotor_length_units : str, optional
-            Displacement units.
-            Default is 'm'.
-        fig : Plotly graph_objects.Figure()
-            The figure object with the plot.
-        kwargs : optional
-            Additional key word arguments can be passed to change the deflected shape
-            plot layout only (e.g. width=1000, height=800, ...).
-            *See Plotly Python Figure Reference for more information.
-
-        Returns
-        -------
-        fig : Plotly graph_objects.Figure()
-            The figure object with the plot.
-        """
-        if not any(np.isclose(self.speed_range, speed, atol=1e-6)):
-            raise ValueError("No data available for this speed value.")
-
-        unit_type = str(Q_(1, amplitude_units).dimensionality)
-        try:
-            base_unit = self.default_units[unit_type][0]
-        except KeyError:
-            raise ValueError(
-                "Not supported unit. Dimensionality options are '[length]', '[speed]', '[acceleration]'"
-            )
-
-        nodes_pos = Q_(self.rotor.nodes_pos, "m").to(rotor_length_units).m
-        maj_vect = self._calculate_major_axis_per_speed(speed, amplitude_units)
-        maj_vect = Q_(maj_vect[4].real, base_unit).to(amplitude_units).m
-
-        if fig is None:
-            fig = go.Figure()
-
-        fig.add_trace(
-            go.Scatter(
-                x=nodes_pos,
-                y=maj_vect,
-                mode="lines",
-                name="Major Axis",
-                legendgroup="Major_Axis_2d",
-                showlegend=False,
-                hovertemplate=f"Nodal Position ({rotor_length_units}): %{{x:.2f}}<br>Amplitude ({amplitude_units}): %{{y:.2e}}",
-            )
-        )
-        # plot center line
-        fig.add_trace(
-            go.Scatter(
-                x=nodes_pos,
-                y=np.zeros(len(nodes_pos)),
-                mode="lines",
-                line=dict(color="black", dash="dashdot"),
-                showlegend=False,
-                hoverinfo="none",
-            )
-        )
-
-        fig.update_xaxes(title_text=f"Rotor Length ({rotor_length_units})")
-        fig.update_yaxes(
-            title_text=f"Major Axis Abs Amplitude ({amplitude_units})",
-            title_font=dict(size=12),
-        )
-        fig.update_layout(**kwargs)
 
         return fig
 
