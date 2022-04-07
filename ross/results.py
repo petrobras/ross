@@ -3007,7 +3007,6 @@ class ForcedResponseResults(Results):
     def plot_deflected_shape_2d2(
         self,
         speed,
-        frequency_units="rad/s",
         amplitude_units="m",
         phase_units="rad",
         rotor_length_units="m",
@@ -3046,6 +3045,7 @@ class ForcedResponseResults(Results):
         # customize hovertemplate
         fig.update_traces(
             selector=dict(name="major"),
+            y=Q_(shape.major_axis, "m").to(amplitude_units).m,
             hovertemplate=(
                 f"Amplitude ({amplitude_units}): %{{y:.2e}}<br>"
                 + f"Phase ({phase_units}): %{{customdata:.2f}}<br>"
