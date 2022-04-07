@@ -486,25 +486,6 @@ class Shape(Results):
             ),
         )
 
-        if orientation == "major":
-            # duplicate
-            fig.add_trace(
-                go.Scatter(
-                    x=Q_(zn, "m").to(length_units).m,
-                    y=-1 * values,
-                    mode="lines",
-                    line=dict(color=self.color),
-                    name=f"{orientation}",
-                    showlegend=False,
-                    customdata=np.stack(
-                        (values, Q_(self.major_angle, "rad").to(phase_units).m)
-                    ).T,
-                    hovertemplate=(
-                        f"Displacement: %{{customdata[0]:.2f}}<br>"
-                        + f"Angle {phase_units}: %{{customdata[1]:.2f}}"
-                    ),
-                ),
-            )
         # plot center line
         fig.add_trace(
             go.Scatter(
@@ -3028,6 +3009,7 @@ class ForcedResponseResults(Results):
         speed,
         frequency_units="rad/s",
         amplitude_units="m",
+        phase_units="rad",
         rotor_length_units="m",
         fig=None,
         **kwargs,
@@ -3057,7 +3039,22 @@ class ForcedResponseResults(Results):
 
         if fig is None:
             fig = go.Figure()
-        fig = shape.plot_2d(length_units=rotor_length_units, fig=fig)
+        fig = shape.plot_2d(
+            phase_units=phase_units, length_units=rotor_length_units, fig=fig
+        )
+
+        # customize hovertemplate
+        fig.update_traces(
+            selector=dict(name="major"),
+            hovertemplate=(
+                f"Amplitude ({amplitude_units}): %{{y:.2e}}<br>"
+                + f"Phase ({phase_units}): %{{customdata:.2f}}<br>"
+                + f"Nodal Position ({rotor_length_units}): %{{x:.2f}}"
+            ),
+        )
+        fig.update_yaxes(
+            title_text=f"Major Axis Amplitude ({amplitude_units})",
+        )
 
         return fig
 
