@@ -573,7 +573,7 @@ class Shape(Results):
                     y=[orbit.major_x],
                     z=[orbit.major_y],
                     mode="markers",
-                    marker=dict(color=orbit.color, symbol="x", size=2),
+                    marker=dict(color="black", symbol="x", size=2),
                     name="node {}".format(orbit.node),
                     showlegend=False,
                     customdata=np.array(
