@@ -1422,7 +1422,7 @@ def test_plot_mode(rotor7):
         [-9.172248e-11, -1.750102e-02, -3.499667e-02, -5.248161e-02, -6.995046e-02]
     )
     expected_y = np.array([1.0, 0.999847, 0.999387, 0.998622, 0.99755])
-    assert fig.data[0]["line"]["color"] == "blue"
+    assert fig.data[0]["line"]["color"] == "#1f77b4"  # blue
     assert_allclose(fig.data[0]["x"][:5], expected_x, rtol=1e-5)
     assert_allclose(fig.data[0]["y"][:5], expected_y, rtol=1e-5)
 
@@ -1431,7 +1431,7 @@ def test_plot_mode(rotor7):
     expected_x = np.array([0.0, 0.0125, 0.025, 0.0375, 0.05])
     expected_y = np.array([0.332965, 0.34969, 0.366417, 0.383136, 0.399834])
 
-    assert fig.data[0]["line"]["color"] == "blue"
+    assert fig.data[0]["line"]["color"] == "#1f77b4"  # blue
     assert_allclose(fig.data[0]["x"][:5], expected_x, rtol=1e-5)
     assert_allclose(fig.data[0]["y"][:5], expected_y, rtol=1e-5)
 
@@ -1441,7 +1441,7 @@ def test_plot_mode(rotor7):
     expected_y = np.array([0.01876129, 0.01827158, 0.01778194, 0.01729269, 0.01680419])
     expected_z = np.array([0.33274591, 0.34953757, 0.36632648, 0.38310191, 0.39985308])
 
-    assert fig.data[0]["line"]["color"] == "blue"
+    assert fig.data[0]["line"]["color"] == "#1f77b4"  # blue
     # -3 is the black line that passes through each orbit starting point
     assert_allclose(fig.data[-3]["x"][:5], expected_x, rtol=1e-5)
     assert_allclose(fig.data[-3]["y"][:5], expected_y, rtol=1e-5)
