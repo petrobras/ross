@@ -527,6 +527,7 @@ class Shape(Results):
         nodes_pos = Q_(self.nodes_pos, "m").to(length_units).m
 
         # plot orbits
+        first_orbit = True
         for orbit in self.orbits:
             zc_pos = (
                 Q_(np.repeat(orbit.node_pos, len(orbit.x_circle)), "m")
@@ -573,9 +574,10 @@ class Shape(Results):
                     y=[orbit.major_x],
                     z=[orbit.major_y],
                     mode="markers",
-                    marker=dict(color="black", symbol="x", size=2),
-                    name="node {}".format(orbit.node),
-                    showlegend=False,
+                    marker=dict(color="black", symbol="cross", size=4, line_width=2),
+                    name="Major axis",
+                    showlegend=True if first_orbit else False,
+                    legendgroup="major_axis",
                     customdata=np.array(
                         [
                             orbit.major_axis,
@@ -589,6 +591,7 @@ class Shape(Results):
                     ),
                 )
             )
+            first_orbit = False
 
         # plot line connecting orbits starting points
         fig.add_trace(
@@ -628,6 +631,7 @@ class Shape(Results):
                 mode="lines",
                 line=dict(color="black", dash="dashdot"),
                 hoverinfo="none",
+                legendgroup="major_axis",
                 showlegend=False,
             )
         )
