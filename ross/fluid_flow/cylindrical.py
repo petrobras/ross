@@ -24,7 +24,7 @@ class THDCylindrical:
         Rotor radius. The unit is meter.
     radial_clearance : float
         Radial clearence between rotor and bearing. The unit is meter.
-    segment_arc_length : float
+    pad_arc_length : float
         Arc length of each pad. The unit is degree.
 
     Operation conditions
@@ -79,12 +79,8 @@ class THDCylindrical:
 
     References
     ----------
-    .. [1] BARBOSA, J. S.; LOBATO, FRAN S.; CAMPANINE SICCHIERI, LEONARDO;CAVALINI JR, ALDEMIR AP. ; STEFFEN JR, VALDER. Determinação da Posição de Equilíbrio em Mancais Hidrodinâmicos Cilíndricos usando o Algoritmo de Evolução Diferencial. REVISTA CEREUS, v. 10, p. 224-239, 2018. ..
-    .. [2] DANIEL, G.B. Desenvolvimento de um Modelo Termohidrodinâmico para Análise em Mancais Segmentados. Campinas: Faculdade de Engenharia Mecânica, Universidade Estadual de Campinas, 2012. Tese (Doutorado). ..
-    .. [3] NICOLETTI, R., Efeitos Térmicos em Mancais Segmentados Híbridos – Teoria e Experimento. 1999. Dissertação de Mestrado. Universidade Estadual de Campinas, Campinas. ..
-    .. [4] SUGANAMI, T.; SZERI, A. Z. A thermohydrodynamic analysis of journal bearings. 1979. ..
-    .. [5] LUND, J. W.; THOMSEN, K. K. A calculation method and data for the dynamic coefficients of oil-lubricated journal bearings. Topics in fluid film bearing and rotor bearing system design and optimization, n. 1000118, 1978. ..
-
+    .. bibliography:: ../../../docs/refs.bib
+    
     Attributes
     ----------
     Pdim : array
@@ -108,7 +104,7 @@ class THDCylindrical:
     >>> from ross.fluid_flow.cylindrical import cylindrical_bearing_example
     >>> bearing = cylindrical_bearing_example()
     >>> bearing.equilibrium_pos
-    array([ 0.57086823, -0.70347935])
+    array([ 0.60678516, -0.73288691])
     """
 
     @check_units
@@ -120,8 +116,8 @@ class THDCylindrical:
         elements_in_circunferencial_direction,
         elements_in_axial_direction,
         n_y,
-        number_of_segments,
-        segment_arc_length,
+        number_of_pads,
+        pad_arc_length,
         reservoir_temperature,
         viscosity_at_reservoir_temperature,
         speed,
@@ -139,7 +135,7 @@ class THDCylindrical:
         self.n_theta = elements_in_circunferencial_direction
         self.n_z = elements_in_axial_direction
         self.n_y = n_y
-        self.n_pad = number_of_segments
+        self.n_pad = number_of_pads
         self.T_reserv = reservoir_temperature
         self.mu_ref = viscosity_at_reservoir_temperature
         self.speed = speed
@@ -153,8 +149,8 @@ class THDCylindrical:
         if self.n_y == None:
             self.n_y = self.n_theta
 
-        self.betha_s_dg = segment_arc_length
-        self.betha_s = segment_arc_length * np.pi / 180
+        self.betha_s_dg = pad_arc_length
+        self.betha_s = pad_arc_length * np.pi / 180
 
         self.thetaI = 0
         self.thetaF = self.betha_s
@@ -217,14 +213,14 @@ class THDCylindrical:
         }
         
         lubricant_properties = self.lubricant_dict[self.lubricant]
-        T_muI=lubricant_properties["temp1"]
-        T_muF=lubricant_properties["temp2"]
+        T_muI=lubricant_properties["temp1"]-273.15
+        T_muF=lubricant_properties["temp2"]-273.15
         mu_I=lubricant_properties["viscosity1"]
         mu_F=lubricant_properties["viscosity2"]
         self.rho=lubricant_properties["lube_density"]
         self.Cp=lubricant_properties["lube_cp"]
         self.k_t=lubricant_properties["lube_conduct"]
-
+        
         # Interpolation coefficients
         self.a, self.b = self._interpol(T_muI, T_muF, mu_I, mu_F)
         
@@ -1629,15 +1625,15 @@ def cylindrical_bearing_example():
         elements_in_circunferencial_direction=11,
         elements_in_axial_direction=3,
         n_y=None,
-        number_of_segments=2,
-        segment_arc_length=176,
+        number_of_pads=2,
+        pad_arc_length=176,
         reservoir_temperature=50,
         viscosity_at_reservoir_temperature=0.02,
         speed=Q_(900, "RPM"),
         load_x_direction=0,
         load_y_direction=-112814.91,
         groove_factor=[0.52, 0.48],
-        lubricant="ISOVG46",
+        lubricant="ISOVG32",
         sommerfeld_type=2,
         x0 = [0.1,-0.1],
     )
