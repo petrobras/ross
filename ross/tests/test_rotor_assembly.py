@@ -1921,4 +1921,4 @@ def test_rotor_conical_frequencies(rotor_conical):
             21074.45440372,
         ]
     )
-    assert_allclose(modal.wn, expected_wn)
+    assert_allclose(modal.wn, expected_wn, rtol=1e-5)
