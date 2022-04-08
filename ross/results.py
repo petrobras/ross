@@ -3078,7 +3078,7 @@ class ForcedResponseResults(Results):
         # get response with the right displacement units and speed
         response = self.__dict__[self.default_units[unit_type][1]]
         idx = np.where(np.isclose(self.speed_range, speed, atol=1e-6))[0][0]
-        response = response[:, idx]
+        response = Q_(response[:, idx], base_unit).to(amplitude_units).m
 
         shape = Shape(
             vector=response,
@@ -3096,7 +3096,6 @@ class ForcedResponseResults(Results):
         # customize hovertemplate
         fig.update_traces(
             selector=dict(name="major"),
-            y=Q_(shape.major_axis, "m").to(amplitude_units).m,
             hovertemplate=(
                 f"Amplitude ({amplitude_units}): %{{y:.2e}}<br>"
                 + f"Phase ({phase_units}): %{{customdata:.2f}}<br>"
