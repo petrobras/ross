@@ -40,7 +40,7 @@ class THDCylindrical:
     Fluid propierties
     ^^^^^^^^^^^^^^^^^
     Describes the fluid characteristics.
-    
+
     lubricant : str
         Lubricant type. Can be:
         - 'ISOVG46'
@@ -55,7 +55,7 @@ class THDCylindrical:
     ^^^^^^^^^^^^^^^^
     Turbulence model to improve analysis in higher speed.The model represents
     the turbulence by eddy diffusivities. The basic reference is found in :cite:`suganami1979`
-    
+
     Reyn : Array
         The Reynolds number is a dimensionless number used to calculate the
         fluid flow regime inside the bearing.
@@ -80,7 +80,7 @@ class THDCylindrical:
     References
     ----------
     .. bibliography:: ../../../docs/refs.bib
-    
+
     Attributes
     ----------
     Pdim : array
@@ -126,7 +126,7 @@ class THDCylindrical:
         groove_factor,
         lubricant,
         sommerfeld_type=2,
-        x0 = [0.1,-0.1],
+        x0=[0.1, -0.1],
     ):
 
         self.L = axial_length
@@ -141,7 +141,7 @@ class THDCylindrical:
         self.speed = speed
         self.Wx = load_x_direction
         self.Wy = load_y_direction
-        self.lubricant=lubricant
+        self.lubricant = lubricant
         self.fat_mixt = np.array(groove_factor)
         self.equilibrium_pos = None
         self.sommerfeld_type = sommerfeld_type
@@ -180,8 +180,6 @@ class THDCylindrical:
 
         self.Zdim = self.Z * self.L
 
-
-        
         self.lubricant_dict = {
             "ISOVG32": {
                 "viscosity1": Q_(4.05640e-06, "reyn").to_base_units().m,
@@ -211,19 +209,19 @@ class THDCylindrical:
                 "lube_conduct": Q_(2.00621e-6, "BTU/(in*s*degF)").to_base_units().m,
             },
         }
-        
+
         lubricant_properties = self.lubricant_dict[self.lubricant]
-        T_muI=lubricant_properties["temp1"]-273.15
-        T_muF=lubricant_properties["temp2"]-273.15
-        mu_I=lubricant_properties["viscosity1"]
-        mu_F=lubricant_properties["viscosity2"]
-        self.rho=lubricant_properties["lube_density"]
-        self.Cp=lubricant_properties["lube_cp"]
-        self.k_t=lubricant_properties["lube_conduct"]
-        
+        T_muI = lubricant_properties["temp1"] - 273.15
+        T_muF = lubricant_properties["temp2"] - 273.15
+        mu_I = lubricant_properties["viscosity1"]
+        mu_F = lubricant_properties["viscosity2"]
+        self.rho = lubricant_properties["lube_density"]
+        self.Cp = lubricant_properties["lube_cp"]
+        self.k_t = lubricant_properties["lube_conduct"]
+
         # Interpolation coefficients
         self.a, self.b = self._interpol(T_muI, T_muF, mu_I, mu_F)
-        
+
         self.run(x0)
 
     def _forces(self, x0, y0, xpt0, ypt0):
@@ -1635,14 +1633,13 @@ def cylindrical_bearing_example():
         groove_factor=[0.52, 0.48],
         lubricant="ISOVG32",
         sommerfeld_type=2,
-        x0 = [0.1,-0.1],
+        x0=[0.1, -0.1],
     )
 
     return bearing
 
+
 if __name__ == "__main__":
     bearing = cylindrical_bearing_example()
     bearing.equilibrium_pos
-    bearing.coefficients(method="perturbation",show_coef=True)
-    
-    
+    bearing.coefficients(method="perturbation", show_coef=True)
