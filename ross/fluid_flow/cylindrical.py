@@ -11,6 +11,7 @@ class THDCylindrical:
     """This class calculates the pressure and temperature field in oil film of
     a cylindrical bearing. It is also possible to obtain the stiffness and
     damping coefficients.
+    The basic references for the code is found in :cite:`barbosa2018`, :cite:`daniel2012`, :cite:`nicoletti1999`.
 
     Parameters
     ----------
@@ -53,7 +54,8 @@ class THDCylindrical:
     Turbulence Model
     ^^^^^^^^^^^^^^^^
     Turbulence model to improve analysis in higher speed.The model represents
-    the turbulence by eddy diffusivities.
+    the turbulence by eddy diffusivities. The basic reference is found in :cite:`suganami1979`
+    
     Reyn : Array
         The Reynolds number is a dimensionless number used to calculate the
         fluid flow regime inside the bearing.
@@ -985,7 +987,7 @@ class THDCylindrical:
 
     def coefficients(self, method="lund", show_coef=True):
         """Calculates the dynamic coefficients of stiffness "k" and damping "c".
-
+        Basic reference is found at :cite:`lund1978`
         Parameters
         ----------
         method : string
@@ -1634,14 +1636,8 @@ def cylindrical_bearing_example():
         speed=Q_(900, "RPM"),
         load_x_direction=0,
         load_y_direction=-112814.91,
-        k_t=0.15327,
-        Cp=1915.24,
-        rho=854.952,
         groove_factor=[0.52, 0.48],
-        T_muI=50,
-        T_muF=80,
-        mu_I=0.02,
-        mu_F=0.01,
+        lubricant="ISOVG46",
         sommerfeld_type=2,
         x0 = [0.1,-0.1],
     )
