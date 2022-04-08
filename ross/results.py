@@ -636,6 +636,14 @@ class Shape(Results):
             )
         )
 
+        fig.update_layout(
+            legend=dict(itemsizing="constant"),
+            scene=dict(
+                aspectmode="manual",
+                aspectratio=dict(x=2.5, y=1, z=1),
+            ),
+        )
+
         return fig
 
 
@@ -3510,8 +3518,6 @@ class ForcedResponseResults(Results):
                 xaxis=fig1.layout.scene.xaxis,
                 yaxis=fig1.layout.scene.yaxis,
                 zaxis=fig1.layout.scene.zaxis,
-                aspectmode="manual",
-                aspectratio=dict(x=2.5, y=1, z=1),
                 domain=dict(x=[0.47, 1]),
             ),
             title=dict(
