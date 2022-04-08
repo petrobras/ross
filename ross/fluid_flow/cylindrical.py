@@ -40,31 +40,15 @@ class THDCylindrical:
     ^^^^^^^^^^^^^^^^^
     Describes the fluid characteristics.
     
-    rho : float, pint.Quantity
-        Fluid density. Default unit is kg/m^3.
-    k_t :  Float
-        Fluid thermal conductivity. The unit is J/(s*m*°C).
-    Cp : float
-        Fluid specific heat. The unit is J/(kg*°C).
-    viscosity_at_reservoir_temperature: float
-        Fluid reference viscosity. The unit is Pa*s.
+    lubricant : str
+        Lubricant type. Can be:
+        - 'ISOVG46'
     reservoir_temperature : float
         Oil reservoir temperature. The unit is celsius.
     groove_factor : list, numpy array, tuple or float
         Ratio of oil in reservoir temperature that mixes with the circulating oil.
         Is required one factor per segment.
 
-    Viscosity interpolation
-    ^^^^^^^^^^^^^^^^^^^^^^^
-    Interpolation data required.
-    T_muI : float
-        Inferior limit temperature. The unit is celsius.
-    T_muF : float
-        Upper limit temperature. The unit is celsius.
-    mu_I : float
-        Inferior limit viscosity. The unit is Pa*s.
-    mu_F : float
-        Upper limit viscosity. The unit is Pa*s.
 
     Turbulence Model
     ^^^^^^^^^^^^^^^^
@@ -141,14 +125,8 @@ class THDCylindrical:
         speed,
         load_x_direction,
         load_y_direction,
-        k_t,
-        Cp,
-        rho,
         groove_factor,
-        T_muI,
-        T_muF,
-        mu_I,
-        mu_F,
+        lubricant,
         sommerfeld_type=2,
         x0 = [0.1,-0.1],
     ):
@@ -165,9 +143,7 @@ class THDCylindrical:
         self.speed = speed
         self.Wx = load_x_direction
         self.Wy = load_y_direction
-        self.k_t = k_t
-        self.Cp = Cp
-        self.rho = rho
+        self.lubricant=lubricant
         self.fat_mixt = np.array(groove_factor)
         self.equilibrium_pos = None
         self.sommerfeld_type = sommerfeld_type
@@ -205,6 +181,47 @@ class THDCylindrical:
         self.dy = self.dY * self.betha_s * self.R
 
         self.Zdim = self.Z * self.L
+
+
+        
+        self.lubricant_dict = {
+            "ISOVG32": {
+                "viscosity1": Q_(4.05640e-06, "reyn").to_base_units().m,
+                "temp1": Q_(40.00000, "degC").to_base_units().m,
+                "viscosity2": Q_(6.76911e-07, "reyn").to_base_units().m,
+                "temp2": Q_(100.00000, "degC").to_base_units().m,
+                "lube_density": Q_(873.99629, "kg/m³").to_base_units().m,
+                "lube_cp": Q_(1948.7995685758851, "J/(kg*degK)").to_base_units().m,
+                "lube_conduct": Q_(0.13126, "W/(m*degC)").to_base_units().m,
+            },
+            "ISOVG46": {
+                "viscosity1": Q_(5.757040938820288e-06, "reyn").to_base_units().m,
+                "temp1": Q_(40, "degC").to_base_units().m,
+                "viscosity2": Q_(8.810775697672788e-07, "reyn").to_base_units().m,
+                "temp2": Q_(100, "degC").to_base_units().m,
+                "lube_density": Q_(862.9, "kg/m³").to_base_units().m,
+                "lube_cp": Q_(1950, "J/(kg*degK)").to_base_units().m,
+                "lube_conduct": Q_(0.15, "W/(m*degC)").to_base_units().m,
+            },
+            "TEST": {
+                "viscosity1": Q_(2.758e-6, "reyn").to_base_units().m,
+                "temp1": Q_(121.7, "degF").to_base_units().m,
+                "viscosity2": Q_(1.119e-6, "reyn").to_base_units().m,
+                "temp2": Q_(175.7, "degF").to_base_units().m,
+                "lube_density": Q_(8.0e-5, "lbf*s²/in⁴").to_base_units().m,
+                "lube_cp": Q_(1.79959e2, "BTU*in/(lbf*s²*degF)").to_base_units().m,
+                "lube_conduct": Q_(2.00621e-6, "BTU/(in*s*degF)").to_base_units().m,
+            },
+        }
+        
+        lubricant_properties = self.lubricant_dict[self.lubricant]
+        T_muI=lubricant_properties["temp1"]
+        T_muF=lubricant_properties["temp2"]
+        mu_I=lubricant_properties["viscosity1"]
+        mu_F=lubricant_properties["viscosity2"]
+        self.rho=lubricant_properties["lube_density"]
+        self.Cp=lubricant_properties["lube_cp"]
+        self.k_t=lubricant_properties["lube_conduct"]
 
         # Interpolation coefficients
         self.a, self.b = self._interpol(T_muI, T_muF, mu_I, mu_F)
