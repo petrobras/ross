@@ -1643,5 +1643,6 @@ def cylindrical_bearing_example():
 if __name__ == "__main__":
     bearing = cylindrical_bearing_example()
     bearing.equilibrium_pos
+    bearing.coefficients(method="perturbation",show_coef=True)
     
     
