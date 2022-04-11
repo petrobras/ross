@@ -3111,9 +3111,8 @@ class ForcedResponseResults(Results):
     def plot_deflected_shape_3d(
         self,
         speed,
-        samples=101,
-        frequency_units="rad/s",
         amplitude_units="m",
+        phase_units="rad",
         rotor_length_units="m",
         fig=None,
         **kwargs,
@@ -3125,12 +3124,6 @@ class ForcedResponseResults(Results):
         speed : float
             The rotor rotation speed. Must be an element from the speed_range argument
             passed to the class (rad/s).
-        samples : int, optional
-            Number of samples to generate the orbit for each node.
-            Default is 101.
-        frequency_units : str, optional
-            Frequency units.
-            Default is "rad/s"
         amplitude_units : str, optional
             Units for the response magnitude.
             Acceptable units dimensionality are:
@@ -3143,6 +3136,9 @@ class ForcedResponseResults(Results):
 
             Default is "m" 0 to peak.
             To use peak to peak use '<unit> pkpk' (e.g. 'm pkpk')
+        phase_units : str, optional
+            Phase units.
+            Default is "rad"
         rotor_length_units : str, optional
             Rotor Length units.
             Default is 'm'.
@@ -3169,93 +3165,54 @@ class ForcedResponseResults(Results):
                 "Not supported unit. Dimensionality options are '[length]', '[speed]', '[acceleration]'"
             )
 
-        mag = np.abs(self.__dict__[self.default_units[unit_type][1]])
-        phase = np.angle(self.__dict__[self.default_units[unit_type][1]])
-        ub = self.unbalance
-        nodes = self.rotor.nodes
-        nodes_pos = Q_(self.rotor.nodes_pos, "m").to(rotor_length_units).m
-        number_dof = self.rotor.number_dof
-        idx = np.where(np.isclose(self.speed_range, speed, atol=1e-6))[0][0]
+        if not any(np.isclose(self.speed_range, speed, atol=1e-6)):
+            raise ValueError("No data available for this speed value.")
 
-        # orbit of a single revolution
-        t = np.linspace(0, 2 * np.pi / speed, samples)
-        x_pos = np.repeat(nodes_pos, t.size).reshape(len(nodes_pos), t.size)
+        unit_type = str(Q_(1, amplitude_units).dimensionality)
+        try:
+            base_unit = self.default_units[unit_type][0]
+        except KeyError:
+            raise ValueError(
+                "Not supported unit. Dimensionality options are '[length]', '[speed]', '[acceleration]'"
+            )
+
+        # get response with the right displacement units and speed
+        response = self.__dict__[self.default_units[unit_type][1]]
+        idx = np.where(np.isclose(self.speed_range, speed, atol=1e-6))[0][0]
+        response = Q_(response[:, idx], base_unit).to(amplitude_units).m
+        unbalance = self.unbalance
+
+        shape = Shape(
+            vector=response,
+            nodes=self.rotor.nodes,
+            nodes_pos=self.rotor.nodes_pos,
+            shaft_elements_length=self.rotor.shaft_elements_length,
+        )
 
         if fig is None:
             fig = go.Figure()
 
-        for i, n in enumerate(nodes):
-            dofx = number_dof * n
-            dofy = number_dof * n + 1
-
-            y = mag[dofx, idx] * np.cos(speed * t - phase[dofx, idx])
-            z = mag[dofy, idx] * np.cos(speed * t - phase[dofy, idx])
-
-            # plot nodal orbit
-            fig.add_trace(
-                go.Scatter3d(
-                    x=x_pos[n],
-                    y=Q_(y, base_unit).to(amplitude_units).m,
-                    z=Q_(z, base_unit).to(amplitude_units).m,
-                    mode="lines",
-                    line=dict(color="royalblue"),
-                    name="Orbit",
-                    legendgroup="Orbit",
-                    showlegend=False,
-                    hovertemplate=(
-                        f"Position ({rotor_length_units}): %{{x:.2f}}<br>X - Amplitude ({amplitude_units}): %{{y:.2e}}<br>Y - Amplitude ({amplitude_units}): %{{z:.2e}}"
-                    ),
-                )
-            )
-
-        # plot major axis
-        maj_vect = self._calculate_major_axis_per_speed(speed, amplitude_units)
-
-        fig.add_trace(
-            go.Scatter3d(
-                x=x_pos[:, 0],
-                y=Q_(np.real(maj_vect[3]), base_unit).to(amplitude_units).m,
-                z=Q_(np.imag(maj_vect[3]), base_unit).to(amplitude_units).m,
-                mode="lines+markers",
-                marker=dict(color="black"),
-                line=dict(color="black", dash="dashdot"),
-                name="Major Axis",
-                legendgroup="Major_Axis",
-                showlegend=True,
-                hovertemplate=(
-                    f"Position ({rotor_length_units}): %{{x:.2f}}<br>X - Amplitude ({amplitude_units}): %{{y:.2e}}<br>Y - Amplitude ({amplitude_units}): %{{z:.2e}}"
-                ),
-            )
-        )
-
-        # plot center line
-        line = np.zeros(len(nodes_pos))
-        fig.add_trace(
-            go.Scatter3d(
-                x=nodes_pos,
-                y=line,
-                z=line,
-                mode="lines",
-                line=dict(color="black", dash="dashdot"),
-                showlegend=False,
-                hoverinfo="none",
-            )
+        fig = shape.plot_3d(
+            phase_units=phase_units, length_units=rotor_length_units, fig=fig
         )
 
         # plot unbalance markers
-        i = 0
-        for n, m, p in zip(ub[0], ub[1], ub[2]):
+        for i, n, amplitude, phase in zip(
+            range(unbalance.shape[1]), unbalance[0], unbalance[1], unbalance[2]
+        ):
+            # scale unbalance marker to half the maximum major axis
+            scaled_amplitude = np.max(shape.major_axis) / 2
+            x = scaled_amplitude * np.cos(phase)
+            y = scaled_amplitude * np.sin(phase)
+            z_pos = Q_(shape.nodes_pos[n], "m").to(rotor_length_units).m
+
             fig.add_trace(
                 go.Scatter3d(
-                    x=[x_pos[int(n), 0], x_pos[int(n), 0]],
-                    y=Q_([0, np.amax(np.abs(maj_vect[4])) / 2 * np.cos(p)], base_unit)
-                    .to(amplitude_units)
-                    .m,
-                    z=Q_([0, np.amax(np.abs(maj_vect[4])) / 2 * np.sin(p)], base_unit)
-                    .to(amplitude_units)
-                    .m,
+                    x=[z_pos, z_pos],
+                    y=[0, Q_(x, "m").to(amplitude_units).m],
+                    z=[0, Q_(y, "m").to(amplitude_units).m],
                     mode="lines",
-                    line=dict(color="firebrick"),
+                    line=dict(color=tableau_colors["red"]),
                     legendgroup="Unbalance",
                     hoverinfo="none",
                     showlegend=False,
@@ -3263,38 +3220,51 @@ class ForcedResponseResults(Results):
             )
             fig.add_trace(
                 go.Scatter3d(
-                    x=[x_pos[int(n), 0]],
-                    y=Q_([np.amax(np.abs(maj_vect[4])) / 2 * np.cos(p)], base_unit)
-                    .to(amplitude_units)
-                    .m,
-                    z=Q_([np.amax(np.abs(maj_vect[4])) / 2 * np.sin(p)], base_unit)
-                    .to(amplitude_units)
-                    .m,
+                    x=[z_pos],
+                    y=[Q_(x, "m").to(amplitude_units).m],
+                    z=[Q_(y, "m").to(amplitude_units).m],
                     mode="markers",
-                    marker=dict(symbol="diamond", color="firebrick"),
+                    marker=dict(color=tableau_colors["red"], symbol="diamond"),
                     name="Unbalance",
                     legendgroup="Unbalance",
                     showlegend=True if i == 0 else False,
                     hovertemplate=(
-                        "Node: {}<br>" + "Magnitude: {:.2e}<br>" + "Phase: {:.2f}"
-                    ).format(int(n), m, p),
+                        f"Node: {n}<br>"
+                        + f"Magnitude: {amplitude:.2e}<br>"
+                        + f"Phase: {phase:.2f}"
+                    ),
                 )
             )
-            i += 1
 
-        speed_str = Q_(speed, "rad/s").to(frequency_units).m
+        # customize hovertemplate
+        fig.update_traces(
+            selector=dict(name="Major axis"),
+            hovertemplate=(
+                "Nodal Position: %{x:.2f}<br>"
+                + "Major axis: %{customdata[0]:.2e}<br>"
+                + "Angle: %{customdata[1]:.2f}"
+            ),
+        )
+
+        plot_range = Q_(np.max(shape.major_axis) * 1.5, "m").to(amplitude_units).m
         fig.update_layout(
             scene=dict(
-                xaxis=dict(title=dict(text=f"Rotor Length ({rotor_length_units})")),
-                yaxis=dict(title=dict(text=f"Amplitude - X ({amplitude_units})")),
-                zaxis=dict(title=dict(text=f"Amplitude - Y ({amplitude_units})")),
-                aspectmode="manual",
-                aspectratio=dict(x=2.5, y=1, z=1),
+                xaxis=dict(
+                    title=dict(text=f"Rotor Length ({rotor_length_units})"),
+                    autorange="reversed",
+                    nticks=5,
+                ),
+                yaxis=dict(
+                    title=dict(text=f"Amplitude x ({amplitude_units})"),
+                    range=[-plot_range, plot_range],
+                    nticks=5,
+                ),
+                zaxis=dict(
+                    title=dict(text=f"Amplitude y ({amplitude_units})"),
+                    range=[-plot_range, plot_range],
+                    nticks=5,
+                ),
             ),
-            title=dict(
-                text=f"Deflected Shape<br>Speed = {speed_str} {frequency_units}"
-            ),
-            **kwargs,
         )
 
         return fig

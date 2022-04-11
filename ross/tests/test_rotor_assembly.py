@@ -1454,32 +1454,34 @@ def test_deflected_shape(rotor7):
     )
     fig = forced.plot_deflected_shape_3d(speed=50)
     # check major axis
-    expected_x = np.array([0.0, 0.25, 0.5, 0.75, 1.0, 1.25, 1.5])
+    expected_x = np.array([0.0, 0.0125, 0.025, 0.0375, 0.05, 0.0625, 0.075, 0.0875])
     expected_y = np.array(
         [
-            -0.00270852,
-            -0.00249748,
-            -0.00223173,
-            -0.00186858,
-            -0.0014004,
-            -0.00083703,
-            -0.00022118,
+            0.00270725,
+            0.0027041,
+            0.00269398,
+            0.00268992,
+            0.00267974,
+            0.00266953,
+            0.00266448,
+            0.00265418,
         ]
     )
     expected_z = np.array(
         [
-            -4.14338169e-04,
-            -3.79035881e-04,
-            -3.35581247e-04,
-            -2.77637765e-04,
-            -2.04136131e-04,
-            -1.16593615e-04,
-            -2.13187804e-05,
+            0.00042256,
+            0.00037356,
+            0.00037201,
+            0.00032343,
+            0.00032205,
+            0.00032067,
+            0.0002727,
+            0.00027149,
         ]
     )
-    assert_allclose(fig.data[-4]["x"], expected_x, rtol=1e-4)
-    assert_allclose(fig.data[-4]["y"], expected_y, rtol=1e-4)
-    assert_allclose(fig.data[-4]["z"], expected_z, rtol=1e-4)
+    assert_allclose(fig.data[-3]["x"][:8], expected_x, rtol=1e-4)
+    assert_allclose(fig.data[-3]["y"][:8], expected_y, rtol=1e-4)
+    assert_allclose(fig.data[-3]["z"][:8], expected_z, rtol=1e-4)
 
 
 @pytest.mark.skip(reason="Fails for very small values")
