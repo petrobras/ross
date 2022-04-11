@@ -177,3 +177,11 @@ def test_orbit():
     assert_allclose(orb.major_axis, np.sqrt(2))
     assert_allclose(orb.kappa, -1)
     assert orb.whirl == "Backward"
+
+
+def test_orbit_calculate_amplitude():
+    # create orbit with major axis at 45deg
+    orb = Orbit(node=0, node_pos=0, ru_e=(2 + 1j), rv_e=(2 - 1j))
+
+    assert_allclose(orb.calculate_amplitude(Q_(0, "deg")), 1.7949401413591568)
+    assert_allclose(orb.calculate_amplitude(Q_(45, "deg")), 2.8284271247461903)
