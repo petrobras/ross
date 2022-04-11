@@ -664,10 +664,10 @@ class ShaftElement(Element):
         ...                         rotary_inertia=True,
         ...                         shear_effects=True)
         >>> Timoshenko_Element.K()[:4, :4]/1e6
-        array([[209.25641985,   0.        ,   0.        ,  38.62129051],
-               [  0.        , 209.25641985, -38.62129051,   0.        ],
-               [  0.        , -38.62129051,  11.56619973,   0.        ],
-               [ 38.62129051,   0.        ,   0.        ,  11.56619973]])
+        array([[227.09812704,   0.        ,   0.        ,  43.08171731],
+               [  0.        , 227.09812704, -43.08171731,   0.        ],
+               [  0.        , -43.08171731,  12.68130643,   0.        ],
+               [ 43.08171731,   0.        ,   0.        ,  12.68130643]])
         """
         L = self.L
         phi = self.phi
@@ -677,7 +677,10 @@ class ShaftElement(Element):
         b2 = self.b2
         delta = self.delta
         gama = self.gama
+        A = self.A
+        A_l = self.A_l
         Ie_l = self.Ie_l
+        E = self.material.E
 
         # fmt: off
         k1 = 1260 + 630 * a2 + 504 * b2 + 441 * gama + 396 * delta
@@ -744,7 +747,7 @@ class ShaftElement(Element):
             [L*k8,     0,       0, L**2*k9, -L*k8,     0,       0, L**2*k9],
         ])
 
-        K = self.material.E * Ie_l / (105 * L ** 3 * (1 + phi) ** 2) * (K1 + 105 * phi * K2)
+        K = E * Ie_l / (105 * L ** 3 * (1 + phi) ** 2) * (K1 + 105 * phi * K2 * A / A_l)
 
         # axial force
         k10 = 36 + 60 * phi + 30 * phi ** 2
