@@ -4,10 +4,11 @@ import numpy as np
 from numpy.linalg import pinv
 from scipy.optimize import curve_fit, minimize
 
+from ross.bearing_seal_element import BearingElement
 from ross.units import Q_, check_units
 
 
-class THDCylindrical:
+class THDCylindrical(BearingElement):
     """This class calculates the pressure and temperature field in oil film of
     a cylindrical bearing. It is also possible to obtain the stiffness and
     damping coefficients.
@@ -125,6 +126,7 @@ class THDCylindrical:
         load_y_direction,
         groove_factor,
         lubricant,
+        node,
         sommerfeld_type=2,
         x0=[0.1, -0.1],
     ):
@@ -223,6 +225,24 @@ class THDCylindrical:
         self.a, self.b = self._interpol(T_muI, T_muF, mu_I, mu_F)
 
         self.run(x0)
+
+        coefs = self.coefficients("lund",False)
+        stiff = True
+        for coef in coefs:
+            if stiff:
+                kxx = coef[0]
+                kxy = coef[1]
+                kyx = coef[2]
+                kyy = coef[3]
+
+                stiff = False
+            else:
+                cxx = coef[0]
+                cxy = coef[1]
+                cyx = coef[2]
+                cyy = coef[3]
+
+        super().__init__(node,kxx,cxx,kyy,kxy,kyx,cyy,cxy,cyx)
 
     def _forces(self, x0, y0, xpt0, ypt0):
         """Calculates the forces in Y and X direction.
@@ -1632,6 +1652,7 @@ def cylindrical_bearing_example():
         load_y_direction=-112814.91,
         groove_factor=[0.52, 0.48],
         lubricant="ISOVG32",
+        node=3,
         sommerfeld_type=2,
         x0=[0.1, -0.1],
     )
@@ -1641,5 +1662,6 @@ def cylindrical_bearing_example():
 
 if __name__ == "__main__":
     bearing = cylindrical_bearing_example()
-    bearing.equilibrium_pos
-    bearing.coefficients(method="perturbation", show_coef=True)
+    bearing.plot('kxx')
+    # bearing.equilibrium_pos
+    # bearing.coefficients(method="perturbation", show_coef=True)
