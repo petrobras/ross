@@ -226,7 +226,7 @@ class THDCylindrical(BearingElement):
 
         self.run(x0)
 
-        coefs = self.coefficients("lund",False)
+        coefs = self.coefficients("lund", False)
         stiff = True
         for coef in coefs:
             if stiff:
@@ -242,7 +242,7 @@ class THDCylindrical(BearingElement):
                 cyx = coef[2]
                 cyy = coef[3]
 
-        super().__init__(node,kxx,cxx,kyy,kxy,kyx,cyy,cxy,cyx)
+        super().__init__(node, kxx, cxx, kyy, kxy, kyx, cyy, cxy, cyx)
 
     def _forces(self, x0, y0, xpt0, ypt0):
         """Calculates the forces in Y and X direction.
@@ -548,9 +548,12 @@ class THDCylindrical(BearingElement):
 
                     # Dimensional pressure fied
 
-                    self.Pdim = (self.P * self.reference_viscosity * self.speed * (self.journal_radius**2)) / (
-                        self.radial_clearance**2
-                    )
+                    self.Pdim = (
+                        self.P
+                        * self.reference_viscosity
+                        * self.speed
+                        * (self.journal_radius**2)
+                    ) / (self.radial_clearance**2)
 
                     ki = 0
                     kj = 0
@@ -686,7 +689,11 @@ class THDCylindrical(BearingElement):
 
                             x_wall = (
                                 (HP * self.radial_clearance * 2)
-                                / (self.reference_viscosity * mu_turb[ki, kj, n_p] / self.rho)
+                                / (
+                                    self.reference_viscosity
+                                    * mu_turb[ki, kj, n_p]
+                                    / self.rho
+                                )
                             ) * ((abs(tal) / self.rho) ** 0.5)
 
                             emv = 0.4 * (x_wall - (10.7 * np.tanh(x_wall / 10.7)))
@@ -759,7 +766,10 @@ class THDCylindrical(BearingElement):
                             AP = -(AE + AW + AN + AS)
 
                             auxb_T = (self.speed * self.reference_viscosity) / (
-                                self.rho * self.Cp * self.reference_temperature * self.radial_clearance
+                                self.rho
+                                * self.Cp
+                                * self.reference_temperature
+                                * self.radial_clearance
                             )
                             b_TG = (
                                 self.reference_viscosity
@@ -769,7 +779,12 @@ class THDCylindrical(BearingElement):
                                 * self.dZ
                                 * self.P[ki, kj, n_p]
                                 * hpt
-                            ) / (self.rho * self.Cp * self.reference_temperature * (self.radial_clearance**2))
+                            ) / (
+                                self.rho
+                                * self.Cp
+                                * self.reference_temperature
+                                * (self.radial_clearance**2)
+                            )
                             b_TH = (
                                 self.speed
                                 * self.reference_viscosity
@@ -778,10 +793,17 @@ class THDCylindrical(BearingElement):
                                 * mi_t
                                 * self.dY
                                 * self.dZ
-                            ) / (self.rho * self.Cp * self.reference_temperature * 3 * HP)
+                            ) / (
+                                self.rho * self.Cp * self.reference_temperature * 3 * HP
+                            )
                             b_TI = (
                                 auxb_T
-                                * (mi_t * (self.journal_radius**2) * self.dY * self.dZ)
+                                * (
+                                    mi_t
+                                    * (self.journal_radius**2)
+                                    * self.dY
+                                    * self.dZ
+                                )
                                 / (HP * self.radial_clearance)
                             )
                             b_TJ = (
@@ -793,7 +815,12 @@ class THDCylindrical(BearingElement):
                                     * self.dY
                                     * self.dZ
                                 )
-                                / (12 * self.radial_clearance * (self.betha_s**2) * mi_t)
+                                / (
+                                    12
+                                    * self.radial_clearance
+                                    * (self.betha_s**2)
+                                    * mi_t
+                                )
                             )
                             b_TK = (
                                 auxb_T
@@ -804,7 +831,12 @@ class THDCylindrical(BearingElement):
                                     * self.dY
                                     * self.dZ
                                 )
-                                / (12 * self.radial_clearance * (self.axial_length**2) * mi_t)
+                                / (
+                                    12
+                                    * self.radial_clearance
+                                    * (self.axial_length**2)
+                                    * mi_t
+                                )
                             )
 
                             B_T = b_TG + b_TH + b_TI + b_TJ + b_TK
@@ -1053,8 +1085,16 @@ class THDCylindrical(BearingElement):
 
         """
 
-        xeq = self.equilibrium_pos[0] * self.radial_clearance * np.cos(self.equilibrium_pos[1])
-        yeq = self.equilibrium_pos[0] * self.radial_clearance * np.sin(self.equilibrium_pos[1])
+        xeq = (
+            self.equilibrium_pos[0]
+            * self.radial_clearance
+            * np.cos(self.equilibrium_pos[1])
+        )
+        yeq = (
+            self.equilibrium_pos[0]
+            * self.radial_clearance
+            * np.sin(self.equilibrium_pos[1])
+        )
 
         dE = 0.001
         epix = np.abs(dE * self.radial_clearance * np.cos(self.equilibrium_pos[1]))
@@ -1100,15 +1140,39 @@ class THDCylindrical(BearingElement):
             (Aux08[1] - Aux07[1]) / (epiypt / self.radial_clearance / self.speed)
         )
 
-        kxx = (np.sqrt((self.load_x_direction**2) + (self.load_y_direction**2)) / self.radial_clearance) * Kxx
-        kxy = (np.sqrt((self.load_x_direction**2) + (self.load_y_direction**2)) / self.radial_clearance) * Kxy
-        kyx = (np.sqrt((self.load_x_direction**2) + (self.load_y_direction**2)) / self.radial_clearance) * Kyx
-        kyy = (np.sqrt((self.load_x_direction**2) + (self.load_y_direction**2)) / self.radial_clearance) * Kyy
+        kxx = (
+            np.sqrt((self.load_x_direction**2) + (self.load_y_direction**2))
+            / self.radial_clearance
+        ) * Kxx
+        kxy = (
+            np.sqrt((self.load_x_direction**2) + (self.load_y_direction**2))
+            / self.radial_clearance
+        ) * Kxy
+        kyx = (
+            np.sqrt((self.load_x_direction**2) + (self.load_y_direction**2))
+            / self.radial_clearance
+        ) * Kyx
+        kyy = (
+            np.sqrt((self.load_x_direction**2) + (self.load_y_direction**2))
+            / self.radial_clearance
+        ) * Kyy
 
-        cxx = (np.sqrt((self.load_x_direction**2) + (self.load_y_direction**2)) / (self.radial_clearance * self.speed)) * Cxx
-        cxy = (np.sqrt((self.load_x_direction**2) + (self.load_y_direction**2)) / (self.radial_clearance * self.speed)) * Cxy
-        cyx = (np.sqrt((self.load_x_direction**2) + (self.load_y_direction**2)) / (self.radial_clearance * self.speed)) * Cyx
-        cyy = (np.sqrt((self.load_x_direction**2) + (self.load_y_direction**2)) / (self.radial_clearance * self.speed)) * Cyy
+        cxx = (
+            np.sqrt((self.load_x_direction**2) + (self.load_y_direction**2))
+            / (self.radial_clearance * self.speed)
+        ) * Cxx
+        cxy = (
+            np.sqrt((self.load_x_direction**2) + (self.load_y_direction**2))
+            / (self.radial_clearance * self.speed)
+        ) * Cxy
+        cyx = (
+            np.sqrt((self.load_x_direction**2) + (self.load_y_direction**2))
+            / (self.radial_clearance * self.speed)
+        ) * Cyx
+        cyy = (
+            np.sqrt((self.load_x_direction**2) + (self.load_y_direction**2))
+            / (self.radial_clearance * self.speed)
+        ) * Cyy
 
         return (kxx, kxy, kyx, kyy), (cxx, cxy, cyx, cyy)
 
@@ -1391,21 +1455,29 @@ class THDCylindrical(BearingElement):
                         (3 * hw**2 * hYw) / (12 * MU_w)
                     )
 
-                    BXN = -((self.journal_radius**2) * self.dY / (self.dZ * self.axial_length**2)) * (
-                        (3 * hn**2 * hXn) / (12 * MU_n)
-                    )
+                    BXN = -(
+                        (self.journal_radius**2)
+                        * self.dY
+                        / (self.dZ * self.axial_length**2)
+                    ) * ((3 * hn**2 * hXn) / (12 * MU_n))
 
-                    BYN = -((self.journal_radius**2) * self.dY / (self.dZ * self.axial_length**2)) * (
-                        (3 * hn**2 * hYn) / (12 * MU_n)
-                    )
+                    BYN = -(
+                        (self.journal_radius**2)
+                        * self.dY
+                        / (self.dZ * self.axial_length**2)
+                    ) * ((3 * hn**2 * hYn) / (12 * MU_n))
 
-                    BXS = -((self.journal_radius**2) * self.dY / (self.dZ * self.axial_length**2)) * (
-                        (3 * hs**2 * hXs) / (12 * MU_s)
-                    )
+                    BXS = -(
+                        (self.journal_radius**2)
+                        * self.dY
+                        / (self.dZ * self.axial_length**2)
+                    ) * ((3 * hs**2 * hXs) / (12 * MU_s))
 
-                    BYS = -((self.journal_radius**2) * self.dY / (self.dZ * self.axial_length**2)) * (
-                        (3 * hs**2 * hYs) / (12 * MU_s)
-                    )
+                    BYS = -(
+                        (self.journal_radius**2)
+                        * self.dY
+                        / (self.dZ * self.axial_length**2)
+                    ) * ((3 * hs**2 * hYs) / (12 * MU_s))
 
                     BXP = -(BXE + BXW + BXN + BXS)
 
@@ -1523,11 +1595,15 @@ class THDCylindrical(BearingElement):
         Ytheta = Ytheta.flatten()
 
         PPlotXdim = (
-            PPlotX * (self.reference_viscosity * self.speed * (self.journal_radius**2)) / (self.radial_clearance**3)
+            PPlotX
+            * (self.reference_viscosity * self.speed * (self.journal_radius**2))
+            / (self.radial_clearance**3)
         )
 
         PPlotYdim = (
-            PPlotY * (self.reference_viscosity * self.speed * (self.journal_radius**2)) / (self.radial_clearance**3)
+            PPlotY
+            * (self.reference_viscosity * self.speed * (self.journal_radius**2))
+            / (self.radial_clearance**3)
         )
 
         hX = hX.flatten()
@@ -1579,7 +1655,9 @@ class THDCylindrical(BearingElement):
 
         """
         Fhx, Fhy = self._forces(x, None, None, None)
-        score = np.sqrt(((self.load_x_direction + Fhx) ** 2) + ((self.load_y_direction + Fhy) ** 2))
+        score = np.sqrt(
+            ((self.load_x_direction + Fhx) ** 2) + ((self.load_y_direction + Fhy) ** 2)
+        )
         if print_progress:
             print(f"Score: ", score)
             print("============================================")
@@ -1607,8 +1685,15 @@ class THDCylindrical(BearingElement):
             Sommerfeld number.
         """
         if self.sommerfeld_type == 1:
-            S = (self.reference_viscosity * ((self.journal_radius) ** 3) * self.axial_length * self.speed) / (
-                np.pi * (self.radial_clearance**2) * np.sqrt((self.load_x_direction**2) + (self.load_y_direction**2))
+            S = (
+                self.reference_viscosity
+                * ((self.journal_radius) ** 3)
+                * self.axial_length
+                * self.speed
+            ) / (
+                np.pi
+                * (self.radial_clearance**2)
+                * np.sqrt((self.load_x_direction**2) + (self.load_y_direction**2))
             )
 
         elif self.sommerfeld_type == 2:
@@ -1665,6 +1750,6 @@ def cylindrical_bearing_example():
 
 if __name__ == "__main__":
     bearing = cylindrical_bearing_example()
-    bearing.plot('kxx')
+    bearing.plot("kxx")
     # bearing.equilibrium_pos
     # bearing.coefficients(method="perturbation", show_coef=True)

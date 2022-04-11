@@ -28,7 +28,7 @@ def cylindrical():
         groove_factor=[0.52, 0.48],
         lubricant="ISOVG32",
         sommerfeld_type=2,
-        x0 = [0.1,-0.1],
+        x0=[0.1, -0.1],
     )
     bearing.run()
 
@@ -58,7 +58,7 @@ def cylindrical_units():
         groove_factor=[0.52, 0.48],
         lubricant="ISOVG32",
         sommerfeld_type=2,
-        x0 = [0.1,-0.1],
+        x0=[0.1, -0.1],
     )
 
     return bearing
