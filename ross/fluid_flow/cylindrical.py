@@ -25,6 +25,8 @@ class THDCylindrical(BearingElement):
         Rotor radius. The unit is meter.
     radial_clearance : float
         Radial clearence between rotor and bearing. The unit is meter.
+    n_pad : integer
+        Number of pads that compound the bearing surface.
     pad_arc_length : float
         Arc length of each pad. The unit is degree.
 
@@ -218,8 +220,8 @@ class THDCylindrical(BearingElement):
         }
 
         lubricant_properties = self.lubricant_dict[self.lubricant]
-        T_muI = lubricant_properties["temp1"] - 273.15
-        T_muF = lubricant_properties["temp2"] - 273.15
+        T_muI = Q_(lubricant_properties["temp1"], "degK").m_as("degC")
+        T_muF = Q_(lubricant_properties["temp2"], "degK").m_as("degC")
         mu_I = lubricant_properties["viscosity1"]
         mu_F = lubricant_properties["viscosity2"]
         self.rho = lubricant_properties["lube_density"]
