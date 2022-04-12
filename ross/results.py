@@ -250,7 +250,7 @@ class Orbit(Results):
 
         Parameters
         ----------
-        angle : float, pint.Quantity
+        angle : float, str, pint.Quantity
 
         Returns
         -------
@@ -259,6 +259,11 @@ class Orbit(Results):
             The units are the same as the ru_e and rv_e used to create the orbit.
         """
         # find closest angle index
+        if angle == "major":
+            return self.major_axis
+        elif angle == "minor":
+            return self.minor_axis
+
         idx = (np.abs(self.angle - angle)).argmin()
         amplitude = np.sqrt(self.x_circle[idx] ** 2 + self.y_circle[idx] ** 2)
 

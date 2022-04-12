@@ -185,3 +185,8 @@ def test_orbit_calculate_amplitude():
 
     assert_allclose(orb.calculate_amplitude(Q_(0, "deg")), 1.7949401413591568)
     assert_allclose(orb.calculate_amplitude(Q_(45, "deg")), 2.8284271247461903)
+    assert_allclose(
+        orb.calculate_amplitude(Q_(135, "deg")), 1.4142135623730947, rtol=1e-3
+    )
+    assert_allclose(orb.calculate_amplitude("minor"), 1.4142135623730947)
+    assert_allclose(orb.calculate_amplitude("major"), 2.8284271247461903)
