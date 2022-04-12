@@ -175,7 +175,9 @@ class THDCylindrical(BearingElement):
 
         Z[0] = self.Z_I
         Z[self.elements_axial + 1] = self.Z_F
-        Z[1 : self.elements_axial + 1] = np.arange(self.Z_I + 0.5 * self.dZ, self.Z_F, self.dZ)
+        Z[1 : self.elements_axial + 1] = np.arange(
+            self.Z_I + 0.5 * self.dZ, self.Z_F, self.dZ
+        )
         self.Z = Z
 
         # Dimensionalization
@@ -292,7 +294,9 @@ class THDCylindrical(BearingElement):
 
         T_mist = self.reference_temperature * np.ones(self.n_pad)
 
-        Reyn = np.zeros((self.elements_axial, self.elements_circumferential, self.n_pad))
+        Reyn = np.zeros(
+            (self.elements_axial, self.elements_circumferential, self.n_pad)
+        )
 
         pad_ct = [ang for ang in range(0, 360, int(360 / self.n_pad))]
 
@@ -326,16 +330,33 @@ class THDCylindrical(BearingElement):
 
         while (T_mist[0] - T_conv) >= 1e-2:
 
-            self.P = np.zeros((self.elements_axial, self.elements_circumferential, self.n_pad))
-            dPdy = np.zeros((self.elements_axial, self.elements_circumferential, self.n_pad))
-            dPdz = np.zeros((self.elements_axial, self.elements_circumferential, self.n_pad))
-            T = np.ones((self.elements_axial, self.elements_circumferential, self.n_pad))
-            T_new = np.ones((self.elements_axial, self.elements_circumferential, self.n_pad)) * 1.2
+            self.P = np.zeros(
+                (self.elements_axial, self.elements_circumferential, self.n_pad)
+            )
+            dPdy = np.zeros(
+                (self.elements_axial, self.elements_circumferential, self.n_pad)
+            )
+            dPdz = np.zeros(
+                (self.elements_axial, self.elements_circumferential, self.n_pad)
+            )
+            T = np.ones(
+                (self.elements_axial, self.elements_circumferential, self.n_pad)
+            )
+            T_new = (
+                np.ones(
+                    (self.elements_axial, self.elements_circumferential, self.n_pad)
+                )
+                * 1.2
+            )
 
             T_conv = T_mist[0]
 
-            mu_new = 1.1 * np.ones((self.elements_axial, self.elements_circumferential, self.n_pad))
-            mu_turb = 1.3 * np.ones((self.elements_axial, self.elements_circumferential, self.n_pad))
+            mu_new = 1.1 * np.ones(
+                (self.elements_axial, self.elements_circumferential, self.n_pad)
+            )
+            mu_turb = 1.3 * np.ones(
+                (self.elements_axial, self.elements_circumferential, self.n_pad)
+            )
 
             PP = np.zeros(((self.elements_axial), (2 * self.elements_circumferential)))
 
@@ -410,7 +431,11 @@ class THDCylindrical(BearingElement):
                                 MU_s = 0.5 * (mu[ki, kj] + mu[ki - 1, kj])
                                 MU_n = mu[ki, kj]
 
-                            if ki == 0 and kj > 0 and kj < self.elements_circumferential - 1:
+                            if (
+                                ki == 0
+                                and kj > 0
+                                and kj < self.elements_circumferential - 1
+                            ):
                                 MU_e = 0.5 * (mu[ki, kj] + mu[ki, kj + 1])
                                 MU_w = 0.5 * (mu[ki, kj] + mu[ki, kj - 1])
                                 MU_s = mu[ki, kj]
@@ -427,7 +452,11 @@ class THDCylindrical(BearingElement):
                                 MU_s = 0.5 * (mu[ki, kj] + mu[ki - 1, kj])
                                 MU_n = 0.5 * (mu[ki, kj] + mu[ki + 1, kj])
 
-                            if ki == self.elements_axial - 1 and kj > 0 and kj < self.elements_circumferential - 1:
+                            if (
+                                ki == self.elements_axial - 1
+                                and kj > 0
+                                and kj < self.elements_circumferential - 1
+                            ):
                                 MU_e = 0.5 * (mu[ki, kj] + mu[ki, kj + 1])
                                 MU_w = 0.5 * (mu[ki, kj] + mu[ki, kj - 1])
                                 MU_s = 0.5 * (mu[ki, kj] + mu[ki - 1, kj])
@@ -439,13 +468,20 @@ class THDCylindrical(BearingElement):
                                 MU_s = mu[ki, kj]
                                 MU_n = 0.5 * (mu[ki, kj] + mu[ki + 1, kj])
 
-                            if kj == self.elements_circumferential - 1 and ki > 0 and ki < self.elements_axial - 1:
+                            if (
+                                kj == self.elements_circumferential - 1
+                                and ki > 0
+                                and ki < self.elements_axial - 1
+                            ):
                                 MU_e = mu[ki, kj]
                                 MU_w = 0.5 * (mu[ki, kj] + mu[ki, kj - 1])
                                 MU_s = 0.5 * (mu[ki, kj] + mu[ki - 1, kj])
                                 MU_n = 0.5 * (mu[ki, kj] + mu[ki + 1, kj])
 
-                            if kj == self.elements_circumferential - 1 and ki == self.elements_axial - 1:
+                            if (
+                                kj == self.elements_circumferential - 1
+                                and ki == self.elements_axial - 1
+                            ):
                                 MU_e = mu[ki, kj]
                                 MU_w = 0.5 * (mu[ki, kj] + mu[ki, kj - 1])
                                 MU_s = 0.5 * (mu[ki, kj] + mu[ki - 1, kj])
@@ -477,24 +513,34 @@ class THDCylindrical(BearingElement):
                             if ki == 0 and kj == 0:
                                 Mat_coef[k - 1, k - 1] = CP - CS - CW
                                 Mat_coef[k - 1, k] = CE
-                                Mat_coef[k - 1, k + self.elements_circumferential - 1] = CN
+                                Mat_coef[
+                                    k - 1, k + self.elements_circumferential - 1
+                                ] = CN
 
                             elif kj == 0 and ki > 0 and ki < self.elements_axial - 1:
                                 Mat_coef[k - 1, k - 1] = CP - CW
                                 Mat_coef[k - 1, k] = CE
-                                Mat_coef[k - 1, k - self.elements_circumferential - 1] = CS
-                                Mat_coef[k - 1, k + self.elements_circumferential - 1] = CN
+                                Mat_coef[
+                                    k - 1, k - self.elements_circumferential - 1
+                                ] = CS
+                                Mat_coef[
+                                    k - 1, k + self.elements_circumferential - 1
+                                ] = CN
 
                             elif kj == 0 and ki == self.elements_axial - 1:
                                 Mat_coef[k - 1, k - 1] = CP - CN - CW
                                 Mat_coef[k - 1, k] = CE
-                                Mat_coef[k - 1, k - self.elements_circumferential - 1] = CS
+                                Mat_coef[
+                                    k - 1, k - self.elements_circumferential - 1
+                                ] = CS
 
                             elif ki == 0 and kj > 0 and kj < self.n_y - 1:
                                 Mat_coef[k - 1, k - 1] = CP - CS
                                 Mat_coef[k - 1, k] = CE
                                 Mat_coef[k - 1, k - 2] = CW
-                                Mat_coef[k - 1, k + self.elements_circumferential - 1] = CN
+                                Mat_coef[
+                                    k - 1, k + self.elements_circumferential - 1
+                                ] = CN
 
                             elif (
                                 ki > 0
@@ -504,31 +550,53 @@ class THDCylindrical(BearingElement):
                             ):
                                 Mat_coef[k - 1, k - 1] = CP
                                 Mat_coef[k - 1, k - 2] = CW
-                                Mat_coef[k - 1, k - self.elements_circumferential - 1] = CS
-                                Mat_coef[k - 1, k + self.elements_circumferential - 1] = CN
+                                Mat_coef[
+                                    k - 1, k - self.elements_circumferential - 1
+                                ] = CS
+                                Mat_coef[
+                                    k - 1, k + self.elements_circumferential - 1
+                                ] = CN
                                 Mat_coef[k - 1, k] = CE
 
-                            elif ki == self.elements_axial - 1 and kj > 0 and kj < self.n_y - 1:
+                            elif (
+                                ki == self.elements_axial - 1
+                                and kj > 0
+                                and kj < self.n_y - 1
+                            ):
                                 Mat_coef[k - 1, k - 1] = CP - CN
                                 Mat_coef[k - 1, k] = CE
                                 Mat_coef[k - 1, k - 2] = CW
-                                Mat_coef[k - 1, k - self.elements_circumferential - 1] = CS
+                                Mat_coef[
+                                    k - 1, k - self.elements_circumferential - 1
+                                ] = CS
 
                             elif ki == 0 and kj == self.n_y - 1:
                                 Mat_coef[k - 1, k - 1] = CP - CE - CS
                                 Mat_coef[k - 1, k - 2] = CW
-                                Mat_coef[k - 1, k + self.elements_circumferential - 1] = CN
+                                Mat_coef[
+                                    k - 1, k + self.elements_circumferential - 1
+                                ] = CN
 
-                            elif kj == self.n_y - 1 and ki > 0 and ki < self.elements_axial - 1:
+                            elif (
+                                kj == self.n_y - 1
+                                and ki > 0
+                                and ki < self.elements_axial - 1
+                            ):
                                 Mat_coef[k - 1, k - 1] = CP - CE
                                 Mat_coef[k - 1, k - 2] = CW
-                                Mat_coef[k - 1, k - self.elements_circumferential - 1] = CS
-                                Mat_coef[k - 1, k + self.elements_circumferential - 1] = CN
+                                Mat_coef[
+                                    k - 1, k - self.elements_circumferential - 1
+                                ] = CS
+                                Mat_coef[
+                                    k - 1, k + self.elements_circumferential - 1
+                                ] = CN
 
                             elif ki == self.elements_axial - 1 and kj == self.n_y - 1:
                                 Mat_coef[k - 1, k - 1] = CP - CE - CN
                                 Mat_coef[k - 1, k - 2] = CW
-                                Mat_coef[k - 1, k - self.elements_circumferential - 1] = CS
+                                Mat_coef[
+                                    k - 1, k - self.elements_circumferential - 1
+                                ] = CS
 
                             kj = kj + 1
 
@@ -599,7 +667,11 @@ class THDCylindrical(BearingElement):
                                     2 * self.dZ
                                 )
 
-                            if ki == 0 and kj > 0 and kj < self.elements_circumferential - 1:
+                            if (
+                                ki == 0
+                                and kj > 0
+                                and kj < self.elements_circumferential - 1
+                            ):
                                 dPdy[ki, kj, n_p] = (
                                     self.P[ki, kj + 1, n_p] - self.P[ki, kj - 1, n_p]
                                 ) / (2 * self.dY)
@@ -620,7 +692,11 @@ class THDCylindrical(BearingElement):
                                     self.P[ki + 1, kj, n_p] - self.P[ki - 1, kj, n_p]
                                 ) / (2 * self.dZ)
 
-                            if ki == self.elements_axial - 1 and kj > 0 and kj < self.elements_circumferential - 1:
+                            if (
+                                ki == self.elements_axial - 1
+                                and kj > 0
+                                and kj < self.elements_circumferential - 1
+                            ):
                                 dPdy[ki, kj, n_p] = (
                                     self.P[ki, kj + 1, n_p] - self.P[ki, kj - 1, n_p]
                                 ) / (2 * self.dY)
@@ -636,7 +712,11 @@ class THDCylindrical(BearingElement):
                                     2 * self.dZ
                                 )
 
-                            if kj == self.elements_circumferential - 1 and ki > 0 and ki < self.elements_axial - 1:
+                            if (
+                                kj == self.elements_circumferential - 1
+                                and ki > 0
+                                and ki < self.elements_axial - 1
+                            ):
                                 dPdy[ki, kj, n_p] = (0 - self.P[ki, kj - 1, n_p]) / (
                                     2 * self.dY
                                 )
@@ -644,7 +724,10 @@ class THDCylindrical(BearingElement):
                                     self.P[ki + 1, kj, n_p] - self.P[ki - 1, kj, n_p]
                                 ) / (2 * self.dZ)
 
-                            if kj == self.elements_circumferential - 1 and ki == self.elements_axial - 1:
+                            if (
+                                kj == self.elements_circumferential - 1
+                                and ki == self.elements_axial - 1
+                            ):
                                 dPdy[ki, kj, n_p] = (0 - self.P[ki, kj - 1, n_p]) / (
                                     2 * self.dY
                                 )
@@ -851,7 +934,9 @@ class THDCylindrical(BearingElement):
                             if ki == 0 and kj == 0:
                                 Mat_coef_T[k - 1, k - 1] = AP + AS - AW
                                 Mat_coef_T[k - 1, k] = AE
-                                Mat_coef_T[k - 1, k + self.elements_circumferential - 1] = AN
+                                Mat_coef_T[
+                                    k - 1, k + self.elements_circumferential - 1
+                                ] = AN
                                 b_T[k - 1, 0] = b_T[k - 1, 0] - 2 * AW * (
                                     T_ref / self.reference_temperature
                                 )
@@ -859,8 +944,12 @@ class THDCylindrical(BearingElement):
                             elif kj == 0 and ki > 0 and ki < self.elements_axial - 1:
                                 Mat_coef_T[k - 1, k - 1] = AP - AW
                                 Mat_coef_T[k - 1, k] = AE
-                                Mat_coef_T[k - 1, k - self.elements_circumferential - 1] = AS
-                                Mat_coef_T[k - 1, k + self.elements_circumferential - 1] = AN
+                                Mat_coef_T[
+                                    k - 1, k - self.elements_circumferential - 1
+                                ] = AS
+                                Mat_coef_T[
+                                    k - 1, k + self.elements_circumferential - 1
+                                ] = AN
                                 b_T[k - 1, 0] = b_T[k - 1, 0] - 2 * AW * (
                                     T_ref / self.reference_temperature
                                 )
@@ -868,7 +957,9 @@ class THDCylindrical(BearingElement):
                             elif kj == 0 and ki == self.elements_axial - 1:
                                 Mat_coef_T[k - 1, k - 1] = AP + AN - AW
                                 Mat_coef_T[k - 1, k] = AE
-                                Mat_coef_T[k - 1, k - self.elements_circumferential - 1] = AS
+                                Mat_coef_T[
+                                    k - 1, k - self.elements_circumferential - 1
+                                ] = AS
                                 b_T[k - 1, 0] = b_T[k - 1, 0] - 2 * AW * (
                                     T_ref / self.reference_temperature
                                 )
@@ -877,7 +968,9 @@ class THDCylindrical(BearingElement):
                                 Mat_coef_T[k - 1, k - 1] = AP + AS
                                 Mat_coef_T[k - 1, k] = AE
                                 Mat_coef_T[k - 1, k - 2] = AW
-                                Mat_coef_T[k - 1, k + self.elements_circumferential - 1] = AN
+                                Mat_coef_T[
+                                    k - 1, k + self.elements_circumferential - 1
+                                ] = AN
 
                             elif (
                                 ki > 0
@@ -887,31 +980,53 @@ class THDCylindrical(BearingElement):
                             ):
                                 Mat_coef_T[k - 1, k - 1] = AP
                                 Mat_coef_T[k - 1, k - 2] = AW
-                                Mat_coef_T[k - 1, k - self.elements_circumferential - 1] = AS
-                                Mat_coef_T[k - 1, k + self.elements_circumferential - 1] = AN
+                                Mat_coef_T[
+                                    k - 1, k - self.elements_circumferential - 1
+                                ] = AS
+                                Mat_coef_T[
+                                    k - 1, k + self.elements_circumferential - 1
+                                ] = AN
                                 Mat_coef_T[k - 1, k] = AE
 
-                            elif ki == self.elements_axial - 1 and kj > 0 and kj < self.n_y - 1:
+                            elif (
+                                ki == self.elements_axial - 1
+                                and kj > 0
+                                and kj < self.n_y - 1
+                            ):
                                 Mat_coef_T[k - 1, k - 1] = AP + AN
                                 Mat_coef_T[k - 1, k] = AE
                                 Mat_coef_T[k - 1, k - 2] = AW
-                                Mat_coef_T[k - 1, k - self.elements_circumferential - 1] = AS
+                                Mat_coef_T[
+                                    k - 1, k - self.elements_circumferential - 1
+                                ] = AS
 
                             elif ki == 0 and kj == self.n_y - 1:
                                 Mat_coef_T[k - 1, k - 1] = AP + AE + AS
                                 Mat_coef_T[k - 1, k - 2] = AW
-                                Mat_coef_T[k - 1, k + self.elements_circumferential - 1] = AN
+                                Mat_coef_T[
+                                    k - 1, k + self.elements_circumferential - 1
+                                ] = AN
 
-                            elif kj == self.n_y - 1 and ki > 0 and ki < self.elements_axial - 1:
+                            elif (
+                                kj == self.n_y - 1
+                                and ki > 0
+                                and ki < self.elements_axial - 1
+                            ):
                                 Mat_coef_T[k - 1, k - 1] = AP + AE
                                 Mat_coef_T[k - 1, k - 2] = AW
-                                Mat_coef_T[k - 1, k - self.elements_circumferential - 1] = AS
-                                Mat_coef_T[k - 1, k + self.elements_circumferential - 1] = AN
+                                Mat_coef_T[
+                                    k - 1, k - self.elements_circumferential - 1
+                                ] = AS
+                                Mat_coef_T[
+                                    k - 1, k + self.elements_circumferential - 1
+                                ] = AN
 
                             elif ki == self.elements_axial - 1 and kj == self.n_y - 1:
                                 Mat_coef_T[k - 1, k - 1] = AP + AE + AN
                                 Mat_coef_T[k - 1, k - 2] = AW
-                                Mat_coef_T[k - 1, k - self.elements_circumferential - 1] = AS
+                                Mat_coef_T[
+                                    k - 1, k - self.elements_circumferential - 1
+                                ] = AS
 
                             kj = kj + 1
 
@@ -945,7 +1060,9 @@ class THDCylindrical(BearingElement):
                                 self.a * (Tdim[i, j, n_p]) ** self.b
                             ) / self.reference_viscosity
 
-        PP = np.zeros(((self.elements_axial), (self.n_pad * self.elements_circumferential)))
+        PP = np.zeros(
+            ((self.elements_axial), (self.n_pad * self.elements_circumferential))
+        )
 
         i = 0
         for i in range(self.elements_axial):
@@ -1223,9 +1340,13 @@ class THDCylindrical(BearingElement):
 
         hY = np.zeros((self.n_pad, self.elements_circumferential))
 
-        PX = np.zeros((self.elements_axial, self.elements_circumferential, self.n_pad)).astype(complex)
+        PX = np.zeros(
+            (self.elements_axial, self.elements_circumferential, self.n_pad)
+        ).astype(complex)
 
-        PY = np.zeros((self.elements_axial, self.elements_circumferential, self.n_pad)).astype(complex)
+        PY = np.zeros(
+            (self.elements_axial, self.elements_circumferential, self.n_pad)
+        ).astype(complex)
 
         H = np.zeros((2, 2)).astype(complex)
 
@@ -1365,7 +1486,11 @@ class THDCylindrical(BearingElement):
                         pN = p[ki + 1, kj, n_p]
                         pS = p[ki - 1, kj, n_p]
 
-                    if ki == self.elements_axial - 1 and kj > 0 and kj < self.elements_circumferential - 1:
+                    if (
+                        ki == self.elements_axial - 1
+                        and kj > 0
+                        and kj < self.elements_circumferential - 1
+                    ):
                         MU_e = 0.5 * (
                             self.mu_l[ki, kj, n_p] + self.mu_l[ki, kj + 1, n_p]
                         )
@@ -1397,7 +1522,11 @@ class THDCylindrical(BearingElement):
                         pN = p[ki + 1, kj, n_p]
                         pS = -p[ki, kj, n_p]
 
-                    if kj == self.elements_circumferential - 1 and ki > 0 and ki < self.elements_axial - 1:
+                    if (
+                        kj == self.elements_circumferential - 1
+                        and ki > 0
+                        and ki < self.elements_axial - 1
+                    ):
                         MU_e = self.mu_l[ki, kj, n_p]
                         MU_w = 0.5 * (
                             self.mu_l[ki, kj, n_p] + self.mu_l[ki, kj - 1, n_p]
@@ -1414,7 +1543,10 @@ class THDCylindrical(BearingElement):
                         pN = p[ki + 1, kj, n_p]
                         pS = p[ki - 1, kj, n_p]
 
-                    if kj == self.elements_circumferential - 1 and ki == self.elements_axial - 1:
+                    if (
+                        kj == self.elements_circumferential - 1
+                        and ki == self.elements_axial - 1
+                    ):
                         MU_e = self.mu_l[ki, kj, n_p]
                         MU_w = 0.5 * (
                             self.mu_l[ki, kj, n_p] + self.mu_l[ki, kj - 1, n_p]
@@ -1544,7 +1676,11 @@ class THDCylindrical(BearingElement):
                         Mat_coef[k - 1, k + self.elements_circumferential - 1] = CN
                         Mat_coef[k - 1, k] = CE
 
-                    elif ki == self.elements_axial - 1 and kj > 0 and kj < self.elements_circumferential - 1:
+                    elif (
+                        ki == self.elements_axial - 1
+                        and kj > 0
+                        and kj < self.elements_circumferential - 1
+                    ):
                         Mat_coef[k - 1, k - 1] = CP - CN
                         Mat_coef[k - 1, k] = CE
                         Mat_coef[k - 1, k - 2] = CW
@@ -1555,13 +1691,20 @@ class THDCylindrical(BearingElement):
                         Mat_coef[k - 1, k - 2] = CW
                         Mat_coef[k - 1, k + self.elements_circumferential - 1] = CN
 
-                    elif kj == self.elements_circumferential - 1 and ki > 0 and ki < self.elements_axial - 1:
+                    elif (
+                        kj == self.elements_circumferential - 1
+                        and ki > 0
+                        and ki < self.elements_axial - 1
+                    ):
                         Mat_coef[k - 1, k - 1] = CP - CE
                         Mat_coef[k - 1, k - 2] = CW
                         Mat_coef[k - 1, k - self.elements_circumferential - 1] = CS
                         Mat_coef[k - 1, k + self.elements_circumferential - 1] = CN
 
-                    elif ki == self.elements_axial - 1 and kj == self.elements_circumferential - 1:
+                    elif (
+                        ki == self.elements_axial - 1
+                        and kj == self.elements_circumferential - 1
+                    ):
                         Mat_coef[k - 1, k - 1] = CP - CE - CN
                         Mat_coef[k - 1, k - 2] = CW
                         Mat_coef[k - 1, k - self.elements_circumferential - 1] = CS
@@ -1586,8 +1729,12 @@ class THDCylindrical(BearingElement):
                     PY[i, j, n_p] = pY[cont]
                     cont = cont + 1
 
-        PPlotX = np.zeros((self.elements_axial, self.elements_circumferential * self.n_pad)).astype(complex)
-        PPlotY = np.zeros((self.elements_axial, self.elements_circumferential * self.n_pad)).astype(complex)
+        PPlotX = np.zeros(
+            (self.elements_axial, self.elements_circumferential * self.n_pad)
+        ).astype(complex)
+        PPlotY = np.zeros(
+            (self.elements_axial, self.elements_circumferential * self.n_pad)
+        ).astype(complex)
 
         i = 0
         for i in range(self.elements_axial):
