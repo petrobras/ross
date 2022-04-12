@@ -1453,11 +1453,11 @@ def test_unbalance(rotor7):
         node=0, unbalance_magnitude=1, unbalance_phase=0, frequency=[50, 100]
     )
     amplitude_expected = np.array([0.00274, 0.003526])
-    data = unb.data_magnitude(probe=[(0, 45)])
+    data = unb.data_magnitude(probe=[(0, 45)], probe_units="deg")
     assert_allclose(data["Probe 1 - Node 0"], amplitude_expected, rtol=1e-4)
 
-    phase_expected = np.array([0.962514, 0.77758])
-    data = unb.data_phase(probe=[(0, 45)])
+    phase_expected = np.array([0.730209, 0.545276])
+    data = unb.data_phase(probe=[(0, 45)], probe_units="deg")
     assert_allclose(data["Probe 1 - Node 0"], phase_expected, rtol=1e-4)
 
 
