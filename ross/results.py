@@ -2289,6 +2289,7 @@ class ForcedResponseResults(Results):
         unit_type = str(Q_(1, amplitude_units).dimensionality)
         try:
             base_unit = self.default_units[unit_type][0]
+            response = getattr(self, self.default_units[unit_type][1])
         except KeyError:
             raise ValueError(
                 "Not supported unit. Dimensionality options are '[length]', '[speed]', '[acceleration]'"
@@ -2298,16 +2299,27 @@ class ForcedResponseResults(Results):
         data["frequency"] = frequency_range
 
         for i, p in enumerate(probe):
-            angle = Q_(p[1], probe_units).to("rad").m
-            vector = self._calculate_major_axis_per_node(
-                node=p[0], angle=angle, amplitude_units=amplitude_units
-            )[3]
+            amplitude = []
+            for speed_idx in range(len(self.speed_range)):
+                try:
+                    angle = Q_(p[1], probe_units).to("rad").m
+                except TypeError:
+                    angle = p[1]
+
+                ru_e, rv_e = response[:, speed_idx][
+                    self.rotor.number_dof * p[0] : self.rotor.number_dof * p[0] + 2
+                ]
+                orbit = Orbit(
+                    node=p[0], node_pos=self.rotor.nodes_pos[p[0]], ru_e=ru_e, rv_e=rv_e
+                )
+                amplitude.append(orbit.calculate_amplitude(angle=angle))
+
             try:
                 probe_tag = p[2]
             except IndexError:
                 probe_tag = f"Probe {i+1} - Node {p[0]}"
 
-            data[probe_tag] = Q_(np.abs(vector), base_unit).to(amplitude_units).m
+            data[probe_tag] = Q_(amplitude, base_unit).to(amplitude_units).m
 
         df = pd.DataFrame(data)
 
