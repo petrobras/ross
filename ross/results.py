@@ -2378,6 +2378,15 @@ class ForcedResponseResults(Results):
         """
         frequency_range = Q_(self.speed_range, "rad/s").to(frequency_units).m
 
+        unit_type = str(Q_(1, amplitude_units).dimensionality)
+        try:
+            base_unit = self.default_units[unit_type][0]
+            response = getattr(self, self.default_units[unit_type][1])
+        except KeyError:
+            raise ValueError(
+                "Not supported unit. Dimensionality options are '[length]', '[speed]', '[acceleration]'"
+            )
+
         data = {}
         data["frequency"] = frequency_range
 
