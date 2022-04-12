@@ -6,7 +6,7 @@ from numpy.testing import assert_allclose, assert_almost_equal
 
 from ross.fluid_flow.cylindrical import THDCylindrical
 from ross.units import Q_
-from ross.bearing_seal_element import BearingElement
+
 
 
 @pytest.fixture
@@ -68,8 +68,8 @@ def cylindrical_units():
 
 
 def test_cylindrical_parameters(cylindrical):
-    assert cylindrical.L == 0.263144
-    assert cylindrical.R == 0.2
+    assert cylindrical.axial_length == 0.263144
+    assert cylindrical.journal_radius == 0.2
     assert cylindrical.speed == 94.24777960769379
     assert cylindrical.rho == 873.99629
     assert cylindrical.reference_temperature == 50
@@ -77,7 +77,7 @@ def test_cylindrical_parameters(cylindrical):
 
 def test_cylindrical_parameters_units(cylindrical_units):
     assert math.isclose(cylindrical_units.L, 0.263144, rel_tol=0.0001)
-    assert cylindrical_units.R == 0.2
+    assert cylindrical_units.journal_radius == 0.2
     assert cylindrical_units.speed == 94.24777960769379
     assert cylindrical_units.rho == 873.99629
     assert cylindrical_units.reference_temperature == 50
