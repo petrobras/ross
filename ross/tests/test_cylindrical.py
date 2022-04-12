@@ -6,6 +6,7 @@ from numpy.testing import assert_allclose, assert_almost_equal
 
 from ross.fluid_flow.cylindrical import THDCylindrical
 from ross.units import Q_
+from ross.bearing_seal_element import BearingElement
 
 
 @pytest.fixture

@@ -1748,8 +1748,8 @@ def cylindrical_bearing_example():
     return bearing
 
 
-if __name__ == "__main__":
-    bearing = cylindrical_bearing_example()
-    bearing.plot("kxx")
-    # bearing.equilibrium_pos
-    # bearing.coefficients(method="perturbation", show_coef=True)
+# if __name__ == "__main__":
+#     bearing = cylindrical_bearing_example()
+#     # bearing.plot("kxx")
+#     # bearing.equilibrium_pos
+#     bearing.coefficients(method="perturbation", show_coef=True)
