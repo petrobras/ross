@@ -199,6 +199,7 @@ class Orbit(Results):
         self.major_x = self.x_circle[self.major_index]
         self.major_y = self.y_circle[self.major_index]
         self.major_angle = self.angle[self.major_index]
+        self.minor_angle = self.major_angle + np.pi / 2
 
         # calculate T matrix
         ru = np.absolute(ru_e)
@@ -260,14 +261,17 @@ class Orbit(Results):
         """
         # find closest angle index
         if angle == "major":
-            return self.major_axis
+            return self.major_axis, self.major_angle
         elif angle == "minor":
-            return self.minor_axis
+            return self.minor_axis, self.minor_angle
 
         idx = (np.abs(self.angle - angle)).argmin()
         amplitude = np.sqrt(self.x_circle[idx] ** 2 + self.y_circle[idx] ** 2)
+        phase = self.angle[0] + angle
+        if phase > 2 * np.pi:
+            phase -= 2 * np.pi
 
-        return amplitude
+        return amplitude, phase
 
     def plot_orbit(self, fig=None):
         if fig is None:
@@ -2312,7 +2316,8 @@ class ForcedResponseResults(Results):
                 orbit = Orbit(
                     node=p[0], node_pos=self.rotor.nodes_pos[p[0]], ru_e=ru_e, rv_e=rv_e
                 )
-                amplitude.append(orbit.calculate_amplitude(angle=angle))
+                amp, phase = orbit.calculate_amplitude(angle=angle)
+                amplitude.append(amp)
 
             try:
                 probe_tag = p[2]
@@ -2391,21 +2396,28 @@ class ForcedResponseResults(Results):
         data["frequency"] = frequency_range
 
         for i, p in enumerate(probe):
-            angle = Q_(p[1], probe_units).to("rad").m
-            vector = self._calculate_major_axis_per_node(
-                node=p[0], angle=angle, amplitude_units=amplitude_units
-            )[4]
+            phase_values = []
+            for speed_idx in range(len(self.speed_range)):
+                try:
+                    angle = Q_(p[1], probe_units).to("rad").m
+                except TypeError:
+                    angle = p[1]
 
-            probe_phase = np.real(vector)
-            probe_phase = np.array([i + 2 * np.pi if i < 0 else i for i in probe_phase])
-            probe_phase = Q_(probe_phase, "rad").to(phase_units).m
+                ru_e, rv_e = response[:, speed_idx][
+                    self.rotor.number_dof * p[0] : self.rotor.number_dof * p[0] + 2
+                ]
+                orbit = Orbit(
+                    node=p[0], node_pos=self.rotor.nodes_pos[p[0]], ru_e=ru_e, rv_e=rv_e
+                )
+                amp, phase = orbit.calculate_amplitude(angle=angle)
+                phase_values.append(phase)
 
             try:
                 probe_tag = p[2]
             except IndexError:
                 probe_tag = f"Probe {i+1} - Node {p[0]}"
 
-            data[probe_tag] = probe_phase
+            data[probe_tag] = Q_(phase_values, "rad").to(phase_units).m
 
         df = pd.DataFrame(data)
 
