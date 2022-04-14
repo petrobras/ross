@@ -1128,6 +1128,13 @@ class THDCylindrical(BearingElement):
         print_progress : bool
             Set it True to print the score and forces on each iteration.
             False by default.
+        print_result : bool
+            Set it True to print result at the end.
+            False by default.
+        print_time : bool
+            Set it True to print the time at the end.
+            False by default.
+            
         """
         args = print_progress
         t1 = time.time()
@@ -1193,8 +1200,10 @@ class THDCylindrical(BearingElement):
 
         References
         ----------
-        .. bibliography:: ../../../docs/refs.bib
+        .. bibliography::
+            :filter: docname in docnames
         """
+        
         if self.equilibrium_pos is None:
             self.run([0.1, -0.1], True, True)
             self.coefficients()
@@ -1906,7 +1915,7 @@ def cylindrical_bearing_example():
         pad_arc_length=176,
         reference_temperature=50,
         reference_viscosity=0.02,
-        speed=Q_([900,1200], "RPM"),
+        speed=Q_([900], "RPM"),
         load_x_direction=0,
         load_y_direction=-112814.91,
         groove_factor=[0.52, 0.48],

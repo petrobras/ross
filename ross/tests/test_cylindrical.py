@@ -23,7 +23,7 @@ def cylindrical():
         pad_arc_length=176,
         reference_temperature=50,
         reference_viscosity=0.02,
-        speed=Q_(900, "RPM"),
+        speed=Q_([900], "RPM"),
         load_x_direction=0,
         load_y_direction=-112814.91,
         groove_factor=[0.52, 0.48],
