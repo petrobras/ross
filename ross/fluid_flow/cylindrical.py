@@ -134,6 +134,8 @@ class THDCylindrical(BearingElement):
         node,
         sommerfeld_type=2,
         x0=[0.1, -0.1],
+        method="perturbation",
+        show_coef=False,
     ):
 
         self.axial_length = axial_length
@@ -145,13 +147,14 @@ class THDCylindrical(BearingElement):
         self.n_pad = n_pad
         self.reference_temperature = reference_temperature
         self.reference_viscosity = reference_viscosity
-        self.speed = speed
         self.load_x_direction = load_x_direction
         self.load_y_direction = load_y_direction
         self.lubricant = lubricant
         self.fat_mixt = np.array(groove_factor)
         self.equilibrium_pos = None
         self.sommerfeld_type = sommerfeld_type
+        self.method = method
+        self.show_coef = show_coef
 
         if self.n_y == None:
             self.n_y = self.elements_circumferential
@@ -231,25 +234,41 @@ class THDCylindrical(BearingElement):
         # Interpolation coefficients
         self.a, self.b = self._interpol(T_muI, T_muF, mu_I, mu_F)
 
-        self.run(x0)
+        number_of_freq = np.shape(speed)[0]
 
-        coefs = self.coefficients("lund", False)
-        stiff = True
-        for coef in coefs:
-            if stiff:
-                kxx = coef[0]
-                kxy = coef[1]
-                kyx = coef[2]
-                kyy = coef[3]
+        kxx = np.zeros(number_of_freq)
+        kxy = np.zeros(number_of_freq)
+        kyx = np.zeros(number_of_freq)
+        kyy = np.zeros(number_of_freq)
 
-                stiff = False
-            else:
-                cxx = coef[0]
-                cxy = coef[1]
-                cyx = coef[2]
-                cyy = coef[3]
+        cxx = np.zeros(number_of_freq)
+        cxy = np.zeros(number_of_freq)
+        cyx = np.zeros(number_of_freq)
+        cyy = np.zeros(number_of_freq)
 
-        super().__init__(node, kxx, cxx, kyy, kxy, kyx, cyy, cxy, cyx)
+        for ii in range(number_of_freq):
+
+            self.speed = speed[ii]
+
+            self.run(x0)
+
+            coefs = self.coefficients()
+            stiff = True
+            for coef in coefs:
+                if stiff:
+                    kxx[ii] = coef[0]
+                    kxy[ii] = coef[1]
+                    kyx[ii] = coef[2]
+                    kyy[ii] = coef[3]
+
+                    stiff = False
+                else:
+                    cxx[ii] = coef[0]
+                    cxy[ii] = coef[1]
+                    cyx[ii] = coef[2]
+                    cyy[ii] = coef[3]
+
+        super().__init__(node, kxx, cxx, kyy, kxy, kyx, cyy, cxy, cyx,speed)
 
     def _forces(self, x0, y0, xpt0, ypt0):
         """Calculates the forces in Y and X direction.
@@ -1153,7 +1172,7 @@ class THDCylindrical(BearingElement):
 
         return a, b
 
-    def coefficients(self, method="lund", show_coef=True):
+    def coefficients(self):
         """Calculates the dynamic coefficients of stiffness "k" and damping "c".
         Basic reference is found at :cite:t:`lund1978`
         Parameters
@@ -1178,14 +1197,14 @@ class THDCylindrical(BearingElement):
         """
         if self.equilibrium_pos is None:
             self.run([0.1, -0.1], True, True)
-            self.coefficients(method=method, show_coef=show_coef)
+            self.coefficients()
         else:
-            if method == "lund":
+            if self.method == "lund":
                 k, c = self._lund_method()
-            elif method == "perturbation":
+            elif self.method == "perturbation":
                 k, c = self._pertubation_method()
 
-            if show_coef:
+            if self.show_coef:
                 print(f"kxx = {k[0]}")
                 print(f"kxy = {k[1]}")
                 print(f"kyx = {k[2]}")
@@ -1887,7 +1906,7 @@ def cylindrical_bearing_example():
         pad_arc_length=176,
         reference_temperature=50,
         reference_viscosity=0.02,
-        speed=Q_(900, "RPM"),
+        speed=Q_([900,1200], "RPM"),
         load_x_direction=0,
         load_y_direction=-112814.91,
         groove_factor=[0.52, 0.48],
@@ -1904,4 +1923,4 @@ if __name__ == "__main__":
     bearing = cylindrical_bearing_example()
     # bearing.plot("kxx")
     # bearing.equilibrium_pos
-    bearing.coefficients(method="perturbation", show_coef=True)
+    bearing.coefficients()

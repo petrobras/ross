@@ -32,7 +32,6 @@ def cylindrical():
         sommerfeld_type=2,
         x0=[0.1, -0.1],
     )
-    bearing.run()
 
     return bearing
 
@@ -76,7 +75,7 @@ def test_cylindrical_parameters(cylindrical):
 
 
 def test_cylindrical_parameters_units(cylindrical_units):
-    assert math.isclose(cylindrical_units.L, 0.263144, rel_tol=0.0001)
+    assert math.isclose(cylindrical_units.axial_length, 0.263144, rel_tol=0.0001)
     assert cylindrical_units.journal_radius == 0.2
     assert cylindrical_units.speed == 94.24777960769379
     assert cylindrical_units.rho == 873.99629
