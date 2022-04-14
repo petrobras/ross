@@ -1935,6 +1935,7 @@ def cylindrical_bearing_example():
         node=3,
         sommerfeld_type=2,
         intial_guess=[0.1, -0.1],
+        method="perturbation",
     )
 
     return bearing
