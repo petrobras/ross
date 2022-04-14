@@ -39,7 +39,7 @@ def cylindrical():
 @pytest.fixture
 def cylindrical_units():
 
-    speed = Q_(900, "RPM")
+    speed = Q_([900], "RPM")
     L = Q_(10.3600055944, "in")
 
     bearing = THDCylindrical(

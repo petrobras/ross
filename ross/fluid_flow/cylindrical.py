@@ -268,7 +268,7 @@ class THDCylindrical(BearingElement):
                     cyx[ii] = coef[2]
                     cyy[ii] = coef[3]
 
-        super().__init__(node, kxx, cxx, kyy, kxy, kyx, cyy, cxy, cyx,speed)
+        super().__init__(node, kxx, cxx, kyy, kxy, kyx, cyy, cxy, cyx, speed)
 
     def _forces(self, x0, y0, xpt0, ypt0):
         """Calculates the forces in Y and X direction.
@@ -1134,7 +1134,7 @@ class THDCylindrical(BearingElement):
         print_time : bool
             Set it True to print the time at the end.
             False by default.
-            
+
         """
         args = print_progress
         t1 = time.time()
@@ -1203,7 +1203,7 @@ class THDCylindrical(BearingElement):
         .. bibliography::
             :filter: docname in docnames
         """
-        
+
         if self.equilibrium_pos is None:
             self.run([0.1, -0.1], True, True)
             self.coefficients()
