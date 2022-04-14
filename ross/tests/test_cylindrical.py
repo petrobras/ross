@@ -90,7 +90,7 @@ def test_cylindrical_equilibrium_pos(cylindrical):
 
 
 def test_cylindrical_coefficients(cylindrical):
-    coefs = cylindrical.coefficients(method="perturbation")
+    coefs = cylindrical.coefficients()
     kxx = coefs[0][0]
     kxy = coefs[0][1]
     kyx = coefs[0][2]
