@@ -30,7 +30,8 @@ def cylindrical():
         lubricant="ISOVG32",
         node=3,
         sommerfeld_type=2,
-        x0=[0.1, -0.1],
+        intial_guess=[0.1, -0.1],
+        method="perturbation",
     )
 
     return bearing
@@ -60,7 +61,8 @@ def cylindrical_units():
         lubricant="ISOVG32",
         node=3,
         sommerfeld_type=2,
-        x0=[0.1, -0.1],
+        intial_guess=[0.1, -0.1],
+        method="perturbation",
     )
 
     return bearing
