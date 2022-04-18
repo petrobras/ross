@@ -136,6 +136,9 @@ class THDCylindrical(BearingElement):
         intial_guess=[0.1, -0.1],
         method="perturbation",
         show_coef=False,
+        print_result=True, 
+        print_progress=False, 
+        print_time=False,
     ):
 
         self.axial_length = axial_length
@@ -155,6 +158,9 @@ class THDCylindrical(BearingElement):
         self.sommerfeld_type = sommerfeld_type
         self.method = method
         self.show_coef = show_coef
+        self.print_result=print_result
+        self.print_progress=print_progress 
+        self.print_time=print_time
 
         if self.n_y == None:
             self.n_y = self.elements_circumferential
@@ -1125,7 +1131,7 @@ class THDCylindrical(BearingElement):
         self.Fhy = Fhy
         return Fhx, Fhy
 
-    def run(self, x, print_result=True, print_progress=False, print_time=False):
+    def run(self, x):
         """This method runs the optimization to find the equilibrium position of
         the rotor's center.
 
@@ -1144,7 +1150,7 @@ class THDCylindrical(BearingElement):
             False by default.
 
         """
-        args = print_progress
+        args = self.print_progress
         t1 = time.time()
         res = minimize(
             self._score,
@@ -1157,10 +1163,10 @@ class THDCylindrical(BearingElement):
         self.equilibrium_pos = res.x
         t2 = time.time()
 
-        if print_result:
+        if self.print_result:
             print(res)
 
-        if print_time:
+        if self.print_time:
             print(f"Time Spent: {t2-t1} seconds")
 
     def _interpol(self, T_muI, T_muF, mu_I, mu_F):
@@ -1213,7 +1219,7 @@ class THDCylindrical(BearingElement):
         """
 
         if self.equilibrium_pos is None:
-            self.run([0.1, -0.1], True, True)
+            self.run([0.1, -0.1])
             self.coefficients()
         else:
             if self.method == "lund":
@@ -1936,6 +1942,10 @@ def cylindrical_bearing_example():
         sommerfeld_type=2,
         intial_guess=[0.1, -0.1],
         method="perturbation",
+        print_result=True, 
+        print_progress=False, 
+        print_time=False,
+        
     )
 
     return bearing

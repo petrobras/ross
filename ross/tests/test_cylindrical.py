@@ -32,6 +32,9 @@ def cylindrical():
         sommerfeld_type=2,
         intial_guess=[0.1, -0.1],
         method="perturbation",
+        print_result=True, 
+        print_progress=False, 
+        print_time=False,
     )
 
     return bearing
@@ -63,6 +66,9 @@ def cylindrical_units():
         sommerfeld_type=2,
         intial_guess=[0.1, -0.1],
         method="perturbation",
+        print_result=True, 
+        print_progress=False, 
+        print_time=False,
     )
 
     return bearing
