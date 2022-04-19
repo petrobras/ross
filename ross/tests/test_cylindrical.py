@@ -8,7 +8,6 @@ from ross.fluid_flow.cylindrical import THDCylindrical
 from ross.units import Q_
 
 
-
 @pytest.fixture
 def cylindrical():
 
@@ -33,8 +32,8 @@ def cylindrical():
         initial_guess=[0.1, -0.1],
         method="perturbation",
         show_coef=False,
-        print_result=True, 
-        print_progress=False, 
+        print_result=True,
+        print_progress=False,
         print_time=False,
     )
 
@@ -68,8 +67,8 @@ def cylindrical_units():
         initial_guess=[0.1, -0.1],
         method="perturbation",
         show_coef=False,
-        print_result=True, 
-        print_progress=False, 
+        print_result=True,
+        print_progress=False,
         print_time=False,
     )
 
