@@ -133,11 +133,11 @@ class THDCylindrical(BearingElement):
         lubricant,
         node,
         sommerfeld_type=2,
-        intial_guess=[0.1, -0.1],
+        initial_guess=[0.1, -0.1],
         method="perturbation",
         show_coef=False,
-        print_result=True, 
-        print_progress=False, 
+        print_result=True,
+        print_progress=False,
         print_time=False,
     ):
 
@@ -156,11 +156,12 @@ class THDCylindrical(BearingElement):
         self.fat_mixt = np.array(groove_factor)
         self.equilibrium_pos = None
         self.sommerfeld_type = sommerfeld_type
+        self.initial_guess = initial_guess
         self.method = method
         self.show_coef = show_coef
-        self.print_result=print_result
-        self.print_progress=print_progress 
-        self.print_time=print_time
+        self.print_result = print_result
+        self.print_progress = print_progress
+        self.print_time = print_time
 
         if self.n_y == None:
             self.n_y = self.elements_circumferential
@@ -256,7 +257,7 @@ class THDCylindrical(BearingElement):
 
             self.speed = speed[ii]
 
-            self.run(intial_guess)
+            self.run()
 
             coefs = self.coefficients()
             stiff = True
@@ -276,14 +277,14 @@ class THDCylindrical(BearingElement):
 
         super().__init__(node, kxx, cxx, kyy, kxy, kyx, cyy, cxy, cyx, speed)
 
-    def _forces(self, intial_guess, y0, xpt0, ypt0):
+    def _forces(self, initial_guess, y0, xpt0, ypt0):
         """Calculates the forces in Y and X direction.
 
         Parameters
         ----------
-        intial_guess : array, float
-            If the other parameters are None, intial_guess is an array with eccentricity
-            ratio and attitude angle. Else, intial_guess is the position of the center of
+        initial_guess : array, float
+            If the other parameters are None, initial_guess is an array with eccentricity
+            ratio and attitude angle. Else, initial_guess is the position of the center of
             the rotor in the x-axis.
         y0 : float
             The position of the center of the rotor in the y-axis.
@@ -301,17 +302,17 @@ class THDCylindrical(BearingElement):
             Force in Y direction. The unit is newton.
         """
         if y0 is None and xpt0 is None and ypt0 is None:
-            self.intial_guess = intial_guess
+            self.initial_guess = initial_guess
 
             xr = (
-                self.intial_guess[0]
+                self.initial_guess[0]
                 * self.radial_clearance
-                * np.cos(self.intial_guess[1])
+                * np.cos(self.initial_guess[1])
             )
             yr = (
-                self.intial_guess[0]
+                self.initial_guess[0]
                 * self.radial_clearance
-                * np.sin(self.intial_guess[1])
+                * np.sin(self.initial_guess[1])
             )
             self.Y = yr / self.radial_clearance
             self.X = xr / self.radial_clearance
@@ -319,7 +320,7 @@ class THDCylindrical(BearingElement):
             self.Xpt = 0
             self.Ypt = 0
         else:
-            self.X = intial_guess / self.radial_clearance
+            self.X = initial_guess / self.radial_clearance
             self.Y = y0 / self.radial_clearance
 
             self.Xpt = xpt0 / (self.radial_clearance * self.speed)
@@ -1131,7 +1132,7 @@ class THDCylindrical(BearingElement):
         self.Fhy = Fhy
         return Fhx, Fhy
 
-    def run(self, x):
+    def run(self):
         """This method runs the optimization to find the equilibrium position of
         the rotor's center.
 
@@ -1154,7 +1155,7 @@ class THDCylindrical(BearingElement):
         t1 = time.time()
         res = minimize(
             self._score,
-            x,
+            self.initial_guess,
             args,
             method="Nelder-Mead",
             tol=10e-3,
@@ -1219,7 +1220,7 @@ class THDCylindrical(BearingElement):
         """
 
         if self.equilibrium_pos is None:
-            self.run([0.1, -0.1])
+            self.run()
             self.coefficients()
         else:
             if self.method == "lund":
@@ -1268,43 +1269,43 @@ class THDCylindrical(BearingElement):
         epixpt = 0.000001 * np.abs(Va * np.sin(self.equilibrium_pos[1]))
         epiypt = 0.000001 * np.abs(Va * np.cos(self.equilibrium_pos[1]))
 
-        Auintial_guess1 = self._forces(xeq + epix, yeq, 0, 0)
-        Auintial_guess2 = self._forces(xeq - epix, yeq, 0, 0)
-        Auintial_guess3 = self._forces(xeq, yeq + epiy, 0, 0)
-        Auintial_guess4 = self._forces(xeq, yeq - epiy, 0, 0)
+        Auinitial_guess1 = self._forces(xeq + epix, yeq, 0, 0)
+        Auinitial_guess2 = self._forces(xeq - epix, yeq, 0, 0)
+        Auinitial_guess3 = self._forces(xeq, yeq + epiy, 0, 0)
+        Auinitial_guess4 = self._forces(xeq, yeq - epiy, 0, 0)
 
-        Auintial_guess5 = self._forces(xeq, yeq, epixpt, 0)
-        Auintial_guess6 = self._forces(xeq, yeq, -epixpt, 0)
-        Auintial_guess7 = self._forces(xeq, yeq, 0, epiypt)
-        Auintial_guess8 = self._forces(xeq, yeq, 0, -epiypt)
+        Auinitial_guess5 = self._forces(xeq, yeq, epixpt, 0)
+        Auinitial_guess6 = self._forces(xeq, yeq, -epixpt, 0)
+        Auinitial_guess7 = self._forces(xeq, yeq, 0, epiypt)
+        Auinitial_guess8 = self._forces(xeq, yeq, 0, -epiypt)
 
-        Kxx = -self.sommerfeld(Auintial_guess1[0], Auintial_guess2[1]) * (
-            (Auintial_guess1[0] - Auintial_guess2[0]) / (epix / self.radial_clearance)
+        Kxx = -self.sommerfeld(Auinitial_guess1[0], Auinitial_guess2[1]) * (
+            (Auinitial_guess1[0] - Auinitial_guess2[0]) / (epix / self.radial_clearance)
         )
-        Kxy = -self.sommerfeld(Auintial_guess3[0], Auintial_guess4[1]) * (
-            (Auintial_guess3[0] - Auintial_guess4[0]) / (epiy / self.radial_clearance)
+        Kxy = -self.sommerfeld(Auinitial_guess3[0], Auinitial_guess4[1]) * (
+            (Auinitial_guess3[0] - Auinitial_guess4[0]) / (epiy / self.radial_clearance)
         )
-        Kyx = -self.sommerfeld(Auintial_guess1[1], Auintial_guess2[1]) * (
-            (Auintial_guess1[1] - Auintial_guess2[1]) / (epix / self.radial_clearance)
+        Kyx = -self.sommerfeld(Auinitial_guess1[1], Auinitial_guess2[1]) * (
+            (Auinitial_guess1[1] - Auinitial_guess2[1]) / (epix / self.radial_clearance)
         )
-        Kyy = -self.sommerfeld(Auintial_guess3[1], Auintial_guess4[1]) * (
-            (Auintial_guess3[1] - Auintial_guess4[1]) / (epiy / self.radial_clearance)
+        Kyy = -self.sommerfeld(Auinitial_guess3[1], Auinitial_guess4[1]) * (
+            (Auinitial_guess3[1] - Auinitial_guess4[1]) / (epiy / self.radial_clearance)
         )
 
-        Cxx = -self.sommerfeld(Auintial_guess5[0], Auintial_guess6[0]) * (
-            (Auintial_guess6[0] - Auintial_guess5[0])
+        Cxx = -self.sommerfeld(Auinitial_guess5[0], Auinitial_guess6[0]) * (
+            (Auinitial_guess6[0] - Auinitial_guess5[0])
             / (epixpt / self.radial_clearance / self.speed)
         )
-        Cxy = -self.sommerfeld(Auintial_guess7[0], Auintial_guess8[0]) * (
-            (Auintial_guess8[0] - Auintial_guess7[0])
+        Cxy = -self.sommerfeld(Auinitial_guess7[0], Auinitial_guess8[0]) * (
+            (Auinitial_guess8[0] - Auinitial_guess7[0])
             / (epiypt / self.radial_clearance / self.speed)
         )
-        Cyx = -self.sommerfeld(Auintial_guess5[1], Auintial_guess6[1]) * (
-            (Auintial_guess6[1] - Auintial_guess5[1])
+        Cyx = -self.sommerfeld(Auinitial_guess5[1], Auinitial_guess6[1]) * (
+            (Auinitial_guess6[1] - Auinitial_guess5[1])
             / (epixpt / self.radial_clearance / self.speed)
         )
-        Cyy = -self.sommerfeld(Auintial_guess7[1], Auintial_guess8[1]) * (
-            (Auintial_guess8[1] - Auintial_guess7[1])
+        Cyy = -self.sommerfeld(Auinitial_guess7[1], Auinitial_guess8[1]) * (
+            (Auinitial_guess8[1] - Auinitial_guess7[1])
             / (epiypt / self.radial_clearance / self.speed)
         )
 
@@ -1355,7 +1356,7 @@ class THDCylindrical(BearingElement):
 
         p = self.P
 
-        intial_guess = self.equilibrium_pos
+        initial_guess = self.equilibrium_pos
 
         dZ = 1 / self.elements_axial
 
@@ -1367,8 +1368,8 @@ class THDCylindrical(BearingElement):
         Ytheta = np.zeros((self.n_pad, self.elements_circumferential))
 
         # Dimensionless
-        xr = intial_guess[0] * self.radial_clearance * np.cos(intial_guess[1])
-        yr = intial_guess[0] * self.radial_clearance * np.sin(intial_guess[1])
+        xr = initial_guess[0] * self.radial_clearance * np.cos(initial_guess[1])
+        yr = initial_guess[0] * self.radial_clearance * np.sin(initial_guess[1])
         Y = yr / self.radial_clearance
         X = xr / self.radial_clearance
 
@@ -1940,12 +1941,11 @@ def cylindrical_bearing_example():
         lubricant="ISOVG32",
         node=3,
         sommerfeld_type=2,
-        intial_guess=[0.1, -0.1],
+        initial_guess=[0.1, -0.1],
         method="perturbation",
-        print_result=True, 
-        print_progress=False, 
+        print_result=True,
+        print_progress=False,
         print_time=False,
-        
     )
 
     return bearing
