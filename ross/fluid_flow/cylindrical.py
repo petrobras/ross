@@ -1943,6 +1943,7 @@ def cylindrical_bearing_example():
         sommerfeld_type=2,
         initial_guess=[0.1, -0.1],
         method="perturbation",
+        show_coef=False,
         print_result=True,
         print_progress=False,
         print_time=False,
@@ -1950,9 +1951,3 @@ def cylindrical_bearing_example():
 
     return bearing
 
-
-if __name__ == "__main__":
-    bearing = cylindrical_bearing_example()
-    # bearing.plot("kxx")
-    # bearing.equilibrium_pos
-    bearing.coefficients()
