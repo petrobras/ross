@@ -29,6 +29,17 @@ class THDCylindrical(BearingElement):
         Number of pads that compound the bearing surface.
     pad_arc_length : float
         Arc length of each pad. The unit is degree.
+    initial_guess : array
+        Array with eccentricity ratio and attitude angle
+    print_progress : bool
+        Set it True to print the score and forces on each iteration.
+        False by default.
+    print_result : bool
+        Set it True to print result at the end.
+        False by default.
+    print_time : bool
+        Set it True to print the time at the end.
+        False by default.
 
     Operation conditions
     ^^^^^^^^^^^^^^^^^^^^
@@ -136,7 +147,7 @@ class THDCylindrical(BearingElement):
         initial_guess=[0.1, -0.1],
         method="perturbation",
         show_coef=False,
-        print_result=True,
+        print_result=False,
         print_progress=False,
         print_time=False,
     ):
@@ -1136,20 +1147,7 @@ class THDCylindrical(BearingElement):
         """This method runs the optimization to find the equilibrium position of
         the rotor's center.
 
-        Parameters
-        ----------
-        x : array
-            Array with eccentricity ratio and attitude angle
-        print_progress : bool
-            Set it True to print the score and forces on each iteration.
-            False by default.
-        print_result : bool
-            Set it True to print result at the end.
-            False by default.
-        print_time : bool
-            Set it True to print the time at the end.
-            False by default.
-
+       
         """
         args = self.print_progress
         t1 = time.time()
@@ -1919,7 +1917,7 @@ def cylindrical_bearing_example():
     Examples
     --------
     >>> bearing = cylindrical_bearing_example()
-    >>> bearing.L
+    >>> bearing.axial_length
     0.263144
     """
 
@@ -1944,7 +1942,7 @@ def cylindrical_bearing_example():
         initial_guess=[0.1, -0.1],
         method="perturbation",
         show_coef=False,
-        print_result=True,
+        print_result=False,
         print_progress=False,
         print_time=False,
     )
