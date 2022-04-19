@@ -1147,7 +1147,7 @@ class THDCylindrical(BearingElement):
         """This method runs the optimization to find the equilibrium position of
         the rotor's center.
 
-       
+
         """
         args = self.print_progress
         t1 = time.time()
@@ -1170,15 +1170,24 @@ class THDCylindrical(BearingElement):
 
     def _interpol(self, T_muI, T_muF, mu_I, mu_F):
         """
+        This method is used to create a relationship between viscosity and
+        temperature.
 
         Parameters
         ----------
-
-
+        T_muI: float
+            Reference temperature 1.
+        T_muF: float
+            Reference temperature 2.
+        mu_I: float
+            Viscosity at temperature 1.
+        mu_F: float
+            Viscosity at temperature 1.
 
         Returns
         -------
-
+        a,b: Float
+            Coeficients of the curve viscosity vs temperature.
         """
 
         def viscosity(x, a, b):
@@ -1841,13 +1850,13 @@ class THDCylindrical(BearingElement):
         """This method used to set the objective function of minimize optimization.
 
         Parameters
-        ==========
-        score: float
+        ----------
+        x: array
            Balanced Force expression between the load aplied in bearing and the
            resultant force provide by oil film.
 
         Returns
-        ========
+        -------
         Score coefficient.
 
         """
@@ -1948,4 +1957,3 @@ def cylindrical_bearing_example():
     )
 
     return bearing
-
