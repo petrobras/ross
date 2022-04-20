@@ -31,6 +31,10 @@ class THDCylindrical(BearingElement):
         Arc length of each pad. The unit is degree.
     initial_guess : array
         Array with eccentricity ratio and attitude angle
+    method : string
+        Choose the method to calculate the dynamics coefficients. Options are:
+        - 'lund'
+        - 'perturbation'
     print_progress : bool
         Set it True to print the score and forces on each iteration.
         False by default.
@@ -1206,13 +1210,6 @@ class THDCylindrical(BearingElement):
         Basic reference is found at :cite:t:`lund1978`
         Parameters
         ----------
-        method : string
-            Choose the method of ... Options are:
-                lund: method that calculates...
-                perturbation: method that ...
-        show_coef : bool
-            Set it True, to print the calculated coefficients.
-            False by default.
 
         Returns
         -------
