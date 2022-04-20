@@ -16,8 +16,9 @@ from scipy import interpolate as interpolate
 
 from ross.element import Element
 from ross.fluid_flow import fluid_flow as flow
-from ross.fluid_flow.fluid_flow_coefficients import \
-    calculate_stiffness_and_damping_coefficients
+from ross.fluid_flow.fluid_flow_coefficients import (
+    calculate_stiffness_and_damping_coefficients,
+)
 from ross.units import Q_, check_units
 from ross.utils import read_table_file
 
