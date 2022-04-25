@@ -3259,6 +3259,7 @@ class ForcedResponseResults(Results):
             range(unbalance.shape[1]), unbalance[0], unbalance[1], unbalance[2]
         ):
             # scale unbalance marker to half the maximum major axis
+            n = int(n)
             scaled_amplitude = np.max(shape.major_axis) / 2
             x = scaled_amplitude * np.cos(phase)
             y = scaled_amplitude * np.sin(phase)
@@ -3510,17 +3511,27 @@ class ForcedResponseResults(Results):
         subplot_kwargs = {} if subplot_kwargs is None else copy.copy(subplot_kwargs)
         speed_str = Q_(speed, "rad/s").to(frequency_units).m
 
-        # fmt: off
         fig0 = self.plot_deflected_shape_2d(
-            speed, frequency_units, amplitude_units, rotor_length_units, **shape2d_kwargs
+            speed,
+            frequency_units=frequency_units,
+            amplitude_units=amplitude_units,
+            rotor_length_units=rotor_length_units,
+            **shape2d_kwargs,
         )
         fig1 = self.plot_deflected_shape_3d(
-            speed, samples, frequency_units, amplitude_units, rotor_length_units, **shape3d_kwargs
+            speed,
+            frequency_units=frequency_units,
+            amplitude_units=amplitude_units,
+            rotor_length_units=rotor_length_units,
+            **shape3d_kwargs,
         )
         fig2 = self.plot_bending_moment(
-            speed, frequency_units, moment_units, rotor_length_units, **bm_kwargs
+            speed,
+            frequency_units=frequency_units,
+            moment_units=moment_units,
+            rotor_length_units=rotor_length_units,
+            **bm_kwargs,
         )
-        # fmt: on
 
         subplots = make_subplots(
             rows=2,
@@ -3546,6 +3557,8 @@ class ForcedResponseResults(Results):
                 yaxis=fig1.layout.scene.yaxis,
                 zaxis=fig1.layout.scene.zaxis,
                 domain=dict(x=[0.47, 1]),
+                aspectmode=fig1.layout.scene.aspectmode,
+                aspectratio=fig1.layout.scene.aspectratio,
             ),
             title=dict(
                 text=f"Deflected Shape<br>Speed = {speed_str} {frequency_units}",
