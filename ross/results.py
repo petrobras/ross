@@ -255,9 +255,9 @@ class Orbit(Results):
 
         Returns
         -------
-        amplitude : float
-            Amplitude value.
-            The units are the same as the ru_e and rv_e used to create the orbit.
+        amplitude, phase : tuple
+            Tuple with (amplitude, phase) value.
+            The amplitude units are the same as the ru_e and rv_e used to create the orbit.
         """
         # find closest angle index
         if angle == "major":
