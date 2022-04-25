@@ -163,7 +163,51 @@ class Results(ABC):
 
 
 class Orbit(Results):
-    """Class used to construct orbits for a node in a mode or deflected shape.
+    r"""Class used to construct orbits for a node in a mode or deflected shape.
+
+    The matrix H contains information about the whirl direction,
+    the orbit minor and major axis and the orbit inclination.
+    The matrix is calculated by :math:`H = T.T^T` where the
+    matrix T is constructed using the eigenvector corresponding
+    to the natural frequency of interest:
+
+    .. math::
+
+       \begin{eqnarray}
+          \begin{bmatrix}
+          u(t)\\
+          v(t)
+          \end{bmatrix}
+          = \mathfrak{R}\Bigg(
+          \begin{bmatrix}
+          r_u e^{j\eta_u}\\
+          r_v e^{j\eta_v}
+          \end{bmatrix}\Bigg)
+          e^{j\omega_i t}
+          =
+          \begin{bmatrix}
+          r_u cos(\eta_u + \omega_i t)\\
+          r_v cos(\eta_v + \omega_i t)
+          \end{bmatrix}
+          = {\bf T}
+          \begin{bmatrix}
+          cos(\omega_i t)\\
+          sin(\omega_i t)
+          \end{bmatrix}
+       \end{eqnarray}
+
+    Where :math:`r_u e^{j\eta_u}` e :math:`r_v e^{j\eta_v}` are the
+    elements of the *i*\th eigenvector, corresponding to the node and
+    natural frequency of interest (mode).
+
+    .. math::
+
+        {\bf T} =
+        \begin{bmatrix}
+        r_u cos(\eta_u) & -r_u sin(\eta_u)\\
+        r_u cos(\eta_u) & -r_v sin(\eta_v)
+        \end{bmatrix}
+
 
     Parameters
     ----------
