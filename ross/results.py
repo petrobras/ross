@@ -377,7 +377,20 @@ class Shape(Results):
         self.nodes_pos = nodes_pos
         self.shaft_elements_length = shaft_elements_length
         self.normalize = normalize
-        self._evec = np.copy(vector)
+        evec = np.copy(vector)
+
+        if self.normalize:
+            modex = evec[0::4]
+            modey = evec[1::4]
+            xmax, ixmax = max(abs(modex)), np.argmax(abs(modex))
+            ymax, iymax = max(abs(modey)), np.argmax(abs(modey))
+
+            if ymax > 0.4 * xmax:
+                evec /= modey[iymax]
+            else:
+                evec /= modex[ixmax]
+
+        self._evec = evec
         self.orbits = None
         self.whirl = None
         self.color = None
@@ -385,6 +398,7 @@ class Shape(Results):
         self.yn = None
         self.zn = None
         self.major_axis = None
+        self._calculate()
 
     def _calculate_orbits(self):
         orbits = []
@@ -412,17 +426,6 @@ class Shape(Results):
         nodes = self.nodes
         shaft_elements_length = self.shaft_elements_length
         nodes_pos = self.nodes_pos
-
-        if self.normalize:
-            modex = evec[0::4]
-            modey = evec[1::4]
-            xmax, ixmax = max(abs(modex)), np.argmax(abs(modex))
-            ymax, iymax = max(abs(modey)), np.argmax(abs(modey))
-
-            if ymax > 0.4 * xmax:
-                evec /= modey[iymax]
-            else:
-                evec /= modex[ixmax]
 
         # calculate each orbit
         self._calculate_orbits()
@@ -502,8 +505,6 @@ class Shape(Results):
             The figure object with the plot.
         """
         # only perform calculation if necessary
-        if self.orbits is None:
-            self._calculate()
         if fig is None:
             fig = go.Figure()
 
@@ -538,8 +539,6 @@ class Shape(Results):
         fig : Plotly graph_objects.Figure()
             The figure object with the plot.
         """
-        if self.orbits is None:
-            self._calculate()
         xn = self.major_x.copy()
         yn = self.major_y.copy()
         zn = self.zn.copy()
@@ -604,14 +603,9 @@ class Shape(Results):
         if fig is None:
             fig = go.Figure()
 
-        if self.orbits is None:
-            self._calculate()
-        major_x = self.major_x.copy()
-        major_y = self.major_y.copy()
         xn = self.xn.copy()
         yn = self.yn.copy()
         zn = self.zn.copy()
-        nodes_pos = Q_(self.nodes_pos, "m").to(length_units).m
 
         # plot orbits
         first_orbit = True
