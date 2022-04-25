@@ -443,6 +443,20 @@ class Shape(Results):
         self.major_angle = major_angle
 
     def plot_orbit(self, nodes, fig=None):
+        """Plot orbits.
+
+        Parameters
+        ----------
+        nodes : list
+            List with nodes for which the orbits will be plotted.
+        fig : Plotly graph_objects.Figure()
+            The figure object with the plot.
+
+        Returns
+        -------
+        fig : Plotly graph_objects.Figure()
+            The figure object with the plot.
+        """
         # only perform calculation if necessary
         if self.orbits is None:
             self._calculate()
