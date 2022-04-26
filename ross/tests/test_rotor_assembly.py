@@ -1867,3 +1867,58 @@ def test_torque():
         [81.324905, 84.769077, 242.822862, 286.158147, 591.519983, 827.003048]
     )
     assert_allclose(modal.wd, expected_wd)
+
+
+@pytest.fixture
+def rotor_conical():
+    L_total = 0.5
+    odl = 0.1
+    odr = 0.01
+    shaft_elements = []
+
+    N = 4
+    delta_d = (odl - odr) / N
+
+    odl_el = odl
+    odr_el = odl - delta_d
+
+    for i in range(N):
+        L = L_total / N
+
+        sh_el = ShaftElement(
+            n=i,
+            idl=0.0,
+            odl=odl_el,
+            idr=0.0,
+            odr=odr_el,
+            material=steel,
+            L=L,
+        )
+        shaft_elements.append(sh_el)
+
+        odl_el -= delta_d
+        odr_el -= delta_d
+
+    bearing0 = BearingElement(n=0, kxx=1e20, kyy=1e20, cxx=0)
+    bearing1 = BearingElement(n=N, kxx=1e20, kyy=1e20, cxx=0)
+
+    rotor_conical = Rotor(
+        shaft_elements=shaft_elements, bearing_elements=[bearing0, bearing1]
+    )
+
+    return rotor_conical
+
+
+def test_rotor_conical_frequencies(rotor_conical):
+    modal = rotor_conical.run_modal(speed=0)
+    expected_wn = np.array(
+        [
+            1630.7509182,
+            1630.75091824,
+            9899.54379138,
+            9899.54396231,
+            21074.45440319,
+            21074.45440372,
+        ]
+    )
+    assert_allclose(modal.wn, expected_wn, rtol=1e-5)
