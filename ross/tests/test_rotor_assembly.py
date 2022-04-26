@@ -1444,6 +1444,15 @@ def test_unbalance(rotor7):
 
 
 def test_deflected_shape(rotor7):
+    # change to asymmetric stiffness to it is easier to get the major axis at the same place
+    bearing0 = BearingElement(0, kxx=1e6, kyy=2e6, cxx=1e3, cyy=1e3)
+    bearing1 = BearingElement(6, kxx=1e6, kyy=2e6, cxx=1e3, cyy=1e3)
+    rotor7 = Rotor(
+        shaft_elements=rotor7.shaft_elements,
+        disk_elements=rotor7.disk_elements,
+        bearing_elements=[bearing0, bearing1],
+    )
+
     forced = rotor7.run_unbalance_response(
         node=0, unbalance_magnitude=1, unbalance_phase=0, frequency=[50]
     )
@@ -1452,26 +1461,26 @@ def test_deflected_shape(rotor7):
     expected_x = np.array([0.0, 0.0625, 0.125, 0.1875, 0.25, 0.25, 0.3125, 0.375])
     expected_y = np.array(
         [
-            0.00270725,
-            0.00266953,
-            0.00262725,
-            0.002577,
-            0.00252056,
-            0.00252056,
-            0.00246307,
-            0.00239883,
+            0.00274183,
+            0.00269077,
+            0.00263888,
+            0.0025852,
+            0.00252877,
+            0.00252877,
+            0.0024688,
+            0.00240457,
         ]
     )
     expected_z = np.array(
         [
-            0.00042256,
-            0.00032067,
-            0.00022188,
-            0.0001715,
-            0.00016696,
-            0.00016696,
-            0.00011911,
-            0.0001152,
+            5.72720829e-05,
+            5.59724347e-05,
+            5.46564072e-05,
+            5.33052546e-05,
+            5.19002311e-05,
+            5.19002311e-05,
+            5.04258251e-05,
+            4.88678837e-05,
         ]
     )
     assert_allclose(fig.data[-3]["x"][:8], expected_x, rtol=1e-4)
