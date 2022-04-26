@@ -1411,7 +1411,7 @@ def test_plot_mode(rotor7):
     fig = modal7.plot_mode_2d(1)
 
     expected_x = np.array([0.0, 0.0125, 0.025, 0.0375, 0.05])
-    expected_y = np.array([0.332965, 0.34969, 0.366417, 0.383136, 0.399834])
+    expected_y = np.array([0.333274, 0.350015, 0.366758, 0.383492, 0.400206])
 
     assert fig.data[0]["line"]["color"] == "#1f77b4"  # blue
     assert_allclose(fig.data[0]["x"][:5], expected_x, rtol=1e-5)

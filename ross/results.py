@@ -478,9 +478,6 @@ class Shape(Results):
                 major_y[i] = orb.major_y
                 major_angle[i] = orb.major_angle
 
-        if self.normalize:
-            major /= max(major)
-
         self.xn = xn
         self.yn = yn
         self.zn = zn
