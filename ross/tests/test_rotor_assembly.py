@@ -376,40 +376,24 @@ def test_kappa_rotor3(rotor3):
     # TODO: Move this to test_results.py
     modal3_0 = rotor3.run_modal(speed=0)
     assert_allclose(modal3_0.kappa(0, 0)["Frequency"], 82.653037, rtol=1e-3)
-    assert_allclose(modal3_0.kappa(0, 0)["Major axes"], 0.001454062985920231, rtol=1e-3)
-    assert_allclose(
-        modal3_0.kappa(0, 0)["Minor axes"], 2.0579515874459978e-11, rtol=1e-3, atol=1e-6
-    )
-    assert_allclose(
-        modal3_0.kappa(0, 0)["kappa"], -1.415311171090584e-08, rtol=1e-3, atol=1e-6
-    )
+    assert_allclose(modal3_0.kappa(0, 0)["Major axis"], 0.3826857177947612, rtol=1e-3)
+    assert_allclose(modal3_0.kappa(0, 0)["Minor axis"], 0.0, rtol=1e-3, atol=1e-6)
+    assert_allclose(modal3_0.kappa(0, 0)["kappa"], -0.0, rtol=1e-3, atol=1e-6)
 
     modal3_2000 = rotor3.run_modal(speed=2000)
     assert_allclose(modal3_2000.kappa(0, 0)["Frequency"], 77.37957042, rtol=1e-3)
-    assert_allclose(
-        modal3_2000.kappa(0, 0)["Major axes"], 0.0011885396330204021, rtol=1e-3
-    )
-    assert_allclose(
-        modal3_2000.kappa(0, 0)["Minor axes"], 0.0007308144427338161, rtol=1e-3
-    )
+    assert_allclose(modal3_2000.kappa(0, 0)["Major axis"], 0.384089, rtol=1e-3)
+    assert_allclose(modal3_2000.kappa(0, 0)["Minor axis"], 0.23617, rtol=1e-3)
     assert_allclose(modal3_2000.kappa(0, 0)["kappa"], -0.6148843693807821, rtol=1e-3)
 
     assert_allclose(modal3_2000.kappa(0, 1)["Frequency"], 88.98733511566752, rtol=1e-3)
-    assert_allclose(
-        modal3_2000.kappa(0, 1)["Major axes"], 0.0009947502339267566, rtol=1e-3
-    )
-    assert_allclose(
-        modal3_2000.kappa(0, 1)["Minor axes"], 0.0008412470069506472, rtol=1e-3
-    )
+    assert_allclose(modal3_2000.kappa(0, 1)["Major axis"], 0.480048, rtol=1e-3)
+    assert_allclose(modal3_2000.kappa(0, 1)["Minor axis"], 0.40597, rtol=1e-3)
     assert_allclose(modal3_2000.kappa(0, 1)["kappa"], 0.8456866641084784, rtol=1e-3)
 
     assert_allclose(modal3_2000.kappa(1, 1)["Frequency"], 88.98733511566752, rtol=1e-3)
-    assert_allclose(
-        modal3_2000.kappa(1, 1)["Major axes"], 0.0018877975750108973, rtol=1e-3
-    )
-    assert_allclose(
-        modal3_2000.kappa(1, 1)["Minor axes"], 0.0014343257484060105, rtol=1e-3
-    )
+    assert_allclose(modal3_2000.kappa(1, 1)["Major axis"], 0.911015, rtol=1e-3)
+    assert_allclose(modal3_2000.kappa(1, 1)["Minor axis"], 0.692178, rtol=1e-3)
     assert_allclose(modal3_2000.kappa(1, 1)["kappa"], 0.7597878964314968, rtol=1e-3)
 
 
@@ -1388,65 +1372,120 @@ def test_kappa_mode(rotor7):
 
 def test_kappa_axes_values(rotor7):
     modal7 = rotor7.run_modal(50)
-    assert_allclose(modal7.kappa(3, 0)["Minor axes"], 0.0024460977827471028, atol=1e-6)
-    assert_allclose(modal7.kappa(3, 1)["Minor axes"], 0.0024415401094917922, atol=1e-6)
-    assert_allclose(modal7.kappa(3, 2)["Minor axes"], 7.753006465896838e-05, atol=1e-8)
-    assert_allclose(modal7.kappa(3, 0)["Major axes"], 0.0024460977827550083, atol=1e-6)
-    assert_allclose(modal7.kappa(3, 1)["Major axes"], 0.0024415401094980776, atol=1e-6)
-    assert_allclose(modal7.kappa(3, 2)["Major axes"], 7.753006466024783e-05, atol=1e-8)
+    assert_allclose(modal7.kappa(3, 0)["Minor axis"], 1.0, atol=1e-6)
+    assert_allclose(modal7.kappa(3, 1)["Minor axis"], 1.0, atol=1e-6)
+    assert_allclose(modal7.kappa(3, 2)["Minor axis"], 0.128085, atol=1e-6)
+    assert_allclose(modal7.kappa(3, 0)["Major axis"], 1.0, atol=1e-6)
+    assert_allclose(modal7.kappa(3, 1)["Major axis"], 1.0, atol=1e-6)
+    assert_allclose(modal7.kappa(3, 2)["Major axis"], 0.128085, atol=1e-6)
 
     modal7 = rotor7.run_modal(200)
-    assert_allclose(modal7.kappa(3, 0)["Minor axes"], 0.002453197790184042, atol=1e-6)
-    assert_allclose(modal7.kappa(3, 1)["Minor axes"], 0.0024349531472631354, atol=1e-6)
-    assert_allclose(modal7.kappa(3, 2)["Minor axes"], 8.081580235887124e-05, atol=1e-8)
-    assert_allclose(modal7.kappa(3, 0)["Major axes"], 0.002453197790191339, atol=1e-6)
-    assert_allclose(modal7.kappa(3, 1)["Major axes"], 0.0024349531472711047, atol=1e-6)
-    assert_allclose(modal7.kappa(3, 2)["Major axes"], 8.081580235956821e-05, atol=1e-8)
+    assert_allclose(modal7.kappa(3, 0)["Minor axis"], 1.0, atol=1e-6)
+    assert_allclose(modal7.kappa(3, 1)["Minor axis"], 1.0, atol=1e-6)
+    assert_allclose(modal7.kappa(3, 2)["Minor axis"], 0.132574, atol=1e-6)
+    assert_allclose(modal7.kappa(3, 0)["Major axis"], 1.0, atol=1e-6)
+    assert_allclose(modal7.kappa(3, 1)["Major axis"], 1.0, atol=1e-6)
+    assert_allclose(modal7.kappa(3, 2)["Major axis"], 0.132574, atol=1e-6)
 
     modal7 = rotor7.run_modal(400)
-    assert_allclose(modal7.kappa(3, 0)["Minor axes"], 0.002463187671800876, atol=1e-6)
-    assert_allclose(modal7.kappa(3, 1)["Minor axes"], 0.0024266089747119572, atol=1e-6)
-    assert_allclose(modal7.kappa(3, 2)["Minor axes"], 8.480305842194371e-05, atol=1e-8)
-    assert_allclose(modal7.kappa(3, 0)["Major axes"], 0.002463187671801488, atol=1e-6)
-    assert_allclose(modal7.kappa(3, 1)["Major axes"], 0.0024266089747121845, atol=1e-6)
-    assert_allclose(modal7.kappa(3, 2)["Major axes"], 8.480305842205874e-05, atol=1e-8)
+    assert_allclose(modal7.kappa(3, 0)["Minor axis"], 1.0, atol=1e-6)
+    assert_allclose(modal7.kappa(3, 1)["Minor axis"], 1.0, atol=1e-6)
+    assert_allclose(modal7.kappa(3, 2)["Minor axis"], 0.131419, atol=1e-6)
+    assert_allclose(modal7.kappa(3, 0)["Major axis"], 1.0, atol=1e-6)
+    assert_allclose(modal7.kappa(3, 1)["Major axis"], 1.0, atol=1e-6)
+    assert_allclose(modal7.kappa(3, 2)["Major axis"], 0.131419, atol=1e-6)
 
 
-@pytest.mark.skip(reason="Fails for very small values")
-def test_H_kappa(rotor7):
-    rotor7.w = 400
-    assert_allclose(
-        rotor7.H_kappa(3, 0),
-        [[6.06729351e-06, -6.33478357e-19], [-6.33478357e-19, 6.06729351e-06]],
-        rtol=1e-2,
+def test_plot_mode(rotor7):
+    # run this test with sparse=False, since small differences in the
+    # eigenvector can cause the assertion to fail
+    modal7 = rotor7.run_modal(50, sparse=False)
+
+    fig = modal7.plot_orbit(1, 3)
+    expected_x = np.array([-1.750102e-02, -3.499667e-02, -5.248161e-02, -6.995046e-02])
+    expected_y = np.array([1.0, 0.999847, 0.999387, 0.998622, 0.99755])
+    assert fig.data[0]["line"]["color"] == "#1f77b4"  # blue
+    assert_allclose(fig.data[0]["x"][1:5], expected_x, rtol=1e-5)
+    assert_allclose(fig.data[0]["y"][:5], expected_y, rtol=1e-5)
+
+    fig = modal7.plot_mode_2d(1)
+
+    expected_x = np.array([0.0, 0.0625, 0.125, 0.1875, 0.25])
+    expected_y = np.array([0.333274, 0.416889, 0.499442, 0.579556, 0.655866])
+
+    assert fig.data[0]["line"]["color"] == "#1f77b4"  # blue
+    assert_allclose(fig.data[0]["x"][:5], expected_x, rtol=1e-5)
+    assert_allclose(fig.data[0]["y"][:5], expected_y, rtol=1e-5)
+
+    fig = modal7.plot_mode_3d(1)
+
+    expected_x = np.array([0.0, 0.0625, 0.125, 0.1875, 0.25])
+    expected_y = np.array([0.01876129, 0.01631675, 0.01390729, 0.0115747, 0.00936075])
+    expected_z = np.array([0.33274591, 0.41656925, 0.49924871, 0.5794401, 0.65579925])
+
+    assert fig.data[0]["line"]["color"] == "#1f77b4"  # blue
+    # -3 is the black line that passes through each orbit starting point
+    assert_allclose(fig.data[-3]["x"][:5], expected_x, rtol=1e-5)
+    assert_allclose(fig.data[-3]["y"][:5], expected_y, rtol=1e-5)
+    assert_allclose(fig.data[-3]["z"][:5], expected_z, rtol=1e-5)
+
+
+def test_unbalance(rotor7):
+    unb = rotor7.run_unbalance_response(
+        node=0, unbalance_magnitude=1, unbalance_phase=0, frequency=[50, 100]
     )
-    assert_allclose(
-        rotor7.H_kappa(3, 0),
-        [[5.88843112e-06, 2.88604638e-20], [2.88604638e-20, 5.88843112e-06]],
-        rtol=1e-2,
-    )
-    assert_allclose(
-        rotor7.H_kappa(3, 0),
-        [[7.19155872e-09, 9.75123448e-21], [9.75123448e-21, 7.19155872e-09]],
-        rtol=1e-2,
+    amplitude_expected = np.array([0.00274, 0.003526])
+    data = unb.data_magnitude(probe=[(0, 45)], probe_units="deg")
+    assert_allclose(data["Probe 1 - Node 0"], amplitude_expected, rtol=1e-4)
+
+    phase_expected = np.array([0.730209, 0.545276])
+    data = unb.data_phase(probe=[(0, 45)], probe_units="deg")
+    assert_allclose(data["Probe 1 - Node 0"], phase_expected, rtol=1e-4)
+
+
+def test_deflected_shape(rotor7):
+    # change to asymmetric stiffness to it is easier to get the major axis at the same place
+    bearing0 = BearingElement(0, kxx=1e6, kyy=2e6, cxx=1e3, cyy=1e3)
+    bearing1 = BearingElement(6, kxx=1e6, kyy=2e6, cxx=1e3, cyy=1e3)
+    rotor7 = Rotor(
+        shaft_elements=rotor7.shaft_elements,
+        disk_elements=rotor7.disk_elements,
+        bearing_elements=[bearing0, bearing1],
     )
 
-    rotor7.w = 200
-    assert_allclose(
-        rotor7.H_kappa(3, 0),
-        [[6.0181794e-06, 1.9785678e-18], [1.9785678e-18, 6.0181794e-06]],
-        rtol=1e-2,
+    forced = rotor7.run_unbalance_response(
+        node=0, unbalance_magnitude=1, unbalance_phase=0, frequency=[50]
     )
-    assert_allclose(
-        rotor7.H_kappa(3, 0),
-        [[5.92899683e-06, -1.24262274e-17], [-1.24262274e-17, 5.92899683e-06]],
-        rtol=1e-2,
+    fig = forced.plot_deflected_shape_3d(speed=50)
+    # check major axis
+    expected_x = np.array([0.0, 0.0625, 0.125, 0.1875, 0.25, 0.25, 0.3125, 0.375])
+    expected_y = np.array(
+        [
+            0.00274183,
+            0.00269077,
+            0.00263888,
+            0.0025852,
+            0.00252877,
+            0.00252877,
+            0.0024688,
+            0.00240457,
+        ]
     )
-    assert_allclose(
-        rotor7.H_kappa(3, 0),
-        [[6.53119391e-09, 4.73407722e-20], [4.73407722e-20, 6.53119391e-09]],
-        rtol=1e-2,
+    expected_z = np.array(
+        [
+            5.72720829e-05,
+            5.59724347e-05,
+            5.46564072e-05,
+            5.33052546e-05,
+            5.19002311e-05,
+            5.19002311e-05,
+            5.04258251e-05,
+            4.88678837e-05,
+        ]
     )
+    assert_allclose(fig.data[-3]["x"][:8], expected_x, rtol=1e-4)
+    assert_allclose(fig.data[-3]["y"][:8], expected_y, rtol=1e-4)
+    assert_allclose(fig.data[-3]["z"][:8], expected_z, rtol=1e-4)
 
 
 def test_global_index():

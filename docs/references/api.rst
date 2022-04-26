@@ -57,6 +57,8 @@ These are classes used to store results and to provide useful methods such as pl
 .. autosummary::
     :toctree: generated/results
 
+    Orbit
+    Shape
     CriticalSpeedResults
     ModalResults
     CampbellResults

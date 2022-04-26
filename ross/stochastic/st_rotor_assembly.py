@@ -559,9 +559,9 @@ class ST_Rotor(object):
         FRF_size = len(speed_range)
         RV_size = self.RV_size
 
-        freq_resp = np.empty((FRF_size, RV_size), dtype=np.complex)
-        velc_resp = np.empty((FRF_size, RV_size), dtype=np.complex)
-        accl_resp = np.empty((FRF_size, RV_size), dtype=np.complex)
+        freq_resp = np.empty((FRF_size, RV_size), dtype=complex)
+        velc_resp = np.empty((FRF_size, RV_size), dtype=complex)
+        accl_resp = np.empty((FRF_size, RV_size), dtype=complex)
 
         # Monte Carlo - results storage
         for i, rotor in enumerate(iter(self)):
@@ -811,9 +811,9 @@ class ST_Rotor(object):
             rtol=rtol,
         )
 
-        forced_resp = np.zeros((RV_size, ndof, freq_size), dtype=np.complex)
-        velc_resp = np.zeros((RV_size, ndof, freq_size), dtype=np.complex)
-        accl_resp = np.zeros((RV_size, ndof, freq_size), dtype=np.complex)
+        forced_resp = np.zeros((RV_size, ndof, freq_size), dtype=complex)
+        velc_resp = np.zeros((RV_size, ndof, freq_size), dtype=complex)
+        accl_resp = np.zeros((RV_size, ndof, freq_size), dtype=complex)
         is_random = []
 
         if (isinstance(node, int) and isinstance(unbalance_magnitude, Iterable)) or (

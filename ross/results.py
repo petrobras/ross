@@ -20,6 +20,8 @@ from ross.units import Q_, check_units
 from ross.utils import intersection
 
 __all__ = [
+    "Orbit",
+    "Shape",
     "CriticalSpeedResults",
     "ModalResults",
     "CampbellResults",
@@ -160,6 +162,569 @@ class Results(ABC):
         return cls.read_toml_data(data)
 
 
+class Orbit(Results):
+    r"""Class used to construct orbits for a node in a mode or deflected shape.
+
+    The matrix H contains information about the whirl direction,
+    the orbit minor and major axis and the orbit inclination.
+    The matrix is calculated by :math:`H = T.T^T` where the
+    matrix T is constructed using the eigenvector corresponding
+    to the natural frequency of interest:
+
+    .. math::
+
+       \begin{eqnarray}
+          \begin{bmatrix}
+          u(t)\\
+          v(t)
+          \end{bmatrix}
+          = \mathfrak{R}\Bigg(
+          \begin{bmatrix}
+          r_u e^{j\eta_u}\\
+          r_v e^{j\eta_v}
+          \end{bmatrix}\Bigg)
+          e^{j\omega_i t}
+          =
+          \begin{bmatrix}
+          r_u cos(\eta_u + \omega_i t)\\
+          r_v cos(\eta_v + \omega_i t)
+          \end{bmatrix}
+          = {\bf T}
+          \begin{bmatrix}
+          cos(\omega_i t)\\
+          sin(\omega_i t)
+          \end{bmatrix}
+       \end{eqnarray}
+
+    Where :math:`r_u e^{j\eta_u}` e :math:`r_v e^{j\eta_v}` are the
+    elements of the *i*\th eigenvector, corresponding to the node and
+    natural frequency of interest (mode).
+
+    .. math::
+
+        {\bf T} =
+        \begin{bmatrix}
+        r_u cos(\eta_u) & -r_u sin(\eta_u)\\
+        r_u cos(\eta_u) & -r_v sin(\eta_v)
+        \end{bmatrix}
+
+
+    Parameters
+    ----------
+    node : int
+        Orbit node in the rotor.
+    ru_e : complex
+        Element in the vector corresponding to the x direction.
+    rv_e : complex
+        Element in the vector corresponding to the y direction.
+    """
+
+    def __init__(self, *, node, node_pos, ru_e, rv_e):
+        self.node = node
+        self.node_pos = node_pos
+        self.ru_e = ru_e
+        self.rv_e = rv_e
+
+        # data for plotting
+        num_points = 360
+        c = np.linspace(0, 2 * np.pi, num_points)
+        circle = np.exp(1j * c)
+
+        self.x_circle = np.real(ru_e * circle)
+        self.y_circle = np.real(rv_e * circle)
+        angle = np.arctan2(self.y_circle, self.x_circle)
+        angle[angle < 0] = angle[angle < 0] + 2 * np.pi
+        self.angle = angle
+
+        # find major axis index looking at the first half circle
+        self.major_index = np.argmax(
+            np.sqrt(self.x_circle[:180] ** 2 + self.y_circle[:180] ** 2)
+        )
+        self.major_x = self.x_circle[self.major_index]
+        self.major_y = self.y_circle[self.major_index]
+        self.major_angle = self.angle[self.major_index]
+        self.minor_angle = self.major_angle + np.pi / 2
+
+        # calculate T matrix
+        ru = np.absolute(ru_e)
+        rv = np.absolute(rv_e)
+
+        nu = np.angle(ru_e)
+        nv = np.angle(rv_e)
+        self.nu = nu
+        self.nv = nv
+        # fmt: off
+        T = np.array([[ru * np.cos(nu), -ru * np.sin(nu)],
+                      [rv * np.cos(nv), -rv * np.sin(nv)]])
+        # fmt: on
+        H = T @ T.T
+
+        lam = la.eig(H)[0]
+        # lam is the eigenvalue -> sqrt(lam) is the minor/major axis.
+        # kappa encodes the relation between the axis and the precession.
+        minor = np.sqrt(lam.min())
+        major = np.sqrt(lam.max())
+        kappa = minor / major
+        diff = nv - nu
+
+        # we need to evaluate if 0 < nv - nu < pi.
+        if diff < -np.pi:
+            diff += 2 * np.pi
+        elif diff > np.pi:
+            diff -= 2 * np.pi
+
+        # if nv = nu or nv = nu + pi then the response is a straight line.
+        if diff == 0 or diff == np.pi:
+            kappa = 0
+
+        # if 0 < nv - nu < pi, then a backward rotating mode exists.
+        elif 0 < diff < np.pi:
+            kappa *= -1
+
+        self.minor_axis = np.real(minor)
+        self.major_axis = np.real(major)
+        self.kappa = np.real(kappa)
+        self.whirl = "Forward" if self.kappa > 0 else "Backward"
+        self.color = (
+            tableau_colors["blue"] if self.whirl == "Forward" else tableau_colors["red"]
+        )
+
+    @check_units
+    def calculate_amplitude(self, angle):
+        """Calculates the amplitude for a given angle of the orbit.
+
+        Parameters
+        ----------
+        angle : float, str, pint.Quantity
+
+        Returns
+        -------
+        amplitude, phase : tuple
+            Tuple with (amplitude, phase) value.
+            The amplitude units are the same as the ru_e and rv_e used to create the orbit.
+        """
+        # find closest angle index
+        if angle == "major":
+            return self.major_axis, self.major_angle
+        elif angle == "minor":
+            return self.minor_axis, self.minor_angle
+
+        idx = (np.abs(self.angle - angle)).argmin()
+        amplitude = np.sqrt(self.x_circle[idx] ** 2 + self.y_circle[idx] ** 2)
+        phase = self.angle[0] + angle
+        if phase > 2 * np.pi:
+            phase -= 2 * np.pi
+
+        return amplitude, phase
+
+    def plot_orbit(self, fig=None):
+        if fig is None:
+            fig = go.Figure()
+
+        xc = self.x_circle
+        yc = self.y_circle
+
+        fig.add_trace(
+            go.Scatter(
+                x=xc[:-10],
+                y=yc[:-10],
+                mode="lines",
+                line=dict(color=self.color),
+                name=f"node {self.node}<br>{self.whirl}",
+                showlegend=False,
+            )
+        )
+
+        fig.add_trace(
+            go.Scatter(
+                x=[xc[0]],
+                y=[yc[0]],
+                mode="markers",
+                marker=dict(color=self.color),
+                name="node {}".format(self.node),
+                showlegend=False,
+            )
+        )
+
+        return fig
+
+
+class Shape(Results):
+    """Class used to construct a mode or a deflected shape from a eigen or response vector.
+
+    Parameters
+    ----------
+    vector : np.array
+        Complex array with the eigenvector or response vector from a forced response analysis.
+        Array shape should be equal to the number of degrees of freedom of
+        the complete rotor (ndof * number_of_nodes).
+    nodes : list
+        List of nodes number.
+    nodes_pos : list
+        List of nodes positions.
+    shaft_elements_length : list
+        List with Rotor shaft elements lengths.
+    normalize : bool, optional
+        If True the vector is normalized.
+        Default is False.
+    """
+
+    def __init__(
+        self, vector, nodes, nodes_pos, shaft_elements_length, normalize=False
+    ):
+        self.vector = vector
+        self.nodes = nodes
+        self.nodes_pos = nodes_pos
+        self.shaft_elements_length = shaft_elements_length
+        self.normalize = normalize
+        evec = np.copy(vector)
+
+        if self.normalize:
+            modex = evec[0::4]
+            modey = evec[1::4]
+            xmax, ixmax = max(abs(modex)), np.argmax(abs(modex))
+            ymax, iymax = max(abs(modey)), np.argmax(abs(modey))
+
+            if ymax > 0.4 * xmax:
+                evec /= modey[iymax]
+            else:
+                evec /= modex[ixmax]
+
+        self._evec = evec
+        self.orbits = None
+        self.whirl = None
+        self.color = None
+        self.xn = None
+        self.yn = None
+        self.zn = None
+        self.major_axis = None
+        self._calculate()
+
+    def _calculate_orbits(self):
+        orbits = []
+        whirl = []
+        for node, node_pos in zip(self.nodes, self.nodes_pos):
+            ru_e, rv_e = self._evec[4 * node : 4 * node + 2]
+            orbit = Orbit(node=node, node_pos=node_pos, ru_e=ru_e, rv_e=rv_e)
+            orbits.append(orbit)
+            whirl.append(orbit.whirl)
+
+        self.orbits = orbits
+        # check shape whirl
+        if all(w == "Forward" for w in whirl):
+            self.whirl = "Forward"
+            self.color = tableau_colors["blue"]
+        elif all(w == "Backward" for w in whirl):
+            self.whirl = "Backward"
+            self.color = tableau_colors["red"]
+        else:
+            self.whirl = "Mixed"
+            self.color = tableau_colors["gray"]
+
+    def _calculate(self):
+        evec = self._evec
+        nodes = self.nodes
+        shaft_elements_length = self.shaft_elements_length
+        nodes_pos = self.nodes_pos
+
+        # calculate each orbit
+        self._calculate_orbits()
+
+        # plot lines
+        nn = 5  # number of points in each line between nodes
+        zeta = np.linspace(0, 1, nn)
+        onn = np.ones_like(zeta)
+
+        zeta = zeta.reshape(nn, 1)
+        onn = onn.reshape(nn, 1)
+
+        xn = np.zeros(nn * (len(nodes) - 1))
+        yn = np.zeros(nn * (len(nodes) - 1))
+        xn_complex = np.zeros(nn * (len(nodes) - 1), dtype=np.complex128)
+        yn_complex = np.zeros(nn * (len(nodes) - 1), dtype=np.complex128)
+        zn = np.zeros(nn * (len(nodes) - 1))
+        major = np.zeros(nn * (len(nodes) - 1))
+        major_x = np.zeros(nn * (len(nodes) - 1))
+        major_y = np.zeros(nn * (len(nodes) - 1))
+        major_angle = np.zeros(nn * (len(nodes) - 1))
+
+        N1 = onn - 3 * zeta**2 + 2 * zeta**3
+        N2 = zeta - 2 * zeta**2 + zeta**3
+        N3 = 3 * zeta**2 - 2 * zeta**3
+        N4 = -(zeta**2) + zeta**3
+
+        for Le, n in zip(shaft_elements_length, nodes):
+            node_pos = nodes_pos[n]
+            Nx = np.hstack((N1, Le * N2, N3, Le * N4))
+            Ny = np.hstack((N1, -Le * N2, N3, -Le * N4))
+
+            xx = [4 * n, 4 * n + 3, 4 * n + 4, 4 * n + 7]
+            yy = [4 * n + 1, 4 * n + 2, 4 * n + 5, 4 * n + 6]
+
+            pos0 = nn * n
+            pos1 = nn * (n + 1)
+
+            xn[pos0:pos1] = Nx @ evec[xx].real
+            yn[pos0:pos1] = Ny @ evec[yy].real
+            zn[pos0:pos1] = (node_pos * onn + Le * zeta).reshape(nn)
+
+            # major axes calculation
+            xn_complex[pos0:pos1] = Nx @ evec[xx]
+            yn_complex[pos0:pos1] = Ny @ evec[yy]
+            for i in range(pos0, pos1):
+                orb = Orbit(node=0, node_pos=0, ru_e=xn_complex[i], rv_e=yn_complex[i])
+                major[i] = orb.major_axis
+                major_x[i] = orb.major_x
+                major_y[i] = orb.major_y
+                major_angle[i] = orb.major_angle
+
+        self.xn = xn
+        self.yn = yn
+        self.zn = zn
+        self.major_axis = major
+        self.major_x = major_x
+        self.major_y = major_y
+        self.major_angle = major_angle
+
+    def plot_orbit(self, nodes, fig=None):
+        """Plot orbits.
+
+        Parameters
+        ----------
+        nodes : list
+            List with nodes for which the orbits will be plotted.
+        fig : Plotly graph_objects.Figure()
+            The figure object with the plot.
+
+        Returns
+        -------
+        fig : Plotly graph_objects.Figure()
+            The figure object with the plot.
+        """
+        # only perform calculation if necessary
+        if fig is None:
+            fig = go.Figure()
+
+        selected_orbits = [orbit for orbit in self.orbits if orbit.node in nodes]
+
+        for orbit in selected_orbits:
+            fig = orbit.plot_orbit(fig=fig)
+
+        return fig
+
+    def plot_2d(
+        self, orientation="major", length_units="m", phase_units="rad", fig=None
+    ):
+        """Rotor shape 2d plot.
+
+        Parameters
+        ----------
+        orientation : str, optional
+            Orientation can be 'major', 'x' or 'y'.
+            Default is 'major' to display the major axis.
+        length_units : str, optional
+            length units.
+            Default is 'm'.
+        phase_units : str, optional
+            Phase units.
+            Default is "rad"
+        fig : Plotly graph_objects.Figure()
+            The figure object with the plot.
+
+        Returns
+        -------
+        fig : Plotly graph_objects.Figure()
+            The figure object with the plot.
+        """
+        xn = self.major_x.copy()
+        yn = self.major_y.copy()
+        zn = self.zn.copy()
+        nodes_pos = Q_(self.nodes_pos, "m").to(length_units).m
+
+        if fig is None:
+            fig = go.Figure()
+
+        if orientation == "major":
+            values = self.major_axis.copy()
+        elif orientation == "x":
+            values = xn
+        elif orientation == "y":
+            values = yn
+        else:
+            raise ValueError(f"Invalid orientation {orientation}.")
+
+        fig.add_trace(
+            go.Scatter(
+                x=Q_(zn, "m").to(length_units).m,
+                y=values,
+                mode="lines",
+                line=dict(color=self.color),
+                name=f"{orientation}",
+                showlegend=False,
+                customdata=Q_(self.major_angle, "rad").to(phase_units).m,
+                hovertemplate=(
+                    f"Displacement: %{{y:.2f}}<br>"
+                    + f"Angle {phase_units}: %{{customdata:.2f}}"
+                ),
+            ),
+        )
+
+        # plot center line
+        fig.add_trace(
+            go.Scatter(
+                x=nodes_pos,
+                y=np.zeros(len(nodes_pos)),
+                mode="lines",
+                line=dict(color="black", dash="dashdot"),
+                name="centerline",
+                hoverinfo="none",
+                showlegend=False,
+            )
+        )
+
+        fig.update_xaxes(title_text=f"Rotor Length ({length_units})")
+
+        return fig
+
+    def plot_3d(
+        self,
+        mode=None,
+        orientation="major",
+        title=None,
+        length_units="m",
+        phase_units="rad",
+        fig=None,
+        **kwargs,
+    ):
+
+        if fig is None:
+            fig = go.Figure()
+
+        xn = self.xn.copy()
+        yn = self.yn.copy()
+        zn = self.zn.copy()
+
+        # plot orbits
+        first_orbit = True
+        for orbit in self.orbits:
+            zc_pos = (
+                Q_(np.repeat(orbit.node_pos, len(orbit.x_circle)), "m")
+                .to(length_units)
+                .m
+            )
+            fig.add_trace(
+                go.Scatter3d(
+                    x=zc_pos[:-10],
+                    y=orbit.x_circle[:-10],
+                    z=orbit.y_circle[:-10],
+                    mode="lines",
+                    line=dict(color=orbit.color),
+                    name="node {}".format(orbit.node),
+                    showlegend=False,
+                    hovertemplate=(
+                        "Nodal Position: %{x:.2f}<br>"
+                        + "X - Displacement: %{y:.2f}<br>"
+                        + "Y - Displacement: %{z:.2f}"
+                    ),
+                )
+            )
+            # add orbit start
+            fig.add_trace(
+                go.Scatter3d(
+                    x=[zc_pos[0]],
+                    y=[orbit.x_circle[0]],
+                    z=[orbit.y_circle[0]],
+                    mode="markers",
+                    marker=dict(color=orbit.color),
+                    name="node {}".format(orbit.node),
+                    showlegend=False,
+                    hovertemplate=(
+                        "Nodal Position: %{x:.2f}<br>"
+                        + "X - Displacement: %{y:.2f}<br>"
+                        + "Y - Displacement: %{z:.2f}"
+                    ),
+                )
+            )
+            # add orbit major axis marker
+            fig.add_trace(
+                go.Scatter3d(
+                    x=[zc_pos[0]],
+                    y=[orbit.major_x],
+                    z=[orbit.major_y],
+                    mode="markers",
+                    marker=dict(color="black", symbol="cross", size=4, line_width=2),
+                    name="Major axis",
+                    showlegend=True if first_orbit else False,
+                    legendgroup="major_axis",
+                    customdata=np.array(
+                        [
+                            orbit.major_axis,
+                            Q_(orbit.major_angle, "rad").to(phase_units).m,
+                        ]
+                    ).reshape(1, 2),
+                    hovertemplate=(
+                        "Nodal Position: %{x:.2f}<br>"
+                        + "Major axis: %{customdata[0]:.2f}<br>"
+                        + "Angle: %{customdata[1]:.2f}"
+                    ),
+                )
+            )
+            first_orbit = False
+
+        # plot line connecting orbits starting points
+        fig.add_trace(
+            go.Scatter3d(
+                x=Q_(zn, "m").to(length_units).m,
+                y=xn,
+                z=yn,
+                mode="lines",
+                line=dict(color="black", dash="dash"),
+                name="mode shape",
+                showlegend=False,
+            )
+        )
+
+        # plot center line
+        zn_cl0 = -(zn[-1] * 0.1)
+        zn_cl1 = zn[-1] * 1.1
+        zn_cl = np.linspace(zn_cl0, zn_cl1, 30)
+        fig.add_trace(
+            go.Scatter3d(
+                x=Q_(zn_cl, "m").to(length_units).m,
+                y=zn_cl * 0,
+                z=zn_cl * 0,
+                mode="lines",
+                line=dict(color="black", dash="dashdot"),
+                hoverinfo="none",
+                showlegend=False,
+            )
+        )
+
+        # plot major axis line
+        fig.add_trace(
+            go.Scatter3d(
+                x=Q_(zn, "m").to(length_units).m,
+                y=self.major_x,
+                z=self.major_y,
+                mode="lines",
+                line=dict(color="black", dash="dashdot"),
+                hoverinfo="none",
+                legendgroup="major_axis",
+                showlegend=False,
+            )
+        )
+
+        fig.update_layout(
+            legend=dict(itemsizing="constant"),
+            scene=dict(
+                aspectmode="manual",
+                aspectratio=dict(x=2.5, y=1, z=1),
+            ),
+        )
+
+        return fig
+
+
 class CriticalSpeedResults(Results):
     """Class used to store results from run_critical_speed() method.
 
@@ -276,8 +841,18 @@ class ModalResults(Results):
         self.nodes_pos = nodes_pos
         self.shaft_elements_length = shaft_elements_length
         self.modes = self.evectors[: self.ndof]
+        self.shapes = []
         kappa_modes = []
         for mode in range(len(self.wn)):
+            self.shapes.append(
+                Shape(
+                    vector=self.modes[:, mode],
+                    nodes=self.nodes,
+                    nodes_pos=self.nodes_pos,
+                    shaft_elements_length=self.shaft_elements_length,
+                    normalize=True,
+                )
+            )
             kappa_color = []
             kappa_mode = self.kappa_mode(mode)
             for kappa in kappa_mode:
@@ -342,96 +917,6 @@ class ModalResults(Results):
         elif whirl == "Mixed":
             return 0.5
 
-    def H_kappa(self, node, w, return_T=False):
-        r"""Calculate the H matrix for a given node and natural frequency.
-
-        The matrix H contains information about the whirl direction,
-        the orbit minor and major axis and the orbit inclination.
-        The matrix is calculated by :math:`H = T.T^T` where the
-        matrix T is constructed using the eigenvector corresponding
-        to the natural frequency of interest:
-
-        .. math::
-           
-           \begin{eqnarray}
-              \begin{bmatrix}
-              u(t)\\
-              v(t)
-              \end{bmatrix}
-              = \mathfrak{R}\Bigg(
-              \begin{bmatrix}
-              r_u e^{j\eta_u}\\
-              r_v e^{j\eta_v}
-              \end{bmatrix}\Bigg)
-              e^{j\omega_i t}
-              =
-              \begin{bmatrix}
-              r_u cos(\eta_u + \omega_i t)\\
-              r_v cos(\eta_v + \omega_i t)
-              \end{bmatrix}
-              = {\bf T}
-              \begin{bmatrix}
-              cos(\omega_i t)\\
-              sin(\omega_i t)
-              \end{bmatrix}
-           \end{eqnarray}
-
-        Where :math:`r_u e^{j\eta_u}` e :math:`r_v e^{j\eta_v}` are the
-        elements of the *i*\th eigenvector, corresponding to the node and
-        natural frequency of interest (mode).
-
-        .. math::
-
-            {\bf T} =
-            \begin{bmatrix}
-            r_u cos(\eta_u) & -r_u sin(\eta_u)\\
-            r_u cos(\eta_u) & -r_v sin(\eta_v)
-            \end{bmatrix}
-
-        Parameters
-        ----------
-        node: int
-            Node for which the matrix H will be calculated.
-        w: int
-            Index corresponding to the natural frequency
-            of interest.
-        return_T: bool, optional
-            If True, returns the H matrix and a dictionary with the
-            values for :math:`r_u, r_v, \eta_u, \eta_v`.
-
-            Default is false.
-
-        Returns
-        -------
-        H: array
-            Matrix H.
-        Tdic: dict
-            Dictionary with values for :math:`r_u, r_v, \eta_u, \eta_v`.
-
-            It will be returned only if return_T is True.
-        """
-        # get vector of interest based on freqs
-        vector = self.evectors[4 * node : 4 * node + 2, w]
-        # get translation sdofs for specified node for each mode
-        u = vector[0]
-        v = vector[1]
-        ru = np.absolute(u)
-        rv = np.absolute(v)
-
-        nu = np.angle(u)
-        nv = np.angle(v)
-        # fmt: off
-        T = np.array([[ru * np.cos(nu), -ru * np.sin(nu)],
-                      [rv * np.cos(nv), -rv * np.sin(nv)]])
-        # fmt: on
-        H = T @ T.T
-
-        if return_T:
-            Tdic = {"ru": ru, "rv": rv, "nu": nu, "nv": nv}
-            return H, Tdic
-
-        return H
-
     def kappa(self, node, w, wd=True):
         r"""Calculate kappa for a given node and natural frequency.
 
@@ -473,38 +958,11 @@ class ModalResults(Results):
         else:
             nat_freq = self.wn[w]
 
-        H, Tvals = self.H_kappa(node, w, return_T=True)
-        nu = Tvals["nu"]
-        nv = Tvals["nv"]
-
-        lam = la.eig(H)[0]
-
-        # lam is the eigenvalue -> sqrt(lam) is the minor/major axis.
-        # kappa encodes the relation between the axis and the precession.
-        minor = np.sqrt(lam.min())
-        major = np.sqrt(lam.max())
-        kappa = minor / major
-        diff = nv - nu
-
-        # we need to evaluate if 0 < nv - nu < pi.
-        if diff < -np.pi:
-            diff += 2 * np.pi
-        elif diff > np.pi:
-            diff -= 2 * np.pi
-
-        # if nv = nu or nv = nu + pi then the response is a straight line.
-        if diff == 0 or diff == np.pi:
-            kappa = 0
-
-        # if 0 < nv - nu < pi, then a backward rotating mode exists.
-        elif 0 < diff < np.pi:
-            kappa *= -1
-
         k = {
             "Frequency": nat_freq,
-            "Minor axes": np.real(minor),
-            "Major axes": np.real(major),
-            "kappa": np.real(kappa),
+            "Minor axis": self.shapes[w].orbits[node].minor_axis,
+            "Major axis": self.shapes[w].orbits[node].major_axis,
+            "kappa": self.shapes[w].orbits[node].kappa,
         }
 
         return k
@@ -529,7 +987,7 @@ class ModalResults(Results):
             A list with the value of kappa for each node related
             to the mode/natural frequency of interest.
         """
-        kappa_mode = [self.kappa(node, w)["kappa"] for node in self.nodes]
+        kappa_mode = [orb.kappa for orb in self.shapes[w].orbits]
         return kappa_mode
 
     def whirl_direction(self):
@@ -559,113 +1017,16 @@ class ModalResults(Results):
         """
         return self.whirl_to_cmap(self.whirl_direction())
 
-    def calc_mode_shape(self, mode=None, evec=None):
-        r"""Calculate the arrays describing the mode shapes.
-
-        Parameters
-        ----------
-        mode : int
-            The n'th vibration mode
-            Default is None
-        evec : array
-            Array containing the system eigenvectors
-
-        Returns
-        -------
-        xn : array
-            absolut nodal displacement - X direction
-        yn : array
-            absolut nodal displacement - Y direction
-        zn : array
-            absolut nodal displacement - Z direction
-        x_circles : array
-            orbit description - X direction
-        y_circles : array
-            orbit description - Y direction
-        z_circles_pos : array
-            axial location of each orbit
-        nn : int
-            number of points to plot lines
-        """
-        if evec is None:
-            evec = self.modes[:, mode]
-        nodes = self.nodes
-        nodes_pos = self.nodes_pos
-        shaft_elements_length = self.shaft_elements_length
-
-        modex = evec[0::4]
-        modey = evec[1::4]
-
-        xmax, ixmax = max(abs(modex)), np.argmax(abs(modex))
-        ymax, iymax = max(abs(modey)), np.argmax(abs(modey))
-
-        if ymax > 0.4 * xmax:
-            evec /= modey[iymax]
-        else:
-            evec /= modex[ixmax]
-
-        modex = evec[0::4]
-        modey = evec[1::4]
-
-        num_points = 201
-        c = np.linspace(0, 2 * np.pi, num_points)
-        circle = np.exp(1j * c)
-
-        x_circles = np.zeros((num_points, len(nodes)))
-        y_circles = np.zeros((num_points, len(nodes)))
-        z_circles_pos = np.zeros((num_points, len(nodes)))
-
-        for node in nodes:
-            x = modex[node] * circle
-            x_circles[:, node] = np.real(x)
-            y = modey[node] * circle
-            y_circles[:, node] = np.real(y)
-            z_circles_pos[:, node] = nodes_pos[node]
-
-        # plot lines
-        nn = 21
-        zeta = np.linspace(0, 1, nn)
-        onn = np.ones_like(zeta)
-
-        zeta = zeta.reshape(nn, 1)
-        onn = onn.reshape(nn, 1)
-
-        xn = np.zeros(nn * (len(nodes) - 1))
-        yn = np.zeros(nn * (len(nodes) - 1))
-        zn = np.zeros(nn * (len(nodes) - 1))
-
-        N1 = onn - 3 * zeta**2 + 2 * zeta**3
-        N2 = zeta - 2 * zeta**2 + zeta**3
-        N3 = 3 * zeta**2 - 2 * zeta**3
-        N4 = -(zeta**2) + zeta**3
-
-        for Le, n in zip(shaft_elements_length, nodes):
-            node_pos = nodes_pos[n]
-            Nx = np.hstack((N1, Le * N2, N3, Le * N4))
-            Ny = np.hstack((N1, -Le * N2, N3, -Le * N4))
-
-            xx = [4 * n, 4 * n + 3, 4 * n + 4, 4 * n + 7]
-            yy = [4 * n + 1, 4 * n + 2, 4 * n + 5, 4 * n + 6]
-
-            pos0 = nn * n
-            pos1 = nn * (n + 1)
-
-            xn[pos0:pos1] = Nx @ evec[xx].real
-            yn[pos0:pos1] = Ny @ evec[yy].real
-            zn[pos0:pos1] = (node_pos * onn + Le * zeta).reshape(nn)
-
-        return xn, yn, zn, x_circles, y_circles, z_circles_pos, nn
-
     def plot_mode_3d(
         self,
         mode=None,
-        evec=None,
-        fig=None,
         frequency_type="wd",
         title=None,
         length_units="m",
+        phase_units="rad",
         frequency_units="rad/s",
         damping_parameter="log_dec",
+        fig=None,
         **kwargs,
     ):
         """Plot (3D view) the mode shapes.
@@ -675,10 +1036,6 @@ class ModalResults(Results):
         mode : int
             The n'th vibration mode
             Default is None
-        evec : array
-            Array containing the system eigenvectors
-        fig : Plotly graph_objects.Figure()
-            The figure object with the plot.
         frequency_type : str, optional
             "wd" calculates de map for the damped natural frequencies.
             "wn" calculates de map for the undamped natural frequencies.
@@ -690,12 +1047,17 @@ class ModalResults(Results):
         length_units : str, optional
             length units.
             Default is 'm'.
+        phase_units : str, optional
+            Phase units.
+            Default is "rad"
         frequency_units : str, optional
             Frequency units that will be used in the plot title.
             Default is rad/s.
         damping_parameter : str, optional
             Define which value to show for damping. We can use "log_dec" or "damping_ratio".
             Default is "log_dec".
+        fig : Plotly graph_objects.Figure()
+            The figure object with the plot.
         kwargs : optional
             Additional key word arguments can be passed to change the plot layout only
             (e.g. width=1000, height=800, ...).
@@ -715,74 +1077,14 @@ class ModalResults(Results):
             damping_name = "Damping ratio"
             damping_value = self.damping_ratio[mode]
 
-        nodes = self.nodes
-        kappa_mode = self.kappa_modes[mode]
-        xn, yn, zn, xc, yc, zc_pos, nn = self.calc_mode_shape(mode=mode, evec=evec)
-
-        # fmt: off
         frequency = {
-            "wd":  f"ω<sub>d</sub> = {Q_(self.wd[mode], 'rad/s').to(frequency_units).m:.1f}",
-            "wn":  f"ω<sub>n</sub> = {Q_(self.wn[mode], 'rad/s').to(frequency_units).m:.1f}",
+            "wd": f"ω<sub>d</sub> = {Q_(self.wd[mode], 'rad/s').to(frequency_units).m:.1f}",
+            "wn": f"ω<sub>n</sub> = {Q_(self.wn[mode], 'rad/s').to(frequency_units).m:.1f}",
             "speed": f"Speed = {Q_(self.speed, 'rad/s').to(frequency_units).m:.1f}",
         }
-        # fmt: on
 
-        for node in nodes:
-            fig.add_trace(
-                go.Scatter3d(
-                    x=Q_(zc_pos[10:, node], "m").to(length_units).m,
-                    y=xc[10:, node],
-                    z=yc[10:, node],
-                    mode="lines",
-                    line=dict(color=kappa_mode[node]),
-                    name="node {}".format(node),
-                    showlegend=False,
-                    hovertemplate=(
-                        "Nodal Position: %{x:.2f}<br>"
-                        + "X - Relative Displacement: %{y:.2f}<br>"
-                        + "Y - Relative Displacement: %{z:.2f}"
-                    ),
-                )
-            )
-            fig.add_trace(
-                go.Scatter3d(
-                    x=Q_([zc_pos[10, node]], "m").to(length_units).m,
-                    y=[xc[10, node]],
-                    z=[yc[10, node]],
-                    mode="markers",
-                    marker=dict(color=kappa_mode[node]),
-                    name="node {}".format(node),
-                    showlegend=False,
-                )
-            )
-
-        fig.add_trace(
-            go.Scatter3d(
-                x=Q_(zn, "m").to(length_units).m,
-                y=xn,
-                z=yn,
-                mode="lines",
-                line=dict(color="black", dash="dash"),
-                name="mode shape",
-                showlegend=False,
-            )
-        )
-
-        # plot center line
-        zn_cl0 = -(zn[-1] * 0.1)
-        zn_cl1 = zn[-1] * 1.1
-        zn_cl = np.linspace(zn_cl0, zn_cl1, 30)
-        fig.add_trace(
-            go.Scatter3d(
-                x=Q_(zn_cl, "m").to(length_units).m,
-                y=zn_cl * 0,
-                z=zn_cl * 0,
-                mode="lines",
-                line=dict(color="black", dash="dashdot"),
-                hoverinfo="none",
-                showlegend=False,
-            )
-        )
+        shape = self.shapes[mode]
+        fig = shape.plot_3d(length_units=length_units, phase_units=phase_units, fig=fig)
 
         if title is None:
             title = ""
@@ -823,7 +1125,6 @@ class ModalResults(Results):
     def plot_mode_2d(
         self,
         mode=None,
-        evec=None,
         fig=None,
         frequency_type="wd",
         title=None,
@@ -838,14 +1139,11 @@ class ModalResults(Results):
         ----------
         mode : int
             The n'th vibration mode
-            Default is None
-        evec : array
-            Array containing the system eigenvectors
         fig : Plotly graph_objects.Figure()
             The figure object with the plot.
         frequency_type : str, optional
-            "wd" calculates de map for the damped natural frequencies.
-            "wn" calculates de map for the undamped natural frequencies.
+            "wd" calculates the damped natural frequencies.
+            "wn" calculates the undamped natural frequencies.
             Defaults is "wd".
         title : str, optional
             A brief title to the mode shape plot, it will be displayed above other
@@ -876,56 +1174,17 @@ class ModalResults(Results):
             damping_name = "Damping ratio"
             damping_value = self.damping_ratio[mode]
 
-        xn, yn, zn, xc, yc, zc_pos, nn = self.calc_mode_shape(mode=mode, evec=evec)
-        nodes_pos = Q_(self.nodes_pos, "m").to(length_units).m
-
-        theta = np.arctan(xn[0] / yn[0])
-        vn = xn * np.sin(theta) + yn * np.cos(theta)
-
-        # remove repetitive values from zn and vn
-        idx_remove = []
-        for i in range(1, len(zn)):
-            if zn[i] == zn[i - 1]:
-                idx_remove.append(i)
-        zn = np.delete(zn, idx_remove)
-        vn = np.delete(vn, idx_remove)
-
         if fig is None:
             fig = go.Figure()
 
-        colors = dict(Backward="red", Mixed="black", Forward="blue")
-
-        # fmt: off
         frequency = {
-            "wd":  f"ω<sub>d</sub> = {Q_(self.wd[mode], 'rad/s').to(frequency_units).m:.1f}",
-            "wn":  f"ω<sub>n</sub> = {Q_(self.wn[mode], 'rad/s').to(frequency_units).m:.1f}",
+            "wd": f"ω<sub>d</sub> = {Q_(self.wd[mode], 'rad/s').to(frequency_units).m:.1f}",
+            "wn": f"ω<sub>n</sub> = {Q_(self.wn[mode], 'rad/s').to(frequency_units).m:.1f}",
             "speed": f"Speed = {Q_(self.speed, 'rad/s').to(frequency_units).m:.1f}",
         }
-        # fmt: on
-        whirl_dir = colors[self.whirl_direction()[mode]]
 
-        fig.add_trace(
-            go.Scatter(
-                x=Q_(zn, "m").to(length_units).m,
-                y=vn / vn[np.argmax(np.abs(vn))],
-                mode="lines",
-                line=dict(color=whirl_dir),
-                name="mode shape",
-                showlegend=False,
-            )
-        )
-        # plot center line
-        fig.add_trace(
-            go.Scatter(
-                x=nodes_pos,
-                y=np.zeros(len(nodes_pos)),
-                mode="lines",
-                line=dict(color="black", dash="dashdot"),
-                name="centerline",
-                hoverinfo="none",
-                showlegend=False,
-            )
-        )
+        shape = self.shapes[mode]
+        fig = shape.plot_2d(fig=fig)
 
         if title is None:
             title = ""
@@ -999,35 +1258,8 @@ class ModalResults(Results):
         if not isinstance(nodes, Iterable):
             nodes = [nodes]
 
-        kappa_mode = self.kappa_modes[mode]
-        xn, yn, zn, xc, yc, zc_pos, nn = self.calc_mode_shape(mode=mode, evec=None)
-
-        for node in nodes:
-            fig.add_trace(
-                go.Scatter(
-                    x=xc[10:, node],
-                    y=yc[10:, node],
-                    mode="lines",
-                    line=dict(color=kappa_mode[node]),
-                    name=f"node {node}<br>{self.whirl_direction()[mode]}",
-                    showlegend=False,
-                    hovertemplate=(
-                        "X - Relative Displacement: %{x:.2f}<br>"
-                        + "Y - Relative Displacement: %{y:.2f}"
-                    ),
-                )
-            )
-
-            fig.add_trace(
-                go.Scatter(
-                    x=[xc[10, node]],
-                    y=[yc[10, node]],
-                    mode="markers",
-                    marker=dict(color=kappa_mode[node]),
-                    name="node {}".format(node),
-                    showlegend=False,
-                )
-            )
+        shape = self.shapes[mode]
+        fig = shape.plot_orbit(nodes, fig=fig)
 
         fig.update_layout(
             autosize=False,
@@ -1896,6 +2128,7 @@ class ForcedResponseResults(Results):
         unit_type = str(Q_(1, amplitude_units).dimensionality)
         try:
             base_unit = self.default_units[unit_type][0]
+            response = getattr(self, self.default_units[unit_type][1])
         except KeyError:
             raise ValueError(
                 "Not supported unit. Dimensionality options are '[length]', '[speed]', '[acceleration]'"
@@ -1905,16 +2138,28 @@ class ForcedResponseResults(Results):
         data["frequency"] = frequency_range
 
         for i, p in enumerate(probe):
-            angle = Q_(p[1], probe_units).to("rad").m
-            vector = self._calculate_major_axis_per_node(
-                node=p[0], angle=angle, amplitude_units=amplitude_units
-            )[3]
+            amplitude = []
+            for speed_idx in range(len(self.speed_range)):
+                try:
+                    angle = Q_(p[1], probe_units).to("rad").m
+                except TypeError:
+                    angle = p[1]
+
+                ru_e, rv_e = response[:, speed_idx][
+                    self.rotor.number_dof * p[0] : self.rotor.number_dof * p[0] + 2
+                ]
+                orbit = Orbit(
+                    node=p[0], node_pos=self.rotor.nodes_pos[p[0]], ru_e=ru_e, rv_e=rv_e
+                )
+                amp, phase = orbit.calculate_amplitude(angle=angle)
+                amplitude.append(amp)
+
             try:
                 probe_tag = p[2]
             except IndexError:
                 probe_tag = f"Probe {i+1} - Node {p[0]}"
 
-            data[probe_tag] = Q_(np.abs(vector), base_unit).to(amplitude_units).m
+            data[probe_tag] = Q_(amplitude, base_unit).to(amplitude_units).m
 
         df = pd.DataFrame(data)
 
@@ -1973,25 +2218,41 @@ class ForcedResponseResults(Results):
         """
         frequency_range = Q_(self.speed_range, "rad/s").to(frequency_units).m
 
+        unit_type = str(Q_(1, amplitude_units).dimensionality)
+        try:
+            base_unit = self.default_units[unit_type][0]
+            response = getattr(self, self.default_units[unit_type][1])
+        except KeyError:
+            raise ValueError(
+                "Not supported unit. Dimensionality options are '[length]', '[speed]', '[acceleration]'"
+            )
+
         data = {}
         data["frequency"] = frequency_range
 
         for i, p in enumerate(probe):
-            angle = Q_(p[1], probe_units).to("rad").m
-            vector = self._calculate_major_axis_per_node(
-                node=p[0], angle=angle, amplitude_units=amplitude_units
-            )[4]
+            phase_values = []
+            for speed_idx in range(len(self.speed_range)):
+                try:
+                    angle = Q_(p[1], probe_units).to("rad").m
+                except TypeError:
+                    angle = p[1]
 
-            probe_phase = np.real(vector)
-            probe_phase = np.array([i + 2 * np.pi if i < 0 else i for i in probe_phase])
-            probe_phase = Q_(probe_phase, "rad").to(phase_units).m
+                ru_e, rv_e = response[:, speed_idx][
+                    self.rotor.number_dof * p[0] : self.rotor.number_dof * p[0] + 2
+                ]
+                orbit = Orbit(
+                    node=p[0], node_pos=self.rotor.nodes_pos[p[0]], ru_e=ru_e, rv_e=rv_e
+                )
+                amp, phase = orbit.calculate_amplitude(angle=angle)
+                phase_values.append(phase)
 
             try:
                 probe_tag = p[2]
             except IndexError:
                 probe_tag = f"Probe {i+1} - Node {p[0]}"
 
-            data[probe_tag] = probe_phase
+            data[probe_tag] = Q_(phase_values, "rad").to(phase_units).m
 
         df = pd.DataFrame(data)
 
@@ -2648,11 +2909,12 @@ class ForcedResponseResults(Results):
 
         return Mx, My
 
+    @check_units
     def plot_deflected_shape_2d(
         self,
         speed,
-        frequency_units="rad/s",
         amplitude_units="m",
+        phase_units="rad",
         rotor_length_units="m",
         fig=None,
         **kwargs,
@@ -2661,12 +2923,10 @@ class ForcedResponseResults(Results):
 
         Parameters
         ----------
-        speed : float
+        speed : float, pint.Quantity
             The rotor rotation speed. Must be an element from the speed_range argument
-            passed to the class (rad/s).
-        frequency_units : str, optional
-            Frequency units.
-            Default is "rad/s"
+            passed to the class.
+            Default unit is rad/s.
         amplitude_units : str, optional
             Units for the response magnitude.
             Acceptable units dimensionality are:
@@ -2679,6 +2939,9 @@ class ForcedResponseResults(Results):
 
             Default is "m" 0 to peak.
             To use peak to peak use '<unit> pkpk' (e.g. 'm pkpk')
+        phase_units : str, optional
+            Phase units.
+            Default is "rad"
         rotor_length_units : str, optional
             Displacement units.
             Default is 'm'.
@@ -2705,51 +2968,44 @@ class ForcedResponseResults(Results):
                 "Not supported unit. Dimensionality options are '[length]', '[speed]', '[acceleration]'"
             )
 
-        nodes_pos = Q_(self.rotor.nodes_pos, "m").to(rotor_length_units).m
-        maj_vect = self._calculate_major_axis_per_speed(speed, amplitude_units)
-        maj_vect = Q_(maj_vect[4].real, base_unit).to(amplitude_units).m
+        # get response with the right displacement units and speed
+        response = self.__dict__[self.default_units[unit_type][1]]
+        idx = np.where(np.isclose(self.speed_range, speed, atol=1e-6))[0][0]
+        response = Q_(response[:, idx], base_unit).to(amplitude_units).m
+
+        shape = Shape(
+            vector=response,
+            nodes=self.rotor.nodes,
+            nodes_pos=self.rotor.nodes_pos,
+            shaft_elements_length=self.rotor.shaft_elements_length,
+        )
 
         if fig is None:
             fig = go.Figure()
-
-        fig.add_trace(
-            go.Scatter(
-                x=nodes_pos,
-                y=maj_vect,
-                mode="lines",
-                name="Major Axis",
-                legendgroup="Major_Axis_2d",
-                showlegend=False,
-                hovertemplate=f"Nodal Position ({rotor_length_units}): %{{x:.2f}}<br>Amplitude ({amplitude_units}): %{{y:.2e}}",
-            )
-        )
-        # plot center line
-        fig.add_trace(
-            go.Scatter(
-                x=nodes_pos,
-                y=np.zeros(len(nodes_pos)),
-                mode="lines",
-                line=dict(color="black", dash="dashdot"),
-                showlegend=False,
-                hoverinfo="none",
-            )
+        fig = shape.plot_2d(
+            phase_units=phase_units, length_units=rotor_length_units, fig=fig
         )
 
-        fig.update_xaxes(title_text=f"Rotor Length ({rotor_length_units})")
+        # customize hovertemplate
+        fig.update_traces(
+            selector=dict(name="major"),
+            hovertemplate=(
+                f"Amplitude ({amplitude_units}): %{{y:.2e}}<br>"
+                + f"Phase ({phase_units}): %{{customdata:.2f}}<br>"
+                + f"Nodal Position ({rotor_length_units}): %{{x:.2f}}"
+            ),
+        )
         fig.update_yaxes(
-            title_text=f"Major Axis Abs Amplitude ({amplitude_units})",
-            title_font=dict(size=12),
+            title_text=f"Major Axis Amplitude ({amplitude_units})",
         )
-        fig.update_layout(**kwargs)
 
         return fig
 
     def plot_deflected_shape_3d(
         self,
         speed,
-        samples=101,
-        frequency_units="rad/s",
         amplitude_units="m",
+        phase_units="rad",
         rotor_length_units="m",
         fig=None,
         **kwargs,
@@ -2761,12 +3017,6 @@ class ForcedResponseResults(Results):
         speed : float
             The rotor rotation speed. Must be an element from the speed_range argument
             passed to the class (rad/s).
-        samples : int, optional
-            Number of samples to generate the orbit for each node.
-            Default is 101.
-        frequency_units : str, optional
-            Frequency units.
-            Default is "rad/s"
         amplitude_units : str, optional
             Units for the response magnitude.
             Acceptable units dimensionality are:
@@ -2779,6 +3029,9 @@ class ForcedResponseResults(Results):
 
             Default is "m" 0 to peak.
             To use peak to peak use '<unit> pkpk' (e.g. 'm pkpk')
+        phase_units : str, optional
+            Phase units.
+            Default is "rad"
         rotor_length_units : str, optional
             Rotor Length units.
             Default is 'm'.
@@ -2805,93 +3058,55 @@ class ForcedResponseResults(Results):
                 "Not supported unit. Dimensionality options are '[length]', '[speed]', '[acceleration]'"
             )
 
-        mag = np.abs(self.__dict__[self.default_units[unit_type][1]])
-        phase = np.angle(self.__dict__[self.default_units[unit_type][1]])
-        ub = self.unbalance
-        nodes = self.rotor.nodes
-        nodes_pos = Q_(self.rotor.nodes_pos, "m").to(rotor_length_units).m
-        number_dof = self.rotor.number_dof
-        idx = np.where(np.isclose(self.speed_range, speed, atol=1e-6))[0][0]
+        if not any(np.isclose(self.speed_range, speed, atol=1e-6)):
+            raise ValueError("No data available for this speed value.")
 
-        # orbit of a single revolution
-        t = np.linspace(0, 2 * np.pi / speed, samples)
-        x_pos = np.repeat(nodes_pos, t.size).reshape(len(nodes_pos), t.size)
+        unit_type = str(Q_(1, amplitude_units).dimensionality)
+        try:
+            base_unit = self.default_units[unit_type][0]
+        except KeyError:
+            raise ValueError(
+                "Not supported unit. Dimensionality options are '[length]', '[speed]', '[acceleration]'"
+            )
+
+        # get response with the right displacement units and speed
+        response = self.__dict__[self.default_units[unit_type][1]]
+        idx = np.where(np.isclose(self.speed_range, speed, atol=1e-6))[0][0]
+        response = Q_(response[:, idx], base_unit).to(amplitude_units).m
+        unbalance = self.unbalance
+
+        shape = Shape(
+            vector=response,
+            nodes=self.rotor.nodes,
+            nodes_pos=self.rotor.nodes_pos,
+            shaft_elements_length=self.rotor.shaft_elements_length,
+        )
 
         if fig is None:
             fig = go.Figure()
 
-        for i, n in enumerate(nodes):
-            dofx = number_dof * n
-            dofy = number_dof * n + 1
-
-            y = mag[dofx, idx] * np.cos(speed * t - phase[dofx, idx])
-            z = mag[dofy, idx] * np.cos(speed * t - phase[dofy, idx])
-
-            # plot nodal orbit
-            fig.add_trace(
-                go.Scatter3d(
-                    x=x_pos[n],
-                    y=Q_(y, base_unit).to(amplitude_units).m,
-                    z=Q_(z, base_unit).to(amplitude_units).m,
-                    mode="lines",
-                    line=dict(color="royalblue"),
-                    name="Orbit",
-                    legendgroup="Orbit",
-                    showlegend=False,
-                    hovertemplate=(
-                        f"Position ({rotor_length_units}): %{{x:.2f}}<br>X - Amplitude ({amplitude_units}): %{{y:.2e}}<br>Y - Amplitude ({amplitude_units}): %{{z:.2e}}"
-                    ),
-                )
-            )
-
-        # plot major axis
-        maj_vect = self._calculate_major_axis_per_speed(speed, amplitude_units)
-
-        fig.add_trace(
-            go.Scatter3d(
-                x=x_pos[:, 0],
-                y=Q_(np.real(maj_vect[3]), base_unit).to(amplitude_units).m,
-                z=Q_(np.imag(maj_vect[3]), base_unit).to(amplitude_units).m,
-                mode="lines+markers",
-                marker=dict(color="black"),
-                line=dict(color="black", dash="dashdot"),
-                name="Major Axis",
-                legendgroup="Major_Axis",
-                showlegend=True,
-                hovertemplate=(
-                    f"Position ({rotor_length_units}): %{{x:.2f}}<br>X - Amplitude ({amplitude_units}): %{{y:.2e}}<br>Y - Amplitude ({amplitude_units}): %{{z:.2e}}"
-                ),
-            )
-        )
-
-        # plot center line
-        line = np.zeros(len(nodes_pos))
-        fig.add_trace(
-            go.Scatter3d(
-                x=nodes_pos,
-                y=line,
-                z=line,
-                mode="lines",
-                line=dict(color="black", dash="dashdot"),
-                showlegend=False,
-                hoverinfo="none",
-            )
+        fig = shape.plot_3d(
+            phase_units=phase_units, length_units=rotor_length_units, fig=fig
         )
 
         # plot unbalance markers
-        i = 0
-        for n, m, p in zip(ub[0], ub[1], ub[2]):
+        for i, n, amplitude, phase in zip(
+            range(unbalance.shape[1]), unbalance[0], unbalance[1], unbalance[2]
+        ):
+            # scale unbalance marker to half the maximum major axis
+            n = int(n)
+            scaled_amplitude = np.max(shape.major_axis) / 2
+            x = scaled_amplitude * np.cos(phase)
+            y = scaled_amplitude * np.sin(phase)
+            z_pos = Q_(shape.nodes_pos[n], "m").to(rotor_length_units).m
+
             fig.add_trace(
                 go.Scatter3d(
-                    x=[x_pos[int(n), 0], x_pos[int(n), 0]],
-                    y=Q_([0, np.amax(np.abs(maj_vect[4])) / 2 * np.cos(p)], base_unit)
-                    .to(amplitude_units)
-                    .m,
-                    z=Q_([0, np.amax(np.abs(maj_vect[4])) / 2 * np.sin(p)], base_unit)
-                    .to(amplitude_units)
-                    .m,
+                    x=[z_pos, z_pos],
+                    y=[0, Q_(x, "m").to(amplitude_units).m],
+                    z=[0, Q_(y, "m").to(amplitude_units).m],
                     mode="lines",
-                    line=dict(color="firebrick"),
+                    line=dict(color=tableau_colors["red"]),
                     legendgroup="Unbalance",
                     hoverinfo="none",
                     showlegend=False,
@@ -2899,38 +3114,51 @@ class ForcedResponseResults(Results):
             )
             fig.add_trace(
                 go.Scatter3d(
-                    x=[x_pos[int(n), 0]],
-                    y=Q_([np.amax(np.abs(maj_vect[4])) / 2 * np.cos(p)], base_unit)
-                    .to(amplitude_units)
-                    .m,
-                    z=Q_([np.amax(np.abs(maj_vect[4])) / 2 * np.sin(p)], base_unit)
-                    .to(amplitude_units)
-                    .m,
+                    x=[z_pos],
+                    y=[Q_(x, "m").to(amplitude_units).m],
+                    z=[Q_(y, "m").to(amplitude_units).m],
                     mode="markers",
-                    marker=dict(symbol="diamond", color="firebrick"),
+                    marker=dict(color=tableau_colors["red"], symbol="diamond"),
                     name="Unbalance",
                     legendgroup="Unbalance",
                     showlegend=True if i == 0 else False,
                     hovertemplate=(
-                        "Node: {}<br>" + "Magnitude: {:.2e}<br>" + "Phase: {:.2f}"
-                    ).format(int(n), m, p),
+                        f"Node: {n}<br>"
+                        + f"Magnitude: {amplitude:.2e}<br>"
+                        + f"Phase: {phase:.2f}"
+                    ),
                 )
             )
-            i += 1
 
-        speed_str = Q_(speed, "rad/s").to(frequency_units).m
+        # customize hovertemplate
+        fig.update_traces(
+            selector=dict(name="Major axis"),
+            hovertemplate=(
+                "Nodal Position: %{x:.2f}<br>"
+                + "Major axis: %{customdata[0]:.2e}<br>"
+                + "Angle: %{customdata[1]:.2f}"
+            ),
+        )
+
+        plot_range = Q_(np.max(shape.major_axis) * 1.5, "m").to(amplitude_units).m
         fig.update_layout(
             scene=dict(
-                xaxis=dict(title=dict(text=f"Rotor Length ({rotor_length_units})")),
-                yaxis=dict(title=dict(text=f"Amplitude - X ({amplitude_units})")),
-                zaxis=dict(title=dict(text=f"Amplitude - Y ({amplitude_units})")),
-                aspectmode="manual",
-                aspectratio=dict(x=2.5, y=1, z=1),
+                xaxis=dict(
+                    title=dict(text=f"Rotor Length ({rotor_length_units})"),
+                    autorange="reversed",
+                    nticks=5,
+                ),
+                yaxis=dict(
+                    title=dict(text=f"Amplitude x ({amplitude_units})"),
+                    range=[-plot_range, plot_range],
+                    nticks=5,
+                ),
+                zaxis=dict(
+                    title=dict(text=f"Amplitude y ({amplitude_units})"),
+                    range=[-plot_range, plot_range],
+                    nticks=5,
+                ),
             ),
-            title=dict(
-                text=f"Deflected Shape<br>Speed = {speed_str} {frequency_units}"
-            ),
-            **kwargs,
         )
 
         return fig
@@ -3118,17 +3346,27 @@ class ForcedResponseResults(Results):
         subplot_kwargs = {} if subplot_kwargs is None else copy.copy(subplot_kwargs)
         speed_str = Q_(speed, "rad/s").to(frequency_units).m
 
-        # fmt: off
         fig0 = self.plot_deflected_shape_2d(
-            speed, frequency_units, amplitude_units, rotor_length_units, **shape2d_kwargs
+            speed,
+            frequency_units=frequency_units,
+            amplitude_units=amplitude_units,
+            rotor_length_units=rotor_length_units,
+            **shape2d_kwargs,
         )
         fig1 = self.plot_deflected_shape_3d(
-            speed, samples, frequency_units, amplitude_units, rotor_length_units, **shape3d_kwargs
+            speed,
+            frequency_units=frequency_units,
+            amplitude_units=amplitude_units,
+            rotor_length_units=rotor_length_units,
+            **shape3d_kwargs,
         )
         fig2 = self.plot_bending_moment(
-            speed, frequency_units, moment_units, rotor_length_units, **bm_kwargs
+            speed,
+            frequency_units=frequency_units,
+            moment_units=moment_units,
+            rotor_length_units=rotor_length_units,
+            **bm_kwargs,
         )
-        # fmt: on
 
         subplots = make_subplots(
             rows=2,
@@ -3153,9 +3391,9 @@ class ForcedResponseResults(Results):
                 xaxis=fig1.layout.scene.xaxis,
                 yaxis=fig1.layout.scene.yaxis,
                 zaxis=fig1.layout.scene.zaxis,
-                aspectmode="manual",
-                aspectratio=dict(x=2.5, y=1, z=1),
                 domain=dict(x=[0.47, 1]),
+                aspectmode=fig1.layout.scene.aspectmode,
+                aspectratio=fig1.layout.scene.aspectratio,
             ),
             title=dict(
                 text=f"Deflected Shape<br>Speed = {speed_str} {frequency_units}",
