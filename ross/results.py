@@ -440,8 +440,8 @@ class Shape(Results):
 
         xn = np.zeros(nn * (len(nodes) - 1))
         yn = np.zeros(nn * (len(nodes) - 1))
-        xn_complex = np.zeros(nn * (len(nodes) - 1), dtype=np.complex)
-        yn_complex = np.zeros(nn * (len(nodes) - 1), dtype=np.complex)
+        xn_complex = np.zeros(nn * (len(nodes) - 1), dtype=np.complex128)
+        yn_complex = np.zeros(nn * (len(nodes) - 1), dtype=np.complex128)
         zn = np.zeros(nn * (len(nodes) - 1))
         major = np.zeros(nn * (len(nodes) - 1))
         major_x = np.zeros(nn * (len(nodes) - 1))

@@ -1498,9 +1498,9 @@ class Rotor(object):
 
         self._check_frequency_array(speed_range)
 
-        freq_resp = np.empty((self.ndof, self.ndof, len(speed_range)), dtype=np.complex)
-        velc_resp = np.empty((self.ndof, self.ndof, len(speed_range)), dtype=np.complex)
-        accl_resp = np.empty((self.ndof, self.ndof, len(speed_range)), dtype=np.complex)
+        freq_resp = np.empty((self.ndof, self.ndof, len(speed_range)), dtype=complex)
+        velc_resp = np.empty((self.ndof, self.ndof, len(speed_range)), dtype=complex)
+        accl_resp = np.empty((self.ndof, self.ndof, len(speed_range)), dtype=complex)
 
         for i, speed in enumerate(speed_range):
             H = self.transfer_matrix(speed=speed, modes=modes)
@@ -1616,11 +1616,9 @@ class Rotor(object):
             speed_range, modes, cluster_points, num_modes, num_points, rtol
         )
 
-        forced_resp = np.zeros(
-            (self.ndof, len(freq_resp.speed_range)), dtype=np.complex
-        )
-        velc_resp = np.zeros((self.ndof, len(freq_resp.speed_range)), dtype=np.complex)
-        accl_resp = np.zeros((self.ndof, len(freq_resp.speed_range)), dtype=np.complex)
+        forced_resp = np.zeros((self.ndof, len(freq_resp.speed_range)), dtype=complex)
+        velc_resp = np.zeros((self.ndof, len(freq_resp.speed_range)), dtype=complex)
+        accl_resp = np.zeros((self.ndof, len(freq_resp.speed_range)), dtype=complex)
 
         for i in range(len(freq_resp.speed_range)):
             forced_resp[:, i] = freq_resp.freq_resp[..., i] @ force[..., i]
@@ -1816,7 +1814,7 @@ class Rotor(object):
             if cluster_points:
                 frequency = self._clustering_points(num_modes, num_points, modes, rtol)
 
-        force = np.zeros((self.ndof, len(frequency)), dtype=np.complex)
+        force = np.zeros((self.ndof, len(frequency)), dtype=complex)
 
         try:
             for n, m, p in zip(node, unbalance_magnitude, unbalance_phase):
