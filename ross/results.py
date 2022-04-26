@@ -1051,38 +1051,11 @@ class ModalResults(Results):
         else:
             nat_freq = self.wn[w]
 
-        H, Tvals = self.H_kappa(node, w, return_T=True)
-        nu = Tvals["nu"]
-        nv = Tvals["nv"]
-
-        lam = la.eig(H)[0]
-
-        # lam is the eigenvalue -> sqrt(lam) is the minor/major axis.
-        # kappa encodes the relation between the axis and the precession.
-        minor = np.sqrt(lam.min())
-        major = np.sqrt(lam.max())
-        kappa = minor / major
-        diff = nv - nu
-
-        # we need to evaluate if 0 < nv - nu < pi.
-        if diff < -np.pi:
-            diff += 2 * np.pi
-        elif diff > np.pi:
-            diff -= 2 * np.pi
-
-        # if nv = nu or nv = nu + pi then the response is a straight line.
-        if diff == 0 or diff == np.pi:
-            kappa = 0
-
-        # if 0 < nv - nu < pi, then a backward rotating mode exists.
-        elif 0 < diff < np.pi:
-            kappa *= -1
-
         k = {
             "Frequency": nat_freq,
-            "Minor axes": np.real(minor),
-            "Major axes": np.real(major),
-            "kappa": np.real(kappa),
+            "Minor axis": self.shapes[w].orbits[node].minor_axis,
+            "Major axis": self.shapes[w].orbits[node].major_axis,
+            "kappa": self.shapes[w].orbits[node].kappa,
         }
 
         return k
@@ -1107,7 +1080,7 @@ class ModalResults(Results):
             A list with the value of kappa for each node related
             to the mode/natural frequency of interest.
         """
-        kappa_mode = [self.kappa(node, w)["kappa"] for node in self.nodes]
+        kappa_mode = [orb.kappa for orb in self.shapes[w].orbits]
         return kappa_mode
 
     def whirl_direction(self):
