@@ -608,7 +608,7 @@ def get_data_from_figure(fig):
 
     Or use "iloc" to obtain the desired array from pandas
     >>> df.iloc[1, 0] # doctest: +ELLIPSIS
-    array([0.00000000e+00, 1.60570205e-07, 6.63435909e-07,...
+    array([0.00000000e+00, 1.60570205e-07, 6.63453587e-07,...
     """
     dict_data = {data["name"]: {} for data in fig.data}
 
