@@ -431,7 +431,7 @@ class Shape(Results):
         self._calculate_orbits()
 
         # plot lines
-        nn = 21  # number of points in each line between nodes
+        nn = 5  # number of points in each line between nodes
         zeta = np.linspace(0, 1, nn)
         onn = np.ones_like(zeta)
 

@@ -1410,8 +1410,8 @@ def test_plot_mode(rotor7):
 
     fig = modal7.plot_mode_2d(1)
 
-    expected_x = np.array([0.0, 0.0125, 0.025, 0.0375, 0.05])
-    expected_y = np.array([0.333274, 0.350015, 0.366758, 0.383492, 0.400206])
+    expected_x = np.array([0.0, 0.0625, 0.125, 0.1875, 0.25])
+    expected_y = np.array([0.333274, 0.416889, 0.499442, 0.579556, 0.655866])
 
     assert fig.data[0]["line"]["color"] == "#1f77b4"  # blue
     assert_allclose(fig.data[0]["x"][:5], expected_x, rtol=1e-5)
@@ -1419,9 +1419,9 @@ def test_plot_mode(rotor7):
 
     fig = modal7.plot_mode_3d(1)
 
-    expected_x = np.array([0.0, 0.0125, 0.025, 0.0375, 0.05])
-    expected_y = np.array([0.01876129, 0.01827158, 0.01778194, 0.01729269, 0.01680419])
-    expected_z = np.array([0.33274591, 0.34953757, 0.36632648, 0.38310191, 0.39985308])
+    expected_x = np.array([0.0, 0.0625, 0.125, 0.1875, 0.25])
+    expected_y = np.array([0.01876129, 0.01631675, 0.01390729, 0.0115747, 0.00936075])
+    expected_z = np.array([0.33274591, 0.41656925, 0.49924871, 0.5794401, 0.65579925])
 
     assert fig.data[0]["line"]["color"] == "#1f77b4"  # blue
     # -3 is the black line that passes through each orbit starting point
@@ -1449,29 +1449,29 @@ def test_deflected_shape(rotor7):
     )
     fig = forced.plot_deflected_shape_3d(speed=50)
     # check major axis
-    expected_x = np.array([0.0, 0.0125, 0.025, 0.0375, 0.05, 0.0625, 0.075, 0.0875])
+    expected_x = np.array([0.0, 0.0625, 0.125, 0.1875, 0.25, 0.25, 0.3125, 0.375])
     expected_y = np.array(
         [
             0.00270725,
-            0.0027041,
-            0.00269398,
-            0.00268992,
-            0.00267974,
             0.00266953,
-            0.00266448,
-            0.00265418,
+            0.00262725,
+            0.002577,
+            0.00252056,
+            0.00252056,
+            0.00246307,
+            0.00239883,
         ]
     )
     expected_z = np.array(
         [
             0.00042256,
-            0.00037356,
-            0.00037201,
-            0.00032343,
-            0.00032205,
             0.00032067,
-            0.0002727,
-            0.00027149,
+            0.00022188,
+            0.0001715,
+            0.00016696,
+            0.00016696,
+            0.00011911,
+            0.0001152,
         ]
     )
     assert_allclose(fig.data[-3]["x"][:8], expected_x, rtol=1e-4)
