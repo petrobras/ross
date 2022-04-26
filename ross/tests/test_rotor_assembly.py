@@ -1402,12 +1402,10 @@ def test_plot_mode(rotor7):
     modal7 = rotor7.run_modal(50, sparse=False)
 
     fig = modal7.plot_orbit(1, 3)
-    expected_x = np.array(
-        [-9.172248e-11, -1.750102e-02, -3.499667e-02, -5.248161e-02, -6.995046e-02]
-    )
+    expected_x = np.array([-1.750102e-02, -3.499667e-02, -5.248161e-02, -6.995046e-02])
     expected_y = np.array([1.0, 0.999847, 0.999387, 0.998622, 0.99755])
     assert fig.data[0]["line"]["color"] == "#1f77b4"  # blue
-    assert_allclose(fig.data[0]["x"][:5], expected_x, rtol=1e-5)
+    assert_allclose(fig.data[0]["x"][1:5], expected_x, rtol=1e-5)
     assert_allclose(fig.data[0]["y"][:5], expected_y, rtol=1e-5)
 
     fig = modal7.plot_mode_2d(1)
