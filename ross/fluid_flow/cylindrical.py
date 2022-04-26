@@ -4,72 +4,78 @@ import numpy as np
 from numpy.linalg import pinv
 from scipy.optimize import curve_fit, minimize
 
+from ross.bearing_seal_element import BearingElement
 from ross.units import Q_, check_units
 
 
-class THDCylindrical:
+class THDCylindrical(BearingElement):
     """This class calculates the pressure and temperature field in oil film of
     a cylindrical bearing. It is also possible to obtain the stiffness and
     damping coefficients.
+    The basic references for the code is found in :cite:t:`barbosa2018`, :cite:t:`daniel2012` and :cite:t:`nicoletti1999`.
 
     Parameters
     ----------
     Bearing Geometry
     ^^^^^^^^^^^^^^^^
     Describes the geometric characteristics.
-    L : float, pint.Quantity
+    axial_length : float, pint.Quantity
         Bearing length. Default unit is meter.
-    R : float
+    journal_radius : float
         Rotor radius. The unit is meter.
-    c_r : float
+    radial_clearance : float
         Radial clearence between rotor and bearing. The unit is meter.
-    betha_s : float
+    n_pad : integer
+        Number of pads that compound the bearing surface.
+    pad_arc_length : float
         Arc length of each pad. The unit is degree.
-
+    initial_guess : array
+        Array with eccentricity ratio and attitude angle
+    method : string
+        Choose the method to calculate the dynamics coefficients. Options are:
+        - 'lund'
+        - 'perturbation'
+    print_progress : bool
+        Set it True to print the score and forces on each iteration.
+        False by default.
+    print_result : bool
+        Set it True to print result at the end.
+        False by default.
+    print_time : bool
+        Set it True to print the time at the end.
+        False by default.
 
     Operation conditions
     ^^^^^^^^^^^^^^^^^^^^
     Describes the operation conditions of the bearing.
     speed : float, pint.Quantity
         Rotor rotational speed. Default unit is rad/s.
-    Wx : Float
+    load_x_direction : Float
         Load in X direction. The unit is newton.
-    Wy : Float
+    load_y_direction : Float
         Load in Y direction. The unit is newton.
 
     Fluid propierties
     ^^^^^^^^^^^^^^^^^
     Describes the fluid characteristics.
-    mu_ref : float
-        Fluid reference viscosity. The unit is Pa*s.
-    rho : float, pint.Quantity
-        Fluid density. Default unit is kg/m^3.
-    k_t :  Float
-        Fluid thermal conductivity. The unit is J/(s*m*°C).
-    Cp : float
-        Fluid specific heat. The unit is J/(kg*°C).
-    Treserv : float
-        Oil reservoir temperature. The unit is celsius.
-    fat_mixt : list, numpy array, tuple or float
-        Ratio of oil in Treserv temperature that mixes with the circulating oil.
-        Is required one fat_mixt per pad.
 
-    Viscosity interpolation
-    ^^^^^^^^^^^^^^^^^^^^^^^
-    Interpolation data required.
-    T_muI : float
-        Inferior limit temperature. The unit is celsius.
-    T_muF : float
-        Upper limit temperature. The unit is celsius.
-    mu_I : float
-        Inferior limit viscosity. The unit is Pa*s.
-    mu_F : float
-        Upper limit viscosity. The unit is Pa*s.
+    lubricant : str
+        Lubricant type. Can be:
+        - 'ISOVG46'
+    reference_temperature : float
+        Oil reference temperature. The unit is celsius.
+    reference_viscosity : float
+        Oil viscosity at reference temperature. Unit is Pa.s.
+    groove_factor : list, numpy array, tuple or float
+        Ratio of oil in reservoir temperature that mixes with the circulating oil.
+        Is required one factor per segment.
+
 
     Turbulence Model
     ^^^^^^^^^^^^^^^^
     Turbulence model to improve analysis in higher speed.The model represents
-    the turbulence by eddy diffusivities.
+    the turbulence by eddy diffusivities. The basic reference is found in :cite:t:`suganami1979`
+
     Reyn : Array
         The Reynolds number is a dimensionless number used to calculate the
         fluid flow regime inside the bearing.
@@ -80,9 +86,9 @@ class THDCylindrical:
     Mesh discretization
     ^^^^^^^^^^^^^^^^^^^
     Describes the discretization of the bearing.
-    ntheta : int
+    elements_circumferential : int
         Number of volumes along the direction theta (direction of flow).
-    nz : int
+    elements_axial : int
         Number of volumes along the Z direction (axial direction).
 
 
@@ -93,11 +99,8 @@ class THDCylindrical:
 
     References
     ----------
-    .. [1] BARBOSA, J. S.; LOBATO, FRAN S.; CAMPANINE SICCHIERI, LEONARDO;CAVALINI JR, ALDEMIR AP. ; STEFFEN JR, VALDER. Determinação da Posição de Equilíbrio em Mancais Hidrodinâmicos Cilíndricos usando o Algoritmo de Evolução Diferencial. REVISTA CEREUS, v. 10, p. 224-239, 2018. ..
-    .. [2] DANIEL, G.B. Desenvolvimento de um Modelo Termohidrodinâmico para Análise em Mancais Segmentados. Campinas: Faculdade de Engenharia Mecânica, Universidade Estadual de Campinas, 2012. Tese (Doutorado). ..
-    .. [3] NICOLETTI, R., Efeitos Térmicos em Mancais Segmentados Híbridos – Teoria e Experimento. 1999. Dissertação de Mestrado. Universidade Estadual de Campinas, Campinas. ..
-    .. [4] SUGANAMI, T.; SZERI, A. Z. A thermohydrodynamic analysis of journal bearings. 1979. ..
-    .. [5] LUND, J. W.; THOMSEN, K. K. A calculation method and data for the dynamic coefficients of oil-lubricated journal bearings. Topics in fluid film bearing and rotor bearing system design and optimization, n. 1000118, 1978. ..
+    .. bibliography::
+        :filter: docname in docnames
 
     Attributes
     ----------
@@ -120,104 +123,183 @@ class THDCylindrical:
     Examples
     --------
     >>> from ross.fluid_flow.cylindrical import cylindrical_bearing_example
-    >>> x0 = [0.1,-0.1]
     >>> bearing = cylindrical_bearing_example()
-    >>> bearing.run(x0)
     >>> bearing.equilibrium_pos
-    array([ 0.57086823, -0.70347935])
+    array([ 0.60678516, -0.73288691])
     """
 
     @check_units
     def __init__(
         self,
-        L,
-        R,
-        c_r,
-        n_theta,
-        n_z,
+        axial_length,
+        journal_radius,
+        radial_clearance,
+        elements_circumferential,
+        elements_axial,
         n_y,
         n_pad,
-        betha_s,
-        mu_ref,
+        pad_arc_length,
+        reference_temperature,
+        reference_viscosity,
         speed,
-        Wx,
-        Wy,
-        k_t,
-        Cp,
-        rho,
-        T_reserv,
-        fat_mixt,
-        T_muI,
-        T_muF,
-        mu_I,
-        mu_F,
+        load_x_direction,
+        load_y_direction,
+        groove_factor,
+        lubricant,
+        node,
         sommerfeld_type=2,
+        initial_guess=[0.1, -0.1],
+        method="perturbation",
+        show_coef=False,
+        print_result=False,
+        print_progress=False,
+        print_time=False,
     ):
 
-        self.L = L
-        self.R = R
-        self.c_r = c_r
-        self.n_theta = n_theta
-        self.n_z = n_z
+        self.axial_length = axial_length
+        self.journal_radius = journal_radius
+        self.radial_clearance = radial_clearance
+        self.elements_circumferential = elements_circumferential
+        self.elements_axial = elements_axial
         self.n_y = n_y
         self.n_pad = n_pad
-        self.mu_ref = mu_ref
-        self.speed = speed
-        self.Wx = Wx
-        self.Wy = Wy
-        self.k_t = k_t
-        self.Cp = Cp
-        self.rho = rho
-        self.T_reserv = T_reserv
-        self.fat_mixt = np.array(fat_mixt)
+        self.reference_temperature = reference_temperature
+        self.reference_viscosity = reference_viscosity
+        self.load_x_direction = load_x_direction
+        self.load_y_direction = load_y_direction
+        self.lubricant = lubricant
+        self.fat_mixt = np.array(groove_factor)
         self.equilibrium_pos = None
         self.sommerfeld_type = sommerfeld_type
+        self.initial_guess = initial_guess
+        self.method = method
+        self.show_coef = show_coef
+        self.print_result = print_result
+        self.print_progress = print_progress
+        self.print_time = print_time
 
         if self.n_y == None:
-            self.n_y = self.n_theta
+            self.n_y = self.elements_circumferential
 
-        self.betha_s_dg = betha_s
-        self.betha_s = betha_s * np.pi / 180
+        self.betha_s_dg = pad_arc_length
+        self.betha_s = pad_arc_length * np.pi / 180
 
         self.thetaI = 0
         self.thetaF = self.betha_s
-        self.dtheta = (self.thetaF - self.thetaI) / (self.n_theta)
+        self.dtheta = (self.thetaF - self.thetaI) / (self.elements_circumferential)
 
         ##
         # Dimensionless discretization variables
 
         self.dY = 1 / self.n_y
-        self.dZ = 1 / self.n_z
+        self.dZ = 1 / self.elements_axial
 
         # Z-axis direction
 
         self.Z_I = 0
         self.Z_F = 1
-        Z = np.zeros((self.n_z + 2))
+        Z = np.zeros((self.elements_axial + 2))
 
         Z[0] = self.Z_I
-        Z[self.n_z + 1] = self.Z_F
-        Z[1 : self.n_z + 1] = np.arange(self.Z_I + 0.5 * self.dZ, self.Z_F, self.dZ)
+        Z[self.elements_axial + 1] = self.Z_F
+        Z[1 : self.elements_axial + 1] = np.arange(
+            self.Z_I + 0.5 * self.dZ, self.Z_F, self.dZ
+        )
         self.Z = Z
 
         # Dimensionalization
 
-        self.dz = self.dZ * self.L
-        self.dy = self.dY * self.betha_s * self.R
+        self.dz = self.dZ * self.axial_length
+        self.dy = self.dY * self.betha_s * self.journal_radius
 
-        self.Zdim = self.Z * L
+        self.Zdim = self.Z * self.axial_length
+
+        self.lubricant_dict = {
+            "ISOVG32": {
+                "viscosity1": Q_(4.05640e-06, "reyn").to_base_units().m,
+                "temp1": Q_(40.00000, "degC").to_base_units().m,
+                "viscosity2": Q_(6.76911e-07, "reyn").to_base_units().m,
+                "temp2": Q_(100.00000, "degC").to_base_units().m,
+                "lube_density": Q_(873.99629, "kg/m³").to_base_units().m,
+                "lube_cp": Q_(1948.7995685758851, "J/(kg*degK)").to_base_units().m,
+                "lube_conduct": Q_(0.13126, "W/(m*degC)").to_base_units().m,
+            },
+            "ISOVG46": {
+                "viscosity1": Q_(5.757040938820288e-06, "reyn").to_base_units().m,
+                "temp1": Q_(40, "degC").to_base_units().m,
+                "viscosity2": Q_(8.810775697672788e-07, "reyn").to_base_units().m,
+                "temp2": Q_(100, "degC").to_base_units().m,
+                "lube_density": Q_(862.9, "kg/m³").to_base_units().m,
+                "lube_cp": Q_(1950, "J/(kg*degK)").to_base_units().m,
+                "lube_conduct": Q_(0.15, "W/(m*degC)").to_base_units().m,
+            },
+            "TEST": {
+                "viscosity1": Q_(2.758e-6, "reyn").to_base_units().m,
+                "temp1": Q_(121.7, "degF").to_base_units().m,
+                "viscosity2": Q_(1.119e-6, "reyn").to_base_units().m,
+                "temp2": Q_(175.7, "degF").to_base_units().m,
+                "lube_density": Q_(8.0e-5, "lbf*s²/in⁴").to_base_units().m,
+                "lube_cp": Q_(1.79959e2, "BTU*in/(lbf*s²*degF)").to_base_units().m,
+                "lube_conduct": Q_(2.00621e-6, "BTU/(in*s*degF)").to_base_units().m,
+            },
+        }
+
+        lubricant_properties = self.lubricant_dict[self.lubricant]
+        T_muI = Q_(lubricant_properties["temp1"], "degK").m_as("degC")
+        T_muF = Q_(lubricant_properties["temp2"], "degK").m_as("degC")
+        mu_I = lubricant_properties["viscosity1"]
+        mu_F = lubricant_properties["viscosity2"]
+        self.rho = lubricant_properties["lube_density"]
+        self.Cp = lubricant_properties["lube_cp"]
+        self.k_t = lubricant_properties["lube_conduct"]
 
         # Interpolation coefficients
         self.a, self.b = self._interpol(T_muI, T_muF, mu_I, mu_F)
 
-    def _forces(self, x0, y0, xpt0, ypt0):
+        number_of_freq = np.shape(speed)[0]
+
+        kxx = np.zeros(number_of_freq)
+        kxy = np.zeros(number_of_freq)
+        kyx = np.zeros(number_of_freq)
+        kyy = np.zeros(number_of_freq)
+
+        cxx = np.zeros(number_of_freq)
+        cxy = np.zeros(number_of_freq)
+        cyx = np.zeros(number_of_freq)
+        cyy = np.zeros(number_of_freq)
+
+        for ii in range(number_of_freq):
+
+            self.speed = speed[ii]
+
+            self.run()
+
+            coefs = self.coefficients()
+            stiff = True
+            for coef in coefs:
+                if stiff:
+                    kxx[ii] = coef[0]
+                    kxy[ii] = coef[1]
+                    kyx[ii] = coef[2]
+                    kyy[ii] = coef[3]
+
+                    stiff = False
+                else:
+                    cxx[ii] = coef[0]
+                    cxy[ii] = coef[1]
+                    cyx[ii] = coef[2]
+                    cyy[ii] = coef[3]
+
+        super().__init__(node, kxx, cxx, kyy, kxy, kyx, cyy, cxy, cyx, speed)
+
+    def _forces(self, initial_guess, y0, xpt0, ypt0):
         """Calculates the forces in Y and X direction.
 
         Parameters
         ----------
-        x0 : array, float
-            If the other parameters are None, x0 is an array with eccentricity
-            ratio and attitude angle. Else, x0 is the position of the center of
+        initial_guess : array, float
+            If the other parameters are None, initial_guess is an array with eccentricity
+            ratio and attitude angle. Else, initial_guess is the position of the center of
             the rotor in the x-axis.
         y0 : float
             The position of the center of the rotor in the y-axis.
@@ -235,27 +317,37 @@ class THDCylindrical:
             Force in Y direction. The unit is newton.
         """
         if y0 is None and xpt0 is None and ypt0 is None:
-            self.x0 = x0
+            self.initial_guess = initial_guess
 
-            xr = self.x0[0] * self.c_r * np.cos(self.x0[1])
-            yr = self.x0[0] * self.c_r * np.sin(self.x0[1])
-            self.Y = yr / self.c_r
-            self.X = xr / self.c_r
+            xr = (
+                self.initial_guess[0]
+                * self.radial_clearance
+                * np.cos(self.initial_guess[1])
+            )
+            yr = (
+                self.initial_guess[0]
+                * self.radial_clearance
+                * np.sin(self.initial_guess[1])
+            )
+            self.Y = yr / self.radial_clearance
+            self.X = xr / self.radial_clearance
 
             self.Xpt = 0
             self.Ypt = 0
         else:
-            self.X = x0 / self.c_r
-            self.Y = y0 / self.c_r
+            self.X = initial_guess / self.radial_clearance
+            self.Y = y0 / self.radial_clearance
 
-            self.Xpt = xpt0 / (self.c_r * self.speed)
-            self.Ypt = ypt0 / (self.c_r * self.speed)
+            self.Xpt = xpt0 / (self.radial_clearance * self.speed)
+            self.Ypt = ypt0 / (self.radial_clearance * self.speed)
 
-        T_conv = 0.8 * self.T_reserv
+        T_conv = 0.8 * self.reference_temperature
 
-        T_mist = self.T_reserv * np.ones(self.n_pad)
+        T_mist = self.reference_temperature * np.ones(self.n_pad)
 
-        Reyn = np.zeros((self.n_z, self.n_theta, self.n_pad))
+        Reyn = np.zeros(
+            (self.elements_axial, self.elements_circumferential, self.n_pad)
+        )
 
         pad_ct = [ang for ang in range(0, 360, int(360 / self.n_pad))]
 
@@ -268,7 +360,7 @@ class THDCylindrical:
         )
 
         Ytheta = [
-            np.linspace(t1, t2, self.n_theta)
+            np.linspace(t1, t2, self.elements_circumferential)
             for t1, t2 in zip(self.thetaI, self.thetaF)
         ]
 
@@ -283,26 +375,43 @@ class THDCylindrical:
         )
 
         Ytheta = [
-            np.linspace(t1, t2, self.n_theta)
+            np.linspace(t1, t2, self.elements_circumferential)
             for t1, t2 in zip(self.thetaI, self.thetaF)
         ]
 
         while (T_mist[0] - T_conv) >= 1e-2:
 
-            self.P = np.zeros((self.n_z, self.n_theta, self.n_pad))
-            dPdy = np.zeros((self.n_z, self.n_theta, self.n_pad))
-            dPdz = np.zeros((self.n_z, self.n_theta, self.n_pad))
-            T = np.ones((self.n_z, self.n_theta, self.n_pad))
-            T_new = np.ones((self.n_z, self.n_theta, self.n_pad)) * 1.2
+            self.P = np.zeros(
+                (self.elements_axial, self.elements_circumferential, self.n_pad)
+            )
+            dPdy = np.zeros(
+                (self.elements_axial, self.elements_circumferential, self.n_pad)
+            )
+            dPdz = np.zeros(
+                (self.elements_axial, self.elements_circumferential, self.n_pad)
+            )
+            T = np.ones(
+                (self.elements_axial, self.elements_circumferential, self.n_pad)
+            )
+            T_new = (
+                np.ones(
+                    (self.elements_axial, self.elements_circumferential, self.n_pad)
+                )
+                * 1.2
+            )
 
             T_conv = T_mist[0]
 
-            mu_new = 1.1 * np.ones((self.n_z, self.n_theta, self.n_pad))
-            mu_turb = 1.3 * np.ones((self.n_z, self.n_theta, self.n_pad))
+            mu_new = 1.1 * np.ones(
+                (self.elements_axial, self.elements_circumferential, self.n_pad)
+            )
+            mu_turb = 1.3 * np.ones(
+                (self.elements_axial, self.elements_circumferential, self.n_pad)
+            )
 
-            PP = np.zeros(((self.n_z), (2 * self.n_theta)))
+            PP = np.zeros(((self.elements_axial), (2 * self.elements_circumferential)))
 
-            nk = (self.n_z) * (self.n_theta)
+            nk = (self.elements_axial) * (self.elements_circumferential)
 
             Mat_coef = np.zeros((nk, nk))
             Mat_coef_T = np.zeros((nk, nk))
@@ -361,19 +470,23 @@ class THDCylindrical:
                                 MU_s = mu[ki, kj]
                                 MU_n = 0.5 * (mu[ki, kj] + mu[ki + 1, kj])
 
-                            if kj == 0 and ki > 0 and ki < self.n_z - 1:
+                            if kj == 0 and ki > 0 and ki < self.elements_axial - 1:
                                 MU_e = 0.5 * (mu[ki, kj] + mu[ki, kj + 1])
                                 MU_w = mu[ki, kj]
                                 MU_s = 0.5 * (mu[ki, kj] + mu[ki - 1, kj])
                                 MU_n = 0.5 * (mu[ki, kj] + mu[ki + 1, kj])
 
-                            if kj == 0 and ki == self.n_z - 1:
+                            if kj == 0 and ki == self.elements_axial - 1:
                                 MU_e = 0.5 * (mu[ki, kj] + mu[ki, kj + 1])
                                 MU_w = mu[ki, kj]
                                 MU_s = 0.5 * (mu[ki, kj] + mu[ki - 1, kj])
                                 MU_n = mu[ki, kj]
 
-                            if ki == 0 and kj > 0 and kj < self.n_theta - 1:
+                            if (
+                                ki == 0
+                                and kj > 0
+                                and kj < self.elements_circumferential - 1
+                            ):
                                 MU_e = 0.5 * (mu[ki, kj] + mu[ki, kj + 1])
                                 MU_w = 0.5 * (mu[ki, kj] + mu[ki, kj - 1])
                                 MU_s = mu[ki, kj]
@@ -381,34 +494,45 @@ class THDCylindrical:
 
                             if (
                                 kj > 0
-                                and kj < self.n_theta - 1
+                                and kj < self.elements_circumferential - 1
                                 and ki > 0
-                                and ki < self.n_z - 1
+                                and ki < self.elements_axial - 1
                             ):
                                 MU_e = 0.5 * (mu[ki, kj] + mu[ki, kj + 1])
                                 MU_w = 0.5 * (mu[ki, kj] + mu[ki, kj - 1])
                                 MU_s = 0.5 * (mu[ki, kj] + mu[ki - 1, kj])
                                 MU_n = 0.5 * (mu[ki, kj] + mu[ki + 1, kj])
 
-                            if ki == self.n_z - 1 and kj > 0 and kj < self.n_theta - 1:
+                            if (
+                                ki == self.elements_axial - 1
+                                and kj > 0
+                                and kj < self.elements_circumferential - 1
+                            ):
                                 MU_e = 0.5 * (mu[ki, kj] + mu[ki, kj + 1])
                                 MU_w = 0.5 * (mu[ki, kj] + mu[ki, kj - 1])
                                 MU_s = 0.5 * (mu[ki, kj] + mu[ki - 1, kj])
                                 MU_n = mu[ki, kj]
 
-                            if ki == 0 and kj == self.n_theta - 1:
+                            if ki == 0 and kj == self.elements_circumferential - 1:
                                 MU_e = mu[ki, kj]
                                 MU_w = 0.5 * (mu[ki, kj] + mu[ki, kj - 1])
                                 MU_s = mu[ki, kj]
                                 MU_n = 0.5 * (mu[ki, kj] + mu[ki + 1, kj])
 
-                            if kj == self.n_theta - 1 and ki > 0 and ki < self.n_z - 1:
+                            if (
+                                kj == self.elements_circumferential - 1
+                                and ki > 0
+                                and ki < self.elements_axial - 1
+                            ):
                                 MU_e = mu[ki, kj]
                                 MU_w = 0.5 * (mu[ki, kj] + mu[ki, kj - 1])
                                 MU_s = 0.5 * (mu[ki, kj] + mu[ki - 1, kj])
                                 MU_n = 0.5 * (mu[ki, kj] + mu[ki + 1, kj])
 
-                            if kj == self.n_theta - 1 and ki == self.n_z - 1:
+                            if (
+                                kj == self.elements_circumferential - 1
+                                and ki == self.elements_axial - 1
+                            ):
                                 MU_e = mu[ki, kj]
                                 MU_w = 0.5 * (mu[ki, kj] + mu[ki, kj - 1])
                                 MU_s = 0.5 * (mu[ki, kj] + mu[ki - 1, kj])
@@ -420,11 +544,11 @@ class THDCylindrical:
                             CW = (self.dZ * hw**3) / (
                                 12 * MU_w[n_p] * self.dY * self.betha_s**2
                             )
-                            CN = (self.dY * (self.R**2) * hn**3) / (
-                                12 * MU_n[n_p] * self.dZ * self.L**2
+                            CN = (self.dY * (self.journal_radius**2) * hn**3) / (
+                                12 * MU_n[n_p] * self.dZ * self.axial_length**2
                             )
-                            CS = (self.dY * (self.R**2) * hs**3) / (
-                                12 * MU_s[n_p] * self.dZ * self.L**2
+                            CS = (self.dY * (self.journal_radius**2) * hs**3) / (
+                                12 * MU_s[n_p] * self.dZ * self.axial_length**2
                             )
                             CP = -(CE + CW + CN + CS)
 
@@ -440,58 +564,90 @@ class THDCylindrical:
                             if ki == 0 and kj == 0:
                                 Mat_coef[k - 1, k - 1] = CP - CS - CW
                                 Mat_coef[k - 1, k] = CE
-                                Mat_coef[k - 1, k + self.n_theta - 1] = CN
+                                Mat_coef[
+                                    k - 1, k + self.elements_circumferential - 1
+                                ] = CN
 
-                            elif kj == 0 and ki > 0 and ki < self.n_z - 1:
+                            elif kj == 0 and ki > 0 and ki < self.elements_axial - 1:
                                 Mat_coef[k - 1, k - 1] = CP - CW
                                 Mat_coef[k - 1, k] = CE
-                                Mat_coef[k - 1, k - self.n_theta - 1] = CS
-                                Mat_coef[k - 1, k + self.n_theta - 1] = CN
+                                Mat_coef[
+                                    k - 1, k - self.elements_circumferential - 1
+                                ] = CS
+                                Mat_coef[
+                                    k - 1, k + self.elements_circumferential - 1
+                                ] = CN
 
-                            elif kj == 0 and ki == self.n_z - 1:
+                            elif kj == 0 and ki == self.elements_axial - 1:
                                 Mat_coef[k - 1, k - 1] = CP - CN - CW
                                 Mat_coef[k - 1, k] = CE
-                                Mat_coef[k - 1, k - self.n_theta - 1] = CS
+                                Mat_coef[
+                                    k - 1, k - self.elements_circumferential - 1
+                                ] = CS
 
                             elif ki == 0 and kj > 0 and kj < self.n_y - 1:
                                 Mat_coef[k - 1, k - 1] = CP - CS
                                 Mat_coef[k - 1, k] = CE
                                 Mat_coef[k - 1, k - 2] = CW
-                                Mat_coef[k - 1, k + self.n_theta - 1] = CN
+                                Mat_coef[
+                                    k - 1, k + self.elements_circumferential - 1
+                                ] = CN
 
                             elif (
                                 ki > 0
-                                and ki < self.n_z - 1
+                                and ki < self.elements_axial - 1
                                 and kj > 0
                                 and kj < self.n_y - 1
                             ):
                                 Mat_coef[k - 1, k - 1] = CP
                                 Mat_coef[k - 1, k - 2] = CW
-                                Mat_coef[k - 1, k - self.n_theta - 1] = CS
-                                Mat_coef[k - 1, k + self.n_theta - 1] = CN
+                                Mat_coef[
+                                    k - 1, k - self.elements_circumferential - 1
+                                ] = CS
+                                Mat_coef[
+                                    k - 1, k + self.elements_circumferential - 1
+                                ] = CN
                                 Mat_coef[k - 1, k] = CE
 
-                            elif ki == self.n_z - 1 and kj > 0 and kj < self.n_y - 1:
+                            elif (
+                                ki == self.elements_axial - 1
+                                and kj > 0
+                                and kj < self.n_y - 1
+                            ):
                                 Mat_coef[k - 1, k - 1] = CP - CN
                                 Mat_coef[k - 1, k] = CE
                                 Mat_coef[k - 1, k - 2] = CW
-                                Mat_coef[k - 1, k - self.n_theta - 1] = CS
+                                Mat_coef[
+                                    k - 1, k - self.elements_circumferential - 1
+                                ] = CS
 
                             elif ki == 0 and kj == self.n_y - 1:
                                 Mat_coef[k - 1, k - 1] = CP - CE - CS
                                 Mat_coef[k - 1, k - 2] = CW
-                                Mat_coef[k - 1, k + self.n_theta - 1] = CN
+                                Mat_coef[
+                                    k - 1, k + self.elements_circumferential - 1
+                                ] = CN
 
-                            elif kj == self.n_y - 1 and ki > 0 and ki < self.n_z - 1:
+                            elif (
+                                kj == self.n_y - 1
+                                and ki > 0
+                                and ki < self.elements_axial - 1
+                            ):
                                 Mat_coef[k - 1, k - 1] = CP - CE
                                 Mat_coef[k - 1, k - 2] = CW
-                                Mat_coef[k - 1, k - self.n_theta - 1] = CS
-                                Mat_coef[k - 1, k + self.n_theta - 1] = CN
+                                Mat_coef[
+                                    k - 1, k - self.elements_circumferential - 1
+                                ] = CS
+                                Mat_coef[
+                                    k - 1, k + self.elements_circumferential - 1
+                                ] = CN
 
-                            elif ki == self.n_z - 1 and kj == self.n_y - 1:
+                            elif ki == self.elements_axial - 1 and kj == self.n_y - 1:
                                 Mat_coef[k - 1, k - 1] = CP - CE - CN
                                 Mat_coef[k - 1, k - 2] = CW
-                                Mat_coef[k - 1, k - self.n_theta - 1] = CS
+                                Mat_coef[
+                                    k - 1, k - self.elements_circumferential - 1
+                                ] = CS
 
                             kj = kj + 1
 
@@ -503,8 +659,8 @@ class THDCylindrical:
                     p = np.linalg.solve(Mat_coef, b)
                     cont = 0
 
-                    for i in np.arange(self.n_z):
-                        for j in np.arange(self.n_theta):
+                    for i in np.arange(self.elements_axial):
+                        for j in np.arange(self.elements_circumferential):
 
                             self.P[i, j, n_p] = p[cont]
                             cont = cont + 1
@@ -514,9 +670,12 @@ class THDCylindrical:
 
                     # Dimensional pressure fied
 
-                    self.Pdim = (self.P * self.mu_ref * self.speed * (self.R**2)) / (
-                        self.c_r**2
-                    )
+                    self.Pdim = (
+                        self.P
+                        * self.reference_viscosity
+                        * self.speed
+                        * (self.journal_radius**2)
+                    ) / (self.radial_clearance**2)
 
                     ki = 0
                     kj = 0
@@ -543,7 +702,7 @@ class THDCylindrical:
                                     2 * self.dZ
                                 )
 
-                            if kj == 0 and ki > 0 and ki < self.n_z - 1:
+                            if kj == 0 and ki > 0 and ki < self.elements_axial - 1:
                                 dPdy[ki, kj, n_p] = (self.P[ki, kj + 1, n_p] - 0) / (
                                     2 * self.dY
                                 )
@@ -551,7 +710,7 @@ class THDCylindrical:
                                     self.P[ki + 1, kj, n_p] - self.P[ki - 1, kj, n_p]
                                 ) / (2 * self.dZ)
 
-                            if kj == 0 and ki == self.n_z - 1:
+                            if kj == 0 and ki == self.elements_axial - 1:
                                 dPdy[ki, kj, n_p] = (self.P[ki, kj + 1, n_p] - 0) / (
                                     2 * self.dY
                                 )
@@ -559,7 +718,11 @@ class THDCylindrical:
                                     2 * self.dZ
                                 )
 
-                            if ki == 0 and kj > 0 and kj < self.n_theta - 1:
+                            if (
+                                ki == 0
+                                and kj > 0
+                                and kj < self.elements_circumferential - 1
+                            ):
                                 dPdy[ki, kj, n_p] = (
                                     self.P[ki, kj + 1, n_p] - self.P[ki, kj - 1, n_p]
                                 ) / (2 * self.dY)
@@ -569,9 +732,9 @@ class THDCylindrical:
 
                             if (
                                 kj > 0
-                                and kj < self.n_theta - 1
+                                and kj < self.elements_circumferential - 1
                                 and ki > 0
-                                and ki < self.n_z - 1
+                                and ki < self.elements_axial - 1
                             ):
                                 dPdy[ki, kj, n_p] = (
                                     self.P[ki, kj + 1, n_p] - self.P[ki, kj - 1, n_p]
@@ -580,7 +743,11 @@ class THDCylindrical:
                                     self.P[ki + 1, kj, n_p] - self.P[ki - 1, kj, n_p]
                                 ) / (2 * self.dZ)
 
-                            if ki == self.n_z - 1 and kj > 0 and kj < self.n_theta - 1:
+                            if (
+                                ki == self.elements_axial - 1
+                                and kj > 0
+                                and kj < self.elements_circumferential - 1
+                            ):
                                 dPdy[ki, kj, n_p] = (
                                     self.P[ki, kj + 1, n_p] - self.P[ki, kj - 1, n_p]
                                 ) / (2 * self.dY)
@@ -588,7 +755,7 @@ class THDCylindrical:
                                     2 * self.dZ
                                 )
 
-                            if ki == 0 and kj == self.n_theta - 1:
+                            if ki == 0 and kj == self.elements_circumferential - 1:
                                 dPdy[ki, kj, n_p] = (0 - self.P[ki, kj - 1, n_p]) / (
                                     2 * self.dY
                                 )
@@ -596,7 +763,11 @@ class THDCylindrical:
                                     2 * self.dZ
                                 )
 
-                            if kj == self.n_theta - 1 and ki > 0 and ki < self.n_z - 1:
+                            if (
+                                kj == self.elements_circumferential - 1
+                                and ki > 0
+                                and ki < self.elements_axial - 1
+                            ):
                                 dPdy[ki, kj, n_p] = (0 - self.P[ki, kj - 1, n_p]) / (
                                     2 * self.dY
                                 )
@@ -604,7 +775,10 @@ class THDCylindrical:
                                     self.P[ki + 1, kj, n_p] - self.P[ki - 1, kj, n_p]
                                 ) / (2 * self.dZ)
 
-                            if kj == self.n_theta - 1 and ki == self.n_z - 1:
+                            if (
+                                kj == self.elements_circumferential - 1
+                                and ki == self.elements_axial - 1
+                            ):
                                 dPdy[ki, kj, n_p] = (0 - self.P[ki, kj - 1, n_p]) / (
                                     2 * self.dY
                                 )
@@ -620,10 +794,10 @@ class THDCylindrical:
                             Reyn[ki, kj, n_p] = (
                                 self.rho
                                 * self.speed
-                                * self.R
-                                * (HP / self.L)
-                                * self.c_r
-                                / (self.mu_ref)
+                                * self.journal_radius
+                                * (HP / self.axial_length)
+                                * self.radial_clearance
+                                / (self.reference_viscosity)
                             )
 
                             if Reyn[ki, kj, n_p] <= 500:
@@ -651,8 +825,12 @@ class THDCylindrical:
                             )
 
                             x_wall = (
-                                (HP * self.c_r * 2)
-                                / (self.mu_ref * mu_turb[ki, kj, n_p] / self.rho)
+                                (HP * self.radial_clearance * 2)
+                                / (
+                                    self.reference_viscosity
+                                    * mu_turb[ki, kj, n_p]
+                                    / self.rho
+                                )
                             ) * ((abs(tal) / self.rho) ** 0.5)
 
                             emv = 0.4 * (x_wall - (10.7 * np.tanh(x_wall / 10.7)))
@@ -665,7 +843,7 @@ class THDCylindrical:
                                 self.rho
                                 * self.Cp
                                 * self.speed
-                                * ((self.betha_s * self.R) ** 2)
+                                * ((self.betha_s * self.journal_radius) ** 2)
                                 * self.dY
                             )
                             AW = (
@@ -680,7 +858,7 @@ class THDCylindrical:
                                         self.rho
                                         * self.Cp
                                         * self.speed
-                                        * ((self.betha_s * self.R) ** 2)
+                                        * ((self.betha_s * self.journal_radius) ** 2)
                                         * self.dY
                                     )
                                 )
@@ -688,89 +866,114 @@ class THDCylindrical:
 
                             AN = -(
                                 (
-                                    (self.R**2)
+                                    (self.journal_radius**2)
                                     * (HP**3)
                                     * (dPdz[ki, kj, n_p] * self.dY)
                                 )
-                                / (2 * 12 * (self.L**2) * mi_t)
+                                / (2 * 12 * (self.axial_length**2) * mi_t)
                             ) - (
                                 (self.k_t * HP * self.dY)
                                 / (
                                     self.rho
                                     * self.Cp
                                     * self.speed
-                                    * (self.L**2)
+                                    * (self.axial_length**2)
                                     * self.dZ
                                 )
                             )
 
                             AS = (
                                 (
-                                    (self.R**2)
+                                    (self.journal_radius**2)
                                     * (HP**3)
                                     * (dPdz[ki, kj, n_p] * self.dY)
                                 )
-                                / (2 * 12 * (self.L**2) * mi_t)
+                                / (2 * 12 * (self.axial_length**2) * mi_t)
                             ) - (
                                 (self.k_t * HP * self.dY)
                                 / (
                                     self.rho
                                     * self.Cp
                                     * self.speed
-                                    * (self.L**2)
+                                    * (self.axial_length**2)
                                     * self.dZ
                                 )
                             )
 
                             AP = -(AE + AW + AN + AS)
 
-                            auxb_T = (self.speed * self.mu_ref) / (
-                                self.rho * self.Cp * self.T_reserv * self.c_r
+                            auxb_T = (self.speed * self.reference_viscosity) / (
+                                self.rho
+                                * self.Cp
+                                * self.reference_temperature
+                                * self.radial_clearance
                             )
                             b_TG = (
-                                self.mu_ref
+                                self.reference_viscosity
                                 * self.speed
-                                * (self.R**2)
+                                * (self.journal_radius**2)
                                 * self.dY
                                 * self.dZ
                                 * self.P[ki, kj, n_p]
                                 * hpt
-                            ) / (self.rho * self.Cp * self.T_reserv * (self.c_r**2))
+                            ) / (
+                                self.rho
+                                * self.Cp
+                                * self.reference_temperature
+                                * (self.radial_clearance**2)
+                            )
                             b_TH = (
                                 self.speed
-                                * self.mu_ref
+                                * self.reference_viscosity
                                 * (hpt**2)
                                 * 4
                                 * mi_t
                                 * self.dY
                                 * self.dZ
-                            ) / (self.rho * self.Cp * self.T_reserv * 3 * HP)
+                            ) / (
+                                self.rho * self.Cp * self.reference_temperature * 3 * HP
+                            )
                             b_TI = (
                                 auxb_T
-                                * (mi_t * (self.R**2) * self.dY * self.dZ)
-                                / (HP * self.c_r)
+                                * (
+                                    mi_t
+                                    * (self.journal_radius**2)
+                                    * self.dY
+                                    * self.dZ
+                                )
+                                / (HP * self.radial_clearance)
                             )
                             b_TJ = (
                                 auxb_T
                                 * (
-                                    (self.R**2)
+                                    (self.journal_radius**2)
                                     * (HP**3)
                                     * (dPdy[ki, kj, n_p] ** 2)
                                     * self.dY
                                     * self.dZ
                                 )
-                                / (12 * self.c_r * (self.betha_s**2) * mi_t)
+                                / (
+                                    12
+                                    * self.radial_clearance
+                                    * (self.betha_s**2)
+                                    * mi_t
+                                )
                             )
                             b_TK = (
                                 auxb_T
                                 * (
-                                    (self.R**4)
+                                    (self.journal_radius**4)
                                     * (HP**3)
                                     * (dPdz[ki, kj, n_p] ** 2)
                                     * self.dY
                                     * self.dZ
                                 )
-                                / (12 * self.c_r * (self.L**2) * mi_t)
+                                / (
+                                    12
+                                    * self.radial_clearance
+                                    * (self.axial_length**2)
+                                    * mi_t
+                                )
                             )
 
                             B_T = b_TG + b_TH + b_TI + b_TJ + b_TK
@@ -782,67 +985,99 @@ class THDCylindrical:
                             if ki == 0 and kj == 0:
                                 Mat_coef_T[k - 1, k - 1] = AP + AS - AW
                                 Mat_coef_T[k - 1, k] = AE
-                                Mat_coef_T[k - 1, k + self.n_theta - 1] = AN
+                                Mat_coef_T[
+                                    k - 1, k + self.elements_circumferential - 1
+                                ] = AN
                                 b_T[k - 1, 0] = b_T[k - 1, 0] - 2 * AW * (
-                                    T_ref / self.T_reserv
+                                    T_ref / self.reference_temperature
                                 )
 
-                            elif kj == 0 and ki > 0 and ki < self.n_z - 1:
+                            elif kj == 0 and ki > 0 and ki < self.elements_axial - 1:
                                 Mat_coef_T[k - 1, k - 1] = AP - AW
                                 Mat_coef_T[k - 1, k] = AE
-                                Mat_coef_T[k - 1, k - self.n_theta - 1] = AS
-                                Mat_coef_T[k - 1, k + self.n_theta - 1] = AN
+                                Mat_coef_T[
+                                    k - 1, k - self.elements_circumferential - 1
+                                ] = AS
+                                Mat_coef_T[
+                                    k - 1, k + self.elements_circumferential - 1
+                                ] = AN
                                 b_T[k - 1, 0] = b_T[k - 1, 0] - 2 * AW * (
-                                    T_ref / self.T_reserv
+                                    T_ref / self.reference_temperature
                                 )
 
-                            elif kj == 0 and ki == self.n_z - 1:
+                            elif kj == 0 and ki == self.elements_axial - 1:
                                 Mat_coef_T[k - 1, k - 1] = AP + AN - AW
                                 Mat_coef_T[k - 1, k] = AE
-                                Mat_coef_T[k - 1, k - self.n_theta - 1] = AS
+                                Mat_coef_T[
+                                    k - 1, k - self.elements_circumferential - 1
+                                ] = AS
                                 b_T[k - 1, 0] = b_T[k - 1, 0] - 2 * AW * (
-                                    T_ref / self.T_reserv
+                                    T_ref / self.reference_temperature
                                 )
 
                             elif ki == 0 and kj > 0 and kj < self.n_y - 1:
                                 Mat_coef_T[k - 1, k - 1] = AP + AS
                                 Mat_coef_T[k - 1, k] = AE
                                 Mat_coef_T[k - 1, k - 2] = AW
-                                Mat_coef_T[k - 1, k + self.n_theta - 1] = AN
+                                Mat_coef_T[
+                                    k - 1, k + self.elements_circumferential - 1
+                                ] = AN
 
                             elif (
                                 ki > 0
-                                and ki < self.n_z - 1
+                                and ki < self.elements_axial - 1
                                 and kj > 0
                                 and kj < self.n_y - 1
                             ):
                                 Mat_coef_T[k - 1, k - 1] = AP
                                 Mat_coef_T[k - 1, k - 2] = AW
-                                Mat_coef_T[k - 1, k - self.n_theta - 1] = AS
-                                Mat_coef_T[k - 1, k + self.n_theta - 1] = AN
+                                Mat_coef_T[
+                                    k - 1, k - self.elements_circumferential - 1
+                                ] = AS
+                                Mat_coef_T[
+                                    k - 1, k + self.elements_circumferential - 1
+                                ] = AN
                                 Mat_coef_T[k - 1, k] = AE
 
-                            elif ki == self.n_z - 1 and kj > 0 and kj < self.n_y - 1:
+                            elif (
+                                ki == self.elements_axial - 1
+                                and kj > 0
+                                and kj < self.n_y - 1
+                            ):
                                 Mat_coef_T[k - 1, k - 1] = AP + AN
                                 Mat_coef_T[k - 1, k] = AE
                                 Mat_coef_T[k - 1, k - 2] = AW
-                                Mat_coef_T[k - 1, k - self.n_theta - 1] = AS
+                                Mat_coef_T[
+                                    k - 1, k - self.elements_circumferential - 1
+                                ] = AS
 
                             elif ki == 0 and kj == self.n_y - 1:
                                 Mat_coef_T[k - 1, k - 1] = AP + AE + AS
                                 Mat_coef_T[k - 1, k - 2] = AW
-                                Mat_coef_T[k - 1, k + self.n_theta - 1] = AN
+                                Mat_coef_T[
+                                    k - 1, k + self.elements_circumferential - 1
+                                ] = AN
 
-                            elif kj == self.n_y - 1 and ki > 0 and ki < self.n_z - 1:
+                            elif (
+                                kj == self.n_y - 1
+                                and ki > 0
+                                and ki < self.elements_axial - 1
+                            ):
                                 Mat_coef_T[k - 1, k - 1] = AP + AE
                                 Mat_coef_T[k - 1, k - 2] = AW
-                                Mat_coef_T[k - 1, k - self.n_theta - 1] = AS
-                                Mat_coef_T[k - 1, k + self.n_theta - 1] = AN
+                                Mat_coef_T[
+                                    k - 1, k - self.elements_circumferential - 1
+                                ] = AS
+                                Mat_coef_T[
+                                    k - 1, k + self.elements_circumferential - 1
+                                ] = AN
 
-                            elif ki == self.n_z - 1 and kj == self.n_y - 1:
+                            elif ki == self.elements_axial - 1 and kj == self.n_y - 1:
                                 Mat_coef_T[k - 1, k - 1] = AP + AE + AN
                                 Mat_coef_T[k - 1, k - 2] = AW
-                                Mat_coef_T[k - 1, k - self.n_theta - 1] = AS
+                                Mat_coef_T[
+                                    k - 1, k - self.elements_circumferential - 1
+                                ] = AS
 
                             kj = kj + 1
 
@@ -854,32 +1089,34 @@ class THDCylindrical:
                     t = np.linalg.solve(Mat_coef_T, b_T)
                     cont = 0
 
-                    for i in np.arange(self.n_z):
-                        for j in np.arange(self.n_theta):
+                    for i in np.arange(self.elements_axial):
+                        for j in np.arange(self.elements_circumferential):
 
                             T_new[i, j, n_p] = t[cont]
                             cont = cont + 1
 
-                    Tdim = T_new * self.T_reserv
+                    Tdim = T_new * self.reference_temperature
 
-                    T_end = np.sum(Tdim[:, -1, n_p]) / self.n_z
+                    T_end = np.sum(Tdim[:, -1, n_p]) / self.elements_axial
 
                     T_mist[n_p] = (
-                        self.fat_mixt[n_p] * self.T_reserv
+                        self.fat_mixt[n_p] * self.reference_temperature
                         + (1 - self.fat_mixt[n_p]) * T_end
                     )
 
-                    for i in np.arange(self.n_z):
-                        for j in np.arange(self.n_theta):
+                    for i in np.arange(self.elements_axial):
+                        for j in np.arange(self.elements_circumferential):
 
                             mu_new[i, j, n_p] = (
                                 self.a * (Tdim[i, j, n_p]) ** self.b
-                            ) / self.mu_ref
+                            ) / self.reference_viscosity
 
-        PP = np.zeros(((self.n_z), (self.n_pad * self.n_theta)))
+        PP = np.zeros(
+            ((self.elements_axial), (self.n_pad * self.elements_circumferential))
+        )
 
         i = 0
-        for i in range(self.n_z):
+        for i in range(self.elements_axial):
 
             PP[i] = self.Pdim[i, :, :].ravel("F")
 
@@ -910,23 +1147,17 @@ class THDCylindrical:
         self.Fhy = Fhy
         return Fhx, Fhy
 
-    def run(self, x, print_result=False, print_progress=False, print_time=False):
+    def run(self):
         """This method runs the optimization to find the equilibrium position of
         the rotor's center.
 
-        Parameters
-        ----------
-        x : array
-            Array with eccentricity ratio and attitude angle
-        print_progress : bool
-            Set it True to print the score and forces on each iteration.
-            False by default.
+
         """
-        args = print_progress
+        args = self.print_progress
         t1 = time.time()
         res = minimize(
             self._score,
-            x,
+            self.initial_guess,
             args,
             method="Nelder-Mead",
             tol=10e-3,
@@ -935,23 +1166,32 @@ class THDCylindrical:
         self.equilibrium_pos = res.x
         t2 = time.time()
 
-        if print_result:
+        if self.print_result:
             print(res)
 
-        if print_time:
+        if self.print_time:
             print(f"Time Spent: {t2-t1} seconds")
 
     def _interpol(self, T_muI, T_muF, mu_I, mu_F):
         """
+        This method is used to create a relationship between viscosity and
+        temperature.
 
         Parameters
         ----------
-
-
+        T_muI: float
+            Reference temperature 1.
+        T_muF: float
+            Reference temperature 2.
+        mu_I: float
+            Viscosity at temperature 1.
+        mu_F: float
+            Viscosity at temperature 1.
 
         Returns
         -------
-
+        a,b: Float
+            Coeficients of the curve viscosity vs temperature.
         """
 
         def viscosity(x, a, b):
@@ -965,18 +1205,11 @@ class THDCylindrical:
 
         return a, b
 
-    def coefficients(self, method="lund", show_coef=False):
+    def coefficients(self):
         """Calculates the dynamic coefficients of stiffness "k" and damping "c".
-
+        Basic reference is found at :cite:t:`lund1978`
         Parameters
         ----------
-        method : string
-            Choose the method of ... Options are:
-                lund: method that calculates...
-                perturbation: method that ...
-        show_coef : bool
-            Set it True, to print the calculated coefficients.
-            False by default.
 
         Returns
         -------
@@ -984,17 +1217,22 @@ class THDCylindrical:
             Bearing stiffness and damping coefficients.
             Its shape is: ((kxx, kxy, kyx, kyy), (cxx, cxy, cyx, cyy))
 
+        References
+        ----------
+        .. bibliography::
+            :filter: docname in docnames
         """
+
         if self.equilibrium_pos is None:
-            self.run([0.1, -0.1], True, True)
-            self.coefficients(method=method, show_coef=show_coef)
+            self.run()
+            self.coefficients()
         else:
-            if method == "lund":
+            if self.method == "lund":
                 k, c = self._lund_method()
-            elif method == "perturbation":
+            elif self.method == "perturbation":
                 k, c = self._pertubation_method()
 
-            if show_coef:
+            if self.show_coef:
                 print(f"kxx = {k[0]}")
                 print(f"kxy = {k[1]}")
                 print(f"kyx = {k[2]}")
@@ -1016,62 +1254,98 @@ class THDCylindrical:
 
         """
 
-        xeq = self.equilibrium_pos[0] * self.c_r * np.cos(self.equilibrium_pos[1])
-        yeq = self.equilibrium_pos[0] * self.c_r * np.sin(self.equilibrium_pos[1])
+        xeq = (
+            self.equilibrium_pos[0]
+            * self.radial_clearance
+            * np.cos(self.equilibrium_pos[1])
+        )
+        yeq = (
+            self.equilibrium_pos[0]
+            * self.radial_clearance
+            * np.sin(self.equilibrium_pos[1])
+        )
 
         dE = 0.001
-        epix = np.abs(dE * self.c_r * np.cos(self.equilibrium_pos[1]))
-        epiy = np.abs(dE * self.c_r * np.sin(self.equilibrium_pos[1]))
+        epix = np.abs(dE * self.radial_clearance * np.cos(self.equilibrium_pos[1]))
+        epiy = np.abs(dE * self.radial_clearance * np.sin(self.equilibrium_pos[1]))
 
-        Va = self.speed * (self.R)
+        Va = self.speed * (self.journal_radius)
         epixpt = 0.000001 * np.abs(Va * np.sin(self.equilibrium_pos[1]))
         epiypt = 0.000001 * np.abs(Va * np.cos(self.equilibrium_pos[1]))
 
-        Aux01 = self._forces(xeq + epix, yeq, 0, 0)
-        Aux02 = self._forces(xeq - epix, yeq, 0, 0)
-        Aux03 = self._forces(xeq, yeq + epiy, 0, 0)
-        Aux04 = self._forces(xeq, yeq - epiy, 0, 0)
+        Auinitial_guess1 = self._forces(xeq + epix, yeq, 0, 0)
+        Auinitial_guess2 = self._forces(xeq - epix, yeq, 0, 0)
+        Auinitial_guess3 = self._forces(xeq, yeq + epiy, 0, 0)
+        Auinitial_guess4 = self._forces(xeq, yeq - epiy, 0, 0)
 
-        Aux05 = self._forces(xeq, yeq, epixpt, 0)
-        Aux06 = self._forces(xeq, yeq, -epixpt, 0)
-        Aux07 = self._forces(xeq, yeq, 0, epiypt)
-        Aux08 = self._forces(xeq, yeq, 0, -epiypt)
+        Auinitial_guess5 = self._forces(xeq, yeq, epixpt, 0)
+        Auinitial_guess6 = self._forces(xeq, yeq, -epixpt, 0)
+        Auinitial_guess7 = self._forces(xeq, yeq, 0, epiypt)
+        Auinitial_guess8 = self._forces(xeq, yeq, 0, -epiypt)
 
-        Kxx = -self.sommerfeld(Aux01[0], Aux02[1]) * (
-            (Aux01[0] - Aux02[0]) / (epix / self.c_r)
+        Kxx = -self.sommerfeld(Auinitial_guess1[0], Auinitial_guess2[1]) * (
+            (Auinitial_guess1[0] - Auinitial_guess2[0]) / (epix / self.radial_clearance)
         )
-        Kxy = -self.sommerfeld(Aux03[0], Aux04[1]) * (
-            (Aux03[0] - Aux04[0]) / (epiy / self.c_r)
+        Kxy = -self.sommerfeld(Auinitial_guess3[0], Auinitial_guess4[1]) * (
+            (Auinitial_guess3[0] - Auinitial_guess4[0]) / (epiy / self.radial_clearance)
         )
-        Kyx = -self.sommerfeld(Aux01[1], Aux02[1]) * (
-            (Aux01[1] - Aux02[1]) / (epix / self.c_r)
+        Kyx = -self.sommerfeld(Auinitial_guess1[1], Auinitial_guess2[1]) * (
+            (Auinitial_guess1[1] - Auinitial_guess2[1]) / (epix / self.radial_clearance)
         )
-        Kyy = -self.sommerfeld(Aux03[1], Aux04[1]) * (
-            (Aux03[1] - Aux04[1]) / (epiy / self.c_r)
-        )
-
-        Cxx = -self.sommerfeld(Aux05[0], Aux06[0]) * (
-            (Aux06[0] - Aux05[0]) / (epixpt / self.c_r / self.speed)
-        )
-        Cxy = -self.sommerfeld(Aux07[0], Aux08[0]) * (
-            (Aux08[0] - Aux07[0]) / (epiypt / self.c_r / self.speed)
-        )
-        Cyx = -self.sommerfeld(Aux05[1], Aux06[1]) * (
-            (Aux06[1] - Aux05[1]) / (epixpt / self.c_r / self.speed)
-        )
-        Cyy = -self.sommerfeld(Aux07[1], Aux08[1]) * (
-            (Aux08[1] - Aux07[1]) / (epiypt / self.c_r / self.speed)
+        Kyy = -self.sommerfeld(Auinitial_guess3[1], Auinitial_guess4[1]) * (
+            (Auinitial_guess3[1] - Auinitial_guess4[1]) / (epiy / self.radial_clearance)
         )
 
-        kxx = (np.sqrt((self.Wx**2) + (self.Wy**2)) / self.c_r) * Kxx
-        kxy = (np.sqrt((self.Wx**2) + (self.Wy**2)) / self.c_r) * Kxy
-        kyx = (np.sqrt((self.Wx**2) + (self.Wy**2)) / self.c_r) * Kyx
-        kyy = (np.sqrt((self.Wx**2) + (self.Wy**2)) / self.c_r) * Kyy
+        Cxx = -self.sommerfeld(Auinitial_guess5[0], Auinitial_guess6[0]) * (
+            (Auinitial_guess6[0] - Auinitial_guess5[0])
+            / (epixpt / self.radial_clearance / self.speed)
+        )
+        Cxy = -self.sommerfeld(Auinitial_guess7[0], Auinitial_guess8[0]) * (
+            (Auinitial_guess8[0] - Auinitial_guess7[0])
+            / (epiypt / self.radial_clearance / self.speed)
+        )
+        Cyx = -self.sommerfeld(Auinitial_guess5[1], Auinitial_guess6[1]) * (
+            (Auinitial_guess6[1] - Auinitial_guess5[1])
+            / (epixpt / self.radial_clearance / self.speed)
+        )
+        Cyy = -self.sommerfeld(Auinitial_guess7[1], Auinitial_guess8[1]) * (
+            (Auinitial_guess8[1] - Auinitial_guess7[1])
+            / (epiypt / self.radial_clearance / self.speed)
+        )
 
-        cxx = (np.sqrt((self.Wx**2) + (self.Wy**2)) / (self.c_r * self.speed)) * Cxx
-        cxy = (np.sqrt((self.Wx**2) + (self.Wy**2)) / (self.c_r * self.speed)) * Cxy
-        cyx = (np.sqrt((self.Wx**2) + (self.Wy**2)) / (self.c_r * self.speed)) * Cyx
-        cyy = (np.sqrt((self.Wx**2) + (self.Wy**2)) / (self.c_r * self.speed)) * Cyy
+        kxx = (
+            np.sqrt((self.load_x_direction**2) + (self.load_y_direction**2))
+            / self.radial_clearance
+        ) * Kxx
+        kxy = (
+            np.sqrt((self.load_x_direction**2) + (self.load_y_direction**2))
+            / self.radial_clearance
+        ) * Kxy
+        kyx = (
+            np.sqrt((self.load_x_direction**2) + (self.load_y_direction**2))
+            / self.radial_clearance
+        ) * Kyx
+        kyy = (
+            np.sqrt((self.load_x_direction**2) + (self.load_y_direction**2))
+            / self.radial_clearance
+        ) * Kyy
+
+        cxx = (
+            np.sqrt((self.load_x_direction**2) + (self.load_y_direction**2))
+            / (self.radial_clearance * self.speed)
+        ) * Cxx
+        cxy = (
+            np.sqrt((self.load_x_direction**2) + (self.load_y_direction**2))
+            / (self.radial_clearance * self.speed)
+        ) * Cxy
+        cyx = (
+            np.sqrt((self.load_x_direction**2) + (self.load_y_direction**2))
+            / (self.radial_clearance * self.speed)
+        ) * Cyx
+        cyy = (
+            np.sqrt((self.load_x_direction**2) + (self.load_y_direction**2))
+            / (self.radial_clearance * self.speed)
+        ) * Cyy
 
         return (kxx, kxy, kyx, kyy), (cxx, cxy, cyx, cyy)
 
@@ -1086,24 +1360,24 @@ class THDCylindrical:
 
         p = self.P
 
-        x0 = self.equilibrium_pos
+        initial_guess = self.equilibrium_pos
 
-        dZ = 1 / self.n_z
+        dZ = 1 / self.elements_axial
 
         Z1 = 0
         Z2 = 1
         Z = np.arange(Z1 + 0.5 * dZ, Z2, dZ)
-        Zdim = Z * self.L
+        Zdim = Z * self.axial_length
 
-        Ytheta = np.zeros((self.n_pad, self.n_theta))
+        Ytheta = np.zeros((self.n_pad, self.elements_circumferential))
 
         # Dimensionless
-        xr = x0[0] * self.c_r * np.cos(x0[1])
-        yr = x0[0] * self.c_r * np.sin(x0[1])
-        Y = yr / self.c_r
-        X = xr / self.c_r
+        xr = initial_guess[0] * self.radial_clearance * np.cos(initial_guess[1])
+        yr = initial_guess[0] * self.radial_clearance * np.sin(initial_guess[1])
+        Y = yr / self.radial_clearance
+        X = xr / self.radial_clearance
 
-        nk = (self.n_z) * (self.n_theta)
+        nk = (self.elements_axial) * (self.elements_circumferential)
 
         gamma = 0.001
 
@@ -1115,13 +1389,17 @@ class THDCylindrical:
 
         bY = np.zeros((nk, 1)).astype(complex)
 
-        hX = np.zeros((self.n_pad, self.n_theta))
+        hX = np.zeros((self.n_pad, self.elements_circumferential))
 
-        hY = np.zeros((self.n_pad, self.n_theta))
+        hY = np.zeros((self.n_pad, self.elements_circumferential))
 
-        PX = np.zeros((self.n_z, self.n_theta, self.n_pad)).astype(complex)
+        PX = np.zeros(
+            (self.elements_axial, self.elements_circumferential, self.n_pad)
+        ).astype(complex)
 
-        PY = np.zeros((self.n_z, self.n_theta, self.n_pad)).astype(complex)
+        PY = np.zeros(
+            (self.elements_axial, self.elements_circumferential, self.n_pad)
+        ).astype(complex)
 
         H = np.zeros((2, 2)).astype(complex)
 
@@ -1188,7 +1466,7 @@ class THDCylindrical:
                         pN = p[ki + 1, kj, n_p]
                         pS = -p[ki, kj, n_p]
 
-                    if kj == 0 and ki > 0 and ki < self.n_z - 1:
+                    if kj == 0 and ki > 0 and ki < self.elements_axial - 1:
                         MU_e = 0.5 * (
                             self.mu_l[ki, kj, n_p] + self.mu_l[ki, kj + 1, n_p]
                         )
@@ -1205,7 +1483,7 @@ class THDCylindrical:
                         pN = p[ki + 1, kj, n_p]
                         pS = p[ki - 1, kj, n_p]
 
-                    if kj == 0 and ki == self.n_z - 1:
+                    if kj == 0 and ki == self.elements_axial - 1:
                         MU_e = 0.5 * (
                             self.mu_l[ki, kj, n_p] + self.mu_l[ki, kj + 1, n_p]
                         )
@@ -1220,7 +1498,7 @@ class THDCylindrical:
                         pN = -p[ki, kj, n_p]
                         pS = p[ki - 1, kj, n_p]
 
-                    if ki == 0 and kj > 0 and kj < self.n_theta - 1:
+                    if ki == 0 and kj > 0 and kj < self.elements_circumferential - 1:
                         MU_e = 0.5 * (
                             self.mu_l[ki, kj, n_p] + self.mu_l[ki, kj + 1, n_p]
                         )
@@ -1239,9 +1517,9 @@ class THDCylindrical:
 
                     if (
                         kj > 0
-                        and kj < self.n_theta - 1
+                        and kj < self.elements_circumferential - 1
                         and ki > 0
-                        and ki < self.n_z - 1
+                        and ki < self.elements_axial - 1
                     ):
                         MU_e = 0.5 * (
                             self.mu_l[ki, kj, n_p] + self.mu_l[ki, kj + 1, n_p]
@@ -1261,7 +1539,11 @@ class THDCylindrical:
                         pN = p[ki + 1, kj, n_p]
                         pS = p[ki - 1, kj, n_p]
 
-                    if ki == self.n_z - 1 and kj > 0 and kj < self.n_theta - 1:
+                    if (
+                        ki == self.elements_axial - 1
+                        and kj > 0
+                        and kj < self.elements_circumferential - 1
+                    ):
                         MU_e = 0.5 * (
                             self.mu_l[ki, kj, n_p] + self.mu_l[ki, kj + 1, n_p]
                         )
@@ -1278,7 +1560,7 @@ class THDCylindrical:
                         pN = -p[ki, kj, n_p]
                         pS = p[ki - 1, kj, n_p]
 
-                    if ki == 0 and kj == self.n_theta - 1:
+                    if ki == 0 and kj == self.elements_circumferential - 1:
                         MU_e = self.mu_l[ki, kj, n_p]
                         MU_w = 0.5 * (
                             self.mu_l[ki, kj, n_p] + self.mu_l[ki, kj - 1, n_p]
@@ -1293,7 +1575,11 @@ class THDCylindrical:
                         pN = p[ki + 1, kj, n_p]
                         pS = -p[ki, kj, n_p]
 
-                    if kj == self.n_theta - 1 and ki > 0 and ki < self.n_z - 1:
+                    if (
+                        kj == self.elements_circumferential - 1
+                        and ki > 0
+                        and ki < self.elements_axial - 1
+                    ):
                         MU_e = self.mu_l[ki, kj, n_p]
                         MU_w = 0.5 * (
                             self.mu_l[ki, kj, n_p] + self.mu_l[ki, kj - 1, n_p]
@@ -1310,7 +1596,10 @@ class THDCylindrical:
                         pN = p[ki + 1, kj, n_p]
                         pS = p[ki - 1, kj, n_p]
 
-                    if kj == self.n_theta - 1 and ki == self.n_z - 1:
+                    if (
+                        kj == self.elements_circumferential - 1
+                        and ki == self.elements_axial - 1
+                    ):
                         MU_e = self.mu_l[ki, kj, n_p]
                         MU_w = 0.5 * (
                             self.mu_l[ki, kj, n_p] + self.mu_l[ki, kj - 1, n_p]
@@ -1329,11 +1618,11 @@ class THDCylindrical:
 
                     CE = (self.dZ * he**3) / (12 * MU_e * self.dY * self.betha_s**2)
                     CW = (self.dZ * hw**3) / (12 * MU_w * self.dY * self.betha_s**2)
-                    CN = (self.dY * (self.R**2) * hn**3) / (
-                        12 * MU_n * self.dZ * self.L**2
+                    CN = (self.dY * (self.journal_radius**2) * hn**3) / (
+                        12 * MU_n * self.dZ * self.axial_length**2
                     )
-                    CS = (self.dY * (self.R**2) * hs**3) / (
-                        12 * MU_s * self.dZ * self.L**2
+                    CS = (self.dY * (self.journal_radius**2) * hs**3) / (
+                        12 * MU_s * self.dZ * self.axial_length**2
                     )
 
                     CP = -(CE + CW + CN + CS)
@@ -1354,21 +1643,29 @@ class THDCylindrical:
                         (3 * hw**2 * hYw) / (12 * MU_w)
                     )
 
-                    BXN = -((self.R**2) * self.dY / (self.dZ * self.L**2)) * (
-                        (3 * hn**2 * hXn) / (12 * MU_n)
-                    )
+                    BXN = -(
+                        (self.journal_radius**2)
+                        * self.dY
+                        / (self.dZ * self.axial_length**2)
+                    ) * ((3 * hn**2 * hXn) / (12 * MU_n))
 
-                    BYN = -((self.R**2) * self.dY / (self.dZ * self.L**2)) * (
-                        (3 * hn**2 * hYn) / (12 * MU_n)
-                    )
+                    BYN = -(
+                        (self.journal_radius**2)
+                        * self.dY
+                        / (self.dZ * self.axial_length**2)
+                    ) * ((3 * hn**2 * hYn) / (12 * MU_n))
 
-                    BXS = -((self.R**2) * self.dY / (self.dZ * self.L**2)) * (
-                        (3 * hs**2 * hXs) / (12 * MU_s)
-                    )
+                    BXS = -(
+                        (self.journal_radius**2)
+                        * self.dY
+                        / (self.dZ * self.axial_length**2)
+                    ) * ((3 * hs**2 * hXs) / (12 * MU_s))
 
-                    BYS = -((self.R**2) * self.dY / (self.dZ * self.L**2)) * (
-                        (3 * hs**2 * hYs) / (12 * MU_s)
-                    )
+                    BYS = -(
+                        (self.journal_radius**2)
+                        * self.dY
+                        / (self.dZ * self.axial_length**2)
+                    ) * ((3 * hs**2 * hYs) / (12 * MU_s))
 
                     BXP = -(BXE + BXW + BXN + BXS)
 
@@ -1401,58 +1698,69 @@ class THDCylindrical:
                     if ki == 0 and kj == 0:
                         Mat_coef[k - 1, k - 1] = CP - CS - CW
                         Mat_coef[k - 1, k] = CE
-                        Mat_coef[k - 1, k + self.n_theta - 1] = CN
+                        Mat_coef[k - 1, k + self.elements_circumferential - 1] = CN
 
-                    elif kj == 0 and ki > 0 and ki < self.n_z - 1:
+                    elif kj == 0 and ki > 0 and ki < self.elements_axial - 1:
                         Mat_coef[k - 1, k - 1] = CP - CW
                         Mat_coef[k - 1, k] = CE
-                        Mat_coef[k - 1, k - self.n_theta - 1] = CS
-                        Mat_coef[k - 1, k + self.n_theta - 1] = CN
+                        Mat_coef[k - 1, k - self.elements_circumferential - 1] = CS
+                        Mat_coef[k - 1, k + self.elements_circumferential - 1] = CN
 
-                    elif kj == 0 and ki == self.n_z - 1:
+                    elif kj == 0 and ki == self.elements_axial - 1:
                         Mat_coef[k - 1, k - 1] = CP - CN - CW
                         Mat_coef[k - 1, k] = CE
-                        Mat_coef[k - 1, k - self.n_theta - 1] = CS
+                        Mat_coef[k - 1, k - self.elements_circumferential - 1] = CS
 
-                    elif ki == 0 and kj > 0 and kj < self.n_theta - 1:
+                    elif ki == 0 and kj > 0 and kj < self.elements_circumferential - 1:
                         Mat_coef[k - 1, k - 1] = CP - CS
                         Mat_coef[k - 1, k] = CE
                         Mat_coef[k - 1, k - 2] = CW
-                        Mat_coef[k - 1, k + self.n_theta - 1] = CN
+                        Mat_coef[k - 1, k + self.elements_circumferential - 1] = CN
 
                     if (
                         ki > 0
-                        and ki < self.n_z - 1
+                        and ki < self.elements_axial - 1
                         and kj > 0
-                        and kj < self.n_theta - 1
+                        and kj < self.elements_circumferential - 1
                     ):
                         Mat_coef[k - 1, k - 1] = CP
                         Mat_coef[k - 1, k - 2] = CW
-                        Mat_coef[k - 1, k - self.n_theta - 1] = CS
-                        Mat_coef[k - 1, k + self.n_theta - 1] = CN
+                        Mat_coef[k - 1, k - self.elements_circumferential - 1] = CS
+                        Mat_coef[k - 1, k + self.elements_circumferential - 1] = CN
                         Mat_coef[k - 1, k] = CE
 
-                    elif ki == self.n_z - 1 and kj > 0 and kj < self.n_theta - 1:
+                    elif (
+                        ki == self.elements_axial - 1
+                        and kj > 0
+                        and kj < self.elements_circumferential - 1
+                    ):
                         Mat_coef[k - 1, k - 1] = CP - CN
                         Mat_coef[k - 1, k] = CE
                         Mat_coef[k - 1, k - 2] = CW
-                        Mat_coef[k - 1, k - self.n_theta - 1] = CS
+                        Mat_coef[k - 1, k - self.elements_circumferential - 1] = CS
 
-                    elif ki == 0 and kj == self.n_theta - 1:
+                    elif ki == 0 and kj == self.elements_circumferential - 1:
                         Mat_coef[k - 1, k - 1] = CP - CE - CS
                         Mat_coef[k - 1, k - 2] = CW
-                        Mat_coef[k - 1, k + self.n_theta - 1] = CN
+                        Mat_coef[k - 1, k + self.elements_circumferential - 1] = CN
 
-                    elif kj == self.n_theta - 1 and ki > 0 and ki < self.n_z - 1:
+                    elif (
+                        kj == self.elements_circumferential - 1
+                        and ki > 0
+                        and ki < self.elements_axial - 1
+                    ):
                         Mat_coef[k - 1, k - 1] = CP - CE
                         Mat_coef[k - 1, k - 2] = CW
-                        Mat_coef[k - 1, k - self.n_theta - 1] = CS
-                        Mat_coef[k - 1, k + self.n_theta - 1] = CN
+                        Mat_coef[k - 1, k - self.elements_circumferential - 1] = CS
+                        Mat_coef[k - 1, k + self.elements_circumferential - 1] = CN
 
-                    elif ki == self.n_z - 1 and kj == self.n_theta - 1:
+                    elif (
+                        ki == self.elements_axial - 1
+                        and kj == self.elements_circumferential - 1
+                    ):
                         Mat_coef[k - 1, k - 1] = CP - CE - CN
                         Mat_coef[k - 1, k - 2] = CW
-                        Mat_coef[k - 1, k - self.n_theta - 1] = CS
+                        Mat_coef[k - 1, k - self.elements_circumferential - 1] = CS
 
                     kj = kj + 1
 
@@ -1467,18 +1775,22 @@ class THDCylindrical:
 
             cont = 0
 
-            for i in np.arange(self.n_z):
-                for j in np.arange(self.n_theta):
+            for i in np.arange(self.elements_axial):
+                for j in np.arange(self.elements_circumferential):
 
                     PX[i, j, n_p] = pX[cont]
                     PY[i, j, n_p] = pY[cont]
                     cont = cont + 1
 
-        PPlotX = np.zeros((self.n_z, self.n_theta * self.n_pad)).astype(complex)
-        PPlotY = np.zeros((self.n_z, self.n_theta * self.n_pad)).astype(complex)
+        PPlotX = np.zeros(
+            (self.elements_axial, self.elements_circumferential * self.n_pad)
+        ).astype(complex)
+        PPlotY = np.zeros(
+            (self.elements_axial, self.elements_circumferential * self.n_pad)
+        ).astype(complex)
 
         i = 0
-        for i in range(self.n_z):
+        for i in range(self.elements_axial):
 
             PPlotX[i] = PX[i, :, :].ravel("F")
             PPlotY[i] = PY[i, :, :].ravel("F")
@@ -1486,11 +1798,15 @@ class THDCylindrical:
         Ytheta = Ytheta.flatten()
 
         PPlotXdim = (
-            PPlotX * (self.mu_ref * self.speed * (self.R**2)) / (self.c_r**3)
+            PPlotX
+            * (self.reference_viscosity * self.speed * (self.journal_radius**2))
+            / (self.radial_clearance**3)
         )
 
         PPlotYdim = (
-            PPlotY * (self.mu_ref * self.speed * (self.R**2)) / (self.c_r**3)
+            PPlotY
+            * (self.reference_viscosity * self.speed * (self.journal_radius**2))
+            / (self.radial_clearance**3)
         )
 
         hX = hX.flatten()
@@ -1504,13 +1820,13 @@ class THDCylindrical:
 
         aux_intYY = PPlotYdim * hY.T
 
-        H[0, 0] = -np.trapz(np.trapz(aux_intXX, Ytheta * self.R), Zdim)
+        H[0, 0] = -np.trapz(np.trapz(aux_intXX, Ytheta * self.journal_radius), Zdim)
 
-        H[0, 1] = -np.trapz(np.trapz(aux_intXY, Ytheta * self.R), Zdim)
+        H[0, 1] = -np.trapz(np.trapz(aux_intXY, Ytheta * self.journal_radius), Zdim)
 
-        H[1, 0] = -np.trapz(np.trapz(aux_intYX, Ytheta * self.R), Zdim)
+        H[1, 0] = -np.trapz(np.trapz(aux_intYX, Ytheta * self.journal_radius), Zdim)
 
-        H[1, 1] = -np.trapz(np.trapz(aux_intYY, Ytheta * self.R), Zdim)
+        H[1, 1] = -np.trapz(np.trapz(aux_intYY, Ytheta * self.journal_radius), Zdim)
 
         K = np.real(H)
         C = np.imag(H) / wp
@@ -1531,18 +1847,20 @@ class THDCylindrical:
         """This method used to set the objective function of minimize optimization.
 
         Parameters
-        ==========
-        score: float
+        ----------
+        x: array
            Balanced Force expression between the load aplied in bearing and the
            resultant force provide by oil film.
 
         Returns
-        ========
+        -------
         Score coefficient.
 
         """
         Fhx, Fhy = self._forces(x, None, None, None)
-        score = np.sqrt(((self.Wx + Fhx) ** 2) + ((self.Wy + Fhy) ** 2))
+        score = np.sqrt(
+            ((self.load_x_direction + Fhx) ** 2) + ((self.load_y_direction + Fhy) ** 2)
+        )
         if print_progress:
             print(f"Score: ", score)
             print("============================================")
@@ -1570,18 +1888,25 @@ class THDCylindrical:
             Sommerfeld number.
         """
         if self.sommerfeld_type == 1:
-            S = (self.mu_ref * ((self.R) ** 3) * self.L * self.speed) / (
-                np.pi * (self.c_r**2) * np.sqrt((self.Wx**2) + (self.Wy**2))
+            S = (
+                self.reference_viscosity
+                * ((self.journal_radius) ** 3)
+                * self.axial_length
+                * self.speed
+            ) / (
+                np.pi
+                * (self.radial_clearance**2)
+                * np.sqrt((self.load_x_direction**2) + (self.load_y_direction**2))
             )
 
         elif self.sommerfeld_type == 2:
             S = 1 / (
                 2
-                * ((self.L / (2 * self.R)) ** 2)
+                * ((self.axial_length / (2 * self.journal_radius)) ** 2)
                 * (np.sqrt((force_x**2) + (force_y**2)))
             )
 
-        Ss = S * ((self.L / (2 * self.R)) ** 2)
+        Ss = S * ((self.axial_length / (2 * self.journal_radius)) ** 2)
 
         return Ss
 
@@ -1598,33 +1923,34 @@ def cylindrical_bearing_example():
     Examples
     --------
     >>> bearing = cylindrical_bearing_example()
-    >>> bearing.L
+    >>> bearing.axial_length
     0.263144
     """
 
     bearing = THDCylindrical(
-        L=0.263144,
-        R=0.2,
-        c_r=1.95e-4,
-        n_theta=11,
-        n_z=3,
+        axial_length=0.263144,
+        journal_radius=0.2,
+        radial_clearance=1.95e-4,
+        elements_circumferential=11,
+        elements_axial=3,
         n_y=None,
         n_pad=2,
-        betha_s=176,
-        mu_ref=0.02,
-        speed=Q_(900, "RPM"),
-        Wx=0,
-        Wy=-112814.91,
-        k_t=0.15327,
-        Cp=1915.24,
-        rho=854.952,
-        T_reserv=50,
-        fat_mixt=[0.52, 0.48],
-        T_muI=50,
-        T_muF=80,
-        mu_I=0.02,
-        mu_F=0.01,
+        pad_arc_length=176,
+        reference_temperature=50,
+        reference_viscosity=0.02,
+        speed=Q_([900], "RPM"),
+        load_x_direction=0,
+        load_y_direction=-112814.91,
+        groove_factor=[0.52, 0.48],
+        lubricant="ISOVG32",
+        node=3,
         sommerfeld_type=2,
+        initial_guess=[0.1, -0.1],
+        method="perturbation",
+        show_coef=False,
+        print_result=False,
+        print_progress=False,
+        print_time=False,
     )
 
     return bearing
