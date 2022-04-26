@@ -23,7 +23,8 @@ class ShaftElement(Element):
     r"""A shaft element.
 
     This class will create a shaft element that may take into
-    account shear, rotary inertia an gyroscopic effects.
+    account shear, rotary inertia an gyroscopic effects. The object can be
+    cylindrical or conical and the formulation is based on :cite:`genta1988conical`
     The matrices will be defined considering the following local
     coordinate vector:
 
@@ -112,6 +113,7 @@ class ShaftElement(Element):
     Examples
     --------
     >>> from ross.materials import steel
+    >>> # Euler-Bernoulli conical element
     >>> Euler_Bernoulli_Element = ShaftElement(
     ...                         material=steel, L=0.5, idl=0.05, odl=0.1,
     ...                         idr=0.05, odr=0.15,
@@ -119,6 +121,7 @@ class ShaftElement(Element):
     ...                         shear_effects=False)
     >>> Euler_Bernoulli_Element.phi
     0
+    >>> # Timoshenko cylindrical element. In this case idr and odr are omitted.
     >>> Timoshenko_Element = ShaftElement(
     ...                         material=steel, L=0.5, idl=0.05, odl=0.1,
     ...                         rotary_inertia=True,
