@@ -1479,43 +1479,6 @@ def test_deflected_shape(rotor7):
     assert_allclose(fig.data[-3]["z"][:8], expected_z, rtol=1e-4)
 
 
-@pytest.mark.skip(reason="Fails for very small values")
-def test_H_kappa(rotor7):
-    rotor7.w = 400
-    assert_allclose(
-        rotor7.H_kappa(3, 0),
-        [[6.06729351e-06, -6.33478357e-19], [-6.33478357e-19, 6.06729351e-06]],
-        rtol=1e-2,
-    )
-    assert_allclose(
-        rotor7.H_kappa(3, 0),
-        [[5.88843112e-06, 2.88604638e-20], [2.88604638e-20, 5.88843112e-06]],
-        rtol=1e-2,
-    )
-    assert_allclose(
-        rotor7.H_kappa(3, 0),
-        [[7.19155872e-09, 9.75123448e-21], [9.75123448e-21, 7.19155872e-09]],
-        rtol=1e-2,
-    )
-
-    rotor7.w = 200
-    assert_allclose(
-        rotor7.H_kappa(3, 0),
-        [[6.0181794e-06, 1.9785678e-18], [1.9785678e-18, 6.0181794e-06]],
-        rtol=1e-2,
-    )
-    assert_allclose(
-        rotor7.H_kappa(3, 0),
-        [[5.92899683e-06, -1.24262274e-17], [-1.24262274e-17, 5.92899683e-06]],
-        rtol=1e-2,
-    )
-    assert_allclose(
-        rotor7.H_kappa(3, 0),
-        [[6.53119391e-09, 4.73407722e-20], [4.73407722e-20, 6.53119391e-09]],
-        rtol=1e-2,
-    )
-
-
 def test_global_index():
     i_d = 0
     o_d = 0.05
