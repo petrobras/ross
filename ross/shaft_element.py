@@ -750,7 +750,7 @@ class ShaftElement(Element):
             [L*k8,     0,       0, L**2*k9, -L*k8,     0,       0, L**2*k9],
         ])
 
-        K = E * Ie_l / (105 * L ** 3 * (1 + phi) ** 2) * (K1 + 105 * phi * K2 * A / A_l)
+        K = E * L**(-3) * (1 + phi)**(-2) * (K1 * Ie_l/105 + K2 * self.Ie * phi * A_l / A)
 
         # axial force
         k10 = 36 + 60 * phi + 30 * phi ** 2
