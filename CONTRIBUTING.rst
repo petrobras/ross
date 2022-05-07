@@ -154,4 +154,9 @@ To make a new release we need only to create a tag using git and push to GitHub:
 
 Pushing the new tag to the GitHub repository will start a new build on GitHub actions. If all the tests succeed, GitHub will
 upload the new package to PyPI (see the deploy command on .github/workflows/publish-to-pypi.yml).
-It is recommended to first use release candidates version (e.g. v1.1.2rc1). These will only be installed with `pip install --pre ross-rotordynamics` and it is usefull to test the installation process before the final release.
+
+It is recommended to first use release candidates version (e.g. v1.1.2rc1). These will only be installed with::
+
+    pip install --pre ross-rotordynamics
+    
+and it is usefull to test the installation process before the final release.
