@@ -1669,10 +1669,7 @@ class Thrust:
                 XH[ii, jj] = yh[ii] * np.cos(auxtransf[jj])
                 YH[ii, jj] = yh[ii] * np.sin(auxtransf[jj])
 
-        np.savetxt('XH.txt', np.c_[XH])
-        np.savetxt('YH.txt', np.c_[YH])
-        np.savetxt('PPdim.txt', np.c_[PPdim])
-        np.savetxt('TT.txt', np.c_[TT])
+   
 
         fig4 = plt.figure(4)
         ax = plt.axes(projection='3d')
