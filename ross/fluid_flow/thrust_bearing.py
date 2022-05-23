@@ -9,8 +9,98 @@ from scipy.linalg import solve
 from scipy.optimize import fmin
 from decimal import Decimal
 
-
+import matplotlib.pyplot as plt
+from mpl_toolkits.mplot3d import Axes3D  
+from matplotlib import cm
 class Thrust:
+    """ This class calculates the pressure and temperature fields, equilibrium position of a tilting-pad thrust bearing. It is also possible to obtain the stiffness and damping coefficients.
+    
+    Parameters
+    ----------
+    Bearing Geometry
+    ^^^^^^^^^^^^^^^^
+    Describes the geometric characteristics.
+    r1 : float
+        Inner pad radius. Default unit is meter.
+    r2 : float
+        Outer pad radius. Default unit is meter.
+    rp : float
+        Pivot pad radius. Default unit is meter.
+    teta0 : float
+          Arc length of each pad. The unit is degree.
+    tetap : float
+          Angular pivot position. The unit is degree.
+    Npad : integer
+         Number of pads
+    
+    Operating conditions
+    ^^^^^^^^^^^^^^^^^^^^
+    Describes the operating conditions of the bearing
+    speed : float
+        Rotor rotating speed. Default unit is rad/s
+    fz : Float
+        Axial load. The unit is Newton.
+    Tcub : Float
+        Oil bath temperature. The unit is °C
+    
+    Fluid properties
+    ^^^^^^^^^^^^^^^^
+    Describes the fluid characteristics.
+    mi0 : float
+        Reference fluid viscosity. The unit is Pa*s.
+    rho : float
+        Fluid specific mass. Default unit is kg/m^3.
+    kt : float
+        Fluid thermal conductivity. The unit is J/(s*m*°C).
+    cp : float
+        Fluid specific heat. The unit is J/(kg*°C).
+    T0 : float
+        Reference fluid temperature. The unit is °C.
+    k1, k2, and k3 : float
+        Oil coefficients for the viscosity interpolation.
+
+    Mesh discretization
+    ^^^^^^^^^^^^^^^^^^^
+    Describes the discretization of the fluid film
+    NR : int
+        Number of volumes along the R direction.
+    NTETA : int
+        Number of volumes along the TETA direction. 
+    
+    
+    Returns
+    -------
+    Pmax : float
+          Maximum pressure. The unit is Pa.
+    Tmax : float
+          Maximum temperature. The unit is °C.
+    h0 : float
+          oil film thickness at the pivot point. The unit is m.
+    hmax : float
+         maximum oil film thickness. The unit is m.
+    hmin : float
+         minimum oil film thickness. The unit is m.
+    K : float
+         bearing stiffness coefficient. The unit is N/m.
+    C : float
+         bearing damping coefficient. The unit is N.s/m.
+    PPdim : array
+         pressure field. The unit is Pa.
+    XH,YH : array
+         mesh grid. The uni is m.
+    TT : array
+         temperature field. The unit is °C.
+
+    References
+    ----------
+    .. [1] BARBOSA, J.S. Analise de Modelos Termohidrodinamicos para Mancais de unidades geradoras Francis. 2016. Dissertacao de Mestrado. Universidade Federal de Uberlandia, Uberlandia. ..
+    .. [2] HEINRICHSON, N.; SANTOS, I. F.; FUERST, A., The Influence of Injection Pockets on the Performance of Tilting Pad Thrust Bearings Part I Theory. Journal of Tribology, 2007. .. 
+    .. [3] NICOLETTI, R., Efeitos Termicos em Mancais Segmentados Hibridos Teoria e Experimento. 1999. Dissertacao de Mestrado. Universidade Estadual de Campinas, Campinas. ..
+    .. [4] LUND, J. W.; THOMSEN, K. K. A calculation method and data for the dynamic coefficients of oil lubricated journal bearings. Topics in fluid film bearing and rotor bearing system design and optimization, n. 1000118, 1978. ..
+    Attributes
+    ----------
+    dPdR : array 
+    """
     def __init__(
         self,
         r1,
@@ -18,6 +108,7 @@ class Thrust:
         rp,
         teta0,
         tetap,
+        Tcub,
         TC,
         Tin,
         T0,
@@ -44,6 +135,10 @@ class Thrust:
         dTETA,
         Ti,
         x0,
+        # E_pad,
+        # tpad,
+        # v_pad,
+        # alpha_pad,
         # mi,
         # P0,
         # MI,
@@ -58,6 +153,7 @@ class Thrust:
         self.rp = rp
         self.teta0 = teta0
         self.tetap = tetap
+        self.Tcub = Tcub
         self.TC = TC
         self.Tin = Tin
         self.T0 = T0
@@ -67,7 +163,7 @@ class Thrust:
         self.k1 = k1
         self.k2 = k2
         self.k3 = k3
-        self.mi0 = (1e-3) * k1 * np.exp(k2 / (T0 - k3))
+        self.mi0 = k1 * np.exp(k2 / (T0 + k3))
         self.fz = fz
         self.Npad = Npad
         self.NTETA = NTETA
@@ -82,8 +178,12 @@ class Thrust:
         self.TETAp = TETAp
         self.dR = dR
         self.dTETA = dTETA
-        self.Ti = T0 * (1 + np.zeros((NR, NTETA)))
+        self.Ti = T0 * (np.ones((NR, NTETA)))
         self.x0 = x0
+        # self.E_pad = E_pad
+        # self.tpad = tpad
+        # self.v_pad = v_pad
+        # self.alpha_pad = alpha_pad
         # self.mi = mi
         # self.P0 = P0
         # self.MI = MI
@@ -95,10 +195,19 @@ class Thrust:
 
         # --------------------------------------------------------------------------
         # Pre-processing loop counters for ease of understanding
-        vec_R = np.arange((R1 + 0.5 * dR), (R2 - 0.5 * dR), dR)
-        vec_R = np.append([vec_R], [R2 - 0.5 * dR])
-        vec_TETA = np.arange((TETA1 + 0.5 * dTETA), (TETA2 - 0.5 * dTETA), dTETA)
-        vec_TETA = np.append([vec_TETA], [TETA2 - 0.5 * dTETA])
+        vec_R = np.zeros(NR)
+        vec_R[0] = R1 + 0.5 * dR
+
+        vec_TETA = np.zeros(NTETA)
+        vec_TETA[0] = TETA1 + 0.5 * dTETA
+
+
+        for ii in range(1, NR):
+            vec_R[ii] = vec_R[ii-1] + dR
+
+        for jj in range(1, NTETA):
+            vec_TETA[jj] = vec_TETA[jj-1] + dTETA
+
         fp.mp.dps = 800  # numerical solver precision setting
 
         # --------------------------------------------------------------------------
@@ -127,6 +236,7 @@ class Thrust:
                 callback=None,
                 initial_simplex=None,
             )
+            
             a_r = x[0]  # [rad]
             a_s = x[1]  # [rad]
             h0 = x[2]  # [m]
@@ -147,7 +257,7 @@ class Thrust:
             for ii in range(0, NR):
                 for jj in range(0, NTETA):
                     mi_i[ii, jj] = (
-                        (1e-3) * k1 * np.exp(k2 / (T_i[ii, jj] - k3))
+                        k1 * np.exp(k2 / (T_i[ii, jj] + k3))
                     )  # [Pa.s]
 
             MI_new = (1 / mi0) * mi_i
@@ -710,10 +820,9 @@ class Thrust:
                 for ii in range(0, NR):
                     for jj in range(0, NTETA):
                         MI_new[ii, jj] = (
-                            (1e-3)
-                            * (1 / mi0)
+                             (1 / mi0)
                             * k1
-                            * np.exp(k2 / (T0 * T_new[ii, jj] - k3))
+                            * np.exp(k2 / (T0 * T_new[ii, jj] + k3))
                         )
                         varMI[ii, jj] = abs((MI_new[ii, jj] - MI[ii, jj]) / MI[ii, jj])
 
@@ -742,21 +851,14 @@ class Thrust:
                 )
                 Frer[:, ii] = Pdim[:, ii] * np.transpose(XR)
 
-#            mxr = np.trapz(XR, Mxr)
-#            myr = np.trapz(XR, Myr)
-#            frer = np.trapz(XR, Frer)
-#
-#            mx = np.trapz(XTETA, mxr)
-#            my = np.trapz(XTETA, myr)
-#            fre = -np.trapz(XTETA, frer) + fz / Npad
             ######################################################################
-            mxr = np.trapz( Mxr, XR, axis=- 2)
-            myr = np.trapz( Myr, XR, axis=- 2)
-            frer = np.trapz( Frer, XR)
+            mxr = np.trapz( Mxr, XTETA)
+            myr = np.trapz( Myr, XTETA)
+            frer = np.trapz( Frer, XTETA)
 
-            mx = np.trapz(mxr, XTETA)
-            my = np.trapz( myr, XTETA)
-            fre = -np.trapz( frer, XTETA) + fz / Npad 
+            mx = np.trapz(mxr, XR)
+            my = np.trapz( myr, XR)
+            fre = -np.trapz( frer, XR) + fz / Npad 
             ######################################################################
 
             resMx = mx
@@ -784,7 +886,7 @@ class Thrust:
         # Viscosity field
         for ii in range(0, NR):
             for jj in range(0, NTETA):
-                mi[ii, jj] = (1e-3) * k1 * np.exp(k2 / (Ti[ii, jj] - k3))  # [Pa.s]
+                mi[ii, jj] =  k1 * np.exp(k2 / (Ti[ii, jj] + k3))  # [Pa.s]
 
         # PRESSURE =================================================================
         # STARTS HERE ==============================================================
@@ -1012,8 +1114,7 @@ class Thrust:
 
         PPdim = np.zeros((NR + 2, NTETA + 2))
         PPdim[1:-1, 1:-1] = (r1 ** 2 * war * mi0 / h0 ** 2) * np.flipud(P0)
-#        print(PPdim)
-
+      
         # PRESSURE =================================================================
         # ENDS HERE ================================================================
 
@@ -1034,13 +1135,14 @@ class Thrust:
 
         # coefficients matrix
         Mat_coef = np.zeros((nk, nk))
-#        b_c = np. empty(nk, dtype=complex)
-        b_c = np.zeros((nk,1),dtype=complex)
-        p_c = np.zeros((nk,1),dtype=complex)
-        P_c = np.zeros((NR,NTETA),dtype=complex)
-        Mxr_c = np.zeros((NR,NTETA),dtype=complex)
-        Myr_c = np.zeros((NR,NTETA),dtype=complex)
-        Frer_c = np.zeros((NR,NTETA),dtype=complex)
+        b_coef = np.zeros((nk, 1),dtype=complex)
+        p_coef = np.zeros((nk, 1),dtype=complex)
+        P_coef = np.zeros((NR, NTETA),dtype=complex)
+        P_dim_coef = np.zeros((NR, NTETA),dtype=complex)
+        Mxr_coef = np.zeros((NR, NTETA),dtype=complex)
+        Myr_coef = np.zeros((NR, NTETA),dtype=complex)
+        Frer_coef = np.zeros((NR, NTETA),dtype=complex)
+
         cont = -1
 
         for R in vec_R:
@@ -1255,7 +1357,7 @@ class Thrust:
                 # vectorization index
                 k = k + 1
 
-                b_c[k, 0] = -(B_1 + B_2) + B_3 + B_4
+                b_coef[k, 0] = -(B_1 + B_2) + B_3 + B_4
 
                 if kTETA == 0 and kR == 0:
                     Mat_coef[k, k] = CP - CW - CS
@@ -1314,55 +1416,298 @@ class Thrust:
             kTETA = 0
 
         # vectorized pressure field solution
-        p_c = np.linalg.solve(Mat_coef, b_c)
+        p_coef = np.linalg.solve(Mat_coef, b_coef)
         cont = -1
-#        p=np.array(p)
+
         # pressure matrix
         for ii in range(0, NR):
             for jj in range(0, NTETA):
                 cont = cont + 1
-                P_c[ii, jj] = p_c[cont]
+                P_coef[ii, jj] = p_coef[cont]
 
         # dimensional pressure
-        Pdim_c = P_c * (r1 ** 2) * war * mi0 / (h0 ** 3)
+        Pdim_coef = P_coef * (r1 ** 2) * war * mi0 / (h0 ** 3)
 
         # RESULTING FORCE AND MOMENTUM: Equilibrium position
         XR = r1 * vec_R
         XTETA = teta0 * vec_TETA
-        Xrp = rp * (1+np.zeros((np.size(XR))))
+        Xrp = rp * (np.ones((np.size(XR))))
 
         for ii in range(0, NTETA):
-            Mxr_c[:, ii] = (Pdim_c[:, ii] * (np.transpose(XR) ** 2)) * np.sin(
+            Mxr_coef[:, ii] = (Pdim_coef[:, ii] * (np.transpose(XR) ** 2)) * np.sin(
                 XTETA[ii] - tetap
             )
-            Myr_c[:, ii] = (
-                -Pdim_c[:, ii]
+            Myr_coef[:, ii] = (
+                -Pdim_coef[:, ii]
                 * np.transpose(XR)
                 * np.transpose(XR * np.cos(XTETA[ii] - tetap) - Xrp)
             )
-            Frer_c[:, ii] = Pdim_c[:, ii] * np.transpose(XR)
+            Frer_coef[:, ii] = Pdim_coef[:, ii] * np.transpose(XR)
 
-#        mxr = np.trapz[XR, Mxr]
-#        myr = np.trapz[XR, Myr]
-#        frer = np.trapz[XR, Frer]
-#
-#        mx = -np.trapz[XTETA, mxr]
-#        my = -np.trapz[XTETA, myr]
-#        fre = -np.trapz[XTETA, frer]
+        ######################################################################
+        mxr_coef = np.trapz( Mxr_coef, XTETA)
+        myr_coef = np.trapz( Myr_coef, XTETA)
+        frer_coef = np.trapz( Frer_coef, XTETA)
 
-        mxr_c = np.trapz( Mxr_c, XR, axis=- 2)
-        myr_c = np.trapz( Myr_c, XR, axis=- 2)
-        frer_c = np.trapz( Frer_c, XR)
-
-        mx = np.trapz(mxr_c, XTETA)
-        my = np.trapz( myr_c, XTETA)
-        fre = -np.trapz( frer_c, XTETA) + fz / Npad 
+        mx_coef = np.trapz(mxr_coef, XR)
+        my_coef = np.trapz( myr_coef, XR)
+        fre_coef = -np.trapz( frer_coef, XR) 
+        ######################################################################
 
         # HYDROCOEFF_z =============================================================
         # ENDS HERE ================================================================
 
-        K = Npad * np.real(fre)  # Stiffness Coefficient
-        C = Npad * 1 / wp * np.imag(fre)  # Damping Coefficient
+        K = Npad * np.real(fre_coef)  # Stiffness Coefficient
+        C = Npad * 1 / wp * np.imag(fre_coef)  # Damping Coefficient
+
+        # THERMO-ELASTO-HYDRODYNAMIC SOLUTION ======================================
+        # STARTS HERE ==============================================================
+        
+        # Variable startup
+        # DZ = np.zeros((NR, NTETA))
+        # D_P = np.zeros((NR, NTETA))
+        # D_T = np.zeros((NR, NTETA))
+        # b_p = np.zeros((nk, 1))
+        # Mat_coef = np.zeros((nk, nk))
+
+        # Tback = T0 # Temperature in the bottom pad surface
+
+        # D = (E_pad * tpad ** 3) / (12 * (1 - v_pad ** 2))
+
+        # YM = 4/(3 * teta0) * np.sin(teta0/2) * (r2 ** 2 + r1 * r2 + r1 ** 2)/(r2 + r1)
+
+        # kR=0
+        # kTETA=0
+        # k=-1
+
+        # #PAD DEFORMATION: EFFECTS OF PRESSURE AND TEMPERATURE
+
+        # for R in vec_R:
+        #     for TETA in vec_TETA:
+
+        #         yx = np.dot( 
+        #             [
+        #                 [-np.cos(teta0/2), -np.sin(teta0/2)],
+        #                 [np.sin(teta0/2), -np.cos(teta0/2)],
+        #             ],   
+        #             [
+        #                 [-R * r1 * np.sin(TETA * teta0)],
+        #                 [R * r1 * np.cos(TETA * teta0)],
+        #             ]
+        #         )
+
+        #         yx = yx +[[0],[YM]]
+
+        #         Y=yx[0]
+        #         X=yx[1]
+
+        #         M_1 = tpad ** 2 * E_pad * alpha_pad / (12 * (1 - v_pad)) * (Ti[0 , kTETA] - Tback)
+        #         M_2 = tpad ** 2 * E_pad * alpha_pad / (12 * (1 - v_pad)) * (Ti[kR , NTETA-1] - Tback)
+        #         M_3 = tpad ** 2 * E_pad * alpha_pad / (12 * (1 - v_pad)) * (Ti[NR-1 , kTETA] - Tback)
+        #         M_4 = tpad ** 2 * E_pad * alpha_pad / (12 * (1 - v_pad)) * (Ti[kR , 0] - Tback)
+
+        #         DZ[kR , kTETA] = -1/(2 * D * (1+v_pad ** 2)) * (((M_1 + M_3) - v_pad * (M_2 + M_4)) * X ** 2 +
+        #                         ((M_2 + M_4) - v_pad * (M_1 + M_3)) * Y ** 2)
+                
+        #         #Mechanical deformation
+        #         AE = 1/(R * r1) ** 2 * (1/ (dTETA * teta0) ** 2)
+        #         AW = 1/(R * r1) ** 2 * (1/ (dTETA * teta0) ** 2)
+        #         AN = 1/(dR * r1) ** 2 + 1/(R * r1) * (1/(2 * dR * r1))
+        #         AS = 1/(dR * r1) ** 2 - 1/(R * r1) * (1/(2 * dR * r1))
+        #         AP = -(AE + AW + AN + AS)
+
+        #         k = k + 1 #vectorization index
+
+        #         b_p[k , 0] = tpad ** 2/(6 * (1 - v_pad)) * (r1 ** 2 * war * mi0 / h0 ** 2) * P0[kR , kTETA] / D
+
+        #         if kTETA == 0 and kR == 0:
+        #             Mat_coef[k, k] = AP - AW - AS
+        #             Mat_coef[k, k + 1] = AE
+        #             Mat_coef[k, k + NTETA] = AN
+
+        #         if kTETA == 0 and kR > 0 and kR < NR-1:
+        #             Mat_coef[k, k] = AP - AW
+        #             Mat_coef[k, k + 1] = AE
+        #             Mat_coef[k, k + NTETA] = AN
+        #             Mat_coef[k, k - NTETA] = AS
+
+        #         if kTETA == 0 and kR == NR-1:
+        #             Mat_coef[k, k] = AP - AW - AN
+        #             Mat_coef[k, k + 1] = AE
+        #             Mat_coef[k, k - NTETA] = AS
+
+        #         if kR == 0 and kTETA > 0 and kTETA < NTETA-1:
+        #             Mat_coef[k, k] = AP - AS
+        #             Mat_coef[k, k + 1] = AE
+        #             Mat_coef[k, k - 1] = AW
+        #             Mat_coef[k, k + NTETA] = AN
+
+        #         if kTETA > 0 and kTETA < NTETA-1 and kR > 0 and kR < NR-1:
+        #             Mat_coef[k, k] = AP
+        #             Mat_coef[k, k - 1] = AW
+        #             Mat_coef[k, k + NTETA] = AN
+        #             Mat_coef[k, k - NTETA] = AS
+        #             Mat_coef[k, k + 1] = AE
+
+        #         if kR == NR-1 and kTETA > 0 and kTETA < NTETA-1:
+        #             Mat_coef[k, k] = AP - AN
+        #             Mat_coef[k, k - 1] = AW
+        #             Mat_coef[k, k + 1] = AE
+        #             Mat_coef[k, k - NTETA] = AS
+
+        #         if kR == 0 and kTETA == NTETA-1:
+        #             Mat_coef[k, k] = AP - AE - AS
+        #             Mat_coef[k, k - 1] = AW
+        #             Mat_coef[k, k + NTETA] = AN
+
+        #         if kTETA == NTETA-1 and kR > 0 and kR < NR-1:
+        #             Mat_coef[k, k] = AP - AE
+        #             Mat_coef[k, k - 1] = AW
+        #             Mat_coef[k, k - NTETA] = AS
+        #             Mat_coef[k, k + NTETA] = AN
+
+        #         if kTETA == NTETA-1 and kR == NR-1:
+        #             Mat_coef[k, k] = AP - AE - AN
+        #             Mat_coef[k, k - 1] = AW
+        #             Mat_coef[k, k - NTETA] = AS
+
+        #         kTETA = kTETA + 1
+
+        #     kR = kR + 1
+        #     kTETA = 0
+        # # PAD DEFORMATION - PRESSURE EFFECTS 
+        
+        # d_p = np.linalg.solve(Mat_coef, b_p) # solve deformation vectorized
+
+        # cont=-1
+
+        # # deformation matrix
+        # for ii in range(0, NR):
+        #     for jj in range(0, NTETA):
+        #         cont = cont + 1
+        #         D_P[ii, jj] = d_p[cont]
+        
+        # # TOTAL PAD DEFORMATION 
+        # D_T=DZ+D_P
+
+        # THERMO-ELASTO-HYDRODYNAMIC SOLUTION ======================================
+        # ENDS HERE ==============================================================
+
+        # print(PPdim)
+
+        # yraio1 = np.arange(r1 * np.sin((np.pi/2 - teta0/2),(np.pi/2 + teta0/2), dTETA * teta0))
+        # xraio1 = np.arange(r1 * np.cos(np.pi/2 - teta0/2, np.pi/2 + teta0/2, dTETA * teta0))
+        # yraio2 = np.arange(r2 * np.sin((np.pi/2 - teta0/2), (np.pi/2 + teta0/2), dTETA*teta0))
+        # xraio2 = np.arange(r2 * np.cos(np.pi/2 - teta0/2, np.pi/2 +teta0/2, dTETA*teta0))
+
+        # dx = (xraio1[0] - xraio2[0]/(NTETA - 2))
+        # xreta1 = np.arange(xraio2[0], xraio1[0], dx)
+        # yreta1 = np.arange(yraio2[0], yraio1[0], dx * np.tan(np.pi/2 -teta0/2))
+        # xreta2 = np.arange(xraio2[-1], xraio1[-1], -dx)
+        # yreta2 = np.arange(yraio2[0], yraio1[0], dx * np.tan(np.pi/2 - teta0/2))
+        # np.savetxt('YH.txt', YH)
+        # np.savetxt('XH.txt', XH)
+
+        # fig1 = plt.figure(1)
+        # ax = plt.axes(projection='3d')
+        # ax.plot_surface(XH[1:NR+1,1:NTETA+1], YH[1:NR+1,1:NTETA+1], 1e6*D_T, rstride=1, cstride=1, cmap='jet', edgecolor='none')
+        # # plt.savefig("pressao.png", bbox_inches="tight", dpi=600)
+        # plt.grid()
+        # ax.set_title('Deflected middle plane')
+        # ax.set_xlim([np.min(XH), np.max(XH)])
+        # ax.set_ylim([np.min(YH), np.max(YH)])
+        # ax.set_xlabel('x direction [m]')
+        # ax.set_ylabel('y direction [m]')
+        # ax.set_zlabel('Directional deformation [$\mu$m]')
+        # plt.show()
+
+        # fig2 = plt.figure(2)
+        # ax = plt.axes(projection='3d')
+        # ax.plot_surface(XH[1:NR+1,1:NTETA+1], YH[1:NR+1,1:NTETA+1], 1e6*D_P, rstride=1, cstride=1, cmap='jet', edgecolor='none')
+        # # plt.savefig("pressao.png", bbox_inches="tight", dpi=600)
+        # plt.grid()
+        # ax.set_title('Mechanical Deflection')
+        # ax.set_xlim([np.min(XH), np.max(XH)])
+        # ax.set_ylim([np.min(YH), np.max(YH)])
+        # ax.set_xlabel('x direction [m]')
+        # ax.set_ylabel('y direction [m]')
+        # ax.set_zlabel('Directional deformation [$\mu$m]')
+        # plt.show()
+
+        # fig3 = plt.figure(3)
+        # ax = plt.axes(projection='3d')
+        # ax.plot_surface(XH[1:NR+1,1:NTETA+1], YH[1:NR+1,1:NTETA+1], 1e6*DZ, rstride=1, cstride=1, cmap='jet', edgecolor='none')
+        # # plt.savefig("pressao.png", bbox_inches="tight", dpi=600)
+        # plt.grid()
+        # ax.set_title('Thermal Deflection')
+        # ax.set_xlim([np.min(XH), np.max(XH)])
+        # ax.set_ylim([np.min(YH), np.max(YH)])
+        # ax.set_xlabel('x direction [m]')
+        # ax.set_ylabel('y direction [m]')
+        # ax.set_zlabel('Directional deformation [$\mu$m]')
+        # plt.show()
+
+        # PLOT FIGURES ==============================================================
+        # STARTS HERE ==============================================================
+
+                # Define vectors and matrix
+        yh = np.zeros((NR+2))
+        auxtransf = np.zeros((NTETA+2))
+        XH = np.zeros((NR+2,NTETA+2))
+        YH = np.zeros((NR+2,NTETA+2))
+
+        yh[0] = r2
+        yh[-1] = r1
+        yh[1:NR+1] = np.arange((r2 - 0.5 * dR * r1), r1, -(dR * r1))
+   
+        auxtransf[0] = np.pi/2 + teta0/2
+        auxtransf[-1] = np.pi/2 - teta0/2
+        auxtransf[1:NTETA+1] = np.arange(np.pi/2 + teta0/2 - (0.5 * dTETA * teta0), np.pi/2 - teta0/2, -dTETA * teta0)
+
+        for ii in range(0, NR+2):
+            for jj in range(0, NTETA+2):
+                XH[ii, jj] = yh[ii] * np.cos(auxtransf[jj])
+                YH[ii, jj] = yh[ii] * np.sin(auxtransf[jj])
+
+        np.savetxt('XH.txt', np.c_[XH])
+        np.savetxt('YH.txt', np.c_[YH])
+        np.savetxt('PPdim.txt', np.c_[PPdim])
+        np.savetxt('TT.txt', np.c_[TT])
+
+        fig4 = plt.figure(4)
+        ax = plt.axes(projection='3d')
+        ax.plot_surface(XH, YH, 1e-6*PPdim, rstride=1, cstride=1, cmap='jet', edgecolor='none')
+        # plt.savefig("pressao.png", bbox_inches="tight", dpi=600)
+        # np.save(XH,"jeff_bearings/XH")
+        plt.grid()
+        ax.set_title('Pressure field')
+        ax.set_xlim([np.min(XH), np.max(XH)])
+        ax.set_ylim([np.min(YH), np.max(YH)])
+        ax.set_xlabel('x direction [m]')
+        ax.set_ylabel('y direction [m]')
+        ax.set_zlabel('Pressure [MPa]')
+        plt.show()
+
+        fig,ax=plt.subplots(1,1)
+        cp = ax.contourf(XH, YH, TT, cmap='jet')
+        plt.grid()
+        fig.colorbar(cp) # Add a colorbar to a plot
+        ax.set_title('Temperature field [°C]')
+        ax.set_xlabel('x direction [m]')
+        ax.set_ylabel('y direction [m]')
+        plt.show()
+
+        fig,ax=plt.subplots(1,1)
+        cp = ax.contourf(XH, YH, 1e-6*PPdim, cmap='jet')
+        plt.grid()
+        fig.colorbar(cp) # Add a colorbar to a plot
+        ax.set_title('Pressure field [MPa]')
+        ax.set_xlabel('x direction [m]')
+        ax.set_ylabel('y direction [m]')
+        plt.show()
+
+        # PLOT FIGURES ==============================================================
+        # ENDS HERE ==============================================================
 
         # --------------------------------------------------------------------------
         # Output values - Pmax [Pa]- hmax[m] - hmin[m] - h0[m]
@@ -1370,14 +1715,14 @@ class Thrust:
         hmax = np.max(h0 * H0)
         hmin = np.min(h0 * H0)
         Tmax = np.max(TT)
-
+        h0
         print(f'Pmax: ', Pmax)
         print(f'hmax: ', hmax)
         print(f'hmin: ', hmin)
         print(f'Tmax: ', Tmax)
         print(f'h0: ', h0)
-        print(f'K: ', K)
-        print(f'C: ', C)
+        print(f'K:', K)
+        print(f'C:', C)
 
 #def ArAsh0Equilibrium(
 #    r1,
@@ -1407,7 +1752,15 @@ class Thrust:
 def ArAsh0Equilibrium(x,*args):
     r1,rp,teta0,tetap,mi0,fz,Npad,NTETA,NR,war,R1,R2,TETA1,TETA2,Rp,dR,dTETA,k1,k2,k3,TETAp,Ti,x0=args
 
+    """Calculates the equilibrium position of the bearing
 
+    Parameters
+    ----------
+    a_r = x[0]  : pitch angle axis r [rad]
+    a_s = x[1]  : pitch angle axis s [rad]
+    h0 = x[2]   : oil film thickness at pivot [m]
+
+    """
 
     # Variable startup
     MI = np.zeros((NR, NTETA))
@@ -1417,10 +1770,18 @@ def ArAsh0Equilibrium(x,*args):
     Frer = np.zeros((NR, NTETA))
 
     # loop counters for ease of understanding
-    vec_R = np.arange((R1 + 0.5 * dR), (R2 - 0.5 * dR), dR)
-    vec_R = np.append([vec_R], [R2 - 0.5 * dR])
-    vec_TETA = np.arange((TETA1 + 0.5 * dTETA), (TETA2 - 0.5 * dTETA), dTETA)
-    vec_TETA = np.append([vec_TETA], [TETA2 - 0.5 * dTETA])
+    vec_R = np.zeros(NR)
+    vec_R[0] = R1 + 0.5 * dR
+
+    vec_TETA = np.zeros(NTETA)
+    vec_TETA[0] = TETA1 + 0.5 * dTETA
+
+
+    for ii in range(1, NR):
+        vec_R[ii] = vec_R[ii-1] + dR
+
+    for jj in range(1, NTETA):
+        vec_TETA[jj] = vec_TETA[jj-1] + dTETA
 
     # Pitch angles alpha_r and alpha_p and oil filme thickness at pivot h0
     a_r = x[0]  # [rad]
@@ -1430,7 +1791,7 @@ def ArAsh0Equilibrium(x,*args):
     for ii in range(0, NR):
         for jj in range(0, NTETA):
             MI[ii, jj] = (
-                1 / mi0 * (1e-3) * k1 * np.exp(k2 / (Ti[ii, jj] - k3))
+                1 / mi0 *  k1 * np.exp(k2 / (Ti[ii, jj] + k3))
             )  # dimensionless
 
     # Dimensioneless Parameters
@@ -1637,7 +1998,7 @@ def ArAsh0Equilibrium(x,*args):
     # RESULTING FORCE AND MOMENTUM: Equilibrium position
     XR = r1 * vec_R
     XTETA = teta0 * vec_TETA
-    Xrp = rp * (1+np.zeros((np.size(XR))))
+    Xrp = rp * (np.ones((np.size(XR))))
 
     for ii in range(0, NTETA):
         Mxr[:, ii] = (Pdim[:, ii] * (np.transpose(XR) ** 2)) * np.sin(
@@ -1649,27 +2010,60 @@ def ArAsh0Equilibrium(x,*args):
         )
         Frer[:, ii] = Pdim[:, ii] * np.transpose(XR)
 
-    mxr = np.trapz( Mxr, XR, axis=- 2)
-    myr = np.trapz( Myr, XR, axis=- 2)
-    frer = np.trapz( Frer, XR)
+    ######################################################################
+    mxr = np.trapz( Mxr, XTETA)
+    myr = np.trapz( Myr, XTETA)
+    frer = np.trapz( Frer, XTETA)
 
-    mx = np.trapz(mxr, XTETA)
-    my = np.trapz( myr, XTETA)
-    fre = -np.trapz( frer, XTETA) + fz / Npad 
+    mx = np.trapz(mxr, XR)
+    my = np.trapz( myr, XR)
+    fre = -np.trapz( frer, XR) + fz / Npad 
+    ######################################################################
 
     score = np.linalg.norm([mx, my, fre])
-    print(x0)
-    print(f'Score: ', score)
-    print('============================================')
-    print(f'mx: ', mx)
-    print('============================================')
-    print(f'my: ', my)
-    print('============================================')
-    print(f'fre: ', fre)
-    print('')
+    # print(x0)
+    # print(f'Score: ', score)
+    # print('============================================')
+    # print(f'mx: ', mx)
+    # print('============================================')
+    # print(f'my: ', my)
+    # print('============================================')
+    # print(f'fre: ', fre)
+    # print('')
     return score
+""""
+def hydroplots (r1, r2, dR, dTETA, teta0, NR, NTETA):
+    
+    # Define vectors and matrix
+    yh = np.zeros((1, NR+2))
+    auxtransf = np.zeros((1, NTETA+2))
+    XH = np.zeros((NR+2,NTETA+2))
+    YH = np.zeros((NR+2,NTETA+2))
 
+    yh[0] = r2
+    yh[NR+1] = r1
+    yh[1:NR] = ((r2 - 0.5 * dR * r1), -(dR * r1),(r1 + 0.5 * dR * r1))
+   
+    auxtransf[0] = np.pi/2 + teta0/2
+    auxtransf[NTETA+1] = np.pi/2 - teta0/2
+    auxtransf[1:NTETA +1] = np.pi/2 + teta0/2 - (0.5 * dTETA * teta0), -dTETA * teta0, np.pi/2 - teta0/2 + (0.5 * dTETA * teta0)
 
+    for ii in range(0, NR+1):
+        for jj in range(0, NTETA+1):
+            XH[ii, jj] = yh[ii] * np.cos(auxtransf[jj])
+            YH[ii, jj] = yh[ii] * np.sin(auxtransf[jj])
+
+    yraio1 = r1 * np.sin((np.pi/2 - teta0/2), dTETA * teta0, (np.pi/2 + teta0/2))
+    xraio1 = r1 * np.cos(np.pi/2 - teta0/2, dTETA * teta0, np.pi/2 + teta0/2)
+    yraio2 = r2 * np.sin((np.pi/2 - teta0/2), dTETA*teta0, (np.pi/2 + teta0/2))
+    xraio2 = r2 * np.cos(np.pi/2 - teta0/2, dTETA*teta0, np.pi/2 +teta0/2)
+
+    dx = (xraio1[0] - xraio2[0]/(NTETA - 2))
+    xreta1 = xraio2[0], dx, xraio1[0]
+    yreta1 = yraio2[0], dx * np.tan(np.pi/2 -teta0/2), yraio1[0]
+    xreta2 = xraio2[-1], -dx, xraio1[-1]
+    yreta2 = yraio2[0], dx * np.tan(np.pi/2 - teta0/2), yraio1[0]
+"""
 def thrust_bearing_example():
     """Create an example of a thrust bearing with Thermo-Hydro-Dynamic effects.
     This function returns pressure field and dynamic coefficient. The
@@ -1687,29 +2081,30 @@ def thrust_bearing_example():
     0.263144
     """
 
-    r1 = 0.5 * 90e-3  # pad inner radius [m]
-    r2 = 0.5 * 160e-3  # pad outer radius [m]
-    rp = (r2 - r1) * 0.5 + r1  # pad pivot radius [m]
-    teta0 = 35 * np.pi / 180  # pad complete angle [rad]
-    tetap = 19.5 * np.pi / 180  # pad pivot angle [rad]
-    TC = 40 + 273.15  # Collar temperature [K]
-    Tin = 40 + 273.15  # Cold oil temperature [K]
+    r1 = 0.5 * 2300e-3  # pad inner radius [m]
+    r2 = 0.5 * 3450e-3  # pad outer radius [m]
+    rp = 0.5 * 2885e-3   # pad pivot radius [m]
+    teta0 = 26 * np.pi / 180  # pad complete angle [rad]
+    tetap = 15 * np.pi / 180  # pad pivot angle [rad]
+    Tcub = 40 + 273.15 #oil bath temperature [K]
+    TC = Tcub  # Collar temperature [K]
+    Tin = Tcub  # Cold oil temperature [K]
     T0 = 0.5 * (TC + Tin)  # Reference temperature [K]
-    rho = 870  # Oil density [kg/m³]
-    cp = 1850  # Oil thermal capacity [J/kg/K]
-    kt = 0.15  # Oil thermal conductivity [W/m/K]
-    k1 = 0.06246  # Coefficient for ISO VG 32 turbine oil - Vogel's equation
-    k2 = 868.8  # Coefficient for ISO VG 32 turbine oil - Vogel's equation
-    k3 = 170.4  # Coefficient for ISO VG 32 turbine oil - Vogel's equation
-    mi0 = (1e-3)*k1*np.exp(k2/(T0-k3)) # Oil VG 22
-    fz = 370 * 9.81  # Loading in Y direction [N]
-    Npad = 3  # Number of PADs
+    rho = 867  # Oil density [kg/m³]
+    cp = 1950  # Oil thermal capacity [J/kg/K]
+    kt = 0.13  # Oil thermal conductivity [W/m/K]
+    k1 = 1.068e-7  # Coefficient for ISO VG 32 turbine oil - Vogel's equation
+    k2 = 4368  # Coefficient for ISO VG 32 turbine oil - Vogel's equation
+    k3 = 0.1187  # Coefficient for ISO VG 32 turbine oil - Vogel's equation
+    mi0 = k1*np.exp(k2/(T0+k3)) # Oil VG 22
+    fz = 13500e3  # Loading in Y direction [N]
+    Npad = 12  # Number of PADs
     # NTETA = 40  # TETA direction N volumes
     # NR = 40  # R direction N volumes
-    NTETA = 4  # TETA direction N volumes
-    NR = 4  # R direction N volumes
-    wa = 1200  # Shaft rotation speed [rads]
-    war = (1200 * np.pi) / 30  # Shaft rotation speed [RPM]
+    NTETA = 10  # TETA direction N volumes
+    NR = 10  # R direction N volumes
+    wa = 90  # Shaft rotation speed [rads]
+    war = (wa * np.pi) / 30  # Shaft rotation speed [RPM]
     R1 = 1  # Inner pad FEM radius
     R2 = r2 / r1  # Outer pad FEM radius
     TETA1 = 0  # Initial angular coordinate
@@ -1718,9 +2113,13 @@ def thrust_bearing_example():
     TETAp = tetap / teta0  # Angular pivot position
     dR = (R2 - R1) / (NR)  # R direction volumes length
     dTETA = (TETA2 - TETA1) / (NTETA)  # TETA direction volumes length
-    Ti = T0 * (1 + np.zeros((NR, NTETA)))  # Initial temperature field [°C]
+    Ti = T0 * (np.ones((NR, NTETA)))  # Initial temperature field [°C]
+    # E_pad = 2e11 # Young Modulus of the pad [N/m^2]
+    # tpad = 180e-3 # Pad thickness [m]
+    # v_pad = 0.3 # Poisson's ratio
+    # alpha_pad = 1.2e-5 # Thermal expansion [K^-1]
     x0 = np.array(
-        (-2.251004554793839e-04, -1.332796067467349e-04, 2.152552477569639e-05)
+        (-0.000274792355106384, -1.69258824831925e-05, 0.000191418606538599)		
     )  # Initial equilibrium position
     # mi =
     # P0 =
@@ -1737,6 +2136,7 @@ def thrust_bearing_example():
         rp=rp,
         teta0=teta0,
         tetap=tetap,
+        Tcub=Tcub,
         TC=TC,
         Tin=Tin,
         T0=T0,
@@ -1763,6 +2163,10 @@ def thrust_bearing_example():
         dTETA=dTETA,
         Ti=Ti,
         x0=x0,
+        # E_pad=E_pad,
+        # tpad=tpad,
+        # v_pad=v_pad,
+        # alpha_pad=alpha_pad,
         # mi=mi,
         # P0=P0,
         # MI=MI,
@@ -1771,10 +2175,10 @@ def thrust_bearing_example():
         # H0se=H0se,
         # H0nw=H0nw,
         # H0sw=H0sw,
+        #plot
     )
 
     return bearing
-
 
 if __name__ == "__main__":
     thrust_bearing_example()
