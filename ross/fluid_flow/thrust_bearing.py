@@ -135,18 +135,7 @@ class Thrust:
         dTETA,
         Ti,
         x0,
-        # E_pad,
-        # tpad,
-        # v_pad,
-        # alpha_pad,
-        # mi,
-        # P0,
-        # MI,
-        # H0,
-        # H0ne,
-        # H0se,
-        # H0nw,
-        # H0sw,
+
     ):
         self.r1 = r1
         self.r2 = r2
@@ -180,19 +169,7 @@ class Thrust:
         self.dTETA = dTETA
         self.Ti = T0 * (np.ones((NR, NTETA)))
         self.x0 = x0
-        # self.E_pad = E_pad
-        # self.tpad = tpad
-        # self.v_pad = v_pad
-        # self.alpha_pad = alpha_pad
-        # self.mi = mi
-        # self.P0 = P0
-        # self.MI = MI
-        # self.H0 = H0
-        # self.H0ne = H0ne
-        # self.H0se = H0se
-        # self.H0nw = H0nw
-        # self.H0sw = H0sw
-
+ 
         # --------------------------------------------------------------------------
         # Pre-processing loop counters for ease of understanding
         vec_R = np.zeros(NR)
@@ -216,7 +193,7 @@ class Thrust:
         tolFM = 1e-8
 
         while ResFM >= tolFM:
-            print(ResFM)######################################################################################################################################
+            
             # --------------------------------------------------------------------------
             # Equilibrium position optimization [h0,ar,ap]
             
@@ -1460,251 +1437,6 @@ class Thrust:
         K = Npad * np.real(fre_coef)  # Stiffness Coefficient
         C = Npad * 1 / wp * np.imag(fre_coef)  # Damping Coefficient
 
-        # THERMO-ELASTO-HYDRODYNAMIC SOLUTION ======================================
-        # STARTS HERE ==============================================================
-        
-        # Variable startup
-        # DZ = np.zeros((NR, NTETA))
-        # D_P = np.zeros((NR, NTETA))
-        # D_T = np.zeros((NR, NTETA))
-        # b_p = np.zeros((nk, 1))
-        # Mat_coef = np.zeros((nk, nk))
-
-        # Tback = T0 # Temperature in the bottom pad surface
-
-        # D = (E_pad * tpad ** 3) / (12 * (1 - v_pad ** 2))
-
-        # YM = 4/(3 * teta0) * np.sin(teta0/2) * (r2 ** 2 + r1 * r2 + r1 ** 2)/(r2 + r1)
-
-        # kR=0
-        # kTETA=0
-        # k=-1
-
-        # #PAD DEFORMATION: EFFECTS OF PRESSURE AND TEMPERATURE
-
-        # for R in vec_R:
-        #     for TETA in vec_TETA:
-
-        #         yx = np.dot( 
-        #             [
-        #                 [-np.cos(teta0/2), -np.sin(teta0/2)],
-        #                 [np.sin(teta0/2), -np.cos(teta0/2)],
-        #             ],   
-        #             [
-        #                 [-R * r1 * np.sin(TETA * teta0)],
-        #                 [R * r1 * np.cos(TETA * teta0)],
-        #             ]
-        #         )
-
-        #         yx = yx +[[0],[YM]]
-
-        #         Y=yx[0]
-        #         X=yx[1]
-
-        #         M_1 = tpad ** 2 * E_pad * alpha_pad / (12 * (1 - v_pad)) * (Ti[0 , kTETA] - Tback)
-        #         M_2 = tpad ** 2 * E_pad * alpha_pad / (12 * (1 - v_pad)) * (Ti[kR , NTETA-1] - Tback)
-        #         M_3 = tpad ** 2 * E_pad * alpha_pad / (12 * (1 - v_pad)) * (Ti[NR-1 , kTETA] - Tback)
-        #         M_4 = tpad ** 2 * E_pad * alpha_pad / (12 * (1 - v_pad)) * (Ti[kR , 0] - Tback)
-
-        #         DZ[kR , kTETA] = -1/(2 * D * (1+v_pad ** 2)) * (((M_1 + M_3) - v_pad * (M_2 + M_4)) * X ** 2 +
-        #                         ((M_2 + M_4) - v_pad * (M_1 + M_3)) * Y ** 2)
-                
-        #         #Mechanical deformation
-        #         AE = 1/(R * r1) ** 2 * (1/ (dTETA * teta0) ** 2)
-        #         AW = 1/(R * r1) ** 2 * (1/ (dTETA * teta0) ** 2)
-        #         AN = 1/(dR * r1) ** 2 + 1/(R * r1) * (1/(2 * dR * r1))
-        #         AS = 1/(dR * r1) ** 2 - 1/(R * r1) * (1/(2 * dR * r1))
-        #         AP = -(AE + AW + AN + AS)
-
-        #         k = k + 1 #vectorization index
-
-        #         b_p[k , 0] = tpad ** 2/(6 * (1 - v_pad)) * (r1 ** 2 * war * mi0 / h0 ** 2) * P0[kR , kTETA] / D
-
-        #         if kTETA == 0 and kR == 0:
-        #             Mat_coef[k, k] = AP - AW - AS
-        #             Mat_coef[k, k + 1] = AE
-        #             Mat_coef[k, k + NTETA] = AN
-
-        #         if kTETA == 0 and kR > 0 and kR < NR-1:
-        #             Mat_coef[k, k] = AP - AW
-        #             Mat_coef[k, k + 1] = AE
-        #             Mat_coef[k, k + NTETA] = AN
-        #             Mat_coef[k, k - NTETA] = AS
-
-        #         if kTETA == 0 and kR == NR-1:
-        #             Mat_coef[k, k] = AP - AW - AN
-        #             Mat_coef[k, k + 1] = AE
-        #             Mat_coef[k, k - NTETA] = AS
-
-        #         if kR == 0 and kTETA > 0 and kTETA < NTETA-1:
-        #             Mat_coef[k, k] = AP - AS
-        #             Mat_coef[k, k + 1] = AE
-        #             Mat_coef[k, k - 1] = AW
-        #             Mat_coef[k, k + NTETA] = AN
-
-        #         if kTETA > 0 and kTETA < NTETA-1 and kR > 0 and kR < NR-1:
-        #             Mat_coef[k, k] = AP
-        #             Mat_coef[k, k - 1] = AW
-        #             Mat_coef[k, k + NTETA] = AN
-        #             Mat_coef[k, k - NTETA] = AS
-        #             Mat_coef[k, k + 1] = AE
-
-        #         if kR == NR-1 and kTETA > 0 and kTETA < NTETA-1:
-        #             Mat_coef[k, k] = AP - AN
-        #             Mat_coef[k, k - 1] = AW
-        #             Mat_coef[k, k + 1] = AE
-        #             Mat_coef[k, k - NTETA] = AS
-
-        #         if kR == 0 and kTETA == NTETA-1:
-        #             Mat_coef[k, k] = AP - AE - AS
-        #             Mat_coef[k, k - 1] = AW
-        #             Mat_coef[k, k + NTETA] = AN
-
-        #         if kTETA == NTETA-1 and kR > 0 and kR < NR-1:
-        #             Mat_coef[k, k] = AP - AE
-        #             Mat_coef[k, k - 1] = AW
-        #             Mat_coef[k, k - NTETA] = AS
-        #             Mat_coef[k, k + NTETA] = AN
-
-        #         if kTETA == NTETA-1 and kR == NR-1:
-        #             Mat_coef[k, k] = AP - AE - AN
-        #             Mat_coef[k, k - 1] = AW
-        #             Mat_coef[k, k - NTETA] = AS
-
-        #         kTETA = kTETA + 1
-
-        #     kR = kR + 1
-        #     kTETA = 0
-        # # PAD DEFORMATION - PRESSURE EFFECTS 
-        
-        # d_p = np.linalg.solve(Mat_coef, b_p) # solve deformation vectorized
-
-        # cont=-1
-
-        # # deformation matrix
-        # for ii in range(0, NR):
-        #     for jj in range(0, NTETA):
-        #         cont = cont + 1
-        #         D_P[ii, jj] = d_p[cont]
-        
-        # # TOTAL PAD DEFORMATION 
-        # D_T=DZ+D_P
-
-        # THERMO-ELASTO-HYDRODYNAMIC SOLUTION ======================================
-        # ENDS HERE ==============================================================
-
-        # print(PPdim)
-
-        # yraio1 = np.arange(r1 * np.sin((np.pi/2 - teta0/2),(np.pi/2 + teta0/2), dTETA * teta0))
-        # xraio1 = np.arange(r1 * np.cos(np.pi/2 - teta0/2, np.pi/2 + teta0/2, dTETA * teta0))
-        # yraio2 = np.arange(r2 * np.sin((np.pi/2 - teta0/2), (np.pi/2 + teta0/2), dTETA*teta0))
-        # xraio2 = np.arange(r2 * np.cos(np.pi/2 - teta0/2, np.pi/2 +teta0/2, dTETA*teta0))
-
-        # dx = (xraio1[0] - xraio2[0]/(NTETA - 2))
-        # xreta1 = np.arange(xraio2[0], xraio1[0], dx)
-        # yreta1 = np.arange(yraio2[0], yraio1[0], dx * np.tan(np.pi/2 -teta0/2))
-        # xreta2 = np.arange(xraio2[-1], xraio1[-1], -dx)
-        # yreta2 = np.arange(yraio2[0], yraio1[0], dx * np.tan(np.pi/2 - teta0/2))
-        # np.savetxt('YH.txt', YH)
-        # np.savetxt('XH.txt', XH)
-
-        # fig1 = plt.figure(1)
-        # ax = plt.axes(projection='3d')
-        # ax.plot_surface(XH[1:NR+1,1:NTETA+1], YH[1:NR+1,1:NTETA+1], 1e6*D_T, rstride=1, cstride=1, cmap='jet', edgecolor='none')
-        # # plt.savefig("pressao.png", bbox_inches="tight", dpi=600)
-        # plt.grid()
-        # ax.set_title('Deflected middle plane')
-        # ax.set_xlim([np.min(XH), np.max(XH)])
-        # ax.set_ylim([np.min(YH), np.max(YH)])
-        # ax.set_xlabel('x direction [m]')
-        # ax.set_ylabel('y direction [m]')
-        # ax.set_zlabel('Directional deformation [$\mu$m]')
-        # plt.show()
-
-        # fig2 = plt.figure(2)
-        # ax = plt.axes(projection='3d')
-        # ax.plot_surface(XH[1:NR+1,1:NTETA+1], YH[1:NR+1,1:NTETA+1], 1e6*D_P, rstride=1, cstride=1, cmap='jet', edgecolor='none')
-        # # plt.savefig("pressao.png", bbox_inches="tight", dpi=600)
-        # plt.grid()
-        # ax.set_title('Mechanical Deflection')
-        # ax.set_xlim([np.min(XH), np.max(XH)])
-        # ax.set_ylim([np.min(YH), np.max(YH)])
-        # ax.set_xlabel('x direction [m]')
-        # ax.set_ylabel('y direction [m]')
-        # ax.set_zlabel('Directional deformation [$\mu$m]')
-        # plt.show()
-
-        # fig3 = plt.figure(3)
-        # ax = plt.axes(projection='3d')
-        # ax.plot_surface(XH[1:NR+1,1:NTETA+1], YH[1:NR+1,1:NTETA+1], 1e6*DZ, rstride=1, cstride=1, cmap='jet', edgecolor='none')
-        # # plt.savefig("pressao.png", bbox_inches="tight", dpi=600)
-        # plt.grid()
-        # ax.set_title('Thermal Deflection')
-        # ax.set_xlim([np.min(XH), np.max(XH)])
-        # ax.set_ylim([np.min(YH), np.max(YH)])
-        # ax.set_xlabel('x direction [m]')
-        # ax.set_ylabel('y direction [m]')
-        # ax.set_zlabel('Directional deformation [$\mu$m]')
-        # plt.show()
-
-        # PLOT FIGURES ==============================================================
-        # STARTS HERE ==============================================================
-
-                # Define vectors and matrix
-        yh = np.zeros((NR+2))
-        auxtransf = np.zeros((NTETA+2))
-        XH = np.zeros((NR+2,NTETA+2))
-        YH = np.zeros((NR+2,NTETA+2))
-
-        yh[0] = r2
-        yh[-1] = r1
-        yh[1:NR+1] = np.arange((r2 - 0.5 * dR * r1), r1, -(dR * r1))
-   
-        auxtransf[0] = np.pi/2 + teta0/2
-        auxtransf[-1] = np.pi/2 - teta0/2
-        auxtransf[1:NTETA+1] = np.arange(np.pi/2 + teta0/2 - (0.5 * dTETA * teta0), np.pi/2 - teta0/2, -dTETA * teta0)
-
-        for ii in range(0, NR+2):
-            for jj in range(0, NTETA+2):
-                XH[ii, jj] = yh[ii] * np.cos(auxtransf[jj])
-                YH[ii, jj] = yh[ii] * np.sin(auxtransf[jj])
-
-   
-
-        fig4 = plt.figure(4)
-        ax = plt.axes(projection='3d')
-        ax.plot_surface(XH, YH, 1e-6*PPdim, rstride=1, cstride=1, cmap='jet', edgecolor='none')
-        # plt.savefig("pressao.png", bbox_inches="tight", dpi=600)
-        # np.save(XH,"jeff_bearings/XH")
-        plt.grid()
-        ax.set_title('Pressure field')
-        ax.set_xlim([np.min(XH), np.max(XH)])
-        ax.set_ylim([np.min(YH), np.max(YH)])
-        ax.set_xlabel('x direction [m]')
-        ax.set_ylabel('y direction [m]')
-        ax.set_zlabel('Pressure [MPa]')
-        plt.show()
-
-        fig,ax=plt.subplots(1,1)
-        cp = ax.contourf(XH, YH, TT, cmap='jet')
-        plt.grid()
-        fig.colorbar(cp) # Add a colorbar to a plot
-        ax.set_title('Temperature field [°C]')
-        ax.set_xlabel('x direction [m]')
-        ax.set_ylabel('y direction [m]')
-        plt.show()
-
-        fig,ax=plt.subplots(1,1)
-        cp = ax.contourf(XH, YH, 1e-6*PPdim, cmap='jet')
-        plt.grid()
-        fig.colorbar(cp) # Add a colorbar to a plot
-        ax.set_title('Pressure field [MPa]')
-        ax.set_xlabel('x direction [m]')
-        ax.set_ylabel('y direction [m]')
-        plt.show()
-
-        # PLOT FIGURES ==============================================================
-        # ENDS HERE ==============================================================
 
         # --------------------------------------------------------------------------
         # Output values - Pmax [Pa]- hmax[m] - hmin[m] - h0[m]
@@ -1721,31 +1453,7 @@ class Thrust:
         print(f'K:', K)
         print(f'C:', C)
 
-#def ArAsh0Equilibrium(
-#    r1,
-#    rp,
-#    teta0,
-#    tetap,
-#    mi0,
-#    fz,
-#    Npad,
-#    NTETA,
-#    NR,
-#    war,
-#    R1,
-#    R2,
-#    TETA1,
-#    TETA2,
-#    Rp,
-#    dR,
-#    dTETA,
-#    k1,
-#    k2,
-#    k3,
-#    TETAp,
-#    Ti,
-#    x0,
-#):
+
 def ArAsh0Equilibrium(x,*args):
     r1,rp,teta0,tetap,mi0,fz,Npad,NTETA,NR,war,R1,R2,TETA1,TETA2,Rp,dR,dTETA,k1,k2,k3,TETAp,Ti,x0=args
 
@@ -2111,21 +1819,9 @@ def thrust_bearing_example():
     dR = (R2 - R1) / (NR)  # R direction volumes length
     dTETA = (TETA2 - TETA1) / (NTETA)  # TETA direction volumes length
     Ti = T0 * (np.ones((NR, NTETA)))  # Initial temperature field [°C]
-    # E_pad = 2e11 # Young Modulus of the pad [N/m^2]
-    # tpad = 180e-3 # Pad thickness [m]
-    # v_pad = 0.3 # Poisson's ratio
-    # alpha_pad = 1.2e-5 # Thermal expansion [K^-1]
     x0 = np.array(
         (-0.000274792355106384, -1.69258824831925e-05, 0.000191418606538599)		
-    )  # Initial equilibrium position
-    # mi =
-    # P0 =
-    # MI =
-    # H0 =
-    # H0ne =
-    # H0se =
-    # H0nw =
-    # H0sw =
+    ) 
 
     bearing = Thrust(
         r1=r1,
@@ -2160,19 +1856,6 @@ def thrust_bearing_example():
         dTETA=dTETA,
         Ti=Ti,
         x0=x0,
-        # E_pad=E_pad,
-        # tpad=tpad,
-        # v_pad=v_pad,
-        # alpha_pad=alpha_pad,
-        # mi=mi,
-        # P0=P0,
-        # MI=MI,
-        # H0=H0,
-        # H0ne=H0ne,
-        # H0se=H0se,
-        # H0nw=H0nw,
-        # H0sw=H0sw,
-        #plot
     )
 
     return bearing
