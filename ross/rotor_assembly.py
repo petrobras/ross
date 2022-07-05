@@ -432,6 +432,10 @@ class Rotor(object):
                         node_l = df.loc[
                             (df.n_link == b.n) & (df.tag != b.tag), "nodes_pos_l"
                         ]
+                        if len(node_l) == 0:
+                            raise ValueError(
+                                f"The following bearing is not connected to the rotor. Check n_link. {b}"
+                            )
                         node_r = node_l
                     if len(node_l):
                         df.loc[df.tag == b.tag, "nodes_pos_l"] = node_l.values[0]
