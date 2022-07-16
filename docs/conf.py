@@ -22,7 +22,7 @@ import ross
 
 # General information about the project.
 project = "ross"
-copyright = "2021"
+copyright = "2022"
 author = "ROSS devs"
 
 # The version info for the project you're documenting, acts as replacement for
