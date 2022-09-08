@@ -136,7 +136,6 @@ class THDCylindrical(BearingElement):
         radial_clearance,
         elements_circumferential,
         elements_axial,
-        n_y,
         n_pad,
         pad_arc_length,
         reference_temperature,
@@ -164,7 +163,6 @@ class THDCylindrical(BearingElement):
         self.radial_clearance = radial_clearance
         self.elements_circumferential = elements_circumferential
         self.elements_axial = elements_axial
-        self.n_y = n_y
         self.n_pad = n_pad
         self.reference_temperature = reference_temperature
         self.reference_viscosity = reference_viscosity
@@ -184,9 +182,6 @@ class THDCylindrical(BearingElement):
         self.print_progress = print_progress
         self.print_time = print_time
 
-        if self.n_y == None:
-            self.n_y = self.elements_circumferential
-
         self.betha_s_dg = pad_arc_length
         self.betha_s = pad_arc_length * np.pi / 180
 
@@ -197,7 +192,7 @@ class THDCylindrical(BearingElement):
         ##
         # Dimensionless discretization variables
 
-        self.dY = 1 / self.n_y
+        self.dY = 1 / self.elements_circumferential
         self.dZ = 1 / self.elements_axial
 
         # Z-axis direction
@@ -596,7 +591,7 @@ class THDCylindrical(BearingElement):
                                         k - 1, k - self.elements_circumferential - 1
                                     ] = CS
     
-                                elif ki == 0 and kj > 0 and kj < self.n_y - 1:
+                                elif ki == 0 and kj > 0 and kj < self.elements_circumferential - 1:
                                     Mat_coef[k - 1, k - 1] = CP - CS
                                     Mat_coef[k - 1, k] = CE
                                     Mat_coef[k - 1, k - 2] = CW
@@ -608,7 +603,7 @@ class THDCylindrical(BearingElement):
                                     ki > 0
                                     and ki < self.elements_axial - 1
                                     and kj > 0
-                                    and kj < self.n_y - 1
+                                    and kj < self.elements_circumferential - 1
                                 ):
                                     Mat_coef[k - 1, k - 1] = CP
                                     Mat_coef[k - 1, k - 2] = CW
@@ -623,7 +618,7 @@ class THDCylindrical(BearingElement):
                                 elif (
                                     ki == self.elements_axial - 1
                                     and kj > 0
-                                    and kj < self.n_y - 1
+                                    and kj < self.elements_circumferential - 1
                                 ):
                                     Mat_coef[k - 1, k - 1] = CP - CN
                                     Mat_coef[k - 1, k] = CE
@@ -632,7 +627,7 @@ class THDCylindrical(BearingElement):
                                         k - 1, k - self.elements_circumferential - 1
                                     ] = CS
     
-                                elif ki == 0 and kj == self.n_y - 1:
+                                elif ki == 0 and kj == self.elements_circumferential - 1:
                                     Mat_coef[k - 1, k - 1] = CP - CE - CS
                                     Mat_coef[k - 1, k - 2] = CW
                                     Mat_coef[
@@ -640,7 +635,7 @@ class THDCylindrical(BearingElement):
                                     ] = CN
     
                                 elif (
-                                    kj == self.n_y - 1
+                                    kj == self.elements_circumferential - 1
                                     and ki > 0
                                     and ki < self.elements_axial - 1
                                 ):
@@ -653,7 +648,7 @@ class THDCylindrical(BearingElement):
                                         k - 1, k + self.elements_circumferential - 1
                                     ] = CN
     
-                                elif ki == self.elements_axial - 1 and kj == self.n_y - 1:
+                                elif ki == self.elements_axial - 1 and kj == self.elements_circumferential - 1:
                                     Mat_coef[k - 1, k - 1] = CP - CE - CN
                                     Mat_coef[k - 1, k - 2] = CW
                                     Mat_coef[
@@ -1513,7 +1508,7 @@ class THDCylindrical(BearingElement):
                                     T_ref / self.reference_temperature
                                 )
 
-                            elif ki == 0 and kj > 0 and kj < self.n_y - 1:
+                            elif ki == 0 and kj > 0 and kj < self.elements_circumferential - 1:
                                 Mat_coef_T[k - 1, k - 1] = AP + AS
                                 Mat_coef_T[k - 1, k] = AE
                                 Mat_coef_T[k - 1, k - 2] = AW
@@ -1525,7 +1520,7 @@ class THDCylindrical(BearingElement):
                                 ki > 0
                                 and ki < self.elements_axial - 1
                                 and kj > 0
-                                and kj < self.n_y - 1
+                                and kj < self.elements_circumferential - 1
                             ):
                                 Mat_coef_T[k - 1, k - 1] = AP
                                 Mat_coef_T[k - 1, k - 2] = AW
@@ -1540,7 +1535,7 @@ class THDCylindrical(BearingElement):
                             elif (
                                 ki == self.elements_axial - 1
                                 and kj > 0
-                                and kj < self.n_y - 1
+                                and kj < self.elements_circumferential - 1
                             ):
                                 Mat_coef_T[k - 1, k - 1] = AP + AN
                                 Mat_coef_T[k - 1, k] = AE
@@ -1549,7 +1544,7 @@ class THDCylindrical(BearingElement):
                                     k - 1, k - self.elements_circumferential - 1
                                 ] = AS
 
-                            elif ki == 0 and kj == self.n_y - 1:
+                            elif ki == 0 and kj == self.elements_circumferential - 1:
                                 Mat_coef_T[k - 1, k - 1] = AP + AE + AS
                                 Mat_coef_T[k - 1, k - 2] = AW
                                 Mat_coef_T[
@@ -1557,7 +1552,7 @@ class THDCylindrical(BearingElement):
                                 ] = AN
 
                             elif (
-                                kj == self.n_y - 1
+                                kj == self.elements_circumferential - 1
                                 and ki > 0
                                 and ki < self.elements_axial - 1
                             ):
@@ -1570,7 +1565,7 @@ class THDCylindrical(BearingElement):
                                     k - 1, k + self.elements_circumferential - 1
                                 ] = AN
 
-                            elif ki == self.elements_axial - 1 and kj == self.n_y - 1:
+                            elif ki == self.elements_axial - 1 and kj == self.elements_circumferential - 1:
                                 Mat_coef_T[k - 1, k - 1] = AP + AE + AN
                                 Mat_coef_T[k - 1, k - 2] = AW
                                 Mat_coef_T[
@@ -2475,7 +2470,6 @@ def cylindrical_bearing_example():
         radial_clearance=1.95e-4,
         elements_circumferential=11,
         elements_axial=3,
-        n_y=None,
         n_pad=2,
         pad_arc_length=176,
         reference_temperature=50,
@@ -2489,7 +2483,7 @@ def cylindrical_bearing_example():
         sommerfeld_type=2,
         initial_guess=[0.1, -0.1],
         method="perturbation",
-        operating_type= "starvation",
+        operating_type= "flooded",
         injection_pressure= 0,
         oil_flow= 0,
         show_coef=False,
