@@ -1609,6 +1609,50 @@ class THDCylindrical(BearingElement):
                                 self.a * (Tdim[i, j, n_p]) ** self.b
                             ) / self.reference_viscosity
 
+        
+        
+            Ci = np.ones(self.n_pad)
+            
+            for n_p in np.arange(self.n_pad):
+                
+                Qe=np.trapz(-self.H[0,n_p]**3/(12*mu_turb[:,0,n_p]*self.betha_s)*dPdy[:,0,n_p]+self.Theta_vol[:,0,n_p]*self.H[0,n_p]/2, self.Z[1:self.elements_circumferential+1])
+                
+                Qs=np.trapz(-self.H[-1,n_p]**3/(12*mu_turb[:,-1,n_p]*self.betha_s)*dPdy[:,-1,n_p]+self.Theta_vol[:,-1,n_p]*self.H[-1,n_p]/2, self.Z[1:self.elements_circumferential+1])
+                
+                Ql=abs(np.trapz(-(self.R/self.L)*self.H[:,n_p]**3/(12*mu_turb[0,:,n_p])*dPdz[0,:,n_p], Ytheta[n_p]))+np.trapz(-(self.R/self.L)*self.H[:,n_p]**3/(12*mu_turb[-1,:,n_p])*dPdz[-1,:,n_p], Ytheta[n_p])
+    
+                self.Qsdim[n_p]=self.speed*self.journal_radius*self.radial_clearance*self.axial_length*Qs
+    
+                self.Qedim[n_p]=self.speed*self.journal_radius*self.radial_clearance*self.axial_length*Qe
+                
+                self.Qldim[n_p]=self.speed*self.journal_radius**2*self.radial_clearance*Ql
+                
+                Ci[n_p] = np.trapz(self.Theta_vol[:,0,n_p]*self.H[0,n_p]/2, self.Z[1:self.elements_circumferential+1])/(np.trapz(self.H[0,n_p]**3/(12*mu_turb[:,0,n_p]*self.betha_s)*dPdy[:,0,n_p], self.Z[1:self.elements_circumferential+1]) \
+                                                      +np.trapz(-self.H[-1,n_p-1]**3/(12*mu_turb[:,-1,n_p-1]*self.betha_s)*dPdy[:,-1,n_p-1]+self.Theta_vol[:,-1,n_p-1]*self.H[-1,n_p-1]/2, self.Z[1:self.elements_circumferential+1]))
+                
+                T_end[n_p]=np.sum(Tdim[:,-1,n_p])/self.elements_circumferential
+    
+            
+            alpha = Ci/np.sum(Ci)
+            
+            Qsup = alpha*self.oil_flow
+            
+            for n_p in np.arange(self.n_pad):
+                
+                if self.Qsdim[n_p-1]+Qsup[n_p]>self.Qedim[n_p]:
+                    
+                    QSL = self.Qsdim[n_p-1]+Qsup[n_p]-self.Qedim[n_p]
+                    TSL = (0.2*self.Qsdim[n_p-1]*T_end[n_p-1]+0.8*Qsup[n_p]*self.reference_temperature)/(0.2*self.Qsdim[n_p-1]+0.8*Qsup[n_p])
+                    
+                    T_mist[n_p] = (self.Qsdim[n_p-1]*T_end[n_p-1]+Qsup[n_p]*self.reference_temperature-QSL*TSL)/self.Qedim[n_p]
+                
+                else:
+                    
+                    Qgr = self.Qedim[n_p]-self.Qsdim[n_p-1]-Qsup[n_p]
+                    Tgr = (0.8*self.Qsdim[n_p-1]*T_end[n_p-1]+0.2*Qsup[n_p]*self.reference_temperature)/(0.8*self.Qsdim[n_p-1]+0.2*Qsup[n_p])
+                    
+                    T_mist[n_p] = (self.Qsdim[n_p-1]*T_end[n_p-1]+Qsup[n_p]*self.reference_temperature+Qgr*Tgr)/self.Qedim[n_p]
+        
         PP = np.zeros(
             ((self.elements_axial), (self.n_pad * self.elements_circumferential))
         )
