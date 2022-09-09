@@ -151,7 +151,7 @@ class THDCylindrical(BearingElement):
         method="perturbation",
         operating_type= "flooded",
         injection_pressure= 0,
-        oil_flow= 100,
+        oil_flow= 20,
         show_coef=False,
         print_result=False,
         print_progress=False,
@@ -207,14 +207,16 @@ class THDCylindrical(BearingElement):
             self.Z_I + 0.5 * self.dZ, self.Z_F, self.dZ
         )
         self.Z = Z
-
+        
         # Dimensionalization
 
         self.dz = self.dZ * self.axial_length
         self.dy = self.dY * self.betha_s * self.journal_radius
 
         self.Zdim = self.Z * self.axial_length
-
+        
+        self.oil_flow= self.oil_flow/60000
+        
         self.lubricant_dict = {
             "ISOVG32": {
                 "viscosity1": Q_(4.05640e-06, "reyn").to_base_units().m,
@@ -1149,6 +1151,9 @@ class THDCylindrical(BearingElement):
                             for j in np.arange(self.elements_circumferential):
                         
                                 self.P[i, j, n_p] = p[cont]
+                                
+                                self.Theta_vol[i,j,n_p] = self.theta_vol[cont]
+                                
                                 cont = cont + 1
                         
                                 if self.P[i, j, n_p] < 0:
@@ -2474,7 +2479,7 @@ def cylindrical_bearing_example():
         pad_arc_length=176,
         reference_temperature=50,
         reference_viscosity=0.02,
-        speed=Q_([900], "RPM"),
+        speed=Q_([1800], "RPM"),
         load_x_direction=0,
         load_y_direction=-112814.91,
         groove_factor=[0.52, 0.48],
@@ -2483,9 +2488,9 @@ def cylindrical_bearing_example():
         sommerfeld_type=2,
         initial_guess=[0.1, -0.1],
         method="perturbation",
-        operating_type= "flooded",
+        operating_type= "starvation",
         injection_pressure= 0,
-        oil_flow= 0,
+        oil_flow= 40,
         show_coef=False,
         print_result=True,
         print_progress=False,
