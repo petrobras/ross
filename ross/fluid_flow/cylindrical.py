@@ -1653,6 +1653,8 @@ class THDCylindrical(BearingElement):
                     
                     T_mist[n_p] = (self.Qsdim[n_p-1]*T_end[n_p-1]+Qsup[n_p]*self.reference_temperature+Qgr*Tgr)/self.Qedim[n_p]
         
+        
+        print(T_mist)
         PP = np.zeros(
             ((self.elements_axial), (self.n_pad * self.elements_circumferential))
         )
@@ -2473,7 +2475,7 @@ def cylindrical_bearing_example():
         axial_length=0.263144,
         journal_radius=0.2,
         radial_clearance=1.95e-4,
-        elements_circumferential=11,
+        elements_circumferential=20,
         elements_axial=3,
         n_pad=2,
         pad_arc_length=176,
