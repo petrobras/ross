@@ -366,7 +366,7 @@ class THDCylindrical(BearingElement):
         )
 
         Ytheta = [
-            np.linspace(t1, t2, self.elements_circumferential)
+            np.linspace(t1+self.dtheta/2, t2-self.dtheta/2, self.elements_circumferential)
             for t1, t2 in zip(self.thetaI, self.thetaF)
         ]
 
