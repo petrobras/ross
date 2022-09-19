@@ -370,78 +370,105 @@ class THDCylindrical(BearingElement):
             for t1, t2 in zip(self.thetaI, self.thetaF)
         ]
 
-
-        if self.operating_type == "flooded":
-
-            while (T_mist[0] - T_conv) >= 1e-2:
-    
-                self.P = np.zeros(
+        self.theta_vol_groove = np.ones(self.n_pad)
+        
+        T_end = np.ones(self.n_pad)
+        
+        while (T_mist[0] - T_conv) >= 1e-2:
+        
+            self.P = np.zeros(
+                (self.elements_axial, self.elements_circumferential, self.n_pad)
+            )
+            dPdy = np.zeros(
+                (self.elements_axial, self.elements_circumferential, self.n_pad)
+            )
+            dPdz = np.zeros(
+                (self.elements_axial, self.elements_circumferential, self.n_pad)
+            )
+            T = np.ones(
+                (self.elements_axial, self.elements_circumferential, self.n_pad)
+            )
+            T_new = (
+                np.ones(
                     (self.elements_axial, self.elements_circumferential, self.n_pad)
                 )
-                dPdy = np.zeros(
-                    (self.elements_axial, self.elements_circumferential, self.n_pad)
-                )
-                dPdz = np.zeros(
-                    (self.elements_axial, self.elements_circumferential, self.n_pad)
-                )
-                T = np.ones(
-                    (self.elements_axial, self.elements_circumferential, self.n_pad)
-                )
-                T_new = (
-                    np.ones(
-                        (self.elements_axial, self.elements_circumferential, self.n_pad)
-                    )
-                    * 1.2
-                )
-    
-                self.H = np.ones((self.elements_circumferential, self.n_pad))
-                
-                T_conv = T_mist[0]
-    
-                mu_new = 1.1 * np.ones(
-                    (self.elements_axial, self.elements_circumferential, self.n_pad)
-                )
-                mu_turb = 1.3 * np.ones(
-                    (self.elements_axial, self.elements_circumferential, self.n_pad)
-                )
-    
-                PP = np.zeros(((self.elements_axial), (2 * self.elements_circumferential)))
-    
-                nk = (self.elements_axial) * (self.elements_circumferential)
-    
-                Mat_coef = np.zeros((nk, nk))
-                
-                Mat_coef_T = np.zeros((nk, nk))
-                
-                b = np.zeros((nk, 1))
-                
-                b_T = np.zeros((nk, 1))
-                
-                for n_p in np.arange(self.n_pad):
-    
+                * 1.2
+            )
+            
+            self.Theta_vol = np.zeros(
+                (self.elements_axial, self.elements_circumferential, self.n_pad)
+            )
+            
+            mu_new = 1.1 * np.ones(
+                (self.elements_axial, self.elements_circumferential, self.n_pad)
+            )
+            mu_turb = 1.3 * np.ones(
+                (self.elements_axial, self.elements_circumferential, self.n_pad)
+            )
+                         
+                          
+            T_conv = T_mist[0]
+            
+            self.H = np.ones((self.elements_circumferential, self.n_pad))
+        
+            self.U = 0.5*np.ones((self.elements_axial, self.elements_circumferential, self.n_pad))
+            
+            self.V = np.zeros((self.elements_axial, self.elements_circumferential, self.n_pad))
+        
+            self.Qedim = np.ones(self.n_pad)
+            
+            self.Qsdim = np.ones(self.n_pad)
+            
+            self.Qldim = np.ones(self.n_pad)
+            
+            
+            
+            nk = (self.elements_axial) * (self.elements_circumferential)
+            
+            for n_p in np.arange(self.n_pad):      
+                           
+        
+                while (
+                    np.linalg.norm(T_new[:, :, n_p] - T[:, :, n_p])
+                    / np.linalg.norm(T[:, :, n_p])
+                    >= 1e-3
+                ):
+        
                     T_ref = T_mist[n_p]
-    
-                    # Temperature convergence while
-    
-                    while (
-                        np.linalg.norm(T_new[:, :, n_p] - T[:, :, n_p])
-                        / np.linalg.norm(T[:, :, n_p])
-                        >= 1e-3
-                    ):
-    
-                        T_ref = T_mist[n_p]
-    
-                        mu = mu_new
-                        self.mu_l = mu_new
-    
-                        T[:, :, n_p] = T_new[:, :, n_p]
-    
-                        ki = 0
-                        kj = 0
-                        k = 0
-    
-                        # Solution of pressure field initialization
-    
+        
+                    mu = mu_new
+                
+        
+                    T[:, :, n_p] = T_new[:, :, n_p]
+        
+                    ki = 0
+                    kj = 0
+                    k = 0
+                                        
+                    Mat_coef_T=np.zeros((nk,nk))
+                    
+                    p = np.ones((nk,1)) # Pressure vector
+                    
+                    b_T=np.zeros((nk,1))
+                    
+                    b_P=np.zeros((nk,1))
+            
+                    erro = 1
+                    p_old = np.zeros((nk,1))
+                    theta_vol_old = np.zeros((nk,1))
+                    
+                    p = np.ones((nk,1)) # Pressure vector
+                    self.theta_vol = np.zeros((nk,1)) # Theta volumetric vector
+                    
+                    Mat_coef_st=np.zeros((nk,nk)) # Coeficients matrix
+                    
+                    Mat_coef=np.zeros((nk,nk)) # Coeficients matrix
+                    
+                    B = np.zeros((nk,1)) # Termo fonte for pressure
+                    B_theta = np.zeros((nk,1)) # Termo fonte for theta vol
+                        
+                    if self.operating_type == "flooded":
+                        
                         for ii in np.arange((self.Z_I + 0.5 * self.dZ), self.Z_F, self.dZ):
                             for jj in np.arange(
                                 self.thetaI[n_p] + (self.dtheta / 2),
@@ -558,7 +585,7 @@ class THDCylindrical(BearingElement):
                                 )
     
                                 k = k + 1
-                                b[k - 1, 0] = B
+                                b_P[k - 1, 0] = B
     
                                 if ki == 0 and kj == 0:
                                     Mat_coef[k - 1, k - 1] = CP - CS - CW
@@ -655,7 +682,7 @@ class THDCylindrical(BearingElement):
     
                         # Solution of pressure field end
     
-                        p = np.linalg.solve(Mat_coef, b)
+                        p = np.linalg.solve(Mat_coef, b_P)
                         cont = 0
 
                         for i in np.arange(self.elements_axial):
@@ -676,12 +703,10 @@ class THDCylindrical(BearingElement):
                             * (self.journal_radius**2)
                         ) / (self.radial_clearance**2)
                         
+                        # Temperature field 
                         ki = 0
                         kj = 0
                         k = 0
-    
-                        # Solution of temperature field initialization
-    
                         for ii in np.arange(
                             (self.Z_I + 0.5 * self.dZ), (self.Z_F), self.dZ
                         ):
@@ -1110,101 +1135,7 @@ class THDCylindrical(BearingElement):
                             self.a * (Tdim[:, :, n_p]) ** self.b
                         ) / self.reference_viscosity
                         
-
-        
-        elif self.operating_type == "starvation":
-            
-            self.theta_vol_groove = np.ones(self.n_pad)
-            
-            while (T_mist[0] - T_conv) >= 1e-2:
-    
-                self.P = np.zeros(
-                    (self.elements_axial, self.elements_circumferential, self.n_pad)
-                )
-                dPdy = np.zeros(
-                    (self.elements_axial, self.elements_circumferential, self.n_pad)
-                )
-                dPdz = np.zeros(
-                    (self.elements_axial, self.elements_circumferential, self.n_pad)
-                )
-                T = np.ones(
-                    (self.elements_axial, self.elements_circumferential, self.n_pad)
-                )
-                T_new = (
-                    np.ones(
-                        (self.elements_axial, self.elements_circumferential, self.n_pad)
-                    )
-                    * 1.2
-                )
-                
-                self.Theta_vol = np.zeros(
-                    (self.elements_axial, self.elements_circumferential, self.n_pad)
-                )
-                
-                mu_new = 1.1 * np.ones(
-                    (self.elements_axial, self.elements_circumferential, self.n_pad)
-                )
-                mu_turb = 1.3 * np.ones(
-                    (self.elements_axial, self.elements_circumferential, self.n_pad)
-                )
-                             
-                              
-                T_conv = T_mist[0]
-                
-                self.H = np.ones((self.elements_circumferential, self.n_pad))
-
-                self.U = 0.5*np.ones((self.elements_axial, self.elements_circumferential, self.n_pad))
-                
-                self.V = np.zeros((self.elements_axial, self.elements_circumferential, self.n_pad))
-
-                self.Qedim = np.ones(self.n_pad)
-                
-                self.Qsdim = np.ones(self.n_pad)
-                
-                self.Qldim = np.ones(self.n_pad)
-                
-                T_end = np.ones(self.n_pad)
-                
-                nk = (self.elements_axial) * (self.elements_circumferential)
-                
-                for n_p in np.arange(self.n_pad):      
-                               
-
-                    while (
-                        np.linalg.norm(T_new[:, :, n_p] - T[:, :, n_p])
-                        / np.linalg.norm(T[:, :, n_p])
-                        >= 1e-3
-                    ):
-    
-                        T_ref = T_mist[n_p]
-    
-                        mu = mu_new
-                    
-    
-                        T[:, :, n_p] = T_new[:, :, n_p]
-    
-                        ki = 0
-                        kj = 0
-                        k = 0
-                                            
-                        Mat_coef_T=np.zeros((nk,nk))
-                        
-                        p = np.ones((nk,1)) # Pressure vector
-                        
-                        b_T=np.zeros((nk,1))
-                
-                        erro = 1
-                        p_old = np.zeros((nk,1))
-                        theta_vol_old = np.zeros((nk,1))
-                        
-                        p = np.ones((nk,1)) # Pressure vector
-                        self.theta_vol = np.zeros((nk,1)) # Theta volumetric vector
-                        
-                        Mat_coef_st=np.zeros((nk,nk)) # Coeficients matrix
-                        
-                        B = np.zeros((nk,1)) # Termo fonte for pressure
-                        B_theta = np.zeros((nk,1)) # Termo fonte for theta vol
-                        
+                    if self.operating_type == "starvation":
                         while erro >= 0.01:
 
                             p_old = np.array(p)
@@ -1595,7 +1526,7 @@ class THDCylindrical(BearingElement):
                         k = 0
     
                         # Solution of temperature field initialization
-    
+                        print("Entrei")
                         for ii in np.arange(
                             (self.Z_I + 0.5 * self.dZ), (self.Z_F), self.dZ
                         ):
@@ -2026,34 +1957,35 @@ class THDCylindrical(BearingElement):
                         
         
         
-                Ci = np.ones(self.n_pad)
+            Ci = np.ones(self.n_pad)
+            
+            for n_p in np.arange(self.n_pad):
+                print("Passei")
+                Qe=np.trapz(-self.H[0,n_p]**3/(12*mu_turb[:,0,n_p]*self.betha_s)*dPdy[:,0,n_p]+self.Theta_vol[:,0,n_p]*self.H[0,n_p]/2, self.Z[1:self.elements_axial+1])
                 
-                for n_p in np.arange(self.n_pad):
-     
-                    Qe=np.trapz(-self.H[0,n_p]**3/(12*mu_turb[:,0,n_p]*self.betha_s)*dPdy[:,0,n_p]+self.Theta_vol[:,0,n_p]*self.H[0,n_p]/2, self.Z[1:self.elements_axial+1])
-                    
-                    Qs=np.trapz(-self.H[-1,n_p]**3/(12*mu_turb[:,-1,n_p]*self.betha_s)*dPdy[:,-1,n_p]+self.Theta_vol[:,-1,n_p]*self.H[-1,n_p]/2, self.Z[1:self.elements_axial+1])
-                    
-                    Ql=abs(np.trapz(-(self.journal_radius/self.axial_length)*self.H[:,n_p]**3/(12*mu_turb[0,:,n_p])*dPdz[0,:,n_p], Ytheta[n_p]))+np.trapz(-(self.journal_radius/self.axial_length)*self.H[:,n_p]**3/(12*mu_turb[-1,:,n_p])*dPdz[-1,:,n_p], Ytheta[n_p])
-        
-                    self.Qsdim[n_p]=self.speed*self.journal_radius*self.radial_clearance*self.axial_length*Qs
-        
-                    self.Qedim[n_p]=self.speed*self.journal_radius*self.radial_clearance*self.axial_length*Qe
-                    
-                    self.Qldim[n_p]=self.speed*self.journal_radius**2*self.radial_clearance*Ql
-                    
-                    Ci[n_p] = np.trapz(self.Theta_vol[:,0,n_p]*self.H[0,n_p]/2, self.Z[1:self.elements_axial+1])/(np.trapz(self.H[0,n_p]**3/(12*mu_turb[:,0,n_p]*self.betha_s)*dPdy[:,0,n_p], self.Z[1:self.elements_axial+1]) \
-                                                          +np.trapz(-self.H[-1,n_p-1]**3/(12*mu_turb[:,-1,n_p-1]*self.betha_s)*dPdy[:,-1,n_p-1]+self.Theta_vol[:,-1,n_p-1]*self.H[-1,n_p-1]/2, self.Z[1:self.elements_axial+1]))
-                    
-                    T_end[n_p]=np.sum(Tdim[:,-1,n_p])/self.elements_axial
-        
+                Qs=np.trapz(-self.H[-1,n_p]**3/(12*mu_turb[:,-1,n_p]*self.betha_s)*dPdy[:,-1,n_p]+self.Theta_vol[:,-1,n_p]*self.H[-1,n_p]/2, self.Z[1:self.elements_axial+1])
                 
-                alpha = Ci/np.sum(Ci)
+                Ql=abs(np.trapz(-(self.journal_radius/self.axial_length)*self.H[:,n_p]**3/(12*mu_turb[0,:,n_p])*dPdz[0,:,n_p], Ytheta[n_p]))+np.trapz(-(self.journal_radius/self.axial_length)*self.H[:,n_p]**3/(12*mu_turb[-1,:,n_p])*dPdz[-1,:,n_p], Ytheta[n_p])
     
-                Qsup = alpha*self.oil_flow
+                self.Qsdim[n_p]=self.speed*self.journal_radius*self.radial_clearance*self.axial_length*Qs
+    
+                self.Qedim[n_p]=self.speed*self.journal_radius*self.radial_clearance*self.axial_length*Qe
                 
-                for n_p in np.arange(self.n_pad):
-                    
+                self.Qldim[n_p]=self.speed*self.journal_radius**2*self.radial_clearance*Ql
+                
+                Ci[n_p] = np.trapz(self.Theta_vol[:,0,n_p]*self.H[0,n_p]/2, self.Z[1:self.elements_axial+1])/(np.trapz(self.H[0,n_p]**3/(12*mu_turb[:,0,n_p]*self.betha_s)*dPdy[:,0,n_p], self.Z[1:self.elements_axial+1]) \
+                                                      +np.trapz(-self.H[-1,n_p-1]**3/(12*mu_turb[:,-1,n_p-1]*self.betha_s)*dPdy[:,-1,n_p-1]+self.Theta_vol[:,-1,n_p-1]*self.H[-1,n_p-1]/2, self.Z[1:self.elements_axial+1]))
+                
+                T_end[n_p]=np.sum(Tdim[:,-1,n_p])/self.elements_axial
+    
+            
+            alpha = Ci/np.sum(Ci)
+
+            Qsup = alpha*self.oil_flow
+            
+            
+            for n_p in np.arange(self.n_pad):
+                if self.operating_type == "starvation":
                     if self.Qsdim[n_p-1]+Qsup[n_p]>self.Qedim[n_p]:
                         
                         QSL = self.Qsdim[n_p-1]+Qsup[n_p]-self.Qedim[n_p]
@@ -2070,10 +2002,16 @@ class THDCylindrical(BearingElement):
                         T_mist[n_p] = (self.Qsdim[n_p-1]*T_end[n_p-1]+Qsup[n_p]*self.reference_temperature+Qgr*Tgr)/self.Qedim[n_p]
                         
                         self.theta_vol_groove[n_p] = (self.Qsdim[n_p-1]+Qsup[n_p])/(self.Qedim[n_p])
-                        
-                        print(self.theta_vol_groove[n_p])
+                
+                elif self.operating_type == "flooded": 
+                    
+                    T_mist[n_p] = (self.fat_mixt[n_p] * self.reference_temperature + (1 - self.fat_mixt[n_p]) * T_end
+                    
             
-
+                # print(T_mist)
+                        
+                        
+                
 
         PP = np.zeros(
             ((self.elements_axial), (self.n_pad * self.elements_circumferential))
