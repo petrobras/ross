@@ -468,7 +468,7 @@ class THDCylindrical(BearingElement):
                     B_theta = np.zeros((nk,1)) # Termo fonte for theta vol
                         
                     if self.operating_type == "flooded":
-                        
+                        flod = 1
                         for ii in np.arange((self.Z_I + 0.5 * self.dZ), self.Z_F, self.dZ):
                             for jj in np.arange(
                                 self.thetaI[n_p] + (self.dtheta / 2),
@@ -1115,6 +1115,7 @@ class THDCylindrical(BearingElement):
     
                         t = np.linalg.solve(Mat_coef_T, b_T)
                         cont = 0
+                        print("passei")
     
                         for i in np.arange(self.elements_axial):
                             for j in np.arange(self.elements_circumferential):
@@ -1124,18 +1125,19 @@ class THDCylindrical(BearingElement):
     
                         Tdim = T_new * self.reference_temperature
                         al = Tdim
-                        # T_end = np.sum(Tdim[:, -1, n_p]) / self.elements_axial
+                        T_end = np.sum(Tdim[:, -1, n_p]) / self.elements_axial
     
-                        # T_mist[n_p] = (
-                            # self.fat_mixt[n_p] * self.reference_temperature
-                            # + (1 - self.fat_mixt[n_p]) * T_end
-                        # )
+                        T_mist[n_p] = (
+                            self.fat_mixt[n_p] * self.reference_temperature
+                            + (1 - self.fat_mixt[n_p]) * T_end
+                        )
                         
                         mu_new[:, :, n_p] = (
                             self.a * (Tdim[:, :, n_p]) ** self.b
                         ) / self.reference_viscosity
                         
-                    if self.operating_type == "starvation":
+                    elif self.operating_type == "starvation":
+                        flod=0
                         while erro >= 0.01:
 
                             p_old = np.array(p)
@@ -1944,48 +1946,47 @@ class THDCylindrical(BearingElement):
     
                         Tdim = T_new * self.reference_temperature
                         al = Tdim
-                        # T_end = np.sum(Tdim[:, -1, n_p]) / self.elements_axial
-    
-                        # T_mist[n_p] = (
-                            # self.fat_mixt[n_p] * self.reference_temperature
-                            # + (1 - self.fat_mixt[n_p]) * T_end
-                        # )
+
                         
                         mu_new[:, :, n_p] = (
                             self.a * (Tdim[:, :, n_p]) ** self.b
                         ) / self.reference_viscosity
                         
+            
+            if flod==1:
+                T_mist = T_mist
+                print(T_mist)
+                
+            else:   
+                Ci = np.ones(self.n_pad)
+                print("ci")
+                for n_p in np.arange(self.n_pad):
+                    
+                    Qe=np.trapz(-self.H[0,n_p]**3/(12*mu_turb[:,0,n_p]*self.betha_s)*dPdy[:,0,n_p]+self.Theta_vol[:,0,n_p]*self.H[0,n_p]/2, self.Z[1:self.elements_axial+1])
+                    
+                    Qs=np.trapz(-self.H[-1,n_p]**3/(12*mu_turb[:,-1,n_p]*self.betha_s)*dPdy[:,-1,n_p]+self.Theta_vol[:,-1,n_p]*self.H[-1,n_p]/2, self.Z[1:self.elements_axial+1])
+                    
+                    Ql=abs(np.trapz(-(self.journal_radius/self.axial_length)*self.H[:,n_p]**3/(12*mu_turb[0,:,n_p])*dPdz[0,:,n_p], Ytheta[n_p]))+np.trapz(-(self.journal_radius/self.axial_length)*self.H[:,n_p]**3/(12*mu_turb[-1,:,n_p])*dPdz[-1,:,n_p], Ytheta[n_p])
         
+                    self.Qsdim[n_p]=self.speed*self.journal_radius*self.radial_clearance*self.axial_length*Qs
         
-            Ci = np.ones(self.n_pad)
-            
-            for n_p in np.arange(self.n_pad):
-                print("Passei")
-                Qe=np.trapz(-self.H[0,n_p]**3/(12*mu_turb[:,0,n_p]*self.betha_s)*dPdy[:,0,n_p]+self.Theta_vol[:,0,n_p]*self.H[0,n_p]/2, self.Z[1:self.elements_axial+1])
+                    self.Qedim[n_p]=self.speed*self.journal_radius*self.radial_clearance*self.axial_length*Qe
+                    
+                    self.Qldim[n_p]=self.speed*self.journal_radius**2*self.radial_clearance*Ql
+                    
+                    Ci[n_p] = np.trapz(self.Theta_vol[:,0,n_p]*self.H[0,n_p]/2, self.Z[1:self.elements_axial+1])/(np.trapz(self.H[0,n_p]**3/(12*mu_turb[:,0,n_p]*self.betha_s)*dPdy[:,0,n_p], self.Z[1:self.elements_axial+1]) \
+                                                          +np.trapz(-self.H[-1,n_p-1]**3/(12*mu_turb[:,-1,n_p-1]*self.betha_s)*dPdy[:,-1,n_p-1]+self.Theta_vol[:,-1,n_p-1]*self.H[-1,n_p-1]/2, self.Z[1:self.elements_axial+1]))
+                    
+                    T_end[n_p]=np.sum(Tdim[:,-1,n_p])/self.elements_axial
+        
                 
-                Qs=np.trapz(-self.H[-1,n_p]**3/(12*mu_turb[:,-1,n_p]*self.betha_s)*dPdy[:,-1,n_p]+self.Theta_vol[:,-1,n_p]*self.H[-1,n_p]/2, self.Z[1:self.elements_axial+1])
-                
-                Ql=abs(np.trapz(-(self.journal_radius/self.axial_length)*self.H[:,n_p]**3/(12*mu_turb[0,:,n_p])*dPdz[0,:,n_p], Ytheta[n_p]))+np.trapz(-(self.journal_radius/self.axial_length)*self.H[:,n_p]**3/(12*mu_turb[-1,:,n_p])*dPdz[-1,:,n_p], Ytheta[n_p])
+                alpha = Ci/np.sum(Ci)
     
-                self.Qsdim[n_p]=self.speed*self.journal_radius*self.radial_clearance*self.axial_length*Qs
-    
-                self.Qedim[n_p]=self.speed*self.journal_radius*self.radial_clearance*self.axial_length*Qe
+                Qsup = alpha*self.oil_flow
                 
-                self.Qldim[n_p]=self.speed*self.journal_radius**2*self.radial_clearance*Ql
                 
-                Ci[n_p] = np.trapz(self.Theta_vol[:,0,n_p]*self.H[0,n_p]/2, self.Z[1:self.elements_axial+1])/(np.trapz(self.H[0,n_p]**3/(12*mu_turb[:,0,n_p]*self.betha_s)*dPdy[:,0,n_p], self.Z[1:self.elements_axial+1]) \
-                                                      +np.trapz(-self.H[-1,n_p-1]**3/(12*mu_turb[:,-1,n_p-1]*self.betha_s)*dPdy[:,-1,n_p-1]+self.Theta_vol[:,-1,n_p-1]*self.H[-1,n_p-1]/2, self.Z[1:self.elements_axial+1]))
-                
-                T_end[n_p]=np.sum(Tdim[:,-1,n_p])/self.elements_axial
-    
-            
-            alpha = Ci/np.sum(Ci)
-
-            Qsup = alpha*self.oil_flow
-            
-            
-            for n_p in np.arange(self.n_pad):
-                if self.operating_type == "starvation":
+                for n_p in np.arange(self.n_pad):
+                   
                     if self.Qsdim[n_p-1]+Qsup[n_p]>self.Qedim[n_p]:
                         
                         QSL = self.Qsdim[n_p-1]+Qsup[n_p]-self.Qedim[n_p]
@@ -2003,12 +2004,7 @@ class THDCylindrical(BearingElement):
                         
                         self.theta_vol_groove[n_p] = (self.Qsdim[n_p-1]+Qsup[n_p])/(self.Qedim[n_p])
                 
-                elif self.operating_type == "flooded": 
-                    
-                    T_mist[n_p] = (self.fat_mixt[n_p] * self.reference_temperature + (1 - self.fat_mixt[n_p]) * T_end
-                    
-            
-                # print(T_mist)
+                
                         
                         
                 
@@ -2848,7 +2844,7 @@ def cylindrical_bearing_example():
         sommerfeld_type=2,
         initial_guess=[0.1, -0.1],
         method="perturbation",
-        operating_type= "flooded",
+        operating_type= "starvation",
         injection_pressure= 0,
         oil_flow= 20,
         show_coef=False,
