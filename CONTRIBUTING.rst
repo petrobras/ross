@@ -120,7 +120,7 @@ To create a Pull Request (PR), refer to `the github PR guide <https://help.githu
 Docstrings for class and methods
 --------------------------------
 A new method must have a docstring presenting a summary for what the method does. 
-ROSS' docstrings follows the Numpy `docstring style <https://numpydoc.readthedocs.io/en/latest/format.html>`.
+ROSS' docstrings follows the Numpy `docstring style <https://numpydoc.readthedocs.io/en/latest/format.html>`_.
 It's important to follow the Numpy's template due to the formatting that will be presented on the ROSS website.
 
 Example of docstring::
