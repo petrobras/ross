@@ -54,7 +54,11 @@ class THDCylindrical(BearingElement):
         Load in X direction. The unit is newton.
     load_y_direction : Float
         Load in Y direction. The unit is newton.
-
+    operating_type : string
+        Choose the operating condition that bearing is operating.
+        - 'flooded'
+        - 'starvation'
+        
     Fluid propierties
     ^^^^^^^^^^^^^^^^^
     Describes the fluid characteristics.
@@ -69,7 +73,10 @@ class THDCylindrical(BearingElement):
     groove_factor : list, numpy array, tuple or float
         Ratio of oil in reservoir temperature that mixes with the circulating oil.
         Is required one factor per segment.
-
+    oil_flow: float
+        Suply oil flow to bearing. Only used when operating type 'starvation' is selected.
+    injection_pressure: float
+        Suply oil pressure that bearing receives at groove regions. Only used when operating type 'starvation' is selected.
 
     Turbulence Model
     ^^^^^^^^^^^^^^^^
@@ -951,7 +958,7 @@ class THDCylindrical(BearingElement):
             Force in Y direction. The unit is newton.
         """
 
-        global al, bl
+
         
         if y0 is None and xpt0 is None and ypt0 is None:
             self.initial_guess = initial_guess
@@ -1526,12 +1533,15 @@ class THDCylindrical(BearingElement):
                             cont = cont + 1
 
                     Tdim = T_new * self.reference_temperature
-                    al = Tdim
+                   
                     T_end [n_p] = np.sum(Tdim[:, -1, n_p]) / self.elements_axial
-                    T_mist[n_p] = (
-                        self.fat_mixt[n_p] * self.reference_temperature
-                        + (1 - self.fat_mixt[n_p]) * T_end[n_p]
-                    )
+                    
+                    if self.operating_type=="flooded":
+                        
+                        T_mist[n_p] = (
+                            self.fat_mixt[n_p] * self.reference_temperature
+                            + (1 - self.fat_mixt[n_p]) * T_end[n_p]
+                        )
                     
                     mu_new[:, :, n_p] = (
                         self.a * (Tdim[:, :, n_p]) ** self.b
@@ -1558,11 +1568,7 @@ class THDCylindrical(BearingElement):
                     if self.theta_vol_groove[n_p] > 1:
                         self.theta_vol_groove[n_p]=1
             
-                
-                
-                        
-                        
-                
+
 
         PP = np.zeros(
             ((self.elements_axial), (self.n_pad * self.elements_circumferential))
@@ -2390,7 +2396,7 @@ def cylindrical_bearing_example():
         pad_arc_length=176,
         reference_temperature=50,
         reference_viscosity=0.02,
-        speed=Q_([1800], "RPM"),
+        speed=Q_([900], "RPM"),
         load_x_direction=0,
         load_y_direction=-112814.91,
         groove_factor=[0.52, 0.48],
@@ -2401,8 +2407,8 @@ def cylindrical_bearing_example():
         method="perturbation",
         operating_type= "flooded",
         injection_pressure= 0,
-        oil_flow= 28.39,
-        show_coef=True,
+        oil_flow= 18.93,
+        show_coef=False,
         print_result=True,
         print_progress=False,
         print_time=False,
