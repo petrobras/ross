@@ -2,10 +2,9 @@ import time
 
 import numpy as np
 from numpy.linalg import pinv
-from scipy.optimize import curve_fit, minimize
-
 from ross.bearing_seal_element import BearingElement
 from ross.units import Q_, check_units
+from scipy.optimize import curve_fit, minimize
 
 
 class THDCylindrical(BearingElement):
@@ -58,7 +57,7 @@ class THDCylindrical(BearingElement):
         Choose the operating condition that bearing is operating.
         - 'flooded'
         - 'starvation'
-        
+
     Fluid propierties
     ^^^^^^^^^^^^^^^^^
     Describes the fluid characteristics.
@@ -156,9 +155,9 @@ class THDCylindrical(BearingElement):
         sommerfeld_type=2,
         initial_guess=[0.1, -0.1],
         method="perturbation",
-        operating_type= "flooded",
-        injection_pressure= 0,
-        oil_flow= 20,
+        operating_type="flooded",
+        injection_pressure=0,
+        oil_flow=20,
         show_coef=False,
         print_result=False,
         print_progress=False,
@@ -181,9 +180,9 @@ class THDCylindrical(BearingElement):
         self.sommerfeld_type = sommerfeld_type
         self.initial_guess = initial_guess
         self.method = method
-        self.operating_type= operating_type
-        self.injection_pressure= injection_pressure
-        self.oil_flow= oil_flow
+        self.operating_type = operating_type
+        self.injection_pressure = injection_pressure
+        self.oil_flow = oil_flow
         self.show_coef = show_coef
         self.print_result = print_result
         self.print_progress = print_progress
@@ -214,16 +213,16 @@ class THDCylindrical(BearingElement):
             self.Z_I + 0.5 * self.dZ, self.Z_F, self.dZ
         )
         self.Z = Z
-        
+
         # Dimensionalization
 
         self.dz = self.dZ * self.axial_length
         self.dy = self.dY * self.betha_s * self.journal_radius
 
         self.Zdim = self.Z * self.axial_length
-        
-        self.oil_flow= self.oil_flow/60000
-        
+
+        self.oil_flow = self.oil_flow / 60000
+
         self.lubricant_dict = {
             "ISOVG32": {
                 "viscosity1": Q_(4.05640e-06, "reyn").to_base_units().m,
@@ -302,7 +301,6 @@ class THDCylindrical(BearingElement):
 
         super().__init__(node, kxx, cxx, kyy, kxy, kyx, cyy, cxy, cyx, speed)
 
-
     def _flooded(self, n_p, Mat_coef, b_P, mu):
         ki = 0
         kj = 0
@@ -346,11 +344,7 @@ class THDCylindrical(BearingElement):
                     MU_s = 0.5 * (mu[ki, kj] + mu[ki - 1, kj])
                     MU_n = mu[ki, kj]
 
-                if (
-                    ki == 0
-                    and kj > 0
-                    and kj < self.elements_circumferential - 1
-                ):
+                if ki == 0 and kj > 0 and kj < self.elements_circumferential - 1:
                     MU_e = 0.5 * (mu[ki, kj] + mu[ki, kj + 1])
                     MU_w = 0.5 * (mu[ki, kj] + mu[ki, kj - 1])
                     MU_s = mu[ki, kj]
@@ -417,45 +411,33 @@ class THDCylindrical(BearingElement):
                 CP = -(CE + CW + CN + CS)
 
                 B = (self.dZ / (2 * self.betha_s)) * (he - hw) - (
-                    (self.Xpt * np.cos(jj) + self.Ypt * np.sin(jj))
-                    * self.dy
-                    * self.dZ
+                    (self.Xpt * np.cos(jj) + self.Ypt * np.sin(jj)) * self.dy * self.dZ
                 )
-                
+
                 k = k + 1
                 b_P[k - 1, 0] = B
 
                 if ki == 0 and kj == 0:
                     Mat_coef[k - 1, k - 1] = CP - CS - CW
                     Mat_coef[k - 1, k] = CE
-                    Mat_coef[
-                        k - 1, k + self.elements_circumferential - 1
-                    ] = CN
+                    Mat_coef[k - 1, k + self.elements_circumferential - 1] = CN
 
                 elif kj == 0 and ki > 0 and ki < self.elements_axial - 1:
                     Mat_coef[k - 1, k - 1] = CP - CW
                     Mat_coef[k - 1, k] = CE
-                    Mat_coef[
-                        k - 1, k - self.elements_circumferential - 1
-                    ] = CS
-                    Mat_coef[
-                        k - 1, k + self.elements_circumferential - 1
-                    ] = CN
+                    Mat_coef[k - 1, k - self.elements_circumferential - 1] = CS
+                    Mat_coef[k - 1, k + self.elements_circumferential - 1] = CN
 
                 elif kj == 0 and ki == self.elements_axial - 1:
                     Mat_coef[k - 1, k - 1] = CP - CN - CW
                     Mat_coef[k - 1, k] = CE
-                    Mat_coef[
-                        k - 1, k - self.elements_circumferential - 1
-                    ] = CS
+                    Mat_coef[k - 1, k - self.elements_circumferential - 1] = CS
 
                 elif ki == 0 and kj > 0 and kj < self.elements_circumferential - 1:
                     Mat_coef[k - 1, k - 1] = CP - CS
                     Mat_coef[k - 1, k] = CE
                     Mat_coef[k - 1, k - 2] = CW
-                    Mat_coef[
-                        k - 1, k + self.elements_circumferential - 1
-                    ] = CN
+                    Mat_coef[k - 1, k + self.elements_circumferential - 1] = CN
 
                 elif (
                     ki > 0
@@ -465,12 +447,8 @@ class THDCylindrical(BearingElement):
                 ):
                     Mat_coef[k - 1, k - 1] = CP
                     Mat_coef[k - 1, k - 2] = CW
-                    Mat_coef[
-                        k - 1, k - self.elements_circumferential - 1
-                    ] = CS
-                    Mat_coef[
-                        k - 1, k + self.elements_circumferential - 1
-                    ] = CN
+                    Mat_coef[k - 1, k - self.elements_circumferential - 1] = CS
+                    Mat_coef[k - 1, k + self.elements_circumferential - 1] = CN
                     Mat_coef[k - 1, k] = CE
 
                 elif (
@@ -481,16 +459,12 @@ class THDCylindrical(BearingElement):
                     Mat_coef[k - 1, k - 1] = CP - CN
                     Mat_coef[k - 1, k] = CE
                     Mat_coef[k - 1, k - 2] = CW
-                    Mat_coef[
-                        k - 1, k - self.elements_circumferential - 1
-                    ] = CS
+                    Mat_coef[k - 1, k - self.elements_circumferential - 1] = CS
 
                 elif ki == 0 and kj == self.elements_circumferential - 1:
                     Mat_coef[k - 1, k - 1] = CP - CE - CS
                     Mat_coef[k - 1, k - 2] = CW
-                    Mat_coef[
-                        k - 1, k + self.elements_circumferential - 1
-                    ] = CN
+                    Mat_coef[k - 1, k + self.elements_circumferential - 1] = CN
 
                 elif (
                     kj == self.elements_circumferential - 1
@@ -499,19 +473,16 @@ class THDCylindrical(BearingElement):
                 ):
                     Mat_coef[k - 1, k - 1] = CP - CE
                     Mat_coef[k - 1, k - 2] = CW
-                    Mat_coef[
-                        k - 1, k - self.elements_circumferential - 1
-                    ] = CS
-                    Mat_coef[
-                        k - 1, k + self.elements_circumferential - 1
-                    ] = CN
+                    Mat_coef[k - 1, k - self.elements_circumferential - 1] = CS
+                    Mat_coef[k - 1, k + self.elements_circumferential - 1] = CN
 
-                elif ki == self.elements_axial - 1 and kj == self.elements_circumferential - 1:
+                elif (
+                    ki == self.elements_axial - 1
+                    and kj == self.elements_circumferential - 1
+                ):
                     Mat_coef[k - 1, k - 1] = CP - CE - CN
                     Mat_coef[k - 1, k - 2] = CW
-                    Mat_coef[
-                        k - 1, k - self.elements_circumferential - 1
-                    ] = CS
+                    Mat_coef[k - 1, k - self.elements_circumferential - 1] = CS
 
                 kj = kj + 1
 
@@ -535,28 +506,25 @@ class THDCylindrical(BearingElement):
         # Dimensional pressure fied
 
         self.Pdim = (
-            self.P
-            * self.reference_viscosity
-            * self.speed
-            * (self.journal_radius**2)
+            self.P * self.reference_viscosity * self.speed * (self.journal_radius**2)
         ) / (self.radial_clearance**2)
-    
+
         return self.P
-    
+
     def _starvation(self, n_p, Mat_coef_st, mu, p_old, p, B, B_theta, nk):
-       
+
         while self.erro >= 0.01:
 
             p_old = np.array(p)
-            
+
             theta_vol_old = np.array(self.theta_vol)
-            
+
             # cont = cont+1
-        
-            k=0
-            ki=0
-            kj=0
-            
+
+            k = 0
+            ki = 0
+            kj = 0
+
             for ii in np.arange((self.Z_I + 0.5 * self.dZ), self.Z_F, self.dZ):
                 for jj in np.arange(
                     self.thetaI[n_p] + (self.dtheta / 2),
@@ -564,374 +532,412 @@ class THDCylindrical(BearingElement):
                     self.dtheta,
                 ):
 
-               
                     hP = 1 - self.X * np.cos(jj) - self.Y * np.sin(jj)
                     he = (
-                       1
-                       - self.X * np.cos(jj + 0.5 * self.dtheta)
-                       - self.Y * np.sin(jj + 0.5 * self.dtheta)
-                   )
+                        1
+                        - self.X * np.cos(jj + 0.5 * self.dtheta)
+                        - self.Y * np.sin(jj + 0.5 * self.dtheta)
+                    )
                     hw = (
-                       1
-                       - self.X * np.cos(jj - 0.5 * self.dtheta)
-                       - self.Y * np.sin(jj - 0.5 * self.dtheta)
-                   )
+                        1
+                        - self.X * np.cos(jj - 0.5 * self.dtheta)
+                        - self.Y * np.sin(jj - 0.5 * self.dtheta)
+                    )
                     hn = hP
                     hs = hn
 
                     if kj == 0 and ki == 0:
-                       MU_e = 0.5 * (mu[ki, kj] + mu[ki, kj + 1])
-                       MU_w = mu[ki, kj]
-                       MU_s = mu[ki, kj]
-                       MU_n = 0.5 * (mu[ki, kj] + mu[ki + 1, kj])
+                        MU_e = 0.5 * (mu[ki, kj] + mu[ki, kj + 1])
+                        MU_w = mu[ki, kj]
+                        MU_s = mu[ki, kj]
+                        MU_n = 0.5 * (mu[ki, kj] + mu[ki + 1, kj])
 
                     if kj == 0 and ki > 0 and ki < self.elements_axial - 1:
-                       MU_e = 0.5 * (mu[ki, kj] + mu[ki, kj + 1])
-                       MU_w = mu[ki, kj]
-                       MU_s = 0.5 * (mu[ki, kj] + mu[ki - 1, kj])
-                       MU_n = 0.5 * (mu[ki, kj] + mu[ki + 1, kj])
+                        MU_e = 0.5 * (mu[ki, kj] + mu[ki, kj + 1])
+                        MU_w = mu[ki, kj]
+                        MU_s = 0.5 * (mu[ki, kj] + mu[ki - 1, kj])
+                        MU_n = 0.5 * (mu[ki, kj] + mu[ki + 1, kj])
 
                     if kj == 0 and ki == self.elements_axial - 1:
-                       MU_e = 0.5 * (mu[ki, kj] + mu[ki, kj + 1])
-                       MU_w = mu[ki, kj]
-                       MU_s = 0.5 * (mu[ki, kj] + mu[ki - 1, kj])
-                       MU_n = mu[ki, kj]
+                        MU_e = 0.5 * (mu[ki, kj] + mu[ki, kj + 1])
+                        MU_w = mu[ki, kj]
+                        MU_s = 0.5 * (mu[ki, kj] + mu[ki - 1, kj])
+                        MU_n = mu[ki, kj]
+
+                    if ki == 0 and kj > 0 and kj < self.elements_circumferential - 1:
+                        MU_e = 0.5 * (mu[ki, kj] + mu[ki, kj + 1])
+                        MU_w = 0.5 * (mu[ki, kj] + mu[ki, kj - 1])
+                        MU_s = mu[ki, kj]
+                        MU_n = 0.5 * (mu[ki, kj] + mu[ki + 1, kj])
 
                     if (
-                       ki == 0
-                       and kj > 0
-                       and kj < self.elements_circumferential - 1
-                   ):
-                       MU_e = 0.5 * (mu[ki, kj] + mu[ki, kj + 1])
-                       MU_w = 0.5 * (mu[ki, kj] + mu[ki, kj - 1])
-                       MU_s = mu[ki, kj]
-                       MU_n = 0.5 * (mu[ki, kj] + mu[ki + 1, kj])
+                        kj > 0
+                        and kj < self.elements_circumferential - 1
+                        and ki > 0
+                        and ki < self.elements_axial - 1
+                    ):
+                        MU_e = 0.5 * (mu[ki, kj] + mu[ki, kj + 1])
+                        MU_w = 0.5 * (mu[ki, kj] + mu[ki, kj - 1])
+                        MU_s = 0.5 * (mu[ki, kj] + mu[ki - 1, kj])
+                        MU_n = 0.5 * (mu[ki, kj] + mu[ki + 1, kj])
 
                     if (
-                       kj > 0
-                       and kj < self.elements_circumferential - 1
-                       and ki > 0
-                       and ki < self.elements_axial - 1
-                   ):
-                       MU_e = 0.5 * (mu[ki, kj] + mu[ki, kj + 1])
-                       MU_w = 0.5 * (mu[ki, kj] + mu[ki, kj - 1])
-                       MU_s = 0.5 * (mu[ki, kj] + mu[ki - 1, kj])
-                       MU_n = 0.5 * (mu[ki, kj] + mu[ki + 1, kj])
-
-                    if (
-                       ki == self.elements_axial - 1
-                       and kj > 0
-                       and kj < self.elements_circumferential - 1
-                   ):
-                       MU_e = 0.5 * (mu[ki, kj] + mu[ki, kj + 1])
-                       MU_w = 0.5 * (mu[ki, kj] + mu[ki, kj - 1])
-                       MU_s = 0.5 * (mu[ki, kj] + mu[ki - 1, kj])
-                       MU_n = mu[ki, kj]
+                        ki == self.elements_axial - 1
+                        and kj > 0
+                        and kj < self.elements_circumferential - 1
+                    ):
+                        MU_e = 0.5 * (mu[ki, kj] + mu[ki, kj + 1])
+                        MU_w = 0.5 * (mu[ki, kj] + mu[ki, kj - 1])
+                        MU_s = 0.5 * (mu[ki, kj] + mu[ki - 1, kj])
+                        MU_n = mu[ki, kj]
 
                     if ki == 0 and kj == self.elements_circumferential - 1:
-                       MU_e = mu[ki, kj]
-                       MU_w = 0.5 * (mu[ki, kj] + mu[ki, kj - 1])
-                       MU_s = mu[ki, kj]
-                       MU_n = 0.5 * (mu[ki, kj] + mu[ki + 1, kj])
+                        MU_e = mu[ki, kj]
+                        MU_w = 0.5 * (mu[ki, kj] + mu[ki, kj - 1])
+                        MU_s = mu[ki, kj]
+                        MU_n = 0.5 * (mu[ki, kj] + mu[ki + 1, kj])
 
                     if (
-                       kj == self.elements_circumferential - 1
-                       and ki > 0
-                       and ki < self.elements_axial - 1
-                   ):
-                       MU_e = mu[ki, kj]
-                       MU_w = 0.5 * (mu[ki, kj] + mu[ki, kj - 1])
-                       MU_s = 0.5 * (mu[ki, kj] + mu[ki - 1, kj])
-                       MU_n = 0.5 * (mu[ki, kj] + mu[ki + 1, kj])
+                        kj == self.elements_circumferential - 1
+                        and ki > 0
+                        and ki < self.elements_axial - 1
+                    ):
+                        MU_e = mu[ki, kj]
+                        MU_w = 0.5 * (mu[ki, kj] + mu[ki, kj - 1])
+                        MU_s = 0.5 * (mu[ki, kj] + mu[ki - 1, kj])
+                        MU_n = 0.5 * (mu[ki, kj] + mu[ki + 1, kj])
 
                     if (
-                       kj == self.elements_circumferential - 1
-                       and ki == self.elements_axial - 1
-                   ):
-                       MU_e = mu[ki, kj]
-                       MU_w = 0.5 * (mu[ki, kj] + mu[ki, kj - 1])
-                       MU_s = 0.5 * (mu[ki, kj] + mu[ki - 1, kj])
-                       MU_n = mu[ki, kj]
+                        kj == self.elements_circumferential - 1
+                        and ki == self.elements_axial - 1
+                    ):
+                        MU_e = mu[ki, kj]
+                        MU_w = 0.5 * (mu[ki, kj] + mu[ki, kj - 1])
+                        MU_s = 0.5 * (mu[ki, kj] + mu[ki - 1, kj])
+                        MU_n = mu[ki, kj]
 
                     CE = (self.dZ * he**3) / (
-                12 * MU_e[n_p] * self.dY * self.betha_s**2
-                )
+                        12 * MU_e[n_p] * self.dY * self.betha_s**2
+                    )
                     CW = (self.dZ * hw**3) / (
-                12 * MU_w[n_p] * self.dY * self.betha_s**2
-                )
+                        12 * MU_w[n_p] * self.dY * self.betha_s**2
+                    )
                     CN = (self.dY * (self.journal_radius**2) * hn**3) / (
-                12 * MU_n[n_p] * self.dZ * self.axial_length**2
-                )
+                        12 * MU_n[n_p] * self.dZ * self.axial_length**2
+                    )
                     CS = (self.dY * (self.journal_radius**2) * hs**3) / (
-                12 * MU_s[n_p] * self.dZ * self.axial_length**2
-                )
+                        12 * MU_s[n_p] * self.dZ * self.axial_length**2
+                    )
                     CP = -(CE + CW + CN + CS)
 
-                    
-                    # Termo Fonte 
-                    KP1 = -(self.dZ/(2*self.betha_s))*he
-                    
+                    # Termo Fonte
+                    KP1 = -(self.dZ / (2 * self.betha_s)) * he
+
                     KP2 = 0
-                    
+
                     KP = KP1 + KP2
-                    
-                    KW = (self.dZ/(2*self.betha_s))*hw
-                   
-                        
-                    if kj>0 and kj<self.elements_circumferential-1 and ki>0 and ki<self.elements_axial-1: # Center region
-                        
-                        Mat_coef_st[k,k]=CP
-                        Mat_coef_st[k,k+1]=CE
-                        Mat_coef_st[k,k-1]=CW
-                        Mat_coef_st[k,k+self.elements_circumferential]=CN
-                        Mat_coef_st[k,k-self.elements_circumferential]=CS
-                        
-                        if p[k]>0:
-                            
+
+                    KW = (self.dZ / (2 * self.betha_s)) * hw
+
+                    if (
+                        kj > 0
+                        and kj < self.elements_circumferential - 1
+                        and ki > 0
+                        and ki < self.elements_axial - 1
+                    ):  # Center region
+
+                        Mat_coef_st[k, k] = CP
+                        Mat_coef_st[k, k + 1] = CE
+                        Mat_coef_st[k, k - 1] = CW
+                        Mat_coef_st[k, k + self.elements_circumferential] = CN
+                        Mat_coef_st[k, k - self.elements_circumferential] = CS
+
+                        if p[k] > 0:
+
                             self.theta_vol[k] = 1
-                            B[k] = -KP*self.theta_vol[k] - KW*self.theta_vol[k-1]
-                            pp = np.zeros((nk-1,1))
-                            pp = np.delete(p,k)   
-                            C = np.zeros((1,nk))
-                            C = Mat_coef_st[k,:]
-                            C = np.delete(C,k)
-                            p[k] = (B[k]-np.matmul(C,pp))/Mat_coef_st[k,k]
-                            
-                        else:  
-                 
+                            B[k] = -KP * self.theta_vol[k] - KW * self.theta_vol[k - 1]
+                            pp = np.zeros((nk - 1, 1))
+                            pp = np.delete(p, k)
+                            C = np.zeros((1, nk))
+                            C = Mat_coef_st[k, :]
+                            C = np.delete(C, k)
+                            p[k] = (B[k] - np.matmul(C, pp)) / Mat_coef_st[k, k]
+
+                        else:
+
                             p[k] = 0
-                            B_theta[k] = -np.matmul(Mat_coef_st[k,:],p)
-                            self.theta_vol[k] = (B_theta[k]-KW*self.theta_vol[k-1])/KP
-                        
-                    elif kj>0 and kj<self.elements_circumferential-1 and ki==0: # Inferior edge without corners
-                        
-                        Mat_coef_st[k,k]= CP - CS
-                        Mat_coef_st[k,k+1]= CE
-                        Mat_coef_st[k,k-1]= CW
-                        Mat_coef_st[k,k+self.elements_circumferential]= CN
-                        
-                        if p[k]>0:
-                            
+                            B_theta[k] = -np.matmul(Mat_coef_st[k, :], p)
+                            self.theta_vol[k] = (
+                                B_theta[k] - KW * self.theta_vol[k - 1]
+                            ) / KP
+
+                    elif (
+                        kj > 0 and kj < self.elements_circumferential - 1 and ki == 0
+                    ):  # Inferior edge without corners
+
+                        Mat_coef_st[k, k] = CP - CS
+                        Mat_coef_st[k, k + 1] = CE
+                        Mat_coef_st[k, k - 1] = CW
+                        Mat_coef_st[k, k + self.elements_circumferential] = CN
+
+                        if p[k] > 0:
+
                             self.theta_vol[k] = 1
-                            B[k] = -KP*self.theta_vol[k] - KW*self.theta_vol[k-1]
-                            pp = np.zeros((nk-1,1))
-                            pp = np.delete(p,k)   
-                            C = np.zeros((1,nk))
-                            C = Mat_coef_st[k,:]
-                            C = np.delete(C,k)
-                            p[k] = (B[k]-np.matmul(C,pp))/Mat_coef_st[k,k]
-                            
-                        else: 
-                            
+                            B[k] = -KP * self.theta_vol[k] - KW * self.theta_vol[k - 1]
+                            pp = np.zeros((nk - 1, 1))
+                            pp = np.delete(p, k)
+                            C = np.zeros((1, nk))
+                            C = Mat_coef_st[k, :]
+                            C = np.delete(C, k)
+                            p[k] = (B[k] - np.matmul(C, pp)) / Mat_coef_st[k, k]
+
+                        else:
+
                             p[k] = 0
-                            B_theta[k] = -np.matmul(Mat_coef_st[k,:],p)
-                            self.theta_vol[k] = (B_theta[k]-KW*self.theta_vol[k-1])/KP
-            
-                    elif  kj>0 and kj<self.elements_circumferential-1 and ki==self.elements_axial-1: # Superior edge without corners
-                        
-                        Mat_coef_st[k,k]=CP - CN
-                        Mat_coef_st[k,k+1]=CE
-                        Mat_coef_st[k,k-1]=CW
-                        Mat_coef_st[k,k-self.elements_circumferential]=CS
-                        
-                        if p[k]>0:
-                            
+                            B_theta[k] = -np.matmul(Mat_coef_st[k, :], p)
+                            self.theta_vol[k] = (
+                                B_theta[k] - KW * self.theta_vol[k - 1]
+                            ) / KP
+
+                    elif (
+                        kj > 0
+                        and kj < self.elements_circumferential - 1
+                        and ki == self.elements_axial - 1
+                    ):  # Superior edge without corners
+
+                        Mat_coef_st[k, k] = CP - CN
+                        Mat_coef_st[k, k + 1] = CE
+                        Mat_coef_st[k, k - 1] = CW
+                        Mat_coef_st[k, k - self.elements_circumferential] = CS
+
+                        if p[k] > 0:
+
                             self.theta_vol[k] = 1
-                            B[k] = -KP*self.theta_vol[k] - KW*self.theta_vol[k-1]
-                            pp = np.zeros((nk-1,1))
-                            pp = np.delete(p,k)   
-                            C = np.zeros((1,nk))
-                            C = Mat_coef_st[k,:]
-                            C = np.delete(C,k)
-                            p[k] = (B[k]-np.matmul(C,pp))/Mat_coef_st[k,k]
-                            
-                        else: 
-                         
+                            B[k] = -KP * self.theta_vol[k] - KW * self.theta_vol[k - 1]
+                            pp = np.zeros((nk - 1, 1))
+                            pp = np.delete(p, k)
+                            C = np.zeros((1, nk))
+                            C = Mat_coef_st[k, :]
+                            C = np.delete(C, k)
+                            p[k] = (B[k] - np.matmul(C, pp)) / Mat_coef_st[k, k]
+
+                        else:
+
                             p[k] = 0
-                            B_theta[k] = -np.matmul(Mat_coef_st[k,:],p)
-                            self.theta_vol[k] = (B_theta[k]-KW*self.theta_vol[k-1])/KP
-                        
-                    elif kj==0 and ki>0 and ki<self.elements_axial-1: # Left edge without corners
-                        
-                        Mat_coef_st[k,k]=CP-CW
-                        Mat_coef_st[k,k+1]=CE
-                        Mat_coef_st[k,k-self.elements_circumferential]=CS
-                        Mat_coef_st[k,k+self.elements_circumferential]=CN
-                        
-                        if p[k]>0:
-                            
+                            B_theta[k] = -np.matmul(Mat_coef_st[k, :], p)
+                            self.theta_vol[k] = (
+                                B_theta[k] - KW * self.theta_vol[k - 1]
+                            ) / KP
+
+                    elif (
+                        kj == 0 and ki > 0 and ki < self.elements_axial - 1
+                    ):  # Left edge without corners
+
+                        Mat_coef_st[k, k] = CP - CW
+                        Mat_coef_st[k, k + 1] = CE
+                        Mat_coef_st[k, k - self.elements_circumferential] = CS
+                        Mat_coef_st[k, k + self.elements_circumferential] = CN
+
+                        if p[k] > 0:
+
                             self.theta_vol[k] = 1
-                            B[k] = -KP*self.theta_vol[k] - self.theta_vol_groove[n_p]*KW - 2*CW*self.injection_pressure
-                            pp = np.zeros((nk-1,1))
-                            pp = np.delete(p,k)   
-                            C = np.zeros((1,nk))
-                            C = Mat_coef_st[k,:]
-                            C = np.delete(C,k)
-                            p[k] = (B[k]-np.matmul(C,pp))/Mat_coef_st[k,k]
-                        
-                        else: 
-                            
+                            B[k] = (
+                                -KP * self.theta_vol[k]
+                                - self.theta_vol_groove[n_p] * KW
+                                - 2 * CW * self.injection_pressure
+                            )
+                            pp = np.zeros((nk - 1, 1))
+                            pp = np.delete(p, k)
+                            C = np.zeros((1, nk))
+                            C = Mat_coef_st[k, :]
+                            C = np.delete(C, k)
+                            p[k] = (B[k] - np.matmul(C, pp)) / Mat_coef_st[k, k]
+
+                        else:
+
                             p[k] = 0
-                            B_theta[k] = -np.matmul(Mat_coef_st[k,:],p)
-                            self.theta_vol[k] = (B_theta[k]-self.theta_vol_groove[n_p]*KW*1)/KP
-           
-                    elif kj==self.elements_circumferential-1 and ki>0 and ki<self.elements_axial-1: # Right edge without corners
-                       
-                        Mat_coef_st[k,k] = CP - CE
-                        
-                        Mat_coef_st[k,k-1]=CW
-                        Mat_coef_st[k,k+self.elements_circumferential]=CN
-                        Mat_coef_st[k,k-self.elements_circumferential]=CS
-                        
-                        if p[k]>0:
-                            
+                            B_theta[k] = -np.matmul(Mat_coef_st[k, :], p)
+                            self.theta_vol[k] = (
+                                B_theta[k] - self.theta_vol_groove[n_p] * KW * 1
+                            ) / KP
+
+                    elif (
+                        kj == self.elements_circumferential - 1
+                        and ki > 0
+                        and ki < self.elements_axial - 1
+                    ):  # Right edge without corners
+
+                        Mat_coef_st[k, k] = CP - CE
+
+                        Mat_coef_st[k, k - 1] = CW
+                        Mat_coef_st[k, k + self.elements_circumferential] = CN
+                        Mat_coef_st[k, k - self.elements_circumferential] = CS
+
+                        if p[k] > 0:
+
                             self.theta_vol[k] = 1
-                            B[k] = -KP*self.theta_vol[k] - KW*self.theta_vol[k-1] 
-                            pp = np.zeros((nk-1,1))
-                            pp = np.delete(p,k)   
-                            C = np.zeros((1,nk))
-                            C = Mat_coef_st[k,:]
-                            C = np.delete(C,k)
-                            p[k] = (B[k]-np.matmul(C,pp))/Mat_coef_st[k,k]
-                        
-                        else: 
-                        
+                            B[k] = -KP * self.theta_vol[k] - KW * self.theta_vol[k - 1]
+                            pp = np.zeros((nk - 1, 1))
+                            pp = np.delete(p, k)
+                            C = np.zeros((1, nk))
+                            C = Mat_coef_st[k, :]
+                            C = np.delete(C, k)
+                            p[k] = (B[k] - np.matmul(C, pp)) / Mat_coef_st[k, k]
+
+                        else:
+
                             p[k] = 0
-                            B_theta[k] = -np.matmul(Mat_coef_st[k,:],p)
-                            self.theta_vol[k] = (B_theta[k]-KW*self.theta_vol[k-1])/KP
-            
-            
-                    elif kj==0 and ki==0: #Corner inferior left
-                       
-                        Mat_coef_st[k,k]=CP-CS-CW
-                        Mat_coef_st[k,k+1]=CE
-                        Mat_coef_st[k,k+self.elements_circumferential]=CN
-                        
-                        if p[k]>0:
-                            
+                            B_theta[k] = -np.matmul(Mat_coef_st[k, :], p)
+                            self.theta_vol[k] = (
+                                B_theta[k] - KW * self.theta_vol[k - 1]
+                            ) / KP
+
+                    elif kj == 0 and ki == 0:  # Corner inferior left
+
+                        Mat_coef_st[k, k] = CP - CS - CW
+                        Mat_coef_st[k, k + 1] = CE
+                        Mat_coef_st[k, k + self.elements_circumferential] = CN
+
+                        if p[k] > 0:
+
                             self.theta_vol[k] = 1
-                            B[k] = -KP*self.theta_vol[k] - self.theta_vol_groove[n_p]*KW - 2*CW*self.injection_pressure
-                            pp = np.zeros((nk-1,1))
-                            pp = np.delete(p,k)   
-                            C = np.zeros((1,nk))
-                            C = Mat_coef_st[k,:]
-                            C = np.delete(C,k)
-                            p[k] = (B[k]-np.matmul(C,pp))/Mat_coef_st[k,k]
-                                    
-                        else: 
-                            
+                            B[k] = (
+                                -KP * self.theta_vol[k]
+                                - self.theta_vol_groove[n_p] * KW
+                                - 2 * CW * self.injection_pressure
+                            )
+                            pp = np.zeros((nk - 1, 1))
+                            pp = np.delete(p, k)
+                            C = np.zeros((1, nk))
+                            C = Mat_coef_st[k, :]
+                            C = np.delete(C, k)
+                            p[k] = (B[k] - np.matmul(C, pp)) / Mat_coef_st[k, k]
+
+                        else:
+
                             p[k] = 0
-                            B_theta[k] = -np.matmul(Mat_coef_st[k,:],p)
-                            self.theta_vol[k] = (B_theta[k]-self.theta_vol_groove[n_p]*KW*1)/KP
-            
-            
-                    elif kj==self.elements_circumferential-1 and ki==0: #Corner inferior right
-                        
-                        Mat_coef_st[k,k]=CP - CS - CE
-                        Mat_coef_st[k,k-1]=CW
-                        Mat_coef_st[k,k+self.elements_circumferential]=CN
-                        
-                        if p[k]>0:
-                            
+                            B_theta[k] = -np.matmul(Mat_coef_st[k, :], p)
+                            self.theta_vol[k] = (
+                                B_theta[k] - self.theta_vol_groove[n_p] * KW * 1
+                            ) / KP
+
+                    elif (
+                        kj == self.elements_circumferential - 1 and ki == 0
+                    ):  # Corner inferior right
+
+                        Mat_coef_st[k, k] = CP - CS - CE
+                        Mat_coef_st[k, k - 1] = CW
+                        Mat_coef_st[k, k + self.elements_circumferential] = CN
+
+                        if p[k] > 0:
+
                             self.theta_vol[k] = 1
-                            B[k] = -KP*self.theta_vol[k] - KW*self.theta_vol[k-1]
-                            pp = np.zeros((nk-1,1))
-                            pp = np.delete(p,k)   
-                            C = np.zeros((1,nk))
-                            C = Mat_coef_st[k,:]
-                            C = np.delete(C,k)
-                            p[k] = (B[k]-np.matmul(C,pp))/Mat_coef_st[k,k]
-                        
-                        else: 
-                          
-                            p[k] = 0 
-                            B_theta[k] = -np.matmul(Mat_coef_st[k,:],p)
-                            self.theta_vol[k] = (B_theta[k]-KW*self.theta_vol[k-1])/KP
-            
-                             
-                    elif kj==0 and ki==self.elements_axial-1: #Corner superior left
-                        
-                        Mat_coef_st[k,k]=CP - CN - CW
-                        Mat_coef_st[k,k+1]=CE
-                        Mat_coef_st[k,k-self.elements_circumferential]=CS
-                        
-                        if p[k]>0:
-                            
+                            B[k] = -KP * self.theta_vol[k] - KW * self.theta_vol[k - 1]
+                            pp = np.zeros((nk - 1, 1))
+                            pp = np.delete(p, k)
+                            C = np.zeros((1, nk))
+                            C = Mat_coef_st[k, :]
+                            C = np.delete(C, k)
+                            p[k] = (B[k] - np.matmul(C, pp)) / Mat_coef_st[k, k]
+
+                        else:
+
+                            p[k] = 0
+                            B_theta[k] = -np.matmul(Mat_coef_st[k, :], p)
+                            self.theta_vol[k] = (
+                                B_theta[k] - KW * self.theta_vol[k - 1]
+                            ) / KP
+
+                    elif (
+                        kj == 0 and ki == self.elements_axial - 1
+                    ):  # Corner superior left
+
+                        Mat_coef_st[k, k] = CP - CN - CW
+                        Mat_coef_st[k, k + 1] = CE
+                        Mat_coef_st[k, k - self.elements_circumferential] = CS
+
+                        if p[k] > 0:
+
                             self.theta_vol[k] = 1
-                            B[k] = -KP*self.theta_vol[k] - self.theta_vol_groove[n_p]*KW - 2*CW*self.injection_pressure
-                            pp = np.zeros((nk-1,1))
-                            pp = np.delete(p,k)   
-                            C = np.zeros((1,nk))
-                            C = Mat_coef_st[k,:]
-                            C = np.delete(C,k)
-                            p[k] = (B[k]-np.matmul(C,pp))/Mat_coef_st[k,k]
-                         
-                        else: 
-                        
-                            p[k] = 0 
-                            B_theta[k] = -np.matmul(Mat_coef_st[k,:],p)
-                            self.theta_vol[k] = (B_theta[k]-self.theta_vol_groove[n_p]*KW*1)/KP
-            
-                        
-                    elif kj==self.elements_circumferential-1 and ki==self.elements_axial-1: #Corner superior right
-                        
-                        Mat_coef_st[k,k]=CP - CN - CE
-                        Mat_coef_st[k,k-1]=CW
-                        Mat_coef_st[k,k-self.elements_circumferential]=CS
-                        
-                        
-                        if p[k]>0:
-                            
+                            B[k] = (
+                                -KP * self.theta_vol[k]
+                                - self.theta_vol_groove[n_p] * KW
+                                - 2 * CW * self.injection_pressure
+                            )
+                            pp = np.zeros((nk - 1, 1))
+                            pp = np.delete(p, k)
+                            C = np.zeros((1, nk))
+                            C = Mat_coef_st[k, :]
+                            C = np.delete(C, k)
+                            p[k] = (B[k] - np.matmul(C, pp)) / Mat_coef_st[k, k]
+
+                        else:
+
+                            p[k] = 0
+                            B_theta[k] = -np.matmul(Mat_coef_st[k, :], p)
+                            self.theta_vol[k] = (
+                                B_theta[k] - self.theta_vol_groove[n_p] * KW * 1
+                            ) / KP
+
+                    elif (
+                        kj == self.elements_circumferential - 1
+                        and ki == self.elements_axial - 1
+                    ):  # Corner superior right
+
+                        Mat_coef_st[k, k] = CP - CN - CE
+                        Mat_coef_st[k, k - 1] = CW
+                        Mat_coef_st[k, k - self.elements_circumferential] = CS
+
+                        if p[k] > 0:
+
                             self.theta_vol[k] = 1
-                            B[k] = -KP*self.theta_vol[k] - KW*self.theta_vol[k-1]
-                            pp = np.zeros((nk-1,1))
-                            pp = np.delete(p,k)   
-                            C = np.zeros((1,nk))
-                            C = Mat_coef_st[k,:]
-                            C = np.delete(C,k)
-                            p[k] = (B[k]-np.matmul(C,pp))/Mat_coef_st[k,k]
-                         
-                        else: 
-                    
-                            p[k] = 0 
-                            B_theta[k] = -np.matmul(Mat_coef_st[k,:],p)
-                            self.theta_vol[k] = (B_theta[k]-KW*self.theta_vol[k-1])/KP
-                           
-             
-                    k=k+1
-                    kj=kj+1
-               
-                kj=0
-                ki=ki+1
-            
-            self.erro = np.linalg.norm(p-p_old)+np.linalg.norm(self.theta_vol-theta_vol_old)
-      
-        cont=0
+                            B[k] = -KP * self.theta_vol[k] - KW * self.theta_vol[k - 1]
+                            pp = np.zeros((nk - 1, 1))
+                            pp = np.delete(p, k)
+                            C = np.zeros((1, nk))
+                            C = Mat_coef_st[k, :]
+                            C = np.delete(C, k)
+                            p[k] = (B[k] - np.matmul(C, pp)) / Mat_coef_st[k, k]
+
+                        else:
+
+                            p[k] = 0
+                            B_theta[k] = -np.matmul(Mat_coef_st[k, :], p)
+                            self.theta_vol[k] = (
+                                B_theta[k] - KW * self.theta_vol[k - 1]
+                            ) / KP
+
+                    k = k + 1
+                    kj = kj + 1
+
+                kj = 0
+                ki = ki + 1
+
+            self.erro = np.linalg.norm(p - p_old) + np.linalg.norm(
+                self.theta_vol - theta_vol_old
+            )
+
+        cont = 0
 
         for i in np.arange(self.elements_axial):
             for j in np.arange(self.elements_circumferential):
-        
+
                 self.P[i, j, n_p] = p[cont]
-                
-                self.Theta_vol[i,j,n_p] = self.theta_vol[cont]
-                
+
+                self.Theta_vol[i, j, n_p] = self.theta_vol[cont]
+
                 cont = cont + 1
-        
+
                 if self.P[i, j, n_p] < 0:
                     self.P[i, j, n_p] = 0
-        
+
         # Dimensional pressure fied
-        
+
         self.Pdim = (
-            self.P
-            * self.reference_viscosity
-            * self.speed
-            * (self.journal_radius**2)
+            self.P * self.reference_viscosity * self.speed * (self.journal_radius**2)
         ) / (self.radial_clearance**2)
 
         return self.P
-
-
 
     def _forces(self, initial_guess, y0, xpt0, ypt0):
         """Calculates the forces in Y and X direction.
@@ -958,8 +964,6 @@ class THDCylindrical(BearingElement):
             Force in Y direction. The unit is newton.
         """
 
-
-        
         if y0 is None and xpt0 is None and ypt0 is None:
             self.initial_guess = initial_guess
 
@@ -1004,14 +1008,18 @@ class THDCylindrical(BearingElement):
         )
 
         Ytheta = [
-            np.linspace(t1+self.dtheta/2, t2-self.dtheta/2, self.elements_circumferential)
+            np.linspace(
+                t1 + self.dtheta / 2,
+                t2 - self.dtheta / 2,
+                self.elements_circumferential,
+            )
             for t1, t2 in zip(self.thetaI, self.thetaF)
         ]
 
         self.theta_vol_groove = np.ones(self.n_pad)
-        
+
         T_end = np.ones(self.n_pad)
-        
+
         while (T_mist[0] - T_conv) >= 1e-2:
             nk = (self.elements_axial) * (self.elements_circumferential)
             self.P = np.zeros(
@@ -1032,85 +1040,77 @@ class THDCylindrical(BearingElement):
                 )
                 * 1.2
             )
-            
+
             self.Theta_vol = np.zeros(
                 (self.elements_axial, self.elements_circumferential, self.n_pad)
             )
-            
+
             mu_new = 1.1 * np.ones(
                 (self.elements_axial, self.elements_circumferential, self.n_pad)
             )
             mu_turb = 1.3 * np.ones(
                 (self.elements_axial, self.elements_circumferential, self.n_pad)
             )
-                         
-                          
+
             T_conv = T_mist[0]
-            
+
             self.H = np.ones((self.elements_circumferential, self.n_pad))
-        
-            self.U = 0.5*np.ones((self.elements_axial, self.elements_circumferential, self.n_pad))
-            
-            self.V = np.zeros((self.elements_axial, self.elements_circumferential, self.n_pad))
-        
+
+            self.U = 0.5 * np.ones(
+                (self.elements_axial, self.elements_circumferential, self.n_pad)
+            )
+
+            self.V = np.zeros(
+                (self.elements_axial, self.elements_circumferential, self.n_pad)
+            )
+
             self.Qedim = np.ones(self.n_pad)
-            
+
             self.Qsdim = np.ones(self.n_pad)
-            
+
             self.Qldim = np.ones(self.n_pad)
-            
-            
-            
-            
-            
-            for n_p in np.arange(self.n_pad):      
-                           
-        
+
+            for n_p in np.arange(self.n_pad):
+
                 while (
                     np.linalg.norm(T_new[:, :, n_p] - T[:, :, n_p])
                     / np.linalg.norm(T[:, :, n_p])
                     >= 1e-3
                 ):
-        
-                    T_ref = T_mist[n_p]
-        
-                    mu = mu_new
-                
-        
-                    T[:, :, n_p] = T_new[:, :, n_p]
-        
-                   
-                                        
-                    Mat_coef_T=np.zeros((nk,nk))
-                    
-                    p = np.ones((nk,1)) # Pressure vector
-                    
-                    b_T=np.zeros((nk,1))
-                    
-                    b_P=np.zeros((nk,1))
-            
-                    self.erro = 1
-                    p_old = np.zeros((nk,1))
 
-                    
-                    p = np.ones((nk,1)) # Pressure vector
-                    self.theta_vol = np.zeros((nk,1)) # Theta volumetric vector
-                    
-                    Mat_coef_st=np.zeros((nk,nk)) # Coeficients matrix
-                    
-                    Mat_coef=np.zeros((nk,nk)) # Coeficients matrix
-                    
-                    B = np.zeros((nk,1)) # Termo fonte for pressure
-                    B_theta = np.zeros((nk,1)) # Termo fonte for theta vol
-                        
+                    T_ref = T_mist[n_p]
+
+                    mu = mu_new
+
+                    T[:, :, n_p] = T_new[:, :, n_p]
+
+                    Mat_coef_T = np.zeros((nk, nk))
+
+                    p = np.ones((nk, 1))  # Pressure vector
+
+                    b_T = np.zeros((nk, 1))
+
+                    b_P = np.zeros((nk, 1))
+
+                    self.erro = 1
+                    p_old = np.zeros((nk, 1))
+
+                    p = np.ones((nk, 1))  # Pressure vector
+                    self.theta_vol = np.zeros((nk, 1))  # Theta volumetric vector
+
+                    Mat_coef_st = np.zeros((nk, nk))  # Coeficients matrix
+
+                    Mat_coef = np.zeros((nk, nk))  # Coeficients matrix
+
+                    B = np.zeros((nk, 1))  # Termo fonte for pressure
+                    B_theta = np.zeros((nk, 1))  # Termo fonte for theta vol
+
                     if self.operating_type == "flooded":
                         self._flooded(n_p, Mat_coef, b_P, mu)
-                            
-                                                
+
                     elif self.operating_type == "starvation":
                         self._starvation(n_p, Mat_coef_st, mu, p_old, p, B, B_theta, nk)
-                        
-                    
+
                     ki = 0
                     kj = 0
                     k = 0
@@ -1222,9 +1222,8 @@ class THDCylindrical(BearingElement):
 
                             HP = 1 - self.X * np.cos(jj) - self.Y * np.sin(jj)
                             hpt = -self.Xpt * np.cos(jj) - self.Ypt * np.sin(jj)
-                            self.H[kj,n_p]=HP
-                            
-                            
+                            self.H[kj, n_p] = HP
+
                             mu_p = mu[ki, kj, n_p]
 
                             Reyn[ki, kj, n_p] = (
@@ -1274,7 +1273,6 @@ class THDCylindrical(BearingElement):
                             mu_turb[ki, kj, n_p] = mu_p * (1 + (self.delta_turb * emv))
 
                             mi_t = mu_turb[ki, kj, n_p]
-                            
 
                             AE = -(self.k_t * HP * self.dZ) / (
                                 self.rho
@@ -1452,7 +1450,11 @@ class THDCylindrical(BearingElement):
                                     T_ref / self.reference_temperature
                                 )
 
-                            elif ki == 0 and kj > 0 and kj < self.elements_circumferential - 1:
+                            elif (
+                                ki == 0
+                                and kj > 0
+                                and kj < self.elements_circumferential - 1
+                            ):
                                 Mat_coef_T[k - 1, k - 1] = AP + AS
                                 Mat_coef_T[k - 1, k] = AE
                                 Mat_coef_T[k - 1, k - 2] = AW
@@ -1509,7 +1511,10 @@ class THDCylindrical(BearingElement):
                                     k - 1, k + self.elements_circumferential - 1
                                 ] = AN
 
-                            elif ki == self.elements_axial - 1 and kj == self.elements_circumferential - 1:
+                            elif (
+                                ki == self.elements_axial - 1
+                                and kj == self.elements_circumferential - 1
+                            ):
                                 Mat_coef_T[k - 1, k - 1] = AP + AE + AN
                                 Mat_coef_T[k - 1, k - 2] = AW
                                 Mat_coef_T[
@@ -1533,42 +1538,56 @@ class THDCylindrical(BearingElement):
                             cont = cont + 1
 
                     Tdim = T_new * self.reference_temperature
-                   
-                    T_end [n_p] = np.sum(Tdim[:, -1, n_p]) / self.elements_axial
-                    
-                    if self.operating_type=="flooded":
-                        
+
+                    T_end[n_p] = np.sum(Tdim[:, -1, n_p]) / self.elements_axial
+
+                    if self.operating_type == "flooded":
+
                         T_mist[n_p] = (
                             self.fat_mixt[n_p] * self.reference_temperature
                             + (1 - self.fat_mixt[n_p]) * T_end[n_p]
                         )
-                    
+
                     mu_new[:, :, n_p] = (
                         self.a * (Tdim[:, :, n_p]) ** self.b
                     ) / self.reference_viscosity
-                        
-            
-            
-            if self.operating_type=="starvation":
-                for n_p in np.arange(self.n_pad):
-                    
-                    self.Qedim[n_p] = self.radial_clearance*self.H[0,n_p]*self.speed*self.journal_radius*self.axial_length*self.Theta_vol[0,0,n_p]/2
-                    
-                    self.Qsdim[n_p] = self.radial_clearance*self.H[-1,n_p]*self.speed*self.journal_radius*self.axial_length*self.Theta_vol[0,-1,n_p]/2
-                    
-                    
-                    
-    
-                for n_p in np.arange(self.n_pad):
-                    
-                    T_mist[n_p] = ((self.Qsdim[n_p-1]*T_end[n_p-1])+(self.reference_temperature*0.8*self.oil_flow))/(0.8*self.oil_flow+self.Qsdim[n_p-1])
-                    
-                    self.theta_vol_groove[n_p] = (self.oil_flow+self.Qsdim[n_p-1])/self.Qedim[n_p]
-                    
-                    if self.theta_vol_groove[n_p] > 1:
-                        self.theta_vol_groove[n_p]=1
-            
 
+            if self.operating_type == "starvation":
+                for n_p in np.arange(self.n_pad):
+
+                    self.Qedim[n_p] = (
+                        self.radial_clearance
+                        * self.H[0, n_p]
+                        * self.speed
+                        * self.journal_radius
+                        * self.axial_length
+                        * self.Theta_vol[0, 0, n_p]
+                        / 2
+                    )
+
+                    self.Qsdim[n_p] = (
+                        self.radial_clearance
+                        * self.H[-1, n_p]
+                        * self.speed
+                        * self.journal_radius
+                        * self.axial_length
+                        * self.Theta_vol[0, -1, n_p]
+                        / 2
+                    )
+
+                for n_p in np.arange(self.n_pad):
+
+                    T_mist[n_p] = (
+                        (self.Qsdim[n_p - 1] * T_end[n_p - 1])
+                        + (self.reference_temperature * 0.8 * self.oil_flow)
+                    ) / (0.8 * self.oil_flow + self.Qsdim[n_p - 1])
+
+                    self.theta_vol_groove[n_p] = (
+                        self.oil_flow + self.Qsdim[n_p - 1]
+                    ) / self.Qedim[n_p]
+
+                    if self.theta_vol_groove[n_p] > 1:
+                        self.theta_vol_groove[n_p] = 1
 
         PP = np.zeros(
             ((self.elements_axial), (self.n_pad * self.elements_circumferential))
@@ -2405,9 +2424,9 @@ def cylindrical_bearing_example():
         sommerfeld_type=2,
         initial_guess=[0.1, -0.1],
         method="perturbation",
-        operating_type= "flooded",
-        injection_pressure= 0,
-        oil_flow= 18.93,
+        operating_type="flooded",
+        injection_pressure=0,
+        oil_flow=18.93,
         show_coef=False,
         print_result=True,
         print_progress=False,
@@ -2416,8 +2435,6 @@ def cylindrical_bearing_example():
 
     return bearing
 
+
 if __name__ == "__main__":
     bearing = cylindrical_bearing_example()
-    
-    
- 
