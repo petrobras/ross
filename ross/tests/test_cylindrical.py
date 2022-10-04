@@ -17,7 +17,6 @@ def cylindrical():
         radial_clearance=1.95e-4,
         elements_circumferential=11,
         elements_axial=3,
-        n_y=None,
         n_pad=2,
         pad_arc_length=176,
         reference_temperature=50,
@@ -31,12 +30,14 @@ def cylindrical():
         sommerfeld_type=2,
         initial_guess=[0.1, -0.1],
         method="perturbation",
+        operating_type="flooded",
+        injection_pressure=0,
+        oil_flow=18.93,
         show_coef=False,
-        print_result=True,
+        print_result=False,
         print_progress=False,
         print_time=False,
     )
-
     return bearing
 
 
@@ -52,7 +53,6 @@ def cylindrical_units():
         radial_clearance=1.95e-4,
         elements_circumferential=11,
         elements_axial=3,
-        n_y=None,
         n_pad=2,
         pad_arc_length=176,
         reference_temperature=50,
@@ -66,8 +66,11 @@ def cylindrical_units():
         sommerfeld_type=2,
         initial_guess=[0.1, -0.1],
         method="perturbation",
+        operating_type="flooded",
+        injection_pressure=0,
+        oil_flow=18.93,
         show_coef=False,
-        print_result=True,
+        print_result=False,
         print_progress=False,
         print_time=False,
     )
@@ -107,11 +110,11 @@ def test_cylindrical_coefficients(cylindrical):
     cyx = coefs[1][2]
     cyy = coefs[1][3]
 
-    assert math.isclose(kxx, 1119920166.8929296, rel_tol=0.0001)
-    assert math.isclose(kxy, 405829633.9622375, rel_tol=0.0001)
-    assert math.isclose(kyx, -1310167997.570667, rel_tol=0.0001)
-    assert math.isclose(kyy, 1012657250.9159074, rel_tol=0.0001)
-    assert math.isclose(cxx, 6325756922.309741, rel_tol=0.0001)
-    assert math.isclose(cxy, -5694003570.762247, rel_tol=0.0001)
-    assert math.isclose(cyx, -17098739.35960476, rel_tol=0.0001)
-    assert math.isclose(cyy, 6552334.408698953, rel_tol=0.0001)
+    assert math.isclose(kxx, 1003481981.4164313, rel_tol=0.0001)
+    assert math.isclose(kxy, 368311014.54999083, rel_tol=0.0001)
+    assert math.isclose(kyx, -1311924669.6961021, rel_tol=0.0001)
+    assert math.isclose(kyy, 981749354.0559089, rel_tol=0.0001)
+    assert math.isclose(cxx, 6393354010.436003, rel_tol=0.0001)
+    assert math.isclose(cxy, -5646094641.365241, rel_tol=0.0001)
+    assert math.isclose(cyx, -6596242.650627648, rel_tol=0.0001)
+    assert math.isclose(cyy, 17777768.4589808, rel_tol=0.0001)

@@ -131,7 +131,7 @@ class THDCylindrical(BearingElement):
     >>> from ross.fluid_flow.cylindrical import cylindrical_bearing_example
     >>> bearing = cylindrical_bearing_example()
     >>> bearing.equilibrium_pos
-    array([ 0.60678516, -0.73288691])
+    array([ 0.59937565, -0.72341011])
     """
 
     @check_units
@@ -963,7 +963,7 @@ class THDCylindrical(BearingElement):
         Fhy : float
             Force in Y direction. The unit is newton.
         """
-        global al
+
         if y0 is None and xpt0 is None and ypt0 is None:
             self.initial_guess = initial_guess
 
@@ -1542,7 +1542,7 @@ class THDCylindrical(BearingElement):
                             cont = cont + 1
 
                     Tdim = T_new * self.reference_temperature
-                    al = Tdim
+
                     T_end[n_p] = np.sum(Tdim[:, -1, n_p]) / self.elements_axial
 
                     if self.operating_type == "flooded":
@@ -2431,8 +2431,8 @@ def cylindrical_bearing_example():
         operating_type="flooded",
         injection_pressure=0,
         oil_flow=18.93,
-        show_coef=True,
-        print_result=True,
+        show_coef=False,
+        print_result=False,
         print_progress=False,
         print_time=False,
     )
