@@ -963,7 +963,7 @@ class THDCylindrical(BearingElement):
         Fhy : float
             Force in Y direction. The unit is newton.
         """
-
+        global al
         if y0 is None and xpt0 is None and ypt0 is None:
             self.initial_guess = initial_guess
 
@@ -1069,8 +1069,24 @@ class THDCylindrical(BearingElement):
             self.Qsdim = np.ones(self.n_pad)
 
             self.Qldim = np.ones(self.n_pad)
+            
+            Mat_coef_T = np.zeros((nk, nk))
+            
+            p = np.ones((nk, 1))  # Pressure vector
 
+            b_T = np.zeros((nk, 1))
+
+            b_P = np.zeros((nk, 1))
+            
+            Mat_coef_st = np.zeros((nk, nk))  # Coeficients matrix
+
+            Mat_coef = np.zeros((nk, nk))  # Coeficients matrix
+
+            B = np.zeros((nk, 1))  # Termo fonte for pressure
+            
             for n_p in np.arange(self.n_pad):
+                
+                T_ref = T_mist[n_p]
 
                 while (
                     np.linalg.norm(T_new[:, :, n_p] - T[:, :, n_p])
@@ -1081,28 +1097,16 @@ class THDCylindrical(BearingElement):
                     T_ref = T_mist[n_p]
 
                     mu = mu_new
-
+                    
+                    self.mu_l = mu_new
+                    
                     T[:, :, n_p] = T_new[:, :, n_p]
-
-                    Mat_coef_T = np.zeros((nk, nk))
-
-                    p = np.ones((nk, 1))  # Pressure vector
-
-                    b_T = np.zeros((nk, 1))
-
-                    b_P = np.zeros((nk, 1))
 
                     self.erro = 1
                     p_old = np.zeros((nk, 1))
 
-                    p = np.ones((nk, 1))  # Pressure vector
                     self.theta_vol = np.zeros((nk, 1))  # Theta volumetric vector
 
-                    Mat_coef_st = np.zeros((nk, nk))  # Coeficients matrix
-
-                    Mat_coef = np.zeros((nk, nk))  # Coeficients matrix
-
-                    B = np.zeros((nk, 1))  # Termo fonte for pressure
                     B_theta = np.zeros((nk, 1))  # Termo fonte for theta vol
 
                     if self.operating_type == "flooded":
@@ -1538,12 +1542,12 @@ class THDCylindrical(BearingElement):
                             cont = cont + 1
 
                     Tdim = T_new * self.reference_temperature
-
+                    al = Tdim
                     T_end[n_p] = np.sum(Tdim[:, -1, n_p]) / self.elements_axial
 
                     if self.operating_type == "flooded":
 
-                        T_mist[n_p] = (
+                        T_mist[n_p-1] = (
                             self.fat_mixt[n_p] * self.reference_temperature
                             + (1 - self.fat_mixt[n_p]) * T_end[n_p]
                         )
