@@ -1069,23 +1069,23 @@ class THDCylindrical(BearingElement):
             self.Qsdim = np.ones(self.n_pad)
 
             self.Qldim = np.ones(self.n_pad)
-            
+
             Mat_coef_T = np.zeros((nk, nk))
-            
+
             p = np.ones((nk, 1))  # Pressure vector
 
             b_T = np.zeros((nk, 1))
 
             b_P = np.zeros((nk, 1))
-            
+
             Mat_coef_st = np.zeros((nk, nk))  # Coeficients matrix
 
             Mat_coef = np.zeros((nk, nk))  # Coeficients matrix
 
             B = np.zeros((nk, 1))  # Termo fonte for pressure
-            
+
             for n_p in np.arange(self.n_pad):
-                
+
                 T_ref = T_mist[n_p]
 
                 while (
@@ -1097,9 +1097,9 @@ class THDCylindrical(BearingElement):
                     T_ref = T_mist[n_p]
 
                     mu = mu_new
-                    
+
                     self.mu_l = mu_new
-                    
+
                     T[:, :, n_p] = T_new[:, :, n_p]
 
                     self.erro = 1
@@ -1547,7 +1547,7 @@ class THDCylindrical(BearingElement):
 
                     if self.operating_type == "flooded":
 
-                        T_mist[n_p-1] = (
+                        T_mist[n_p - 1] = (
                             self.fat_mixt[n_p] * self.reference_temperature
                             + (1 - self.fat_mixt[n_p]) * T_end[n_p]
                         )
@@ -1779,19 +1779,19 @@ class THDCylindrical(BearingElement):
         )
 
         Cxx = -self.sommerfeld(Auinitial_guess5[0], Auinitial_guess6[0]) * (
-            (Auinitial_guess6[0] - Auinitial_guess5[0])
+            (Auinitial_guess5[0] - Auinitial_guess6[0])
             / (epixpt / self.radial_clearance / self.speed)
         )
         Cxy = -self.sommerfeld(Auinitial_guess7[0], Auinitial_guess8[0]) * (
-            (Auinitial_guess8[0] - Auinitial_guess7[0])
+            (Auinitial_guess7[0] - Auinitial_guess8[0])
             / (epiypt / self.radial_clearance / self.speed)
         )
         Cyx = -self.sommerfeld(Auinitial_guess5[1], Auinitial_guess6[1]) * (
-            (Auinitial_guess6[1] - Auinitial_guess5[1])
+            (Auinitial_guess5[1] - Auinitial_guess6[1])
             / (epixpt / self.radial_clearance / self.speed)
         )
         Cyy = -self.sommerfeld(Auinitial_guess7[1], Auinitial_guess8[1]) * (
-            (Auinitial_guess8[1] - Auinitial_guess7[1])
+            (Auinitial_guess7[1] - Auinitial_guess8[1])
             / (epiypt / self.radial_clearance / self.speed)
         )
 
@@ -2431,7 +2431,7 @@ def cylindrical_bearing_example():
         operating_type="flooded",
         injection_pressure=0,
         oil_flow=18.93,
-        show_coef=False,
+        show_coef=True,
         print_result=True,
         print_progress=False,
         print_time=False,
