@@ -1072,13 +1072,9 @@ class THDCylindrical(BearingElement):
 
             Mat_coef_T = np.zeros((nk, nk))
 
-            p = np.ones((nk, 1))  # Pressure vector
-
             b_T = np.zeros((nk, 1))
 
             b_P = np.zeros((nk, 1))
-
-            Mat_coef_st = np.zeros((nk, nk))  # Coeficients matrix
 
             Mat_coef = np.zeros((nk, nk))  # Coeficients matrix
 
@@ -1103,9 +1099,14 @@ class THDCylindrical(BearingElement):
                     T[:, :, n_p] = T_new[:, :, n_p]
 
                     self.erro = 1
+
                     p_old = np.zeros((nk, 1))
 
                     self.theta_vol = np.zeros((nk, 1))  # Theta volumetric vector
+
+                    Mat_coef_st = np.zeros((nk, nk))  # Coeficients matrix
+
+                    p = np.ones((nk, 1))  # Pressure vector
 
                     B_theta = np.zeros((nk, 1))  # Termo fonte for theta vol
 
