@@ -49,6 +49,10 @@ class ShaftElement(Element):
         Default is equal to odl value (cylindrical element).
     material : ross.Material
         Shaft material.
+    alpha : float, optional
+        Proportional damping coefficient, associated to the element Mass matrix
+    beta : float, optional
+        Proportional damping coefficient, associated to the element Stiffness matrix    
     n : int, optional
         Element number (coincident with it's first node).
         If not given, it will be set when the rotor is assembled
@@ -145,6 +149,8 @@ class ShaftElement(Element):
         shear_effects=True,
         rotary_inertia=True,
         gyroscopic=True,
+        alpha=0,
+        beta=0,
         shear_method_calc="cowper",
         tag=None,
     ):
@@ -184,8 +190,8 @@ class ShaftElement(Element):
         self.odr = float(odr)
         self.color = self.material.color
 
-        self.alpha = 0.0
-        self.beta = 0.0
+        self.alpha = float(alpha)
+        self.beta = float(beta)
 
         # A_l = cross section area from the left side of the element
         # A_r = cross section area from the right side of the element
@@ -266,6 +272,7 @@ class ShaftElement(Element):
             ((roj ** 4 + roj ** 3 * rok + roj ** 2 * rok ** 2 + roj * rok ** 3 + rok ** 4) -
              (rij ** 4 + rij ** 3 * rik + rij ** 2 * rik ** 2 + rij * rik ** 3 + rik ** 4))
         )
+        
         # fmt: on
 
         # picking a method to calculate the shear coefficient
@@ -359,6 +366,7 @@ class ShaftElement(Element):
             f"(L={self.L:{0}.{5}}, idl={self.idl:{0}.{5}}, "
             f"idr={self.idr:{0}.{5}}, odl={self.odl:{0}.{5}},  "
             f"odr={self.odr:{0}.{5}}, material={self.material.name!r}, "
+            f"alpha={self.alpha:{0}.{5}}, beta={self.beta:{0}.{5}},  "
             f"n={self.n})"
         )
 
@@ -393,6 +401,8 @@ class ShaftElement(Element):
             f"\nLeft Out. Diam.  (m): {self.odl:{10}.{5}}"
             f"\nRight Int. Diam. (m): {self.idr:{10}.{5}}"
             f"\nRight Out. Diam. (m): {self.odr:{10}.{5}}"
+            f"\nAlpha damp. factor:   {self.alpha:{10}.{5}}"
+            f"\nBeta damp. factor:    {self.beta:{10}.{5}}"
             f'\n{35*"-"}'
             f"\n{self.material}"
         )
@@ -811,7 +821,10 @@ class ShaftElement(Element):
                [0., 0., 0., 0.],
                [0., 0., 0., 0.]])
         """
-        C = np.zeros((8, 8))
+        #C = np.zeros((8, 8))
+        # proportional damping matrix
+        
+        C = self.alpha * self.M() + self.beta * self.K()
 
         return C
 
@@ -1076,6 +1089,8 @@ class ShaftElement(Element):
                         odl=parameters["odl"][i],
                         idr=parameters["idr"][i],
                         odr=parameters["odr"][i],
+                        alpha=parameters["alpha"][i],
+                        beta=parameters["beta"][i],
                         material=new_materials[parameters["material"][i]],
                         n=parameters["n"][i],
                         axial_force=parameters["axial_force"][i],
@@ -1095,6 +1110,8 @@ class ShaftElement(Element):
                         odl=parameters["odl"][i],
                         idr=parameters["idr"][i],
                         odr=parameters["odr"][i],
+                        alpha=parameters["alpha"][i],
+                        beta=parameters["beta"][i],
                         material=parameters["material"][i],
                         n=parameters["n"][i],
                         axial_force=parameters["axial_force"][i],
@@ -1116,6 +1133,8 @@ class ShaftElement(Element):
         s_odl,
         s_idr=None,
         s_odr=None,
+        alpha=0,
+        beta=0,
         material=None,
         n=None,
         shear_effects=True,
@@ -1190,6 +1209,8 @@ class ShaftElement(Element):
                 odl=(s_odr - s_odl) * i * le / L + s_odl,
                 idr=(s_idr - s_idl) * (i + 1) * le / L + s_idl,
                 odr=(s_odr - s_odl) * (i + 1) * le / L + s_odl,
+                alpha=alpha,
+                beta=beta,
                 material=material,
                 n=n,
                 shear_effects=shear_effects,
