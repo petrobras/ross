@@ -117,6 +117,86 @@ Step 7: Push changes to the main repo
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 To create a Pull Request (PR), refer to `the github PR guide <https://help.github.com/articles/about-pull-requests/>`_.
 
+Docstrings for class and methods
+--------------------------------
+A new method must have a docstring presenting a summary for what the method does. 
+ROSS' docstrings follows the Numpy `docstring style <https://numpydoc.readthedocs.io/en/latest/format.html>`_.
+It's important to follow the Numpy's template due to the formatting that will be presented on the ROSS website.
+
+Example of docstring::
+
+    def foo(arg1, arg2, arg3):
+    """Title (First line should be in imperative mood and end with a period)
+
+    A brief explanation of what this method does. (Optional)
+
+    Parameters (if the method receives any arguments)
+    ----------
+    arg1 : TYPE
+        DESCRIPTION.
+    arg2 : TYPE
+        DESCRIPTION.
+    arg3 : TYPE
+        DESCRIPTION.
+
+    References (if applicable)
+    ----------
+    .. bibliography:: ../../../docs/refs.bib
+
+    Raises (if there's any error message raised)
+    -----
+    SomeError
+        DESCRIPTION
+
+    Returns (if the method return something)
+    -------
+    result : TYPE
+        DESCRIPTION.
+
+    Examples (if applicable)
+    --------
+    >>> a = 1
+    >>> b = 2
+    >>> c = 3
+    >>> s = foo(a, b, c)
+    6
+    """
+    result = arg1 + arg2 + arg3
+    return result
+
+It is possible to add other sections in addition to those previously presented (e.g. ``Notes``, ``See Also``, ``Warnings``...). 
+Just follow the same rules and it's good to go.
+
+When creating examples, be aware of code lines that return any result from a method or class. 
+The example output must match what the method returns because ``TRAVIS`` and ``APPVEYOR`` (the CI's that runs tests for ROSS) check the examples and raise errors, 
+if the example output does not match the actual output.
+
+Sometimes, it's not possible to represent all the output (e.g. a figure, a large matrix, etc), 
+so it's recommended to use the comment ``# doctest: +ELLIPSIS``, and then, truncate the function output with a ``...``, and add this comment beside the command line. 
+
+Example::
+
+    from bokeh.plotting import figure
+
+    def foo():
+        """Plot a bokeh figure.
+
+        Returns
+        -------
+        figure : bokeh.figure
+            A figure.
+
+        Examples
+        --------
+        >>> figure = foo()
+        >>> figure # doctest: +ELLIPSIS
+        Figure...
+        """
+        fig = figure()
+        fig.line([1, 2, 3], [1, 2, 3])
+
+        return fig
+
 Documentation
 -------------
 We use `sphinx <http://www.sphinx-doc.org/en/master/>`_ to generate the project's documentation. We keep the source

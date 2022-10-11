@@ -29,4 +29,4 @@ There you can find the [installation procedure](https://ross.readthedocs.io/en/l
 If you have any questions you can use the [Discussions](https://github.com/ross-rotordynamics/ross/discussions) area in the repository.
 
 # Contributing to ROSS
-Check [CONTRIBUTING.rst](https://github.com/ross-rotordynamics/ross/blob/master/CONTRIBUTING.rst).
+Check [CONTRIBUTING.rst](https://github.com/ross-rotordynamics/ross/blob/master/CONTRIBUTING.rst). 
