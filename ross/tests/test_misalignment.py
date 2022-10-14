@@ -942,7 +942,7 @@ def test_mis_rigid_forces(mis_rigid):
        -31337.85075352, -31907.55193714, -32472.32601231
     ]
     ),
-    abs=1e-6
+    abs=1e-2
         # fmt: on
     )
 
@@ -964,7 +964,7 @@ def test_mis_rigid_forces(mis_rigid):
        -9.72709218e+03, -1.01237446e+04, -1.05275788e+04
     ]
     ),
-    abs=1e-6
+    abs=1e-2
         # fmt: on
     )
 
@@ -986,7 +986,7 @@ def test_mis_rigid_forces(mis_rigid):
        31337.85075352, 31907.55193714, 32472.32601231
     ]
     ),
-    abs=1e-6
+    abs=1e-2
         # fmt: on
     )
 
@@ -1032,7 +1032,7 @@ def test_mis_rigid_forces_units(mis_rigid_units):
        -31337.85075352, -31907.55193714, -32472.32601231
     ]
     ),
-    abs=1e-6
+    abs=1e-2
         # fmt: on
     )
 
@@ -1054,7 +1054,7 @@ def test_mis_rigid_forces_units(mis_rigid_units):
        -9.72709218e+03, -1.01237446e+04, -1.05275788e+04
     ]
     ),
-    abs=1e-6
+    abs=1e-2
         # fmt: on
     )
 
@@ -1076,6 +1076,6 @@ def test_mis_rigid_forces_units(mis_rigid_units):
        31337.85075352, 31907.55193714, 32472.32601231
     ]
     ),
-    abs=1e-6
+    abs=1e-2
         # fmt: on
     )
