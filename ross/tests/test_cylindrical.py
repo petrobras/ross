@@ -42,6 +42,7 @@ def cylindrical():
 
     return bearing
 
+
 def test_cylindrical_parameters(cylindrical):
     assert math.isclose(cylindrical.axial_length, 0.263144, rel_tol=0.0001)
     assert cylindrical.journal_radius == 0.2
@@ -49,9 +50,14 @@ def test_cylindrical_parameters(cylindrical):
     assert cylindrical.rho == 873.99629
     assert cylindrical.reference_temperature == 50
 
+
 def test_cylindrical_equilibrium_pos(cylindrical):
-    assert math.isclose(cylindrical.equilibrium_pos[0], 0.6063220830888834, rel_tol=0.01)
-    assert math.isclose(cylindrical.equilibrium_pos[1], -0.8080463672910241, rel_tol=0.01)
+    assert math.isclose(
+        cylindrical.equilibrium_pos[0], 0.6063220830888834, rel_tol=0.01
+    )
+    assert math.isclose(
+        cylindrical.equilibrium_pos[1], -0.8080463672910241, rel_tol=0.01
+    )
 
 
 def test_cylindrical_coefficients(cylindrical):
