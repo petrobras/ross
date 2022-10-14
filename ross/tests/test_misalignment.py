@@ -176,7 +176,7 @@ def test_mis_comb_forces(mis_comb):
     -4.40604748,
     ]
     ),
-    rel=1e-6
+    abs=1e-6
         # fmt: on
     )
 
@@ -196,7 +196,7 @@ def test_mis_comb_forces(mis_comb):
     1.0821174,
     ]
     ),
-    rel=1e-6
+    abs=1e-6
         # fmt: on
     )
 
@@ -216,7 +216,7 @@ def test_mis_comb_forces(mis_comb):
     4.40604748,
     ]
     ),
-    rel=1e-6
+    abs=1e-6
         # fmt: on
     )
 
@@ -236,7 +236,7 @@ def test_mis_comb_forces(mis_comb):
     -1.0821174,
     ]
     ),
-    rel=1e-6
+    abs=1e-6
         # fmt: on
     )
 
@@ -258,7 +258,7 @@ def test_mis_comb_forces_units(mis_comb_units):
     -4.40604748,
     ]
     ),
-    rel=1e-6
+    abs=1e-6
         # fmt: on
     )
 
@@ -278,7 +278,7 @@ def test_mis_comb_forces_units(mis_comb_units):
     1.0821174,
     ]
     ),
-    rel=1e-6
+    abs=1e-6
         # fmt: on
     )
 
@@ -298,7 +298,7 @@ def test_mis_comb_forces_units(mis_comb_units):
     4.40604748,
     ]
     ),
-    rel=1e-6
+    abs=1e-6
         # fmt: on
     )
 
@@ -318,7 +318,7 @@ def test_mis_comb_forces_units(mis_comb_units):
     -1.0821174,
     ]
     ),
-    rel=1e-6
+    abs=1e-6
         # fmt: on
     )
 
@@ -428,7 +428,7 @@ def test_mis_parallel_forces(mis_parallel):
     -6.78312529
     ]
     ),
-    rel=1e-6
+    abs=1e-6
         # fmt: on
     )
 
@@ -446,7 +446,7 @@ def test_mis_parallel_forces(mis_parallel):
     1.0821174, 1.0821174, 1.0821174
     ]
     ),
-    rel=1e-6
+    abs=1e-6
         # fmt: on
     )
 
@@ -466,7 +466,7 @@ def test_mis_parallel_forces(mis_parallel):
     6.78312529
     ]
     ),
-    rel=1e-6
+    abs=1e-6
         # fmt: on
     )
 
@@ -486,7 +486,7 @@ def test_mis_parallel_forces(mis_parallel):
     -1.0821174
     ]
     ),
-    rel=1e-6
+    abs=1e-6
         # fmt: on
     )
 
@@ -508,7 +508,7 @@ def test_mis_parallel_forces_units(mis_parallel_units):
     -6.78312529
     ]
     ),
-    rel=1e-6
+    abs=1e-6
         # fmt: on
     )
 
@@ -526,7 +526,7 @@ def test_mis_parallel_forces_units(mis_parallel_units):
     1.0821174, 1.0821174, 1.0821174
     ]
     ),
-    rel=1e-6
+    abs=1e-6
         # fmt: on
     )
 
@@ -546,7 +546,7 @@ def test_mis_parallel_forces_units(mis_parallel_units):
     6.78312529
     ]
     ),
-    rel=1e-6
+    abs=1e-6
         # fmt: on
     )
 
@@ -566,7 +566,7 @@ def test_mis_parallel_forces_units(mis_parallel_units):
     -1.0821174
     ]
     ),
-    rel=1e-6
+    abs=1e-6
         # fmt: on
     )
 
@@ -676,7 +676,7 @@ def test_mis_angular_forces(mis_angular):
     2.37707782
     ]
     ),
-    rel=1e-6
+    abs=1e-6
         # fmt: on
     )
 
@@ -698,7 +698,7 @@ def test_mis_angular_forces(mis_angular):
     7.98106914e-10,  8.14657675e-10,  8.30667091e-10
     ]
     ),
-    rel=1e-6
+    abs=1e-6
         # fmt: on
     )
 
@@ -718,7 +718,7 @@ def test_mis_angular_forces(mis_angular):
     -2.37707782
     ]
     ),
-    rel=1e-6
+    abs=1e-6
         # fmt: on
     )
 
@@ -740,7 +740,7 @@ def test_mis_angular_forces(mis_angular):
     -7.98106914e-10, -8.14657675e-10, -8.30667091e-10
     ]
     ),
-    rel=1e-6
+    abs=1e-6
         # fmt: on
     )
 
@@ -762,7 +762,7 @@ def test_mis_angular_forces_units(mis_angular_units):
     2.37707782
     ]
     ),
-    rel=1e-6
+    abs=1e-6
         # fmt: on
     )
 
@@ -784,7 +784,7 @@ def test_mis_angular_forces_units(mis_angular_units):
     7.98106914e-10,  8.14657675e-10,  8.30667091e-10
     ]
     ),
-    rel=1e-6
+    abs=1e-6
         # fmt: on
     )
 
@@ -804,7 +804,7 @@ def test_mis_angular_forces_units(mis_angular_units):
     -2.37707782
     ]
     ),
-    rel=1e-6
+    abs=1e-6
         # fmt: on
     )
 
@@ -826,7 +826,7 @@ def test_mis_angular_forces_units(mis_angular_units):
     -7.98106914e-10, -8.14657675e-10, -8.30667091e-10
     ]
     ),
-    rel=1e-6
+    abs=1e-6
         # fmt: on
     )
 
@@ -920,7 +920,7 @@ def test_mis_rigid_forces(mis_rigid):
        9.72709218e+03, 1.01237446e+04, 1.05275788e+04
     ]
     ),
-    rel=1e-6
+    abs=1e-6
         # fmt: on
     )
 
@@ -942,7 +942,7 @@ def test_mis_rigid_forces(mis_rigid):
        -31337.85075352, -31907.55193714, -32472.32601231
     ]
     ),
-    rel=1e-6
+    abs=1e-6
         # fmt: on
     )
 
@@ -964,7 +964,7 @@ def test_mis_rigid_forces(mis_rigid):
        -9.72709218e+03, -1.01237446e+04, -1.05275788e+04
     ]
     ),
-    rel=1e-6
+    abs=1e-6
         # fmt: on
     )
 
@@ -986,7 +986,7 @@ def test_mis_rigid_forces(mis_rigid):
        31337.85075352, 31907.55193714, 32472.32601231
     ]
     ),
-    rel=1e-6
+    abs=1e-6
         # fmt: on
     )
 
@@ -1010,7 +1010,7 @@ def test_mis_rigid_forces_units(mis_rigid_units):
        9.72709218e+03, 1.01237446e+04, 1.05275788e+04
     ]
     ),
-    rel=1e-6
+    abs=1e-6
         # fmt: on
     )
 
@@ -1032,7 +1032,7 @@ def test_mis_rigid_forces_units(mis_rigid_units):
        -31337.85075352, -31907.55193714, -32472.32601231
     ]
     ),
-    rel=1e-6
+    abs=1e-6
         # fmt: on
     )
 
@@ -1054,7 +1054,7 @@ def test_mis_rigid_forces_units(mis_rigid_units):
        -9.72709218e+03, -1.01237446e+04, -1.05275788e+04
     ]
     ),
-    rel=1e-6
+    abs=1e-6
         # fmt: on
     )
 
@@ -1076,6 +1076,6 @@ def test_mis_rigid_forces_units(mis_rigid_units):
        31337.85075352, 31907.55193714, 32472.32601231
     ]
     ),
-    rel=1e-6
+    abs=1e-6
         # fmt: on
     )
