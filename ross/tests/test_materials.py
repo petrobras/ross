@@ -1,3 +1,5 @@
+import sys
+
 import pytest
 from numpy.testing import assert_allclose
 
@@ -55,8 +57,10 @@ def test_specific_material(AISI4140):
 def test_error_rho():
     with pytest.raises(TypeError) as ex:
         Material(name="test", E=203.2e9, G_s=80e9)
-
-    assert "__init__() missing 1 required positional argument: 'rho'" == str(ex.value)
+    if sys.version_info.minor == 10:
+        assert "Material.__init__() missing 1 required positional argument: 'rho'" == str(ex.value)
+    else:
+        assert "__init__() missing 1 required positional argument: 'rho'" == str(ex.value)
 
 
 def test_error_E_G_s_Poisson():
