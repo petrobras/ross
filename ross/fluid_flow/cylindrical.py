@@ -73,9 +73,11 @@ class THDCylindrical(BearingElement):
         Ratio of oil in reservoir temperature that mixes with the circulating oil.
         Is required one factor per segment.
     oil_flow: float
-        Suply oil flow to bearing. Only used when operating type 'starvation' is selected.
+        Suply oil flow to bearing. Only used when operating type 'starvation' is 
+        selected. Unit is Litre per minute (l/min)
     injection_pressure: float
-        Suply oil pressure that bearing receives at groove regions. Only used when operating type 'starvation' is selected.
+        Suply oil pressure that bearing receives at groove regions. Only used 
+        when operating type 'starvation' is selected. Unit is Pascal (Pa).
 
     Turbulence Model
     ^^^^^^^^^^^^^^^^
