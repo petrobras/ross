@@ -147,7 +147,7 @@ class THDCylindrical(BearingElement):
         n_pad,
         pad_arc_length,
         reference_temperature,
-        reference_viscosity,
+        # reference_viscosity,
         speed,
         load_x_direction,
         load_y_direction,
@@ -173,7 +173,7 @@ class THDCylindrical(BearingElement):
         self.elements_axial = elements_axial
         self.n_pad = n_pad
         self.reference_temperature = reference_temperature
-        self.reference_viscosity = reference_viscosity
+        # self.reference_viscosity = reference_viscosity
         self.load_x_direction = load_x_direction
         self.load_y_direction = load_y_direction
         self.lubricant = lubricant
@@ -263,10 +263,20 @@ class THDCylindrical(BearingElement):
         self.rho = lubricant_properties["lube_density"]
         self.Cp = lubricant_properties["lube_cp"]
         self.k_t = lubricant_properties["lube_conduct"]
-
+        
         # Interpolation coefficients
         self.a, self.b = self._interpol(T_muI, T_muF, mu_I, mu_F)
-
+        
+        
+        
+        # b_b = np.log(mu_I/mu_F)*1/(T_muI-T_muF)
+        # a_a = mu_I/(np.exp(T_muI*b_b))
+        # self.reference_viscosity = a_a*np.exp(self.reference_temperature*b_b)
+        
+        self.reference_viscosity = self.a*(self.reference_temperature**self.b)
+        
+        print(self.reference_viscosity)
+        
         number_of_freq = np.shape(speed)[0]
 
         kxx = np.zeros(number_of_freq)
@@ -514,7 +524,7 @@ class THDCylindrical(BearingElement):
         return self.P
 
     def _starvation(self, n_p, Mat_coef_st, mu, p_old, p, B, B_theta, nk):
-
+        global pdim
         while self.erro >= 0.01:
 
             p_old = np.array(p)
@@ -938,7 +948,7 @@ class THDCylindrical(BearingElement):
         self.Pdim = (
             self.P * self.reference_viscosity * self.speed * (self.journal_radius**2)
         ) / (self.radial_clearance**2)
-
+        pdim=self.Pdim
         return self.P
 
     def _forces(self, initial_guess, y0, xpt0, ypt0):
@@ -965,7 +975,7 @@ class THDCylindrical(BearingElement):
         Fhy : float
             Force in Y direction. The unit is newton.
         """
-
+        global Tdim
         if y0 is None and xpt0 is None and ypt0 is None:
             self.initial_guess = initial_guess
 
@@ -1022,7 +1032,7 @@ class THDCylindrical(BearingElement):
 
         T_end = np.ones(self.n_pad)
 
-        while (T_mist[0] - T_conv) >= 1e-2:
+        while (T_mist[0] - T_conv) >= 0.5:
             nk = (self.elements_axial) * (self.elements_circumferential)
             self.P = np.zeros(
                 (self.elements_axial, self.elements_circumferential, self.n_pad)
@@ -1232,15 +1242,27 @@ class THDCylindrical(BearingElement):
                             self.H[kj, n_p] = HP
 
                             mu_p = mu[ki, kj, n_p]
+                            
+                            if self.operating_type == "starvation":
+                                Reyn[ki, kj, n_p] = self.Theta_vol[ki,kj,n_p]*(
+                                    self.rho
+                                    * self.speed
+                                    * self.journal_radius
+                                    * (HP / self.axial_length)
+                                    * self.radial_clearance
+                                    / (self.reference_viscosity)
+                                )
+                                
+                            else:
+                                Reyn[ki, kj, n_p] = (
+                                    self.rho
+                                    * self.speed
+                                    * self.journal_radius
+                                    * (HP / self.axial_length)
+                                    * self.radial_clearance
+                                    / (self.reference_viscosity)
+                                )
 
-                            Reyn[ki, kj, n_p] = (
-                                self.rho
-                                * self.speed
-                                * self.journal_radius
-                                * (HP / self.axial_length)
-                                * self.radial_clearance
-                                / (self.reference_viscosity)
-                            )
 
                             if Reyn[ki, kj, n_p] <= 500:
 
@@ -1581,15 +1603,18 @@ class THDCylindrical(BearingElement):
                         * self.Theta_vol[0, -1, n_p]
                         / 2
                     )
-
+                geometry_factor = np.ones(self.n_pad)    
+                for n_p in np.arange(self.n_pad):
+                    geometry_factor[n_p] =  (self.Qedim[n_p]+self.Qsdim[n_p-1])/(np.sum(self.Qedim)+np.sum(self.Qsdim))  
+                    
                 for n_p in np.arange(self.n_pad):
 
                     T_mist[n_p] = (
                         (self.Qsdim[n_p - 1] * T_end[n_p - 1])
-                        + (self.reference_temperature * 0.8 * self.oil_flow)
-                    ) / (0.8 * self.oil_flow + self.Qsdim[n_p - 1])
+                        + (self.reference_temperature * geometry_factor[n_p] * self.oil_flow)
+                    ) / (geometry_factor[n_p] * self.oil_flow + self.Qsdim[n_p - 1])
 
-                    self.theta_vol_groove[n_p] = (
+                    self.theta_vol_groove[n_p] = 0.8*(geometry_factor[n_p]*
                         self.oil_flow + self.Qsdim[n_p - 1]
                     ) / self.Qedim[n_p]
 
@@ -1626,6 +1651,33 @@ class THDCylindrical(BearingElement):
         fxj = -np.sum(auxFx)
         fyj = -np.sum(auxFy)
 
+        # PPlot=np.zeros((self.elements_axial,self.elements_circumferential*self.n_pad))
+        # # TPlot=np.zeros((self.elements_axial,self.elements_circumferential*self.n_pad))
+        
+        # for i in range(self.elements_axial):
+            
+        #     PPlot[i]=self.Pdim[i,:,:].ravel('F')
+        #     # TPlot[i]=self.Tdim[i,:,:].ravel('F')
+        
+        # Ytheta = np.array(Ytheta)
+        # Ytheta = Ytheta.flatten()       
+        #         # Integração do Campo de Pressão para Cálculo da Força
+        # auxF=np.zeros((2,len(Ytheta)))
+        
+        # auxF[0,:]=np.cos(Ytheta)
+        # auxF[1,:]=np.sin(Ytheta)
+        
+        # fx1 = np.trapz(PPlot*auxF[0,:], self.journal_radius*Ytheta)
+        # Fhx = -np.trapz(fx1, self.axial_length*self.Z[1:self.elements_axial+1])
+        
+        # fy1 = np.trapz(PPlot*auxF[1,:], self.journal_radius*Ytheta)
+        # Fhy = -np.trapz(fy1, self.axial_length*self.Z[1:self.elements_axial+1])
+        # F1=Fhx
+        # F2=Fhy
+
+        # Fhx = F1
+        # Fhy = F2
+
         Fhx = fxj
         Fhy = fyj
         self.Fhx = Fhx
@@ -1645,8 +1697,8 @@ class THDCylindrical(BearingElement):
             self.initial_guess,
             args,
             method="Nelder-Mead",
-            tol=10e-3,
-            options={"maxiter": 1000},
+            tol=10e-2,
+            options={"maxiter": 10000000},
         )
         self.equilibrium_pos = res.x
         t2 = time.time()
@@ -2413,30 +2465,30 @@ def cylindrical_bearing_example():
     """
 
     bearing = THDCylindrical(
-        axial_length=0.263144,
-        journal_radius=0.2,
-        radial_clearance=1.95e-4,
-        elements_circumferential=11,
-        elements_axial=3,
+        axial_length=(10.36*25.4e-3),
+        journal_radius=(15.748/2*25.4e-3),
+        radial_clearance=(0.00766*25.4e-3),
+        elements_circumferential=21,
+        elements_axial=7,
         n_pad=2,
         pad_arc_length=176,
         reference_temperature=50,
-        reference_viscosity=0.02,
-        speed=Q_([900], "RPM"),
+        # reference_viscosity=0.032,
+        speed=Q_([4500], "RPM"),
         load_x_direction=0,
         load_y_direction=-112814.91,
         groove_factor=[0.52, 0.48],
-        lubricant="ISOVG32",
+        lubricant="ISOVG46",
         node=3,
         sommerfeld_type=2,
-        initial_guess=[0.1, -0.1],
-        method="perturbation",
-        operating_type="flooded",
+        initial_guess=[0.4, -0.7],
+        method="lund",
+        operating_type="starvation",
         injection_pressure=0,
-        oil_flow=18.93,
-        show_coef=False,
-        print_result=False,
-        print_progress=False,
+        oil_flow=94.64,
+        show_coef=True,
+        print_result=True,
+        print_progress=True,
         print_time=False,
     )
 
