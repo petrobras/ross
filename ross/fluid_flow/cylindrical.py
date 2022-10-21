@@ -245,13 +245,13 @@ class THDCylindrical(BearingElement):
                 "lube_conduct": Q_(0.15, "W/(m*degC)").to_base_units().m,
             },
             "TEST": {
-                "viscosity1": Q_(2.758e-6, "reyn").to_base_units().m,
-                "temp1": Q_(121.7, "degF").to_base_units().m,
-                "viscosity2": Q_(1.119e-6, "reyn").to_base_units().m,
-                "temp2": Q_(175.7, "degF").to_base_units().m,
-                "lube_density": Q_(8.0e-5, "lbf*s²/in⁴").to_base_units().m,
-                "lube_cp": Q_(1.79959e2, "BTU*in/(lbf*s²*degF)").to_base_units().m,
-                "lube_conduct": Q_(2.00621e-6, "BTU/(in*s*degF)").to_base_units().m,
+                "viscosity1": Q_(0.04, "Pa*s").to_base_units().m,
+                "temp1": Q_(40, "degC").to_base_units().m,
+                "viscosity2": Q_(0.01, "Pa*s").to_base_units().m,
+                "temp2": Q_(100, "degC").to_base_units().m,
+                "lube_density": Q_(863.61302696, "kg/m³").to_base_units().m,
+                "lube_cp": Q_(1951.88616, "J/(kg*degK)").to_base_units().m,
+                "lube_conduct": Q_(0.15, "W/(m*degC)").to_base_units().m,
             },
         }
 
@@ -273,8 +273,8 @@ class THDCylindrical(BearingElement):
         # a_a = mu_I/(np.exp(T_muI*b_b))
         # self.reference_viscosity = a_a*np.exp(self.reference_temperature*b_b)
         
-        self.reference_viscosity = self.a*(self.reference_temperature**self.b)
-        
+        # self.reference_viscosity = self.a*(self.reference_temperature**self.b)
+        self.reference_viscosity = 0.032
         print(self.reference_viscosity)
         
         number_of_freq = np.shape(speed)[0]
@@ -1068,7 +1068,7 @@ class THDCylindrical(BearingElement):
 
             self.H = np.ones((self.elements_circumferential, self.n_pad))
 
-            self.U = 0.5 * np.ones(
+            U = 0.5 * np.ones(
                 (self.elements_axial, self.elements_circumferential, self.n_pad)
             )
 
@@ -1302,6 +1302,8 @@ class THDCylindrical(BearingElement):
                             mu_turb[ki, kj, n_p] = mu_p * (1 + (self.delta_turb * emv))
 
                             mi_t = mu_turb[ki, kj, n_p]
+
+                            U[ki,kj,n_p]=-HP**2/(12*mi_t*self.betha_s)*dPdy[ki,kj,n_p]+1/2
 
                             AE = -(self.k_t * HP * self.dZ) / (
                                 self.rho
@@ -1591,7 +1593,7 @@ class THDCylindrical(BearingElement):
                         * self.journal_radius
                         * self.axial_length
                         * self.Theta_vol[0, 0, n_p]
-                        / 2
+                        * (np.mean(U[:,0,n_p]))
                     )
 
                     self.Qsdim[n_p] = (
@@ -1601,7 +1603,7 @@ class THDCylindrical(BearingElement):
                         * self.journal_radius
                         * self.axial_length
                         * self.Theta_vol[0, -1, n_p]
-                        / 2
+                        * (np.mean(U[:,-1,n_p]))
                     )
                 geometry_factor = np.ones(self.n_pad)    
                 for n_p in np.arange(self.n_pad):
@@ -1737,7 +1739,7 @@ class THDCylindrical(BearingElement):
         xdata = [T_muI, T_muF]  # changed boundary conditions to avoid division by ]
         ydata = [mu_I, mu_F]
 
-        popt, pcov = curve_fit(viscosity, xdata, ydata, p0=(6.0, -1.0))
+        popt, pcov = curve_fit(viscosity, xdata, ydata, p0=(6.0, 1.0))
         a, b = popt
 
         return a, b
@@ -2478,10 +2480,10 @@ def cylindrical_bearing_example():
         load_x_direction=0,
         load_y_direction=-112814.91,
         groove_factor=[0.52, 0.48],
-        lubricant="ISOVG46",
+        lubricant="TEST",
         node=3,
         sommerfeld_type=2,
-        initial_guess=[0.4, -0.7],
+        initial_guess=[0.4055, -0.7],
         method="lund",
         operating_type="starvation",
         injection_pressure=0,
