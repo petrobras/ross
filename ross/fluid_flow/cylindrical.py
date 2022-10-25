@@ -557,6 +557,8 @@ class THDCylindrical(BearingElement):
                     )
                     hn = hP
                     hs = hn
+                    
+                    hpt = -self.Xpt * np.cos(jj) - self.Ypt * np.sin(jj)
 
                     if kj == 0 and ki == 0:
                         MU_e = 0.5 * (mu[ki, kj] + mu[ki, kj + 1])
@@ -645,7 +647,7 @@ class THDCylindrical(BearingElement):
                     # Termo Fonte
                     KP1 = -(self.dZ / (2 * self.betha_s)) * he
 
-                    KP2 = 0
+                    KP2 = -hpt*self.dY*self.dZ*self.Theta_vol[ki,kj,n_p]
 
                     KP = KP1 + KP2
 
@@ -1028,7 +1030,7 @@ class THDCylindrical(BearingElement):
             for t1, t2 in zip(self.thetaI, self.thetaF)
         ]
 
-        self.theta_vol_groove = np.ones(self.n_pad)
+        self.theta_vol_groove = 0.8*np.ones(self.n_pad)
 
         T_end = np.ones(self.n_pad)
 
@@ -1082,7 +1084,7 @@ class THDCylindrical(BearingElement):
 
             self.Qldim = np.ones(self.n_pad)
 
-            Mat_coef_T = np.zeros((nk, nk))
+            
 
             b_T = np.zeros((nk, 1))
 
@@ -1099,7 +1101,7 @@ class THDCylindrical(BearingElement):
                 while (
                     np.linalg.norm(T_new[:, :, n_p] - T[:, :, n_p])
                     / np.linalg.norm(T[:, :, n_p])
-                    >= 1e-3
+                    >= 0.01
                 ):
 
                     T_ref = T_mist[n_p]
@@ -1117,6 +1119,8 @@ class THDCylindrical(BearingElement):
                     self.theta_vol = np.zeros((nk, 1))  # Theta volumetric vector
 
                     Mat_coef_st = np.zeros((nk, nk))  # Coeficients matrix
+
+                    Mat_coef_T = np.zeros((nk, nk))
 
                     p = np.ones((nk, 1))  # Pressure vector
 
@@ -1244,8 +1248,9 @@ class THDCylindrical(BearingElement):
                             mu_p = mu[ki, kj, n_p]
                             
                             if self.operating_type == "starvation":
-                                Reyn[ki, kj, n_p] = self.Theta_vol[ki,kj,n_p]*(
-                                    self.rho
+                                Reyn[ki, kj, n_p] = (
+                                    self.Theta_vol[ki,kj,n_p]
+                                    * self.rho
                                     * self.speed
                                     * self.journal_radius
                                     * (HP / self.axial_length)
@@ -1268,7 +1273,7 @@ class THDCylindrical(BearingElement):
 
                                 self.delta_turb = 0
 
-                            elif Reyn[ki, kj, n_p] > 400 and Reyn[ki, kj, n_p] <= 1000:
+                            elif Reyn[ki, kj, n_p] > 500 and Reyn[ki, kj, n_p] <= 1000:
 
                                 self.delta_turb = 1 - (
                                     (1000 - Reyn[ki, kj, n_p]) / 500
@@ -1605,7 +1610,9 @@ class THDCylindrical(BearingElement):
                         * self.Theta_vol[0, -1, n_p]
                         * (np.mean(U[:,-1,n_p]))
                     )
+                    
                 geometry_factor = np.ones(self.n_pad)    
+                
                 for n_p in np.arange(self.n_pad):
                     geometry_factor[n_p] =  (self.Qedim[n_p]+self.Qsdim[n_p-1])/(np.sum(self.Qedim)+np.sum(self.Qsdim))  
                     
@@ -1700,7 +1707,7 @@ class THDCylindrical(BearingElement):
             args,
             method="Nelder-Mead",
             tol=10e-2,
-            options={"maxiter": 10000000},
+            options={"maxiter": 1000000},
         )
         self.equilibrium_pos = res.x
         t2 = time.time()
@@ -2474,20 +2481,20 @@ def cylindrical_bearing_example():
         elements_axial=7,
         n_pad=2,
         pad_arc_length=176,
-        reference_temperature=50,
+        reference_temperature=49.85,
         # reference_viscosity=0.032,
-        speed=Q_([4500], "RPM"),
+        speed=Q_([900], "RPM"),
         load_x_direction=0,
         load_y_direction=-112814.91,
         groove_factor=[0.52, 0.48],
         lubricant="TEST",
         node=3,
         sommerfeld_type=2,
-        initial_guess=[0.4055, -0.7],
-        method="lund",
+        initial_guess=[0.42, 5.67],
+        method="perturbation",
         operating_type="starvation",
         injection_pressure=0,
-        oil_flow=94.64,
+        oil_flow=2*18,
         show_coef=True,
         print_result=True,
         print_progress=True,
