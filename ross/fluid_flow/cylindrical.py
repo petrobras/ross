@@ -133,7 +133,7 @@ class THDCylindrical(BearingElement):
     >>> from ross.fluid_flow.cylindrical import cylindrical_bearing_example
     >>> bearing = cylindrical_bearing_example()
     >>> bearing.equilibrium_pos
-    array([ 0.57472996, -0.69555129])
+    array([ 0.68733217, -0.79393696])
     """
 
     @check_units
@@ -2443,17 +2443,17 @@ def cylindrical_bearing_example():
     bearing = THDCylindrical(
         axial_length=(10.36*25.4e-3),
         journal_radius=(15.748/2*25.4e-3),
-        radial_clearance=(0.00766*25.4e-3),
+        radial_clearance=(1.95e-4),
         elements_circumferential=11,
         elements_axial=3,
         n_pad=2,
         pad_arc_length=176,
-        reference_temperature=49.85,
+        reference_temperature=50,
         speed=Q_([900], "RPM"),
         load_x_direction=0,
         load_y_direction=-112814.91,
         groove_factor=[0.52, 0.48],
-        lubricant="TEST",
+        lubricant="ISOVG32",
         node=3,
         sommerfeld_type=2,
         initial_guess=[0.1, -0.1],
@@ -2461,8 +2461,8 @@ def cylindrical_bearing_example():
         operating_type="flooded",
         injection_pressure=0,
         oil_flow=37.86,
-        show_coef=False,
-        print_result=False,
+        show_coef=True,
+        print_result=True,
         print_progress=False,
         print_time=False,
     )
