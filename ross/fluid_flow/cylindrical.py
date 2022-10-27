@@ -133,7 +133,7 @@ class THDCylindrical(BearingElement):
     >>> from ross.fluid_flow.cylindrical import cylindrical_bearing_example
     >>> bearing = cylindrical_bearing_example()
     >>> bearing.equilibrium_pos
-    array([ 0.59937565, -0.72341011])
+    array([ 0.57472996, -0.69555129])
     """
 
     @check_units
@@ -147,7 +147,6 @@ class THDCylindrical(BearingElement):
         n_pad,
         pad_arc_length,
         reference_temperature,
-        # reference_viscosity,
         speed,
         load_x_direction,
         load_y_direction,
@@ -158,8 +157,8 @@ class THDCylindrical(BearingElement):
         initial_guess=[0.1, -0.1],
         method="perturbation",
         operating_type="flooded",
-        injection_pressure=0,
-        oil_flow=20,
+        injection_pressure=None,
+        oil_flow=None,
         show_coef=False,
         print_result=False,
         print_progress=False,
@@ -173,7 +172,6 @@ class THDCylindrical(BearingElement):
         self.elements_axial = elements_axial
         self.n_pad = n_pad
         self.reference_temperature = reference_temperature
-        # self.reference_viscosity = reference_viscosity
         self.load_x_direction = load_x_direction
         self.load_y_direction = load_y_direction
         self.lubricant = lubricant
@@ -268,14 +266,10 @@ class THDCylindrical(BearingElement):
         self.a, self.b = self._interpol(T_muI, T_muF, mu_I, mu_F)
         
         
-        
-        # b_b = np.log(mu_I/mu_F)*1/(T_muI-T_muF)
-        # a_a = mu_I/(np.exp(T_muI*b_b))
-        # self.reference_viscosity = a_a*np.exp(self.reference_temperature*b_b)
-        
-        # self.reference_viscosity = self.a*(self.reference_temperature**self.b)
-        self.reference_viscosity = 0.032
-        print(self.reference_viscosity)
+         
+        self.reference_viscosity = self.a*(self.reference_temperature**self.b)
+
+   
         
         number_of_freq = np.shape(speed)[0]
 
@@ -1630,47 +1624,19 @@ class THDCylindrical(BearingElement):
                     if self.theta_vol_groove[n_p] > 1:
                         self.theta_vol_groove[n_p] = 1
 
-        # PP = np.zeros(
-        #     ((self.elements_axial), (self.n_pad * self.elements_circumferential))
-        # )
 
-        # i = 0
-        # for i in range(self.elements_axial):
-
-        #     PP[i] = self.Pdim[i, :, :].ravel("F")
-
-        # Ytheta = np.array(Ytheta)
-        # Ytheta = Ytheta.flatten()
-
-        # auxF = np.zeros((2, len(Ytheta)))
-
-        # auxF[0, :] = np.cos(Ytheta)
-        # auxF[1, :] = np.sin(Ytheta)
-
-        # dA = self.dy * self.dz
-
-        # auxP = PP * dA
-
-        # vector_auxF_x = auxF[0, :]
-        # vector_auxF_y = auxF[1, :]
-
-        # auxFx = auxP * vector_auxF_x
-        # auxFy = auxP * vector_auxF_y
-
-        # fxj = -np.sum(auxFx)
-        # fyj = -np.sum(auxFy)
 
         PPlot=np.zeros((self.elements_axial,self.elements_circumferential*self.n_pad))
-        # TPlot=np.zeros((self.elements_axial,self.elements_circumferential*self.n_pad))
+
         
         for i in range(self.elements_axial):
             
             PPlot[i]=self.Pdim[i,:,:].ravel('F')
-            # TPlot[i]=self.Tdim[i,:,:].ravel('F')
+
         
         Ytheta = np.array(Ytheta)
         Ytheta = Ytheta.flatten()       
-                # Integração do Campo de Pressão para Cálculo da Força
+               
         auxF=np.zeros((2,len(Ytheta)))
         
         auxF[0,:]=np.cos(Ytheta)
@@ -1687,8 +1653,7 @@ class THDCylindrical(BearingElement):
         Fhx = F1
         Fhy = F2
 
-        # Fhx = fxj
-        # Fhy = fyj
+
         self.Fhx = Fhx
         self.Fhy = Fhy
         return Fhx, Fhy
@@ -1707,7 +1672,7 @@ class THDCylindrical(BearingElement):
             args,
             method="Nelder-Mead",
             tol=10e-2,
-            options={"maxiter": 1},
+            options={"maxiter": 1e4},
         )
         self.equilibrium_pos = res.x
         t2 = time.time()
@@ -2479,12 +2444,11 @@ def cylindrical_bearing_example():
         axial_length=(10.36*25.4e-3),
         journal_radius=(15.748/2*25.4e-3),
         radial_clearance=(0.00766*25.4e-3),
-        elements_circumferential=21,
-        elements_axial=7,
+        elements_circumferential=11,
+        elements_axial=3,
         n_pad=2,
         pad_arc_length=176,
         reference_temperature=49.85,
-        # reference_viscosity=0.032,
         speed=Q_([900], "RPM"),
         load_x_direction=0,
         load_y_direction=-112814.91,
@@ -2492,14 +2456,14 @@ def cylindrical_bearing_example():
         lubricant="TEST",
         node=3,
         sommerfeld_type=2,
-        initial_guess=[0.52240461, 5.6091585 ],
+        initial_guess=[0.1, -0.1],
         method="perturbation",
-        operating_type="starvation",
+        operating_type="flooded",
         injection_pressure=0,
-        oil_flow=2*18.93,
-        show_coef=True,
-        print_result=True,
-        print_progress=True,
+        oil_flow=37.86,
+        show_coef=False,
+        print_result=False,
+        print_progress=False,
         print_time=False,
     )
 
