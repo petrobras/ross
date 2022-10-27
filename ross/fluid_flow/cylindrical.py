@@ -647,7 +647,7 @@ class THDCylindrical(BearingElement):
                     # Termo Fonte
                     KP1 = -(self.dZ / (2 * self.betha_s)) * he
 
-                    KP2 = -hpt*self.dY*self.dZ*self.Theta_vol[ki,kj,n_p]
+                    KP2 = -hpt*self.dY*self.dZ
 
                     KP = KP1 + KP2
 
@@ -1124,7 +1124,7 @@ class THDCylindrical(BearingElement):
 
                     p = np.ones((nk, 1))  # Pressure vector
 
-                    B_theta = np.zeros((nk, 1))  # Termo fonte for theta vol
+                    B_theta = np.zeros((nk, 1))  
 
                     if self.operating_type == "flooded":
                         self._flooded(n_p, Mat_coef, b_P, mu)
@@ -1255,7 +1255,7 @@ class THDCylindrical(BearingElement):
                                     * self.journal_radius
                                     * (HP / self.axial_length)
                                     * self.radial_clearance
-                                    / (self.reference_viscosity)
+                                    / (self.reference_viscosity*mu_p)
                                 )
                                 
                             else:
@@ -1265,7 +1265,7 @@ class THDCylindrical(BearingElement):
                                     * self.journal_radius
                                     * (HP / self.axial_length)
                                     * self.radial_clearance
-                                    / (self.reference_viscosity)
+                                    / (self.reference_viscosity*mu_p)
                                 )
 
 
@@ -1630,65 +1630,65 @@ class THDCylindrical(BearingElement):
                     if self.theta_vol_groove[n_p] > 1:
                         self.theta_vol_groove[n_p] = 1
 
-        PP = np.zeros(
-            ((self.elements_axial), (self.n_pad * self.elements_circumferential))
-        )
+        # PP = np.zeros(
+        #     ((self.elements_axial), (self.n_pad * self.elements_circumferential))
+        # )
 
-        i = 0
-        for i in range(self.elements_axial):
-
-            PP[i] = self.Pdim[i, :, :].ravel("F")
-
-        Ytheta = np.array(Ytheta)
-        Ytheta = Ytheta.flatten()
-
-        auxF = np.zeros((2, len(Ytheta)))
-
-        auxF[0, :] = np.cos(Ytheta)
-        auxF[1, :] = np.sin(Ytheta)
-
-        dA = self.dy * self.dz
-
-        auxP = PP * dA
-
-        vector_auxF_x = auxF[0, :]
-        vector_auxF_y = auxF[1, :]
-
-        auxFx = auxP * vector_auxF_x
-        auxFy = auxP * vector_auxF_y
-
-        fxj = -np.sum(auxFx)
-        fyj = -np.sum(auxFy)
-
-        # PPlot=np.zeros((self.elements_axial,self.elements_circumferential*self.n_pad))
-        # # TPlot=np.zeros((self.elements_axial,self.elements_circumferential*self.n_pad))
-        
+        # i = 0
         # for i in range(self.elements_axial):
-            
-        #     PPlot[i]=self.Pdim[i,:,:].ravel('F')
-        #     # TPlot[i]=self.Tdim[i,:,:].ravel('F')
-        
+
+        #     PP[i] = self.Pdim[i, :, :].ravel("F")
+
         # Ytheta = np.array(Ytheta)
-        # Ytheta = Ytheta.flatten()       
-        #         # Integração do Campo de Pressão para Cálculo da Força
-        # auxF=np.zeros((2,len(Ytheta)))
-        
-        # auxF[0,:]=np.cos(Ytheta)
-        # auxF[1,:]=np.sin(Ytheta)
-        
-        # fx1 = np.trapz(PPlot*auxF[0,:], self.journal_radius*Ytheta)
-        # Fhx = -np.trapz(fx1, self.axial_length*self.Z[1:self.elements_axial+1])
-        
-        # fy1 = np.trapz(PPlot*auxF[1,:], self.journal_radius*Ytheta)
-        # Fhy = -np.trapz(fy1, self.axial_length*self.Z[1:self.elements_axial+1])
-        # F1=Fhx
-        # F2=Fhy
+        # Ytheta = Ytheta.flatten()
 
-        # Fhx = F1
-        # Fhy = F2
+        # auxF = np.zeros((2, len(Ytheta)))
 
-        Fhx = fxj
-        Fhy = fyj
+        # auxF[0, :] = np.cos(Ytheta)
+        # auxF[1, :] = np.sin(Ytheta)
+
+        # dA = self.dy * self.dz
+
+        # auxP = PP * dA
+
+        # vector_auxF_x = auxF[0, :]
+        # vector_auxF_y = auxF[1, :]
+
+        # auxFx = auxP * vector_auxF_x
+        # auxFy = auxP * vector_auxF_y
+
+        # fxj = -np.sum(auxFx)
+        # fyj = -np.sum(auxFy)
+
+        PPlot=np.zeros((self.elements_axial,self.elements_circumferential*self.n_pad))
+        # TPlot=np.zeros((self.elements_axial,self.elements_circumferential*self.n_pad))
+        
+        for i in range(self.elements_axial):
+            
+            PPlot[i]=self.Pdim[i,:,:].ravel('F')
+            # TPlot[i]=self.Tdim[i,:,:].ravel('F')
+        
+        Ytheta = np.array(Ytheta)
+        Ytheta = Ytheta.flatten()       
+                # Integração do Campo de Pressão para Cálculo da Força
+        auxF=np.zeros((2,len(Ytheta)))
+        
+        auxF[0,:]=np.cos(Ytheta)
+        auxF[1,:]=np.sin(Ytheta)
+        
+        fx1 = np.trapz(PPlot*auxF[0,:], self.journal_radius*Ytheta)
+        Fhx = -np.trapz(fx1, self.axial_length*self.Z[1:self.elements_axial+1])
+        
+        fy1 = np.trapz(PPlot*auxF[1,:], self.journal_radius*Ytheta)
+        Fhy = -np.trapz(fy1, self.axial_length*self.Z[1:self.elements_axial+1])
+        F1=Fhx
+        F2=Fhy
+
+        Fhx = F1
+        Fhy = F2
+
+        # Fhx = fxj
+        # Fhy = fyj
         self.Fhx = Fhx
         self.Fhy = Fhy
         return Fhx, Fhy
@@ -1707,7 +1707,7 @@ class THDCylindrical(BearingElement):
             args,
             method="Nelder-Mead",
             tol=10e-2,
-            options={"maxiter": 1000000},
+            options={"maxiter": 1},
         )
         self.equilibrium_pos = res.x
         t2 = time.time()
@@ -1818,7 +1818,7 @@ class THDCylindrical(BearingElement):
         Va = self.speed * (self.journal_radius)
         epixpt = 0.000001 * np.abs(Va * np.sin(self.equilibrium_pos[1]))
         epiypt = 0.000001 * np.abs(Va * np.cos(self.equilibrium_pos[1]))
-
+        
         Auinitial_guess1 = self._forces(xeq + epix, yeq, 0, 0)
         Auinitial_guess2 = self._forces(xeq - epix, yeq, 0, 0)
         Auinitial_guess3 = self._forces(xeq, yeq + epiy, 0, 0)
@@ -1842,23 +1842,24 @@ class THDCylindrical(BearingElement):
             (Auinitial_guess3[1] - Auinitial_guess4[1]) / (epiy / self.radial_clearance)
         )
 
-        Cxx = -self.sommerfeld(Auinitial_guess5[0], Auinitial_guess6[0]) * (
+        Cxx = -self.sommerfeld(Auinitial_guess5[0], Auinitial_guess6[1]) * (
             (Auinitial_guess5[0] - Auinitial_guess6[0])
             / (epixpt / self.radial_clearance / self.speed)
         )
-        Cxy = -self.sommerfeld(Auinitial_guess7[0], Auinitial_guess8[0]) * (
+        Cxy = -self.sommerfeld(Auinitial_guess7[0], Auinitial_guess8[1]) * (
             (Auinitial_guess7[0] - Auinitial_guess8[0])
             / (epiypt / self.radial_clearance / self.speed)
         )
-        Cyx = -self.sommerfeld(Auinitial_guess5[1], Auinitial_guess6[1]) * (
+        Cyx = -self.sommerfeld(Auinitial_guess5[0], Auinitial_guess6[1]) * (
             (Auinitial_guess5[1] - Auinitial_guess6[1])
             / (epixpt / self.radial_clearance / self.speed)
         )
-        Cyy = -self.sommerfeld(Auinitial_guess7[1], Auinitial_guess8[1]) * (
+        Cyy = -self.sommerfeld(Auinitial_guess7[0], Auinitial_guess8[1]) * (
             (Auinitial_guess7[1] - Auinitial_guess8[1])
             / (epiypt / self.radial_clearance / self.speed)
         )
-
+       
+        
         kxx = (
             np.sqrt((self.load_x_direction**2) + (self.load_y_direction**2))
             / self.radial_clearance
@@ -2433,6 +2434,7 @@ class THDCylindrical(BearingElement):
         Ss : float
             Sommerfeld number.
         """
+
         if self.sommerfeld_type == 1:
             S = (
                 self.reference_viscosity
@@ -2490,11 +2492,11 @@ def cylindrical_bearing_example():
         lubricant="TEST",
         node=3,
         sommerfeld_type=2,
-        initial_guess=[0.42, 5.67],
+        initial_guess=[0.52240461, 5.6091585 ],
         method="perturbation",
         operating_type="starvation",
         injection_pressure=0,
-        oil_flow=2*18,
+        oil_flow=2*18.93,
         show_coef=True,
         print_result=True,
         print_progress=True,
