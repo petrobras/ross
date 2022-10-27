@@ -302,6 +302,25 @@ class THDCylindrical(BearingElement):
         super().__init__(node, kxx, cxx, kyy, kxy, kyx, cyy, cxy, cyx, speed)
 
     def _flooded(self, n_p, Mat_coef, b_P, mu):
+        """Provides an analysis in which the bearing always receive sufficient oil feed to operate.
+
+        Parameters
+        ----------
+        n_p : integer,
+           current pad in analysis.
+        Mat_coef : np.array
+            Coeficient matrix.
+        b_P: np.array
+            Coefficients to pressure independent terms.
+        mu : np.array
+            Viscosity matrix.
+
+        Returns
+        -------
+        self.P : np.array
+            Pressure distribution in current pad vector.
+        """
+
         ki = 0
         kj = 0
         k = 0
@@ -512,6 +531,33 @@ class THDCylindrical(BearingElement):
         return self.P
 
     def _starvation(self, n_p, Mat_coef_st, mu, p_old, p, B, B_theta, nk):
+        """Provides an analysis in which the bearing may receive insufficient oil feed.
+
+        Parameters
+        ----------
+        n_p : integer,
+           current pad in analysis.
+        Mat_coef_st : np.array
+            Coeficient matrix.
+        mu : np.array
+            Viscosity matrix.
+        p_old : np.array
+            Past pressure matrix.
+        p : np.array
+            Current pressure matrix.
+        B: np.array
+            Coefficients to independent terms.
+        B: np.array
+            Coefficients to volumetric fraction independent terms.
+        nk: integer
+            counter.
+
+
+        Returns
+        -------
+        self.P : np.array
+            Pressure distribution in current pad vector.
+        """
 
         while self.erro >= 0.01:
 
