@@ -512,7 +512,7 @@ class THDCylindrical(BearingElement):
         return self.P
 
     def _starvation(self, n_p, Mat_coef_st, mu, p_old, p, B, B_theta, nk):
-        global pdim
+
         while self.erro >= 0.01:
 
             p_old = np.array(p)
@@ -938,7 +938,7 @@ class THDCylindrical(BearingElement):
         self.Pdim = (
             self.P * self.reference_viscosity * self.speed * (self.journal_radius**2)
         ) / (self.radial_clearance**2)
-        pdim = self.Pdim
+
         return self.P
 
     def _forces(self, initial_guess, y0, xpt0, ypt0):
@@ -965,7 +965,7 @@ class THDCylindrical(BearingElement):
         Fhy : float
             Force in Y direction. The unit is newton.
         """
-        global Tdim
+
         if y0 is None and xpt0 is None and ypt0 is None:
             self.initial_guess = initial_guess
 
@@ -1663,8 +1663,8 @@ class THDCylindrical(BearingElement):
         """This method runs the optimization to find the equilibrium position of
         the rotor's center.
 
-
         """
+
         args = self.print_progress
         t1 = time.time()
         res = minimize(
@@ -1866,8 +1866,6 @@ class THDCylindrical(BearingElement):
         order perturbation solution) is aplied. The four stiffness coefficients,
         and the four damping coefficients is obtained by integration of the pressure
         field.
-
-
         """
 
         p = self.P
@@ -2369,6 +2367,7 @@ class THDCylindrical(BearingElement):
         Score coefficient.
 
         """
+
         Fhx, Fhy = self._forces(x, None, None, None)
         score = np.sqrt(
             ((self.load_x_direction + Fhx) ** 2) + ((self.load_y_direction + Fhy) ** 2)
