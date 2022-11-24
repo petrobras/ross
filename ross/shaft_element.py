@@ -36,7 +36,8 @@ class ShaftElement(Element):
 
     Parameters
     ----------
-
+    L : float, pint.Quantity
+        Shaft length (m).
     idl : float, pint.Quantity
         Inner diameter of the element at the left position (m).
     odl : float, pint.Quantity
@@ -47,8 +48,6 @@ class ShaftElement(Element):
     odr : float, pint.Quantity, optional
         Outer diameter of the element at the right position (m).
         Default is equal to odl value (cylindrical element).
-    L : float
-        Shaft length (m).
     material : ross.Material
         Shaft material.
     n : int, optional
