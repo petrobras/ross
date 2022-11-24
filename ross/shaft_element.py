@@ -37,7 +37,7 @@ class ShaftElement(Element):
     Parameters
     ----------
     L : float, pint.Quantity
-        Shaft length (m).
+        Element length (m).
     idl : float, pint.Quantity
         Inner diameter of the element at the left position (m).
     odl : float, pint.Quantity
