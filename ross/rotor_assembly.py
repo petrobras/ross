@@ -581,7 +581,7 @@ class Rotor(object):
             return False
 
     @check_units
-    def run_modal(self, speed, num_modes=12, sparse=True):
+    def run_modal(self, speed, num_modes=12, sparse=True, synchronous=False):
         """Run modal analysis.
 
         Method to calculate eigenvalues and eigvectors for a given rotor system.
@@ -613,6 +613,9 @@ class Rotor(object):
             If False, scipy.linalg.eig() is used to calculate all the eigenvalues and
             eigenvectors.
             Default is True.
+        synchronous : bool, optional
+            If True a synchronous analysis is carried out.
+            Default is False.
 
         Returns
         -------
@@ -636,7 +639,7 @@ class Rotor(object):
         >>> mode2 = 1  # Second mode
         >>> fig = modal.plot_mode_2d(mode2)
         """
-        evalues, evectors = self._eigen(speed, num_modes=num_modes, sparse=sparse)
+        evalues, evectors = self._eigen(speed, num_modes=num_modes, sparse=sparse, synchronous=synchronous)
         wn_len = num_modes // 2
         wn = (np.absolute(evalues))[:wn_len]
         wd = (np.imag(evalues))[:wn_len]
@@ -884,8 +887,14 @@ class Rotor(object):
 
         return results
 
-    def M(self):
+    def M(self, synchronous=False):
         """Mass matrix for an instance of a rotor.
+
+        Parameters
+        ----------
+        synchronous : bool, optional
+            If True a synchronous analysis is carried out.
+            Default is False.
 
         Returns
         -------
@@ -905,7 +914,32 @@ class Rotor(object):
 
         for elm in self.elements:
             dofs = list(elm.dof_global_index.values())
-            M0[np.ix_(dofs, dofs)] += elm.M()
+            if synchronous:
+                if elm in self.shaft_elements:
+                    M = elm.M()
+                    G = elm.G()
+                    for i in range(8):
+                        if i == 0 or i == 3 or i == 4 or i == 7:
+                            M[i, 0] = M[i, 0] - G[i, 1]
+                            M[i, 3] = M[i, 3] + G[i, 2]
+                            M[i, 4] = M[i, 4] - G[i, 5]
+                            M[i, 7] = M[i, 7] + G[i, 6]
+                        else:
+                            M[i, 1] = M[i, 1] + G[i, 0]
+                            M[i, 2] = M[i, 2] - G[i, 3]
+                            M[i, 5] = M[i, 5] + G[i, 4]
+                            M[i, 6] = M[i, 6] - G[i, 7]
+                    M0[np.ix_(dofs, dofs)] += M
+                elif elm in self.disk_elements:
+                    M = elm.M()
+                    G = elm.G()
+                    M[2, 2] = M[2, 2] - G[2, 3]
+                    M[3, 3] = M[3, 3] + G[3, 2]
+                    M0[np.ix_(dofs, dofs)] += M
+                else:
+                    M0[np.ix_(dofs, dofs)] += elm.M()
+            else:
+                M0[np.ix_(dofs, dofs)] += elm.M()
 
         return M0
 
@@ -1035,7 +1069,7 @@ class Rotor(object):
 
         return G0
 
-    def A(self, speed=0, frequency=None):
+    def A(self, speed=0, frequency=None, synchronous=False):
         """State space matrix for an instance of a rotor.
 
         Parameters
@@ -1045,6 +1079,9 @@ class Rotor(object):
             Default is 0.
         frequency : float, optional
             Excitation frequency. Default is rotor speed.
+        synchronous : bool, optional
+            If True a synchronous analysis is carried out.
+            Default is False.
 
         Returns
         -------
@@ -1071,7 +1108,7 @@ class Rotor(object):
         # fmt: off
         A = np.vstack(
             [np.hstack([Z, I]),
-             np.hstack([la.solve(-self.M(), self.K(frequency) + self.Kst()*speed), la.solve(-self.M(), (self.C(frequency) + self.G() * speed))])])
+             np.hstack([la.solve(-self.M(synchronous=synchronous), self.K(frequency) + self.Kst()*speed), la.solve(-self.M(synchronous=synchronous), (self.C(frequency) + self.G() * speed))])])
         # fmt: on
 
         return A
@@ -1222,7 +1259,7 @@ class Rotor(object):
 
     @check_units
     def _eigen(
-        self, speed, num_modes=12, frequency=None, sorted_=True, A=None, sparse=True
+        self, speed, num_modes=12, frequency=None, sorted_=True, A=None, sparse=True, synchronous=False
     ):
         """Calculate eigenvalues and eigenvectors.
 
@@ -1246,6 +1283,9 @@ class Rotor(object):
         sparse : bool, optional
             If sparse, eigenvalues will be calculated with arpack.
             Default is True.
+        synchronous : bool, optional
+            If True a synchronous analysis is carried out.
+            Default is False.
 
         Returns
         -------
@@ -1262,7 +1302,7 @@ class Rotor(object):
         91.796...
         """
         if A is None:
-            A = self.A(speed=speed, frequency=frequency)
+            A = self.A(speed=speed, frequency=frequency, synchronous=synchronous)
 
         if sparse is True:
             try:
@@ -2154,9 +2194,8 @@ class Rotor(object):
             Default is 16. In this case 4 modes are plotted, since for each pair
             of eigenvalues calculated we have one wn, and we show only the
             forward mode in the plots.
-        synchronous : bool
-            If True a synchronous analysis is carried out and the frequency of
-            the first forward model will be equal to the speed.
+        synchronous : bool, optional
+            If True a synchronous analysis is carried out.
             Default is False.
 
         Returns
@@ -2193,31 +2232,8 @@ class Rotor(object):
             bearings = [BearingElement(b.n, kxx=k, cxx=0) for b in bearings_elements]
             rotor = self.__class__(self.shaft_elements, self.disk_elements, bearings)
             speed = 0
-            if synchronous:
-
-                def wn_diff(x):
-                    """Function to evaluate difference between speed and
-                    natural frequency for the first mode."""
-                    modal = rotor.run_modal(speed=x, num_modes=num_modes)
-                    # get first forward mode
-                    if modal.whirl_direction()[0] == "Forward":
-                        wn0 = modal.wn[0]
-                    else:
-                        wn0 = modal.wn[1]
-
-                    return wn0 - x
-
-                speed = newton(wn_diff, 0)
-            modal = rotor.run_modal(speed=speed, num_modes=num_modes)
-
-            # if sync, select only forward modes
-            if synchronous:
-                rotor_wn[:, i] = modal.wn[modal.whirl_direction() == "Forward"]
-            # if not sync, with speed=0 whirl direction can be confusing, with
-            # two close modes being forward or backward, so we select one mode in
-            # each 2 modes.
-            else:
-                rotor_wn[:, i] = modal.wn[::2]
+            modal = rotor.run_modal(speed=speed, num_modes=num_modes, synchronous=synchronous)
+            rotor_wn[:, i] = modal.wn[::2]
 
         bearing0 = bearings_elements[0]
 
@@ -2262,7 +2278,7 @@ class Rotor(object):
                 bearing_elements=bearings,
             )
 
-            modal_critical = rotor_critical.run_modal(speed=speed)
+            modal_critical = rotor_critical.run_modal(speed=speed, synchronous=synchronous)
 
             critical_points_modal.append(modal_critical)
 
