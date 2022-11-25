@@ -91,16 +91,10 @@ class DiskElement(Element):
         false_number = 0
         for i in self.__dict__:
             try:
-                if np.allclose(self.__dict__[i], other.__dict__[i]):
-                    pass
-                else:
-                    false_number += 1
+                self.__dict__[i] == other.__dict__[i]
 
-            except TypeError:
-                if self.__dict__[i] == other.__dict__[i]:
-                    pass
-                else:
-                    false_number += 1
+            except:
+                false_number += 1
 
         if false_number == 0:
             return True
