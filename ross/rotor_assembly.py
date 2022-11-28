@@ -639,7 +639,9 @@ class Rotor(object):
         >>> mode2 = 1  # Second mode
         >>> fig = modal.plot_mode_2d(mode2)
         """
-        evalues, evectors = self._eigen(speed, num_modes=num_modes, sparse=sparse, synchronous=synchronous)
+        evalues, evectors = self._eigen(
+            speed, num_modes=num_modes, sparse=sparse, synchronous=synchronous
+        )
         wn_len = num_modes // 2
         wn = (np.absolute(evalues))[:wn_len]
         wd = (np.imag(evalues))[:wn_len]
@@ -1259,7 +1261,14 @@ class Rotor(object):
 
     @check_units
     def _eigen(
-        self, speed, num_modes=12, frequency=None, sorted_=True, A=None, sparse=True, synchronous=False
+        self,
+        speed,
+        num_modes=12,
+        frequency=None,
+        sorted_=True,
+        A=None,
+        sparse=True,
+        synchronous=False,
     ):
         """Calculate eigenvalues and eigenvectors.
 
@@ -2232,7 +2241,9 @@ class Rotor(object):
             bearings = [BearingElement(b.n, kxx=k, cxx=0) for b in bearings_elements]
             rotor = self.__class__(self.shaft_elements, self.disk_elements, bearings)
             speed = 0
-            modal = rotor.run_modal(speed=speed, num_modes=num_modes, synchronous=synchronous)
+            modal = rotor.run_modal(
+                speed=speed, num_modes=num_modes, synchronous=synchronous
+            )
             rotor_wn[:, i] = modal.wn[::2]
 
         bearing0 = bearings_elements[0]
@@ -2278,7 +2289,9 @@ class Rotor(object):
                 bearing_elements=bearings,
             )
 
-            modal_critical = rotor_critical.run_modal(speed=speed, synchronous=synchronous)
+            modal_critical = rotor_critical.run_modal(
+                speed=speed, synchronous=synchronous
+            )
 
             critical_points_modal.append(modal_critical)
 

@@ -92,7 +92,6 @@ class DiskElement(Element):
         for i in self.__dict__:
             try:
                 self.__dict__[i] == other.__dict__[i]
-
             except:
                 false_number += 1
 
