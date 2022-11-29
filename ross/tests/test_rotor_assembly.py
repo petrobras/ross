@@ -1759,6 +1759,21 @@ def test_ucs_calc(rotor8):
         ucs_results.intersection_points["y"][:3], exp_intersection_points_y, rtol=1e-3
     )
 
+    ucs_results = rotor8.run_ucs(synchronous=True)
+    exp_rotor_wn = np.array([86.90425, 96.074398, 102.443684])
+    exp_intersection_points_x = np.array(
+        [10058123.652648, 10058123.652648, 10363082.398797]
+    )
+    exp_intersection_points_y = np.array([108.307651, 108.307651, 413.276569])
+    assert_allclose(ucs_results.stiffness_log[:3], exp_stiffness_range)
+    assert_allclose(ucs_results.wn[0, :3], exp_rotor_wn)
+    assert_allclose(
+        ucs_results.intersection_points["x"][:3], exp_intersection_points_x, rtol=1e-3
+    )
+    assert_allclose(
+        ucs_results.intersection_points["y"][:3], exp_intersection_points_y, rtol=1e-3
+    )
+
 
 def test_ucs_rotor9(rotor9):
     ucs_results = rotor9.run_ucs(num_modes=32)
