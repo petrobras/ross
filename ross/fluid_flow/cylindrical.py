@@ -558,7 +558,7 @@ class THDCylindrical(BearingElement):
         self.P : np.array
             Pressure distribution in current pad vector.
         """
-
+        global pressao
         while self.erro >= 0.01:
 
             p_old = np.array(p)
@@ -984,7 +984,7 @@ class THDCylindrical(BearingElement):
         self.Pdim = (
             self.P * self.reference_viscosity * self.speed * (self.journal_radius**2)
         ) / (self.radial_clearance**2)
-
+        pressao = self.Pdim
         return self.P
 
     def _forces(self, initial_guess, y0, xpt0, ypt0):
@@ -1011,7 +1011,7 @@ class THDCylindrical(BearingElement):
         Fhy : float
             Force in Y direction. The unit is newton.
         """
-
+        global temperatura
         if y0 is None and xpt0 is None and ypt0 is None:
             self.initial_guess = initial_guess
 
@@ -1610,7 +1610,7 @@ class THDCylindrical(BearingElement):
                             cont = cont + 1
 
                     Tdim = T_new * self.reference_temperature
-
+                    temperatura = Tdim
                     T_end[n_p] = np.sum(Tdim[:, -1, n_p]) / self.elements_axial
 
                     if self.operating_type == "flooded":
@@ -2567,8 +2567,8 @@ def cylindrical_bearing_example():
         axial_length=(0.263144),
         journal_radius=(0.2),
         radial_clearance=(1.95e-4),
-        elements_circumferential=11,
-        elements_axial=3,
+        elements_circumferential=21,
+        elements_axial=7,
         n_pad=2,
         pad_arc_length=176,
         reference_temperature=50,
@@ -2576,17 +2576,17 @@ def cylindrical_bearing_example():
         load_x_direction=0,
         load_y_direction=-112814.91,
         groove_factor=[0.52, 0.48],
-        lubricant="ISOVG32",
+        lubricant="TEST",
         node=3,
         sommerfeld_type=2,
-        initial_guess=[0.1, -0.1],
+        initial_guess=[0.5, -0.5],
         method="lund",
-        operating_type="flooded",
+        operating_type="starvation",
         injection_pressure=0,
-        oil_flow=37.86,
+        oil_flow=2*18.93,
         show_coef=True,
         print_result=True,
-        print_progress=False,
+        print_progress=True,
         print_time=False,
     )
 
