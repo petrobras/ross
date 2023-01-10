@@ -1313,18 +1313,32 @@ class Rotor(object):
         if A is None:
             A = self.A(speed=speed, frequency=frequency, synchronous=synchronous)
 
-        if sparse is True:
-            try:
-                evalues, evectors = las.eigs(
-                    A, k=num_modes, sigma=0, ncv=2 * num_modes, which="LM", v0=self._v0
-                )
-                # store v0 as a linear combination of the previously
-                # calculated eigenvectors to use in the next call to eigs
-                self._v0 = np.real(sum(evectors.T))
-            except las.ArpackError:
-                evalues, evectors = la.eig(A)
-        else:
+        if synchronous:
             evalues, evectors = la.eig(A)
+            idx = np.where(np.imag(evalues) != 0)[0]
+            evalues = evalues[idx]
+            evectors = evectors[:, idx]
+            idx = np.where(np.abs(np.real(evalues) / np.imag(evalues)) < 1000)[0]
+            evalues = evalues[idx]
+            evectors = evectors[:, idx]
+        else:
+            if sparse is True:
+                try:
+                    evalues, evectors = las.eigs(
+                        A,
+                        k=num_modes,
+                        sigma=0,
+                        ncv=2 * num_modes,
+                        which="LM",
+                        v0=self._v0,
+                    )
+                    # store v0 as a linear combination of the previously
+                    # calculated eigenvectors to use in the next call to eigs
+                    self._v0 = np.real(sum(evectors.T))
+                except las.ArpackError:
+                    evalues, evectors = la.eig(A)
+            else:
+                evalues, evectors = la.eig(A)
 
         if sorted_ is False:
             return evalues, evectors
