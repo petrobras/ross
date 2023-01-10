@@ -1,5 +1,5 @@
 # Rotordynamic Open Source Software (ROSS)
-[![Binder](https://mybinder.org/badge_logo.svg)](https://mybinder.org/v2/gh/ross-rotordynamics/ross/1.1.0?filepath=%2Fdocs%2Ftutorials)
+[![Binder](https://mybinder.org/badge_logo.svg)](https://mybinder.org/v2/gh/ross-rotordynamics/ross/1.3.0?filepath=%2Fdocs%2Ftutorials)
 ![github actions](https://github.com/ross-rotordynamics/ross/workflows/Tests/badge.svg)
 [![Documentation Status](https://readthedocs.org/projects/ross/badge/?version=latest)](https://ross.readthedocs.io/en/latest/?badge=latest)
 <a href="https://codecov.io/gh/ross-rotordynamics/ross">
@@ -29,4 +29,4 @@ There you can find the [installation procedure](https://ross.readthedocs.io/en/l
 If you have any questions you can use the [Discussions](https://github.com/ross-rotordynamics/ross/discussions) area in the repository.
 
 # Contributing to ROSS
-Check [CONTRIBUTING.rst](https://github.com/ross-rotordynamics/ross/blob/master/CONTRIBUTING.rst).
+Check [CONTRIBUTING.rst](https://github.com/ross-rotordynamics/ross/blob/master/CONTRIBUTING.rst). 
