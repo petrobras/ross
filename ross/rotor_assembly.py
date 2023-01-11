@@ -2303,9 +2303,7 @@ class Rotor(object):
                 bearing_elements=bearings,
             )
 
-            modal_critical = rotor_critical.run_modal(
-                speed=speed, synchronous=synchronous
-            )
+            modal_critical = rotor_critical.run_modal(speed=speed)
 
             critical_points_modal.append(modal_critical)
 
