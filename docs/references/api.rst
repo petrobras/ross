@@ -27,6 +27,7 @@ Elements
     RollerBearingElement
     BearingFluidFlow
     MagneticBearingElement
+    PointMass
 
 Rotor and Results
 -----------------
