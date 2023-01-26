@@ -97,7 +97,7 @@ setup(
     extras_require=EXTRAS,
     package_data={"": ["new_units.txt"]},
     include_package_data=True,
-    license="MIT",
+    license="Apache License 2.0",
     classifiers=[
         # Trove classifiers
         # Full list: https://pypi.python.org/pypi?%3Aaction=list_classifiers
