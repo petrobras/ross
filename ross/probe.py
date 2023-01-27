@@ -13,7 +13,7 @@ class Probe():
     -------
     >>> probe1 = Probe(10,Q_(45,"degree"),"V1")
     >>> probe1.info
-    (10, pi/4)
+    (10, 0.7853981633974483)
     """
 
     @check_units
@@ -29,8 +29,8 @@ class Probe():
 
     def __str__(self):
         return (
-            f"{self.tag}"
+            f"Probe {self.tag}"
             f'\n{20*"-"}'
-            f"\Node location           : {self.node}"
+            f"\nNode location           : {self.node}"
             f"\nProbe orientation angle (rad) : {self.angle}"
         )
