@@ -1,14 +1,15 @@
 from ross.units import Q_, check_units
 
-class Probe():
+
+class Probe:
     """Class of a probe.
-    
+
     Parameters
     ----------
     node : int -> Indicate the node where the probe is located.
     angle : float, pint.Quantity -> Probe orientation angle about the shaft.
     tag : str, optional -> Probe tag to be add a DataFrame column title.
-        
+
     Example
     -------
     >>> probe1 = Probe(10,Q_(45,"degree"),"V1")
@@ -23,7 +24,7 @@ class Probe():
         if tag is not None:
             self.tag = tag
 
-    @property        
+    @property
     def info(self):
         return (self.node, self.angle)
 
