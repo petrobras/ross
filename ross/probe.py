@@ -1,3 +1,5 @@
+from ross.units import Q_, check_units
+
 class Probe():
     """Class of a probe.
     
