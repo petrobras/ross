@@ -5,6 +5,8 @@ Tests for:
     st_bearing_seal_element.py
     st_point_mass.py
 """
+import sys
+
 import numpy as np
 import pytest
 from plotly import graph_objects as go
@@ -123,8 +125,13 @@ def test_st_disk_element_from_geometry(rand_disk_from_geometry):
     elm = list(iter(rand_disk_from_geometry))
     assert [dk.n for dk in elm] == [1, 1]
     assert [dk.m for dk in elm] == [37.570502893821185, 76.74810321754951]
-    assert [dk.Id for dk in elm] == [0.23254575853654735, 0.8256816771154702]
-    assert [dk.Ip for dk in elm] == [0.43440893970980754, 1.5694987107988876]
+
+    if sys.version_info >= (3,8):
+        assert [dk.Id for dk in elm] == [0.23254575853654735, 0.8256816771154702]
+        assert [dk.Ip for dk in elm] == [0.43440893970980743, 1.5694987107988876]
+    else:
+        assert [dk.Id for dk in elm] == [0.2325457585365474, 0.8256816771154702]
+        assert [dk.Ip for dk in elm] == [0.43440893970980754, 1.5694987107988876]
 
 
 def test_st_bearing_element_constant_coef(rand_bearing_constant_coefs):
