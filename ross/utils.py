@@ -408,7 +408,7 @@ def visualize_matrix(rotor, matrix, frequency=None, **kwargs):
             x=x_axis,
             y=y_axis,
             z=A[::-1],
-            customdata=np.array(data["elements"],dtype=object).reshape(A.shape)[::-1],
+            customdata=np.array(data["elements"], dtype=object).reshape(A.shape)[::-1],
             coloraxis="coloraxis",
             hovertemplate=(
                 "<b>Value: %{z:.3e}<b><br>" + "<b>Elements:<b><br> %{customdata}"
