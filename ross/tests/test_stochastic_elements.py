@@ -126,10 +126,10 @@ def test_st_disk_element_from_geometry(rand_disk_from_geometry):
     assert [dk.n for dk in elm] == [1, 1]
     assert [dk.m for dk in elm] == [37.570502893821185, 76.74810321754951]
 
-    if sys.version_info >= (3, 8):
+    try:
         assert [dk.Id for dk in elm] == [0.23254575853654735, 0.8256816771154702]
         assert [dk.Ip for dk in elm] == [0.43440893970980743, 1.5694987107988876]
-    else:
+    except:
         assert [dk.Id for dk in elm] == [0.2325457585365474, 0.8256816771154702]
         assert [dk.Ip for dk in elm] == [0.43440893970980754, 1.5694987107988876]
 
