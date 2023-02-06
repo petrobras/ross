@@ -155,9 +155,12 @@ class Results(ABC):
                 data[key] = Rotor.load(aux_file)
 
             elif isinstance(value, Iterable):
-                data[key] = np.array(value)
-                if data[key].dtype in str_type:
-                    data[key] = np.array(value).astype(np.complex128)
+                try:
+                    data[key] = np.array(value)
+                    if data[key].dtype in str_type:
+                        data[key] = np.array(value).astype(np.complex128)
+                except:
+                    data[key] = value
 
         return cls.read_toml_data(data)
 

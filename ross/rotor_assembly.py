@@ -2886,12 +2886,12 @@ class Rotor(object):
         mx = np.zeros_like(vx)
         for j in range(mx.shape[0]):
             if j == 0:
-                mx[j] = [0, 0.5 * sum(vx[j]) * np.diff(vx_axis[j])]
+                mx[j] = [0, 0.5 * sum(vx[j]) * np.diff(vx_axis[j])[0]]
             if j == mx.shape[0] - 1:
-                mx[j] = [-0.5 * sum(vx[j]) * np.diff(vx_axis[j]), 0]
+                mx[j] = [-0.5 * sum(vx[j]) * np.diff(vx_axis[j])[0], 0]
             else:
                 mx[j, 0] = mx[j - 1, 1]
-                mx[j, 1] = mx[j, 0] + 0.5 * sum(vx[j]) * np.diff(vx_axis[j])
+                mx[j, 1] = mx[j, 0] + 0.5 * sum(vx[j]) * np.diff(vx_axis[j])[0]
 
         # flattening arrays
         vx = vx.flatten()
