@@ -84,7 +84,6 @@ class Rubbing(Defect):
         torque=False,
         print_progress=False,
     ):
-
         self.dt = dt
         self.tI = tI
         self.tF = tF

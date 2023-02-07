@@ -599,7 +599,6 @@ class Shape(Results):
         fig=None,
         **kwargs,
     ):
-
         if fig is None:
             fig = go.Figure()
 
@@ -2718,7 +2717,6 @@ class ForcedResponseResults(Results):
         Rel_ang = np.exp(1j * np.pi / 2)
 
         for i, f in enumerate(self.speed_range):
-
             # Foward and Backward vectors
             fow = response[dofx, i] / 2 + Rel_ang * response[dofy, i] / 2
             back = (
@@ -3460,7 +3458,6 @@ class StaticResults(Results):
         nodes_pos,
         Vx_axis,
     ):
-
         self.deformation = deformation
         self.Vx = Vx
         self.Bm = Bm

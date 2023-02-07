@@ -81,7 +81,6 @@ class Crack(Defect):
         crack_type="Mayes",
         print_progress=False,
     ):
-
         self.dt = dt
         self.tI = tI
         self.tF = tF
