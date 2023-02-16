@@ -73,7 +73,6 @@ rotor = rs.Rotor(shaft_elem, [disk0, disk1], [bearing0, bearing1])
 
 @pytest.fixture
 def rub():
-
     unbalance_magnitudet = np.array([5e-4, 0])
     unbalance_phaset = np.array([-np.pi / 2, 0])
 
@@ -97,7 +96,6 @@ def rub():
 
 @pytest.fixture
 def rub_units():
-
     unbalance_magnitudet = Q_(np.array([0.043398083107259365, 0]), "lb*in")
     unbalance_phaset = Q_(np.array([-90.0, 0.0]), "degrees")
 

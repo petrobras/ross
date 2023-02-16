@@ -148,7 +148,6 @@ class ShaftElement(Element):
         shear_method_calc="cowper",
         tag=None,
     ):
-
         if idr is None:
             idr = idl
         if odr is None:
@@ -1321,7 +1320,6 @@ class ShaftElement6DoF(ShaftElement):
         beta=0,
         tag=None,
     ):
-
         if idr is None:
             idr = idl
         if odr is None:

@@ -130,7 +130,6 @@ class Rotor(object):
         rated_w=None,
         tag=None,
     ):
-
         self.parameters = {"min_w": min_w, "max_w": max_w, "rated_w": rated_w}
         self.tag = "Rotor 0" if tag is None else tag
 
@@ -967,7 +966,6 @@ class Rotor(object):
         Kst0 = np.zeros((self.ndof, self.ndof))
 
         if self.number_dof == 6:
-
             for elm in self.shaft_elements:
                 dofs = list(elm.dof_global_index.values())
                 try:
@@ -2886,12 +2884,12 @@ class Rotor(object):
         mx = np.zeros_like(vx)
         for j in range(mx.shape[0]):
             if j == 0:
-                mx[j] = [0, 0.5 * sum(vx[j]) * np.diff(vx_axis[j])]
+                mx[j] = [0, 0.5 * sum(vx[j]) * np.diff(vx_axis[j])[0]]
             if j == mx.shape[0] - 1:
-                mx[j] = [-0.5 * sum(vx[j]) * np.diff(vx_axis[j]), 0]
+                mx[j] = [-0.5 * sum(vx[j]) * np.diff(vx_axis[j])[0], 0]
             else:
                 mx[j, 0] = mx[j - 1, 1]
-                mx[j, 1] = mx[j, 0] + 0.5 * sum(vx[j]) * np.diff(vx_axis[j])
+                mx[j, 1] = mx[j, 0] + 0.5 * sum(vx[j]) * np.diff(vx_axis[j])[0]
 
         # flattening arrays
         vx = vx.flatten()
@@ -3261,7 +3259,6 @@ class CoAxialRotor(Rotor):
         rated_w=None,
         tag=None,
     ):
-
         self.parameters = {"min_w": min_w, "max_w": max_w, "rated_w": rated_w}
         if tag is None:
             self.tag = "Rotor 0"
