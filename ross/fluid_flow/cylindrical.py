@@ -324,27 +324,51 @@ class THDCylindrical(BearingElement):
         ki = 0
         kj = 0
         k = 0
+        
         for ii in np.arange((self.Z_I + 0.5 * self.dZ), self.Z_F, self.dZ):
             for jj in np.arange(
                 self.thetaI[n_p] + (self.dtheta / 2),
                 self.thetaF[n_p],
                 self.dtheta,
             ):
-
-                hP = 1 - self.X * np.cos(jj) - self.Y * np.sin(jj)
-                he = (
-                    1
-                    - self.X * np.cos(jj + 0.5 * self.dtheta)
-                    - self.Y * np.sin(jj + 0.5 * self.dtheta)
-                )
-                hw = (
-                    1
-                    - self.X * np.cos(jj - 0.5 * self.dtheta)
-                    - self.Y * np.sin(jj - 0.5 * self.dtheta)
-                )
+                
+                
+                m = 0.1
+               
+                phi = self.initial_guess[1]+np.pi/2
+                
+                Ch = self.radial_clearance / (1-m)            
+                Cv = self.radial_clearance
+                
+                e = float(self.initial_guess[0])*self.radial_clearance
+                
+                teta_elipt=(jj)-np.pi/2
+                
+                hP = (Cv+e*np.cos(teta_elipt-phi)+(Ch-Cv)*(np.sin(teta_elipt))**2)/Cv
+                               
+                he = (Cv+e*np.cos(teta_elipt-phi+0.5 * self.dtheta)+(Ch-Cv)*(np.sin(teta_elipt+0.5 * self.dtheta))**2)/Cv
+                                
+                hw = (Cv+e*np.cos(teta_elipt-phi-0.5 * self.dtheta)+(Ch-Cv)*(np.sin(teta_elipt-0.5 * self.dtheta))**2)/Cv
+                
+             
+              
+                # hP = 1 - self.X * np.cos(jj) - self.Y * np.sin(jj)
+                # he = (
+                #     1
+                #     - self.X * np.cos(jj + 0.5 * self.dtheta)
+                #     - self.Y * np.sin(jj + 0.5 * self.dtheta)
+                # )
+                # hw = (
+                #     1
+                #     - self.X * np.cos(jj - 0.5 * self.dtheta)
+                #     - self.Y * np.sin(jj - 0.5 * self.dtheta)
+                # )
+                
                 hn = hP
                 hs = hn
-
+                
+                # print (hP)
+                
                 if kj == 0 and ki == 0:
                     MU_e = 0.5 * (mu[ki, kj] + mu[ki, kj + 1])
                     MU_w = mu[ki, kj]
@@ -1014,7 +1038,7 @@ class THDCylindrical(BearingElement):
 
         if y0 is None and xpt0 is None and ypt0 is None:
             self.initial_guess = initial_guess
-
+            
             xr = (
                 self.initial_guess[0]
                 * self.radial_clearance
@@ -1125,6 +1149,8 @@ class THDCylindrical(BearingElement):
             Mat_coef = np.zeros((nk, nk))  # Coeficients matrix
 
             B = np.zeros((nk, 1))  # Termo fonte for pressure
+
+
 
             for n_p in np.arange(self.n_pad):
 
@@ -1273,7 +1299,29 @@ class THDCylindrical(BearingElement):
                                     2 * self.dZ
                                 )
 
-                            HP = 1 - self.X * np.cos(jj) - self.Y * np.sin(jj)
+                            
+                            
+                            m = 0.2
+                            
+                            phi = self.initial_guess[1]+np.pi/2
+                            
+                            Ch = self.radial_clearance / (1-m)            
+                            Cv = self.radial_clearance
+                            
+                            e = float(self.initial_guess[0])*self.radial_clearance
+                            
+                            teta_elipt=(jj)-np.pi/2
+                            
+                            HP = (Cv+e*np.cos(teta_elipt-phi)+(Ch-Cv)*(np.sin(teta_elipt))**2)/Cv
+                           
+                            
+                            
+                            
+                            
+                            
+                            
+                            
+                            # HP = 1 - self.X * np.cos(jj) - self.Y * np.sin(jj)
                             hpt = -self.Xpt * np.cos(jj) - self.Ypt * np.sin(jj)
                             self.H[kj, n_p] = HP
 
@@ -1677,7 +1725,8 @@ class THDCylindrical(BearingElement):
         PPlot = np.zeros(
             (self.elements_axial, self.elements_circumferential * self.n_pad)
         )
-
+        
+ 
         for i in range(self.elements_axial):
 
             PPlot[i] = self.Pdim[i, :, :].ravel("F")
@@ -2835,15 +2884,18 @@ def cylindrical_bearing_example():
         lubricant="ISOVG32",
         node=3,
         sommerfeld_type=2,
-        initial_guess=[0.1, -0.1],
+        initial_guess=[0.5, -0.5],
         method="perturbation",
         operating_type="flooded",
         injection_pressure=0,
         oil_flow=37.86,
         show_coef=False,
-        print_result=False,
-        print_progress=False,
+        print_result=True,
+        print_progress=True,
         print_time=False,
     )
 
     return bearing
+if __name__ == '__main__':
+    cylindrical_bearing_example()
+    
