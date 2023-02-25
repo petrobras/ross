@@ -602,17 +602,35 @@ class THDCylindrical(BearingElement):
                     self.dtheta,
                 ):
 
-                    hP = 1 - self.X * np.cos(jj) - self.Y * np.sin(jj)
-                    he = (
-                        1
-                        - self.X * np.cos(jj + 0.5 * self.dtheta)
-                        - self.Y * np.sin(jj + 0.5 * self.dtheta)
-                    )
-                    hw = (
-                        1
-                        - self.X * np.cos(jj - 0.5 * self.dtheta)
-                        - self.Y * np.sin(jj - 0.5 * self.dtheta)
-                    )
+
+                    m = 0.1
+                   
+                    phi = self.initial_guess[1]+np.pi/2
+                    
+                    Ch = self.radial_clearance / (1-m)            
+                    Cv = self.radial_clearance
+                    
+                    e = float(self.initial_guess[0])*self.radial_clearance
+                    
+                    teta_elipt=(jj)-np.pi/2
+                    
+                    hP = (Cv+e*np.cos(teta_elipt-phi)+(Ch-Cv)*(np.sin(teta_elipt))**2)/Cv
+                                   
+                    he = (Cv+e*np.cos(teta_elipt-phi+0.5 * self.dtheta)+(Ch-Cv)*(np.sin(teta_elipt+0.5 * self.dtheta))**2)/Cv
+                                    
+                    hw = (Cv+e*np.cos(teta_elipt-phi-0.5 * self.dtheta)+(Ch-Cv)*(np.sin(teta_elipt-0.5 * self.dtheta))**2)/Cv
+                    
+                    # hP = 1 - self.X * np.cos(jj) - self.Y * np.sin(jj)
+                    # he = (
+                    #     1
+                    #     - self.X * np.cos(jj + 0.5 * self.dtheta)
+                    #     - self.Y * np.sin(jj + 0.5 * self.dtheta)
+                    # )
+                    # hw = (
+                    #     1
+                    #     - self.X * np.cos(jj - 0.5 * self.dtheta)
+                    #     - self.Y * np.sin(jj - 0.5 * self.dtheta)
+                    # )
                     hn = hP
                     hs = hn
 
@@ -2886,7 +2904,7 @@ def cylindrical_bearing_example():
         sommerfeld_type=2,
         initial_guess=[0.5, -0.5],
         method="perturbation",
-        operating_type="flooded",
+        operating_type="starvation",
         injection_pressure=0,
         oil_flow=37.86,
         show_coef=False,
