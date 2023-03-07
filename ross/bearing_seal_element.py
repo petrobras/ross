@@ -163,8 +163,6 @@ class BearingElement(Element):
 
         self.n = n
         self.n_link = n_link
-        self.n_l = n
-        self.n_r = n
         self.tag = tag
         self.color = color
         self.scale_factor = scale_factor
@@ -1899,8 +1897,6 @@ class BearingElement6DoF(BearingElement):
             "cxy_interpolated",
             "cyx_interpolated",
             "czz_interpolated",
-            "n_l",
-            "n_r",
             "dof_global_index",
         ]
         for p in params_to_remove:
