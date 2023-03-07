@@ -176,6 +176,9 @@ class Rotor(object):
                 disk.tag = "Disk " + str(i)
 
         for i, brg in enumerate(bearing_elements):
+            # add n_l and n_r to bearing elements
+            brg.n_l = brg.n
+            brg.n_r = brg.n
             if not isinstance(brg, SealElement) and brg.tag is None:
                 brg.tag = "Bearing " + str(i)
             elif isinstance(brg, SealElement) and brg.tag is None:
@@ -3141,8 +3144,8 @@ class Rotor(object):
             for Brg_SealEl in brg_seal_data:
                 aux_Brg_SealEl = deepcopy(Brg_SealEl)
                 aux_Brg_SealEl.n = nel_r * Brg_SealEl.n
-                aux_Brg_SealEl.n_l = nel_r * Brg_SealEl.n_l
-                aux_Brg_SealEl.n_r = nel_r * Brg_SealEl.n_r
+                aux_Brg_SealEl.n_l = nel_r * Brg_SealEl.n
+                aux_Brg_SealEl.n_r = nel_r * Brg_SealEl.n
                 bearing_elements.append(aux_Brg_SealEl)
 
             regions.append(disk_elements)
@@ -3304,6 +3307,8 @@ class CoAxialRotor(Rotor):
                 disk.tag = "Disk " + str(i)
 
         for i, brg in enumerate(bearing_elements):
+            brg.n_l = brg.n
+            brg.n_r = brg.n
             if brg.__class__.__name__ == "BearingElement" and brg.tag is None:
                 brg.tag = "Bearing " + str(i)
             if brg.__class__.__name__ == "SealElement" and brg.tag is None:
