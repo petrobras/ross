@@ -1114,7 +1114,7 @@ class ModalResults(Results):
                     f"{frequency['speed']} {frequency_units} | "
                     f"whirl: {self.whirl_direction()[mode]} | "
                     f"{frequency[frequency_type]} {frequency_units} | "
-                    f"{damping_name} = {damping_value:.1f}"
+                    f"{damping_name} = {damping_value:.2f}"
                 ),
                 x=0.5,
                 xanchor="center",
@@ -1201,7 +1201,7 @@ class ModalResults(Results):
                     f"{frequency['speed']} {frequency_units} | "
                     f"whirl: {self.whirl_direction()[mode]} | "
                     f"{frequency[frequency_type]} {frequency_units} | "
-                    f"{damping_name} = {damping_value:.1f}"
+                    f"{damping_name} = {damping_value:.2f}"
                 ),
                 x=0.5,
                 xanchor="center",
