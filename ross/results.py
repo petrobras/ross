@@ -1151,7 +1151,7 @@ class ModalResults(Results):
             A brief title to the mode shape plot, it will be displayed above other
             relevant data in the plot area. It does not modify the figure layout from
             Plotly.
-        length_units : str, optionalonly
+        length_units : str, optional
             length units.
             Default is 'm'.
         frequency_units : str, optional
