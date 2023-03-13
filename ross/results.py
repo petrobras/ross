@@ -1080,9 +1080,9 @@ class ModalResults(Results):
             damping_value = self.damping_ratio[mode]
 
         frequency = {
-            "wd": f"ω<sub>d</sub> = {Q_(self.wd[mode], 'rad/s').to(frequency_units).m:.1f}",
-            "wn": f"ω<sub>n</sub> = {Q_(self.wn[mode], 'rad/s').to(frequency_units).m:.1f}",
-            "speed": f"Speed = {Q_(self.speed, 'rad/s').to(frequency_units).m:.1f}",
+            "wd": f"ω<sub>d</sub> = {Q_(self.wd[mode], 'rad/s').to(frequency_units).m:.2f}",
+            "wn": f"ω<sub>n</sub> = {Q_(self.wn[mode], 'rad/s').to(frequency_units).m:.2f}",
+            "speed": f"Speed = {Q_(self.speed, 'rad/s').to(frequency_units).m:.2f}",
         }
 
         shape = self.shapes[mode]
@@ -1151,7 +1151,7 @@ class ModalResults(Results):
             A brief title to the mode shape plot, it will be displayed above other
             relevant data in the plot area. It does not modify the figure layout from
             Plotly.
-        length_units : str, optional
+        length_units : str, optionalonly
             length units.
             Default is 'm'.
         frequency_units : str, optional
@@ -1180,9 +1180,9 @@ class ModalResults(Results):
             fig = go.Figure()
 
         frequency = {
-            "wd": f"ω<sub>d</sub> = {Q_(self.wd[mode], 'rad/s').to(frequency_units).m:.1f}",
-            "wn": f"ω<sub>n</sub> = {Q_(self.wn[mode], 'rad/s').to(frequency_units).m:.1f}",
-            "speed": f"Speed = {Q_(self.speed, 'rad/s').to(frequency_units).m:.1f}",
+            "wd": f"ω<sub>d</sub> = {Q_(self.wd[mode], 'rad/s').to(frequency_units).m:.2f}",
+            "wn": f"ω<sub>n</sub> = {Q_(self.wn[mode], 'rad/s').to(frequency_units).m:.2f}",
+            "speed": f"Speed = {Q_(self.speed, 'rad/s').to(frequency_units).m:.2f}",
         }
 
         shape = self.shapes[mode]
@@ -3599,7 +3599,7 @@ class StaticResults(Results):
         )
 
         # fig - plot arrows indicating shaft weight distribution
-        text = "{:.1f}".format(Q_(self.w_shaft, "N").to(force_units).m)
+        text = "{:.2f}".format(Q_(self.w_shaft, "N").to(force_units).m)
         ini = nodes_pos[0]
         fin = nodes_pos[-1]
         arrows_list = np.arange(ini, 1.01 * fin, (fin - ini) / 5.0)
