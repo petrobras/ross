@@ -1584,10 +1584,7 @@ class FrequencyResponseResults(Results):
 
         This method plots the frequency response magnitude given an output and
         an input using Plotly.
-        It is possible to plot displacement, velocity and accelaration responses,
-        depending on the unit entered in 'amplitude_units'. If '[length]/[force]',
-        it displays the displacement; If '[speed]/[force]', it displays the velocity;
-        If '[acceleration]/[force]', it displays the acceleration.
+        It is possible to plot the magnitude with different units, depending on the unit entered in 'amplitude_units'. If '[length]/[force]', it displays the displacement unit (m); If '[speed]/[force]', it displays the velocity unit (m/s); If '[acceleration]/[force]', it displays the acceleration  unit (m/s**2).
 
         Parameters
         ----------
@@ -1602,11 +1599,11 @@ class FrequencyResponseResults(Results):
             Units for the response magnitude.
             Acceptable units dimensionality are:
 
-            '[length]' - Displays the displacement;
+            '[length]' - Displays the magnitude with units (m/N);
 
-            '[speed]' - Displays the velocity;
+            '[speed]' - Displays the magnitude with units (m/s/N);
 
-            '[acceleration]' - Displays the acceleration.
+            '[acceleration]' - Displays the magnitude with units (m/s**2/N).
 
             Default is "m/N" 0 to peak.
             To use peak to peak use '<unit> pkpk' (e.g. 'm/N pkpk')
@@ -1630,18 +1627,16 @@ class FrequencyResponseResults(Results):
         frequency_range = Q_(self.speed_range, "rad/s").to(frequency_units).m
 
         dummy_var = Q_(1, amplitude_units)
+        y_label = "Magnitude"
         if dummy_var.check("[length]/[force]"):
             mag = np.abs(self.freq_resp)
             mag = Q_(mag, "m/N").to(amplitude_units).m
-            y_label = "Displacement"
         elif dummy_var.check("[speed]/[force]"):
             mag = np.abs(self.velc_resp)
             mag = Q_(mag, "m/s/N").to(amplitude_units).m
-            y_label = "Velocity"
         elif dummy_var.check("[acceleration]/[force]"):
             mag = np.abs(self.accl_resp)
             mag = Q_(mag, "m/s**2/N").to(amplitude_units).m
-            y_label = "Acceleration"
         else:
             raise ValueError(
                 "Not supported unit. Options are '[length]/[force]', '[speed]/[force]', '[acceleration]/[force]'"
@@ -1701,11 +1696,11 @@ class FrequencyResponseResults(Results):
             Units for the response magnitude.
             Acceptable units dimensionality are:
 
-            '[length]' - Displays the displacement;
+            '[length]' - Displays the magnitude with units (m/N);
 
-            '[speed]' - Displays the velocity;
+            '[speed]' - Displays the magnitude with units (m/s/N);
 
-            '[acceleration]' - Displays the acceleration.
+            '[acceleration]' - Displays the magnitude with units (m/s**2/N).
 
             Default is "m/N" 0 to peak.
             To use peak to peak use '<unit> pkpk' (e.g. 'm/N pkpk')
@@ -1924,10 +1919,8 @@ class FrequencyResponseResults(Results):
             - Frequency vs Phase Angle;
             - Polar plot Amplitude vs Phase Angle;
 
-        Amplitude can be displacement, velocity or accelaration responses,
-        depending on the unit entered in 'amplitude_units'. If '[length]/[force]',
-        it displays the displacement; If '[speed]/[force]', it displays the velocity;
-        If '[acceleration]/[force]', it displays the acceleration.
+        Amplitude magnitude unit can be displacement, velocity or accelaration responses,
+        depending on the unit entered in 'amplitude_units'. If '[length]/[force]', it displays the displacement unit (m); If '[speed]/[force]', it displays the velocity unit (m/s); If '[acceleration]/[force]', it displays the acceleration  unit (m/s**2).
 
         Parameters
         ----------
@@ -1942,11 +1935,11 @@ class FrequencyResponseResults(Results):
             Units for the response magnitude.
             Acceptable units dimensionality are:
 
-            '[length]' - Displays the displacement;
+            '[length]' - Displays the magnitude with units (m/N);
 
-            '[speed]' - Displays the velocity;
+            '[speed]' - Displays the magnitude with units (m/s/N);
 
-            '[acceleration]' - Displays the acceleration.
+            '[acceleration]' - Displays the magnitude with units (m/s**2/N).
 
             Default is "m/N" 0 to peak.
             To use peak to peak use '<unit> pkpk' (e.g. 'm/N pkpk')
