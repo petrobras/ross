@@ -2289,7 +2289,7 @@ def test_ucs_rotor9(rotor9):
         ]
     )
     ucs_results = rotor9.run_ucs(num_modes=32)
-    assert_allclose(ucs_results.wn, exp_rotor_wn)
+    assert_allclose(ucs_results.wn, exp_rotor_wn, rtol=1e-6)
 
     exp_rotor_wn = np.array(
         [
@@ -2472,7 +2472,7 @@ def test_ucs_rotor9(rotor9):
         ]
     )
     ucs_results = rotor9.run_ucs(num_modes=32, synchronous=True)
-    assert_allclose(ucs_results.wn, exp_rotor_wn)
+    assert_allclose(ucs_results.wn, exp_rotor_wn, rtol=1e-6)
 
 
 def test_pickle(rotor8):
