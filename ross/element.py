@@ -108,8 +108,8 @@ class Element(ABC):
         >>> from ross.bearing_seal_element import bearing_example
         >>> bearing = bearing_example()
         >>> bearing.M()
-        array([[0., 0.],
-               [0., 0.]])
+        array([[0, 0],
+               [0, 0]])
         """
         pass
 
