@@ -156,6 +156,70 @@ def rotor2():
     return Rotor(shaft_elm, [disk0], [bearing0, bearing1])
 
 
+@pytest.fixture
+def rotor2_bearing_mass():
+    #  Rotor without damping with 2 shaft elements 1 disk and 2 bearings
+    le_ = 0.25
+    i_d_ = 0
+    o_d_ = 0.05
+
+    tim0 = ShaftElement(
+        le_,
+        i_d_,
+        o_d_,
+        material=steel,
+        shear_effects=True,
+        rotary_inertia=True,
+        gyroscopic=True,
+    )
+    tim1 = ShaftElement(
+        le_,
+        i_d_,
+        o_d_,
+        material=steel,
+        shear_effects=True,
+        rotary_inertia=True,
+        gyroscopic=True,
+    )
+
+    shaft_elm = [tim0, tim1]
+    disk0 = DiskElement.from_geometry(1, steel, 0.07, 0.05, 0.28)
+    stf = 1e6
+    m = 20e-3
+    bearing0 = BearingElement(0, kxx=stf, cxx=0, mxx=m)
+    bearing1 = BearingElement(2, kxx=stf, cxx=0, mxx=m)
+
+    return Rotor(shaft_elm, [disk0], [bearing0, bearing1])
+
+def test_mass_matrix_rotor2_with_bearing_mass(rotor2_bearing_mass):
+    # fmt: off
+    Mr2 = np.array([[ 1.441,  0.   ,  0.   ,  0.049,  0.496,  0.   ,  0.   , -0.031,
+                        0.   ,  0.   ,  0.   ,  0.   ],
+                    [ 0.   ,  1.441, -0.049,  0.   ,  0.   ,  0.496,  0.031,  0.   ,
+                        0.   ,  0.   ,  0.   ,  0.   ],
+                    [ 0.   , -0.049,  0.002,  0.   ,  0.   , -0.031, -0.002,  0.   ,
+                        0.   ,  0.   ,  0.   ,  0.   ],
+                    [ 0.049,  0.   ,  0.   ,  0.002,  0.031,  0.   ,  0.   , -0.002,
+                        0.   ,  0.   ,  0.   ,  0.   ],
+                    [ 0.496,  0.   ,  0.   ,  0.031, 35.431,  0.   ,  0.   ,  0.   ,
+                        0.496,  0.   ,  0.   , -0.031],
+                    [ 0.   ,  0.496, -0.031,  0.   ,  0.   , 35.431,  0.   ,  0.   ,
+                        0.   ,  0.496,  0.031,  0.   ],
+                    [ 0.   ,  0.031, -0.002,  0.   ,  0.   ,  0.   ,  0.183,  0.   ,
+                        0.   , -0.031, -0.002,  0.   ],
+                    [-0.031,  0.   ,  0.   , -0.002,  0.   ,  0.   ,  0.   ,  0.183,
+                        0.031,  0.   ,  0.   , -0.002],
+                    [ 0.   ,  0.   ,  0.   ,  0.   ,  0.496,  0.   ,  0.   ,  0.031,
+                        1.441,  0.   ,  0.   , -0.049],
+                    [ 0.   ,  0.   ,  0.   ,  0.   ,  0.   ,  0.496, -0.031,  0.   ,
+                        0.   ,  1.441,  0.049,  0.   ],
+                    [ 0.   ,  0.   ,  0.   ,  0.   ,  0.   ,  0.031, -0.002,  0.   ,
+                        0.   ,  0.049,  0.002,  0.   ],
+                    [ 0.   ,  0.   ,  0.   ,  0.   , -0.031,  0.   ,  0.   , -0.002,
+                        -0.049,  0.   ,  0.   ,  0.002]])
+    # fmt: on
+    assert_almost_equal(rotor2_bearing_mass.M(), Mr2, decimal=3)
+
 def test_mass_matrix_rotor2(rotor2):
     # fmt: off
     Mr2 = np.array([[  1.421,   0.   ,   0.   ,   0.049,   0.496,   0.   ,   0.   ,  -0.031,   0.   ,   0.   ,   0.   ,   0.   ],
