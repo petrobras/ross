@@ -36,7 +36,8 @@ class ShaftElement(Element):
 
     Parameters
     ----------
-
+    L : float, pint.Quantity
+        Element length (m).
     idl : float, pint.Quantity
         Inner diameter of the element at the left position (m).
     odl : float, pint.Quantity
@@ -148,7 +149,6 @@ class ShaftElement(Element):
         shear_method_calc="cowper",
         tag=None,
     ):
-
         if idr is None:
             idr = idl
         if odr is None:
@@ -1321,7 +1321,6 @@ class ShaftElement6DoF(ShaftElement):
         beta=0,
         tag=None,
     ):
-
         if idr is None:
             idr = idl
         if odr is None:

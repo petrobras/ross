@@ -402,7 +402,6 @@ def test_save_load(tim, tap_tim):
 
 @pytest.fixture
 def s6_eb():
-
     #  Euler-Bernoulli element
     """
     L = 0.1

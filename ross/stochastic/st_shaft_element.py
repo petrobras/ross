@@ -103,7 +103,6 @@ class ST_ShaftElement:
         shear_method_calc="cowper",
         is_random=None,
     ):
-
         if idr is None:
             idr = idl
             if "idl" in is_random and "idr" not in is_random:
