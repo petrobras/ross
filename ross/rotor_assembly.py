@@ -130,7 +130,6 @@ class Rotor(object):
         rated_w=None,
         tag=None,
     ):
-
         self.parameters = {"min_w": min_w, "max_w": max_w, "rated_w": rated_w}
         self.tag = "Rotor 0" if tag is None else tag
 
@@ -177,6 +176,9 @@ class Rotor(object):
                 disk.tag = "Disk " + str(i)
 
         for i, brg in enumerate(bearing_elements):
+            # add n_l and n_r to bearing elements
+            brg.n_l = brg.n
+            brg.n_r = brg.n
             if not isinstance(brg, SealElement) and brg.tag is None:
                 brg.tag = "Bearing " + str(i)
             elif isinstance(brg, SealElement) and brg.tag is None:
@@ -1003,7 +1005,6 @@ class Rotor(object):
         Kst0 = np.zeros((self.ndof, self.ndof))
 
         if self.number_dof == 6:
-
             for elm in self.shaft_elements:
                 dofs = list(elm.dof_global_index.values())
                 try:
@@ -2927,12 +2928,12 @@ class Rotor(object):
         mx = np.zeros_like(vx)
         for j in range(mx.shape[0]):
             if j == 0:
-                mx[j] = [0, 0.5 * sum(vx[j]) * np.diff(vx_axis[j])]
+                mx[j] = [0, 0.5 * sum(vx[j]) * np.diff(vx_axis[j])[0]]
             if j == mx.shape[0] - 1:
-                mx[j] = [-0.5 * sum(vx[j]) * np.diff(vx_axis[j]), 0]
+                mx[j] = [-0.5 * sum(vx[j]) * np.diff(vx_axis[j])[0], 0]
             else:
                 mx[j, 0] = mx[j - 1, 1]
-                mx[j, 1] = mx[j, 0] + 0.5 * sum(vx[j]) * np.diff(vx_axis[j])
+                mx[j, 1] = mx[j, 0] + 0.5 * sum(vx[j]) * np.diff(vx_axis[j])[0]
 
         # flattening arrays
         vx = vx.flatten()
@@ -3184,8 +3185,8 @@ class Rotor(object):
             for Brg_SealEl in brg_seal_data:
                 aux_Brg_SealEl = deepcopy(Brg_SealEl)
                 aux_Brg_SealEl.n = nel_r * Brg_SealEl.n
-                aux_Brg_SealEl.n_l = nel_r * Brg_SealEl.n_l
-                aux_Brg_SealEl.n_r = nel_r * Brg_SealEl.n_r
+                aux_Brg_SealEl.n_l = nel_r * Brg_SealEl.n
+                aux_Brg_SealEl.n_r = nel_r * Brg_SealEl.n
                 bearing_elements.append(aux_Brg_SealEl)
 
             regions.append(disk_elements)
@@ -3302,7 +3303,6 @@ class CoAxialRotor(Rotor):
         rated_w=None,
         tag=None,
     ):
-
         self.parameters = {"min_w": min_w, "max_w": max_w, "rated_w": rated_w}
         if tag is None:
             self.tag = "Rotor 0"
@@ -3348,6 +3348,8 @@ class CoAxialRotor(Rotor):
                 disk.tag = "Disk " + str(i)
 
         for i, brg in enumerate(bearing_elements):
+            brg.n_l = brg.n
+            brg.n_r = brg.n
             if brg.__class__.__name__ == "BearingElement" and brg.tag is None:
                 brg.tag = "Bearing " + str(i)
             if brg.__class__.__name__ == "SealElement" and brg.tag is None:
