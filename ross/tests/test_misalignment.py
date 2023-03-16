@@ -73,7 +73,6 @@ rotor = rs.Rotor(shaft_elem, [disk0, disk1], [bearing0, bearing1])
 
 @pytest.fixture
 def mis_comb():
-
     unbalance_magnitudet = np.array([5e-4, 0])
     unbalance_phaset = np.array([-np.pi / 2, 0])
 
@@ -102,7 +101,6 @@ def mis_comb():
 
 @pytest.fixture
 def mis_comb_units():
-
     unbalance_magnitudet = Q_(np.array([0.043398083107259365, 0]), "lb*in")
     unbalance_phaset = Q_(np.array([-90.0, 0.0]), "degrees")
 
@@ -325,7 +323,6 @@ def test_mis_comb_forces_units(mis_comb_units):
 
 @pytest.fixture
 def mis_parallel():
-
     unbalance_magnitudet = np.array([5e-4, 0])
     unbalance_phaset = np.array([-np.pi / 2, 0])
 
@@ -354,7 +351,6 @@ def mis_parallel():
 
 @pytest.fixture
 def mis_parallel_units():
-
     unbalance_magnitudet = Q_(np.array([0.043398083107259365, 0]), "lb*in")
     unbalance_phaset = Q_(np.array([-90.0, 0.0]), "degrees")
 
@@ -573,7 +569,6 @@ def test_mis_parallel_forces_units(mis_parallel_units):
 
 @pytest.fixture
 def mis_angular():
-
     unbalance_magnitudet = np.array([5e-4, 0])
     unbalance_phaset = np.array([-np.pi / 2, 0])
 
@@ -602,7 +597,6 @@ def mis_angular():
 
 @pytest.fixture
 def mis_angular_units():
-
     unbalance_magnitudet = Q_(np.array([0.043398083107259365, 0]), "lb*in")
     unbalance_phaset = Q_(np.array([-90.0, 0.0]), "degrees")
 
@@ -833,7 +827,6 @@ def test_mis_angular_forces_units(mis_angular_units):
 
 @pytest.fixture
 def mis_rigid():
-
     unbalance_magnitudet = np.array([5e-4, 0])
     unbalance_phaset = np.array([-np.pi / 2, 0])
 
@@ -857,7 +850,6 @@ def mis_rigid():
 
 @pytest.fixture
 def mis_rigid_units():
-
     unbalance_magnitudet = Q_(np.array([0.043398083107259365, 0]), "lb*in")
     unbalance_phaset = Q_(np.array([-90.0, 0.0]), "degrees")
 

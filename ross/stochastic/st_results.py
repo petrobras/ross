@@ -1597,7 +1597,6 @@ class ST_ForcedResponseResults(ST_Results):
 
         for j in range(size):
             for i, f in enumerate(self.frequency_range):
-
                 # Foward and Backward vectors
                 fow = response[j, dofx, i] / 2 + Rel_ang * response[j, dofy, i] / 2
                 back = (

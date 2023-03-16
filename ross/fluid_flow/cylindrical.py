@@ -162,7 +162,6 @@ class THDCylindrical(BearingElement):
         print_progress=False,
         print_time=False,
     ):
-
         self.axial_length = axial_length
         self.journal_radius = journal_radius
         self.radial_clearance = radial_clearance
@@ -278,7 +277,6 @@ class THDCylindrical(BearingElement):
         cyy = np.zeros(number_of_freq)
 
         for ii in range(number_of_freq):
-
             self.speed = speed[ii]
 
             self.run()
@@ -330,7 +328,6 @@ class THDCylindrical(BearingElement):
                 self.thetaF[n_p],
                 self.dtheta,
             ):
-
                 hP = 1 - self.X * np.cos(jj) - self.Y * np.sin(jj)
                 he = (
                     1
@@ -515,7 +512,6 @@ class THDCylindrical(BearingElement):
 
         for i in np.arange(self.elements_axial):
             for j in np.arange(self.elements_circumferential):
-
                 self.P[i, j, n_p] = p[cont]
                 cont = cont + 1
 
@@ -560,7 +556,6 @@ class THDCylindrical(BearingElement):
         """
 
         while self.erro >= 0.01:
-
             p_old = np.array(p)
 
             theta_vol_old = np.array(self.theta_vol)
@@ -577,7 +572,6 @@ class THDCylindrical(BearingElement):
                     self.thetaF[n_p],
                     self.dtheta,
                 ):
-
                     hP = 1 - self.X * np.cos(jj) - self.Y * np.sin(jj)
                     he = (
                         1
@@ -693,7 +687,6 @@ class THDCylindrical(BearingElement):
                         and ki > 0
                         and ki < self.elements_axial - 1
                     ):  # Center region
-
                         Mat_coef_st[k, k] = CP
                         Mat_coef_st[k, k + 1] = CE
                         Mat_coef_st[k, k - 1] = CW
@@ -701,7 +694,6 @@ class THDCylindrical(BearingElement):
                         Mat_coef_st[k, k - self.elements_circumferential] = CS
 
                         if p[k] > 0:
-
                             self.theta_vol[k] = 1
                             B[k] = -KP * self.theta_vol[k] - KW * self.theta_vol[k - 1]
                             pp = np.zeros((nk - 1, 1))
@@ -712,7 +704,6 @@ class THDCylindrical(BearingElement):
                             p[k] = (B[k] - np.matmul(C, pp)) / Mat_coef_st[k, k]
 
                         else:
-
                             p[k] = 0
                             B_theta[k] = -np.matmul(Mat_coef_st[k, :], p)
                             self.theta_vol[k] = (
@@ -722,14 +713,12 @@ class THDCylindrical(BearingElement):
                     elif (
                         kj > 0 and kj < self.elements_circumferential - 1 and ki == 0
                     ):  # Inferior edge without corners
-
                         Mat_coef_st[k, k] = CP - CS
                         Mat_coef_st[k, k + 1] = CE
                         Mat_coef_st[k, k - 1] = CW
                         Mat_coef_st[k, k + self.elements_circumferential] = CN
 
                         if p[k] > 0:
-
                             self.theta_vol[k] = 1
                             B[k] = -KP * self.theta_vol[k] - KW * self.theta_vol[k - 1]
                             pp = np.zeros((nk - 1, 1))
@@ -740,7 +729,6 @@ class THDCylindrical(BearingElement):
                             p[k] = (B[k] - np.matmul(C, pp)) / Mat_coef_st[k, k]
 
                         else:
-
                             p[k] = 0
                             B_theta[k] = -np.matmul(Mat_coef_st[k, :], p)
                             self.theta_vol[k] = (
@@ -752,14 +740,12 @@ class THDCylindrical(BearingElement):
                         and kj < self.elements_circumferential - 1
                         and ki == self.elements_axial - 1
                     ):  # Superior edge without corners
-
                         Mat_coef_st[k, k] = CP - CN
                         Mat_coef_st[k, k + 1] = CE
                         Mat_coef_st[k, k - 1] = CW
                         Mat_coef_st[k, k - self.elements_circumferential] = CS
 
                         if p[k] > 0:
-
                             self.theta_vol[k] = 1
                             B[k] = -KP * self.theta_vol[k] - KW * self.theta_vol[k - 1]
                             pp = np.zeros((nk - 1, 1))
@@ -770,7 +756,6 @@ class THDCylindrical(BearingElement):
                             p[k] = (B[k] - np.matmul(C, pp)) / Mat_coef_st[k, k]
 
                         else:
-
                             p[k] = 0
                             B_theta[k] = -np.matmul(Mat_coef_st[k, :], p)
                             self.theta_vol[k] = (
@@ -780,14 +765,12 @@ class THDCylindrical(BearingElement):
                     elif (
                         kj == 0 and ki > 0 and ki < self.elements_axial - 1
                     ):  # Left edge without corners
-
                         Mat_coef_st[k, k] = CP - CW
                         Mat_coef_st[k, k + 1] = CE
                         Mat_coef_st[k, k - self.elements_circumferential] = CS
                         Mat_coef_st[k, k + self.elements_circumferential] = CN
 
                         if p[k] > 0:
-
                             self.theta_vol[k] = 1
                             B[k] = (
                                 -KP * self.theta_vol[k]
@@ -802,7 +785,6 @@ class THDCylindrical(BearingElement):
                             p[k] = (B[k] - np.matmul(C, pp)) / Mat_coef_st[k, k]
 
                         else:
-
                             p[k] = 0
                             B_theta[k] = -np.matmul(Mat_coef_st[k, :], p)
                             self.theta_vol[k] = (
@@ -814,7 +796,6 @@ class THDCylindrical(BearingElement):
                         and ki > 0
                         and ki < self.elements_axial - 1
                     ):  # Right edge without corners
-
                         Mat_coef_st[k, k] = CP - CE
 
                         Mat_coef_st[k, k - 1] = CW
@@ -822,7 +803,6 @@ class THDCylindrical(BearingElement):
                         Mat_coef_st[k, k - self.elements_circumferential] = CS
 
                         if p[k] > 0:
-
                             self.theta_vol[k] = 1
                             B[k] = -KP * self.theta_vol[k] - KW * self.theta_vol[k - 1]
                             pp = np.zeros((nk - 1, 1))
@@ -833,7 +813,6 @@ class THDCylindrical(BearingElement):
                             p[k] = (B[k] - np.matmul(C, pp)) / Mat_coef_st[k, k]
 
                         else:
-
                             p[k] = 0
                             B_theta[k] = -np.matmul(Mat_coef_st[k, :], p)
                             self.theta_vol[k] = (
@@ -841,13 +820,11 @@ class THDCylindrical(BearingElement):
                             ) / KP
 
                     elif kj == 0 and ki == 0:  # Corner inferior left
-
                         Mat_coef_st[k, k] = CP - CS - CW
                         Mat_coef_st[k, k + 1] = CE
                         Mat_coef_st[k, k + self.elements_circumferential] = CN
 
                         if p[k] > 0:
-
                             self.theta_vol[k] = 1
                             B[k] = (
                                 -KP * self.theta_vol[k]
@@ -862,7 +839,6 @@ class THDCylindrical(BearingElement):
                             p[k] = (B[k] - np.matmul(C, pp)) / Mat_coef_st[k, k]
 
                         else:
-
                             p[k] = 0
                             B_theta[k] = -np.matmul(Mat_coef_st[k, :], p)
                             self.theta_vol[k] = (
@@ -872,13 +848,11 @@ class THDCylindrical(BearingElement):
                     elif (
                         kj == self.elements_circumferential - 1 and ki == 0
                     ):  # Corner inferior right
-
                         Mat_coef_st[k, k] = CP - CS - CE
                         Mat_coef_st[k, k - 1] = CW
                         Mat_coef_st[k, k + self.elements_circumferential] = CN
 
                         if p[k] > 0:
-
                             self.theta_vol[k] = 1
                             B[k] = -KP * self.theta_vol[k] - KW * self.theta_vol[k - 1]
                             pp = np.zeros((nk - 1, 1))
@@ -889,7 +863,6 @@ class THDCylindrical(BearingElement):
                             p[k] = (B[k] - np.matmul(C, pp)) / Mat_coef_st[k, k]
 
                         else:
-
                             p[k] = 0
                             B_theta[k] = -np.matmul(Mat_coef_st[k, :], p)
                             self.theta_vol[k] = (
@@ -899,13 +872,11 @@ class THDCylindrical(BearingElement):
                     elif (
                         kj == 0 and ki == self.elements_axial - 1
                     ):  # Corner superior left
-
                         Mat_coef_st[k, k] = CP - CN - CW
                         Mat_coef_st[k, k + 1] = CE
                         Mat_coef_st[k, k - self.elements_circumferential] = CS
 
                         if p[k] > 0:
-
                             self.theta_vol[k] = 1
                             B[k] = (
                                 -KP * self.theta_vol[k]
@@ -920,7 +891,6 @@ class THDCylindrical(BearingElement):
                             p[k] = (B[k] - np.matmul(C, pp)) / Mat_coef_st[k, k]
 
                         else:
-
                             p[k] = 0
                             B_theta[k] = -np.matmul(Mat_coef_st[k, :], p)
                             self.theta_vol[k] = (
@@ -931,13 +901,11 @@ class THDCylindrical(BearingElement):
                         kj == self.elements_circumferential - 1
                         and ki == self.elements_axial - 1
                     ):  # Corner superior right
-
                         Mat_coef_st[k, k] = CP - CN - CE
                         Mat_coef_st[k, k - 1] = CW
                         Mat_coef_st[k, k - self.elements_circumferential] = CS
 
                         if p[k] > 0:
-
                             self.theta_vol[k] = 1
                             B[k] = -KP * self.theta_vol[k] - KW * self.theta_vol[k - 1]
                             pp = np.zeros((nk - 1, 1))
@@ -948,7 +916,6 @@ class THDCylindrical(BearingElement):
                             p[k] = (B[k] - np.matmul(C, pp)) / Mat_coef_st[k, k]
 
                         else:
-
                             p[k] = 0
                             B_theta[k] = -np.matmul(Mat_coef_st[k, :], p)
                             self.theta_vol[k] = (
@@ -969,7 +936,6 @@ class THDCylindrical(BearingElement):
 
         for i in np.arange(self.elements_axial):
             for j in np.arange(self.elements_circumferential):
-
                 self.P[i, j, n_p] = p[cont]
 
                 self.Theta_vol[i, j, n_p] = self.theta_vol[cont]
@@ -1127,7 +1093,6 @@ class THDCylindrical(BearingElement):
             B = np.zeros((nk, 1))  # Termo fonte for pressure
 
             for n_p in np.arange(self.n_pad):
-
                 T_ref = T_mist[n_p]
 
                 while (
@@ -1135,7 +1100,6 @@ class THDCylindrical(BearingElement):
                     / np.linalg.norm(T[:, :, n_p])
                     >= 0.01
                 ):
-
                     T_ref = T_mist[n_p]
 
                     mu = mu_new
@@ -1178,7 +1142,6 @@ class THDCylindrical(BearingElement):
                             self.thetaF[n_p],
                             self.dtheta,
                         ):
-
                             # Pressure gradients
 
                             if kj == 0 and ki == 0:
@@ -1301,17 +1264,14 @@ class THDCylindrical(BearingElement):
                                 )
 
                             if Reyn[ki, kj, n_p] <= 500:
-
                                 self.delta_turb = 0
 
                             elif Reyn[ki, kj, n_p] > 500 and Reyn[ki, kj, n_p] <= 1000:
-
                                 self.delta_turb = 1 - (
                                     (1000 - Reyn[ki, kj, n_p]) / 500
                                 ) ** (1 / 8)
 
                             elif Reyn[ki, kj, n_p] > 1000:
-
                                 self.delta_turb = 1
 
                             dudy = ((HP / mu_turb[ki, kj, n_p]) * dPdy[ki, kj, n_p]) - (
@@ -1605,7 +1565,6 @@ class THDCylindrical(BearingElement):
 
                     for i in np.arange(self.elements_axial):
                         for j in np.arange(self.elements_circumferential):
-
                             T_new[i, j, n_p] = t[cont]
                             cont = cont + 1
 
@@ -1614,7 +1573,6 @@ class THDCylindrical(BearingElement):
                     T_end[n_p] = np.sum(Tdim[:, -1, n_p]) / self.elements_axial
 
                     if self.operating_type == "flooded":
-
                         T_mist[n_p - 1] = (
                             self.fat_mixt[n_p] * self.reference_temperature
                             + (1 - self.fat_mixt[n_p]) * T_end[n_p]
@@ -1626,7 +1584,6 @@ class THDCylindrical(BearingElement):
 
             if self.operating_type == "starvation":
                 for n_p in np.arange(self.n_pad):
-
                     self.Qedim[n_p] = (
                         self.radial_clearance
                         * self.H[0, n_p]
@@ -1655,7 +1612,6 @@ class THDCylindrical(BearingElement):
                     )
 
                 for n_p in np.arange(self.n_pad):
-
                     T_mist[n_p] = (
                         (self.Qsdim[n_p - 1] * T_end[n_p - 1])
                         + (
@@ -1679,7 +1635,6 @@ class THDCylindrical(BearingElement):
         )
 
         for i in range(self.elements_axial):
-
             PPlot[i] = self.Pdim[i, :, :].ravel("F")
 
         Ytheta = np.array(Ytheta)
@@ -1940,18 +1895,15 @@ class THDCylindrical(BearingElement):
         ).astype(complex)
 
         if self.operating_type == "flooded":
-
             self.theta_vol_groove = np.ones(self.n_pad)
             self.Theta_vol = np.ones(
                 (self.elements_axial, self.elements_circumferential, self.n_pad)
             )
 
         for n_p in np.arange(self.n_pad):
-
             erro = 1
 
             while erro > 1e-6:
-
                 PX_old = np.array(PX)
                 PY_old = np.array(PY)
 
@@ -1965,15 +1917,12 @@ class THDCylindrical(BearingElement):
                 k = 0
 
                 for ii in np.arange((self.Z_I + 0.5 * self.dZ), self.Z_F, self.dZ):
-
                     for jj in np.arange(
                         self.thetaI[n_p] + (self.dtheta / 2),
                         self.thetaF[n_p],
                         self.dtheta,
                     ):
-
                         if self.P[ki, kj, n_p] > 0:
-
                             HP = 1 - self.X * np.cos(jj) - self.Y * np.sin(jj)
                             He = (
                                 1
@@ -1998,7 +1947,6 @@ class THDCylindrical(BearingElement):
                             HYptP = 0
 
                             if kj == 0 and ki == 0:
-
                                 MU_e = 0.5 * (
                                     self.mu_l[ki, kj, n_p] + self.mu_l[ki, kj + 1, n_p]
                                 )
@@ -2009,7 +1957,6 @@ class THDCylindrical(BearingElement):
                                 )
 
                             if kj == 0 and ki > 0 and ki < self.elements_axial - 1:
-
                                 MU_e = 0.5 * (
                                     self.mu_l[ki, kj, n_p] + self.mu_l[ki, kj + 1, n_p]
                                 )
@@ -2022,7 +1969,6 @@ class THDCylindrical(BearingElement):
                                 )
 
                             if kj == 0 and ki == self.elements_axial - 1:
-
                                 MU_e = 0.5 * (
                                     self.mu_l[ki, kj, n_p] + self.mu_l[ki, kj + 1, n_p]
                                 )
@@ -2037,7 +1983,6 @@ class THDCylindrical(BearingElement):
                                 and kj > 0
                                 and kj < self.elements_circumferential - 1
                             ):
-
                                 MU_e = 0.5 * (
                                     self.mu_l[ki, kj, n_p] + self.mu_l[ki, kj + 1, n_p]
                                 )
@@ -2055,7 +2000,6 @@ class THDCylindrical(BearingElement):
                                 and ki > 0
                                 and ki < self.elements_axial - 1
                             ):
-
                                 MU_e = 0.5 * (
                                     self.mu_l[ki, kj, n_p] + self.mu_l[ki, kj + 1, n_p]
                                 )
@@ -2074,7 +2018,6 @@ class THDCylindrical(BearingElement):
                                 and kj > 0
                                 and kj < self.elements_circumferential - 1
                             ):
-
                                 MU_e = 0.5 * (
                                     self.mu_l[ki, kj, n_p] + self.mu_l[ki, kj + 1, n_p]
                                 )
@@ -2087,7 +2030,6 @@ class THDCylindrical(BearingElement):
                                 MU_n = self.mu_l[ki, kj, n_p]
 
                             if ki == 0 and kj == self.elements_circumferential - 1:
-
                                 MU_e = self.mu_l[ki, kj, n_p]
                                 MU_w = 0.5 * (
                                     self.mu_l[ki, kj, n_p] + self.mu_l[ki, kj - 1, n_p]
@@ -2102,7 +2044,6 @@ class THDCylindrical(BearingElement):
                                 and ki > 0
                                 and ki < self.elements_axial - 1
                             ):
-
                                 MU_e = self.mu_l[ki, kj, n_p]
                                 MU_w = 0.5 * (
                                     self.mu_l[ki, kj, n_p] + self.mu_l[ki, kj - 1, n_p]
@@ -2118,7 +2059,6 @@ class THDCylindrical(BearingElement):
                                 kj == self.elements_circumferential - 1
                                 and ki == self.elements_axial - 1
                             ):
-
                                 MU_e = self.mu_l[ki, kj, n_p]
                                 MU_w = 0.5 * (
                                     self.mu_l[ki, kj, n_p] + self.mu_l[ki, kj - 1, n_p]
@@ -2253,7 +2193,6 @@ class THDCylindrical(BearingElement):
                             PPY = np.delete(PPY, k)
 
                             if kj == 0 and ki == 0:
-
                                 Mat_coef[k, k] = CP - CW - CS
                                 Mat_coef[k, k + 1] = CE
                                 Mat_coef[k, k + self.elements_circumferential] = CN
@@ -2293,7 +2232,6 @@ class THDCylindrical(BearingElement):
                                 ]
 
                             if kj == 0 and ki > 0 and ki < self.elements_axial - 1:
-
                                 Mat_coef[k, k] = CP - CW
                                 Mat_coef[k, k + 1] = CE
                                 Mat_coef[k, k + self.elements_circumferential] = CN
@@ -2336,7 +2274,6 @@ class THDCylindrical(BearingElement):
                                 ]
 
                             if kj == 0 and ki == self.elements_axial - 1:
-
                                 Mat_coef[k, k] = CP - CW - CN
                                 Mat_coef[k, k + 1] = CE
                                 Mat_coef[k, k - self.elements_circumferential] = CS
@@ -2380,7 +2317,6 @@ class THDCylindrical(BearingElement):
                                 and kj > 0
                                 and kj < self.elements_circumferential - 1
                             ):
-
                                 Mat_coef[k, k] = CP - CS
                                 Mat_coef[k, k + 1] = CE
                                 Mat_coef[k, k - 1] = CW
@@ -2426,7 +2362,6 @@ class THDCylindrical(BearingElement):
                                 and ki > 0
                                 and ki < self.elements_axial - 1
                             ):
-
                                 Mat_coef[k, k] = CP
                                 Mat_coef[k, k + 1] = CE
                                 Mat_coef[k, k - 1] = CW
@@ -2474,7 +2409,6 @@ class THDCylindrical(BearingElement):
                                 and kj > 0
                                 and kj < self.elements_circumferential - 1
                             ):
-
                                 Mat_coef[k, k] = CP - CN
                                 Mat_coef[k, k + 1] = CE
                                 Mat_coef[k, k - 1] = CW
@@ -2515,7 +2449,6 @@ class THDCylindrical(BearingElement):
                                 ]
 
                             if ki == 0 and kj == self.elements_circumferential - 1:
-
                                 Mat_coef[k, k] = CP - CE - CS
                                 Mat_coef[k, k - 1] = CW
                                 Mat_coef[k, k + self.elements_circumferential] = CN
@@ -2557,7 +2490,6 @@ class THDCylindrical(BearingElement):
                                 and ki > 0
                                 and ki < self.elements_axial - 1
                             ):
-
                                 Mat_coef[k, k] = CP - CE
                                 Mat_coef[k, k - 1] = CW
                                 Mat_coef[k, k + self.elements_circumferential] = CN
@@ -2601,7 +2533,6 @@ class THDCylindrical(BearingElement):
                                 kj == self.elements_circumferential - 1
                                 and ki == self.elements_axial - 1
                             ):
-
                                 Mat_coef[k, k] = CP - CE - CN
                                 Mat_coef[k, k - 1] = CW
                                 Mat_coef[k, k - self.elements_circumferential] = CS
@@ -2666,7 +2597,6 @@ class THDCylindrical(BearingElement):
         ).astype(complex)
 
         for i in range(self.elements_axial):
-
             PXPlot[i] = PXdim[i, :, :].ravel("F")
             PYPlot[i] = PYdim[i, :, :].ravel("F")
 

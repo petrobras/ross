@@ -41,7 +41,6 @@ class Integrator:
     """
 
     def __init__(self, x0, y0, x, h, func, print_progress=False):
-
         self.x0 = x0
         self.y0 = y0
         self.x = x

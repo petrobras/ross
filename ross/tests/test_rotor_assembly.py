@@ -620,7 +620,7 @@ def test_static_analysis_rotor3(rotor3):
     static = rotor3.run_static()
 
     fig = static.plot_free_body_diagram()
-    assert list(fig.select_annotations())[7]["text"] == "Shaft weight = 225.6N"
+    assert list(fig.select_annotations())[7]["text"] == "Shaft weight = 225.57N"
 
     expected_deformation = np.array(
         [
