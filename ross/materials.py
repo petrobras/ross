@@ -38,7 +38,7 @@ class Material:
         Shear modulus (N/m**2).
     Poisson : float, optional
         Poisson ratio (dimensionless).
-    color : str
+    color : str, optional
         Color that will be used on plots.
 
     Examples
