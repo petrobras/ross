@@ -31,22 +31,25 @@ class Material:
     name : str
         Material name.
     rho : float, pint.Quantity
-        Density (N/m**3).
-    E : float, pint.Quantity
+        Density (kg/m**3).
+    E : float, pint.Quantity, optional
         Young's modulus (N/m**2).
-    G_s : float,
+    G_s : float, pint.Quantity, optional
         Shear modulus (N/m**2).
-    Poisson : float
+    Poisson : float, optional
         Poisson ratio (dimensionless).
     color : str
         Color that will be used on plots.
 
     Examples
     --------
+    >>> from ross.units import Q_
     >>> AISI4140 = Material(name="AISI4140", rho=7850, E=203.2e9, G_s=80e9)
-    >>> Steel = Material(name="Steel", rho=7810, E=211e9, G_s=81.2e9)
+    >>> Steel = Material(name="Steel", rho=Q_(7.81, 'g/cm**3'), E=211e9, G_s=81.2e9)
     >>> AISI4140.Poisson
     0.27
+    >>> Steel.rho
+    7809.999999999999
     """
 
     @check_units
