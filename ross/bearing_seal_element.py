@@ -131,7 +131,20 @@ class BearingElement(Element):
             self.frequency = np.array(frequency, dtype=np.float64)
         else:
             self.frequency = frequency
-        args = ["kxx", "kyy", "kxy", "kyx", "cxx", "cyy", "cxy", "cyx", "mxx", "myy", "mxy", "myx"]
+        args = [
+            "kxx",
+            "kyy",
+            "kxy",
+            "kyx",
+            "cxx",
+            "cyy",
+            "cxy",
+            "cyx",
+            "mxx",
+            "myy",
+            "mxy",
+            "myx",
+        ]
 
         # all args to coefficients
         args_dict = locals()
@@ -140,7 +153,7 @@ class BearingElement(Element):
             args_dict["kyy"] = kxx
         if cyy is None:
             args_dict["cyy"] = cxx
-        
+
         if myy is None:
             if mxx is None:
                 args_dict["mxx"] = 0
@@ -1801,7 +1814,7 @@ class BearingElement6DoF(BearingElement):
             color=color,
         )
 
-        new_args = ["kzz", "czz","mzz"]
+        new_args = ["kzz", "czz", "mzz"]
 
         args_dict = locals()
         coefficients = {}
@@ -2061,7 +2074,7 @@ class BearingElement6DoF(BearingElement):
         {'x_0': 0, 'y_0': 1, 'z_0': 2}
         """
         return dict(x_0=0, y_0=1, z_0=2)
-    
+
     def M(self):
         """Mass matrix for an instance of a bearing element.
 
