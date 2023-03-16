@@ -10,6 +10,7 @@ from ross.bearing_seal_element import *
 from ross.disk_element import *
 from ross.materials import Material, steel
 from ross.point_mass import *
+from ross.probe import Probe
 from ross.rotor_assembly import *
 from ross.shaft_element import *
 from ross.units import Q_
@@ -1440,6 +1441,21 @@ def test_unbalance(rotor7):
 
     phase_expected = np.array([0.730209, 0.545276])
     data = unb.data_phase(probe=[(0, 45)], probe_units="deg")
+    assert_allclose(data["Probe 1 - Node 0"], phase_expected, rtol=1e-4)
+
+
+def test_unbalance_with_probe_class(rotor7):
+
+    probe1 = Probe(0, Q_(45, "deg"))
+
+    unb = rotor7.run_unbalance_response(
+        node=0, unbalance_magnitude=1, unbalance_phase=0, frequency=[50, 100]
+    )
+    amplitude_expected = np.array([0.00274, 0.003526])
+    data = unb.data_magnitude(probe=[probe1.info])
+    assert_allclose(data["Probe 1 - Node 0"], amplitude_expected, rtol=1e-4)
+    phase_expected = np.array([0.730209, 0.545276])
+    data = unb.data_phase(probe=[probe1.info])
     assert_allclose(data["Probe 1 - Node 0"], phase_expected, rtol=1e-4)
 
 
