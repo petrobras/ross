@@ -1445,7 +1445,6 @@ def test_unbalance(rotor7):
 
 
 def test_unbalance_with_probe_class(rotor7):
-
     probe1 = Probe(0, Q_(45, "deg"))
 
     unb = rotor7.run_unbalance_response(
