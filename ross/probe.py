@@ -6,9 +6,12 @@ class Probe:
 
     Parameters
     ----------
-    node : int -> Indicate the node where the probe is located.
-    angle : float, pint.Quantity -> Probe orientation angle about the shaft.
-    tag : str, optional -> Probe tag to be add a DataFrame column title.
+    node : int
+        -> Indicate the node where the probe is located.
+    angle : float, pint.Quantity 
+        -> Probe orientation angle about the shaft.
+    tag : str, optional 
+        -> Probe tag to be add a DataFrame column title.
 
     Example
     -------
