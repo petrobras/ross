@@ -152,7 +152,6 @@ class ST_BearingElement:
             if "mxx" in is_random and "myy" not in is_random:
                 is_random.append("myy")
 
-
         attribute_dict = dict(
             n=n,
             kxx=kxx,

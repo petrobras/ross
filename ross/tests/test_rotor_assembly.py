@@ -191,6 +191,7 @@ def rotor2_bearing_mass():
 
     return Rotor(shaft_elm, [disk0], [bearing0, bearing1])
 
+
 def test_mass_matrix_rotor2_with_bearing_mass(rotor2_bearing_mass):
     # fmt: off
     Mr2 = np.array([[ 1.441,  0.   ,  0.   ,  0.049,  0.496,  0.   ,  0.   , -0.031,
@@ -219,6 +220,7 @@ def test_mass_matrix_rotor2_with_bearing_mass(rotor2_bearing_mass):
                         -0.049,  0.   ,  0.   ,  0.002]])
     # fmt: on
     assert_almost_equal(rotor2_bearing_mass.M(), Mr2, decimal=3)
+
 
 def test_mass_matrix_rotor2(rotor2):
     # fmt: off
