@@ -149,7 +149,7 @@ def test_bearing1_matrices(bearing1):
     # fmt: on
     assert_allclose(bearing1.K(314.2), K)
     assert_allclose(bearing1.C(314.2), C)
-    assert_allclose(bearing1.M(314.2), M)
+    assert_allclose(bearing1.M(), M)
 
 
 def test_bearing_error_speed_not_given():
@@ -227,7 +227,7 @@ def test_bearing_len_3():
 
 def test_equality(bearing0, bearing1, bearing_constant):
     assert bearing0 == bearing0
-    assert bearing0 == bearing1
+    assert not bearing0 == bearing1
     assert not bearing0 == bearing_constant
     assert not bearing0 == 1
 
