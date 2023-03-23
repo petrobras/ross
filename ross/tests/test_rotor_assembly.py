@@ -78,7 +78,7 @@ def test_mass_matrix_rotor1(rotor1):
                     [ 0.   ,  0.   ,  0.   ,  0.   ,  0.   ,  0.031, -0.002,  0.   ,  0.   ,  0.049,  0.002,  0.   ],
                     [ 0.   ,  0.   ,  0.   ,  0.   , -0.031,  0.   ,  0.   , -0.002, -0.049,  0.   ,  0.   ,  0.002]])
     # fmt: on
-    assert_almost_equal(rotor1.M(), Mr1, decimal=3)
+    assert_almost_equal(rotor1.M(0), Mr1, decimal=3)
 
 
 def test_raise_if_element_outside_shaft():
@@ -207,7 +207,7 @@ def test_mass_matrix_rotor2_with_bearing_mass(rotor2_bearing_mass):
                     [ 0.   ,  0.   ,  0.   ,  0.   ,  0.   ,  0.031, -0.002,  0.   , 0.   ,  0.049,  0.002,  0.   ],
                     [ 0.   ,  0.   ,  0.   ,  0.   , -0.031,  0.   ,  0.   , -0.002, -0.049,  0.   ,  0.   ,  0.002]])
     # fmt: on
-    assert_almost_equal(rotor2_bearing_mass.M(), Mr2, decimal=3)
+    assert_almost_equal(rotor2_bearing_mass.M(0), Mr2, decimal=3)
 
 
 def test_mass_matrix_rotor2(rotor2):
@@ -225,7 +225,7 @@ def test_mass_matrix_rotor2(rotor2):
                     [  0.   ,   0.   ,   0.   ,   0.   ,   0.   ,   0.031,  -0.002,   0.   ,   0.   ,   0.049,   0.002,   0.   ],
                     [  0.   ,   0.   ,   0.   ,   0.   ,  -0.031,   0.   ,   0.   ,  -0.002,  -0.049,   0.   ,   0.   ,   0.002]])
     # fmt: on
-    assert_almost_equal(rotor2.M(), Mr2, decimal=3)
+    assert_almost_equal(rotor2.M(0), Mr2, decimal=3)
 
 
 def test_a0_0_matrix_rotor2(rotor2):

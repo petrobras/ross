@@ -483,7 +483,7 @@ class BearingElement(Element):
         """
         return dict(x_0=0, y_0=1)
 
-    def M(self):
+    def M(self, frequency):
         """Mass matrix for an instance of a bearing element.
 
         This method returns the mass matrix for an instance of a bearing
@@ -497,14 +497,14 @@ class BearingElement(Element):
         Examples
         --------
         >>> bearing = bearing_example()
-        >>> bearing.M()
-        array([[0, 0],
-               [0, 0]])
+        >>> bearing.M(0)
+        array([[0., 0.],
+               [0., 0.]])
         """
-        mxx = self.mxx[0]
-        myy = self.myy[0]
-        mxy = self.mxy[0]
-        myx = self.myx[0]
+        mxx = self.mxx_interpolated(frequency)
+        myy = self.myy_interpolated(frequency)
+        mxy = self.mxy_interpolated(frequency)
+        myx = self.myx_interpolated(frequency)
 
         M = np.array([[mxx, mxy], [myx, myy]])
 
@@ -2075,7 +2075,7 @@ class BearingElement6DoF(BearingElement):
         """
         return dict(x_0=0, y_0=1, z_0=2)
 
-    def M(self):
+    def M(self, frequency):
         """Mass matrix for an instance of a bearing element.
 
         This method returns the mass matrix for an instance of a bearing
@@ -2089,17 +2089,17 @@ class BearingElement6DoF(BearingElement):
         Examples
         --------
         >>> bearing = bearing_6dof_example()
-        >>> bearing.M()
+        >>> bearing.M(0)
         array([[0., 0., 0.],
                [0., 0., 0.],
                [0., 0., 0.]])
         """
 
-        mxx = self.mxx[0]
-        myy = self.myy[0]
-        mxy = self.mxy[0]
-        myx = self.myx[0]
-        mzz = self.mzz[0]
+        mxx = self.mxx_interpolated(frequency)
+        myy = self.myy_interpolated(frequency)
+        mxy = self.mxy_interpolated(frequency)
+        myx = self.myx_interpolated(frequency)
+        mzz = self.mzz_interpolated(frequency)
 
         M = np.array([[mxx, mxy, 0], [myx, myy, 0], [0, 0, mzz]])
 

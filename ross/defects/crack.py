@@ -242,7 +242,7 @@ class Crack(Defect):
         self.K = self.rotor.K(self.speed)
         self.C = self.rotor.C(self.speed)
         self.G = self.rotor.G()
-        self.M = self.rotor.M()
+        self.M = self.rotor.M(self.speed)
         self.Kst = self.rotor.Kst()
 
         _, ModMat = scipy.linalg.eigh(
