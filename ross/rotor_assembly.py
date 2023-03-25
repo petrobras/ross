@@ -2255,9 +2255,8 @@ class Rotor(object):
         for i, k in enumerate(stiffness_log):
             bearings = [BearingElement(b.n, kxx=k, cxx=0) for b in bearings_elements]
             rotor = self.__class__(self.shaft_elements, self.disk_elements, bearings)
-            speed = 0
             modal = rotor.run_modal(
-                speed=speed, num_modes=num_modes, synchronous=synchronous
+                speed=0, num_modes=num_modes, synchronous=synchronous
             )
             rotor_wn[:, i] = modal.wn[::2]
 
