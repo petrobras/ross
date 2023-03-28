@@ -89,7 +89,7 @@ class DiskElement(Element):
         True
         """
         false_number = 0
-        if other.__class__.__name__ == "DiskElement":
+        if "DiskElement" in other.__class__.__name__:
             for i in self.__dict__:
                 try:
                     if np.allclose(self.__dict__[i], other.__dict__[i]):
