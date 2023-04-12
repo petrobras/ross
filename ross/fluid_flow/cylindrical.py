@@ -30,7 +30,7 @@ class THDCylindrical(BearingElement):
         Arc length of each pad. The unit is degree.
     preload: float
         Preload of the pad. The preload is defined as m=1-Cb/Cp where Cp is
-        the pad ground-in clearance.
+        the pad ground-in clearance.Preload is dimensionless
     initial_guess : array
         Array with eccentricity ratio and attitude angle
     method : string
@@ -354,8 +354,29 @@ class THDCylindrical(BearingElement):
                         - self.Y * np.sin(jj - 0.5 * self.dtheta)
                     )
                 
-                else:
+                # else:
                     
+                #     if self.equilibrium_pos is None:
+                #         phi = self.initial_guess[1]+np.pi/2
+                #         e = float(self.initial_guess[0])*self.radial_clearance
+                      
+                #     else:
+                #         self.equilibrium_pos = [initial_guess,y0]
+                #         phi = (self.equilibrium_pos[1])+np.pi/2
+                #         e = float(self.equilibrium_pos[0])*self.radial_clearance
+                        
+                #     Ch = self.radial_clearance / (1-self.preload)
+                    
+                #     Cv = self.radial_clearance
+                    
+                #     teta_elipt=(jj)-np.pi/2
+                    
+                #     hP = (Cv+e*np.cos(teta_elipt-phi)+(Ch-Cv)*(np.sin(teta_elipt))**2)/Cv
+                           
+                #     he = (Cv+e*np.cos(teta_elipt-phi + 0.5 * self.dtheta)+(Ch-Cv)*(np.sin(teta_elipt + 0.5 * self.dtheta))**2)/Cv
+                                    
+                #     hw = (Cv+e*np.cos(teta_elipt-phi - 0.5 * self.dtheta)+(Ch-Cv)*(np.sin(teta_elipt - 0.5 * self.dtheta))**2)/Cv
+                else:
                     if self.equilibrium_pos is None:
                         phi = self.initial_guess[1]+np.pi/2
                         e = float(self.initial_guess[0])*self.radial_clearance
@@ -363,29 +384,26 @@ class THDCylindrical(BearingElement):
                     else:
                         self.equilibrium_pos = [initial_guess,y0]
                         phi = (self.equilibrium_pos[1])+np.pi/2
-                        e = float(self.equilibrium_pos[0])*self.radial_clearance
-                        
+                        e = float(self.equilibrium_pos[0])*self.radial_clearance                            
                     
                     Ch = self.radial_clearance / (1-self.preload)
                     
                     Cv = self.radial_clearance
                     
                     
-                    teta_elipt=(jj)-np.pi/2
+                    teta_elipt=(jj)+np.pi/2
                     
-                    hP = (Cv+e*np.cos(teta_elipt-phi)+(Ch-Cv)*(np.sin(teta_elipt))**2)/Cv
+                    hP = (Cv+e*np.cos(teta_elipt)+(Ch-Cv)*(np.sin(teta_elipt+phi))**2)/Cv
                            
-                    he = (Cv+e*np.cos(teta_elipt-phi + 0.5 * self.dtheta)+(Ch-Cv)*(np.sin(teta_elipt + 0.5 * self.dtheta))**2)/Cv
+                    he = (Cv+e*np.cos(teta_elipt + 0.5 * self.dtheta)+(Ch-Cv)*(np.sin(teta_elipt+phi + 0.5 * self.dtheta))**2)/Cv
                                     
-                    hw = (Cv+e*np.cos(teta_elipt-phi - 0.5 * self.dtheta)+(Ch-Cv)*(np.sin(teta_elipt - 0.5 * self.dtheta))**2)/Cv
+                    hw = (Cv+e*np.cos(teta_elipt - 0.5 * self.dtheta)+(Ch-Cv)*(np.sin(teta_elipt+phi - 0.5 * self.dtheta))**2)/Cv
                 
-             
-                          
+                    
                 
                 hn = hP
                 hs = hn
  
-                
                 if kj == 0 and ki == 0:
                     MU_e = 0.5 * (mu[ki, kj] + mu[ki, kj + 1])
                     MU_w = mu[ki, kj]
@@ -601,8 +619,6 @@ class THDCylindrical(BearingElement):
         """
         global H_PLOT, pressao
         
-        
-        
         while self.erro >= 0.01:
 
             p_old = np.array(p)
@@ -622,8 +638,6 @@ class THDCylindrical(BearingElement):
                     self.dtheta,
                 ):
 
-                    
-                                        
                     if self.preload ==0:
                         
                         hP = 1 - self.X * np.cos(jj) - self.Y * np.sin(jj)
@@ -640,15 +654,37 @@ class THDCylindrical(BearingElement):
                     
                     else:
                         
+                        # if self.equilibrium_pos is None:
+                        #     phi = self.initial_guess[1]+np.pi/2
+                        #     e = float(self.initial_guess[0])*self.radial_clearance
+                          
+                        # else:
+                        #     self.equilibrium_pos = [initial_guess,y0]
+                        #     phi = (self.equilibrium_pos[1])+np.pi/2
+                        #     e = float(self.equilibrium_pos[0])*self.radial_clearance
+                            
+                        
+                        # Ch = self.radial_clearance / (1-self.preload)
+                        
+                        # Cv = self.radial_clearance
+                        
+                        
+                        # teta_elipt=(jj)-np.pi/2
+                        
+                        # hP = (Cv+e*np.cos(teta_elipt-phi)+(Ch-Cv)*(np.sin(teta_elipt))**2)/Cv
+                               
+                        # he = (Cv+e*np.cos(teta_elipt-phi + 0.5 * self.dtheta)+(Ch-Cv)*(np.sin(teta_elipt + 0.5 * self.dtheta))**2)/Cv
+                                        
+                        # hw = (Cv+e*np.cos(teta_elipt-phi - 0.5 * self.dtheta)+(Ch-Cv)*(np.sin(teta_elipt - 0.5 * self.dtheta))**2)/Cv
+                        
                         if self.equilibrium_pos is None:
-                            phi = self.initial_guess[1]+np.pi/2
-                            e = float(self.initial_guess[0])*self.radial_clearance
+                            phi = self.initial_guess[1]
+                            e = float(self.initial_guess[0])
                           
                         else:
                             self.equilibrium_pos = [initial_guess,y0]
-                            phi = (self.equilibrium_pos[1])+np.pi/2
-                            e = float(self.equilibrium_pos[0])*self.radial_clearance
-                            
+                            phi = (self.equilibrium_pos[1])
+                            e = float(self.equilibrium_pos[0])                            
                         
                         Ch = self.radial_clearance / (1-self.preload)
                         
@@ -657,11 +693,11 @@ class THDCylindrical(BearingElement):
                         
                         teta_elipt=(jj)-np.pi/2
                         
-                        hP = (Cv+e*np.cos(teta_elipt-phi)+(Ch-Cv)*(np.sin(teta_elipt))**2)/Cv
+                        hP = (1+e*np.cos(teta_elipt)+(Cv/Ch)*(np.sin(teta_elipt+phi))**2)*Cv
                                
-                        he = (Cv+e*np.cos(teta_elipt-phi + 0.5 * self.dtheta)+(Ch-Cv)*(np.sin(teta_elipt + 0.5 * self.dtheta))**2)/Cv
+                        he = (1+e*np.cos(teta_elipt + 0.5 * self.dtheta)+(Cv/Ch)*(np.sin(teta_elipt+phi + 0.5 * self.dtheta))**2)*Cv
                                         
-                        hw = (Cv+e*np.cos(teta_elipt-phi - 0.5 * self.dtheta)+(Ch-Cv)*(np.sin(teta_elipt - 0.5 * self.dtheta))**2)/Cv
+                        hw = (1+e*np.cos(teta_elipt - 0.5 * self.dtheta)+(Cv/Ch)*(np.sin(teta_elipt+phi - 0.5 * self.dtheta))**2)*Cv
                         
                     
                     hn = hP
@@ -1362,24 +1398,44 @@ class THDCylindrical(BearingElement):
                             
                             else:
                                 
-                                if self.equilibrium_pos is None:
-                                    phi = self.initial_guess[1]+np.pi/2
-                                    e = float(self.initial_guess[0])*self.radial_clearance
+                                # if self.equilibrium_pos is None:
+                                #     phi = self.initial_guess[1]+np.pi/2
+                                #     e = float(self.initial_guess[0])*self.radial_clearance
                                 
                                 
-                                else:
-                                    self.equilibrium_pos = [initial_guess,y0]
-                                    phi = (self.equilibrium_pos[1])+np.pi/2
-                                    e = float(self.equilibrium_pos[0])*self.radial_clearance
+                                # else:
+                                #     self.equilibrium_pos = [initial_guess,y0]
+                                #     phi = (self.equilibrium_pos[1])+np.pi/2
+                                #     e = float(self.equilibrium_pos[0])*self.radial_clearance
 
-                                Ch = self.radial_clearance / (1-self.preload)            
-                                Cv = self.radial_clearance
+                                # Ch = self.radial_clearance / (1-self.preload)            
+                                # Cv = self.radial_clearance
                                 
     
                                 
-                                teta_elipt=(jj)-np.pi/2
+                                # teta_elipt=(jj)-np.pi/2
                                 
-                                HP = (Cv+e*np.cos(teta_elipt-phi)+(Ch-Cv)*(np.sin(teta_elipt))**2)/Cv
+                                # HP = (Cv+e*np.cos(teta_elipt-phi)+(Ch-Cv)*(np.sin(teta_elipt))**2)/Cv
+                                
+                                if self.equilibrium_pos is None:
+                                    phi = self.initial_guess[1]+np.pi/2
+                                    e = float(self.initial_guess[0])*self.radial_clearance
+                                  
+                                else:
+                                    self.equilibrium_pos = [initial_guess,y0]
+                                    phi = (self.equilibrium_pos[1])+np.pi/2
+                                    e = float(self.equilibrium_pos[0])*self.radial_clearance                            
+                                
+                                Ch = self.radial_clearance / (1-self.preload)
+                                
+                                Cv = self.radial_clearance
+                                
+                                
+                                teta_elipt=(jj)+np.pi/2
+                                
+                                HP = (Cv+e*np.cos(teta_elipt)+(Ch-Cv)*(np.sin(teta_elipt+phi))**2)/Cv
+                                
+             
                            
               
                             hpt = -self.Xpt * np.cos(jj) - self.Ypt * np.sin(jj)
@@ -1829,7 +1885,7 @@ class THDCylindrical(BearingElement):
             args,
             method="Nelder-Mead",
             tol=0.9,
-            options={"maxiter": 0},
+            options={"maxiter": 1e10},
         )
         self.equilibrium_pos = res.x
         t2 = time.time()
