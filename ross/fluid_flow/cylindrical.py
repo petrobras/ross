@@ -28,6 +28,9 @@ class THDCylindrical(BearingElement):
         Number of pads that compound the bearing surface.
     pad_arc_length : float
         Arc length of each pad. The unit is degree.
+    preload: float
+        Preload of the pad. The preload is defined as m=1-Cb/Cp where Cp is
+        the pad ground-in clearance.
     initial_guess : array
         Array with eccentricity ratio and attitude angle
     method : string
@@ -144,6 +147,7 @@ class THDCylindrical(BearingElement):
         elements_axial,
         n_pad,
         pad_arc_length,
+        preload,
         reference_temperature,
         speed,
         load_x_direction,
@@ -169,6 +173,7 @@ class THDCylindrical(BearingElement):
         self.elements_circumferential = elements_circumferential
         self.elements_axial = elements_axial
         self.n_pad = n_pad
+        self.preload = preload
         self.reference_temperature = reference_temperature
         self.load_x_direction = load_x_direction
         self.load_y_direction = load_y_direction
@@ -301,7 +306,7 @@ class THDCylindrical(BearingElement):
 
         super().__init__(node, kxx, cxx, kyy, kxy, kyx, cyy, cxy, cyx, speed)
 
-    def _flooded(self, n_p, Mat_coef, b_P, mu):
+    def _flooded(self, n_p, Mat_coef, b_P, mu, initial_guess, y0):
         """Provides an analysis in which the bearing always receive sufficient oil feed to operate.
 
         Parameters
@@ -314,13 +319,14 @@ class THDCylindrical(BearingElement):
             Coefficients to pressure independent terms.
         mu : np.array
             Viscosity matrix.
+            
 
         Returns
         -------
         self.P : np.array
             Pressure distribution in current pad vector.
         """
-
+        global pressao
         ki = 0
         kj = 0
         k = 0
@@ -333,41 +339,52 @@ class THDCylindrical(BearingElement):
             ):
                 
                 
-                m = 0.1
                
-                phi = self.initial_guess[1]+np.pi/2
+                if self.preload ==0:
+                    
+                    hP = 1 - self.X * np.cos(jj) - self.Y * np.sin(jj)
+                    he = (
+                        1
+                        - self.X * np.cos(jj + 0.5 * self.dtheta)
+                        - self.Y * np.sin(jj + 0.5 * self.dtheta)
+                    )
+                    hw = (
+                        1
+                        - self.X * np.cos(jj - 0.5 * self.dtheta)
+                        - self.Y * np.sin(jj - 0.5 * self.dtheta)
+                    )
                 
-                Ch = self.radial_clearance / (1-m)            
-                Cv = self.radial_clearance
-                
-                e = float(self.initial_guess[0])*self.radial_clearance
-                
-                teta_elipt=(jj)-np.pi/2
-                
-                hP = (Cv+e*np.cos(teta_elipt-phi)+(Ch-Cv)*(np.sin(teta_elipt))**2)/Cv
-                               
-                he = (Cv+e*np.cos(teta_elipt-phi+0.5 * self.dtheta)+(Ch-Cv)*(np.sin(teta_elipt+0.5 * self.dtheta))**2)/Cv
-                                
-                hw = (Cv+e*np.cos(teta_elipt-phi-0.5 * self.dtheta)+(Ch-Cv)*(np.sin(teta_elipt-0.5 * self.dtheta))**2)/Cv
+                else:
+                    
+                    if self.equilibrium_pos is None:
+                        phi = self.initial_guess[1]+np.pi/2
+                        e = float(self.initial_guess[0])*self.radial_clearance
+                      
+                    else:
+                        self.equilibrium_pos = [initial_guess,y0]
+                        phi = (self.equilibrium_pos[1])+np.pi/2
+                        e = float(self.equilibrium_pos[0])*self.radial_clearance
+                        
+                    
+                    Ch = self.radial_clearance / (1-self.preload)
+                    
+                    Cv = self.radial_clearance
+                    
+                    
+                    teta_elipt=(jj)-np.pi/2
+                    
+                    hP = (Cv+e*np.cos(teta_elipt-phi)+(Ch-Cv)*(np.sin(teta_elipt))**2)/Cv
+                           
+                    he = (Cv+e*np.cos(teta_elipt-phi + 0.5 * self.dtheta)+(Ch-Cv)*(np.sin(teta_elipt + 0.5 * self.dtheta))**2)/Cv
+                                    
+                    hw = (Cv+e*np.cos(teta_elipt-phi - 0.5 * self.dtheta)+(Ch-Cv)*(np.sin(teta_elipt - 0.5 * self.dtheta))**2)/Cv
                 
              
-              
-                # hP = 1 - self.X * np.cos(jj) - self.Y * np.sin(jj)
-                # he = (
-                #     1
-                #     - self.X * np.cos(jj + 0.5 * self.dtheta)
-                #     - self.Y * np.sin(jj + 0.5 * self.dtheta)
-                # )
-                # hw = (
-                #     1
-                #     - self.X * np.cos(jj - 0.5 * self.dtheta)
-                #     - self.Y * np.sin(jj - 0.5 * self.dtheta)
-                # )
+                          
                 
                 hn = hP
                 hs = hn
-                
-                # print (hP)
+ 
                 
                 if kj == 0 and ki == 0:
                     MU_e = 0.5 * (mu[ki, kj] + mu[ki, kj + 1])
@@ -551,10 +568,10 @@ class THDCylindrical(BearingElement):
         self.Pdim = (
             self.P * self.reference_viscosity * self.speed * (self.journal_radius**2)
         ) / (self.radial_clearance**2)
-
+        pressao = self.Pdim
         return self.P
 
-    def _starvation(self, n_p, Mat_coef_st, mu, p_old, p, B, B_theta, nk):
+    def _starvation(self, n_p, Mat_coef_st, mu, p_old, p, B, B_theta, nk, initial_guess, y0, xpt0, ypt0):
         """Provides an analysis in which the bearing may receive insufficient oil feed.
 
         Parameters
@@ -582,7 +599,10 @@ class THDCylindrical(BearingElement):
         self.P : np.array
             Pressure distribution in current pad vector.
         """
-
+        global H_PLOT, pressao
+        
+        
+        
         while self.erro >= 0.01:
 
             p_old = np.array(p)
@@ -594,7 +614,7 @@ class THDCylindrical(BearingElement):
             k = 0
             ki = 0
             kj = 0
-
+            
             for ii in np.arange((self.Z_I + 0.5 * self.dZ), self.Z_F, self.dZ):
                 for jj in np.arange(
                     self.thetaI[n_p] + (self.dtheta / 2),
@@ -602,35 +622,48 @@ class THDCylindrical(BearingElement):
                     self.dtheta,
                 ):
 
-
-                    m = 0.1
-                   
-                    phi = self.initial_guess[1]+np.pi/2
                     
-                    Ch = self.radial_clearance / (1-m)            
-                    Cv = self.radial_clearance
+                                        
+                    if self.preload ==0:
+                        
+                        hP = 1 - self.X * np.cos(jj) - self.Y * np.sin(jj)
+                        he = (
+                            1
+                            - self.X * np.cos(jj + 0.5 * self.dtheta)
+                            - self.Y * np.sin(jj + 0.5 * self.dtheta)
+                        )
+                        hw = (
+                            1
+                            - self.X * np.cos(jj - 0.5 * self.dtheta)
+                            - self.Y * np.sin(jj - 0.5 * self.dtheta)
+                        )
                     
-                    e = float(self.initial_guess[0])*self.radial_clearance
+                    else:
+                        
+                        if self.equilibrium_pos is None:
+                            phi = self.initial_guess[1]+np.pi/2
+                            e = float(self.initial_guess[0])*self.radial_clearance
+                          
+                        else:
+                            self.equilibrium_pos = [initial_guess,y0]
+                            phi = (self.equilibrium_pos[1])+np.pi/2
+                            e = float(self.equilibrium_pos[0])*self.radial_clearance
+                            
+                        
+                        Ch = self.radial_clearance / (1-self.preload)
+                        
+                        Cv = self.radial_clearance
+                        
+                        
+                        teta_elipt=(jj)-np.pi/2
+                        
+                        hP = (Cv+e*np.cos(teta_elipt-phi)+(Ch-Cv)*(np.sin(teta_elipt))**2)/Cv
+                               
+                        he = (Cv+e*np.cos(teta_elipt-phi + 0.5 * self.dtheta)+(Ch-Cv)*(np.sin(teta_elipt + 0.5 * self.dtheta))**2)/Cv
+                                        
+                        hw = (Cv+e*np.cos(teta_elipt-phi - 0.5 * self.dtheta)+(Ch-Cv)*(np.sin(teta_elipt - 0.5 * self.dtheta))**2)/Cv
+                        
                     
-                    teta_elipt=(jj)-np.pi/2
-                    
-                    hP = (Cv+e*np.cos(teta_elipt-phi)+(Ch-Cv)*(np.sin(teta_elipt))**2)/Cv
-                                   
-                    he = (Cv+e*np.cos(teta_elipt-phi+0.5 * self.dtheta)+(Ch-Cv)*(np.sin(teta_elipt+0.5 * self.dtheta))**2)/Cv
-                                    
-                    hw = (Cv+e*np.cos(teta_elipt-phi-0.5 * self.dtheta)+(Ch-Cv)*(np.sin(teta_elipt-0.5 * self.dtheta))**2)/Cv
-                    
-                    # hP = 1 - self.X * np.cos(jj) - self.Y * np.sin(jj)
-                    # he = (
-                    #     1
-                    #     - self.X * np.cos(jj + 0.5 * self.dtheta)
-                    #     - self.Y * np.sin(jj + 0.5 * self.dtheta)
-                    # )
-                    # hw = (
-                    #     1
-                    #     - self.X * np.cos(jj - 0.5 * self.dtheta)
-                    #     - self.Y * np.sin(jj - 0.5 * self.dtheta)
-                    # )
                     hn = hP
                     hs = hn
 
@@ -1026,7 +1059,7 @@ class THDCylindrical(BearingElement):
         self.Pdim = (
             self.P * self.reference_viscosity * self.speed * (self.journal_radius**2)
         ) / (self.radial_clearance**2)
-
+        pressao = self.Pdim
         return self.P
 
     def _forces(self, initial_guess, y0, xpt0, ypt0):
@@ -1053,7 +1086,7 @@ class THDCylindrical(BearingElement):
         Fhy : float
             Force in Y direction. The unit is newton.
         """
-
+        global temp,H_PLOT
         if y0 is None and xpt0 is None and ypt0 is None:
             self.initial_guess = initial_guess
             
@@ -1072,13 +1105,15 @@ class THDCylindrical(BearingElement):
 
             self.Xpt = 0
             self.Ypt = 0
+            
         else:
             self.X = initial_guess / self.radial_clearance
             self.Y = y0 / self.radial_clearance
 
             self.Xpt = xpt0 / (self.radial_clearance * self.speed)
             self.Ypt = ypt0 / (self.radial_clearance * self.speed)
-
+            
+        
         T_conv = 0.8 * self.reference_temperature
 
         T_mist = self.reference_temperature * np.ones(self.n_pad)
@@ -1111,6 +1146,7 @@ class THDCylindrical(BearingElement):
         T_end = np.ones(self.n_pad)
 
         while (T_mist[0] - T_conv) >= 0.5:
+            H_PLOT = np.zeros((3,11,2))
             nk = (self.elements_axial) * (self.elements_circumferential)
             self.P = np.zeros(
                 (self.elements_axial, self.elements_circumferential, self.n_pad)
@@ -1203,10 +1239,10 @@ class THDCylindrical(BearingElement):
                     B_theta = np.zeros((nk, 1))
 
                     if self.operating_type == "flooded":
-                        self._flooded(n_p, Mat_coef, b_P, mu)
+                        self._flooded(n_p, Mat_coef, b_P, mu,  initial_guess, y0)
 
                     elif self.operating_type == "starvation":
-                        self._starvation(n_p, Mat_coef_st, mu, p_old, p, B, B_theta, nk)
+                        self._starvation(n_p, Mat_coef_st, mu, p_old, p, B, B_theta, nk, initial_guess, y0, xpt0, ypt0)
 
                     ki = 0
                     kj = 0
@@ -1319,28 +1355,35 @@ class THDCylindrical(BearingElement):
 
                             
                             
-                            m = 0.2
+                                                       
+                            if self.preload ==0:
+                                
+                                HP = 1 - self.X * np.cos(jj) - self.Y * np.sin(jj)
                             
-                            phi = self.initial_guess[1]+np.pi/2
-                            
-                            Ch = self.radial_clearance / (1-m)            
-                            Cv = self.radial_clearance
-                            
-                            e = float(self.initial_guess[0])*self.radial_clearance
-                            
-                            teta_elipt=(jj)-np.pi/2
-                            
-                            HP = (Cv+e*np.cos(teta_elipt-phi)+(Ch-Cv)*(np.sin(teta_elipt))**2)/Cv
+                            else:
+                                
+                                if self.equilibrium_pos is None:
+                                    phi = self.initial_guess[1]+np.pi/2
+                                    e = float(self.initial_guess[0])*self.radial_clearance
+                                
+                                
+                                else:
+                                    self.equilibrium_pos = [initial_guess,y0]
+                                    phi = (self.equilibrium_pos[1])+np.pi/2
+                                    e = float(self.equilibrium_pos[0])*self.radial_clearance
+
+                                Ch = self.radial_clearance / (1-self.preload)            
+                                Cv = self.radial_clearance
+                                
+    
+                                
+                                teta_elipt=(jj)-np.pi/2
+                                
+                                HP = (Cv+e*np.cos(teta_elipt-phi)+(Ch-Cv)*(np.sin(teta_elipt))**2)/Cv
                            
-                            
-                            
-                            
-                            
-                            
-                            
-                            
-                            # HP = 1 - self.X * np.cos(jj) - self.Y * np.sin(jj)
+              
                             hpt = -self.Xpt * np.cos(jj) - self.Ypt * np.sin(jj)
+                            
                             self.H[kj, n_p] = HP
 
                             mu_p = mu[ki, kj, n_p]
@@ -1744,7 +1787,7 @@ class THDCylindrical(BearingElement):
             (self.elements_axial, self.elements_circumferential * self.n_pad)
         )
         
- 
+        temp = Tdim
         for i in range(self.elements_axial):
 
             PPlot[i] = self.Pdim[i, :, :].ravel("F")
@@ -1785,8 +1828,8 @@ class THDCylindrical(BearingElement):
             self.initial_guess,
             args,
             method="Nelder-Mead",
-            tol=10e-2,
-            options={"maxiter": 1e4},
+            tol=0.9,
+            options={"maxiter": 0},
         )
         self.equilibrium_pos = res.x
         t2 = time.time()
@@ -1890,24 +1933,79 @@ class THDCylindrical(BearingElement):
             * np.sin(self.equilibrium_pos[1])
         )
 
+        
         dE = 0.001
+        
         epix = np.abs(dE * self.radial_clearance * np.cos(self.equilibrium_pos[1]))
         epiy = np.abs(dE * self.radial_clearance * np.sin(self.equilibrium_pos[1]))
+        
 
-        Va = self.speed * (self.journal_radius)
+        
+        # Va = self.speed * (self.journal_radius)
+        Va = self.speed * (self.equilibrium_pos[0]*self.radial_clearance)
         epixpt = 0.000001 * np.abs(Va * np.sin(self.equilibrium_pos[1]))
         epiypt = 0.000001 * np.abs(Va * np.cos(self.equilibrium_pos[1]))
+        
+        # Pertubação só em +X
+        x_new1 = xeq + epix 
+        y_new1 = yeq
+        e_new1 = np.sqrt((x_new1**2)+(y_new1**2))/self.radial_clearance
+        #atitude_ang_new1 = np.arctan2(x_new1/y_new1)#   esse é o angulo de atitude do eixo no referencial inercial 
+        atitude_ang_new1 = np.arctan2(y_new1,x_new1)
 
-        Auinitial_guess1 = self._forces(xeq + epix, yeq, 0, 0)
-        Auinitial_guess2 = self._forces(xeq - epix, yeq, 0, 0)
-        Auinitial_guess3 = self._forces(xeq, yeq + epiy, 0, 0)
-        Auinitial_guess4 = self._forces(xeq, yeq - epiy, 0, 0)
+        
+        Auinitial_guess1 = self._forces(e_new1, atitude_ang_new1, 0, 0)
+        
+        # Pertubação só em -X
+        x_new2 = xeq - epix 
+        y_new2 = yeq
+        e_new2 = np.sqrt((x_new2**2)+(y_new2**2))/self.radial_clearance
+        atitude_ang_new2 = np.arctan2(y_new2,x_new2)#   esse é o angulo de atitude do eixo no referencial inercial padrão
+        Auinitial_guess2 = self._forces(e_new2, atitude_ang_new2, 0, 0)
+        
+        # Pertubação só em +Y
+        x_new3 = xeq  
+        y_new3 = yeq + epiy
+        e_new3 = np.sqrt((x_new3**2)+(y_new3**2))/self.radial_clearance
+        atitude_ang_new3 = np.arctan2(y_new3,x_new3)#   esse é o angulo de atitude do eixo no referencial inercial padrão
+        Auinitial_guess3 = self._forces(e_new3, atitude_ang_new3, 0, 0)
+        
+        # Pertubação só em -Y
+        x_new4 = xeq 
+        y_new4 = yeq - epiy
+        e_new4 = np.sqrt((x_new4**2)+(y_new4**2))/self.radial_clearance
+        atitude_ang_new4 = np.arctan2(y_new4,x_new4)#   esse é o angulo de atitude do eixo no referencial inercial padrão
+        Auinitial_guess4 = self._forces(e_new4, atitude_ang_new4, 0, 0)
 
-        Auinitial_guess5 = self._forces(xeq, yeq, epixpt, 0)
-        Auinitial_guess6 = self._forces(xeq, yeq, -epixpt, 0)
-        Auinitial_guess7 = self._forces(xeq, yeq, 0, epiypt)
-        Auinitial_guess8 = self._forces(xeq, yeq, 0, -epiypt)
+        # Pertubação só em +Xpt
+        x_new5 = xeq 
+        y_new5 = yeq
+        e_new5 = np.sqrt((x_new5**2)+(y_new5**2))/self.radial_clearance
+        atitude_ang_new5 = np.arctan2(y_new5,x_new5)#   esse é o angulo de atitude do eixo no referencial inercial padrão
+        Auinitial_guess5 = self._forces(e_new5, atitude_ang_new5, epixpt, 0)
+        
+        # Pertubação só em -Xpt
+        x_new6 = xeq  
+        y_new6 = yeq
+        e_new6 = np.sqrt((x_new6**2)+(y_new6**2))/self.radial_clearance
+        atitude_ang_new6 = np.arctan2(y_new6,x_new6)#   esse é o angulo de atitude do eixo no referencial inercial padrão
+        Auinitial_guess6 = self._forces(e_new6, atitude_ang_new6, -epixpt, 0)
+        
+        # Pertubação só em +Ypt
+        x_new7 = xeq  
+        y_new7 = yeq
+        e_new7 = np.sqrt((x_new7**2)+(y_new7**2))/self.radial_clearance
+        atitude_ang_new7 = np.arctan2(y_new7,x_new7)#   esse é o angulo de atitude do eixo no referencial inercial padrão
+        Auinitial_guess7 = self._forces(e_new7, atitude_ang_new7, 0, epiypt)
+        
+        # Pertubação só em -Ypt
+        x_new8 = xeq  
+        y_new8 = yeq
+        e_new8 = np.sqrt((x_new8**2)+(y_new8**2))/self.radial_clearance
+        atitude_ang_new8 = np.arctan2(y_new8,x_new8)#   esse é o angulo de atitude do eixo no referencial inercial padrão
+        Auinitial_guess8 = self._forces(e_new8, atitude_ang_new8, 0, -epiypt)
 
+        
         Kxx = -self.sommerfeld(Auinitial_guess1[0], Auinitial_guess2[1]) * (
             (Auinitial_guess1[0] - Auinitial_guess2[0]) / (epix / self.radial_clearance)
         )
@@ -1920,7 +2018,8 @@ class THDCylindrical(BearingElement):
         Kyy = -self.sommerfeld(Auinitial_guess3[1], Auinitial_guess4[1]) * (
             (Auinitial_guess3[1] - Auinitial_guess4[1]) / (epiy / self.radial_clearance)
         )
-
+        
+        
         Cxx = -self.sommerfeld(Auinitial_guess5[0], Auinitial_guess6[1]) * (
             (Auinitial_guess5[0] - Auinitial_guess6[0])
             / (epixpt / self.radial_clearance / self.speed)
@@ -2041,6 +2140,7 @@ class THDCylindrical(BearingElement):
 
                         if self.P[ki, kj, n_p] > 0:
 
+                            
                             HP = 1 - self.X * np.cos(jj) - self.Y * np.sin(jj)
                             He = (
                                 1
@@ -2865,7 +2965,8 @@ class THDCylindrical(BearingElement):
                 * (np.sqrt((force_x**2) + (force_y**2)))
             )
 
-        Ss = S * ((self.axial_length / (2 * self.journal_radius)) ** 2)
+        # Ss = S * ((self.axial_length / (2 * self.journal_radius)) ** 2)
+        Ss = S 
 
         return Ss
 
@@ -2887,26 +2988,27 @@ def cylindrical_bearing_example():
     """
 
     bearing = THDCylindrical(
-        axial_length=(0.263144),
-        journal_radius=(0.2),
-        radial_clearance=(1.95e-4),
-        elements_circumferential=11,
-        elements_axial=3,
+        axial_length=(0.1),
+        journal_radius=(0.05),
+        radial_clearance=(100e-6),
+        elements_circumferential=21,
+        elements_axial=7,
         n_pad=2,
-        pad_arc_length=176,
-        reference_temperature=50,
-        speed=Q_([900], "RPM"),
+        pad_arc_length=178,
+        preload=0.5,
+        reference_temperature=27,
+        speed=Q_([2000], "RPM"),
         load_x_direction=0,
-        load_y_direction=-112814.91,
-        groove_factor=[0.52, 0.48],
-        lubricant="ISOVG32",
+        load_y_direction=-10000,
+        groove_factor=[0.56, 0.24],
+        lubricant="TEST",
         node=3,
         sommerfeld_type=2,
-        initial_guess=[0.5, -0.5],
-        method="perturbation",
-        operating_type="starvation",
+        initial_guess=[0.76600564, -0.16915166],
+        method="lund",
+        operating_type="flooded",
         injection_pressure=0,
-        oil_flow=37.86,
+        oil_flow=94.64,
         show_coef=False,
         print_result=True,
         print_progress=True,
@@ -2914,6 +3016,8 @@ def cylindrical_bearing_example():
     )
 
     return bearing
+
+
 if __name__ == '__main__':
     cylindrical_bearing_example()
     
