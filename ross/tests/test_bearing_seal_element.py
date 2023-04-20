@@ -99,6 +99,7 @@ def bearing1():
     )
     return bearing1
 
+
 def test_index(bearing1):
     assert bearing1.dof_local_index()[0] == 0
     assert bearing1.dof_local_index().x_0 == 0
