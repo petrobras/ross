@@ -16,11 +16,15 @@ def AISI4140():
 @pytest.fixture
 def A216WCB():
     return Material(
-        name="A216WCB", rho=7820.0, E=210000000000.0, G_s=81395348837.2093, color="#525252",
+        name="A216WCB",
+        rho=7820.0,
+        E=210000000000.0,
+        G_s=81395348837.2093,
+        color="#525252",
     )
 
 
-def test_material_equality(A216WCB,AISI4140):
+def test_material_equality(A216WCB, AISI4140):
     assert A216WCB != AISI4140
 
 

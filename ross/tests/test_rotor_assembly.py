@@ -159,6 +159,7 @@ def rotor2():
 def test_rotor_equality(rotor1, rotor2):
     assert rotor1 != rotor2
 
+
 def test_mass_matrix_rotor2(rotor2):
     # fmt: off
     Mr2 = np.array([[  1.421,   0.   ,   0.   ,   0.049,   0.496,   0.   ,   0.   ,  -0.031,   0.   ,   0.   ,   0.   ,   0.   ],
