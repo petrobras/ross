@@ -13,6 +13,17 @@ def AISI4140():
     )
 
 
+@pytest.fixture
+def A216WCB():
+    return Material(
+        name="A216WCB", rho=7820.0, E=210000000000.0, G_s=81395348837.2093, color="#525252",
+    )
+
+
+def test_material_equality(A216WCB,AISI4140):
+    assert A216WCB != AISI4140
+
+
 def test_raise_name_material():
     with pytest.raises(ValueError) as excinfo:
         Material("with space", rho=7850, G_s=80e9, Poisson=0.27)
