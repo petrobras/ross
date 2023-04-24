@@ -329,9 +329,9 @@ def rotor3():
 
 
 def test_modal_fig_orientation(rotor3):
-    modal = rotor3.run_modal(Q_(900, "RPM"))
-    fig = modal.plot_mode_2d(1, orientation="major")
-    data_major = fig.data[0].y
+    modal1 = rotor3.run_modal(Q_(900, "RPM"))
+    fig1 = modal1.plot_mode_2d(1, orientation="major")
+    data_major = fig1.data[0].y
 
     # fmt: off
     expected_data_major = np.array([
@@ -344,22 +344,24 @@ def test_modal_fig_orientation(rotor3):
     ])
     # fmt: on
 
-    fig = modal.plot_mode_2d(1, orientation="x")
-    data_x = fig.data[0].y
+    modal2 = rotor3.run_modal(Q_(900, "RPM"))
+    fig2 = modal2.plot_mode_2d(1, orientation="x")
+    data_x = fig2.data[0].y
 
-    fig = modal.plot_mode_2d(1, orientation="y")
-    data_y = fig.data[0].y
+    modal3 = rotor3.run_modal(Q_(900, "RPM"))
+    fig3 = modal3.plot_mode_2d(1, orientation="y")
+    data_y = fig3.data[0].y
 
     # fmt: off
     expected_data_y = np.array([
-        1.25173651e-12, 1.50657001e-12, 1.74561636e-12, 1.97288059e-12,
-        2.19236772e-12, 2.19236772e-12, 2.40790840e-12, 2.61339358e-12,
-        2.79791868e-12, 2.95057915e-12, 2.95057915e-12, 3.06199481e-12,
-        3.13619164e-12, 3.18237440e-12, 3.20974785e-12, 3.20974785e-12,
-        3.23379283e-12, 3.24765805e-12, 3.22705000e-12, 3.14767521e-12,
-        3.14767521e-12, 3.03424440e-12, 2.91473531e-12, 2.76975488e-12,
-        2.57991009e-12, 2.57991009e-12, 2.33960705e-12, 2.06944080e-12,
-        1.78930162e-12, 1.51907980e-12
+        -1.63888742e-13, -1.97035201e-13, -2.29738935e-13, -2.61467959e-13,
+        -2.91690288e-13, -2.91690288e-13, -3.19972642e-13, -3.45901475e-13,
+        -3.68974412e-13, -3.88689077e-13, -3.88689077e-13, -4.04657656e-13,
+        -4.16754177e-13, -4.24869024e-13, -4.28892585e-13, -4.28892585e-13,
+        -4.28743563e-13, -4.24376114e-13, -4.15733802e-13, -4.02760190e-13,
+        -4.02760190e-13, -3.85469076e-13, -3.64306492e-13, -3.39864356e-13,
+        -3.12734588e-13, -3.12734588e-13, -2.83402610e-13, -2.52356655e-13,
+        -2.20192854e-13, -1.87507335e-13
     ])
     # fmt: on
 
