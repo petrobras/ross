@@ -365,9 +365,9 @@ def test_modal_fig_orientation(rotor3):
     ])
     # fmt: on
 
-    assert_allclose(data_major, expected_data_major)
-    assert_allclose(data_x, expected_data_major)
-    assert_allclose(data_y, expected_data_y)
+    assert_almost_equal(data_major, expected_data_major)
+    assert_almost_equal(data_x, expected_data_major)
+    assert_almost_equal(data_y, expected_data_y)
 
 
 @pytest.fixture
