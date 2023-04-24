@@ -156,6 +156,10 @@ def rotor2():
     return Rotor(shaft_elm, [disk0], [bearing0, bearing1])
 
 
+def test_rotor_equality(rotor1, rotor2):
+    assert rotor1 != rotor2
+
+
 @pytest.fixture
 def rotor2_bearing_mass():
     #  Rotor without damping with 2 shaft elements 1 disk and 2 bearings
