@@ -96,6 +96,10 @@ def tim():
     )
 
 
+def test_shaft_element_equality(tim, eb):
+    assert tim != eb
+
+
 def test_parameters_tim(tim):
     assert_almost_equal(tim.phi, 0.08795566)
     assert_almost_equal(tim.material.Poisson, 0.29926108)
