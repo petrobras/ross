@@ -31,7 +31,9 @@ class Probe:
     def __init__(self, node, angle, tag=None):
         self.node = node
         self.angle = angle
-        if tag is not None:
+        if tag is None:
+            self.tag = f"Probe - Node {self.node}, Angle {self.angle}"
+        else:
             self.tag = tag
 
     @property
