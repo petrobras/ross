@@ -7,6 +7,7 @@ import inspect
 from abc import ABC
 from collections.abc import Iterable
 from pathlib import Path
+from warnings import warn
 
 import numpy as np
 import pandas as pd
@@ -2087,16 +2088,7 @@ class ForcedResponseResults(Results):
         Parameters
         ----------
         probe : list
-            List with tuples (node, orientation angle, tag).
-
-            node : int -> Indicate the node where the probe is located.
-
-            orientation : float -> Probe orientation angle about the shaft.
-            The 0 refers to +X direction.
-            The strings 'major' and 'minor' can also be used to reference the major
-            and minor axis.
-
-            tag : str, optional -> Probe tag to be add a DataFrame column title.
+            List with rs.Probe objects.
         probe_units : str, option
             Units for probe orientation.
             Default is "rad".
@@ -2139,24 +2131,39 @@ class ForcedResponseResults(Results):
         for i, p in enumerate(probe):
             amplitude = []
             for speed_idx in range(len(self.speed_range)):
+                # first try to get the angle from the probe object
                 try:
-                    angle = Q_(p[1], probe_units).to("rad").m
-                except TypeError:
-                    angle = p[1]
+                    angle = p.angle
+                    node = p.node
+                # if it is a tuple, warn the user that the use of tuples is deprecated
+                except AttributeError:
+                    try:
+                        angle = Q_(p[1], probe_units).to("rad").m
+                        warn(
+                            "The use of tuples in the probe argument is deprecated. Use the Probe class instead.",
+                            DeprecationWarning,
+                        )
+                        node = p[0]
+                    except TypeError:
+                        angle = p[1]
+                        node = p[0]
 
                 ru_e, rv_e = response[:, speed_idx][
-                    self.rotor.number_dof * p[0] : self.rotor.number_dof * p[0] + 2
+                    self.rotor.number_dof * node : self.rotor.number_dof * node + 2
                 ]
                 orbit = Orbit(
-                    node=p[0], node_pos=self.rotor.nodes_pos[p[0]], ru_e=ru_e, rv_e=rv_e
+                    node=node, node_pos=self.rotor.nodes_pos[node], ru_e=ru_e, rv_e=rv_e
                 )
                 amp, phase = orbit.calculate_amplitude(angle=angle)
                 amplitude.append(amp)
 
             try:
-                probe_tag = p[2]
-            except IndexError:
-                probe_tag = f"Probe {i+1} - Node {p[0]}"
+                probe_tag = p.tag
+            except AttributeError:
+                try:
+                    probe_tag = p[2]
+                except IndexError:
+                    probe_tag = f"Probe {i+1} - Node {p[0]}"
 
             data[probe_tag] = Q_(amplitude, base_unit).to(amplitude_units).m
 
@@ -2177,16 +2184,7 @@ class ForcedResponseResults(Results):
         Parameters
         ----------
         probe : list
-            List with tuples (node, orientation angle, tag).
-
-            node : int -> Indicate the node where the probe is located.
-
-            orientation : float -> Probe orientation angle about the shaft.
-            The 0 refers to +X direction.
-            The strings 'major' and 'minor' can also be used to reference the major
-            and minor axis.
-
-            tag : str, optional -> Probe tag to be add a DataFrame column title.
+            List with rs.Probe objects.
         probe_units : str, option
             Units for probe orientation.
             Default is "rad".
@@ -2232,24 +2230,39 @@ class ForcedResponseResults(Results):
         for i, p in enumerate(probe):
             phase_values = []
             for speed_idx in range(len(self.speed_range)):
+                # first try to get the angle from the probe object
                 try:
-                    angle = Q_(p[1], probe_units).to("rad").m
-                except TypeError:
-                    angle = p[1]
+                    angle = p.angle
+                    node = p.node
+                # if it is a tuple, warn the user that the use of tuples is deprecated
+                except AttributeError:
+                    try:
+                        angle = Q_(p[1], probe_units).to("rad").m
+                        warn(
+                            "The use of tuples in the probe argument is deprecated. Use the Probe class instead.",
+                            DeprecationWarning,
+                        )
+                        node = p[0]
+                    except TypeError:
+                        angle = p[1]
+                        node = p[0]
 
                 ru_e, rv_e = response[:, speed_idx][
-                    self.rotor.number_dof * p[0] : self.rotor.number_dof * p[0] + 2
+                    self.rotor.number_dof * node : self.rotor.number_dof * node + 2
                 ]
                 orbit = Orbit(
-                    node=p[0], node_pos=self.rotor.nodes_pos[p[0]], ru_e=ru_e, rv_e=rv_e
+                    node=node, node_pos=self.rotor.nodes_pos[node], ru_e=ru_e, rv_e=rv_e
                 )
                 amp, phase = orbit.calculate_amplitude(angle=angle)
                 phase_values.append(phase)
 
             try:
-                probe_tag = p[2]
-            except IndexError:
-                probe_tag = f"Probe {i+1} - Node {p[0]}"
+                probe_tag = p.tag
+            except AttributeError:
+                try:
+                    probe_tag = p[2]
+                except IndexError:
+                    probe_tag = f"Probe {i+1} - Node {p[0]}"
 
             data[probe_tag] = Q_(phase_values, "rad").to(phase_units).m
 
@@ -2271,17 +2284,8 @@ class ForcedResponseResults(Results):
         Parameters
         ----------
         probe : list
-            List with tuples (node, orientation angle, tag).
-
-            node : int -> Indicate the node where the probe is located.
-
-            orientation : float -> Probe orientation angle about the shaft.
-            The 0 refers to +X direction.
-            The strings 'major' and 'minor' can also be used to reference the major
-            and minor axis.
-
-            tag : str, optional -> Probe tag to be add a DataFrame column title.
-        probe_units : str, option
+            List with rs.Probe objects.
+        probe_units : str, optional
             Units for probe orientation.
             Default is "rad".
         frequency_units : str, optional
@@ -2356,17 +2360,8 @@ class ForcedResponseResults(Results):
         Parameters
         ----------
         probe : list
-            List with tuples (node, orientation angle, tag).
-
-            node : int -> Indicate the node where the probe is located.
-
-            orientation : float -> Probe orientation angle about the shaft.
-            The 0 refers to +X direction.
-            The strings 'major' and 'minor' can also be used to reference the major
-            and minor axis.
-
-            tag : str, optional -> Probe tag to be add a DataFrame column title.
-        probe_units : str, option
+            List with rs.Probe objects.
+        probe_units : str, optional
             Units for probe orientation.
             Default is "rad".
         frequency_units : str, optional
@@ -2444,17 +2439,8 @@ class ForcedResponseResults(Results):
         Parameters
         ----------
         probe : list
-            List with tuples (node, orientation angle, tag).
-
-            node : int -> Indicate the node where the probe is located.
-
-            orientation : float -> Probe orientation angle about the shaft.
-            The 0 refers to +X direction.
-            The strings 'major' and 'minor' can also be used to reference the major
-            and minor axis.
-
-            tag : str, optional -> Probe tag to be add a DataFrame column title.
-        probe_units : str, option
+            List with rs.Probe objects.
+        probe_units : str, optional
             Units for probe orientation.
             Default is "rad".
         frequency_units : str, optional
@@ -2552,17 +2538,8 @@ class ForcedResponseResults(Results):
         Parameters
         ----------
         probe : list
-            List with tuples (node, orientation angle, tag).
-
-            node : int -> Indicate the node where the probe is located.
-
-            orientation : float -> Probe orientation angle about the shaft.
-            The 0 refers to +X direction.
-            The strings 'major' and 'minor' can also be used to reference the major
-            and minor axis.
-
-            tag : str, optional -> Probe tag to be add a DataFrame column title.
-        probe_units : str, option
+            List with rs.Probe objects.
+        probe_units : str, optional
             Units for probe orientation.
             Default is "rad".
         frequency_units : str, optional
@@ -4187,16 +4164,7 @@ class TimeResponseResults(Results):
         Parameters
         ----------
         probe : list
-            List with tuples (node, orientation angle, tag).
-
-            node : int -> Indicate the node where the probe is located.
-
-            orientation : float -> Probe orientation angle about the shaft.
-            The 0 refers to +X direction.
-            The strings 'major' and 'minor' can also be used to reference the major
-            and minor axis.
-
-            tag : str, optional -> Probe tag to be add a DataFrame column title.
+            List with rs.Probe objects.
         probe_units : str, option
             Units for probe orientation.
             Default is "rad".
