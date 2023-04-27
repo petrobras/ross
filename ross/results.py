@@ -2084,16 +2084,7 @@ class ForcedResponseResults(Results):
         Parameters
         ----------
         probe : list
-            List with tuples (node, orientation angle, tag).
-
-            node : int -> Indicate the node where the probe is located.
-
-            orientation : float -> Probe orientation angle about the shaft.
-            The 0 refers to +X direction.
-            The strings 'major' and 'minor' can also be used to reference the major
-            and minor axis.
-
-            tag : str, optional -> Probe tag to be add a DataFrame column title.
+            List with rs.Probe objects.
         probe_units : str, option
             Units for probe orientation.
             Default is "rad".
@@ -2189,16 +2180,7 @@ class ForcedResponseResults(Results):
         Parameters
         ----------
         probe : list
-            List with tuples (node, orientation angle, tag).
-
-            node : int -> Indicate the node where the probe is located.
-
-            orientation : float -> Probe orientation angle about the shaft.
-            The 0 refers to +X direction.
-            The strings 'major' and 'minor' can also be used to reference the major
-            and minor axis.
-
-            tag : str, optional -> Probe tag to be add a DataFrame column title.
+            List with rs.Probe objects.
         probe_units : str, option
             Units for probe orientation.
             Default is "rad".
@@ -2298,17 +2280,8 @@ class ForcedResponseResults(Results):
         Parameters
         ----------
         probe : list
-            List with tuples (node, orientation angle, tag).
-
-            node : int -> Indicate the node where the probe is located.
-
-            orientation : float -> Probe orientation angle about the shaft.
-            The 0 refers to +X direction.
-            The strings 'major' and 'minor' can also be used to reference the major
-            and minor axis.
-
-            tag : str, optional -> Probe tag to be add a DataFrame column title.
-        probe_units : str, option
+            List with rs.Probe objects.
+        probe_units : str, optional
             Units for probe orientation.
             Default is "rad".
         frequency_units : str, optional
@@ -2383,17 +2356,8 @@ class ForcedResponseResults(Results):
         Parameters
         ----------
         probe : list
-            List with tuples (node, orientation angle, tag).
-
-            node : int -> Indicate the node where the probe is located.
-
-            orientation : float -> Probe orientation angle about the shaft.
-            The 0 refers to +X direction.
-            The strings 'major' and 'minor' can also be used to reference the major
-            and minor axis.
-
-            tag : str, optional -> Probe tag to be add a DataFrame column title.
-        probe_units : str, option
+            List with rs.Probe objects.
+        probe_units : str, optional
             Units for probe orientation.
             Default is "rad".
         frequency_units : str, optional
@@ -2471,17 +2435,8 @@ class ForcedResponseResults(Results):
         Parameters
         ----------
         probe : list
-            List with tuples (node, orientation angle, tag).
-
-            node : int -> Indicate the node where the probe is located.
-
-            orientation : float -> Probe orientation angle about the shaft.
-            The 0 refers to +X direction.
-            The strings 'major' and 'minor' can also be used to reference the major
-            and minor axis.
-
-            tag : str, optional -> Probe tag to be add a DataFrame column title.
-        probe_units : str, option
+            List with rs.Probe objects.
+        probe_units : str, optional
             Units for probe orientation.
             Default is "rad".
         frequency_units : str, optional
@@ -2579,17 +2534,8 @@ class ForcedResponseResults(Results):
         Parameters
         ----------
         probe : list
-            List with tuples (node, orientation angle, tag).
-
-            node : int -> Indicate the node where the probe is located.
-
-            orientation : float -> Probe orientation angle about the shaft.
-            The 0 refers to +X direction.
-            The strings 'major' and 'minor' can also be used to reference the major
-            and minor axis.
-
-            tag : str, optional -> Probe tag to be add a DataFrame column title.
-        probe_units : str, option
+            List with rs.Probe objects.
+        probe_units : str, optional
             Units for probe orientation.
             Default is "rad".
         frequency_units : str, optional
@@ -4214,16 +4160,7 @@ class TimeResponseResults(Results):
         Parameters
         ----------
         probe : list
-            List with tuples (node, orientation angle, tag).
-
-            node : int -> Indicate the node where the probe is located.
-
-            orientation : float -> Probe orientation angle about the shaft.
-            The 0 refers to +X direction.
-            The strings 'major' and 'minor' can also be used to reference the major
-            and minor axis.
-
-            tag : str, optional -> Probe tag to be add a DataFrame column title.
+            List with rs.Probe objects.
         probe_units : str, option
             Units for probe orientation.
             Default is "rad".
