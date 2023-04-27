@@ -10,6 +10,7 @@ from ross.bearing_seal_element import *
 from ross.disk_element import *
 from ross.materials import Material, steel
 from ross.point_mass import *
+from ross.probe import Probe
 from ross.rotor_assembly import *
 from ross.shaft_element import *
 from ross.units import Q_
@@ -1488,16 +1489,32 @@ def test_plot_mode(rotor7):
     assert_allclose(fig.data[-3]["z"][:5], expected_z, rtol=1e-5)
 
 
-def test_unbalance(rotor7):
-    unb = rotor7.run_unbalance_response(
+def test_unbalance(rotor3):
+    unb = rotor3.run_unbalance_response(
         node=0, unbalance_magnitude=1, unbalance_phase=0, frequency=[50, 100]
     )
-    amplitude_expected = np.array([0.00274, 0.003526])
+    amplitude_expected = np.array([0.003065, 0.004169])
     data = unb.data_magnitude(probe=[(0, 45)], probe_units="deg")
     assert_allclose(data["Probe 1 - Node 0"], amplitude_expected, rtol=1e-4)
+    data = unb.data_magnitude(probe=[Probe(0, Q_(45, "deg"), tag="Probe 1 - Node 0")])
+    assert_allclose(data["Probe 1 - Node 0"], amplitude_expected, rtol=1e-4)
 
-    phase_expected = np.array([0.730209, 0.545276])
+    phase_expected = np.array([0.785398, 0.785398])
     data = unb.data_phase(probe=[(0, 45)], probe_units="deg")
+    assert_allclose(data["Probe 1 - Node 0"], phase_expected, rtol=1e-4)
+    data = unb.data_phase(probe=[Probe(0, Q_(45, "deg"), tag="Probe 1 - Node 0")])
+    assert_allclose(data["Probe 1 - Node 0"], phase_expected, rtol=1e-4)
+
+    amplitude_expected = np.array([0.003526, 0.005518])
+    data = unb.data_magnitude(probe=[(0, "major")])
+    assert_allclose(data["Probe 1 - Node 0"], amplitude_expected, rtol=1e-4)
+    data = unb.data_magnitude(probe=[Probe(0, "major", tag="Probe 1 - Node 0")])
+    assert_allclose(data["Probe 1 - Node 0"], amplitude_expected, rtol=1e-4)
+
+    phase_expected = np.array([1.5742, 1.573571])
+    data = unb.data_phase(probe=[(0, "major")], probe_units="deg")
+    assert_allclose(data["Probe 1 - Node 0"], phase_expected, rtol=1e-4)
+    data = unb.data_phase(probe=[Probe(0, "major", tag="Probe 1 - Node 0")])
     assert_allclose(data["Probe 1 - Node 0"], phase_expected, rtol=1e-4)
 
 
