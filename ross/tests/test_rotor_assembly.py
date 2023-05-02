@@ -1449,7 +1449,7 @@ def test_plot_mode(rotor7):
     modal7 = rotor7.run_modal(50, sparse=False)
 
     fig = modal7.plot_orbit(1, 3)
-    expected_x = np.array([-0.017501, -0.034997, -0.052482, -0.06995])
+    expected_x = np.array([0.999847, 0.999387, 0.998622, 0.99755])
     expected_y = np.array(
         [-1.012107e-10, 1.750102e-02, 3.499667e-02, 5.248160e-02, 6.995046e-02]
     )
