@@ -10,6 +10,7 @@ from ross.bearing_seal_element import *
 from ross.disk_element import *
 from ross.materials import Material, steel
 from ross.point_mass import *
+from ross.probe import Probe
 from ross.rotor_assembly import *
 from ross.shaft_element import *
 from ross.units import Q_
@@ -154,6 +155,10 @@ def rotor2():
     bearing1 = BearingElement(2, kxx=stf, cxx=0)
 
     return Rotor(shaft_elm, [disk0], [bearing0, bearing1])
+
+
+def test_rotor_equality(rotor1, rotor2):
+    assert rotor1 != rotor2
 
 
 def test_mass_matrix_rotor2(rotor2):
@@ -322,6 +327,48 @@ def rotor3():
     bearing1 = BearingElement(6, kxx=stfx, kyy=stfy, cxx=0)
 
     return Rotor(shaft_elem, [disk0, disk1], [bearing0, bearing1])
+
+
+def test_modal_fig_orientation(rotor3):
+    modal1 = rotor3.run_modal(Q_(900, "RPM"))
+    fig1 = modal1.plot_mode_2d(1, orientation="major")
+    data_major = fig1.data[0].y
+
+    # fmt: off
+    expected_data_major = np.array([
+        0.3330699 , 0.41684076, 0.49947039, 0.5796177 , 0.65594162,
+        0.65594162, 0.72732014, 0.79268256, 0.85076468, 0.90030229,
+        0.90030229, 0.9402937 , 0.97041024, 0.99039723, 1.        ,
+        1.        , 0.99901483, 0.98731591, 0.9647654 , 0.93122548,
+        0.93122548, 0.88677476, 0.83255026, 0.77000169, 0.70057879,
+        0.70057879, 0.62550815, 0.54607111, 0.46379946, 0.38022502
+    ])
+    # fmt: on
+
+    modal2 = rotor3.run_modal(Q_(900, "RPM"))
+    fig2 = modal2.plot_mode_2d(1, orientation="x")
+    data_x = fig2.data[0].y
+
+    modal3 = rotor3.run_modal(Q_(900, "RPM"))
+    fig3 = modal3.plot_mode_2d(1, orientation="y")
+    data_y = fig3.data[0].y
+
+    # fmt: off
+    expected_data_y = np.array([
+        1.63888742e-13, 1.97035201e-13, 2.29738935e-13, 2.61467959e-13,
+        2.91690288e-13, 2.91690288e-13, 3.19972642e-13, 3.45901475e-13,
+        3.68974412e-13, 3.88689077e-13, 3.88689077e-13, 4.04657656e-13,
+        4.16754177e-13, 4.24869024e-13, 4.28892585e-13, 4.28892585e-13,
+        4.28743563e-13, 4.24376114e-13, 4.15733802e-13, 4.02760190e-13,
+        4.02760190e-13, 3.85469076e-13, 3.64306492e-13, 3.39864356e-13,
+        3.12734588e-13, 3.12734588e-13, 2.83402610e-13, 2.52356655e-13,
+        2.20192854e-13, 1.87507335e-13
+    ])
+    # fmt: on
+
+    assert_almost_equal(data_major, expected_data_major)
+    assert_almost_equal(data_x, expected_data_major)
+    assert_almost_equal(data_y, expected_data_y)
 
 
 @pytest.fixture
@@ -1430,16 +1477,32 @@ def test_plot_mode(rotor7):
     assert_allclose(fig.data[-3]["z"][:5], expected_z, rtol=1e-5)
 
 
-def test_unbalance(rotor7):
-    unb = rotor7.run_unbalance_response(
+def test_unbalance(rotor3):
+    unb = rotor3.run_unbalance_response(
         node=0, unbalance_magnitude=1, unbalance_phase=0, frequency=[50, 100]
     )
-    amplitude_expected = np.array([0.00274, 0.003526])
+    amplitude_expected = np.array([0.003065, 0.004169])
     data = unb.data_magnitude(probe=[(0, 45)], probe_units="deg")
     assert_allclose(data["Probe 1 - Node 0"], amplitude_expected, rtol=1e-4)
+    data = unb.data_magnitude(probe=[Probe(0, Q_(45, "deg"), tag="Probe 1 - Node 0")])
+    assert_allclose(data["Probe 1 - Node 0"], amplitude_expected, rtol=1e-4)
 
-    phase_expected = np.array([0.730209, 0.545276])
+    phase_expected = np.array([0.785398, 0.785398])
     data = unb.data_phase(probe=[(0, 45)], probe_units="deg")
+    assert_allclose(data["Probe 1 - Node 0"], phase_expected, rtol=1e-4)
+    data = unb.data_phase(probe=[Probe(0, Q_(45, "deg"), tag="Probe 1 - Node 0")])
+    assert_allclose(data["Probe 1 - Node 0"], phase_expected, rtol=1e-4)
+
+    amplitude_expected = np.array([0.003526, 0.005518])
+    data = unb.data_magnitude(probe=[(0, "major")])
+    assert_allclose(data["Probe 1 - Node 0"], amplitude_expected, rtol=1e-4)
+    data = unb.data_magnitude(probe=[Probe(0, "major", tag="Probe 1 - Node 0")])
+    assert_allclose(data["Probe 1 - Node 0"], amplitude_expected, rtol=1e-4)
+
+    phase_expected = np.array([1.5742, 1.573571])
+    data = unb.data_phase(probe=[(0, "major")], probe_units="deg")
+    assert_allclose(data["Probe 1 - Node 0"], phase_expected, rtol=1e-4)
+    data = unb.data_phase(probe=[Probe(0, "major", tag="Probe 1 - Node 0")])
     assert_allclose(data["Probe 1 - Node 0"], phase_expected, rtol=1e-4)
 
 
