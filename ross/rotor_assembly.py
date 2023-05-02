@@ -886,7 +886,7 @@ class Rotor(object):
 
         return results
 
-    def M(self, frequency):
+    def M(self, frequency=None):
         """Mass matrix for an instance of a rotor.
 
         Returns
@@ -904,6 +904,11 @@ class Rotor(object):
                [ 0.04931719,  0.        ,  0.        ,  0.00231392]])
         """
         M0 = np.zeros((self.ndof, self.ndof))
+
+        # if frequency is None, we assume the rotor does not have any elements
+        # with frequency dependent mass matrices
+        if frequency is None:
+            frequency = 0
 
         for elm in self.elements:
             dofs = list(elm.dof_global_index.values())
