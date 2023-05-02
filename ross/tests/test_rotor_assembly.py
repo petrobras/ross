@@ -1451,7 +1451,7 @@ def test_plot_mode(rotor7):
     fig = modal7.plot_orbit(1, 3)
     expected_x = np.array([0.99984685, 0.99938743, 0.99862189, 0.99755047])
     expected_y = np.array(
-        [1.84192972e-10, 1.75010156e-02, 3.49966703e-02, 5.24816052e-02, 6.99504645e-02]
+        [-1.012107e-10, 1.750102e-02, 3.499667e-02, 5.248160e-02, 6.995046e-02]
     )
     assert fig.data[0]["line"]["color"] == "#1f77b4"  # blue
     assert_allclose(fig.data[0]["x"][1:5], expected_x, rtol=1e-5)
