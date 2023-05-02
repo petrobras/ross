@@ -1129,6 +1129,7 @@ class ModalResults(Results):
         self,
         mode=None,
         fig=None,
+        orientation="major",
         frequency_type="wd",
         title=None,
         length_units="m",
@@ -1144,6 +1145,9 @@ class ModalResults(Results):
             The n'th vibration mode
         fig : Plotly graph_objects.Figure()
             The figure object with the plot.
+        orientation : str, optional
+            Orientation can be 'major', 'x' or 'y'.
+            Default is 'major' to display the major axis.
         frequency_type : str, optional
             "wd" calculates the damped natural frequencies.
             "wn" calculates the undamped natural frequencies.
@@ -1187,7 +1191,7 @@ class ModalResults(Results):
         }
 
         shape = self.shapes[mode]
-        fig = shape.plot_2d(fig=fig)
+        fig = shape.plot_2d(fig=fig, orientation=orientation)
 
         if title is None:
             title = ""
@@ -4540,7 +4544,6 @@ class UCSResults(Results):
     def plot_mode_2d(
         self,
         critical_mode,
-        evec=None,
         fig=None,
         frequency_type="wd",
         title=None,
@@ -4554,8 +4557,6 @@ class UCSResults(Results):
         ----------
         critical_mode : int
             The n'th critical mode.
-        evec : array
-            Array containing the system eigenvectors
         fig : Plotly graph_objects.Figure()
             The figure object with the plot.
         frequency_type : str, optional
@@ -4592,7 +4593,6 @@ class UCSResults(Results):
         idx = (np.abs(modal_critical.wd - forward_frequency)).argmin()
         fig = modal_critical.plot_mode_2d(
             idx,
-            evec=evec,
             fig=fig,
             frequency_type=frequency_type,
             title=title,
@@ -4606,7 +4606,6 @@ class UCSResults(Results):
     def plot_mode_3d(
         self,
         critical_mode,
-        evec=None,
         fig=None,
         frequency_type="wd",
         title=None,
@@ -4621,8 +4620,6 @@ class UCSResults(Results):
         critical_mode : int
             The n'th critical mode.
             Default is None
-        evec : array
-            Array containing the system eigenvectors
         fig : Plotly graph_objects.Figure()
             The figure object with the plot.
         frequency_type : str, optional
@@ -4659,7 +4656,6 @@ class UCSResults(Results):
         idx = (np.abs(modal_critical.wd - forward_frequency)).argmin()
         fig = modal_critical.plot_mode_3d(
             idx,
-            evec=evec,
             fig=fig,
             frequency_type=frequency_type,
             title=title,
@@ -4667,6 +4663,8 @@ class UCSResults(Results):
             frequency_units=frequency_units,
             **kwargs,
         )
+
+        return fig
 
 
 class Level1Results(Results):

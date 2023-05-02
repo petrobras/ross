@@ -383,6 +383,48 @@ def rotor3():
     return Rotor(shaft_elem, [disk0, disk1], [bearing0, bearing1])
 
 
+def test_modal_fig_orientation(rotor3):
+    modal1 = rotor3.run_modal(Q_(900, "RPM"))
+    fig1 = modal1.plot_mode_2d(1, orientation="major")
+    data_major = fig1.data[0].y
+
+    # fmt: off
+    expected_data_major = np.array([
+        0.3330699 , 0.41684076, 0.49947039, 0.5796177 , 0.65594162,
+        0.65594162, 0.72732014, 0.79268256, 0.85076468, 0.90030229,
+        0.90030229, 0.9402937 , 0.97041024, 0.99039723, 1.        ,
+        1.        , 0.99901483, 0.98731591, 0.9647654 , 0.93122548,
+        0.93122548, 0.88677476, 0.83255026, 0.77000169, 0.70057879,
+        0.70057879, 0.62550815, 0.54607111, 0.46379946, 0.38022502
+    ])
+    # fmt: on
+
+    modal2 = rotor3.run_modal(Q_(900, "RPM"))
+    fig2 = modal2.plot_mode_2d(1, orientation="x")
+    data_x = fig2.data[0].y
+
+    modal3 = rotor3.run_modal(Q_(900, "RPM"))
+    fig3 = modal3.plot_mode_2d(1, orientation="y")
+    data_y = fig3.data[0].y
+
+    # fmt: off
+    expected_data_y = np.array([
+        1.63888742e-13, 1.97035201e-13, 2.29738935e-13, 2.61467959e-13,
+        2.91690288e-13, 2.91690288e-13, 3.19972642e-13, 3.45901475e-13,
+        3.68974412e-13, 3.88689077e-13, 3.88689077e-13, 4.04657656e-13,
+        4.16754177e-13, 4.24869024e-13, 4.28892585e-13, 4.28892585e-13,
+        4.28743563e-13, 4.24376114e-13, 4.15733802e-13, 4.02760190e-13,
+        4.02760190e-13, 3.85469076e-13, 3.64306492e-13, 3.39864356e-13,
+        3.12734588e-13, 3.12734588e-13, 2.83402610e-13, 2.52356655e-13,
+        2.20192854e-13, 1.87507335e-13
+    ])
+    # fmt: on
+
+    assert_almost_equal(data_major, expected_data_major)
+    assert_almost_equal(data_x, expected_data_major)
+    assert_almost_equal(data_y, expected_data_y)
+
+
 @pytest.fixture
 def rotor3_odd():
     #  Rotor without damping with odd number of shaft elements (7)
