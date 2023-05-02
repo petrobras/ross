@@ -389,7 +389,7 @@ class Shape(Results):
             xmax, ixmax = max(abs(modex)), np.argmax(abs(modex))
             ymax, iymax = max(abs(modey)), np.argmax(abs(modey))
 
-            if ymax > 0.4 * xmax:
+            if ymax > xmax:
                 evec /= modey[iymax]
             else:
                 evec /= modex[ixmax]
