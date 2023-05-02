@@ -4544,7 +4544,6 @@ class UCSResults(Results):
     def plot_mode_2d(
         self,
         critical_mode,
-        evec=None,
         fig=None,
         frequency_type="wd",
         title=None,
@@ -4558,8 +4557,6 @@ class UCSResults(Results):
         ----------
         critical_mode : int
             The n'th critical mode.
-        evec : array
-            Array containing the system eigenvectors
         fig : Plotly graph_objects.Figure()
             The figure object with the plot.
         frequency_type : str, optional
@@ -4596,7 +4593,6 @@ class UCSResults(Results):
         idx = (np.abs(modal_critical.wd - forward_frequency)).argmin()
         fig = modal_critical.plot_mode_2d(
             idx,
-            evec=evec,
             fig=fig,
             frequency_type=frequency_type,
             title=title,
@@ -4610,7 +4606,6 @@ class UCSResults(Results):
     def plot_mode_3d(
         self,
         critical_mode,
-        evec=None,
         fig=None,
         frequency_type="wd",
         title=None,
@@ -4625,8 +4620,6 @@ class UCSResults(Results):
         critical_mode : int
             The n'th critical mode.
             Default is None
-        evec : array
-            Array containing the system eigenvectors
         fig : Plotly graph_objects.Figure()
             The figure object with the plot.
         frequency_type : str, optional
@@ -4663,7 +4656,6 @@ class UCSResults(Results):
         idx = (np.abs(modal_critical.wd - forward_frequency)).argmin()
         fig = modal_critical.plot_mode_3d(
             idx,
-            evec=evec,
             fig=fig,
             frequency_type=frequency_type,
             title=title,
@@ -4671,6 +4663,8 @@ class UCSResults(Results):
             frequency_units=frequency_units,
             **kwargs,
         )
+
+        return fig
 
 
 class Level1Results(Results):
