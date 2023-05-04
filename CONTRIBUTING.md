@@ -1,8 +1,8 @@
 # Feedback and Contribution
 
-We welcome any contribution via [ROSS issue tracker](https://github.com/ross-rotordynamics/ross/issues).
+We welcome any contribution via [ROSS issue tracker](https://github.com/petrobras/ross/issues).
 These include bug reports, problems on the documentation, feedback, enhancement proposals etc.
-You can use the repository [Discussions](https://github.com/ross-rotordynamics/ross/discussions)
+You can use the repository [Discussions](https://github.com/petrobras/ross/discussions)
 section for questions and further information.
 
 # Code style: Black
@@ -26,7 +26,7 @@ To use git to contribute to ROSS project, follow the steps below:
 
 ## Step 1: Make your copy (fork) of ROSS
 
-Go to <https://github.com/ross-rotordynamics/ross>
+Go to <https://github.com/petrobras/ross>
 In the top-right corner of the page, click Fork, to fork it to your GitHub account.
 
 From the command line:
@@ -34,7 +34,7 @@ From the command line:
 ```
 git clone https://github.com/your-user-name/ross.git
 cd ross
-git remote add upstream https://github.com/ross-rotordynamics/ross.git
+git remote add upstream https://github.com/petrobras/ross.git
 ```
 
 ## Step 2: Keep in sync with changes in ROSS
@@ -59,7 +59,7 @@ It should look like this:
         url = https://github.com/your-user-name/ross.git
         fetch = +refs/heads/*:refs/remotes/origin/*
 [remote "upstream"]
-        url = https://github.com/ross-rotordynamics/ross.git
+        url = https://github.com/petrobras/ross.git
         fetch = +refs/heads/*:refs/remotes/upstream/*
         fetch = +refs/pull/*/head:refs/remotes/upstream/pr/*
 [branch "master"]
