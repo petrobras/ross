@@ -12,7 +12,7 @@ The source code is available at [github](https://github.com/ross-rotordynamics/r
 :class-body: text-center
 :link: getting_started/overview
 :link-type: doc
-```{image} ../_static/getting_started.svg
+```{image} /_static/img/getting_started.svg
 :height: 50
 ```
 ### Getting Started 
@@ -25,7 +25,7 @@ introduction to ROSS main concepts and links to additional tutorials.
 :class-body: text-center
 :link: user_guide/user_guide
 :link-type: doc
-```{image} ../_static/user_guide.svg
+```{image} /_static/img/user_guide.svg
 :height: 50
 ```
 ### User Guide
@@ -38,7 +38,7 @@ key concepts of ROSS with useful background information and explanation.
 :class-body: text-center
 :link: references/api
 :link-type: doc
-```{image} ../_static/api.svg
+```{image} /_static/img/api.svg
 :height: 50
 ```
 ### API Reference
@@ -52,7 +52,7 @@ methods work and which parameters can be used.
 :class-body: text-center
 :link: contributing
 :link-type: doc
-```{image} ../_static/contributor.svg
+```{image} /_static/img/contributor.svg
 :height: 50
 ```
 ### Contributor's Guide
