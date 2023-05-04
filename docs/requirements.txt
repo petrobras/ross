@@ -5,3 +5,4 @@ sphinx-copybutton==0.5.1
 numpydoc==1.5.0
 sphinx-book-theme==0.3.3
 linkify-it-py==2.0.0
+sphinx-design==0.4.1
