@@ -23,7 +23,7 @@ introduction to ROSS main concepts and links to additional tutorials.
 
 :::{grid-item-card} 
 :class-body: text-center
-:link: getting_started/overview
+:link: user_guide/user_guide
 :link-type: doc
 ```{image} ../_static/user_guide.svg
 :height: 50
@@ -36,7 +36,7 @@ key concepts of ROSS with useful background information and explanation.
 
 :::{grid-item-card} 
 :class-body: text-center
-:link: getting_started/overview
+:link: references/api
 :link-type: doc
 ```{image} ../_static/api.svg
 :height: 50
@@ -50,7 +50,7 @@ methods work and which parameters can be used.
 
 :::{grid-item-card} 
 :class-body: text-center
-:link: getting_started/overview
+:link: contributing
 :link-type: doc
 ```{image} ../_static/contributor.svg
 :height: 50
@@ -73,22 +73,8 @@ getting_started/installation
 
 ```{toctree}
 :maxdepth: 1
-:caption: Tutorials
-tutorials/tutorial_part_1
-tutorials/tutorial_part_2
-tutorials/tutorial_part_3
-```
-
-```{toctree}
-:maxdepth: 1
-:caption: Discussions and Examples
-discussions/discussions
-```
-
-```{toctree}
-:maxdepth: 1
-:caption: How-To Guides
-how_to_guides/how_to_guides
+:caption: User Guide
+user_guide/user_guide
 ```
 
 ```{toctree}
