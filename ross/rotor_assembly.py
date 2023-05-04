@@ -886,7 +886,7 @@ class Rotor(object):
 
         return results
 
-    def M(self):
+    def M(self, frequency=None):
         """Mass matrix for an instance of a rotor.
 
         Returns
@@ -897,7 +897,7 @@ class Rotor(object):
         Examples
         --------
         >>> rotor = rotor_example()
-        >>> rotor.M()[:4, :4]
+        >>> rotor.M(0)[:4, :4]
         array([[ 1.42050794,  0.        ,  0.        ,  0.04931719],
                [ 0.        ,  1.42050794, -0.04931719,  0.        ],
                [ 0.        , -0.04931719,  0.00231392,  0.        ],
@@ -905,9 +905,17 @@ class Rotor(object):
         """
         M0 = np.zeros((self.ndof, self.ndof))
 
+        # if frequency is None, we assume the rotor does not have any elements
+        # with frequency dependent mass matrices
+        if frequency is None:
+            frequency = 0
+
         for elm in self.elements:
             dofs = list(elm.dof_global_index.values())
-            M0[np.ix_(dofs, dofs)] += elm.M()
+            try:
+                M0[np.ix_(dofs, dofs)] += elm.M(frequency)
+            except TypeError:
+                M0[np.ix_(dofs, dofs)] += elm.M()
 
         return M0
 
@@ -1072,7 +1080,7 @@ class Rotor(object):
         # fmt: off
         A = np.vstack(
             [np.hstack([Z, I]),
-             np.hstack([la.solve(-self.M(), self.K(frequency) + self.Kst()*speed), la.solve(-self.M(), (self.C(frequency) + self.G() * speed))])])
+             np.hstack([la.solve(-self.M(frequency), self.K(frequency) + self.Kst()*speed), la.solve(-self.M(frequency), (self.C(frequency) + self.G() * speed))])])
         # fmt: on
 
         return A
@@ -1324,7 +1332,7 @@ class Rotor(object):
         A = self.A(speed=speed, frequency=frequency)
         # fmt: off
         B = np.vstack([Z,
-                       la.solve(self.M(), B2)])
+                       la.solve(self.M(frequency), B2)])
         # fmt: on
 
         # y = Cx + Du
@@ -1334,9 +1342,9 @@ class Rotor(object):
         Ca = Z
 
         # fmt: off
-        C = np.hstack((Cd - Ca @ la.solve(self.M(), self.K(frequency)), Cv - Ca @ la.solve(self.M(), self.C(frequency))))
+        C = np.hstack((Cd - Ca @ la.solve(self.M(frequency), self.K(frequency)), Cv - Ca @ la.solve(self.M(frequency), self.C(frequency))))
         # fmt: on
-        D = Ca @ la.solve(self.M(), B2)
+        D = Ca @ la.solve(self.M(frequency), B2)
 
         sys = signal.lti(A, B, C, D)
 
@@ -2634,7 +2642,7 @@ class Rotor(object):
             frequency = speed
 
         dic = {
-            "M": self.M(),
+            "M": self.M(frequency),
             "K": self.K(frequency),
             "C": self.C(frequency),
             "G": self.G(),
@@ -2817,9 +2825,9 @@ class Rotor(object):
 
         # gravity aceleration vector
         g = -9.8065
-        gravity = np.zeros(len(aux_rotor.M()))
+        gravity = np.zeros(len(aux_rotor.M(0)))
         gravity[1 :: self.number_dof] = g
-        weight = aux_rotor.M() @ gravity
+        weight = aux_rotor.M(0) @ gravity
 
         # calculates u, for [K]*(u) = (F)
         displacement = (la.solve(aux_K, weight)).flatten()
