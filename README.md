@@ -30,7 +30,7 @@ If you have any questions, you can use the [Discussions](https://github.com/ross
 
 # Contributing to ROSS
 ROSS is a community-driven project. If you want to contribute to the project, please
-check [CONTRIBUTING.rst](https://github.com/ross-rotordynamics/ross/blob/master/CONTRIBUTING.rst). 
+check [CONTRIBUTING.md](https://github.com/ross-rotordynamics/ross/blob/master/CONTRIBUTING.md). 
 
 The code has been initially developed by Petrobras in cooperation with the Federal University of Rio de Janeiro (UFRJ)
 with contributions from the Federal University from Uberlândia (UFU).
