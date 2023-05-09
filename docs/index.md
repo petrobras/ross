@@ -1,12 +1,68 @@
 # ROSS - Rotordynamic Open-Source Software
 
-ROSS is a library written in Python for rotordynamic analysis. The source code is
-available at [github](https://github.com/ross-rotordynamics/ross).
+ROSS is a Python library for rotordynamic analysis, which allows the construction of rotor models and their numerical
+simulation. 
 
-For a fast introduction to the library you can check out the {doc}`tutorials<tutorials/tutorial_part_1>`
-and {doc}`examples<discussions/discussions>`. These are also available on [binder](https://mybinder.org/v2/gh/ross-rotordynamics/ross/1.0?filepath=%2Fdocs%2Ftutorials).
+The source code is available at [github](https://github.com/ross-rotordynamics/ross).
 
-ROSS has a core library in which you can create elements (shaft, disks, bearings etc.) and assemble these elements in a rotor object where you can run analysis. 
+::::{grid} 2
+:gutter: 2
+
+:::{grid-item-card} 
+:class-body: text-center
+:link: getting_started/overview
+:link-type: doc
+```{image} /_static/img/getting_started.svg
+:height: 50
+```
+### Getting Started 
+
+New to ROSS? Check out the getting started guides. They contain an
+introduction to ROSS main concepts and links to additional tutorials.
+:::
+
+:::{grid-item-card} 
+:class-body: text-center
+:link: user_guide/user_guide
+:link-type: doc
+```{image} /_static/img/user_guide.svg
+:height: 50
+```
+### User Guide
+
+The user guide provides in-depth information on the
+key concepts of ROSS with useful background information and explanation.
+:::
+
+:::{grid-item-card} 
+:class-body: text-center
+:link: references/api
+:link-type: doc
+```{image} /_static/img/api.svg
+:height: 50
+```
+### API Reference
+
+The api reference contains a detailed description of the functions,
+modules, and objects included in ROSS. The reference describes how the
+methods work and which parameters can be used.
+:::
+
+:::{grid-item-card} 
+:class-body: text-center
+:link: contributing
+:link-type: doc
+```{image} /_static/img/contributor.svg
+:height: 50
+```
+### Contributor's Guide
+Saw a typo in the documentation? Want to improve
+existing functionalities? The contributing guidelines will guide
+you through the process of improving ROSS.
+
+:::
+
+::::
 
 ```{toctree}
 :maxdepth: 1
@@ -17,22 +73,8 @@ getting_started/installation
 
 ```{toctree}
 :maxdepth: 1
-:caption: Tutorials
-tutorials/tutorial_part_1
-tutorials/tutorial_part_2
-tutorials/tutorial_part_3
-```
-
-```{toctree}
-:maxdepth: 1
-:caption: Discussions and Examples
-discussions/discussions
-```
-
-```{toctree}
-:maxdepth: 1
-:caption: How-To Guides
-how_to_guides/how_to_guides
+:caption: User Guide
+user_guide/user_guide
 ```
 
 ```{toctree}

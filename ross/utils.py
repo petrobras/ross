@@ -338,7 +338,7 @@ def visualize_matrix(rotor, matrix, frequency=None, **kwargs):
     >>> rotor = rs.rotor_example()
 
     Visualizing Mass Matrix:
-    >>> fig = rs.visualize_matrix(rotor, "M")
+    >>> fig = rs.visualize_matrix(rotor, "M", frequency=100)
 
     Visualizing Stiffness Matrix:
     >>> fig = rs.visualize_matrix(rotor, "K", frequency=100)

@@ -107,7 +107,7 @@ class Element(ABC):
         >>> # Example using BearingElement
         >>> from ross.bearing_seal_element import bearing_example
         >>> bearing = bearing_example()
-        >>> bearing.M()
+        >>> bearing.M(0)
         array([[0., 0.],
                [0., 0.]])
         """
