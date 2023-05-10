@@ -1846,7 +1846,7 @@ class Rotor(object):
 
         return forced_response
 
-    def time_response(self, speed, F, t, ic=None):
+    def time_response(self, speed, F, t, solver="space-state", ic=None):
         """Time response for a rotor.
 
         This method returns the time response for a rotor
@@ -1880,8 +1880,11 @@ class Rotor(object):
         >>> rotor.time_response(speed, F, t) # doctest: +ELLIPSIS
         (array([0.        , 0.18518519, 0.37037037, ...
         """
-        lti = self._lti(speed)
-        return signal.lsim(lti, F, t, X0=ic)
+        if solver in ["space-state"]:
+            lti = self._lti(speed)
+            return signal.lsim(lti, F, t, X0=ic)
+        elif solver in ["modal"]:
+            return None
 
     def plot_rotor(self, nodes=1, check_sld=False, length_units="m", **kwargs):
         """Plot a rotor object.
@@ -2371,7 +2374,7 @@ class Rotor(object):
 
         return results
 
-    def run_time_response(self, speed, F, t):
+    def run_time_response(self, speed, F, t, solver="space-state"):
         """Calculate the time response.
 
         This function will take a rotor object and calculate its time response
@@ -2391,6 +2394,12 @@ class Rotor(object):
             Each column corresponds to a dof and each row to a time.
         t : array
             Time array.
+        solver : str, optional
+            Select which solver is going to be used. Options are:
+
+                'space-state' : solution will be calculated using the space-state formulation
+
+                'modal' : the modal reduction will be applied to find the solution
 
         Returns
         -------
@@ -2420,7 +2429,7 @@ class Rotor(object):
         >>> # plot orbit response - plotting 3D orbits - full rotor model:
         >>> fig3 = response.plot_3d()
         """
-        t_, yout, xout = self.time_response(speed, F, t)
+        t_, yout, xout = self.time_response(speed, F, t, solver)
 
         results = TimeResponseResults(self, t, yout, xout)
 
