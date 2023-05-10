@@ -1443,7 +1443,7 @@ class Rotor(object):
 
         yout = ModMat.dot(x[: int(self.size / 2), :])
 
-        xout = np.zeros_like(yout)
+        xout = np.zeros((2 * self.ndof, len(t)))
 
         return t, yout.T, xout.T
 
