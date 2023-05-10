@@ -3,7 +3,7 @@
 ![github actions](https://github.com/ross-rotordynamics/ross/workflows/Tests/badge.svg)
 [![Documentation Status](https://readthedocs.org/projects/ross/badge/?version=latest)](https://ross.readthedocs.io/en/latest/?badge=latest)
 <a href="https://codecov.io/gh/petrobras/ross">
-<img src="https://codecov.io/gh/petrobras/ross/branch/master/graph/badge.svg">
+<img src="https://codecov.io/gh/petrobras/ross/branch/main/graph/badge.svg">
 </a>
 [![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/ambv/black)
 [![DOI](https://joss.theoj.org/papers/10.21105/joss.02120/status.svg)](https://doi.org/10.21105/joss.02120)
@@ -30,7 +30,7 @@ If you have any questions, you can use the [Discussions](https://github.com/petr
 
 # Contributing to ROSS
 ROSS is a community-driven project. If you want to contribute to the project, please
-check [CONTRIBUTING.md](https://github.com/petrobras/ross/blob/master/CONTRIBUTING.md). 
+check [CONTRIBUTING.md](https://github.com/petrobras/ross/blob/main/CONTRIBUTING.md). 
 
 The code has been initially developed by Petrobras in cooperation with the Federal University of Rio de Janeiro (UFRJ)
 with contributions from the Federal University from Uberlândia (UFU).

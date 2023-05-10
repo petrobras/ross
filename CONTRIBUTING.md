@@ -42,8 +42,8 @@ git remote add upstream https://github.com/petrobras/ross.git
 Setup your local repository, so it pulls from upstream by default:
 
 ```
-git config branch.master.remote upstream
-git config branch.master.merge refs/heads/master
+git config branch.main.remote upstream
+git config branch.main.merge refs/heads/main
 ```
 
 This can also be done by editing the config file inside your ross/.git directory.
@@ -62,9 +62,9 @@ It should look like this:
         url = https://github.com/petrobras/ross.git
         fetch = +refs/heads/*:refs/remotes/upstream/*
         fetch = +refs/pull/*/head:refs/remotes/upstream/pr/*
-[branch "master"]
+[branch "main"]
         remote = origin
-        merge = refs/heads/master
+        merge = refs/heads/main
 ```
 
 The part {code}`fetch = +refs/pull/*/head:refs/remotes/upstream/pr/*` will make pull requests available.
@@ -92,7 +92,7 @@ pip install -e ".[dev]"
 
 ```
 git fetch upstream
-git checkout -b my-new-feature upstream/master
+git checkout -b my-new-feature upstream/main
 ```
 
 ### Step 5: Testing the code
@@ -105,7 +105,7 @@ If you want to run all the tests you can do it with (from the `~/ross/ross` fold
 pytest
 ```
 
-Code is only merged to master if tests pass. This is checked by services GitHub Actions, so make sure
+Code is only merged to main if tests pass. This is checked by services GitHub Actions, so make sure
 tests are passing before pushing your code to github.
 
 ## Step 6: Push changes to your git repository
