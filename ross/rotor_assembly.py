@@ -1350,6 +1350,139 @@ class Rotor(object):
 
         return sys
 
+    def _modal_solution(self, speed, F, t, number_modes=12):
+        self.size = 2 * number_modes
+
+        if isinstance(speed, np.ndarray) or isinstance(speed, list):
+            initial_speed = speed[0]
+            final_speed = speed[-1]
+        else:
+            initial_speed = speed
+            final_speed = speed
+
+        initial_time = t[0]
+        dt = t[1] - t[0]
+        final_time = t[-1]
+
+        # parameters for the time integration
+        lambdat = 0.00001
+        # Faxial = 0
+        # TorqueI = 0
+        # TorqueF = 0
+
+        # pre-processing of auxilary variuables for the time integration
+        sA = (
+            initial_speed * np.exp(-lambdat * final_time)
+            - final_speed * np.exp(-lambdat * initial_time)
+        ) / (np.exp(-lambdat * final_time) - np.exp(-lambdat * initial_time))
+        sB = (final_speed - initial_speed) / (
+            np.exp(-lambdat * final_time) - np.exp(-lambdat * initial_time)
+        )
+
+        # This code below here is used for acceleration and torque application to the rotor. As of
+        # september/2020 it is unused, but might be implemented in future releases. These would be
+        # run-up and run-down operations and variations of operating conditions.
+        #
+        # sAT = (
+        #     TorqueI * np.exp(-lambdat * final_time) - TorqueF * np.exp(-lambdat * initial_time)
+        # ) / (np.exp(-lambdat * final_time) - np.exp(-lambdat * initial_time))
+        # sBT = (TorqueF - TorqueI) / (
+        #     np.exp(-lambdat * final_time) - np.exp(-lambdat * initial_time)
+        # )
+        #
+        # SpeedV = sA + sB * np.exp(-lambdat * t)
+        # TorqueV = sAT + sBT * np.exp(-lambdat * t)
+        # AccelV = -lambdat * sB * np.exp(-lambdat * t)
+
+        # Get default matrices
+        K = self.K(speed)
+        C = self.C(speed)
+        G = self.G()
+        M = self.M()
+
+        if self.number_dof == 4:
+            Kst = np.zeros((self.ndof, self.ndof))
+        elif self.number_dof == 6:
+            Kst = self.Kst()
+
+        y0 = np.zeros(self.size)
+
+        angular_position = (
+            sA * t - (sB / lambdat) * np.exp(-lambdat * t) + (sB / lambdat)
+        )
+
+        self.Omega = sA + sB * np.exp(-lambdat * t)
+        self.AccelV = -lambdat * sB * np.exp(-lambdat * t)
+
+        _, ModMat = la.eigh(K, M, type=1, turbo=False)
+        ModMat = ModMat[:, :number_modes]
+        ModMat = ModMat
+
+        # Modal transformations
+        self.Mmodal = ((ModMat.T).dot(M)).dot(ModMat)
+        self.Cmodal = ((ModMat.T).dot(C)).dot(ModMat)
+        self.Gmodal = ((ModMat.T).dot(G)).dot(ModMat)
+        self.Kmodal = ((ModMat.T).dot(K)).dot(ModMat)
+        self.Kstmodal = ((ModMat.T).dot(Kst)).dot(ModMat)
+
+        self.Fmodal = (ModMat.T).dot(F.T)
+
+        self.inv_Mmodal = np.linalg.pinv(self.Mmodal)
+
+        from ross.defects import Integrator
+
+        x = Integrator(
+            x0=initial_time,
+            y0=y0,
+            x=final_time,
+            h=dt,
+            func=self._equation_of_movement,
+            size=self.size,
+        )
+        x = x.rk45()
+
+        yout = ModMat.dot(x[: int(self.size / 2), :])
+
+        xout = np.zeros_like(yout)
+
+        return t, yout.T, xout.T
+
+    def _equation_of_movement(self, T, Y, i):
+        """Calculates the displacement and velocity using state-space representation in the modal domain.
+
+        Parameters
+        ----------
+        T : float
+            Iteration time.
+        Y : array
+            Array of displacement and velocity, in the modal domain.
+        i : int
+            Iteration step.
+
+        Returns
+        -------
+        new_Y :  array
+            Array of the new displacement and velocity, in the modal domain.
+        """
+
+        positions = Y[: int(self.size / 2)]
+        velocity = Y[int(self.size / 2) :]  # velocity ign space state
+
+        # proper equation of movement to be integrated in time
+        new_V_dot = (
+            +self.Fmodal[:, i]
+            - ((self.Cmodal + self.Gmodal * self.Omega[i])).dot(velocity)
+            - ((self.Kmodal + self.Kstmodal * self.AccelV[i]).dot(positions))
+        ).dot(self.inv_Mmodal)
+
+        new_X_dot = velocity
+
+        new_Y = np.zeros(self.size)
+        new_Y[: int(self.size / 2)] = new_X_dot
+        new_Y[int(self.size / 2) :] = new_V_dot
+
+        return new_Y
+
     def transfer_matrix(self, speed=None, frequency=None, modes=None):
         """Calculate the fer matrix for the frequency response function (FRF).
 
@@ -1846,7 +1979,7 @@ class Rotor(object):
 
         return forced_response
 
-    def time_response(self, speed, F, t, solver="space-state", ic=None):
+    def time_response(self, speed, F, t, ic=None, solver="space-state", **kwargs):
         """Time response for a rotor.
 
         This method returns the time response for a rotor
@@ -1858,8 +1991,21 @@ class Rotor(object):
             Force array (needs to have the same length as time array).
         t : array
             Time array. (must have the same length than lti.B matrix)
+        solver : str, optional
+            Select which solver is going to be used. Options are:
+
+                'space-state' : solution will be calculated using the space-state formulation
+
+                'modal' : the modal reduction will be applied to find the solution.
+
         ic : array, optional
             The initial conditions on the state vector (zero by default).
+        kwargs : dict, optional
+            If 'modal' option is passed in solver, you can set the number of modes to use in the modal reduction. Such as:
+
+                number_modes : int
+
+            If this parameter is not passed the code will use a default value of 12.
 
         Returns
         -------
@@ -1884,7 +2030,13 @@ class Rotor(object):
             lti = self._lti(speed)
             return signal.lsim(lti, F, t, X0=ic)
         elif solver in ["modal"]:
-            return None
+            number_modes = (
+                kwargs.get("number_modes")
+                if kwargs.get("number_modes") is not None
+                else 12
+            )
+
+            return self._modal_solution(speed, F, t, number_modes)
 
     def plot_rotor(self, nodes=1, check_sld=False, length_units="m", **kwargs):
         """Plot a rotor object.
@@ -2374,7 +2526,7 @@ class Rotor(object):
 
         return results
 
-    def run_time_response(self, speed, F, t, solver="space-state"):
+    def run_time_response(self, speed, F, t, solver="space-state", **kwargs):
         """Calculate the time response.
 
         This function will take a rotor object and calculate its time response
@@ -2399,7 +2551,14 @@ class Rotor(object):
 
                 'space-state' : solution will be calculated using the space-state formulation
 
-                'modal' : the modal reduction will be applied to find the solution
+                'modal' : the modal reduction will be applied to find the solution.
+
+        kwargs : dict, optional
+            If 'modal' option is passed in solver, you can set the number of modes to use in the modal reduction. Such as:
+
+                number_modes : int
+
+            If this parameter is not passed the code will use a default value of 12.
 
         Returns
         -------
@@ -2429,7 +2588,7 @@ class Rotor(object):
         >>> # plot orbit response - plotting 3D orbits - full rotor model:
         >>> fig3 = response.plot_3d()
         """
-        t_, yout, xout = self.time_response(speed, F, t, solver)
+        t_, yout, xout = self.time_response(speed, F, t, solver=solver)
 
         results = TimeResponseResults(self, t, yout, xout)
 
