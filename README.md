@@ -1,6 +1,6 @@
 # Rotordynamic Open Source Software (ROSS)
 [![Binder](https://mybinder.org/badge_logo.svg)](https://mybinder.org/v2/gh/petrobras/ross/1.4.0?filepath=%2Fdocs%2Ftutorials)
-![github actions](https://github.com/ross-rotordynamics/ross/workflows/Tests/badge.svg)
+![github actions](https://github.com/petrobras/ross/workflows/Tests/badge.svg)
 [![Documentation Status](https://readthedocs.org/projects/ross/badge/?version=latest)](https://ross.readthedocs.io/en/latest/?badge=latest)
 <a href="https://codecov.io/gh/petrobras/ross">
 <img src="https://codecov.io/gh/petrobras/ross/branch/main/graph/badge.svg">

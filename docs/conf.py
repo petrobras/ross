@@ -22,7 +22,7 @@ import ross
 
 # General information about the project.
 project = "ross"
-copyright = "2022"
+copyright = "2023"
 author = "ROSS devs"
 
 # The version info for the project you're documenting, acts as replacement for
@@ -106,8 +106,8 @@ html_favicon = "_static/ross-logo.ico"
 html_title = "ROSS"
 html_sidebars = {}
 html_theme_options = {
-    "github_url": "https://github.com/ross-rotordynamics/ross",
-    "repository_url": "https://github.com/ross-rotordynamics/ross",
+    "github_url": "https://github.com/petrobras/ross",
+    "repository_url": "https://github.com/petrobras/ross",
     "extra_navbar": "",
     "navbar_footer_text": "",
 }

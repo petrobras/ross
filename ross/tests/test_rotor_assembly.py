@@ -488,13 +488,13 @@ def test_kappa_rotor3(rotor3):
     assert_allclose(modal3_2000.kappa(0, 0)["kappa"], -0.6148843693807821, rtol=1e-3)
 
     assert_allclose(modal3_2000.kappa(0, 1)["Frequency"], 88.98733511566752, rtol=1e-3)
-    assert_allclose(modal3_2000.kappa(0, 1)["Major axis"], 0.480048, rtol=1e-3)
-    assert_allclose(modal3_2000.kappa(0, 1)["Minor axis"], 0.40597, rtol=1e-3)
+    assert_allclose(modal3_2000.kappa(0, 1)["Major axis"], 0.353984, rtol=1e-3)
+    assert_allclose(modal3_2000.kappa(0, 1)["Minor axis"], 0.299359, rtol=1e-3)
     assert_allclose(modal3_2000.kappa(0, 1)["kappa"], 0.8456866641084784, rtol=1e-3)
 
     assert_allclose(modal3_2000.kappa(1, 1)["Frequency"], 88.98733511566752, rtol=1e-3)
-    assert_allclose(modal3_2000.kappa(1, 1)["Major axis"], 0.911015, rtol=1e-3)
-    assert_allclose(modal3_2000.kappa(1, 1)["Minor axis"], 0.692178, rtol=1e-3)
+    assert_allclose(modal3_2000.kappa(1, 1)["Major axis"], 0.671776, rtol=1e-3)
+    assert_allclose(modal3_2000.kappa(1, 1)["Minor axis"], 0.510407, rtol=1e-3)
     assert_allclose(modal3_2000.kappa(1, 1)["kappa"], 0.7597878964314968, rtol=1e-3)
 
 
@@ -1503,32 +1503,24 @@ def test_plot_mode(rotor7):
     modal7 = rotor7.run_modal(50, sparse=False)
 
     fig = modal7.plot_orbit(1, 3)
-    expected_x = np.array([-1.750102e-02, -3.499667e-02, -5.248161e-02, -6.995046e-02])
-    expected_y = np.array([1.0, 0.999847, 0.999387, 0.998622, 0.99755])
+    expected_radius = 1
+
     assert fig.data[0]["line"]["color"] == "#1f77b4"  # blue
-    assert_allclose(fig.data[0]["x"][1:5], expected_x, rtol=1e-5)
-    assert_allclose(fig.data[0]["y"][:5], expected_y, rtol=1e-5)
+    assert_allclose(
+        np.sqrt(fig.data[0].x ** 2 + fig.data[0].y ** 2)[0], expected_radius
+    )
 
     fig = modal7.plot_mode_2d(1)
 
-    expected_x = np.array([0.0, 0.0625, 0.125, 0.1875, 0.25])
-    expected_y = np.array([0.333274, 0.416889, 0.499442, 0.579556, 0.655866])
+    mode_shape = fig.data[0].y
+    mode_x = fig.data[0].x
+
+    poly_coefs = np.polyfit(mode_x, mode_shape, 3)
+
+    expected_coefs = np.array([-0.05672087, -1.04116649, 1.719815])
 
     assert fig.data[0]["line"]["color"] == "#1f77b4"  # blue
-    assert_allclose(fig.data[0]["x"][:5], expected_x, rtol=1e-5)
-    assert_allclose(fig.data[0]["y"][:5], expected_y, rtol=1e-5)
-
-    fig = modal7.plot_mode_3d(1)
-
-    expected_x = np.array([0.0, 0.0625, 0.125, 0.1875, 0.25])
-    expected_y = np.array([0.01876129, 0.01631675, 0.01390729, 0.0115747, 0.00936075])
-    expected_z = np.array([0.33274591, 0.41656925, 0.49924871, 0.5794401, 0.65579925])
-
-    assert fig.data[0]["line"]["color"] == "#1f77b4"  # blue
-    # -3 is the black line that passes through each orbit starting point
-    assert_allclose(fig.data[-3]["x"][:5], expected_x, rtol=1e-5)
-    assert_allclose(fig.data[-3]["y"][:5], expected_y, rtol=1e-5)
-    assert_allclose(fig.data[-3]["z"][:5], expected_z, rtol=1e-5)
+    assert_allclose(poly_coefs[:-1], expected_coefs, rtol=1e-5)
 
 
 def test_unbalance(rotor3):

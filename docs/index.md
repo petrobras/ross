@@ -3,7 +3,7 @@
 ROSS is a Python library for rotordynamic analysis, which allows the construction of rotor models and their numerical
 simulation. 
 
-The source code is available at [github](https://github.com/ross-rotordynamics/ross).
+The source code is available at [github](https://github.com/petrobras/ross).
 
 ::::{grid} 2
 :gutter: 2
