@@ -1350,7 +1350,47 @@ class Rotor(object):
 
         return sys
 
-    def _modal_solution(self, speed, F, t, number_modes=12):
+    @check_units
+    def _modal_analysis(self, speed, F, t, number_modes=12, method="rk45"):
+        """Modal Analysis
+
+        This method is used to perform the time integration of the rotor using the modal reduction. It uses an Runge-Kutta method within ROSS,
+
+        Parameters
+        ----------
+        speed : float, pint.Quantity
+            Rotor speed. Default unit is rad/s.
+        F : array
+            Force array (needs to have the same number of rows as time array).
+            Each column corresponds to a dof and each row to a time.
+        t : array
+            Time array.
+        number_modes : int
+            Number of modes considered in the modal reduction. Default is 12.
+        method : str
+            Which algorithm to use. Options are:
+
+                'rk4' : Runge-Kutta, 4th order
+
+                'rk45' : Runge-Kutta Cash-Karp, 5th order
+
+                'rkf45' : Runge-Kutta-Fehlberg, 4th and 5th order
+
+            Default is 'rk45'.
+
+        Returns
+        -------
+        t : array
+            Time values for the output.
+        yout : array
+            System response.
+        xout : array
+            Time evolution of the state vector.
+        """
+
+        if number_modes > self.ndof:
+            number_modes = self.ndof
+
         self.size = 2 * number_modes
 
         if isinstance(speed, np.ndarray) or isinstance(speed, list):
@@ -1439,7 +1479,14 @@ class Rotor(object):
             func=self._equation_of_movement,
             size=self.size,
         )
-        x = x.rk45()
+
+        if method in ["rk4", "rk45", "rkf45"]:
+            x = getattr(x, method)()
+        else:
+            warnings.warn(
+                f"The method did not match any of {['rk4', 'rk45', 'rkf45']}. Using 'rk45'."
+            )
+            x = x.rk45()
 
         yout = ModMat.dot(x[: int(self.size / 2), :])
 
@@ -2001,11 +2048,20 @@ class Rotor(object):
         ic : array, optional
             The initial conditions on the state vector (zero by default).
         kwargs : dict, optional
-            If 'modal' option is passed in solver, you can set the number of modes to use in the modal reduction. Such as:
+            If 'modal' option is passed in solver, you can pass the following:
 
                 number_modes : int
+                    Number of modes considered in the modal reduction. Default is 12.
+                method : str
+                    Which algorithm to use. Options are:
 
-            If this parameter is not passed the code will use a default value of 12.
+                        'rk4' : Runge-Kutta, 4th order
+
+                        'rk45' : Runge-Kutta Cash-Karp, 5th order
+
+                        'rkf45' : Runge-Kutta-Fehlberg, 4th and 5th order
+
+                    Default is 'rk45'.
 
         Returns
         -------
@@ -2035,8 +2091,11 @@ class Rotor(object):
                 if kwargs.get("number_modes") is not None
                 else 12
             )
+            method = (
+                kwargs.get("method") if kwargs.get("method") is not None else "rk45"
+            )
 
-            return self._modal_solution(speed, F, t, number_modes)
+            return self._modal_analysis(speed, F, t, number_modes, method)
 
     def plot_rotor(self, nodes=1, check_sld=False, length_units="m", **kwargs):
         """Plot a rotor object.
@@ -2554,11 +2613,20 @@ class Rotor(object):
                 'modal' : the modal reduction will be applied to find the solution.
 
         kwargs : dict, optional
-            If 'modal' option is passed in solver, you can set the number of modes to use in the modal reduction. Such as:
+            If 'modal' option is passed in solver, you can pass the following:
 
                 number_modes : int
+                    Number of modes considered in the modal reduction. Default is 12.
+                method : str
+                    Which algorithm to use. Options are:
 
-            If this parameter is not passed the code will use a default value of 12.
+                        'rk4' : Runge-Kutta, 4th order
+
+                        'rk45' : Runge-Kutta Cash-Karp, 5th order
+
+                        'rkf45' : Runge-Kutta-Fehlberg, 4th and 5th order
+
+                    Default is 'rk45'.
 
         Returns
         -------
@@ -2588,7 +2656,7 @@ class Rotor(object):
         >>> # plot orbit response - plotting 3D orbits - full rotor model:
         >>> fig3 = response.plot_3d()
         """
-        t_, yout, xout = self.time_response(speed, F, t, solver=solver)
+        t_, yout, xout = self.time_response(speed, F, t, solver=solver, **kwargs)
 
         results = TimeResponseResults(self, t, yout, xout)
 

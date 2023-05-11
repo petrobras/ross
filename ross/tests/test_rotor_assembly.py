@@ -1732,6 +1732,82 @@ def test_distinct_dof_elements_error():
         Rotor(shaft_elem, [disk0, disk1], [bearing0, bearing1], n_eigen=36)
 
 
+def test_time_response(rotor7):
+    ndof = rotor7.ndof
+    node = 3
+    speed = 210
+    dt = 0.001
+
+    t = np.arange(0, 0.05 + dt, dt)
+    F = np.zeros((len(t), ndof))
+
+    force = [10, 20]
+    for f in force:
+        F[:, 4 * node] = f * np.cos(2 * t)
+        F[:, 4 * node + 1] = f * np.sin(2 * t)
+
+    yout_ss = rotor7.time_response(speed, F, t, solver="space-state")[1]
+    yout_m = rotor7.time_response(speed, F, t, solver="modal")[1]
+
+    expected_yout = np.array(
+        [
+            3.58975900e-08,
+            -6.07916027e-07,
+            -1.20146761e-06,
+            -1.04630257e-06,
+            -5.72170524e-07,
+            3.64535467e-07,
+            1.30121807e-06,
+            2.16817746e-06,
+            3.04976236e-06,
+            3.70343595e-06,
+            4.28103662e-06,
+            4.85911656e-06,
+            5.49173576e-06,
+            6.14018091e-06,
+            6.90159286e-06,
+            7.73906607e-06,
+            8.45176482e-06,
+            9.24584112e-06,
+            9.98807794e-06,
+            1.06500080e-05,
+            1.14250893e-05,
+            1.21521896e-05,
+            1.29387408e-05,
+            1.37671245e-05,
+            1.45416063e-05,
+            1.53836597e-05,
+            1.61687207e-05,
+            1.68934233e-05,
+            1.75985086e-05,
+            1.82057604e-05,
+            1.87370653e-05,
+            1.91820482e-05,
+            1.95439473e-05,
+            1.98101499e-05,
+            1.99801718e-05,
+            2.00656631e-05,
+            2.00381359e-05,
+            1.99315557e-05,
+            1.97285413e-05,
+            1.94379441e-05,
+            1.90955854e-05,
+            1.86707406e-05,
+            1.82067469e-05,
+            1.77043780e-05,
+            1.71477468e-05,
+            1.65736507e-05,
+            1.59597371e-05,
+            1.53147058e-05,
+            1.46492473e-05,
+            1.39508025e-05,
+        ]
+    )
+
+    assert_almost_equal(yout_ss[1:, 0], expected_yout, 6)
+    assert_almost_equal(yout_m[1:, 0], expected_yout, 6)
+
+
 @pytest.fixture
 def rotor_6dof():
     i_d = 0
