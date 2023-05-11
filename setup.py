@@ -30,8 +30,7 @@ def version(path):
 # Package meta-data.
 NAME = "ross-rotordynamics"
 DESCRIPTION = "ROSS: Rotordynamic Open Source Software"
-URL = "https://github.com/ross-rotordynamics/ross"
-EMAIL = "raphaelts@gmail.com"
+EMAIL = "raphaelts@petrobras.com.br"
 AUTHOR = "ROSS developers"
 REQUIRES_PYTHON = ">=3.7.0"
 VERSION = version("ross/__init__.py")
@@ -86,7 +85,12 @@ setup(
     author=AUTHOR,
     author_email=EMAIL,
     python_requires=REQUIRES_PYTHON,
-    url=URL,
+    project_urls={
+        "Documentation": "https://ross.readthedocs.io/en/stable/",
+        "Bug Tracker": "https://github.com/petrobras/ross/issues",
+        "Discussions": "https://github.com/petrobras/ross/discussions",
+        "Source Code": "https://github.com/petrobras/ross",
+    },
     packages=find_packages(exclude=("tests",)),
     # If your package is a single module, use this instead of 'packages':
     # py_modules=['mypackage'],
