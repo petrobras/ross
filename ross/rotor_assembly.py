@@ -1351,7 +1351,7 @@ class Rotor(object):
         return sys
 
     @check_units
-    def _modal_analysis(self, speed, F, t, number_modes=12, method="rk45"):
+    def _modal_solution(self, speed, F, t, number_modes="force", method="rk45"):
         """Modal Analysis
 
         This method is used to perform the time integration of the rotor using the modal reduction. It uses an Runge-Kutta method within ROSS,
@@ -1365,9 +1365,13 @@ class Rotor(object):
             Each column corresponds to a dof and each row to a time.
         t : array
             Time array.
-        number_modes : int
-            Number of modes considered in the modal reduction. Default is 12.
-        method : str
+        number_modes : str, int, optional
+            Number of modes considered in the modal reduction. It is possible to pass the following string:
+
+                'force' : the code will set the number of modes based on the rotor natural frequencies.
+
+            Additionally, if it a int is passed the code will use the number of modes defined by the user. Default is 'force'.
+        method : str, optional
             Which algorithm to use. Options are:
 
                 'rk4' : Runge-Kutta, 4th order
@@ -1387,11 +1391,6 @@ class Rotor(object):
         xout : array
             Time evolution of the state vector.
         """
-
-        if number_modes > self.ndof:
-            number_modes = self.ndof
-
-        self.size = 2 * number_modes
 
         if isinstance(speed, np.ndarray) or isinstance(speed, list):
             initial_speed = speed[0]
@@ -1445,8 +1444,6 @@ class Rotor(object):
         elif self.number_dof == 6:
             Kst = self.Kst()
 
-        y0 = np.zeros(self.size)
-
         angular_position = (
             sA * t - (sB / lambdat) * np.exp(-lambdat * t) + (sB / lambdat)
         )
@@ -1454,7 +1451,39 @@ class Rotor(object):
         self.Omega = sA + sB * np.exp(-lambdat * t)
         self.AccelV = -lambdat * sB * np.exp(-lambdat * t)
 
-        _, ModMat = la.eigh(K, M, type=1, turbo=False)
+        lambd, ModMat = la.eigh(K, M, type=1, turbo=False)
+
+        wn = np.sqrt(lambd)
+        n_harmonics = 5
+
+        up_freq = np.where(wn >= (n_harmonics * speed))[0].tolist()
+        max_freq = up_freq[0]
+
+        if max_freq % 2:
+            forced_modes = int(max_freq - 1)
+        else:
+            forced_modes = int(max_freq)
+
+        if isinstance(number_modes, str):
+            if number_modes in ["force"]:
+                number_modes = forced_modes
+            else:
+                raise ValueError(
+                    f"The string passed in the number of modes of does not match : 'force'. \nThe value was: {number_modes}"
+                )
+        else:
+            if number_modes > self.ndof:
+                number_modes = self.ndof
+
+            if number_modes < forced_modes:
+                warnings.warn(
+                    f"The number of modes of {number_modes} is lower than the forced one. This could lead to wrong results."
+                )
+
+        self.size = 2 * number_modes
+
+        y0 = np.zeros(self.size)
+
         ModMat = ModMat[:, :number_modes]
         ModMat = ModMat
 
@@ -2050,8 +2079,13 @@ class Rotor(object):
         kwargs : dict, optional
             If 'modal' option is passed in solver, you can pass the following:
 
-                number_modes : int
-                    Number of modes considered in the modal reduction. Default is 12.
+                number_modes : str, int, optional
+                    Number of modes considered in the modal reduction. It is possible to pass the following string:
+
+                        'force' : the code will set the number of modes based on the rotor natural frequencies.
+
+                    Additionally, if it a int is passed the code will use the number of modes defined by the user. Default is 'force'.
+
                 method : str
                     Which algorithm to use. Options are:
 
@@ -2089,13 +2123,13 @@ class Rotor(object):
             number_modes = (
                 kwargs.get("number_modes")
                 if kwargs.get("number_modes") is not None
-                else 12
+                else "force"
             )
             method = (
                 kwargs.get("method") if kwargs.get("method") is not None else "rk45"
             )
 
-            return self._modal_analysis(speed, F, t, number_modes, method)
+            return self._modal_solution(speed, F, t, number_modes, method)
 
     def plot_rotor(self, nodes=1, check_sld=False, length_units="m", **kwargs):
         """Plot a rotor object.
