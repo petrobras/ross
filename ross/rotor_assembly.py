@@ -616,7 +616,7 @@ class Rotor(object):
             eigenvectors.
             Default is True.
         synchronous : bool, optional
-            If True a synchronous analysis is carried out based on :cite:`rouch1980dynamic`.
+            If True a synchronous analysis is carried out according to :cite:`rouch1980dynamic`.
             Default is False.
 
         Returns
@@ -925,7 +925,10 @@ class Rotor(object):
             dofs = list(elm.dof_global_index.values())
             if synchronous:
                 if elm in self.shaft_elements:
-                    M = elm.M(frequency)
+                    try:
+                        M = elm.M(frequency)
+                    except TypeError:
+                        M = elm.M()
                     G = elm.G()
                     for i in range(8):
                         if i == 0 or i == 3 or i == 4 or i == 7:
@@ -940,15 +943,24 @@ class Rotor(object):
                             M[i, 6] = M[i, 6] - G[i, 7]
                     M0[np.ix_(dofs, dofs)] += M
                 elif elm in self.disk_elements:
-                    M = elm.M(frequency)
+                    try:
+                        M = elm.M(frequency)
+                    except TypeError:
+                        M = elm.M()
                     G = elm.G()
                     M[2, 2] = M[2, 2] - G[2, 3]
                     M[3, 3] = M[3, 3] + G[3, 2]
                     M0[np.ix_(dofs, dofs)] += M
                 else:
-                    M0[np.ix_(dofs, dofs)] += elm.M(frequency)
+                    try:
+                        M0[np.ix_(dofs, dofs)] += elm.M(frequency)
+                    except TypeError:
+                        M0[np.ix_(dofs, dofs)] += elm.M()
             else:
-                M0[np.ix_(dofs, dofs)] += elm.M(frequency)
+                try:
+                    M0[np.ix_(dofs, dofs)] += elm.M(frequency)
+                except TypeError:
+                    M0[np.ix_(dofs, dofs)] += elm.M()
 
         return M0
 
