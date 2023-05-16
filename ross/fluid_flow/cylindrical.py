@@ -449,8 +449,8 @@ class THDCylindrical(BearingElement):
                         Ch = self.radial_clearance / (1-self.preload)
                         
                         Cv = self.radial_clearance
-    
                         
+    
                         
                         PHI = np.pi/2 + phi
                         
@@ -2046,7 +2046,7 @@ class THDCylindrical(BearingElement):
             args,
             method="Nelder-Mead",
             bounds = [(0,1),(-2*np.pi,2*np.pi)],
-            tol=0.8,
+            tol=0.1,
             options={"maxiter": 1e10},
         )
         self.equilibrium_pos = res.x
@@ -2058,7 +2058,7 @@ class THDCylindrical(BearingElement):
 
         if self.print_time:
             print(f"Time Spent: {t2-t1} seconds")
-        sys.exit()
+        # sys.exit()
     def _interpol(self, T_muI, T_muF, mu_I, mu_F):
         """
         This method is used to create a relationship between viscosity and
@@ -2152,18 +2152,20 @@ class THDCylindrical(BearingElement):
             * np.sin(self.equilibrium_pos[1])
         )
 
-        
         dE = 0.001
         
-        epix = np.abs(dE * self.radial_clearance * np.cos(self.equilibrium_pos[1]))
-        epiy = np.abs(dE * self.radial_clearance * np.sin(self.equilibrium_pos[1]))
+        epix = dE * self.radial_clearance
+        epiy = dE * self.radial_clearance
         
 
         
-        # Va = self.speed * (self.journal_radius)
-        Va = self.speed * (self.equilibrium_pos[0]*self.radial_clearance)
-        epixpt = 0.000001 * np.abs(Va * np.sin(self.equilibrium_pos[1]))
-        epiypt = 0.000001 * np.abs(Va * np.cos(self.equilibrium_pos[1]))
+         # Va = self.speed * (self.journal_radius)
+        Va = self.speed * dE * self.radial_clearance
+        epixpt = 0.10 * Va
+        epiypt = 0.10 * Va
+        
+        
+
         
         # Perturbation +X
         x_new1 = xeq + epix 
@@ -2225,70 +2227,116 @@ class THDCylindrical(BearingElement):
         Auinitial_guess8 = self._forces(e_new8, atitude_ang_new8, 0, -epiypt)
 
         
-        Kxx = -self.sommerfeld(Auinitial_guess1[0], Auinitial_guess2[1]) * (
-            (Auinitial_guess1[0] - Auinitial_guess2[0]) / (epix / self.radial_clearance)
+        # Kxx = -self.sommerfeld(Auinitial_guess1[0], Auinitial_guess2[1]) * (
+        #     (Auinitial_guess1[0] - Auinitial_guess2[0]) / (epix / self.radial_clearance)
+        # )
+        # Kxy = -self.sommerfeld(Auinitial_guess3[0], Auinitial_guess4[1]) * (
+        #     (Auinitial_guess3[0] - Auinitial_guess4[0]) / (epiy / self.radial_clearance)
+        # )
+        # Kyx = -self.sommerfeld(Auinitial_guess1[1], Auinitial_guess2[1]) * (
+        #     (Auinitial_guess1[1] - Auinitial_guess2[1]) / (epix / self.radial_clearance)
+        # )
+        # Kyy = -self.sommerfeld(Auinitial_guess3[1], Auinitial_guess4[1]) * (
+        #     (Auinitial_guess3[1] - Auinitial_guess4[1]) / (epiy / self.radial_clearance)
+        # )
+        
+        Kxx = -1 * (
+            (Auinitial_guess1[0] - Auinitial_guess2[0]) / (2*epix)
         )
-        Kxy = -self.sommerfeld(Auinitial_guess3[0], Auinitial_guess4[1]) * (
-            (Auinitial_guess3[0] - Auinitial_guess4[0]) / (epiy / self.radial_clearance)
+        Kxy = -1 * (
+            (Auinitial_guess3[0] - Auinitial_guess4[0]) / (2*epiy )
         )
-        Kyx = -self.sommerfeld(Auinitial_guess1[1], Auinitial_guess2[1]) * (
-            (Auinitial_guess1[1] - Auinitial_guess2[1]) / (epix / self.radial_clearance)
+        Kyx = -1 * (
+            (Auinitial_guess1[1] - Auinitial_guess2[1]) / (2*epix )
         )
-        Kyy = -self.sommerfeld(Auinitial_guess3[1], Auinitial_guess4[1]) * (
-            (Auinitial_guess3[1] - Auinitial_guess4[1]) / (epiy / self.radial_clearance)
+        Kyy = -1 * (
+            (Auinitial_guess3[1] - Auinitial_guess4[1]) / (2*epiy )
         )
         
         
-        Cxx = -self.sommerfeld(Auinitial_guess5[0], Auinitial_guess6[1]) * (
+        
+        # Cxx = -self.sommerfeld(Auinitial_guess5[0], Auinitial_guess6[1]) * (
+        #     (Auinitial_guess5[0] - Auinitial_guess6[0])
+        #     / (epixpt / self.radial_clearance / self.speed)
+        # )
+        # Cxy = -self.sommerfeld(Auinitial_guess7[0], Auinitial_guess8[1]) * (
+        #     (Auinitial_guess7[0] - Auinitial_guess8[0])
+        #     / (epiypt / self.radial_clearance / self.speed)
+        # )
+        # Cyx = -self.sommerfeld(Auinitial_guess5[0], Auinitial_guess6[1]) * (
+        #     (Auinitial_guess5[1] - Auinitial_guess6[1])
+        #     / (epixpt / self.radial_clearance / self.speed)
+        # )
+        # Cyy = -self.sommerfeld(Auinitial_guess7[0], Auinitial_guess8[1]) * (
+        #     (Auinitial_guess7[1] - Auinitial_guess8[1])
+        #     / (epiypt / self.radial_clearance / self.speed)
+        # )
+        
+        Cxx = -1 * (
             (Auinitial_guess5[0] - Auinitial_guess6[0])
-            / (epixpt / self.radial_clearance / self.speed)
+            / (2*epixpt )
         )
-        Cxy = -self.sommerfeld(Auinitial_guess7[0], Auinitial_guess8[1]) * (
+        Cxy = -1 * (
             (Auinitial_guess7[0] - Auinitial_guess8[0])
-            / (epiypt / self.radial_clearance / self.speed)
+            / (2*epiypt )
         )
-        Cyx = -self.sommerfeld(Auinitial_guess5[0], Auinitial_guess6[1]) * (
+        Cyx = -1 * (
             (Auinitial_guess5[1] - Auinitial_guess6[1])
-            / (epixpt / self.radial_clearance / self.speed)
+            / (2*epixpt )
         )
-        Cyy = -self.sommerfeld(Auinitial_guess7[0], Auinitial_guess8[1]) * (
+        Cyy = -1 * (
             (Auinitial_guess7[1] - Auinitial_guess8[1])
-            / (epiypt / self.radial_clearance / self.speed)
-        )
+            / (2*epiypt ))
 
-        kxx = (
-            np.sqrt((self.load_x_direction**2) + (self.load_y_direction**2))
-            / self.radial_clearance
-        ) * Kxx
-        kxy = (
-            np.sqrt((self.load_x_direction**2) + (self.load_y_direction**2))
-            / self.radial_clearance
-        ) * Kxy
-        kyx = (
-            np.sqrt((self.load_x_direction**2) + (self.load_y_direction**2))
-            / self.radial_clearance
-        ) * Kyx
-        kyy = (
-            np.sqrt((self.load_x_direction**2) + (self.load_y_direction**2))
-            / self.radial_clearance
-        ) * Kyy
-
-        cxx = (
-            np.sqrt((self.load_x_direction**2) + (self.load_y_direction**2))
-            / (self.radial_clearance * self.speed)
-        ) * Cxx
-        cxy = (
-            np.sqrt((self.load_x_direction**2) + (self.load_y_direction**2))
-            / (self.radial_clearance * self.speed)
-        ) * Cxy
-        cyx = (
-            np.sqrt((self.load_x_direction**2) + (self.load_y_direction**2))
-            / (self.radial_clearance * self.speed)
-        ) * Cyx
-        cyy = (
-            np.sqrt((self.load_x_direction**2) + (self.load_y_direction**2))
-            / (self.radial_clearance * self.speed)
-        ) * Cyy
+        # kxx = (
+        #     np.sqrt((self.load_x_direction**2) + (self.load_y_direction**2))
+        #     / self.radial_clearance
+        # ) * Kxx
+        # kxy = (
+        #     np.sqrt((self.load_x_direction**2) + (self.load_y_direction**2))
+        #     / self.radial_clearance
+        # ) * Kxy
+        # kyx = (
+        #     np.sqrt((self.load_x_direction**2) + (self.load_y_direction**2))
+        #     / self.radial_clearance
+        # ) * Kyx
+        # kyy = (
+        #     np.sqrt((self.load_x_direction**2) + (self.load_y_direction**2))
+        #     / self.radial_clearance
+        # ) * Kyy
+        
+        kxx=Kxx
+        
+        kxy=Kxy
+        
+        kyx=Kyx
+        
+        kyy=Kyy
+        
+        cxx = Cxx
+        
+        cxy = Cxy
+         
+        cyx = Cyx
+        
+        cyy = Cyy
+        
+        # cxx = (
+        #     np.sqrt((self.load_x_direction**2) + (self.load_y_direction**2))
+        #     / (self.radial_clearance * self.speed)
+        # ) * Cxx
+        # cxy = (
+        #     np.sqrt((self.load_x_direction**2) + (self.load_y_direction**2))
+        #     / (self.radial_clearance * self.speed)
+        # ) * Cxy
+        # cyx = (
+        #     np.sqrt((self.load_x_direction**2) + (self.load_y_direction**2))
+        #     / (self.radial_clearance * self.speed)
+        # ) * Cyx
+        # cyy = (
+        #     np.sqrt((self.load_x_direction**2) + (self.load_y_direction**2))
+        #     / (self.radial_clearance * self.speed)
+        # ) * Cyy
 
         return (kxx, kxy, kyx, kyy), (cxx, cxy, cyx, cyy)
 
@@ -2367,7 +2415,7 @@ class THDCylindrical(BearingElement):
                                     - self.X * np.cos(jj + 0.5 * self.dtheta)
                                     - self.Y * np.sin(jj + 0.5 * self.dtheta)
                                 )
-                                He = (
+                                Hw = (
                                     1
                                     - self.X * np.cos(jj - 0.5 * self.dtheta)
                                     - self.Y * np.sin(jj - 0.5 * self.dtheta)
@@ -3225,7 +3273,7 @@ class THDCylindrical(BearingElement):
             print("============================================")
             print(f"Force y direction: ", Fhy)
             print("")
-            sys.exit()
+            # sys.exit()
         return score
 
     def sommerfeld(self, force_x, force_y):
@@ -3266,7 +3314,8 @@ class THDCylindrical(BearingElement):
 
         # Ss = S * ((self.axial_length / (2 * self.journal_radius)) ** 2)
         # Ss = S 
-
+        print(S)
+        S=1
         return S
 
 
@@ -3287,24 +3336,24 @@ def cylindrical_bearing_example():
     """
 
     bearing = THDCylindrical(
-        axial_length=(0.1),
-        journal_radius=(0.05),
-        radial_clearance=(120e-6),
-        elements_circumferential=21,
-        elements_axial=7,
-        n_pad=2,
-        pad_arc_length=178,
-        preload=0.4,
+        axial_length=(12.8e-3),
+        journal_radius=(9.495e-3),
+        radial_clearance=( 97.5e-6),
+        elements_circumferential=30,
+        elements_axial=8,
+        n_pad=1,
+        pad_arc_length=356,
+        preload=0,
         geometry="lobe",
-        reference_temperature=33,
-        speed=Q_([2000], "RPM"),
+        reference_temperature=23,
+        speed=Q_([1200], "RPM"),
         load_x_direction=0,
-        load_y_direction=-10000,
-        groove_factor=[0.8, 0.8],
-        lubricant="TEST",
+        load_y_direction=-28.70,
+        groove_factor=[0.8],
+        lubricant="ISOVG46",
         node=3,
         sommerfeld_type=2,
-        initial_guess=[0.7694, -18*np.pi/180],
+        initial_guess=[0.7, -12*np.pi/180],
         method="perturbation",
         operating_type="flooded",
         injection_pressure=0,
