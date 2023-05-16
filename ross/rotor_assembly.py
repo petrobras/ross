@@ -1351,7 +1351,7 @@ class Rotor(object):
         return sys
 
     @check_units
-    def _modal_solution(self, speed, F, t, number_modes="force", method="rk45"):
+    def _modal_solution(self, speed, F, t, number_modes="auto", method="rk45"):
         """Modal Analysis
 
         This method is used to perform the time integration of the rotor using the modal reduction. It uses an Runge-Kutta method within ROSS,
@@ -1465,7 +1465,7 @@ class Rotor(object):
             forced_modes = int(max_freq)
 
         if isinstance(number_modes, str):
-            if number_modes in ["force"]:
+            if number_modes in ["auto"]:
                 number_modes = forced_modes
             else:
                 raise ValueError(
@@ -2142,7 +2142,7 @@ class Rotor(object):
             number_modes = (
                 kwargs.get("number_modes")
                 if kwargs.get("number_modes") is not None
-                else "force"
+                else "auto"
             )
             method = (
                 kwargs.get("method") if kwargs.get("method") is not None else "rk45"
