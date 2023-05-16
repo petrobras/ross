@@ -267,7 +267,7 @@ class PointMass(Element):
             The figure object which traces are added on.
         """
         zpos, ypos = position
-        radius = ypos / 8
+        radius = ypos / 12
 
         customdata = [self.n, self.mx, self.my]
         hovertemplate = (

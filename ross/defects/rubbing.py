@@ -84,7 +84,6 @@ class Rubbing(Defect):
         torque=False,
         print_progress=False,
     ):
-
         self.dt = dt
         self.tI = tI
         self.tF = tF
@@ -158,7 +157,7 @@ class Rubbing(Defect):
         self.K = self.rotor.K(self.speed)
         self.C = self.rotor.C(self.speed)
         self.G = self.rotor.G()
-        self.M = self.rotor.M()
+        self.M = self.rotor.M(self.speed)
         self.Kst = self.rotor.Kst()
 
         V1, ModMat = scipy.linalg.eigh(
@@ -206,13 +205,13 @@ class Rubbing(Defect):
 
             unbx = self.unbalance_magnitude[ii] * (self.AccelV) * (
                 np.cos(self.tetaUNB[ii, :])
-            ) - self.unbalance_magnitude[ii] * ((self.Omega ** 2)) * (
+            ) - self.unbalance_magnitude[ii] * ((self.Omega**2)) * (
                 np.sin(self.tetaUNB[ii, :])
             )
 
             unby = -self.unbalance_magnitude[ii] * (self.AccelV) * (
                 np.sin(self.tetaUNB[ii, :])
-            ) - self.unbalance_magnitude[ii] * (self.Omega ** 2) * (
+            ) - self.unbalance_magnitude[ii] * (self.Omega**2) * (
                 np.cos(self.tetaUNB[ii, :])
             )
 
@@ -408,7 +407,7 @@ class Rubbing(Defect):
             Force magnitude.
         """
         force = self.radius * (
-            np.sqrt(F_f ** 2 + F_fp ** 2) * y / abs(self.radial_displ_node)
+            np.sqrt(F_f**2 + F_fp**2) * y / abs(self.radial_displ_node)
         )
         return force
 

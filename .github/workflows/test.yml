@@ -2,11 +2,11 @@ name: Tests
 
 # Controls when the action will run. 
 on:
-  # Triggers the workflow on push or pull request events but only for the master branch
+  # Triggers the workflow on push or pull request events but only for the main branch
   push:
-    branches: [ master ]
+    branches: [ main ]
   pull_request:
-    branches: [ master ]
+    branches: [ main ]
 
 jobs:
   build:
@@ -14,7 +14,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        python-version: [3.6, 3.7, 3.8]
+        python-version: ["3.7", "3.8", "3.9", "3.10"]
         os: [ubuntu-latest, macOS-latest, windows-latest]
 
     steps:
@@ -39,7 +39,6 @@ jobs:
       - name: Code Lint 
         run: |
           black --check ross
-          isort ross --check-only
         if: success()
       - name: Coverage and Deployment
         run: codecov

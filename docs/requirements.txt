@@ -1,0 +1,8 @@
+sphinx==4.5.0
+myst_nb==0.17.1
+sphinxcontrib-bibtex==2.5.0
+sphinx-copybutton==0.5.1
+numpydoc==1.5.0
+sphinx-book-theme==0.3.3
+linkify-it-py==2.0.0
+sphinx-design==0.4.1

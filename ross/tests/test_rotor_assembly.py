@@ -1,3 +1,4 @@
+import pickle
 from pathlib import Path
 from tempfile import tempdir
 
@@ -7,10 +8,12 @@ from numpy.testing import assert_allclose, assert_almost_equal, assert_equal
 
 from ross.bearing_seal_element import *
 from ross.disk_element import *
-from ross.materials import steel
+from ross.materials import Material, steel
 from ross.point_mass import *
+from ross.probe import Probe
 from ross.rotor_assembly import *
 from ross.shaft_element import *
+from ross.units import Q_
 
 
 @pytest.fixture
@@ -40,7 +43,7 @@ def rotor1():
     )
 
     shaft_elm = [tim0, tim1]
-    return Rotor(shaft_elm, [], [])
+    return Rotor(shaft_elm)
 
 
 def test_index_eigenvalues_rotor1(rotor1):
@@ -76,7 +79,7 @@ def test_mass_matrix_rotor1(rotor1):
                     [ 0.   ,  0.   ,  0.   ,  0.   ,  0.   ,  0.031, -0.002,  0.   ,  0.   ,  0.049,  0.002,  0.   ],
                     [ 0.   ,  0.   ,  0.   ,  0.   , -0.031,  0.   ,  0.   , -0.002, -0.049,  0.   ,  0.   ,  0.002]])
     # fmt: on
-    assert_almost_equal(rotor1.M(), Mr1, decimal=3)
+    assert_almost_equal(rotor1.M(0), Mr1, decimal=3)
 
 
 def test_raise_if_element_outside_shaft():
@@ -154,6 +157,64 @@ def rotor2():
     return Rotor(shaft_elm, [disk0], [bearing0, bearing1])
 
 
+def test_rotor_equality(rotor1, rotor2):
+    assert rotor1 != rotor2
+
+
+@pytest.fixture
+def rotor2_bearing_mass():
+    #  Rotor without damping with 2 shaft elements 1 disk and 2 bearings
+    le_ = 0.25
+    i_d_ = 0
+    o_d_ = 0.05
+
+    tim0 = ShaftElement(
+        le_,
+        i_d_,
+        o_d_,
+        material=steel,
+        shear_effects=True,
+        rotary_inertia=True,
+        gyroscopic=True,
+    )
+    tim1 = ShaftElement(
+        le_,
+        i_d_,
+        o_d_,
+        material=steel,
+        shear_effects=True,
+        rotary_inertia=True,
+        gyroscopic=True,
+    )
+
+    shaft_elm = [tim0, tim1]
+    disk0 = DiskElement.from_geometry(1, steel, 0.07, 0.05, 0.28)
+    stf = 1e6
+    m = 20e-3
+    bearing0 = BearingElement(0, kxx=stf, cxx=0, mxx=m)
+    bearing1 = BearingElement(2, kxx=stf, cxx=0, mxx=m)
+
+    return Rotor(shaft_elm, [disk0], [bearing0, bearing1])
+
+
+def test_mass_matrix_rotor2_with_bearing_mass(rotor2_bearing_mass):
+    # fmt: off
+    Mr2 = np.array([[ 1.441,  0.   ,  0.   ,  0.049,  0.496,  0.   ,  0.   , -0.031, 0.   ,  0.   ,  0.   ,  0.   ],
+                    [ 0.   ,  1.441, -0.049,  0.   ,  0.   ,  0.496,  0.031,  0.   , 0.   ,  0.   ,  0.   ,  0.   ],
+                    [ 0.   , -0.049,  0.002,  0.   ,  0.   , -0.031, -0.002,  0.   , 0.   ,  0.   ,  0.   ,  0.   ],
+                    [ 0.049,  0.   ,  0.   ,  0.002,  0.031,  0.   ,  0.   , -0.002, 0.   ,  0.   ,  0.   ,  0.   ],
+                    [ 0.496,  0.   ,  0.   ,  0.031, 35.431,  0.   ,  0.   ,  0.   , 0.496,  0.   ,  0.   , -0.031],
+                    [ 0.   ,  0.496, -0.031,  0.   ,  0.   , 35.431,  0.   ,  0.   , 0.   ,  0.496,  0.031,  0.   ],
+                    [ 0.   ,  0.031, -0.002,  0.   ,  0.   ,  0.   ,  0.183,  0.   , 0.   , -0.031, -0.002,  0.   ],
+                    [-0.031,  0.   ,  0.   , -0.002,  0.   ,  0.   ,  0.   ,  0.183, 0.031,  0.   ,  0.   , -0.002],
+                    [ 0.   ,  0.   ,  0.   ,  0.   ,  0.496,  0.   ,  0.   ,  0.031, 1.441,  0.   ,  0.   , -0.049],
+                    [ 0.   ,  0.   ,  0.   ,  0.   ,  0.   ,  0.496, -0.031,  0.   , 0.   ,  1.441,  0.049,  0.   ],
+                    [ 0.   ,  0.   ,  0.   ,  0.   ,  0.   ,  0.031, -0.002,  0.   , 0.   ,  0.049,  0.002,  0.   ],
+                    [ 0.   ,  0.   ,  0.   ,  0.   , -0.031,  0.   ,  0.   , -0.002, -0.049,  0.   ,  0.   ,  0.002]])
+    # fmt: on
+    assert_almost_equal(rotor2_bearing_mass.M(0), Mr2, decimal=3)
+
+
 def test_mass_matrix_rotor2(rotor2):
     # fmt: off
     Mr2 = np.array([[  1.421,   0.   ,   0.   ,   0.049,   0.496,   0.   ,   0.   ,  -0.031,   0.   ,   0.   ,   0.   ,   0.   ],
@@ -169,7 +230,7 @@ def test_mass_matrix_rotor2(rotor2):
                     [  0.   ,   0.   ,   0.   ,   0.   ,   0.   ,   0.031,  -0.002,   0.   ,   0.   ,   0.049,   0.002,   0.   ],
                     [  0.   ,   0.   ,   0.   ,   0.   ,  -0.031,   0.   ,   0.   ,  -0.002,  -0.049,   0.   ,   0.   ,   0.002]])
     # fmt: on
-    assert_almost_equal(rotor2.M(), Mr2, decimal=3)
+    assert_almost_equal(rotor2.M(0), Mr2, decimal=3)
 
 
 def test_a0_0_matrix_rotor2(rotor2):
@@ -285,6 +346,10 @@ def test_evals_sorted_rotor2(rotor2):
     modal2_10000 = rotor2.run_modal(speed=10000)
     assert_allclose(modal2_10000.evalues, evals_sorted_w_10000, rtol=1e-1)
 
+    # test run_modal with Q_
+    modal2_10000 = rotor2.run_modal(speed=Q_(95492.96585513721, "RPM"))
+    assert_allclose(modal2_10000.evalues, evals_sorted_w_10000, rtol=1e-1)
+
 
 @pytest.fixture
 def rotor3():
@@ -316,6 +381,48 @@ def rotor3():
     bearing1 = BearingElement(6, kxx=stfx, kyy=stfy, cxx=0)
 
     return Rotor(shaft_elem, [disk0, disk1], [bearing0, bearing1])
+
+
+def test_modal_fig_orientation(rotor3):
+    modal1 = rotor3.run_modal(Q_(900, "RPM"))
+    fig1 = modal1.plot_mode_2d(1, orientation="major")
+    data_major = fig1.data[0].y
+
+    # fmt: off
+    expected_data_major = np.array([
+        0.3330699 , 0.41684076, 0.49947039, 0.5796177 , 0.65594162,
+        0.65594162, 0.72732014, 0.79268256, 0.85076468, 0.90030229,
+        0.90030229, 0.9402937 , 0.97041024, 0.99039723, 1.        ,
+        1.        , 0.99901483, 0.98731591, 0.9647654 , 0.93122548,
+        0.93122548, 0.88677476, 0.83255026, 0.77000169, 0.70057879,
+        0.70057879, 0.62550815, 0.54607111, 0.46379946, 0.38022502
+    ])
+    # fmt: on
+
+    modal2 = rotor3.run_modal(Q_(900, "RPM"))
+    fig2 = modal2.plot_mode_2d(1, orientation="x")
+    data_x = fig2.data[0].y
+
+    modal3 = rotor3.run_modal(Q_(900, "RPM"))
+    fig3 = modal3.plot_mode_2d(1, orientation="y")
+    data_y = fig3.data[0].y
+
+    # fmt: off
+    expected_data_y = np.array([
+        1.63888742e-13, 1.97035201e-13, 2.29738935e-13, 2.61467959e-13,
+        2.91690288e-13, 2.91690288e-13, 3.19972642e-13, 3.45901475e-13,
+        3.68974412e-13, 3.88689077e-13, 3.88689077e-13, 4.04657656e-13,
+        4.16754177e-13, 4.24869024e-13, 4.28892585e-13, 4.28892585e-13,
+        4.28743563e-13, 4.24376114e-13, 4.15733802e-13, 4.02760190e-13,
+        4.02760190e-13, 3.85469076e-13, 3.64306492e-13, 3.39864356e-13,
+        3.12734588e-13, 3.12734588e-13, 2.83402610e-13, 2.52356655e-13,
+        2.20192854e-13, 1.87507335e-13
+    ])
+    # fmt: on
+
+    assert_almost_equal(data_major, expected_data_major)
+    assert_almost_equal(data_x, expected_data_major)
+    assert_almost_equal(data_y, expected_data_y)
 
 
 @pytest.fixture
@@ -370,40 +477,24 @@ def test_kappa_rotor3(rotor3):
     # TODO: Move this to test_results.py
     modal3_0 = rotor3.run_modal(speed=0)
     assert_allclose(modal3_0.kappa(0, 0)["Frequency"], 82.653037, rtol=1e-3)
-    assert_allclose(modal3_0.kappa(0, 0)["Major axes"], 0.001454062985920231, rtol=1e-3)
-    assert_allclose(
-        modal3_0.kappa(0, 0)["Minor axes"], 2.0579515874459978e-11, rtol=1e-3, atol=1e-6
-    )
-    assert_allclose(
-        modal3_0.kappa(0, 0)["kappa"], -1.415311171090584e-08, rtol=1e-3, atol=1e-6
-    )
+    assert_allclose(modal3_0.kappa(0, 0)["Major axis"], 0.3826857177947612, rtol=1e-3)
+    assert_allclose(modal3_0.kappa(0, 0)["Minor axis"], 0.0, rtol=1e-3, atol=1e-6)
+    assert_allclose(modal3_0.kappa(0, 0)["kappa"], -0.0, rtol=1e-3, atol=1e-6)
 
     modal3_2000 = rotor3.run_modal(speed=2000)
     assert_allclose(modal3_2000.kappa(0, 0)["Frequency"], 77.37957042, rtol=1e-3)
-    assert_allclose(
-        modal3_2000.kappa(0, 0)["Major axes"], 0.0011885396330204021, rtol=1e-3
-    )
-    assert_allclose(
-        modal3_2000.kappa(0, 0)["Minor axes"], 0.0007308144427338161, rtol=1e-3
-    )
+    assert_allclose(modal3_2000.kappa(0, 0)["Major axis"], 0.384089, rtol=1e-3)
+    assert_allclose(modal3_2000.kappa(0, 0)["Minor axis"], 0.23617, rtol=1e-3)
     assert_allclose(modal3_2000.kappa(0, 0)["kappa"], -0.6148843693807821, rtol=1e-3)
 
     assert_allclose(modal3_2000.kappa(0, 1)["Frequency"], 88.98733511566752, rtol=1e-3)
-    assert_allclose(
-        modal3_2000.kappa(0, 1)["Major axes"], 0.0009947502339267566, rtol=1e-3
-    )
-    assert_allclose(
-        modal3_2000.kappa(0, 1)["Minor axes"], 0.0008412470069506472, rtol=1e-3
-    )
+    assert_allclose(modal3_2000.kappa(0, 1)["Major axis"], 0.353984, rtol=1e-3)
+    assert_allclose(modal3_2000.kappa(0, 1)["Minor axis"], 0.299359, rtol=1e-3)
     assert_allclose(modal3_2000.kappa(0, 1)["kappa"], 0.8456866641084784, rtol=1e-3)
 
     assert_allclose(modal3_2000.kappa(1, 1)["Frequency"], 88.98733511566752, rtol=1e-3)
-    assert_allclose(
-        modal3_2000.kappa(1, 1)["Major axes"], 0.0018877975750108973, rtol=1e-3
-    )
-    assert_allclose(
-        modal3_2000.kappa(1, 1)["Minor axes"], 0.0014343257484060105, rtol=1e-3
-    )
+    assert_allclose(modal3_2000.kappa(1, 1)["Major axis"], 0.671776, rtol=1e-3)
+    assert_allclose(modal3_2000.kappa(1, 1)["Minor axis"], 0.510407, rtol=1e-3)
     assert_allclose(modal3_2000.kappa(1, 1)["kappa"], 0.7597878964314968, rtol=1e-3)
 
 
@@ -542,7 +633,6 @@ def test_freq_response(rotor4):
 
 
 def test_freq_response_w_force(rotor4):
-    # modal4 = rotor4.run_modal(0)
     F0 = np.array(
         [
             [0.0 + 0.0j, 0.0 + 0.0j, 0.0 + 0.0j, 0.0 + 0.0j],
@@ -629,61 +719,67 @@ def test_mesh_convergence(rotor3):
 def test_static_analysis_rotor3(rotor3):
     static = rotor3.run_static()
 
-    assert_almost_equal(
-        static.deformation[0],
-        np.array(
-            [
-                -4.94274533e-12,
-                -4.51249085e-04,
-                -7.88420867e-04,
-                -9.18114192e-04,
-                -8.08560219e-04,
-                -4.68788888e-04,
-                -5.56171636e-12,
-            ]
-        ),
-        decimal=6,
+    fig = static.plot_free_body_diagram()
+    assert list(fig.select_annotations())[7]["text"] == "Shaft weight = 225.57N"
+
+    expected_deformation = np.array(
+        [
+            -4.942745e-18,
+            -4.512491e-04,
+            -7.884209e-04,
+            -9.181142e-04,
+            -8.085602e-04,
+            -4.687889e-04,
+            -5.561716e-18,
+        ]
     )
-    assert_almost_equal(
-        static.Vx[0],
-        np.array(
-            [
-                -494.2745,
-                -456.6791,
-                -456.6791,
-                -419.0837,
-                -99.4925,
-                -61.8971,
-                -61.8971,
-                -24.3017,
-                480.9808,
-                518.5762,
-                518.5762,
-                556.1716,
-            ]
-        ),
-        decimal=3,
+
+    assert_allclose(
+        static.deformation,
+        expected_deformation,
     )
-    assert_almost_equal(
-        static.Bm[0],
-        np.array(
-            [
-                0.0,
-                -118.8692,
-                -118.8692,
-                -228.3396,
-                -228.3396,
-                -248.5133,
-                -248.5133,
-                -259.2881,
-                -259.2881,
-                -134.3435,
-                -134.3435,
-                0.0,
-            ]
-        ),
-        decimal=3,
+    fig = static.plot_deformation()
+    assert_allclose(fig.data[1]["y"], expected_deformation)
+
+    expected_vx = np.array(
+        [
+            -494.274533,
+            -456.679111,
+            -456.679111,
+            -419.083689,
+            -99.492525,
+            -61.897103,
+            -61.897103,
+            -24.301681,
+            480.980792,
+            518.576214,
+            518.576214,
+            556.171636,
+        ]
     )
+    assert_allclose(static.Vx, expected_vx)
+    fig = static.plot_shearing_force()
+    assert_allclose((fig.data[1]["y"]), expected_vx)
+
+    expected_moment = np.array(
+        [
+            0.0,
+            -118.8692056,
+            -118.8692056,
+            -228.3395557,
+            -228.3395557,
+            -248.5132592,
+            -248.5132592,
+            -259.2881072,
+            -259.2881072,
+            -134.3434813,
+            -134.3434813,
+            0.0,
+        ]
+    )
+    assert_almost_equal(static.Bm, expected_moment)
+    fig = static.plot_bending_moment()
+    assert_allclose((fig.data[1]["y"]), expected_moment)
 
 
 @pytest.fixture
@@ -722,7 +818,7 @@ def test_static_analysis_rotor5(rotor5):
     static = rotor5.run_static()
 
     assert_almost_equal(
-        static.deformation[0],
+        static.deformation,
         np.array(
             [
                 8.12651626e-04,
@@ -741,7 +837,7 @@ def test_static_analysis_rotor5(rotor5):
         decimal=6,
     )
     assert_almost_equal(
-        static.Vx[0],
+        static.Vx,
         np.array(
             [
                 0.0,
@@ -769,7 +865,7 @@ def test_static_analysis_rotor5(rotor5):
         decimal=3,
     )
     assert_almost_equal(
-        static.Bm[0],
+        static.Bm,
         np.array(
             [
                 0.0,
@@ -831,11 +927,18 @@ def rotor6():
     return Rotor(shaft_elem, [disk0, disk1], [bearing0, bearing1])
 
 
+@pytest.fixture
+def rotor9():
+    # More complex rotor based on a centrifugal compressor
+    rotor9 = Rotor.load(Path(__file__).parent / "data/rotor.toml")
+    return rotor9
+
+
 def test_static_analysis_rotor6(rotor6):
     static = rotor6.run_static()
 
     assert_almost_equal(
-        static.deformation[0],
+        static.deformation,
         np.array(
             [
                 -1.03951876e-04,
@@ -854,7 +957,7 @@ def test_static_analysis_rotor6(rotor6):
         decimal=6,
     )
     assert_almost_equal(
-        static.Vx[0],
+        static.Vx,
         np.array(
             [
                 -0.0,
@@ -882,7 +985,7 @@ def test_static_analysis_rotor6(rotor6):
         decimal=3,
     )
     assert_almost_equal(
-        static.Bm[0],
+        static.Bm,
         np.array(
             [
                 0.0,
@@ -909,6 +1012,62 @@ def test_static_analysis_rotor6(rotor6):
         ),
         decimal=3,
     )
+
+
+def test_static_analysis_rotor9(rotor9):
+    static = rotor9.run_static()
+    assert_allclose(sum(static.bearing_forces.values()), rotor9.m * 9.8065)
+    assert_almost_equal(static.bearing_forces["node_7"], 1216.2827567768297)
+
+
+def test_static_analysis_high_stiffness(rotor2):
+    static = rotor2.run_static()
+    assert_allclose(sum(static.bearing_forces.values()), rotor2.m * 9.8065)
+    assert_almost_equal(static.bearing_forces["node_0"], 197.39100421969422)
+    stf = 1e14
+    bearing0 = BearingElement(0, kxx=stf, cxx=0)
+    bearing1 = BearingElement(2, kxx=stf, cxx=0)
+    rotor2 = Rotor(
+        shaft_elements=rotor2.shaft_elements,
+        disk_elements=rotor2.disk_elements,
+        bearing_elements=[bearing0, bearing1],
+    )
+    static = rotor2.run_static()
+    assert_allclose(sum(static.bearing_forces.values()), rotor2.m * 9.8065)
+    assert_almost_equal(static.bearing_forces["node_0"], 197.39100421969422)
+
+
+def test_static_bearing_with_disks(rotor3):
+    # this test is related to #845, where a bearing is added at the same node as a disk
+    disk0 = DiskElement(n=0, m=1, Id=0, Ip=0)
+    disks = rotor3.disk_elements + [disk0]
+    rotor = Rotor(
+        shaft_elements=rotor3.shaft_elements,
+        bearing_elements=rotor3.bearing_elements,
+        disk_elements=disks,
+    )
+
+    static = rotor.run_static()
+
+    assert_allclose(sum(static.bearing_forces.values()), rotor.m * 9.8065)
+    assert_almost_equal(static.bearing_forces["node_0"], 504.08103349786404)
+    expected_deformation = np.array(
+        [
+            -5.04081033e-18,
+            -4.51249080e-04,
+            -7.88420862e-04,
+            -9.18114186e-04,
+            -8.08560214e-04,
+            -4.68788883e-04,
+            -5.56171636e-18,
+        ]
+    )
+
+    assert_allclose(static.deformation, expected_deformation)
+
+    # test plots
+    fig = static.plot_deformation()
+    assert_allclose(fig.data[1]["y"], expected_deformation)
 
 
 def test_run_critical_speed(rotor5, rotor6):
@@ -1314,74 +1473,128 @@ def test_kappa_mode(rotor7):
 
 def test_kappa_axes_values(rotor7):
     modal7 = rotor7.run_modal(50)
-    assert_allclose(modal7.kappa(3, 0)["Minor axes"], 0.0024460977827471028, atol=1e-6)
-    assert_allclose(modal7.kappa(3, 1)["Minor axes"], 0.0024415401094917922, atol=1e-6)
-    assert_allclose(modal7.kappa(3, 2)["Minor axes"], 7.753006465896838e-05, atol=1e-8)
-    assert_allclose(modal7.kappa(3, 0)["Major axes"], 0.0024460977827550083, atol=1e-6)
-    assert_allclose(modal7.kappa(3, 1)["Major axes"], 0.0024415401094980776, atol=1e-6)
-    assert_allclose(modal7.kappa(3, 2)["Major axes"], 7.753006466024783e-05, atol=1e-8)
+    assert_allclose(modal7.kappa(3, 0)["Minor axis"], 1.0, atol=1e-6)
+    assert_allclose(modal7.kappa(3, 1)["Minor axis"], 1.0, atol=1e-6)
+    assert_allclose(modal7.kappa(3, 2)["Minor axis"], 0.128085, atol=1e-6)
+    assert_allclose(modal7.kappa(3, 0)["Major axis"], 1.0, atol=1e-6)
+    assert_allclose(modal7.kappa(3, 1)["Major axis"], 1.0, atol=1e-6)
+    assert_allclose(modal7.kappa(3, 2)["Major axis"], 0.128085, atol=1e-6)
 
     modal7 = rotor7.run_modal(200)
-    assert_allclose(modal7.kappa(3, 0)["Minor axes"], 0.002453197790184042, atol=1e-6)
-    assert_allclose(modal7.kappa(3, 1)["Minor axes"], 0.0024349531472631354, atol=1e-6)
-    assert_allclose(modal7.kappa(3, 2)["Minor axes"], 8.081580235887124e-05, atol=1e-8)
-    assert_allclose(modal7.kappa(3, 0)["Major axes"], 0.002453197790191339, atol=1e-6)
-    assert_allclose(modal7.kappa(3, 1)["Major axes"], 0.0024349531472711047, atol=1e-6)
-    assert_allclose(modal7.kappa(3, 2)["Major axes"], 8.081580235956821e-05, atol=1e-8)
+    assert_allclose(modal7.kappa(3, 0)["Minor axis"], 1.0, atol=1e-6)
+    assert_allclose(modal7.kappa(3, 1)["Minor axis"], 1.0, atol=1e-6)
+    assert_allclose(modal7.kappa(3, 2)["Minor axis"], 0.132574, atol=1e-6)
+    assert_allclose(modal7.kappa(3, 0)["Major axis"], 1.0, atol=1e-6)
+    assert_allclose(modal7.kappa(3, 1)["Major axis"], 1.0, atol=1e-6)
+    assert_allclose(modal7.kappa(3, 2)["Major axis"], 0.132574, atol=1e-6)
 
     modal7 = rotor7.run_modal(400)
-    assert_allclose(modal7.kappa(3, 0)["Minor axes"], 0.002463187671800876, atol=1e-6)
-    assert_allclose(modal7.kappa(3, 1)["Minor axes"], 0.0024266089747119572, atol=1e-6)
-    assert_allclose(modal7.kappa(3, 2)["Minor axes"], 8.480305842194371e-05, atol=1e-8)
-    assert_allclose(modal7.kappa(3, 0)["Major axes"], 0.002463187671801488, atol=1e-6)
-    assert_allclose(modal7.kappa(3, 1)["Major axes"], 0.0024266089747121845, atol=1e-6)
-    assert_allclose(modal7.kappa(3, 2)["Major axes"], 8.480305842205874e-05, atol=1e-8)
+    assert_allclose(modal7.kappa(3, 0)["Minor axis"], 1.0, atol=1e-6)
+    assert_allclose(modal7.kappa(3, 1)["Minor axis"], 1.0, atol=1e-6)
+    assert_allclose(modal7.kappa(3, 2)["Minor axis"], 0.131419, atol=1e-6)
+    assert_allclose(modal7.kappa(3, 0)["Major axis"], 1.0, atol=1e-6)
+    assert_allclose(modal7.kappa(3, 1)["Major axis"], 1.0, atol=1e-6)
+    assert_allclose(modal7.kappa(3, 2)["Major axis"], 0.131419, atol=1e-6)
 
 
-@pytest.mark.skip(reason="Fails for very small values")
-def test_H_kappa(rotor7):
-    rotor7.w = 400
+def test_plot_mode(rotor7):
+    # run this test with sparse=False, since small differences in the
+    # eigenvector can cause the assertion to fail
+    modal7 = rotor7.run_modal(50, sparse=False)
+
+    fig = modal7.plot_orbit(1, 3)
+    expected_radius = 1
+
+    assert fig.data[0]["line"]["color"] == "#1f77b4"  # blue
     assert_allclose(
-        rotor7.H_kappa(3, 0),
-        [[6.06729351e-06, -6.33478357e-19], [-6.33478357e-19, 6.06729351e-06]],
-        rtol=1e-2,
-    )
-    assert_allclose(
-        rotor7.H_kappa(3, 0),
-        [[5.88843112e-06, 2.88604638e-20], [2.88604638e-20, 5.88843112e-06]],
-        rtol=1e-2,
-    )
-    assert_allclose(
-        rotor7.H_kappa(3, 0),
-        [[7.19155872e-09, 9.75123448e-21], [9.75123448e-21, 7.19155872e-09]],
-        rtol=1e-2,
+        np.sqrt(fig.data[0].x ** 2 + fig.data[0].y ** 2)[0], expected_radius
     )
 
-    rotor7.w = 200
-    assert_allclose(
-        rotor7.H_kappa(3, 0),
-        [[6.0181794e-06, 1.9785678e-18], [1.9785678e-18, 6.0181794e-06]],
-        rtol=1e-2,
-    )
-    assert_allclose(
-        rotor7.H_kappa(3, 0),
-        [[5.92899683e-06, -1.24262274e-17], [-1.24262274e-17, 5.92899683e-06]],
-        rtol=1e-2,
-    )
-    assert_allclose(
-        rotor7.H_kappa(3, 0),
-        [[6.53119391e-09, 4.73407722e-20], [4.73407722e-20, 6.53119391e-09]],
-        rtol=1e-2,
-    )
+    fig = modal7.plot_mode_2d(1)
+
+    mode_shape = fig.data[0].y
+    mode_x = fig.data[0].x
+
+    poly_coefs = np.polyfit(mode_x, mode_shape, 3)
+
+    expected_coefs = np.array([-0.05672087, -1.04116649, 1.719815])
+
+    assert fig.data[0]["line"]["color"] == "#1f77b4"  # blue
+    assert_allclose(poly_coefs[:-1], expected_coefs, rtol=1e-5)
 
 
-def test_save_load():
-    a = rotor_example()
-    a.save("teste00000000000000001")
-    b = Rotor.load("teste00000000000000001.rsm")
-    (Path.cwd() / "teste00000000000000001.rsm").unlink()
+def test_unbalance(rotor3):
+    unb = rotor3.run_unbalance_response(
+        node=0, unbalance_magnitude=1, unbalance_phase=0, frequency=[50, 100]
+    )
+    amplitude_expected = np.array([0.003065, 0.004169])
+    data = unb.data_magnitude(probe=[(0, 45)], probe_units="deg")
+    assert_allclose(data["Probe 1 - Node 0"], amplitude_expected, rtol=1e-4)
+    data = unb.data_magnitude(probe=[Probe(0, Q_(45, "deg"), tag="Probe 1 - Node 0")])
+    assert_allclose(data["Probe 1 - Node 0"], amplitude_expected, rtol=1e-4)
 
-    assert a == b
+    phase_expected = np.array([0.785398, 0.785398])
+    data = unb.data_phase(probe=[(0, 45)], probe_units="deg")
+    assert_allclose(data["Probe 1 - Node 0"], phase_expected, rtol=1e-4)
+    data = unb.data_phase(probe=[Probe(0, Q_(45, "deg"), tag="Probe 1 - Node 0")])
+    assert_allclose(data["Probe 1 - Node 0"], phase_expected, rtol=1e-4)
+
+    amplitude_expected = np.array([0.003526, 0.005518])
+    data = unb.data_magnitude(probe=[(0, "major")])
+    assert_allclose(data["Probe 1 - Node 0"], amplitude_expected, rtol=1e-4)
+    data = unb.data_magnitude(probe=[Probe(0, "major", tag="Probe 1 - Node 0")])
+    assert_allclose(data["Probe 1 - Node 0"], amplitude_expected, rtol=1e-4)
+
+    phase_expected = np.array([1.5742, 1.573571])
+    data = unb.data_phase(probe=[(0, "major")], probe_units="deg")
+    assert_allclose(data["Probe 1 - Node 0"], phase_expected, rtol=1e-4)
+    data = unb.data_phase(probe=[Probe(0, "major", tag="Probe 1 - Node 0")])
+    assert_allclose(data["Probe 1 - Node 0"], phase_expected, rtol=1e-4)
+
+
+def test_deflected_shape(rotor7):
+    # change to asymmetric stiffness to it is easier to get the major axis at the same place
+    bearing0 = BearingElement(0, kxx=1e6, kyy=2e6, cxx=1e3, cyy=1e3)
+    bearing1 = BearingElement(6, kxx=1e6, kyy=2e6, cxx=1e3, cyy=1e3)
+    rotor7 = Rotor(
+        shaft_elements=rotor7.shaft_elements,
+        disk_elements=rotor7.disk_elements,
+        bearing_elements=[bearing0, bearing1],
+    )
+
+    forced = rotor7.run_unbalance_response(
+        node=0, unbalance_magnitude=1, unbalance_phase=0, frequency=[50]
+    )
+    fig = forced.plot_deflected_shape_3d(speed=50)
+    # check major axis
+    expected_x = np.array([0.0, 0.0625, 0.125, 0.1875, 0.25, 0.25, 0.3125, 0.375])
+    expected_y = np.array(
+        [
+            0.00274183,
+            0.00269077,
+            0.00263888,
+            0.0025852,
+            0.00252877,
+            0.00252877,
+            0.0024688,
+            0.00240457,
+        ]
+    )
+    expected_z = np.array(
+        [
+            5.72720829e-05,
+            5.59724347e-05,
+            5.46564072e-05,
+            5.33052546e-05,
+            5.19002311e-05,
+            5.19002311e-05,
+            5.04258251e-05,
+            4.88678837e-05,
+        ]
+    )
+    assert_allclose(fig.data[-3]["x"][:8], expected_x, rtol=1e-4)
+    assert_allclose(fig.data[-3]["y"][:8], expected_y, rtol=1e-4)
+    assert_allclose(fig.data[-3]["z"][:8], expected_z, rtol=1e-4)
 
 
 def test_global_index():
@@ -1432,40 +1645,40 @@ def test_global_index():
     bearings = rotor.bearing_elements
     pointmass = rotor.point_mass_elements
 
-    assert shaft[0].dof_global_index.x_0 == 0
-    assert shaft[0].dof_global_index.y_0 == 1
-    assert shaft[0].dof_global_index.alpha_0 == 2
-    assert shaft[0].dof_global_index.beta_0 == 3
-    assert shaft[0].dof_global_index.x_1 == 4
-    assert shaft[0].dof_global_index.y_1 == 5
-    assert shaft[0].dof_global_index.alpha_1 == 6
-    assert shaft[0].dof_global_index.beta_1 == 7
+    assert shaft[0].dof_global_index["x_0"] == 0
+    assert shaft[0].dof_global_index["y_0"] == 1
+    assert shaft[0].dof_global_index["alpha_0"] == 2
+    assert shaft[0].dof_global_index["beta_0"] == 3
+    assert shaft[0].dof_global_index["x_1"] == 4
+    assert shaft[0].dof_global_index["y_1"] == 5
+    assert shaft[0].dof_global_index["alpha_1"] == 6
+    assert shaft[0].dof_global_index["beta_1"] == 7
 
-    assert disks[0].dof_global_index.x_2 == 8
-    assert disks[0].dof_global_index.y_2 == 9
-    assert disks[0].dof_global_index.alpha_2 == 10
-    assert disks[0].dof_global_index.beta_2 == 11
+    assert disks[0].dof_global_index["x_2"] == 8
+    assert disks[0].dof_global_index["y_2"] == 9
+    assert disks[0].dof_global_index["alpha_2"] == 10
+    assert disks[0].dof_global_index["beta_2"] == 11
 
-    assert bearings[0].dof_global_index.x_0 == 0
-    assert bearings[0].dof_global_index.y_0 == 1
-    assert bearings[0].dof_global_index.x_7 == 28
-    assert bearings[0].dof_global_index.y_7 == 29
-    assert bearings[1].dof_global_index.x_6 == 24
-    assert bearings[1].dof_global_index.y_6 == 25
-    assert bearings[1].dof_global_index.x_8 == 30
-    assert bearings[1].dof_global_index.y_8 == 31
-    assert bearings[2].dof_global_index.x_7 == 28
-    assert bearings[2].dof_global_index.y_7 == 29
-    assert bearings[3].dof_global_index.x_8 == 30
-    assert bearings[3].dof_global_index.y_8 == 31
+    assert bearings[0].dof_global_index["x_0"] == 0
+    assert bearings[0].dof_global_index["y_0"] == 1
+    assert bearings[0].dof_global_index["x_7"] == 28
+    assert bearings[0].dof_global_index["y_7"] == 29
+    assert bearings[1].dof_global_index["x_6"] == 24
+    assert bearings[1].dof_global_index["y_6"] == 25
+    assert bearings[1].dof_global_index["x_8"] == 30
+    assert bearings[1].dof_global_index["y_8"] == 31
+    assert bearings[2].dof_global_index["x_7"] == 28
+    assert bearings[2].dof_global_index["y_7"] == 29
+    assert bearings[3].dof_global_index["x_8"] == 30
+    assert bearings[3].dof_global_index["y_8"] == 31
 
-    assert pointmass[0].dof_global_index.x_7 == 28
-    assert pointmass[0].dof_global_index.y_7 == 29
-    assert pointmass[1].dof_global_index.x_8 == 30
-    assert pointmass[1].dof_global_index.y_8 == 31
+    assert pointmass[0].dof_global_index["x_7"] == 28
+    assert pointmass[0].dof_global_index["y_7"] == 29
+    assert pointmass[1].dof_global_index["x_8"] == 30
+    assert pointmass[1].dof_global_index["y_8"] == 31
 
 
-def test_distincts_dof_elements_error():
+def test_distinct_dof_elements_error():
     with pytest.raises(Exception):
         i_d = 0
         o_d = 0.05
@@ -1557,27 +1770,31 @@ def rotor_6dof():
     return Rotor(shaft_elem, [disk0, disk1], [bearing0, bearing1])
 
 
-@pytest.mark.skip(
-    reason="Needs investigation. It fails depending on system. Most likely due to eig solution precision"
-)
 def test_modal_6dof(rotor_6dof):
-    modal = rotor_6dof.run_modal(speed=0)
+    modal = rotor_6dof.run_modal(speed=0, sparse=False)
     wn = np.array(
         [
-            1.52311799e-05,
-            4.76215722e01,
-            9.17983572e01,
-            9.62938682e01,
-            2.74512744e02,
-            2.96499037e02,
+            9.91427121e-05,
+            4.76215566e01,
+            9.17987032e01,
+            9.62914807e01,
+            2.74579882e02,
+            2.96518344e02,
         ]
     )
     wd = np.array(
-        [0.0, 47.62157215, 91.79835717, 96.29386819, 274.51274397, 296.49903736]
+        [
+            9.91427121e-05,
+            4.76215566e01,
+            9.17987032e01,
+            9.62914807e01,
+            2.74579882e02,
+            2.96518344e02,
+        ]
     )
 
-    assert_almost_equal(modal.wn[:6], wn, decimal=3)
-    assert_almost_equal(modal.wd[:6], wd, decimal=3)
+    assert_almost_equal(modal.wn[:6], wn, decimal=2)
+    assert_almost_equal(modal.wd[:6], wd, decimal=2)
 
 
 @pytest.fixture
@@ -1615,6 +1832,25 @@ def rotor8():
     return Rotor(shaft_elem, [disk0, disk1], [bearing0, bearing1])
 
 
+def test_ucs_calc_rotor2(rotor2):
+    ucs_results = rotor2.run_ucs()
+    expected_intersection_points_y = [
+        215.37072557303264,
+        215.37072557303264,
+        598.024741157381,
+        598.024741157381,
+        3956.224979518562,
+        3956.224979518562,
+        4965.289823255782,
+        4965.289823255782,
+    ]
+    assert_allclose(
+        ucs_results.intersection_points["y"], expected_intersection_points_y
+    )
+    fig = ucs_results.plot()
+    assert_allclose(fig.data[4]["y"], expected_intersection_points_y)
+
+
 def test_ucs_calc(rotor8):
     exp_stiffness_range = np.array([1000000.0, 1832980.710832, 3359818.286284])
     exp_rotor_wn = np.array([86.658114, 95.660573, 101.868254])
@@ -1633,9 +1869,204 @@ def test_ucs_calc(rotor8):
     )
 
 
+def test_ucs_rotor9(rotor9):
+    ucs_results = rotor9.run_ucs(num_modes=32)
+    fig = ucs_results.plot()
+    expected_x = np.array(
+        [
+            1.00000000e06,
+            1.83298071e06,
+            3.35981829e06,
+            6.15848211e06,
+            1.12883789e07,
+            2.06913808e07,
+            3.79269019e07,
+            6.95192796e07,
+            1.27427499e08,
+            2.33572147e08,
+            4.28133240e08,
+            7.84759970e08,
+            1.43844989e09,
+            2.63665090e09,
+            4.83293024e09,
+            8.85866790e09,
+            1.62377674e10,
+            2.97635144e10,
+            5.45559478e10,
+            1.00000000e11,
+        ]
+    )
+    assert_allclose(fig.data[0]["x"], expected_x)
+
+
+def test_pickle(rotor8):
+    rotor8_pickled = pickle.loads(pickle.dumps(rotor8))
+    assert rotor8 == rotor8_pickled
+
+
+def test_pickle(rotor_6dof):
+    rotor_6dof_pickled = pickle.loads(pickle.dumps(rotor_6dof))
+    assert rotor_6dof == rotor_6dof_pickled
+
+
 def test_save_load(rotor8):
     file = Path(tempdir) / "rotor8.toml"
     rotor8.save(file)
     rotor8_loaded = Rotor.load(file)
 
-    rotor8 == rotor8_loaded
+    assert rotor8 == rotor8_loaded
+
+
+def test_plot_rotor(rotor8):
+    fig = rotor8.plot_rotor()
+
+    for d in fig.data:
+        if d["name"] == "Disk 0":
+            actual_x = d["x"]
+            actual_y = d["y"]
+    expected_x = [0.5, 0.502, 0.498, 0.5]
+    expected_y = [0.025, 0.125, 0.125, 0.025]
+
+    assert_allclose(actual_x[:4], expected_x)
+    assert_allclose(actual_y[:4], expected_y)
+
+    # mass scale factor
+    for disk in rotor8.disk_elements:
+        disk.scale_factor = "mass"
+
+    fig = rotor8.plot_rotor()
+    for d in fig.data:
+        if d["name"] == "Disk 0":
+            actual_x = d["x"]
+            actual_y = d["y"]
+    expected_x = [0.5, 0.5016325, 0.4983675, 0.5]
+    expected_y = [0.025, 0.106625, 0.106625, 0.025]
+    assert_allclose(actual_x[:4], expected_x)
+    assert_allclose(actual_y[:4], expected_y)
+
+
+def test_plot_rotor_without_disk(rotor1):
+    fig = rotor1.plot_rotor()
+    expected_element_y = np.array(
+        [0.0, 0.025, 0.025, 0.0, 0.0, -0.0, -0.025, -0.025, -0.0, -0.0]
+    )
+    assert_allclose(fig.data[-1]["y"], expected_element_y)
+
+
+def test_axial_force():
+    steel = Material("steel", E=211e9, G_s=81.2e9, rho=7810)
+    L = 0.25
+    N = 6
+    idl = 0
+    odl = 0.05
+
+    bearings = [
+        BearingElement(n=0, kxx=1e6, cxx=0, scale_factor=2),
+        BearingElement(n=N, kxx=1e6, cxx=0, scale_factor=2),
+    ]
+    disks = [
+        DiskElement.from_geometry(
+            n=2, material=steel, width=0.07, i_d=odl, o_d=0.28, scale_factor="mass"
+        ),
+        DiskElement.from_geometry(
+            n=4, material=steel, width=0.07, i_d=odl, o_d=0.35, scale_factor="mass"
+        ),
+    ]
+
+    shaft = [
+        ShaftElement(L=L, idl=idl, odl=odl, material=steel, axial_force=Q_(100, "kN"))
+        for i in range(N)
+    ]
+    rotor = Rotor(shaft_elements=shaft, disk_elements=disks, bearing_elements=bearings)
+    modal = rotor.run_modal(Q_(4000, "RPM"))
+    expected_wd = np.array(
+        [93.416071, 95.2335, 267.475281, 309.918575, 634.40757, 873.763214]
+    )
+    assert_allclose(modal.wd, expected_wd)
+
+
+def test_torque():
+    steel = Material("steel", E=211e9, G_s=81.2e9, rho=7810)
+    L = 0.25
+    N = 6
+    idl = 0
+    odl = 0.05
+
+    bearings = [
+        BearingElement(n=0, kxx=1e6, cxx=0, scale_factor=2),
+        BearingElement(n=N, kxx=1e6, cxx=0, scale_factor=2),
+    ]
+    disks = [
+        DiskElement.from_geometry(
+            n=2, material=steel, width=0.07, i_d=odl, o_d=0.28, scale_factor="mass"
+        ),
+        DiskElement.from_geometry(
+            n=4, material=steel, width=0.07, i_d=odl, o_d=0.35, scale_factor="mass"
+        ),
+    ]
+
+    shaft = [
+        ShaftElement(L=L, idl=idl, odl=odl, material=steel, torque=Q_(100, "kN*m"))
+        for i in range(N)
+    ]
+    rotor = Rotor(shaft_elements=shaft, disk_elements=disks, bearing_elements=bearings)
+    modal = rotor.run_modal(Q_(4000, "RPM"))
+    expected_wd = np.array(
+        [81.324905, 84.769077, 242.822862, 286.158147, 591.519983, 827.003048]
+    )
+    assert_allclose(modal.wd, expected_wd)
+
+
+@pytest.fixture
+def rotor_conical():
+    L_total = 0.5
+    odl = 0.1
+    odr = 0.01
+    shaft_elements = []
+
+    N = 4
+    delta_d = (odl - odr) / N
+
+    odl_el = odl
+    odr_el = odl - delta_d
+
+    for i in range(N):
+        L = L_total / N
+
+        sh_el = ShaftElement(
+            n=i,
+            idl=0.0,
+            odl=odl_el,
+            idr=0.0,
+            odr=odr_el,
+            material=steel,
+            L=L,
+        )
+        shaft_elements.append(sh_el)
+
+        odl_el -= delta_d
+        odr_el -= delta_d
+
+    bearing0 = BearingElement(n=0, kxx=1e20, kyy=1e20, cxx=0)
+    bearing1 = BearingElement(n=N, kxx=1e20, kyy=1e20, cxx=0)
+
+    rotor_conical = Rotor(
+        shaft_elements=shaft_elements, bearing_elements=[bearing0, bearing1]
+    )
+
+    return rotor_conical
+
+
+def test_rotor_conical_frequencies(rotor_conical):
+    modal = rotor_conical.run_modal(speed=0)
+    expected_wn = np.array(
+        [
+            1630.7509182,
+            1630.75091824,
+            9899.54379138,
+            9899.54396231,
+            21074.45440319,
+            21074.45440372,
+        ]
+    )
+    assert_allclose(modal.wn, expected_wn, rtol=1e-5)

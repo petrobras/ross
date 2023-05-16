@@ -4,16 +4,21 @@ import warnings
 from functools import wraps
 from pathlib import Path
 
-from pint import Quantity, UnitRegistry
+import pint
+
+new_units_path = Path(__file__).parent / "new_units.txt"
+ureg = pint.get_application_registry()
+if isinstance(ureg.get(), pint.registry.LazyRegistry):
+    ureg = pint.UnitRegistry()
+    ureg.load_definitions(str(new_units_path))
+    # set ureg to make pickle possible
+    pint.set_application_registry(ureg)
+
+Q_ = ureg.Quantity
 
 with warnings.catch_warnings():
     warnings.simplefilter("ignore")
-    Quantity([])
-
-new_units_path = Path(__file__).parent / "new_units.txt"
-ureg = UnitRegistry()
-ureg.load_definitions(str(new_units_path))
-Q_ = ureg.Quantity
+    pint.Quantity([])
 
 __all__ = ["Q_", "check_units"]
 
@@ -61,8 +66,11 @@ units = {
     "stiffness": "N/m",
     "weight": "N",
     "load": "N",
+    "force": "N",
+    "torque": "N*m",
     "flowv": "m³/s",
     "fit": "m",
+    "viscosity": "pascal*s",
 }
 for i, unit in zip(["k", "c"], ["N/m", "N*s/m"]):
     for j in ["x", "y", "z"]:
@@ -76,6 +84,11 @@ def check_units(func):
     If we use the check_units decorator in a function the arguments are checked,
     and if they are in the dictionary, they are converted to the 'default' unit given
     in the dictionary.
+    The check is carried out by splitting the argument name on '_', and checking
+    if any of the names are in the dictionary. So an argument such as 'inlet_pressure',
+    will be split into ['inlet', 'pressure'], and since we have the name 'pressure'
+    in the dictionary mapped to 'Pa', we will automatically convert the value to
+    this default unit.
 
     For example:
     >>> units = {
@@ -114,7 +127,11 @@ def check_units(func):
                     try:
                         base_unit_args.append(arg_value.to(units[name]).m)
                     except AttributeError:
-                        base_unit_args.append(Q_(arg_value, units[name]).m)
+                        try:
+                            base_unit_args.append(Q_(arg_value, units[name]).m)
+                        except TypeError:
+                            # Handle erros that we get with bool for example
+                            base_unit_args.append(arg_value)
                     break
             else:
                 base_unit_args.append(arg_value)
@@ -129,7 +146,11 @@ def check_units(func):
                     try:
                         base_unit_kwargs[k] = v.to(units[name]).m
                     except AttributeError:
-                        base_unit_kwargs[k] = Q_(v, units[name]).m
+                        try:
+                            base_unit_kwargs[k] = Q_(v, units[name]).m
+                        except TypeError:
+                            # Handle erros that we get with bool for example
+                            base_unit_kwargs[k] = v
                     break
             else:
                 base_unit_kwargs[k] = v

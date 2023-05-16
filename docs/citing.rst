@@ -17,3 +17,7 @@ If you would like to cite ROSS in your work, we suggest citing our `JOSS paper <
       title = {ROSS - Rotordynamic Open Source Software},
       journal = {Journal of Open Source Software}
     }
+
+::
+
+    Timbó et al., (2020). ROSS - Rotordynamic Open Source Software. Journal of Open Source Software, 5(48), 2120, https://doi.org/10.21105/joss.02120

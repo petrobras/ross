@@ -10,89 +10,50 @@ from ross.units import Q_
 
 @pytest.fixture
 def cylindrical():
-
-    bearing = THDCylindrical(
-        L=0.263144,
-        R=0.2,
-        c_r=1.95e-4,
-        n_theta=41,
-        n_z=5,
-        n_y=None,
-        n_gap=1,
-        betha_s=176,
-        mu_ref=0.02,
-        speed=94.24777960769379,
-        Wx=0,
-        Wy=-112814.91,
-        k_t=0.15327,
-        Cp=1915.24,
-        rho=854.952,
-        T_reserv=50,
-        fat_mixt=0.52,
-        T_muI=50,
-        T_muF=80,
-        mu_I=0.02,
-        mu_F=0.01,
-        sommerfeld_type=2,
-    )
-    bearing.run([0.1, -0.1])
-
-    return bearing
-
-
-@pytest.fixture
-def cylindrical_units():
-
-    speed = Q_(900, "RPM")
+    speed = Q_([900], "RPM")
     L = Q_(10.3600055944, "in")
 
     bearing = THDCylindrical(
-        L=L,
-        R=0.2,
-        c_r=1.95e-4,
-        n_theta=41,
-        n_z=5,
-        n_y=None,
-        n_gap=1,
-        betha_s=176,
-        mu_ref=0.02,
+        axial_length=L,
+        journal_radius=0.2,
+        radial_clearance=1.95e-4,
+        elements_circumferential=11,
+        elements_axial=3,
+        n_pad=2,
+        pad_arc_length=176,
+        reference_temperature=50,
         speed=speed,
-        Wx=0,
-        Wy=-112814.91,
-        k_t=0.15327,
-        Cp=1915.24,
-        rho=854.952,
-        T_reserv=50,
-        fat_mixt=0.52,
-        T_muI=50,
-        T_muF=80,
-        mu_I=0.02,
-        mu_F=0.01,
+        load_x_direction=0,
+        load_y_direction=-112814.91,
+        groove_factor=[0.52, 0.48],
+        lubricant="ISOVG32",
+        node=3,
         sommerfeld_type=2,
+        initial_guess=[0.1, -0.1],
+        method="perturbation",
+        operating_type="flooded",
+        injection_pressure=0,
+        oil_flow=37.86,
+        show_coef=False,
+        print_result=False,
+        print_progress=False,
+        print_time=False,
     )
 
     return bearing
 
 
 def test_cylindrical_parameters(cylindrical):
-    assert cylindrical.L == 0.263144
-    assert cylindrical.R == 0.2
+    assert math.isclose(cylindrical.axial_length, 0.263144, rel_tol=0.0001)
+    assert cylindrical.journal_radius == 0.2
     assert cylindrical.speed == 94.24777960769379
-    assert cylindrical.rho == 854.952
-    assert cylindrical.T_reserv == 50
-
-
-def test_cylindrical_parameters_units(cylindrical_units):
-    assert math.isclose(cylindrical_units.L, 0.263144, rel_tol=0.0001)
-    assert cylindrical_units.R == 0.2
-    assert cylindrical_units.speed == 94.24777960769379
-    assert cylindrical_units.rho == 854.952
-    assert cylindrical_units.T_reserv == 50
+    assert cylindrical.rho == 873.99629
+    assert cylindrical.reference_temperature == 50
 
 
 def test_cylindrical_equilibrium_pos(cylindrical):
-    assert math.isclose(cylindrical.equilibrium_pos[0], 0.58656872, rel_tol=0.01)
-    assert math.isclose(cylindrical.equilibrium_pos[1], -0.67207557, rel_tol=0.01)
+    assert math.isclose(cylindrical.equilibrium_pos[0], 0.6873316, rel_tol=0.01)
+    assert math.isclose(cylindrical.equilibrium_pos[1], -0.79393636, rel_tol=0.01)
 
 
 def test_cylindrical_coefficients(cylindrical):
@@ -106,11 +67,11 @@ def test_cylindrical_coefficients(cylindrical):
     cyx = coefs[1][2]
     cyy = coefs[1][3]
 
-    assert math.isclose(kxx, 977643474.5159643, rel_tol=0.0001)
-    assert math.isclose(kxy, 413634353.49338, rel_tol=0.0001)
-    assert math.isclose(kyx, -1357594347.1180925, rel_tol=0.0001)
-    assert math.isclose(kyy, 950762635.3205317, rel_tol=0.0001)
-    assert math.isclose(cxx, -6787713330.66299, rel_tol=0.0001)
-    assert math.isclose(cxy, 5412970444.499972, rel_tol=0.0001)
-    assert math.isclose(cyx, 16756868.948928362, rel_tol=0.0001)
-    assert math.isclose(cyy, -7129475.427663623, rel_tol=0.0001)
+    assert math.isclose(kxx, 1080948741.8512235, rel_tol=0.0001)
+    assert math.isclose(kxy, 339258572.34310913, rel_tol=0.0001)
+    assert math.isclose(kyx, -1359170639.0567815, rel_tol=0.0001)
+    assert math.isclose(kyy, 1108970752.2456105, rel_tol=0.0001)
+    assert math.isclose(cxx, 9815899.503793057, rel_tol=0.0001)
+    assert math.isclose(cxy, -9963602.922357056, rel_tol=0.0001)
+    assert math.isclose(cyx, -11312462.69772395, rel_tol=0.0001)
+    assert math.isclose(cyy, 27194995.506247465, rel_tol=0.0001)

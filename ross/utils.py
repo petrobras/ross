@@ -338,7 +338,7 @@ def visualize_matrix(rotor, matrix, frequency=None, **kwargs):
     >>> rotor = rs.rotor_example()
 
     Visualizing Mass Matrix:
-    >>> fig = rs.visualize_matrix(rotor, "M")
+    >>> fig = rs.visualize_matrix(rotor, "M", frequency=100)
 
     Visualizing Stiffness Matrix:
     >>> fig = rs.visualize_matrix(rotor, "K", frequency=100)
@@ -348,7 +348,7 @@ def visualize_matrix(rotor, matrix, frequency=None, **kwargs):
     """
     A = np.zeros((rotor.ndof, rotor.ndof))
     # E will store element's names and contributions to the global matrix
-    E = np.zeros((rotor.ndof, rotor.ndof), dtype=np.object)
+    E = np.zeros((rotor.ndof, rotor.ndof), dtype=object)
 
     M, N = E.shape
     for i in range(M):
@@ -356,7 +356,7 @@ def visualize_matrix(rotor, matrix, frequency=None, **kwargs):
             E[i, j] = []
 
     for elm in rotor.elements:
-        g_dofs = elm.dof_global_index
+        g_dofs = list(elm.dof_global_index.values())
         l_dofs = elm.dof_local_index()
         try:
             elm_matrix = getattr(elm, matrix)(frequency)
@@ -379,7 +379,7 @@ def visualize_matrix(rotor, matrix, frequency=None, **kwargs):
     dof_list = [0 for i in range(rotor.ndof)]
 
     for elm in rotor.elements:
-        for k, v in elm.dof_global_index._asdict().items():
+        for k, v in elm.dof_global_index.items():
             dof_list[v] = k
 
     data = {"row": [], "col": [], "value": [], "pos_value": [], "elements": []}
@@ -408,7 +408,7 @@ def visualize_matrix(rotor, matrix, frequency=None, **kwargs):
             x=x_axis,
             y=y_axis,
             z=A[::-1],
-            customdata=np.array(data["elements"]).reshape(A.shape)[::-1],
+            customdata=np.array(data["elements"], dtype=object).reshape(A.shape)[::-1],
             coloraxis="coloraxis",
             hovertemplate=(
                 "<b>Value: %{z:.3e}<b><br>" + "<b>Elements:<b><br> %{customdata}"
@@ -608,7 +608,7 @@ def get_data_from_figure(fig):
 
     Or use "iloc" to obtain the desired array from pandas
     >>> df.iloc[1, 0] # doctest: +ELLIPSIS
-    array([0.00000000e+00, 1.60570205e-07, 6.63435909e-07,...
+    array([0.00000000e+00, 1.6057...
     """
     dict_data = {data["name"]: {} for data in fig.data}
 

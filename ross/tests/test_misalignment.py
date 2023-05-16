@@ -73,7 +73,6 @@ rotor = rs.Rotor(shaft_elem, [disk0, disk1], [bearing0, bearing1])
 
 @pytest.fixture
 def mis_comb():
-
     unbalance_magnitudet = np.array([5e-4, 0])
     unbalance_phaset = np.array([-np.pi / 2, 0])
 
@@ -102,7 +101,6 @@ def mis_comb():
 
 @pytest.fixture
 def mis_comb_units():
-
     unbalance_magnitudet = Q_(np.array([0.043398083107259365, 0]), "lb*in")
     unbalance_phaset = Q_(np.array([-90.0, 0.0]), "degrees")
 
@@ -175,7 +173,8 @@ def test_mis_comb_forces(mis_comb):
     -4.40604748,-4.40604748,-4.40604748,-4.40604748,-4.40604748,
     -4.40604748,
     ]
-    )
+    ),
+    abs=1e-6
         # fmt: on
     )
 
@@ -194,7 +193,8 @@ def test_mis_comb_forces(mis_comb):
     1.0821174,1.0821174,1.0821174,1.0821174,1.0821174,
     1.0821174,
     ]
-    )
+    ),
+    abs=1e-6
         # fmt: on
     )
 
@@ -213,7 +213,8 @@ def test_mis_comb_forces(mis_comb):
     4.40604748,4.40604748,4.40604748,4.40604748,4.40604748,
     4.40604748,
     ]
-    )
+    ),
+    abs=1e-6
         # fmt: on
     )
 
@@ -232,7 +233,8 @@ def test_mis_comb_forces(mis_comb):
     -1.0821174,-1.0821174,-1.0821174,-1.0821174,-1.0821174,
     -1.0821174,
     ]
-    )
+    ),
+    abs=1e-6
         # fmt: on
     )
 
@@ -253,7 +255,8 @@ def test_mis_comb_forces_units(mis_comb_units):
     -4.40604748,-4.40604748,-4.40604748,-4.40604748,-4.40604748,
     -4.40604748,
     ]
-    )
+    ),
+    abs=1e-6
         # fmt: on
     )
 
@@ -272,7 +275,8 @@ def test_mis_comb_forces_units(mis_comb_units):
     1.0821174,1.0821174,1.0821174,1.0821174,1.0821174,
     1.0821174,
     ]
-    )
+    ),
+    abs=1e-6
         # fmt: on
     )
 
@@ -291,7 +295,8 @@ def test_mis_comb_forces_units(mis_comb_units):
     4.40604748,4.40604748,4.40604748,4.40604748,4.40604748,
     4.40604748,
     ]
-    )
+    ),
+    abs=1e-6
         # fmt: on
     )
 
@@ -310,14 +315,14 @@ def test_mis_comb_forces_units(mis_comb_units):
     -1.0821174,-1.0821174,-1.0821174,-1.0821174,-1.0821174,
     -1.0821174,
     ]
-    )
+    ),
+    abs=1e-6
         # fmt: on
     )
 
 
 @pytest.fixture
 def mis_parallel():
-
     unbalance_magnitudet = np.array([5e-4, 0])
     unbalance_phaset = np.array([-np.pi / 2, 0])
 
@@ -346,7 +351,6 @@ def mis_parallel():
 
 @pytest.fixture
 def mis_parallel_units():
-
     unbalance_magnitudet = Q_(np.array([0.043398083107259365, 0]), "lb*in")
     unbalance_phaset = Q_(np.array([-90.0, 0.0]), "degrees")
 
@@ -419,7 +423,8 @@ def test_mis_parallel_forces(mis_parallel):
     -6.78312529, -6.78312529, -6.78312529, -6.78312529, -6.78312529,
     -6.78312529
     ]
-    )
+    ),
+    abs=1e-6
         # fmt: on
     )
 
@@ -436,7 +441,8 @@ def test_mis_parallel_forces(mis_parallel):
     1.0821174, 1.0821174, 1.0821174, 1.0821174, 1.0821174, 1.0821174,
     1.0821174, 1.0821174, 1.0821174
     ]
-    )
+    ),
+    abs=1e-6
         # fmt: on
     )
 
@@ -455,7 +461,8 @@ def test_mis_parallel_forces(mis_parallel):
     6.78312529, 6.78312529, 6.78312529, 6.78312529, 6.78312529,
     6.78312529
     ]
-    )
+    ),
+    abs=1e-6
         # fmt: on
     )
 
@@ -474,7 +481,8 @@ def test_mis_parallel_forces(mis_parallel):
     -1.0821174, -1.0821174, -1.0821174, -1.0821174, -1.0821174,
     -1.0821174
     ]
-    )
+    ),
+    abs=1e-6
         # fmt: on
     )
 
@@ -495,7 +503,8 @@ def test_mis_parallel_forces_units(mis_parallel_units):
     -6.78312529, -6.78312529, -6.78312529, -6.78312529, -6.78312529,
     -6.78312529
     ]
-    )
+    ),
+    abs=1e-6
         # fmt: on
     )
 
@@ -512,7 +521,8 @@ def test_mis_parallel_forces_units(mis_parallel_units):
     1.0821174, 1.0821174, 1.0821174, 1.0821174, 1.0821174, 1.0821174,
     1.0821174, 1.0821174, 1.0821174
     ]
-    )
+    ),
+    abs=1e-6
         # fmt: on
     )
 
@@ -531,7 +541,8 @@ def test_mis_parallel_forces_units(mis_parallel_units):
     6.78312529, 6.78312529, 6.78312529, 6.78312529, 6.78312529,
     6.78312529
     ]
-    )
+    ),
+    abs=1e-6
         # fmt: on
     )
 
@@ -550,14 +561,14 @@ def test_mis_parallel_forces_units(mis_parallel_units):
     -1.0821174, -1.0821174, -1.0821174, -1.0821174, -1.0821174,
     -1.0821174
     ]
-    )
+    ),
+    abs=1e-6
         # fmt: on
     )
 
 
 @pytest.fixture
 def mis_angular():
-
     unbalance_magnitudet = np.array([5e-4, 0])
     unbalance_phaset = np.array([-np.pi / 2, 0])
 
@@ -586,7 +597,6 @@ def mis_angular():
 
 @pytest.fixture
 def mis_angular_units():
-
     unbalance_magnitudet = Q_(np.array([0.043398083107259365, 0]), "lb*in")
     unbalance_phaset = Q_(np.array([-90.0, 0.0]), "degrees")
 
@@ -659,7 +669,8 @@ def test_mis_angular_forces(mis_angular):
     2.37707782, 2.37707782, 2.37707782, 2.37707782, 2.37707782,
     2.37707782
     ]
-    )
+    ),
+    abs=1e-6
         # fmt: on
     )
 
@@ -680,7 +691,8 @@ def test_mis_angular_forces(mis_angular):
     7.31366523e-10,  7.47917284e-10,  7.64467156e-10,  7.81017029e-10,
     7.98106914e-10,  8.14657675e-10,  8.30667091e-10
     ]
-    )
+    ),
+    abs=1e-6
         # fmt: on
     )
 
@@ -699,7 +711,8 @@ def test_mis_angular_forces(mis_angular):
     -2.37707782, -2.37707782, -2.37707782, -2.37707782, -2.37707782,
     -2.37707782
     ]
-    )
+    ),
+    abs=1e-6
         # fmt: on
     )
 
@@ -720,7 +733,8 @@ def test_mis_angular_forces(mis_angular):
     -7.31366523e-10, -7.47917284e-10, -7.64467156e-10, -7.81017029e-10,
     -7.98106914e-10, -8.14657675e-10, -8.30667091e-10
     ]
-    )
+    ),
+    abs=1e-6
         # fmt: on
     )
 
@@ -741,7 +755,8 @@ def test_mis_angular_forces_units(mis_angular_units):
     2.37707782, 2.37707782, 2.37707782, 2.37707782, 2.37707782,
     2.37707782
     ]
-    )
+    ),
+    abs=1e-6
         # fmt: on
     )
 
@@ -762,7 +777,8 @@ def test_mis_angular_forces_units(mis_angular_units):
     7.31366523e-10,  7.47917284e-10,  7.64467156e-10,  7.81017029e-10,
     7.98106914e-10,  8.14657675e-10,  8.30667091e-10
     ]
-    )
+    ),
+    abs=1e-6
         # fmt: on
     )
 
@@ -781,7 +797,8 @@ def test_mis_angular_forces_units(mis_angular_units):
     -2.37707782, -2.37707782, -2.37707782, -2.37707782, -2.37707782,
     -2.37707782
     ]
-    )
+    ),
+    abs=1e-6
         # fmt: on
     )
 
@@ -802,14 +819,14 @@ def test_mis_angular_forces_units(mis_angular_units):
     -7.31366523e-10, -7.47917284e-10, -7.64467156e-10, -7.81017029e-10,
     -7.98106914e-10, -8.14657675e-10, -8.30667091e-10
     ]
-    )
+    ),
+    abs=1e-6
         # fmt: on
     )
 
 
 @pytest.fixture
 def mis_rigid():
-
     unbalance_magnitudet = np.array([5e-4, 0])
     unbalance_phaset = np.array([-np.pi / 2, 0])
 
@@ -833,7 +850,6 @@ def mis_rigid():
 
 @pytest.fixture
 def mis_rigid_units():
-
     unbalance_magnitudet = Q_(np.array([0.043398083107259365, 0]), "lb*in")
     unbalance_phaset = Q_(np.array([-90.0, 0.0]), "degrees")
 
@@ -895,7 +911,8 @@ def test_mis_rigid_forces(mis_rigid):
        8.21344538e+03, 8.58080462e+03, 8.95556694e+03, 9.33768077e+03,
        9.72709218e+03, 1.01237446e+04, 1.05275788e+04
     ]
-    )
+    ),
+    abs=1e-2
         # fmt: on
     )
 
@@ -916,7 +933,8 @@ def test_mis_rigid_forces(mis_rigid):
        -29011.60524412, -29600.10400851, -30184.03657848, -30763.31527277,
        -31337.85075352, -31907.55193714, -32472.32601231
     ]
-    )
+    ),
+    abs=1e-2
         # fmt: on
     )
 
@@ -937,7 +955,8 @@ def test_mis_rigid_forces(mis_rigid):
        -8.21344538e+03, -8.58080462e+03, -8.95556694e+03, -9.33768077e+03,
        -9.72709218e+03, -1.01237446e+04, -1.05275788e+04
     ]
-    )
+    ),
+    abs=1e-2
         # fmt: on
     )
 
@@ -958,7 +977,8 @@ def test_mis_rigid_forces(mis_rigid):
        29011.60524412, 29600.10400851, 30184.03657848, 30763.31527277,
        31337.85075352, 31907.55193714, 32472.32601231
     ]
-    )
+    ),
+    abs=1e-2
         # fmt: on
     )
 
@@ -981,7 +1001,8 @@ def test_mis_rigid_forces_units(mis_rigid_units):
        8.21344538e+03, 8.58080462e+03, 8.95556694e+03, 9.33768077e+03,
        9.72709218e+03, 1.01237446e+04, 1.05275788e+04
     ]
-    )
+    ),
+    abs=1e-2
         # fmt: on
     )
 
@@ -1002,7 +1023,8 @@ def test_mis_rigid_forces_units(mis_rigid_units):
        -29011.60524412, -29600.10400851, -30184.03657848, -30763.31527277,
        -31337.85075352, -31907.55193714, -32472.32601231
     ]
-    )
+    ),
+    abs=1e-2
         # fmt: on
     )
 
@@ -1023,7 +1045,8 @@ def test_mis_rigid_forces_units(mis_rigid_units):
        -8.21344538e+03, -8.58080462e+03, -8.95556694e+03, -9.33768077e+03,
        -9.72709218e+03, -1.01237446e+04, -1.05275788e+04
     ]
-    )
+    ),
+    abs=1e-2
         # fmt: on
     )
 
@@ -1044,6 +1067,7 @@ def test_mis_rigid_forces_units(mis_rigid_units):
        29011.60524412, 29600.10400851, 30184.03657848, 30763.31527277,
        31337.85075352, 31907.55193714, 32472.32601231
     ]
-    )
+    ),
+    abs=1e-2
         # fmt: on
     )

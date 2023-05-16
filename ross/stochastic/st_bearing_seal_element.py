@@ -2,17 +2,15 @@
 
 This module creates an instance of random bearing for stochastic analysis.
 """
-# fmt: off
 import numpy as np
 
 from ross.bearing_seal_element import BearingElement
 from ross.fluid_flow import fluid_flow as flow
-from ross.fluid_flow.fluid_flow_coefficients import \
-    calculate_stiffness_and_damping_coefficients
+from ross.fluid_flow.fluid_flow_coefficients import (
+    calculate_stiffness_and_damping_coefficients,
+)
 from ross.stochastic.st_results_elements import plot_histogram
 from ross.units import check_units
-
-# fmt: on
 
 __all__ = ["ST_BearingElement", "st_bearing_example"]
 
@@ -117,19 +115,22 @@ class ST_BearingElement:
         n,
         kxx,
         cxx,
+        mxx=None,
         kyy=None,
         kxy=0,
         kyx=0,
         cyy=None,
         cxy=0,
         cyx=0,
+        myy=None,
+        mxy=0,
+        myx=0,
         frequency=None,
         tag=None,
         n_link=None,
         scale_factor=1,
         is_random=None,
     ):
-
         if "frequency" in is_random:
             raise ValueError("frequency can not be a random variable")
 
@@ -142,16 +143,29 @@ class ST_BearingElement:
             if "cxx" in is_random and "cyy" not in is_random:
                 is_random.append("cyy")
 
+        if myy is None:
+            if mxx is None:
+                myy = 0
+                mxx = 0
+            else:
+                myy = mxx
+            if "mxx" in is_random and "myy" not in is_random:
+                is_random.append("myy")
+
         attribute_dict = dict(
             n=n,
             kxx=kxx,
             cxx=cxx,
+            mxx=mxx,
             kyy=kyy,
             kxy=kxy,
             kyx=kyx,
             cyy=cyy,
             cxy=cxy,
             cyx=cyx,
+            myy=myy,
+            mxy=mxy,
+            myx=myx,
             frequency=frequency,
             tag=tag,
             n_link=n_link,
@@ -340,6 +354,10 @@ class ST_BearingElement:
             cxy="Cxy",
             cyx="Cyx",
             cyy="Cyy",
+            mxx="Mxx",
+            mxy="Mxy",
+            myx="Myx",
+            myy="Myy",
         )
         if var_list is None:
             var_list = self.is_random

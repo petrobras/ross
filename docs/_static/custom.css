@@ -1,0 +1,64 @@
+h1 {
+    font-size: 175%;
+}
+
+h2 {
+    font-size: 150%;
+}
+
+div.navbar-brand-box a.navbar-brand img {
+    height: 80px;
+    width: 80px;
+}
+
+/*Copy button tooltip*/
+.o-tooltip--left:after {
+    font-size: 0.75rem;
+}
+
+div.cell_input.docutils.container, div.highlight-python, div.highlight-default, div.highlight pre {
+    border: none;
+    box-shadow: none;
+}
+
+div.output pre {
+    background-color: white;
+    box-shadow: none;
+}
+
+.prev-next-bottom a.left-prev, .prev-next-bottom a.right-next {
+    border: none;
+    font-size: 1rem;
+}
+
+/* adjust left navbar margins */
+nav.bd-links p {
+    margin-bottom: 0;
+}
+
+nav.bd-links ul.nav.sidenav_l1 {
+    margin-bottom: 1em;
+}
+
+.classifier::before {
+    content: " : ";
+}
+
+img {
+    margin-bottom: 1em;
+}
+
+p {
+    text-align: justify;
+}
+
+/* change text align for sd-card-text */
+.sd-card-text {
+    text-align: center;
+}
+
+.rubric {
+    font-size: 1em;
+    font-weight: bold;
+    text-align: center;
+}

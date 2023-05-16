@@ -1,5 +1,5 @@
-# fmt: off
 import os
+import pickle
 from pathlib import Path
 from tempfile import tempdir
 
@@ -7,12 +7,16 @@ import numpy as np
 import pytest
 from numpy.testing import assert_allclose
 
-from ross.bearing_seal_element import (BallBearingElement, BearingElement,
-                                       BearingElement6DoF, BearingFluidFlow,
-                                       MagneticBearingElement,
-                                       RollerBearingElement)
-
-# fmt: on
+from ross.bearing_seal_element import (
+    BallBearingElement,
+    BearingElement,
+    BearingElement6DoF,
+    BearingFluidFlow,
+    CylindricalBearing,
+    MagneticBearingElement,
+    RollerBearingElement,
+)
+from ross.units import Q_
 
 
 @pytest.fixture
@@ -42,29 +46,29 @@ def bearing0():
 
 
 def test_bearing_interpol_kxx(bearing0):
-    assert_allclose(bearing0.kxx.interpolated(314.2), 8.5e7)
-    assert_allclose(bearing0.kxx.interpolated(1151.9), 2.6e8)
+    assert_allclose(bearing0.kxx_interpolated(314.2), 8.5e7)
+    assert_allclose(bearing0.kxx_interpolated(1151.9), 2.6e8)
 
 
 def test_bearing_interpol_kyy(bearing0):
-    assert_allclose(bearing0.kyy.interpolated(314.2), 9.2e7)
-    assert_allclose(bearing0.kyy.interpolated(1151.9), 2.6e8)
+    assert_allclose(bearing0.kyy_interpolated(314.2), 9.2e7)
+    assert_allclose(bearing0.kyy_interpolated(1151.9), 2.6e8)
 
 
 def test_bearing_interpol_cxx(bearing0):
-    assert_allclose(bearing0.cxx.interpolated(314.2), 226837, rtol=1e5)
-    assert_allclose(bearing0.cxx.interpolated(1151.9), 137973, rtol=1e5)
+    assert_allclose(bearing0.cxx_interpolated(314.2), 226837, rtol=1e5)
+    assert_allclose(bearing0.cxx_interpolated(1151.9), 137973, rtol=1e5)
 
 
 def test_bearing_interpol_cyy(bearing0):
-    assert_allclose(bearing0.kxx.interpolated(314.2), 235837, rtol=1e5)
-    assert_allclose(bearing0.kxx.interpolated(1151.9), 2.6e8, rtol=1e5)
+    assert_allclose(bearing0.kxx_interpolated(314.2), 235837, rtol=1e5)
+    assert_allclose(bearing0.kxx_interpolated(1151.9), 2.6e8, rtol=1e5)
 
 
 @pytest.fixture
 def bearing1():
     # using lists
-    Kxx_bearing = [
+    kxx_bearing = [
         8.5e07,
         1.1e08,
         1.3e08,
@@ -75,22 +79,26 @@ def bearing1():
         2.5e08,
         2.6e08,
     ]
-    Kyy_bearing = np.array(
+    kyy_bearing = np.array(
         [9.2e07, 1.1e08, 1.4e08, 1.6e08, 1.9e08, 2.1e08, 2.3e08, 2.5e08, 2.6e08]
     )
-    Cxx_bearing = np.array(
+    cxx_bearing = np.array(
         [226837, 211247, 197996, 185523, 174610, 163697, 153563, 144209, 137973]
     )
-    Cyy_bearing = np.array(
+    cyy_bearing = np.array(
         [235837, 211247, 197996, 185523, 174610, 163697, 153563, 144209, 137973]
+    )
+    mxx_bearing = np.array(
+        [1e-3, 1.1e-3, 1.2e-3, 1.3e-3, 1.4e-3, 1.5e-3, 1.6e-3, 1.7e-3, 1.8e-3]
     )
     wb = [314.2, 418.9, 523.6, 628.3, 733.0, 837.8, 942.5, 1047.2, 1151.9]
     bearing1 = BearingElement(
         4,
-        kxx=Kxx_bearing,
-        kyy=Kyy_bearing,
-        cxx=Cxx_bearing,
-        cyy=Cyy_bearing,
+        kxx=kxx_bearing,
+        kyy=kyy_bearing,
+        cxx=cxx_bearing,
+        cyy=cyy_bearing,
+        mxx=mxx_bearing,
         frequency=wb,
     )
     return bearing1
@@ -104,23 +112,30 @@ def test_index(bearing1):
 
 
 def test_bearing1_interpol_kxx(bearing1):
-    assert_allclose(bearing1.kxx.interpolated(314.2), 8.5e7)
-    assert_allclose(bearing1.kxx.interpolated(1151.9), 2.6e8)
+    assert_allclose(bearing1.kxx_interpolated(314.2), 8.5e7)
+    assert_allclose(bearing1.kxx_interpolated(1151.9), 2.6e8)
 
 
 def test_bearing1_interpol_kyy(bearing1):
-    assert_allclose(bearing1.kyy.interpolated(314.2), 9.2e7)
-    assert_allclose(bearing1.kyy.interpolated(1151.9), 2.6e8)
+    assert_allclose(bearing1.kyy_interpolated(314.2), 9.2e7)
+    assert_allclose(bearing1.kyy_interpolated(1151.9), 2.6e8)
 
 
 def test_bearing1_interpol_cxx(bearing1):
-    assert_allclose(bearing1.cxx.interpolated(314.2), 226837, rtol=1e5)
-    assert_allclose(bearing1.cxx.interpolated(1151.9), 137973, rtol=1e5)
+    assert_allclose(bearing1.cxx_interpolated(314.2), 226837, rtol=1e5)
+    assert_allclose(bearing1.cxx_interpolated(1151.9), 137973, rtol=1e5)
 
 
 def test_bearing1_interpol_cyy(bearing1):
-    assert_allclose(bearing1.kxx.interpolated(314.2), 235837, rtol=1e5)
-    assert_allclose(bearing1.kxx.interpolated(1151.9), 2.6e8, rtol=1e5)
+    assert_allclose(bearing1.kxx_interpolated(314.2), 235837, rtol=1e5)
+    assert_allclose(bearing1.kxx_interpolated(1151.9), 2.6e8, rtol=1e5)
+
+
+def test_bearing1_interpol_mxx(bearing1):
+    assert_allclose(bearing1.mxx_interpolated(314.2), 1e-3, rtol=1e5)
+    assert_allclose(bearing1.mxx_interpolated(1151.9), 1.8e-3, rtol=1e5)
+    assert_allclose(bearing1.myy_interpolated(314.2), 1e-3, rtol=1e5)
+    assert_allclose(bearing1.myy_interpolated(1151.9), 1.8e-3, rtol=1e5)
 
 
 def test_bearing1_matrices(bearing1):
@@ -129,9 +144,12 @@ def test_bearing1_matrices(bearing1):
                   [       0.      , 91999999.891728]])
     C = np.array([[226836.917649,      0.          ],
                   [       0.      , 235836.850213  ]])
+    M = np.array([[0.00099999,      0.   ],
+                  [     0.   , 0.00099999]])
     # fmt: on
-    assert_allclose(bearing1.K(314.2), K)
-    assert_allclose(bearing1.C(314.2), C)
+    assert_allclose(bearing1.K(314.2), K, rtol=1e-5)
+    assert_allclose(bearing1.C(314.2), C, rtol=1e-5)
+    assert_allclose(bearing1.M(314.2), M, rtol=1e-5)
 
 
 def test_bearing_error_speed_not_given():
@@ -171,8 +189,8 @@ def bearing_constant():
 
 
 def test_bearing_constant(bearing_constant):
-    assert_allclose(bearing_constant.kxx.interpolated(314.2), 8e7, rtol=1e5)
-    assert_allclose(bearing_constant.cxx.interpolated(300.9), 0, rtol=1e5)
+    assert_allclose(bearing_constant.kxx_interpolated(314.2), 8e7, rtol=1e5)
+    assert_allclose(bearing_constant.cxx_interpolated(300.9), 0, rtol=1e5)
 
 
 def test_bearing_len_2():
@@ -188,7 +206,7 @@ def test_bearing_len_2():
         cyx=[-0.276, -0.69],
         frequency=[115.19, 345.575],
     )
-    assert_allclose(bearing.kxx.interpolated(115.19), 481, rtol=1e5)
+    assert_allclose(bearing.kxx_interpolated(115.19), 481, rtol=1e5)
 
 
 def test_bearing_len_3():
@@ -204,12 +222,12 @@ def test_bearing_len_3():
         cyx=[-0.276, -0.69, -1.19],
         frequency=[115.19, 345.575, 691.15],
     )
-    assert_allclose(bearing.kxx.interpolated(115.19), 481, rtol=1e5)
+    assert_allclose(bearing.kxx_interpolated(115.19), 481, rtol=1e5)
 
 
 def test_equality(bearing0, bearing1, bearing_constant):
     assert bearing0 == bearing0
-    assert bearing0 == bearing1
+    assert not bearing0 == bearing1
     assert not bearing0 == bearing_constant
     assert not bearing0 == 1
 
@@ -222,7 +240,7 @@ def test_from_table():
     bearing = BearingElement.from_table(0, bearing_file)
     assert bearing.n == 0
     assert_allclose(bearing.frequency[2], 523.5987755985)
-    assert_allclose(bearing.kxx.coefficient[2], 53565700)
+    assert_allclose(bearing.kxx[2], 53565700)
 
     # bearing with us units
     bearing_file = (
@@ -231,7 +249,7 @@ def test_from_table():
     bearing = BearingElement.from_table(0, bearing_file)
     assert bearing.n == 0
     assert_allclose(bearing.frequency[2], 523.5987755985)
-    assert_allclose(bearing.kxx.coefficient[2], 53565700)
+    assert_allclose(bearing.kxx[2], 53565700)
 
 
 def test_bearing_link_matrices():
@@ -265,7 +283,7 @@ def test_ball_bearing_element():
     C = np.array([[580.2110481, 0.0], [0.0, 1261.32836543]])
     G = np.zeros((2, 2))
 
-    assert_allclose(ballbearing.M(), M)
+    assert_allclose(ballbearing.M(0), M)
     assert_allclose(ballbearing.K(0), K)
     assert_allclose(ballbearing.C(0), C)
     assert_allclose(ballbearing.G(), G)
@@ -287,13 +305,14 @@ def test_roller_bearing_element():
     C = np.array([[3410.27409251, 0.0], [0.0, 6959.74304593]])
     G = np.zeros((2, 2))
 
-    assert_allclose(rollerbearing.M(), M)
+    assert_allclose(rollerbearing.M(0), M)
     assert_allclose(rollerbearing.K(0), K)
     assert_allclose(rollerbearing.C(0), C)
     assert_allclose(rollerbearing.G(), G)
 
 
-def test_magnetic_bearing_element():
+@pytest.fixture
+def magnetic_bearing():
     n = 0
     g0 = 1e-3
     i0 = 1.0
@@ -305,7 +324,7 @@ def test_magnetic_bearing_element():
     k_amp = 1.0
     k_sense = 1.0
     tag = "magneticbearing"
-    mbearing = MagneticBearingElement(
+    magnetic_bearing = MagneticBearingElement(
         n=n,
         g0=g0,
         i0=i0,
@@ -316,16 +335,21 @@ def test_magnetic_bearing_element():
         kd_pid=kd_pid,
         k_amp=k_amp,
         k_sense=k_sense,
+        tag=tag,
     )
+    return magnetic_bearing
+
+
+def test_magnetic_bearing_element(magnetic_bearing):
     M = np.array([[0.0, 0.0], [0.0, 0.0]])
     K = np.array([[-4640.62337718, 0.0], [0.0, -4640.62337718]])
     C = np.array([[4.64526865, 0.0], [0.0, 4.64526865]])
     G = np.array([[0.0, 0.0], [0.0, 0.0]])
 
-    assert_allclose(mbearing.M(), M)
-    assert_allclose(mbearing.K(0), K)
-    assert_allclose(mbearing.C(0), C)
-    assert_allclose(mbearing.G(), G)
+    assert_allclose(magnetic_bearing.M(0), M)
+    assert_allclose(magnetic_bearing.K(0), K)
+    assert_allclose(magnetic_bearing.C(0), C)
+    assert_allclose(magnetic_bearing.G(), G)
 
 
 @pytest.fixture
@@ -353,7 +377,7 @@ def test_bearing6(bearing_6dof):
 
     assert_allclose(bearing_6dof.K(0), K, rtol=1e-3)
     assert_allclose(bearing_6dof.C(0), C, rtol=1e-3)
-    assert_allclose(bearing_6dof.M(), M, rtol=1e-3)
+    assert_allclose(bearing_6dof.M(0), M, rtol=1e-3)
     assert_allclose(bearing_6dof.G(), G, rtol=1e-3)
 
 
@@ -369,11 +393,17 @@ def test_bearing_6dof_equality():
     )
 
     assert bearing_6dof_0 == bearing_6dof_1
-    assert not bearing_6dof_1 == bearing_6dof_2
-    assert not bearing_6dof_0 == bearing_6dof_2
+    assert bearing_6dof_1 != bearing_6dof_2
+    assert bearing_6dof_0 != bearing_6dof_2
 
 
-def test_save_load(bearing0, bearing_constant, bearing_6dof):
+def test_pickle(bearing0, bearing_constant, bearing_6dof, magnetic_bearing):
+    for bearing in [bearing0, bearing_constant, bearing_6dof, magnetic_bearing]:
+        bearing_pickled = pickle.loads(pickle.dumps(bearing))
+        assert bearing == bearing_pickled
+
+
+def test_save_load(bearing0, bearing_constant, bearing_6dof, magnetic_bearing):
     file = Path(tempdir) / "bearing0.toml"
     bearing0.save(file)
     bearing0_loaded = BearingElement.load(file)
@@ -388,6 +418,11 @@ def test_save_load(bearing0, bearing_constant, bearing_6dof):
     bearing_6dof.save(file)
     bearing_6dof_loaded = BearingElement6DoF.load(file)
     assert bearing_6dof == bearing_6dof_loaded
+
+    file = Path(tempdir) / "magnetic_bearing.toml"
+    magnetic_bearing.save(file)
+    magnetic_bearing_loaded = MagneticBearingElement.load(file)
+    assert magnetic_bearing == magnetic_bearing_loaded
 
 
 def test_bearing_fluid_flow():
@@ -427,3 +462,69 @@ def test_bearing_fluid_flow():
 
     assert_allclose(bearing.K(0), K, rtol=1e-3)
     assert_allclose(bearing.C(0), C, rtol=1e-3)
+
+
+def test_plot(bearing0):
+    fig = bearing0.plot(coefficients="kxx")
+    expected_x = np.array(
+        [
+            314.2,
+            343.0862069,
+            371.97241379,
+            400.85862069,
+            429.74482759,
+        ]
+    )
+    expected_y = np.array(
+        [
+            8.50000000e07,
+            9.39094443e07,
+            1.00985975e08,
+            1.06782950e08,
+            1.11853726e08,
+        ]
+    )
+    assert_allclose(fig.data[0]["x"][:5], expected_x)
+    assert_allclose(fig.data[0]["y"][:5], expected_y)
+
+    fig = bearing0.plot(coefficients="cxx")
+    expected_x = np.array(
+        [314.2, 343.0862069, 371.97241379, 400.85862069, 429.74482759]
+    )
+    expected_y = np.array(
+        [
+            226836.91764878,
+            222164.94925285,
+            217802.8600443,
+            213700.3582994,
+            209807.15229442,
+        ]
+    )
+    assert_allclose(fig.data[0]["x"][:5], expected_x)
+    assert_allclose(fig.data[0]["y"][:5], expected_y)
+
+
+def test_cylindrical_hydrodynamic():
+    cylindrical = CylindricalBearing(
+        n=0,
+        speed=Q_([1500, 2000], "RPM"),
+        weight=525,
+        bearing_length=Q_(30, "mm"),
+        journal_diameter=Q_(100, "mm"),
+        radial_clearance=Q_(0.1, "mm"),
+        oil_viscosity=0.1,
+    )
+    expected_modified_sommerfeld = np.array([1.009798, 1.346397])
+    expected_sommerfeld = np.array([3.571429, 4.761905])
+    expected_eccentricity = np.array([0.266298, 0.212571])
+    expected_attitude_angle = np.array([0.198931, 0.161713])
+    expected_k = np.array([[12.80796, 16.393593], [-25.060393, 8.815303]])
+    expected_c = np.array([[232.89693, -81.924371], [-81.924371, 294.911619]])
+    assert_allclose(
+        cylindrical.modified_sommerfeld, expected_modified_sommerfeld, rtol=1e-6
+    )
+    assert_allclose(cylindrical.sommerfeld, expected_sommerfeld, rtol=1e-6)
+    assert_allclose(cylindrical.eccentricity, expected_eccentricity, rtol=1e-5)
+    assert_allclose(cylindrical.attitude_angle, expected_attitude_angle, rtol=1e-5)
+    assert_allclose(cylindrical.K(Q_(1500, "RPM")) / 1e6, expected_k, rtol=1e-6)
+    assert_allclose(cylindrical.C(Q_(1500, "RPM")) / 1e3, expected_c, rtol=1e-6)

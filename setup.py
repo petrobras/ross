@@ -4,10 +4,8 @@
 import io
 import os
 import re
-import sys
-from shutil import rmtree
 
-from setuptools import Command, find_packages, setup
+from setuptools import find_packages, setup
 
 
 def read(path, encoding="utf-8"):
@@ -32,10 +30,9 @@ def version(path):
 # Package meta-data.
 NAME = "ross-rotordynamics"
 DESCRIPTION = "ROSS: Rotordynamic Open Source Software"
-URL = "https://github.com/ross-rotordynamics/ross"
-EMAIL = "raphaelts@gmail.com"
+EMAIL = "raphaelts@petrobras.com.br"
 AUTHOR = "ROSS developers"
-REQUIRES_PYTHON = ">=3.6.0"
+REQUIRES_PYTHON = ">=3.7.0"
 VERSION = version("ross/__init__.py")
 
 # What packages are required for this module to be executed?
@@ -50,9 +47,13 @@ EXTRAS = {
         "coverage",
         "codecov",
         "sphinx",
-        "sphinx_bootstrap_theme",
-        "nbsphinx",
-        "numpydoc==0.9.2",
+        "myst-nb",
+        "sphinx-book-theme",
+        "sphinx-panels",
+        "sphinx-copybutton",
+        "sphinx-rtd-theme",
+        "linkify-it-py",
+        "numpydoc",
         "sphinxcontrib-bibtex>=2.2",
         "black",
         "isort",
@@ -74,44 +75,6 @@ try:
 except FileNotFoundError:
     long_description = DESCRIPTION
 
-
-class UploadCommand(Command):
-    """Support setup.py upload."""
-
-    description = "Build and publish the package."
-    user_options = []
-
-    @staticmethod
-    def status(s):
-        """Prints things in bold."""
-        print("\033[1m{0}\033[0m".format(s))
-
-    def initialize_options(self):
-        pass
-
-    def finalize_options(self):
-        pass
-
-    def run(self):
-        try:
-            self.status("Removing previous builds…")
-            rmtree(os.path.join(here, "dist"))
-        except OSError:
-            pass
-
-        self.status("Building Source and Wheel (universal) distribution…")
-        os.system("{0} setup.py sdist bdist_wheel --universal".format(sys.executable))
-
-        self.status("Uploading the package to PyPI via Twine…")
-        os.system("twine upload dist/*")
-
-        self.status("Pushing git tags…")
-        os.system("git tag v{0}".format(about["__version__"]))
-        os.system("git push --tags")
-
-        sys.exit()
-
-
 # Where the magic happens:
 setup(
     name=NAME,
@@ -122,7 +85,12 @@ setup(
     author=AUTHOR,
     author_email=EMAIL,
     python_requires=REQUIRES_PYTHON,
-    url=URL,
+    project_urls={
+        "Documentation": "https://ross.readthedocs.io/en/stable/",
+        "Bug Tracker": "https://github.com/petrobras/ross/issues",
+        "Discussions": "https://github.com/petrobras/ross/discussions",
+        "Source Code": "https://github.com/petrobras/ross",
+    },
     packages=find_packages(exclude=("tests",)),
     # If your package is a single module, use this instead of 'packages':
     # py_modules=['mypackage'],
@@ -133,16 +101,17 @@ setup(
     extras_require=EXTRAS,
     package_data={"": ["new_units.txt"]},
     include_package_data=True,
-    license="MIT",
+    license="Apache License 2.0",
     classifiers=[
         # Trove classifiers
         # Full list: https://pypi.python.org/pypi?%3Aaction=list_classifiers
-        "License :: OSI Approved :: MIT License",
+        "License :: OSI Approved :: Apache Software License",
         "Programming Language :: Python",
         "Programming Language :: Python :: 3",
-        "Programming Language :: Python :: 3.6",
+        "Programming Language :: Python :: 3.7",
+        "Programming Language :: Python :: 3.8",
+        "Programming Language :: Python :: 3.9",
+        "Programming Language :: Python :: 3.10",
         "Programming Language :: Python :: Implementation :: CPython",
     ],
-    # $ setup.py publish support.
-    cmdclass={"upload": UploadCommand},
 )
