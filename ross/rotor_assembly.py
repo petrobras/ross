@@ -1488,32 +1488,49 @@ class Rotor(object):
         ModMat = ModMat
 
         # Modal transformations
-        self.Mmodal = ((ModMat.T).dot(M)).dot(ModMat)
-        self.Cmodal = ((ModMat.T).dot(C)).dot(ModMat)
-        self.Gmodal = ((ModMat.T).dot(G)).dot(ModMat)
-        self.Kmodal = ((ModMat.T).dot(K)).dot(ModMat)
-        self.Kstmodal = ((ModMat.T).dot(Kst)).dot(ModMat)
+        self.Mmodal = (ModMat.T @ M) @ ModMat
+        self.Cmodal = (ModMat.T @ C) @ ModMat
+        self.Gmodal = (ModMat.T @ G) @ ModMat
+        self.Kmodal = (ModMat.T @ K) @ ModMat
+        self.Kstmodal = (ModMat.T @ Kst) @ ModMat
 
-        self.Fmodal = (ModMat.T).dot(F.T)
+        self.Fmodal = ModMat.T @ F.T
 
         self.inv_Mmodal = np.linalg.pinv(self.Mmodal)
 
-        from ross.defects import Integrator
-
-        x = Integrator(
-            x0=initial_time,
-            y0=y0,
-            x=final_time,
-            h=dt,
-            func=self._equation_of_movement,
-            size=self.size,
-        )
+        self.i = 0
 
         if method in ["rk4", "rk45", "rkf45"]:
+            from ross.defects import Integrator
+
+            x = Integrator(
+                x0=initial_time,
+                y0=y0,
+                x=final_time,
+                h=dt,
+                func=self._equation_of_movement,
+                size=self.size,
+            )
             x = getattr(x, method)()
+
+        elif method in ["odeint"]:
+            from scipy.integrate import odeint
+
+            x = odeint(self._equation_of_movement, y0, t, args=(self.i,), tfirst=True)
+
         else:
             warnings.warn(
-                f"The method did not match any of {['rk4', 'rk45', 'rkf45']}. Using 'rk45'."
+                f"The method did not match any of {['rk4', 'rk45', 'rkf45', 'odeint']}. Using 'rk45'."
+            )
+            from ross.defects import Integrator
+
+            x = Integrator(
+                x0=initial_time,
+                y0=y0,
+                x=final_time,
+                h=dt,
+                func=self._equation_of_movement,
+                size=self.size,
             )
             x = x.rk45()
 
@@ -1547,15 +1564,17 @@ class Rotor(object):
         # proper equation of movement to be integrated in time
         new_V_dot = (
             +self.Fmodal[:, i]
-            - ((self.Cmodal + self.Gmodal * self.Omega[i])).dot(velocity)
-            - ((self.Kmodal + self.Kstmodal * self.AccelV[i]).dot(positions))
-        ).dot(self.inv_Mmodal)
+            - ((self.Cmodal + self.Gmodal * self.Omega[i]) @ velocity)
+            - ((self.Kmodal + self.Kstmodal * self.AccelV[i]) @ positions)
+        ) @ self.inv_Mmodal
 
         new_X_dot = velocity
 
         new_Y = np.zeros(self.size)
         new_Y[: int(self.size / 2)] = new_X_dot
         new_Y[int(self.size / 2) :] = new_V_dot
+
+        self.i += 1
 
         return new_Y
 
