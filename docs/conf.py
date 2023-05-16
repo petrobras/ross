@@ -22,7 +22,7 @@ import ross
 
 # General information about the project.
 project = "ross"
-copyright = "2022"
+copyright = "2023"
 author = "ROSS devs"
 
 # The version info for the project you're documenting, acts as replacement for
@@ -51,6 +51,7 @@ extensions = [
     "sphinx.ext.autodoc",
     "sphinx.ext.autosummary",
     "sphinx.ext.mathjax",
+    "sphinx_design",
     "numpydoc",
 ]
 
@@ -98,7 +99,6 @@ todo_include_todos = False
 # The theme to use for HTML and HTML Help pages.  See the documentation for
 # a list of builtin themes.
 #
-import sphinx_rtd_theme
 
 html_theme = "sphinx_book_theme"
 html_logo = "_static/ross-logo.svg"
@@ -106,8 +106,8 @@ html_favicon = "_static/ross-logo.ico"
 html_title = "ROSS"
 html_sidebars = {}
 html_theme_options = {
-    "github_url": "https://github.com/ross-rotordynamics/ross",
-    "repository_url": "https://github.com/ross-rotordynamics/ross",
+    "github_url": "https://github.com/petrobras/ross",
+    "repository_url": "https://github.com/petrobras/ross",
     "extra_navbar": "",
     "navbar_footer_text": "",
 }
@@ -133,6 +133,7 @@ myst_enable_extensions = [
     "dollarmath",
     "html_image",
     "linkify",
+    "colon_fence",
 ]
 
 mathjax_path = "https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.5/MathJax.js?config=TeX-AMS-MML_HTMLorMML"

@@ -7,6 +7,7 @@ import inspect
 from abc import ABC
 from collections.abc import Iterable
 from pathlib import Path
+from warnings import warn
 
 import numpy as np
 import pandas as pd
@@ -155,9 +156,12 @@ class Results(ABC):
                 data[key] = Rotor.load(aux_file)
 
             elif isinstance(value, Iterable):
-                data[key] = np.array(value)
-                if data[key].dtype in str_type:
-                    data[key] = np.array(value).astype(np.complex128)
+                try:
+                    data[key] = np.array(value)
+                    if data[key].dtype in str_type:
+                        data[key] = np.array(value).astype(np.complex128)
+                except:
+                    data[key] = value
 
         return cls.read_toml_data(data)
 
@@ -385,7 +389,7 @@ class Shape(Results):
             xmax, ixmax = max(abs(modex)), np.argmax(abs(modex))
             ymax, iymax = max(abs(modey)), np.argmax(abs(modey))
 
-            if ymax > 0.4 * xmax:
+            if ymax > xmax:
                 evec /= modey[iymax]
             else:
                 evec /= modex[ixmax]
@@ -596,7 +600,6 @@ class Shape(Results):
         fig=None,
         **kwargs,
     ):
-
         if fig is None:
             fig = go.Figure()
 
@@ -1078,9 +1081,9 @@ class ModalResults(Results):
             damping_value = self.damping_ratio[mode]
 
         frequency = {
-            "wd": f"ω<sub>d</sub> = {Q_(self.wd[mode], 'rad/s').to(frequency_units).m:.1f}",
-            "wn": f"ω<sub>n</sub> = {Q_(self.wn[mode], 'rad/s').to(frequency_units).m:.1f}",
-            "speed": f"Speed = {Q_(self.speed, 'rad/s').to(frequency_units).m:.1f}",
+            "wd": f"ω<sub>d</sub> = {Q_(self.wd[mode], 'rad/s').to(frequency_units).m:.2f}",
+            "wn": f"ω<sub>n</sub> = {Q_(self.wn[mode], 'rad/s').to(frequency_units).m:.2f}",
+            "speed": f"Speed = {Q_(self.speed, 'rad/s').to(frequency_units).m:.2f}",
         }
 
         shape = self.shapes[mode]
@@ -1112,7 +1115,7 @@ class ModalResults(Results):
                     f"{frequency['speed']} {frequency_units} | "
                     f"whirl: {self.whirl_direction()[mode]} | "
                     f"{frequency[frequency_type]} {frequency_units} | "
-                    f"{damping_name} = {damping_value:.1f}"
+                    f"{damping_name} = {damping_value:.2f}"
                 ),
                 x=0.5,
                 xanchor="center",
@@ -1126,6 +1129,7 @@ class ModalResults(Results):
         self,
         mode=None,
         fig=None,
+        orientation="major",
         frequency_type="wd",
         title=None,
         length_units="m",
@@ -1141,6 +1145,9 @@ class ModalResults(Results):
             The n'th vibration mode
         fig : Plotly graph_objects.Figure()
             The figure object with the plot.
+        orientation : str, optional
+            Orientation can be 'major', 'x' or 'y'.
+            Default is 'major' to display the major axis.
         frequency_type : str, optional
             "wd" calculates the damped natural frequencies.
             "wn" calculates the undamped natural frequencies.
@@ -1178,13 +1185,13 @@ class ModalResults(Results):
             fig = go.Figure()
 
         frequency = {
-            "wd": f"ω<sub>d</sub> = {Q_(self.wd[mode], 'rad/s').to(frequency_units).m:.1f}",
-            "wn": f"ω<sub>n</sub> = {Q_(self.wn[mode], 'rad/s').to(frequency_units).m:.1f}",
-            "speed": f"Speed = {Q_(self.speed, 'rad/s').to(frequency_units).m:.1f}",
+            "wd": f"ω<sub>d</sub> = {Q_(self.wd[mode], 'rad/s').to(frequency_units).m:.2f}",
+            "wn": f"ω<sub>n</sub> = {Q_(self.wn[mode], 'rad/s').to(frequency_units).m:.2f}",
+            "speed": f"Speed = {Q_(self.speed, 'rad/s').to(frequency_units).m:.2f}",
         }
 
         shape = self.shapes[mode]
-        fig = shape.plot_2d(fig=fig)
+        fig = shape.plot_2d(fig=fig, orientation=orientation)
 
         if title is None:
             title = ""
@@ -1199,7 +1206,7 @@ class ModalResults(Results):
                     f"{frequency['speed']} {frequency_units} | "
                     f"whirl: {self.whirl_direction()[mode]} | "
                     f"{frequency[frequency_type]} {frequency_units} | "
-                    f"{damping_name} = {damping_value:.1f}"
+                    f"{damping_name} = {damping_value:.2f}"
                 ),
                 x=0.5,
                 xanchor="center",
@@ -1582,10 +1589,7 @@ class FrequencyResponseResults(Results):
 
         This method plots the frequency response magnitude given an output and
         an input using Plotly.
-        It is possible to plot displacement, velocity and accelaration responses,
-        depending on the unit entered in 'amplitude_units'. If '[length]/[force]',
-        it displays the displacement; If '[speed]/[force]', it displays the velocity;
-        If '[acceleration]/[force]', it displays the acceleration.
+        It is possible to plot the magnitude with different units, depending on the unit entered in 'amplitude_units'. If '[length]/[force]', it displays the displacement unit (m); If '[speed]/[force]', it displays the velocity unit (m/s); If '[acceleration]/[force]', it displays the acceleration  unit (m/s**2).
 
         Parameters
         ----------
@@ -1600,11 +1604,11 @@ class FrequencyResponseResults(Results):
             Units for the response magnitude.
             Acceptable units dimensionality are:
 
-            '[length]' - Displays the displacement;
+            '[length]' - Displays the magnitude with units (m/N);
 
-            '[speed]' - Displays the velocity;
+            '[speed]' - Displays the magnitude with units (m/s/N);
 
-            '[acceleration]' - Displays the acceleration.
+            '[acceleration]' - Displays the magnitude with units (m/s**2/N).
 
             Default is "m/N" 0 to peak.
             To use peak to peak use '<unit> pkpk' (e.g. 'm/N pkpk')
@@ -1628,18 +1632,16 @@ class FrequencyResponseResults(Results):
         frequency_range = Q_(self.speed_range, "rad/s").to(frequency_units).m
 
         dummy_var = Q_(1, amplitude_units)
+        y_label = "Magnitude"
         if dummy_var.check("[length]/[force]"):
             mag = np.abs(self.freq_resp)
             mag = Q_(mag, "m/N").to(amplitude_units).m
-            y_label = "Displacement"
         elif dummy_var.check("[speed]/[force]"):
             mag = np.abs(self.velc_resp)
             mag = Q_(mag, "m/s/N").to(amplitude_units).m
-            y_label = "Velocity"
         elif dummy_var.check("[acceleration]/[force]"):
             mag = np.abs(self.accl_resp)
             mag = Q_(mag, "m/s**2/N").to(amplitude_units).m
-            y_label = "Acceleration"
         else:
             raise ValueError(
                 "Not supported unit. Options are '[length]/[force]', '[speed]/[force]', '[acceleration]/[force]'"
@@ -1699,11 +1701,11 @@ class FrequencyResponseResults(Results):
             Units for the response magnitude.
             Acceptable units dimensionality are:
 
-            '[length]' - Displays the displacement;
+            '[length]' - Displays the magnitude with units (m/N);
 
-            '[speed]' - Displays the velocity;
+            '[speed]' - Displays the magnitude with units (m/s/N);
 
-            '[acceleration]' - Displays the acceleration.
+            '[acceleration]' - Displays the magnitude with units (m/s**2/N).
 
             Default is "m/N" 0 to peak.
             To use peak to peak use '<unit> pkpk' (e.g. 'm/N pkpk')
@@ -1922,10 +1924,8 @@ class FrequencyResponseResults(Results):
             - Frequency vs Phase Angle;
             - Polar plot Amplitude vs Phase Angle;
 
-        Amplitude can be displacement, velocity or accelaration responses,
-        depending on the unit entered in 'amplitude_units'. If '[length]/[force]',
-        it displays the displacement; If '[speed]/[force]', it displays the velocity;
-        If '[acceleration]/[force]', it displays the acceleration.
+        Amplitude magnitude unit can be displacement, velocity or accelaration responses,
+        depending on the unit entered in 'amplitude_units'. If '[length]/[force]', it displays the displacement unit (m); If '[speed]/[force]', it displays the velocity unit (m/s); If '[acceleration]/[force]', it displays the acceleration  unit (m/s**2).
 
         Parameters
         ----------
@@ -1940,11 +1940,11 @@ class FrequencyResponseResults(Results):
             Units for the response magnitude.
             Acceptable units dimensionality are:
 
-            '[length]' - Displays the displacement;
+            '[length]' - Displays the magnitude with units (m/N);
 
-            '[speed]' - Displays the velocity;
+            '[speed]' - Displays the magnitude with units (m/s/N);
 
-            '[acceleration]' - Displays the acceleration.
+            '[acceleration]' - Displays the magnitude with units (m/s**2/N).
 
             Default is "m/N" 0 to peak.
             To use peak to peak use '<unit> pkpk' (e.g. 'm/N pkpk')
@@ -2088,16 +2088,7 @@ class ForcedResponseResults(Results):
         Parameters
         ----------
         probe : list
-            List with tuples (node, orientation angle, tag).
-
-            node : int -> Indicate the node where the probe is located.
-
-            orientation : float -> Probe orientation angle about the shaft.
-            The 0 refers to +X direction.
-            The strings 'major' and 'minor' can also be used to reference the major
-            and minor axis.
-
-            tag : str, optional -> Probe tag to be add a DataFrame column title.
+            List with rs.Probe objects.
         probe_units : str, option
             Units for probe orientation.
             Default is "rad".
@@ -2140,24 +2131,39 @@ class ForcedResponseResults(Results):
         for i, p in enumerate(probe):
             amplitude = []
             for speed_idx in range(len(self.speed_range)):
+                # first try to get the angle from the probe object
                 try:
-                    angle = Q_(p[1], probe_units).to("rad").m
-                except TypeError:
-                    angle = p[1]
+                    angle = p.angle
+                    node = p.node
+                # if it is a tuple, warn the user that the use of tuples is deprecated
+                except AttributeError:
+                    try:
+                        angle = Q_(p[1], probe_units).to("rad").m
+                        warn(
+                            "The use of tuples in the probe argument is deprecated. Use the Probe class instead.",
+                            DeprecationWarning,
+                        )
+                        node = p[0]
+                    except TypeError:
+                        angle = p[1]
+                        node = p[0]
 
                 ru_e, rv_e = response[:, speed_idx][
-                    self.rotor.number_dof * p[0] : self.rotor.number_dof * p[0] + 2
+                    self.rotor.number_dof * node : self.rotor.number_dof * node + 2
                 ]
                 orbit = Orbit(
-                    node=p[0], node_pos=self.rotor.nodes_pos[p[0]], ru_e=ru_e, rv_e=rv_e
+                    node=node, node_pos=self.rotor.nodes_pos[node], ru_e=ru_e, rv_e=rv_e
                 )
                 amp, phase = orbit.calculate_amplitude(angle=angle)
                 amplitude.append(amp)
 
             try:
-                probe_tag = p[2]
-            except IndexError:
-                probe_tag = f"Probe {i+1} - Node {p[0]}"
+                probe_tag = p.tag
+            except AttributeError:
+                try:
+                    probe_tag = p[2]
+                except IndexError:
+                    probe_tag = f"Probe {i+1} - Node {p[0]}"
 
             data[probe_tag] = Q_(amplitude, base_unit).to(amplitude_units).m
 
@@ -2178,16 +2184,7 @@ class ForcedResponseResults(Results):
         Parameters
         ----------
         probe : list
-            List with tuples (node, orientation angle, tag).
-
-            node : int -> Indicate the node where the probe is located.
-
-            orientation : float -> Probe orientation angle about the shaft.
-            The 0 refers to +X direction.
-            The strings 'major' and 'minor' can also be used to reference the major
-            and minor axis.
-
-            tag : str, optional -> Probe tag to be add a DataFrame column title.
+            List with rs.Probe objects.
         probe_units : str, option
             Units for probe orientation.
             Default is "rad".
@@ -2233,24 +2230,39 @@ class ForcedResponseResults(Results):
         for i, p in enumerate(probe):
             phase_values = []
             for speed_idx in range(len(self.speed_range)):
+                # first try to get the angle from the probe object
                 try:
-                    angle = Q_(p[1], probe_units).to("rad").m
-                except TypeError:
-                    angle = p[1]
+                    angle = p.angle
+                    node = p.node
+                # if it is a tuple, warn the user that the use of tuples is deprecated
+                except AttributeError:
+                    try:
+                        angle = Q_(p[1], probe_units).to("rad").m
+                        warn(
+                            "The use of tuples in the probe argument is deprecated. Use the Probe class instead.",
+                            DeprecationWarning,
+                        )
+                        node = p[0]
+                    except TypeError:
+                        angle = p[1]
+                        node = p[0]
 
                 ru_e, rv_e = response[:, speed_idx][
-                    self.rotor.number_dof * p[0] : self.rotor.number_dof * p[0] + 2
+                    self.rotor.number_dof * node : self.rotor.number_dof * node + 2
                 ]
                 orbit = Orbit(
-                    node=p[0], node_pos=self.rotor.nodes_pos[p[0]], ru_e=ru_e, rv_e=rv_e
+                    node=node, node_pos=self.rotor.nodes_pos[node], ru_e=ru_e, rv_e=rv_e
                 )
                 amp, phase = orbit.calculate_amplitude(angle=angle)
                 phase_values.append(phase)
 
             try:
-                probe_tag = p[2]
-            except IndexError:
-                probe_tag = f"Probe {i+1} - Node {p[0]}"
+                probe_tag = p.tag
+            except AttributeError:
+                try:
+                    probe_tag = p[2]
+                except IndexError:
+                    probe_tag = f"Probe {i+1} - Node {p[0]}"
 
             data[probe_tag] = Q_(phase_values, "rad").to(phase_units).m
 
@@ -2272,17 +2284,8 @@ class ForcedResponseResults(Results):
         Parameters
         ----------
         probe : list
-            List with tuples (node, orientation angle, tag).
-
-            node : int -> Indicate the node where the probe is located.
-
-            orientation : float -> Probe orientation angle about the shaft.
-            The 0 refers to +X direction.
-            The strings 'major' and 'minor' can also be used to reference the major
-            and minor axis.
-
-            tag : str, optional -> Probe tag to be add a DataFrame column title.
-        probe_units : str, option
+            List with rs.Probe objects.
+        probe_units : str, optional
             Units for probe orientation.
             Default is "rad".
         frequency_units : str, optional
@@ -2357,17 +2360,8 @@ class ForcedResponseResults(Results):
         Parameters
         ----------
         probe : list
-            List with tuples (node, orientation angle, tag).
-
-            node : int -> Indicate the node where the probe is located.
-
-            orientation : float -> Probe orientation angle about the shaft.
-            The 0 refers to +X direction.
-            The strings 'major' and 'minor' can also be used to reference the major
-            and minor axis.
-
-            tag : str, optional -> Probe tag to be add a DataFrame column title.
-        probe_units : str, option
+            List with rs.Probe objects.
+        probe_units : str, optional
             Units for probe orientation.
             Default is "rad".
         frequency_units : str, optional
@@ -2445,17 +2439,8 @@ class ForcedResponseResults(Results):
         Parameters
         ----------
         probe : list
-            List with tuples (node, orientation angle, tag).
-
-            node : int -> Indicate the node where the probe is located.
-
-            orientation : float -> Probe orientation angle about the shaft.
-            The 0 refers to +X direction.
-            The strings 'major' and 'minor' can also be used to reference the major
-            and minor axis.
-
-            tag : str, optional -> Probe tag to be add a DataFrame column title.
-        probe_units : str, option
+            List with rs.Probe objects.
+        probe_units : str, optional
             Units for probe orientation.
             Default is "rad".
         frequency_units : str, optional
@@ -2553,17 +2538,8 @@ class ForcedResponseResults(Results):
         Parameters
         ----------
         probe : list
-            List with tuples (node, orientation angle, tag).
-
-            node : int -> Indicate the node where the probe is located.
-
-            orientation : float -> Probe orientation angle about the shaft.
-            The 0 refers to +X direction.
-            The strings 'major' and 'minor' can also be used to reference the major
-            and minor axis.
-
-            tag : str, optional -> Probe tag to be add a DataFrame column title.
-        probe_units : str, option
+            List with rs.Probe objects.
+        probe_units : str, optional
             Units for probe orientation.
             Default is "rad".
         frequency_units : str, optional
@@ -2715,7 +2691,6 @@ class ForcedResponseResults(Results):
         Rel_ang = np.exp(1j * np.pi / 2)
 
         for i, f in enumerate(self.speed_range):
-
             # Foward and Backward vectors
             fow = response[dofx, i] / 2 + Rel_ang * response[dofy, i] / 2
             back = (
@@ -3457,7 +3432,6 @@ class StaticResults(Results):
         nodes_pos,
         Vx_axis,
     ):
-
         self.deformation = deformation
         self.Vx = Vx
         self.Bm = Bm
@@ -3599,7 +3573,7 @@ class StaticResults(Results):
         )
 
         # fig - plot arrows indicating shaft weight distribution
-        text = "{:.1f}".format(Q_(self.w_shaft, "N").to(force_units).m)
+        text = "{:.2f}".format(Q_(self.w_shaft, "N").to(force_units).m)
         ini = nodes_pos[0]
         fin = nodes_pos[-1]
         arrows_list = np.arange(ini, 1.01 * fin, (fin - ini) / 5.0)
@@ -4190,16 +4164,7 @@ class TimeResponseResults(Results):
         Parameters
         ----------
         probe : list
-            List with tuples (node, orientation angle, tag).
-
-            node : int -> Indicate the node where the probe is located.
-
-            orientation : float -> Probe orientation angle about the shaft.
-            The 0 refers to +X direction.
-            The strings 'major' and 'minor' can also be used to reference the major
-            and minor axis.
-
-            tag : str, optional -> Probe tag to be add a DataFrame column title.
+            List with rs.Probe objects.
         probe_units : str, option
             Units for probe orientation.
             Default is "rad".
@@ -4579,7 +4544,6 @@ class UCSResults(Results):
     def plot_mode_2d(
         self,
         critical_mode,
-        evec=None,
         fig=None,
         frequency_type="wd",
         title=None,
@@ -4593,8 +4557,6 @@ class UCSResults(Results):
         ----------
         critical_mode : int
             The n'th critical mode.
-        evec : array
-            Array containing the system eigenvectors
         fig : Plotly graph_objects.Figure()
             The figure object with the plot.
         frequency_type : str, optional
@@ -4631,7 +4593,6 @@ class UCSResults(Results):
         idx = (np.abs(modal_critical.wd - forward_frequency)).argmin()
         fig = modal_critical.plot_mode_2d(
             idx,
-            evec=evec,
             fig=fig,
             frequency_type=frequency_type,
             title=title,
@@ -4645,7 +4606,6 @@ class UCSResults(Results):
     def plot_mode_3d(
         self,
         critical_mode,
-        evec=None,
         fig=None,
         frequency_type="wd",
         title=None,
@@ -4660,8 +4620,6 @@ class UCSResults(Results):
         critical_mode : int
             The n'th critical mode.
             Default is None
-        evec : array
-            Array containing the system eigenvectors
         fig : Plotly graph_objects.Figure()
             The figure object with the plot.
         frequency_type : str, optional
@@ -4698,7 +4656,6 @@ class UCSResults(Results):
         idx = (np.abs(modal_critical.wd - forward_frequency)).argmin()
         fig = modal_critical.plot_mode_3d(
             idx,
-            evec=evec,
             fig=fig,
             frequency_type=frequency_type,
             title=title,
@@ -4706,6 +4663,8 @@ class UCSResults(Results):
             frequency_units=frequency_units,
             **kwargs,
         )
+
+        return fig
 
 
 class Level1Results(Results):

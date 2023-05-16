@@ -1,3 +1,5 @@
+import sys
+
 import pytest
 from numpy.testing import assert_allclose
 
@@ -9,6 +11,21 @@ def AISI4140():
     return Material(
         name="AISI4140", rho=7850, E=203200000000.0, G_s=80000000000.0, color="#525252"
     )
+
+
+@pytest.fixture
+def A216WCB():
+    return Material(
+        name="A216WCB",
+        rho=7820.0,
+        E=210000000000.0,
+        G_s=81395348837.2093,
+        color="#525252",
+    )
+
+
+def test_material_equality(A216WCB, AISI4140):
+    assert A216WCB != AISI4140
 
 
 def test_raise_name_material():
@@ -55,8 +72,7 @@ def test_specific_material(AISI4140):
 def test_error_rho():
     with pytest.raises(TypeError) as ex:
         Material(name="test", E=203.2e9, G_s=80e9)
-
-    assert "__init__() missing 1 required positional argument: 'rho'" == str(ex.value)
+    assert "__init__() missing 1 required positional argument: 'rho'" in str(ex.value)
 
 
 def test_error_E_G_s_Poisson():

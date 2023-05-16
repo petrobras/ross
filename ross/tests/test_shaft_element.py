@@ -96,6 +96,10 @@ def tim():
     )
 
 
+def test_shaft_element_equality(tim, eb):
+    assert tim != eb
+
+
 def test_parameters_tim(tim):
     assert_almost_equal(tim.phi, 0.08795566)
     assert_almost_equal(tim.material.Poisson, 0.29926108)
@@ -402,7 +406,6 @@ def test_save_load(tim, tap_tim):
 
 @pytest.fixture
 def s6_eb():
-
     #  Euler-Bernoulli element
     """
     L = 0.1

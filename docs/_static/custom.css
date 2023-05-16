@@ -51,3 +51,14 @@ img {
 p {
     text-align: justify;
 }
+
+/* change text align for sd-card-text */
+.sd-card-text {
+    text-align: center;
+}
+
+.rubric {
+    font-size: 1em;
+    font-weight: bold;
+    text-align: center;
+}

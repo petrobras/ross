@@ -84,7 +84,6 @@ class Rubbing(Defect):
         torque=False,
         print_progress=False,
     ):
-
         self.dt = dt
         self.tI = tI
         self.tF = tF
@@ -158,7 +157,7 @@ class Rubbing(Defect):
         self.K = self.rotor.K(self.speed)
         self.C = self.rotor.C(self.speed)
         self.G = self.rotor.G()
-        self.M = self.rotor.M()
+        self.M = self.rotor.M(self.speed)
         self.Kst = self.rotor.Kst()
 
         V1, ModMat = scipy.linalg.eigh(

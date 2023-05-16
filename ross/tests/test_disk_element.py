@@ -62,6 +62,10 @@ def test_save_load(disk):
     assert disk == disk_loaded
 
 
+def test_disk_equality(disk_from_geometry, disk):
+    assert disk != disk_from_geometry
+
+
 def test_mass_matrix_disk1(disk_from_geometry):
     # fmt: off
     Md1 = np.array([[ 32.58973,   0.     ,   0.     ,   0.     ],

@@ -130,7 +130,6 @@ class Rotor(object):
         rated_w=None,
         tag=None,
     ):
-
         self.parameters = {"min_w": min_w, "max_w": max_w, "rated_w": rated_w}
         self.tag = "Rotor 0" if tag is None else tag
 
@@ -177,6 +176,9 @@ class Rotor(object):
                 disk.tag = "Disk " + str(i)
 
         for i, brg in enumerate(bearing_elements):
+            # add n_l and n_r to bearing elements
+            brg.n_l = brg.n
+            brg.n_r = brg.n
             if not isinstance(brg, SealElement) and brg.tag is None:
                 brg.tag = "Bearing " + str(i)
             elif isinstance(brg, SealElement) and brg.tag is None:
@@ -884,7 +886,7 @@ class Rotor(object):
 
         return results
 
-    def M(self):
+    def M(self, frequency=None):
         """Mass matrix for an instance of a rotor.
 
         Returns
@@ -895,7 +897,7 @@ class Rotor(object):
         Examples
         --------
         >>> rotor = rotor_example()
-        >>> rotor.M()[:4, :4]
+        >>> rotor.M(0)[:4, :4]
         array([[ 1.42050794,  0.        ,  0.        ,  0.04931719],
                [ 0.        ,  1.42050794, -0.04931719,  0.        ],
                [ 0.        , -0.04931719,  0.00231392,  0.        ],
@@ -903,9 +905,17 @@ class Rotor(object):
         """
         M0 = np.zeros((self.ndof, self.ndof))
 
+        # if frequency is None, we assume the rotor does not have any elements
+        # with frequency dependent mass matrices
+        if frequency is None:
+            frequency = 0
+
         for elm in self.elements:
             dofs = list(elm.dof_global_index.values())
-            M0[np.ix_(dofs, dofs)] += elm.M()
+            try:
+                M0[np.ix_(dofs, dofs)] += elm.M(frequency)
+            except TypeError:
+                M0[np.ix_(dofs, dofs)] += elm.M()
 
         return M0
 
@@ -967,7 +977,6 @@ class Rotor(object):
         Kst0 = np.zeros((self.ndof, self.ndof))
 
         if self.number_dof == 6:
-
             for elm in self.shaft_elements:
                 dofs = list(elm.dof_global_index.values())
                 try:
@@ -1071,7 +1080,7 @@ class Rotor(object):
         # fmt: off
         A = np.vstack(
             [np.hstack([Z, I]),
-             np.hstack([la.solve(-self.M(), self.K(frequency) + self.Kst()*speed), la.solve(-self.M(), (self.C(frequency) + self.G() * speed))])])
+             np.hstack([la.solve(-self.M(frequency), self.K(frequency) + self.Kst()*speed), la.solve(-self.M(frequency), (self.C(frequency) + self.G() * speed))])])
         # fmt: on
 
         return A
@@ -1323,7 +1332,7 @@ class Rotor(object):
         A = self.A(speed=speed, frequency=frequency)
         # fmt: off
         B = np.vstack([Z,
-                       la.solve(self.M(), B2)])
+                       la.solve(self.M(frequency), B2)])
         # fmt: on
 
         # y = Cx + Du
@@ -1333,9 +1342,9 @@ class Rotor(object):
         Ca = Z
 
         # fmt: off
-        C = np.hstack((Cd - Ca @ la.solve(self.M(), self.K(frequency)), Cv - Ca @ la.solve(self.M(), self.C(frequency))))
+        C = np.hstack((Cd - Ca @ la.solve(self.M(frequency), self.K(frequency)), Cv - Ca @ la.solve(self.M(frequency), self.C(frequency))))
         # fmt: on
-        D = Ca @ la.solve(self.M(), B2)
+        D = Ca @ la.solve(self.M(frequency), B2)
 
         sys = signal.lti(A, B, C, D)
 
@@ -2633,7 +2642,7 @@ class Rotor(object):
             frequency = speed
 
         dic = {
-            "M": self.M(),
+            "M": self.M(frequency),
             "K": self.K(frequency),
             "C": self.C(frequency),
             "G": self.G(),
@@ -2816,9 +2825,9 @@ class Rotor(object):
 
         # gravity aceleration vector
         g = -9.8065
-        gravity = np.zeros(len(aux_rotor.M()))
+        gravity = np.zeros(len(aux_rotor.M(0)))
         gravity[1 :: self.number_dof] = g
-        weight = aux_rotor.M() @ gravity
+        weight = aux_rotor.M(0) @ gravity
 
         # calculates u, for [K]*(u) = (F)
         displacement = (la.solve(aux_K, weight)).flatten()
@@ -2886,12 +2895,12 @@ class Rotor(object):
         mx = np.zeros_like(vx)
         for j in range(mx.shape[0]):
             if j == 0:
-                mx[j] = [0, 0.5 * sum(vx[j]) * np.diff(vx_axis[j])]
+                mx[j] = [0, 0.5 * sum(vx[j]) * np.diff(vx_axis[j])[0]]
             if j == mx.shape[0] - 1:
-                mx[j] = [-0.5 * sum(vx[j]) * np.diff(vx_axis[j]), 0]
+                mx[j] = [-0.5 * sum(vx[j]) * np.diff(vx_axis[j])[0], 0]
             else:
                 mx[j, 0] = mx[j - 1, 1]
-                mx[j, 1] = mx[j, 0] + 0.5 * sum(vx[j]) * np.diff(vx_axis[j])
+                mx[j, 1] = mx[j, 0] + 0.5 * sum(vx[j]) * np.diff(vx_axis[j])[0]
 
         # flattening arrays
         vx = vx.flatten()
@@ -3143,8 +3152,8 @@ class Rotor(object):
             for Brg_SealEl in brg_seal_data:
                 aux_Brg_SealEl = deepcopy(Brg_SealEl)
                 aux_Brg_SealEl.n = nel_r * Brg_SealEl.n
-                aux_Brg_SealEl.n_l = nel_r * Brg_SealEl.n_l
-                aux_Brg_SealEl.n_r = nel_r * Brg_SealEl.n_r
+                aux_Brg_SealEl.n_l = nel_r * Brg_SealEl.n
+                aux_Brg_SealEl.n_r = nel_r * Brg_SealEl.n
                 bearing_elements.append(aux_Brg_SealEl)
 
             regions.append(disk_elements)
@@ -3261,7 +3270,6 @@ class CoAxialRotor(Rotor):
         rated_w=None,
         tag=None,
     ):
-
         self.parameters = {"min_w": min_w, "max_w": max_w, "rated_w": rated_w}
         if tag is None:
             self.tag = "Rotor 0"
@@ -3307,6 +3315,8 @@ class CoAxialRotor(Rotor):
                 disk.tag = "Disk " + str(i)
 
         for i, brg in enumerate(bearing_elements):
+            brg.n_l = brg.n
+            brg.n_r = brg.n
             if brg.__class__.__name__ == "BearingElement" and brg.tag is None:
                 brg.tag = "Bearing " + str(i)
             if brg.__class__.__name__ == "SealElement" and brg.tag is None:

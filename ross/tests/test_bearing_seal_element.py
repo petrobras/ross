@@ -68,7 +68,7 @@ def test_bearing_interpol_cyy(bearing0):
 @pytest.fixture
 def bearing1():
     # using lists
-    Kxx_bearing = [
+    kxx_bearing = [
         8.5e07,
         1.1e08,
         1.3e08,
@@ -79,22 +79,26 @@ def bearing1():
         2.5e08,
         2.6e08,
     ]
-    Kyy_bearing = np.array(
+    kyy_bearing = np.array(
         [9.2e07, 1.1e08, 1.4e08, 1.6e08, 1.9e08, 2.1e08, 2.3e08, 2.5e08, 2.6e08]
     )
-    Cxx_bearing = np.array(
+    cxx_bearing = np.array(
         [226837, 211247, 197996, 185523, 174610, 163697, 153563, 144209, 137973]
     )
-    Cyy_bearing = np.array(
+    cyy_bearing = np.array(
         [235837, 211247, 197996, 185523, 174610, 163697, 153563, 144209, 137973]
+    )
+    mxx_bearing = np.array(
+        [1e-3, 1.1e-3, 1.2e-3, 1.3e-3, 1.4e-3, 1.5e-3, 1.6e-3, 1.7e-3, 1.8e-3]
     )
     wb = [314.2, 418.9, 523.6, 628.3, 733.0, 837.8, 942.5, 1047.2, 1151.9]
     bearing1 = BearingElement(
         4,
-        kxx=Kxx_bearing,
-        kyy=Kyy_bearing,
-        cxx=Cxx_bearing,
-        cyy=Cyy_bearing,
+        kxx=kxx_bearing,
+        kyy=kyy_bearing,
+        cxx=cxx_bearing,
+        cyy=cyy_bearing,
+        mxx=mxx_bearing,
         frequency=wb,
     )
     return bearing1
@@ -127,15 +131,25 @@ def test_bearing1_interpol_cyy(bearing1):
     assert_allclose(bearing1.kxx_interpolated(1151.9), 2.6e8, rtol=1e5)
 
 
+def test_bearing1_interpol_mxx(bearing1):
+    assert_allclose(bearing1.mxx_interpolated(314.2), 1e-3, rtol=1e5)
+    assert_allclose(bearing1.mxx_interpolated(1151.9), 1.8e-3, rtol=1e5)
+    assert_allclose(bearing1.myy_interpolated(314.2), 1e-3, rtol=1e5)
+    assert_allclose(bearing1.myy_interpolated(1151.9), 1.8e-3, rtol=1e5)
+
+
 def test_bearing1_matrices(bearing1):
     # fmt: off
     K = np.array([[85000000.043218,        0.      ],
                   [       0.      , 91999999.891728]])
     C = np.array([[226836.917649,      0.          ],
                   [       0.      , 235836.850213  ]])
+    M = np.array([[0.00099999,      0.   ],
+                  [     0.   , 0.00099999]])
     # fmt: on
-    assert_allclose(bearing1.K(314.2), K)
-    assert_allclose(bearing1.C(314.2), C)
+    assert_allclose(bearing1.K(314.2), K, rtol=1e-5)
+    assert_allclose(bearing1.C(314.2), C, rtol=1e-5)
+    assert_allclose(bearing1.M(314.2), M, rtol=1e-5)
 
 
 def test_bearing_error_speed_not_given():
@@ -213,7 +227,7 @@ def test_bearing_len_3():
 
 def test_equality(bearing0, bearing1, bearing_constant):
     assert bearing0 == bearing0
-    assert bearing0 == bearing1
+    assert not bearing0 == bearing1
     assert not bearing0 == bearing_constant
     assert not bearing0 == 1
 
@@ -269,7 +283,7 @@ def test_ball_bearing_element():
     C = np.array([[580.2110481, 0.0], [0.0, 1261.32836543]])
     G = np.zeros((2, 2))
 
-    assert_allclose(ballbearing.M(), M)
+    assert_allclose(ballbearing.M(0), M)
     assert_allclose(ballbearing.K(0), K)
     assert_allclose(ballbearing.C(0), C)
     assert_allclose(ballbearing.G(), G)
@@ -291,7 +305,7 @@ def test_roller_bearing_element():
     C = np.array([[3410.27409251, 0.0], [0.0, 6959.74304593]])
     G = np.zeros((2, 2))
 
-    assert_allclose(rollerbearing.M(), M)
+    assert_allclose(rollerbearing.M(0), M)
     assert_allclose(rollerbearing.K(0), K)
     assert_allclose(rollerbearing.C(0), C)
     assert_allclose(rollerbearing.G(), G)
@@ -332,7 +346,7 @@ def test_magnetic_bearing_element(magnetic_bearing):
     C = np.array([[4.64526865, 0.0], [0.0, 4.64526865]])
     G = np.array([[0.0, 0.0], [0.0, 0.0]])
 
-    assert_allclose(magnetic_bearing.M(), M)
+    assert_allclose(magnetic_bearing.M(0), M)
     assert_allclose(magnetic_bearing.K(0), K)
     assert_allclose(magnetic_bearing.C(0), C)
     assert_allclose(magnetic_bearing.G(), G)
@@ -363,7 +377,7 @@ def test_bearing6(bearing_6dof):
 
     assert_allclose(bearing_6dof.K(0), K, rtol=1e-3)
     assert_allclose(bearing_6dof.C(0), C, rtol=1e-3)
-    assert_allclose(bearing_6dof.M(), M, rtol=1e-3)
+    assert_allclose(bearing_6dof.M(0), M, rtol=1e-3)
     assert_allclose(bearing_6dof.G(), G, rtol=1e-3)
 
 

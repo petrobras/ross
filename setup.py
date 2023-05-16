@@ -30,10 +30,9 @@ def version(path):
 # Package meta-data.
 NAME = "ross-rotordynamics"
 DESCRIPTION = "ROSS: Rotordynamic Open Source Software"
-URL = "https://github.com/ross-rotordynamics/ross"
-EMAIL = "raphaelts@gmail.com"
+EMAIL = "raphaelts@petrobras.com.br"
 AUTHOR = "ROSS developers"
-REQUIRES_PYTHON = ">=3.7.0, <3.10"
+REQUIRES_PYTHON = ">=3.7.0"
 VERSION = version("ross/__init__.py")
 
 # What packages are required for this module to be executed?
@@ -86,7 +85,12 @@ setup(
     author=AUTHOR,
     author_email=EMAIL,
     python_requires=REQUIRES_PYTHON,
-    url=URL,
+    project_urls={
+        "Documentation": "https://ross.readthedocs.io/en/stable/",
+        "Bug Tracker": "https://github.com/petrobras/ross/issues",
+        "Discussions": "https://github.com/petrobras/ross/discussions",
+        "Source Code": "https://github.com/petrobras/ross",
+    },
     packages=find_packages(exclude=("tests",)),
     # If your package is a single module, use this instead of 'packages':
     # py_modules=['mypackage'],
@@ -97,14 +101,17 @@ setup(
     extras_require=EXTRAS,
     package_data={"": ["new_units.txt"]},
     include_package_data=True,
-    license="MIT",
+    license="Apache License 2.0",
     classifiers=[
         # Trove classifiers
         # Full list: https://pypi.python.org/pypi?%3Aaction=list_classifiers
-        "License :: OSI Approved :: MIT License",
+        "License :: OSI Approved :: Apache Software License",
         "Programming Language :: Python",
         "Programming Language :: Python :: 3",
-        "Programming Language :: Python :: 3.6",
+        "Programming Language :: Python :: 3.7",
+        "Programming Language :: Python :: 3.8",
+        "Programming Language :: Python :: 3.9",
+        "Programming Language :: Python :: 3.10",
         "Programming Language :: Python :: Implementation :: CPython",
     ],
 )
