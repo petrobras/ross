@@ -1368,7 +1368,7 @@ class Rotor(object):
         number_modes : str, int, optional
             Number of modes considered in the modal reduction. It is possible to pass the following string:
 
-                'force' : the code will set the number of modes based on the rotor natural frequencies.
+                'auto' : the code will set the number of modes based on the rotor natural frequencies.
 
             Additionally, if it a int is passed the code will use the number of modes defined by the user. Default is 'force'.
         method : str, optional
