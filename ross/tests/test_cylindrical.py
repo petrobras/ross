@@ -10,7 +10,6 @@ from ross.units import Q_
 
 @pytest.fixture
 def cylindrical():
-
     speed = Q_([900], "RPM")
     L = Q_(10.3600055944, "in")
 

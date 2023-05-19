@@ -238,7 +238,6 @@ class FluidFlow:
         displacement=0,
         max_depth=None,
     ):
-
         self.nz = nz
         self.ntheta = ntheta
         self.n_interv_z = nz - 1

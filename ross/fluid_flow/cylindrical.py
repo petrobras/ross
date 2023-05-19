@@ -386,14 +386,14 @@ class THDCylindrical(BearingElement):
                         )
 
                     if self.geometry == "elliptical":
-                       hP = (
+                        hP = (
                             1
                             - self.X * np.cos(jj)
                             - self.Y * np.sin(jj)
-                            + self.preload / (1 - self.preload) * (np.cos(jj)) ** 2)
-                        
+                            + self.preload / (1 - self.preload) * (np.cos(jj)) ** 2
+                        )
 
-                       he = (
+                        he = (
                             1
                             - self.X * np.cos(jj + 0.5 * self.dtheta)
                             - self.Y * np.sin(jj + 0.5 * self.dtheta)
@@ -402,7 +402,7 @@ class THDCylindrical(BearingElement):
                             * (np.cos(jj + 0.5 * self.dtheta)) ** 2
                         )
 
-                       hw = (
+                        hw = (
                             1
                             - self.X * np.cos(jj - 0.5 * self.dtheta)
                             - self.Y * np.sin(jj - 0.5 * self.dtheta)
@@ -641,13 +641,10 @@ class THDCylindrical(BearingElement):
             Pressure distribution in current pad vector.
         """
 
-
         while self.erro >= 0.01:
             p_old = np.array(p)
 
             theta_vol_old = np.array(self.theta_vol)
-
-
 
             k = 0
             ki = 0
@@ -700,14 +697,14 @@ class THDCylindrical(BearingElement):
                             )
 
                         if self.geometry == "elliptical":
-                           hP = (
+                            hP = (
                                 1
                                 - self.X * np.cos(jj)
                                 - self.Y * np.sin(jj)
-                                + self.preload / (1 - self.preload) * (np.cos(jj)) ** 2)
-                            
+                                + self.preload / (1 - self.preload) * (np.cos(jj)) ** 2
+                            )
 
-                           he = (
+                            he = (
                                 1
                                 - self.X * np.cos(jj + 0.5 * self.dtheta)
                                 - self.Y * np.sin(jj + 0.5 * self.dtheta)
@@ -716,7 +713,7 @@ class THDCylindrical(BearingElement):
                                 * (np.cos(jj + 0.5 * self.dtheta)) ** 2
                             )
 
-                           hw = (
+                            hw = (
                                 1
                                 - self.X * np.cos(jj - 0.5 * self.dtheta)
                                 - self.Y * np.sin(jj - 0.5 * self.dtheta)
@@ -1408,15 +1405,14 @@ class THDCylindrical(BearingElement):
                                     )
 
                                 if self.geometry == "elliptical":
-                                    
                                     HP = (
                                         1
                                         - self.X * np.cos(jj)
                                         - self.Y * np.sin(jj)
-                                        + self.preload / (1 - self.preload) * (np.cos(jj)) ** 2
+                                        + self.preload
+                                        / (1 - self.preload)
+                                        * (np.cos(jj)) ** 2
                                     )
-
-                                  
 
                             if ki == 0:
                                 H_PLOT[kj, n_p] = HP
@@ -1830,8 +1826,6 @@ class THDCylindrical(BearingElement):
         Ytheta = np.array(Ytheta)
         Ytheta = Ytheta.flatten()
 
-        
-
         auxF = np.zeros((2, len(Ytheta)))
 
         auxF[0, :] = np.cos(Ytheta)
@@ -1878,7 +1872,6 @@ class THDCylindrical(BearingElement):
 
         if self.print_time:
             print(f"Time Spent: {t2-t1} seconds")
-
 
     def _interpol(self, T_muI, T_muF, mu_I, mu_F):
         """
@@ -3010,8 +3003,6 @@ def cylindrical_bearing_example():
     0.263144
     """
 
-
-
     bearing = THDCylindrical(
         axial_length=0.263144,
         journal_radius=0.2,
@@ -3045,4 +3036,4 @@ def cylindrical_bearing_example():
 
 
 if __name__ == "__main__":
-    cylindrical_bearing_example()    
+    cylindrical_bearing_example()

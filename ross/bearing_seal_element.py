@@ -1155,7 +1155,6 @@ class BallBearingElement(BearingElement):
         n_link=None,
         scale_factor=1,
     ):
-
         Kb = 13.0e6
         kyy = (
             Kb
@@ -1273,7 +1272,6 @@ class RollerBearingElement(BearingElement):
         n_link=None,
         scale_factor=1,
     ):
-
         Kb = 1.0e9
         kyy = (
             Kb

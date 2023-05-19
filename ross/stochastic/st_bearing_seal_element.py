@@ -127,7 +127,6 @@ class ST_BearingElement:
         scale_factor=1,
         is_random=None,
     ):
-
         if "frequency" in is_random:
             raise ValueError("frequency can not be a random variable")
 
