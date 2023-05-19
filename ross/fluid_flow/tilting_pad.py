@@ -132,7 +132,6 @@ class Tilting:
         choice_CAIMP,  # Method (calculating or imposing equilibrium position)
         Coefs_D=None,
     ):
-
         self.Rs = Rs
         self.npad = npad
         self.Rp = Rp
@@ -207,7 +206,6 @@ class Tilting:
         )
 
     def run(self):
-
         ############### Define parameters ##############
 
         self.PPdim = np.zeros((self.nZ, self.nX, self.npad))
@@ -237,15 +235,12 @@ class Tilting:
             "print" in [*self.choice_CAIMP[self.op_key]]
             and "progress" in self.choice_CAIMP[self.op_key]["print"]
         ):
-
             self.progress = True
 
         else:
-
             self.progress = False
 
         if "calc_EQ" in self.op_key:
-
             self.x0 = self.choice_CAIMP["calc_EQ"]["init_guess"]
             self.Wx = self.choice_CAIMP["calc_EQ"]["load"][0]
             self.Wy = self.choice_CAIMP["calc_EQ"]["load"][1]
@@ -257,14 +252,12 @@ class Tilting:
             )  # Loading - Y direction [dimensionless]
 
         elif "impos_EQ" in self.op_key:
-
             self.x0 = self.choice_CAIMP["impos_EQ"]["ent_angle"]
             self.WX = self.WY = 0
 
         maxP, medP, maxT, medT, h_pivot0, ecc = self.PandTsolution()
 
         if self.Coefs_D is not None:
-
             self.coeffs_din()
 
             if "show_coef" in self.Coefs_D and self.Coefs_D["show_coef"]:
@@ -293,9 +286,7 @@ class Tilting:
             print(line[:-1])
 
     def PandTsolution(self):
-
         if "calc_EQ" in self.op_key:
-
             # Equilibrium position optimization
 
             x = scipy.optimize.fmin(
@@ -321,7 +312,6 @@ class Tilting:
                 print(x)
 
         elif "impos_EQ" in self.op_key:
-
             # Equilibrium position optimization
             x = scipy.optimize.fmin(
                 self.HDEequilibrium,
@@ -386,7 +376,6 @@ class Tilting:
         tol_T = 0.1  # Celsius degree
 
         for n_p in range(0, self.npad):
-
             T_new = self.TT_i[:, :, n_p]
 
             T_i = 1.1 * T_new
@@ -394,7 +383,6 @@ class Tilting:
             cont_Temp = 0
 
             while abs((T_new - T_i).max()) >= tol_T:
-
                 cont_Temp = cont_Temp + 1
 
                 T_i = np.array(T_new)
@@ -419,9 +407,7 @@ class Tilting:
                 alphapt = 0
 
                 for ii in range(0, self.nZ):
-
                     for jj in range(0, self.nX):
-
                         TETAe = self.XTETA[jj] + 0.5 * self.dTETA
                         TETAw = self.XTETA[jj] - 0.5 * self.dTETA
 
@@ -611,7 +597,6 @@ class Tilting:
 
                 for i in np.arange(self.nZ):
                     for j in np.arange(self.nX):
-
                         self.P[i, j] = p[cont]
                         cont = cont + 1
 
@@ -660,7 +645,6 @@ class Tilting:
         return maxP, medP, maxT, medT, h_pivot0, ecc
 
     def coeffs_din(self):
-
         delFx = np.zeros(self.npad)
         delFy = np.zeros(self.npad)
         delMj = np.zeros(self.npad)
@@ -711,7 +695,6 @@ class Tilting:
 
         for a_p in range(0, 4):
             for n_p in range(0, self.npad):
-
                 xxcoef = self.xdin[:2]
 
                 for kp in range(0, self.npad):
@@ -724,7 +707,6 @@ class Tilting:
                 cont_Temp = 0
 
                 while abs((T_new - T_i).max()) >= tol_T:
-
                     cont_Temp = cont_Temp + 1
 
                     T_i = np.array(T_new)
@@ -761,9 +743,7 @@ class Tilting:
                     alpha = psi_pad[n_p]
 
                     for ii in range(0, self.nZ):
-
                         for jj in range(0, self.nX):
-
                             TETAe = self.XTETA[jj] + 0.5 * self.dTETA
                             TETAw = self.XTETA[jj] - 0.5 * self.dTETA
 
@@ -965,7 +945,6 @@ class Tilting:
 
                     for i in np.arange(self.nZ):
                         for j in np.arange(self.nX):
-
                             self.P[i, j] = p[cont]
                             cont = cont + 1
 
@@ -984,7 +963,6 @@ class Tilting:
 
                     for ii in range(0, self.nZ):
                         for jj in range(0, self.nX):
-
                             if jj == 0 and ii == 0:
                                 self.dPdX[ii, jj] = (
                                     self.P[ii, jj + 1] - self.P[ii, jj]
@@ -1065,20 +1043,17 @@ class Tilting:
                             )
 
                             if self.Reyn[ii, jj, n_p] <= 500:
-
                                 delta_turb = 0
 
                             elif (
                                 self.Reyn[ii, jj, n_p] > 400
                                 and self.Reyn[ii, jj, n_p] <= 1000
                             ):
-
                                 delta_turb = 1 - (
                                     (1000 - self.Reyn[ii, jj, n_p]) / 500
                                 ) ** (1 / 8)
 
                             elif self.Reyn[ii, jj, n_p] > 1000:
-
                                 delta_turb = 1
 
                             dudx = (
@@ -1338,7 +1313,6 @@ class Tilting:
 
                     for i in np.arange(self.nZ):
                         for j in np.arange(self.nX):
-
                             T_new[i, j] = self.T0 * t[cont]
 
                             cont = cont + 1
@@ -1372,7 +1346,6 @@ class Tilting:
 
                 # X-axis perturbation
                 if a_p == 0:
-
                     kxx[n_p] = delFx[n_p] / (dE) * self.dimForca
                     ktx[n_p] = delMj[n_p] / (dE) * self.dimForca
                     self.K[n_p, 0, 0] = kxx[n_p]
@@ -1380,7 +1353,6 @@ class Tilting:
 
                 # Angular (pad) perturbation
                 elif a_p == 1:
-
                     ktt[n_p] = delMj[n_p] / (dEalpha) * self.dimForca
                     kxt[n_p] = delFx[n_p] / (dEalpha) * self.dimForca
 
@@ -1401,7 +1373,6 @@ class Tilting:
 
                 # x-axis speed perturbation
                 elif a_p == 2:
-
                     cxx[n_p] = delFx[n_p] / (dEv) * self.dimForca
                     ctx[n_p] = delMj[n_p] / (dEv) * self.dimForca
                     self.C[n_p, 0, 0] = cxx[n_p]
@@ -1409,7 +1380,6 @@ class Tilting:
 
                 # Angular speed perturbation
                 elif a_p == 3:
-
                     ctt[n_p] = delMj[n_p] / (dEalphav) * self.dimForca
                     cxt[n_p] = delFx[n_p] / (dEalphav) * self.dimForca
                     self.C[n_p, 2, 2] = ctt[n_p]
@@ -1483,7 +1453,6 @@ class Tilting:
         global Pressure, Temperature
         # x = [x,]
         if "calc_EQ" in self.op_key:
-
             ##### Dimensionless center shaft coordinates
             eq_0 = x[0]
             eq_1 = x[1]
@@ -1495,7 +1464,6 @@ class Tilting:
                 psi_pad[kp] = x[kp + 2]  # Tilting angles of each pad
 
         elif "impos_EQ" in self.op_key:
-
             eq_0 = self.choice_CAIMP[self.op_key]["pos_EQ"][0]
             eq_1 = self.choice_CAIMP[self.op_key]["pos_EQ"][1]
 
@@ -1509,7 +1477,6 @@ class Tilting:
         tol_T = 0.1  # Celsius degree
 
         for n_p in range(0, self.npad):
-
             T_new = self.TT_i[:, :, n_p]
 
             T_i = 1.1 * T_new
@@ -1517,7 +1484,6 @@ class Tilting:
             cont_Temp = 0
 
             while abs((T_new - T_i).max()) >= tol_T:
-
                 cont_Temp = cont_Temp + 1
 
                 T_i = np.array(T_new)
@@ -1539,9 +1505,7 @@ class Tilting:
                 alphapt = 0
 
                 for ii in range(0, self.nZ):
-
                     for jj in range(0, self.nX):
-
                         TETAe = self.XTETA[jj] + 0.5 * self.dTETA
                         TETAw = self.XTETA[jj] - 0.5 * self.dTETA
 
@@ -1731,7 +1695,6 @@ class Tilting:
 
                 for i in np.arange(self.nZ):
                     for j in np.arange(self.nX):
-
                         self.P[i, j] = p[cont]
                         cont = cont + 1
 
@@ -1750,7 +1713,6 @@ class Tilting:
 
                 for ii in range(0, self.nZ):
                     for jj in range(0, self.nX):
-
                         if jj == 0 and ii == 0:
                             self.dPdX[ii, jj] = (
                                 self.P[ii, jj + 1] - self.P[ii, jj]
@@ -1826,20 +1788,17 @@ class Tilting:
                         )
 
                         if self.Reyn[ii, jj, n_p] <= 500:
-
                             delta_turb = 0
 
                         elif (
                             self.Reyn[ii, jj, n_p] > 400
                             and self.Reyn[ii, jj, n_p] <= 1000
                         ):
-
                             delta_turb = 1 - (
                                 (1000 - self.Reyn[ii, jj, n_p]) / 500
                             ) ** (1 / 8)
 
                         elif self.Reyn[ii, jj, n_p] > 1000:
-
                             delta_turb = 1
 
                         dudx = (
@@ -2073,7 +2032,6 @@ class Tilting:
 
                 for i in np.arange(self.nZ):
                     for j in np.arange(self.nX):
-
                         T_new[i, j] = self.T0 * t[cont]
 
                         cont = cont + 1
@@ -2131,7 +2089,6 @@ class Tilting:
         )
 
         if "calc_EQ" in self.op_key:
-
             FM = np.zeros((self.npad + 2))
 
             FM[0] = Fhx + self.WX
@@ -2139,7 +2096,6 @@ class Tilting:
             FM[2 : len(FM)] = self.Mj[0 : len(self.Mj)]
 
         elif "impos_EQ" in self.op_key:
-
             FM = self.Mj[0 : len(self.Mj)]
 
         score = np.linalg.norm(FM)
@@ -2153,7 +2109,6 @@ class Tilting:
         return score
 
     def xr_fun(self, n_p, eq_0, eq_1):
-
         xx = eq_0 * self.Cr * np.cos(eq_1)
         yy = eq_0 * self.Cr * np.sin(eq_1)
 
@@ -2372,7 +2327,6 @@ class Tilting:
         return abs(alphamax)
 
     def lub_selector(self):
-
         lubricant_dict = {
             "ISOVG32": {
                 "viscosity1": 0.027968,  # Pa.s
