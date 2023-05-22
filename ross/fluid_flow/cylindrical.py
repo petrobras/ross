@@ -499,7 +499,7 @@ class THDCylindrical(BearingElement):
                 CP = -(CE + CW + CN + CS)
 
                 B = (self.dZ / (2 * self.betha_s)) * (he - hw) - (
-                    (self.Xpt * np.cos(jj) + self.Ypt * np.sin(jj)) * self.dy * self.dZ
+                    (self.Xpt * np.cos(jj) + self.Ypt * np.sin(jj)) * self.dY * self.dZ
                 )
 
                 k = k + 1
@@ -3026,14 +3026,10 @@ def cylindrical_bearing_example():
         operating_type="flooded",
         injection_pressure=0,
         oil_flow=37.86,
-        show_coef=True,
-        print_result=True,
+        show_coef=False,
+        print_result=False,
         print_progress=False,
         print_time=False,
     )
 
     return bearing
-
-
-if __name__ == "__main__":
-    cylindrical_bearing_example()
