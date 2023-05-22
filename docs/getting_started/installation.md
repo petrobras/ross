@@ -22,5 +22,5 @@ pip install ross-rotordynamics
 Alternatively, you can install the development version from github:
 
 ```{code-block}
-pip install git+https://github.com/ross-rotordynamics/ross.git
+pip install git+https://github.com/petrobras/ross.git
 ```

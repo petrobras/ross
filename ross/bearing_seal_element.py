@@ -110,12 +110,16 @@ class BearingElement(Element):
         n,
         kxx,
         cxx,
+        mxx=None,
         kyy=None,
         kxy=0,
         kyx=0,
         cyy=None,
         cxy=0,
         cyx=0,
+        myy=None,
+        mxy=0,
+        myx=0,
         frequency=None,
         tag=None,
         n_link=None,
@@ -127,7 +131,20 @@ class BearingElement(Element):
             self.frequency = np.array(frequency, dtype=np.float64)
         else:
             self.frequency = frequency
-        args = ["kxx", "kyy", "kxy", "kyx", "cxx", "cyy", "cxy", "cyx"]
+        args = [
+            "kxx",
+            "kyy",
+            "kxy",
+            "kyx",
+            "cxx",
+            "cyy",
+            "cxy",
+            "cyx",
+            "mxx",
+            "myy",
+            "mxy",
+            "myx",
+        ]
 
         # all args to coefficients
         args_dict = locals()
@@ -136,6 +153,13 @@ class BearingElement(Element):
             args_dict["kyy"] = kxx
         if cyy is None:
             args_dict["cyy"] = cxx
+
+        if myy is None:
+            if mxx is None:
+                args_dict["mxx"] = 0
+                args_dict["myy"] = 0
+            else:
+                args_dict["myy"] = mxx
 
         # check coefficients len for consistency
         coefficients_len = []
@@ -163,8 +187,6 @@ class BearingElement(Element):
 
         self.n = n
         self.n_link = n_link
-        self.n_l = n
-        self.n_r = n
         self.tag = tag
         self.color = color
         self.scale_factor = scale_factor
@@ -318,6 +340,8 @@ class BearingElement(Element):
             f" kyx={self.kyx}, kyy={self.kyy},\n"
             f" cxx={self.cxx}, cxy={self.cxy},\n"
             f" cyx={self.cyx}, cyy={self.cyy},\n"
+            f" mxx={self.mxx}, mxy={self.mxy},\n"
+            f" myx={self.myx}, myy={self.myy},\n"
             f" frequency={self.frequency}, tag={self.tag!r})"
         )
 
@@ -350,6 +374,10 @@ class BearingElement(Element):
             "cyy",
             "cxy",
             "cyx",
+            "mxx",
+            "myy",
+            "mxy",
+            "myx",
             "frequency",
         ]
         if isinstance(other, self.__class__):
@@ -401,6 +429,10 @@ class BearingElement(Element):
             "cyy",
             "cxy",
             "cyx",
+            "mxx",
+            "myy",
+            "mxy",
+            "myx",
         ]
         brg_data = {}
         for arg in args:
@@ -451,7 +483,7 @@ class BearingElement(Element):
         """
         return dict(x_0=0, y_0=1)
 
-    def M(self):
+    def M(self, frequency):
         """Mass matrix for an instance of a bearing element.
 
         This method returns the mass matrix for an instance of a bearing
@@ -465,11 +497,22 @@ class BearingElement(Element):
         Examples
         --------
         >>> bearing = bearing_example()
-        >>> bearing.M()
+        >>> bearing.M(0)
         array([[0., 0.],
                [0., 0.]])
         """
-        M = np.zeros_like(self.K(0))
+        mxx = self.mxx_interpolated(frequency)
+        myy = self.myy_interpolated(frequency)
+        mxy = self.mxy_interpolated(frequency)
+        myx = self.myx_interpolated(frequency)
+
+        M = np.array([[mxx, mxy], [myx, myy]])
+
+        if self.n_link is not None:
+            # fmt: off
+            M = np.vstack((np.hstack([M, -M]),
+                           np.hstack([-M, M])))
+            # fmt: on
 
         return M
 
@@ -1045,12 +1088,16 @@ class SealElement(BearingElement):
         n,
         kxx,
         cxx,
+        mxx=None,
         kyy=None,
         kxy=0,
         kyx=0,
         cyy=None,
         cxy=0,
         cyx=0,
+        myy=None,
+        mxy=0,
+        myx=0,
         frequency=None,
         seal_leakage=None,
         tag=None,
@@ -1072,6 +1119,10 @@ class SealElement(BearingElement):
             cxy=cxy,
             cyx=cyx,
             cyy=cyy,
+            mxx=mxx,
+            mxy=mxy,
+            myx=myx,
+            myy=myy,
             tag=tag,
             n_link=n_link,
             scale_factor=seal_scale_factor,
@@ -1723,14 +1774,19 @@ class BearingElement6DoF(BearingElement):
         n,
         kxx,
         cxx,
+        mxx=None,
         kyy=None,
         cyy=None,
+        myy=None,
         kxy=0.0,
         kyx=0.0,
         kzz=0.0,
         cxy=0.0,
         cyx=0.0,
         czz=0.0,
+        mxy=0.0,
+        myx=0.0,
+        mzz=0.0,
         frequency=None,
         tag=None,
         n_link=None,
@@ -1741,12 +1797,16 @@ class BearingElement6DoF(BearingElement):
             n=n,
             kxx=kxx,
             cxx=cxx,
+            mxx=mxx,
             kyy=kyy,
             kxy=kxy,
             kyx=kyx,
             cyy=cyy,
             cxy=cxy,
             cyx=cyx,
+            myy=myy,
+            mxy=mxy,
+            myx=myx,
             frequency=frequency,
             tag=tag,
             n_link=n_link,
@@ -1754,7 +1814,7 @@ class BearingElement6DoF(BearingElement):
             color=color,
         )
 
-        new_args = ["kzz", "czz"]
+        new_args = ["kzz", "czz", "mzz"]
 
         args_dict = locals()
         coefficients = {}
@@ -1763,6 +1823,13 @@ class BearingElement6DoF(BearingElement):
             args_dict["kzz"] = kxx * 0.0
         if czz is None:
             args_dict["czz"] = cxx * 0.0
+
+        if mzz is None:
+            if mxx is None:
+                args_dict["mxx"] = 0
+                args_dict["mzz"] = 0
+            else:
+                args_dict["mzz"] = mxx * 0.0
 
         # check coefficients len for consistency
         coefficients_len = []
@@ -1815,6 +1882,9 @@ class BearingElement6DoF(BearingElement):
             f" kzz={self.kzz}, cxx={self.cxx},\n"
             f" cxy={self.cxy}, cyx={self.cyx},\n"
             f" cyy={self.cyy}, czz={self.czz},\n"
+            f" mxx={self.mxx}, mxy={self.mxy},\n"
+            f" myx={self.myx}, myy={self.myy},\n"
+            f" mzz={self.mzz},\n"
             f" frequency={self.frequency}, tag={self.tag!r})"
         )
 
@@ -1849,6 +1919,11 @@ class BearingElement6DoF(BearingElement):
             "cxy",
             "cyx",
             "czz",
+            "mxx",
+            "myy",
+            "mxy",
+            "myx",
+            "mzz",
             "frequency",
         ]
         if isinstance(other, self.__class__):
@@ -1899,8 +1974,6 @@ class BearingElement6DoF(BearingElement):
             "cxy_interpolated",
             "cyx_interpolated",
             "czz_interpolated",
-            "n_l",
-            "n_r",
             "dof_global_index",
         ]
         for p in params_to_remove:
@@ -1918,6 +1991,11 @@ class BearingElement6DoF(BearingElement):
             "cxy",
             "cyx",
             "czz",
+            "mxx",
+            "myy",
+            "mxy",
+            "myx",
+            "mzz",
             "frequency",
         ]
         for p in params:
@@ -1947,6 +2025,11 @@ class BearingElement6DoF(BearingElement):
             "cxy",
             "cyx",
             "czz",
+            "mxx",
+            "myy",
+            "mxy",
+            "myx",
+            "mzz",
             "frequency",
             "n",
             "tag",
@@ -1991,6 +2074,36 @@ class BearingElement6DoF(BearingElement):
         {'x_0': 0, 'y_0': 1, 'z_0': 2}
         """
         return dict(x_0=0, y_0=1, z_0=2)
+
+    def M(self, frequency):
+        """Mass matrix for an instance of a bearing element.
+
+        This method returns the mass matrix for an instance of a bearing
+        element.
+
+        Returns
+        -------
+        M : np.ndarray
+            Mass matrix (kg).
+
+        Examples
+        --------
+        >>> bearing = bearing_6dof_example()
+        >>> bearing.M(0)
+        array([[0., 0., 0.],
+               [0., 0., 0.],
+               [0., 0., 0.]])
+        """
+
+        mxx = self.mxx_interpolated(frequency)
+        myy = self.myy_interpolated(frequency)
+        mxy = self.mxy_interpolated(frequency)
+        myx = self.myx_interpolated(frequency)
+        mzz = self.mzz_interpolated(frequency)
+
+        M = np.array([[mxx, mxy, 0], [myx, myy, 0], [0, 0, mzz]])
+
+        return M
 
     def K(self, frequency):
         """Stiffness matrix for an instance of a bearing element.
