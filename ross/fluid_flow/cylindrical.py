@@ -139,7 +139,7 @@ class THDCylindrical(BearingElement):
     >>> from ross.fluid_flow.cylindrical import cylindrical_bearing_example
     >>> bearing = cylindrical_bearing_example()
     >>> bearing.equilibrium_pos
-    array([ 0.6873316 , -0.79393636])
+    array([0.68733194, -0.79394211])
     """
 
     @check_units
