@@ -72,7 +72,7 @@ units = {
     "fit": "m",
     "viscosity": "pascal*s",
 }
-for i, unit in zip(["k", "c"], ["N/m", "N*s/m"]):
+for i, unit in zip(["k", "c", "m"], ["N/m", "N*s/m", "kg"]):
     for j in ["x", "y", "z"]:
         for k in ["x", "y", "z"]:
             units["".join([i, j, k])] = unit
