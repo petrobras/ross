@@ -5,11 +5,12 @@ import ross as rs
 
 Path = pathlib.Path
 
-current_path = os.getcwd()
-bench_dir = Path(os.path.dirname(os.path.dirname(rs.__file__)))/'Benchmarks'
+current_path = Path.cwd() #os.getcwd()
+bench_dir = Path(os.path.dirname(rs.__file__))/'benchmark'
+snakeviz_dir = Path(bench_dir)/'Snakeviz_inputs'
 
-if not os.path.isdir(bench_dir/'Snakeviz_inputs'):
-    os.mkdir(bench_dir/'Snakeviz_inputs')
+if not snakeviz_dir.is_dir():
+    Path.mkdir(Path.joinpath(bench_dir,'Snakeviz_inputs'))
 
 os.chdir(bench_dir/'Snakeviz_inputs')
 
