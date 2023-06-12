@@ -7,12 +7,12 @@ Path = pathlib.Path
 
 current_path = Path.cwd() #os.getcwd()
 bench_dir = Path(os.path.dirname(rs.__file__))/'benchmark'
-snakeviz_dir = Path(bench_dir)/'Snakeviz_inputs'
+snakeviz_dir = Path(bench_dir)/'snakeviz_inputs'
 
 if not snakeviz_dir.is_dir():
-    Path.mkdir(Path.joinpath(bench_dir,'Snakeviz_inputs'))
+    Path.mkdir(Path.joinpath(bench_dir,'snakeviz_inputs'))
 
-os.chdir(bench_dir/'Snakeviz_inputs')
+os.chdir(bench_dir/'snakeviz_inputs')
 
 bench_type = input(f"\nRunning ross_benchmarks in version: {rs.__version__}\n\n"
                    f"What kind of Benchmarks do you want to run?"
@@ -24,38 +24,38 @@ bench_type = input(f"\nRunning ross_benchmarks in version: {rs.__version__}\n\n"
                    )
 
 
-inputs = os.listdir(bench_dir/"Snakeviz_inputs")
+inputs = os.listdir(bench_dir/"snakeviz_inputs")
 saving_path = f"version_{rs.__version__}"
 if not os.path.isdir(saving_path):
     os.mkdir(saving_path)
 
-os.chdir(bench_dir/'Snakeviz_inputs')
+os.chdir(bench_dir/'snakeviz_inputs')
 os.chdir(os.getcwd()+f"/{saving_path}")
 
-if bench_type == '2':
-    bashCommand = f"python -m cProfile -o Convergence.prof {bench_dir}/cProfile/Benchmark_Convergence.py"
+if bench_type == '1':
+    bashCommand = f"python -m cProfile -o campbell.prof {bench_dir}/cProfile/benchmark_campbell_diagram.py"
     process = subprocess.Popen(bashCommand.split(), stdout=subprocess.PIPE)
-    bashCommand = f"snakeviz Convergence.prof"
+    bashCommand = f"snakeviz campbell.prof"
     process = subprocess.Popen(bashCommand.split(), stdout=subprocess.PIPE)
-elif bench_type == '1':
-    bashCommand = f"python -m cProfile -o Campbell.prof {bench_dir}/cProfile/Benchmark_Campbell_diagram.py"
+elif bench_type == '2':
+    bashCommand = f"python -m cProfile -o convergence.prof {bench_dir}/cProfile/benchmark_convergence.py"
     process = subprocess.Popen(bashCommand.split(), stdout=subprocess.PIPE)
-    bashCommand = f"snakeviz Campbell.prof"
+    bashCommand = f"snakeviz convergence.prof"
     process = subprocess.Popen(bashCommand.split(), stdout=subprocess.PIPE)
 elif bench_type == '3':
-    bashCommand = f"python -m cProfile -o Freq_response.prof {bench_dir}/cProfile/Benchmark_Freq_response.py"
+    bashCommand = f"python -m cProfile -o freq_response.prof {bench_dir}/cProfile/benchmark_freq_response.py"
     process = subprocess.Popen(bashCommand.split(), stdout=subprocess.PIPE)
-    bashCommand = f"snakeviz Freq_response.prof"
+    bashCommand = f"snakeviz freq_response.prof"
     process = subprocess.Popen(bashCommand.split(), stdout=subprocess.PIPE)
 elif bench_type == '4':
-    bashCommand = f"python -m cProfile -o Modal.prof {bench_dir}/cProfile/Benchmark_Modal.py"
+    bashCommand = f"python -m cProfile -o modal.prof {bench_dir}/cProfile/benchmark_modal.py"
     process = subprocess.Popen(bashCommand.split(), stdout=subprocess.PIPE)
-    bashCommand = f"snakeviz Modal.prof"
+    bashCommand = f"snakeviz modal.prof"
     process = subprocess.Popen(bashCommand.split(), stdout=subprocess.PIPE)
 elif bench_type == '5':
-    bashCommand = f"python -m cProfile -o Static.prof {bench_dir}/cProfile/Benchmark_Static_analysis.py"
+    bashCommand = f"python -m cProfile -o static.prof {bench_dir}/cProfile/benchmark_static_analysis.py"
     process = subprocess.Popen(bashCommand.split(), stdout=subprocess.PIPE)
-    bashCommand = f"snakeviz Static.prof"
+    bashCommand = f"snakeviz static.prof"
     process = subprocess.Popen(bashCommand.split(), stdout=subprocess.PIPE)
 
 
