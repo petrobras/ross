@@ -1,9 +1,7 @@
-import os
-import pathlib
 import subprocess
 import ross as rs
-
-Path = pathlib.Path
+import cProfile
+from pathlib import Path
 
 ross_path = Path(rs.__file__).parent
 benchmark_path = ross_path / "benchmark"
@@ -43,11 +41,11 @@ elif bench_type == "3":
     bashCommand = f"snakeviz freq_response.prof"
     process = subprocess.Popen(bashCommand.split(), stdout=subprocess.PIPE)
 elif bench_type == "4":
-    bashCommand = (
-        f"python -m cProfile -o modal.prof {bench_dir}/cProfile/benchmark_modal.py"
+    cProfile.run(
+        "rotor = rs.rotor_example(); rotor.run_modal(speed=0)",
+        filename=saving_path / "modal.prof",
     )
-    process = subprocess.Popen(bashCommand.split(), stdout=subprocess.PIPE)
-    bashCommand = f"snakeviz modal.prof"
+    bashCommand = f"snakeviz {saving_path}/modal.prof"
     process = subprocess.Popen(bashCommand.split(), stdout=subprocess.PIPE)
 elif bench_type == "5":
     bashCommand = f"python -m cProfile -o static.prof {bench_dir}/cProfile/benchmark_static_analysis.py"
