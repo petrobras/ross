@@ -26,19 +26,25 @@ if not saving_path.is_dir():
     Path.mkdir(saving_path)
 
 if bench_type == "1":
-    bashCommand = f"python -m cProfile -o campbell.prof {bench_dir}/cProfile/benchmark_campbell_diagram.py"
-    process = subprocess.Popen(bashCommand.split(), stdout=subprocess.PIPE)
-    bashCommand = f"snakeviz campbell.prof"
+    cProfile.run(
+        "rotor = rs.rotor_example(); rotor.run_campbell(speed_range=[0, 1, 2, 3, 4])",
+        filename=saving_path / "campbell.prof",
+    )
+    bashCommand = f"snakeviz {saving_path}/campbell.prof"
     process = subprocess.Popen(bashCommand.split(), stdout=subprocess.PIPE)
 elif bench_type == "2":
-    bashCommand = f"python -m cProfile -o convergence.prof {bench_dir}/cProfile/benchmark_convergence.py"
-    process = subprocess.Popen(bashCommand.split(), stdout=subprocess.PIPE)
-    bashCommand = f"snakeviz convergence.prof"
+    cProfile.run(
+        "rotor = rs.rotor_example(); rotor.convergence()",
+        filename=saving_path / "convergence.prof",
+    )
+    bashCommand = f"snakeviz {saving_path}/convergence.prof"
     process = subprocess.Popen(bashCommand.split(), stdout=subprocess.PIPE)
 elif bench_type == "3":
-    bashCommand = f"python -m cProfile -o freq_response.prof {bench_dir}/cProfile/benchmark_freq_response.py"
-    process = subprocess.Popen(bashCommand.split(), stdout=subprocess.PIPE)
-    bashCommand = f"snakeviz freq_response.prof"
+    cProfile.run(
+        "rotor = rs.rotor_example(); rotor.run_freq_response()",
+        filename=saving_path / "freq_response.prof",
+    )
+    bashCommand = f"snakeviz {saving_path}/freq_response.prof"
     process = subprocess.Popen(bashCommand.split(), stdout=subprocess.PIPE)
 elif bench_type == "4":
     cProfile.run(
@@ -48,7 +54,9 @@ elif bench_type == "4":
     bashCommand = f"snakeviz {saving_path}/modal.prof"
     process = subprocess.Popen(bashCommand.split(), stdout=subprocess.PIPE)
 elif bench_type == "5":
-    bashCommand = f"python -m cProfile -o static.prof {bench_dir}/cProfile/benchmark_static_analysis.py"
-    process = subprocess.Popen(bashCommand.split(), stdout=subprocess.PIPE)
-    bashCommand = f"snakeviz static.prof"
+    cProfile.run(
+        "rotor = rs.rotor_example(); rotor.run_static()",
+        filename=saving_path / "static.prof",
+    )
+    bashCommand = f"snakeviz {saving_path}/static.prof"
     process = subprocess.Popen(bashCommand.split(), stdout=subprocess.PIPE)
