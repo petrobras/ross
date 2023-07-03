@@ -5,7 +5,7 @@ import ross as rs
 
 Path = pathlib.Path
 
-current_path = Path.cwd()  # os.getcwd()
+current_path = Path.cwd()
 bench_dir = Path(os.path.dirname(rs.__file__)) / "benchmark"
 snakeviz_dir = Path(bench_dir) / "snakeviz_inputs"
 
