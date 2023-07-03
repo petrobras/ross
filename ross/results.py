@@ -2424,6 +2424,93 @@ class ForcedResponseResults(Results):
 
         return fig
 
+    def plot_bode(
+        self,
+        probe,
+        probe_units="rad",
+        frequency_units="rad/s",
+        amplitude_units="m",
+        phase_units="rad",
+        mag_kwargs=None,
+        phase_kwargs=None,
+    ):
+        """Plot bode of the forced response using Plotly.
+
+        Parameters
+        ----------
+        probe : list
+            List with rs.Probe objects.
+        probe_units : str, optional
+            Units for probe orientation.
+            Default is "rad".
+        frequency_units : str, optional
+            Units for the x axis.
+            Default is "rad/s"
+        amplitude_units : str, optional
+            Units for the response magnitude.
+            Acceptable units dimensionality are:
+
+            '[length]' - Displays the displacement;
+
+            '[speed]' - Displays the velocity;
+
+            '[acceleration]' - Displays the acceleration.
+
+            Default is "m" 0 to peak.
+            To use peak to peak use '<unit> pkpk' (e.g. 'm pkpk')
+        phase_units : str, optional
+            Units for the x axis.
+            Default is "rad"
+        mag_kwargs : optional
+            Additional key word arguments can be passed to change the magnitude plot
+            layout only (e.g. width=1000, height=800, ...).
+            *See Plotly Python Figure Reference for more information.
+        phase_kwargs : optional
+            Additional key word arguments can be passed to change the phase plot
+            layout only (e.g. width=1000, height=800, ...).
+            *See Plotly Python Figure Reference for more information.
+
+        Returns
+        -------
+        bode : Plotly graph_objects.Figure()
+            The figure object with the bode plot.
+        """
+
+        mag_kwargs = {} if mag_kwargs is None else copy.copy(mag_kwargs)
+        phase_kwargs = {} if phase_kwargs is None else copy.copy(phase_kwargs)
+
+        fig0 = self.plot_magnitude(
+            probe, probe_units, frequency_units, amplitude_units, **mag_kwargs
+        )
+        fig1 = self.plot_phase(
+            probe,
+            probe_units,
+            frequency_units,
+            amplitude_units,
+            phase_units,
+            **phase_kwargs,
+        )
+
+        bode = make_subplots(
+            rows=2,
+            cols=1,
+            shared_xaxes=True,
+            vertical_spacing=0.02,
+        )
+
+        for data in fig0["data"]:
+            data.showlegend = False
+            bode.add_trace(data, row=1, col=1)
+        for data in fig1["data"]:
+            data.showlegend = False
+            bode.add_trace(data, row=2, col=1)
+
+        bode.update_yaxes(fig0.layout.yaxis, row=1, col=1)
+        bode.update_xaxes(fig1.layout.xaxis, row=2, col=1)
+        bode.update_yaxes(fig1.layout.yaxis, row=2, col=1)
+
+        return bode
+
     def plot_polar_bode(
         self,
         probe,
@@ -2584,19 +2671,14 @@ class ForcedResponseResults(Results):
             Plotly figure with Amplitude vs Frequency and Phase vs Frequency and
             polar Amplitude vs Phase plots.
         """
-        mag_kwargs = {} if mag_kwargs is None else copy.copy(mag_kwargs)
-        phase_kwargs = {} if phase_kwargs is None else copy.copy(phase_kwargs)
         polar_kwargs = {} if polar_kwargs is None else copy.copy(polar_kwargs)
         subplot_kwargs = {} if subplot_kwargs is None else copy.copy(subplot_kwargs)
 
         # fmt: off
-        fig0 = self.plot_magnitude(
-            probe, probe_units, frequency_units, amplitude_units, **mag_kwargs
+        fig0 = self.plot_bode(
+            probe, probe_units, frequency_units, amplitude_units, phase_units, mag_kwargs, phase_kwargs
         )
-        fig1 = self.plot_phase(
-            probe, probe_units, frequency_units, amplitude_units, phase_units, **phase_kwargs
-        )
-        fig2 = self.plot_polar_bode(
+        fig1 = self.plot_polar_bode(
             probe, probe_units, frequency_units, amplitude_units, phase_units, **polar_kwargs
         )
         # fmt: on
@@ -2608,22 +2690,28 @@ class ForcedResponseResults(Results):
             shared_xaxes=True,
             vertical_spacing=0.02,
         )
+
         for data in fig0["data"]:
             data.showlegend = False
-            subplots.add_trace(data, row=1, col=1)
+            row = 1
+            if "2" in data.yaxis:
+                row = 2
+
+            subplots.add_trace(data, row=row, col=1)
+
         for data in fig1["data"]:
-            data.showlegend = False
-            subplots.add_trace(data, row=2, col=1)
-        for data in fig2["data"]:
             subplots.add_trace(data, row=1, col=2)
 
+        xaxes_layout = fig0.layout.xaxis2
+        xaxes_layout["domain"] = [0, 0.45]
+
         subplots.update_yaxes(fig0.layout.yaxis, row=1, col=1)
-        subplots.update_xaxes(fig1.layout.xaxis, row=2, col=1)
-        subplots.update_yaxes(fig1.layout.yaxis, row=2, col=1)
+        subplots.update_yaxes(fig0.layout.yaxis2, row=2, col=1)
+        subplots.update_xaxes(xaxes_layout, row=2, col=1)
         subplots.update_layout(
             polar=dict(
-                radialaxis=fig2.layout.polar.radialaxis,
-                angularaxis=fig2.layout.polar.angularaxis,
+                radialaxis=fig1.layout.polar.radialaxis,
+                angularaxis=fig1.layout.polar.angularaxis,
             ),
             **subplot_kwargs,
         )
