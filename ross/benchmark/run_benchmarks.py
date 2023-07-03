@@ -1,7 +1,10 @@
 import subprocess
 import ross as rs
 import cProfile
+import pytest
 from pathlib import Path
+
+pytest.skip("Skipping benchmarks", allow_module_level=True)
 
 ross_path = Path(rs.__file__).parent
 benchmark_path = ross_path / "benchmark"
