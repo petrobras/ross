@@ -5,14 +5,12 @@ import ross as rs
 
 Path = pathlib.Path
 
-current_path = Path.cwd()
-bench_dir = Path(os.path.dirname(rs.__file__)) / "benchmark"
-snakeviz_dir = Path(bench_dir) / "snakeviz_inputs"
+ross_path = Path(rs.__file__).parent
+benchmark_path = ross_path / "benchmark"
+snakeviz_path = benchmark_path / "snakeviz_inputs"
 
-if not snakeviz_dir.is_dir():
-    Path.mkdir(Path.joinpath(bench_dir, "snakeviz_inputs"))
-
-os.chdir(bench_dir / "snakeviz_inputs")
+if not snakeviz_path.is_dir():
+    Path.mkdir(snakeviz_path)
 
 bench_type = input(
     f"\nRunning ross_benchmarks in version: {rs.__version__}\n\n"
@@ -25,13 +23,9 @@ bench_type = input(
 )
 
 
-inputs = os.listdir(bench_dir / "snakeviz_inputs")
-saving_path = f"version_{rs.__version__}"
-if not os.path.isdir(saving_path):
-    os.mkdir(saving_path)
-
-os.chdir(bench_dir / "snakeviz_inputs")
-os.chdir(os.getcwd() + f"/{saving_path}")
+saving_path = snakeviz_path / f"version_{rs.__version__}"
+if not saving_path.is_dir():
+    Path.mkdir(saving_path)
 
 if bench_type == "1":
     bashCommand = f"python -m cProfile -o campbell.prof {bench_dir}/cProfile/benchmark_campbell_diagram.py"
