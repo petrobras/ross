@@ -1020,6 +1020,57 @@ class ModalResults(Results):
         """
         return self.whirl_to_cmap(self.whirl_direction())
 
+    def data_mode(
+        self,
+        mode=None,
+        length_units="m",
+        frequency_units="rad/s",
+        damping_parameter="log_dec",
+    ):
+        """Return the mode shapes in DataFrame format.
+
+        Parameters
+        ----------
+        mode : int
+            The n'th vibration mode
+        frequency_type : str, optional
+            "wd" calculates the damped natural frequencies.
+            "wn" calculates the undamped natural frequencies.
+            Defaults is "wd".
+        length_units : str, optional
+            length units.
+            Default is 'm'.
+        damping_parameter : str, optional
+            Define which value to show for damping. We can use "log_dec" or "damping_ratio".
+            Default is "log_dec".
+
+        Returns
+        -------
+        df : pd.DataFrame
+            DataFrame storing mode shapes data arrays.
+        """
+        data = {}
+
+        damping_name = "Log. Dec."
+        damping_value = self.log_dec[mode]
+        if damping_parameter == "damping_ratio":
+            damping_name = "Damping ratio"
+            damping_value = self.damping_ratio[mode]
+        data["damping_name"] = damping_name
+        data["damping_value"] = damping_value
+  
+        data["wd"] = Q_(self.wd[mode], 'rad/s').to(frequency_units).m
+        data["wn"] = Q_(self.wn[mode], 'rad/s').to(frequency_units).m
+        data["speed"] = Q_(self.speed, 'rad/s').to(frequency_units).m
+
+        data[mode] = {}
+        for _key, _values in self.shapes[mode].__dict__.items():
+            data[mode][_key] = _values
+
+        df = pd.DataFrame(data)
+
+        return df
+
     def plot_mode_3d(
         self,
         mode=None,
@@ -1074,16 +1125,19 @@ class ModalResults(Results):
         if fig is None:
             fig = go.Figure()
 
-        damping_name = "Log. Dec."
-        damping_value = self.log_dec[mode]
-        if damping_parameter == "damping_ratio":
-            damping_name = "Damping ratio"
-            damping_value = self.damping_ratio[mode]
+        df = self.data_mode(mode, length_units, frequency_units, damping_parameter)
+        
+        damping_name = df["damping_name"]
+        damping_value = df["damping_value"]
+
+        wd = df["wd"]
+        wn = df["wn"]
+        speed = df["speed"]
 
         frequency = {
-            "wd": f"ω<sub>d</sub> = {Q_(self.wd[mode], 'rad/s').to(frequency_units).m:.2f}",
-            "wn": f"ω<sub>n</sub> = {Q_(self.wn[mode], 'rad/s').to(frequency_units).m:.2f}",
-            "speed": f"Speed = {Q_(self.speed, 'rad/s').to(frequency_units).m:.2f}",
+            "wd": f"ω<sub>d</sub> = {wd}",
+            "wn": f"ω<sub>n</sub> = {wn}",
+            "speed": f"Speed = {speed}",
         }
 
         shape = self.shapes[mode]
@@ -1108,23 +1162,23 @@ class ModalResults(Results):
                 aspectmode="manual",
                 aspectratio=dict(x=2.5, y=1, z=1),
             ),
-            title=dict(
-                text=(
-                    f"{title}<br>"
-                    f"Mode {mode} | "
-                    f"{frequency['speed']} {frequency_units} | "
-                    f"whirl: {self.whirl_direction()[mode]} | "
-                    f"{frequency[frequency_type]} {frequency_units} | "
-                    f"{damping_name} = {damping_value:.2f}"
-                ),
-                x=0.5,
-                xanchor="center",
-            ),
+            # title=dict(
+            #     text=(
+            #         f"{title}<br>"
+            #         f"Mode {mode} | "
+            #         # f"{frequency['speed']} {frequency_units} | "
+            #         # f"whirl: {self.whirl_direction()[mode]} | "
+            #         # f"{frequency[frequency_type]} {frequency_units} | "
+            #         # f"{damping_name} = {damping_value:.2f}"
+            #     ),
+            #     x=0.5,
+            #     xanchor="center",
+            # ),
             **kwargs,
         )
 
         return fig
-
+    
     def plot_mode_2d(
         self,
         mode=None,
@@ -1175,19 +1229,23 @@ class ModalResults(Results):
         fig : Plotly graph_objects.Figure()
             The figure object with the plot.
         """
-        damping_name = "Log. Dec."
-        damping_value = self.log_dec[mode]
-        if damping_parameter == "damping_ratio":
-            damping_name = "Damping ratio"
-            damping_value = self.damping_ratio[mode]
+        
+        df = self.data_mode(mode, length_units, frequency_units, damping_parameter)
+        
+        damping_name = df["damping_name"]
+        damping_value = df["damping_value"]
 
         if fig is None:
             fig = go.Figure()
 
+        wd = df["wd"]
+        wn = df["wn"]
+        speed = df["speed"]
+
         frequency = {
-            "wd": f"ω<sub>d</sub> = {Q_(self.wd[mode], 'rad/s').to(frequency_units).m:.2f}",
-            "wn": f"ω<sub>n</sub> = {Q_(self.wn[mode], 'rad/s').to(frequency_units).m:.2f}",
-            "speed": f"Speed = {Q_(self.speed, 'rad/s').to(frequency_units).m:.2f}",
+            "wd": f"ω<sub>d</sub> = {wd}",
+            "wn": f"ω<sub>n</sub> = {wn}",
+            "speed": f"Speed = {speed}",
         }
 
         shape = self.shapes[mode]
@@ -1204,9 +1262,9 @@ class ModalResults(Results):
                     f"{title}<br>"
                     f"Mode {mode} | "
                     f"{frequency['speed']} {frequency_units} | "
-                    f"whirl: {self.whirl_direction()[mode]} | "
-                    f"{frequency[frequency_type]} {frequency_units} | "
-                    f"{damping_name} = {damping_value:.2f}"
+                    # f"whirl: {self.whirl_direction()[mode]} | "
+                    # f"{frequency[frequency_type]} {frequency_units} | "
+                    # f"{damping_name} = {damping_value:.2f}"
                 ),
                 x=0.5,
                 xanchor="center",
@@ -4628,6 +4686,51 @@ class UCSResults(Results):
         fig.update_layout(title=dict(text="Undamped Critical Speed Map"), **kwargs)
 
         return fig
+    
+    # def data_mode_2d(
+    #     self,
+    #     critical_mode,
+    #     frequency_type="wd",
+    #     length_units="m",
+    # ):
+    #     """Result the mode shape.
+
+    #     Parameters
+    #     ----------
+    #     critical_mode : int
+    #         The n'th critical mode.
+    #     frequency_type : str, optional
+    #         "wd" calculates de map for the damped natural frequencies.
+    #         "wn" calculates de map for the undamped natural frequencies.
+    #         Defaults is "wd".
+    #     length_units : str, optional
+    #         length units.
+    #         Default is 'm'.
+
+    #     Returns
+    #     -------
+    #     df : pd.DataFrame
+    #         DataFrame storing mode ata arrays.
+    #     """
+    #     modal_critical = self.critical_points_modal[critical_mode]
+    #     # select nearest forward
+    #     forward_frequencies = modal_critical.wd[
+    #         modal_critical.whirl_direction() == "Forward"
+    #     ]
+    #     idx_forward = (np.abs(forward_frequencies - modal_critical.speed)).argmin()
+    #     forward_frequency = forward_frequencies[idx_forward]
+    #     idx = (np.abs(modal_critical.wd - forward_frequency)).argmin()
+    #     fig = modal_critical.plot_mode_2d(
+    #         idx,
+    #         fig=fig,
+    #         frequency_type=frequency_type,
+    #         title=title,
+    #         length_units=length_units,
+    #         frequency_units=frequency_units,
+    #         **kwargs,
+    #     )
+
+    #     return fig
 
     def plot_mode_2d(
         self,
