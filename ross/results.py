@@ -1033,10 +1033,6 @@ class ModalResults(Results):
         ----------
         mode : int
             The n'th vibration mode
-        frequency_type : str, optional
-            "wd" calculates the damped natural frequencies.
-            "wn" calculates the undamped natural frequencies.
-            Defaults is "wd".
         length_units : str, optional
             length units.
             Default is 'm'.
@@ -4687,51 +4683,6 @@ class UCSResults(Results):
 
         return fig
     
-    # def data_mode_2d(
-    #     self,
-    #     critical_mode,
-    #     frequency_type="wd",
-    #     length_units="m",
-    # ):
-    #     """Result the mode shape.
-
-    #     Parameters
-    #     ----------
-    #     critical_mode : int
-    #         The n'th critical mode.
-    #     frequency_type : str, optional
-    #         "wd" calculates de map for the damped natural frequencies.
-    #         "wn" calculates de map for the undamped natural frequencies.
-    #         Defaults is "wd".
-    #     length_units : str, optional
-    #         length units.
-    #         Default is 'm'.
-
-    #     Returns
-    #     -------
-    #     df : pd.DataFrame
-    #         DataFrame storing mode ata arrays.
-    #     """
-    #     modal_critical = self.critical_points_modal[critical_mode]
-    #     # select nearest forward
-    #     forward_frequencies = modal_critical.wd[
-    #         modal_critical.whirl_direction() == "Forward"
-    #     ]
-    #     idx_forward = (np.abs(forward_frequencies - modal_critical.speed)).argmin()
-    #     forward_frequency = forward_frequencies[idx_forward]
-    #     idx = (np.abs(modal_critical.wd - forward_frequency)).argmin()
-    #     fig = modal_critical.plot_mode_2d(
-    #         idx,
-    #         fig=fig,
-    #         frequency_type=frequency_type,
-    #         title=title,
-    #         length_units=length_units,
-    #         frequency_units=frequency_units,
-    #         **kwargs,
-    #     )
-
-    #     return fig
-
     def plot_mode_2d(
         self,
         critical_mode,
