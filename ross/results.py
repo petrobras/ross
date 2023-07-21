@@ -1127,17 +1127,17 @@ class ModalResults(Results):
 
         df = self.data_mode(mode, length_units, frequency_units, damping_parameter)
         
-        damping_name = df["damping_name"]
-        damping_value = df["damping_value"]
+        damping_name = df["damping_name"][0]
+        damping_value = df["damping_value"][0]
 
         wd = df["wd"]
         wn = df["wn"]
         speed = df["speed"]
 
         frequency = {
-            "wd": f"ω<sub>d</sub> = {wd}",
-            "wn": f"ω<sub>n</sub> = {wn}",
-            "speed": f"Speed = {speed}",
+            "wd": f"ω<sub>d</sub> = {wd[0]:.2f}",
+            "wn": f"ω<sub>n</sub> = {wn[0]:.2f}",
+            "speed": f"Speed = {speed[0]:.2f}",
         }
 
         shape = self.shapes[mode]
@@ -1162,18 +1162,18 @@ class ModalResults(Results):
                 aspectmode="manual",
                 aspectratio=dict(x=2.5, y=1, z=1),
             ),
-            # title=dict(
-            #     text=(
-            #         f"{title}<br>"
-            #         f"Mode {mode} | "
-            #         # f"{frequency['speed']} {frequency_units} | "
-            #         # f"whirl: {self.whirl_direction()[mode]} | "
-            #         # f"{frequency[frequency_type]} {frequency_units} | "
-            #         # f"{damping_name} = {damping_value:.2f}"
-            #     ),
-            #     x=0.5,
-            #     xanchor="center",
-            # ),
+            title=dict(
+                text=(
+                    f"{title}<br>"
+                    f"Mode {mode} | "
+                    f"{frequency['speed']} {frequency_units} | "
+                    f"whirl: {self.whirl_direction()[mode]} | "
+                    f"{frequency[frequency_type]} {frequency_units} | "
+                    f"{damping_name} = {damping_value:.2f}"
+                ),
+                x=0.5,
+                xanchor="center",
+            ),
             **kwargs,
         )
 
@@ -1232,8 +1232,8 @@ class ModalResults(Results):
         
         df = self.data_mode(mode, length_units, frequency_units, damping_parameter)
         
-        damping_name = df["damping_name"]
-        damping_value = df["damping_value"]
+        damping_name = df["damping_name"][0]
+        damping_value = df["damping_value"][0]
 
         if fig is None:
             fig = go.Figure()
@@ -1243,9 +1243,9 @@ class ModalResults(Results):
         speed = df["speed"]
 
         frequency = {
-            "wd": f"ω<sub>d</sub> = {wd}",
-            "wn": f"ω<sub>n</sub> = {wn}",
-            "speed": f"Speed = {speed}",
+            "wd": f"ω<sub>d</sub> = {wd[0]:.2f}",
+            "wn": f"ω<sub>n</sub> = {wn[0]:.2f}",
+            "speed": f"Speed = {speed[0]:.2f}",
         }
 
         shape = self.shapes[mode]
@@ -1262,9 +1262,9 @@ class ModalResults(Results):
                     f"{title}<br>"
                     f"Mode {mode} | "
                     f"{frequency['speed']} {frequency_units} | "
-                    # f"whirl: {self.whirl_direction()[mode]} | "
-                    # f"{frequency[frequency_type]} {frequency_units} | "
-                    # f"{damping_name} = {damping_value:.2f}"
+                    f"whirl: {self.whirl_direction()[mode]} | "
+                    f"{frequency[frequency_type]} {frequency_units} | "
+                    f"{damping_name} = {damping_value:.2f}"
                 ),
                 x=0.5,
                 xanchor="center",
