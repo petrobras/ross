@@ -1054,10 +1054,10 @@ class ModalResults(Results):
             damping_value = self.damping_ratio[mode]
         data["damping_name"] = damping_name
         data["damping_value"] = damping_value
-  
-        data["wd"] = Q_(self.wd[mode], 'rad/s').to(frequency_units).m
-        data["wn"] = Q_(self.wn[mode], 'rad/s').to(frequency_units).m
-        data["speed"] = Q_(self.speed, 'rad/s').to(frequency_units).m
+
+        data["wd"] = Q_(self.wd[mode], "rad/s").to(frequency_units).m
+        data["wn"] = Q_(self.wn[mode], "rad/s").to(frequency_units).m
+        data["speed"] = Q_(self.speed, "rad/s").to(frequency_units).m
 
         data[mode] = {}
         for _key, _values in self.shapes[mode].__dict__.items():
@@ -1122,7 +1122,7 @@ class ModalResults(Results):
             fig = go.Figure()
 
         df = self.data_mode(mode, length_units, frequency_units, damping_parameter)
-        
+
         damping_name = df["damping_name"][0]
         damping_value = df["damping_value"][0]
 
@@ -1174,7 +1174,7 @@ class ModalResults(Results):
         )
 
         return fig
-    
+
     def plot_mode_2d(
         self,
         mode=None,
@@ -1225,9 +1225,9 @@ class ModalResults(Results):
         fig : Plotly graph_objects.Figure()
             The figure object with the plot.
         """
-        
+
         df = self.data_mode(mode, length_units, frequency_units, damping_parameter)
-        
+
         damping_name = df["damping_name"][0]
         damping_value = df["damping_value"][0]
 
@@ -4682,7 +4682,7 @@ class UCSResults(Results):
         fig.update_layout(title=dict(text="Undamped Critical Speed Map"), **kwargs)
 
         return fig
-    
+
     def plot_mode_2d(
         self,
         critical_mode,
