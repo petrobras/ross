@@ -4291,7 +4291,7 @@ class TimeResponseResults(Results):
             # fmt: off
             operator = np.array(
                 [[np.cos(angle), - np.sin(angle)],
-                 [np.cos(angle), + np.sin(angle)]]
+                 [np.sin(angle), + np.cos(angle)]]
             )
 
             _probe_resp = operator @ np.vstack((self.yout[:, dofx], self.yout[:, dofy]))
