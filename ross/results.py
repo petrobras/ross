@@ -1020,6 +1020,53 @@ class ModalResults(Results):
         """
         return self.whirl_to_cmap(self.whirl_direction())
 
+    def data_mode(
+        self,
+        mode=None,
+        length_units="m",
+        frequency_units="rad/s",
+        damping_parameter="log_dec",
+    ):
+        """Return the mode shapes in DataFrame format.
+
+        Parameters
+        ----------
+        mode : int
+            The n'th vibration mode
+        length_units : str, optional
+            length units.
+            Default is 'm'.
+        damping_parameter : str, optional
+            Define which value to show for damping. We can use "log_dec" or "damping_ratio".
+            Default is "log_dec".
+
+        Returns
+        -------
+        df : pd.DataFrame
+            DataFrame storing mode shapes data arrays.
+        """
+        data = {}
+
+        damping_name = "Log. Dec."
+        damping_value = self.log_dec[mode]
+        if damping_parameter == "damping_ratio":
+            damping_name = "Damping ratio"
+            damping_value = self.damping_ratio[mode]
+        data["damping_name"] = damping_name
+        data["damping_value"] = damping_value
+
+        data["wd"] = Q_(self.wd[mode], "rad/s").to(frequency_units).m
+        data["wn"] = Q_(self.wn[mode], "rad/s").to(frequency_units).m
+        data["speed"] = Q_(self.speed, "rad/s").to(frequency_units).m
+
+        data[mode] = {}
+        for _key, _values in self.shapes[mode].__dict__.items():
+            data[mode][_key] = _values
+
+        df = pd.DataFrame(data)
+
+        return df
+
     def plot_mode_3d(
         self,
         mode=None,
@@ -1074,16 +1121,19 @@ class ModalResults(Results):
         if fig is None:
             fig = go.Figure()
 
-        damping_name = "Log. Dec."
-        damping_value = self.log_dec[mode]
-        if damping_parameter == "damping_ratio":
-            damping_name = "Damping ratio"
-            damping_value = self.damping_ratio[mode]
+        df = self.data_mode(mode, length_units, frequency_units, damping_parameter)
+
+        damping_name = df["damping_name"][0]
+        damping_value = df["damping_value"][0]
+
+        wd = df["wd"]
+        wn = df["wn"]
+        speed = df["speed"]
 
         frequency = {
-            "wd": f"ω<sub>d</sub> = {Q_(self.wd[mode], 'rad/s').to(frequency_units).m:.2f}",
-            "wn": f"ω<sub>n</sub> = {Q_(self.wn[mode], 'rad/s').to(frequency_units).m:.2f}",
-            "speed": f"Speed = {Q_(self.speed, 'rad/s').to(frequency_units).m:.2f}",
+            "wd": f"ω<sub>d</sub> = {wd[0]:.2f}",
+            "wn": f"ω<sub>n</sub> = {wn[0]:.2f}",
+            "speed": f"Speed = {speed[0]:.2f}",
         }
 
         shape = self.shapes[mode]
@@ -1175,19 +1225,23 @@ class ModalResults(Results):
         fig : Plotly graph_objects.Figure()
             The figure object with the plot.
         """
-        damping_name = "Log. Dec."
-        damping_value = self.log_dec[mode]
-        if damping_parameter == "damping_ratio":
-            damping_name = "Damping ratio"
-            damping_value = self.damping_ratio[mode]
+
+        df = self.data_mode(mode, length_units, frequency_units, damping_parameter)
+
+        damping_name = df["damping_name"][0]
+        damping_value = df["damping_value"][0]
 
         if fig is None:
             fig = go.Figure()
 
+        wd = df["wd"]
+        wn = df["wn"]
+        speed = df["speed"]
+
         frequency = {
-            "wd": f"ω<sub>d</sub> = {Q_(self.wd[mode], 'rad/s').to(frequency_units).m:.2f}",
-            "wn": f"ω<sub>n</sub> = {Q_(self.wn[mode], 'rad/s').to(frequency_units).m:.2f}",
-            "speed": f"Speed = {Q_(self.speed, 'rad/s').to(frequency_units).m:.2f}",
+            "wd": f"ω<sub>d</sub> = {wd[0]:.2f}",
+            "wn": f"ω<sub>n</sub> = {wn[0]:.2f}",
+            "speed": f"Speed = {speed[0]:.2f}",
         }
 
         shape = self.shapes[mode]
