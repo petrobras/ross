@@ -19,6 +19,7 @@ from scipy import linalg as la
 from ross.plotly_theme import tableau_colors
 from ross.units import Q_, check_units
 from ross.utils import intersection
+from ipywidgets import VBox
 
 __all__ = [
     "Orbit",
@@ -1599,6 +1600,67 @@ class CampbellResults(Results):
         )
 
         return fig
+
+    def plot_with_mode_shape(
+        self,
+        harmonics=[1],
+        frequency_units="rad/s",
+        damping_parameter="log_dec",
+        frequency_range=None,
+        damping_range=None,
+        fig=None,
+        **kwargs,
+    ):
+        def _plot_with_mode_shape_callback(trace, points, state):
+            point_idx = points.point_inds
+            if len(point_idx) > 0:
+                frequency = trace.x[point_idx][0]
+                natural_frequency = trace.y[point_idx][0]
+
+                # run modal analysis for desired frequency
+                modal = self.modal_results[Q_(frequency, frequency_units).to("rad/s").m]
+
+                # identify index of desired mode
+                idx = (
+                    np.abs(
+                        modal.wd - Q_(natural_frequency, frequency_units).to("rad/s").m
+                    )
+                ).argmin()
+
+                new_plot_mode_3d = modal.plot_mode_3d(
+                    idx,
+                    frequency_units=frequency_units,
+                    damping_parameter=damping_parameter,
+                )
+                with plot_mode_3d.batch_update():
+                    # update title
+                    plot_mode_3d.layout["title"]["text"] = new_plot_mode_3d.layout[
+                        "title"
+                    ]["text"]
+                    for data, new_data in zip(plot_mode_3d_data, new_plot_mode_3d.data):
+                        for param in data:
+                            data[param] = new_data[param]
+
+        camp_fig = self.plot(
+            harmonics=harmonics,
+            frequency_units=frequency_units,
+            damping_parameter=damping_parameter,
+            frequency_range=frequency_range,
+            damping_range=damping_range,
+            fig=fig,
+            **kwargs,
+        )
+        camp_fig = go.FigureWidget(camp_fig)
+        plot_mode_3d = self.modal_results[self.speed_range[0]].plot_mode_3d(
+            0, frequency_units=frequency_units, damping_parameter=damping_parameter
+        )
+        plot_mode_3d = go.FigureWidget(plot_mode_3d)
+        plot_mode_3d_data = plot_mode_3d.data
+
+        for scatter in camp_fig.data:
+            scatter.on_click(_plot_with_mode_shape_callback)
+
+        return VBox([camp_fig, plot_mode_3d])
 
 
 class FrequencyResponseResults(Results):
