@@ -19,7 +19,6 @@ from scipy import linalg as la
 from ross.plotly_theme import tableau_colors
 from ross.units import Q_, check_units
 from ross.utils import intersection
-from ipywidgets import VBox
 
 __all__ = [
     "Orbit",
@@ -1611,6 +1610,12 @@ class CampbellResults(Results):
         fig=None,
         **kwargs,
     ):
+
+        try:
+            from ipywidgets import VBox
+        except ImportError:
+            raise ImportError("Please install ipywidgets to use this feature.")
+
         def _plot_with_mode_shape_callback(trace, points, state):
             point_idx = points.point_inds
             if len(point_idx) > 0:
