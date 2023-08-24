@@ -85,6 +85,12 @@ class Results(ABC):
             data = {}
 
         data[f"{self.__class__.__name__}"] = args
+
+        try:
+            del data["CampbellResults"]["modal_results"]
+        except KeyError:
+            pass
+
         with open(file, "w") as f:
             toml.dump(data, f, encoder=toml.TomlNumpyEncoder())
 
@@ -148,6 +154,8 @@ class Results(ABC):
 
         data = toml.load(file)
         data = list(data.values())[0]
+        if cls == CampbellResults:
+            data["modal_results"] = None
         for key, value in data.items():
             if key == "rotor":
                 aux_file = str(file)[:-5] + "_rotor" + str(file)[-5:]
@@ -1666,6 +1674,20 @@ class CampbellResults(Results):
             scatter.on_click(_plot_with_mode_shape_callback)
 
         return VBox([camp_fig, plot_mode_3d])
+
+    def save(self, file):
+        # TODO save modal results
+        warn(
+            "The CampbellResults.save method is not saving the attribute 'modal_results' for now."
+        )
+        super().save(file)
+
+    @classmethod
+    def load(cls, file):
+        warn(
+            "The CampbellResults.save method is not saving the attribute 'modal_results' for now."
+        )
+        return super().load(file)
 
 
 class FrequencyResponseResults(Results):
