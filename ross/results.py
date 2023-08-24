@@ -1354,6 +1354,8 @@ class CampbellResults(Results):
         Array with the Logarithmic decrement
     whirl_values : array
         Array with the whirl values (0, 0.5 or 1)
+    modal_results : dict
+        Dictionary with the modal results for each speed in the speed range.
 
     Returns
     -------
@@ -1361,12 +1363,15 @@ class CampbellResults(Results):
         The figure object with the plot.
     """
 
-    def __init__(self, speed_range, wd, log_dec, damping_ratio, whirl_values):
+    def __init__(
+        self, speed_range, wd, log_dec, damping_ratio, whirl_values, modal_results
+    ):
         self.speed_range = speed_range
         self.wd = wd
         self.log_dec = log_dec
         self.damping_ratio = damping_ratio
         self.whirl_values = whirl_values
+        self.modal_results = modal_results
 
     @check_units
     def plot(

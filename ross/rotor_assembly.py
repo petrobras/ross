@@ -2101,8 +2101,10 @@ class Rotor(object):
 
         results = np.zeros([len(speed_range), frequencies, 6])
 
+        modal_results = {}
         for i, w in enumerate(speed_range):
             modal = self.run_modal(speed=w, num_modes=2 * frequencies)
+            modal_results[w] = modal
 
             if frequency_type == "wd":
                 results[i, :, 0] = modal.wd[:frequencies]
@@ -2125,6 +2127,7 @@ class Rotor(object):
             log_dec=results[..., 1],
             damping_ratio=results[..., 2],
             whirl_values=results[..., 3],
+            modal_results=modal_results,
         )
 
         return results
