@@ -56,7 +56,10 @@ units = {
     "unbalance_magnitude": "kg*m",
     "unbalance_phase": "rad",
     "pressure": "pascal",
+    "pressure_ratio": "dimensionless",
+    "p": "pascal",
     "temperature": "degK",
+    "T": "degK",
     "velocity": "m/s",
     "angle": "rad",
     "arc": "rad",
@@ -68,9 +71,19 @@ units = {
     "load": "N",
     "force": "N",
     "torque": "N*m",
-    "flowv": "m³/s",
+    "flow_v": "meter**3/second",
+    "flow_m": "kilogram/second",
     "fit": "m",
     "viscosity": "pascal*s",
+    "h": "joule/kilogram",
+    "s": "joule/(kelvin kilogram)",
+    "b": "meter",
+    "D": "meter",
+    "d": "meter",
+    "roughness": "meter",
+    "head": "joule/kilogram",
+    "eff": "dimensionless",
+    "power": "watt",
 }
 for i, unit in zip(["k", "c", "m"], ["N/m", "N*s/m", "kg"]):
     for j in ["x", "y", "z"]:
@@ -117,8 +130,19 @@ def check_units(func):
 
         for arg_name, arg_value in zip(args_names, args):
             names = arg_name.split("_")
+            if "units" in names:
+                base_unit_args.append(arg_value)
+                continue
+
+            # treat flow_v and flow_m separately
+            if "flow_v" in arg_name:
+                names.insert(0, "flow_v")
+            if "flow_m" in arg_name:
+                names.insert(0, "flow_m")
+
             if arg_name not in names:
-                names.append(arg_name)
+                # check first for arg_name in units
+                names.insert(0, arg_name)
             for name in names:
                 if name in units and arg_value is not None:
                     # For now, we only return the magnitude for the converted Quantity
@@ -139,8 +163,19 @@ def check_units(func):
         base_unit_kwargs = {}
         for k, v in kwargs.items():
             names = k.split("_")
+            if "units" in names:
+                base_unit_kwargs[k] = v
+                continue
+
+            # treat flow_v and flow_m separately
+            if "flow_v" in k:
+                names.insert(0, "flow_v")
+            if "flow_m" in k:
+                names.insert(0, "flow_m")
+
             if k not in names:
-                names.append(k)
+                # check first for arg_name in units
+                names.insert(0, k)
             for name in names:
                 if name in units and v is not None:
                     try:
@@ -149,7 +184,7 @@ def check_units(func):
                         try:
                             base_unit_kwargs[k] = Q_(v, units[name]).m
                         except TypeError:
-                            # Handle erros that we get with bool for example
+                            # Handle errors that we get with bool for example
                             base_unit_kwargs[k] = v
                     break
             else:
