@@ -1,6 +1,6 @@
 
-numpy>=1.25.0
-scipy
+numpy
+scipy<1.11.*
 toml>=0.10.1
 pandas>=0.23
 plotly>=4.7.0
