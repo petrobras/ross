@@ -21,6 +21,8 @@ def cylindrical():
         elements_axial=3,
         n_pad=2,
         pad_arc_length=176,
+        preload=0,
+        geometry="circular",
         reference_temperature=50,
         speed=speed,
         load_x_direction=0,
@@ -52,8 +54,8 @@ def test_cylindrical_parameters(cylindrical):
 
 
 def test_cylindrical_equilibrium_pos(cylindrical):
-    assert math.isclose(cylindrical.equilibrium_pos[0], 0.6873316, rel_tol=0.01)
-    assert math.isclose(cylindrical.equilibrium_pos[1], -0.79393636, rel_tol=0.01)
+    assert math.isclose(cylindrical.equilibrium_pos[0], 0.68733194, rel_tol=0.01)
+    assert math.isclose(cylindrical.equilibrium_pos[1], -0.79394211, rel_tol=0.01)
 
 
 def test_cylindrical_coefficients(cylindrical):
@@ -67,11 +69,11 @@ def test_cylindrical_coefficients(cylindrical):
     cyx = coefs[1][2]
     cyy = coefs[1][3]
 
-    assert math.isclose(kxx, 1080948741.8512235, rel_tol=0.0001)
-    assert math.isclose(kxy, 339258572.34310913, rel_tol=0.0001)
-    assert math.isclose(kyx, -1359170639.0567815, rel_tol=0.0001)
-    assert math.isclose(kyy, 1108970752.2456105, rel_tol=0.0001)
-    assert math.isclose(cxx, 9815899.503793057, rel_tol=0.0001)
-    assert math.isclose(cxy, -9963602.922357056, rel_tol=0.0001)
-    assert math.isclose(cyx, -11312462.69772395, rel_tol=0.0001)
-    assert math.isclose(cyy, 27194995.506247465, rel_tol=0.0001)
+    assert math.isclose(kxx, 2497674531.1749372, rel_tol=0.0001)
+    assert math.isclose(kxy, 783937669.6587772, rel_tol=0.0001)
+    assert math.isclose(kyx, -3140562821.5290236, rel_tol=0.0001)
+    assert math.isclose(kyy, 2562440911.734241, rel_tol=0.0001)
+    assert math.isclose(cxx, 36950674.61976142, rel_tol=0.0001)
+    assert math.isclose(cxy, -37265296.2322692, rel_tol=0.0001)
+    assert math.isclose(cyx, -42642543.712838694, rel_tol=0.0001)
+    assert math.isclose(cyy, 100992315.0043159, rel_tol=0.0001)
