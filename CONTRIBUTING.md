@@ -71,6 +71,18 @@ It should look like this:
 
 The part {code}`fetch = +refs/pull/*/head:refs/remotes/upstream/pr/*` will make pull requests available in your local repository after a git fetch.
 
+For example, assuming `$ID` is the pull request number and `$BRANCHNAME` is the name of the new local branch you wish to create:
+
+```
+git fetch upstream pull/$ID/head:$BRANCHNAME
+```
+
+Switch to the newly created branch:
+
+```
+git switch $BRANCHNAME
+```
+
 (setup-environment)=
 
 ### Step 3: Set up development environment
