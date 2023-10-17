@@ -88,7 +88,7 @@ and then install ROSS in editable mode with development dependencies:
 pip install -e ".[dev]"
 ```
 
-## Step 4: Make a new feature branch
+### Step 4: Make a new feature branch
 
 ```
 git fetch upstream
@@ -108,7 +108,7 @@ pytest
 Code is only merged to main if tests pass. This is checked by services GitHub Actions, so make sure
 tests are passing before pushing your code to github.
 
-## Step 6: Push changes to your git repository
+### Step 6: Push changes to your git repository
 
 After a complete working set of related changes are made:
 
