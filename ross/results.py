@@ -1618,7 +1618,6 @@ class CampbellResults(Results):
         fig=None,
         **kwargs,
     ):
-
         try:
             from ipywidgets import VBox
         except ImportError:
