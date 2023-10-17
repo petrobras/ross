@@ -273,3 +273,69 @@ pip install --pre ross-rotordynamics
 ```
 
 and it is usefull to test the installation process before the final release.
+
+## ROSS structure
+
+To explain how ROSS is structured, we will describe the following building blocks:
+
+- Elements: represent the physical components of the rotor (e.g. shaft, disks, bearings, etc);
+- Rotor: represent the rotor itself, which is composed by elements;
+- Results: represent the results of the simulation (e.g. displacement, velocity, etc).
+
+### Elements
+
+Elements are the building blocks of the rotors. They are the physical components of the rotor (e.g. shaft, disks, bearings, etc).
+Each element has its own class, which is responsible for calculating the element's stiffness and damping matrices, and its gyroscopic effect.
+
+All the elements classes inherit from the `Element` class, which is defined in the `ross/element.py` file. 
+
+The `Element` class is an abstract base class, which means that classes that inherit from it must implement the methods defined in the `Element` class.
+Some of these abstract methods are:
+- `M(self)`: returns the mass matrix of the element;
+- `K(self)`: returns the stiffness matrix of the element;
+- `C(self)`: returns the damping matrix of the element;
+- `G(self)`: returns the gyroscopic matrix of the element.
+- `dof_mapping(self)`: returns the degree of freedom mapping of the element.
+- _patch(self): returns a `plotly.graph_objects.Figure` that will be used in the rotor plot.
+
+If a new element is created, it must inherit from the `Element` class and implement the methods described above.
+With that, the element will be compatible with the rest of the code.
+
+### Rotor
+
+The `Rotor` class is defined in the `ross/rotor_assembly.py` file. It is responsible for assembling the rotor, which means that it will
+assemble the stiffness, damping and gyroscopic matrices of the rotor.
+
+After having a `Rotor` object, it is possible to run different analysis which are available as methods with the prefix `.run_`.
+
+### Results
+
+The `Results` class is defined in the `ross/results.py` file. It is responsible for storing the results of each analysis executed with a `.run_` method.
+A `Results` object will also have some methods to plot the results that are stored in the object.
+
+## Coding conventions
+
+### Save and load data
+
+Each element or rotor has a `save` method that saves the object in a `.toml` file. 
+
+The `load` method is a class method that loads the object from a `.toml` file.
+
+Here is a code example for saving and loading a rotor:
+
+```python
+import ross as rs
+
+# create a rotor
+rotor = rs.rotor_example()
+
+# save the rotor
+rotor.save("rotor.toml")
+
+# load the rotor using the class method
+rotor_loaded = rs.Rotor.load("rotor.toml")
+```
+
+Additionally, if the calculation of a specific object is expensive, we implement a `.run` method that will check if the object was already calculated and saved in the `.toml` file.
+
+This way we avoid recalculating when loading the object.
