@@ -9,7 +9,9 @@ section for questions and further information.
 
 To format our code we use [Black](https://black.readthedocs.io/en/stable/), which is the *"uncompromising Python
 code formatter"*. You can configure your development environment to use Black before a commit. More information on how
-to set this is given at [Black's documentation](https://black.readthedocs.io/en/stable/editor_integration.html).
+to set this is given at [Black's documentation](https://black.readthedocs.io/en/stable/integrations/editors.html).
+
+We also recommend using the [pre-commit](https://pre-commit.com/) tool so that black is automatically run when doing a commit.
 
 (git-configuration)=
 
@@ -67,13 +69,19 @@ It should look like this:
         merge = refs/heads/main
 ```
 
-The part {code}`fetch = +refs/pull/*/head:refs/remotes/upstream/pr/*` will make pull requests available.
+The part {code}`fetch = +refs/pull/*/head:refs/remotes/upstream/pr/*` will make pull requests available in your local repository after a git fetch.
 
 (setup-environment)=
 
 ### Step 3: Set up development environment
 
-To set up a development environment you can [create a conda environment](https://docs.conda.io/projects/conda/en/latest/user-guide/tasks/manage-environments.html)
+To set up a development environment you can [create a conda environment](https://docs.conda.io/projects/conda/en/latest/user-guide/tasks/manage-environments.html):
+    
+```
+conda create -n rs
+conda activate rs
+```
+
 or a virtualenv:
 
 ```
@@ -181,7 +189,7 @@ It is possible to add other sections in addition to those previously presented (
 Just follow the same rules and it's good to go.
 
 When creating examples, be aware of code lines that return any result from a method or class.
-The example output must match what the method returns because `TRAVIS` and `APPVEYOR` (the CI's that runs tests for ROSS) check the examples and raise errors,
+The example output must match what the method returns because GitHub Actions (the CI that runs tests for ROSS) checks the examples and raise errors,
 if the example output does not match the actual output.
 
 Sometimes, it's not possible to represent all the output (e.g. a figure, a large matrix, etc),
@@ -223,7 +231,7 @@ GitHub Action.
 If you want to test the documentation locally:
 
 - Install [pandoc](https://pandoc.org/installing.html), which is needed to convert the notebook files;
-- Install ROSS development version so that you have all packages required to build the documentation (see {ref}`setup_environment`).
+- Install ROSS development version so that you have all packages required to build the documentation (see {ref}`setup-environment`).
 
 Go to the ~/ross/docs folder and run:
 
