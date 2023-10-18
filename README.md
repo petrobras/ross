@@ -8,7 +8,7 @@
 [![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/ambv/black)
 [![DOI](https://joss.theoj.org/papers/10.21105/joss.02120/status.svg)](https://doi.org/10.21105/joss.02120)
 
-ROSS is a Python library for rotordynamic analysis, which allows the construction of rotor models and their numerical
+ROSS, is a Python library for rotordynamic analysis, which allows the construction of rotor models and their numerical
 simulation. Shaft elements are modeled with the Timoshenko beam theory, which considers shear and rotary inertia
 effects, and discretized by means of the Finite Element Method. Disks are assumed to be rigid bodies, thus their strain
 energy is not taken into account. Bearings and seals are included as linear stiffness and damping coefficients.
