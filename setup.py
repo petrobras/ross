@@ -57,6 +57,7 @@ EXTRAS = {
         "sphinxcontrib-bibtex>=2.2",
         "black",
         "isort",
+        "sphinx-design",
     ]
 }
 
