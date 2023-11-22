@@ -9,7 +9,9 @@ section for questions and further information.
 
 To format our code we use [Black](https://black.readthedocs.io/en/stable/), which is the *"uncompromising Python
 code formatter"*. You can configure your development environment to use Black before a commit. More information on how
-to set this is given at [Black's documentation](https://black.readthedocs.io/en/stable/editor_integration.html).
+to set this is given at [Black's documentation](https://black.readthedocs.io/en/stable/integrations/editors.html).
+
+We also recommend using the [pre-commit](https://pre-commit.com/) tool so that black is automatically run when doing a commit.
 
 (git-configuration)=
 
@@ -67,13 +69,31 @@ It should look like this:
         merge = refs/heads/main
 ```
 
-The part {code}`fetch = +refs/pull/*/head:refs/remotes/upstream/pr/*` will make pull requests available.
+The part {code}`fetch = +refs/pull/*/head:refs/remotes/upstream/pr/*` will make pull requests available in your local repository after a git fetch.
+
+For example, assuming `$ID` is the pull request number and `$BRANCHNAME` is the name of the new local branch you wish to create:
+
+```
+git fetch upstream pull/$ID/head:$BRANCHNAME
+```
+
+Switch to the newly created branch:
+
+```
+git switch $BRANCHNAME
+```
 
 (setup-environment)=
 
 ### Step 3: Set up development environment
 
-To set up a development environment you can [create a conda environment](https://docs.conda.io/projects/conda/en/latest/user-guide/tasks/manage-environments.html)
+To set up a development environment you can [create a conda environment](https://docs.conda.io/projects/conda/en/latest/user-guide/tasks/manage-environments.html):
+    
+```
+conda create -n rs
+conda activate rs
+```
+
 or a virtualenv:
 
 ```
@@ -88,7 +108,7 @@ and then install ROSS in editable mode with development dependencies:
 pip install -e ".[dev]"
 ```
 
-## Step 4: Make a new feature branch
+### Step 4: Make a new feature branch
 
 ```
 git fetch upstream
@@ -108,7 +128,7 @@ pytest
 Code is only merged to main if tests pass. This is checked by services GitHub Actions, so make sure
 tests are passing before pushing your code to github.
 
-## Step 6: Push changes to your git repository
+### Step 6: Push changes to your git repository
 
 After a complete working set of related changes are made:
 
@@ -181,7 +201,7 @@ It is possible to add other sections in addition to those previously presented (
 Just follow the same rules and it's good to go.
 
 When creating examples, be aware of code lines that return any result from a method or class.
-The example output must match what the method returns because `TRAVIS` and `APPVEYOR` (the CI's that runs tests for ROSS) check the examples and raise errors,
+The example output must match what the method returns because GitHub Actions (the CI that runs tests for ROSS) checks the examples and raise errors,
 if the example output does not match the actual output.
 
 Sometimes, it's not possible to represent all the output (e.g. a figure, a large matrix, etc),
@@ -223,7 +243,7 @@ GitHub Action.
 If you want to test the documentation locally:
 
 - Install [pandoc](https://pandoc.org/installing.html), which is needed to convert the notebook files;
-- Install ROSS development version so that you have all packages required to build the documentation (see {ref}`setup_environment`).
+- Install ROSS development version so that you have all packages required to build the documentation (see {ref}`setup-environment`).
 
 Go to the ~/ross/docs folder and run:
 
@@ -265,3 +285,69 @@ pip install --pre ross-rotordynamics
 ```
 
 and it is usefull to test the installation process before the final release.
+
+## ROSS structure
+
+To explain how ROSS is structured, we will describe the following building blocks:
+
+- Elements: represent the physical components of the rotor (e.g. shaft, disks, bearings, etc);
+- Rotor: represent the rotor itself, which is composed by elements;
+- Results: represent the results of the simulation (e.g. displacement, velocity, etc).
+
+### Elements
+
+Elements are the building blocks of the rotors. They are the physical components of the rotor (e.g. shaft, disks, bearings, etc).
+Each element has its own class, which is responsible for calculating the element's stiffness and damping matrices, and its gyroscopic effect.
+
+All the elements classes inherit from the `Element` class, which is defined in the `ross/element.py` file. 
+
+The `Element` class is an abstract base class, which means that classes that inherit from it must implement the methods defined in the `Element` class.
+Some of these abstract methods are:
+- `M(self)`: returns the mass matrix of the element;
+- `K(self)`: returns the stiffness matrix of the element;
+- `C(self)`: returns the damping matrix of the element;
+- `G(self)`: returns the gyroscopic matrix of the element.
+- `dof_mapping(self)`: returns the degree of freedom mapping of the element.
+- _patch(self): returns a `plotly.graph_objects.Figure` that will be used in the rotor plot.
+
+If a new element is created, it must inherit from the `Element` class and implement the methods described above.
+With that, the element will be compatible with the rest of the code.
+
+### Rotor
+
+The `Rotor` class is defined in the `ross/rotor_assembly.py` file. It is responsible for assembling the rotor, which means that it will
+assemble the stiffness, damping and gyroscopic matrices of the rotor.
+
+After having a `Rotor` object, it is possible to run different analysis which are available as methods with the prefix `.run_`.
+
+### Results
+
+The `Results` class is defined in the `ross/results.py` file. It is responsible for storing the results of each analysis executed with a `.run_` method.
+A `Results` object will also have some methods to plot the results that are stored in the object.
+
+## Coding conventions
+
+### Save and load data
+
+Each element or rotor has a `save` method that saves the object in a `.toml` file. 
+
+The `load` method is a class method that loads the object from a `.toml` file.
+
+Here is a code example for saving and loading a rotor:
+
+```python
+import ross as rs
+
+# create a rotor
+rotor = rs.rotor_example()
+
+# save the rotor
+rotor.save("rotor.toml")
+
+# load the rotor using the class method
+rotor_loaded = rs.Rotor.load("rotor.toml")
+```
+
+Additionally, if the calculation of a specific object is expensive, we implement a `.run` method that will check if the object was already calculated and saved in the `.toml` file.
+
+This way we avoid recalculating when loading the object.
