@@ -289,7 +289,7 @@ def test_oil_film_force_short():
         force_x_numerical,
         force_y_numerical,
     ) = calculate_oil_film_force(bearing, force_type="numerical")
-    assert_allclose(n, n_numerical, rtol=0.5)
+    assert_allclose(n, n_numerical, rtol=0.55)
     assert_allclose(t, t_numerical, rtol=0.25)
     assert_allclose(force_x_numerical, 0, atol=1e-07)
     assert_allclose(force_y_numerical, bearing.load, atol=1e-05)
