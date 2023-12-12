@@ -47,7 +47,7 @@ from ross.results import (
 )
 from ross.shaft_element import ShaftElement, ShaftElement6DoF
 from ross.units import Q_, check_units
-from ross.utils import intersection
+from ross.utils import intersection, newmark
 
 __all__ = ["Rotor", "CoAxialRotor", "rotor_example", "coaxrotor_example"]
 
@@ -1846,7 +1846,7 @@ class Rotor(object):
 
         return forced_response
 
-    def time_response(self, speed, F, t, ic=None):
+    def time_response(self, speed, F, t, ic=None, integrator="default", **kwargs):
         """Time response for a rotor.
 
         This method returns the time response for a rotor
@@ -1880,8 +1880,35 @@ class Rotor(object):
         >>> rotor.time_response(speed, F, t) # doctest: +ELLIPSIS
         (array([0.        , 0.18518519, 0.37037037, ...
         """
-        lti = self._lti(speed)
-        return signal.lsim(lti, F, t, X0=ic)
+        array_like = isinstance(speed, (list, tuple, np.ndarray))
+
+        if array_like or integrator.lower() == "newmark":
+            C2 = self.G()
+            K2 = self.Kst()
+
+            if array_like:
+                accel = np.gradient(speed, t)
+
+                rotor_matrices = lambda step: (
+                    self.M(speed[step]),
+                    self.C(speed[step]) + C2 * speed[step],
+                    self.K(speed[step]) + K2 * accel[step],
+                    F[step, :],
+                )
+
+            else:
+                M = self.M(speed)
+                C1 = self.C(speed)
+                K1 = self.K(speed)
+
+                rotor_matrices = lambda step: (M, C1 + C2 * speed, K1, F[step, :])
+
+            tout, yout = newmark(rotor_matrices, t, self.ndof, **kwargs)
+            return tout, yout, []
+
+        else:
+            lti = self._lti(speed)
+            return signal.lsim(lti, F, t, X0=ic)
 
     def plot_rotor(self, nodes=1, check_sld=False, length_units="m", **kwargs):
         """Plot a rotor object.
@@ -2374,7 +2401,7 @@ class Rotor(object):
 
         return results
 
-    def run_time_response(self, speed, F, t):
+    def run_time_response(self, speed, F, t, integrator="default", **kwargs):
         """Calculate the time response.
 
         This function will take a rotor object and calculate its time response
@@ -2423,7 +2450,7 @@ class Rotor(object):
         >>> # plot orbit response - plotting 3D orbits - full rotor model:
         >>> fig3 = response.plot_3d()
         """
-        t_, yout, xout = self.time_response(speed, F, t)
+        t_, yout, xout = self.time_response(speed, F, t, integrator, **kwargs)
 
         results = TimeResponseResults(self, t, yout, xout)
 

@@ -2,6 +2,7 @@ import re
 
 import numpy as np
 import pandas as pd
+from numpy import linalg as la
 from plotly import graph_objects as go
 
 
@@ -622,3 +623,59 @@ def get_data_from_figure(fig):
     df = pd.DataFrame(dict_data)
 
     return df
+
+
+def newmark(matrices, t, y_size, **kwargs):
+    gamma = kwargs.get("gamma", 0.5)
+    beta = kwargs.get("beta", 0.25)
+    tol = kwargs.get("tol", 1e-6)
+    print_step = kwargs.get("print_step", 1e9)
+
+    n_steps = len(t)
+    ny = y_size
+
+    y0 = np.zeros(ny)
+    ydt0 = np.zeros(ny)
+    y2dt0 = np.zeros(ny)
+
+    yout = np.full((n_steps, ny), 1e-38, dtype=np.float32)
+    yout[0, :] = y0
+
+    for step in range(1, n_steps):
+        if round(t[step], 9) % print_step == 0:
+            print(f"Time Step: {t[step]:.6f} s")
+
+        dt = t[step] - t[step - 1]
+
+        M, C, K, RHS = matrices(step)
+
+        y2dt = np.zeros(ny)
+        ydt = ydt0 + y2dt0 * (1 - gamma) * dt
+        y = y0 + ydt0 * dt + y2dt0 * (0.5 - beta) * (dt**2)
+
+        res = RHS - (K @ y + C @ ydt) - M @ y2dt
+        nr_iter = 0
+
+        while la.norm(res) >= tol:
+            nr_iter += 1
+            if nr_iter > 1e4:
+                print(
+                    "Warning: The Newton-Raphson algorithm is taking a long time to converge."
+                )
+                print(f"Number of Iterations: {nr_iter}\n")
+
+            dy2dt = la.solve(M + C * gamma * dt + K * beta * (dt**2), res)
+
+            y2dt += dy2dt
+            ydt += dy2dt * gamma * dt
+            y += dy2dt * beta * (dt**2)
+
+            res = RHS - (K @ y + C @ ydt) - M @ y2dt
+
+        y0 = y
+        ydt0 = ydt
+        y2dt0 = y2dt
+
+        yout[step, :] = y
+
+    return t, yout
