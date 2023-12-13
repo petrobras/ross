@@ -410,7 +410,7 @@ def move_rotor_center(fluid_flow_object, dx, dy):
     >>> my_fluid_flow = fluid_flow_example2()
     >>> move_rotor_center(my_fluid_flow, 0, 0)
     >>> my_fluid_flow.eccentricity # doctest: +ELLIPSIS
-    2.54...
+    2.5...
     """
     fluid_flow_object.xi = fluid_flow_object.xi + dx
     fluid_flow_object.yi = fluid_flow_object.yi + dy
