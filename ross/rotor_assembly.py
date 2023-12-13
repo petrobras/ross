@@ -1854,12 +1854,21 @@ class Rotor(object):
 
         Parameters
         ----------
+        speed : float or array_like
+            Rotor speed. Automatically, the Newmark method is chosen if `speed`
+            has an array_like type.
         F : array
             Force array (needs to have the same length as time array).
         t : array
             Time array. (must have the same length than lti.B matrix)
         ic : array, optional
             The initial conditions on the state vector (zero by default).
+        integrator : str, optional
+            The Newmark method can be chosen by setting `integrator='newmark'`.
+        **kwargs : optional
+            Additional keyword arguments can be passed to define the parameters
+            of the Newmark method if it is used. (e.g. gamma, beta, tol, ...).
+            See `ross.utils.newmark` for more details.
 
         Returns
         -------
@@ -1880,13 +1889,13 @@ class Rotor(object):
         >>> rotor.time_response(speed, F, t) # doctest: +ELLIPSIS
         (array([0.        , 0.18518519, 0.37037037, ...
         """
-        array_like = isinstance(speed, (list, tuple, np.ndarray))
+        is_array_like = isinstance(speed, (list, tuple, np.ndarray))
 
-        if array_like or integrator.lower() == "newmark":
+        if is_array_like or integrator.lower() == "newmark":
             C2 = self.G()
             K2 = self.Kst()
 
-            if array_like:
+            if is_array_like:
                 accel = np.gradient(speed, t)
 
                 rotor_matrices = lambda step: (
@@ -1903,8 +1912,8 @@ class Rotor(object):
 
                 rotor_matrices = lambda step: (M, C1 + C2 * speed, K1, F[step, :])
 
-            tout, yout = newmark(rotor_matrices, t, self.ndof, **kwargs)
-            return tout, yout, []
+            yout = newmark(rotor_matrices, t, self.ndof, **kwargs)
+            return t, yout, []
 
         else:
             lti = self._lti(speed)
@@ -2414,13 +2423,20 @@ class Rotor(object):
 
         Parameters
         ----------
-        speed : float
-            Rotor speed.
+        speed : float or array_like
+            Rotor speed. Automatically, the Newmark method is chosen if `speed`
+            has an array_like type.
         F : array
             Force array (needs to have the same number of rows as time array).
             Each column corresponds to a dof and each row to a time.
         t : array
             Time array.
+        integrator : str, optional
+            The Newmark method can be chosen by setting `integrator='newmark'`.
+        **kwargs : optional
+            Additional keyword arguments can be passed to define the parameters
+            of the Newmark method if it is used. (e.g. gamma, beta, tol, ...).
+            See `ross.utils.newmark` for more details.
 
         Returns
         -------
@@ -2450,7 +2466,9 @@ class Rotor(object):
         >>> # plot orbit response - plotting 3D orbits - full rotor model:
         >>> fig3 = response.plot_3d()
         """
-        t_, yout, xout = self.time_response(speed, F, t, integrator, **kwargs)
+        t_, yout, xout = self.time_response(
+            speed, F, t, integrator=integrator, **kwargs
+        )
 
         results = TimeResponseResults(self, t, yout, xout)
 
