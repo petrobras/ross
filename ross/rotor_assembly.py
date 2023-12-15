@@ -1889,26 +1889,54 @@ class Rotor(object):
         >>> rotor.time_response(speed, F, t) # doctest: +ELLIPSIS
         (array([0.        , 0.18518519, 0.37037037, ...
         """
-        is_array_like = isinstance(speed, (list, tuple, np.ndarray))
+        speed_is_array = isinstance(speed, (list, tuple, np.ndarray))
 
-        if is_array_like or integrator.lower() == "newmark":
-            C2 = self.G()
-            K2 = self.Kst()
-
-            if is_array_like:
+        if speed_is_array or integrator.lower() == "newmark":
+            if speed_is_array:
                 accel = np.gradient(speed, t)
 
-                rotor_matrices = lambda step: (
-                    self.M(speed[step]),
-                    self.C(speed[step]) + C2 * speed[step],
-                    self.K(speed[step]) + K2 * accel[step],
-                    F[step, :],
-                )
+                elements_without_bearing = [
+                    *self.shaft_elements,
+                    *self.disk_elements,
+                    *self.point_mass_elements,
+                ]
+
+                M0 = np.zeros((self.ndof, self.ndof))
+                C0 = np.zeros((self.ndof, self.ndof))
+                K0 = np.zeros((self.ndof, self.ndof))
+
+                for elm in elements_without_bearing:
+                    dofs = list(elm.dof_global_index.values())
+                    M0[np.ix_(dofs, dofs)] += elm.M()
+                    C0[np.ix_(dofs, dofs)] += elm.C()
+                    K0[np.ix_(dofs, dofs)] += elm.K()
+
+                C2 = self.G()
+                K2 = self.Kst()
+
+                def rotor_matrices(step):
+                    M_bearing = np.zeros((self.ndof, self.ndof))
+                    C_bearing = np.zeros((self.ndof, self.ndof))
+                    K_bearing = np.zeros((self.ndof, self.ndof))
+
+                    for elm in self.bearing_elements:
+                        dofs = list(elm.dof_global_index.values())
+                        M_bearing[np.ix_(dofs, dofs)] += elm.M(speed[step])
+                        C_bearing[np.ix_(dofs, dofs)] += elm.C(speed[step])
+                        K_bearing[np.ix_(dofs, dofs)] += elm.K(speed[step])
+
+                    return (
+                        M0 + M_bearing,
+                        C0 + C_bearing + C2 * speed[step],
+                        K0 + K_bearing + K2 * accel[step],
+                        F[step, :],
+                    )
 
             else:
                 M = self.M(speed)
                 C1 = self.C(speed)
                 K1 = self.K(speed)
+                C2 = self.G()
 
                 rotor_matrices = lambda step: (M, C1 + C2 * speed, K1, F[step, :])
 
