@@ -701,8 +701,8 @@ def newmark(fun, t, y_size, **options):
     ny = y_size
 
     y0 = np.zeros(ny)
-    ydt0 = np.zeros(ny)
-    y2dt0 = np.zeros(ny)
+    ydot0 = np.zeros(ny)
+    y2dot0 = np.zeros(ny)
 
     yout = np.full((n_steps, ny), 1e-38, dtype=np.float32)
     yout[0, :] = y0
@@ -715,11 +715,11 @@ def newmark(fun, t, y_size, **options):
 
         M, C, K, RHS = fun(step)
 
-        y2dt = np.zeros(ny)
-        ydt = ydt0 + y2dt0 * (1 - gamma) * dt
-        y = y0 + ydt0 * dt + y2dt0 * (0.5 - beta) * (dt**2)
+        y2dot = np.zeros(ny)
+        ydot = ydot0 + y2dot0 * (1 - gamma) * dt
+        y = y0 + ydot0 * dt + y2dot0 * (0.5 - beta) * (dt**2)
 
-        res = RHS - (K @ y + C @ ydt) - M @ y2dt
+        res = RHS - (K @ y + C @ ydot) - M @ y2dot
         nr_iter = 0
 
         while la.norm(res) >= tol:
@@ -730,17 +730,17 @@ def newmark(fun, t, y_size, **options):
                 )
                 print(f"Number of Iterations: {nr_iter}\n")
 
-            dy2dt = la.solve(M + C * gamma * dt + K * beta * (dt**2), res)
+            dy2dot = la.solve(M + C * gamma * dt + K * beta * (dt**2), res)
 
-            y2dt += dy2dt
-            ydt += dy2dt * gamma * dt
-            y += dy2dt * beta * (dt**2)
+            y2dot += dy2dot
+            ydot += dy2dot * gamma * dt
+            y += dy2dot * beta * (dt**2)
 
-            res = RHS - (K @ y + C @ ydt) - M @ y2dt
+            res = RHS - (K @ y + C @ ydot) - M @ y2dot
 
         y0 = y
-        ydt0 = ydt
-        y2dt0 = y2dt
+        ydot0 = ydot
+        y2dot0 = y2dot
 
         yout[step, :] = y
 

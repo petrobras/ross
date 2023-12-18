@@ -1893,7 +1893,27 @@ class Rotor(object):
 
         if speed_is_array or integrator.lower() == "newmark":
             if speed_is_array:
-                accel = np.gradient(speed, t)
+
+                def build_matrices(elements, freq=None):
+                    M0 = np.zeros((self.ndof, self.ndof))
+                    C0 = np.zeros((self.ndof, self.ndof))
+                    K0 = np.zeros((self.ndof, self.ndof))
+
+                    if freq is not None:
+                        for elm in elements:
+                            dofs = list(elm.dof_global_index.values())
+                            M0[np.ix_(dofs, dofs)] += elm.M(freq)
+                            C0[np.ix_(dofs, dofs)] += elm.C(freq)
+                            K0[np.ix_(dofs, dofs)] += elm.K(freq)
+
+                    else:
+                        for elm in elements:
+                            dofs = list(elm.dof_global_index.values())
+                            M0[np.ix_(dofs, dofs)] += elm.M()
+                            C0[np.ix_(dofs, dofs)] += elm.C()
+                            K0[np.ix_(dofs, dofs)] += elm.K()
+
+                    return (M0, C0, K0)
 
                 elements_without_bearing = [
                     *self.shaft_elements,
@@ -1901,29 +1921,17 @@ class Rotor(object):
                     *self.point_mass_elements,
                 ]
 
-                M0 = np.zeros((self.ndof, self.ndof))
-                C0 = np.zeros((self.ndof, self.ndof))
-                K0 = np.zeros((self.ndof, self.ndof))
-
-                for elm in elements_without_bearing:
-                    dofs = list(elm.dof_global_index.values())
-                    M0[np.ix_(dofs, dofs)] += elm.M()
-                    C0[np.ix_(dofs, dofs)] += elm.C()
-                    K0[np.ix_(dofs, dofs)] += elm.K()
+                M0, C0, K0 = build_matrices(elements_without_bearing)
 
                 C2 = self.G()
                 K2 = self.Kst()
 
-                def rotor_matrices(step):
-                    M_bearing = np.zeros((self.ndof, self.ndof))
-                    C_bearing = np.zeros((self.ndof, self.ndof))
-                    K_bearing = np.zeros((self.ndof, self.ndof))
+                accel = np.gradient(speed, t)
 
-                    for elm in self.bearing_elements:
-                        dofs = list(elm.dof_global_index.values())
-                        M_bearing[np.ix_(dofs, dofs)] += elm.M(speed[step])
-                        C_bearing[np.ix_(dofs, dofs)] += elm.C(speed[step])
-                        K_bearing[np.ix_(dofs, dofs)] += elm.K(speed[step])
+                def rotor_system(step):
+                    M_bearing, C_bearing, K_bearing = build_matrices(
+                        elements_without_bearing, speed[step]
+                    )
 
                     return (
                         M0 + M_bearing,
@@ -1938,9 +1946,9 @@ class Rotor(object):
                 K1 = self.K(speed)
                 C2 = self.G()
 
-                rotor_matrices = lambda step: (M, C1 + C2 * speed, K1, F[step, :])
+                rotor_system = lambda step: (M, C1 + C2 * speed, K1, F[step, :])
 
-            yout = newmark(rotor_matrices, t, self.ndof, **kwargs)
+            yout = newmark(rotor_system, t, self.ndof, **kwargs)
             return t, yout, []
 
         else:
