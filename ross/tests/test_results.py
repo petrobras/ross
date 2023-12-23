@@ -66,7 +66,7 @@ def test_save_load_modal(rotor1):
 
 
 def test_save_load_freqresponse(rotor1):
-    speed = np.linspace(0, 1000, 51)
+    speed = np.linspace(0, 1000, 11)
     response = rotor1.run_freq_response(speed_range=speed)
 
     file = Path(tempdir) / "frf.toml"

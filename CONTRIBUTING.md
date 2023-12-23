@@ -9,7 +9,7 @@ section for questions and further information.
 
 To format our code we use [Black](https://black.readthedocs.io/en/stable/), which is the *"uncompromising Python
 code formatter"*. You can configure your development environment to use Black before a commit. More information on how
-to set this is given at [Black's documentation](https://black.readthedocs.io/en/stable/integrations/editors.html).
+to set this is given at [Black's documentation](https://black.readthedocs.io/en/stable/integrations/index.html).
 
 We also recommend using the [pre-commit](https://pre-commit.com/) tool so that black is automatically run when doing a commit.
 
