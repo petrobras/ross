@@ -1894,17 +1894,17 @@ class Rotor(object):
         if speed_is_array or integrator.lower() == "newmark":
             if speed_is_array:
 
-                def build_matrices(elements, freq=None):
+                def build_matrices(elements, speed_rotation=None):
                     M0 = np.zeros((self.ndof, self.ndof))
                     C0 = np.zeros((self.ndof, self.ndof))
                     K0 = np.zeros((self.ndof, self.ndof))
 
-                    if freq is not None:
+                    if speed_rotation is not None:
                         for elm in elements:
                             dofs = list(elm.dof_global_index.values())
-                            M0[np.ix_(dofs, dofs)] += elm.M(freq)
-                            C0[np.ix_(dofs, dofs)] += elm.C(freq)
-                            K0[np.ix_(dofs, dofs)] += elm.K(freq)
+                            M0[np.ix_(dofs, dofs)] += elm.M(speed_rotation)
+                            C0[np.ix_(dofs, dofs)] += elm.C(speed_rotation)
+                            K0[np.ix_(dofs, dofs)] += elm.K(speed_rotation)
 
                     else:
                         for elm in elements:
@@ -1930,7 +1930,7 @@ class Rotor(object):
 
                 def rotor_system(step):
                     M_bearing, C_bearing, K_bearing = build_matrices(
-                        elements_without_bearing, speed[step]
+                        self.bearing_elements, speed[step]
                     )
 
                     return (
@@ -2156,7 +2156,7 @@ class Rotor(object):
         --------
         >>> import ross as rs
         >>> rotor1 = rs.rotor_example()
-        >>> speed = np.linspace(0, 400, 101)
+        >>> speed = np.linspace(0, 400, 11)
 
         Diagram with undamped natural frequencies
         >>> camp = rotor1.run_campbell(speed, frequency_type="wn")
@@ -3960,7 +3960,7 @@ def rotor_example_6dof():
     >>> print(f"Damped natural frequencies: {np.round(modal6.wd, 2)}") # doctest: +ELLIPSIS
     Damped natural frequencies: [  0.    47.62 ...
     >>> # Plotting Campbell Diagram
-    >>> camp6 = rotor6.run_campbell(np.linspace(0, 400, 101), frequencies=18)
+    >>> camp6 = rotor6.run_campbell(np.linspace(0, 400, 101), frequencies=6)
     >>> fig = camp6.plot()
     >>> # fig.show()
     """
