@@ -169,6 +169,9 @@ class BearingElement(Element):
                 myy = 0
             else:
                 myy = mxx
+        
+        if mxx is None:
+            mxx = 0
 
         # all args to coefficients.  output of locals() should be READ ONLY        
         args_dict = locals()
