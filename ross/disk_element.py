@@ -638,6 +638,42 @@ class DiskElement6DoF(DiskElement):
         # fmt: on
         return K
 
+    def Kdt(self):
+        """Dynamic stiffness matrix for an instance of a 6 DoF disk
+        element.
+
+        Stiffness matrix for the 6 DoF disk element associated with the
+        transient motion. It needs to be multiplied by the angular
+        acceleration when considered in time dependent analyses.
+
+        Returns
+        -------
+        Kdt : np.ndarray
+            A matrix of floats containing the values of the dynamic
+            stiffness matrix.
+
+        Examples
+        --------
+        >>> disk = disk_example_6dof()
+        >>> disk.Kdt().round(2)
+        array([[0.  , 0.  , 0.  , 0.  , 0.  , 0.  ],
+               [0.  , 0.  , 0.  , 0.  , 0.  , 0.  ],
+               [0.  , 0.  , 0.  , 0.  , 0.  , 0.  ],
+               [0.  , 0.  , 0.  , 0.  , 0.  , 0.  ],
+               [0.  , 0.  , 0.  , 0.33, 0.  , 0.  ],
+               [0.  , 0.  , 0.  , 0.  , 0.  , 0.  ]])
+        """
+        Ip = self.Ip
+        # fmt: off
+        Kdt = np.array([[0, 0, 0,  0, 0, 0],
+                        [0, 0, 0,  0, 0, 0],
+                        [0, 0, 0,  0, 0, 0],
+                        [0, 0, 0,  0, 0, 0],
+                        [0, 0, 0, Ip, 0, 0],
+                        [0, 0, 0,  0, 0, 0]])
+        # fmt: on
+        return Kdt
+
     def C(self):
         """Damping matrix for an instance of a 6 DoF disk element.
 
