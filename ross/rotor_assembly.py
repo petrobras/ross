@@ -47,7 +47,7 @@ from ross.results import (
 )
 from ross.shaft_element import ShaftElement, ShaftElement6DoF
 from ross.units import Q_, check_units
-from ross.utils import intersection, newmark
+from ross.utils import intersection, integrate_rotor_system
 
 __all__ = ["Rotor", "CoAxialRotor", "rotor_example", "coaxrotor_example"]
 
@@ -1892,64 +1892,7 @@ class Rotor(object):
         speed_is_array = isinstance(speed, (list, tuple, np.ndarray))
 
         if speed_is_array or integrator.lower() == "newmark":
-            if speed_is_array:
-
-                def build_matrices(elements, speed_rotation=None):
-                    M0 = np.zeros((self.ndof, self.ndof))
-                    C0 = np.zeros((self.ndof, self.ndof))
-                    K0 = np.zeros((self.ndof, self.ndof))
-
-                    if speed_rotation is not None:
-                        for elm in elements:
-                            dofs = list(elm.dof_global_index.values())
-                            M0[np.ix_(dofs, dofs)] += elm.M(speed_rotation)
-                            C0[np.ix_(dofs, dofs)] += elm.C(speed_rotation)
-                            K0[np.ix_(dofs, dofs)] += elm.K(speed_rotation)
-
-                    else:
-                        for elm in elements:
-                            dofs = list(elm.dof_global_index.values())
-                            M0[np.ix_(dofs, dofs)] += elm.M()
-                            C0[np.ix_(dofs, dofs)] += elm.C()
-                            K0[np.ix_(dofs, dofs)] += elm.K()
-
-                    return (M0, C0, K0)
-
-                elements_without_bearing = [
-                    *self.shaft_elements,
-                    *self.disk_elements,
-                    *self.point_mass_elements,
-                ]
-
-                M0, C0, K0 = build_matrices(elements_without_bearing)
-
-                C2 = self.G()
-                K2 = self.Kst()
-
-                accel = np.gradient(speed, t)
-
-                def rotor_system(step):
-                    M_bearing, C_bearing, K_bearing = build_matrices(
-                        self.bearing_elements, speed[step]
-                    )
-
-                    return (
-                        M0 + M_bearing,
-                        C0 + C_bearing + C2 * speed[step],
-                        K0 + K_bearing + K2 * accel[step],
-                        F[step, :],
-                    )
-
-            else:
-                M = self.M(speed)
-                C1 = self.C(speed)
-                K1 = self.K(speed)
-                C2 = self.G()
-
-                rotor_system = lambda step: (M, C1 + C2 * speed, K1, F[step, :])
-
-            yout = newmark(rotor_system, t, self.ndof, **kwargs)
-            return t, yout, []
+            return integrate_rotor_system(self, speed, F, t, **kwargs)
 
         else:
             lti = self._lti(speed)

@@ -745,3 +745,110 @@ def newmark(fun, t, y_size, **options):
         yout[step, :] = y
 
     return yout
+
+
+def integrate_rotor_system(rotor, speed, F, t, **kwargs):
+    """Time integration for a rotor system.
+
+    This method returns the time response for a rotor given a force, time and
+    speed based on time integration with the Newmark method.
+
+    Parameters
+    ----------
+    speed : float or array_like
+        Rotor speed.
+    F : ndarray
+        Force array (needs to have the same length as time array).
+    t : ndarray
+        Time array.
+    **kwargs : optional
+        Additional keyword arguments can be passed to define the parameters
+        of the Newmark method if it is used. (e.g. gamma, beta, tol, ...).
+        See `newmark` for more details.
+
+    Returns
+    -------
+    t : ndarray
+        Time values for the output.
+    yout : ndarray
+        System response.
+    """
+    speed_is_array = isinstance(speed, (list, tuple, np.ndarray))
+
+    if speed_is_array:
+        accel = np.gradient(speed, t)
+
+        freq_is_none = False
+        for elm in rotor.bearing_elements:
+            freq_is_none = (elm.frequency is None) or freq_is_none
+
+        if freq_is_none:
+            M = rotor.M(0)
+            C1 = rotor.C(0)
+            K1 = rotor.K(0)
+            C2 = rotor.G()
+            K2 = rotor.Kst()
+
+            rotor_system = lambda step: (
+                M,
+                C1 + C2 * speed[step],
+                K1 + K2 * accel[step],
+                F[step, :],
+            )
+
+        else:
+
+            def build_matrices(elements, rotor_speed=None):
+                M0 = np.zeros((rotor.ndof, rotor.ndof))
+                C0 = np.zeros((rotor.ndof, rotor.ndof))
+                K0 = np.zeros((rotor.ndof, rotor.ndof))
+
+                if rotor_speed is not None:
+                    for elm in elements:
+                        dofs = list(elm.dof_global_index.values())
+                        M0[np.ix_(dofs, dofs)] += elm.M(rotor_speed)
+                        C0[np.ix_(dofs, dofs)] += elm.C(rotor_speed)
+                        K0[np.ix_(dofs, dofs)] += elm.K(rotor_speed)
+
+                else:
+                    for elm in elements:
+                        dofs = list(elm.dof_global_index.values())
+                        M0[np.ix_(dofs, dofs)] += elm.M()
+                        C0[np.ix_(dofs, dofs)] += elm.C()
+                        K0[np.ix_(dofs, dofs)] += elm.K()
+
+                return (M0, C0, K0)
+
+            elements_without_bearing = [
+                *rotor.shaft_elements,
+                *rotor.disk_elements,
+                *rotor.point_mass_elements,
+            ]
+
+            M0, C0, K0 = build_matrices(elements_without_bearing)
+
+            C2 = rotor.G()
+            K2 = rotor.Kst()
+
+            def rotor_system(step):
+                M_bearing, C_bearing, K_bearing = build_matrices(
+                    rotor.bearing_elements, speed[step]
+                )
+
+                return (
+                    M0 + M_bearing,
+                    C0 + C_bearing + C2 * speed[step],
+                    K0 + K_bearing + K2 * accel[step],
+                    F[step, :],
+                )
+
+    else:
+        M = rotor.M(speed)
+        C1 = rotor.C(speed)
+        K1 = rotor.K(speed)
+        C2 = rotor.G()
+
+        rotor_system = lambda step: (M, C1 + C2 * speed, K1, F[step, :])
+
+    yout = newmark(rotor_system, t, rotor.ndof, **kwargs)
+    return t, yout, []
