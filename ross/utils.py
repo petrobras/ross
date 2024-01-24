@@ -685,8 +685,8 @@ def newmark(fun, t, y_size, **options):
     >>> K1 = rotor.K(speed)
     >>> C2 = rotor.G()
     >>> K2 = rotor.Kst()
-    >>> rotor_matrices = lambda step: (M, C1 + C2 * speed, K1 + K2 * accel, F[step, :])
-    >>> yout = newmark(rotor_matrices, t, rotor.ndof)
+    >>> rotor_system = lambda step: (M, C1 + C2 * speed, K1 + K2 * accel, F[step, :])
+    >>> yout = newmark(rotor_system, t, rotor.ndof)
     >>> dof = 13
     >>> yout[:, dof] # doctest: +ELLIPSIS
     array([0.0000000e+00, 8.4914005e-09, 4.3429676e-08, ...
@@ -772,6 +772,23 @@ def integrate_rotor_system(rotor, speed, F, t, **kwargs):
         Time values for the output.
     yout : ndarray
         System response.
+
+    Examples
+    --------
+    >>> import ross as rs
+    >>> rotor = rs.rotor_example()
+    >>> size = 10000
+    >>> node = 3
+    >>> speed = 500.0
+    >>> accel = 0.0
+    >>> t = np.linspace(0, 10, size)
+    >>> F = np.zeros((size, rotor.ndof))
+    >>> F[:, rotor.number_dof * node] = 10 * np.cos(2 * t)
+    >>> F[:, rotor.number_dof * node + 1] = 10 * np.sin(2 * t)
+    >>> t, yout = integrate_rotor_system(rotor, speed, F, t)
+    >>> dof = 13
+    >>> yout[:, dof] # doctest: +ELLIPSIS
+    array([0.0000000e+00, 8.4914005e-09, 4.3429676e-08, ...
     """
     speed_is_array = isinstance(speed, (list, tuple, np.ndarray))
 
@@ -817,7 +834,7 @@ def integrate_rotor_system(rotor, speed, F, t, **kwargs):
                         C0[np.ix_(dofs, dofs)] += elm.C()
                         K0[np.ix_(dofs, dofs)] += elm.K()
 
-                return (M0, C0, K0)
+                return M0, C0, K0
 
             elements_without_bearing = [
                 *rotor.shaft_elements,
@@ -851,4 +868,4 @@ def integrate_rotor_system(rotor, speed, F, t, **kwargs):
         rotor_system = lambda step: (M, C1 + C2 * speed, K1, F[step, :])
 
     yout = newmark(rotor_system, t, rotor.ndof, **kwargs)
-    return t, yout, []
+    return t, yout

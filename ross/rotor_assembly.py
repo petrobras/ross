@@ -1895,7 +1895,8 @@ class Rotor(object):
         speed_is_array = isinstance(speed, (list, tuple, np.ndarray))
 
         if speed_is_array or integrator.lower() == "newmark":
-            return integrate_rotor_system(self, speed, F, t, **kwargs)
+            t_, yout = integrate_rotor_system(self, speed, F, t, **kwargs)
+            return t_, yout, []
 
         else:
             lti = self._lti(speed)
