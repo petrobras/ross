@@ -1716,7 +1716,7 @@ class ShaftElement6DoF(ShaftElement):
         Returns
         -------
         K : np.ndarray
-            Omega independent stiffness matrix for the 6 DoF shaft element.
+            Stiffness matrix for the 6 DoF shaft element.
 
         Examples
         --------
@@ -1826,15 +1826,9 @@ class ShaftElement6DoF(ShaftElement):
     def Kst(self):
         """Dynamic stiffness matrix for an instance of a 6 DoF shaft element.
 
-        Dynamic stiffness matrix for the 6 DoF shaft element. This is
-        directly dependent on the rotation speed Omega. It needs to be
-        multiplied by the adequate Omega value when used in time depen-
-        dent analyses. The matrix multiplier term is:
-
-        [(Iz*Omega*rho)/(15*L)] * [Kst]
-
-        and here the Omega value has been suppressed and must be added
-        in the adequate analyses.
+        Stiffness matrix for the 6 DoF shaft element associated with
+        the transient motion. It needs to be multiplied by the angular
+        acceleration when considered in time dependent analyses.
 
         Returns
         -------
@@ -1903,10 +1897,9 @@ class ShaftElement6DoF(ShaftElement):
     def G(self):
         """Gyroscopic matrix for an instance of a 6 DoFs shaft element.
 
-        Gyroscopic matrix for the 6 DoF shaft element. Similar to the Kst
-        stiffness matrix, this Gyro matrix is also multiplied by the value
-        of the rotating speed Omega. It is omitted from this and must be
-        added in the respective analyses.
+        Gyroscopic matrix for the 6 DoF shaft element. It needs to be
+        multiplied by the angular velocity when considered in time
+        dependent analyses.
 
         Returns
         -------
