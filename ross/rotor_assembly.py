@@ -955,12 +955,15 @@ class Rotor(object):
     def Kst(self):
         """Dynamic stiffness matrix for an instance of a rotor.
 
+        Stiffness matrix associated with the transient motion of the
+        shaft. It needs to be multiplied by the angular acceleration
+        when considered in time dependent analyses.
+
         Returns
         -------
         Kst0 : np.ndarray
-            Dynamic stiffness matrix for the rotor.
-            This matris IS OMEGA dependent
-            Only useable to the 6 DoF model.
+            Dynamic stiffness matrix for the rotor. Only useable to
+            the 6 DoF model in variable speed analyses.
 
         Examples
         --------
@@ -1080,7 +1083,7 @@ class Rotor(object):
         # fmt: off
         A = np.vstack(
             [np.hstack([Z, I]),
-             np.hstack([la.solve(-self.M(frequency), self.K(frequency) + self.Kst()*speed), la.solve(-self.M(frequency), (self.C(frequency) + self.G() * speed))])])
+             np.hstack([la.solve(-self.M(frequency), self.K(frequency)), la.solve(-self.M(frequency), (self.C(frequency) + self.G() * speed))])])
         # fmt: on
 
         return A
