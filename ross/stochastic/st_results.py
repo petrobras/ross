@@ -1142,7 +1142,7 @@ class ST_TimeResponseResults(ST_Results):
             # fmt: off
             operator = np.array(
                 [[np.cos(angle), - np.sin(angle)],
-                 [np.cos(angle), + np.sin(angle)]]
+                 [np.sin(angle), + np.cos(angle)]]
             )
 
             probe_resp = np.zeros_like(self.yout[:, :, 0])
