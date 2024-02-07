@@ -708,7 +708,7 @@ def newmark(fun, t, y_size, **options):
     yout[0, :] = y0
 
     for step in range(1, n_steps):
-        if round(t[step], 9) % progress_interval == 0:
+        if round((t[step] + 1e-15) % progress_interval, 12) == 0:
             print(f"Time Step: {t[step]:.6f} s")
 
         dt = t[step] - t[step - 1]
@@ -724,11 +724,10 @@ def newmark(fun, t, y_size, **options):
 
         while la.norm(res) >= tol:
             nr_iter += 1
-            if nr_iter > 1e4:
-                print(
-                    "Warning: The Newton-Raphson algorithm is taking a long time to converge."
+            if nr_iter > 1e5:
+                raise Warning(
+                    "The Newton-Raphson algorithm is taking a long time to converge."
                 )
-                print(f"Number of Iterations: {nr_iter}\n")
 
             dy2dot = la.solve(M + C * gamma * dt + K * beta * (dt**2), res)
 
