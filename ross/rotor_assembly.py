@@ -952,23 +952,23 @@ class Rotor(object):
 
         return K0
 
-    def Kst(self):
+    def Ksdt(self):
         """Dynamic stiffness matrix for an instance of a rotor.
 
         Stiffness matrix associated with the transient motion of the
-        shaft. It needs to be multiplied by the angular acceleration
-        when considered in time dependent analyses.
+        shaft and disks. It needs to be multiplied by the angular
+        acceleration when considered in time dependent analyses.
 
         Returns
         -------
-        Kst0 : np.ndarray
+        Ksdt0 : np.ndarray
             Dynamic stiffness matrix for the rotor. Only useable to
             the 6 DoF model in variable speed analyses.
 
         Examples
         --------
         >>> rotor = rotor_example_6dof()
-        >>> np.round(rotor.Kst()[:6, :6]*1e6)
+        >>> np.round(rotor.Ksdt()[:6, :6]*1e6)
         array([[     0., -23002.,      0.,   -479.,      0.,      0.],
                [     0.,      0.,      0.,      0.,      0.,      0.],
                [     0.,      0.,      0.,      0.,      0.,      0.],
@@ -976,18 +976,23 @@ class Rotor(object):
                [     0.,    479.,      0.,    160.,      0.,      0.],
                [     0.,      0.,      0.,      0.,      0.,      0.]])
         """
+        Ksdt0 = np.zeros((self.ndof, self.ndof))
 
-        Kst0 = np.zeros((self.ndof, self.ndof))
+        for elm in self.shaft_elements:
+            dofs = list(elm.dof_global_index.values())
+            try:
+                Ksdt0[np.ix_(dofs, dofs)] += elm.Kst()
+            except:
+                pass
 
-        if self.number_dof == 6:
-            for elm in self.shaft_elements:
-                dofs = list(elm.dof_global_index.values())
-                try:
-                    Kst0[np.ix_(dofs, dofs)] += elm.Kst()
-                except TypeError:
-                    Kst0[np.ix_(dofs, dofs)] += elm.Kst()
+        for elm in self.disk_elements:
+            dofs = list(elm.dof_global_index.values())
+            try:
+                Ksdt0[np.ix_(dofs, dofs)] += elm.Kdt()
+            except:
+                pass
 
-        return Kst0
+        return Ksdt0
 
     def C(self, frequency):
         """Damping matrix for an instance of a rotor.
