@@ -4,6 +4,7 @@ import numpy as np
 import pandas as pd
 from numpy import linalg as la
 from plotly import graph_objects as go
+from scipy.linalg import eigh
 
 
 class DataNotFoundError(Exception):
@@ -747,6 +748,53 @@ def newmark(fun, t, y_size, **options):
     return yout
 
 
+def apply_pseudo_modal(rotor, speed, num_modes):
+    """Pseudo-modal method.
+
+    This method can be used to apply modal transformation to reduce model
+    of the rotor system.
+
+    Parameters
+    ----------
+    rotor: rs.Rotor
+        The rotor object.
+    speed : float
+        Rotor speed.
+    num_modes : int
+        The number of eigenvectors to consider in the modal transformation
+        with model reduction.
+
+    Returns
+    -------
+    matrix_to_modal : callable
+        Function to transform a square matrix from physical to modal space.
+    vector_to_modal : callable
+        Function to transform a vector from physical to modal space.
+    vector_from_modal : callable
+        Function to transform a vector from modal to physical space.
+    """
+    M = rotor.M(speed)
+    K_aux = rotor.K(speed)
+
+    # Remove cross-coupled coefficients of bearing stiffness matrix
+    rmv_cross_coeffs = [[0, 1], [1, 0]]
+    if rotor.number_dof == 6:
+        rmv_cross_coeffs = [[0, 1, 0], [1, 0, 0], [0, 0, 0]]
+
+    for elm in rotor.bearing_elements:
+        dofs = list(elm.dof_global_index.values())
+        K_aux[np.ix_(dofs, dofs)] -= elm.K(speed) * rmv_cross_coeffs
+
+    _, modal_matrix = eigh(K_aux, M)
+    modal_matrix = modal_matrix[:, :num_modes]
+
+    matrix_to_modal = lambda array: (modal_matrix.T @ array) @ modal_matrix
+    vector_to_modal = lambda array: modal_matrix.T @ array
+    vector_from_modal = lambda array: modal_matrix @ array
+
+    return matrix_to_modal, vector_to_modal, vector_from_modal
+
+
 def integrate_rotor_system(rotor, speed, F, t, **kwargs):
     """Time integration for a rotor system.
 
@@ -765,6 +813,9 @@ def integrate_rotor_system(rotor, speed, F, t, **kwargs):
         Additional keyword arguments can be passed to define the parameters
         of the Newmark method if it is used. (e.g. gamma, beta, tol, ...).
         See `newmark` for more details.
+    num_modes : int, optional
+        If num_modes is passed as argument, the pseudo-modal method is applied reducing
+        the model to the chosen number of modes.
 
     Returns
     -------
@@ -790,7 +841,8 @@ def integrate_rotor_system(rotor, speed, F, t, **kwargs):
     >>> yout[:, dof] # doctest: +ELLIPSIS
     array([0.0000000e+00, 8.4914005e-09, 4.3429676e-08, ...
     """
-    size = rotor.ndof
+    num_modes = kwargs.get("num_modes")
+    size = num_modes if num_modes else rotor.ndof
 
     try:
         speed_is_array = len(set(speed)) > 1
@@ -800,6 +852,20 @@ def integrate_rotor_system(rotor, speed, F, t, **kwargs):
         speed_is_array = False
         speed_ref = speed
 
+    # Pseudo-modal method:
+    if size < rotor.ndof:
+        get_array = apply_pseudo_modal(rotor, speed_ref, size)
+
+    # Direct method:
+    else:
+        return_array = lambda array: array
+        get_array = [return_array for i in range(3)]
+
+    M = get_array[0](rotor.M())
+    C2 = get_array[0](rotor.G())
+    K2 = get_array[0](rotor.Ksdt())
+    F = get_array[1](F.T).T
+
     if speed_is_array:
         accel = np.gradient(speed, t)
 
@@ -808,11 +874,8 @@ def integrate_rotor_system(rotor, speed, F, t, **kwargs):
             freq_is_none = (elm.frequency is None) or freq_is_none
 
         if freq_is_none:
-            M = rotor.M(speed_ref)
-            C1 = rotor.C(speed_ref)
-            K1 = rotor.K(speed_ref)
-            C2 = rotor.G()
-            K2 = rotor.Ksdt()
+            C1 = get_array[0](rotor.C(speed_ref))
+            K1 = get_array[0](rotor.K(speed_ref))
 
             rotor_system = lambda step: (
                 M,
@@ -824,25 +887,22 @@ def integrate_rotor_system(rotor, speed, F, t, **kwargs):
         else:
 
             def build_matrices(elements, rotor_speed=None):
-                M0 = np.zeros((rotor.ndof, rotor.ndof))
                 C0 = np.zeros((rotor.ndof, rotor.ndof))
                 K0 = np.zeros((rotor.ndof, rotor.ndof))
 
                 if rotor_speed is not None:
                     for elm in elements:
                         dofs = list(elm.dof_global_index.values())
-                        M0[np.ix_(dofs, dofs)] += elm.M(rotor_speed)
                         C0[np.ix_(dofs, dofs)] += elm.C(rotor_speed)
                         K0[np.ix_(dofs, dofs)] += elm.K(rotor_speed)
 
                 else:
                     for elm in elements:
                         dofs = list(elm.dof_global_index.values())
-                        M0[np.ix_(dofs, dofs)] += elm.M()
                         C0[np.ix_(dofs, dofs)] += elm.C()
                         K0[np.ix_(dofs, dofs)] += elm.K()
 
-                return M0, C0, K0
+                return C0, K0
 
             elements_without_bearing = [
                 *rotor.shaft_elements,
@@ -850,30 +910,29 @@ def integrate_rotor_system(rotor, speed, F, t, **kwargs):
                 *rotor.point_mass_elements,
             ]
 
-            M0, C0, K0 = build_matrices(elements_without_bearing)
-
-            C2 = rotor.G()
-            K2 = rotor.Ksdt()
+            C0, K0 = build_matrices(elements_without_bearing)
 
             def rotor_system(step):
-                M_bearing, C_bearing, K_bearing = build_matrices(
+                C_bearing, K_bearing = build_matrices(
                     rotor.bearing_elements, speed[step]
                 )
 
+                C1 = get_array[0](C0 + C_bearing)
+                K1 = get_array[0](K0 + K_bearing)
+
                 return (
-                    M0 + M_bearing,
-                    C0 + C_bearing + C2 * speed[step],
-                    K0 + K_bearing + K2 * accel[step],
+                    M,
+                    C1 + C2 * speed[step],
+                    K1 + K2 * accel[step],
                     F[step, :],
                 )
 
     else:
-        M = rotor.M(speed_ref)
-        C1 = rotor.C(speed_ref)
-        K1 = rotor.K(speed_ref)
-        C2 = rotor.G()
+        C1 = get_array[0](rotor.C(speed_ref))
+        K1 = get_array[0](rotor.K(speed_ref))
 
         rotor_system = lambda step: (M, C1 + C2 * speed, K1, F[step, :])
 
-    yout = newmark(rotor_system, t, size, **kwargs)
+    response = newmark(rotor_system, t, size, **kwargs)
+    yout = get_array[2](response.T).T
     return t, yout
