@@ -790,7 +790,15 @@ def integrate_rotor_system(rotor, speed, F, t, **kwargs):
     >>> yout[:, dof] # doctest: +ELLIPSIS
     array([0.0000000e+00, 8.4914005e-09, 4.3429676e-08, ...
     """
-    speed_is_array = isinstance(speed, (list, tuple, np.ndarray))
+    size = rotor.ndof
+
+    try:
+        speed_is_array = len(set(speed)) > 1
+        speed_ref = np.mean(speed)
+
+    except:
+        speed_is_array = False
+        speed_ref = speed
 
     if speed_is_array:
         accel = np.gradient(speed, t)
@@ -800,9 +808,9 @@ def integrate_rotor_system(rotor, speed, F, t, **kwargs):
             freq_is_none = (elm.frequency is None) or freq_is_none
 
         if freq_is_none:
-            M = rotor.M(0)
-            C1 = rotor.C(0)
-            K1 = rotor.K(0)
+            M = rotor.M(speed_ref)
+            C1 = rotor.C(speed_ref)
+            K1 = rotor.K(speed_ref)
             C2 = rotor.G()
             K2 = rotor.Ksdt()
 
@@ -860,12 +868,12 @@ def integrate_rotor_system(rotor, speed, F, t, **kwargs):
                 )
 
     else:
-        M = rotor.M(speed)
-        C1 = rotor.C(speed)
-        K1 = rotor.K(speed)
+        M = rotor.M(speed_ref)
+        C1 = rotor.C(speed_ref)
+        K1 = rotor.K(speed_ref)
         C2 = rotor.G()
 
         rotor_system = lambda step: (M, C1 + C2 * speed, K1, F[step, :])
 
-    yout = newmark(rotor_system, t, rotor.ndof, **kwargs)
+    yout = newmark(rotor_system, t, size, **kwargs)
     return t, yout
