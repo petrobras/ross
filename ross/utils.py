@@ -684,7 +684,7 @@ def newmark(fun, t, y_size, **options):
     >>> C1 = rotor.C(speed)
     >>> K1 = rotor.K(speed)
     >>> C2 = rotor.G()
-    >>> K2 = rotor.Kst()
+    >>> K2 = rotor.Ksdt()
     >>> rotor_system = lambda step: (M, C1 + C2 * speed, K1 + K2 * accel, F[step, :])
     >>> yout = newmark(rotor_system, t, rotor.ndof)
     >>> dof = 13
@@ -803,7 +803,7 @@ def integrate_rotor_system(rotor, speed, F, t, **kwargs):
             C1 = rotor.C(0)
             K1 = rotor.K(0)
             C2 = rotor.G()
-            K2 = rotor.Kst()
+            K2 = rotor.Ksdt()
 
             rotor_system = lambda step: (
                 M,
@@ -844,7 +844,7 @@ def integrate_rotor_system(rotor, speed, F, t, **kwargs):
             M0, C0, K0 = build_matrices(elements_without_bearing)
 
             C2 = rotor.G()
-            K2 = rotor.Kst()
+            K2 = rotor.Ksdt()
 
             def rotor_system(step):
                 M_bearing, C_bearing, K_bearing = build_matrices(
