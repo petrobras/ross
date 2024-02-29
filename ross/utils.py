@@ -772,6 +772,25 @@ def apply_pseudo_modal(rotor, speed, num_modes):
         Function to transform a vector from physical to modal space.
     vector_from_modal : callable
         Function to transform a vector from modal to physical space.
+
+    Examples
+    --------
+    >>> import ross as rs
+    >>> rotor = rs.rotor_example()
+    >>> size = 10000
+    >>> node = 3
+    >>> speed = 500.0
+    >>> t = np.linspace(0, 10, size)
+    >>> F = np.zeros((size, rotor.ndof))
+    >>> F[:, rotor.number_dof * node] = 10 * np.cos(2 * t)
+    >>> F[:, rotor.number_dof * node + 1] = 10 * np.sin(2 * t)
+    >>> get_array = apply_pseudo_modal(rotor, speed, num_modes=12)
+    >>> F_modal = get_array[1](F.T).T
+    >>> np.round(F_modal[:4,:4], 5)
+    array([[ 0.     , -1.20122, -0.     , -0.     ],
+           [ 0.00238, -1.20122, -0.     , -0.     ],
+           [ 0.00476, -1.20121, -0.     , -0.     ],
+           [ 0.00714, -1.2012 , -0.     , -0.     ]])
     """
     M = rotor.M(speed)
     K_aux = rotor.K(speed)
@@ -837,6 +856,7 @@ def integrate_rotor_system(rotor, speed, F, t, **kwargs):
     >>> F[:, rotor.number_dof * node] = 10 * np.cos(2 * t)
     >>> F[:, rotor.number_dof * node + 1] = 10 * np.sin(2 * t)
     >>> t, yout = integrate_rotor_system(rotor, speed, F, t)
+    Running direct method
     >>> dof = 13
     >>> yout[:, dof] # doctest: +ELLIPSIS
     array([0.0000000e+00, 8.4914005e-09, 4.3429676e-08, ...
@@ -854,12 +874,12 @@ def integrate_rotor_system(rotor, speed, F, t, **kwargs):
 
     # Pseudo-modal method:
     if size < rotor.ndof:
-        print("Pseudo-modal method, number of modes =", size)
+        print("Running pseudo-modal method, number of modes =", size)
         get_array = apply_pseudo_modal(rotor, speed_ref, size)
 
     # Direct method:
     else:
-        print("Direct method")
+        print("Running direct method")
         return_array = lambda array: array
         get_array = [return_array for i in range(3)]
 
