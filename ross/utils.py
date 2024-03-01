@@ -786,11 +786,8 @@ def apply_pseudo_modal(rotor, speed, num_modes):
     >>> F[:, rotor.number_dof * node + 1] = 10 * np.sin(2 * t)
     >>> get_array = apply_pseudo_modal(rotor, speed, num_modes=12)
     >>> F_modal = get_array[1](F.T).T
-    >>> np.round(F_modal[:4,:4], 5)
-    array([[ 0.     , -1.20122, -0.     , -0.     ],
-           [ 0.00238, -1.20122, -0.     , -0.     ],
-           [ 0.00476, -1.20121, -0.     , -0.     ],
-           [ 0.00714, -1.2012 , -0.     , -0.     ]])
+    >>> la.norm(F_modal)
+    226.9279821601164
     """
     M = rotor.M(speed)
     K_aux = rotor.K(speed)
