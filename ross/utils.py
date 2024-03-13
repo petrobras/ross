@@ -811,6 +811,68 @@ def apply_pseudo_modal(rotor, speed, num_modes):
     return matrix_to_modal, vector_to_modal, vector_from_modal
 
 
+def assemble_C_K_matrices(elements, C0, K0, speed=None):
+    """Assemble damping and stiffness matrices considering
+    specified elements a rotor.
+
+    Parameters
+    ----------
+    elements : array_like
+        List of elements of the rotor.
+    C0 : ndarray
+        Initial damping matrix.
+    K0 : ndarray
+        Initial stiffness matrix.
+    speed : float, optional
+        Rotor speed.
+        If `elements` contain bearing elements, the speed must be provided.
+
+    Returns
+    -------
+    C0 : ndarray
+        Initial damping matrix incorporating the specified elements.
+    K0 : ndarray
+        Initial stiffness matrix incorporating the specified elements.
+
+    Examples
+    --------
+    >>> import ross as rs
+    >>> rotor = rs.rotor_example()
+    >>> elements_without_bearing = [
+    ...     *rotor.shaft_elements,
+    ...     *rotor.disk_elements,
+    ...     *rotor.point_mass_elements
+    ... ]
+    >>> C0 = np.zeros((rotor.ndof, rotor.ndof))
+    >>> K0 = np.zeros((rotor.ndof, rotor.ndof))
+    >>> C1, K1 = assemble_C_K_matrices(elements_without_bearing, C0, K0)
+    >>> C, K = assemble_C_K_matrices(rotor.bearing_elements, C1, K1, speed=0)
+    >>> C[:4, :4]
+    array([[0., 0., 0., 0.],
+           [0., 0., 0., 0.],
+           [0., 0., 0., 0.],
+           [0., 0., 0., 0.]])
+    >>> np.round(K[:4, :4]/1e6)
+    array([[47.,  0.,  0.,  6.],
+           [ 0., 46., -6.,  0.],
+           [ 0., -6.,  1.,  0.],
+           [ 6.,  0.,  0.,  1.]])
+    """
+    if speed is not None:
+        for elm in elements:
+            dofs = list(elm.dof_global_index.values())
+            C0[np.ix_(dofs, dofs)] += elm.C(speed)
+            K0[np.ix_(dofs, dofs)] += elm.K(speed)
+
+    else:
+        for elm in elements:
+            dofs = list(elm.dof_global_index.values())
+            C0[np.ix_(dofs, dofs)] += elm.C()
+            K0[np.ix_(dofs, dofs)] += elm.K()
+
+    return C0, K0
+
+
 def integrate_rotor_system(rotor, speed, F, t, **kwargs):
     """Time integration for a rotor system.
 
@@ -904,45 +966,27 @@ def integrate_rotor_system(rotor, speed, F, t, **kwargs):
             )
 
         else:
-
-            def build_matrices(elements, rotor_speed=None):
-                C0 = np.zeros((rotor.ndof, rotor.ndof))
-                K0 = np.zeros((rotor.ndof, rotor.ndof))
-
-                if rotor_speed is not None:
-                    for elm in elements:
-                        dofs = list(elm.dof_global_index.values())
-                        C0[np.ix_(dofs, dofs)] += elm.C(rotor_speed)
-                        K0[np.ix_(dofs, dofs)] += elm.K(rotor_speed)
-
-                else:
-                    for elm in elements:
-                        dofs = list(elm.dof_global_index.values())
-                        C0[np.ix_(dofs, dofs)] += elm.C()
-                        K0[np.ix_(dofs, dofs)] += elm.K()
-
-                return C0, K0
-
             elements_without_bearing = [
                 *rotor.shaft_elements,
                 *rotor.disk_elements,
                 *rotor.point_mass_elements,
             ]
 
-            C0, K0 = build_matrices(elements_without_bearing)
+            C0, K0 = assemble_C_K_matrices(
+                elements_without_bearing,
+                np.zeros((rotor.ndof, rotor.ndof)),
+                np.zeros((rotor.ndof, rotor.ndof)),
+            )
 
             def rotor_system(step):
-                C_bearing, K_bearing = build_matrices(
-                    rotor.bearing_elements, speed[step]
+                C, K = assemble_C_K_matrices(
+                    rotor.bearing_elements, np.copy(C0), np.copy(K0), speed[step]
                 )
-
-                C1 = get_array[0](C0 + C_bearing)
-                K1 = get_array[0](K0 + K_bearing)
 
                 return (
                     M,
-                    C1 + C2 * speed[step],
-                    K1 + K2 * accel[step],
+                    get_array[0](C) + C2 * speed[step],
+                    get_array[0](K) + K2 * accel[step],
                     F[step, :],
                 )
 
