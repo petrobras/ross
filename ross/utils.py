@@ -686,7 +686,7 @@ def newmark(fun, t, y_size, **options):
     >>> K1 = rotor.K(speed)
     >>> C2 = rotor.G()
     >>> K2 = rotor.Ksdt()
-    >>> rotor_system = lambda step: (M, C1 + C2 * speed, K1 + K2 * accel, F[step, :])
+    >>> rotor_system = lambda i, u, v: (M, C1 + C2 * speed, K1 + K2 * accel, F[i, :])
     >>> yout = newmark(rotor_system, t, rotor.ndof)
     >>> dof = 13
     >>> yout[:, dof] # doctest: +ELLIPSIS
@@ -715,7 +715,7 @@ def newmark(fun, t, y_size, **options):
 
         dt = t[step] - t[step - 1]
 
-        M, C, K, RHS = fun(step)
+        M, C, K, RHS = fun(step, y0, ydot0)
 
         y2dot = np.zeros(ny)
         ydot = ydot0 + y2dot0 * (1 - gamma) * dt
@@ -789,6 +789,7 @@ def apply_pseudo_modal(rotor, speed, num_modes):
     >>> round(la.norm(F_modal), 5)
     226.92798
     """
+
     M = rotor.M(speed)
     K_aux = rotor.K(speed)
 
@@ -858,6 +859,7 @@ def assemble_C_K_matrices(elements, C0, K0, speed=None):
            [ 0., -6.,  1.,  0.],
            [ 6.,  0.,  0.,  1.]])
     """
+
     if speed is not None:
         for elm in elements:
             dofs = list(elm.dof_global_index.values())
@@ -892,8 +894,16 @@ def integrate_rotor_system(rotor, speed, F, t, **kwargs):
         of the Newmark method if it is used. (e.g. gamma, beta, tol, ...).
         See `newmark` for more details.
     num_modes : int, optional
-        If num_modes is passed as argument, the pseudo-modal method is applied reducing
+        If `num_modes` is passed as argument, the pseudo-modal method is applied reducing
         the model to the chosen number of modes.
+    add_to_RHS : callable, optional
+        An optional function that computes and returns an additional array to be added to
+        the right-hand side of the equation of motion. This function should take arguments
+        corresponding to the current state of the rotor system, including the time step
+        number, displacements, and velocities. It should return an array of the same length
+        as the degrees of freedom of the rotor system (`rotor.ndof`). This function allows
+        for the incorporation of supplementary terms or external effects in the rotor system
+        dynamics beyond the specified force input during the time integration process.
 
     Returns
     -------
@@ -920,8 +930,6 @@ def integrate_rotor_system(rotor, speed, F, t, **kwargs):
     >>> yout[:, dof] # doctest: +ELLIPSIS
     array([0.0000000e+00, 8.4914005e-09, 4.3429676e-08, ...
     """
-    num_modes = kwargs.get("num_modes")
-    size = num_modes if num_modes else rotor.ndof
 
     try:
         speed_is_array = len(set(speed)) > 1
@@ -931,16 +939,28 @@ def integrate_rotor_system(rotor, speed, F, t, **kwargs):
         speed_is_array = False
         speed_ref = speed
 
-    # Pseudo-modal method:
-    if size < rotor.ndof:
+    num_modes = kwargs.get("num_modes")
+
+    if num_modes and num_modes > 0:
+        size = num_modes
         print("Running pseudo-modal method, number of modes =", size)
         get_array = apply_pseudo_modal(rotor, speed_ref, size)
 
-    # Direct method:
     else:
+        size = rotor.ndof
         print("Running direct method")
         return_array = lambda array: array
-        get_array = [return_array for i in range(3)]
+        get_array = [return_array for j in range(3)]
+
+    add_to_RHS = kwargs.get("add_to_RHS")
+
+    if add_to_RHS is None:
+        ext_force = lambda i, u, v: 0
+
+    else:
+        ext_force = lambda i, u, v: get_array[1](
+            add_to_RHS(i, get_array[2](u), get_array[2](v))
+        )
 
     M = get_array[0](rotor.M())
     C2 = get_array[0](rotor.G())
@@ -958,11 +978,11 @@ def integrate_rotor_system(rotor, speed, F, t, **kwargs):
             C1 = get_array[0](rotor.C(speed_ref))
             K1 = get_array[0](rotor.K(speed_ref))
 
-            rotor_system = lambda step: (
+            rotor_system = lambda step, disp_resp, velc_resp: (
                 M,
                 C1 + C2 * speed[step],
                 K1 + K2 * accel[step],
-                F[step, :],
+                F[step, :] + ext_force(step, disp_resp, velc_resp),
             )
 
         else:
@@ -978,7 +998,7 @@ def integrate_rotor_system(rotor, speed, F, t, **kwargs):
                 np.zeros((rotor.ndof, rotor.ndof)),
             )
 
-            def rotor_system(step):
+            def rotor_system(step, disp_resp, velc_resp):
                 C, K = assemble_C_K_matrices(
                     rotor.bearing_elements, np.copy(C0), np.copy(K0), speed[step]
                 )
@@ -987,14 +1007,19 @@ def integrate_rotor_system(rotor, speed, F, t, **kwargs):
                     M,
                     get_array[0](C) + C2 * speed[step],
                     get_array[0](K) + K2 * accel[step],
-                    F[step, :],
+                    F[step, :] + ext_force(step, disp_resp, velc_resp),
                 )
 
     else:
         C1 = get_array[0](rotor.C(speed_ref))
         K1 = get_array[0](rotor.K(speed_ref))
 
-        rotor_system = lambda step: (M, C1 + C2 * speed, K1, F[step, :])
+        rotor_system = lambda step, disp_resp, velc_resp: (
+            M,
+            C1 + C2 * speed,
+            K1,
+            F[step, :] + ext_force(step, disp_resp, velc_resp),
+        )
 
     response = newmark(rotor_system, t, size, **kwargs)
     yout = get_array[2](response.T).T
