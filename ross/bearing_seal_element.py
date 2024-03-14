@@ -52,23 +52,34 @@ class BearingElement(Element):
         Direct stiffness in the x direction (N/m).
     cxx : float, array, pint.Quantity
         Direct damping in the x direction (N*s/m).
+    mxx : float, array, pint.Quantity
+        Direct mass in the x direction (kg).
     kyy : float, array, pint.Quantity, optional
         Direct stiffness in the y direction (N/m).
         (defaults to kxx)
     cyy : float, array, pint.Quantity, optional
         Direct damping in the y direction (N*s/m).
         (defaults to cxx)
+    myy : float, array, pint.Quantity, optional
+        Direct mass in the y direction (kg).
+        (defaults to mxx)
     kxy : float, array, pint.Quantity, optional
         Cross coupled stiffness in the x direction (N/m).
         (defaults to 0)
     cxy : float, array, pint.Quantity, optional
         Cross coupled damping in the x direction (N*s/m).
         (defaults to 0)
+    mxy : float, array, pint.Quantity, optional
+        Cross coupled mass in the x direction (kg).
+        (defaults to 0)
     kyx : float, array, pint.Quantity, optional
         Cross coupled stiffness in the y direction (N/m).
         (defaults to 0)
     cyx : float, array, pint.Quantity, optional
         Cross coupled damping in the y direction (N*s/m).
+        (defaults to 0)
+    myx : float, array, pint.Quantity, optional
+        Cross coupled mass in the y direction (kg).
         (defaults to 0)
     frequency : array, pint.Quantity, optional
         Array with the frequencies (rad/s).
@@ -146,20 +157,23 @@ class BearingElement(Element):
             "myx",
         ]
 
-        # all args to coefficients
-        args_dict = locals()
-
         if kyy is None:
-            args_dict["kyy"] = kxx
+            kyy = kxx
         if cyy is None:
-            args_dict["cyy"] = cxx
+            cyy = cxx
 
         if myy is None:
             if mxx is None:
-                args_dict["mxx"] = 0
-                args_dict["myy"] = 0
+                mxx = 0
+                myy = 0
             else:
-                args_dict["myy"] = mxx
+                myy = mxx
+
+        if mxx is None:
+            mxx = 0
+
+        # all args to coefficients.  output of locals() should be READ ONLY
+        args_dict = locals()
 
         # check coefficients len for consistency
         coefficients_len = []
@@ -241,6 +255,7 @@ class BearingElement(Element):
         frequency_units="rad/s",
         stiffness_units="N/m",
         damping_units="N*s/m",
+        mass_units="kg",
         fig=None,
         **kwargs,
     ):
@@ -250,10 +265,18 @@ class BearingElement(Element):
         ----------
         coefficients : list, str
             List or str with the coefficients to plot.
-        frequency_units : str
+        frequency_units : str, optional
             Frequency units.
             Default is rad/s.
-        y_units : str
+        stiffness_units : str, optional
+            Stiffness units.
+            Default is N/m.
+        damping_units : str, optional
+            Damping units.
+            Default is N*s/m.
+        mass_units : str, optional
+            Mass units.
+            Default is kg.
         **kwargs : optional
             Additional key word arguments can be passed to change the plot layout only
             (e.g. width=1000, height=800, ...).
@@ -278,16 +301,21 @@ class BearingElement(Element):
         # check coefficients consistency
         coefficients_set = set([coeff[0] for coeff in coefficients])
         if len(coefficients_set) > 1:
-            raise ValueError("Can only plot stiffness or damping in the same plot.")
+            raise ValueError(
+                "Can only plot stiffness, damping or mass in the same plot."
+            )
 
         coeff_to_plot = coefficients_set.pop()
 
         if coeff_to_plot == "k":
             default_units = "N/m"
             y_units = stiffness_units
-        else:
+        elif coeff_to_plot == "c":
             default_units = "N*s/m"
             y_units = damping_units
+        else:
+            default_units = "kg"
+            y_units = mass_units
 
         _frequency_range = np.linspace(min(self.frequency), max(self.frequency), 30)
 
@@ -937,7 +965,7 @@ class BearingFluidFlow(BearingElement):
     ...                  p_out, radius_rotor, radius_stator,
     ...                  visc, rho, load=load) # doctest: +ELLIPSIS
     BearingFluidFlow(n=0, n_link=None,
-     kxx=[145...
+     kxx=[14...
     """
 
     def __init__(
@@ -1816,20 +1844,22 @@ class BearingElement6DoF(BearingElement):
 
         new_args = ["kzz", "czz", "mzz"]
 
-        args_dict = locals()
         coefficients = {}
 
         if kzz is None:
-            args_dict["kzz"] = kxx * 0.0
+            kzz = kxx * 0.0
         if czz is None:
-            args_dict["czz"] = cxx * 0.0
+            czz = cxx * 0.0
 
         if mzz is None:
             if mxx is None:
-                args_dict["mxx"] = 0
-                args_dict["mzz"] = 0
+                mxx = 0
+                mzz = 0
             else:
-                args_dict["mzz"] = mxx * 0.0
+                mzz = mxx * 0.0
+
+        # output of locals() should be READ ONLY
+        args_dict = locals()
 
         # check coefficients len for consistency
         coefficients_len = []

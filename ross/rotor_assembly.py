@@ -952,20 +952,23 @@ class Rotor(object):
 
         return K0
 
-    def Kst(self):
+    def Ksdt(self):
         """Dynamic stiffness matrix for an instance of a rotor.
+
+        Stiffness matrix associated with the transient motion of the
+        shaft and disks. It needs to be multiplied by the angular
+        acceleration when considered in time dependent analyses.
 
         Returns
         -------
-        Kst0 : np.ndarray
-            Dynamic stiffness matrix for the rotor.
-            This matris IS OMEGA dependent
-            Only useable to the 6 DoF model.
+        Ksdt0 : np.ndarray
+            Dynamic stiffness matrix for the rotor. Only useable to
+            the 6 DoF model in variable speed analyses.
 
         Examples
         --------
         >>> rotor = rotor_example_6dof()
-        >>> np.round(rotor.Kst()[:6, :6]*1e6)
+        >>> np.round(rotor.Ksdt()[:6, :6]*1e6)
         array([[     0., -23002.,      0.,   -479.,      0.,      0.],
                [     0.,      0.,      0.,      0.,      0.,      0.],
                [     0.,      0.,      0.,      0.,      0.,      0.],
@@ -973,18 +976,23 @@ class Rotor(object):
                [     0.,    479.,      0.,    160.,      0.,      0.],
                [     0.,      0.,      0.,      0.,      0.,      0.]])
         """
+        Ksdt0 = np.zeros((self.ndof, self.ndof))
 
-        Kst0 = np.zeros((self.ndof, self.ndof))
+        for elm in self.shaft_elements:
+            dofs = list(elm.dof_global_index.values())
+            try:
+                Ksdt0[np.ix_(dofs, dofs)] += elm.Kst()
+            except:
+                pass
 
-        if self.number_dof == 6:
-            for elm in self.shaft_elements:
-                dofs = list(elm.dof_global_index.values())
-                try:
-                    Kst0[np.ix_(dofs, dofs)] += elm.Kst()
-                except TypeError:
-                    Kst0[np.ix_(dofs, dofs)] += elm.Kst()
+        for elm in self.disk_elements:
+            dofs = list(elm.dof_global_index.values())
+            try:
+                Ksdt0[np.ix_(dofs, dofs)] += elm.Kdt()
+            except:
+                pass
 
-        return Kst0
+        return Ksdt0
 
     def C(self, frequency):
         """Damping matrix for an instance of a rotor.
@@ -1080,7 +1088,7 @@ class Rotor(object):
         # fmt: off
         A = np.vstack(
             [np.hstack([Z, I]),
-             np.hstack([la.solve(-self.M(frequency), self.K(frequency) + self.Kst()*speed), la.solve(-self.M(frequency), (self.C(frequency) + self.G() * speed))])])
+             np.hstack([la.solve(-self.M(frequency), self.K(frequency)), la.solve(-self.M(frequency), (self.C(frequency) + self.G() * speed))])])
         # fmt: on
 
         return A
@@ -2084,7 +2092,7 @@ class Rotor(object):
         --------
         >>> import ross as rs
         >>> rotor1 = rs.rotor_example()
-        >>> speed = np.linspace(0, 400, 101)
+        >>> speed = np.linspace(0, 400, 11)
 
         Diagram with undamped natural frequencies
         >>> camp = rotor1.run_campbell(speed, frequency_type="wn")
@@ -2101,8 +2109,10 @@ class Rotor(object):
 
         results = np.zeros([len(speed_range), frequencies, 6])
 
+        modal_results = {}
         for i, w in enumerate(speed_range):
             modal = self.run_modal(speed=w, num_modes=2 * frequencies)
+            modal_results[w] = modal
 
             if frequency_type == "wd":
                 results[i, :, 0] = modal.wd[:frequencies]
@@ -2125,6 +2135,7 @@ class Rotor(object):
             log_dec=results[..., 1],
             damping_ratio=results[..., 2],
             whirl_values=results[..., 3],
+            modal_results=modal_results,
         )
 
         return results
@@ -3876,7 +3887,7 @@ def rotor_example_6dof():
     >>> print(f"Damped natural frequencies: {np.round(modal6.wd, 2)}") # doctest: +ELLIPSIS
     Damped natural frequencies: [  0.    47.62 ...
     >>> # Plotting Campbell Diagram
-    >>> camp6 = rotor6.run_campbell(np.linspace(0, 400, 101), frequencies=18)
+    >>> camp6 = rotor6.run_campbell(np.linspace(0, 400, 101), frequencies=6)
     >>> fig = camp6.plot()
     >>> # fig.show()
     """

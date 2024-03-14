@@ -198,7 +198,7 @@ class MisalignmentFlex(Defect):
         self.C = self.rotor.C(self.speed)
         self.G = self.rotor.G()
         self.M = self.rotor.M(self.speed)
-        self.Kst = self.rotor.Kst()
+        self.Ksdt = self.rotor.Ksdt()
 
         _, ModMat = scipy.linalg.eigh(self.K, self.M, type=1, turbo=False)
         ModMat = ModMat[:, :12]
@@ -209,7 +209,7 @@ class MisalignmentFlex(Defect):
         self.Cmodal = ((ModMat.T).dot(self.C)).dot(ModMat)
         self.Gmodal = ((ModMat.T).dot(self.G)).dot(ModMat)
         self.Kmodal = ((ModMat.T).dot(self.K)).dot(ModMat)
-        self.Kstmodal = ((ModMat.T).dot(self.Kst)).dot(ModMat)
+        self.Ksdtmodal = ((ModMat.T).dot(self.Ksdt)).dot(ModMat)
 
         # Omega = self.speedI * np.pi / 30
 
@@ -306,7 +306,7 @@ class MisalignmentFlex(Defect):
             ftmodal
             + self.Funbmodal[:, i]
             - ((self.Cmodal + self.Gmodal * self.Omega[i])).dot(velocity)
-            - ((self.Kmodal + self.Kstmodal * self.AccelV[i]).dot(positions))
+            - ((self.Kmodal + self.Ksdtmodal * self.AccelV[i]).dot(positions))
         ).dot(self.inv_Mmodal)
 
         new_X_dot = velocity
@@ -647,7 +647,7 @@ class MisalignmentRigid(Defect):
         self.C = self.rotor.C(self.speed)
         self.G = self.rotor.G()
         self.M = self.rotor.M(self.speed)
-        self.Kst = self.rotor.Kst()
+        self.Ksdt = self.rotor.Ksdt()
 
         _, ModMat = scipy.linalg.eigh(self.K, self.M, type=1, turbo=False)
         ModMat = ModMat[:, :12]
@@ -658,7 +658,7 @@ class MisalignmentRigid(Defect):
         self.Cmodal = ((ModMat.T).dot(self.C)).dot(ModMat)
         self.Gmodal = ((ModMat.T).dot(self.G)).dot(ModMat)
         self.Kmodal = ((ModMat.T).dot(self.K)).dot(ModMat)
-        self.Kstmodal = ((ModMat.T).dot(self.Kst)).dot(ModMat)
+        self.Ksdtmodal = ((ModMat.T).dot(self.Ksdt)).dot(ModMat)
 
         self.angANG = -np.pi / 180
 
@@ -793,7 +793,7 @@ class MisalignmentRigid(Defect):
             ftmodal
             + self.Funbmodal[:, i]
             - ((self.Cmodal + self.Gmodal * self.Omega[i])).dot(velocity)
-            - ((self.Kmodal + self.Kstmodal * self.AccelV[i]).dot(positions))
+            - ((self.Kmodal + self.Ksdtmodal * self.AccelV[i]).dot(positions))
         ).dot(self.inv_Mmodal)
 
         new_X_dot = velocity

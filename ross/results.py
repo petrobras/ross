@@ -85,6 +85,12 @@ class Results(ABC):
             data = {}
 
         data[f"{self.__class__.__name__}"] = args
+
+        try:
+            del data["CampbellResults"]["modal_results"]
+        except KeyError:
+            pass
+
         with open(file, "w") as f:
             toml.dump(data, f, encoder=toml.TomlNumpyEncoder())
 
@@ -148,6 +154,8 @@ class Results(ABC):
 
         data = toml.load(file)
         data = list(data.values())[0]
+        if cls == CampbellResults:
+            data["modal_results"] = None
         for key, value in data.items():
             if key == "rotor":
                 aux_file = str(file)[:-5] + "_rotor" + str(file)[-5:]
@@ -1020,6 +1028,53 @@ class ModalResults(Results):
         """
         return self.whirl_to_cmap(self.whirl_direction())
 
+    def data_mode(
+        self,
+        mode=None,
+        length_units="m",
+        frequency_units="rad/s",
+        damping_parameter="log_dec",
+    ):
+        """Return the mode shapes in DataFrame format.
+
+        Parameters
+        ----------
+        mode : int
+            The n'th vibration mode
+        length_units : str, optional
+            length units.
+            Default is 'm'.
+        damping_parameter : str, optional
+            Define which value to show for damping. We can use "log_dec" or "damping_ratio".
+            Default is "log_dec".
+
+        Returns
+        -------
+        df : pd.DataFrame
+            DataFrame storing mode shapes data arrays.
+        """
+        data = {}
+
+        damping_name = "Log. Dec."
+        damping_value = self.log_dec[mode]
+        if damping_parameter == "damping_ratio":
+            damping_name = "Damping ratio"
+            damping_value = self.damping_ratio[mode]
+        data["damping_name"] = damping_name
+        data["damping_value"] = damping_value
+
+        data["wd"] = Q_(self.wd[mode], "rad/s").to(frequency_units).m
+        data["wn"] = Q_(self.wn[mode], "rad/s").to(frequency_units).m
+        data["speed"] = Q_(self.speed, "rad/s").to(frequency_units).m
+
+        data[mode] = {}
+        for _key, _values in self.shapes[mode].__dict__.items():
+            data[mode][_key] = _values
+
+        df = pd.DataFrame(data)
+
+        return df
+
     def plot_mode_3d(
         self,
         mode=None,
@@ -1074,16 +1129,19 @@ class ModalResults(Results):
         if fig is None:
             fig = go.Figure()
 
-        damping_name = "Log. Dec."
-        damping_value = self.log_dec[mode]
-        if damping_parameter == "damping_ratio":
-            damping_name = "Damping ratio"
-            damping_value = self.damping_ratio[mode]
+        df = self.data_mode(mode, length_units, frequency_units, damping_parameter)
+
+        damping_name = df["damping_name"][0]
+        damping_value = df["damping_value"][0]
+
+        wd = df["wd"]
+        wn = df["wn"]
+        speed = df["speed"]
 
         frequency = {
-            "wd": f"ω<sub>d</sub> = {Q_(self.wd[mode], 'rad/s').to(frequency_units).m:.2f}",
-            "wn": f"ω<sub>n</sub> = {Q_(self.wn[mode], 'rad/s').to(frequency_units).m:.2f}",
-            "speed": f"Speed = {Q_(self.speed, 'rad/s').to(frequency_units).m:.2f}",
+            "wd": f"ω<sub>d</sub> = {wd[0]:.2f}",
+            "wn": f"ω<sub>n</sub> = {wn[0]:.2f}",
+            "speed": f"Speed = {speed[0]:.2f}",
         }
 
         shape = self.shapes[mode]
@@ -1175,19 +1233,23 @@ class ModalResults(Results):
         fig : Plotly graph_objects.Figure()
             The figure object with the plot.
         """
-        damping_name = "Log. Dec."
-        damping_value = self.log_dec[mode]
-        if damping_parameter == "damping_ratio":
-            damping_name = "Damping ratio"
-            damping_value = self.damping_ratio[mode]
+
+        df = self.data_mode(mode, length_units, frequency_units, damping_parameter)
+
+        damping_name = df["damping_name"][0]
+        damping_value = df["damping_value"][0]
 
         if fig is None:
             fig = go.Figure()
 
+        wd = df["wd"]
+        wn = df["wn"]
+        speed = df["speed"]
+
         frequency = {
-            "wd": f"ω<sub>d</sub> = {Q_(self.wd[mode], 'rad/s').to(frequency_units).m:.2f}",
-            "wn": f"ω<sub>n</sub> = {Q_(self.wn[mode], 'rad/s').to(frequency_units).m:.2f}",
-            "speed": f"Speed = {Q_(self.speed, 'rad/s').to(frequency_units).m:.2f}",
+            "wd": f"ω<sub>d</sub> = {wd[0]:.2f}",
+            "wn": f"ω<sub>n</sub> = {wn[0]:.2f}",
+            "speed": f"Speed = {speed[0]:.2f}",
         }
 
         shape = self.shapes[mode]
@@ -1300,6 +1362,8 @@ class CampbellResults(Results):
         Array with the Logarithmic decrement
     whirl_values : array
         Array with the whirl values (0, 0.5 or 1)
+    modal_results : dict
+        Dictionary with the modal results for each speed in the speed range.
 
     Returns
     -------
@@ -1307,12 +1371,15 @@ class CampbellResults(Results):
         The figure object with the plot.
     """
 
-    def __init__(self, speed_range, wd, log_dec, damping_ratio, whirl_values):
+    def __init__(
+        self, speed_range, wd, log_dec, damping_ratio, whirl_values, modal_results
+    ):
         self.speed_range = speed_range
         self.wd = wd
         self.log_dec = log_dec
         self.damping_ratio = damping_ratio
         self.whirl_values = whirl_values
+        self.modal_results = modal_results
 
     @check_units
     def plot(
@@ -1540,6 +1607,86 @@ class CampbellResults(Results):
         )
 
         return fig
+
+    def plot_with_mode_shape(
+        self,
+        harmonics=[1],
+        frequency_units="rad/s",
+        damping_parameter="log_dec",
+        frequency_range=None,
+        damping_range=None,
+        fig=None,
+        **kwargs,
+    ):
+        try:
+            from ipywidgets import VBox
+        except ImportError:
+            raise ImportError("Please install ipywidgets to use this feature.")
+
+        def _plot_with_mode_shape_callback(trace, points, state):
+            point_idx = points.point_inds
+            if len(point_idx) > 0:
+                frequency = trace.x[point_idx][0]
+                natural_frequency = trace.y[point_idx][0]
+
+                # run modal analysis for desired frequency
+                modal = self.modal_results[Q_(frequency, frequency_units).to("rad/s").m]
+
+                # identify index of desired mode
+                idx = (
+                    np.abs(
+                        modal.wd - Q_(natural_frequency, frequency_units).to("rad/s").m
+                    )
+                ).argmin()
+
+                new_plot_mode_3d = modal.plot_mode_3d(
+                    idx,
+                    frequency_units=frequency_units,
+                    damping_parameter=damping_parameter,
+                )
+                with plot_mode_3d.batch_update():
+                    # update title
+                    plot_mode_3d.layout["title"]["text"] = new_plot_mode_3d.layout[
+                        "title"
+                    ]["text"]
+                    for data, new_data in zip(plot_mode_3d_data, new_plot_mode_3d.data):
+                        for param in data:
+                            data[param] = new_data[param]
+
+        camp_fig = self.plot(
+            harmonics=harmonics,
+            frequency_units=frequency_units,
+            damping_parameter=damping_parameter,
+            frequency_range=frequency_range,
+            damping_range=damping_range,
+            fig=fig,
+            **kwargs,
+        )
+        camp_fig = go.FigureWidget(camp_fig)
+        plot_mode_3d = self.modal_results[self.speed_range[0]].plot_mode_3d(
+            0, frequency_units=frequency_units, damping_parameter=damping_parameter
+        )
+        plot_mode_3d = go.FigureWidget(plot_mode_3d)
+        plot_mode_3d_data = plot_mode_3d.data
+
+        for scatter in camp_fig.data:
+            scatter.on_click(_plot_with_mode_shape_callback)
+
+        return VBox([camp_fig, plot_mode_3d])
+
+    def save(self, file):
+        # TODO save modal results
+        warn(
+            "The CampbellResults.save method is not saving the attribute 'modal_results' for now."
+        )
+        super().save(file)
+
+    @classmethod
+    def load(cls, file):
+        warn(
+            "The CampbellResults.save method is not saving the attribute 'modal_results' for now."
+        )
+        return super().load(file)
 
 
 class FrequencyResponseResults(Results):
@@ -2424,6 +2571,93 @@ class ForcedResponseResults(Results):
 
         return fig
 
+    def plot_bode(
+        self,
+        probe,
+        probe_units="rad",
+        frequency_units="rad/s",
+        amplitude_units="m",
+        phase_units="rad",
+        mag_kwargs=None,
+        phase_kwargs=None,
+    ):
+        """Plot bode of the forced response using Plotly.
+
+        Parameters
+        ----------
+        probe : list
+            List with rs.Probe objects.
+        probe_units : str, optional
+            Units for probe orientation.
+            Default is "rad".
+        frequency_units : str, optional
+            Units for the x axis.
+            Default is "rad/s"
+        amplitude_units : str, optional
+            Units for the response magnitude.
+            Acceptable units dimensionality are:
+
+            '[length]' - Displays the displacement;
+
+            '[speed]' - Displays the velocity;
+
+            '[acceleration]' - Displays the acceleration.
+
+            Default is "m" 0 to peak.
+            To use peak to peak use '<unit> pkpk' (e.g. 'm pkpk')
+        phase_units : str, optional
+            Units for the x axis.
+            Default is "rad"
+        mag_kwargs : optional
+            Additional key word arguments can be passed to change the magnitude plot
+            layout only (e.g. width=1000, height=800, ...).
+            *See Plotly Python Figure Reference for more information.
+        phase_kwargs : optional
+            Additional key word arguments can be passed to change the phase plot
+            layout only (e.g. width=1000, height=800, ...).
+            *See Plotly Python Figure Reference for more information.
+
+        Returns
+        -------
+        bode : Plotly graph_objects.Figure()
+            The figure object with the bode plot.
+        """
+
+        mag_kwargs = {} if mag_kwargs is None else copy.copy(mag_kwargs)
+        phase_kwargs = {} if phase_kwargs is None else copy.copy(phase_kwargs)
+
+        fig0 = self.plot_magnitude(
+            probe, probe_units, frequency_units, amplitude_units, **mag_kwargs
+        )
+        fig1 = self.plot_phase(
+            probe,
+            probe_units,
+            frequency_units,
+            amplitude_units,
+            phase_units,
+            **phase_kwargs,
+        )
+
+        bode = make_subplots(
+            rows=2,
+            cols=1,
+            shared_xaxes=True,
+            vertical_spacing=0.02,
+        )
+
+        for data in fig0["data"]:
+            data.showlegend = False
+            bode.add_trace(data, row=1, col=1)
+        for data in fig1["data"]:
+            data.showlegend = False
+            bode.add_trace(data, row=2, col=1)
+
+        bode.update_yaxes(fig0.layout.yaxis, row=1, col=1)
+        bode.update_xaxes(fig1.layout.xaxis, row=2, col=1)
+        bode.update_yaxes(fig1.layout.yaxis, row=2, col=1)
+
+        return bode
+
     def plot_polar_bode(
         self,
         probe,
@@ -2584,19 +2818,14 @@ class ForcedResponseResults(Results):
             Plotly figure with Amplitude vs Frequency and Phase vs Frequency and
             polar Amplitude vs Phase plots.
         """
-        mag_kwargs = {} if mag_kwargs is None else copy.copy(mag_kwargs)
-        phase_kwargs = {} if phase_kwargs is None else copy.copy(phase_kwargs)
         polar_kwargs = {} if polar_kwargs is None else copy.copy(polar_kwargs)
         subplot_kwargs = {} if subplot_kwargs is None else copy.copy(subplot_kwargs)
 
         # fmt: off
-        fig0 = self.plot_magnitude(
-            probe, probe_units, frequency_units, amplitude_units, **mag_kwargs
+        fig0 = self.plot_bode(
+            probe, probe_units, frequency_units, amplitude_units, phase_units, mag_kwargs, phase_kwargs
         )
-        fig1 = self.plot_phase(
-            probe, probe_units, frequency_units, amplitude_units, phase_units, **phase_kwargs
-        )
-        fig2 = self.plot_polar_bode(
+        fig1 = self.plot_polar_bode(
             probe, probe_units, frequency_units, amplitude_units, phase_units, **polar_kwargs
         )
         # fmt: on
@@ -2608,22 +2837,28 @@ class ForcedResponseResults(Results):
             shared_xaxes=True,
             vertical_spacing=0.02,
         )
+
         for data in fig0["data"]:
             data.showlegend = False
-            subplots.add_trace(data, row=1, col=1)
+            row = 1
+            if "2" in data.yaxis:
+                row = 2
+
+            subplots.add_trace(data, row=row, col=1)
+
         for data in fig1["data"]:
-            data.showlegend = False
-            subplots.add_trace(data, row=2, col=1)
-        for data in fig2["data"]:
             subplots.add_trace(data, row=1, col=2)
 
+        xaxes_layout = fig0.layout.xaxis2
+        xaxes_layout["domain"] = [0, 0.45]
+
         subplots.update_yaxes(fig0.layout.yaxis, row=1, col=1)
-        subplots.update_xaxes(fig1.layout.xaxis, row=2, col=1)
-        subplots.update_yaxes(fig1.layout.yaxis, row=2, col=1)
+        subplots.update_yaxes(fig0.layout.yaxis2, row=2, col=1)
+        subplots.update_xaxes(xaxes_layout, row=2, col=1)
         subplots.update_layout(
             polar=dict(
-                radialaxis=fig2.layout.polar.radialaxis,
-                angularaxis=fig2.layout.polar.angularaxis,
+                radialaxis=fig1.layout.polar.radialaxis,
+                angularaxis=fig1.layout.polar.angularaxis,
             ),
             **subplot_kwargs,
         )
@@ -4203,7 +4438,7 @@ class TimeResponseResults(Results):
             # fmt: off
             operator = np.array(
                 [[np.cos(angle), - np.sin(angle)],
-                 [np.cos(angle), + np.sin(angle)]]
+                 [np.sin(angle), + np.cos(angle)]]
             )
 
             _probe_resp = operator @ np.vstack((self.yout[:, dofx], self.yout[:, dofy]))

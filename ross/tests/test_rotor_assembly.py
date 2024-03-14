@@ -1870,7 +1870,7 @@ def test_ucs_calc(rotor8):
 
 
 def test_ucs_rotor9(rotor9):
-    ucs_results = rotor9.run_ucs(num_modes=32)
+    ucs_results = rotor9.run_ucs(num_modes=8)
     fig = ucs_results.plot()
     expected_x = np.array(
         [

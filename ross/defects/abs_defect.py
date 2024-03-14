@@ -69,7 +69,7 @@ class Defect(ABC):
             # fmt: off
             operator = np.array(
                 [[np.cos(angle), - np.sin(angle)],
-                 [np.cos(angle), + np.sin(angle)]]
+                 [np.sin(angle), + np.cos(angle)]]
             )
             row, cols = self.response.shape
             _probe_resp = operator @ np.vstack((self.response[dofx,int(2*cols/3):], self.response[dofy,int(2*cols/3):]))
