@@ -157,20 +157,23 @@ class BearingElement(Element):
             "myx",
         ]
 
-        # all args to coefficients
-        args_dict = locals()
-
         if kyy is None:
-            args_dict["kyy"] = kxx
+            kyy = kxx
         if cyy is None:
-            args_dict["cyy"] = cxx
+            cyy = cxx
 
         if myy is None:
             if mxx is None:
-                args_dict["mxx"] = 0
-                args_dict["myy"] = 0
+                mxx = 0
+                myy = 0
             else:
-                args_dict["myy"] = mxx
+                myy = mxx
+
+        if mxx is None:
+            mxx = 0
+
+        # all args to coefficients.  output of locals() should be READ ONLY
+        args_dict = locals()
 
         # check coefficients len for consistency
         coefficients_len = []
@@ -1841,20 +1844,22 @@ class BearingElement6DoF(BearingElement):
 
         new_args = ["kzz", "czz", "mzz"]
 
-        args_dict = locals()
         coefficients = {}
 
         if kzz is None:
-            args_dict["kzz"] = kxx * 0.0
+            kzz = kxx * 0.0
         if czz is None:
-            args_dict["czz"] = cxx * 0.0
+            czz = cxx * 0.0
 
         if mzz is None:
             if mxx is None:
-                args_dict["mxx"] = 0
-                args_dict["mzz"] = 0
+                mxx = 0
+                mzz = 0
             else:
-                args_dict["mzz"] = mxx * 0.0
+                mzz = mxx * 0.0
+
+        # output of locals() should be READ ONLY
+        args_dict = locals()
 
         # check coefficients len for consistency
         coefficients_len = []
