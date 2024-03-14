@@ -891,8 +891,9 @@ def integrate_rotor_system(rotor, speed, F, t, **kwargs):
         Time array.
     **kwargs : optional
         Additional keyword arguments can be passed to define the parameters
-        of the Newmark method if it is used. (e.g. gamma, beta, tol, ...).
-        See `newmark` for more details.
+        of the Newmark method if it is used (e.g. gamma, beta, tol, ...).
+        See `newmark` for more details. Other optional arguments are listed
+        below.
     num_modes : int, optional
         If `num_modes` is passed as argument, the pseudo-modal method is applied reducing
         the model to the chosen number of modes.
@@ -1003,10 +1004,13 @@ def integrate_rotor_system(rotor, speed, F, t, **kwargs):
                     rotor.bearing_elements, np.copy(C0), np.copy(K0), speed[step]
                 )
 
+                C1 = get_array[0](C)
+                K1 = get_array[0](K)
+
                 return (
                     M,
-                    get_array[0](C) + C2 * speed[step],
-                    get_array[0](K) + K2 * accel[step],
+                    C1 + C2 * speed[step],
+                    K1 + K2 * accel[step],
                     F[step, :] + ext_force(step, disp_resp, velc_resp),
                 )
 
