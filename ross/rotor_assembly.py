@@ -1358,6 +1358,234 @@ class Rotor(object):
 
         return sys
 
+    @check_units
+    def _modal_solution(self, speed, F, t, number_modes="auto", method="rk45"):
+        """Modal Analysis
+
+        This method is used to perform the time integration of the rotor using the modal reduction. It uses an Runge-Kutta method within ROSS,
+
+        Parameters
+        ----------
+        speed : float, pint.Quantity
+            Rotor speed. Default unit is rad/s.
+        F : array
+            Force array (needs to have the same number of rows as time array).
+            Each column corresponds to a dof and each row to a time.
+        t : array
+            Time array.
+        number_modes : str, int, optional
+            Number of modes considered in the modal reduction. It is possible to pass the following string:
+
+                'auto' : the code will set the number of modes based on the rotor natural frequencies.
+
+            Additionally, if it a int is passed the code will use the number of modes defined by the user. Default is 'force'.
+        method : str, optional
+            Which algorithm to use. Options are:
+
+                'rk4' : Runge-Kutta, 4th order
+
+                'rk45' : Runge-Kutta Cash-Karp, 5th order
+
+                'rkf45' : Runge-Kutta-Fehlberg, 4th and 5th order
+
+            Default is 'rk45'.
+
+        Returns
+        -------
+        t : array
+            Time values for the output.
+        yout : array
+            System response.
+        xout : array
+            Time evolution of the state vector.
+        """
+
+        if isinstance(speed, np.ndarray) or isinstance(speed, list):
+            initial_speed = speed[0]
+            final_speed = speed[-1]
+        else:
+            initial_speed = speed
+            final_speed = speed
+
+        initial_time = t[0]
+        dt = t[1] - t[0]
+        final_time = t[-1]
+
+        # parameters for the time integration
+        lambdat = 0.00001
+        # Faxial = 0
+        # TorqueI = 0
+        # TorqueF = 0
+
+        # pre-processing of auxilary variuables for the time integration
+        sA = (
+            initial_speed * np.exp(-lambdat * final_time)
+            - final_speed * np.exp(-lambdat * initial_time)
+        ) / (np.exp(-lambdat * final_time) - np.exp(-lambdat * initial_time))
+        sB = (final_speed - initial_speed) / (
+            np.exp(-lambdat * final_time) - np.exp(-lambdat * initial_time)
+        )
+
+        # This code below here is used for acceleration and torque application to the rotor. As of
+        # september/2020 it is unused, but might be implemented in future releases. These would be
+        # run-up and run-down operations and variations of operating conditions.
+        #
+        # sAT = (
+        #     TorqueI * np.exp(-lambdat * final_time) - TorqueF * np.exp(-lambdat * initial_time)
+        # ) / (np.exp(-lambdat * final_time) - np.exp(-lambdat * initial_time))
+        # sBT = (TorqueF - TorqueI) / (
+        #     np.exp(-lambdat * final_time) - np.exp(-lambdat * initial_time)
+        # )
+        #
+        # SpeedV = sA + sB * np.exp(-lambdat * t)
+        # TorqueV = sAT + sBT * np.exp(-lambdat * t)
+        # AccelV = -lambdat * sB * np.exp(-lambdat * t)
+
+        # Get default matrices
+        K = self.K(speed)
+        C = self.C(speed)
+        G = self.G()
+        M = self.M()
+
+        if self.number_dof == 4:
+            Kst = np.zeros((self.ndof, self.ndof))
+        elif self.number_dof == 6:
+            Kst = self.Kst()
+
+        angular_position = (
+            sA * t - (sB / lambdat) * np.exp(-lambdat * t) + (sB / lambdat)
+        )
+
+        self.Omega = sA + sB * np.exp(-lambdat * t)
+        self.AccelV = -lambdat * sB * np.exp(-lambdat * t)
+
+        lambd, ModMat = la.eigh(K, M, type=1, turbo=False)
+
+        wn = np.sqrt(lambd)
+        n_harmonics = 5
+
+        up_freq = np.where(wn >= (n_harmonics * speed))[0].tolist()
+        max_freq = up_freq[0]
+
+        if max_freq % 2:
+            forced_modes = int(max_freq - 1)
+        else:
+            forced_modes = int(max_freq)
+
+        if isinstance(number_modes, str):
+            if number_modes in ["auto"]:
+                number_modes = forced_modes
+            else:
+                raise ValueError(
+                    f"The string passed in the number of modes of does not match : 'force'. \nThe value was: {number_modes}"
+                )
+        else:
+            if number_modes > self.ndof:
+                number_modes = self.ndof
+
+            if number_modes < forced_modes:
+                warnings.warn(
+                    f"The number of modes of {number_modes} is lower than the forced one. This could lead to wrong results."
+                )
+
+        self.size = 2 * number_modes
+
+        y0 = np.zeros(self.size)
+
+        ModMat = ModMat[:, :number_modes]
+        ModMat = ModMat
+
+        # Modal transformations
+        self.Mmodal = (ModMat.T @ M) @ ModMat
+        self.Cmodal = (ModMat.T @ C) @ ModMat
+        self.Gmodal = (ModMat.T @ G) @ ModMat
+        self.Kmodal = (ModMat.T @ K) @ ModMat
+        self.Kstmodal = (ModMat.T @ Kst) @ ModMat
+
+        self.Fmodal = ModMat.T @ F.T
+
+        self.inv_Mmodal = np.linalg.pinv(self.Mmodal)
+
+        self.i = 0
+
+        if method in ["rk4", "rk45", "rkf45"]:
+            from ross.defects import Integrator
+
+            x = Integrator(
+                x0=initial_time,
+                y0=y0,
+                x=final_time,
+                h=dt,
+                func=self._equation_of_movement,
+                size=self.size,
+            )
+            x = getattr(x, method)()
+
+        elif method in ["odeint"]:
+            from scipy.integrate import odeint
+
+            x = odeint(self._equation_of_movement, y0, t, args=(self.i,), tfirst=True)
+
+        else:
+            warnings.warn(
+                f"The method did not match any of {['rk4', 'rk45', 'rkf45', 'odeint']}. Using 'rk45'."
+            )
+            from ross.defects import Integrator
+
+            x = Integrator(
+                x0=initial_time,
+                y0=y0,
+                x=final_time,
+                h=dt,
+                func=self._equation_of_movement,
+                size=self.size,
+            )
+            x = x.rk45()
+
+        yout = ModMat.dot(x[: int(self.size / 2), :])
+
+        xout = np.zeros((2 * self.ndof, len(t)))
+
+        return t, yout.T, xout.T
+
+    def _equation_of_movement(self, T, Y, i):
+        """Calculates the displacement and velocity using state-space representation in the modal domain.
+
+        Parameters
+        ----------
+        T : float
+            Iteration time.
+        Y : array
+            Array of displacement and velocity, in the modal domain.
+        i : int
+            Iteration step.
+
+        Returns
+        -------
+        new_Y :  array
+            Array of the new displacement and velocity, in the modal domain.
+        """
+
+        positions = Y[: int(self.size / 2)]
+        velocity = Y[int(self.size / 2) :]  # velocity ign space state
+
+        # proper equation of movement to be integrated in time
+        new_V_dot = (
+            +self.Fmodal[:, i]
+            - ((self.Cmodal + self.Gmodal * self.Omega[i]) @ velocity)
+            - ((self.Kmodal + self.Kstmodal * self.AccelV[i]) @ positions)
+        ) @ self.inv_Mmodal
+
+        new_X_dot = velocity
+
+        new_Y = np.zeros(self.size)
+        new_Y[: int(self.size / 2)] = new_X_dot
+        new_Y[int(self.size / 2) :] = new_V_dot
+
+        self.i += 1
+
+        return new_Y
+
     def transfer_matrix(self, speed=None, frequency=None, modes=None):
         """Calculate the fer matrix for the frequency response function (FRF).
 
@@ -1854,7 +2082,7 @@ class Rotor(object):
 
         return forced_response
 
-    def time_response(self, speed, F, t, ic=None):
+    def time_response(self, speed, F, t, ic=None, solver="space-state", **kwargs):
         """Time response for a rotor.
 
         This method returns the time response for a rotor
@@ -1866,8 +2094,35 @@ class Rotor(object):
             Force array (needs to have the same length as time array).
         t : array
             Time array. (must have the same length than lti.B matrix)
+        solver : str, optional
+            Select which solver is going to be used. Options are:
+
+                'space-state' : solution will be calculated using the space-state formulation
+
+                'modal' : the modal reduction will be applied to find the solution.
+
         ic : array, optional
             The initial conditions on the state vector (zero by default).
+        kwargs : dict, optional
+            If 'modal' option is passed in solver, you can pass the following:
+
+                number_modes : str, int, optional
+                    Number of modes considered in the modal reduction. It is possible to pass the following string:
+
+                        'force' : the code will set the number of modes based on the rotor natural frequencies.
+
+                    Additionally, if it a int is passed the code will use the number of modes defined by the user. Default is 'force'.
+
+                method : str
+                    Which algorithm to use. Options are:
+
+                        'rk4' : Runge-Kutta, 4th order
+
+                        'rk45' : Runge-Kutta Cash-Karp, 5th order
+
+                        'rkf45' : Runge-Kutta-Fehlberg, 4th and 5th order
+
+                    Default is 'rk45'.
 
         Returns
         -------
@@ -1888,8 +2143,20 @@ class Rotor(object):
         >>> rotor.time_response(speed, F, t) # doctest: +ELLIPSIS
         (array([0.        , 0.18518519, 0.37037037, ...
         """
-        lti = self._lti(speed)
-        return signal.lsim(lti, F, t, X0=ic)
+        if solver in ["space-state"]:
+            lti = self._lti(speed)
+            return signal.lsim(lti, F, t, X0=ic)
+        elif solver in ["modal"]:
+            number_modes = (
+                kwargs.get("number_modes")
+                if kwargs.get("number_modes") is not None
+                else "auto"
+            )
+            method = (
+                kwargs.get("method") if kwargs.get("method") is not None else "rk45"
+            )
+
+            return self._modal_solution(speed, F, t, number_modes, method)
 
     def plot_rotor(self, nodes=1, check_sld=False, length_units="m", **kwargs):
         """Plot a rotor object.
@@ -2382,7 +2649,7 @@ class Rotor(object):
 
         return results
 
-    def run_time_response(self, speed, F, t):
+    def run_time_response(self, speed, F, t, solver="space-state", **kwargs):
         """Calculate the time response.
 
         This function will take a rotor object and calculate its time response
@@ -2402,6 +2669,28 @@ class Rotor(object):
             Each column corresponds to a dof and each row to a time.
         t : array
             Time array.
+        solver : str, optional
+            Select which solver is going to be used. Options are:
+
+                'space-state' : solution will be calculated using the space-state formulation
+
+                'modal' : the modal reduction will be applied to find the solution.
+
+        kwargs : dict, optional
+            If 'modal' option is passed in solver, you can pass the following:
+
+                number_modes : int
+                    Number of modes considered in the modal reduction. Default is 12.
+                method : str
+                    Which algorithm to use. Options are:
+
+                        'rk4' : Runge-Kutta, 4th order
+
+                        'rk45' : Runge-Kutta Cash-Karp, 5th order
+
+                        'rkf45' : Runge-Kutta-Fehlberg, 4th and 5th order
+
+                    Default is 'rk45'.
 
         Returns
         -------
@@ -2431,7 +2720,7 @@ class Rotor(object):
         >>> # plot orbit response - plotting 3D orbits - full rotor model:
         >>> fig3 = response.plot_3d()
         """
-        t_, yout, xout = self.time_response(speed, F, t)
+        t_, yout, xout = self.time_response(speed, F, t, solver=solver, **kwargs)
 
         results = TimeResponseResults(self, t, yout, xout)
 

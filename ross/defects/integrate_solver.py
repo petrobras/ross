@@ -40,13 +40,17 @@ class Integrator:
 
     """
 
-    def __init__(self, x0, y0, x, h, func, print_progress=False):
+    def __init__(
+        self, x0, y0, x, h, func, print_progress=False, size=24, tolerance=1e-9
+    ):
         self.x0 = x0
         self.y0 = y0
         self.x = x
         self.h = h
         self.func = func
         self.print_progress = print_progress
+        self.size = size
+        self.tolerance = tolerance
 
     def rk4(self):
         # Runge-Kutta 4th order (RK4)
@@ -57,7 +61,7 @@ class Integrator:
 
         # Iterate for number of iterations
         y = self.y0
-        result = np.zeros((24, n + 1))
+        result = np.zeros((self.size, n + 1))
         result[:, 0] = self.y0
 
         # 4th-order Runge-Kutta
@@ -90,7 +94,7 @@ class Integrator:
 
         # Iterate for number of iterations
         y = self.y0
-        result = np.zeros((24, n + 1))
+        result = np.zeros((self.size, n + 1))
         result[:, 0] = self.y0
 
         for i in range(1, n + 1):
@@ -136,5 +140,98 @@ class Integrator:
 
             # Update next value of x
             self.x0 = self.x0 + self.h
+
+        return result
+
+    def rkf45(self):
+        # Runge-Kutta-Fehlberg (RKF45)
+
+        # Count number of iterations using step size or
+        # step height h
+        n = int((self.x - self.x0) / self.h)
+
+        # Iterate for number of iterations
+        y = self.y0
+        result = np.zeros((self.size, n + 1))
+        result[:, 0] = self.y0
+
+        for i in range(1, n + 1):
+            if i % 10000 == 0 and self.print_progress:
+                print(f"Iteration: {i} \n Time: {self.x0}")
+
+            h = self.h
+            found = False
+            cont = 1
+
+            "Apply Runge Kutta Formulas to find next value of y"
+            while not found:
+                if cont % 10 == 0 and self.print_progress:
+                    print(f"Searched for time step for {cont} times.")
+
+                k1 = 1 * self.func(self.x0, y, i)
+
+                yp2 = y + k1 * (h / 4)
+                k2 = 1 * self.func(self.x0 + (h / 4), yp2, i)
+
+                yp3 = y + k1 * (3 * h / 32) + k2 * (9 * h / 32)
+                k3 = 1 * self.func(self.x0 + (3 * h / 8), yp3, i)
+
+                yp4 = (
+                    y
+                    + k1 * (1932 * h / 2197)
+                    - k2 * (7200 * h / 2197)
+                    + k3 * (7296 * h / 2197)
+                )
+                k4 = 1 * self.func(self.x0 + (12 * h / 13), yp4, i)
+
+                yp5 = (
+                    y
+                    + k1 * (439 * h / 216)
+                    - k2 * (8 * h)
+                    + k3 * (3680 * h / 513)
+                    - k4 * (845 * h / 4104)
+                )
+                k5 = 1 * self.func(self.x0 + h, yp5, i)
+
+                yp6 = (
+                    y
+                    - k1 * (8 * h / 27)
+                    + k2 * (2 * h)
+                    - k3 * (3544 * h / 2565)
+                    + k4 * (1859 * h / 4104)
+                    - k5 * (11 * h / 40)
+                )
+                k6 = 1 * self.func(self.x0 + (1 * h / 2), yp6, i)
+
+                # Update next value of y
+                y = y + h * (
+                    25 * k1 / 216 + 1408 * k3 / 2565 + 2197 * k4 / 4104 - 1 * k5 / 5
+                )
+
+                z = y + h * (
+                    16 * k1 / 135
+                    + 6656 * k3 / 12825
+                    + 28561 * k4 / 56430
+                    - 9 * k5 / 50
+                    + 2 * k6 / 55
+                )
+
+                erro = np.max(np.abs(z - y))
+
+                if erro == 0:
+                    erro = 1e-12
+
+                s = 0.840896 * (self.tolerance / erro) ** (1 / 4)
+
+                if s > 0.95:
+                    found = True
+
+                h = 0.9 * s * h
+
+                self.x0 += h
+
+            result[:, i] = np.copy(y)
+
+            # Update next value of x
 
         return result
