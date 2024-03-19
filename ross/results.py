@@ -4437,15 +4437,12 @@ class TimeResponseResults(Results):
 
             # fmt: off
             operator = np.array(
-                [[np.cos(angle), - np.sin(angle)],
-                 [np.sin(angle), + np.cos(angle)]]
+                [[np.cos(angle), np.sin(angle)],
+                 [-np.sin(angle), np.cos(angle)]]
             )
 
             _probe_resp = operator @ np.vstack((self.yout[:, dofx], self.yout[:, dofy]))
-            probe_resp = (
-                _probe_resp[0] * np.cos(angle) ** 2 +
-                _probe_resp[1] * np.sin(angle) ** 2
-            )
+            probe_resp = _probe_resp[0,:]
             # fmt: on
 
             probe_resp = Q_(probe_resp, "m").to(displacement_units).m
