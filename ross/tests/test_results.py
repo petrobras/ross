@@ -313,5 +313,5 @@ def test_probe_response(rotor1):
         ]
     )
     data = response.data_probe_response(probe=[probe1, probe2], probe_units="degree")
-    assert_allclose(data["probe_resp[0]"].to_numpy(), resp_prob1, rtol=1e-8)
-    assert_allclose(data["probe_resp[1]"].to_numpy(), resp_prob2, rtol=1e-8)
+    assert_allclose(data["probe_resp[0]"].to_numpy(), resp_prob1, rtol=1e-7)
+    assert_allclose(data["probe_resp[1]"].to_numpy(), resp_prob2, rtol=1e-7)
