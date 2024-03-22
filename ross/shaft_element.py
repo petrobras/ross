@@ -3,6 +3,7 @@
 This module defines the ShaftElement classes which will be used to represent the rotor
 shaft. There're 2 options, an element with 8 or 12 degrees of freedom.
 """
+
 import inspect
 import os
 from pathlib import Path
@@ -215,12 +216,7 @@ class ShaftElement(Element):
         a1 = 2 * np.pi * (roj * delta_ro - rij * delta_ri) / A_l
         a2 = np.pi * (roj**3 * delta_ro - rij**3 * delta_ri) / Ie_l
         b1 = np.pi * (delta_ro**2 - delta_ri**2) / A_l
-        b2 = (
-            3
-            * np.pi
-            * (roj**2 * delta_ro**2 - rij**2 * delta_ri**2)
-            / (2 * Ie_l)
-        )
+        b2 = 3 * np.pi * (roj**2 * delta_ro**2 - rij**2 * delta_ri**2) / (2 * Ie_l)
         gama = np.pi * (roj * delta_ro**3 - rij * delta_ri**3) / Ie_l
         delta = np.pi * (delta_ro**4 - delta_ri**4) / (4 * Ie_l)
 
@@ -244,14 +240,7 @@ class ShaftElement(Element):
         phi = 0
 
         # geometric center
-        c1 = (
-            roj**2
-            + 2 * roj * rok
-            + 3 * rok**2
-            - rij**2
-            - 2 * rij * rik
-            - 3 * rik**2
-        )
+        c1 = roj**2 + 2 * roj * rok + 3 * rok**2 - rij**2 - 2 * rij * rik - 3 * rik**2
         c2 = (roj**2 + roj * rok + rok**2) - (rij**2 + rij * rik + rik**2)
         self.beam_cg = L * c1 / (4 * c2)
         self.axial_cg_pos = None
@@ -1383,12 +1372,7 @@ class ShaftElement6DoF(ShaftElement):
         a1 = 2 * np.pi * (roj * delta_ro - rij * delta_ri) / A_l
         a2 = np.pi * (roj**3 * delta_ro - rij**3 * delta_ri) / Ie_l
         b1 = np.pi * (delta_ro**2 - delta_ri**2) / A_l
-        b2 = (
-            3
-            * np.pi
-            * (roj**2 * delta_ro**2 - rij**2 * delta_ri**2)
-            / (2 * Ie_l)
-        )
+        b2 = 3 * np.pi * (roj**2 * delta_ro**2 - rij**2 * delta_ri**2) / (2 * Ie_l)
         gama = np.pi * (roj * delta_ro**3 - rij * delta_ri**3) / Ie_l
         delta = np.pi * (delta_ro**4 - delta_ri**4) / (4 * Ie_l)
 
@@ -1410,14 +1394,7 @@ class ShaftElement6DoF(ShaftElement):
         self.Ie_l = Ie_l
 
         # geometric center
-        c1 = (
-            roj**2
-            + 2 * roj * rok
-            + 3 * rok**2
-            - rij**2
-            - 2 * rij * rik
-            - 3 * rik**2
-        )
+        c1 = roj**2 + 2 * roj * rok + 3 * rok**2 - rij**2 - 2 * rij * rik - 3 * rik**2
         c2 = (roj**2 + roj * rok + rok**2) - (rij**2 + rij * rik + rik**2)
         self.beam_cg = L * c1 / (4 * c2)
         self.axial_cg_pos = None
