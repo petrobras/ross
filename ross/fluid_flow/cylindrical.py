@@ -383,12 +383,8 @@ class THDCylindrical(BearingElement):
                     MU_s = 0.5 * (mu[ki, kj] + mu[ki - 1, kj])
                     MU_n = mu[ki, kj]
 
-                CE = (self.dZ * he**3) / (
-                    12 * MU_e[n_p] * self.dY * self.betha_s**2
-                )
-                CW = (self.dZ * hw**3) / (
-                    12 * MU_w[n_p] * self.dY * self.betha_s**2
-                )
+                CE = (self.dZ * he**3) / (12 * MU_e[n_p] * self.dY * self.betha_s**2)
+                CW = (self.dZ * hw**3) / (12 * MU_w[n_p] * self.dY * self.betha_s**2)
                 CN = (self.dY * (self.journal_radius**2) * hn**3) / (
                     12 * MU_n[n_p] * self.dZ * self.axial_length**2
                 )
@@ -1251,9 +1247,7 @@ class THDCylindrical(BearingElement):
 
                             dwdy = (HP / mu_turb[ki, kj, n_p]) * dPdz[ki, kj, n_p]
 
-                            tal = mu_turb[ki, kj, n_p] * np.sqrt(
-                                (dudy**2) + (dwdy**2)
-                            )
+                            tal = mu_turb[ki, kj, n_p] * np.sqrt((dudy**2) + (dwdy**2))
 
                             x_wall = (
                                 (HP * self.radial_clearance * 2)
@@ -1373,12 +1367,7 @@ class THDCylindrical(BearingElement):
                             )
                             b_TI = (
                                 auxb_T
-                                * (
-                                    mi_t
-                                    * (self.journal_radius**2)
-                                    * self.dY
-                                    * self.dZ
-                                )
+                                * (mi_t * (self.journal_radius**2) * self.dY * self.dZ)
                                 / (HP * self.radial_clearance)
                             )
                             b_TJ = (

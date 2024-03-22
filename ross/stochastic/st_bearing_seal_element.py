@@ -2,6 +2,7 @@
 
 This module creates an instance of random bearing for stochastic analysis.
 """
+
 import numpy as np
 
 from ross.bearing_seal_element import BearingElement

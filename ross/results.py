@@ -2,6 +2,7 @@
 
 This module returns graphs for each type of analyses in rotor_assembly.py.
 """
+
 import copy
 import inspect
 from abc import ABC
@@ -4382,7 +4383,8 @@ class TimeResponseResults(Results):
         self.xout = xout
         self.rotor = rotor
 
-    def data_probe_response(self,
+    def data_probe_response(
+        self,
         probe,
         probe_units="rad",
         displacement_units="m",
@@ -4408,7 +4410,7 @@ class TimeResponseResults(Results):
         Returns
         -------
          df : pd.DataFrame
-            DataFrame probe response. 
+            DataFrame probe response.
         """
         data = {}
 
@@ -4422,7 +4424,7 @@ class TimeResponseResults(Results):
                 probe_tag = p[2]
             except IndexError:
                 probe_tag = f"Probe {i+1} - Node {p[0]}"
-                
+
             data[f"probe_tag[{i}]"] = probe_tag
 
             fix_dof = (p[0] - nodes[-1] - 1) * ndof // 2 if p[0] in link_nodes else 0
@@ -4444,10 +4446,10 @@ class TimeResponseResults(Results):
 
             probe_resp = Q_(probe_resp, "m").to(displacement_units).m
             data[f"probe_resp[{i}]"] = probe_resp
-        
+
         data["time"] = Q_(self.t, "s").to(time_units).m
         df = pd.DataFrame(data)
-        
+
         return df
 
     def plot_1d(
@@ -4493,7 +4495,9 @@ class TimeResponseResults(Results):
         if fig is None:
             fig = go.Figure()
 
-        df = self.data_probe_response(probe, probe_units, displacement_units, time_units)
+        df = self.data_probe_response(
+            probe, probe_units, displacement_units, time_units
+        )
         _time = df["time"].to_numpy()
         for i, p in enumerate(probe):
 

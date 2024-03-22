@@ -2,6 +2,7 @@
 
 This module returns graphs for each type of analyses in st_rotor_assembly.py.
 """
+
 import copy
 import inspect
 from abc import ABC
