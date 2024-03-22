@@ -323,13 +323,7 @@ def calculate_eccentricity_ratio(modified_s):
         float
             Polynomial value f at x."""
         c = coefficients
-        return (
-            c[0] * x**4
-            + c[1] * x**3
-            + c[2] * x**2
-            + c[3] * x**1
-            + c[4] * x**0
-        )
+        return c[0] * x**4 + c[1] * x**3 + c[2] * x**2 + c[3] * x**1 + c[4] * x**0
 
     for i in roots:
         if 0 <= i <= 1:

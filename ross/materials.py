@@ -3,6 +3,7 @@
 This module defines the Material class and defines
 some of the most common materials used in rotors.
 """
+
 from pathlib import Path
 
 import numpy as np

@@ -1,4 +1,5 @@
 """Plotly theme to ROSS - Rotordynamic Open Source Sofware."""
+
 from plotly import graph_objects as go
 from plotly import io as pio
 

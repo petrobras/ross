@@ -3,6 +3,7 @@
 This module creates an instance of random disk element for stochastic
 analysis.
 """
+
 import numpy as np
 
 from ross.disk_element import DiskElement
