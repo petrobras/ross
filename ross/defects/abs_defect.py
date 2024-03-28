@@ -68,15 +68,12 @@ class Defect(ABC):
 
             # fmt: off
             operator = np.array(
-                [[np.cos(angle), - np.sin(angle)],
-                 [np.sin(angle), + np.cos(angle)]]
+                [[np.cos(angle), np.sin(angle)],
+                 [-np.sin(angle), np.cos(angle)]]
             )
             row, cols = self.response.shape
             _probe_resp = operator @ np.vstack((self.response[dofx,int(2*cols/3):], self.response[dofy,int(2*cols/3):]))
-            probe_resp = (
-                _probe_resp[0] * np.cos(angle) ** 2 +
-                _probe_resp[1] * np.sin(angle) ** 2
-            )
+            probe_resp = _probe_resp[0,:]
             # fmt: on
 
             amp, freq = self._dfft(probe_resp, self.dt)

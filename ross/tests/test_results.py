@@ -190,3 +190,26 @@ def test_orbit_calculate_amplitude():
     )
     assert_allclose(orb.calculate_amplitude("minor")[0], 1.4142135623730947)
     assert_allclose(orb.calculate_amplitude("major")[0], 2.8284271247461903)
+
+
+def test_probe_response(rotor1):
+    speed = 500.0
+    size = 50
+    node = 3
+    t = np.linspace(0, 10, size)
+    F = np.zeros((size, rotor1.ndof))
+    F[:, 4 * node] = 10 * np.cos(2 * t)
+    F[:, 4 * node + 1] = 10 * np.sin(2 * t)
+    response = rotor1.run_time_response(speed, F, t)
+
+    probe1 = (3, 0)  # node 3, orientation 0° (X dir.)
+    probe2 = (3, 90)  # node 3, orientation 90°(Y dir.)
+    resp_prob1 = np.array(
+        [0.00000000e00, 4.07504756e-06, 1.19778973e-05, 1.68562228e-05, 1.34097882e-05]
+    )
+    resp_prob2 = np.array(
+        [0.00000000e00, 4.13295078e-06, 8.25529257e-06, 1.28932310e-05, 1.59791798e-05]
+    )
+    data = response.data_probe_response(probe=[probe1, probe2], probe_units="degree")
+    assert_allclose(data["probe_resp[0]"].to_numpy()[:5], resp_prob1)
+    assert_allclose(data["probe_resp[1]"].to_numpy()[:5], resp_prob2)
