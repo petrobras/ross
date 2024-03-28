@@ -1,4 +1,5 @@
 """This module deals with lubricants dictionary in the ROSS library."""
+
 from ross.units import Q_
 
 lubricant_dict = {

@@ -4,6 +4,7 @@ This module defines the BearingElement classes which will be used to represent t
 bearings and seals. There are 7 different classes to represent bearings options,
 and 2 element options with 8 or 12 degrees of freedom.
 """
+
 import os
 import warnings
 from inspect import signature
@@ -1352,13 +1353,7 @@ class RollerBearingElement(BearingElement):
         scale_factor=1,
     ):
         Kb = 1.0e9
-        kyy = (
-            Kb
-            * n_rollers**0.9
-            * l_rollers**0.8
-            * fs**0.1
-            * (np.cos(alpha)) ** 1.9
-        )
+        kyy = Kb * n_rollers**0.9 * l_rollers**0.8 * fs**0.1 * (np.cos(alpha)) ** 1.9
 
         nr = [8, 12, 16]
         ratio = [0.49, 0.66, 0.74]

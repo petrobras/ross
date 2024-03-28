@@ -2,6 +2,7 @@
 
 This module defines the PointMass class which will be used to link elements.
 """
+
 import os
 from pathlib import Path
 

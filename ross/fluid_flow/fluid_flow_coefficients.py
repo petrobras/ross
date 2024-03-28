@@ -43,11 +43,7 @@ def calculate_oil_film_force(fluid_flow_object, force_type=None):
             * (fluid_flow_object.radius_rotor / fluid_flow_object.radial_clearance) ** 2
             * (fluid_flow_object.length**3 / fluid_flow_object.radius_rotor)
             * (
-                (
-                    2
-                    * fluid_flow_object.eccentricity_ratio**2
-                    * fluid_flow_object.omega
-                )
+                (2 * fluid_flow_object.eccentricity_ratio**2 * fluid_flow_object.omega)
                 / (1 - fluid_flow_object.eccentricity_ratio**2) ** 2
             )
         )
@@ -72,11 +68,7 @@ def calculate_oil_film_force(fluid_flow_object, force_type=None):
             * fluid_flow_object.radius_rotor
             * fluid_flow_object.length
             * (
-                (
-                    2
-                    * fluid_flow_object.eccentricity_ratio**2
-                    * fluid_flow_object.omega
-                )
+                (2 * fluid_flow_object.eccentricity_ratio**2 * fluid_flow_object.omega)
                 / (
                     (2 + fluid_flow_object.eccentricity_ratio**2)
                     * (1 - fluid_flow_object.eccentricity_ratio**2)

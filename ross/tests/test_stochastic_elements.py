@@ -5,6 +5,7 @@ Tests for:
     st_bearing_seal_element.py
     st_point_mass.py
 """
+
 import sys
 
 import numpy as np

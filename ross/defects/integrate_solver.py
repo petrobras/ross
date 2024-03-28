@@ -10,7 +10,6 @@ import numpy as np
 
 
 class Integrator:
-
     """A series of Runge-Kutta time integration algorithms.
 
     Calculates the time response for the rotors input to the routine.

@@ -3,6 +3,7 @@
 Tests for:
     st_rotor_assembly.py
 """
+
 import numpy as np
 import pytest
 from numpy.testing import assert_allclose
