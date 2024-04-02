@@ -659,6 +659,7 @@ class Rotor(object):
             self.nodes,
             self.nodes_pos,
             self.shaft_elements_length,
+            self.number_dof,
         )
 
         return modal_results
@@ -2136,6 +2137,7 @@ class Rotor(object):
             damping_ratio=results[..., 2],
             whirl_values=results[..., 3],
             modal_results=modal_results,
+            number_dof=self.number_dof,
         )
 
         return results
