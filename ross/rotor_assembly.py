@@ -2210,7 +2210,7 @@ class Rotor(object):
                 bearings_elements.append(bearing)
 
         for i, k in enumerate(stiffness_log):
-            bearings = [BearingElement(b.n, kxx=k, cxx=0) for b in bearings_elements]
+            bearings = [b.__class__(b.n, kxx=k, cxx=0) for b in bearings_elements]
             rotor = self.__class__(self.shaft_elements, self.disk_elements, bearings)
             speed = 0
             if synchronous:
@@ -2274,7 +2274,7 @@ class Rotor(object):
 
         for k, speed in zip(intersection_points["x"], intersection_points["y"]):
             # create bearing
-            bearings = [BearingElement(b.n, kxx=k, cxx=0) for b in bearings_elements]
+            bearings = [b.__class__(b.n, kxx=k, cxx=0) for b in bearings_elements]
             # create rotor
             rotor_critical = Rotor(
                 shaft_elements=self.shaft_elements,
@@ -2369,7 +2369,7 @@ class Rotor(object):
 
         for i, Q in enumerate(stiffness):
             bearings = [copy(b) for b in self.bearing_elements]
-            cross_coupling = BearingElement(n=n, kxx=0, cxx=0, kxy=Q, kyx=-Q)
+            cross_coupling = bearings[0].__class__(n=n, kxx=0, cxx=0, kxy=Q, kyx=-Q)
             bearings.append(cross_coupling)
 
             rotor = self.__class__(self.shaft_elements, self.disk_elements, bearings)
@@ -2820,14 +2820,14 @@ class Rotor(object):
                     pass
                 elif elm.n_link in self.nodes:
                     aux_brg.append(
-                        BearingElement(n=elm.n, n_link=elm.n_link, kxx=1e20, cxx=0)
+                        elm.__class__(n=elm.n, n_link=elm.n_link, kxx=1e20, cxx=0)
                     )
                     aux_brg_1.append(
-                        BearingElement(n=elm.n, n_link=elm.n_link, kxx=0, cxx=0)
+                        elm.__class__(n=elm.n, n_link=elm.n_link, kxx=0, cxx=0)
                     )
                 else:
-                    aux_brg.append(BearingElement(n=elm.n, kxx=1e20, cxx=0))
-                    aux_brg_1.append(BearingElement(n=elm.n, kxx=0, cxx=0))
+                    aux_brg.append(elm.__class__(n=elm.n, kxx=1e20, cxx=0))
+                    aux_brg_1.append(elm.__class__(n=elm.n, kxx=0, cxx=0))
 
         aux_rotor = Rotor(self.shaft_elements, self.disk_elements, aux_brg)
         aux_rotor_1 = Rotor(self.shaft_elements, self.disk_elements, aux_brg_1)
