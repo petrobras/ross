@@ -4,6 +4,7 @@ This module defines the DiskElement classes which will be used to represent equi
 attached to the rotor shaft, which add mainly mass and inertia to the system.
 There're 2 options, an element with 4 or 6 degrees of freedom.
 """
+
 import os
 from pathlib import Path
 
