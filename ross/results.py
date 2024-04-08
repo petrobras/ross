@@ -4071,14 +4071,11 @@ class SummaryResults(Results):
         The figure object with the tables plot.
     """
 
-    def __init__(
-        self, df_shaft, df_disks, df_bearings, nodes_pos, brg_forces, CG, Ip, tag
-    ):
+    def __init__(self, df_shaft, df_disks, df_bearings, brg_forces, CG, Ip, tag):
         self.df_shaft = df_shaft
         self.df_disks = df_disks
         self.df_bearings = df_bearings
         self.brg_forces = brg_forces
-        self.nodes_pos = np.array(nodes_pos)
         self.CG = CG
         self.Ip = Ip
         self.tag = tag
@@ -4127,7 +4124,7 @@ class SummaryResults(Results):
             "Tag": self.df_disks["tag"],
             "Shaft number": self.df_disks["shaft_number"],
             "Node": self.df_disks["n"],
-            "Nodal Position": self.nodes_pos[self.df_bearings["n"]],
+            "Nodal Position": self.df_disks["nodes_pos_l"],
             "Mass": self.df_disks["m"].map("{:.3f}".format),
             "Ip": self.df_disks["Ip"].map("{:.3e}".format),
         }
@@ -4137,7 +4134,7 @@ class SummaryResults(Results):
             "Shaft number": self.df_bearings["shaft_number"],
             "Node": self.df_bearings["n"],
             "N_link": self.df_bearings["n_link"],
-            "Nodal Position": self.nodes_pos[self.df_bearings["n"]],
+            "Nodal Position": self.df_bearings["nodes_pos_l"],
             "Bearing force": list(self.brg_forces.values()),
         }
 
