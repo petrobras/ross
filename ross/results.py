@@ -4415,6 +4415,75 @@ class TimeResponseResults(Results):
         self.xout = xout
         self.rotor = rotor
 
+    def data_probe_response(
+        self,
+        probe,
+        probe_units="rad",
+        displacement_units="m",
+        time_units="s",
+    ):
+        """This method create the time response given a tuple of probes with their nodes
+        and orientations in DataFrame format.
+
+        Parameters
+        ----------
+        probe : list
+            List with rs.Probe objects.
+        probe_units : str, option
+            Units for probe orientation.
+            Default is "rad".
+        displacement_units : str, optional
+            Displacement units.
+            Default is 'm'.
+        time_units : str
+            Time units.
+            Default is 's'.
+
+        Returns
+        -------
+         df : pd.DataFrame
+            DataFrame probe response.
+        """
+        data = {}
+
+        nodes = self.rotor.nodes
+        link_nodes = self.rotor.link_nodes
+        ndof = self.rotor.number_dof
+
+        for i, p in enumerate(probe):
+
+            try:
+                probe_tag = p[2]
+            except IndexError:
+                probe_tag = f"Probe {i+1} - Node {p[0]}"
+
+            data[f"probe_tag[{i}]"] = probe_tag
+
+            fix_dof = (p[0] - nodes[-1] - 1) * ndof // 2 if p[0] in link_nodes else 0
+            dofx = ndof * p[0] - fix_dof
+            dofy = ndof * p[0] + 1 - fix_dof
+
+            angle = Q_(p[1], probe_units).to("rad").m
+            data[f"angle[{i}]"] = angle
+
+            # fmt: off
+            operator = np.array(
+                [[np.cos(angle), np.sin(angle)],
+                 [-np.sin(angle), np.cos(angle)]]
+            )
+
+            _probe_resp = operator @ np.vstack((self.yout[:, dofx], self.yout[:, dofy]))
+            probe_resp = _probe_resp[0,:]
+            # fmt: on
+
+            probe_resp = Q_(probe_resp, "m").to(displacement_units).m
+            data[f"probe_resp[{i}]"] = probe_resp
+
+        data["time"] = Q_(self.t, "s").to(time_units).m
+        df = pd.DataFrame(data)
+
+        return df
+
     def plot_1d(
         self,
         probe,
@@ -4454,43 +4523,22 @@ class TimeResponseResults(Results):
         fig : Plotly graph_objects.Figure()
             The figure object with the plot.
         """
-        nodes = self.rotor.nodes
-        link_nodes = self.rotor.link_nodes
-        ndof = self.rotor.number_dof
 
         if fig is None:
             fig = go.Figure()
 
+        df = self.data_probe_response(
+            probe, probe_units, displacement_units, time_units
+        )
+        _time = df["time"].to_numpy()
         for i, p in enumerate(probe):
-            fix_dof = (p[0] - nodes[-1] - 1) * ndof // 2 if p[0] in link_nodes else 0
-            dofx = ndof * p[0] - fix_dof
-            dofy = ndof * p[0] + 1 - fix_dof
 
-            angle = Q_(p[1], probe_units).to("rad").m
-
-            # fmt: off
-            operator = np.array(
-                [[np.cos(angle), - np.sin(angle)],
-                 [np.sin(angle), + np.cos(angle)]]
-            )
-
-            _probe_resp = operator @ np.vstack((self.yout[:, dofx], self.yout[:, dofy]))
-            probe_resp = (
-                _probe_resp[0] * np.cos(angle) ** 2 +
-                _probe_resp[1] * np.sin(angle) ** 2
-            )
-            # fmt: on
-
-            probe_resp = Q_(probe_resp, "m").to(displacement_units).m
-
-            try:
-                probe_tag = p[2]
-            except IndexError:
-                probe_tag = f"Probe {i+1} - Node {p[0]}"
+            probe_tag = df[f"probe_tag[{i}]"][0]
+            probe_resp = df[f"probe_resp[{i}]"].to_numpy()
 
             fig.add_trace(
                 go.Scatter(
-                    x=Q_(self.t, "s").to(time_units).m,
+                    x=_time,
                     y=Q_(probe_resp, "m").to(displacement_units).m,
                     mode="lines",
                     name=probe_tag,
