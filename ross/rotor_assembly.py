@@ -3008,13 +3008,18 @@ class Rotor(object):
         >>> # to display the plot use the command:
         >>> # show(table)
         """
+        self.df_disks = pd.merge(
+            self.df_disks, self.df[["tag", "nodes_pos_l"]], on="tag", how="left"
+        )
+        self.df_bearings = pd.merge(
+            self.df_bearings, self.df[["tag", "nodes_pos_l"]], on="tag", how="left"
+        )
         self.run_static()
         forces = self.bearing_forces_tag
         results = SummaryResults(
             self.df_shaft,
             self.df_disks,
             self.df_bearings,
-            self.nodes_pos,
             forces,
             self.CG,
             self.Ip,
