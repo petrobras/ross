@@ -383,18 +383,25 @@ class Shape(Results):
     """
 
     def __init__(
-        self, vector, nodes, nodes_pos, shaft_elements_length, normalize=False
+        self,
+        vector,
+        nodes,
+        nodes_pos,
+        shaft_elements_length,
+        number_dof,
+        normalize=False,
     ):
         self.vector = vector
         self.nodes = nodes
         self.nodes_pos = nodes_pos
         self.shaft_elements_length = shaft_elements_length
         self.normalize = normalize
+        self.number_dof = number_dof
         evec = np.copy(vector)
 
         if self.normalize:
-            modex = evec[0::4]
-            modey = evec[1::4]
+            modex = evec[0 :: self.number_dof]
+            modey = evec[1 :: self.number_dof]
             xmax, ixmax = max(abs(modex)), np.argmax(abs(modex))
             ymax, iymax = max(abs(modey)), np.argmax(abs(modey))
 
@@ -417,7 +424,7 @@ class Shape(Results):
         orbits = []
         whirl = []
         for node, node_pos in zip(self.nodes, self.nodes_pos):
-            ru_e, rv_e = self._evec[4 * node : 4 * node + 2]
+            ru_e, rv_e = self._evec[self.number_dof * node : self.number_dof * node + 2]
             orbit = Orbit(node=node, node_pos=node_pos, ru_e=ru_e, rv_e=rv_e)
             orbits.append(orbit)
             whirl.append(orbit.whirl)
@@ -439,6 +446,7 @@ class Shape(Results):
         nodes = self.nodes
         shaft_elements_length = self.shaft_elements_length
         nodes_pos = self.nodes_pos
+        num_dof = self.number_dof
 
         # calculate each orbit
         self._calculate_orbits()
@@ -471,8 +479,19 @@ class Shape(Results):
             Nx = np.hstack((N1, Le * N2, N3, Le * N4))
             Ny = np.hstack((N1, -Le * N2, N3, -Le * N4))
 
-            xx = [4 * n, 4 * n + 3, 4 * n + 4, 4 * n + 7]
-            yy = [4 * n + 1, 4 * n + 2, 4 * n + 5, 4 * n + 6]
+            ind = num_dof * n
+            xx = [
+                ind + 0,
+                ind + int(num_dof / 2) + 1,
+                ind + num_dof + 0,
+                ind + int(3 * num_dof / 2) + 1,
+            ]
+            yy = [
+                ind + 1,
+                ind + int(num_dof / 2) + 0,
+                ind + num_dof + 1,
+                ind + int(3 * num_dof / 2) + 0,
+            ]
 
             pos0 = nn * n
             pos1 = nn * (n + 1)
@@ -840,6 +859,7 @@ class ModalResults(Results):
         nodes,
         nodes_pos,
         shaft_elements_length,
+        number_dof,
     ):
         self.speed = speed
         self.evalues = evalues
@@ -852,6 +872,7 @@ class ModalResults(Results):
         self.nodes = nodes
         self.nodes_pos = nodes_pos
         self.shaft_elements_length = shaft_elements_length
+        self.number_dof = number_dof
         self.modes = self.evectors[: self.ndof]
         self.shapes = []
         kappa_modes = []
@@ -863,6 +884,7 @@ class ModalResults(Results):
                     nodes_pos=self.nodes_pos,
                     shaft_elements_length=self.shaft_elements_length,
                     normalize=True,
+                    number_dof=self.number_dof,
                 )
             )
             kappa_color = []
@@ -1373,7 +1395,14 @@ class CampbellResults(Results):
     """
 
     def __init__(
-        self, speed_range, wd, log_dec, damping_ratio, whirl_values, modal_results
+        self,
+        speed_range,
+        wd,
+        log_dec,
+        damping_ratio,
+        whirl_values,
+        modal_results,
+        number_dof,
     ):
         self.speed_range = speed_range
         self.wd = wd
@@ -1381,6 +1410,7 @@ class CampbellResults(Results):
         self.damping_ratio = damping_ratio
         self.whirl_values = whirl_values
         self.modal_results = modal_results
+        self.number_dof = number_dof
 
     @check_units
     def plot(
@@ -3083,7 +3113,7 @@ class ForcedResponseResults(Results):
         idx = np.where(np.isclose(self.speed_range, speed, atol=1e-6))[0][0]
         mag = np.abs(self.forced_resp[:, idx])
         phase = np.angle(self.forced_resp[:, idx])
-        number_dof = self.rotor.number_dof
+        num_dof = self.rotor.number_dof
         nodes = self.rotor.nodes
 
         Mx = np.zeros_like(nodes, dtype=np.float64)
@@ -3097,10 +3127,10 @@ class ForcedResponseResults(Results):
                 [+6, -6, +2 * el.L, +4 * el.L],
             ])
             response_x = np.array([
-                [mag[number_dof * el.n_l + 0]],
-                [mag[number_dof * el.n_r + 0]],
-                [mag[number_dof * el.n_l + 3]],
-                [mag[number_dof * el.n_r + 3]],
+                [mag[num_dof * el.n_l + 0]],
+                [mag[num_dof * el.n_r + 0]],
+                [mag[num_dof * el.n_l + int(num_dof / 2) + 1]],
+                [mag[num_dof * el.n_r + int(num_dof / 2) + 1]],
             ])
 
             Mx[[el.n_l, el.n_r]] += (x @ response_x).flatten()
@@ -3110,10 +3140,10 @@ class ForcedResponseResults(Results):
                 [+6, -6, -2 * el.L, -4 * el.L],
             ])
             response_y = np.array([
-                [mag[number_dof * el.n_l + 1]],
-                [mag[number_dof * el.n_r + 1]],
-                [mag[number_dof * el.n_l + 2]],
-                [mag[number_dof * el.n_r + 2]],
+                [mag[num_dof * el.n_l + 1]],
+                [mag[num_dof * el.n_r + 1]],
+                [mag[num_dof * el.n_l + int(num_dof / 2) + 0]],
+                [mag[num_dof * el.n_r + int(num_dof / 2) + 0]],
             ])
             My[[el.n_l, el.n_r]] += (y @ response_y).flatten()
         # fmt: on
@@ -3189,6 +3219,7 @@ class ForcedResponseResults(Results):
             nodes=self.rotor.nodes,
             nodes_pos=self.rotor.nodes_pos,
             shaft_elements_length=self.rotor.shaft_elements_length,
+            number_dof=self.rotor.number_dof,
         )
 
         if fig is None:
@@ -3291,6 +3322,7 @@ class ForcedResponseResults(Results):
             nodes=self.rotor.nodes,
             nodes_pos=self.rotor.nodes_pos,
             shaft_elements_length=self.rotor.shaft_elements_length,
+            number_dof=self.rotor.number_dof,
         )
 
         if fig is None:
