@@ -1403,6 +1403,7 @@ class CampbellResults(Results):
         whirl_values,
         modal_results,
         number_dof,
+        run_modal,
     ):
         self.speed_range = speed_range
         self.wd = wd
@@ -1411,6 +1412,7 @@ class CampbellResults(Results):
         self.whirl_values = whirl_values
         self.modal_results = modal_results
         self.number_dof = number_dof
+        self.run_modal = run_modal
 
     @check_units
     def plot(
@@ -1654,14 +1656,23 @@ class CampbellResults(Results):
         except ImportError:
             raise ImportError("Please install ipywidgets to use this feature.")
 
+        modal_results_crit = {}
+
         def _plot_with_mode_shape_callback(trace, points, state):
             point_idx = points.point_inds
             if len(point_idx) > 0:
                 frequency = trace.x[point_idx][0]
                 natural_frequency = trace.y[point_idx][0]
 
-                # run modal analysis for desired frequency
-                modal = self.modal_results[Q_(frequency, frequency_units).to("rad/s").m]
+                # get modal results for desired frequency
+                try:
+                    modal = self.modal_results[
+                        Q_(frequency, frequency_units).to("rad/s").m
+                    ]
+                except:
+                    modal = modal_results_crit[
+                        Q_(frequency, frequency_units).to("rad/s").m
+                    ]
 
                 # identify index of desired mode
                 idx = (
@@ -1694,14 +1705,19 @@ class CampbellResults(Results):
             **kwargs,
         )
         camp_fig = go.FigureWidget(camp_fig)
+
+        crit_speeds = camp_fig.data[0]["x"]
+        for w in crit_speeds:
+            modal_results_crit[w] = self.run_modal(Q_(w, frequency_units).to("rad/s").m)
+
+        for scatter in camp_fig.data:
+            scatter.on_click(_plot_with_mode_shape_callback)
+
         plot_mode_3d = self.modal_results[self.speed_range[0]].plot_mode_3d(
             0, frequency_units=frequency_units, damping_parameter=damping_parameter
         )
         plot_mode_3d = go.FigureWidget(plot_mode_3d)
         plot_mode_3d_data = plot_mode_3d.data
-
-        for scatter in camp_fig.data:
-            scatter.on_click(_plot_with_mode_shape_callback)
 
         return VBox([camp_fig, plot_mode_3d])
 
