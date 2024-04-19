@@ -207,6 +207,9 @@ class ShaftElement(Element):
         # Second moment of area of the cross section from the left side
         # of the element
         Ie_l = np.pi * (odl**4 - idl**4) / 64
+        Ie_r = np.pi * (odr**4 - idr**4) / 64
+        self.Ie_l = Ie_l
+        self.Ie_r = Ie_r
 
         outer = self.odl**2 + self.odl * self.odr + self.odr**2
         inner = self.idl**2 + self.idl * self.idr + self.idr**2
@@ -243,7 +246,6 @@ class ShaftElement(Element):
         # the middle of the element - about the neutral plane
         Ie = Ie_l * (1 + a2 * 0.5 + b2 * 0.5**2 + gama * 0.5**3 + delta * 0.5**4)
         self.Ie = Ie
-        self.Ie_l = Ie_l
 
         phi = 0
 
@@ -1592,34 +1594,24 @@ class ShaftElement6DoF(ShaftElement):
         >>> Timoshenko_Element.Kst().shape
         (12, 12)
         """
-        # temporary material and geometrical constants, determined as mean values
-        # from the left and right radii of the taperad shaft
         L = self.L
-        tempI = (
-            np.pi
-            / 4
-            * (
-                ((self.odr / 2) ** 4 + (self.odl / 2) ** 4) / 2
-                - ((self.idr / 2) ** 4 + (self.idl / 2) ** 4) / 2
-            )
-        )
+        Ie = (self.Ie_l + self.Ie_r) / 2
 
         # fmt: off
-        # dynamic stiffening matrix
-        Kst = self.material.rho * tempI / (15 * L) * np.array([
-            [0, -36, 0,    3*L, 0, 0, 0,   36, 0,    3*L, 0, 0],
-            [0,   0, 0,      0, 0, 0, 0,    0, 0,      0, 0, 0],
-            [0,   0, 0,      0, 0, 0, 0,    0, 0,      0, 0, 0],
-            [0,   0, 0,      0, 0, 0, 0,    0, 0,      0, 0, 0],
-            [0,-3*L, 0, 4*L**2, 0, 0, 0,  3*L, 0,  -L**2, 0, 0],
-            [0,   0, 0,      0, 0, 0, 0,    0, 0,      0, 0, 0],
-            [0,  36, 0,   -3*L, 0, 0, 0,  -36, 0,   -3*L, 0, 0],
-            [0,   0, 0,      0, 0, 0, 0,    0, 0,      0, 0, 0],
-            [0,   0, 0,      0, 0, 0, 0,    0, 0,      0, 0, 0],
-            [0,   0, 0,      0, 0, 0, 0,    0, 0,      0, 0, 0],
-            [0,-3*L, 0,  -L**2, 0, 0, 0,  3*L, 0, 4*L**2, 0, 0],
-            [0,   0, 0,      0, 0, 0, 0,    0, 0,      0, 0, 0],
-        ])
+        Kst = np.array([
+            [0,  -36, 0,    3*L, 0, 0, 0,  36, 0,    3*L, 0, 0],
+            [0,    0, 0,      0, 0, 0, 0,   0, 0,      0, 0, 0],
+            [0,    0, 0,      0, 0, 0, 0,   0, 0,      0, 0, 0],
+            [0,    0, 0,      0, 0, 0, 0,   0, 0,      0, 0, 0],
+            [0, -3*L, 0, 4*L**2, 0, 0, 0, 3*L, 0,  -L**2, 0, 0],
+            [0,    0, 0,      0, 0, 0, 0,   0, 0,      0, 0, 0],
+            [0,   36, 0,   -3*L, 0, 0, 0, -36, 0,   -3*L, 0, 0],
+            [0,    0, 0,      0, 0, 0, 0,   0, 0,      0, 0, 0],
+            [0,    0, 0,      0, 0, 0, 0,   0, 0,      0, 0, 0],
+            [0,    0, 0,      0, 0, 0, 0,   0, 0,      0, 0, 0],
+            [0, -3*L, 0,  -L**2, 0, 0, 0, 3*L, 0, 4*L**2, 0, 0],
+            [0,    0, 0,      0, 0, 0, 0,   0, 0,      0, 0, 0],
+        ]) * self.material.rho * Ie / (15 * L) 
         # fmt: on
 
         return Kst
