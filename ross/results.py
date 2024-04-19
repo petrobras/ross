@@ -1768,7 +1768,7 @@ class FrequencyResponseResults(Results):
         if self.number_dof == 4:
             self.dof_dict = {"0": "x", "1": "y", "2": "α", "3": "β"}
         elif self.number_dof == 6:
-            self.dof_dict = {"0": "x", "1": "y", "2": "z", "4": "α", "5": "β", "6": "θ"}
+            self.dof_dict = {"0": "x", "1": "y", "2": "z", "3": "α", "4": "β", "5": "θ"}
 
     def plot_magnitude(
         self,
