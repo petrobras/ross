@@ -1664,51 +1664,75 @@ class ShaftElement6DoF(ShaftElement):
         (12, 12)
         """
         if self.gyroscopic:
-            # temporary material and geometrical constants, determined as mean values
-            # from the left and right radii of the tapered shaft
+            phi = self.phi
             L = self.L
-            tempI = (
-                np.pi
-                / 4
-                * (
-                    ((self.odr / 2) ** 4 + (self.odl / 2) ** 4) / 2
-                    - ((self.idr / 2) ** 4 + (self.idl / 2) ** 4) / 2
-                )
-            )
-            tempS = np.pi * (
-                ((self.odr / 2) ** 2 + (self.odl / 2) ** 2) / 2
-                - ((self.idr / 2) ** 2 + (self.idl / 2) ** 2) / 2
-            )
+            a2 = self.a2
+            b2 = self.b2
+            delta = self.delta
+            gama = self.gama
+
+            g1 = 252 + 126 * a2 + 72 * b2 + 45 * gama + 30 * delta
+            g2 = (
+                21
+                - 105 * phi
+                + a2 * (21 - 42 * phi)
+                + b2 * (15 - 21 * phi)
+                + gama * (10.5 - 12 * phi)
+                + delta * (7.5 - 7.5 * phi)
+            ) * L
+            g3 = (
+                21
+                - 105 * phi
+                - 63 * a2 * phi
+                - b2 * (6 + 42 * phi)
+                - gama * (7.5 + 30 * phi)
+                - delta * (7.5 + 22.5 * phi)
+            ) * L
+            g4 = (
+                28
+                + 35 * phi
+                + 70 * phi**2
+                + a2 * (7 - 7 * phi + 17.5 * phi**2)
+                + b2 * (4 - 7 * phi + 7 * phi**2)
+                + gama * (2.75 - 5 * phi + 3.5 * phi**2)
+                + delta * (2 - 3.5 * phi + 2 * phi**2)
+            ) * L**2
+            g5 = (
+                7
+                + 35 * phi
+                - 35 * phi**2
+                + a2 * (3.5 + 17.5 * phi - 17.5 * phi**2)
+                + b2 * (3 + 10.5 * phi - 10.5 * phi**2)
+                + gama * (2.75 + 7 * phi - 7 * phi**2)
+                + delta * (2.5 + 5 * phi - 5 * phi**2)
+            ) * L**2
+            g6 = (
+                28
+                + 35 * phi
+                + 70 * phi**2
+                + a2 * (21 + 42 * phi + 52.5 * phi**2)
+                + b2 * (18 + 42 * phi + 42 * phi**2)
+                + gama * (16.25 + 40 * phi + 35 * phi**2)
+                + delta * (15 + 37.5 * phi + 30 * phi**2)
+            ) * L**2
 
             # fmt: off
-            # Gyroscopic effect matrix
-            phi=(
-            12
-            * self.material.E
-            * tempI
-            / (self.material.G_s * self.kappa * tempS * L ** 2)
-            )
-
-            g1 = 36
-            g2 = (3 - 15*phi) * L
-            g3 = (4 + 5*phi + 10*phi**2) * L**2
-            g4 = (-1 - 5*phi + 5*phi**2) * L**2
-
-            G = (self.material.rho * tempI / (15*((1+phi)**2) * L)) * np.array([
-                    [   0,  g1, 0,   -g2,   0, 0,     0, -g1, 0,   -g2,   0, 0],
-                    [ -g1,   0, 0,     0, -g2, 0,    g1,   0, 0,     0, -g2, 0],
-                    [   0,   0, 0,     0,   0, 0,     0,   0, 0,     0,   0, 0],
-                    [  g2,   0, 0,     0,  g3, 0,   -g2,   0, 0,     0,  g4, 0],
-                    [   0,  g2, 0,   -g3,   0, 0,     0, -g2, 0,   -g4,   0, 0],
-                    [   0,   0, 0,     0,   0, 0,     0,   0, 0,     0,   0, 0],
-                    [   0, -g1, 0,    g2,   0, 0,     0,  g1, 0,    g2,   0, 0],
-                    [  g1,   0, 0,     0,  g2, 0,   -g1,   0, 0,     0,  g2, 0],
-                    [   0,   0, 0,     0,   0, 0,     0,   0, 0,     0,   0, 0],
-                    [  g2,   0, 0,     0,  g4, 0,   -g2,   0, 0,     0,  g3, 0],
-                    [   0,  g2, 0,   -g4,   0, 0,     0, -g2, 0,   -g3,   0, 0],
-                    [   0,   0, 0,     0,   0, 0,     0,   0, 0,     0,   0, 0],
-            ])
+            G = np.array([
+                [  0,  g1, 0, -g2,   0, 0,   0, -g1, 0, -g3,   0, 0],
+                [-g1,   0, 0,   0, -g2, 0,  g1,   0, 0,   0, -g3, 0],
+                [  0,   0, 0,   0,   0, 0,   0,   0, 0,   0,   0, 0],
+                [ g2,   0, 0,   0,  g4, 0, -g2,   0, 0,   0, -g5, 0],
+                [  0,  g2, 0, -g4,   0, 0,   0, -g2, 0,  g5,   0, 0],
+                [  0,   0, 0,   0,   0, 0,   0,   0, 0,   0,   0, 0],
+                [  0, -g1, 0,  g2,   0, 0,   0,  g1, 0,  g3,   0, 0],
+                [ g1,   0, 0,   0,  g2, 0, -g1,   0, 0,   0,  g3, 0],
+                [  0,   0, 0,   0,   0, 0,   0,   0, 0,   0,   0, 0],
+                [ g3,   0, 0,   0, -g5, 0, -g3,   0, 0,   0,  g6, 0],
+                [  0,  g3, 0,  g5,   0, 0,   0, -g3, 0, -g6,   0, 0],
+                [  0,   0, 0,   0,   0, 0,   0,   0, 0,   0,   0, 0],
+            ]) * self.material.rho * self.Ie_l * 2 / (210 * L * (1 + phi) ** 2)
             # fmt: on
+
         else:
             G = np.zeros((12, 12))
 
