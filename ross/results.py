@@ -1432,7 +1432,7 @@ class CampbellResults(Results):
             The default is to plot 1x.
         frequency_units : str, optional
             Frequency units.
-            Default is "rad/s"
+            Default is "rpm"
         damping_parameter : str, optional
             Define which value to show for damping. We can use "log_dec" or "damping_ratio".
             Default is "log_dec".
