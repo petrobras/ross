@@ -1416,7 +1416,7 @@ class CampbellResults(Results):
     def plot(
         self,
         harmonics=[1],
-        frequency_units="rad/s",
+        frequency_units="rpm",
         damping_parameter="log_dec",
         frequency_range=None,
         damping_range=None,
