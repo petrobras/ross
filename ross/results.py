@@ -383,18 +383,25 @@ class Shape(Results):
     """
 
     def __init__(
-        self, vector, nodes, nodes_pos, shaft_elements_length, normalize=False
+        self,
+        vector,
+        nodes,
+        nodes_pos,
+        shaft_elements_length,
+        number_dof,
+        normalize=False,
     ):
         self.vector = vector
         self.nodes = nodes
         self.nodes_pos = nodes_pos
         self.shaft_elements_length = shaft_elements_length
         self.normalize = normalize
+        self.number_dof = number_dof
         evec = np.copy(vector)
 
         if self.normalize:
-            modex = evec[0::4]
-            modey = evec[1::4]
+            modex = evec[0 :: self.number_dof]
+            modey = evec[1 :: self.number_dof]
             xmax, ixmax = max(abs(modex)), np.argmax(abs(modex))
             ymax, iymax = max(abs(modey)), np.argmax(abs(modey))
 
@@ -417,7 +424,7 @@ class Shape(Results):
         orbits = []
         whirl = []
         for node, node_pos in zip(self.nodes, self.nodes_pos):
-            ru_e, rv_e = self._evec[4 * node : 4 * node + 2]
+            ru_e, rv_e = self._evec[self.number_dof * node : self.number_dof * node + 2]
             orbit = Orbit(node=node, node_pos=node_pos, ru_e=ru_e, rv_e=rv_e)
             orbits.append(orbit)
             whirl.append(orbit.whirl)
@@ -439,6 +446,7 @@ class Shape(Results):
         nodes = self.nodes
         shaft_elements_length = self.shaft_elements_length
         nodes_pos = self.nodes_pos
+        num_dof = self.number_dof
 
         # calculate each orbit
         self._calculate_orbits()
@@ -471,8 +479,19 @@ class Shape(Results):
             Nx = np.hstack((N1, Le * N2, N3, Le * N4))
             Ny = np.hstack((N1, -Le * N2, N3, -Le * N4))
 
-            xx = [4 * n, 4 * n + 3, 4 * n + 4, 4 * n + 7]
-            yy = [4 * n + 1, 4 * n + 2, 4 * n + 5, 4 * n + 6]
+            ind = num_dof * n
+            xx = [
+                ind + 0,
+                ind + int(num_dof / 2) + 1,
+                ind + num_dof + 0,
+                ind + int(3 * num_dof / 2) + 1,
+            ]
+            yy = [
+                ind + 1,
+                ind + int(num_dof / 2) + 0,
+                ind + num_dof + 1,
+                ind + int(3 * num_dof / 2) + 0,
+            ]
 
             pos0 = nn * n
             pos1 = nn * (n + 1)
@@ -840,6 +859,7 @@ class ModalResults(Results):
         nodes,
         nodes_pos,
         shaft_elements_length,
+        number_dof,
     ):
         self.speed = speed
         self.evalues = evalues
@@ -852,6 +872,7 @@ class ModalResults(Results):
         self.nodes = nodes
         self.nodes_pos = nodes_pos
         self.shaft_elements_length = shaft_elements_length
+        self.number_dof = number_dof
         self.modes = self.evectors[: self.ndof]
         self.shapes = []
         kappa_modes = []
@@ -863,6 +884,7 @@ class ModalResults(Results):
                     nodes_pos=self.nodes_pos,
                     shaft_elements_length=self.shaft_elements_length,
                     normalize=True,
+                    number_dof=self.number_dof,
                 )
             )
             kappa_color = []
@@ -1373,7 +1395,15 @@ class CampbellResults(Results):
     """
 
     def __init__(
-        self, speed_range, wd, log_dec, damping_ratio, whirl_values, modal_results
+        self,
+        speed_range,
+        wd,
+        log_dec,
+        damping_ratio,
+        whirl_values,
+        modal_results,
+        number_dof,
+        run_modal,
     ):
         self.speed_range = speed_range
         self.wd = wd
@@ -1381,6 +1411,8 @@ class CampbellResults(Results):
         self.damping_ratio = damping_ratio
         self.whirl_values = whirl_values
         self.modal_results = modal_results
+        self.number_dof = number_dof
+        self.run_modal = run_modal
 
     @check_units
     def plot(
@@ -1624,14 +1656,23 @@ class CampbellResults(Results):
         except ImportError:
             raise ImportError("Please install ipywidgets to use this feature.")
 
+        modal_results_crit = {}
+
         def _plot_with_mode_shape_callback(trace, points, state):
             point_idx = points.point_inds
             if len(point_idx) > 0:
                 frequency = trace.x[point_idx][0]
                 natural_frequency = trace.y[point_idx][0]
 
-                # run modal analysis for desired frequency
-                modal = self.modal_results[Q_(frequency, frequency_units).to("rad/s").m]
+                # get modal results for desired frequency
+                try:
+                    modal = self.modal_results[
+                        Q_(frequency, frequency_units).to("rad/s").m
+                    ]
+                except:
+                    modal = modal_results_crit[
+                        Q_(frequency, frequency_units).to("rad/s").m
+                    ]
 
                 # identify index of desired mode
                 idx = (
@@ -1664,14 +1705,19 @@ class CampbellResults(Results):
             **kwargs,
         )
         camp_fig = go.FigureWidget(camp_fig)
+
+        crit_speeds = camp_fig.data[0]["x"]
+        for w in crit_speeds:
+            modal_results_crit[w] = self.run_modal(Q_(w, frequency_units).to("rad/s").m)
+
+        for scatter in camp_fig.data:
+            scatter.on_click(_plot_with_mode_shape_callback)
+
         plot_mode_3d = self.modal_results[self.speed_range[0]].plot_mode_3d(
             0, frequency_units=frequency_units, damping_parameter=damping_parameter
         )
         plot_mode_3d = go.FigureWidget(plot_mode_3d)
         plot_mode_3d_data = plot_mode_3d.data
-
-        for scatter in camp_fig.data:
-            scatter.on_click(_plot_with_mode_shape_callback)
 
         return VBox([camp_fig, plot_mode_3d])
 
@@ -1722,7 +1768,7 @@ class FrequencyResponseResults(Results):
         if self.number_dof == 4:
             self.dof_dict = {"0": "x", "1": "y", "2": "α", "3": "β"}
         elif self.number_dof == 6:
-            self.dof_dict = {"0": "x", "1": "y", "2": "z", "4": "α", "5": "β", "6": "θ"}
+            self.dof_dict = {"0": "x", "1": "y", "2": "z", "3": "α", "4": "β", "5": "θ"}
 
     def plot_magnitude(
         self,
@@ -3083,7 +3129,7 @@ class ForcedResponseResults(Results):
         idx = np.where(np.isclose(self.speed_range, speed, atol=1e-6))[0][0]
         mag = np.abs(self.forced_resp[:, idx])
         phase = np.angle(self.forced_resp[:, idx])
-        number_dof = self.rotor.number_dof
+        num_dof = self.rotor.number_dof
         nodes = self.rotor.nodes
 
         Mx = np.zeros_like(nodes, dtype=np.float64)
@@ -3097,10 +3143,10 @@ class ForcedResponseResults(Results):
                 [+6, -6, +2 * el.L, +4 * el.L],
             ])
             response_x = np.array([
-                [mag[number_dof * el.n_l + 0]],
-                [mag[number_dof * el.n_r + 0]],
-                [mag[number_dof * el.n_l + 3]],
-                [mag[number_dof * el.n_r + 3]],
+                [mag[num_dof * el.n_l + 0]],
+                [mag[num_dof * el.n_r + 0]],
+                [mag[num_dof * el.n_l + int(num_dof / 2) + 1]],
+                [mag[num_dof * el.n_r + int(num_dof / 2) + 1]],
             ])
 
             Mx[[el.n_l, el.n_r]] += (x @ response_x).flatten()
@@ -3110,10 +3156,10 @@ class ForcedResponseResults(Results):
                 [+6, -6, -2 * el.L, -4 * el.L],
             ])
             response_y = np.array([
-                [mag[number_dof * el.n_l + 1]],
-                [mag[number_dof * el.n_r + 1]],
-                [mag[number_dof * el.n_l + 2]],
-                [mag[number_dof * el.n_r + 2]],
+                [mag[num_dof * el.n_l + 1]],
+                [mag[num_dof * el.n_r + 1]],
+                [mag[num_dof * el.n_l + int(num_dof / 2) + 0]],
+                [mag[num_dof * el.n_r + int(num_dof / 2) + 0]],
             ])
             My[[el.n_l, el.n_r]] += (y @ response_y).flatten()
         # fmt: on
@@ -3189,6 +3235,7 @@ class ForcedResponseResults(Results):
             nodes=self.rotor.nodes,
             nodes_pos=self.rotor.nodes_pos,
             shaft_elements_length=self.rotor.shaft_elements_length,
+            number_dof=self.rotor.number_dof,
         )
 
         if fig is None:
@@ -3291,6 +3338,7 @@ class ForcedResponseResults(Results):
             nodes=self.rotor.nodes,
             nodes_pos=self.rotor.nodes_pos,
             shaft_elements_length=self.rotor.shaft_elements_length,
+            number_dof=self.rotor.number_dof,
         )
 
         if fig is None:
@@ -4071,14 +4119,11 @@ class SummaryResults(Results):
         The figure object with the tables plot.
     """
 
-    def __init__(
-        self, df_shaft, df_disks, df_bearings, nodes_pos, brg_forces, CG, Ip, tag
-    ):
+    def __init__(self, df_shaft, df_disks, df_bearings, brg_forces, CG, Ip, tag):
         self.df_shaft = df_shaft
         self.df_disks = df_disks
         self.df_bearings = df_bearings
         self.brg_forces = brg_forces
-        self.nodes_pos = np.array(nodes_pos)
         self.CG = CG
         self.Ip = Ip
         self.tag = tag
@@ -4127,7 +4172,7 @@ class SummaryResults(Results):
             "Tag": self.df_disks["tag"],
             "Shaft number": self.df_disks["shaft_number"],
             "Node": self.df_disks["n"],
-            "Nodal Position": self.nodes_pos[self.df_bearings["n"]],
+            "Nodal Position": self.df_disks["nodes_pos_l"],
             "Mass": self.df_disks["m"].map("{:.3f}".format),
             "Ip": self.df_disks["Ip"].map("{:.3e}".format),
         }
@@ -4137,7 +4182,7 @@ class SummaryResults(Results):
             "Shaft number": self.df_bearings["shaft_number"],
             "Node": self.df_bearings["n"],
             "N_link": self.df_bearings["n_link"],
-            "Nodal Position": self.nodes_pos[self.df_bearings["n"]],
+            "Nodal Position": self.df_bearings["nodes_pos_l"],
             "Bearing force": list(self.brg_forces.values()),
         }
 
@@ -4383,6 +4428,75 @@ class TimeResponseResults(Results):
         self.xout = xout
         self.rotor = rotor
 
+    def data_probe_response(
+        self,
+        probe,
+        probe_units="rad",
+        displacement_units="m",
+        time_units="s",
+    ):
+        """This method create the time response given a tuple of probes with their nodes
+        and orientations in DataFrame format.
+
+        Parameters
+        ----------
+        probe : list
+            List with rs.Probe objects.
+        probe_units : str, option
+            Units for probe orientation.
+            Default is "rad".
+        displacement_units : str, optional
+            Displacement units.
+            Default is 'm'.
+        time_units : str
+            Time units.
+            Default is 's'.
+
+        Returns
+        -------
+         df : pd.DataFrame
+            DataFrame probe response.
+        """
+        data = {}
+
+        nodes = self.rotor.nodes
+        link_nodes = self.rotor.link_nodes
+        ndof = self.rotor.number_dof
+
+        for i, p in enumerate(probe):
+
+            try:
+                probe_tag = p[2]
+            except IndexError:
+                probe_tag = f"Probe {i+1} - Node {p[0]}"
+
+            data[f"probe_tag[{i}]"] = probe_tag
+
+            fix_dof = (p[0] - nodes[-1] - 1) * ndof // 2 if p[0] in link_nodes else 0
+            dofx = ndof * p[0] - fix_dof
+            dofy = ndof * p[0] + 1 - fix_dof
+
+            angle = Q_(p[1], probe_units).to("rad").m
+            data[f"angle[{i}]"] = angle
+
+            # fmt: off
+            operator = np.array(
+                [[np.cos(angle), np.sin(angle)],
+                 [-np.sin(angle), np.cos(angle)]]
+            )
+
+            _probe_resp = operator @ np.vstack((self.yout[:, dofx], self.yout[:, dofy]))
+            probe_resp = _probe_resp[0,:]
+            # fmt: on
+
+            probe_resp = Q_(probe_resp, "m").to(displacement_units).m
+            data[f"probe_resp[{i}]"] = probe_resp
+
+        data["time"] = Q_(self.t, "s").to(time_units).m
+        df = pd.DataFrame(data)
+
+        return df
+
     def plot_1d(
         self,
         probe,
@@ -4422,43 +4536,22 @@ class TimeResponseResults(Results):
         fig : Plotly graph_objects.Figure()
             The figure object with the plot.
         """
-        nodes = self.rotor.nodes
-        link_nodes = self.rotor.link_nodes
-        ndof = self.rotor.number_dof
 
         if fig is None:
             fig = go.Figure()
 
+        df = self.data_probe_response(
+            probe, probe_units, displacement_units, time_units
+        )
+        _time = df["time"].to_numpy()
         for i, p in enumerate(probe):
-            fix_dof = (p[0] - nodes[-1] - 1) * ndof // 2 if p[0] in link_nodes else 0
-            dofx = ndof * p[0] - fix_dof
-            dofy = ndof * p[0] + 1 - fix_dof
 
-            angle = Q_(p[1], probe_units).to("rad").m
-
-            # fmt: off
-            operator = np.array(
-                [[np.cos(angle), - np.sin(angle)],
-                 [np.sin(angle), + np.cos(angle)]]
-            )
-
-            _probe_resp = operator @ np.vstack((self.yout[:, dofx], self.yout[:, dofy]))
-            probe_resp = (
-                _probe_resp[0] * np.cos(angle) ** 2 +
-                _probe_resp[1] * np.sin(angle) ** 2
-            )
-            # fmt: on
-
-            probe_resp = Q_(probe_resp, "m").to(displacement_units).m
-
-            try:
-                probe_tag = p[2]
-            except IndexError:
-                probe_tag = f"Probe {i+1} - Node {p[0]}"
+            probe_tag = df[f"probe_tag[{i}]"][0]
+            probe_resp = df[f"probe_resp[{i}]"].to_numpy()
 
             fig.add_trace(
                 go.Scatter(
-                    x=Q_(self.t, "s").to(time_units).m,
+                    x=_time,
                     y=Q_(probe_resp, "m").to(displacement_units).m,
                     mode="lines",
                     name=probe_tag,

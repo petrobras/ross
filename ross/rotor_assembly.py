@@ -583,7 +583,7 @@ class Rotor(object):
             return False
 
     @check_units
-    def run_modal(self, speed, num_modes=12, sparse=True):
+    def run_modal(self, speed, num_modes=12, sparse=True, synchronous=False):
         """Run modal analysis.
 
         Method to calculate eigenvalues and eigvectors for a given rotor system.
@@ -615,6 +615,9 @@ class Rotor(object):
             If False, scipy.linalg.eig() is used to calculate all the eigenvalues and
             eigenvectors.
             Default is True.
+        synchronous : bool, optional
+            If True a synchronous analysis is carried out according to :cite:`rouch1980dynamic`.
+            Default is False.
 
         Returns
         -------
@@ -638,7 +641,9 @@ class Rotor(object):
         >>> mode2 = 1  # Second mode
         >>> fig = modal.plot_mode_2d(mode2)
         """
-        evalues, evectors = self._eigen(speed, num_modes=num_modes, sparse=sparse)
+        evalues, evectors = self._eigen(
+            speed, num_modes=num_modes, sparse=sparse, synchronous=synchronous
+        )
         wn_len = num_modes // 2
         wn = (np.absolute(evalues))[:wn_len]
         wd = (np.imag(evalues))[:wn_len]
@@ -659,6 +664,7 @@ class Rotor(object):
             self.nodes,
             self.nodes_pos,
             self.shaft_elements_length,
+            self.number_dof,
         )
 
         return modal_results
@@ -886,8 +892,14 @@ class Rotor(object):
 
         return results
 
-    def M(self, frequency=None):
+    def M(self, frequency=None, synchronous=False):
         """Mass matrix for an instance of a rotor.
+
+        Parameters
+        ----------
+        synchronous : bool, optional
+            If True a synchronous analysis is carried out.
+            Default is False.
 
         Returns
         -------
@@ -912,10 +924,44 @@ class Rotor(object):
 
         for elm in self.elements:
             dofs = list(elm.dof_global_index.values())
-            try:
-                M0[np.ix_(dofs, dofs)] += elm.M(frequency)
-            except TypeError:
-                M0[np.ix_(dofs, dofs)] += elm.M()
+            if synchronous:
+                if elm in self.shaft_elements:
+                    try:
+                        M = elm.M(frequency)
+                    except TypeError:
+                        M = elm.M()
+                    G = elm.G()
+                    for i in range(8):
+                        if i == 0 or i == 3 or i == 4 or i == 7:
+                            M[i, 0] = M[i, 0] - G[i, 1]
+                            M[i, 3] = M[i, 3] + G[i, 2]
+                            M[i, 4] = M[i, 4] - G[i, 5]
+                            M[i, 7] = M[i, 7] + G[i, 6]
+                        else:
+                            M[i, 1] = M[i, 1] + G[i, 0]
+                            M[i, 2] = M[i, 2] - G[i, 3]
+                            M[i, 5] = M[i, 5] + G[i, 4]
+                            M[i, 6] = M[i, 6] - G[i, 7]
+                    M0[np.ix_(dofs, dofs)] += M
+                elif elm in self.disk_elements:
+                    try:
+                        M = elm.M(frequency)
+                    except TypeError:
+                        M = elm.M()
+                    G = elm.G()
+                    M[2, 2] = M[2, 2] - G[2, 3]
+                    M[3, 3] = M[3, 3] + G[3, 2]
+                    M0[np.ix_(dofs, dofs)] += M
+                else:
+                    try:
+                        M0[np.ix_(dofs, dofs)] += elm.M(frequency)
+                    except TypeError:
+                        M0[np.ix_(dofs, dofs)] += elm.M()
+            else:
+                try:
+                    M0[np.ix_(dofs, dofs)] += elm.M(frequency)
+                except TypeError:
+                    M0[np.ix_(dofs, dofs)] += elm.M()
 
         return M0
 
@@ -1052,7 +1098,7 @@ class Rotor(object):
 
         return G0
 
-    def A(self, speed=0, frequency=None):
+    def A(self, speed=0, frequency=None, synchronous=False):
         """State space matrix for an instance of a rotor.
 
         Parameters
@@ -1062,6 +1108,9 @@ class Rotor(object):
             Default is 0.
         frequency : float, optional
             Excitation frequency. Default is rotor speed.
+        synchronous : bool, optional
+            If True a synchronous analysis is carried out.
+            Default is False.
 
         Returns
         -------
@@ -1088,7 +1137,7 @@ class Rotor(object):
         # fmt: off
         A = np.vstack(
             [np.hstack([Z, I]),
-             np.hstack([la.solve(-self.M(frequency), self.K(frequency)), la.solve(-self.M(frequency), (self.C(frequency) + self.G() * speed))])])
+             np.hstack([la.solve(-self.M(frequency, synchronous=synchronous), self.K(frequency)), la.solve(-self.M(frequency,synchronous=synchronous), (self.C(frequency) + self.G() * speed))])])
         # fmt: on
 
         return A
@@ -1239,7 +1288,14 @@ class Rotor(object):
 
     @check_units
     def _eigen(
-        self, speed, num_modes=12, frequency=None, sorted_=True, A=None, sparse=True
+        self,
+        speed,
+        num_modes=12,
+        frequency=None,
+        sorted_=True,
+        A=None,
+        sparse=True,
+        synchronous=False,
     ):
         """Calculate eigenvalues and eigenvectors.
 
@@ -1263,6 +1319,9 @@ class Rotor(object):
         sparse : bool, optional
             If sparse, eigenvalues will be calculated with arpack.
             Default is True.
+        synchronous : bool, optional
+            If True a synchronous analysis is carried out.
+            Default is False.
 
         Returns
         -------
@@ -1279,20 +1338,34 @@ class Rotor(object):
         91.796...
         """
         if A is None:
-            A = self.A(speed=speed, frequency=frequency)
+            A = self.A(speed=speed, frequency=frequency, synchronous=synchronous)
 
-        if sparse is True:
-            try:
-                evalues, evectors = las.eigs(
-                    A, k=num_modes, sigma=0, ncv=2 * num_modes, which="LM", v0=self._v0
-                )
-                # store v0 as a linear combination of the previously
-                # calculated eigenvectors to use in the next call to eigs
-                self._v0 = np.real(sum(evectors.T))
-            except las.ArpackError:
-                evalues, evectors = la.eig(A)
-        else:
+        if synchronous:
             evalues, evectors = la.eig(A)
+            idx = np.where(np.imag(evalues) != 0)[0]
+            evalues = evalues[idx]
+            evectors = evectors[:, idx]
+            idx = np.where(np.abs(np.real(evalues) / np.imag(evalues)) < 1000)[0]
+            evalues = evalues[idx]
+            evectors = evectors[:, idx]
+        else:
+            if sparse is True:
+                try:
+                    evalues, evectors = las.eigs(
+                        A,
+                        k=num_modes,
+                        sigma=0,
+                        ncv=2 * num_modes,
+                        which="LM",
+                        v0=self._v0,
+                    )
+                    # store v0 as a linear combination of the previously
+                    # calculated eigenvectors to use in the next call to eigs
+                    self._v0 = np.real(sum(evectors.T))
+                except las.ArpackError:
+                    evalues, evectors = la.eig(A)
+            else:
+                evalues, evectors = la.eig(A)
 
         if sorted_ is False:
             return evalues, evectors
@@ -2155,6 +2228,8 @@ class Rotor(object):
             damping_ratio=results[..., 2],
             whirl_values=results[..., 3],
             modal_results=modal_results,
+            number_dof=self.number_dof,
+            run_modal=lambda w: self.run_modal(speed=w, num_modes=2 * frequencies),
         )
 
         return results
@@ -2193,9 +2268,8 @@ class Rotor(object):
             Default is 16. In this case 4 modes are plotted, since for each pair
             of eigenvalues calculated we have one wn, and we show only the
             forward mode in the plots.
-        synchronous : bool
-            If True a synchronous analysis is carried out and the frequency of
-            the first forward model will be equal to the speed.
+        synchronous : bool, optional
+            If True a synchronous analysis is carried out.
             Default is False.
 
         Returns
@@ -2229,34 +2303,12 @@ class Rotor(object):
                 bearings_elements.append(bearing)
 
         for i, k in enumerate(stiffness_log):
-            bearings = [BearingElement(b.n, kxx=k, cxx=0) for b in bearings_elements]
+            bearings = [b.__class__(b.n, kxx=k, cxx=0) for b in bearings_elements]
             rotor = self.__class__(self.shaft_elements, self.disk_elements, bearings)
-            speed = 0
-            if synchronous:
-
-                def wn_diff(x):
-                    """Function to evaluate difference between speed and
-                    natural frequency for the first mode."""
-                    modal = rotor.run_modal(speed=x, num_modes=num_modes)
-                    # get first forward mode
-                    if modal.whirl_direction()[0] == "Forward":
-                        wn0 = modal.wn[0]
-                    else:
-                        wn0 = modal.wn[1]
-
-                    return wn0 - x
-
-                speed = newton(wn_diff, 0)
-            modal = rotor.run_modal(speed=speed, num_modes=num_modes)
-
-            # if sync, select only forward modes
-            if synchronous:
-                rotor_wn[:, i] = modal.wn[modal.whirl_direction() == "Forward"]
-            # if not sync, with speed=0 whirl direction can be confusing, with
-            # two close modes being forward or backward, so we select one mode in
-            # each 2 modes.
-            else:
-                rotor_wn[:, i] = modal.wn[::2]
+            modal = rotor.run_modal(
+                speed=0, num_modes=num_modes, synchronous=synchronous
+            )
+            rotor_wn[:, i] = modal.wn[::2]
 
         bearing0 = bearings_elements[0]
 
@@ -2293,7 +2345,7 @@ class Rotor(object):
 
         for k, speed in zip(intersection_points["x"], intersection_points["y"]):
             # create bearing
-            bearings = [BearingElement(b.n, kxx=k, cxx=0) for b in bearings_elements]
+            bearings = [b.__class__(b.n, kxx=k, cxx=0) for b in bearings_elements]
             # create rotor
             rotor_critical = Rotor(
                 shaft_elements=self.shaft_elements,
@@ -2388,7 +2440,7 @@ class Rotor(object):
 
         for i, Q in enumerate(stiffness):
             bearings = [copy(b) for b in self.bearing_elements]
-            cross_coupling = BearingElement(n=n, kxx=0, cxx=0, kxy=Q, kyx=-Q)
+            cross_coupling = bearings[0].__class__(n=n, kxx=0, cxx=0, kxy=Q, kyx=-Q)
             bearings.append(cross_coupling)
 
             rotor = self.__class__(self.shaft_elements, self.disk_elements, bearings)
@@ -2851,14 +2903,14 @@ class Rotor(object):
                     pass
                 elif elm.n_link in self.nodes:
                     aux_brg.append(
-                        BearingElement(n=elm.n, n_link=elm.n_link, kxx=1e20, cxx=0)
+                        elm.__class__(n=elm.n, n_link=elm.n_link, kxx=1e20, cxx=0)
                     )
                     aux_brg_1.append(
-                        BearingElement(n=elm.n, n_link=elm.n_link, kxx=0, cxx=0)
+                        elm.__class__(n=elm.n, n_link=elm.n_link, kxx=0, cxx=0)
                     )
                 else:
-                    aux_brg.append(BearingElement(n=elm.n, kxx=1e20, cxx=0))
-                    aux_brg_1.append(BearingElement(n=elm.n, kxx=0, cxx=0))
+                    aux_brg.append(elm.__class__(n=elm.n, kxx=1e20, cxx=0))
+                    aux_brg_1.append(elm.__class__(n=elm.n, kxx=0, cxx=0))
 
         aux_rotor = Rotor(self.shaft_elements, self.disk_elements, aux_brg)
         aux_rotor_1 = Rotor(self.shaft_elements, self.disk_elements, aux_brg_1)
@@ -2988,13 +3040,18 @@ class Rotor(object):
         >>> # to display the plot use the command:
         >>> # show(table)
         """
+        self.df_disks = pd.merge(
+            self.df_disks, self.df[["tag", "nodes_pos_l"]], on="tag", how="left"
+        )
+        self.df_bearings = pd.merge(
+            self.df_bearings, self.df[["tag", "nodes_pos_l"]], on="tag", how="left"
+        )
         self.run_static()
         forces = self.bearing_forces_tag
         results = SummaryResults(
             self.df_shaft,
             self.df_disks,
             self.df_bearings,
-            self.nodes_pos,
             forces,
             self.CG,
             self.Ip,

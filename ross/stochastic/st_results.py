@@ -1142,17 +1142,14 @@ class ST_TimeResponseResults(ST_Results):
 
             # fmt: off
             operator = np.array(
-                [[np.cos(angle), - np.sin(angle)],
-                 [np.sin(angle), + np.cos(angle)]]
+                [[np.cos(angle), np.sin(angle)],
+                 [-np.sin(angle), np.cos(angle)]]
             )
 
             probe_resp = np.zeros_like(self.yout[:, :, 0])
             for j, y in enumerate(self.yout):
                 _probe_resp = operator @ np.vstack((y[:, dofx], y[:, dofy]))
-                probe_resp[j] = (
-                    _probe_resp[0] * np.cos(angle) ** 2 +
-                    _probe_resp[1] * np.sin(angle) ** 2
-                )
+                probe_resp[j] = _probe_resp[0,:]
             # fmt: on
 
             fig.add_trace(
