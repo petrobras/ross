@@ -2210,6 +2210,7 @@ class Rotor(object):
             whirl_values=results[..., 3],
             modal_results=modal_results,
             number_dof=self.number_dof,
+            run_modal=lambda w: self.run_modal(speed=w, num_modes=2 * frequencies),
         )
 
         return results
