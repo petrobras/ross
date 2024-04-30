@@ -154,9 +154,9 @@ class ShaftElement(Element):
         rotary_inertia=True,
         gyroscopic=True,
         shear_method_calc="cowper",
+        tag=None,
         alpha=0,
         beta=0,
-        tag=None,
     ):
         if idr is None:
             idr = idl
@@ -806,10 +806,10 @@ class ShaftElement(Element):
         ...                         rotary_inertia=True,
         ...                         shear_effects=True)
         >>> Timoshenko_Element.C()[:4, :4]
-        array([[0., 0., 0., 0.],
-               [0., 0., 0., 0.],
-               [0., 0., 0., 0.],
-               [0., 0., 0., 0.]])
+        array([[ 0.,  0.,  0.,  0.],
+               [ 0.,  0., -0.,  0.],
+               [ 0., -0.,  0.,  0.],
+               [ 0.,  0.,  0.,  0.]])
         """
         # proportional damping matrix
         C = self.alpha * self.M() + self.beta * self.K()
@@ -1218,86 +1218,101 @@ class ShaftElement(Element):
 
 
 class ShaftElement6DoF(ShaftElement):
-    r"""A 6 Degrees of Freedom shaft element.
+    r"""A shaft element with 6 degrees of freedom.
 
-    This class will create a shaft element that takes into
-    account shear stress, rotary inertia and gyroscopic effects.
+    This class will create a shaft element that may take into
+    account shear, rotary inertia an gyroscopic effects. The object can be
+    cylindrical or conical and the formulation is based on :cite:`genta1988conical`
     The matrices will be defined considering the following local
     coordinate vector:
 
     .. math::
 
-        [u_0, v_0, w_0, \theta_0, \psi_0, \phi_0, u_1, v_1, w_1, \theta_1, \psi_1, \phi_1]^T
-    Being the following their ordering for an element:
-
-    :math:`x_0,u_0`  - horizontal translation;
-
-    :math:`y_0,v_0`  - vertical translation;
-
-    :math:`z_0,w_0`  - axial translation;
-
-    :math:`\theta_0` - rotation around horizontal, bending on the yz plane;
-
-    :math:`\psi_0`   - rotation around vertical, bending on the xz plane;
-
-    :math:`\phi_0`   - torsion around axial, z direction.
+        [x_0, y_0, z_0, \alpha_0, \beta_0, \theta_0, x_1, y_1, z_1, \alpha_1, \beta_1, \theta_1]^T
+    Where :math:`\x_0` and :math:`\x_1` correspond to horizontal translation,
+    :math:`\y_0` and :math:`\y_1` correspond to vertical translation,
+    :math:`\z_0` and :math:`\z_1` correspond to axial translation,
+    :math:`\alpha_0` and :math:`\alpha_1` correspond to bending on the yz plane,
+    :math:`\beta_0` and :math:`\beta_1` correspond to bending on the xz plane
+    and :math:`\theta_0` and :math:`\theta_1` correspond to torsion around z axis.
 
     Parameters
     ----------
     L : float, pint.Quantity
-        Element length.
+        Element length (m).
     idl : float, pint.Quantity
-        Inner diameter of the element at the left node (m).
+        Inner diameter of the element at the left position (m).
     odl : float, pint.Quantity
-        Outer diameter of the element at the left node (m).
+        Outer diameter of the element at the left position (m).
     idr : float, pint.Quantity, optional
-        Inner diameter of the element at the right node (m).
-        Default is equal to idl value for cylindrical element.
+        Inner diameter of the element at the right position (m).
+        Default is equal to idl value (cylindrical element).
     odr : float, pint.Quantity, optional
-        Outer diameter of the element at the right node (m).
-        Default is equal to odl value for cylindrical element.
+        Outer diameter of the element at the right position (m).
+        Default is equal to odl value (cylindrical element).
     material : ross.Material
         Shaft material.
-    alpha : float, optional
-        Proportional damping coefficient, associated to the element Mass matrix
-    beta : float, optional
-        Proportional damping coefficient, associated to the element Stiffness matrix
     n : int, optional
-        Element number, coincident it's first node.
+        Element number (coincident with it's first node).
         If not given, it will be set when the rotor is assembled
         according to the element's position in the list supplied to
         the rotor constructor.
     axial_force : float, optional
         Axial force (N).
-        Default is zero.
     torque : float, optional
-        Torque moment (N*m).
-        Default is zero.
+        Torque (N*m).
     shear_effects : bool, optional
-        Determine if shear effects are taken into account;
+        Determine if shear effects are taken into account.
         Default is True.
     rotary_inertia : bool, optional
-        Determine if rotary_inertia effects are taken into account;
+        Determine if rotary_inertia effects are taken into account.
         Default is True.
     gyroscopic : bool, optional
-        Determine if gyroscopic effects are taken into account;
+        Determine if gyroscopic effects are taken into account.
         Default is True.
+    shear_method_calc : str, optional
+        Determines which shear calculation method the user will adopt
+        Default is 'cowper'
+    alpha : float, optional
+        Mass proportional damping factor.
+        Default is zero.
+    beta : float, optional
+        Stiffness proportional damping factor.
+        Default is zero.
     tag : str, optional
-        Element tag;
+        Element tag.
         Default is None.
 
     Returns
     -------
-    shaft_element : rs.ShaftElement6DoF
-        A 6 degrees of freedom shaft element, with available gyroscopic, shear and rotary inertia effects.
+    shaft_element : ross.ShaftElement6DoF
+        A 6 degrees of freedom shaft element object.
 
     Attributes
     ----------
     Poisson : float
         Poisson coefficient for the element.
+    A : float
+        Element section area at half length (m**2).
+    A_l : float
+        Element section area at left end (m**2).
+    A_r : float
+        Element section area at right end (m**2).
+    beam_cg : float
+        Element center of gravity local position (m).
+    axial_cg_pos : float
+        Element center of gravity global position (m).
+        This should be used only after the rotor is built.
+        Default is None.
+    Ie : float
+        Ie is the second moment of area of the cross section about
+        the neutral plane (m**4).
+    phi : float
+        Constant that is used according to :cite:`friswell2010dynamics` to
+        consider rotary inertia and shear effects. If these are not considered
+        :math:`\phi=0`.
     kappa : float
-        Shear coefficient for the element, determined from :cite:`Hutchingson2001`
-        formulation.
+        Shear coefficient for the element.
 
     References
     ----------
@@ -1307,13 +1322,21 @@ class ShaftElement6DoF(ShaftElement):
     Examples
     --------
     >>> from ross.materials import steel
-    >>> shaft1 = ShaftElement6DoF(L=0.5, idl=0.0, odl=0.01, idr=0.0, odr=0.01,
-    ...                           material=steel, n=0, axial_force=10, torque=30)
-    >>> shaft2 = ShaftElement6DoF(L=0.5, idl=0.05, odl=0.1, idr=0.05, odr=0.15,
-    ...                           alpha=0.01, beta=100, material=steel,
-    ...                           rotary_inertia=False, shear_effects=False)
-    >>> shaft2.kappa
-    0.7099387976608923
+    >>> # Euler-Bernoulli conical element
+    >>> Euler_Bernoulli_Element = ShaftElement6DoF(
+    ...                         material=steel, L=0.5, idl=0.05, odl=0.1,
+    ...                         idr=0.05, odr=0.15,
+    ...                         rotary_inertia=False,
+    ...                         shear_effects=False)
+    >>> Euler_Bernoulli_Element.phi
+    0
+    >>> # Timoshenko cylindrical element. In this case idr and odr are omitted.
+    >>> Timoshenko_Element = ShaftElement6DoF(
+    ...                         material=steel, L=0.5, idl=0.05, odl=0.1,
+    ...                         rotary_inertia=True,
+    ...                         shear_effects=True)
+    >>> Timoshenko_Element.phi
+    0.1571268472906404
     """
 
     def dof_mapping(self):
@@ -1324,21 +1347,17 @@ class ShaftElement6DoF(ShaftElement):
         Returns
         -------
         dof_mapping : dict
-            A dictionary containing the degrees of freedom and their indexes.
+            A dictionary containing the degrees of freedom and their indexes
+            with the following ordering:
+            x_0 - horizontal translation
+            y_0 - vertical translation
+            z_0 - axial translation
+            alpha_0 - rotation around horizontal
+            beta_0  - rotation around vertical
+            theta_0 - torsion around axial
 
         Examples
         --------
-        The numbering of the degrees of freedom for each node.
-
-        Being the following their ordering for a node:
-
-        x_0 - horizontal translation
-        y_0 - vertical translation
-        z_0 - axial translation
-        alpha_0 - rotation around horizontal
-        beta_0  - rotation around vertical
-        theta_0 - torsion around axial
-
         >>> sh = ShaftElement6DoF(L=0.5, idl=0.05, odl=0.1, material=steel,
         ...                       rotary_inertia=True, shear_effects=True)
         >>> sh.dof_mapping()["x_0"]
