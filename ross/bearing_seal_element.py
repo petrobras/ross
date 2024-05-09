@@ -2128,6 +2128,12 @@ class BearingElement6DoF(BearingElement):
 
         M = np.array([[mxx, mxy, 0], [myx, myy, 0], [0, 0, mzz]])
 
+        if self.n_link is not None:
+            # fmt: off
+            M = np.vstack((np.hstack([M, -M]),
+                           np.hstack([-M, M])))
+            # fmt: on
+
         return M
 
     def K(self, frequency):
@@ -2161,6 +2167,12 @@ class BearingElement6DoF(BearingElement):
 
         K = np.array([[kxx, kxy, 0], [kyx, kyy, 0], [0, 0, kzz]])
 
+        if self.n_link is not None:
+            # fmt: off
+            K = np.vstack((np.hstack([K, -K]),
+                           np.hstack([-K, K])))
+            # fmt: on
+
         return K
 
     def C(self, frequency):
@@ -2193,6 +2205,12 @@ class BearingElement6DoF(BearingElement):
         czz = self.czz_interpolated(frequency)
 
         C = np.array([[cxx, cxy, 0], [cyx, cyy, 0], [0, 0, czz]])
+
+        if self.n_link is not None:
+            # fmt: off
+            C = np.vstack((np.hstack([C, -C]),
+                           np.hstack([-C, C])))
+            # fmt: on
 
         return C
 
