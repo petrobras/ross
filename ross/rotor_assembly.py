@@ -361,10 +361,10 @@ class Rotor(object):
         self._v0 = None  # used to call eigs
 
         # number of dofs
+        half_ndof = self.number_dof / 2
         self.ndof = int(
-            self.number_dof * max([el.n for el in shaft_elements])
-            + self.number_dof * 2
-            + 2 * len([el for el in point_mass_elements])
+            self.number_dof * (max([el.n for el in shaft_elements]) + 2)
+            + half_ndof * len([el for el in point_mass_elements])
         )
 
         # global indexes for dofs
@@ -384,7 +384,7 @@ class Rotor(object):
             else:
                 for k, v in global_dof_mapping.items():
                     global_dof_mapping[k] = int(
-                        2 * n_last + self.number_dof / 2 * elm.n + self.number_dof + v
+                        half_ndof * n_last + half_ndof * elm.n + self.number_dof + v
                     )
 
             if hasattr(elm, "n_link") and elm.n_link is not None:
@@ -395,13 +395,27 @@ class Rotor(object):
                     global_dof_mapping[f"y_{elm.n_link}"] = int(
                         self.number_dof * elm.n_link + 1
                     )
+                    if self.number_dof == 6:
+                        global_dof_mapping[f"z_{elm.n_link}"] = int(
+                            self.number_dof * elm.n_link + 2
+                        )
                 else:
                     global_dof_mapping[f"x_{elm.n_link}"] = int(
-                        2 * n_last + 2 * elm.n_link + self.number_dof
+                        half_ndof * n_last + half_ndof * elm.n_link + self.number_dof
                     )
                     global_dof_mapping[f"y_{elm.n_link}"] = int(
-                        2 * n_last + 2 * elm.n_link + self.number_dof + 1
+                        half_ndof * n_last
+                        + half_ndof * elm.n_link
+                        + self.number_dof
+                        + 1
                     )
+                    if self.number_dof == 6:
+                        global_dof_mapping[f"z_{elm.n_link}"] = int(
+                            half_ndof * n_last
+                            + half_ndof * elm.n_link
+                            + self.number_dof
+                            + 2
+                        )
 
             elm.dof_global_index = global_dof_mapping
             df.at[df.loc[df.tag == elm.tag].index[0], "dof_global_index"] = (
