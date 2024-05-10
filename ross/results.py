@@ -1418,7 +1418,7 @@ class CampbellResults(Results):
     def plot(
         self,
         harmonics=[1],
-        frequency_units="rad/s",
+        frequency_units="rpm",
         damping_parameter="log_dec",
         frequency_range=None,
         damping_range=None,
@@ -1434,7 +1434,7 @@ class CampbellResults(Results):
             The default is to plot 1x.
         frequency_units : str, optional
             Frequency units.
-            Default is "rad/s"
+            Default is "rpm"
         damping_parameter : str, optional
             Define which value to show for damping. We can use "log_dec" or "damping_ratio".
             Default is "log_dec".
