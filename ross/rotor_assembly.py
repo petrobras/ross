@@ -616,7 +616,7 @@ class Rotor(object):
             eigenvectors.
             Default is True.
         synchronous : bool, optional
-            If True a synchronous analysis is carried out according to :cite:`rouch1980dynamic`.
+            If True a synchronous analysis is carried out.
             Default is False.
 
         Returns
@@ -2269,7 +2269,7 @@ class Rotor(object):
             of eigenvalues calculated we have one wn, and we show only the
             forward mode in the plots.
         synchronous : bool, optional
-            If True a synchronous analysis is carried out.
+            If True a synchronous analysis is carried out according to :cite:`rouch1980dynamic`.
             Default is False.
 
         Returns
