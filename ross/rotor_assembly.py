@@ -47,7 +47,7 @@ from ross.results import (
 )
 from ross.shaft_element import ShaftElement, ShaftElement6DoF
 from ross.units import Q_, check_units
-from ross.utils import intersection
+from ross.utils import intersection, integrate_rotor_system
 
 __all__ = ["Rotor", "CoAxialRotor", "rotor_example", "coaxrotor_example"]
 
@@ -616,7 +616,7 @@ class Rotor(object):
             eigenvectors.
             Default is True.
         synchronous : bool, optional
-            If True a synchronous analysis is carried out according to :cite:`rouch1980dynamic`.
+            If True a synchronous analysis is carried out.
             Default is False.
 
         Returns
@@ -1927,7 +1927,7 @@ class Rotor(object):
 
         return forced_response
 
-    def time_response(self, speed, F, t, ic=None):
+    def time_response(self, speed, F, t, ic=None, integrator="default", **kwargs):
         """Time response for a rotor.
 
         This method returns the time response for a rotor
@@ -1935,12 +1935,24 @@ class Rotor(object):
 
         Parameters
         ----------
+        speed : float or array_like
+            Rotor speed. Automatically, the Newmark method is chosen if `speed`
+            has an array_like type.
         F : array
             Force array (needs to have the same length as time array).
         t : array
             Time array. (must have the same length than lti.B matrix)
         ic : array, optional
             The initial conditions on the state vector (zero by default).
+        integrator : str, optional
+            The Newmark method can be chosen by setting `integrator='newmark'`.
+        **kwargs : optional
+            Additional keyword arguments can be passed to define the parameters
+            of the Newmark method if it is used (e.g. gamma, beta, tol, ...).
+            See `ross.utils.newmark` for more details.
+            Other keyword arguments can also be passed to be used in numerical
+            integration (e.g. num_modes, add_to_RHS).
+            See `ross.utils.integrate_rotor_system` for more details.
 
         Returns
         -------
@@ -1961,8 +1973,15 @@ class Rotor(object):
         >>> rotor.time_response(speed, F, t) # doctest: +ELLIPSIS
         (array([0.        , 0.18518519, 0.37037037, ...
         """
-        lti = self._lti(speed)
-        return signal.lsim(lti, F, t, X0=ic)
+        speed_is_array = isinstance(speed, (list, tuple, np.ndarray))
+
+        if speed_is_array or integrator.lower() == "newmark":
+            t_, yout = integrate_rotor_system(self, speed, F, t, **kwargs)
+            return t_, yout, []
+
+        else:
+            lti = self._lti(speed)
+            return signal.lsim(lti, F, t, X0=ic)
 
     def plot_rotor(self, nodes=1, check_sld=False, length_units="m", **kwargs):
         """Plot a rotor object.
@@ -2210,6 +2229,7 @@ class Rotor(object):
             whirl_values=results[..., 3],
             modal_results=modal_results,
             number_dof=self.number_dof,
+            run_modal=lambda w: self.run_modal(speed=w, num_modes=2 * frequencies),
         )
 
         return results
@@ -2249,7 +2269,7 @@ class Rotor(object):
             of eigenvalues calculated we have one wn, and we show only the
             forward mode in the plots.
         synchronous : bool, optional
-            If True a synchronous analysis is carried out.
+            If True a synchronous analysis is carried out according to :cite:`rouch1980dynamic`.
             Default is False.
 
         Returns
@@ -2433,7 +2453,7 @@ class Rotor(object):
 
         return results
 
-    def run_time_response(self, speed, F, t):
+    def run_time_response(self, speed, F, t, integrator="default", **kwargs):
         """Calculate the time response.
 
         This function will take a rotor object and calculate its time response
@@ -2446,13 +2466,23 @@ class Rotor(object):
 
         Parameters
         ----------
-        speed : float
-            Rotor speed.
+        speed : float or array_like
+            Rotor speed. Automatically, the Newmark method is chosen if `speed`
+            has an array_like type.
         F : array
             Force array (needs to have the same number of rows as time array).
             Each column corresponds to a dof and each row to a time.
         t : array
             Time array.
+        integrator : str, optional
+            The Newmark method can be chosen by setting `integrator='newmark'`.
+        **kwargs : optional
+            Additional keyword arguments can be passed to define the parameters
+            of the Newmark method if it is used (e.g. gamma, beta, tol, ...).
+            See `ross.utils.newmark` for more details.
+            Other keyword arguments can also be passed to be used in numerical
+            integration (e.g. num_modes, add_to_RHS).
+            See `ross.utils.integrate_rotor_system` for more details.
 
         Returns
         -------
@@ -2482,7 +2512,9 @@ class Rotor(object):
         >>> # plot orbit response - plotting 3D orbits - full rotor model:
         >>> fig3 = response.plot_3d()
         """
-        t_, yout, xout = self.time_response(speed, F, t)
+        t_, yout, xout = self.time_response(
+            speed, F, t, integrator=integrator, **kwargs
+        )
 
         results = TimeResponseResults(self, t, yout, xout)
 
