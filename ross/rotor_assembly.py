@@ -31,7 +31,7 @@ from ross.bearing_seal_element import (
 from ross.defects import Crack, MisalignmentFlex, MisalignmentRigid, Rubbing
 from ross.disk_element import DiskElement, DiskElement6DoF
 from ross.materials import steel
-from ross.point_mass import PointMass
+from ross.point_mass import PointMass, PointMass6DoF
 from ross.results import (
     CampbellResults,
     ConvergenceResults,
