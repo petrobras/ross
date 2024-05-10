@@ -1733,16 +1733,12 @@ def rotor_6dof():
 
     shaft_elem = [
         ShaftElement6DoF(
+            l,
+            i_d,
+            o_d,
             material=steel,
-            L=0.25,
-            idl=0,
-            odl=0.05,
-            idr=0,
-            odr=0.05,
-            alpha=0,
-            beta=0,
-            rotary_inertia=False,
-            shear_effects=False,
+            alpha=1,
+            beta=1e-5,
         )
         for l in L
     ]
@@ -1754,44 +1750,16 @@ def rotor_6dof():
         n=4, material=steel, width=0.07, i_d=0.05, o_d=0.28
     )
 
-    kxx = 1e6
-    kyy = 0.8e6
-    kzz = 1e5
-    cxx = 0
-    cyy = 0
-    czz = 0
-    bearing0 = BearingElement6DoF(
-        n=0, kxx=kxx, kyy=kyy, cxx=cxx, cyy=cyy, kzz=kzz, czz=czz
-    )
-    bearing1 = BearingElement6DoF(
-        n=6, kxx=kxx, kyy=kyy, cxx=cxx, cyy=cyy, kzz=kzz, czz=czz
-    )
+    bearing0 = BearingElement6DoF(n=0, kxx=1e6, kyy=8e5, kzz=1e5, cxx=0, cyy=0, czz=0)
+    bearing1 = BearingElement6DoF(n=6, kxx=1e6, kyy=8e5, kzz=1e5, cxx=0, cyy=0, czz=0)
 
     return Rotor(shaft_elem, [disk0, disk1], [bearing0, bearing1])
 
 
 def test_modal_6dof(rotor_6dof):
     modal = rotor_6dof.run_modal(speed=0, sparse=False)
-    wn = np.array(
-        [
-            9.91427121e-05,
-            4.76215566e01,
-            9.17987032e01,
-            9.62914807e01,
-            2.74579882e02,
-            2.96518344e02,
-        ]
-    )
-    wd = np.array(
-        [
-            9.91427121e-05,
-            4.76215566e01,
-            9.17987032e01,
-            9.62914807e01,
-            2.74579882e02,
-            2.96518344e02,
-        ]
-    )
+    wn = np.array([0.0, 47.62138, 91.79647, 96.28891, 274.56591, 296.5005])
+    wd = np.array([0.01079, 47.62156, 91.79656, 96.289, 274.56607, 296.50068])
 
     assert_almost_equal(modal.wn[:6], wn, decimal=2)
     assert_almost_equal(modal.wd[:6], wd, decimal=2)
