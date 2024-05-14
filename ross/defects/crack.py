@@ -33,7 +33,8 @@ class Crack(Defect):
         Final time
     depth_ratio : float
         Crack depth ratio related to the diameter of the crack container element. A depth value of 0.1 is equal to 10%,
-        0.2 equal to 20%, and so on.
+        0.2 equal to 20%, and so on. This parameter is restricted to up to 50% within the implemented approach,
+        as discussed in :cite `papadopoulos2004some`.
     n_crack : float
         Element where the crack is located
     speed : float, pint.Quantity
@@ -84,7 +85,6 @@ class Crack(Defect):
         self.dt = dt
         self.tI = tI
         self.tF = tF
-        self.depth_ratio = depth_ratio
         self.n_crack = n_crack
         self.speed = speed
         self.speedI = speed
@@ -92,6 +92,17 @@ class Crack(Defect):
         self.unbalance_magnitude = unbalance_magnitude
         self.unbalance_phase = unbalance_phase
         self.print_progress = print_progress
+
+        if depth_ratio <= 0.5:
+            self.depth_ratio = depth_ratio
+        else:
+            raise ValueError(
+                """
+                The implemented approach is based on Linear Fracture Mechanics.
+                For cracks deeper than 50% of diameter, this approach has a singularity and cannot be used.
+                This is discussed in Papadopoulos (2004).
+                """
+            )
 
         if crack_type is None or crack_type == "Mayes":
             self.crack_model = self._mayes
