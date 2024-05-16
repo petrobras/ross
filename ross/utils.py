@@ -1028,3 +1028,40 @@ def integrate_rotor_system(rotor, speed, F, t, **kwargs):
     response = newmark(rotor_system, t, size, **kwargs)
     yout = get_array[2](response.T).T
     return t, yout
+
+
+def remove_axial_torsional_dofs(matrix_6dof):
+    """Removes axial and torsional degrees of freedom from a 6dof matrix.
+
+    This function takes a 6dof model matrix and removes the axial and torsional DoFs,
+    resulting in a 4dof model matrix.
+
+    Parameters
+    ----------
+    matrix_6dof: ndarray
+        The 6dof matrix to process.
+
+    Returns
+    -------
+    matrix_4dof: ndarray
+        A matrix with axial and torsional dofs removed.
+
+    Examples
+    --------
+    >>> import ross as rs
+    >>> rotor = rs.rotor_example_6dof()
+    >>> n_nodes = rotor.nodes[-1] + 1
+    >>> M_6dof = rotor.M()
+    >>> M_4dof = remove_axial_torsional_dofs(M_6dof)
+    >>> M_6dof.shape
+    (42, 42)
+    >>> len(M_6dof) == n_nodes * 6
+    True
+    >>> M_4dof.shape
+    (28, 28)
+    >>> len(M_4dof) == n_nodes * 4
+    True
+    """
+    ind = np.arange(2, len(matrix_6dof), 3)
+    matrix_4dof = np.delete(np.delete(matrix_6dof, ind, axis=0), ind, axis=1)
+    return matrix_4dof
