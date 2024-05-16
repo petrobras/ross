@@ -2,6 +2,7 @@
 
 This modules provides functions to plot the elements statistic data.
 """
+
 from copy import copy
 
 import numpy as np

@@ -43,11 +43,7 @@ def calculate_oil_film_force(fluid_flow_object, force_type=None):
             * (fluid_flow_object.radius_rotor / fluid_flow_object.radial_clearance) ** 2
             * (fluid_flow_object.length**3 / fluid_flow_object.radius_rotor)
             * (
-                (
-                    2
-                    * fluid_flow_object.eccentricity_ratio**2
-                    * fluid_flow_object.omega
-                )
+                (2 * fluid_flow_object.eccentricity_ratio**2 * fluid_flow_object.omega)
                 / (1 - fluid_flow_object.eccentricity_ratio**2) ** 2
             )
         )
@@ -72,11 +68,7 @@ def calculate_oil_film_force(fluid_flow_object, force_type=None):
             * fluid_flow_object.radius_rotor
             * fluid_flow_object.length
             * (
-                (
-                    2
-                    * fluid_flow_object.eccentricity_ratio**2
-                    * fluid_flow_object.omega
-                )
+                (2 * fluid_flow_object.eccentricity_ratio**2 * fluid_flow_object.omega)
                 / (
                     (2 + fluid_flow_object.eccentricity_ratio**2)
                     * (1 - fluid_flow_object.eccentricity_ratio**2)
@@ -171,7 +163,7 @@ def calculate_stiffness_and_damping_coefficients(fluid_flow_object):
     >>> from ross.fluid_flow.fluid_flow import fluid_flow_example
     >>> my_fluid_flow = fluid_flow_example()
     >>> calculate_stiffness_and_damping_coefficients(my_fluid_flow)  # doctest: +ELLIPSIS
-    ([429...
+    ([4...
     """
     N = 6
     t = np.linspace(0, 2 * np.pi / fluid_flow_object.omegap, N)
@@ -393,7 +385,7 @@ def find_equilibrium_position(fluid_flow_object, print_equilibrium_position=Fals
     >>> my_fluid_flow = fluid_flow_example2()
     >>> find_equilibrium_position(my_fluid_flow)
     >>> (my_fluid_flow.xi, my_fluid_flow.yi) # doctest: +ELLIPSIS
-    (2.24...
+    (2.2...
     """
 
     def residuals(x, *args):

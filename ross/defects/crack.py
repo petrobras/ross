@@ -243,7 +243,7 @@ class Crack(Defect):
         self.C = self.rotor.C(self.speed)
         self.G = self.rotor.G()
         self.M = self.rotor.M(self.speed)
-        self.Kst = self.rotor.Kst()
+        self.Ksdt = self.rotor.Ksdt()
 
         _, ModMat = scipy.linalg.eigh(
             self.K,
@@ -259,7 +259,7 @@ class Crack(Defect):
         self.Cmodal = ((ModMat.T).dot(self.C)).dot(ModMat)
         self.Gmodal = ((ModMat.T).dot(self.G)).dot(ModMat)
         self.Kmodal = ((ModMat.T).dot(self.K)).dot(ModMat)
-        self.Kstmodal = ((ModMat.T).dot(self.Kst)).dot(ModMat)
+        self.Ksdtmodal = ((ModMat.T).dot(self.Ksdt)).dot(ModMat)
 
         y0 = np.zeros(24)
         t_eval = np.arange(self.tI, self.tF + self.dt, self.dt)
@@ -365,7 +365,7 @@ class Crack(Defect):
             ftmodal
             + self.Funbmodal[:, i]
             - ((self.Cmodal + self.Gmodal * self.Omega[i])).dot(velocity)
-            - ((self.Kmodal + self.Kstmodal * self.AccelV[i]).dot(positions))
+            - ((self.Kmodal + self.Ksdtmodal * self.AccelV[i]).dot(positions))
         ).dot(self.inv_Mmodal)
 
         new_X_dot = velocity

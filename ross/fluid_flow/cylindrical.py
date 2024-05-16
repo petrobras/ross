@@ -5,9 +5,7 @@ from numpy.linalg import pinv
 from ross.bearing_seal_element import BearingElement
 from ross.units import Q_, check_units
 from scipy.optimize import curve_fit, minimize
-import sys
-
-from plotly import graph_objects as go
+from ross.fluid_flow.lubricants import lubricant_dict
 
 
 class THDCylindrical(BearingElement):
@@ -232,37 +230,8 @@ class THDCylindrical(BearingElement):
 
         self.oil_flow = self.oil_flow / 60000
 
-        self.lubricant_dict = {
-            "ISOVG32": {
-                "viscosity1": Q_(4.05640e-06, "reyn").to_base_units().m,
-                "temp1": Q_(40.00000, "degC").to_base_units().m,
-                "viscosity2": Q_(6.76911e-07, "reyn").to_base_units().m,
-                "temp2": Q_(100.00000, "degC").to_base_units().m,
-                "lube_density": Q_(873.99629, "kg/m³").to_base_units().m,
-                "lube_cp": Q_(1948.7995685758851, "J/(kg*degK)").to_base_units().m,
-                "lube_conduct": Q_(0.13126, "W/(m*degC)").to_base_units().m,
-            },
-            "ISOVG46": {
-                "viscosity1": Q_(5.757040938820288e-06, "reyn").to_base_units().m,
-                "temp1": Q_(40, "degC").to_base_units().m,
-                "viscosity2": Q_(8.810775697672788e-07, "reyn").to_base_units().m,
-                "temp2": Q_(100, "degC").to_base_units().m,
-                "lube_density": Q_(862.9, "kg/m³").to_base_units().m,
-                "lube_cp": Q_(1950, "J/(kg*degK)").to_base_units().m,
-                "lube_conduct": Q_(0.15, "W/(m*degC)").to_base_units().m,
-            },
-            "TEST": {
-                "viscosity1": Q_(0.0397, "Pa*s").to_base_units().m,
-                "temp1": Q_(40, "degC").to_base_units().m,
-                "viscosity2": Q_(0.0061, "Pa*s").to_base_units().m,
-                "temp2": Q_(100, "degC").to_base_units().m,
-                "lube_density": Q_(863.61302696, "kg/m³").to_base_units().m,
-                "lube_cp": Q_(1951.88616, "J/(kg*degK)").to_base_units().m,
-                "lube_conduct": Q_(0.15, "W/(m*degC)").to_base_units().m,
-            },
-        }
+        lubricant_properties = lubricant_dict[self.lubricant]
 
-        lubricant_properties = self.lubricant_dict[self.lubricant]
         T_muI = Q_(lubricant_properties["temp1"], "degK").m_as("degC")
         T_muF = Q_(lubricant_properties["temp2"], "degK").m_as("degC")
         mu_I = lubricant_properties["viscosity1"]
@@ -484,12 +453,8 @@ class THDCylindrical(BearingElement):
                     MU_s = 0.5 * (mu[ki, kj] + mu[ki - 1, kj])
                     MU_n = mu[ki, kj]
 
-                CE = (self.dZ * he**3) / (
-                    12 * MU_e[n_p] * self.dY * self.betha_s**2
-                )
-                CW = (self.dZ * hw**3) / (
-                    12 * MU_w[n_p] * self.dY * self.betha_s**2
-                )
+                CE = (self.dZ * he**3) / (12 * MU_e[n_p] * self.dY * self.betha_s**2)
+                CW = (self.dZ * hw**3) / (12 * MU_w[n_p] * self.dY * self.betha_s**2)
                 CN = (self.dY * (self.journal_radius**2) * hn**3) / (
                     12 * MU_n[n_p] * self.dZ * self.axial_length**2
                 )
@@ -1461,9 +1426,7 @@ class THDCylindrical(BearingElement):
 
                             dwdy = (HP / mu_turb[ki, kj, n_p]) * dPdz[ki, kj, n_p]
 
-                            tal = mu_turb[ki, kj, n_p] * np.sqrt(
-                                (dudy**2) + (dwdy**2)
-                            )
+                            tal = mu_turb[ki, kj, n_p] * np.sqrt((dudy**2) + (dwdy**2))
 
                             x_wall = (
                                 (HP * self.radial_clearance * 2)
@@ -1583,12 +1546,7 @@ class THDCylindrical(BearingElement):
                             )
                             b_TI = (
                                 auxb_T
-                                * (
-                                    mi_t
-                                    * (self.journal_radius**2)
-                                    * self.dY
-                                    * self.dZ
-                                )
+                                * (mi_t * (self.journal_radius**2) * self.dY * self.dZ)
                                 / (HP * self.radial_clearance)
                             )
                             b_TJ = (
