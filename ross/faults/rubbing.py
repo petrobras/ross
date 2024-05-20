@@ -58,7 +58,7 @@ class Rubbing(Defect):
 
     Examples
     --------
-    >>> from ross.defects.rubbing import rubbing_example
+    >>> from ross.faults.rubbing import rubbing_example
     >>> probe1 = (14, 0)
     >>> probe2 = (22, 0)
     >>> response = rubbing_example()

@@ -74,7 +74,7 @@ class MisalignmentFlex(Defect):
 
     Examples
     --------
-    >>> from ross.defects.misalignment import misalignment_flex_parallel_example
+    >>> from ross.faults.misalignment import misalignment_flex_parallel_example
     >>> probe1 = (14, 0)
     >>> probe2 = (22, 0)
     >>> response = misalignment_flex_parallel_example()
@@ -549,7 +549,7 @@ class MisalignmentRigid(Defect):
 
     Examples
     --------
-    >>> from ross.defects.misalignment import misalignment_rigid_example
+    >>> from ross.faults.misalignment import misalignment_rigid_example
     >>> probe1 = (14, 0)
     >>> probe2 = (22, 0)
     >>> response = misalignment_rigid_example()

@@ -59,7 +59,7 @@ class Crack(Defect):
 
     Examples
     --------
-    >>> from ross.defects.crack import crack_example
+    >>> from ross.faults.crack import crack_example
     >>> probe1 = (14, 0)
     >>> probe2 = (22, 0)
     >>> response = crack_example()

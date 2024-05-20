@@ -28,7 +28,7 @@ from ross.bearing_seal_element import (
     RollerBearingElement,
     SealElement,
 )
-from ross.defects import Crack, MisalignmentFlex, MisalignmentRigid, Rubbing
+from ross.faults import Crack, MisalignmentFlex, MisalignmentRigid, Rubbing
 from ross.disk_element import DiskElement, DiskElement6DoF
 from ross.materials import steel
 from ross.point_mass import PointMass, PointMass6DoF
@@ -2617,7 +2617,7 @@ class Rotor(object):
 
         Examples
         --------
-        >>> from ross.defects.misalignment import misalignment_flex_parallel_example
+        >>> from ross.faults.misalignment import misalignment_flex_parallel_example
         >>> probe1 = (14, 0)
         >>> probe2 = (22, 0)
         >>> response = misalignment_flex_parallel_example()
@@ -2675,7 +2675,7 @@ class Rotor(object):
 
         Examples
         --------
-        >>> from ross.defects.rubbing import rubbing_example
+        >>> from ross.faults.rubbing import rubbing_example
         >>> probe1 = (14, 0)
         >>> probe2 = (22, 0)
         >>> response = rubbing_example()
@@ -2718,7 +2718,7 @@ class Rotor(object):
 
         Examples
         --------
-        >>> from ross.defects.crack import crack_example
+        >>> from ross.faults.crack import crack_example
         >>> probe1 = (14, 0)
         >>> probe2 = (22, 0)
         >>> response = crack_example()

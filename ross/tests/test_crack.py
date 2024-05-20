@@ -7,7 +7,7 @@ import pytest
 from numpy.testing import assert_allclose, assert_almost_equal
 
 import ross as rs
-from ross.defects.crack import Crack
+from ross.faults.crack import Crack
 from ross.units import Q_
 
 steel2 = rs.Material(name="Steel", rho=7850, E=2.17e11, Poisson=0.2992610837438423)
