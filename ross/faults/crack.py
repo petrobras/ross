@@ -612,7 +612,7 @@ def crack_example():
     """Create an example to evaluate the influence of transverse cracks in a rotating shaft.
 
     This function returns an instance of a transversal crack
-    defect. The purpose is to make available a simple model so that a
+    fault. The purpose is to make available a simple model so that a
     doctest can be written using it.
 
     Returns

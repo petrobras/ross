@@ -950,10 +950,10 @@ def base_rotor_example():
 
 
 def misalignment_flex_parallel_example():
-    """Create an example of a flexible parallel misalignment defect.
+    """Create an example of a flexible parallel misalignment fault.
 
     This function returns an instance of a flexible parallel misalignment
-    defect. The purpose is to make available a simple model so that a
+    fault. The purpose is to make available a simple model so that a
     doctest can be written using it.
 
     Returns
@@ -994,10 +994,10 @@ def misalignment_flex_parallel_example():
 
 
 def misalignment_flex_angular_example():
-    """Create an example of a flexible angular misalignment defect.
+    """Create an example of a flexible angular misalignment fault.
 
     This function returns an instance of a flexible angular misalignment
-    defect. The purpose is to make available a simple model so that a
+    fault. The purpose is to make available a simple model so that a
     doctest can be written using it.
 
     Returns
@@ -1038,10 +1038,10 @@ def misalignment_flex_angular_example():
 
 
 def misalignment_flex_combined_example():
-    """Create an example of a flexible combined misalignment defect.
+    """Create an example of a flexible combined misalignment fault.
 
     This function returns an instance of a flexible combined misalignment
-    defect. The purpose is to make available a simple model so that a
+    fault. The purpose is to make available a simple model so that a
     doctest can be written using it.
 
     Returns
@@ -1082,10 +1082,10 @@ def misalignment_flex_combined_example():
 
 
 def misalignment_rigid_example():
-    """Create an example of a rigid misalignment defect.
+    """Create an example of a rigid misalignment fault.
 
     This function returns an instance of a rigid misalignment
-    defect. The purpose is to make available a simple model so that a
+    fault. The purpose is to make available a simple model so that a
     doctest can be written using it.
 
     Returns
