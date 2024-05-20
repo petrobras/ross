@@ -7,7 +7,7 @@ import scipy.linalg
 import ross
 from ross.units import Q_, check_units
 
-from .abs_defect import Defect
+from .abs_fault import Fault
 from .integrate_solver import Integrator
 
 __all__ = [
@@ -15,7 +15,7 @@ __all__ = [
 ]
 
 
-class Rubbing(Defect):
+class Rubbing(Fault):
     """Contains a rubbing model for applications on finite element models of rotative machinery.
     The reference coordenates system is: z-axis throught the shaft center; x-axis and y-axis in the sensors' planes
 

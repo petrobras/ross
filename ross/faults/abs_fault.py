@@ -7,10 +7,10 @@ import scipy as sp
 from ross.results import TimeResponseResults
 from ross.units import Q_
 
-__all__ = ["Defect"]
+__all__ = ["Fault"]
 
 
-class Defect(ABC):
+class Fault(ABC):
     def __init__(self):
         pass
 

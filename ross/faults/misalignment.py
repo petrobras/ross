@@ -14,13 +14,13 @@ import scipy.linalg
 import ross
 from ross.units import Q_, check_units
 
-from .abs_defect import Defect
+from .abs_fault import Fault
 from .integrate_solver import Integrator
 
 __all__ = ["MisalignmentFlex", "MisalignmentRigid"]
 
 
-class MisalignmentFlex(Defect):
+class MisalignmentFlex(Fault):
     """A flexible coupling with misalignment of some kind.
 
     Calculates the dynamic reaction force of hexangular flexible coupling
@@ -506,7 +506,7 @@ class MisalignmentFlex(Defect):
         return F_misalign
 
 
-class MisalignmentRigid(Defect):
+class MisalignmentRigid(Fault):
     """A rigid coupling with parallel misalignment.
 
     Calculates the dynamic reaction force of hexangular rigid coupling

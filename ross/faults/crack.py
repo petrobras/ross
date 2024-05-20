@@ -9,7 +9,7 @@ import scipy.linalg
 import ross
 from ross.units import Q_, check_units
 
-from .abs_defect import Defect
+from .abs_fault import Fault
 from .integrate_solver import Integrator
 
 __all__ = [
@@ -17,7 +17,7 @@ __all__ = [
 ]
 
 
-class Crack(Defect):
+class Crack(Fault):
     """Contains a :cite:`gasch1993survey` and :cite:`mayes1984analysis` transversal crack models for applications on
     finite element models of rotative machinery.
     The reference coordenates system is: z-axis throught the shaft center; x-axis and y-axis in the sensors' planes
