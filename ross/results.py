@@ -418,7 +418,24 @@ class Shape(Results):
         self.yn = None
         self.zn = None
         self.major_axis = None
+        self._classify()
         self._calculate()
+
+    def _classify(self):
+        self.mode_id = "Lateral"
+
+        if self.number_dof == 6:
+            size = len(self.vector)
+
+            axial_dofs = np.arange(2, size, self.number_dof)
+            torsional_dofs = np.arange(5, size, self.number_dof)
+
+            nonzero_dofs = np.nonzero(np.abs(self.vector).round(6))[0]
+
+            if np.isin(nonzero_dofs, axial_dofs).all():
+                self.mode_id = "Axial"
+            elif np.isin(nonzero_dofs, torsional_dofs).all():
+                self.mode_id = "Torsional"
 
     def _calculate_orbits(self):
         orbits = []
@@ -1546,27 +1563,46 @@ class CampbellResults(Results):
                 )
             )
 
+        whirl_direction = [0.0, 0.5, 1.0]
         scatter_marker = ["triangle-up", "circle", "triangle-down"]
-        for mark, whirl_dir, legend in zip(
-            scatter_marker, [0.0, 0.5, 1.0], ["Forward", "Mixed", "Backward"]
-        ):
+        legends = ["Forward", "Mixed", "Backward"]
+
+        if self.number_dof == 6:
+            whirl_direction = np.concatenate((whirl_direction, [None, None]))
+            scatter_marker = np.concatenate(
+                (scatter_marker, ["diamond-wide", "bowtie"])
+            )
+            legends = np.concatenate((legends, ["Axial", "Torsional"]))
+
+        for whirl_dir, mark, legend in zip(whirl_direction, scatter_marker, legends):
             for i in range(num_frequencies):
                 w_i = wd[:, i]
                 whirl_i = whirl[:, i]
                 damping_values_i = damping_values[:, i]
 
-                whirl_mask = whirl_i == whirl_dir
-                mask = whirl_mask
-                if frequency_range is not None:
-                    frequency_mask = (w_i > frequency_range[0]) & (
-                        w_i < frequency_range[1]
-                    )
-                    mask = mask & frequency_mask
-                if damping_range is not None:
-                    damping_mask = (damping_values_i > damping_range[0]) & (
-                        damping_values_i < damping_range[1]
-                    )
-                    mask = mask & damping_mask
+                mode_shape = np.array(
+                    [self.modal_results[j].shapes[i].mode_id for j in speed_range]
+                )
+                mode_mask_g = np.array([mode in legends for mode in mode_shape])
+
+                mode_mask = mode_shape == legend
+                if any(mode_mask):
+                    mask = mode_mask
+                else:
+                    whirl_mask = whirl_i == whirl_dir
+                    mask = whirl_mask
+                    if frequency_range is not None:
+                        frequency_mask = (w_i > frequency_range[0]) & (
+                            w_i < frequency_range[1]
+                        )
+                        mask = mask & frequency_mask
+                    if damping_range is not None:
+                        damping_mask = (damping_values_i > damping_range[0]) & (
+                            damping_values_i < damping_range[1]
+                        )
+                        mask = mask & damping_mask
+
+                    mask = mask & ~mode_mask_g
 
                 if any(check for check in mask):
                     fig.add_trace(
@@ -1600,8 +1636,6 @@ class CampbellResults(Results):
                 )
             )
         # turn legend glyphs black
-        scatter_marker = ["triangle-up", "circle", "triangle-down"]
-        legends = ["Forward", "Mixed", "Backward"]
         for mark, legend in zip(scatter_marker, legends):
             fig.add_trace(
                 go.Scatter(
