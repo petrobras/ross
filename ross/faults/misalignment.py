@@ -14,13 +14,13 @@ import scipy.linalg
 import ross
 from ross.units import Q_, check_units
 
-from .abs_defect import Defect
+from .abs_fault import Fault
 from .integrate_solver import Integrator
 
 __all__ = ["MisalignmentFlex", "MisalignmentRigid"]
 
 
-class MisalignmentFlex(Defect):
+class MisalignmentFlex(Fault):
     """A flexible coupling with misalignment of some kind.
 
     Calculates the dynamic reaction force of hexangular flexible coupling
@@ -74,7 +74,7 @@ class MisalignmentFlex(Defect):
 
     Examples
     --------
-    >>> from ross.defects.misalignment import misalignment_flex_parallel_example
+    >>> from ross.faults.misalignment import misalignment_flex_parallel_example
     >>> probe1 = (14, 0)
     >>> probe2 = (22, 0)
     >>> response = misalignment_flex_parallel_example()
@@ -506,7 +506,7 @@ class MisalignmentFlex(Defect):
         return F_misalign
 
 
-class MisalignmentRigid(Defect):
+class MisalignmentRigid(Fault):
     """A rigid coupling with parallel misalignment.
 
     Calculates the dynamic reaction force of hexangular rigid coupling
@@ -549,7 +549,7 @@ class MisalignmentRigid(Defect):
 
     Examples
     --------
-    >>> from ross.defects.misalignment import misalignment_rigid_example
+    >>> from ross.faults.misalignment import misalignment_rigid_example
     >>> probe1 = (14, 0)
     >>> probe2 = (22, 0)
     >>> response = misalignment_rigid_example()
@@ -950,10 +950,10 @@ def base_rotor_example():
 
 
 def misalignment_flex_parallel_example():
-    """Create an example of a flexible parallel misalignment defect.
+    """Create an example of a flexible parallel misalignment fault.
 
     This function returns an instance of a flexible parallel misalignment
-    defect. The purpose is to make available a simple model so that a
+    fault. The purpose is to make available a simple model so that a
     doctest can be written using it.
 
     Returns
@@ -994,10 +994,10 @@ def misalignment_flex_parallel_example():
 
 
 def misalignment_flex_angular_example():
-    """Create an example of a flexible angular misalignment defect.
+    """Create an example of a flexible angular misalignment fault.
 
     This function returns an instance of a flexible angular misalignment
-    defect. The purpose is to make available a simple model so that a
+    fault. The purpose is to make available a simple model so that a
     doctest can be written using it.
 
     Returns
@@ -1038,10 +1038,10 @@ def misalignment_flex_angular_example():
 
 
 def misalignment_flex_combined_example():
-    """Create an example of a flexible combined misalignment defect.
+    """Create an example of a flexible combined misalignment fault.
 
     This function returns an instance of a flexible combined misalignment
-    defect. The purpose is to make available a simple model so that a
+    fault. The purpose is to make available a simple model so that a
     doctest can be written using it.
 
     Returns
@@ -1082,10 +1082,10 @@ def misalignment_flex_combined_example():
 
 
 def misalignment_rigid_example():
-    """Create an example of a rigid misalignment defect.
+    """Create an example of a rigid misalignment fault.
 
     This function returns an instance of a rigid misalignment
-    defect. The purpose is to make available a simple model so that a
+    fault. The purpose is to make available a simple model so that a
     doctest can be written using it.
 
     Returns

@@ -9,7 +9,7 @@ import scipy.linalg
 import ross
 from ross.units import Q_, check_units
 
-from .abs_defect import Defect
+from .abs_fault import Fault
 from .integrate_solver import Integrator
 
 __all__ = [
@@ -17,7 +17,7 @@ __all__ = [
 ]
 
 
-class Crack(Defect):
+class Crack(Fault):
     """Contains a :cite:`gasch1993survey` and :cite:`mayes1984analysis` transversal crack models for applications on
     finite element models of rotative machinery.
     The reference coordenates system is: z-axis throught the shaft center; x-axis and y-axis in the sensors' planes
@@ -59,7 +59,7 @@ class Crack(Defect):
 
     Examples
     --------
-    >>> from ross.defects.crack import crack_example
+    >>> from ross.faults.crack import crack_example
     >>> probe1 = (14, 0)
     >>> probe2 = (22, 0)
     >>> response = crack_example()
@@ -612,7 +612,7 @@ def crack_example():
     """Create an example to evaluate the influence of transverse cracks in a rotating shaft.
 
     This function returns an instance of a transversal crack
-    defect. The purpose is to make available a simple model so that a
+    fault. The purpose is to make available a simple model so that a
     doctest can be written using it.
 
     Returns

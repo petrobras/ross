@@ -7,7 +7,7 @@ import scipy.linalg
 import ross
 from ross.units import Q_, check_units
 
-from .abs_defect import Defect
+from .abs_fault import Fault
 from .integrate_solver import Integrator
 
 __all__ = [
@@ -15,7 +15,7 @@ __all__ = [
 ]
 
 
-class Rubbing(Defect):
+class Rubbing(Fault):
     """Contains a rubbing model for applications on finite element models of rotative machinery.
     The reference coordenates system is: z-axis throught the shaft center; x-axis and y-axis in the sensors' planes
 
@@ -58,7 +58,7 @@ class Rubbing(Defect):
 
     Examples
     --------
-    >>> from ross.defects.rubbing import rubbing_example
+    >>> from ross.faults.rubbing import rubbing_example
     >>> probe1 = (14, 0)
     >>> probe2 = (22, 0)
     >>> response = rubbing_example()
@@ -525,9 +525,9 @@ def base_rotor_example():
 
 
 def rubbing_example():
-    """Create an example of a rubbing defect.
+    """Create an example of a rubbing fault.
 
-    This function returns an instance of a rubbing defect. The purpose is to make
+    This function returns an instance of a rubbing fault. The purpose is to make
     available a simple model so that a doctest can be written using it.
 
     Returns

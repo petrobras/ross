@@ -28,7 +28,7 @@ from ross.bearing_seal_element import (
     RollerBearingElement,
     SealElement,
 )
-from ross.defects import Crack, MisalignmentFlex, MisalignmentRigid, Rubbing
+from ross.faults import Crack, MisalignmentFlex, MisalignmentRigid, Rubbing
 from ross.disk_element import DiskElement, DiskElement6DoF
 from ross.materials import steel
 from ross.point_mass import PointMass, PointMass6DoF
@@ -2543,7 +2543,7 @@ class Rotor(object):
     def run_misalignment(self, coupling="flex", **kwargs):
         """Run an analyzes with misalignment.
 
-        Execute the misalignment defect and generates the misalignment object
+        Execute the misalignment fault and generates the misalignment object
         on the back-end. There are two types of coupling, flexible (flex)
         and rigid, which have different entries. These entries are provided
         via **kwargs to the specific method.
@@ -2617,7 +2617,7 @@ class Rotor(object):
 
         Examples
         --------
-        >>> from ross.defects.misalignment import misalignment_flex_parallel_example
+        >>> from ross.faults.misalignment import misalignment_flex_parallel_example
         >>> probe1 = (14, 0)
         >>> probe2 = (22, 0)
         >>> response = misalignment_flex_parallel_example()
@@ -2627,19 +2627,19 @@ class Rotor(object):
         """
 
         if coupling == "flex" or coupling == None:
-            defect = MisalignmentFlex(**kwargs)
+            fault = MisalignmentFlex(**kwargs)
         elif coupling == "rigid":
-            defect = MisalignmentRigid(**kwargs)
+            fault = MisalignmentRigid(**kwargs)
         else:
             raise Exception("Check the choosed coupling type!")
 
-        defect.run(self)
-        return defect
+        fault.run(self)
+        return fault
 
     def run_rubbing(self, **kwargs):
         """Run an analyzes with rubbing.
 
-        Execute the rubbing defect and generates the rubbing object on the back-end.
+        Execute the rubbing fault and generates the rubbing object on the back-end.
 
         Parameters
         ----------
@@ -2675,7 +2675,7 @@ class Rotor(object):
 
         Examples
         --------
-        >>> from ross.defects.rubbing import rubbing_example
+        >>> from ross.faults.rubbing import rubbing_example
         >>> probe1 = (14, 0)
         >>> probe2 = (22, 0)
         >>> response = rubbing_example()
@@ -2684,14 +2684,14 @@ class Rotor(object):
         >>> # fig.show()
         """
 
-        defect = Rubbing(**kwargs)
-        defect.run(self)
-        return defect
+        fault = Rubbing(**kwargs)
+        fault.run(self)
+        return fault
 
     def run_crack(self, **kwargs):
         """Run an analyzes with rubbing.
 
-        Execute the crack defect and generates the crack object on the back-end.
+        Execute the crack fault and generates the crack object on the back-end.
 
         Parameters
         ----------
@@ -2718,7 +2718,7 @@ class Rotor(object):
 
         Examples
         --------
-        >>> from ross.defects.crack import crack_example
+        >>> from ross.faults.crack import crack_example
         >>> probe1 = (14, 0)
         >>> probe2 = (22, 0)
         >>> response = crack_example()
@@ -2726,9 +2726,9 @@ class Rotor(object):
         >>> fig = response.plot_dfft(probe=[probe1, probe2], range_freq=[0, 100], yaxis_type="log")
         >>> # fig.show()
         """
-        defect = Crack(**kwargs)
-        defect.run(self)
-        return defect
+        fault = Crack(**kwargs)
+        fault.run(self)
+        return fault
 
     def save_mat(self, file, speed, frequency=None):
         """Save matrices and rotor model to a .mat file.
