@@ -2323,7 +2323,7 @@ class Rotor(object):
                 bearings_elements.append(bearing)
 
         for i, k in enumerate(stiffness_log):
-            bearings = [b.__class__(b.n, kxx=k, cxx=0) for b in bearings_elements]
+            bearings = [BearingElement(b.n, kxx=k, cxx=0) for b in bearings_elements]
             rotor = self.__class__(self.shaft_elements, self.disk_elements, bearings)
             modal = rotor.run_modal(
                 speed=0, num_modes=num_modes, synchronous=synchronous
@@ -2365,7 +2365,7 @@ class Rotor(object):
 
         for k, speed in zip(intersection_points["x"], intersection_points["y"]):
             # create bearing
-            bearings = [b.__class__(b.n, kxx=k, cxx=0) for b in bearings_elements]
+            bearings = [BearingElement(b.n, kxx=k, cxx=0) for b in bearings_elements]
             # create rotor
             rotor_critical = Rotor(
                 shaft_elements=self.shaft_elements,
