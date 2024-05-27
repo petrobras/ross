@@ -2322,8 +2322,10 @@ class Rotor(object):
             if not isinstance(bearing, SealElement):
                 bearings_elements.append(bearing)
 
+        bearing_class = BearingElement6DoF if self.number_dof == 6 else BearingElement
+
         for i, k in enumerate(stiffness_log):
-            bearings = [BearingElement(b.n, kxx=k, cxx=0) for b in bearings_elements]
+            bearings = [bearing_class(b.n, kxx=k, cxx=0) for b in bearings_elements]
             rotor = self.__class__(self.shaft_elements, self.disk_elements, bearings)
             modal = rotor.run_modal(
                 speed=0, num_modes=num_modes, synchronous=synchronous
@@ -2369,7 +2371,7 @@ class Rotor(object):
 
                         # create bearing
                         bearings = [
-                            BearingElement(b.n, kxx=k, cxx=0) for b in bearings_elements
+                            bearing_class(b.n, kxx=k, cxx=0) for b in bearings_elements
                         ]
 
                         # create rotor
