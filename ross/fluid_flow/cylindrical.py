@@ -549,7 +549,7 @@ class THDCylindrical(BearingElement):
 
         for i in np.arange(self.elements_axial):
             for j in np.arange(self.elements_circumferential):
-                self.P[i, j, n_p] = p[cont]
+                self.P[i, j, n_p] = p[cont, 0]
                 cont = cont + 1
 
                 if self.P[i, j, n_p] < 0:
@@ -1704,7 +1704,7 @@ class THDCylindrical(BearingElement):
 
                     for i in np.arange(self.elements_axial):
                         for j in np.arange(self.elements_circumferential):
-                            T_new[i, j, n_p] = t[cont]
+                            T_new[i, j, n_p] = t[cont, 0]
                             cont = cont + 1
 
                     Tdim = T_new * self.reference_temperature
