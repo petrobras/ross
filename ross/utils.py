@@ -601,11 +601,11 @@ def get_data_from_figure(fig):
 
     Use the probe tag to navigate through pandas data
     Index 0 for frequency array
-    >>> df["probe1"][0] # doctest: +ELLIPSIS
+    >>> df["probe1"].values[0] # doctest: +ELLIPSIS
     array([   0.,   10.,   20.,   30.,...
 
     Index 1 for amplitude array
-    >>> df["probe1"][1] # doctest: +ELLIPSIS
+    >>> df["probe1"].values[1] # doctest: +ELLIPSIS
     array([0.00000000e+00,...
 
     Or use "iloc" to obtain the desired array from pandas
