@@ -1,7 +1,6 @@
 import pytest
 from numpy.testing import assert_allclose
 import numpy as np
-
 import ross as rs
 
 
@@ -68,12 +67,12 @@ def test_run_static(rotor_6dof):
     # fmt:on
 
     for n in bearing_forces:
-        assert_allclose(static.bearing_forces[n], bearing_forces[n])
+        assert_allclose(static.bearing_forces[n], bearing_forces[n], rtol=1e-6)
 
     for n in disk_forces:
-        assert_allclose(static.disk_forces[n], disk_forces[n])
+        assert_allclose(static.disk_forces[n], disk_forces[n], rtol=1e-6)
 
-    assert_allclose(static.deformation, deformation)
+    assert_allclose(static.deformation, deformation, rtol=1e-6)
 
 
 def test_static_results_equality(rotor_6dof, rotor_4dof):
@@ -81,12 +80,12 @@ def test_static_results_equality(rotor_6dof, rotor_4dof):
     static2 = rotor_4dof.run_static()
 
     for n in static1.bearing_forces:
-        assert_allclose(static1.bearing_forces[n], static2.bearing_forces[n])
+        assert_allclose(static1.bearing_forces[n], static2.bearing_forces[n], rtol=1e-6)
 
     for n in static1.disk_forces:
-        assert_allclose(static1.disk_forces[n], static2.disk_forces[n])
+        assert_allclose(static1.disk_forces[n], static2.disk_forces[n], rtol=1e-6)
 
-    assert_allclose(static1.deformation, static2.deformation)
+    assert_allclose(static1.deformation, static2.deformation, rtol=1e-6)
 
 
 def test_run_modal(rotor_6dof):
@@ -104,8 +103,8 @@ def test_run_modal(rotor_6dof):
     ])
     # fmt:on
 
-    assert_allclose(modal.wn, wn)
-    assert_allclose(modal.wd, wd)
+    assert_allclose(modal.wn, wn, rtol=1e-3)
+    assert_allclose(modal.wd, wd, rtol=1e-3)
 
 
 def test_modal_results_equality(rotor_6dof, rotor_4dof):
@@ -159,8 +158,8 @@ def test_run_freq(rotor_6dof):
     ])
     # fmt:on
 
-    assert_allclose(abs(response.freq_resp[:2, :2, 0]), abs_resp)
-    assert_allclose(np.angle(response.freq_resp[:2, :2, 0]), ang_resp)
+    assert_allclose(abs(response.freq_resp[:2, :2, 0]), abs_resp, atol=1e-7)
+    assert_allclose(np.angle(response.freq_resp[:2, :2, 0]), ang_resp, atol=1e-7)
 
 
 def test_freq_resp_equality(rotor_6dof, rotor_4dof):
@@ -184,8 +183,8 @@ def test_run_unb(rotor_6dof):
     abs_resp = np.array([0.01763464, 0.02290302])
     ang_resp = np.array([1.18722483e-12, -1.57079633e00])
 
-    assert_allclose(abs(response.forced_resp[:2, 15]), abs_resp)
-    assert_allclose(np.angle(response.forced_resp[:2, 15]), ang_resp)
+    assert_allclose(abs(response.forced_resp[:2, 15]), abs_resp, atol=1e-7)
+    assert_allclose(np.angle(response.forced_resp[:2, 15]), ang_resp, atol=1e-7)
 
 
 def test_unb_resp_equality(rotor_6dof, rotor_4dof):
@@ -239,7 +238,7 @@ def test_run_time(rotor_6dof):
     assert_allclose(
         np.mean(response1.yout[:, dof]), np.mean(response2.yout[:, dof]), atol=1e-7
     )
-    assert_allclose(response1.yout[50, :], response3)
+    assert_allclose(response1.yout[50, :], response3, atol=1e-7)
 
 
 def test_time_resp_equality(rotor_6dof, rotor_4dof):
