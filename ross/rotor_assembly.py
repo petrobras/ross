@@ -1374,7 +1374,7 @@ class Rotor(object):
                     evalues, evectors = las.eigs(
                         A,
                         k=num_modes,
-                        sigma=0,
+                        sigma=1,
                         ncv=2 * num_modes,
                         which="LM",
                         v0=self._v0,
