@@ -1435,7 +1435,7 @@ class CampbellResults(Results):
     def plot(
         self,
         harmonics=[1],
-        frequency_units="rpm",
+        frequency_units="RPM",
         damping_parameter="log_dec",
         frequency_range=None,
         damping_range=None,
@@ -1451,7 +1451,7 @@ class CampbellResults(Results):
             The default is to plot 1x.
         frequency_units : str, optional
             Frequency units.
-            Default is "rpm"
+            Default is "RPM".
         damping_parameter : str, optional
             Define which value to show for damping. We can use "log_dec" or "damping_ratio".
             Default is "log_dec".
@@ -1558,7 +1558,7 @@ class CampbellResults(Results):
                     legendgroup="Crit. Speed",
                     showlegend=True,
                     hovertemplate=(
-                        f"Frequency ({frequency_units}): %{{x:.2f}}<br>Critical Speed ({frequency_units}): %{{y:.2f}}"
+                        f"Frequency ({frequency_units}): %{{y:.2f}}<br>Critical Speed ({frequency_units}): %{{x:.2f}}"
                     ),
                 )
             )
@@ -1650,7 +1650,7 @@ class CampbellResults(Results):
             )
 
         fig.update_xaxes(
-            title_text=f"Frequency ({frequency_units})",
+            title_text=f"Rotor Speed ({frequency_units})",
             range=[
                 np.min(Q_(speed_range, "rad/s").to(frequency_units).m),
                 np.max(Q_(speed_range, "rad/s").to(frequency_units).m),
