@@ -1742,7 +1742,8 @@ class CampbellResults(Results):
 
         crit_speeds = camp_fig.data[0]["x"]
         for w in crit_speeds:
-            modal_results_crit[w] = self.run_modal(Q_(w, frequency_units).to("rad/s").m)
+            w_si = Q_(w, frequency_units).to("rad/s").m
+            modal_results_crit[w_si] = self.run_modal(w_si)
 
         for scatter in camp_fig.data:
             scatter.on_click(_plot_with_mode_shape_callback)
