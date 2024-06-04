@@ -49,7 +49,7 @@ from ross.shaft_element import ShaftElement, ShaftElement6DoF
 from ross.units import Q_, check_units
 from ross.utils import intersection
 
-__all__ = ["Rotor", "CoAxialRotor", "rotor_example", "coaxrotor_example"]
+__all__ = ["Rotor", "CoAxialRotor", "rotor_example", "rotor_example_compressor", "coaxrotor_example"]
 
 # set Plotly palette of colors
 colors = px.colors.qualitative.Dark24
@@ -3838,6 +3838,33 @@ def rotor_example():
 
     return Rotor(shaft_elem, [disk0, disk1], [bearing0, bearing1])
 
+def rotor_example_compressor():
+    """Create a rotor as example.
+
+    This function returns an instance of a simple rotor with
+    91 shaft elements, 7 disks and 2 simple bearings and 12 seals.
+    The purpose of this is to make available a simple model
+    so that doctest can be written using this.
+
+    Returns
+    -------
+    An instance of a rotor object.
+
+    References
+    ----------
+    Autors: Timbó, R., & Ritto, T. G. (2019). 
+    Title: Impact of damper seal coefficients uncertainties in rotor dynamics. 
+    Paper: Journal of the Brazilian Society of Mechanical Sciences and Engineering, 41(4),165.
+    link: doi:10.1007/s40430-019-1652-8
+
+    Examples
+    --------
+    >>> import ross as rs
+    >>> rotor = rs.rotor_example_compressor()
+    >>> rotor.plot_rotor(nodes=5).show()
+    """
+    rotor_example_compressor = Rotor.load(Path(__file__).parent / "tests/data/rotor.toml")
+    return rotor_example_compressor
 
 def coaxrotor_example():
     """Create a rotor as example.
