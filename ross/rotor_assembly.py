@@ -47,7 +47,12 @@ from ross.results import (
 )
 from ross.shaft_element import ShaftElement, ShaftElement6DoF
 from ross.units import Q_, check_units
-from ross.utils import intersection, integrate_rotor_system, remove_axial_torsional_dofs
+from ross.utils import (
+    intersection,
+    newmark,
+    assemble_C_K_matrices,
+    remove_axial_torsional_dofs,
+)
 
 __all__ = [
     "Rotor",
@@ -1451,6 +1456,67 @@ class Rotor(object):
 
         return sys
 
+    def _pseudo_modal(self, speed, num_modes):
+        """Pseudo-modal method.
+
+        This method can be used to apply modal transformation to reduce model
+        of the rotor system.
+
+        Parameters
+        ----------
+        speed : float
+            Rotor speed.
+        num_modes : int
+            The number of eigenvectors to consider in the modal transformation
+            with model reduction.
+
+        Returns
+        -------
+        matrix_to_modal : callable
+            Function to transform a square matrix from physical to modal space.
+        vector_to_modal : callable
+            Function to transform a vector from physical to modal space.
+        vector_from_modal : callable
+            Function to transform a vector from modal to physical space.
+
+        Examples
+        --------
+        >>> import ross as rs
+        >>> rotor = rs.rotor_example()
+        >>> size = 10000
+        >>> node = 3
+        >>> speed = 500.0
+        >>> t = np.linspace(0, 10, size)
+        >>> F = np.zeros((size, rotor.ndof))
+        >>> F[:, rotor.number_dof * node] = 10 * np.cos(2 * t)
+        >>> F[:, rotor.number_dof * node + 1] = 10 * np.sin(2 * t)
+        >>> get_array = rotor._pseudo_modal(speed, num_modes=12)
+        >>> F_modal = get_array[1](F.T).T
+        >>> round(la.norm(F_modal), 5)
+        226.92798
+        """
+
+        M = self.M(speed)
+        K_aux = self.K(speed)
+
+        # Remove cross-coupled coefficients of bearing stiffness matrix
+        rmv_cross_coeffs = [[0, 1], [1, 0]]
+        if self.number_dof == 6:
+            rmv_cross_coeffs = [[0, 1, 0], [1, 0, 0], [0, 0, 0]]
+
+        for elm in self.bearing_elements:
+            dofs = list(elm.dof_global_index.values())
+            K_aux[np.ix_(dofs, dofs)] -= elm.K(speed) * rmv_cross_coeffs
+
+        _, modal_matrix = la.eigh(K_aux, M)
+        modal_matrix = modal_matrix[:, :num_modes]
+
+        matrix_to_modal = lambda array: (modal_matrix.T @ array) @ modal_matrix
+        vector_to_modal = lambda array: modal_matrix.T @ array
+        vector_from_modal = lambda array: modal_matrix @ array
+
+        return matrix_to_modal, vector_to_modal, vector_from_modal
+
     def transfer_matrix(self, speed=None, frequency=None, modes=None):
         """Calculate the fer matrix for the frequency response function (FRF).
 
@@ -1947,6 +2013,160 @@ class Rotor(object):
 
         return forced_response
 
+    def integrate_system(self, speed, F, t, **kwargs):
+        """Time integration for a rotor system.
+
+        This method returns the time response for a rotor given a force, time and
+        speed based on time integration with the Newmark method.
+
+        Parameters
+        ----------
+        speed : float or array_like
+            Rotor speed.
+        F : ndarray
+            Force array (needs to have the same length as time array).
+        t : ndarray
+            Time array.
+        **kwargs : optional
+            Additional keyword arguments can be passed to define the parameters
+            of the Newmark method if it is used (e.g. gamma, beta, tol, ...).
+            See `newmark` for more details. Other optional arguments are listed
+            below.
+        num_modes : int, optional
+            If `num_modes` is passed as argument, the pseudo-modal method is applied reducing
+            the model to the chosen number of modes.
+        add_to_RHS : callable, optional
+            An optional function that computes and returns an additional array to be added to
+            the right-hand side of the equation of motion. This function should take arguments
+            corresponding to the current state of the rotor system, including the time step
+            number, displacements, and velocities. It should return an array of the same length
+            as the degrees of freedom of the rotor system (`rotor.ndof`). This function allows
+            for the incorporation of supplementary terms or external effects in the rotor system
+            dynamics beyond the specified force input during the time integration process.
+
+        Returns
+        -------
+        t : ndarray
+            Time values for the output.
+        yout : ndarray
+            System response.
+
+        Examples
+        --------
+        >>> import ross as rs
+        >>> rotor = rs.rotor_example()
+        >>> size = 10000
+        >>> node = 3
+        >>> speed = 500.0
+        >>> accel = 0.0
+        >>> t = np.linspace(0, 10, size)
+        >>> F = np.zeros((size, rotor.ndof))
+        >>> F[:, rotor.number_dof * node] = 10 * np.cos(2 * t)
+        >>> F[:, rotor.number_dof * node + 1] = 10 * np.sin(2 * t)
+        >>> t, yout = rotor.integrate_system(speed, F, t)
+        Running direct method
+        >>> dof = 13
+        >>> yout[:, dof] # doctest: +ELLIPSIS
+        array([0.00000000e+00, 8.49140057e-09, 4.34296767e-08, ...,
+               1.16148468e-05, 1.16492353e-05, 1.16859622e-05])
+        """
+
+        try:
+            speed_is_array = len(set(speed)) > 1
+            speed_ref = np.mean(speed)
+
+        except:
+            speed_is_array = False
+            speed_ref = speed
+
+        num_modes = kwargs.get("num_modes")
+
+        if num_modes and num_modes > 0:
+            print("Running pseudo-modal method, number of modes =", num_modes)
+            get_array = self._pseudo_modal(speed_ref, num_modes)
+
+        else:
+            print("Running direct method")
+            return_array = lambda array: array
+            get_array = [return_array for j in range(3)]
+
+        add_to_RHS = kwargs.get("add_to_RHS")
+
+        if add_to_RHS is None:
+            ext_force = lambda i, u, v: 0
+
+        else:
+            ext_force = lambda i, u, v: get_array[1](
+                add_to_RHS(i, get_array[2](u), get_array[2](v))
+            )
+
+        M = get_array[0](self.M())
+        C2 = get_array[0](self.G())
+        K2 = get_array[0](self.Ksdt())
+        F = get_array[1](F.T).T
+
+        if speed_is_array:
+            accel = np.gradient(speed, t)
+
+            freq_is_none = False
+            for elm in self.bearing_elements:
+                freq_is_none = (elm.frequency is None) or freq_is_none
+
+            if freq_is_none:
+                C1 = get_array[0](self.C(speed_ref))
+                K1 = get_array[0](self.K(speed_ref))
+
+                rotor_system = lambda step, disp_resp, velc_resp: (
+                    M,
+                    C1 + C2 * speed[step],
+                    K1 + K2 * accel[step],
+                    F[step, :] + ext_force(step, disp_resp, velc_resp),
+                )
+
+            else:
+                elements_without_bearing = [
+                    *self.shaft_elements,
+                    *self.disk_elements,
+                    *self.point_mass_elements,
+                ]
+
+                C0, K0 = assemble_C_K_matrices(
+                    elements_without_bearing,
+                    np.zeros((self.ndof)),
+                    np.zeros((self.ndof)),
+                )
+
+                def rotor_system(step, disp_resp, velc_resp):
+                    C, K = assemble_C_K_matrices(
+                        self.bearing_elements, np.copy(C0), np.copy(K0), speed[step]
+                    )
+
+                    C1 = get_array[0](C)
+                    K1 = get_array[0](K)
+
+                    return (
+                        M,
+                        C1 + C2 * speed[step],
+                        K1 + K2 * accel[step],
+                        F[step, :] + ext_force(step, disp_resp, velc_resp),
+                    )
+
+        else:
+            C1 = get_array[0](self.C(speed_ref))
+            K1 = get_array[0](self.K(speed_ref))
+
+            rotor_system = lambda step, disp_resp, velc_resp: (
+                M,
+                C1 + C2 * speed_ref,
+                K1,
+                F[step, :] + ext_force(step, disp_resp, velc_resp),
+            )
+
+        size = len(M)
+        response = newmark(rotor_system, t, size, **kwargs)
+        yout = get_array[2](response.T).T
+        return t, yout
+
     def time_response(self, speed, F, t, ic=None, integrator="default", **kwargs):
         """Time response for a rotor.
 
@@ -1996,7 +2216,7 @@ class Rotor(object):
         speed_is_array = isinstance(speed, (list, tuple, np.ndarray))
 
         if speed_is_array or integrator.lower() == "newmark":
-            t_, yout = integrate_rotor_system(self, speed, F, t, **kwargs)
+            t_, yout = self.integrate_system(speed, F, t, **kwargs)
             return t_, yout, []
 
         else:
