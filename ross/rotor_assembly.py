@@ -949,15 +949,16 @@ class Rotor(object):
 
         for elm in self.elements:
             dofs = list(elm.dof_global_index.values())
+            try:
+                M = elm.M(frequency)
+            except TypeError:
+                M = elm.M()
+
             if synchronous:
                 if elm in self.shaft_elements:
-                    try:
-                        M = elm.M(frequency)
-                    except TypeError:
-                        M = elm.M()
                     G = elm.G()
                     for i in range(8):
-                        if i == 0 or i == 3 or i == 4 or i == 7:
+                        if i in (0, 3, 4, 7):
                             M[i, 0] = M[i, 0] - G[i, 1]
                             M[i, 3] = M[i, 3] + G[i, 2]
                             M[i, 4] = M[i, 4] - G[i, 5]
@@ -967,26 +968,12 @@ class Rotor(object):
                             M[i, 2] = M[i, 2] - G[i, 3]
                             M[i, 5] = M[i, 5] + G[i, 4]
                             M[i, 6] = M[i, 6] - G[i, 7]
-                    M0[np.ix_(dofs, dofs)] += M
                 elif elm in self.disk_elements:
-                    try:
-                        M = elm.M(frequency)
-                    except TypeError:
-                        M = elm.M()
                     G = elm.G()
                     M[2, 2] = M[2, 2] - G[2, 3]
                     M[3, 3] = M[3, 3] + G[3, 2]
-                    M0[np.ix_(dofs, dofs)] += M
-                else:
-                    try:
-                        M0[np.ix_(dofs, dofs)] += elm.M(frequency)
-                    except TypeError:
-                        M0[np.ix_(dofs, dofs)] += elm.M()
-            else:
-                try:
-                    M0[np.ix_(dofs, dofs)] += elm.M(frequency)
-                except TypeError:
-                    M0[np.ix_(dofs, dofs)] += elm.M()
+
+            M0[np.ix_(dofs, dofs)] += M
 
         return M0
 
