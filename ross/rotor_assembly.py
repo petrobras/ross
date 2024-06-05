@@ -990,13 +990,15 @@ class Rotor(object):
 
         return M0
 
-    def K(self, frequency):
+    def K(self, frequency, ignore=[]):
         """Stiffness matrix for an instance of a rotor.
 
         Parameters
         ----------
         frequency : float, optional
             Excitation frequency.
+        ignore : list, optional
+            List of elements to leave out of the matrix.
 
         Returns
         -------
@@ -1014,7 +1016,9 @@ class Rotor(object):
         """
         K0 = np.zeros((self.ndof, self.ndof))
 
-        for elm in self.elements:
+        elements = sorted(set(self.elements) - set(ignore), key=self.elements.index)
+
+        for elm in elements:
             dofs = list(elm.dof_global_index.values())
             try:
                 K0[np.ix_(dofs, dofs)] += elm.K(frequency)
@@ -1065,13 +1069,15 @@ class Rotor(object):
 
         return Ksdt0
 
-    def C(self, frequency):
+    def C(self, frequency, ignore=[]):
         """Damping matrix for an instance of a rotor.
 
         Parameters
         ----------
         frequency : float
             Excitation frequency.
+        ignore : list, optional
+            List of elements to leave out of the matrix.
 
         Returns
         -------
@@ -1089,7 +1095,9 @@ class Rotor(object):
         """
         C0 = np.zeros((self.ndof, self.ndof))
 
-        for elm in self.elements:
+        elements = sorted(set(self.elements) - set(ignore), key=self.elements.index)
+
+        for elm in elements:
             dofs = list(elm.dof_global_index.values())
             try:
                 C0[np.ix_(dofs, dofs)] += elm.C(frequency)
