@@ -748,7 +748,7 @@ def newmark(fun, t, y_size, **options):
     return yout
 
 
-def assemble_C_K_matrices(elements, C0, K0, speed=None):
+def assemble_C_K_matrices(elements, C0, K0, *args):
     """Assemble damping and stiffness matrices considering
     specified elements a rotor.
 
@@ -760,9 +760,8 @@ def assemble_C_K_matrices(elements, C0, K0, speed=None):
         Initial damping matrix.
     K0 : ndarray
         Initial stiffness matrix.
-    speed : float, optional
-        Rotor speed.
-        If `elements` contain bearing elements, the speed must be provided.
+    args : float, optional
+        Any additional argument that can be passed to the element C or K methods.
 
     Returns
     -------
@@ -783,7 +782,7 @@ def assemble_C_K_matrices(elements, C0, K0, speed=None):
     >>> C0 = np.zeros((rotor.ndof, rotor.ndof))
     >>> K0 = np.zeros((rotor.ndof, rotor.ndof))
     >>> C1, K1 = assemble_C_K_matrices(elements_without_bearing, C0, K0)
-    >>> C, K = assemble_C_K_matrices(rotor.bearing_elements, C1, K1, speed=0)
+    >>> C, K = assemble_C_K_matrices(rotor.bearing_elements, C1, K1, 0)
     >>> C[:4, :4]
     array([[0., 0., 0., 0.],
            [0., 0., 0., 0.],
@@ -796,16 +795,15 @@ def assemble_C_K_matrices(elements, C0, K0, speed=None):
            [ 6.,  0.,  0.,  1.]])
     """
 
-    if speed is not None:
-        for elm in elements:
-            dofs = list(elm.dof_global_index.values())
-            C0[np.ix_(dofs, dofs)] += elm.C(speed)
-            K0[np.ix_(dofs, dofs)] += elm.K(speed)
-
-    else:
-        for elm in elements:
-            dofs = list(elm.dof_global_index.values())
+    for elm in elements:
+        dofs = list(elm.dof_global_index.values())
+        try:
+            C0[np.ix_(dofs, dofs)] += elm.C(*args)
+        except:
             C0[np.ix_(dofs, dofs)] += elm.C()
+        try:
+            K0[np.ix_(dofs, dofs)] += elm.K(*args)
+        except:
             K0[np.ix_(dofs, dofs)] += elm.K()
 
     return C0, K0
