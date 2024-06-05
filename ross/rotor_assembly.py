@@ -2069,7 +2069,6 @@ class Rotor(object):
         try:
             speed_is_array = len(set(speed)) > 1
             speed_ref = np.mean(speed)
-
         except:
             speed_is_array = False
             speed_ref = speed
@@ -2079,7 +2078,6 @@ class Rotor(object):
         if num_modes and num_modes > 0:
             print("Running pseudo-modal method, number of modes =", num_modes)
             get_array = self._pseudo_modal(speed_ref, num_modes)
-
         else:
             print("Running direct method")
             return_array = lambda array: array
@@ -2089,7 +2087,6 @@ class Rotor(object):
 
         if add_to_RHS is None:
             ext_force = lambda i, u, v: 0
-
         else:
             ext_force = lambda i, u, v: get_array[1](
                 add_to_RHS(i, get_array[2](u), get_array[2](v))
@@ -2103,11 +2100,30 @@ class Rotor(object):
         if speed_is_array:
             accel = np.gradient(speed, t)
 
-            freq_is_none = False
-            for elm in self.bearing_elements:
-                freq_is_none = (elm.frequency is None) or freq_is_none
+            brgs_with_var_coeffs = [
+                brg for brg in self.bearing_elements if brg.frequency is not None
+            ]
 
-            if freq_is_none:
+            if len(brgs_with_var_coeffs):
+                C0 = self.C(speed_ref, ignore=brgs_with_var_coeffs)
+                K0 = self.K(speed_ref, ignore=brgs_with_var_coeffs)
+
+                def rotor_system(step, disp_resp, velc_resp):
+                    Cb, Kb = assemble_C_K_matrices(
+                        brgs_with_var_coeffs, np.copy(C0), np.copy(K0), speed[step]
+                    )
+
+                    C1 = get_array[0](Cb)
+                    K1 = get_array[0](Kb)
+
+                    return (
+                        M,
+                        C1 + C2 * speed[step],
+                        K1 + K2 * accel[step],
+                        F[step, :] + ext_force(step, disp_resp, velc_resp),
+                    )
+
+            else:
                 C1 = get_array[0](self.C(speed_ref))
                 K1 = get_array[0](self.K(speed_ref))
 
@@ -2117,34 +2133,6 @@ class Rotor(object):
                     K1 + K2 * accel[step],
                     F[step, :] + ext_force(step, disp_resp, velc_resp),
                 )
-
-            else:
-                elements_without_bearing = [
-                    *self.shaft_elements,
-                    *self.disk_elements,
-                    *self.point_mass_elements,
-                ]
-
-                C0, K0 = assemble_C_K_matrices(
-                    elements_without_bearing,
-                    np.zeros((self.ndof)),
-                    np.zeros((self.ndof)),
-                )
-
-                def rotor_system(step, disp_resp, velc_resp):
-                    C, K = assemble_C_K_matrices(
-                        self.bearing_elements, np.copy(C0), np.copy(K0), speed[step]
-                    )
-
-                    C1 = get_array[0](C)
-                    K1 = get_array[0](K)
-
-                    return (
-                        M,
-                        C1 + C2 * speed[step],
-                        K1 + K2 * accel[step],
-                        F[step, :] + ext_force(step, disp_resp, velc_resp),
-                    )
 
         else:
             C1 = get_array[0](self.C(speed_ref))
