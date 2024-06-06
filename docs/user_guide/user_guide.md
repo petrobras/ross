@@ -13,7 +13,8 @@ tutorial_part_3
 :maxdepth: 1
 :caption: Discussions and Examples
 example_1
-example_2
+example_2_1
+example_2_2
 example_3
 example_4
 example_5
