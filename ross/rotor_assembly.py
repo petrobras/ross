@@ -3863,7 +3863,7 @@ def rotor_example_compressor():
     >>> rotor = rs.rotor_example_compressor()
     >>> rotor.plot_rotor(nodes=5).show()
     """
-    rotor_example_compressor = Rotor.load(Path(__file__).parent / "tests/data/rotor.toml")
+    rotor_example_compressor = Rotor.load(Path(__file__).parent / "tests/data/rotor_example_compressor.toml")
     return rotor_example_compressor
 
 def coaxrotor_example():
