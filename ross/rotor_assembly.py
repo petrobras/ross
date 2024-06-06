@@ -2066,6 +2066,7 @@ class Rotor(object):
                1.16148468e-05, 1.16492353e-05, 1.16859622e-05])
         """
 
+        # Check if speed is array
         try:
             speed_is_array = len(set(speed)) > 1
             speed_ref = np.mean(speed)
@@ -2073,6 +2074,7 @@ class Rotor(object):
             speed_is_array = False
             speed_ref = speed
 
+        # Check if the pseudo-modal method has to be applied
         num_modes = kwargs.get("num_modes")
 
         if num_modes and num_modes > 0:
@@ -2083,6 +2085,7 @@ class Rotor(object):
             return_array = lambda array: array
             get_array = [return_array for j in range(3)]
 
+        # Consider any additional RHS function (extra forces)
         add_to_RHS = kwargs.get("add_to_RHS")
 
         if add_to_RHS is None:
@@ -2092,11 +2095,14 @@ class Rotor(object):
                 add_to_RHS(i, get_array[2](u), get_array[2](v))
             )
 
+        # Assemble matrices
         M = get_array[0](self.M())
         C2 = get_array[0](self.G())
         K2 = get_array[0](self.Ksdt())
         F = get_array[1](F.T).T
 
+        # Depending on the conditions of the analysis,
+        # one of the three options below will be chosen.
         if speed_is_array:
             accel = np.gradient(speed, t)
 
@@ -2104,7 +2110,7 @@ class Rotor(object):
                 brg for brg in self.bearing_elements if brg.frequency is not None
             ]
 
-            if len(brgs_with_var_coeffs):
+            if len(brgs_with_var_coeffs):  # Option 1
                 C0 = self.C(speed_ref, ignore=brgs_with_var_coeffs)
                 K0 = self.K(speed_ref, ignore=brgs_with_var_coeffs)
 
@@ -2123,7 +2129,7 @@ class Rotor(object):
                         F[step, :] + ext_force(step, disp_resp, velc_resp),
                     )
 
-            else:
+            else:  # Option 2
                 C1 = get_array[0](self.C(speed_ref))
                 K1 = get_array[0](self.K(speed_ref))
 
@@ -2134,7 +2140,7 @@ class Rotor(object):
                     F[step, :] + ext_force(step, disp_resp, velc_resp),
                 )
 
-        else:
+        else:  # Option 3
             C1 = get_array[0](self.C(speed_ref))
             K1 = get_array[0](self.K(speed_ref))
 
