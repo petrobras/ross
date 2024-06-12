@@ -2182,7 +2182,7 @@ class Rotor(object):
             See `ross.utils.newmark` for more details.
             Other keyword arguments can also be passed to be used in numerical
             integration (e.g. num_modes, add_to_RHS).
-            See `ross.utils.integrate_rotor_system` for more details.
+            See `Rotor.integrate_system` for more details.
 
         Returns
         -------
@@ -2712,7 +2712,7 @@ class Rotor(object):
             See `ross.utils.newmark` for more details.
             Other keyword arguments can also be passed to be used in numerical
             integration (e.g. num_modes, add_to_RHS).
-            See `ross.utils.integrate_rotor_system` for more details.
+            See `Rotor.integrate_system` for more details.
 
         Returns
         -------

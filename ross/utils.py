@@ -709,7 +709,7 @@ def newmark(fun, t, y_size, **options):
     yout[0, :] = y0
 
     for step in range(1, n_steps):
-        aux = round(t[step] / progress_interval, 9)
+        aux = round(t[step] / progress_interval, 12)
         if aux - int(aux) == 0:
             print(f"Time step: {t[step]:.6f} s")
 
