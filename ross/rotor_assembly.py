@@ -2157,7 +2157,7 @@ class Rotor(object):
         yout = get_array[2](response.T).T
         return t, yout
 
-    def time_response(self, speed, F, t, ic=None, integrator="default", **kwargs):
+    def time_response(self, speed, F, t, ic=None, method="default", **kwargs):
         """Time response for a rotor.
 
         This method returns the time response for a rotor
@@ -2174,8 +2174,8 @@ class Rotor(object):
             Time array. (must have the same length than lti.B matrix)
         ic : array, optional
             The initial conditions on the state vector (zero by default).
-        integrator : str, optional
-            The Newmark method can be chosen by setting `integrator='newmark'`.
+        method : str, optional
+            The Newmark method can be chosen by setting `method='newmark'`.
         **kwargs : optional
             Additional keyword arguments can be passed to define the parameters
             of the Newmark method if it is used (e.g. gamma, beta, tol, ...).
@@ -2205,7 +2205,7 @@ class Rotor(object):
         """
         speed_is_array = isinstance(speed, (list, tuple, np.ndarray))
 
-        if speed_is_array or integrator.lower() == "newmark":
+        if speed_is_array or method.lower() == "newmark":
             t_, yout = self.integrate_system(speed, F, t, **kwargs)
             return t_, yout, []
 
@@ -2683,7 +2683,7 @@ class Rotor(object):
 
         return results
 
-    def run_time_response(self, speed, F, t, integrator="default", **kwargs):
+    def run_time_response(self, speed, F, t, method="default", **kwargs):
         """Calculate the time response.
 
         This function will take a rotor object and calculate its time response
@@ -2704,8 +2704,8 @@ class Rotor(object):
             Each column corresponds to a dof and each row to a time.
         t : array
             Time array.
-        integrator : str, optional
-            The Newmark method can be chosen by setting `integrator='newmark'`.
+        method : str, optional
+            The Newmark method can be chosen by setting `method='newmark'`.
         **kwargs : optional
             Additional keyword arguments can be passed to define the parameters
             of the Newmark method if it is used (e.g. gamma, beta, tol, ...).
@@ -2742,9 +2742,7 @@ class Rotor(object):
         >>> # plot orbit response - plotting 3D orbits - full rotor model:
         >>> fig3 = response.plot_3d()
         """
-        t_, yout, xout = self.time_response(
-            speed, F, t, integrator=integrator, **kwargs
-        )
+        t_, yout, xout = self.time_response(speed, F, t, method=method, **kwargs)
 
         results = TimeResponseResults(self, t, yout, xout)
 

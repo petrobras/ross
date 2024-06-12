@@ -142,12 +142,8 @@ def test_for_cte_speed(rotor1, rotor2):
 
     F = unbalance_force(rotor1, speed, t)
 
-    response1 = rotor1.run_time_response(
-        speed, F, t, integrator="newmark", progress_interval=5
-    )
-    response2 = rotor2.run_time_response(
-        speed, F, t, integrator="newmark", progress_interval=5
-    )
+    response1 = rotor1.run_time_response(speed, F, t, method="newmark")
+    response2 = rotor2.run_time_response(speed, F, t, method="newmark")
 
     s0 = probe_params["time"][0]
     s1 = probe_params["time"][1]
@@ -176,12 +172,10 @@ def test_for_var_speed_1(rotor1):
     F = unbalance_force(rotor1, speed, t)
 
     # Running with direct method
-    resp_common = rotor1.run_time_response(speed, F, t, progress_interval=5)
+    resp_common = rotor1.run_time_response(speed, F, t)
 
     # Running with pseudo-modal method
-    resp_pseudo_modal = rotor1.run_time_response(
-        speed, F, t, num_modes=24, progress_interval=5
-    )
+    resp_pseudo_modal = rotor1.run_time_response(speed, F, t, num_modes=24)
 
     # Running with pseudo-modal method and add_to_RHS callable function
     def unb_force(step, disp, velc, accl):
@@ -234,12 +228,10 @@ def test_for_var_speed_2(rotor2):
     F = unbalance_force(rotor2, speed, t)
 
     # Running with direct method
-    resp_common = rotor2.run_time_response(speed, F, t, progress_interval=5)
+    resp_common = rotor2.run_time_response(speed, F, t)
 
     # Running with pseudo-modal method
-    resp_pseudo_modal = rotor2.run_time_response(
-        speed, F, t, num_modes=24, progress_interval=5
-    )
+    resp_pseudo_modal = rotor2.run_time_response(speed, F, t, num_modes=24)
 
     # Running with pseudo-modal method and add_to_RHS callable function
     def unb_force(step, disp, velc, accl):
