@@ -2034,10 +2034,11 @@ class Rotor(object):
             An optional function that computes and returns an additional array to be added to
             the right-hand side of the equation of motion. This function should take arguments
             corresponding to the current state of the rotor system, including the time step
-            number, displacements, and velocities. It should return an array of the same length
-            as the degrees of freedom of the rotor system (`rotor.ndof`). This function allows
-            for the incorporation of supplementary terms or external effects in the rotor system
-            dynamics beyond the specified force input during the time integration process.
+            number, displacements, velocities and acceleration. It should return an array of
+            the same length as the degrees of freedom of the rotor system (`rotor.ndof`).
+            This function allows for the incorporation of supplementary terms or external
+            effects in the rotor system dynamics beyond the specified force input during the
+            time integration process.
 
         Returns
         -------
@@ -2089,10 +2090,10 @@ class Rotor(object):
         add_to_RHS = kwargs.get("add_to_RHS")
 
         if add_to_RHS is None:
-            ext_force = lambda i, u, v: 0
+            ext_force = lambda i, u, v, a: 0
         else:
-            ext_force = lambda i, u, v: get_array[1](
-                add_to_RHS(i, get_array[2](u), get_array[2](v))
+            ext_force = lambda i, u, v, a: get_array[1](
+                add_to_RHS(i, get_array[2](u), get_array[2](v), get_array[2](a))
             )
 
         # Assemble matrices
@@ -2114,7 +2115,7 @@ class Rotor(object):
                 C0 = self.C(speed_ref, ignore=brgs_with_var_coeffs)
                 K0 = self.K(speed_ref, ignore=brgs_with_var_coeffs)
 
-                def rotor_system(step, disp_resp, velc_resp):
+                def rotor_system(step, disp_resp, velc_resp, accl_resp):
                     Cb, Kb = assemble_C_K_matrices(
                         brgs_with_var_coeffs, np.copy(C0), np.copy(K0), speed[step]
                     )
@@ -2126,29 +2127,29 @@ class Rotor(object):
                         M,
                         C1 + C2 * speed[step],
                         K1 + K2 * accel[step],
-                        F[step, :] + ext_force(step, disp_resp, velc_resp),
+                        F[step, :] + ext_force(step, disp_resp, velc_resp, accl_resp),
                     )
 
             else:  # Option 2
                 C1 = get_array[0](self.C(speed_ref))
                 K1 = get_array[0](self.K(speed_ref))
 
-                rotor_system = lambda step, disp_resp, velc_resp: (
+                rotor_system = lambda step, disp_resp, velc_resp, accl_resp: (
                     M,
                     C1 + C2 * speed[step],
                     K1 + K2 * accel[step],
-                    F[step, :] + ext_force(step, disp_resp, velc_resp),
+                    F[step, :] + ext_force(step, disp_resp, velc_resp, accl_resp),
                 )
 
         else:  # Option 3
             C1 = get_array[0](self.C(speed_ref))
             K1 = get_array[0](self.K(speed_ref))
 
-            rotor_system = lambda step, disp_resp, velc_resp: (
+            rotor_system = lambda step, disp_resp, velc_resp, accl_resp: (
                 M,
                 C1 + C2 * speed_ref,
                 K1,
-                F[step, :] + ext_force(step, disp_resp, velc_resp),
+                F[step, :] + ext_force(step, disp_resp, velc_resp, accl_resp),
             )
 
         size = len(M)

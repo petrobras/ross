@@ -184,7 +184,7 @@ def test_for_var_speed_1(rotor1):
     )
 
     # Running with pseudo-modal method and add_to_RHS callable function
-    def unb_force(step, disp, velc):
+    def unb_force(step, disp, velc, accl):
         return F[step, :]
 
     resp_add_to_RHS = rotor1.run_time_response(
@@ -242,7 +242,7 @@ def test_for_var_speed_2(rotor2):
     )
 
     # Running with pseudo-modal method and add_to_RHS callable function
-    def unb_force(step, disp, velc):
+    def unb_force(step, disp, velc, accl):
         return F[step, :]
 
     resp_add_to_RHS = rotor2.run_time_response(
