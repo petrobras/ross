@@ -118,11 +118,11 @@ def calculate_oil_film_force(fluid_flow_object, force_type=None):
                 b[i][j] = p_mat[i][j] * np.sin(angle_between_vectors)
 
         for i in range(fluid_flow_object.nz):
-            g1[i] = integrate.simps(a[i][:], fluid_flow_object.gama[0])
-            g2[i] = integrate.simps(b[i][:], fluid_flow_object.gama[0])
+            g1[i] = integrate.simpson(a[i][:], x=fluid_flow_object.gama[0])
+            g2[i] = integrate.simpson(b[i][:], x=fluid_flow_object.gama[0])
 
-        integral1 = integrate.simps(g1, fluid_flow_object.z_list)
-        integral2 = integrate.simps(g2, fluid_flow_object.z_list)
+        integral1 = integrate.simpson(g1, x=fluid_flow_object.z_list)
+        integral2 = integrate.simpson(g2, x=fluid_flow_object.z_list)
 
         angle_corr = (
             np.pi / 2

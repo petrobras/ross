@@ -1,8 +1,7 @@
 import time
 
 import numpy as np
-import scipy.integrate
-import scipy.linalg
+from scipy import linalg as la
 
 import ross
 from ross.units import Q_, check_units
@@ -160,12 +159,7 @@ class Rubbing(Fault):
         self.M = self.rotor.M(self.speed)
         self.Ksdt = self.rotor.Ksdt()
 
-        V1, ModMat = scipy.linalg.eigh(
-            self.K,
-            self.M,
-            type=1,
-            turbo=False,
-        )
+        V1, ModMat = la.eigh(self.K, self.M)
 
         ModMat = ModMat[:, :12]
         self.ModMat = ModMat
