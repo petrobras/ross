@@ -1897,26 +1897,26 @@ class Rotor(object):
         >>> probe_node = 3
         >>> probe_angle = np.pi / 2
         >>> probe_tag = "my_probe"  # optional
-        >>> fig = response.plot(probe=[(probe_node, probe_angle, probe_tag)])
+        >>> fig = response.plot(probe=[rs.Probe(probe_node, probe_angle, probe_tag)])
 
         plot response for major or minor axis:
         >>> probe_node = 3
         >>> probe_angle = "major"   # for major axis
         >>> # probe_angle = "minor" # for minor axis
         >>> probe_tag = "my_probe"  # optional
-        >>> fig = response.plot(probe=[(probe_node, probe_angle, probe_tag)])
+        >>> fig = response.plot(probe=[rs.Probe(probe_node, probe_angle, probe_tag)])
 
         To plot velocity and acceleration responses, you must change amplitude_units
         from "[length]" units to "[length]/[time]" or "[length]/[time] ** 2" respectively
         Plotting velocity response
         >>> fig = response.plot(
-        ...     probe=[(probe_node, probe_angle)],
+        ...     probe=[rs.Probe(probe_node, probe_angle)],
         ...     amplitude_units="m/s"
         ... )
 
         Plotting acceleration response
         >>> fig = response.plot(
-        ...     probe=[(probe_node, probe_angle)],
+        ...     probe=[rs.Probe(probe_node, probe_angle)],
         ...     amplitude_units="m/s**2"
         ... )
 
@@ -2323,8 +2323,10 @@ class Rotor(object):
             if not isinstance(bearing, SealElement):
                 bearings_elements.append(bearing)
 
+        bearing_class = BearingElement6DoF if self.number_dof == 6 else BearingElement
+
         for i, k in enumerate(stiffness_log):
-            bearings = [BearingElement(b.n, kxx=k, cxx=0) for b in bearings_elements]
+            bearings = [bearing_class(b.n, kxx=k, cxx=0) for b in bearings_elements]
             rotor = self.__class__(self.shaft_elements, self.disk_elements, bearings)
             modal = rotor.run_modal(
                 speed=0, num_modes=num_modes, synchronous=synchronous
@@ -2332,9 +2334,6 @@ class Rotor(object):
             rotor_wn[:, i] = modal.wn[::2]
 
         bearing0 = bearings_elements[0]
-
-        # calculate interception points
-        intersection_points = {"x": [], "y": []}
 
         # if bearing does not have constant coefficient, check intersection points
         if bearing_frequency_range is None:
@@ -2347,36 +2346,44 @@ class Rotor(object):
                 )
             else:
                 bearing_frequency_range = bearing0.frequency
-        for j in range(rotor_wn.shape[0]):
-            for coeff in ["kxx", "kyy"]:
-                x1 = rotor_wn[j]
-                y1 = stiffness_log
-                x2 = bearing_frequency_range
-                y2 = getattr(bearing0, f"{coeff}_interpolated")(bearing_frequency_range)
-                x, y = intersection(x1, y1, x2, y2)
-                try:
-                    intersection_points["y"].append(float(x))
-                    intersection_points["x"].append(float(y))
-                except TypeError:
-                    # pass if x/y is empty
-                    pass
+
+        # calculate interception points
+        intersection_points = {"x": [], "y": []}
 
         # save critical mode shapes in the results
         critical_points_modal = []
 
-        for k, speed in zip(intersection_points["x"], intersection_points["y"]):
-            # create bearing
-            bearings = [BearingElement(b.n, kxx=k, cxx=0) for b in bearings_elements]
-            # create rotor
-            rotor_critical = Rotor(
-                shaft_elements=self.shaft_elements,
-                disk_elements=self.disk_elements,
-                bearing_elements=bearings,
-            )
+        coeffs = (
+            ["kxx"] if np.array_equal(bearing0.kxx, bearing0.kyy) else ["kxx", "kyy"]
+        )
 
-            modal_critical = rotor_critical.run_modal(speed=speed)
+        for wn in rotor_wn:
+            for coeff in coeffs:
+                x1 = stiffness_log
+                y1 = wn
+                x2 = getattr(bearing0, f"{coeff}_interpolated")(bearing_frequency_range)
+                y2 = bearing_frequency_range
+                x, y = intersection(x1, y1, x2, y2)
 
-            critical_points_modal.append(modal_critical)
+                if len(x) > 0:
+                    for k, speed in zip(x, y):
+                        intersection_points["x"].append(float(k))
+                        intersection_points["y"].append(float(speed))
+
+                        # create bearing
+                        bearings = [
+                            bearing_class(b.n, kxx=k, cxx=0) for b in bearings_elements
+                        ]
+
+                        # create rotor
+                        rotor_critical = Rotor(
+                            shaft_elements=self.shaft_elements,
+                            disk_elements=self.disk_elements,
+                            bearing_elements=bearings,
+                        )
+
+                        modal_critical = rotor_critical.run_modal(speed=speed)
+                        critical_points_modal.append(modal_critical)
 
         results = UCSResults(
             stiffness_range,

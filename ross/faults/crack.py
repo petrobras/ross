@@ -3,8 +3,7 @@ from pathlib import Path
 
 import numpy as np
 import pandas as pd
-import scipy.integrate
-import scipy.linalg
+from scipy import linalg as la
 
 import ross
 from ross.units import Q_, check_units
@@ -256,12 +255,7 @@ class Crack(Fault):
         self.M = self.rotor.M(self.speed)
         self.Ksdt = self.rotor.Ksdt()
 
-        _, ModMat = scipy.linalg.eigh(
-            self.K,
-            self.M,
-            type=1,
-            turbo=False,
-        )
+        _, ModMat = la.eigh(self.K, self.M)
         ModMat = ModMat[:, :12]
         self.ModMat = ModMat
 
