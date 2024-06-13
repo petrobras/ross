@@ -168,7 +168,7 @@ class Rotor(object):
             if sh.n is None:
                 sh.n = i
             if sh.tag is None:
-                sh.tag = sh.__class__.__name__ + " " + str(i)
+                sh.tag = "ShaftElement " + str(i)
 
         if disk_elements is None:
             disk_elements = []
@@ -185,10 +185,11 @@ class Rotor(object):
             # add n_l and n_r to bearing elements
             brg.n_l = brg.n
             brg.n_r = brg.n
-            if not isinstance(brg, SealElement) and brg.tag is None:
-                brg.tag = "Bearing " + str(i)
-            elif isinstance(brg, SealElement) and brg.tag is None:
-                brg.tag = "Seal " + str(i)
+            if brg.tag is None:
+                if isinstance(brg, SealElement):
+                    brg.tag = "Seal " + str(i)
+                else:
+                    brg.tag = "Bearing " + str(i)
 
         for i, p_mass in enumerate(point_mass_elements):
             if p_mass.tag is None:
