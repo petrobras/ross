@@ -2086,21 +2086,21 @@ class Rotor(object):
             return_array = lambda array: array
             get_array = [return_array for j in range(3)]
 
-        # Consider any additional RHS function (extra forces)
-        add_to_RHS = kwargs.get("add_to_RHS")
-
-        if add_to_RHS is None:
-            ext_force = lambda i, u, v, a: 0
-        else:
-            ext_force = lambda i, u, v, a: get_array[1](
-                add_to_RHS(i, get_array[2](u), get_array[2](v), get_array[2](a))
-            )
-
         # Assemble matrices
         M = get_array[0](self.M())
         C2 = get_array[0](self.G())
         K2 = get_array[0](self.Ksdt())
         F = get_array[1](F.T).T
+
+        # Consider any additional RHS function (extra forces)
+        add_to_RHS = kwargs.get("add_to_RHS")
+
+        if add_to_RHS is None:
+            forces = lambda i, u, v, a: F[i, :]
+        else:
+            forces = lambda i, u, v, a: F[i, :] + get_array[1](
+                add_to_RHS(i, get_array[2](u), get_array[2](v), get_array[2](a))
+            )
 
         # Depending on the conditions of the analysis,
         # one of the three options below will be chosen.
@@ -2127,7 +2127,7 @@ class Rotor(object):
                         M,
                         C1 + C2 * speed[step],
                         K1 + K2 * accel[step],
-                        F[step, :] + ext_force(step, disp_resp, velc_resp, accl_resp),
+                        forces(step, disp_resp, velc_resp, accl_resp),
                     )
 
             else:  # Option 2
@@ -2138,7 +2138,7 @@ class Rotor(object):
                     M,
                     C1 + C2 * speed[step],
                     K1 + K2 * accel[step],
-                    F[step, :] + ext_force(step, disp_resp, velc_resp, accl_resp),
+                    forces(step, disp_resp, velc_resp, accl_resp),
                 )
 
         else:  # Option 3
@@ -2149,7 +2149,7 @@ class Rotor(object):
                 M,
                 C1 + C2 * speed_ref,
                 K1,
-                F[step, :] + ext_force(step, disp_resp, velc_resp, accl_resp),
+                forces(step, disp_resp, velc_resp, accl_resp),
             )
 
         size = len(M)
