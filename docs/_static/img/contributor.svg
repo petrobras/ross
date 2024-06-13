@@ -1,73 +1,22 @@
-<?xml version="1.0" encoding="UTF-8" standalone="no"?>
-<svg
-   xmlns:dc="http://purl.org/dc/elements/1.1/"
-   xmlns:cc="http://creativecommons.org/ns#"
-   xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"
-   xmlns:svg="http://www.w3.org/2000/svg"
-   xmlns="http://www.w3.org/2000/svg"
-   xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
-   xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
-   height="24px"
-   viewBox="0 0 24 24"
-   width="24px"
-   fill="#013243"
-   version="1.1"
-   id="svg7686"
-   sodipodi:docname="contributor.svg"
-   inkscape:version="0.92.5 (2060ec1f9f, 2020-04-08)">
-  <metadata
-     id="metadata7692">
-    <rdf:RDF>
-      <cc:Work
-         rdf:about="">
-        <dc:format>image/svg+xml</dc:format>
-        <dc:type
-           rdf:resource="http://purl.org/dc/dcmitype/StillImage" />
-      </cc:Work>
-    </rdf:RDF>
-  </metadata>
-  <defs
-     id="defs7690" />
-  <sodipodi:namedview
-     pagecolor="#ffffff"
-     bordercolor="#666666"
-     borderopacity="1"
-     objecttolerance="10"
-     gridtolerance="10"
-     guidetolerance="10"
-     inkscape:pageopacity="0"
-     inkscape:pageshadow="2"
-     inkscape:window-width="1280"
-     inkscape:window-height="1016"
-     id="namedview7688"
-     showgrid="false"
-     inkscape:zoom="9.8333333"
-     inkscape:cx="12"
-     inkscape:cy="12"
-     inkscape:window-x="0"
-     inkscape:window-y="27"
-     inkscape:window-maximized="0"
-     inkscape:current-layer="svg7686" />
-  <path
-     d="M0 0h24v24H0z"
-     fill="none"
-     id="path7682" />
-  <path
-     d="M15 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm-9-2V7H4v3H1v2h3v3h2v-3h3v-2H6zm9 4c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z"
-     id="path7684" />
-  <path
-     style="fill:#565656;fill-opacity:1;stroke:#000000;stroke-width:0.03843587;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1"
-     d="M 4.0474576,8.5525424 C 3.8949621,9.0271656 4.4211133,10.180435 3.640678,10.027119 c -0.881356,0 -1.7627119,0 -2.64406783,0 0,0.644067 0,1.288135 0,1.932203 1.01694913,0 2.03389833,0 3.05084743,0 0,0.983051 0,1.966102 0,2.949153 0.6440678,0 1.2881357,0 1.9322034,0 0,-0.983051 0,-1.966102 0,-2.949153 0.9830509,0 1.9661017,0 2.9491526,0 0,-0.644068 0,-1.288136 0,-1.932203 -0.9830509,0 -1.9661017,0 -2.9491526,0 0,-0.9830512 0,-1.966102 0,-2.9491529 -0.6440677,0 -1.2881356,0 -1.9322034,0 0,0.4915254 0,0.9830509 0,1.4745763 z"
-     id="path8237"
-     inkscape:connector-curvature="0" />
-  <path
-     style="fill:#565656;fill-opacity:1;stroke:#000000;stroke-width:0.03843587;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1"
-     d="M 14.890281,4.0652542 C 12.6304,4.0535608 10.753189,6.2957885 11.11148,8.5209613 11.333511,10.877632 14.010894,12.597144 16.237142,11.736269 18.327376,11.067115 19.545854,8.5081806 18.625185,6.4864672 18.023812,5.0118729 16.47904,4.020579 14.890281,4.0652542 Z"
-     id="path8239"
-     inkscape:connector-curvature="0" />
-  <path
-     style="fill:#565656;fill-opacity:1;stroke:#000000;stroke-width:0.03843587;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1"
-     d="m 14.72304,14.094319 c -2.317097,0.06467 -4.690174,0.690028 -6.6057996,2.022974 -0.803312,0.58847 -1.1709239,1.562672 -1.0962867,2.538521 0.098688,0.496691 -0.4164464,1.585442 0.4567211,1.337406 5.1616792,0 10.3233582,0 15.4850372,0 -0.04818,-1.231965 0.264952,-2.763185 -0.850305,-3.639168 -1.999659,-1.715099 -4.827941,-2.228841 -7.389367,-2.259733 z"
-     id="path8241"
-     inkscape:connector-curvature="0" />
+<?xml version="1.0" standalone="no"?>
+<!DOCTYPE svg PUBLIC "-//W3C//DTD SVG 20010904//EN"
+ "http://www.w3.org/TR/2001/REC-SVG-20010904/DTD/svg10.dtd">
+<svg version="1.0" xmlns="http://www.w3.org/2000/svg"
+ width="339.000000pt" height="340.000000pt" viewBox="0 0 339.000000 340.000000"
+ preserveAspectRatio="xMidYMid meet">
+<metadata>
+Created by potrace 1.16, written by Peter Selinger 2001-2019
+</metadata>
+<g transform="translate(0.000000,340.000000) scale(0.100000,-0.100000)"
+fill="#000000" stroke="none">
+<path d="M110 3372 c-19 -10 -48 -36 -64 -56 -40 -49 -48 -134 -18 -192 16
+-31 214 -205 836 -735 758 -644 815 -695 798 -709 -9 -8 -378 -322 -818 -696
+-656 -559 -803 -689 -818 -722 -27 -60 -19 -141 20 -189 46 -56 88 -75 161
+-71 53 3 68 9 105 38 133 106 1780 1514 1802 1540 47 56 55 134 21 200 -8 14
+-33 43 -57 66 -43 41 -1684 1438 -1766 1504 -37 29 -52 35 -105 38 -47 2 -70
+-1 -97 -16z"/>
+<path d="M1910 354 c-69 -30 -110 -93 -110 -168 0 -56 14 -93 48 -129 56 -59
+23 -57 744 -57 743 0 700 -4 762 73 28 35 31 46 31 106 0 84 -31 137 -97 170
+-44 21 -52 21 -694 21 -555 -1 -654 -3 -684 -16z"/>
+</g>
 </svg>
