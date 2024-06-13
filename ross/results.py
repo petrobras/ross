@@ -422,7 +422,7 @@ class Shape(Results):
         self._calculate()
 
     def _classify(self):
-        self.mode_id = "Lateral"
+        self.mode_type = "Lateral"
 
         if self.number_dof == 6:
             size = len(self.vector)
@@ -433,9 +433,9 @@ class Shape(Results):
             nonzero_dofs = np.nonzero(np.abs(self.vector).round(6))[0]
 
             if np.isin(nonzero_dofs, axial_dofs).all():
-                self.mode_id = "Axial"
+                self.mode_type = "Axial"
             elif np.isin(nonzero_dofs, torsional_dofs).all():
-                self.mode_id = "Torsional"
+                self.mode_type = "Torsional"
 
     def _calculate_orbits(self):
         orbits = []
@@ -1581,7 +1581,7 @@ class CampbellResults(Results):
                 damping_values_i = damping_values[:, i]
 
                 mode_shape = np.array(
-                    [self.modal_results[j].shapes[i].mode_id for j in speed_range]
+                    [self.modal_results[j].shapes[i].mode_type for j in speed_range]
                 )
                 mode_mask_g = np.array([mode in legends for mode in mode_shape])
 
