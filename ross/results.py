@@ -1171,12 +1171,12 @@ class ModalResults(Results):
 
         df = self.data_mode(mode, length_units, frequency_units, damping_parameter)
 
-        damping_name = df["damping_name"][0]
-        damping_value = df["damping_value"][0]
+        damping_name = df["damping_name"].values[0]
+        damping_value = df["damping_value"].values[0]
 
-        wd = df["wd"]
-        wn = df["wn"]
-        speed = df["speed"]
+        wd = df["wd"].values
+        wn = df["wn"].values
+        speed = df["speed"].values
 
         frequency = {
             "wd": f"ω<sub>d</sub> = {wd[0]:.2f}",
@@ -1276,15 +1276,15 @@ class ModalResults(Results):
 
         df = self.data_mode(mode, length_units, frequency_units, damping_parameter)
 
-        damping_name = df["damping_name"][0]
-        damping_value = df["damping_value"][0]
+        damping_name = df["damping_name"].values[0]
+        damping_value = df["damping_value"].values[0]
 
         if fig is None:
             fig = go.Figure()
 
-        wd = df["wd"]
-        wn = df["wn"]
-        speed = df["speed"]
+        wd = df["wd"].values
+        wn = df["wn"].values
+        speed = df["speed"].values
 
         frequency = {
             "wd": f"ω<sub>d</sub> = {wd[0]:.2f}",
