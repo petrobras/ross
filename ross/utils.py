@@ -625,7 +625,7 @@ def get_data_from_figure(fig):
     return df
 
 
-def newmark(fun, t, y_size, **options):
+def newmark(func, t, y_size, **options):
     """Transient solution of the dynamic behavior of the system.
 
     Perform numerical integration using the Newmark method with Newton-Raphson
@@ -634,11 +634,13 @@ def newmark(fun, t, y_size, **options):
 
     Parameters
     ----------
-    fun : callable
+    func : callable
         A function that calculates the system matrices and right-hand side (RHS) vector at each
-        time step. It should take one argument `(step)` and return a tuple `(M, C, K, RHS)`,
-        where `step` is a scalar int related to the current time step, `M`, `C`, `K` are ndarrays
-        with `np.shape(M) = (y_size, y_size)` and `RHS` is a ndarray with `len(RHS) = y_size`.
+        time step. It should take at least one argument `(step, dt=None, y=None, ydot=None, y2dot=None)`
+        and return a tuple `(M, C, K, RHS)`, where `step` is a scalar int related to the current time
+        step, `dt` is the current time step in seconds, `y` is a ndarray of current state of the system,
+        `ydot` and `y2dot` are its first and second time derivatives. `M`, `C`, `K` are ndarrays with
+        `np.shape(M) = (y_size, y_size)` and `RHS` is a ndarray with `len(RHS) = y_size`.
     t : array_like
         Time array.
     y_size : int
@@ -655,7 +657,7 @@ def newmark(fun, t, y_size, **options):
     tol : float, optional
         Convergence tolerance for the Newton-Raphson iterations. Default is 1e-6.
     progress_interval : float, optional
-        Time interval at which progress information is printed. Default is 1e6 seconds.
+        Time interval at which progress is printed. Default is to not show progress.
 
     Returns
     -------
@@ -696,7 +698,7 @@ def newmark(fun, t, y_size, **options):
     gamma = options.get("gamma", 0.5)
     beta = options.get("beta", 0.25)
     tol = options.get("tol", 1e-6)
-    progress_interval = options.get("progress_interval", 1e6)
+    progress_interval = options.get("progress_interval", t[-1] + 1)
 
     n_steps = len(t)
     ny = y_size
@@ -709,13 +711,13 @@ def newmark(fun, t, y_size, **options):
     yout[0, :] = y0
 
     for step in range(1, n_steps):
-        aux = round(t[step] / progress_interval, 12)
+        aux = round(t[step] / progress_interval, 9)
         if aux - int(aux) == 0:
-            print(f"Time step: {t[step]:.6f} s")
+            print(f"Time: {t[step]:.6f} seconds")
 
         dt = t[step] - t[step - 1]
 
-        M, C, K, RHS = fun(step, y0, ydot0, y2dot0)
+        M, C, K, RHS = func(step, dt=dt, y=y0, ydot=ydot0, y2dot=y2dot0)
 
         y2dot = np.zeros(ny)
         ydot = ydot0 + y2dot0 * (1 - gamma) * dt

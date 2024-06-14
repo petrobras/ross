@@ -2024,7 +2024,7 @@ class Rotor(object):
             Time array.
         **kwargs : optional
             Additional keyword arguments can be passed to define the parameters
-            of the Newmark method if it is used (e.g. gamma, beta, tol, ...).
+            of the Newmark method if it is used (e.g. `gamma`, `beta`, `tol`, ...).
             See `newmark` for more details. Other optional arguments are listed
             below.
         num_modes : int, optional
@@ -2032,13 +2032,13 @@ class Rotor(object):
             the model to the chosen number of modes.
         add_to_RHS : callable, optional
             An optional function that computes and returns an additional array to be added to
-            the right-hand side of the equation of motion. This function should take arguments
-            corresponding to the current state of the rotor system, including the time step
-            number, displacements, velocities and acceleration. It should return an array of
-            the same length as the degrees of freedom of the rotor system (`rotor.ndof`).
-            This function allows for the incorporation of supplementary terms or external
-            effects in the rotor system dynamics beyond the specified force input during the
-            time integration process.
+            the right-hand side of the equation of motion. This function should take the time
+            step number as argument, and can take optional arguments corresponding to the current
+            state of the rotor system, including the displacements `disp_resp`, velocities
+            `velc_resp`, and acceleration `accl_resp`. It should return an array of the same
+            length as the degrees of freedom of the rotor system `rotor.ndof`. This function
+            allows for the incorporation of supplementary terms or external effects in the rotor
+            system dynamics beyond the specified force input during the time integration process.
 
         Returns
         -------
@@ -2096,10 +2096,16 @@ class Rotor(object):
         add_to_RHS = kwargs.get("add_to_RHS")
 
         if add_to_RHS is None:
-            forces = lambda i, u, v, a: F[i, :]
+            forces = lambda step, **curr_state: F[step, :]
         else:
-            forces = lambda i, u, v, a: F[i, :] + get_array[1](
-                add_to_RHS(i, get_array[2](u), get_array[2](v), get_array[2](a))
+            forces = lambda step, **curr_state: F[step, :] + get_array[1](
+                add_to_RHS(
+                    step,
+                    time_step=curr_state.get("dt"),
+                    disp_resp=get_array[2](curr_state.get("y")),
+                    velc_resp=get_array[2](curr_state.get("ydot")),
+                    accl_resp=get_array[2](curr_state.get("y2dot")),
+                )
             )
 
         # Depending on the conditions of the analysis,
@@ -2115,7 +2121,7 @@ class Rotor(object):
                 C0 = self.C(speed_ref, ignore=brgs_with_var_coeffs)
                 K0 = self.K(speed_ref, ignore=brgs_with_var_coeffs)
 
-                def rotor_system(step, disp_resp, velc_resp, accl_resp):
+                def rotor_system(step, **current_state):
                     Cb, Kb = assemble_C_K_matrices(
                         brgs_with_var_coeffs, np.copy(C0), np.copy(K0), speed[step]
                     )
@@ -2127,29 +2133,29 @@ class Rotor(object):
                         M,
                         C1 + C2 * speed[step],
                         K1 + K2 * accel[step],
-                        forces(step, disp_resp, velc_resp, accl_resp),
+                        forces(step, **current_state),
                     )
 
             else:  # Option 2
                 C1 = get_array[0](self.C(speed_ref))
                 K1 = get_array[0](self.K(speed_ref))
 
-                rotor_system = lambda step, disp_resp, velc_resp, accl_resp: (
+                rotor_system = lambda step, **current_state: (
                     M,
                     C1 + C2 * speed[step],
                     K1 + K2 * accel[step],
-                    forces(step, disp_resp, velc_resp, accl_resp),
+                    forces(step, **current_state),
                 )
 
         else:  # Option 3
             C1 = get_array[0](self.C(speed_ref))
             K1 = get_array[0](self.K(speed_ref))
 
-            rotor_system = lambda step, disp_resp, velc_resp, accl_resp: (
+            rotor_system = lambda step, **current_state: (
                 M,
                 C1 + C2 * speed_ref,
                 K1,
-                forces(step, disp_resp, velc_resp, accl_resp),
+                forces(step, **current_state),
             )
 
         size = len(M)
