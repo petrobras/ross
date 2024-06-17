@@ -49,6 +49,7 @@ from ross.shaft_element import ShaftElement, ShaftElement6DoF
 from ross.units import Q_, check_units
 from ross.utils import intersection, integrate_rotor_system, remove_axial_torsional_dofs
 
+<<<<<<< HEAD
 __all__ = [
     "Rotor",
     "CoAxialRotor",
@@ -57,6 +58,9 @@ __all__ = [
     "coaxrotor_example",
     "rotor_example_6dof"
     ]
+=======
+__all__ = ["Rotor", "CoAxialRotor", "rotor_example", "rotor_example_compressor", "coaxrotor_example"]
+>>>>>>> 841f9ea618ad6fe4d81ba76fe782dbd37f60b4dc
 
 # set Plotly palette of colors
 colors = px.colors.qualitative.Dark24
