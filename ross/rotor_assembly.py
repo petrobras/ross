@@ -2087,9 +2087,9 @@ class Rotor(object):
             get_array = [return_array for j in range(3)]
 
         # Assemble matrices
-        M = get_array[0](self.M())
-        C2 = get_array[0](self.G())
-        K2 = get_array[0](self.Ksdt())
+        M = get_array[0](kwargs.get("M", self.M()))
+        C2 = get_array[0](kwargs.get("G", self.G()))
+        K2 = get_array[0](kwargs.get("Ksdt", self.Ksdt()))
         F = get_array[1](F.T).T
 
         # Consider any additional RHS function (extra forces)
@@ -2118,6 +2118,11 @@ class Rotor(object):
             ]
 
             if len(brgs_with_var_coeffs):  # Option 1
+                if kwargs.get("C") or kwargs.get("K"):
+                    raise Warning(
+                        "The bearing coefficients vary with speed. Therefore, C and K matrices are not being replaced by the matrices defined as input arguments."
+                    )
+
                 C0 = self.C(speed_ref, ignore=brgs_with_var_coeffs)
                 K0 = self.K(speed_ref, ignore=brgs_with_var_coeffs)
 
@@ -2137,8 +2142,8 @@ class Rotor(object):
                     )
 
             else:  # Option 2
-                C1 = get_array[0](self.C(speed_ref))
-                K1 = get_array[0](self.K(speed_ref))
+                C1 = get_array[0](kwargs.get("C", self.C(speed_ref)))
+                K1 = get_array[0](kwargs.get("K", self.K(speed_ref)))
 
                 rotor_system = lambda step, **current_state: (
                     M,
@@ -2148,8 +2153,8 @@ class Rotor(object):
                 )
 
         else:  # Option 3
-            C1 = get_array[0](self.C(speed_ref))
-            K1 = get_array[0](self.K(speed_ref))
+            C1 = get_array[0](kwargs.get("C", self.C(speed_ref)))
+            K1 = get_array[0](kwargs.get("K", self.K(speed_ref)))
 
             rotor_system = lambda step, **current_state: (
                 M,
