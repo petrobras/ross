@@ -2520,11 +2520,12 @@ class Rotor(object):
 
         Examples
         --------
+        >>> from ross.probe import Probe
         >>> rotor = rotor_example()
         >>> speed = 500.0
         >>> size = 1000
         >>> node = 3
-        >>> probe1 = (3, 0)
+        >>> probe1 = Probe(3, 0)
         >>> t = np.linspace(0, 10, size)
         >>> F = np.zeros((size, rotor.ndof))
         >>> F[:, 4 * node] = 10 * np.cos(2 * t)
