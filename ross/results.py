@@ -2323,25 +2323,29 @@ class ForcedResponseResults(Results):
         data["frequency"] = frequency_range
 
         for i, p in enumerate(probe):
+            try:
+                node = p.node
+                angle = p.angle
+                probe_tag = p.tag or p.get_label(i + 1)
+                if p.direction == "axial":
+                    continue
+            except AttributeError:
+                node = p[0]
+                warn(
+                    "The use of tuples in the probe argument is deprecated. Use the Probe class instead.",
+                    DeprecationWarning,
+                )
+                try:
+                    angle = Q_(p[1], probe_units).to("rad").m
+                except TypeError:
+                    angle = p[1]
+                try:
+                    probe_tag = p[2]
+                except IndexError:
+                    probe_tag = f"Probe {i+1} - Node {p[0]}"
+
             amplitude = []
             for speed_idx in range(len(self.speed_range)):
-                # first try to get the angle from the probe object
-                try:
-                    angle = p.angle
-                    node = p.node
-                # if it is a tuple, warn the user that the use of tuples is deprecated
-                except AttributeError:
-                    try:
-                        angle = Q_(p[1], probe_units).to("rad").m
-                        warn(
-                            "The use of tuples in the probe argument is deprecated. Use the Probe class instead.",
-                            DeprecationWarning,
-                        )
-                        node = p[0]
-                    except TypeError:
-                        angle = p[1]
-                        node = p[0]
-
                 ru_e, rv_e = response[:, speed_idx][
                     self.rotor.number_dof * node : self.rotor.number_dof * node + 2
                 ]
@@ -2350,14 +2354,6 @@ class ForcedResponseResults(Results):
                 )
                 amp, phase = orbit.calculate_amplitude(angle=angle)
                 amplitude.append(amp)
-
-            try:
-                probe_tag = p.tag
-            except AttributeError:
-                try:
-                    probe_tag = p[2]
-                except IndexError:
-                    probe_tag = f"Probe {i+1} - Node {p[0]}"
 
             data[probe_tag] = Q_(amplitude, base_unit).to(amplitude_units).m
 
@@ -2422,25 +2418,29 @@ class ForcedResponseResults(Results):
         data["frequency"] = frequency_range
 
         for i, p in enumerate(probe):
+            try:
+                node = p.node
+                angle = p.angle
+                probe_tag = p.tag or p.get_label(i + 1)
+                if p.direction == "axial":
+                    continue
+            except AttributeError:
+                node = p[0]
+                warn(
+                    "The use of tuples in the probe argument is deprecated. Use the Probe class instead.",
+                    DeprecationWarning,
+                )
+                try:
+                    angle = Q_(p[1], probe_units).to("rad").m
+                except TypeError:
+                    angle = p[1]
+                try:
+                    probe_tag = p[2]
+                except IndexError:
+                    probe_tag = f"Probe {i+1} - Node {p[0]}"
+
             phase_values = []
             for speed_idx in range(len(self.speed_range)):
-                # first try to get the angle from the probe object
-                try:
-                    angle = p.angle
-                    node = p.node
-                # if it is a tuple, warn the user that the use of tuples is deprecated
-                except AttributeError:
-                    try:
-                        angle = Q_(p[1], probe_units).to("rad").m
-                        warn(
-                            "The use of tuples in the probe argument is deprecated. Use the Probe class instead.",
-                            DeprecationWarning,
-                        )
-                        node = p[0]
-                    except TypeError:
-                        angle = p[1]
-                        node = p[0]
-
                 ru_e, rv_e = response[:, speed_idx][
                     self.rotor.number_dof * node : self.rotor.number_dof * node + 2
                 ]
@@ -2449,14 +2449,6 @@ class ForcedResponseResults(Results):
                 )
                 amp, phase = orbit.calculate_amplitude(angle=angle)
                 phase_values.append(phase)
-
-            try:
-                probe_tag = p.tag
-            except AttributeError:
-                try:
-                    probe_tag = p[2]
-                except IndexError:
-                    probe_tag = f"Probe {i+1} - Node {p[0]}"
 
             data[probe_tag] = Q_(phase_values, "rad").to(phase_units).m
 
@@ -4428,15 +4420,14 @@ class TimeResponseResults(Results):
         self.xout = xout
         self.rotor = rotor
 
-    def data_probe_response(
+    def data_time_response(
         self,
         probe,
         probe_units="rad",
         displacement_units="m",
         time_units="s",
     ):
-        """This method create the time response given a tuple of probes with their nodes
-        and orientations in DataFrame format.
+        """Return the time response given a list of probes in DataFrame format.
 
         Parameters
         ----------
@@ -4455,7 +4446,7 @@ class TimeResponseResults(Results):
         Returns
         -------
          df : pd.DataFrame
-            DataFrame probe response.
+            DataFrame storing the time response measured by probes.
         """
         data = {}
 
@@ -4464,30 +4455,53 @@ class TimeResponseResults(Results):
         ndof = self.rotor.number_dof
 
         for i, p in enumerate(probe):
-
+            probe_direction = "radial"
             try:
-                probe_tag = p[2]
-            except IndexError:
-                probe_tag = f"Probe {i+1} - Node {p[0]}"
+                node = p.node
+                angle = p.angle
+                probe_tag = p.tag or p.get_label(i + 1)
+                if p.direction == "axial":
+                    if ndof == 6:
+                        probe_direction = p.direction
+                    else:
+                        continue
+            except AttributeError:
+                node = p[0]
+                warn(
+                    "The use of tuples in the probe argument is deprecated. Use the Probe class instead.",
+                    DeprecationWarning,
+                )
+                try:
+                    angle = Q_(p[1], probe_units).to("rad").m
+                except TypeError:
+                    angle = p[1]
+                try:
+                    probe_tag = p[2]
+                except IndexError:
+                    probe_tag = f"Probe {i+1} - Node {p[0]}"
 
-            data[f"probe_tag[{i}]"] = probe_tag
-
-            fix_dof = (p[0] - nodes[-1] - 1) * ndof // 2 if p[0] in link_nodes else 0
-            dofx = ndof * p[0] - fix_dof
-            dofy = ndof * p[0] + 1 - fix_dof
-
-            angle = Q_(p[1], probe_units).to("rad").m
             data[f"angle[{i}]"] = angle
+            data[f"probe_tag[{i}]"] = probe_tag
+            data[f"probe_dir[{i}]"] = probe_direction
 
-            # fmt: off
-            operator = np.array(
-                [[np.cos(angle), np.sin(angle)],
-                 [-np.sin(angle), np.cos(angle)]]
-            )
+            fix_dof = (node - nodes[-1] - 1) * ndof // 2 if node in link_nodes else 0
 
-            _probe_resp = operator @ np.vstack((self.yout[:, dofx], self.yout[:, dofy]))
-            probe_resp = _probe_resp[0,:]
-            # fmt: on
+            if probe_direction == "radial":
+                dofx = ndof * node - fix_dof
+                dofy = ndof * node + 1 - fix_dof
+
+                # fmt: off
+                operator = np.array(
+                    [[np.cos(angle), np.sin(angle)],
+                    [-np.sin(angle), np.cos(angle)]]
+                )
+
+                _probe_resp = operator @ np.vstack((self.yout[:, dofx], self.yout[:, dofy]))
+                probe_resp = _probe_resp[0,:]
+                # fmt: on
+            else:
+                dofz = ndof * node + 2 - fix_dof
+                probe_resp = self.yout[:, dofz]
 
             probe_resp = Q_(probe_resp, "m").to(displacement_units).m
             data[f"probe_resp[{i}]"] = probe_resp
@@ -4508,7 +4522,7 @@ class TimeResponseResults(Results):
     ):
         """Plot time response.
 
-        This method plots the time response given a tuple of probes with their nodes
+        This method plots the time response given a list of probes with their nodes
         and orientations.
 
         Parameters
@@ -4540,26 +4554,26 @@ class TimeResponseResults(Results):
         if fig is None:
             fig = go.Figure()
 
-        df = self.data_probe_response(
-            probe, probe_units, displacement_units, time_units
-        )
-        _time = df["time"].to_numpy()
+        df = self.data_time_response(probe, probe_units, displacement_units, time_units)
+        _time = df["time"].values
         for i, p in enumerate(probe):
+            try:
+                probe_tag = df[f"probe_tag[{i}]"].values[0]
+                probe_resp = df[f"probe_resp[{i}]"].values
 
-            probe_tag = df[f"probe_tag[{i}]"][0]
-            probe_resp = df[f"probe_resp[{i}]"].to_numpy()
-
-            fig.add_trace(
-                go.Scatter(
-                    x=_time,
-                    y=Q_(probe_resp, "m").to(displacement_units).m,
-                    mode="lines",
-                    name=probe_tag,
-                    legendgroup=probe_tag,
-                    showlegend=True,
-                    hovertemplate=f"Time ({time_units}): %{{x:.2f}}<br>Amplitude ({displacement_units}): %{{y:.2e}}",
+                fig.add_trace(
+                    go.Scatter(
+                        x=_time,
+                        y=Q_(probe_resp, "m").to(displacement_units).m,
+                        mode="lines",
+                        name=probe_tag,
+                        legendgroup=probe_tag,
+                        showlegend=True,
+                        hovertemplate=f"Time ({time_units}): %{{x:.2f}}<br>Amplitude ({displacement_units}): %{{y:.2e}}",
+                    )
                 )
-            )
+            except KeyError:
+                pass
 
         fig.update_xaxes(title_text=f"Time ({time_units})")
         fig.update_yaxes(title_text=f"Amplitude ({displacement_units})")
