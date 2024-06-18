@@ -1897,14 +1897,14 @@ class Rotor(object):
         >>> probe_node = 3
         >>> probe_angle = np.pi / 2
         >>> probe_tag = "my_probe"  # optional
-        >>> fig = response.plot(probe=[rs.Probe(probe_node, probe_angle, probe_tag)])
+        >>> fig = response.plot(probe=[rs.Probe(probe_node, probe_angle, tag=probe_tag)])
 
         plot response for major or minor axis:
         >>> probe_node = 3
         >>> probe_angle = "major"   # for major axis
         >>> # probe_angle = "minor" # for minor axis
         >>> probe_tag = "my_probe"  # optional
-        >>> fig = response.plot(probe=[rs.Probe(probe_node, probe_angle, probe_tag)])
+        >>> fig = response.plot(probe=[rs.Probe(probe_node, probe_angle, tag=probe_tag)])
 
         To plot velocity and acceleration responses, you must change amplitude_units
         from "[length]" units to "[length]/[time]" or "[length]/[time] ** 2" respectively
