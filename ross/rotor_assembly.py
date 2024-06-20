@@ -3906,6 +3906,7 @@ def rotor_example():
 
     return Rotor(shaft_elem, [disk0, disk1], [bearing0, bearing1])
 
+
 def rotor_example_compressor():
     """Create a rotor as example.
     This function returns an instance of a simple rotor with
@@ -3917,8 +3918,8 @@ def rotor_example_compressor():
     An instance of a rotor object.
     References
     ----------
-    Autors: Timbó, R., & Ritto, T. G. (2019). 
-    Title: Impact of damper seal coefficients uncertainties in rotor dynamics. 
+    Autors: Timbó, R., & Ritto, T. G. (2019).
+    Title: Impact of damper seal coefficients uncertainties in rotor dynamics.
     Paper: Journal of the Brazilian Society of Mechanical Sciences and Engineering, 41(4),165.
     link: doi:10.1007/s40430-019-1652-8
     Examples
@@ -3927,8 +3928,11 @@ def rotor_example_compressor():
     >>> rotor = rs.rotor_example_compressor()
     >>> rotor.plot_rotor(nodes=5).show()
     """
-    rotor_example_compressor = Rotor.load(Path(__file__).parent / "tests/data/rotor_example_compressor.toml")
+    rotor_example_compressor = Rotor.load(
+        Path(__file__).parent / "tests/data/rotor_example_compressor.toml"
+    )
     return rotor_example_compressor
+
 
 def coaxrotor_example():
     """Create a rotor as example.
