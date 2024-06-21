@@ -58,7 +58,7 @@ __all__ = [
     "Rotor",
     "CoAxialRotor",
     "rotor_example",
-    "rotor_example_compressor",
+    "compressor_example",
     "coaxrotor_example",
     "rotor_example_6dof",
 ]
@@ -3918,31 +3918,39 @@ def rotor_example():
     return Rotor(shaft_elem, [disk0, disk1], [bearing0, bearing1])
 
 
-def rotor_example_compressor():
+def compressor_example():
     """Create a rotor as example.
+
     This function returns an instance of a simple rotor with
     91 shaft elements, 7 disks and 2 simple bearings and 12 seals.
     The purpose of this is to make available a simple model
     so that doctest can be written using this.
+
     Returns
     -------
     An instance of a rotor object.
+
     References
     ----------
-    Autors: Timbó, R., & Ritto, T. G. (2019).
-    Title: Impact of damper seal coefficients uncertainties in rotor dynamics.
-    Paper: Journal of the Brazilian Society of Mechanical Sciences and Engineering, 41(4),165.
-    link: doi:10.1007/s40430-019-1652-8
+    Timbó, R., Ritto, T. G. (2019). Impact of damper seal coefficients uncertainties
+    in rotor dynamics. Journal of the Brazilian Society of Mechanical Sciences and
+    Engineering, 41(4),165. doi: 10.1007/s40430-019-1652-8
+
     Examples
     --------
     >>> import ross as rs
-    >>> rotor = rs.rotor_example_compressor()
-    >>> rotor.plot_rotor(nodes=5).show()
+    >>> rotor = rs.compressor_example()
+    >>> fig = rotor.plot_rotor()
+    >>> len(rotor.shaft_elements)
+    91
+    >>> len(rotor.disk_elements)
+    7
+    >>> len(rotor.bearing_elements)
+    14
     """
-    rotor_example_compressor = Rotor.load(
-        Path(__file__).parent / "tests/data/rotor_example_compressor.toml"
-    )
-    return rotor_example_compressor
+    compressor_dir = Path(__file__).parent / "tests/data/compressor_example.toml"
+
+    return Rotor.load(compressor_dir)
 
 
 def coaxrotor_example():
