@@ -1031,21 +1031,24 @@ def integrate_rotor_system(rotor, speed, F, t, **kwargs):
     return t, yout
 
 
-def remove_axial_torsional_dofs(matrix_6dof):
-    """Removes axial and torsional degrees of freedom from a 6 dof matrix.
+def remove_dofs(matrix, dofs=None):
+    """Removes specified degrees of freedom from the given matrix.
 
-    This function takes a 6 dof model matrix and removes the axial and torsional dofs,
+    By default, this function takes a 6 dof model matrix and removes the axial and torsional dofs,
     resulting in a 4 dof model matrix.
 
     Parameters
     ----------
-    matrix_6dof: ndarray
-        The 6 dof matrix to process.
+    matrix: ndarray
+        The original matrix to process.
+    dofs: list
+        List of indices representing dofs to be removed. Default is None, but internally it considers
+        the axial and torsional dofs of a 6 dof model.
 
     Returns
     -------
-    matrix_4dof: ndarray
-        A matrix with axial and torsional dofs removed.
+    new_matrix: ndarray
+        The modified matrix with the removed dofs.
 
     Examples
     --------
@@ -1053,7 +1056,7 @@ def remove_axial_torsional_dofs(matrix_6dof):
     >>> rotor = rs.rotor_example_6dof()
     >>> n_nodes = rotor.nodes[-1] + 1
     >>> M_6dof = rotor.M()
-    >>> M_4dof = remove_axial_torsional_dofs(M_6dof)
+    >>> M_4dof = remove_dofs(M_6dof)
     >>> M_6dof.shape
     (42, 42)
     >>> len(M_6dof) == n_nodes * 6
@@ -1063,9 +1066,12 @@ def remove_axial_torsional_dofs(matrix_6dof):
     >>> len(M_4dof) == n_nodes * 4
     True
     """
-    ind = np.arange(2, len(matrix_6dof), 3)
-    matrix_4dof = np.delete(np.delete(matrix_6dof, ind, axis=0), ind, axis=1)
-    return matrix_4dof
+    if dofs is None:
+        dofs = np.arange(2, len(matrix), 3)
+
+    new_matrix = np.delete(np.delete(matrix, dofs, axis=0), dofs, axis=1)
+
+    return new_matrix
 
 
 def convert_6dof_to_4dof(rotor):
@@ -1088,7 +1094,7 @@ def convert_6dof_to_4dof(rotor):
     --------
     >>> import ross as rs
     >>> rotor = rs.rotor_example_6dof()
-    >>> rotor_mod = reduce_6dof_to_4dof(rotor)
+    >>> rotor_mod = convert_6dof_to_4dof(rotor)
     >>> n_nodes = rotor.nodes[-1] + 1
     >>> M_6dof = rotor.M()
     >>> M_4dof = rotor_mod.M()
@@ -1105,13 +1111,13 @@ def convert_6dof_to_4dof(rotor):
     new_rotor = copy(rotor)
 
     # Modify matrix methods to get 4 dof matrices
-    new_rotor.M = lambda frequency=None, synchronous=False: remove_axial_torsional_dofs(
+    new_rotor.M = lambda frequency=None, synchronous=False: remove_dofs(
         rotor.M(frequency=frequency, synchronous=synchronous)
     )
-    new_rotor.K = lambda frequency: remove_axial_torsional_dofs(rotor.K(frequency))
-    new_rotor.C = lambda frequency: remove_axial_torsional_dofs(rotor.C(frequency))
-    new_rotor.G = lambda: remove_axial_torsional_dofs(rotor.G())
-    new_rotor.Ksdt = lambda: remove_axial_torsional_dofs(rotor.Ksdt())
+    new_rotor.K = lambda frequency: remove_dofs(rotor.K(frequency))
+    new_rotor.Ksdt = lambda: remove_dofs(rotor.Ksdt())
+    new_rotor.C = lambda frequency: remove_dofs(rotor.C(frequency))
+    new_rotor.G = lambda: remove_dofs(rotor.G())
 
     # Update number of dofs
     new_rotor.number_dof = 4

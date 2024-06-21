@@ -50,7 +50,7 @@ from ross.units import Q_, check_units
 from ross.utils import (
     intersection,
     integrate_rotor_system,
-    remove_axial_torsional_dofs,
+    remove_dofs,
     convert_6dof_to_4dof,
 )
 
@@ -2961,9 +2961,9 @@ class Rotor(object):
         num_dof = 4
 
         if self.number_dof == 6:
-            aux_M = remove_axial_torsional_dofs(aux_M)
-            aux_K = remove_axial_torsional_dofs(aux_K)
-            aux1_K = remove_axial_torsional_dofs(aux1_K)
+            aux_M = remove_dofs(aux_M)
+            aux_K = remove_dofs(aux_K)
+            aux1_K = remove_dofs(aux1_K)
 
         # gravity aceleration vector
         g = -9.8065
