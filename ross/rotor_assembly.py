@@ -47,7 +47,12 @@ from ross.results import (
 )
 from ross.shaft_element import ShaftElement, ShaftElement6DoF
 from ross.units import Q_, check_units
-from ross.utils import intersection, integrate_rotor_system, remove_axial_torsional_dofs
+from ross.utils import (
+    intersection,
+    integrate_rotor_system,
+    remove_axial_torsional_dofs,
+    convert_6dof_to_4dof,
+)
 
 __all__ = [
     "Rotor",
@@ -2328,6 +2333,10 @@ class Rotor(object):
         for i, k in enumerate(stiffness_log):
             bearings = [bearing_class(b.n, kxx=k, cxx=0) for b in bearings_elements]
             rotor = self.__class__(self.shaft_elements, self.disk_elements, bearings)
+
+            if self.number_dof == 6:
+                rotor = convert_6dof_to_4dof(rotor)
+
             modal = rotor.run_modal(
                 speed=0, num_modes=num_modes, synchronous=synchronous
             )
@@ -2381,6 +2390,9 @@ class Rotor(object):
                             disk_elements=self.disk_elements,
                             bearing_elements=bearings,
                         )
+
+                        if self.number_dof == 6:
+                            rotor_critical = convert_6dof_to_4dof(rotor_critical)
 
                         modal_critical = rotor_critical.run_modal(speed=speed)
                         critical_points_modal.append(modal_critical)
@@ -2946,23 +2958,22 @@ class Rotor(object):
         aux_M = aux_rotor.M(0)
         aux_K = aux_rotor.K(0)
         aux1_K = aux_rotor_1.K(0)
-        number_dof = self.number_dof
+        num_dof = 4
 
         if self.number_dof == 6:
             aux_M = remove_axial_torsional_dofs(aux_M)
             aux_K = remove_axial_torsional_dofs(aux_K)
             aux1_K = remove_axial_torsional_dofs(aux1_K)
-            number_dof = 4
 
         # gravity aceleration vector
         g = -9.8065
         gravity = np.zeros(len(aux_M))
-        gravity[1::number_dof] = g
+        gravity[1::num_dof] = g
         weight = aux_M @ gravity
 
         # calculates u, for [K]*(u) = (F)
         displacement = (la.solve(aux_K, weight)).flatten()
-        displacement_y = displacement[1::number_dof]
+        displacement_y = displacement[1::num_dof]
 
         # calculate forces
         nodal_forces = aux1_K @ displacement
@@ -2987,9 +2998,9 @@ class Rotor(object):
             nodal_shaft_weight[sh.n_l] += g * sh.m * (1 - sh.beam_cg / sh.L)
 
         elm_weight[-1, 1] = 0
-        aux_nodal_forces = nodal_forces[: number_dof * (self.nodes[-1] + 1)]
+        aux_nodal_forces = nodal_forces[: num_dof * (self.nodes[-1] + 1)]
 
-        reaction_forces = nodal_forces[1::number_dof] - weight[1::number_dof]
+        reaction_forces = nodal_forces[1::num_dof] - weight[1::num_dof]
 
         for bearing in aux_rotor.bearing_elements:
             bearing_force_nodal[f"node_{bearing.n:d}"] = reaction_forces[bearing.n]
@@ -2999,7 +3010,7 @@ class Rotor(object):
             disk_force_nodal[f"node_{disk.n:d}"] = -disk.m * g
             disk_force_tag[f"{disk.tag}"] = -disk.m * g
 
-        nodal_forces_y = aux_nodal_forces[1::number_dof] - nodal_shaft_weight
+        nodal_forces_y = aux_nodal_forces[1::num_dof] - nodal_shaft_weight
         elm_forces_y = np.zeros_like(elm_weight)
         elm_forces_y[:, 0] = nodal_forces_y[:-1]
         elm_forces_y[-1, 1] = -nodal_forces_y[-1]
