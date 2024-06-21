@@ -5,6 +5,7 @@ import pandas as pd
 from numpy import linalg as la
 from plotly import graph_objects as go
 from scipy.linalg import eigh
+from copy import deepcopy as copy
 
 
 class DataNotFoundError(Exception):
@@ -1031,15 +1032,15 @@ def integrate_rotor_system(rotor, speed, F, t, **kwargs):
 
 
 def remove_axial_torsional_dofs(matrix_6dof):
-    """Removes axial and torsional degrees of freedom from a 6dof matrix.
+    """Removes axial and torsional degrees of freedom from a 6 dof matrix.
 
-    This function takes a 6dof model matrix and removes the axial and torsional DoFs,
-    resulting in a 4dof model matrix.
+    This function takes a 6 dof model matrix and removes the axial and torsional dofs,
+    resulting in a 4 dof model matrix.
 
     Parameters
     ----------
     matrix_6dof: ndarray
-        The 6dof matrix to process.
+        The 6 dof matrix to process.
 
     Returns
     -------
@@ -1065,3 +1066,55 @@ def remove_axial_torsional_dofs(matrix_6dof):
     ind = np.arange(2, len(matrix_6dof), 3)
     matrix_4dof = np.delete(np.delete(matrix_6dof, ind, axis=0), ind, axis=1)
     return matrix_4dof
+
+
+def convert_6dof_to_4dof(rotor):
+    """Convert a 6 dof rotor model to a 4 dof model.
+
+    This function takes a 6 dof rotor model and modifies it by removing the axial and
+    torsional dofs. It adjusts the corresponding matrix methods to reflect this change.
+
+    Parameters
+    ----------
+    rotor: rs.Rotor
+        The rotor object of 6 dof model.
+
+    Returns
+    -------
+    new_rotor: rs.Rotor
+        The rotor object modified.
+
+    Examples
+    --------
+    >>> import ross as rs
+    >>> rotor = rs.rotor_example_6dof()
+    >>> rotor_mod = reduce_6dof_to_4dof(rotor)
+    >>> n_nodes = rotor.nodes[-1] + 1
+    >>> M_6dof = rotor.M()
+    >>> M_4dof = rotor_mod.M()
+    >>> M_6dof.shape
+    (42, 42)
+    >>> len(M_6dof) == n_nodes * 6
+    True
+    >>> M_4dof.shape
+    (28, 28)
+    >>> len(M_4dof) == n_nodes * 4
+    True
+    """
+    # Copy the rotor object
+    new_rotor = copy(rotor)
+
+    # Modify matrix methods to get 4 dof matrices
+    new_rotor.M = lambda frequency=None, synchronous=False: remove_axial_torsional_dofs(
+        rotor.M(frequency=frequency, synchronous=synchronous)
+    )
+    new_rotor.K = lambda frequency: remove_axial_torsional_dofs(rotor.K(frequency))
+    new_rotor.C = lambda frequency: remove_axial_torsional_dofs(rotor.C(frequency))
+    new_rotor.G = lambda: remove_axial_torsional_dofs(rotor.G())
+    new_rotor.Ksdt = lambda: remove_axial_torsional_dofs(rotor.Ksdt())
+
+    # Update number of dofs
+    new_rotor.number_dof = 4
+    new_rotor.ndof = len(new_rotor.M())
+
+    return new_rotor
