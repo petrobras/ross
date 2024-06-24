@@ -58,6 +58,7 @@ __all__ = [
     "Rotor",
     "CoAxialRotor",
     "rotor_example",
+    "rotor_example_compressor",
     "coaxrotor_example",
     "rotor_example_6dof",
 ]
@@ -173,7 +174,7 @@ class Rotor(object):
             if sh.n is None:
                 sh.n = i
             if sh.tag is None:
-                sh.tag = sh.__class__.__name__ + " " + str(i)
+                sh.tag = "ShaftElement " + str(i)
 
         if disk_elements is None:
             disk_elements = []
@@ -190,10 +191,11 @@ class Rotor(object):
             # add n_l and n_r to bearing elements
             brg.n_l = brg.n
             brg.n_r = brg.n
-            if not isinstance(brg, SealElement) and brg.tag is None:
-                brg.tag = "Bearing " + str(i)
-            elif isinstance(brg, SealElement) and brg.tag is None:
-                brg.tag = "Seal " + str(i)
+            if brg.tag is None:
+                if isinstance(brg, SealElement):
+                    brg.tag = "Seal " + str(i)
+                else:
+                    brg.tag = "Bearing " + str(i)
 
         for i, p_mass in enumerate(point_mass_elements):
             if p_mass.tag is None:
@@ -1374,7 +1376,7 @@ class Rotor(object):
                     evalues, evectors = las.eigs(
                         A,
                         k=num_modes,
-                        sigma=0,
+                        sigma=1,
                         ncv=2 * num_modes,
                         which="LM",
                         v0=self._v0,
@@ -1957,26 +1959,26 @@ class Rotor(object):
         >>> probe_node = 3
         >>> probe_angle = np.pi / 2
         >>> probe_tag = "my_probe"  # optional
-        >>> fig = response.plot(probe=[(probe_node, probe_angle, probe_tag)])
+        >>> fig = response.plot(probe=[rs.Probe(probe_node, probe_angle, probe_tag)])
 
         plot response for major or minor axis:
         >>> probe_node = 3
         >>> probe_angle = "major"   # for major axis
         >>> # probe_angle = "minor" # for minor axis
         >>> probe_tag = "my_probe"  # optional
-        >>> fig = response.plot(probe=[(probe_node, probe_angle, probe_tag)])
+        >>> fig = response.plot(probe=[rs.Probe(probe_node, probe_angle, probe_tag)])
 
         To plot velocity and acceleration responses, you must change amplitude_units
         from "[length]" units to "[length]/[time]" or "[length]/[time] ** 2" respectively
         Plotting velocity response
         >>> fig = response.plot(
-        ...     probe=[(probe_node, probe_angle)],
+        ...     probe=[rs.Probe(probe_node, probe_angle)],
         ...     amplitude_units="m/s"
         ... )
 
         Plotting acceleration response
         >>> fig = response.plot(
-        ...     probe=[(probe_node, probe_angle)],
+        ...     probe=[rs.Probe(probe_node, probe_angle)],
         ...     amplitude_units="m/s**2"
         ... )
 
@@ -2543,8 +2545,10 @@ class Rotor(object):
             if not isinstance(bearing, SealElement):
                 bearings_elements.append(bearing)
 
+        bearing_class = BearingElement6DoF if self.number_dof == 6 else BearingElement
+
         for i, k in enumerate(stiffness_log):
-            bearings = [BearingElement(b.n, kxx=k, cxx=0) for b in bearings_elements]
+            bearings = [bearing_class(b.n, kxx=k, cxx=0) for b in bearings_elements]
             rotor = self.__class__(self.shaft_elements, self.disk_elements, bearings)
             modal = rotor.run_modal(
                 speed=0, num_modes=num_modes, synchronous=synchronous
@@ -2552,9 +2556,6 @@ class Rotor(object):
             rotor_wn[:, i] = modal.wn[::2]
 
         bearing0 = bearings_elements[0]
-
-        # calculate interception points
-        intersection_points = {"x": [], "y": []}
 
         # if bearing does not have constant coefficient, check intersection points
         if bearing_frequency_range is None:
@@ -2567,36 +2568,44 @@ class Rotor(object):
                 )
             else:
                 bearing_frequency_range = bearing0.frequency
-        for j in range(rotor_wn.shape[0]):
-            for coeff in ["kxx", "kyy"]:
-                x1 = rotor_wn[j]
-                y1 = stiffness_log
-                x2 = bearing_frequency_range
-                y2 = getattr(bearing0, f"{coeff}_interpolated")(bearing_frequency_range)
-                x, y = intersection(x1, y1, x2, y2)
-                try:
-                    intersection_points["y"].append(float(x))
-                    intersection_points["x"].append(float(y))
-                except TypeError:
-                    # pass if x/y is empty
-                    pass
+
+        # calculate interception points
+        intersection_points = {"x": [], "y": []}
 
         # save critical mode shapes in the results
         critical_points_modal = []
 
-        for k, speed in zip(intersection_points["x"], intersection_points["y"]):
-            # create bearing
-            bearings = [BearingElement(b.n, kxx=k, cxx=0) for b in bearings_elements]
-            # create rotor
-            rotor_critical = Rotor(
-                shaft_elements=self.shaft_elements,
-                disk_elements=self.disk_elements,
-                bearing_elements=bearings,
-            )
+        coeffs = (
+            ["kxx"] if np.array_equal(bearing0.kxx, bearing0.kyy) else ["kxx", "kyy"]
+        )
 
-            modal_critical = rotor_critical.run_modal(speed=speed)
+        for wn in rotor_wn:
+            for coeff in coeffs:
+                x1 = stiffness_log
+                y1 = wn
+                x2 = getattr(bearing0, f"{coeff}_interpolated")(bearing_frequency_range)
+                y2 = bearing_frequency_range
+                x, y = intersection(x1, y1, x2, y2)
 
-            critical_points_modal.append(modal_critical)
+                if len(x) > 0:
+                    for k, speed in zip(x, y):
+                        intersection_points["x"].append(float(k))
+                        intersection_points["y"].append(float(speed))
+
+                        # create bearing
+                        bearings = [
+                            bearing_class(b.n, kxx=k, cxx=0) for b in bearings_elements
+                        ]
+
+                        # create rotor
+                        rotor_critical = Rotor(
+                            shaft_elements=self.shaft_elements,
+                            disk_elements=self.disk_elements,
+                            bearing_elements=bearings,
+                        )
+
+                        modal_critical = rotor_critical.run_modal(speed=speed)
+                        critical_points_modal.append(modal_critical)
 
         results = UCSResults(
             stiffness_range,
@@ -4115,6 +4124,33 @@ def rotor_example():
     bearing1 = BearingElement(6, kxx=stfx, kyy=stfy, cxx=0)
 
     return Rotor(shaft_elem, [disk0, disk1], [bearing0, bearing1])
+
+
+def rotor_example_compressor():
+    """Create a rotor as example.
+    This function returns an instance of a simple rotor with
+    91 shaft elements, 7 disks and 2 simple bearings and 12 seals.
+    The purpose of this is to make available a simple model
+    so that doctest can be written using this.
+    Returns
+    -------
+    An instance of a rotor object.
+    References
+    ----------
+    Autors: Timbó, R., & Ritto, T. G. (2019).
+    Title: Impact of damper seal coefficients uncertainties in rotor dynamics.
+    Paper: Journal of the Brazilian Society of Mechanical Sciences and Engineering, 41(4),165.
+    link: doi:10.1007/s40430-019-1652-8
+    Examples
+    --------
+    >>> import ross as rs
+    >>> rotor = rs.rotor_example_compressor()
+    >>> rotor.plot_rotor(nodes=5).show()
+    """
+    rotor_example_compressor = Rotor.load(
+        Path(__file__).parent / "tests/data/rotor_example_compressor.toml"
+    )
+    return rotor_example_compressor
 
 
 def coaxrotor_example():

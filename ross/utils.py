@@ -595,16 +595,16 @@ def get_data_from_figure(fig):
     >>> resp = rotor.run_unbalance_response(
     ...     3, 0.001, 0.0, np.linspace(0, 1000, 101)
     ... )
-    >>> fig = resp.plot_magnitude(probe=[(3, 0.0, "probe1"), (3, np.pi/2, "probe2")])
+    >>> fig = resp.plot_magnitude(probe=[rs.Probe(3, 0.0, "probe1"), rs.Probe(3, np.pi/2, "probe2")])
     >>> df = rs.get_data_from_figure(fig)
 
     Use the probe tag to navigate through pandas data
     Index 0 for frequency array
-    >>> df["probe1"][0] # doctest: +ELLIPSIS
+    >>> df["probe1"].values[0] # doctest: +ELLIPSIS
     array([   0.,   10.,   20.,   30.,...
 
     Index 1 for amplitude array
-    >>> df["probe1"][1] # doctest: +ELLIPSIS
+    >>> df["probe1"].values[1] # doctest: +ELLIPSIS
     array([0.00000000e+00,...
 
     Or use "iloc" to obtain the desired array from pandas

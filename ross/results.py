@@ -418,7 +418,24 @@ class Shape(Results):
         self.yn = None
         self.zn = None
         self.major_axis = None
+        self._classify()
         self._calculate()
+
+    def _classify(self):
+        self.mode_type = "Lateral"
+
+        if self.number_dof == 6:
+            size = len(self.vector)
+
+            axial_dofs = np.arange(2, size, self.number_dof)
+            torsional_dofs = np.arange(5, size, self.number_dof)
+
+            nonzero_dofs = np.nonzero(np.abs(self.vector).round(6))[0]
+
+            if np.isin(nonzero_dofs, axial_dofs).all():
+                self.mode_type = "Axial"
+            elif np.isin(nonzero_dofs, torsional_dofs).all():
+                self.mode_type = "Torsional"
 
     def _calculate_orbits(self):
         orbits = []
@@ -1154,12 +1171,12 @@ class ModalResults(Results):
 
         df = self.data_mode(mode, length_units, frequency_units, damping_parameter)
 
-        damping_name = df["damping_name"][0]
-        damping_value = df["damping_value"][0]
+        damping_name = df["damping_name"].values[0]
+        damping_value = df["damping_value"].values[0]
 
-        wd = df["wd"]
-        wn = df["wn"]
-        speed = df["speed"]
+        wd = df["wd"].values
+        wn = df["wn"].values
+        speed = df["speed"].values
 
         frequency = {
             "wd": f"ω<sub>d</sub> = {wd[0]:.2f}",
@@ -1259,15 +1276,15 @@ class ModalResults(Results):
 
         df = self.data_mode(mode, length_units, frequency_units, damping_parameter)
 
-        damping_name = df["damping_name"][0]
-        damping_value = df["damping_value"][0]
+        damping_name = df["damping_name"].values[0]
+        damping_value = df["damping_value"].values[0]
 
         if fig is None:
             fig = go.Figure()
 
-        wd = df["wd"]
-        wn = df["wn"]
-        speed = df["speed"]
+        wd = df["wd"].values
+        wn = df["wn"].values
+        speed = df["speed"].values
 
         frequency = {
             "wd": f"ω<sub>d</sub> = {wd[0]:.2f}",
@@ -1418,7 +1435,7 @@ class CampbellResults(Results):
     def plot(
         self,
         harmonics=[1],
-        frequency_units="rpm",
+        frequency_units="RPM",
         damping_parameter="log_dec",
         frequency_range=None,
         damping_range=None,
@@ -1434,7 +1451,7 @@ class CampbellResults(Results):
             The default is to plot 1x.
         frequency_units : str, optional
             Frequency units.
-            Default is "rpm"
+            Default is "RPM".
         damping_parameter : str, optional
             Define which value to show for damping. We can use "log_dec" or "damping_ratio".
             Default is "log_dec".
@@ -1541,32 +1558,51 @@ class CampbellResults(Results):
                     legendgroup="Crit. Speed",
                     showlegend=True,
                     hovertemplate=(
-                        f"Frequency ({frequency_units}): %{{x:.2f}}<br>Critical Speed ({frequency_units}): %{{y:.2f}}"
+                        f"Frequency ({frequency_units}): %{{y:.2f}}<br>Critical Speed ({frequency_units}): %{{x:.2f}}"
                     ),
                 )
             )
 
+        whirl_direction = [0.0, 0.5, 1.0]
         scatter_marker = ["triangle-up", "circle", "triangle-down"]
-        for mark, whirl_dir, legend in zip(
-            scatter_marker, [0.0, 0.5, 1.0], ["Forward", "Mixed", "Backward"]
-        ):
+        legends = ["Forward", "Mixed", "Backward"]
+
+        if self.number_dof == 6:
+            whirl_direction = np.concatenate((whirl_direction, [None, None]))
+            scatter_marker = np.concatenate(
+                (scatter_marker, ["diamond-wide", "bowtie"])
+            )
+            legends = np.concatenate((legends, ["Axial", "Torsional"]))
+
+        for whirl_dir, mark, legend in zip(whirl_direction, scatter_marker, legends):
             for i in range(num_frequencies):
                 w_i = wd[:, i]
                 whirl_i = whirl[:, i]
                 damping_values_i = damping_values[:, i]
 
-                whirl_mask = whirl_i == whirl_dir
-                mask = whirl_mask
-                if frequency_range is not None:
-                    frequency_mask = (w_i > frequency_range[0]) & (
-                        w_i < frequency_range[1]
-                    )
-                    mask = mask & frequency_mask
-                if damping_range is not None:
-                    damping_mask = (damping_values_i > damping_range[0]) & (
-                        damping_values_i < damping_range[1]
-                    )
-                    mask = mask & damping_mask
+                mode_shape = np.array(
+                    [self.modal_results[j].shapes[i].mode_type for j in speed_range]
+                )
+                mode_mask_g = np.array([mode in legends for mode in mode_shape])
+
+                mode_mask = mode_shape == legend
+                if any(mode_mask):
+                    mask = mode_mask
+                else:
+                    whirl_mask = whirl_i == whirl_dir
+                    mask = whirl_mask
+                    if frequency_range is not None:
+                        frequency_mask = (w_i > frequency_range[0]) & (
+                            w_i < frequency_range[1]
+                        )
+                        mask = mask & frequency_mask
+                    if damping_range is not None:
+                        damping_mask = (damping_values_i > damping_range[0]) & (
+                            damping_values_i < damping_range[1]
+                        )
+                        mask = mask & damping_mask
+
+                    mask = mask & ~mode_mask_g
 
                 if any(check for check in mask):
                     fig.add_trace(
@@ -1600,8 +1636,6 @@ class CampbellResults(Results):
                 )
             )
         # turn legend glyphs black
-        scatter_marker = ["triangle-up", "circle", "triangle-down"]
-        legends = ["Forward", "Mixed", "Backward"]
         for mark, legend in zip(scatter_marker, legends):
             fig.add_trace(
                 go.Scatter(
@@ -1616,7 +1650,7 @@ class CampbellResults(Results):
             )
 
         fig.update_xaxes(
-            title_text=f"Frequency ({frequency_units})",
+            title_text=f"Rotor Speed ({frequency_units})",
             range=[
                 np.min(Q_(speed_range, "rad/s").to(frequency_units).m),
                 np.max(Q_(speed_range, "rad/s").to(frequency_units).m),
@@ -1708,7 +1742,8 @@ class CampbellResults(Results):
 
         crit_speeds = camp_fig.data[0]["x"]
         for w in crit_speeds:
-            modal_results_crit[w] = self.run_modal(Q_(w, frequency_units).to("rad/s").m)
+            w_si = Q_(w, frequency_units).to("rad/s").m
+            modal_results_crit[w_si] = self.run_modal(w_si)
 
         for scatter in camp_fig.data:
             scatter.on_click(_plot_with_mode_shape_callback)
