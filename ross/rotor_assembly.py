@@ -1042,19 +1042,14 @@ class Rotor(object):
         """
         Ksdt0 = np.zeros((self.ndof, self.ndof))
 
-        for elm in self.shaft_elements:
-            dofs = list(elm.dof_global_index.values())
-            try:
+        if self.number_dof == 6:
+            for elm in self.shaft_elements:
+                dofs = list(elm.dof_global_index.values())
                 Ksdt0[np.ix_(dofs, dofs)] += elm.Kst()
-            except:
-                pass
 
-        for elm in self.disk_elements:
-            dofs = list(elm.dof_global_index.values())
-            try:
+            for elm in self.disk_elements:
+                dofs = list(elm.dof_global_index.values())
                 Ksdt0[np.ix_(dofs, dofs)] += elm.Kdt()
-            except:
-                pass
 
         return Ksdt0
 
