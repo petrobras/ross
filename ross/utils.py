@@ -687,7 +687,7 @@ def newmark(func, t, y_size, **options):
     >>> K1 = rotor.K(speed)
     >>> C2 = rotor.G()
     >>> K2 = rotor.Ksdt()
-    >>> rotor_system = lambda i, u, v, a: (M, C1 + C2 * speed, K1 + K2 * accel, F[i, :])
+    >>> rotor_system = lambda i, **state: (M, C1 + C2 * speed, K1 + K2 * accel, F[i, :])
     >>> yout = newmark(rotor_system, t, rotor.ndof)
     >>> dof = 13
     >>> yout[:, dof] # doctest: +ELLIPSIS
