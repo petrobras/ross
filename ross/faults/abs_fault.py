@@ -3,6 +3,7 @@ from abc import ABC, abstractmethod
 import numpy as np
 import plotly.graph_objects as go
 import scipy as sp
+from warnings import warn
 
 from ross.results import TimeResponseResults
 from ross.units import Q_
@@ -32,14 +33,8 @@ class Fault(ABC):
 
         Parameters
         ----------
-        probe : list of tuples
-            List with tuples (node, orientation angle, tag).
-            node : int
-                indicate the node where the probe is located.
-            orientation : float
-                probe orientation angle about the shaft. The 0 refers to +X direction.
-            tag : str, optional
-                probe tag to be displayed at the legend.
+        probe : list
+            List with rs.Probe objects.
         probe_units : str, option
             Units for probe orientation.
             Default is "rad".
@@ -61,26 +56,58 @@ class Fault(ABC):
         if fig is None:
             fig = go.Figure()
 
-        for i, p in enumerate(probe):
-            dofx = p[0] * self.rotor.number_dof
-            dofy = p[0] * self.rotor.number_dof + 1
-            angle = Q_(p[1], probe_units).to("rad").m
+        num_dof = self.rotor.number_dof
 
-            # fmt: off
-            operator = np.array(
-                [[np.cos(angle), np.sin(angle)],
-                 [-np.sin(angle), np.cos(angle)]]
-            )
+        for i, p in enumerate(probe):
+            probe_direction = "radial"
+            try:
+                node = p.node
+                angle = p.angle
+                probe_tag = p.tag or p.get_label(i + 1)
+                if p.direction == "axial":
+                    if num_dof == 6:
+                        probe_direction = p.direction
+                    else:
+                        continue
+            except AttributeError:
+                node = p[0]
+                warn(
+                    "The use of tuples in the probe argument is deprecated. Use the Probe class instead.",
+                    DeprecationWarning,
+                )
+                try:
+                    angle = Q_(p[1], probe_units).to("rad").m
+                except TypeError:
+                    angle = p[1]
+                try:
+                    probe_tag = p[2]
+                except IndexError:
+                    probe_tag = f"Probe {i+1} - Node {p[0]}"
+
             row, cols = self.response.shape
-            _probe_resp = operator @ np.vstack((self.response[dofx,int(2*cols/3):], self.response[dofy,int(2*cols/3):]))
-            probe_resp = _probe_resp[0,:]
-            # fmt: on
+            init_step = int(2 * cols / 3)
+
+            if probe_direction == "radial":
+                dofx = num_dof * node
+                dofy = num_dof * node + 1
+
+                # fmt: off
+                operator = np.array(
+                    [[np.cos(angle), np.sin(angle)],
+                    [-np.sin(angle), np.cos(angle)]]
+                )
+
+                _probe_resp = operator @ np.vstack((self.response[dofx, init_step:], self.response[dofy, init_step:]))
+                probe_resp = _probe_resp[0,:]
+                # fmt: on
+            else:
+                dofz = num_dof * node + 2
+                probe_resp = self.response[dofz, init_step:]
 
             amp, freq = self._dfft(probe_resp, self.dt)
 
             if range_freq is not None:
                 amp = amp[(freq >= range_freq[0]) & (freq <= range_freq[1])]
-
                 freq = freq[(freq >= range_freq[0]) & (freq <= range_freq[1])]
 
             fig.add_trace(
@@ -88,8 +115,8 @@ class Fault(ABC):
                     x=freq,
                     y=amp,
                     mode="lines",
-                    name=f"Probe {i + 1} - Node {p[0]}",
-                    legendgroup=f"Probe {i + 1} - Node {p[0]}",
+                    name=probe_tag,
+                    legendgroup=probe_tag,
                     showlegend=True,
                     hovertemplate=f"Frequency (Hz): %{{x:.2f}}<br>Amplitude (m): %{{y:.2e}}",
                 )

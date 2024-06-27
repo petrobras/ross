@@ -1903,14 +1903,14 @@ class Rotor(object):
         >>> probe_node = 3
         >>> probe_angle = np.pi / 2
         >>> probe_tag = "my_probe"  # optional
-        >>> fig = response.plot(probe=[rs.Probe(probe_node, probe_angle, probe_tag)])
+        >>> fig = response.plot(probe=[rs.Probe(probe_node, probe_angle, tag=probe_tag)])
 
         plot response for major or minor axis:
         >>> probe_node = 3
         >>> probe_angle = "major"   # for major axis
         >>> # probe_angle = "minor" # for minor axis
         >>> probe_tag = "my_probe"  # optional
-        >>> fig = response.plot(probe=[rs.Probe(probe_node, probe_angle, probe_tag)])
+        >>> fig = response.plot(probe=[rs.Probe(probe_node, probe_angle, tag=probe_tag)])
 
         To plot velocity and acceleration responses, you must change amplitude_units
         from "[length]" units to "[length]/[time]" or "[length]/[time] ** 2" respectively
@@ -2533,11 +2533,12 @@ class Rotor(object):
 
         Examples
         --------
+        >>> from ross.probe import Probe
         >>> rotor = rotor_example()
         >>> speed = 500.0
         >>> size = 1000
         >>> node = 3
-        >>> probe1 = (3, 0)
+        >>> probe1 = Probe(3, 0)
         >>> t = np.linspace(0, 10, size)
         >>> F = np.zeros((size, rotor.ndof))
         >>> F[:, 4 * node] = 10 * np.cos(2 * t)
@@ -2638,9 +2639,10 @@ class Rotor(object):
 
         Examples
         --------
+        >>> from ross.probe import Probe
         >>> from ross.faults.misalignment import misalignment_flex_parallel_example
-        >>> probe1 = (14, 0)
-        >>> probe2 = (22, 0)
+        >>> probe1 = Probe(14, 0)
+        >>> probe2 = Probe(22, 0)
         >>> response = misalignment_flex_parallel_example()
         >>> results = response.run_time_response()
         >>> fig = response.plot_dfft(probe=[probe1, probe2], range_freq=[0, 100], yaxis_type="log")
@@ -2696,9 +2698,10 @@ class Rotor(object):
 
         Examples
         --------
+        >>> from ross.probe import Probe
         >>> from ross.faults.rubbing import rubbing_example
-        >>> probe1 = (14, 0)
-        >>> probe2 = (22, 0)
+        >>> probe1 = Probe(14, 0)
+        >>> probe2 = Probe(22, 0)
         >>> response = rubbing_example()
         >>> results = response.run_time_response()
         >>> fig = response.plot_dfft(probe=[probe1, probe2], range_freq=[0, 100], yaxis_type="log")
@@ -2739,9 +2742,10 @@ class Rotor(object):
 
         Examples
         --------
+        >>> from ross.probe import Probe
         >>> from ross.faults.crack import crack_example
-        >>> probe1 = (14, 0)
-        >>> probe2 = (22, 0)
+        >>> probe1 = Probe(14, 0)
+        >>> probe2 = Probe(22, 0)
         >>> response = crack_example()
         >>> results = response.run_time_response()
         >>> fig = response.plot_dfft(probe=[probe1, probe2], range_freq=[0, 100], yaxis_type="log")
