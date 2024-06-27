@@ -47,13 +47,18 @@ from ross.results import (
 )
 from ross.shaft_element import ShaftElement, ShaftElement6DoF
 from ross.units import Q_, check_units
-from ross.utils import intersection, integrate_rotor_system, remove_axial_torsional_dofs
+from ross.utils import (
+    intersection,
+    integrate_rotor_system,
+    remove_dofs,
+    convert_6dof_to_4dof,
+)
 
 __all__ = [
     "Rotor",
     "CoAxialRotor",
     "rotor_example",
-    "rotor_example_compressor",
+    "compressor_example",
     "coaxrotor_example",
     "rotor_example_6dof",
 ]
@@ -2329,6 +2334,10 @@ class Rotor(object):
         for i, k in enumerate(stiffness_log):
             bearings = [bearing_class(b.n, kxx=k, cxx=0) for b in bearings_elements]
             rotor = self.__class__(self.shaft_elements, self.disk_elements, bearings)
+
+            if self.number_dof == 6:
+                rotor = convert_6dof_to_4dof(rotor)
+
             modal = rotor.run_modal(
                 speed=0, num_modes=num_modes, synchronous=synchronous
             )
@@ -2382,6 +2391,9 @@ class Rotor(object):
                             disk_elements=self.disk_elements,
                             bearing_elements=bearings,
                         )
+
+                        if self.number_dof == 6:
+                            rotor_critical = convert_6dof_to_4dof(rotor_critical)
 
                         modal_critical = rotor_critical.run_modal(speed=speed)
                         critical_points_modal.append(modal_critical)
@@ -2947,23 +2959,22 @@ class Rotor(object):
         aux_M = aux_rotor.M(0)
         aux_K = aux_rotor.K(0)
         aux1_K = aux_rotor_1.K(0)
-        number_dof = self.number_dof
+        num_dof = 4
 
         if self.number_dof == 6:
-            aux_M = remove_axial_torsional_dofs(aux_M)
-            aux_K = remove_axial_torsional_dofs(aux_K)
-            aux1_K = remove_axial_torsional_dofs(aux1_K)
-            number_dof = 4
+            aux_M = remove_dofs(aux_M)
+            aux_K = remove_dofs(aux_K)
+            aux1_K = remove_dofs(aux1_K)
 
         # gravity aceleration vector
         g = -9.8065
         gravity = np.zeros(len(aux_M))
-        gravity[1::number_dof] = g
+        gravity[1::num_dof] = g
         weight = aux_M @ gravity
 
         # calculates u, for [K]*(u) = (F)
         displacement = (la.solve(aux_K, weight)).flatten()
-        displacement_y = displacement[1::number_dof]
+        displacement_y = displacement[1::num_dof]
 
         # calculate forces
         nodal_forces = aux1_K @ displacement
@@ -2988,9 +2999,9 @@ class Rotor(object):
             nodal_shaft_weight[sh.n_l] += g * sh.m * (1 - sh.beam_cg / sh.L)
 
         elm_weight[-1, 1] = 0
-        aux_nodal_forces = nodal_forces[: number_dof * (self.nodes[-1] + 1)]
+        aux_nodal_forces = nodal_forces[: num_dof * (self.nodes[-1] + 1)]
 
-        reaction_forces = nodal_forces[1::number_dof] - weight[1::number_dof]
+        reaction_forces = nodal_forces[1::num_dof] - weight[1::num_dof]
 
         for bearing in aux_rotor.bearing_elements:
             bearing_force_nodal[f"node_{bearing.n:d}"] = reaction_forces[bearing.n]
@@ -3000,7 +3011,7 @@ class Rotor(object):
             disk_force_nodal[f"node_{disk.n:d}"] = -disk.m * g
             disk_force_tag[f"{disk.tag}"] = -disk.m * g
 
-        nodal_forces_y = aux_nodal_forces[1::number_dof] - nodal_shaft_weight
+        nodal_forces_y = aux_nodal_forces[1::num_dof] - nodal_shaft_weight
         elm_forces_y = np.zeros_like(elm_weight)
         elm_forces_y[:, 0] = nodal_forces_y[:-1]
         elm_forces_y[-1, 1] = -nodal_forces_y[-1]
@@ -3907,31 +3918,39 @@ def rotor_example():
     return Rotor(shaft_elem, [disk0, disk1], [bearing0, bearing1])
 
 
-def rotor_example_compressor():
+def compressor_example():
     """Create a rotor as example.
+
     This function returns an instance of a simple rotor with
     91 shaft elements, 7 disks and 2 simple bearings and 12 seals.
     The purpose of this is to make available a simple model
     so that doctest can be written using this.
+
     Returns
     -------
     An instance of a rotor object.
+
     References
     ----------
-    Autors: Timbó, R., & Ritto, T. G. (2019).
-    Title: Impact of damper seal coefficients uncertainties in rotor dynamics.
-    Paper: Journal of the Brazilian Society of Mechanical Sciences and Engineering, 41(4),165.
-    link: doi:10.1007/s40430-019-1652-8
+    Timbó, R., Ritto, T. G. (2019). Impact of damper seal coefficients uncertainties
+    in rotor dynamics. Journal of the Brazilian Society of Mechanical Sciences and
+    Engineering, 41(4),165. doi: 10.1007/s40430-019-1652-8
+
     Examples
     --------
     >>> import ross as rs
-    >>> rotor = rs.rotor_example_compressor()
-    >>> rotor.plot_rotor(nodes=5).show()
+    >>> rotor = rs.compressor_example()
+    >>> fig = rotor.plot_rotor()
+    >>> len(rotor.shaft_elements)
+    91
+    >>> len(rotor.disk_elements)
+    7
+    >>> len(rotor.bearing_elements)
+    14
     """
-    rotor_example_compressor = Rotor.load(
-        Path(__file__).parent / "tests/data/rotor_example_compressor.toml"
-    )
-    return rotor_example_compressor
+    compressor_dir = Path(__file__).parent / "tests/data/compressor_example.toml"
+
+    return Rotor.load(compressor_dir)
 
 
 def coaxrotor_example():
