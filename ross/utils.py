@@ -4,6 +4,7 @@ import numpy as np
 import pandas as pd
 from numpy import linalg as la
 from plotly import graph_objects as go
+from copy import deepcopy as copy
 
 
 class DataNotFoundError(Exception):
@@ -595,7 +596,7 @@ def get_data_from_figure(fig):
     >>> resp = rotor.run_unbalance_response(
     ...     3, 0.001, 0.0, np.linspace(0, 1000, 101)
     ... )
-    >>> fig = resp.plot_magnitude(probe=[rs.Probe(3, 0.0, "probe1"), rs.Probe(3, np.pi/2, "probe2")])
+    >>> fig = resp.plot_magnitude(probe=[rs.Probe(3, 0.0, tag="probe1"), rs.Probe(3, np.pi/2, tag="probe2")])
     >>> df = rs.get_data_from_figure(fig)
 
     Use the probe tag to navigate through pandas data
@@ -811,21 +812,24 @@ def assemble_C_K_matrices(elements, C0, K0, *args):
     return C0, K0
 
 
-def remove_axial_torsional_dofs(matrix_6dof):
-    """Removes axial and torsional degrees of freedom from a 6dof matrix.
+def remove_dofs(matrix, dofs=None):
+    """Removes specified degrees of freedom from the given matrix.
 
-    This function takes a 6dof model matrix and removes the axial and torsional DoFs,
-    resulting in a 4dof model matrix.
+    By default, this function takes a 6 dof model matrix and removes the axial and torsional dofs,
+    resulting in a 4 dof model matrix.
 
     Parameters
     ----------
-    matrix_6dof: ndarray
-        The 6dof matrix to process.
+    matrix: ndarray
+        The original matrix to process.
+    dofs: list
+        List of indices representing dofs to be removed. Default is None, but internally it considers
+        the axial and torsional dofs of a 6 dof model.
 
     Returns
     -------
-    matrix_4dof: ndarray
-        A matrix with axial and torsional dofs removed.
+    new_matrix: ndarray
+        The modified matrix with the removed dofs.
 
     Examples
     --------
@@ -833,7 +837,7 @@ def remove_axial_torsional_dofs(matrix_6dof):
     >>> rotor = rs.rotor_example_6dof()
     >>> n_nodes = rotor.nodes[-1] + 1
     >>> M_6dof = rotor.M()
-    >>> M_4dof = remove_axial_torsional_dofs(M_6dof)
+    >>> M_4dof = remove_dofs(M_6dof)
     >>> M_6dof.shape
     (42, 42)
     >>> len(M_6dof) == n_nodes * 6
@@ -843,6 +847,61 @@ def remove_axial_torsional_dofs(matrix_6dof):
     >>> len(M_4dof) == n_nodes * 4
     True
     """
-    ind = np.arange(2, len(matrix_6dof), 3)
-    matrix_4dof = np.delete(np.delete(matrix_6dof, ind, axis=0), ind, axis=1)
-    return matrix_4dof
+    if dofs is None:
+        dofs = np.arange(2, len(matrix), 3)
+
+    new_matrix = np.delete(np.delete(matrix, dofs, axis=0), dofs, axis=1)
+
+    return new_matrix
+
+
+def convert_6dof_to_4dof(rotor):
+    """Convert a 6 dof rotor model to a 4 dof model.
+
+    This function takes a 6 dof rotor model and modifies it by removing the axial and
+    torsional dofs. It adjusts the corresponding matrix methods to reflect this change.
+
+    Parameters
+    ----------
+    rotor: rs.Rotor
+        The rotor object of 6 dof model.
+
+    Returns
+    -------
+    new_rotor: rs.Rotor
+        The rotor object modified.
+
+    Examples
+    --------
+    >>> import ross as rs
+    >>> rotor = rs.rotor_example_6dof()
+    >>> rotor_mod = convert_6dof_to_4dof(rotor)
+    >>> n_nodes = rotor.nodes[-1] + 1
+    >>> M_6dof = rotor.M()
+    >>> M_4dof = rotor_mod.M()
+    >>> M_6dof.shape
+    (42, 42)
+    >>> len(M_6dof) == n_nodes * 6
+    True
+    >>> M_4dof.shape
+    (28, 28)
+    >>> len(M_4dof) == n_nodes * 4
+    True
+    """
+    # Copy the rotor object
+    new_rotor = copy(rotor)
+
+    # Modify matrix methods to get 4 dof matrices
+    new_rotor.M = lambda frequency=None, synchronous=False: remove_dofs(
+        rotor.M(frequency=frequency, synchronous=synchronous)
+    )
+    new_rotor.K = lambda frequency: remove_dofs(rotor.K(frequency))
+    new_rotor.Ksdt = lambda: remove_dofs(rotor.Ksdt())
+    new_rotor.C = lambda frequency: remove_dofs(rotor.C(frequency))
+    new_rotor.G = lambda: remove_dofs(rotor.G())
+
+    # Update number of dofs
+    new_rotor.number_dof = 4
+    new_rotor.ndof = len(new_rotor.M())
+
+    return new_rotor

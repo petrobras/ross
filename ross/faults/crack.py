@@ -58,9 +58,10 @@ class Crack(Fault):
 
     Examples
     --------
+    >>> from ross.probe import Probe
     >>> from ross.faults.crack import crack_example
-    >>> probe1 = (14, 0)
-    >>> probe2 = (22, 0)
+    >>> probe1 = Probe(14, 0)
+    >>> probe2 = Probe(22, 0)
     >>> response = crack_example()
     >>> results = response.run_time_response()
     >>> fig = response.plot_dfft(probe=[probe1, probe2], range_freq=[0, 100], yaxis_type="log")
