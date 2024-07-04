@@ -655,8 +655,8 @@ class Rotor(object):
 
         Examples
         --------
-        
-        import ross as rs
+
+        >>> import ross as rs
         >>> rotor = rs.rotor_example()
         >>> modal = rotor.run_modal(speed=0, sparse=False)
         >>> modal.wn[:2]
