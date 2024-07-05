@@ -49,7 +49,8 @@ from ross.shaft_element import ShaftElement, ShaftElement6DoF
 from ross.units import Q_, check_units
 from ross.utils import (
     intersection,
-    integrate_rotor_system,
+    newmark,
+    assemble_C_K_matrices,
     remove_dofs,
     convert_6dof_to_4dof,
 )
@@ -654,6 +655,7 @@ class Rotor(object):
 
         Examples
         --------
+
         >>> import ross as rs
         >>> rotor = rs.rotor_example()
         >>> modal = rotor.run_modal(speed=0, sparse=False)
@@ -951,15 +953,16 @@ class Rotor(object):
 
         for elm in self.elements:
             dofs = list(elm.dof_global_index.values())
+            try:
+                M = elm.M(frequency)
+            except TypeError:
+                M = elm.M()
+
             if synchronous:
                 if elm in self.shaft_elements:
-                    try:
-                        M = elm.M(frequency)
-                    except TypeError:
-                        M = elm.M()
                     G = elm.G()
                     for i in range(8):
-                        if i == 0 or i == 3 or i == 4 or i == 7:
+                        if i in (0, 3, 4, 7):
                             M[i, 0] = M[i, 0] - G[i, 1]
                             M[i, 3] = M[i, 3] + G[i, 2]
                             M[i, 4] = M[i, 4] - G[i, 5]
@@ -969,36 +972,24 @@ class Rotor(object):
                             M[i, 2] = M[i, 2] - G[i, 3]
                             M[i, 5] = M[i, 5] + G[i, 4]
                             M[i, 6] = M[i, 6] - G[i, 7]
-                    M0[np.ix_(dofs, dofs)] += M
                 elif elm in self.disk_elements:
-                    try:
-                        M = elm.M(frequency)
-                    except TypeError:
-                        M = elm.M()
                     G = elm.G()
                     M[2, 2] = M[2, 2] - G[2, 3]
                     M[3, 3] = M[3, 3] + G[3, 2]
-                    M0[np.ix_(dofs, dofs)] += M
-                else:
-                    try:
-                        M0[np.ix_(dofs, dofs)] += elm.M(frequency)
-                    except TypeError:
-                        M0[np.ix_(dofs, dofs)] += elm.M()
-            else:
-                try:
-                    M0[np.ix_(dofs, dofs)] += elm.M(frequency)
-                except TypeError:
-                    M0[np.ix_(dofs, dofs)] += elm.M()
+
+            M0[np.ix_(dofs, dofs)] += M
 
         return M0
 
-    def K(self, frequency):
+    def K(self, frequency, ignore=[]):
         """Stiffness matrix for an instance of a rotor.
 
         Parameters
         ----------
         frequency : float, optional
             Excitation frequency.
+        ignore : list, optional
+            List of elements to leave out of the matrix.
 
         Returns
         -------
@@ -1016,7 +1007,9 @@ class Rotor(object):
         """
         K0 = np.zeros((self.ndof, self.ndof))
 
-        for elm in self.elements:
+        elements = sorted(set(self.elements) - set(ignore), key=self.elements.index)
+
+        for elm in elements:
             dofs = list(elm.dof_global_index.values())
             try:
                 K0[np.ix_(dofs, dofs)] += elm.K(frequency)
@@ -1051,29 +1044,26 @@ class Rotor(object):
         """
         Ksdt0 = np.zeros((self.ndof, self.ndof))
 
-        for elm in self.shaft_elements:
-            dofs = list(elm.dof_global_index.values())
-            try:
+        if self.number_dof == 6:
+            for elm in self.shaft_elements:
+                dofs = list(elm.dof_global_index.values())
                 Ksdt0[np.ix_(dofs, dofs)] += elm.Kst()
-            except:
-                pass
 
-        for elm in self.disk_elements:
-            dofs = list(elm.dof_global_index.values())
-            try:
+            for elm in self.disk_elements:
+                dofs = list(elm.dof_global_index.values())
                 Ksdt0[np.ix_(dofs, dofs)] += elm.Kdt()
-            except:
-                pass
 
         return Ksdt0
 
-    def C(self, frequency):
+    def C(self, frequency, ignore=[]):
         """Damping matrix for an instance of a rotor.
 
         Parameters
         ----------
         frequency : float
             Excitation frequency.
+        ignore : list, optional
+            List of elements to leave out of the matrix.
 
         Returns
         -------
@@ -1091,7 +1081,9 @@ class Rotor(object):
         """
         C0 = np.zeros((self.ndof, self.ndof))
 
-        for elm in self.elements:
+        elements = sorted(set(self.elements) - set(ignore), key=self.elements.index)
+
+        for elm in elements:
             dofs = list(elm.dof_global_index.values())
             try:
                 C0[np.ix_(dofs, dofs)] += elm.C(frequency)
@@ -1457,6 +1449,67 @@ class Rotor(object):
         sys = signal.lti(A, B, C, D)
 
         return sys
+
+    def _pseudo_modal(self, speed, num_modes):
+        """Pseudo-modal method.
+
+        This method can be used to apply modal transformation to reduce model
+        of the rotor system.
+
+        Parameters
+        ----------
+        speed : float
+            Rotor speed.
+        num_modes : int
+            The number of eigenvectors to consider in the modal transformation
+            with model reduction.
+
+        Returns
+        -------
+        matrix_to_modal : callable
+            Function to transform a square matrix from physical to modal space.
+        vector_to_modal : callable
+            Function to transform a vector from physical to modal space.
+        vector_from_modal : callable
+            Function to transform a vector from modal to physical space.
+
+        Examples
+        --------
+        >>> import ross as rs
+        >>> rotor = rs.rotor_example()
+        >>> size = 10000
+        >>> node = 3
+        >>> speed = 500.0
+        >>> t = np.linspace(0, 10, size)
+        >>> F = np.zeros((size, rotor.ndof))
+        >>> F[:, rotor.number_dof * node] = 10 * np.cos(2 * t)
+        >>> F[:, rotor.number_dof * node + 1] = 10 * np.sin(2 * t)
+        >>> get_array = rotor._pseudo_modal(speed, num_modes=12)
+        >>> F_modal = get_array[1](F.T).T
+        >>> round(la.norm(F_modal), 5)
+        226.92798
+        """
+
+        M = self.M(speed)
+        K_aux = self.K(speed)
+
+        # Remove cross-coupled coefficients of bearing stiffness matrix
+        rmv_cross_coeffs = [[0, 1], [1, 0]]
+        if self.number_dof == 6:
+            rmv_cross_coeffs = [[0, 1, 0], [1, 0, 0], [0, 0, 0]]
+
+        for elm in self.bearing_elements:
+            dofs = list(elm.dof_global_index.values())
+            K_aux[np.ix_(dofs, dofs)] -= elm.K(speed) * rmv_cross_coeffs
+
+        _, modal_matrix = la.eigh(K_aux, M)
+        modal_matrix = modal_matrix[:, :num_modes]
+
+        matrix_to_modal = lambda array: (modal_matrix.T @ array) @ modal_matrix
+        vector_to_modal = lambda array: modal_matrix.T @ array
+        vector_from_modal = lambda array: modal_matrix @ array
+
+        return matrix_to_modal, vector_to_modal, vector_from_modal
 
     def transfer_matrix(self, speed=None, frequency=None, modes=None):
         """Calculate the fer matrix for the frequency response function (FRF).
@@ -1954,7 +2007,167 @@ class Rotor(object):
 
         return forced_response
 
-    def time_response(self, speed, F, t, ic=None, integrator="default", **kwargs):
+    def integrate_system(self, speed, F, t, **kwargs):
+        """Time integration for a rotor system.
+
+        This method returns the time response for a rotor given a force, time and
+        speed based on time integration with the Newmark method.
+
+        Parameters
+        ----------
+        speed : float or array_like
+            Rotor speed.
+        F : ndarray
+            Force array (needs to have the same length as time array).
+        t : ndarray
+            Time array.
+        **kwargs : optional
+            Additional keyword arguments can be passed to define the parameters
+            of the Newmark method if it is used (e.g. `gamma`, `beta`, `tol`, ...).
+            See `newmark` for more details. Other optional arguments are listed
+            below.
+        num_modes : int, optional
+            If `num_modes` is passed as argument, the pseudo-modal method is applied reducing
+            the model to the chosen number of modes.
+        add_to_RHS : callable, optional
+            An optional function that computes and returns an additional array to be added to
+            the right-hand side of the equation of motion. This function should take the time
+            step number as argument, and can take optional arguments corresponding to the current
+            state of the rotor system, including the displacements `disp_resp`, velocities
+            `velc_resp`, and acceleration `accl_resp`. It should return an array of the same
+            length as the degrees of freedom of the rotor system `rotor.ndof`. This function
+            allows for the incorporation of supplementary terms or external effects in the rotor
+            system dynamics beyond the specified force input during the time integration process.
+
+        Returns
+        -------
+        t : ndarray
+            Time values for the output.
+        yout : ndarray
+            System response.
+
+        Examples
+        --------
+        >>> import ross as rs
+        >>> rotor = rs.rotor_example()
+        >>> size = 10000
+        >>> node = 3
+        >>> speed = 500.0
+        >>> accel = 0.0
+        >>> t = np.linspace(0, 10, size)
+        >>> F = np.zeros((size, rotor.ndof))
+        >>> F[:, rotor.number_dof * node] = 10 * np.cos(2 * t)
+        >>> F[:, rotor.number_dof * node + 1] = 10 * np.sin(2 * t)
+        >>> t, yout = rotor.integrate_system(speed, F, t)
+        Running direct method
+        >>> dof = 13
+        >>> yout[:, dof] # doctest: +ELLIPSIS
+        array([0.00000000e+00, 8.49140057e-09, 4.34296767e-08, ...,
+               1.16148468e-05, 1.16492353e-05, 1.16859622e-05])
+        """
+
+        # Check if speed is array
+        try:
+            speed_is_array = len(set(speed)) > 1
+            speed_ref = np.mean(speed)
+        except:
+            speed_is_array = False
+            speed_ref = speed
+
+        # Check if the pseudo-modal method has to be applied
+        num_modes = kwargs.get("num_modes")
+
+        if num_modes and num_modes > 0:
+            print("Running pseudo-modal method, number of modes =", num_modes)
+            get_array = self._pseudo_modal(speed_ref, num_modes)
+        else:
+            print("Running direct method")
+            return_array = lambda array: array
+            get_array = [return_array for j in range(3)]
+
+        # Assemble matrices
+        M = get_array[0](kwargs.get("M", self.M()))
+        C2 = get_array[0](kwargs.get("G", self.G()))
+        K2 = get_array[0](kwargs.get("Ksdt", self.Ksdt()))
+        F = get_array[1](F.T).T
+
+        # Consider any additional RHS function (extra forces)
+        add_to_RHS = kwargs.get("add_to_RHS")
+
+        if add_to_RHS is None:
+            forces = lambda step, **curr_state: F[step, :]
+        else:
+            forces = lambda step, **curr_state: F[step, :] + get_array[1](
+                add_to_RHS(
+                    step,
+                    time_step=curr_state.get("dt"),
+                    disp_resp=get_array[2](curr_state.get("y")),
+                    velc_resp=get_array[2](curr_state.get("ydot")),
+                    accl_resp=get_array[2](curr_state.get("y2dot")),
+                )
+            )
+
+        # Depending on the conditions of the analysis,
+        # one of the three options below will be chosen.
+        if speed_is_array:
+            accel = np.gradient(speed, t)
+
+            brgs_with_var_coeffs = [
+                brg for brg in self.bearing_elements if brg.frequency is not None
+            ]
+
+            if len(brgs_with_var_coeffs):  # Option 1
+                if kwargs.get("C") or kwargs.get("K"):
+                    raise Warning(
+                        "The bearing coefficients vary with speed. Therefore, C and K matrices are not being replaced by the matrices defined as input arguments."
+                    )
+
+                C0 = self.C(speed_ref, ignore=brgs_with_var_coeffs)
+                K0 = self.K(speed_ref, ignore=brgs_with_var_coeffs)
+
+                def rotor_system(step, **current_state):
+                    Cb, Kb = assemble_C_K_matrices(
+                        brgs_with_var_coeffs, np.copy(C0), np.copy(K0), speed[step]
+                    )
+
+                    C1 = get_array[0](Cb)
+                    K1 = get_array[0](Kb)
+
+                    return (
+                        M,
+                        C1 + C2 * speed[step],
+                        K1 + K2 * accel[step],
+                        forces(step, **current_state),
+                    )
+
+            else:  # Option 2
+                C1 = get_array[0](kwargs.get("C", self.C(speed_ref)))
+                K1 = get_array[0](kwargs.get("K", self.K(speed_ref)))
+
+                rotor_system = lambda step, **current_state: (
+                    M,
+                    C1 + C2 * speed[step],
+                    K1 + K2 * accel[step],
+                    forces(step, **current_state),
+                )
+
+        else:  # Option 3
+            C1 = get_array[0](kwargs.get("C", self.C(speed_ref)))
+            K1 = get_array[0](kwargs.get("K", self.K(speed_ref)))
+
+            rotor_system = lambda step, **current_state: (
+                M,
+                C1 + C2 * speed_ref,
+                K1,
+                forces(step, **current_state),
+            )
+
+        size = len(M)
+        response = newmark(rotor_system, t, size, **kwargs)
+        yout = get_array[2](response.T).T
+        return t, yout
+
+    def time_response(self, speed, F, t, ic=None, method="default", **kwargs):
         """Time response for a rotor.
 
         This method returns the time response for a rotor
@@ -1971,15 +2184,15 @@ class Rotor(object):
             Time array. (must have the same length than lti.B matrix)
         ic : array, optional
             The initial conditions on the state vector (zero by default).
-        integrator : str, optional
-            The Newmark method can be chosen by setting `integrator='newmark'`.
+        method : str, optional
+            The Newmark method can be chosen by setting `method='newmark'`.
         **kwargs : optional
             Additional keyword arguments can be passed to define the parameters
             of the Newmark method if it is used (e.g. gamma, beta, tol, ...).
             See `ross.utils.newmark` for more details.
             Other keyword arguments can also be passed to be used in numerical
             integration (e.g. num_modes, add_to_RHS).
-            See `ross.utils.integrate_rotor_system` for more details.
+            See `Rotor.integrate_system` for more details.
 
         Returns
         -------
@@ -2002,8 +2215,8 @@ class Rotor(object):
         """
         speed_is_array = isinstance(speed, (list, tuple, np.ndarray))
 
-        if speed_is_array or integrator.lower() == "newmark":
-            t_, yout = integrate_rotor_system(self, speed, F, t, **kwargs)
+        if speed_is_array or method.lower() == "newmark":
+            t_, yout = self.integrate_system(speed, F, t, **kwargs)
             return t_, yout, []
 
         else:
@@ -2494,7 +2707,7 @@ class Rotor(object):
 
         return results
 
-    def run_time_response(self, speed, F, t, integrator="default", **kwargs):
+    def run_time_response(self, speed, F, t, method="default", **kwargs):
         """Calculate the time response.
 
         This function will take a rotor object and calculate its time response
@@ -2515,15 +2728,15 @@ class Rotor(object):
             Each column corresponds to a dof and each row to a time.
         t : array
             Time array.
-        integrator : str, optional
-            The Newmark method can be chosen by setting `integrator='newmark'`.
+        method : str, optional
+            The Newmark method can be chosen by setting `method='newmark'`.
         **kwargs : optional
             Additional keyword arguments can be passed to define the parameters
             of the Newmark method if it is used (e.g. gamma, beta, tol, ...).
             See `ross.utils.newmark` for more details.
             Other keyword arguments can also be passed to be used in numerical
             integration (e.g. num_modes, add_to_RHS).
-            See `ross.utils.integrate_rotor_system` for more details.
+            See `Rotor.integrate_system` for more details.
 
         Returns
         -------
@@ -2554,9 +2767,7 @@ class Rotor(object):
         >>> # plot orbit response - plotting 3D orbits - full rotor model:
         >>> fig3 = response.plot_3d()
         """
-        t_, yout, xout = self.time_response(
-            speed, F, t, integrator=integrator, **kwargs
-        )
+        t_, yout, xout = self.time_response(speed, F, t, method=method, **kwargs)
 
         results = TimeResponseResults(self, t, yout, xout)
 
