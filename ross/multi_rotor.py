@@ -1,4 +1,5 @@
 from copy import deepcopy as copy
+from plotly import graph_objects as go
 
 from ross.disk_element import DiskElement6DoF
 from ross.rotor_assembly import Rotor
@@ -16,6 +17,71 @@ class GearElement(DiskElement6DoF):
         self.radius = radius  # Base circle radius
 
         super().__init__(n, m, Id, Ip, tag, scale_factor, color)
+
+    def _patch(self, position, fig):
+
+        zpos, ypos, yc_pos, scale_factor = position
+        scale_factor *= 1.3
+        radius = self.radius * 1.1 + 0.05
+
+        z_upper = [
+            zpos + scale_factor / 25,
+            zpos + scale_factor / 25,
+            zpos - scale_factor / 25,
+            zpos - scale_factor / 25,
+        ]
+        y_upper = [ypos, ypos + radius, ypos + radius, ypos]
+
+        z_lower = [
+            zpos + scale_factor / 25,
+            zpos + scale_factor / 25,
+            zpos - scale_factor / 25,
+            zpos - scale_factor / 25,
+        ]
+        y_lower = [-ypos, -ypos - radius, -ypos - radius, -ypos]
+
+        z_pos = z_upper
+        z_pos.append(None)
+        z_pos.extend(z_lower)
+
+        y_pos = y_upper
+        y_upper.append(None)
+        y_pos.extend(y_lower)
+
+        customdata = [self.n, self.Ip, self.Id, self.m, self.radius]
+        hovertemplate = (
+            f"Gear Node: {customdata[0]}<br>"
+            + f"Polar Inertia: {customdata[1]:.3e}<br>"
+            + f"Diametral Inertia: {customdata[2]:.3e}<br>"
+            + f"Gear Mass: {customdata[3]:.3f}<br>"
+            + f"Gear Radius: {customdata[4]:.3f}<br>"
+        )
+
+        fig.add_trace(
+            go.Scatter(
+                x=z_pos,
+                y=[y + yc_pos if y is not None else None for y in y_pos],
+                customdata=[customdata] * len(z_pos),
+                text=hovertemplate,
+                mode="lines",
+                fill="toself",
+                fillcolor=self.color,
+                fillpattern=dict(
+                    shape="/", fgcolor="rgba(0, 0, 0, 0.2)", bgcolor=self.color
+                ),
+                opacity=0.8,
+                line=dict(width=2.0, color="rgba(0, 0, 0, 0.2)"),
+                showlegend=False,
+                name=self.tag,
+                legendgroup="gears",
+                hoveron="points+fills",
+                hoverinfo="text",
+                hovertemplate=hovertemplate,
+                hoverlabel=dict(bgcolor=self.color),
+            )
+        )
+
+        return fig
 
 
 class MultiRotor(Rotor):
