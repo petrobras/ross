@@ -145,6 +145,7 @@ class Rotor(object):
     ):
         self.parameters = {"min_w": min_w, "max_w": max_w, "rated_w": rated_w}
         self.tag = "Rotor 0" if tag is None else tag
+        isMultiRotor = type(self) not in (Rotor, CoAxialRotor)
 
         ####################################################
         # Config attributes
@@ -174,7 +175,7 @@ class Rotor(object):
         for i, sh in enumerate(shaft_elements):
             if sh.n is None:
                 sh.n = i
-            if sh.tag is None:
+            if sh.tag is None or isMultiRotor:
                 sh.tag = "ShaftElement " + str(i)
 
         if disk_elements is None:
@@ -185,21 +186,21 @@ class Rotor(object):
             point_mass_elements = []
 
         for i, disk in enumerate(disk_elements):
-            if disk.tag is None:
+            if disk.tag is None or isMultiRotor:
                 disk.tag = "Disk " + str(i)
 
         for i, brg in enumerate(bearing_elements):
             # add n_l and n_r to bearing elements
             brg.n_l = brg.n
             brg.n_r = brg.n
-            if brg.tag is None:
+            if brg.tag is None or isMultiRotor:
                 if isinstance(brg, SealElement):
                     brg.tag = "Seal " + str(i)
                 else:
                     brg.tag = "Bearing " + str(i)
 
         for i, p_mass in enumerate(point_mass_elements):
-            if p_mass.tag is None:
+            if p_mass.tag is None or isMultiRotor:
                 p_mass.tag = "Point Mass " + str(i)
 
         self.shaft_elements = sorted(shaft_elements, key=lambda el: el.n)
