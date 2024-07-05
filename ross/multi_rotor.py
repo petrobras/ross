@@ -1,3 +1,4 @@
+from re import search
 from copy import deepcopy as copy
 from plotly import graph_objects as go
 
@@ -94,6 +95,7 @@ class MultiRotor(Rotor):
         gear_ratio,
         gear_mesh_stiffness,
         pressure_angle=Q_(25, "deg"),
+        position="above",
     ):
 
         self.rotors = [rotor_1, rotor_2]
@@ -124,6 +126,35 @@ class MultiRotor(Rotor):
             gear_2 = gear_2[0]
 
         self.gears = [gear_1, gear_2]
+
+        gear1_plot = next(
+            (
+                elm
+                for elm in R1.plot_rotor().data
+                if elm["legendgroup"] == "gears"
+                and int(search(r"Gear Node: (\d+)", elm.text).group(1)) == gear_1.n
+            ),
+            None,
+        )
+
+        gear2_plot = next(
+            (
+                elm
+                for elm in R2.plot_rotor().data
+                if elm["legendgroup"] == "gears"
+                and int(search(r"Gear Node: (\d+)", elm.text).group(1)) == gear_2.n
+            ),
+            None,
+        )
+
+        if position == "above":
+            ymax = max(y for y in gear1_plot["y"] if y is not None)
+            ymin = min(y for y in gear2_plot["y"] if y is not None)
+            self.dy_pos = +abs(ymax - ymin)
+        else:
+            ymax = max(y for y in gear2_plot["y"] if y is not None)
+            ymin = min(y for y in gear1_plot["y"] if y is not None)
+            self.dy_pos = -abs(ymax - ymin)
 
         idx1 = R1.nodes.index(gear_1.n)
         idx2 = R2.nodes.index(gear_2.n)
@@ -165,3 +196,6 @@ class MultiRotor(Rotor):
 
         R2_nodes_pos = [pos + self.dz_pos for pos in self.rotors[1].nodes_pos]
         self.nodes_pos = [*self.rotors[0].nodes_pos, *R2_nodes_pos]
+
+        R2_center_line = [pos + self.dy_pos for pos in self.rotors[1].center_line_pos]
+        self.center_line_pos = [*self.rotors[0].center_line_pos, *R2_center_line]
