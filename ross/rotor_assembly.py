@@ -321,10 +321,11 @@ class Rotor(object):
             raise ValueError("Trying to set disk or bearing outside shaft")
 
         # nodes axial position and diameter
-        nodes_pos = list(df_shaft.groupby("n_l")["nodes_pos_l"].max())
-        nodes_pos.append(df_shaft["nodes_pos_r"].iloc[-1])
-        self.nodes_pos = nodes_pos
-        self.nodes = list(range(len(self.nodes_pos)))
+        self.nodes_pos = list(df_shaft.groupby("n_l")["nodes_pos_l"].max())
+        self.nodes_pos.append(df_shaft["nodes_pos_r"].iloc[-1])
+
+        self.nodes = list(df_shaft.groupby("n_l")["n_l"].max())
+        self.nodes.append(df_shaft["n_r"].iloc[-1])
 
         nodes_i_d = []
         for n in self.nodes:
@@ -347,7 +348,7 @@ class Rotor(object):
         shaft_elements_length = list(df_shaft.groupby("n_l")["L"].min())
         self.shaft_elements_length = shaft_elements_length
 
-        self.L = nodes_pos[-1]
+        self.L = self.nodes_pos[-1]
 
         if "n_link" in df.columns:
             self.link_nodes = list(df["n_link"].dropna().unique().astype(int))
@@ -364,7 +365,10 @@ class Rotor(object):
             [(sh.m * sh.axial_cg_pos) / self.m for sh in self.shaft_elements]
         )
         CG_dsk = np.sum(
-            [disk.m * nodes_pos[disk.n] / self.m for disk in self.disk_elements]
+            [
+                disk.m * self.nodes_pos[self.nodes.index(disk.n)] / self.m
+                for disk in self.disk_elements
+            ]
         )
         self.CG = CG_sh + CG_dsk
 
@@ -377,8 +381,8 @@ class Rotor(object):
         # number of dofs
         half_ndof = self.number_dof / 2
         self.ndof = int(
-            self.number_dof * (max([el.n for el in shaft_elements]) + 2)
-            + half_ndof * len([el for el in point_mass_elements])
+            self.number_dof * len(self.nodes)
+            + half_ndof * len(self.point_mass_elements)
         )
 
         # global indexes for dofs
@@ -437,9 +441,10 @@ class Rotor(object):
             )
 
         # define positions for disks
-        for disk in disk_elements:
-            z_pos = nodes_pos[disk.n]
-            y_pos = nodes_o_d[disk.n]
+        for disk in self.disk_elements:
+            i = self.nodes.index(disk.n)
+            z_pos = self.nodes_pos[i]
+            y_pos = self.nodes_o_d[i] / 2
             df.loc[df.tag == disk.tag, "nodes_pos_l"] = z_pos
             df.loc[df.tag == disk.tag, "nodes_pos_r"] = z_pos
             df.loc[df.tag == disk.tag, "y_pos"] = y_pos
@@ -530,7 +535,7 @@ class Rotor(object):
                     )
                     / 2
                 )
-            mean_od = np.mean(nodes_o_d)
+            mean_od = np.mean(self.nodes_o_d)
             # use a 0.5 factor here based on plot experience for real machines
             scale_size = 0.5 * dfb["scale_factor"] * mean_od
             y_pos_sup = y_pos + 2 * scale_size
@@ -655,7 +660,6 @@ class Rotor(object):
 
         Examples
         --------
-
         >>> import ross as rs
         >>> rotor = rs.rotor_example()
         >>> modal = rotor.run_modal(speed=0, sparse=False)
@@ -2294,7 +2298,8 @@ class Rotor(object):
         text = []
         x_pos = []
         y_pos = np.linspace(0, 0, len(nodes_pos[::nodes]))
-        for node, position in enumerate(nodes_pos[::nodes]):
+        for i, position in enumerate(nodes_pos[::nodes]):
+            node = self.nodes[i]
             text.append("{}".format(node * nodes))
             x_pos.append(position)
 
@@ -2317,7 +2322,8 @@ class Rotor(object):
 
         # plot shaft elements
         for sh_elm in self.shaft_elements:
-            position = self.nodes_pos[sh_elm.n]
+            i = self.nodes.index(sh_elm.n)
+            position = self.nodes_pos[i]
             fig = sh_elm._patch(position, check_sld, fig, length_units)
 
         mean_od = np.mean(nodes_o_d)
@@ -2337,7 +2343,17 @@ class Rotor(object):
                     scale_factor = disk._scale_factor_calculated
                 step = scale_factor * mean_od
 
-                position = (nodes_pos[disk.n], nodes_o_d[disk.n] / 2, step)
+                z_pos = (
+                    Q_(self.df[self.df.tag == disk.tag]["nodes_pos_l"].values[0], "m")
+                    .to(length_units)
+                    .m
+                )
+                y_pos = (
+                    Q_(self.df[self.df.tag == disk.tag]["y_pos"].values[0], "m")
+                    .to(length_units)
+                    .m
+                )
+                position = (z_pos, y_pos, step)
                 fig = disk._patch(position, fig)
 
         # plot bearings
