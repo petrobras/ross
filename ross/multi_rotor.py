@@ -1,3 +1,4 @@
+import numpy as np
 from re import search
 from copy import deepcopy as copy
 from plotly import graph_objects as go
@@ -199,3 +200,44 @@ class MultiRotor(Rotor):
 
         R2_center_line = [pos + self.dy_pos for pos in self.rotors[1].center_line_pos]
         self.center_line_pos = [*self.rotors[0].center_line_pos, *R2_center_line]
+
+    def _join_matrices(self, matrix_1, matrix_2):
+
+        global_matrix = np.zeros((self.ndof, self.ndof))
+
+        ndof1 = self.rotors[0].ndof
+        global_matrix[:ndof1, :ndof1] = matrix_1
+        global_matrix[ndof1:, ndof1:] = matrix_2
+
+        return global_matrix
+
+    def M(self, frequency=None, synchronous=False):
+
+        return self._join_matrices(
+            self.rotors[0].M(frequency, synchronous),
+            self.rotors[1].M(frequency * self.gear_ratio, synchronous),
+        )
+
+    def K(self, frequency, ignore=[]):
+
+        K0 = self._join_matrices(
+            self.rotors[0].K(frequency, ignore),
+            self.rotors[1].K(frequency * self.gear_ratio, ignore),
+        )
+
+        return K0
+
+    def Ksdt(self):
+
+        return self._join_matrices(self.rotors[0].Ksdt(), self.rotors[1].Ksdt())
+
+    def C(self, frequency, ignore=[]):
+
+        return self._join_matrices(
+            self.rotors[0].C(frequency, ignore),
+            self.rotors[1].C(frequency * self.gear_ratio, ignore),
+        )
+
+    def G(self):
+
+        return self._join_matrices(self.rotors[0].G(), self.rotors[1].G())
