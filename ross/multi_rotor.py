@@ -59,6 +59,24 @@ class MultiRotor(Rotor):
 
         self.gears = [gear_1, gear_2]
 
+        idx1 = R1.nodes.index(gear_1.n)
+        idx2 = R2.nodes.index(gear_2.n)
+        self.dz_pos = R1.nodes_pos[idx1] - R1.nodes_pos[idx2]
+
+        R1_max_node = max([*R1.nodes, *R1.link_nodes])
+        R2_min_node = min([*R2.nodes, *R2.link_nodes])
+        d_node = 0
+        if R1_max_node >= R2_min_node:
+            d_node = R1_max_node + 1
+            for elm in R2.elements:
+                elm.n += d_node
+                try:
+                    elm.n_link += d_node
+                except:
+                    pass
+
+        self.R2_nodes = [n + d_node for n in R2.nodes]
+
         shaft_elements = [*R1.shaft_elements, *R2.shaft_elements]
         disk_elements = [*R1.disk_elements, *R2.disk_elements]
         bearing_elements = [*R1.bearing_elements, *R2.bearing_elements]
@@ -67,3 +85,17 @@ class MultiRotor(Rotor):
         super().__init__(
             shaft_elements, disk_elements, bearing_elements, point_mass_elements
         )
+
+    def _fix_nodes_pos(self, index, node, nodes_pos_l):
+        if node < self.R2_nodes[0]:
+            nodes_pos_l[index] = self.rotors[0].nodes_pos[
+                self.rotors[0].nodes.index(node)
+            ]
+        elif node == self.R2_nodes[0]:
+            nodes_pos_l[index] = self.rotors[1].nodes_pos[0] + self.dz_pos
+
+    def _fix_nodes(self):
+        self.nodes = [*self.rotors[0].nodes, *self.R2_nodes]
+
+        R2_nodes_pos = [pos + self.dz_pos for pos in self.rotors[1].nodes_pos]
+        self.nodes_pos = [*self.rotors[0].nodes_pos, *R2_nodes_pos]

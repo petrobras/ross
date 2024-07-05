@@ -285,6 +285,8 @@ class Rotor(object):
                 nodes_pos_r[i] = nodes_pos_r[i - 1]
             else:
                 nodes_pos_l[i] = nodes_pos_r[i - 1]
+                if isMultiRotor:
+                    self._fix_nodes_pos(i, sh.n, nodes_pos_l)
                 nodes_pos_r[i] = nodes_pos_l[i] + df_shaft.loc[i, "L"]
             axial_cg_pos[i] = sh.beam_cg + nodes_pos_l[i]
             sh.axial_cg_pos = axial_cg_pos[i]
@@ -327,6 +329,9 @@ class Rotor(object):
 
         self.nodes = list(df_shaft.groupby("n_l")["n_l"].max())
         self.nodes.append(df_shaft["n_r"].iloc[-1])
+
+        if isMultiRotor:
+            self._fix_nodes()
 
         nodes_i_d = []
         for n in self.nodes:
