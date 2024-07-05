@@ -1372,15 +1372,20 @@ class Rotor(object):
                 try:
                     evalues, evectors = las.eigs(
                         A,
-                        k=num_modes,
+                        k=2 * num_modes,
                         sigma=1,
-                        ncv=2 * num_modes,
+                        ncv=4 * num_modes,
                         which="LM",
                         v0=self._v0,
                     )
                     # store v0 as a linear combination of the previously
                     # calculated eigenvectors to use in the next call to eigs
                     self._v0 = np.real(sum(evectors.T))
+
+                    # Disregard rigid body modes:
+                    idx = np.where(np.abs(evalues) > 0.1)[0]
+                    evalues = evalues[idx]
+                    evectors = evectors[:, idx]
                 except las.ArpackError:
                     evalues, evectors = la.eig(A)
             else:
