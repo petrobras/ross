@@ -268,7 +268,7 @@ class PointMass(Element):
         fig : plotly.graph_objects.Figure
             The figure object which traces are added on.
         """
-        zpos, ypos = position
+        zpos, ypos, yc_pos = position
         radius = ypos / 12
 
         customdata = [self.n, self.mx, self.my]
@@ -281,7 +281,7 @@ class PointMass(Element):
         fig.add_trace(
             go.Scatter(
                 x=[zpos, zpos],
-                y=[ypos, -ypos],
+                y=np.add([ypos, -ypos], yc_pos),
                 customdata=[customdata] * 2,
                 text=hovertemplate,
                 mode="markers",
@@ -301,9 +301,9 @@ class PointMass(Element):
                 xref="x",
                 yref="y",
                 x0=zpos - radius,
-                y0=ypos - radius,
+                y0=ypos - radius + yc_pos,
                 x1=zpos + radius,
-                y1=ypos + radius,
+                y1=ypos + radius + yc_pos,
                 fillcolor=self.color,
                 line_color="black",
             )
@@ -314,9 +314,9 @@ class PointMass(Element):
                 xref="x",
                 yref="y",
                 x0=zpos - radius,
-                y0=-ypos - radius,
+                y0=-ypos - radius + yc_pos,
                 x1=zpos + radius,
-                y1=-ypos + radius,
+                y1=-ypos + radius + yc_pos,
                 fillcolor=self.color,
                 line_color="black",
             )
@@ -501,7 +501,7 @@ class PointMass6DoF(PointMass):
         fig : plotly.graph_objects.Figure
             The figure object which traces are added on.
         """
-        zpos, ypos = position
+        zpos, ypos, yc_pos = position
         radius = ypos / 12
 
         customdata = [self.n, self.mx, self.my, self.mz]
@@ -515,7 +515,7 @@ class PointMass6DoF(PointMass):
         fig.add_trace(
             go.Scatter(
                 x=[zpos, zpos],
-                y=[ypos, -ypos],
+                y=np.add([ypos, -ypos], yc_pos),
                 customdata=[customdata] * 2,
                 text=hovertemplate,
                 mode="markers",
@@ -535,9 +535,9 @@ class PointMass6DoF(PointMass):
                 xref="x",
                 yref="y",
                 x0=zpos - radius,
-                y0=ypos - radius,
+                y0=ypos - radius + yc_pos,
                 x1=zpos + radius,
-                y1=ypos + radius,
+                y1=ypos + radius + yc_pos,
                 fillcolor=self.color,
                 line_color="black",
             )
@@ -548,9 +548,9 @@ class PointMass6DoF(PointMass):
                 xref="x",
                 yref="y",
                 x0=zpos - radius,
-                y0=-ypos - radius,
+                y0=-ypos - radius + yc_pos,
                 x1=zpos + radius,
-                y1=-ypos + radius,
+                y1=-ypos + radius + yc_pos,
                 fillcolor=self.color,
                 line_color="black",
             )

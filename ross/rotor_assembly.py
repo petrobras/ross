@@ -330,6 +330,8 @@ class Rotor(object):
         self.nodes = list(df_shaft.groupby("n_l")["n_l"].max())
         self.nodes.append(df_shaft["n_r"].iloc[-1])
 
+        self.center_line_pos = [0] * len(self.nodes)
+
         if isMultiRotor:
             self._fix_nodes()
 
@@ -2290,6 +2292,7 @@ class Rotor(object):
 
         nodes_pos = Q_(self.nodes_pos, "m").to(length_units).m
         nodes_o_d = Q_(self.nodes_o_d, "m").to(length_units).m
+        center_line_pos = Q_(self.center_line_pos, "m").to(length_units).m
 
         fig = go.Figure()
 
@@ -2315,6 +2318,7 @@ class Rotor(object):
             node = self.nodes[i]
             text.append("{}".format(node * nodes))
             x_pos.append(position)
+            y_pos[i] = center_line_pos[i]
 
         fig.add_trace(
             go.Scatter(
@@ -2336,7 +2340,10 @@ class Rotor(object):
         # plot shaft elements
         for sh_elm in self.shaft_elements:
             i = self.nodes.index(sh_elm.n)
-            position = self.nodes_pos[i]
+            z_pos = self.nodes_pos[i]
+            yc_pos = self.center_line_pos[i]
+
+            position = (z_pos, yc_pos)
             fig = sh_elm._patch(position, check_sld, fig, length_units)
 
         mean_od = np.mean(nodes_o_d)
@@ -2366,7 +2373,8 @@ class Rotor(object):
                     .to(length_units)
                     .m
                 )
-                position = (z_pos, y_pos, step)
+                yc_pos = center_line_pos[self.nodes.index(disk.n)]
+                position = (z_pos, y_pos, yc_pos, step)
                 fig = disk._patch(position, fig)
 
         # plot bearings
@@ -2386,7 +2394,15 @@ class Rotor(object):
                 .to(length_units)
                 .m
             )
-            position = (z_pos, y_pos, y_pos_sup)
+            node = bearing.n
+            if node in self.link_nodes:
+                linked_bearing = next(
+                    (elm for elm in self.bearing_elements if elm.n_link == node), None
+                )
+                node = linked_bearing.n
+            yc_pos = center_line_pos[self.nodes.index(node)]
+
+            position = (z_pos, y_pos, y_pos_sup, yc_pos)
             bearing._patch(position, fig)
 
         # plot point mass
@@ -2401,7 +2417,15 @@ class Rotor(object):
                 .to(length_units)
                 .m
             )
-            position = (z_pos, y_pos)
+            node = p_mass.n
+            if node in self.link_nodes:
+                linked_bearing = next(
+                    (elm for elm in self.bearing_elements if elm.n_link == node), None
+                )
+                node = linked_bearing.n
+            yc_pos = center_line_pos[self.nodes.index(node)]
+
+            position = (z_pos, y_pos, yc_pos)
             fig = p_mass._patch(position, fig)
 
         fig.update_xaxes(

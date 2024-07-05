@@ -934,10 +934,12 @@ class ShaftElement(Element):
             color = self.material.color
             legend = "Shaft"
 
+        z_pos, yc_pos = position
+
         # plot the shaft
-        z_upper = [position, position, position + self.L, position + self.L, position]
+        z_upper = [z_pos, z_pos, z_pos + self.L, z_pos + self.L, z_pos]
         y_upper = [self.idl / 2, self.odl / 2, self.odr / 2, self.idr / 2, self.idl / 2]
-        z_lower = [position, position, position + self.L, position + self.L, position]
+        z_lower = [z_pos, z_pos, z_pos + self.L, z_pos + self.L, z_pos]
         y_lower = [
             -self.idl / 2,
             -self.odl / 2,
@@ -1004,7 +1006,7 @@ class ShaftElement(Element):
         fig.add_trace(
             go.Scatter(
                 x=Q_(z_pos, "m").to(units).m,
-                y=Q_(y_pos, "m").to(units).m,
+                y=Q_(np.add(y_pos, yc_pos), "m").to(units).m,
                 customdata=[customdata] * len(z_pos),
                 text=hovertemplate,
                 mode="lines",
