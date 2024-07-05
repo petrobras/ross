@@ -225,6 +225,39 @@ class MultiRotor(Rotor):
             self.rotors[1].K(frequency * self.gear_ratio, ignore),
         )
 
+        # Coupling
+        beta = self.pressure_angle
+        k_g = self.gear_mesh_stiffness
+
+        r1 = self.gears[0].radius
+        r2 = self.gears[1].radius
+
+        S = np.sin(beta)
+        C = np.cos(beta)
+
+        # fmt: off
+        coupling_matrix = np.array([
+            [   S**2,  S * C, 0, 0, 0,  r1 * S,   -S**2,  -S * C, 0, 0, 0,  r2 * S],
+            [  S * C,   C**2, 0, 0, 0,  r1 * C,  -S * C,   -C**2, 0, 0, 0,  r2 * C],
+            [      0,      0, 0, 0, 0,       0,       0,       0, 0, 0, 0,       0],
+            [      0,      0, 0, 0, 0,       0,       0,       0, 0, 0, 0,       0],
+            [      0,      0, 0, 0, 0,       0,       0,       0, 0, 0, 0,       0],
+            [ r1 * S, r1 * C, 0, 0, 0,   r1**2, -r1 * S, -r1 * C, 0, 0, 0, r1 * r2],
+            [  -S**2, -S * C, 0, 0, 0, -r1 * S,    S**2,   S * C, 0, 0, 0, -r2 * S],
+            [ -S * C,  -C**2, 0, 0, 0, -r1 * C,   S * C,    C**2, 0, 0, 0, -r2 * C],
+            [      0,      0, 0, 0, 0,       0,       0,       0, 0, 0, 0,       0],
+            [      0,      0, 0, 0, 0,       0,       0,       0, 0, 0, 0,       0],
+            [      0,      0, 0, 0, 0,       0,       0,       0, 0, 0, 0,       0],
+            [ r2 * S, r2 * C, 0, 0, 0, r1 * r2, -r2 * S, -r2 * C, 0, 0, 0,   r2**2],
+        ]) * k_g
+        # fmt: on
+
+        dofs_1 = self.gears[0].dof_global_index.values()
+        dofs_2 = self.gears[1].dof_global_index.values()
+        dofs = [*dofs_1, *dofs_2]
+
+        K0[np.ix_(dofs, dofs)] += coupling_matrix
+
         return K0
 
     def Ksdt(self):
