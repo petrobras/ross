@@ -97,6 +97,7 @@ class MultiRotor(Rotor):
         gear_mesh_stiffness,
         pressure_angle=Q_(25, "deg"),
         position="above",
+        tag=None,
     ):
 
         self.rotors = [rotor_1, rotor_2]
@@ -181,7 +182,11 @@ class MultiRotor(Rotor):
         point_mass_elements = [*R1.point_mass_elements, *R2.point_mass_elements]
 
         super().__init__(
-            shaft_elements, disk_elements, bearing_elements, point_mass_elements
+            shaft_elements,
+            disk_elements,
+            bearing_elements,
+            point_mass_elements,
+            tag=tag,
         )
 
     def _fix_nodes_pos(self, index, node, nodes_pos_l):

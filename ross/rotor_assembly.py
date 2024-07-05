@@ -144,8 +144,12 @@ class Rotor(object):
         tag=None,
     ):
         self.parameters = {"min_w": min_w, "max_w": max_w, "rated_w": rated_w}
-        self.tag = "Rotor 0" if tag is None else tag
         isMultiRotor = type(self) not in (Rotor, CoAxialRotor)
+
+        if tag is None:
+            self.tag = "MultiRotor 0" if isMultiRotor else "Rotor 0"
+        else:
+            self.tag = tag
 
         ####################################################
         # Config attributes
