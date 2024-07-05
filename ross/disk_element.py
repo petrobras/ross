@@ -103,6 +103,9 @@ class DiskElement(Element):
                         pass
                     else:
                         false_number += 1
+
+                except KeyError:
+                    false_number += 1
         else:
             false_number += 1
 
