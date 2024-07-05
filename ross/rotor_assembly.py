@@ -499,7 +499,7 @@ class Rotor(object):
         for z_pos in z_positions:
             dfb_z_pos = dfb[dfb.nodes_pos_l == z_pos]
             dfb_z_pos = dfb_z_pos.sort_values(by="n_l")
-            if z_pos == df_shaft["nodes_pos_l"].iloc[0]:
+            try:
                 y_pos = (
                     max(
                         df_shaft["odl"][
@@ -508,43 +508,50 @@ class Rotor(object):
                     )
                     / 2
                 )
-            elif z_pos == df_shaft["nodes_pos_r"].iloc[-1]:
-                y_pos = (
-                    max(
-                        df_shaft["odr"][
-                            df_shaft.n_r == int(dfb_z_pos.iloc[0]["n_r"])
-                        ].values
+            except ValueError:
+                try:
+                    y_pos = (
+                        max(
+                            df_shaft["odr"][
+                                df_shaft.n_r == int(dfb_z_pos.iloc[0]["n_r"])
+                            ].values
+                        )
+                        / 2
                     )
-                    / 2
-                )
-            else:
-                y_pos = (
-                    max(
-                        [
-                            max(
-                                df_shaft["odl"][
-                                    df_shaft._n == int(dfb_z_pos.iloc[0]["n_l"])
-                                ].values
-                            ),
-                            max(
-                                df_shaft["odr"][
-                                    df_shaft._n == int(dfb_z_pos.iloc[0]["n_l"]) - 1
-                                ].values
-                            ),
-                        ]
+                except ValueError:
+                    y_pos = (
+                        max(
+                            [
+                                max(
+                                    df_shaft["odl"][
+                                        df_shaft._n == int(dfb_z_pos.iloc[0]["n_l"])
+                                    ].values
+                                ),
+                                max(
+                                    df_shaft["odr"][
+                                        df_shaft._n == int(dfb_z_pos.iloc[0]["n_l"]) - 1
+                                    ].values
+                                ),
+                            ]
+                        )
+                        / 2
                     )
-                    / 2
-                )
             mean_od = np.mean(self.nodes_o_d)
             # use a 0.5 factor here based on plot experience for real machines
             scale_size = 0.5 * dfb["scale_factor"] * mean_od
             y_pos_sup = y_pos + 2 * scale_size
 
             for t in dfb_z_pos.tag:
-                df.loc[df.tag == t, "y_pos"] = y_pos
-                df.loc[df.tag == t, "y_pos_sup"] = y_pos_sup
-                y_pos += mean_od * df["scale_factor"][df.tag == t].values[0]
-                y_pos_sup += mean_od * df["scale_factor"][df.tag == t].values[0]
+                if df.loc[df.tag == t, "n_l"].values[0] in self.link_nodes:
+                    df.loc[df.tag == t, "y_pos"] = (
+                        y_pos + mean_od * df["scale_factor"][df.tag == t].values[0]
+                    )
+                    df.loc[df.tag == t, "y_pos_sup"] = (
+                        y_pos_sup + mean_od * df["scale_factor"][df.tag == t].values[0]
+                    )
+                else:
+                    df.loc[df.tag == t, "y_pos"] = y_pos
+                    df.loc[df.tag == t, "y_pos_sup"] = y_pos_sup
 
         # define position for point mass elements
         dfb = df[df.type.isin(classes)]
