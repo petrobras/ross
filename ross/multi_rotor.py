@@ -267,7 +267,9 @@ class MultiRotor(Rotor):
 
     def Ksdt(self):
 
-        return self._join_matrices(self.rotors[0].Ksdt(), self.rotors[1].Ksdt())
+        return self._join_matrices(
+            self.rotors[0].Ksdt(), self.rotors[1].Ksdt() * self.gear_ratio
+        )
 
     def C(self, frequency, ignore=[]):
 
@@ -278,4 +280,6 @@ class MultiRotor(Rotor):
 
     def G(self):
 
-        return self._join_matrices(self.rotors[0].G(), self.rotors[1].G())
+        return self._join_matrices(
+            self.rotors[0].G(), self.rotors[1].G() * self.gear_ratio
+        )
