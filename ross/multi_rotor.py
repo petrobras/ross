@@ -11,16 +11,65 @@ __all__ = ["GearElement", "MultiRotor"]
 
 
 class GearElement(DiskElement6DoF):
+    """A gear element.
+
+    This class creates a gear element from input data of inertia and mass.
+
+    Parameters
+    ----------
+    n: int
+        Node in which the gear will be inserted.
+    m : float
+        Mass of the gear element.
+    Id : float
+        Diametral moment of inertia.
+    Ip : float
+        Polar moment of inertia
+    radius : float
+        Base circle radius of the gear.
+    tag : str, optional
+        A tag to name the element
+        Default is None
+    scale_factor: float or str, optional
+        The scale factor is used to scale the gear drawing.
+        For gears it is also possible to provide 'mass' as the scale factor.
+        In this case the code will calculate scale factors for each gear based
+        on the gear with the higher mass. Notice that in this case you have to
+        create all gears with the scale_factor='mass'.
+        Default is 1.
+    color : str, optional
+        A color to be used when the element is represented.
+        Default is 'Goldenrod'.
+
+    Examples
+    --------
+    """
 
     def __init__(
         self, n, m, Id, Ip, radius, tag=None, scale_factor=1.0, color="Goldenrod"
     ):
 
-        self.radius = radius  # Base circle radius
+        self.radius = radius
 
         super().__init__(n, m, Id, Ip, tag, scale_factor, color)
 
     def _patch(self, position, fig):
+        """Gear element patch.
+
+        Patch that will be used to draw the gear element using plotly library.
+
+        Parameters
+        ----------
+        position : float
+            Position in which the patch will be drawn.
+        fig : plotly.graph_objects.Figure
+            The figure object which traces are added on.
+
+        Returns
+        -------
+        fig : plotly.graph_objects.Figure
+            The figure object which traces are added on.
+        """
 
         zpos, ypos, yc_pos, scale_factor = position
         scale_factor *= 1.3
@@ -87,6 +136,40 @@ class GearElement(DiskElement6DoF):
 
 
 class MultiRotor(Rotor):
+    """A class representing a multi-rotor system.
+
+    This class creates a system comprising multiple rotors, with the specified driver rotor and driving rotor.
+    For systems with more than two rotors, multiple multi-rotors can be nested.
+
+    Parameters
+    ----------
+    rotor_1 : rs.Rotor
+        The driver rotor object.
+    rotor_2 : rs.Rotor
+        The driving rotor object.
+    coupled_nodes : tuple of int
+        Tuple specifying the coupled nodes, where the first node corresponds to the driver rotor and
+        the second node corresponds to the driving rotor.
+    gear_ratio : float
+        The gear ratio between the rotors.
+    gear_mesh_stiffness : float
+        The stiffness of the gear mesh.
+    pressure_angle : float, optional
+        The pressure angle of the coupled gears in radians. Default is 25° (converted to radians).
+    position : {'above', 'below'}, optional
+        The relative position of the driving rotor with respect to the driver rotor when plotting
+        the multi-rotor. Default is 'above'.
+    tag : str, optional
+        A tag to identify the multi-rotor. Default is None.
+
+    Returns
+    -------
+    rotor : rs.Rotor
+        The created multi-rotor object.
+
+    Examples
+    --------
+    """
 
     def __init__(
         self,
@@ -103,7 +186,7 @@ class MultiRotor(Rotor):
         self.rotors = [rotor_1, rotor_2]
         self.gear_ratio = gear_ratio
         self.gear_mesh_stiffness = gear_mesh_stiffness
-        self.pressure_angle = pressure_angle  # 20° -- 25°
+        self.pressure_angle = pressure_angle
 
         if rotor_1.number_dof != 6 or rotor_2.number_dof != 6:
             raise TypeError("Rotors must be modeled with 6 degrees of freedom!")
@@ -207,6 +290,24 @@ class MultiRotor(Rotor):
         self.center_line_pos = [*self.rotors[0].center_line_pos, *R2_center_line]
 
     def _join_matrices(self, matrix_1, matrix_2):
+        """Join matrices from the driver rotor and driving rotor to form the matrix of
+        the coupled system.
+
+        Parameters
+        ----------
+        matrix_1 : np.ndarray
+            The matrix from the driver rotor.
+        matrix_2 : np.ndarray
+            The matrix from the driving rotor.
+
+        Returns
+        -------
+        global_matrix : np.ndarray
+            The combined matrix of the coupled system.
+
+        Examples
+        --------
+        """
 
         global_matrix = np.zeros((self.ndof, self.ndof))
 
@@ -217,6 +318,22 @@ class MultiRotor(Rotor):
         return global_matrix
 
     def M(self, frequency=None, synchronous=False):
+        """Mass matrix for a multi-rotor.
+
+        Parameters
+        ----------
+        synchronous : bool, optional
+            If True a synchronous analysis is carried out.
+            Default is False.
+
+        Returns
+        -------
+        M0 : np.ndarray
+            Mass matrix for the multi-rotor.
+
+        Examples
+        --------
+        """
 
         return self._join_matrices(
             self.rotors[0].M(frequency, synchronous),
@@ -224,6 +341,23 @@ class MultiRotor(Rotor):
         )
 
     def K(self, frequency, ignore=[]):
+        """Stiffness matrix for a multi-rotor.
+
+        Parameters
+        ----------
+        frequency : float, optional
+            Excitation frequency.
+        ignore : list, optional
+            List of elements to leave out of the matrix.
+
+        Returns
+        -------
+        K0 : np.ndarray
+            Stiffness matrix for the multi-rotor.
+
+        Examples
+        --------
+        """
 
         K0 = self._join_matrices(
             self.rotors[0].K(frequency, ignore),
@@ -266,12 +400,45 @@ class MultiRotor(Rotor):
         return K0
 
     def Ksdt(self):
+        """Dynamic stiffness matrix for a multi-rotor.
+
+        Stiffness matrix associated with the transient motion of the
+        shaft and disks. For time-dependent analyses, this matrix needs to be
+        multiplied by the angular acceleration. Therefore, the stiffness matrix
+        of the driving rotor is scaled by the gear ratio before being combined
+        with the driver rotor matrix.
+
+        Returns
+        -------
+        Ksdt0 : np.ndarray
+            Dynamic stiffness matrix for the multi-rotor.
+
+        Examples
+        --------
+        """
 
         return self._join_matrices(
             self.rotors[0].Ksdt(), self.rotors[1].Ksdt() * self.gear_ratio
         )
 
     def C(self, frequency, ignore=[]):
+        """Damping matrix for a multi-rotor rotor.
+
+        Parameters
+        ----------
+        frequency : float
+            Excitation frequency.
+        ignore : list, optional
+            List of elements to leave out of the matrix.
+
+        Returns
+        -------
+        C0 : np.ndarray
+            Damping matrix for the multi-rotor.
+
+        Examples
+        --------
+        """
 
         return self._join_matrices(
             self.rotors[0].C(frequency, ignore),
@@ -279,6 +446,20 @@ class MultiRotor(Rotor):
         )
 
     def G(self):
+        """Gyroscopic matrix for a multi-rotor.
+
+        For time-dependent analyses, this matrix needs to be multiplied by the
+        rotor speed. Therefore, the gyroscopic matrix of the driving rotor is
+        scaled by the gear ratio before being combined with the driver rotor matrix.
+
+        Returns
+        -------
+        G0 : np.ndarray
+            Gyroscopic matrix for the multi-rotor.
+
+        Examples
+        --------
+        """
 
         return self._join_matrices(
             self.rotors[0].G(), self.rotors[1].G() * self.gear_ratio
