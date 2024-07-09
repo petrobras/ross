@@ -180,7 +180,7 @@ class Rotor(object):
             if sh.n is None:
                 sh.n = i
             if sh.tag is None or isMultiRotor:
-                sh.tag = "ShaftElement " + str(i)
+                sh.tag = sh.get_class_name_prefix(i)
 
         if disk_elements is None:
             disk_elements = []
@@ -191,21 +191,18 @@ class Rotor(object):
 
         for i, disk in enumerate(disk_elements):
             if disk.tag is None or isMultiRotor:
-                disk.tag = "Disk " + str(i)
+                disk.tag = disk.get_class_name_prefix(i)
 
         for i, brg in enumerate(bearing_elements):
             # add n_l and n_r to bearing elements
             brg.n_l = brg.n
             brg.n_r = brg.n
             if brg.tag is None or isMultiRotor:
-                if isinstance(brg, SealElement):
-                    brg.tag = "Seal " + str(i)
-                else:
-                    brg.tag = "Bearing " + str(i)
+                brg.tag = brg.get_class_name_prefix(i)
 
         for i, p_mass in enumerate(point_mass_elements):
             if p_mass.tag is None or isMultiRotor:
-                p_mass.tag = "Point Mass " + str(i)
+                p_mass.tag = p_mass.get_class_name_prefix(i)
 
         self.shaft_elements = sorted(shaft_elements, key=lambda el: el.n)
         self.bearing_elements = sorted(bearing_elements, key=lambda el: el.n)
