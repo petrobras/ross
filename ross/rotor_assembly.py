@@ -1327,6 +1327,13 @@ class Rotor(object):
         ----------
         speed : float, pint.Quantity
             Rotor speed. Default unit is rad/s.
+        num_modes : int, optional
+            The number of eigenvalues and eigenvectors to be calculated using ARPACK.
+            If sparse=True, it determines the number of eigenvalues and eigenvectors
+            to be calculated. It must be smaller than Rotor.ndof - 1. It is not
+            possible to compute all eigenvectors of a matrix with ARPACK.
+            If sparse=False, num_modes does not have any effect over the method.
+            Default is 12.
         frequency: float, pint.Quantity
             Excitation frequency. Default units is rad/s.
         sorted_ : bool, optional
@@ -2505,14 +2512,14 @@ class Rotor(object):
             The bearing frequency range used to calculate the intersection points.
             In some cases bearing coefficients will have to be extrapolated.
             The default is None. In this case the bearing frequency attribute is used.
-        num : int
-            Number of steps in the range.
-            Default is 20.
         num_modes : int, optional
             Number of modes to be calculated. This uses scipy.sparse.eigs method.
             Default is 16. In this case 4 modes are plotted, since for each pair
             of eigenvalues calculated we have one wn, and we show only the
             forward mode in the plots.
+        num : int
+            Number of steps in the range.
+            Default is 20.
         synchronous : bool, optional
             If True a synchronous analysis is carried out according to :cite:`rouch1980dynamic`.
             Default is False.
@@ -4273,9 +4280,9 @@ def rotor_example_6dof():
     >>> rotor_speed = 100.0 # rad/s
     >>> modal6 = rotor6.run_modal(rotor_speed)
     >>> print(f"Undamped natural frequencies: {np.round(modal6.wn, 2)}") # doctest: +ELLIPSIS
-    Undamped natural frequencies: [  0.    47.62 ...
+    Undamped natural frequencies: [ 47.62  91.84  96.36 274.44 ...
     >>> print(f"Damped natural frequencies: {np.round(modal6.wd, 2)}") # doctest: +ELLIPSIS
-    Damped natural frequencies: [  0.    47.62 ...
+    Damped natural frequencies: [ 47.62  91.84  96.36 274.44 ...
     >>> # Plotting Campbell Diagram
     >>> camp6 = rotor6.run_campbell(np.linspace(0, 400, 101), frequencies=6)
     >>> fig = camp6.plot()

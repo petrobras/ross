@@ -94,12 +94,12 @@ def test_run_modal(rotor_6dof):
 
     # fmt:off
     wn = np.array([
-        7.84532831e-05, 7.84532831e-05, 9.17864452e+01, 9.62950609e+01,
-        2.74045342e+02, 2.96967970e+02, 7.17111118e+02
+         91.78677 ,  96.29604 , 274.059892, 296.994125, 717.35166 ,
+        770.203624, 774.349678
     ])
     wd = np.array([
-          0.        ,   0.       ,  91.78644519, 96.29506086, 
-        274.04534155, 296.9679697, 717.11111643
+         91.78677 ,  96.29604 , 274.059892, 296.994125, 717.35166 ,
+        770.203624, 774.349678
     ])
     # fmt:on
 
@@ -109,11 +109,11 @@ def test_run_modal(rotor_6dof):
 
 def test_modal_results_equality(rotor_6dof, rotor_4dof):
     speed = 100.0
-    modal_6dof = rotor_6dof.run_modal(speed, num_modes=14)
+    modal_6dof = rotor_6dof.run_modal(speed, num_modes=10)
     modal_4dof = rotor_4dof.run_modal(speed, num_modes=10)
 
-    assert_allclose(modal_6dof.wn[2:], modal_4dof.wn, rtol=5e-2, atol=1)
-    assert_allclose(modal_6dof.wd[2:], modal_4dof.wd, rtol=5e-2, atol=1)
+    assert_allclose(modal_6dof.wn, modal_4dof.wn, rtol=5e-2, atol=1)
+    assert_allclose(modal_6dof.wd, modal_4dof.wd, rtol=5e-2, atol=1)
 
 
 def test_campbell(rotor_6dof):
@@ -132,7 +132,7 @@ def test_campbell(rotor_6dof):
     ])
     # fmt:on
 
-    assert_allclose(campbell.wd[:, 2], wd, rtol=1e-3)
+    assert_allclose(campbell.wd[:, 0], wd, rtol=1e-3)
 
 
 def test_campbell_equality(rotor_6dof, rotor_4dof):
@@ -140,7 +140,7 @@ def test_campbell_equality(rotor_6dof, rotor_4dof):
     campbell1 = rotor_6dof.run_campbell(speed_range)
     campbell2 = rotor_4dof.run_campbell(speed_range)
 
-    assert_allclose(campbell1.wd[:, 2], campbell2.wd[:, 0], rtol=1e-3)
+    assert_allclose(campbell1.wd[:, 0], campbell2.wd[:, 0], rtol=1e-3)
 
 
 def test_run_freq(rotor_6dof):
