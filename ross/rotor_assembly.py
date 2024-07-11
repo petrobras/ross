@@ -380,9 +380,9 @@ class Rotor(object):
             global_dof_mapping = {}
             for k, v in dof_mapping.items():
                 dof_letter, dof_number = k.split("_")
-                global_dof_mapping[dof_letter + "_" + str(int(dof_number) + elm.n)] = (
-                    int(v)
-                )
+                global_dof_mapping[
+                    dof_letter + "_" + str(int(dof_number) + elm.n)
+                ] = int(v)
 
             if elm.n <= n_last + 1:
                 for k, v in global_dof_mapping.items():
@@ -424,9 +424,9 @@ class Rotor(object):
                         )
 
             elm.dof_global_index = global_dof_mapping
-            df.at[df.loc[df.tag == elm.tag].index[0], "dof_global_index"] = (
-                elm.dof_global_index
-            )
+            df.at[
+                df.loc[df.tag == elm.tag].index[0], "dof_global_index"
+            ] = elm.dof_global_index
 
         # define positions for disks
         for disk in disk_elements:
@@ -3302,6 +3302,60 @@ class Rotor(object):
             tag=tag,
         )
 
+    @classmethod
+    def to_ross_only(cls, rotor):
+        """Convert rotor with rsxl objects to ross only."""
+        bearings_seals_rs = []
+        for b in rotor.bearing_elements:
+            if isinstance(b, SealElement):
+                bearings_seals_rs.append(
+                    SealElement(
+                        n=b.n,
+                        kxx=b.kxx,
+                        kxy=b.kxy,
+                        kyx=b.kyx,
+                        kyy=b.kyy,
+                        cxx=b.cxx,
+                        cxy=b.cxy,
+                        cyx=b.cyx,
+                        cyy=b.cyy,
+                        frequency=b.frequency,
+                        tag=b.tag,
+                        color=b.color,
+                        n_link=b.n_link,
+                        seal_leakage=b.seal_leakage,
+                    )
+                )
+            else:
+                bearings_seals_rs.append(
+                    BearingElement(
+                        n=b.n,
+                        kxx=b.kxx,
+                        kxy=b.kxy,
+                        kyx=b.kyx,
+                        kyy=b.kyy,
+                        cxx=b.cxx,
+                        cxy=b.cxy,
+                        cyx=b.cyx,
+                        cyy=b.cyy,
+                        frequency=b.frequency,
+                        tag=b.tag,
+                        color=b.color,
+                        n_link=b.n_link,
+                    )
+                )
+
+        return cls(
+            rotor.shaft_elements,
+            rotor.disk_elements,
+            bearings_seals_rs,
+            rotor.point_mass_elements,
+            min_w=rotor.min_w,
+            max_w=rotor.max_w,
+            rated_w=rotor.rated_w,
+            tag=rotor.tag,
+        )
+
 
 class CoAxialRotor(Rotor):
     r"""A rotor object.
@@ -3709,9 +3763,9 @@ class CoAxialRotor(Rotor):
                     )
 
             elm.dof_global_index = global_dof_mapping
-            df.at[df.loc[df.tag == elm.tag].index[0], "dof_global_index"] = (
-                elm.dof_global_index
-            )
+            df.at[
+                df.loc[df.tag == elm.tag].index[0], "dof_global_index"
+            ] = elm.dof_global_index
 
         # define positions for disks
         for disk in disk_elements:
