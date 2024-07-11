@@ -7,9 +7,7 @@ a number of options, for the formulation of 6 DoFs (degrees of freedom).
 import time
 
 import numpy as np
-import scipy as sp
-import scipy.integrate
-import scipy.linalg
+from scipy import linalg as la
 
 import ross
 from ross.units import Q_, check_units
@@ -74,9 +72,10 @@ class MisalignmentFlex(Fault):
 
     Examples
     --------
+    >>> from ross.probe import Probe
     >>> from ross.faults.misalignment import misalignment_flex_parallel_example
-    >>> probe1 = (14, 0)
-    >>> probe2 = (22, 0)
+    >>> probe1 = Probe(14, 0)
+    >>> probe2 = Probe(22, 0)
     >>> response = misalignment_flex_parallel_example()
     >>> results = response.run_time_response()
     >>> fig = response.plot_dfft(probe=[probe1, probe2], range_freq=[0, 100], yaxis_type="log")
@@ -201,7 +200,7 @@ class MisalignmentFlex(Fault):
         self.M = self.rotor.M(self.speed)
         self.Ksdt = self.rotor.Ksdt()
 
-        _, ModMat = scipy.linalg.eigh(self.K, self.M, type=1, turbo=False)
+        _, ModMat = la.eigh(self.K, self.M)
         ModMat = ModMat[:, :12]
         self.ModMat = ModMat
 
@@ -549,9 +548,10 @@ class MisalignmentRigid(Fault):
 
     Examples
     --------
+    >>> from ross.probe import Probe
     >>> from ross.faults.misalignment import misalignment_rigid_example
-    >>> probe1 = (14, 0)
-    >>> probe2 = (22, 0)
+    >>> probe1 = Probe(14, 0)
+    >>> probe2 = Probe(22, 0)
     >>> response = misalignment_rigid_example()
     >>> results = response.run_time_response()
     >>> fig = response.plot_dfft(probe=[probe1, probe2], range_freq=[0, 100], yaxis_type="log")
@@ -650,7 +650,7 @@ class MisalignmentRigid(Fault):
         self.M = self.rotor.M(self.speed)
         self.Ksdt = self.rotor.Ksdt()
 
-        _, ModMat = scipy.linalg.eigh(self.K, self.M, type=1, turbo=False)
+        _, ModMat = la.eigh(self.K, self.M)
         ModMat = ModMat[:, :12]
         self.ModMat = ModMat
 

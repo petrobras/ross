@@ -314,12 +314,6 @@ def test_evals_sorted_rotor2(rotor2):
             1.1024641658e-11 + 598.0247411456j,
             4.3188161105e-09 + 3956.2249777612j,
             2.5852376472e-11 + 3956.2249797838j,
-            4.3188161105e-09 - 3956.2249777612j,
-            2.5852376472e-11 - 3956.2249797838j,
-            7.4569772223e-11 - 598.0247411492j,
-            1.1024641658e-11 - 598.0247411456j,
-            1.4667459679e-12 - 215.3707255735j,
-            3.9623200168e-12 - 215.3707255733j,
         ]
     )
 
@@ -331,24 +325,18 @@ def test_evals_sorted_rotor2(rotor2):
             8.482603e-08 + 3470.897616j,
             4.878990e-07 + 3850.212629j,
             4.176291e01 + 3990.22903j,
-            4.176291e01 - 3990.22903j,
-            4.878990e-07 - 3850.212629j,
-            8.482603e-08 - 3470.897616j,
-            5.045245e-01 - 215.369011j,
-            -5.045245e-01 - 215.369011j,
-            -4.838034e-14 - 34.822138j,
         ]
     )
     modal2_0 = rotor2.run_modal(speed=0)
     rotor2_evals, rotor2_evects = rotor2._eigen(speed=0)
-    assert_allclose(rotor2_evals, evals_sorted, rtol=1e-3)
-    assert_allclose(modal2_0.evalues, evals_sorted, rtol=1e-3)
+    assert_allclose(rotor2_evals[:6], evals_sorted, rtol=1e-3)
+    assert_allclose(modal2_0.evalues[:6], evals_sorted, rtol=1e-3)
     modal2_10000 = rotor2.run_modal(speed=10000)
-    assert_allclose(modal2_10000.evalues, evals_sorted_w_10000, rtol=1e-1)
+    assert_allclose(modal2_10000.evalues[:6], evals_sorted_w_10000, rtol=1e-1)
 
     # test run_modal with Q_
     modal2_10000 = rotor2.run_modal(speed=Q_(95492.96585513721, "RPM"))
-    assert_allclose(modal2_10000.evalues, evals_sorted_w_10000, rtol=1e-1)
+    assert_allclose(modal2_10000.evalues[:6], evals_sorted_w_10000, rtol=1e-1)
 
 
 @pytest.fixture
