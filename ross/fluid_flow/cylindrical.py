@@ -2946,7 +2946,7 @@ class THDCylindrical(BearingElement):
         Ss = S
 
         return Ss
-    
+
     def bearing_representation(self, fig=None, rotation=90, **kwargs):
         """Plot the bearing representation.
 
@@ -2967,36 +2967,43 @@ class THDCylindrical(BearingElement):
         """
         if fig is None:
             fig = go.Figure()
-            
+
         groove = (360 / self.n_pad) - self.betha_s_dg
         hG = groove / 2
 
         pads = [hG, self.betha_s_dg, hG] * self.n_pad
-        colors = ['#F5F5DC', '#929591', '#F5F5DC'] * self.n_pad
+        colors = ["#F5F5DC", "#929591", "#F5F5DC"] * self.n_pad
 
         fig = go.Figure(data=[go.Pie(values=pads, hole=0.85)])
-        fig.update_traces(sort=False, hoverinfo='label',textinfo='none', marker=dict(colors=colors, line=dict(color='#FFFFFF', width=20)), rotation=rotation)
+        fig.update_traces(
+            sort=False,
+            hoverinfo="label",
+            textinfo="none",
+            marker=dict(colors=colors, line=dict(color="#FFFFFF", width=20)),
+            rotation=rotation,
+        )
 
         fig.add_annotation(
-            x = self.load_x_direction, 
-            y = self.load_y_direction, 
-            ax = 0, 
-            ay = 0, 
-            xref = 'x', 
-            yref = 'y',
-            axref = 'x', 
-            ayref = 'y',
+            x=self.load_x_direction,
+            y=self.load_y_direction,
+            ax=0,
+            ay=0,
+            xref="x",
+            yref="y",
+            axref="x",
+            ayref="y",
             showarrow=True,
-            arrowhead = 3, #style arrow
+            arrowhead=3,  # style arrow
             arrowsize=2.5,
             arrowwidth=3,
-            arrowcolor='green')
-        
+            arrowcolor="green",
+        )
+
         fig.update_layout(
             showlegend=False,
             xaxis=dict(showgrid=False, zeroline=False, showticklabels=False),
             yaxis=dict(showgrid=False, zeroline=False, showticklabels=False),
-            **kwargs
+            **kwargs,
         )
         fig.update_xaxes(showline=False)
         fig.update_yaxes(showline=False)
