@@ -388,9 +388,9 @@ class Rotor(object):
             global_dof_mapping = {}
             for k, v in dof_mapping.items():
                 dof_letter, dof_number = k.split("_")
-                global_dof_mapping[
-                    dof_letter + "_" + str(int(dof_number) + elm.n)
-                ] = int(v)
+                global_dof_mapping[dof_letter + "_" + str(int(dof_number) + elm.n)] = (
+                    int(v)
+                )
 
             if elm.n <= n_last + 1:
                 for k, v in global_dof_mapping.items():
@@ -432,9 +432,9 @@ class Rotor(object):
                         )
 
             elm.dof_global_index = global_dof_mapping
-            df.at[
-                df.loc[df.tag == elm.tag].index[0], "dof_global_index"
-            ] = elm.dof_global_index
+            df.at[df.loc[df.tag == elm.tag].index[0], "dof_global_index"] = (
+                elm.dof_global_index
+            )
 
         # define positions for disks
         for disk in disk_elements:
@@ -4010,9 +4010,9 @@ class CoAxialRotor(Rotor):
                     )
 
             elm.dof_global_index = global_dof_mapping
-            df.at[
-                df.loc[df.tag == elm.tag].index[0], "dof_global_index"
-            ] = elm.dof_global_index
+            df.at[df.loc[df.tag == elm.tag].index[0], "dof_global_index"] = (
+                elm.dof_global_index
+            )
 
         # define positions for disks
         for disk in disk_elements:
