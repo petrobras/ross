@@ -327,7 +327,7 @@ class MultiRotor(Rotor):
 
         idx1 = R1.nodes.index(gear_1.n)
         idx2 = R2.nodes.index(gear_2.n)
-        self.dz_pos = R1.nodes_pos[idx1] - R1.nodes_pos[idx2]
+        self.dz_pos = R1.nodes_pos[idx1] - R2.nodes_pos[idx2]
 
         R1_max_node = max([*R1.nodes, *R1.link_nodes])
         R2_min_node = min([*R2.nodes, *R2.link_nodes])
@@ -419,10 +419,16 @@ class MultiRotor(Rotor):
         --------
         """
 
-        return self._join_matrices(
-            self.rotors[0].M(frequency, synchronous),
-            self.rotors[1].M(frequency * self.gear_ratio, synchronous),
-        )
+        if frequency is None:
+            return self._join_matrices(
+                self.rotors[0].M(synchronous=synchronous),
+                self.rotors[1].M(synchronous=synchronous),
+            )
+        else:
+            return self._join_matrices(
+                self.rotors[0].M(frequency, synchronous),
+                self.rotors[1].M(frequency * self.gear_ratio, synchronous),
+            )
 
     def K(self, frequency, ignore=[]):
         """Stiffness matrix for a multi-rotor.
