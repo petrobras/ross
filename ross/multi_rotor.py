@@ -25,11 +25,13 @@ class GearElement(DiskElement6DoF):
         Diametral moment of inertia.
     Ip : float
         Polar moment of inertia
-    radius : float
-        Base circle radius of the gear.
+    pitch_diameter : float
+        Pitch diameter of the gear.
+    pressure_angle : float, optional
+        The pressure angle of the gear in radians. Default is 20° (converted to radians).
     tag : str, optional
-        A tag to name the element
-        Default is None
+        A tag to name the element.
+        Default is None.
     scale_factor: float or str, optional
         The scale factor is used to scale the gear drawing.
         For gears it is also possible to provide 'mass' as the scale factor.
@@ -46,12 +48,98 @@ class GearElement(DiskElement6DoF):
     """
 
     def __init__(
-        self, n, m, Id, Ip, radius, tag=None, scale_factor=1.0, color="Goldenrod"
+        self,
+        n,
+        m,
+        Id,
+        Ip,
+        pitch_diameter,
+        pressure_angle=Q_(20, "deg"),
+        tag=None,
+        scale_factor=1.0,
+        color="Goldenrod",
     ):
 
-        self.radius = radius
+        self.base_radius = pitch_diameter * np.cos(pressure_angle) / 2
+        self.pressure_angle = pressure_angle
 
         super().__init__(n, m, Id, Ip, tag, scale_factor, color)
+
+    @classmethod
+    def from_geometry(
+        cls,
+        n,
+        material,
+        width,
+        i_d,
+        o_d,
+        pressure_angle=Q_(20, "deg"),
+        tag=None,
+        scale_factor=1.0,
+        color="Goldenrod",
+    ):
+        """Create a gear element from geometry properties.
+
+        This class method will create a gear element from geometry data.
+        Properties are calculated as per :cite:`friswell2010dynamics`, appendix 1
+        for a hollow cylinder:
+
+        Mass:
+
+        :math:`m = \\rho \\pi w (d_o^2 - d_i^2) / 4`
+
+        Polar moment of inertia:
+
+        :math:`I_p = m (d_o^2 + d_i^2) / 8`
+
+        Diametral moment of inertia:
+
+        :math:`I_d = \\frac{1}{2} I_p + \\frac{1}{12} m w^2`
+
+        Where :math:`\\rho` is the material density, :math:`w` is the gear width,
+        :math:`d_o` is the outer diameter and :math:`d_i` is the inner diameter.
+
+        Parameters
+        ----------
+        n : int
+            Node in which the gear will be inserted.
+        material: ross.Material
+            Gear material.
+        width : float
+            The face width of the gear (considering that the gear body has the same thickness).
+        i_d : float
+            Inner diameter (the diameter of the shaft on which the gear is mounted).
+        o_d : float
+            Outer pitch diameter.
+        pressure_angle : float, optional
+            The pressure angle of the gear in radians. Default is 20° (converted to radians).
+        tag : str, optional
+            A tag to name the element
+            Default is None
+        scale_factor: float, optional
+            The scale factor is used to scale the disk drawing.
+            Default is 1.
+        color : str, optional
+            A color to be used when the element is represented.
+            Default is 'Goldenrod'.
+
+        Attributes
+        ----------
+        m : float
+            Mass of the gear element.
+        Id : float
+            Diametral moment of inertia.
+        Ip : float
+            Polar moment of inertia
+
+        Examples
+        --------
+        """
+        m = material.rho * np.pi * width * (o_d**2 - i_d**2) / 4
+        Ip = m * (o_d**2 + i_d**2) / 8
+        Id = 1 / 2 * Ip + 1 / 12 * m * width**2
+
+        return cls(n, m, Id, Ip, o_d, pressure_angle, tag, scale_factor, color)
 
     def _patch(self, position, fig):
         """Gear element patch.
@@ -73,7 +161,7 @@ class GearElement(DiskElement6DoF):
 
         zpos, ypos, yc_pos, scale_factor = position
         scale_factor *= 1.3
-        radius = self.radius * 1.1 + 0.05
+        radius = self.base_radius * 1.1 + 0.05
 
         z_upper = [
             zpos + scale_factor / 25,
@@ -99,13 +187,13 @@ class GearElement(DiskElement6DoF):
         y_upper.append(None)
         y_pos.extend(y_lower)
 
-        customdata = [self.n, self.Ip, self.Id, self.m, self.radius]
+        customdata = [self.n, self.Ip, self.Id, self.m, self.base_radius * 2]
         hovertemplate = (
             f"Gear Node: {customdata[0]}<br>"
             + f"Polar Inertia: {customdata[1]:.3e}<br>"
             + f"Diametral Inertia: {customdata[2]:.3e}<br>"
             + f"Gear Mass: {customdata[3]:.3f}<br>"
-            + f"Gear Radius: {customdata[4]:.3f}<br>"
+            + f"Gear Base Diam.: {customdata[4]:.3f}<br>"
         )
 
         fig.add_trace(
@@ -138,26 +226,24 @@ class GearElement(DiskElement6DoF):
 class MultiRotor(Rotor):
     """A class representing a multi-rotor system.
 
-    This class creates a system comprising multiple rotors, with the specified driver rotor and driving rotor.
+    This class creates a system comprising multiple rotors, with the specified drive rotor and driven rotor.
     For systems with more than two rotors, multiple multi-rotors can be nested.
 
     Parameters
     ----------
-    rotor_1 : rs.Rotor
-        The driver rotor object.
-    rotor_2 : rs.Rotor
-        The driving rotor object.
+    drive_rotor : rs.Rotor
+        The drive rotor object.
+    driven_rotor : rs.Rotor
+        The driven rotor object.
     coupled_nodes : tuple of int
-        Tuple specifying the coupled nodes, where the first node corresponds to the driver rotor and
-        the second node corresponds to the driving rotor.
+        Tuple specifying the coupled nodes, where the first node corresponds to the drive rotor and
+        the second node corresponds to the driven rotor.
     gear_ratio : float
         The gear ratio between the rotors.
     gear_mesh_stiffness : float
         The stiffness of the gear mesh.
-    pressure_angle : float, optional
-        The pressure angle of the coupled gears in radians. Default is 25° (converted to radians).
     position : {'above', 'below'}, optional
-        The relative position of the driving rotor with respect to the driver rotor when plotting
+        The relative position of the driven rotor with respect to the drive rotor when plotting
         the multi-rotor. Default is 'above'.
     tag : str, optional
         A tag to identify the multi-rotor. Default is None.
@@ -173,26 +259,24 @@ class MultiRotor(Rotor):
 
     def __init__(
         self,
-        rotor_1,
-        rotor_2,
+        drive_rotor,
+        driven_rotor,
         coupled_nodes,
         gear_ratio,
         gear_mesh_stiffness,
-        pressure_angle=Q_(25, "deg"),
         position="above",
         tag=None,
     ):
 
-        self.rotors = [rotor_1, rotor_2]
+        self.rotors = [drive_rotor, driven_rotor]
         self.gear_ratio = gear_ratio
         self.gear_mesh_stiffness = gear_mesh_stiffness
-        self.pressure_angle = pressure_angle
 
-        if rotor_1.number_dof != 6 or rotor_2.number_dof != 6:
+        if drive_rotor.number_dof != 6 or driven_rotor.number_dof != 6:
             raise TypeError("Rotors must be modeled with 6 degrees of freedom!")
 
-        R1 = copy(rotor_1)
-        R2 = copy(rotor_2)
+        R1 = copy(drive_rotor)
+        R2 = copy(driven_rotor)
 
         gear_1 = [
             elm
@@ -289,16 +373,16 @@ class MultiRotor(Rotor):
         R2_center_line = [pos + self.dy_pos for pos in self.rotors[1].center_line_pos]
         self.center_line_pos = [*self.rotors[0].center_line_pos, *R2_center_line]
 
-    def _join_matrices(self, matrix_1, matrix_2):
-        """Join matrices from the driver rotor and driving rotor to form the matrix of
+    def _join_matrices(self, drive_matrix, driven_matrix):
+        """Join matrices from the drive rotor and driven rotor to form the matrix of
         the coupled system.
 
         Parameters
         ----------
-        matrix_1 : np.ndarray
-            The matrix from the driver rotor.
-        matrix_2 : np.ndarray
-            The matrix from the driving rotor.
+        drive_matrix : np.ndarray
+            The matrix from the drive rotor.
+        driven_matrix : np.ndarray
+            The matrix from the driven rotor.
 
         Returns
         -------
@@ -311,9 +395,9 @@ class MultiRotor(Rotor):
 
         global_matrix = np.zeros((self.ndof, self.ndof))
 
-        ndof1 = self.rotors[0].ndof
-        global_matrix[:ndof1, :ndof1] = matrix_1
-        global_matrix[ndof1:, ndof1:] = matrix_2
+        first_ndof = self.rotors[0].ndof
+        global_matrix[:first_ndof, :first_ndof] = drive_matrix
+        global_matrix[first_ndof:, first_ndof:] = driven_matrix
 
         return global_matrix
 
@@ -365,11 +449,11 @@ class MultiRotor(Rotor):
         )
 
         # Coupling
-        beta = self.pressure_angle
+        beta = self.gears[0].pressure_angle
         k_g = self.gear_mesh_stiffness
 
-        r1 = self.gears[0].radius
-        r2 = self.gears[1].radius
+        r1 = self.gears[0].base_radius
+        r2 = self.gears[1].base_radius
 
         S = np.sin(beta)
         C = np.cos(beta)
@@ -405,8 +489,8 @@ class MultiRotor(Rotor):
         Stiffness matrix associated with the transient motion of the
         shaft and disks. For time-dependent analyses, this matrix needs to be
         multiplied by the angular acceleration. Therefore, the stiffness matrix
-        of the driving rotor is scaled by the gear ratio before being combined
-        with the driver rotor matrix.
+        of the driven rotor is scaled by the gear ratio before being combined
+        with the drive rotor matrix.
 
         Returns
         -------
@@ -449,8 +533,8 @@ class MultiRotor(Rotor):
         """Gyroscopic matrix for a multi-rotor.
 
         For time-dependent analyses, this matrix needs to be multiplied by the
-        rotor speed. Therefore, the gyroscopic matrix of the driving rotor is
-        scaled by the gear ratio before being combined with the driver rotor matrix.
+        rotor speed. Therefore, the gyroscopic matrix of the driven rotor is
+        scaled by the gear ratio before being combined with the drive rotor matrix.
 
         Returns
         -------
