@@ -1675,6 +1675,70 @@ class CampbellResults(Results):
 
         return fig
 
+    def _plot_with_mode_shape(
+        self,
+        harmonics=[1],
+        frequency_units="rad/s",
+        damping_parameter="log_dec",
+        frequency_range=None,
+        damping_range=None,
+        campbell_layout=None,
+        mode_3d_layout=None,
+        fig=None,
+        **kwargs,
+    ):
+
+        camp_fig = self.plot(
+            harmonics=harmonics,
+            frequency_units=frequency_units,
+            damping_parameter=damping_parameter,
+            frequency_range=frequency_range,
+            damping_range=damping_range,
+            fig=fig,
+            **kwargs,
+        )
+        camp_fig.update_layout(campbell_layout)
+
+        modal_results_crit = {}
+        crit_speeds = camp_fig.data[0]["x"]
+        for w in crit_speeds:
+            w_si = Q_(w, frequency_units).to("rad/s").m
+            modal_results_crit[w_si] = self.run_modal(w_si)
+
+        def update_mode_3d(clicked_point=None):
+            if clicked_point is None:
+                mode_3d_fig = self.modal_results[self.speed_range[0]].plot_mode_3d(
+                    0,
+                    frequency_units=frequency_units,
+                    damping_parameter=damping_parameter,
+                )
+                mode_3d_fig.update_layout(mode_3d_layout)
+
+                return mode_3d_fig
+
+            frequency = clicked_point["x"]
+            natural_frequency = clicked_point["y"]
+
+            try:
+                modal = self.modal_results[Q_(frequency, frequency_units).to("rad/s").m]
+            except:
+                modal = modal_results_crit[Q_(frequency, frequency_units).to("rad/s").m]
+
+            idx = (
+                np.abs(modal.wd - Q_(natural_frequency, frequency_units).to("rad/s").m)
+            ).argmin()
+
+            updated_fig = modal.plot_mode_3d(
+                idx,
+                frequency_units=frequency_units,
+                damping_parameter=damping_parameter,
+            )
+            updated_fig.update_layout(mode_3d_layout)
+
+            return updated_fig
+
+        return camp_fig, update_mode_3d
+
     def plot_with_mode_shape(
         self,
         harmonics=[1],
@@ -1690,46 +1754,7 @@ class CampbellResults(Results):
         except ImportError:
             raise ImportError("Please install ipywidgets to use this feature.")
 
-        modal_results_crit = {}
-
-        def _plot_with_mode_shape_callback(trace, points, state):
-            point_idx = points.point_inds
-            if len(point_idx) > 0:
-                frequency = trace.x[point_idx][0]
-                natural_frequency = trace.y[point_idx][0]
-
-                # get modal results for desired frequency
-                try:
-                    modal = self.modal_results[
-                        Q_(frequency, frequency_units).to("rad/s").m
-                    ]
-                except:
-                    modal = modal_results_crit[
-                        Q_(frequency, frequency_units).to("rad/s").m
-                    ]
-
-                # identify index of desired mode
-                idx = (
-                    np.abs(
-                        modal.wd - Q_(natural_frequency, frequency_units).to("rad/s").m
-                    )
-                ).argmin()
-
-                new_plot_mode_3d = modal.plot_mode_3d(
-                    idx,
-                    frequency_units=frequency_units,
-                    damping_parameter=damping_parameter,
-                )
-                with plot_mode_3d.batch_update():
-                    # update title
-                    plot_mode_3d.layout["title"]["text"] = new_plot_mode_3d.layout[
-                        "title"
-                    ]["text"]
-                    for data, new_data in zip(plot_mode_3d_data, new_plot_mode_3d.data):
-                        for param in data:
-                            data[param] = new_data[param]
-
-        camp_fig = self.plot(
+        camp_fig, update_mode_3d = self._plot_with_mode_shape(
             harmonics=harmonics,
             frequency_units=frequency_units,
             damping_parameter=damping_parameter,
@@ -1740,17 +1765,25 @@ class CampbellResults(Results):
         )
         camp_fig = go.FigureWidget(camp_fig)
 
-        crit_speeds = camp_fig.data[0]["x"]
-        for w in crit_speeds:
-            w_si = Q_(w, frequency_units).to("rad/s").m
-            modal_results_crit[w_si] = self.run_modal(w_si)
+        def plot_with_mode_shape_callback(trace, points, state):
+            point_idx = points.point_inds
+            if len(point_idx) > 0:
+                clicked_point = dict(x=trace.x[point_idx][0], y=trace.y[point_idx][0])
+
+                new_plot_mode_3d = update_mode_3d(clicked_point)
+                with plot_mode_3d.batch_update():
+                    # update title
+                    plot_mode_3d.layout["title"]["text"] = new_plot_mode_3d.layout[
+                        "title"
+                    ]["text"]
+                    for data, new_data in zip(plot_mode_3d_data, new_plot_mode_3d.data):
+                        for param in data:
+                            data[param] = new_data[param]
 
         for scatter in camp_fig.data:
-            scatter.on_click(_plot_with_mode_shape_callback)
+            scatter.on_click(plot_with_mode_shape_callback)
 
-        plot_mode_3d = self.modal_results[self.speed_range[0]].plot_mode_3d(
-            0, frequency_units=frequency_units, damping_parameter=damping_parameter
-        )
+        plot_mode_3d = update_mode_3d()
         plot_mode_3d = go.FigureWidget(plot_mode_3d)
         plot_mode_3d_data = plot_mode_3d.data
 
