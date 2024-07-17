@@ -1739,7 +1739,95 @@ class CampbellResults(Results):
 
         return camp_fig, update_mode_3d
 
-    def plot_with_mode_shape(
+    def plot_with_mode_shape_Dash(
+        self,
+        harmonics=[1],
+        frequency_units="rad/s",
+        damping_parameter="log_dec",
+        frequency_range=None,
+        damping_range=None,
+        fig=None,
+        **kwargs,
+    ):
+        try:
+            import random
+            from dash import Dash
+            from dash import dcc, html
+            from dash.dependencies import Input, Output
+        except ImportError:
+            raise ImportError("Please install dash to use this feature.")
+
+        campbell_layout = dict(
+            margin=dict(l=10, r=5, t=30, b=5), legend=dict(y=-0.12, x=0.5)
+        )
+
+        mode_3d_layout = dict(
+            margin=dict(l=20, r=5, t=30, b=5),
+            legend=dict(x=0.85, y=0.95),
+            scene=dict(camera=dict(eye=dict(x=2.5, y=2.75, z=2.25))),
+        )
+
+        camp_fig, update_mode_3d = self._plot_with_mode_shape(
+            harmonics=harmonics,
+            frequency_units=frequency_units,
+            damping_parameter=damping_parameter,
+            frequency_range=frequency_range,
+            damping_range=damping_range,
+            campbell_layout=campbell_layout,
+            mode_3d_layout=mode_3d_layout,
+            fig=fig,
+            **kwargs,
+        )
+
+        plot_mode_3d = update_mode_3d()
+
+        # Initialize the Dash app
+        app = Dash("ross")
+
+        # Layout of the app
+        app.layout = html.Div(
+            [
+                html.Div(
+                    [
+                        dcc.Graph(
+                            id="campbell", figure=camp_fig, style={"height": "100vh"}
+                        )
+                    ],
+                    style={
+                        "width": "50%",
+                        "display": "inline-block",
+                        "height": "100vh",
+                    },
+                ),
+                html.Div(
+                    [
+                        dcc.Graph(
+                            id="mode_3d", figure=plot_mode_3d, style={"height": "100vh"}
+                        )
+                    ],
+                    style={
+                        "width": "50%",
+                        "display": "inline-block",
+                        "height": "100vh",
+                        "float": "right",
+                    },
+                ),
+            ]
+        )
+
+        # Callback to update plot_mode_3d based on campbell diagram click
+        @app.callback(Output("mode_3d", "figure"), [Input("campbell", "clickData")])
+        def plot_with_mode_shape_callback(clickData):
+            if clickData is None:
+                return update_mode_3d()
+            else:
+                return update_mode_3d(clickData["points"][0])
+
+        # Run app
+        port = random.randint(8000, 9000)
+        app.run(port=port, debug=False, jupyter_mode="inline", jupyter_height=800)
+
+    def plot_with_mode_shape_VBox(
         self,
         harmonics=[1],
         frequency_units="rad/s",
