@@ -1805,6 +1805,7 @@ class CampbellResults(Results):
                     ],
                 ),
             ],
+            className="campbell-mode-shape",
         )
 
         # Callback to update plot_mode_3d based on campbell diagram click
