@@ -1785,7 +1785,7 @@ class CampbellResults(Results):
         plot_mode_3d = update_mode_3d()
 
         # Initialize the Dash app
-        app = Dash("CampbellResults.plot_with_mode_shape")
+        app = Dash("ross")
 
         # Layout of the app
         app.layout = html.Div(
