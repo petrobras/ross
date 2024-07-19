@@ -1739,7 +1739,7 @@ class CampbellResults(Results):
 
         return camp_fig, update_mode_3d
 
-    def plot_with_mode_shape_Dash(
+    def plot_with_mode_shape(
         self,
         harmonics=[1],
         frequency_units="rad/s",
@@ -1758,13 +1758,16 @@ class CampbellResults(Results):
             raise ImportError("Please install dash to use this feature.")
 
         campbell_layout = dict(
-            margin=dict(l=10, r=5, t=30, b=5), legend=dict(y=-0.12, x=0.5)
+            margin=dict(l=0, r=0, t=30, b=0), legend=dict(yref="container")
         )
 
         mode_3d_layout = dict(
-            margin=dict(l=20, r=5, t=30, b=5),
+            margin=dict(l=0, r=0, t=30, b=0),
             legend=dict(x=0.85, y=0.95),
-            scene=dict(camera=dict(eye=dict(x=2.5, y=2.75, z=2.25))),
+            scene=dict(
+                camera=dict(eye=dict(x=2.25, y=2.85, z=2.25)),
+                aspectratio=dict(x=2, y=0.9, z=0.9),
+            ),
         )
 
         camp_fig, update_mode_3d = self._plot_with_mode_shape(
@@ -1782,7 +1785,7 @@ class CampbellResults(Results):
         plot_mode_3d = update_mode_3d()
 
         # Initialize the Dash app
-        app = Dash("ross")
+        app = Dash("CampbellResults.plot_with_mode_shape")
 
         # Layout of the app
         app.layout = html.Div(
@@ -1790,29 +1793,18 @@ class CampbellResults(Results):
                 html.Div(
                     [
                         dcc.Graph(
-                            id="campbell", figure=camp_fig, style={"height": "100vh"}
+                            id="campbell", figure=camp_fig, style={"height": "100%"}
                         )
                     ],
-                    style={
-                        "width": "50%",
-                        "display": "inline-block",
-                        "height": "100vh",
-                    },
                 ),
                 html.Div(
                     [
                         dcc.Graph(
-                            id="mode_3d", figure=plot_mode_3d, style={"height": "100vh"}
+                            id="mode_3d", figure=plot_mode_3d, style={"height": "100%"}
                         )
                     ],
-                    style={
-                        "width": "50%",
-                        "display": "inline-block",
-                        "height": "100vh",
-                        "float": "right",
-                    },
                 ),
-            ]
+            ],
         )
 
         # Callback to update plot_mode_3d based on campbell diagram click
@@ -1825,57 +1817,7 @@ class CampbellResults(Results):
 
         # Run app
         port = random.randint(8000, 9000)
-        app.run(port=port, debug=False, jupyter_mode="inline", jupyter_height=800)
-
-    def plot_with_mode_shape_VBox(
-        self,
-        harmonics=[1],
-        frequency_units="rad/s",
-        damping_parameter="log_dec",
-        frequency_range=None,
-        damping_range=None,
-        fig=None,
-        **kwargs,
-    ):
-        try:
-            from ipywidgets import VBox
-        except ImportError:
-            raise ImportError("Please install ipywidgets to use this feature.")
-
-        camp_fig, update_mode_3d = self._plot_with_mode_shape(
-            harmonics=harmonics,
-            frequency_units=frequency_units,
-            damping_parameter=damping_parameter,
-            frequency_range=frequency_range,
-            damping_range=damping_range,
-            fig=fig,
-            **kwargs,
-        )
-        camp_fig = go.FigureWidget(camp_fig)
-
-        def plot_with_mode_shape_callback(trace, points, state):
-            point_idx = points.point_inds
-            if len(point_idx) > 0:
-                clicked_point = dict(x=trace.x[point_idx][0], y=trace.y[point_idx][0])
-
-                new_plot_mode_3d = update_mode_3d(clicked_point)
-                with plot_mode_3d.batch_update():
-                    # update title
-                    plot_mode_3d.layout["title"]["text"] = new_plot_mode_3d.layout[
-                        "title"
-                    ]["text"]
-                    for data, new_data in zip(plot_mode_3d_data, new_plot_mode_3d.data):
-                        for param in data:
-                            data[param] = new_data[param]
-
-        for scatter in camp_fig.data:
-            scatter.on_click(plot_with_mode_shape_callback)
-
-        plot_mode_3d = update_mode_3d()
-        plot_mode_3d = go.FigureWidget(plot_mode_3d)
-        plot_mode_3d_data = plot_mode_3d.data
-
-        return VBox([camp_fig, plot_mode_3d])
+        app.run(port=port, debug=False, jupyter_mode="inline", jupyter_height=768)
 
     def save(self, file):
         # TODO save modal results
