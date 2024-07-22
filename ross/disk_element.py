@@ -4,6 +4,7 @@ This module defines the DiskElement classes which will be used to represent equi
 attached to the rotor shaft, which add mainly mass and inertia to the system.
 There're 2 options, an element with 4 or 6 degrees of freedom.
 """
+
 import os
 from pathlib import Path
 
@@ -89,18 +90,21 @@ class DiskElement(Element):
         True
         """
         false_number = 0
-        for i in self.__dict__:
-            try:
-                if np.allclose(self.__dict__[i], other.__dict__[i]):
-                    pass
-                else:
-                    false_number += 1
+        if "DiskElement" in other.__class__.__name__:
+            for i in self.__dict__:
+                try:
+                    if np.allclose(self.__dict__[i], other.__dict__[i]):
+                        pass
+                    else:
+                        false_number += 1
 
-            except TypeError:
-                if self.__dict__[i] == other.__dict__[i]:
-                    pass
-                else:
-                    false_number += 1
+                except TypeError:
+                    if self.__dict__[i] == other.__dict__[i]:
+                        pass
+                    else:
+                        false_number += 1
+        else:
+            false_number += 1
 
         if false_number == 0:
             return True
@@ -388,6 +392,23 @@ class DiskElement(Element):
         """Create a disk element from geometry properties.
 
         This class method will create a disk element from geometry data.
+        Properties are calculated as per :cite:`friswell2010dynamics`, appendix 1
+        for a hollow cylinder:
+
+        Mass:
+
+        :math:`m = \\rho \\pi w (d_o^2 - d_i^2) / 4`
+
+        Polar moment of inertia:
+
+        :math:`I_p = m (d_o^2 + d_i^2) / 8`
+
+        Diametral moment of inertia:
+
+        :math:`I_d = \\frac{1}{2} I_p + \\frac{1}{12} m w^2`
+
+        Where :math:`\\rho` is the material density, :math:`w` is the disk width,
+        :math:`d_o` is the outer diameter and :math:`d_i` is the inner diameter.
 
         Parameters
         ----------
@@ -427,14 +448,9 @@ class DiskElement(Element):
         >>> disk.Ip
         0.32956362089137037
         """
-        m = 0.25 * material.rho * np.pi * width * (o_d**2 - i_d**2)
-        # fmt: off
-        Id = (
-            0.015625 * material.rho * np.pi * width * (o_d ** 4 - i_d ** 4)
-            + m * (width ** 2) / 12
-        )
-        # fmt: on
-        Ip = 0.03125 * material.rho * np.pi * width * (o_d**4 - i_d**4)
+        m = material.rho * np.pi * width * (o_d**2 - i_d**2) / 4
+        Ip = m * (o_d**2 + i_d**2) / 8
+        Id = 1 / 2 * Ip + 1 / 12 * m * width**2
 
         tag = tag
 
@@ -618,25 +634,52 @@ class DiskElement6DoF(DiskElement):
         --------
         >>> disk = disk_example_6dof()
         >>> disk.K().round(2)
+        array([[0., 0., 0., 0., 0., 0.],
+               [0., 0., 0., 0., 0., 0.],
+               [0., 0., 0., 0., 0., 0.],
+               [0., 0., 0., 0., 0., 0.],
+               [0., 0., 0., 0., 0., 0.],
+               [0., 0., 0., 0., 0., 0.]])
+        """
+        K = np.zeros((6, 6))
+
+        return K
+
+    def Kdt(self):
+        """Dynamic stiffness matrix for an instance of a 6 DoF disk
+        element.
+
+        Stiffness matrix for the 6 DoF disk element associated with the
+        transient motion. It needs to be multiplied by the angular
+        acceleration when considered in time dependent analyses.
+
+        Returns
+        -------
+        Kdt : np.ndarray
+            A matrix of floats containing the values of the dynamic
+            stiffness matrix.
+
+        Examples
+        --------
+        >>> disk = disk_example_6dof()
+        >>> disk.Kdt().round(2)
         array([[0.  , 0.  , 0.  , 0.  , 0.  , 0.  ],
                [0.  , 0.  , 0.  , 0.  , 0.  , 0.  ],
                [0.  , 0.  , 0.  , 0.  , 0.  , 0.  ],
                [0.  , 0.  , 0.  , 0.  , 0.  , 0.  ],
-               [0.  , 0.  , 0.  , 0.  , 0.  , 0.  ],
-               [0.  , 0.  , 0.  , 0.33, 0.  , 0.  ]])
+               [0.  , 0.  , 0.  , 0.33, 0.  , 0.  ],
+               [0.  , 0.  , 0.  , 0.  , 0.  , 0.  ]])
         """
         Ip = self.Ip
         # fmt: off
-        K = np.array([
-            [0, 0, 0,  0, 0, 0],
-            [0, 0, 0,  0, 0, 0],
-            [0, 0, 0,  0, 0, 0],
-            [0, 0, 0,  0, 0, 0],
-            [0, 0, 0,  0, 0, 0],
-            [0, 0, 0, Ip, 0, 0],
-        ])
+        Kdt = np.array([[0, 0, 0,  0, 0, 0],
+                        [0, 0, 0,  0, 0, 0],
+                        [0, 0, 0,  0, 0, 0],
+                        [0, 0, 0,  0, 0, 0],
+                        [0, 0, 0, Ip, 0, 0],
+                        [0, 0, 0,  0, 0, 0]])
         # fmt: on
-        return K
+        return Kdt
 
     def C(self):
         """Damping matrix for an instance of a 6 DoF disk element.

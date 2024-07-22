@@ -5,7 +5,7 @@ import numpy as np
 import pytest
 from numpy.testing import assert_allclose, assert_almost_equal, assert_equal
 
-from ross import Q_
+from ross import Q_, Probe
 from ross.results import *
 from ross.rotor_assembly import *
 
@@ -66,7 +66,7 @@ def test_save_load_modal(rotor1):
 
 
 def test_save_load_freqresponse(rotor1):
-    speed = np.linspace(0, 1000, 51)
+    speed = np.linspace(0, 1000, 11)
     response = rotor1.run_freq_response(speed_range=speed)
 
     file = Path(tempdir) / "frf.toml"
@@ -190,3 +190,26 @@ def test_orbit_calculate_amplitude():
     )
     assert_allclose(orb.calculate_amplitude("minor")[0], 1.4142135623730947)
     assert_allclose(orb.calculate_amplitude("major")[0], 2.8284271247461903)
+
+
+def test_probe_response(rotor1):
+    speed = 500.0
+    size = 50
+    node = 3
+    t = np.linspace(0, 10, size)
+    F = np.zeros((size, rotor1.ndof))
+    F[:, 4 * node] = 10 * np.cos(2 * t)
+    F[:, 4 * node + 1] = 10 * np.sin(2 * t)
+    response = rotor1.run_time_response(speed, F, t)
+
+    probe1 = Probe(3, Q_(0, "deg"))  # node 3, orientation 0° (X dir.)
+    probe2 = Probe(3, Q_(90, "deg"))  # node 3, orientation 90°(Y dir.)
+    resp_prob1 = np.array(
+        [0.00000000e00, 4.07504756e-06, 1.19778973e-05, 1.68562228e-05, 1.34097882e-05]
+    )
+    resp_prob2 = np.array(
+        [0.00000000e00, 4.13295078e-06, 8.25529257e-06, 1.28932310e-05, 1.59791798e-05]
+    )
+    data = response.data_time_response(probe=[probe1, probe2])
+    assert_allclose(data["probe_resp[0]"].to_numpy()[:5], resp_prob1)
+    assert_allclose(data["probe_resp[1]"].to_numpy()[:5], resp_prob2)

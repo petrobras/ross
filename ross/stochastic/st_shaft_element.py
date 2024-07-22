@@ -3,6 +3,7 @@
 This module creates an instance of random shaft element for stochastic
 analysis.
 """
+
 from ross.shaft_element import ShaftElement
 from ross.stochastic.st_materials import ST_Material
 from ross.stochastic.st_results_elements import plot_histogram
