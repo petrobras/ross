@@ -610,6 +610,47 @@ class Rotor(object):
         else:
             return False
 
+    def add_node(self, element_number, left_elem_length):
+
+        shaft_elements = deepcopy(self.shaft_elements)
+        disk_elements = deepcopy(self.disk_elements)
+        bearing_elements = deepcopy(self.bearing_elements)
+        point_mass_elements = deepcopy(self.point_mass_elements)
+
+        elem_to_remove = [elm for elm in shaft_elements if elm.n == element_number][0]
+        left_elem = elem_to_remove
+        right_elem = deepcopy(elem_to_remove)
+
+        left_elem.L = left_elem_length
+        right_elem.L -= left_elem_length
+
+        shaft_elements.insert(right_elem.n, right_elem)
+
+        elements = [
+            *shaft_elements,
+            *disk_elements,
+            *bearing_elements,
+            *point_mass_elements,
+        ]
+
+        for elm in elements:
+            elm.tag = None
+            if elm.n > element_number:
+                elm.n += 1
+
+        right_elem.n += 1
+
+        return Rotor(
+            shaft_elements,
+            disk_elements=disk_elements,
+            bearing_elements=bearing_elements,
+            point_mass_elements=point_mass_elements,
+            min_w=self.min_w,
+            max_w=self.max_w,
+            rated_w=self.rated_w,
+            tag=self.tag,
+        )
+
     @check_units
     def run_modal(self, speed, num_modes=12, sparse=True, synchronous=False):
         """Run modal analysis.
