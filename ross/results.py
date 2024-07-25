@@ -1669,6 +1669,7 @@ class CampbellResults(Results):
                 x=0.5,
                 yanchor="bottom",
                 y=-0.3,
+                yref="container",
             ),
             **kwargs,
         )
@@ -1757,9 +1758,7 @@ class CampbellResults(Results):
         except ImportError:
             raise ImportError("Please install dash to use this feature.")
 
-        campbell_layout = dict(
-            margin=dict(l=0, r=0, t=30, b=0), legend=dict(yref="container")
-        )
+        campbell_layout = dict(margin=dict(l=0, r=0, t=30, b=0))
 
         mode_3d_layout = dict(
             margin=dict(l=0, r=0, t=30, b=0),
