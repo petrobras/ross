@@ -617,14 +617,23 @@ class Rotor(object):
         bearing_elements = deepcopy(self.bearing_elements)
         point_mass_elements = deepcopy(self.point_mass_elements)
 
-        elem_to_remove = [elm for elm in shaft_elements if elm.n == element_number][0]
-        left_elem = elem_to_remove
-        right_elem = deepcopy(elem_to_remove)
+        elem_to_remove = []
+        idx_to_remove = []
+        for i, elm in enumerate(shaft_elements):
+            if elm.n == element_number:
+                idx_to_remove.append(i)
+                elem_to_remove.append(elm)
 
-        left_elem.L = left_elem_length
-        right_elem.L -= left_elem_length
+        insert_pos = idx_to_remove[0]
+        for elm in elem_to_remove:
+            left_elem = elm
+            right_elem = deepcopy(elm)
 
-        shaft_elements.insert(right_elem.n, right_elem)
+            left_elem.L = left_elem_length
+            right_elem.L -= left_elem_length
+
+            shaft_elements.insert(insert_pos, right_elem)
+            insert_pos += 1
 
         elements = [
             *shaft_elements,
@@ -638,7 +647,8 @@ class Rotor(object):
             if elm.n > element_number:
                 elm.n += 1
 
-        right_elem.n += 1
+        for elm in elem_to_remove:
+            elm.n += 1
 
         return Rotor(
             shaft_elements,
