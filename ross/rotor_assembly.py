@@ -610,8 +610,34 @@ class Rotor(object):
         else:
             return False
 
-    def add_node(self, new_nodes_pos):
+    def add_nodes(self, new_nodes_pos):
+        """Add nodes to rotor.
 
+        This method returns the modified rotor with additional nodes according to
+        the positions of the new nodes provided.
+
+        Parameters
+        ----------
+        new_nodes_pos : list
+            List with the position of the new nodes.
+
+        Returns
+        -------
+        A rotor object.
+
+        Examples
+        --------
+        >>> import ross as rs
+        >>> rotor = rs.rotor_example()
+        >>> new_rotor = rotor.add_nodes([0.62, 1.11])
+        >>> shaft_elements = new_rotor.shaft_elements
+        >>> len(shaft_elements)
+        8
+        >>> round(shaft_elements[3].L, 2)
+        0.13
+        >>> round(shaft_elements[6].L, 2)
+        0.14
+        """
         new_nodes_pos.sort()
 
         shaft_elements = deepcopy(self.shaft_elements)
@@ -638,12 +664,6 @@ class Rotor(object):
                     add_elements.append(elm)
                     add_elems_length.append(pos_r - new_pos)
 
-        def increase_node_value(elm, add_num=1):
-            elm.n += add_num
-            elm._n = elm.n
-            elm.n_l = elm.n
-            elm.n_r = elm.n + 1
-
         prev_left_node = -1
 
         for i in range(len(add_elements)):
@@ -654,16 +674,20 @@ class Rotor(object):
             left_elem.L -= right_elem.L
 
             right_elem.tag = None
-            increase_node_value(right_elem)
+            right_elem.n += 1
+            right_elem._n = right_elem.n
+            right_elem.n_l = right_elem.n
+            right_elem.n_r = right_elem.n + 1
 
             if left_elem.n != prev_left_node:
                 for elm in elements:
                     elm.tag = None
                     if elm.n >= right_elem.n:
+                        elm.n += 1
                         if elm in shaft_elements:
-                            increase_node_value(elm)
-                        else:
-                            elm.n += 1
+                            elm._n = elm.n
+                            elm.n_l = elm.n
+                            elm.n_r = elm.n + 1
 
             for j in range(i + 1, len(add_elements)):
                 if add_elements[j] == add_elements[i]:
