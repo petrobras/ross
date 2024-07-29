@@ -610,30 +610,14 @@ class Rotor(object):
         else:
             return False
 
-    def add_node(self, element_number, left_elem_length):
+    def add_node(self, new_nodes_pos):
+
+        new_nodes_pos.sort()
 
         shaft_elements = deepcopy(self.shaft_elements)
         disk_elements = deepcopy(self.disk_elements)
         bearing_elements = deepcopy(self.bearing_elements)
         point_mass_elements = deepcopy(self.point_mass_elements)
-
-        elem_to_remove = []
-        idx_to_remove = []
-        for i, elm in enumerate(shaft_elements):
-            if elm.n == element_number:
-                idx_to_remove.append(i)
-                elem_to_remove.append(elm)
-
-        insert_pos = idx_to_remove[0]
-        for elm in elem_to_remove:
-            left_elem = elm
-            right_elem = deepcopy(elm)
-
-            left_elem.L = left_elem_length
-            right_elem.L -= left_elem_length
-
-            shaft_elements.insert(insert_pos, right_elem)
-            insert_pos += 1
 
         elements = [
             *shaft_elements,
@@ -642,13 +626,54 @@ class Rotor(object):
             *point_mass_elements,
         ]
 
-        for elm in elements:
-            elm.tag = None
-            if elm.n > element_number:
-                elm.n += 1
+        add_elements = []
+        add_elems_length = []
 
-        for elm in elem_to_remove:
-            elm.n += 1
+        for new_pos in new_nodes_pos:
+            for elm in shaft_elements:
+                pos_l = self.nodes_pos[self.nodes.index(elm.n_l)]
+                pos_r = self.nodes_pos[self.nodes.index(elm.n_r)]
+
+                if new_pos > pos_l and new_pos < pos_r:
+                    add_elements.append(elm)
+                    add_elems_length.append(pos_r - new_pos)
+
+        def increase_node_value(elm, add_num=1):
+            elm.n += add_num
+            elm._n = elm.n
+            elm.n_l = elm.n
+            elm.n_r = elm.n + 1
+
+        prev_left_node = -1
+
+        for i in range(len(add_elements)):
+            left_elem = add_elements[i]
+            right_elem = deepcopy(left_elem)
+
+            right_elem.L = add_elems_length[i]
+            left_elem.L -= right_elem.L
+
+            right_elem.tag = None
+            increase_node_value(right_elem)
+
+            if left_elem.n != prev_left_node:
+                for elm in elements:
+                    elm.tag = None
+                    if elm.n >= right_elem.n:
+                        if elm in shaft_elements:
+                            increase_node_value(elm)
+                        else:
+                            elm.n += 1
+
+            for j in range(i + 1, len(add_elements)):
+                if add_elements[j] == add_elements[i]:
+                    add_elements[j] = right_elem
+
+            idx = shaft_elements.index(left_elem) + len(
+                [k for k, elm in enumerate(shaft_elements) if elm.n == left_elem.n]
+            )
+            shaft_elements.insert(idx, right_elem)
+            prev_left_node = left_elem.n
 
         return Rotor(
             shaft_elements,
