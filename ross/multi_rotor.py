@@ -242,6 +242,8 @@ class MultiRotor(Rotor):
         The gear ratio between the rotors.
     gear_mesh_stiffness : float
         The stiffness of the gear mesh.
+    orientation_angle : float, optional
+        The angle between the line of gear centers and x axis. Default is 0.0 rad.
     position : {'above', 'below'}, optional
         The relative position of the driven rotor with respect to the drive rotor when plotting
         the multi-rotor. Default is 'above'.
@@ -264,6 +266,7 @@ class MultiRotor(Rotor):
         coupled_nodes,
         gear_ratio,
         gear_mesh_stiffness,
+        orientation_angle=0.0,
         position="above",
         tag=None,
     ):
@@ -271,6 +274,7 @@ class MultiRotor(Rotor):
         self.rotors = [drive_rotor, driven_rotor]
         self.gear_ratio = gear_ratio
         self.gear_mesh_stiffness = gear_mesh_stiffness
+        self.orientation_angle = orientation_angle
 
         if drive_rotor.number_dof != 6 or driven_rotor.number_dof != 6:
             raise TypeError("Rotors must be modeled with 6 degrees of freedom!")
@@ -401,6 +405,39 @@ class MultiRotor(Rotor):
 
         return global_matrix
 
+    def _unbalance_force(self, node, magnitude, phase, omega):
+        """Calculate unbalance forces.
+
+        This is an auxiliary function the calculate unbalance forces. It takes the
+        force magnitude and phase and generate an array with complex values of forces
+        on each degree degree of freedom of the given node.
+
+        Parameters
+        ----------
+        node : int
+            Node where the unbalance is applied.
+        magnitude : float
+            Unbalance magnitude (kg.m)
+        phase : float
+            Unbalance phase (rad)
+        omega : list, float
+            Array with the desired range of frequencies
+
+        Returns
+        -------
+        F0 : list
+            Unbalance force in each degree of freedom for each value in omega
+
+        Examples
+        --------
+        """
+        if node in self.R2_nodes:
+            speed = omega * self.gear_ratio
+        else:
+            speed = omega
+
+        return super()._unbalance_force(node, magnitude, phase, speed)
+
     def M(self, frequency=None, synchronous=False):
         """Mass matrix for a multi-rotor.
 
@@ -455,14 +492,15 @@ class MultiRotor(Rotor):
         )
 
         # Coupling
-        beta = self.gears[0].pressure_angle
+        phi = self.orientation_angle
         k_g = self.gear_mesh_stiffness
 
+        beta = self.gears[0].pressure_angle
         r1 = self.gears[0].base_radius
         r2 = self.gears[1].base_radius
 
-        S = np.sin(beta)
-        C = np.cos(beta)
+        S = np.sin(beta - phi)
+        C = np.cos(beta - phi)
 
         # fmt: off
         coupling_matrix = np.array([
