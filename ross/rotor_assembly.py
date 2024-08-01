@@ -671,43 +671,8 @@ class Rotor(object):
         for i in range(len(target_elements)):
             elem = target_elements[i]
 
-            left_elem = elem.__class__(
-                elem.L - new_elems_length[i],
-                elem.idl,
-                elem.odl,
-                n=elem.n,
-                idr=elem.idr,
-                odr=elem.odr,
-                material=elem.material,
-                axial_force=elem.axial_force,
-                torque=elem.torque,
-                shear_effects=elem.shear_effects,
-                rotary_inertia=elem.rotary_inertia,
-                gyroscopic=elem.gyroscopic,
-                shear_method_calc=elem.shear_method_calc,
-                alpha=elem.alpha,
-                beta=elem.beta,
-            )
-            idx_left = shaft_elements.index(elem)
-            shaft_elements[idx_left] = left_elem
-
-            right_elem = elem.__class__(
-                new_elems_length[i],
-                elem.idl,
-                elem.odl,
-                n=elem.n + 1,
-                idr=elem.idr,
-                odr=elem.odr,
-                material=elem.material,
-                axial_force=elem.axial_force,
-                torque=elem.torque,
-                shear_effects=elem.shear_effects,
-                rotary_inertia=elem.rotary_inertia,
-                gyroscopic=elem.gyroscopic,
-                shear_method_calc=elem.shear_method_calc,
-                alpha=elem.alpha,
-                beta=elem.beta,
-            )
+            left_elem = elem.create_modified(L=(elem.L - new_elems_length[i]))
+            right_elem = elem.create_modified(L=new_elems_length[i], n=(elem.n + 1))
 
             if left_elem.n != prev_left_node:
                 for elm in elements:
@@ -722,10 +687,14 @@ class Rotor(object):
                 if target_elements[j] == target_elements[i]:
                     target_elements[j] = right_elem
 
+            idx_left = shaft_elements.index(elem)
+            shaft_elements[idx_left] = left_elem
+
             idx_right = idx_left + len(
                 [k for k, elm in enumerate(shaft_elements) if elm.n == left_elem.n]
             )
             shaft_elements.insert(idx_right, right_elem)
+
             prev_left_node = left_elem.n
 
         return Rotor(
