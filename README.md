@@ -1,5 +1,5 @@
 # Rotordynamic Open Source Software (ROSS)
-[![Binder](https://mybinder.org/badge_logo.svg)](https://mybinder.org/v2/gh/petrobras/ross/1.4.0?filepath=%2Fdocs%2Ftutorials)
+[![Binder](https://mybinder.org/badge_logo.svg)](https://mybinder.org/v2/gh/ross-rotordynamics/ross/main)
 ![github actions](https://github.com/petrobras/ross/workflows/Tests/badge.svg)
 [![Documentation Status](https://readthedocs.org/projects/ross/badge/?version=latest)](https://ross.readthedocs.io/en/latest/?badge=latest)
 <a href="https://codecov.io/gh/petrobras/ross">
@@ -16,7 +16,7 @@ energy is not taken into account. Bearings and seals are included as linear stif
 After defining the elements for the model, you can plot the rotor geometry and run simulations such as static analysis,
 modal analysis, undamped critical speed, frequency response, unbalance response, time response, and more.
 
-You can try it out now by running the tutorial on [binder](https://mybinder.org/v2/gh/petrobras/ross/1.4.0?filepath=%2Fdocs%2Ftutorials)
+You can try it out now by running the tutorial on [binder](https://mybinder.org/v2/gh/ross-rotordynamics/ross/main)
 
 # Documentation 
 Access the documentation [here](https://ross.readthedocs.io/en/latest/index.html).

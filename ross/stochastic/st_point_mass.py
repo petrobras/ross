@@ -3,6 +3,7 @@
 This module creates an instance of random point mass for stochastic
 analysis.
 """
+
 from ross.point_mass import PointMass
 from ross.stochastic.st_results_elements import plot_histogram
 from ross.units import check_units

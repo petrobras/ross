@@ -29,6 +29,11 @@ class THDCylindrical(BearingElement):
         Number of pads that compound the bearing surface.
     pad_arc_length : float
         Arc length of each pad. The unit is degree.
+    preload: float
+        Preload of the pad. The preload is defined as m=1-Cb/Cp where Cb is the radail clearance and Cp is
+        the pad ground-in clearance.Preload is dimensionless.
+    geometry: string
+        Refers to bearing geometry. The options are: 'circular', 'lobe' or 'elliptical'.
     initial_guess : array
         Array with eccentricity ratio and attitude angle
     method : string
@@ -132,7 +137,7 @@ class THDCylindrical(BearingElement):
     >>> from ross.fluid_flow.cylindrical import cylindrical_bearing_example
     >>> bearing = cylindrical_bearing_example()
     >>> bearing.equilibrium_pos
-    array([ 0.6873316 , -0.79393636])
+    array([ 0.68733194, -0.79394211])
     """
 
     @check_units
@@ -145,6 +150,8 @@ class THDCylindrical(BearingElement):
         elements_axial,
         n_pad,
         pad_arc_length,
+        preload,
+        geometry,
         reference_temperature,
         speed,
         load_x_direction,
@@ -169,6 +176,8 @@ class THDCylindrical(BearingElement):
         self.elements_circumferential = elements_circumferential
         self.elements_axial = elements_axial
         self.n_pad = n_pad
+        self.preload = preload
+        self.geometry = geometry
         self.reference_temperature = reference_temperature
         self.load_x_direction = load_x_direction
         self.load_y_direction = load_y_direction
@@ -222,6 +231,7 @@ class THDCylindrical(BearingElement):
         self.oil_flow = self.oil_flow / 60000
 
         lubricant_properties = lubricant_dict[self.lubricant]
+
         T_muI = Q_(lubricant_properties["temp1"], "degK").m_as("degC")
         T_muF = Q_(lubricant_properties["temp2"], "degK").m_as("degC")
         mu_I = lubricant_properties["viscosity1"]
@@ -234,6 +244,9 @@ class THDCylindrical(BearingElement):
         self.a, self.b = self._interpol(T_muI, T_muF, mu_I, mu_F)
 
         self.reference_viscosity = self.a * (self.reference_temperature**self.b)
+
+        if self.geometry == "lobe":
+            self.theta_pivot = np.array([90, 270]) * np.pi / 180
 
         number_of_freq = np.shape(speed)[0]
 
@@ -270,7 +283,7 @@ class THDCylindrical(BearingElement):
 
         super().__init__(node, kxx, cxx, kyy, kxy, kyx, cyy, cxy, cyx, speed)
 
-    def _flooded(self, n_p, Mat_coef, b_P, mu):
+    def _flooded(self, n_p, Mat_coef, b_P, mu, initial_guess, y0):
         """Provides an analysis in which the bearing always receive sufficient oil feed to operate.
 
         Parameters
@@ -284,6 +297,7 @@ class THDCylindrical(BearingElement):
         mu : np.array
             Viscosity matrix.
 
+
         Returns
         -------
         self.P : np.array
@@ -293,23 +307,79 @@ class THDCylindrical(BearingElement):
         ki = 0
         kj = 0
         k = 0
+
         for ii in np.arange((self.Z_I + 0.5 * self.dZ), self.Z_F, self.dZ):
             for jj in np.arange(
                 self.thetaI[n_p] + (self.dtheta / 2),
                 self.thetaF[n_p],
                 self.dtheta,
             ):
-                hP = 1 - self.X * np.cos(jj) - self.Y * np.sin(jj)
-                he = (
-                    1
-                    - self.X * np.cos(jj + 0.5 * self.dtheta)
-                    - self.Y * np.sin(jj + 0.5 * self.dtheta)
-                )
-                hw = (
-                    1
-                    - self.X * np.cos(jj - 0.5 * self.dtheta)
-                    - self.Y * np.sin(jj - 0.5 * self.dtheta)
-                )
+                if self.geometry == "circular":
+                    hP = 1 - self.X * np.cos(jj) - self.Y * np.sin(jj)
+                    he = (
+                        1
+                        - self.X * np.cos(jj + 0.5 * self.dtheta)
+                        - self.Y * np.sin(jj + 0.5 * self.dtheta)
+                    )
+                    hw = (
+                        1
+                        - self.X * np.cos(jj - 0.5 * self.dtheta)
+                        - self.Y * np.sin(jj - 0.5 * self.dtheta)
+                    )
+
+                else:
+                    if self.geometry == "lobe":
+                        hP = (
+                            1 / (1 - self.preload)
+                            - self.X * np.cos(jj)
+                            - self.Y * np.sin(jj)
+                            - self.preload
+                            / (1 - self.preload)
+                            * np.cos(jj - self.theta_pivot[n_p])
+                        )
+                        he = (
+                            1 / (1 - self.preload)
+                            - self.X * np.cos(jj + 0.5 * self.dtheta)
+                            - self.Y * np.sin(jj + 0.5 * self.dtheta)
+                            - self.preload
+                            / (1 - self.preload)
+                            * np.cos(jj + 0.5 * self.dtheta - self.theta_pivot[n_p])
+                        )
+                        hw = (
+                            1 / (1 - self.preload)
+                            - self.X * np.cos(jj - 0.5 * self.dtheta)
+                            - self.Y * np.sin(jj - 0.5 * self.dtheta)
+                            - self.preload
+                            / (1 - self.preload)
+                            * np.cos(jj - 0.5 * self.dtheta - self.theta_pivot[n_p])
+                        )
+
+                    if self.geometry == "elliptical":
+                        hP = (
+                            1
+                            - self.X * np.cos(jj)
+                            - self.Y * np.sin(jj)
+                            + self.preload / (1 - self.preload) * (np.cos(jj)) ** 2
+                        )
+
+                        he = (
+                            1
+                            - self.X * np.cos(jj + 0.5 * self.dtheta)
+                            - self.Y * np.sin(jj + 0.5 * self.dtheta)
+                            + self.preload
+                            / (1 - self.preload)
+                            * (np.cos(jj + 0.5 * self.dtheta)) ** 2
+                        )
+
+                        hw = (
+                            1
+                            - self.X * np.cos(jj - 0.5 * self.dtheta)
+                            - self.Y * np.sin(jj - 0.5 * self.dtheta)
+                            + self.preload
+                            / (1 - self.preload)
+                            * (np.cos(jj - 0.5 * self.dtheta)) ** 2
+                        )
+
                 hn = hP
                 hs = hn
 
@@ -383,12 +453,8 @@ class THDCylindrical(BearingElement):
                     MU_s = 0.5 * (mu[ki, kj] + mu[ki - 1, kj])
                     MU_n = mu[ki, kj]
 
-                CE = (self.dZ * he**3) / (
-                    12 * MU_e[n_p] * self.dY * self.betha_s**2
-                )
-                CW = (self.dZ * hw**3) / (
-                    12 * MU_w[n_p] * self.dY * self.betha_s**2
-                )
+                CE = (self.dZ * he**3) / (12 * MU_e[n_p] * self.dY * self.betha_s**2)
+                CW = (self.dZ * hw**3) / (12 * MU_w[n_p] * self.dY * self.betha_s**2)
                 CN = (self.dY * (self.journal_radius**2) * hn**3) / (
                     12 * MU_n[n_p] * self.dZ * self.axial_length**2
                 )
@@ -398,7 +464,7 @@ class THDCylindrical(BearingElement):
                 CP = -(CE + CW + CN + CS)
 
                 B = (self.dZ / (2 * self.betha_s)) * (he - hw) - (
-                    (self.Xpt * np.cos(jj) + self.Ypt * np.sin(jj)) * self.dy * self.dZ
+                    (self.Xpt * np.cos(jj) + self.Ypt * np.sin(jj)) * self.dY * self.dZ
                 )
 
                 k = k + 1
@@ -483,7 +549,7 @@ class THDCylindrical(BearingElement):
 
         for i in np.arange(self.elements_axial):
             for j in np.arange(self.elements_circumferential):
-                self.P[i, j, n_p] = p[cont]
+                self.P[i, j, n_p] = p[cont, 0]
                 cont = cont + 1
 
                 if self.P[i, j, n_p] < 0:
@@ -497,7 +563,21 @@ class THDCylindrical(BearingElement):
 
         return self.P
 
-    def _starvation(self, n_p, Mat_coef_st, mu, p_old, p, B, B_theta, nk):
+    def _starvation(
+        self,
+        n_p,
+        Mat_coef_st,
+        mu,
+        p_old,
+        p,
+        B,
+        B_theta,
+        nk,
+        initial_guess,
+        y0,
+        xpt0,
+        ypt0,
+    ):
         """Provides an analysis in which the bearing may receive insufficient oil feed.
 
         Parameters
@@ -531,8 +611,6 @@ class THDCylindrical(BearingElement):
 
             theta_vol_old = np.array(self.theta_vol)
 
-            # cont = cont+1
-
             k = 0
             ki = 0
             kj = 0
@@ -543,17 +621,72 @@ class THDCylindrical(BearingElement):
                     self.thetaF[n_p],
                     self.dtheta,
                 ):
-                    hP = 1 - self.X * np.cos(jj) - self.Y * np.sin(jj)
-                    he = (
-                        1
-                        - self.X * np.cos(jj + 0.5 * self.dtheta)
-                        - self.Y * np.sin(jj + 0.5 * self.dtheta)
-                    )
-                    hw = (
-                        1
-                        - self.X * np.cos(jj - 0.5 * self.dtheta)
-                        - self.Y * np.sin(jj - 0.5 * self.dtheta)
-                    )
+                    if self.geometry == "circular":
+                        hP = 1 - self.X * np.cos(jj) - self.Y * np.sin(jj)
+                        he = (
+                            1
+                            - self.X * np.cos(jj + 0.5 * self.dtheta)
+                            - self.Y * np.sin(jj + 0.5 * self.dtheta)
+                        )
+                        hw = (
+                            1
+                            - self.X * np.cos(jj - 0.5 * self.dtheta)
+                            - self.Y * np.sin(jj - 0.5 * self.dtheta)
+                        )
+
+                    else:
+                        if self.geometry == "lobe":
+                            hP = (
+                                1 / (1 - self.preload)
+                                - self.X * np.cos(jj)
+                                - self.Y * np.sin(jj)
+                                - self.preload
+                                / (1 - self.preload)
+                                * np.cos(jj - self.theta_pivot[n_p])
+                            )
+                            he = (
+                                1 / (1 - self.preload)
+                                - self.X * np.cos(jj + 0.5 * self.dtheta)
+                                - self.Y * np.sin(jj + 0.5 * self.dtheta)
+                                - self.preload
+                                / (1 - self.preload)
+                                * np.cos(jj + 0.5 * self.dtheta - self.theta_pivot[n_p])
+                            )
+                            hw = (
+                                1 / (1 - self.preload)
+                                - self.X * np.cos(jj - 0.5 * self.dtheta)
+                                - self.Y * np.sin(jj - 0.5 * self.dtheta)
+                                - self.preload
+                                / (1 - self.preload)
+                                * np.cos(jj - 0.5 * self.dtheta - self.theta_pivot[n_p])
+                            )
+
+                        if self.geometry == "elliptical":
+                            hP = (
+                                1
+                                - self.X * np.cos(jj)
+                                - self.Y * np.sin(jj)
+                                + self.preload / (1 - self.preload) * (np.cos(jj)) ** 2
+                            )
+
+                            he = (
+                                1
+                                - self.X * np.cos(jj + 0.5 * self.dtheta)
+                                - self.Y * np.sin(jj + 0.5 * self.dtheta)
+                                + self.preload
+                                / (1 - self.preload)
+                                * (np.cos(jj + 0.5 * self.dtheta)) ** 2
+                            )
+
+                            hw = (
+                                1
+                                - self.X * np.cos(jj - 0.5 * self.dtheta)
+                                - self.Y * np.sin(jj - 0.5 * self.dtheta)
+                                + self.preload
+                                / (1 - self.preload)
+                                * (np.cos(jj - 0.5 * self.dtheta)) ** 2
+                            )
+
                     hn = hP
                     hs = hn
 
@@ -967,6 +1100,7 @@ class THDCylindrical(BearingElement):
 
             self.Xpt = 0
             self.Ypt = 0
+
         else:
             self.X = initial_guess / self.radial_clearance
             self.Y = y0 / self.radial_clearance
@@ -1006,6 +1140,7 @@ class THDCylindrical(BearingElement):
         T_end = np.ones(self.n_pad)
 
         while (T_mist[0] - T_conv) >= 0.5:
+            H_PLOT = np.zeros((self.elements_circumferential, self.n_pad))
             nk = (self.elements_axial) * (self.elements_circumferential)
             self.P = np.zeros(
                 (self.elements_axial, self.elements_circumferential, self.n_pad)
@@ -1094,10 +1229,23 @@ class THDCylindrical(BearingElement):
                     B_theta = np.zeros((nk, 1))
 
                     if self.operating_type == "flooded":
-                        self._flooded(n_p, Mat_coef, b_P, mu)
+                        self._flooded(n_p, Mat_coef, b_P, mu, initial_guess, y0)
 
                     elif self.operating_type == "starvation":
-                        self._starvation(n_p, Mat_coef_st, mu, p_old, p, B, B_theta, nk)
+                        self._starvation(
+                            n_p,
+                            Mat_coef_st,
+                            mu,
+                            p_old,
+                            p,
+                            B,
+                            B_theta,
+                            nk,
+                            initial_guess,
+                            y0,
+                            xpt0,
+                            ypt0,
+                        )
 
                     ki = 0
                     kj = 0
@@ -1207,8 +1355,35 @@ class THDCylindrical(BearingElement):
                                     2 * self.dZ
                                 )
 
-                            HP = 1 - self.X * np.cos(jj) - self.Y * np.sin(jj)
+                            if self.geometry == "circular":
+                                HP = 1 - self.X * np.cos(jj) - self.Y * np.sin(jj)
+
+                            else:
+                                if self.geometry == "lobe":
+                                    HP = (
+                                        1 / (1 - self.preload)
+                                        - self.X * np.cos(jj)
+                                        - self.Y * np.sin(jj)
+                                        - self.preload
+                                        / (1 - self.preload)
+                                        * np.cos(jj - self.theta_pivot[n_p])
+                                    )
+
+                                if self.geometry == "elliptical":
+                                    HP = (
+                                        1
+                                        - self.X * np.cos(jj)
+                                        - self.Y * np.sin(jj)
+                                        + self.preload
+                                        / (1 - self.preload)
+                                        * (np.cos(jj)) ** 2
+                                    )
+
+                            if ki == 0:
+                                H_PLOT[kj, n_p] = HP
+
                             hpt = -self.Xpt * np.cos(jj) - self.Ypt * np.sin(jj)
+
                             self.H[kj, n_p] = HP
 
                             mu_p = mu[ki, kj, n_p]
@@ -1251,9 +1426,7 @@ class THDCylindrical(BearingElement):
 
                             dwdy = (HP / mu_turb[ki, kj, n_p]) * dPdz[ki, kj, n_p]
 
-                            tal = mu_turb[ki, kj, n_p] * np.sqrt(
-                                (dudy**2) + (dwdy**2)
-                            )
+                            tal = mu_turb[ki, kj, n_p] * np.sqrt((dudy**2) + (dwdy**2))
 
                             x_wall = (
                                 (HP * self.radial_clearance * 2)
@@ -1373,12 +1546,7 @@ class THDCylindrical(BearingElement):
                             )
                             b_TI = (
                                 auxb_T
-                                * (
-                                    mi_t
-                                    * (self.journal_radius**2)
-                                    * self.dY
-                                    * self.dZ
-                                )
+                                * (mi_t * (self.journal_radius**2) * self.dY * self.dZ)
                                 / (HP * self.radial_clearance)
                             )
                             b_TJ = (
@@ -1536,7 +1704,7 @@ class THDCylindrical(BearingElement):
 
                     for i in np.arange(self.elements_axial):
                         for j in np.arange(self.elements_circumferential):
-                            T_new[i, j, n_p] = t[cont]
+                            T_new[i, j, n_p] = t[cont, 0]
                             cont = cont + 1
 
                     Tdim = T_new * self.reference_temperature
@@ -1605,8 +1773,13 @@ class THDCylindrical(BearingElement):
             (self.elements_axial, self.elements_circumferential * self.n_pad)
         )
 
+        TPlot = np.zeros(
+            (self.elements_axial, self.elements_circumferential * self.n_pad)
+        )
+
         for i in range(self.elements_axial):
             PPlot[i] = self.Pdim[i, :, :].ravel("F")
+            TPlot[i] = Tdim[i, :, :].ravel("F")
 
         Ytheta = np.array(Ytheta)
         Ytheta = Ytheta.flatten()
@@ -1629,6 +1802,7 @@ class THDCylindrical(BearingElement):
 
         self.Fhx = Fhx
         self.Fhy = Fhy
+
         return Fhx, Fhy
 
     def run(self):
@@ -1644,8 +1818,9 @@ class THDCylindrical(BearingElement):
             self.initial_guess,
             args,
             method="Nelder-Mead",
-            tol=10e-2,
-            options={"maxiter": 1e4},
+            bounds=[(0, 1), (-2 * np.pi, 2 * np.pi)],
+            tol=0.8,
+            options={"maxiter": 1e10},
         )
         self.equilibrium_pos = res.x
         t2 = time.time()
@@ -1894,17 +2069,81 @@ class THDCylindrical(BearingElement):
                         self.dtheta,
                     ):
                         if self.P[ki, kj, n_p] > 0:
-                            HP = 1 - self.X * np.cos(jj) - self.Y * np.sin(jj)
-                            He = (
-                                1
-                                - self.X * np.cos(jj + 0.5 * self.dtheta)
-                                - self.Y * np.sin(jj + 0.5 * self.dtheta)
-                            )
-                            Hw = (
-                                1
-                                - self.X * np.cos(jj - 0.5 * self.dtheta)
-                                - self.Y * np.sin(jj - 0.5 * self.dtheta)
-                            )
+                            if self.geometry == "circular":
+                                HP = 1 - self.X * np.cos(jj) - self.Y * np.sin(jj)
+                                He = (
+                                    1
+                                    - self.X * np.cos(jj + 0.5 * self.dtheta)
+                                    - self.Y * np.sin(jj + 0.5 * self.dtheta)
+                                )
+                                Hw = (
+                                    1
+                                    - self.X * np.cos(jj - 0.5 * self.dtheta)
+                                    - self.Y * np.sin(jj - 0.5 * self.dtheta)
+                                )
+
+                            else:
+                                if self.geometry == "lobe":
+                                    HP = (
+                                        1 / (1 - self.preload)
+                                        - self.X * np.cos(jj)
+                                        - self.Y * np.sin(jj)
+                                        - self.preload
+                                        / (1 - self.preload)
+                                        * np.cos(jj - self.theta_pivot[n_p])
+                                    )
+                                    He = (
+                                        1 / (1 - self.preload)
+                                        - self.X * np.cos(jj + 0.5 * self.dtheta)
+                                        - self.Y * np.sin(jj + 0.5 * self.dtheta)
+                                        - self.preload
+                                        / (1 - self.preload)
+                                        * np.cos(
+                                            jj
+                                            + 0.5 * self.dtheta
+                                            - self.theta_pivot[n_p]
+                                        )
+                                    )
+                                    Hw = (
+                                        1 / (1 - self.preload)
+                                        - self.X * np.cos(jj - 0.5 * self.dtheta)
+                                        - self.Y * np.sin(jj - 0.5 * self.dtheta)
+                                        - self.preload
+                                        / (1 - self.preload)
+                                        * np.cos(
+                                            jj
+                                            - 0.5 * self.dtheta
+                                            - self.theta_pivot[n_p]
+                                        )
+                                    )
+
+                                if self.geometry == "elliptical":
+                                    HP = (
+                                        1
+                                        - self.X * np.cos(jj)
+                                        - self.Y * np.sin(jj)
+                                        + self.preload
+                                        / (1 - self.preload)
+                                        * (np.cos(jj)) ** 2
+                                    )
+
+                                    He = (
+                                        1
+                                        - self.X * np.cos(jj + 0.5 * self.dtheta)
+                                        - self.Y * np.sin(jj + 0.5 * self.dtheta)
+                                        + self.preload
+                                        / (1 - self.preload)
+                                        * (np.cos(jj + 0.5 * self.dtheta)) ** 2
+                                    )
+
+                                    Hw = (
+                                        1
+                                        - self.X * np.cos(jj - 0.5 * self.dtheta)
+                                        - self.Y * np.sin(jj - 0.5 * self.dtheta)
+                                        + self.preload
+                                        / (1 - self.preload)
+                                        * (np.cos(jj - 0.5 * self.dtheta)) ** 2
+                                    )
 
                             HXP = -np.cos(jj)
                             HXe = -np.cos(jj + 0.5 * self.dtheta)
@@ -2654,6 +2893,7 @@ class THDCylindrical(BearingElement):
             ((self.load_x_direction + Fhx) ** 2) + ((self.load_y_direction + Fhy) ** 2)
         )
         if print_progress:
+            print(x)
             print(f"Score: ", score)
             print("============================================")
             print(f"Force x direction: ", Fhx)
@@ -2700,6 +2940,7 @@ class THDCylindrical(BearingElement):
             )
 
         Ss = S * ((self.axial_length / (2 * self.journal_radius)) ** 2)
+        Ss = S
 
         return Ss
 
@@ -2721,13 +2962,15 @@ def cylindrical_bearing_example():
     """
 
     bearing = THDCylindrical(
-        axial_length=(0.263144),
-        journal_radius=(0.2),
-        radial_clearance=(1.95e-4),
+        axial_length=0.263144,
+        journal_radius=0.2,
+        radial_clearance=1.95e-4,
         elements_circumferential=11,
         elements_axial=3,
         n_pad=2,
         pad_arc_length=176,
+        preload=0,
+        geometry="circular",
         reference_temperature=50,
         speed=Q_([900], "RPM"),
         load_x_direction=0,

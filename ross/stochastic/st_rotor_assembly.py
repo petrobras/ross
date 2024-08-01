@@ -2,6 +2,7 @@
 
 This module creates random rotor instances and run stochastic analysis.
 """
+
 from collections.abc import Iterable
 
 import numpy as np

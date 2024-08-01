@@ -2,7 +2,9 @@ import re
 
 import numpy as np
 import pandas as pd
+from numpy import linalg as la
 from plotly import graph_objects as go
+from copy import deepcopy as copy
 
 
 class DataNotFoundError(Exception):
@@ -594,16 +596,16 @@ def get_data_from_figure(fig):
     >>> resp = rotor.run_unbalance_response(
     ...     3, 0.001, 0.0, np.linspace(0, 1000, 101)
     ... )
-    >>> fig = resp.plot_magnitude(probe=[(3, 0.0, "probe1"), (3, np.pi/2, "probe2")])
+    >>> fig = resp.plot_magnitude(probe=[rs.Probe(3, 0.0, tag="probe1"), rs.Probe(3, np.pi/2, tag="probe2")])
     >>> df = rs.get_data_from_figure(fig)
 
     Use the probe tag to navigate through pandas data
     Index 0 for frequency array
-    >>> df["probe1"][0] # doctest: +ELLIPSIS
+    >>> df["probe1"].values[0] # doctest: +ELLIPSIS
     array([   0.,   10.,   20.,   30.,...
 
     Index 1 for amplitude array
-    >>> df["probe1"][1] # doctest: +ELLIPSIS
+    >>> df["probe1"].values[1] # doctest: +ELLIPSIS
     array([0.00000000e+00,...
 
     Or use "iloc" to obtain the desired array from pandas
@@ -622,3 +624,284 @@ def get_data_from_figure(fig):
     df = pd.DataFrame(dict_data)
 
     return df
+
+
+def newmark(func, t, y_size, **options):
+    """Transient solution of the dynamic behavior of the system.
+
+    Perform numerical integration using the Newmark method with Newton-Raphson
+    iterations of the generic equation of motion:
+    M * y'' + C * y' + K * y = RHS(t, y)
+
+    Parameters
+    ----------
+    func : callable
+        A function that calculates the system matrices and right-hand side (RHS) vector at each
+        time step. It should take at least one argument `(step, dt=None, y=None, ydot=None, y2dot=None)`
+        and return a tuple `(M, C, K, RHS)`, where `step` is a scalar int related to the current time
+        step, `dt` is the current time step in seconds, `y` is a ndarray of current state of the system,
+        `ydot` and `y2dot` are its first and second time derivatives. `M`, `C`, `K` are ndarrays with
+        `np.shape(M) = (y_size, y_size)` and `RHS` is a ndarray with `len(RHS) = y_size`.
+    t : array_like
+        Time array.
+    y_size : int
+        Size of the state vector.
+    **options
+        Options passed for controlling the integration parameters. All options available are
+        listed below.
+    gamma : float, optional
+        Parameter of the integration algorithm related to the velocity interpolation equation.
+        Default is 0.5.
+    beta : float, optional
+        Parameter of the integration algorithm related to the displacement interpolation equation.
+        Default is 0.25.
+    tol : float, optional
+        Convergence tolerance for the Newton-Raphson iterations. Default is 1e-6.
+    progress_interval : float, optional
+        Time interval at which progress is printed. Default is to not show progress.
+
+    Returns
+    -------
+    yout : ndarray
+        System response. It is an array containing the state variables at each time step of `t` with
+        `np.shape(yout) = (len(t), y_size)`
+
+    References
+    ----------
+    Newmark, N. M. (1959). A method of computation for structural dynamics.
+    Journal of the Engineering Mechanics Division, 85(3), 67-94.
+
+    Examples
+    --------
+    >>> import ross as rs
+    >>> rotor = rs.rotor_example()
+    >>> size = 10000
+    >>> node = 3
+    >>> speed = 500.0
+    >>> accel = 0.0
+    >>> t = np.linspace(0, 10, size)
+    >>> F = np.zeros((size, rotor.ndof))
+    >>> F[:, rotor.number_dof * node] = 10 * np.cos(2 * t)
+    >>> F[:, rotor.number_dof * node + 1] = 10 * np.sin(2 * t)
+    >>> M = rotor.M(speed)
+    >>> C1 = rotor.C(speed)
+    >>> K1 = rotor.K(speed)
+    >>> C2 = rotor.G()
+    >>> K2 = rotor.Ksdt()
+    >>> rotor_system = lambda i, **state: (M, C1 + C2 * speed, K1 + K2 * accel, F[i, :])
+    >>> yout = newmark(rotor_system, t, rotor.ndof)
+    >>> dof = 13
+    >>> yout[:, dof] # doctest: +ELLIPSIS
+    array([0.00000000e+00, 8.49140057e-09, 4.34296767e-08, ...,
+           1.16148468e-05, 1.16492353e-05, 1.16859622e-05])
+    """
+
+    gamma = options.get("gamma", 0.5)
+    beta = options.get("beta", 0.25)
+    tol = options.get("tol", 1e-6)
+    progress_interval = options.get("progress_interval", t[-1] + 1)
+
+    n_steps = len(t)
+    ny = y_size
+
+    y0 = np.zeros(ny)
+    ydot0 = np.zeros(ny)
+    y2dot0 = np.zeros(ny)
+
+    yout = np.full((n_steps, ny), 1e-38, dtype=t.dtype)
+    yout[0, :] = y0
+
+    for step in range(1, n_steps):
+        aux = round(t[step] / progress_interval, 9)
+        if aux - int(aux) == 0:
+            print(f"Time: {t[step]:.6f} seconds")
+
+        dt = t[step] - t[step - 1]
+
+        M, C, K, RHS = func(step, dt=dt, y=y0, ydot=ydot0, y2dot=y2dot0)
+
+        y2dot = np.zeros(ny)
+        ydot = ydot0 + y2dot0 * (1 - gamma) * dt
+        y = y0 + ydot0 * dt + y2dot0 * (0.5 - beta) * (dt**2)
+
+        res = RHS - (K @ y + C @ ydot) - M @ y2dot
+        nr_iter = 0
+
+        while la.norm(res) >= tol:
+            nr_iter += 1
+            if nr_iter > 1e5:
+                raise Warning(
+                    "The Newton-Raphson algorithm is taking a long time to converge."
+                )
+
+            dy2dot = la.solve(M + C * gamma * dt + K * beta * (dt**2), res)
+
+            y2dot += dy2dot
+            ydot += dy2dot * gamma * dt
+            y += dy2dot * beta * (dt**2)
+
+            res = RHS - (K @ y + C @ ydot) - M @ y2dot
+
+        y0 = y
+        ydot0 = ydot
+        y2dot0 = y2dot
+
+        yout[step, :] = y
+
+    return yout
+
+
+def assemble_C_K_matrices(elements, C0, K0, *args):
+    """Assemble damping and stiffness matrices considering
+    specified elements a rotor.
+
+    Parameters
+    ----------
+    elements : array_like
+        List of elements of the rotor.
+    C0 : ndarray
+        Initial damping matrix.
+    K0 : ndarray
+        Initial stiffness matrix.
+    args : float, optional
+        Any additional argument that can be passed to the element C or K methods.
+
+    Returns
+    -------
+    C0 : ndarray
+        Initial damping matrix incorporating the specified elements.
+    K0 : ndarray
+        Initial stiffness matrix incorporating the specified elements.
+
+    Examples
+    --------
+    >>> import ross as rs
+    >>> rotor = rs.rotor_example()
+    >>> elements_without_bearing = [
+    ...     *rotor.shaft_elements,
+    ...     *rotor.disk_elements,
+    ...     *rotor.point_mass_elements
+    ... ]
+    >>> C0 = np.zeros((rotor.ndof, rotor.ndof))
+    >>> K0 = np.zeros((rotor.ndof, rotor.ndof))
+    >>> C1, K1 = assemble_C_K_matrices(elements_without_bearing, C0, K0)
+    >>> C, K = assemble_C_K_matrices(rotor.bearing_elements, C1, K1, 0)
+    >>> C[:4, :4]
+    array([[0., 0., 0., 0.],
+           [0., 0., 0., 0.],
+           [0., 0., 0., 0.],
+           [0., 0., 0., 0.]])
+    >>> np.round(K[:4, :4]/1e6)
+    array([[47.,  0.,  0.,  6.],
+           [ 0., 46., -6.,  0.],
+           [ 0., -6.,  1.,  0.],
+           [ 6.,  0.,  0.,  1.]])
+    """
+
+    for elm in elements:
+        dofs = list(elm.dof_global_index.values())
+        try:
+            C0[np.ix_(dofs, dofs)] += elm.C(*args)
+        except:
+            C0[np.ix_(dofs, dofs)] += elm.C()
+        try:
+            K0[np.ix_(dofs, dofs)] += elm.K(*args)
+        except:
+            K0[np.ix_(dofs, dofs)] += elm.K()
+
+    return C0, K0
+
+
+def remove_dofs(matrix, dofs=None):
+    """Removes specified degrees of freedom from the given matrix.
+
+    By default, this function takes a 6 dof model matrix and removes the axial and torsional dofs,
+    resulting in a 4 dof model matrix.
+
+    Parameters
+    ----------
+    matrix: ndarray
+        The original matrix to process.
+    dofs: list
+        List of indices representing dofs to be removed. Default is None, but internally it considers
+        the axial and torsional dofs of a 6 dof model.
+
+    Returns
+    -------
+    new_matrix: ndarray
+        The modified matrix with the removed dofs.
+
+    Examples
+    --------
+    >>> import ross as rs
+    >>> rotor = rs.rotor_example_6dof()
+    >>> n_nodes = rotor.nodes[-1] + 1
+    >>> M_6dof = rotor.M()
+    >>> M_4dof = remove_dofs(M_6dof)
+    >>> M_6dof.shape
+    (42, 42)
+    >>> len(M_6dof) == n_nodes * 6
+    True
+    >>> M_4dof.shape
+    (28, 28)
+    >>> len(M_4dof) == n_nodes * 4
+    True
+    """
+    if dofs is None:
+        dofs = np.arange(2, len(matrix), 3)
+
+    new_matrix = np.delete(np.delete(matrix, dofs, axis=0), dofs, axis=1)
+
+    return new_matrix
+
+
+def convert_6dof_to_4dof(rotor):
+    """Convert a 6 dof rotor model to a 4 dof model.
+
+    This function takes a 6 dof rotor model and modifies it by removing the axial and
+    torsional dofs. It adjusts the corresponding matrix methods to reflect this change.
+
+    Parameters
+    ----------
+    rotor: rs.Rotor
+        The rotor object of 6 dof model.
+
+    Returns
+    -------
+    new_rotor: rs.Rotor
+        The rotor object modified.
+
+    Examples
+    --------
+    >>> import ross as rs
+    >>> rotor = rs.rotor_example_6dof()
+    >>> rotor_mod = convert_6dof_to_4dof(rotor)
+    >>> n_nodes = rotor.nodes[-1] + 1
+    >>> M_6dof = rotor.M()
+    >>> M_4dof = rotor_mod.M()
+    >>> M_6dof.shape
+    (42, 42)
+    >>> len(M_6dof) == n_nodes * 6
+    True
+    >>> M_4dof.shape
+    (28, 28)
+    >>> len(M_4dof) == n_nodes * 4
+    True
+    """
+    # Copy the rotor object
+    new_rotor = copy(rotor)
+
+    # Modify matrix methods to get 4 dof matrices
+    new_rotor.M = lambda frequency=None, synchronous=False: remove_dofs(
+        rotor.M(frequency=frequency, synchronous=synchronous)
+    )
+    new_rotor.K = lambda frequency: remove_dofs(rotor.K(frequency))
+    new_rotor.Ksdt = lambda: remove_dofs(rotor.Ksdt())
+    new_rotor.C = lambda frequency: remove_dofs(rotor.C(frequency))
+    new_rotor.G = lambda: remove_dofs(rotor.G())
+
+    # Update number of dofs
+    new_rotor.number_dof = 4
+    new_rotor.ndof = len(new_rotor.M())
+
+    return new_rotor

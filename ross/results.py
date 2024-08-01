@@ -2,6 +2,7 @@
 
 This module returns graphs for each type of analyses in rotor_assembly.py.
 """
+
 import copy
 import inspect
 from abc import ABC
@@ -382,18 +383,25 @@ class Shape(Results):
     """
 
     def __init__(
-        self, vector, nodes, nodes_pos, shaft_elements_length, normalize=False
+        self,
+        vector,
+        nodes,
+        nodes_pos,
+        shaft_elements_length,
+        number_dof,
+        normalize=False,
     ):
         self.vector = vector
         self.nodes = nodes
         self.nodes_pos = nodes_pos
         self.shaft_elements_length = shaft_elements_length
         self.normalize = normalize
+        self.number_dof = number_dof
         evec = np.copy(vector)
 
         if self.normalize:
-            modex = evec[0::4]
-            modey = evec[1::4]
+            modex = evec[0 :: self.number_dof]
+            modey = evec[1 :: self.number_dof]
             xmax, ixmax = max(abs(modex)), np.argmax(abs(modex))
             ymax, iymax = max(abs(modey)), np.argmax(abs(modey))
 
@@ -410,13 +418,30 @@ class Shape(Results):
         self.yn = None
         self.zn = None
         self.major_axis = None
+        self._classify()
         self._calculate()
+
+    def _classify(self):
+        self.mode_type = "Lateral"
+
+        if self.number_dof == 6:
+            size = len(self.vector)
+
+            axial_dofs = np.arange(2, size, self.number_dof)
+            torsional_dofs = np.arange(5, size, self.number_dof)
+
+            nonzero_dofs = np.nonzero(np.abs(self.vector).round(6))[0]
+
+            if np.isin(nonzero_dofs, axial_dofs).all():
+                self.mode_type = "Axial"
+            elif np.isin(nonzero_dofs, torsional_dofs).all():
+                self.mode_type = "Torsional"
 
     def _calculate_orbits(self):
         orbits = []
         whirl = []
         for node, node_pos in zip(self.nodes, self.nodes_pos):
-            ru_e, rv_e = self._evec[4 * node : 4 * node + 2]
+            ru_e, rv_e = self._evec[self.number_dof * node : self.number_dof * node + 2]
             orbit = Orbit(node=node, node_pos=node_pos, ru_e=ru_e, rv_e=rv_e)
             orbits.append(orbit)
             whirl.append(orbit.whirl)
@@ -438,6 +463,7 @@ class Shape(Results):
         nodes = self.nodes
         shaft_elements_length = self.shaft_elements_length
         nodes_pos = self.nodes_pos
+        num_dof = self.number_dof
 
         # calculate each orbit
         self._calculate_orbits()
@@ -470,8 +496,19 @@ class Shape(Results):
             Nx = np.hstack((N1, Le * N2, N3, Le * N4))
             Ny = np.hstack((N1, -Le * N2, N3, -Le * N4))
 
-            xx = [4 * n, 4 * n + 3, 4 * n + 4, 4 * n + 7]
-            yy = [4 * n + 1, 4 * n + 2, 4 * n + 5, 4 * n + 6]
+            ind = num_dof * n
+            xx = [
+                ind + 0,
+                ind + int(num_dof / 2) + 1,
+                ind + num_dof + 0,
+                ind + int(3 * num_dof / 2) + 1,
+            ]
+            yy = [
+                ind + 1,
+                ind + int(num_dof / 2) + 0,
+                ind + num_dof + 1,
+                ind + int(3 * num_dof / 2) + 0,
+            ]
 
             pos0 = nn * n
             pos1 = nn * (n + 1)
@@ -839,6 +876,7 @@ class ModalResults(Results):
         nodes,
         nodes_pos,
         shaft_elements_length,
+        number_dof,
     ):
         self.speed = speed
         self.evalues = evalues
@@ -851,6 +889,7 @@ class ModalResults(Results):
         self.nodes = nodes
         self.nodes_pos = nodes_pos
         self.shaft_elements_length = shaft_elements_length
+        self.number_dof = number_dof
         self.modes = self.evectors[: self.ndof]
         self.shapes = []
         kappa_modes = []
@@ -862,6 +901,7 @@ class ModalResults(Results):
                     nodes_pos=self.nodes_pos,
                     shaft_elements_length=self.shaft_elements_length,
                     normalize=True,
+                    number_dof=self.number_dof,
                 )
             )
             kappa_color = []
@@ -1131,12 +1171,12 @@ class ModalResults(Results):
 
         df = self.data_mode(mode, length_units, frequency_units, damping_parameter)
 
-        damping_name = df["damping_name"][0]
-        damping_value = df["damping_value"][0]
+        damping_name = df["damping_name"].values[0]
+        damping_value = df["damping_value"].values[0]
 
-        wd = df["wd"]
-        wn = df["wn"]
-        speed = df["speed"]
+        wd = df["wd"].values
+        wn = df["wn"].values
+        speed = df["speed"].values
 
         frequency = {
             "wd": f"ω<sub>d</sub> = {wd[0]:.2f}",
@@ -1236,15 +1276,15 @@ class ModalResults(Results):
 
         df = self.data_mode(mode, length_units, frequency_units, damping_parameter)
 
-        damping_name = df["damping_name"][0]
-        damping_value = df["damping_value"][0]
+        damping_name = df["damping_name"].values[0]
+        damping_value = df["damping_value"].values[0]
 
         if fig is None:
             fig = go.Figure()
 
-        wd = df["wd"]
-        wn = df["wn"]
-        speed = df["speed"]
+        wd = df["wd"].values
+        wn = df["wn"].values
+        speed = df["speed"].values
 
         frequency = {
             "wd": f"ω<sub>d</sub> = {wd[0]:.2f}",
@@ -1372,7 +1412,15 @@ class CampbellResults(Results):
     """
 
     def __init__(
-        self, speed_range, wd, log_dec, damping_ratio, whirl_values, modal_results
+        self,
+        speed_range,
+        wd,
+        log_dec,
+        damping_ratio,
+        whirl_values,
+        modal_results,
+        number_dof,
+        run_modal,
     ):
         self.speed_range = speed_range
         self.wd = wd
@@ -1380,12 +1428,14 @@ class CampbellResults(Results):
         self.damping_ratio = damping_ratio
         self.whirl_values = whirl_values
         self.modal_results = modal_results
+        self.number_dof = number_dof
+        self.run_modal = run_modal
 
     @check_units
     def plot(
         self,
         harmonics=[1],
-        frequency_units="rad/s",
+        frequency_units="RPM",
         damping_parameter="log_dec",
         frequency_range=None,
         damping_range=None,
@@ -1401,7 +1451,7 @@ class CampbellResults(Results):
             The default is to plot 1x.
         frequency_units : str, optional
             Frequency units.
-            Default is "rad/s"
+            Default is "RPM".
         damping_parameter : str, optional
             Define which value to show for damping. We can use "log_dec" or "damping_ratio".
             Default is "log_dec".
@@ -1508,32 +1558,51 @@ class CampbellResults(Results):
                     legendgroup="Crit. Speed",
                     showlegend=True,
                     hovertemplate=(
-                        f"Frequency ({frequency_units}): %{{x:.2f}}<br>Critical Speed ({frequency_units}): %{{y:.2f}}"
+                        f"Frequency ({frequency_units}): %{{y:.2f}}<br>Critical Speed ({frequency_units}): %{{x:.2f}}"
                     ),
                 )
             )
 
+        whirl_direction = [0.0, 0.5, 1.0]
         scatter_marker = ["triangle-up", "circle", "triangle-down"]
-        for mark, whirl_dir, legend in zip(
-            scatter_marker, [0.0, 0.5, 1.0], ["Forward", "Mixed", "Backward"]
-        ):
+        legends = ["Forward", "Mixed", "Backward"]
+
+        if self.number_dof == 6:
+            whirl_direction = np.concatenate((whirl_direction, [None, None]))
+            scatter_marker = np.concatenate(
+                (scatter_marker, ["diamond-wide", "bowtie"])
+            )
+            legends = np.concatenate((legends, ["Axial", "Torsional"]))
+
+        for whirl_dir, mark, legend in zip(whirl_direction, scatter_marker, legends):
             for i in range(num_frequencies):
                 w_i = wd[:, i]
                 whirl_i = whirl[:, i]
                 damping_values_i = damping_values[:, i]
 
-                whirl_mask = whirl_i == whirl_dir
-                mask = whirl_mask
-                if frequency_range is not None:
-                    frequency_mask = (w_i > frequency_range[0]) & (
-                        w_i < frequency_range[1]
-                    )
-                    mask = mask & frequency_mask
-                if damping_range is not None:
-                    damping_mask = (damping_values_i > damping_range[0]) & (
-                        damping_values_i < damping_range[1]
-                    )
-                    mask = mask & damping_mask
+                mode_shape = np.array(
+                    [self.modal_results[j].shapes[i].mode_type for j in speed_range]
+                )
+                mode_mask_g = np.array([mode in legends for mode in mode_shape])
+
+                mode_mask = mode_shape == legend
+                if any(mode_mask):
+                    mask = mode_mask
+                else:
+                    whirl_mask = whirl_i == whirl_dir
+                    mask = whirl_mask
+                    if frequency_range is not None:
+                        frequency_mask = (w_i > frequency_range[0]) & (
+                            w_i < frequency_range[1]
+                        )
+                        mask = mask & frequency_mask
+                    if damping_range is not None:
+                        damping_mask = (damping_values_i > damping_range[0]) & (
+                            damping_values_i < damping_range[1]
+                        )
+                        mask = mask & damping_mask
+
+                    mask = mask & ~mode_mask_g
 
                 if any(check for check in mask):
                     fig.add_trace(
@@ -1567,8 +1636,6 @@ class CampbellResults(Results):
                 )
             )
         # turn legend glyphs black
-        scatter_marker = ["triangle-up", "circle", "triangle-down"]
-        legends = ["Forward", "Mixed", "Backward"]
         for mark, legend in zip(scatter_marker, legends):
             fig.add_trace(
                 go.Scatter(
@@ -1583,7 +1650,7 @@ class CampbellResults(Results):
             )
 
         fig.update_xaxes(
-            title_text=f"Frequency ({frequency_units})",
+            title_text=f"Rotor Speed ({frequency_units})",
             range=[
                 np.min(Q_(speed_range, "rad/s").to(frequency_units).m),
                 np.max(Q_(speed_range, "rad/s").to(frequency_units).m),
@@ -1623,14 +1690,23 @@ class CampbellResults(Results):
         except ImportError:
             raise ImportError("Please install ipywidgets to use this feature.")
 
+        modal_results_crit = {}
+
         def _plot_with_mode_shape_callback(trace, points, state):
             point_idx = points.point_inds
             if len(point_idx) > 0:
                 frequency = trace.x[point_idx][0]
                 natural_frequency = trace.y[point_idx][0]
 
-                # run modal analysis for desired frequency
-                modal = self.modal_results[Q_(frequency, frequency_units).to("rad/s").m]
+                # get modal results for desired frequency
+                try:
+                    modal = self.modal_results[
+                        Q_(frequency, frequency_units).to("rad/s").m
+                    ]
+                except:
+                    modal = modal_results_crit[
+                        Q_(frequency, frequency_units).to("rad/s").m
+                    ]
 
                 # identify index of desired mode
                 idx = (
@@ -1663,14 +1739,20 @@ class CampbellResults(Results):
             **kwargs,
         )
         camp_fig = go.FigureWidget(camp_fig)
+
+        crit_speeds = camp_fig.data[0]["x"]
+        for w in crit_speeds:
+            w_si = Q_(w, frequency_units).to("rad/s").m
+            modal_results_crit[w_si] = self.run_modal(w_si)
+
+        for scatter in camp_fig.data:
+            scatter.on_click(_plot_with_mode_shape_callback)
+
         plot_mode_3d = self.modal_results[self.speed_range[0]].plot_mode_3d(
             0, frequency_units=frequency_units, damping_parameter=damping_parameter
         )
         plot_mode_3d = go.FigureWidget(plot_mode_3d)
         plot_mode_3d_data = plot_mode_3d.data
-
-        for scatter in camp_fig.data:
-            scatter.on_click(_plot_with_mode_shape_callback)
 
         return VBox([camp_fig, plot_mode_3d])
 
@@ -1721,7 +1803,7 @@ class FrequencyResponseResults(Results):
         if self.number_dof == 4:
             self.dof_dict = {"0": "x", "1": "y", "2": "α", "3": "β"}
         elif self.number_dof == 6:
-            self.dof_dict = {"0": "x", "1": "y", "2": "z", "4": "α", "5": "β", "6": "θ"}
+            self.dof_dict = {"0": "x", "1": "y", "2": "z", "3": "α", "4": "β", "5": "θ"}
 
     def plot_magnitude(
         self,
@@ -2276,25 +2358,29 @@ class ForcedResponseResults(Results):
         data["frequency"] = frequency_range
 
         for i, p in enumerate(probe):
+            try:
+                node = p.node
+                angle = p.angle
+                probe_tag = p.tag or p.get_label(i + 1)
+                if p.direction == "axial":
+                    continue
+            except AttributeError:
+                node = p[0]
+                warn(
+                    "The use of tuples in the probe argument is deprecated. Use the Probe class instead.",
+                    DeprecationWarning,
+                )
+                try:
+                    angle = Q_(p[1], probe_units).to("rad").m
+                except TypeError:
+                    angle = p[1]
+                try:
+                    probe_tag = p[2]
+                except IndexError:
+                    probe_tag = f"Probe {i+1} - Node {p[0]}"
+
             amplitude = []
             for speed_idx in range(len(self.speed_range)):
-                # first try to get the angle from the probe object
-                try:
-                    angle = p.angle
-                    node = p.node
-                # if it is a tuple, warn the user that the use of tuples is deprecated
-                except AttributeError:
-                    try:
-                        angle = Q_(p[1], probe_units).to("rad").m
-                        warn(
-                            "The use of tuples in the probe argument is deprecated. Use the Probe class instead.",
-                            DeprecationWarning,
-                        )
-                        node = p[0]
-                    except TypeError:
-                        angle = p[1]
-                        node = p[0]
-
                 ru_e, rv_e = response[:, speed_idx][
                     self.rotor.number_dof * node : self.rotor.number_dof * node + 2
                 ]
@@ -2303,14 +2389,6 @@ class ForcedResponseResults(Results):
                 )
                 amp, phase = orbit.calculate_amplitude(angle=angle)
                 amplitude.append(amp)
-
-            try:
-                probe_tag = p.tag
-            except AttributeError:
-                try:
-                    probe_tag = p[2]
-                except IndexError:
-                    probe_tag = f"Probe {i+1} - Node {p[0]}"
 
             data[probe_tag] = Q_(amplitude, base_unit).to(amplitude_units).m
 
@@ -2375,25 +2453,29 @@ class ForcedResponseResults(Results):
         data["frequency"] = frequency_range
 
         for i, p in enumerate(probe):
+            try:
+                node = p.node
+                angle = p.angle
+                probe_tag = p.tag or p.get_label(i + 1)
+                if p.direction == "axial":
+                    continue
+            except AttributeError:
+                node = p[0]
+                warn(
+                    "The use of tuples in the probe argument is deprecated. Use the Probe class instead.",
+                    DeprecationWarning,
+                )
+                try:
+                    angle = Q_(p[1], probe_units).to("rad").m
+                except TypeError:
+                    angle = p[1]
+                try:
+                    probe_tag = p[2]
+                except IndexError:
+                    probe_tag = f"Probe {i+1} - Node {p[0]}"
+
             phase_values = []
             for speed_idx in range(len(self.speed_range)):
-                # first try to get the angle from the probe object
-                try:
-                    angle = p.angle
-                    node = p.node
-                # if it is a tuple, warn the user that the use of tuples is deprecated
-                except AttributeError:
-                    try:
-                        angle = Q_(p[1], probe_units).to("rad").m
-                        warn(
-                            "The use of tuples in the probe argument is deprecated. Use the Probe class instead.",
-                            DeprecationWarning,
-                        )
-                        node = p[0]
-                    except TypeError:
-                        angle = p[1]
-                        node = p[0]
-
                 ru_e, rv_e = response[:, speed_idx][
                     self.rotor.number_dof * node : self.rotor.number_dof * node + 2
                 ]
@@ -2402,14 +2484,6 @@ class ForcedResponseResults(Results):
                 )
                 amp, phase = orbit.calculate_amplitude(angle=angle)
                 phase_values.append(phase)
-
-            try:
-                probe_tag = p.tag
-            except AttributeError:
-                try:
-                    probe_tag = p[2]
-                except IndexError:
-                    probe_tag = f"Probe {i+1} - Node {p[0]}"
 
             data[probe_tag] = Q_(phase_values, "rad").to(phase_units).m
 
@@ -3082,7 +3156,7 @@ class ForcedResponseResults(Results):
         idx = np.where(np.isclose(self.speed_range, speed, atol=1e-6))[0][0]
         mag = np.abs(self.forced_resp[:, idx])
         phase = np.angle(self.forced_resp[:, idx])
-        number_dof = self.rotor.number_dof
+        num_dof = self.rotor.number_dof
         nodes = self.rotor.nodes
 
         Mx = np.zeros_like(nodes, dtype=np.float64)
@@ -3096,10 +3170,10 @@ class ForcedResponseResults(Results):
                 [+6, -6, +2 * el.L, +4 * el.L],
             ])
             response_x = np.array([
-                [mag[number_dof * el.n_l + 0]],
-                [mag[number_dof * el.n_r + 0]],
-                [mag[number_dof * el.n_l + 3]],
-                [mag[number_dof * el.n_r + 3]],
+                [mag[num_dof * el.n_l + 0]],
+                [mag[num_dof * el.n_r + 0]],
+                [mag[num_dof * el.n_l + int(num_dof / 2) + 1]],
+                [mag[num_dof * el.n_r + int(num_dof / 2) + 1]],
             ])
 
             Mx[[el.n_l, el.n_r]] += (x @ response_x).flatten()
@@ -3109,10 +3183,10 @@ class ForcedResponseResults(Results):
                 [+6, -6, -2 * el.L, -4 * el.L],
             ])
             response_y = np.array([
-                [mag[number_dof * el.n_l + 1]],
-                [mag[number_dof * el.n_r + 1]],
-                [mag[number_dof * el.n_l + 2]],
-                [mag[number_dof * el.n_r + 2]],
+                [mag[num_dof * el.n_l + 1]],
+                [mag[num_dof * el.n_r + 1]],
+                [mag[num_dof * el.n_l + int(num_dof / 2) + 0]],
+                [mag[num_dof * el.n_r + int(num_dof / 2) + 0]],
             ])
             My[[el.n_l, el.n_r]] += (y @ response_y).flatten()
         # fmt: on
@@ -3188,6 +3262,7 @@ class ForcedResponseResults(Results):
             nodes=self.rotor.nodes,
             nodes_pos=self.rotor.nodes_pos,
             shaft_elements_length=self.rotor.shaft_elements_length,
+            number_dof=self.rotor.number_dof,
         )
 
         if fig is None:
@@ -3290,6 +3365,7 @@ class ForcedResponseResults(Results):
             nodes=self.rotor.nodes,
             nodes_pos=self.rotor.nodes_pos,
             shaft_elements_length=self.rotor.shaft_elements_length,
+            number_dof=self.rotor.number_dof,
         )
 
         if fig is None:
@@ -4070,14 +4146,11 @@ class SummaryResults(Results):
         The figure object with the tables plot.
     """
 
-    def __init__(
-        self, df_shaft, df_disks, df_bearings, nodes_pos, brg_forces, CG, Ip, tag
-    ):
+    def __init__(self, df_shaft, df_disks, df_bearings, brg_forces, CG, Ip, tag):
         self.df_shaft = df_shaft
         self.df_disks = df_disks
         self.df_bearings = df_bearings
         self.brg_forces = brg_forces
-        self.nodes_pos = np.array(nodes_pos)
         self.CG = CG
         self.Ip = Ip
         self.tag = tag
@@ -4126,7 +4199,7 @@ class SummaryResults(Results):
             "Tag": self.df_disks["tag"],
             "Shaft number": self.df_disks["shaft_number"],
             "Node": self.df_disks["n"],
-            "Nodal Position": self.nodes_pos[self.df_bearings["n"]],
+            "Nodal Position": self.df_disks["nodes_pos_l"],
             "Mass": self.df_disks["m"].map("{:.3f}".format),
             "Ip": self.df_disks["Ip"].map("{:.3e}".format),
         }
@@ -4136,7 +4209,7 @@ class SummaryResults(Results):
             "Shaft number": self.df_bearings["shaft_number"],
             "Node": self.df_bearings["n"],
             "N_link": self.df_bearings["n_link"],
-            "Nodal Position": self.nodes_pos[self.df_bearings["n"]],
+            "Nodal Position": self.df_bearings["nodes_pos_l"],
             "Bearing force": list(self.brg_forces.values()),
         }
 
@@ -4382,6 +4455,97 @@ class TimeResponseResults(Results):
         self.xout = xout
         self.rotor = rotor
 
+    def data_time_response(
+        self,
+        probe,
+        probe_units="rad",
+        displacement_units="m",
+        time_units="s",
+    ):
+        """Return the time response given a list of probes in DataFrame format.
+
+        Parameters
+        ----------
+        probe : list
+            List with rs.Probe objects.
+        probe_units : str, option
+            Units for probe orientation.
+            Default is "rad".
+        displacement_units : str, optional
+            Displacement units.
+            Default is 'm'.
+        time_units : str
+            Time units.
+            Default is 's'.
+
+        Returns
+        -------
+         df : pd.DataFrame
+            DataFrame storing the time response measured by probes.
+        """
+        data = {}
+
+        nodes = self.rotor.nodes
+        link_nodes = self.rotor.link_nodes
+        ndof = self.rotor.number_dof
+
+        for i, p in enumerate(probe):
+            probe_direction = "radial"
+            try:
+                node = p.node
+                angle = p.angle
+                probe_tag = p.tag or p.get_label(i + 1)
+                if p.direction == "axial":
+                    if ndof == 6:
+                        probe_direction = p.direction
+                    else:
+                        continue
+            except AttributeError:
+                node = p[0]
+                warn(
+                    "The use of tuples in the probe argument is deprecated. Use the Probe class instead.",
+                    DeprecationWarning,
+                )
+                try:
+                    angle = Q_(p[1], probe_units).to("rad").m
+                except TypeError:
+                    angle = p[1]
+                try:
+                    probe_tag = p[2]
+                except IndexError:
+                    probe_tag = f"Probe {i+1} - Node {p[0]}"
+
+            data[f"angle[{i}]"] = angle
+            data[f"probe_tag[{i}]"] = probe_tag
+            data[f"probe_dir[{i}]"] = probe_direction
+
+            fix_dof = (node - nodes[-1] - 1) * ndof // 2 if node in link_nodes else 0
+
+            if probe_direction == "radial":
+                dofx = ndof * node - fix_dof
+                dofy = ndof * node + 1 - fix_dof
+
+                # fmt: off
+                operator = np.array(
+                    [[np.cos(angle), np.sin(angle)],
+                    [-np.sin(angle), np.cos(angle)]]
+                )
+
+                _probe_resp = operator @ np.vstack((self.yout[:, dofx], self.yout[:, dofy]))
+                probe_resp = _probe_resp[0,:]
+                # fmt: on
+            else:
+                dofz = ndof * node + 2 - fix_dof
+                probe_resp = self.yout[:, dofz]
+
+            probe_resp = Q_(probe_resp, "m").to(displacement_units).m
+            data[f"probe_resp[{i}]"] = probe_resp
+
+        data["time"] = Q_(self.t, "s").to(time_units).m
+        df = pd.DataFrame(data)
+
+        return df
+
     def plot_1d(
         self,
         probe,
@@ -4393,7 +4557,7 @@ class TimeResponseResults(Results):
     ):
         """Plot time response.
 
-        This method plots the time response given a tuple of probes with their nodes
+        This method plots the time response given a list of probes with their nodes
         and orientations.
 
         Parameters
@@ -4421,51 +4585,30 @@ class TimeResponseResults(Results):
         fig : Plotly graph_objects.Figure()
             The figure object with the plot.
         """
-        nodes = self.rotor.nodes
-        link_nodes = self.rotor.link_nodes
-        ndof = self.rotor.number_dof
 
         if fig is None:
             fig = go.Figure()
 
+        df = self.data_time_response(probe, probe_units, displacement_units, time_units)
+        _time = df["time"].values
         for i, p in enumerate(probe):
-            fix_dof = (p[0] - nodes[-1] - 1) * ndof // 2 if p[0] in link_nodes else 0
-            dofx = ndof * p[0] - fix_dof
-            dofy = ndof * p[0] + 1 - fix_dof
-
-            angle = Q_(p[1], probe_units).to("rad").m
-
-            # fmt: off
-            operator = np.array(
-                [[np.cos(angle), - np.sin(angle)],
-                 [np.cos(angle), + np.sin(angle)]]
-            )
-
-            _probe_resp = operator @ np.vstack((self.yout[:, dofx], self.yout[:, dofy]))
-            probe_resp = (
-                _probe_resp[0] * np.cos(angle) ** 2 +
-                _probe_resp[1] * np.sin(angle) ** 2
-            )
-            # fmt: on
-
-            probe_resp = Q_(probe_resp, "m").to(displacement_units).m
-
             try:
-                probe_tag = p[2]
-            except IndexError:
-                probe_tag = f"Probe {i+1} - Node {p[0]}"
+                probe_tag = df[f"probe_tag[{i}]"].values[0]
+                probe_resp = df[f"probe_resp[{i}]"].values
 
-            fig.add_trace(
-                go.Scatter(
-                    x=Q_(self.t, "s").to(time_units).m,
-                    y=Q_(probe_resp, "m").to(displacement_units).m,
-                    mode="lines",
-                    name=probe_tag,
-                    legendgroup=probe_tag,
-                    showlegend=True,
-                    hovertemplate=f"Time ({time_units}): %{{x:.2f}}<br>Amplitude ({displacement_units}): %{{y:.2e}}",
+                fig.add_trace(
+                    go.Scatter(
+                        x=_time,
+                        y=Q_(probe_resp, "m").to(displacement_units).m,
+                        mode="lines",
+                        name=probe_tag,
+                        legendgroup=probe_tag,
+                        showlegend=True,
+                        hovertemplate=f"Time ({time_units}): %{{x:.2f}}<br>Amplitude ({displacement_units}): %{{y:.2e}}",
+                    )
                 )
-            )
+            except KeyError:
+                pass
 
         fig.update_xaxes(title_text=f"Time ({time_units})")
         fig.update_yaxes(title_text=f"Amplitude ({displacement_units})")
