@@ -3549,6 +3549,60 @@ class Rotor(object):
             tag=tag,
         )
 
+    @classmethod
+    def to_ross_only(cls, rotor):
+        """Convert rotor with rsxl objects to ross only."""
+        bearings_seals_rs = []
+        for b in rotor.bearing_elements:
+            if isinstance(b, SealElement):
+                bearings_seals_rs.append(
+                    SealElement(
+                        n=b.n,
+                        kxx=b.kxx,
+                        kxy=b.kxy,
+                        kyx=b.kyx,
+                        kyy=b.kyy,
+                        cxx=b.cxx,
+                        cxy=b.cxy,
+                        cyx=b.cyx,
+                        cyy=b.cyy,
+                        frequency=b.frequency,
+                        tag=b.tag,
+                        color=b.color,
+                        n_link=b.n_link,
+                        seal_leakage=b.seal_leakage,
+                    )
+                )
+            else:
+                bearings_seals_rs.append(
+                    BearingElement(
+                        n=b.n,
+                        kxx=b.kxx,
+                        kxy=b.kxy,
+                        kyx=b.kyx,
+                        kyy=b.kyy,
+                        cxx=b.cxx,
+                        cxy=b.cxy,
+                        cyx=b.cyx,
+                        cyy=b.cyy,
+                        frequency=b.frequency,
+                        tag=b.tag,
+                        color=b.color,
+                        n_link=b.n_link,
+                    )
+                )
+
+        return cls(
+            rotor.shaft_elements,
+            rotor.disk_elements,
+            bearings_seals_rs,
+            rotor.point_mass_elements,
+            min_w=rotor.min_w,
+            max_w=rotor.max_w,
+            rated_w=rotor.rated_w,
+            tag=rotor.tag,
+        )
+
 
 class CoAxialRotor(Rotor):
     r"""A rotor object.
