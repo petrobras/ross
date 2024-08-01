@@ -652,36 +652,65 @@ class Rotor(object):
             *point_mass_elements,
         ]
 
-        add_elements = []
-        add_elems_length = []
+        target_elements = []
+        new_elems_length = []
 
         for new_pos in new_nodes_pos:
             for elm in shaft_elements:
+                elm.tag = None
+
                 pos_l = self.nodes_pos[self.nodes.index(elm.n_l)]
                 pos_r = self.nodes_pos[self.nodes.index(elm.n_r)]
 
                 if new_pos > pos_l and new_pos < pos_r:
-                    add_elements.append(elm)
-                    add_elems_length.append(pos_r - new_pos)
+                    target_elements.append(elm)
+                    new_elems_length.append(pos_r - new_pos)
 
         prev_left_node = -1
 
-        for i in range(len(add_elements)):
-            left_elem = add_elements[i]
-            right_elem = deepcopy(left_elem)
+        for i in range(len(target_elements)):
+            elem = target_elements[i]
 
-            right_elem.L = add_elems_length[i]
-            left_elem.L -= right_elem.L
+            left_elem = elem.__class__(
+                elem.L - new_elems_length[i],
+                elem.idl,
+                elem.odl,
+                n=elem.n,
+                idr=elem.idr,
+                odr=elem.odr,
+                material=elem.material,
+                axial_force=elem.axial_force,
+                torque=elem.torque,
+                shear_effects=elem.shear_effects,
+                rotary_inertia=elem.rotary_inertia,
+                gyroscopic=elem.gyroscopic,
+                shear_method_calc=elem.shear_method_calc,
+                alpha=elem.alpha,
+                beta=elem.beta,
+            )
+            idx_left = shaft_elements.index(elem)
+            shaft_elements[idx_left] = left_elem
 
-            right_elem.tag = None
-            right_elem.n += 1
-            right_elem._n = right_elem.n
-            right_elem.n_l = right_elem.n
-            right_elem.n_r = right_elem.n + 1
+            right_elem = elem.__class__(
+                new_elems_length[i],
+                elem.idl,
+                elem.odl,
+                n=elem.n + 1,
+                idr=elem.idr,
+                odr=elem.odr,
+                material=elem.material,
+                axial_force=elem.axial_force,
+                torque=elem.torque,
+                shear_effects=elem.shear_effects,
+                rotary_inertia=elem.rotary_inertia,
+                gyroscopic=elem.gyroscopic,
+                shear_method_calc=elem.shear_method_calc,
+                alpha=elem.alpha,
+                beta=elem.beta,
+            )
 
             if left_elem.n != prev_left_node:
                 for elm in elements:
-                    elm.tag = None
                     if elm.n >= right_elem.n:
                         elm.n += 1
                         if elm in shaft_elements:
@@ -689,14 +718,14 @@ class Rotor(object):
                             elm.n_l = elm.n
                             elm.n_r = elm.n + 1
 
-            for j in range(i + 1, len(add_elements)):
-                if add_elements[j] == add_elements[i]:
-                    add_elements[j] = right_elem
+            for j in range(i + 1, len(target_elements)):
+                if target_elements[j] == target_elements[i]:
+                    target_elements[j] = right_elem
 
-            idx = shaft_elements.index(left_elem) + len(
+            idx_right = idx_left + len(
                 [k for k, elm in enumerate(shaft_elements) if elm.n == left_elem.n]
             )
-            shaft_elements.insert(idx, right_elem)
+            shaft_elements.insert(idx_right, right_elem)
             prev_left_node = left_elem.n
 
         return Rotor(
