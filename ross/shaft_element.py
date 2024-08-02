@@ -1024,6 +1024,86 @@ class ShaftElement(Element):
 
         return fig
 
+    def create_modified(self, **attributes):
+        """Return a new shaft element based on the current instance.
+
+        Any attribute passed as an argument will be used to modify the corresponding
+        attribute of the instance. Attributes not provided as arguments will retain
+        their values from the current instance.
+
+        Parameters
+        ----------
+        L : float, pint.Quantity, optional
+            Element length (m). Default is equal to value of current instance.
+        idl : float, pint.Quantity, optional
+            Inner diameter of the element at the left position (m).
+            Default is equal to value of current instance.
+        odl : float, pint.Quantity, optional
+            Outer diameter of the element at the left position (m).
+            Default is equal to value of current instance.
+        idr : float, pint.Quantity, optional
+            Inner diameter of the element at the right position (m).
+            Default is equal to value of current instance.
+        odr : float, pint.Quantity, optional
+            Outer diameter of the element at the right position (m).
+            Default is equal to value of current instance.
+        material : ross.Material, optional
+            Shaft material. Default is equal to value of current instance.
+        n : int, optional
+            Element number (coincident with it's first node).
+            Default is equal to value of current instance.
+        axial_force : float, optional
+            Axial force (N). Default is equal to value of current instance.
+        torque : float, optional
+            Torque (N*m). Default is equal to value of current instance.
+        shear_effects : bool, optional
+            Determine if shear effects are taken into account.
+            Default is equal to value of current instance.
+        rotary_inertia : bool, optional
+            Determine if rotary_inertia effects are taken into account.
+            Default is equal to value of current instance.
+        gyroscopic : bool, optional
+            Determine if gyroscopic effects are taken into account.
+            Default is equal to value of current instance.
+        shear_method_calc : str, optional
+            Determines which shear calculation method the user will adopt
+            Default is equal to value of current instance.
+        alpha : float, optional
+            Mass proportional damping factor.
+            Default is equal to value of current instance.
+        beta : float, optional
+            Stiffness proportional damping factor.
+            Default is equal to value of current instance.
+        tag : str, optional
+            Element tag.
+            Default is None.
+
+        Returns
+        -------
+        shaft_element : ross.ShaftElement
+            An instance of the modified shaft element.
+        """
+        return self.__class__(
+            L=attributes.get("L", self.L),
+            idl=attributes.get("idl", self.idl),
+            odl=attributes.get("odl", self.odl),
+            idr=attributes.get("idr", self.idr),
+            odr=attributes.get("odr", self.odr),
+            n=attributes.get("n", self.n),
+            material=attributes.get("material", self.material),
+            axial_force=attributes.get("axial_force", self.axial_force),
+            torque=attributes.get("torque", self.torque),
+            rotary_inertia=attributes.get("rotary_inertia", self.rotary_inertia),
+            shear_effects=attributes.get("shear_effects", self.shear_effects),
+            gyroscopic=attributes.get("gyroscopic", self.gyroscopic),
+            shear_method_calc=attributes.get(
+                "shear_method_calc", self.shear_method_calc
+            ),
+            alpha=attributes.get("alpha", self.alpha),
+            beta=attributes.get("beta", self.beta),
+            tag=attributes.get("tag", None),
+        )
+
     @classmethod
     def from_table(cls, file, sheet_type="Simple", sheet_name=0):
         """Instantiate one or more shafts using inputs from an Excel table.

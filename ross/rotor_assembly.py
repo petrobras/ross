@@ -610,6 +610,104 @@ class Rotor(object):
         else:
             return False
 
+    def add_nodes(self, new_nodes_pos):
+        """Add nodes to rotor.
+
+        This method returns the modified rotor with additional nodes according to
+        the positions of the new nodes provided.
+
+        Parameters
+        ----------
+        new_nodes_pos : list
+            List with the position of the new nodes.
+
+        Returns
+        -------
+        A rotor object.
+
+        Examples
+        --------
+        >>> import ross as rs
+        >>> rotor = rs.rotor_example()
+        >>> new_rotor = rotor.add_nodes([0.62, 1.11])
+        >>> shaft_elements = new_rotor.shaft_elements
+        >>> len(shaft_elements)
+        8
+        >>> round(shaft_elements[3].L, 2)
+        0.13
+        >>> round(shaft_elements[6].L, 2)
+        0.14
+        """
+        new_nodes_pos.sort()
+
+        shaft_elements = deepcopy(self.shaft_elements)
+        disk_elements = deepcopy(self.disk_elements)
+        bearing_elements = deepcopy(self.bearing_elements)
+        point_mass_elements = deepcopy(self.point_mass_elements)
+
+        elements = [
+            *shaft_elements,
+            *disk_elements,
+            *bearing_elements,
+            *point_mass_elements,
+        ]
+
+        target_elements = []
+        new_elems_length = []
+
+        for new_pos in new_nodes_pos:
+            for elm in shaft_elements:
+                elm.tag = None
+
+                pos_l = self.nodes_pos[self.nodes.index(elm.n_l)]
+                pos_r = self.nodes_pos[self.nodes.index(elm.n_r)]
+
+                if new_pos > pos_l and new_pos < pos_r:
+                    target_elements.append(elm)
+                    new_elems_length.append(pos_r - new_pos)
+
+        prev_left_node = -1
+
+        for i in range(len(target_elements)):
+            elem = target_elements[i]
+
+            left_elem = elem.create_modified(L=(elem.L - new_elems_length[i]))
+            right_elem = elem.create_modified(L=new_elems_length[i], n=(elem.n + 1))
+
+            if left_elem.n != prev_left_node:
+                for elm in elements:
+                    if elm.n >= right_elem.n:
+                        elm.n += 1
+                        if elm in shaft_elements:
+                            elm._n = elm.n
+                            elm.n_l = elm.n
+                            elm.n_r = elm.n + 1
+
+            for j in range(i + 1, len(target_elements)):
+                if target_elements[j] == target_elements[i]:
+                    target_elements[j] = right_elem
+
+            idx_left = shaft_elements.index(elem)
+            shaft_elements[idx_left] = left_elem
+
+            idx_right = idx_left + len(
+                [k for k, elm in enumerate(shaft_elements) if elm.n == left_elem.n]
+            )
+            shaft_elements.insert(idx_right, right_elem)
+
+            prev_left_node = left_elem.n
+
+        return Rotor(
+            shaft_elements,
+            disk_elements=disk_elements,
+            bearing_elements=bearing_elements,
+            point_mass_elements=point_mass_elements,
+            min_w=self.min_w,
+            max_w=self.max_w,
+            rated_w=self.rated_w,
+            tag=self.tag,
+        )
+
     @check_units
     def run_modal(self, speed, num_modes=12, sparse=True, synchronous=False):
         """Run modal analysis.
