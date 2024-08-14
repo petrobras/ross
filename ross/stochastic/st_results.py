@@ -8,6 +8,7 @@ import inspect
 from abc import ABC
 from collections.abc import Iterable
 from pathlib import Path
+from warnings import warn
 
 import numpy as np
 import toml
@@ -1131,14 +1132,30 @@ class ST_TimeResponseResults(ST_Results):
         percentile = np.sort(percentile)
 
         for i, p in enumerate(probe):
-            fix_dof = (p[0] - nodes[-1] - 1) * ndof // 2 if p[0] in link_nodes else 0
-            dofx = ndof * p[0] - fix_dof
-            dofy = ndof * p[0] + 1 - fix_dof
-            angle = Q_(p[1], probe_units).to("rad").m
             try:
-                probe_tag = p[2]
-            except IndexError:
-                probe_tag = f"Probe {i+1} - Node {p[0]}"
+                node = p.node
+                angle = p.angle
+                probe_tag = p.tag or p.get_label(i + 1)
+                if p.direction == "axial":
+                    continue
+            except AttributeError:
+                node = p[0]
+                warn(
+                    "The use of tuples in the probe argument is deprecated. Use the Probe class instead.",
+                    DeprecationWarning,
+                )
+                try:
+                    angle = Q_(p[1], probe_units).to("rad").m
+                except TypeError:
+                    angle = p[1]
+                try:
+                    probe_tag = p[2]
+                except IndexError:
+                    probe_tag = f"Probe {i+1} - Node {p[0]}"
+
+            fix_dof = (node - nodes[-1] - 1) * ndof // 2 if node in link_nodes else 0
+            dofx = ndof * node - fix_dof
+            dofy = ndof * node + 1 - fix_dof
 
             # fmt: off
             operator = np.array(
@@ -1712,14 +1729,30 @@ class ST_ForcedResponseResults(ST_Results):
         color_p = 0
 
         for i, p in enumerate(probe):
-            angle = Q_(p[1], probe_units).to("rad").m
-            vector = self._calculate_major_axis_per_node(
-                node=p[0], angle=angle, amplitude_units=amplitude_units
-            )[:, 1, :]
             try:
-                probe_tag = p[2]
-            except IndexError:
-                probe_tag = f"Probe {i+1} - Node {p[0]}"
+                node = p.node
+                angle = p.angle
+                probe_tag = p.tag or p.get_label(i + 1)
+                if p.direction == "axial":
+                    continue
+            except AttributeError:
+                node = p[0]
+                warn(
+                    "The use of tuples in the probe argument is deprecated. Use the Probe class instead.",
+                    DeprecationWarning,
+                )
+                try:
+                    angle = Q_(p[1], probe_units).to("rad").m
+                except TypeError:
+                    angle = p[1]
+                try:
+                    probe_tag = p[2]
+                except IndexError:
+                    probe_tag = f"Probe {i+1} - Node {p[0]}"
+
+            vector = self._calculate_major_axis_per_node(
+                node=node, angle=angle, amplitude_units=amplitude_units
+            )[:, 1, :]
 
             fig.add_trace(
                 go.Scatter(
@@ -1860,18 +1893,33 @@ class ST_ForcedResponseResults(ST_Results):
 
         x = np.concatenate((frequency_range, frequency_range[::-1]))
         for i, p in enumerate(probe):
-            angle = Q_(p[1], probe_units).to("rad").m
+            try:
+                node = p.node
+                angle = p.angle
+                probe_tag = p.tag or p.get_label(i + 1)
+                if p.direction == "axial":
+                    continue
+            except AttributeError:
+                node = p[0]
+                warn(
+                    "The use of tuples in the probe argument is deprecated. Use the Probe class instead.",
+                    DeprecationWarning,
+                )
+                try:
+                    angle = Q_(p[1], probe_units).to("rad").m
+                except TypeError:
+                    angle = p[1]
+                try:
+                    probe_tag = p[2]
+                except IndexError:
+                    probe_tag = f"Probe {i+1} - Node {p[0]}"
+
             vector = self._calculate_major_axis_per_node(
-                node=p[0], angle=angle, amplitude_units=amplitude_units
+                node=node, angle=angle, amplitude_units=amplitude_units
             )[:, 2, :]
 
             probe_phase = np.real(vector)
             probe_phase = Q_(probe_phase, "rad").to(phase_units).m
-
-            try:
-                probe_tag = p[2]
-            except IndexError:
-                probe_tag = f"Probe {i+1} - Node {p[0]}"
 
             fig.add_trace(
                 go.Scatter(
@@ -2012,22 +2060,36 @@ class ST_ForcedResponseResults(ST_Results):
         color_i = 0
 
         for i, p in enumerate(probe):
-            angle = Q_(p[1], probe_units).to("rad").m
+            try:
+                node = p.node
+                angle = p.angle
+                probe_tag = p.tag or p.get_label(i + 1)
+                if p.direction == "axial":
+                    continue
+            except AttributeError:
+                node = p[0]
+                warn(
+                    "The use of tuples in the probe argument is deprecated. Use the Probe class instead.",
+                    DeprecationWarning,
+                )
+                try:
+                    angle = Q_(p[1], probe_units).to("rad").m
+                except TypeError:
+                    angle = p[1]
+                try:
+                    probe_tag = p[2]
+                except IndexError:
+                    probe_tag = f"Probe {i+1} - Node {p[0]}"
 
             mag = self._calculate_major_axis_per_node(
-                node=p[0], angle=angle, amplitude_units=amplitude_units
+                node=node, angle=angle, amplitude_units=amplitude_units
             )[:, 1, :]
             probe_phase = self._calculate_major_axis_per_node(
-                node=p[0], angle=angle, amplitude_units=amplitude_units
+                node=node, angle=angle, amplitude_units=amplitude_units
             )[:, 2, :]
 
             probe_phase = np.real(probe_phase)
             probe_phase = Q_(probe_phase, "rad").to(phase_units).m
-
-            try:
-                probe_tag = p[2]
-            except IndexError:
-                probe_tag = f"Probe {i+1} - Node {p[0]}"
 
             fig.add_trace(
                 go.Scatterpolar(
