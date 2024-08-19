@@ -371,6 +371,49 @@ def rotor3():
     return Rotor(shaft_elem, [disk0, disk1], [bearing0, bearing1])
 
 
+def test_add_nodes_simple(rotor3):
+    new_nodes_pos = [0.42, 1.036]
+    modified_rotor = rotor3.add_nodes(new_nodes_pos)
+
+    assert_equal(modified_rotor.nodes[-1], rotor3.nodes[-1] + len(new_nodes_pos))
+    assert_equal(
+        len(modified_rotor.shaft_elements),
+        len(rotor3.shaft_elements) + len(new_nodes_pos),
+    )
+    assert_almost_equal(modified_rotor.m, rotor3.m)
+    assert_almost_equal(modified_rotor.CG, rotor3.CG)
+
+    assert_equal(modified_rotor.nodes_pos[2], 0.42)
+    assert_equal(
+        modified_rotor.shaft_elements_length[1]
+        + modified_rotor.shaft_elements_length[2],
+        rotor3.shaft_elements_length[1],
+    )
+    assert_equal(
+        modified_rotor.shaft_elements[1].L + modified_rotor.shaft_elements[2].L,
+        rotor3.shaft_elements[1].L,
+    )
+
+    assert_equal(modified_rotor.nodes_pos[6], 1.036)
+    assert_equal(
+        modified_rotor.shaft_elements_length[5]
+        + modified_rotor.shaft_elements_length[6],
+        rotor3.shaft_elements_length[5],
+    )
+    assert_equal(
+        modified_rotor.shaft_elements[5].L + modified_rotor.shaft_elements[6].L,
+        rotor3.shaft_elements[5].L,
+    )
+
+    assert_equal(modified_rotor.disk_elements[0].n, rotor3.disk_elements[0].n + 1)
+    assert_equal(modified_rotor.disk_elements[1].n, rotor3.disk_elements[1].n + 1)
+
+    assert_equal(modified_rotor.bearing_elements[0].n, rotor3.bearing_elements[0].n)
+    assert_equal(
+        modified_rotor.bearing_elements[-1].n, rotor3.bearing_elements[-1].n + 2
+    )
+
+
 def test_modal_fig_orientation(rotor3):
     modal1 = rotor3.run_modal(Q_(900, "RPM"))
     fig1 = modal1.plot_mode_2d(1, orientation="major")
@@ -920,6 +963,52 @@ def rotor9():
     # More complex rotor based on a centrifugal compressor
     rotor9 = Rotor.load(Path(__file__).parent / "data/rotor.toml")
     return rotor9
+
+
+def test_add_nodes_complex(rotor9):
+    new_nodes_pos = [1.244, 0.052, 1.637]
+    modified_rotor = rotor9.add_nodes(new_nodes_pos)
+
+    assert_equal(modified_rotor.nodes[-1], rotor9.nodes[-1] + len(new_nodes_pos))
+    assert_equal(
+        len(modified_rotor.shaft_elements),
+        len(rotor9.shaft_elements) + len(new_nodes_pos) + 2,
+    )
+    assert_almost_equal(modified_rotor.m, rotor9.m)
+    assert_almost_equal(modified_rotor.CG, rotor9.CG)
+
+    assert_equal(
+        modified_rotor.shaft_elements[1].L + modified_rotor.shaft_elements[2].L,
+        rotor9.shaft_elements[1].L,
+    )
+    assert_equal(
+        modified_rotor.shaft_elements_length[1]
+        + modified_rotor.shaft_elements_length[2],
+        rotor9.shaft_elements_length[1],
+    )
+    assert_equal(modified_rotor.nodes_pos[2], 0.052)
+
+    assert_equal(
+        modified_rotor.shaft_elements[67].L, modified_rotor.shaft_elements[68].L
+    )
+    assert_equal(
+        modified_rotor.shaft_elements[67].L + modified_rotor.shaft_elements[69].L,
+        rotor9.shaft_elements[67].L,
+    )
+    assert_equal(
+        modified_rotor.shaft_elements_length[41]
+        + modified_rotor.shaft_elements_length[42],
+        rotor9.shaft_elements_length[40],
+    )
+    assert_equal(modified_rotor.nodes_pos[42], 1.244)
+
+    for i, elm in enumerate(rotor9.disk_elements):
+        assert_equal(modified_rotor.disk_elements[i].n, elm.n + 1)
+
+    assert_equal(modified_rotor.bearing_elements[0].n, rotor9.bearing_elements[0].n + 1)
+    assert_equal(
+        modified_rotor.bearing_elements[-1].n, rotor9.bearing_elements[-1].n + 2
+    )
 
 
 def test_static_analysis_rotor6(rotor6):
