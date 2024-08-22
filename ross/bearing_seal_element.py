@@ -410,10 +410,11 @@ class BearingElement(Element):
             "frequency",
         ]
         if isinstance(other, self.__class__):
-            init_args = []
-            for arg in signature(self.__init__).parameters:
-                if arg not in ["kwargs"]:
-                    init_args.append(arg)
+            init_args = list(
+                set(signature(self.__init__).parameters).intersection(
+                    self.__dict__.keys()
+                )
+            )
 
             init_args_comparison = []
             for arg in init_args:
