@@ -394,39 +394,13 @@ class BearingElement(Element):
         >>> bearing1 == bearing2
         True
         """
-        compared_attributes = [
-            "kxx",
-            "kyy",
-            "kxy",
-            "kyx",
-            "cxx",
-            "cyy",
-            "cxy",
-            "cyx",
-            "mxx",
-            "myy",
-            "mxy",
-            "myx",
-            "frequency",
-        ]
         if isinstance(other, self.__class__):
-            init_args = list(
+            compared_attributes = list(
                 set(signature(self.__init__).parameters).intersection(
                     self.__dict__.keys()
                 )
             )
 
-            init_args_comparison = []
-            for arg in init_args:
-                comparison = getattr(self, arg) == getattr(other, arg)
-                try:
-                    comparison = all(comparison)
-                except TypeError:
-                    pass
-
-                init_args_comparison.append(comparison)
-
-            init_args_comparison = all(init_args_comparison)
             attributes_comparison = all(
                 (
                     (
@@ -436,7 +410,8 @@ class BearingElement(Element):
                 )
             )
 
-            return init_args_comparison and attributes_comparison
+            return attributes_comparison
+
         return False
 
     def __hash__(self):
@@ -1910,76 +1885,6 @@ class BearingElement6DoF(BearingElement):
             f" mzz={self.mzz},\n"
             f" frequency={self.frequency}, tag={self.tag!r})"
         )
-
-    def __eq__(self, other):
-        """Equality method for comparasions.
-
-        Parameters
-        ----------
-        other : object
-            The second object to be compared with.
-
-        Returns
-        -------
-        bool
-            True if the comparison is true; False otherwise.
-
-        Examples
-        --------
-        >>> bearing1 = bearing_example()
-        >>> bearing2 = bearing_example()
-        >>> bearing1 == bearing2
-        True
-        """
-        compared_attributes = [
-            "kxx",
-            "kyy",
-            "kxy",
-            "kyx",
-            "kzz",
-            "cxx",
-            "cyy",
-            "cxy",
-            "cyx",
-            "czz",
-            "mxx",
-            "myy",
-            "mxy",
-            "myx",
-            "mzz",
-            "frequency",
-        ]
-        if isinstance(other, self.__class__):
-            init_args = []
-            for arg in signature(self.__init__).parameters:
-                if arg not in ["kwargs"]:
-                    init_args.append(arg)
-
-            init_args_comparison = []
-            for arg in init_args:
-                comparison = getattr(self, arg) == getattr(other, arg)
-                try:
-                    comparison = all(comparison)
-                except TypeError:
-                    pass
-
-                init_args_comparison.append(comparison)
-
-            init_args_comparison = all(init_args_comparison)
-            attributes_comparison = all(
-                (
-                    (
-                        np.array(getattr(self, attr)) == np.array(getattr(other, attr))
-                    ).all()
-                    for attr in compared_attributes
-                )
-            )
-
-            return init_args_comparison and attributes_comparison
-        return False
-
-    def __hash__(self):
-        return hash(self.tag)
 
     def dof_mapping(self):
         """Degrees of freedom mapping.
