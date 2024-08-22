@@ -268,7 +268,11 @@ After that you can access your local server (<http://0.0.0.0:8000/>) and see the
 
 ## Making new releases
 
-To make a new release we need only to create a tag using git and push to GitHub:
+To make a new release, first we need to change the version in the __init__.py file.
+
+Release notes can be created using the ross-bott script.
+
+The next step is to create a tag using git and push to GitHub:
 
 ```
 git tag <version number>
