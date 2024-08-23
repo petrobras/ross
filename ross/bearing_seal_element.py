@@ -394,25 +394,35 @@ class BearingElement(Element):
         >>> bearing1 == bearing2
         True
         """
+        attributes_comparison = False
+
         if isinstance(other, self.__class__):
-            compared_attributes = list(
-                set(signature(self.__init__).parameters).intersection(
-                    self.__dict__.keys()
-                )
+            init_args = set(signature(self.__init__).parameters).intersection(
+                self.__dict__.keys()
             )
 
-            attributes_comparison = all(
-                (
-                    (
-                        np.array(getattr(self, attr)) == np.array(getattr(other, attr))
-                    ).all()
-                    for attr in compared_attributes
-                )
-            )
+            coefficients = {
+                attr.replace("_interpolated", "")
+                for attr in self.__dict__.keys()
+                if "_interpolated" in attr
+            }
 
-            return attributes_comparison
+            compared_attributes = list(coefficients.union(init_args))
+            compared_attributes.sort()
 
-        return False
+            for attr in compared_attributes:
+                self_attr = np.array(getattr(self, attr))
+                other_attr = np.array(getattr(other, attr))
+
+                if self_attr.shape == other_attr.shape:
+                    attributes_comparison = (self_attr == other_attr).all()
+                else:
+                    attributes_comparison = False
+
+                if not attributes_comparison:
+                    return attributes_comparison
+
+        return attributes_comparison
 
     def __hash__(self):
         return hash(self.tag)
