@@ -434,25 +434,20 @@ class BearingElement(Element):
             data = {}
 
         # save initialization args and coefficients
-        args = list(signature(self.__init__).parameters)
-        args += [
-            "kxx",
-            "kyy",
-            "kxy",
-            "kyx",
-            "cxx",
-            "cyy",
-            "cxy",
-            "cyx",
-            "mxx",
-            "myy",
-            "mxy",
-            "myx",
-        ]
-        brg_data = {}
-        for arg in args:
-            if arg not in ["kwargs"]:
-                brg_data[arg] = self.__dict__[arg]
+        init_args = set(signature(self.__init__).parameters).intersection(
+            self.__dict__.keys()
+        )
+
+        coefficients = {
+            attr.replace("_interpolated", "")
+            for attr in self.__dict__.keys()
+            if "_interpolated" in attr
+        }
+
+        args = list(coefficients.union(init_args))
+        args.sort()
+
+        brg_data = {arg: self.__dict__[arg] for arg in args}
 
         # change np.array to lists so that we can save in .toml as list(floats)
         for k, v in brg_data.items():
@@ -467,7 +462,18 @@ class BearingElement(Element):
                 except (TypeError, AttributeError):
                     pass
 
-        data[f"{self.__class__.__name__}_{self.tag}"] = brg_data
+        diff_args = set(signature(self.__init__).parameters).difference(
+            self.__dict__.keys()
+        )
+        diff_args.discard("kwargs")
+
+        class_name = (
+            self.__class__.__name__
+            if not diff_args
+            else self.__class__.__bases__[0].__name__
+        )
+
+        data[f"{class_name}_{self.tag}"] = brg_data
 
         with open(file, "w") as f:
             toml.dump(data, f)
@@ -929,6 +935,9 @@ class BearingFluidFlow(BearingElement):
     scale_factor : float, optional
         The scale factor is used to scale the bearing drawing.
         Default is 1.
+    color : str, optional
+        A color to be used when the element is represented.
+        Default is '#355d7a'.
 
     Returns
     -------
@@ -1187,6 +1196,9 @@ class BallBearingElement(BearingElement):
     scale_factor : float, optional
         The scale factor is used to scale the bearing drawing.
         Default is 1.
+    color : str, optional
+        A color to be used when the element is represented.
+        Default is '#355d7a'.
 
     References
     ----------
@@ -1220,6 +1232,7 @@ class BallBearingElement(BearingElement):
         tag=None,
         n_link=None,
         scale_factor=1,
+        color="#355d7a",
     ):
         Kb = 13.0e6
         kyy = (
@@ -1259,9 +1272,8 @@ class BallBearingElement(BearingElement):
             tag=tag,
             n_link=n_link,
             scale_factor=scale_factor,
+            color=color,
         )
-
-        self.color = "#77ACA2"
 
 
 class RollerBearingElement(BearingElement):
@@ -1304,6 +1316,9 @@ class RollerBearingElement(BearingElement):
     scale_factor : float, optional
         The scale factor is used to scale the bearing drawing.
         Default is 1.
+    color : str, optional
+        A color to be used when the element is represented.
+        Default is '#355d7a'.
 
     References
     ----------
@@ -1337,6 +1352,7 @@ class RollerBearingElement(BearingElement):
         tag=None,
         n_link=None,
         scale_factor=1,
+        color="#355d7a",
     ):
         Kb = 1.0e9
         kyy = Kb * n_rollers**0.9 * l_rollers**0.8 * fs**0.1 * (np.cos(alpha)) ** 1.9
@@ -1370,9 +1386,8 @@ class RollerBearingElement(BearingElement):
             tag=tag,
             n_link=n_link,
             scale_factor=scale_factor,
+            color=color,
         )
-
-        self.color = "#77ACA2"
 
 
 class MagneticBearingElement(BearingElement):
@@ -1414,6 +1429,9 @@ class MagneticBearingElement(BearingElement):
     scale_factor : float, optional
         The scale factor is used to scale the bearing drawing.
         Default is 1.
+    color : str, optional
+        A color to be used when the element is represented.
+        Default is '#355d7a'.
 
     ----------
     See the following reference for the electromagnetic parameters g0, i0, ag, nw, alpha:
@@ -1456,6 +1474,7 @@ class MagneticBearingElement(BearingElement):
         tag=None,
         n_link=None,
         scale_factor=1,
+        color="#355d7a",
         **kwargs,
     ):
         self.g0 = g0
@@ -1547,6 +1566,7 @@ class MagneticBearingElement(BearingElement):
             tag=tag,
             n_link=n_link,
             scale_factor=scale_factor,
+            color=color,
         )
 
 
