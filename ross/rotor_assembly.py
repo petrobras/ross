@@ -1105,7 +1105,7 @@ class Rotor(object):
         """
         K0 = np.zeros((self.ndof, self.ndof))
 
-        elements = sorted(set(self.elements) - set(ignore), key=self.elements.index)
+        elements = list(set(self.elements).difference(ignore))
 
         for elm in elements:
             dofs = list(elm.dof_global_index.values())
@@ -1179,7 +1179,7 @@ class Rotor(object):
         """
         C0 = np.zeros((self.ndof, self.ndof))
 
-        elements = sorted(set(self.elements) - set(ignore), key=self.elements.index)
+        elements = list(set(self.elements).difference(ignore))
 
         for elm in elements:
             dofs = list(elm.dof_global_index.values())
