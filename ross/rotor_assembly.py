@@ -6,10 +6,12 @@ from collections.abc import Iterable
 from copy import copy, deepcopy
 from itertools import chain, cycle
 from pathlib import Path
+import control as ct
 
 import numpy as np
 import pandas as pd
 import toml
+import cmath
 from plotly import express as px
 from plotly import graph_objects as go
 from scipy import io as sio
@@ -1792,15 +1794,61 @@ class Rotor(object):
             velc_resp[..., i] = 1j * speed * H
             accl_resp[..., i] = -(speed**2) * H
 
+        max_abs_sensitivity, sensitivity = self.compute_sensitivity(speed_range, freq_resp)
+
         results = FrequencyResponseResults(
             freq_resp=freq_resp,
             velc_resp=velc_resp,
             accl_resp=accl_resp,
             speed_range=speed_range,
             number_dof=self.number_dof,
+            sensitivity=sensitivity,
+            max_abs_sensitivity=max_abs_sensitivity
         )
 
         return results
+
+    def compute_sensitivity(self, speed_range, freq_resp):
+        # List of AMBs
+        ambs = []
+        for bearing in self.bearing_elements:
+            if isinstance(bearing, MagneticBearingElement):
+                ambs.append(bearing)
+
+        sensitivity = []
+        max_abs_sensitivity = []
+        for amb in ambs:
+            amb_dof = amb.n * 4 + 1
+            freq_response_at_mma = freq_resp[amb_dof, amb_dof, :]
+            mag_W = [abs(z) for z in freq_response_at_mma]
+            phase_W = [cmath.phase(z) for z in freq_response_at_mma]
+
+            # Controller frequency response computation
+            s = ct.tf("s")
+            C = amb.kp_pid + amb.kd_pid * s
+            mag_C, phase_C, _ = ct.frequency_response(C, speed_range)
+
+            # Close-loop frequency response computation
+            mag_T = mag_W * mag_C
+            phase_T = phase_W + phase_C
+
+            complex_T = [
+                complex(
+                    mag_phase[0] * np.cos(mag_phase[1]),
+                    mag_phase[0] * np.sin(mag_phase[1]),
+                )
+                for mag_phase in zip(mag_T, phase_T)
+            ]
+
+            # Sensitivity computation
+            complex_S = [1 - z for z in complex_T]
+
+            mag_S = [abs(z) for z in complex_S]
+
+            sensitivity.append(complex_S)
+            max_abs_sensitivity.append(np.max(mag_S))
+
+        return max_abs_sensitivity, sensitivity
 
     def run_forced_response(
         self,

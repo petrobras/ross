@@ -1856,7 +1856,7 @@ class FrequencyResponseResults(Results):
         Plotly figure with Amplitude vs Frequency and Phase vs Frequency plots.
     """
 
-    def __init__(self, freq_resp, velc_resp, accl_resp, speed_range, number_dof):
+    def __init__(self, freq_resp, velc_resp, accl_resp, speed_range, number_dof, max_abs_sensitivity, sensitivity):
         self.freq_resp = freq_resp
         self.velc_resp = velc_resp
         self.accl_resp = accl_resp
@@ -1867,6 +1867,10 @@ class FrequencyResponseResults(Results):
             self.dof_dict = {"0": "x", "1": "y", "2": "α", "3": "β"}
         elif self.number_dof == 6:
             self.dof_dict = {"0": "x", "1": "y", "2": "z", "3": "α", "4": "β", "5": "θ"}
+
+        if len(max_abs_sensitivity) > 0 and len(sensitivity) > 0:
+            self.sensitivity = sensitivity
+            self.max_abs_sensitivity = max_abs_sensitivity
 
     def plot_magnitude(
         self,
@@ -2324,6 +2328,8 @@ class FrequencyResponseResults(Results):
 
         return fig
 
+    def plot_sensitivity(self):
+        pass
 
 class ForcedResponseResults(Results):
     """Class used to store results and provide plots for Forced Response analysis.
