@@ -1170,7 +1170,7 @@ class Rotor(object):
 
         Examples
         --------
-        >>> rotor = rotor_example()
+        >>> rotor = compressor_example()
         >>> rotor.C(0)[:4, :4]
         array([[0., 0., 0., 0.],
                [0., 0., 0., 0.],
@@ -2159,7 +2159,7 @@ class Rotor(object):
         Examples
         --------
         >>> import ross as rs
-        >>> rotor = rs.rotor_example()
+        >>> rotor = rs.compressor_example()
         >>> size = 10000
         >>> node = 3
         >>> speed = 500.0
@@ -2172,8 +2172,8 @@ class Rotor(object):
         Running direct method
         >>> dof = 13
         >>> yout[:, dof] # doctest: +ELLIPSIS
-        array([0.00000000e+00, 8.49140057e-09, 4.34296767e-08, ...,
-               1.16148468e-05, 1.16492353e-05, 1.16859622e-05])
+        array([0.00000000e+00, 2.07239823e-10, 7.80952429e-10, ...,
+               1.21848307e-07, 1.21957287e-07, 1.22065778e-07])
         """
 
         # Check if speed is array
