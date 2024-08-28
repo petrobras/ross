@@ -2117,6 +2117,57 @@ class Rotor(object):
 
         return forced_response
 
+    def magnetic_bearing_controller(self, magnetic_bearings, time_step, disp_resp):
+        """
+        This method allows the closed-loop control of the magnetic bearing.
+        The control technique used is PID and it controls axes x and y of each bearing.
+
+        Parameters
+        ----------
+        time_step : float
+            Time step in seconds.
+        disp_resp : array
+            Array of displacements along the rotor nodes.
+
+        Returns
+        -------
+        magnetic_force : array
+            Control force (external).
+
+        Example
+        -------
+        >>> response = rotor.run_time_response(speed,
+        ...                                    F,
+        ...                                    t,
+        ...                                    method = "newmark")
+
+        """
+
+        offset = 0
+        setpoint = 1e-6
+        dt = time_step
+        magnetic_force = np.zeros((self.ndof))
+
+        for elm in magnetic_bearings:
+            dofs = [self.number_dof * elm.n, self.number_dof * elm.n + 1]
+            for idx_dofs, value_dofs in enumerate(dofs):
+                err = setpoint - disp_resp[value_dofs]
+
+                P = elm.kp_pid * err
+                elm.integral[idx_dofs] += elm.ki_pid * err * dt
+                D = elm.kd_pid * (err - elm.e0[idx_dofs]) / dt
+
+                signal_pid = offset + P + elm.integral[idx_dofs] + D
+                magnetic_force[value_dofs] = (
+                    elm.ki * signal_pid + elm.ks * disp_resp[value_dofs]
+                )
+
+                elm.e0[idx_dofs] = err
+                elm.control_signal[idx_dofs].append(signal_pid)
+                elm.magnetic_force[idx_dofs].append(magnetic_force[value_dofs])
+
+        return magnetic_force
+
     def integrate_system(self, speed, F, t, **kwargs):
         """Time integration for a rotor system.
 
@@ -2208,12 +2259,14 @@ class Rotor(object):
             if isinstance(brg, MagneticBearingElement)
         ]
         if len(magnetic_bearings):
-            magnetic_force = lambda time_step, disp_resp: self.magnetic_bearing_controller(
-                magnetic_bearings, time_step, disp_resp
+            magnetic_force = (
+                lambda time_step, disp_resp: self.magnetic_bearing_controller(
+                    magnetic_bearings, time_step, disp_resp
+                )
             )
         else:
             magnetic_force = lambda time_step, disp_resp: 0
-            
+
         # Consider any additional RHS function (extra forces)
         add_to_RHS = kwargs.get("add_to_RHS")
 
@@ -2227,9 +2280,10 @@ class Rotor(object):
                     disp_resp=get_array[2](curr_state.get("y")),
                     velc_resp=get_array[2](curr_state.get("ydot")),
                     accl_resp=get_array[2](curr_state.get("y2dot")),
-                ) + magnetic_force(
-                    time_step=curr_state.get("dt"),
-                    disp_resp=get_array[2](curr_state.get("y")),
+                )
+                + magnetic_force(
+                    curr_state.get("dt"),
+                    get_array[2](curr_state.get("y")),
                 )
             )
 
@@ -2247,7 +2301,7 @@ class Rotor(object):
                     raise Warning(
                         "The bearing coefficients vary with speed. Therefore, C and K matrices are not being replaced by the matrices defined as input arguments."
                     )
-                
+
                 ignore_elements = [*magnetic_bearings, *brgs_with_var_coeffs]
 
                 C0 = self.C(speed_ref, ignore=ignore_elements)
@@ -2269,8 +2323,12 @@ class Rotor(object):
                     )
 
             else:  # Option 2
-                C1 = get_array[0](kwargs.get("C", self.C(speed_ref)))
-                K1 = get_array[0](kwargs.get("K", self.K(speed_ref)))
+                C1 = get_array[0](
+                    kwargs.get("C", self.C(speed_ref, ignore=magnetic_bearings))
+                )
+                K1 = get_array[0](
+                    kwargs.get("K", self.K(speed_ref, ignore=magnetic_bearings))
+                )
 
                 rotor_system = lambda step, **current_state: (
                     M,
@@ -2280,8 +2338,12 @@ class Rotor(object):
                 )
 
         else:  # Option 3
-            C1 = get_array[0](kwargs.get("C", self.C(speed_ref)))
-            K1 = get_array[0](kwargs.get("K", self.K(speed_ref)))
+            C1 = get_array[0](
+                kwargs.get("C", self.C(speed_ref, ignore=magnetic_bearings))
+            )
+            K1 = get_array[0](
+                kwargs.get("K", self.K(speed_ref, ignore=magnetic_bearings))
+            )
 
             rotor_system = lambda step, **current_state: (
                 M,
