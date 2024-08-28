@@ -2201,6 +2201,19 @@ class Rotor(object):
         K2 = get_array[0](kwargs.get("Ksdt", self.Ksdt()))
         F = get_array[1](F.T).T
 
+        # Check if there is any magnetic bearing
+        magnetic_bearings = [
+            brg
+            for brg in self.bearing_elements
+            if isinstance(brg, MagneticBearingElement)
+        ]
+        if len(magnetic_bearings):
+            magnetic_force = lambda time_step, disp_resp: self.magnetic_bearing_controller(
+                magnetic_bearings, time_step, disp_resp
+            )
+        else:
+            magnetic_force = lambda time_step, disp_resp: 0
+            
         # Consider any additional RHS function (extra forces)
         add_to_RHS = kwargs.get("add_to_RHS")
 
@@ -2214,6 +2227,9 @@ class Rotor(object):
                     disp_resp=get_array[2](curr_state.get("y")),
                     velc_resp=get_array[2](curr_state.get("ydot")),
                     accl_resp=get_array[2](curr_state.get("y2dot")),
+                ) + magnetic_force(
+                    time_step=curr_state.get("dt"),
+                    disp_resp=get_array[2](curr_state.get("y")),
                 )
             )
 
@@ -2231,9 +2247,11 @@ class Rotor(object):
                     raise Warning(
                         "The bearing coefficients vary with speed. Therefore, C and K matrices are not being replaced by the matrices defined as input arguments."
                     )
+                
+                ignore_elements = [*magnetic_bearings, *brgs_with_var_coeffs]
 
-                C0 = self.C(speed_ref, ignore=brgs_with_var_coeffs)
-                K0 = self.K(speed_ref, ignore=brgs_with_var_coeffs)
+                C0 = self.C(speed_ref, ignore=ignore_elements)
+                K0 = self.K(speed_ref, ignore=ignore_elements)
 
                 def rotor_system(step, **current_state):
                     Cb, Kb = assemble_C_K_matrices(
