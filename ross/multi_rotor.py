@@ -226,17 +226,17 @@ class GearElement(DiskElement6DoF):
 class MultiRotor(Rotor):
     """A class representing a multi-rotor system.
 
-    This class creates a system comprising multiple rotors, with the specified drive rotor and driven rotor.
+    This class creates a system comprising multiple rotors, with the specified driving rotor and driven rotor.
     For systems with more than two rotors, multiple multi-rotors can be nested.
 
     Parameters
     ----------
-    drive_rotor : rs.Rotor
-        The drive rotor object.
+    driving_rotor : rs.Rotor
+        The driving rotor object.
     driven_rotor : rs.Rotor
         The driven rotor object.
     coupled_nodes : tuple of int
-        Tuple specifying the coupled nodes, where the first node corresponds to the drive rotor and
+        Tuple specifying the coupled nodes, where the first node corresponds to the driving rotor and
         the second node corresponds to the driven rotor.
     gear_ratio : float
         The gear ratio between the rotors.
@@ -245,7 +245,7 @@ class MultiRotor(Rotor):
     orientation_angle : float, optional
         The angle between the line of gear centers and x axis. Default is 0.0 rad.
     position : {'above', 'below'}, optional
-        The relative position of the driven rotor with respect to the drive rotor when plotting
+        The relative position of the driven rotor with respect to the driving rotor when plotting
         the multi-rotor. Default is 'above'.
     tag : str, optional
         A tag to identify the multi-rotor. Default is None.
@@ -261,7 +261,7 @@ class MultiRotor(Rotor):
 
     def __init__(
         self,
-        drive_rotor,
+        driving_rotor,
         driven_rotor,
         coupled_nodes,
         gear_ratio,
@@ -271,15 +271,15 @@ class MultiRotor(Rotor):
         tag=None,
     ):
 
-        self.rotors = [drive_rotor, driven_rotor]
+        self.rotors = [driving_rotor, driven_rotor]
         self.gear_ratio = gear_ratio
         self.gear_mesh_stiffness = gear_mesh_stiffness
         self.orientation_angle = orientation_angle
 
-        if drive_rotor.number_dof != 6 or driven_rotor.number_dof != 6:
+        if driving_rotor.number_dof != 6 or driven_rotor.number_dof != 6:
             raise TypeError("Rotors must be modeled with 6 degrees of freedom!")
 
-        R1 = copy(drive_rotor)
+        R1 = copy(driving_rotor)
         R2 = copy(driven_rotor)
 
         gear_1 = [
@@ -377,14 +377,14 @@ class MultiRotor(Rotor):
         R2_center_line = [pos + self.dy_pos for pos in self.rotors[1].center_line_pos]
         self.center_line_pos = [*self.rotors[0].center_line_pos, *R2_center_line]
 
-    def _join_matrices(self, drive_matrix, driven_matrix):
-        """Join matrices from the drive rotor and driven rotor to form the matrix of
+    def _join_matrices(self, driving_matrix, driven_matrix):
+        """Join matrices from the driving rotor and driven rotor to form the matrix of
         the coupled system.
 
         Parameters
         ----------
-        drive_matrix : np.ndarray
-            The matrix from the drive rotor.
+        driving_matrix : np.ndarray
+            The matrix from the driving rotor.
         driven_matrix : np.ndarray
             The matrix from the driven rotor.
 
@@ -400,7 +400,7 @@ class MultiRotor(Rotor):
         global_matrix = np.zeros((self.ndof, self.ndof))
 
         first_ndof = self.rotors[0].ndof
-        global_matrix[:first_ndof, :first_ndof] = drive_matrix
+        global_matrix[:first_ndof, :first_ndof] = driving_matrix
         global_matrix[first_ndof:, first_ndof:] = driven_matrix
 
         return global_matrix
@@ -534,7 +534,7 @@ class MultiRotor(Rotor):
         shaft and disks. For time-dependent analyses, this matrix needs to be
         multiplied by the angular acceleration. Therefore, the stiffness matrix
         of the driven rotor is scaled by the gear ratio before being combined
-        with the drive rotor matrix.
+        with the driving rotor matrix.
 
         Returns
         -------
@@ -578,7 +578,7 @@ class MultiRotor(Rotor):
 
         For time-dependent analyses, this matrix needs to be multiplied by the
         rotor speed. Therefore, the gyroscopic matrix of the driven rotor is
-        scaled by the gear ratio before being combined with the drive rotor matrix.
+        scaled by the gear ratio before being combined with the driving rotor matrix.
 
         Returns
         -------
@@ -590,5 +590,5 @@ class MultiRotor(Rotor):
         """
 
         return self._join_matrices(
-            self.rotors[0].G(), self.rotors[1].G() * self.gear_ratio
+            self.rotors[0].G(), -self.rotors[1].G() * self.gear_ratio
         )
