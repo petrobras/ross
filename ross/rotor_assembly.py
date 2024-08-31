@@ -46,6 +46,7 @@ from ross.results import (
     SummaryResults,
     TimeResponseResults,
     UCSResults,
+    SensitivityResults,
 )
 from ross.shaft_element import ShaftElement, ShaftElement6DoF
 from ross.units import Q_, check_units
@@ -1794,7 +1795,14 @@ class Rotor(object):
             velc_resp[..., i] = 1j * speed * H
             accl_resp[..., i] = -(speed**2) * H
 
-        max_abs_sensitivity, sensitivity = self.compute_sensitivity(speed_range, freq_resp)
+        max_abs_sensitivities, sensitivities, ambs = self.compute_sensitivity(
+            speed_range, freq_resp
+        )
+        sensitivity_results = SensitivityResults(
+            max_abs_sensitivities=max_abs_sensitivities,
+            sensitivities=sensitivities,
+            ambs=ambs
+        )
 
         results = FrequencyResponseResults(
             freq_resp=freq_resp,
@@ -1802,8 +1810,7 @@ class Rotor(object):
             accl_resp=accl_resp,
             speed_range=speed_range,
             number_dof=self.number_dof,
-            sensitivity=sensitivity,
-            max_abs_sensitivity=max_abs_sensitivity
+            sensitivity_results=sensitivity_results
         )
 
         return results
@@ -1815,8 +1822,8 @@ class Rotor(object):
             if isinstance(bearing, MagneticBearingElement):
                 ambs.append(bearing)
 
-        sensitivity = []
-        max_abs_sensitivity = []
+        sensitivities = []
+        max_abs_sensitivities = []
         for amb in ambs:
             amb_dof = amb.n * 4 + 1
             freq_response_at_mma = freq_resp[amb_dof, amb_dof, :]
@@ -1842,13 +1849,12 @@ class Rotor(object):
 
             # Sensitivity computation
             complex_S = [1 - z for z in complex_T]
-
             mag_S = [abs(z) for z in complex_S]
 
-            sensitivity.append(complex_S)
-            max_abs_sensitivity.append(np.max(mag_S))
+            sensitivities.append(np.array(complex_S))
+            max_abs_sensitivities.append(np.max(mag_S))
 
-        return max_abs_sensitivity, sensitivity
+        return max_abs_sensitivities, sensitivities, ambs
 
     def run_forced_response(
         self,

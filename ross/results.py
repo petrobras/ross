@@ -3,6 +3,7 @@
 This module returns graphs for each type of analyses in rotor_assembly.py.
 """
 
+import cmath
 import copy
 import inspect
 from abc import ABC
@@ -35,6 +36,7 @@ __all__ = [
     "TimeResponseResults",
     "UCSResults",
     "Level1Results",
+    "SensitivityResults",
 ]
 
 
@@ -1834,6 +1836,90 @@ class CampbellResults(Results):
         return super().load(file)
 
 
+class SensitivityResults(Results):
+    def __init__(self, sensitivities, max_abs_sensitivities, ambs):
+        self.sensitivities = sensitivities
+        self.max_abs_sensitivities = max_abs_sensitivities
+        self.ambs = ambs
+
+    def check_ambs(self):
+        if len(self.ambs) == 0:
+            return False
+        else:
+            return True
+
+    def plot(
+        self,
+        speed_range,
+        frequency_units="rad/s",
+        amplitude_units="m/N",
+        phase_units="rad",
+        fig=None,
+    ):
+        # Build sensitivity plots
+        if fig is None:
+            fig = make_subplots(rows=2, cols=1)
+
+        for i, amb_sensitivity in enumerate(self.sensitivities):
+            mag_sensitivity = [abs(z) for z in amb_sensitivity]
+            phase_sensitivity = [cmath.phase(z) for z in amb_sensitivity]
+
+            amb = self.ambs[i]
+            amb_dof = amb.n * 4 + 1
+
+            color_index = i % len(tableau_colors)
+
+            # Magnitude
+            fig.add_trace(
+                go.Scatter(
+                    x=speed_range,
+                    y=mag_sensitivity,
+                    mode="lines",
+                    line=dict(color=list(tableau_colors)[color_index]),
+                    name=f"{amb.tag}<br>node {amb.n} | dof: {amb_dof}",
+                    legendgroup=f"{amb.tag}<br>node {amb.n} | dof: {amb_dof}",
+                    showlegend=True,
+                    hovertemplate=f"Frequency ({frequency_units}): %{{x:.2f}}<br>Amplitude ({amplitude_units}): %{{y:.2e}}",
+                ),
+                row=1,
+                col=1,
+            )
+
+            fig.update_xaxes(
+                title_text=f"Frequency ({frequency_units})",
+                range=[np.min(speed_range), np.max(speed_range)],
+                row=1,
+                col=1,
+            )
+            fig.update_yaxes(title_text=f" Magnitude ({amplitude_units})", row=1, col=1)
+
+            # Phase
+            fig.add_trace(
+                go.Scatter(
+                    x=speed_range,
+                    y=phase_sensitivity,
+                    mode="lines",
+                    line=dict(color=list(tableau_colors)[color_index]),
+                    name=f"{amb.tag}<br>node {amb.n} | dof: {amb_dof}",
+                    legendgroup=f"{amb.tag}<br>node {amb.n} | dof: {amb_dof}",
+                    showlegend=False,
+                    hovertemplate=f"Frequency ({frequency_units}): %{{x:.2f}}<br>Phase ({amplitude_units}): %{{y:.2e}}",
+                ),
+                row=2,
+                col=1,
+            )
+
+            fig.update_xaxes(
+                title_text=f"Frequency ({frequency_units})",
+                range=[np.min(speed_range), np.max(speed_range)],
+                row=2,
+                col=1,
+            )
+            fig.update_yaxes(title_text=f" Phase ({phase_units})", row=2, col=1)
+
+        return fig
+
+
 class FrequencyResponseResults(Results):
     """Class used to store results and provide plots for Frequency Response.
 
@@ -1856,7 +1942,15 @@ class FrequencyResponseResults(Results):
         Plotly figure with Amplitude vs Frequency and Phase vs Frequency plots.
     """
 
-    def __init__(self, freq_resp, velc_resp, accl_resp, speed_range, number_dof, max_abs_sensitivity, sensitivity):
+    def __init__(
+        self,
+        freq_resp,
+        velc_resp,
+        accl_resp,
+        speed_range,
+        number_dof,
+        sensitivity_results
+    ):
         self.freq_resp = freq_resp
         self.velc_resp = velc_resp
         self.accl_resp = accl_resp
@@ -1868,9 +1962,8 @@ class FrequencyResponseResults(Results):
         elif self.number_dof == 6:
             self.dof_dict = {"0": "x", "1": "y", "2": "z", "3": "α", "4": "β", "5": "θ"}
 
-        if len(max_abs_sensitivity) > 0 and len(sensitivity) > 0:
-            self.sensitivity = sensitivity
-            self.max_abs_sensitivity = max_abs_sensitivity
+        if sensitivity_results.check_ambs():
+            self.sensitivity_results = sensitivity_results
 
     def plot_magnitude(
         self,
@@ -2328,8 +2421,28 @@ class FrequencyResponseResults(Results):
 
         return fig
 
-    def plot_sensitivity(self):
-        pass
+    def plot_sensitivity(
+        self,
+        frequency_units="rad/s",
+        amplitude_units="m/N",
+        phase_units="rad",
+        fig=None,
+    ):
+        try:
+            self.sensitivity_results
+        except AttributeError:
+            raise AttributeError(
+                "There are no magnetic bearings in the rotor, so it is not possible to compute sensitivity."
+            )
+
+        return self.sensitivity_results.plot(
+            speed_range=self.speed_range,
+            frequency_units=frequency_units,
+            amplitude_units=amplitude_units,
+            phase_units=phase_units,
+            fig=fig,
+        )
+
 
 class ForcedResponseResults(Results):
     """Class used to store results and provide plots for Forced Response analysis.
