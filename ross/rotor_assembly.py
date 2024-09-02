@@ -1682,6 +1682,7 @@ class Rotor(object):
         speed_range=None,
         modes=None,
         cluster_points=False,
+        compute_sensitivite_at=None,
         num_modes=12,
         num_points=10,
         rtol=0.005,
@@ -1795,14 +1796,17 @@ class Rotor(object):
             velc_resp[..., i] = 1j * speed * H
             accl_resp[..., i] = -(speed**2) * H
 
-        max_abs_sensitivities, sensitivities, ambs = self.compute_sensitivity(
-            speed_range, freq_resp
-        )
-        sensitivity_results = SensitivityResults(
-            max_abs_sensitivities=max_abs_sensitivities,
-            sensitivities=sensitivities,
-            ambs=ambs
-        )
+        if compute_sensitivite_at is not None:
+            max_abs_sensitivities, sensitivities = self.compute_sensitivity(
+                speed_range, freq_resp, compute_sensitivite_at
+            )
+            sensitivity_results = SensitivityResults(
+                max_abs_sensitivities=max_abs_sensitivities,
+                sensitivities=sensitivities,
+                compute_sensitivite_at=compute_sensitivite_at,
+            )
+        else:
+            sensitivity_results = None
 
         results = FrequencyResponseResults(
             freq_resp=freq_resp,
@@ -1810,51 +1814,66 @@ class Rotor(object):
             accl_resp=accl_resp,
             speed_range=speed_range,
             number_dof=self.number_dof,
-            sensitivity_results=sensitivity_results
+            sensitivity_results=sensitivity_results,
         )
 
         return results
 
-    def compute_sensitivity(self, speed_range, freq_resp):
+    def compute_sensitivity(self, speed_range, freq_resp, compute_sensitivite_at):
         # List of AMBs
-        ambs = []
+        ambs = {}
         for bearing in self.bearing_elements:
             if isinstance(bearing, MagneticBearingElement):
-                ambs.append(bearing)
+                ambs[bearing.tag] = bearing
 
-        sensitivities = []
-        max_abs_sensitivities = []
-        for amb in ambs:
-            amb_dof = amb.n * 4 + 1
-            freq_response_at_mma = freq_resp[amb_dof, amb_dof, :]
-            mag_W = [abs(z) for z in freq_response_at_mma]
-            phase_W = [cmath.phase(z) for z in freq_response_at_mma]
+        if len(ambs) == 0:
+            raise AttributeError(
+                "There are no magnetic bearings in the rotor, so it is not possible to compute sensitivity."
+            )
+
+        sensitivities = {}
+        max_abs_sensitivities = {}
+        for amb_tag in compute_sensitivite_at.keys():
+            # Get AMB data
+            try:
+                amb = ambs[amb_tag]
+            except KeyError:
+                raise KeyError(
+                    f"No AMB found associated with tag {amb_tag}."
+                )
+
+            # Get disturbance frequency response
+            freq_response_at_mma = freq_resp[
+                compute_sensitivite_at[amb_tag]["inp"], compute_sensitivite_at[amb_tag]["out"], :
+            ]
+            mag_w = [abs(z) for z in freq_response_at_mma]
+            phase_w = [cmath.phase(z) for z in freq_response_at_mma]
 
             # Controller frequency response computation
             s = ct.tf("s")
-            C = amb.kp_pid + amb.kd_pid * s
-            mag_C, phase_C, _ = ct.frequency_response(C, speed_range)
+            c = amb.kp_pid + amb.kd_pid * s
+            mag_c, phase_c, _ = ct.frequency_response(c, speed_range)
 
             # Close-loop frequency response computation
-            mag_T = mag_W * mag_C
-            phase_T = phase_W + phase_C
+            mag_t = mag_w * mag_c
+            phase_t = phase_w + phase_c
 
-            complex_T = [
+            complex_t = [
                 complex(
                     mag_phase[0] * np.cos(mag_phase[1]),
                     mag_phase[0] * np.sin(mag_phase[1]),
                 )
-                for mag_phase in zip(mag_T, phase_T)
+                for mag_phase in zip(mag_t, phase_t)
             ]
 
             # Sensitivity computation
-            complex_S = [1 - z for z in complex_T]
-            mag_S = [abs(z) for z in complex_S]
+            complex_s = [1 - z for z in complex_t]
+            mag_s = [abs(z) for z in complex_s]
 
-            sensitivities.append(np.array(complex_S))
-            max_abs_sensitivities.append(np.max(mag_S))
+            sensitivities[amb_tag] = np.array(complex_s)
+            max_abs_sensitivities[amb_tag] = np.max(mag_s)
 
-        return max_abs_sensitivities, sensitivities, ambs
+        return max_abs_sensitivities, sensitivities
 
     def run_forced_response(
         self,

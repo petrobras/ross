@@ -1837,16 +1837,10 @@ class CampbellResults(Results):
 
 
 class SensitivityResults(Results):
-    def __init__(self, sensitivities, max_abs_sensitivities, ambs):
+    def __init__(self, sensitivities, max_abs_sensitivities, compute_sensitivite_at):
         self.sensitivities = sensitivities
         self.max_abs_sensitivities = max_abs_sensitivities
-        self.ambs = ambs
-
-    def check_ambs(self):
-        if len(self.ambs) == 0:
-            return False
-        else:
-            return True
+        self.compute_sensitivite_at = compute_sensitivite_at
 
     def plot(
         self,
@@ -1860,14 +1854,15 @@ class SensitivityResults(Results):
         if fig is None:
             fig = make_subplots(rows=2, cols=1)
 
-        for i, amb_sensitivity in enumerate(self.sensitivities):
-            mag_sensitivity = [abs(z) for z in amb_sensitivity]
-            phase_sensitivity = [cmath.phase(z) for z in amb_sensitivity]
+        color_index = 0
+        for amb_tag in self.compute_sensitivite_at.keys():
+            mag_sensitivity = [abs(z) for z in self.sensitivities[amb_tag]]
+            phase_sensitivity = [cmath.phase(z) for z in self.sensitivities[amb_tag]]
 
-            amb = self.ambs[i]
-            amb_dof = amb.n * 4 + 1
-
-            color_index = i % len(tableau_colors)
+            inp_dof = self.compute_sensitivite_at[amb_tag]['inp']
+            out_dof = self.compute_sensitivite_at[amb_tag]['out']
+            inp_node = inp_dof // 4
+            out_node = out_dof // 4
 
             # Magnitude
             fig.add_trace(
@@ -1876,8 +1871,8 @@ class SensitivityResults(Results):
                     y=mag_sensitivity,
                     mode="lines",
                     line=dict(color=list(tableau_colors)[color_index]),
-                    name=f"{amb.tag}<br>node {amb.n} | dof: {amb_dof}",
-                    legendgroup=f"{amb.tag}<br>node {amb.n} | dof: {amb_dof}",
+                    name=f"{amb_tag}<br>inp: node {inp_node} | dof: {inp_dof}<br>out: node {out_node} | dof: {out_dof}",
+                    legendgroup=f"{amb_tag}<br>inp: node {inp_node} | dof: {inp_dof}<br>out: node {out_node} | dof: {out_dof}",
                     showlegend=True,
                     hovertemplate=f"Frequency ({frequency_units}): %{{x:.2f}}<br>Amplitude ({amplitude_units}): %{{y:.2e}}",
                 ),
@@ -1900,8 +1895,8 @@ class SensitivityResults(Results):
                     y=phase_sensitivity,
                     mode="lines",
                     line=dict(color=list(tableau_colors)[color_index]),
-                    name=f"{amb.tag}<br>node {amb.n} | dof: {amb_dof}",
-                    legendgroup=f"{amb.tag}<br>node {amb.n} | dof: {amb_dof}",
+                    name=f"{amb_tag}<br>inp: node {inp_node} | dof: {inp_dof}<br>out: node {out_node} | dof: {out_dof}",
+                    legendgroup=f"{amb_tag}<br>inp: node {inp_node} | dof: {inp_dof}<br>out: node {out_node} | dof: {out_dof}",
                     showlegend=False,
                     hovertemplate=f"Frequency ({frequency_units}): %{{x:.2f}}<br>Phase ({amplitude_units}): %{{y:.2e}}",
                 ),
@@ -1916,6 +1911,8 @@ class SensitivityResults(Results):
                 col=1,
             )
             fig.update_yaxes(title_text=f" Phase ({phase_units})", row=2, col=1)
+
+            color_index += 1
 
         return fig
 
@@ -1962,7 +1959,7 @@ class FrequencyResponseResults(Results):
         elif self.number_dof == 6:
             self.dof_dict = {"0": "x", "1": "y", "2": "z", "3": "α", "4": "β", "5": "θ"}
 
-        if sensitivity_results.check_ambs():
+        if sensitivity_results is not None:
             self.sensitivity_results = sensitivity_results
 
     def plot_magnitude(

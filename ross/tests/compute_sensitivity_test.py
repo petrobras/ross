@@ -7,10 +7,17 @@ import time
 from plotly import graph_objects as go
 from plotly.subplots import make_subplots
 
-from ross import Material, ShaftElement, DiskElement, MagneticBearingElement, BearingElement, Rotor
+from ross import (
+    Material,
+    ShaftElement,
+    DiskElement,
+    MagneticBearingElement,
+    BearingElement,
+    Rotor,
+)
 from ross.plotly_theme import tableau_colors
 
-max_freq = 300  # Hz
+max_freq = 100  # Hz
 x_label = "w [rad/s]"
 
 
@@ -243,7 +250,15 @@ def compute_freq_resp(rotor):
     logger.info("Initiating frequency response computation.")
 
     speed_range = np.linspace(0, max_freq * 2 * np.pi, 2 * max_freq)
-    freq_resp = rotor.run_freq_response(speed_range=speed_range)
+    compute_sensitivite_at = {
+        "Bearing 0": {"inp": 2 * 4 + 1, "out": 2 * 4 + 1},
+        "Bearing 1": {"inp": 8 * 4 + 1, "out": 8 * 4 + 1},
+    }
+
+    freq_resp = rotor.run_freq_response(
+        speed_range=speed_range, compute_sensitivite_at=compute_sensitivite_at
+    )
+
     freq_resp.plot_sensitivity().show()
     np.save(
         "freq_resp",
@@ -267,8 +282,8 @@ def get_freq_response_at_mma():
     disk_node = 5
 
     freq_response_at_mma = freq_response[
-                           get_dof(disk_node, "y"), get_dof(left_bearing_node, "y"), :
-                           ]
+        get_dof(disk_node, "y"), get_dof(left_bearing_node, "y"), :
+    ]
 
     mag_W = [abs(z) for z in freq_response_at_mma]
     phase_W = [cmath.phase(z) for z in freq_response_at_mma]
@@ -287,7 +302,7 @@ def plot_freq_resp():
     plt.figure(figsize=(8, 6), dpi=130)
     plt.subplot(2, 1, 1)
     plt.plot(speed_range, mag_W)
-    plt.legend(['$\mathrm{G_w(s)}$'])
+    plt.legend(["$\mathrm{G_w(s)}$"])
     plt.xlabel(x_label)
     plt.ylabel("Magnitude [m/N]")
     plt.title("Frequency Response")
@@ -299,7 +314,7 @@ def plot_freq_resp():
     # Fase
     plt.subplot(2, 1, 2)
     plt.plot(speed_range, phase_W)
-    plt.legend(['$\mathrm{G_w(s)}$'])
+    plt.legend(["$\mathrm{G_w(s)}$"])
     plt.xlabel(x_label)
     plt.ylabel("Phase [rad]")
     plt.xlim([np.min(speed_range), np.max(speed_range)])
@@ -322,7 +337,7 @@ def compute_sensitivity_call():
         speed_range=speed_range,
     )
     end_time = time.time()
-    logger.info(f'Sensitivity computation time: {end_time - start_time} seconds.')
+    logger.info(f"Sensitivity computation time: {end_time - start_time} seconds.")
     return mag_S, phase_S, speed_range
 
 
@@ -360,7 +375,7 @@ def plot_sensitivity(mag_S, phase_S, speed_range):
     plt.figure(figsize=(8, 6), dpi=130)
     plt.subplot(2, 1, 1)
     plt.plot(speed_range, mag_S)
-    plt.legend(['S(s)'])
+    plt.legend(["S(s)"])
     plt.xlabel(x_label)
     plt.ylabel("Magnitude [m/N]")
     plt.title("Frequency Response")
@@ -372,7 +387,7 @@ def plot_sensitivity(mag_S, phase_S, speed_range):
     # Fase
     plt.subplot(2, 1, 2)
     plt.plot(speed_range, phase_S)
-    plt.legend(['S(s)'])
+    plt.legend(["S(s)"])
     plt.xlabel(x_label)
     plt.ylabel("Phase [rad]")
     plt.xlim([np.min(speed_range), np.max(speed_range)])
@@ -444,8 +459,8 @@ def plot_sensitivity_plotly(mag_S, phase_S, speed_range):
 def main():
     start_time = time.time()
     # rotor = build_rotor(show_rotor=False)
-    # rotor = build_rotor_without_ambs(show_rotor=False)
-    rotor = build_rotor_only_ambs(show_rotor=False)
+    rotor = build_rotor_without_ambs(show_rotor=False)
+    # rotor = build_rotor_only_ambs(show_rotor=False)
     compute_freq_resp(rotor)
     # plot_freq_resp()
     # mag_S, phase_S, speed_range = compute_sensitivity_call()
@@ -462,4 +477,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
