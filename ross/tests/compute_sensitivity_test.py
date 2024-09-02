@@ -251,8 +251,8 @@ def compute_freq_resp(rotor):
 
     speed_range = np.linspace(0, max_freq * 2 * np.pi, 2 * max_freq)
     compute_sensitivite_at = {
-        "Bearing 0": {"inp": 2 * 4 + 1, "out": 2 * 4 + 1},
-        "Bearing 1": {"inp": 8 * 4 + 1, "out": 8 * 4 + 1},
+        "Bearing 0": {"inp": 9, "out": 9},
+        "Bearing 1": {"inp": 33, "out": 33},
     }
 
     freq_resp = rotor.run_freq_response(

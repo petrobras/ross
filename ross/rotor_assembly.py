@@ -62,6 +62,7 @@ __all__ = [
     "Rotor",
     "CoAxialRotor",
     "rotor_example",
+    "amb_rotor_example",
     "compressor_example",
     "coaxrotor_example",
     "rotor_example_6dof",
@@ -1697,12 +1698,17 @@ class Rotor(object):
             .plot_magnitude()
             .plot_phase()
             .plot_polar_bode()
+            .plot_sensitivity()
 
         Parameters
         ----------
         speed_range : array, optional
             Array with the desired range of frequencies.
             Default is 0 to 1.5 x highest damped natural frequency.
+        compute_sensitivite_at : dict, optional
+            A dictionary defining tags for the magnetic bearings to compute sensitivity for.
+            Each key should be a bearing tag, and the corresponding value should be a dictionary
+            defining the input and output degrees of freedom that determine the sensitivity computation.
         modes : list, optional
             Modes that will be used to calculate the frequency response
             (all modes will be used if a list is not given).
@@ -1774,6 +1780,20 @@ class Rotor(object):
 
         Plotting acceleration response
         >>> fig = response.plot(inp=13, out=13, amplitude_units="m/s**2/N")
+
+        Computing sensitivity when using Magnetic Bearings
+        Set the compute_sensitivity_at parameter to indicate which magnetic bearings require sensitivity computation.
+        Use the bearing tags to specify the bearings. Additionally, define the degrees of freedom to be considered for
+        both disturbance input and displacement measurement output during the sensitivity computation.
+        
+        >>> rotor = rs.amb_rotor_example()
+        >>> compute_sensitivite_dofs = {"Bearing 0": {"inp": 9, "out": 9}}
+        >>> response = rotor.run_freq_response(speed_range=speed, compute_sensitivite_at=compute_sensitivite_dofs)
+        >>> response.sensitivity_results.max_abs_sensitivities
+        {'Bearing 0': 0.786377878047573}
+
+        Plotting sensitivity response
+        >>> fig = response.plot_sensitivity()
         """
         if speed_range is None:
             if not cluster_points:
@@ -1820,6 +1840,51 @@ class Rotor(object):
         return results
 
     def compute_sensitivity(self, speed_range, freq_resp, compute_sensitivite_at):
+        """Compute the sensitivity for specific magnetic bearings in the rotor.
+
+        This method computes the sensitivity for each magnetic bearing whose tag is present
+        in the 'compute_sensitivite_at' dictionary, given the frequency response for a mdof system.
+
+        Parameters
+        ----------
+        speed_range : array
+            Array with the desired range of frequencies.
+        freq_resp : array
+            Array with the frequency response of the system.
+        compute_sensitivite_at : dict
+            A dictionary defining tags for the magnetic bearings to compute sensitivity for.
+            Each key should be a bearing tag, and the corresponding value should be a dictionary
+            defining the input and output degrees of freedom that determine the sensitivity computation.
+
+        Returns
+        -------
+        max_abs_sensitivities : dict
+            Dictionary containing the maximum absolute sensitivity for each magnetic bearing.
+        sensitivities : dict
+            Dictionary containing the sensitivity for each magnetic bearing.
+
+        Raises
+        ------
+        AttributeError
+            If there are no magnetic bearings in the rotor.
+        KeyError
+            If no AMB is found associated with a given tag.
+
+        Examples
+        --------
+        >>> import ross as rs
+        >>> rotor = rs.amb_rotor_example()
+        >>> speed = np.linspace(0, 1000, 101)
+        >>> response = rotor.run_freq_response(speed_range=speed)
+        >>> compute_sensitivite_dofs = {"Bearing 0": {"inp": 9, "out": 9}}
+        >>> max_abs_sensitivities, sensitivities = rotor.compute_sensitivity(
+        ...     speed_range=speed,
+        ...     freq_resp=response.freq_resp,
+        ...     compute_sensitivite_at=compute_sensitivite_dofs,
+        ... )
+        >>> max_abs_sensitivities
+        {'Bearing 0': 0.786377878047573}
+        """
         # List of AMBs
         ambs = {}
         for bearing in self.bearing_elements:
@@ -4369,6 +4434,83 @@ def rotor_example():
 
     return Rotor(shaft_elem, [disk0, disk1], [bearing0, bearing1])
 
+def amb_rotor_example():
+    """Creates an example rotor supported by a journal bearing and a magnetic bearing.
+
+    This function returns an instance of a simple rotor model. The model consists of ten shaft elements, one disk, one
+    simple bearing, and one magnetic bearing. It provides a basic model for writing doctests.
+
+    Returns
+    -------
+    An instance of a rotor object.
+
+    Examples
+    --------
+    >>> rotor = amb_rotor_example()
+    >>> modal = rotor.run_modal(speed=0)
+    >>> np.round(modal.wd[:4])
+    array([  0., 238., 238., 871.])
+    """
+    #  Rotor without damping with 6 shaft elements 2 disks and 2 bearings
+    i_d = 0  # Internal Diameter (m) - assuming solid shaft
+    o_d = 0.05  # External Diameter (m)
+    n = 10  # Number os elements in shaft
+    shaft_element_lengths = [0.1 for _ in range(n)]  # Lengths of the shaft elements
+
+    # Shaft definition
+    shaft_elem = [
+        ShaftElement(
+            l,
+            i_d,
+            o_d,
+            material=steel,
+            shear_effects=True,
+            rotary_inertia=True,
+            gyroscopic=True,
+        )
+        for l in shaft_element_lengths
+    ]
+
+    # Disk definition
+    disk = DiskElement.from_geometry(
+        n=5, material=steel, width=0.07, i_d=0.05, o_d=0.28
+    )
+
+    # Magnetic Bearing definition
+    g0 = 1e-3  # Air gap
+    i0 = 1.0  # Bias current
+    ag = 1e-4  # Pole area
+    nw = 200  # Winding turns
+    alpha = 0.392  # Half of the angle between two poles
+
+    # PID gains
+    kp_pid = 1000000  # Kp gain
+    kd_pid = 1000000  # Kd gain
+    k_amp = 1.0  # Power amplifier gain
+    k_sense = 1.0  # Sensor gain
+
+    # Magnetic bearing at node 2
+    bearing0 = MagneticBearingElement(
+        n=2,
+        g0=g0,
+        i0=i0,
+        ag=ag,
+        nw=nw,
+        alpha=alpha,
+        kp_pid=kp_pid,
+        ki_pid=0,
+        kd_pid=kd_pid,
+        k_amp=k_amp,
+        k_sense=k_sense,
+    )
+
+    # Simple (journal) bearing definition
+    kxx = 1e6  # Stiffness in x direction (N/m)
+    kyy = 1e6  # Stiffness in y direction (N/m)
+    cxx = 1e3  # Damping in x direction (N*s/m)
+    bearing1 = BearingElement(n=8, kxx=kxx, kyy=kyy, cxx=cxx)
+
+    return Rotor(shaft_elem, [disk], [bearing0, bearing1])
 
 def compressor_example():
     """Create a rotor as example.

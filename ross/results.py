@@ -1837,6 +1837,24 @@ class CampbellResults(Results):
 
 
 class SensitivityResults(Results):
+    """Class used to store results and provide plots for Sensitivity Analysis.
+
+    Parameters
+    ----------
+    sensitivities : dict
+        Dictionary containing the sensitivity for each magnetic bearing.
+    max_abs_sensitivities : dict
+        Dictionary containing the maximum absolute sensitivity for each magnetic bearing.
+    compute_sensitivite_at : dict
+        A dictionary defining tags for the magnetic bearings to compute sensitivity for.
+        Each key should be a bearing tag, and the corresponding value should be a dictionary
+        defining the input and output degrees of freedom that determine the sensitivity computation.
+
+    Returns
+    -------
+    subplots : Plotly graph_objects.make_subplots()
+        Plotly figure with Amplitude vs Frequency and Phase vs Frequency plots.
+    """
     def __init__(self, sensitivities, max_abs_sensitivities, compute_sensitivite_at):
         self.sensitivities = sensitivities
         self.max_abs_sensitivities = max_abs_sensitivities
@@ -1850,6 +1868,46 @@ class SensitivityResults(Results):
         phase_units="rad",
         fig=None,
     ):
+        """Plot the sensitivity results.
+
+        This method plots the sensitivity as a function of frequency for each
+        magnetic bearing, based on the sensitivities computed during the
+        `run_freq_response` call. It's called by the method plot_sensitivity
+        (from FrequencyResponseResults).
+
+        Parameters
+        ----------
+        speed_range : array
+            Array with the range of frequencies.
+        frequency_units : str, optional
+            Frequency units for the plots.
+            Default is "rad/s".
+        amplitude_units : str, optional
+            Units of the sensitivity function.
+            Default is "m/N".
+        phase_units : str, optional
+            Phase units for the plots.
+            Default is "rad".
+        fig : plotly.graph_objects.Figure, optional
+            Existing figure to add the plots.
+            Default is None.
+
+        Returns
+        -------
+        fig : plotly.graph_objects.Figure
+            A plotly figure with the sensitivity plots.
+
+        Examples
+        --------
+        >>> import ross as rs
+        >>> rotor = rs.amb_rotor_example()
+        >>> speed = np.linspace(0, 1000, 101)
+        >>> compute_sensitivite_dofs = {"Bearing 0": {"inp": 9, "out": 9}}
+        >>> response = rotor.run_freq_response(speed_range=speed, compute_sensitivite_at=compute_sensitivite_dofs)
+        >>> sensitivity_results = response.sensitivity_results
+        >>> fig = sensitivity_results.plot(speed_range=speed)
+        >>> fig.show()
+        """
         # Build sensitivity plots
         if fig is None:
             fig = make_subplots(rows=2, cols=1)
@@ -1932,6 +1990,12 @@ class FrequencyResponseResults(Results):
         Array with the speed range in rad/s.
     number_dof : int
         Number of degrees of freedom per node.
+    sensitivity_results : ross.SensitivityResults, optional
+        Results obtained from the magnetic bearing sensitivity computation. These results will only be generated if the
+        rotor model includes at least one magnetic bearing and the user has requested sensitivity computation.
+        The sensitivity_results parameter contains information about the computed sensitivities for each magnetic
+        bearing. This includes a list of the associated magnetic bearings, the maximum absolute sensitivity for each
+        bearing, and the individual sensitivity values for each bearing.
 
     Returns
     -------
@@ -2425,6 +2489,48 @@ class FrequencyResponseResults(Results):
         phase_units="rad",
         fig=None,
     ):
+        """Plot the sensitivity for each magnetic bearing.
+
+        This method plots the sensitivity as a function of frequency for each
+        magnetic bearing, based on the sensitivities computed during the
+        `run_freq_response` call.
+
+        Parameters
+        ----------
+        frequency_units : str, optional
+            Frequency units for the plots.
+            Default is "rad/s".
+        amplitude_units : str, optional
+            Units of the sensitivity function amplitude.
+            Default is "m/N".
+        phase_units : str, optional
+            Phase units for the plots.
+            Default is "rad".
+        fig : plotly.graph_objects.Figure, optional
+            Existing figure to add the plots.
+            Default is None.
+
+        Returns
+        -------
+        fig : plotly.graph_objects.Figure
+            A plotly figure with the sensitivity plots.
+
+        Raises
+        ------
+        AttributeError
+            If there are no magnetic bearings in the rotor or if the
+            `run_freq_response` method has not been called yet.
+
+        Examples
+        --------
+        >>> import ross as rs
+        >>> rotor = rs.amb_rotor_example()
+        >>> speed = np.linspace(0, 1000, 101)
+        >>> compute_sensitivite_dofs = {"Bearing 0": {"inp": 9, "out": 9}}
+        >>> response = rotor.run_freq_response(speed_range=speed, compute_sensitivite_at=compute_sensitivite_dofs)
+        >>> fig = response.plot_sensitivity()
+        >>> fig.show()
+        """
         try:
             self.sensitivity_results
         except AttributeError:
