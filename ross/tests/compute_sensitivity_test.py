@@ -259,7 +259,7 @@ def compute_freq_resp(rotor):
         speed_range=speed_range, compute_sensitivity_at=compute_sensitivity_at
     )
 
-    freq_resp.plot_sensitivity().show()
+    freq_resp.plot_sensitivity(frequency_units="Hz", amplitude_units='mm/N', phase_units='deg').show()
     np.save(
         "freq_resp",
         freq_resp.freq_resp,

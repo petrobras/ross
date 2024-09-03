@@ -1908,6 +1908,9 @@ class SensitivityResults(Results):
         >>> fig = sensitivity_results.plot(speed_range=speed)
         >>> fig.show()
         """
+        # Unit adjustment
+        frequency_range = Q_(speed_range, "rad/s").to(frequency_units).m
+
         # Build sensitivity plots
         if fig is None:
             fig = make_subplots(rows=2, cols=1)
@@ -1922,10 +1925,21 @@ class SensitivityResults(Results):
             inp_node = inp_dof // 4
             out_node = out_dof // 4
 
+            # Unit adjustment
+            check_amplitude_units_temp_var = Q_(1, amplitude_units)
+            if check_amplitude_units_temp_var.check("[length]/[force]"):
+                mag_sensitivity = Q_(mag_sensitivity, "m/N").to(amplitude_units).m
+            else:
+                raise ValueError(
+                    "Unsupported unit. Please use a unit with dimensions of length per force (e.g., mm/N)."
+                )
+
+            phase_sensitivity = Q_(phase_sensitivity, "rad").to(phase_units).m
+
             # Magnitude
             fig.add_trace(
                 go.Scatter(
-                    x=speed_range,
+                    x=frequency_range,
                     y=mag_sensitivity,
                     mode="lines",
                     line=dict(color=list(tableau_colors)[color_index]),
@@ -1940,7 +1954,7 @@ class SensitivityResults(Results):
 
             fig.update_xaxes(
                 title_text=f"Frequency ({frequency_units})",
-                range=[np.min(speed_range), np.max(speed_range)],
+                range=[np.min(frequency_range), np.max(frequency_range)],
                 row=1,
                 col=1,
             )
@@ -1949,7 +1963,7 @@ class SensitivityResults(Results):
             # Phase
             fig.add_trace(
                 go.Scatter(
-                    x=speed_range,
+                    x=frequency_range,
                     y=phase_sensitivity,
                     mode="lines",
                     line=dict(color=list(tableau_colors)[color_index]),
@@ -1964,7 +1978,7 @@ class SensitivityResults(Results):
 
             fig.update_xaxes(
                 title_text=f"Frequency ({frequency_units})",
-                range=[np.min(speed_range), np.max(speed_range)],
+                range=[np.min(frequency_range), np.max(frequency_range)],
                 row=2,
                 col=1,
             )
