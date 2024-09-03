@@ -1845,7 +1845,7 @@ class SensitivityResults(Results):
         Dictionary containing the sensitivity for each magnetic bearing.
     max_abs_sensitivities : dict
         Dictionary containing the maximum absolute sensitivity for each magnetic bearing.
-    compute_sensitivite_at : dict
+    compute_sensitivity_at : dict
         A dictionary defining tags for the magnetic bearings to compute sensitivity for.
         Each key should be a bearing tag, and the corresponding value should be a dictionary
         defining the input and output degrees of freedom that determine the sensitivity computation.
@@ -1855,10 +1855,10 @@ class SensitivityResults(Results):
     subplots : Plotly graph_objects.make_subplots()
         Plotly figure with Amplitude vs Frequency and Phase vs Frequency plots.
     """
-    def __init__(self, sensitivities, max_abs_sensitivities, compute_sensitivite_at):
+    def __init__(self, sensitivities, max_abs_sensitivities, compute_sensitivity_at):
         self.sensitivities = sensitivities
         self.max_abs_sensitivities = max_abs_sensitivities
-        self.compute_sensitivite_at = compute_sensitivite_at
+        self.compute_sensitivity_at = compute_sensitivity_at
 
     def plot(
         self,
@@ -1903,7 +1903,7 @@ class SensitivityResults(Results):
         >>> rotor = rs.amb_rotor_example()
         >>> speed = np.linspace(0, 1000, 101)
         >>> compute_sensitivite_dofs = {"Bearing 0": {"inp": 9, "out": 9}}
-        >>> response = rotor.run_freq_response(speed_range=speed, compute_sensitivite_at=compute_sensitivite_dofs)
+        >>> response = rotor.run_freq_response(speed_range=speed, compute_sensitivity_at=compute_sensitivite_dofs)
         >>> sensitivity_results = response.sensitivity_results
         >>> fig = sensitivity_results.plot(speed_range=speed)
         >>> fig.show()
@@ -1913,12 +1913,12 @@ class SensitivityResults(Results):
             fig = make_subplots(rows=2, cols=1)
 
         color_index = 0
-        for amb_tag in self.compute_sensitivite_at.keys():
+        for amb_tag in self.compute_sensitivity_at.keys():
             mag_sensitivity = [abs(z) for z in self.sensitivities[amb_tag]]
             phase_sensitivity = [cmath.phase(z) for z in self.sensitivities[amb_tag]]
 
-            inp_dof = self.compute_sensitivite_at[amb_tag]['inp']
-            out_dof = self.compute_sensitivite_at[amb_tag]['out']
+            inp_dof = self.compute_sensitivity_at[amb_tag]['inp']
+            out_dof = self.compute_sensitivity_at[amb_tag]['out']
             inp_node = inp_dof // 4
             out_node = out_dof // 4
 
@@ -2527,7 +2527,7 @@ class FrequencyResponseResults(Results):
         >>> rotor = rs.amb_rotor_example()
         >>> speed = np.linspace(0, 1000, 101)
         >>> compute_sensitivite_dofs = {"Bearing 0": {"inp": 9, "out": 9}}
-        >>> response = rotor.run_freq_response(speed_range=speed, compute_sensitivite_at=compute_sensitivite_dofs)
+        >>> response = rotor.run_freq_response(speed_range=speed, compute_sensitivity_at=compute_sensitivite_dofs)
         >>> fig = response.plot_sensitivity()
         >>> fig.show()
         """

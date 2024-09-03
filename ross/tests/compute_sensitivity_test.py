@@ -17,7 +17,7 @@ from ross import (
 )
 from ross.plotly_theme import tableau_colors
 
-max_freq = 100  # Hz
+max_freq = 300  # Hz
 x_label = "w [rad/s]"
 
 
@@ -250,13 +250,13 @@ def compute_freq_resp(rotor):
     logger.info("Initiating frequency response computation.")
 
     speed_range = np.linspace(0, max_freq * 2 * np.pi, 2 * max_freq)
-    compute_sensitivite_at = {
+    compute_sensitivity_at = {
         "Bearing 0": {"inp": 9, "out": 9},
         "Bearing 1": {"inp": 33, "out": 33},
     }
 
     freq_resp = rotor.run_freq_response(
-        speed_range=speed_range, compute_sensitivite_at=compute_sensitivite_at
+        speed_range=speed_range, compute_sensitivity_at=compute_sensitivity_at
     )
 
     freq_resp.plot_sensitivity().show()
@@ -459,8 +459,8 @@ def plot_sensitivity_plotly(mag_S, phase_S, speed_range):
 def main():
     start_time = time.time()
     # rotor = build_rotor(show_rotor=False)
-    rotor = build_rotor_without_ambs(show_rotor=False)
-    # rotor = build_rotor_only_ambs(show_rotor=False)
+    # rotor = build_rotor_without_ambs(show_rotor=False)
+    rotor = build_rotor_only_ambs(show_rotor=False)
     compute_freq_resp(rotor)
     # plot_freq_resp()
     # mag_S, phase_S, speed_range = compute_sensitivity_call()

@@ -1683,7 +1683,7 @@ class Rotor(object):
         speed_range=None,
         modes=None,
         cluster_points=False,
-        compute_sensitivite_at=None,
+        compute_sensitivity_at=None,
         num_modes=12,
         num_points=10,
         rtol=0.005,
@@ -1705,7 +1705,7 @@ class Rotor(object):
         speed_range : array, optional
             Array with the desired range of frequencies.
             Default is 0 to 1.5 x highest damped natural frequency.
-        compute_sensitivite_at : dict, optional
+        compute_sensitivity_at : dict, optional
             A dictionary defining tags for the magnetic bearings to compute sensitivity for.
             Each key should be a bearing tag, and the corresponding value should be a dictionary
             defining the input and output degrees of freedom that determine the sensitivity computation.
@@ -1788,7 +1788,7 @@ class Rotor(object):
         
         >>> rotor = rs.amb_rotor_example()
         >>> compute_sensitivite_dofs = {"Bearing 0": {"inp": 9, "out": 9}}
-        >>> response = rotor.run_freq_response(speed_range=speed, compute_sensitivite_at=compute_sensitivite_dofs)
+        >>> response = rotor.run_freq_response(speed_range=speed, compute_sensitivity_at=compute_sensitivite_dofs)
         >>> response.sensitivity_results.max_abs_sensitivities
         {'Bearing 0': 0.786377878047573}
 
@@ -1816,14 +1816,14 @@ class Rotor(object):
             velc_resp[..., i] = 1j * speed * H
             accl_resp[..., i] = -(speed**2) * H
 
-        if compute_sensitivite_at is not None:
+        if compute_sensitivity_at is not None:
             max_abs_sensitivities, sensitivities = self.compute_sensitivity(
-                speed_range, freq_resp, compute_sensitivite_at
+                speed_range, freq_resp, compute_sensitivity_at
             )
             sensitivity_results = SensitivityResults(
                 max_abs_sensitivities=max_abs_sensitivities,
                 sensitivities=sensitivities,
-                compute_sensitivite_at=compute_sensitivite_at,
+                compute_sensitivity_at=compute_sensitivity_at,
             )
         else:
             sensitivity_results = None
@@ -1839,11 +1839,11 @@ class Rotor(object):
 
         return results
 
-    def compute_sensitivity(self, speed_range, freq_resp, compute_sensitivite_at):
+    def compute_sensitivity(self, speed_range, freq_resp, compute_sensitivity_at):
         """Compute the sensitivity for specific magnetic bearings in the rotor.
 
         This method computes the sensitivity for each magnetic bearing whose tag is present
-        in the 'compute_sensitivite_at' dictionary, given the frequency response for a mdof system.
+        in the 'compute_sensitivity_at' dictionary, given the frequency response for a mdof system.
 
         Parameters
         ----------
@@ -1851,7 +1851,7 @@ class Rotor(object):
             Array with the desired range of frequencies.
         freq_resp : array
             Array with the frequency response of the system.
-        compute_sensitivite_at : dict
+        compute_sensitivity_at : dict
             A dictionary defining tags for the magnetic bearings to compute sensitivity for.
             Each key should be a bearing tag, and the corresponding value should be a dictionary
             defining the input and output degrees of freedom that determine the sensitivity computation.
@@ -1880,7 +1880,7 @@ class Rotor(object):
         >>> max_abs_sensitivities, sensitivities = rotor.compute_sensitivity(
         ...     speed_range=speed,
         ...     freq_resp=response.freq_resp,
-        ...     compute_sensitivite_at=compute_sensitivite_dofs,
+        ...     compute_sensitivity_at=compute_sensitivite_dofs,
         ... )
         >>> max_abs_sensitivities
         {'Bearing 0': 0.786377878047573}
@@ -1898,7 +1898,7 @@ class Rotor(object):
 
         sensitivities = {}
         max_abs_sensitivities = {}
-        for amb_tag in compute_sensitivite_at.keys():
+        for amb_tag in compute_sensitivity_at.keys():
             # Get AMB data
             try:
                 amb = ambs[amb_tag]
@@ -1909,7 +1909,7 @@ class Rotor(object):
 
             # Get disturbance frequency response
             freq_response_at_mma = freq_resp[
-                compute_sensitivite_at[amb_tag]["inp"], compute_sensitivite_at[amb_tag]["out"], :
+                compute_sensitivity_at[amb_tag]["inp"], compute_sensitivity_at[amb_tag]["out"], :
             ]
             mag_w = [abs(z) for z in freq_response_at_mma]
             phase_w = [cmath.phase(z) for z in freq_response_at_mma]
