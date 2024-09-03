@@ -405,6 +405,40 @@ class MultiRotor(Rotor):
 
         return global_matrix
 
+    def _check_speed(self, node, omega):
+        """Adjusts the speed for the specified node based on the rotor configuration.
+
+        This method checks if the given node belongs to the driven rotor.
+        If so, the rotation speed is multiplied by the gear ratio.
+
+        Parameters
+        ----------
+        node : int
+            The node index where the speed check is being applied.
+        omega : float or np.ndarray
+            The original rotation speed of the driving rotor in rad/s.
+
+        Returns
+        -------
+        speed : float or np.ndarray
+            The adjusted rotation speed for the specified node.
+
+        Examples
+        --------
+        """
+
+        speed = omega
+        rotor = self.rotors[0]
+
+        if node in self.R2_nodes:
+            speed = -omega * self.gear_ratio
+            rotor = self.rotors[1]
+
+        if isinstance(rotor, MultiRotor):
+            return rotor._check_speed(node, speed)
+
+        return speed
+
     def _unbalance_force(self, node, magnitude, phase, omega):
         """Calculate unbalance forces.
 
@@ -431,10 +465,7 @@ class MultiRotor(Rotor):
         Examples
         --------
         """
-        if node in self.R2_nodes:
-            speed = omega * self.gear_ratio
-        else:
-            speed = omega
+        speed = self._check_speed(node, omega)
 
         return super()._unbalance_force(node, magnitude, phase, speed)
 
