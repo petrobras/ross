@@ -2624,3 +2624,81 @@ def test_rotor_conical_frequencies(rotor_conical):
         ]
     )
     assert_allclose(modal.wn, expected_wn, rtol=1e-5)
+
+
+def test_compute_sensitivity():
+    # Successful case where the rotor has only one magnetic bearing
+    rotor = amb_rotor_example()
+    speed_range = np.linspace(0, 100 * 2 * np.pi, 5)
+    compute_sensitivity_at = {"Bearing 0": {"inp": 9, "out": 9}}
+
+    freq_resp = rotor.run_freq_response(
+        speed_range=speed_range, compute_sensitivity_at=compute_sensitivity_at
+    )
+
+    fig = freq_resp.plot_sensitivity()
+
+    assert (
+        freq_resp.sensitivity_results.compute_sensitivity_at == compute_sensitivity_at
+    )
+    assert freq_resp.sensitivity_results.max_abs_sensitivities == {
+        "Bearing 0": 0.7847919755843773
+    }
+    assert_allclose(
+        freq_resp.sensitivity_results.sensitivities["Bearing 0"],
+        np.array(
+            [
+                0.78451171 - 2.69930856e-09j,
+                0.78473186 + 1.43099896e-04j,
+                0.78479197 + 1.02582709e-04j,
+                0.78476018 + 2.51543854e-04j,
+                0.78478093 + 4.32514409e-04j,
+            ]
+        ),
+    )
+    assert_allclose(
+        fig.data[1]["y"],
+        np.array(
+            [
+                -3.44074987e-09,
+                1.82355149e-04,
+                1.30713249e-04,
+                3.20535946e-04,
+                5.51127514e-04,
+            ]
+        ),
+    )
+    assert_allclose(
+        fig.data[0]["y"],
+        np.array([0.78451171, 0.78473187, 0.78479198, 0.78476022, 0.78478105]),
+    )
+
+    # Failing case where an invalid tag is provided in the sensitivity calculation.
+    with pytest.raises(KeyError) as excinfo:
+        compute_sensitivity_at = {"Bearing Wrong Tag": {"inp": 9, "out": 9}}
+        rotor.run_freq_response(
+            speed_range=speed_range, compute_sensitivity_at=compute_sensitivity_at
+        )
+
+    assert (
+        str(excinfo.value).replace("'", "")
+        == "No AMB found associated with tag Bearing Wrong Tag."
+    )
+
+    # Failing case when there are no magnetic bearings on the rotor
+    rotor = rotor_example()
+    compute_sensitivity_at = {"Bearing 0": {"inp": 9, "out": 9}}
+
+    with pytest.raises(AttributeError) as excinfo:
+        rotor.run_freq_response(
+            speed_range=speed_range, compute_sensitivity_at=compute_sensitivity_at
+        )
+
+    assert (
+        str(excinfo.value).replace("'", "")
+        == "There are no magnetic bearings in the rotor, so it is not possible to compute sensitivity."
+    )
+
+    # Successful case where there are no magnetic bearings on the rotor
+    freq_resp = rotor.run_freq_response(speed_range=speed_range)
+    assert "sensitivity_results" not in dir(freq_resp)
