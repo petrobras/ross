@@ -1867,6 +1867,7 @@ class SensitivityResults(Results):
         amplitude_units="m/N",
         phase_units="rad",
         fig=None,
+        fig_kwargs=None,
     ):
         """Plot the sensitivity results.
 
@@ -1891,6 +1892,11 @@ class SensitivityResults(Results):
         fig : plotly.graph_objects.Figure, optional
             Existing figure to add the plots.
             Default is None.
+        fig_kwargs : optional
+            Additional key word arguments can be passed to change the plot layout only
+            (e.g. width=1000, height=800, ...). This kwargs override "mag_kwargs",
+            "phase_kwargs" and "polar_kwargs" dictionaries.
+            *See Plotly Python make_subplots Reference for more information.
 
         Returns
         -------
@@ -1908,6 +1914,8 @@ class SensitivityResults(Results):
         >>> fig = sensitivity_results.plot(speed_range=speed)
         >>> fig.show()
         """
+        fig_kwargs = {} if fig_kwargs is None else copy.copy(fig_kwargs)
+
         # Unit adjustment
         frequency_range = Q_(speed_range, "rad/s").to(frequency_units).m
 
@@ -1983,6 +1991,7 @@ class SensitivityResults(Results):
                 col=1,
             )
             fig.update_yaxes(title_text=f" Phase ({phase_units})", row=2, col=1)
+            fig.update_layout(**fig_kwargs)
 
             color_index += 1
 
@@ -2502,6 +2511,7 @@ class FrequencyResponseResults(Results):
         amplitude_units="m/N",
         phase_units="rad",
         fig=None,
+        fig_kwargs=None,
     ):
         """Plot the sensitivity for each magnetic bearing.
 
@@ -2523,6 +2533,11 @@ class FrequencyResponseResults(Results):
         fig : plotly.graph_objects.Figure, optional
             Existing figure to add the plots.
             Default is None.
+        fig_kwargs : optional
+            Additional key word arguments can be passed to change the plot layout only
+            (e.g. width=1000, height=800, ...). This kwargs override "mag_kwargs",
+            "phase_kwargs" and "polar_kwargs" dictionaries.
+            *See Plotly Python make_subplots Reference for more information.
 
         Returns
         -------
@@ -2558,6 +2573,7 @@ class FrequencyResponseResults(Results):
             amplitude_units=amplitude_units,
             phase_units=phase_units,
             fig=fig,
+            fig_kwargs=fig_kwargs,
         )
 
 
