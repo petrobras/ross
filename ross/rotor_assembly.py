@@ -2310,17 +2310,17 @@ class Rotor(object):
         fig = go.Figure()
 
         # plot shaft centerline
-        shaft_end = max(nodes_pos)
-        fig.add_trace(
-            go.Scatter(
-                x=[-0.2 * shaft_end, 1.2 * shaft_end],
-                y=[0, 0],
-                mode="lines",
-                opacity=0.7,
-                line=dict(width=3.0, color="black", dash="dashdot"),
-                showlegend=False,
-                hoverinfo="none",
-            )
+        fig.add_shape(
+            x0=0,
+            x1=1,
+            y0=0,
+            y1=0,
+            xref="paper",
+            yref="y",
+            layer="below",
+            opacity=0.7,
+            type="line",
+            line=dict(width=3.0, color="black", dash="dashdot"),
         )
 
         # plot nodes icons
@@ -2443,13 +2443,13 @@ class Rotor(object):
 
         fig.update_xaxes(
             title_text=f"Axial location ({length_units})",
-            range=[-0.1 * shaft_end, 1.1 * shaft_end],
             showgrid=False,
             mirror=True,
+            scaleanchor="y",
+            scaleratio=1.5,
         )
         fig.update_yaxes(
             title_text=f"Shaft radius ({length_units})",
-            range=[-0.3 * shaft_end, 0.3 * shaft_end],
             showgrid=False,
             mirror=True,
         )
