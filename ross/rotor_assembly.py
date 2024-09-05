@@ -2271,7 +2271,12 @@ class Rotor(object):
         add_to_RHS = kwargs.get("add_to_RHS")
 
         if add_to_RHS is None:
-            forces = lambda step, **curr_state: F[step, :]
+            forces = lambda step, **curr_state: F[step, :] + get_array[1](
+                magnetic_force(
+                    curr_state.get("dt"),
+                    get_array[2](curr_state.get("y")),
+                )
+            )
         else:
             forces = lambda step, **curr_state: F[step, :] + get_array[1](
                 add_to_RHS(
