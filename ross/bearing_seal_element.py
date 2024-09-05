@@ -1412,6 +1412,8 @@ class MagneticBearingElement(BearingElement):
         Pole angle in radians.
     kp_pid : float or int
         Proportional gain of the PID controller.
+    ki_pid : float or int
+        Integrative gain of the PID controller.
     kd_pid : float or int
         Derivative gain of the PID controller.
     k_amp : float or int
@@ -1464,6 +1466,7 @@ class MagneticBearingElement(BearingElement):
         nw,
         alpha,
         kp_pid,
+        ki_pid,
         kd_pid,
         k_amp,
         k_sense,
@@ -1478,6 +1481,7 @@ class MagneticBearingElement(BearingElement):
         self.nw = nw
         self.alpha = alpha
         self.kp_pid = kp_pid
+        self.ki_pid = ki_pid
         self.kd_pid = kd_pid
         self.k_amp = k_amp
         self.k_sense = k_sense
@@ -1525,6 +1529,14 @@ class MagneticBearingElement(BearingElement):
             * pA[2]
             / (4.0 * pA[0] ** 2)
         )
+
+        self.ks = ks
+        self.ki = ki
+        self.integral = [0, 0]
+        self.e0 = [1e-6, 1e-6]
+        self.control_signal = [[], []]
+        self.magnetic_force = [[], []]
+        
         k = ki * pA[7] * pA[8] * (pA[5] + np.divide(ks, ki * pA[7] * pA[8]))
         c = ki * pA[7] * pA[6] * pA[8]
         # k = ki * k_amp*k_sense*(kp_pid+ np.divide(ks, ki*k_amp*k_sense))
