@@ -1683,10 +1683,10 @@ class Rotor(object):
         speed_range=None,
         modes=None,
         cluster_points=False,
-        compute_sensitivity_at=None,
         num_modes=12,
         num_points=10,
         rtol=0.005,
+        compute_sensitivity_at=None,
     ):
         """Frequency response for a mdof system.
 
