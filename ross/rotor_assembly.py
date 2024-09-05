@@ -508,49 +508,16 @@ class Rotor(object):
         for z_pos in z_positions:
             dfb_z_pos = dfb[dfb.nodes_pos_l == z_pos]
             dfb_z_pos = dfb_z_pos.sort_values(by="n_l")
-            try:
-                y_pos = (
-                    max(
-                        df_shaft["odl"][
-                            df_shaft.n_l == int(dfb_z_pos.iloc[0]["n_l"])
-                        ].values
-                    )
-                    / 2
-                )
-            except ValueError:
-                try:
-                    y_pos = (
-                        max(
-                            df_shaft["odr"][
-                                df_shaft.n_r == int(dfb_z_pos.iloc[0]["n_r"])
-                            ].values
-                        )
-                        / 2
-                    )
-                except ValueError:
-                    y_pos = (
-                        max(
-                            [
-                                max(
-                                    df_shaft["odl"][
-                                        df_shaft._n == int(dfb_z_pos.iloc[0]["n_l"])
-                                    ].values
-                                ),
-                                max(
-                                    df_shaft["odr"][
-                                        df_shaft._n == int(dfb_z_pos.iloc[0]["n_l"]) - 1
-                                    ].values
-                                ),
-                            ]
-                        )
-                        / 2
-                    )
+
+            y_pos = 0
+            y_pos_sup = 0
             mean_od = np.mean(self.nodes_o_d)
             # use a 0.5 factor here based on plot experience for real machines
             scale_size = 0.5 * dfb["scale_factor"] * mean_od
-            y_pos_sup = y_pos + 2 * scale_size
 
-            for t in dfb_z_pos.tag:
+            for i in range(len(dfb_z_pos)):
+                t = dfb_z_pos.iloc[i].tag
+
                 if df.loc[df.tag == t, "n_l"].values[0] in self.link_nodes:
                     df.loc[df.tag == t, "y_pos"] = (
                         y_pos + mean_od * df["scale_factor"][df.tag == t].values[0]
@@ -558,7 +525,50 @@ class Rotor(object):
                     df.loc[df.tag == t, "y_pos_sup"] = (
                         y_pos_sup + mean_od * df["scale_factor"][df.tag == t].values[0]
                     )
+
                 else:
+                    try:
+                        y_pos = (
+                            max(
+                                df_shaft["odl"][
+                                    df_shaft.n_l == int(dfb_z_pos.iloc[i]["n_l"])
+                                ].values
+                            )
+                            / 2
+                        )
+                    except ValueError:
+                        try:
+                            y_pos = (
+                                max(
+                                    df_shaft["odr"][
+                                        df_shaft.n_r == int(dfb_z_pos.iloc[i]["n_r"])
+                                    ].values
+                                )
+                                / 2
+                            )
+                        except ValueError:
+                            y_pos = (
+                                max(
+                                    [
+                                        max(
+                                            df_shaft["odl"][
+                                                df_shaft._n
+                                                == int(dfb_z_pos.iloc[i]["n_l"])
+                                            ].values
+                                        ),
+                                        max(
+                                            df_shaft["odr"][
+                                                df_shaft._n
+                                                == int(dfb_z_pos.iloc[i]["n_l"]) - 1
+                                            ].values
+                                        ),
+                                    ]
+                                )
+                                / 2
+                            )
+
+                    y_pos_sup = y_pos + 2 * scale_size
+
                     df.loc[df.tag == t, "y_pos"] = y_pos
                     df.loc[df.tag == t, "y_pos_sup"] = y_pos_sup
 
