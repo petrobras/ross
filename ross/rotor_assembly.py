@@ -1785,7 +1785,7 @@ class Rotor(object):
         Set the compute_sensitivity_at parameter to indicate which magnetic bearings require sensitivity computation.
         Use the bearing tags to specify the bearings. Additionally, define the degrees of freedom to be considered for
         both disturbance input and displacement measurement output during the sensitivity computation.
-        
+
         >>> rotor = rs.amb_rotor_example()
         >>> compute_sensitivite_dofs = {"Bearing 0": {"inp": 9, "out": 9}}
         >>> response = rotor.run_freq_response(speed_range=speed, compute_sensitivity_at=compute_sensitivite_dofs)
@@ -1903,13 +1903,13 @@ class Rotor(object):
             try:
                 amb = ambs[amb_tag]
             except KeyError:
-                raise KeyError(
-                    f"No AMB found associated with tag {amb_tag}."
-                )
+                raise KeyError(f"No AMB found associated with tag {amb_tag}.")
 
             # Get disturbance frequency response
             freq_response_at_mma = freq_resp[
-                compute_sensitivity_at[amb_tag]["inp"], compute_sensitivity_at[amb_tag]["out"], :
+                compute_sensitivity_at[amb_tag]["inp"],
+                compute_sensitivity_at[amb_tag]["out"],
+                :,
             ]
             mag_w = [abs(z) for z in freq_response_at_mma]
             phase_w = [cmath.phase(z) for z in freq_response_at_mma]
@@ -4434,6 +4434,7 @@ def rotor_example():
 
     return Rotor(shaft_elem, [disk0, disk1], [bearing0, bearing1])
 
+
 def amb_rotor_example():
     """Creates an example rotor supported by a journal bearing and a magnetic bearing.
 
@@ -4511,6 +4512,7 @@ def amb_rotor_example():
     bearing1 = BearingElement(n=8, kxx=kxx, kyy=kyy, cxx=cxx)
 
     return Rotor(shaft_elem, [disk], [bearing0, bearing1])
+
 
 def compressor_example():
     """Create a rotor as example.

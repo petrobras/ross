@@ -1855,6 +1855,7 @@ class SensitivityResults(Results):
     subplots : Plotly graph_objects.make_subplots()
         Plotly figure with Amplitude vs Frequency and Phase vs Frequency plots.
     """
+
     def __init__(self, sensitivities, max_abs_sensitivities, compute_sensitivity_at):
         self.sensitivities = sensitivities
         self.max_abs_sensitivities = max_abs_sensitivities
@@ -1928,8 +1929,8 @@ class SensitivityResults(Results):
             mag_sensitivity = [abs(z) for z in self.sensitivities[amb_tag]]
             phase_sensitivity = [cmath.phase(z) for z in self.sensitivities[amb_tag]]
 
-            inp_dof = self.compute_sensitivity_at[amb_tag]['inp']
-            out_dof = self.compute_sensitivity_at[amb_tag]['out']
+            inp_dof = self.compute_sensitivity_at[amb_tag]["inp"]
+            out_dof = self.compute_sensitivity_at[amb_tag]["out"]
             inp_node = inp_dof // 4
             out_node = out_dof // 4
 
@@ -2033,7 +2034,7 @@ class FrequencyResponseResults(Results):
         accl_resp,
         speed_range,
         number_dof,
-        sensitivity_results
+        sensitivity_results,
     ):
         self.freq_resp = freq_resp
         self.velc_resp = velc_resp
