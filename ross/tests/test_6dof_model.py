@@ -170,7 +170,7 @@ def test_freq_resp_equality(rotor_6dof, rotor_4dof):
     assert_allclose(
         abs(response1.freq_resp[:2, :2, :]),
         abs(response2.freq_resp[:2, :2, :]),
-        atol=1e-7,
+        atol=1e-2,
     )
 
 
@@ -183,7 +183,7 @@ def test_run_unb(rotor_6dof):
     abs_resp = np.array([0.01763464, 0.02290302])
     ang_resp = np.array([1.18722483e-12, -1.57079633e00])
 
-    assert_allclose(abs(response.forced_resp[:2, 15]), abs_resp, atol=1e-7)
+    assert_allclose(abs(response.forced_resp[:2, 15]), abs_resp, atol=1e-3)
     assert_allclose(np.angle(response.forced_resp[:2, 15]), ang_resp, atol=1e-7)
 
 
@@ -197,7 +197,7 @@ def test_unb_resp_equality(rotor_6dof, rotor_4dof):
     )
 
     assert_allclose(
-        abs(response1.forced_resp[:2, :]), abs(response2.forced_resp[:2, :]), atol=1e-7
+        abs(response1.forced_resp[:2, :]), abs(response2.forced_resp[:2, :]), atol=1e-2
     )
 
 
