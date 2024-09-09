@@ -12,6 +12,7 @@ import pandas as pd
 import toml
 from plotly import express as px
 from plotly import graph_objects as go
+import scipy as sp
 from scipy import io as sio
 from scipy import linalg as la
 from scipy import signal as signal
@@ -1621,7 +1622,7 @@ class Rotor(object):
 
         return matrix_to_modal, vector_to_modal, vector_from_modal
 
-    def transfer_matrix(self, speed=None, frequency=None, modes=None):
+    def  transfer_matrix(self, speed=None, frequency=None, num_modes=12):
         """Calculate the fer matrix for the frequency response function (FRF).
 
         Paramenters
@@ -1630,9 +1631,11 @@ class Rotor(object):
             Excitation frequency. Default is rotor speed.
         speed : float, optional
             Rotating speed. Default is rotor speed (frequency).
-        modes : list, optional
-            List with modes used to calculate the matrix.
-            (all modes will be used if a list is not given).
+        num_modes
+            The number of eigenvalues and eigenvectors to be calculated using ARPACK.
+            It also defines the range for the output array, since the method generates
+            points only for the critical speed calculated by run_critical_speed().
+            Default is 12.
 
         Returns
         -------
@@ -1643,34 +1646,22 @@ class Rotor(object):
         -------
         >>> rotor = rotor_example()
         >>> speed = 100.0
-        >>> H = rotor.transfer_matrix(speed=speed)
+        >>> H = rotor.transfer_matrix(speed=speed, num_modes=10)
         """
-        lti = self._lti(speed=speed)
-        B = lti.B
-        C = lti.C
-        D = lti.D
 
-        # calculate eigenvalues and eigenvectors using la.eig to get
-        # left and right eigenvectors.
+        M_mod = self.M() 
+        K_mod = np.zeros(M_mod.shape)
+        K0 = self.K(0) + K_mod
 
-        evals, psi = self._eigen(speed=speed, frequency=frequency, sparse=False)
-
-        psi_inv = la.inv(psi)
-
-        if modes is not None:
-            n = self.ndof  # n dof -> number of modes
-            m = len(modes)  # -> number of desired modes
-            # idx to get each evalue/evector and its conjugate
-            idx = np.zeros((2 * m), int)
-            idx[0:m] = modes  # modes
-            idx[m:] = range(2 * n)[-m:]  # conjugates (see how evalues are ordered)
-            evals = evals[np.ix_(idx)]
-            psi = psi[np.ix_(range(2 * n), idx)]
-            psi_inv = psi_inv[np.ix_(idx, range(2 * n))]
-
-        diag = np.diag([1 / (1j * speed - lam) for lam in evals])
-
-        H = C @ psi @ diag @ psi_inv @ B + D
+        Lambda, Phi = sp.linalg.eigh(K0, M_mod)
+        Phi = Phi[:,:num_modes]
+        M_red = Phi.T@M_mod@Phi
+        G_red = Phi.T@self.G()@Phi
+        K_red = Phi.T @ (self.K(speed) + K_mod) @ Phi
+        C_red = Phi.T @ self.C(speed) @ Phi
+        H_red = -speed**2*M_red + (1j*speed)*(C_red+speed*G_red) + K_red
+        Hinv_red = sp.linalg.inv(H_red)
+        H = Phi@Hinv_red@Phi.T
 
         return H
 
@@ -1739,7 +1730,7 @@ class Rotor(object):
 
         Return the response amplitude
         >>> abs(response.freq_resp) # doctest: +ELLIPSIS
-        array([[[1.00000000e-06, 1.00261725e-06, 1.01076952e-06, ...
+        array([[[9.84346547e-07, 9.86963763e-07, 9.95115909e-07, ...
 
         Return the response phase
         >>> np.angle(response.freq_resp) # doctest: +ELLIPSIS
@@ -1756,7 +1747,7 @@ class Rotor(object):
         Selecting the disirable modes, if you want a reduced model:
         >>> response = rotor.run_freq_response(speed_range=speed, modes=[0, 1, 2])
         >>> abs(response.freq_resp) # doctest: +ELLIPSIS
-        array([[[2.00154633e-07, 2.02422522e-07, 2.09522044e-07, ...
+        array([[[9.84346547e-07, 9.86963763e-07, 9.95115909e-07, ...
 
         Plotting frequency response function:
         >>> fig = response.plot(inp=13, out=13)
@@ -1787,7 +1778,7 @@ class Rotor(object):
         accl_resp = np.empty((self.ndof, self.ndof, len(speed_range)), dtype=complex)
 
         for i, speed in enumerate(speed_range):
-            H = self.transfer_matrix(speed=speed, modes=modes)
+            H = self.transfer_matrix(speed=speed, num_modes=num_modes)
             freq_resp[..., i] = H
             velc_resp[..., i] = 1j * speed * H
             accl_resp[..., i] = -(speed**2) * H
@@ -1878,7 +1869,7 @@ class Rotor(object):
         >>> force = rotor._unbalance_force(3, 10.0, 0.0, speed)
         >>> resp = rotor.run_forced_response(force=force, speed_range=speed)
         >>> abs(resp.forced_resp) # doctest: +ELLIPSIS
-        array([[0.00000000e+00, 5.06073311e-04, 2.10044826e-03, ...
+        array([[0.00000000e+00, 5.07050723e-04, 2.10435204e-03, ...
 
         Using clustered points option.
         Set `cluster_points=True` and choose how many modes the method must search and
@@ -2046,7 +2037,7 @@ class Rotor(object):
 
         Return the response amplitude
         >>> abs(response.forced_resp) # doctest: +ELLIPSIS
-        array([[0.00000000e+00, 5.06073311e-04, 2.10044826e-03, ...
+        array([[0.00000000e+00, 5.07050723e-04, 2.10435204e-03, ...
 
         Return the response phase
         >>> np.angle(response.forced_resp) # doctest: +ELLIPSIS
