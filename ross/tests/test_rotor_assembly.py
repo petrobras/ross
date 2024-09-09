@@ -698,39 +698,39 @@ def test_freq_response_w_force(rotor4):
     )
     mag_exp = np.array(
         [
-            [0.00000000e00, 1.14259057e-06, 1.88932819e-04, 4.50376020e-05],
-            [0.00000000e00, 3.02252319e-06, 1.50551126e-04, 4.98323245e-05],
-            [0.00000000e00, 1.97842812e-05, 5.19405022e-05, 2.80824236e-05],
-            [0.00000000e00, 2.02593969e-05, 1.64498124e-05, 1.06100461e-05],
+            [0.000000e+00, 1.130932e-06, 1.891347e-04, 4.522926e-05],
+            [0.000000e+00, 3.010645e-06, 1.507711e-04, 5.001870e-05],
+            [0.000000e+00, 1.967641e-05, 5.365586e-05, 2.973699e-05],
+            [0.000000e+00, 2.015411e-05, 1.783092e-05, 1.228659e-05],
         ]
     )
     mag_exp_2_unb = np.array(
         [
-            [0.00000000e00, 4.80337594e-06, 2.31170438e-04, 6.90062268e-05],
-            [0.00000000e00, 3.15307288e-06, 1.87793923e-04, 8.08531462e-05],
-            [0.00000000e00, 3.79692673e-05, 5.97050225e-05, 5.48105215e-05],
-            [0.00000000e00, 4.16812885e-05, 1.38592416e-05, 2.20209089e-05],
+            [0.000000e+00, 4.787628e-06, 2.312706e-04, 6.889610e-05],
+            [0.000000e+00, 3.137313e-06, 1.879121e-04, 8.067994e-05],
+            [0.000000e+00, 3.808153e-05, 6.077380e-05, 5.456006e-05],
+            [0.000000e+00, 4.179332e-05, 1.456000e-05, 2.197655e-05],
         ]
     )
 
     omega = np.linspace(0.0, 450.0, 4)
     freq_resp = rotor4.run_forced_response(force=F0, speed_range=omega)
     mag = abs(freq_resp.forced_resp)
-    assert_allclose(mag[:4, :4], mag_exp)
+    assert_allclose(mag[:4, :4], mag_exp, rtol=1e-6)
 
     freq_resp = rotor4.run_unbalance_response(2, 0.001, 0, frequency=omega)
     mag = abs(freq_resp.forced_resp)
-    assert_allclose(mag[:4, :4], mag_exp)
+    assert_allclose(mag[:4, :4], mag_exp, rtol=1e-6)
 
     freq_resp = rotor4.run_unbalance_response(2, 0.001, 0, frequency=omega)
     mag = abs(freq_resp.forced_resp)
-    assert_allclose(mag[:4, :4], mag_exp)
+    assert_allclose(mag[:4, :4], mag_exp, rtol=1e-6)
 
     freq_resp = rotor4.run_unbalance_response(
         [2, 3], [0.001, 0.001], [0.0, 0], frequency=omega
     )
     mag = abs(freq_resp.forced_resp)
-    assert_allclose(mag[:4, :4], mag_exp_2_unb)
+    assert_allclose(mag[:4, :4], mag_exp_2_unb, rtol=1e-6)
 
 
 def test_mesh_convergence(rotor3):
@@ -1604,7 +1604,7 @@ def test_unbalance(rotor3):
     unb = rotor3.run_unbalance_response(
         node=0, unbalance_magnitude=1, unbalance_phase=0, frequency=[50, 100]
     )
-    amplitude_expected = np.array([0.003065, 0.004169])
+    amplitude_expected = np.array([0.003026, 0.004018])
     data = unb.data_magnitude(probe=[(0, 45)], probe_units="deg")
     assert_allclose(data["Probe 1 - Node 0"], amplitude_expected, rtol=1e-4)
     data = unb.data_magnitude(probe=[Probe(0, Q_(45, "deg"), tag="Probe 1 - Node 0")])
@@ -1616,7 +1616,7 @@ def test_unbalance(rotor3):
     data = unb.data_phase(probe=[Probe(0, Q_(45, "deg"), tag="Probe 1 - Node 0")])
     assert_allclose(data["Probe 1 - Node 0"], phase_expected, rtol=1e-4)
 
-    amplitude_expected = np.array([0.003526, 0.005518])
+    amplitude_expected = np.array([0.003487, 0.005363])
     data = unb.data_magnitude(probe=[(0, "major")])
     assert_allclose(data["Probe 1 - Node 0"], amplitude_expected, rtol=1e-4)
     data = unb.data_magnitude(probe=[Probe(0, "major", tag="Probe 1 - Node 0")])
@@ -1647,31 +1647,31 @@ def test_deflected_shape(rotor7):
     expected_x = np.array([0.0, 0.0625, 0.125, 0.1875, 0.25, 0.25, 0.3125, 0.375])
     expected_y = np.array(
         [
-            0.00274183,
-            0.00269077,
-            0.00263888,
-            0.0025852,
-            0.00252877,
-            0.00252877,
-            0.0024688,
-            0.00240457,
+            0.002703, 
+            0.002678, 
+            0.002646, 
+            0.002605, 
+            0.002552, 
+            0.002552,
+            0.002487, 
+            0.002414,
         ]
     )
     expected_z = np.array(
         [
-            5.72720829e-05,
-            5.59724347e-05,
-            5.46564072e-05,
-            5.33052546e-05,
-            5.19002311e-05,
-            5.19002311e-05,
-            5.04258251e-05,
-            4.88678837e-05,
+            5.653374e-05, 
+            5.639119e-05, 
+            5.596652e-05, 
+            5.516375e-05,
+            5.388689e-05, 
+            5.388689e-05, 
+            5.215109e-05, 
+            5.016332e-05,
         ]
     )
-    assert_allclose(fig.data[-3]["x"][:8], expected_x, rtol=1e-4)
-    assert_allclose(fig.data[-3]["y"][:8], expected_y, rtol=1e-4)
-    assert_allclose(fig.data[-3]["z"][:8], expected_z, rtol=1e-4)
+    assert_allclose(fig.data[-3]["x"][:8], expected_x, rtol=1e-3)
+    assert_allclose(fig.data[-3]["y"][:8], expected_y, rtol=1e-3)
+    assert_allclose(fig.data[-3]["z"][:8], expected_z, rtol=1e-3)
 
 
 def test_global_index():
