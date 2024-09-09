@@ -1622,7 +1622,7 @@ class Rotor(object):
 
         return matrix_to_modal, vector_to_modal, vector_from_modal
 
-    def  transfer_matrix(self, speed=None, frequency=None, num_modes=12):
+    def transfer_matrix(self, speed=None, frequency=None, num_modes=12):
         """Calculate the fer matrix for the frequency response function (FRF).
 
         Paramenters
@@ -1649,19 +1649,19 @@ class Rotor(object):
         >>> H = rotor.transfer_matrix(speed=speed, num_modes=10)
         """
 
-        M_mod = self.M() 
+        M_mod = self.M()
         K_mod = np.zeros(M_mod.shape)
         K0 = self.K(0) + K_mod
 
         Lambda, Phi = sp.linalg.eigh(K0, M_mod)
-        Phi = Phi[:,:num_modes]
-        M_red = Phi.T@M_mod@Phi
-        G_red = Phi.T@self.G()@Phi
+        Phi = Phi[:, :num_modes]
+        M_red = Phi.T @ M_mod @ Phi
+        G_red = Phi.T @ self.G() @ Phi
         K_red = Phi.T @ (self.K(speed) + K_mod) @ Phi
         C_red = Phi.T @ self.C(speed) @ Phi
-        H_red = -speed**2*M_red + (1j*speed)*(C_red+speed*G_red) + K_red
+        H_red = -(speed**2) * M_red + (1j * speed) * (C_red + speed * G_red) + K_red
         Hinv_red = sp.linalg.inv(H_red)
-        H = Phi@Hinv_red@Phi.T
+        H = Phi @ Hinv_red @ Phi.T
 
         return H
 
