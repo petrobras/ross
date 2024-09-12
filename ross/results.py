@@ -384,13 +384,13 @@ class Shape(Results):
     """
 
     def __init__(
-            self,
-            vector,
-            nodes,
-            nodes_pos,
-            shaft_elements_length,
-            number_dof,
-            normalize=False,
+        self,
+        vector,
+        nodes,
+        nodes_pos,
+        shaft_elements_length,
+        number_dof,
+        normalize=False,
     ):
         self.vector = vector
         self.nodes = nodes
@@ -401,8 +401,8 @@ class Shape(Results):
         evec = np.copy(vector)
 
         if self.normalize:
-            modex = evec[0:: self.number_dof]
-            modey = evec[1:: self.number_dof]
+            modex = evec[0 :: self.number_dof]
+            modey = evec[1 :: self.number_dof]
             xmax, ixmax = max(abs(modex)), np.argmax(abs(modex))
             ymax, iymax = max(abs(modey)), np.argmax(abs(modey))
 
@@ -442,7 +442,7 @@ class Shape(Results):
         orbits = []
         whirl = []
         for node, node_pos in zip(self.nodes, self.nodes_pos):
-            ru_e, rv_e = self._evec[self.number_dof * node: self.number_dof * node + 2]
+            ru_e, rv_e = self._evec[self.number_dof * node : self.number_dof * node + 2]
             orbit = Orbit(node=node, node_pos=node_pos, ru_e=ru_e, rv_e=rv_e)
             orbits.append(orbit)
             whirl.append(orbit.whirl)
@@ -487,10 +487,10 @@ class Shape(Results):
         major_y = np.zeros(nn * (len(nodes) - 1))
         major_angle = np.zeros(nn * (len(nodes) - 1))
 
-        N1 = onn - 3 * zeta ** 2 + 2 * zeta ** 3
-        N2 = zeta - 2 * zeta ** 2 + zeta ** 3
-        N3 = 3 * zeta ** 2 - 2 * zeta ** 3
-        N4 = -(zeta ** 2) + zeta ** 3
+        N1 = onn - 3 * zeta**2 + 2 * zeta**3
+        N2 = zeta - 2 * zeta**2 + zeta**3
+        N3 = 3 * zeta**2 - 2 * zeta**3
+        N4 = -(zeta**2) + zeta**3
 
         for Le, n in zip(shaft_elements_length, nodes):
             node_pos = nodes_pos[n]
@@ -563,7 +563,7 @@ class Shape(Results):
         return fig
 
     def plot_2d(
-            self, orientation="major", length_units="m", phase_units="rad", fig=None
+        self, orientation="major", length_units="m", phase_units="rad", fig=None
     ):
         """Rotor shape 2d plot.
 
@@ -613,8 +613,8 @@ class Shape(Results):
                 showlegend=False,
                 customdata=Q_(self.major_angle, "rad").to(phase_units).m,
                 hovertemplate=(
-                        f"Displacement: %{{y:.2f}}<br>"
-                        + f"Angle {phase_units}: %{{customdata:.2f}}"
+                    f"Displacement: %{{y:.2f}}<br>"
+                    + f"Angle {phase_units}: %{{customdata:.2f}}"
                 ),
             ),
         )
@@ -637,14 +637,14 @@ class Shape(Results):
         return fig
 
     def plot_3d(
-            self,
-            mode=None,
-            orientation="major",
-            title=None,
-            length_units="m",
-            phase_units="rad",
-            fig=None,
-            **kwargs,
+        self,
+        mode=None,
+        orientation="major",
+        title=None,
+        length_units="m",
+        phase_units="rad",
+        fig=None,
+        **kwargs,
     ):
         if fig is None:
             fig = go.Figure()
@@ -671,9 +671,9 @@ class Shape(Results):
                     name="node {}".format(orbit.node),
                     showlegend=False,
                     hovertemplate=(
-                            "Nodal Position: %{x:.2f}<br>"
-                            + "X - Displacement: %{y:.2f}<br>"
-                            + "Y - Displacement: %{z:.2f}"
+                        "Nodal Position: %{x:.2f}<br>"
+                        + "X - Displacement: %{y:.2f}<br>"
+                        + "Y - Displacement: %{z:.2f}"
                     ),
                 )
             )
@@ -688,9 +688,9 @@ class Shape(Results):
                     name="node {}".format(orbit.node),
                     showlegend=False,
                     hovertemplate=(
-                            "Nodal Position: %{x:.2f}<br>"
-                            + "X - Displacement: %{y:.2f}<br>"
-                            + "Y - Displacement: %{z:.2f}"
+                        "Nodal Position: %{x:.2f}<br>"
+                        + "X - Displacement: %{y:.2f}<br>"
+                        + "Y - Displacement: %{z:.2f}"
                     ),
                 )
             )
@@ -712,9 +712,9 @@ class Shape(Results):
                         ]
                     ).reshape(1, 2),
                     hovertemplate=(
-                            "Nodal Position: %{x:.2f}<br>"
-                            + "Major axis: %{customdata[0]:.2f}<br>"
-                            + "Angle: %{customdata[1]:.2f}"
+                        "Nodal Position: %{x:.2f}<br>"
+                        + "Major axis: %{customdata[0]:.2f}<br>"
+                        + "Angle: %{customdata[1]:.2f}"
                     ),
                 )
             )
@@ -865,19 +865,19 @@ class ModalResults(Results):
     """
 
     def __init__(
-            self,
-            speed,
-            evalues,
-            evectors,
-            wn,
-            wd,
-            damping_ratio,
-            log_dec,
-            ndof,
-            nodes,
-            nodes_pos,
-            shaft_elements_length,
-            number_dof,
+        self,
+        speed,
+        evalues,
+        evectors,
+        wn,
+        wd,
+        damping_ratio,
+        log_dec,
+        ndof,
+        nodes,
+        nodes_pos,
+        shaft_elements_length,
+        number_dof,
     ):
         self.speed = speed
         self.evalues = evalues
@@ -1070,11 +1070,11 @@ class ModalResults(Results):
         return self.whirl_to_cmap(self.whirl_direction())
 
     def data_mode(
-            self,
-            mode=None,
-            length_units="m",
-            frequency_units="rad/s",
-            damping_parameter="log_dec",
+        self,
+        mode=None,
+        length_units="m",
+        frequency_units="rad/s",
+        damping_parameter="log_dec",
     ):
         """Return the mode shapes in DataFrame format.
 
@@ -1117,16 +1117,16 @@ class ModalResults(Results):
         return df
 
     def plot_mode_3d(
-            self,
-            mode=None,
-            frequency_type="wd",
-            title=None,
-            length_units="m",
-            phase_units="rad",
-            frequency_units="rad/s",
-            damping_parameter="log_dec",
-            fig=None,
-            **kwargs,
+        self,
+        mode=None,
+        frequency_type="wd",
+        title=None,
+        length_units="m",
+        phase_units="rad",
+        frequency_units="rad/s",
+        damping_parameter="log_dec",
+        fig=None,
+        **kwargs,
     ):
         """Plot (3D view) the mode shapes.
 
@@ -1225,16 +1225,16 @@ class ModalResults(Results):
         return fig
 
     def plot_mode_2d(
-            self,
-            mode=None,
-            fig=None,
-            orientation="major",
-            frequency_type="wd",
-            title=None,
-            length_units="m",
-            frequency_units="rad/s",
-            damping_parameter="log_dec",
-            **kwargs,
+        self,
+        mode=None,
+        fig=None,
+        orientation="major",
+        frequency_type="wd",
+        title=None,
+        length_units="m",
+        frequency_units="rad/s",
+        damping_parameter="log_dec",
+        **kwargs,
     ):
         """Plot (2D view) the mode shapes.
 
@@ -1320,14 +1320,14 @@ class ModalResults(Results):
         return fig
 
     def plot_orbit(
-            self,
-            mode=None,
-            nodes=None,
-            fig=None,
-            frequency_type="wd",
-            title=None,
-            frequency_units="rad/s",
-            **kwargs,
+        self,
+        mode=None,
+        nodes=None,
+        fig=None,
+        frequency_type="wd",
+        title=None,
+        frequency_units="rad/s",
+        **kwargs,
     ):
         """Plot (2D view) the mode shapes.
 
@@ -1413,15 +1413,15 @@ class CampbellResults(Results):
     """
 
     def __init__(
-            self,
-            speed_range,
-            wd,
-            log_dec,
-            damping_ratio,
-            whirl_values,
-            modal_results,
-            number_dof,
-            run_modal,
+        self,
+        speed_range,
+        wd,
+        log_dec,
+        damping_ratio,
+        whirl_values,
+        modal_results,
+        number_dof,
+        run_modal,
     ):
         self.speed_range = speed_range
         self.wd = wd
@@ -1434,14 +1434,14 @@ class CampbellResults(Results):
 
     @check_units
     def plot(
-            self,
-            harmonics=[1],
-            frequency_units="RPM",
-            damping_parameter="log_dec",
-            frequency_range=None,
-            damping_range=None,
-            fig=None,
-            **kwargs,
+        self,
+        harmonics=[1],
+        frequency_units="RPM",
+        damping_parameter="log_dec",
+        frequency_range=None,
+        damping_range=None,
+        fig=None,
+        **kwargs,
     ):
         """Create Campbell Diagram figure using Plotly.
 
@@ -1594,12 +1594,12 @@ class CampbellResults(Results):
                     mask = whirl_mask
                     if frequency_range is not None:
                         frequency_mask = (w_i > frequency_range[0]) & (
-                                w_i < frequency_range[1]
+                            w_i < frequency_range[1]
                         )
                         mask = mask & frequency_mask
                     if damping_range is not None:
                         damping_mask = (damping_values_i > damping_range[0]) & (
-                                damping_values_i < damping_range[1]
+                            damping_values_i < damping_range[1]
                         )
                         mask = mask & damping_mask
 
@@ -1678,16 +1678,16 @@ class CampbellResults(Results):
         return fig
 
     def _plot_with_mode_shape(
-            self,
-            harmonics=[1],
-            frequency_units="rad/s",
-            damping_parameter="log_dec",
-            frequency_range=None,
-            damping_range=None,
-            campbell_layout=None,
-            mode_3d_layout=None,
-            fig=None,
-            **kwargs,
+        self,
+        harmonics=[1],
+        frequency_units="rad/s",
+        damping_parameter="log_dec",
+        frequency_range=None,
+        damping_range=None,
+        campbell_layout=None,
+        mode_3d_layout=None,
+        fig=None,
+        **kwargs,
     ):
 
         camp_fig = self.plot(
@@ -1742,14 +1742,14 @@ class CampbellResults(Results):
         return camp_fig, update_mode_3d
 
     def plot_with_mode_shape(
-            self,
-            harmonics=[1],
-            frequency_units="rad/s",
-            damping_parameter="log_dec",
-            frequency_range=None,
-            damping_range=None,
-            fig=None,
-            **kwargs,
+        self,
+        harmonics=[1],
+        frequency_units="rad/s",
+        damping_parameter="log_dec",
+        frequency_range=None,
+        damping_range=None,
+        fig=None,
+        **kwargs,
     ):
         try:
             import random
@@ -1864,13 +1864,13 @@ class FrequencyResponseResults(Results):
     """
 
     def __init__(
-            self,
-            freq_resp,
-            velc_resp,
-            accl_resp,
-            speed_range,
-            number_dof,
-            sensitivity_results=None,
+        self,
+        freq_resp,
+        velc_resp,
+        accl_resp,
+        speed_range,
+        number_dof,
+        sensitivity_results=None,
     ):
         self.freq_resp = freq_resp
         self.velc_resp = velc_resp
@@ -1887,13 +1887,13 @@ class FrequencyResponseResults(Results):
             self.sensitivity_results = sensitivity_results
 
     def plot_magnitude(
-            self,
-            inp,
-            out,
-            frequency_units="rad/s",
-            amplitude_units="m/N",
-            fig=None,
-            **mag_kwargs,
+        self,
+        inp,
+        out,
+        frequency_units="rad/s",
+        amplitude_units="m/N",
+        fig=None,
+        **mag_kwargs,
     ):
         """Plot frequency response (magnitude) using Plotly.
 
@@ -1984,14 +1984,14 @@ class FrequencyResponseResults(Results):
         return fig
 
     def plot_phase(
-            self,
-            inp,
-            out,
-            frequency_units="rad/s",
-            amplitude_units="m/N",
-            phase_units="rad",
-            fig=None,
-            **phase_kwargs,
+        self,
+        inp,
+        out,
+        frequency_units="rad/s",
+        amplitude_units="m/N",
+        phase_units="rad",
+        fig=None,
+        **phase_kwargs,
     ):
         """Plot frequency response (phase) using Plotly.
 
@@ -2087,14 +2087,14 @@ class FrequencyResponseResults(Results):
         return fig
 
     def plot_polar_bode(
-            self,
-            inp,
-            out,
-            frequency_units="rad/s",
-            amplitude_units="m/N",
-            phase_units="rad",
-            fig=None,
-            **polar_kwargs,
+        self,
+        inp,
+        out,
+        frequency_units="rad/s",
+        amplitude_units="m/N",
+        phase_units="rad",
+        fig=None,
+        **polar_kwargs,
     ):
         """Plot frequency response (polar) using Plotly.
 
@@ -2212,17 +2212,17 @@ class FrequencyResponseResults(Results):
         return fig
 
     def plot(
-            self,
-            inp,
-            out,
-            frequency_units="rad/s",
-            amplitude_units="m/N",
-            phase_units="rad",
-            fig=None,
-            mag_kwargs=None,
-            phase_kwargs=None,
-            polar_kwargs=None,
-            fig_kwargs=None,
+        self,
+        inp,
+        out,
+        frequency_units="rad/s",
+        amplitude_units="m/N",
+        phase_units="rad",
+        fig=None,
+        mag_kwargs=None,
+        phase_kwargs=None,
+        polar_kwargs=None,
+        fig_kwargs=None,
     ):
         """Plot frequency response.
 
@@ -2343,12 +2343,12 @@ class FrequencyResponseResults(Results):
         return fig
 
     def plot_sensitivity(
-            self,
-            frequency_units="rad/s",
-            amplitude_units="m/N",
-            phase_units="rad",
-            fig=None,
-            fig_kwargs=None,
+        self,
+        frequency_units="rad/s",
+        amplitude_units="m/N",
+        phase_units="rad",
+        fig=None,
+        fig_kwargs=None,
     ):
         """Plot the sensitivity for each magnetic bearing.
 
@@ -2612,7 +2612,7 @@ class ForcedResponseResults(Results):
     """
 
     def __init__(
-            self, rotor, forced_resp, velc_resp, accl_resp, speed_range, unbalance=None
+        self, rotor, forced_resp, velc_resp, accl_resp, speed_range, unbalance=None
     ):
         self.rotor = rotor
         self.forced_resp = forced_resp
@@ -2628,11 +2628,11 @@ class ForcedResponseResults(Results):
         }
 
     def data_magnitude(
-            self,
-            probe,
-            probe_units="rad",
-            frequency_units="rad/s",
-            amplitude_units="m",
+        self,
+        probe,
+        probe_units="rad",
+        frequency_units="rad/s",
+        amplitude_units="m",
     ):
         """Return the forced response (magnitude) in DataFrame format.
 
@@ -2704,8 +2704,8 @@ class ForcedResponseResults(Results):
             amplitude = []
             for speed_idx in range(len(self.speed_range)):
                 ru_e, rv_e = response[:, speed_idx][
-                             self.rotor.number_dof * node: self.rotor.number_dof * node + 2
-                             ]
+                    self.rotor.number_dof * node : self.rotor.number_dof * node + 2
+                ]
                 orbit = Orbit(
                     node=node, node_pos=self.rotor.nodes_pos[node], ru_e=ru_e, rv_e=rv_e
                 )
@@ -2719,12 +2719,12 @@ class ForcedResponseResults(Results):
         return df
 
     def data_phase(
-            self,
-            probe,
-            probe_units="rad",
-            frequency_units="rad/s",
-            amplitude_units="m",
-            phase_units="rad",
+        self,
+        probe,
+        probe_units="rad",
+        frequency_units="rad/s",
+        amplitude_units="m",
+        phase_units="rad",
     ):
         """Return the forced response (phase) in DataFrame format.
 
@@ -2799,8 +2799,8 @@ class ForcedResponseResults(Results):
             phase_values = []
             for speed_idx in range(len(self.speed_range)):
                 ru_e, rv_e = response[:, speed_idx][
-                             self.rotor.number_dof * node: self.rotor.number_dof * node + 2
-                             ]
+                    self.rotor.number_dof * node : self.rotor.number_dof * node + 2
+                ]
                 orbit = Orbit(
                     node=node, node_pos=self.rotor.nodes_pos[node], ru_e=ru_e, rv_e=rv_e
                 )
@@ -2814,13 +2814,13 @@ class ForcedResponseResults(Results):
         return df
 
     def plot_magnitude(
-            self,
-            probe,
-            probe_units="rad",
-            frequency_units="rad/s",
-            amplitude_units="m",
-            fig=None,
-            **kwargs,
+        self,
+        probe,
+        probe_units="rad",
+        frequency_units="rad/s",
+        amplitude_units="m",
+        fig=None,
+        **kwargs,
     ):
         """Plot forced response (magnitude) using Plotly.
 
@@ -2889,14 +2889,14 @@ class ForcedResponseResults(Results):
         return fig
 
     def plot_phase(
-            self,
-            probe,
-            probe_units="rad",
-            frequency_units="rad/s",
-            amplitude_units="m",
-            phase_units="rad",
-            fig=None,
-            **kwargs,
+        self,
+        probe,
+        probe_units="rad",
+        frequency_units="rad/s",
+        amplitude_units="m",
+        phase_units="rad",
+        fig=None,
+        **kwargs,
     ):
         """Plot forced response (phase) using Plotly.
 
@@ -2968,14 +2968,14 @@ class ForcedResponseResults(Results):
         return fig
 
     def plot_bode(
-            self,
-            probe,
-            probe_units="rad",
-            frequency_units="rad/s",
-            amplitude_units="m",
-            phase_units="rad",
-            mag_kwargs=None,
-            phase_kwargs=None,
+        self,
+        probe,
+        probe_units="rad",
+        frequency_units="rad/s",
+        amplitude_units="m",
+        phase_units="rad",
+        mag_kwargs=None,
+        phase_kwargs=None,
     ):
         """Plot bode of the forced response using Plotly.
 
@@ -3055,14 +3055,14 @@ class ForcedResponseResults(Results):
         return bode
 
     def plot_polar_bode(
-            self,
-            probe,
-            probe_units="rad",
-            frequency_units="rad/s",
-            amplitude_units="m",
-            phase_units="rad",
-            fig=None,
-            **kwargs,
+        self,
+        probe,
+        probe_units="rad",
+        frequency_units="rad/s",
+        amplitude_units="m",
+        phase_units="rad",
+        fig=None,
+        **kwargs,
     ):
         """Plot polar forced response using Plotly.
 
@@ -3147,16 +3147,16 @@ class ForcedResponseResults(Results):
         return fig
 
     def plot(
-            self,
-            probe,
-            probe_units="rad",
-            frequency_units="rad/s",
-            amplitude_units="m",
-            phase_units="rad",
-            mag_kwargs=None,
-            phase_kwargs=None,
-            polar_kwargs=None,
-            subplot_kwargs=None,
+        self,
+        probe,
+        probe_units="rad",
+        frequency_units="rad/s",
+        amplitude_units="m",
+        phase_units="rad",
+        mag_kwargs=None,
+        phase_kwargs=None,
+        polar_kwargs=None,
+        subplot_kwargs=None,
     ):
         """Plot forced response.
 
@@ -3325,8 +3325,8 @@ class ForcedResponseResults(Results):
             # Foward and Backward vectors
             fow = response[dofx, i] / 2 + Rel_ang * response[dofy, i] / 2
             back = (
-                    np.conj(response[dofx, i]) / 2
-                    + Rel_ang * np.conj(response[dofy, i]) / 2
+                np.conj(response[dofx, i]) / 2
+                + Rel_ang * np.conj(response[dofy, i]) / 2
             )
 
             ang_fow = np.angle(fow)
@@ -3418,8 +3418,8 @@ class ForcedResponseResults(Results):
             # Foward and Backward vectors
             fow = response[dofx, idx] / 2 + Rel_ang * response[dofy, idx] / 2
             back = (
-                    np.conj(response[dofx, idx]) / 2
-                    + Rel_ang * np.conj(response[dofy, idx]) / 2
+                np.conj(response[dofx, idx]) / 2
+                + Rel_ang * np.conj(response[dofy, idx]) / 2
             )
 
             ang_fow = np.angle(fow)
@@ -3517,13 +3517,13 @@ class ForcedResponseResults(Results):
 
     @check_units
     def plot_deflected_shape_2d(
-            self,
-            speed,
-            amplitude_units="m",
-            phase_units="rad",
-            rotor_length_units="m",
-            fig=None,
-            **kwargs,
+        self,
+        speed,
+        amplitude_units="m",
+        phase_units="rad",
+        rotor_length_units="m",
+        fig=None,
+        **kwargs,
     ):
         """Plot the 2D deflected shape diagram.
 
@@ -3597,9 +3597,9 @@ class ForcedResponseResults(Results):
         fig.update_traces(
             selector=dict(name="major"),
             hovertemplate=(
-                    f"Amplitude ({amplitude_units}): %{{y:.2e}}<br>"
-                    + f"Phase ({phase_units}): %{{customdata:.2f}}<br>"
-                    + f"Nodal Position ({rotor_length_units}): %{{x:.2f}}"
+                f"Amplitude ({amplitude_units}): %{{y:.2e}}<br>"
+                + f"Phase ({phase_units}): %{{customdata:.2f}}<br>"
+                + f"Nodal Position ({rotor_length_units}): %{{x:.2f}}"
             ),
         )
         fig.update_yaxes(
@@ -3609,13 +3609,13 @@ class ForcedResponseResults(Results):
         return fig
 
     def plot_deflected_shape_3d(
-            self,
-            speed,
-            amplitude_units="m",
-            phase_units="rad",
-            rotor_length_units="m",
-            fig=None,
-            **kwargs,
+        self,
+        speed,
+        amplitude_units="m",
+        phase_units="rad",
+        rotor_length_units="m",
+        fig=None,
+        **kwargs,
     ):
         """Plot the 3D deflected shape diagram.
 
@@ -3699,7 +3699,7 @@ class ForcedResponseResults(Results):
 
         # plot unbalance markers
         for i, n, amplitude, phase in zip(
-                range(unbalance.shape[1]), unbalance[0], unbalance[1], unbalance[2]
+            range(unbalance.shape[1]), unbalance[0], unbalance[1], unbalance[2]
         ):
             # scale unbalance marker to half the maximum major axis
             n = int(n)
@@ -3731,9 +3731,9 @@ class ForcedResponseResults(Results):
                     legendgroup="Unbalance",
                     showlegend=True if i == 0 else False,
                     hovertemplate=(
-                            f"Node: {n}<br>"
-                            + f"Magnitude: {amplitude:.2e}<br>"
-                            + f"Phase: {phase:.2f}"
+                        f"Node: {n}<br>"
+                        + f"Magnitude: {amplitude:.2e}<br>"
+                        + f"Phase: {phase:.2f}"
                     ),
                 )
             )
@@ -3742,9 +3742,9 @@ class ForcedResponseResults(Results):
         fig.update_traces(
             selector=dict(name="Major axis"),
             hovertemplate=(
-                    "Nodal Position: %{x:.2f}<br>"
-                    + "Major axis: %{customdata[0]:.2e}<br>"
-                    + "Angle: %{customdata[1]:.2f}"
+                "Nodal Position: %{x:.2f}<br>"
+                + "Major axis: %{customdata[0]:.2e}<br>"
+                + "Angle: %{customdata[1]:.2f}"
             ),
         )
 
@@ -3772,13 +3772,13 @@ class ForcedResponseResults(Results):
         return fig
 
     def plot_bending_moment(
-            self,
-            speed,
-            frequency_units="rad/s",
-            moment_units="N*m",
-            rotor_length_units="m",
-            fig=None,
-            **kwargs,
+        self,
+        speed,
+        frequency_units="rad/s",
+        moment_units="N*m",
+        rotor_length_units="m",
+        fig=None,
+        **kwargs,
     ):
         """Plot the bending moment diagram.
 
@@ -3814,7 +3814,7 @@ class ForcedResponseResults(Results):
         Mx, My = self._calculate_bending_moment(speed=speed)
         Mx = Q_(Mx, "N*m").to(moment_units).m
         My = Q_(My, "N*m").to(moment_units).m
-        Mr = np.sqrt(Mx ** 2 + My ** 2)
+        Mr = np.sqrt(Mx**2 + My**2)
 
         nodes_pos = Q_(self.rotor.nodes_pos, "m").to(rotor_length_units).m
 
@@ -3876,17 +3876,17 @@ class ForcedResponseResults(Results):
         return fig
 
     def plot_deflected_shape(
-            self,
-            speed,
-            samples=101,
-            frequency_units="rad/s",
-            amplitude_units="m",
-            rotor_length_units="m",
-            moment_units="N*m",
-            shape2d_kwargs=None,
-            shape3d_kwargs=None,
-            bm_kwargs=None,
-            subplot_kwargs=None,
+        self,
+        speed,
+        samples=101,
+        frequency_units="rad/s",
+        amplitude_units="m",
+        rotor_length_units="m",
+        moment_units="N*m",
+        shape2d_kwargs=None,
+        shape3d_kwargs=None,
+        bm_kwargs=None,
+        subplot_kwargs=None,
     ):
         """Plot deflected shape diagrams.
 
@@ -4054,16 +4054,16 @@ class StaticResults(Results):
     """
 
     def __init__(
-            self,
-            deformation,
-            Vx,
-            Bm,
-            w_shaft,
-            disk_forces,
-            bearing_forces,
-            nodes,
-            nodes_pos,
-            Vx_axis,
+        self,
+        deformation,
+        Vx,
+        Bm,
+        w_shaft,
+        disk_forces,
+        bearing_forces,
+        nodes,
+        nodes_pos,
+        Vx_axis,
     ):
         self.deformation = deformation
         self.Vx = Vx
@@ -4076,7 +4076,7 @@ class StaticResults(Results):
         self.Vx_axis = Vx_axis
 
     def plot_deformation(
-            self, deformation_units="m", rotor_length_units="m", fig=None, **kwargs
+        self, deformation_units="m", rotor_length_units="m", fig=None, **kwargs
     ):
         """Plot the shaft static deformation.
 
@@ -4143,7 +4143,7 @@ class StaticResults(Results):
         return fig
 
     def plot_free_body_diagram(
-            self, force_units="N", rotor_length_units="m", fig=None, **kwargs
+        self, force_units="N", rotor_length_units="m", fig=None, **kwargs
     ):
         """Plot the rotor free-body diagram.
 
@@ -4304,7 +4304,7 @@ class StaticResults(Results):
         return fig
 
     def plot_shearing_force(
-            self, force_units="N", rotor_length_units="m", fig=None, **kwargs
+        self, force_units="N", rotor_length_units="m", fig=None, **kwargs
     ):
         """Plot the rotor shearing force diagram.
 
@@ -4373,7 +4373,7 @@ class StaticResults(Results):
         return fig
 
     def plot_bending_moment(
-            self, moment_units="N*m", rotor_length_units="m", fig=None, **kwargs
+        self, moment_units="N*m", rotor_length_units="m", fig=None, **kwargs
     ):
         """Plot the rotor bending moment diagram.
 
@@ -4705,7 +4705,7 @@ class ConvergenceResults(Results):
                 y=self.eigv_arr,
                 mode="lines+markers",
                 hovertemplate=(
-                        "Number of Elements: %{x:.2f}<br>" + "Frequency: %{y:.0f}"
+                    "Number of Elements: %{x:.2f}<br>" + "Frequency: %{y:.0f}"
                 ),
                 showlegend=False,
             ),
@@ -4722,7 +4722,7 @@ class ConvergenceResults(Results):
                 y=self.error_arr,
                 mode="lines+markers",
                 hovertemplate=(
-                        "Number of Elements: %{x:.2f}<br>" + "Relative Error: %{y:.0f}"
+                    "Number of Elements: %{x:.2f}<br>" + "Relative Error: %{y:.0f}"
                 ),
                 showlegend=False,
             ),
@@ -4778,11 +4778,11 @@ class TimeResponseResults(Results):
         self.rotor = rotor
 
     def data_time_response(
-            self,
-            probe,
-            probe_units="rad",
-            displacement_units="m",
-            time_units="s",
+        self,
+        probe,
+        probe_units="rad",
+        displacement_units="m",
+        time_units="s",
     ):
         """Return the time response given a list of probes in DataFrame format.
 
@@ -4869,13 +4869,13 @@ class TimeResponseResults(Results):
         return df
 
     def plot_1d(
-            self,
-            probe,
-            probe_units="rad",
-            displacement_units="m",
-            time_units="s",
-            fig=None,
-            **kwargs,
+        self,
+        probe,
+        probe_units="rad",
+        displacement_units="m",
+        time_units="s",
+        fig=None,
+        **kwargs,
     ):
         """Plot time response.
 
@@ -4996,7 +4996,7 @@ class TimeResponseResults(Results):
         return fig
 
     def plot_3d(
-            self, displacement_units="m", rotor_length_units="m", fig=None, **kwargs
+        self, displacement_units="m", rotor_length_units="m", fig=None, **kwargs
     ):
         """Plot orbit response (3D).
 
@@ -5102,14 +5102,14 @@ class UCSResults(Results):
     """
 
     def __init__(
-            self,
-            stiffness_range,
-            stiffness_log,
-            bearing_frequency_range,
-            wn,
-            bearing,
-            intersection_points,
-            critical_points_modal,
+        self,
+        stiffness_range,
+        stiffness_log,
+        bearing_frequency_range,
+        wn,
+        bearing,
+        intersection_points,
+        critical_points_modal,
     ):
         self.stiffness_range = stiffness_range
         self.stiffness_log = stiffness_log
@@ -5120,11 +5120,11 @@ class UCSResults(Results):
         self.intersection_points = intersection_points
 
     def plot(
-            self,
-            fig=None,
-            stiffness_units="N/m",
-            frequency_units="rad/s",
-            **kwargs,
+        self,
+        fig=None,
+        stiffness_units="N/m",
+        frequency_units="rad/s",
+        **kwargs,
     ):
         """Plot undamped critical speed map.
 
@@ -5242,14 +5242,14 @@ class UCSResults(Results):
         return fig
 
     def plot_mode_2d(
-            self,
-            critical_mode,
-            fig=None,
-            frequency_type="wd",
-            title=None,
-            length_units="m",
-            frequency_units="rad/s",
-            **kwargs,
+        self,
+        critical_mode,
+        fig=None,
+        frequency_type="wd",
+        title=None,
+        length_units="m",
+        frequency_units="rad/s",
+        **kwargs,
     ):
         """Plot (2D view) the mode shape.
 
@@ -5287,7 +5287,7 @@ class UCSResults(Results):
         # select nearest forward
         forward_frequencies = modal_critical.wd[
             modal_critical.whirl_direction() == "Forward"
-            ]
+        ]
         idx_forward = (np.abs(forward_frequencies - modal_critical.speed)).argmin()
         forward_frequency = forward_frequencies[idx_forward]
         idx = (np.abs(modal_critical.wd - forward_frequency)).argmin()
@@ -5304,14 +5304,14 @@ class UCSResults(Results):
         return fig
 
     def plot_mode_3d(
-            self,
-            critical_mode,
-            fig=None,
-            frequency_type="wd",
-            title=None,
-            length_units="m",
-            frequency_units="rad/s",
-            **kwargs,
+        self,
+        critical_mode,
+        fig=None,
+        frequency_type="wd",
+        title=None,
+        length_units="m",
+        frequency_units="rad/s",
+        **kwargs,
     ):
         """Plot (3D view) the mode shapes.
 
@@ -5350,7 +5350,7 @@ class UCSResults(Results):
         # select nearest forward
         forward_frequencies = modal_critical.wd[
             modal_critical.whirl_direction() == "Forward"
-            ]
+        ]
         idx_forward = (np.abs(forward_frequencies - modal_critical.speed)).argmin()
         forward_frequency = forward_frequencies[idx_forward]
         idx = (np.abs(modal_critical.wd - forward_frequency)).argmin()
