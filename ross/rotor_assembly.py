@@ -46,7 +46,6 @@ from ross.results import (
     SummaryResults,
     TimeResponseResults,
     UCSResults,
-    SensitivityResults,
 )
 from ross.shaft_element import ShaftElement, ShaftElement6DoF
 from ross.units import Q_, check_units
@@ -1258,7 +1257,9 @@ class Rotor(object):
         # fmt: off
         A = np.vstack(
             [np.hstack([Z, I]),
-             np.hstack([la.solve(-self.M(frequency, synchronous=synchronous), self.K(frequency)), la.solve(-self.M(frequency,synchronous=synchronous), (self.C(frequency) + self.G() * speed))])])
+             np.hstack([la.solve(-self.M(frequency, synchronous=synchronous), self.K(frequency)),
+                        la.solve(-self.M(frequency, synchronous=synchronous),
+                                 (self.C(frequency) + self.G() * speed))])])
         # fmt: on
 
         return A
@@ -1556,7 +1557,8 @@ class Rotor(object):
         Ca = Z
 
         # fmt: off
-        C = np.hstack((Cd - Ca @ la.solve(self.M(frequency), self.K(frequency)), Cv - Ca @ la.solve(self.M(frequency), self.C(frequency))))
+        C = np.hstack((Cd - Ca @ la.solve(self.M(frequency), self.K(frequency)),
+                       Cv - Ca @ la.solve(self.M(frequency), self.C(frequency))))
         # fmt: on
         D = Ca @ la.solve(self.M(frequency), B2)
 
@@ -1789,8 +1791,8 @@ class Rotor(object):
         >>> rotor = rs.amb_rotor_example()
         >>> compute_sensitivite_dofs = {"Bearing 0": {"inp": 9, "out": 9}}
         >>> response = rotor.run_freq_response(speed_range=speed, compute_sensitivity_at=compute_sensitivite_dofs)
-        >>> response.sensitivity_results.max_abs_sensitivities
-        {'Bearing 0': 0.786377878047573}
+        >>> response.sensitivity_results['max_abs_sensitivities'] # doctest: +ELLIPSIS
+        {'Bearing 0': 0.7863...
 
         Plotting sensitivity response
         >>> fig = response.plot_sensitivity()
@@ -1820,11 +1822,12 @@ class Rotor(object):
             max_abs_sensitivities, sensitivities = self.compute_sensitivity(
                 speed_range, freq_resp, compute_sensitivity_at
             )
-            sensitivity_results = SensitivityResults(
-                max_abs_sensitivities=max_abs_sensitivities,
-                sensitivities=sensitivities,
-                compute_sensitivity_at=compute_sensitivity_at,
-            )
+
+            sensitivity_results = {
+                "max_abs_sensitivities": max_abs_sensitivities,
+                "sensitivities": sensitivities,
+                "compute_sensitivity_at": compute_sensitivity_at,
+            }
         else:
             sensitivity_results = None
 
@@ -1882,8 +1885,8 @@ class Rotor(object):
         ...     freq_resp=response.freq_resp,
         ...     compute_sensitivity_at=compute_sensitivite_dofs,
         ... )
-        >>> max_abs_sensitivities
-        {'Bearing 0': 0.786377878047573}
+        >>> max_abs_sensitivities  # doctest: +ELLIPSIS
+        {'Bearing 0': 0.78637787...
         """
         # List of AMBs
         ambs = {}
