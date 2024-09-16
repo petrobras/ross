@@ -2984,8 +2984,8 @@ class THDCylindrical(BearingElement):
         )
 
         fig.add_annotation(
-            x=0.8*self.load_x_direction,
-            y=0.8*self.load_y_direction,
+            x=self.load_x_direction,
+            y=self.load_y_direction,
             ax=0,
             ay=0,
             xref="x",
@@ -3001,8 +3001,8 @@ class THDCylindrical(BearingElement):
 
         fig.update_layout(
             showlegend=False,
-            xaxis=dict(showgrid=False, zeroline=False, showticklabels=False),
-            yaxis=dict(showgrid=False, zeroline=False, showticklabels=False),
+            xaxis=dict(showgrid=False, zeroline=False, showticklabels=False,),
+            yaxis=dict(showgrid=False, zeroline=False, showticklabels=False,),
             **kwargs,
         )
         fig.update_xaxes(showline=False)
