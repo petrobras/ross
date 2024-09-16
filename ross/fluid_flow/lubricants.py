@@ -15,7 +15,8 @@ lubricants_dict = {
         "vapour_density": Q_(0.029, "kg/m**3").to_base_units().m,
         "vapour_specific_heat": Q_(1000, "J/(kg*degC)").to_base_units().m,
         "vapour_thermal_conductivity": Q_(0.026, "W/(m*degK)").to_base_units().m,
-        "saturation_pressure": Q_(11325, "Pa").to_base_units().m,
+        "saturation_pressure": Q_(1e5, "Pa").to_base_units().m,
+        "surface_tension": Q_(0.04, "N/m").to_base_units().m,
         "molecular_weight": Q_(500, "g/mol").to_base_units().m,
     },
     "ISOVG46": {
@@ -30,7 +31,8 @@ lubricants_dict = {
         "vapour_density": Q_(0.029, "kg/m**3").to_base_units().m,
         "vapour_specific_heat": Q_(1000, "J/(kg*degC)").to_base_units().m,
         "vapour_thermal_conductivity": Q_(0.026, "W/(m*degK)").to_base_units().m,
-        "saturation_pressure": Q_(11325, "Pa").to_base_units().m,
+        "saturation_pressure": Q_(1e5, "Pa").to_base_units().m,
+        "surface_tension": Q_(0.04, "N/m").to_base_units().m,
         "molecular_weight": Q_(500, "g/mol").to_base_units().m,
     },
     "TEST": {
@@ -45,7 +47,8 @@ lubricants_dict = {
         "vapour_density": Q_(0.029, "kg/m**3").to_base_units().m,
         "vapour_specific_heat": Q_(1000, "J/(kg*degC)").to_base_units().m,
         "vapour_thermal_conductivity": Q_(0.026, "W/(m*degK)").to_base_units().m,
-        "saturation_pressure": Q_(11325, "Pa").to_base_units().m,
+        "saturation_pressure": Q_(1e5, "Pa").to_base_units().m,
+        "surface_tension": Q_(0.04, "N/m").to_base_units().m,
         "molecular_weight": Q_(500, "g/mol").to_base_units().m,
     },
     "ISOVG68": {
@@ -60,7 +63,8 @@ lubricants_dict = {
         "vapour_density": Q_(0.029, "kg/m**3").to_base_units().m,
         "vapour_specific_heat": Q_(1000, "J/(kg*degC)").to_base_units().m,
         "vapour_thermal_conductivity": Q_(0.026, "W/(m*degK)").to_base_units().m,
-        "saturation_pressure": Q_(11325, "Pa").to_base_units().m,
+        "saturation_pressure": Q_(1e5, "Pa").to_base_units().m,
+        "surface_tension": Q_(0.04, "N/m").to_base_units().m,
         "molecular_weight": Q_(500, "g/mol").to_base_units().m,
     },
     "HYDRAXP68": {
@@ -76,6 +80,7 @@ lubricants_dict = {
         "vapour_specific_heat": Q_(1000, "J/(kg*degC)").to_base_units().m,
         "vapour_thermal_conductivity": Q_(0.026, "W/(m*degK)").to_base_units().m,
         "saturation_pressure": Q_(81325, "Pa").to_base_units().m,
+        "surface_tension": Q_(0.04, "N/m").to_base_units().m,
         "molecular_weight": Q_(500, "g/mol").to_base_units().m,
     },
 }
