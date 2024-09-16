@@ -1083,7 +1083,7 @@ class SealElement(BearingElement):
         Default is None.
     scale_factor : float, optional
         The scale factor is used to scale the bearing drawing.
-        Default is 1.
+        Default is 0.5.
     color : str, optional
         A color to be used when the element is represented.
         Default is "#77ACA2".
@@ -1126,12 +1126,11 @@ class SealElement(BearingElement):
         seal_leakage=None,
         tag=None,
         n_link=None,
-        scale_factor=1.0,
+        scale_factor=None,
         color="#77ACA2",
         **kwargs,
     ):
-        # make seals with half the bearing size as a default
-        seal_scale_factor = scale_factor / 2
+
         super().__init__(
             n=n,
             frequency=frequency,
@@ -1149,11 +1148,11 @@ class SealElement(BearingElement):
             myy=myy,
             tag=tag,
             n_link=n_link,
-            scale_factor=seal_scale_factor,
             color=color,
         )
-
         self.seal_leakage = seal_leakage
+        # make seals with half the bearing size as a default
+        self.scale_factor = scale_factor if scale_factor else self.scale_factor / 2
 
 
 class BallBearingElement(BearingElement):
