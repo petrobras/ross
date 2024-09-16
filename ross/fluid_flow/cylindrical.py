@@ -3001,8 +3001,16 @@ class THDCylindrical(BearingElement):
 
         fig.update_layout(
             showlegend=False,
-            xaxis=dict(showgrid=False, zeroline=False, showticklabels=False,),
-            yaxis=dict(showgrid=False, zeroline=False, showticklabels=False,),
+            xaxis=dict(
+                showgrid=False,
+                zeroline=False,
+                showticklabels=False,
+            ),
+            yaxis=dict(
+                showgrid=False,
+                zeroline=False,
+                showticklabels=False,
+            ),
             **kwargs,
         )
         fig.update_xaxes(showline=False)
