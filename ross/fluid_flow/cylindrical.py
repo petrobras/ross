@@ -2947,7 +2947,7 @@ class THDCylindrical(BearingElement):
 
         return Ss
 
-    def bearing_representation(self, fig=None, rotation=90, **kwargs):
+    def plot_bearing_representation(self, fig=None, rotation=90, **kwargs):
         """Plot the bearing representation.
 
         Parameters
@@ -2984,8 +2984,8 @@ class THDCylindrical(BearingElement):
         )
 
         fig.add_annotation(
-            x=self.load_x_direction,
-            y=self.load_y_direction,
+            x=0.8*self.load_x_direction,
+            y=0.8*self.load_y_direction,
             ax=0,
             ay=0,
             xref="x",
