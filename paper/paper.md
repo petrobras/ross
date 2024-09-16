@@ -153,7 +153,7 @@ making it easier to run rotordynamics analysis. It is also easier to integrate t
 only use open source packages and do not depend on proprietary commercial platforms.
 
 Besides the [documentation](https://ross-rotordynamics.github.io/ross-website/), a set of Jupyter Notebooks
-are available for the tutorial and some examples. Users can also access these notebooks through a [Binder server](https://mybinder.org/v2/gh/ross-rotordynamics/ross/master).
+are available for the tutorial and some examples. Users can also access these notebooks through a [Binder server](https://mybinder.org/v2/gh/ross-rotordynamics/ross/main).
 
 As an example, Figure 1 shows a centrifugal compressor modeled with ROSS.
 

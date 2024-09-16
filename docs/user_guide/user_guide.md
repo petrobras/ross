@@ -4,7 +4,8 @@
 :maxdepth: 1
 :caption: Tutorials
 tutorial_part_1
-tutorial_part_2
+tutorial_part_2_1
+tutorial_part_2_2
 tutorial_part_3
 ```
 
@@ -33,6 +34,12 @@ example_18
 example_19
 example_20
 example_21
+example_22
+example_23
+example_24
+example_25
+example_26
+example_27
 fluid_flow_elliptical_bearing
 fluid_flow_short_bearing
 fluid_flow_theory

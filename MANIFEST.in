@@ -1,2 +1,4 @@
 include requirements.txt README.md LICENSE ross/new_units.txt ross/available_materials.toml
 include tools/data/c123701 tools/data/injection tools/data/PAPADOPOULOS_c.mat tools/data/PAPADOPOULOS.csv tools/data/rotor_example 
+recursive-include ross/assets *
+recursive-include ross/tests *

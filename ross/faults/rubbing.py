@@ -1,8 +1,7 @@
 import time
 
 import numpy as np
-import scipy.integrate
-import scipy.linalg
+from scipy import linalg as la
 
 import ross
 from ross.units import Q_, check_units
@@ -58,9 +57,10 @@ class Rubbing(Fault):
 
     Examples
     --------
+    >>> from ross.probe import Probe
     >>> from ross.faults.rubbing import rubbing_example
-    >>> probe1 = (14, 0)
-    >>> probe2 = (22, 0)
+    >>> probe1 = Probe(14, 0)
+    >>> probe2 = Probe(22, 0)
     >>> response = rubbing_example()
     >>> results = response.run_time_response()
     >>> fig = response.plot_dfft(probe=[probe1, probe2], range_freq=[0, 100], yaxis_type="log")
@@ -160,12 +160,7 @@ class Rubbing(Fault):
         self.M = self.rotor.M(self.speed)
         self.Ksdt = self.rotor.Ksdt()
 
-        V1, ModMat = scipy.linalg.eigh(
-            self.K,
-            self.M,
-            type=1,
-            turbo=False,
-        )
+        V1, ModMat = la.eigh(self.K, self.M)
 
         ModMat = ModMat[:, :12]
         self.ModMat = ModMat

@@ -4,7 +4,7 @@ import numpy as np
 import pandas as pd
 from numpy import linalg as la
 from plotly import graph_objects as go
-from scipy.linalg import eigh
+from copy import deepcopy as copy
 
 
 class DataNotFoundError(Exception):
@@ -596,16 +596,16 @@ def get_data_from_figure(fig):
     >>> resp = rotor.run_unbalance_response(
     ...     3, 0.001, 0.0, np.linspace(0, 1000, 101)
     ... )
-    >>> fig = resp.plot_magnitude(probe=[(3, 0.0, "probe1"), (3, np.pi/2, "probe2")])
+    >>> fig = resp.plot_magnitude(probe=[rs.Probe(3, 0.0, tag="probe1"), rs.Probe(3, np.pi/2, tag="probe2")])
     >>> df = rs.get_data_from_figure(fig)
 
     Use the probe tag to navigate through pandas data
     Index 0 for frequency array
-    >>> df["probe1"][0] # doctest: +ELLIPSIS
+    >>> df["probe1"].values[0] # doctest: +ELLIPSIS
     array([   0.,   10.,   20.,   30.,...
 
     Index 1 for amplitude array
-    >>> df["probe1"][1] # doctest: +ELLIPSIS
+    >>> df["probe1"].values[1] # doctest: +ELLIPSIS
     array([0.00000000e+00,...
 
     Or use "iloc" to obtain the desired array from pandas
@@ -626,7 +626,7 @@ def get_data_from_figure(fig):
     return df
 
 
-def newmark(fun, t, y_size, **options):
+def newmark(func, t, y_size, **options):
     """Transient solution of the dynamic behavior of the system.
 
     Perform numerical integration using the Newmark method with Newton-Raphson
@@ -635,11 +635,13 @@ def newmark(fun, t, y_size, **options):
 
     Parameters
     ----------
-    fun : callable
+    func : callable
         A function that calculates the system matrices and right-hand side (RHS) vector at each
-        time step. It should take one argument `(step)` and return a tuple `(M, C, K, RHS)`,
-        where `step` is a scalar int related to the current time step, `M`, `C`, `K` are ndarrays
-        with `np.shape(M) = (y_size, y_size)` and `RHS` is a ndarray with `len(RHS) = y_size`.
+        time step. It should take at least one argument `(step, dt=None, y=None, ydot=None, y2dot=None)`
+        and return a tuple `(M, C, K, RHS)`, where `step` is a scalar int related to the current time
+        step, `dt` is the current time step in seconds, `y` is a ndarray of current state of the system,
+        `ydot` and `y2dot` are its first and second time derivatives. `M`, `C`, `K` are ndarrays with
+        `np.shape(M) = (y_size, y_size)` and `RHS` is a ndarray with `len(RHS) = y_size`.
     t : array_like
         Time array.
     y_size : int
@@ -656,7 +658,7 @@ def newmark(fun, t, y_size, **options):
     tol : float, optional
         Convergence tolerance for the Newton-Raphson iterations. Default is 1e-6.
     progress_interval : float, optional
-        Time interval at which progress information is printed. Default is 1e6 seconds.
+        Time interval at which progress is printed. Default is to not show progress.
 
     Returns
     -------
@@ -686,17 +688,18 @@ def newmark(fun, t, y_size, **options):
     >>> K1 = rotor.K(speed)
     >>> C2 = rotor.G()
     >>> K2 = rotor.Ksdt()
-    >>> rotor_system = lambda i, u, v: (M, C1 + C2 * speed, K1 + K2 * accel, F[i, :])
+    >>> rotor_system = lambda i, **state: (M, C1 + C2 * speed, K1 + K2 * accel, F[i, :])
     >>> yout = newmark(rotor_system, t, rotor.ndof)
     >>> dof = 13
     >>> yout[:, dof] # doctest: +ELLIPSIS
-    array([0.0000000e+00, 8.4914005e-09, 4.3429676e-08, ...
+    array([0.00000000e+00, 8.49140057e-09, 4.34296767e-08, ...,
+           1.16148468e-05, 1.16492353e-05, 1.16859622e-05])
     """
 
     gamma = options.get("gamma", 0.5)
     beta = options.get("beta", 0.25)
     tol = options.get("tol", 1e-6)
-    progress_interval = options.get("progress_interval", 1e6)
+    progress_interval = options.get("progress_interval", t[-1] + 1)
 
     n_steps = len(t)
     ny = y_size
@@ -705,17 +708,17 @@ def newmark(fun, t, y_size, **options):
     ydot0 = np.zeros(ny)
     y2dot0 = np.zeros(ny)
 
-    yout = np.full((n_steps, ny), 1e-38, dtype=np.float32)
+    yout = np.full((n_steps, ny), 1e-38, dtype=t.dtype)
     yout[0, :] = y0
 
     for step in range(1, n_steps):
         aux = round(t[step] / progress_interval, 9)
         if aux - int(aux) == 0:
-            print(f"Time step: {t[step]:.6f} s")
+            print(f"Time: {t[step]:.6f} seconds")
 
         dt = t[step] - t[step - 1]
 
-        M, C, K, RHS = fun(step, y0, ydot0)
+        M, C, K, RHS = func(step, dt=dt, y=y0, ydot=ydot0, y2dot=y2dot0)
 
         y2dot = np.zeros(ny)
         ydot = ydot0 + y2dot0 * (1 - gamma) * dt
@@ -748,71 +751,7 @@ def newmark(fun, t, y_size, **options):
     return yout
 
 
-def apply_pseudo_modal(rotor, speed, num_modes):
-    """Pseudo-modal method.
-
-    This method can be used to apply modal transformation to reduce model
-    of the rotor system.
-
-    Parameters
-    ----------
-    rotor: rs.Rotor
-        The rotor object.
-    speed : float
-        Rotor speed.
-    num_modes : int
-        The number of eigenvectors to consider in the modal transformation
-        with model reduction.
-
-    Returns
-    -------
-    matrix_to_modal : callable
-        Function to transform a square matrix from physical to modal space.
-    vector_to_modal : callable
-        Function to transform a vector from physical to modal space.
-    vector_from_modal : callable
-        Function to transform a vector from modal to physical space.
-
-    Examples
-    --------
-    >>> import ross as rs
-    >>> rotor = rs.rotor_example()
-    >>> size = 10000
-    >>> node = 3
-    >>> speed = 500.0
-    >>> t = np.linspace(0, 10, size)
-    >>> F = np.zeros((size, rotor.ndof))
-    >>> F[:, rotor.number_dof * node] = 10 * np.cos(2 * t)
-    >>> F[:, rotor.number_dof * node + 1] = 10 * np.sin(2 * t)
-    >>> get_array = apply_pseudo_modal(rotor, speed, num_modes=12)
-    >>> F_modal = get_array[1](F.T).T
-    >>> round(la.norm(F_modal), 5)
-    226.92798
-    """
-
-    M = rotor.M(speed)
-    K_aux = rotor.K(speed)
-
-    # Remove cross-coupled coefficients of bearing stiffness matrix
-    rmv_cross_coeffs = [[0, 1], [1, 0]]
-    if rotor.number_dof == 6:
-        rmv_cross_coeffs = [[0, 1, 0], [1, 0, 0], [0, 0, 0]]
-
-    for elm in rotor.bearing_elements:
-        dofs = list(elm.dof_global_index.values())
-        K_aux[np.ix_(dofs, dofs)] -= elm.K(speed) * rmv_cross_coeffs
-
-    _, modal_matrix = eigh(K_aux, M)
-    modal_matrix = modal_matrix[:, :num_modes]
-
-    matrix_to_modal = lambda array: (modal_matrix.T @ array) @ modal_matrix
-    vector_to_modal = lambda array: modal_matrix.T @ array
-    vector_from_modal = lambda array: modal_matrix @ array
-
-    return matrix_to_modal, vector_to_modal, vector_from_modal
-
-
-def assemble_C_K_matrices(elements, C0, K0, speed=None):
+def assemble_C_K_matrices(elements, C0, K0, *args):
     """Assemble damping and stiffness matrices considering
     specified elements a rotor.
 
@@ -824,9 +763,8 @@ def assemble_C_K_matrices(elements, C0, K0, speed=None):
         Initial damping matrix.
     K0 : ndarray
         Initial stiffness matrix.
-    speed : float, optional
-        Rotor speed.
-        If `elements` contain bearing elements, the speed must be provided.
+    args : float, optional
+        Any additional argument that can be passed to the element C or K methods.
 
     Returns
     -------
@@ -847,7 +785,7 @@ def assemble_C_K_matrices(elements, C0, K0, speed=None):
     >>> C0 = np.zeros((rotor.ndof, rotor.ndof))
     >>> K0 = np.zeros((rotor.ndof, rotor.ndof))
     >>> C1, K1 = assemble_C_K_matrices(elements_without_bearing, C0, K0)
-    >>> C, K = assemble_C_K_matrices(rotor.bearing_elements, C1, K1, speed=0)
+    >>> C, K = assemble_C_K_matrices(rotor.bearing_elements, C1, K1, 0)
     >>> C[:4, :4]
     array([[0., 0., 0., 0.],
            [0., 0., 0., 0.],
@@ -860,191 +798,38 @@ def assemble_C_K_matrices(elements, C0, K0, speed=None):
            [ 6.,  0.,  0.,  1.]])
     """
 
-    if speed is not None:
-        for elm in elements:
-            dofs = list(elm.dof_global_index.values())
-            C0[np.ix_(dofs, dofs)] += elm.C(speed)
-            K0[np.ix_(dofs, dofs)] += elm.K(speed)
-
-    else:
-        for elm in elements:
-            dofs = list(elm.dof_global_index.values())
+    for elm in elements:
+        dofs = list(elm.dof_global_index.values())
+        try:
+            C0[np.ix_(dofs, dofs)] += elm.C(*args)
+        except:
             C0[np.ix_(dofs, dofs)] += elm.C()
+        try:
+            K0[np.ix_(dofs, dofs)] += elm.K(*args)
+        except:
             K0[np.ix_(dofs, dofs)] += elm.K()
 
     return C0, K0
 
 
-def integrate_rotor_system(rotor, speed, F, t, **kwargs):
-    """Time integration for a rotor system.
+def remove_dofs(matrix, dofs=None):
+    """Removes specified degrees of freedom from the given matrix.
 
-    This method returns the time response for a rotor given a force, time and
-    speed based on time integration with the Newmark method.
-
-    Parameters
-    ----------
-    speed : float or array_like
-        Rotor speed.
-    F : ndarray
-        Force array (needs to have the same length as time array).
-    t : ndarray
-        Time array.
-    **kwargs : optional
-        Additional keyword arguments can be passed to define the parameters
-        of the Newmark method if it is used (e.g. gamma, beta, tol, ...).
-        See `newmark` for more details. Other optional arguments are listed
-        below.
-    num_modes : int, optional
-        If `num_modes` is passed as argument, the pseudo-modal method is applied reducing
-        the model to the chosen number of modes.
-    add_to_RHS : callable, optional
-        An optional function that computes and returns an additional array to be added to
-        the right-hand side of the equation of motion. This function should take arguments
-        corresponding to the current state of the rotor system, including the time step
-        number, displacements, and velocities. It should return an array of the same length
-        as the degrees of freedom of the rotor system (`rotor.ndof`). This function allows
-        for the incorporation of supplementary terms or external effects in the rotor system
-        dynamics beyond the specified force input during the time integration process.
-
-    Returns
-    -------
-    t : ndarray
-        Time values for the output.
-    yout : ndarray
-        System response.
-
-    Examples
-    --------
-    >>> import ross as rs
-    >>> rotor = rs.rotor_example()
-    >>> size = 10000
-    >>> node = 3
-    >>> speed = 500.0
-    >>> accel = 0.0
-    >>> t = np.linspace(0, 10, size)
-    >>> F = np.zeros((size, rotor.ndof))
-    >>> F[:, rotor.number_dof * node] = 10 * np.cos(2 * t)
-    >>> F[:, rotor.number_dof * node + 1] = 10 * np.sin(2 * t)
-    >>> t, yout = integrate_rotor_system(rotor, speed, F, t)
-    Running direct method
-    >>> dof = 13
-    >>> yout[:, dof] # doctest: +ELLIPSIS
-    array([0.0000000e+00, 8.4914005e-09, 4.3429676e-08, ...
-    """
-
-    try:
-        speed_is_array = len(set(speed)) > 1
-        speed_ref = np.mean(speed)
-
-    except:
-        speed_is_array = False
-        speed_ref = speed
-
-    num_modes = kwargs.get("num_modes")
-
-    if num_modes and num_modes > 0:
-        size = num_modes
-        print("Running pseudo-modal method, number of modes =", size)
-        get_array = apply_pseudo_modal(rotor, speed_ref, size)
-
-    else:
-        size = rotor.ndof
-        print("Running direct method")
-        return_array = lambda array: array
-        get_array = [return_array for j in range(3)]
-
-    add_to_RHS = kwargs.get("add_to_RHS")
-
-    if add_to_RHS is None:
-        ext_force = lambda i, u, v: 0
-
-    else:
-        ext_force = lambda i, u, v: get_array[1](
-            add_to_RHS(i, get_array[2](u), get_array[2](v))
-        )
-
-    M = get_array[0](rotor.M())
-    C2 = get_array[0](rotor.G())
-    K2 = get_array[0](rotor.Ksdt())
-    F = get_array[1](F.T).T
-
-    if speed_is_array:
-        accel = np.gradient(speed, t)
-
-        freq_is_none = False
-        for elm in rotor.bearing_elements:
-            freq_is_none = (elm.frequency is None) or freq_is_none
-
-        if freq_is_none:
-            C1 = get_array[0](rotor.C(speed_ref))
-            K1 = get_array[0](rotor.K(speed_ref))
-
-            rotor_system = lambda step, disp_resp, velc_resp: (
-                M,
-                C1 + C2 * speed[step],
-                K1 + K2 * accel[step],
-                F[step, :] + ext_force(step, disp_resp, velc_resp),
-            )
-
-        else:
-            elements_without_bearing = [
-                *rotor.shaft_elements,
-                *rotor.disk_elements,
-                *rotor.point_mass_elements,
-            ]
-
-            C0, K0 = assemble_C_K_matrices(
-                elements_without_bearing,
-                np.zeros((rotor.ndof, rotor.ndof)),
-                np.zeros((rotor.ndof, rotor.ndof)),
-            )
-
-            def rotor_system(step, disp_resp, velc_resp):
-                C, K = assemble_C_K_matrices(
-                    rotor.bearing_elements, np.copy(C0), np.copy(K0), speed[step]
-                )
-
-                C1 = get_array[0](C)
-                K1 = get_array[0](K)
-
-                return (
-                    M,
-                    C1 + C2 * speed[step],
-                    K1 + K2 * accel[step],
-                    F[step, :] + ext_force(step, disp_resp, velc_resp),
-                )
-
-    else:
-        C1 = get_array[0](rotor.C(speed_ref))
-        K1 = get_array[0](rotor.K(speed_ref))
-
-        rotor_system = lambda step, disp_resp, velc_resp: (
-            M,
-            C1 + C2 * speed,
-            K1,
-            F[step, :] + ext_force(step, disp_resp, velc_resp),
-        )
-
-    response = newmark(rotor_system, t, size, **kwargs)
-    yout = get_array[2](response.T).T
-    return t, yout
-
-
-def remove_axial_torsional_dofs(matrix_6dof):
-    """Removes axial and torsional degrees of freedom from a 6dof matrix.
-
-    This function takes a 6dof model matrix and removes the axial and torsional DoFs,
-    resulting in a 4dof model matrix.
+    By default, this function takes a 6 dof model matrix and removes the axial and torsional dofs,
+    resulting in a 4 dof model matrix.
 
     Parameters
     ----------
-    matrix_6dof: ndarray
-        The 6dof matrix to process.
+    matrix: ndarray
+        The original matrix to process.
+    dofs: list
+        List of indices representing dofs to be removed. Default is None, but internally it considers
+        the axial and torsional dofs of a 6 dof model.
 
     Returns
     -------
-    matrix_4dof: ndarray
-        A matrix with axial and torsional dofs removed.
+    new_matrix: ndarray
+        The modified matrix with the removed dofs.
 
     Examples
     --------
@@ -1052,7 +837,7 @@ def remove_axial_torsional_dofs(matrix_6dof):
     >>> rotor = rs.rotor_example_6dof()
     >>> n_nodes = rotor.nodes[-1] + 1
     >>> M_6dof = rotor.M()
-    >>> M_4dof = remove_axial_torsional_dofs(M_6dof)
+    >>> M_4dof = remove_dofs(M_6dof)
     >>> M_6dof.shape
     (42, 42)
     >>> len(M_6dof) == n_nodes * 6
@@ -1062,6 +847,61 @@ def remove_axial_torsional_dofs(matrix_6dof):
     >>> len(M_4dof) == n_nodes * 4
     True
     """
-    ind = np.arange(2, len(matrix_6dof), 3)
-    matrix_4dof = np.delete(np.delete(matrix_6dof, ind, axis=0), ind, axis=1)
-    return matrix_4dof
+    if dofs is None:
+        dofs = np.arange(2, len(matrix), 3)
+
+    new_matrix = np.delete(np.delete(matrix, dofs, axis=0), dofs, axis=1)
+
+    return new_matrix
+
+
+def convert_6dof_to_4dof(rotor):
+    """Convert a 6 dof rotor model to a 4 dof model.
+
+    This function takes a 6 dof rotor model and modifies it by removing the axial and
+    torsional dofs. It adjusts the corresponding matrix methods to reflect this change.
+
+    Parameters
+    ----------
+    rotor: rs.Rotor
+        The rotor object of 6 dof model.
+
+    Returns
+    -------
+    new_rotor: rs.Rotor
+        The rotor object modified.
+
+    Examples
+    --------
+    >>> import ross as rs
+    >>> rotor = rs.rotor_example_6dof()
+    >>> rotor_mod = convert_6dof_to_4dof(rotor)
+    >>> n_nodes = rotor.nodes[-1] + 1
+    >>> M_6dof = rotor.M()
+    >>> M_4dof = rotor_mod.M()
+    >>> M_6dof.shape
+    (42, 42)
+    >>> len(M_6dof) == n_nodes * 6
+    True
+    >>> M_4dof.shape
+    (28, 28)
+    >>> len(M_4dof) == n_nodes * 4
+    True
+    """
+    # Copy the rotor object
+    new_rotor = copy(rotor)
+
+    # Modify matrix methods to get 4 dof matrices
+    new_rotor.M = lambda frequency=None, synchronous=False: remove_dofs(
+        rotor.M(frequency=frequency, synchronous=synchronous)
+    )
+    new_rotor.K = lambda frequency: remove_dofs(rotor.K(frequency))
+    new_rotor.Ksdt = lambda: remove_dofs(rotor.Ksdt())
+    new_rotor.C = lambda frequency: remove_dofs(rotor.C(frequency))
+    new_rotor.G = lambda: remove_dofs(rotor.G())
+
+    # Update number of dofs
+    new_rotor.number_dof = 4
+    new_rotor.ndof = len(new_rotor.M())
+
+    return new_rotor
