@@ -3963,6 +3963,7 @@ class CoAxialRotor(Rotor):
 
         self.nodes = list(range(len(self.nodes_pos)))
         self.L = nodes_pos[-1]
+        self.center_line_pos = [0] * len(self.nodes)
 
         # rotor mass can also be calculated with self.M()[::4, ::4].sum()
         self.m_disks = np.sum([disk.m for disk in self.disk_elements])

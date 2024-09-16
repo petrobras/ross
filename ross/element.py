@@ -270,7 +270,7 @@ class Element(ABC):
         >>> from ross.bearing_seal_element import bearing_example
         >>> bearing = bearing_example()
         >>> bearing.get_class_name_prefix()
-        Bearing
+        'Bearing'
         """
         class_name = self.__class__.__name__
 
