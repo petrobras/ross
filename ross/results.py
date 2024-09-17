@@ -1436,6 +1436,7 @@ class CampbellResults(Results):
         self,
         harmonics=[1],
         frequency_units="RPM",
+        speed_units="RPM",
         damping_parameter="log_dec",
         frequency_range=None,
         damping_range=None,
@@ -1451,6 +1452,9 @@ class CampbellResults(Results):
             The default is to plot 1x.
         frequency_units : str, optional
             Frequency units.
+            Default is "RPM".
+        speed_units : str, optional
+            Speed units.
             Default is "RPM".
         damping_parameter : str, optional
             Define which value to show for damping. We can use "log_dec" or "damping_ratio".
@@ -1489,7 +1493,8 @@ class CampbellResults(Results):
         ...     damping_parameter="damping_ratio",
         ...     frequency_range=Q_((2000, 10000), "RPM"),
         ...     damping_range=(-0.1, 100),
-        ...     frequency_units="RPM",
+        ...     frequency_units="Hz",
+        ...     speed_units="RPM",
         ... )
         """
         if damping_parameter == "log_dec":
@@ -1550,7 +1555,7 @@ class CampbellResults(Results):
         if len(crit_x) and len(crit_y):
             fig.add_trace(
                 go.Scatter(
-                    x=Q_(crit_x, "rad/s").to(frequency_units).m,
+                    x=Q_(crit_x, "rad/s").to(speed_units).m,
                     y=Q_(crit_y, "rad/s").to(frequency_units).m,
                     mode="markers",
                     marker=dict(symbol="x", color="black"),
@@ -1558,7 +1563,7 @@ class CampbellResults(Results):
                     legendgroup="Crit. Speed",
                     showlegend=True,
                     hovertemplate=(
-                        f"Frequency ({frequency_units}): %{{y:.2f}}<br>Critical Speed ({frequency_units}): %{{x:.2f}}"
+                        f"Frequency ({frequency_units}): %{{y:.2f}}<br>Critical Speed ({speed_units}): %{{x:.2f}}"
                     ),
                 )
             )
@@ -1607,7 +1612,7 @@ class CampbellResults(Results):
                 if any(check for check in mask):
                     fig.add_trace(
                         go.Scatter(
-                            x=Q_(speed_range[mask], "rad/s").to(frequency_units).m,
+                            x=Q_(speed_range[mask], "rad/s").to(speed_units).m,
                             y=Q_(w_i[mask], "rad/s").to(frequency_units).m,
                             marker=dict(
                                 symbol=mark,
@@ -1627,7 +1632,7 @@ class CampbellResults(Results):
         for j, h in enumerate(harmonics):
             fig.add_trace(
                 go.Scatter(
-                    x=Q_(speed_range, "rad/s").to(frequency_units).m,
+                    x=Q_(speed_range, "rad/s").to(speed_units).m,
                     y=h * Q_(speed_range, "rad/s").to(frequency_units).m,
                     mode="lines",
                     line=dict(dash="dashdot", color=list(tableau_colors)[j]),
@@ -1650,10 +1655,10 @@ class CampbellResults(Results):
             )
 
         fig.update_xaxes(
-            title_text=f"Rotor Speed ({frequency_units})",
+            title_text=f"Rotor Speed ({speed_units})",
             range=[
-                np.min(Q_(speed_range, "rad/s").to(frequency_units).m),
-                np.max(Q_(speed_range, "rad/s").to(frequency_units).m),
+                np.min(Q_(speed_range, "rad/s").to(speed_units).m),
+                np.max(Q_(speed_range, "rad/s").to(speed_units).m),
             ],
             exponentformat="none",
         )
@@ -1669,11 +1674,76 @@ class CampbellResults(Results):
                 x=0.5,
                 yanchor="bottom",
                 y=-0.3,
+                yref="container",
             ),
             **kwargs,
         )
 
         return fig
+
+    def _plot_with_mode_shape(
+        self,
+        harmonics=[1],
+        frequency_units="rad/s",
+        damping_parameter="log_dec",
+        frequency_range=None,
+        damping_range=None,
+        campbell_layout=None,
+        mode_3d_layout=None,
+        fig=None,
+        **kwargs,
+    ):
+
+        camp_fig = self.plot(
+            harmonics=harmonics,
+            frequency_units=frequency_units,
+            damping_parameter=damping_parameter,
+            frequency_range=frequency_range,
+            damping_range=damping_range,
+            fig=fig,
+            **kwargs,
+        )
+        camp_fig.update_layout(campbell_layout)
+
+        modal_results_crit = {}
+        crit_speeds = camp_fig.data[0]["x"]
+        for w in crit_speeds:
+            w_si = Q_(w, frequency_units).to("rad/s").m
+            modal_results_crit[w_si] = self.run_modal(w_si)
+
+        def update_mode_3d(clicked_point=None):
+            if clicked_point is None:
+                mode_3d_fig = self.modal_results[self.speed_range[0]].plot_mode_3d(
+                    0,
+                    frequency_units=frequency_units,
+                    damping_parameter=damping_parameter,
+                )
+                mode_3d_fig.update_layout(mode_3d_layout)
+
+                return mode_3d_fig
+
+            frequency = clicked_point["x"]
+            natural_frequency = clicked_point["y"]
+
+            try:
+                modal = self.modal_results[Q_(frequency, frequency_units).to("rad/s").m]
+            except:
+                modal = modal_results_crit[Q_(frequency, frequency_units).to("rad/s").m]
+
+            idx = (
+                np.abs(modal.wd - Q_(natural_frequency, frequency_units).to("rad/s").m)
+            ).argmin()
+
+            updated_fig = modal.plot_mode_3d(
+                idx,
+                frequency_units=frequency_units,
+                damping_parameter=damping_parameter,
+            )
+            updated_fig.update_layout(mode_3d_layout)
+
+            return updated_fig
+
+        return camp_fig, update_mode_3d
 
     def plot_with_mode_shape(
         self,
@@ -1686,75 +1756,73 @@ class CampbellResults(Results):
         **kwargs,
     ):
         try:
-            from ipywidgets import VBox
+            import random
+            from dash import Dash
+            from dash import dcc, html
+            from dash.dependencies import Input, Output
         except ImportError:
-            raise ImportError("Please install ipywidgets to use this feature.")
+            raise ImportError("Please install dash to use this feature.")
 
-        modal_results_crit = {}
+        campbell_layout = dict(margin=dict(l=0, r=0, t=30, b=0))
 
-        def _plot_with_mode_shape_callback(trace, points, state):
-            point_idx = points.point_inds
-            if len(point_idx) > 0:
-                frequency = trace.x[point_idx][0]
-                natural_frequency = trace.y[point_idx][0]
+        mode_3d_layout = dict(
+            margin=dict(l=0, r=0, t=30, b=0),
+            legend=dict(x=0.85, y=0.95),
+            scene=dict(
+                camera=dict(eye=dict(x=2.25, y=2.85, z=2.25)),
+                aspectratio=dict(x=2, y=0.9, z=0.9),
+            ),
+        )
 
-                # get modal results for desired frequency
-                try:
-                    modal = self.modal_results[
-                        Q_(frequency, frequency_units).to("rad/s").m
-                    ]
-                except:
-                    modal = modal_results_crit[
-                        Q_(frequency, frequency_units).to("rad/s").m
-                    ]
-
-                # identify index of desired mode
-                idx = (
-                    np.abs(
-                        modal.wd - Q_(natural_frequency, frequency_units).to("rad/s").m
-                    )
-                ).argmin()
-
-                new_plot_mode_3d = modal.plot_mode_3d(
-                    idx,
-                    frequency_units=frequency_units,
-                    damping_parameter=damping_parameter,
-                )
-                with plot_mode_3d.batch_update():
-                    # update title
-                    plot_mode_3d.layout["title"]["text"] = new_plot_mode_3d.layout[
-                        "title"
-                    ]["text"]
-                    for data, new_data in zip(plot_mode_3d_data, new_plot_mode_3d.data):
-                        for param in data:
-                            data[param] = new_data[param]
-
-        camp_fig = self.plot(
+        camp_fig, update_mode_3d = self._plot_with_mode_shape(
             harmonics=harmonics,
             frequency_units=frequency_units,
             damping_parameter=damping_parameter,
             frequency_range=frequency_range,
             damping_range=damping_range,
+            campbell_layout=campbell_layout,
+            mode_3d_layout=mode_3d_layout,
             fig=fig,
             **kwargs,
         )
-        camp_fig = go.FigureWidget(camp_fig)
 
-        crit_speeds = camp_fig.data[0]["x"]
-        for w in crit_speeds:
-            w_si = Q_(w, frequency_units).to("rad/s").m
-            modal_results_crit[w_si] = self.run_modal(w_si)
+        plot_mode_3d = update_mode_3d()
 
-        for scatter in camp_fig.data:
-            scatter.on_click(_plot_with_mode_shape_callback)
+        # Initialize the Dash app
+        app = Dash("ross")
 
-        plot_mode_3d = self.modal_results[self.speed_range[0]].plot_mode_3d(
-            0, frequency_units=frequency_units, damping_parameter=damping_parameter
+        # Layout of the app
+        app.layout = html.Div(
+            [
+                html.Div(
+                    [
+                        dcc.Graph(
+                            id="campbell", figure=camp_fig, style={"height": "100%"}
+                        )
+                    ],
+                ),
+                html.Div(
+                    [
+                        dcc.Graph(
+                            id="mode_3d", figure=plot_mode_3d, style={"height": "100%"}
+                        )
+                    ],
+                ),
+            ],
+            className="campbell-mode-shape",
         )
-        plot_mode_3d = go.FigureWidget(plot_mode_3d)
-        plot_mode_3d_data = plot_mode_3d.data
 
-        return VBox([camp_fig, plot_mode_3d])
+        # Callback to update plot_mode_3d based on campbell diagram click
+        @app.callback(Output("mode_3d", "figure"), [Input("campbell", "clickData")])
+        def plot_with_mode_shape_callback(clickData):
+            if clickData is None:
+                return update_mode_3d()
+            else:
+                return update_mode_3d(clickData["points"][0])
+
+        # Run app
+        port = random.randint(8000, 9000)
+        app.run(port=port, debug=False, jupyter_mode="inline", jupyter_height=768)
 
     def save(self, file):
         # TODO save modal results

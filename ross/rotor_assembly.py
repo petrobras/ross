@@ -610,6 +610,104 @@ class Rotor(object):
         else:
             return False
 
+    def add_nodes(self, new_nodes_pos):
+        """Add nodes to rotor.
+
+        This method returns the modified rotor with additional nodes according to
+        the positions of the new nodes provided.
+
+        Parameters
+        ----------
+        new_nodes_pos : list
+            List with the position of the new nodes.
+
+        Returns
+        -------
+        A rotor object.
+
+        Examples
+        --------
+        >>> import ross as rs
+        >>> rotor = rs.rotor_example()
+        >>> new_rotor = rotor.add_nodes([0.62, 1.11])
+        >>> shaft_elements = new_rotor.shaft_elements
+        >>> len(shaft_elements)
+        8
+        >>> round(shaft_elements[3].L, 2)
+        0.13
+        >>> round(shaft_elements[6].L, 2)
+        0.14
+        """
+        new_nodes_pos.sort()
+
+        shaft_elements = deepcopy(self.shaft_elements)
+        disk_elements = deepcopy(self.disk_elements)
+        bearing_elements = deepcopy(self.bearing_elements)
+        point_mass_elements = deepcopy(self.point_mass_elements)
+
+        elements = [
+            *shaft_elements,
+            *disk_elements,
+            *bearing_elements,
+            *point_mass_elements,
+        ]
+
+        target_elements = []
+        new_elems_length = []
+
+        for new_pos in new_nodes_pos:
+            for elm in shaft_elements:
+                elm.tag = None
+
+                pos_l = self.nodes_pos[self.nodes.index(elm.n_l)]
+                pos_r = self.nodes_pos[self.nodes.index(elm.n_r)]
+
+                if new_pos > pos_l and new_pos < pos_r:
+                    target_elements.append(elm)
+                    new_elems_length.append(pos_r - new_pos)
+
+        prev_left_node = -1
+
+        for i in range(len(target_elements)):
+            elem = target_elements[i]
+
+            left_elem = elem.create_modified(L=(elem.L - new_elems_length[i]))
+            right_elem = elem.create_modified(L=new_elems_length[i], n=(elem.n + 1))
+
+            if left_elem.n != prev_left_node:
+                for elm in elements:
+                    if elm.n >= right_elem.n:
+                        elm.n += 1
+                        if elm in shaft_elements:
+                            elm._n = elm.n
+                            elm.n_l = elm.n
+                            elm.n_r = elm.n + 1
+
+            for j in range(i + 1, len(target_elements)):
+                if target_elements[j] == target_elements[i]:
+                    target_elements[j] = right_elem
+
+            idx_left = shaft_elements.index(elem)
+            shaft_elements[idx_left] = left_elem
+
+            idx_right = idx_left + len(
+                [k for k, elm in enumerate(shaft_elements) if elm.n == left_elem.n]
+            )
+            shaft_elements.insert(idx_right, right_elem)
+
+            prev_left_node = left_elem.n
+
+        return Rotor(
+            shaft_elements,
+            disk_elements=disk_elements,
+            bearing_elements=bearing_elements,
+            point_mass_elements=point_mass_elements,
+            min_w=self.min_w,
+            max_w=self.max_w,
+            rated_w=self.rated_w,
+            tag=self.tag,
+        )
+
     @check_units
     def run_modal(self, speed, num_modes=12, sparse=True, synchronous=False):
         """Run modal analysis.
@@ -1327,6 +1425,13 @@ class Rotor(object):
         ----------
         speed : float, pint.Quantity
             Rotor speed. Default unit is rad/s.
+        num_modes : int, optional
+            The number of eigenvalues and eigenvectors to be calculated using ARPACK.
+            If sparse=True, it determines the number of eigenvalues and eigenvectors
+            to be calculated. It must be smaller than Rotor.ndof - 1. It is not
+            possible to compute all eigenvectors of a matrix with ARPACK.
+            If sparse=False, num_modes does not have any effect over the method.
+            Default is 12.
         frequency: float, pint.Quantity
             Excitation frequency. Default units is rad/s.
         sorted_ : bool, optional
@@ -1372,15 +1477,20 @@ class Rotor(object):
                 try:
                     evalues, evectors = las.eigs(
                         A,
-                        k=num_modes,
+                        k=2 * num_modes,
                         sigma=1,
-                        ncv=2 * num_modes,
+                        ncv=4 * num_modes,
                         which="LM",
                         v0=self._v0,
                     )
                     # store v0 as a linear combination of the previously
                     # calculated eigenvectors to use in the next call to eigs
                     self._v0 = np.real(sum(evectors.T))
+
+                    # Disregard rigid body modes:
+                    idx = np.where(np.abs(evalues) > 0.1)[0]
+                    evalues = evalues[idx]
+                    evectors = evectors[:, idx]
                 except las.ArpackError:
                     evalues, evectors = la.eig(A)
             else:
@@ -2500,14 +2610,14 @@ class Rotor(object):
             The bearing frequency range used to calculate the intersection points.
             In some cases bearing coefficients will have to be extrapolated.
             The default is None. In this case the bearing frequency attribute is used.
-        num : int
-            Number of steps in the range.
-            Default is 20.
         num_modes : int, optional
             Number of modes to be calculated. This uses scipy.sparse.eigs method.
             Default is 16. In this case 4 modes are plotted, since for each pair
             of eigenvalues calculated we have one wn, and we show only the
             forward mode in the plots.
+        num : int
+            Number of steps in the range.
+            Default is 20.
         synchronous : bool, optional
             If True a synchronous analysis is carried out according to :cite:`rouch1980dynamic`.
             Default is False.
@@ -3537,6 +3647,60 @@ class Rotor(object):
             tag=tag,
         )
 
+    @classmethod
+    def to_ross_only(cls, rotor):
+        """Convert rotor with rsxl objects to ross only."""
+        bearings_seals_rs = []
+        for b in rotor.bearing_elements:
+            if isinstance(b, SealElement):
+                bearings_seals_rs.append(
+                    SealElement(
+                        n=b.n,
+                        kxx=b.kxx,
+                        kxy=b.kxy,
+                        kyx=b.kyx,
+                        kyy=b.kyy,
+                        cxx=b.cxx,
+                        cxy=b.cxy,
+                        cyx=b.cyx,
+                        cyy=b.cyy,
+                        frequency=b.frequency,
+                        tag=b.tag,
+                        color=b.color,
+                        n_link=b.n_link,
+                        seal_leakage=b.seal_leakage,
+                    )
+                )
+            else:
+                bearings_seals_rs.append(
+                    BearingElement(
+                        n=b.n,
+                        kxx=b.kxx,
+                        kxy=b.kxy,
+                        kyx=b.kyx,
+                        kyy=b.kyy,
+                        cxx=b.cxx,
+                        cxy=b.cxy,
+                        cyx=b.cyx,
+                        cyy=b.cyy,
+                        frequency=b.frequency,
+                        tag=b.tag,
+                        color=b.color,
+                        n_link=b.n_link,
+                    )
+                )
+
+        return cls(
+            rotor.shaft_elements,
+            rotor.disk_elements,
+            bearings_seals_rs,
+            rotor.point_mass_elements,
+            min_w=rotor.min_w,
+            max_w=rotor.max_w,
+            rated_w=rotor.rated_w,
+            tag=rotor.tag,
+        )
+
 
 class CoAxialRotor(Rotor):
     r"""A rotor object.
@@ -4268,9 +4432,9 @@ def rotor_example_6dof():
     >>> rotor_speed = 100.0 # rad/s
     >>> modal6 = rotor6.run_modal(rotor_speed)
     >>> print(f"Undamped natural frequencies: {np.round(modal6.wn, 2)}") # doctest: +ELLIPSIS
-    Undamped natural frequencies: [  0.    47.62 ...
+    Undamped natural frequencies: [ 47.62  91.84  96.36 274.44 ...
     >>> print(f"Damped natural frequencies: {np.round(modal6.wd, 2)}") # doctest: +ELLIPSIS
-    Damped natural frequencies: [  0.    47.62 ...
+    Damped natural frequencies: [ 47.62  91.84  96.36 274.44 ...
     >>> # Plotting Campbell Diagram
     >>> camp6 = rotor6.run_campbell(np.linspace(0, 400, 101), frequencies=6)
     >>> fig = camp6.plot()
