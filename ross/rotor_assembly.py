@@ -2118,9 +2118,9 @@ class Rotor(object):
         return forced_response
 
     def magnetic_bearing_controller(self, magnetic_bearings, time_step, disp_resp):
-        """
-        This method allows the closed-loop control of the magnetic bearing.
-        The control technique used is PID and it controls axes x and y of each bearing.
+        r"""
+        This method allows the closed-loop control of the magnetic bearing using a PID design.
+        It controls axes x and y of each bearing.
 
         Parameters
         ----------
@@ -2134,13 +2134,9 @@ class Rotor(object):
         magnetic_force : array
             Control force (external).
 
-        Example
-        -------
-        >>> response = rotor.run_time_response(speed,
-        ...                                    F,
-        ...                                    t,
-        ...                                    method = "newmark")
-
+        Examples
+        --------
+        
         """
 
         offset = 0
@@ -4568,3 +4564,149 @@ def rotor_example_6dof():
     )
 
     return Rotor(shaft_elem, [disk0, disk1], [bearing0, bearing1])
+
+
+def rotor_amb_example():
+    r"""This function creates the model of a test rig rotor supported by magnetic bearings.
+    Details of the model can be found at doi.org/10.14393/ufu.di.2015.186.
+
+    Returns
+    -------
+    Rotor object.
+
+    """
+
+    from ross.materials import Material
+
+    steel_amb = Material(name="Steel", rho=7850, E=2e11, Poisson=0.3)
+
+    # Shaft elements:
+    # fmt: off
+    Li = [
+        0.0, 0.012, 0.032, 0.052, 0.072, 0.092, 0.112, 0.1208, 0.12724,
+        0.13475, 0.14049, 0.14689, 0.15299, 0.159170, 0.16535, 0.180350,
+        0.1905, 0.2063, 0.2221, 0.2379, 0.2537, 0.2695, 0.2853, 0.3011,
+        0.3169, 0.3327, 0.3363, 0.3485, 0.361, 0.3735, 0.3896, 0.4057,
+        0.4218, 0.4379, 0.454, 0.4701, 0.4862, 0.5023, 0.5184, 0.5345,
+        0.54465, 0.559650, 0.565830, 0.572010, 0.57811, 0.58451, 0.590250,
+        0.59776, 0.6042, 0.613, 0.633, 0.645,
+    ]
+    Li = [round(i, 4) for i in Li]
+    L = [Li[i + 1] - Li[i] for i in range(len(Li) - 1)]
+    i_d = [0.0 for i in L]
+    o_d1 = [0.0 for i in L]
+    o_d1[0] = 6.35
+    o_d1[1:5] = [32 for i in range(4)]
+    o_d1[5:14] = [34.8 for i in range(9)]
+    o_d1[14:16] = [1.2 * 49.9 for i in range(2)]
+    o_d1[16:27] = [19.05 for i in range(11)]
+    o_d1[27:29] = [0.8 * 49.9 for i in range(2)]
+    o_d1[29:39] = [19.05 for i in range(10)]
+    o_d1[39:41] = [1.2 * 49.9 for i in range(2)]
+    o_d1[41:49] = [34.8 for i in range(8)]
+    o_d1[49] = 34.8
+    o_d1[50] = 6.35
+    o_d = [i * 1e-3 for i in o_d1]
+
+    shaft_elements = [
+        ShaftElement(
+            L=l,
+            idl=idl,
+            odl=odl,
+            material=steel_amb,
+            shear_effects=True,
+            rotary_inertia=True,
+            gyroscopic=True,
+        )
+        for l, idl, odl in zip(L, i_d, o_d)
+    ]
+
+    # Disk elements:
+    n_list = [6, 7, 8, 9, 10, 11, 12, 13, 27, 29, 41, 42, 43, 44, 45, 46, 47, 48]
+    width = [
+        0.0088, 0.0064, 0.0075, 0.0057,
+        0.0064, 0.0061, 0.0062, 0.0062,
+        0.0124, 0.0124, 0.0062, 0.0062,
+        0.0061, 0.0064, 0.0057, 0.0075,
+        0.0064, 0.0088,
+    ]
+    o_disc = [
+        0.0249, 0.0249, 0.0249, 0.0249,
+        0.0249, 0.0249, 0.0249, 0.0249,
+        0.0600, 0.0600, 0.0249, 0.0249,
+        0.0249, 0.0249, 0.0249, 0.0249,
+        0.0249, 0.0249,
+    ]
+    i_disc = [
+        0.0139, 0.0139, 0.0139, 0.0139,
+        0.0139, 0.0139, 0.0139, 0.0139,
+        0.0200, 0.0200, 0.0139, 0.0139,
+        0.0139, 0.0139, 0.0139, 0.0139,
+        0.0139, 0.0139,
+    ]
+    # fmt: on
+    m_list = [
+        np.pi * 7850 * w * ((odisc) ** 2 - (idisc) ** 2)
+        for w, odisc, idisc in zip(width, o_disc, i_disc)
+    ]
+    Id_list = [
+        m / 12 * (3 * idisc**2 + 3 * odisc**2 + w**2)
+        for m, idisc, odisc, w in zip(m_list, i_disc, o_disc, width)
+    ]
+    Ip_list = [
+        m / 2 * (idisc**2 + odisc**2) for m, idisc, odisc in zip(m_list, i_disc, o_disc)
+    ]
+
+    disk_elements = [
+        DiskElement(
+            n=n,
+            m=m,
+            Id=Id,
+            Ip=Ip,
+        )
+        for n, m, Id, Ip in zip(n_list, m_list, Id_list, Ip_list)
+    ]
+
+    # Bearing elements:
+    n_list = [12, 43]
+    u0 = 4 * np.pi * 1e-7
+    n = 200
+    A = 1e-4
+    i0 = 1.0
+    s0 = 1e-3
+    alpha = 0.392
+    Kp = 2
+    Ki = 2
+    Kd = 2
+    k_amp = 1.0
+    k_sense = 1.0
+    bearing_elements = [
+        MagneticBearingElement(
+            n=n_list[0],
+            g0=s0,
+            i0=i0,
+            ag=A,
+            nw=n,
+            alpha=alpha,
+            k_amp=k_amp,
+            k_sense=k_sense,
+            kp_pid=Kp,
+            kd_pid=Kd,
+            ki_pid=Ki,
+        ),
+        MagneticBearingElement(
+            n=n_list[1],
+            g0=s0,
+            i0=i0,
+            ag=A,
+            nw=n,
+            alpha=alpha,
+            k_amp=k_amp,
+            k_sense=k_sense,
+            kp_pid=Kp,
+            kd_pid=Kd,
+            ki_pid=Ki,
+        ),
+    ]
+
+    return Rotor(shaft_elements, disk_elements, bearing_elements)
