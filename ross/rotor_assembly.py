@@ -2136,7 +2136,30 @@ class Rotor(object):
 
         Examples
         --------
-        
+        >>> import ross as rs
+        >>> rotor = rs.rotor_assembly.rotor_amb_example()
+        >>> size = 40001
+        >>> speed = 1200.0
+        >>> t = np.linspace(0, 1, size)
+        >>> dt = t[1] - t[0]
+        >>> node = [27, 29]
+        >>> mass = [10, 10]
+        >>> F = np.zeros((len(t), rotor.ndof))
+        >>> for n, m in zip(node,mass):
+        ...     F[:, 4 * n + 0] = m * np.cos((speed * t))
+        ...     F[:, 4 * n + 1] = (m-5) * np.sin((speed * t))
+        >>> response = rotor.run_time_response(speed, F, t, method = "newmark")
+        Running direct method
+        >>> magnetic_bearings = [
+        ...    brg
+        ...    for brg in rotor.bearing_elements
+        ...    if isinstance(brg, MagneticBearingElement)
+        ... ]
+        >>> magnetic_force = rotor.magnetic_bearing_controller(magnetic_bearings, dt, response.yout[-1,:])
+        >>> np.nonzero(magnetic_force)[0]
+        array([ 48,  49, 172, 173], dtype=int64)
+        >>> magnetic_force[np.nonzero(magnetic_force)[0]]
+        array([0.0070686 , 0.02656392, 0.00180106, 0.01577127])
         """
 
         offset = 0
