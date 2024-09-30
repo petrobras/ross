@@ -5,7 +5,7 @@
 <a href="https://codecov.io/gh/petrobras/ross">
 <img src="https://codecov.io/gh/petrobras/ross/branch/main/graph/badge.svg">
 </a>
-[![Code style: black](https://img.shields.io/badge/code%20style-black-000000.svg)](https://github.com/ambv/black)
+[![Code style: Ruff](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json)](https://github.com/astral-sh/ruff)
 [![DOI](https://joss.theoj.org/papers/10.21105/joss.02120/status.svg)](https://doi.org/10.21105/joss.02120)
 
 ROSS is a Python library for rotordynamic analysis, which allows the construction of rotor models and their numerical
