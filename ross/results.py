@@ -1048,11 +1048,10 @@ class ModalResults(Results):
         -------
         whirl_w : array
             An array of strings indicating the direction of precession related
-            to the kappa_mode. Backward, Mixed or Forward depending on values
-            of kappa_mode.
+            to the mode shape. Backward, Mixed or Forward.
         """
         # whirl direction/values are methods because they are expensive.
-        whirl_w = [self.whirl(self.kappa_mode(wd)) for wd in range(len(self.wd))]
+        whirl_w = [self.shapes[wd].whirl for wd in range(len(self.wd))]
 
         return np.array(whirl_w)
 
