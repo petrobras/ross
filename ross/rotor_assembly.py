@@ -2001,8 +2001,8 @@ class Rotor(object):
             Unbalance magnitude (kg.m).
         unbalance_phase : list, float, pint.Quantity
             Unbalance phase (rad).
-        frequency : list, float, pint.Quantity
-            Array with the desired range of frequencies (rad/s).
+        frequency : list, pint.Quantity
+            List with the desired range of frequencies (rad/s).
         modes : list, optional
             Modes that will be used to calculate the frequency response
             (all modes will be used if a list is not given).
