@@ -1437,6 +1437,7 @@ class CampbellResults(Results):
         self,
         harmonics=[1],
         frequency_units="RPM",
+        speed_units="RPM",
         damping_parameter="log_dec",
         frequency_range=None,
         damping_range=None,
@@ -1452,6 +1453,9 @@ class CampbellResults(Results):
             The default is to plot 1x.
         frequency_units : str, optional
             Frequency units.
+            Default is "RPM".
+        speed_units : str, optional
+            Speed units.
             Default is "RPM".
         damping_parameter : str, optional
             Define which value to show for damping. We can use "log_dec" or "damping_ratio".
@@ -1490,7 +1494,8 @@ class CampbellResults(Results):
         ...     damping_parameter="damping_ratio",
         ...     frequency_range=Q_((2000, 10000), "RPM"),
         ...     damping_range=(-0.1, 100),
-        ...     frequency_units="RPM",
+        ...     frequency_units="Hz",
+        ...     speed_units="RPM",
         ... )
         """
         if damping_parameter == "log_dec":
@@ -1551,7 +1556,7 @@ class CampbellResults(Results):
         if len(crit_x) and len(crit_y):
             fig.add_trace(
                 go.Scatter(
-                    x=Q_(crit_x, "rad/s").to(frequency_units).m,
+                    x=Q_(crit_x, "rad/s").to(speed_units).m,
                     y=Q_(crit_y, "rad/s").to(frequency_units).m,
                     mode="markers",
                     marker=dict(symbol="x", color="black"),
@@ -1559,7 +1564,7 @@ class CampbellResults(Results):
                     legendgroup="Crit. Speed",
                     showlegend=True,
                     hovertemplate=(
-                        f"Frequency ({frequency_units}): %{{y:.2f}}<br>Critical Speed ({frequency_units}): %{{x:.2f}}"
+                        f"Frequency ({frequency_units}): %{{y:.2f}}<br>Critical Speed ({speed_units}): %{{x:.2f}}"
                     ),
                 )
             )
@@ -1608,7 +1613,7 @@ class CampbellResults(Results):
                 if any(check for check in mask):
                     fig.add_trace(
                         go.Scatter(
-                            x=Q_(speed_range[mask], "rad/s").to(frequency_units).m,
+                            x=Q_(speed_range[mask], "rad/s").to(speed_units).m,
                             y=Q_(w_i[mask], "rad/s").to(frequency_units).m,
                             marker=dict(
                                 symbol=mark,
@@ -1628,7 +1633,7 @@ class CampbellResults(Results):
         for j, h in enumerate(harmonics):
             fig.add_trace(
                 go.Scatter(
-                    x=Q_(speed_range, "rad/s").to(frequency_units).m,
+                    x=Q_(speed_range, "rad/s").to(speed_units).m,
                     y=h * Q_(speed_range, "rad/s").to(frequency_units).m,
                     mode="lines",
                     line=dict(dash="dashdot", color=list(tableau_colors)[j]),
@@ -1651,10 +1656,10 @@ class CampbellResults(Results):
             )
 
         fig.update_xaxes(
-            title_text=f"Rotor Speed ({frequency_units})",
+            title_text=f"Rotor Speed ({speed_units})",
             range=[
-                np.min(Q_(speed_range, "rad/s").to(frequency_units).m),
-                np.max(Q_(speed_range, "rad/s").to(frequency_units).m),
+                np.min(Q_(speed_range, "rad/s").to(speed_units).m),
+                np.max(Q_(speed_range, "rad/s").to(speed_units).m),
             ],
             exponentformat="none",
         )

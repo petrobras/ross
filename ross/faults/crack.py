@@ -116,7 +116,7 @@ class Crack(Fault):
                 "The unbalance magnitude vector and phase must have the same size!"
             )
 
-        dir_path = Path(__file__).parents[2] / "tools/data/PAPADOPOULOS.csv"
+        dir_path = Path(__file__).parents[0] / "data/PAPADOPOULOS.csv"
         self.data_coefs = pd.read_csv(dir_path)
 
     def run(self, rotor):
