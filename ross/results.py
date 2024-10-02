@@ -892,7 +892,6 @@ class ModalResults(Results):
         self.number_dof = number_dof
         self.modes = self.evectors[: self.ndof]
         self.shapes = []
-        kappa_modes = []
         for mode in range(len(self.wn)):
             self.shapes.append(
                 Shape(
@@ -904,42 +903,6 @@ class ModalResults(Results):
                     number_dof=self.number_dof,
                 )
             )
-            kappa_color = []
-            kappa_mode = self.kappa_mode(mode)
-            for kappa in kappa_mode:
-                kappa_color.append("blue" if kappa > 0 else "red")
-            kappa_modes.append(kappa_color)
-        self.kappa_modes = kappa_modes
-
-    @staticmethod
-    def whirl(kappa_mode):
-        """Evaluate the whirl of a mode.
-
-        Parameters
-        ----------
-        kappa_mode : list
-            A list with the value of kappa for each node related
-            to the mode/natural frequency of interest.
-
-        Returns
-        -------
-        whirldir : str
-            A string indicating the direction of precession related to the
-            kappa_mode.
-
-        Example
-        -------
-        >>> kappa_mode = [-5.06e-13, -3.09e-13, -2.91e-13, 0.011, -4.03e-13, -2.72e-13, -2.72e-13]
-        >>> ModalResults.whirl(kappa_mode)
-        'Forward'
-        """
-        if all(kappa >= -1e-3 for kappa in kappa_mode):
-            whirldir = "Forward"
-        elif all(kappa <= 1e-3 for kappa in kappa_mode):
-            whirldir = "Backward"
-        else:
-            whirldir = "Mixed"
-        return whirldir
 
     @staticmethod
     @np.vectorize
