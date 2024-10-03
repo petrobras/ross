@@ -1482,13 +1482,11 @@ class Rotor(object):
                 try:
                     evalues, evectors = las.eigs(
                         A,
-                        k=2 * num_modes,
+                        k=min(2 * num_modes, max(num_modes, A.shape[0] - 2)),
                         sigma=1,
-                        ncv=4 * num_modes,
                         which="LM",
-                        v0=np.ones(min(A.shape)),
+                        v0=np.ones(A.shape[0]),
                     )
-
                 except las.ArpackError:
                     evalues, evectors = la.eig(A)
             else:
