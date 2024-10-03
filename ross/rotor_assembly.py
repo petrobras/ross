@@ -1399,7 +1399,7 @@ class Rotor(object):
         positive = [i for i in ind[len(a) // 2 :]]
         negative = [i for i in ind[: len(a) // 2]]
 
-        idx = np.array([positive, negative]).flatten()
+        idx = np.array([*positive, *negative])
 
         return idx
 
