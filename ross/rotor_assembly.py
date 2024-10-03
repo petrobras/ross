@@ -1472,10 +1472,9 @@ class Rotor(object):
         if synchronous:
             evalues, evectors = la.eig(A)
 
-            idx = np.where(
-                (np.imag(evalues) != 0)
-                & (np.abs(np.real(evalues) / np.imag(evalues)) < 1000)
-            )[0]
+            idx = np.where(np.imag(evalues) != 0)[0]
+            evalues, evectors = filter_eigenpairs(evalues, evectors, idx)
+            idx = np.where(np.abs(np.real(evalues) / np.imag(evalues)) < 1000)[0]
             evalues, evectors = filter_eigenpairs(evalues, evectors, idx)
         else:
             if sparse:
