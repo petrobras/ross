@@ -372,8 +372,6 @@ class Rotor(object):
         Ip_dsk = np.sum([disk.Ip for disk in self.disk_elements])
         self.Ip = Ip_sh + Ip_dsk
 
-        self._v0 = None  # used to call eigs
-
         # number of dofs
         half_ndof = self.number_dof / 2
         self.ndof = int(
@@ -1488,11 +1486,8 @@ class Rotor(object):
                         sigma=1,
                         ncv=4 * num_modes,
                         which="LM",
-                        v0=self._v0,
+                        v0=np.ones(min(A.shape)),
                     )
-                    # store v0 as a linear combination of the previously
-                    # calculated eigenvectors to use in the next call to eigs
-                    self._v0 = np.real(sum(evectors.T))
 
                 except las.ArpackError:
                     evalues, evectors = la.eig(A)
@@ -4020,8 +4015,6 @@ class CoAxialRotor(Rotor):
         Ip_sh = np.sum([sh.Im for sh in self.shaft_elements])
         Ip_dsk = np.sum([disk.Ip for disk in self.disk_elements])
         self.Ip = Ip_sh + Ip_dsk
-
-        self._v0 = None  # used to call eigs
 
         # number of dofs
         self.ndof = int(
