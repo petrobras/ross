@@ -277,7 +277,7 @@ class Orbit(Results):
         # kappa encodes the relation between the axis and the precession.
         minor = np.sqrt(lam.min())
         major = np.sqrt(lam.max())
-        kappa = minor / major
+
         diff = nv - nu
 
         # we need to evaluate if 0 < nv - nu < pi.
@@ -289,10 +289,11 @@ class Orbit(Results):
         # if nv = nu or nv = nu + pi then the response is a straight line.
         if diff == 0 or diff == np.pi:
             kappa = 0
-
         # if 0 < nv - nu < pi, then a backward rotating mode exists.
         elif 0 < diff < np.pi:
-            kappa *= -1
+            kappa = -minor / major
+        else:
+            kappa = minor / major
 
         self.minor_axis = np.real(minor)
         self.major_axis = np.real(major)
