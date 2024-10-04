@@ -1626,6 +1626,15 @@ class CylindricalBearing(BearingElement):
         Bore assembly radial clearance (m).
     oil_viscosity : float, pint.Quantity
         Oil viscosity (Pa.s).
+    tag : str, optional
+        A tag to name the element
+        Default is None.
+    scale_factor : float, optional
+        The scale factor is used to scale the bearing drawing.
+        Default is 1.
+    color : str, optional
+        A color to be used when the element is represented.
+        Default is '#355d7a'.
 
     Returns
     -------
@@ -1664,6 +1673,9 @@ class CylindricalBearing(BearingElement):
         journal_diameter=None,
         radial_clearance=None,
         oil_viscosity=None,
+        tag=None,
+        scale_factor=1,
+        color="#355d7a",
         **kwargs,
     ):
         self.n = n
@@ -1753,7 +1765,15 @@ class CylindricalBearing(BearingElement):
                         weight / (radial_clearance * spd) * term
                     )
 
-        super().__init__(self.n, frequency=self.speed, **coefficients_dict, **kwargs)
+        super().__init__(
+            n,
+            frequency=self.speed,
+            tag=tag,
+            scale_factor=scale_factor,
+            color=color,
+            **coefficients_dict,
+            **kwargs,
+        )
 
 
 class BearingElement6DoF(BearingElement):
