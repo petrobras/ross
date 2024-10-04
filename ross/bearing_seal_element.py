@@ -984,6 +984,19 @@ class BearingFluidFlow(BearingElement):
         scale_factor=1.0,
         color="#355d7a",
     ):
+        self.nz = nz
+        self.ntheta = ntheta
+        self.length = length
+        self.omega = omega
+        self.p_in = p_in
+        self.p_out = p_out
+        self.radius_rotor = radius_rotor
+        self.radius_stator = radius_stator
+        self.visc = visc
+        self.rho = rho
+        self.eccentricity = eccentricity
+        self.load = load
+
         K = np.zeros((4, len(omega)))
         C = np.zeros((4, len(omega)))
 
@@ -1130,6 +1143,7 @@ class SealElement(BearingElement):
         color="#77ACA2",
         **kwargs,
     ):
+        self.seal_leakage = seal_leakage
 
         super().__init__(
             n=n,
@@ -1150,7 +1164,7 @@ class SealElement(BearingElement):
             n_link=n_link,
             color=color,
         )
-        self.seal_leakage = seal_leakage
+
         # make seals with half the bearing size as a default
         self.scale_factor = scale_factor if scale_factor else self.scale_factor / 2
 
@@ -1233,6 +1247,11 @@ class BallBearingElement(BearingElement):
         scale_factor=1,
         color="#355d7a",
     ):
+        self.n_balls = n_balls
+        self.d_balls = d_balls
+        self.fs = fs
+        self.alpha = alpha
+
         Kb = 13.0e6
         kyy = (
             Kb
@@ -1353,6 +1372,11 @@ class RollerBearingElement(BearingElement):
         scale_factor=1,
         color="#355d7a",
     ):
+        self.n_rollers = n_rollers
+        self.l_rollers = l_rollers
+        self.fs = fs
+        self.alpha = alpha
+
         Kb = 1.0e9
         kyy = Kb * n_rollers**0.9 * l_rollers**0.8 * fs**0.1 * (np.cos(alpha)) ** 1.9
 
