@@ -5,12 +5,10 @@ bearings and seals. There are 7 different classes to represent bearings options,
 and 2 element options with 8 or 12 degrees of freedom.
 """
 
-import os
-import warnings
-from inspect import signature
-
 import numpy as np
 import toml
+import warnings
+from inspect import signature
 from numpy.polynomial import Polynomial
 from plotly import graph_objects as go
 from scipy import interpolate as interpolate
