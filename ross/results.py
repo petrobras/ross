@@ -28,6 +28,7 @@ __all__ = [
     "CriticalSpeedResults",
     "ModalResults",
     "CampbellResults",
+    "SensitivityResults",
     "FrequencyResponseResults",
     "ForcedResponseResults",
     "StaticResults",
@@ -1840,6 +1841,241 @@ class CampbellResults(Results):
         return super().load(file)
 
 
+class SensitivityResults(Results):
+    """Class used to store results from magnetic bearing sensitivity computation.
+
+    This class stores the sensitivity results and provides a method for plotting
+    the sensitivity functions.
+
+    Parameters
+    ----------
+    max_abs_sensitivities : dict
+        Dictionary containing the maximum absolute sensitivity value for each
+        magnetic bearing. The keys are the magnetic bearing tags, and the values
+        are the maximum sensitivity values.
+    sensitivities : dict
+        Dictionary containing the sensitivity values for each magnetic bearing
+        as a function of frequency. The keys are the magnetic bearing tags, and
+        the values are complex arrays representing the sensitivity at each
+        frequency point.
+    compute_sensitivity_at : dict
+        Dictionary specifying the input and output degrees of freedom (DOFs) used
+        to compute the sensitivity for each magnetic bearing. The keys are the
+        magnetic bearing tags, and the values are dictionaries with keys "inp"
+        and "out" representing the input and output DOFs.
+    speed_range : array
+        Array with the speed range in rad/s.
+
+    Returns
+    -------
+    fig : plotly.graph_objects.Figure
+        A plotly figure with the sensitivity plots.
+    """
+
+    def __init__(
+        self,
+        max_abs_sensitivities,
+        sensitivities,
+        compute_sensitivity_at,
+        speed_range,
+        number_dof,
+    ):
+        self.max_abs_sensitivities = max_abs_sensitivities
+        self.sensitivities = sensitivities
+        self.compute_sensitivity_at = compute_sensitivity_at
+        self.speed_range = speed_range
+        self.number_dof = number_dof
+
+    def plot(
+        self,
+        frequency_units="rad/s",
+        amplitude_units="m/N",
+        phase_units="rad",
+        fig=None,
+        fig_kwargs=None,
+    ):
+        """Plot the sensitivity for each magnetic bearing.
+
+        This method plots the sensitivity as a function of frequency for each
+        magnetic bearing, based on the sensitivities computed during the
+        `run_freq_response` call.
+
+        Parameters
+        ----------
+        frequency_units : str, optional
+            Frequency units for the plots.
+            Default is "rad/s".
+        amplitude_units : str, optional
+            Units of the sensitivity function amplitude.
+            Default is "m/N".
+        phase_units : str, optional
+            Phase units for the plots.
+            Default is "rad".
+        fig : plotly.graph_objects.Figure, optional
+            Existing figure to add the plots.
+            Default is None.
+        fig_kwargs : optional
+            Additional key word arguments can be passed to change the plot layout only
+            (e.g. width=1000, height=800, ...). This kwargs override "mag_kwargs",
+            "phase_kwargs" and "polar_kwargs" dictionaries.
+            *See Plotly Python make_subplots Reference for more information.
+
+        Returns
+        -------
+        fig : plotly.graph_objects.Figure
+            A plotly figure with the sensitivity plots.
+
+        Raises
+        ------
+        AttributeError
+            If there are no magnetic bearings in the rotor or if the
+            `run_freq_response` method has not been called yet.
+
+        Examples
+        --------
+        >>> import ross as rs
+        >>> rotor = rs.rotor_amb_example()
+        >>> speed = np.linspace(0, 1000, 11)
+        >>> compute_sensitivite_dofs = {"Bearing 0": {"inp": 9, "out": 9}}
+        >>> response = rotor.run_amb_sensitivity(speed_range=speed, compute_sensitivity_at=compute_sensitivite_dofs)
+        >>> fig = response.plot()
+        """
+        fig_kwargs = {} if fig_kwargs is None else copy.copy(fig_kwargs)
+
+        # Unit adjustment
+        frequency_range = Q_(self.speed_range, "rad/s").to(frequency_units).m
+
+        # Build sensitivity plots
+        if fig is None:
+            fig = make_subplots(rows=2, cols=1)
+
+        dof_list = []
+        if self.number_dof == 4:
+            dof_list = ["x", "y", "α", "β"]
+        elif self.number_dof == 6:
+            dof_list = ["x", "y", "z", "α", "β", "θ"]
+
+        color_index = 0
+        for amb_tag in self.compute_sensitivity_at.keys():
+            mag_sensitivity = [abs(z) for z in self.sensitivities[amb_tag]]
+            phase_sensitivity = [cmath.phase(z) for z in self.sensitivities[amb_tag]]
+
+            inp = self.compute_sensitivity_at[amb_tag]["inp"]
+            out = self.compute_sensitivity_at[amb_tag]["out"]
+            inp_node = inp // self.number_dof
+            out_node = out // self.number_dof
+            inp_dof = dof_list[inp % self.number_dof]
+            out_dof = dof_list[out % self.number_dof]
+
+            # Unit adjustment
+            check_amplitude_units_temp_var = Q_(1, amplitude_units)
+            if check_amplitude_units_temp_var.check("[length]/[force]"):
+                mag_sensitivity = Q_(mag_sensitivity, "m/N").to(amplitude_units).m
+            else:
+                raise ValueError(
+                    "Unsupported unit. Please use a unit with dimensions of length per force (e.g., mm/N)."
+                )
+
+            phase_sensitivity = Q_(phase_sensitivity, "rad").to(phase_units).m
+
+            # Magnitude
+            fig.add_trace(
+                go.Scatter(
+                    x=frequency_range,
+                    y=mag_sensitivity,
+                    mode="lines",
+                    line=dict(color=list(tableau_colors)[color_index]),
+                    name=f"{amb_tag}<br>inp: node {inp_node} | dof: {inp_dof}<br>out: node {out_node} | dof: {out_dof}",
+                    legendgroup=f"{amb_tag}<br>inp: node {inp_node} | dof: {inp_dof}<br>out: node {out_node} | dof: {out_dof}",
+                    showlegend=True,
+                    hovertemplate=f"Frequency ({frequency_units}): %{{x:.2f}}<br>Amplitude ({amplitude_units}): %{{y:.2e}}",
+                ),
+                row=1,
+                col=1,
+            )
+
+            fig.update_xaxes(
+                title_text=f"Frequency ({frequency_units})",
+                range=[np.min(frequency_range), np.max(frequency_range)],
+                row=1,
+                col=1,
+            )
+            fig.update_yaxes(title_text=f" Magnitude ({amplitude_units})", row=1, col=1)
+
+            # Phase
+            fig.add_trace(
+                go.Scatter(
+                    x=frequency_range,
+                    y=phase_sensitivity,
+                    mode="lines",
+                    line=dict(color=list(tableau_colors)[color_index]),
+                    name=f"{amb_tag}<br>inp: node {inp_node} | dof: {inp_dof}<br>out: node {out_node} | dof: {out_dof}",
+                    legendgroup=f"{amb_tag}<br>inp: node {inp_node} | dof: {inp_dof}<br>out: node {out_node} | dof: {out_dof}",
+                    showlegend=False,
+                    hovertemplate=f"Frequency ({frequency_units}): %{{x:.2f}}<br>Phase ({amplitude_units}): %{{y:.2e}}",
+                ),
+                row=2,
+                col=1,
+            )
+
+            fig.update_xaxes(
+                title_text=f"Frequency ({frequency_units})",
+                range=[np.min(frequency_range), np.max(frequency_range)],
+                row=2,
+                col=1,
+            )
+            fig.update_yaxes(title_text=f" Phase ({phase_units})", row=2, col=1)
+            fig.update_layout(**fig_kwargs)
+
+            color_index += 1
+
+        return fig
+
+    @classmethod
+    def load(cls, file):
+        """Load results from a .toml file.
+
+        This function will load the frequency response results from a .toml file.
+        The file must have all the argument's names and values that are needed to
+        reinstantiate the class. This function is an override of the load method
+        defined in the Results(ABC) class.
+
+        Parameters
+        ----------
+        file : str, pathlib.Path
+            The name of the file the results will be loaded from.
+
+        Examples
+        --------
+        >>> from tempfile import tempdir
+        >>> from pathlib import Path
+        >>> import ross as rs
+        >>> rotor = rs.rotor_amb_example()
+        >>> speed = np.linspace(0, 1000, 11)
+        >>> compute_sensitivite_dofs = {"Bearing 0": {"inp": 9, "out": 9}}
+        >>> response = rotor.run_amb_sensitivity(speed_range=speed, compute_sensitivity_at=compute_sensitivite_dofs)
+        >>> file = Path(tempdir) / 'freq_resp.toml'
+        >>> response.save(file)
+        >>> results_load = rs.SensitivityResults.load(file)
+        """
+        str_type = [np.dtype(f"<U4{i}") for i in range(10)]
+
+        data = toml.load(file)
+        data = list(data.values())[0]
+
+        data["speed_range"] = np.array(data["speed_range"])
+
+        try:
+            for key, value in data["sensitivities"].items():
+                data["sensitivities"][key] = np.array(value)
+                if data["sensitivities"][key].dtype in str_type:
+                    data["sensitivities"][key] = np.array(value).astype(np.complex128)
+        except KeyError:
+            pass
+
+        return cls.read_toml_data(data)
+
+
 class FrequencyResponseResults(Results):
     """Class used to store results and provide plots for Frequency Response.
 
@@ -1855,12 +2091,6 @@ class FrequencyResponseResults(Results):
         Array with the speed range in rad/s.
     number_dof : int
         Number of degrees of freedom per node.
-    sensitivity_results : dict, optional
-        Results obtained from the magnetic bearing sensitivity computation. These results will only be generated if the
-        rotor model includes at least one magnetic bearing and the user has requested sensitivity computation.
-        The sensitivity_results parameter contains information about the computed sensitivities for each magnetic
-        bearing. This includes a list of the associated magnetic bearings, the maximum absolute sensitivity for each
-        bearing, and the individual sensitivity values for each bearing.
 
     Returns
     -------
@@ -1875,7 +2105,6 @@ class FrequencyResponseResults(Results):
         accl_resp,
         speed_range,
         number_dof,
-        sensitivity_results=None,
     ):
         self.freq_resp = freq_resp
         self.velc_resp = velc_resp
@@ -1887,9 +2116,6 @@ class FrequencyResponseResults(Results):
             self.dof_dict = {"0": "x", "1": "y", "2": "α", "3": "β"}
         elif self.number_dof == 6:
             self.dof_dict = {"0": "x", "1": "y", "2": "z", "3": "α", "4": "β", "5": "θ"}
-
-        if sensitivity_results is not None:
-            self.sensitivity_results = sensitivity_results
 
     def plot_magnitude(
         self,
@@ -2346,247 +2572,6 @@ class FrequencyResponseResults(Results):
         )
 
         return fig
-
-    def plot_sensitivity(
-        self,
-        frequency_units="rad/s",
-        amplitude_units="m/N",
-        phase_units="rad",
-        fig=None,
-        fig_kwargs=None,
-    ):
-        """Plot the sensitivity for each magnetic bearing.
-
-        This method plots the sensitivity as a function of frequency for each
-        magnetic bearing, based on the sensitivities computed during the
-        `run_freq_response` call.
-
-        Parameters
-        ----------
-        frequency_units : str, optional
-            Frequency units for the plots.
-            Default is "rad/s".
-        amplitude_units : str, optional
-            Units of the sensitivity function amplitude.
-            Default is "m/N".
-        phase_units : str, optional
-            Phase units for the plots.
-            Default is "rad".
-        fig : plotly.graph_objects.Figure, optional
-            Existing figure to add the plots.
-            Default is None.
-        fig_kwargs : optional
-            Additional key word arguments can be passed to change the plot layout only
-            (e.g. width=1000, height=800, ...). This kwargs override "mag_kwargs",
-            "phase_kwargs" and "polar_kwargs" dictionaries.
-            *See Plotly Python make_subplots Reference for more information.
-
-        Returns
-        -------
-        fig : plotly.graph_objects.Figure
-            A plotly figure with the sensitivity plots.
-
-        Raises
-        ------
-        AttributeError
-            If there are no magnetic bearings in the rotor or if the
-            `run_freq_response` method has not been called yet.
-
-        Examples
-        --------
-        >>> import ross as rs
-        >>> rotor = rs.amb_rotor_example()
-        >>> speed = np.linspace(0, 1000, 101)
-        >>> compute_sensitivite_dofs = {"Bearing 0": {"inp": 9, "out": 9}}
-        >>> response = rotor.run_freq_response(speed_range=speed, compute_sensitivity_at=compute_sensitivite_dofs)
-        >>> fig = response.plot_sensitivity()
-        """
-        try:
-            self.sensitivity_results
-        except AttributeError:
-            raise AttributeError(
-                "There are no magnetic bearings in the rotor, so it is not possible to compute sensitivity."
-            )
-
-        fig_kwargs = {} if fig_kwargs is None else copy.copy(fig_kwargs)
-
-        # Unit adjustment
-        frequency_range = Q_(self.speed_range, "rad/s").to(frequency_units).m
-
-        # Build sensitivity plots
-        if fig is None:
-            fig = make_subplots(rows=2, cols=1)
-
-        color_index = 0
-        for amb_tag in self.sensitivity_results["compute_sensitivity_at"].keys():
-            mag_sensitivity = [
-                abs(z) for z in self.sensitivity_results["sensitivities"][amb_tag]
-            ]
-            phase_sensitivity = [
-                cmath.phase(z)
-                for z in self.sensitivity_results["sensitivities"][amb_tag]
-            ]
-
-            inp_dof = self.sensitivity_results["compute_sensitivity_at"][amb_tag]["inp"]
-            out_dof = self.sensitivity_results["compute_sensitivity_at"][amb_tag]["out"]
-            inp_node = inp_dof // 4
-            out_node = out_dof // 4
-
-            # Unit adjustment
-            check_amplitude_units_temp_var = Q_(1, amplitude_units)
-            if check_amplitude_units_temp_var.check("[length]/[force]"):
-                mag_sensitivity = Q_(mag_sensitivity, "m/N").to(amplitude_units).m
-            else:
-                raise ValueError(
-                    "Unsupported unit. Please use a unit with dimensions of length per force (e.g., mm/N)."
-                )
-
-            phase_sensitivity = Q_(phase_sensitivity, "rad").to(phase_units).m
-
-            # Magnitude
-            fig.add_trace(
-                go.Scatter(
-                    x=frequency_range,
-                    y=mag_sensitivity,
-                    mode="lines",
-                    line=dict(color=list(tableau_colors)[color_index]),
-                    name=f"{amb_tag}<br>inp: node {inp_node} | dof: {inp_dof}<br>out: node {out_node} | dof: {out_dof}",
-                    legendgroup=f"{amb_tag}<br>inp: node {inp_node} | dof: {inp_dof}<br>out: node {out_node} | dof: {out_dof}",
-                    showlegend=True,
-                    hovertemplate=f"Frequency ({frequency_units}): %{{x:.2f}}<br>Amplitude ({amplitude_units}): %{{y:.2e}}",
-                ),
-                row=1,
-                col=1,
-            )
-
-            fig.update_xaxes(
-                title_text=f"Frequency ({frequency_units})",
-                range=[np.min(frequency_range), np.max(frequency_range)],
-                row=1,
-                col=1,
-            )
-            fig.update_yaxes(title_text=f" Magnitude ({amplitude_units})", row=1, col=1)
-
-            # Phase
-            fig.add_trace(
-                go.Scatter(
-                    x=frequency_range,
-                    y=phase_sensitivity,
-                    mode="lines",
-                    line=dict(color=list(tableau_colors)[color_index]),
-                    name=f"{amb_tag}<br>inp: node {inp_node} | dof: {inp_dof}<br>out: node {out_node} | dof: {out_dof}",
-                    legendgroup=f"{amb_tag}<br>inp: node {inp_node} | dof: {inp_dof}<br>out: node {out_node} | dof: {out_dof}",
-                    showlegend=False,
-                    hovertemplate=f"Frequency ({frequency_units}): %{{x:.2f}}<br>Phase ({amplitude_units}): %{{y:.2e}}",
-                ),
-                row=2,
-                col=1,
-            )
-
-            fig.update_xaxes(
-                title_text=f"Frequency ({frequency_units})",
-                range=[np.min(frequency_range), np.max(frequency_range)],
-                row=2,
-                col=1,
-            )
-            fig.update_yaxes(title_text=f" Phase ({phase_units})", row=2, col=1)
-            fig.update_layout(**fig_kwargs)
-
-            color_index += 1
-
-        return fig
-
-    def save(self, file):
-        """Save results in a .toml file.
-
-        This function will save the frequency response results to a .toml file.
-        The file will have all the argument's names and values that are needed to
-        reinstantiate the class. This function is an override of the save method
-        defined in the Results(ABC) class.
-
-        Parameters
-        ----------
-        file : str, pathlib.Path
-            The name of the file the results will be saved in.
-
-        Examples
-        --------
-        >>> from tempfile import tempdir
-        >>> from pathlib import Path
-        >>> import ross as rs
-        >>> rotor = rs.rotor_example()
-        >>> speed = np.linspace(0, 1000, 11)
-        >>> response = rotor.run_freq_response(speed_range=speed)
-        >>> file = Path(tempdir) / 'freq_resp.toml'
-        >>> response.save(file)
-        """
-        signature = inspect.signature(self.__init__)
-        args_list = list(signature.parameters)
-
-        if "sensitivity_results" not in dir(self):
-            args_list.remove("sensitivity_results")
-
-        args = {arg: getattr(self, arg) for arg in args_list}
-        try:
-            data = toml.load(file)
-        except FileNotFoundError:
-            data = {}
-
-        data[f"{self.__class__.__name__}"] = args
-
-        with open(file, "w") as f:
-            toml.dump(data, f, encoder=toml.TomlNumpyEncoder())
-
-    @classmethod
-    def load(cls, file):
-        """Load results from a .toml file.
-
-        This function will load the frequency response results from a .toml file.
-        The file must have all the argument's names and values that are needed to
-        reinstantiate the class. This function is an override of the load method
-        defined in the Results(ABC) class.
-
-        Parameters
-        ----------
-        file : str, pathlib.Path
-            The name of the file the results will be loaded from.
-
-        Examples
-        --------
-        >>> from tempfile import tempdir
-        >>> from pathlib import Path
-        >>> import ross as rs
-        >>> rotor = rs.rotor_example()
-        >>> speed = np.linspace(0, 1000, 11)
-        >>> response = rotor.run_freq_response(speed_range=speed)
-        >>> file = Path(tempdir) / 'freq_resp.toml'
-        >>> response.save(file)
-        >>> results_load = rs.FrequencyResponseResults.load(file)
-        """
-        str_type = [np.dtype(f"<U4{i}") for i in range(10)]
-
-        data = toml.load(file)
-        data = list(data.values())[0]
-
-        fields_to_convert = ["freq_resp", "velc_resp", "accl_resp", "speed_range"]
-
-        for field in fields_to_convert:
-            value = data[field]
-            data[field] = np.array(value)
-            if data[field].dtype in str_type:
-                data[field] = np.array(value).astype(np.complex128)
-
-        try:
-            for key, value in data["sensitivity_results"]["sensitivities"].items():
-                data["sensitivity_results"]["sensitivities"][key] = np.array(value)
-                if data["sensitivity_results"]["sensitivities"][key].dtype in str_type:
-                    data["sensitivity_results"]["sensitivities"][key] = np.array(
-                        value
-                    ).astype(np.complex128)
-        except KeyError:
-            pass
-
-        return cls.read_toml_data(data)
 
 
 class ForcedResponseResults(Results):

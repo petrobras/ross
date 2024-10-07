@@ -46,6 +46,7 @@ from ross.results import (
     SummaryResults,
     TimeResponseResults,
     UCSResults,
+    SensitivityResults,
 )
 from ross.shaft_element import ShaftElement, ShaftElement6DoF
 from ross.units import Q_, check_units
@@ -58,17 +59,104 @@ from ross.utils import (
 )
 
 __all__ = [
+    "compute_sensitivity",
     "Rotor",
     "CoAxialRotor",
     "rotor_example",
-    "amb_rotor_example",
     "compressor_example",
     "coaxrotor_example",
     "rotor_example_6dof",
+    "rotor_amb_example",
 ]
 
 # set Plotly palette of colors
 colors = px.colors.qualitative.Dark24
+
+
+def compute_sensitivity(speed_range, freq_resp, compute_sensitivity_at, ambs):
+    """This method computes the sensitivity associated with the magnetic bearings in the rotor.
+
+    Parameters
+    ----------
+    speed_range : array
+        Array with the frequencies at which the sensitivity is computed.
+    freq_resp : array
+        Frequency response of the rotor (FrequencyResponseResults.freq_resp).
+    compute_sensitivity_at : dict
+        Dictionary defining the input and output degrees of freedom (DOFs) for
+        sensitivity computation. The keys should be the tags of the magnetic bearings,
+        and the values should be dictionaries with "inp" and "out" keys indicating
+        the input and output DOFs.
+    ambs : dict
+        Dictionary of magnetic bearing elements associated with the rotor. The keys should be the tags of the
+        magnetic bearings, and the values should be the magnetic bearing elements.
+
+    Returns
+    -------
+    tuple
+        A tuple containing two dictionaries:
+
+        - max_abs_sensitivities: Dictionary containing the maximum absolute
+          sensitivity value for each magnetic bearing. The keys are the magnetic
+          bearing tags, and the values are the maximum sensitivity values.
+        - sensitivities: Dictionary containing the sensitivity values for each
+          magnetic bearing as a function of frequency. The keys are the magnetic
+          bearing tags, and the values are complex arrays representing the
+          sensitivity at each frequency point.
+
+    Examples
+    --------
+    >>> rotor = rotor_amb_example()
+    >>> compute_sensitivity_at = { "Bearing 0": {"inp": 27 * 4 + 1, "out": 12 * 4 + 1}, "Bearing 1": {"inp": 27 * 4 + 1, "out": 43 * 4 + 1} }
+    >>> ambs = { bearing.tag: bearing for bearing in rotor.bearing_elements }
+    >>> speed_range = np.linspace(0, 1000, 10)
+    >>> frequency_response_result = rotor.run_freq_response(speed_range)
+    >>> freq_resp = frequency_response_result.freq_resp
+    >>> max_abs_sensitivities, sensitivities = compute_sensitivity(speed_range, freq_resp, compute_sensitivity_at, ambs)
+    >>> max_abs_sensitivities # doctest: +ELLIPSIS
+    {'Bearing 0': 1.0003602...
+    >>> sensitivities # doctest: +ELLIPSIS
+    {'Bearing 0': array([1.0002301...
+    """
+    sensitivities = {}
+    max_abs_sensitivities = {}
+    for amb_tag in compute_sensitivity_at.keys():
+        amb = ambs[amb_tag]
+
+        # Get disturbance frequency response
+        freq_response_at_mma = freq_resp[
+            compute_sensitivity_at[amb_tag]["inp"],
+            compute_sensitivity_at[amb_tag]["out"],
+            :,
+        ]
+        mag_w = [abs(z) for z in freq_response_at_mma]
+        phase_w = [cmath.phase(z) for z in freq_response_at_mma]
+
+        # Controller frequency response computation
+        s = ct.tf("s")
+        c = amb.kp_pid + amb.kd_pid * s
+        mag_c, phase_c, _ = ct.frequency_response(c, speed_range)
+
+        # Close-loop frequency response computation
+        mag_t = mag_w * mag_c
+        phase_t = phase_w + phase_c
+
+        complex_t = [
+            complex(
+                mag_phase[0] * np.cos(mag_phase[1]),
+                mag_phase[0] * np.sin(mag_phase[1]),
+            )
+            for mag_phase in zip(mag_t, phase_t)
+        ]
+
+        # Sensitivity computation
+        complex_s = [1 - z for z in complex_t]
+        mag_s = [abs(z) for z in complex_s]
+
+        sensitivities[amb_tag] = np.array(complex_s)
+        max_abs_sensitivities[amb_tag] = np.max(mag_s)
+
+    return max_abs_sensitivities, sensitivities
 
 
 class Rotor(object):
@@ -1688,7 +1776,6 @@ class Rotor(object):
         num_modes=12,
         num_points=10,
         rtol=0.005,
-        compute_sensitivity_at=None,
     ):
         """Frequency response for a mdof system.
 
@@ -1707,10 +1794,6 @@ class Rotor(object):
         speed_range : array, optional
             Array with the desired range of frequencies.
             Default is 0 to 1.5 x highest damped natural frequency.
-        compute_sensitivity_at : dict, optional
-            A dictionary defining tags for the magnetic bearings to compute sensitivity for.
-            Each key should be a bearing tag, and the corresponding value should be a dictionary
-            defining the input and output degrees of freedom that determine the sensitivity computation.
         modes : list, optional
             Modes that will be used to calculate the frequency response
             (all modes will be used if a list is not given).
@@ -1782,20 +1865,6 @@ class Rotor(object):
 
         Plotting acceleration response
         >>> fig = response.plot(inp=13, out=13, amplitude_units="m/s**2/N")
-
-        Computing sensitivity when using Magnetic Bearings
-        Set the compute_sensitivity_at parameter to indicate which magnetic bearings require sensitivity computation.
-        Use the bearing tags to specify the bearings. Additionally, define the degrees of freedom to be considered for
-        both disturbance input and displacement measurement output during the sensitivity computation.
-
-        >>> rotor = rs.amb_rotor_example()
-        >>> compute_sensitivite_dofs = {"Bearing 0": {"inp": 9, "out": 9}}
-        >>> response = rotor.run_freq_response(speed_range=speed, compute_sensitivity_at=compute_sensitivite_dofs)
-        >>> response.sensitivity_results['max_abs_sensitivities'] # doctest: +ELLIPSIS
-        {'Bearing 0': 0.7863...
-
-        Plotting sensitivity response
-        >>> fig = response.plot_sensitivity()
         """
         if speed_range is None:
             if not cluster_points:
@@ -1818,77 +1887,77 @@ class Rotor(object):
             velc_resp[..., i] = 1j * speed * H
             accl_resp[..., i] = -(speed**2) * H
 
-        if compute_sensitivity_at is not None:
-            max_abs_sensitivities, sensitivities = self.compute_sensitivity(
-                speed_range, freq_resp, compute_sensitivity_at
-            )
-
-            sensitivity_results = {
-                "max_abs_sensitivities": max_abs_sensitivities,
-                "sensitivities": sensitivities,
-                "compute_sensitivity_at": compute_sensitivity_at,
-            }
-        else:
-            sensitivity_results = None
-
         results = FrequencyResponseResults(
             freq_resp=freq_resp,
             velc_resp=velc_resp,
             accl_resp=accl_resp,
             speed_range=speed_range,
             number_dof=self.number_dof,
-            sensitivity_results=sensitivity_results,
         )
 
         return results
 
-    def compute_sensitivity(self, speed_range, freq_resp, compute_sensitivity_at):
-        """Compute the sensitivity for specific magnetic bearings in the rotor.
+    def run_amb_sensitivity(
+        self, compute_sensitivity_at, frequency_response_result=None, speed_range=None
+    ):
+        """Compute the sensitivity for each magnetic bearing.
 
-        This method computes the sensitivity for each magnetic bearing whose tag is present
-        in the 'compute_sensitivity_at' dictionary, given the frequency response for a mdof system.
+        This method computes the sensitivity associated with the magnetic bearings in the rotor. The sensitivity is
+        calculated for each frequency point in the provided frequency response or speed range.
 
         Parameters
         ----------
-        speed_range : array
-            Array with the desired range of frequencies.
-        freq_resp : array
-            Array with the frequency response of the system.
         compute_sensitivity_at : dict
-            A dictionary defining tags for the magnetic bearings to compute sensitivity for.
-            Each key should be a bearing tag, and the corresponding value should be a dictionary
-            defining the input and output degrees of freedom that determine the sensitivity computation.
+            Dictionary defining the input and output degrees of freedom (DOFs) for
+            sensitivity computation. The keys should be the tags of the magnetic bearings,
+            and the values should be dictionaries with "inp" and "out" keys indicating
+            the input and output DOFs. For example:
+
+            >>> compute_sensitivity_at = {"Bearing 1": {"inp": 0, "out": 1}, "Bearing 2": {"inp": 3, "out": 2}}
+
+        frequency_response_result : ross.FrequencyResponseResults, optional
+            Pre-computed frequency response of the rotor. If not provided, the
+            method will calculate it using the `speed_range` parameter.
+        speed_range : array, optional
+            Array with the desired range of frequencies. If `frequency_response_result`
+            is not provided, the method will use this parameter to calculate the
+            frequency response.
 
         Returns
         -------
-        max_abs_sensitivities : dict
-            Dictionary containing the maximum absolute sensitivity for each magnetic bearing.
-        sensitivities : dict
-            Dictionary containing the sensitivity for each magnetic bearing.
+        results : ross.SensitivityResults
+            An instance of the `SensitivityResults` class containing the computed
+            sensitivities. For more information on attributes and methods, see:
+            :py:class:`ross.SensitivityResults`
 
         Raises
         ------
         AttributeError
-            If there are no magnetic bearings in the rotor.
+            If there are no magnetic bearings in the rotor model.
         KeyError
-            If no AMB is found associated with a given tag.
+            If an invalid magnetic bearing tag is provided.
+        RuntimeError
+            If neither `frequency_response_result` nor `speed_range` is provided.
 
         Examples
         --------
         >>> import ross as rs
-        >>> rotor = rs.amb_rotor_example()
-        >>> speed = np.linspace(0, 1000, 101)
-        >>> response = rotor.run_freq_response(speed_range=speed)
-        >>> compute_sensitivite_dofs = {"Bearing 0": {"inp": 9, "out": 9}}
-        >>> max_abs_sensitivities, sensitivities = rotor.compute_sensitivity(
-        ...     speed_range=speed,
-        ...     freq_resp=response.freq_resp,
-        ...     compute_sensitivity_at=compute_sensitivite_dofs,
-        ... )
-        >>> max_abs_sensitivities  # doctest: +ELLIPSIS
-        {'Bearing 0': 0.78637787...
+        >>> rotor = rs.rotor_amb_example()
+        >>> speed_range = np.linspace(0, 1000, 10)
+        >>> compute_sensitivity_at = {"Bearing 0": {"inp": 9, "out": 9}}
+        >>> response = rotor.run_freq_response(speed_range=speed_range)
+        >>> sensitivity_results = rotor.run_amb_sensitivity(compute_sensitivity_at, frequency_response_result=response)
+
+        You can also pass the speed range directly:
+
+        >>> sensitivity_results = rotor.run_amb_sensitivity(compute_sensitivity_at, speed_range=speed_range)
+
+        The `sensitivity_results` object can then be used to access the computed
+        sensitivities or plot them using the `plot()` method.
+
+        >>> fig = sensitivity_results.plot()
         """
-        # List of AMBs
+        # List AMBs associated with the rotor
         ambs = {}
         for bearing in self.bearing_elements:
             if isinstance(bearing, MagneticBearingElement):
@@ -1899,49 +1968,41 @@ class Rotor(object):
                 "There are no magnetic bearings in the rotor, so it is not possible to compute sensitivity."
             )
 
-        sensitivities = {}
-        max_abs_sensitivities = {}
+        # Check if the tags provided are valid
         for amb_tag in compute_sensitivity_at.keys():
-            # Get AMB data
             try:
-                amb = ambs[amb_tag]
+                ambs[amb_tag]
             except KeyError:
                 raise KeyError(f"No AMB found associated with tag {amb_tag}.")
 
-            # Get disturbance frequency response
-            freq_response_at_mma = freq_resp[
-                compute_sensitivity_at[amb_tag]["inp"],
-                compute_sensitivity_at[amb_tag]["out"],
-                :,
-            ]
-            mag_w = [abs(z) for z in freq_response_at_mma]
-            phase_w = [cmath.phase(z) for z in freq_response_at_mma]
-
-            # Controller frequency response computation
-            s = ct.tf("s")
-            c = amb.kp_pid + amb.kd_pid * s
-            mag_c, phase_c, _ = ct.frequency_response(c, speed_range)
-
-            # Close-loop frequency response computation
-            mag_t = mag_w * mag_c
-            phase_t = phase_w + phase_c
-
-            complex_t = [
-                complex(
-                    mag_phase[0] * np.cos(mag_phase[1]),
-                    mag_phase[0] * np.sin(mag_phase[1]),
+        # Getting the frequency response if necessary
+        if frequency_response_result is None:
+            if speed_range is not None:
+                frequency_response_result = self.run_freq_response(speed_range)
+            else:
+                raise RuntimeError(
+                    "In order for the sensitivity to be calculated, it is necessary to provide the "
+                    "frequency response (via the frequency_response_result parameter) or the speed "
+                    "range in which it should be computed (via the speed_range parameter)."
                 )
-                for mag_phase in zip(mag_t, phase_t)
-            ]
 
-            # Sensitivity computation
-            complex_s = [1 - z for z in complex_t]
-            mag_s = [abs(z) for z in complex_s]
+        # Computing sensitivity
+        freq_resp = frequency_response_result.freq_resp
+        speed_range = frequency_response_result.speed_range
 
-            sensitivities[amb_tag] = np.array(complex_s)
-            max_abs_sensitivities[amb_tag] = np.max(mag_s)
+        max_abs_sensitivities, sensitivities = compute_sensitivity(
+            speed_range, freq_resp, compute_sensitivity_at, ambs
+        )
 
-        return max_abs_sensitivities, sensitivities
+        results = SensitivityResults(
+            max_abs_sensitivities=max_abs_sensitivities,
+            sensitivities=sensitivities,
+            compute_sensitivity_at=compute_sensitivity_at,
+            speed_range=speed_range,
+            number_dof=self.number_dof,
+        )
+
+        return results
 
     def run_forced_response(
         self,
@@ -4438,85 +4499,6 @@ def rotor_example():
     return Rotor(shaft_elem, [disk0, disk1], [bearing0, bearing1])
 
 
-def amb_rotor_example():
-    """Creates an example rotor supported by a journal bearing and a magnetic bearing.
-
-    This function returns an instance of a simple rotor model. The model consists of ten shaft elements, one disk, one
-    simple bearing, and one magnetic bearing. It provides a basic model for writing doctests.
-
-    Returns
-    -------
-    An instance of a rotor object.
-
-    Examples
-    --------
-    >>> rotor = amb_rotor_example()
-    >>> modal = rotor.run_modal(speed=0)
-    >>> np.round(modal.wd[:4])
-    array([  0., 238., 238., 871.])
-    """
-    #  Rotor without damping with 6 shaft elements 2 disks and 2 bearings
-    i_d = 0  # Internal Diameter (m) - assuming solid shaft
-    o_d = 0.05  # External Diameter (m)
-    n = 10  # Number os elements in shaft
-    shaft_element_lengths = [0.1 for _ in range(n)]  # Lengths of the shaft elements
-
-    # Shaft definition
-    shaft_elem = [
-        ShaftElement(
-            l,
-            i_d,
-            o_d,
-            material=steel,
-            shear_effects=True,
-            rotary_inertia=True,
-            gyroscopic=True,
-        )
-        for l in shaft_element_lengths
-    ]
-
-    # Disk definition
-    disk = DiskElement.from_geometry(
-        n=5, material=steel, width=0.07, i_d=0.05, o_d=0.28
-    )
-
-    # Magnetic Bearing definition
-    g0 = 1e-3  # Air gap
-    i0 = 1.0  # Bias current
-    ag = 1e-4  # Pole area
-    nw = 200  # Winding turns
-    alpha = 0.392  # Half of the angle between two poles
-
-    # PID gains
-    kp_pid = 1000000  # Kp gain
-    kd_pid = 1000000  # Kd gain
-    k_amp = 1.0  # Power amplifier gain
-    k_sense = 1.0  # Sensor gain
-
-    # Magnetic bearing at node 2
-    bearing0 = MagneticBearingElement(
-        n=2,
-        g0=g0,
-        i0=i0,
-        ag=ag,
-        nw=nw,
-        alpha=alpha,
-        kp_pid=kp_pid,
-        ki_pid=0,
-        kd_pid=kd_pid,
-        k_amp=k_amp,
-        k_sense=k_sense,
-    )
-
-    # Simple (journal) bearing definition
-    kxx = 1e6  # Stiffness in x direction (N/m)
-    kyy = 1e6  # Stiffness in y direction (N/m)
-    cxx = 1e3  # Damping in x direction (N*s/m)
-    bearing1 = BearingElement(n=8, kxx=kxx, kyy=kyy, cxx=cxx)
-
-    return Rotor(shaft_elem, [disk], [bearing0, bearing1])
-
-
 def compressor_example():
     """Create a rotor as example.
 
@@ -4703,3 +4685,149 @@ def rotor_example_6dof():
     )
 
     return Rotor(shaft_elem, [disk0, disk1], [bearing0, bearing1])
+
+
+def rotor_amb_example():
+    r"""This function creates the model of a test rig rotor supported by magnetic bearings.
+    Details of the model can be found at doi.org/10.14393/ufu.di.2015.186.
+
+    Returns
+    -------
+    Rotor object.
+
+    """
+
+    from ross.materials import Material
+
+    steel_amb = Material(name="Steel", rho=7850, E=2e11, Poisson=0.3)
+
+    # Shaft elements:
+    # fmt: off
+    Li = [
+        0.0, 0.012, 0.032, 0.052, 0.072, 0.092, 0.112, 0.1208, 0.12724,
+        0.13475, 0.14049, 0.14689, 0.15299, 0.159170, 0.16535, 0.180350,
+        0.1905, 0.2063, 0.2221, 0.2379, 0.2537, 0.2695, 0.2853, 0.3011,
+        0.3169, 0.3327, 0.3363, 0.3485, 0.361, 0.3735, 0.3896, 0.4057,
+        0.4218, 0.4379, 0.454, 0.4701, 0.4862, 0.5023, 0.5184, 0.5345,
+        0.54465, 0.559650, 0.565830, 0.572010, 0.57811, 0.58451, 0.590250,
+        0.59776, 0.6042, 0.613, 0.633, 0.645,
+    ]
+    Li = [round(i, 4) for i in Li]
+    L = [Li[i + 1] - Li[i] for i in range(len(Li) - 1)]
+    i_d = [0.0 for i in L]
+    o_d1 = [0.0 for i in L]
+    o_d1[0] = 6.35
+    o_d1[1:5] = [32 for i in range(4)]
+    o_d1[5:14] = [34.8 for i in range(9)]
+    o_d1[14:16] = [1.2 * 49.9 for i in range(2)]
+    o_d1[16:27] = [19.05 for i in range(11)]
+    o_d1[27:29] = [0.8 * 49.9 for i in range(2)]
+    o_d1[29:39] = [19.05 for i in range(10)]
+    o_d1[39:41] = [1.2 * 49.9 for i in range(2)]
+    o_d1[41:49] = [34.8 for i in range(8)]
+    o_d1[49] = 34.8
+    o_d1[50] = 6.35
+    o_d = [i * 1e-3 for i in o_d1]
+
+    shaft_elements = [
+        ShaftElement(
+            L=l,
+            idl=idl,
+            odl=odl,
+            material=steel_amb,
+            shear_effects=True,
+            rotary_inertia=True,
+            gyroscopic=True,
+        )
+        for l, idl, odl in zip(L, i_d, o_d)
+    ]
+
+    # Disk elements:
+    n_list = [6, 7, 8, 9, 10, 11, 12, 13, 27, 29, 41, 42, 43, 44, 45, 46, 47, 48]
+    width = [
+        0.0088, 0.0064, 0.0075, 0.0057,
+        0.0064, 0.0061, 0.0062, 0.0062,
+        0.0124, 0.0124, 0.0062, 0.0062,
+        0.0061, 0.0064, 0.0057, 0.0075,
+        0.0064, 0.0088,
+    ]
+    o_disc = [
+        0.0249, 0.0249, 0.0249, 0.0249,
+        0.0249, 0.0249, 0.0249, 0.0249,
+        0.0600, 0.0600, 0.0249, 0.0249,
+        0.0249, 0.0249, 0.0249, 0.0249,
+        0.0249, 0.0249,
+    ]
+    i_disc = [
+        0.0139, 0.0139, 0.0139, 0.0139,
+        0.0139, 0.0139, 0.0139, 0.0139,
+        0.0200, 0.0200, 0.0139, 0.0139,
+        0.0139, 0.0139, 0.0139, 0.0139,
+        0.0139, 0.0139,
+    ]
+    # fmt: on
+    m_list = [
+        np.pi * 7850 * w * ((odisc) ** 2 - (idisc) ** 2)
+        for w, odisc, idisc in zip(width, o_disc, i_disc)
+    ]
+    Id_list = [
+        m / 12 * (3 * idisc**2 + 3 * odisc**2 + w**2)
+        for m, idisc, odisc, w in zip(m_list, i_disc, o_disc, width)
+    ]
+    Ip_list = [
+        m / 2 * (idisc**2 + odisc**2) for m, idisc, odisc in zip(m_list, i_disc, o_disc)
+    ]
+
+    disk_elements = [
+        DiskElement(
+            n=n,
+            m=m,
+            Id=Id,
+            Ip=Ip,
+        )
+        for n, m, Id, Ip in zip(n_list, m_list, Id_list, Ip_list)
+    ]
+
+    # Bearing elements:
+    n_list = [12, 43]
+    u0 = 4 * np.pi * 1e-7
+    n = 200
+    A = 1e-4
+    i0 = 1.0
+    s0 = 1e-3
+    alpha = 0.392
+    Kp = 2
+    Ki = 2
+    Kd = 2
+    k_amp = 1.0
+    k_sense = 1.0
+    bearing_elements = [
+        MagneticBearingElement(
+            n=n_list[0],
+            g0=s0,
+            i0=i0,
+            ag=A,
+            nw=n,
+            alpha=alpha,
+            k_amp=k_amp,
+            k_sense=k_sense,
+            kp_pid=Kp,
+            kd_pid=Kd,
+            ki_pid=Ki,
+        ),
+        MagneticBearingElement(
+            n=n_list[1],
+            g0=s0,
+            i0=i0,
+            ag=A,
+            nw=n,
+            alpha=alpha,
+            k_amp=k_amp,
+            k_sense=k_sense,
+            kp_pid=Kp,
+            kd_pid=Kd,
+            ki_pid=Ki,
+        ),
+    ]
+
+    return Rotor(shaft_elements, disk_elements, bearing_elements)

@@ -17,7 +17,7 @@ def rotor1():
 
 @pytest.fixture
 def rotor2():
-    return amb_rotor_example()
+    return rotor_amb_example()
 
 
 def test_save_load_campbell(rotor1):
@@ -70,7 +70,28 @@ def test_save_load_modal(rotor1):
     )
 
 
-def test_save_load_freqresponse(rotor1, rotor2):
+def test_save_load_sensitivityresponse(rotor2):
+    speed_range = np.linspace(0, 1000, 11)
+    compute_sensitivity_at = {"Bearing 0": {"inp": 9, "out": 9}}
+    response = rotor2.run_amb_sensitivity(
+        compute_sensitivity_at=compute_sensitivity_at, speed_range=speed_range
+    )
+
+    file_amb = Path(tempdir) / "frf_amb.toml"
+
+    response.save(file_amb)
+    response_load = SensitivityResults.load(file_amb)
+
+    assert response_load.compute_sensitivity_at == response.compute_sensitivity_at
+    assert response_load.max_abs_sensitivities == response.max_abs_sensitivities
+    assert response_load.number_dof == response.number_dof
+    assert np.all(
+        response_load.sensitivities["Bearing 0"] == response.sensitivities["Bearing 0"]
+    )
+    assert np.all(response_load.speed_range == response.speed_range)
+
+
+def test_save_load_freqresponse(rotor1):
     speed = np.linspace(0, 1000, 11)
     response = rotor1.run_freq_response(speed_range=speed)
 
@@ -82,34 +103,6 @@ def test_save_load_freqresponse(rotor1, rotor2):
     assert response2.speed_range.all() == response.speed_range.all()
     assert response2.velc_resp.all() == response.velc_resp.all()
     assert response2.accl_resp.all() == response.accl_resp.all()
-
-    # Evaluation of the case where the sensitivity is computed
-    compute_sensitivite_dofs = {"Bearing 0": {"inp": 9, "out": 9}}
-    response_amb = rotor2.run_freq_response(
-        speed_range=speed, compute_sensitivity_at=compute_sensitivite_dofs
-    )
-
-    file_amb = Path(tempdir) / "frf_amb.toml"
-
-    response_amb.save(file_amb)
-    response_amb_load = FrequencyResponseResults.load(file_amb)
-
-    assert response_amb_load.freq_resp.all() == response_amb.freq_resp.all()
-    assert response_amb_load.speed_range.all() == response_amb.speed_range.all()
-    assert response_amb_load.velc_resp.all() == response_amb.velc_resp.all()
-    assert response_amb_load.accl_resp.all() == response_amb.accl_resp.all()
-    assert (
-        response_amb_load.sensitivity_results["max_abs_sensitivities"]
-        == response_amb.sensitivity_results["max_abs_sensitivities"]
-    )
-    assert np.all(
-        response_amb_load.sensitivity_results["sensitivities"]["Bearing 0"]
-        == response_amb.sensitivity_results["sensitivities"]["Bearing 0"]
-    )
-    assert (
-        response_amb_load.sensitivity_results["compute_sensitivity_at"]
-        == response_amb.sensitivity_results["compute_sensitivity_at"]
-    )
 
 
 def test_save_load_unbalance_response(rotor1):
