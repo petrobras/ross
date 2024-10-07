@@ -15,6 +15,11 @@ def rotor1():
     return rotor_example()
 
 
+@pytest.fixture
+def rotor2():
+    return rotor_amb_example()
+
+
 def test_save_load_campbell(rotor1):
     speed = np.linspace(0, 1000, 51)
     response = rotor1.run_campbell(speed)
@@ -63,6 +68,27 @@ def test_save_load_modal(rotor1):
         np.array(response2.shaft_elements_length).all()
         == np.array(response.shaft_elements_length).all()
     )
+
+
+def test_save_load_sensitivityresponse(rotor2):
+    speed_range = np.linspace(0, 1000, 11)
+    compute_sensitivity_at = {"Bearing 0": {"inp": 9, "out": 9}}
+    response = rotor2.run_amb_sensitivity(
+        compute_sensitivity_at=compute_sensitivity_at, speed_range=speed_range
+    )
+
+    file_amb = Path(tempdir) / "frf_amb.toml"
+
+    response.save(file_amb)
+    response_load = SensitivityResults.load(file_amb)
+
+    assert response_load.compute_sensitivity_at == response.compute_sensitivity_at
+    assert response_load.max_abs_sensitivities == response.max_abs_sensitivities
+    assert response_load.number_dof == response.number_dof
+    assert np.all(
+        response_load.sensitivities["Bearing 0"] == response.sensitivities["Bearing 0"]
+    )
+    assert np.all(response_load.speed_range == response.speed_range)
 
 
 def test_save_load_freqresponse(rotor1):
