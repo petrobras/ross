@@ -1,4 +1,4 @@
-import inspect
+from inspect import signature
 from abc import ABC, abstractmethod
 from collections import namedtuple
 from pathlib import Path
@@ -42,8 +42,7 @@ class Element(ABC):
         >>> disk.save(file)
         """
         # get __init__ arguments
-        signature = inspect.signature(self.__init__)
-        args_list = list(signature.parameters)
+        args_list = list(signature(self.__init__).parameters)
         args = {arg: getattr(self, arg) for arg in args_list}
         try:
             data = toml.load(file)
@@ -85,7 +84,10 @@ class Element(ABC):
         >>> bearing1 == bearing1_loaded
         True
         """
-        return cls(**data)
+        args_list = set(signature(cls.__init__).parameters).intersection(data.keys())
+        required_data = {arg: data[arg] for arg in args_list}
+
+        return cls(**required_data)
 
     @classmethod
     def load(cls, file):

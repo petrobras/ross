@@ -27,6 +27,7 @@ from ross.bearing_seal_element import (
     MagneticBearingElement,
     RollerBearingElement,
     SealElement,
+    CylindricalBearing,
 )
 from ross.faults import Crack, MisalignmentFlex, MisalignmentRigid, Rubbing
 from ross.disk_element import DiskElement, DiskElement6DoF
