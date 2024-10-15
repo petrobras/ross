@@ -1400,6 +1400,12 @@ class ModalResults(Results):
         if title is None:
             title = ""
 
+        mode_type = (
+            f"whirl: {self.whirl_direction()[mode]}"
+            if shape.mode_type == "Lateral"
+            else f"{shape.mode_type} mode"
+        )
+
         fig.update_layout(
             scene=dict(
                 xaxis=dict(
@@ -1421,7 +1427,7 @@ class ModalResults(Results):
                     f"{title}<br>"
                     f"Mode {mode} | "
                     f"{frequency['speed']} {frequency_units} | "
-                    f"whirl: {self.whirl_direction()[mode]} | "
+                    f"{mode_type} | "
                     f"{frequency[frequency_type]} {frequency_units} | "
                     f"{damping_name} = {damping_value:.2f}"
                 ),
@@ -1508,15 +1514,19 @@ class ModalResults(Results):
         if title is None:
             title = ""
 
-        fig.update_xaxes(title_text=f"Rotor Length ({length_units})")
-        fig.update_yaxes(title_text="Relative Displacement")
+        mode_type = (
+            f"whirl: {self.whirl_direction()[mode]}"
+            if shape.mode_type == "Lateral"
+            else f"{shape.mode_type} mode"
+        )
+
         fig.update_layout(
             title=dict(
                 text=(
                     f"{title}<br>"
                     f"Mode {mode} | "
                     f"{frequency['speed']} {frequency_units} | "
-                    f"whirl: {self.whirl_direction()[mode]} | "
+                    f"{mode_type} | "
                     f"{frequency[frequency_type]} {frequency_units} | "
                     f"{damping_name} = {damping_value:.2f}"
                 ),
