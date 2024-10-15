@@ -789,45 +789,51 @@ class Shape(Results):
         if fig is None:
             fig = go.Figure()
 
-        if orientation == "major":
-            values = self.major_axis.copy()
-        elif orientation == "x":
-            values = xn
-        elif orientation == "y":
-            values = yn
+        if self.mode_type == "Torsional":
+            self._plot_torsional(plot_dimension=2, fig=fig, length_units=length_units)
+
         else:
-            raise ValueError(f"Invalid orientation {orientation}.")
 
-        fig.add_trace(
-            go.Scatter(
-                x=Q_(zn, "m").to(length_units).m,
-                y=values,
-                mode="lines",
-                line=dict(color=self.color),
-                name=f"{orientation}",
-                showlegend=False,
-                customdata=Q_(self.major_angle, "rad").to(phase_units).m,
-                hovertemplate=(
-                    f"Displacement: %{{y:.2f}}<br>"
-                    + f"Angle {phase_units}: %{{customdata:.2f}}"
+            if orientation == "major":
+                values = self.major_axis.copy()
+            elif orientation == "x":
+                values = xn
+            elif orientation == "y":
+                values = yn
+            else:
+                raise ValueError(f"Invalid orientation {orientation}.")
+
+            fig.add_trace(
+                go.Scatter(
+                    x=Q_(zn, "m").to(length_units).m,
+                    y=values,
+                    mode="lines",
+                    line=dict(color=self.color),
+                    name=f"{orientation}",
+                    showlegend=False,
+                    customdata=Q_(self.major_angle, "rad").to(phase_units).m,
+                    hovertemplate=(
+                        f"Displacement: %{{y:.2f}}<br>"
+                        + f"Angle {phase_units}: %{{customdata:.2f}}"
+                    ),
                 ),
-            ),
-        )
-
-        # plot center line
-        fig.add_trace(
-            go.Scatter(
-                x=nodes_pos,
-                y=np.zeros(len(nodes_pos)),
-                mode="lines",
-                line=dict(color="black", dash="dashdot"),
-                name="centerline",
-                hoverinfo="none",
-                showlegend=False,
             )
-        )
 
-        fig.update_xaxes(title_text=f"Rotor Length ({length_units})")
+            # plot center line
+            fig.add_trace(
+                go.Scatter(
+                    x=nodes_pos,
+                    y=np.zeros(len(nodes_pos)),
+                    mode="lines",
+                    line=dict(color="black", dash="dashdot"),
+                    name="centerline",
+                    hoverinfo="none",
+                    showlegend=False,
+                )
+            )
+
+            fig.update_xaxes(title_text=f"Rotor Length ({length_units})")
+            fig.update_yaxes(title_text="Relative Displacement")
 
         return fig
 
