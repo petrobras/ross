@@ -561,6 +561,202 @@ class Shape(Results):
 
         return fig
 
+    def _plot_torsional(self, plot_dimension=None, fig=None, length_units="m"):
+        if fig is None:
+            fig = go.Figure()
+
+        size = len(self.vector)
+        torsional_dofs = np.arange(5, size, self.number_dof)
+
+        theta = np.abs(self.vector[torsional_dofs]) * np.angle(
+            self.vector[torsional_dofs]
+        )
+        theta /= max(np.abs(theta))
+
+        nodes_pos = Q_(self.nodes_pos, "m").to(length_units).m
+
+        if plot_dimension == 2:
+            fig.add_traces(
+                data=[
+                    go.Scatter(
+                        x=nodes_pos,
+                        y=theta,
+                        mode="lines",
+                        line=dict(color=tableau_colors["purple"]),
+                        showlegend=False,
+                        hovertemplate=(f"Relative angle: %{{y:.2f }}<extra></extra>"),
+                    ),
+                    go.Scatter(
+                        x=nodes_pos,
+                        y=nodes_pos * 0,
+                        mode="lines",
+                        line=dict(color="black", dash="dashdot"),
+                        name="centerline",
+                        hoverinfo="none",
+                        showlegend=False,
+                    ),
+                ]
+            )
+
+            fig.update_yaxes(title_text="Relative Angle", range=[-1, 1])
+            fig.update_xaxes(title_text=f"Rotor Length ({length_units})")
+
+            return fig
+
+        theta_variation = np.linspace(1, 0, 5)
+        theta_variation = np.concatenate(
+            [
+                theta_variation,
+                -np.flip(theta_variation),
+                -theta_variation,
+                np.flip(theta_variation),
+            ]
+        )
+
+        xt = np.zeros((len(theta_variation), len(theta)))
+        yt = np.zeros((len(theta_variation), len(theta)))
+
+        for i, var in enumerate(theta_variation):
+            theta_i = theta * var
+            xt[i, :] = np.cos(theta_i)
+            yt[i, :] = np.sin(theta_i)
+
+        frames = []
+        initial_state = []
+        for i in range(len(theta_variation)):
+
+            node_data = []
+            xn = []
+            yn = []
+            zn = []
+            for n in range(len(nodes_pos)):
+                node_data.append(
+                    go.Scatter3d(
+                        x=[nodes_pos[n], nodes_pos[n]],
+                        y=[0, xt[i, n]],
+                        z=[0, yt[i, n]],
+                        mode="lines",
+                        line=dict(width=2, color=tableau_colors["purple"]),
+                        showlegend=False,
+                        name=f"Node {self.nodes[n]}",
+                        hovertemplate=(
+                            "Nodal position: %{x:.2f}<br>"
+                            + "X - Displacement: %{y:.2f}<br>"
+                            + "Y - Displacement: %{z:.2f}<br>"
+                            + f"Relative angle: {theta[n]:.2f}"
+                        ),
+                    )
+                )
+                xn.append(nodes_pos[n])
+                yn.append(xt[i, n])
+                zn.append(yt[i, n])
+
+            node_data.append(
+                go.Scatter3d(
+                    x=xn,
+                    y=yn,
+                    z=zn,
+                    mode="lines+markers",
+                    line=dict(width=2, color=tableau_colors["purple"]),
+                    marker=dict(size=2),
+                    showlegend=False,
+                    hoverinfo="none",
+                )
+            )
+
+            frames.append(go.Frame(data=node_data))
+
+            if i == 0:
+                initial_state = node_data
+
+        # Circles
+        angle = np.linspace(0, 2 * np.pi, 100)
+        radius = 0.65
+        circles = [
+            go.Scatter3d(
+                x=[nodes_pos[n]] * size,
+                y=radius * np.cos(angle),
+                z=radius * np.sin(angle),
+                mode="lines",
+                line=dict(color=tableau_colors["olive"], dash="dot"),
+                hoverinfo="none",
+                showlegend=False,
+            )
+            for n in range(len(nodes_pos))
+        ]
+
+        # Center line
+        min_pos = min(nodes_pos) - 0.1 * abs(min(nodes_pos))
+        max_pos = max(nodes_pos) + 0.1 * abs(max(nodes_pos))
+        center_line = [
+            go.Scatter3d(
+                x=[min_pos, max_pos],
+                y=[0, 0],
+                z=[0, 0],
+                mode="lines",
+                line=dict(color="black", dash="dashdot"),
+                hoverinfo="none",
+                showlegend=False,
+            ),
+        ]
+
+        fig.add_traces(data=[*initial_state, *circles, *center_line])
+
+        fig.update_layout(
+            scene=dict(
+                xaxis=dict(
+                    title=dict(text=f"Rotor Length ({length_units})"),
+                    autorange="reversed",
+                    nticks=5,
+                ),
+                yaxis=dict(title=dict(text="Relative Displacement"), range=[-1.5, 1.5]),
+                zaxis=dict(title=dict(text="Relative Displacement"), range=[-1.5, 1.5]),
+                aspectmode="manual",
+                aspectratio=dict(x=2.5, y=1, z=1),
+            )
+        )
+
+        if plot_dimension == 3:
+            return fig
+
+        fig.update(
+            layout=dict(
+                updatemenus=[
+                    dict(
+                        type="buttons",
+                        buttons=[
+                            {
+                                "args": [
+                                    None,
+                                    {
+                                        "frame": {"duration": 0.1, "redraw": True},
+                                        "fromcurrent": True,
+                                        "mode": "immediate",
+                                    },
+                                ],
+                                "label": "Play",
+                                "method": "animate",
+                            },
+                            {
+                                "args": [
+                                    [None],
+                                    {
+                                        "frame": {"duration": 0, "redraw": False},
+                                        "mode": "immediate",
+                                    },
+                                ],
+                                "label": "Pause",
+                                "method": "animate",
+                            },
+                        ],
+                    )
+                ]
+            ),
+            frames=frames,
+        )
+
+        return fig
+
     def plot_2d(
         self, orientation="major", length_units="m", phase_units="rad", fig=None
     ):
