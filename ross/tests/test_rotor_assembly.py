@@ -1835,11 +1835,11 @@ def rotor_6dof():
 
 def test_modal_6dof(rotor_6dof):
     modal = rotor_6dof.run_modal(speed=0, sparse=False)
-    wn = np.array([0.0, 47.62138, 91.79647, 96.28891, 274.56591, 296.5005])
-    wd = np.array([0.01079, 47.62156, 91.79656, 96.289, 274.56607, 296.50068])
+    wn = np.array([47.62138, 91.79647, 96.28891, 274.56591, 296.5005])
+    wd = np.array([47.62156, 91.79656, 96.289, 274.56607, 296.50068])
 
-    assert_almost_equal(modal.wn[:6], wn, decimal=2)
-    assert_almost_equal(modal.wd[:6], wd, decimal=2)
+    assert_almost_equal(modal.wn[:5], wn, decimal=2)
+    assert_almost_equal(modal.wd[:5], wd, decimal=2)
 
 
 @pytest.fixture
