@@ -3025,7 +3025,7 @@ class THDCylindrical(BearingElement):
         ----------
         axial_element_index : int, optional
             Show pressure distribution on bearing for the respective axial element.
-            Default is 0 (first axial element).
+            Default is the element closest to the middle of the bearing.
         fig : Plotly graph_objects.Figure()
             The figure object with the plot.
         kwargs : optional
