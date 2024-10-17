@@ -55,8 +55,7 @@ EXTRAS = {
         "linkify-it-py",
         "numpydoc",
         "sphinxcontrib-bibtex>=2.2",
-        "black",
-        "isort",
+        "ruff",
         "sphinx-design",
     ]
 }

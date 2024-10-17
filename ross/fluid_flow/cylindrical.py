@@ -7,6 +7,9 @@ from ross.units import Q_, check_units
 from scipy.optimize import curve_fit, minimize
 from ross.fluid_flow.lubricants import lubricants_dict
 
+from plotly import graph_objects as go
+from plotly import figure_factory as ff
+
 
 class THDCylindrical(BearingElement):
     """This class calculates the pressure and temperature field in oil film of
@@ -2943,6 +2946,76 @@ class THDCylindrical(BearingElement):
         Ss = S
 
         return Ss
+
+    def plot_bearing_representation(self, fig=None, rotation=90, **kwargs):
+        """Plot the bearing representation.
+
+        Parameters
+        ----------
+        rotation: float
+            The default it is 90 degrees.
+        subplots : Plotly graph_objects.make_subplots()
+            The figure object with the plot.
+        kwargs : optional
+            Additional key word arguments can be passed to change the plot layout only
+            (e.g. plot_bgcolor="white", ...).
+            *See Plotly Python make_subplot Reference for more information.
+
+        Returns
+        -------
+            The figure object with the plot.
+        """
+        if fig is None:
+            fig = go.Figure()
+
+        groove = (360 / self.n_pad) - self.betha_s_dg
+        hG = groove / 2
+
+        pads = [hG, self.betha_s_dg, hG] * self.n_pad
+        colors = ["#F5F5DC", "#929591", "#F5F5DC"] * self.n_pad
+
+        fig = go.Figure(data=[go.Pie(values=pads, hole=0.85)])
+        fig.update_traces(
+            sort=False,
+            hoverinfo="label",
+            textinfo="none",
+            marker=dict(colors=colors, line=dict(color="#FFFFFF", width=20)),
+            rotation=rotation,
+        )
+
+        fig.add_annotation(
+            x=self.load_x_direction,
+            y=self.load_y_direction,
+            ax=0,
+            ay=0,
+            xref="x",
+            yref="y",
+            axref="x",
+            ayref="y",
+            showarrow=True,
+            arrowhead=3,  # style arrow
+            arrowsize=2.5,
+            arrowwidth=3,
+            arrowcolor="green",
+        )
+
+        fig.update_layout(
+            showlegend=False,
+            xaxis=dict(
+                showgrid=False,
+                zeroline=False,
+                showticklabels=False,
+            ),
+            yaxis=dict(
+                showgrid=False,
+                zeroline=False,
+                showticklabels=False,
+            ),
+            **kwargs,
+        )
+        fig.update_xaxes(showline=False)
+        fig.update_yaxes(showline=False)
+        return fig
 
 
 def cylindrical_bearing_example():
