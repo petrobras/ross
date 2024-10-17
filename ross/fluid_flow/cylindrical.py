@@ -5,7 +5,7 @@ from numpy.linalg import pinv
 from ross.bearing_seal_element import BearingElement
 from ross.units import Q_, check_units
 from scipy.optimize import curve_fit, minimize
-from ross.fluid_flow.lubricants import lubricant_dict
+from ross.fluid_flow.lubricants import lubricants_dict
 
 from plotly import graph_objects as go
 from plotly import figure_factory as ff
@@ -233,15 +233,15 @@ class THDCylindrical(BearingElement):
 
         self.oil_flow = self.oil_flow / 60000
 
-        lubricant_properties = lubricant_dict[self.lubricant]
+        lubricant_properties = lubricants_dict[self.lubricant]
 
-        T_muI = Q_(lubricant_properties["temp1"], "degK").m_as("degC")
-        T_muF = Q_(lubricant_properties["temp2"], "degK").m_as("degC")
-        mu_I = lubricant_properties["viscosity1"]
-        mu_F = lubricant_properties["viscosity2"]
-        self.rho = lubricant_properties["lube_density"]
-        self.Cp = lubricant_properties["lube_cp"]
-        self.k_t = lubricant_properties["lube_conduct"]
+        T_muI = Q_(lubricant_properties["temperature1"], "degK").m_as("degC")
+        T_muF = Q_(lubricant_properties["temperature2"], "degK").m_as("degC")
+        mu_I = lubricant_properties["liquid_viscosity1"]
+        mu_F = lubricant_properties["liquid_viscosity2"]
+        self.rho = lubricant_properties["liquid_density"]
+        self.Cp = lubricant_properties["liquid_specific_heat"]
+        self.k_t = lubricant_properties["liquid_thermal_conductivity"]
 
         # Interpolation coefficients
         self.a, self.b = self._interpol(T_muI, T_muF, mu_I, mu_F)
