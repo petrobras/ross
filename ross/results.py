@@ -432,6 +432,11 @@ class Shape(Results):
 
             nonzero_dofs = np.nonzero(np.abs(self.vector).round(6))[0]
 
+            if np.isin(axial_dofs, nonzero_dofs).all():
+                self.mode_type += "-Axial"
+            if np.isin(torsional_dofs, nonzero_dofs).all():
+                self.mode_type += "-Torsional"
+
             if np.isin(nonzero_dofs, axial_dofs).all():
                 self.mode_type = "Axial"
             elif np.isin(nonzero_dofs, torsional_dofs).all():
@@ -603,13 +608,12 @@ class Shape(Results):
 
             return fig
 
-        theta_variation = np.linspace(1, 0, 5)
         theta_variation = np.concatenate(
             [
-                theta_variation,
-                -np.flip(theta_variation),
-                -theta_variation,
-                np.flip(theta_variation),
+                np.linspace(1, 0, 5),
+                np.linspace(0, -1, 5),
+                np.linspace(-1, 0, 5),
+                np.linspace(0, 1, 5),
             ]
         )
 
