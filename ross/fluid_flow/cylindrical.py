@@ -3018,7 +3018,7 @@ class THDCylindrical(BearingElement):
         fig.update_yaxes(showline=False)
         return fig
 
-    def plot_pressure_distribution(self, axial_element_index=0, fig=None, **kwargs):
+    def plot_pressure_distribution(self, axial_element_index=None, fig=None, **kwargs):
         """Plot pressure distribution.
 
         Parameters
@@ -3041,6 +3041,9 @@ class THDCylindrical(BearingElement):
 
         if fig is None:
             fig = go.Figure()
+
+        if axial_element_index is None:
+            axial_element_index = self.elements_axial // 2
 
         n_elements = self.elements_circumferential
 
