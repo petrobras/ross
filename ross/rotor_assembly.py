@@ -373,8 +373,6 @@ class Rotor(object):
         Ip_dsk = np.sum([disk.Ip for disk in self.disk_elements])
         self.Ip = Ip_sh + Ip_dsk
 
-        self._v0 = None  # used to call eigs
-
         # number of dofs
         half_ndof = self.number_dof / 2
         self.ndof = int(
@@ -739,7 +737,7 @@ class Rotor(object):
         sparse : bool, optional
             If True, ARPACK is used to calculate a desired number (according to
             num_modes) or eigenvalues and eigenvectors.
-            If False, scipy.linalg.eig() is used to calculate all the eigenvalues and
+            If False, `scipy.linalg.eig()` is used to calculate all the eigenvalues and
             eigenvectors.
             Default is True.
         synchronous : bool, optional
@@ -1400,7 +1398,7 @@ class Rotor(object):
         positive = [i for i in ind[len(a) // 2 :]]
         negative = [i for i in ind[: len(a) // 2]]
 
-        idx = np.array([positive, negative]).flatten()
+        idx = np.array([*positive, *negative])
 
         return idx
 
@@ -1412,7 +1410,7 @@ class Rotor(object):
         frequency=None,
         sorted_=True,
         A=None,
-        sparse=True,
+        sparse=None,
         synchronous=False,
     ):
         """Calculate eigenvalues and eigenvectors.
@@ -1436,14 +1434,16 @@ class Rotor(object):
         frequency: float, pint.Quantity
             Excitation frequency. Default units is rad/s.
         sorted_ : bool, optional
-            Sort considering the imaginary part (wd)
-            Default is True
+            Sort considering the imaginary part (wd).
+            Default is True.
         A : np.array, optional
             Matrix for which eig will be calculated.
             Defaul is the rotor A matrix.
         sparse : bool, optional
-            If sparse, eigenvalues will be calculated with arpack.
-            Default is True.
+            If True, eigenvalues are computed using ARPACK. If False, they are
+            computed with `scipy.linalg.eig()`. When sparse is False, eigenvalues
+            are filtered to exclude rigid body modes. If sparse is None, no filtering
+            is applied. Default is None.
         synchronous : bool, optional
             If True a synchronous analysis is carried out.
             Default is False.
@@ -1465,44 +1465,42 @@ class Rotor(object):
         if A is None:
             A = self.A(speed=speed, frequency=frequency, synchronous=synchronous)
 
+        filter_eigenpairs = lambda values, vectors, indices: (
+            values[indices],
+            vectors[:, indices],
+        )
+
         if synchronous:
             evalues, evectors = la.eig(A)
+
             idx = np.where(np.imag(evalues) != 0)[0]
-            evalues = evalues[idx]
-            evectors = evectors[:, idx]
+            evalues, evectors = filter_eigenpairs(evalues, evectors, idx)
             idx = np.where(np.abs(np.real(evalues) / np.imag(evalues)) < 1000)[0]
-            evalues = evalues[idx]
-            evectors = evectors[:, idx]
+            evalues, evectors = filter_eigenpairs(evalues, evectors, idx)
         else:
-            if sparse is True:
+            if sparse:
                 try:
                     evalues, evectors = las.eigs(
                         A,
-                        k=2 * num_modes,
+                        k=min(2 * num_modes, max(num_modes, A.shape[0] - 2)),
                         sigma=1,
-                        ncv=4 * num_modes,
                         which="LM",
-                        v0=self._v0,
+                        v0=np.ones(A.shape[0]),
                     )
-                    # store v0 as a linear combination of the previously
-                    # calculated eigenvectors to use in the next call to eigs
-                    self._v0 = np.real(sum(evectors.T))
-
-                    # Disregard rigid body modes:
-                    idx = np.where(np.abs(evalues) > 0.1)[0]
-                    evalues = evalues[idx]
-                    evectors = evectors[:, idx]
                 except las.ArpackError:
                     evalues, evectors = la.eig(A)
             else:
                 evalues, evectors = la.eig(A)
 
-        if sorted_ is False:
-            return evalues, evectors
+            if sparse is not None:
+                idx = np.where((np.imag(evalues) != 0) & (np.abs(evalues) > 0.1))[0]
+                evalues, evectors = filter_eigenpairs(evalues, evectors, idx)
 
-        idx = self._index(evalues)
+        if sorted_:
+            idx = self._index(evalues)
+            evalues, evectors = filter_eigenpairs(evalues, evectors, idx)
 
-        return evalues[idx], evectors[:, idx]
+        return evalues, evectors
 
     def _lti(self, speed, frequency=None):
         """Continuous-time linear time invariant system.
@@ -1653,8 +1651,7 @@ class Rotor(object):
 
         # calculate eigenvalues and eigenvectors using la.eig to get
         # left and right eigenvectors.
-
-        evals, psi = self._eigen(speed=speed, frequency=frequency, sparse=False)
+        evals, psi = self._eigen(speed=speed, frequency=frequency)
 
         psi_inv = la.inv(psi)
 
@@ -2002,8 +1999,8 @@ class Rotor(object):
             Unbalance magnitude (kg.m).
         unbalance_phase : list, float, pint.Quantity
             Unbalance phase (rad).
-        frequency : list, float, pint.Quantity
-            Array with the desired range of frequencies (rad/s).
+        frequency : list, pint.Quantity
+            List with the desired range of frequencies (rad/s).
         modes : list, optional
             Modes that will be used to calculate the frequency response
             (all modes will be used if a list is not given).
@@ -4016,8 +4013,6 @@ class CoAxialRotor(Rotor):
         Ip_sh = np.sum([sh.Im for sh in self.shaft_elements])
         Ip_dsk = np.sum([disk.Ip for disk in self.disk_elements])
         self.Ip = Ip_sh + Ip_dsk
-
-        self._v0 = None  # used to call eigs
 
         # number of dofs
         self.ndof = int(
