@@ -277,7 +277,7 @@ class Orbit(Results):
         # kappa encodes the relation between the axis and the precession.
         minor = np.sqrt(lam.min())
         major = np.sqrt(lam.max())
-        kappa = minor / major
+
         diff = nv - nu
 
         # we need to evaluate if 0 < nv - nu < pi.
@@ -289,10 +289,11 @@ class Orbit(Results):
         # if nv = nu or nv = nu + pi then the response is a straight line.
         if diff == 0 or diff == np.pi:
             kappa = 0
-
         # if 0 < nv - nu < pi, then a backward rotating mode exists.
         elif 0 < diff < np.pi:
-            kappa *= -1
+            kappa = -minor / major
+        else:
+            kappa = minor / major
 
         self.minor_axis = np.real(minor)
         self.major_axis = np.real(major)
@@ -892,7 +893,6 @@ class ModalResults(Results):
         self.number_dof = number_dof
         self.modes = self.evectors[: self.ndof]
         self.shapes = []
-        kappa_modes = []
         for mode in range(len(self.wn)):
             self.shapes.append(
                 Shape(
@@ -904,42 +904,6 @@ class ModalResults(Results):
                     number_dof=self.number_dof,
                 )
             )
-            kappa_color = []
-            kappa_mode = self.kappa_mode(mode)
-            for kappa in kappa_mode:
-                kappa_color.append("blue" if kappa > 0 else "red")
-            kappa_modes.append(kappa_color)
-        self.kappa_modes = kappa_modes
-
-    @staticmethod
-    def whirl(kappa_mode):
-        """Evaluate the whirl of a mode.
-
-        Parameters
-        ----------
-        kappa_mode : list
-            A list with the value of kappa for each node related
-            to the mode/natural frequency of interest.
-
-        Returns
-        -------
-        whirldir : str
-            A string indicating the direction of precession related to the
-            kappa_mode.
-
-        Example
-        -------
-        >>> kappa_mode = [-5.06e-13, -3.09e-13, -2.91e-13, 0.011, -4.03e-13, -2.72e-13, -2.72e-13]
-        >>> ModalResults.whirl(kappa_mode)
-        'Forward'
-        """
-        if all(kappa >= -1e-3 for kappa in kappa_mode):
-            whirldir = "Forward"
-        elif all(kappa <= 1e-3 for kappa in kappa_mode):
-            whirldir = "Backward"
-        else:
-            whirldir = "Mixed"
-        return whirldir
 
     @staticmethod
     @np.vectorize
@@ -1048,11 +1012,10 @@ class ModalResults(Results):
         -------
         whirl_w : array
             An array of strings indicating the direction of precession related
-            to the kappa_mode. Backward, Mixed or Forward depending on values
-            of kappa_mode.
+            to the mode shape. Backward, Mixed or Forward.
         """
         # whirl direction/values are methods because they are expensive.
-        whirl_w = [self.whirl(self.kappa_mode(wd)) for wd in range(len(self.wd))]
+        whirl_w = [self.shapes[wd].whirl for wd in range(len(self.wd))]
 
         return np.array(whirl_w)
 
@@ -1211,7 +1174,7 @@ class ModalResults(Results):
                     f"{title}<br>"
                     f"Mode {mode} | "
                     f"{frequency['speed']} {frequency_units} | "
-                    f"whirl: {self.whirl_direction()[mode]} | "
+                    f"whirl: {shape.whirl} | "
                     f"{frequency[frequency_type]} {frequency_units} | "
                     f"{damping_name} = {damping_value:.2f}"
                 ),
@@ -1306,7 +1269,7 @@ class ModalResults(Results):
                     f"{title}<br>"
                     f"Mode {mode} | "
                     f"{frequency['speed']} {frequency_units} | "
-                    f"whirl: {self.whirl_direction()[mode]} | "
+                    f"whirl: {shape.whirl} | "
                     f"{frequency[frequency_type]} {frequency_units} | "
                     f"{damping_name} = {damping_value:.2f}"
                 ),
