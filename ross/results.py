@@ -566,7 +566,9 @@ class Shape(Results):
 
         return fig
 
-    def _plot_torsional(self, plot_dimension=None, fig=None, length_units="m"):
+    def _plot_torsional(
+        self, plot_dimension=None, animation=False, length_units="m", fig=None
+    ):
         if fig is None:
             fig = go.Figure()
 
@@ -580,14 +582,17 @@ class Shape(Results):
 
         nodes_pos = Q_(self.nodes_pos, "m").to(length_units).m
 
+        color = "cyan"
+
         if plot_dimension == 2:
+            # Plot 2d
             fig.add_traces(
                 data=[
                     go.Scatter(
                         x=nodes_pos,
                         y=theta,
                         mode="lines",
-                        line=dict(color=tableau_colors["purple"]),
+                        line=dict(color=tableau_colors[color]),
                         showlegend=False,
                         hovertemplate=(f"Relative angle: %{{y:.2f }}<extra></extra>"),
                     ),
@@ -608,7 +613,8 @@ class Shape(Results):
 
             return fig
 
-        theta_variation = np.concatenate(
+        # Plot 3d
+        variation = np.concatenate(
             [
                 np.linspace(1, 0, 5),
                 np.linspace(0, -1, 5),
@@ -617,17 +623,17 @@ class Shape(Results):
             ]
         )
 
-        xt = np.zeros((len(theta_variation), len(theta)))
-        yt = np.zeros((len(theta_variation), len(theta)))
+        xt = np.zeros((len(variation), len(theta)))
+        yt = np.zeros((len(variation), len(theta)))
 
-        for i, var in enumerate(theta_variation):
+        for i, var in enumerate(variation):
             theta_i = theta * var
             xt[i, :] = np.cos(theta_i)
             yt[i, :] = np.sin(theta_i)
 
         frames = []
         initial_state = []
-        for i in range(len(theta_variation)):
+        for i in range(len(variation)):
 
             node_data = []
             xn = []
@@ -640,7 +646,7 @@ class Shape(Results):
                         y=[0, xt[i, n]],
                         z=[0, yt[i, n]],
                         mode="lines",
-                        line=dict(width=2, color=tableau_colors["purple"]),
+                        line=dict(width=2, color=tableau_colors[color]),
                         showlegend=False,
                         name=f"Node {self.nodes[n]}",
                         hovertemplate=(
@@ -661,8 +667,8 @@ class Shape(Results):
                     y=yn,
                     z=zn,
                     mode="lines+markers",
-                    line=dict(width=2, color=tableau_colors["purple"]),
-                    marker=dict(size=2),
+                    line=dict(width=2, color=tableau_colors[color]),
+                    marker=dict(size=3),
                     showlegend=False,
                     hoverinfo="none",
                 )
@@ -673,25 +679,9 @@ class Shape(Results):
             if i == 0:
                 initial_state = node_data
 
-        # Circles
-        angle = np.linspace(0, 2 * np.pi, 100)
-        radius = 0.65
-        circles = [
-            go.Scatter3d(
-                x=[nodes_pos[n]] * size,
-                y=radius * np.cos(angle),
-                z=radius * np.sin(angle),
-                mode="lines",
-                line=dict(color=tableau_colors["olive"], dash="dot"),
-                hoverinfo="none",
-                showlegend=False,
-            )
-            for n in range(len(nodes_pos))
-        ]
-
         # Center line
-        min_pos = min(nodes_pos) - 0.1 * abs(min(nodes_pos))
-        max_pos = max(nodes_pos) + 0.1 * abs(max(nodes_pos))
+        min_pos = min(nodes_pos) - 0.15 * abs(max(nodes_pos) - min(nodes_pos))
+        max_pos = max(nodes_pos) + 0.15 * abs(max(nodes_pos) - min(nodes_pos))
         center_line = [
             go.Scatter3d(
                 x=[min_pos, max_pos],
@@ -704,23 +694,9 @@ class Shape(Results):
             ),
         ]
 
-        fig.add_traces(data=[*initial_state, *circles, *center_line])
+        fig.add_traces(data=[*initial_state, *center_line])
 
-        fig.update_layout(
-            scene=dict(
-                xaxis=dict(
-                    title=dict(text=f"Rotor Length ({length_units})"),
-                    autorange="reversed",
-                    nticks=5,
-                ),
-                yaxis=dict(title=dict(text="Relative Displacement"), range=[-1.5, 1.5]),
-                zaxis=dict(title=dict(text="Relative Displacement"), range=[-1.5, 1.5]),
-                aspectmode="manual",
-                aspectratio=dict(x=2.5, y=1, z=1),
-            )
-        )
-
-        if plot_dimension == 3:
+        if plot_dimension == 3 and animation == False:
             return fig
 
         fig.update(
@@ -729,30 +705,31 @@ class Shape(Results):
                     dict(
                         type="buttons",
                         buttons=[
-                            {
-                                "args": [
+                            dict(
+                                args=[
                                     None,
-                                    {
-                                        "frame": {"duration": 0.1, "redraw": True},
-                                        "fromcurrent": True,
-                                        "mode": "immediate",
-                                    },
+                                    dict(
+                                        frame=dict(duration=50, redraw=True),
+                                        mode="immediate",
+                                    ),
                                 ],
-                                "label": "Play",
-                                "method": "animate",
-                            },
-                            {
-                                "args": [
+                                label="Play",
+                                method="animate",
+                            ),
+                            dict(
+                                args=[
                                     [None],
-                                    {
-                                        "frame": {"duration": 0, "redraw": False},
-                                        "mode": "immediate",
-                                    },
+                                    dict(
+                                        frame=dict(duration=0, redraw=False),
+                                        mode="immediate",
+                                    ),
                                 ],
-                                "label": "Pause",
-                                "method": "animate",
-                            },
+                                label="Pause",
+                                method="animate",
+                            ),
                         ],
+                        x=0.05,
+                        y=0.25,
                     )
                 ]
             ),
@@ -794,7 +771,7 @@ class Shape(Results):
             fig = go.Figure()
 
         if self.mode_type == "Torsional":
-            self._plot_torsional(plot_dimension=2, fig=fig, length_units=length_units)
+            self._plot_torsional(plot_dimension=2, length_units=length_units, fig=fig)
 
         else:
 
@@ -848,6 +825,7 @@ class Shape(Results):
         title=None,
         length_units="m",
         phase_units="rad",
+        animation=False,
         fig=None,
         **kwargs,
     ):
@@ -856,7 +834,10 @@ class Shape(Results):
 
         if self.mode_type == "Torsional":
             fig = self._plot_torsional(
-                plot_dimension=3, fig=fig, length_units=length_units
+                plot_dimension=3,
+                animation=animation,
+                length_units=length_units,
+                fig=fig,
             )
 
         else:
@@ -974,14 +955,6 @@ class Shape(Results):
                     legendgroup="major_axis",
                     showlegend=False,
                 )
-            )
-
-            fig.update_layout(
-                legend=dict(itemsizing="constant"),
-                scene=dict(
-                    aspectmode="manual",
-                    aspectratio=dict(x=2.5, y=1, z=1),
-                ),
             )
 
         return fig
@@ -1338,6 +1311,7 @@ class ModalResults(Results):
         phase_units="rad",
         frequency_units="rad/s",
         damping_parameter="log_dec",
+        animation=False,
         fig=None,
         **kwargs,
     ):
@@ -1368,6 +1342,9 @@ class ModalResults(Results):
         damping_parameter : str, optional
             Define which value to show for damping. We can use "log_dec" or "damping_ratio".
             Default is "log_dec".
+        animation : boolean, optional
+            Plot with animation.
+            Default is False.
         fig : Plotly graph_objects.Figure()
             The figure object with the plot.
         kwargs : optional
@@ -1399,7 +1376,12 @@ class ModalResults(Results):
         }
 
         shape = self.shapes[mode]
-        fig = shape.plot_3d(length_units=length_units, phase_units=phase_units, fig=fig)
+        fig = shape.plot_3d(
+            length_units=length_units,
+            phase_units=phase_units,
+            animation=animation,
+            fig=fig,
+        )
 
         if title is None:
             title = ""
@@ -1411,6 +1393,7 @@ class ModalResults(Results):
         )
 
         fig.update_layout(
+            margin=dict(b=60, l=40, r=40, t=60),
             scene=dict(
                 xaxis=dict(
                     title=dict(text=f"Rotor Length ({length_units})"),
@@ -1425,7 +1408,13 @@ class ModalResults(Results):
                 ),
                 aspectmode="manual",
                 aspectratio=dict(x=2.5, y=1, z=1),
+                camera=dict(
+                    eye=dict(x=2.3, y=1.5, z=0.5),
+                    center=dict(x=1.15, y=0.5, z=0),
+                    up=dict(x=0, y=0, z=1),
+                ),
             ),
+            legend=dict(x=0.85, y=0.95),
             title=dict(
                 text=(
                     f"{title}<br>"
@@ -1914,6 +1903,7 @@ class CampbellResults(Results):
         damping_range=None,
         campbell_layout=None,
         mode_3d_layout=None,
+        animation=False,
         fig=None,
         **kwargs,
     ):
@@ -1941,6 +1931,7 @@ class CampbellResults(Results):
                     0,
                     frequency_units=frequency_units,
                     damping_parameter=damping_parameter,
+                    animation=animation,
                 )
                 mode_3d_fig.update_layout(mode_3d_layout)
 
@@ -1962,6 +1953,7 @@ class CampbellResults(Results):
                 idx,
                 frequency_units=frequency_units,
                 damping_parameter=damping_parameter,
+                animation=animation,
             )
             updated_fig.update_layout(mode_3d_layout)
 
@@ -1976,6 +1968,7 @@ class CampbellResults(Results):
         damping_parameter="log_dec",
         frequency_range=None,
         damping_range=None,
+        animation=False,
         fig=None,
         **kwargs,
     ):
@@ -2006,6 +1999,7 @@ class CampbellResults(Results):
             damping_range=damping_range,
             campbell_layout=campbell_layout,
             mode_3d_layout=mode_3d_layout,
+            animation=animation,
             fig=fig,
             **kwargs,
         )
