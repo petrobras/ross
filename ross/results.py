@@ -566,6 +566,186 @@ class Shape(Results):
 
         return fig
 
+    def _plot_axial(
+        self, plot_dimension=None, animation=False, length_units="m", fig=None
+    ):
+        if fig is None:
+            fig = go.Figure()
+
+        size = len(self.vector)
+        axial_dofs = np.arange(2, size, self.number_dof)
+
+        rel_disp = np.abs(self.vector[axial_dofs]) * np.sign(
+            np.angle(self.vector[axial_dofs])
+        )
+        rel_disp /= max(np.abs(rel_disp))
+
+        nodes_pos = Q_(self.nodes_pos, "m").to(length_units).m
+
+        color = "purple"
+
+        if plot_dimension == 2:
+            # Plot 2d
+            fig.add_traces(
+                data=[
+                    go.Scatter(
+                        x=nodes_pos,
+                        y=rel_disp,
+                        mode="lines",
+                        line=dict(color=tableau_colors[color]),
+                        showlegend=False,
+                        hovertemplate=(f"Relative angle: %{{y:.2f }}<extra></extra>"),
+                    ),
+                    go.Scatter(
+                        x=nodes_pos,
+                        y=nodes_pos * 0,
+                        mode="lines",
+                        line=dict(color="black", dash="dashdot"),
+                        name="centerline",
+                        hoverinfo="none",
+                        showlegend=False,
+                    ),
+                ]
+            )
+
+            fig.update_yaxes(title_text="Relative Displacement", range=[-1, 1])
+            fig.update_xaxes(title_text=f"Rotor Length ({length_units})")
+
+            return fig
+
+        # Plot 3d
+        variation = np.concatenate(
+            [
+                np.linspace(1, 0, 5),
+                np.linspace(0, -1, 5),
+                np.linspace(-1, 0, 5),
+                np.linspace(0, 1, 5),
+            ]
+        )
+        variation *= 0.5
+
+        frames = []
+        initial_state = []
+        for i, var in enumerate(variation):
+            zt = np.array(nodes_pos) + rel_disp * var
+
+            node_data = []
+            xn = []
+            for n in range(len(nodes_pos)):
+                node_data.append(
+                    go.Scatter3d(
+                        x=[nodes_pos[n], zt[n]],
+                        y=[0, 0],
+                        z=[0, 1],
+                        mode="lines",
+                        line=dict(width=2, color=tableau_colors[color]),
+                        showlegend=False,
+                        name=f"Node {self.nodes[n]}",
+                        hovertemplate=(
+                            f"Original position: {nodes_pos[n]:.2f} {length_units}<br>"
+                            + f"Relative displacement: {rel_disp[n]:.2f}"
+                        ),
+                    )
+                )
+                xn.append(zt[n])
+
+            node_data.append(
+                go.Scatter3d(
+                    x=xn,
+                    y=np.zeros(len(nodes_pos)),
+                    z=np.ones(len(nodes_pos)),
+                    mode="lines+markers",
+                    line=dict(width=2, color=tableau_colors[color]),
+                    marker=dict(size=3),
+                    showlegend=False,
+                    hoverinfo="none",
+                )
+            )
+
+            frames.append(go.Frame(data=node_data))
+
+            if i == 0:
+                initial_state = node_data
+
+        original = [
+            go.Scatter3d(
+                x=nodes_pos,
+                y=nodes_pos * 0,
+                z=nodes_pos * 0,
+                mode="markers",
+                marker=dict(size=3, color=tableau_colors["gray"]),
+                showlegend=False,
+                name="Axial mode",
+                hoverinfo="none",
+            )
+        ]
+
+        # Center line
+        min_pos = min(nodes_pos) - 0.15 * abs(max(nodes_pos) - min(nodes_pos))
+        max_pos = max(nodes_pos) + 0.15 * abs(max(nodes_pos) - min(nodes_pos))
+        center_line = [
+            go.Scatter3d(
+                x=[min_pos, max_pos],
+                y=[0, 0],
+                z=[0, 0],
+                mode="lines",
+                line=dict(color="black", dash="dashdot"),
+                hoverinfo="none",
+                showlegend=False,
+            ),
+        ]
+
+        fig.add_traces(data=[*initial_state, *original, *center_line])
+
+        fig.update_layout(
+            scene=dict(
+                yaxis=dict(showticklabels=False),
+                zaxis=dict(showticklabels=False),
+            )
+        )
+
+        if plot_dimension == 3 and animation == False:
+            return fig
+
+        fig.update(
+            layout=dict(
+                updatemenus=[
+                    dict(
+                        type="buttons",
+                        buttons=[
+                            dict(
+                                args=[
+                                    None,
+                                    dict(
+                                        frame=dict(duration=100, redraw=True),
+                                        mode="immediate",
+                                    ),
+                                ],
+                                label="Play",
+                                method="animate",
+                            ),
+                            dict(
+                                args=[
+                                    [None],
+                                    dict(
+                                        frame=dict(duration=0, redraw=False),
+                                        mode="immediate",
+                                    ),
+                                ],
+                                label="Pause",
+                                method="animate",
+                            ),
+                        ],
+                        x=0.05,
+                        y=0.25,
+                    )
+                ]
+            ),
+            frames=frames,
+        )
+
+        return fig
+
     def _plot_torsional(
         self, plot_dimension=None, animation=False, length_units="m", fig=None
     ):
@@ -773,6 +953,9 @@ class Shape(Results):
         if self.mode_type == "Torsional":
             self._plot_torsional(plot_dimension=2, length_units=length_units, fig=fig)
 
+        elif self.mode_type == "Axial":
+            self._plot_axial(plot_dimension=2, length_units=length_units, fig=fig)
+
         else:
 
             if orientation == "major":
@@ -834,6 +1017,14 @@ class Shape(Results):
 
         if self.mode_type == "Torsional":
             fig = self._plot_torsional(
+                plot_dimension=3,
+                animation=animation,
+                length_units=length_units,
+                fig=fig,
+            )
+
+        elif self.mode_type == "Axial":
+            fig = self._plot_axial(
                 plot_dimension=3,
                 animation=animation,
                 length_units=length_units,
