@@ -14,6 +14,7 @@ from .rotor_assembly import *
 from .shaft_element import *
 from .units import Q_
 from .utils import get_data_from_figure, visualize_matrix
-from ross.fluid_flow.lubricants import lubricant_dict
+from ross.fluid_flow.lubricants import lubricants_dict
+from ross.fluid_flow.materials import materials_dict
 
 _pio.templates.default = "ross"

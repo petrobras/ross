@@ -36,9 +36,9 @@ jobs:
         run: |
           pip install pytest
           pytest ross --cov=ross
-      - name: Code Lint 
+      - name: Run Ruff 
         run: |
-          black --check ross
+          ruff check ross
         if: success()
       - name: Coverage and Deployment
         run: codecov
