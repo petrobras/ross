@@ -582,7 +582,7 @@ class Shape(Results):
 
         nodes_pos = Q_(self.nodes_pos, "m").to(length_units).m
 
-        color = "purple"
+        color = "orange"
 
         if plot_dimension == 2:
             # Plot 2d
@@ -762,7 +762,7 @@ class Shape(Results):
 
         nodes_pos = Q_(self.nodes_pos, "m").to(length_units).m
 
-        color = "cyan"
+        color = "green"
 
         if plot_dimension == 2:
             # Plot 2d
@@ -2088,7 +2088,8 @@ class CampbellResults(Results):
     def _plot_with_mode_shape(
         self,
         harmonics=[1],
-        frequency_units="rad/s",
+        frequency_units="RPM",
+        speed_units="RPM",
         damping_parameter="log_dec",
         frequency_range=None,
         damping_range=None,
@@ -2102,6 +2103,7 @@ class CampbellResults(Results):
         camp_fig = self.plot(
             harmonics=harmonics,
             frequency_units=frequency_units,
+            speed_units=speed_units,
             damping_parameter=damping_parameter,
             frequency_range=frequency_range,
             damping_range=damping_range,
@@ -2113,7 +2115,7 @@ class CampbellResults(Results):
         modal_results_crit = {}
         crit_speeds = camp_fig.data[0]["x"]
         for w in crit_speeds:
-            w_si = Q_(w, frequency_units).to("rad/s").m
+            w_si = Q_(w, speed_units).to("rad/s").m
             modal_results_crit[w_si] = self.run_modal(w_si)
 
         def update_mode_3d(clicked_point=None):
@@ -2128,13 +2130,21 @@ class CampbellResults(Results):
 
                 return mode_3d_fig
 
-            frequency = clicked_point["x"]
+            speed = clicked_point["x"]
             natural_frequency = clicked_point["y"]
 
             try:
-                modal = self.modal_results[Q_(frequency, frequency_units).to("rad/s").m]
+                speed_key = min(
+                    self.modal_results.keys(),
+                    key=lambda k: abs(k - Q_(speed, speed_units).to("rad/s").m),
+                )
+                modal = self.modal_results[speed_key]
             except:
-                modal = modal_results_crit[Q_(frequency, frequency_units).to("rad/s").m]
+                speed_key = min(
+                    modal_results_crit.keys(),
+                    key=lambda k: abs(k - Q_(speed, speed_units).to("rad/s").m),
+                )
+                modal = modal_results_crit[speed_key]
 
             idx = (
                 np.abs(modal.wd - Q_(natural_frequency, frequency_units).to("rad/s").m)
@@ -2155,7 +2165,8 @@ class CampbellResults(Results):
     def plot_with_mode_shape(
         self,
         harmonics=[1],
-        frequency_units="rad/s",
+        frequency_units="RPM",
+        speed_units="RPM",
         damping_parameter="log_dec",
         frequency_range=None,
         damping_range=None,
@@ -2173,18 +2184,12 @@ class CampbellResults(Results):
 
         campbell_layout = dict(margin=dict(l=0, r=0, t=30, b=0))
 
-        mode_3d_layout = dict(
-            margin=dict(l=0, r=0, t=30, b=0),
-            legend=dict(x=0.85, y=0.95),
-            scene=dict(
-                camera=dict(eye=dict(x=2.25, y=2.85, z=2.25)),
-                aspectratio=dict(x=2, y=0.9, z=0.9),
-            ),
-        )
+        mode_3d_layout = dict(scene=dict(camera=dict(eye=dict(x=3.0, y=2.2, z=1.2))))
 
         camp_fig, update_mode_3d = self._plot_with_mode_shape(
             harmonics=harmonics,
             frequency_units=frequency_units,
+            speed_units=speed_units,
             damping_parameter=damping_parameter,
             frequency_range=frequency_range,
             damping_range=damping_range,
