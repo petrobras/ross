@@ -704,7 +704,7 @@ class Shape(Results):
             )
         )
 
-        if plot_dimension == 3 and animation == False:
+        if plot_dimension == 3 and not animation:
             return fig
 
         fig.update(
@@ -876,7 +876,7 @@ class Shape(Results):
 
         fig.add_traces(data=[*initial_state, *center_line])
 
-        if plot_dimension == 3 and animation == False:
+        if plot_dimension == 3 and not animation:
             return fig
 
         fig.update(
