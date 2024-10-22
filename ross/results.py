@@ -14,10 +14,11 @@ import numpy as np
 import pandas as pd
 import toml
 from plotly import graph_objects as go
+from plotly import colors as pc
 from plotly.subplots import make_subplots
 from scipy import linalg as la
 
-from ross.plotly_theme import tableau_colors
+from ross.plotly_theme import tableau_colors, coolwarm_r
 from ross.units import Q_, check_units
 from ross.utils import intersection
 
@@ -1887,7 +1888,7 @@ class CampbellResults(Results):
         default_values = dict(
             coloraxis_cmin=0.0,
             coloraxis_cmax=1.0,
-            coloraxis_colorscale="rdbu",
+            coloraxis_colorscale=coolwarm_r,
             coloraxis_colorbar=dict(title=dict(text=title_text, side="right")),
         )
         for k, v in default_values.items():
@@ -2062,7 +2063,6 @@ class CampbellResults(Results):
         fig=None,
         **kwargs,
     ):
-
         camp_fig = self.plot(
             harmonics=harmonics,
             frequency_units=frequency_units,
