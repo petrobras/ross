@@ -21,7 +21,7 @@ unfixable = ["B"]
 
 [tool.ruff.format]
 # 5. Use single quotes in `ruff format`.
-quote-style = "single"
+quote-style = "double"
 
 [tool.ruff.lint.flake8-quotes]
 docstring-quotes = "double"
