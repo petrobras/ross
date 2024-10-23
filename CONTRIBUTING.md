@@ -5,13 +5,12 @@ These include bug reports, problems on the documentation, feedback, enhancement 
 You can use the repository [Discussions](https://github.com/petrobras/ross/discussions)
 section for questions and further information.
 
-## Code style: Black
+## Code style: Ruff
 
-To format our code we use [Black](https://black.readthedocs.io/en/stable/), which is the *"uncompromising Python
-code formatter"*. You can configure your development environment to use Black before a commit. More information on how
-to set this is given at [Black's documentation](https://black.readthedocs.io/en/stable/integrations/index.html).
+To format our code we use [Ruff](https://docs.astral.sh/ruff/), which is the *"An extremely fast Python linter and code formatter"*. You can configure your development environment to use Ruff before a commit. More information on how
+to set this is given at [Ruff's documentation](https://docs.astral.sh/ruff/integrations/).
 
-We also recommend using the [pre-commit](https://pre-commit.com/) tool so that black is automatically run when doing a commit.
+We also recommend using the [pre-commit](https://docs.astral.sh/ruff/integrations/#pre-commit) tool so that Ruff is automatically run when doing a commit.
 
 (git-configuration)=
 
