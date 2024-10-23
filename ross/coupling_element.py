@@ -1,6 +1,6 @@
 """Coupling Element module.
 
-This module defines the CouplingElement class which will be used to represent the coupling 
+This module defines the CouplingElement class which will be used to represent the coupling
 between two rotor shaft, which add mainly stiffness, mass and inertia to the system.
 There're 2 options, an element with 4 or 6 degrees of freedom.
 """
@@ -496,6 +496,7 @@ class CouplingElement6DoF(ShaftElement6DoF):
         self.dof_global_index = None
 
         # CORRIGIR:
+        self.o_d = 150e-3
         self.beam_cg = 1e20
         self.slenderness_ratio = 1e30
         self.Im = self.Id_l + self.Id_r
