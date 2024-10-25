@@ -11,6 +11,7 @@ from .point_mass import *
 from .probe import *
 from .results import *
 from .rotor_assembly import *
+from .multi_rotor import *
 from .shaft_element import *
 from .coupling_element import *
 from .units import Q_
