@@ -37,6 +37,11 @@ example_21
 example_22
 example_23
 example_24
+example_25
+example_26
+example_27
+example_28
+example_29
 fluid_flow_elliptical_bearing
 fluid_flow_short_bearing
 fluid_flow_theory

@@ -1,0 +1,28 @@
+[tool.ruff.lint]
+# 1. Enable flake8-bugbear (`B`) rules, in addition to the defaults.
+select = ["B", "C", "E", "F", "Q", "W"]
+
+# 2. Avoid enforcing line-length violations (`E501`)
+ignore = [
+    "B006","B007", "B017", "B023", "B024", "B027", "B028", "B904",
+    "C403", "C408", "C416", "C419", "C901",
+    "E203", "E266", "E501", "E711", "E721", "E722", "E731", "E741",
+    "F401", "F403", "F405", "F541", "F811", "F841",
+    "W291", "W293",
+]
+
+# 3. Avoid trying to fix flake8-bugbear (`B`) violations.
+unfixable = ["B"]
+
+# 4. Ignore `E402` (import violations) in all `__init__.py` files, and in selected subdirectories.
+[tool.ruff.lint.per-file-ignores]
+"__init__.py" = ["E402"]
+"**/{tests}/*" = ["E402"]
+
+[tool.ruff.format]
+# 5. Use single quotes in `ruff format`.
+quote-style = "double"
+
+[tool.ruff.lint.flake8-quotes]
+docstring-quotes = "double"
+

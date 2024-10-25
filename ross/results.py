@@ -14,10 +14,11 @@ import numpy as np
 import pandas as pd
 import toml
 from plotly import graph_objects as go
+from plotly import colors as pc
 from plotly.subplots import make_subplots
 from scipy import linalg as la
 
-from ross.plotly_theme import tableau_colors
+from ross.plotly_theme import tableau_colors, coolwarm_r
 from ross.units import Q_, check_units
 from ross.utils import intersection
 
@@ -277,7 +278,7 @@ class Orbit(Results):
         # kappa encodes the relation between the axis and the precession.
         minor = np.sqrt(lam.min())
         major = np.sqrt(lam.max())
-        kappa = minor / major
+
         diff = nv - nu
 
         # we need to evaluate if 0 < nv - nu < pi.
@@ -289,10 +290,11 @@ class Orbit(Results):
         # if nv = nu or nv = nu + pi then the response is a straight line.
         if diff == 0 or diff == np.pi:
             kappa = 0
-
         # if 0 < nv - nu < pi, then a backward rotating mode exists.
         elif 0 < diff < np.pi:
-            kappa *= -1
+            kappa = -minor / major
+        else:
+            kappa = minor / major
 
         self.minor_axis = np.real(minor)
         self.major_axis = np.real(major)
@@ -432,6 +434,11 @@ class Shape(Results):
 
             nonzero_dofs = np.nonzero(np.abs(self.vector).round(6))[0]
 
+            if np.isin(axial_dofs, nonzero_dofs).all():
+                self.mode_type += "-Axial"
+            if np.isin(torsional_dofs, nonzero_dofs).all():
+                self.mode_type += "-Torsional"
+
             if np.isin(nonzero_dofs, axial_dofs).all():
                 self.mode_type = "Axial"
             elif np.isin(nonzero_dofs, torsional_dofs).all():
@@ -561,6 +568,358 @@ class Shape(Results):
 
         return fig
 
+    def _plot_axial(
+        self, plot_dimension=None, animation=False, length_units="m", fig=None
+    ):
+        if fig is None:
+            fig = go.Figure()
+
+        size = len(self.vector)
+        axial_dofs = np.arange(2, size, self.number_dof)
+
+        rel_disp = np.abs(self.vector[axial_dofs]) * np.sign(
+            np.angle(self.vector[axial_dofs])
+        )
+        rel_disp /= max(np.abs(rel_disp))
+
+        nodes_pos = Q_(self.nodes_pos, "m").to(length_units).m
+
+        color = "orange"
+
+        if plot_dimension == 2:
+            # Plot 2d
+            fig.add_traces(
+                data=[
+                    go.Scatter(
+                        x=nodes_pos,
+                        y=rel_disp,
+                        mode="lines",
+                        line=dict(color=tableau_colors[color]),
+                        showlegend=False,
+                        hovertemplate=(f"Relative angle: %{{y:.2f }}<extra></extra>"),
+                    ),
+                    go.Scatter(
+                        x=nodes_pos,
+                        y=nodes_pos * 0,
+                        mode="lines",
+                        line=dict(color="black", dash="dashdot"),
+                        name="centerline",
+                        hoverinfo="none",
+                        showlegend=False,
+                    ),
+                ]
+            )
+
+            fig.update_yaxes(title_text="Relative Displacement", range=[-1, 1])
+            fig.update_xaxes(title_text=f"Rotor Length ({length_units})")
+
+            return fig
+
+        # Plot 3d
+        variation = np.concatenate(
+            [
+                np.linspace(1, 0, 5),
+                np.linspace(0, -1, 5),
+                np.linspace(-1, 0, 5),
+                np.linspace(0, 1, 5),
+            ]
+        )
+        variation *= 0.5
+
+        frames = []
+        initial_state = []
+        for i, var in enumerate(variation):
+            zt = np.array(nodes_pos) + rel_disp * var
+
+            node_data = []
+            xn = []
+            for n in range(len(nodes_pos)):
+                node_data.append(
+                    go.Scatter3d(
+                        x=[nodes_pos[n], zt[n]],
+                        y=[0, 0],
+                        z=[0, 1],
+                        mode="lines",
+                        line=dict(width=2, color=tableau_colors[color]),
+                        showlegend=False,
+                        name=f"Node {self.nodes[n]}",
+                        hovertemplate=(
+                            f"Original position: {nodes_pos[n]:.2f} {length_units}<br>"
+                            + f"Relative displacement: {rel_disp[n]:.2f}"
+                        ),
+                    )
+                )
+                xn.append(zt[n])
+
+            node_data.append(
+                go.Scatter3d(
+                    x=xn,
+                    y=np.zeros(len(nodes_pos)),
+                    z=np.ones(len(nodes_pos)),
+                    mode="lines+markers",
+                    line=dict(width=2, color=tableau_colors[color]),
+                    marker=dict(size=3),
+                    showlegend=False,
+                    hoverinfo="none",
+                )
+            )
+
+            frames.append(go.Frame(data=node_data))
+
+            if i == 0:
+                initial_state = node_data
+
+        original = [
+            go.Scatter3d(
+                x=nodes_pos,
+                y=nodes_pos * 0,
+                z=nodes_pos * 0,
+                mode="markers",
+                marker=dict(size=3, color=tableau_colors["gray"]),
+                showlegend=False,
+                name="Axial mode",
+                hoverinfo="none",
+            )
+        ]
+
+        # Center line
+        min_pos = min(nodes_pos) - 0.15 * abs(max(nodes_pos) - min(nodes_pos))
+        max_pos = max(nodes_pos) + 0.15 * abs(max(nodes_pos) - min(nodes_pos))
+        center_line = [
+            go.Scatter3d(
+                x=[min_pos, max_pos],
+                y=[0, 0],
+                z=[0, 0],
+                mode="lines",
+                line=dict(color="black", dash="dashdot"),
+                hoverinfo="none",
+                showlegend=False,
+            ),
+        ]
+
+        fig.add_traces(data=[*initial_state, *original, *center_line])
+
+        fig.update_layout(
+            scene=dict(
+                yaxis=dict(showticklabels=False),
+                zaxis=dict(showticklabels=False),
+            )
+        )
+
+        if plot_dimension == 3 and not animation:
+            return fig
+
+        fig.update(
+            layout=dict(
+                updatemenus=[
+                    dict(
+                        type="buttons",
+                        buttons=[
+                            dict(
+                                args=[
+                                    None,
+                                    dict(
+                                        frame=dict(duration=100, redraw=True),
+                                        mode="immediate",
+                                    ),
+                                ],
+                                label="Play",
+                                method="animate",
+                            ),
+                            dict(
+                                args=[
+                                    [None],
+                                    dict(
+                                        frame=dict(duration=0, redraw=False),
+                                        mode="immediate",
+                                    ),
+                                ],
+                                label="Pause",
+                                method="animate",
+                            ),
+                        ],
+                        x=0.05,
+                        y=0.25,
+                    )
+                ]
+            ),
+            frames=frames,
+        )
+
+        return fig
+
+    def _plot_torsional(
+        self, plot_dimension=None, animation=False, length_units="m", fig=None
+    ):
+        if fig is None:
+            fig = go.Figure()
+
+        size = len(self.vector)
+        torsional_dofs = np.arange(5, size, self.number_dof)
+
+        theta = np.abs(self.vector[torsional_dofs]) * np.angle(
+            self.vector[torsional_dofs]
+        )
+        theta /= max(np.abs(theta))
+
+        nodes_pos = Q_(self.nodes_pos, "m").to(length_units).m
+
+        color = "green"
+
+        if plot_dimension == 2:
+            # Plot 2d
+            fig.add_traces(
+                data=[
+                    go.Scatter(
+                        x=nodes_pos,
+                        y=theta,
+                        mode="lines",
+                        line=dict(color=tableau_colors[color]),
+                        showlegend=False,
+                        hovertemplate=(f"Relative angle: %{{y:.2f }}<extra></extra>"),
+                    ),
+                    go.Scatter(
+                        x=nodes_pos,
+                        y=nodes_pos * 0,
+                        mode="lines",
+                        line=dict(color="black", dash="dashdot"),
+                        name="centerline",
+                        hoverinfo="none",
+                        showlegend=False,
+                    ),
+                ]
+            )
+
+            fig.update_yaxes(title_text="Relative Angle", range=[-1, 1])
+            fig.update_xaxes(title_text=f"Rotor Length ({length_units})")
+
+            return fig
+
+        # Plot 3d
+        variation = np.concatenate(
+            [
+                np.linspace(1, 0, 5),
+                np.linspace(0, -1, 5),
+                np.linspace(-1, 0, 5),
+                np.linspace(0, 1, 5),
+            ]
+        )
+
+        xt = np.zeros((len(variation), len(theta)))
+        yt = np.zeros((len(variation), len(theta)))
+
+        for i, var in enumerate(variation):
+            theta_i = theta * var
+            xt[i, :] = np.cos(theta_i)
+            yt[i, :] = np.sin(theta_i)
+
+        frames = []
+        initial_state = []
+        for i in range(len(variation)):
+
+            node_data = []
+            xn = []
+            yn = []
+            zn = []
+            for n in range(len(nodes_pos)):
+                node_data.append(
+                    go.Scatter3d(
+                        x=[nodes_pos[n], nodes_pos[n]],
+                        y=[0, xt[i, n]],
+                        z=[0, yt[i, n]],
+                        mode="lines",
+                        line=dict(width=2, color=tableau_colors[color]),
+                        showlegend=False,
+                        name=f"Node {self.nodes[n]}",
+                        hovertemplate=(
+                            "Nodal position: %{x:.2f}<br>"
+                            + "X - Displacement: %{y:.2f}<br>"
+                            + "Y - Displacement: %{z:.2f}<br>"
+                            + f"Relative angle: {theta[n]:.2f}"
+                        ),
+                    )
+                )
+                xn.append(nodes_pos[n])
+                yn.append(xt[i, n])
+                zn.append(yt[i, n])
+
+            node_data.append(
+                go.Scatter3d(
+                    x=xn,
+                    y=yn,
+                    z=zn,
+                    mode="lines+markers",
+                    line=dict(width=2, color=tableau_colors[color]),
+                    marker=dict(size=3),
+                    showlegend=False,
+                    hoverinfo="none",
+                )
+            )
+
+            frames.append(go.Frame(data=node_data))
+
+            if i == 0:
+                initial_state = node_data
+
+        # Center line
+        min_pos = min(nodes_pos) - 0.15 * abs(max(nodes_pos) - min(nodes_pos))
+        max_pos = max(nodes_pos) + 0.15 * abs(max(nodes_pos) - min(nodes_pos))
+        center_line = [
+            go.Scatter3d(
+                x=[min_pos, max_pos],
+                y=[0, 0],
+                z=[0, 0],
+                mode="lines",
+                line=dict(color="black", dash="dashdot"),
+                hoverinfo="none",
+                showlegend=False,
+            ),
+        ]
+
+        fig.add_traces(data=[*initial_state, *center_line])
+
+        if plot_dimension == 3 and not animation:
+            return fig
+
+        fig.update(
+            layout=dict(
+                updatemenus=[
+                    dict(
+                        type="buttons",
+                        buttons=[
+                            dict(
+                                args=[
+                                    None,
+                                    dict(
+                                        frame=dict(duration=50, redraw=True),
+                                        mode="immediate",
+                                    ),
+                                ],
+                                label="Play",
+                                method="animate",
+                            ),
+                            dict(
+                                args=[
+                                    [None],
+                                    dict(
+                                        frame=dict(duration=0, redraw=False),
+                                        mode="immediate",
+                                    ),
+                                ],
+                                label="Pause",
+                                method="animate",
+                            ),
+                        ],
+                        x=0.05,
+                        y=0.25,
+                    )
+                ]
+            ),
+            frames=frames,
+        )
+
+        return fig
+
     def plot_2d(
         self, orientation="major", length_units="m", phase_units="rad", fig=None
     ):
@@ -593,45 +952,54 @@ class Shape(Results):
         if fig is None:
             fig = go.Figure()
 
-        if orientation == "major":
-            values = self.major_axis.copy()
-        elif orientation == "x":
-            values = xn
-        elif orientation == "y":
-            values = yn
+        if self.mode_type == "Torsional":
+            self._plot_torsional(plot_dimension=2, length_units=length_units, fig=fig)
+
+        elif self.mode_type == "Axial":
+            self._plot_axial(plot_dimension=2, length_units=length_units, fig=fig)
+
         else:
-            raise ValueError(f"Invalid orientation {orientation}.")
 
-        fig.add_trace(
-            go.Scatter(
-                x=Q_(zn, "m").to(length_units).m,
-                y=values,
-                mode="lines",
-                line=dict(color=self.color),
-                name=f"{orientation}",
-                showlegend=False,
-                customdata=Q_(self.major_angle, "rad").to(phase_units).m,
-                hovertemplate=(
-                    f"Displacement: %{{y:.2f}}<br>"
-                    + f"Angle {phase_units}: %{{customdata:.2f}}"
+            if orientation == "major":
+                values = self.major_axis.copy()
+            elif orientation == "x":
+                values = xn
+            elif orientation == "y":
+                values = yn
+            else:
+                raise ValueError(f"Invalid orientation {orientation}.")
+
+            fig.add_trace(
+                go.Scatter(
+                    x=Q_(zn, "m").to(length_units).m,
+                    y=values,
+                    mode="lines",
+                    line=dict(color=self.color),
+                    name=f"{orientation}",
+                    showlegend=False,
+                    customdata=Q_(self.major_angle, "rad").to(phase_units).m,
+                    hovertemplate=(
+                        f"Displacement: %{{y:.2f}}<br>"
+                        + f"Angle {phase_units}: %{{customdata:.2f}}"
+                    ),
                 ),
-            ),
-        )
-
-        # plot center line
-        fig.add_trace(
-            go.Scatter(
-                x=nodes_pos,
-                y=np.zeros(len(nodes_pos)),
-                mode="lines",
-                line=dict(color="black", dash="dashdot"),
-                name="centerline",
-                hoverinfo="none",
-                showlegend=False,
             )
-        )
 
-        fig.update_xaxes(title_text=f"Rotor Length ({length_units})")
+            # plot center line
+            fig.add_trace(
+                go.Scatter(
+                    x=nodes_pos,
+                    y=np.zeros(len(nodes_pos)),
+                    mode="lines",
+                    line=dict(color="black", dash="dashdot"),
+                    name="centerline",
+                    hoverinfo="none",
+                    showlegend=False,
+                )
+            )
+
+            fig.update_xaxes(title_text=f"Rotor Length ({length_units})")
+            fig.update_yaxes(title_text="Relative Displacement")
 
         return fig
 
@@ -642,133 +1010,145 @@ class Shape(Results):
         title=None,
         length_units="m",
         phase_units="rad",
+        animation=False,
         fig=None,
         **kwargs,
     ):
         if fig is None:
             fig = go.Figure()
 
-        xn = self.xn.copy()
-        yn = self.yn.copy()
-        zn = self.zn.copy()
-
-        # plot orbits
-        first_orbit = True
-        for orbit in self.orbits:
-            zc_pos = (
-                Q_(np.repeat(orbit.node_pos, len(orbit.x_circle)), "m")
-                .to(length_units)
-                .m
+        if self.mode_type == "Torsional":
+            fig = self._plot_torsional(
+                plot_dimension=3,
+                animation=animation,
+                length_units=length_units,
+                fig=fig,
             )
+
+        elif self.mode_type == "Axial":
+            fig = self._plot_axial(
+                plot_dimension=3,
+                animation=animation,
+                length_units=length_units,
+                fig=fig,
+            )
+
+        else:
+            xn = self.xn.copy()
+            yn = self.yn.copy()
+            zn = self.zn.copy()
+
+            # plot orbits
+            first_orbit = True
+            for orbit in self.orbits:
+                zc_pos = (
+                    Q_(np.repeat(orbit.node_pos, len(orbit.x_circle)), "m")
+                    .to(length_units)
+                    .m
+                )
+                fig.add_trace(
+                    go.Scatter3d(
+                        x=zc_pos[:-10],
+                        y=orbit.x_circle[:-10],
+                        z=orbit.y_circle[:-10],
+                        mode="lines",
+                        line=dict(color=orbit.color),
+                        name="node {}".format(orbit.node),
+                        showlegend=False,
+                        hovertemplate=(
+                            "Nodal Position: %{x:.2f}<br>"
+                            + "X - Displacement: %{y:.2f}<br>"
+                            + "Y - Displacement: %{z:.2f}"
+                        ),
+                    )
+                )
+                # add orbit start
+                fig.add_trace(
+                    go.Scatter3d(
+                        x=[zc_pos[0]],
+                        y=[orbit.x_circle[0]],
+                        z=[orbit.y_circle[0]],
+                        mode="markers",
+                        marker=dict(color=orbit.color),
+                        name="node {}".format(orbit.node),
+                        showlegend=False,
+                        hovertemplate=(
+                            "Nodal Position: %{x:.2f}<br>"
+                            + "X - Displacement: %{y:.2f}<br>"
+                            + "Y - Displacement: %{z:.2f}"
+                        ),
+                    )
+                )
+                # add orbit major axis marker
+                fig.add_trace(
+                    go.Scatter3d(
+                        x=[zc_pos[0]],
+                        y=[orbit.major_x],
+                        z=[orbit.major_y],
+                        mode="markers",
+                        marker=dict(
+                            color="black", symbol="cross", size=4, line_width=2
+                        ),
+                        name="Major axis",
+                        showlegend=True if first_orbit else False,
+                        legendgroup="major_axis",
+                        customdata=np.array(
+                            [
+                                orbit.major_axis,
+                                Q_(orbit.major_angle, "rad").to(phase_units).m,
+                            ]
+                        ).reshape(1, 2),
+                        hovertemplate=(
+                            "Nodal Position: %{x:.2f}<br>"
+                            + "Major axis: %{customdata[0]:.2f}<br>"
+                            + "Angle: %{customdata[1]:.2f}"
+                        ),
+                    )
+                )
+                first_orbit = False
+
+            # plot line connecting orbits starting points
             fig.add_trace(
                 go.Scatter3d(
-                    x=zc_pos[:-10],
-                    y=orbit.x_circle[:-10],
-                    z=orbit.y_circle[:-10],
+                    x=Q_(zn, "m").to(length_units).m,
+                    y=xn,
+                    z=yn,
                     mode="lines",
-                    line=dict(color=orbit.color),
-                    name="node {}".format(orbit.node),
+                    line=dict(color="black", dash="dash"),
+                    name="mode shape",
                     showlegend=False,
-                    hovertemplate=(
-                        "Nodal Position: %{x:.2f}<br>"
-                        + "X - Displacement: %{y:.2f}<br>"
-                        + "Y - Displacement: %{z:.2f}"
-                    ),
                 )
             )
-            # add orbit start
+
+            # plot center line
+            zn_cl0 = -(zn[-1] * 0.1)
+            zn_cl1 = zn[-1] * 1.1
+            zn_cl = np.linspace(zn_cl0, zn_cl1, 30)
             fig.add_trace(
                 go.Scatter3d(
-                    x=[zc_pos[0]],
-                    y=[orbit.x_circle[0]],
-                    z=[orbit.y_circle[0]],
-                    mode="markers",
-                    marker=dict(color=orbit.color),
-                    name="node {}".format(orbit.node),
+                    x=Q_(zn_cl, "m").to(length_units).m,
+                    y=zn_cl * 0,
+                    z=zn_cl * 0,
+                    mode="lines",
+                    line=dict(color="black", dash="dashdot"),
+                    hoverinfo="none",
                     showlegend=False,
-                    hovertemplate=(
-                        "Nodal Position: %{x:.2f}<br>"
-                        + "X - Displacement: %{y:.2f}<br>"
-                        + "Y - Displacement: %{z:.2f}"
-                    ),
                 )
             )
-            # add orbit major axis marker
+
+            # plot major axis line
             fig.add_trace(
                 go.Scatter3d(
-                    x=[zc_pos[0]],
-                    y=[orbit.major_x],
-                    z=[orbit.major_y],
-                    mode="markers",
-                    marker=dict(color="black", symbol="cross", size=4, line_width=2),
-                    name="Major axis",
-                    showlegend=True if first_orbit else False,
+                    x=Q_(zn, "m").to(length_units).m,
+                    y=self.major_x,
+                    z=self.major_y,
+                    mode="lines",
+                    line=dict(color="black", dash="dashdot"),
+                    hoverinfo="none",
                     legendgroup="major_axis",
-                    customdata=np.array(
-                        [
-                            orbit.major_axis,
-                            Q_(orbit.major_angle, "rad").to(phase_units).m,
-                        ]
-                    ).reshape(1, 2),
-                    hovertemplate=(
-                        "Nodal Position: %{x:.2f}<br>"
-                        + "Major axis: %{customdata[0]:.2f}<br>"
-                        + "Angle: %{customdata[1]:.2f}"
-                    ),
+                    showlegend=False,
                 )
             )
-            first_orbit = False
-
-        # plot line connecting orbits starting points
-        fig.add_trace(
-            go.Scatter3d(
-                x=Q_(zn, "m").to(length_units).m,
-                y=xn,
-                z=yn,
-                mode="lines",
-                line=dict(color="black", dash="dash"),
-                name="mode shape",
-                showlegend=False,
-            )
-        )
-
-        # plot center line
-        zn_cl0 = -(zn[-1] * 0.1)
-        zn_cl1 = zn[-1] * 1.1
-        zn_cl = np.linspace(zn_cl0, zn_cl1, 30)
-        fig.add_trace(
-            go.Scatter3d(
-                x=Q_(zn_cl, "m").to(length_units).m,
-                y=zn_cl * 0,
-                z=zn_cl * 0,
-                mode="lines",
-                line=dict(color="black", dash="dashdot"),
-                hoverinfo="none",
-                showlegend=False,
-            )
-        )
-
-        # plot major axis line
-        fig.add_trace(
-            go.Scatter3d(
-                x=Q_(zn, "m").to(length_units).m,
-                y=self.major_x,
-                z=self.major_y,
-                mode="lines",
-                line=dict(color="black", dash="dashdot"),
-                hoverinfo="none",
-                legendgroup="major_axis",
-                showlegend=False,
-            )
-        )
-
-        fig.update_layout(
-            legend=dict(itemsizing="constant"),
-            scene=dict(
-                aspectmode="manual",
-                aspectratio=dict(x=2.5, y=1, z=1),
-            ),
-        )
 
         return fig
 
@@ -892,7 +1272,6 @@ class ModalResults(Results):
         self.number_dof = number_dof
         self.modes = self.evectors[: self.ndof]
         self.shapes = []
-        kappa_modes = []
         for mode in range(len(self.wn)):
             self.shapes.append(
                 Shape(
@@ -904,42 +1283,6 @@ class ModalResults(Results):
                     number_dof=self.number_dof,
                 )
             )
-            kappa_color = []
-            kappa_mode = self.kappa_mode(mode)
-            for kappa in kappa_mode:
-                kappa_color.append("blue" if kappa > 0 else "red")
-            kappa_modes.append(kappa_color)
-        self.kappa_modes = kappa_modes
-
-    @staticmethod
-    def whirl(kappa_mode):
-        """Evaluate the whirl of a mode.
-
-        Parameters
-        ----------
-        kappa_mode : list
-            A list with the value of kappa for each node related
-            to the mode/natural frequency of interest.
-
-        Returns
-        -------
-        whirldir : str
-            A string indicating the direction of precession related to the
-            kappa_mode.
-
-        Example
-        -------
-        >>> kappa_mode = [-5.06e-13, -3.09e-13, -2.91e-13, 0.011, -4.03e-13, -2.72e-13, -2.72e-13]
-        >>> ModalResults.whirl(kappa_mode)
-        'Forward'
-        """
-        if all(kappa >= -1e-3 for kappa in kappa_mode):
-            whirldir = "Forward"
-        elif all(kappa <= 1e-3 for kappa in kappa_mode):
-            whirldir = "Backward"
-        else:
-            whirldir = "Mixed"
-        return whirldir
 
     @staticmethod
     @np.vectorize
@@ -1048,11 +1391,10 @@ class ModalResults(Results):
         -------
         whirl_w : array
             An array of strings indicating the direction of precession related
-            to the kappa_mode. Backward, Mixed or Forward depending on values
-            of kappa_mode.
+            to the mode shape. Backward, Mixed or Forward.
         """
         # whirl direction/values are methods because they are expensive.
-        whirl_w = [self.whirl(self.kappa_mode(wd)) for wd in range(len(self.wd))]
+        whirl_w = [self.shapes[wd].whirl for wd in range(len(self.wd))]
 
         return np.array(whirl_w)
 
@@ -1124,6 +1466,7 @@ class ModalResults(Results):
         phase_units="rad",
         frequency_units="rad/s",
         damping_parameter="log_dec",
+        animation=False,
         fig=None,
         **kwargs,
     ):
@@ -1154,6 +1497,9 @@ class ModalResults(Results):
         damping_parameter : str, optional
             Define which value to show for damping. We can use "log_dec" or "damping_ratio".
             Default is "log_dec".
+        animation : boolean, optional
+            Plot with animation.
+            Default is False.
         fig : Plotly graph_objects.Figure()
             The figure object with the plot.
         kwargs : optional
@@ -1185,12 +1531,24 @@ class ModalResults(Results):
         }
 
         shape = self.shapes[mode]
-        fig = shape.plot_3d(length_units=length_units, phase_units=phase_units, fig=fig)
+        fig = shape.plot_3d(
+            length_units=length_units,
+            phase_units=phase_units,
+            animation=animation,
+            fig=fig,
+        )
 
         if title is None:
             title = ""
 
+        mode_type = (
+            f"whirl: {self.whirl_direction()[mode]}"
+            if shape.mode_type == "Lateral"
+            else f"{shape.mode_type} mode"
+        )
+
         fig.update_layout(
+            margin=dict(b=60, l=40, r=40, t=60),
             scene=dict(
                 xaxis=dict(
                     title=dict(text=f"Rotor Length ({length_units})"),
@@ -1205,13 +1563,19 @@ class ModalResults(Results):
                 ),
                 aspectmode="manual",
                 aspectratio=dict(x=2.5, y=1, z=1),
+                camera=dict(
+                    eye=dict(x=2.3, y=1.5, z=0.5),
+                    center=dict(x=1.15, y=0.5, z=0),
+                    up=dict(x=0, y=0, z=1),
+                ),
             ),
+            legend=dict(x=0.85, y=0.95),
             title=dict(
                 text=(
                     f"{title}<br>"
                     f"Mode {mode} | "
                     f"{frequency['speed']} {frequency_units} | "
-                    f"whirl: {self.whirl_direction()[mode]} | "
+                    f"{mode_type} | "
                     f"{frequency[frequency_type]} {frequency_units} | "
                     f"{damping_name} = {damping_value:.2f}"
                 ),
@@ -1298,15 +1662,19 @@ class ModalResults(Results):
         if title is None:
             title = ""
 
-        fig.update_xaxes(title_text=f"Rotor Length ({length_units})")
-        fig.update_yaxes(title_text="Relative Displacement")
+        mode_type = (
+            f"whirl: {self.whirl_direction()[mode]}"
+            if shape.mode_type == "Lateral"
+            else f"{shape.mode_type} mode"
+        )
+
         fig.update_layout(
             title=dict(
                 text=(
                     f"{title}<br>"
                     f"Mode {mode} | "
                     f"{frequency['speed']} {frequency_units} | "
-                    f"whirl: {self.whirl_direction()[mode]} | "
+                    f"{mode_type} | "
                     f"{frequency[frequency_type]} {frequency_units} | "
                     f"{damping_name} = {damping_value:.2f}"
                 ),
@@ -1436,6 +1804,7 @@ class CampbellResults(Results):
         self,
         harmonics=[1],
         frequency_units="RPM",
+        speed_units="RPM",
         damping_parameter="log_dec",
         frequency_range=None,
         damping_range=None,
@@ -1451,6 +1820,9 @@ class CampbellResults(Results):
             The default is to plot 1x.
         frequency_units : str, optional
             Frequency units.
+            Default is "RPM".
+        speed_units : str, optional
+            Speed units.
             Default is "RPM".
         damping_parameter : str, optional
             Define which value to show for damping. We can use "log_dec" or "damping_ratio".
@@ -1489,7 +1861,8 @@ class CampbellResults(Results):
         ...     damping_parameter="damping_ratio",
         ...     frequency_range=Q_((2000, 10000), "RPM"),
         ...     damping_range=(-0.1, 100),
-        ...     frequency_units="RPM",
+        ...     frequency_units="Hz",
+        ...     speed_units="RPM",
         ... )
         """
         if damping_parameter == "log_dec":
@@ -1515,7 +1888,7 @@ class CampbellResults(Results):
         default_values = dict(
             coloraxis_cmin=0.0,
             coloraxis_cmax=1.0,
-            coloraxis_colorscale="rdbu",
+            coloraxis_colorscale=coolwarm_r,
             coloraxis_colorbar=dict(title=dict(text=title_text, side="right")),
         )
         for k, v in default_values.items():
@@ -1550,7 +1923,7 @@ class CampbellResults(Results):
         if len(crit_x) and len(crit_y):
             fig.add_trace(
                 go.Scatter(
-                    x=Q_(crit_x, "rad/s").to(frequency_units).m,
+                    x=Q_(crit_x, "rad/s").to(speed_units).m,
                     y=Q_(crit_y, "rad/s").to(frequency_units).m,
                     mode="markers",
                     marker=dict(symbol="x", color="black"),
@@ -1558,7 +1931,7 @@ class CampbellResults(Results):
                     legendgroup="Crit. Speed",
                     showlegend=True,
                     hovertemplate=(
-                        f"Frequency ({frequency_units}): %{{y:.2f}}<br>Critical Speed ({frequency_units}): %{{x:.2f}}"
+                        f"Frequency ({frequency_units}): %{{y:.2f}}<br>Critical Speed ({speed_units}): %{{x:.2f}}"
                     ),
                 )
             )
@@ -1607,7 +1980,7 @@ class CampbellResults(Results):
                 if any(check for check in mask):
                     fig.add_trace(
                         go.Scatter(
-                            x=Q_(speed_range[mask], "rad/s").to(frequency_units).m,
+                            x=Q_(speed_range[mask], "rad/s").to(speed_units).m,
                             y=Q_(w_i[mask], "rad/s").to(frequency_units).m,
                             marker=dict(
                                 symbol=mark,
@@ -1627,7 +2000,7 @@ class CampbellResults(Results):
         for j, h in enumerate(harmonics):
             fig.add_trace(
                 go.Scatter(
-                    x=Q_(speed_range, "rad/s").to(frequency_units).m,
+                    x=Q_(speed_range, "rad/s").to(speed_units).m,
                     y=h * Q_(speed_range, "rad/s").to(frequency_units).m,
                     mode="lines",
                     line=dict(dash="dashdot", color=list(tableau_colors)[j]),
@@ -1650,10 +2023,10 @@ class CampbellResults(Results):
             )
 
         fig.update_xaxes(
-            title_text=f"Rotor Speed ({frequency_units})",
+            title_text=f"Rotor Speed ({speed_units})",
             range=[
-                np.min(Q_(speed_range, "rad/s").to(frequency_units).m),
-                np.max(Q_(speed_range, "rad/s").to(frequency_units).m),
+                np.min(Q_(speed_range, "rad/s").to(speed_units).m),
+                np.max(Q_(speed_range, "rad/s").to(speed_units).m),
             ],
             exponentformat="none",
         )
@@ -1669,92 +2042,164 @@ class CampbellResults(Results):
                 x=0.5,
                 yanchor="bottom",
                 y=-0.3,
+                yref="container",
             ),
             **kwargs,
         )
 
         return fig
 
-    def plot_with_mode_shape(
+    def _plot_with_mode_shape(
         self,
         harmonics=[1],
-        frequency_units="rad/s",
+        frequency_units="RPM",
+        speed_units="RPM",
         damping_parameter="log_dec",
         frequency_range=None,
         damping_range=None,
+        campbell_layout=None,
+        mode_3d_layout=None,
+        animation=False,
         fig=None,
         **kwargs,
     ):
-        try:
-            from ipywidgets import VBox
-        except ImportError:
-            raise ImportError("Please install ipywidgets to use this feature.")
-
-        modal_results_crit = {}
-
-        def _plot_with_mode_shape_callback(trace, points, state):
-            point_idx = points.point_inds
-            if len(point_idx) > 0:
-                frequency = trace.x[point_idx][0]
-                natural_frequency = trace.y[point_idx][0]
-
-                # get modal results for desired frequency
-                try:
-                    modal = self.modal_results[
-                        Q_(frequency, frequency_units).to("rad/s").m
-                    ]
-                except:
-                    modal = modal_results_crit[
-                        Q_(frequency, frequency_units).to("rad/s").m
-                    ]
-
-                # identify index of desired mode
-                idx = (
-                    np.abs(
-                        modal.wd - Q_(natural_frequency, frequency_units).to("rad/s").m
-                    )
-                ).argmin()
-
-                new_plot_mode_3d = modal.plot_mode_3d(
-                    idx,
-                    frequency_units=frequency_units,
-                    damping_parameter=damping_parameter,
-                )
-                with plot_mode_3d.batch_update():
-                    # update title
-                    plot_mode_3d.layout["title"]["text"] = new_plot_mode_3d.layout[
-                        "title"
-                    ]["text"]
-                    for data, new_data in zip(plot_mode_3d_data, new_plot_mode_3d.data):
-                        for param in data:
-                            data[param] = new_data[param]
-
         camp_fig = self.plot(
             harmonics=harmonics,
             frequency_units=frequency_units,
+            speed_units=speed_units,
             damping_parameter=damping_parameter,
             frequency_range=frequency_range,
             damping_range=damping_range,
             fig=fig,
             **kwargs,
         )
-        camp_fig = go.FigureWidget(camp_fig)
+        camp_fig.update_layout(campbell_layout)
 
+        modal_results_crit = {}
         crit_speeds = camp_fig.data[0]["x"]
         for w in crit_speeds:
-            w_si = Q_(w, frequency_units).to("rad/s").m
+            w_si = Q_(w, speed_units).to("rad/s").m
             modal_results_crit[w_si] = self.run_modal(w_si)
 
-        for scatter in camp_fig.data:
-            scatter.on_click(_plot_with_mode_shape_callback)
+        def update_mode_3d(clicked_point=None):
+            if clicked_point is None:
+                mode_3d_fig = self.modal_results[self.speed_range[0]].plot_mode_3d(
+                    0,
+                    frequency_units=frequency_units,
+                    damping_parameter=damping_parameter,
+                    animation=animation,
+                )
+                mode_3d_fig.update_layout(mode_3d_layout)
 
-        plot_mode_3d = self.modal_results[self.speed_range[0]].plot_mode_3d(
-            0, frequency_units=frequency_units, damping_parameter=damping_parameter
+                return mode_3d_fig
+
+            speed = clicked_point["x"]
+            natural_frequency = clicked_point["y"]
+
+            try:
+                speed_key = min(
+                    self.modal_results.keys(),
+                    key=lambda k: abs(k - Q_(speed, speed_units).to("rad/s").m),
+                )
+                modal = self.modal_results[speed_key]
+            except:
+                speed_key = min(
+                    modal_results_crit.keys(),
+                    key=lambda k: abs(k - Q_(speed, speed_units).to("rad/s").m),
+                )
+                modal = modal_results_crit[speed_key]
+
+            idx = (
+                np.abs(modal.wd - Q_(natural_frequency, frequency_units).to("rad/s").m)
+            ).argmin()
+
+            updated_fig = modal.plot_mode_3d(
+                idx,
+                frequency_units=frequency_units,
+                damping_parameter=damping_parameter,
+                animation=animation,
+            )
+            updated_fig.update_layout(mode_3d_layout)
+
+            return updated_fig
+
+        return camp_fig, update_mode_3d
+
+    def plot_with_mode_shape(
+        self,
+        harmonics=[1],
+        frequency_units="RPM",
+        speed_units="RPM",
+        damping_parameter="log_dec",
+        frequency_range=None,
+        damping_range=None,
+        animation=False,
+        fig=None,
+        **kwargs,
+    ):
+        try:
+            import random
+            from dash import Dash
+            from dash import dcc, html
+            from dash.dependencies import Input, Output
+        except ImportError:
+            raise ImportError("Please install dash to use this feature.")
+
+        campbell_layout = dict(margin=dict(l=0, r=0, t=30, b=0))
+
+        mode_3d_layout = dict(scene=dict(camera=dict(eye=dict(x=3.0, y=2.2, z=1.2))))
+
+        camp_fig, update_mode_3d = self._plot_with_mode_shape(
+            harmonics=harmonics,
+            frequency_units=frequency_units,
+            speed_units=speed_units,
+            damping_parameter=damping_parameter,
+            frequency_range=frequency_range,
+            damping_range=damping_range,
+            campbell_layout=campbell_layout,
+            mode_3d_layout=mode_3d_layout,
+            animation=animation,
+            fig=fig,
+            **kwargs,
         )
-        plot_mode_3d = go.FigureWidget(plot_mode_3d)
-        plot_mode_3d_data = plot_mode_3d.data
 
-        return VBox([camp_fig, plot_mode_3d])
+        plot_mode_3d = update_mode_3d()
+
+        # Initialize the Dash app
+        app = Dash("ross")
+
+        # Layout of the app
+        app.layout = html.Div(
+            [
+                html.Div(
+                    [
+                        dcc.Graph(
+                            id="campbell", figure=camp_fig, style={"height": "100%"}
+                        )
+                    ],
+                ),
+                html.Div(
+                    [
+                        dcc.Graph(
+                            id="mode_3d", figure=plot_mode_3d, style={"height": "100%"}
+                        )
+                    ],
+                ),
+            ],
+            className="campbell-mode-shape",
+        )
+
+        # Callback to update plot_mode_3d based on campbell diagram click
+        @app.callback(Output("mode_3d", "figure"), [Input("campbell", "clickData")])
+        def plot_with_mode_shape_callback(clickData):
+            if clickData is None:
+                return update_mode_3d()
+            else:
+                return update_mode_3d(clickData["points"][0])
+
+        # Run app
+        port = random.randint(8000, 9000)
+        app.run(port=port, debug=False, jupyter_mode="inline", jupyter_height=768)
 
     def save(self, file):
         # TODO save modal results

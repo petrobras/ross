@@ -27,9 +27,11 @@ from ross.bearing_seal_element import (
     MagneticBearingElement,
     RollerBearingElement,
     SealElement,
+    CylindricalBearing,
 )
 from ross.faults import Crack, MisalignmentFlex, MisalignmentRigid, Rubbing
 from ross.disk_element import DiskElement, DiskElement6DoF
+from ross.coupling_element import CouplingElement, CouplingElement6DoF
 from ross.materials import steel
 from ross.point_mass import PointMass, PointMass6DoF
 from ross.results import (
@@ -372,8 +374,6 @@ class Rotor(object):
         Ip_dsk = np.sum([disk.Ip for disk in self.disk_elements])
         self.Ip = Ip_sh + Ip_dsk
 
-        self._v0 = None  # used to call eigs
-
         # number of dofs
         half_ndof = self.number_dof / 2
         self.ndof = int(
@@ -610,6 +610,104 @@ class Rotor(object):
         else:
             return False
 
+    def add_nodes(self, new_nodes_pos):
+        """Add nodes to rotor.
+
+        This method returns the modified rotor with additional nodes according to
+        the positions of the new nodes provided.
+
+        Parameters
+        ----------
+        new_nodes_pos : list
+            List with the position of the new nodes.
+
+        Returns
+        -------
+        A rotor object.
+
+        Examples
+        --------
+        >>> import ross as rs
+        >>> rotor = rs.rotor_example()
+        >>> new_rotor = rotor.add_nodes([0.62, 1.11])
+        >>> shaft_elements = new_rotor.shaft_elements
+        >>> len(shaft_elements)
+        8
+        >>> round(shaft_elements[3].L, 2)
+        0.13
+        >>> round(shaft_elements[6].L, 2)
+        0.14
+        """
+        new_nodes_pos.sort()
+
+        shaft_elements = deepcopy(self.shaft_elements)
+        disk_elements = deepcopy(self.disk_elements)
+        bearing_elements = deepcopy(self.bearing_elements)
+        point_mass_elements = deepcopy(self.point_mass_elements)
+
+        elements = [
+            *shaft_elements,
+            *disk_elements,
+            *bearing_elements,
+            *point_mass_elements,
+        ]
+
+        target_elements = []
+        new_elems_length = []
+
+        for new_pos in new_nodes_pos:
+            for elm in shaft_elements:
+                elm.tag = None
+
+                pos_l = self.nodes_pos[self.nodes.index(elm.n_l)]
+                pos_r = self.nodes_pos[self.nodes.index(elm.n_r)]
+
+                if new_pos > pos_l and new_pos < pos_r:
+                    target_elements.append(elm)
+                    new_elems_length.append(pos_r - new_pos)
+
+        prev_left_node = -1
+
+        for i in range(len(target_elements)):
+            elem = target_elements[i]
+
+            left_elem = elem.create_modified(L=(elem.L - new_elems_length[i]))
+            right_elem = elem.create_modified(L=new_elems_length[i], n=(elem.n + 1))
+
+            if left_elem.n != prev_left_node:
+                for elm in elements:
+                    if elm.n >= right_elem.n:
+                        elm.n += 1
+                        if elm in shaft_elements:
+                            elm._n = elm.n
+                            elm.n_l = elm.n
+                            elm.n_r = elm.n + 1
+
+            for j in range(i + 1, len(target_elements)):
+                if target_elements[j] == target_elements[i]:
+                    target_elements[j] = right_elem
+
+            idx_left = shaft_elements.index(elem)
+            shaft_elements[idx_left] = left_elem
+
+            idx_right = idx_left + len(
+                [k for k, elm in enumerate(shaft_elements) if elm.n == left_elem.n]
+            )
+            shaft_elements.insert(idx_right, right_elem)
+
+            prev_left_node = left_elem.n
+
+        return Rotor(
+            shaft_elements,
+            disk_elements=disk_elements,
+            bearing_elements=bearing_elements,
+            point_mass_elements=point_mass_elements,
+            min_w=self.min_w,
+            max_w=self.max_w,
+            rated_w=self.rated_w,
+            tag=self.tag,
+        )
+
     @check_units
     def run_modal(self, speed, num_modes=12, sparse=True, synchronous=False):
         """Run modal analysis.
@@ -640,7 +738,7 @@ class Rotor(object):
         sparse : bool, optional
             If True, ARPACK is used to calculate a desired number (according to
             num_modes) or eigenvalues and eigenvectors.
-            If False, scipy.linalg.eig() is used to calculate all the eigenvalues and
+            If False, `scipy.linalg.eig()` is used to calculate all the eigenvalues and
             eigenvectors.
             Default is True.
         synchronous : bool, optional
@@ -1007,7 +1105,7 @@ class Rotor(object):
         """
         K0 = np.zeros((self.ndof, self.ndof))
 
-        elements = sorted(set(self.elements) - set(ignore), key=self.elements.index)
+        elements = list(set(self.elements).difference(ignore))
 
         for elm in elements:
             dofs = list(elm.dof_global_index.values())
@@ -1072,7 +1170,7 @@ class Rotor(object):
 
         Examples
         --------
-        >>> rotor = rotor_example()
+        >>> rotor = compressor_example()
         >>> rotor.C(0)[:4, :4]
         array([[0., 0., 0., 0.],
                [0., 0., 0., 0.],
@@ -1081,7 +1179,7 @@ class Rotor(object):
         """
         C0 = np.zeros((self.ndof, self.ndof))
 
-        elements = sorted(set(self.elements) - set(ignore), key=self.elements.index)
+        elements = list(set(self.elements).difference(ignore))
 
         for elm in elements:
             dofs = list(elm.dof_global_index.values())
@@ -1301,7 +1399,7 @@ class Rotor(object):
         positive = [i for i in ind[len(a) // 2 :]]
         negative = [i for i in ind[: len(a) // 2]]
 
-        idx = np.array([positive, negative]).flatten()
+        idx = np.array([*positive, *negative])
 
         return idx
 
@@ -1313,7 +1411,7 @@ class Rotor(object):
         frequency=None,
         sorted_=True,
         A=None,
-        sparse=True,
+        sparse=None,
         synchronous=False,
     ):
         """Calculate eigenvalues and eigenvectors.
@@ -1337,14 +1435,16 @@ class Rotor(object):
         frequency: float, pint.Quantity
             Excitation frequency. Default units is rad/s.
         sorted_ : bool, optional
-            Sort considering the imaginary part (wd)
-            Default is True
+            Sort considering the imaginary part (wd).
+            Default is True.
         A : np.array, optional
             Matrix for which eig will be calculated.
             Defaul is the rotor A matrix.
         sparse : bool, optional
-            If sparse, eigenvalues will be calculated with arpack.
-            Default is True.
+            If True, eigenvalues are computed using ARPACK. If False, they are
+            computed with `scipy.linalg.eig()`. When sparse is False, eigenvalues
+            are filtered to exclude rigid body modes. If sparse is None, no filtering
+            is applied. Default is None.
         synchronous : bool, optional
             If True a synchronous analysis is carried out.
             Default is False.
@@ -1366,44 +1466,42 @@ class Rotor(object):
         if A is None:
             A = self.A(speed=speed, frequency=frequency, synchronous=synchronous)
 
+        filter_eigenpairs = lambda values, vectors, indices: (
+            values[indices],
+            vectors[:, indices],
+        )
+
         if synchronous:
             evalues, evectors = la.eig(A)
+
             idx = np.where(np.imag(evalues) != 0)[0]
-            evalues = evalues[idx]
-            evectors = evectors[:, idx]
+            evalues, evectors = filter_eigenpairs(evalues, evectors, idx)
             idx = np.where(np.abs(np.real(evalues) / np.imag(evalues)) < 1000)[0]
-            evalues = evalues[idx]
-            evectors = evectors[:, idx]
+            evalues, evectors = filter_eigenpairs(evalues, evectors, idx)
         else:
-            if sparse is True:
+            if sparse:
                 try:
                     evalues, evectors = las.eigs(
                         A,
-                        k=2 * num_modes,
+                        k=min(2 * num_modes, max(num_modes, A.shape[0] - 2)),
                         sigma=1,
-                        ncv=4 * num_modes,
                         which="LM",
-                        v0=self._v0,
+                        v0=np.ones(A.shape[0]),
                     )
-                    # store v0 as a linear combination of the previously
-                    # calculated eigenvectors to use in the next call to eigs
-                    self._v0 = np.real(sum(evectors.T))
-
-                    # Disregard rigid body modes:
-                    idx = np.where(np.abs(evalues) > 0.1)[0]
-                    evalues = evalues[idx]
-                    evectors = evectors[:, idx]
                 except las.ArpackError:
                     evalues, evectors = la.eig(A)
             else:
                 evalues, evectors = la.eig(A)
 
-        if sorted_ is False:
-            return evalues, evectors
+            if sparse is not None:
+                idx = np.where((np.imag(evalues) != 0) & (np.abs(evalues) > 0.1))[0]
+                evalues, evectors = filter_eigenpairs(evalues, evectors, idx)
 
-        idx = self._index(evalues)
+        if sorted_:
+            idx = self._index(evalues)
+            evalues, evectors = filter_eigenpairs(evalues, evectors, idx)
 
-        return evalues[idx], evectors[:, idx]
+        return evalues, evectors
 
     def _lti(self, speed, frequency=None):
         """Continuous-time linear time invariant system.
@@ -1554,8 +1652,7 @@ class Rotor(object):
 
         # calculate eigenvalues and eigenvectors using la.eig to get
         # left and right eigenvectors.
-
-        evals, psi = self._eigen(speed=speed, frequency=frequency, sparse=False)
+        evals, psi = self._eigen(speed=speed, frequency=frequency)
 
         psi_inv = la.inv(psi)
 
@@ -1903,8 +2000,8 @@ class Rotor(object):
             Unbalance magnitude (kg.m).
         unbalance_phase : list, float, pint.Quantity
             Unbalance phase (rad).
-        frequency : list, float, pint.Quantity
-            Array with the desired range of frequencies (rad/s).
+        frequency : list, pint.Quantity
+            List with the desired range of frequencies (rad/s).
         modes : list, optional
             Modes that will be used to calculate the frequency response
             (all modes will be used if a list is not given).
@@ -2061,7 +2158,7 @@ class Rotor(object):
         Examples
         --------
         >>> import ross as rs
-        >>> rotor = rs.rotor_example()
+        >>> rotor = rs.compressor_example()
         >>> size = 10000
         >>> node = 3
         >>> speed = 500.0
@@ -2074,8 +2171,8 @@ class Rotor(object):
         Running direct method
         >>> dof = 13
         >>> yout[:, dof] # doctest: +ELLIPSIS
-        array([0.00000000e+00, 8.49140057e-09, 4.34296767e-08, ...,
-               1.16148468e-05, 1.16492353e-05, 1.16859622e-05])
+        array([0.00000000e+00, 2.07239823e-10, 7.80952429e-10, ...,
+               1.21848307e-07, 1.21957287e-07, 1.22065778e-07])
         """
 
         # Check if speed is array
@@ -3549,6 +3646,60 @@ class Rotor(object):
             tag=tag,
         )
 
+    @classmethod
+    def to_ross_only(cls, rotor):
+        """Convert rotor with rsxl objects to ross only."""
+        bearings_seals_rs = []
+        for b in rotor.bearing_elements:
+            if isinstance(b, SealElement):
+                bearings_seals_rs.append(
+                    SealElement(
+                        n=b.n,
+                        kxx=b.kxx,
+                        kxy=b.kxy,
+                        kyx=b.kyx,
+                        kyy=b.kyy,
+                        cxx=b.cxx,
+                        cxy=b.cxy,
+                        cyx=b.cyx,
+                        cyy=b.cyy,
+                        frequency=b.frequency,
+                        tag=b.tag,
+                        color=b.color,
+                        n_link=b.n_link,
+                        seal_leakage=b.seal_leakage,
+                    )
+                )
+            else:
+                bearings_seals_rs.append(
+                    BearingElement(
+                        n=b.n,
+                        kxx=b.kxx,
+                        kxy=b.kxy,
+                        kyx=b.kyx,
+                        kyy=b.kyy,
+                        cxx=b.cxx,
+                        cxy=b.cxy,
+                        cyx=b.cyx,
+                        cyy=b.cyy,
+                        frequency=b.frequency,
+                        tag=b.tag,
+                        color=b.color,
+                        n_link=b.n_link,
+                    )
+                )
+
+        return cls(
+            rotor.shaft_elements,
+            rotor.disk_elements,
+            bearings_seals_rs,
+            rotor.point_mass_elements,
+            min_w=rotor.min_w,
+            max_w=rotor.max_w,
+            rated_w=rotor.rated_w,
+            tag=rotor.tag,
+        )
+
 
 class CoAxialRotor(Rotor):
     r"""A rotor object.
@@ -3863,8 +4014,6 @@ class CoAxialRotor(Rotor):
         Ip_sh = np.sum([sh.Im for sh in self.shaft_elements])
         Ip_dsk = np.sum([disk.Ip for disk in self.disk_elements])
         self.Ip = Ip_sh + Ip_dsk
-
-        self._v0 = None  # used to call eigs
 
         # number of dofs
         self.ndof = int(
