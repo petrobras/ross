@@ -5,12 +5,10 @@ bearings and seals. There are 7 different classes to represent bearings options,
 and 2 element options with 8 or 12 degrees of freedom.
 """
 
-import os
-import warnings
-from inspect import signature
-
 import numpy as np
 import toml
+import warnings
+from inspect import signature
 from numpy.polynomial import Polynomial
 from plotly import graph_objects as go
 from scipy import interpolate as interpolate
@@ -984,6 +982,19 @@ class BearingFluidFlow(BearingElement):
         scale_factor=1.0,
         color="#355d7a",
     ):
+        self.nz = nz
+        self.ntheta = ntheta
+        self.length = length
+        self.omega = omega
+        self.p_in = p_in
+        self.p_out = p_out
+        self.radius_rotor = radius_rotor
+        self.radius_stator = radius_stator
+        self.visc = visc
+        self.rho = rho
+        self.eccentricity = eccentricity
+        self.load = load
+
         K = np.zeros((4, len(omega)))
         C = np.zeros((4, len(omega)))
 
@@ -1130,6 +1141,7 @@ class SealElement(BearingElement):
         color="#77ACA2",
         **kwargs,
     ):
+        self.seal_leakage = seal_leakage
 
         super().__init__(
             n=n,
@@ -1150,7 +1162,7 @@ class SealElement(BearingElement):
             n_link=n_link,
             color=color,
         )
-        self.seal_leakage = seal_leakage
+
         # make seals with half the bearing size as a default
         self.scale_factor = scale_factor if scale_factor else self.scale_factor / 2
 
@@ -1233,6 +1245,11 @@ class BallBearingElement(BearingElement):
         scale_factor=1,
         color="#355d7a",
     ):
+        self.n_balls = n_balls
+        self.d_balls = d_balls
+        self.fs = fs
+        self.alpha = alpha
+
         Kb = 13.0e6
         kyy = (
             Kb
@@ -1353,6 +1370,11 @@ class RollerBearingElement(BearingElement):
         scale_factor=1,
         color="#355d7a",
     ):
+        self.n_rollers = n_rollers
+        self.l_rollers = l_rollers
+        self.fs = fs
+        self.alpha = alpha
+
         Kb = 1.0e9
         kyy = Kb * n_rollers**0.9 * l_rollers**0.8 * fs**0.1 * (np.cos(alpha)) ** 1.9
 
@@ -1615,6 +1637,15 @@ class CylindricalBearing(BearingElement):
         Bore assembly radial clearance (m).
     oil_viscosity : float, pint.Quantity
         Oil viscosity (Pa.s).
+    tag : str, optional
+        A tag to name the element
+        Default is None.
+    scale_factor : float, optional
+        The scale factor is used to scale the bearing drawing.
+        Default is 1.
+    color : str, optional
+        A color to be used when the element is represented.
+        Default is '#355d7a'.
 
     Returns
     -------
@@ -1653,6 +1684,9 @@ class CylindricalBearing(BearingElement):
         journal_diameter=None,
         radial_clearance=None,
         oil_viscosity=None,
+        tag=None,
+        scale_factor=1,
+        color="#355d7a",
         **kwargs,
     ):
         self.n = n
@@ -1742,7 +1776,15 @@ class CylindricalBearing(BearingElement):
                         weight / (radial_clearance * spd) * term
                     )
 
-        super().__init__(self.n, frequency=self.speed, **coefficients_dict, **kwargs)
+        super().__init__(
+            n,
+            frequency=self.speed,
+            tag=tag,
+            scale_factor=scale_factor,
+            color=color,
+            **coefficients_dict,
+            **kwargs,
+        )
 
 
 class BearingElement6DoF(BearingElement):
