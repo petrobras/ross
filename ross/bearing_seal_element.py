@@ -1,8 +1,7 @@
 """Bearing Element module.
 
 This module defines the BearingElement classes which will be used to represent the rotor
-bearings and seals. There are 7 different classes to represent bearings options,
-and 2 element options with 8 or 12 degrees of freedom.
+bearings and seals. There are 7 different classes to represent bearings options.
 """
 
 import numpy as np
@@ -27,7 +26,6 @@ __all__ = [
     "BallBearingElement",
     "RollerBearingElement",
     "BearingFluidFlow",
-    "BearingElement6DoF",
     "MagneticBearingElement",
     "CylindricalBearing",
 ]
@@ -53,33 +51,43 @@ class BearingElement(Element):
         Direct damping in the x direction (N*s/m).
     mxx : float, array, pint.Quantity
         Direct mass in the x direction (kg).
+        Default is 0.
     kyy : float, array, pint.Quantity, optional
         Direct stiffness in the y direction (N/m).
-        (defaults to kxx)
+        Default is kxx.
     cyy : float, array, pint.Quantity, optional
         Direct damping in the y direction (N*s/m).
-        (defaults to cxx)
+        Default is cxx.
     myy : float, array, pint.Quantity, optional
         Direct mass in the y direction (kg).
-        (defaults to mxx)
+        Default is mxx.
     kxy : float, array, pint.Quantity, optional
         Cross coupled stiffness in the x direction (N/m).
-        (defaults to 0)
+        Default is 0.
     cxy : float, array, pint.Quantity, optional
         Cross coupled damping in the x direction (N*s/m).
-        (defaults to 0)
+        Default is 0.
     mxy : float, array, pint.Quantity, optional
         Cross coupled mass in the x direction (kg).
-        (defaults to 0)
+        Default is 0.
     kyx : float, array, pint.Quantity, optional
         Cross coupled stiffness in the y direction (N/m).
-        (defaults to 0)
+        Default is 0.
     cyx : float, array, pint.Quantity, optional
         Cross coupled damping in the y direction (N*s/m).
-        (defaults to 0)
+        Default is 0.
     myx : float, array, pint.Quantity, optional
         Cross coupled mass in the y direction (kg).
-        (defaults to 0)
+        Default is 0.
+    kzz : float, array, pint.Quantity, optional
+        Direct stiffness in the z direction (N/m).
+        Default is 0.
+    czz : float, array, pint.Quantity, optional
+        Direct damping in the z direction (N*s/m).
+        Default is 0.
+    mzz : float, array, pint.Quantity, optional
+        Direct mass in the z direction (kg).
+        Default is 0.
     frequency : array, pint.Quantity, optional
         Array with the frequencies (rad/s).
     tag : str, optional
@@ -108,10 +116,14 @@ class BearingElement(Element):
     >>> cyy = 1.5e2
     >>> frequency = np.linspace(0, 200, 11)
     >>> bearing0 = rs.BearingElement(n=0, kxx=kxx, kyy=kyy, cxx=cxx, cyy=cyy, frequency=frequency)
-    >>> bearing0.K(frequency) # doctest: +ELLIPSIS
-    array([[[1000000., 1000000., ...
-    >>> bearing0.C(frequency) # doctest: +ELLIPSIS
-    array([[[200., 200., ...
+    >>> bearing0.K(frequency[-1])
+    array([[1000000.,       0.,       0.],
+           [      0.,  800000.,       0.],
+           [      0.,       0.,       0.]])
+    >>> bearing0.C(frequency[-1])
+    array([[200.,   0.,   0.],
+           [  0., 150.,   0.],
+           [  0.,   0.,   0.]])
     """
 
     @check_units
@@ -120,7 +132,7 @@ class BearingElement(Element):
         n,
         kxx,
         cxx,
-        mxx=None,
+        mxx=0,
         kyy=None,
         kxy=0,
         kyx=0,
@@ -130,46 +142,44 @@ class BearingElement(Element):
         myy=None,
         mxy=0,
         myx=0,
+        kzz=0,
+        czz=0,
+        mzz=0,
         frequency=None,
         tag=None,
         n_link=None,
         scale_factor=1,
         color="#355d7a",
-        **kwargs,
     ):
         if frequency is not None:
             self.frequency = np.array(frequency, dtype=np.float64)
         else:
             self.frequency = frequency
-        args = [
-            "kxx",
-            "kyy",
-            "kxy",
-            "kyx",
-            "cxx",
-            "cyy",
-            "cxy",
-            "cyx",
-            "mxx",
-            "myy",
-            "mxy",
-            "myx",
-        ]
 
         if kyy is None:
             kyy = kxx
         if cyy is None:
             cyy = cxx
-
         if myy is None:
-            if mxx is None:
-                mxx = 0
-                myy = 0
-            else:
-                myy = mxx
+            myy = mxx
 
-        if mxx is None:
-            mxx = 0
+        args = [
+            "kxx",
+            "kyy",
+            "kxy",
+            "kyx",
+            "kzz",
+            "cxx",
+            "cyy",
+            "cxy",
+            "cyx",
+            "czz",
+            "mxx",
+            "myy",
+            "mxy",
+            "myx",
+            "mzz",
+        ]
 
         # all args to coefficients.  output of locals() should be READ ONLY
         args_dict = locals()
@@ -365,10 +375,12 @@ class BearingElement(Element):
             f"(n={self.n}, n_link={self.n_link},\n"
             f" kxx={self.kxx}, kxy={self.kxy},\n"
             f" kyx={self.kyx}, kyy={self.kyy},\n"
-            f" cxx={self.cxx}, cxy={self.cxy},\n"
-            f" cyx={self.cyx}, cyy={self.cyy},\n"
+            f" kzz={self.kzz}, cxx={self.cxx},\n"
+            f" cxy={self.cxy}, cyx={self.cyx},\n"
+            f" cyy={self.cyy}, czz={self.czz},\n"
             f" mxx={self.mxx}, mxy={self.mxy},\n"
             f" myx={self.myx}, myy={self.myy},\n"
+            f" mzz={self.mzz},\n"
             f" frequency={self.frequency}, tag={self.tag!r})"
         )
 
@@ -463,7 +475,6 @@ class BearingElement(Element):
         diff_args = set(signature(self.__init__).parameters).difference(
             self.__dict__.keys()
         )
-        diff_args.discard("kwargs")
 
         class_name = (
             self.__class__.__name__
@@ -495,18 +506,24 @@ class BearingElement(Element):
 
         x_0 - horizontal translation
         y_0 - vertical translation
+        z_0 - axial translation
 
         >>> bearing = bearing_example()
         >>> bearing.dof_mapping()
-        {'x_0': 0, 'y_0': 1}
+        {'x_0': 0, 'y_0': 1, 'z_0': 2}
         """
-        return dict(x_0=0, y_0=1)
+        return dict(x_0=0, y_0=1, z_0=2)
 
     def M(self, frequency):
         """Mass matrix for an instance of a bearing element.
 
         This method returns the mass matrix for an instance of a bearing
         element.
+
+        Parameters
+        ----------
+        frequency : float
+            The excitation frequency (rad/s).
 
         Returns
         -------
@@ -517,15 +534,17 @@ class BearingElement(Element):
         --------
         >>> bearing = bearing_example()
         >>> bearing.M(0)
-        array([[0., 0.],
-               [0., 0.]])
+        array([[0., 0., 0.],
+               [0., 0., 0.],
+               [0., 0., 0.]])
         """
         mxx = self.mxx_interpolated(frequency)
         myy = self.myy_interpolated(frequency)
         mxy = self.mxy_interpolated(frequency)
         myx = self.myx_interpolated(frequency)
+        mzz = self.mzz_interpolated(frequency)
 
-        M = np.array([[mxx, mxy], [myx, myy]])
+        M = np.array([[mxx, mxy, 0], [myx, myy, 0], [0, 0, mzz]])
 
         if self.n_link is not None:
             # fmt: off
@@ -550,21 +569,24 @@ class BearingElement(Element):
         Returns
         -------
         K : np.ndarray
-            A 2x2 matrix of floats containing the kxx, kxy, kyx, and kyy values.
+            A 3x3 matrix of floats containing the kxx, kxy, kyx, kyy and kzz
+            values (N/m).
 
         Examples
         --------
         >>> bearing = bearing_example()
         >>> bearing.K(0)
-        array([[1000000.,       0.],
-               [      0.,  800000.]])
+        array([[1000000.,       0.,       0.],
+               [      0.,  800000.,       0.],
+               [      0.,       0.,  100000.]])
         """
         kxx = self.kxx_interpolated(frequency)
         kyy = self.kyy_interpolated(frequency)
         kxy = self.kxy_interpolated(frequency)
         kyx = self.kyx_interpolated(frequency)
+        kzz = self.kzz_interpolated(frequency)
 
-        K = np.array([[kxx, kxy], [kyx, kyy]])
+        K = np.array([[kxx, kxy, 0], [kyx, kyy, 0], [0, 0, kzz]])
 
         if self.n_link is not None:
             # fmt: off
@@ -589,21 +611,24 @@ class BearingElement(Element):
         Returns
         -------
         C : np.ndarray
-            A 2x2 matrix of floats containing the cxx, cxy, cyx, and cyy values (N*s/m).
+            A 3x3 matrix of floats containing the cxx, cxy, cyx, cyy, and czz
+            values (N*s/m).
 
         Examples
         --------
         >>> bearing = bearing_example()
         >>> bearing.C(0)
-        array([[200.,   0.],
-               [  0., 150.]])
+        array([[200.,   0.,   0.],
+               [  0., 150.,   0.],
+               [  0.,   0.,  50.]])
         """
         cxx = self.cxx_interpolated(frequency)
         cyy = self.cyy_interpolated(frequency)
         cxy = self.cxy_interpolated(frequency)
         cyx = self.cyx_interpolated(frequency)
+        czz = self.czz_interpolated(frequency)
 
-        C = np.array([[cxx, cxy], [cyx, cyy]])
+        C = np.array([[cxx, cxy, 0], [cyx, cyy, 0], [0, 0, czz]])
 
         if self.n_link is not None:
             # fmt: off
@@ -622,14 +647,15 @@ class BearingElement(Element):
         Returns
         -------
         G : np.ndarray
-            A 2x2 matrix of floats.
+            A 3x3 matrix of floats.
 
         Examples
         --------
         >>> bearing = bearing_example()
         >>> bearing.G()
-        array([[0., 0.],
-               [0., 0.]])
+        array([[0., 0., 0.],
+               [0., 0., 0.],
+               [0., 0., 0.]])
         """
         G = np.zeros_like(self.K(0))
 
@@ -1065,24 +1091,47 @@ class SealElement(BearingElement):
         Direct stiffness in the x direction (N/m).
     cxx : float, array, pint.Quantity
         Direct damping in the x direction (N*s/m).
+    mxx : float, array, pint.Quantity
+        Direct mass in the x direction (kg).
+        Default is 0.
     kyy : float, array, pint.Quantity, optional
         Direct stiffness in the y direction (N/m).
-        (defaults to kxx)
+        Default is kxx.
     cyy : float, array, pint.Quantity, optional
         Direct damping in the y direction (N*s/m).
-        (defaults to cxx)
+        Default is cxx.
+    myy : float, array, pint.Quantity, optional
+        Direct mass in the y direction (kg).
+        Default is mxx.
     kxy : float, array, pint.Quantity, optional
         Cross coupled stiffness in the x direction (N/m).
-        (defaults to 0)
+        Default is 0.
     cxy : float, array, pint.Quantity, optional
         Cross coupled damping in the x direction (N*s/m).
-        (defaults to 0)
+        Default is 0.
+    mxy : float, array, pint.Quantity, optional
+        Cross coupled mass in the x direction (kg).
+        Default is 0.
     kyx : float, array, pint.Quantity, optional
         Cross coupled stiffness in the y direction (N/m).
-        (defaults to 0)
+        Default is 0.
     cyx : float, array, pint.Quantity, optional
         Cross coupled damping in the y direction (N*s/m).
-        (defaults to 0)
+        Default is 0.
+    myx : float, array, pint.Quantity, optional
+        Cross coupled mass in the y direction (kg).
+        Default is 0.
+    kzz : float, array, pint.Quantity, optional
+        Direct stiffness in the z direction (N/m).
+        Default is 0.
+    czz : float, array, pint.Quantity, optional
+        Direct damping in the z direction (N*s/m).
+        Default is 0.
+    mzz : float, array, pint.Quantity, optional
+        Direct mass in the z direction (kg).
+        Default is 0.
+    seal_leakage : float, optional
+        Seal leakage.
     frequency : array, pint.Quantity, optional
         Array with the frequencies (rad/s).
     tag : str, optional
@@ -1111,10 +1160,14 @@ class SealElement(BearingElement):
     >>> cyy = 1.5e2
     >>> frequency = np.linspace(0, 200, 11)
     >>> seal = rs.SealElement(n=0, kxx=kxx, kyy=kyy, cxx=cxx, cyy=cyy, frequency=frequency)
-    >>> seal.K(frequency) # doctest: +ELLIPSIS
-    array([[[1000000., 1000000., ...
-    >>> seal.C(frequency) # doctest: +ELLIPSIS
-    array([[[200., 200., ...
+    >>> seal.K(frequency[-1])
+    array([[1000000.,       0.,       0.],
+           [      0.,  800000.,       0.],
+           [      0.,       0.,       0.]])
+    >>> seal.C(frequency[-1])
+    array([[200.,   0.,   0.],
+           [  0., 150.,   0.],
+           [  0.,   0.,   0.]])
     """
 
     @check_units
@@ -1123,7 +1176,7 @@ class SealElement(BearingElement):
         n,
         kxx,
         cxx,
-        mxx=None,
+        mxx=0,
         kyy=None,
         kxy=0,
         kyx=0,
@@ -1133,13 +1186,15 @@ class SealElement(BearingElement):
         myy=None,
         mxy=0,
         myx=0,
+        kzz=0,
+        czz=0,
+        mzz=0,
         frequency=None,
         seal_leakage=None,
         tag=None,
         n_link=None,
         scale_factor=None,
         color="#77ACA2",
-        **kwargs,
     ):
         self.seal_leakage = seal_leakage
 
@@ -1150,14 +1205,17 @@ class SealElement(BearingElement):
             kxy=kxy,
             kyx=kyx,
             kyy=kyy,
+            kzz=kzz,
             cxx=cxx,
             cxy=cxy,
             cyx=cyx,
             cyy=cyy,
+            czz=czz,
             mxx=mxx,
             mxy=mxy,
             myx=myx,
             myy=myy,
+            mzz=mzz,
             tag=tag,
             n_link=n_link,
             color=color,
@@ -1227,8 +1285,9 @@ class BallBearingElement(BearingElement):
     >>> bearing = BallBearingElement(n=n, n_balls=n_balls, d_balls=d_balls,
     ...                              fs=fs, alpha=alpha, tag=tag)
     >>> bearing.K(0)
-    array([[4.64168838e+07, 0.00000000e+00],
-           [0.00000000e+00, 1.00906269e+08]])
+    array([[4.64168838e+07, 0.00000000e+00, 0.00000000e+00],
+           [0.00000000e+00, 1.00906269e+08, 0.00000000e+00],
+           [0.00000000e+00, 0.00000000e+00, 0.00000000e+00]])
     """
 
     def __init__(
@@ -1352,8 +1411,9 @@ class RollerBearingElement(BearingElement):
     >>> bearing = RollerBearingElement(n=n, n_rollers=n_rollers, l_rollers=l_rollers,
     ...                            fs=fs, alpha=alpha, tag=tag)
     >>> bearing.K(0)
-    array([[2.72821927e+08, 0.00000000e+00],
-           [0.00000000e+00, 5.56779444e+08]])
+    array([[2.72821927e+08, 0.00000000e+00, 0.00000000e+00],
+           [0.00000000e+00, 5.56779444e+08, 0.00000000e+00],
+           [0.00000000e+00, 0.00000000e+00, 0.00000000e+00]])
     """
 
     def __init__(
@@ -1496,7 +1556,6 @@ class MagneticBearingElement(BearingElement):
         n_link=None,
         scale_factor=1,
         color="#355d7a",
-        **kwargs,
     ):
         self.g0 = g0
         self.i0 = i0
@@ -1674,7 +1733,6 @@ class CylindricalBearing(BearingElement):
         tag=None,
         scale_factor=1,
         color="#355d7a",
-        **kwargs,
     ):
         self.n = n
 
@@ -1770,332 +1828,7 @@ class CylindricalBearing(BearingElement):
             scale_factor=scale_factor,
             color=color,
             **coefficients_dict,
-            **kwargs,
         )
-
-
-class BearingElement6DoF(BearingElement):
-    """A generalistic 6 DoF bearing element.
-
-    This class will create a bearing
-    element based on the user supplied stiffness and damping coefficients. These
-    are determined alternatively, via purposefully built codes.
-
-    Parameters
-    ----------
-    kxx : float, array, pint.Quantity
-        Direct stiffness in the x direction (N/m).
-    cxx : float, array, pint.Quantity
-        Direct damping in the x direction (N*s/m).
-    kyy : float, array, pint.Quantity, optional
-        Direct stiffness in the y direction (N/m).
-        Defaults to kxx
-    cyy : float, array, pint.Quantity, optional
-        Direct damping in the y direction (N*s/m).
-        Default is to cxx
-    kxy : float, array, pint.Quantity, optional
-        Cross stiffness between xy directions (N/m).
-        Default is 0
-    kyx : float, array, pint.Quantity, optional
-        Cross stiffness between yx directions (N/m).
-        Default is 0
-    kzz : float, array, pint.Quantity, optional
-        Direct stiffness in the z direction (N/m).
-        Default is 0
-    cxy : float, array, pint.Quantity, optional
-        Cross damping between xy directions (N*s/m).
-        Default is 0
-    cyx : float, array, pint.Quantity, optional
-        Cross damping between yx directions (N*s/m).
-        Default is 0
-    czz : float, array, pint.Quantity, optional
-        Direct damping in the z direction (N*s/m).
-        Default is 0
-    frequency : array, pint.Quantity, optional
-        Array with the frequencies (rad/s).
-    tag : str, optional
-        A tag to name the element
-        Default is None
-    n_link : int, optional
-        Node to which the bearing will connect. If None the bearing is
-        connected to ground.
-        Default is None.
-    scale_factor : float, optional
-        The scale factor is used to scale the bearing drawing.
-        Default is 1.
-
-    Examples
-    --------
-    >>> n = 0
-    >>> kxx = 1.0e7
-    >>> kyy = 1.5e7
-    >>> kzz = 5.0e5
-    >>> bearing = BearingElement6DoF(n=n, kxx=kxx, kyy=kyy, kzz=kzz,
-    ...                              cxx=0, cyy=0)
-    >>> bearing.K(0)
-    array([[10000000.,        0.,        0.],
-           [       0., 15000000.,        0.],
-           [       0.,        0.,   500000.]])
-    """
-
-    @check_units
-    def __init__(
-        self,
-        n,
-        kxx,
-        cxx,
-        mxx=None,
-        kyy=None,
-        cyy=None,
-        myy=None,
-        kxy=0.0,
-        kyx=0.0,
-        kzz=0.0,
-        cxy=0.0,
-        cyx=0.0,
-        czz=0.0,
-        mxy=0.0,
-        myx=0.0,
-        mzz=0.0,
-        frequency=None,
-        tag=None,
-        n_link=None,
-        scale_factor=1,
-        color="#355d7a",
-    ):
-        super().__init__(
-            n=n,
-            kxx=kxx,
-            cxx=cxx,
-            mxx=mxx,
-            kyy=kyy,
-            kxy=kxy,
-            kyx=kyx,
-            cyy=cyy,
-            cxy=cxy,
-            cyx=cyx,
-            myy=myy,
-            mxy=mxy,
-            myx=myx,
-            frequency=frequency,
-            tag=tag,
-            n_link=n_link,
-            scale_factor=scale_factor,
-            color=color,
-        )
-
-        new_args = ["kzz", "czz", "mzz"]
-
-        coefficients = {}
-
-        if kzz is None:
-            kzz = kxx * 0.0
-        if czz is None:
-            czz = cxx * 0.0
-
-        if mzz is None:
-            if mxx is None:
-                mxx = 0
-                mzz = 0
-            else:
-                mzz = mxx * 0.0
-
-        # output of locals() should be READ ONLY
-        args_dict = locals()
-
-        # check coefficients len for consistency
-        coefficients_len = []
-
-        for arg in new_args:
-            coefficient, interpolated = self._process_coefficient(args_dict[arg])
-            setattr(self, arg, coefficient)
-            setattr(self, f"{arg}_interpolated", interpolated)
-            coefficients_len.append(len(coefficient))
-
-        coefficients_len = [len(v.coefficient) for v in coefficients.values()]
-
-        if frequency is not None and type(frequency) != float:
-            coefficients_len.append(len(args_dict["frequency"]))
-            if len(set(coefficients_len)) > 1:
-                raise ValueError(
-                    "Arguments (coefficients and frequency)"
-                    " must have the same dimension"
-                )
-        else:
-            for c in coefficients_len:
-                if c != 1:
-                    raise ValueError(
-                        "Arguments (coefficients and frequency)"
-                        " must have the same dimension"
-                    )
-
-    def __repr__(self):
-        """Return a string representation of a bearing element.
-
-        Returns
-        -------
-        A string representation of a bearing element object.
-
-        Examples
-        --------
-        >>> bearing = bearing_example()
-        >>> bearing # doctest: +ELLIPSIS
-        BearingElement(n=0, n_link=None,
-         kxx=[...
-        """
-        return (
-            f"{self.__class__.__name__}"
-            f"(n={self.n}, n_link={self.n_link},\n"
-            f" kxx={self.kxx}, kxy={self.kxy},\n"
-            f" kyx={self.kyx}, kyy={self.kyy},\n"
-            f" kzz={self.kzz}, cxx={self.cxx},\n"
-            f" cxy={self.cxy}, cyx={self.cyx},\n"
-            f" cyy={self.cyy}, czz={self.czz},\n"
-            f" mxx={self.mxx}, mxy={self.mxy},\n"
-            f" myx={self.myx}, myy={self.myy},\n"
-            f" mzz={self.mzz},\n"
-            f" frequency={self.frequency}, tag={self.tag!r})"
-        )
-
-    def dof_mapping(self):
-        """Degrees of freedom mapping.
-
-        Returns a dictionary with a mapping between degree of freedom and its index.
-
-        Returns
-        -------
-        dof_mapping : dict
-            A dictionary containing the degrees of freedom and their indexes.
-
-        Examples
-        --------
-        The numbering of the degrees of freedom for each node.
-
-        Being the following their ordering for a node:
-
-        x_0 - horizontal translation
-        y_0 - vertical translation
-        z_0 - axial translation
-
-        >>> bearing = bearing_6dof_example()
-        >>> bearing.dof_mapping()
-        {'x_0': 0, 'y_0': 1, 'z_0': 2}
-        """
-        return dict(x_0=0, y_0=1, z_0=2)
-
-    def M(self, frequency):
-        """Mass matrix for an instance of a bearing element.
-
-        This method returns the mass matrix for an instance of a bearing
-        element.
-
-        Returns
-        -------
-        M : np.ndarray
-            Mass matrix (kg).
-
-        Examples
-        --------
-        >>> bearing = bearing_6dof_example()
-        >>> bearing.M(0)
-        array([[0., 0., 0.],
-               [0., 0., 0.],
-               [0., 0., 0.]])
-        """
-
-        mxx = self.mxx_interpolated(frequency)
-        myy = self.myy_interpolated(frequency)
-        mxy = self.mxy_interpolated(frequency)
-        myx = self.myx_interpolated(frequency)
-        mzz = self.mzz_interpolated(frequency)
-
-        M = np.array([[mxx, mxy, 0], [myx, myy, 0], [0, 0, mzz]])
-
-        if self.n_link is not None:
-            # fmt: off
-            M = np.vstack((np.hstack([M, -M]),
-                           np.hstack([-M, M])))
-            # fmt: on
-
-        return M
-
-    def K(self, frequency):
-        """Stiffness matrix for an instance of a bearing element.
-
-        This method returns the stiffness matrix for an instance of a bearing element.
-
-        Parameters
-        ----------
-        frequency : float
-            The excitation frequency (rad/s).
-
-        Returns
-        -------
-        K : np.ndarray
-            A 3x3 matrix of floats containing the kxx, kxy, kyx, kyy and kzz values (N/m).
-
-        Examples
-        --------
-        >>> bearing = bearing_6dof_example()
-        >>> bearing.K(0)
-        array([[1000000.,       0.,       0.],
-               [      0.,  800000.,       0.],
-               [      0.,       0.,  100000.]])
-        """
-        kxx = self.kxx_interpolated(frequency)
-        kyy = self.kyy_interpolated(frequency)
-        kxy = self.kxy_interpolated(frequency)
-        kyx = self.kyx_interpolated(frequency)
-        kzz = self.kzz_interpolated(frequency)
-
-        K = np.array([[kxx, kxy, 0], [kyx, kyy, 0], [0, 0, kzz]])
-
-        if self.n_link is not None:
-            # fmt: off
-            K = np.vstack((np.hstack([K, -K]),
-                           np.hstack([-K, K])))
-            # fmt: on
-
-        return K
-
-    def C(self, frequency):
-        """Damping matrix for an instance of a bearing element.
-
-        This method returns the damping matrix for an instance of a bearing element.
-
-        Parameters
-        ----------
-        frequency : float
-            The excitation frequency (rad/s).
-
-        Returns
-        -------
-        C: np.ndarray
-            A 3x3 matrix of floats containing the cxx, cxy, cyx, cyy, and czz values (N/m).
-
-        Examples
-        --------
-        >>> bearing = bearing_6dof_example()
-        >>> bearing.C(0)
-        array([[200.,   0.,   0.],
-               [  0., 150.,   0.],
-               [  0.,   0.,  50.]])
-        """
-        cxx = self.cxx_interpolated(frequency)
-        cyy = self.cyy_interpolated(frequency)
-        cxy = self.cxy_interpolated(frequency)
-        cyx = self.cyx_interpolated(frequency)
-        czz = self.czz_interpolated(frequency)
-
-        C = np.array([[cxx, cxy, 0], [cyx, cyy, 0], [0, 0, czz]])
-
-        if self.n_link is not None:
-            # fmt: off
-            C = np.vstack((np.hstack([C, -C]),
-                           np.hstack([-C, C])))
-            # fmt: on
-
-        return C
 
 
 def bearing_example():
@@ -2115,7 +1848,9 @@ def bearing_example():
     0.0
     """
     w = np.linspace(0, 200, 11)
-    bearing = BearingElement(n=0, kxx=1e6, kyy=0.8e6, cxx=2e2, cyy=1.5e2, frequency=w)
+    bearing = BearingElement(
+        n=0, kxx=1e6, kyy=0.8e6, cxx=2e2, cyy=1.5e2, kzz=1e5, czz=0.5e2, frequency=w
+    )
     return bearing
 
 
@@ -2139,25 +1874,3 @@ def seal_example():
     w = np.linspace(0, 200, 11)
     seal = SealElement(n=0, kxx=1e6, kyy=0.8e6, cxx=2e2, cyy=1.5e2, frequency=w)
     return seal
-
-
-def bearing_6dof_example():
-    """Create an example of bearing element.
-
-    This function returns an instance of a simple bearing. The purpose is to make
-    available a simple model so that doctest can be written using it.
-
-    Returns
-    -------
-    bearing : ross.BearingElement6DoF
-        An instance of a bearing object.
-
-    Examples
-    --------
-    >>> bearing = bearing_6dof_example()
-    >>> bearing.kxx
-    [1000000.0]"""
-    bearing = BearingElement6DoF(
-        n=0, kxx=1e6, kyy=0.8e6, cxx=2e2, cyy=1.5e2, kzz=1e5, czz=0.5e2
-    )
-    return bearing
