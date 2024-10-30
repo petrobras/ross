@@ -22,7 +22,6 @@ from scipy.sparse import linalg as las
 from ross.bearing_seal_element import (
     BallBearingElement,
     BearingElement,
-    BearingElement6DoF,
     BearingFluidFlow,
     MagneticBearingElement,
     RollerBearingElement,
@@ -30,9 +29,9 @@ from ross.bearing_seal_element import (
     CylindricalBearing,
 )
 from ross.faults import Crack, MisalignmentFlex, MisalignmentRigid, Rubbing
-from ross.disk_element import DiskElement, DiskElement6DoF
+from ross.disk_element import DiskElement
 from ross.materials import steel
-from ross.point_mass import PointMass, PointMass6DoF
+from ross.point_mass import PointMass
 from ross.results import (
     CampbellResults,
     ConvergenceResults,
@@ -46,7 +45,7 @@ from ross.results import (
     TimeResponseResults,
     UCSResults,
 )
-from ross.shaft_element import ShaftElement, ShaftElement6DoF
+from ross.shaft_element import ShaftElement
 from ross.units import Q_, check_units
 from ross.utils import (
     intersection,
@@ -408,10 +407,9 @@ class Rotor(object):
                     global_dof_mapping[f"y_{elm.n_link}"] = int(
                         self.number_dof * elm.n_link + 1
                     )
-                    if self.number_dof == 6:
-                        global_dof_mapping[f"z_{elm.n_link}"] = int(
-                            self.number_dof * elm.n_link + 2
-                        )
+                    global_dof_mapping[f"z_{elm.n_link}"] = int(
+                        self.number_dof * elm.n_link + 2
+                    )
                 else:
                     global_dof_mapping[f"x_{elm.n_link}"] = int(
                         half_ndof * n_last + half_ndof * elm.n_link + self.number_dof
@@ -422,13 +420,12 @@ class Rotor(object):
                         + self.number_dof
                         + 1
                     )
-                    if self.number_dof == 6:
-                        global_dof_mapping[f"z_{elm.n_link}"] = int(
-                            half_ndof * n_last
-                            + half_ndof * elm.n_link
-                            + self.number_dof
-                            + 2
-                        )
+                    global_dof_mapping[f"z_{elm.n_link}"] = int(
+                        half_ndof * n_last
+                        + half_ndof * elm.n_link
+                        + self.number_dof
+                        + 2
+                    )
 
             elm.dof_global_index = global_dof_mapping
             df.at[df.loc[df.tag == elm.tag].index[0], "dof_global_index"] = (
@@ -1125,8 +1122,7 @@ class Rotor(object):
         Returns
         -------
         Ksdt0 : np.ndarray
-            Dynamic stiffness matrix for the rotor. Only useable to
-            the 6 DoF model in variable speed analyses.
+            Dynamic stiffness matrix for the rotor.
 
         Examples
         --------
@@ -1141,14 +1137,13 @@ class Rotor(object):
         """
         Ksdt0 = np.zeros((self.ndof, self.ndof))
 
-        if self.number_dof == 6:
-            for elm in self.shaft_elements:
-                dofs = list(elm.dof_global_index.values())
-                Ksdt0[np.ix_(dofs, dofs)] += elm.Kst()
+        for elm in self.shaft_elements:
+            dofs = list(elm.dof_global_index.values())
+            Ksdt0[np.ix_(dofs, dofs)] += elm.Kst()
 
-            for elm in self.disk_elements:
-                dofs = list(elm.dof_global_index.values())
-                Ksdt0[np.ix_(dofs, dofs)] += elm.Kdt()
+        for elm in self.disk_elements:
+            dofs = list(elm.dof_global_index.values())
+            Ksdt0[np.ix_(dofs, dofs)] += elm.Kdt()
 
         return Ksdt0
 
@@ -1603,9 +1598,7 @@ class Rotor(object):
         K_aux = self.K(speed)
 
         # Remove cross-coupled coefficients of bearing stiffness matrix
-        rmv_cross_coeffs = [[0, 1], [1, 0]]
-        if self.number_dof == 6:
-            rmv_cross_coeffs = [[0, 1, 0], [1, 0, 0], [0, 0, 0]]
+        rmv_cross_coeffs = [[0, 1, 0], [1, 0, 0], [0, 0, 0]]
 
         for elm in self.bearing_elements:
             dofs = list(elm.dof_global_index.values())
@@ -2650,14 +2643,11 @@ class Rotor(object):
             if not isinstance(bearing, SealElement):
                 bearings_elements.append(bearing)
 
-        bearing_class = BearingElement6DoF if self.number_dof == 6 else BearingElement
-
         for i, k in enumerate(stiffness_log):
-            bearings = [bearing_class(b.n, kxx=k, cxx=0) for b in bearings_elements]
-            rotor = self.__class__(self.shaft_elements, self.disk_elements, bearings)
-
-            if self.number_dof == 6:
-                rotor = convert_6dof_to_4dof(rotor)
+            bearings = [BearingElement(b.n, kxx=k, cxx=0) for b in bearings_elements]
+            rotor = convert_6dof_to_4dof(
+                self.__class__(self.shaft_elements, self.disk_elements, bearings)
+            )
 
             modal = rotor.run_modal(
                 speed=0, num_modes=num_modes, synchronous=synchronous
@@ -2703,18 +2693,17 @@ class Rotor(object):
 
                         # create bearing
                         bearings = [
-                            bearing_class(b.n, kxx=k, cxx=0) for b in bearings_elements
+                            BearingElement(b.n, kxx=k, cxx=0) for b in bearings_elements
                         ]
 
                         # create rotor
-                        rotor_critical = Rotor(
-                            shaft_elements=self.shaft_elements,
-                            disk_elements=self.disk_elements,
-                            bearing_elements=bearings,
+                        rotor_critical = convert_6dof_to_4dof(
+                            Rotor(
+                                shaft_elements=self.shaft_elements,
+                                disk_elements=self.disk_elements,
+                                bearing_elements=bearings,
+                            )
                         )
-
-                        if self.number_dof == 6:
-                            rotor_critical = convert_6dof_to_4dof(rotor_critical)
 
                         modal_critical = rotor_critical.run_modal(speed=speed)
                         critical_points_modal.append(modal_critical)
@@ -3282,12 +3271,12 @@ class Rotor(object):
         aux_M = aux_rotor.M(0)
         aux_K = aux_rotor.K(0)
         aux1_K = aux_rotor_1.K(0)
-        num_dof = 4
 
-        if self.number_dof == 6:
-            aux_M = remove_dofs(aux_M)
-            aux_K = remove_dofs(aux_K)
-            aux1_K = remove_dofs(aux1_K)
+        # convert to 4 dof
+        num_dof = 4
+        aux_M = remove_dofs(aux_M)
+        aux_K = remove_dofs(aux_K)
+        aux1_K = remove_dofs(aux1_K)
 
         # gravity aceleration vector
         g = -9.8065
@@ -4443,7 +4432,7 @@ def rotor_example_6dof():
     L = [0.25 for _ in range(n)]
 
     shaft_elem = [
-        ShaftElement6DoF(
+        ShaftElement(
             material=steel,
             L=0.25,
             idl=0,
@@ -4458,10 +4447,10 @@ def rotor_example_6dof():
         for l in L
     ]
 
-    disk0 = DiskElement6DoF.from_geometry(
+    disk0 = DiskElement.from_geometry(
         n=2, material=steel, width=0.07, i_d=0.05, o_d=0.28
     )
-    disk1 = DiskElement6DoF.from_geometry(
+    disk1 = DiskElement.from_geometry(
         n=4, material=steel, width=0.07, i_d=0.05, o_d=0.28
     )
 
@@ -4471,11 +4460,7 @@ def rotor_example_6dof():
     cxx = 0
     cyy = 0
     czz = 0
-    bearing0 = BearingElement6DoF(
-        n=0, kxx=kxx, kyy=kyy, cxx=cxx, cyy=cyy, kzz=kzz, czz=czz
-    )
-    bearing1 = BearingElement6DoF(
-        n=6, kxx=kxx, kyy=kyy, cxx=cxx, cyy=cyy, kzz=kzz, czz=czz
-    )
+    bearing0 = BearingElement(n=0, kxx=kxx, kyy=kyy, cxx=cxx, cyy=cyy, kzz=kzz, czz=czz)
+    bearing1 = BearingElement(n=6, kxx=kxx, kyy=kyy, cxx=cxx, cyy=cyy, kzz=kzz, czz=czz)
 
     return Rotor(shaft_elem, [disk0, disk1], [bearing0, bearing1])
