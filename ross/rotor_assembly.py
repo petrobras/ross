@@ -1,7 +1,6 @@
 import inspect
 import sys
 import warnings
-from collections import Counter
 from collections.abc import Iterable
 from copy import copy, deepcopy
 from itertools import chain, cycle
@@ -15,7 +14,6 @@ from plotly import graph_objects as go
 from scipy import io as sio
 from scipy import linalg as la
 from scipy import signal as signal
-from scipy.interpolate import UnivariateSpline
 from scipy.optimize import newton
 from scipy.sparse import linalg as las
 
@@ -30,7 +28,7 @@ from ross.bearing_seal_element import (
 )
 from ross.faults import Crack, MisalignmentFlex, MisalignmentRigid, Rubbing
 from ross.disk_element import DiskElement
-from ross.materials import steel
+from ross.materials import Material, steel
 from ross.point_mass import PointMass
 from ross.results import (
     CampbellResults,
@@ -62,6 +60,7 @@ __all__ = [
     "compressor_example",
     "coaxrotor_example",
     "rotor_example_6dof",
+    "rotor_example_with_damping",
 ]
 
 # set Plotly palette of colors
@@ -4232,8 +4231,8 @@ class CoAxialRotor(Rotor):
 def rotor_example():
     """Create a rotor as example.
 
-    This function returns an instance of a simple rotor with
-    two shaft elements, one disk and two simple bearings.
+    This function returns an instance of a simple rotor without
+    damping with 6 shaft elements, 2 disks and 2 simple bearings.
     The purpose of this is to make available a simple model
     so that doctest can be written using this.
 
@@ -4248,7 +4247,6 @@ def rotor_example():
     >>> np.round(modal.wd[:4])
     array([ 92.,  96., 275., 297.])
     """
-    #  Rotor without damping with 6 shaft elements 2 disks and 2 bearings
     i_d = 0
     o_d = 0.05
     n = 6
@@ -4283,12 +4281,10 @@ def rotor_example():
 
 
 def compressor_example():
-    """Create a rotor as example.
+    """Create a compressor as example.
 
-    This function returns an instance of a simple rotor with
+    This function returns an instance of a rotor with
     91 shaft elements, 7 disks and 2 simple bearings and 12 seals.
-    The purpose of this is to make available a simple model
-    so that doctest can be written using this.
 
     Returns
     -------
@@ -4302,9 +4298,7 @@ def compressor_example():
 
     Examples
     --------
-    >>> import ross as rs
-    >>> rotor = rs.compressor_example()
-    >>> fig = rotor.plot_rotor()
+    >>> rotor = compressor_example()
     >>> len(rotor.shaft_elements)
     91
     >>> len(rotor.disk_elements)
@@ -4318,12 +4312,10 @@ def compressor_example():
 
 
 def coaxrotor_example():
-    """Create a rotor as example.
+    """Create a coaxial rotor as example.
 
-    This function returns an instance of a simple rotor with
-    two shafts, four disk and four bearings.
-    The purpose of this is to make available a simple model for co-axial rotors
-    so that doctest can be written using this.
+    This function returns an instance of a coaxial rotor with
+    2 shafts, 4 disk and 4 bearings.
 
     Returns
     -------
@@ -4331,12 +4323,7 @@ def coaxrotor_example():
 
     Examples
     --------
-    >>> import ross as rs
-    >>> rotor = rs.coaxrotor_example()
-
-    Plotting rotor model
-    >>> fig = rotor.plot_rotor()
-
+    >>> rotor = coaxrotor_example()
     >>> modal = rotor.run_modal(speed=0)
     >>> np.round(modal.wd[:4])
     array([39., 39., 99., 99.])
@@ -4393,39 +4380,39 @@ def coaxrotor_example():
 
 
 def rotor_example_6dof():
-    """This function returns an instance of a simple rotor with
-    two shaft elements, one disk and two simple bearings.
-    The purpose of this is to make available a simple model
-    so that doctest can be written using this.
+    """Create a rotor as example.
 
-    Parameters
-    ----------
+    This function returns an instance of a simple rotor with
+    6 shaft elements, 2 disks and 2 bearings with stiffness in
+    the z direction.
 
     Returns
     -------
-    An instance of a 6DoFs rotor object.
+    An instance of a rotor object.
 
     Examples
     --------
     >>> import ross as rs
     >>> import numpy as np
-    >>> rotor6 = rs.rotor_assembly.rotor_example_6dof()
-    >>> # Plotting rotor model
-    >>> fig = rotor6.plot_rotor()
+    >>> rotor = rs.rotor_example_6dof()
+
+    Plotting rotor model
+    >>> fig = rotor.plot_rotor()
     >>> # fig.show()
-    >>> # Running modal
+
+    Running modal
     >>> rotor_speed = 100.0 # rad/s
-    >>> modal6 = rotor6.run_modal(rotor_speed)
-    >>> print(f"Undamped natural frequencies: {np.round(modal6.wn, 2)}") # doctest: +ELLIPSIS
+    >>> modal = rotor.run_modal(rotor_speed)
+    >>> print(f"Undamped natural frequencies: {np.round(modal.wn, 2)}") # doctest: +ELLIPSIS
     Undamped natural frequencies: [ 47.62  91.84  96.36 274.44 ...
-    >>> print(f"Damped natural frequencies: {np.round(modal6.wd, 2)}") # doctest: +ELLIPSIS
+    >>> print(f"Damped natural frequencies: {np.round(modal.wd, 2)}") # doctest: +ELLIPSIS
     Damped natural frequencies: [ 47.62  91.84  96.36 274.44 ...
-    >>> # Plotting Campbell Diagram
-    >>> camp6 = rotor6.run_campbell(np.linspace(0, 400, 101), frequencies=6)
-    >>> fig = camp6.plot()
+
+    Plotting Campbell Diagram
+    >>> camp = rotor.run_campbell(np.linspace(0, 400, 101), frequencies=6)
+    >>> fig = camp.plot()
     >>> # fig.show()
     """
-    #  Rotor with 6 DoFs, with internal damping, with 10 shaft elements, 2 disks and 2 bearings.
     i_d = 0
     o_d = 0.05
     n = 6
@@ -4433,12 +4420,10 @@ def rotor_example_6dof():
 
     shaft_elem = [
         ShaftElement(
+            l,
+            i_d,
+            o_d,
             material=steel,
-            L=0.25,
-            idl=0,
-            odl=0.05,
-            idr=0,
-            odr=0.05,
             alpha=0,
             beta=0,
             rotary_inertia=False,
@@ -4456,11 +4441,70 @@ def rotor_example_6dof():
 
     kxx = 1e6
     kyy = 0.8e6
-    kzz = 1e5
-    cxx = 0
-    cyy = 0
-    czz = 0
-    bearing0 = BearingElement(n=0, kxx=kxx, kyy=kyy, cxx=cxx, cyy=cyy, kzz=kzz, czz=czz)
-    bearing1 = BearingElement(n=6, kxx=kxx, kyy=kyy, cxx=cxx, cyy=cyy, kzz=kzz, czz=czz)
+    kzz = 0.1e6
+    bearing0 = BearingElement(n=0, kxx=kxx, kyy=kyy, kzz=kzz, cxx=0, cyy=0, czz=0)
+    bearing1 = BearingElement(n=6, kxx=kxx, kyy=kyy, kzz=kzz, cxx=0, cyy=0, czz=0)
+
+    return Rotor(shaft_elem, [disk0, disk1], [bearing0, bearing1])
+
+
+def rotor_example_with_damping():
+    """Create a rotor as example.
+
+    This function returns an instance of a rotor with internal
+    damping, with 33 shaft elements, 2 disks and 2 bearings.
+
+    Returns
+    -------
+    An instance of a rotor object.
+
+    Examples
+    --------
+    >>> rotor = rotor_example_with_damping()
+    >>> rotor.Ip
+    0.015118294226367068
+    """
+    steel2 = Material(name="Steel", rho=7850, E=2.17e11, G_s=81.2e9)
+
+    # fmt: off
+    node_position = np.array([
+        0  ,  25,  64, 104, 124, 143, 175, 207, 239, 271, 303, 335, 
+        345, 355, 380, 408, 436, 466, 496, 526, 556, 586, 614, 647,
+        657, 667, 702, 737, 772, 807, 842, 862, 881, 914
+    ]) * 1e-3
+    # fmt: on
+
+    L = [node_position[i] - node_position[i - 1] for i in range(1, len(node_position))]
+
+    i_d = 0
+    o_d = 0.019
+
+    shaft_elem = [
+        ShaftElement(
+            l,
+            i_d,
+            o_d,
+            material=steel2,
+            alpha=8.0501,
+            beta=1.0e-5,
+            rotary_inertia=True,
+            shear_effects=True,
+        )
+        for l in L
+    ]
+
+    m = 2.6375
+    Id = 0.003844540885417
+    Ip = 0.007513248437500
+
+    disk0 = DiskElement(n=12, m=m, Id=Id, Ip=Ip)
+    disk1 = DiskElement(n=24, m=m, Id=Id, Ip=Ip)
+
+    bearing0 = BearingElement(
+        n=4, kxx=4.40e5, kyy=4.6114e5, cxx=27.4, cyy=2.505, kzz=0, czz=0
+    )
+    bearing1 = BearingElement(
+        n=31, kxx=9.50e5, kyy=1.09e8, cxx=50.4, cyy=100.4553, kzz=0, czz=0
+    )
 
     return Rotor(shaft_elem, [disk0, disk1], [bearing0, bearing1])
