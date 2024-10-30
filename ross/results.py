@@ -424,20 +424,18 @@ class Shape(Results):
         self._calculate()
 
     def _classify(self):
+        size = len(self.vector)
+
+        axial_dofs = np.arange(2, size, self.number_dof)
+        torsional_dofs = np.arange(5, size, self.number_dof)
+
+        nonzero_dofs = np.nonzero(np.abs(self.vector).round(6))[0]
+
         self.mode_type = "Lateral"
-
-        if self.number_dof == 6:
-            size = len(self.vector)
-
-            axial_dofs = np.arange(2, size, self.number_dof)
-            torsional_dofs = np.arange(5, size, self.number_dof)
-
-            nonzero_dofs = np.nonzero(np.abs(self.vector).round(6))[0]
-
-            if np.isin(nonzero_dofs, axial_dofs).all():
-                self.mode_type = "Axial"
-            elif np.isin(nonzero_dofs, torsional_dofs).all():
-                self.mode_type = "Torsional"
+        if np.isin(nonzero_dofs, axial_dofs).all():
+            self.mode_type = "Axial"
+        elif np.isin(nonzero_dofs, torsional_dofs).all():
+            self.mode_type = "Torsional"
 
     def _calculate_orbits(self):
         orbits = []
@@ -1532,16 +1530,15 @@ class CampbellResults(Results):
                 )
             )
 
-        whirl_direction = [0.0, 0.5, 1.0]
-        scatter_marker = ["triangle-up", "circle", "triangle-down"]
-        legends = ["Forward", "Mixed", "Backward"]
-
-        if self.number_dof == 6:
-            whirl_direction = np.concatenate((whirl_direction, [None, None]))
-            scatter_marker = np.concatenate(
-                (scatter_marker, ["diamond-wide", "bowtie"])
-            )
-            legends = np.concatenate((legends, ["Axial", "Torsional"]))
+        whirl_direction = [0.0, 0.5, 1.0, None, None]
+        scatter_marker = [
+            "triangle-up",
+            "circle",
+            "triangle-down",
+            "diamond-wide",
+            "bowtie",
+        ]
+        legends = ["Forward", "Mixed", "Backward", "Axial", "Torsional"]
 
         for whirl_dir, mark, legend in zip(whirl_direction, scatter_marker, legends):
             for i in range(num_frequencies):
@@ -1831,10 +1828,7 @@ class FrequencyResponseResults(Results):
         self.speed_range = speed_range
         self.number_dof = number_dof
 
-        if self.number_dof == 4:
-            self.dof_dict = {"0": "x", "1": "y", "2": "α", "3": "β"}
-        elif self.number_dof == 6:
-            self.dof_dict = {"0": "x", "1": "y", "2": "z", "3": "α", "4": "β", "5": "θ"}
+        self.dof_dict = {"0": "x", "1": "y", "2": "z", "3": "α", "4": "β", "5": "θ"}
 
     def plot_magnitude(
         self,
