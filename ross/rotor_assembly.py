@@ -846,11 +846,11 @@ class Rotor(object):
         Finding the first critical speeds within a speed range
         >>> results = rotor.run_critical_speed(speed_range=(100, 1000))
         >>> np.round(results.wd())
-        array([271., 300., 636., 867.])
+        array([271., 300., 636., 774., 867.])
 
         Changing output units
         >>> np.round(results.wd("rpm"))
-        array([2590., 2868., 6074., 8278.])
+        array([2590., 2868., 6074., 7394., 8278.])
 
         Retrieving whirl directions
         >>> results.whirl_direction # doctest: +ELLIPSIS
@@ -1031,7 +1031,8 @@ class Rotor(object):
         Examples
         --------
         >>> rotor = rotor_example()
-        >>> rotor.M(0)[:4, :4]
+        >>> dofs = [0, 1, 3, 4]
+        >>> rotor.M(0)[np.ix_(dofs, dofs)]
         array([[ 1.42050794,  0.        ,  0.        ,  0.04931719],
                [ 0.        ,  1.42050794, -0.04931719,  0.        ],
                [ 0.        , -0.04931719,  0.00231392,  0.        ],
@@ -1092,7 +1093,8 @@ class Rotor(object):
         Examples
         --------
         >>> rotor = rotor_example()
-        >>> np.round(rotor.K(0)[:4, :4]/1e6)
+        >>> dofs = [0, 1, 3, 4]
+        >>> np.round(rotor.K(0)[np.ix_(dofs, dofs)] / 1e6)
         array([[47.,  0.,  0.,  6.],
                [ 0., 46., -6.,  0.],
                [ 0., -6.,  1.,  0.],
@@ -1194,7 +1196,8 @@ class Rotor(object):
         Examples
         --------
         >>> rotor = rotor_example()
-        >>> rotor.G()[:4, :4]
+        >>> dofs = [0, 1, 3, 4]
+        >>> rotor.G()[np.ix_(dofs, dofs)]
         array([[ 0.        ,  0.01943344, -0.00022681,  0.        ],
                [-0.01943344,  0.        ,  0.        , -0.00022681],
                [ 0.00022681,  0.        ,  0.        ,  0.0001524 ],
@@ -1230,11 +1233,13 @@ class Rotor(object):
         Examples
         --------
         >>> rotor = rotor_example()
-        >>> np.round(rotor.A()[50:56, :2])
+        >>> np.round(rotor.A()[75:83, :2])
         array([[     0.,  10927.],
                [-10924.,     -0.],
+               [    -0.,     -0.],
                [  -174.,      0.],
                [    -0.,   -174.],
+               [    -0.,     -0.],
                [    -0.,  10723.],
                [-10719.,     -0.]])
         """
@@ -1378,7 +1383,7 @@ class Rotor(object):
         Examples
         --------
         >>> rotor = rotor_example()
-        >>> evalues, evectors = rotor._eigen(0, sorted_=True)
+        >>> evalues, evectors = rotor._eigen(0, sorted_=True, sparse=False)
         >>> idx = rotor._index(evalues)
         >>> idx[:6] # doctest: +ELLIPSIS
         array([0, 1, 2, 3, 4, ...
@@ -1452,7 +1457,7 @@ class Rotor(object):
         Examples
         --------
         >>> rotor = rotor_example()
-        >>> evalues, evectors = rotor._eigen(0)
+        >>> evalues, evectors = rotor._eigen(0, sparse=False)
         >>> evalues[0].imag # doctest: +ELLIPSIS
         91.796...
         """
@@ -1589,8 +1594,8 @@ class Rotor(object):
         >>> F[:, rotor.number_dof * node + 1] = 10 * np.sin(2 * t)
         >>> get_array = rotor._pseudo_modal(speed, num_modes=12)
         >>> F_modal = get_array[1](F.T).T
-        >>> round(la.norm(F_modal), 5)
-        226.92798
+        >>> la.norm(F_modal) # doctest: +ELLIPSIS
+        195.466...
         """
 
         M = self.M(speed)
@@ -1744,7 +1749,7 @@ class Rotor(object):
         (61,)
 
         Selecting the disirable modes, if you want a reduced model:
-        >>> response = rotor.run_freq_response(speed_range=speed, modes=[0, 1, 2])
+        >>> response = rotor.run_freq_response(speed_range=speed, modes=[0, 1, 2, 3, 4])
         >>> abs(response.freq_resp) # doctest: +ELLIPSIS
         array([[[2.00154633e-07, 2.02422522e-07, 2.09522044e-07, ...
 
@@ -1937,7 +1942,7 @@ class Rotor(object):
         --------
         >>> rotor = rotor_example()
         >>> speed = np.linspace(0, 1000, 101)
-        >>> rotor._unbalance_force(3, 10.0, 0.0, speed)[12] # doctest: +ELLIPSIS
+        >>> rotor._unbalance_force(3, 10.0, 0.0, speed)[18] # doctest: +ELLIPSIS
         array([0.000e+00+0.j, 1.000e+03+0.j, 4.000e+03+0.j, ...
         """
         F0 = np.zeros((self.ndof, len(omega)), dtype=np.complex128)
@@ -2160,8 +2165,7 @@ class Rotor(object):
         >>> F[:, rotor.number_dof * node + 1] = 10 * np.sin(2 * t)
         >>> t, yout = rotor.integrate_system(speed, F, t)
         Running direct method
-        >>> dof = 13
-        >>> yout[:, dof] # doctest: +ELLIPSIS
+        >>> yout[:, rotor.number_dof * node + 1] # doctest: +ELLIPSIS
         array([0.00000000e+00, 2.07239823e-10, 7.80952429e-10, ...,
                1.21848307e-07, 1.21957287e-07, 1.22065778e-07])
         """
@@ -2850,11 +2854,10 @@ class Rotor(object):
         >>> probe1 = Probe(3, 0)
         >>> t = np.linspace(0, 10, size)
         >>> F = np.zeros((size, rotor.ndof))
-        >>> F[:, 4 * node] = 10 * np.cos(2 * t)
-        >>> F[:, 4 * node + 1] = 10 * np.sin(2 * t)
+        >>> F[:, rotor.number_dof * node] = 10 * np.cos(2 * t)
+        >>> F[:, rotor.number_dof * node + 1] = 10 * np.sin(2 * t)
         >>> response = rotor.run_time_response(speed, F, t)
-        >>> dof = 13
-        >>> response.yout[:, dof] # doctest: +ELLIPSIS
+        >>> response.yout[:, rotor.number_dof * node + 1] # doctest: +ELLIPSIS
         array([ 0.00000000e+00,  1.86686693e-07,  8.39130663e-07, ...
         >>> # plot time response for a given probe:
         >>> fig1 = response.plot_1d(probe=[probe1])
@@ -3502,7 +3505,7 @@ class Rotor(object):
         ...             nel_r=1)
         >>> modal = rotor.run_modal(speed=0)
         >>> modal.wn.round(4)
-        array([ 85.7634,  85.7634, 271.9326, 271.9326, 718.58  , 718.58  ])
+        array([ 85.7634,  85.7634, 271.9326, 271.9326, 650.1377, 718.58  ])
         """
         if len(leng_data) != len(odl_data) or len(leng_data) != len(idl_data):
             raise ValueError(
@@ -4003,10 +4006,10 @@ class CoAxialRotor(Rotor):
         self.Ip = Ip_sh + Ip_dsk
 
         # number of dofs
+        half_ndof = self.number_dof / 2
         self.ndof = int(
-            4 * max([el.n for el in shaft_elements])
-            + 8
-            + 2 * len([el for el in point_mass_elements])
+            self.number_dof * (max([el.n for el in shaft_elements]) + 2)
+            + half_ndof * len([el for el in point_mass_elements])
         )
 
         elm_no_shaft_id = {
@@ -4070,25 +4073,45 @@ class CoAxialRotor(Rotor):
             global_dof_mapping = {}
             for k, v in dof_mapping.items():
                 dof_letter, dof_number = k.split("_")
-                global_dof_mapping[dof_letter + "_" + str(int(dof_number) + elm.n)] = v
+                global_dof_mapping[dof_letter + "_" + str(int(dof_number) + elm.n)] = (
+                    int(v)
+                )
 
             if elm.n <= n_last + 1:
                 for k, v in global_dof_mapping.items():
-                    global_dof_mapping[k] = 4 * elm.n + v
+                    global_dof_mapping[k] = int(self.number_dof * elm.n + v)
             else:
                 for k, v in global_dof_mapping.items():
-                    global_dof_mapping[k] = 2 * n_last + 2 * elm.n + 4 + v
+                    global_dof_mapping[k] = int(
+                        half_ndof * n_last + half_ndof * elm.n + self.number_dof + v
+                    )
 
             if hasattr(elm, "n_link") and elm.n_link is not None:
                 if elm.n_link <= n_last + 1:
-                    global_dof_mapping[f"x_{elm.n_link}"] = 4 * elm.n_link
-                    global_dof_mapping[f"y_{elm.n_link}"] = 4 * elm.n_link + 1
-                else:
-                    global_dof_mapping[f"x_{elm.n_link}"] = (
-                        2 * n_last + 2 * elm.n_link + 4
+                    global_dof_mapping[f"x_{elm.n_link}"] = int(
+                        self.number_dof * elm.n_link
                     )
-                    global_dof_mapping[f"y_{elm.n_link}"] = (
-                        2 * n_last + 2 * elm.n_link + 5
+                    global_dof_mapping[f"y_{elm.n_link}"] = int(
+                        self.number_dof * elm.n_link + 1
+                    )
+                    global_dof_mapping[f"z_{elm.n_link}"] = int(
+                        self.number_dof * elm.n_link + 2
+                    )
+                else:
+                    global_dof_mapping[f"x_{elm.n_link}"] = int(
+                        half_ndof * n_last + half_ndof * elm.n_link + self.number_dof
+                    )
+                    global_dof_mapping[f"y_{elm.n_link}"] = int(
+                        half_ndof * n_last
+                        + half_ndof * elm.n_link
+                        + self.number_dof
+                        + 1
+                    )
+                    global_dof_mapping[f"z_{elm.n_link}"] = int(
+                        half_ndof * n_last
+                        + half_ndof * elm.n_link
+                        + self.number_dof
+                        + 2
                     )
 
             elm.dof_global_index = global_dof_mapping
