@@ -373,6 +373,7 @@ class ShaftElement(Element):
 
         Example
         -------
+        >>> from ross.materials import steel
         >>> print(ShaftElement(L=0.25, idl=0, odl=0.05, odr=0.08, material=steel))
         Element Number:             None
         Element Lenght   (m):       0.25
@@ -472,17 +473,7 @@ class ShaftElement(Element):
 
         Returns a dictionary with a mapping between degree of freedom and its index.
 
-        Returns
-        -------
-        dof_mapping : dict
-            A dictionary containing the degrees of freedom and their indexes.
-
-        Examples
-        --------
-        The numbering of the degrees of freedom for each node.
-
-        Being the following their ordering for a node:
-
+        The available keys corresponding to the degrees of freedom are as follows:
         x_0 - horizontal translation
         y_0 - vertical translation
         z_0 - axial translation
@@ -490,6 +481,14 @@ class ShaftElement(Element):
         beta_0  - rotation around vertical
         theta_0 - torsion around axial
 
+        Returns
+        -------
+        dof_mapping : dict
+            A dictionary containing the degrees of freedom and their indexes.
+
+        Examples
+        --------
+        >>> from ross.materials import steel
         >>> sh = ShaftElement(L=0.5, idl=0.05, odl=0.1, material=steel,
         ...                   rotary_inertia=True, shear_effects=True)
         >>> sh.dof_mapping()["x_0"]
@@ -520,16 +519,19 @@ class ShaftElement(Element):
 
         Examples
         --------
+        >>> from ross.materials import steel
         >>> Timoshenko_Element = ShaftElement(
         ...                         L=0.5, idl=0.05, idr=0.05, odl=0.1,
         ...                         odr=0.15, material=steel,
         ...                         rotary_inertia=True,
         ...                         shear_effects=True)
-        >>> Timoshenko_Element.M()[:4, :4]
-        array([[11.36986417,  0.        ,  0.        ,  0.86197637],
-               [ 0.        , 11.36986417, -0.86197637,  0.        ],
-               [ 0.        , -0.86197637,  0.08667495,  0.        ],
-               [ 0.86197637,  0.        ,  0.        ,  0.08667495]])
+        >>> (Timoshenko_Element.M()[:6, :6]).round(6)
+        array([[11.369864,  0.      ,  0.      ,  0.      ,  0.861976,  0.      ],
+               [ 0.      , 11.369864,  0.      , -0.861976,  0.      ,  0.      ],
+               [ 0.      ,  0.      , 14.056991,  0.      ,  0.      ,  0.      ],
+               [ 0.      , -0.861976,  0.      ,  0.086675,  0.      ,  0.      ],
+               [ 0.861976,  0.      ,  0.      ,  0.      ,  0.086675,  0.      ],
+               [ 0.      ,  0.      ,  0.      ,  0.      ,  0.      ,  0.037938]])
         """
         phi = self.phi
         L = self.L
@@ -722,11 +724,13 @@ class ShaftElement(Element):
         ...                         odr=0.15, material=steel,
         ...                         rotary_inertia=True,
         ...                         shear_effects=True)
-        >>> Timoshenko_Element.K()[:4, :4]/1e6
-        array([[219.96144416,   0.        ,   0.        ,  41.29754659],
-               [  0.        , 219.96144416, -41.29754659,   0.        ],
-               [  0.        , -41.29754659,  12.23526375,   0.        ],
-               [ 41.29754659,   0.        ,   0.        ,  12.23526375]])
+        >>> (Timoshenko_Element.K()[:6, :6]/1e6).round(4)
+        array([[ 219.9614,    0.    ,    0.    ,    0.    ,   41.2975,    0.    ],
+               [   0.    ,  219.9614,    0.    ,  -41.2975,    0.    ,    0.    ],
+               [   0.    ,    0.    , 4557.2728,    0.    ,    0.    ,    0.    ],
+               [   0.    ,  -41.2975,    0.    ,   12.2353,    0.    ,    0.    ],
+               [  41.2975,    0.    ,    0.    ,    0.    ,   12.2353,    0.    ],
+               [   0.    ,    0.    ,    0.    ,    0.    ,    0.    ,    4.7333]])
         """
         L = self.L
         phi = self.phi
@@ -954,11 +958,13 @@ class ShaftElement(Element):
         ...                         odr=0.15, material=steel,
         ...                         rotary_inertia=True,
         ...                         shear_effects=True)
-        >>> Timoshenko_Element.C()[:4, :4]
-        array([[ 0.,  0.,  0.,  0.],
-               [ 0.,  0., -0.,  0.],
-               [ 0., -0.,  0.,  0.],
-               [ 0.,  0.,  0.,  0.]])
+        >>> Timoshenko_Element.C()[:6, :6]
+        array([[ 0.,  0.,  0.,  0.,  0.,  0.],
+               [ 0.,  0.,  0., -0.,  0.,  0.],
+               [ 0.,  0.,  0.,  0.,  0.,  0.],
+               [ 0., -0.,  0.,  0.,  0.,  0.],
+               [ 0.,  0.,  0.,  0.,  0.,  0.],
+               [ 0.,  0.,  0.,  0.,  0.,  0.]])
         """
         # proportional damping matrix
         C = self.alpha * self.M() + self.beta * self.K()
@@ -982,11 +988,13 @@ class ShaftElement(Element):
         ...                         odr=0.15, material=steel,
         ...                         rotary_inertia=True,
         ...                         shear_effects=True)
-        >>> Timoshenko_Element.G()[:4, :4]
-        array([[ 0.        ,  0.30940809, -0.01085902,  0.        ],
-               [-0.30940809,  0.        ,  0.        , -0.01085902],
-               [ 0.01085902,  0.        ,  0.        ,  0.0067206 ],
-               [ 0.        ,  0.01085902, -0.0067206 ,  0.        ]])
+        >>> (Timoshenko_Element.G()[:6, :6]).round(6)
+        array([[ 0.      ,  0.309408,  0.      , -0.010859,  0.      ,  0.      ],
+               [-0.309408,  0.      ,  0.      ,  0.      , -0.010859,  0.      ],
+               [ 0.      ,  0.      ,  0.      ,  0.      ,  0.      ,  0.      ],
+               [ 0.010859,  0.      ,  0.      ,  0.      ,  0.006721,  0.      ],
+               [ 0.      ,  0.010859,  0.      , -0.006721,  0.      ,  0.      ],
+               [ 0.      ,  0.      ,  0.      ,  0.      ,  0.      ,  0.      ]])
         """
         if self.gyroscopic:
             phi = self.phi
