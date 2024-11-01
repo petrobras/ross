@@ -66,7 +66,7 @@ class PointMass(Element):
 
         self.mx = float(mx)
         self.my = float(my)
-        self.mz = float(mz)
+        self.mz = 0.0 if mz is None else float(mz)
         self.tag = tag
         self.dof_global_index = None
         self.color = color
