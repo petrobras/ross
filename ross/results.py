@@ -2348,6 +2348,8 @@ class SensitivityResults(Results):
             check_amplitude_units_temp_var = Q_(1, amplitude_units)
             if check_amplitude_units_temp_var.check("[length]/[force]"):
                 mag_sensitivity = Q_(mag_sensitivity, "m/N").to(amplitude_units).m
+            elif check_amplitude_units_temp_var.check("decibel"):
+                mag_sensitivity = 20 * np.log10(mag_sensitivity)
             else:
                 raise ValueError(
                     "Unsupported unit. Please use a unit with dimensions of length per force (e.g., mm/N)."

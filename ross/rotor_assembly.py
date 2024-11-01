@@ -141,7 +141,7 @@ def compute_sensitivity(speed_range, freq_resp, compute_sensitivity_at, ambs):
 
         # Close-loop frequency response computation
         mag_t = mag_w * mag_c
-        phase_t = phase_w + phase_c
+        phase_t = phase_w + phase_c + np.pi
 
         complex_t = [
             complex(
