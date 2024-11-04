@@ -1037,7 +1037,7 @@ class ShaftElement(Element):
                 - 35 * phi ** 2
                 + a2 * (3.5 + 17.5 * phi - 17.5 * phi ** 2)
                 + b2 * (3 + 10.5 * phi - 10.5 * phi ** 2)
-                + gama * (2.75 + 7 * phi - 7 * phi * 2)
+                + gama * (2.75 + 7 * phi - 7 * phi ** 2)
                 + delta * (2.5 + 5 * phi - 5 * phi ** 2)
             ) * L ** 2
             g6 = (
