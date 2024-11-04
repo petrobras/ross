@@ -2643,17 +2643,17 @@ def test_compute_sensitivity():
 
     assert_almost_equal(
         sensitivity_results.max_abs_sensitivities["Bearing 0"],
-        1.000230118790354,
+        1.000014067705469,
     )
     assert_allclose(
         sensitivity_results.sensitivities["Bearing 0"],
         np.array(
             [
-                1.00023012 + 1.04518951e-17j,
-                0.99998742 + 1.72649485e-03j,
-                0.999997 + 9.60472985e-04j,
-                0.99999955 + 7.83691899e-04j,
-                1.00001991 + 1.57789150e-03j,
+                0.99976988 - 1.04237137e-17j,
+                1.00001258 - 1.72649485e-03j,
+                1.000003 - 9.60472985e-04j,
+                1.00000045 - 7.83691899e-04j,
+                0.99998009 - 1.57789150e-03j,
             ]
         ),
     )
@@ -2661,18 +2661,18 @@ def test_compute_sensitivity():
         fig.data[1]["y"],
         np.array(
             [
-                1.04494905e-17,
-                1.72651485e-03,
-                9.60475573e-04,
-                7.83692091e-04,
-                1.57785878e-03,
+                -1.04261130e-17,
+                -1.72647142e-03,
+                -9.60469806e-04,
+                -7.83691387e-04,
+                -1.57792161e-03,
             ]
         ),
         atol=1e-6,
     )
     assert_allclose(
         fig.data[0]["y"],
-        np.array([1.00023012, 0.99998891, 0.99999746, 0.99999986, 1.00002116]),
+        np.array([0.99976988, 1.00001407, 1.00000346, 1.00000076, 0.99998133]),
     )
 
     # Successful case where the sensitivity is computed for only one magnetic bearing but the frequency response is not
@@ -2686,17 +2686,17 @@ def test_compute_sensitivity():
 
     assert_almost_equal(
         sensitivity_results.max_abs_sensitivities["Bearing 0"],
-        1.000230118790354,
+        1.000014067705469,
     )
     assert_allclose(
         sensitivity_results.sensitivities["Bearing 0"],
         np.array(
             [
-                1.00023012 + 1.04518951e-17j,
-                0.99998742 + 1.72649485e-03j,
-                0.999997 + 9.60472985e-04j,
-                0.99999955 + 7.83691899e-04j,
-                1.00001991 + 1.57789150e-03j,
+                0.99976988 - 1.04237137e-17j,
+                1.00001258 - 1.72649485e-03j,
+                1.000003 - 9.60472985e-04j,
+                1.00000045 - 7.83691899e-04j,
+                0.99998009 - 1.57789150e-03j,
             ]
         ),
     )
@@ -2704,18 +2704,18 @@ def test_compute_sensitivity():
         fig.data[1]["y"],
         np.array(
             [
-                1.04494905e-17,
-                1.72651485e-03,
-                9.60475573e-04,
-                7.83692091e-04,
-                1.57785878e-03,
+                -1.04261130e-17,
+                -1.72647142e-03,
+                -9.60469806e-04,
+                -7.83691387e-04,
+                -1.57792161e-03,
             ]
         ),
         atol=1e-6,
     )
     assert_allclose(
         fig.data[0]["y"],
-        np.array([1.00023012, 0.99998891, 0.99999746, 0.99999986, 1.00002116]),
+        np.array([0.99976988, 1.00001407, 1.00000346, 1.00000076, 0.99998133]),
     )
 
     # Failure case where neither speed_range nor frequency response are provided.
