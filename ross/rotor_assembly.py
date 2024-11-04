@@ -2156,7 +2156,7 @@ class Rotor(object):
         ... ]
         >>> magnetic_force = rotor.magnetic_bearing_controller(magnetic_bearings, dt, response.yout[-1,:])
         >>> np.nonzero(magnetic_force)[0]
-        array([ 48,  49, 172, 173], dtype=int64)
+        array([ 48,  49, 172, 173])
         >>> magnetic_force[np.nonzero(magnetic_force)[0]]
         array([0.0070686 , 0.02656392, 0.00180106, 0.01577127])
         """
@@ -2283,7 +2283,7 @@ class Rotor(object):
                 )
             )
         else:
-            magnetic_force = lambda time_step, disp_resp: 0
+            magnetic_force = lambda time_step, disp_resp: np.zeros((self.ndof))
 
         # Consider any additional RHS function (extra forces)
         add_to_RHS = kwargs.get("add_to_RHS")
