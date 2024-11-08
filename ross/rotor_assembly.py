@@ -1054,22 +1054,32 @@ class Rotor(object):
 
             if synchronous:
                 if elm in self.shaft_elements:
+                    a0 = elm.dof_mapping()["alpha_0"]
+                    b0 = elm.dof_mapping()["beta_0"]
+                    x0 = elm.dof_mapping()["x_0"]
+                    y0 = elm.dof_mapping()["y_0"]
+                    x1 = elm.dof_mapping()["x_1"]
+                    y1 = elm.dof_mapping()["y_1"]
+                    a1 = elm.dof_mapping()["alpha_1"]
+                    b1 = elm.dof_mapping()["beta_1"]
                     G = elm.G()
-                    for i in range(8):
-                        if i in (0, 3, 4, 7):
-                            M[i, 0] = M[i, 0] - G[i, 1]
-                            M[i, 3] = M[i, 3] + G[i, 2]
-                            M[i, 4] = M[i, 4] - G[i, 5]
-                            M[i, 7] = M[i, 7] + G[i, 6]
+                    for i in range(2 * self.number_dof):
+                        if i in (x0, b0, x1, b1):
+                            M[i, x0] = M[i, x0] - G[i, y0]
+                            M[i, b0] = M[i, b0] + G[i, a0]
+                            M[i, x1] = M[i, x1] - G[i, y1]
+                            M[i, b1] = M[i, b1] + G[i, a1]
                         else:
-                            M[i, 1] = M[i, 1] + G[i, 0]
-                            M[i, 2] = M[i, 2] - G[i, 3]
-                            M[i, 5] = M[i, 5] + G[i, 4]
-                            M[i, 6] = M[i, 6] - G[i, 7]
+                            M[i, y0] = M[i, y0] + G[i, x0]
+                            M[i, a0] = M[i, a0] - G[i, b0]
+                            M[i, y1] = M[i, y1] + G[i, x1]
+                            M[i, a1] = M[i, a1] - G[i, b1]
                 elif elm in self.disk_elements:
+                    a0 = elm.dof_mapping()["alpha_0"]
+                    b0 = elm.dof_mapping()["beta_0"]
                     G = elm.G()
-                    M[2, 2] = M[2, 2] - G[2, 3]
-                    M[3, 3] = M[3, 3] + G[3, 2]
+                    M[a0, a0] = M[a0, a0] - G[a0, b0]
+                    M[b0, b0] = M[b0, b0] + G[b0, a0]
 
             M0[np.ix_(dofs, dofs)] += M
 
