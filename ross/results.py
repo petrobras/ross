@@ -1393,6 +1393,30 @@ class CampbellResults(Results):
         self.number_dof = number_dof
         self.run_modal = run_modal
 
+    def sort_by_mode_type(self):
+        """Sort by mode type.
+
+        Sort the Campbell result arrays (`wd`, `log_dec`, `damping_ratio`, `whirl_values`)
+        by mode type, so as to force the axial and torsional modes to be at the end
+        of the arrays.
+        """
+
+        wd = self.wd
+        ld = self.log_dec
+        dr = self.damping_ratio
+        wv = self.whirl_values
+
+        mode_shapes = self.modal_results[self.speed_range[0]].shapes
+        target_values = wd[0, [shape.mode_type != "Lateral" for shape in mode_shapes]]
+
+        for value in target_values:
+            for i in range(0, wd.shape[0]):
+                idx = np.where(wd[i].round(3) == value.round(3))[0][0]
+                wd[i] = np.append(np.delete(wd[i], idx), wd[i, idx])
+                ld[i] = np.append(np.delete(ld[i], idx), ld[i, idx])
+                dr[i] = np.append(np.delete(dr[i], idx), dr[i, idx])
+                wv[i] = np.append(np.delete(wv[i], idx), wv[i, idx])
+
     @check_units
     def plot(
         self,

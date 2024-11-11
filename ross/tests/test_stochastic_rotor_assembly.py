@@ -192,7 +192,7 @@ def test_getter_and_setter_error_messages():
 ###############################################################################
 def test_run_campbell(rotor1):
     speed_range = np.linspace(0, 300, 11)
-    results = rotor1.run_campbell(speed_range)
+    results = rotor1.run_campbell(speed_range, frequencies=7)
 
     # fmt: off
     wd = np.array([
@@ -284,10 +284,12 @@ def test_run_campbell(rotor1):
     ])
     # fmt: on
 
-    assert results.wd.shape == (6, 11, 2)
-    assert results.log_dec.shape == (6, 11, 2)
-    assert_allclose(results.wd, wd, atol=1e-6)
-    assert_allclose(results.log_dec, log_dec, atol=1e-6)
+    assert results.wd.shape == (7, 11, 2)
+    assert results.log_dec.shape == (7, 11, 2)
+    assert_allclose(results.wd[:-1, :, :], wd, atol=1e-6)
+    assert_allclose(np.mean(results.wd[-1, :, :]), 774.34967816, atol=1e-6)
+    assert_allclose(results.log_dec[:-1, :, :], log_dec, atol=1e-6)
+    assert_allclose(np.mean(results.log_dec[-1, :, :]), 0.0, atol=1e-6)
 
 
 def test_run_freq_response(rotor1):

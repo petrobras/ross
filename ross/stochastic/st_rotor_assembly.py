@@ -472,6 +472,7 @@ class ST_Rotor(object):
         # Monte Carlo - results storage
         for i, rotor in enumerate(iter(self)):
             results = rotor.run_campbell(speed_range, frequencies, frequency_type)
+            results.sort_by_mode_type()
             for j in range(frequencies):
                 wd[j, :, i] = results.wd[:, j]
                 log_dec[j, :, i] = results.log_dec[:, j]
