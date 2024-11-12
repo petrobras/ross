@@ -1301,7 +1301,7 @@ class ShaftElement(Element):
                         idr=parameters["idr"][i],
                         odr=parameters["odr"][i],
                         material=new_materials[parameters["material"][i]],
-                        n=parameters["n"][i],
+                        n=int(parameters["n"][i]),
                         axial_force=parameters["axial_force"][i],
                         torque=parameters["torque"][i],
                         shear_effects=parameters["shear_effects"][i],
