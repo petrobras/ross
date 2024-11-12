@@ -28,7 +28,7 @@ from ross.bearing_seal_element import (
 )
 from ross.faults import Crack, MisalignmentFlex, MisalignmentRigid, Rubbing
 from ross.disk_element import DiskElement
-from ross.coupling_element import CouplingElement, CouplingElement6DoF
+from ross.coupling_element import CouplingElement
 from ross.materials import Material, steel
 from ross.point_mass import PointMass
 from ross.results import (
