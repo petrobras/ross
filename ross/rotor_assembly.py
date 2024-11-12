@@ -1503,7 +1503,7 @@ class Rotor(object):
                 evalues, evectors = la.eig(A)
 
             if sparse is not None:
-                idx = np.where((np.imag(evalues) != 0) & (np.abs(evalues) > 0.1))[0]
+                idx = np.where(np.abs(evalues) > 0.1)[0]
                 evalues, evectors = filter_eigenpairs(evalues, evectors, idx)
 
         if sorted_:
