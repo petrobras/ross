@@ -1141,6 +1141,18 @@ class Shape(Results):
                 )
             )
 
+        fig.update_layout(
+            scene=dict(
+                aspectratio=dict(x=2.5, y=1, z=1),
+                camera=dict(
+                    eye=dict(x=2.3, y=1.5, z=0.5),
+                    center=dict(x=1.15, y=0.5, z=0),
+                    up=dict(x=0, y=0, z=1),
+                ),
+            ),
+            **kwargs,
+        )
+
         return fig
 
 
@@ -1740,6 +1752,7 @@ class ModalResults(Results):
                 "x": 0.5,
                 "xanchor": "center",
             },
+            **kwargs,
         )
 
         return fig
@@ -2050,11 +2063,10 @@ class CampbellResults(Results):
         )
         fig.update_layout(
             legend=dict(
-                itemsizing="constant",
                 orientation="h",
                 xanchor="center",
-                x=0.5,
                 yanchor="bottom",
+                x=0.5,
                 y=-0.3,
                 yref="container",
             ),
@@ -3739,6 +3751,7 @@ class ForcedResponseResults(Results):
         fig.update_yaxes(
             title_text=f"Major Axis Amplitude ({amplitude_units})",
         )
+        fig.update_layout(**kwargs)
 
         return fig
 
@@ -3901,6 +3914,7 @@ class ForcedResponseResults(Results):
                     nticks=5,
                 ),
             ),
+            **kwargs,
         )
 
         return fig
@@ -3908,7 +3922,6 @@ class ForcedResponseResults(Results):
     def plot_bending_moment(
         self,
         speed,
-        frequency_units="rad/s",
         moment_units="N*m",
         rotor_length_units="m",
         fig=None,
@@ -3921,9 +3934,6 @@ class ForcedResponseResults(Results):
         speed : float
             The rotor rotation speed. Must be an element from the speed_range argument
             passed to the class (rad/s).
-        frequency_units : str, optional
-            Frequency units.
-            Default is "rad/s"
         moment_units : str, optional
             Moment units.
             Default is 'N*m'.
@@ -4001,11 +4011,18 @@ class ForcedResponseResults(Results):
         )
 
         fig.update_xaxes(title_text=f"Rotor Length ({rotor_length_units})")
-        fig.update_yaxes(
-            title_text=f"Bending Moment ({moment_units})",
-            title_font=dict(size=12),
+        fig.update_yaxes(title_text=f"Bending Moment ({moment_units})")
+        fig.update_layout(
+            legend=dict(
+                orientation="h",
+                xanchor="center",
+                yanchor="bottom",
+                x=0.5,
+                y=-0.3,
+                yref="container",
+            ),
+            **kwargs,
         )
-        fig.update_layout(**kwargs)
 
         return fig
 
@@ -4015,6 +4032,7 @@ class ForcedResponseResults(Results):
         samples=101,
         frequency_units="rad/s",
         amplitude_units="m",
+        phase_units="rad",
         rotor_length_units="m",
         moment_units="N*m",
         shape2d_kwargs=None,
@@ -4052,6 +4070,9 @@ class ForcedResponseResults(Results):
 
             Default is "m/N" 0 to peak.
             To use peak to peak use '<unit> pkpk' (e.g. 'm/N pkpk')
+        phase_untis : str, optional
+            Phase units.
+            Default is "rad".
         rotor_length_units : str, optional
             Rotor length units.
             Default is 'm'.
@@ -4090,21 +4111,20 @@ class ForcedResponseResults(Results):
 
         fig0 = self.plot_deflected_shape_2d(
             speed,
-            frequency_units=frequency_units,
             amplitude_units=amplitude_units,
+            phase_units=phase_units,
             rotor_length_units=rotor_length_units,
             **shape2d_kwargs,
         )
         fig1 = self.plot_deflected_shape_3d(
             speed,
-            frequency_units=frequency_units,
             amplitude_units=amplitude_units,
+            phase_units=phase_units,
             rotor_length_units=rotor_length_units,
             **shape3d_kwargs,
         )
         fig2 = self.plot_bending_moment(
             speed,
-            frequency_units=frequency_units,
             moment_units=moment_units,
             rotor_length_units=rotor_length_units,
             **bm_kwargs,
@@ -4128,6 +4148,7 @@ class ForcedResponseResults(Results):
         subplots.update_xaxes(fig2.layout.xaxis, row=2, col=1)
         subplots.update_yaxes(fig2.layout.yaxis, row=2, col=1)
         subplots.update_layout(
+            height=600,
             scene=dict(
                 bgcolor=fig1.layout.scene.bgcolor,
                 xaxis=fig1.layout.scene.xaxis,
@@ -4146,6 +4167,7 @@ class ForcedResponseResults(Results):
                 yanchor="bottom",
                 x=0.5,
                 y=-0.3,
+                yref="container",
             ),
             **subplot_kwargs,
         )
