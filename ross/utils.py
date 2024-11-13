@@ -681,7 +681,7 @@ def newmark(func, t, y_size, **options):
     >>> accel = 0.0
     >>> t = np.linspace(0, 10, size)
     >>> F = np.zeros((size, rotor.ndof))
-    >>> F[:, rotor.number_dof * node] = 10 * np.cos(2 * t)
+    >>> F[:, rotor.number_dof * node + 0] = 10 * np.cos(2 * t)
     >>> F[:, rotor.number_dof * node + 1] = 10 * np.sin(2 * t)
     >>> M = rotor.M(speed)
     >>> C1 = rotor.C(speed)

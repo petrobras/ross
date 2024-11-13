@@ -1032,12 +1032,11 @@ class Rotor(object):
         Examples
         --------
         >>> rotor = rotor_example()
-        >>> dofs = [0, 1, 3, 4]
-        >>> rotor.M(0)[np.ix_(dofs, dofs)]
-        array([[ 1.42050794,  0.        ,  0.        ,  0.04931719],
-               [ 0.        ,  1.42050794, -0.04931719,  0.        ],
-               [ 0.        , -0.04931719,  0.00231392,  0.        ],
-               [ 0.04931719,  0.        ,  0.        ,  0.00231392]])
+        >>> rotor.M(0)[:4, :4]
+        array([[ 1.42050794,  0.        ,  0.        ,  0.        ],
+               [ 0.        ,  1.42050794,  0.        , -0.04931719],
+               [ 0.        ,  0.        ,  1.27790826,  0.        ],
+               [ 0.        , -0.04931719,  0.        ,  0.00231392]])
         """
         M0 = np.zeros((self.ndof, self.ndof))
 
@@ -1104,12 +1103,11 @@ class Rotor(object):
         Examples
         --------
         >>> rotor = rotor_example()
-        >>> dofs = [0, 1, 3, 4]
-        >>> np.round(rotor.K(0)[np.ix_(dofs, dofs)] / 1e6)
-        array([[47.,  0.,  0.,  6.],
-               [ 0., 46., -6.,  0.],
-               [ 0., -6.,  1.,  0.],
-               [ 6.,  0.,  0.,  1.]])
+        >>> np.round(rotor.K(0)[:4, :4] / 1e6)
+        array([[ 4.700e+01,  0.000e+00,  0.000e+00,  0.000e+00],
+               [ 0.000e+00,  4.600e+01,  0.000e+00, -6.000e+00],
+               [ 0.000e+00,  0.000e+00,  1.657e+03,  0.000e+00],
+               [ 0.000e+00, -6.000e+00,  0.000e+00,  1.000e+00]])
         """
         K0 = np.zeros((self.ndof, self.ndof))
 
@@ -1207,12 +1205,11 @@ class Rotor(object):
         Examples
         --------
         >>> rotor = rotor_example()
-        >>> dofs = [0, 1, 3, 4]
-        >>> rotor.G()[np.ix_(dofs, dofs)]
-        array([[ 0.        ,  0.01943344, -0.00022681,  0.        ],
-               [-0.01943344,  0.        ,  0.        , -0.00022681],
-               [ 0.00022681,  0.        ,  0.        ,  0.0001524 ],
-               [ 0.        ,  0.00022681, -0.0001524 ,  0.        ]])
+        >>> rotor.G()[:4, :4]
+        array([[ 0.        ,  0.01943344,  0.        , -0.00022681],
+               [-0.01943344,  0.        ,  0.        ,  0.        ],
+               [ 0.        ,  0.        ,  0.        ,  0.        ],
+               [ 0.00022681,  0.        ,  0.        ,  0.        ]])
         """
         G0 = np.zeros((self.ndof, self.ndof))
 
@@ -1601,7 +1598,7 @@ class Rotor(object):
         >>> speed = 500.0
         >>> t = np.linspace(0, 10, size)
         >>> F = np.zeros((size, rotor.ndof))
-        >>> F[:, rotor.number_dof * node] = 10 * np.cos(2 * t)
+        >>> F[:, rotor.number_dof * node + 0] = 10 * np.cos(2 * t)
         >>> F[:, rotor.number_dof * node + 1] = 10 * np.sin(2 * t)
         >>> get_array = rotor._pseudo_modal(speed, num_modes=12)
         >>> F_modal = get_array[1](F.T).T
@@ -2172,7 +2169,7 @@ class Rotor(object):
         >>> accel = 0.0
         >>> t = np.linspace(0, 10, size)
         >>> F = np.zeros((size, rotor.ndof))
-        >>> F[:, rotor.number_dof * node] = 10 * np.cos(2 * t)
+        >>> F[:, rotor.number_dof * node + 0] = 10 * np.cos(2 * t)
         >>> F[:, rotor.number_dof * node + 1] = 10 * np.sin(2 * t)
         >>> t, yout = rotor.integrate_system(speed, F, t)
         Running direct method
@@ -2865,7 +2862,7 @@ class Rotor(object):
         >>> probe1 = Probe(3, 0)
         >>> t = np.linspace(0, 10, size)
         >>> F = np.zeros((size, rotor.ndof))
-        >>> F[:, rotor.number_dof * node] = 10 * np.cos(2 * t)
+        >>> F[:, rotor.number_dof * node + 0] = 10 * np.cos(2 * t)
         >>> F[:, rotor.number_dof * node + 1] = 10 * np.sin(2 * t)
         >>> response = rotor.run_time_response(speed, F, t)
         >>> response.yout[:, rotor.number_dof * node + 1] # doctest: +ELLIPSIS
