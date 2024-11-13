@@ -38,8 +38,7 @@ exclude = ["ross.tests*"]  # empty by default
 
 [project]
 name = "ross-rotordynamics"
-dynamic = ["version"]
-dependencies = ["requirements.txt"]
+dynamic = ["version", "dependencies"]
 requires-python = ">=3.8"
 authors = [
     {name = "ROSS developers"},
@@ -62,6 +61,9 @@ classifiers = [
     "Programming Language :: Python :: 3.12",
     "Programming Language :: Python :: Implementation :: CPython",
 ]
+
+[tool.setuptools.dynamic]
+dependencies = { file = ["requirements.txt"] }
 
 [project.optional-dependencies]
     dev = [
