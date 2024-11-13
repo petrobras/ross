@@ -39,15 +39,7 @@ exclude = ["ross.tests*"]  # empty by default
 [project]
 name = "ross-rotordynamics"
 dynamic = ["version"]
-dependencies = [
-    "numpy",
-    "scipy",
-    "toml>=0.10.1",
-    "pandas>=0.23",
-    "plotly>=4.7.0",
-    "xlrd",
-    "pint>=0.18",
-]
+dependencies = ["requirements.txt"]
 requires-python = ">=3.8"
 authors = [
     {name = "ROSS developers"},
@@ -55,7 +47,7 @@ authors = [
 ]
 maintainers = [
     {name = "Vinicius Teixeira da Costa", email = "viniciustx@ufu.br"},
-    {name = "Jessica Guarato de Freitas Santos", email = "jessica.guarato@ufu.b"}
+    {name = "Jessica Guarato de Freitas Santos", email = "jessica.guarato@ufu.br"}
 ]
 description = "ROSS: Rotordynamic Open Source Software"
 readme = "README.md"
