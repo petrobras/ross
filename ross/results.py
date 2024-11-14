@@ -434,8 +434,10 @@ class Shape(Results):
         self.mode_type = "Lateral"
         if np.isin(nonzero_dofs, axial_dofs).all():
             self.mode_type = "Axial"
+            self.color = tableau_colors["orange"]
         elif np.isin(nonzero_dofs, torsional_dofs).all():
             self.mode_type = "Torsional"
+            self.color = tableau_colors["green"]
 
     def _calculate_orbits(self):
         orbits = []
@@ -448,15 +450,18 @@ class Shape(Results):
 
         self.orbits = orbits
         # check shape whirl
-        if all(w == "Forward" for w in whirl):
-            self.whirl = "Forward"
-            self.color = tableau_colors["blue"]
-        elif all(w == "Backward" for w in whirl):
-            self.whirl = "Backward"
-            self.color = tableau_colors["red"]
+        if self.mode_type == "Lateral":
+            if all(w == "Forward" for w in whirl):
+                self.whirl = "Forward"
+                self.color = tableau_colors["blue"]
+            elif all(w == "Backward" for w in whirl):
+                self.whirl = "Backward"
+                self.color = tableau_colors["red"]
+            else:
+                self.whirl = "Mixed"
+                self.color = tableau_colors["gray"]
         else:
-            self.whirl = "Mixed"
-            self.color = tableau_colors["gray"]
+            self.whirl = "None"
 
     def _calculate(self):
         evec = self._evec
@@ -577,8 +582,6 @@ class Shape(Results):
 
         nodes_pos = Q_(self.nodes_pos, "m").to(length_units).m
 
-        color = "orange"
-
         if plot_dimension == 2:
             # Plot 2d
             fig.add_traces(
@@ -587,7 +590,7 @@ class Shape(Results):
                         x=nodes_pos,
                         y=rel_disp,
                         mode="lines",
-                        line=dict(color=tableau_colors[color]),
+                        line=dict(color=self.color),
                         showlegend=False,
                         hovertemplate=(f"Relative angle: %{{y:.2f }}<extra></extra>"),
                     ),
@@ -633,7 +636,7 @@ class Shape(Results):
                         y=[0, 0],
                         z=[0, 1],
                         mode="lines",
-                        line=dict(width=2, color=tableau_colors[color]),
+                        line=dict(width=2, color=self.color),
                         showlegend=False,
                         name=f"Node {self.nodes[n]}",
                         hovertemplate=(
@@ -650,7 +653,7 @@ class Shape(Results):
                     y=np.zeros(len(nodes_pos)),
                     z=np.ones(len(nodes_pos)),
                     mode="lines+markers",
-                    line=dict(width=2, color=tableau_colors[color]),
+                    line=dict(width=2, color=self.color),
                     marker=dict(size=3),
                     showlegend=False,
                     hoverinfo="none",
@@ -757,8 +760,6 @@ class Shape(Results):
 
         nodes_pos = Q_(self.nodes_pos, "m").to(length_units).m
 
-        color = "green"
-
         if plot_dimension == 2:
             # Plot 2d
             fig.add_traces(
@@ -767,7 +768,7 @@ class Shape(Results):
                         x=nodes_pos,
                         y=theta,
                         mode="lines",
-                        line=dict(color=tableau_colors[color]),
+                        line=dict(color=self.color),
                         showlegend=False,
                         hovertemplate=(f"Relative angle: %{{y:.2f }}<extra></extra>"),
                     ),
@@ -820,7 +821,7 @@ class Shape(Results):
                         y=[0, xt[i, n]],
                         z=[0, yt[i, n]],
                         mode="lines",
-                        line=dict(width=2, color=tableau_colors[color]),
+                        line=dict(width=2, color=self.color),
                         showlegend=False,
                         name=f"Node {self.nodes[n]}",
                         hovertemplate=(
@@ -841,7 +842,7 @@ class Shape(Results):
                     y=yn,
                     z=zn,
                     mode="lines+markers",
-                    line=dict(width=2, color=tableau_colors[color]),
+                    line=dict(width=2, color=self.color),
                     marker=dict(size=3),
                     showlegend=False,
                     hoverinfo="none",
@@ -1295,11 +1296,13 @@ class ModalResults(Results):
         Parameters
         ----------
         whirl: string
-            A string indicating the whirl direction related to the kappa_mode
+            A string indicating the whirl direction related to the kappa_mode.
+            If whirl is None, it does not correspond to a Lateral mode.
 
         Returns
         -------
-        An array with reference index for the whirl direction
+        An array with reference index for the whirl direction.
+        If index is Nan, it does not correspond to a Lateral mode.
 
         Example
         -------
@@ -1313,6 +1316,8 @@ class ModalResults(Results):
             return 1.0
         elif whirl == "Mixed":
             return 0.5
+        else:
+            return np.nan
 
     def kappa(self, node, w, wd=True):
         r"""Calculate kappa for a given node and natural frequency.
@@ -1394,7 +1399,8 @@ class ModalResults(Results):
         -------
         whirl_w : array
             An array of strings indicating the direction of precession related
-            to the mode shape. Backward, Mixed or Forward.
+            to the mode shape. Backward, Mixed or Forward. It can also indicate
+            None if it does not correspond to a Lateral mode (e.g. Torsional or Axial).
         """
         # whirl direction/values are methods because they are expensive.
         whirl_w = [self.shapes[wd].whirl for wd in range(len(self.wd))]
@@ -1410,6 +1416,7 @@ class ModalResults(Results):
             0.0 - if the whirl is Forward
             0.5 - if the whirl is Mixed
             1.0 - if the whirl is Backward
+            Nan - if it does not correspond to a Lateral mode
         """
         return self.whirl_to_cmap(self.whirl_direction())
 

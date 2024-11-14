@@ -1419,10 +1419,14 @@ def rotor7():
 def test_whirl_values(rotor7):
     speed_range = np.linspace(50, 500, 10)
     for speed in speed_range:
-        modal7 = rotor7.run_modal(speed)
-        assert_allclose(modal7.whirl_values(), [1.0, 0.0, 1.0, 0.0, 1.0, 0.0], atol=0)
+        modal7 = rotor7.run_modal(speed, num_modes=14)
+        whirl_val = modal7.whirl_values()
+        whirl_dir = modal7.whirl_direction()
+        assert_allclose(
+            whirl_val[~np.isnan(whirl_val)], [1.0, 0.0, 1.0, 0.0, 1.0, 0.0], atol=0
+        )
         assert_equal(
-            modal7.whirl_direction(),
+            whirl_dir[whirl_dir != "None"],
             np.array(
                 ["Backward", "Forward", "Backward", "Forward", "Backward", "Forward"],
                 dtype="<U8",
