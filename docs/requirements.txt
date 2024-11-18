@@ -6,3 +6,4 @@ numpydoc==1.7.0
 sphinx-book-theme==1.1.2
 linkify-it-py==2.0.3
 sphinx_design==0.5.0
+sphinxcontrib-googleanalytics==0.4
