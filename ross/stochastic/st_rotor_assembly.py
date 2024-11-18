@@ -468,16 +468,18 @@ class ST_Rotor(object):
         RV_size = self.RV_size
         wd = np.zeros((frequencies, CAMP_size, RV_size))
         log_dec = np.zeros((frequencies, CAMP_size, RV_size))
+        mode_type = []
 
         # Monte Carlo - results storage
         for i, rotor in enumerate(iter(self)):
             results = rotor.run_campbell(speed_range, frequencies, frequency_type)
-            results.sort_by_mode_type()
+            mode_type.append(results.sort_by_mode_type()[0, :])
+
             for j in range(frequencies):
                 wd[j, :, i] = results.wd[:, j]
                 log_dec[j, :, i] = results.log_dec[:, j]
 
-        results = ST_CampbellResults(speed_range, wd, log_dec)
+        results = ST_CampbellResults(speed_range, wd, log_dec, np.array(mode_type).T)
 
         return results
 
@@ -634,8 +636,8 @@ class ST_Rotor(object):
         >>> speed = 250.0
         >>> t = np.linspace(0, 10, size)
         >>> F = np.zeros((size, ndof))
-        >>> F[:, 4 * node] = 10 * np.cos(2 * t)
-        >>> F[:, 4 * node + 1] = 10 * np.sin(2 * t)
+        >>> F[:, rotors.number_dof * node] = 10 * np.cos(2 * t)
+        >>> F[:, rotors.number_dof * node + 1] = 10 * np.sin(2 * t)
         >>> results = rotors.run_time_response(speed, F, t)
 
         # Plotting Time Response 1D, 2D and 3D

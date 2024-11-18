@@ -1822,6 +1822,16 @@ class CampbellResults(Results):
         ld = self.log_dec
         dr = self.damping_ratio
         wv = self.whirl_values
+        mode_type = []
+
+        for i in range(wd.shape[0]):
+            mode_type.append(
+                [
+                    self.modal_results[self.speed_range[i]].shapes[j].mode_type
+                    for j in range(wd.shape[1])
+                ]
+            )
+        mode_type = np.array(mode_type)
 
         mode_shapes = self.modal_results[self.speed_range[0]].shapes
         target_values = wd[0, [shape.mode_type != "Lateral" for shape in mode_shapes]]
@@ -1833,6 +1843,11 @@ class CampbellResults(Results):
                 ld[i] = np.append(np.delete(ld[i], idx), ld[i, idx])
                 dr[i] = np.append(np.delete(dr[i], idx), dr[i, idx])
                 wv[i] = np.append(np.delete(wv[i], idx), wv[i, idx])
+                mode_type[i] = np.append(
+                    np.delete(mode_type[i], idx), mode_type[i, idx]
+                )
+
+        return mode_type
 
     @check_units
     def plot(
