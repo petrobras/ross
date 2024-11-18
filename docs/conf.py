@@ -54,6 +54,7 @@ extensions = [
     "sphinx.ext.mathjax",
     "sphinx_design",
     "numpydoc",
+    "sphinxcontrib.googleanalytics",
 ]
 
 bibtex_bibfiles = ["references.bib"]
