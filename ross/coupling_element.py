@@ -19,7 +19,7 @@ class CouplingElement(ShaftElement):
     This class creates a coupling element from input data of inertia and mass
     from the left station and right station, and also translational and rotational
     stiffness and damping values. The matrices will be defined considering the
-    same local coordinate vector of the `ShaftElement6DoF`.
+    same local coordinate vector of the `ShaftElement`.
 
     Parameters
     ----------
