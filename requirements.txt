@@ -1,5 +1,5 @@
 
-numpy<2.0.0
+numpy
 scipy
 toml>=0.10.1
 pandas>=0.23

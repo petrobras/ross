@@ -1,0 +1,93 @@
+[tool.ruff.lint]
+# 1. Enable flake8-bugbear (`B`) rules, in addition to the defaults.
+select = ["B", "C", "E", "F", "Q", "W"]
+
+# 2. Avoid enforcing line-length violations (`E501`)
+ignore = [
+    "B006","B007", "B017", "B023", "B024", "B027", "B028", "B904",
+    "C403", "C408", "C416", "C419", "C901",
+    "E203", "E266", "E501", "E711", "E721", "E722", "E731", "E741",
+    "F401", "F403", "F405", "F541", "F811", "F841",
+    "W291", "W293",
+]
+
+# 3. Avoid trying to fix flake8-bugbear (`B`) violations.
+unfixable = ["B"]
+
+# 4. Ignore `E402` (import violations) in all `__init__.py` files, and in selected subdirectories.
+[tool.ruff.lint.per-file-ignores]
+"__init__.py" = ["E402"]
+"**/{tests}/*" = ["E402"]
+
+[tool.ruff.format]
+# 5. Use single quotes in `ruff format`.
+quote-style = "double"
+
+[tool.ruff.lint.flake8-quotes]
+docstring-quotes = "double"
+
+[build-system]
+requires = ["setuptools"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+# All the following settings are optional:
+where = ["."] 
+include = ["*", "ross.new_units.txt*"]  # ["*"] by default
+exclude = ["ross.tests*"]  # empty by default
+
+[project]
+name = "ross-rotordynamics"
+dynamic = ["version", "dependencies"]
+requires-python = ">=3.8"
+authors = [
+    {name = "ROSS developers"},
+    {name = "Raphael Timbo Silva", email = "raphaelts@petrobras.com.br"}
+]
+maintainers = [
+    {name = "Vinicius Teixeira da Costa", email = "viniciustx@ufu.br"},
+    {name = "Jessica Guarato de Freitas Santos", email = "jessica.guarato@ufu.br"}
+]
+description = "ROSS: Rotordynamic Open Source Software"
+readme = "README.md"
+license = {file = "LICENSE.md"}
+classifiers = [
+    "License :: OSI Approved :: Apache Software License",
+    "Programming Language :: Python",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: Implementation :: CPython",
+]
+
+[tool.setuptools.dynamic]
+dependencies = { file = ["requirements.txt"] }
+version = {attr = "ross.__version__"} 
+
+[project.optional-dependencies]
+    dev = [
+        "pytest>=4.6",
+        "pytest-cov",
+        "coverage",
+        "codecov",
+        "sphinx",
+        "myst-nb",
+        "sphinx-book-theme",
+        "sphinx-panels",
+        "sphinx-copybutton",
+        "sphinx-rtd-theme",
+        "linkify-it-py",
+        "numpydoc",
+        "sphinxcontrib-bibtex>=2.2",
+        "ruff",
+        "sphinx-design",
+    ]
+
+[project.urls]
+Homepage = "https://ross.readthedocs.io/"
+Documentation = "https://ross.readthedocs.io/en/stable/"
+Repository = "https://github.com/petrobras/ross"
+Discussions = "https://github.com/petrobras/ross/discussions"
+Issues = "https://github.com/petrobras/ross/issues"
