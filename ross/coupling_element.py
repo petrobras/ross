@@ -87,6 +87,9 @@ class CouplingElement(ShaftElement):
     tag : str, optional
         A tag to name the element
         Default is None
+    scale_factor: float or str, optional
+        The scale factor is used to scale the coupling drawing.
+        Default is 1.
     color : str, optional
         A color to be used when the element is represented.
         Default is '#647e91'.
@@ -130,6 +133,7 @@ class CouplingElement(ShaftElement):
         L=None,
         n=None,
         tag=None,
+        scale_factor=1,
         color="#647e91",
     ):
         self.n = n
@@ -167,6 +171,7 @@ class CouplingElement(ShaftElement):
         self.o_d = 100e-3 if o_d is None else float(o_d)
         self.L = 0.3 if o_d is None else float(L)
         self.tag = tag
+        self.scale_factor = scale_factor
         self.color = color
         self.dof_global_index = None
 
@@ -428,7 +433,7 @@ class CouplingElement(ShaftElement):
 
         return G
 
-    def _patch(self, position, check, fig, units):
+    def _patch(self, position, check_sld, fig, units):
         """Coupling element patch.
 
         Patch that will be used to draw the coupling element using Plotly library.
@@ -437,6 +442,9 @@ class CouplingElement(ShaftElement):
         ----------
         position : float
             Position in which the patch will be drawn.
+        check_sld : bool
+            This parameter makes no difference in the coupling element,
+            only in the shaft element.
         fig : plotly.graph_objects.Figure
             The figure object which traces are added on.
         units : str, optional
@@ -448,38 +456,43 @@ class CouplingElement(ShaftElement):
         fig : plotly.graph_objects.Figure
             The figure object which traces are added on.
         """
-        # zpos, ypos, scale_factor = position
         zpos = position
         ypos = 0
-        scale_factor = 0.15
+        L = self.L
+        scale = self.scale_factor * 0.3
+
+        # plot the coupling
+        z_upper = [zpos, zpos, zpos + L, zpos + L, zpos]
+        y_upper = [ypos, ypos + scale, ypos + scale, ypos, ypos]
+        z_lower = [zpos, zpos, zpos + L, zpos + L, zpos]
+        y_lower = [ypos, ypos - scale, ypos - scale, ypos, ypos]
+
+        z_pos = z_upper
+        z_pos.extend(z_lower)
+
+        y_pos = y_upper
+        y_pos.extend(y_lower)
 
         name = (
             f"{self.tag}<br>(<i>CouplingElement</i>)"
             if "ShaftElement" in self.tag
             else self.tag
         )
+
         legend = "Coupling"
-
-        # plot the coupling
-        z_upper = [zpos, zpos, zpos + self.L, zpos + self.L, zpos]
-        y_upper = [ypos, ypos + 2 * scale_factor, ypos + 2 * scale_factor, ypos, ypos]
-
-        z_pos = z_upper
-        z_pos.extend(z_upper)
-
-        y_pos = y_upper
-        y_pos.extend(-np.array(y_upper))
 
         customdata = [
             self.n,
             self.m,
             self.Ip,
         ]
+
         hovertemplate = (
             f"Element Number: {customdata[0]}<br>"
             + f"Mass: {customdata[1]:.3f} kg<br>"
             + f"Polar moment of inertia: {customdata[2]:.3f} kg⋅m²<br>"
         )
+
         fig.add_trace(
             go.Scatter(
                 x=Q_(z_pos, "m").to(units).m,
