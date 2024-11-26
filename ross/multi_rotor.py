@@ -2,6 +2,7 @@ import numpy as np
 from re import search
 from copy import deepcopy as copy
 
+import ross as rs
 from ross.gear_element import GearElement
 from ross.rotor_assembly import Rotor
 
@@ -11,8 +12,9 @@ __all__ = ["MultiRotor"]
 class MultiRotor(Rotor):
     """A class representing a multi-rotor system.
 
-    This class creates a system comprising multiple rotors, with the specified driving rotor and driven rotor.
-    For systems with more than two rotors, multiple multi-rotors can be nested.
+    This class creates a system comprising multiple rotors, with the specified
+    driving rotor and driven rotor. For systems with more than two rotors,
+    multiple multi-rotors can be nested.
 
     Parameters
     ----------
@@ -21,17 +23,17 @@ class MultiRotor(Rotor):
     driven_rotor : rs.Rotor
         The driven rotor object.
     coupled_nodes : tuple of int
-        Tuple specifying the coupled nodes, where the first node corresponds to the driving rotor and
-        the second node corresponds to the driven rotor.
+        Tuple specifying the coupled nodes, where the first node corresponds to
+        the driving rotor and the second node corresponds to the driven rotor.
     gear_ratio : float
         The gear ratio between the rotors.
     gear_mesh_stiffness : float
         The stiffness of the gear mesh.
     orientation_angle : float, optional
-        The angle between the line of gear centers and x axis. Default is 0.0 rad.
+        The angle between the line of gear centers and x-axis. Default is 0.0 rad.
     position : {'above', 'below'}, optional
-        The relative position of the driven rotor with respect to the driving rotor when plotting
-        the multi-rotor. Default is 'above'.
+        The relative position of the driven rotor with respect to the driving rotor
+        when plotting the multi-rotor. Default is 'above'.
     tag : str, optional
         A tag to identify the multi-rotor. Default is None.
 
@@ -42,6 +44,64 @@ class MultiRotor(Rotor):
 
     Examples
     --------
+    >>> import ross as rs
+    >>> steel = rs.materials.steel
+    >>> # Rotor 1:
+    >>> L1 = [0.1, 4.24, 1.16, 0.3]
+    >>> d1 = [0.3, 0.3, 0.22, 0.22]
+    >>> shaft1 = [
+    ...     rs.ShaftElement6DoF(
+    ...         L=L1[i],
+    ...         idl=0.0,
+    ...         odl=d1[i],
+    ...         material=steel,
+    ...     )
+    ...     for i in range(len(L1))
+    ... ]
+    >>> generator = rs.DiskElement6DoF(n=1, m=525.7, Id=16.1, Ip=32.2)
+    >>> disk = rs.DiskElement6DoF(n=2, m=116.04, Id=3.115, Ip=6.23)
+    >>> gear1 = rs.GearElement(
+    ...     n=4, m=726.4, Id=56.95, Ip=113.9,
+    ...     pitch_diameter=1.1, pressure_angle=rs.Q_(22.5, 'deg'),
+    ... )
+    >>> bearing1 = rs.BearingElement6DoF(n=0, kxx=183.9e6, kyy=200.4e6, cxx=3e3)
+    >>> bearing2 = rs.BearingElement6DoF(n=3, kxx=183.9e6, kyy=200.4e6, cxx=3e3)
+    >>> rotor1 = rs.Rotor(shaft1, [generator, disk, gear1], [bearing1, bearing2],)
+
+    >>> # Rotor 2:
+    >>> L2 = [0.3, 5, 0.1]
+    >>> d2 = [0.15, 0.15, 0.15]
+    >>> shaft2 = [
+    ...     rs.ShaftElement6DoF(
+    ...         L=L2[i],
+    ...         idl=0.0,
+    ...         odl=d2[i],
+    ...         material=steel,
+    ...     )
+    ...     for i in range(len(L2))
+    ... ]
+    >>> gear2 = rs.GearElement(
+    ...     n=0, m=5, Id=0.002, Ip=0.004,
+    ...     pitch_diameter=0.077, pressure_angle=rs.Q_(22.5, 'deg'),
+    ... )
+    >>> turbine = rs.DiskElement6DoF(n=2, m=7.45, Id=0.0745, Ip=0.149)
+    >>> bearing3 = rs.BearingElement6DoF(n=1, kxx=10.1e6, kyy=41.6e6, cxx=3e3)
+    >>> bearing4 = rs.BearingElement6DoF(n=3, kxx=10.1e6, kyy=41.6e6, cxx=3e3)
+    >>> rotor2 = rs.Rotor(shaft2, [gear2, turbine], [bearing3, bearing4],)
+
+    >>> # Multi rotor:
+    >>> multi_rotor = rs.MultiRotor(
+    ...     rotor1,
+    ...     rotor2,
+    ...     coupled_nodes=(4, 0),
+    ...     gear_ratio=328 / 23,
+    ...     gear_mesh_stiffness=1e8,
+    ...     orientation_angle=0.0,
+    ...     position="below"
+    ... )
+    >>> modal = multi_rotor.run_modal(speed=0)
+    >>> modal.wd[0] # doctest: +ELLIPSIS
+    74.160244...
     """
 
     def __init__(
@@ -176,9 +236,6 @@ class MultiRotor(Rotor):
         -------
         global_matrix : np.ndarray
             The combined matrix of the coupled system.
-
-        Examples
-        --------
         """
 
         global_matrix = np.zeros((self.ndof, self.ndof))
@@ -206,9 +263,6 @@ class MultiRotor(Rotor):
         -------
         speed : float or np.ndarray
             The adjusted rotation speed for the specified node.
-
-        Examples
-        --------
         """
 
         speed = omega
@@ -245,9 +299,6 @@ class MultiRotor(Rotor):
         -------
         F0 : list
             Unbalance force in each degree of freedom for each value in omega
-
-        Examples
-        --------
         """
         speed = self._check_speed(node, omega)
 
@@ -269,6 +320,12 @@ class MultiRotor(Rotor):
 
         Examples
         --------
+        >>> multi_rotor = two_shaft_rotor_example()
+        >>> multi_rotor.M(0)[:4, :4]
+        array([[18.55298224,  0.        ,  0.        ,  0.        ],
+               [ 0.        , 18.55298224,  0.        , -0.16179571],
+               [ 0.        ,  0.        , 18.37831702,  0.        ],
+               [ 0.        , -0.16179571,  0.        ,  0.10074262]])
         """
 
         if frequency is None:
@@ -299,6 +356,12 @@ class MultiRotor(Rotor):
 
         Examples
         --------
+        >>> multi_rotor = two_shaft_rotor_example()
+        >>> multi_rotor.K(0)[:4, :4] / 1e10
+        array([[ 4.7609372 ,  0.        ,  0.        ,  0.        ],
+               [ 0.        ,  4.7625872 ,  0.        , -0.23712736],
+               [ 0.        ,  0.        , 14.63196778,  0.        ],
+               [ 0.        , -0.23712736,  0.        ,  0.09416119]])
         """
 
         K0 = self._join_matrices(
@@ -358,6 +421,14 @@ class MultiRotor(Rotor):
 
         Examples
         --------
+        >>> multi_rotor = two_shaft_rotor_example()
+        >>> multi_rotor.Ksdt()[:6, :4]
+        array([[  0.        , -74.43218395,   0.        ,   0.6202682 ],
+               [  0.        ,   0.        ,   0.        ,   0.        ],
+               [  0.        ,   0.        ,   0.        ,   0.        ],
+               [  0.        ,   0.        ,   0.        ,   0.        ],
+               [  0.        ,  -0.6202682 ,   0.        ,   0.08270243],
+               [  0.        ,   0.        ,   0.        ,   0.        ]])
         """
 
         return self._join_matrices(
@@ -381,6 +452,12 @@ class MultiRotor(Rotor):
 
         Examples
         --------
+        >>> multi_rotor = two_shaft_rotor_example()
+        >>> multi_rotor.C(0)[:4, :4] / 1e3
+        array([[3., 0., 0., 0.],
+               [0., 3., 0., 0.],
+               [0., 0., 0., 0.],
+               [0., 0., 0., 0.]])
         """
 
         return self._join_matrices(
@@ -402,8 +479,149 @@ class MultiRotor(Rotor):
 
         Examples
         --------
+        >>> multi_rotor = two_shaft_rotor_example()
+        >>> multi_rotor.G()[:4, :4]
+        array([[ 0.        ,  0.17162125,  0.        ,  0.1403395 ],
+               [-0.17162125,  0.        ,  0.        ,  0.        ],
+               [ 0.        ,  0.        ,  0.        ,  0.        ],
+               [-0.1403395 ,  0.        ,  0.        ,  0.        ]])
         """
 
         return self._join_matrices(
             self.rotors[0].G(), -self.rotors[1].G() * self.gear_ratio
         )
+
+
+def two_shaft_rotor_example():
+    """Create a multi-rotor as example.
+
+    This function returns an instance of two-shaft rotor system from Rao et al.
+    This typical example is a turbo-alternator rotor system, which consists of
+    a generator rotor, a turbine rotor and a spur gear pair connecting two rotors.
+    Each rotor is supported by a pair of bearing two shaft elements, one disk and
+    two simple bearings.
+
+    The purpose of this is to make available a simple model so that doctest can
+    be written using this.
+
+    Returns
+    -------
+    An instance of a rotor object.
+
+    References
+    ----------
+    Rao, J. S., Shiau, T. N., chang, J. R. (1998). Theoretical analysis of lateral
+    response due to torsional excitation of geared rotors. Mechanism and Machine Theory,
+    33 (6), 761-783. doi: 10.1016/S0094-114X(97)00056-6
+
+    Examples
+    --------
+    >>> multi_rotor = two_shaft_rotor_example()
+    >>> modal = multi_rotor.run_modal(speed=0)
+    >>> np.round(modal.wd[:4])
+    array([ 74.,  77., 112., 113.])
+    """
+    # A spur geared two-shaft rotor system.
+    material = rs.Material(name="mat_steel", rho=7800, E=207e9, G_s=79.5e9)
+
+    # Rotor 1
+    L1 = [0.1, 4.24, 1.16, 0.3]
+    d1 = [0.3, 0.3, 0.22, 0.22]
+    shaft1 = [
+        rs.ShaftElement6DoF(
+            L=L1[i],
+            idl=0.0,
+            odl=d1[i],
+            material=material,
+            shear_effects=True,
+            rotary_inertia=True,
+            gyroscopic=True,
+        )
+        for i in range(len(L1))
+    ]
+
+    generator = rs.DiskElement6DoF(
+        n=1,
+        m=525.7,
+        Id=16.1,
+        Ip=32.2,
+    )
+    disk = rs.DiskElement6DoF(
+        n=2,
+        m=116.04,
+        Id=3.115,
+        Ip=6.23,
+    )
+
+    pressure_angle = rs.Q_(22.5, "deg")
+    base_radius = 0.5086
+    pitch_diameter = 2 * base_radius / np.cos(pressure_angle)
+    gear1 = rs.GearElement(
+        n=4,
+        m=726.4,
+        Id=56.95,
+        Ip=113.9,
+        pitch_diameter=pitch_diameter,
+        pressure_angle=pressure_angle,
+    )
+
+    bearing1 = rs.BearingElement6DoF(n=0, kxx=183.9e6, kyy=200.4e6, cxx=3e3)
+    bearing2 = rs.BearingElement6DoF(n=3, kxx=183.9e6, kyy=200.4e6, cxx=3e3)
+
+    rotor1 = rs.Rotor(
+        shaft1,
+        [generator, disk, gear1],
+        [bearing1, bearing2],
+    )
+
+    # Rotor 2
+    L2 = [0.3, 5, 0.1]
+    d2 = [0.15, 0.15, 0.15]
+    shaft2 = [
+        rs.ShaftElement6DoF(
+            L=L2[i],
+            idl=0.0,
+            odl=d2[i],
+            material=material,
+            shear_effects=True,
+            rotary_inertia=True,
+            gyroscopic=True,
+        )
+        for i in range(len(L2))
+    ]
+
+    base_radius = 0.03567
+    pitch_diameter = 2 * base_radius / np.cos(pressure_angle)
+    gear2 = rs.GearElement(
+        n=0,
+        m=5,
+        Id=0.002,
+        Ip=0.004,
+        pitch_diameter=pitch_diameter,
+        pressure_angle=pressure_angle,
+    )
+
+    turbine = rs.DiskElement6DoF(n=2, m=7.45, Id=0.0745, Ip=0.149)
+
+    bearing3 = rs.BearingElement6DoF(n=1, kxx=10.1e6, kyy=41.6e6, cxx=3e3)
+    bearing4 = rs.BearingElement6DoF(n=3, kxx=10.1e6, kyy=41.6e6, cxx=3e3)
+
+    rotor2 = rs.Rotor(
+        shaft2,
+        [gear2, turbine],
+        [bearing3, bearing4],
+    )
+
+    N1 = 328  # Number of teeth of gear 1
+    N2 = 23  # Number of teeth of gear 2
+    k_mesh = 1e8  # Mesh stiffness
+
+    return rs.MultiRotor(
+        rotor1,
+        rotor2,
+        coupled_nodes=(4, 0),
+        gear_ratio=N1 / N2,
+        gear_mesh_stiffness=k_mesh,
+        orientation_angle=0.0,
+        position="below",
+    )
