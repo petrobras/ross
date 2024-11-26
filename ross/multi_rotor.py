@@ -29,7 +29,7 @@ class MultiRotor(Rotor):
         The gear ratio between the rotors.
     gear_mesh_stiffness : float
         The stiffness of the gear mesh.
-    orientation_angle : float, optional
+    orientation_angle : float, pint.Quantity, optional
         The angle between the line of gear centers and x-axis. Default is 0.0 rad.
     position : {'above', 'below'}, optional
         The relative position of the driven rotor with respect to the driving rotor
@@ -118,7 +118,7 @@ class MultiRotor(Rotor):
         self.rotors = [driving_rotor, driven_rotor]
         self.gear_ratio = gear_ratio
         self.gear_mesh_stiffness = gear_mesh_stiffness
-        self.orientation_angle = orientation_angle
+        self.orientation_angle = float(orientation_angle)
 
         if driving_rotor.number_dof != 6 or driven_rotor.number_dof != 6:
             raise TypeError("Rotors must be modeled with 6 degrees of freedom!")
@@ -304,6 +304,48 @@ class MultiRotor(Rotor):
 
         return super()._unbalance_force(node, magnitude, phase, speed)
 
+    def coupling_matrix(self):
+        """Coupling matrix of two coupled gears.
+
+        Returns
+        -------
+        coupling_matrix : np.ndarray
+            Dimensionless coupling matrix of two coupled gears
+
+        Examples
+        --------
+        >>> multi_rotor = two_shaft_rotor_example()
+        >>> multi_rotor.coupling_matrix()[:4, :4]
+        array([[ 0.14644661, -0.35355339,  0.        ,  0.        ],
+               [-0.35355339,  0.85355339,  0.        ,  0.        ],
+               [ 0.        ,  0.        ,  0.        ,  0.        ],
+               [ 0.        ,  0.        ,  0.        ,  0.        ]])
+        """
+        r1 = self.gears[0].base_radius
+        r2 = self.gears[1].base_radius
+
+        S = np.sin(self.orientation_angle - self.gears[0].pressure_angle)
+        C = np.cos(self.orientation_angle - self.gears[0].pressure_angle)
+
+        # fmt: off
+        coupling_matrix = np.array([
+            [   S**2,  S * C, 0, 0, 0,  r1 * S,   -S**2,  -S * C, 0, 0, 0,  r2 * S],
+            [  S * C,   C**2, 0, 0, 0,  r1 * C,  -S * C,   -C**2, 0, 0, 0,  r2 * C],
+            [      0,      0, 0, 0, 0,       0,       0,       0, 0, 0, 0,       0],
+            [      0,      0, 0, 0, 0,       0,       0,       0, 0, 0, 0,       0],
+            [      0,      0, 0, 0, 0,       0,       0,       0, 0, 0, 0,       0],
+            [ r1 * S, r1 * C, 0, 0, 0,   r1**2, -r1 * S, -r1 * C, 0, 0, 0, r1 * r2],
+            [  -S**2, -S * C, 0, 0, 0, -r1 * S,    S**2,   S * C, 0, 0, 0, -r2 * S],
+            [ -S * C,  -C**2, 0, 0, 0, -r1 * C,   S * C,    C**2, 0, 0, 0, -r2 * C],
+            [      0,      0, 0, 0, 0,       0,       0,       0, 0, 0, 0,       0],
+            [      0,      0, 0, 0, 0,       0,       0,       0, 0, 0, 0,       0],
+            [      0,      0, 0, 0, 0,       0,       0,       0, 0, 0, 0,       0],
+            [ r2 * S, r2 * C, 0, 0, 0, r1 * r2, -r2 * S, -r2 * C, 0, 0, 0,   r2**2],
+        ])
+        # fmt: on
+
+        return coupling_matrix
+
     def M(self, frequency=None, synchronous=False):
         """Mass matrix for a multi-rotor.
 
@@ -369,39 +411,11 @@ class MultiRotor(Rotor):
             self.rotors[1].K(frequency * self.gear_ratio, ignore),
         )
 
-        # Coupling
-        phi = self.orientation_angle
-        k_g = self.gear_mesh_stiffness
-
-        beta = self.gears[0].pressure_angle
-        r1 = self.gears[0].base_radius
-        r2 = self.gears[1].base_radius
-
-        S = np.sin(beta - phi)
-        C = np.cos(beta - phi)
-
-        # fmt: off
-        coupling_matrix = np.array([
-            [   S**2,  S * C, 0, 0, 0,  r1 * S,   -S**2,  -S * C, 0, 0, 0,  r2 * S],
-            [  S * C,   C**2, 0, 0, 0,  r1 * C,  -S * C,   -C**2, 0, 0, 0,  r2 * C],
-            [      0,      0, 0, 0, 0,       0,       0,       0, 0, 0, 0,       0],
-            [      0,      0, 0, 0, 0,       0,       0,       0, 0, 0, 0,       0],
-            [      0,      0, 0, 0, 0,       0,       0,       0, 0, 0, 0,       0],
-            [ r1 * S, r1 * C, 0, 0, 0,   r1**2, -r1 * S, -r1 * C, 0, 0, 0, r1 * r2],
-            [  -S**2, -S * C, 0, 0, 0, -r1 * S,    S**2,   S * C, 0, 0, 0, -r2 * S],
-            [ -S * C,  -C**2, 0, 0, 0, -r1 * C,   S * C,    C**2, 0, 0, 0, -r2 * C],
-            [      0,      0, 0, 0, 0,       0,       0,       0, 0, 0, 0,       0],
-            [      0,      0, 0, 0, 0,       0,       0,       0, 0, 0, 0,       0],
-            [      0,      0, 0, 0, 0,       0,       0,       0, 0, 0, 0,       0],
-            [ r2 * S, r2 * C, 0, 0, 0, r1 * r2, -r2 * S, -r2 * C, 0, 0, 0,   r2**2],
-        ]) * k_g
-        # fmt: on
-
         dofs_1 = self.gears[0].dof_global_index.values()
         dofs_2 = self.gears[1].dof_global_index.values()
         dofs = [*dofs_1, *dofs_2]
 
-        K0[np.ix_(dofs, dofs)] += coupling_matrix
+        K0[np.ix_(dofs, dofs)] += self.coupling_matrix() * self.gear_mesh_stiffness
 
         return K0
 
