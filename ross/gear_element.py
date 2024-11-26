@@ -1,6 +1,6 @@
 """Gear Element module.
 
-This module defines the GearElement classes which will be used to represent
+This module defines the GearElement classes which can be used to represent
 gears or gearboxes used to couple different shafts in the MultiRotor class.
 """
 
@@ -23,16 +23,17 @@ class GearElement(DiskElement6DoF):
     ----------
     n: int
         Node in which the gear will be inserted.
-    m : float
-        Mass of the gear element.
-    Id : float
+    m : float, pint.Quantity
+        Mass of the gear element (kg).
+    Id : float, pint.Quantity
         Diametral moment of inertia.
-    Ip : float
-        Polar moment of inertia
-    pitch_diameter : float
-        Pitch diameter of the gear.
-    pressure_angle : float, optional
-        The pressure angle of the gear in radians. Default is 20° (converted to radians).
+    Ip : float, pint.Quantity
+        Polar moment of inertia.
+    pitch_diameter : float, pint.Quantity
+        Pitch diameter of the gear (m).
+    pressure_angle : float, pint.Quantity, optional
+        The pressure angle of the gear (rad).
+        Default is 20 deg (converted to rad).
     tag : str, optional
         A tag to name the element.
         Default is None.
@@ -49,6 +50,13 @@ class GearElement(DiskElement6DoF):
 
     Examples
     --------
+    >>> gear = GearElement(
+    ...        n=0, m=4.67, Id=0.015, Ip=0.030,
+    ...        pitch_diameter=0.187,
+    ...        pressure_angle=Q_(22.5, "deg")
+    ... )
+    >>> gear.pressure_angle # doctest: +ELLIPSIS
+    0.392699...
     """
 
     def __init__(
@@ -66,8 +74,8 @@ class GearElement(DiskElement6DoF):
         if pressure_angle is None:
             pressure_angle = Q_(20, "deg")
 
-        self.base_radius = pitch_diameter * np.cos(pressure_angle) / 2
-        self.pressure_angle = pressure_angle
+        self.pressure_angle = float(pressure_angle)
+        self.base_radius = float(pitch_diameter) * np.cos(self.pressure_angle) / 2
 
         super().__init__(n, m, Id, Ip, tag, scale_factor, color)
 
@@ -111,14 +119,16 @@ class GearElement(DiskElement6DoF):
             Node in which the gear will be inserted.
         material: ross.Material
             Gear material.
-        width : float
-            The face width of the gear (considering that the gear body has the same thickness).
-        i_d : float
+        width : float, pint.Quantity
+            The face width of the gear considering that the gear body has the
+            same thickness (m).
+        i_d : float, pint.Quantity
             Inner diameter (the diameter of the shaft on which the gear is mounted).
-        o_d : float
-            Outer pitch diameter.
-        pressure_angle : float, optional
-            The pressure angle of the gear in radians. Default is 20° (converted to radians).
+        o_d : float, pint.Quantity
+            Outer pitch diameter (m).
+        pressure_angle : float, pint.Quantity, optional
+            The pressure angle of the gear (rad).
+            Default is 20 deg (converted to rad).
         tag : str, optional
             A tag to name the element
             Default is None
@@ -140,6 +150,11 @@ class GearElement(DiskElement6DoF):
 
         Examples
         --------
+        >>> from ross.materials import steel
+        >>> gear = GearElement.from_geometry(0, steel, 0.07, 0.05, 0.28)
+        >>> gear.base_radius # doctest: +ELLIPSIS
+        0.131556...
+        >>>
         """
         m = material.rho * np.pi * width * (o_d**2 - i_d**2) / 4
         Ip = m * (o_d**2 + i_d**2) / 8
