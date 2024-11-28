@@ -21,8 +21,73 @@ unfixable = ["B"]
 
 [tool.ruff.format]
 # 5. Use single quotes in `ruff format`.
-quote-style = "single"
+quote-style = "double"
 
 [tool.ruff.lint.flake8-quotes]
 docstring-quotes = "double"
 
+[build-system]
+requires = ["setuptools"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+# All the following settings are optional:
+where = ["."] 
+include = ["*", "ross.new_units.txt*"]  # ["*"] by default
+exclude = ["ross.tests*"]  # empty by default
+
+[project]
+name = "ross-rotordynamics"
+dynamic = ["version", "dependencies"]
+requires-python = ">=3.8"
+authors = [
+    {name = "ROSS developers"},
+    {name = "Raphael Timbo Silva", email = "raphaelts@petrobras.com.br"}
+]
+maintainers = [
+    {name = "Vinicius Teixeira da Costa", email = "viniciustx@ufu.br"},
+    {name = "Jessica Guarato de Freitas Santos", email = "jessica.guarato@ufu.br"}
+]
+description = "ROSS: Rotordynamic Open Source Software"
+readme = "README.md"
+license = {file = "LICENSE.md"}
+classifiers = [
+    "License :: OSI Approved :: Apache Software License",
+    "Programming Language :: Python",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: Implementation :: CPython",
+]
+
+[tool.setuptools.dynamic]
+dependencies = { file = ["requirements.txt"] }
+version = {attr = "ross.__version__"} 
+
+[project.optional-dependencies]
+    dev = [
+        "pytest>=4.6",
+        "pytest-cov",
+        "coverage",
+        "codecov",
+        "sphinx",
+        "myst-nb",
+        "sphinx-book-theme",
+        "sphinx-panels",
+        "sphinx-copybutton",
+        "sphinx-rtd-theme",
+        "linkify-it-py",
+        "numpydoc",
+        "sphinxcontrib-bibtex>=2.2",
+        "ruff",
+        "sphinx-design",
+    ]
+
+[project.urls]
+Homepage = "https://ross.readthedocs.io/"
+Documentation = "https://ross.readthedocs.io/en/stable/"
+Repository = "https://github.com/petrobras/ross"
+Discussions = "https://github.com/petrobras/ross/discussions"
+Issues = "https://github.com/petrobras/ross/issues"

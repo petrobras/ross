@@ -22,8 +22,9 @@ import ross
 
 # General information about the project.
 project = "ross"
-copyright = "2023"
+copyright = "2024"
 author = "ROSS devs"
+googleanalytics_id = "G-YKZBE83MZ5"
 
 # The version info for the project you're documenting, acts as replacement for
 # |version| and |release|, also used in various other places throughout the
@@ -53,6 +54,7 @@ extensions = [
     "sphinx.ext.mathjax",
     "sphinx_design",
     "numpydoc",
+    "sphinxcontrib.googleanalytics",
 ]
 
 bibtex_bibfiles = ["references.bib"]
