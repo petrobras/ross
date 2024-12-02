@@ -12,7 +12,7 @@ def rotor_4dof():
 @pytest.fixture
 def rotor_6dof(rotor_4dof):
     shaft_elem = [
-        rs.ShaftElement6DoF(
+        rs.ShaftElement(
             material=rotor_4dof.shaft_elements[l].material,
             L=rotor_4dof.shaft_elements[l].L,
             n=rotor_4dof.shaft_elements[l].n,
@@ -25,7 +25,7 @@ def rotor_6dof(rotor_4dof):
     ]
 
     disk_elem = [
-        rs.DiskElement6DoF(
+        rs.DiskElement(
             n=rotor_4dof.disk_elements[l].n,
             m=rotor_4dof.disk_elements[l].m,
             Id=rotor_4dof.disk_elements[l].Id,
@@ -35,7 +35,7 @@ def rotor_6dof(rotor_4dof):
     ]
 
     bearing_elem = [
-        rs.BearingElement6DoF(
+        rs.BearingElement(
             n=rotor_4dof.bearing_elements[l].n,
             kxx=rotor_4dof.bearing_elements[l].kxx,
             kyy=rotor_4dof.bearing_elements[l].kyy,
@@ -234,7 +234,7 @@ def test_run_time(rotor_6dof):
     ])
     # fmt:on
 
-    dof = 3 * 6 + 1
+    dof = 3 * rotor_6dof.number_dof + 1
     assert_allclose(
         np.mean(response1.yout[:, dof]), np.mean(response2.yout[:, dof]), atol=1e-7
     )
@@ -248,6 +248,6 @@ def test_time_resp_equality(rotor_6dof, rotor_4dof):
     response1 = rotor_6dof.run_time_response(*input_6dof)
     response2 = rotor_4dof.run_time_response(*input_4dof)
 
-    dof1 = 3 * 6 + 1
-    dof2 = 3 * 4 + 1
+    dof1 = 3 * rotor_6dof.number_dof + 1
+    dof2 = 3 * rotor_4dof.number_dof + 1
     assert_allclose(response1.yout[:, dof1], response2.yout[:, dof2], atol=1e-7)

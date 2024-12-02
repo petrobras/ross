@@ -19,6 +19,12 @@ from ross.stochastic.st_rotor_assembly import ST_Rotor, st_rotor_example
 from ross.stochastic.st_shaft_element import ST_ShaftElement
 
 
+def get_dofs(ndof):
+    dofs_6 = np.arange(2, ndof, 3)
+    dofs_4 = np.setdiff1d(np.arange(0, ndof), dofs_6)
+    return dofs_4, dofs_6
+
+
 @pytest.fixture
 def rotor1():
     # rotor with 6 shaft elements, 2 disks and 2 random bearings
@@ -186,7 +192,7 @@ def test_getter_and_setter_error_messages():
 ###############################################################################
 def test_run_campbell(rotor1):
     speed_range = np.linspace(0, 300, 11)
-    results = rotor1.run_campbell(speed_range)
+    results = rotor1.run_campbell(speed_range, frequencies=7)
 
     # fmt: off
     wd = np.array([
@@ -278,16 +284,18 @@ def test_run_campbell(rotor1):
     ])
     # fmt: on
 
-    assert results.wd.shape == (6, 11, 2)
-    assert results.log_dec.shape == (6, 11, 2)
-    assert_allclose(results.wd, wd, atol=1e-6)
-    assert_allclose(results.log_dec, log_dec, atol=1e-6)
+    assert results.wd.shape == (7, 11, 2)
+    assert results.log_dec.shape == (7, 11, 2)
+    assert_allclose(results.wd[:-1, :, :], wd, atol=1e-6)
+    assert_allclose(np.mean(results.wd[-1, :, :]), 774.34967816, atol=1e-6)
+    assert_allclose(results.log_dec[:-1, :, :], log_dec, atol=1e-6)
+    assert_allclose(np.mean(results.log_dec[-1, :, :]), 0.0, atol=1e-6)
 
 
 def test_run_freq_response(rotor1):
     speed_range = np.linspace(0, 300, 21)
-    inp = 13
-    out = 13
+    inp = 3 * rotor1.number_dof + 1
+    out = 3 * rotor1.number_dof + 1
     results = rotor1.run_freq_response(inp, out, speed_range)
 
     # fmt: off
@@ -438,13 +446,17 @@ def test_run_unbalance_response(rotor1):
         ]
     )
     # fmt: on
-
-    assert results.forced_resp.shape == (2, 28, 21)
-    assert results.velc_resp.shape == (2, 28, 21)
-    assert results.accl_resp.shape == (2, 28, 21)
-    assert_allclose(results.forced_resp[0, :8, :8].T, forced_resp, atol=1e-8)
-    assert_allclose(np.abs(results.forced_resp[0, :8, :8]).T, magnitude, atol=1e-8)
-    assert_allclose(np.angle(results.forced_resp[0, :8, :8]).T, phase, atol=1e-8)
+    dofs_4, dofs_6 = get_dofs(rotor1.ndof)
+    assert results.forced_resp.shape == (2, 7 * rotor1.number_dof, 21)
+    assert results.velc_resp.shape == (2, 7 * rotor1.number_dof, 21)
+    assert results.accl_resp.shape == (2, 7 * rotor1.number_dof, 21)
+    assert_allclose(results.forced_resp[0, dofs_4[:8], :8].T, forced_resp, atol=1e-8)
+    assert_allclose(
+        np.abs(results.forced_resp[0, dofs_4[:8], :8]).T, magnitude, atol=1e-8
+    )
+    assert_allclose(
+        np.angle(results.forced_resp[0, dofs_4[:8], :8]).T, phase, atol=1e-8
+    )
 
 
 def test_time_response(rotor1):
@@ -458,8 +470,8 @@ def test_time_response(rotor1):
 
     force = [10, 20]
     for i, f in enumerate(force):
-        F[i, :, 4 * node] = f * np.cos(2 * t)
-        F[i, :, 4 * node + 1] = f * np.sin(2 * t)
+        F[i, :, rotor1.number_dof * node] = f * np.cos(2 * t)
+        F[i, :, rotor1.number_dof * node + 1] = f * np.sin(2 * t)
     results = rotor1.run_time_response(speed, F, t)
 
     # fmt: off
@@ -491,6 +503,6 @@ def test_time_response(rotor1):
         ],
     ])
     # fmt: on
-
-    assert results.yout.shape == (2, 5, 28)
-    assert_allclose(results.yout[:, :, :8], yout, atol=1e-8)
+    dofs_4, dofs_6 = get_dofs(rotor1.ndof)
+    assert results.yout.shape == (2, 5, 7 * rotor1.number_dof)
+    assert_allclose(results.yout[:, :, dofs_4[:8]], yout, atol=1e-8)

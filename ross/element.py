@@ -1,7 +1,6 @@
 from inspect import signature
 from abc import ABC, abstractmethod
 from collections import namedtuple
-from pathlib import Path
 
 import pandas as pd
 import toml
@@ -110,8 +109,9 @@ class Element(ABC):
         >>> from ross.bearing_seal_element import bearing_example
         >>> bearing = bearing_example()
         >>> bearing.M(0)
-        array([[0., 0.],
-               [0., 0.]])
+        array([[0., 0., 0.],
+               [0., 0., 0.],
+               [0., 0., 0.]])
         """
         pass
 
@@ -134,8 +134,9 @@ class Element(ABC):
         >>> from ross.bearing_seal_element import bearing_example
         >>> bearing = bearing_example()
         >>> bearing.C(0)
-        array([[200.,   0.],
-               [  0., 150.]])
+        array([[200.,   0.,   0.],
+               [  0., 150.,   0.],
+               [  0.,   0.,  50.]])
         """
         pass
 
@@ -158,8 +159,9 @@ class Element(ABC):
         >>> from ross.bearing_seal_element import bearing_example
         >>> bearing = bearing_example()
         >>> bearing.K(0)
-        array([[1000000.,       0.],
-               [      0.,  800000.]])
+        array([[1000000.,       0.,       0.],
+               [      0.,  800000.,       0.],
+               [      0.,       0.,  100000.]])
         """
         pass
 
@@ -177,8 +179,9 @@ class Element(ABC):
         >>> from ross.bearing_seal_element import bearing_example
         >>> bearing = bearing_example()
         >>> bearing.G()
-        array([[0., 0.],
-               [0., 0.]])
+        array([[0., 0., 0.],
+               [0., 0., 0.],
+               [0., 0., 0.]])
         """
         pass
 
@@ -223,7 +226,7 @@ class Element(ABC):
         >>> from ross.bearing_seal_element import bearing_example
         >>> bearing = bearing_example()
         >>> bearing.dof_mapping()
-        {'x_0': 0, 'y_0': 1}
+        {'x_0': 0, 'y_0': 1, 'z_0': 2}
         """
         pass
 
@@ -241,7 +244,7 @@ class Element(ABC):
         >>> from ross.bearing_seal_element import bearing_example
         >>> bearing = bearing_example()
         >>> bearing.dof_local_index()
-        LocalIndex(x_0=0, y_0=1)
+        LocalIndex(x_0=0, y_0=1, z_0=2)
         """
         dof_mapping = self.dof_mapping()
         dof_tuple = namedtuple("LocalIndex", dof_mapping)
