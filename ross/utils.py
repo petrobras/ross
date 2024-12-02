@@ -681,7 +681,7 @@ def newmark(func, t, y_size, **options):
     >>> accel = 0.0
     >>> t = np.linspace(0, 10, size)
     >>> F = np.zeros((size, rotor.ndof))
-    >>> F[:, rotor.number_dof * node] = 10 * np.cos(2 * t)
+    >>> F[:, rotor.number_dof * node + 0] = 10 * np.cos(2 * t)
     >>> F[:, rotor.number_dof * node + 1] = 10 * np.sin(2 * t)
     >>> M = rotor.M(speed)
     >>> C1 = rotor.C(speed)
@@ -690,8 +690,7 @@ def newmark(func, t, y_size, **options):
     >>> K2 = rotor.Ksdt()
     >>> rotor_system = lambda i, **state: (M, C1 + C2 * speed, K1 + K2 * accel, F[i, :])
     >>> yout = newmark(rotor_system, t, rotor.ndof)
-    >>> dof = 13
-    >>> yout[:, dof] # doctest: +ELLIPSIS
+    >>> yout[:, rotor.number_dof * node + 1] # doctest: +ELLIPSIS
     array([0.00000000e+00, 8.49140057e-09, 4.34296767e-08, ...,
            1.16148468e-05, 1.16492353e-05, 1.16859622e-05])
     """
@@ -786,12 +785,13 @@ def assemble_C_K_matrices(elements, C0, K0, *args):
     >>> K0 = np.zeros((rotor.ndof, rotor.ndof))
     >>> C1, K1 = assemble_C_K_matrices(elements_without_bearing, C0, K0)
     >>> C, K = assemble_C_K_matrices(rotor.bearing_elements, C1, K1, 0)
-    >>> C[:4, :4]
+    >>> dofs = [0, 1, 3, 4]
+    >>> C[np.ix_(dofs, dofs)]
     array([[0., 0., 0., 0.],
            [0., 0., 0., 0.],
            [0., 0., 0., 0.],
            [0., 0., 0., 0.]])
-    >>> np.round(K[:4, :4]/1e6)
+    >>> np.round(K[np.ix_(dofs, dofs)] / 1e6)
     array([[47.,  0.,  0.,  6.],
            [ 0., 46., -6.,  0.],
            [ 0., -6.,  1.,  0.],

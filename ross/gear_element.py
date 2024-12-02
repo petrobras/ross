@@ -8,13 +8,13 @@ import numpy as np
 from plotly import graph_objects as go
 from ross.units import Q_
 
-from ross.disk_element import DiskElement6DoF
+from ross.disk_element import DiskElement
 
 
 __all__ = ["GearElement"]
 
 
-class GearElement(DiskElement6DoF):
+class GearElement(DiskElement):
     """A gear element.
 
     This class creates a gear element from input data of inertia and mass.
