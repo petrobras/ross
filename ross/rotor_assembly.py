@@ -1499,12 +1499,14 @@ class Rotor(object):
             else:
                 evalues, evectors = la.eig(A)
 
-            if sparse is not None:
-                idx = np.where(np.abs(evalues) > 0.1)[0]
-                evalues, evectors = filter_eigenpairs(evalues, evectors, idx)
-
         if sorted_:
             idx = self._index(evalues)
+            evalues, evectors = filter_eigenpairs(evalues, evectors, idx)
+
+        if sparse is not None and not synchronous:
+            idx = np.where(np.abs(evalues) > 1e-1)[0]
+            evalues, evectors = filter_eigenpairs(evalues, evectors, idx)
+            idx = np.where(np.abs(np.imag(evalues)) > 1e-3)[0]
             evalues, evectors = filter_eigenpairs(evalues, evectors, idx)
 
         return evalues, evectors
