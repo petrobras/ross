@@ -424,25 +424,20 @@ class Shape(Results):
         self._calculate()
 
     def _classify(self):
+        size = len(self.vector)
+
+        axial_dofs = np.arange(2, size, self.number_dof)
+        torsional_dofs = np.arange(5, size, self.number_dof)
+
+        nonzero_dofs = np.nonzero(np.abs(self.vector).round(6))[0]
+
         self.mode_type = "Lateral"
-
-        if self.number_dof == 6:
-            size = len(self.vector)
-
-            axial_dofs = np.arange(2, size, self.number_dof)
-            torsional_dofs = np.arange(5, size, self.number_dof)
-
-            nonzero_dofs = np.nonzero(np.abs(self.vector).round(6))[0]
-
-            if np.isin(axial_dofs, nonzero_dofs).all():
-                self.mode_type += "-Axial"
-            if np.isin(torsional_dofs, nonzero_dofs).all():
-                self.mode_type += "-Torsional"
-
-            if np.isin(nonzero_dofs, axial_dofs).all():
-                self.mode_type = "Axial"
-            elif np.isin(nonzero_dofs, torsional_dofs).all():
-                self.mode_type = "Torsional"
+        if np.isin(nonzero_dofs, axial_dofs).all():
+            self.mode_type = "Axial"
+            self.color = tableau_colors["orange"]
+        elif np.isin(nonzero_dofs, torsional_dofs).all():
+            self.mode_type = "Torsional"
+            self.color = tableau_colors["green"]
 
     def _calculate_orbits(self):
         orbits = []
@@ -455,15 +450,18 @@ class Shape(Results):
 
         self.orbits = orbits
         # check shape whirl
-        if all(w == "Forward" for w in whirl):
-            self.whirl = "Forward"
-            self.color = tableau_colors["blue"]
-        elif all(w == "Backward" for w in whirl):
-            self.whirl = "Backward"
-            self.color = tableau_colors["red"]
+        if self.mode_type == "Lateral":
+            if all(w == "Forward" for w in whirl):
+                self.whirl = "Forward"
+                self.color = tableau_colors["blue"]
+            elif all(w == "Backward" for w in whirl):
+                self.whirl = "Backward"
+                self.color = tableau_colors["red"]
+            else:
+                self.whirl = "Mixed"
+                self.color = tableau_colors["gray"]
         else:
-            self.whirl = "Mixed"
-            self.color = tableau_colors["gray"]
+            self.whirl = "None"
 
     def _calculate(self):
         evec = self._evec
@@ -584,8 +582,6 @@ class Shape(Results):
 
         nodes_pos = Q_(self.nodes_pos, "m").to(length_units).m
 
-        color = "orange"
-
         if plot_dimension == 2:
             # Plot 2d
             fig.add_traces(
@@ -594,7 +590,7 @@ class Shape(Results):
                         x=nodes_pos,
                         y=rel_disp,
                         mode="lines",
-                        line=dict(color=tableau_colors[color]),
+                        line=dict(color=self.color),
                         showlegend=False,
                         hovertemplate=(f"Relative angle: %{{y:.2f }}<extra></extra>"),
                     ),
@@ -640,7 +636,7 @@ class Shape(Results):
                         y=[0, 0],
                         z=[0, 1],
                         mode="lines",
-                        line=dict(width=2, color=tableau_colors[color]),
+                        line=dict(width=2, color=self.color),
                         showlegend=False,
                         name=f"Node {self.nodes[n]}",
                         hovertemplate=(
@@ -657,7 +653,7 @@ class Shape(Results):
                     y=np.zeros(len(nodes_pos)),
                     z=np.ones(len(nodes_pos)),
                     mode="lines+markers",
-                    line=dict(width=2, color=tableau_colors[color]),
+                    line=dict(width=2, color=self.color),
                     marker=dict(size=3),
                     showlegend=False,
                     hoverinfo="none",
@@ -764,8 +760,6 @@ class Shape(Results):
 
         nodes_pos = Q_(self.nodes_pos, "m").to(length_units).m
 
-        color = "green"
-
         if plot_dimension == 2:
             # Plot 2d
             fig.add_traces(
@@ -774,7 +768,7 @@ class Shape(Results):
                         x=nodes_pos,
                         y=theta,
                         mode="lines",
-                        line=dict(color=tableau_colors[color]),
+                        line=dict(color=self.color),
                         showlegend=False,
                         hovertemplate=(f"Relative angle: %{{y:.2f }}<extra></extra>"),
                     ),
@@ -816,7 +810,6 @@ class Shape(Results):
         frames = []
         initial_state = []
         for i in range(len(variation)):
-
             node_data = []
             xn = []
             yn = []
@@ -828,7 +821,7 @@ class Shape(Results):
                         y=[0, xt[i, n]],
                         z=[0, yt[i, n]],
                         mode="lines",
-                        line=dict(width=2, color=tableau_colors[color]),
+                        line=dict(width=2, color=self.color),
                         showlegend=False,
                         name=f"Node {self.nodes[n]}",
                         hovertemplate=(
@@ -849,7 +842,7 @@ class Shape(Results):
                     y=yn,
                     z=zn,
                     mode="lines+markers",
-                    line=dict(width=2, color=tableau_colors[color]),
+                    line=dict(width=2, color=self.color),
                     marker=dict(size=3),
                     showlegend=False,
                     hoverinfo="none",
@@ -959,7 +952,6 @@ class Shape(Results):
             self._plot_axial(plot_dimension=2, length_units=length_units, fig=fig)
 
         else:
-
             if orientation == "major":
                 values = self.major_axis.copy()
             elif orientation == "x":
@@ -1150,6 +1142,18 @@ class Shape(Results):
                 )
             )
 
+        fig.update_layout(
+            scene=dict(
+                aspectratio=dict(x=2.5, y=1, z=1),
+                camera=dict(
+                    eye=dict(x=2.3, y=1.5, z=0.5),
+                    center=dict(x=1.15, y=0.5, z=0),
+                    up=dict(x=0, y=0, z=1),
+                ),
+            ),
+            **kwargs,
+        )
+
         return fig
 
 
@@ -1292,11 +1296,13 @@ class ModalResults(Results):
         Parameters
         ----------
         whirl: string
-            A string indicating the whirl direction related to the kappa_mode
+            A string indicating the whirl direction related to the kappa_mode.
+            If whirl is None, it does not correspond to a Lateral mode.
 
         Returns
         -------
-        An array with reference index for the whirl direction
+        An array with reference index for the whirl direction.
+        If index is Nan, it does not correspond to a Lateral mode.
 
         Example
         -------
@@ -1310,6 +1316,8 @@ class ModalResults(Results):
             return 1.0
         elif whirl == "Mixed":
             return 0.5
+        else:
+            return np.nan
 
     def kappa(self, node, w, wd=True):
         r"""Calculate kappa for a given node and natural frequency.
@@ -1391,7 +1399,8 @@ class ModalResults(Results):
         -------
         whirl_w : array
             An array of strings indicating the direction of precession related
-            to the mode shape. Backward, Mixed or Forward.
+            to the mode shape. Backward, Mixed or Forward. It can also indicate
+            None if it does not correspond to a Lateral mode (e.g. Torsional or Axial).
         """
         # whirl direction/values are methods because they are expensive.
         whirl_w = [self.shapes[wd].whirl for wd in range(len(self.wd))]
@@ -1407,6 +1416,7 @@ class ModalResults(Results):
             0.0 - if the whirl is Forward
             0.5 - if the whirl is Mixed
             1.0 - if the whirl is Backward
+            Nan - if it does not correspond to a Lateral mode
         """
         return self.whirl_to_cmap(self.whirl_direction())
 
@@ -1749,6 +1759,7 @@ class ModalResults(Results):
                 "x": 0.5,
                 "xanchor": "center",
             },
+            **kwargs,
         )
 
         return fig
@@ -1798,6 +1809,45 @@ class CampbellResults(Results):
         self.modal_results = modal_results
         self.number_dof = number_dof
         self.run_modal = run_modal
+
+    def sort_by_mode_type(self):
+        """Sort by mode type.
+
+        Sort the Campbell result arrays (`wd`, `log_dec`, `damping_ratio`, `whirl_values`)
+        by mode type, so as to force the axial and torsional modes to be at the end
+        of the arrays.
+        """
+
+        wd = self.wd
+        ld = self.log_dec
+        dr = self.damping_ratio
+        wv = self.whirl_values
+        mode_type = []
+
+        for i in range(wd.shape[0]):
+            mode_type.append(
+                [
+                    self.modal_results[self.speed_range[i]].shapes[j].mode_type
+                    for j in range(wd.shape[1])
+                ]
+            )
+        mode_type = np.array(mode_type)
+
+        mode_shapes = self.modal_results[self.speed_range[0]].shapes
+        target_values = wd[0, [shape.mode_type != "Lateral" for shape in mode_shapes]]
+
+        for value in target_values:
+            for i in range(0, wd.shape[0]):
+                idx = np.where(wd[i].round(3) == value.round(3))[0][0]
+                wd[i] = np.append(np.delete(wd[i], idx), wd[i, idx])
+                ld[i] = np.append(np.delete(ld[i], idx), ld[i, idx])
+                dr[i] = np.append(np.delete(dr[i], idx), dr[i, idx])
+                wv[i] = np.append(np.delete(wv[i], idx), wv[i, idx])
+                mode_type[i] = np.append(
+                    np.delete(mode_type[i], idx), mode_type[i, idx]
+                )
+
+        return mode_type
 
     @check_units
     def plot(
@@ -1936,16 +1986,15 @@ class CampbellResults(Results):
                 )
             )
 
-        whirl_direction = [0.0, 0.5, 1.0]
-        scatter_marker = ["triangle-up", "circle", "triangle-down"]
-        legends = ["Forward", "Mixed", "Backward"]
-
-        if self.number_dof == 6:
-            whirl_direction = np.concatenate((whirl_direction, [None, None]))
-            scatter_marker = np.concatenate(
-                (scatter_marker, ["diamond-wide", "bowtie"])
-            )
-            legends = np.concatenate((legends, ["Axial", "Torsional"]))
+        whirl_direction = [0.0, 0.5, 1.0, None, None]
+        scatter_marker = [
+            "triangle-up",
+            "circle",
+            "triangle-down",
+            "diamond-wide",
+            "bowtie",
+        ]
+        legends = ["Forward", "Mixed", "Backward", "Axial", "Torsional"]
 
         for whirl_dir, mark, legend in zip(whirl_direction, scatter_marker, legends):
             for i in range(num_frequencies):
@@ -2036,11 +2085,10 @@ class CampbellResults(Results):
         )
         fig.update_layout(
             legend=dict(
-                itemsizing="constant",
                 orientation="h",
                 xanchor="center",
-                x=0.5,
                 yanchor="bottom",
+                x=0.5,
                 y=-0.3,
                 yref="container",
             ),
@@ -2245,10 +2293,7 @@ class FrequencyResponseResults(Results):
         self.speed_range = speed_range
         self.number_dof = number_dof
 
-        if self.number_dof == 4:
-            self.dof_dict = {"0": "x", "1": "y", "2": "α", "3": "β"}
-        elif self.number_dof == 6:
-            self.dof_dict = {"0": "x", "1": "y", "2": "z", "3": "α", "4": "β", "5": "θ"}
+        self.dof_dict = {"0": "x", "1": "y", "2": "z", "3": "α", "4": "β", "5": "θ"}
 
     def plot_magnitude(
         self,
@@ -3728,6 +3773,7 @@ class ForcedResponseResults(Results):
         fig.update_yaxes(
             title_text=f"Major Axis Amplitude ({amplitude_units})",
         )
+        fig.update_layout(**kwargs)
 
         return fig
 
@@ -3890,6 +3936,7 @@ class ForcedResponseResults(Results):
                     nticks=5,
                 ),
             ),
+            **kwargs,
         )
 
         return fig
@@ -3897,7 +3944,6 @@ class ForcedResponseResults(Results):
     def plot_bending_moment(
         self,
         speed,
-        frequency_units="rad/s",
         moment_units="N*m",
         rotor_length_units="m",
         fig=None,
@@ -3910,9 +3956,6 @@ class ForcedResponseResults(Results):
         speed : float
             The rotor rotation speed. Must be an element from the speed_range argument
             passed to the class (rad/s).
-        frequency_units : str, optional
-            Frequency units.
-            Default is "rad/s"
         moment_units : str, optional
             Moment units.
             Default is 'N*m'.
@@ -3990,11 +4033,18 @@ class ForcedResponseResults(Results):
         )
 
         fig.update_xaxes(title_text=f"Rotor Length ({rotor_length_units})")
-        fig.update_yaxes(
-            title_text=f"Bending Moment ({moment_units})",
-            title_font=dict(size=12),
+        fig.update_yaxes(title_text=f"Bending Moment ({moment_units})")
+        fig.update_layout(
+            legend=dict(
+                orientation="h",
+                xanchor="center",
+                yanchor="bottom",
+                x=0.5,
+                y=-0.3,
+                yref="container",
+            ),
+            **kwargs,
         )
-        fig.update_layout(**kwargs)
 
         return fig
 
@@ -4004,6 +4054,7 @@ class ForcedResponseResults(Results):
         samples=101,
         frequency_units="rad/s",
         amplitude_units="m",
+        phase_units="rad",
         rotor_length_units="m",
         moment_units="N*m",
         shape2d_kwargs=None,
@@ -4041,6 +4092,9 @@ class ForcedResponseResults(Results):
 
             Default is "m/N" 0 to peak.
             To use peak to peak use '<unit> pkpk' (e.g. 'm/N pkpk')
+        phase_untis : str, optional
+            Phase units.
+            Default is "rad".
         rotor_length_units : str, optional
             Rotor length units.
             Default is 'm'.
@@ -4079,21 +4133,20 @@ class ForcedResponseResults(Results):
 
         fig0 = self.plot_deflected_shape_2d(
             speed,
-            frequency_units=frequency_units,
             amplitude_units=amplitude_units,
+            phase_units=phase_units,
             rotor_length_units=rotor_length_units,
             **shape2d_kwargs,
         )
         fig1 = self.plot_deflected_shape_3d(
             speed,
-            frequency_units=frequency_units,
             amplitude_units=amplitude_units,
+            phase_units=phase_units,
             rotor_length_units=rotor_length_units,
             **shape3d_kwargs,
         )
         fig2 = self.plot_bending_moment(
             speed,
-            frequency_units=frequency_units,
             moment_units=moment_units,
             rotor_length_units=rotor_length_units,
             **bm_kwargs,
@@ -4117,6 +4170,7 @@ class ForcedResponseResults(Results):
         subplots.update_xaxes(fig2.layout.xaxis, row=2, col=1)
         subplots.update_yaxes(fig2.layout.yaxis, row=2, col=1)
         subplots.update_layout(
+            height=600,
             scene=dict(
                 bgcolor=fig1.layout.scene.bgcolor,
                 xaxis=fig1.layout.scene.xaxis,
@@ -4135,6 +4189,7 @@ class ForcedResponseResults(Results):
                 yanchor="bottom",
                 x=0.5,
                 y=-0.3,
+                yref="container",
             ),
             **subplot_kwargs,
         )
