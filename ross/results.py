@@ -1274,6 +1274,9 @@ class ModalResults(Results):
         self.nodes_pos = nodes_pos
         self.shaft_elements_length = shaft_elements_length
         self.number_dof = number_dof
+        self.update_mode_shapes()
+
+    def update_mode_shapes(self):
         self.modes = self.evectors[: self.ndof]
         self.shapes = []
         for mode in range(len(self.wn)):

@@ -1489,7 +1489,8 @@ class Rotor(object):
                 try:
                     evalues, evectors = las.eigs(
                         A,
-                        k=min(2 * num_modes, max(num_modes, A.shape[0] - 2)),
+                        k=min(num_modes, A.shape[0] - 2),
+                        # k=min(2 * num_modes, max(num_modes, A.shape[0] - 2)),
                         sigma=1,
                         which="LM",
                         v0=np.ones(A.shape[0]),
@@ -1499,14 +1500,12 @@ class Rotor(object):
             else:
                 evalues, evectors = la.eig(A)
 
-        if sorted_:
-            idx = self._index(evalues)
-            evalues, evectors = filter_eigenpairs(evalues, evectors, idx)
-
         if sparse is not None and not synchronous:
             idx = np.where(np.abs(evalues) > 1e-1)[0]
             evalues, evectors = filter_eigenpairs(evalues, evectors, idx)
-            idx = np.where(np.abs(np.imag(evalues)) > 1e-3)[0]
+
+        if sorted_:
+            idx = self._index(evalues)
             evalues, evectors = filter_eigenpairs(evalues, evectors, idx)
 
         return evalues, evectors
@@ -2549,16 +2548,57 @@ class Rotor(object):
         Plotting Campbell Diagram
         >>> fig = camp.plot()
         """
+
         # store in results [speeds(x axis), frequencies[0] or logdec[1] or
         # whirl[2](y axis), 3]
         self._check_frequency_array(speed_range)
 
         results = np.zeros([len(speed_range), frequencies, 6])
 
+        # MAC criterion to track modes
+        def MAC(u, v):
+            H = lambda a: a.T.conj()
+            return np.absolute((H(u) @ v) ** 2 / ((H(u) @ u) * (H(v) @ v)))
+
+        num_modes = 4 * (frequencies + 2)  # ensure good accuracy
+        evec_size = num_modes // 2
+        mode_order = np.arange(evec_size)
+        threshold = 0.9
+        evec_u = []
+
         modal_results = {}
         for i, w in enumerate(speed_range):
-            modal = self.run_modal(speed=w, num_modes=2 * frequencies)
+            modal = self.run_modal(speed=w, num_modes=num_modes)
             modal_results[w] = modal
+
+            evec_v = modal.evectors[:, :evec_size]
+
+            if i > 0:
+                macs = np.zeros((evec_size, evec_size))
+                for u in enumerate(evec_u.T):
+                    for v in enumerate(evec_v.T):
+                        macs[u[0], v[0]] = MAC(u[1], v[1])
+
+                mask = macs > threshold
+                found_order = np.where(
+                    mask.any(axis=1), np.argmax(macs * mask, axis=1), -1
+                )
+                modes_not_found = np.where(found_order == -1)[0]
+
+                if len(modes_not_found):
+                    missing_modes = sorted(set(mode_order) - set(found_order))
+                    found_order[modes_not_found] = missing_modes[: len(modes_not_found)]
+
+                if not (found_order == mode_order).all():
+                    modal.evectors = modal.evectors[:, found_order]
+                    modal.evalues = modal.evalues[found_order]
+                    modal.wd = modal.wd[found_order]
+                    modal.wn = modal.wn[found_order]
+                    modal.log_dec = modal.log_dec[found_order]
+                    modal.damping_ratio = modal.damping_ratio[found_order]
+                    modal.update_mode_shapes()
+
+            evec_u = modal.evectors[:, :evec_size]
 
             if frequency_type == "wd":
                 results[i, :, 0] = modal.wd[:frequencies]
@@ -2583,7 +2623,7 @@ class Rotor(object):
             whirl_values=results[..., 3],
             modal_results=modal_results,
             number_dof=self.number_dof,
-            run_modal=lambda w: self.run_modal(speed=w, num_modes=2 * frequencies),
+            run_modal=lambda w: self.run_modal(speed=w, num_modes=num_modes),
         )
 
         return results
