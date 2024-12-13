@@ -705,7 +705,9 @@ class Rotor(object):
         )
 
     @check_units
-    def run_modal(self, speed, num_modes=12, sparse=True, synchronous=False):
+    def run_modal(
+        self, speed, num_modes=12, sparse=True, synchronous=False, full=False
+    ):
         """Run modal analysis.
 
         Method to calculate eigenvalues and eigvectors for a given rotor system.
@@ -740,6 +742,10 @@ class Rotor(object):
         synchronous : bool, optional
             If True a synchronous analysis is carried out.
             Default is False.
+        full : bool, optional
+            If True, the size of the result arrays is equal to `num_modes`.
+            If False, it is half the value of `num_modes`.
+            Default is False.
 
         Returns
         -------
@@ -767,7 +773,7 @@ class Rotor(object):
         evalues, evectors = self._eigen(
             speed, num_modes=num_modes, sparse=sparse, synchronous=synchronous
         )
-        wn_len = num_modes // 2
+        wn_len = num_modes if full else num_modes // 2
         wn = (np.absolute(evalues))[:wn_len]
         wd = (np.imag(evalues))[:wn_len]
         damping_ratio = (-np.real(evalues) / np.absolute(evalues))[:wn_len]
@@ -1489,8 +1495,7 @@ class Rotor(object):
                 try:
                     evalues, evectors = las.eigs(
                         A,
-                        k=min(num_modes, A.shape[0] - 2),
-                        # k=min(2 * num_modes, max(num_modes, A.shape[0] - 2)),
+                        k=min(2 * num_modes, max(num_modes, A.shape[0] - 2)),
                         sigma=1,
                         which="LM",
                         v0=np.ones(A.shape[0]),
@@ -2560,15 +2565,15 @@ class Rotor(object):
             H = lambda a: a.T.conj()
             return np.absolute((H(u) @ v) ** 2 / ((H(u) @ u) * (H(v) @ v)))
 
-        num_modes = 4 * (frequencies + 2)  # ensure good accuracy
-        evec_size = num_modes // 2
+        num_modes = 2 * (frequencies + 2)  # ensure to get the right modes
+        evec_size = num_modes
         mode_order = np.arange(evec_size)
         threshold = 0.9
         evec_u = []
 
         modal_results = {}
         for i, w in enumerate(speed_range):
-            modal = self.run_modal(speed=w, num_modes=num_modes)
+            modal = self.run_modal(speed=w, num_modes=num_modes, full=True)
             modal_results[w] = modal
 
             evec_v = modal.evectors[:, :evec_size]
@@ -2623,7 +2628,7 @@ class Rotor(object):
             whirl_values=results[..., 3],
             modal_results=modal_results,
             number_dof=self.number_dof,
-            run_modal=lambda w: self.run_modal(speed=w, num_modes=num_modes),
+            run_modal=lambda w: self.run_modal(speed=w, num_modes=num_modes, full=True),
         )
 
         return results
