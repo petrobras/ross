@@ -162,7 +162,6 @@ def test_campbell_plot(rotor1):
             2868.14592367,
             1420.76907353,
             3264.81334336,
-            3697.247369,
         ]
     )
     crit_array_y = np.array(
@@ -172,7 +171,6 @@ def test_campbell_plot(rotor1):
             2868.14592367,
             2841.53814705,
             6529.62668672,
-            7394.494738,
         ]
     )
     assert_allclose(fig.data[0]["x"], crit_array_x)

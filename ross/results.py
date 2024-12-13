@@ -1274,6 +1274,9 @@ class ModalResults(Results):
         self.nodes_pos = nodes_pos
         self.shaft_elements_length = shaft_elements_length
         self.number_dof = number_dof
+        self.update_mode_shapes()
+
+    def update_mode_shapes(self):
         self.modes = self.evectors[: self.ndof]
         self.shapes = []
         for mode in range(len(self.wn)):
@@ -1833,7 +1836,7 @@ class CampbellResults(Results):
             )
         mode_type = np.array(mode_type)
 
-        mode_shapes = self.modal_results[self.speed_range[0]].shapes
+        mode_shapes = self.modal_results[self.speed_range[0]].shapes[: wd.shape[1]]
         target_values = wd[0, [shape.mode_type != "Lateral" for shape in mode_shapes]]
 
         for value in target_values:
