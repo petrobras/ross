@@ -4048,6 +4048,7 @@ class ForcedResponseResults(Results):
 
         return fig
 
+    @check_units
     def plot_deflected_shape(
         self,
         speed,
