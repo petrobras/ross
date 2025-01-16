@@ -331,7 +331,7 @@ class MisalignmentFlex(Fault):
 
         F_mis_p = np.zeros((self.ndof, len(angular_position)))
 
-        fib = np.arctan(self.eCOUPy / self.eCOUPx)
+        fib = np.arctan(self.eCOUPx / self.eCOUPy)
 
         self.mi_y = (
             (
