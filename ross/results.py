@@ -4051,6 +4051,7 @@ class ForcedResponseResults(Results):
 
         return fig
 
+    @check_units
     def plot_deflected_shape(
         self,
         speed,
@@ -4074,7 +4075,7 @@ class ForcedResponseResults(Results):
 
         Parameters
         ----------
-        speed : float
+        speed : float, pint.Quantity
             The rotor rotation speed. Must be an element from the speed_range argument
             passed to the class (rad/s).
         samples : int, optional
