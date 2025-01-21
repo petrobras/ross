@@ -150,6 +150,7 @@ class BearingElement(Element):
         n_link=None,
         scale_factor=1,
         color="#355d7a",
+        **kwargs,
     ):
         if frequency is not None:
             self.frequency = np.array(frequency, dtype=np.float64)
@@ -475,6 +476,7 @@ class BearingElement(Element):
         diff_args = set(signature(self.__init__).parameters).difference(
             self.__dict__.keys()
         )
+        diff_args.discard("kwargs")
 
         class_name = (
             self.__class__.__name__
@@ -1214,6 +1216,7 @@ class SealElement(BearingElement):
         n_link=None,
         scale_factor=None,
         color="#77ACA2",
+        **kwargs,
     ):
         self.seal_leakage = seal_leakage
 
@@ -1322,6 +1325,7 @@ class BallBearingElement(BearingElement):
         n_link=None,
         scale_factor=1,
         color="#355d7a",
+        **kwargs,
     ):
         self.n_balls = n_balls
         self.d_balls = d_balls
@@ -1448,6 +1452,7 @@ class RollerBearingElement(BearingElement):
         n_link=None,
         scale_factor=1,
         color="#355d7a",
+        **kwargs,
     ):
         self.n_rollers = n_rollers
         self.l_rollers = l_rollers
@@ -1575,6 +1580,7 @@ class MagneticBearingElement(BearingElement):
         n_link=None,
         scale_factor=1,
         color="#355d7a",
+        **kwargs,
     ):
         self.g0 = g0
         self.i0 = i0
@@ -1752,6 +1758,7 @@ class CylindricalBearing(BearingElement):
         tag=None,
         scale_factor=1,
         color="#355d7a",
+        **kwargs,
     ):
         self.n = n
 
@@ -1847,6 +1854,7 @@ class CylindricalBearing(BearingElement):
             scale_factor=scale_factor,
             color=color,
             **coefficients_dict,
+            **kwargs,
         )
 
 
