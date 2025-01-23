@@ -266,7 +266,7 @@ class MultiRotor(Rotor):
         rotor = self.rotors[0]
 
         if node in self.R2_nodes:
-            speed = -omega * self.gear_ratio
+            speed = -self.gear_ratio * omega
             rotor = self.rotors[1]
 
         if isinstance(rotor, MultiRotor):
@@ -321,8 +321,8 @@ class MultiRotor(Rotor):
         r1 = self.gears[0].base_radius
         r2 = self.gears[1].base_radius
 
-        S = np.sin(self.orientation_angle - self.gears[0].pressure_angle)
-        C = np.cos(self.orientation_angle - self.gears[0].pressure_angle)
+        S = np.sin(self.gears[0].pressure_angle - self.orientation_angle)
+        C = np.cos(self.gears[0].pressure_angle - self.orientation_angle)
 
         # fmt: off
         coupling_matrix = np.array([
@@ -443,7 +443,7 @@ class MultiRotor(Rotor):
         """
 
         return self._join_matrices(
-            self.rotors[0].Ksdt(), self.rotors[1].Ksdt() * self.gear_ratio
+            self.rotors[0].Ksdt(), -self.gear_ratio * self.rotors[1].Ksdt()
         )
 
     def C(self, frequency, ignore=[]):
@@ -499,7 +499,7 @@ class MultiRotor(Rotor):
         """
 
         return self._join_matrices(
-            self.rotors[0].G(), -self.rotors[1].G() * self.gear_ratio
+            self.rotors[0].G(), -self.gear_ratio * self.rotors[1].G()
         )
 
 
