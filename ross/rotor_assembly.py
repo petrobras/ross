@@ -1686,6 +1686,7 @@ class Rotor(object):
 
         return H
 
+    @lru_cache()
     def run_freq_response(
         self,
         speed_range=None,
@@ -1909,7 +1910,7 @@ class Rotor(object):
                 )
 
         freq_resp = self.run_freq_response(
-            speed_range, modes, cluster_points, num_modes, num_points, rtol
+            tuple(speed_range), modes, cluster_points, num_modes, num_points, rtol
         )
 
         forced_resp = np.zeros((self.ndof, len(freq_resp.speed_range)), dtype=complex)
