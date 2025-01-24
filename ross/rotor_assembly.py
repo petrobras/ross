@@ -54,6 +54,8 @@ from ross.utils import (
     convert_6dof_to_4dof,
 )
 
+from methodtools import lru_cache
+
 __all__ = [
     "Rotor",
     "CoAxialRotor",
@@ -704,6 +706,7 @@ class Rotor(object):
             tag=self.tag,
         )
 
+    @lru_cache()
     @check_units
     def run_modal(
         self, speed, num_modes=12, sparse=True, synchronous=False, full=False
@@ -2862,9 +2865,6 @@ class Rotor(object):
 
         return results
 
-    from methodtools import lru_cache
-
-    @lru_cache()
     def run_time_response(self, speed, F, t, method="default", **kwargs):
         """Calculate the time response.
 
