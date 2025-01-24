@@ -2862,6 +2862,9 @@ class Rotor(object):
 
         return results
 
+    from methodtools import lru_cache
+
+    @lru_cache()
     def run_time_response(self, speed, F, t, method="default", **kwargs):
         """Calculate the time response.
 
