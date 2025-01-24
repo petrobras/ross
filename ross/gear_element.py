@@ -29,8 +29,10 @@ class GearElement(DiskElement6DoF):
         Diametral moment of inertia.
     Ip : float, pint.Quantity
         Polar moment of inertia.
-    pitch_diameter : float, pint.Quantity
-        Pitch diameter of the gear (m).
+    m  : float
+        Gear module (mm).
+    n_tooth: int
+        Tooth number of the gear. 
     pressure_angle : float, pint.Quantity, optional
         The pressure angle of the gear (rad).
         Default is 20 deg (converted to rad).
@@ -65,8 +67,12 @@ class GearElement(DiskElement6DoF):
         m,
         Id,
         Ip,
-        pitch_diameter,
-        pressure_angle=None,
+        module,
+        n_tooth,
+        width,
+        pressure_angle=20 * np.pi / 180,
+        addendum_coeff=1,
+        clearance_coeff=0.25,
         tag=None,
         scale_factor=1.0,
         color="Goldenrod",
@@ -74,11 +80,14 @@ class GearElement(DiskElement6DoF):
         if pressure_angle is None:
             pressure_angle = Q_(20, "deg")
 
+        self.module = module
+        self.nTooth = n_tooth
+        self.pitch_diameter = self.module * self.n_tooth
         self.pressure_angle = float(pressure_angle)
-        self.base_radius = float(pitch_diameter) * np.cos(self.pressure_angle) / 2
+        self.base_radius = float(self.pitch_diameter) * np.cos(self.pressure_angle) / 2
 
         super().__init__(n, m, Id, Ip, tag, scale_factor, color)
-
+        
     @classmethod
     def from_geometry(
         cls,
@@ -245,3 +254,43 @@ class GearElement(DiskElement6DoF):
         )
 
         return fig
+
+class GearGeometry:
+
+    def __init__(self, gear: GearElement):
+        self.gear: GearElement = gear
+        self.geometry: dict[str, float] = self.initialize_geometry()
+    
+    def initialize_geometry(self) -> dict[str, float]:
+        angles: dict[str, float] = self.notable_angles()
+        radius: dict[str, float] = self.notable_radius()
+        geo_const: dict[str, float] = self.geometric_constants()
+        tau_const: dict[str, float] = self.tau_constants()
+        
+        geometry: dict[str, float] = angles | radius | geo_const | tau_const
+
+        return geometry
+
+    
+    def notable_angles(self) -> dict[str, float]:
+        pass
+
+    def notable_radius(self) -> dict[str, float]:
+        pass
+    
+    def geometric_constants(self) -> dict[str, float]:
+        pass
+
+    def tau_constants(self) -> dict[str, float]:
+        pass
+
+    @staticmethod
+    def involute(angle: float) -> float:
+        pass
+    
+    def to_tau(self, alpha_i: float) -> float:
+        pass
+    
+
+
+
