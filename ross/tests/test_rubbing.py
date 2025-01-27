@@ -26,7 +26,7 @@ def rotor():
     L = [L[i] - L[i - 1] for i in range(1, len(L))]
 
     shaft_elem = [
-        rs.ShaftElement6DoF(
+        rs.ShaftElement(
             l,
             i_d,
             o_d,
@@ -40,8 +40,8 @@ def rotor():
     Id = 0.003844540885417
     Ip = 0.007513248437500
 
-    disk0 = rs.DiskElement6DoF(n=12, m=2.6375, Id=Id, Ip=Ip)
-    disk1 = rs.DiskElement6DoF(n=24, m=2.6375, Id=Id, Ip=Ip)
+    disk0 = rs.DiskElement(n=12, m=2.6375, Id=Id, Ip=Ip)
+    disk1 = rs.DiskElement(n=24, m=2.6375, Id=Id, Ip=Ip)
 
     kxx1 = 4.40e5
     kyy1 = 4.6114e5
@@ -54,10 +54,10 @@ def rotor():
     cxx2 = 50.4
     cyy2 = 100.4553
 
-    bearing0 = rs.BearingElement6DoF(
+    bearing0 = rs.BearingElement(
         n=4, kxx=kxx1, kyy=kyy1, kzz=kzz, cxx=cxx1, cyy=cyy1, czz=czz
     )
-    bearing1 = rs.BearingElement6DoF(
+    bearing1 = rs.BearingElement(
         n=31, kxx=kxx2, kyy=kyy2, kzz=kzz, cxx=cxx2, cyy=cyy2, czz=czz
     )
 

@@ -3,11 +3,11 @@ from numpy.testing import assert_allclose
 import numpy as np
 from scipy import integrate
 
-from ross.bearing_seal_element import BearingElement6DoF
-from ross.disk_element import DiskElement6DoF
+from ross.bearing_seal_element import BearingElement
+from ross.disk_element import DiskElement
 from ross.materials import steel
 from ross.rotor_assembly import Rotor
-from ross.shaft_element import ShaftElement6DoF
+from ross.shaft_element import ShaftElement
 
 
 @pytest.fixture
@@ -20,7 +20,7 @@ def rotor1():
     L = [0.25 for _ in range(n)]
 
     shaft_elem = [
-        ShaftElement6DoF(
+        ShaftElement(
             l,
             i_d,
             o_d,
@@ -34,14 +34,14 @@ def rotor1():
         for l in L
     ]
 
-    disk0 = DiskElement6DoF.from_geometry(2, steel, 0.07, 0.05, 0.28)
-    disk1 = DiskElement6DoF.from_geometry(4, steel, 0.07, 0.05, 0.35)
+    disk0 = DiskElement.from_geometry(2, steel, 0.07, 0.05, 0.28)
+    disk1 = DiskElement.from_geometry(4, steel, 0.07, 0.05, 0.35)
 
     stfx = 1e6
     stfy = 1e6
     c = 1e3
-    bearing0 = BearingElement6DoF(0, kxx=stfx, kyy=stfy, cxx=c, cyy=c)
-    bearing1 = BearingElement6DoF(6, kxx=stfx, kyy=stfy, cxx=c, cyy=c)
+    bearing0 = BearingElement(0, kxx=stfx, kyy=stfy, cxx=c, cyy=c)
+    bearing1 = BearingElement(6, kxx=stfx, kyy=stfy, cxx=c, cyy=c)
 
     return Rotor(shaft_elem, [disk0, disk1], [bearing0, bearing1])
 
@@ -56,7 +56,7 @@ def rotor2():
     L = [0.25 for _ in range(n)]
 
     shaft_elem = [
-        ShaftElement6DoF(
+        ShaftElement(
             l,
             i_d,
             o_d,
@@ -70,19 +70,15 @@ def rotor2():
         for l in L
     ]
 
-    disk0 = DiskElement6DoF.from_geometry(2, steel, 0.07, 0.05, 0.28)
-    disk1 = DiskElement6DoF.from_geometry(4, steel, 0.07, 0.05, 0.35)
+    disk0 = DiskElement.from_geometry(2, steel, 0.07, 0.05, 0.28)
+    disk1 = DiskElement.from_geometry(4, steel, 0.07, 0.05, 0.35)
 
     stfx = [1e6, 1.5e6]
     stfy = [1e6, 1.5e6]
     c = [1e3, 1.5e3]
     frequency = [50, 5000]
-    bearing0 = BearingElement6DoF(
-        0, kxx=stfx, kyy=stfy, cxx=c, cyy=c, frequency=frequency
-    )
-    bearing1 = BearingElement6DoF(
-        6, kxx=stfx, kyy=stfy, cxx=c, cyy=c, frequency=frequency
-    )
+    bearing0 = BearingElement(0, kxx=stfx, kyy=stfy, cxx=c, cyy=c, frequency=frequency)
+    bearing1 = BearingElement(6, kxx=stfx, kyy=stfy, cxx=c, cyy=c, frequency=frequency)
 
     return Rotor(shaft_elem, [disk0, disk1], [bearing0, bearing1])
 

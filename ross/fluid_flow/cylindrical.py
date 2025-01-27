@@ -4,6 +4,7 @@ import numpy as np
 from numpy.linalg import pinv
 from ross.bearing_seal_element import BearingElement
 from ross.units import Q_, check_units
+from ross.plotly_theme import tableau_colors
 from scipy.optimize import curve_fit, minimize
 from ross.fluid_flow.lubricants import lubricants_dict
 
@@ -3015,6 +3016,158 @@ class THDCylindrical(BearingElement):
         )
         fig.update_xaxes(showline=False)
         fig.update_yaxes(showline=False)
+        return fig
+
+    def plot_pressure_distribution(self, axial_element_index=None, fig=None, **kwargs):
+        """Plot pressure distribution.
+
+        Parameters
+        ----------
+        axial_element_index : int, optional
+            Show pressure distribution on bearing for the respective axial element.
+            Default is the element closest to the middle of the bearing.
+        fig : Plotly graph_objects.Figure()
+            The figure object with the plot.
+        kwargs : optional
+            Additional key word arguments can be passed to change the plot layout only
+            (e.g. width=1000, height=800, ...).
+            *See Plotly Python Figure Reference for more information.
+
+        Returns
+        -------
+        fig : Plotly graph_objects.Figure()
+            The figure object with the plot.
+        """
+
+        if fig is None:
+            fig = go.Figure()
+
+        if axial_element_index is None:
+            axial_element_index = self.elements_axial // 2
+
+        n_elements = self.elements_circumferential
+
+        # Plot bearing
+        total_points = 1000  # Number of points to create a circle
+        num_points = int(self.dtheta * n_elements * total_points / (2 * np.pi))
+
+        thetaI = 0
+        self.theta_p = []
+        bearing_plot = []
+
+        for n_p in range(self.n_pad):
+            thetaF = self.thetaF[n_p]
+            theta_ref = np.sort(np.arange(thetaF, thetaI, -self.dtheta))
+            self.theta_p.append((theta_ref[0], theta_ref[-1]))
+            thetaI = thetaF
+
+            # Plot pad
+            theta = np.linspace(self.theta_p[n_p][0], self.theta_p[n_p][1], num_points)
+            x = np.cos(theta)
+            y = np.sin(theta)
+
+            bearing_plot.append(
+                go.Scatter(
+                    x=x,
+                    y=y,
+                    mode="lines",
+                    line=dict(color=tableau_colors["gray"], width=6),
+                    hoverinfo="text",
+                    text=f"Pad {n_p}",
+                    name=f"Pad {n_p} plot",
+                )
+            )
+
+        P_distribution = self.P[axial_element_index, :, :]
+        points = {"x": [], "y": []}
+        pressure_plot = []
+
+        for n_p in range(self.n_pad):
+            # Plot the normals scaled by pressure
+            scale = P_distribution[:, n_p] / np.max(np.abs(P_distribution)) * 0.5
+
+            theta = np.arange(
+                self.theta_p[n_p][0] + self.dtheta / 2,
+                self.theta_p[n_p][1],
+                self.dtheta,
+            )
+            x = np.cos(theta)
+            y = np.sin(theta)
+
+            for i in range(n_elements):
+                x_i = x[i]
+                y_i = y[i]
+                x_f = x_i + scale[i] * np.cos(theta[i])
+                y_f = y_i + scale[i] * np.sin(theta[i])
+
+                angle = theta[i] * 180 / np.pi
+                pressure = P_distribution[i, n_p]
+                data_info = f"Pad {n_p}<br>Angle: {angle:.0f} deg<br>Pressure: {pressure:.3e} Pa"
+                name = f"Pad {n_p} distribution"
+
+                if abs(np.sqrt(x_f**2 + y_f**2) - 1) > 1e-2:
+                    pressure_plot.append(
+                        go.Scatter(
+                            x=[x_i, x_f],
+                            y=[y_i, y_f],
+                            mode="lines+markers",
+                            line=dict(width=3, color=tableau_colors["orange"]),
+                            marker=dict(size=9, symbol="arrow", angleref="previous"),
+                            hoverinfo="text",
+                            text=data_info,
+                            name=name,
+                        )
+                    )
+
+                points["x"].append(x_f)
+                points["y"].append(y_f)
+
+        points["x"].append(points["x"][0])
+        points["y"].append(points["y"][0])
+
+        fig.add_traces(data=[*pressure_plot, *bearing_plot])
+
+        # Plot distribution curve
+        fig.add_trace(
+            go.Scatter(
+                x=points["x"],
+                y=points["y"],
+                mode="lines",
+                line_shape="spline",
+                line=dict(color="black", width=1.5, dash="dash"),
+                hoverinfo="none",
+                name="Distribution curve",
+            )
+        )
+
+        P_min = np.min(P_distribution)
+        P_max = np.max(P_distribution)
+        fig.add_annotation(
+            x=1,
+            y=1,
+            xref="paper",
+            yref="paper",
+            align="right",
+            showarrow=False,
+            font=dict(size=16, color="black"),
+            text=f"<b>Pressure Distribution</b><br>Min: {P_min:.3e} Pa<br>Max: {P_max:.3e} Pa",
+        )
+
+        fig.update_layout(
+            title="Cylindrical Bearing",
+            xaxis=dict(
+                showgrid=False,
+                zeroline=False,
+                showticklabels=False,
+                scaleanchor="y",
+            ),
+            yaxis=dict(showgrid=False, zeroline=False, showticklabels=False),
+            width=800,
+            height=800,
+            showlegend=False,
+            **kwargs,
+        )
+
         return fig
 
 

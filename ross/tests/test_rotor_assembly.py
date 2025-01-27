@@ -16,6 +16,12 @@ from ross.shaft_element import *
 from ross.units import Q_
 
 
+def get_dofs(ndof):
+    dofs_6 = np.arange(2, ndof, 3)
+    dofs_4 = np.setdiff1d(np.arange(0, ndof), dofs_6)
+    return dofs_4, dofs_6
+
+
 @pytest.fixture
 def rotor1():
     #  Rotor without damping with 2 shaft elements - no disks and no bearings
@@ -66,7 +72,7 @@ def test_index_eigenvalues_rotor1(rotor1):
 
 def test_mass_matrix_rotor1(rotor1):
     # fmt: off
-    Mr1 = np.array([[ 1.421,  0.   ,  0.   ,  0.049,  0.496,  0.   ,  0.   , -0.031,  0.   ,  0.   ,  0.   ,  0.   ],
+    M4r1 = np.array([[ 1.421,  0.   ,  0.   ,  0.049,  0.496,  0.   ,  0.   , -0.031,  0.   ,  0.   ,  0.   ,  0.   ],
                     [ 0.   ,  1.421, -0.049,  0.   ,  0.   ,  0.496,  0.031,  0.   ,  0.   ,  0.   ,  0.   ,  0.   ],
                     [ 0.   , -0.049,  0.002,  0.   ,  0.   , -0.031, -0.002,  0.   ,  0.   ,  0.   ,  0.   ,  0.   ],
                     [ 0.049,  0.   ,  0.   ,  0.002,  0.031,  0.   ,  0.   , -0.002,  0.   ,  0.   ,  0.   ,  0.   ],
@@ -78,8 +84,16 @@ def test_mass_matrix_rotor1(rotor1):
                     [ 0.   ,  0.   ,  0.   ,  0.   ,  0.   ,  0.496, -0.031,  0.   ,  0.   ,  1.421,  0.049,  0.   ],
                     [ 0.   ,  0.   ,  0.   ,  0.   ,  0.   ,  0.031, -0.002,  0.   ,  0.   ,  0.049,  0.002,  0.   ],
                     [ 0.   ,  0.   ,  0.   ,  0.   , -0.031,  0.   ,  0.   , -0.002, -0.049,  0.   ,  0.   ,  0.002]])
+    M6r1 = np.array([[ 1.278, 0.   , 0.639, 0.   , 0.   , 0.],
+                     [ 0.   , 0.   , 0.   , 0.   , 0.   , 0.],
+                     [ 0.639, 0.   , 2.556, 0.   , 0.639, 0.],
+                     [ 0.   , 0.   , 0.   , 0.001, 0.   , 0.],
+                     [ 0.   , 0.   , 0.639, 0.   , 1.278, 0.],
+                     [ 0.   , 0.   , 0.   , 0.   , 0.   , 0.]])
     # fmt: on
-    assert_almost_equal(rotor1.M(0), Mr1, decimal=3)
+    dofs_4, dofs_6 = get_dofs(rotor1.ndof)
+    assert_almost_equal(rotor1.M(0)[np.ix_(dofs_4, dofs_4)], M4r1, decimal=3)
+    assert_almost_equal(rotor1.M(0)[np.ix_(dofs_6, dofs_6)], M6r1, decimal=3)
 
 
 def test_raise_if_element_outside_shaft():
@@ -199,7 +213,7 @@ def rotor2_bearing_mass():
 
 def test_mass_matrix_rotor2_with_bearing_mass(rotor2_bearing_mass):
     # fmt: off
-    Mr2 = np.array([[ 1.441,  0.   ,  0.   ,  0.049,  0.496,  0.   ,  0.   , -0.031, 0.   ,  0.   ,  0.   ,  0.   ],
+    M4r2 = np.array([[ 1.441,  0.   ,  0.   ,  0.049,  0.496,  0.   ,  0.   , -0.031, 0.   ,  0.   ,  0.   ,  0.   ],
                     [ 0.   ,  1.441, -0.049,  0.   ,  0.   ,  0.496,  0.031,  0.   , 0.   ,  0.   ,  0.   ,  0.   ],
                     [ 0.   , -0.049,  0.002,  0.   ,  0.   , -0.031, -0.002,  0.   , 0.   ,  0.   ,  0.   ,  0.   ],
                     [ 0.049,  0.   ,  0.   ,  0.002,  0.031,  0.   ,  0.   , -0.002, 0.   ,  0.   ,  0.   ,  0.   ],
@@ -211,13 +225,25 @@ def test_mass_matrix_rotor2_with_bearing_mass(rotor2_bearing_mass):
                     [ 0.   ,  0.   ,  0.   ,  0.   ,  0.   ,  0.496, -0.031,  0.   , 0.   ,  1.441,  0.049,  0.   ],
                     [ 0.   ,  0.   ,  0.   ,  0.   ,  0.   ,  0.031, -0.002,  0.   , 0.   ,  0.049,  0.002,  0.   ],
                     [ 0.   ,  0.   ,  0.   ,  0.   , -0.031,  0.   ,  0.   , -0.002, -0.049,  0.   ,  0.   ,  0.002]])
+    M6r2 = np.array([[ 1.278,  0.   ,  0.639,  0.   ,  0.   ,  0.],
+                     [ 0.   ,  0.   ,  0.   ,  0.   ,  0.   ,  0.],
+                     [ 0.639,  0.   , 35.146,  0.   ,  0.639,  0.],
+                     [ 0.   ,  0.   ,  0.   ,  0.33 ,  0.   ,  0.],
+                     [ 0.   ,  0.   ,  0.639,  0.   ,  1.278,  0.],
+                     [ 0.   ,  0.   ,  0.   ,  0.   ,  0.   ,  0.]])
     # fmt: on
-    assert_almost_equal(rotor2_bearing_mass.M(0), Mr2, decimal=3)
+    dofs_4, dofs_6 = get_dofs(rotor2_bearing_mass.ndof)
+    assert_almost_equal(
+        rotor2_bearing_mass.M(0)[np.ix_(dofs_4, dofs_4)], M4r2, decimal=3
+    )
+    assert_almost_equal(
+        rotor2_bearing_mass.M(0)[np.ix_(dofs_6, dofs_6)], M6r2, decimal=3
+    )
 
 
 def test_mass_matrix_rotor2(rotor2):
     # fmt: off
-    Mr2 = np.array([[  1.421,   0.   ,   0.   ,   0.049,   0.496,   0.   ,   0.   ,  -0.031,   0.   ,   0.   ,   0.   ,   0.   ],
+    M4r2 = np.array([[  1.421,   0.   ,   0.   ,   0.049,   0.496,   0.   ,   0.   ,  -0.031,   0.   ,   0.   ,   0.   ,   0.   ],
                     [  0.   ,   1.421,  -0.049,   0.   ,   0.   ,   0.496,   0.031,   0.   ,   0.   ,   0.   ,   0.   ,   0.   ],
                     [  0.   ,  -0.049,   0.002,   0.   ,   0.   ,  -0.031,  -0.002,   0.   ,   0.   ,   0.   ,   0.   ,   0.   ],
                     [  0.049,   0.   ,   0.   ,   0.002,   0.031,   0.   ,   0.   ,  -0.002,   0.   ,   0.   ,   0.   ,   0.   ],
@@ -229,8 +255,16 @@ def test_mass_matrix_rotor2(rotor2):
                     [  0.   ,   0.   ,   0.   ,   0.   ,   0.   ,   0.496,  -0.031,   0.   ,   0.   ,   1.421,   0.049,   0.   ],
                     [  0.   ,   0.   ,   0.   ,   0.   ,   0.   ,   0.031,  -0.002,   0.   ,   0.   ,   0.049,   0.002,   0.   ],
                     [  0.   ,   0.   ,   0.   ,   0.   ,  -0.031,   0.   ,   0.   ,  -0.002,  -0.049,   0.   ,   0.   ,   0.002]])
+    M6r2 = np.array([[ 1.278,  0.   ,  0.639,  0.   ,  0.   ,  0.],
+                     [ 0.   ,  0.   ,  0.   ,  0.   ,  0.   ,  0.],
+                     [ 0.639,  0.   , 35.146,  0.   ,  0.639,  0.],
+                     [ 0.   ,  0.   ,  0.   ,  0.33 ,  0.   ,  0.],
+                     [ 0.   ,  0.   ,  0.639,  0.   ,  1.278,  0.],
+                     [ 0.   ,  0.   ,  0.   ,  0.   ,  0.   ,  0.]])
     # fmt: on
-    assert_almost_equal(rotor2.M(0), Mr2, decimal=3)
+    dofs_4, dofs_6 = get_dofs(rotor2.ndof)
+    assert_almost_equal(rotor2.M(0)[np.ix_(dofs_4, dofs_4)], M4r2, decimal=3)
+    assert_almost_equal(rotor2.M(0)[np.ix_(dofs_6, dofs_6)], M6r2, decimal=3)
 
 
 def test_a0_0_matrix_rotor2(rotor2):
@@ -252,21 +286,9 @@ def test_a0_0_matrix_rotor2(rotor2):
 
 
 def test_a0_1_matrix_rotor2(rotor2):
-    # fmt: off
-    A0_1 = np.array([[1., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0.],
-                     [0., 1., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0.],
-                     [0., 0., 1., 0., 0., 0., 0., 0., 0., 0., 0., 0.],
-                     [0., 0., 0., 1., 0., 0., 0., 0., 0., 0., 0., 0.],
-                     [0., 0., 0., 0., 1., 0., 0., 0., 0., 0., 0., 0.],
-                     [0., 0., 0., 0., 0., 1., 0., 0., 0., 0., 0., 0.],
-                     [0., 0., 0., 0., 0., 0., 1., 0., 0., 0., 0., 0.],
-                     [0., 0., 0., 0., 0., 0., 0., 1., 0., 0., 0., 0.],
-                     [0., 0., 0., 0., 0., 0., 0., 0., 1., 0., 0., 0.],
-                     [0., 0., 0., 0., 0., 0., 0., 0., 0., 1., 0., 0.],
-                     [0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 1., 0.],
-                     [0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 0., 1.]])
-    # fmt: on
-    assert_almost_equal(rotor2.A()[:12, 12:24], A0_1, decimal=3)
+    A0_1 = np.diag(np.ones(rotor2.ndof))
+    dof = 3 * rotor2.number_dof
+    assert_almost_equal(rotor2.A()[:dof, dof : 2 * dof], A0_1, decimal=3)
 
 
 def test_a1_0_matrix_rotor2(rotor2):
@@ -284,25 +306,29 @@ def test_a1_0_matrix_rotor2(rotor2):
                      [  -0.   ,   -2.079,    0.596,   -0.   ,    0.   ,  705.253,  -44.535,   -0.   ,   -0.   , -697.351, -131.328,    0.   ],
                      [   2.079,    0.   ,   -0.   ,    0.596, -705.253,   -0.   ,    0.   ,  -44.535,  697.351,    0.   ,    0.   , -131.328]])
     # fmt: on
-    assert_almost_equal(rotor2.A()[12:24, :12] / 1e7, A1_0, decimal=3)
+    dofs_4, dofs_6 = get_dofs(2 * rotor2.ndof)
+    dof = 3 * rotor2.number_dof
+    row = np.intersect1d(np.arange(dof, 2 * dof), dofs_4)
+    col = np.intersect1d(np.arange(0, dof), dofs_4)
+    assert_almost_equal(rotor2.A()[np.ix_(row, col)] / 1e7, A1_0, decimal=3)
+
+    # fmt: off
+    A1_0 = np.array([[-133.282,   -0.   ,  136.884,   -0.   ,   -3.602,   -0.   ],
+                     [  -0.   ,  -49.951,   -0.   ,   49.996,   -0.   ,   -0.045],
+                     [   7.204,   -0.   ,  -14.408,   -0.   ,    7.204,   -0.   ],
+                     [  -0.   ,    0.091,   -0.   ,   -0.181,   -0.   ,    0.091],
+                     [  -3.602,   -0.   ,  136.884,   -0.   , -133.282,   -0.   ],
+                     [  -0.   ,   -0.045,   -0.   ,   49.996,   -0.   ,  -49.951]])
+    # fmt: on
+    row = np.intersect1d(np.arange(dof, 2 * dof), dofs_6)
+    col = np.intersect1d(np.arange(0, dof), dofs_6)
+    assert_almost_equal(rotor2.A()[np.ix_(row, col)] / 1e7, A1_0, decimal=3)
 
 
 def test_a1_1_matrix_rotor2(rotor2):
-    # fmt: off
-    A1_1 = np.array([[ 0.,  0.,  0.,  0.,  0.,  0.,  0.,  0.,  0.,  0.,  0.,  0.],
-                     [ 0.,  0.,  0.,  0.,  0.,  0.,  0.,  0.,  0.,  0.,  0.,  0.],
-                     [ 0.,  0.,  0.,  0.,  0.,  0.,  0.,  0.,  0.,  0.,  0.,  0.],
-                     [ 0.,  0.,  0.,  0.,  0.,  0.,  0.,  0.,  0.,  0.,  0.,  0.],
-                     [ 0.,  0.,  0.,  0.,  0.,  0.,  0.,  0.,  0.,  0.,  0.,  0.],
-                     [ 0.,  0.,  0.,  0.,  0.,  0.,  0.,  0.,  0.,  0.,  0.,  0.],
-                     [ 0.,  0.,  0.,  0.,  0.,  0.,  0.,  0.,  0.,  0.,  0.,  0.],
-                     [ 0.,  0.,  0.,  0.,  0.,  0.,  0.,  0.,  0.,  0.,  0.,  0.],
-                     [ 0.,  0.,  0.,  0.,  0.,  0.,  0.,  0.,  0.,  0.,  0.,  0.],
-                     [ 0.,  0.,  0.,  0.,  0.,  0.,  0.,  0.,  0.,  0.,  0.,  0.],
-                     [ 0.,  0.,  0.,  0.,  0.,  0.,  0.,  0.,  0.,  0.,  0.,  0.],
-                     [ 0.,  0.,  0.,  0.,  0.,  0.,  0.,  0.,  0.,  0.,  0.,  0.]])
-    # fmt: on
-    assert_almost_equal(rotor2.A()[12:24, 12:24] / 1e7, A1_1, decimal=3)
+    A1_1 = np.zeros((rotor2.ndof, rotor2.ndof))
+    dof = 3 * rotor2.number_dof
+    assert_almost_equal(rotor2.A()[dof : 2 * dof, dof : 2 * dof] / 1e7, A1_1, decimal=3)
 
 
 def test_evals_sorted_rotor2(rotor2):
@@ -328,7 +354,7 @@ def test_evals_sorted_rotor2(rotor2):
         ]
     )
     modal2_0 = rotor2.run_modal(speed=0)
-    rotor2_evals, rotor2_evects = rotor2._eigen(speed=0)
+    rotor2_evals, rotor2_evects = rotor2._eigen(speed=0, sparse=False)
     assert_allclose(rotor2_evals[:6], evals_sorted, rtol=1e-3)
     assert_allclose(modal2_0.evalues[:6], evals_sorted, rtol=1e-3)
     modal2_10000 = rotor2.run_modal(speed=10000)
@@ -586,9 +612,11 @@ def test_campbell(rotor4):
 
     camp_calculated = camp.wd
     # fmt: off
-    camp_desired = np.array([[82.65303734,  86.65811435, 254.52047828, 274.31285391, 679.48903239, 716.78631221],
-                             [82.60929602,  86.68625235, 251.70037114, 276.87787937, 652.85679897, 742.60864608],
-                             [82.48132723,  86.76734307, 245.49092844, 282.33294699, 614.05536277, 779.07778334]])
+    camp_desired = np.array([
+        [82.65303734,  86.65811435, 254.52047828, 274.31285391, 650.40786626, 679.48903239],
+        [82.60929602,  86.68625235, 251.70037114, 276.87787937, 650.40786627, 652.85679897],
+        [82.48132723,  86.76734307, 245.49092844, 282.33294699, 650.40786626, 614.05536277]
+    ])
     # fmt: on
     assert_allclose(camp_calculated, camp_desired)
 
@@ -664,38 +692,6 @@ def test_freq_response(rotor4):
 
 
 def test_freq_response_w_force(rotor4):
-    F0 = np.array(
-        [
-            [0.0 + 0.0j, 0.0 + 0.0j, 0.0 + 0.0j, 0.0 + 0.0j],
-            [0.0 + 0.0j, 0.0 + 0.0j, 0.0 + 0.0j, 0.0 + 0.0j],
-            [0.0 + 0.0j, 0.0 + 0.0j, 0.0 + 0.0j, 0.0 + 0.0j],
-            [0.0 + 0.0j, 0.0 + 0.0j, 0.0 + 0.0j, 0.0 + 0.0j],
-            [0.0 + 0.0j, 0.0 + 0.0j, 0.0 + 0.0j, 0.0 + 0.0j],
-            [0.0 + 0.0j, 0.0 + 0.0j, 0.0 + 0.0j, 0.0 + 0.0j],
-            [0.0 + 0.0j, 0.0 + 0.0j, 0.0 + 0.0j, 0.0 + 0.0j],
-            [0.0 + 0.0j, 0.0 + 0.0j, 0.0 + 0.0j, 0.0 + 0.0j],
-            [0.0 + 0.0j, 22.5 + 0.0j, 90.0 + 0.0j, 202.5 + 0.0j],
-            [0.0 + 0.0j, 0.0 - 22.5j, 0.0 - 90.0j, 0.0 - 202.5j],
-            [0.0 + 0.0j, 0.0 + 0.0j, 0.0 + 0.0j, 0.0 + 0.0j],
-            [0.0 + 0.0j, 0.0 + 0.0j, 0.0 + 0.0j, 0.0 + 0.0j],
-            [0.0 + 0.0j, 0.0 + 0.0j, 0.0 + 0.0j, 0.0 + 0.0j],
-            [0.0 + 0.0j, 0.0 + 0.0j, 0.0 + 0.0j, 0.0 + 0.0j],
-            [0.0 + 0.0j, 0.0 + 0.0j, 0.0 + 0.0j, 0.0 + 0.0j],
-            [0.0 + 0.0j, 0.0 + 0.0j, 0.0 + 0.0j, 0.0 + 0.0j],
-            [0.0 + 0.0j, 0.0 + 0.0j, 0.0 + 0.0j, 0.0 + 0.0j],
-            [0.0 + 0.0j, 0.0 + 0.0j, 0.0 + 0.0j, 0.0 + 0.0j],
-            [0.0 + 0.0j, 0.0 + 0.0j, 0.0 + 0.0j, 0.0 + 0.0j],
-            [0.0 + 0.0j, 0.0 + 0.0j, 0.0 + 0.0j, 0.0 + 0.0j],
-            [0.0 + 0.0j, 0.0 + 0.0j, 0.0 + 0.0j, 0.0 + 0.0j],
-            [0.0 + 0.0j, 0.0 + 0.0j, 0.0 + 0.0j, 0.0 + 0.0j],
-            [0.0 + 0.0j, 0.0 + 0.0j, 0.0 + 0.0j, 0.0 + 0.0j],
-            [0.0 + 0.0j, 0.0 + 0.0j, 0.0 + 0.0j, 0.0 + 0.0j],
-            [0.0 + 0.0j, 0.0 + 0.0j, 0.0 + 0.0j, 0.0 + 0.0j],
-            [0.0 + 0.0j, 0.0 + 0.0j, 0.0 + 0.0j, 0.0 + 0.0j],
-            [0.0 + 0.0j, 0.0 + 0.0j, 0.0 + 0.0j, 0.0 + 0.0j],
-            [0.0 + 0.0j, 0.0 + 0.0j, 0.0 + 0.0j, 0.0 + 0.0j],
-        ]
-    )
     mag_exp = np.array(
         [
             [0.00000000e00, 1.14259057e-06, 1.88932819e-04, 4.50376020e-05],
@@ -714,23 +710,36 @@ def test_freq_response_w_force(rotor4):
     )
 
     omega = np.linspace(0.0, 450.0, 4)
+
+    F0 = np.zeros((rotor4.ndof, 4), dtype=complex)
+    F0[2 * rotor4.number_dof, 1] = 22.5 + 0.0j
+    F0[2 * rotor4.number_dof, 2] = 90.0 + 0.0j
+    F0[2 * rotor4.number_dof, 3] = 202.5 + 0.0j
+    F0[2 * rotor4.number_dof + 1, 1] = 0.0 - 22.5j
+    F0[2 * rotor4.number_dof + 1, 2] = 0.0 - 90j
+    F0[2 * rotor4.number_dof + 1, 3] = 0.0 - 202.5j
+
     freq_resp = rotor4.run_forced_response(force=F0, speed_range=omega)
     mag = abs(freq_resp.forced_resp)
-    assert_allclose(mag[:4, :4], mag_exp)
+    assert_allclose(mag[0:2, :], mag_exp[0:2, :])
+    assert_allclose(mag[3:5, :], mag_exp[2:4, :])
 
     freq_resp = rotor4.run_unbalance_response(2, 0.001, 0, frequency=omega)
     mag = abs(freq_resp.forced_resp)
-    assert_allclose(mag[:4, :4], mag_exp)
+    assert_allclose(mag[0:2, :], mag_exp[0:2, :])
+    assert_allclose(mag[3:5, :], mag_exp[2:4, :])
 
     freq_resp = rotor4.run_unbalance_response(2, 0.001, 0, frequency=omega)
     mag = abs(freq_resp.forced_resp)
-    assert_allclose(mag[:4, :4], mag_exp)
+    assert_allclose(mag[0:2, :], mag_exp[0:2, :])
+    assert_allclose(mag[3:5, :], mag_exp[2:4, :])
 
     freq_resp = rotor4.run_unbalance_response(
         [2, 3], [0.001, 0.001], [0.0, 0], frequency=omega
     )
     mag = abs(freq_resp.forced_resp)
-    assert_allclose(mag[:4, :4], mag_exp_2_unb)
+    assert_allclose(mag[0:2, :], mag_exp_2_unb[0:2, :])
+    assert_allclose(mag[3:5, :], mag_exp_2_unb[2:4, :])
 
 
 def test_mesh_convergence(rotor3):
@@ -1412,10 +1421,14 @@ def rotor7():
 def test_whirl_values(rotor7):
     speed_range = np.linspace(50, 500, 10)
     for speed in speed_range:
-        modal7 = rotor7.run_modal(speed)
-        assert_allclose(modal7.whirl_values(), [1.0, 0.0, 1.0, 0.0, 1.0, 0.0], atol=0)
+        modal7 = rotor7.run_modal(speed, num_modes=14)
+        whirl_val = modal7.whirl_values()
+        whirl_dir = modal7.whirl_direction()
+        assert_allclose(
+            whirl_val[~np.isnan(whirl_val)], [1.0, 0.0, 1.0, 0.0, 1.0, 0.0], atol=0
+        )
         assert_equal(
-            modal7.whirl_direction(),
+            whirl_dir[whirl_dir != "None"],
             np.array(
                 ["Backward", "Forward", "Backward", "Forward", "Backward", "Forward"],
                 dtype="<U8",
@@ -1724,35 +1737,49 @@ def test_global_index():
 
     assert shaft[0].dof_global_index["x_0"] == 0
     assert shaft[0].dof_global_index["y_0"] == 1
-    assert shaft[0].dof_global_index["alpha_0"] == 2
-    assert shaft[0].dof_global_index["beta_0"] == 3
-    assert shaft[0].dof_global_index["x_1"] == 4
-    assert shaft[0].dof_global_index["y_1"] == 5
-    assert shaft[0].dof_global_index["alpha_1"] == 6
-    assert shaft[0].dof_global_index["beta_1"] == 7
+    assert shaft[0].dof_global_index["z_0"] == 2
+    assert shaft[0].dof_global_index["alpha_0"] == 3
+    assert shaft[0].dof_global_index["beta_0"] == 4
+    assert shaft[0].dof_global_index["theta_0"] == 5
+    assert shaft[0].dof_global_index["x_1"] == 6
+    assert shaft[0].dof_global_index["y_1"] == 7
+    assert shaft[0].dof_global_index["z_1"] == 8
+    assert shaft[0].dof_global_index["alpha_1"] == 9
+    assert shaft[0].dof_global_index["beta_1"] == 10
+    assert shaft[0].dof_global_index["theta_1"] == 11
 
-    assert disks[0].dof_global_index["x_2"] == 8
-    assert disks[0].dof_global_index["y_2"] == 9
-    assert disks[0].dof_global_index["alpha_2"] == 10
-    assert disks[0].dof_global_index["beta_2"] == 11
+    assert disks[0].dof_global_index["x_2"] == 12
+    assert disks[0].dof_global_index["y_2"] == 13
+    assert disks[0].dof_global_index["z_2"] == 14
+    assert disks[0].dof_global_index["alpha_2"] == 15
+    assert disks[0].dof_global_index["beta_2"] == 16
+    assert disks[0].dof_global_index["theta_2"] == 17
 
     assert bearings[0].dof_global_index["x_0"] == 0
     assert bearings[0].dof_global_index["y_0"] == 1
-    assert bearings[0].dof_global_index["x_7"] == 28
-    assert bearings[0].dof_global_index["y_7"] == 29
-    assert bearings[1].dof_global_index["x_6"] == 24
-    assert bearings[1].dof_global_index["y_6"] == 25
-    assert bearings[1].dof_global_index["x_8"] == 30
-    assert bearings[1].dof_global_index["y_8"] == 31
-    assert bearings[2].dof_global_index["x_7"] == 28
-    assert bearings[2].dof_global_index["y_7"] == 29
-    assert bearings[3].dof_global_index["x_8"] == 30
-    assert bearings[3].dof_global_index["y_8"] == 31
+    assert bearings[0].dof_global_index["z_0"] == 2
+    assert bearings[0].dof_global_index["x_7"] == 42
+    assert bearings[0].dof_global_index["y_7"] == 43
+    assert bearings[0].dof_global_index["z_7"] == 44
+    assert bearings[1].dof_global_index["x_6"] == 36
+    assert bearings[1].dof_global_index["y_6"] == 37
+    assert bearings[1].dof_global_index["z_6"] == 38
+    assert bearings[1].dof_global_index["x_8"] == 45
+    assert bearings[1].dof_global_index["y_8"] == 46
+    assert bearings[1].dof_global_index["z_8"] == 47
+    assert bearings[2].dof_global_index["x_7"] == 42
+    assert bearings[2].dof_global_index["y_7"] == 43
+    assert bearings[2].dof_global_index["z_7"] == 44
+    assert bearings[3].dof_global_index["x_8"] == 45
+    assert bearings[3].dof_global_index["y_8"] == 46
+    assert bearings[3].dof_global_index["z_8"] == 47
 
-    assert pointmass[0].dof_global_index["x_7"] == 28
-    assert pointmass[0].dof_global_index["y_7"] == 29
-    assert pointmass[1].dof_global_index["x_8"] == 30
-    assert pointmass[1].dof_global_index["y_8"] == 31
+    assert pointmass[0].dof_global_index["x_7"] == 42
+    assert pointmass[0].dof_global_index["y_7"] == 43
+    assert pointmass[0].dof_global_index["z_7"] == 44
+    assert pointmass[1].dof_global_index["x_8"] == 45
+    assert pointmass[1].dof_global_index["y_8"] == 46
+    assert pointmass[1].dof_global_index["z_8"] == 47
 
 
 def test_distinct_dof_elements_error():
@@ -1763,7 +1790,7 @@ def test_distinct_dof_elements_error():
         L = [0.25 for _ in range(n)]
 
         shaft_elem = [
-            ShaftElement6DoF(
+            ShaftElement(
                 material=steel,
                 L=0.25,
                 idl=0,
@@ -1782,7 +1809,7 @@ def test_distinct_dof_elements_error():
         disk0 = DiskElement.from_geometry(
             n=2, material=steel, width=0.07, i_d=0.05, o_d=0.28
         )
-        disk1 = DiskElement6DoF.from_geometry(
+        disk1 = DiskElement.from_geometry(
             n=4, material=steel, width=0.07, i_d=0.05, o_d=0.28
         )
 
@@ -1792,10 +1819,10 @@ def test_distinct_dof_elements_error():
         cxx = 0
         cyy = 0
         czz = 0
-        bearing0 = BearingElement6DoF(
+        bearing0 = BearingElement(
             n=0, kxx=kxx, kyy=kyy, cxx=cxx, cyy=cyy, kzz=kzz, czz=czz
         )
-        bearing1 = BearingElement6DoF(
+        bearing1 = BearingElement(
             n=6, kxx=kxx, kyy=kyy, cxx=cxx, cyy=cyy, kzz=kzz, czz=czz
         )
         Rotor(shaft_elem, [disk0, disk1], [bearing0, bearing1], n_eigen=36)
@@ -1809,7 +1836,7 @@ def rotor_6dof():
     L = [0.25 for _ in range(n)]
 
     shaft_elem = [
-        ShaftElement6DoF(
+        ShaftElement(
             l,
             i_d,
             o_d,
@@ -1820,15 +1847,15 @@ def rotor_6dof():
         for l in L
     ]
 
-    disk0 = DiskElement6DoF.from_geometry(
+    disk0 = DiskElement.from_geometry(
         n=2, material=steel, width=0.07, i_d=0.05, o_d=0.28
     )
-    disk1 = DiskElement6DoF.from_geometry(
+    disk1 = DiskElement.from_geometry(
         n=4, material=steel, width=0.07, i_d=0.05, o_d=0.28
     )
 
-    bearing0 = BearingElement6DoF(n=0, kxx=1e6, kyy=8e5, kzz=1e5, cxx=0, cyy=0, czz=0)
-    bearing1 = BearingElement6DoF(n=6, kxx=1e6, kyy=8e5, kzz=1e5, cxx=0, cyy=0, czz=0)
+    bearing0 = BearingElement(n=0, kxx=1e6, kyy=8e5, kzz=1e5, cxx=0, cyy=0, czz=0)
+    bearing1 = BearingElement(n=6, kxx=1e6, kyy=8e5, kzz=1e5, cxx=0, cyy=0, czz=0)
 
     return Rotor(shaft_elem, [disk0, disk1], [bearing0, bearing1])
 
@@ -2534,7 +2561,7 @@ def test_axial_force():
     rotor = Rotor(shaft_elements=shaft, disk_elements=disks, bearing_elements=bearings)
     modal = rotor.run_modal(Q_(4000, "RPM"))
     expected_wd = np.array(
-        [93.416071, 95.2335, 267.475281, 309.918575, 634.40757, 873.763214]
+        [93.416071, 95.2335, 267.475281, 309.918575, 634.40757, 650.407866]
     )
     assert_allclose(modal.wd, expected_wd)
 
@@ -2566,7 +2593,7 @@ def test_torque():
     rotor = Rotor(shaft_elements=shaft, disk_elements=disks, bearing_elements=bearings)
     modal = rotor.run_modal(Q_(4000, "RPM"))
     expected_wd = np.array(
-        [81.324905, 84.769077, 242.822862, 286.158147, 591.519983, 827.003048]
+        [81.324905, 84.769077, 242.822862, 286.158147, 591.519983, 650.407866]
     )
     assert_allclose(modal.wd, expected_wd)
 

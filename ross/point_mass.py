@@ -3,17 +3,13 @@
 This module defines the PointMass class which will be used to link elements.
 """
 
-import os
-from pathlib import Path
-
 import numpy as np
-import toml
 from plotly import graph_objects as go
 
 from ross.element import Element
 from ross.units import check_units
 
-__all__ = ["PointMass", "PointMass6DoF"]
+__all__ = ["PointMass"]
 
 
 class PointMass(Element):
@@ -34,6 +30,8 @@ class PointMass(Element):
         Mass for the element on the x direction.
     my: float, pint.Quantity, optional
         Mass for the element on the y direction.
+    mz: float, pint.Quantity, optional
+        Mass for the element on the z direction.
     tag: str
         A tag to name the element
     color : str, optional
@@ -44,29 +42,34 @@ class PointMass(Element):
     --------
     >>> p0 = PointMass(n=0, m=2)
     >>> p0.M()
-    array([[2., 0.],
-           [0., 2.]])
-    >>> p1 = PointMass(n=0, mx=2, my=3)
+    array([[2., 0., 0.],
+           [0., 2., 0.],
+           [0., 0., 2.]])
+    >>> p1 = PointMass(n=0, mx=2, my=3, mz=4)
     >>> p1.M()
-    array([[2., 0.],
-           [0., 3.]])
+    array([[2., 0., 0.],
+           [0., 3., 0.],
+           [0., 0., 4.]])
     """
 
     @check_units
-    def __init__(self, n=None, m=None, mx=None, my=None, tag=None, color="DarkSalmon"):
+    def __init__(
+        self, n=None, m=None, mx=None, my=None, mz=None, tag=None, color="DarkSalmon"
+    ):
         self.n = n
         self.m = m
 
-        if mx is None and my is None:
+        if mx is None and my is None and mz is None:
             mx = float(m)
             my = float(m)
+            mz = float(m)
 
         self.mx = float(mx)
         self.my = float(my)
+        self.mz = 0.0 if mz is None else float(mz)
         self.tag = tag
         self.dof_global_index = None
         self.color = color
-        self.size = 2
 
     def __hash__(self):
         return hash(self.tag)
@@ -107,6 +110,7 @@ class PointMass(Element):
         --------
         >>> point_mass = point_mass_example()
         >>> point_mass
+<<<<<<< HEAD
         PointMass(n=0, mx=1.0, my=2.0, tag='pointmass')
         """
         return (
@@ -396,6 +400,9 @@ class PointMass6DoF(PointMass):
         >>> point_mass = point_mass_example_6dof()
         >>> point_mass
         PointMass6DoF(n=0, mx=1.0, my=2.0, mz=3.0, tag='pointmass')
+=======
+        PointMass(n=0, mx=1.0, my=2.0, mz=3.0, tag='pointmass')
+>>>>>>> main
         """
         return (
             f"{self.__class__.__name__}"
@@ -414,7 +421,7 @@ class PointMass6DoF(PointMass):
 
         Example
         -------
-        >>> print(PointMass6DoF(n=0, mx=2.5, my=3.25, mz=4.15, tag="PointMass"))
+        >>> print(PointMass(n=0, mx=2.5, my=3.25, mz=4.15, tag="PointMass"))
         Tag:              PointMass
         Node:             0
         Mass X dir. (kg): 2.5
@@ -441,7 +448,7 @@ class PointMass6DoF(PointMass):
 
         Examples
         --------
-        >>> p1 = PointMass6DoF(n=0, mx=2, my=3, mz=4)
+        >>> p1 = PointMass(n=0, mx=2, my=3, mz=4)
         >>> p1.M()
         array([[2., 0., 0.],
                [0., 3., 0.],
@@ -455,8 +462,73 @@ class PointMass6DoF(PointMass):
                       [ 0, my,  0],
                       [ 0,  0, mz]])
         # fmt: on
-
         return M
+
+    def C(self):
+        """Damping matrix for an instance of a point mass element.
+
+        This method will return the damping matrix for an instance of a point mass
+        element.
+
+        Returns
+        -------
+        C : np.ndarray
+            A matrix of floats containing the values of the damping matrix.
+
+        Examples
+        --------
+        >>> p1 = PointMass(n=0, mx=2, my=3, mz=4)
+        >>> p1.C()
+        array([[0., 0., 0.],
+               [0., 0., 0.],
+               [0., 0., 0.]])
+        """
+        C = np.zeros((3, 3))
+        return C
+
+    def K(self):
+        """Stiffness matrix for an instance of a point mass element.
+
+        This method will return the stiffness matrix for an instance of a point mass
+        element.
+
+        Returns
+        -------
+        K : np.ndarray
+            A matrix of floats containing the values of the stiffness matrix.
+
+        Examples
+        --------
+        >>> p1 = PointMass(n=0, mx=2, my=3, mz=4)
+        >>> p1.K()
+        array([[0., 0., 0.],
+               [0., 0., 0.],
+               [0., 0., 0.]])
+        """
+        K = np.zeros((3, 3))
+        return K
+
+    def G(self):
+        """Gyroscopic matrix for an instance of a point mass element.
+
+        This method will return the gyroscopic matrix for an instance of a point mass
+        element.
+
+        Returns
+        -------
+        G : np.ndarray
+            A matrix of floats containing the values of the gyroscopic matrix.
+
+        Examples
+        --------
+        >>> p1 = PointMass(n=0, mx=2, my=3, mz=4)
+        >>> p1.G()
+        array([[0., 0., 0.],
+               [0., 0., 0.],
+               [0., 0., 0.]])
+        """
+        G = np.zeros((3, 3))
+        return G
 
     def dof_mapping(self):
         """Degrees of freedom mapping.
@@ -478,7 +550,7 @@ class PointMass6DoF(PointMass):
         y_0 - vertical translation
         z_0 - axial translation
 
-        >>> p1 = PointMass6DoF(n=0, mx=2, my=3, mz=4)
+        >>> p1 = PointMass(n=0, mx=2, my=3, mz=4)
         >>> p1.dof_mapping()
         {'x_0': 0, 'y_0': 1, 'z_0': 2}
         """
@@ -562,8 +634,9 @@ class PointMass6DoF(PointMass):
 def point_mass_example():
     """Create an example of point mass element.
 
-    This function returns an instance of a simple point mass. The purpose is to make
-    available a simple model so that doctest can be written using it.
+    This function returns an instance of a simple point mass.
+    The purpose is to make available a simple model so that doctest
+    can be written using it.
 
     Returns
     -------
@@ -579,30 +652,5 @@ def point_mass_example():
     n = 0
     mx = 1.0
     my = 2.0
-    point_mass = PointMass(n=n, mx=mx, my=my, tag="pointmass")
-    return point_mass
-
-
-def point_mass_example_6dof():
-    """Create an example of point mass element for the 6 dof model.
-
-    This function returns an instance of a simple point mass. The purpose is to make
-    available a simple model so that doctest can be written using it.
-
-    Returns
-    -------
-    point_mass : ross.PointMass
-        An instance of a point mass object.
-
-    Examples
-    --------
-    >>> pointmass = point_mass_example_6dof()
-    >>> pointmass.mz
-    3.0
-    """
-    n = 0
-    mx = 1.0
-    my = 2.0
     mz = 3.0
-    point_mass = PointMass6DoF(n=n, mx=mx, my=my, mz=mz, tag="pointmass")
-    return point_mass
+    return PointMass(n=n, mx=mx, my=my, mz=mz, tag="pointmass")

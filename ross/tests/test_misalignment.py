@@ -26,7 +26,7 @@ def rotor():
     L = [L[i] - L[i - 1] for i in range(1, len(L))]
 
     shaft_elem = [
-        rs.ShaftElement6DoF(
+        rs.ShaftElement(
             l,
             i_d,
             o_d,
@@ -40,8 +40,8 @@ def rotor():
     Id = 0.003844540885417
     Ip = 0.007513248437500
 
-    disk0 = rs.DiskElement6DoF(n=12, m=2.6375, Id=Id, Ip=Ip)
-    disk1 = rs.DiskElement6DoF(n=24, m=2.6375, Id=Id, Ip=Ip)
+    disk0 = rs.DiskElement(n=12, m=2.6375, Id=Id, Ip=Ip)
+    disk1 = rs.DiskElement(n=24, m=2.6375, Id=Id, Ip=Ip)
 
     kxx1 = 4.40e5
     kyy1 = 4.6114e5
@@ -54,10 +54,10 @@ def rotor():
     cxx2 = 50.4
     cyy2 = 100.4553
 
-    bearing0 = rs.BearingElement6DoF(
+    bearing0 = rs.BearingElement(
         n=4, kxx=kxx1, kyy=kyy1, kzz=kzz, cxx=cxx1, cyy=cyy1, czz=czz
     )
-    bearing1 = rs.BearingElement6DoF(
+    bearing1 = rs.BearingElement(
         n=31, kxx=kxx2, kyy=kyy2, kzz=kzz, cxx=cxx2, cyy=cyy2, czz=czz
     )
 
@@ -91,7 +91,6 @@ def common_parameters():
 
 @pytest.fixture
 def mis_comb(rotor, common_parameters):
-
     return rotor.run_misalignment(mis_type="combined", **common_parameters)
 
 
@@ -173,7 +172,6 @@ def test_mis_comb_forces(mis_comb):
 
 @pytest.fixture
 def mis_par(rotor, common_parameters):
-
     return rotor.run_misalignment(mis_type="parallel", **common_parameters)
 
 
@@ -250,7 +248,6 @@ def test_mis_par_forces(mis_par):
 
 @pytest.fixture
 def mis_ang(rotor, common_parameters):
-
     return rotor.run_misalignment(mis_type="angular", **common_parameters)
 
 
@@ -363,7 +360,7 @@ def test_mis_rigid_forces(mis_rigid):
          8478.80363,  8849.11381,  9226.68502,  9611.46366, 10003.39363,
         10402.41613
     ])
-    
+
     Fy_n1_rig = np.array([
              0.     ,   -687.04194,  -1373.94823,  -2060.59157,
          -2746.84626,  -3432.58871,  -4117.6979 ,  -4802.05574,

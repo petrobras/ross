@@ -131,8 +131,8 @@ def test_save_load_timeresponse(rotor1):
     node = 3
     t = np.linspace(0, 10, size)
     F = np.zeros((size, rotor1.ndof))
-    F[:, 4 * node] = 10 * np.cos(2 * t)
-    F[:, 4 * node + 1] = 10 * np.sin(2 * t)
+    F[:, rotor1.number_dof * node] = 10 * np.cos(2 * t)
+    F[:, rotor1.number_dof * node + 1] = 10 * np.sin(2 * t)
     response = rotor1.run_time_response(speed, F, t)
 
     file = Path(tempdir) / "time.toml"
@@ -156,10 +156,22 @@ def test_campbell_plot(rotor1):
         frequency_units="RPM",
     )
     crit_array_x = np.array(
-        [2590.2641754, 1306.51513941, 2868.14592367, 1420.76907353, 3264.81334336]
+        [
+            2590.2641754,
+            1306.51513941,
+            2868.14592367,
+            1420.76907353,
+            3264.81334336,
+        ]
     )
     crit_array_y = np.array(
-        [2590.2641754, 2613.03027882, 2868.14592367, 2841.53814705, 6529.62668672]
+        [
+            2590.2641754,
+            2613.03027882,
+            2868.14592367,
+            2841.53814705,
+            6529.62668672,
+        ]
     )
     assert_allclose(fig.data[0]["x"], crit_array_x)
     assert_allclose(fig.data[0]["y"], crit_array_y)
@@ -198,8 +210,8 @@ def test_probe_response(rotor1):
     node = 3
     t = np.linspace(0, 10, size)
     F = np.zeros((size, rotor1.ndof))
-    F[:, 4 * node] = 10 * np.cos(2 * t)
-    F[:, 4 * node + 1] = 10 * np.sin(2 * t)
+    F[:, rotor1.number_dof * node] = 10 * np.cos(2 * t)
+    F[:, rotor1.number_dof * node + 1] = 10 * np.sin(2 * t)
     response = rotor1.run_time_response(speed, F, t)
 
     probe1 = Probe(3, Q_(0, "deg"))  # node 3, orientation 0° (X dir.)
