@@ -69,7 +69,6 @@ class GearElement(DiskElement6DoF):
         Ip,
         module,
         n_tooth,
-        width,
         pressure_angle=20 * np.pi / 180,
         addendum_coeff=1,
         clearance_coeff=0.25,
@@ -81,7 +80,7 @@ class GearElement(DiskElement6DoF):
             pressure_angle = Q_(20, "deg")
 
         self.module = module
-        self.nTooth = n_tooth
+        self.n_tooth = n_tooth
         self.pitch_diameter = self.module * self.n_tooth
         self.pressure_angle = float(pressure_angle)
         self.base_radius = float(self.pitch_diameter) * np.cos(self.pressure_angle) / 2
@@ -259,36 +258,88 @@ class GearGeometry:
 
     def __init__(self, gear: GearElement):
         self.gear: GearElement = gear
-        self.geometry: dict[str, float] = self.initialize_geometry()
+        self.geometry: dict[str, float] = self._initialize_geometry()
     
-    def initialize_geometry(self) -> dict[str, float]:
-        angles: dict[str, float] = self.notable_angles()
-        radius: dict[str, float] = self.notable_radius()
-        geo_const: dict[str, float] = self.geometric_constants()
-        tau_const: dict[str, float] = self.tau_constants()
-        
-        geometry: dict[str, float] = angles | radius | geo_const | tau_const
+    def _initialize_geometry(self) -> dict[str, float]:
+        angles: dict[str, float] = self._notable_angles()
+        radii: dict[str, float] = self._notable_radii()
+        geo_const: dict[str, float] = self._geometric_constants()
+        tau_const: dict[str, float] = self._tau_constants()
+
+        geometry: dict[str, float] = angles | radii | geo_const | tau_const
 
         return geometry
 
     
-    def notable_angles(self) -> dict[str, float]:
+    def _notable_angles(self) -> dict[str, float]:
         pass
 
-    def notable_radius(self) -> dict[str, float]:
-        pass
-    
-    def geometric_constants(self) -> dict[str, float]:
+    def _notable_radii(self) -> dict[str, float]:
+        gear = self.gear
+
+        r_b: float = 1 / 2 * gear.module * gear.n_tooth * np.cos(gear.pressure_angle) # radius of base circle [m] MAOK
+        r_p: float = r_b / np.cos(gear.pressure_angle)                # radius of pitch circle [m] MAOK
+        r_a: float = r_p + self.ha_ * self.m                 # radius of addendum circle [m] 
+        r_c: float = np.sqrt( np.square(self.r_b * np.tan(self.alpha)  - self.ha_ * self.m /  np.sin(self.alpha) ) + np.square(self.r_b) ) # radii of the involute starting point [m] MAOK
+        r_f: float = 1 / 2 * self.m * self.N - (self.ha_ + self.c_) * self.m   # radius of root circle [m] MAOK
+        r_rho: float = self.c_ * self.m / (1 - np.sin(self.alpha) )            # radius of cutter tip round corner [m] MAOK
+        r_rho_: float = self.r_rho / self.m
+
+        dict_place = {
+            'r_b': r_b, 
+            'r_p': r_p,
+            'r_a': r_a,
+            'r_c': r_c,
+            'r_f': r_f,
+            'r_rho': r_rho,
+            'r_rho_': r_rho_
+        }
+
+        return dict_place
+    def _geometric_constants(self) -> dict[str, float]:
         pass
 
-    def tau_constants(self) -> dict[str, float]:
+    def _tau_constants(self) -> dict[str, float]:
         pass
 
     @staticmethod
-    def involute(angle: float) -> float:
-        pass
+    def _involute(angle: float) -> float:
+        """Involute function
+
+        Calculates the involute function for a given angle.
+
+        The involute function is used to describe the contact region of the gear profile.
+
+        :math:`inv(angle) = tan(angle) - angle`
+        
+        This functions computes the value of the involute for an input angle in radians.
+
+        Parameters
+        ----------
+        angle : float
+            Input angle in radians.
+
+        Returns 
+        ---------
+        float
+            The inv(angle)
+        
+        Notes
+        --------
+        - Ensure that the angle is in radians before passing it to this function.
+
+        Examples
+        --------
+        >>> Gear.involute(20 / 180 * np.pi)
+        0.014904383867336446
+
+        >>> Gear.involute(15 / 180 * np.pi)
+        0.006149804631973288
+        """
+
+        return np.tan(angle) - angle
     
-    def to_tau(self, alpha_i: float) -> float:
+    def _to_tau(self, alpha_i: float) -> float:
         pass
     
 
