@@ -68,7 +68,7 @@ class THDCylindrical(BearingElement):
         - 'flooded'
         - 'starvation'
 
-    Fluid propierties
+    Fluid properties
     ^^^^^^^^^^^^^^^^^
     Describes the fluid characteristics.
 
