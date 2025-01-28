@@ -1,7 +1,7 @@
 """Coupling Element module.
 
 This module defines the CouplingElement class which will be used to represent the coupling
-between two rotor shaft, which add mainly stiffness, mass and inertia to the system.
+between two rotor shafts, which add mainly stiffness, mass and inertia to the system.
 """
 
 import inspect
