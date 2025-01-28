@@ -9,6 +9,7 @@ from numpy.testing import assert_allclose, assert_almost_equal
 
 from ross.materials import steel
 from ross.shaft_element import ShaftElement
+from ross.coupling_element import CouplingElement
 
 
 @pytest.fixture
@@ -636,3 +637,123 @@ def test_gyroscopic_matrix_tim_6dof(tim_6dof):
 ])
     # fmt: on
     assert_almost_equal(tim_6dof.G() * 1e3, G0e_tim, decimal=5)
+
+
+@pytest.fixture
+def coupling():
+    mass_station = 151 / 2  # Assuming equal distribution of mass (in kg)
+    Ip_station = 1.74  # Polar moment of inertia, assuming equal distribution (in kg·m²)
+
+    return CouplingElement(
+        m_l=mass_station,
+        m_r=mass_station,
+        Ip_l=Ip_station,
+        Ip_r=Ip_station,
+        kt_x=1e6,
+        kt_y=2e6,
+        kt_z=3e6,  # Axial stiffness (in N/m)
+        kr_x=4e6,
+        kr_y=5e6,
+        kr_z=6e6,  # Torsional stiffness (in N·m/rad)
+    )
+
+
+def test_parameters_coupling(coupling):
+    assert coupling.m == 151
+    assert coupling.Ip == 3.48
+    assert coupling.Id_l == 0.87
+    assert coupling.Id_r == 0.87
+    assert coupling.kt_x == 1e6
+    assert coupling.kt_y == 2e6
+    assert coupling.kt_z == 3e6
+    assert coupling.kr_x == 4e6
+    assert coupling.kr_y == 5e6
+    assert coupling.kr_z == 6e6
+    assert coupling.ct_x == 0.0
+    assert coupling.ct_y == 0.0
+    assert coupling.ct_z == 0.0
+    assert coupling.cr_x == 0.0
+    assert coupling.cr_y == 0.0
+    assert coupling.cr_z == 0.0
+
+
+def test_mass_matrix_coupling(coupling):
+    # fmt: off
+    M0 = np.array([
+        [75.5 ,  0.  ,  0.  ,  0.  ,  0.  ,  0.  ,  0.  ,  0.  ,  0.  ,  0.  ,  0.  ,  0.  ],
+        [ 0.  , 75.5 ,  0.  ,  0.  ,  0.  ,  0.  ,  0.  ,  0.  ,  0.  ,  0.  ,  0.  ,  0.  ],
+        [ 0.  ,  0.  , 75.5 ,  0.  ,  0.  ,  0.  ,  0.  ,  0.  ,  0.  ,  0.  ,  0.  ,  0.  ],
+        [ 0.  ,  0.  ,  0.  ,  0.87,  0.  ,  0.  ,  0.  ,  0.  ,  0.  ,  0.  ,  0.  ,  0.  ],
+        [ 0.  ,  0.  ,  0.  ,  0.  ,  0.87,  0.  ,  0.  ,  0.  ,  0.  ,  0.  ,  0.  ,  0.  ],
+        [ 0.  ,  0.  ,  0.  ,  0.  ,  0.  ,  1.74,  0.  ,  0.  ,  0.  ,  0.  ,  0.  ,  0.  ],
+        [ 0.  ,  0.  ,  0.  ,  0.  ,  0.  ,  0.  , 75.5 ,  0.  ,  0.  ,  0.  ,  0.  ,  0.  ],
+        [ 0.  ,  0.  ,  0.  ,  0.  ,  0.  ,  0.  ,  0.  , 75.5 ,  0.  ,  0.  ,  0.  ,  0.  ],
+        [ 0.  ,  0.  ,  0.  ,  0.  ,  0.  ,  0.  ,  0.  ,  0.  , 75.5 ,  0.  ,  0.  ,  0.  ],
+        [ 0.  ,  0.  ,  0.  ,  0.  ,  0.  ,  0.  ,  0.  ,  0.  ,  0.  ,  0.87,  0.  ,  0.  ],
+        [ 0.  ,  0.  ,  0.  ,  0.  ,  0.  ,  0.  ,  0.  ,  0.  ,  0.  ,  0.  ,  0.87,  0.  ],
+        [ 0.  ,  0.  ,  0.  ,  0.  ,  0.  ,  0.  ,  0.  ,  0.  ,  0.  ,  0.  ,  0.  ,  1.74]
+    ])
+    # fmt: on
+    assert_almost_equal(coupling.M(), M0, decimal=5)
+
+
+def test_stiffness_matrix_coupling(coupling):
+    # fmt: off
+    K0 = np.array([
+        [ 1.,  0.,  0.,  0.,  0.,  0., -1.,  0.,  0.,  0.,  0.,  0.],
+        [ 0.,  2.,  0.,  0.,  0.,  0.,  0., -2.,  0.,  0.,  0.,  0.],
+        [ 0.,  0.,  3.,  0.,  0.,  0.,  0.,  0., -3.,  0.,  0.,  0.],
+        [ 0.,  0.,  0.,  4.,  0.,  0.,  0.,  0.,  0., -4.,  0.,  0.],
+        [ 0.,  0.,  0.,  0.,  5.,  0.,  0.,  0.,  0.,  0., -5.,  0.],
+        [ 0.,  0.,  0.,  0.,  0.,  6.,  0.,  0.,  0.,  0.,  0., -6.],
+        [-1.,  0.,  0.,  0.,  0.,  0.,  1.,  0.,  0.,  0.,  0.,  0.],
+        [ 0., -2.,  0.,  0.,  0.,  0.,  0.,  2.,  0.,  0.,  0.,  0.],
+        [ 0.,  0., -3.,  0.,  0.,  0.,  0.,  0.,  3.,  0.,  0.,  0.],
+        [ 0.,  0.,  0., -4.,  0.,  0.,  0.,  0.,  0.,  4.,  0.,  0.],
+        [ 0.,  0.,  0.,  0., -5.,  0.,  0.,  0.,  0.,  0.,  5.,  0.],
+        [ 0.,  0.,  0.,  0.,  0., -6.,  0.,  0.,  0.,  0.,  0.,  6.]
+    ])
+    # fmt: on
+    assert_almost_equal(coupling.K() / 1e6, K0, decimal=5)
+
+
+def test_dynamic_stiffness_matrix_coupling(coupling):
+    Kst0 = np.zeros((12, 12))
+    assert_almost_equal(coupling.Kst(), Kst0, decimal=5)
+
+
+def test_damping_matrix_coupling(coupling):
+    C0 = np.zeros((12, 12))
+    assert_almost_equal(coupling.C(), C0, decimal=5)
+
+
+def test_gyroscopic_matrix_coupling(coupling):
+    # fmt: off
+    G0 = np.array([
+        [ 0.  ,  0.  ,  0.  ,  0.  ,  0.  ,  0.  ,  0.  ,  0.  ,  0.  ,  0.  ,  0.  ,  0.  ],
+        [ 0.  ,  0.  ,  0.  ,  0.  ,  0.  ,  0.  ,  0.  ,  0.  ,  0.  ,  0.  ,  0.  ,  0.  ],
+        [ 0.  ,  0.  ,  0.  ,  0.  ,  0.  ,  0.  ,  0.  ,  0.  ,  0.  ,  0.  ,  0.  ,  0.  ],
+        [ 0.  ,  0.  ,  0.  ,  0.  ,  1.74,  0.  ,  0.  ,  0.  ,  0.  ,  0.  ,  0.  ,  0.  ],
+        [ 0.  ,  0.  ,  0.  , -1.74,  0.  ,  0.  ,  0.  ,  0.  ,  0.  ,  0.  ,  0.  ,  0.  ],
+        [ 0.  ,  0.  ,  0.  ,  0.  ,  0.  ,  0.  ,  0.  ,  0.  ,  0.  ,  0.  ,  0.  ,  0.  ],
+        [ 0.  ,  0.  ,  0.  ,  0.  ,  0.  ,  0.  ,  0.  ,  0.  ,  0.  ,  0.  ,  0.  ,  0.  ],
+        [ 0.  ,  0.  ,  0.  ,  0.  ,  0.  ,  0.  ,  0.  ,  0.  ,  0.  ,  0.  ,  0.  ,  0.  ],
+        [ 0.  ,  0.  ,  0.  ,  0.  ,  0.  ,  0.  ,  0.  ,  0.  ,  0.  ,  0.  ,  0.  ,  0.  ],
+        [ 0.  ,  0.  ,  0.  ,  0.  ,  0.  ,  0.  ,  0.  ,  0.  ,  0.  ,  0.  ,  1.74,  0.  ],
+        [ 0.  ,  0.  ,  0.  ,  0.  ,  0.  ,  0.  ,  0.  ,  0.  ,  0.  , -1.74,  0.  ,  0.  ],
+        [ 0.  ,  0.  ,  0.  ,  0.  ,  0.  ,  0.  ,  0.  ,  0.  ,  0.  ,  0.  ,  0.  ,  0.  ]
+    ])
+    # fmt: on
+    assert_almost_equal(coupling.G(), G0, decimal=5)
+
+
+def test_pickle_coupling(coupling):
+    coupling_pickled = pickle.loads(pickle.dumps(coupling))
+    assert coupling == coupling_pickled
+
+
+def test_save_load_coupling(coupling):
+    file = Path(tempdir) / "coupling.toml"
+    coupling.save(file)
+    coupling_loaded = CouplingElement.load(file)
+    assert coupling == coupling_loaded
