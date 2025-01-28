@@ -8,13 +8,13 @@ import numpy as np
 from plotly import graph_objects as go
 from ross.units import Q_
 
-from ross.disk_element import DiskElement6DoF
+from ross.disk_element import DiskElement
 
 
 __all__ = ["GearElement"]
 
 
-class GearElement(DiskElement6DoF):
+class GearElement(DiskElement):
     """A gear element.
 
     This class creates a gear element from input data of inertia and mass.
@@ -30,12 +30,14 @@ class GearElement(DiskElement6DoF):
     Ip : float, pint.Quantity
         Polar moment of inertia.
     m  : float
-        Gear module (mm).
+        Gear module (m).
     n_tooth: int
         Tooth number of the gear. 
     pressure_angle : float, pint.Quantity, optional
         The pressure angle of the gear (rad).
         Default is 20 deg (converted to rad).
+    width: float
+        The width of the spur gear (m)
     tag : str, optional
         A tag to name the element.
         Default is None.
@@ -69,6 +71,7 @@ class GearElement(DiskElement6DoF):
         Ip,
         module,
         n_tooth,
+        width,
         pressure_angle=20 * np.pi / 180,
         addendum_coeff=1,
         clearance_coeff=0.25,
@@ -81,11 +84,16 @@ class GearElement(DiskElement6DoF):
 
         self.module = module
         self.n_tooth = n_tooth
-        self.pitch_diameter = self.module * self.n_tooth
         self.pressure_angle = float(pressure_angle)
-        self.base_radius = float(self.pitch_diameter) * np.cos(self.pressure_angle) / 2
+        self.width = width
+        self.ha_ = addendum_coeff
+        self.c_ = clearance_coeff
+        self.pitch_diameter = module * n_tooth
 
         super().__init__(n, m, Id, Ip, tag, scale_factor, color)
+
+        self.geometry: GearGeometry = GearGeometry(self)
+        
         
     @classmethod
     def from_geometry(
@@ -258,32 +266,66 @@ class GearGeometry:
 
     def __init__(self, gear: GearElement):
         self.gear: GearElement = gear
-        self.geometry: dict[str, float] = self._initialize_geometry()
+        self._initialize_geometry()
     
     def _initialize_geometry(self) -> dict[str, float]:
-        angles: dict[str, float] = self._notable_angles()
-        radii: dict[str, float] = self._notable_radii()
-        geo_const: dict[str, float] = self._geometric_constants()
-        tau_const: dict[str, float] = self._tau_constants()
 
-        geometry: dict[str, float] = angles | radii | geo_const | tau_const
+        self.geometryDict: dict[str, float] = {}
 
-        return geometry
+        radii:      dict[str, float] = self._notable_radii()
+        self.geometryDict |= radii
 
+        angles:     dict[str, float] = self._notable_angles()
+        self.geometryDict |= angles
+
+        geo_const:  dict[str, float] = self._geometric_constants()
+        self.geometryDict |= geo_const
     
-    def _notable_angles(self) -> dict[str, float]:
-        pass
+        tau_const:  dict[str, float] = self._tau_constants()
+        self.geometryDict |= tau_const
 
+    def _notable_angles(self) -> dict[str, float]:
+        gear: GearElement           = self.gear
+        geometry: dict[str, float]  = self.geometryDict
+
+        alpha_a: float = np.arccos(geometry['r_b'] / geometry['r_a'])       # pressure angle when the contact point is on the addendum circle [rad] MAOK
+        alpha_c: float = np.arccos(geometry['r_b'] / geometry['r_c'])       # pressure angle when the contact point is on the C point [rad] MAOK
+        theta_f: float = (                                                  # The angle between the tooth center-line and de junction with the root circle [radians]        
+            1 / gear.n_tooth * ( 
+                np.pi / 2 
+                + 2 * np.tan(gear.pressure_angle) * (gear.ha_ - geometry['r_rho_'])
+                + 2 * geometry['r_rho_'] / np.cos(gear.pressure_angle)
+            ) 
+        )
+        theta_b: float = np.pi / (2*gear.n_tooth) + GearGeometry._involute(gear.pressure_angle)
+
+        dict_place: dict[str, float] = {
+            'alpha_a': alpha_a,
+            'alpha_c': alpha_c,
+            'theta_f': theta_f,
+            'theta_b': theta_b
+        }
+
+        return dict_place
+    
     def _notable_radii(self) -> dict[str, float]:
         gear = self.gear
+        geometry = self.geometryDict
 
-        r_b: float = 1 / 2 * gear.module * gear.n_tooth * np.cos(gear.pressure_angle) # radius of base circle [m] MAOK
-        r_p: float = r_b / np.cos(gear.pressure_angle)                # radius of pitch circle [m] MAOK
-        r_a: float = r_p + self.ha_ * self.m                 # radius of addendum circle [m] 
-        r_c: float = np.sqrt( np.square(self.r_b * np.tan(self.alpha)  - self.ha_ * self.m /  np.sin(self.alpha) ) + np.square(self.r_b) ) # radii of the involute starting point [m] MAOK
-        r_f: float = 1 / 2 * self.m * self.N - (self.ha_ + self.c_) * self.m   # radius of root circle [m] MAOK
-        r_rho: float = self.c_ * self.m / (1 - np.sin(self.alpha) )            # radius of cutter tip round corner [m] MAOK
-        r_rho_: float = self.r_rho / self.m
+        r_b: float = 1 / 2 * gear.module * gear.n_tooth * np.cos(gear.pressure_angle)   # radius of base circle [m] MAOK
+        r_p: float = r_b / np.cos(gear.pressure_angle)                                  # radius of pitch circle [m] MAOK
+        r_a: float = r_p + gear.ha_ * gear.module                                       # radius of addendum circle [m] 
+        r_c: float = (                                                                  # radii of the involute starting point [m] MAOK
+            np.sqrt( 
+                np.square(r_b * np.tan(gear.pressure_angle) 
+                - gear.ha_ * gear.module /  np.sin(gear.pressure_angle) ) 
+                + np.square(r_b) 
+            ) 
+        )
+
+        r_f:    float = 1 / 2 * gear.module * gear.n_tooth - (gear.ha_ + gear.c_) * gear.module     # radius of root circle [m] MAOK
+        r_rho:  float = gear.c_ * gear.module / (1 - np.sin(gear.pressure_angle) )                  # radius of cutter tip round corner [m] MAOK
+        r_rho_: float = r_rho / gear.module                                                         # normalized by the module radius of cutter tip round corner [m]
 
         dict_place = {
             'r_b': r_b, 
@@ -296,12 +338,37 @@ class GearGeometry:
         }
 
         return dict_place
+    
     def _geometric_constants(self) -> dict[str, float]:
-        pass
+        gear = self.gear
+        geometry = self.geometryDict
+
+        a1: float = (gear.ha_ + gear.c_) * gear.module - geometry['r_rho']  # MAOK
+        b1: float = (                                                       # MAOK
+            np.pi * gear.module / 4 + gear.ha_ * gear.module * np.tan(gear.pressure_angle) 
+            + geometry['r_rho'] * np.cos(gear.pressure_angle) 
+        )
+
+        dict_place: dict[str, float] = {
+            'a1': a1,
+            'b1': b1
+        }
+
+        return dict_place
 
     def _tau_constants(self) -> dict[str, float]:
-        pass
+        geometry = self.geometryDict
 
+        tau_c: float = self._to_tau(geometry['alpha_c'])
+        tau_a: float = self._to_tau(geometry['alpha_a'])  
+
+        dict_place: dict[str, float] = {
+            'tau_c': tau_c,
+            'tau_a': tau_a
+        }      
+
+        return dict_place
+    
     @staticmethod
     def _involute(angle: float) -> float:
         """Involute function
@@ -330,18 +397,53 @@ class GearGeometry:
 
         Examples
         --------
-        >>> Gear.involute(20 / 180 * np.pi)
+        >>> GearGeometry._involute(20 / 180 * np.pi)
         0.014904383867336446
 
-        >>> Gear.involute(15 / 180 * np.pi)
+        >>> GearGeometry._involute(15 / 180 * np.pi)
         0.006149804631973288
         """
 
         return np.tan(angle) - angle
     
     def _to_tau(self, alpha_i: float) -> float:
-        pass
-    
+        """
+        Transforms the alpha angle, used to build the involute profile, into the integration variable tau.
 
+        :math:`tau(alpha_i) = alpha_i - self.theta_b + self.involute(alpha_i)`
+        
+        Parameters
+        ----------
+        alpha_i : float
+            An angle within the involute profile.
+
+        Returns 
+        ---------
+        float
+            tau_i
+    
+        Examples
+        ---------
+        >>> self._to_tau(31 * np.pi / 180)
+        0.5573963019457713
+
+        References
+        --------
+        Ma, H., Pang, X., Song, R., & Yang, J. (2014). 基于改进能量法的直齿轮时变啮合刚度计算 
+        [Time-varying mesh stiffness calculation of spur gears based on improved energy method].
+        Journal of Northeastern University (Natural Science), 35(6), 863–867. https://doi.org/10.3969/j.issn.1005-3026.2014.06.023
+        """
+
+        geometry = self.geometryDict
+
+        return alpha_i - geometry['theta_b'] + GearGeometry._involute(alpha_i)
+    
+def gearGeometryExample() -> None:
+    gear1 = GearElement(21, 12, 12, 12, 2e-3, 55, 2e-2)
+    print(gear1.geometry.geometryDict)
+    pass
+
+if __name__ == '__main__':
+    gearGeometryExample()
 
 
