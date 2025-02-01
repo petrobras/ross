@@ -2651,3 +2651,164 @@ def test_rotor_conical_frequencies(rotor_conical):
         ]
     )
     assert_allclose(modal.wn, expected_wn, rtol=1e-5)
+
+
+def test_amb_controller():
+    # Test for the magnetic_bearing_controller method.
+    from ross.rotor_assembly import rotor_amb_example
+
+    rotor = rotor_amb_example()
+
+    speed = 1200
+    t = np.linspace(0, 10, 40001)
+    node = [27, 29]
+    mass = [10, 10]
+    probes = [12, 43]
+
+    F = np.zeros((len(t), rotor.ndof))
+    for n, m in zip(node, mass):
+        F[:, 4 * n + 0] = m * np.cos((speed * t))
+        F[:, 4 * n + 1] = (m - 5) * np.sin((speed * t))
+
+    response = rotor.run_time_response(speed, F, t, method="newmark")
+
+    mean_response = []
+    for ii in probes:
+        for jj in range(2):
+            mean_response.append(np.mean(response.yout[:, 4 * ii + jj]))
+    mean_max = np.max(np.array(mean_response))
+
+    assert_allclose(np.array(mean_max), np.array(7.31786978e-07), rtol=1e-6, atol=1e-6)
+
+
+def test_compute_sensitivity():
+    # Successful case where the sensitivity is computed for only one magnetic bearing
+    rotor = rotor_amb_example()
+    speed_range = np.linspace(0, 100 * 2 * np.pi, 5)
+    compute_sensitivity_at = {"Bearing 0": {"inp": 27 * 4 + 1, "out": 12 * 4 + 1}}
+
+    frequency_response_result = rotor.run_freq_response(speed_range=speed_range)
+    sensitivity_results = rotor.run_amb_sensitivity(
+        compute_sensitivity_at=compute_sensitivity_at,
+        frequency_response_result=frequency_response_result,
+    )
+    fig = sensitivity_results.plot()
+
+    assert sensitivity_results.compute_sensitivity_at == compute_sensitivity_at
+
+    assert_almost_equal(
+        sensitivity_results.max_abs_sensitivities["Bearing 0"],
+        1.000014067705469,
+    )
+    assert_allclose(
+        sensitivity_results.sensitivities["Bearing 0"],
+        np.array(
+            [
+                0.99976988 - 1.04237137e-17j,
+                1.00001258 - 1.72649485e-03j,
+                1.000003 - 9.60472985e-04j,
+                1.00000045 - 7.83691899e-04j,
+                0.99998009 - 1.57789150e-03j,
+            ]
+        ),
+    )
+    assert_allclose(
+        fig.data[1]["y"],
+        np.array(
+            [
+                -1.04261130e-17,
+                -1.72647142e-03,
+                -9.60469806e-04,
+                -7.83691387e-04,
+                -1.57792161e-03,
+            ]
+        ),
+        atol=1e-6,
+    )
+    assert_allclose(
+        fig.data[0]["y"],
+        np.array([0.99976988, 1.00001407, 1.00000346, 1.00000076, 0.99998133]),
+    )
+
+    # Successful case where the sensitivity is computed for only one magnetic bearing but the frequency response is not
+    # provided
+    sensitivity_results = rotor.run_amb_sensitivity(
+        compute_sensitivity_at=compute_sensitivity_at, speed_range=speed_range
+    )
+    fig = sensitivity_results.plot()
+
+    assert sensitivity_results.compute_sensitivity_at == compute_sensitivity_at
+
+    assert_almost_equal(
+        sensitivity_results.max_abs_sensitivities["Bearing 0"],
+        1.000014067705469,
+    )
+    assert_allclose(
+        sensitivity_results.sensitivities["Bearing 0"],
+        np.array(
+            [
+                0.99976988 - 1.04237137e-17j,
+                1.00001258 - 1.72649485e-03j,
+                1.000003 - 9.60472985e-04j,
+                1.00000045 - 7.83691899e-04j,
+                0.99998009 - 1.57789150e-03j,
+            ]
+        ),
+    )
+    assert_allclose(
+        fig.data[1]["y"],
+        np.array(
+            [
+                -1.04261130e-17,
+                -1.72647142e-03,
+                -9.60469806e-04,
+                -7.83691387e-04,
+                -1.57792161e-03,
+            ]
+        ),
+        atol=1e-6,
+    )
+    assert_allclose(
+        fig.data[0]["y"],
+        np.array([0.99976988, 1.00001407, 1.00000346, 1.00000076, 0.99998133]),
+    )
+
+    # Failure case where neither speed_range nor frequency response are provided.
+    with pytest.raises(RuntimeError) as excinfo:
+        compute_sensitivity_at = {"Bearing 0": {"inp": 27 * 4 + 1, "out": 12 * 4 + 1}}
+        rotor.run_amb_sensitivity(compute_sensitivity_at=compute_sensitivity_at)
+
+    assert (
+        str(excinfo.value).replace("'", "")
+        == "In order for the sensitivity to be calculated, it is necessary to provide the frequency response "
+        "(via the frequency_response_result parameter) or the speed range in which it should be computed "
+        "(via the speed_range parameter)."
+    )
+
+    # Failing case where an invalid tag is provided in the sensitivity calculation.
+    with pytest.raises(KeyError) as excinfo:
+        compute_sensitivity_at = {
+            "Bearing Wrong Tag": {"inp": 27 * 4 + 1, "out": 12 * 4 + 1}
+        }
+        rotor.run_amb_sensitivity(
+            compute_sensitivity_at=compute_sensitivity_at, speed_range=speed_range
+        )
+
+    assert (
+        str(excinfo.value).replace("'", "")
+        == "No AMB found associated with tag Bearing Wrong Tag."
+    )
+
+    # Failing case when there are no magnetic bearings on the rotor
+    rotor = rotor_example()
+    compute_sensitivity_at = {"Bearing 0": {"inp": 27 * 4 + 1, "out": 12 * 4 + 1}}
+
+    with pytest.raises(AttributeError) as excinfo:
+        rotor.run_amb_sensitivity(
+            compute_sensitivity_at=compute_sensitivity_at, speed_range=speed_range
+        )
+
+    assert (
+        str(excinfo.value).replace("'", "")
+        == "There are no magnetic bearings in the rotor, so it is not possible to compute sensitivity."
+    )

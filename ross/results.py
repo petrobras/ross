@@ -3,6 +3,7 @@
 This module returns graphs for each type of analyses in rotor_assembly.py.
 """
 
+import cmath
 import copy
 import inspect
 from abc import ABC
@@ -28,6 +29,7 @@ __all__ = [
     "CriticalSpeedResults",
     "ModalResults",
     "CampbellResults",
+    "SensitivityResults",
     "FrequencyResponseResults",
     "ForcedResponseResults",
     "StaticResults",
@@ -2267,6 +2269,243 @@ class CampbellResults(Results):
         return super().load(file)
 
 
+class SensitivityResults(Results):
+    """Class used to store results from magnetic bearing sensitivity computation.
+
+    This class stores the sensitivity results and provides a method for plotting
+    the sensitivity functions.
+
+    Parameters
+    ----------
+    max_abs_sensitivities : dict
+        Dictionary containing the maximum absolute sensitivity value for each
+        magnetic bearing. The keys are the magnetic bearing tags, and the values
+        are the maximum sensitivity values.
+    sensitivities : dict
+        Dictionary containing the sensitivity values for each magnetic bearing
+        as a function of frequency. The keys are the magnetic bearing tags, and
+        the values are complex arrays representing the sensitivity at each
+        frequency point.
+    compute_sensitivity_at : dict
+        Dictionary specifying the input and output degrees of freedom (DOFs) used
+        to compute the sensitivity for each magnetic bearing. The keys are the
+        magnetic bearing tags, and the values are dictionaries with keys "inp"
+        and "out" representing the input and output DOFs.
+    speed_range : array
+        Array with the speed range in rad/s.
+
+    Returns
+    -------
+    fig : plotly.graph_objects.Figure
+        A plotly figure with the sensitivity plots.
+    """
+
+    def __init__(
+        self,
+        max_abs_sensitivities,
+        sensitivities,
+        compute_sensitivity_at,
+        speed_range,
+        number_dof,
+    ):
+        self.max_abs_sensitivities = max_abs_sensitivities
+        self.sensitivities = sensitivities
+        self.compute_sensitivity_at = compute_sensitivity_at
+        self.speed_range = speed_range
+        self.number_dof = number_dof
+
+    def plot(
+        self,
+        frequency_units="rad/s",
+        amplitude_units="m/N",
+        phase_units="rad",
+        fig=None,
+        fig_kwargs=None,
+    ):
+        """Plot the sensitivity for each magnetic bearing.
+
+        This method plots the sensitivity as a function of frequency for each
+        magnetic bearing, based on the sensitivities computed during the
+        `run_freq_response` call.
+
+        Parameters
+        ----------
+        frequency_units : str, optional
+            Frequency units for the plots.
+            Default is "rad/s".
+        amplitude_units : str, optional
+            Units of the sensitivity function amplitude.
+            Default is "m/N".
+        phase_units : str, optional
+            Phase units for the plots.
+            Default is "rad".
+        fig : plotly.graph_objects.Figure, optional
+            Existing figure to add the plots.
+            Default is None.
+        fig_kwargs : optional
+            Additional key word arguments can be passed to change the plot layout only
+            (e.g. width=1000, height=800, ...). This kwargs override "mag_kwargs",
+            "phase_kwargs" and "polar_kwargs" dictionaries.
+            *See Plotly Python make_subplots Reference for more information.
+
+        Returns
+        -------
+        fig : plotly.graph_objects.Figure
+            A plotly figure with the sensitivity plots.
+
+        Raises
+        ------
+        AttributeError
+            If there are no magnetic bearings in the rotor or if the
+            `run_freq_response` method has not been called yet.
+
+        Examples
+        --------
+        >>> import ross as rs
+        >>> rotor = rs.rotor_amb_example()
+        >>> speed = np.linspace(0, 1000, 11)
+        >>> compute_sensitivite_dofs = {"Bearing 0": {"inp": 9, "out": 9}}
+        >>> response = rotor.run_amb_sensitivity(speed_range=speed, compute_sensitivity_at=compute_sensitivite_dofs)
+        >>> fig = response.plot()
+        """
+        fig_kwargs = {} if fig_kwargs is None else copy.copy(fig_kwargs)
+
+        # Unit adjustment
+        frequency_range = Q_(self.speed_range, "rad/s").to(frequency_units).m
+
+        # Build sensitivity plots
+        if fig is None:
+            fig = make_subplots(rows=2, cols=1)
+
+        dof_list = []
+        if self.number_dof == 4:
+            dof_list = ["x", "y", "α", "β"]
+        elif self.number_dof == 6:
+            dof_list = ["x", "y", "z", "α", "β", "θ"]
+
+        color_index = 0
+        for amb_tag in self.compute_sensitivity_at.keys():
+            mag_sensitivity = [abs(z) for z in self.sensitivities[amb_tag]]
+            phase_sensitivity = [cmath.phase(z) for z in self.sensitivities[amb_tag]]
+
+            inp = self.compute_sensitivity_at[amb_tag]["inp"]
+            out = self.compute_sensitivity_at[amb_tag]["out"]
+            inp_node = inp // self.number_dof
+            out_node = out // self.number_dof
+            inp_dof = dof_list[inp % self.number_dof]
+            out_dof = dof_list[out % self.number_dof]
+
+            # Unit adjustment
+            check_amplitude_units_temp_var = Q_(1, amplitude_units)
+            if check_amplitude_units_temp_var.check("[length]/[force]"):
+                mag_sensitivity = Q_(mag_sensitivity, "m/N").to(amplitude_units).m
+            elif check_amplitude_units_temp_var.check("decibel"):
+                mag_sensitivity = 20 * np.log10(mag_sensitivity)
+            else:
+                raise ValueError(
+                    "Unsupported unit. Please use a unit with dimensions of length per force (e.g., mm/N)."
+                )
+
+            phase_sensitivity = Q_(phase_sensitivity, "rad").to(phase_units).m
+
+            # Magnitude
+            fig.add_trace(
+                go.Scatter(
+                    x=frequency_range,
+                    y=mag_sensitivity,
+                    mode="lines",
+                    line=dict(color=list(tableau_colors)[color_index]),
+                    name=f"{amb_tag}<br>inp: node {inp_node} | dof: {inp_dof}<br>out: node {out_node} | dof: {out_dof}",
+                    legendgroup=f"{amb_tag}<br>inp: node {inp_node} | dof: {inp_dof}<br>out: node {out_node} | dof: {out_dof}",
+                    showlegend=True,
+                    hovertemplate=f"Frequency ({frequency_units}): %{{x:.2f}}<br>Amplitude ({amplitude_units}): %{{y:.2e}}",
+                ),
+                row=1,
+                col=1,
+            )
+
+            fig.update_xaxes(
+                title_text=f"Frequency ({frequency_units})",
+                range=[np.min(frequency_range), np.max(frequency_range)],
+                row=1,
+                col=1,
+            )
+            fig.update_yaxes(title_text=f" Magnitude ({amplitude_units})", row=1, col=1)
+
+            # Phase
+            fig.add_trace(
+                go.Scatter(
+                    x=frequency_range,
+                    y=phase_sensitivity,
+                    mode="lines",
+                    line=dict(color=list(tableau_colors)[color_index]),
+                    name=f"{amb_tag}<br>inp: node {inp_node} | dof: {inp_dof}<br>out: node {out_node} | dof: {out_dof}",
+                    legendgroup=f"{amb_tag}<br>inp: node {inp_node} | dof: {inp_dof}<br>out: node {out_node} | dof: {out_dof}",
+                    showlegend=False,
+                    hovertemplate=f"Frequency ({frequency_units}): %{{x:.2f}}<br>Phase ({amplitude_units}): %{{y:.2e}}",
+                ),
+                row=2,
+                col=1,
+            )
+
+            fig.update_xaxes(
+                title_text=f"Frequency ({frequency_units})",
+                range=[np.min(frequency_range), np.max(frequency_range)],
+                row=2,
+                col=1,
+            )
+            fig.update_yaxes(title_text=f" Phase ({phase_units})", row=2, col=1)
+            fig.update_layout(**fig_kwargs)
+
+            color_index += 1
+
+        return fig
+
+    @classmethod
+    def load(cls, file):
+        """Load results from a .toml file.
+
+        This function will load the frequency response results from a .toml file.
+        The file must have all the argument's names and values that are needed to
+        reinstantiate the class. This function is an override of the load method
+        defined in the Results(ABC) class.
+
+        Parameters
+        ----------
+        file : str, pathlib.Path
+            The name of the file the results will be loaded from.
+
+        Examples
+        --------
+        >>> from tempfile import tempdir
+        >>> from pathlib import Path
+        >>> import ross as rs
+        >>> rotor = rs.rotor_amb_example()
+        >>> speed = np.linspace(0, 1000, 11)
+        >>> compute_sensitivite_dofs = {"Bearing 0": {"inp": 9, "out": 9}}
+        >>> response = rotor.run_amb_sensitivity(speed_range=speed, compute_sensitivity_at=compute_sensitivite_dofs)
+        >>> file = Path(tempdir) / 'freq_resp.toml'
+        >>> response.save(file)
+        >>> results_load = rs.SensitivityResults.load(file)
+        """
+        str_type = [np.dtype(f"<U4{i}") for i in range(10)]
+
+        data = toml.load(file)
+        data = list(data.values())[0]
+
+        data["speed_range"] = np.array(data["speed_range"])
+
+        try:
+            for key, value in data["sensitivities"].items():
+                data["sensitivities"][key] = np.array(value)
+                if data["sensitivities"][key].dtype in str_type:
+                    data["sensitivities"][key] = np.array(value).astype(np.complex128)
+        except KeyError:
+            pass
+
+        return cls.read_toml_data(data)
+
+
 class FrequencyResponseResults(Results):
     """Class used to store results and provide plots for Frequency Response.
 
@@ -2289,7 +2528,14 @@ class FrequencyResponseResults(Results):
         Plotly figure with Amplitude vs Frequency and Phase vs Frequency plots.
     """
 
-    def __init__(self, freq_resp, velc_resp, accl_resp, speed_range, number_dof):
+    def __init__(
+        self,
+        freq_resp,
+        velc_resp,
+        accl_resp,
+        speed_range,
+        number_dof,
+    ):
         self.freq_resp = freq_resp
         self.velc_resp = velc_resp
         self.accl_resp = accl_resp
@@ -2870,7 +3116,7 @@ class ForcedResponseResults(Results):
                 try:
                     probe_tag = p[2]
                 except IndexError:
-                    probe_tag = f"Probe {i+1} - Node {p[0]}"
+                    probe_tag = f"Probe {i + 1} - Node {p[0]}"
 
             amplitude = []
             for speed_idx in range(len(self.speed_range)):
@@ -2965,7 +3211,7 @@ class ForcedResponseResults(Results):
                 try:
                     probe_tag = p[2]
                 except IndexError:
-                    probe_tag = f"Probe {i+1} - Node {p[0]}"
+                    probe_tag = f"Probe {i + 1} - Node {p[0]}"
 
             phase_values = []
             for speed_idx in range(len(self.speed_range)):
@@ -3616,8 +3862,8 @@ class ForcedResponseResults(Results):
 
         # fmt: off
         major_axis_vector[3] = (
-            major_axis_vector[0] * np.exp(1j * max_major_axis_angle) +
-            major_axis_vector[1] * np.exp(-1j * max_major_axis_angle)
+                major_axis_vector[0] * np.exp(1j * max_major_axis_angle) +
+                major_axis_vector[1] * np.exp(-1j * max_major_axis_angle)
         )
         major_axis_vector[4] = np.abs(
             major_axis_vector[0] * np.exp(1j * major_axis_vector[2]) +
@@ -5017,7 +5263,7 @@ class TimeResponseResults(Results):
                 try:
                     probe_tag = p[2]
                 except IndexError:
-                    probe_tag = f"Probe {i+1} - Node {p[0]}"
+                    probe_tag = f"Probe {i + 1} - Node {p[0]}"
 
             data[f"angle[{i}]"] = angle
             data[f"probe_tag[{i}]"] = probe_tag
@@ -5032,11 +5278,11 @@ class TimeResponseResults(Results):
                 # fmt: off
                 operator = np.array(
                     [[np.cos(angle), np.sin(angle)],
-                    [-np.sin(angle), np.cos(angle)]]
+                     [-np.sin(angle), np.cos(angle)]]
                 )
 
                 _probe_resp = operator @ np.vstack((self.yout[:, dofx], self.yout[:, dofy]))
-                probe_resp = _probe_resp[0,:]
+                probe_resp = _probe_resp[0, :]
                 # fmt: on
             else:
                 dofz = ndof * node + 2 - fix_dof
