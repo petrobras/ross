@@ -172,10 +172,11 @@ class ST_CampbellResults(ST_Results):
         Plotly figure with diagrams for frequency and log dec.
     """
 
-    def __init__(self, speed_range, wd, log_dec):
+    def __init__(self, speed_range, wd, log_dec, mode_type):
         self.speed_range = speed_range
         self.wd = wd
         self.log_dec = log_dec
+        self.mode_type = mode_type
 
     def plot_nat_freq(
         self,
@@ -232,52 +233,57 @@ class ST_CampbellResults(ST_Results):
                 )
             )
 
-        for j in range(wd.shape[0]):
-            fig.add_trace(
-                go.Scatter(
-                    x=speed_range,
-                    y=np.mean(wd[j], axis=1),
-                    name="Mean - Mode {}".format(j + 1),
-                    mode="lines",
-                    line=dict(width=3, color=colors1[j]),
-                    legendgroup="mean{}".format(j),
-                    hovertemplate=("Frequency: %{x:.3f}<br>" + "Frequency: %{y:.3f}"),
-                )
-            )
-            for i, p in enumerate(percentile):
+        for mode in ["Lateral", "Torsional", "Axial"]:
+            mode_num = np.unique(np.where(self.mode_type == mode)[0])
+
+            for n, j in enumerate(mode_num):
                 fig.add_trace(
                     go.Scatter(
                         x=speed_range,
-                        y=np.percentile(wd[j], p, axis=1),
-                        opacity=0.6,
+                        y=np.mean(wd[j], axis=1),
+                        name=f"Mean - Mode {n + 1} ({mode})",
                         mode="lines",
-                        line=dict(width=2.5, color=colors2[j]),
-                        name="percentile: {}%".format(p),
-                        legendgroup="percentile{}{}".format(j, i),
+                        line=dict(width=3, color=colors1[j]),
+                        legendgroup=f"mean{j}",
                         hovertemplate=(
                             "Frequency: %{x:.3f}<br>" + "Frequency: %{y:.3f}"
                         ),
                     )
                 )
-            for i, p in enumerate(conf_interval):
-                p1 = np.percentile(wd[j], 50 + p / 2, axis=1)
-                p2 = np.percentile(wd[j], 50 - p / 2, axis=1)
-                fig.add_trace(
-                    go.Scatter(
-                        x=x,
-                        y=np.concatenate((p1, p2[::-1])),
-                        mode="lines",
-                        line=dict(width=1, color=colors1[j]),
-                        fill="toself",
-                        fillcolor=colors1[j],
-                        opacity=0.3,
-                        name="confidence interval: {}% - Mode {}".format(p, j + 1),
-                        legendgroup="conf{}{}".format(j, i),
-                        hovertemplate=(
-                            "Frequency: %{x:.3f}<br>" + "Frequency: %{y:.3f}"
-                        ),
+                for i, p in enumerate(percentile):
+                    fig.add_trace(
+                        go.Scatter(
+                            x=speed_range,
+                            y=np.percentile(wd[j], p, axis=1),
+                            opacity=0.6,
+                            mode="lines",
+                            line=dict(width=2.5, color=colors2[j]),
+                            name=f"percentile: {p}%",
+                            legendgroup=f"percentile{j}{i}",
+                            hovertemplate=(
+                                "Frequency: %{x:.3f}<br>" + "Frequency: %{y:.3f}"
+                            ),
+                        )
                     )
-                )
+                for i, p in enumerate(conf_interval):
+                    p1 = np.percentile(wd[j], 50 + p / 2, axis=1)
+                    p2 = np.percentile(wd[j], 50 - p / 2, axis=1)
+                    fig.add_trace(
+                        go.Scatter(
+                            x=x,
+                            y=np.concatenate((p1, p2[::-1])),
+                            mode="lines",
+                            line=dict(width=1, color=colors1[j]),
+                            fill="toself",
+                            fillcolor=colors1[j],
+                            opacity=0.3,
+                            name=f"confidence interval: {p}% - Mode {n + 1} ({mode})",
+                            legendgroup="conf{}{}".format(j, i),
+                            hovertemplate=(
+                                "Frequency: %{x:.3f}<br>" + "Frequency: %{y:.3f}"
+                            ),
+                        )
+                    )
 
         fig.update_xaxes(
             title_text=f"Frequency ({frequency_units})",
@@ -329,48 +335,51 @@ class ST_CampbellResults(ST_Results):
         fig = go.Figure()
         x = np.concatenate((speed_range, speed_range[::-1]))
 
-        for j in range(self.log_dec.shape[0]):
-            fig.add_trace(
-                go.Scatter(
-                    x=speed_range,
-                    y=np.mean(self.log_dec[j], axis=1),
-                    opacity=1.0,
-                    name="Mean - Mode {}".format(j + 1),
-                    line=dict(width=3, color=colors1[j]),
-                    legendgroup="mean{}".format(j),
-                    hovertemplate=("Frequency: %{x:.3f}<br>" + "Log Dec: %{y:.3f}"),
-                )
-            )
+        for mode in ["Lateral", "Torsional", "Axial"]:
+            mode_num = np.unique(np.where(self.mode_type == mode)[0])
 
-            for i, p in enumerate(percentile):
+            for n, j in enumerate(mode_num):
                 fig.add_trace(
                     go.Scatter(
                         x=speed_range,
-                        y=np.percentile(self.log_dec[j], p, axis=1),
-                        opacity=0.6,
-                        line=dict(width=2.5, color=colors2[j]),
-                        name="percentile: {}%".format(p),
-                        legendgroup="percentile{}{}".format(j, i),
-                        hoverinfo="none",
+                        y=np.mean(self.log_dec[j], axis=1),
+                        opacity=1.0,
+                        name=f"Mean - Mode {n + 1} ({mode})",
+                        line=dict(width=3, color=colors1[j]),
+                        legendgroup=f"mean{j}",
+                        hovertemplate=("Frequency: %{x:.3f}<br>" + "Log Dec: %{y:.3f}"),
                     )
                 )
 
-            for i, p in enumerate(conf_interval):
-                p1 = np.percentile(self.log_dec[j], 50 + p / 2, axis=1)
-                p2 = np.percentile(self.log_dec[j], 50 - p / 2, axis=1)
-                fig.add_trace(
-                    go.Scatter(
-                        x=x,
-                        y=np.concatenate((p1, p2[::-1])),
-                        line=dict(width=1, color=colors1[j]),
-                        fill="toself",
-                        fillcolor=colors1[j],
-                        opacity=0.3,
-                        name="confidence interval: {}% - Mode {}".format(p, j + 1),
-                        legendgroup="conf{}{}".format(j, i),
-                        hoverinfo="none",
+                for i, p in enumerate(percentile):
+                    fig.add_trace(
+                        go.Scatter(
+                            x=speed_range,
+                            y=np.percentile(self.log_dec[j], p, axis=1),
+                            opacity=0.6,
+                            line=dict(width=2.5, color=colors2[j]),
+                            name=f"percentile: {p}%",
+                            legendgroup=f"percentile{j}{i}",
+                            hoverinfo="none",
+                        )
                     )
-                )
+
+                for i, p in enumerate(conf_interval):
+                    p1 = np.percentile(self.log_dec[j], 50 + p / 2, axis=1)
+                    p2 = np.percentile(self.log_dec[j], 50 - p / 2, axis=1)
+                    fig.add_trace(
+                        go.Scatter(
+                            x=x,
+                            y=np.concatenate((p1, p2[::-1])),
+                            line=dict(width=1, color=colors1[j]),
+                            fill="toself",
+                            fillcolor=colors1[j],
+                            opacity=0.3,
+                            name=f"confidence interval: {p}% - Mode {n + 1} ({mode})",
+                            legendgroup=f"conf{j}{i}",
+                            hoverinfo="none",
+                        )
+                    )
 
         fig.update_xaxes(
             title_text=f"Frequency ({frequency_units})",
