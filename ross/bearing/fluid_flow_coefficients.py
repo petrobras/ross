@@ -29,7 +29,7 @@ def calculate_oil_film_force(fluid_flow_object, force_type=None):
         Components of forces in the y direction
     Examples
     --------
-    >>> from ross.fluid_flow.fluid_flow import fluid_flow_example
+    >>> from ross.bearing.fluid_flow import fluid_flow_example
     >>> my_fluid_flow = fluid_flow_example()
     >>> calculate_oil_film_force(my_fluid_flow) # doctest: +ELLIPSIS
     (...
@@ -160,7 +160,7 @@ def calculate_stiffness_and_damping_coefficients(fluid_flow_object):
         And
     Examples
     --------
-    >>> from ross.fluid_flow.fluid_flow import fluid_flow_example
+    >>> from ross.bearing.fluid_flow import fluid_flow_example
     >>> my_fluid_flow = fluid_flow_example()
     >>> calculate_stiffness_and_damping_coefficients(my_fluid_flow)  # doctest: +ELLIPSIS
     ([4...
@@ -268,7 +268,7 @@ def calculate_short_stiffness_matrix(fluid_flow_object):
         A list of length four including stiffness floats in this order: kxx, kxy, kyx, kyy
     Examples
     --------
-    >>> from ross.fluid_flow.fluid_flow import fluid_flow_example
+    >>> from ross.bearing.fluid_flow import fluid_flow_example
     >>> my_fluid_flow = fluid_flow_example()
     >>> calculate_short_stiffness_matrix(my_fluid_flow)  # doctest: +ELLIPSIS
     [417...
@@ -346,7 +346,7 @@ def calculate_short_damping_matrix(fluid_flow_object):
         A list of length four including damping floats in this order: cxx, cxy, cyx, cyy
     Examples
     --------
-    >>> from ross.fluid_flow.fluid_flow import fluid_flow_example
+    >>> from ross.bearing.fluid_flow import fluid_flow_example
     >>> my_fluid_flow = fluid_flow_example()
     >>> calculate_short_damping_matrix(my_fluid_flow) # doctest: +ELLIPSIS
     [...
@@ -381,7 +381,7 @@ def find_equilibrium_position(fluid_flow_object, print_equilibrium_position=Fals
     -------
     None
     --------
-    >>> from ross.fluid_flow.fluid_flow import fluid_flow_example2
+    >>> from ross.bearing.fluid_flow import fluid_flow_example2
     >>> my_fluid_flow = fluid_flow_example2()
     >>> find_equilibrium_position(my_fluid_flow)
     >>> (my_fluid_flow.xi, my_fluid_flow.yi) # doctest: +ELLIPSIS
@@ -396,7 +396,7 @@ def find_equilibrium_position(fluid_flow_object, print_equilibrium_position=Fals
         x: array
             Rotor center coordinates
         *args : dict
-            Dictionary instantiating the ross.FluidFlow class.
+            Dictionary instantiating the ross.bearing class.
         Returns
         -------
         array

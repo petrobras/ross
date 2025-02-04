@@ -184,8 +184,8 @@ class FluidFlow:
 
     Examples
     --------
-    >>> from ross.fluid_flow import fluid_flow as flow
-    >>> from ross.fluid_flow.fluid_flow_graphics import plot_pressure_theta
+    >>> from ross.bearing import fluid_flow as flow
+    >>> from ross.bearing.fluid_flow_graphics import plot_pressure_theta
     >>> import numpy as np
     >>> nz = 8
     >>> ntheta = 64
