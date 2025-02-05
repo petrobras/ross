@@ -896,7 +896,7 @@ class GearStiffness:
         float
             The value of diff_tau(tau_i)
         """
-        return self.geometryDict['r_b'] * (tau_i + self.geometryDict['r_b']) * np.cos(tau_i) # OK
+        return self.geometryDict['r_b'] * (tau_i + self.geometryDict['theta_b']) * np.cos(tau_i) # OK
 
     def diff_gamma(self, gamma) -> float:
         """
@@ -1267,7 +1267,7 @@ def gearStiffnessExample():
 
     # Add traces for each stiffness component
     for name, values in stiffness_dict.items():
-        fig.add_trace(go.Scatter(x=angle_range, y=values, mode='lines', name=name))
+        fig.add_trace(go.Scatter(x=angle_range*180/np.pi, y=values, mode='lines', name=name))
 
     # Customize layout
     fig.update_layout(
@@ -1276,7 +1276,7 @@ def gearStiffnessExample():
         yaxis_title="Stiffness",
         template="plotly_dark",  # Optional: Choose from 'plotly', 'plotly_dark', etc.
         legend_title="Stiffness Components",
-        yaxis_tickformat='.2e'
+        yaxis_tickformat='.2e',
     )
 
     # Show plot

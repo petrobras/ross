@@ -232,7 +232,7 @@ pio.templates["ross"] = go.layout.Template(
                 "type": "heatmap",
             }
         ],
-        "heatmapgl": [
+        "heatmap": [
             {
                 "colorbar": {"outlinewidth": 0, "ticks": ""},
                 "colorscale": [
@@ -247,7 +247,7 @@ pio.templates["ross"] = go.layout.Template(
                     [0.8888888888888888, "#fdca26"],
                     [1.0, "#f0f921"],
                 ],
-                "type": "heatmapgl",
+                "type": "heatmap",
             }
         ],
         "histogram": [
