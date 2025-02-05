@@ -1241,16 +1241,254 @@ class GearStiffness:
         - It returns kh, not 1/kh.
         """
 
-        return np.pi * gear1.material.E * gear1.width / 4 / (1 - gear1.material.E**2)
+        return np.pi * gear1.material.E * gear1.width / 4 / (1 - gear1.material.Poisson**2)
+
+class Mesh:
+    """
+    Represents the meshing behavior between two gears, typically a pinion and a crown gear, 
+    including stiffness and contact ratio calculations.
+
+    Parameters:
+    -----------
+    pinion : Gear
+        The pinion gear object used in the gear pair (driver).
+    gear : Gear
+        The crown gear object used in the gear pair (driven).
+    pinion_w : float
+        The rotational speed [rad/sec] of the pinion gear in radians per second.
+        
+    Attributes:
+    -----------
+    gear : Gear
+        The gear wheel object, which contains information about the geometry and properties of the wheel gear.
+    pinion : Gear
+        The pinion gear object, which contains information about the geometry and properties of the pinion gear.
+    tm : float
+        The meshing period, calculated based on the rotational speed and the number of teeth of the pinion.
+    kh : float
+        Hertzian stiffness of 2 tooth in contact (same Elasticity Modulus).
+    k_mesh : float
+        The equivalent stiffness of the gear mesh, combining the stiffness of the pinion and crown.
+    cr : float
+        The contact ratio, representing the average number of tooth in contact during meshing.
+
+    """
+
+    def __init__(self, gearInput: GearElement, gearOutput: GearElement, gearInputSpeed: float):
+        self.gearInput = gearInput
+        self.gearOutput = gearOutput
+
+        eta = gearOutput.n_tooth / gearInput.n_tooth # Gear ratio 
+
+        self.gearInputSpeed = gearInputSpeed # pinion speed [rad/sec] 
+        self.gearOutputSpeed = - gearInputSpeed/ eta # gear speed [rad/sec]
+        self.tm = 2 * np.pi / (self.gearInputSpeed * self.gearInput.n_tooth) # Gearmesh period [seconds/engagement]
+        self.kh = GearStiffness.kh(gearInput, gearOutput)
+        self.cr = self.contact_ratio(self.gearInput, self.gearOutput)
+        self.ctm = self.cr * self.tm # [seconds/tooth] how much time each tooth remains in contact
+
+    @staticmethod
+    def contact_ratio(gearInput: GearElement, gearOutput: GearElement) -> float:
+        """
+        Parameters:
+        ---------
+        pinion : Gear
+            The pinion object.
+        gear : Gear
+            The wheel object.
+        
+        Returns
+        -------
+        CR : float
+            The contact ratio of the gear pair.
+
+        Example
+        -------
+        >>> Mesh.contact_ratio(pinion, Gear)
+        1.7939883590132295
+
+        Reference
+        ----------
+        Understanding the contact ratio for spur gears with some comments on ways to read a textbook.
+        Retrieved from: https://www.myweb.ttu.edu/amosedal/articles.html
+        """
+
+        pb = np.pi * 2 * gearInput.geometry.geometryDict['r_b'] / gearInput.n_tooth # base pitch
+        C = gearInput.geometry.geometryDict['r_p'] + gearOutput.geometry.geometryDict['r_p'] # center distance (not the operating one)
+
+        lc = ( # length of contact (not the operating one) # OK
+            np.sqrt(gearInput.geometry.geometryDict['r_a']**2 - gearInput.geometry.geometryDict['r_b']**2) 
+            + np.sqrt(gearOutput.geometry.geometryDict['r_a']**2 - gearOutput.geometry.geometryDict['r_b']**2) 
+            - C * np.sin(gearInput.pressure_angle)
+        )
+
+        CR = lc / pb # contact ratio
+    
+        return CR
+
+    def time_equivalent_stiffness(self, t: float) -> float:
+        """
+        Parameters
+        ---------
+        gearInput : Gear
+            The gearInput object.
+        gear: Gear
+            The gear object.
+        t: float
+            The time of meshing [0, self.tm]
+        
+        Returns
+        -------
+        float
+            The equivalent stiffness of the contact based on the time [0, self.tm] of mesh.
+        
+        Example
+        --------
+        >>> self.time_equivalent_stiffness()
+        167970095.70859054
+        """
+
+        # Angular displacements 
+        alphaGearInput = t * self.gearInputSpeed + self.gearInput.geometry.geometryDict['alpha_c'] # angle variation of the input pinion [rad]
+        alphaGearOutput   = t * self.gearOutputSpeed + self.gearOutput.geometry.geometryDict['alpha_a']   # angle variation of the output gear   [rad]
+        
+        # Tau displacementes
+        dTauGearInput = self.gearInput.geometry._to_tau(alphaGearInput)     # angle variation of the pinion in tau [rad]
+        dTauGearOutput   = self.gearOutput.geometry._to_tau(alphaGearOutput)     # angle variation of the pinion in tau [rad]
+
+        # Contact stiffness according to tau angles
+        ka_1, kb_1, kf_1, ks_1 = self.gearInput.stiffness.compute_stiffness(dTauGearInput)
+        ka_2, kb_2, kf_2, ks_2 = self.gearOutput.stiffness.compute_stiffness(dTauGearOutput)
+
+        # Evaluating the equivalate meshing stiffness. 
+        k_t = 1 / (1/self.kh + 1/ka_1 + 1/kb_1 + 1/kf_1 + 1/ks_1 + 1/ka_2 + 1/kb_2 + 1/kf_2 + 1/ks_2)
+
+        return k_t, dTauGearInput, dTauGearOutput
+    
+    def mesh(self, t):
+        """
+        Calculate the time-varying meshing stiffness of a gear pair.
+
+        This method computes the equivalent stiffness of a gear mesh at a given time `t`, taking into
+        account the periodic nature of the meshing process and the contact ratio (`cr`) of the gear pair.
+        The computation considers whether one or two pairs of teeth are in contact during the meshing cycle.
+
+        Parameters
+        ----------
+        pinion : Gear
+            The pinion gear object containing properties needed for stiffness calculation.
+        gear : Gear
+            The gear object containing properties needed for stiffness calculation.
+        t : float
+            Time instant for which the meshing stiffness is calculated.
+
+        Returns
+        -------
+        tuple
+            - float: The total equivalent meshing stiffness at time `t`.
+            - float: The meshing stiffness of the first tooth pair in contact (returns `np.nan` if not applicable).
+            - float: The meshing stiffness of the second tooth pair in contact.
+
+        Notes
+        -----
+        - The calculation considers the periodic nature of meshing and the contact ratio (cr) of the gear pair.
+        - The stiffness contribution varies depending on whether one or two pairs of teeth are in contact.
+        """
+
+        tm = self.tm
+        t = t - t // tm * tm
+        
+        if t <= (self.cr-1) * tm:
+            stiffnessMesh1, d_tau_pinion1, d_tau_gear1 = self.time_equivalent_stiffness(t)
+            stiffnessMesh0,  d_tau_pinion0, d_tau_gear0 = self.time_equivalent_stiffness(self.tm + t)
+
+            return stiffnessMesh0 + stiffnessMesh1, stiffnessMesh0, stiffnessMesh1
+        
+        elif t > (self.cr-1) * tm:
+            stiffnessMesh1, d_tau_pinion1, d_tau_gear1 = self.time_equivalent_stiffness(t)
+            
+            return stiffnessMesh1, np.nan, stiffnessMesh1
 
 def gearGeometryExample() -> None:
     gear1 = GearElement(21, 12, 12, 12, 2e-3, 55, 2e-2)
     print(gear1.geometry.geometryDict)
     pass
 
-def gearInvoluteCurveExample() -> None:
-    gear1 = GearElement(21, 12, 12, 12, 2e-3, 75, 2e-2)
-    gear1.geometry.plot_tooth_geometry()
+def gearMeshStiffnessExample() -> None:
+    gear1 = GearElement(21, 12, 12, 12, 2e-3, 55, 2e-2, 17.5e-3)
+    gear2 = GearElement(21, 12, 12, 12, 2e-3, 75, 2e-2, 17.5e-3)
+
+    gear1Speed = 11*2*np.pi
+
+    meshing = Mesh(gear1, gear2, gear1Speed)
+
+
+    nTm = 5
+    time_range = np.linspace(0, nTm * meshing.tm, int(200))
+
+    angle_range = time_range * gear1Speed
+
+
+    stiffness = np.zeros(np.shape(time_range))
+    k0_stiffness = np.zeros(np.shape(time_range))
+    k1_stiffness = np.zeros(np.shape(time_range))
+
+    for i, time in enumerate(time_range):
+        stiffness[i], k0_stiffness[i], k1_stiffness[i] = meshing.mesh(time)
+
+    # Calculate limits and yticks
+    x_lim = nTm * meshing.tm * gear1Speed * 180 / np.pi
+#    yticks = np.arange(3.8e8, int(4.4e8), int(0.1e8))
+
+    # Create figure
+    fig = go.Figure()
+
+    # Add the main plot lines
+    fig.add_trace(go.Scatter(
+        x=angle_range * 180 / np.pi,
+        y=stiffness,
+        mode='lines',
+        line=dict(color='blue', width=1),
+        name='Stiffness'
+    ))
+
+    fig.add_trace(go.Scatter(
+        x=angle_range * 180 / np.pi,
+        y=k1_stiffness,
+        mode='lines',
+        line=dict(color='red', dash='solid'),
+        name='K1 Stiffness'
+    ))
+
+    fig.add_trace(go.Scatter(
+        x=angle_range * 180 / np.pi,
+        y=k0_stiffness,
+        mode='lines',
+        line=dict(color='black', dash='dot'),
+        name='K0 Stiffness'
+    ))
+
+    # Update layout
+    fig.update_layout(
+        title='Stiffness x Angular Displacement',
+        xaxis=dict(
+            title='Angular Displacement [deg]',
+            range=[0, x_lim],
+        ),
+        yaxis=dict(
+            title='Stiffness [N/m]',
+            autorange=True,
+            tickformat=".1e",  # Use scientific notation for y-axis labels
+        ),
+        showlegend=True
+    )
+
+    fig.show()
+
+
+
+
+    # gear1.geometry.plot_tooth_geometry()
 
 def gearStiffnessExample():
     gear1 = GearElement(21, 12, 12, 12, 2e-3, 55, 2e-2, 10.5e-3)
@@ -1283,6 +1521,6 @@ def gearStiffnessExample():
     fig.show()
 
 if __name__ == '__main__':
-    gearStiffnessExample()
+    gearMeshStiffnessExample()
 
 
