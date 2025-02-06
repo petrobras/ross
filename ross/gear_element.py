@@ -971,15 +971,15 @@ class GearStiffness:
         """
         tau_op = self.geometry._to_tau(alpha_op)
 
-        kf = self._kf(tau_op)
-        ka = self._ka(tau_op)
-        kb = self._kb(tau_op)
-        ks = self._ks(tau_op)
+        inv_kf = self.inv_kf(tau_op)
+        inv_ka = self.inv_ka(tau_op)
+        inv_kb = self.inv_kb(tau_op)
+        inv_ks = self.inv_ks(tau_op)
 
-        if (np.isnan(kf)):
-            return ka, kb, ks
+        if (np.isnan(inv_kf)):
+            return inv_ka, inv_kb, inv_ks
         
-        return  1/ka, 1/kb, 1/kf, 1/ks
+        return  1/inv_ka, 1/inv_kb, 1/inv_kf, 1/inv_ks
 
     def _gear_body_polynominal(self) -> pd.DataFrame | str:
         """
@@ -1039,7 +1039,7 @@ class GearStiffness:
 
         return poly.loc[:,['var','X_i']]
     
-    def _kf(self, tau_op) -> float:
+    def inv_kf(self, tau_op) -> float:
         """
         Sainsot, P., Velex, P., & Duverger, O. (2004). Contribution of gear body to tooth deflections - A new bidimensional analytical 
         formula. Journal of Mechanical Design, 126(4), 748–752. https://doi.org/10.1115/1.1758252
@@ -1084,7 +1084,7 @@ class GearStiffness:
 
         return kf
 
-    def _ks(self, tau_op) -> float:
+    def inv_ks(self, tau_op) -> float:
         """
         Calculate the stiffness contribution from the gear resistance from shear stresses, given the tau operational angle.
 
@@ -1130,7 +1130,7 @@ class GearStiffness:
 
         return (k_transiction + k_involute)
 
-    def _kb(self, tau_op) -> float:
+    def inv_kb(self, tau_op) -> float:
         """
         Calculate the stiffness contribution from the gear resistance from bending stresses, given the tau operational angle.
 
@@ -1181,7 +1181,7 @@ class GearStiffness:
 
         return (k_transiction + k_involute)
 
-    def _ka(self, tau_op: float) -> float:
+    def inv_ka(self, tau_op: float) -> float:
         """
         Calculate the stiffness contribution from the gear resistance from axial stresses, given the tau operational angle.
 
@@ -1420,14 +1420,12 @@ def gearMeshStiffnessExample() -> None:
 
     gear1Speed = 11*2*np.pi
 
-    meshing = Mesh(gear1, gear2, gear1Speed)
+    meshing = Mesh(gear1, gear2, gear1Speed)    
 
-
-    nTm = 5
-    time_range = np.linspace(0, nTm * meshing.tm, int(200))
+    nTm = 18
+    time_range = np.linspace(0, nTm * meshing.tm, int(18e3))
 
     angle_range = time_range * gear1Speed
-
 
     stiffness = np.zeros(np.shape(time_range))
     k0_stiffness = np.zeros(np.shape(time_range))
@@ -1485,9 +1483,6 @@ def gearMeshStiffnessExample() -> None:
 
     fig.show()
 
-
-
-
     # gear1.geometry.plot_tooth_geometry()
 
 def gearStiffnessExample():
@@ -1501,7 +1496,6 @@ def gearStiffnessExample():
     fig = go.Figure()
 
     stiffness_dict = {"ka": ka, "kb": kb, "kf": kf, "ks": ks}
-
 
     # Add traces for each stiffness component
     for name, values in stiffness_dict.items():
