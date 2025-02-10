@@ -28,6 +28,7 @@ from ross.bearing_seal_element import (
 )
 from ross.faults import Crack, MisalignmentFlex, MisalignmentRigid, Rubbing
 from ross.disk_element import DiskElement
+from ross.gear_element import GearElement, Mesh
 from ross.coupling_element import CouplingElement
 from ross.materials import Material, steel
 from ross.point_mass import PointMass
@@ -2238,6 +2239,21 @@ class Rotor(object):
         C2 = get_array[0](kwargs.get("G", self.G()))
         K2 = get_array[0](kwargs.get("Ksdt", self.Ksdt()))
         F = get_array[1](F.T).T
+
+        # Check if there is a GearElement
+
+        gear_elements = [
+            disk
+            for disk in self.disk_elements
+            if isinstance(disk, GearElement)
+        ]
+        
+        if len(gear_elements):
+            meshing_force = (
+                lambda time_step, speed,  
+
+            )
+
 
         # Consider any additional RHS function (extra forces)
         add_to_RHS = kwargs.get("add_to_RHS")

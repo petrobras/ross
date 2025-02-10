@@ -50,7 +50,7 @@ class MultiRotor(Rotor):
     >>> L1 = [0.1, 4.24, 1.16, 0.3]
     >>> d1 = [0.3, 0.3, 0.22, 0.22]
     >>> shaft1 = [
-    ...     rs.ShaftElement6DoF(
+    ...     rs.ShaftElement(
     ...         L=L1[i],
     ...         idl=0.0,
     ...         odl=d1[i],
@@ -58,21 +58,21 @@ class MultiRotor(Rotor):
     ...     )
     ...     for i in range(len(L1))
     ... ]
-    >>> generator = rs.DiskElement6DoF(n=1, m=525.7, Id=16.1, Ip=32.2)
-    >>> disk = rs.DiskElement6DoF(n=2, m=116.04, Id=3.115, Ip=6.23)
+    >>> generator = rs.DiskElement(n=1, m=525.7, Id=16.1, Ip=32.2)
+    >>> disk = rs.DiskElement(n=2, m=116.04, Id=3.115, Ip=6.23)
     >>> gear1 = rs.GearElement(
     ...     n=4, m=726.4, Id=56.95, Ip=113.9,
     ...     pitch_diameter=1.1, pressure_angle=rs.Q_(22.5, 'deg'),
     ... )
-    >>> bearing1 = rs.BearingElement6DoF(n=0, kxx=183.9e6, kyy=200.4e6, cxx=3e3)
-    >>> bearing2 = rs.BearingElement6DoF(n=3, kxx=183.9e6, kyy=200.4e6, cxx=3e3)
+    >>> bearing1 = rs.BearingElement(n=0, kxx=183.9e6, kyy=200.4e6, cxx=3e3)
+    >>> bearing2 = rs.BearingElement(n=3, kxx=183.9e6, kyy=200.4e6, cxx=3e3)
     >>> rotor1 = rs.Rotor(shaft1, [generator, disk, gear1], [bearing1, bearing2],)
 
     >>> # Rotor 2:
     >>> L2 = [0.3, 5, 0.1]
     >>> d2 = [0.15, 0.15, 0.15]
     >>> shaft2 = [
-    ...     rs.ShaftElement6DoF(
+    ...     rs.ShaftElement(
     ...         L=L2[i],
     ...         idl=0.0,
     ...         odl=d2[i],
@@ -84,9 +84,9 @@ class MultiRotor(Rotor):
     ...     n=0, m=5, Id=0.002, Ip=0.004,
     ...     pitch_diameter=0.077, pressure_angle=rs.Q_(22.5, 'deg'),
     ... )
-    >>> turbine = rs.DiskElement6DoF(n=2, m=7.45, Id=0.0745, Ip=0.149)
-    >>> bearing3 = rs.BearingElement6DoF(n=1, kxx=10.1e6, kyy=41.6e6, cxx=3e3)
-    >>> bearing4 = rs.BearingElement6DoF(n=3, kxx=10.1e6, kyy=41.6e6, cxx=3e3)
+    >>> turbine = rs.DiskElement(n=2, m=7.45, Id=0.0745, Ip=0.149)
+    >>> bearing3 = rs.BearingElement(n=1, kxx=10.1e6, kyy=41.6e6, cxx=3e3)
+    >>> bearing4 = rs.BearingElement(n=3, kxx=10.1e6, kyy=41.6e6, cxx=3e3)
     >>> rotor2 = rs.Rotor(shaft2, [gear2, turbine], [bearing3, bearing4],)
 
     >>> # Multi rotor:
@@ -542,7 +542,7 @@ def two_shaft_rotor_example():
     L1 = [0.1, 4.24, 1.16, 0.3]
     d1 = [0.3, 0.3, 0.22, 0.22]
     shaft1 = [
-        rs.ShaftElement6DoF(
+        rs.ShaftElement(
             L=L1[i],
             idl=0.0,
             odl=d1[i],
@@ -554,20 +554,20 @@ def two_shaft_rotor_example():
         for i in range(len(L1))
     ]
 
-    generator = rs.DiskElement6DoF(
+    generator = rs.DiskElement(
         n=1,
         m=525.7,
         Id=16.1,
         Ip=32.2,
     )
-    disk = rs.DiskElement6DoF(
+    disk = rs.DiskElement(
         n=2,
         m=116.04,
         Id=3.115,
         Ip=6.23,
     )
 
-    pressure_angle = rs.Q_(22.5, "deg")
+    pressure_angle = rs.Q_(20, "deg")
     base_radius = 0.5086
     pitch_diameter = 2 * base_radius / np.cos(pressure_angle)
     gear1 = rs.GearElement(
@@ -575,12 +575,11 @@ def two_shaft_rotor_example():
         m=726.4,
         Id=56.95,
         Ip=113.9,
-        pitch_diameter=pitch_diameter,
         pressure_angle=pressure_angle,
     )
 
-    bearing1 = rs.BearingElement6DoF(n=0, kxx=183.9e6, kyy=200.4e6, cxx=3e3)
-    bearing2 = rs.BearingElement6DoF(n=3, kxx=183.9e6, kyy=200.4e6, cxx=3e3)
+    bearing1 = rs.BearingElement(n=0, kxx=183.9e6, kyy=200.4e6, cxx=3e3)
+    bearing2 = rs.BearingElement(n=3, kxx=183.9e6, kyy=200.4e6, cxx=3e3)
 
     rotor1 = rs.Rotor(
         shaft1,
@@ -592,7 +591,7 @@ def two_shaft_rotor_example():
     L2 = [0.3, 5, 0.1]
     d2 = [0.15, 0.15, 0.15]
     shaft2 = [
-        rs.ShaftElement6DoF(
+        rs.ShaftElement(
             L=L2[i],
             idl=0.0,
             odl=d2[i],
@@ -615,10 +614,10 @@ def two_shaft_rotor_example():
         pressure_angle=pressure_angle,
     )
 
-    turbine = rs.DiskElement6DoF(n=2, m=7.45, Id=0.0745, Ip=0.149)
+    turbine = rs.DiskElement(n=2, m=7.45, Id=0.0745, Ip=0.149)
 
-    bearing3 = rs.BearingElement6DoF(n=1, kxx=10.1e6, kyy=41.6e6, cxx=3e3)
-    bearing4 = rs.BearingElement6DoF(n=3, kxx=10.1e6, kyy=41.6e6, cxx=3e3)
+    bearing3 = rs.BearingElement(n=1, kxx=10.1e6, kyy=41.6e6, cxx=3e3)
+    bearing4 = rs.BearingElement(n=3, kxx=10.1e6, kyy=41.6e6, cxx=3e3)
 
     rotor2 = rs.Rotor(
         shaft2,
