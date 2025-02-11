@@ -2182,7 +2182,7 @@ class Rotor(object):
 
                 elm.e0[idx_dofs] = err
                 elm.control_signal[idx_dofs].append(signal_pid)
-                elm.magnetic_force[idx_dofs].append(magnetic_force[value_dofs])
+                elm.magnetic_force[idx_dofs].append(magnetic_force[value_dofs]*np.sin(np.pi/4))
 
         return magnetic_force
 
