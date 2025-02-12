@@ -29,8 +29,12 @@ class GearElement(DiskElement):
         Diametral moment of inertia.
     Ip : float, pint.Quantity
         Polar moment of inertia.
+    base_diameter : float, pint.Quantity
+        Base diameter of the gear (m).
+        If given pitch_diameter is not necessary.
     pitch_diameter : float, pint.Quantity
         Pitch diameter of the gear (m).
+        If given base_diameter is not necessary.
     pressure_angle : float, pint.Quantity, optional
         The pressure angle of the gear (rad).
         Default is 20 deg (converted to rad).
@@ -65,7 +69,8 @@ class GearElement(DiskElement):
         m,
         Id,
         Ip,
-        pitch_diameter,
+        pitch_diameter=None,
+        base_diameter=None,
         pressure_angle=None,
         tag=None,
         scale_factor=1.0,
@@ -75,7 +80,15 @@ class GearElement(DiskElement):
             pressure_angle = Q_(20, "deg")
 
         self.pressure_angle = float(pressure_angle)
-        self.base_radius = float(pitch_diameter) * np.cos(self.pressure_angle) / 2
+
+        if base_diameter:
+            self.base_radius = float(base_diameter) / 2
+        elif pitch_diameter:
+            self.base_radius = float(pitch_diameter) * np.cos(self.pressure_angle) / 2
+        else:
+            raise TypeError(
+                "At least one of the following must be informed for GearElement: base_diameter or pitch_diameter"
+            )
 
         super().__init__(n, m, Id, Ip, tag, scale_factor, color)
 
@@ -163,7 +176,17 @@ class GearElement(DiskElement):
         if pressure_angle is None:
             pressure_angle = Q_(20, "deg")
 
-        return cls(n, m, Id, Ip, o_d, pressure_angle, tag, scale_factor, color)
+        return cls(
+            n,
+            m,
+            Id,
+            Ip,
+            pitch_diameter=o_d,
+            pressure_angle=pressure_angle,
+            tag=tag,
+            scale_factor=scale_factor,
+            color=color,
+        )
 
     def _patch(self, position, fig):
         """Gear element patch.
@@ -184,8 +207,8 @@ class GearElement(DiskElement):
         """
 
         zpos, ypos, yc_pos, scale_factor = position
-        scale_factor *= 1.3
-        radius = self.base_radius * 1.1 + 0.05
+        scale_factor *= 2
+        radius = min(self.base_radius * 1.1 + 0.05, 1)
 
         z_upper = [
             zpos + scale_factor / 25,
