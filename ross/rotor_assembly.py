@@ -2248,13 +2248,6 @@ class Rotor(object):
             if isinstance(disk, GearElement)
         ]
         
-        if len(gear_elements):
-            meshing_force = (
-                lambda time_step, speed,  
-
-            )
-
-
         # Consider any additional RHS function (extra forces)
         add_to_RHS = kwargs.get("add_to_RHS")
 

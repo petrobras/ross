@@ -3,7 +3,7 @@ from re import search
 from copy import deepcopy as copy
 
 import ross as rs
-from ross.gear_element import GearElement
+from ross.gear_element import GearElement, Mesh
 from ross.rotor_assembly import Rotor
 
 __all__ = ["MultiRotor"]
@@ -573,8 +573,6 @@ def two_shaft_rotor_example():
     gear1 = rs.GearElement(
         n=4,
         m=726.4,
-        Id=56.95,
-        Ip=113.9,
         pressure_angle=pressure_angle,
     )
 
@@ -608,9 +606,6 @@ def two_shaft_rotor_example():
     gear2 = rs.GearElement(
         n=0,
         m=5,
-        Id=0.002,
-        Ip=0.004,
-        pitch_diameter=pitch_diameter,
         pressure_angle=pressure_angle,
     )
 
@@ -638,3 +633,6 @@ def two_shaft_rotor_example():
         orientation_angle=0.0,
         position="below",
     )
+
+if __name__ == '__main__':
+    two_shaft_rotor_example()

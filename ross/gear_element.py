@@ -15,7 +15,7 @@ import scipy as sp
 from ross.disk_element import DiskElement
 
 
-__all__ = ["GearElement"]
+__all__ = ["GearElement", "Meshing"]
 
 
 class GearElement(DiskElement):
@@ -71,8 +71,6 @@ class GearElement(DiskElement):
         self,
         n,
         m,
-        Id,
-        Ip,
         module,
         n_tooth,
         width,
@@ -97,14 +95,15 @@ class GearElement(DiskElement):
         self.c_: float = clearance_coeff #[-]
         self.pitch_diameter: float = module * n_tooth #[m]
 
+        self.Ip = np.pi/2 * ((self.pitch_diameter/2)**4 - self.r_shaft**4)
+        self.Id = np.pi/4 * ((self.pitch_diameter/2)**4 - self.r_shaft**4)
+
         self.material: Material = material
         self.geometry: GearGeometry = GearGeometry(self)
         self.stiffness: GearStiffness = GearStiffness(self)
 
-        super().__init__(n, m, Id, Ip, tag, scale_factor, color)
+        super().__init__(n, m, self.Id, self.Ip, tag, scale_factor, color)
 
-        
-        
     @classmethod
     def from_geometry(
         cls,
@@ -271,6 +270,46 @@ class GearElement(DiskElement):
         )
 
         return fig
+
+    def K(self, frequency, time):
+        """Stiffness matrix for an instance of a disk element.
+
+        This method will return the stiffness matrix for an instance of a disk
+        element.
+
+        Returns
+        -------
+        K : np.ndarray
+            A matrix of floats containing the values of the stiffness matrix.
+
+        Examples
+        --------
+        >>> disk = disk_example()
+        >>> disk.K().round(2)
+        array([[0., 0., 0., 0., 0., 0.],
+               [0., 0., 0., 0., 0., 0.],
+               [0., 0., 0., 0., 0., 0.],
+               [0., 0., 0., 0., 0., 0.],
+               [0., 0., 0., 0., 0., 0.],
+               [0., 0., 0., 0., 0., 0.]])
+        """
+        pressure_angle = self.gearInput.pressure_angle
+
+        
+        Keq, _, _ = self.mesh(self, time)
+
+        Kxx, _, _ = np.cos(pressure_angle) * self.mesh(self, time)
+        Kyy, _, _ = np.sin(pressure_angle) * self.mesh(self, time)
+
+        K = np.array([  [Kxx, 0., 0., 0., 0., 0.],
+                        [0., Kyy, 0., 0., 0., 0.],
+                        [0., 0., 0., 0., 0., 0.],
+                        [0., 0., 0., 0., 0., 0.],
+                        [0., 0., 0., 0., 0., 0.],
+                        [0., 0., 0., 0., 0., 0.]])
+        
+        return K
+
 
 class GearGeometry:
 
@@ -1408,6 +1447,7 @@ class Mesh:
             stiffnessMesh1, d_tau_pinion1, d_tau_gear1 = self.time_equivalent_stiffness(t)
             
             return stiffnessMesh1, np.nan, stiffnessMesh1
+        
 
 def gearGeometryExample() -> None:
     gear1 = GearElement(21, 12, 12, 12, 2e-3, 55, 2e-2)
