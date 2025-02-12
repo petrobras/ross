@@ -243,7 +243,34 @@ class MultiRotor(Rotor):
 
         return global_matrix
 
-    def _check_speed(self, node, omega):
+    def _unbalance_force(self, node, magnitude, phase, omega):
+        """Calculate unbalance forces.
+
+        This is an auxiliary function the calculate unbalance forces. It takes the
+        force magnitude and phase and generate an array with complex values of forces
+        on each degree degree of freedom of the given node.
+
+        Parameters
+        ----------
+        node : int
+            Node where the unbalance is applied.
+        magnitude : float
+            Unbalance magnitude (kg.m)
+        phase : float
+            Unbalance phase (rad)
+        omega : list, float
+            Array with the desired range of frequencies
+
+        Returns
+        -------
+        F0 : list
+            Unbalance force in each degree of freedom for each value in omega
+        """
+        speed = self.check_speed(node, omega)
+
+        return super()._unbalance_force(node, magnitude, phase, speed)
+
+    def check_speed(self, node, omega):
         """Adjusts the speed for the specified node based on the rotor configuration.
 
         This method checks if the given node belongs to the driven rotor.
@@ -270,36 +297,9 @@ class MultiRotor(Rotor):
             rotor = self.rotors[1]
 
         if isinstance(rotor, MultiRotor):
-            return rotor._check_speed(node, speed)
+            return rotor.check_speed(node, speed)
 
         return speed
-
-    def _unbalance_force(self, node, magnitude, phase, omega):
-        """Calculate unbalance forces.
-
-        This is an auxiliary function the calculate unbalance forces. It takes the
-        force magnitude and phase and generate an array with complex values of forces
-        on each degree degree of freedom of the given node.
-
-        Parameters
-        ----------
-        node : int
-            Node where the unbalance is applied.
-        magnitude : float
-            Unbalance magnitude (kg.m)
-        phase : float
-            Unbalance phase (rad)
-        omega : list, float
-            Array with the desired range of frequencies
-
-        Returns
-        -------
-        F0 : list
-            Unbalance force in each degree of freedom for each value in omega
-        """
-        speed = self._check_speed(node, omega)
-
-        return super()._unbalance_force(node, magnitude, phase, speed)
 
     def coupling_matrix(self):
         """Coupling matrix of two coupled gears.
