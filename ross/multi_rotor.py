@@ -313,10 +313,10 @@ class MultiRotor(Rotor):
         --------
         >>> multi_rotor = two_shaft_rotor_example()
         >>> multi_rotor.coupling_matrix()[:4, :4]
-        array([[ 0.14644661, -0.35355339,  0.        ,  0.        ],
-               [-0.35355339,  0.85355339,  0.        ,  0.        ],
-               [ 0.        ,  0.        ,  0.        ,  0.        ],
-               [ 0.        ,  0.        ,  0.        ,  0.        ]])
+        array([[0.14644661, 0.35355339, 0.        , 0.        ],
+               [0.35355339, 0.85355339, 0.        , 0.        ],
+               [0.        , 0.        , 0.        , 0.        ],
+               [0.        , 0.        , 0.        , 0.        ]])
         """
         r1 = self.gears[0].base_radius
         r2 = self.gears[1].base_radius
