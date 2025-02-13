@@ -15,7 +15,7 @@ import scipy as sp
 from ross.disk_element import DiskElement
 
 
-__all__ = ["GearElement", "Meshing"]
+__all__ = ["GearElement", "Mesh"]
 
 
 class GearElement(DiskElement):
@@ -1318,10 +1318,6 @@ class Mesh:
         self.gearOutput = gearOutput
 
         eta = gearOutput.n_tooth / gearInput.n_tooth # Gear ratio 
-
-        self.gearInputSpeed = gearInputSpeed # pinion speed [rad/sec] 
-        self.gearOutputSpeed = - gearInputSpeed/ eta # gear speed [rad/sec]
-        self.tm = 2 * np.pi / (self.gearInputSpeed * self.gearInput.n_tooth) # Gearmesh period [seconds/engagement]
         self.kh = GearStiffness.kh(gearInput, gearOutput)
         self.cr = self.contact_ratio(self.gearInput, self.gearOutput)
         self.ctm = self.cr * self.tm # [seconds/tooth] how much time each tooth remains in contact
@@ -1404,7 +1400,7 @@ class Mesh:
 
         return k_t, dTauGearInput, dTauGearOutput
     
-    def mesh(self, t):
+    def mesh(self, t, gearInputSpeed):
         """
         Calculate the time-varying meshing stiffness of a gear pair.
 
@@ -1433,6 +1429,10 @@ class Mesh:
         - The calculation considers the periodic nature of meshing and the contact ratio (cr) of the gear pair.
         - The stiffness contribution varies depending on whether one or two pairs of teeth are in contact.
         """
+
+        self.gearInputSpeed = gearInputSpeed # pinion speed [rad/sec] 
+        self.gearOutputSpeed = - gearInputSpeed/ self.eta # gear speed [rad/sec]
+        self.tm = 2 * np.pi / (self.gearInputSpeed * self.gearInput.n_tooth) # Gearmesh period [seconds/engagement]
 
         tm = self.tm
         t = t - t // tm * tm

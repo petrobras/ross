@@ -109,15 +109,11 @@ class MultiRotor(Rotor):
         driving_rotor,
         driven_rotor,
         coupled_nodes,
-        gear_ratio,
-        gear_mesh_stiffness,
         orientation_angle=0.0,
         position="above",
         tag=None,
     ):
         self.rotors = [driving_rotor, driven_rotor]
-        self.gear_ratio = gear_ratio
-        self.gear_mesh_stiffness = gear_mesh_stiffness
         self.orientation_angle = float(orientation_angle)
 
         if driving_rotor.number_dof != 6 or driven_rotor.number_dof != 6:
@@ -136,11 +132,15 @@ class MultiRotor(Rotor):
             for elm in R2.disk_elements
             if elm.n == coupled_nodes[1] and type(elm) == GearElement
         ]
+
         if len(gear_1) == 0 or len(gear_2) == 0:
             raise TypeError("Each rotor needs a GearElement in the coupled nodes!")
         else:
             gear_1 = gear_1[0]
             gear_2 = gear_2[0]
+
+        self.meshing_gears = Mesh(gear_1, gear_2, gearInputSpeed=None)
+        self.gear_ratio = self.meshing_gear.eta
 
         self.gears = [gear_1, gear_2]
 
@@ -381,7 +381,7 @@ class MultiRotor(Rotor):
                 self.rotors[1].M(frequency * self.gear_ratio, synchronous),
             )
 
-    def K(self, frequency, ignore=[]):
+    def K(self, frequency, time, ignore=[]):
         """Stiffness matrix for a multi-rotor.
 
         Parameters
@@ -415,7 +415,7 @@ class MultiRotor(Rotor):
         dofs_2 = self.gears[1].dof_global_index.values()
         dofs = [*dofs_1, *dofs_2]
 
-        K0[np.ix_(dofs, dofs)] += self.coupling_matrix() * self.gear_mesh_stiffness
+        K0[np.ix_(dofs, dofs)] += self.coupling_matrix() * self.meshing_gears.mesh(frequency, time)
 
         return K0
 
