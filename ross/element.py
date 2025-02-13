@@ -4,6 +4,7 @@ from collections import namedtuple
 
 import pandas as pd
 import toml
+import re
 
 
 class Element(ABC):
@@ -251,3 +252,39 @@ class Element(ABC):
         local_index = dof_tuple(**dof_mapping)
 
         return local_index
+
+    def get_class_name_prefix(self, index=None):
+        """Extract prefix of the class name preceding 'Element',
+        insert spaces before uppercase letters, and append an index
+        number at the end.
+
+        Parameters
+        ----------
+        index : int, optional
+            The index number to append at the end of the resulting string.
+            Default is None.
+
+        Returns
+        -------
+        prefix : str
+            The processed class name prefix.
+
+        Examples
+        --------
+        >>> # Example using BearingElement
+        >>> from ross.bearing_seal_element import bearing_example
+        >>> bearing = bearing_example()
+        >>> bearing.get_class_name_prefix()
+        'Bearing'
+        """
+        class_name = self.__class__.__name__
+
+        if "Shaft" in class_name:
+            prefix = "Shaft Element"
+        else:
+            prefix = re.sub(r"(?<!^)(?=[A-Z])", " ", class_name.split("Element")[0])
+
+        if index is None:
+            return prefix
+        else:
+            return f"{prefix} {index}"
