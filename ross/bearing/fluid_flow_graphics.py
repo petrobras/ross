@@ -33,7 +33,7 @@ def plot_eccentricity(fluid_flow_object, z=0, fig=None, scale_factor=1.0, **kwar
 
     Examples
     --------
-    >>> from ross.fluid_flow.fluid_flow import fluid_flow_example
+    >>> from ross.bearing.fluid_flow import fluid_flow_example
     >>> my_fluid_flow = fluid_flow_example()
     >>> fig = plot_eccentricity(my_fluid_flow, z=int(my_fluid_flow.nz/2))
     >>> # to show the plots you can use:
@@ -166,7 +166,7 @@ def plot_pressure_z(fluid_flow_object, theta=0, fig=None, **kwargs):
 
     Examples
     --------
-    >>> from ross.fluid_flow.fluid_flow import fluid_flow_example
+    >>> from ross.bearing.fluid_flow import fluid_flow_example
     >>> my_fluid_flow = fluid_flow_example()
     >>> my_fluid_flow.calculate_pressure_matrix_numerical() # doctest: +ELLIPSIS
     array([[...
@@ -254,7 +254,7 @@ def plot_shape(fluid_flow_object, theta=0, fig=None, **kwargs):
 
     Examples
     --------
-    >>> from ross.fluid_flow.fluid_flow import fluid_flow_example
+    >>> from ross.bearing.fluid_flow import fluid_flow_example
     >>> my_fluid_flow = fluid_flow_example()
     >>> fig = plot_shape(my_fluid_flow, theta=int(my_fluid_flow.ntheta/2))
     >>> # to show the plots you can use:
@@ -325,7 +325,7 @@ def plot_pressure_theta(fluid_flow_object, z=0, fig=None, **kwargs):
 
     Examples
     --------
-    >>> from ross.fluid_flow.fluid_flow import fluid_flow_example
+    >>> from ross.bearing.fluid_flow import fluid_flow_example
     >>> my_fluid_flow = fluid_flow_example()
     >>> my_fluid_flow.calculate_pressure_matrix_numerical() # doctest: +ELLIPSIS
     array([[...
@@ -414,7 +414,7 @@ def plot_pressure_theta_cylindrical(
 
     Examples
     --------
-    >>> from ross.fluid_flow.fluid_flow import fluid_flow_example
+    >>> from ross.bearing.fluid_flow import fluid_flow_example
     >>> my_fluid_flow = fluid_flow_example()
     >>> my_fluid_flow.calculate_pressure_matrix_numerical() # doctest: +ELLIPSIS
     array([[...
@@ -522,7 +522,7 @@ def plot_pressure_surface(fluid_flow_object, fig=None, **kwargs):
 
     Examples
     --------
-    >>> from ross.fluid_flow.fluid_flow import fluid_flow_example
+    >>> from ross.bearing.fluid_flow import fluid_flow_example
     >>> my_fluid_flow = fluid_flow_example()
     >>> my_fluid_flow.calculate_pressure_matrix_numerical() # doctest: +ELLIPSIS
     array([[...

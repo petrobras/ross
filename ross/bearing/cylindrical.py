@@ -6,7 +6,7 @@ from ross.bearing_seal_element import BearingElement
 from ross.units import Q_, check_units
 from ross.plotly_theme import tableau_colors
 from scipy.optimize import curve_fit, minimize
-from ross.fluid_flow.lubricants import lubricants_dict
+from ross.bearing.lubricants import lubricants_dict
 
 from plotly import graph_objects as go
 from plotly import figure_factory as ff
@@ -138,7 +138,7 @@ class THDCylindrical(BearingElement):
 
     Examples
     --------
-    >>> from ross.fluid_flow.cylindrical import cylindrical_bearing_example
+    >>> from ross.bearing.cylindrical import cylindrical_bearing_example
     >>> bearing = cylindrical_bearing_example()
     >>> bearing.equilibrium_pos
     array([ 0.68733194, -0.79394211])

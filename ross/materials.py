@@ -10,8 +10,9 @@ import numpy as np
 import toml
 
 from .units import check_units
+from ross.units import Q_
 
-__all__ = ["Material", "steel"]
+__all__ = ["Material", "steel", "materials_cfd"]
 
 ROSS_PATH = Path(__file__).parent
 AVAILABLE_MATERIALS_PATH = ROSS_PATH / "available_materials.toml"
@@ -281,3 +282,16 @@ class Material:
 
 
 steel = Material(name="Steel", rho=7810, E=211e9, G_s=81.2e9)
+
+materials_cfd = {
+    "steel": {
+        "density": Q_(7850, "kg/m**3").to_base_units().m,
+        "specific_heat": Q_(434, "J/(kg*degC)").to_base_units().m,
+        "thermal_conductivity": Q_(60.5, "W/(m*degK)").to_base_units().m,
+    },
+    "brass": {
+        "density": Q_(8600, "kg/m**3").to_base_units().m,
+        "specific_heat": Q_(380, "J/(kg*degC)").to_base_units().m,
+        "thermal_conductivity": Q_(109, "W/(m*degK)").to_base_units().m,
+    },
+}
