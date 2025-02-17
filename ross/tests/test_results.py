@@ -8,6 +8,7 @@ from numpy.testing import assert_allclose, assert_almost_equal, assert_equal
 from ross import Q_, Probe
 from ross.results import *
 from ross.rotor_assembly import *
+from ross.utils import equal_dicts
 
 
 @pytest.fixture
@@ -16,7 +17,7 @@ def rotor1():
 
 
 @pytest.fixture
-def rotor2():
+def rotor_amb():
     return rotor_amb_example()
 
 
@@ -70,25 +71,22 @@ def test_save_load_modal(rotor1):
     )
 
 
-def test_save_load_sensitivityresponse(rotor2):
-    speed_range = np.linspace(0, 1000, 11)
-    compute_sensitivity_at = {"Bearing 0": {"inp": 9, "out": 9}}
-    response = rotor2.run_amb_sensitivity(
-        compute_sensitivity_at=compute_sensitivity_at, speed_range=speed_range
+def test_save_load_sensitivity(rotor_amb):
+    result = rotor_amb.run_amb_sensitivity(
+        speed=1200, t_max=5, dt=0.001, disturbance_amplitude=1
     )
 
-    file_amb = Path(tempdir) / "frf_amb.toml"
+    file_amb = Path(tempdir) / "amb_sensitivities.toml"
 
-    response.save(file_amb)
-    response_load = SensitivityResults.load(file_amb)
+    result.save(file_amb)
+    result_load = SensitivityResults.load(file_amb)
+    compare_results = equal_dicts(vars(result), vars(result_load))
 
-    assert response_load.compute_sensitivity_at == response.compute_sensitivity_at
-    assert response_load.max_abs_sensitivities == response.max_abs_sensitivities
-    assert response_load.number_dof == response.number_dof
-    assert np.all(
-        response_load.sensitivities["Bearing 0"] == response.sensitivities["Bearing 0"]
-    )
-    assert np.all(response_load.speed_range == response.speed_range)
+    # Show what is different between results
+    if not compare_results[0]:
+        print(f"The results are different: {compare_results[1]}")
+
+    assert compare_results[0]
 
 
 def test_save_load_freqresponse(rotor1):

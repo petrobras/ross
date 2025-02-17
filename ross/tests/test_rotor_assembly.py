@@ -2682,133 +2682,252 @@ def test_amb_controller():
 
 
 def test_compute_sensitivity():
-    # Successful case where the sensitivity is computed for only one magnetic bearing
+    # Computing the sensitivities
     rotor = rotor_amb_example()
-    speed_range = np.linspace(0, 100 * 2 * np.pi, 5)
-    compute_sensitivity_at = {"Bearing 0": {"inp": 27 * 4 + 1, "out": 12 * 4 + 1}}
-
-    frequency_response_result = rotor.run_freq_response(speed_range=speed_range)
-    sensitivity_results = rotor.run_amb_sensitivity(
-        compute_sensitivity_at=compute_sensitivity_at,
-        frequency_response_result=frequency_response_result,
+    result = rotor.run_amb_sensitivity(
+        speed=1200, t_max=5, dt=0.001, disturbance_amplitude=1
     )
-    fig = sensitivity_results.plot()
 
-    assert sensitivity_results.compute_sensitivity_at == compute_sensitivity_at
-
-    assert_almost_equal(
-        sensitivity_results.max_abs_sensitivities["Bearing 0"],
-        1.000014067705469,
+    # Getting the plots
+    fig_sensitivities = result.plot(
+        frequency_units="Hz",
+        phase_unit="degree",
+        magnitude_scale="decibel",
+        xaxis_type="log",
     )
+    fig_run_time = result.plot_run_time_results()
+
+    # Checking the results
     assert_allclose(
-        sensitivity_results.sensitivities["Bearing 0"],
+        result.sensitivities_frequencies[0:5],
+        np.array([0.0, 0.2, 0.4, 0.6, 0.8]),
+    )
+
+    assert_equal(result.number_dof, 6)
+
+    assert_allclose(
+        result.sensitivity_run_time_results["t"][0:5],
+        np.array([0.0, 0.001, 0.002, 0.003, 0.004]),
+    )
+
+    assert_allclose(result.max_abs_sensitivities["Bearing 0"]["x"], 1.2119599621437027)
+    assert_allclose(result.max_abs_sensitivities["Bearing 0"]["y"], 1.2119928743521797)
+    assert_allclose(result.max_abs_sensitivities["Bearing 1"]["x"], 1.314234139503943)
+    assert_allclose(result.max_abs_sensitivities["Bearing 1"]["y"], 1.3134105330582597)
+
+    assert_allclose(
+        result.sensitivities_abs["Bearing 0"]["x"][0:5],
         np.array(
             [
-                0.99976988 - 1.04237137e-17j,
-                1.00001258 - 1.72649485e-03j,
-                1.000003 - 9.60472985e-04j,
-                1.00000045 - 7.83691899e-04j,
-                0.99998009 - 1.57789150e-03j,
+                0.9883760486,
+                0.9982456745690073,
+                0.9982270940638911,
+                0.9981957600548607,
+                0.9981511889752995,
+            ]
+        ),
+    )
+
+    assert_allclose(
+        result.sensitivities_abs["Bearing 0"]["y"][0:5],
+        np.array(
+            [
+                0.988017155,
+                0.9978338763301414,
+                0.9978136090832413,
+                0.9977794292141084,
+                0.9977307989250374,
+            ]
+        ),
+    )
+
+    assert_allclose(
+        result.sensitivities_abs["Bearing 1"]["x"][0:5],
+        np.array(
+            [
+                0.987790366,
+                0.9975472335527478,
+                0.9975240538133789,
+                0.9974850281986164,
+                0.9974296332332683,
+            ]
+        ),
+    )
+
+    assert_allclose(
+        result.sensitivities_abs["Bearing 1"]["y"][0:5],
+        np.array(
+            [
+                0.9889398554,
+                0.9986625293793935,
+                0.9986429157954464,
+                0.9986098929664428,
+                0.9985630287097683,
+            ]
+        ),
+    )
+
+    assert_allclose(
+        result.sensitivities_phase["Bearing 0"]["x"][0:5],
+        np.array(
+            [
+                0.0,
+                -0.0025150822196298734,
+                -0.005085650162873036,
+                -0.0076888662820187295,
+                -0.010352393290516248,
+            ]
+        ),
+    )
+
+    assert_allclose(
+        result.sensitivities_phase["Bearing 0"]["y"][0:5],
+        np.array(
+            [
+                0.0,
+                -0.002518810512694276,
+                -0.005093047763408985,
+                -0.007700063657938908,
+                -0.010367560886349172,
+            ]
+        ),
+    )
+
+    assert_allclose(
+        result.sensitivities_phase["Bearing 1"]["x"][0:5],
+        np.array(
+            [
+                0.0,
+                -0.0024925382888705905,
+                -0.005036117190485316,
+                -0.007603794115590629,
+                -0.0102183833610238,
+            ]
+        ),
+    )
+
+    assert_allclose(
+        result.sensitivities_phase["Bearing 1"]["y"][0:5],
+        np.array(
+            [
+                0.0,
+                -0.0024869729134451377,
+                -0.005024789378314054,
+                -0.0075865814346599645,
+                -0.010195061367001441,
+            ]
+        ),
+    )
+
+    assert_equal(result.sensitivity_compute_dofs["Bearing 0"]["x"], 72)
+    assert_equal(result.sensitivity_compute_dofs["Bearing 0"]["y"], 73)
+    assert_equal(result.sensitivity_compute_dofs["Bearing 1"]["x"], 258)
+    assert_equal(result.sensitivity_compute_dofs["Bearing 1"]["y"], 259)
+
+    assert_allclose(
+        result.sensitivity_run_time_results["Bearing 0"]["x"]["excitation_signal"][0:5],
+        np.array([0.0, 1.0, 0.0, 0.0, 0.0]),
+    )
+    assert_allclose(
+        result.sensitivity_run_time_results["Bearing 0"]["x"]["disturbed_signal"][0:5],
+        np.array(
+            [
+                0.0,
+                1.0,
+                -0.0008667838833187341,
+                -0.00223996982786251,
+                -0.0027057605670893466,
             ]
         ),
     )
     assert_allclose(
-        fig.data[1]["y"],
+        result.sensitivity_run_time_results["Bearing 0"]["x"]["sensor_signal"][0:5],
         np.array(
             [
-                -1.04261130e-17,
-                -1.72647142e-03,
-                -9.60469806e-04,
-                -7.83691387e-04,
-                -1.57792161e-03,
-            ]
-        ),
-        atol=1e-6,
-    )
-    assert_allclose(
-        fig.data[0]["y"],
-        np.array([0.99976988, 1.00001407, 1.00000346, 1.00000076, 0.99998133]),
-    )
-
-    # Successful case where the sensitivity is computed for only one magnetic bearing but the frequency response is not
-    # provided
-    sensitivity_results = rotor.run_amb_sensitivity(
-        compute_sensitivity_at=compute_sensitivity_at, speed_range=speed_range
-    )
-    fig = sensitivity_results.plot()
-
-    assert sensitivity_results.compute_sensitivity_at == compute_sensitivity_at
-
-    assert_almost_equal(
-        sensitivity_results.max_abs_sensitivities["Bearing 0"],
-        1.000014067705469,
-    )
-    assert_allclose(
-        sensitivity_results.sensitivities["Bearing 0"],
-        np.array(
-            [
-                0.99976988 - 1.04237137e-17j,
-                1.00001258 - 1.72649485e-03j,
-                1.000003 - 9.60472985e-04j,
-                1.00000045 - 7.83691899e-04j,
-                0.99998009 - 1.57789150e-03j,
+                0.0,
+                0.0,
+                -0.0008667838833187341,
+                -0.00223996982786251,
+                -0.0027057605670893466,
             ]
         ),
     )
+
+    # Checking time data plots (Bearing 0 - x axis)
+    # x - Sensor signal (time)
     assert_allclose(
-        fig.data[1]["y"],
+        fig_run_time.data[0]["x"][0:5],
+        np.array([0.0, 0.001, 0.002, 0.003, 0.004]),
+        atol=1e-8,
+    )
+
+    # y - Sensor signal
+    assert_allclose(
+        fig_run_time.data[0]["y"][0:5],
+        np.array([0.0, 0.0, -0.00086678, -0.00223997, -0.00270576]),
+        atol=1e-8,
+    )
+
+    # x - Excitation signal (time)
+    assert_allclose(
+        fig_run_time.data[1]["x"][0:5],
+        np.array([0.0, 0.001, 0.002, 0.003, 0.004]),
+        atol=1e-8,
+    )
+
+    # y - Excitation signal
+    assert_allclose(
+        fig_run_time.data[1]["y"][0:5], np.array([0.0, 1.0, 0.0, 0.0, 0.0]), atol=1e-8
+    )
+
+    # x - Disturbed signal (time)
+    assert_allclose(
+        fig_run_time.data[2]["x"][0:5],
+        np.array([0.0, 0.001, 0.002, 0.003, 0.004]),
+        atol=1e-8,
+    )
+
+    # y - Disturbed signal
+    assert_allclose(
+        fig_run_time.data[2]["y"][0:5],
         np.array(
             [
-                -1.04261130e-17,
-                -1.72647142e-03,
-                -9.60469806e-04,
-                -7.83691387e-04,
-                -1.57792161e-03,
+                0.00000000e00,
+                1.00000000e00,
+                -8.66783883e-04,
+                -2.23996983e-03,
+                -2.70576057e-03,
             ]
         ),
-        atol=1e-6,
+        atol=1e-8,
     )
+
+    # Checking sensitivities data plots (Bearing 0 - x axis)
+
+    # y - Sensitivity magnitude
     assert_allclose(
-        fig.data[0]["y"],
-        np.array([0.99976988, 1.00001407, 1.00000346, 1.00000076, 0.99998133]),
+        fig_sensitivities.data[0]["y"][0:5],
+        np.array([-0.10155575, -0.01525126, -0.01541293, -0.01568558, -0.01607343]),
+        atol=1e-8,
     )
 
-    # Failure case where neither speed_range nor frequency response are provided.
-    with pytest.raises(RuntimeError) as excinfo:
-        compute_sensitivity_at = {"Bearing 0": {"inp": 27 * 4 + 1, "out": 12 * 4 + 1}}
-        rotor.run_amb_sensitivity(compute_sensitivity_at=compute_sensitivity_at)
-
-    assert (
-        str(excinfo.value).replace("'", "")
-        == "In order for the sensitivity to be calculated, it is necessary to provide the frequency response "
-        "(via the frequency_response_result parameter) or the speed range in which it should be computed "
-        "(via the speed_range parameter)."
+    # x - Sensitivity magnitude (frequency)
+    assert_allclose(
+        fig_sensitivities.data[0]["x"][0:5],
+        np.array([0.0, 0.2, 0.4, 0.6, 0.8]),
+        atol=1e-8,
     )
 
-    # Failing case where an invalid tag is provided in the sensitivity calculation.
-    with pytest.raises(KeyError) as excinfo:
-        compute_sensitivity_at = {
-            "Bearing Wrong Tag": {"inp": 27 * 4 + 1, "out": 12 * 4 + 1}
-        }
-        rotor.run_amb_sensitivity(
-            compute_sensitivity_at=compute_sensitivity_at, speed_range=speed_range
-        )
-
-    assert (
-        str(excinfo.value).replace("'", "")
-        == "No AMB found associated with tag Bearing Wrong Tag."
+    # y - Sensitivity phase
+    assert_allclose(
+        fig_sensitivities.data[1]["y"][0:5],
+        np.array([0.0, -0.1441036, -0.29138629, -0.44053959, -0.59314844]),
+        atol=1e-8,
     )
 
-    # Failing case when there are no magnetic bearings on the rotor
-    rotor = rotor_example()
-    compute_sensitivity_at = {"Bearing 0": {"inp": 27 * 4 + 1, "out": 12 * 4 + 1}}
-
-    with pytest.raises(AttributeError) as excinfo:
-        rotor.run_amb_sensitivity(
-            compute_sensitivity_at=compute_sensitivity_at, speed_range=speed_range
-        )
-
-    assert (
-        str(excinfo.value).replace("'", "")
-        == "There are no magnetic bearings in the rotor, so it is not possible to compute sensitivity."
+    # x - Sensitivity phase (frequency)
+    assert_allclose(
+        fig_sensitivities.data[1]["x"][0:5],
+        np.array([0.0, 0.2, 0.4, 0.6, 0.8]),
+        atol=1e-8,
     )
