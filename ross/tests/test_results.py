@@ -8,11 +8,18 @@ from numpy.testing import assert_allclose, assert_almost_equal, assert_equal
 from ross import Q_, Probe
 from ross.results import *
 from ross.rotor_assembly import *
+from ross.rotor_assembly import rotor_amb_example
+from ross.utils import equal_dicts
 
 
 @pytest.fixture
 def rotor1():
     return rotor_example()
+
+
+@pytest.fixture
+def rotor_amb():
+    return rotor_amb_example()
 
 
 def test_save_load_campbell(rotor1):
@@ -143,6 +150,24 @@ def test_save_load_timeresponse(rotor1):
     assert response2.yout.all() == response.yout.all()
     assert response2.xout.all() == response.xout.all()
     assert response2.rotor == response.rotor
+
+
+def test_save_load_sensitivity(rotor_amb):
+    result = rotor_amb.run_amb_sensitivity(
+        speed=1200, t_max=5, dt=0.001, disturbance_amplitude=1
+    )
+
+    file_amb = Path(tempdir) / "amb_sensitivities.toml"
+
+    result.save(file_amb)
+    result_load = SensitivityResults.load(file_amb)
+    compare_results = equal_dicts(vars(result), vars(result_load))
+
+    # Show what is different between results
+    if not compare_results[0]:
+        print(f"The results are different: {compare_results[1]}")
+
+    assert compare_results[0]
 
 
 def test_campbell_plot(rotor1):

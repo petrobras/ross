@@ -2651,3 +2651,283 @@ def test_rotor_conical_frequencies(rotor_conical):
         ]
     )
     assert_allclose(modal.wn, expected_wn, rtol=1e-5)
+
+
+def test_amb_controller():
+    # Test for the magnetic_bearing_controller method.
+    from ross.rotor_assembly import rotor_amb_example
+
+    rotor = rotor_amb_example()
+
+    speed = 1200
+    t = np.linspace(0, 10, 40001)
+    node = [27, 29]
+    mass = [10, 10]
+    probes = [12, 43]
+
+    F = np.zeros((len(t), rotor.ndof))
+    for n, m in zip(node, mass):
+        F[:, 4 * n + 0] = m * np.cos((speed * t))
+        F[:, 4 * n + 1] = (m - 5) * np.sin((speed * t))
+
+    response = rotor.run_time_response(speed, F, t, method="newmark")
+
+    mean_response = []
+    for ii in probes:
+        for jj in range(2):
+            mean_response.append(np.mean(response.yout[:, 4 * ii + jj]))
+    mean_max = np.max(np.array(mean_response))
+
+    assert_allclose(np.array(mean_max), np.array(7.31786978e-07), rtol=1e-6, atol=1e-6)
+
+
+def test_compute_sensitivity():
+    # Computing the sensitivities
+    rotor = rotor_amb_example()
+    result = rotor.run_amb_sensitivity(
+        speed=1200, t_max=5, dt=0.001, disturbance_amplitude=1
+    )
+
+    # Getting the plots
+    fig_sensitivities = result.plot(
+        frequency_units="Hz",
+        phase_unit="degree",
+        magnitude_scale="decibel",
+        xaxis_type="log",
+    )
+    fig_run_time = result.plot_run_time_results()
+
+    # Checking the results
+    assert_allclose(
+        result.sensitivities_frequencies[0:5],
+        np.array([0.0, 0.2, 0.4, 0.6, 0.8]),
+    )
+
+    assert_equal(result.number_dof, 6)
+
+    assert_allclose(
+        result.sensitivity_run_time_results["t"][0:5],
+        np.array([0.0, 0.001, 0.002, 0.003, 0.004]),
+    )
+
+    assert_allclose(result.max_abs_sensitivities["Bearing 0"]["x"], 1.2119599621437027)
+    assert_allclose(result.max_abs_sensitivities["Bearing 0"]["y"], 1.2119928743521797)
+    assert_allclose(result.max_abs_sensitivities["Bearing 1"]["x"], 1.314234139503943)
+    assert_allclose(result.max_abs_sensitivities["Bearing 1"]["y"], 1.3134105330582597)
+
+    assert_allclose(
+        result.sensitivities_abs["Bearing 0"]["x"][0:5],
+        np.array(
+            [
+                0.9883760486,
+                0.9982456745690073,
+                0.9982270940638911,
+                0.9981957600548607,
+                0.9981511889752995,
+            ]
+        ),
+    )
+
+    assert_allclose(
+        result.sensitivities_abs["Bearing 0"]["y"][0:5],
+        np.array(
+            [
+                0.988017155,
+                0.9978338763301414,
+                0.9978136090832413,
+                0.9977794292141084,
+                0.9977307989250374,
+            ]
+        ),
+    )
+
+    assert_allclose(
+        result.sensitivities_abs["Bearing 1"]["x"][0:5],
+        np.array(
+            [
+                0.987790366,
+                0.9975472335527478,
+                0.9975240538133789,
+                0.9974850281986164,
+                0.9974296332332683,
+            ]
+        ),
+    )
+
+    assert_allclose(
+        result.sensitivities_abs["Bearing 1"]["y"][0:5],
+        np.array(
+            [
+                0.9889398554,
+                0.9986625293793935,
+                0.9986429157954464,
+                0.9986098929664428,
+                0.9985630287097683,
+            ]
+        ),
+    )
+
+    assert_allclose(
+        result.sensitivities_phase["Bearing 0"]["x"][0:5],
+        np.array(
+            [
+                0.0,
+                -0.0025150822196298734,
+                -0.005085650162873036,
+                -0.0076888662820187295,
+                -0.010352393290516248,
+            ]
+        ),
+    )
+
+    assert_allclose(
+        result.sensitivities_phase["Bearing 0"]["y"][0:5],
+        np.array(
+            [
+                0.0,
+                -0.002518810512694276,
+                -0.005093047763408985,
+                -0.007700063657938908,
+                -0.010367560886349172,
+            ]
+        ),
+    )
+
+    assert_allclose(
+        result.sensitivities_phase["Bearing 1"]["x"][0:5],
+        np.array(
+            [
+                0.0,
+                -0.0024925382888705905,
+                -0.005036117190485316,
+                -0.007603794115590629,
+                -0.0102183833610238,
+            ]
+        ),
+    )
+
+    assert_allclose(
+        result.sensitivities_phase["Bearing 1"]["y"][0:5],
+        np.array(
+            [
+                0.0,
+                -0.0024869729134451377,
+                -0.005024789378314054,
+                -0.0075865814346599645,
+                -0.010195061367001441,
+            ]
+        ),
+    )
+
+    assert_equal(result.sensitivity_compute_dofs["Bearing 0"]["x"], 72)
+    assert_equal(result.sensitivity_compute_dofs["Bearing 0"]["y"], 73)
+    assert_equal(result.sensitivity_compute_dofs["Bearing 1"]["x"], 258)
+    assert_equal(result.sensitivity_compute_dofs["Bearing 1"]["y"], 259)
+
+    assert_allclose(
+        result.sensitivity_run_time_results["Bearing 0"]["x"]["excitation_signal"][0:5],
+        np.array([0.0, 1.0, 0.0, 0.0, 0.0]),
+    )
+    assert_allclose(
+        result.sensitivity_run_time_results["Bearing 0"]["x"]["disturbed_signal"][0:5],
+        np.array(
+            [
+                0.0,
+                1.0,
+                -0.0008667838833187341,
+                -0.00223996982786251,
+                -0.0027057605670893466,
+            ]
+        ),
+    )
+    assert_allclose(
+        result.sensitivity_run_time_results["Bearing 0"]["x"]["sensor_signal"][0:5],
+        np.array(
+            [
+                0.0,
+                0.0,
+                -0.0008667838833187341,
+                -0.00223996982786251,
+                -0.0027057605670893466,
+            ]
+        ),
+    )
+
+    # Checking time data plots (Bearing 0 - x axis)
+    # x - Sensor signal (time)
+    assert_allclose(
+        fig_run_time.data[0]["x"][0:5],
+        np.array([0.0, 0.001, 0.002, 0.003, 0.004]),
+        atol=1e-8,
+    )
+
+    # y - Sensor signal
+    assert_allclose(
+        fig_run_time.data[0]["y"][0:5],
+        np.array([0.0, 0.0, -0.00086678, -0.00223997, -0.00270576]),
+        atol=1e-8,
+    )
+
+    # x - Excitation signal (time)
+    assert_allclose(
+        fig_run_time.data[1]["x"][0:5],
+        np.array([0.0, 0.001, 0.002, 0.003, 0.004]),
+        atol=1e-8,
+    )
+
+    # y - Excitation signal
+    assert_allclose(
+        fig_run_time.data[1]["y"][0:5], np.array([0.0, 1.0, 0.0, 0.0, 0.0]), atol=1e-8
+    )
+
+    # x - Disturbed signal (time)
+    assert_allclose(
+        fig_run_time.data[2]["x"][0:5],
+        np.array([0.0, 0.001, 0.002, 0.003, 0.004]),
+        atol=1e-8,
+    )
+
+    # y - Disturbed signal
+    assert_allclose(
+        fig_run_time.data[2]["y"][0:5],
+        np.array(
+            [
+                0.00000000e00,
+                1.00000000e00,
+                -8.66783883e-04,
+                -2.23996983e-03,
+                -2.70576057e-03,
+            ]
+        ),
+        atol=1e-8,
+    )
+
+    # Checking sensitivities data plots (Bearing 0 - x axis)
+
+    # y - Sensitivity magnitude
+    assert_allclose(
+        fig_sensitivities.data[0]["y"][0:5],
+        np.array([-0.10155575, -0.01525126, -0.01541293, -0.01568558, -0.01607343]),
+        atol=1e-8,
+    )
+
+    # x - Sensitivity magnitude (frequency)
+    assert_allclose(
+        fig_sensitivities.data[0]["x"][0:5],
+        np.array([0.0, 0.2, 0.4, 0.6, 0.8]),
+        atol=1e-8,
+    )
+
+    # y - Sensitivity phase
+    assert_allclose(
+        fig_sensitivities.data[1]["y"][0:5],
+        np.array([0.0, -0.1441036, -0.29138629, -0.44053959, -0.59314844]),
+        atol=1e-8,
+    )
+
+    # x - Sensitivity phase (frequency)
+    assert_allclose(
+        fig_sensitivities.data[1]["x"][0:5],
+        np.array([0.0, 0.2, 0.4, 0.6, 0.8]),
+        atol=1e-8,
+    )
