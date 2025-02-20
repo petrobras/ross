@@ -72,9 +72,9 @@ class THDCylindrical(BearingElement):
     ^^^^^^^^^^^^^^^^^
     Describes the fluid characteristics.
 
-    lubricant : str
+    lubricant : str, dict
         Lubricant type. Can be:
-        - 'ISOVG46'
+        - 'ISOVG46' (lubricants in ross.bearing.lubricants)
     reference_temperature : float
         Oil reference temperature. The unit is celsius.
     groove_factor : list, numpy array, tuple or float
@@ -234,7 +234,8 @@ class THDCylindrical(BearingElement):
 
         self.oil_flow = self.oil_flow / 60000
 
-        lubricant_properties = lubricants_dict[self.lubricant]
+        # lubricant_properties = lubricants_dict[self.lubricant]
+        lubricant_properties = self.lubricant if isinstance(self.lubricant, dict) else lubricants_dict[self.lubricant]
 
         T_muI = Q_(lubricant_properties["temperature1"], "degK").m_as("degC")
         T_muF = Q_(lubricant_properties["temperature2"], "degK").m_as("degC")
