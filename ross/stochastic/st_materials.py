@@ -99,6 +99,8 @@ class ST_Material:
             E=E,
             G_s=G_s,
             Poisson=Poisson,
+            specific_heat=None,
+            thermal_conductivity=None,
             color=color,
         )
         self.is_random = is_random

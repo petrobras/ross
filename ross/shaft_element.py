@@ -388,6 +388,8 @@ class ShaftElement(Element):
         Young`s modulus (N/m**2):  2.11e+11
         Shear modulus   (N/m**2):  8.12e+10
         Poisson coefficient     :  0.29926108
+        Specific heat   (J/(kg*K)): 0.0
+        Thermal conductivity (W/(m*K)): 0.0
         """
         return (
             f"Element Number:             {self.n}"
