@@ -5,6 +5,7 @@ from collections.abc import Iterable
 from copy import copy, deepcopy
 from itertools import chain, cycle
 from pathlib import Path
+from methodtools import lru_cache
 
 import numpy as np
 import pandas as pd
@@ -53,8 +54,6 @@ from ross.utils import (
     remove_dofs,
     convert_6dof_to_4dof,
 )
-
-from methodtools import lru_cache
 
 __all__ = [
     "Rotor",
