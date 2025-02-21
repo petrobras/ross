@@ -1,8 +1,11 @@
 """Coupling Element module.
 
 This module defines the CouplingElement class which will be used to represent the coupling
-between two rotor shaft, which add mainly stiffness, mass and inertia to the system.
+between two rotor shafts, which add mainly stiffness, mass and inertia to the system.
 """
+
+import inspect
+import toml
 
 import numpy as np
 from plotly import graph_objects as go
@@ -204,6 +207,24 @@ class CouplingElement(ShaftElement):
             f"Ip={self.Ip:{0}.{5}}, "
             f"n={self.n})"
         )
+
+    def save(self, file):
+        signature = inspect.signature(self.__init__)
+        args_list = list(signature.parameters)
+        args = {arg: getattr(self, arg) for arg in args_list}
+
+        try:
+            data = toml.load(file)
+        except FileNotFoundError:
+            data = {}
+
+        data[f"{self.__class__.__name__}_{self.tag}"] = args
+        with open(file, "w") as f:
+            toml.dump(data, f)
+
+    @classmethod
+    def read_toml_data(cls, data):
+        return cls(**data)
 
     def M(self):
         """Mass matrix for an instance of a coupling element.

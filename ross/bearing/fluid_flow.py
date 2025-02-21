@@ -3,8 +3,8 @@ import sys
 import numpy as np
 import scipy as sp
 
-from ross.fluid_flow.fluid_flow_coefficients import find_equilibrium_position
-from ross.fluid_flow.fluid_flow_geometry import (
+from ross.bearing.fluid_flow_coefficients import find_equilibrium_position
+from ross.bearing.fluid_flow_geometry import (
     calculate_attitude_angle,
     calculate_eccentricity_ratio,
     calculate_rotor_load,
@@ -184,8 +184,8 @@ class FluidFlow:
 
     Examples
     --------
-    >>> from ross.fluid_flow import fluid_flow as flow
-    >>> from ross.fluid_flow.fluid_flow_graphics import plot_pressure_theta
+    >>> from ross.bearing import fluid_flow as flow
+    >>> from ross.bearing.fluid_flow_graphics import plot_pressure_theta
     >>> import numpy as np
     >>> nz = 8
     >>> ntheta = 64

@@ -6,7 +6,7 @@ from ross.bearing_seal_element import BearingElement
 from ross.units import Q_, check_units
 from ross.plotly_theme import tableau_colors
 from scipy.optimize import curve_fit, minimize
-from ross.fluid_flow.lubricants import lubricants_dict
+from ross.bearing.lubricants import lubricants_dict
 
 from plotly import graph_objects as go
 from plotly import figure_factory as ff
@@ -72,9 +72,9 @@ class THDCylindrical(BearingElement):
     ^^^^^^^^^^^^^^^^^
     Describes the fluid characteristics.
 
-    lubricant : str
+    lubricant : str, dict
         Lubricant type. Can be:
-        - 'ISOVG46'
+        - 'ISOVG46' (lubricants in ross.bearing.lubricants)
     reference_temperature : float
         Oil reference temperature. The unit is celsius.
     groove_factor : list, numpy array, tuple or float
@@ -138,7 +138,7 @@ class THDCylindrical(BearingElement):
 
     Examples
     --------
-    >>> from ross.fluid_flow.cylindrical import cylindrical_bearing_example
+    >>> from ross.bearing.cylindrical import cylindrical_bearing_example
     >>> bearing = cylindrical_bearing_example()
     >>> bearing.equilibrium_pos
     array([ 0.68733194, -0.79394211])
@@ -234,7 +234,8 @@ class THDCylindrical(BearingElement):
 
         self.oil_flow = self.oil_flow / 60000
 
-        lubricant_properties = lubricants_dict[self.lubricant]
+        # lubricant_properties = lubricants_dict[self.lubricant]
+        lubricant_properties = self.lubricant if isinstance(self.lubricant, dict) else lubricants_dict[self.lubricant]
 
         T_muI = Q_(lubricant_properties["temperature1"], "degK").m_as("degC")
         T_muF = Q_(lubricant_properties["temperature2"], "degK").m_as("degC")
