@@ -425,19 +425,25 @@ class Shape(Results):
 
     def _classify(self):
         size = len(self.vector)
-
-        axial_dofs = np.arange(2, size, self.number_dof)
-        torsional_dofs = np.arange(5, size, self.number_dof)
-
-        nonzero_dofs = np.nonzero(np.abs(self.vector).round(6))[0]
+        N = int(size / self.number_dof)
+        max_dofs = np.argsort(abs(self.vector))[::-1][:N]
 
         self.mode_type = "Lateral"
-        if np.isin(nonzero_dofs, axial_dofs).all():
-            self.mode_type = "Axial"
-            self.color = tableau_colors["orange"]
-        elif np.isin(nonzero_dofs, torsional_dofs).all():
-            self.mode_type = "Torsional"
-            self.color = tableau_colors["green"]
+
+        if len(max_dofs):
+            axial_dofs = np.arange(2, size, self.number_dof)
+            axial_count = list(np.isin(axial_dofs, max_dofs)).count(True)
+
+            torsional_dofs = np.arange(5, size, self.number_dof)
+            torsional_count = list(np.isin(torsional_dofs, max_dofs)).count(True)
+
+            if axial_count > len(max_dofs) - axial_count:
+                self.mode_type = "Axial"
+                self.color = tableau_colors["orange"]
+
+            elif torsional_count > len(max_dofs) - torsional_count:
+                self.mode_type = "Torsional"
+                self.color = tableau_colors["green"]
 
     def _calculate_orbits(self):
         orbits = []
