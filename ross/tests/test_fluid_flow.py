@@ -5,17 +5,17 @@ import pytest
 from numpy.testing import assert_allclose
 from plotly import graph_objects as go
 
-from ross.bearing import fluid_flow as flow
-from ross.bearing.fluid_flow import fluid_flow_example2
-from ross.bearing.fluid_flow_coefficients import (
+from ross.bearings import fluid_flow as flow
+from ross.bearings.fluid_flow import fluid_flow_example2
+from ross.bearings.fluid_flow_coefficients import (
     calculate_oil_film_force,
     calculate_short_damping_matrix,
     calculate_short_stiffness_matrix,
     calculate_stiffness_and_damping_coefficients,
     find_equilibrium_position,
 )
-from ross.bearing.fluid_flow_geometry import move_rotor_center
-from ross.bearing.fluid_flow_graphics import (
+from ross.bearings.fluid_flow_geometry import move_rotor_center
+from ross.bearings.fluid_flow_graphics import (
     plot_eccentricity,
     plot_pressure_surface,
     plot_pressure_theta,
