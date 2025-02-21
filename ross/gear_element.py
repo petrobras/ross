@@ -293,6 +293,18 @@ class GearElement(DiskElement):
                [0., 0., 0., 0., 0., 0.],
                [0., 0., 0., 0., 0., 0.]])
         """
+
+        def t_acc(step, time_step, disp_rep, velc_resp, accl_resp):
+            global AT, speed1
+            AT += time_step
+            
+
+
+            return forces1
+
+# para conseguir acessar o tempo naquele instante
+
+
         pressure_angle = self.gearInput.pressure_angle
 
         

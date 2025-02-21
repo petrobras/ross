@@ -1,102 +1,570 @@
+"""Gear Element module.
+
+This module defines the GearElementTVMS classes which can be used to represent
+gears or gearboxes used to couple different shafts in the MultiRotor class.
+"""
+
 import numpy as np
-import scipy as sp
+from plotly import graph_objects as go
+from ross.units import Q_
+from ross.materials import Material
+from abc import ABC, abstractmethod
 import pandas as pd
-import plotly.graph_objects as go
-import logging
-import traceback
+import scipy as sp
 
-class Gear:
-    """ 
-    A Gear element for evaluating gear teeth stiffness parameters.
 
-    All physical parameters are expected in the S.I and angulars in radians. 
+
+class GearElementTVMS(DiskElement):
+    """A gear element.
+
+    This class creates a gear element from input data of inertia and mass.
 
     Parameters
-    ---------
-    module:
-        Module of the gear.
-    n_tooth:
-        Number of teeth.
-    pressure_angle:
-        The pressure angle of the gear.
-    width:
-        The width of the gear.
-    hub_bore_radius:
-        Hub bore radius of the gear.
-    young:
-        Young modulus of the gear material.
-    poisson:
-        The poisson value of the gear material.
-    disc_points:
-        Discretization points for plotting the gear geometry teeth.
-    addendum_coeff:
-        Addendum coefficient of the gear, it is normalized by the module.
-    clearance_coeff:
-        Clearance coefficient of the gear, it is normalized by the module.
-    
-    Example:
-    -------
-    >>> pinion = Gear(8 / np.pi * 25.4e-3, 19, 20 * np.pi/180, 16e-3,15e-3/2, 200e9, 0.3, 500, 1, 0.25)
+    ----------
+    n: int
+        Node in which the gear will be inserted.
+    m : float, pint.Quantity
+        Mass of the gear element (kg).
+    Id : float, pint.Quantity
+        Diametral moment of inertia.
+    Ip : float, pint.Quantity
+        Polar moment of inertia.
+    module  : float
+        Gear module (m).
+    n_tooth: int
+        Tooth number of the gear. 
+    pressure_angle : float, pint.Quantity, optional
+        The pressure angle of the gear (rad).
+        Default is 20 deg (converted to rad).
+    width: float
+        The width of the spur gear (m)
+    tag : str, optional
+        A tag to name the element.
+        Default is None.
+    scale_factor: float or str, optional
+        The scale factor is used to scale the gear drawing.
+        For gears it is also possible to provide 'mass' as the scale factor.
+        In this case the code will calculate scale factors for each gear based
+        on the gear with the higher mass. Notice that in this case you have to
+        create all gears with the scale_factor='mass'.
+        Default is 1.
+    color : str, optional
+        A color to be used when the element is represented.
+        Default is 'Goldenrod'.
+
+    Examples
+    --------
+    >>> gear = GearElementTVMS(
+    ...        n=0, m=4.67, Id=0.015, Ip=0.030,
+    ...        pitch_diameter=0.187,
+    ...        pressure_angle=Q_(22.5, "deg")
+    ... )
+    >>> gear.pressure_angle # doctest: +ELLIPSIS
+    0.392699...
     """
 
-    def __init__(self,  module: int | float, n_tooth: int | float, pressure_angle: int | float, width: int | float, hub_bore_radius: int |float,
-        young: int | float, poisson: int | float, disc_points: int, addendum_coeff: int | float=1., clearance_coeff: int | float=0.25, ):
-        
-        try:
-            if module <= 0 or n_tooth <= 0 or addendum_coeff <= 0 or clearance_coeff < 0 or disc_points <= 0: 
-                raise ValueError(f"Gear parameters must be positive.")
-            
-            self.m = module # [m]
-            self.N = n_tooth # [1]
-            self.alpha = pressure_angle # [rad]
-            self.L = width # [m]
-            self.r_shaft = hub_bore_radius # [m]
-            self.E = young # [Pa]
-            self.v = poisson # [1] 
-            self.ha_ = addendum_coeff # [1]
-            self.c_ = clearance_coeff # [1]
-            
-            self.G: float = self.E/2/(1+self.v)
+    def __init__(
+        self,
+        n,
+        m,
+        module,
+        n_tooth,
+        width,
+        hub_bore_radius,
+        material: Material = Material(name="Steel", rho=Q_(7.81, 'g/cm**3'), E=211e9, G_s=81.2e9), 
+        pressure_angle=20 * np.pi / 180,
+        addendum_coeff=1,
+        clearance_coeff=0.25,
+        tag=None,
+        scale_factor=1.0,
+        color="Goldenrod",
+    ):
+        if pressure_angle is None:
+            pressure_angle = Q_(20, "deg")
 
-            self._gear_geometry_constants()
-            self.plot_tooth_geometry()
+        self.r_shaft: float = hub_bore_radius # [m]
+        self.module: float = module # [m]
+        self.n_tooth: float = n_tooth # [-]
+        self.pressure_angle: float = float(pressure_angle) #[rad]
+        self.width: float = width # [m]
+        self.ha_: float = addendum_coeff #[-]
+        self.c_: float = clearance_coeff #[-]
+        self.pitch_diameter: float = module * n_tooth #[m]
 
-            self.stiffness = self.gear_stiffness()
+        self.Ip = np.pi/2 * ((self.pitch_diameter/2)**4 - self.r_shaft**4)
+        self.Id = np.pi/4 * ((self.pitch_diameter/2)**4 - self.r_shaft**4)
 
-        except (TypeError, ValueError) as e:  # Catch specific errors
-            error = f'{traceback.format_exc()}'
-            logging.error(error)
-        except Exception as e:  # Catch-all for other exceptions
-            error = f'{traceback.format_exc()}'
-            logging.critical(f"Unexpected error: {error}")
+        self.material: Material = material
+        self.geometry: GearGeometry = GearGeometry(self)
+        self.stiffness: GearStiffness = GearStiffness(self)
 
-    def _gear_geometry_constants(self) -> None:
+        super().__init__(n, m, self.Id, self.Ip, tag, scale_factor, color)
+
+    @classmethod
+    def from_geometry(
+        cls,
+        n,
+        material,
+        width,
+        i_d,
+        o_d,
+        pressure_angle=None,
+        tag=None,
+        scale_factor=1.0,
+        color="Goldenrod",
+    ):
+        """Create a gear element from geometry properties.
+
+        This class method will create a gear element from geometry data.
+        Properties are calculated as per :cite:`friswell2010dynamics`, appendix 1
+        for a hollow cylinder:
+
+        Mass:
+
+        :math:`m = \\rho \\pi w (d_o^2 - d_i^2) / 4`
+
+        Polar moment of inertia:
+
+        :math:`I_p = m (d_o^2 + d_i^2) / 8`
+
+        Diametral moment of inertia:
+
+        :math:`I_d = \\frac{1}{2} I_p + \\frac{1}{12} m w^2`
+
+        Where :math:`\\rho` is the material density, :math:`w` is the gear width,
+        :math:`d_o` is the outer diameter and :math:`d_i` is the inner diameter.
+
+        Parameters
+        ----------
+        n : int
+            Node in which the gear will be inserted.
+        material: ross.Material
+            Gear material.
+        width : float, pint.Quantity
+            The face width of the gear considering that the gear body has the
+            same thickness (m).
+        i_d : float, pint.Quantity
+            Inner diameter (the diameter of the shaft on which the gear is mounted).
+        o_d : float, pint.Quantity
+            Outer pitch diameter (m).
+        pressure_angle : float, pint.Quantity, optional
+            The pressure angle of the gear (rad).
+            Default is 20 deg (converted to rad).
+        tag : str, optional
+            A tag to name the element
+            Default is None
+        scale_factor: float, optional
+            The scale factor is used to scale the gear drawing.
+            Default is 1.
+        color : str, optional
+            A color to be used when the element is represented.
+            Default is 'Goldenrod'.
+
+        Attributes
+        ----------
+        m : float
+            Mass of the gear element.
+        Id : float
+            Diametral moment of inertia.
+        Ip : float
+            Polar moment of inertia
+
+        Examples
+        --------
+        >>> from ross.materials import steel
+        >>> gear = GearElementTVMS.from_geometry(0, steel, 0.07, 0.05, 0.28)
+        >>> gear.base_radius # doctest: +ELLIPSIS
+        0.131556...
+        >>>
         """
-        Initialize geometry constants derived from Gear parameters.
+        m = material.rho * np.pi * width * (o_d**2 - i_d**2) / 4
+        Ip = m * (o_d**2 + i_d**2) / 8
+        Id = 1 / 2 * Ip + 1 / 12 * m * width**2
+
+        if pressure_angle is None:
+            pressure_angle = Q_(20, "deg")
+
+        return cls(n, m, Id, Ip, o_d, pressure_angle, tag, scale_factor, color)
+
+    def _patch(self, position, fig):
+        """Gear element patch.
+
+        Patch that will be used to draw the gear element using plotly library.
+
+        Parameters
+        ----------
+        position : float
+            Position in which the patch will be drawn.
+        fig : plotly.graph_objects.Figure
+            The figure object which traces are added on.
+
+        Returns
+        -------
+        fig : plotly.graph_objects.Figure
+            The figure object which traces are added on.
         """
-        self.r_b: float = 1 / 2 * self.m * self.N * np.cos(self.alpha) # radii of base circle [m] MAOK
-        self.r_p: float = self.r_b / np.cos(self.alpha)                # radii of pitch circle [m] MAOK
-        self.r_a: float = self.r_p + self.ha_ * self.m                 # radii of addendum circle [m] 
-        self.r_c: float = np.sqrt( np.square(self.r_b * np.tan(self.alpha)  - self.ha_ * self.m /  np.sin(self.alpha) ) + np.square(self.r_b) ) # radii of the involute starting point [m] MAOK
-        self.r_f: float = 1 / 2 * self.m * self.N - (self.ha_ + self.c_) * self.m   # radii of root circle [m] MAOK
-        self.r_rho: float = self.c_ * self.m / (1 - np.sin(self.alpha) )            # radii of cutter tip round corner [m] MAOK
-        self.r_rho_: float = self.r_rho / self.m
 
-        self.alpha_a: float = np.arccos(self.r_b / self.r_a) # pressure angle when the contact point is on the addendum circle [rad] MAOK
-        self.alpha_c: float = np.arccos(self.r_b / self.r_c) # pressure angle when the contact point is on the C point [rad] MAOK
-        self.theta_f: float = 1 / self.N * ( np.pi / 2 + 2 * np.tan(self.alpha) * (self.ha_ - self.r_rho_) + 2 * self.r_rho_ / np.cos(self.alpha)) # The angle between the tooth center-line and de junction with the root circle [radians]
+        zpos, ypos, yc_pos, scale_factor = position
+        scale_factor *= 1.3
+        radius = self.base_radius * 1.1 + 0.05
 
-        self.theta_b: float = np.pi / (2*self.N) + self.involute(self.alpha)
+        z_upper = [
+            zpos + scale_factor / 25,
+            zpos + scale_factor / 25,
+            zpos - scale_factor / 25,
+            zpos - scale_factor / 25,
+        ]
+        y_upper = [ypos, ypos + radius, ypos + radius, ypos]
 
-        self.a1: float = (self.ha_ + self.c_) * self.m - self.r_rho # MAOK
-        self.b1: float = np.pi * self.m / 4 + self.ha_ * self.m * np.tan(self.alpha) + self.r_rho * np.cos(self.alpha) # MAOK
+        z_lower = [
+            zpos + scale_factor / 25,
+            zpos + scale_factor / 25,
+            zpos - scale_factor / 25,
+            zpos - scale_factor / 25,
+        ]
+        y_lower = [-ypos, -ypos - radius, -ypos - radius, -ypos]
+
+        z_pos = z_upper
+        z_pos.append(None)
+        z_pos.extend(z_lower)
+
+        y_pos = y_upper
+        y_upper.append(None)
+        y_pos.extend(y_lower)
+
+        customdata = [self.n, self.Ip, self.Id, self.m, self.base_radius * 2]
+        hovertemplate = (
+            f"Gear Node: {customdata[0]}<br>"
+            + f"Polar Inertia: {customdata[1]:.3e}<br>"
+            + f"Diametral Inertia: {customdata[2]:.3e}<br>"
+            + f"Gear Mass: {customdata[3]:.3f}<br>"
+            + f"Gear Base Diam.: {customdata[4]:.3f}<br>"
+        )
+
+        fig.add_trace(
+            go.Scatter(
+                x=z_pos,
+                y=[y + yc_pos if y is not None else None for y in y_pos],
+                customdata=[customdata] * len(z_pos),
+                text=hovertemplate,
+                mode="lines",
+                fill="toself",
+                fillcolor=self.color,
+                fillpattern=dict(
+                    shape="/", fgcolor="rgba(0, 0, 0, 0.2)", bgcolor=self.color
+                ),
+                opacity=0.8,
+                line=dict(width=2.0, color="rgba(0, 0, 0, 0.2)"),
+                showlegend=False,
+                name=self.tag,
+                legendgroup="gears",
+                hoveron="points+fills",
+                hoverinfo="text",
+                hovertemplate=hovertemplate,
+                hoverlabel=dict(bgcolor=self.color),
+            )
+        )
+
+        return fig
+
+    def K(self, frequency, time):
+        """Stiffness matrix for an instance of a disk element.
+
+        This method will return the stiffness matrix for an instance of a disk
+        element.
+
+        Returns
+        -------
+        K : np.ndarray
+            A matrix of floats containing the values of the stiffness matrix.
+
+        Examples
+        --------
+        >>> disk = disk_example()
+        >>> disk.K().round(2)
+        array([[0., 0., 0., 0., 0., 0.],
+               [0., 0., 0., 0., 0., 0.],
+               [0., 0., 0., 0., 0., 0.],
+               [0., 0., 0., 0., 0., 0.],
+               [0., 0., 0., 0., 0., 0.],
+               [0., 0., 0., 0., 0., 0.]])
+        """
+
+        def t_acc(step, time_step, disp_rep, velc_resp, accl_resp):
+            global AT, speed1
+            AT += time_step
+            
+
+
+            return forces1
+
+# para conseguir acessar o tempo naquele instante
+
+
+        pressure_angle = self.gearInput.pressure_angle
+
         
-        self.tau_c: float = self.to_tau(self.alpha_c)
-        self.tau_a: float = self.to_tau(self.alpha_a)
+        Keq, _, _ = self.mesh(self, time)
+
+        Kxx, _, _ = np.cos(pressure_angle) * self.mesh(self, time)
+        Kyy, _, _ = np.sin(pressure_angle) * self.mesh(self, time)
+
+        K = np.array([  [Kxx, 0., 0., 0., 0., 0.],
+                        [0., Kyy, 0., 0., 0., 0.],
+                        [0., 0., 0., 0., 0., 0.],
+                        [0., 0., 0., 0., 0., 0.],
+                        [0., 0., 0., 0., 0., 0.],
+                        [0., 0., 0., 0., 0., 0.]])
+        
+        return K
+
+class GearGeometry:
+
+    def __init__(self, gear: GearElementTVMS):
+        self.gear: GearElementTVMS = gear
+
+        # Curves
+        self.transition = TransitionCurve(self.gear)
+        self.involute = InvoluteCurve(self.gear)
+
+        # Initialize the geometryDict
+        self.geometryDict: dict[str, float] = {}
+        self.geometryDict:  dict[str, float] = self._initialize_geometry(self.geometryDict)
 
 
+        
+    
+    def _initialize_geometry(self, dict_geo: dict) -> dict[str, float]:
+        """
+        Initialize the geometry dictionary for gear tooth stiffness analysis.
+
+        This method populates ``self.geometryDict`` with various geometric parameters 
+        computed by helper functions:
+
+        - Radii constants (from :meth:`_notable_radii`)
+        - Angular constants (from :meth:`_notable_angles`)
+        - Geometric constants (from :meth:`_geometric_constants`)
+        - Tau constants (from :meth:`_tau_constants`)
+
+        Parameters:
+        ----
+            None
+
+        Returns:
+        -----
+            None
+        """
+        geometryDict = dict_geo
+        # Add radii constants
+        radii:      dict[str, float] = self._notable_radii()
+        geometryDict |= radii 
+
+        # Add angular constants of the involute profile
+        angles:     dict[str, float] = self._notable_angles()
+        geometryDict |= angles
+
+        # Add geometric constants of the tooth profile
+        geo_const:  dict[str, float] = self._geometric_constants()
+        geometryDict |= geo_const
+
+        # Add geometric constants of tau values of the tooth profile
+        tau_const:  dict[str, float] = self._tau_constants()
+        geometryDict |= tau_const
+
+        return geometryDict
+
+    def _notable_angles(self) -> dict[str, float]:
+        """Computes and returns key angles from the gear tooth's geometric profile. 
+        
+        These angles are typically used in integration methods and geometric analyses of the gear.
+        
+        Parameters
+        -----
+        None
+
+        Returns
+        --- 
+        dict[str, float]: Dictionary containing angles for geometry evaluations.
+
+            `alpha_a` (float): Pressure angle at the addendum circle [rad].
+
+            `alpha_c` (float): Pressure angle at the involute "C" point [rad].
+
+            `theta_f` (float): Angle between the tooth center line and the junction with the root circle [rad].
+
+            `theta_b` (float): Reference angle combining the half-tooth pitch and the base involute angle [rad].
+
+        """
+        gear: GearElementTVMS           = self.gear
+
+
+        # pressure angle when the contact point is on the addendum circle [rad] MAOK
+        alpha_a: float = np.arccos(self.geometryDict['r_b'] / self.geometryDict['r_a']) 
+
+        # pressure angle when the contact point is on the C point [rad] MAOK
+        alpha_c: float = np.arccos(self.geometryDict['r_b'] / self.geometryDict['r_c'])       
+        
+        # The angle between the tooth center-line and de junction with the root circle [radians]
+        theta_f: float = (                                                          
+            1 / gear.n_tooth * ( 
+                np.pi / 2 
+                + 2 * np.tan(gear.pressure_angle) * (gear.ha_ - self.geometryDict['r_rho_'])
+                + 2 * self.geometryDict['r_rho_'] / np.cos(gear.pressure_angle)
+            ) 
+        )
+
+        theta_b: float = np.pi / (2*gear.n_tooth) + GearGeometry._involute(gear.pressure_angle)
+
+        # Placeholder dictionary
+        dict_place: dict[str, float] = {
+            'alpha_a': alpha_a,
+            'alpha_c': alpha_c,
+            'theta_f': theta_f,
+            'theta_b': theta_b
+        }
+
+        return dict_place
+    
+    def _notable_radii(self) -> dict[str, float]:
+        """Compute notable gear tooth radii used in integration and geometric analysis.
+
+        Calculates key radii from the gear tooth geometric profile required for
+        subsequent integration methods and geometric calculations. All radii are
+        returned in meters (m).
+
+        Parameters:
+        -------
+        None
+
+        Returns:
+        ------
+        dict_place: dict[str, float]
+
+            - `r_b` (float): 
+                Base circle radius [m]  
+
+            - `r_p` (float): 
+                Pitch circle radius [m]  
+
+            - `r_a` (float): 
+                Addendum circle radius [m]  
+
+            - `r_c` (float): 
+                Involute starting point radius [m]  
+
+            - `r_f` (float): 
+                Root circle radius [m]  
+
+            - `r_rho` (float): 
+                Cutter tip round corner radius [m]  
+
+            - `r_rho_` (float): 
+                Normalized cutter tip radius [-]  
+
+        Note:
+        ------
+            All calculations assume standard gear geometry parameters stored in the
+            class instance's `gear` and `geometryDict` attributes.
+        """
+
+        # Initializing as different variables for simplicity
+        gear = self.gear
+
+        # radius of base circle [m] MAOK
+        r_b: float = 1 / 2 * gear.module * gear.n_tooth * np.cos(gear.pressure_angle)
+
+        # radius of pitch circle [m] MAOK
+        r_p: float = r_b / np.cos(gear.pressure_angle)
+
+        # radius of addendum circle [m]                                  
+        r_a: float = r_p + gear.ha_ * gear.module                                        
+        
+        # radii of the involute starting point [m] MAOK
+        r_c: float = (                                                                 
+            np.sqrt( 
+                np.square(r_b * np.tan(gear.pressure_angle) 
+                - gear.ha_ * gear.module /  np.sin(gear.pressure_angle) ) 
+                + np.square(r_b) 
+            ) 
+        )
+
+        # radius of root circle [m] MAOK
+        r_f: float = 1 / 2 * gear.module * gear.n_tooth - (gear.ha_ + gear.c_) * gear.module
+
+        # radius of cutter tip round corner [m] MAOK
+        r_rho: float = gear.c_ * gear.module / (1 - np.sin(gear.pressure_angle) )
+
+        # normalized by the module radius of cutter tip round corner [m]                  
+        r_rho_: float = r_rho / gear.module                                                         
+
+        # placeholder dictionary
+        dict_place = {
+            'r_b': r_b, 
+            'r_p': r_p,
+            'r_a': r_a,
+            'r_c': r_c,
+            'r_f': r_f,
+            'r_rho': r_rho,
+            'r_rho_': r_rho_
+        }
+
+        return dict_place
+    
+    def _geometric_constants(self) -> dict[str, float]:
+        """Calculate geometric constants for gear tooth root analysis.
+
+        Computes fundamental geometric parameters required for stress analysis
+        and tooth root dimension verification. These constants combine multiple
+        geometric properties of the gear system.
+
+        Parameters:
+        ---
+            None
+
+        Returns:
+        ----
+            dict[str, float]: Dictionary containing geometric constants.
+
+            - 'a1': (float) 
+                Radial clearance constant [m].  
+
+            - 'b1': (float) 
+                Base tangent length [m].  
+
+        Note:
+        ---
+            - Requires precomputed geometryDict values from _notable_radii().
+            - All values calculated in meters (m).
+            - MAOK refers to mechanical engineering verification markers.
+        """
+
+        a1: float = (self.gear.ha_ + self.gear.c_) * self.gear.module - self.geometryDict['r_rho']  # MAOK
+        b1: float = (                                                       # MAOK
+            np.pi * self.gear.module / 4 + self.gear.ha_ * self.gear.module * np.tan(self.gear.pressure_angle) 
+            + self.geometryDict['r_rho'] * np.cos(self.gear.pressure_angle) 
+        )
+
+        dict_place: dict[str, float] = {
+            'a_1': a1,
+            'b_1': b1
+        }
+
+        return dict_place
+
+    def _tau_constants(self) -> dict[str, float]:
+
+        tau_c: float = self._to_tau(self.geometryDict['alpha_c'])
+        tau_a: float = self._to_tau(self.geometryDict['alpha_a'])  
+
+        dict_place: dict[str, float] = {
+            'tau_c': tau_c,
+            'tau_a': tau_a
+        }      
+
+        return dict_place
+    
     @staticmethod
-    def involute(angle: float) -> float:
+    def _involute(angle: float) -> float:
         """Involute function
 
         Calculates the involute function for a given angle.
@@ -123,113 +591,22 @@ class Gear:
 
         Examples
         --------
-        >>> Gear.involute(20 / 180 * np.pi)
+        >>> GearGeometry._involute(20 / 180 * np.pi)
         0.014904383867336446
 
-        >>> Gear.involute(15 / 180 * np.pi)
+        >>> GearGeometry._involute(15 / 180 * np.pi)
         0.006149804631973288
         """
 
         return np.tan(angle) - angle
     
-    def transition_curve(self, gamma) -> tuple[float, float, float, float]:
-        """
-        Transition curve
-
-        Compute the geometric transition curve profile.
-
-        Based on:
-        Ma, H., Song, R., Pang, X., & Wen, B. (2014). Time-varying mesh stiffness calculation of cracked spur gears. 
-        Engineering Failure Analysis, 44, 179–194. https://doi.org/10.1016/j.engfailanal.2014.05.018
-
-        Parameters
-        ----------
-        gamma : float
-            Input angles in radians, within [alpha, pi/2].
-
-        Returns 
-        -------
-        tuple
-            -`x_1` : float
-                x-coordinates of the transition curve.
-            -`y_1`: float
-                y-coordinates of the transition curve.
-            -`A_y1` : float
-                Area values based on x_1.
-            -`I_y1` : float
-                Moment of inertia values based on x_1.
-
-        Examples
-        --------
-
-        >>> self.transition_curve(45 * np.pi / 180)
-        (0.002281501426336625, 0.05272239401873227, 9.1260057053465e-05, 1.5834376622229213e-10)
-
-        """
-        if not (self.alpha <= gamma <= np.pi/2):
-            raise ValueError(f"alpha must be within the range [{self.alpha}, {np.pi/2}]. Current alpha: {gamma}")
-        
-        phi = lambda gamma: (self.a1/np.tan(gamma) + self.b1)/self.r_p
-        phi = phi(gamma)
-
-        x_1 = lambda gamma: self.r_p * np.sin( phi ) - ( self.a1 / np.sin(gamma) + self.r_rho ) * np.cos(gamma - phi)
-        x_1 = x_1(gamma)
-        
-        y_1 = lambda gamma: self.r_p * np.cos(phi) - (self.a1/np.sin(gamma) + self.r_rho) * np.sin(gamma-phi)
-        y_1 = y_1(gamma)
-
-        A_y1 = 2 * x_1 * self.L
-        I_y1 = 2/3*np.power(x_1,3)*self.L
-
-        return x_1, y_1, A_y1, I_y1
-    
-    def involute_curve(self, tau) -> tuple[np.ndarray[float]]:
-        """
-        Compute the geometric involute curve profile.
-            
-        Parameters
-        ----------
-        tau : float
-            Input angles in radians, within [###CORRECT HERE###].
-
-        Returns 
-        -------
-            tuple
-                -`x_2` : float
-                    x-coordinates of the involute curve.
-                -`y_2` : float
-                    y-coordinates of the involute curve.
-                -`A_y2` : float
-                    Area values based on x_2.
-                -`I_y2` : float
-                    Moment of inertia values based on x_2.
-        
-        Example
-        --------
-        >>> self.involute_curve(0.3405551128775112)
-        (0.0014447795342141163, 0.055344111158185265, 5.7791181368564653e-05, 4.02108709529994e-11)
-
-        References
-        ---------
-        From Ma, H., Song, R., Pang, X., & Wen, B. (2014). Time-varying mesh stiffness calculation of cracked spur gears. 
-        Engineering Failure Analysis, 44, 179–194. https://doi.org/10.1016/j.engfailanal.2014.05.018
-
-        """
-
-        x_2 = self.r_b * ( (tau + self.theta_b) * np.cos(tau) - np.sin(tau) )
-        y_2 = self.r_b * ( (tau + self.theta_b) * np.sin(tau) + np.cos(tau) )
-        A_y2 = 2 * x_2 * self.L
-        I_y2 = 2/3 * np.power(x_2, 3) * self.L
-
-        return x_2, y_2, A_y2, I_y2
-
-    def to_tau(self, alpha_i: float) -> float:
+    def _to_tau(self, alpha_i: float) -> float:
         """
         Transforms the alpha angle, used to build the involute profile, into the integration variable tau.
 
         :math:`tau(alpha_i) = alpha_i - self.theta_b + self.involute(alpha_i)`
         
-        Parameters
+        Args
         ----------
         alpha_i : float
             An angle within the involute profile.
@@ -241,7 +618,7 @@ class Gear:
     
         Examples
         ---------
-        >>> self.to_tau(31 * np.pi / 180)
+        >>> self._to_tau(31 * np.pi / 180)
         0.5573963019457713
 
         References
@@ -250,34 +627,39 @@ class Gear:
         [Time-varying mesh stiffness calculation of spur gears based on improved energy method].
         Journal of Northeastern University (Natural Science), 35(6), 863–867. https://doi.org/10.3969/j.issn.1005-3026.2014.06.023
         """
-        return alpha_i - self.theta_b + self.involute(alpha_i)
+
+        return alpha_i - self.geometryDict['theta_b'] + GearGeometry._involute(alpha_i)
 
     def plot_tooth_geometry(self) -> None:
+        
         """
         Plot the geometry of the tooth profile.
         """
 
+        gear: GearElementTVMS = self.gear
+        geometry: dict[str, float] = gear.geometry
+
         # Generate the transition geometry
-        transition = np.linspace(np.pi/2, self.alpha, 200)
-        transition_vectorized = np.vectorize(self.transition_curve)
-        x_1, y_1, _, _ = transition_vectorized(transition)
+        transition: np.array = np.linspace(np.pi/2, gear.pressure_angle, 200)
+        transition_vectorized: np.vectorize = np.vectorize(self.transition._compute_transition_curve)
+        y_t, x_t, _, _ = transition_vectorized(transition)
 
         # Generate the involute geometry
-        involute = np.linspace(self.alpha_c, self.alpha_a, 200)
-        tau_vectorize = np.vectorize(self.to_tau)
-        tau = tau_vectorize(involute)
+        involute = np.linspace(self.geometryDict['alpha_c'], self.geometryDict['alpha_a'], 200)
+        tau_vectorize = np.vectorize(self._to_tau)
+        tau_values = tau_vectorize(involute)
 
-        involute_vectorize = np.vectorize(self.involute_curve)
-        x_2, y_2, _, _ = involute_vectorize(tau)
+        involute_vectorize = np.vectorize(self.involute._compute_involute_curve)
+        y_i, x_i, _, _ = involute_vectorize(tau_values)
 
         # Create the plot
         fig = go.Figure()
 
         # Add the transition curve
-        fig.add_trace(go.Scatter(x=y_1[-1::-1], y=x_1[-1::-1], mode='lines', name='Transition Curve'))
+        fig.add_trace(go.Scatter(x=y_t[-1::-1], y=x_t[-1::-1], mode='lines', name='Transition Curve'))
 
         # Add the involute curve
-        fig.add_trace(go.Scatter(x=y_2, y=x_2, mode='lines', name='Involute Curve'))
+        fig.add_trace(go.Scatter(x=y_i, y=x_i, mode='lines', name='Involute Curve'))
 
         # Update layout with gridlines
         fig.update_layout(
@@ -288,16 +670,247 @@ class Gear:
             yaxis=dict(showgrid=True),
         )
 
+
+
         # Show the plot
         fig.show()
+        pass
 
-    def gear_stiffness(self):
+class GeometryProfile(ABC):
+    
+    @abstractmethod
+    def _y(*args, **kwargs):
+        pass
+
+    @abstractmethod
+    def _x(*args, **kwargs):
+        pass
+
+    @abstractmethod
+    def _area(*args, **kwargs):
+        pass
+    
+    @abstractmethod
+    def _I_y(*args, **kwargs):
+        pass
+
+class TransitionCurve(GeometryProfile):
+    """
+    Transition curve class.
+
+    Used to compute the geometric transition curve profile for a single gamma.
+
+    Based on:
+    Ma, H., Song, R., Pang, X., & Wen, B. (2014). Time-varying mesh stiffness calculation of cracked spur gears. 
+    Engineering Failure Analysis, 44, 179–194. https://doi.org/10.1016/j.engfailanal.2014.05.018
+
+    Parameters
+    ----------
+    -`gear` : GearElementTVMS
+
+    Methods 
+    -------
+    -`_x` -> float
+        x-coordinates of the transition curve.
+    -`_y` -> float
+        y-coordinates of the transition curve.
+    -`_A_y` -> float
+        Area values based on x_1.
+    -`_I_y` -> float
+        Moment of inertia values based on x_1.
+    """
+    def __init__(self, gear: GearElementTVMS):
+        self.gear: GearElementTVMS = gear
+
+    def _compute_transition_curve(self, gamma: float) -> tuple[float, float, float, float]:
+        """Compute the y, x, area and I_y of the transition curve given a gamma angle.
+
+        Args:
+            gamma (float): The angle indicating the position on the transition curve profile.
+
+        Returns:
+            - y (float): The y-coordinate of the transition curve at gamma.
+            - x (float): The x-coordinate of the transition curve at gamma.
+            - area (float): The cumulative area under the transition curve up to x.
+            - I_y (float): The second moment of area (moment of inertia) about the y-axis at x.
         """
-        Returns
-        -------
-        GearStiffness object declared with the self Gear object.
+        self.geometryDict: dict[str, float] = self.gear.geometry.geometryDict
+        phi: float = self._phi(gamma)
+        y: float = self._y(gamma, phi)
+        x: float = self._x(gamma, phi)
+        area: float = self._area(x)
+        I_y: float = self._I_y(x) 
+
+        return y, x, area, I_y
+
+    def _phi(self, gamma: float) -> float:
+        
+        phi: float = (
+            (
+                self.geometryDict['a_1'] 
+                / np.tan(gamma) 
+                + self.geometryDict['b_1']
+            ) 
+            / self.geometryDict['r_p']
+        )
+
+        return phi
+        
+    def _y(self, gamma: float, phi: float) -> float:
+        
+        y: float = (
+            self.geometryDict['r_p'] 
+            * np.cos(phi) 
+            - (
+                self.geometryDict['a_1'] 
+                / np.sin(gamma) 
+                + self.geometryDict['r_rho']
+            ) 
+            * np.sin(gamma-phi)
+        )
+
+        return y 
+    
+    def _x(self, gamma: float, phi: float) -> float:
+
+        x: float = (
+            self.geometryDict['r_p']
+            * np.sin(phi)
+            - (
+                self.geometryDict['a_1']
+                / np.sin(gamma)
+                + self.geometryDict['r_rho']
+            )
+            * np.cos(gamma - phi)
+        )
+
+        return x
+    
+    def _area(self, x_gamma: float) -> float:
+        """Evaluate the transition curve area given a gamma angle. 
+
+        Args:
+            gamma (float): _description_
+
+        Returns:
+            float: _description_
         """
-        return GearStiffness(self)
+
+        area: float = 2 * x_gamma * self.gear.width
+
+        return area
+    
+    def _I_y(self, x_gamma: float) -> float:
+        """Evaluate the transition curve area moment of inertia for the y-axis given a gamma angle. 
+
+        Args:
+            gamma (float): positional angle
+
+        Returns:
+            float: Area moment of inertia for the y-axis.
+        """
+
+        I_y: float = 2/3 * x_gamma**3 * self.gear.width
+
+        return I_y
+
+class InvoluteCurve(GeometryProfile):
+    """
+    Class to compute the geometric involute curve profile.
+
+    Parameters
+    --------
+        -`gear`: GearElementTVMS
+
+    Methods 
+    -------
+        -`_x` -> float
+            x-coordinates of the involute curve.
+        -`_y` -> float
+            y-coordinates of the involute curve.
+        -`_area` -> float
+            Area values based on _x.
+        -`_I_y` -> float
+            Moment of inertia values based on _x.
+    
+    Example
+    --------
+    >>> self.involute_curve(0.3405551128775112)
+    (0.0014447795342141163, 0.055344111158185265, 5.7791181368564653e-05, 4.02108709529994e-11)
+
+    References
+    ---------
+    From Ma, H., Song, R., Pang, X., & Wen, B. (2014). Time-varying mesh stiffness calculation of cracked spur gears. 
+    Engineering Failure Analysis, 44, 179–194. https://doi.org/10.1016/j.engfailanal.2014.05.018
+
+    """
+    
+    def __init__(self, gear: GearElementTVMS):
+        self.gear = gear
+
+    def _compute_involute_curve(self, tau_i: float) -> tuple[float, float, float, float]:
+        """Compute the y, x, area and I_y of the involute curve given a tau angle.
+
+        Args:
+            tau (float): The angle indicating the position on the involute curve profile.
+
+        Returns:
+            - y (float): The y-coordinate of the transition curve at tau_i.
+            - x (float): The x-coordinate of the transition curve at tau_i.
+            - area (float): The area under the transition curve up to x.
+            - I_y (float): The second moment of area (moment of inertia) about the y-axis at x.
+        """
+        self.geometryDict: dict[str, float] = self.gear.geometry.geometryDict
+        
+        y: float = self._y(tau_i)
+        x: float = self._x(tau_i)
+        area: float = self._area(x)
+        I_y: float = self._I_y(x) 
+
+        return y, x, area, I_y
+
+    def _y(self, tau_i: float) -> float:
+        
+        y: float = (
+            self.geometryDict['r_b']
+            * (
+                (
+                    tau_i + self.geometryDict['theta_b']
+                )
+            * np.sin(tau_i)
+            + np.cos(tau_i)
+            )
+        ) 
+
+        return y
+
+    def _x(self, tau_i: float) -> float:
+
+        x: float = (
+            self.geometryDict['r_b']
+            * (
+                (
+                    tau_i + self.geometryDict['theta_b']
+                )
+            * np.cos(tau_i)    
+            - np.sin(tau_i)            
+            )
+        )
+
+        return x
+
+    def _area(self, x: float) -> float:
+
+        area: float = 2 * x * self.gear.width
+
+        return area
+    
+    def _I_y(self, x: float) -> float:
+
+
+        I_y: float = 2/3 * x**3 * self.gear.width
+
+        return I_y
 
 class GearStiffness:
     """
@@ -309,8 +922,11 @@ class GearStiffness:
 
     """
 
-    def __init__(self, gear: Gear):
+    def __init__(self, gear: GearElementTVMS):
         self.gear = gear 
+        self.geometryDict = gear.geometry.geometryDict
+        self.geometry = gear.geometry
+        self.material = gear.material
 
     def diff_tau(self, tau_i) -> float:
         """
@@ -326,7 +942,7 @@ class GearStiffness:
         float
             The value of diff_tau(tau_i)
         """
-        return self.gear.r_b * (tau_i + self.gear.theta_b) * np.cos(tau_i)
+        return self.geometryDict['r_b'] * (tau_i + self.geometryDict['theta_b']) * np.cos(tau_i) # OK
 
     def diff_gamma(self, gamma) -> float:
         """
@@ -342,22 +958,43 @@ class GearStiffness:
         float
             The value of diff_gamma(gamma)
         """
-        gear = self.gear
-        a1 = gear.a1
-        b1 = gear.b1
-        r_p = gear.r_p
-        r_rho = gear.r_rho
+        a1 = self.geometryDict['a_1']
+        b1 = self.geometryDict['b_1']
+        r_p = self.geometryDict['r_p']
+        r_rho = self.geometryDict['r_rho']
 
-        term_1 = ( a1 * np.sin( (a1/np.tan(gamma) + b1) / r_p ) * (1 + np.square( np.tan(gamma) ) )) / np.square( np.tan(gamma) )
-        term_2 =  a1 * np.cos(gamma) / np.square(np.sin(gamma)) * np.sin(gamma - (a1/np.tan(gamma) + b1)/r_p)
-        term_3 =   - (a1 / np.sin(gamma) + r_rho) * np.cos(gamma - (a1/np.tan(gamma) + b1)/r_p) * (1 + a1 * (1 + np.square(np.tan(gamma)))/r_p/np.square(np.tan(gamma)))
+        term_1 = (
+                ( 
+                    a1 * np.sin( (a1/np.tan(gamma) + b1) / r_p ) 
+                    * (1 + np.square( np.tan(gamma) ) )
+                ) 
+                / np.square( np.tan(gamma) )
+            )
+        
+        term_2 =  (
+            a1 * np.cos( gamma ) 
+            / np.square( np.sin( gamma ) ) 
+            * np.sin( 
+                gamma - (a1 / np.tan( gamma ) + b1)
+                / r_p 
+                )
+            )
+        
+        term_3 = (
+                - ( a1 / np.sin( gamma ) + r_rho ) 
+                * np.cos( gamma - ( a1 / np.tan( gamma ) + b1 ) / r_p )  
+                * (
+                    1 + a1 * ( 1 + np.square( np.tan( gamma ) ) ) 
+                    / (r_p * np.square( np.tan ( gamma ) ) )
+                )
+            )
 
-        return term_1 + term_2 + term_3
+        return term_1 + term_2 + term_3 # OK 
 
 
-    def compute_stiffness(self, tau_op) -> tuple[float, float, float, float]:
+    def compute_stiffness(self, alpha_op) -> tuple[float, float, float, float]:
         """
-        Computes the stiffness in the direction of the applied force on the gear, according to the involute profile. 
+        Computes the stiffness in the direction of the applied force on the gear (line of action), according to the involute profile. 
         It evaluates each of them separetly, and those values are returned as 1/stiffness for an approach in accordance with Ma, H. et. al. (2014).
         
         Parameters
@@ -378,16 +1015,17 @@ class GearStiffness:
             - ks : float
                 Stiffness related to shear stresses.
         """
-        
-        kf = self._kf(tau_op)
-        ka = self._ka(tau_op)
-        kb = self._kb(tau_op)
-        ks = self._ks(tau_op)
+        tau_op = self.geometry._to_tau(alpha_op)
 
-        if (np.isnan(kf)):
-            return ka, kb, ks
+        inv_kf = self.inv_kf(tau_op)
+        inv_ka = self.inv_ka(tau_op)
+        inv_kb = self.inv_kb(tau_op)
+        inv_ks = self.inv_ks(tau_op)
+
+        if (np.isnan(inv_kf)):
+            return inv_ka, inv_kb, inv_ks
         
-        return  ka, kb, kf, ks
+        return  1/inv_ka, 1/inv_kb, 1/inv_kf, 1/inv_ks
 
     def _gear_body_polynominal(self) -> pd.DataFrame | str:
         """
@@ -404,8 +1042,7 @@ class GearStiffness:
             Return 'oo' if it doesn't match the criteria for the experimental range where this method was built.
         """
 
-        gear = self.gear
-        h = gear.r_f / gear.r_shaft
+        h = self.geometryDict['r_f'] / self.gear.r_shaft
 
         poly = pd.DataFrame()
         poly['var'] = ['L'          , 'M',            'P'           , 'Q']
@@ -417,10 +1054,10 @@ class GearStiffness:
         poly['F_i'] = [6.8045       , 0.9086        , 0.9236        , 0.6904]
 
         calculate_x_i = lambda row: (
-            row['A_i'] / (gear.theta_f ** 2)
+            row['A_i'] / (self.geometryDict['theta_f'] ** 2)
             + row['B_i'] * h ** 2
-            + row['C_i'] * h / gear.theta_f
-            + row['D_i'] / gear.theta_f
+            + row['C_i'] * h / self.geometryDict['theta_f']
+            + row['D_i'] / self.geometryDict['theta_f']
             + row['E_i'] * h
             + row['F_i']
         ) # OK
@@ -448,7 +1085,7 @@ class GearStiffness:
 
         return poly.loc[:,['var','X_i']]
     
-    def _kf(self, tau_op) -> float:
+    def inv_kf(self, tau_op) -> float:
         """
         Sainsot, P., Velex, P., & Duverger, O. (2004). Contribution of gear body to tooth deflections - A new bidimensional analytical 
         formula. Journal of Mechanical Design, 126(4), 748–752. https://doi.org/10.1115/1.1758252
@@ -459,7 +1096,7 @@ class GearStiffness:
         ---------
         tau_op (float): 
             The operational pressure angle (tau) in radians. This angle is used to determine the stiffness characteristics 
-            based on the gear geometry and material properties.
+            based on the gear geometry and material properties. It's the current angle of the contact point between the meshing gears.
 
         Returns
         ---------
@@ -467,7 +1104,6 @@ class GearStiffness:
             The calculated 1/kf for the gear base.
     
         """
-        gear = self.gear
 
         # obtain a dataframe of polynomials coefficients
         poly = self._gear_body_polynominal()
@@ -478,23 +1114,23 @@ class GearStiffness:
 
         L_poly, M_poly, P_poly, Q_poly =  poly['X_i']
 
-        _, y, _, _ = gear.involute_curve(tau_op)
+        y,_, _, _ = self.gear.geometry.involute._compute_involute_curve(tau_op)
 
-        Sf = 2 * gear.r_f * gear.theta_f
-        u = y - gear.r_f
+        Sf = 2 * self.geometryDict['r_f'] * self.geometryDict['theta_f']
+        u = y - self.geometryDict['r_f']
 
         kf = (
-            ( np.cos(tau_op)**2 / (gear.E * gear.L) )
+            ( np.cos(tau_op)**2 / (self.material.E * self.gear.width) )
             * ( 
                 L_poly * ( u /Sf)**2 
                 + M_poly * u / Sf 
                 + P_poly * (1 + Q_poly * np.tan(tau_op)**2 )
             ) 
-        ) # OK, conferi com a fórmula (só n sei se o beta é o mesmo ...)
+        )
 
         return kf
 
-    def _ks(self, tau_op) -> float:
+    def inv_ks(self, tau_op) -> float:
         """
         Calculate the stiffness contribution from the gear resistance from shear stresses, given the tau operational angle.
 
@@ -509,28 +1145,38 @@ class GearStiffness:
             The shear stiffness in the form of 1/ks.
         """        
         
-        gear = self.gear
         f_transiction = lambda gamma: (
-            1.2*np.cos(tau_op)**2 
-            / (gear.G * gear.transition_curve(gamma)[2]) 
+            1.2 * np.cos(tau_op)**2 
+            / (
+                self.material.G_s 
+                * self.geometry.transition._compute_transition_curve(gamma)[2]
+            ) 
             * self.diff_gamma(gamma)
-        ) # OK
+        ) 
 
-        k_transiction, error1 = sp.integrate.quad(f_transiction, np.pi/2, gear.alpha) # OK
+        k_transiction, _ = sp.integrate.quad(
+            f_transiction, 
+            np.pi/2, 
+            self.gear.pressure_angle
+        ) # OK
 
         f_involute = lambda tau: (
             1.2 * (
                 np.cos(tau_op)**2
-                / (gear.G*gear.involute_curve(tau)[2])
+                / (self.material.G_s*self.geometry.involute._compute_involute_curve(tau)[2]) # verificar se esse 2 é a área msm
                 * self.diff_tau(tau)
             )
-        ) # OK
+        ) 
 
-        k_involute, error2 = sp.integrate.quad(f_involute, gear.to_tau(gear.alpha_c), tau_op) # OK
+        k_involute, _ = sp.integrate.quad(
+            f_involute, 
+            self.geometry._to_tau(self.geometryDict['alpha_c']), 
+            tau_op
+        ) 
 
         return (k_transiction + k_involute)
 
-    def _kb(self, tau_op) -> float:
+    def inv_kb(self, tau_op) -> float:
         """
         Calculate the stiffness contribution from the gear resistance from bending stresses, given the tau operational angle.
 
@@ -544,36 +1190,44 @@ class GearStiffness:
         float
             The bending stiffness in the form of 1/kb.
         """        
-             
-        gear = self.gear
+        y_op, x_op, _, _ = self.gear.geometry.involute._compute_involute_curve(tau_op)
 
         f_transiction = lambda gamma: (
             (
                 np.cos(tau_op) 
-                * (gear.involute_curve(tau_op)[1] - gear.transition_curve(gamma)[1])
-                - gear.involute_curve(tau_op)[0] * np.sin(tau_op)
+                * (
+                    y_op - self.geometry.transition._compute_transition_curve(gamma)[0]
+                )
+                - x_op * np.sin(tau_op)
             )**2 
-            / (gear.E * gear.transition_curve(gamma)[3])
+            / (
+                self.material.E 
+                * self.geometry.transition._compute_transition_curve(gamma)[3]
+            )
             * self.diff_gamma(gamma)
-        ) # OK
+        ) 
 
-        k_transiction, error1 = sp.integrate.quad(f_transiction, np.pi/2, gear.alpha)
+        k_transiction, _ = sp.integrate.quad(f_transiction, np.pi/2, self.gear.pressure_angle)
 
         f_involute = lambda tau: (
             (
                 np.cos(tau_op) 
-                * (gear.involute_curve(tau_op)[1] - gear.involute_curve(tau)[1])
-                - gear.involute_curve(tau_op)[0] * np.sin(tau_op)
+                * (y_op - self.geometry.involute._compute_involute_curve(tau)[0])
+                - x_op * np.sin(tau_op)
             )**2
-            / (gear.E * gear.involute_curve(tau)[3])
+            / (self.material.E * self.geometry.involute._compute_involute_curve(tau)[3])
             * self.diff_tau(tau)
-        ) # OK
+        ) 
 
-        k_involute, error2 = sp.integrate.quad(f_involute, gear.to_tau(gear.alpha_c), tau_op)
+        k_involute, _ = sp.integrate.quad(
+            f_involute, 
+            self.geometry._to_tau(self.geometryDict['alpha_c']), 
+            tau_op
+        )
 
         return (k_transiction + k_involute)
 
-    def _ka(self, tau_op: float) -> float:
+    def inv_ka(self, tau_op: float) -> float:
         """
         Calculate the stiffness contribution from the gear resistance from axial stresses, given the tau operational angle.
 
@@ -587,27 +1241,31 @@ class GearStiffness:
         float
             The axial stiffness in the form of 1/ka.
         """        
-        gear = self.gear
 
         f_transiction = lambda gamma: (
             np.sin(tau_op)**2
-            / (gear.E * gear.transition_curve(gamma)[2])
+            / (self.material.E * self.geometry.transition._compute_transition_curve(gamma)[2])
             * self.diff_gamma(gamma)
-        ) # OK
-        k_transiction, error1 = sp.integrate.quad(f_transiction, np.pi/2, gear.alpha)
+        ) 
+
+        k_transiction, _ = sp.integrate.quad(f_transiction, np.pi/2, self.gear.pressure_angle)
 
         f_involute = lambda tau: (
             np.sin(tau_op)**2 
-            / (gear.E * gear.involute_curve(tau)[2])
+            / (self.material.E * self.geometry.involute._compute_involute_curve(tau)[2])
             * self.diff_tau(tau)
-        ) # OK
+        ) 
 
-        k_involute, error2 = sp.integrate.quad(f_involute, gear.to_tau(gear.alpha_c), tau_op)
+        k_involute, _ = sp.integrate.quad(
+            f_involute, 
+            self.geometry._to_tau(self.geometryDict['alpha_c']), 
+            tau_op
+        )
 
         return (k_transiction + k_involute)
 
     @staticmethod
-    def kh(gear1: Gear, gear2: Gear) -> float:
+    def kh(gear1: GearElementTVMS, gear2: GearElementTVMS) -> float:
         """
         Evaluates the contact hertzian stiffness considering that both elasticity modulus are equal.
 
@@ -629,7 +1287,7 @@ class GearStiffness:
         - It returns kh, not 1/kh.
         """
 
-        return np.pi * gear1.E * gear1.L / 4 / (1 - gear1.v**2)
+        return np.pi * gear1.material.E * gear1.width / 4 / (1 - gear1.material.Poisson**2)
 
 class Mesh:
     """
@@ -662,21 +1320,17 @@ class Mesh:
 
     """
 
-    def __init__(self, pinion: Gear, gear: Gear, pinion_w: float):
-        self.pinion = pinion
-        self.gear = gear
+    def __init__(self, gearInput: GearElementTVMS, gearOutput: GearElementTVMS, gearInputSpeed: float):
+        self.gearInput = gearInput
+        self.gearOutput = gearOutput
 
-        eta = gear.N/pinion.N # Gear ratio 
-
-        self.pinion_w = pinion_w # pinion speed [rad/sec] 
-        self.gear_w = - pinion_w / eta # gear speed [rad/sec]
-        self.tm = 2 * np.pi / (self.pinion_w * self.pinion.N) # Gearmesh period [seconds/engagement]
-        self.kh = GearStiffness.kh(pinion, gear)
-        self.cr = self.contact_ratio(self.pinion, self.gear)
+        eta = gearOutput.n_tooth / gearInput.n_tooth # Gear ratio 
+        self.kh = GearStiffness.kh(gearInput, gearOutput)
+        self.cr = self.contact_ratio(self.gearInput, self.gearOutput)
         self.ctm = self.cr * self.tm # [seconds/tooth] how much time each tooth remains in contact
 
     @staticmethod
-    def contact_ratio(pinion: Gear, gear: Gear) -> float:
+    def contact_ratio(gearInput: GearElementTVMS, gearOutput: GearElementTVMS) -> float:
         """
         Parameters:
         ---------
@@ -701,26 +1355,25 @@ class Mesh:
         Retrieved from: https://www.myweb.ttu.edu/amosedal/articles.html
         """
 
-        pb = np.pi * 2 * pinion.r_b / pinion.N # base pitch
-        C = pinion.r_p + gear.r_p # center distance (not the operating one)
+        pb = np.pi * 2 * gearInput.geometry.geometryDict['r_b'] / gearInput.n_tooth # base pitch
+        C = gearInput.geometry.geometryDict['r_p'] + gearOutput.geometry.geometryDict['r_p'] # center distance (not the operating one)
 
         lc = ( # length of contact (not the operating one) # OK
-            np.sqrt(pinion.r_a**2 - pinion.r_b**2) 
-            + np.sqrt(gear.r_a**2 - gear.r_b**2) 
-            - C * np.sin(pinion.alpha)
+            np.sqrt(gearInput.geometry.geometryDict['r_a']**2 - gearInput.geometry.geometryDict['r_b']**2) 
+            + np.sqrt(gearOutput.geometry.geometryDict['r_a']**2 - gearOutput.geometry.geometryDict['r_b']**2) 
+            - C * np.sin(gearInput.pressure_angle)
         )
 
         CR = lc / pb # contact ratio
     
         return CR
 
-
-    def time_equivalent_stiffness(self, pinion: Gear, gear: Gear, t: float) -> float:
+    def time_equivalent_stiffness(self, t: float) -> float:
         """
         Parameters
         ---------
-        pinion : Gear
-            The pinion object.
+        gearInput : Gear
+            The gearInput object.
         gear: Gear
             The gear object.
         t: float
@@ -738,23 +1391,25 @@ class Mesh:
         """
 
         # Angular displacements 
-        alpha_pinion = t * self.pinion_w + pinion.alpha_c # angle variation of the pinion [rad]
-        alpha_gear   = t * self.gear_w   + gear.alpha_a   # angle variation of the gear   [rad]
+        alphaGearInput = t * self.gearInputSpeed + self.gearInput.geometry.geometryDict['alpha_c'] # angle variation of the input pinion [rad]
+        alphaGearOutput   = t * self.gearOutputSpeed + self.gearOutput.geometry.geometryDict['alpha_a']   # angle variation of the output gear   [rad]
         
         # Tau displacementes
-        d_tau_pinion = self.pinion.to_tau(alpha_pinion) # angle variation of the pinion in tau [rad]
-        d_tau_gear   = self.gear.to_tau(alpha_gear)     # angle variation of the pinion in tau [rad]
+        dTauGearInput = self.gearInput.geometry._to_tau(alphaGearInput)     # angle variation of the pinion in tau [rad]
+        dTauGearOutput   = self.gearOutput.geometry._to_tau(alphaGearOutput)     # angle variation of the pinion in tau [rad]
 
         # Contact stiffness according to tau angles
-        ka_1, kb_1, kf_1, ks_1 = pinion.stiffness.compute_stiffness(d_tau_pinion)
-        ka_2, kb_2, kf_2, ks_2 = gear.stiffness.compute_stiffness(d_tau_gear)
+        ka_1, kb_1, kf_1, ks_1 = self.gearInput.stiffness.compute_stiffness(dTauGearInput)
+        ka_2, kb_2, kf_2, ks_2 = self.gearOutput.stiffness.compute_stiffness(dTauGearOutput)
 
         # Evaluating the equivalate meshing stiffness. 
-        k_t = 1 / (1/self.kh + ka_1 + kb_1 + kf_1 + ks_1 + ka_2 + kb_2 + kf_2 + ks_2)
+        k_t = 1 / (1/self.kh + 1/ka_1 + 1/kb_1 + 1/kf_1 + 1/ks_1 + 1/ka_2 + 1/kb_2 + 1/kf_2 + 1/ks_2)
 
-        return k_t, d_tau_pinion, d_tau_gear
+        return k_t, dTauGearInput, dTauGearOutput
     
-    def mesh(self, pinion, gear, t):
+
+
+    def mesh(self, t, gearInputSpeed):
         """
         Calculate the time-varying meshing stiffness of a gear pair.
 
@@ -784,65 +1439,53 @@ class Mesh:
         - The stiffness contribution varies depending on whether one or two pairs of teeth are in contact.
         """
 
+        self.gearInputSpeed = gearInputSpeed # pinion speed [rad/sec] 
+        self.gearOutputSpeed = - gearInputSpeed/ self.eta # gear speed [rad/sec]
+        self.tm = 2 * np.pi / (self.gearInputSpeed * self.gearInput.n_tooth) # Gearmesh period [seconds/engagement]
+
         tm = self.tm
         t = t - t // tm * tm
         
         if t <= (self.cr-1) * tm:
-            k_mesh1, d_tau_pinion1, d_tau_gear1 = self.time_equivalent_stiffness(pinion, gear, t)
-            k_mesh0,  d_tau_pinion0, d_tau_gear0 = self.time_equivalent_stiffness(pinion, gear, self.tm + t)
+            stiffnessMesh1, d_tau_pinion1, d_tau_gear1 = self.time_equivalent_stiffness(t)
+            stiffnessMesh0,  d_tau_pinion0, d_tau_gear0 = self.time_equivalent_stiffness(self.tm + t)
 
-            return k_mesh0 + k_mesh1, k_mesh0, k_mesh1
+            return stiffnessMesh0 + stiffnessMesh1, stiffnessMesh0, stiffnessMesh1
         
         elif t > (self.cr-1) * tm:
-            k_mesh1, d_tau_pinion1, d_tau_gear1 = self.time_equivalent_stiffness(pinion, gear, t)
+            stiffnessMesh1, d_tau_pinion1, d_tau_gear1 = self.time_equivalent_stiffness(t)
+            
+            return stiffnessMesh1, np.nan, stiffnessMesh1
+        
 
-            return k_mesh1, np.nan, k_mesh1       
+def gearGeometryExample() -> None:
+    gear1 = GearElementTVMS(21, 12, 12, 12, 2e-3, 55, 2e-2)
+    print(gear1.geometry.geometryDict)
+    pass
 
-def example() -> None:
-    pinion = Gear(
-        module=2e-3, 
-        n_tooth=55, 
-        pressure_angle=20 * np.pi/180, 
-        width=20e-3, 
-        hub_bore_radius=17.5e-3, 
-        young=212e9, 
-        poisson=0.29, 
-        disc_points=1e3, 
-        addendum_coeff=1, 
-        clearance_coeff=0.25
-    )  # MA 3
-    
-    crown = Gear(
-        module=2e-3, 
-        n_tooth=75, 
-        pressure_angle=20 * np.pi/180, 
-        width=20e-3, 
-        hub_bore_radius=17.5e-3, 
-        young=212e9, 
-        poisson=0.29, 
-        disc_points=1e3, 
-        addendum_coeff=1, 
-        clearance_coeff=0.25
-    )  # MA 3
+def gearMeshStiffnessExample() -> None:
+    gear1 = GearElementTVMS(21, 12, 12, 12, 2e-3, 55, 2e-2, 17.5e-3)
+    gear2 = GearElementTVMS(21, 12, 12, 12, 2e-3, 75, 2e-2, 17.5e-3)
 
-    pinion_w = 11 * 2 * np.pi 
-    meshing = Mesh(pinion, crown, pinion_w)
+    gear1Speed = 11*2*np.pi
 
-    n_tm = 1
+    meshing = Mesh(gear1, gear2, gear1Speed)    
 
-    time_range = np.linspace(0, n_tm * meshing.tm, int(200))
-    angle_range = time_range * pinion_w
+    nTm = 18
+    time_range = np.linspace(0, nTm * meshing.tm, int(18e3))
+
+    angle_range = time_range * gear1Speed
 
     stiffness = np.zeros(np.shape(time_range))
     k0_stiffness = np.zeros(np.shape(time_range))
     k1_stiffness = np.zeros(np.shape(time_range))
 
     for i, time in enumerate(time_range):
-        stiffness[i], k0_stiffness[i], k1_stiffness[i] = meshing.mesh(pinion, crown, time)
+        stiffness[i], k0_stiffness[i], k1_stiffness[i] = meshing.mesh(time)
 
     # Calculate limits and yticks
-    x_lim = n_tm * meshing.tm * pinion_w * 180 / np.pi
-    yticks = np.arange(3.8e8, int(4.4e8), int(0.1e8))
+    x_lim = nTm * meshing.tm * gear1Speed * 180 / np.pi
+#    yticks = np.arange(3.8e8, int(4.4e8), int(0.1e8))
 
     # Create figure
     fig = go.Figure()
@@ -889,5 +1532,36 @@ def example() -> None:
 
     fig.show()
 
+    # gear1.geometry.plot_tooth_geometry()
+
+def gearStiffnessExample():
+    gear1 = GearElementTVMS(21, 12, 12, 12, 2e-3, 55, 2e-2, 10.5e-3)
+    computeStiffness = np.vectorize(gear1.stiffness.compute_stiffness)
+
+    angle_range = np.linspace(gear1.geometry.geometryDict['alpha_c'], gear1.geometry.geometryDict['alpha_a'], 200)
+    ka, kb, kf, ks = computeStiffness(angle_range)
+    
+    # Create the figure
+    fig = go.Figure()
+
+    stiffness_dict = {"ka": ka, "kb": kb, "kf": kf, "ks": ks}
+
+    # Add traces for each stiffness component
+    for name, values in stiffness_dict.items():
+        fig.add_trace(go.Scatter(x=angle_range*180/np.pi, y=values, mode='lines', name=name))
+
+    # Customize layout
+    fig.update_layout(
+        title="Stiffness Variation vs. Angle",
+        xaxis_title="Angle (radians or degrees)",  # Adjust accordingly
+        yaxis_title="Stiffness",
+        template="plotly_dark",  # Optional: Choose from 'plotly', 'plotly_dark', etc.
+        legend_title="Stiffness Components",
+        yaxis_tickformat='.2e',
+    )
+
+    # Show plot
+    fig.show()
+
 if __name__ == '__main__':
-    example()
+    gearMeshStiffnessExample()
