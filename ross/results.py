@@ -5909,7 +5909,7 @@ class SensitivityResults(Results):
         """
         if xaxis_type == "log":
             xaxis_range = [
-                np.log10(np.min(frequency_range)),
+                np.log10(np.min(frequency_range)) if np.min(frequency_range) > 0 else 0,
                 np.log10(np.max(frequency_range)),
             ]
         elif xaxis_type == "linear":
@@ -5986,7 +5986,7 @@ class SensitivityResults(Results):
 
         # Build sensitivity plots
         if fig is None:
-            fig = make_subplots(rows=3, cols=1)
+            fig = make_subplots(rows=2, cols=1)
 
         dof_list = []
         if self.number_dof == 4:
@@ -5995,7 +5995,6 @@ class SensitivityResults(Results):
             dof_list = ["x", "y", "z", "α", "β", "θ"]
 
         color_index = 0
-
         for amb_tag in self.sensitivities.keys():
             for axis in self.sensitivities[amb_tag].keys():
                 # Sensor signal
@@ -6028,22 +6027,7 @@ class SensitivityResults(Results):
                     "Excitation signal",
                     2,
                     False,
-                )
-
-                # Disturbed signal
-                disturbed_signal = self.sensitivity_run_time_results[amb_tag][axis][
-                    "disturbed_signal"
-                ]
-                self.build_plot_run_time_results(
-                    disturbed_signal,
-                    fig,
-                    amb_tag,
-                    axis,
-                    color_index,
-                    dof_list,
-                    "Disturbed signal",
-                    3,
-                    False,
+                    30,
                 )
 
                 color_index += 1
@@ -6052,7 +6036,7 @@ class SensitivityResults(Results):
         return fig
 
     def build_plot_run_time_results(
-        self, data, fig, amb_tag, axis, color_index, dof_list, y_label, row, showlegend
+        self, data, fig, amb_tag, axis, color_index, dof_list, y_label, row, showlegend, x_lim_dt=None
     ):
         """Build and add a trace for time-domain results to a Plotly figure.
 
@@ -6094,6 +6078,10 @@ class SensitivityResults(Results):
             Boolean indicating whether to display the legend for this trace.
             Typically True for the first trace of a kind and False for subsequent ones
             in the same group.
+        x_lim_dt : float, optional
+            Define the time limit for the x-axis, that will be equal to x_lim_dt * dt.
+            If not provided, the upper limit in x axis will be equals to the max value of t.
+
 
         Returns
         -------
@@ -6128,9 +6116,10 @@ class SensitivityResults(Results):
             col=1,
         )
 
+        x_max_lim = x_lim_dt * (t[1] - t[0]) if x_lim_dt is not None else np.max(t)
         fig.update_xaxes(
             title_text="Time (s)",
-            range=[np.min(t), np.max(t)],
+            range=[np.min(t), x_max_lim],
             row=row,
             col=1,
         )
