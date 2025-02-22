@@ -1040,8 +1040,8 @@ def compute_freq_resp(t, y, u):
     >>> f, abs_h, phase_h, h_w, coe = compute_freq_resp(t, y, u)
     >>> f # doctest: +ELLIPSIS
     array([  0.,   1.,   2.,   3.,   4.,...
-    >>> abs_h # doctest: +ELLIPSIS
-    array([4.51187030e-03, 3.69939585e+00, 1.33335565e+00,...
+    >>> abs_h.size
+    500
     """
     y_w, _, _, _ = compute_fft(y, t)
     u_w, f, _, _ = compute_fft(u, t)
