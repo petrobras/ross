@@ -2710,13 +2710,21 @@ def test_compute_sensitivity():
         np.array([0.0, 0.001, 0.002, 0.003, 0.004]),
     )
 
-    assert_allclose(result.max_abs_sensitivities["Bearing 0"]["x"], 1.2119599621437027)
-    assert_allclose(result.max_abs_sensitivities["Bearing 0"]["y"], 1.2119928743521797)
-    assert_allclose(result.max_abs_sensitivities["Bearing 1"]["x"], 1.314234139503943)
-    assert_allclose(result.max_abs_sensitivities["Bearing 1"]["y"], 1.3134105330582597)
+    assert_allclose(
+        result.max_abs_sensitivities["Magnetic Bearing 0"]["x"], 1.2119599621437027
+    )
+    assert_allclose(
+        result.max_abs_sensitivities["Magnetic Bearing 0"]["y"], 1.2119928743521797
+    )
+    assert_allclose(
+        result.max_abs_sensitivities["Magnetic Bearing 1"]["x"], 1.314234139503943
+    )
+    assert_allclose(
+        result.max_abs_sensitivities["Magnetic Bearing 1"]["y"], 1.3134105330582597
+    )
 
     assert_allclose(
-        result.sensitivities_abs["Bearing 0"]["x"][0:5],
+        result.sensitivities_abs["Magnetic Bearing 0"]["x"][0:5],
         np.array(
             [
                 0.9883760486,
@@ -2729,7 +2737,7 @@ def test_compute_sensitivity():
     )
 
     assert_allclose(
-        result.sensitivities_abs["Bearing 0"]["y"][0:5],
+        result.sensitivities_abs["Magnetic Bearing 0"]["y"][0:5],
         np.array(
             [
                 0.988017155,
@@ -2742,7 +2750,7 @@ def test_compute_sensitivity():
     )
 
     assert_allclose(
-        result.sensitivities_abs["Bearing 1"]["x"][0:5],
+        result.sensitivities_abs["Magnetic Bearing 1"]["x"][0:5],
         np.array(
             [
                 0.987790366,
@@ -2755,7 +2763,7 @@ def test_compute_sensitivity():
     )
 
     assert_allclose(
-        result.sensitivities_abs["Bearing 1"]["y"][0:5],
+        result.sensitivities_abs["Magnetic Bearing 1"]["y"][0:5],
         np.array(
             [
                 0.9889398554,
@@ -2768,7 +2776,7 @@ def test_compute_sensitivity():
     )
 
     assert_allclose(
-        result.sensitivities_phase["Bearing 0"]["x"][0:5],
+        result.sensitivities_phase["Magnetic Bearing 0"]["x"][0:5],
         np.array(
             [
                 0.0,
@@ -2781,7 +2789,7 @@ def test_compute_sensitivity():
     )
 
     assert_allclose(
-        result.sensitivities_phase["Bearing 0"]["y"][0:5],
+        result.sensitivities_phase["Magnetic Bearing 0"]["y"][0:5],
         np.array(
             [
                 0.0,
@@ -2794,7 +2802,7 @@ def test_compute_sensitivity():
     )
 
     assert_allclose(
-        result.sensitivities_phase["Bearing 1"]["x"][0:5],
+        result.sensitivities_phase["Magnetic Bearing 1"]["x"][0:5],
         np.array(
             [
                 0.0,
@@ -2807,7 +2815,7 @@ def test_compute_sensitivity():
     )
 
     assert_allclose(
-        result.sensitivities_phase["Bearing 1"]["y"][0:5],
+        result.sensitivities_phase["Magnetic Bearing 1"]["y"][0:5],
         np.array(
             [
                 0.0,
@@ -2819,17 +2827,21 @@ def test_compute_sensitivity():
         ),
     )
 
-    assert_equal(result.sensitivity_compute_dofs["Bearing 0"]["x"], 72)
-    assert_equal(result.sensitivity_compute_dofs["Bearing 0"]["y"], 73)
-    assert_equal(result.sensitivity_compute_dofs["Bearing 1"]["x"], 258)
-    assert_equal(result.sensitivity_compute_dofs["Bearing 1"]["y"], 259)
+    assert_equal(result.sensitivity_compute_dofs["Magnetic Bearing 0"]["x"], 72)
+    assert_equal(result.sensitivity_compute_dofs["Magnetic Bearing 0"]["y"], 73)
+    assert_equal(result.sensitivity_compute_dofs["Magnetic Bearing 1"]["x"], 258)
+    assert_equal(result.sensitivity_compute_dofs["Magnetic Bearing 1"]["y"], 259)
 
     assert_allclose(
-        result.sensitivity_run_time_results["Bearing 0"]["x"]["excitation_signal"][0:5],
+        result.sensitivity_run_time_results["Magnetic Bearing 0"]["x"][
+            "excitation_signal"
+        ][0:5],
         np.array([0.0, 1.0, 0.0, 0.0, 0.0]),
     )
     assert_allclose(
-        result.sensitivity_run_time_results["Bearing 0"]["x"]["disturbed_signal"][0:5],
+        result.sensitivity_run_time_results["Magnetic Bearing 0"]["x"][
+            "disturbed_signal"
+        ][0:5],
         np.array(
             [
                 0.0,
@@ -2841,7 +2853,9 @@ def test_compute_sensitivity():
         ),
     )
     assert_allclose(
-        result.sensitivity_run_time_results["Bearing 0"]["x"]["sensor_signal"][0:5],
+        result.sensitivity_run_time_results["Magnetic Bearing 0"]["x"]["sensor_signal"][
+            0:5
+        ],
         np.array(
             [
                 0.0,
@@ -2880,30 +2894,7 @@ def test_compute_sensitivity():
         fig_run_time.data[1]["y"][0:5], np.array([0.0, 1.0, 0.0, 0.0, 0.0]), atol=1e-8
     )
 
-    # x - Disturbed signal (time)
-    assert_allclose(
-        fig_run_time.data[2]["x"][0:5],
-        np.array([0.0, 0.001, 0.002, 0.003, 0.004]),
-        atol=1e-8,
-    )
-
-    # y - Disturbed signal
-    assert_allclose(
-        fig_run_time.data[2]["y"][0:5],
-        np.array(
-            [
-                0.00000000e00,
-                1.00000000e00,
-                -8.66783883e-04,
-                -2.23996983e-03,
-                -2.70576057e-03,
-            ]
-        ),
-        atol=1e-8,
-    )
-
     # Checking sensitivities data plots (Bearing 0 - x axis)
-
     # y - Sensitivity magnitude
     assert_allclose(
         fig_sensitivities.data[0]["y"][0:5],

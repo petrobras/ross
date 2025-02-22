@@ -1904,8 +1904,8 @@ class Rotor(object):
         Running direct method...
 
         >>> # Accessing maximum absolute sensitivities for a specific AMB tag 'Bearing 0'
-        >>> max_sens_bearing_0_x = sensitivity_results.max_abs_sensitivities["Bearing 0"]["x"]
-        >>> max_sens_bearing_0_y = sensitivity_results.max_abs_sensitivities["Bearing 0"]['y']
+        >>> max_sens_bearing_0_x = sensitivity_results.max_abs_sensitivities["Magnetic Bearing 0"]["x"]
+        >>> max_sens_bearing_0_y = sensitivity_results.max_abs_sensitivities["Magnetic Bearing 0"]['y']
 
         >>> # Plotting the sensitivities for all AMBs and axes
         >>> fig = sensitivity_results.plot(frequency_units="Hz", phase_unit="degree", magnitude_scale="decibel", xaxis_type="log")

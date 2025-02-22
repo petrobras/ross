@@ -5678,6 +5678,7 @@ class SensitivityResults(Results):
         .plot()
         .plot_run_time_results()
     """
+
     def __init__(
         self,
         max_abs_sensitivities,
@@ -6036,7 +6037,17 @@ class SensitivityResults(Results):
         return fig
 
     def build_plot_run_time_results(
-        self, data, fig, amb_tag, axis, color_index, dof_list, y_label, row, showlegend, x_lim_dt=None
+        self,
+        data,
+        fig,
+        amb_tag,
+        axis,
+        color_index,
+        dof_list,
+        y_label,
+        row,
+        showlegend,
+        x_lim_dt=None,
     ):
         """Build and add a trace for time-domain results to a Plotly figure.
 
@@ -6167,7 +6178,7 @@ class SensitivityResults(Results):
         >>> loaded_results = rs.SensitivityResults.load(file)
         >>> type(loaded_results)
         <class 'ross.results.SensitivityResults'>
-        >>> loaded_results.max_abs_sensitivities["Bearing 0"]["x"] # doctest: +ELLIPSIS
+        >>> loaded_results.max_abs_sensitivities["Magnetic Bearing 0"]["x"] # doctest: +ELLIPSIS
         1.21195...
         """
         data = toml.load(file)
