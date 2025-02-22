@@ -13,8 +13,8 @@ from plotly import graph_objects as go
 from scipy import interpolate as interpolate
 
 from ross.element import Element
-from ross.fluid_flow import fluid_flow as flow
-from ross.fluid_flow.fluid_flow_coefficients import (
+from ross.bearing import fluid_flow as flow
+from ross.bearing.fluid_flow_coefficients import (
     calculate_stiffness_and_damping_coefficients,
 )
 from ross.units import Q_, check_units
@@ -690,7 +690,7 @@ class BearingElement(Element):
         )
 
         # geometric factors
-        zpos, ypos, ypos_s = position
+        zpos, ypos, ypos_s, yc_pos = position
 
         icon_h = ypos_s - ypos  # bearing icon height
         icon_w = icon_h / 2.0  # bearing icon width
@@ -706,9 +706,8 @@ class BearingElement(Element):
         x_bot = [zpos, zpos, zs0, zs1]
         yl_bot = [ypos, ys0, ys0, ys0]
         yu_bot = [-y for y in yl_bot]
-
-        fig.add_trace(go.Scatter(x=x_bot, y=yl_bot, **default_values))
-        fig.add_trace(go.Scatter(x=x_bot, y=yu_bot, **default_values))
+        fig.add_trace(go.Scatter(x=x_bot, y=np.add(yl_bot, yc_pos), **default_values))
+        fig.add_trace(go.Scatter(x=x_bot, y=np.add(yu_bot, yc_pos), **default_values))
 
         # plot top base
         x_top = [zpos, zpos, zs0, zs1]
@@ -719,24 +718,28 @@ class BearingElement(Element):
             ypos + 0.75 * icon_h,
         ]
         yu_top = [-y for y in yl_top]
-        fig.add_trace(go.Scatter(x=x_top, y=yl_top, **default_values))
-        fig.add_trace(go.Scatter(x=x_top, y=yu_top, **default_values))
+        fig.add_trace(go.Scatter(x=x_top, y=np.add(yl_top, yc_pos), **default_values))
+        fig.add_trace(go.Scatter(x=x_top, y=np.add(yu_top, yc_pos), **default_values))
 
         # plot ground
         if self.n_link is None:
             zl_g = [zs0 - step, zs1 + step]
             yl_g = [yl_top[0], yl_top[0]]
             yu_g = [-y for y in yl_g]
-            fig.add_trace(go.Scatter(x=zl_g, y=yl_g, **default_values))
-            fig.add_trace(go.Scatter(x=zl_g, y=yu_g, **default_values))
+            fig.add_trace(go.Scatter(x=zl_g, y=np.add(yl_g, yc_pos), **default_values))
+            fig.add_trace(go.Scatter(x=zl_g, y=np.add(yu_g, yc_pos), **default_values))
 
             step2 = (zl_g[1] - zl_g[0]) / n
             for i in range(n + 1):
                 zl_g2 = [(zs0 - step) + step2 * (i), (zs0 - step) + step2 * (i + 1)]
                 yl_g2 = [yl_g[0], 1.1 * yl_g[0]]
                 yu_g2 = [-y for y in yl_g2]
-                fig.add_trace(go.Scatter(x=zl_g2, y=yl_g2, **default_values))
-                fig.add_trace(go.Scatter(x=zl_g2, y=yu_g2, **default_values))
+                fig.add_trace(
+                    go.Scatter(x=zl_g2, y=np.add(yl_g2, yc_pos), **default_values)
+                )
+                fig.add_trace(
+                    go.Scatter(x=zl_g2, y=np.add(yu_g2, yc_pos), **default_values)
+                )
 
         # plot spring
         z_spring = np.array([zs0, zs0, zs0, zs0])
@@ -747,22 +750,34 @@ class BearingElement(Element):
             yl_spring = np.insert(yl_spring, i + 2, ys0 + (i + 1) * step)
         yu_spring = [-y for y in yl_spring]
 
-        fig.add_trace(go.Scatter(x=z_spring, y=yl_spring, **default_values))
-        fig.add_trace(go.Scatter(x=z_spring, y=yu_spring, **default_values))
+        fig.add_trace(
+            go.Scatter(x=z_spring, y=np.add(yl_spring, yc_pos), **default_values)
+        )
+        fig.add_trace(
+            go.Scatter(x=z_spring, y=np.add(yu_spring, yc_pos), **default_values)
+        )
 
         # plot damper - base
         z_damper1 = [zs1, zs1]
         yl_damper1 = [ys0, ys0 + 2 * step]
         yu_damper1 = [-y for y in yl_damper1]
-        fig.add_trace(go.Scatter(x=z_damper1, y=yl_damper1, **default_values))
-        fig.add_trace(go.Scatter(x=z_damper1, y=yu_damper1, **default_values))
+        fig.add_trace(
+            go.Scatter(x=z_damper1, y=np.add(yl_damper1, yc_pos), **default_values)
+        )
+        fig.add_trace(
+            go.Scatter(x=z_damper1, y=np.add(yu_damper1, yc_pos), **default_values)
+        )
 
         # plot damper - center
         z_damper2 = [zs1 - 2 * step, zs1 - 2 * step, zs1 + 2 * step, zs1 + 2 * step]
         yl_damper2 = [ys0 + 5 * step, ys0 + 2 * step, ys0 + 2 * step, ys0 + 5 * step]
         yu_damper2 = [-y for y in yl_damper2]
-        fig.add_trace(go.Scatter(x=z_damper2, y=yl_damper2, **default_values))
-        fig.add_trace(go.Scatter(x=z_damper2, y=yu_damper2, **default_values))
+        fig.add_trace(
+            go.Scatter(x=z_damper2, y=np.add(yl_damper2, yc_pos), **default_values)
+        )
+        fig.add_trace(
+            go.Scatter(x=z_damper2, y=np.add(yu_damper2, yc_pos), **default_values)
+        )
 
         # plot damper - top
         z_damper3 = [z_damper2[0], z_damper2[2], zs1, zs1]
@@ -774,8 +789,12 @@ class BearingElement(Element):
         ]
         yu_damper3 = [-y for y in yl_damper3]
 
-        fig.add_trace(go.Scatter(x=z_damper3, y=yl_damper3, **default_values))
-        fig.add_trace(go.Scatter(x=z_damper3, y=yu_damper3, **default_values))
+        fig.add_trace(
+            go.Scatter(x=z_damper3, y=np.add(yl_damper3, yc_pos), **default_values)
+        )
+        fig.add_trace(
+            go.Scatter(x=z_damper3, y=np.add(yu_damper3, yc_pos), **default_values)
+        )
 
         return fig
 

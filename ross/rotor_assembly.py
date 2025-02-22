@@ -147,7 +147,12 @@ class Rotor(object):
         tag=None,
     ):
         self.parameters = {"min_w": min_w, "max_w": max_w, "rated_w": rated_w}
-        self.tag = "Rotor 0" if tag is None else tag
+        isMultiRotor = type(self) not in (Rotor, CoAxialRotor)
+
+        if tag is None:
+            self.tag = "MultiRotor 0" if isMultiRotor else "Rotor 0"
+        else:
+            self.tag = tag
 
         ####################################################
         # Config attributes
@@ -177,8 +182,8 @@ class Rotor(object):
         for i, sh in enumerate(shaft_elements):
             if sh.n is None:
                 sh.n = i
-            if sh.tag is None:
-                sh.tag = "ShaftElement " + str(i)
+            if sh.tag is None or isMultiRotor:
+                sh.tag = sh.get_class_name_prefix(i)
 
         if disk_elements is None:
             disk_elements = []
@@ -188,22 +193,19 @@ class Rotor(object):
             point_mass_elements = []
 
         for i, disk in enumerate(disk_elements):
-            if disk.tag is None:
-                disk.tag = "Disk " + str(i)
+            if disk.tag is None or isMultiRotor:
+                disk.tag = disk.get_class_name_prefix(i)
 
         for i, brg in enumerate(bearing_elements):
             # add n_l and n_r to bearing elements
             brg.n_l = brg.n
             brg.n_r = brg.n
-            if brg.tag is None:
-                if isinstance(brg, SealElement):
-                    brg.tag = "Seal " + str(i)
-                else:
-                    brg.tag = "Bearing " + str(i)
+            if brg.tag is None or isMultiRotor:
+                brg.tag = brg.get_class_name_prefix(i)
 
         for i, p_mass in enumerate(point_mass_elements):
-            if p_mass.tag is None:
-                p_mass.tag = "Point Mass " + str(i)
+            if p_mass.tag is None or isMultiRotor:
+                p_mass.tag = p_mass.get_class_name_prefix(i)
 
         self.shaft_elements = sorted(shaft_elements, key=lambda el: el.n)
         self.bearing_elements = sorted(bearing_elements, key=lambda el: el.n)
@@ -287,6 +289,8 @@ class Rotor(object):
                 nodes_pos_r[i] = nodes_pos_r[i - 1]
             else:
                 nodes_pos_l[i] = nodes_pos_r[i - 1]
+                if isMultiRotor:
+                    self._fix_nodes_pos(i, sh.n, nodes_pos_l)
                 nodes_pos_r[i] = nodes_pos_l[i] + df_shaft.loc[i, "L"]
             axial_cg_pos[i] = sh.beam_cg + nodes_pos_l[i]
             sh.axial_cg_pos = axial_cg_pos[i]
@@ -324,10 +328,16 @@ class Rotor(object):
             raise ValueError("Trying to set disk or bearing outside shaft")
 
         # nodes axial position and diameter
-        nodes_pos = list(df_shaft.groupby("n_l")["nodes_pos_l"].max())
-        nodes_pos.append(df_shaft["nodes_pos_r"].iloc[-1])
-        self.nodes_pos = nodes_pos
-        self.nodes = list(range(len(self.nodes_pos)))
+        self.nodes_pos = list(df_shaft.groupby("n_l")["nodes_pos_l"].max())
+        self.nodes_pos.append(df_shaft["nodes_pos_r"].iloc[-1])
+
+        self.nodes = list(df_shaft.groupby("n_l")["n_l"].max())
+        self.nodes.append(df_shaft["n_r"].iloc[-1])
+
+        self.center_line_pos = [0] * len(self.nodes)
+
+        if isMultiRotor:
+            self._fix_nodes()
 
         nodes_i_d = []
         for n in self.nodes:
@@ -350,7 +360,7 @@ class Rotor(object):
         shaft_elements_length = list(df_shaft.groupby("n_l")["L"].min())
         self.shaft_elements_length = shaft_elements_length
 
-        self.L = nodes_pos[-1]
+        self.L = self.nodes_pos[-1]
 
         if "n_link" in df.columns:
             self.link_nodes = list(df["n_link"].dropna().unique().astype(int))
@@ -367,7 +377,10 @@ class Rotor(object):
             [(sh.m * sh.axial_cg_pos) / self.m for sh in self.shaft_elements]
         )
         CG_dsk = np.sum(
-            [disk.m * nodes_pos[disk.n] / self.m for disk in self.disk_elements]
+            [
+                disk.m * self.nodes_pos[self.nodes.index(disk.n)] / self.m
+                for disk in self.disk_elements
+            ]
         )
         self.CG = CG_sh + CG_dsk
 
@@ -378,8 +391,8 @@ class Rotor(object):
         # number of dofs
         half_ndof = self.number_dof / 2
         self.ndof = int(
-            self.number_dof * (max([el.n for el in shaft_elements]) + 2)
-            + half_ndof * len([el for el in point_mass_elements])
+            self.number_dof * len(self.nodes)
+            + half_ndof * len(self.point_mass_elements)
         )
 
         # global indexes for dofs
@@ -436,9 +449,10 @@ class Rotor(object):
             )
 
         # define positions for disks
-        for disk in disk_elements:
-            z_pos = nodes_pos[disk.n]
-            y_pos = nodes_o_d[disk.n]
+        for disk in self.disk_elements:
+            i = self.nodes.index(disk.n)
+            z_pos = self.nodes_pos[i]
+            y_pos = self.nodes_o_d[i] / 2
             df.loc[df.tag == disk.tag, "nodes_pos_l"] = z_pos
             df.loc[df.tag == disk.tag, "nodes_pos_r"] = z_pos
             df.loc[df.tag == disk.tag, "y_pos"] = y_pos
@@ -493,52 +507,69 @@ class Rotor(object):
         for z_pos in z_positions:
             dfb_z_pos = dfb[dfb.nodes_pos_l == z_pos]
             dfb_z_pos = dfb_z_pos.sort_values(by="n_l")
-            if z_pos == df_shaft["nodes_pos_l"].iloc[0]:
-                y_pos = (
-                    max(
-                        df_shaft["odl"][
-                            df_shaft.n_l == int(dfb_z_pos.iloc[0]["n_l"])
-                        ].values
-                    )
-                    / 2
-                )
-            elif z_pos == df_shaft["nodes_pos_r"].iloc[-1]:
-                y_pos = (
-                    max(
-                        df_shaft["odr"][
-                            df_shaft.n_r == int(dfb_z_pos.iloc[0]["n_r"])
-                        ].values
-                    )
-                    / 2
-                )
-            else:
-                y_pos = (
-                    max(
-                        [
-                            max(
-                                df_shaft["odl"][
-                                    df_shaft._n == int(dfb_z_pos.iloc[0]["n_l"])
-                                ].values
-                            ),
-                            max(
-                                df_shaft["odr"][
-                                    df_shaft._n == int(dfb_z_pos.iloc[0]["n_l"]) - 1
-                                ].values
-                            ),
-                        ]
-                    )
-                    / 2
-                )
-            mean_od = np.mean(nodes_o_d)
+
+            y_pos = 0
+            y_pos_sup = 0
+            mean_od = np.mean(self.nodes_o_d)
             # use a 0.5 factor here based on plot experience for real machines
             scale_size = 0.5 * dfb["scale_factor"] * mean_od
-            y_pos_sup = y_pos + 2 * scale_size
 
-            for t in dfb_z_pos.tag:
-                df.loc[df.tag == t, "y_pos"] = y_pos
-                df.loc[df.tag == t, "y_pos_sup"] = y_pos_sup
-                y_pos += mean_od * df["scale_factor"][df.tag == t].values[0]
-                y_pos_sup += mean_od * df["scale_factor"][df.tag == t].values[0]
+            for i in range(len(dfb_z_pos)):
+                t = dfb_z_pos.iloc[i].tag
+
+                if df.loc[df.tag == t, "n_l"].values[0] in self.link_nodes:
+                    df.loc[df.tag == t, "y_pos"] = (
+                        y_pos + mean_od * df["scale_factor"][df.tag == t].values[0]
+                    )
+                    df.loc[df.tag == t, "y_pos_sup"] = (
+                        y_pos_sup + mean_od * df["scale_factor"][df.tag == t].values[0]
+                    )
+
+                else:
+                    try:
+                        y_pos = (
+                            max(
+                                df_shaft["odl"][
+                                    df_shaft.n_l == int(dfb_z_pos.iloc[i]["n_l"])
+                                ].values
+                            )
+                            / 2
+                        )
+                    except ValueError:
+                        try:
+                            y_pos = (
+                                max(
+                                    df_shaft["odr"][
+                                        df_shaft.n_r == int(dfb_z_pos.iloc[i]["n_r"])
+                                    ].values
+                                )
+                                / 2
+                            )
+                        except ValueError:
+                            y_pos = (
+                                max(
+                                    [
+                                        max(
+                                            df_shaft["odl"][
+                                                df_shaft._n
+                                                == int(dfb_z_pos.iloc[i]["n_l"])
+                                            ].values
+                                        ),
+                                        max(
+                                            df_shaft["odr"][
+                                                df_shaft._n
+                                                == int(dfb_z_pos.iloc[i]["n_l"]) - 1
+                                            ].values
+                                        ),
+                                    ]
+                                )
+                                / 2
+                            )
+
+                    y_pos_sup = y_pos + 2 * scale_size
+
+                    df.loc[df.tag == t, "y_pos"] = y_pos
+                    df.loc[df.tag == t, "y_pos_sup"] = y_pos_sup
 
         # define position for point mass elements
         dfb = df[df.type.isin(classes)]
@@ -758,7 +789,6 @@ class Rotor(object):
 
         Examples
         --------
-
         >>> import ross as rs
         >>> rotor = rs.rotor_example()
         >>> modal = rotor.run_modal(speed=0, sparse=False)
@@ -2751,30 +2781,33 @@ class Rotor(object):
 
         nodes_pos = Q_(self.nodes_pos, "m").to(length_units).m
         nodes_o_d = Q_(self.nodes_o_d, "m").to(length_units).m
+        center_line_pos = Q_(self.center_line_pos, "m").to(length_units).m
 
         fig = go.Figure()
 
         # plot shaft centerline
-        shaft_end = max(nodes_pos)
-        fig.add_trace(
-            go.Scatter(
-                x=[-0.2 * shaft_end, 1.2 * shaft_end],
-                y=[0, 0],
-                mode="lines",
-                opacity=0.7,
-                line=dict(width=3.0, color="black", dash="dashdot"),
-                showlegend=False,
-                hoverinfo="none",
-            )
+        fig.add_shape(
+            x0=0,
+            x1=1,
+            y0=0,
+            y1=0,
+            xref="paper",
+            yref="y",
+            layer="below",
+            opacity=0.7,
+            type="line",
+            line=dict(width=3.0, color="black", dash="dashdot"),
         )
 
         # plot nodes icons
         text = []
         x_pos = []
         y_pos = np.linspace(0, 0, len(nodes_pos[::nodes]))
-        for node, position in enumerate(nodes_pos[::nodes]):
+        for i, position in enumerate(nodes_pos[::nodes]):
+            node = self.nodes[i]
             text.append("{}".format(node * nodes))
             x_pos.append(position)
+            y_pos[i] = center_line_pos[i]
 
         fig.add_trace(
             go.Scatter(
@@ -2795,7 +2828,11 @@ class Rotor(object):
 
         # plot shaft elements
         for sh_elm in self.shaft_elements:
-            position = self.nodes_pos[sh_elm.n]
+            i = self.nodes.index(sh_elm.n)
+            z_pos = self.nodes_pos[i]
+            yc_pos = self.center_line_pos[i]
+
+            position = (z_pos, yc_pos)
             fig = sh_elm._patch(position, check_sld, fig, length_units)
 
         mean_od = np.mean(nodes_o_d)
@@ -2803,9 +2840,12 @@ class Rotor(object):
 
         # calculate scale factor if disks have scale_factor='mass'
         if self.disk_elements:
-            if all([disk.scale_factor == "mass" for disk in self.disk_elements]):
-                max_mass = max([disk.m for disk in self.disk_elements])
-                for disk in self.disk_elements:
+            scaled_disks = [
+                disk for disk in self.disk_elements if disk.scale_factor == "mass"
+            ]
+            if scaled_disks:
+                max_mass = max([disk.m for disk in scaled_disks])
+                for disk in scaled_disks:
                     f = disk.m / max_mass
                     disk._scale_factor_calculated = (1 - f) * 0.5 + f * 1.0
 
@@ -2815,7 +2855,18 @@ class Rotor(object):
                     scale_factor = disk._scale_factor_calculated
                 step = scale_factor * mean_od
 
-                position = (nodes_pos[disk.n], nodes_o_d[disk.n] / 2, step)
+                z_pos = (
+                    Q_(self.df[self.df.tag == disk.tag]["nodes_pos_l"].values[0], "m")
+                    .to(length_units)
+                    .m
+                )
+                y_pos = (
+                    Q_(self.df[self.df.tag == disk.tag]["y_pos"].values[0], "m")
+                    .to(length_units)
+                    .m
+                )
+                yc_pos = center_line_pos[self.nodes.index(disk.n)]
+                position = (z_pos, y_pos, yc_pos, step)
                 fig = disk._patch(position, fig)
 
         # plot bearings
@@ -2835,7 +2886,15 @@ class Rotor(object):
                 .to(length_units)
                 .m
             )
-            position = (z_pos, y_pos, y_pos_sup)
+            node = bearing.n
+            if node in self.link_nodes:
+                linked_bearing = next(
+                    (elm for elm in self.bearing_elements if elm.n_link == node), None
+                )
+                node = linked_bearing.n
+            yc_pos = center_line_pos[self.nodes.index(node)]
+
+            position = (z_pos, y_pos, y_pos_sup, yc_pos)
             bearing._patch(position, fig)
 
         # plot point mass
@@ -2850,18 +2909,26 @@ class Rotor(object):
                 .to(length_units)
                 .m
             )
-            position = (z_pos, y_pos)
+            node = p_mass.n
+            if node in self.link_nodes:
+                linked_bearing = next(
+                    (elm for elm in self.bearing_elements if elm.n_link == node), None
+                )
+                node = linked_bearing.n
+            yc_pos = center_line_pos[self.nodes.index(node)]
+
+            position = (z_pos, y_pos, yc_pos)
             fig = p_mass._patch(position, fig)
 
         fig.update_xaxes(
             title_text=f"Axial location ({length_units})",
-            range=[-0.1 * shaft_end, 1.1 * shaft_end],
             showgrid=False,
             mirror=True,
+            scaleanchor="y",
+            scaleratio=1.5,
         )
         fig.update_yaxes(
             title_text=f"Shaft radius ({length_units})",
-            range=[-0.3 * shaft_end, 0.3 * shaft_end],
             showgrid=False,
             mirror=True,
         )
@@ -4401,6 +4468,7 @@ class CoAxialRotor(Rotor):
 
         self.nodes = list(range(len(self.nodes_pos)))
         self.L = nodes_pos[-1]
+        self.center_line_pos = [0] * len(self.nodes)
 
         # rotor mass can also be calculated with self.M()[::4, ::4].sum()
         self.m_disks = np.sum([disk.m for disk in self.disk_elements])
